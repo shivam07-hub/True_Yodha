@@ -2396,7 +2396,7 @@ class JobsRepository:
     def get_job_skills(self, job_id: str) -> dict[str, Any] | None:
         meta = safe_read(
             self._db.table("jobs")
-            .select("job_id, job_title, company_name")
+            .select("job_id, job_title, company_name, main_skills, side_skills")
             .eq("job_id", job_id)
             .maybe_single(),
             default=None,
@@ -2421,7 +2421,33 @@ class JobsRepository:
             required_level = row.get("required_level") or (4 if is_primary else 2)
             skills.append({"taxonomy_key": key, "is_primary": is_primary, "required_level": required_level})
 
+        # Extension-added jobs never get canonical job_skills rows (the scraper
+        # pipeline writes those). Fall back to the taxonomy-validated main/side
+        # skills the extension stored, so the Tailor match isn't a phantom 0%.
+        if not skills:
+            skills = self._synth_skills_from_text(meta)
+
         return {**meta, "skills": skills}
+
+    @staticmethod
+    def _synth_skills_from_text(meta: dict[str, Any]) -> list[dict[str, Any]]:
+        """Build skill-gap entries from a job's `main_skills`/`side_skills` text
+        arrays (already taxonomy keys, per the importer). Mirrors the default
+        required-levels used for canonical rows (primary 4, secondary 2)."""
+        out: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for is_primary, col in ((True, "main_skills"), (False, "side_skills")):
+            for raw in meta.get(col) or []:
+                key = (raw or "").strip()
+                if not key or key.lower() in seen:
+                    continue
+                seen.add(key.lower())
+                out.append({
+                    "taxonomy_key": key,
+                    "is_primary": is_primary,
+                    "required_level": 4 if is_primary else 2,
+                })
+        return out
 
     def get_user_skill_map(self, user_id: str) -> dict[str, int]:
         result = (

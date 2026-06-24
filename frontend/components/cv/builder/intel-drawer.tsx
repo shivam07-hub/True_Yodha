@@ -87,7 +87,11 @@ export function IntelDrawer({
             <h4>missing from cv · {missing.length}</h4>
             <div className="cvb-kw-chips">
               {missing.length === 0
-                ? <span style={{ fontSize: 11.5, color: "var(--tm-success)" }}>All JD keywords covered.</span>
+                ? matched.length === 0
+                  // No JD skills mapped at all → not "covered", just unknown.
+                  // (Without this guard a 0% match falsely reads as success.)
+                  ? <span style={{ fontSize: 11.5, color: "var(--tm-text-faint)" }}>No JD skills mapped for this job yet.</span>
+                  : <span style={{ fontSize: 11.5, color: "var(--tm-success)" }}>All JD keywords covered.</span>
                 : missing.map(k => (
                   <span key={k.kw} className="cvb-kw-chip miss" title={k.weight ? `weight ${k.weight}` : undefined}>
                     <span className="dot"/>{formatKeywordChipLabel(k.kw)}
