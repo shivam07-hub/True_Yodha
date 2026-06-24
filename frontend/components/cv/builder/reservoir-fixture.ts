@@ -13,44 +13,19 @@
  * Spec: memory/project_cv_experience_reservoir.md (GRILL-LOCKED 2026-06-24).
  */
 
-export type PointSource = "migration" | "gap_session" | "forge" | "manual" | "restructure"
-
-export interface PointVariant {
-  id: string
-  text: string
-  /** Audience the phrasing is tuned for, e.g. "consulting" | "startup". */
-  audience_tags: string[]
-  source: PointSource
-  /** Exactly one variant per point is canonical — the line shown on the CV. */
-  is_canonical: boolean
-}
-
-export interface ReservoirPoint {
-  point_key: string
-  /** Canonical first, then alternates in curation order. */
-  variants: PointVariant[]
-  /** Canonical phrasing states no measurable result (no-fabrication guard mirror). */
-  needs_impact: boolean
-}
-
-export interface ReservoirRole {
-  role_id: string
-  kind: "experience" | "project"
-  /** Role title (experience) or project name. */
-  title: string
-  /** Company for experience; null for a project. */
-  org: string | null
-  dates: string | null
-  points: ReservoirPoint[]
-}
-
-export interface ReservoirView {
-  /** Reverse-chronological — most recent role first. */
-  roles: ReservoirRole[]
-  summary: string | null
-  skills_line: string | null
-  certs: string[]
-}
+// The contract now lives in lib/api.ts (the live GET /cv/reservoir shape); re-exported
+// here so existing importers (reservoir-view) keep a single import site.
+import type {
+  PointSource,
+  ReservoirView,
+} from "@/lib/api"
+export type {
+  PointSource,
+  PointVariant,
+  ReservoirPoint,
+  ReservoirRole,
+  ReservoirView,
+} from "@/lib/api"
 
 // Human-readable provenance shown on a non-migration variant.
 export const SOURCE_LABEL: Record<PointSource, string | null> = {
