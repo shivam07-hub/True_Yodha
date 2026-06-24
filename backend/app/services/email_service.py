@@ -1,7 +1,10 @@
 """Best-effort transactional email via the Resend HTTP API.
 
-Magic-link / auth emails still flow through Supabase SMTP. This module covers
-custom backend-originated sends (currently the Myrology booking notification).
+The single email pathway. Every backend-originated send goes through here:
+Myrology + institutions notify hooks, and the magic-link sign-in email (the
+link is minted by ``auth_links`` and delivered here). Other Supabase Auth
+emails (confirmation, recovery, email-change) ride Supabase's own SMTP, which
+is pointed at the same Resend account.
 
 Design: a send must NEVER be load-bearing for the action that triggered it. A
 missing key or a failed POST logs a structured warning and returns False — the
