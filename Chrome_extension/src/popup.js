@@ -270,7 +270,13 @@ async function saveCurrentJob() {
       ? { title: state.roleName, job_id: "preview" }
       : await saveImport(state.config.apiUrl, state.config.token, state)
     elements.savedTitle.textContent = saved.title || state.roleName
-    elements.trackerLink.href = `${frontendBaseUrl(state.config.apiUrl)}/tracker`
+    // Deep-link straight to this job's Tailor-CV view — the strongest next step
+    // ("saved → tailor now"). Falls back to the tracker list if the save somehow
+    // returned no job_id.
+    const web = frontendBaseUrl(state.config.apiUrl)
+    const hasId = saved.job_id && saved.job_id !== "preview"
+    elements.trackerLink.href = hasId ? `${web}/cv?jobId=${encodeURIComponent(saved.job_id)}` : `${web}/cv`
+    elements.trackerLink.textContent = hasId ? "Tailor your CV" : "Open tracker"
     setStatus("Saved")
     setView("saved")
   } catch (error) {
