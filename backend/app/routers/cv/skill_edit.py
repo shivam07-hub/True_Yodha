@@ -16,6 +16,7 @@ Flow:
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from collections.abc import AsyncIterator
 
@@ -32,6 +33,8 @@ from app.repositories.cv import (
 from app.repositories.scores import ScoresRepository, get_token_scores_repository
 from app.services import background, cv_compose, cv_rewrite, cv_skill_edit, progress_stream
 from app.services.llm_provider import get_llm_provider
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
