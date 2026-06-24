@@ -204,7 +204,7 @@ def build_imported_job(user_id: str, body: Any) -> dict[str, Any]:
         "job_id": job_id,
         "job_title": body.role_name.strip(),
         "company_name": body.company_name,
-        "industry": None,
+        "industry": "unknown",
         "location": body.location,
         "apply_url": body.source_url,
         "source_url": body.source_url,

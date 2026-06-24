@@ -1,23 +1,37 @@
 /**
- * /cv/reservoir — Experience Reservoir inventory (v2 Phase 1, SHADOW).
+ * /cv/reservoir — Experience Reservoir inventory (v2).
  *
- * Renders the curatable career-inventory view against RESERVOIR_FIXTURE. No live
- * data yet (the cv_points read endpoint is a later phase) — this route exists so the
- * design is reviewable in the real app shell. Swapping to the live endpoint later
- * only changes ReservoirView's `data` source.
+ * Fetches the live inventory from GET /cv/reservoir (roles → points → phrasing
+ * variants). Falls back to RESERVOIR_FIXTURE while loading / unauthenticated so the
+ * route always renders something to look at. The `key` flips fixture→live so the
+ * view re-seeds its local curation state when real data arrives.
  *
- * Spec: memory/project_cv_experience_reservoir.md (GRILL-LOCKED 2026-06-24).
+ * Inventory-side curation (promote/delete) is local-state for now; the reservoir is
+ * populated by the gap-accept dual-write, and a PATCH /cv/reservoir for in-place
+ * curation is a later phase. Spec: project_cv_experience_reservoir.md.
  */
 "use client"
 
+import { useQuery } from "@tanstack/react-query"
+import { cv as cvApi } from "@/lib/api"
+import { useAuth } from "@/lib/hooks/use-auth"
 import { ReservoirView } from "@/components/cv/builder/reservoir-view"
+import { RESERVOIR_FIXTURE } from "@/components/cv/builder/reservoir-fixture"
 import "../cv-fonts.css"
 import "../cv-builder.css"
 
 export default function ReservoirPage() {
+  const { token, ready } = useAuth()
+  const query = useQuery({
+    queryKey: ["cv", "reservoir"],
+    queryFn: () => cvApi.reservoir(token!),
+    enabled: !!ready && !!token,
+  })
+
+  const data = query.data ?? RESERVOIR_FIXTURE
   return (
     <div className="cvb-scope">
-      <ReservoirView />
+      <ReservoirView key={query.data ? "live" : "fixture"} data={data} />
     </div>
   )
 }

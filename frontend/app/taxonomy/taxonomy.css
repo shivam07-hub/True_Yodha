@@ -539,6 +539,114 @@
   opacity: 0.88;
 }
 
+/* ── In-demand lead ─────────────────────────────────────────────────────── */
+
+.tx-lead {
+  margin-bottom: 36px;
+  padding: 20px;
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius-lg);
+}
+
+.tx-lead-header {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-bottom: 16px;
+}
+
+.tx-lead-title {
+  margin: 0;
+  font-family: var(--tm-font-display);
+  font-size: var(--tm-fs-heading);
+  font-weight: 700;
+  color: var(--tm-text);
+}
+
+.tx-lead-sub {
+  font-size: var(--tm-fs-caption);
+  font-family: var(--tm-font-mono);
+  color: var(--tm-text-faint);
+}
+
+/* ── Demand badge (reuses tier tokens — one demand vocabulary) ───────────── */
+
+.tx-skill-chip--demand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tx-demand-badge {
+  font-family: var(--tm-font-mono);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: var(--tm-radius-pill);
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.tx-demand-badge--strong {
+  background: var(--tm-tier-strong-bg);
+  border-color: var(--tm-tier-strong-border);
+  color: var(--tm-tier-strong-fg);
+}
+
+.tx-demand-badge--building {
+  background: var(--tm-tier-building-bg);
+  border-color: var(--tm-tier-building-border);
+  color: var(--tm-tier-building-fg);
+}
+
+.tx-demand-badge--gap {
+  background: var(--tm-tier-gap-bg);
+  border-color: var(--tm-tier-gap-border);
+  color: var(--tm-tier-gap-fg);
+}
+
+/* ── Indexing micro-state ───────────────────────────────────────────────── */
+
+.tx-indexing {
+  color: var(--tm-text-faint);
+  font-family: var(--tm-font-sans);
+}
+
+.tx-indexing--block {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 0;
+  font-size: var(--tm-fs-caption);
+}
+
+.tx-spinner-sm {
+  width: 13px;
+  height: 13px;
+  border-width: 2px;
+}
+
+/* ── Skeletons (real-shape, float over <TealField>) ─────────────────────── */
+
+.tx-skeleton-stats { gap: 0 28px; }
+
+.tx-skeleton-line,
+.tx-skeleton-chip,
+.tx-skeleton-card {
+  background: var(--tm-surface-2);
+  border-radius: var(--tm-radius);
+  animation: tx-skel-pulse 1.4s ease-in-out infinite;
+}
+
+.tx-skeleton-line { height: 16px; display: inline-block; }
+.tx-skeleton-chip { width: 84px; height: 26px; border-radius: var(--tm-radius-pill); }
+.tx-skeleton-card { min-height: 78px; border-color: transparent; }
+
+@keyframes tx-skel-pulse { 0%, 100% { opacity: 0.55 } 50% { opacity: 0.9 } }
+
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 
 @media (max-width: 640px) {

@@ -234,6 +234,24 @@ def _append_openrouter_tiers(
             providers.append((or_client, tier[0], {"models": tier}))
 
 
+def _append_fast_direct(providers: list[_ProviderEntry]) -> None:
+    """Prepend the low-latency direct lane: Groq llama-3.3-70b (~1.5s) → Gemini
+    flash-lite. Both are single-hop calls — no OpenRouter routing, no free-tier
+    rate-limit retries. The shared spine of every user-blocking provider."""
+    if settings.groq_api_key:
+        providers.append((
+            AsyncOpenAI(api_key=settings.groq_api_key, base_url=_GROQ_BASE),
+            GROQ_FALLBACK_MODEL,
+            None,
+        ))
+    if settings.google_api_key:
+        providers.append((
+            AsyncOpenAI(api_key=settings.google_api_key, base_url=_GEMINI_BASE),
+            "gemini-2.0-flash-lite",
+            None,
+        ))
+
+
 def _build_provider(or_tiers: list[list[str]]) -> LLMProvider:
     providers: list[_ProviderEntry] = []
     _append_openrouter_tiers(providers, or_tiers)
@@ -257,28 +275,24 @@ def get_llm_provider() -> LLMProvider:
     return _build_provider(OR_TIERS)
 
 
-def get_cv_upload_provider() -> LLMProvider:
-    """Fast direct providers first for the user-blocking CV upload path.
+def get_interactive_provider() -> LLMProvider:
+    """Fast lane for any call a user is actively waiting on (a modal/spinner).
 
-    Groq/Gemini are direct, low-latency calls. OpenRouter paid tiers remain as a
-    backstop, while free OR tiers stay excluded so free-tier exhaustion never
-    blocks the most critical onboarding action.
+    Groq llama-3.3-70b (~1.5s) → Gemini flash-lite → paid OpenRouter backstop.
+    The free OR tiers are skipped entirely: their rate-limit retries + ladder
+    walk are the multi-second latency the user feels. Free background / fire-and-
+    forget calls keep the full free-first chain via `get_llm_provider()`.
     """
     providers: list[_ProviderEntry] = []
-    if settings.groq_api_key:
-        providers.append((
-            AsyncOpenAI(api_key=settings.groq_api_key, base_url=_GROQ_BASE),
-            GROQ_FALLBACK_MODEL,
-            None,
-        ))
-    if settings.google_api_key:
-        providers.append((
-            AsyncOpenAI(api_key=settings.google_api_key, base_url=_GEMINI_BASE),
-            "gemini-2.0-flash-lite",
-            None,
-        ))
+    _append_fast_direct(providers)
     _append_openrouter_tiers(providers, OR_TIERS[FREE_OR_TIER_COUNT:])
     return LLMProvider(providers)
+
+
+def get_cv_upload_provider() -> LLMProvider:
+    """User-blocking CV upload path. Same fast lane as every interactive call —
+    free OR tiers stay excluded so free-tier exhaustion never blocks onboarding."""
+    return get_interactive_provider()
 
 
 def get_paid_jobs_provider() -> LLMProvider:
@@ -293,18 +307,7 @@ def get_paid_jobs_provider() -> LLMProvider:
     fallback chain via `get_llm_provider()` — no user is blocked on it.
     """
     providers: list[_ProviderEntry] = []
-    if settings.groq_api_key:
-        providers.append((
-            AsyncOpenAI(api_key=settings.groq_api_key, base_url=_GROQ_BASE),
-            GROQ_FALLBACK_MODEL,
-            None,
-        ))
-    if settings.google_api_key:
-        providers.append((
-            AsyncOpenAI(api_key=settings.google_api_key, base_url=_GEMINI_BASE),
-            "gemini-2.0-flash-lite",
-            None,
-        ))
+    _append_fast_direct(providers)
     if not providers:
         # No fast-lane creds — fall back to standard chain so the feature still works.
         return _build_provider(OR_TIERS)

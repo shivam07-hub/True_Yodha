@@ -517,6 +517,34 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-06-24b · Beta deploy-confirm + T1-5 apply fallback — committed Develop, NOT pushed)
+
+Short session. Confirmed two deploy claims, then built the next open beta item.
+
+- **Deploy gate CONFIRMED (Supabase MCP + openapi):** `/cv/upload/finalize` (BUG-2) live on **both** prod + dev; `cv-uploads` bucket + `user_job_matches.missing_skills` (T3-1) column exist. So BUG-2 + the T3-1/T2-3 backend are live — T2-3 `score_delta`/`domain` + T3-1 `missing_skills` light up after the next score/match recompute.
+- **T1-5 BUILT (`fe158e8`).** "Apply dead-anchor" was actually a dead-**END**: market (`job-detail-drawer.tsx`) + dashboard (`job-drawer.tsx`) job-detail drawers gated `source_url ? <a Apply ↗> : null` → a job with NO scraped source URL rendered no apply path at all. Fix = fall back to the canonical `<ApplyRow>` (careers Google-search + copy Job ID/title) already used by HeroCard + cv-export. Philosophy-resolved (reuse canonical, root-cause, design-over-words), no grill. tsc 0 / lint 0. Committed my 2 files only; left foreign `landing-copy.ts` untouched.
+- **`9986837`** = CLAUDE.md T2-3 ledger close (the 2026-06-24 entry below).
+
+**⚠️ NOT PUSHED.** Two commits sit on local `Develop`: `fe158e8` (T1-5) + `9986837` + this CLAUDE.md entry. Push needs Shivam OK.
+
+**NEXT SESSION — start here:**
+1. **Push** local Develop (`fe158e8`, `9986837`, + this CLAUDE.md commit) if approved.
+2. **Browser QA owed** (needs authed preview session, light+dark+375px): T2-3 ring→breakdown panel (/forge Audit) + "+N pts" chip (/home); T1-5 apply fallback (force a null-`source_url` job → expect ApplyRow careers/copy, not a missing button).
+3. **Repro-gated beta items** — bring a screenshot/steps for: **T1-2** scanned-PDF upload copy (may be CVUP4 guard working as-designed); **T1-4** feedback hub "failed to fetch". Can't progress without a live repro.
+4. **PR-F** — `/skills` (now `/forge`) at 375px real-device QA: sticky Intel/Map/Audit pill overlap + icon-only action buttons <480px (SE14).
+5. Backend deploy (dev+prod) of the T2-3/T3-1 commits if not yet done, then trigger a recompute so the deltas/missing-skills appear.
+
+Beta ledger after this session: T2-1/2/3/4/5 + T3-1 + BUG-2 + T1-5 = CLOSED. Open = T1-2, T1-4 (repro-gated), PR-F (QA). Memory: `project_beta_feedback_t3_match_rationale`.
+
+## LAST SESSION SUMMARY (2026-06-24 · Beta T2-3 — "understand my score" — both halves built + pushed Develop `0aaa88a`+`80ad4f3`)
+
+Closed beta item **T2-3** (relevance/score-comprehension feedback). Two halves, both committed (my files only; tree was clean at start — gap-session work already committed):
+
+- **Part B — quantified point-gain (`0aaa88a`).** Honest **"+N pts"** chip on the rank-1 skill move in "Your next 3 steps" (`NextBestSteps`). The number is the engine, not an estimate: new `project_total_with_skill_bump` (`scoring/formulas.py`) clones the skill map, bumps the gap one level, re-runs cluster→domain→mirror; `orchestrator` annotates each gap with `score_delta`. Floored at 0, suppressed below 1pt (no fabricated/tiny gain). Selection still ranks by market demand (#146) — delta INFORMS, doesn't make it a score-gaming optimizer.
+- **Part A — PERSONAL score breakdown (`80ad4f3`).** Shivam reframe: the ring's existing `/docs#scoring` link is the *textbook*; users want "why is MY 42, how do I move it." Grilled 3 forks (all recommended): **expand-in-place** · **domain-rows skill-deep-linked** · **empty-domains = honest opportunity tier**. Built credit-score-style (Credit Karma/CIBIL/Whoop): tap ring → in-place panel = demystifier line ("your 46 = average of the N domains your CV proves; M uncounted" → kills the mean-of-evidenced confusion) + domains strongest-first w/ banded 0-100 bars + each domain's biggest REAL lever inline (top gap by `score_delta`, +N, →Practice; no-fab when <1pt) + uncounted-domain tier (honest, no fake +N, →/cv) + "See full method →" /docs behind it. Reads the REAL scoring domains (`domain_scores`+`DOMAIN_LABELS` SD/DE/AML/… — NOT the public-landing 10, which differ). New `lib/score-breakdown.ts` (pure, 6 tests) + `score-breakdown.{tsx,css}`; `ScoreRing` opt-in `onExpand` disclosure (plain /docs link preserved on anon/public); `gap.domain` added. Scoped to /forge Audit (score-intel home w/ radar); home-rail peek unchanged.
+
+**Green:** backend 77 passed · tsc 0 · lint 0 · ui-drift clean · frontend 19 tests (9 new). **Owed (Shivam):** (a) **deploy backend dev+prod** — Part B chip + Part A inline levers are dark until `score_delta`/`domain` ship + a recompute; Part A *decomposition* (rows/bars/empty tier/demystifier) renders NOW from `domain_scores`. (b) browser QA /home chip + /forge-Audit ring→panel, light+dark+375px. Folds into the beta ledger (memory `project_beta_feedback_t3_match_rationale`). T2-3 fully closed.
+
 ## LAST SESSION SUMMARY (2026-06-22 · mobile clip/gate fixes — radar labels + market toolbar + dashboard peek rail — pushed Develop 4d9dc24)
 
 `/frontend-design` + first-principles critique of 5 mobile screenshots → 3 bugs, all one root principle: **a primary track must never be silently clipped, nor sit behind secondary context.** Committed ONLY my 6 files (foreign uncommitted work — cv/builder ApplicationStatus drift, OutcomeSeal, etc. — left in tree untouched).

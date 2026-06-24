@@ -17,7 +17,7 @@ from app.deps import Principal, get_principal
 from app.repositories.cv import CVVersionsRepository, get_token_cv_repository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.services import cv_skill_edit, gap_planner
-from app.services.llm_provider import LLMProviderError, get_llm_provider
+from app.services.llm_provider import LLMProviderError, get_interactive_provider
 
 router = APIRouter()
 
@@ -128,7 +128,12 @@ async def gap_plan(
     if surfaceable and bullets:
         messages = gap_planner.build_classify_messages(surfaceable, bullets)
         try:
-            raw = await get_llm_provider().complete(messages, max_tokens=800)
+            # Interactive fast lane (Groq direct ~1.5s): the user is staring at the
+            # "Mentor is reading your gaps…" spinner. The free OR ladder's
+            # rate-limit retries push this past the client's 15s abort → the
+            # "Couldn't read your gaps" flake. Fail-safe below still covers a total
+            # provider outage (→ every gap classified absent, never fabricated).
+            raw = await get_interactive_provider().complete(messages, max_tokens=800)
         except LLMProviderError:
             raw = None  # fail-safe: parse_classification → all absent (never fabricate)
         classification = gap_planner.parse_classification(

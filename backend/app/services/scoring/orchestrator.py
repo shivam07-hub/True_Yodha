@@ -133,6 +133,9 @@ def _score_math(
             cluster_children, skill_to_cluster, cluster_to_domain,
         )
         gap["score_delta"] = round(max(0.0, projected - total_score), 1)
+        # Domain the gap belongs to — lets the personal score breakdown render
+        # each lever inline under its domain row (T2-3 Part A).
+        gap["domain"] = cluster_to_domain.get(gap.get("taxonomy_l2_cluster", ""), "General")
     rank_tier = compute_rank_tier(total_score)
     skills_assessed = (
         skills_assessed_override if skills_assessed_override is not None else len(skill_level_map)

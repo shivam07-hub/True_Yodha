@@ -832,6 +832,37 @@ export interface GapPlanResponse {
   remaining: number
 }
 
+// Experience Reservoir (v2) — GET /cv/reservoir. The master CV as a curatable
+// inventory: roles → points → phrasing variants (canonical first).
+export type PointSource = "migration" | "gap_session" | "forge" | "manual" | "restructure"
+export interface PointVariant {
+  id: string
+  text: string
+  audience_tags: string[]
+  source: PointSource
+  is_canonical: boolean
+}
+export interface ReservoirPoint {
+  point_key: string
+  variants: PointVariant[]
+  /** Canonical phrasing states no measurable result (no-fabrication guard mirror). */
+  needs_impact: boolean
+}
+export interface ReservoirRole {
+  role_id: string
+  kind: "experience" | "project"
+  title: string
+  org: string | null
+  dates: string | null
+  points: ReservoirPoint[]
+}
+export interface ReservoirView {
+  roles: ReservoirRole[]
+  summary: string | null
+  skills_line: string | null
+  certs: string[]
+}
+
 export const cv = {
   evidence: (token: string) =>
     request<CVEvidenceSummary>("/cv/evidence", {
@@ -974,6 +1005,11 @@ export const cv = {
   gapPlan: (token: string, jobId: string) =>
     request<GapPlanResponse>(`/cv/${jobId}/gap-plan`, {
       method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  // The experience reservoir inventory (v2): roles → points → phrasing variants.
+  reservoir: (token: string) =>
+    request<ReservoirView>("/cv/reservoir", {
       headers: { Authorization: `Bearer ${token}` },
     }),
   // Apply an accepted rewrite — writes a new baseline (mirrors skill-edit).
@@ -1738,6 +1774,8 @@ export interface GapSkill {
   why_it_matters: string
   /** Honest projected Myro Score gain from practising +1 level (T2-3). 0 pre-recompute. */
   score_delta?: number
+  /** Scoring domain code (SD/DE/…) this gap rolls up to — groups levers under their domain row. */
+  domain?: string
 }
 
 export interface ScoreResponse {

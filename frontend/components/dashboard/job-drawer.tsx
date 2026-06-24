@@ -5,6 +5,7 @@ import { Heart, X } from "lucide-react"
 import { DetailDrawer } from "@/components/jobs/detail-drawer"
 import { DetailHeader } from "@/components/jobs/detail-header"
 import { useDeadLinkPrompt } from "@/components/jobs/use-dead-link-prompt"
+import { ApplyRow } from "@/components/jobs/apply-row"
 import { DetailBody } from "./detail-body"
 import { LocationLine } from "./lenses"
 import { otherRolesFor } from "./desktop-grid"
@@ -98,7 +99,9 @@ export function DashboardJobDrawer({
             >
               Apply ↗
             </a>
-          ) : null}
+          ) : (
+            <ApplyRow company={job.company} title={job.title} jobId={item.jobId} variant="compact" />
+          )}
         </div>
       }
     >

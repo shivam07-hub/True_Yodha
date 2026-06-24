@@ -365,6 +365,29 @@ Because both read the same predicate, the badge equals the feed it links to (mod
 - `location_scoped` is opt-in on the demand endpoint so unscoped callers pay nothing.
 - The skill facet matches the canonical skill name against `main_skills` (the back-compat mirror of `job_skills`), case-sensitive on the array-contains; canonical Lightcast names are stored on both sides, so this aligns.
 
+## Taxonomy Read-Model
+
+The public `/taxonomy` page's view of the 35,108-skill Lightcast tree, served as **three tiers** instead of one 4MB blocking fetch. The tiers exist because the page's access pattern is the inverse of its payload: the first paint needs only structure (domains → clusters → counts), the in-demand lead needs ~3,000 skills, and the 35k leaf names matter only on search or deep drill-down.
+
+**Why this exists**
+
+The page shipped as a single `fetch("/data/skill_taxonomy.json")` (4MB / ~825KB gz) gated behind one `Loading 35,108 skills…` spinner — the global-gate-strangling-independent-regions anti-pattern ADR-0011 exists to retire, plus a count-narration its truth-over-comfort rule forbids. 95% of the payload (leaf names) was loaded eagerly for a view that shows none of it until you drill in.
+
+**The three tiers**
+
+- **structure** — `taxonomy_skeleton.json`: domains → clusters → `n` (full leaf count, so the "35,108" hero stays honest). No leaf names. Tiny; blocking but instant.
+- **priority** — `taxonomy_priority.json`: the in-demand set (`{name, domain, cluster, band}`, ~3,000 skills, sorted by demand). Leads the page, powers instant search over what real jobs ask for, and is the **sole demand carrier** — `demandOf(name)` returns a [DemandBand](#scoped-skill-demand) for priority skills, null otherwise (a long-tail chip renders plain; "not in the in-demand set" is the honest signal).
+- **index** — the existing `skill_taxonomy.json`, loaded once in the background on idle after `priority` resolves. Powers full search + long-tail drill-down chips.
+
+**The seam**
+
+A headless engine (`createTaxonomy({ fetch })`, the `field-motion.ts` precedent) owns tier orchestration — load order, the idle-scheduled `index` fetch (fired once), the flat search index, and the demand join — and emits `readiness: { structure, priority, index }` (each `pending | ready | error`) via `subscribe`. A thin `useTaxonomy()` hook is a `useSyncExternalStore` adapter; the page component becomes a pure renderer. The engine is the test surface: tier transitions and "index fetched exactly once" are Node unit tests with a fake fetch, no DOM. Section-readiness (ADR-0011 `SectionGate` + `<TealField mask>`) reads `readiness` directly — each tier paints when its own source resolves, no global gate.
+
+**Boundary**
+
+- The demand `band` reuses market-wide demand (`weighted_demand` from `build_user_skill_demand`) — the same unscoped signal the Skills page reads — never a fresh per-page `jobCount`. The build-time generator is a thin adapter that exports that already-computed signal into `priority.json`.
+- Artifacts are forward-only: regenerated on the weekly scrape, committed, **not** wired into `prebuild` (no build-time DB coupling).
+
 ## Job Intelligence
 
 The deep backend module that owns Feed State, Job Feedback, and Job Pulse.

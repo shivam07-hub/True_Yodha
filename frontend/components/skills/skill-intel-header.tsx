@@ -1,9 +1,12 @@
 "use client"
 
+import { useState } from "react"
 import { ScoreRing } from "@/components/skills/score-ring"
+import { ScoreBreakdown } from "@/components/skills/score-breakdown"
 import { ShareButton } from "@/components/profile/ShareButton"
 import { TargetRoleEditor } from "@/components/target-role/target-role-editor"
 import type { SkillIntelStats } from "@/lib/skill-domains"
+import type { GapSkill } from "@/lib/api"
 
 interface Props {
   totalScore: number | null
@@ -11,6 +14,9 @@ interface Props {
   stats: SkillIntelStats | null
   /** Primary role the score is measured against — editable in place (#145). */
   targetRole?: string | null
+  /** Personal score decomposition (T2-3) — tapping the ring unfolds it in place. */
+  domainScores?: Record<string, number>
+  gapSkills?: GapSkill[]
 }
 
 /**
@@ -20,7 +26,8 @@ interface Props {
  * its own organization (Quick-wins vs Hottest sort, on-CV vs gap grouping), so
  * the header carries no competing filter control.
  */
-export function SkillIntelHeader({ totalScore, ninjaName, stats, targetRole }: Props) {
+export function SkillIntelHeader({ totalScore, ninjaName, stats, targetRole, domainScores, gapSkills }: Props) {
+  const [open, setOpen] = useState(false)
   const shareUrl =
     ninjaName && typeof window !== "undefined"
       ? `${window.location.origin}/profile/${ninjaName}`
@@ -28,16 +35,34 @@ export function SkillIntelHeader({ totalScore, ninjaName, stats, targetRole }: P
         ? `/profile/${ninjaName}`
         : null
 
+  const canExplain = totalScore !== null && totalScore > 0 && !!domainScores && Object.keys(domainScores).length > 0
+
   return (
     <>
       <div className="tm-pv-head">
         <div className="tm-pv-head-id" style={{ minWidth: 0 }}>
-          {totalScore !== null && <ScoreRing score={totalScore} />}
+          {totalScore !== null && (
+            <ScoreRing
+              score={totalScore}
+              onExpand={canExplain ? () => setOpen((o) => !o) : undefined}
+              expanded={open}
+              controls="score-breakdown"
+            />
+          )}
         </div>
         <div className="tm-pv-head-actions">
           {shareUrl && <ShareButton url={shareUrl} ninjaName={ninjaName ?? undefined} score={totalScore} />}
         </div>
       </div>
+
+      {canExplain && open && (
+        <ScoreBreakdown
+          id="score-breakdown"
+          score={totalScore!}
+          domainScores={domainScores!}
+          gapSkills={gapSkills ?? []}
+        />
+      )}
 
       <div className="tm-pv-head-role" style={{ marginTop: 8 }}>
         <TargetRoleEditor role={targetRole} label="Scored for" />
