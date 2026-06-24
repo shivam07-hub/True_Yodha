@@ -281,11 +281,16 @@ async function saveCurrentJob() {
 }
 
 function frontendBaseUrl(apiUrl) {
-  const base = apiUrl.replace(/\/$/, "")
-  // api.himyro.com -> himyro.com (prod); localhost:8000 -> localhost:3000 (dev)
-  if (base.includes("api.himyro.com")) return base.replace("api.himyro.com", "himyro.com")
-  if (base.includes("truemirror.up.railway.app")) return "https://himyro.com"
-  return base.replace(":8000", ":3000")
+  const base = (apiUrl || "").replace(/\/$/, "")
+  // Local dev: API on :8000, web on :3000.
+  if (base.includes("localhost") || base.includes("127.0.0.1")) {
+    return base.replace(":8000", ":3000")
+  }
+  // Any deployed backend host (api.himyro.com, mirror-backend-prod-production
+  // .up.railway.app, truemirror.up.railway.app, …) maps to the canonical web
+  // app. NEVER reuse the API host as a web URL — it has no web routes, so links
+  // like /tracker and /extension/connect 404 against it.
+  return "https://himyro.com"
 }
 
 function showError(error) {
