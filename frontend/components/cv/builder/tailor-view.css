@@ -1,0 +1,118 @@
+/* Tailoring surface (CV journey, first slice). Reuses the --tm-*/cvb-font system.
+   The readiness number is the hero; everything else stays CV-quiet. Words ≤3.
+   Spec: project_cv_endtoend_journey.md. */
+
+.cvb-ts {
+  font-family: var(--cvb-font-sans);
+  color: var(--tm-text);
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 24px 20px 80px;
+  font-feature-settings: "ss01", "cv11";
+}
+.cvb-ts .mono { font-family: var(--cvb-font-mono); }
+.cvb-ts .tabnum { font-variant-numeric: tabular-nums; }
+
+/* ── Head: job + the compounding signal ───────────────────────────────────── */
+.cvb-ts-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
+  flex-wrap: wrap; padding-bottom: 14px; border-bottom: 1px solid var(--tm-border-soft);
+}
+.cvb-ts-job { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+.cvb-ts-job-title { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+.cvb-ts-job-org { font-size: 13px; color: var(--tm-text-muted); }
+.cvb-ts-reused {
+  display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+  font-size: 11px; color: var(--tm-success);
+}
+
+/* ── Anchor: the readiness number is the hero ─────────────────────────────── */
+.cvb-ts-anchor {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 22px 0 6px;
+}
+.cvb-ts-score {
+  display: flex; align-items: baseline; gap: 12px;
+  background: none; border: 0; padding: 4px; margin: -4px; cursor: pointer;
+  color: inherit; border-radius: var(--tm-radius-sm); text-align: left;
+}
+.cvb-ts-num {
+  font-family: var(--cvb-font-mono);
+  font-size: 54px; line-height: 0.9; font-weight: 600; letter-spacing: -0.03em;
+  color: var(--tm-accent-text); font-variant-numeric: tabular-nums;
+}
+.cvb-ts-num-cap {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 600; color: var(--tm-text-muted);
+}
+.cvb-ts-delta {
+  font-family: var(--cvb-font-mono); font-style: normal; font-size: 11px;
+  color: var(--tm-success); font-variant-numeric: tabular-nums;
+}
+.cvb-ts-score:hover .cvb-ts-num-cap { color: var(--tm-text); }
+.cvb-ts-apply {
+  flex-shrink: 0; font-size: 14px; font-weight: 600;
+  color: #fff; background: var(--tm-accent-text); border: 0;
+  padding: 11px 26px; border-radius: var(--tm-radius-sm); cursor: pointer;
+  transition: filter 140ms var(--tm-ease);
+}
+.cvb-ts-apply:hover { filter: brightness(1.06); }
+
+.cvb-ts-scores {
+  display: flex; gap: 18px; padding: 2px 0 4px;
+  font-size: 11px; color: var(--tm-text-faint);
+}
+.cvb-ts-scores b { color: var(--tm-text-muted); font-weight: 600; margin-left: 3px; }
+
+/* ── Fixes: skill + one verb, each moves the number ───────────────────────── */
+.cvb-ts-fixes {
+  display: flex; flex-direction: column; gap: 2px;
+  margin: 16px 0; padding: 6px; border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius-sm); background: var(--tm-surface-sunken, var(--tm-surface));
+}
+.cvb-ts-fix {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 7px 8px;
+}
+.cvb-ts-fix-skill { font-size: 13px; }
+.cvb-ts-fix-lvl { font-size: 10.5px; color: var(--tm-text-faint); }
+.cvb-ts-fix-btn {
+  flex-shrink: 0; font-size: 12px; font-weight: 600; cursor: pointer;
+  padding: 5px 14px; border-radius: var(--tm-radius-pill);
+  border: 1px solid var(--tm-border-soft); background: none; color: var(--tm-text-muted);
+  transition: border-color 140ms var(--tm-ease), color 140ms var(--tm-ease), background 140ms var(--tm-ease);
+}
+.cvb-ts-fix-btn:hover { border-color: var(--tm-int-border, var(--tm-text-faint)); color: var(--tm-text); }
+.cvb-ts-fix-btn.primary { border-color: var(--tm-accent-text); color: var(--tm-accent-text); }
+.cvb-ts-fix-btn.primary:hover { background: var(--tm-accent-text); color: #fff; }
+
+.cvb-ts-clear {
+  display: inline-flex; align-items: center; gap: 6px; margin: 16px 0;
+  font-size: 12.5px; font-weight: 600; color: var(--tm-success);
+}
+
+/* ── Projected CV body: reads as a clean CV ───────────────────────────────── */
+.cvb-ts-cv { margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--tm-border-soft); }
+.cvb-ts-summary { font-size: 13px; line-height: 1.6; color: var(--tm-text); margin: 0 0 18px; }
+.cvb-ts-role { margin-bottom: 16px; }
+.cvb-ts-role-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.cvb-ts-role-title { font-size: 14px; font-weight: 600; }
+.cvb-ts-role-meta { font-size: 11px; color: var(--tm-text-faint); }
+.cvb-ts-points { margin: 6px 0 0; padding: 0; list-style: none; }
+.cvb-ts-point {
+  position: relative; padding-left: 16px; margin-bottom: 5px;
+  font-size: 13px; line-height: 1.55; color: var(--tm-text);
+}
+.cvb-ts-point::before {
+  content: ""; position: absolute; left: 3px; top: 9px;
+  width: 4px; height: 4px; border-radius: 50%; background: var(--tm-text-faint);
+}
+
+/* ── Floor: focus + reduced motion + mobile ───────────────────────────────── */
+.cvb-ts :is(button, a):focus-visible { outline: 2px solid var(--tm-accent-text); outline-offset: 2px; border-radius: 5px; }
+@media (prefers-reduced-motion: reduce) { .cvb-ts * { transition: none !important; } }
+@media (max-width: 560px) {
+  .cvb-ts { padding: 18px 14px 64px; }
+  .cvb-ts-num { font-size: 46px; }
+  .cvb-ts-apply { padding: 11px 20px; }
+}
