@@ -68,6 +68,8 @@ function toPreviewPayload(draft) {
     job_description: draft.jobDescription || "",
     page_title: draft.pageTitle || null,
     capture_method: draft.captureMethod || "visible_page",
+    needs_backstop: draft.needsBackstop ?? false,
+    json_ld: draft.jsonLd || null,
   }
 }
 

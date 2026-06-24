@@ -1,5 +1,5 @@
 import { saveImport, previewImport } from "./api.js"
-import { extractFromDocument, KNOWN_SELECTOR_LIST } from "./extractors.js"
+import { extractFromDocument, KNOWN_SELECTOR_LIST, META_SELECTOR_LIST } from "./extractors.js"
 import { getConfig, saveConfig } from "./storage.js"
 
 const browserPreview = typeof chrome === "undefined" || !chrome.tabs || !chrome.scripting
@@ -202,7 +202,7 @@ async function getActiveSnapshot() {
   const [result] = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
     func: capturePageSnapshot,
-    args: [KNOWN_SELECTOR_LIST],
+    args: [[...KNOWN_SELECTOR_LIST, ...META_SELECTOR_LIST]],
   })
   return result.result
 }
