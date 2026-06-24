@@ -91,3 +91,24 @@ test("singular job count reads 'job', not 'jobs'", () => {
   })
   assert.match(steps[0].detail, /1 recent job\b/)
 })
+
+test("skill step carries the honest projected point-gain (T2-3)", () => {
+  const steps = deriveNextBestSteps({
+    ...FULL,
+    gapSkills: [gap({ skill: "Rust", gap_score: 1, job_count_30d: 5, score_delta: 6.4 })],
+  })
+  assert.equal(steps[0].gain, 6) // rounded whole points
+})
+
+test("a sub-point gain is suppressed, never shown as a misleading chip", () => {
+  const steps = deriveNextBestSteps({
+    ...FULL,
+    gapSkills: [gap({ skill: "Rust", gap_score: 1, job_count_30d: 5, score_delta: 0.4 })],
+  })
+  assert.equal(steps[0].gain, undefined)
+})
+
+test("missing score_delta (pre-recompute) → no gain, no crash", () => {
+  const steps = deriveNextBestSteps(FULL)
+  assert.equal(steps[0].gain, undefined)
+})

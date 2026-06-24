@@ -119,6 +119,18 @@ def _walk_locations(cv_structured: dict[str, Any]) -> list[BulletLocation]:
     return out
 
 
+def surfaceable_bullets(cv_structured: dict[str, Any]) -> list[dict[str, Any]]:
+    """Experience + project bullets the gap session can host a latent skill onto,
+    as plain dicts (section/item_index/bullet_index/text). Summary, skills-line and
+    certs are excluded — a latent *work* skill belongs on a work bullet."""
+    return [
+        {"section": loc.section, "item_index": loc.item_index,
+         "bullet_index": loc.bullet_index, "text": loc.text}
+        for loc in _walk_locations(cv_structured)
+        if loc.section in ("exp_bullet", "proj_bullet")
+    ]
+
+
 def locate_bullet(
     cv_structured: dict[str, Any],
     evidence_text: str,

@@ -2422,6 +2422,54 @@ class JobsRepository:
             if row.get("skills") and row["skills"].get("taxonomy_key")
         }
 
+    def get_gap_skill_context(
+        self, user_id: str, taxonomy_keys: list[str]
+    ) -> dict[str, dict[str, Any]]:
+        """For the gap-plan session: resolve each job-skill key → its display name
+        and the user's PRACTICE-proven level (skill_assessed_level), which the
+        planner uses for the flywheel upgrade offer. Keyed by taxonomy_key.
+
+        Job skills include ones the user has never had on their CV, so we resolve
+        names off the global `skills` table, not `user_skills`.
+        """
+        keys = [k for k in {k.strip() for k in taxonomy_keys} if k]
+        if not keys:
+            return {}
+
+        skill_rows = (
+            self._db.table("skills")
+            .select("id, taxonomy_key, display_name")
+            .in_("taxonomy_key", keys)
+            .execute()
+        ).data or []
+
+        id_to_key: dict[int, str] = {}
+        context: dict[str, dict[str, Any]] = {}
+        for row in skill_rows:
+            key = (row.get("taxonomy_key") or "").strip()
+            sid = row.get("id")
+            if not key or sid is None:
+                continue
+            id_to_key[int(sid)] = key
+            context[key] = {
+                "display_name": (row.get("display_name") or key).strip() or key,
+                "assessed_level": 0,
+            }
+
+        if id_to_key:
+            assessed_rows = (
+                self._db.table("skill_assessed_level")
+                .select("skill_id, assessed_level")
+                .eq("user_id", user_id)
+                .in_("skill_id", list(id_to_key.keys()))
+                .execute()
+            ).data or []
+            for row in assessed_rows:
+                key = id_to_key.get(int(row["skill_id"]))
+                if key:
+                    context[key]["assessed_level"] = int(row.get("assessed_level") or 0)
+
+        return context
 
     def resolve_role_domain_for_clusters(self, clusters: list[str]) -> str | None:
         """Map L2 taxonomy cluster names → best matching jobs.role_domain.

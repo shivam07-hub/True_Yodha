@@ -40,11 +40,14 @@ export function NextBestSteps({ score, steps }: NextBestStepsProps) {
               href={step.href}
               className="nbs-row tm-control-focus"
               data-rank={step.rank}
-              aria-label={`${step.title}. ${step.cta}.`}
+              aria-label={`${step.title}.${step.gain ? ` Adds about ${step.gain} points to your Myro Score.` : ""} ${step.cta}.`}
             >
               <span className="nbs-rank" aria-hidden>{step.rank}</span>
               <span className="nbs-body">
-                <span className="nbs-row-eyebrow">{step.eyebrow}</span>
+                <span className="nbs-row-eyebrow">
+                  {step.eyebrow}
+                  {step.gain ? <span className="nbs-gain" aria-hidden>+{step.gain} pts</span> : null}
+                </span>
                 <span className="nbs-row-title">{step.title}</span>
                 <span className="nbs-row-detail">{step.detail}</span>
               </span>

@@ -109,12 +109,30 @@
 }
 
 .nbs-row-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-family: var(--tm-font-mono);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--tm-text-faint);
+}
+
+/* Honest projected score gain (T2-3). Ties to the score ring via --data-1;
+   only ever rendered on the rank-1 skill move, so it respects accent rationing. */
+.nbs-gain {
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--data-1);
+  background: color-mix(in srgb, var(--data-1) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--data-1) 30%, transparent);
+  border-radius: 999px;
+  padding: 1px 7px;
+  white-space: nowrap;
 }
 
 .nbs-row-title {

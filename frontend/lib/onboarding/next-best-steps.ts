@@ -26,6 +26,12 @@ export interface NextBestStep {
   detail: string
   href: string
   cta: string
+  /**
+   * Honest projected Myro Score gain (whole points) for moves whose impact is a
+   * real what-if re-run of the engine — the skill step only. Omitted where the
+   * gain isn't cleanly attributable (job/cv), so we never show a fabricated number.
+   */
+  gain?: number
 }
 
 export interface BestJobInput {
@@ -81,6 +87,7 @@ export function deriveNextBestSteps(input: NextStepsInput): NextBestStep[] {
       gap.job_count_30d > 0
         ? `Wanted in ${gap.job_count_30d} recent ${gap.job_count_30d === 1 ? "job" : "jobs"} · `
         : ""
+    const gain = gap.score_delta && gap.score_delta >= 1 ? Math.round(gap.score_delta) : undefined
     steps.push({
       kind: "skill",
       rank: 1,
@@ -89,6 +96,7 @@ export function deriveNextBestSteps(input: NextStepsInput): NextBestStep[] {
       detail: `${inDemand}level ${gap.current_level} → ${gap.target_level}, your highest-impact lift.`,
       href: `/forge?skill=${encodeURIComponent(gap.skill)}`,
       cta: "Practice",
+      gain,
     })
   } else if (lo) {
     steps.push({

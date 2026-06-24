@@ -773,6 +773,65 @@ export interface RestructureProposalResponse {
   cost: number               // Myro Coins charged only when the user keeps it
 }
 
+// Gap-driven rewrite session ("Close gaps with Mentor"). The plan endpoint
+// classifies each job-skill gap and returns the honest session: surface a latent
+// skill onto its host bullet, route an absent one to Forge, surface a shallow one
+// ONE level (capped), and the flywheel upgrade when practice out-paced the CV.
+export interface GapSkillRef { skill: string; display_name: string }
+export interface HostBulletCard {
+  order: number
+  section: string
+  item_index: number
+  bullet_index: number
+  bullet_text: string
+  skills: GapSkillRef[]
+}
+export interface GapHostBullet {
+  section: string
+  item_index: number
+  bullet_index: number
+  bullet_text: string
+}
+export interface BelowLevelCard {
+  order: number
+  skill: string
+  display_name: string
+  current_level: number
+  required_level: number
+  surface_to: number
+  is_primary: boolean
+  // Located host bullet when the skill's evidence can be surfaced one notch;
+  // null → practice-only (earn the level in Forge, flywheel surfaces it later).
+  host: GapHostBullet | null
+}
+export interface AbsentSkill {
+  skill: string
+  display_name: string
+  is_primary: boolean
+  required_level: number
+}
+export interface UpgradeOffer {
+  skill: string
+  display_name: string
+  from_level: number
+  to_level: number
+  // Located host bullet when CV evidence exists → claim it one-tap in the closing
+  // panel; null → no evidence on the CV yet, the offer routes to practice instead.
+  host: GapHostBullet | null
+}
+export interface GapPlanResponse {
+  job_id: string
+  job_title: string
+  company: string | null
+  host_bullet_cards: HostBulletCard[]
+  below_level_cards: BelowLevelCard[]
+  absent_skills: AbsentSkill[]
+  upgrade_offers: UpgradeOffer[]
+  total_actionable: number
+  shown: number
+  remaining: number
+}
+
 export const cv = {
   evidence: (token: string) =>
     request<CVEvidenceSummary>("/cv/evidence", {
@@ -909,6 +968,13 @@ export const cv = {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(body),
+    }),
+  // Plan the gap-driven session for a job: classify each gap → cards. Stateless,
+  // free, writes nothing; accepts go through rewriteBullet/rewriteApply above.
+  gapPlan: (token: string, jobId: string) =>
+    request<GapPlanResponse>(`/cv/${jobId}/gap-plan`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
     }),
   // Apply an accepted rewrite — writes a new baseline (mirrors skill-edit).
   rewriteApply: (
@@ -1670,6 +1736,8 @@ export interface GapSkill {
   gap_score: number
   job_count_30d: number
   why_it_matters: string
+  /** Honest projected Myro Score gain from practising +1 level (T2-3). 0 pre-recompute. */
+  score_delta?: number
 }
 
 export interface ScoreResponse {
