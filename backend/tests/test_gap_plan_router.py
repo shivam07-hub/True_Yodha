@@ -105,7 +105,7 @@ def test_happy_path_fans_gap_types(monkeypatch):
         {"skill": "sprint_planning", "verdict": "latent", "host_bullet": 0},
         {"skill": "content_dev", "verdict": "absent", "host_bullet": None},
     ]})
-    monkeypatch.setattr(gap_plan_module, "get_llm_provider", lambda: _FakeProvider(reply))
+    monkeypatch.setattr(gap_plan_module, "get_interactive_provider", lambda: _FakeProvider(reply))
 
     resp = TestClient(app).post("/cv/job1/gap-plan")
     assert resp.status_code == 200
