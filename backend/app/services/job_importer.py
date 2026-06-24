@@ -5,6 +5,8 @@ import re
 from datetime import date
 from typing import Any
 
+from supabase import Client
+
 from app.schemas.jobs import APPLICATION_STATUSES
 from app.services.taxonomy_loader import get_all_skills
 
