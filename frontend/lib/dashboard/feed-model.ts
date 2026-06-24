@@ -17,23 +17,36 @@ export interface FeedItem {
   job: JobMatch
 }
 
-/** A saved / self-discovered job has no JobMatch — synthesise a minimal one so it
- *  still renders through the same card. Mirrors JobIndex.synthMatch. */
+/** A saved / self-discovered job has no JobMatch — synthesise one from the
+ *  list-endpoint's first-class card fields so a tracked job renders the SAME
+ *  FeedCard (skill chips / location / meta) as a Myro match, not an empty body.
+ *  Mirrors JobIndex.synthMatch. */
 export function synthMatch(app: ApplicationResponse): JobMatch {
   return {
     id: app.id,
     job_id: app.job_id,
     title: app.title,
     company: app.company,
-    location: null,
-    remote: false,
+    location: app.location ?? null,
+    location_city: app.location_city ?? null,
+    location_country: app.location_country ?? null,
+    location_mode: app.location_mode ?? null,
+    locations: app.locations ?? [],
+    remote: app.location_mode === "remote" || app.work_mode === "remote",
     overlap_score: 0,
     llm_rank: null,
     llm_explanation: null,
     batch_week: "",
-    source_url: null,
-    matched_skills: [],
+    source_url: app.source_url ?? null,
+    matched_skills: app.matched_skills ?? [],
+    missing_skills: app.missing_skills ?? [],
+    job_summary: app.job_summary ?? null,
     job_description: app.job_description ?? null,
+    date_posted: app.date_posted ?? null,
+    seniority_level: app.seniority_level ?? null,
+    work_mode: app.work_mode ?? null,
+    min_years_experience: app.min_years_experience ?? null,
+    max_years_experience: app.max_years_experience ?? null,
   }
 }
 

@@ -2059,6 +2059,23 @@ export interface ApplicationResponse {
   cv_badge?: CVBadge | null
   coins_earned?: number | null
   coin_balance?: number | null
+  // First-class card data (list endpoint) — a tracked job renders the full
+  // FeedCard via synthMatch, not an empty body.
+  skills?: string[]
+  matched_skills?: string[]
+  missing_skills?: string[]
+  location?: string | null
+  location_city?: string | null
+  location_country?: string | null
+  location_mode?: "onsite" | "hybrid" | "remote" | "unknown" | null
+  locations?: string[]
+  job_summary?: string | null
+  source_url?: string | null
+  date_posted?: string | null
+  seniority_level?: string | null
+  work_mode?: string | null
+  min_years_experience?: number | null
+  max_years_experience?: number | null
 }
 
 export interface JobFileExtract {

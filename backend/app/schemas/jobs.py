@@ -279,6 +279,26 @@ class ApplicationResponse(BaseModel):
     last_stage_changed_at: datetime | None = None  # Q7 — stale-clock signal
     is_first_offer: bool = False                    # Q6 — set true on the first-ever offer per user (transient)
     cv_badge: CVBadge | None = None                 # CV3/CV4 — Company CV Thread head for this row's company
+    # First-class card data: a tracked job (incl. extension-added) renders the
+    # SAME FeedCard as a Myro match. These project the joined `jobs` row + the
+    # CV-vs-job skill split so the dashboard card shows chips/location/meta
+    # instead of an empty body. Populated by the list endpoint; default-empty
+    # elsewhere (import/status responses don't drive the card — the list refetch does).
+    skills: list[str] = []
+    matched_skills: list[str] = []
+    missing_skills: list[str] = []
+    location: str | None = None
+    location_city: str | None = None
+    location_country: str | None = None
+    location_mode: str | None = None
+    locations: list[str] = []
+    job_summary: str | None = None
+    source_url: str | None = None
+    date_posted: str | None = None
+    seniority_level: str | None = None
+    work_mode: str | None = None
+    min_years_experience: int | None = None
+    max_years_experience: int | None = None
     coins_earned: int | None = None                    # +XP granted on this add (transient — only set by POST /import)
     xp_balance: int | None = None                   # wallet balance after the reward (transient)
 
