@@ -13,6 +13,7 @@ class _FakeJobsRepository:
     def __init__(self) -> None:
         self.deleted: list[tuple[str, str, str]] = []
         self.applications_rows: list[dict[str, Any]] = []
+        self.skill_keys: set[str] = set()
 
     def delete_tracker_rows(self, user_id: str, job_id: str) -> None:
         self.deleted.append(("job_applications", user_id, job_id))
@@ -21,6 +22,10 @@ class _FakeJobsRepository:
     def get_user_applications(self, user_id: str) -> list[dict[str, Any]]:
         assert user_id == "user-123"
         return self.applications_rows
+
+    def user_skill_keys(self, user_id: str) -> set[str]:
+        assert user_id == "user-123"
+        return self.skill_keys
 
 
 class _FakeCVRepository:
@@ -120,6 +125,40 @@ def test_get_applications_attaches_cv_badge_for_companies_with_thread() -> None:
     # One batched lookup with both distinct companies (order-insensitive).
     assert len(cv_repo.batch_calls) == 1
     assert sorted(cv_repo.batch_calls[0]) == ["Capgemini", "Capgemini", "Microsoft"]
+
+
+def test_get_applications_enriches_card_with_skill_split_and_location() -> None:
+    """An extension-added job renders the full FeedCard: its skills split into
+    ✓matched / ✗missing against the CV, plus location/meta pass-through."""
+    repo = _FakeJobsRepository()
+    repo.skill_keys = {"python (programming language)", "sql"}
+    row = _make_application_row(app_id=7, job_id="ext-1", company="Google")
+    row["jobs"].update({
+        "main_skills": ["Python (Programming Language)", "SQL", "Kubernetes"],
+        "location": "Bengaluru",
+        "location_mode": "hybrid",
+        "seniority_level": "Senior",
+    })
+    repo.applications_rows = [row]
+
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="user-123", email=None, token="token-123")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    app.dependency_overrides[get_token_cv_repository] = lambda: _FakeCVRepository(latest={})
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/jobs/applications")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    card = response.json()[0]
+    assert card["matched_skills"] == ["Python (Programming Language)", "SQL"]
+    assert card["missing_skills"] == ["Kubernetes"]
+    assert card["skills"] == ["Python (Programming Language)", "SQL", "Kubernetes"]
+    assert card["location"] == "Bengaluru"
+    assert card["location_mode"] == "hybrid"
+    assert card["seniority_level"] == "Senior"
 
 
 def test_get_applications_returns_empty_badges_when_no_thread_data() -> None:

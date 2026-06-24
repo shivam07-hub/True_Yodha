@@ -2257,14 +2257,26 @@ class JobsRepository:
 
     def get_user_applications(self, user_id: str) -> list[dict[str, Any]]:
         # NOTE: join on `jobs` requires RLS to allow `authenticated` reads on public.jobs.
+        # Pull the card-render columns so a tracked job renders the full FeedCard
+        # (chips/location/meta), not just title/company. Mirrors the match-stack join.
         result = (
             self._db.table("job_applications")
-            .select("*, jobs(job_title, company_name, job_description)")
+            .select(
+                "*, jobs(job_title, company_name, job_description, main_skills, "
+                "job_summary, apply_url, location, location_raw, location_city, "
+                "location_country, location_mode, location_quality, locations, "
+                "date_posted, seniority_level, work_mode, "
+                "min_years_experience, max_years_experience)"
+            )
             .eq("user_id", user_id)
             .order("created_at", desc=True)
             .execute()
         )
-        return result.data or []
+        rows = result.data or []
+        for row in rows:
+            if row.get("jobs"):
+                _hydrate_location_fields(row["jobs"])
+        return rows
 
     def upsert_application(
         self, user_id: str, job_id: str, updates: dict[str, Any]

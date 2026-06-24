@@ -77,8 +77,22 @@ def to_job_match(row: dict, batch_week: date) -> JobMatchResponse:
     )
 
 
-def to_application(row: dict, cv_badge: CVBadge | None = None) -> ApplicationResponse:
+def to_application(
+    row: dict,
+    cv_badge: CVBadge | None = None,
+    user_skill_keys: set[str] | None = None,
+) -> ApplicationResponse:
     job = row.get("jobs") or {}
+    # First-class card data. `skills` = the job's skills; `matched`/`missing` split
+    # them against the user's CV (lower-cased display-name keys) so the dashboard
+    # renders ✓/✗ chips. Without keys (import/status responses) the split is empty
+    # but `skills` still flows — the list refetch is what paints the card.
+    skills = [s.strip() for s in (job.get("main_skills") or []) if s and s.strip()]
+    matched: list[str] = []
+    missing: list[str] = []
+    if user_skill_keys is not None:
+        for s in skills:
+            (matched if s.lower() in user_skill_keys else missing).append(s)
     return ApplicationResponse(
         id=row["id"],
         job_id=row["job_id"],
@@ -97,6 +111,21 @@ def to_application(row: dict, cv_badge: CVBadge | None = None) -> ApplicationRes
         created_at=row["created_at"],
         last_stage_changed_at=row.get("last_stage_changed_at"),
         cv_badge=cv_badge,
+        skills=skills,
+        matched_skills=matched,
+        missing_skills=missing,
+        location=job.get("location"),
+        location_city=job.get("location_city"),
+        location_country=job.get("location_country"),
+        location_mode=job.get("location_mode"),
+        locations=[c for c in (job.get("locations") or []) if c and c.strip()],
+        job_summary=job.get("job_summary"),
+        source_url=job.get("apply_url"),
+        date_posted=job.get("date_posted"),
+        seniority_level=job.get("seniority_level"),
+        work_mode=job.get("work_mode"),
+        min_years_experience=job.get("min_years_experience"),
+        max_years_experience=job.get("max_years_experience"),
     )
 
 

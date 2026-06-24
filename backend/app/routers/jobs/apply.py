@@ -54,10 +54,17 @@ def get_applications(
         principal.id,
         [c for c in companies if c],
     )
+    # One CV-skill read powers the ✓/✗ chip split for every tracked card (esp.
+    # extension-added jobs, which carry no precomputed match).
+    skill_keys = repo.user_skill_keys(principal.id)
     out: list[ApplicationResponse] = []
     for row in rows:
         company = (row.get("jobs") or {}).get("company_name")
-        out.append(to_application(row, cv_badge_from_row(latest_by_company.get(company))))
+        out.append(
+            to_application(
+                row, cv_badge_from_row(latest_by_company.get(company)), skill_keys
+            )
+        )
     return out
 
 
