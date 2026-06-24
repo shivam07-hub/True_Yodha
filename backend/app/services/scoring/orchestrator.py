@@ -24,6 +24,7 @@ from app.services.scoring.formulas import (
     compute_cluster_scores,
     compute_domain_scores,
     compute_mirror_score,
+    project_total_with_skill_bump,
 )
 from app.services.scoring.gap import compute_gap_skills, compute_rank_tier
 from app.services.scoring.market import fetch_skill_demand
@@ -122,6 +123,16 @@ def _score_math(
     gap_skills = compute_gap_skills(
         skill_level_map, skill_demand, aspiration_skills, skill_to_cluster,
     )
+    # Honest "what moves score most" — attach the real projected total-score gain
+    # from practising each gap one proficiency level (the actionable next step).
+    # Pure what-if re-run of the engine, never a fabricated number (T2-3).
+    for gap in gap_skills:
+        next_level = min(gap["current_level"] + 1, 5)
+        projected = project_total_with_skill_bump(
+            skill_level_map, gap["taxonomy_key"], next_level,
+            cluster_children, skill_to_cluster, cluster_to_domain,
+        )
+        gap["score_delta"] = round(max(0.0, projected - total_score), 1)
     rank_tier = compute_rank_tier(total_score)
     skills_assessed = (
         skills_assessed_override if skills_assessed_override is not None else len(skill_level_map)

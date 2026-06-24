@@ -18,6 +18,7 @@ from app.services.scoring import (
     compute_mirror_score,
     compute_rank_tier,
     infer_level_from_signals,
+    project_total_with_skill_bump,
 )
 
 # ── Shared taxonomy fixtures ──────────────────────────────────────────────────
@@ -153,6 +154,49 @@ class TestMirrorScore:
         cluster_scores = compute_cluster_scores(level_map, CLUSTER_CHILDREN, SKILL_TO_CLUSTER)
         domain_scores = compute_domain_scores(cluster_scores, CLUSTER_TO_DOMAIN)
         assert compute_mirror_score(domain_scores) == pytest.approx(0.0)
+
+
+# ── What-if point gain (T2-3) ─────────────────────────────────────────────────
+
+class TestScoreDeltaWhatIf:
+    def _total(self, level_map: dict[str, int]) -> float:
+        cluster_scores = compute_cluster_scores(level_map, CLUSTER_CHILDREN, SKILL_TO_CLUSTER)
+        counts = {c: sum(1 for s in level_map if SKILL_TO_CLUSTER.get(s) == c) for c in cluster_scores}
+        return compute_mirror_score(compute_domain_scores(cluster_scores, CLUSTER_TO_DOMAIN, counts))
+
+    def test_bump_matches_real_recompute(self) -> None:
+        # The what-if must equal an actual recompute with the skill raised — it is
+        # the real engine, never an estimate.
+        level_map = {"Django": 1, "SQL": 2}
+        projected = project_total_with_skill_bump(
+            level_map, "Django", 2, CLUSTER_CHILDREN, SKILL_TO_CLUSTER, CLUSTER_TO_DOMAIN,
+        )
+        assert projected == pytest.approx(self._total({"Django": 2, "SQL": 2}))
+
+    def test_raising_a_skill_never_lowers_the_score(self) -> None:
+        level_map = {"Django": 1, "SQL": 2}
+        base = self._total(level_map)
+        projected = project_total_with_skill_bump(
+            level_map, "Django", 2, CLUSTER_CHILDREN, SKILL_TO_CLUSTER, CLUSTER_TO_DOMAIN,
+        )
+        assert projected >= base
+        assert projected > base  # a real cluster lift here moves the number
+
+    def test_does_not_mutate_input_map(self) -> None:
+        level_map = {"Django": 1}
+        project_total_with_skill_bump(
+            level_map, "Django", 4, CLUSTER_CHILDREN, SKILL_TO_CLUSTER, CLUSTER_TO_DOMAIN,
+        )
+        assert level_map == {"Django": 1}
+
+    def test_absent_skill_in_new_domain_adds_evidence(self) -> None:
+        # AWS (Cloud → Engineering) is absent; bumping it 0→3 introduces a new
+        # evidenced domain, which the mean-of-evidenced-domains formula reflects.
+        level_map = {"Django": 3}  # only IT evidenced
+        projected = project_total_with_skill_bump(
+            level_map, "AWS", 3, CLUSTER_CHILDREN, SKILL_TO_CLUSTER, CLUSTER_TO_DOMAIN,
+        )
+        assert projected == pytest.approx(self._total({"Django": 3, "AWS": 3}))
 
 
 # ── Gap Analysis ──────────────────────────────────────────────────────────────

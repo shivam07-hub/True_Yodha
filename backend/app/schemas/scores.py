@@ -10,6 +10,7 @@ class GapSkillResponse(BaseModel):
     gap_score: float        # (5 - current_level) × market_demand_weight
     job_count_30d: int      # how many jobs require this skill
     why_it_matters: str     # LLM-generated explanation
+    score_delta: float = 0.0  # honest projected Myro Score gain from +1 level (T2-3)
 
 
 class MirrorScoreResponse(BaseModel):

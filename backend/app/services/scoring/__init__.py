@@ -22,6 +22,7 @@ from app.services.scoring.formulas import (
     compute_domain_scores,
     compute_mirror_score,
     infer_level_from_signals,
+    project_total_with_skill_bump,
 )
 from app.services.scoring.gap import (
     _RANK_TIERS,
@@ -52,6 +53,7 @@ __all__ = [
     "fetch_skill_demand",
     "infer_level_from_signals",
     "project_score",
+    "project_total_with_skill_bump",
     "recompute_score",
     "record_cv_score",
     "ScoreProjection",

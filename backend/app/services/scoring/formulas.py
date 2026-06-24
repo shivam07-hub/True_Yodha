@@ -161,3 +161,31 @@ def compute_mirror_score(domain_scores: dict[str, float]) -> float:
     if not domain_scores:
         return 0.0
     return round(sum(domain_scores.values()) / len(domain_scores), 1)
+
+
+def project_total_with_skill_bump(
+    skill_level_map: dict[str, int],
+    skill_name: str,
+    new_level: int,
+    cluster_children: dict[str, list[str]],
+    skill_to_cluster: dict[str, str],
+    cluster_to_domain: dict[str, str],
+) -> float:
+    """
+    What-if total Mirror Score if `skill_name` were raised to `new_level`.
+
+    Pure: runs the same cluster→domain→mirror pipeline over a copy of the level
+    map with one skill bumped. Used to attach an honest projected point-gain to
+    each gap skill ("practice this one level → +N pts") — never fabricated, it
+    is the real engine re-run. Adding an absent skill (level 0 → 1) can introduce
+    a new evidenced domain, which the mean-of-evidenced-domains formula reflects.
+    """
+    bumped = dict(skill_level_map)
+    bumped[skill_name] = new_level
+    cluster_scores = compute_cluster_scores(bumped, cluster_children, skill_to_cluster)
+    cluster_skill_counts = {
+        cluster: sum(1 for s in bumped if skill_to_cluster.get(s) == cluster)
+        for cluster in cluster_scores
+    }
+    domain_scores = compute_domain_scores(cluster_scores, cluster_to_domain, cluster_skill_counts)
+    return compute_mirror_score(domain_scores)

@@ -1736,6 +1736,8 @@ export interface GapSkill {
   gap_score: number
   job_count_30d: number
   why_it_matters: string
+  /** Honest projected Myro Score gain from practising +1 level (T2-3). 0 pre-recompute. */
+  score_delta?: number
 }
 
 export interface ScoreResponse {
