@@ -33,6 +33,7 @@ from app.schemas import (
     RefreshResponse,
     SignupRequest,
 )
+from app.services import auth_links, email_service
 from app.services.growth_attribution import record_if_new_signup, record_signup_attribution
 from app.services.user_provisioning import ensure_user_provisioned, set_linkedin_identity
 
@@ -340,17 +341,14 @@ def magic_link_request(
             headers={"Retry-After": str(_MAGIC_LINK_WINDOW_MINUTES * 60)},
         )
 
-    options: dict[str, Any] = {}
-    if body.redirect_to:
-        options["email_redirect_to"] = body.redirect_to
-
     try:
-        get_supabase().auth.sign_in_with_otp({
-            "email": email,
-            "options": options,
-        })
+        link = auth_links.mint_login_link(admin, email=email, redirect_to=body.redirect_to)
+        if not email_service.send_email(
+            to=email, subject="Sign in to Myro", text=_login_email_text(link)
+        ):
+            raise RuntimeError("email dispatch returned False")
     except Exception as exc:
-        _log.warning("Supabase OTP send failed for %s: %s", email, exc)
+        _log.warning("Magic-link send failed for %s: %s", email, exc)
         _record_attempt(admin, email=email, ip=ip, ua=_safe_user_agent(user_agent), outcome="failed")
         # Always return success-shaped response so attackers can't enumerate.
         return MagicLinkResponse(sent=True, message="If that email is reachable, a sign-in link is on its way.")
@@ -359,6 +357,16 @@ def magic_link_request(
     return MagicLinkResponse(
         sent=True,
         message="Check your inbox — your sign-in link arrives in seconds.",
+    )
+
+
+def _login_email_text(link: str) -> str:
+    return (
+        "Sign in to Myro\n\n"
+        "Tap the link below to sign in. It works once and expires shortly.\n\n"
+        f"{link}\n\n"
+        "Didn't request this? Ignore this email — no one can sign in without the link.\n\n"
+        "— Myro"
     )
 
 
