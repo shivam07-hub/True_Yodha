@@ -517,6 +517,15 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-06-24 · Beta T2-3 — "understand my score" — both halves built + pushed Develop `0aaa88a`+`80ad4f3`)
+
+Closed beta item **T2-3** (relevance/score-comprehension feedback). Two halves, both committed (my files only; tree was clean at start — gap-session work already committed):
+
+- **Part B — quantified point-gain (`0aaa88a`).** Honest **"+N pts"** chip on the rank-1 skill move in "Your next 3 steps" (`NextBestSteps`). The number is the engine, not an estimate: new `project_total_with_skill_bump` (`scoring/formulas.py`) clones the skill map, bumps the gap one level, re-runs cluster→domain→mirror; `orchestrator` annotates each gap with `score_delta`. Floored at 0, suppressed below 1pt (no fabricated/tiny gain). Selection still ranks by market demand (#146) — delta INFORMS, doesn't make it a score-gaming optimizer.
+- **Part A — PERSONAL score breakdown (`80ad4f3`).** Shivam reframe: the ring's existing `/docs#scoring` link is the *textbook*; users want "why is MY 42, how do I move it." Grilled 3 forks (all recommended): **expand-in-place** · **domain-rows skill-deep-linked** · **empty-domains = honest opportunity tier**. Built credit-score-style (Credit Karma/CIBIL/Whoop): tap ring → in-place panel = demystifier line ("your 46 = average of the N domains your CV proves; M uncounted" → kills the mean-of-evidenced confusion) + domains strongest-first w/ banded 0-100 bars + each domain's biggest REAL lever inline (top gap by `score_delta`, +N, →Practice; no-fab when <1pt) + uncounted-domain tier (honest, no fake +N, →/cv) + "See full method →" /docs behind it. Reads the REAL scoring domains (`domain_scores`+`DOMAIN_LABELS` SD/DE/AML/… — NOT the public-landing 10, which differ). New `lib/score-breakdown.ts` (pure, 6 tests) + `score-breakdown.{tsx,css}`; `ScoreRing` opt-in `onExpand` disclosure (plain /docs link preserved on anon/public); `gap.domain` added. Scoped to /forge Audit (score-intel home w/ radar); home-rail peek unchanged.
+
+**Green:** backend 77 passed · tsc 0 · lint 0 · ui-drift clean · frontend 19 tests (9 new). **Owed (Shivam):** (a) **deploy backend dev+prod** — Part B chip + Part A inline levers are dark until `score_delta`/`domain` ship + a recompute; Part A *decomposition* (rows/bars/empty tier/demystifier) renders NOW from `domain_scores`. (b) browser QA /home chip + /forge-Audit ring→panel, light+dark+375px. Folds into the beta ledger (memory `project_beta_feedback_t3_match_rationale`). T2-3 fully closed.
+
 ## LAST SESSION SUMMARY (2026-06-22 · mobile clip/gate fixes — radar labels + market toolbar + dashboard peek rail — pushed Develop 4d9dc24)
 
 `/frontend-design` + first-principles critique of 5 mobile screenshots → 3 bugs, all one root principle: **a primary track must never be silently clipped, nor sit behind secondary context.** Committed ONLY my 6 files (foreign uncommitted work — cv/builder ApplicationStatus drift, OutcomeSeal, etc. — left in tree untouched).
