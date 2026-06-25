@@ -13,6 +13,7 @@ import { IntelHero, IntelAuthedHeader } from "./intel/intel-hero"
 import type { JobRowFit } from "./intel/intel-rows"
 import { IntelCommandBar } from "./intel/intel-command-bar"
 import { IntelResults, ResultsTab, ResultCompany, ResultGroup, ResultJob } from "./intel/intel-results"
+import { JobFitDrawer } from "./intel/job-fit-drawer"
 import { CHIP_FILTER, COUNTRY_CHIP_IDS, sparkFor, velocityFor } from "./intel/intel-data"
 import { formatUptime, weekDeltaFromBins } from "./intel/intel-filters"
 import "./intel-pane.css"
@@ -38,6 +39,7 @@ export function IntelPane() {
   const [activeGroup, setActiveGroup] = useState<string | null>(null)
   const [nowMs, setNowMs] = useState(0)
   const [uptime, setUptime] = useState("syncing now")
+  const [fitDrawer, setFitDrawer] = useState<{ job: ResultJob; companyName: string | null } | null>(null)
   const { sort, setSort } = useResultsSort("intel", "velocity")
 
   useJobsRealtime()
@@ -258,6 +260,7 @@ export function IntelPane() {
     for (const f of (fitData?.fits ?? []) as JobFitItem[]) {
       m.set(f.job_id, {
         overlap_score: f.overlap_score,
+        matched_skills: f.matched_skills,
         matched_count: f.matched_count,
         total_skills: f.total_skills,
       })
@@ -352,6 +355,17 @@ export function IntelPane() {
         authed={authed}
         hasCv={hasCv}
         fits={fits}
+        onCheckFit={(job, companyName) => setFitDrawer({ job, companyName })}
+      />
+
+      <JobFitDrawer
+        open={!!fitDrawer}
+        job={fitDrawer?.job ?? null}
+        companyName={fitDrawer?.companyName ?? null}
+        token={token}
+        hasCv={hasCv}
+        fit={fitDrawer ? fits.get(fitDrawer.job.id) ?? null : null}
+        onClose={() => setFitDrawer(null)}
       />
 
       {/* "Open by default" commons + canonical footer are folded into

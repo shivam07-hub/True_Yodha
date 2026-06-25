@@ -298,7 +298,61 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-25 - Backend score-delta closeout)
+## LAST SESSION SUMMARY (2026-06-25 - Public job-fit preview implementation)
+
+Implemented the approved public job-fit preview journey on `Develop`.
+
+- Added stateless `POST /public/jobs/{job_id}/fit-preview` so a logged-out
+  visitor can upload a CV and see role-specific fit without creating an account.
+- Reused anonymous CV parsing, validation, Turnstile/rate-limit behavior, and
+  existing save-on-signup replay data instead of inventing a second upload flow.
+- Wired `/intel` rows into a preview-first fit drawer for logged-out visitors,
+  logged-in users with a CV, and logged-in users who still need to upload.
+- Added API/client intent helpers so "Save + tailor CV" preserves the exact
+  `jobId` through signup/upload and lands on `/cv?jobId=...`.
+- Kept authenticated fit grounded in existing `fit-batch`, save-job, skill-gap,
+  and CV tailoring surfaces.
+- Browser-sanity checked `/intel` locally with frontend + backend dev servers:
+  public rows opened the role-specific fit drawer with CV upload and tailor CTA.
+
+Validation:
+
+- Backend full suite: `853 passed`
+- Focused backend public/fit tests: `18 passed`
+- Frontend TypeScript: clean
+- Frontend lint: clean
+- Frontend public-intel/job-fit intent tests: `6 passed`
+- `git diff --check`: clean
+
+Not touched: unrelated untracked `docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-06-25 - Public job-fit preview design)
+
+Product/design-only Codex session on `Develop`.
+
+- Audited the current public `/intel` fit gate and downstream authenticated
+  surfaces.
+- Confirmed current logged-out row fit click opens auth without preserving
+  `job_id`, while the bottom CTA routes generically to `/cv?upload=1`.
+- Confirmed logged-in fit already uses `POST /jobs/fit-batch`, and authenticated
+  save, skill-gap, Forge, and `/cv?jobId=...` tailoring surfaces already exist.
+- Confirmed anonymous CV scoring and save-on-signup replay already exist, but a
+  true logged-out one-job fit preview still needs a thin stateless bridge because
+  `/jobs/fit-batch` depends on stored authenticated `user_skills`.
+- Agreed on the preview-first contract:
+  `role -> CV evidence -> fit preview -> save role -> tailor CV`.
+- Wrote the approved design spec:
+  `docs/superpowers/specs/2026-06-25-public-job-fit-preview-design.md`.
+
+Validation:
+
+- Design self-review completed.
+- `git diff --check`: clean.
+
+Not touched: implementation code, backend/frontend tests, unrelated untracked
+`docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-06-25 - Backend score-delta closeout)
 
 Backend-only Codex session in isolated branch `codex/backend-score-demand`.
 Main workspace dirty CV/comment work was not touched.

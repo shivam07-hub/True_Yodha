@@ -1046,6 +1046,7 @@
   flex-shrink: 0;
   border: 1px solid transparent;
   white-space: nowrap;
+  cursor: pointer;
 }
 .tm-intel-fit-pill .tm-intel-fit-skills {
   font-size: 10px;
@@ -1074,6 +1075,202 @@
   color: var(--tm-text-faint);
   flex-shrink: 0;
   padding: 3px 6px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.tm-intel-fit-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(10, 10, 12, 0.34);
+  backdrop-filter: blur(2px);
+}
+
+.tm-intel-fit-drawer {
+  width: min(440px, 100vw);
+  height: 100%;
+  background: var(--tm-surface);
+  border-left: 1px solid var(--tm-border);
+  box-shadow: -18px 0 50px rgba(0, 0, 0, 0.18);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow-y: auto;
+  position: relative;
+}
+
+.tm-intel-fit-drawer-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--tm-border-soft);
+  background: transparent;
+  color: var(--tm-text-muted);
+  cursor: pointer;
+}
+
+.tm-intel-fit-drawer-head {
+  padding-right: 36px;
+}
+
+.tm-intel-fit-drawer-kicker {
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--tm-interactive);
+}
+
+.tm-intel-fit-drawer-head h3 {
+  margin: 8px 0 6px;
+  font-size: 22px;
+  line-height: 1.18;
+  color: var(--tm-text);
+}
+
+.tm-intel-fit-drawer-head p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--tm-text-muted);
+}
+
+.tm-intel-fit-readout,
+.tm-intel-fit-upload-state {
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 10px;
+  padding: 16px;
+  background: var(--tm-bg);
+}
+
+.tm-intel-fit-score {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.tm-intel-fit-score strong {
+  font-size: 38px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.tm-intel-fit-score span,
+.tm-intel-fit-upload-state p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--tm-text-muted);
+}
+
+.tm-intel-fit-readout.is-strong .tm-intel-fit-score strong { color: var(--ok, #22d3a8); }
+.tm-intel-fit-readout.is-building .tm-intel-fit-score strong { color: var(--tm-accent-text); }
+.tm-intel-fit-readout.is-gap .tm-intel-fit-score strong { color: var(--tm-text-muted); }
+
+.tm-intel-fit-bar {
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--tm-border-soft);
+  margin: 14px 0 16px;
+}
+
+.tm-intel-fit-bar div {
+  height: 100%;
+  border-radius: inherit;
+  background: currentColor;
+}
+
+.tm-intel-fit-readout.is-strong .tm-intel-fit-bar { color: var(--ok, #22d3a8); }
+.tm-intel-fit-readout.is-building .tm-intel-fit-bar { color: var(--tm-accent-text); }
+.tm-intel-fit-readout.is-gap .tm-intel-fit-bar { color: var(--tm-text-muted); }
+
+.tm-intel-fit-skills-block + .tm-intel-fit-skills-block {
+  margin-top: 14px;
+}
+
+.tm-intel-fit-skills-label {
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+  margin-bottom: 8px;
+}
+
+.tm-intel-fit-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tm-intel-fit-chip {
+  font-size: 11px;
+  border-radius: 999px;
+  padding: 4px 9px;
+  border: 1px solid var(--tm-border-soft);
+}
+
+.tm-intel-fit-chip.is-have {
+  color: var(--tm-success);
+  border-color: var(--tm-success-border);
+  background: var(--tm-success-wash);
+}
+
+.tm-intel-fit-chip.is-missing {
+  color: var(--tm-warning);
+  border-color: var(--tm-warning-border);
+  background: var(--tm-warning-wash);
+}
+
+.tm-intel-fit-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+
+.tm-intel-fit-primary,
+.tm-intel-fit-secondary {
+  min-height: 40px;
+  border-radius: 10px;
+  padding: 0 14px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tm-intel-fit-primary {
+  border: 1px solid var(--tm-interactive);
+  background: var(--tm-interactive);
+  color: var(--tm-on-interactive, #fff);
+}
+
+.tm-intel-fit-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tm-intel-fit-secondary {
+  border: 1px solid var(--tm-border-soft);
+  background: transparent;
+  color: var(--tm-text-muted);
+}
+
+.tm-intel-fit-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--tm-danger-border, rgba(251, 113, 133, 0.35));
+  background: var(--tm-danger-wash, rgba(251, 113, 133, 0.08));
+  color: var(--tm-danger, #fb7185);
+  font-size: 12px;
 }
 
 /* Personal header readout (grill Q4=B/Q5=A) — score ring sits where the
@@ -1206,6 +1403,17 @@
   .tm-intel-co-industry { display: none; }
   .tm-intel-tabs { padding: 16px 0 12px; }
   .tm-intel-sort-lbl { display: none; }
+  .tm-intel-fit-drawer {
+    width: 100vw;
+    padding: 20px 18px calc(20px + env(safe-area-inset-bottom));
+  }
+  .tm-intel-fit-actions {
+    flex-direction: column;
+  }
+  .tm-intel-fit-primary,
+  .tm-intel-fit-secondary {
+    width: 100%;
+  }
 }
 
 /* Phone: discard the fake LLM-runner console + compact the stats to one line each. */

@@ -62,3 +62,47 @@
 }
 .tm-me-add.sm { padding: 4px 8px; font-size: 11px; }
 .tm-me-add:hover { border-color: var(--tm-interactive); }
+
+/* Skills field header — label + "refresh from proven skills" action. */
+.tm-me-field-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin-bottom: 6px;
+}
+.tm-me-field-head .tm-me-field-label { margin-bottom: 0; }
+.tm-me-refresh {
+  flex: 0 0 auto; padding: 4px 10px;
+  background: none; border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius-sm); color: var(--tm-accent-text, var(--tm-interactive));
+  font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.tm-me-refresh:hover { border-color: var(--tm-interactive); }
+
+/* Skills-refresh proposal modal — reuses the cvb-modal shell. */
+.tm-skref-modal { max-width: 480px; }
+.tm-skref-body { display: flex; flex-direction: column; gap: 14px; padding: 4px 2px; }
+.tm-skref-note { margin: 0; font-size: 12px; line-height: 1.5; color: var(--tm-text-muted); }
+.tm-skref-section { display: flex; flex-direction: column; gap: 7px; }
+.tm-skref-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--tm-text-faint, var(--tm-text-muted));
+}
+.tm-skref-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.tm-skref-chip {
+  padding: 3px 9px; border-radius: 999px;
+  border: 1px solid var(--tm-border-soft); background: var(--tm-surface-2, var(--tm-surface));
+  font-size: 12px; color: var(--tm-text);
+}
+.tm-skref-chip.primary {
+  border-color: var(--tm-interactive);
+  color: var(--tm-accent-text, var(--tm-interactive)); font-weight: 600;
+}
+.tm-skref-empty { color: var(--tm-text-faint, var(--tm-text-muted)); font-size: 13px; }
+.tm-skref-added { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.tm-skref-added li { display: flex; align-items: baseline; gap: 6px; font-size: 13px; color: var(--tm-text); }
+.tm-skref-added-name { font-weight: 600; }
+.tm-skref-added-reason { margin-left: auto; font-size: 11px; color: var(--tm-text-muted); white-space: nowrap; }
+.tm-skref-uptodate {
+  display: flex; align-items: center; gap: 7px; margin: 0;
+  font-size: 13px; color: var(--tm-text);
+}
+.tm-skref-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 2px; }

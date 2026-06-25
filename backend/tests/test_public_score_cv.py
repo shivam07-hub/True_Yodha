@@ -139,6 +139,62 @@ def test_score_cv_rate_limited(monkeypatch: pytest.MonkeyPatch) -> None:
     assert client.post("/public/score-cv", files=_pdf_upload()).status_code == 429
 
 
+def test_job_fit_preview_computes_role_specific_fit(monkeypatch: pytest.MonkeyPatch) -> None:
+    _wire_engine(monkeypatch, raw_text="A" * 400, skills=[{"display_name": "Python"}])
+
+    class _Repo:
+        def get_job_skills(self, job_id: str) -> dict:
+            assert job_id == "j1"
+            return {
+                "job_id": "j1",
+                "job_title": "Data Analyst",
+                "company_name": "Acme",
+                "skills": [
+                    {"taxonomy_key": "python", "is_primary": True, "required_level": 2},
+                    {"taxonomy_key": "rust", "is_primary": True, "required_level": 2},
+                    {"taxonomy_key": "sql", "is_primary": False, "required_level": 2},
+                ],
+            }
+
+    monkeypatch.setattr(public_router, "get_public_jobs_repository", lambda: _Repo())
+    monkeypatch.setattr(public_router, "build_skill_level_map", lambda s: {"python": 3, "sql": 1})
+
+    res = TestClient(app).post("/public/jobs/j1/fit-preview", files=_pdf_upload())
+
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["job_id"] == "j1"
+    assert body["title"] == "Data Analyst"
+    assert body["company"] == "Acme"
+    assert body["fit_pct"] == 60.0
+    assert body["matched_count"] == 2
+    assert body["total_skills"] == 3
+    assert body["matched_skills"] == ["python", "sql"]
+    assert body["missing_skills"] == ["rust"]
+    assert body["cv_preview"]["score"] == 72
+
+
+def test_job_fit_preview_unknown_when_job_has_no_skills(monkeypatch: pytest.MonkeyPatch) -> None:
+    _wire_engine(monkeypatch, raw_text="A" * 400, skills=[{"display_name": "Python"}])
+
+    class _Repo:
+        def get_job_skills(self, job_id: str) -> dict:
+            return {"job_id": job_id, "job_title": "Role", "company_name": "Acme", "skills": []}
+
+    monkeypatch.setattr(public_router, "get_public_jobs_repository", lambda: _Repo())
+    res = TestClient(app).post("/public/jobs/j1/fit-preview", files=_pdf_upload())
+    assert res.status_code == 404
+
+
+def test_job_fit_preview_rejects_wrong_file_type(monkeypatch: pytest.MonkeyPatch) -> None:
+    _wire_engine(monkeypatch, raw_text="A" * 400, skills=[{"display_name": "Python"}])
+    res = TestClient(app).post(
+        "/public/jobs/j1/fit-preview",
+        files={"file": ("cv.txt", b"hello", "text/plain")},
+    )
+    assert res.status_code == 422
+
+
 # ─── /public/rewrite-bullet + /public/restructure (anon playground AI) ────────
 
 

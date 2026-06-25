@@ -144,6 +144,18 @@ class AnonScoreResponse(BaseModel):
     contact: AnonContact | None = None
 
 
+class PublicJobFitPreviewResponse(BaseModel):
+    job_id: str
+    title: str
+    company: str | None
+    fit_pct: float
+    matched_count: int
+    total_skills: int
+    matched_skills: list[str]
+    missing_skills: list[str]
+    cv_preview: AnonScoreResponse
+
+
 def _client_ip(request: Request) -> str:
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
@@ -198,12 +210,11 @@ def _verdict_for(score: int) -> str:
     return "Early-stage profile — the biggest gains are the gaps below."
 
 
-@router.post("/score-cv", response_model=AnonScoreResponse)
-async def score_cv_preview(
+async def _score_anon_cv(
     request: Request,
-    file: UploadFile = File(...),
-    cf_turnstile_token: str | None = Form(default=None),
-) -> AnonScoreResponse:
+    file: UploadFile,
+    cf_turnstile_token: str | None,
+) -> tuple[dict[str, Any], dict[str, int], AnonScoreResponse]:
     ip = _client_ip(request)
     _enforce_anon_rate("score", ip)
     await _verify_turnstile(cf_turnstile_token, ip)
@@ -285,7 +296,7 @@ async def score_cv_preview(
             "certs":       structured.get("certs") or [],
         }
 
-    return AnonScoreResponse(
+    preview = AnonScoreResponse(
         score=score,
         verdict=_verdict_for(score),
         domains=domains,
@@ -294,6 +305,72 @@ async def score_cv_preview(
         skills_detected=len(skills_detected),
         cv=cv_body,
         contact=contact,
+    )
+    return parsed, level_map, preview
+
+
+def _compute_public_fit(
+    skill_rows: list[dict[str, Any]],
+    level_map: dict[str, int],
+) -> tuple[float, list[str], list[str], int]:
+    user_lower = {k.lower(): v for k, v in level_map.items() if k and v > 0}
+    matched: list[str] = []
+    missing: list[str] = []
+    max_possible = 0.0
+    score = 0.0
+    seen: set[str] = set()
+
+    for row in skill_rows:
+        key = (row.get("taxonomy_key") or "").strip()
+        lower = key.lower()
+        if not key or lower in seen:
+            continue
+        seen.add(lower)
+        weight = 2.0 if row.get("is_primary") else 1.0
+        max_possible += weight
+        if lower in user_lower:
+            score += weight
+            matched.append(key)
+        else:
+            missing.append(key)
+
+    pct = round(score / max_possible * 100, 1) if max_possible else 0.0
+    return pct, matched, missing, len(seen)
+
+
+@router.post("/score-cv", response_model=AnonScoreResponse)
+async def score_cv_preview(
+    request: Request,
+    file: UploadFile = File(...),
+    cf_turnstile_token: str | None = Form(default=None),
+) -> AnonScoreResponse:
+    _parsed, _level_map, preview = await _score_anon_cv(request, file, cf_turnstile_token)
+    return preview
+
+
+@router.post("/jobs/{job_id}/fit-preview", response_model=PublicJobFitPreviewResponse)
+async def job_fit_preview(
+    job_id: str,
+    request: Request,
+    file: UploadFile = File(...),
+    cf_turnstile_token: str | None = Form(default=None),
+) -> PublicJobFitPreviewResponse:
+    _parsed, level_map, preview = await _score_anon_cv(request, file, cf_turnstile_token)
+    job = get_public_jobs_repository().get_job_skills(job_id)
+    if not job or not job.get("skills"):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found or has no skills")
+
+    fit_pct, matched, missing, total = _compute_public_fit(job["skills"], level_map)
+    return PublicJobFitPreviewResponse(
+        job_id=job_id,
+        title=job.get("job_title") or "",
+        company=job.get("company_name"),
+        fit_pct=fit_pct,
+        matched_count=len(matched),
+        total_skills=total,
+        matched_skills=matched,
+        missing_skills=missing,
+        cv_preview=preview,
     )
 
 
