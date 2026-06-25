@@ -378,6 +378,17 @@ export function CVExportView({
             </span>
           )}
           {docxButton}
+          {company && (
+            <a
+              href={`https://www.google.com/search?q=${encodeURIComponent(`${company} careers`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="cvb-btn"
+              title={`Open ${company} careers in a new tab`}
+            >
+              ↗ Open careers
+            </a>
+          )}
           <button type="button" className="cvb-btn primary" onClick={handleDownloadPdf} disabled={pdfBusy}>
             <Icon name="download" size={14} />
             {pdfBusy ? "Building PDF…" : "Download PDF"}
@@ -399,10 +410,8 @@ export function CVExportView({
 
         {docxError && <div className="cvb-export-err">{docxError}</div>}
 
-        <div style={{ display: "flex", gap: 18, alignItems: "center", fontSize: 11.5, color: "var(--tm-text-faint)", flexWrap: "wrap" }}>
-          <span className="mono">A4 · native text · what you see is what downloads</span>
-          <span style={{ opacity: 0.5 }}>·</span>
-          <span>PDF suits most ATS — pick DOCX only if the portal asks for a Word file.</span>
+        <div style={{ fontSize: 11.5, color: "var(--tm-text-faint)" }}>
+          PDF suits most ATS — pick DOCX only if the portal asks for a Word file.
         </div>
 
         {(company || jobId) && (
@@ -410,7 +419,7 @@ export function CVExportView({
             <div className="eyebrow" style={{ color: "var(--tm-interactive)", marginBottom: 8 }}>
               Apply with this CV
             </div>
-            <ApplyRow company={company ?? null} title={jobTitle ?? null} jobId={jobId ?? null} variant="block" />
+            <ApplyRow company={company ?? null} title={jobTitle ?? null} jobId={jobId ?? null} variant="block" hideCareers={Boolean(company)} />
 
             {jobId && (
               <div className="cvb-export-track">
