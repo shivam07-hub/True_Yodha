@@ -298,7 +298,33 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-25 - Backend score-delta closeout)
+## LAST SESSION SUMMARY (2026-06-25 - Public job-fit preview design)
+
+Product/design-only Codex session on `Develop`.
+
+- Audited the current public `/intel` fit gate and downstream authenticated
+  surfaces.
+- Confirmed current logged-out row fit click opens auth without preserving
+  `job_id`, while the bottom CTA routes generically to `/cv?upload=1`.
+- Confirmed logged-in fit already uses `POST /jobs/fit-batch`, and authenticated
+  save, skill-gap, Forge, and `/cv?jobId=...` tailoring surfaces already exist.
+- Confirmed anonymous CV scoring and save-on-signup replay already exist, but a
+  true logged-out one-job fit preview still needs a thin stateless bridge because
+  `/jobs/fit-batch` depends on stored authenticated `user_skills`.
+- Agreed on the preview-first contract:
+  `role -> CV evidence -> fit preview -> save role -> tailor CV`.
+- Wrote the approved design spec:
+  `docs/superpowers/specs/2026-06-25-public-job-fit-preview-design.md`.
+
+Validation:
+
+- Design self-review completed.
+- `git diff --check`: clean.
+
+Not touched: implementation code, backend/frontend tests, unrelated untracked
+`docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-06-25 - Backend score-delta closeout)
 
 Backend-only Codex session in isolated branch `codex/backend-score-demand`.
 Main workspace dirty CV/comment work was not touched.
