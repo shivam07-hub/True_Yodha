@@ -340,9 +340,9 @@ export function PlaygroundView({
                 type="button"
                 className="cvb-btn sm primary"
                 onClick={() => pageFill.fits ? onExportPDF(matchScore) : setExportConfirm(true)}
-                title={pageFill.fits ? "Export your one-page CV as PDF" : `Spills onto ${pageFill.pages} pages — trim to fit`}
+                title={pageFill.fits ? "Preview your finished one-page CV" : `Spills onto ${pageFill.pages} pages — trim to fit`}
               >
-                <Icon name="download" size={13}/> Export PDF
+                <Icon name="eye" size={13}/> Preview
               </button>
             )}
           </div>
@@ -569,7 +569,7 @@ export function PlaygroundView({
             <div className="cvb-modal-head">Spills onto {pageFill.pages} pages</div>
             <div className="cvb-modal-body" style={{ padding: 18 }}>
               <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "var(--tm-text-muted)" }}>
-                Recruiters skim one page. Auto-trim hides your lowest-impact bullets until it fits — or export as-is.
+                Recruiters skim one page. Auto-trim hides your lowest-impact bullets until it fits — or preview as-is.
               </p>
               <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 18, flexWrap: "wrap" }}>
                 <button type="button" className="cvb-btn sm" onClick={() => setExportConfirm(false)}>Cancel</button>
@@ -577,7 +577,7 @@ export function PlaygroundView({
                   <Icon name="sparkle" size={12}/> Auto-trim to fit
                 </button>
                 <button type="button" className="cvb-btn sm primary" onClick={() => { setExportConfirm(false); onExportPDF(matchScore) }}>
-                  <Icon name="download" size={12}/> Export anyway
+                  <Icon name="eye" size={12}/> Preview anyway
                 </button>
               </div>
             </div>
@@ -589,6 +589,7 @@ export function PlaygroundView({
         <RestructureProposal
           token={token}
           versionId={selectedVersion.id}
+          targetLabel={`${jobTitle} · ${company}`}
           onClose={() => setRestructureOpen(false)}
           onKept={(v) => {
             setRestructureOpen(false)
