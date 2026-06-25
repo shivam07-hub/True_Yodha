@@ -23,7 +23,9 @@ import { useQueryClient } from "@tanstack/react-query"
 import { cv as cvApi, jobs as jobsApi, type CVStructured, type UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { Icon } from "./icons"
-import { runAtsChecks, atsScore } from "./ats-checks"
+import { runAtsChecks, atsScore, type AtsFixTarget } from "./ats-checks"
+import { AtsAudit } from "./ats-audit"
+import { focusEditorSection } from "./cv-edit-focus"
 import { formatDate } from "@/lib/format"
 import { PdfPage, type PdfPageContact } from "./pdf-page"
 import { printCvPage } from "@/lib/cv/print-cv"
@@ -64,6 +66,9 @@ interface CVExportViewProps {
   /** Mobile full-screen composition; shares the same export handlers and PdfPage. */
   mobile?: boolean
   onFixContact?: () => void
+  /** Route a failing audit check into the editor. When set, audit rows route
+   *  here instead of the same-page section scroll. */
+  onAtsFix?: (target: AtsFixTarget) => void
 }
 
 function slug(s: string | null | undefined): string {
@@ -108,7 +113,7 @@ export function CVExportView({
   token, cv, hidden, contact, profile, context,
   template, versionId = null, footerMarkHidden = false,
   company, jobTitle, jobId, matchScore = 0, appliedAt = null,
-  onBack, backLabel = "Back", mobile = false, onFixContact,
+  onBack, backLabel = "Back", mobile = false, onFixContact, onAtsFix,
 }: CVExportViewProps) {
   const isTailored = context === "tailored"
   const skin: "fullpage" | "inline" = isTailored ? "fullpage" : "inline"
@@ -294,8 +299,11 @@ export function CVExportView({
     </button>
   )
 
+  // Failing rows route into the master editor sections, which live on the same
+  // page as this card in the "master" context. Other contexts have no editor
+  // mounted, so the audit renders read-only there.
   const atsCard = (
-    <AtsAuditCard checks={checks} passedCount={passedCount} totalChecks={totalChecks} />
+    <AtsAudit checks={checks} onFix={onAtsFix ?? (context === "master" ? focusEditorSection : undefined)} />
   )
 
   if (mobile && onBack) {
@@ -476,52 +484,3 @@ function TemplatePicker({ value, onChange }: { value: CVTemplate; onChange: (t: 
   )
 }
 
-function AtsAuditCard({
-  checks, passedCount, totalChecks,
-}: {
-  checks: ReturnType<typeof runAtsChecks>
-  passedCount: number
-  totalChecks: number
-}) {
-  return (
-    <div className="cvb-export-ats">
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Icon name="sparkle" size={14} style={{ color: "var(--tm-interactive)" }} />
-          <span className="eyebrow" style={{ color: "var(--tm-interactive)" }}>ATS &amp; AI audit</span>
-        </div>
-        <span
-          className="mono"
-          style={{
-            fontSize: 10.5,
-            color: passedCount === totalChecks ? "var(--tm-success)" : "var(--tm-warning)",
-          }}
-        >
-          passes {passedCount} / {totalChecks} checks
-        </span>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
-        {checks.map(c => (
-          <AuditRow key={c.label} ok={c.pass} label={c.pass ? c.label : (c.detail ?? c.label)} />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function AuditRow({ ok, label }: { ok: boolean; label: string }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--tm-text-muted)" }}>
-      <span style={{
-        width: 16, height: 16, borderRadius: 4,
-        background: ok ? "var(--tm-success-wash)" : "var(--tm-warning-wash)",
-        border: "1px solid " + (ok ? "rgba(74,222,128,0.3)" : "rgba(245,158,11,0.3)"),
-        display: "grid", placeItems: "center",
-        color: ok ? "var(--tm-success)" : "var(--tm-warning)",
-      }}>
-        <Icon name={ok ? "check" : "x"} size={10} stroke={3} />
-      </span>
-      <span>{label}</span>
-    </div>
-  )
-}

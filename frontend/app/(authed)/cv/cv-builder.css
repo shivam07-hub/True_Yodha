@@ -1266,6 +1266,30 @@ mark.cvb-kw {
   padding: 18px;
 }
 
+/* Per-row "Fix →" affordance on a failing audit check (routes into the editor). */
+.cvb-ats-fix {
+  appearance: none;
+  border: none;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tm-interactive);
+  cursor: pointer;
+  padding: 2px 5px;
+  border-radius: 6px;
+  transition: background 120ms var(--tm-ease);
+}
+.cvb-ats-fix:hover { background: color-mix(in srgb, var(--tm-interactive) 12%, transparent); }
+.cvb-ats-fix:focus-visible { outline: 2px solid var(--tm-interactive); outline-offset: 1px; }
+
+/* Audit pinned above the master editor (full-width inside the panel). */
+.tm-lib-master-audit { margin-bottom: 16px; }
+.tm-lib-master-audit .cvb-export-ats { width: 100%; }
+
 /* Inline export skin (master CV panel / onboarding Door 2). No full-bleed
    sticky toolbar — the host panel owns the surround. */
 .cvb-export-inline {

@@ -35,6 +35,10 @@
 .tm-me-entry-meta { display: flex; gap: 8px; }
 .tm-me-entry-meta .tm-me-input { flex: 1; }
 
+/* Contact block — paired inputs, single column on narrow viewports. */
+.tm-me-contact-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 560px) { .tm-me-contact-grid { grid-template-columns: 1fr; } }
+
 .tm-me-bullets { display: flex; flex-direction: column; gap: 6px; }
 .tm-me-bullet-row { display: flex; gap: 6px; align-items: flex-start; }
 .tm-me-bullet { flex: 1; }

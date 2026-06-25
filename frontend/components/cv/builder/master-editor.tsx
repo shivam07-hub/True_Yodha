@@ -8,8 +8,9 @@
 "use client"
 
 import { useCallback } from "react"
-import type { CVStructured } from "@/lib/api"
+import type { CVContact, CVStructured } from "@/lib/api"
 import type { MasterAutosaveState } from "@/lib/hooks/use-master-autosave"
+import { EMPTY_CONTACT } from "../mobile/mobile-cv-model"
 import "./master-editor.css"
 
 interface MasterEditorProps {
@@ -33,9 +34,30 @@ export function MasterEditor({ autosave }: MasterEditorProps) {
     return <div className="tm-me-loading">Loading your CV…</div>
   }
 
+  const contact: CVContact = { ...EMPTY_CONTACT, ...(draft.contact ?? {}) }
+  const setContact = (key: keyof CVContact, value: string) =>
+    patch((d) => ({ ...d, contact: { ...EMPTY_CONTACT, ...(d.contact ?? {}), [key]: value } }))
+
   return (
     <div className="tm-me">
-      <Field label="Summary">
+      <Field label="Contact" id="cv-edit-contact">
+        <div className="tm-me-contact-grid">
+          <input className="tm-me-input" value={contact.name} placeholder="Full name"
+            onChange={(e) => setContact("name", e.target.value)} />
+          <input className="tm-me-input" value={contact.title} placeholder="Headline (e.g. GTM Manager)"
+            onChange={(e) => setContact("title", e.target.value)} />
+          <input className="tm-me-input" type="email" value={contact.email} placeholder="Email"
+            onChange={(e) => setContact("email", e.target.value)} />
+          <input className="tm-me-input" type="tel" value={contact.phone} placeholder="Phone (optional)"
+            onChange={(e) => setContact("phone", e.target.value)} />
+          <input className="tm-me-input" value={contact.location} placeholder="Location"
+            onChange={(e) => setContact("location", e.target.value)} />
+          <input className="tm-me-input" value={contact.linkedin} placeholder="LinkedIn URL"
+            onChange={(e) => setContact("linkedin", e.target.value)} />
+        </div>
+      </Field>
+
+      <Field label="Summary" id="cv-edit-summary">
         <textarea
           className="tm-me-textarea"
           rows={4}
@@ -45,7 +67,7 @@ export function MasterEditor({ autosave }: MasterEditorProps) {
         />
       </Field>
 
-      <Section title="Experience" onAdd={() => patch((d) => ({
+      <Section id="cv-edit-experience" title="Experience" onAdd={() => patch((d) => ({
         ...d,
         experience: [...d.experience, { company: "", role: "", dates: "", location: "", bullets: [""] }],
       }))}>
@@ -98,7 +120,7 @@ export function MasterEditor({ autosave }: MasterEditorProps) {
         ))}
       </Section>
 
-      <Field label="Skills">
+      <Field label="Skills" id="cv-edit-skills">
         <textarea
           className="tm-me-textarea"
           rows={2}
@@ -169,18 +191,18 @@ export function MasterSaveStatus({ status, recomputePending, onSaveNow }: {
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, id }: { label: string; children: React.ReactNode; id?: string }) {
   return (
-    <div className="tm-me-field">
+    <div className="tm-me-field" id={id}>
       <div className="tm-me-field-label">{label}</div>
       {children}
     </div>
   )
 }
 
-function Section({ title, onAdd, children }: { title: string; onAdd: () => void; children: React.ReactNode }) {
+function Section({ title, onAdd, children, id }: { title: string; onAdd: () => void; children: React.ReactNode; id?: string }) {
   return (
-    <div className="tm-me-section">
+    <div className="tm-me-section" id={id}>
       <div className="tm-me-section-head">
         <div className="tm-me-field-label">{title}</div>
         <button type="button" className="tm-me-add" onClick={onAdd}>+ Add</button>
