@@ -388,6 +388,10 @@ class JobImportPreviewRequest(BaseModel):
     job_description: str
     page_title: str | None = None
     capture_method: str = "visible_page"
+    # Hybrid extraction backstop (extension): the client flags a weakly-sourced
+    # field and forwards the page's JSON-LD so the server can fill/validate.
+    needs_backstop: bool = False
+    json_ld: dict[str, Any] | None = None
 
 
 class JobImportPreviewResponse(BaseModel):

@@ -17,6 +17,7 @@ from app.schemas import (
     JobUrlExtractRequest,
 )
 from app.services import jobs_workflow, xp_service
+from app.services.job_extract_backstop import backfill_fields
 from app.services.cv_parser import extract_raw_text
 from app.services.job_file_parser import (
     MAX_FILE_BYTES,
@@ -69,14 +70,26 @@ def get_applications(
 
 
 @router.post("/import/preview", response_model=JobImportPreviewResponse)
-def preview_job_import(
+async def preview_job_import(
     body: JobImportPreviewRequest,
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> JobImportPreviewResponse:
     if not body.job_description.strip():
         raise HTTPException(status_code=422, detail="Job description is required.")
-    return JobImportPreviewResponse(**jobs_workflow.preview_imported_job(repo, body))
+    # Hybrid extraction: fill/validate role/company/location server-side when the
+    # client flagged a weak field, so the preview the user confirms is clean.
+    filled = await backfill_fields(
+        role_name=body.role_name,
+        company_name=body.company_name,
+        location=body.location,
+        job_description=body.job_description,
+        json_ld=body.json_ld,
+        needs_backstop=body.needs_backstop,
+    )
+    preview = jobs_workflow.preview_imported_job(repo, body)
+    preview.update({k: v for k, v in filled.items() if v})
+    return JobImportPreviewResponse(**preview)
 
 
 @router.post("/import/extract-file", response_model=JobFileExtractResponse)

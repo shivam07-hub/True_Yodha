@@ -528,3 +528,51 @@ def test_get_job_skills_required_level_fallback_when_null() -> None:
     by_key = {s["taxonomy_key"]: s for s in result["skills"]}
     assert by_key["python"]["required_level"] == 4
     assert by_key["excel"]["required_level"] == 2
+
+
+def test_get_job_skills_falls_back_to_main_side_skills_when_no_canonical_rows() -> None:
+    """Extension-added job → no canonical job_skills rows → synthesise the gap
+    from the taxonomy-validated main_skills/side_skills the importer stored, so
+    the Tailor match isn't a phantom 0%."""
+    meta_result = _Result({
+        "job_id": "ext_1", "job_title": "Account Manager", "company_name": "Amazon",
+        "main_skills": ["Account Management", "Amazon Marketplace"],
+        "side_skills": ["Cold Calling"],
+    })
+    skill_result = _Result([])  # no canonical job_skills
+
+    mock_db = Mock()
+    mock_db.table.return_value.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value = meta_result
+    mock_admin_db = Mock()
+    mock_admin_db.table.return_value.select.return_value.eq.return_value.execute.return_value = skill_result
+
+    result = JobsRepository(mock_db, admin_db=mock_admin_db).get_job_skills("ext_1")
+
+    assert result is not None
+    by_key = {s["taxonomy_key"]: s for s in result["skills"]}
+    assert by_key["Account Management"]["is_primary"] is True
+    assert by_key["Account Management"]["required_level"] == 4
+    assert by_key["Cold Calling"]["is_primary"] is False
+    assert by_key["Cold Calling"]["required_level"] == 2
+
+
+def test_get_job_skills_prefers_canonical_over_text_fallback() -> None:
+    """When canonical job_skills exist, the main/side text is ignored."""
+    meta_result = _Result({
+        "job_id": "j1", "job_title": "Engineer", "company_name": "Acme",
+        "main_skills": ["Should Be Ignored"], "side_skills": [],
+    })
+    skill_result = _Result([
+        {"is_primary": True, "required_level": 3, "skills": {"taxonomy_key": "python"}},
+    ])
+
+    mock_db = Mock()
+    mock_db.table.return_value.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value = meta_result
+    mock_admin_db = Mock()
+    mock_admin_db.table.return_value.select.return_value.eq.return_value.execute.return_value = skill_result
+
+    result = JobsRepository(mock_db, admin_db=mock_admin_db).get_job_skills("j1")
+
+    assert result is not None
+    keys = {s["taxonomy_key"] for s in result["skills"]}
+    assert keys == {"python"}

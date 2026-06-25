@@ -8,7 +8,14 @@ from typing import Any
 from supabase import Client
 
 from app.schemas.jobs import APPLICATION_STATUSES
+from app.services.job_extract_backstop import is_valid_company
 from app.services.taxonomy_loader import get_all_skills
+
+
+def _safe_company(value: Any) -> str:
+    """A non-null, non-junk company for the NOT-NULL jobs.company_name column."""
+    text = (str(value or "")).strip()
+    return text if is_valid_company(text) else "Unknown company"
 
 _NON_WORD = re.compile(r"[^a-z0-9+#. ]+")
 _SPACE = re.compile(r"\s+")
@@ -203,9 +210,12 @@ def build_imported_job(user_id: str, body: Any) -> dict[str, Any]:
     job_row = {
         "job_id": job_id,
         "job_title": body.role_name.strip(),
-        "company_name": body.company_name,
+        # Integrity boundary: never persist a junk company ("Job ID: 10426211")
+        # or a null into the NOT-NULL columns — coerce to safe sentinels. The
+        # backstop should have produced a real value by now; this is the net.
+        "company_name": _safe_company(body.company_name),
         "industry": "unknown",
-        "location": body.location,
+        "location": (body.location or "").strip() or "unknown",
         "apply_url": body.source_url,
         "source_url": body.source_url,
         "source_platform": body.source_platform or "generic",
