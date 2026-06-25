@@ -15,6 +15,7 @@
 ## ABSOLUTE RULES
 
 - Never merge to `main` directly — only to `Develop`. `main` = Vercel production.
+- **Commit ALL agent work to `Develop` — standing approval, no need to ask.** When a unit of work is verified (pytest / tsc / next lint / ui-drift green), `git add` ONLY the files the agent changed, commit (`feat:`/`fix:`/…), and `git push origin Develop`. Never leave finished work uncommitted. **Stage own files only** — the tree often holds foreign uncommitted work (other agents / Shivam mid-edit); NEVER `git add -A`/`.`, leave everything else untouched. `main` still needs explicit Shivam approval.
 - Never hardcode API keys — use `.env` files, never commit `.env`
 - Never skip tests before marking a task complete
 - Web only (mobile-responsive) — use tailwindcss and shadcn
