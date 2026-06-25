@@ -54,6 +54,7 @@ def _q(data: list[dict] | dict | None = None) -> MagicMock:
 class TestFetchSkillDemand:
     def setup_method(self) -> None:
         _scoring_market._DEMAND_CACHE.clear()
+        _scoring_market._SCOPED_DEMAND_CACHE.clear()
         _scoring_market._DEMAND_CACHE_TS = 0.0
 
     def test_returns_demand_map(self) -> None:
@@ -77,6 +78,27 @@ class TestFetchSkillDemand:
         db = MagicMock()
         db.table.return_value = _q([])
         assert fetch_skill_demand(ScoresRepository(db)) == {}
+
+    def test_scoped_lookup_uses_repo_demand_without_full_scan(self) -> None:
+        repo = MagicMock()
+        repo.get_skill_demand_for_keys.return_value = {"Django": 7}
+        repo.list_market_skill_rows.side_effect = AssertionError("must not scan every job skill")
+
+        assert fetch_skill_demand(repo, {"Django"}) == {"Django": 7}
+        repo.get_skill_demand_for_keys.assert_called_once_with({"Django"})
+        repo.list_market_skill_rows.assert_not_called()
+
+    def test_scoped_lookup_fetches_only_uncached_skill_keys(self) -> None:
+        repo = MagicMock()
+        repo.get_skill_demand_for_keys.side_effect = [{"Django": 7}, {"Flask": 3}]
+
+        assert fetch_skill_demand(repo, {"Django"}) == {"Django": 7}
+        assert fetch_skill_demand(repo, {"Django", "Flask"}) == {"Django": 7, "Flask": 3}
+
+        assert repo.get_skill_demand_for_keys.call_args_list == [
+            (({"Django"},),),
+            (({"Flask"},),),
+        ]
 
     def test_query_failure_returns_empty(self) -> None:
         q = _q([])
@@ -144,6 +166,7 @@ def _patch_orchestrator_internals() -> tuple:
 class TestRecordCvScore:
     def setup_method(self) -> None:
         _scoring_market._DEMAND_CACHE.clear()
+        _scoring_market._SCOPED_DEMAND_CACHE.clear()
         _scoring_market._DEMAND_CACHE_TS = 0.0
 
     def test_returns_score_row_for_valid_signal(self) -> None:
@@ -199,6 +222,7 @@ class TestRecordCvScore:
 class TestRecomputeScore:
     def setup_method(self) -> None:
         _scoring_market._DEMAND_CACHE.clear()
+        _scoring_market._SCOPED_DEMAND_CACHE.clear()
         _scoring_market._DEMAND_CACHE_TS = 0.0
 
     def test_recompute_uses_stored_skill_levels(self) -> None:
