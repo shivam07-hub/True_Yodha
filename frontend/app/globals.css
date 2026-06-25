@@ -926,8 +926,15 @@
   from { opacity: 0; transform: translateY(2px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+/* `backwards` (not `both`): apply the from-state before the run to avoid a
+   flash, but DO NOT retain the end-state transform afterwards. A lingering
+   `transform: translateY(0)` is still a non-none transform, which makes this
+   element the containing block for every `position: fixed` descendant — so
+   drawers/scrims anchor to this box instead of the viewport (the CV Intel
+   drawer overlap bug). End-state == base style visually, so dropping the
+   retention costs nothing. Never change this back to `forwards`/`both`. */
 .tm-shell-enter {
-  animation: tm-shell-enter 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: tm-shell-enter 280ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 .tm-shell-skeleton {
   animation: tm-shell-enter 200ms ease-out both;
