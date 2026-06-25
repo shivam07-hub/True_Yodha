@@ -1466,6 +1466,7 @@ mark.cvb-kw {
   display: flex; flex-direction: column; gap: 8px;
 }
 .cvb-rw-status { font-size: var(--tm-fs-caption); color: var(--tm-interactive); }
+.cvb-rs-basis { margin: 8px 0 0; font-size: 12px; line-height: 1.55; color: var(--tm-text-muted); }
 .cvb-rw-ask { display: flex; flex-direction: column; gap: 8px; }
 .cvb-rw-ask-q { font-size: var(--tm-fs-meta); line-height: 1.5; color: var(--tm-text); }
 .cvb-rw-ask-row { display: flex; gap: 8px; flex-wrap: wrap; }

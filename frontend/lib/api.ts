@@ -55,14 +55,27 @@ import {
  * classifyError → ApiError{kind:"timeout"} → the failure UI can react.
  */
 const REQUEST_TIMEOUT_MS = 15_000
+/**
+ * LLM-backed endpoints (whole-CV restructure, bullet rewrite, polish) run a
+ * provider chain with fallbacks and routinely take 20–30s. The 15s default
+ * aborts them mid-flight → the user sees a spurious "unavailable" while the
+ * server keeps working and 200s into the void. These opt into a longer ceiling.
+ */
+const LLM_REQUEST_TIMEOUT_MS = 60_000
+
+/** request() init plus our own per-call timeout override. */
+type ApiRequestInit = RequestInit & { timeoutMs?: number }
 
 /** Combine the caller's AbortSignal (if any) with a timeout into one signal. */
-function withTimeout(signal: AbortSignal | null | undefined): {
+function withTimeout(
+  signal: AbortSignal | null | undefined,
+  timeoutMs: number = REQUEST_TIMEOUT_MS,
+): {
   signal: AbortSignal
   done: () => void
 } {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(new DOMException("Timeout", "AbortError")), REQUEST_TIMEOUT_MS)
+  const timer = setTimeout(() => controller.abort(new DOMException("Timeout", "AbortError")), timeoutMs)
   if (signal) {
     if (signal.aborted) controller.abort(signal.reason)
     else signal.addEventListener("abort", () => controller.abort(signal.reason), { once: true })
@@ -145,9 +158,9 @@ function forceLogout(): never {
   throw new Error("Session expired. Please sign in again.")
 }
 
-async function request<T>(path: string, init?: RequestInit, _isRetry = false): Promise<T> {
-  const { headers: extraHeaders, signal: callerSignal, ...rest } = init ?? {}
-  const { signal, done } = withTimeout(callerSignal)
+async function request<T>(path: string, init?: ApiRequestInit, _isRetry = false): Promise<T> {
+  const { headers: extraHeaders, signal: callerSignal, timeoutMs, ...rest } = init ?? {}
+  const { signal, done } = withTimeout(callerSignal, timeoutMs)
   let res: Response
   try {
     res = await fetch(`${BASE}${path}`, {
@@ -915,12 +928,14 @@ export const cv = {
       request<CVVersion>(`/cv/versions/${versionId}/polish`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
+        timeoutMs: LLM_REQUEST_TIMEOUT_MS,
       }),
     // Whole-CV Restructure: propose is FREE + stateless; keep charges 20 coins.
     restructure: (token: string, versionId: number) =>
       request<RestructureProposalResponse>(`/cv/versions/${versionId}/restructure`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
+        timeoutMs: LLM_REQUEST_TIMEOUT_MS,
       }),
     restructureApply: (
       token: string,
@@ -999,6 +1014,7 @@ export const cv = {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(body),
+      timeoutMs: LLM_REQUEST_TIMEOUT_MS,
     }),
   // Plan the gap-driven session for a job: classify each gap → cards. Stateless,
   // free, writes nothing; accepts go through rewriteBullet/rewriteApply above.
@@ -1006,6 +1022,7 @@ export const cv = {
     request<GapPlanResponse>(`/cv/${jobId}/gap-plan`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
+      timeoutMs: LLM_REQUEST_TIMEOUT_MS,
     }),
   // The experience reservoir inventory (v2): roles → points → phrasing variants.
   reservoir: (token: string) =>
