@@ -638,11 +638,17 @@ function ClosingPanel({ token, resolved, practiceSkills, upgrades, onApplied, on
           <div className="cvb-gs-section-h build">Build these in practice</div>
           <p className="cvb-gs-section-lede">The market wants these and your experience doesn&apos;t show them yet — that&apos;s the signal, not a failure.</p>
           {practiceSkills.map(s => (
-            <Link key={s.skill} href={forgeHref(s.skill)} className="cvb-gs-row build">
+            <Link
+              key={s.skill}
+              href={forgeHref(s.skill)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="cvb-gs-row build"
+            >
               <span className="cvb-gs-row-name">{s.display_name}</span>
               <span className="cvb-gs-row-meta">
                 {s.is_primary && s.reason === "absent" && <span className="cvb-gs-primary-tag">primary requirement</span>}
-                Practice →
+                Practice ↗
               </span>
             </Link>
           ))}
