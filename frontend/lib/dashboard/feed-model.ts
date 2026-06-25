@@ -116,9 +116,9 @@ export function filterSegment(items: FeedItem[], segment: Segment): FeedItem[] {
   return items
 }
 
-/** Sort axis — orthogonal to the source Segment. "Best fit" preserves the
- *  canonical incoming order (LLM/overlap rank from the API), so it is the
- *  zero-cost default that matches today's behaviour. */
+/** Sort axis — orthogonal to the source Segment. "Best fit" sorts by the
+ *  overlap score the fit ring renders (desc), so the visible order always
+ *  matches the visible scores. The API's incoming order is NOT assumed sorted. */
 export type SortKey = "fit" | "recent" | "company"
 
 export const SORTS: ReadonlyArray<{ key: SortKey; label: string }> = [
@@ -128,9 +128,13 @@ export const SORTS: ReadonlyArray<{ key: SortKey; label: string }> = [
 ]
 
 export function sortItems(items: FeedItem[], sort: SortKey): FeedItem[] {
-  // Best fit = the order buildFeed produced (matches in API rank, then liked).
-  if (sort === "fit") return items
   const arr = [...items]
+  if (sort === "fit") {
+    // Sort by the same overlap score the ring renders, desc. Liked-only rows
+    // (fit === null) have no score → sink last. Stable sort keeps build order
+    // (matches before liked) within a tie.
+    return arr.sort((a, b) => (b.fit ?? -1) - (a.fit ?? -1))
+  }
   if (sort === "company") {
     return arr.sort((a, b) =>
       (a.company ?? "￿").localeCompare(b.company ?? "￿", undefined, { sensitivity: "base" }),

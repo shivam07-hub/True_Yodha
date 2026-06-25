@@ -72,9 +72,14 @@ function feedItem(partial: Partial<FeedItem>): FeedItem {
   }
 }
 
-test("sortItems: Best fit preserves the incoming (canonical rank) order", () => {
-  const items = [feedItem({ jobId: "a", fit: 20 }), feedItem({ jobId: "b", fit: 90 })]
-  assert.deepEqual(sortItems(items, "fit").map((i) => i.jobId), ["a", "b"])
+test("sortItems: Best fit sorts by score desc, null (liked-only) sinks last", () => {
+  const items = [
+    feedItem({ jobId: "a", fit: 20 }),
+    feedItem({ jobId: "b", fit: 90 }),
+    feedItem({ jobId: "liked", fit: null }),
+    feedItem({ jobId: "c", fit: 50 }),
+  ]
+  assert.deepEqual(sortItems(items, "fit").map((i) => i.jobId), ["b", "c", "a", "liked"])
 })
 
 test("sortItems: Company sorts A–Z, case-insensitive, nulls last", () => {
