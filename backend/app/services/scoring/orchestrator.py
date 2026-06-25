@@ -111,7 +111,10 @@ def _score_math(
     skills_assessed_override: int | None = None,
 ) -> ScoreProjection:
     cluster_children, skill_to_cluster, cluster_to_domain = _build_cluster_maps()
-    skill_demand = fetch_skill_demand(scores_repo) if include_market_signals else {}
+    demand_scope = set(skill_level_map) | set(aspiration_skills)
+    skill_demand = (
+        fetch_skill_demand(scores_repo, demand_scope) if include_market_signals else {}
+    )
 
     cluster_scores = compute_cluster_scores(skill_level_map, cluster_children, skill_to_cluster)
     cluster_skill_counts = {

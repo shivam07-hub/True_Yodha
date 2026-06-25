@@ -70,8 +70,9 @@
 .cvb-pdf-page .pdf-role { font-weight: 600; font-size: 11pt; color: #0A0A0A; }
 .cvb-pdf-page .pdf-co { color: #333; font-size: 10pt; }
 .cvb-pdf-page .pdf-dates { font-family: "Geist Mono", monospace; font-size: 9pt; color: #555; }
-.cvb-pdf-page ul { margin: 5px 0 8px 16px; padding: 0; }
-.cvb-pdf-page li { font-size: 10pt; line-height: 1.5; margin-bottom: 2px; color: #1A1A1A; }
+.cvb-pdf-page ul { margin: 5px 0 9px; padding-left: 18px; list-style: disc outside; }
+.cvb-pdf-page li { font-size: 10pt; line-height: 1.5; margin-bottom: 3px; color: #1A1A1A; padding-left: 3px; }
+.cvb-pdf-page li::marker { color: #9A9A9A; }
 .cvb-pdf-page .pdf-summary { font-size: 10.5pt; color: #1A1A1A; line-height: 1.55; }
 .cvb-pdf-page .pdf-skills-line { font-family: "Geist Mono", monospace; font-size: 9.5pt; color: #1A1A1A; line-height: 1.7; }
 .cvb-pdf-page .pdf-foot {
@@ -118,6 +119,6 @@
 .cvb-pdf-page[data-cv-template="compact"] h2 { margin: 11px 0 5px; font-size: 9pt; }
 .cvb-pdf-page[data-cv-template="compact"] .pdf-role-head { margin-top: 6px; }
 .cvb-pdf-page[data-cv-template="compact"] .pdf-role { font-size: 10pt; }
-.cvb-pdf-page[data-cv-template="compact"] ul { margin: 3px 0 5px 15px; }
+.cvb-pdf-page[data-cv-template="compact"] ul { margin: 3px 0 5px; padding-left: 16px; }
 .cvb-pdf-page[data-cv-template="compact"] li { font-size: 9pt; line-height: 1.34; margin-bottom: 1px; }
 .cvb-pdf-page[data-cv-template="compact"] .pdf-summary { font-size: 9.5pt; line-height: 1.4; }

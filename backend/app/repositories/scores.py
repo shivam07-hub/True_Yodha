@@ -11,7 +11,7 @@ from supabase import Client
 
 from app.database import get_supabase_admin
 from app.deps import get_user_db
-from app.repositories.job_skills_read_model import fetch_job_skill_rows, group_job_skill_rows
+from app.repositories.job_skills_read_model import fetch_all_rows, fetch_job_skill_rows, group_job_skill_rows
 
 logger = logging.getLogger(__name__)
 
@@ -174,6 +174,74 @@ class ScoresRepository:
     def list_market_skill_rows(self) -> list[dict[str, Any]]:
         """Returns job skills from the FK-enforced job_skills join table."""
         return group_job_skill_rows(fetch_job_skill_rows(self._db))
+
+    def get_skill_demand_for_keys(self, taxonomy_keys: set[str]) -> dict[str, int]:
+        """Weighted market demand for a bounded set of taxonomy keys.
+
+        Score recompute only needs demand for skills that can become displayed
+        gap candidates. Keep that path bounded instead of scanning the entire
+        job_skills read model for every user.
+        """
+        wanted = {key.strip() for key in taxonomy_keys if key and key.strip()}
+        if not wanted:
+            return {}
+
+        skill_rows = _retry_supabase(lambda: (
+            self._db.table("skills")
+            .select("id, taxonomy_key")
+            .in_("taxonomy_key", sorted(wanted))
+            .execute()
+        ).data or [])
+
+        id_to_key: dict[int, str] = {}
+        for row in skill_rows:
+            try:
+                skill_id = int(row.get("id"))
+            except (TypeError, ValueError):
+                continue
+            key = (row.get("taxonomy_key") or "").strip()
+            if key:
+                id_to_key[skill_id] = key
+        if not id_to_key:
+            return {}
+
+        skill_ids = sorted(id_to_key)
+        try:
+            rows = self._db.rpc(
+                "count_job_demand_for_skills", {"p_skill_ids": skill_ids}
+            ).execute().data or []
+        except APIError as exc:
+            logger.warning(
+                "metric scoring.demand_rpc_fallback skills=%d exc=%s",
+                len(skill_ids), exc.__class__.__name__,
+            )
+            rows = fetch_all_rows(
+                self._db,
+                table="job_skills",
+                columns="skill_id, is_primary",
+                query_builder=lambda q, _ids=skill_ids: q.in_("skill_id", _ids),
+            )
+            weighted = {skill_id: 0 for skill_id in skill_ids}
+            for row in rows:
+                try:
+                    skill_id = int(row.get("skill_id"))
+                except (TypeError, ValueError):
+                    continue
+                if skill_id in weighted:
+                    weighted[skill_id] += 2 if row.get("is_primary") else 1
+            return {id_to_key[skill_id]: demand for skill_id, demand in weighted.items()}
+
+        demand: dict[str, int] = {}
+        for row in rows:
+            try:
+                skill_id = int(row.get("skill_id"))
+                weighted = int(row.get("weighted_demand") or 0)
+            except (TypeError, ValueError):
+                continue
+            key = id_to_key.get(skill_id)
+            if key:
+                demand[key] = weighted
+        return demand
 
     def upsert_user_skill_rows(self, rows: list[dict[str, Any]]) -> None:
         if rows:

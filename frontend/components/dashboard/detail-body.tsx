@@ -173,14 +173,14 @@ export function DetailBody(p: DetailBodyProps) {
         </div>
       ) : null}
 
-      {/* NOTES — private */}
+      {/* NOTES — public community feed on this posting */}
       <div className="db-dsec">
-        <span className="db-label">Notes · private to you</span>
+        <span className="db-label">Notes · what applicants say</span>
         <CommentThread
           token={p.token}
           entityType="job"
           entityId={p.job.job_id}
-          placeholder={`Note your progress on ${company ?? "this role"}…`}
+          placeholder={`Leave a note for future applicants to ${company ?? "this role"}…`}
         />
       </div>
 

@@ -418,6 +418,18 @@ export interface FollowedCompaniesResponse {
   total: number
 }
 
+export interface PracticeSave {
+  skill_key: string
+  display_name: string
+  source: string
+  saved_at: string
+}
+
+export interface PracticeSavesResponse {
+  skills: PracticeSave[]
+  total: number
+}
+
 export const users = {
   me: (token: string) =>
     request<UserProfile>("/users/me", {
@@ -445,6 +457,21 @@ export const users = {
     }),
   unfollowCompany: (token: string, companyName: string) =>
     request<void>(`/users/me/following/companies/${encodeURIComponent(companyName)}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  practiceSaves: (token: string) =>
+    request<PracticeSavesResponse>("/users/me/practice-saves", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  savePracticeSkill: (token: string, skill: { skill_key: string; display_name: string; source?: string }) =>
+    request<{ skill_key: string }>("/users/me/practice-saves", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ source: "gap_session", ...skill }),
+    }),
+  unsavePracticeSkill: (token: string, skillKey: string) =>
+    request<void>(`/users/me/practice-saves/${encodeURIComponent(skillKey)}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     }),
@@ -2836,7 +2863,9 @@ export const diary = {
     }),
 }
 
-// ── Comments (PR-B) — private note threads on job + skill cards ──
+// ── Comments — PUBLIC community notes on job / company / skill entities ──
+// Read is public (no token needed); writing/flagging requires auth. Author is
+// shown via ninja_name only — user_id is never returned by the API.
 export type CommentEntityType = "job" | "skill" | "company"
 
 export interface Comment {
@@ -2846,6 +2875,8 @@ export interface Comment {
   body: string
   created_at: string
   updated_at: string
+  author_ninja_name: string | null
+  is_own: boolean
 }
 
 export interface CommentListResponse {
@@ -2853,10 +2884,21 @@ export interface CommentListResponse {
   total: number
 }
 
+export interface CommentFlagResponse {
+  comment_id: string
+  report_count: number
+  status: string
+}
+
+function commentAuthHeaders(token: string | null): Record<string, string> {
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 export const comments = {
-  list: (token: string, entityType: CommentEntityType, entityId: string) =>
+  // Public read — token optional (passed through only so the API can mark is_own).
+  list: (token: string | null, entityType: CommentEntityType, entityId: string) =>
     request<CommentListResponse>(`/comments?entity_type=${entityType}&entity_id=${encodeURIComponent(entityId)}`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: commentAuthHeaders(token),
     }),
   create: (token: string, entityType: CommentEntityType, entityId: string, body: string) =>
     request<Comment>("/comments", {
@@ -2873,6 +2915,11 @@ export const comments = {
   remove: (token: string, commentId: string) =>
     request<void>(`/comments/${commentId}`, {
       method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  flag: (token: string, commentId: string) =>
+    request<CommentFlagResponse>(`/comments/${commentId}/flag`, {
+      method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     }),
 }

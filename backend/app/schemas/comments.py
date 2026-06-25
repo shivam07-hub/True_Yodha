@@ -51,8 +51,18 @@ class CommentResponse(BaseModel):
     body: str
     created_at: datetime
     updated_at: datetime
+    # Public-feed fields. author_ninja_name is None when the author has no
+    # profile row yet (UI falls back to "A Myro user"). user_id is NEVER exposed.
+    author_ninja_name: str | None = None
+    is_own: bool = False
 
 
 class CommentListResponse(BaseModel):
     comments: list[CommentResponse]
     total: int
+
+
+class CommentFlagResponse(BaseModel):
+    comment_id: str
+    report_count: int
+    status: str

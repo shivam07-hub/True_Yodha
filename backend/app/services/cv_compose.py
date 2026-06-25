@@ -46,8 +46,9 @@ def collect_item_ids(cv_structured: dict[str, Any]) -> dict[str, str]:
             ids[item_id("proj_bullet", i * 100 + j, bullet)] = bullet
 
     for i, edu in enumerate(cv_structured.get("education") or []):
-        line = f"{edu.get('institution','')} · {edu.get('degree','')} · {edu.get('dates','')}".strip(" ·")
-        ids[item_id("edu", i, line)] = line
+        id_line = f"{edu.get('institution','')} · {edu.get('degree','')} · {edu.get('dates','')}".strip(" ·")
+        display = " · ".join(p for p in (edu.get("institution",""), edu.get("degree",""), edu.get("grade",""), edu.get("dates","")) if p)
+        ids[item_id("edu", i, id_line)] = display
 
     if cv_structured.get("skills_line"):
         ids[item_id("skills_line", 0, cv_structured["skills_line"])] = cv_structured["skills_line"]
@@ -144,10 +145,11 @@ def render_deterministic(
     education = cv_structured.get("education") or []
     kept_edu: list[str] = []
     for i, edu in enumerate(education):
-        line = f"{edu.get('institution','')} · {edu.get('degree','')} · {edu.get('dates','')}".strip(" ·")
-        iid = item_id("edu", i, line)
+        id_line = f"{edu.get('institution','')} · {edu.get('degree','')} · {edu.get('dates','')}".strip(" ·")
+        display = " · ".join(p for p in (edu.get("institution",""), edu.get("degree",""), edu.get("grade",""), edu.get("dates","")) if p)
+        iid = item_id("edu", i, id_line)
         if keep(iid):
-            kept_edu.append(text_of(iid, line))
+            kept_edu.append(text_of(iid, display))
     if kept_edu:
         lines.append("EDUCATION")
         lines.extend(kept_edu)

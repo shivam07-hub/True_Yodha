@@ -517,7 +517,48 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-24b · Beta deploy-confirm + T1-5 apply fallback — committed Develop, NOT pushed)
+## LAST SESSION SUMMARY (2026-06-25 · Backend score-delta deploy closeout + recompute)
+
+Backend-only Codex session, isolated in worktree
+`.worktrees/codex-backend-score-demand` on branch
+`codex/backend-score-demand`; the main workspace dirty CV/comment work was left
+untouched.
+
+- Verified live backend state: dev API is `2707628` (`origin/Develop`), prod API
+  is `4523fcd` (`origin/main`), both `/v1/status` ready, both OpenAPI contracts
+  expose `/cv/upload/finalize`, `GapSkillResponse.score_delta/domain`, and
+  `JobMatchResponse.missing_skills`.
+- Verified Supabase schema/migrations: `user_job_matches.missing_skills` exists
+  and `20260623_match_missing_skills` is applied.
+- Found the real T2-3 closeout blocker: score recompute was the only path that
+  fills gap candidates, but it fetched the full `job_skills` read model before
+  scoring. Fresh CV-upload scores therefore had no gap candidates, and ad hoc
+  recompute was too slow to safely backfill.
+- Fixed backend scoring demand lookup: recompute now scopes market demand to the
+  user's skill/aspiration candidate set and uses the existing
+  `count_job_demand_for_skills` RPC, cached per skill key. This keeps recompute
+  bounded and preserves the canonical scoring facade.
+- Fixed the pre-existing stream test override drift:
+  `test_analyse_stream_router` now overrides `get_interactive_provider`, matching
+  the route after the interactive-provider split.
+- Ran a live production Supabase refresh through the fixed canonical
+  `scoring.recompute_score()` path: `239/239` mirror scores recomputed, `238`
+  scores now have gap candidates with both `score_delta` and `domain`; the one
+  remaining score has no gap candidates. `0` refresh errors.
+- Verified T3-1 data remains lit: `48` recent match rows have
+  `missing_skills`; `66` total rows have non-empty missing-skill chips.
+
+Validation:
+
+- Backend full suite: `834 passed`
+- Focused scoring suite: `82 passed`
+- `git diff --check`: clean
+
+Task status: T2-3 backend deploy/schema/recompute gate CLOSED. T3-1 backend
+missing-skills gate CLOSED. Remaining beta items stay: T1-2 and T1-4 are
+repro-gated; PR-F is frontend/mobile and intentionally not touched this session.
+
+## OLDER SESSION SUMMARY (2026-06-24b · Beta deploy-confirm + T1-5 apply fallback — committed Develop, NOT pushed)
 
 Short session. Confirmed two deploy claims, then built the next open beta item.
 

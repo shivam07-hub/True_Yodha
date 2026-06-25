@@ -187,6 +187,32 @@ class UsersRepository:
     def unfollow_company(self, user_id: str, company_name: str) -> None:
         self._db.table("followed_companies").delete().eq("user_id", user_id).eq("company_name", company_name).execute()
 
+    def list_practice_saves(self, user_id: str) -> list[dict]:
+        result = (
+            self._db.table("practice_saves")
+            .select("skill_key, display_name, source, saved_at")
+            .eq("user_id", user_id)
+            .order("saved_at", desc=True)
+            .execute()
+        )
+        return result.data or []
+
+    def add_practice_save(self, user_id: str, skill_key: str, display_name: str, source: str) -> None:
+        self._db.table("practice_saves").upsert(
+            {
+                "user_id": user_id,
+                "skill_key": skill_key.strip(),
+                "display_name": display_name.strip(),
+                "source": source,
+            },
+            on_conflict="user_id,skill_key",
+            ignore_duplicates=True,
+        ).execute()
+
+    def remove_practice_save(self, user_id: str, skill_key: str) -> None:
+        self._db.table("practice_saves").delete().eq("user_id", user_id).eq("skill_key", skill_key).execute()
+
+
 def get_admin_users_repository(db: Client = Depends(get_supabase_admin)) -> UsersRepository:
     return UsersRepository(db)
 

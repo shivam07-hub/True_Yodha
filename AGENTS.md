@@ -298,7 +298,32 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-20 - Trustworthy onboarding rollout)
+## LAST SESSION SUMMARY (2026-06-25 - Backend score-delta closeout)
+
+Backend-only Codex session in isolated branch `codex/backend-score-demand`.
+Main workspace dirty CV/comment work was not touched.
+
+- Verified live dev/prod backend contracts expose `/cv/upload/finalize`,
+  score `score_delta/domain`, and job `missing_skills`.
+- Verified Supabase migration/schema for `user_job_matches.missing_skills`.
+- Fixed score recompute demand lookup so it uses bounded per-skill demand via
+  `count_job_demand_for_skills` instead of scanning all `job_skills`.
+- Refreshed production scores through canonical `scoring.recompute_score()`:
+  `239/239` recomputed, `238` now have gap candidates with `score_delta/domain`;
+  one score has no gap candidates. `0` refresh errors.
+- Confirmed recent match rows already have `missing_skills` populated.
+- Fixed the backend stream test override drift to use `get_interactive_provider`.
+
+Validation:
+
+- Backend full suite: `834 passed`
+- Focused scoring suite: `82 passed`
+- `git diff --check`: clean
+
+Closed: T2-3 backend deploy/schema/recompute gate and T3-1 backend
+missing-skills gate. Not touched: frontend/mobile PR-F; repro-gated T1-2/T1-4.
+
+## OLDER SESSION SUMMARY (2026-06-20 - Trustworthy onboarding rollout)
 
 Implemented and verified the approved first-value onboarding contract on
 `Develop` while preserving the intervening CV, navigation, and newsletter work.

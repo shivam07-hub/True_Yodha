@@ -7,7 +7,10 @@ from app.schemas import (
     CompanyJobsResponse,
     CompanyPageResponse,
     CompanyReviewItem,
+    PostingNoteItem,
 )
+
+_POSTING_NOTES_LIMIT = 20
 
 router = APIRouter(prefix="/companies", tags=["companies"])
 
@@ -42,13 +45,20 @@ def get_company_page(company_name: str) -> CompanyPageResponse:
         .execute()
     ).data or []
 
-    if not rows:
-        raise HTTPException(status_code=404, detail="No reviews found for this company")
+    posting_notes = _fetch_posting_notes(db, company_name)
+
+    # Render the page if there are EITHER structured reviews OR public posting
+    # notes. Only 404 when both are empty.
+    if not rows and not posting_notes:
+        raise HTTPException(status_code=404, detail="Nothing found for this company")
 
     review_count = len(rows)
-    avg_star = round(sum(r["star_rating"] for r in rows) / review_count, 2)
-    ghost_count = sum(1 for r in rows if r["outcome"] == "ghosted")
-    ghost_rate = round(ghost_count / review_count, 4)
+    avg_star = round(sum(r["star_rating"] for r in rows) / review_count, 2) if review_count else None
+    ghost_rate = (
+        round(sum(1 for r in rows if r["outcome"] == "ghosted") / review_count, 4)
+        if review_count
+        else None
+    )
 
     stage_breakdown: dict[str, int] = {}
     for r in rows:
@@ -72,4 +82,51 @@ def get_company_page(company_name: str) -> CompanyPageResponse:
         ghost_rate=ghost_rate,
         stage_breakdown=stage_breakdown,
         reviews=reviews,
+        posting_notes=posting_notes,
+        posting_note_count=len(posting_notes),
     )
+
+
+def _fetch_posting_notes(db, company_name: str) -> list[PostingNoteItem]:
+    """Roll up public notes left on this company's job postings (entity_type='job',
+    entity_id=job_id). Joins job title + author ninja_name service-side; user_id is
+    never surfaced. Returns [] on any miss so the company page never 500s on notes."""
+    jobs = (
+        db.table("jobs")
+        .select("job_id, job_title")
+        .ilike("company_name", company_name)
+        .execute()
+    ).data or []
+    if not jobs:
+        return []
+    title_by_id = {j["job_id"]: j.get("job_title") for j in jobs}
+
+    notes = (
+        db.table("comments")
+        .select("entity_id, body, user_id, created_at")
+        .eq("entity_type", "job")
+        .eq("status", "visible")
+        .in_("entity_id", list(title_by_id.keys()))
+        .order("created_at", desc=True)
+        .limit(_POSTING_NOTES_LIMIT)
+        .execute()
+    ).data or []
+    if not notes:
+        return []
+
+    user_ids = list({n["user_id"] for n in notes})
+    profiles = (
+        db.table("user_profiles").select("id, ninja_name").in_("id", user_ids).execute()
+    ).data or []
+    ninja_by_id = {p["id"]: p.get("ninja_name") for p in profiles}
+
+    return [
+        PostingNoteItem(
+            job_id=n["entity_id"],
+            role=title_by_id.get(n["entity_id"]),
+            body=n["body"],
+            author_ninja_name=ninja_by_id.get(n["user_id"]),
+            created_at=n["created_at"],
+        )
+        for n in notes
+    ]

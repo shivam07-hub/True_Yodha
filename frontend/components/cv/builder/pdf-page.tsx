@@ -130,6 +130,7 @@ export function PdfPage({ cv, hidden, contact, company, template = "classic", fo
               <div>
                 <span style={{ fontWeight: 600 }}>{ed.institution}</span>
                 {ed.degree && <span style={{ color: "#333" }}> · {ed.degree}</span>}
+                {ed.grade && <span style={{ color: "#333" }}> · {ed.grade}</span>}
               </div>
               {ed.dates && <span className="pdf-dates">{ed.dates}</span>}
             </div>

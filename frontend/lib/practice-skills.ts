@@ -1,5 +1,6 @@
 import type {
   DemandBand,
+  PracticeSave,
   SkillGapResponse,
   UserSkillDemandResponse,
   UserSkillItem,
@@ -52,6 +53,7 @@ export function buildPracticeSkills(
   userSkills: UserSkillsByDomain | undefined,
   jobGaps: SkillGapResponse[],
   skillDemand: UserSkillDemandResponse | undefined,
+  savedSkills: PracticeSave[] = [],
 ): PracticeSkills {
   // Owned index — keyed by normalised display name AND by taxonomy key, so we
   // can match job gaps (name-only) and demand (key-bearing) against the same rows.
@@ -141,6 +143,19 @@ export function buildPracticeSkills(
         addGap(skill.display_name || skill.skill, skill.target_level ?? 1, "Target upgrade", null, skill.weighted_demand, skill.job_count_30d, skill.demand_band ?? "none")
       }
     })
+
+  // Saved-for-practice — the user's own curated picks, collected from across the
+  // site. Enrich a matching owned row, else stand up a gap row so the pick is
+  // never a dead-end on the Practice page.
+  savedSkills.forEach((s) => {
+    const name = s.display_name || s.skill_key
+    const owned = ownedByKey.get(s.skill_key) ?? ownedByName.get(norm(name))
+    if (owned) {
+      if (!owned.sources.includes("Saved for practice")) owned.sources.push("Saved for practice")
+    } else {
+      addGap(name, 1, "Saved for practice", null)
+    }
+  })
 
   const owned = Array.from(ownedByName.values()).sort((a, b) => {
     if (a.item.level !== b.item.level) return a.item.level - b.item.level

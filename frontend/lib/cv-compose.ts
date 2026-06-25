@@ -71,8 +71,9 @@ export function collectItems(cv: CVStructured): PlaygroundItem[] {
   })
 
   cv.education.forEach((edu, i) => {
-    const line = [edu.institution, edu.degree, edu.dates].filter(Boolean).join(" · ")
-    items.push({ id: itemId("edu", i, line), sectionType: "edu", content: line })
+    const idLine = [edu.institution, edu.degree, edu.dates].filter(Boolean).join(" · ")
+    const content = [edu.institution, edu.degree, edu.grade, edu.dates].filter(Boolean).join(" · ")
+    items.push({ id: itemId("edu", i, idLine), sectionType: "edu", content })
   })
 
   if (cv.skills_line) {
@@ -152,9 +153,10 @@ export function renderDeterministic(
 
   const keptEdu: string[] = []
   cv.education.forEach((edu, i) => {
-    const line = [edu.institution, edu.degree, edu.dates].filter(Boolean).join(" · ")
-    const iid = itemId("edu", i, line)
-    if (keep(iid)) keptEdu.push(line)
+    const idLine = [edu.institution, edu.degree, edu.dates].filter(Boolean).join(" · ")
+    const content = [edu.institution, edu.degree, edu.grade, edu.dates].filter(Boolean).join(" · ")
+    const iid = itemId("edu", i, idLine)
+    if (keep(iid)) keptEdu.push(content)
   })
   if (keptEdu.length) {
     lines.push("EDUCATION")

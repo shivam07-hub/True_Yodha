@@ -18,7 +18,7 @@ from app.main import app
 from app.repositories.jobs import get_token_jobs_repository
 from app.routers.jobs import analyse as analyse_router
 from app.services import xp_service
-from app.services.llm_provider import LLMProviderError, get_llm_provider
+from app.services.llm_provider import LLMProviderError, get_interactive_provider
 
 
 class _FakeRepo:
@@ -57,7 +57,7 @@ class _FakeProvider:
 def _wire(repo: _FakeRepo, provider: _FakeProvider) -> None:
     app.dependency_overrides[get_principal] = lambda: Principal(id="u1", email="a@b.co")
     app.dependency_overrides[get_token_jobs_repository] = lambda: repo
-    app.dependency_overrides[get_llm_provider] = lambda: provider
+    app.dependency_overrides[get_interactive_provider] = lambda: provider
 
 
 def _unwire() -> None:

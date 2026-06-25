@@ -110,13 +110,17 @@ export function LivePreview({ cv, hidden, keywords, contact, focusSkill }: LiveP
 
       {cv.education.length > 0 && (() => {
         const visibleEdu = cv.education
-          .map((ed, i) => ({ ed, line: [ed.institution, ed.degree, ed.dates].filter(Boolean).join(" · "), i }))
-          .filter(({ line, i }) => !hidden.has(itemId("edu", i, line)))
+          .map((ed, i) => ({
+            ed, i,
+            idLine: [ed.institution, ed.degree, ed.dates].filter(Boolean).join(" · "),
+            display: [ed.institution, ed.degree, ed.grade, ed.dates].filter(Boolean).join(" · "),
+          }))
+          .filter(({ idLine, i }) => !hidden.has(itemId("edu", i, idLine)))
         if (!visibleEdu.length) return null
         return (
           <>
             <h6>Education</h6>
-            {visibleEdu.map(({ line, i }) => <div key={i}>{line}</div>)}
+            {visibleEdu.map(({ display, i }) => <div key={i}>{display}</div>)}
           </>
         )
       })()}

@@ -11,7 +11,7 @@ import { itemId } from "@/lib/cv-compose"
 
 export interface VisibleExperience { role: string; company: string; dates: string; bullets: string[] }
 export interface VisibleProject { name: string; dates: string; bullets: string[] }
-export interface VisibleEducation { institution: string; degree: string; dates: string }
+export interface VisibleEducation { institution: string; degree: string; grade: string; dates: string }
 
 export interface VisibleCV {
   summary: string
@@ -37,7 +37,7 @@ export function selectVisibleCV(cv: CVStructured, hidden: Set<string>): VisibleC
   const education = cv.education.filter((ed, i) => {
     const line = [ed.institution, ed.degree, ed.dates].filter(Boolean).join(" · ")
     return !hidden.has(itemId("edu", i, line))
-  }).map(ed => ({ institution: ed.institution, degree: ed.degree ?? "", dates: ed.dates ?? "" }))
+  }).map(ed => ({ institution: ed.institution, degree: ed.degree ?? "", grade: ed.grade ?? "", dates: ed.dates ?? "" }))
 
   const summaryHidden = cv.summary ? hidden.has(itemId("summary", 0, cv.summary)) : true
   const skillsHidden = cv.skills_line ? hidden.has(itemId("skills_line", 0, cv.skills_line)) : true

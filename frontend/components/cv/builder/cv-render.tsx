@@ -109,6 +109,7 @@ export function CVRender({ cv, contact, focusSkill }: CVRenderProps) {
               <div>
                 <span className="cv-role">{ed.institution}</span>
                 {ed.degree && <span className="cv-co"> · {ed.degree}</span>}
+                {ed.grade && <span className="cv-co"> · {ed.grade}</span>}
               </div>
               {ed.dates && <span className="cv-dates">{ed.dates}</span>}
             </div>

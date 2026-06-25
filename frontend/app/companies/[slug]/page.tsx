@@ -23,6 +23,25 @@ async function fetchCompanyJobs(name: string, page: number): Promise<CompanyJobs
   return res.json()
 }
 
+interface PostingNote {
+  job_id: string
+  role: string | null
+  body: string
+  author_ninja_name: string | null
+  created_at: string
+}
+
+// Notes left on this company's job postings, rolled up. The endpoint 404s when
+// the company has neither reviews nor notes — treat that as an empty rollup.
+async function fetchPostingNotes(name: string): Promise<PostingNote[]> {
+  const base = process.env.NEXT_PUBLIC_API_URL ?? ""
+  const res = await fetch(`${base}/companies/${encodeURIComponent(name)}`)
+  if (res.status === 404) return []
+  if (!res.ok) throw new Error("fetch failed")
+  const data = await res.json()
+  return (data.posting_notes ?? []) as PostingNote[]
+}
+
 async function saveJobReq(token: string, jobId: string): Promise<void> {
   const base = process.env.NEXT_PUBLIC_API_URL ?? ""
   await fetch(`${base}/jobs/save/${encodeURIComponent(jobId)}`, {
@@ -121,6 +140,12 @@ export default function CompanyJobsPage() {
     staleTime: 5 * 60 * 1000,
   })
 
+  const { data: postingNotes } = useQuery({
+    queryKey: ["company-posting-notes", companyName],
+    queryFn: () => fetchPostingNotes(companyName),
+    staleTime: 5 * 60 * 1000,
+  })
+
   async function handleSave(jobId: string) {
     if (!token) {
       signup.open({ surface: "company_jobs_save", next: `/companies/${encodeURIComponent(companyName)}` })
@@ -205,13 +230,35 @@ export default function CompanyJobsPage() {
           </>
         )}
 
-        {/* Private notes — logged-in only (RLS own-only) */}
-        {token && (
-          <div style={{ marginTop: 40, padding: "24px 28px", background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 14 }}>
+        {/* Public community notes on this company. Anyone reads; signed-in users post. */}
+        <div style={{ marginTop: 40, padding: "24px 28px", background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 14 }}>
+          <div className="tm-label-caps" style={{ color: "var(--tm-text-faint)", marginBottom: 12 }}>
+            Notes on {companyName}
+          </div>
+          <CommentThread token={token ?? null} entityType="company" entityId={companyName} placeholder={`Share what you know about applying to ${companyName}…`} />
+        </div>
+
+        {/* Rollup: notes left on this company's individual job postings. */}
+        {postingNotes && postingNotes.length > 0 && (
+          <div style={{ marginTop: 24, padding: "24px 28px", background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 14 }}>
             <div className="tm-label-caps" style={{ color: "var(--tm-text-faint)", marginBottom: 12 }}>
-              Your notes on {companyName}
+              From applicants on open roles
             </div>
-            <CommentThread token={token} entityType="company" entityId={companyName} placeholder={`Private note on ${companyName} — what you've heard, applied to, want to track…`} />
+            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+              {postingNotes.map((n, i) => (
+                <li key={`${n.job_id}-${i}`} style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--tm-border-soft)", background: "rgba(255,255,255,0.02)" }}>
+                  <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: "var(--tm-text)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{n.body}</p>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 7, fontSize: 11, color: "var(--tm-text-faint)" }}>
+                    {n.role && <span style={{ fontWeight: 600, color: "var(--tm-text-soft, var(--tm-text-faint))" }}>{n.role}</span>}
+                    {n.author_ninja_name ? (
+                      <Link href={`/profile/${n.author_ninja_name}`} style={{ color: "var(--tm-interactive-rest)", fontWeight: 700, textDecoration: "none" }}>{n.author_ninja_name}</Link>
+                    ) : (
+                      <span>A Myro user</span>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
