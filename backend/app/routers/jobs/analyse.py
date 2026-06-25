@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from app.deps import Principal, get_principal
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.services import xp_service
-from app.services.llm_provider import LLMProvider, LLMProviderError, get_llm_provider
+from app.services.llm_provider import LLMProvider, LLMProviderError, get_interactive_provider
 from app.routers.jobs._shared import last_monday
 
 router = APIRouter()
@@ -133,7 +133,7 @@ async def analyse_job(
     job_id: str,
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
-    llm_provider: LLMProvider = Depends(get_llm_provider),
+    llm_provider: LLMProvider = Depends(get_interactive_provider),
 ) -> dict:
     user_id = principal.id
 
@@ -213,7 +213,7 @@ async def analyse_job_stream(
     job_id: str,
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
-    llm_provider: LLMProvider = Depends(get_llm_provider),
+    llm_provider: LLMProvider = Depends(get_interactive_provider),
 ) -> StreamingResponse:
     """Stream the fit-rationale token-by-token (ADR-0009 PR1, direct stream).
 

@@ -19,7 +19,7 @@
 "use client"
 
 import Link from "next/link"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   cv as cvApi,
   type BelowLevelCard,
@@ -220,7 +220,7 @@ function SurfaceCard({ token, card, onResolved, onSkip }: {
   token: string; card: HostBulletCard; onResolved: () => void; onSkip: () => void
 }) {
   const keywords = card.skills.map(s => s.display_name)
-  const { phase, proposed, rationale, citations, applying, propose, accept, reset, errMsg } =
+  const { phase, proposed, setProposed, rationale, citations, applying, propose, refine, accept, reset, errMsg } =
     useRewrite(token, card.bullet_text, keywords, card)
 
   return (
@@ -232,7 +232,7 @@ function SurfaceCard({ token, card, onResolved, onSkip }: {
         ))}.
       </h3>
       <p className="cvb-gs-card-lede">You may already show this here — let&apos;s make it unmistakable.</p>
-      <pre className="cvb-gs-bullet">{card.bullet_text}</pre>
+      {phase !== "diff" && <pre className="cvb-gs-bullet">{card.bullet_text}</pre>}
 
       {phase === "intro" && (
         <div className="cvb-gs-actions">
@@ -244,10 +244,11 @@ function SurfaceCard({ token, card, onResolved, onSkip }: {
       )}
 
       <RewriteBody
-        phase={phase} proposed={proposed} rationale={rationale} citations={citations}
+        phase={phase} proposed={proposed} onProposedChange={setProposed} rationale={rationale} citations={citations}
         applying={applying} errMsg={errMsg}
         before={card.bullet_text}
         onAccept={() => void accept(onResolved)} onDiscard={reset} onRetry={() => void propose()}
+        onRefine={note => void refine(note)}
       />
     </article>
   )
@@ -259,8 +260,14 @@ function ShallowCard({ token, card, onResolved, onSkip }: {
   token: string; card: BelowLevelCard; onResolved: () => void; onSkip: () => void
 }) {
   const [anecdote, setAnecdote] = useState("")
+  const anecRef = useRef<HTMLTextAreaElement>(null)
+  const autoGrow = (el: HTMLTextAreaElement | null) => {
+    if (!el) return
+    el.style.height = "auto"
+    el.style.height = `${el.scrollHeight}px`
+  }
   const host = card.host!
-  const { phase, proposed, rationale, citations, applying, propose, accept, reset, errMsg } =
+  const { phase, proposed, setProposed, rationale, citations, applying, propose, refine, accept, reset, errMsg } =
     useRewrite(token, host.bullet_text, [card.display_name], host)
 
   return (
@@ -272,23 +279,27 @@ function ShallowCard({ token, card, onResolved, onSkip }: {
       <p className="cvb-gs-card-lede">
         Surface what you&apos;ve really done up to <strong>L{card.surface_to}</strong> — then prove the rest in practice.
       </p>
-      <pre className="cvb-gs-bullet">{host.bullet_text}</pre>
+      {phase !== "diff" && <pre className="cvb-gs-bullet">{host.bullet_text}</pre>}
 
       {phase === "intro" && (
         <div className="cvb-gs-ask">
           <label className="cvb-gs-ask-q" htmlFor={`anec-${card.skill}`}>
             What&apos;s the most advanced {card.display_name} thing you actually did here?
           </label>
-          <input
+          <textarea
             id={`anec-${card.skill}`}
-            className="cvb-rw-input"
+            ref={anecRef}
+            rows={1}
+            className="cvb-rw-input cvb-rw-area"
             value={anecdote}
-            onChange={e => setAnecdote(e.target.value)}
+            onChange={e => { setAnecdote(e.target.value); autoGrow(e.target) }}
             placeholder={`e.g. owned the ${card.display_name.toLowerCase()} for a 4-person team`}
-            onKeyDown={e => { if (e.key === "Enter" && anecdote.trim()) void propose(anecdote.trim()) }}
+            onKeyDown={e => {
+              if (e.key === "Enter" && !e.shiftKey && anecdote.trim()) { e.preventDefault(); void propose(anecdote.trim()) }
+            }}
           />
           <div className="cvb-gs-actions">
-            <Link href={forgeHref(card.skill)} className="cvb-btn sm ghost">
+            <Link href={forgeHref(card.skill)} className="cvb-btn sm">
               Earn L{card.required_level} in practice
             </Link>
             <button
@@ -304,10 +315,11 @@ function ShallowCard({ token, card, onResolved, onSkip }: {
       )}
 
       <RewriteBody
-        phase={phase} proposed={proposed} rationale={rationale} citations={citations}
+        phase={phase} proposed={proposed} onProposedChange={setProposed} rationale={rationale} citations={citations}
         applying={applying} errMsg={errMsg}
         before={host.bullet_text}
         onAccept={() => void accept(onResolved)} onDiscard={reset} onRetry={() => void propose(anecdote.trim())}
+        onRefine={note => void refine(note)}
       />
     </article>
   )
@@ -376,20 +388,57 @@ function useRewrite(
     }
   }, [token, bullet, proposed, host])
 
+  // Iterate on the *current* proposal instead of starting over: Myro's last
+  // version becomes the base, the user's note is the context it missed. Failure
+  // keeps the standing proposal in view (stays on "diff") rather than dropping it.
+  const refine = useCallback(async (note: string) => {
+    const base = proposed.trim()
+    if (!base || !note.trim()) return
+    setPhase("proposing"); setErrMsg(null)
+    try {
+      const res: RewriteBulletResponse = await cvApi.rewriteBullet(token, {
+        bullet: base, missing_keywords: keywords, metric: note.trim(), allow_no_metric: true,
+      })
+      if (res.mode === "rewrite" && res.rewritten_text) {
+        setProposed(res.rewritten_text)
+        setRationale(res.rationale ?? null)
+        setCitations(res.citations ?? [])
+        setPhase("diff")
+      } else {
+        setErrMsg(res.rationale ?? "Couldn't work that in. Try rewording.")
+        setPhase("diff")
+      }
+    } catch {
+      setErrMsg("Mentor is unavailable. Try again.")
+      setPhase("diff")
+    }
+  }, [token, proposed, keywords])
+
   const reset = useCallback(() => {
     setPhase("intro"); setProposed(""); setRationale(null); setCitations([]); setErrMsg(null)
   }, [])
 
-  return { phase, proposed, rationale, citations, applying, propose, accept, reset, errMsg }
+  return { phase, proposed, setProposed, rationale, citations, applying, propose, refine, accept, reset, errMsg }
 }
 
 // ── Shared rewrite UI (status / diff / error), reusing cvb-rw-* vocabulary ────
 
-function RewriteBody({ phase, proposed, rationale, citations, applying, errMsg, before, onAccept, onDiscard, onRetry }: {
-  phase: CardPhase; proposed: string; rationale: string | null; citations: string[]
+function RewriteBody({ phase, proposed, onProposedChange, rationale, citations, applying, errMsg, before, onAccept, onDiscard, onRetry, onRefine }: {
+  phase: CardPhase; proposed: string; onProposedChange: (v: string) => void
+  rationale: string | null; citations: string[]
   applying: boolean; errMsg: string | null; before: string
   onAccept: () => void; onDiscard: () => void; onRetry: () => void
+  onRefine: (note: string) => void
 }) {
+  const [editing, setEditing] = useState(false)
+  const [note, setNote] = useState("")
+
+  function submitRefine() {
+    if (!note.trim()) return
+    onRefine(note.trim())
+    setNote("")
+  }
+
   if (phase === "proposing") return <div className="cvb-rw-status" role="status">✦ Mentor is surfacing it…</div>
   if (phase === "resolved") return <div className="cvb-gs-resolved" role="status"><Icon name="check" size={14} stroke={3}/> Surfaced</div>
   if (phase === "error") {
@@ -405,14 +454,54 @@ function RewriteBody({ phase, proposed, rationale, citations, applying, errMsg, 
       <div className="cvb-rw-diff">
         <div className="cvb-rw-diff-tag">before</div>
         <div className="cvb-rw-diff-old">{before}</div>
-        <div className="cvb-rw-diff-tag">after</div>
-        <div className="cvb-rw-diff-new">{proposed}</div>
+        <div className="cvb-rw-diff-afterhead">
+          <span className="cvb-rw-diff-tag">after</span>
+          <button
+            type="button" className="cvb-rw-edit"
+            onClick={() => setEditing(e => !e)}
+            aria-label={editing ? "Done editing" : "Edit this rewrite"}
+            title={editing ? "Done editing" : "Edit"}
+          >
+            <Icon name={editing ? "check" : "edit"} size={12}/>
+          </button>
+        </div>
+        {editing ? (
+          <textarea
+            className="cvb-rw-input cvb-rw-diff-edit"
+            value={proposed}
+            onChange={e => onProposedChange(e.target.value)}
+            rows={3}
+            autoFocus
+          />
+        ) : (
+          <div className="cvb-rw-diff-new">{proposed}</div>
+        )}
         {rationale && <div className="cvb-rw-rationale">{rationale}</div>}
         {citations.length > 0 && (
           <div className="cvb-rw-citation" title="Grounded in the Myro CV Playbook">
             <Icon name="sparkle" size={11}/> Grounded in {citations.join(", ")}
           </div>
         )}
+
+        <div className="cvb-rw-refine">
+          <label className="cvb-rw-refine-q" htmlFor="rw-refine">Not quite? Tell Myro what it missed — it&apos;ll build on this version.</label>
+          <div className="cvb-rw-refine-row">
+            <input
+              id="rw-refine"
+              className="cvb-rw-input"
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              placeholder="e.g. it was cross-border, ₹2Cr budget, I owned the strategy"
+              disabled={applying}
+              onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); submitRefine() } }}
+            />
+            <button type="button" className="cvb-btn sm ghost" disabled={applying || !note.trim()} onClick={submitRefine}>
+              <Icon name="sparkle" size={12}/> Refine
+            </button>
+          </div>
+          {errMsg && <div className="cvb-rw-refine-err" role="alert">{errMsg}</div>}
+        </div>
+
         <div className="cvb-rw-actions">
           <button type="button" className="cvb-btn sm" onClick={onDiscard} disabled={applying}>Discard</button>
           <button type="button" className="cvb-btn sm primary" disabled={applying || !proposed.trim()} onClick={onAccept}>
@@ -484,7 +573,7 @@ function ClaimableUpgrade({ token, upgrade, host, meta, onApplied }: {
   meta: React.ReactNode
   onApplied: () => void
 }) {
-  const { phase, proposed, rationale, citations, applying, propose, accept, reset, errMsg } =
+  const { phase, proposed, setProposed, rationale, citations, applying, propose, refine, accept, reset, errMsg } =
     useRewrite(token, host.bullet_text, [upgrade.display_name], host)
 
   if (phase === "intro") {
@@ -507,9 +596,10 @@ function ClaimableUpgrade({ token, upgrade, host, meta, onApplied }: {
         <span className="cvb-gs-row-meta">{meta}</span>
       </div>
       <RewriteBody
-        phase={phase} proposed={proposed} rationale={rationale} citations={citations}
+        phase={phase} proposed={proposed} onProposedChange={setProposed} rationale={rationale} citations={citations}
         applying={applying} errMsg={errMsg} before={host.bullet_text}
         onAccept={() => void accept(onApplied)} onDiscard={reset} onRetry={() => void propose()}
+        onRefine={note => void refine(note)}
       />
     </div>
   )
@@ -548,11 +638,17 @@ function ClosingPanel({ token, resolved, practiceSkills, upgrades, onApplied, on
           <div className="cvb-gs-section-h build">Build these in practice</div>
           <p className="cvb-gs-section-lede">The market wants these and your experience doesn&apos;t show them yet — that&apos;s the signal, not a failure.</p>
           {practiceSkills.map(s => (
-            <Link key={s.skill} href={forgeHref(s.skill)} className="cvb-gs-row build">
+            <Link
+              key={s.skill}
+              href={forgeHref(s.skill)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="cvb-gs-row build"
+            >
               <span className="cvb-gs-row-name">{s.display_name}</span>
               <span className="cvb-gs-row-meta">
                 {s.is_primary && s.reason === "absent" && <span className="cvb-gs-primary-tag">primary requirement</span>}
-                Practice →
+                Practice ↗
               </span>
             </Link>
           ))}

@@ -91,6 +91,17 @@
   display: flex; flex-wrap: nowrap; gap: 6px;
   overflow-x: auto; overflow-y: hidden;
   scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch;
+  /* Edge fade — a chip scrolled past the right edge fades out instead of being
+     hard-sliced (rounded border gone, text flat against the card boundary, which
+     read as "the skill name is leaking out of the pill"). The fade signals
+     "more → scroll" and keeps the PRODUCT LOCK intact (still one line, natural
+     width, never wraps). mask-image is compositor-only → no layout/paint cost. */
+  mask-image: linear-gradient(
+    to right, #000 0, #000 calc(100% - 22px), transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right, #000 0, #000 calc(100% - 22px), transparent 100%
+  );
 }
 .fc-chips::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .fc-chip {

@@ -21,11 +21,14 @@ type Phase = "loading" | "proposal" | "applying" | "error"
 interface RestructureProposalProps {
   token: string
   versionId: number
+  /** What this restructure targets, e.g. "Account Manager I · Amazon". Surfaced
+   * as the basis so the user knows what Mentor is tailoring to. */
+  targetLabel?: string
   onKept: (version: CVVersion) => void
   onClose: () => void
 }
 
-export function RestructureProposal({ token, versionId, onKept, onClose }: RestructureProposalProps) {
+export function RestructureProposal({ token, versionId, targetLabel, onKept, onClose }: RestructureProposalProps) {
   const [phase, setPhase] = useState<Phase>("loading")
   const [data, setData] = useState<RestructureProposalResponse | null>(null)
   const [proposalId, setProposalId] = useState("")
@@ -93,7 +96,14 @@ export function RestructureProposal({ token, versionId, onKept, onClose }: Restr
 
         {phase === "loading" && (
           <div className="cvb-rs-body">
-            <div className="cvb-rw-status" role="status">✦ Mentor is restructuring your CV…</div>
+            <div className="cvb-rw-status" role="status">
+              ✦ Mentor is restructuring your CV{targetLabel ? ` for ${targetLabel}` : ""}…
+            </div>
+            <p className="cvb-rs-basis">
+              Reordering and tightening your existing CV so the proof this job wants
+              comes first. Nothing is invented — only your bullets are reordered, merged
+              or trimmed.
+            </p>
           </div>
         )}
 
@@ -125,8 +135,8 @@ export function RestructureProposal({ token, versionId, onKept, onClose }: Restr
             </div>
 
             {(data.rationale || data.playbook || data.uncertainty) && (
-              <details className="cvb-rs-why">
-                <summary>Why this works</summary>
+              <details className="cvb-rs-why" open>
+                <summary>Why this works{targetLabel ? ` for ${targetLabel}` : ""}</summary>
                 {data.rationale && <p className="cvb-rs-why-reason">{data.rationale}</p>}
                 {data.playbook && <p className="cvb-rs-why-src"><span>Playbook</span> {data.playbook}</p>}
                 {data.uncertainty && (

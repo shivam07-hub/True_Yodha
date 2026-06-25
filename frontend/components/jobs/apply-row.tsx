@@ -8,6 +8,9 @@ interface ApplyRowProps {
   jobId: string | number | null | undefined
   /** Visual density. "compact" = single-line meta; "block" = larger stacked buttons. */
   variant?: "compact" | "block"
+  /** Skip the "Open careers" link when the host already surfaces it (e.g. the
+   *  export toolbar) — leaves only the copy-ID / copy-title helpers. */
+  hideCareers?: boolean
 }
 
 /**
@@ -20,8 +23,8 @@ interface ApplyRowProps {
  *
  * Defensible posture: we do not host or surface scraped JD URLs.
  */
-export function ApplyRow({ company, title, jobId, variant = "compact" }: ApplyRowProps) {
-  const careersHref = company
+export function ApplyRow({ company, title, jobId, variant = "compact", hideCareers = false }: ApplyRowProps) {
+  const careersHref = company && !hideCareers
     ? `https://www.google.com/search?q=${encodeURIComponent(`${company} careers`)}`
     : null
 

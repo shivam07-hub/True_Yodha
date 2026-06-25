@@ -5,7 +5,8 @@
  */
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
+import { createPortal } from "react-dom"
 import Link from "next/link"
 import type { CVVersion } from "@/lib/api"
 import { Icon } from "./icons"
@@ -31,6 +32,12 @@ export function IntelDrawer({
   open, onClose, score, baseScore, matched, missing, jdText,
   threadVersions, selectedVId, jobLabel,
 }: IntelDrawerProps) {
+  // Portal to <body> so the fixed-position backdrop/aside anchor to the viewport
+  // and never get trapped by an animated ancestor's transform containing block
+  // (the overlap bug). Matches the job detail-drawer convention.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
@@ -41,7 +48,9 @@ export function IntelDrawer({
   const fitLabel = score >= 75 ? "Strong fit" : score >= 60 ? "Good fit" : "Needs work"
   const fitColor = score >= 75 ? "var(--tm-success)" : score >= 60 ? "var(--tm-interactive)" : "var(--tm-warning)"
 
-  return (
+  if (!mounted) return null
+
+  return createPortal(
     <>
       <div className={`cvb-drawer-backdrop${open ? " open" : ""}`} onClick={onClose} aria-hidden={!open}/>
       <aside
@@ -154,6 +163,7 @@ export function IntelDrawer({
           </section>
         </div>
       </aside>
-    </>
+    </>,
+    document.body,
   )
 }

@@ -717,7 +717,11 @@ body::after {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.tm-page-enter { animation: tmPageIn var(--tm-dur-slow) var(--tm-ease) forwards; }
+/* `backwards`, not `forwards`: see the note on `.tm-shell-enter` in globals.css.
+   Retaining the end-state `transform: translateY(0)` makes this scroll wrapper
+   a containing block for fixed-position overlays, trapping drawers/modals to
+   this box instead of the viewport. End-state == base, so nothing is lost. */
+.tm-page-enter { animation: tmPageIn var(--tm-dur-slow) var(--tm-ease) backwards; }
 
 /* ── Utility escape hatches ───────────────────────────────── */
 .no-scrollbar::-webkit-scrollbar { display: none; }
