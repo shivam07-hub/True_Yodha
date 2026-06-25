@@ -87,6 +87,7 @@ class VisibleProject(BaseModel):
 class VisibleEducation(BaseModel):
     institution: str = ""
     degree: str = ""
+    grade: str = ""
     dates: str = ""
 
 

@@ -150,7 +150,9 @@ def generate_cv_docx(visible: dict[str, Any], contact: dict[str, Any], template:
         heading("Education")
         for ed in education:
             degree = (ed.get("degree") or "").strip()
-            role_line(ed.get("institution") or "", f"  ·  {degree}" if degree else "", (ed.get("dates") or "").strip())
+            grade = (ed.get("grade") or "").strip()
+            sub = "".join(f"  ·  {part}" for part in (degree, grade) if part)
+            role_line(ed.get("institution") or "", sub, (ed.get("dates") or "").strip())
 
     # ── Skills ────────────────────────────────────────────────────────
     skills_line = (visible.get("skills_line") or "").strip()
