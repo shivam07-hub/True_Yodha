@@ -370,7 +370,8 @@ function CVPage() {
       else if (stashed) void handleUpload(stashed)
       else openFilePicker()
     }
-    router.replace("/cv", { scroll: false })
+    const uploadJobId = searchParams.get("jobId")?.trim()
+    router.replace(uploadJobId ? `/cv?jobId=${encodeURIComponent(uploadJobId)}` : "/cv", { scroll: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, token, searchParams, playground.versionsLoading, hasBaseline])
 

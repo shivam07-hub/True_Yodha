@@ -94,6 +94,7 @@ interface ResultsProps {
   hasCv: boolean
   /** job_id → fit, lazily fetched for the active company's open roles. */
   fits: Map<string, JobRowFit>
+  onCheckFit: (job: ResultJob, companyName: string | null) => void
 }
 
 export function IntelResults(props: ResultsProps) {
@@ -311,6 +312,7 @@ function Split(props: ResultsProps) {
                 authed={props.authed}
                 hasCv={props.hasCv}
                 fit={props.fits.get(j.id) ?? null}
+                onCheckFit={() => props.onCheckFit(j, props.activeCompanyName)}
               />
             ))
           : <Empty />}

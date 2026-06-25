@@ -1,6 +1,6 @@
 "use client"
 
-import { useSignupGate } from "@/lib/hooks/use-signup-gate"
+import { fitBand } from "@/lib/job-fit-intent"
 import {
   COUNTRY_NAMES, fmtAgeMin, fmtBatch, hexToRgba, initialsFor, logoColorFor,
 } from "./intel-data"
@@ -162,68 +162,77 @@ export function CompanyHiringRow({
 
 export interface JobRowFit {
   overlap_score: number
+  matched_skills: string[]
   matched_count: number
   total_skills: number
 }
 
-/** Fit band → strong / building / gap, mirrors the dashboard fit scale. */
-function fitBand(score: number): "strong" | "building" | "gap" {
-  if (score >= 70) return "strong"
-  if (score >= 40) return "building"
-  return "gap"
-}
-
 function FitSlot({
-  authed, hasCv, fit,
-}: { authed: boolean; hasCv: boolean; fit: JobRowFit | null }) {
-  const signup = useSignupGate()
-
-  // Logged out — the lock is the conversion hook.
+  authed, hasCv, fit, onCheckFit,
+}: { authed: boolean; hasCv: boolean; fit: JobRowFit | null; onCheckFit: () => void }) {
+  // Logged out - the drawer asks for CV evidence before auth.
   if (!authed) {
     return (
       <button
         type="button"
         className="tm-intel-fit-locked"
-        title="Sign in to see your fit % against this role"
-        onClick={() => signup.open({ surface: "manual", mode: "login", source: "intel_fit_lock" })}
+        title="Check your fit against this role"
+        onClick={onCheckFit}
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
           strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <rect x="3" y="11" width="18" height="11" rx="2" />
           <path d="M7 11V7a5 5 0 0 1 10 0v4" />
         </svg>
-        fit · sign in
+        check fit
       </button>
     )
   }
 
   // Logged in but fit unknown — no CV, or this role carries no taxonomy skills.
-  // The header owns the single upload CTA (no per-row nagging); rows go quiet.
+  // The drawer owns the single upload/unknown state.
   if (!hasCv || !fit) {
-    return <span className="tm-intel-fit-muted" aria-hidden="true">—</span>
+    return (
+      <button
+        type="button"
+        className="tm-intel-fit-muted"
+        aria-label="Check fit for this role"
+        onClick={onCheckFit}
+      >
+        —
+      </button>
+    )
   }
 
   const band = fitBand(fit.overlap_score)
   return (
-    <span
+    <button
+      type="button"
       className={`tm-intel-fit-pill is-${band}`}
       title={`${fit.matched_count} of ${fit.total_skills} required skills matched`}
+      onClick={onCheckFit}
     >
       {Math.round(fit.overlap_score)}%
       <span className="tm-intel-fit-skills">· {fit.matched_count}/{fit.total_skills} skills</span>
-    </span>
+    </button>
   )
 }
 
 export function JobRow({
-  job, authed = false, hasCv = false, fit = null,
-}: { job: ResultJob; authed?: boolean; hasCv?: boolean; fit?: JobRowFit | null }) {
+  job, authed = false, hasCv = false, fit = null, onCheckFit,
+}: {
+  job: ResultJob
+  authed?: boolean
+  hasCv?: boolean
+  fit?: JobRowFit | null
+  onCheckFit: () => void
+}) {
   const fresh = job.ageMin < 60 * 24
   return (
     <div className="tm-intel-job-row">
       <div className="tm-intel-job-head">
         <div className="tm-intel-job-title">{job.title}</div>
-        <FitSlot authed={authed} hasCv={hasCv} fit={fit} />
+        <FitSlot authed={authed} hasCv={hasCv} fit={fit} onCheckFit={onCheckFit} />
       </div>
       <div className="tm-intel-job-sub">
         <span>{job.city}</span>

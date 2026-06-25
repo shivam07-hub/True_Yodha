@@ -3437,6 +3437,18 @@ export interface AnonScoreResponse {
   contact: AnonContact | null
 }
 
+export interface PublicJobFitPreviewResponse {
+  job_id: string
+  title: string
+  company: string | null
+  fit_pct: number
+  matched_count: number
+  total_skills: number
+  matched_skills: string[]
+  missing_skills: string[]
+  cv_preview: AnonScoreResponse
+}
+
 export interface AnonRewriteResponse {
   mode: "rewrite" | "question" | "error"
   rewritten_text: string | null
@@ -3476,6 +3488,25 @@ export const publicCv = {
     const body = await res.json().catch(() => null)
     if (!res.ok) throw new Error(extractError(body, res.status))
     return body as AnonScoreResponse
+  },
+
+  jobFitPreview: async (
+    jobId: string,
+    file: File,
+    turnstileToken?: string | null,
+  ): Promise<PublicJobFitPreviewResponse> => {
+    if (!BASE) throw new Error("API base URL is not configured.")
+    const token = turnstileToken ?? (await getTurnstileToken())
+    const form = new FormData()
+    form.append("file", file)
+    if (token) form.append("cf_turnstile_token", token)
+    const res = await fetch(`${BASE}/public/jobs/${encodeURIComponent(jobId)}/fit-preview`, {
+      method: "POST",
+      body: form,
+    })
+    const body = await res.json().catch(() => null)
+    if (!res.ok) throw new Error(extractError(body, res.status))
+    return body as PublicJobFitPreviewResponse
   },
 
   // Pre-login playground AI — compute-only, persists nothing (PV1). Same pure

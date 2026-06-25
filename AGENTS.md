@@ -298,7 +298,35 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-25 - Public job-fit preview design)
+## LAST SESSION SUMMARY (2026-06-25 - Public job-fit preview implementation)
+
+Implemented the approved public job-fit preview journey on `Develop`.
+
+- Added stateless `POST /public/jobs/{job_id}/fit-preview` so a logged-out
+  visitor can upload a CV and see role-specific fit without creating an account.
+- Reused anonymous CV parsing, validation, Turnstile/rate-limit behavior, and
+  existing save-on-signup replay data instead of inventing a second upload flow.
+- Wired `/intel` rows into a preview-first fit drawer for logged-out visitors,
+  logged-in users with a CV, and logged-in users who still need to upload.
+- Added API/client intent helpers so "Save + tailor CV" preserves the exact
+  `jobId` through signup/upload and lands on `/cv?jobId=...`.
+- Kept authenticated fit grounded in existing `fit-batch`, save-job, skill-gap,
+  and CV tailoring surfaces.
+- Browser-sanity checked `/intel` locally with frontend + backend dev servers:
+  public rows opened the role-specific fit drawer with CV upload and tailor CTA.
+
+Validation:
+
+- Backend full suite: `853 passed`
+- Focused backend public/fit tests: `18 passed`
+- Frontend TypeScript: clean
+- Frontend lint: clean
+- Frontend public-intel/job-fit intent tests: `6 passed`
+- `git diff --check`: clean
+
+Not touched: unrelated untracked `docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-06-25 - Public job-fit preview design)
 
 Product/design-only Codex session on `Develop`.
 
