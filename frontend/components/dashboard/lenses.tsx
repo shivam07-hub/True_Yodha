@@ -159,14 +159,17 @@ export function LensWhy({ job, token, active }: LensProps) {
   const applyXpChange = useXPStore((s) => s.applyXpChange)
   const gate = useCoinsGate({ cost: ANALYSE_COST, action: "analyse_job" })
   const [started, setStarted] = React.useState(false)
+  const [errMsg, setErrMsg] = React.useState<string | null>(null)
   const persisted = job.llm_explanation ? stripMarkdown(job.llm_explanation) : null
 
   const run = React.useCallback(() => {
     if (started) return
     setStarted(true)
+    setErrMsg(null)
     stream.start(jobsApi.analyseStreamPath(job.job_id), token, (ev) => {
       const bal = typeof ev.new_coin_balance === "number" ? ev.new_coin_balance : null
       if (bal != null) applyXpChange({ newBalance: bal, action: "analyse_job" })
+      if (ev.type === "error" && typeof ev.message === "string") setErrMsg(ev.message)
     })
   }, [started, stream, job.job_id, token, applyXpChange])
 
@@ -189,10 +192,10 @@ export function LensWhy({ job, token, active }: LensProps) {
       <div className="db-lens db-lens--why">
         <div className="db-lens-h">Why you fit</div>
         <blockquote className="db-why-quote">
-          {stream.text || "Couldn't reach the model."}
+          {stream.text || errMsg || "Couldn't reach the model."}
         </blockquote>
         {stream.recoverable ? (
-          <button type="button" className="db-mini-btn" onClick={() => { setStarted(false); run() }}>
+          <button type="button" className="db-mini-btn" onClick={() => { setStarted(false); setErrMsg(null); run() }}>
             Retry
           </button>
         ) : null}
