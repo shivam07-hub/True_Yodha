@@ -76,6 +76,10 @@ function ForgePageInner() {
     queryKey: dataKeys.userSkills(), queryFn: () => users.mySkills(token!),
     enabled: !!token, staleTime: 5 * 60 * 1000,
   })
+  const { data: savedSkills } = useQuery({
+    queryKey: dataKeys.practiceSaves(), queryFn: () => users.practiceSaves(token!),
+    enabled: !!token, staleTime: 60 * 1000,
+  })
   const { data: scoreData, isLoading: scoreLoading } = useQuery({
     queryKey: dataKeys.scores(), queryFn: () => scores.me(token!),
     enabled: !!token, staleTime: 5 * 60 * 1000, retry: false,
@@ -89,8 +93,8 @@ function ForgePageInner() {
     .map((query) => query.data)
     .filter((gap): gap is SkillGapResponse => !!gap)
   const practiceSkills = useMemo(
-    () => buildPracticeSkills(userSkills, jobGaps, skillDemand),
-    [userSkills, jobGaps, skillDemand],
+    () => buildPracticeSkills(userSkills, jobGaps, skillDemand, savedSkills?.skills ?? []),
+    [userSkills, jobGaps, skillDemand, savedSkills],
   )
 
   const gapJob = topJobs.length > 0

@@ -22,6 +22,7 @@ import Link from "next/link"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   cv as cvApi,
+  users as usersApi,
   type BelowLevelCard,
   type GapPlanResponse,
   type HostBulletCard,
@@ -605,6 +606,59 @@ function ClaimableUpgrade({ token, upgrade, host, meta, onApplied }: {
   )
 }
 
+// ── Practice row: save the skill to your Forge queue, or open it now ─────────
+
+function PracticeRow({ token, skill }: {
+  token: string
+  skill: { skill: string; display_name: string; is_primary: boolean; reason: "absent" | "shallow" }
+}) {
+  const [saved, setSaved] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  // Optimistic toggle; the POST is an idempotent upsert and DELETE is safe on a
+  // missing row, so a failed call simply rolls the pip back.
+  async function toggleSave() {
+    if (busy) return
+    const next = !saved
+    setSaved(next); setBusy(true)
+    try {
+      if (next) {
+        await usersApi.savePracticeSkill(token, {
+          skill_key: skill.skill, display_name: skill.display_name, source: "gap_session",
+        })
+      } else {
+        await usersApi.unsavePracticeSkill(token, skill.skill)
+      }
+    } catch {
+      setSaved(!next)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="cvb-gs-row build">
+      <span className="cvb-gs-row-name">{skill.display_name}</span>
+      <span className="cvb-gs-row-meta">
+        {skill.is_primary && skill.reason === "absent" && <span className="cvb-gs-primary-tag">primary requirement</span>}
+        <button
+          type="button"
+          className={`cvb-gs-save${saved ? " on" : ""}`}
+          onClick={toggleSave}
+          disabled={busy}
+          aria-pressed={saved}
+          title={saved ? "Saved to your practice queue" : "Save for practice"}
+        >
+          <Icon name={saved ? "check" : "save"} size={12}/> {saved ? "Saved" : "Save"}
+        </button>
+        <Link href={forgeHref(skill.skill)} target="_blank" rel="noopener noreferrer" className="cvb-gs-practice">
+          Practice ↗
+        </Link>
+      </span>
+    </div>
+  )
+}
+
 // ── Closing panel: build in practice + claim what you've proven ──────────────
 
 function ClosingPanel({ token, resolved, practiceSkills, upgrades, onApplied, onClose }: {
@@ -638,19 +692,7 @@ function ClosingPanel({ token, resolved, practiceSkills, upgrades, onApplied, on
           <div className="cvb-gs-section-h build">Build these in practice</div>
           <p className="cvb-gs-section-lede">The market wants these and your experience doesn&apos;t show them yet — that&apos;s the signal, not a failure.</p>
           {practiceSkills.map(s => (
-            <Link
-              key={s.skill}
-              href={forgeHref(s.skill)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="cvb-gs-row build"
-            >
-              <span className="cvb-gs-row-name">{s.display_name}</span>
-              <span className="cvb-gs-row-meta">
-                {s.is_primary && s.reason === "absent" && <span className="cvb-gs-primary-tag">primary requirement</span>}
-                Practice ↗
-              </span>
-            </Link>
+            <PracticeRow key={s.skill} token={token} skill={s} />
           ))}
         </section>
       )}

@@ -1669,6 +1669,24 @@ mark.cvb-kw {
   font-size: var(--tm-fs-caption); color: var(--tm-text-faint);
 }
 .cvb-gs-row.proven .cvb-gs-row-meta strong { color: var(--tm-success); }
+/* Practice row actions: save to the Forge queue, or open Forge now (new tab). */
+.cvb-gs-save {
+  display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+  font-size: var(--tm-fs-caption); font-weight: 600; color: var(--tm-text-muted);
+  background: transparent; border: 1px solid var(--tm-border-soft); border-radius: 999px;
+  padding: 4px 10px; cursor: pointer;
+  transition: color 160ms var(--tm-ease), border-color 160ms var(--tm-ease), background 160ms var(--tm-ease);
+}
+.cvb-gs-save:hover:not(:disabled) { color: var(--tm-text); border-color: var(--tm-int-border); }
+.cvb-gs-save.on { color: var(--tm-success); border-color: var(--tm-success-border); background: var(--tm-success-wash, transparent); }
+.cvb-gs-save:disabled { opacity: 0.6; cursor: default; }
+.cvb-gs-practice {
+  display: inline-flex; align-items: center; flex-shrink: 0;
+  font-size: var(--tm-fs-caption); font-weight: 600; color: var(--tm-interactive-text, var(--tm-text));
+  text-decoration: none; padding: 4px 8px; border-radius: var(--tm-radius-sm);
+  transition: background 160ms var(--tm-ease);
+}
+.cvb-gs-practice:hover { background: var(--tm-surface); }
 /* Flywheel claim: one-tap surface a practice-proven level onto its host bullet. */
 .cvb-gs-claim { flex-shrink: 0; margin-left: 0; }
 .cvb-gs-row.claiming {

@@ -97,6 +97,9 @@ from app.schemas.users import (
     FollowCompanyRequest,
     FollowedCompaniesResponse,
     FollowedCompany,
+    PracticeSave,
+    PracticeSavesResponse,
+    SavePracticeSkillRequest,
     UpdateProfileRequest,
     UpdateProfileResponse,
     UserProfileResponse,
@@ -142,6 +145,7 @@ __all__ = [
     "UpdateProfileRequest", "UpdateProfileResponse", "UserProfileResponse",
     "UserSkillItem", "UserSkillsByDomainResponse",
     "FollowCompanyRequest", "FollowedCompany", "FollowedCompaniesResponse",
+    "SavePracticeSkillRequest", "PracticeSave", "PracticeSavesResponse",
     "PublicProfile", "JobOverlapRow", "JobOverlapResponse",
     "UpdateNinjaNameRequest", "UpdateNinjaNameResponse", "SuggestNinjaNameResponse",
 ]

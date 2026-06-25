@@ -418,6 +418,18 @@ export interface FollowedCompaniesResponse {
   total: number
 }
 
+export interface PracticeSave {
+  skill_key: string
+  display_name: string
+  source: string
+  saved_at: string
+}
+
+export interface PracticeSavesResponse {
+  skills: PracticeSave[]
+  total: number
+}
+
 export const users = {
   me: (token: string) =>
     request<UserProfile>("/users/me", {
@@ -445,6 +457,21 @@ export const users = {
     }),
   unfollowCompany: (token: string, companyName: string) =>
     request<void>(`/users/me/following/companies/${encodeURIComponent(companyName)}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  practiceSaves: (token: string) =>
+    request<PracticeSavesResponse>("/users/me/practice-saves", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  savePracticeSkill: (token: string, skill: { skill_key: string; display_name: string; source?: string }) =>
+    request<{ skill_key: string }>("/users/me/practice-saves", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ source: "gap_session", ...skill }),
+    }),
+  unsavePracticeSkill: (token: string, skillKey: string) =>
+    request<void>(`/users/me/practice-saves/${encodeURIComponent(skillKey)}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     }),

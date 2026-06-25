@@ -77,3 +77,21 @@ class FollowedCompaniesResponse(BaseModel):
     companies: list[FollowedCompany]
     total: int
 
+
+class SavePracticeSkillRequest(BaseModel):
+    skill_key: str
+    display_name: str
+    source: str = "gap_session"
+
+
+class PracticeSave(BaseModel):
+    skill_key: str
+    display_name: str
+    source: str
+    saved_at: datetime
+
+
+class PracticeSavesResponse(BaseModel):
+    skills: list[PracticeSave]
+    total: int
+

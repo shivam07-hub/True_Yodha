@@ -5,6 +5,8 @@ from app.repositories.users import UsersRepository, get_token_users_repository
 from app.schemas import (
     FollowCompanyRequest,
     FollowedCompaniesResponse,
+    PracticeSavesResponse,
+    SavePracticeSkillRequest,
     UpdateProfileRequest,
     UpdateProfileResponse,
     UserProfileResponse,
@@ -176,3 +178,41 @@ def unfollow_company(
     users_repo: UsersRepository = Depends(get_token_users_repository),
 ) -> None:
     users_repo.unfollow_company(principal.id, company_name)
+
+
+# ── Practice saves: a user-curated queue of skills to practice in Forge ───────
+
+_PRACTICE_SOURCES = {"gap_session", "market", "skills", "job_detail", "manual", "other"}
+
+
+@router.get("/me/practice-saves", response_model=PracticeSavesResponse)
+def get_practice_saves(
+    principal: Principal = Depends(get_principal),
+    users_repo: UsersRepository = Depends(get_token_users_repository),
+) -> PracticeSavesResponse:
+    rows = users_repo.list_practice_saves(principal.id)
+    return PracticeSavesResponse(skills=rows, total=len(rows))
+
+
+@router.post("/me/practice-saves", status_code=status.HTTP_201_CREATED)
+def save_practice_skill(
+    body: SavePracticeSkillRequest,
+    principal: Principal = Depends(get_principal),
+    users_repo: UsersRepository = Depends(get_token_users_repository),
+) -> dict:
+    skill_key = body.skill_key.strip()
+    if not skill_key:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="skill_key required.")
+    source = body.source if body.source in _PRACTICE_SOURCES else "other"
+    display_name = body.display_name.strip() or skill_key
+    users_repo.add_practice_save(principal.id, skill_key, display_name, source)
+    return {"skill_key": skill_key}
+
+
+@router.delete("/me/practice-saves/{skill_key}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_practice_skill(
+    skill_key: str,
+    principal: Principal = Depends(get_principal),
+    users_repo: UsersRepository = Depends(get_token_users_repository),
+) -> None:
+    users_repo.remove_practice_save(principal.id, skill_key)
