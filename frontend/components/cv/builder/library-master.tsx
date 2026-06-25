@@ -139,7 +139,7 @@ export function MasterCVPanel({
                 <AtsAudit checks={checks} onFix={handleFix} />
               </div>
             )}
-            <MasterEditor autosave={autosave}/>
+            <MasterEditor autosave={autosave} token={token}/>
           </>
         ) : cv ? (
           // Master export: the inline skin downloads the CV directly — no

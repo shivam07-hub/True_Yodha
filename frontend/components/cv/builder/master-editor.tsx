@@ -7,20 +7,24 @@
  */
 "use client"
 
-import { useCallback } from "react"
+import { useCallback, useState } from "react"
 import type { CVContact, CVStructured } from "@/lib/api"
 import type { MasterAutosaveState } from "@/lib/hooks/use-master-autosave"
 import { EMPTY_CONTACT } from "../mobile/mobile-cv-model"
+import { SkillsRefresh } from "./skills-refresh"
 import "./master-editor.css"
 
 interface MasterEditorProps {
   /** Autosave state owned by MasterCVPanel — the save indicator lives in the
       always-visible panel head, not inside this scrollable body. */
   autosave: MasterAutosaveState
+  /** Needed for the free skills-refresh propose call (master surface). */
+  token: string
 }
 
-export function MasterEditor({ autosave }: MasterEditorProps) {
+export function MasterEditor({ autosave, token }: MasterEditorProps) {
   const { draft, ready, update } = autosave
+  const [skillsRefreshOpen, setSkillsRefreshOpen] = useState(false)
 
   const patch = useCallback(
     (mut: (d: CVStructured) => CVStructured) => {
@@ -120,7 +124,20 @@ export function MasterEditor({ autosave }: MasterEditorProps) {
         ))}
       </Section>
 
-      <Field label="Skills" id="cv-edit-skills">
+      <Field
+        label="Skills"
+        id="cv-edit-skills"
+        action={
+          <button
+            type="button"
+            className="tm-me-refresh"
+            onClick={() => setSkillsRefreshOpen(true)}
+            title="Surface skills you’ve proven in Myro, ordered most-relevant first"
+          >
+            ✦ Refresh from proven skills
+          </button>
+        }
+      >
         <textarea
           className="tm-me-textarea"
           rows={2}
@@ -129,6 +146,14 @@ export function MasterEditor({ autosave }: MasterEditorProps) {
           placeholder="Comma-separated skills."
         />
       </Field>
+
+      {skillsRefreshOpen && (
+        <SkillsRefresh
+          token={token}
+          onKeep={(line) => patch((d) => ({ ...d, skills_line: line }))}
+          onClose={() => setSkillsRefreshOpen(false)}
+        />
+      )}
 
       <Section title="Education" onAdd={() => patch((d) => ({
         ...d, education: [...d.education, { institution: "", degree: "", dates: "", grade: "", location: "" }],
@@ -191,10 +216,13 @@ export function MasterSaveStatus({ status, recomputePending, onSaveNow }: {
   )
 }
 
-function Field({ label, children, id }: { label: string; children: React.ReactNode; id?: string }) {
+function Field({ label, children, id, action }: { label: string; children: React.ReactNode; id?: string; action?: React.ReactNode }) {
   return (
     <div className="tm-me-field" id={id}>
-      <div className="tm-me-field-label">{label}</div>
+      <div className="tm-me-field-head">
+        <div className="tm-me-field-label">{label}</div>
+        {action}
+      </div>
       {children}
     </div>
   )

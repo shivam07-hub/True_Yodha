@@ -813,6 +813,19 @@ export interface RestructureProposalResponse {
   cost: number               // Myro Coins charged only when the user keeps it
 }
 
+// Skills-section refresh — keep the CV SKILLS line current with the living skill
+// graph, primary-first. FREE + stateless; the kept line is applied into the
+// living-master autosave draft (no new baseline, no charge).
+export interface SkillsRefreshAdded { display_name: string; reason: string }
+export interface SkillsRefreshResponse {
+  primary: string[]
+  secondary: string[]
+  added: SkillsRefreshAdded[]
+  proposed_skills_line: string
+  changed: boolean
+  job_title?: string | null
+}
+
 // Gap-driven rewrite session ("Close gaps with Mentor"). The plan endpoint
 // classifies each job-skill gap and returns the honest session: surface a latent
 // skill onto its host bullet, route an absent one to Forge, surface a shallow one
@@ -919,6 +932,14 @@ export const cv = {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(structured),
+    }),
+  // Propose a current, primary-first SKILLS section from the living skill graph.
+  // FREE + read-only; pass jobId to lead with that job's required skills.
+  skillsRefresh: (token: string, jobId?: string | null) =>
+    request<SkillsRefreshResponse>("/cv/skills-refresh", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ job_id: jobId ?? null }),
     }),
   masterRevisions: (token: string) =>
     request<{ revisions: MasterRevision[] }>("/cv/master/revisions", {
