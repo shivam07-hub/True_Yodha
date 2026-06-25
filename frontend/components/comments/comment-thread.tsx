@@ -2,6 +2,7 @@
 
 import "./comment-thread.css"
 
+import Link from "next/link"
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { comments as commentsApi } from "@/lib/api"
@@ -13,12 +14,13 @@ function commentsKey(entityType: CommentEntityType, entityId: string) {
 }
 
 /** Lightweight count for card badges — shares the thread's query key, so it
- *  reuses the cached fetch rather than firing a second request. */
+ *  reuses the cached fetch rather than firing a second request. Public read,
+ *  so it works signed-out too (token may be null). */
 export function useCommentCount(token: string | null, entityType: CommentEntityType, entityId: string): number {
   const { data } = useQuery({
     queryKey: commentsKey(entityType, entityId),
-    queryFn: () => commentsApi.list(token!, entityType, entityId),
-    enabled: !!token && !!entityId,
+    queryFn: () => commentsApi.list(token, entityType, entityId),
+    enabled: !!entityId,
     staleTime: 60 * 1000,
   })
   return data?.total ?? 0
@@ -39,20 +41,24 @@ function relativeTime(iso: string): string {
 }
 
 interface CommentThreadProps {
-  token: string
+  /** Auth token. null/empty ⇒ signed-out: feed is read-only. */
+  token: string | null
   entityType: CommentEntityType
   entityId: string
   placeholder?: string
 }
 
-/** Private note thread on a job or skill card (PR-B). No XP, no score
- *  coupling — own notes only, newest-first, inline edit + delete. */
+/** PUBLIC community-notes feed on a job / company / skill entity. Anyone reads;
+ *  signed-in users post (multi-note allowed), edit/delete their own, and flag
+ *  others'. Author shown via ninja_name (links to their public profile); never
+ *  the real identity. */
 export function CommentThread({ token, entityType, entityId, placeholder }: CommentThreadProps) {
   const queryClient = useQueryClient()
   const key = commentsKey(entityType, entityId)
   const [draft, setDraft] = useState("")
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState("")
+  const signedIn = !!token
 
   const { data, isLoading } = useQuery({
     queryKey: key,
@@ -65,47 +71,62 @@ export function CommentThread({ token, entityType, entityId, placeholder }: Comm
   const invalidate = () => queryClient.invalidateQueries({ queryKey: key })
 
   const create = useMutation({
-    mutationFn: () => commentsApi.create(token, entityType, entityId, draft.trim()),
+    mutationFn: () => commentsApi.create(token as string, entityType, entityId, draft.trim()),
     onSuccess: () => { setDraft(""); invalidate() },
   })
   const update = useMutation({
-    mutationFn: (vars: { id: string; body: string }) => commentsApi.update(token, vars.id, vars.body.trim()),
+    mutationFn: (vars: { id: string; body: string }) => commentsApi.update(token as string, vars.id, vars.body.trim()),
     onSuccess: () => { setEditingId(null); setEditDraft(""); invalidate() },
   })
   const remove = useMutation({
-    mutationFn: (id: string) => commentsApi.remove(token, id),
+    mutationFn: (id: string) => commentsApi.remove(token as string, id),
+    onSuccess: invalidate,
+  })
+  const flag = useMutation({
+    mutationFn: (id: string) => commentsApi.flag(token as string, id),
     onSuccess: invalidate,
   })
 
   function submitDraft() {
-    if (!draft.trim() || create.isPending) return
+    if (!draft.trim() || create.isPending || !signedIn) return
     create.mutate()
   }
 
   return (
     <div className="tm-cmt">
-      <div className="tm-cmt-compose">
-        <textarea
-          className="tm-cmt-input"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") submitDraft() }}
-          placeholder={placeholder ?? "Add a note…"}
-          rows={2}
-        />
-        <button
-          type="button"
-          className="tm-cmt-add tm-control-focus"
-          onClick={submitDraft}
-          disabled={!draft.trim() || create.isPending}
-        >
-          {create.isPending ? "Saving…" : "Add note"}
-        </button>
-      </div>
+      {signedIn ? (
+        <div className="tm-cmt-compose">
+          <textarea
+            className="tm-cmt-input"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") submitDraft() }}
+            placeholder={placeholder ?? "Leave a note for others…"}
+            rows={2}
+          />
+          <button
+            type="button"
+            className="tm-cmt-add tm-control-focus"
+            onClick={submitDraft}
+            disabled={!draft.trim() || create.isPending}
+          >
+            {create.isPending ? "Posting…" : "Post note"}
+          </button>
+        </div>
+      ) : (
+        <div className="tm-cmt-signin">
+          <Link href="/login" className="tm-cmt-signin-link">Sign in</Link> to leave a note.
+        </div>
+      )}
+      {create.isError ? (
+        <div className="tm-cmt-error">Couldn’t post — you may have hit today’s note limit.</div>
+      ) : null}
 
       {isLoading ? (
         <div className="tm-cmt-empty">Loading notes…</div>
-      ) : notes.length === 0 ? null : (
+      ) : notes.length === 0 ? (
+        <div className="tm-cmt-empty">No notes yet. Be the first to share what you know.</div>
+      ) : (
         <ul className="tm-cmt-list">
           {notes.map((note: Comment) => (
             <li key={note.id} className="tm-cmt-item">
@@ -134,11 +155,26 @@ export function CommentThread({ token, entityType, entityId, placeholder }: Comm
                 <>
                   <p className="tm-cmt-body">{note.body}</p>
                   <div className="tm-cmt-foot">
+                    {note.author_ninja_name ? (
+                      <Link href={`/profile/${note.author_ninja_name}`} className="tm-cmt-author">
+                        {note.author_ninja_name}
+                      </Link>
+                    ) : (
+                      <span className="tm-cmt-author tm-cmt-author-anon">A Myro user</span>
+                    )}
                     <span className="tm-cmt-time">{relativeTime(note.created_at)}</span>
-                    <button type="button" className="tm-cmt-icon tm-control-focus" aria-label="Edit note"
-                      onClick={() => { setEditingId(note.id); setEditDraft(note.body) }}>✎</button>
-                    <button type="button" className="tm-cmt-icon tm-control-focus" aria-label="Delete note"
-                      onClick={() => remove.mutate(note.id)} disabled={remove.isPending}>✕</button>
+                    {note.is_own ? (
+                      <>
+                        <button type="button" className="tm-cmt-icon tm-control-focus" aria-label="Edit note"
+                          onClick={() => { setEditingId(note.id); setEditDraft(note.body) }}>✎</button>
+                        <button type="button" className="tm-cmt-icon tm-control-focus" aria-label="Delete note"
+                          onClick={() => remove.mutate(note.id)} disabled={remove.isPending}>✕</button>
+                      </>
+                    ) : signedIn ? (
+                      <button type="button" className="tm-cmt-icon tm-control-focus" aria-label="Report note"
+                        title="Report this note"
+                        onClick={() => flag.mutate(note.id)} disabled={flag.isPending}>⚑</button>
+                    ) : null}
                   </div>
                 </>
               )}

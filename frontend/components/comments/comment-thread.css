@@ -1,7 +1,7 @@
 /* ─────────────────────────────────────────────────────────────
-   CommentThread (PR-B) — private note threads on job + skill cards.
-   Component-scoped; mounted in the skill card "Notes" section and the
-   job card "Notes" lens.
+   CommentThread — PUBLIC community-notes feed on job / company / skill.
+   Component-scoped; mounted in the job card "Notes" lens, the company
+   slug page, and (future) skill pages. Author shown via ninja_name.
    ───────────────────────────────────────────────────────────── */
 
 .tm-cmt { display: flex; flex-direction: column; gap: 12px; }
@@ -34,7 +34,18 @@
 }
 .tm-cmt-body { margin: 0; font-size: 13px; line-height: 1.55; color: var(--tm-text); white-space: pre-wrap; word-break: break-word; }
 .tm-cmt-foot { display: flex; align-items: center; gap: 10px; margin-top: 7px; }
+.tm-cmt-author {
+  font-size: 11px; font-weight: 700; color: var(--tm-interactive-rest);
+  text-decoration: none; letter-spacing: 0.01em;
+}
+.tm-cmt-author:hover { color: var(--tm-interactive); text-decoration: underline; }
+.tm-cmt-author-anon { color: var(--tm-text-faint); font-weight: 600; cursor: default; }
 .tm-cmt-time { font-family: var(--tm-font-mono); font-size: 10px; color: var(--tm-text-faint); margin-right: auto; }
+
+.tm-cmt-signin { font-size: 12px; color: var(--tm-text-faint); line-height: 1.55; }
+.tm-cmt-signin-link { color: var(--tm-interactive-rest); font-weight: 700; text-decoration: none; }
+.tm-cmt-signin-link:hover { color: var(--tm-interactive); text-decoration: underline; }
+.tm-cmt-error { font-size: 12px; color: var(--tm-danger, #d66); line-height: 1.5; }
 .tm-cmt-icon {
   width: 24px; height: 24px; border-radius: var(--tm-radius-sm);
   border: 1px solid transparent; background: transparent; color: var(--tm-text-faint);

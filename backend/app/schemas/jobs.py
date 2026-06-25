@@ -196,6 +196,16 @@ class CompanyReviewItem(BaseModel):
     created_at: datetime
 
 
+class PostingNoteItem(BaseModel):
+    """A public note left on one of this company's job postings, rolled up to
+    the company page. author_ninja_name is None when the author has no profile."""
+    job_id: str
+    role: str | None
+    body: str
+    author_ninja_name: str | None
+    created_at: datetime
+
+
 class CompanyPageResponse(BaseModel):
     company_name: str
     avg_star_rating: float | None
@@ -203,6 +213,8 @@ class CompanyPageResponse(BaseModel):
     ghost_rate: float | None        # 0.0–1.0, None if no reviews
     stage_breakdown: dict[str, int]  # last_stage → count
     reviews: list[CompanyReviewItem]
+    posting_notes: list[PostingNoteItem] = []
+    posting_note_count: int = 0
 
 
 class CompanyJobCardItem(BaseModel):

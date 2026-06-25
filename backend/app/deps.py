@@ -273,6 +273,21 @@ def get_principal(current_user: CurrentUser = Depends(get_current_user)) -> Prin
     return Principal(id=current_user.id, email=current_user.email)
 
 
+async def get_principal_optional(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+) -> Principal | None:
+    """Optional identity for public-but-personalized routes (e.g. a public feed
+    that flags the viewer's own rows). Returns None for anonymous callers and for
+    tokens that fail validation — never raises 401, so anon access still works."""
+    if credentials is None:
+        return None
+    try:
+        current_user = await get_current_user(credentials)
+    except HTTPException:
+        return None
+    return Principal(id=current_user.id, email=current_user.email)
+
+
 def get_user_db(current_user: CurrentUser = Depends(get_current_user)) -> Client:
     """RLS-scoped Supabase client bound to the caller's JWT. Only place
     `current_user.token` is read outside `deps.py`."""
