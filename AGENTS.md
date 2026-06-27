@@ -298,7 +298,55 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-27 - Google indexing audit handoff)
+## LAST SESSION SUMMARY (2026-06-27 - Public intel runner company grounding)
+
+Grounded the public `/intel` LLM runner console in the real tracked jobs corpus.
+
+- Removed fake cosmetic company/URL seeds from the public Intel console.
+- Added `frontend/components/public/intel/intel-console-model.ts` so console
+  rows are generated from `analytics.by_company` and preserve exact scraped
+  `company_name` values.
+- Wired `IntelPane` to pass live `/jobs/analytics.by_company` into `IntelHero`.
+- Replaced the hardcoded `gpt-oss-120b` suffix with honest runner model chips:
+  `Local LM Studio` and `google/gemma-3-4b`, matching the June scrape notes.
+- Replaced the misleading `Last commit` footer KPI with `Latest batch`.
+- Added frontend contract coverage proving fake `LOG_SEEDS` cannot return and
+  the fallback row stays neutral (`tracked company feed`, `syncing`) instead of
+  inventing a company.
+- Wrote and committed the design/implementation handoff:
+  `docs/superpowers/specs/2026-06-27-public-intel-runner-tracked-companies-design.md`
+  and
+  `docs/superpowers/plans/2026-06-27-public-intel-runner-tracked-companies.md`.
+
+Validation:
+
+- Red test first: `frontend/tests/intel-console-model.test.ts` failed on missing
+  helper, then passed after implementation.
+- Focused frontend tests: `7 passed`
+- `cd frontend && npx tsc --noEmit`: clean
+- `cd frontend && npm run lint`: clean
+- `git diff --check`: clean
+- Local backend health and analytics: `/health` OK; `/jobs/analytics` returned
+  `45,933` jobs, `265` companies, latest batch `20260627`.
+- Full backend suite: `866 passed`, `3 failed` in pre-existing dirty payment
+  router expectations because local uncommitted payment work adds
+  `job_switch_plan_active` to responses. This Intel change did not touch those
+  backend files.
+
+Browser QA:
+
+- In-app browser loaded `/intel` and verified the desktop console no longer
+  contains fake `wiz.io`, `gpt-oss-120b`, or `Last commit` text.
+- True logged-out hydrated browser QA was partially blocked: the in-app browser
+  had a stale local `mirror_token` that redirected `/intel` to `/login`, its
+  read-only page scope could not clear localStorage, a `javascript:` cleanup URL
+  was correctly blocked by browser policy, and the Playwright CLI had no
+  installed browser binary. No screenshot artifact was produced.
+
+Not touched: unrelated dirty backend payment/job-switch files and untracked
+`docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-06-27 - Google indexing audit handoff)
 
 Audited why Myro's public growth pages are not broadly indexed and prepared a
 Claude-ready SEO fix handoff.

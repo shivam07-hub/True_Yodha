@@ -1,10 +1,16 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import { ScoreRing } from "@/components/skills/score-ring"
-import { LOG_SEEDS, fmtBatch, fmtNum, type LogSeed } from "./intel-data"
+import { fmtBatch, fmtNum } from "./intel-data"
+import {
+  RUNNER_MODEL_LABELS,
+  buildConsoleSeeds,
+  type ConsoleCompany,
+  type ConsoleSeed,
+} from "./intel-console-model"
 
 interface HeroProps {
   jobsCount: number
@@ -16,6 +22,7 @@ interface HeroProps {
   jobsAdded1h?: number
   companiesAdded7d?: number
   latestBatchIso?: string | null
+  consoleCompanies?: ConsoleCompany[]
   uptime: string
 }
 
@@ -47,7 +54,11 @@ export function IntelHero(props: HeroProps) {
         <HeroCtas />
       </div>
 
-      <Console parsedToday={props.parsedToday ?? 0} />
+      <Console
+        parsedToday={props.parsedToday ?? 0}
+        consoleCompanies={props.consoleCompanies ?? []}
+        latestBatchIso={props.latestBatchIso ?? null}
+      />
     </section>
   )
 }
@@ -169,7 +180,7 @@ function HeroCtas() {
   )
 }
 
-interface LogEntry extends LogSeed { id: number; t: string }
+interface LogEntry extends ConsoleSeed { id: number; t: string }
 
 const CONSOLE_BASE_MS = Date.UTC(2026, 5, 5, 22, 45, 51)
 
@@ -178,31 +189,53 @@ function stamp(offsetSec: number, baseMs: number): string {
   return d.toISOString().slice(11, 19)
 }
 
-function Console({ parsedToday }: { parsedToday: number }) {
-  const [entries, setEntries] = useState<LogEntry[]>(() =>
-    LOG_SEEDS.slice(0, 9).reverse().map((e, i) => ({ ...e, id: i, t: stamp(i * 1.2, CONSOLE_BASE_MS) })),
-  )
+function buildInitialEntries(seeds: ConsoleSeed[]): LogEntry[] {
+  return seeds.slice(0, 9).reverse().map((e, i) => ({
+    ...e,
+    id: i,
+    t: stamp(i * 1.2, CONSOLE_BASE_MS),
+  }))
+}
+
+function Console({
+  parsedToday,
+  consoleCompanies,
+  latestBatchIso,
+}: {
+  parsedToday: number
+  consoleCompanies: ConsoleCompany[]
+  latestBatchIso: string | null
+}) {
+  const seeds = useMemo(() => buildConsoleSeeds(consoleCompanies), [consoleCompanies])
+  const [entries, setEntries] = useState<LogEntry[]>(() => buildInitialEntries(seeds))
   const [gpu, setGpu] = useState(87)
   const [tps, setTps] = useState(184)
   const idRef = useRef(100)
 
   useEffect(() => {
+    setEntries(buildInitialEntries(seeds))
+  }, [seeds])
+
+  useEffect(() => {
     const id = setInterval(() => {
-      const seed = LOG_SEEDS[Math.floor(Math.random() * LOG_SEEDS.length)]
+      const seed = seeds[Math.floor(Math.random() * seeds.length)]
       const next: LogEntry = { ...seed, id: idRef.current++, t: stamp(0, Date.now()) }
       setEntries((prev) => [...prev.slice(-8), next])
       setGpu(() => 78 + Math.round(Math.random() * 18))
       setTps(() => 150 + Math.round(Math.random() * 90))
     }, 1700)
     return () => clearInterval(id)
-  }, [])
+  }, [seeds])
 
   return (
     <aside className="tm-intel-console" aria-label="LLM runner live log">
       <div className="tm-intel-console-head">
         <span className="tm-intel-status-dot" />
-        <span className="tm-intel-console-title">
-          LLM RUNNER<span className="tm-intel-console-ver"> · gpt-oss-120b</span>
+        <span className="tm-intel-console-title">LLM RUNNER</span>
+        <span className="tm-intel-console-models" aria-label="Runner models">
+          {RUNNER_MODEL_LABELS.map((model) => (
+            <span className="tm-intel-console-model" key={model}>{model}</span>
+          ))}
         </span>
         <div className="tm-intel-spacer" />
         <div className="tm-intel-gpu">
@@ -242,8 +275,11 @@ function Console({ parsedToday }: { parsedToday: number }) {
           </span>
         </div>
         <div className="tm-intel-kpi">
-          <span className="tm-intel-kpi-lab">Last commit</span>
-          <span className="tm-intel-kpi-val">1h<span className="tm-intel-kpi-unit">· main</span></span>
+          <span className="tm-intel-kpi-lab">Latest batch</span>
+          <span className="tm-intel-kpi-val">
+            {latestBatchIso ? fmtBatch(latestBatchIso) : "syncing"}
+            <span className="tm-intel-kpi-unit">scrape</span>
+          </span>
         </div>
       </div>
     </aside>

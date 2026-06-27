@@ -305,6 +305,7 @@ export function IntelPane() {
           jobsAdded1h={analytics?.jobs_added_1h ?? 0}
           companiesAdded7d={analytics?.companies_added_7d ?? 0}
           latestBatchIso={analytics?.latest_batch ?? null}
+          consoleCompanies={analytics?.by_company ?? []}
           uptime={uptime}
         />
       )}
