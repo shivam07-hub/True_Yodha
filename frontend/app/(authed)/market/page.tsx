@@ -116,14 +116,14 @@ function CVPrerequisiteCard({
       ? "Your CV analysis is running"
       : readiness === "failed"
         ? "CV analysis needs retry"
-        : "Upload a CV to unlock personalized Live Job Data"
+        : "Upload a CV to personalize Live Job Data"
 
   const body =
     readiness === "processing"
-      ? "We are still mapping your skills. You can keep exploring market demand while your personal heatmap prepares."
+      ? "Mapping your skills. You can keep browsing."
       : readiness === "failed"
-        ? "Your last CV analysis did not complete. Re-upload to restore skill-to-company heatmap personalization."
-        : "Your company heatmap is built from skills extracted from your CV. Upload once to activate personalized demand mapping."
+        ? "Re-upload your CV to restore the heatmap."
+        : "Upload your CV to personalize the heatmap."
 
   return (
     <div

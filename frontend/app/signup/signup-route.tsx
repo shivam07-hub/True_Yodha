@@ -24,7 +24,7 @@ export function SignupRoute() {
   return (
     <AuthPageShell
       title="Start your CV hub"
-      subtitle="Score your CV against live jobs. Keep every version you tailor. One account, everything from upload to apply."
+      subtitle="Score. Tailor. Apply."
       aside={
         scored ? (
           <>
@@ -42,9 +42,8 @@ export function SignupRoute() {
                   color: "var(--tm-text-muted)",
                 }}
               >
-                We scored your CV, but its file structure was too incomplete to rebuild
-                automatically. Create a free account and onboarding walks you through building
-                a clean, complete CV — section by section.
+                We scored your CV, but could not rebuild it. Create a free account
+                to build a clean version section by section.
               </p>
             )}
           </>

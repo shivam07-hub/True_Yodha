@@ -13,15 +13,15 @@ import "./signup-modal.css"
 const CONCEPTS: Array<{ title: string; body: string }> = [
   {
     title: "Score CV",
-    body: "We map your CV against live job descriptions and score it 0-100 across 10 career domains.",
+    body: "CV vs live jobs, scored 0-100.",
   },
   {
     title: "Tailor versions",
-    body: "Keep every variation you've ever sent. One master CV branches into tailored copies per role.",
+    body: "One master, role-specific copies.",
   },
   {
     title: "Track jobs",
-    body: "Save jobs you care about. Myro tells you which skills to close — and how to prove them.",
+    body: "Save roles. Close skill gaps.",
   },
 ]
 
@@ -86,7 +86,7 @@ export function SignupModal() {
       aria-modal="true"
       aria-labelledby="tm-signup-modal-title"
     >
-      <div className="tm-signup-modal" ref={dialogRef}>
+      <div className={`tm-signup-modal${isLogin ? " tm-signup-modal--single" : ""}`} ref={dialogRef}>
         <button
           type="button"
           className="tm-signup-modal__close"
@@ -113,8 +113,7 @@ export function SignupModal() {
           </h2>
           {!isLogin && (
             <p className="tm-signup-modal__lead">
-              Score your CV against live jobs. Keep every version you tailor.
-              One account, everything from upload to apply.
+              Score. Tailor. Apply.
             </p>
           )}
 
@@ -149,41 +148,41 @@ export function SignupModal() {
           </p>
         </div>
 
-        <aside
-          className="tm-signup-modal__aside"
-          aria-label={isLogin ? "Welcome back" : "What you will get"}
-        >
-          <div className="tm-signup-modal__aside-head">
-            <span className="tm-signup-modal__aside-eyebrow">
-              {isLogin ? "Your hub" : "What you'll get"}
-            </span>
-            <button
-              type="button"
-              className="tm-signup-modal__aside-close"
-              aria-label={isLogin ? "Close sign in" : "Close sign up"}
-              onClick={() => dismiss("x")}
-            >
-              ×
-            </button>
-          </div>
-          <div className="tm-signup-modal__aside-glyph" aria-hidden="true">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="9" y1="13" x2="15" y2="13" />
-              <line x1="9" y1="17" x2="13" y2="17" />
-            </svg>
-          </div>
-          {CONCEPTS.map((c) => (
-            <div className="tm-signup-modal__concept" key={c.title}>
-              <h4>{c.title}</h4>
-              <p>{c.body}</p>
+        {!isLogin && (
+          <aside
+            className="tm-signup-modal__aside"
+            aria-label="What you will get"
+          >
+            <div className="tm-signup-modal__aside-head">
+              <span className="tm-signup-modal__aside-eyebrow">
+                What you&apos;ll get
+              </span>
+              <button
+                type="button"
+                className="tm-signup-modal__aside-close"
+                aria-label="Close sign up"
+                onClick={() => dismiss("x")}
+              >
+                ×
+              </button>
             </div>
-          ))}
-          {!isLogin && (
+            <div className="tm-signup-modal__aside-glyph" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="9" y1="13" x2="15" y2="13" />
+                <line x1="9" y1="17" x2="13" y2="17" />
+              </svg>
+            </div>
+            {CONCEPTS.map((c) => (
+              <div className="tm-signup-modal__concept" key={c.title}>
+                <h4>{c.title}</h4>
+                <p>{c.body}</p>
+              </div>
+            ))}
             <p className="tm-signup-modal__trust">Any email works.</p>
-          )}
-        </aside>
+          </aside>
+        )}
       </div>
     </div>,
     document.body,
