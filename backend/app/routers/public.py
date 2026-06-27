@@ -21,7 +21,7 @@ from app.config import settings
 from app.database import get_supabase_admin
 from app.repositories.jobs import get_public_jobs_repository
 from app.repositories.scores import ScoresRepository
-from app.services import cv_parser, cv_restructure, cv_rewrite
+from app.services import cv_parser, cv_restructure, cv_rewrite, job_query_parser
 from app.services.llm_provider import get_cv_upload_provider, get_llm_provider
 from app.services.scoring.formulas import build_skill_level_map
 from app.services.scoring.orchestrator import project_score
@@ -101,11 +101,12 @@ _ALLOWED_CONTENT_TYPES = {
 # amounts of LLM budget. Unlimited actions (page-fill, hide/show bullets) never
 # touch the server, so there's nothing to cap there.
 _ANON_RATE_WINDOW_SECONDS = 3600.0
-_ANON_RATE_MAX = {"score": 5, "rewrite": 6, "restructure": 2}
+_ANON_RATE_MAX = {"score": 5, "rewrite": 6, "restructure": 2, "job_search": 12}
 _ANON_RATE_MSG = {
     "score": "You've previewed a few CVs already. Sign up free to keep scoring.",
     "rewrite": "You've polished a lot of bullets. Sign up free to keep improving your CV.",
     "restructure": "You've restructured this CV a couple of times. Sign up free to keep going.",
+    "job_search": "You've run a lot of searches. Sign up free to save jobs and see your fit.",
 }
 _anon_hits: dict[tuple[str, str], deque[float]] = {}
 
@@ -465,4 +466,94 @@ async def restructure_preview(
         rationale=result.get("rationale"),
         playbook=result.get("playbook"),
         uncertainty=result.get("uncertainty"),
+    )
+
+
+# ─── Public job-gen search (no auth) ─────────────────────────────────────────
+#
+# Backlog #33, Q2/Q3: "tell us the job you want" → REAL openings only. The NL
+# prompt is parsed to structured filters (role + location), then the existing
+# live feed is searched. No fabrication, ever — every card is a real `jobs` row.
+# This is the secondary landing proof-search; apply/save stay gated to signup.
+# Thinnest durable path: one parse step in, real cards out.
+
+_JOB_SEARCH_MAX_QUERY = 200
+
+
+class JobSearchInterpreted(BaseModel):
+    role: str
+    location_city: str | None = None
+    location_country: str | None = None
+    location_mode: str | None = None
+    skills: list[str] = []
+
+
+class JobSearchCard(BaseModel):
+    job_id: str
+    title: str
+    company: str | None = None
+    location: str | None = None
+    location_city: str | None = None
+    location_country: str | None = None
+    location_mode: str | None = None
+    first_seen: str | None = None
+
+
+class JobSearchResponse(BaseModel):
+    cards: list[JobSearchCard]
+    total: int
+    interpreted: JobSearchInterpreted
+    # Filters we relaxed to surface the closest real roles (e.g. ["location"]).
+    # Empty = strict match. Drives the "showing closest matches" note (#33 Q3).
+    relaxed: list[str] = []
+
+
+class JobSearchRequest(BaseModel):
+    query: str
+    cf_turnstile_token: str | None = None
+
+
+@router.post("/job-search", response_model=JobSearchResponse)
+async def public_job_search(
+    body: JobSearchRequest,
+    request: Request,
+) -> JobSearchResponse:
+    ip = _client_ip(request)
+    _enforce_anon_rate("job_search", ip)
+    await _verify_turnstile(body.cf_turnstile_token, ip)
+
+    query = " ".join((body.query or "").split())[:_JOB_SEARCH_MAX_QUERY]
+    if len(query) < 2:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Tell us the kind of role you want — e.g. 'product roles in Bangalore'.",
+        )
+
+    filters = await job_query_parser.parse_job_query(query, get_llm_provider())
+    result = get_public_jobs_repository().public_job_query(
+        role=filters["role"],
+        location_city=filters["location_city"],
+        location_country=filters["location_country"],
+        location_mode=filters["location_mode"],
+    )
+
+    cards = [
+        JobSearchCard(
+            job_id=str(row.get("job_id") or ""),
+            title=row.get("job_title") or "",
+            company=row.get("company_name"),
+            location=row.get("location"),
+            location_city=row.get("location_city"),
+            location_country=row.get("location_country"),
+            location_mode=row.get("location_mode"),
+            first_seen=row.get("first_seen"),
+        )
+        for row in result["rows"]
+        if row.get("job_id")
+    ]
+    return JobSearchResponse(
+        cards=cards,
+        total=int(result["total"]),
+        interpreted=JobSearchInterpreted(**filters),
+        relaxed=result["relaxed"],
     )

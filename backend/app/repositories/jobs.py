@@ -1166,6 +1166,56 @@ class JobsRepository:
         _search_cache[cache_key] = (now, {"rows": rows})
         return rows
 
+    def public_job_query(
+        self,
+        *,
+        role: str,
+        location_city: str | None = None,
+        location_country: str | None = None,
+        location_mode: str | None = None,
+        limit: int = 12,
+    ) -> dict[str, Any]:
+        """Public NL job search (#33 job-gen) → REAL openings only.
+
+        Searches live job titles/companies by role text, then filters by location.
+        Closest-rec fallback (#33 Q3 thin-market): if the strict location filter is
+        too thin, relax location and report it, so the user still sees the nearest
+        real roles instead of an empty page. Never fabricates — every returned card
+        is a real `jobs` row.
+        """
+        min_results = 3  # below this, relax rather than show a near-empty page
+        role_term = " ".join((role or "").split())
+        rows = self.global_job_search(role_term, limit=60) if role_term else []
+        relaxed: list[str] = []
+
+        has_loc = bool(location_city or location_country or location_mode)
+        if has_loc:
+            strict = [
+                r
+                for r in rows
+                if _matches_location_filters(
+                    r,
+                    location_city=location_city,
+                    location_country=location_country,
+                    location_mode=location_mode,
+                )
+            ]
+            if len(strict) >= min_results:
+                chosen = strict
+            else:
+                # Closest rec — keep the real role matches, drop the location filter.
+                chosen = rows
+                relaxed.append("location")
+        else:
+            chosen = rows
+
+        bounded = max(1, min(24, int(limit)))
+        return {
+            "rows": chosen[:bounded],
+            "total": len(chosen),
+            "relaxed": relaxed,
+        }
+
     def search_companies(self, q: str, limit: int = 10) -> list[str]:
         search_term = " ".join(q.split())
         if not search_term:
