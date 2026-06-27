@@ -14,6 +14,7 @@ from app.routers import (
     growth,
     home,
     institutions,
+    job_switch_plan,
     jobs,
     myrology,
     newsletter,
@@ -69,6 +70,7 @@ app.include_router(xp.router)
 app.include_router(profile.router)
 app.include_router(payments.router)
 app.include_router(myrology.router)
+app.include_router(job_switch_plan.router)
 app.include_router(newsletter.router)
 app.include_router(newsletter_distribution.router)
 app.include_router(onboarding.router)

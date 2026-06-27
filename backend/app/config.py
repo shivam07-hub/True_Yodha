@@ -76,6 +76,12 @@ class Settings(BaseSettings):
     # booking requested -> confirmed -> done. Empty = the endpoint returns 503.
     myrology_admin_token: str = ""
 
+    # ₹99 Personalised Job-Switch Plan (#33). Review requests are emailed to the
+    # founder/HITL reviewer here (empty = persist-only, email skipped). The admin
+    # token guards the review-status transition endpoint (empty = endpoint 503).
+    job_switch_reviewer_email: str = ""
+    job_switch_admin_token: str = ""
+
     # Environment
     railway_environment: str = "development"
 
