@@ -3477,7 +3477,43 @@ async function postPublicJson<T>(path: string, payload: Record<string, unknown>)
   return body as T
 }
 
+// Public job-gen search (#33) — NL prompt → REAL openings only. No fabrication;
+// apply/save stay gated to signup. `relaxed` lists any filter dropped to surface
+// the closest real roles (e.g. ["location"]) so the UI can say "showing closest".
+export interface PublicJobSearchCard {
+  job_id: string
+  title: string
+  company: string | null
+  location: string | null
+  location_city: string | null
+  location_country: string | null
+  location_mode: string | null
+  first_seen: string | null
+}
+export interface PublicJobSearchInterpreted {
+  role: string
+  location_city: string | null
+  location_country: string | null
+  location_mode: string | null
+  skills: string[]
+}
+export interface PublicJobSearchResponse {
+  cards: PublicJobSearchCard[]
+  total: number
+  interpreted: PublicJobSearchInterpreted
+  relaxed: string[]
+}
+
 export const publicCv = {
+  searchJobs: async (payload: {
+    query: string
+    turnstileToken?: string | null
+  }): Promise<PublicJobSearchResponse> =>
+    postPublicJson<PublicJobSearchResponse>("/public/job-search", {
+      query: payload.query,
+      cf_turnstile_token: payload.turnstileToken ?? (await getTurnstileToken()),
+    }),
+
   scorePreview: async (file: File, turnstileToken?: string | null): Promise<AnonScoreResponse> => {
     if (!BASE) throw new Error("API base URL is not configured.")
     const token = turnstileToken ?? (await getTurnstileToken())

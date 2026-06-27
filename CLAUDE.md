@@ -193,6 +193,16 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
 
 ## OPEN BACKLOG
 
+33. **Offering + landing funnel realignment — job-gen + ₹99 Job-Switch Plan (GRILL-LOCKED 2026-06-27, NOT built).** Triggered by a Perplexity landing critique ("message compression" — himyro.com tries to say CV-optimizer + matcher + intelligence + colleges + newsletter + Myrology at once → cold visitor can't name the product) + Shivam's two new threads (prompt-driven job-gen, ₹99 services tier). `/grill-me` (Claude leading, 8 Qs) resolved all three into ONE coherent job-seeker funnel. Full locks + honesty boundary + unresolved: memory `project_offering_funnel_jobswitch_plan`.
+
+    **Product in one line:** Drop CV → live Myro Score → type the job you want → see real matches + your exact gap → optionally take the ₹99 **Personalised Job-Switch Plan** to close it.
+
+    **Locked:** (Q1) Spine = CV scored + tailored vs LIVE demand, outcome-worded not platform-soup. (Q2) **Job-gen returns REAL openings ONLY** — NL prompt → LLM parses to structured filters → reuse EXISTING `feed_jobs`/matcher, never fabricated; thinnest durable pipeline, render on existing card. (Q3) Job-gen = landing SECONDARY proof-search (CV dropzone stays hero), gates apply/save to signup, doubles as interactive moat proof. (Q4) ₹99 = skill-mastery coaching to switch-READINESS, NOT placement brokerage. (Q5) ₹99 = automated plan + ONE bounded human checkpoint, one-time INTRO (cash=human, coins=automated per locked boundary). (Q6) Offer trigger = job-gen gap (headline) + score skill-gap (everyday). (Q7) Landing = Hero(CV→score) → job-gen proof → how-it-works(built) → 10-domain chips(built) → ₹99 bridge TEASER → trust/FAQ(built); **Myrology FULLY OFF landing, Coins OFF as a cold-visitor concept, Colleges/Newsletter = nav only.** (Q8) Name = "Personalised Job-Switch Plan" (plain noun = user agency to choose). India: keep "Built in India" tile + add "Made with ❤️ in India" footer.
+
+    **⚠️ Honesty boundary (copy discipline):** name says "Switch" but promise = switch-**ready**, NEVER guaranteed placement (no guarantee; depends on user agency + whether the job changes; we guide regardless). Subline holds it ("a guided path to make you the obvious hire") — don't drift into the placement-brokerage territory ruled out in Q4/Q5.
+
+    **Unresolved (carry):** (1) **₹99 deliverable mechanics** = OWN grill NEXT SESSION (Myrology-page-shaped: plan contents, human checkpoint staffing/SLA, payment/entitlement) — biggest open risk. (2) recurring tier food-for-thought = ₹499 1-year plan, revisit post-validation. (3) job-gen thin-market/no-match → show CLOSEST real recommendation (optimise across location/role/salary/company/skills), still real openings never fabricated (Claude builds logic).
+
 32. **Design-system standardization + button cascade — IN PROGRESS (2026-06-21/22, all on Develop, pushed).** Trigger: Shivam — *"one website / consistency = trust"*; caught the nav rendering as two parallel CSS systems + a logged-in user seeing an anonymous CTA. Principle: standardize the shared concept via a **single source both consumers read**, enforced by a build gate, never by discipline. Full system + file map in memory `project_truyodha_standardization_system`.
 
     **✅ DONE (pushed):**
