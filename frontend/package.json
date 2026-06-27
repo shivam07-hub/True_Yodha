@@ -14,6 +14,7 @@
     "test:beta-feedback": "node --no-warnings --test tests/beta-feedback-contract.test.mjs",
     "test:upskilling": "node --test tests/upskilling-load-state.test.mjs",
     "test:taxonomy": "tsx --test tests/taxonomy-engine.test.ts",
+    "test:seo": "tsx --test tests/seo-sitemap-robots.test.ts",
     "new:issue": "tsx ../scripts/new-issue.ts",
     "newsletter:sync": "tsx ../scripts/sync-newsletter.ts",
     "newsletter:check": "tsx ../scripts/check-newsletter-sync.ts",
