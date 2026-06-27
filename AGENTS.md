@@ -298,7 +298,36 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-25 - Public job-fit preview implementation)
+## LAST SESSION SUMMARY (2026-06-27 - Google indexing audit handoff)
+
+Audited why Myro's public growth pages are not broadly indexed and prepared a
+Claude-ready SEO fix handoff.
+
+- Logged into Google Search Console and checked Page Indexing + Sitemaps.
+- Confirmed Search Console currently knows only 10 URLs: 4 indexed and 6 not
+  indexed as of 2026-06-12.
+- Confirmed no sitemap is submitted in Search Console, even though live
+  `robots.txt` advertises `https://www.himyro.com/sitemap.xml`.
+- Confirmed live newsletter pages are crawlable/indexable with server-rendered
+  article content, canonical URLs, and JSON-LD.
+- Confirmed live company detail pages are not SEO-ready: sitemap includes 264
+  `/companies/{name}` URLs, `robots.txt` blocks `/companies/`, and detail pages
+  render a client loading shell with default homepage metadata.
+- Captured the safe crawler-direction policy: use sitemap, internal links,
+  canonical URLs, robots rules, and SSR/ISR content; do not build Googlebot-only
+  redirects or bot-specific content.
+- Wrote the handoff report:
+  `docs/seo/2026-06-27-google-indexing-handoff-for-claude.md`.
+
+Validation:
+
+- Report line count: 283 lines
+- `git diff --check`: clean
+
+Not touched: unrelated backend payment/job-switch files and untracked
+`docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-06-25 - Public job-fit preview implementation)
 
 Implemented the approved public job-fit preview journey on `Develop`.
 
