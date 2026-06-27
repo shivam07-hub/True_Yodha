@@ -298,7 +298,48 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-27 - Shared public job search console)
+## LAST SESSION SUMMARY (2026-06-27 - Auth copy and UI brevity sweep)
+
+Removed overloaded auth and prerequisite helper copy to match the
+design-over-words rule.
+
+- Removed the sign-in modal subtitle:
+  `Pick up where you left off — your CV versions, scores, and saved jobs are
+  right where you left them.`
+- Removed the redundant sign-in modal footer line `Right where you left it.`
+- Made the sign-in modal form-first by hiding the signup concept explainer panel
+  in login mode and switching the modal to a single-column width.
+- Removed the standalone `/login` subtitle and sample readout aside.
+- Tightened signup auth copy to `Score. Tailor. Apply.` and shortened the
+  signup modal concept cards.
+- Shortened CV prerequisite/helper copy on CV upload, Skills CV gate, and Market
+  CV gate.
+- Added `frontend/tests/auth-copy.test.ts` contracts to prevent these long
+  explanatory strings from coming back.
+
+Commits:
+
+- `5f0531d fix: remove login subtitle copy`
+- `00cea95 fix: trim explanatory ui copy`
+
+Validation:
+
+- Red test first: `frontend/tests/auth-copy.test.ts` failed on the old login
+  subtitle, then failed again during the sweep on the old page/signup/CV helper
+  strings.
+- `cd frontend && npx tsx --test tests/auth-copy.test.ts`: 4 passed
+- `cd frontend && npm run lint`: clean
+- `cd frontend && npx tsc --noEmit`: clean
+- `git diff --check`: clean
+- Backend suite: `866 passed, 3 failed` in `backend/tests/test_payments_router.py`
+  due to unrelated dirty payment/job-switch response drift
+  (`job_switch_plan_active` extra key).
+
+Not touched: unrelated dirty backend payment/job-switch files, public Intel/job
+search WIP, untracked job-search-console files, and untracked
+`docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-06-27 - Shared public job search console)
 
 Unified the landing job-search entry and public `/intel` search console.
 
