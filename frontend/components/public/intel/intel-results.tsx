@@ -49,7 +49,7 @@ export interface ResultJob {
   country: string
   mode: string
   comp: string | null
-  ageMin: number
+  ageMin: number | null
 }
 
 export interface GlobalHitLite {

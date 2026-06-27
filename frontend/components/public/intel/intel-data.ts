@@ -123,7 +123,8 @@ export function fmtBatch(iso: string): string {
   return s.slice(0, 10)
 }
 
-export function fmtAgeMin(min: number): string {
+export function fmtAgeMin(min: number | null | undefined): string | null {
+  if (min == null || min <= 0) return null
   if (min < 60) return `${min}m ago`
   if (min < 60 * 24) return `${Math.floor(min / 60)}h ago`
   return `${Math.floor(min / (60 * 24))}d ago`

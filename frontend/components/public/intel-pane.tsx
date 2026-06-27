@@ -241,7 +241,7 @@ export function IntelPane() {
       country: j.location_country || "",
       mode: humanMode(j.location_mode),
       comp: null,
-      ageMin: j.created_at ? minutesSince(j.created_at, nowMs) : 0,
+      ageMin: j.created_at ? minutesSince(j.created_at, nowMs) : null,
     }))
   }, [openRolesData, nowMs])
 
@@ -383,9 +383,9 @@ function humanMode(raw?: string | null): string {
   return "—"
 }
 
-function minutesSince(iso: string, nowMs: number): number {
+function minutesSince(iso: string, nowMs: number): number | null {
   const t = Date.parse(iso)
-  if (Number.isNaN(t)) return 0
-  if (nowMs <= 0) return 0
-  return Math.max(0, Math.floor((nowMs - t) / 60_000))
+  if (Number.isNaN(t) || nowMs <= 0) return null
+  const minutes = Math.floor((nowMs - t) / 60_000)
+  return minutes > 0 ? minutes : null
 }

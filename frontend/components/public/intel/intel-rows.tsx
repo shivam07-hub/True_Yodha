@@ -227,7 +227,8 @@ export function JobRow({
   fit?: JobRowFit | null
   onCheckFit: () => void
 }) {
-  const fresh = job.ageMin < 60 * 24
+  const ageLabel = fmtAgeMin(job.ageMin)
+  const fresh = job.ageMin != null && job.ageMin < 60 * 24
   return (
     <div className="tm-intel-job-row">
       <div className="tm-intel-job-head">
@@ -244,10 +245,14 @@ export function JobRow({
             <span className="tm-intel-job-salary">{job.comp}</span>
           </>
         ) : null}
-        <span className="tm-intel-co-sep">·</span>
-        <span className={"tm-intel-job-age" + (fresh ? " is-fresh" : "")}>
-          {fmtAgeMin(job.ageMin)}
-        </span>
+        {ageLabel ? (
+          <>
+            <span className="tm-intel-co-sep">·</span>
+            <span className={"tm-intel-job-age" + (fresh ? " is-fresh" : "")}>
+              {ageLabel}
+            </span>
+          </>
+        ) : null}
       </div>
       <div className="tm-intel-job-skills">
         {job.skills.map((s) => <span className="tm-intel-job-skill" key={s}>{s}</span>)}

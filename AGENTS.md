@@ -298,7 +298,37 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-27 - Public intel runner company grounding)
+## LAST SESSION SUMMARY (2026-06-27 - Public intel job-age cleanup)
+
+Removed the false `0m ago` freshness label from public Intel job cards.
+
+- Root cause: open-role rows represented missing/unresolved timestamps as
+  `ageMin = 0`, and `fmtAgeMin(0)` rendered `0m ago`.
+- Changed `fmtAgeMin()` to return `null` for unknown, zero, or non-positive
+  ages.
+- Changed `ResultJob.ageMin` to `number | null` and made `minutesSince()`
+  return `null` until a real positive age exists.
+- Changed `JobRow` to render the age separator + freshness span only when
+  `fmtAgeMin()` returns a real label.
+- Added `frontend/tests/intel-job-age.test.ts` to lock the behavior.
+
+Validation:
+
+- Red test first: `frontend/tests/intel-job-age.test.ts` failed because
+  `fmtAgeMin(0)` returned `0m ago` and `fmtAgeMin(null)` returned `nullm ago`.
+- Focused frontend tests: `10 passed`
+- `cd frontend && npm run lint`: clean
+- `cd frontend && npx tsc --noEmit`: clean
+- `git diff --check`: clean
+- Earlier `tsc` was briefly blocked by untracked job-search-console WIP, but the
+  missing untracked model file appeared before closeout and the full TypeScript
+  check now passes.
+
+Not touched: unrelated dirty backend payment/job-switch files, untracked
+`frontend/tests/job-search-console-model.test.ts`, and untracked
+`docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-06-27 - Public intel runner company grounding)
 
 Grounded the public `/intel` LLM runner console in the real tracked jobs corpus.
 
