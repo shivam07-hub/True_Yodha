@@ -111,6 +111,8 @@ export function PublicFooter({ commons = false }: { commons?: boolean } = {}) {
       <div className="pub-footer-bottom">
         <span>© Myro 2026 · All rights reserved</span>
         <span className="pub-footer-bottom-dot">·</span>
+        <span>Built for Seekers</span>
+        <span className="pub-footer-bottom-dot">·</span>
         <span>Made with ❤️ in India</span>
         <span className="pub-footer-bottom-dot">·</span>
         <a className="pub-footer-trust" href="/security">Security →</a>
