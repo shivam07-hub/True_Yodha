@@ -111,11 +111,12 @@ export function SignupModal() {
               <>Start your <em>CV hub</em>.</>
             )}
           </h2>
-          <p className="tm-signup-modal__lead">
-            {isLogin
-              ? "Pick up where you left off — your CV versions, scores, and saved jobs are right where you left them."
-              : "Score your CV against live jobs. Keep every version you tailor. One account, everything from upload to apply."}
-          </p>
+          {!isLogin && (
+            <p className="tm-signup-modal__lead">
+              Score your CV against live jobs. Keep every version you tailor.
+              One account, everything from upload to apply.
+            </p>
+          )}
 
           {!isLogin && refSlug && (
             <span className="tm-signup-modal__ref-chip">
@@ -179,11 +180,9 @@ export function SignupModal() {
               <p>{c.body}</p>
             </div>
           ))}
-          <p className="tm-signup-modal__trust">
-            {isLogin
-              ? "Right where you left it."
-              : "Any email works."}
-          </p>
+          {!isLogin && (
+            <p className="tm-signup-modal__trust">Any email works.</p>
+          )}
         </aside>
       </div>
     </div>,
