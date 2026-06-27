@@ -19,7 +19,7 @@ from razorpay import errors as razorpay_errors
 from app.config import settings
 from app.database import get_supabase_admin
 from app.deps import Principal, get_principal
-from app.services import xp_service
+from app.services import job_switch_plan_service, xp_service
 
 CURRENCY = "INR"
 RAZORPAY_ORDER_TIMEOUT_SECONDS = 12
@@ -44,6 +44,9 @@ class Product:
 PRODUCTS: dict[str, Product] = {
     "xp_pack": Product(key="myro_xp_launch_pack", price_paise=9900, xp_amount=1000, kind="xp"),
     "myrology": Product(key="myro_myrology_unlock", price_paise=29900, xp_amount=0, kind="entitlement"),
+    # ₹99 Personalised Job-Switch Plan (#33). Entitlement → activates the living
+    # plan + auto-fires review 1 via job_switch_plan_service (fulfilment branch).
+    "job_switch_plan": Product(key="myro_job_switch_plan", price_paise=9900, xp_amount=0, kind="entitlement"),
 }
 # Reverse lookup keyed by the persisted product key (used on verify).
 _PRODUCT_BY_KEY: dict[str, Product] = {p.key: p for p in PRODUCTS.values()}
@@ -84,6 +87,7 @@ class VerifyPaymentResponse(BaseModel):
     new_coin_balance: int
     product: str
     myrology_unlocked: bool = False
+    job_switch_plan_active: bool = False
 
 
 def _default_receipt(user_id: str) -> str:
@@ -253,16 +257,26 @@ def _unlock_myrology(user_id: str) -> None:
     ).eq("id", user_id).execute()
 
 
+def _apply_entitlement(user_id: str, product: Product) -> None:
+    """Grant the effect of an entitlement product. Dispatches by product key so
+    each entitlement owns its own fulfilment (Myrology unlock vs Job-Switch Plan
+    activation). Runs inside the won-CAS path → exactly-once."""
+    if product.key == PRODUCTS["job_switch_plan"].key:
+        job_switch_plan_service.activate_plan(user_id)
+    else:
+        _unlock_myrology(user_id)
+
+
 async def _apply_fulfilment(user_id: str, product: Product, payment: dict[str, Any]) -> int:
     """Apply a product's effect and return the resulting XP balance.
 
     MUST only be called by the path that won the atomic created->verified CAS
     (``_mark_payment_verified`` returning True), or on a confirmed-idempotent
     replay. That guard is what makes fulfilment exactly-once across the browser
-    verify path, the webhook, and webhook retries — never double-credit / double-unlock.
+    verify path, the webhook, and webhook retries — never double-credit / double-grant.
     """
     if product.kind == "entitlement":
-        await run_in_threadpool(_unlock_myrology, user_id)
+        await run_in_threadpool(_apply_entitlement, user_id, product)
         return await xp_service.get_xp_balance(user_id)
     xp_amount = int(payment.get("xp_amount") or product.xp_amount)
     return await xp_service.earn_xp(user_id, xp_amount)
@@ -405,7 +419,8 @@ async def verify_payment(
         coins_earned=coins_earned,
         new_coin_balance=balance,
         product=product.key,
-        myrology_unlocked=product.kind == "entitlement",
+        myrology_unlocked=product.key == PRODUCTS["myrology"].key,
+        job_switch_plan_active=product.key == PRODUCTS["job_switch_plan"].key,
     )
 
 
@@ -417,7 +432,8 @@ async def _fulfilment_snapshot(user_id: str, product: Product) -> VerifyPaymentR
         coins_earned=0,
         new_coin_balance=balance,
         product=product.key,
-        myrology_unlocked=product.kind == "entitlement",
+        myrology_unlocked=product.key == PRODUCTS["myrology"].key,
+        job_switch_plan_active=product.key == PRODUCTS["job_switch_plan"].key,
     )
 
 

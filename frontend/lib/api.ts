@@ -2963,11 +2963,12 @@ export const skills = {
 
 // ── Billing ──────────────────────────────────────────────────────────────────
 
-export type BillingProduct = "xp_pack" | "myrology"
+export type BillingProduct = "xp_pack" | "myrology" | "job_switch_plan"
 
 export const BILLING_PRODUCT_AMOUNT_PAISE: Record<BillingProduct, number> = {
   xp_pack: 9900,
   myrology: 29900,
+  job_switch_plan: 9900,
 }
 
 export interface RazorpayOrderResponse {
@@ -2989,6 +2990,13 @@ export interface RazorpayVerifyResponse {
   new_coin_balance: number
   product: string
   myrology_unlocked: boolean
+  job_switch_plan_active: boolean
+}
+
+const BILLING_RECEIPT_PREFIX: Record<BillingProduct, string> = {
+  xp_pack: "xp",
+  myrology: "myro",
+  job_switch_plan: "jsp",
 }
 
 export const billing = {
@@ -3000,7 +3008,7 @@ export const billing = {
         amount: BILLING_PRODUCT_AMOUNT_PAISE[product],
         currency: "INR",
         product,
-        receipt: `${product === "myrology" ? "myro" : "xp"}_${Date.now()}`,
+        receipt: `${BILLING_RECEIPT_PREFIX[product]}_${Date.now()}`,
       }),
     }),
 
@@ -3009,6 +3017,44 @@ export const billing = {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+    }),
+}
+
+// ── Personalised Job-Switch Plan (#33) ───────────────────────────────────────
+
+export interface JobSwitchPlanReview {
+  id: string
+  review_no: number
+  status: "pending" | "in_progress" | "delivered"
+  review_text: string | null
+  sla_due_at: string
+  requested_at: string
+  delivered_at: string | null
+}
+
+export interface JobSwitchPlan {
+  id: string
+  target_role: string | null
+  status: string
+  reviews_used: number
+  window_expires_at: string
+  created_at: string
+  reviews: JobSwitchPlanReview[]
+  can_request_second_review: boolean
+  window_open: boolean
+}
+
+export const jobSwitchPlan = {
+  // null when the user hasn't purchased — the surface then shows the ₹99 offer.
+  get: (token: string) =>
+    request<JobSwitchPlan | null>("/job-switch-plan", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  requestReview: (token: string) =>
+    request<JobSwitchPlanReview>("/job-switch-plan/request-review", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
     }),
 }
 

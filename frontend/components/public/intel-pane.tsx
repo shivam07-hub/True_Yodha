@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { home, jobs, type CompanyOpenRoleItem, type JobFitItem, type JobLocationFilters } from "@/lib/api"
 import { getAccessToken } from "@/lib/session"
@@ -9,12 +10,17 @@ import { cacheKey, withLocalCache } from "@/lib/local-cache"
 import { useJobsRealtime } from "@/lib/hooks/use-jobs-realtime"
 import { useGlobalJobSearch } from "@/lib/hooks/use-global-job-search"
 import { useResultsSort, type ResultsSortKey } from "@/lib/hooks/use-results-sort"
+import { JobSearchConsole } from "@/components/public/job-search-console"
+import {
+  buildIntelSearchHref,
+  initialJobSearchValue,
+  normalizeJobSearchQuery,
+} from "@/components/public/job-search-console-model"
 import { IntelHero, IntelAuthedHeader } from "./intel/intel-hero"
 import type { JobRowFit } from "./intel/intel-rows"
-import { IntelCommandBar } from "./intel/intel-command-bar"
 import { IntelResults, ResultsTab, ResultCompany, ResultGroup, ResultJob } from "./intel/intel-results"
 import { JobFitDrawer } from "./intel/job-fit-drawer"
-import { CHIP_FILTER, COUNTRY_CHIP_IDS, sparkFor, velocityFor } from "./intel/intel-data"
+import { CHIP_FILTER, COUNTRY_CHIP_IDS, QUICK_FILTERS, sparkFor, velocityFor } from "./intel/intel-data"
 import { formatUptime, weekDeltaFromBins } from "./intel/intel-filters"
 import "./intel-pane.css"
 
@@ -32,7 +38,11 @@ function compareCompanies(a: ResultCompany, b: ResultCompany, sort: ResultsSortK
 }
 
 export function IntelPane() {
-  const [query, setQuery] = useState("")
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const urlSearchValue = initialJobSearchValue(searchParams)
+  const urlSearchRef = useRef(urlSearchValue)
+  const [query, setQuery] = useState(urlSearchValue)
   const [activeChips, setActiveChips] = useState<string[]>([])
   const [tab, setTab] = useState<ResultsTab>("companies")
   const [activeCoId, setActiveCoId] = useState<string | null>(null)
@@ -43,6 +53,13 @@ export function IntelPane() {
   const { sort, setSort } = useResultsSort("intel", "velocity")
 
   useJobsRealtime()
+
+  useEffect(() => {
+    const next = initialJobSearchValue(searchParams)
+    if (next === urlSearchRef.current) return
+    urlSearchRef.current = next
+    setQuery(next)
+  }, [searchParams])
 
   // Optional session — read WITHOUT useAuth(), which redirects anon visitors to
   // /login (this is a public, SEO-indexed route). getAccessToken() just peeks.
@@ -241,7 +258,7 @@ export function IntelPane() {
       country: j.location_country || "",
       mode: humanMode(j.location_mode),
       comp: null,
-      ageMin: j.created_at ? minutesSince(j.created_at, nowMs) : 0,
+      ageMin: j.created_at ? minutesSince(j.created_at, nowMs) : null,
     }))
   }, [openRolesData, nowMs])
 
@@ -268,8 +285,6 @@ export function IntelPane() {
     return m
   }, [fitData])
 
-  const jobsShown = globalSearch.isActive ? globalSearch.hits.length : jobsTotal
-
   function toggleChip(id: string) {
     setActiveChips((c) => {
       if (c.includes(id)) return c.filter((x) => x !== id)
@@ -279,6 +294,13 @@ export function IntelPane() {
         : c
       return [...next, id]
     })
+  }
+
+  function commitSearch(value: string) {
+    const next = normalizeJobSearchQuery(value)
+    urlSearchRef.current = next
+    setQuery(next)
+    router.replace(buildIntelSearchHref(next), { scroll: false })
   }
 
   // Safe defaults during cold-start hydration (avoids flash of 0s). Replaced
@@ -305,17 +327,23 @@ export function IntelPane() {
           jobsAdded1h={analytics?.jobs_added_1h ?? 0}
           companiesAdded7d={analytics?.companies_added_7d ?? 0}
           latestBatchIso={analytics?.latest_batch ?? null}
+          consoleCompanies={analytics?.by_company ?? []}
           uptime={uptime}
         />
       )}
 
-      <IntelCommandBar
+      <JobSearchConsole
+        variant="intel"
         value={query}
-        onChange={setQuery}
-        jobsTotal={safeJobsTotal}
-        jobsShown={jobsShown}
-        activeChips={activeChips}
+        onValueChange={setQuery}
+        onSubmit={commitSearch}
+        ariaLabel="Search live jobs"
+        placeholder="e.g. staff infra · india · hybrid"
+        chips={QUICK_FILTERS}
+        activeChipIds={activeChips}
         onToggleChip={toggleChip}
+        chipLabel="Quick filters"
+        enableShortcut
       />
 
       <IntelResults
@@ -382,9 +410,9 @@ function humanMode(raw?: string | null): string {
   return "—"
 }
 
-function minutesSince(iso: string, nowMs: number): number {
+function minutesSince(iso: string, nowMs: number): number | null {
   const t = Date.parse(iso)
-  if (Number.isNaN(t)) return 0
-  if (nowMs <= 0) return 0
-  return Math.max(0, Math.floor((nowMs - t) / 60_000))
+  if (Number.isNaN(t) || nowMs <= 0) return null
+  const minutes = Math.floor((nowMs - t) / 60_000)
+  return minutes > 0 ? minutes : null
 }

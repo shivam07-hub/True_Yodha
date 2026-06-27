@@ -36,7 +36,9 @@ const BASE = "https://www.himyro.com"
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const issue = await getIssueBySlug(params.slug)
-  if (!issue) return {}
+  // Unknown slug → the page calls notFound() (404). Return explicit noindex so
+  // the transient HTML never inherits the root's indexable default metadata.
+  if (!issue) return { robots: { index: false, follow: false } }
   const title = issue.seoTitle ? `${issue.seoTitle} | Myro` : `${issue.title} | Myro Letters`
   const canonicalUrl = `${BASE}/newsletter/${issue.slug}`
   const absoluteOgImage = issue.ogImage

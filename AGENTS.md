@@ -298,7 +298,188 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-25 - Public job-fit preview implementation)
+## LAST SESSION SUMMARY (2026-06-27 - Auth copy and UI brevity sweep)
+
+Removed overloaded auth and prerequisite helper copy to match the
+design-over-words rule.
+
+- Removed the sign-in modal subtitle:
+  `Pick up where you left off — your CV versions, scores, and saved jobs are
+  right where you left them.`
+- Removed the redundant sign-in modal footer line `Right where you left it.`
+- Made the sign-in modal form-first by hiding the signup concept explainer panel
+  in login mode and switching the modal to a single-column width.
+- Removed the standalone `/login` subtitle and sample readout aside.
+- Tightened signup auth copy to `Score. Tailor. Apply.` and shortened the
+  signup modal concept cards.
+- Shortened CV prerequisite/helper copy on CV upload, Skills CV gate, and Market
+  CV gate.
+- Added `frontend/tests/auth-copy.test.ts` contracts to prevent these long
+  explanatory strings from coming back.
+
+Commits:
+
+- `5f0531d fix: remove login subtitle copy`
+- `00cea95 fix: trim explanatory ui copy`
+
+Validation:
+
+- Red test first: `frontend/tests/auth-copy.test.ts` failed on the old login
+  subtitle, then failed again during the sweep on the old page/signup/CV helper
+  strings.
+- `cd frontend && npx tsx --test tests/auth-copy.test.ts`: 4 passed
+- `cd frontend && npm run lint`: clean
+- `cd frontend && npx tsc --noEmit`: clean
+- `git diff --check`: clean
+- Backend suite: `866 passed, 3 failed` in `backend/tests/test_payments_router.py`
+  due to unrelated dirty payment/job-switch response drift
+  (`job_switch_plan_active` extra key).
+
+Not touched: unrelated dirty backend payment/job-switch files, public Intel/job
+search WIP, untracked job-search-console files, and untracked
+`docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-06-27 - Shared public job search console)
+
+Unified the landing job-search entry and public `/intel` search console.
+
+- Added a shared `JobSearchConsole` module with one model for example prompts,
+  query normalization, and `/intel?search=...` href generation.
+- Changed the landing "tell us the job you want" form to route into public
+  `/intel` with the query preserved instead of running a separate one-off
+  landing search/results implementation.
+- Changed `/intel` to hydrate its live search from the shared `search` URL
+  parameter and to reuse the same Image #1-style search console structure.
+- Deleted the old Intel-only command bar module and dead command-bar CSS.
+- Kept the Intel results feed, tabs, filters, and job-fit drawer behavior
+  intact.
+- Browser-verified desktop and 375px mobile renderings, plus landing example
+  click-through into `/intel?search=...`.
+
+Validation:
+
+- Red test first: `frontend/tests/job-search-console-model.test.ts` failed
+  because the shared model did not exist.
+- Focused frontend tests: `9 passed`
+- `cd frontend && npm exec tsc -- --noEmit`: clean
+- `cd frontend && npm run lint`: clean
+- `cd frontend && npm run build`: passed, 61 static pages generated
+- `git diff --check`: clean
+- Backend suite: `866 passed, 3 failed` in `backend/tests/test_payments_router.py`
+  due to unrelated dirty payment/job-switch response drift
+  (`job_switch_plan_active` extra key).
+
+Not touched: unrelated dirty backend payment/job-switch files and untracked
+`docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-06-27 - Public intel job-age cleanup)
+
+Removed the false `0m ago` freshness label from public Intel job cards.
+
+- Root cause: open-role rows represented missing/unresolved timestamps as
+  `ageMin = 0`, and `fmtAgeMin(0)` rendered `0m ago`.
+- Changed `fmtAgeMin()` to return `null` for unknown, zero, or non-positive
+  ages.
+- Changed `ResultJob.ageMin` to `number | null` and made `minutesSince()`
+  return `null` until a real positive age exists.
+- Changed `JobRow` to render the age separator + freshness span only when
+  `fmtAgeMin()` returns a real label.
+- Added `frontend/tests/intel-job-age.test.ts` to lock the behavior.
+
+Validation:
+
+- Red test first: `frontend/tests/intel-job-age.test.ts` failed because
+  `fmtAgeMin(0)` returned `0m ago` and `fmtAgeMin(null)` returned `nullm ago`.
+- Focused frontend tests: `10 passed`
+- `cd frontend && npm run lint`: clean
+- `cd frontend && npx tsc --noEmit`: clean
+- `git diff --check`: clean
+- Earlier `tsc` was briefly blocked by untracked job-search-console WIP, but the
+  missing untracked model file appeared before closeout and the full TypeScript
+  check now passes.
+
+Not touched: unrelated dirty backend payment/job-switch files, untracked
+`frontend/tests/job-search-console-model.test.ts`, and untracked
+`docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-06-27 - Public intel runner company grounding)
+
+Grounded the public `/intel` LLM runner console in the real tracked jobs corpus.
+
+- Removed fake cosmetic company/URL seeds from the public Intel console.
+- Added `frontend/components/public/intel/intel-console-model.ts` so console
+  rows are generated from `analytics.by_company` and preserve exact scraped
+  `company_name` values.
+- Wired `IntelPane` to pass live `/jobs/analytics.by_company` into `IntelHero`.
+- Replaced the hardcoded `gpt-oss-120b` suffix with honest runner model chips:
+  `Local LM Studio` and `google/gemma-3-4b`, matching the June scrape notes.
+- Replaced the misleading `Last commit` footer KPI with `Latest batch`.
+- Added frontend contract coverage proving fake `LOG_SEEDS` cannot return and
+  the fallback row stays neutral (`tracked company feed`, `syncing`) instead of
+  inventing a company.
+- Wrote and committed the design/implementation handoff:
+  `docs/superpowers/specs/2026-06-27-public-intel-runner-tracked-companies-design.md`
+  and
+  `docs/superpowers/plans/2026-06-27-public-intel-runner-tracked-companies.md`.
+
+Validation:
+
+- Red test first: `frontend/tests/intel-console-model.test.ts` failed on missing
+  helper, then passed after implementation.
+- Focused frontend tests: `7 passed`
+- `cd frontend && npx tsc --noEmit`: clean
+- `cd frontend && npm run lint`: clean
+- `git diff --check`: clean
+- Local backend health and analytics: `/health` OK; `/jobs/analytics` returned
+  `45,933` jobs, `265` companies, latest batch `20260627`.
+- Full backend suite: `866 passed`, `3 failed` in pre-existing dirty payment
+  router expectations because local uncommitted payment work adds
+  `job_switch_plan_active` to responses. This Intel change did not touch those
+  backend files.
+
+Browser QA:
+
+- In-app browser loaded `/intel` and verified the desktop console no longer
+  contains fake `wiz.io`, `gpt-oss-120b`, or `Last commit` text.
+- True logged-out hydrated browser QA was partially blocked: the in-app browser
+  had a stale local `mirror_token` that redirected `/intel` to `/login`, its
+  read-only page scope could not clear localStorage, a `javascript:` cleanup URL
+  was correctly blocked by browser policy, and the Playwright CLI had no
+  installed browser binary. No screenshot artifact was produced.
+
+Not touched: unrelated dirty backend payment/job-switch files and untracked
+`docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-06-27 - Google indexing audit handoff)
+
+Audited why Myro's public growth pages are not broadly indexed and prepared a
+Claude-ready SEO fix handoff.
+
+- Logged into Google Search Console and checked Page Indexing + Sitemaps.
+- Confirmed Search Console currently knows only 10 URLs: 4 indexed and 6 not
+  indexed as of 2026-06-12.
+- Confirmed no sitemap is submitted in Search Console, even though live
+  `robots.txt` advertises `https://www.himyro.com/sitemap.xml`.
+- Confirmed live newsletter pages are crawlable/indexable with server-rendered
+  article content, canonical URLs, and JSON-LD.
+- Confirmed live company detail pages are not SEO-ready: sitemap includes 264
+  `/companies/{name}` URLs, `robots.txt` blocks `/companies/`, and detail pages
+  render a client loading shell with default homepage metadata.
+- Captured the safe crawler-direction policy: use sitemap, internal links,
+  canonical URLs, robots rules, and SSR/ISR content; do not build Googlebot-only
+  redirects or bot-specific content.
+- Wrote the handoff report:
+  `docs/seo/2026-06-27-google-indexing-handoff-for-claude.md`.
+
+Validation:
+
+- Report line count: 283 lines
+- `git diff --check`: clean
+
+Not touched: unrelated backend payment/job-switch files and untracked
+`docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-06-25 - Public job-fit preview implementation)
 
 Implemented the approved public job-fit preview journey on `Develop`.
 

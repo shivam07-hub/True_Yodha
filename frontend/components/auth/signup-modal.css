@@ -35,6 +35,11 @@
   animation: tm-signup-rise 200ms var(--tm-ease) both;
 }
 
+.tm-signup-modal--single {
+  width: min(560px, 100%);
+  grid-template-columns: 1fr;
+}
+
 @keyframes tm-signup-rise {
   from { opacity: 0; transform: translateY(10px) scale(0.985); }
   to   { opacity: 1; transform: translateY(0)    scale(1); }

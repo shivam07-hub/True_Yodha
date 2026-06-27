@@ -572,7 +572,7 @@ function CVPage() {
             <DialogDescription>
               {hasBaseline
                 ? "This becomes your new Main CV. Existing tailored CVs stay in your library."
-                : "We identify your skills, map them to 32,000+ recognized skill types used by real hiring managers, and parse your CV into sections."}
+                : "We extract skills and split your CV into editable sections."}
             </DialogDescription>
           </DialogHeader>
           {uploading || uploadResult ? (

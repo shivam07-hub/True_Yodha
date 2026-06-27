@@ -1,39 +1,7 @@
-// Cosmetic seeds for the LLM RUNNER console + hash-based fallbacks for cold-cache
-// sparklines/velocities (replaced as soon as backend ships real velocity_bins +
-// last_seen_at on `by_company`).
+// Hash-based fallbacks for cold-cache sparklines/velocities. Real backend
+// velocity_bins + last_seen_at on `by_company` replace these when available.
 
 import { formatCount } from "@/lib/format"
-
-export interface LogSeed {
-  op: "parse" | "fetch" | "index" | "embed"
-  path: string
-  meta: string
-}
-
-export type LogOp = LogSeed["op"]
-
-export const LOG_SEEDS: LogSeed[] = [
-  { op: "parse", path: "stripe.com/jobs/staff-payments-eng", meta: "73% fit · ok" },
-  { op: "fetch", path: "ramp.com/careers/ramp-ai/researcher", meta: "12.3kb" },
-  { op: "index", path: "designer-tooling · 3,142 jobs", meta: "tag updated" },
-  { op: "embed", path: "razorpay.com/jobs/principal-android", meta: "vec[1024] ok" },
-  { op: "parse", path: "anthropic.com/jobs/applied-ai-eng-london", meta: "84% fit · ok" },
-  { op: "fetch", path: "linear.app/careers/product-eng", meta: "8.1kb" },
-  { op: "parse", path: "vercel.com/careers/dx-eng", meta: "61% fit · ok" },
-  { op: "embed", path: "figma.com/careers/brand-designer", meta: "vec[1024] ok" },
-  { op: "index", path: "remote · eu · 1,408 jobs", meta: "tag updated" },
-  { op: "parse", path: "notion.so/careers/platform-eng", meta: "67% fit · ok" },
-  { op: "fetch", path: "cursor.com/careers/staff-eng", meta: "9.4kb" },
-  { op: "parse", path: "perplexity.ai/careers/search-eng", meta: "79% fit · ok" },
-  { op: "embed", path: "mistral.ai/careers/ml-research", meta: "vec[1024] ok" },
-  { op: "parse", path: "huggingface.co/jobs/dx-engineer", meta: "70% fit · ok" },
-  { op: "fetch", path: "mercury.com/careers/senior-designer", meta: "11.0kb" },
-  { op: "index", path: "yc-backed · 6,902 jobs", meta: "tag updated" },
-  { op: "parse", path: "plaid.com/careers/data-eng", meta: "62% fit · ok" },
-  { op: "embed", path: "datadog.com/careers/platform-eng", meta: "vec[1024] ok" },
-  { op: "parse", path: "supabase.com/careers/dx-engineer", meta: "75% fit · ok" },
-  { op: "fetch", path: "wiz.io/careers/security-research", meta: "10.2kb" },
-]
 
 export interface QuickFilter {
   id: string
@@ -58,14 +26,6 @@ export const CHIP_FILTER: Record<string, { country?: string; mode?: "remote" }> 
 }
 
 export const COUNTRY_CHIP_IDS = ["us", "india"]
-
-export const SEARCH_SUGGESTIONS = [
-  '"remote design lead in europe"',
-  '"applied AI engineer, fresh past 24h"',
-  '"staff infra · india · hybrid"',
-  '"brand designer · series B"',
-  '"ML research · paris or london"',
-]
 
 export const COUNTRY_NAMES: Record<string, string> = {
   US: "United States",
@@ -155,7 +115,8 @@ export function fmtBatch(iso: string): string {
   return s.slice(0, 10)
 }
 
-export function fmtAgeMin(min: number): string {
+export function fmtAgeMin(min: number | null | undefined): string | null {
+  if (min == null || min <= 0) return null
   if (min < 60) return `${min}m ago`
   if (min < 60 * 24) return `${Math.floor(min / 60)}h ago`
   return `${Math.floor(min / (60 * 24))}d ago`
@@ -164,4 +125,3 @@ export function fmtAgeMin(min: number): string {
 export function fmtNum(n: number): string {
   return formatCount(n)
 }
-

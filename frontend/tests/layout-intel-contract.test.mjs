@@ -43,3 +43,29 @@ test("cv upload claim keeps job id after auth handoff", () => {
   assert.ok(source.includes("uploadJobId"))
   assert.ok(source.includes('`/cv?jobId=${encodeURIComponent(uploadJobId)}`'))
 })
+
+test("intel console is backed by tracked companies, not fake URL seeds", () => {
+  const heroSource = read("components/public/intel/intel-hero.tsx")
+  const paneSource = read("components/public/intel-pane.tsx")
+  const dataSource = read("components/public/intel/intel-data.ts")
+
+  assert.ok(heroSource.includes("buildConsoleSeeds"))
+  assert.ok(heroSource.includes("RUNNER_MODEL_LABELS"))
+  assert.ok(paneSource.includes("consoleCompanies={analytics?.by_company ?? []}"))
+  assert.doesNotMatch(dataSource, /LOG_SEEDS/)
+  assert.doesNotMatch(heroSource, /Last commit/)
+  assert.doesNotMatch(heroSource, /gpt-oss-120b/)
+})
+
+test("landing and intel search use the shared public search console", () => {
+  const landingSource = read("components/public/landing/job-search.tsx")
+  const paneSource = read("components/public/intel-pane.tsx")
+
+  assert.ok(landingSource.includes("JobSearchConsole"))
+  assert.ok(landingSource.includes("buildIntelSearchHref"))
+  assert.doesNotMatch(landingSource, /publicCv\.searchJobs/)
+
+  assert.ok(paneSource.includes("JobSearchConsole"))
+  assert.ok(paneSource.includes("useSearchParams"))
+  assert.ok(paneSource.includes("initialJobSearchValue(searchParams)"))
+})

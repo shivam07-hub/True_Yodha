@@ -40,7 +40,7 @@ export const SITE_ROUTES: SiteRoute[] = [
   { path: "/", label: "Home", sitemap: { changeFrequency: "weekly", priority: 1 } },
 
   // ── Product ──────────────────────────────────────────────────────────────
-  { path: "/cv-preview", label: "CV Hub", footer: "Product", route: true },
+  { path: "/cv-preview", label: "CV Hub", footer: "Product", sitemap: { changeFrequency: "weekly", priority: 0.7 }, route: true },
   { path: "/intel", label: "Live Job Data", footer: "Product", nav: { id: "intel", treatment: "live" }, sitemap: { changeFrequency: "daily", priority: 0.8 }, route: true },
   { path: "/companies", label: "Companies", footer: "Product", sitemap: { changeFrequency: "daily", priority: 0.7 }, route: true },
   { path: "/institutions", label: "For Colleges", footer: "Product", nav: { id: "institutions", treatment: "grad" }, sitemap: { changeFrequency: "monthly", priority: 0.7 }, route: true },
@@ -49,7 +49,7 @@ export const SITE_ROUTES: SiteRoute[] = [
   // ── Learn ────────────────────────────────────────────────────────────────
   { path: "/newsletter", label: "Newsletter", footer: "Learn", nav: { id: "newsletter", treatment: "mail" }, sitemap: { changeFrequency: "weekly", priority: 0.9 }, route: true },
   { path: "/docs", label: "How it works", footer: "Learn", sitemap: { changeFrequency: "monthly", priority: 0.9 }, route: true },
-  { path: "/taxonomy", label: "Skill Taxonomy", footer: "Learn", route: true },
+  { path: "/taxonomy", label: "Skill Taxonomy", footer: "Learn", sitemap: { changeFrequency: "monthly", priority: 0.6 }, route: true },
   { path: "/docs#faq", label: "FAQ", footer: "Learn" },
 
   // ── Legal ────────────────────────────────────────────────────────────────
@@ -57,7 +57,7 @@ export const SITE_ROUTES: SiteRoute[] = [
   { path: "/terms", label: "Terms of Use", footer: "Legal", sitemap: { changeFrequency: "yearly", priority: 0.3 }, route: true },
 
   // ── Public, but not a footer-column item (lives in the footer's trust strip) ─
-  { path: "/security", label: "Security", route: true },
+  { path: "/security", label: "Security", sitemap: { changeFrequency: "yearly", priority: 0.4 }, route: true },
 ]
 
 const FOOTER_ORDER: FooterColumn[] = ["Product", "Learn", "Legal"]

@@ -264,6 +264,7 @@ def test_verify_payment_credits_xp_after_valid_signature(monkeypatch: pytest.Mon
         "new_coin_balance": 2200,
         "product": "myro_xp_launch_pack",
         "myrology_unlocked": False,
+        "job_switch_plan_active": False,
     }
     assert marked["payment_row_id"] == "row-1"
     assert marked["razorpay_payment_id"] == "pay_test_123"
@@ -315,6 +316,7 @@ def test_verify_payment_unlocks_myrology_entitlement(monkeypatch: pytest.MonkeyP
         "new_coin_balance": 1500,
         "product": "myro_myrology_unlock",
         "myrology_unlocked": True,
+        "job_switch_plan_active": False,
     }
     assert unlocked == ["user-1"]
 
@@ -362,6 +364,7 @@ def test_verify_payment_is_idempotent_for_already_verified_order(monkeypatch: py
         "new_coin_balance": 2200,
         "product": "myro_xp_launch_pack",
         "myrology_unlocked": False,
+        "job_switch_plan_active": False,
     }
 
 

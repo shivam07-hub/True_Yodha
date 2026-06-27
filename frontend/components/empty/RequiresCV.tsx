@@ -47,7 +47,7 @@ function copyFor(surface: RequiresCVProps["surface"], readiness: CVReadiness): E
     if (readiness === "processing") {
       return {
         heading: "Building your Skill Intelligence map",
-        body: "Your CV is still being analyzed. Once parsing completes, this page will show your domain gaps and progression plan.",
+        body: "Analyzing your CV.",
         ctaLabel: "Check CV status",
         ctaHref: "/cv",
         secondaryLabel: "Explore market demand",
@@ -58,7 +58,7 @@ function copyFor(surface: RequiresCVProps["surface"], readiness: CVReadiness): E
     if (readiness === "failed") {
       return {
         heading: "Skill Intelligence setup needs retry",
-        body: "Your last CV analysis did not complete. Re-upload your CV to unlock your domain map and skill recommendations.",
+        body: "Re-upload your CV to unlock Skills.",
         ctaLabel: "Retry CV upload",
         ctaHref: "/cv?upload=1",
         secondaryLabel: "See how scoring works",
@@ -68,7 +68,7 @@ function copyFor(surface: RequiresCVProps["surface"], readiness: CVReadiness): E
     }
     return {
       heading: "Skill Intelligence starts with your CV",
-      body: "Upload your baseline CV once to unlock domain scoring, gap detection, and skill-by-skill progression insights.",
+      body: "Upload your CV to unlock Skills.",
       ctaLabel: "Upload CV to unlock Skills",
       ctaHref: "/cv?upload=1",
       secondaryLabel: "See the product flow",
@@ -79,7 +79,7 @@ function copyFor(surface: RequiresCVProps["surface"], readiness: CVReadiness): E
 
   return {
     heading: "Start your CV hub",
-    body: "Upload your master CV. Tailor a version for every job you target. See each one scored.",
+    body: "Upload your CV. Tailor one version per job.",
     ctaLabel: "Upload your CV",
     ctaHref: "/cv?upload=1",
   }

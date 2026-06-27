@@ -401,6 +401,25 @@
   letter-spacing: 0.02em;
 }
 
+.tm-intel-console-models {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tm-intel-console-model {
+  border: 1px solid var(--tm-border-soft);
+  color: var(--tm-text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
 .tm-intel-console-ver {
   color: var(--tm-text-faint);
   margin-left: 4px;
@@ -524,131 +543,6 @@
   font-size: 11px;
   margin-left: 3px;
   font-weight: 400;
-}
-
-/* ── Command bar ───────────────────────────────────────────────── */
-.tm-intel-cmd-wrap { margin-bottom: 16px; }
-
-.tm-intel-cmd {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 16px 20px;
-  border-radius: var(--tm-panel-radius-lg);
-  background: var(--tm-surface);
-  border: 1px solid var(--tm-border);
-  transition: border-color var(--tm-dur) var(--tm-ease),
-              box-shadow var(--tm-dur) var(--tm-ease);
-}
-
-.tm-intel-cmd.is-focused {
-  border-color: var(--tm-accent-ring);
-  box-shadow: 0 0 0 3px var(--tm-int-bg-wash);
-}
-
-.tm-intel-cmd-icon {
-  color: var(--tm-text-faint);
-  flex-shrink: 0;
-  transition: color var(--tm-dur-fast) var(--tm-ease);
-}
-
-.tm-intel-cmd.is-focused .tm-intel-cmd-icon {
-  color: var(--tm-accent);
-}
-
-.tm-intel-cmd input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: var(--tm-text);
-  font-size: 18px;
-  font-weight: 400;
-  letter-spacing: 0;
-  min-width: 0;
-  font-family: inherit;
-}
-
-.tm-intel-cmd input::placeholder {
-  color: var(--tm-text-faint);
-}
-
-.tm-intel-kbd {
-  padding: 3px 8px;
-  border-radius: 6px;
-  background: var(--tm-surface-2);
-  border: 1px solid var(--tm-border);
-  font-family: var(--tm-font-mono);
-  font-size: 11px;
-  color: var(--tm-text-muted);
-  flex-shrink: 0;
-}
-
-.tm-intel-cmd-count {
-  font-family: var(--tm-font-mono);
-  font-size: 12px;
-  color: var(--tm-text-faint);
-  flex-shrink: 0;
-}
-
-.tm-intel-cmd-count b {
-  color: var(--tm-accent);
-  font-weight: 600;
-}
-
-.tm-intel-chips {
-  display: flex;
-  gap: 8px;
-  padding: 12px 4px 0;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.tm-intel-chips-label {
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--tm-text-faint);
-  margin-right: 6px;
-}
-
-.tm-intel-chip {
-  padding: 5px 12px;
-  border-radius: 99px;
-  font-size: 12px;
-  font-weight: 500;
-  border: 1px solid var(--tm-border);
-  background: var(--tm-surface-2);
-  color: var(--tm-text-muted);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  font-family: inherit;
-  transition: color var(--tm-dur-fast) var(--tm-ease),
-              background var(--tm-dur-fast) var(--tm-ease),
-              border-color var(--tm-dur-fast) var(--tm-ease);
-}
-
-.tm-intel-chip:hover {
-  color: var(--tm-text);
-  background: var(--tm-hover);
-}
-
-.tm-intel-chip.is-active {
-  background: var(--tm-accent-wash);
-  color: var(--tm-accent);
-  border-color: var(--tm-accent-ring);
-}
-
-.tm-intel-chip-x {
-  color: var(--tm-text-faint);
-  margin-left: 2px;
-}
-
-.tm-intel-chip.is-active .tm-intel-chip-x {
-  color: var(--tm-accent);
 }
 
 /* ── Tabs ──────────────────────────────────────────────────────── */
@@ -1394,10 +1288,6 @@
   .tm-intel-display { font-size: var(--tm-fs-title); line-height: var(--tm-lh-title); }
   .tm-intel-lede { font-size: var(--tm-fs-body); line-height: var(--tm-lh-body); }
   .tm-intel-stat-num { font-size: 26px; }
-  .tm-intel-cmd { padding: 12px 14px; gap: 10px; }
-  .tm-intel-cmd input { font-size: 16px; }
-  .tm-intel-cmd-count { display: none; }
-  .tm-intel-kbd { display: none; }
   .tm-intel-co-row { grid-template-columns: 32px 1fr auto; gap: 10px; padding: 12px 14px; }
   .tm-intel-co-spark { display: none; }
   .tm-intel-co-industry { display: none; }
@@ -1416,7 +1306,7 @@
   }
 }
 
-/* Phone: discard the fake LLM-runner console + compact the stats to one line each. */
+/* Phone: discard the desktop LLM-runner console + compact the stats to one line each. */
 @media (max-width: 640px) {
   .tm-intel-console { display: none; }
 
