@@ -298,7 +298,40 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-27 - Public intel job-age cleanup)
+## LAST SESSION SUMMARY (2026-06-27 - Shared public job search console)
+
+Unified the landing job-search entry and public `/intel` search console.
+
+- Added a shared `JobSearchConsole` module with one model for example prompts,
+  query normalization, and `/intel?search=...` href generation.
+- Changed the landing "tell us the job you want" form to route into public
+  `/intel` with the query preserved instead of running a separate one-off
+  landing search/results implementation.
+- Changed `/intel` to hydrate its live search from the shared `search` URL
+  parameter and to reuse the same Image #1-style search console structure.
+- Deleted the old Intel-only command bar module and dead command-bar CSS.
+- Kept the Intel results feed, tabs, filters, and job-fit drawer behavior
+  intact.
+- Browser-verified desktop and 375px mobile renderings, plus landing example
+  click-through into `/intel?search=...`.
+
+Validation:
+
+- Red test first: `frontend/tests/job-search-console-model.test.ts` failed
+  because the shared model did not exist.
+- Focused frontend tests: `9 passed`
+- `cd frontend && npm exec tsc -- --noEmit`: clean
+- `cd frontend && npm run lint`: clean
+- `cd frontend && npm run build`: passed, 61 static pages generated
+- `git diff --check`: clean
+- Backend suite: `866 passed, 3 failed` in `backend/tests/test_payments_router.py`
+  due to unrelated dirty payment/job-switch response drift
+  (`job_switch_plan_active` extra key).
+
+Not touched: unrelated dirty backend payment/job-switch files and untracked
+`docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-06-27 - Public intel job-age cleanup)
 
 Removed the false `0m ago` freshness label from public Intel job cards.
 

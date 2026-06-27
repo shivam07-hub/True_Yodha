@@ -27,14 +27,6 @@ export const CHIP_FILTER: Record<string, { country?: string; mode?: "remote" }> 
 
 export const COUNTRY_CHIP_IDS = ["us", "india"]
 
-export const SEARCH_SUGGESTIONS = [
-  '"remote design lead in europe"',
-  '"applied AI engineer, fresh past 24h"',
-  '"staff infra · india · hybrid"',
-  '"brand designer · series B"',
-  '"ML research · paris or london"',
-]
-
 export const COUNTRY_NAMES: Record<string, string> = {
   US: "United States",
   IN: "India",

@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { Suspense } from "react"
 import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
 import { IntelPane } from "@/components/public/intel-pane"
@@ -28,7 +29,9 @@ export default function IntelPage() {
     <div style={{ height: "100dvh", width: "100vw", maxWidth: "100vw", display: "flex", flexDirection: "column", background: "var(--tm-bg)", position: "relative", overflow: "hidden" }}>
       <PublicTopNav active="intel" showSignIn />
       <div style={{ flex: 1, width: "100%", minWidth: 0, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 2 }}>
-        <IntelPane />
+        <Suspense fallback={null}>
+          <IntelPane />
+        </Suspense>
         <PublicFooter commons />
       </div>
     </div>

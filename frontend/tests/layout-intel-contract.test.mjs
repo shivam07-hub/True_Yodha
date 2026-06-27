@@ -56,3 +56,16 @@ test("intel console is backed by tracked companies, not fake URL seeds", () => {
   assert.doesNotMatch(heroSource, /Last commit/)
   assert.doesNotMatch(heroSource, /gpt-oss-120b/)
 })
+
+test("landing and intel search use the shared public search console", () => {
+  const landingSource = read("components/public/landing/job-search.tsx")
+  const paneSource = read("components/public/intel-pane.tsx")
+
+  assert.ok(landingSource.includes("JobSearchConsole"))
+  assert.ok(landingSource.includes("buildIntelSearchHref"))
+  assert.doesNotMatch(landingSource, /publicCv\.searchJobs/)
+
+  assert.ok(paneSource.includes("JobSearchConsole"))
+  assert.ok(paneSource.includes("useSearchParams"))
+  assert.ok(paneSource.includes("initialJobSearchValue(searchParams)"))
+})
