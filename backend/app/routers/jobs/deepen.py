@@ -1,15 +1,13 @@
-import asyncio
 import json
-from collections.abc import AsyncIterator
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 
 from app.deps import Principal, get_principal
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
-from app.services import xp_service
-from app.services.llm_provider import LLMProvider, LLMProviderError, get_llm_provider
-from app.routers.jobs.analyse import _compute_overlap, _sse, _word_chunks
+from app.services import text_stream, xp_service
+from app.services.llm_provider import LLMProvider, get_llm_provider
+from app.routers.jobs.analyse import _compute_overlap
 
 router = APIRouter()
 
@@ -88,13 +86,10 @@ async def deepen_job_stream(
     # Idempotent replay — already bought → stream cached text free.
     cached = repo.get_deepening(user_id, job_id, prompt_key)
     if cached:
-        async def replay() -> AsyncIterator[str]:
-            for chunk in _word_chunks(cached):
-                yield _sse({"type": "token", "text": chunk})
-                await asyncio.sleep(0.012)
-            balance = await xp_service.get_xp_balance(user_id)
-            yield _sse({"type": "done", "new_coin_balance": balance, "cached": True})
-        return StreamingResponse(replay(), media_type="text/event-stream")
+        balance = await xp_service.get_xp_balance(user_id)
+        return text_stream.response(
+            text_stream.replay(cached, done={"new_coin_balance": balance, "cached": True})
+        )
 
     skill_rows = repo.get_all_job_skill_rows(job_ids=[job_id])
     if not skill_rows:
@@ -126,21 +121,7 @@ async def deepen_job_stream(
         {"role": "user", "content": f"{context}\n\nQuestion: {instruction}"},
     ]
 
-    async def generate() -> AsyncIterator[str]:
-        parts: list[str] = []
-        try:
-            async for delta in llm_provider.stream_complete(messages, max_tokens=260):
-                parts.append(delta)
-                yield _sse({"type": "token", "text": delta})
-        except LLMProviderError:
-            yield _sse({"type": "error", "recoverable": True, "message": "Interrupted — retry."})
-            return
-
-        text = "".join(parts).strip()
-        if not text:
-            yield _sse({"type": "error", "recoverable": True, "message": "Nothing produced — retry."})
-            return
-
+    async def finalize(text: str) -> dict:
         if is_free:
             repo.set_deepening_sampled(user_id)
             new_balance = await xp_service.get_xp_balance(user_id)
@@ -150,11 +131,12 @@ async def deepen_job_stream(
                     user_id, DEEPEN_XP_COST, "deepen_job",
                     ref_table="job_deepenings", ref_id=f"{job_id}:{prompt_key}",
                 )
-            except xp_service.InsufficientXPError:
-                yield _sse({"type": "error", "recoverable": False, "message": "Out of tokens."})
-                return
+            except xp_service.InsufficientXPError as exc:
+                raise text_stream.StreamAbort("Out of tokens.", recoverable=False) from exc
 
         repo.upsert_deepening(user_id, job_id, prompt_key, text)
-        yield _sse({"type": "done", "new_coin_balance": new_balance})
+        return {"new_coin_balance": new_balance}
 
-    return StreamingResponse(generate(), media_type="text/event-stream")
+    return text_stream.response(
+        text_stream.live(llm_provider, messages, max_tokens=260, finalize=finalize)
+    )

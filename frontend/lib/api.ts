@@ -1064,6 +1064,11 @@ export const cv = {
       body: JSON.stringify(body),
       timeoutMs: LLM_REQUEST_TIMEOUT_MS,
     }),
+  /** SSE path for the streamed bullet rewrite (ADR-0009). POST body = the same
+   * shape as rewriteBullet; fed to useStreamingText.start(path, token, onDone, body).
+   * Tokens are the rewritten text; the terminal `done` frame carries
+   * {mode, question?, rationale?, citations?}. */
+  rewriteBulletStreamPath: "/cv/rewrite-bullet/stream",
   // Plan the gap-driven session for a job: classify each gap → cards. Stateless,
   // free, writes nothing; accepts go through rewriteBullet/rewriteApply above.
   gapPlan: (token: string, jobId: string) =>

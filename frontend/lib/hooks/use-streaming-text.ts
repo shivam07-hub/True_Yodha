@@ -38,8 +38,11 @@ export interface UseStreamingText {
   typing: boolean
   /** Whether the error state offers a retry. */
   recoverable: boolean
-  /** POST `path` with bearer `token`, stream the response. onDone gets the terminal event. */
-  start: (path: string, token: string, onDone?: (ev: StreamEvent) => void) => void
+  /** POST `path` with bearer `token`, stream the response. `body` (if given) is
+   * sent as JSON — for endpoints that need request data (e.g. the bullet to
+   * rewrite); analyse/deepen carry everything in the path and pass none. onDone
+   * gets the terminal event. */
+  start: (path: string, token: string, onDone?: (ev: StreamEvent) => void, body?: unknown) => void
   reset: () => void
 }
 
@@ -109,7 +112,7 @@ export function useStreamingText(): UseStreamingText {
   }, [stopRaf])
 
   const start = React.useCallback(
-    (path: string, token: string, onDone?: (ev: StreamEvent) => void) => {
+    (path: string, token: string, onDone?: (ev: StreamEvent) => void, body?: unknown) => {
       reset()
       setStatus("streaming")
       const ctrl = new AbortController()
@@ -117,9 +120,12 @@ export function useStreamingText(): UseStreamingText {
 
       void (async () => {
         try {
+          const headers: Record<string, string> = { Authorization: `Bearer ${token}` }
+          if (body !== undefined) headers["Content-Type"] = "application/json"
           const res = await fetch(`${BASE}${path}`, {
             method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
+            headers,
+            body: body !== undefined ? JSON.stringify(body) : undefined,
             signal: ctrl.signal,
           })
           if (!res.ok || !res.body) {

@@ -1,6 +1,4 @@
-import asyncio
 import json
-from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -9,7 +7,7 @@ from pydantic import BaseModel, Field
 
 from app.deps import Principal, get_principal
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
-from app.services import xp_service
+from app.services import text_stream, xp_service
 from app.services.llm_provider import LLMProvider, LLMProviderError, get_interactive_provider
 from app.routers.jobs._shared import last_monday
 
@@ -188,26 +186,6 @@ async def analyse_job(
     }
 
 
-def _sse(payload: dict) -> str:
-    """ADR-0009 envelope as one SSE frame."""
-    return f"data: {json.dumps(payload)}\n\n"
-
-
-def _word_chunks(text: str) -> list[str]:
-    """Re-chunk cached text into word-ish pieces so a replay still feels live
-    (the client typewriter smooths either way)."""
-    out: list[str] = []
-    buf = ""
-    for ch in text:
-        buf += ch
-        if ch == " " and len(buf) >= 4:
-            out.append(buf)
-            buf = ""
-    if buf:
-        out.append(buf)
-    return out
-
-
 @router.post("/analyse/{job_id}/stream")
 async def analyse_job_stream(
     job_id: str,
@@ -236,13 +214,10 @@ async def analyse_job_stream(
     # Idempotency — already analysed this week → replay cached text, no charge.
     cached = repo.get_match_explanation(user_id, job_id, batch_week)
     if cached:
-        async def replay() -> AsyncIterator[str]:
-            for chunk in _word_chunks(cached):
-                yield _sse({"type": "token", "text": chunk})
-                await asyncio.sleep(0.012)
-            balance = await xp_service.get_xp_balance(user_id)
-            yield _sse({"type": "done", "new_coin_balance": balance, "cached": True})
-        return StreamingResponse(replay(), media_type="text/event-stream")
+        balance = await xp_service.get_xp_balance(user_id)
+        return text_stream.response(
+            text_stream.replay(cached, done={"new_coin_balance": balance, "cached": True})
+        )
 
     # Funding preflight (no mutation). Frontend gates broke users, but defend the
     # LLM call here too — never spend a provider slot we can't charge for.
@@ -264,30 +239,15 @@ async def analyse_job_stream(
         {"role": "user", "content": prompt},
     ]
 
-    async def generate() -> AsyncIterator[str]:
-        parts: list[str] = []
-        try:
-            async for delta in llm_provider.stream_complete(messages, max_tokens=300):
-                parts.append(delta)
-                yield _sse({"type": "token", "text": delta})
-        except LLMProviderError:
-            yield _sse({"type": "error", "recoverable": True, "message": "Analysis interrupted — retry."})
-            return
-
-        text = "".join(parts).strip()
-        if not text:
-            yield _sse({"type": "error", "recoverable": True, "message": "No analysis produced — retry."})
-            return
-
+    async def finalize(text: str) -> dict:
         # Charge-on-success: atomic charge + persist only after a complete stream.
         try:
             new_balance = await xp_service.charge_or_raise(
                 user_id, ANALYSE_XP_COST, "analyse_job",
                 ref_table="user_job_matches", ref_id=f"{job_id}:{batch_week}",
             )
-        except xp_service.InsufficientXPError:
-            yield _sse({"type": "error", "recoverable": False, "message": "Out of tokens."})
-            return
+        except xp_service.InsufficientXPError as exc:
+            raise text_stream.StreamAbort("Out of tokens.", recoverable=False) from exc
 
         repo.upsert_job_match(user_id, job_id, {
             "batch_week": str(batch_week),
@@ -297,6 +257,8 @@ async def analyse_job_stream(
             "llm_rank": None,
             "computed_at": datetime.now(timezone.utc).isoformat(),
         })
-        yield _sse({"type": "done", "new_coin_balance": new_balance})
+        return {"new_coin_balance": new_balance}
 
-    return StreamingResponse(generate(), media_type="text/event-stream")
+    return text_stream.response(
+        text_stream.live(llm_provider, messages, max_tokens=300, finalize=finalize)
+    )

@@ -26,9 +26,9 @@ import {
   type BelowLevelCard,
   type GapPlanResponse,
   type HostBulletCard,
-  type RewriteBulletResponse,
   type UpgradeOffer,
 } from "@/lib/api"
+import { useStreamingText, type StreamEvent } from "@/lib/hooks/use-streaming-text"
 import { Icon } from "./icons"
 
 interface GapSessionProps {
@@ -221,7 +221,7 @@ function SurfaceCard({ token, card, onResolved, onSkip }: {
   token: string; card: HostBulletCard; onResolved: () => void; onSkip: () => void
 }) {
   const keywords = card.skills.map(s => s.display_name)
-  const { phase, proposed, setProposed, rationale, citations, applying, propose, refine, accept, reset, errMsg } =
+  const { phase, proposed, setProposed, rationale, citations, version, reworking, streaming, applying, propose, refine, accept, reset, errMsg } =
     useRewrite(token, card.bullet_text, keywords, card)
 
   return (
@@ -246,7 +246,7 @@ function SurfaceCard({ token, card, onResolved, onSkip }: {
 
       <RewriteBody
         phase={phase} proposed={proposed} onProposedChange={setProposed} rationale={rationale} citations={citations}
-        applying={applying} errMsg={errMsg}
+        version={version} reworking={reworking} streaming={streaming} applying={applying} errMsg={errMsg}
         before={card.bullet_text}
         onAccept={() => void accept(onResolved)} onDiscard={reset} onRetry={() => void propose()}
         onRefine={note => void refine(note)}
@@ -268,7 +268,7 @@ function ShallowCard({ token, card, onResolved, onSkip }: {
     el.style.height = `${el.scrollHeight}px`
   }
   const host = card.host!
-  const { phase, proposed, setProposed, rationale, citations, applying, propose, refine, accept, reset, errMsg } =
+  const { phase, proposed, setProposed, rationale, citations, version, reworking, streaming, applying, propose, refine, accept, reset, errMsg } =
     useRewrite(token, host.bullet_text, [card.display_name], host)
 
   return (
@@ -317,7 +317,7 @@ function ShallowCard({ token, card, onResolved, onSkip }: {
 
       <RewriteBody
         phase={phase} proposed={proposed} onProposedChange={setProposed} rationale={rationale} citations={citations}
-        applying={applying} errMsg={errMsg}
+        version={version} reworking={reworking} streaming={streaming} applying={applying} errMsg={errMsg}
         before={host.bullet_text}
         onAccept={() => void accept(onResolved)} onDiscard={reset} onRetry={() => void propose(anecdote.trim())}
         onRefine={note => void refine(note)}
@@ -340,37 +340,65 @@ function useRewrite(
   const [citations, setCitations] = useState<string[]>([])
   const [applying, setApplying] = useState(false)
   const [errMsg, setErrMsg] = useState<string | null>(null)
+  // Draft lineage: v1 = Mentor's first draft, bumped per accepted refine. Lets
+  // the UI show "Mentor's draft · v2" so iterating reads as building on top.
+  const [version, setVersion] = useState(0)
+  const [reworking, setReworking] = useState(false)
 
-  const propose = useCallback(async (metric?: string) => {
-    setPhase("proposing"); setErrMsg(null)
-    try {
-      const res: RewriteBulletResponse = await cvApi.rewriteBullet(token, {
-        bullet, missing_keywords: keywords, metric, allow_no_metric: !!metric,
-      })
-      if (res.mode === "rewrite") {
-        setProposed(res.rewritten_text ?? "")
-        setRationale(res.rationale ?? null)
-        setCitations(res.citations ?? [])
-        setPhase("diff")
-      } else if (res.mode === "question") {
-        // The no-fab metric question — fold the keyword in qualitatively instead
-        // of forcing a number; the session already asked for the user's anecdote.
-        const retry = await cvApi.rewriteBullet(token, {
-          bullet, missing_keywords: keywords, allow_no_metric: true,
-        })
-        setProposed(retry.rewritten_text ?? "")
-        setRationale(retry.rationale ?? null)
-        setCitations(retry.citations ?? [])
-        setPhase(retry.mode === "rewrite" ? "diff" : "error")
-        if (retry.mode !== "rewrite") setErrMsg(retry.rationale ?? "Couldn't surface this.")
-      } else {
-        setErrMsg(res.rationale ?? "Mentor is unavailable right now.")
-        setPhase("error")
-      }
-    } catch {
-      setErrMsg("Mentor is unavailable. Try again.")
-      setPhase("error")
+  // ADR-0009: the rewrite STREAMS — Mentor types the surfaced bullet instead of
+  // showing a dead "surfacing…" spinner. A first draft (propose) live-binds the
+  // stream into `proposed` so the diff view types it; a refine swaps on done so
+  // the standing draft stays put while Mentor reworks it.
+  const stream = useStreamingText()
+  const [streaming, setStreaming] = useState(false)
+  const modeRef = useRef<"propose" | "refine">("propose")
+  const retriedNoFabRef = useRef(false)
+  const lastBodyRef = useRef<Record<string, unknown>>({})
+
+  // Live-bind the first-draft stream into the diff as it types (propose only).
+  useEffect(() => {
+    if (streaming && modeRef.current === "propose" && stream.text) {
+      setProposed(stream.text)
+      setPhase(p => (p === "proposing" ? "diff" : p))
     }
+  }, [streaming, stream.text])
+
+  function startStream(body: Record<string, unknown>, mode: "propose" | "refine") {
+    modeRef.current = mode
+    lastBodyRef.current = body
+    setStreaming(true); setErrMsg(null)
+    stream.start(cvApi.rewriteBulletStreamPath, token, onStreamDone, body)
+  }
+
+  function onStreamDone(ev: StreamEvent) {
+    if (ev.type === "error") {
+      setStreaming(false)
+      setErrMsg((ev.message as string) ?? "Mentor is unavailable. Try again.")
+      // A refine failure keeps the standing draft in view; a first-draft failure
+      // has nothing to show, so surface the error card.
+      setPhase(modeRef.current === "propose" ? "error" : "diff")
+      return
+    }
+    if (ev.mode === "question" && !retriedNoFabRef.current) {
+      // The no-fab metric question — fold the keyword in qualitatively instead of
+      // forcing a number; the session already asked for the user's anecdote.
+      retriedNoFabRef.current = true
+      startStream({ ...lastBodyRef.current, metric: undefined, allow_no_metric: true }, modeRef.current)
+      return
+    }
+    setStreaming(false)
+    setProposed((ev.rewritten_text as string) ?? "")
+    setRationale((ev.rationale as string) ?? null)
+    setCitations((ev.citations as string[]) ?? [])
+    setVersion(v => (modeRef.current === "propose" ? 1 : v + 1))
+    setPhase("diff")
+  }
+
+  const propose = useCallback((metric?: string) => {
+    retriedNoFabRef.current = false
+    setReworking(false); setProposed(""); setPhase("proposing")
+    startStream({ bullet, missing_keywords: keywords, metric, allow_no_metric: !!metric }, "propose")
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, bullet, keywords])
 
   const accept = useCallback(async (done: () => void) => {
@@ -390,43 +418,43 @@ function useRewrite(
   }, [token, bullet, proposed, host])
 
   // Iterate on the *current* proposal instead of starting over: Myro's last
-  // version becomes the base, the user's note is the context it missed. Failure
-  // keeps the standing proposal in view (stays on "diff") rather than dropping it.
-  const refine = useCallback(async (note: string) => {
+  // draft becomes the base, the user's note is the context it missed. The draft
+  // stays on screen (phase holds at "diff") while Mentor reworks it in place, so
+  // a refine reads as building on top — not a fresh start. Failure keeps the
+  // standing draft in view.
+  const refine = useCallback((note: string) => {
     const base = proposed.trim()
     if (!base || !note.trim()) return
-    setPhase("proposing"); setErrMsg(null)
-    try {
-      const res: RewriteBulletResponse = await cvApi.rewriteBullet(token, {
-        bullet: base, missing_keywords: keywords, metric: note.trim(), allow_no_metric: true,
-      })
-      if (res.mode === "rewrite" && res.rewritten_text) {
-        setProposed(res.rewritten_text)
-        setRationale(res.rationale ?? null)
-        setCitations(res.citations ?? [])
-        setPhase("diff")
-      } else {
-        setErrMsg(res.rationale ?? "Couldn't work that in. Try rewording.")
-        setPhase("diff")
-      }
-    } catch {
-      setErrMsg("Mentor is unavailable. Try again.")
-      setPhase("diff")
-    }
+    retriedNoFabRef.current = false
+    setReworking(true)
+    // Streams under the hood but holds the standing draft (no live-bind on
+    // refine) until the reworked version lands on `done`.
+    startStream({ bullet: base, missing_keywords: keywords, metric: note.trim(), allow_no_metric: true }, "refine")
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, proposed, keywords])
 
+  // refine ends on done/error inside onStreamDone; clear the reworking flag there.
+  useEffect(() => {
+    if (!streaming) setReworking(false)
+  }, [streaming])
+
   const reset = useCallback(() => {
-    setPhase("intro"); setProposed(""); setRationale(null); setCitations([]); setErrMsg(null)
+    stream.reset()
+    setStreaming(false)
+    setPhase("intro"); setProposed(""); setRationale(null); setCitations([])
+    setVersion(0); setReworking(false); setErrMsg(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  return { phase, proposed, setProposed, rationale, citations, applying, propose, refine, accept, reset, errMsg }
+  return { phase, proposed, setProposed, rationale, citations, version, reworking, streaming, applying, propose, refine, accept, reset, errMsg }
 }
 
 // ── Shared rewrite UI (status / diff / error), reusing cvb-rw-* vocabulary ────
 
-function RewriteBody({ phase, proposed, onProposedChange, rationale, citations, applying, errMsg, before, onAccept, onDiscard, onRetry, onRefine }: {
+function RewriteBody({ phase, proposed, onProposedChange, rationale, citations, version, reworking, streaming, applying, errMsg, before, onAccept, onDiscard, onRetry, onRefine }: {
   phase: CardPhase; proposed: string; onProposedChange: (v: string) => void
   rationale: string | null; citations: string[]
+  version: number; reworking: boolean; streaming: boolean
   applying: boolean; errMsg: string | null; before: string
   onAccept: () => void; onDiscard: () => void; onRetry: () => void
   onRefine: (note: string) => void
@@ -451,22 +479,29 @@ function RewriteBody({ phase, proposed, onProposedChange, rationale, citations, 
     )
   }
   if (phase === "diff") {
+    const busy = applying || reworking || streaming
     return (
-      <div className="cvb-rw-diff">
+      <div className={`cvb-rw-diff${reworking ? " reworking" : ""}`} aria-busy={reworking || streaming}>
         <div className="cvb-rw-diff-tag">before</div>
         <div className="cvb-rw-diff-old">{before}</div>
         <div className="cvb-rw-diff-afterhead">
-          <span className="cvb-rw-diff-tag">after</span>
-          <button
-            type="button" className="cvb-rw-edit"
-            onClick={() => setEditing(e => !e)}
-            aria-label={editing ? "Done editing" : "Edit this rewrite"}
-            title={editing ? "Done editing" : "Edit"}
-          >
-            <Icon name={editing ? "check" : "edit"} size={12}/>
-          </button>
+          <span className="cvb-rw-diff-tag">
+            Mentor&apos;s draft{version > 1 ? ` · v${version}` : ""}
+          </span>
+          {reworking ? (
+            <span className="cvb-rw-reworking" role="status"><Icon name="sparkle" size={11}/> reworking…</span>
+          ) : streaming ? null : (
+            <button
+              type="button" className="cvb-rw-edit"
+              onClick={() => setEditing(e => !e)}
+              aria-label={editing ? "Done editing" : "Edit this draft"}
+              title={editing ? "Done editing" : "Edit"}
+            >
+              <Icon name={editing ? "check" : "edit"} size={12}/>
+            </button>
+          )}
         </div>
-        {editing ? (
+        {editing && !reworking && !streaming ? (
           <textarea
             className="cvb-rw-input cvb-rw-diff-edit"
             value={proposed}
@@ -475,7 +510,10 @@ function RewriteBody({ phase, proposed, onProposedChange, rationale, citations, 
             autoFocus
           />
         ) : (
-          <div className="cvb-rw-diff-new">{proposed}</div>
+          <div className="cvb-rw-diff-new">
+            {proposed}
+            {streaming && <span className="cvb-rw-caret" aria-hidden>▍</span>}
+          </div>
         )}
         {rationale && <div className="cvb-rw-rationale">{rationale}</div>}
         {citations.length > 0 && (
@@ -493,10 +531,10 @@ function RewriteBody({ phase, proposed, onProposedChange, rationale, citations, 
               value={note}
               onChange={e => setNote(e.target.value)}
               placeholder="e.g. it was cross-border, ₹2Cr budget, I owned the strategy"
-              disabled={applying}
+              disabled={busy}
               onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); submitRefine() } }}
             />
-            <button type="button" className="cvb-btn sm ghost" disabled={applying || !note.trim()} onClick={submitRefine}>
+            <button type="button" className="cvb-btn sm ghost" disabled={busy || !note.trim()} onClick={submitRefine}>
               <Icon name="sparkle" size={12}/> Refine
             </button>
           </div>
@@ -504,8 +542,8 @@ function RewriteBody({ phase, proposed, onProposedChange, rationale, citations, 
         </div>
 
         <div className="cvb-rw-actions">
-          <button type="button" className="cvb-btn sm" onClick={onDiscard} disabled={applying}>Discard</button>
-          <button type="button" className="cvb-btn sm primary" disabled={applying || !proposed.trim()} onClick={onAccept}>
+          <button type="button" className="cvb-btn sm" onClick={onDiscard} disabled={busy}>Discard</button>
+          <button type="button" className="cvb-btn sm primary" disabled={busy || !proposed.trim()} onClick={onAccept}>
             <Icon name="check" size={12}/> {applying ? "Saving…" : "Accept"}
           </button>
         </div>
@@ -574,7 +612,7 @@ function ClaimableUpgrade({ token, upgrade, host, meta, onApplied }: {
   meta: React.ReactNode
   onApplied: () => void
 }) {
-  const { phase, proposed, setProposed, rationale, citations, applying, propose, refine, accept, reset, errMsg } =
+  const { phase, proposed, setProposed, rationale, citations, version, reworking, streaming, applying, propose, refine, accept, reset, errMsg } =
     useRewrite(token, host.bullet_text, [upgrade.display_name], host)
 
   if (phase === "intro") {
@@ -598,7 +636,7 @@ function ClaimableUpgrade({ token, upgrade, host, meta, onApplied }: {
       </div>
       <RewriteBody
         phase={phase} proposed={proposed} onProposedChange={setProposed} rationale={rationale} citations={citations}
-        applying={applying} errMsg={errMsg} before={host.bullet_text}
+        version={version} reworking={reworking} streaming={streaming} applying={applying} errMsg={errMsg} before={host.bullet_text}
         onAccept={() => void accept(onApplied)} onDiscard={reset} onRetry={() => void propose()}
         onRefine={note => void refine(note)}
       />

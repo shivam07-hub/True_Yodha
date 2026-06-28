@@ -430,6 +430,23 @@ A persisted match row (`user_job_matches` joined with `jobs`) is the matcher's d
 
 ---
 
+## Generative Text Stream
+
+The one seam for typing an LLM answer at a user over SSE (ADR-0009). `services/text_stream.py` owns the token/done/error envelope, the "never swap provider mid-stream" rule, the empty-stream guard, the typewriter cache replay, and the charge-only-on-`done` hook. Every live-text surface — why-you-fit (`analyse`), deepeners (`deepen`), per-bullet Mentor rewrite (`/cv/rewrite-bullet/stream`) — is a thin caller: build messages, pass a `finalize` closure, return `text_stream.response(...)`. Before this, `analyse` and `deepen` each hand-inlined a byte-identical copy of the envelope + loop + charge logic, and rewrite didn't stream at all (a blocking `complete()` behind a dead spinner).
+
+**Two ways in**
+- `live(provider, messages, *, max_tokens, finalize)` — stream a fresh answer; `finalize(full_text)` runs once after a complete stream and returns the `done` payload (where a caller charges + persists). It may raise `StreamAbort(message, recoverable)` to end on `error` instead — nothing was charged.
+- `replay(text, *, done=…)` — re-type already-paid text (idempotent cache hit); no provider, no charge.
+
+**Invariants**
+- `finalize` runs only after a non-empty stream. A provider failure or an empty stream ends on `error{recoverable:true}` and `finalize` never runs — so a caller that charges inside `finalize` never charges a failed stream (charge-on-success, ADR-0004).
+- The provider ladder (A→B→C) resolves pre-first-token only; once a `token` is emitted the provider is committed. A mid-stream death is `error{recoverable:true}`, never a silent swap (`LLMProvider.stream_complete`).
+- A terminal-with-no-prose result (the no-fabrication `question`, or a pre-stream error) is a single `one(...)` frame — no token stream.
+- `response()` sets `X-Accel-Buffering: no` so an intermediary can't buffer the whole stream and deliver it at once (which would look like a blocking load despite streaming).
+- The module is the test surface (`test_text_stream.py`) — the envelope is tested once against a fake provider, not re-tested through each router.
+
+---
+
 ## Background Job
 
 A durable unit of deferred work that must survive a process restart. Today: CV upload parse+score, initial match-compute, paid Job Refresh, skill-edit re-tag. Enqueued onto a **Work Lane** as an RQ job, consumed by a **Job Runner**, retried on transient failure, and charged/refunded through the existing XP ledger (ADR-0004). Replaces the legacy `asyncio.create_task` fire-and-forget in `cv_workflow.py` and the FastAPI `BackgroundTasks` in skill-edit.
