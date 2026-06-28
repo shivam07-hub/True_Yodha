@@ -2650,22 +2650,32 @@ class JobsRepository:
         page: int = 1,
         page_size: int = 50,
     ) -> dict[str, Any]:
-        """All jobs for a company, paginated, with primary skills per job."""
-        rows = fetch_all_rows(
-            self._db,
-            table="jobs",
-            columns=(
-                "job_id, job_title, location, location_raw, "
-                "location_city, location_country, location_mode, location_quality"
-            ),
-            query_builder=lambda q: q.ilike("company_name", company_name),
-        )
-        for row in rows:
-            _hydrate_location_fields(row)
-        rows = sorted(rows, key=lambda r: str(r.get("job_id") or ""))
-        total = len(rows)
+        """All jobs for a company, paginated, with primary skills per job.
+
+        Pagination lives at the DB seam: ``.order().range()`` returns only the
+        requested window and ``count="exact"`` returns the company total in the
+        same round-trip (the feed idiom). A big company (Accenture ~2.7k rows)
+        costs one 50-row fetch, not a full-table pull sorted+sliced in Python —
+        the last read-path latency residual of backlog #21.
+        """
         start = max(0, (page - 1)) * page_size
-        page_rows = rows[start : start + page_size]
+        end = start + page_size - 1
+        result = (
+            self._db.table("jobs")
+            .select(
+                "job_id, job_title, location, location_raw, "
+                "location_city, location_country, location_mode, location_quality",
+                count="exact",
+            )
+            .ilike("company_name", company_name)
+            .order("job_id")
+            .range(start, end)
+            .execute()
+        )
+        page_rows = [r for r in (result.data or []) if r.get("job_id")]
+        total = result.count if result.count is not None else len(page_rows)
+        for row in page_rows:
+            _hydrate_location_fields(row)
 
         job_ids = [r["job_id"] for r in page_rows if r.get("job_id")]
         skill_map: dict[str, list[str]] = {jid: [] for jid in job_ids}
