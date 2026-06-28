@@ -31,7 +31,7 @@ from app.repositories.cv import (
     get_token_cv_repository,
 )
 from app.repositories.scores import ScoresRepository, get_token_scores_repository
-from app.services import background, cv_compose, cv_rewrite, cv_skill_edit, progress_stream
+from app.services import background, cv_compose, cv_rewrite, cv_skill_edit, progress_stream, text_stream
 from app.services.llm_provider import get_llm_provider
 
 logger = logging.getLogger(__name__)
@@ -234,6 +234,52 @@ async def rewrite_bullet(
         allow_no_metric=body.allow_no_metric,
     )
     return RewriteBulletResponse(**result)
+
+
+@router.post("/rewrite-bullet/stream")
+async def rewrite_bullet_stream(
+    body: RewriteBulletRequest,
+    principal: Principal = Depends(get_principal),  # noqa: ARG001 — auth gate
+) -> StreamingResponse:
+    """Streaming twin of POST /rewrite-bullet (ADR-0009). Types the rewrite out
+    token-by-token so the user watches Mentor work instead of staring at a blank
+    "rewriting…" spinner. The no-fabrication guard (`question`) and pre-stream
+    errors carry no prose to type, so they arrive as a single terminal frame:
+        done  {mode:"question", question}
+        error {recoverable:false, message}
+    A real rewrite streams `token`* then `done {mode:"rewrite", rewritten_text,
+    rationale, citations}`. Free + stateless — applies nothing; accepts still go
+    through /rewrite-bullet/apply."""
+    plan = await cv_rewrite.prepare_rewrite(
+        body.bullet, body.role, body.missing_keywords, body.metric,
+        allow_no_metric=body.allow_no_metric,
+    )
+    if plan["mode"] == "question":
+        return text_stream.response(
+            text_stream.one({"type": "done", "mode": "question", "question": plan["question"]})
+        )
+    if plan["mode"] == "error":
+        return text_stream.response(
+            text_stream.one({"type": "error", "recoverable": False, "message": plan["rationale"]})
+        )
+
+    passages = plan["passages"]
+    missing = plan["missing_keywords"]
+
+    async def finalize(text: str) -> dict:
+        result = cv_rewrite.finalize_rewrite(text, passages, missing)
+        if result.get("mode") == "error":
+            raise text_stream.StreamAbort(result.get("rationale") or "No rewrite produced.", recoverable=True)
+        return {
+            "mode": "rewrite",
+            "rewritten_text": result["rewritten_text"],
+            "rationale": result["rationale"],
+            "citations": result["citations"],
+        }
+
+    return text_stream.response(
+        text_stream.live(get_llm_provider(), plan["messages"], max_tokens=cv_rewrite.MAX_TOKENS, finalize=finalize)
+    )
 
 
 # v2 reservoir: only experience/project bullets are points.

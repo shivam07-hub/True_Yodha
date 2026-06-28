@@ -10,6 +10,13 @@ def test_normalize_location_maps_bangalore_aliases_to_bengaluru() -> None:
     assert normalized.location == "Bengaluru, India"
 
 
+def test_normalize_location_maps_us_country_code() -> None:
+    normalized = normalize_location("US")
+    assert normalized.location_city is None
+    assert normalized.location_country == "United States"
+    assert normalized.location == "United States"
+
+
 def test_normalize_location_detects_remote_mode() -> None:
     normalized = normalize_location("Remote - Worldwide")
     assert normalized.location_mode == "remote"

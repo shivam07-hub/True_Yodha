@@ -8,7 +8,7 @@ import type { SVGProps } from "react"
 export type IconName =
   | "aperture" | "file" | "target" | "skills" | "intel" | "tracker" | "forge"
   | "check" | "x" | "plus" | "chevron-right" | "chevron-down" | "arrow-right"
-  | "edit" | "trash" | "download" | "history" | "folder" | "save"
+  | "edit" | "trash" | "download" | "external-link" | "history" | "folder" | "save"
   | "diamond" | "settings" | "eye" | "eye-off" | "sparkle" | "upload"
 
 interface IconProps extends Omit<SVGProps<SVGSVGElement>, "stroke"> {
@@ -46,6 +46,7 @@ export function Icon({ name, size = 16, stroke = 1.6, ...rest }: IconProps) {
     case "edit":     return <svg {...common}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
     case "trash":    return <svg {...common}><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
     case "download": return <svg {...common}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+    case "external-link": return <svg {...common}><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
     case "upload":   return <svg {...common}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
     case "history":  return <svg {...common}><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
     case "folder":   return <svg {...common}><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>

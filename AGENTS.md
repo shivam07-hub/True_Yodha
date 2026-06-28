@@ -298,7 +298,115 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-27 - Auth copy and UI brevity sweep)
+## LAST SESSION SUMMARY (2026-06-28 - CV apply command hierarchy)
+
+Made the CV Playground application handoff stateful so users always see the
+next step while tailoring a saved job.
+
+- Added a tested apply-command state model:
+  `Unsaved draft -> Save & preview`,
+  `Final preview ready -> Preview & download`,
+  `Careers page opened -> Mark applied`,
+  `Application tracked -> View applications`.
+- Added `ApplyCommandBar` and wired it into the CV Playground header and sticky
+  editor dock.
+- Removed the old scattered Save/Preview primary from the page header and the
+  old bottom-only save bar.
+- `Save & preview` now saves the tailored CV version and immediately opens the
+  existing export/preview route.
+- Clean saved CVs expose `Preview & download` plus `Open {company} careers`;
+  extension/source URLs are used when present, with careers-search fallback.
+- Added a `Mark applied` action that updates the application status and
+  refreshes the tracker query.
+- Browser-verified the command bar through a temporary visual route at desktop
+  and 375px mobile; removed the temporary route before handoff.
+
+Validation:
+
+- Red test first: `frontend/tests/cv-apply-command-model.test.ts` failed because
+  the model did not exist.
+- `cd frontend && npx tsx --test tests/cv-apply-command-model.test.ts
+  tests/pr5-display-fixes.test.tsx`: 6 passed
+- `cd frontend && npx tsc --noEmit`: clean
+- `cd frontend && npm run lint`: clean
+- `git diff --check`: clean
+
+Not touched: unrelated untracked `docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-06-28 - Market company signals toggle)
+
+Replaced the misleading `/market` rail "Trending companies" label with an
+explicit Company signals widget and added a compact role-volume vs scrape-date
+toggle.
+
+- Root cause: the widget was categorized as "Trending companies" but the data
+  was only sorted by open-role count. It did not represent trend velocity or
+  freshness.
+- Added `sort_by=roles|last_seen` to `GET /jobs/companies-at`; default remains
+  `roles`, while `last_seen` sorts by each company's newest scraper observation
+  and then role count.
+- Threaded the sort through `frontend/lib/api.ts` and `useMarketIntel()`.
+- Added `company-signals-model.ts` so heading, row metadata, and backend sort
+  mapping are tested as a stable display contract.
+- Updated the rail UI to show `Company signals` with `Roles` / `Scraped`
+  segmented controls. Roles mode shows role count; Scraped mode shows
+  `Jun 4 · 181 roles` style metadata.
+
+Validation:
+
+- Red test first:
+  `test_list_top_companies_at_repo_can_sort_by_last_seen` failed because
+  `sort_by` did not exist.
+- Red test first: `frontend/tests/company-signals-model.test.ts` failed because
+  the display model did not exist.
+- Focused backend jobs-list tests: `22 passed`
+- Frontend company-signal model test: `3 passed`
+- Full backend suite: `883 passed`
+- `cd frontend && npx tsc --noEmit`: clean
+- `cd frontend && npm run lint`: clean
+- `git diff --check`: clean
+
+Not touched: unrelated dirty `frontend/app/(authed)/cv/cv-builder.css`,
+`frontend/components/cv/builder/gap-session.tsx`, and untracked
+`docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-06-28 - Market location alias demand movers)
+
+Fixed the missing `/market` Skill-demand movers rail for users whose saved
+target location uses an alias such as `Bangalore`.
+
+- Root cause: `useMarketIntel()` sent the first saved target location directly
+  to `GET /jobs/analytics?location_city=...`; analytics compared that raw value
+  against canonical job rows. `Bangalore` returned `top_skills=[]`, while the
+  sibling `companies-at` path already normalized it to `Bengaluru`, so Trending
+  Companies still rendered.
+- Added shared city/country match-value canonicalization inside
+  `_matches_location_filters()`, preserving raw fallback for unknown locations.
+- Extended the location normalizer so country-only `US` maps to
+  `United States` and no longer falls through as a fake city named `Us`.
+- Added regressions for `Bangalore -> Bengaluru` analytics movers and `US`
+  country-code normalization.
+
+Validation:
+
+- Red test first:
+  `test_compile_market_analytics_canonicalizes_location_filter_aliases` failed
+  with `total_jobs == 0`.
+- Red test first:
+  `test_normalize_location_maps_us_country_code` failed because `US` became
+  city `Us`.
+- Focused backend tests: `35 passed` for location normalizer, location prefs,
+  and jobs list router; `41 passed` for job feed router.
+- Full backend suite: `871 passed`
+- `cd frontend && npx tsc --noEmit`: clean
+- `cd frontend && npm run lint`: clean
+- `git diff --check`: clean
+
+Not touched: unrelated dirty `frontend/app/(authed)/cv/cv-builder.css`,
+`frontend/components/cv/builder/gap-session.tsx`, and untracked
+`docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-06-27 - Auth copy and UI brevity sweep)
 
 Removed overloaded auth and prerequisite helper copy to match the
 design-over-words rule.

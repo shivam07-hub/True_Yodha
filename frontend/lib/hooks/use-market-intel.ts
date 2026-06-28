@@ -2,7 +2,7 @@
 
 import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { jobs, type JobFeedItem, type JobPulse } from "@/lib/api"
+import { jobs, type JobFeedItem, type JobPulse, type TopCompaniesSort } from "@/lib/api"
 
 /** A skill the market is asking for, ranked by 30-day job demand. */
 export interface SkillMover {
@@ -17,6 +17,7 @@ export interface SkillMover {
 export interface TrendingCompany {
   name: string
   openCount: number
+  lastSeenAt: string | null
 }
 
 /** A listing the community is unsure about — surfaced for a verify vote. */
@@ -31,7 +32,7 @@ export interface UncertainListing {
  *   movers   ← /jobs/analytics top_skills (universal market demand, city-scoped)
  *   trending ← /jobs/companies-at         (who's hiring in the user's city)
  */
-export function useMarketIntel(targetLocations: string[]) {
+export function useMarketIntel(targetLocations: string[], companySort: TopCompaniesSort = "roles") {
   const city = targetLocations.find((l) => l && l.trim())?.trim() ?? null
 
   // Skill-demand movers = the market overall, NOT the user's CV. Universal and
@@ -45,8 +46,8 @@ export function useMarketIntel(targetLocations: string[]) {
     staleTime: 30 * 60 * 1000,
   })
   const companies = useQuery({
-    queryKey: ["topCompaniesAt", "city", city ?? ""],
-    queryFn: () => jobs.topCompaniesAt({ kind: "city", name: city! }),
+    queryKey: ["topCompaniesAt", "city", city ?? "", companySort],
+    queryFn: () => jobs.topCompaniesAt({ kind: "city", name: city! }, 8, companySort),
     enabled: !!city,
     staleTime: 30 * 60 * 1000,
   })
@@ -74,7 +75,7 @@ export function useMarketIntel(targetLocations: string[]) {
     () =>
       (companies.data?.companies ?? [])
         .slice(0, 4)
-        .map((c) => ({ name: c.company_name, openCount: c.open_count })),
+        .map((c) => ({ name: c.company_name, openCount: c.open_count, lastSeenAt: c.last_seen_at ?? null })),
     [companies.data],
   )
 

@@ -2,17 +2,20 @@
  * BulletRewrite — per-bullet Mentor rewrite (DESIGN_cv_playground_redesign §6).
  *
  * Object-action on a bullet: propose a stronger, JD-aligned rewrite shown as a
- * before→after diff. No-fabrication guard (ADR-0016): when the bullet has no
- * metric, Mentor asks for the real number instead of inventing one. Accept
- * writes via cv.rewriteApply (a new baseline); Discard throws the proposal away.
+ * before→after diff. The rewrite STREAMS token-by-token (ADR-0009) — the user
+ * watches Mentor type the new bullet instead of staring at a blank spinner.
+ * No-fabrication guard (ADR-0016): when the bullet has no metric, Mentor asks
+ * for the real number instead of inventing one (a terminal frame, no tokens).
+ * Accept writes via cv.rewriteApply (a new baseline); Discard throws it away.
  */
 "use client"
 
 import { useState } from "react"
-import { cv as cvApi, type RewriteBulletResponse } from "@/lib/api"
+import { cv as cvApi } from "@/lib/api"
+import { useStreamingText, type StreamEvent } from "@/lib/hooks/use-streaming-text"
 import { Icon } from "./icons"
 
-type Phase = "idle" | "loading" | "question" | "diff" | "error"
+type Phase = "idle" | "run" | "question" | "error"
 
 interface BulletRewriteProps {
   token: string
@@ -28,41 +31,43 @@ export function BulletRewrite({ token, bullet, role, missingKeywords, applying, 
   const [question, setQuestion] = useState<string | null>(null)
   const [rationale, setRationale] = useState<string | null>(null)
   const [citations, setCitations] = useState<string[]>([])
-  const [proposed, setProposed] = useState("")
+  // Canonical rewrite text from the terminal `done` frame. While it's null the
+  // live (still-typing) stream text is shown; Accept is gated on this being set.
+  const [proposed, setProposed] = useState<string | null>(null)
   const [metric, setMetric] = useState("")
   const [errMsg, setErrMsg] = useState<string | null>(null)
 
-  async function run(opts: { metric?: string; allowNoMetric?: boolean } = {}) {
-    setPhase("loading")
-    setErrMsg(null)
-    try {
-      const res: RewriteBulletResponse = await cvApi.rewriteBullet(token, {
-        bullet,
-        role,
-        missing_keywords: missingKeywords,
-        metric: opts.metric,
-        allow_no_metric: opts.allowNoMetric,
-      })
-      if (res.mode === "question") {
-        setQuestion(res.question ?? "What was the measurable result?")
-        setPhase("question")
-      } else if (res.mode === "rewrite") {
-        setProposed(res.rewritten_text ?? "")
-        setRationale(res.rationale ?? null)
-        setCitations(res.citations ?? [])
-        setPhase("diff")
-      } else {
-        setErrMsg(res.rationale ?? "Rewrite is unavailable.")
-        setPhase("error")
-      }
-    } catch {
-      setErrMsg("Rewrite is unavailable. Try again.")
+  const stream = useStreamingText()
+
+  function onDone(ev: StreamEvent) {
+    if (ev.type === "error") {
+      setErrMsg((ev.message as string) ?? "Rewrite is unavailable. Try again.")
       setPhase("error")
+    } else if (ev.mode === "question") {
+      setQuestion((ev.question as string) ?? "What was the measurable result?")
+      setPhase("question")
+    } else {
+      setProposed((ev.rewritten_text as string) ?? "")
+      setRationale((ev.rationale as string) ?? null)
+      setCitations((ev.citations as string[]) ?? [])
     }
   }
 
+  function run(opts: { metric?: string; allowNoMetric?: boolean } = {}) {
+    setErrMsg(null); setQuestion(null); setRationale(null); setCitations([]); setProposed(null)
+    setPhase("run")
+    stream.start(cvApi.rewriteBulletStreamPath, token, onDone, {
+      bullet,
+      role,
+      missing_keywords: missingKeywords,
+      metric: opts.metric,
+      allow_no_metric: opts.allowNoMetric,
+    })
+  }
+
   function reset() {
-    setPhase("idle"); setProposed(""); setMetric(""); setQuestion(null); setRationale(null); setCitations([]); setErrMsg(null)
+    stream.reset()
+    setPhase("idle"); setProposed(null); setMetric(""); setQuestion(null); setRationale(null); setCitations([]); setErrMsg(null)
   }
 
   if (phase === "idle") {
@@ -75,9 +80,16 @@ export function BulletRewrite({ token, bullet, role, missingKeywords, applying, 
     )
   }
 
+  // The after-text being typed (live) or the settled canonical rewrite.
+  const afterText = proposed ?? stream.text
+  const showDiff = phase === "run" && (afterText.length > 0 || stream.status !== "streaming")
+  const ready = proposed !== null
+
   return (
     <div className="cvb-rw-panel" role="group" aria-label="Rewrite suggestion">
-      {phase === "loading" && <div className="cvb-rw-status" role="status">✦ Mentor is rewriting…</div>}
+      {phase === "run" && !showDiff && (
+        <div className="cvb-rw-status" role="status">✦ Mentor is rewriting…</div>
+      )}
 
       {phase === "question" && (
         <div className="cvb-rw-ask">
@@ -102,12 +114,15 @@ export function BulletRewrite({ token, bullet, role, missingKeywords, applying, 
         </div>
       )}
 
-      {phase === "diff" && (
+      {phase === "run" && showDiff && (
         <div className="cvb-rw-diff">
           <div className="cvb-rw-diff-tag">before</div>
           <div className="cvb-rw-diff-old">{bullet}</div>
           <div className="cvb-rw-diff-tag">after</div>
-          <div className="cvb-rw-diff-new">{proposed}</div>
+          <div className="cvb-rw-diff-new">
+            {afterText}
+            {stream.typing && <span className="cvb-rw-caret" aria-hidden>▍</span>}
+          </div>
           {rationale && <div className="cvb-rw-rationale">{rationale}</div>}
           {citations.length > 0 && (
             <div className="cvb-rw-citation" title="This rewrite was grounded in the Myro CV Playbook">
@@ -119,8 +134,8 @@ export function BulletRewrite({ token, bullet, role, missingKeywords, applying, 
             <button
               type="button"
               className="cvb-btn sm primary"
-              disabled={applying || !proposed.trim()}
-              onClick={() => { onApply(bullet, proposed.trim()); reset() }}
+              disabled={applying || !ready || !afterText.trim()}
+              onClick={() => { onApply(bullet, (proposed ?? "").trim()); reset() }}
             >
               <Icon name="check" size={12}/> {applying ? "Applying…" : "Accept"}
             </button>

@@ -5,7 +5,7 @@ import re
 import time
 from collections import Counter
 from datetime import date, datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import Depends
 from postgrest.exceptions import APIError
@@ -305,6 +305,18 @@ def _norm_filter(value: str | None) -> str | None:
     return cleaned if cleaned else None
 
 
+def _location_match_values(value: str | None, *, kind: Literal["city", "country"]) -> set[str]:
+    cleaned = _norm_filter(value)
+    if not cleaned:
+        return set()
+    parsed = normalize_location(cleaned)
+    canonical = parsed.location_city if kind == "city" else parsed.location_country
+    values = {cleaned.lower()}
+    if canonical:
+        values.add(canonical.lower())
+    return values
+
+
 def _cache_key(
     role_domain: str | None,
     location_city: str | None,
@@ -384,13 +396,19 @@ def _matches_location_filters(
     mode = _norm_filter(row.get("location_mode"))
 
     if city_filter:
-        row_cities = {(c or "").strip().lower() for c in (row.get("locations") or [])}
+        city_filters = _location_match_values(city_filter, kind="city")
+        row_cities = _location_match_values(city, kind="city")
+        for raw_city in row.get("locations") or []:
+            row_cities.update(_location_match_values(raw_city, kind="city"))
         # Multi-location rows (firecrawl #6) carry their cities in locations[]
         # even when the scalar location_city is NULL — match either.
-        if (city or "").lower() != city_filter.lower() and city_filter.lower() not in row_cities:
+        if city_filters.isdisjoint(row_cities):
             return False
-    if country_filter and (country or "").lower() != country_filter.lower():
-        return False
+    if country_filter:
+        country_filters = _location_match_values(country_filter, kind="country")
+        row_countries = _location_match_values(country, kind="country")
+        if country_filters.isdisjoint(row_countries):
+            return False
     if mode_filter and (mode or "").lower() != mode_filter.lower():
         return False
     return True
@@ -1063,13 +1081,15 @@ class JobsRepository:
         industry: str | None = None,
         city: str | None = None,
         limit: int = 8,
+        sort_by: Literal["roles", "last_seen"] = "roles",
     ) -> list[dict[str, Any]]:
         """Top companies hiring within an industry group or a city.
 
         Powers the /intel Industries/Cities right panel (Q1=B). Filters jobs by
         industry_group OR location_city, groups by company, returns the top-N by
-        open count with the dominant country + most-recent last_seen per company.
-        24h in-process cache keyed on (kind, value, limit). Mirrors the
+        open count or latest scrape date with dominant country + most-recent
+        last_seen per company. 24h in-process cache keyed on (kind, value, sort,
+        limit). Mirrors the
         list_jobs_at_company read pattern (admin_db, APIError → cached/[]).
         """
         if industry:
@@ -1084,7 +1104,8 @@ class JobsRepository:
         if not value:
             return []
         scoped_limit = max(1, min(20, int(limit)))
-        cache_key = (f"__companies_at_{kind}__", value, None, None, None, None, 1, scoped_limit)
+        order = sort_by if sort_by in {"roles", "last_seen"} else "roles"
+        cache_key = (f"__companies_at_{kind}_{order}__", value, None, None, None, None, 1, scoped_limit)
         now = time.monotonic()
         cached = _search_cache.get(cache_key)
         if cached is not None and (now - cached[0]) < _SEARCH_TTL:
@@ -1124,8 +1145,20 @@ class JobsRepository:
                 "location_country": _dominant(country_counters.get(company)),
                 "last_seen_at": last_seen[company].isoformat() if company in last_seen else None,
             }
-            for company, count in counts.most_common(scoped_limit)
+            for company, count in counts.items()
         ]
+        if order == "last_seen":
+            rows = sorted(
+                rows,
+                key=lambda row: (
+                    last_seen.get(row["company_name"], datetime.min.replace(tzinfo=timezone.utc)),
+                    int(row["open_count"]),
+                ),
+                reverse=True,
+            )
+        else:
+            rows = sorted(rows, key=lambda row: int(row["open_count"]), reverse=True)
+        rows = rows[:scoped_limit]
         _search_cache[cache_key] = (now, {"rows": rows})
         return rows
 

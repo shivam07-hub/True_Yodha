@@ -25,7 +25,7 @@ from app.services.llm_provider import LLMProvider, LLMProviderError
 
 logger = logging.getLogger(__name__)
 
-_MAX_TOKENS = 220
+MAX_TOKENS = 220
 
 # Top-k authored playbook passages to ground a single bullet rewrite.
 _RETRIEVE_K = 3
@@ -113,21 +113,28 @@ def _build_messages(
     ]
 
 
-async def suggest_rewrite(
+async def prepare_rewrite(
     bullet: str,
     role: str | None,
     missing_keywords: list[str] | None,
     metric: str | None,
-    provider: LLMProvider | None,
+    *,
     allow_no_metric: bool = False,
 ) -> dict:
-    """Return one of:
-      {"mode": "question", "question": str}                      — no-fab guard fired
-      {"mode": "rewrite", "rewritten_text": str, "rationale": str}
-      {"mode": "error", "rationale": str}                        — provider unavailable
+    """Resolve everything that must happen BEFORE any token streams, so a caller
+    knows whether this turn is a question, an error, or a real rewrite — and (if
+    a rewrite) hands back the prompt + retrieved passages to stream against.
 
-    ``allow_no_metric`` = the user explicitly chose to rewrite without a number;
-    we then reframe qualitatively (ADR-0016) instead of asking again.
+    Returns one of:
+      {"mode": "question", "question": str}              — no-fab guard fired (no LLM)
+      {"mode": "error", "rationale": str}                — nothing to rewrite
+      {"mode": "stream", "messages": [...],
+       "passages": [...], "missing_keywords": [...]}     — proceed to stream
+
+    Split out of ``suggest_rewrite`` (which still composes prepare→complete→
+    finalize) so the streaming endpoint can emit the question immediately and
+    only open a token stream when there is prose to type. The question branch is
+    fully deterministic (``should_ask_for_metric``) — never an LLM round-trip.
     """
     bullet = (bullet or "").strip()
     missing_keywords = missing_keywords or []
@@ -137,22 +144,25 @@ async def suggest_rewrite(
     if not allow_no_metric and should_ask_for_metric(bullet, metric):
         return {"mode": "question", "question": metric_question(bullet)}
 
-    if provider is None:
-        return {"mode": "error", "rationale": "Rewrite is unavailable right now."}
-
     # #32: ground in the authored CV playbook. retrieve() is fail-soft → [] on any
     # error, in which case _build_messages uses the static style rule.
     query = " ".join(p for p in [bullet, role or "", " ".join(missing_keywords)] if p).strip()
     passages = await mentor_retriever.retrieve(query, shelf="cv", k=_RETRIEVE_K)
 
-    messages = _build_messages(bullet, role, missing_keywords, metric, passages)
-    try:
-        raw = await provider.complete(messages, max_tokens=_MAX_TOKENS)
-    except LLMProviderError:
-        logger.info("cv_rewrite: all providers failed (bullet len=%d)", len(bullet))
-        return {"mode": "error", "rationale": "Rewrite is unavailable right now."}
+    return {
+        "mode": "stream",
+        "messages": _build_messages(bullet, role, missing_keywords, metric, passages),
+        "passages": passages,
+        "missing_keywords": missing_keywords,
+    }
 
-    text = (raw or "").strip().strip('"').strip()
+
+def finalize_rewrite(text: str, passages: list, missing_keywords: list[str]) -> dict:
+    """Turn the fully-streamed (or fully-completed) rewrite text into the terminal
+    payload: the cleaned text, a rationale, and the de-duped citation titles.
+    Pure — no I/O — so it runs identically after a blocking complete() or a token
+    stream. Returns ``{"mode": "error", ...}`` if the model produced nothing."""
+    text = (text or "").strip().strip('"').strip()
     if not text:
         return {"mode": "error", "rationale": "No rewrite produced."}
 
@@ -166,3 +176,37 @@ async def suggest_rewrite(
         "rationale": rationale,
         "citations": citations,
     }
+
+
+async def suggest_rewrite(
+    bullet: str,
+    role: str | None,
+    missing_keywords: list[str] | None,
+    metric: str | None,
+    provider: LLMProvider | None,
+    allow_no_metric: bool = False,
+) -> dict:
+    """Blocking rewrite (one shot, no streaming). Returns one of:
+      {"mode": "question", "question": str}                      — no-fab guard fired
+      {"mode": "rewrite", "rewritten_text": str, "rationale": str}
+      {"mode": "error", "rationale": str}                        — provider unavailable
+
+    ``allow_no_metric`` = the user explicitly chose to rewrite without a number;
+    we then reframe qualitatively (ADR-0016) instead of asking again. Composed
+    from ``prepare_rewrite`` + ``finalize_rewrite`` — the streaming endpoint
+    shares the exact same two halves, only with a token stream in between.
+    """
+    plan = await prepare_rewrite(bullet, role, missing_keywords, metric, allow_no_metric=allow_no_metric)
+    if plan["mode"] != "stream":
+        return plan
+
+    if provider is None:
+        return {"mode": "error", "rationale": "Rewrite is unavailable right now."}
+
+    try:
+        raw = await provider.complete(plan["messages"], max_tokens=MAX_TOKENS)
+    except LLMProviderError:
+        logger.info("cv_rewrite: all providers failed (bullet len=%d)", len((bullet or "").strip()))
+        return {"mode": "error", "rationale": "Rewrite is unavailable right now."}
+
+    return finalize_rewrite(raw, plan["passages"], plan["missing_keywords"])
