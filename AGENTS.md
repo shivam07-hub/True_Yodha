@@ -298,7 +298,42 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-28 - Market company signals toggle)
+## LAST SESSION SUMMARY (2026-06-28 - CV apply command hierarchy)
+
+Made the CV Playground application handoff stateful so users always see the
+next step while tailoring a saved job.
+
+- Added a tested apply-command state model:
+  `Unsaved draft -> Save & preview`,
+  `Final preview ready -> Preview & download`,
+  `Careers page opened -> Mark applied`,
+  `Application tracked -> View applications`.
+- Added `ApplyCommandBar` and wired it into the CV Playground header and sticky
+  editor dock.
+- Removed the old scattered Save/Preview primary from the page header and the
+  old bottom-only save bar.
+- `Save & preview` now saves the tailored CV version and immediately opens the
+  existing export/preview route.
+- Clean saved CVs expose `Preview & download` plus `Open {company} careers`;
+  extension/source URLs are used when present, with careers-search fallback.
+- Added a `Mark applied` action that updates the application status and
+  refreshes the tracker query.
+- Browser-verified the command bar through a temporary visual route at desktop
+  and 375px mobile; removed the temporary route before handoff.
+
+Validation:
+
+- Red test first: `frontend/tests/cv-apply-command-model.test.ts` failed because
+  the model did not exist.
+- `cd frontend && npx tsx --test tests/cv-apply-command-model.test.ts
+  tests/pr5-display-fixes.test.tsx`: 6 passed
+- `cd frontend && npx tsc --noEmit`: clean
+- `cd frontend && npm run lint`: clean
+- `git diff --check`: clean
+
+Not touched: unrelated untracked `docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-06-28 - Market company signals toggle)
 
 Replaced the misleading `/market` rail "Trending companies" label with an
 explicit Company signals widget and added a compact role-volume vs scrape-date

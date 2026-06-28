@@ -34,6 +34,8 @@ import { Icon } from "./icons"
 import { BulletRow } from "./bullet-row"
 import { LivePreview } from "./live-preview"
 import { IntelDrawer } from "./intel-drawer"
+import { ApplyCommandBar } from "./apply-command-bar"
+import { useDeadLinkPrompt } from "@/components/jobs/use-dead-link-prompt"
 import {
   bulletKeywordHits,
   formatKeywordChipLabel,
@@ -85,7 +87,9 @@ export function PlaygroundView({
   const [exportConfirm, setExportConfirm] = useState(false)
   const [restructureOpen, setRestructureOpen] = useState(false)
   const [gapSessionOpen, setGapSessionOpen] = useState(false)
+  const [applyOpened, setApplyOpened] = useState(false)
   const queryClient = useQueryClient()
+  const dead = useDeadLinkPrompt({ token, jobId, surface: "other" })
 
   // Accept a per-bullet rewrite → writes a new Main-CV baseline (mirrors
   // skill-edit), so the stronger bullet flows to every tailored copy.
@@ -122,6 +126,10 @@ export function PlaygroundView({
   const jdText = application?.job_description?.trim() ?? ""
   const company = resolvePlaygroundCompany(job.company, gap.company)
   const jobTitle = job.job_title ?? gap.job_title ?? "Untitled role"
+  const sourceUrl = application?.source_url?.trim() ?? ""
+  const applyHref = sourceUrl || (company !== "Untitled company" ? `https://www.google.com/search?q=${encodeURIComponent(`${company} careers`)}` : "")
+  const applyLabel = company !== "Untitled company" ? `Open ${company} careers` : "Open careers"
+  const isApplied = application?.status != null && application.status !== "saved"
 
   const allTargets: KeywordTarget[] = useMemo(
     () => targetsFromSkillGap(gap.skills ?? []),
@@ -233,7 +241,6 @@ export function PlaygroundView({
   // cut, reviewable, 20 coins on keep). Any job-scoped copy can be restructured.
   const canRestructure = isEditableSelection && !!selectedVersion
   const canEditPolished = isEditableSelection && !!selectedVersion
-  const isSavePrimary = canSave
 
   // ATS checks — deterministic, client-side, no backend needed.
   const cvFilename = useMemo(() => {
@@ -243,7 +250,32 @@ export function PlaygroundView({
   const atsChecks = useMemo(() => runAtsChecks(cv, profile, cvFilename), [cv, profile, cvFilename])
   const atsSc = useMemo(() => atsScore(atsChecks), [atsChecks])
 
-  function handleSave() { playground.saveVersion.mutate() }
+  const markApplied = useMutation({
+    mutationFn: () => jobsApi.updateApplication(token, jobId, { status: "applied" }),
+    onSuccess: () => {
+      setApplyOpened(false)
+      queryClient.invalidateQueries({ queryKey: dataKeys.applications() })
+    },
+  })
+
+  function requestExport() {
+    if (pageFill.fits) onExportPDF(matchScore)
+    else setExportConfirm(true)
+  }
+
+  function handleSaveAndPreview() {
+    playground.saveVersion.mutate(undefined, {
+      onSuccess: () => {
+        setMobileTab("preview")
+        requestExport()
+      },
+    })
+  }
+
+  function handleOpenApply() {
+    setApplyOpened(true)
+    dead.markApplied()
+  }
 
   // Soft auto-trim: hide the lowest-impact visible bullets until the estimated
   // overflow is reclaimed. Best-effort single pass — the user watches the meter
@@ -325,28 +357,30 @@ export function PlaygroundView({
                 <Icon name="edit" size={13}/> Edit text
               </button>
             )}
-            {isSavePrimary ? (
-              <button
-                type="button"
-                className="cvb-btn sm primary"
-                onClick={handleSave}
-                disabled={!canSave || playground.saveVersion.isPending}
-              >
-                <Icon name="save" size={13}/>
-                {playground.saveVersion.isPending ? "Saving…" : "Save"}
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="cvb-btn sm primary"
-                onClick={() => pageFill.fits ? onExportPDF(matchScore) : setExportConfirm(true)}
-                title={pageFill.fits ? "Preview your finished one-page CV" : `Spills onto ${pageFill.pages} pages — trim to fit`}
-              >
-                <Icon name="eye" size={13}/> Preview
-              </button>
-            )}
           </div>
         </div>
+        <ApplyCommandBar
+          company={company}
+          jobTitle={jobTitle}
+          matchScore={matchScore}
+          atsPassed={atsSc.passed}
+          atsTotal={atsSc.total}
+          missingCount={missingTargets.length}
+          isDirty={isDirty}
+          canSave={canSave}
+          isSaving={playground.saveVersion.isPending}
+          isApplied={isApplied}
+          applyOpened={applyOpened}
+          applyHref={applyHref || null}
+          applyLabel={applyLabel}
+          isMarkingApplied={markApplied.isPending}
+          markAppliedError={markApplied.error instanceof Error ? markApplied.error.message : null}
+          onSaveAndPreview={handleSaveAndPreview}
+          onPreviewDownload={requestExport}
+          onOpenApply={handleOpenApply}
+          onMarkApplied={() => markApplied.mutate()}
+        />
+        {dead.prompt}
       </div>
 
       <div className="cvb-version-tabs" role="tablist" aria-label="Saved CV copies">
@@ -483,26 +517,28 @@ export function PlaygroundView({
             ))}
           </div>
 
-          <div className="cvb-save-bar">
-            <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11.5, color: "var(--tm-text-faint)", fontFamily: "var(--cvb-font-mono)", flexWrap: "wrap" }}>
-              {isDirty
-                ? <span style={{ color: "var(--tm-warning)" }}>unsaved changes</span>
-                : <span style={{ color: "var(--tm-success)" }}>
-                    in sync{selectedVersion ? ` with ${formatThreadVersionLabel(selectedVersion, threadVersions)}` : ""}
-                  </span>}
-            </div>
-            {isDirty && (
-              <button
-                type="button"
-                className="cvb-btn sm primary"
-                onClick={handleSave}
-                disabled={!canSave || playground.saveVersion.isPending}
-              >
-                <Icon name="save" size={13}/>
-                {playground.saveVersion.isPending ? "Saving…" : "Save"}
-              </button>
-            )}
-          </div>
+          <ApplyCommandBar
+            variant="dock"
+            company={company}
+            jobTitle={jobTitle}
+            matchScore={matchScore}
+            atsPassed={atsSc.passed}
+            atsTotal={atsSc.total}
+            missingCount={missingTargets.length}
+            isDirty={isDirty}
+            canSave={canSave}
+            isSaving={playground.saveVersion.isPending}
+            isApplied={isApplied}
+            applyOpened={applyOpened}
+            applyHref={applyHref || null}
+            applyLabel={applyLabel}
+            isMarkingApplied={markApplied.isPending}
+            markAppliedError={markApplied.error instanceof Error ? markApplied.error.message : null}
+            onSaveAndPreview={handleSaveAndPreview}
+            onPreviewDownload={requestExport}
+            onOpenApply={handleOpenApply}
+            onMarkApplied={() => markApplied.mutate()}
+          />
         </div>
 
         <div className={`cvb-pg-pane preview${mobileTab === "preview" ? " show-preview-mobile" : ""}`}>
