@@ -1699,7 +1699,6 @@ mark.cvb-kw {
 .cvb-gs-section-h { font-size: var(--tm-fs-meta); font-weight: 700; }
 .cvb-gs-section-h.proven { color: var(--tm-success); }
 .cvb-gs-section-h.build { color: var(--tm-text); }
-.cvb-gs-section-lede { font-size: var(--tm-fs-caption); line-height: 1.5; color: var(--tm-text-muted); margin: 0 0 4px; }
 .cvb-gs-row {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   padding: 10px 12px; border: 1px solid var(--tm-border-soft); border-radius: var(--tm-radius-sm);

@@ -737,7 +737,6 @@ function ClosingPanel({ token, resolved, practiceSkills, upgrades, onApplied, on
       {upgrades.length > 0 && (
         <section className="cvb-gs-section">
           <div className="cvb-gs-section-h proven">You&apos;ve already proven these</div>
-          <p className="cvb-gs-section-lede">Practice took these past what your CV shows — claim the higher level.</p>
           {upgrades.map(u => (
             <UpgradeRow key={u.skill} token={token} upgrade={u} onApplied={onApplied} />
           ))}
@@ -747,7 +746,6 @@ function ClosingPanel({ token, resolved, practiceSkills, upgrades, onApplied, on
       {practiceSkills.length > 0 && (
         <section className="cvb-gs-section">
           <div className="cvb-gs-section-h build">Build these in practice</div>
-          <p className="cvb-gs-section-lede">The market wants these and your experience doesn&apos;t show them yet — that&apos;s the signal, not a failure.</p>
           {practiceSkills.map(s => (
             <PracticeRow
               key={s.skill}
