@@ -298,7 +298,43 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-27 - Auth copy and UI brevity sweep)
+## LAST SESSION SUMMARY (2026-06-28 - Market location alias demand movers)
+
+Fixed the missing `/market` Skill-demand movers rail for users whose saved
+target location uses an alias such as `Bangalore`.
+
+- Root cause: `useMarketIntel()` sent the first saved target location directly
+  to `GET /jobs/analytics?location_city=...`; analytics compared that raw value
+  against canonical job rows. `Bangalore` returned `top_skills=[]`, while the
+  sibling `companies-at` path already normalized it to `Bengaluru`, so Trending
+  Companies still rendered.
+- Added shared city/country match-value canonicalization inside
+  `_matches_location_filters()`, preserving raw fallback for unknown locations.
+- Extended the location normalizer so country-only `US` maps to
+  `United States` and no longer falls through as a fake city named `Us`.
+- Added regressions for `Bangalore -> Bengaluru` analytics movers and `US`
+  country-code normalization.
+
+Validation:
+
+- Red test first:
+  `test_compile_market_analytics_canonicalizes_location_filter_aliases` failed
+  with `total_jobs == 0`.
+- Red test first:
+  `test_normalize_location_maps_us_country_code` failed because `US` became
+  city `Us`.
+- Focused backend tests: `35 passed` for location normalizer, location prefs,
+  and jobs list router; `41 passed` for job feed router.
+- Full backend suite: `871 passed`
+- `cd frontend && npx tsc --noEmit`: clean
+- `cd frontend && npm run lint`: clean
+- `git diff --check`: clean
+
+Not touched: unrelated dirty `frontend/app/(authed)/cv/cv-builder.css`,
+`frontend/components/cv/builder/gap-session.tsx`, and untracked
+`docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-06-27 - Auth copy and UI brevity sweep)
 
 Removed overloaded auth and prerequisite helper copy to match the
 design-over-words rule.

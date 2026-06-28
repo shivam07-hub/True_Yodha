@@ -449,6 +449,43 @@ def test_compile_market_analytics_applies_location_filters() -> None:
     assert result["by_location_city"][0][0] == "Bengaluru"
 
 
+def test_compile_market_analytics_canonicalizes_location_filter_aliases() -> None:
+    jobs_module._analytics_cache.clear()
+    jobs = [
+        {
+            "job_id": "j0",
+            "company_name": "Acme",
+            "industry": "Technology",
+            "industry_group": None,
+            "role_domain": "Engineering",
+            "location_city": "Bengaluru",
+            "location_country": "India",
+            "location_mode": "onsite",
+            "main_skills": ["Python"],
+            "batch_date": 20260504,
+        },
+        {
+            "job_id": "j1",
+            "company_name": "Globex",
+            "industry": "Technology",
+            "industry_group": None,
+            "role_domain": "Engineering",
+            "location_city": "Mumbai",
+            "location_country": "India",
+            "location_mode": "onsite",
+            "main_skills": ["SQL"],
+            "batch_date": 20260504,
+        },
+    ]
+    db = _SearchFakeDB({"jobs": jobs, "job_skills": []})
+
+    result = JobsRepository(db).compile_market_analytics(location_city="Bangalore")
+
+    assert result["total_jobs"] == 1
+    assert result["by_company"] == [("Acme", 1)]
+    assert result["top_skills"] == [("Python", 1)]
+
+
 def test_list_top_companies_at_repo_groups_by_company() -> None:
     # Two industries; Acme dominates Technology with the most-recent last_seen.
     jobs = [

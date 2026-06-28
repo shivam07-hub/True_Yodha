@@ -5,7 +5,7 @@ import re
 import time
 from collections import Counter
 from datetime import date, datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import Depends
 from postgrest.exceptions import APIError
@@ -305,6 +305,18 @@ def _norm_filter(value: str | None) -> str | None:
     return cleaned if cleaned else None
 
 
+def _location_match_values(value: str | None, *, kind: Literal["city", "country"]) -> set[str]:
+    cleaned = _norm_filter(value)
+    if not cleaned:
+        return set()
+    parsed = normalize_location(cleaned)
+    canonical = parsed.location_city if kind == "city" else parsed.location_country
+    values = {cleaned.lower()}
+    if canonical:
+        values.add(canonical.lower())
+    return values
+
+
 def _cache_key(
     role_domain: str | None,
     location_city: str | None,
@@ -384,13 +396,19 @@ def _matches_location_filters(
     mode = _norm_filter(row.get("location_mode"))
 
     if city_filter:
-        row_cities = {(c or "").strip().lower() for c in (row.get("locations") or [])}
+        city_filters = _location_match_values(city_filter, kind="city")
+        row_cities = _location_match_values(city, kind="city")
+        for raw_city in row.get("locations") or []:
+            row_cities.update(_location_match_values(raw_city, kind="city"))
         # Multi-location rows (firecrawl #6) carry their cities in locations[]
         # even when the scalar location_city is NULL — match either.
-        if (city or "").lower() != city_filter.lower() and city_filter.lower() not in row_cities:
+        if city_filters.isdisjoint(row_cities):
             return False
-    if country_filter and (country or "").lower() != country_filter.lower():
-        return False
+    if country_filter:
+        country_filters = _location_match_values(country_filter, kind="country")
+        row_countries = _location_match_values(country, kind="country")
+        if country_filters.isdisjoint(row_countries):
+            return False
     if mode_filter and (mode or "").lower() != mode_filter.lower():
         return False
     return True

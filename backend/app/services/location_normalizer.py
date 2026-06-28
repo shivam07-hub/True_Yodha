@@ -33,7 +33,7 @@ _CITY_ALIASES: tuple[tuple[re.Pattern[str], str], ...] = (
 
 _COUNTRY_ALIASES: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\bindia\b|(?:^|[,\s\-])in(?:$|[,\s\-])"), "India"),
-    (re.compile(r"\busa\b|\bunited states\b|\bu\.s\.\b"), "United States"),
+    (re.compile(r"\bus\b|\busa\b|\bunited states\b|\bu\.s\.\b"), "United States"),
     (re.compile(r"\buk\b|\bunited kingdom\b"), "United Kingdom"),
     (re.compile(r"\bsingapore\b"), "Singapore"),
     (re.compile(r"\bcanada\b"), "Canada"),
@@ -96,6 +96,8 @@ def _infer_city(lower: str, raw: str) -> str | None:
     if not token:
         return None
     token_lower = token.lower()
+    if _infer_country(token_lower) is not None:
+        return None
     if any(
         bad in token_lower
         for bad in ("location", "remote", "hybrid", "worldwide", "anywhere", "onsite")
