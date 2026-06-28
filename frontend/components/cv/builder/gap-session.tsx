@@ -59,8 +59,16 @@ export function GapSession({ token, jobId, score, onApplied, onClose }: GapSessi
   const [plan, setPlan] = useState<GapPlanResponse | null>(null)
   const [loadErr, setLoadErr] = useState<string | null>(null)
   const [idx, setIdx] = useState(0)
-  const [resolved, setResolved] = useState(0)
+  // Per-deck outcome so the bar shows surfaced work (loud) vs skipped (faint) —
+  // a "done" tick used to conflate both, so accepted work read as walked-past.
+  const [outcomes, setOutcomes] = useState<Record<number, "surfaced" | "skipped">>({})
+  // JD-match at the moment the session opened — the floor the header climbs from.
+  const [startScore] = useState(score)
   const [revealed, setRevealed] = useState(SESSION_BATCH)
+  const surfaced = useMemo(
+    () => Object.values(outcomes).filter(o => o === "surfaced").length,
+    [outcomes],
+  )
 
   const load = useCallback(async () => {
     setLoadErr(null)
@@ -107,7 +115,7 @@ export function GapSession({ token, jobId, score, onApplied, onClose }: GapSessi
     return (
       <Backdrop onClose={onClose}>
         <div className="cvb-modal cvb-gs-modal">
-          <Header score={score} plan={null} onClose={onClose} />
+          <Header score={score} startScore={startScore} plan={null} onClose={onClose} />
           <div className="cvb-gs-body">
             <p className="cvb-rs-error" role="alert">{loadErr}</p>
             <div className="cvb-gs-foot">
@@ -124,7 +132,7 @@ export function GapSession({ token, jobId, score, onApplied, onClose }: GapSessi
     return (
       <Backdrop onClose={onClose}>
         <div className="cvb-modal cvb-gs-modal">
-          <Header score={score} plan={null} onClose={onClose} />
+          <Header score={score} startScore={startScore} plan={null} onClose={onClose} />
           <div className="cvb-gs-body"><div className="cvb-rw-status" role="status">✦ Mentor is reading your gaps…</div></div>
         </div>
       </Backdrop>
@@ -140,21 +148,30 @@ export function GapSession({ token, jobId, score, onApplied, onClose }: GapSessi
   const ticks = Math.min(revealed, deck.length)
 
   function advance() { setIdx(i => i + 1) }
-  function onResolved() { setResolved(r => r + 1); onApplied(); advance() }
+  function skip() { setOutcomes(o => ({ ...o, [idx]: "skipped" })); advance() }
+  function onResolved() { setOutcomes(o => ({ ...o, [idx]: "surfaced" })); onApplied(); advance() }
   function continueBatch() { setRevealed(r => r + SESSION_BATCH) }
   function wrapUp() { setIdx(deck.length) }
 
   return (
     <Backdrop onClose={onClose}>
       <div className="cvb-modal cvb-gs-modal" onClick={e => e.stopPropagation()}>
-        <Header score={score} plan={plan} onClose={onClose} />
+        <Header score={score} startScore={startScore} plan={plan} onClose={onClose} />
 
         {deck.length > 1 && (
           <div className="cvb-gs-progress" aria-hidden>
-            {Array.from({ length: ticks }, (_, i) => (
-              <span key={i} className={`cvb-gs-tick${i < idx ? " done" : i === idx ? " active" : ""}`} />
-            ))}
+            {Array.from({ length: ticks }, (_, i) => {
+              const o = outcomes[i]
+              const cls = o === "surfaced" ? "surfaced" : o === "skipped" ? "skipped" : i === idx ? "active" : ""
+              return <span key={i} className={`cvb-gs-tick${cls ? ` ${cls}` : ""}`} />
+            })}
             {deck.length > revealed && <span className="cvb-gs-tick-more">+{deck.length - revealed}</span>}
+          </div>
+        )}
+
+        {surfaced > 0 && (
+          <div className="cvb-gs-livetally" role="status">
+            <Icon name="check" size={12} stroke={3}/> {surfaced} surfaced
           </div>
         )}
 
@@ -162,18 +179,18 @@ export function GapSession({ token, jobId, score, onApplied, onClose }: GapSessi
           {card?.kind === "latent" && (
             <SurfaceCard
               key={`latent-${idx}`} token={token} card={card}
-              onResolved={onResolved} onSkip={advance}
+              onResolved={onResolved} onSkip={skip}
             />
           )}
           {card?.kind === "shallow" && (
             <ShallowCard
               key={`shallow-${idx}`} token={token} card={card}
-              onResolved={onResolved} onSkip={advance}
+              onResolved={onResolved} onSkip={skip}
             />
           )}
           {atCheckpoint && (
             <Checkpoint
-              resolved={resolved}
+              resolved={surfaced}
               remaining={deck.length - idx}
               onContinue={continueBatch}
               onWrap={wrapUp}
@@ -182,7 +199,9 @@ export function GapSession({ token, jobId, score, onApplied, onClose }: GapSessi
           {walkedAll && (
             <ClosingPanel
               token={token}
-              resolved={resolved}
+              resolved={surfaced}
+              startScore={startScore}
+              score={score}
               practiceSkills={practiceSkills}
               upgrades={plan.upgrade_offers}
               onApplied={onApplied}
@@ -197,20 +216,62 @@ export function GapSession({ token, jobId, score, onApplied, onClose }: GapSessi
 
 // ── Header: the live match number is the climbing anchor ─────────────────────
 
-function Header({ score, plan, onClose }: { score: number; plan: GapPlanResponse | null; onClose: () => void }) {
+function Header({ score, startScore, plan, onClose }: { score: number; startScore: number; plan: GapPlanResponse | null; onClose: () => void }) {
   return (
     <div className="cvb-modal-head cvb-gs-head">
       <div className="cvb-gs-title">
         <div className="cvb-gs-eyebrow"><Icon name="sparkle" size={12}/> Close gaps with Mentor</div>
         {plan && <div className="cvb-gs-sub">{plan.company ?? "This role"} · {plan.job_title}</div>}
       </div>
-      <div className="cvb-gs-meter" aria-label={`JD match ${score}%`}>
-        <span className="cvb-gs-meter-num tabnum">{score}<span>%</span></span>
-        <span className="cvb-gs-meter-cap">JD match</span>
-      </div>
+      <LiveMeter score={score} startScore={startScore} />
       <button type="button" className="cvb-btn ghost sm" aria-label="Close" onClick={onClose}>
         <Icon name="x" size={16}/>
       </button>
+    </div>
+  )
+}
+
+// The match number is the climbing anchor — it count-ups + pulses when an
+// accepted surfacing lands, and shows the gain since the session opened so the
+// payoff accumulates in view instead of jumping silently on a late refetch.
+function LiveMeter({ score, startScore }: { score: number; startScore: number }) {
+  const [display, setDisplay] = useState(score)
+  const [bumped, setBumped] = useState(false)
+  const prev = useRef(score)
+
+  useEffect(() => {
+    const from = prev.current
+    const to = score
+    prev.current = to
+    if (from === to) { setDisplay(to); return }
+
+    let bumpTimer: ReturnType<typeof setTimeout> | undefined
+    if (to > from) {
+      setBumped(true)
+      bumpTimer = setTimeout(() => setBumped(false), 600)
+    }
+
+    let raf = 0
+    let startTs: number | null = null
+    const dur = 500
+    const step = (ts: number) => {
+      if (startTs === null) startTs = ts
+      const p = Math.min(1, (ts - startTs) / dur)
+      const eased = 1 - Math.pow(1 - p, 3)
+      setDisplay(Math.round(from + (to - from) * eased))
+      if (p < 1) raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+    return () => { cancelAnimationFrame(raf); if (bumpTimer) clearTimeout(bumpTimer) }
+  }, [score])
+
+  const gain = score - startScore
+  return (
+    <div className={`cvb-gs-meter${bumped ? " bumped" : ""}`} aria-label={`JD match ${score}%`}>
+      <span className="cvb-gs-meter-num tabnum">{display}<span>%</span></span>
+      <span className="cvb-gs-meter-cap">
+        JD match{gain > 0 && <span className="cvb-gs-meter-gain"> ↑ {gain}</span>}
+      </span>
     </div>
   )
 }
@@ -677,9 +738,11 @@ function PracticeRow({ skill, saved, busy, onToggle }: {
 
 // ── Closing panel: build in practice + claim what you've proven ──────────────
 
-function ClosingPanel({ token, resolved, practiceSkills, upgrades, onApplied, onClose }: {
+function ClosingPanel({ token, resolved, startScore, score, practiceSkills, upgrades, onApplied, onClose }: {
   token: string
   resolved: number
+  startScore: number
+  score: number
   practiceSkills: { skill: string; display_name: string; is_primary: boolean; reason: "absent" | "shallow" }[]
   upgrades: GapPlanResponse["upgrade_offers"]
   onApplied: () => void
@@ -728,6 +791,15 @@ function ClosingPanel({ token, resolved, practiceSkills, upgrades, onApplied, on
 
   return (
     <div className="cvb-gs-closing">
+      {score > startScore && (
+        <div className="cvb-gs-climb" role="status">
+          <span className="cvb-gs-climb-from">{startScore}%</span>
+          <span className="cvb-gs-climb-arrow" aria-hidden>→</span>
+          <span className="cvb-gs-climb-to tabnum">{score}<span>%</span></span>
+          <span className="cvb-gs-climb-cap">JD match, this session</span>
+        </div>
+      )}
+
       {resolved > 0 && (
         <div className="cvb-gs-tally" role="status">
           <Icon name="check" size={14} stroke={3}/> Surfaced {resolved} skill{resolved === 1 ? "" : "s"} on your CV
