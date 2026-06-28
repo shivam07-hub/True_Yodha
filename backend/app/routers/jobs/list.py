@@ -414,6 +414,7 @@ def list_company_open_roles(
 def list_top_companies_at(
     industry: str | None = None,
     city: str | None = None,
+    sort_by: Literal["roles", "last_seen"] = "roles",
     limit: Annotated[int, Query(ge=1, le=20)] = 8,
     repo: JobsRepository = Depends(get_public_jobs_repository),
 ) -> TopCompaniesAtResponse:
@@ -429,7 +430,7 @@ def list_top_companies_at(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Provide exactly one of industry or city.",
         )
-    rows = repo.list_top_companies_at(industry=industry, city=city, limit=limit)
+    rows = repo.list_top_companies_at(industry=industry, city=city, limit=limit, sort_by=sort_by)
     return TopCompaniesAtResponse(
         kind="industry" if industry else "city",
         value=industry or city or "",

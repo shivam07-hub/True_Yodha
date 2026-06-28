@@ -1,10 +1,17 @@
 "use client"
 
+import { useState } from "react"
 import type { CSSProperties } from "react"
 import type { JobFeedItem, JobPulse } from "@/lib/api"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useMarketIntel, uncertainListings } from "@/lib/hooks/use-market-intel"
 import { formatCount } from "@/lib/format"
+import {
+  companySignalHeading,
+  companySignalMeta,
+  companySignalSortParam,
+  type CompanySignalMode,
+} from "./company-signals-model"
 import "./market-intel.css"
 
 export interface MarketRailProps {
@@ -31,7 +38,8 @@ export interface MarketRailProps {
  *  intel lives on /dashboard; this surface stays about the market. */
 export function MarketRail(props: MarketRailProps) {
   const { targetLocations, total, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob, loading = false } = props
-  const { movers, trending, loading: intelLoading } = useMarketIntel(targetLocations)
+  const [companyMode, setCompanyMode] = useState<CompanySignalMode>("roles")
+  const { movers, trending, loading: intelLoading } = useMarketIntel(targetLocations, companySignalSortParam(companyMode))
   const city = targetLocations.find((l) => l && l.trim())?.trim() ?? null
   const uncertain = uncertainListings(feed, pulses)
 
@@ -73,12 +81,27 @@ export function MarketRail(props: MarketRailProps) {
       {/* who's hiring in scope */}
       {!intelLoading && trending.length > 0 ? (
         <div className="mi-widget">
-          <h4 className="mi-h4">Trending companies</h4>
+          <div className="mi-widget-head">
+            <h4 className="mi-h4">{companySignalHeading()}</h4>
+            <div className="mi-seg" role="group" aria-label="Company signal sort">
+              {(["roles", "scraped"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className="mi-seg-btn"
+                  aria-pressed={companyMode === mode}
+                  onClick={() => setCompanyMode(mode)}
+                >
+                  {mode === "roles" ? "Roles" : "Scraped"}
+                </button>
+              ))}
+            </div>
+          </div>
           {trending.map((c) => (
             <button key={c.name} type="button" className="mi-tco" onClick={() => onSeeRoles(c.name)}>
               <span className="mi-tco-lg" style={logoBg(c.name)} aria-hidden>{c.name.slice(0, 1)}</span>
               <span className="mi-tco-nm">{c.name}</span>
-              <span className="mi-tco-ct">{c.openCount} role{c.openCount === 1 ? "" : "s"}</span>
+              <span className="mi-tco-ct">{companySignalMeta(c, companyMode)}</span>
             </button>
           ))}
         </div>
@@ -159,7 +182,7 @@ function MarketRailLoading() {
         ))}
       </div>
       <div className="mi-widget" aria-hidden="true">
-        <h4 className="mi-h4">Trending companies</h4>
+        <h4 className="mi-h4">{companySignalHeading()}</h4>
         {[0, 1, 2, 3].map((i) => (
           <div key={i} className="mi-tco">
             <Skeleton style={{ width: 30, height: 30, borderRadius: 8, flex: "0 0 auto" }} />

@@ -1081,13 +1081,15 @@ class JobsRepository:
         industry: str | None = None,
         city: str | None = None,
         limit: int = 8,
+        sort_by: Literal["roles", "last_seen"] = "roles",
     ) -> list[dict[str, Any]]:
         """Top companies hiring within an industry group or a city.
 
         Powers the /intel Industries/Cities right panel (Q1=B). Filters jobs by
         industry_group OR location_city, groups by company, returns the top-N by
-        open count with the dominant country + most-recent last_seen per company.
-        24h in-process cache keyed on (kind, value, limit). Mirrors the
+        open count or latest scrape date with dominant country + most-recent
+        last_seen per company. 24h in-process cache keyed on (kind, value, sort,
+        limit). Mirrors the
         list_jobs_at_company read pattern (admin_db, APIError → cached/[]).
         """
         if industry:
@@ -1102,7 +1104,8 @@ class JobsRepository:
         if not value:
             return []
         scoped_limit = max(1, min(20, int(limit)))
-        cache_key = (f"__companies_at_{kind}__", value, None, None, None, None, 1, scoped_limit)
+        order = sort_by if sort_by in {"roles", "last_seen"} else "roles"
+        cache_key = (f"__companies_at_{kind}_{order}__", value, None, None, None, None, 1, scoped_limit)
         now = time.monotonic()
         cached = _search_cache.get(cache_key)
         if cached is not None and (now - cached[0]) < _SEARCH_TTL:
@@ -1142,8 +1145,20 @@ class JobsRepository:
                 "location_country": _dominant(country_counters.get(company)),
                 "last_seen_at": last_seen[company].isoformat() if company in last_seen else None,
             }
-            for company, count in counts.most_common(scoped_limit)
+            for company, count in counts.items()
         ]
+        if order == "last_seen":
+            rows = sorted(
+                rows,
+                key=lambda row: (
+                    last_seen.get(row["company_name"], datetime.min.replace(tzinfo=timezone.utc)),
+                    int(row["open_count"]),
+                ),
+                reverse=True,
+            )
+        else:
+            rows = sorted(rows, key=lambda row: int(row["open_count"]), reverse=True)
+        rows = rows[:scoped_limit]
         _search_cache[cache_key] = (now, {"rows": rows})
         return rows
 

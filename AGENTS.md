@@ -298,7 +298,44 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-28 - Market location alias demand movers)
+## LAST SESSION SUMMARY (2026-06-28 - Market company signals toggle)
+
+Replaced the misleading `/market` rail "Trending companies" label with an
+explicit Company signals widget and added a compact role-volume vs scrape-date
+toggle.
+
+- Root cause: the widget was categorized as "Trending companies" but the data
+  was only sorted by open-role count. It did not represent trend velocity or
+  freshness.
+- Added `sort_by=roles|last_seen` to `GET /jobs/companies-at`; default remains
+  `roles`, while `last_seen` sorts by each company's newest scraper observation
+  and then role count.
+- Threaded the sort through `frontend/lib/api.ts` and `useMarketIntel()`.
+- Added `company-signals-model.ts` so heading, row metadata, and backend sort
+  mapping are tested as a stable display contract.
+- Updated the rail UI to show `Company signals` with `Roles` / `Scraped`
+  segmented controls. Roles mode shows role count; Scraped mode shows
+  `Jun 4 · 181 roles` style metadata.
+
+Validation:
+
+- Red test first:
+  `test_list_top_companies_at_repo_can_sort_by_last_seen` failed because
+  `sort_by` did not exist.
+- Red test first: `frontend/tests/company-signals-model.test.ts` failed because
+  the display model did not exist.
+- Focused backend jobs-list tests: `22 passed`
+- Frontend company-signal model test: `3 passed`
+- Full backend suite: `883 passed`
+- `cd frontend && npx tsc --noEmit`: clean
+- `cd frontend && npm run lint`: clean
+- `git diff --check`: clean
+
+Not touched: unrelated dirty `frontend/app/(authed)/cv/cv-builder.css`,
+`frontend/components/cv/builder/gap-session.tsx`, and untracked
+`docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-06-28 - Market location alias demand movers)
 
 Fixed the missing `/market` Skill-demand movers rail for users whose saved
 target location uses an alias such as `Bangalore`.

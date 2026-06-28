@@ -509,6 +509,25 @@ def test_list_top_companies_at_repo_groups_by_company() -> None:
     assert acme["last_seen_at"].startswith("2026-06-10")  # max last_seen, not first
 
 
+def test_list_top_companies_at_repo_can_sort_by_last_seen() -> None:
+    jobs = [
+        {"job_id": "j0", "company_name": "Acme", "location_city": "Bengaluru",
+         "location_country": "IN", "first_seen": 20260501, "last_seen": 20260601},
+        {"job_id": "j1", "company_name": "Acme", "location_city": "Bengaluru",
+         "location_country": "IN", "first_seen": 20260502, "last_seen": 20260601},
+        {"job_id": "j2", "company_name": "FreshCo", "location_city": "Bengaluru",
+         "location_country": "IN", "first_seen": 20260620, "last_seen": 20260620},
+    ]
+    jobs_module._search_cache.clear()
+    db = _SearchFakeDB({"jobs": jobs})
+
+    rows = JobsRepository(db).list_top_companies_at(city="Bengaluru", limit=8, sort_by="last_seen")
+
+    assert [r["company_name"] for r in rows] == ["FreshCo", "Acme"]
+    assert rows[0]["open_count"] == 1
+    assert rows[0]["last_seen_at"].startswith("2026-06-20")
+
+
 def test_list_top_companies_at_repo_filters_by_city() -> None:
     jobs = [
         {"job_id": "j0", "company_name": "Acme", "location_city": "Pune",
@@ -544,8 +563,8 @@ class _GroupCompaniesRepo:
     def __init__(self) -> None:
         self.call: dict[str, Any] | None = None
 
-    def list_top_companies_at(self, *, industry=None, city=None, limit=8):
-        self.call = {"industry": industry, "city": city, "limit": limit}
+    def list_top_companies_at(self, *, industry=None, city=None, limit=8, sort_by="roles"):
+        self.call = {"industry": industry, "city": city, "limit": limit, "sort_by": sort_by}
         return [{"company_name": "Acme", "open_count": 5,
                  "location_country": "IN", "last_seen_at": "2026-06-10"}]
 
@@ -556,7 +575,14 @@ def test_list_top_companies_at_router_industry() -> None:
     assert result.kind == "industry"
     assert result.value == "Technology"
     assert result.companies[0].company_name == "Acme"
-    assert repo.call == {"industry": "Technology", "city": None, "limit": 8}
+    assert repo.call == {"industry": "Technology", "city": None, "limit": 8, "sort_by": "roles"}
+
+
+def test_list_top_companies_at_router_forwards_last_seen_sort() -> None:
+    repo = _GroupCompaniesRepo()
+    result = list_top_companies_at(industry=None, city="Bengaluru", sort_by="last_seen", repo=repo)
+    assert result.kind == "city"
+    assert repo.call == {"industry": None, "city": "Bengaluru", "limit": 8, "sort_by": "last_seen"}
 
 
 def test_list_top_companies_at_router_rejects_both_or_neither() -> None:
