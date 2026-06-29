@@ -885,6 +885,21 @@ export interface GapPlanResponse {
   remaining: number
 }
 
+// "Add from your experience" — POST /cv/intake-draft. Mentor shapes the user's
+// own words into JD-aligned bullets, each mapped to the gap skills it shows and
+// the best-fit existing role (role_index into the roles[] the client passed).
+export interface IntakeBullet {
+  text: string
+  skills_covered: string[]
+  role_index: number | null
+  needs_metric: boolean
+}
+export interface IntakeDraftResponse {
+  mode: "draft" | "error"
+  bullets: IntakeBullet[]
+  rationale: string | null
+}
+
 // Experience Reservoir (v2) — GET /cv/reservoir. The master CV as a curatable
 // inventory: roles → points → phrasing variants (canonical first).
 export type PointSource = "migration" | "gap_session" | "forge" | "manual" | "restructure"
@@ -1083,6 +1098,18 @@ export const cv = {
     request<GapPlanResponse>(`/cv/${jobId}/gap-plan`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
+      timeoutMs: LLM_REQUEST_TIMEOUT_MS,
+    }),
+  // "Add from your experience": shape the user's own words into JD-aligned bullets,
+  // mapped to gap skills + best-fit role. Stateless/free; accepts write via saveMaster.
+  intakeDraft: (
+    token: string,
+    body: { raw_text: string; jd_text?: string | null; gap_skills?: string[]; roles?: string[] },
+  ) =>
+    request<IntakeDraftResponse>("/cv/intake-draft", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
       timeoutMs: LLM_REQUEST_TIMEOUT_MS,
     }),
   // The experience reservoir inventory (v2): roles → points → phrasing variants.
