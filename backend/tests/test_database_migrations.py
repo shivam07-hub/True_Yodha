@@ -9,6 +9,17 @@ def _migration(name: str) -> str:
     return (MIGRATIONS / name).read_text(encoding="utf-8")
 
 
+def test_job_description_search_migration_adds_trgm_index() -> None:
+    sql = _migration("20260629_job_description_search_index.sql").lower()
+
+    assert "create extension if not exists pg_trgm" in sql
+    assert "idx_jobs_job_description_trgm" in sql
+    assert "using gin" in sql
+    assert "job_description" in sql
+    assert "gin_trgm_ops" in sql
+    assert "notify pgrst, 'reload schema';" in sql
+
+
 def test_cv_upload_orphan_sweep_migration_qualifies_user_id_outputs() -> None:
     sql = _migration("20260525_fix_cv_upload_orphan_sweep.sql").lower()
 

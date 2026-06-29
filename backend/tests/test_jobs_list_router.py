@@ -42,6 +42,21 @@ class _FakeQuery:
         self._in_filters.append((key, values))
         return self
 
+    def or_(self, expression: str) -> "_FakeQuery":
+        self._db.or_expressions.append(expression)
+        raw_terms: list[tuple[str, str]] = []
+        for chunk in expression.split(","):
+            if ".ilike.%" not in chunk:
+                continue
+            field, pattern = chunk.split(".ilike.%", 1)
+            raw_terms.append((field, pattern.rstrip("%").casefold()))
+        if raw_terms:
+            self._rows = [
+                row for row in self._rows
+                if any(term in str(row.get(field) or "").casefold() for field, term in raw_terms)
+            ]
+        return self
+
     def range(self, start: int, end: int) -> "_FakeQuery":
         self._range = (start, end)
         return self
@@ -74,6 +89,7 @@ class _FakeQuery:
 class _SearchFakeDB:
     def __init__(self, tables: dict[str, list[dict[str, Any]]]) -> None:
         self._tables = tables
+        self.or_expressions: list[str] = []
 
     def table(self, name: str) -> _FakeQuery:
         return _FakeQuery(self._tables.get(name, []), table=name, db=self)
@@ -593,3 +609,59 @@ def test_list_top_companies_at_router_rejects_both_or_neither() -> None:
     with pytest.raises(HTTPException) as neither:
         list_top_companies_at(industry=None, city=None, repo=repo)
     assert neither.value.status_code == 400
+
+
+def test_global_job_search_expands_post_mba_gurugram_intent() -> None:
+    jobs_module._search_cache.clear()
+    db = _SearchFakeDB({
+        "jobs": [
+            {
+                "job_id": "j-consulting",
+                "job_title": "Strategy Consultant",
+                "company_name": "Accenture",
+                "location_city": "Gurugram",
+                "location_country": "India",
+                "location_mode": "hybrid",
+                "role_domain": "Business Strategy",
+                "first_seen": 20260628,
+            },
+            {
+                "job_id": "j-product",
+                "job_title": "Product Manager, Growth",
+                "company_name": "Adobe",
+                "location_city": "Gurugram",
+                "location_country": "India",
+                "location_mode": "onsite",
+                "role_domain": "Product Strategy",
+                "first_seen": 20260627,
+            },
+            {
+                "job_id": "j-engineer",
+                "job_title": "Backend Engineer",
+                "company_name": "Acme",
+                "location_city": "London",
+                "location_country": "United Kingdom",
+                "location_mode": "onsite",
+                "role_domain": "Software Engineering",
+                "first_seen": 20260629,
+            },
+            {
+                "job_id": "j-location-only",
+                "job_title": "Backend Engineer",
+                "company_name": "Network Co",
+                "location_city": "Gurugram",
+                "location_country": "India",
+                "location_mode": "hybrid",
+                "role_domain": "Software Engineering",
+                "first_seen": 20260629,
+            },
+        ],
+    })
+
+    rows = JobsRepository(db).global_job_search("Post MBA roles in Gurugram", limit=5)
+    ids = [row["job_id"] for row in rows]
+
+    assert set(ids) == {"j-consulting", "j-product"}
+    assert "j-location-only" not in ids
+    assert any("consultant" in expr.casefold() for expr in db.or_expressions)
+    assert any("gurugram" in expr.casefold() for expr in db.or_expressions)

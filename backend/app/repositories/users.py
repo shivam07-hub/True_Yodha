@@ -9,6 +9,7 @@ from supabase import Client
 from app.database import get_supabase_admin
 from app.db_safe import safe_profile_update
 from app.deps import get_user_db
+from app.repositories.jobs import clear_user_target_locations_cache
 from app.services.location_normalizer import derive_location_columns
 from app.services.scoring import _PROFICIENCY_TITLES
 
@@ -91,6 +92,7 @@ class UsersRepository:
 
     def update_profile(self, user_id: str, updates: dict[str, Any]) -> None:
         payload = dict(updates)
+        touches_location = "target_locations" in payload or "target_location" in payload
         _sync_location_columns(payload)
         # Tolerant write: survives schema-cache lag so the profile still saves
         # if a derived location column hasn't been migrated yet (harden-first,
@@ -102,6 +104,8 @@ class UsersRepository:
             match_value=user_id,
             context="update_profile",
         )
+        if touches_location:
+            clear_user_target_locations_cache(user_id)
 
     def list_user_skill_records(self, user_id: str) -> list[UserSkillRecord]:
         result = (

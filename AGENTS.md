@@ -298,7 +298,52 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-28 - CV apply command hierarchy)
+## LAST SESSION SUMMARY (2026-06-29 - Market location freshness + Post MBA search)
+
+Fixed the stale `/market` location feed and made Post MBA searches find real
+roles from job descriptions without running an LLM per row.
+
+- Root cause 1: the frontend feed query key did not include saved target
+  locations, so the persisted TanStack cache could show old Bengaluru pages
+  while the UI chip already said Gurugram.
+- Root cause 2: backend `user_target_locations()` cached profile geo prefs for
+  five minutes, and profile writes did not clear that cache.
+- Root cause 3: `/jobs/feed?q=...` searched only title/company. Requirements
+  like `post MBA` live in `job_description`, so the feed returned an empty state
+  for the exact user query.
+- Added `job-feed-query-key.ts` with a stable target-location signature and
+  threaded `targetLocations` into `useJobFeed`.
+- Added backend target-location cache invalidation after profile location writes.
+- Extended deterministic feed search to include `job_description` and strip
+  generic intent words like `roles`, so `Post MBA roles` can match descriptions
+  containing `post MBA`.
+- Added manual-apply migration
+  `database/migrations/20260629_job_description_search_index.sql` for a
+  trigram GIN index on `jobs.job_description`.
+- Preserved and validated related query-understanding work in the tree:
+  deterministic fallback for `parse_job_query()` and intent-aware
+  `global_job_search()` for `Post MBA roles in Gurugram`.
+
+Validation:
+
+- Red tests first for description-backed feed search, profile-location cache
+  invalidation, job-description index migration, and frontend feed query keys.
+- Focused backend: `77 passed`
+- Focused frontend market tests: `8 passed`
+- Full backend suite: `894 passed`
+- `cd frontend && npx tsc --noEmit`: clean
+- `cd frontend && npm run lint`: clean
+- `git diff --check`: clean
+
+Live data check:
+
+- Supabase has Gurugram jobs (`966`) and Gurgaon alias rows (`46`).
+- Supabase has real `post MBA` description matches (`9`), including consulting
+  and strategy postings.
+
+Not touched: unrelated untracked `docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-06-28 - CV apply command hierarchy)
 
 Made the CV Playground application handoff stateful so users always see the
 next step while tailoring a saved job.
