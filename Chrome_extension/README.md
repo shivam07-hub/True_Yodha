@@ -68,7 +68,7 @@ Then:
 1. Log in to Myro at `http://localhost:3000`.
 2. Copy the current access token from browser local storage key `mirror_token`.
 3. Paste it into the extension options page with API URL `http://localhost:8000`.
-4. Open a job page, select the job description if extraction is weak, click **Track this job**, review, then save.
+4. Open a job page, select the job description if extraction is weak, click **Track this job**, review, optionally paste extra skill text and click **Extract skills**, then save.
 5. Check `http://localhost:3000/tracker` for the saved job.
 
 ## Capture Behavior
@@ -80,4 +80,4 @@ Myro captures in this order:
 3. Known portal selectors
 4. Visible page fallback
 
-The user reviews role, company, location, description, primary skills, secondary skills, and emerging skills before saving.
+The user reviews role, company, location, description, primary skills, secondary skills, and emerging skills before saving. If the posting lists skills separately, the user can paste that text into **Skills seen in this job** and run extraction again; Myro merges those suggestions with the existing chips.

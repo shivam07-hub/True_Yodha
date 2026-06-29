@@ -298,7 +298,42 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-29 - Market location freshness + Post MBA search)
+## LAST SESSION SUMMARY (2026-06-30 - Extension skill paste extraction)
+
+Added a paste-and-extract skill flow to the Myro Chrome extension review panel.
+
+- Replaced the three one-by-one manual skill add rows with one
+  `Skills seen in this job` textarea below the JD box.
+- Added an `Extract skills` CTA that sends a temporary extraction text made from
+  the clean JD plus the pasted skill evidence to the existing
+  `/jobs/import/preview` flow.
+- Kept the saved job payload clean: `job_description` remains the JD text only,
+  while chips are saved from the merged Primary/Secondary/Emerging arrays.
+- Added `skill-review.js` with deterministic merge/de-dupe behavior across all
+  skill categories; stronger categories win (`primary > secondary > emerging`).
+- Split popup capture fixtures and chip rendering out of `popup.js` so touched
+  extension files stay under the 300-line guardrail.
+- Regenerated tracked `Chrome_extension/myro-extension.zip`.
+
+Validation:
+
+- Red test first for JD + pasted-skill extraction text and category-wide skill
+  merge/de-dupe.
+- `cd Chrome_extension && npm test`: `10 passed`
+- `cd Chrome_extension && npm run build`: clean
+- `cd Chrome_extension && npm run package`: clean
+- Served built popup via localhost and smoke-tested preview-mode flow in
+  headless Chrome: review panel visible, `Extract skills` present,
+  `Skills seen in this job` present, pasted `Stakeholder Management` merged.
+  Only console noise was static-server `favicon.ico` 404.
+- Full backend suite: `902 passed`
+- `cd frontend && npx tsc --noEmit`: clean
+- `cd frontend && npm run lint`: clean
+- `git diff --check`: clean
+
+Not touched: unrelated untracked `docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-06-29 - Market location freshness + Post MBA search)
 
 Fixed the stale `/market` location feed and made Post MBA searches find real
 roles from job descriptions without running an LLM per row.

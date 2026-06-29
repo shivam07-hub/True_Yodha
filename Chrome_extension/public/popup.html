@@ -46,32 +46,25 @@
           Job description
           <textarea id="job-description" rows="6"></textarea>
         </label>
+        <label>
+          Skills seen in this job
+          <textarea id="skill-evidence" rows="3" placeholder="Paste skills or requirements from the post"></textarea>
+        </label>
+        <button id="extract-skills-button" type="button" class="button secondary">Extract skills</button>
 
         <div class="skill-section">
           <div class="section-label">Primary skills</div>
           <div id="primary-chips" class="chip-list"></div>
-          <div class="add-row">
-            <input id="primary-input" type="text" placeholder="Add primary skill" />
-            <button id="add-primary" type="button" class="icon-button">+</button>
-          </div>
         </div>
 
         <div class="skill-section">
           <div class="section-label">Secondary skills</div>
           <div id="secondary-chips" class="chip-list"></div>
-          <div class="add-row">
-            <input id="secondary-input" type="text" placeholder="Add secondary skill" />
-            <button id="add-secondary" type="button" class="icon-button">+</button>
-          </div>
         </div>
 
         <div class="skill-section">
           <div class="section-label">Emerging skills</div>
           <div id="emerging-chips" class="chip-list"></div>
-          <div class="add-row">
-            <input id="emerging-input" type="text" placeholder="Add emerging skill" />
-            <button id="add-emerging" type="button" class="icon-button">+</button>
-          </div>
         </div>
 
         <button id="save-button" type="button" class="button primary">Save to tracker</button>
