@@ -382,6 +382,29 @@ class CVVersionsRepository:
             {"cv_structured": cv_structured}
         ).eq("id", version_id).execute()
 
+    def update_hidden_items(
+        self, version_id: int, user_id: str, hidden_items: list[str], body_text: str
+    ) -> dict[str, Any]:
+        """Auto-save the playground projection in place on a job's deterministic
+        working draft. Scoped to kind="deterministic" so submitted / edited /
+        polished snapshots stay immutable (CVJT1). 404 if it isn't the caller's
+        editable draft. user_id filter is defensive — RLS also scopes.
+        """
+        result = (
+            self._db.table("cv_versions")
+            .update({"hidden_items": hidden_items, "body_text": body_text})
+            .eq("id", version_id)
+            .eq("user_id", user_id)
+            .eq("kind", "deterministic")
+            .execute()
+        )
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Editable CV draft not found.",
+            )
+        return result.data[0]
+
     # ── living-master autosave (PR-3) ─────────────────────────────────────────
     # "Master" ≡ latest_baseline. Autosave MUTATES it in place instead of
     # appending a new baseline_upload row (the pile the living-master grill

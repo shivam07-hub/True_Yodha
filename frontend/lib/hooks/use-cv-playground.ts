@@ -53,6 +53,10 @@ export interface CVPlaygroundState {
   lastWrite: CVWriteReceipt | null
   clearLastWrite: () => void
 
+  // Option C auto-save: hide/show edits persist as the user works (no Save button).
+  autosaving: boolean
+  autosaved: boolean
+
   // Mutations
   saveVersion: ReturnType<typeof useMutation<CVVersion, Error, void>>
   polishVersion: ReturnType<typeof useMutation<CVVersion, Error, number>>
@@ -90,6 +94,12 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
   // Tracks the last id we hydrated FROM. If a refetch arrives with the same selection,
   // we skip the redundant setHiddenItems write — preserves user toggles in-flight.
   const lastHydratedRef = useRef<number | null>(null)
+  // Serialized hidden_items last persisted to the server. Guards the autosave
+  // effect from re-firing on a state that's already saved (incl. post-save refetch).
+  const lastSavedRef = useRef<string>("")
+  const [autosaved, setAutosaved] = useState(false)
+
+  const serializeHidden = (s: Iterable<string>) => Array.from(s).sort().join(",")
 
   const versionsQuery = useQuery({
     queryKey: dataKeys.cvVersions(jobId),
@@ -144,6 +154,7 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
     setSelectedVersionId(defaultVersion.id)
     setHiddenItems(new Set(defaultVersion.hidden_items))
     lastHydratedRef.current = defaultVersion.id
+    lastSavedRef.current = serializeHidden(defaultVersion.hidden_items)
   }, [companyVersions, currentBaseline, selectedVersionId])
 
   const selectVersion = useCallback((id: number) => {
@@ -152,6 +163,7 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
     setSelectedVersionId(id)
     setHiddenItems(new Set(target.hidden_items))
     lastHydratedRef.current = id
+    lastSavedRef.current = serializeHidden(target.hidden_items)
   }, [threadVersions])
 
   const toggleItem = useCallback((iid: string) => {
@@ -188,6 +200,7 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
     setSelectedVersionId(v.id)
     setHiddenItems(new Set(v.hidden_items))
     lastHydratedRef.current = v.id
+    lastSavedRef.current = serializeHidden(v.hidden_items)
     setLastWrite({
       action,
       versionId: v.id,
@@ -217,6 +230,45 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
     onError: (err) => setError(err instanceof Error ? err.message : "Could not save edits."),
   })
 
+  // Auto-save the projection in place on the job's deterministic working draft.
+  // Patches the cached row on success so selectedVersion.hidden_items matches the
+  // user's state → isDirty settles false without a refetch flicker.
+  const autosave = useMutation({
+    mutationFn: ({ versionId, hidden }: { versionId: number; hidden: string[] }) =>
+      cv.versions.updateHiddenItems(token!, versionId, hidden),
+    onSuccess: (v) => {
+      queryClient.setQueryData<{ versions: CVVersion[] }>(
+        dataKeys.cvVersions(jobId),
+        (old) => old
+          ? { versions: old.versions.map(row => (row.id === v.id ? v : row)) }
+          : old,
+      )
+      lastSavedRef.current = serializeHidden(v.hidden_items)
+      setAutosaved(true)
+    },
+    onError: (err) => setError(err instanceof Error ? err.message : "Could not auto-save."),
+  })
+
+  // Debounced auto-save: 1.2s after the user stops toggling, persist the
+  // projection. The first edit on a job with no working draft creates one
+  // (saveVersion); subsequent edits patch it in place (no snapshot pile-up).
+  useEffect(() => {
+    if (!enabled || !token || !jobId) return
+    const serialized = serializeHidden(hiddenItems)
+    if (serialized === lastSavedRef.current) return
+    setAutosaved(false)
+    const t = setTimeout(() => {
+      const sel = selectedVersion
+      if (sel && sel.kind === "deterministic" && sel.job_id) {
+        autosave.mutate({ versionId: sel.id, hidden: Array.from(hiddenItems) })
+      } else {
+        saveVersion.mutate()
+      }
+    }, 1200)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hiddenItems, enabled, token, jobId, selectedVersion])
+
   const clearLastWrite = useCallback(() => setLastWrite(null), [])
 
   return {
@@ -236,6 +288,8 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
     canSave,
     lastWrite,
     clearLastWrite,
+    autosaving: autosave.isPending || saveVersion.isPending,
+    autosaved,
     saveVersion,
     polishVersion,
     editVersion,

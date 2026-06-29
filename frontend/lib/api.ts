@@ -1024,6 +1024,14 @@ export const cv = {
         headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify({ hidden }),
       }),
+    // Option C auto-save: persist the job projection (shown bullets) in place on
+    // the deterministic working draft — no new snapshot row, no Save button.
+    updateHiddenItems: (token: string, versionId: number, hiddenItems: string[]) =>
+      request<CVVersion>(`/cv/versions/${versionId}/hidden-items`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ hidden_items: hiddenItems }),
+      }),
   },
   skillEdit: async (
     token: string,

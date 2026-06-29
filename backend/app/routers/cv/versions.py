@@ -58,6 +58,10 @@ class FooterMarkRequest(BaseModel):
     hidden: bool
 
 
+class HiddenItemsRequest(BaseModel):
+    hidden_items: list[str] = []
+
+
 class CVVersionResponse(BaseModel):
     id:                   int
     user_version_number:  int
@@ -245,6 +249,39 @@ def edit_cv_version_structured(
         confidence_label="user-edited",
     )
     return _to_response(cv_repo.create(user_id, spec))
+
+
+@router.patch("/{version_id}/hidden-items", response_model=CVVersionResponse)
+def update_cv_version_hidden_items(
+    version_id: int,
+    body: HiddenItemsRequest,
+    principal: Principal = Depends(get_principal),
+    cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
+) -> CVVersionResponse:
+    """Auto-save the playground projection (which bullets are shown for this job)
+    in place on the job's deterministic working draft.
+
+    Option C drops the explicit Save button — hide/show edits persist as the user
+    works. Only a job-scoped deterministic draft is mutable here; submitted /
+    edited / polished snapshots stay immutable (CVJT1). The body_text is recomputed
+    from the draft's structured snapshot so the stored copy matches the projection.
+    """
+    user_id = principal.id
+    version = cv_repo.find(version_id, user_id)
+    if not version:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "CV version not found.")
+    if version.get("kind") != "deterministic" or not version.get("job_id"):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Only a job-specific working draft can be auto-saved in place.",
+        )
+    body_text = cv_compose.render_deterministic(
+        version.get("cv_structured") or {},
+        hidden_items=body.hidden_items,
+        edited_items=None,
+    )
+    row = cv_repo.update_hidden_items(version_id, user_id, body.hidden_items, body_text)
+    return _to_response(row)
 
 
 @router.patch("/{version_id}/footer-mark", response_model=CVVersionResponse)

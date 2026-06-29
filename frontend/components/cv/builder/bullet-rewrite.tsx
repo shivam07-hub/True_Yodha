@@ -10,7 +10,7 @@
  */
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { cv as cvApi } from "@/lib/api"
 import { useStreamingText, type StreamEvent } from "@/lib/hooks/use-streaming-text"
 import { Icon } from "./icons"
@@ -24,9 +24,16 @@ interface BulletRewriteProps {
   missingKeywords: string[]
   applying?: boolean
   onApply: (oldText: string, newText: string) => void
+  /** Option C: start the rewrite immediately on mount (no idle trigger button) —
+   *  the parent owns the affordance (per-line ↻ or a rail "Sharpen" action). */
+  auto?: boolean
+  /** Keyword(s) to target for this rewrite; falls back to missingKeywords. */
+  seedKeywords?: string[]
+  /** Called after Accept / Discard / Dismiss in auto mode so the parent collapses. */
+  onClose?: () => void
 }
 
-export function BulletRewrite({ token, bullet, role, missingKeywords, applying, onApply }: BulletRewriteProps) {
+export function BulletRewrite({ token, bullet, role, missingKeywords, applying, onApply, auto, seedKeywords, onClose }: BulletRewriteProps) {
   const [phase, setPhase] = useState<Phase>("idle")
   const [question, setQuestion] = useState<string | null>(null)
   const [rationale, setRationale] = useState<string | null>(null)
@@ -59,18 +66,25 @@ export function BulletRewrite({ token, bullet, role, missingKeywords, applying, 
     stream.start(cvApi.rewriteBulletStreamPath, token, onDone, {
       bullet,
       role,
-      missing_keywords: missingKeywords,
+      missing_keywords: seedKeywords && seedKeywords.length ? seedKeywords : missingKeywords,
       metric: opts.metric,
       allow_no_metric: opts.allowNoMetric,
     })
   }
 
+  // Auto mode: the parent renders this only when the user invoked it, so kick the
+  // stream on mount and let Discard/Accept collapse it via onClose.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (auto) run() }, [])
+
   function reset() {
     stream.reset()
     setPhase("idle"); setProposed(null); setMetric(""); setQuestion(null); setRationale(null); setCitations([]); setErrMsg(null)
+    onClose?.()
   }
 
   if (phase === "idle") {
+    if (auto) return null
     return (
       <div className="cvb-rw-trigger-row">
         <button type="button" className="cvb-btn ghost sm cvb-rw-trigger" onClick={() => run()}>
