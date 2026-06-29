@@ -87,7 +87,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   }, [selectedCluster, onSelectCluster])
 
   const { feed, allJobs, total, expansionDividers, triage, undo, pending, savedCount } =
-    useJobFeed({ token, filters, q, skill: skillFacet })
+    useJobFeed({ token, filters, q, skill: skillFacet, targetLocations })
 
   // One batched pulse request for the visible feed (not one-per-card).
   const pulses = usePulses(token, allJobs.map(j => j.job_id))

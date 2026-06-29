@@ -19,6 +19,22 @@ from app.services.llm_provider import LLMProvider, LLMProviderError
 logger = logging.getLogger("app.job_query_parser")
 
 _MAX_TOKENS = 220
+_POST_MBA_ROLE = (
+    "consultant strategy product manager growth operations program manager "
+    "business development"
+)
+_CITY_ALIASES = {
+    "gurugram": ("Gurugram", "India"),
+    "gurgaon": ("Gurugram", "India"),
+    "gurgoan": ("Gurugram", "India"),
+    "bangalore": ("Bangalore", "India"),
+    "bengaluru": ("Bangalore", "India"),
+    "noida": ("Noida", "India"),
+    "delhi": ("Delhi NCR", "India"),
+    "mumbai": ("Mumbai", "India"),
+    "hyderabad": ("Hyderabad", "India"),
+    "pune": ("Pune", "India"),
+}
 
 _SYSTEM = (
     "You convert a job seeker's free-text request into structured search filters. "
@@ -58,18 +74,54 @@ def _coerce(parsed: dict[str, Any], fallback_role: str) -> dict[str, Any]:
     }
 
 
+def _deterministic_filters(query: str) -> dict[str, Any]:
+    text = " ".join((query or "").split())
+    lowered = text.casefold()
+    role = _POST_MBA_ROLE if (
+        "post mba" in lowered
+        or "post-mba" in lowered
+        or "after mba" in lowered
+        or "mba roles" in lowered
+    ) else text[:120]
+    city = None
+    country = None
+    for alias, (canonical_city, canonical_country) in _CITY_ALIASES.items():
+        if alias in lowered:
+            city = canonical_city
+            country = canonical_country
+            break
+    mode = None
+    if "remote" in lowered:
+        mode = "remote"
+    elif "hybrid" in lowered:
+        mode = "hybrid"
+    elif "onsite" in lowered or "on-site" in lowered:
+        mode = "onsite"
+    return {
+        "role": role,
+        "location_city": city,
+        "location_country": country,
+        "location_mode": mode,
+        "skills": [],
+    }
+
+
+def _merge_deterministic(parsed: dict[str, Any], deterministic: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(parsed)
+    if deterministic["role"] == _POST_MBA_ROLE:
+        merged["role"] = deterministic["role"]
+    for key in ("location_city", "location_country", "location_mode"):
+        if deterministic.get(key):
+            merged[key] = deterministic[key]
+    return merged
+
+
 async def parse_job_query(query: str, provider: LLMProvider | None) -> dict[str, Any]:
     """Parse an NL job request into {role, location_city, location_country,
     location_mode, skills}. Always returns a usable filter set — on any failure,
     role falls back to the raw query so the real-feed search still runs."""
     fallback_role = " ".join((query or "").split())[:120]
-    fallback = {
-        "role": fallback_role,
-        "location_city": None,
-        "location_country": None,
-        "location_mode": None,
-        "skills": [],
-    }
+    fallback = _deterministic_filters(fallback_role)
     if not fallback_role or provider is None:
         return fallback
 
@@ -95,4 +147,4 @@ async def parse_job_query(query: str, provider: LLMProvider | None) -> dict[str,
         return fallback
     if not isinstance(parsed, dict):
         return fallback
-    return _coerce(parsed, fallback_role)
+    return _merge_deterministic(_coerce(parsed, fallback_role), fallback)

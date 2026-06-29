@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query"
 import { jobs, type JobFeedItem, type JobFeedResponse } from "@/lib/api"
 import type { FeedFilters } from "./feed-types"
+import { jobFeedQueryKey } from "./job-feed-query-key"
 
 export type TriageKind = "saved" | "skipped"
 
@@ -51,6 +52,7 @@ export function useJobFeed({
   filters,
   q,
   skill,
+  targetLocations,
 }: {
   token: string
   filters: FeedFilters
@@ -58,6 +60,7 @@ export function useJobFeed({
   /** Active skill facet — filters the feed by skill membership, distinct from
    *  the free-text `q`. Null when no skill mover is selected. */
   skill: string | null
+  targetLocations: string[]
 }) {
   const qc = useQueryClient()
   const [pending, setPending] = useState<PendingUndo | null>(null)
@@ -68,11 +71,8 @@ export function useJobFeed({
   // freshnessDays are no longer set by the UI (cleanup-debt #23) so they stay
   // out of the key + payload.
   const queryKey = useMemo(
-    () => [
-      "jobFeed", token, q, skill ?? "", filters.sort, filters.roleDomain ?? "",
-      filters.minSkillMatches, filters.followingOnly,
-    ],
-    [token, q, skill, filters],
+    () => jobFeedQueryKey({ token, filters, q, skill, targetLocations }),
+    [token, q, skill, filters, targetLocations],
   )
 
   const feed = useInfiniteQuery({

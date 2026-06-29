@@ -125,6 +125,134 @@ _ROLE_STOPWORDS = frozenset(
      "senior", "junior", "lead", "principal", "staff", "sr", "jr",
      "i", "ii", "iii", "iv"}
 )
+_JOB_QUERY_GENERIC_WORDS = frozenset(
+    {
+        "job",
+        "jobs",
+        "opening",
+        "openings",
+        "opportunity",
+        "opportunities",
+        "position",
+        "positions",
+        "role",
+        "roles",
+    }
+)
+
+
+def clear_user_target_locations_cache(user_id: str) -> None:
+    """Invalidate the per-user geo preference cache after a profile write."""
+    _user_target_locations_cache.pop(user_id, None)
+
+
+_GLOBAL_SEARCH_STOPWORDS = frozenset(
+    {
+        "want", "role", "roles", "job", "jobs", "looking", "look", "search",
+        "find", "need", "openings", "opening", "in", "at", "for", "and", "or",
+        "the", "a", "an", "to", "of", "with", "my", "me", "i", "post",
+    }
+)
+_GLOBAL_SEARCH_ALIASES = {
+    "gurugram": ["gurugram", "gurgaon"],
+    "gurgaon": ["gurugram", "gurgaon"],
+    "gurgoan": ["gurugram", "gurgaon"],
+    "bengaluru": ["bengaluru", "bangalore"],
+    "bangalore": ["bengaluru", "bangalore"],
+}
+_POST_MBA_TERMS = [
+    "consultant",
+    "strategy",
+    "manager",
+    "product",
+    "growth",
+    "operations",
+    "program",
+    "business",
+    "development",
+]
+
+
+def _dedupe_lower(values: list[str], *, limit: int) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for value in values:
+        text = value.strip().casefold()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        out.append(text)
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _global_search_terms(query: str) -> list[str]:
+    lowered = query.casefold()
+    expanded: list[str] = []
+    if (
+        "post mba" in lowered
+        or "post-mba" in lowered
+        or "after mba" in lowered
+        or "mba roles" in lowered
+    ):
+        expanded.extend(_POST_MBA_TERMS)
+    tokens = [
+        token for token in _ROLE_TOKEN_RE.findall(lowered.replace("&", " ai "))
+        if len(token) > 1 and token not in _GLOBAL_SEARCH_STOPWORDS
+    ]
+    for token in tokens:
+        if token == "mba":
+            continue
+        expanded.extend(_GLOBAL_SEARCH_ALIASES.get(token, [token]))
+    if re.search(r"\bdata\b.*\bai\b|\bai\b.*\bdata\b|data\s*&\s*ai", lowered):
+        expanded.extend(["data", "ai"])
+    if re.search(r"\bsolution\b.*\bconsult", lowered):
+        expanded.extend(["solution", "consultant"])
+    if re.search(r"\bgtm\b|go[- ]to[- ]market", lowered):
+        expanded.append("gtm")
+    if "strategy" in lowered:
+        expanded.append("strategy")
+    return _dedupe_lower(expanded, limit=14)
+
+
+def _global_search_location_terms(query: str) -> list[str]:
+    lowered = query.casefold()
+    expanded: list[str] = []
+    for token in _ROLE_TOKEN_RE.findall(lowered):
+        if token in _GLOBAL_SEARCH_ALIASES:
+            expanded.extend(_GLOBAL_SEARCH_ALIASES[token])
+    return _dedupe_lower(expanded, limit=6)
+
+
+def _global_search_rank(row: dict[str, Any], terms: list[str]) -> int:
+    title = str(row.get("job_title") or "").casefold()
+    company = str(row.get("company_name") or "").casefold()
+    role_domain = str(row.get("role_domain") or "").casefold()
+    city = str(row.get("location_city") or "").casefold()
+    country = str(row.get("location_country") or "").casefold()
+    haystack = " ".join([title, company, role_domain, city, country])
+    score = 0
+    for term in terms:
+        if term in title:
+            score += 5
+        if term in role_domain:
+            score += 4
+        if term in city or term in country:
+            score += 3
+        if term in company:
+            score += 2
+        if term in haystack:
+            score += 1
+    return score
+
+
+def _global_search_location_match(row: dict[str, Any], location_terms: list[str]) -> bool:
+    if not location_terms:
+        return True
+    city = str(row.get("location_city") or "").casefold()
+    country = str(row.get("location_country") or "").casefold()
+    return any(term in city or term in country for term in location_terms)
 
 
 def _role_token_sets(target_roles: list[str] | None) -> list[set[str]]:
@@ -138,6 +266,26 @@ def _role_token_sets(target_roles: list[str] | None) -> list[set[str]]:
         if toks:
             sets.append(toks)
     return sets
+
+
+def _feed_search_patterns(term: str) -> tuple[str, ...]:
+    safe = (
+        term.replace(",", " ")
+        .replace("(", " ")
+        .replace(")", " ")
+        .replace("%", " ")
+        .replace("_", " ")
+    )
+    exact = " ".join(safe.split())
+    if len(exact) < 2:
+        return ()
+
+    patterns = [exact]
+    tokens = _ROLE_TOKEN_RE.findall(exact.lower())
+    core = " ".join(token for token in tokens if token not in _JOB_QUERY_GENERIC_WORDS)
+    if len(core) >= 2 and core != exact.lower():
+        patterns.append(core)
+    return tuple(dict.fromkeys(patterns))
 
 
 def _role_match_score(
@@ -1163,10 +1311,12 @@ class JobsRepository:
         return rows
 
     def global_job_search(self, q: str, *, limit: int = 12) -> list[dict[str, Any]]:
-        """Trigram-ranked search across job_title + company_name.
+        """Intent-aware public search across real job rows.
 
-        Public ⌘K surface. Index: idx_jobs_job_title_trgm + idx_jobs_company_name_trgm.
-        60s in-process cache keyed on (q.lower(), limit) — debounces hot queries.
+        Public ⌘K/live-data surface. Natural user phrases such as
+        "post MBA roles in Gurugram" are expanded into a small set of role and
+        location terms, then ranked locally from real rows. This keeps the
+        surface forgiving without fabricating any jobs.
         """
         term = " ".join((q or "").split())
         if len(term) < 2:
@@ -1177,23 +1327,55 @@ class JobsRepository:
         cached = _search_cache.get(cache_key)
         if cached is not None and (now - cached[0]) < 60:
             return list(cached[1]["rows"])
-        ilike = f"%{term}%"
+        terms = _global_search_terms(term) or [term.casefold()]
+        location_terms = _global_search_location_terms(term)
+        location_term_set = set(location_terms)
+        role_terms = [search_term for search_term in terms if search_term not in location_term_set]
+        fields = ("job_title", "company_name", "location_city", "location_country", "role_domain")
+        filters = ",".join(
+            f"{field}.ilike.%{search_term}%"
+            for search_term in terms
+            for field in fields
+        )
         try:
             result = (
                 self._admin_db
                 .table("jobs")
                 .select(
                     "job_id, job_title, company_name, location_city, location_country, "
-                    "location_mode, first_seen"
+                    "location_mode, role_domain, first_seen"
                 )
-                .or_(f"job_title.ilike.{ilike},company_name.ilike.{ilike}")
+                .or_(filters)
                 .order("first_seen", desc=True)
-                .limit(scoped_limit)
+                .limit(max(scoped_limit * 8, 50))
                 .execute()
             )
         except APIError:
             return list(cached[1]["rows"]) if cached else []
-        rows = result.data or []
+        candidate_rows = [
+            row for row in (result.data or [])
+            if _global_search_rank(row, terms) > 0
+        ]
+        if location_terms:
+            location_rows = [
+                row for row in candidate_rows
+                if _global_search_location_match(row, location_terms)
+                and (not role_terms or _global_search_rank(row, role_terms) > 0)
+            ]
+            rows = location_rows or [
+                row for row in candidate_rows
+                if not role_terms or _global_search_rank(row, role_terms) > 0
+            ]
+        else:
+            rows = candidate_rows
+        rows = sorted(
+            rows,
+            key=lambda row: (
+                _global_search_rank(row, terms),
+                str(row.get("first_seen") or ""),
+            ),
+            reverse=True,
+        )[:scoped_limit]
         for row in rows:
             _hydrate_location_fields(row)
         _search_cache[cache_key] = (now, {"rows": rows})
@@ -1502,6 +1684,7 @@ class JobsRepository:
         # Only terms ≥2 chars filter; fold shorter terms to "" so they share the
         # unfiltered cache slot and stay part of the key for ≥2-char terms.
         effective_term = term if len(term) >= 2 else ""
+        search_patterns = _feed_search_patterns(effective_term)
         # Skill facet — Scoped Skill Demand's filter half. A first-class dimension
         # (the canonical skill name, matched against the row's main_skills mirror),
         # NOT folded into the free-text `q` (which only hits job_title/company_name).
@@ -1548,13 +1731,13 @@ class JobsRepository:
                 query = query.gte("first_seen", fresh_cutoff)
             if follow_scope is not None:
                 query = query.in_("company_name", follow_scope)
-            if effective_term:
-                # Sanitize: PostgREST or() splits on commas/parens.
-                safe = effective_term.replace(",", " ").replace("(", " ").replace(")", " ").strip()
-                if safe:
-                    query = query.or_(
-                        f"job_title.ilike.%{safe}%,company_name.ilike.%{safe}%"
-                    )
+            if search_patterns:
+                clauses = [
+                    f"{column}.ilike.%{pattern}%"
+                    for pattern in search_patterns
+                    for column in ("job_title", "company_name", "job_description")
+                ]
+                query = query.or_(",".join(clauses))
             return query
 
         wants_inpython = (

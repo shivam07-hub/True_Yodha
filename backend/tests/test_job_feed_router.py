@@ -37,10 +37,9 @@ class _Result:
         self.count = count
 
 
-def _ilike_needle(or_expr: str) -> str:
-    """Pull the %term% needle out of a PostgREST or() ilike expression."""
-    match = re.search(r"%(.*?)%", or_expr)
-    return (match.group(1) if match else "").lower()
+def _ilike_needles(or_expr: str) -> list[str]:
+    """Pull every %term% needle out of a PostgREST or() ilike expression."""
+    return [match.lower() for match in re.findall(r"%(.*?)%", or_expr)]
 
 
 class _Query:
@@ -51,7 +50,7 @@ class _Query:
         self._eq: dict[str, Any] = {}
         self._gte: dict[str, Any] = {}
         self._in: dict[str, list[Any]] = {}
-        self._or_needle: str | None = None
+        self._or_needles: list[str] = []
         self._orders: list[tuple[str, bool]] = []
         self._range: tuple[int, int] | None = None
         self._limit: int | None = None
@@ -74,7 +73,7 @@ class _Query:
         return self
 
     def or_(self, expr: str) -> "_Query":
-        self._or_needle = _ilike_needle(expr)
+        self._or_needles = _ilike_needles(expr)
         return self
 
     def order(self, col: str, desc: bool = False) -> "_Query":
@@ -98,12 +97,16 @@ class _Query:
             rows = [r for r in rows if r.get(col) is not None and r.get(col) >= val]
         for col, vals in self._in.items():
             rows = [r for r in rows if r.get(col) in vals]
-        if self._or_needle:
+        if self._or_needles:
             rows = [
                 r
                 for r in rows
-                if self._or_needle in str(r.get("job_title") or "").lower()
-                or self._or_needle in str(r.get("company_name") or "").lower()
+                if any(
+                    needle in str(r.get("job_title") or "").lower()
+                    or needle in str(r.get("company_name") or "").lower()
+                    or needle in str(r.get("job_description") or "").lower()
+                    for needle in self._or_needles
+                )
             ]
         if self._table != "jobs":
             return _Result(rows)
@@ -480,6 +483,19 @@ def test_q_free_text_filter_matches_title_or_company() -> None:
     result = repo.feed_jobs(q="engineer", page_size=10)
     # Matches title "Data Engineer" and company "Engineering Co".
     assert {r["job_id"] for r in result["rows"]} == {"a", "c"}
+
+
+def test_q_free_text_filter_matches_job_description() -> None:
+    repo, _ = _repo([
+        _job("mba", title="Strategy Consultant", company="Acme"),
+        _job("other", title="Strategy Consultant", company="Globex"),
+    ])
+    repo._admin_db.tables["jobs"][0]["job_description"] = "Preferred: 5-7 years of professional experience (post MBA)."
+    repo._admin_db.tables["jobs"][1]["job_description"] = "General strategy execution role."
+
+    result = repo.feed_jobs(q="Post MBA roles", page_size=10)
+
+    assert [r["job_id"] for r in result["rows"]] == ["mba"]
 
 
 def test_location_filters_each_narrow_results() -> None:
