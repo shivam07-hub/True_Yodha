@@ -26,6 +26,7 @@ import { jobs as jobsApi, cv as cvApi } from "@/lib/api"
 import { RestructureProposal } from "./restructure-proposal"
 import { RaiseItRail } from "./raise-it-rail"
 import { CVEditor, type RewriteTarget } from "./cv-editor"
+import { ExperienceIntake } from "./experience-intake"
 import { itemId } from "@/lib/cv-compose"
 import { dataKeys } from "@/lib/domain-data"
 import type { CVPlaygroundState } from "@/lib/hooks/use-cv-playground"
@@ -60,12 +61,36 @@ export function PlaygroundView({
   const [overflowOpen, setOverflowOpen] = useState(false)
   const [exportConfirm, setExportConfirm] = useState(false)
   const [rewriteTarget, setRewriteTarget] = useState<RewriteTarget | null>(null)
+  const [intakeOpen, setIntakeOpen] = useState(false)
   const queryClient = useQueryClient()
   const dead = useDeadLinkPrompt({ token, jobId, surface: "other" })
 
   const rewriteApply = useMutation({
     mutationFn: ({ oldText, newText }: { oldText: string; newText: string }) =>
       cvApi.rewriteApply(token, { old_text: oldText, new_text: newText }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
+      queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
+      queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
+      queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
+      queryClient.invalidateQueries({ queryKey: ["cv-gap-plan", jobId] })
+    },
+  })
+
+  // "Add from your experience": insert a Mentor-drafted bullet into the living
+  // master under the best-fit role (cheap autosave, no charge). Reads the freshest
+  // structured from cache so rapid adds don't stack on a stale base.
+  const addBullet = useMutation({
+    mutationFn: ({ roleIndex, text }: { roleIndex: number | null; text: string }) => {
+      const base = (queryClient.getQueryData(dataKeys.cvStructured()) as CVStructured | undefined) ?? cv
+      const next: CVStructured = JSON.parse(JSON.stringify(base))
+      const ri = roleIndex != null && next.experience[roleIndex]
+        ? roleIndex
+        : next.experience.length - 1
+      if (ri < 0) return Promise.reject(new Error("Add a role to your CV first."))
+      next.experience[ri].bullets.push(text)
+      return cvApi.saveMaster(token, next)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
       queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
@@ -104,6 +129,11 @@ export function PlaygroundView({
   const sourceUrl = application?.source_url?.trim() ?? ""
   const applyHref = sourceUrl || (company !== "Untitled company" ? `https://www.google.com/search?q=${encodeURIComponent(`${company} careers`)}` : "")
   const isApplied = application?.status != null && application.status !== "saved"
+  const jdText = (application?.job_description ?? "").trim()
+  const roles = useMemo(
+    () => cv.experience.map((e, i) => ({ index: i, label: `${e.role} · ${e.company}` })),
+    [cv.experience],
+  )
 
   const allTargets: KeywordTarget[] = useMemo(() => targetsFromSkillGap(gap.skills ?? []), [gap.skills])
 
@@ -275,6 +305,8 @@ export function PlaygroundView({
           targets={evaluatedTargets}
           pointsFor={pointsFor}
           onRaise={setRewriteTarget}
+          jdText={jdText}
+          onOpenIntake={() => setIntakeOpen(true)}
         />
         <CVEditor
           token={token}
@@ -311,6 +343,18 @@ export function PlaygroundView({
             </div>
           </div>
         </div>
+      )}
+
+      {intakeOpen && (
+        <ExperienceIntake
+          token={token}
+          jdText={jdText}
+          gapSkills={evaluatedTargets.filter(t => !t.matched).map(t => t.kw)}
+          roles={roles}
+          adding={addBullet.isPending}
+          onAdd={(roleIndex, text) => addBullet.mutateAsync({ roleIndex, text }).then(() => {})}
+          onClose={() => setIntakeOpen(false)}
+        />
       )}
 
       {restructureOpen && selectedVersion && (
