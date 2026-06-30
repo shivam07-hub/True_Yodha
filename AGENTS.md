@@ -298,7 +298,40 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-30 - Extension skill paste extraction)
+## LAST SESSION SUMMARY (2026-06-30 - Dashboard drawer JD hierarchy)
+
+Cleaned up the dashboard job slide-in so the job itself stays central.
+
+- Moved the job description section above company intel, directly after the
+  matched/build skills block.
+- Shortened the company CTA from `Reviews + funnel →` to `Company report →`.
+- Removed the redundant company paragraph that explained the visible report
+  button and pushed useful job details lower.
+- Renamed `Other open roles here` to the tighter `More roles`.
+- Added `frontend/tests/dashboard-drawer-content.test.ts` to lock the drawer
+  order and compact company-report copy.
+
+Design notes for the drawer:
+
+- Keep secondary discovery surfaces below the JD. Company intel and adjacent
+  roles are useful, but they should not interrupt the user's first question:
+  "Do I understand this job, and do I fit it?"
+- The remaining awkward bits to revisit later are the raw translated/non-English
+  title/JD mismatch, vague country-only location, `Lock in · 9 ses`
+  abbreviation, and any dangling one-line `Why you fit` fragments that read
+  like sentence leftovers.
+
+Validation:
+
+- `cd frontend && npx tsx --test tests/dashboard-drawer-content.test.ts`: 2 passed
+- `cd frontend && npx tsc --noEmit`: clean
+- `cd frontend && npm run lint`: clean
+- `.venv/bin/pytest backend/tests`: 902 passed, 22 warnings
+- `git diff --check`: clean
+
+Not touched: unrelated untracked `docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-06-30 - Extension skill paste extraction)
 
 Added a paste-and-extract skill flow to the Myro Chrome extension review panel.
 

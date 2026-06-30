@@ -138,23 +138,27 @@ export function DetailBody(p: DetailBodyProps) {
         {loadingSkills && skills.length === 0 ? <p className="db-lens-empty">Loading skills…</p> : null}
       </div>
 
+      {/* JOB DESCRIPTION */}
+      {p.job.job_description ? (
+        <div className="db-dsec">
+          <span className="db-label">Job description</span>
+          <pre className="db-jdbox">{p.job.job_description}</pre>
+        </div>
+      ) : null}
+
       {/* COMPANY + other open roles */}
       <div className="db-dsec">
         <div className="db-dsec-head">
           <span className="db-label">Company</span>
           {company ? (
             <button type="button" className="db-mini-btn" onClick={() => setDrawerOpen(true)}>
-              Reviews + funnel →
+              Company report →
             </button>
           ) : null}
         </div>
-        <p>
-          <strong>{company ?? "This company"}.</strong> See verified reviews, the hiring funnel, and
-          what to expect — open the company report above.
-        </p>
         {p.otherRoles.length > 0 ? (
           <>
-            <span className="db-label">Other open roles here</span>
+            <span className="db-label">More roles</span>
             {p.otherRoles.slice(0, 4).map((o) => (
               <button key={o.jobId} type="button" className="db-otherrole" onClick={() => p.onJump?.(o.jobId)}>
                 <span>{o.role}</span>
@@ -164,14 +168,6 @@ export function DetailBody(p: DetailBodyProps) {
           </>
         ) : null}
       </div>
-
-      {/* JOB DESCRIPTION */}
-      {p.job.job_description ? (
-        <div className="db-dsec">
-          <span className="db-label">Job description</span>
-          <pre className="db-jdbox">{p.job.job_description}</pre>
-        </div>
-      ) : null}
 
       {/* NOTES — public community feed on this posting */}
       <div className="db-dsec">
