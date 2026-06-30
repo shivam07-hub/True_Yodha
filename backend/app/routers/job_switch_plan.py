@@ -112,6 +112,32 @@ async def request_review(principal: Principal = Depends(get_principal)) -> Revie
     )
 
 
+@router.post(
+    "/reviews/{review_id}/draft",
+    response_model=ReviewResponse,
+    dependencies=[Depends(require_admin)],
+)
+async def draft_review(review_id: str) -> ReviewResponse:
+    """Founder/HITL ops (L1): LLM-draft the personalised note for a review and
+    save it as the working text (pending -> in_progress). The founder edits this
+    draft and delivers via the PATCH below. Token-guarded. Generated on demand —
+    never on the payment path. Fail-soft: a draft failure returns the review
+    unchanged so the founder can still write it manually."""
+    ctx = await run_in_threadpool(svc.get_review_context, review_id)
+    draft = await svc.draft_review_note(ctx)
+    review = await run_in_threadpool(svc.store_review_draft, review_id, draft)
+    logger.info("metric jsp.review_drafted id=%s drafted=%s", review_id, bool(draft))
+    return ReviewResponse(
+        id=str(review["id"]),
+        review_no=int(review["review_no"]),
+        status=str(review["status"]),
+        review_text=review.get("review_text"),
+        sla_due_at=str(review.get("sla_due_at")),
+        requested_at=str(review.get("requested_at")),
+        delivered_at=review.get("delivered_at"),
+    )
+
+
 @router.patch(
     "/reviews/{review_id}/status",
     response_model=ReviewResponse,

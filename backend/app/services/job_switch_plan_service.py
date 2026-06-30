@@ -27,6 +27,7 @@ from app.config import settings
 from app.database import get_supabase_admin
 from app.repositories.jobs import get_public_jobs_repository
 from app.services import email_service
+from app.services.llm_provider import LLMProviderError, get_llm_provider
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ PLAN_PRICE_PAISE = 9900          # ₹99 intro
 PLAN_WINDOW_DAYS = 120           # B5 — human-review window
 REVIEW_SLA_WORKING_DAYS = 5      # B3 — per-review SLA
 MAX_REVIEWS = 2                  # B5
+DRAFT_MAX_TOKENS = 900           # L1 — LLM draft note budget
 
 # Review lifecycle (B6): pending -> in_progress -> delivered. Keyed by target =>
 # the set of source statuses it may be reached from. 'delivered' is terminal.
@@ -311,3 +313,116 @@ def transition_review(review_id: str, new_status: str, review_text: str | None =
             {"reviews_used": min(used, MAX_REVIEWS), "updated_at": now.isoformat()}
         ).eq("id", row["plan_id"]).execute()
     return review
+
+
+# ── LLM review draft (L1: model drafts → founder edits + approves) ────────────
+# The draft is generated ON DEMAND when the founder opens a review to work it —
+# deliberately OFF the Razorpay fulfilment path (an LLM call must never slow or
+# break a payment). The founder always edits + delivers via transition_review;
+# the draft only saves them the blank page.
+
+_DRAFT_SYSTEM = (
+    "You are a Myro reviewer helping a job seeker become switch-READY for a "
+    "target role. Write a warm, specific, personalised plan note the founder will "
+    "edit before sending. HARD RULES: ground every claim ONLY in the skills the "
+    "user actually lists — never invent jobs, employers, achievements, or numbers. "
+    "Frame everything as readiness coaching: name what they already have, then the "
+    "concrete next skills to build toward the role and why. NEVER promise or imply "
+    "a guaranteed job, interview, placement, or timeline — outcomes depend on the "
+    "user and the market. 150–220 words, plain English, no headers."
+)
+
+
+def get_review_context(review_id: str) -> dict[str, Any]:
+    """Load a review + its parent plan + owner for drafting/working. Admin-gated
+    upstream (the founder queue), so it reads across users via the admin client."""
+    admin = get_supabase_admin()
+    rev = (
+        admin.table("job_switch_plan_reviews").select("*").eq("id", review_id).maybe_single().execute()
+    )
+    review = rev.data if rev else None
+    if not review:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
+    plan_res = (
+        admin.table("job_switch_plans").select("*").eq("id", review["plan_id"]).maybe_single().execute()
+    )
+    plan = plan_res.data if plan_res else None
+    if not plan:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+    return {"review": review, "plan": plan, "user_id": plan["user_id"]}
+
+
+def _user_skill_lines(user_id: str) -> list[str]:
+    """Compact 'Skill — proficiency' lines for the draft prompt. Best-effort."""
+    try:
+        rows = get_public_jobs_repository().get_user_skills_with_taxonomy(user_id)
+    except Exception:
+        logger.warning("metric jsp.draft_skills_failed user=%s", user_id)
+        return []
+    lines: list[str] = []
+    for r in rows:
+        sk = r.get("skills") or {}
+        name = (sk.get("display_name") or "").strip()
+        if not name:
+            continue
+        title = (r.get("proficiency_title") or "").strip()
+        lines.append(f"{name} — {title}" if title else name)
+    return lines
+
+
+async def draft_review_note(ctx: dict[str, Any]) -> str | None:
+    """LLM-draft a personalised review note grounded in the user's target role +
+    actual skills. Fail-soft: returns None on any provider error so the founder
+    falls back to writing manually — a draft failure must never block the queue."""
+    plan = ctx["plan"]
+    target_role = (plan.get("target_role") or "").strip() or "their target role"
+    skills = _user_skill_lines(ctx["user_id"])
+    skills_block = "\n".join(f"- {s}" for s in skills) if skills else "(no skills on file)"
+    user_msg = (
+        f"Target role: {target_role}\n\n"
+        f"The user's current skills (the ONLY grounding — do not go beyond this):\n"
+        f"{skills_block}\n\n"
+        "Write the personalised switch-readiness note now."
+    )
+    try:
+        provider = get_llm_provider()
+        text = await provider.complete(
+            [
+                {"role": "system", "content": _DRAFT_SYSTEM},
+                {"role": "user", "content": user_msg},
+            ],
+            max_tokens=DRAFT_MAX_TOKENS,
+        )
+    except LLMProviderError:
+        logger.warning("metric jsp.draft_llm_failed plan=%s", plan.get("id"))
+        return None
+    text = (text or "").strip()
+    return text or None
+
+
+def store_review_draft(review_id: str, draft: str | None) -> dict[str, Any]:
+    """Save the LLM draft as the working note + advance pending -> in_progress so
+    the queue shows it's being handled. A None draft leaves the row untouched
+    (founder writes manually). Never marks delivered — the founder still approves
+    via transition_review with the final, edited text."""
+    admin = get_supabase_admin()
+    current = (
+        admin.table("job_switch_plan_reviews").select("*").eq("id", review_id).maybe_single().execute()
+    )
+    row = current.data if current else None
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
+    if row.get("status") == "delivered":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This review is already delivered.",
+        )
+    if not draft:
+        return row
+    patch = {"review_text": draft}
+    if row.get("status") == "pending":
+        patch["status"] = "in_progress"
+    updated = (
+        admin.table("job_switch_plan_reviews").update(patch).eq("id", review_id).execute()
+    )
+    return (updated.data or [row])[0]
