@@ -254,8 +254,6 @@ def job_feed(
     location_mode: str | None = None,
     sort: str = "fresh",
     min_skill_matches: Annotated[int, Query(ge=0, le=20)] = 0,
-    target_role_only: bool = False,
-    freshness_days: Annotated[int, Query(ge=0, le=365)] = 0,
     following_only: bool = False,
     browse_scope: Literal["exact", "remote_country", "country"] = "exact",
     page: Annotated[int, Query(ge=1)] = 1,
@@ -267,10 +265,10 @@ def job_feed(
 
     Resolves a target-role `cluster` (or explicit `role_domain`) to a jobs.role_domain
     filter. Always computes the user's CV-skill overlap + target-role match so every
-    card shows its fit; `personal`/`role` sorts and the min_skill_matches /
-    target_role_only filters rank/narrow on those signals. The feed excludes jobs the
-    user has already saved or skipped (draining-queue model) so they only ever see
-    roles they have not yet decided on.
+    card shows its fit; the `fit` sort blends those signals and the min_skill_matches
+    filter narrows on skill overlap. The feed excludes jobs the user has already saved
+    or skipped (draining-queue model) so they only ever see roles they have not yet
+    decided on.
     """
     # The feed prelude is ~6 independent reads (skill keys, target roles, the two
     # exclusion sets, location prefs, optionally followed companies + role-domain
@@ -330,8 +328,6 @@ def job_feed(
         user_skill_keys=skill_keys,
         user_target_roles=target_roles,
         min_skill_matches=min_skill_matches,
-        target_role_only=target_role_only,
-        freshness_days=freshness_days,
         following_only=following_only,
         followed_companies=followed,
         exclude_job_ids=exclude_ids,

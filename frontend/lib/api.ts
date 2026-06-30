@@ -2275,7 +2275,7 @@ export interface JobSearchResponse {
 // "fit" = the composite Best-fit rank (market filter rework). "fresh" = Newest.
 // personal/company/role are legacy modes the UI no longer sends (cleanup-debt,
 // CLAUDE.md OPEN BACKLOG #23) — kept so the API stays back-compatible.
-export type JobFeedSort = "fit" | "fresh" | "personal" | "company" | "role"
+export type JobFeedSort = "fit" | "fresh"
 
 export interface JobFeedItem {
   job_id: string
@@ -2333,8 +2333,6 @@ export interface JobFeedParams {
   locationMode?: "onsite" | "hybrid" | "remote" | "unknown" | null
   sort?: JobFeedSort
   minSkillMatches?: number
-  targetRoleOnly?: boolean
-  freshnessDays?: number
   followingOnly?: boolean
   page?: number
   pageSize?: number
@@ -2628,8 +2626,6 @@ export const jobs = {
     if (p.locationMode && p.locationMode.trim()) params.set("location_mode", p.locationMode.trim())
     if (p.sort) params.set("sort", p.sort)
     if (p.minSkillMatches && p.minSkillMatches > 0) params.set("min_skill_matches", String(p.minSkillMatches))
-    if (p.targetRoleOnly) params.set("target_role_only", "true")
-    if (p.freshnessDays && p.freshnessDays > 0) params.set("freshness_days", String(p.freshnessDays))
     if (p.followingOnly) params.set("following_only", "true")
     if (p.page && p.page > 0) params.set("page", String(p.page))
     if (p.pageSize && p.pageSize > 0) params.set("page_size", String(p.pageSize))

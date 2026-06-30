@@ -1631,8 +1631,6 @@ class JobsRepository:
         user_skill_keys: set[str] | None = None,
         user_target_roles: list[str] | None = None,
         min_skill_matches: int | None = None,
-        target_role_only: bool = False,
-        freshness_days: int | None = None,
         following_only: bool = False,
         followed_companies: set[str] | None = None,
         exclude_job_ids: set[str] | None = None,
@@ -1641,36 +1639,31 @@ class JobsRepository:
     ) -> dict[str, Any]:
         """Company-agnostic triage feed for the authed /market page. No LLM scoring.
 
-        sort (the user's fit lens):
+        sort (the user's rank lens):
           'fresh'    — first_seen desc.
-          'company'  — company asc, then freshest.
-          'personal' — CV skill-overlap desc (needs a CV).
-          'role'     — target-role match desc (needs saved target roles).
+          'fit'      — composite skill·role·fresh blend (data-aware weights).
 
         Narrowing filters:
           min_skill_matches  — keep only jobs sharing ≥N of the user's CV skills.
-          target_role_only   — keep only jobs that cover a saved target role.
-          freshness_days      — keep only jobs first seen within N days.
           following_only      — keep only jobs at companies the user follows.
           exclude_job_ids     — drop jobs the user has already saved or skipped
                                 (the draining-queue model: the feed only shows
                                 roles the user has not yet decided on).
 
         Computed-signal work (skill overlap, role match, exclusion) only exists
-        after a row is shaped, so any computed sort/filter — or a non-empty
-        exclusion — routes through the in-Python candidate path (bounded to the
-        freshest CAP, same honest contract as the old 'personal' branch:
-        available_total reflects the candidate cap, not the full DB pool). Pure
-        fresh/company browsing with nothing to exclude stays DB-paginated with a
-        true count — that path is only ever hit by users who have not yet saved
-        or skipped anything.
+        after a row is shaped, so the `fit` sort, the min_skill filter, or a
+        non-empty exclusion routes through the in-Python candidate path (bounded
+        to the freshest CAP: available_total reflects the candidate cap, not the
+        full DB pool). Pure `fresh` browsing with nothing to exclude stays
+        DB-paginated with a true count — that path is only ever hit by users who
+        have not yet saved or skipped anything.
 
         location_prefs supersedes the single city/country/mode filters with an
         OR-across-chips scope (geo is fixed from settings, not re-picked).
         """
         scoped_page = _bounded_page(page)
         scoped_page_size = _bounded_page_size(page_size)
-        mode = sort if sort in {"fresh", "company", "personal", "role", "fit"} else "fresh"
+        mode = sort if sort in {"fresh", "fit"} else "fresh"
         domain = _norm_filter(role_domain)
         scope_clause, scope_sig = build_location_scope(location_prefs)
         # Pref scope (fixed-from-settings) supersedes ad-hoc single filters.
@@ -1695,10 +1688,6 @@ class JobsRepository:
 
         role_token_sets = _role_token_sets(user_target_roles)
         min_skill = min_skill_matches if (min_skill_matches and min_skill_matches > 0) else 0
-        # first_seen is a YYYYMMDD int marker → the cutoff is the same shape.
-        fresh_cutoff: int | None = None
-        if freshness_days and freshness_days > 0:
-            fresh_cutoff = int((date.today() - timedelta(days=freshness_days)).strftime("%Y%m%d"))
         # following_only with no follows → an empty feed is the honest answer
         # (IH1: the user's heatmap/follow set is theirs; no global default).
         follow_scope: list[str] | None = None
@@ -1727,8 +1716,6 @@ class JobsRepository:
                 query = query.eq("location_city", city)
             if loc_mode:
                 query = query.eq("location_mode", loc_mode)
-            if fresh_cutoff is not None:
-                query = query.gte("first_seen", fresh_cutoff)
             if follow_scope is not None:
                 query = query.in_("company_name", follow_scope)
             if search_patterns:
@@ -1740,15 +1727,13 @@ class JobsRepository:
                 query = query.or_(",".join(clauses))
             return query
 
-        wants_inpython = (
-            mode in {"personal", "role", "fit"} or min_skill > 0 or target_role_only or bool(exclude)
-        )
+        wants_inpython = mode == "fit" or min_skill > 0 or bool(exclude)
 
         if wants_inpython:
             # Load + cache the freshest CAP candidates (raw rows, no per-user
             # data → shared across users on the same filter set). Per-user
             # shaping, exclusion and computed filters run below the cache.
-            pkey = (domain, city, country, loc_mode, scope_sig, fresh_cutoff, follow_sig, effective_term, skill_facet)
+            pkey = (domain, city, country, loc_mode, scope_sig, follow_sig, effective_term, skill_facet)
             cached = _feed_personal_cache.get(pkey)
             if cached is not None and (now - cached[0]) < _FEED_TTL:
                 rows = cached[1]
@@ -1767,8 +1752,6 @@ class JobsRepository:
                 shaped = [r for r in shaped if r["job_id"] not in exclude]
             if min_skill > 0:
                 shaped = [r for r in shaped if r["matched_skill_count"] >= min_skill]
-            if target_role_only:
-                shaped = [r for r in shaped if r["target_role_match"] > 0]
 
             # Stable sort: lay down the freshest order, then the primary fit key
             # on top so equal-fit jobs stay newest-first.
@@ -1781,12 +1764,6 @@ class JobsRepository:
                     num_target_roles=len(role_token_sets),
                 )
                 shaped.sort(key=lambda r: fit_scores[r["job_id"]], reverse=True)
-            elif mode == "personal":
-                shaped.sort(key=lambda r: r["matched_skill_count"], reverse=True)
-            elif mode == "role":
-                shaped.sort(key=lambda r: r["target_role_match"], reverse=True)
-            elif mode == "company":
-                shaped.sort(key=lambda r: (r["company_name"] or "").lower())
 
             available_total = len(shaped)
             start = (scoped_page - 1) * scoped_page_size
@@ -1802,10 +1779,10 @@ class JobsRepository:
                 "sort": mode,
             }
 
-        # DB-paginated browse: fresh + company, nothing computed, nothing excluded.
+        # DB-paginated browse: fresh, nothing computed, nothing excluded.
         start = (scoped_page - 1) * scoped_page_size
         end = start + scoped_page_size - 1
-        ckey = (mode, domain, city, country, loc_mode, scope_sig, fresh_cutoff, follow_sig, effective_term, skill_facet, scoped_page, scoped_page_size)
+        ckey = (mode, domain, city, country, loc_mode, scope_sig, follow_sig, effective_term, skill_facet, scoped_page, scoped_page_size)
         cached = _feed_page_cache.get(ckey)
         if cached is not None and (now - cached[0]) < _FEED_TTL:
             rows, available_total = cached[1]
@@ -1813,11 +1790,7 @@ class JobsRepository:
             try:
                 base = _apply_filters(
                     self._admin_db.table("jobs").select(self._FEED_COLUMNS, count="exact")
-                )
-                if mode == "company":
-                    base = base.order("company_name", desc=False).order("first_seen", desc=True)
-                else:
-                    base = base.order("first_seen", desc=True).order("job_id", desc=True)
+                ).order("first_seen", desc=True).order("job_id", desc=True)
                 result = base.range(start, end).execute()
             except APIError:
                 return {
