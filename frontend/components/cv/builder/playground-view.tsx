@@ -31,6 +31,8 @@ import { itemId } from "@/lib/cv-compose"
 import { dataKeys } from "@/lib/domain-data"
 import type { CVPlaygroundState } from "@/lib/hooks/use-cv-playground"
 import { Icon } from "./icons"
+import { DetailDrawer } from "@/components/jobs/detail-drawer"
+import { DetailHeader } from "@/components/jobs/detail-header"
 import { useDeadLinkPrompt } from "@/components/jobs/use-dead-link-prompt"
 import {
   resolvePlaygroundCompany,
@@ -62,6 +64,7 @@ export function PlaygroundView({
   const [exportConfirm, setExportConfirm] = useState(false)
   const [rewriteTarget, setRewriteTarget] = useState<RewriteTarget | null>(null)
   const [intakeOpen, setIntakeOpen] = useState(false)
+  const [jdOpen, setJdOpen] = useState(false)
   const queryClient = useQueryClient()
   const dead = useDeadLinkPrompt({ token, jobId, surface: "other" })
 
@@ -250,6 +253,16 @@ export function PlaygroundView({
               <Icon name="chevron-right" size={12} style={{ transform: "rotate(180deg)" }}/> Library · {company}
             </button>
             <h1 className="cvb-pgc-title">{jobTitle}</h1>
+            <div className="cvb-pgc-head-acts">
+              <button type="button" className="cvb-pgc-head-intake" onClick={() => setIntakeOpen(true)}>
+                <Icon name="sparkle" size={13}/> Add from your experience
+              </button>
+              {jdText && (
+                <button type="button" className="cvb-pgc-head-jd" onClick={() => setJdOpen(true)}>
+                  Read the job description <Icon name="chevron-right" size={12}/>
+                </button>
+              )}
+            </div>
           </div>
           <div className="cvb-pgc-headside">
             <div className="cvb-pgc-ready">
@@ -305,8 +318,6 @@ export function PlaygroundView({
           targets={evaluatedTargets}
           pointsFor={pointsFor}
           onRaise={setRewriteTarget}
-          jdText={jdText}
-          onOpenIntake={() => setIntakeOpen(true)}
         />
         <CVEditor
           token={token}
@@ -346,6 +357,15 @@ export function PlaygroundView({
           </div>
         </div>
       )}
+
+      <DetailDrawer
+        open={jdOpen}
+        onClose={() => setJdOpen(false)}
+        ariaLabel="Job description"
+        header={<DetailHeader title={jobTitle} company={company} onClose={() => setJdOpen(false)} />}
+      >
+        <div className="cvb-pgc-jd-drawer-body">{jdText}</div>
+      </DetailDrawer>
 
       {intakeOpen && (
         <ExperienceIntake
