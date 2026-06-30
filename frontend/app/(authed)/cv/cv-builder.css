@@ -2537,3 +2537,52 @@ mark.cvb-kw {
 .cvb-intake-tag.ok { color: var(--tm-success); background: var(--tm-success-wash); border: 1px solid var(--tm-success-border); }
 .cvb-intake-tag.role { color: var(--tm-text-faint); background: var(--tm-surface-2); border: 1px solid var(--tm-border); }
 .cvb-intake-tag.warn { color: var(--tm-warning-text); background: var(--tm-warning-wash); border: 1px solid var(--tm-border); }
+
+/* Read-while-write split — the role (left, recessed brief) sits beside the
+   draft (right, active surface) so the modal's "read the role, then write"
+   actually happens in parallel. Only on the input view; only desktop. */
+.cvb-intake.cvb-intake--split { max-width: 920px; }
+.cvb-intake--split .cvb-intake-body { padding: 0; overflow: hidden; }
+.cvb-intake-split {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  min-height: 440px;
+  max-height: min(620px, 72vh);
+}
+.cvb-intake-brief {
+  display: flex; flex-direction: column; min-height: 0; gap: 14px;
+  padding: 18px 18px 18px 20px;
+  background: var(--tm-surface-2);
+  border-right: 1px solid var(--tm-border);
+}
+.cvb-intake-brief .cvb-intake-chips { margin-bottom: 0; flex: none; }
+.cvb-intake-write {
+  display: flex; flex-direction: column; min-height: 0;
+  padding: 18px 20px 18px 18px;
+}
+.cvb-intake-write .cvb-intake-lede { flex: none; }
+/* On the split, the JD owns the remaining height and scrolls; the toggle is
+   redundant (it's always open beside the draft), so hide it. */
+.cvb-intake-split .cvb-intake-jd { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; margin-bottom: 0; }
+.cvb-intake-split .cvb-intake-jd-toggle { display: none; }
+.cvb-intake-split .cvb-intake-jd-body { display: block; flex: 1 1 auto; min-height: 0; max-height: none; margin-top: 0; }
+/* The draft textarea grows to fill the right column. */
+.cvb-intake--split .cvb-intake-input { flex: 1 1 auto; min-height: 200px; resize: none; }
+
+@media (max-width: 720px) {
+  /* No room for two columns — stack the brief above the draft and let the JD
+     collapse behind its toggle so the textarea stays reachable. */
+  .cvb-intake.cvb-intake--split { max-width: 100%; }
+  .cvb-intake--split .cvb-intake-body { padding: 0; overflow-y: auto; }
+  .cvb-intake-split { display: block; min-height: 0; max-height: none; }
+  .cvb-intake-brief {
+    border-right: none; border-bottom: 1px solid var(--tm-border);
+    background: transparent; padding: 16px 16px 14px;
+  }
+  .cvb-intake-write { padding: 14px 16px 18px; }
+  .cvb-intake-split .cvb-intake-jd { flex: none; display: block; }
+  .cvb-intake-split .cvb-intake-jd-toggle { display: inline-flex; }
+  .cvb-intake-split .cvb-intake-jd-body { display: none; flex: none; max-height: 200px; margin-top: 8px; }
+  .cvb-intake-split .cvb-intake-jd-body.open { display: block; }
+  .cvb-intake--split .cvb-intake-input { min-height: 150px; resize: vertical; }
+}
