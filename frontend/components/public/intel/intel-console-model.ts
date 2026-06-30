@@ -1,3 +1,5 @@
+import { formatCount } from "@/lib/format"
+
 export type ConsoleOp = "parse" | "fetch" | "index" | "embed"
 
 export interface ConsoleCompany {
@@ -31,7 +33,7 @@ export function buildConsoleSeeds(companies: ConsoleCompany[]): ConsoleSeed[] {
   return realCompanies.slice(0, 24).map((company, index) => ({
     op: OPS[index % OPS.length],
     path: company.name,
-    meta: `${company.count.toLocaleString()} ${company.count === 1 ? "job" : "jobs"} - ${formatLastSeen(company.last_seen_at)}`,
+    meta: `${formatCount(company.count)} ${company.count === 1 ? "job" : "jobs"} - ${formatLastSeen(company.last_seen_at)}`,
   }))
 }
 
