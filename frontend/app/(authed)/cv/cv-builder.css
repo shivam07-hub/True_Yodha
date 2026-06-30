@@ -2468,23 +2468,24 @@ mark.cvb-kw {
 }
 
 /* ── Option C: "Add from your experience" intake + Read-the-JD ───────────────── */
-.cvb-pgc-intake-cta {
-  width: 100%; display: flex; align-items: center; justify-content: center; gap: 7px;
+/* Job-context actions sit by the role in the header; the rail is a pure worklist. */
+.cvb-pgc-head-acts { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 9px; }
+.cvb-pgc-head-intake {
+  display: inline-flex; align-items: center; gap: 6px;
   border: 1px solid var(--tm-int-border); background: var(--tm-int-bg-wash);
   color: var(--tm-interactive-text); font: 600 12.5px var(--tm-font-sans);
-  padding: 10px 12px; border-radius: 10px; cursor: pointer; margin-bottom: 8px;
+  padding: 7px 12px; border-radius: 9px; cursor: pointer;
+  transition: background var(--tm-dur-fast) var(--tm-ease);
 }
-.cvb-pgc-intake-cta:hover { background: var(--tm-int-bg-subtle); }
-.cvb-pgc-jd { margin-bottom: 12px; }
-.cvb-pgc-jd-toggle {
+.cvb-pgc-head-intake:hover { background: var(--tm-int-bg-subtle); }
+.cvb-pgc-head-jd {
   display: inline-flex; align-items: center; gap: 5px; border: none; background: none; cursor: pointer;
-  padding: 2px 0; font: 500 11px var(--tm-font-mono); letter-spacing: 0.04em; color: var(--tm-text-faint);
+  padding: 6px 2px; font: 500 12px var(--tm-font-sans); color: var(--tm-text-faint);
+  transition: color var(--tm-dur-fast) var(--tm-ease);
 }
-.cvb-pgc-jd-toggle:hover { color: var(--tm-text-muted); }
-.cvb-pgc-jd-body {
-  margin-top: 8px; padding: 11px 12px; max-height: 280px; overflow-y: auto;
-  background: var(--tm-surface); border: 1px solid var(--tm-border); border-radius: 9px;
-  font: 12px/1.6 var(--tm-font-sans); color: var(--tm-text-muted); white-space: pre-wrap;
+.cvb-pgc-head-jd:hover { color: var(--tm-text); }
+.cvb-pgc-jd-drawer-body {
+  font: 14px/1.7 var(--tm-font-sans); color: var(--tm-text-muted); white-space: pre-wrap;
 }
 
 .cvb-intake { max-width: 600px; width: calc(100vw - 32px); }

@@ -16,7 +16,6 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { users as usersApi, type GapPlanResponse } from "@/lib/api"
 import { itemId } from "@/lib/cv-compose"
-import { Icon } from "./icons"
 import type { RewriteTarget } from "./cv-editor"
 import type { KeywordTarget } from "./keyword-utils"
 
@@ -26,8 +25,6 @@ interface RaiseItRailProps {
   targets: KeywordTarget[]
   pointsFor: (keywords: string[]) => number
   onRaise: (t: RewriteTarget) => void
-  jdText: string
-  onOpenIntake: () => void
 }
 
 type RailKind = "Add" | "Sharpen" | "Practice"
@@ -88,10 +85,9 @@ function buildRows(plan: GapPlanResponse, pointsFor: (k: string[]) => number): R
   return rows.sort((a, b) => b.gain - a.gain)
 }
 
-export function RaiseItRail({ token, plan, targets, pointsFor, onRaise, jdText, onOpenIntake }: RaiseItRailProps) {
+export function RaiseItRail({ token, plan, targets, pointsFor, onRaise }: RaiseItRailProps) {
   const [saved, setSaved] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState<Set<string>>(new Set())
-  const [showJd, setShowJd] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -133,19 +129,6 @@ export function RaiseItRail({ token, plan, targets, pointsFor, onRaise, jdText, 
         <span className="cvb-pgc-eyebrow">Raise it</span>
         <span className="mono cvb-pgc-rail-count">{clearedCount} done · {openCount} left</span>
       </div>
-
-      <button type="button" className="cvb-pgc-intake-cta" onClick={onOpenIntake}>
-        <Icon name="sparkle" size={13}/> Add from your experience
-      </button>
-
-      {jdText && (
-        <div className="cvb-pgc-jd">
-          <button type="button" className="cvb-pgc-jd-toggle" onClick={() => setShowJd(v => !v)} aria-expanded={showJd}>
-            <Icon name={showJd ? "chevron-down" : "chevron-right"} size={12}/> {showJd ? "Hide" : "Read"} the job description
-          </button>
-          {showJd && <div className="cvb-pgc-jd-body">{jdText}</div>}
-        </div>
-      )}
 
       <div className="cvb-pgc-fixes">
         {rows.map(r => {
