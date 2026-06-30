@@ -2426,7 +2426,40 @@ mark.cvb-kw {
 .cvb-pgc-icon:hover { background: var(--tm-surface-2); color: var(--tm-text); }
 .cvb-pgc-icon.on { background: var(--tm-int-bg-subtle); color: var(--tm-interactive-text); }
 
+/* Retarget a rewrite to any bullet + author a fresh point inline — quiet by
+   design: orange stays reserved for Accept, these read as neutral CV controls. */
+.cvb-pgc-rwwrap { margin-top: 8px; }
+.cvb-pgc-rw-target { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.cvb-pgc-rw-label {
+  font: 500 10px var(--tm-font-mono); letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--tm-text-faint); flex-shrink: 0;
+}
+.cvb-pgc-rw-select {
+  flex: 1 1 180px; min-width: 0; max-width: 340px;
+  font: 12.5px var(--tm-font-sans); color: var(--tm-text-muted);
+  background: var(--tm-bg); border: 1px solid var(--tm-int-border);
+  border-radius: 7px; padding: 6px 8px; cursor: pointer; outline: none;
+  transition: border-color var(--tm-dur-fast) var(--tm-ease);
+}
+.cvb-pgc-rw-select:focus-visible { border-color: var(--tm-interactive); }
+.cvb-pgc-newpoint {
+  display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+  border: none; background: none; cursor: pointer; padding: 4px 2px;
+  font: 600 12px var(--tm-font-sans); color: var(--tm-text-faint);
+  transition: color var(--tm-dur-fast) var(--tm-ease);
+}
+.cvb-pgc-newpoint:hover { color: var(--tm-text); }
+.cvb-pgc-addpoint {
+  margin: 4px 0 0 26px; border: none; background: none; cursor: pointer; padding: 5px 4px;
+  font: 500 12px var(--tm-font-sans); color: var(--tm-text-faint); border-radius: 6px;
+  transition: color var(--tm-dur-fast) var(--tm-ease);
+}
+.cvb-pgc-addpoint:hover { color: var(--tm-interactive-text); }
+.cvb-pgc-composer { margin: 6px 0 2px 26px; }
+.cvb-pgc-composer-acts { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; }
+
 @media (max-width: 900px) {
+  .cvb-pgc-rw-select, .cvb-pgc-newpoint, .cvb-pgc-addpoint { min-height: 40px; }
   .cvb-pgc-grid { grid-template-columns: 1fr; margin: 18px 16px 32px; gap: 18px; }
   .cvb-pgc-top { padding: 18px 16px 0; }
   .cvb-pgc-headrow { flex-wrap: wrap; gap: 14px; }

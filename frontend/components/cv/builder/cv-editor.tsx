@@ -28,11 +28,15 @@ interface CVEditorProps {
   missingKeywords: string[]
   applying: boolean
   onApply: (oldText: string, newText: string) => void
+  onAddBullet: (roleIndex: number, text: string) => void
+  addingBullet: boolean
   visibleCount: number
   wordCount: number
   rewriteTarget: RewriteTarget | null
   onClearRewriteTarget: () => void
 }
+
+const clip = (s: string, n = 56) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s)
 
 function copyText(text: string) {
   try {
@@ -47,15 +51,50 @@ function copyText(text: string) {
 
 export function CVEditor({
   token, cv, profile, hiddenItems, toggleItem, targets, missingKeywords,
-  applying, onApply, visibleCount, wordCount, rewriteTarget, onClearRewriteTarget,
+  applying, onApply, onAddBullet, addingBullet, visibleCount, wordCount, rewriteTarget, onClearRewriteTarget,
 }: CVEditorProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [editingIid, setEditingIid] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState("")
   const [rewriteIid, setRewriteIid] = useState<string | null>(null)
   const [rewriteKw, setRewriteKw] = useState<string[]>([])
+  const [composerRole, setComposerRole] = useState<number | null>(null)
+  const [composerDraft, setComposerDraft] = useState("")
   const copyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({})
+
+  // Every existing bullet, keyed by its iid → which role it lives under. Powers the
+  // rewrite target picker (hop the suggestion to any bullet) and "New point" (which
+  // role a fresh bullet lands under). Cheap to rebuild — the CV is small.
+  const iidMeta = new Map<string, { roleIndex: number; kind: "exp" | "proj" }>()
+  const expGroups = cv.experience.map((e, ei) => ({
+    label: `${e.role}${e.company ? ` · ${e.company}` : ""}`,
+    opts: e.bullets.map((b, bi) => {
+      const iid = itemId("exp_bullet", ei * 100 + bi, b)
+      iidMeta.set(iid, { roleIndex: ei, kind: "exp" })
+      return { iid, label: clip(b) }
+    }),
+  }))
+  const projOpts = cv.projects.flatMap((p, pi) =>
+    p.bullets.map((b, bi) => {
+      const iid = itemId("proj_bullet", pi * 100 + bi, b)
+      iidMeta.set(iid, { roleIndex: -1, kind: "proj" })
+      return { iid, label: clip(b) }
+    }),
+  )
+
+  function openComposer(roleIndex: number) {
+    setEditingIid(null); setRewriteIid(null); setComposerDraft(""); setComposerRole(roleIndex)
+  }
+  function saveComposer(roleIndex: number) {
+    const next = composerDraft.trim()
+    if (next) onAddBullet(roleIndex, next)
+    setComposerRole(null); setComposerDraft("")
+  }
+  function retarget(iid: string) {
+    setRewriteIid(iid)
+    requestAnimationFrame(() => rowRefs.current[iid]?.scrollIntoView({ behavior: "smooth", block: "center" }))
+  }
 
   // A rail "Sharpen / Add" action targets one host bullet — open its rewrite and
   // bring it into view, then clear the request so re-targeting the same row works.
@@ -139,16 +178,47 @@ export function CVEditor({
             </div>
           )}
           {rewriteIid === iid && !editing && (
-            <BulletRewrite
-              token={token}
-              bullet={text}
-              missingKeywords={missingKeywords}
-              seedKeywords={rewriteKw}
-              auto
-              applying={applying}
-              onApply={onApply}
-              onClose={() => setRewriteIid(null)}
-            />
+            <div className="cvb-pgc-rwwrap">
+              {iidMeta.has(iid) && (
+                <div className="cvb-pgc-rw-target">
+                  <span className="mono cvb-pgc-rw-label">Rewrite</span>
+                  <select
+                    className="cvb-pgc-rw-select"
+                    value={iid}
+                    onChange={e => retarget(e.target.value)}
+                    aria-label="Choose which bullet to rewrite"
+                  >
+                    {expGroups.map((g, gi) => (
+                      <optgroup key={`g-${gi}`} label={g.label}>
+                        {g.opts.map(o => <option key={o.iid} value={o.iid}>{o.label}</option>)}
+                      </optgroup>
+                    ))}
+                    {projOpts.length > 0 && (
+                      <optgroup label="Projects">
+                        {projOpts.map(o => <option key={o.iid} value={o.iid}>{o.label}</option>)}
+                      </optgroup>
+                    )}
+                  </select>
+                  {iidMeta.get(iid)?.kind === "exp" && (
+                    <button
+                      type="button"
+                      className="cvb-pgc-newpoint"
+                      onClick={() => openComposer(iidMeta.get(iid)!.roleIndex)}
+                    >＋ New point</button>
+                  )}
+                </div>
+              )}
+              <BulletRewrite
+                token={token}
+                bullet={text}
+                missingKeywords={missingKeywords}
+                seedKeywords={rewriteKw}
+                auto
+                applying={applying}
+                onApply={onApply}
+                onClose={() => setRewriteIid(null)}
+              />
+            </div>
           )}
         </div>
         <div className="cvb-pgc-acts">
@@ -217,6 +287,30 @@ export function CVEditor({
               {exp.dates && <span className="mono cvb-pgc-role-dates">{exp.dates}</span>}
             </div>
             {exp.bullets.map((b, bi) => row(itemId("exp_bullet", ei * 100 + bi, b), b))}
+            {composerRole === ei ? (
+              <div className="cvb-pgc-composer">
+                <textarea
+                  className="cvb-pgc-edit"
+                  value={composerDraft}
+                  rows={3}
+                  autoFocus
+                  placeholder="What you actually did here"
+                  onChange={e => setComposerDraft(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveComposer(ei) } }}
+                />
+                <div className="cvb-pgc-composer-acts">
+                  <button type="button" className="cvb-pgc-newpoint" onClick={() => setComposerRole(null)}>Cancel</button>
+                  <button
+                    type="button"
+                    className="cvb-pgc-done"
+                    disabled={addingBullet || !composerDraft.trim()}
+                    onClick={() => saveComposer(ei)}
+                  >{addingBullet ? "Adding…" : "Add point"}</button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" className="cvb-pgc-addpoint" onClick={() => openComposer(ei)}>＋ Add a point</button>
+            )}
           </div>
         ))}
 
