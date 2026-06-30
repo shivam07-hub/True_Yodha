@@ -318,6 +318,8 @@ export function PlaygroundView({
           missingKeywords={evaluatedTargets.filter(t => !t.matched).map(t => t.kw)}
           applying={rewriteApply.isPending}
           onApply={(oldText, newText) => rewriteApply.mutate({ oldText, newText })}
+          onAddBullet={(roleIndex, text) => addBullet.mutate({ roleIndex, text })}
+          addingBullet={addBullet.isPending}
           visibleCount={visibleCount}
           wordCount={wordCount}
           rewriteTarget={rewriteTarget}
