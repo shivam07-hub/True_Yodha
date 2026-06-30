@@ -7,6 +7,13 @@
  * master (onAdd → saveMaster), so it surfaces on the CV and the matching gap
  * ticks green. Honest by construction: every bullet is built from the user's own
  * words; Mentor never invents a number (it flags needs_metric instead).
+ *
+ * Input layout: the role (left, recessed "brief") and the draft (right, active
+ * surface) sit side by side so reading and writing happen in parallel — the
+ * modal's own instruction is "read the role, then write," so the role stays
+ * visible while you write. Mobile stacks the two; the JD collapses behind a
+ * toggle there since side-by-side won't fit. Once Mentor returns bullets the
+ * JD is no longer needed, so the results view drops back to a single column.
  */
 "use client"
 
@@ -75,55 +82,64 @@ export function ExperienceIntake({ token, jdText, gapSkills, roles, adding, onAd
     return roles.find(r => r.index === i)?.label ?? "your experience"
   }
 
+  // Split read-while-write only when there's a role to read AND we're still
+  // drafting. After bullets return, the JD is dead weight → single column.
+  const splitMode = !bullets && !!jdText
+
+  const writeFields = (
+    <>
+      <textarea
+        className="cvb-intake-input"
+        value={raw}
+        rows={6}
+        autoFocus
+        placeholder="e.g. At Capgemini I led a 4-person team to win a GCC enterprise client in South Europe — owned discovery, mapped their needs to our product, closed the deal."
+        onChange={e => setRaw(e.target.value)}
+      />
+      {error && <div className="cvb-intake-err" role="alert">{error}</div>}
+      <div className="cvb-intake-foot">
+        <span className="cvb-intake-nofab mono">Myro shapes your words — it never invents numbers.</span>
+        <button type="button" className="cvb-pgc-apply cvb-intake-draft" onClick={draft} disabled={!raw.trim() || drafting}>
+          {drafting ? "Drafting…" : "Draft with Mentor →"}
+        </button>
+      </div>
+    </>
+  )
+
+  const chips = gapSkills.length > 0 && (
+    <div className="cvb-intake-chips">
+      <span className="cvb-pgc-eyebrow">This role wants</span>
+      <div>{gapSkills.slice(0, 8).map(s => <span key={s} className="cvb-intake-chip">{s}</span>)}</div>
+    </div>
+  )
+
+  // The scrollable JD. On desktop-split it's always open beside the draft; on
+  // mobile (and the toggle) it collapses to keep the textarea reachable.
+  const jdBlock = jdText && (
+    <div className="cvb-intake-jd">
+      <button
+        type="button"
+        className="cvb-intake-jd-toggle"
+        onClick={() => setShowJd(v => !v)}
+        aria-expanded={showJd}
+        aria-controls="cvb-intake-jd-body"
+      >
+        <Icon name={showJd ? "chevron-down" : "chevron-right"} size={12}/> {showJd ? "Hide" : "Read"} the job description
+      </button>
+      <div id="cvb-intake-jd-body" className={`cvb-intake-jd-body${showJd ? " open" : ""}`}>{jdText}</div>
+    </div>
+  )
+
   return (
     <div className="cvb-modal-backdrop" role="dialog" aria-modal="true" aria-label="Add from your experience" onClick={onClose}>
-      <div className="cvb-modal cvb-intake" onClick={e => e.stopPropagation()}>
+      <div className={`cvb-modal cvb-intake${splitMode ? " cvb-intake--split" : ""}`} onClick={e => e.stopPropagation()}>
         <div className="cvb-modal-head">
           <span><Icon name="sparkle" size={14}/> Add from your experience</span>
           <button type="button" className="cvb-intake-x" onClick={onClose} aria-label="Close">✕</button>
         </div>
 
         <div className="cvb-modal-body cvb-intake-body">
-          {!bullets ? (
-            <>
-              <p className="cvb-intake-lede">
-                Read the role, then tell Myro — in your words — what you’ve done that fits. Mentor shapes it into
-                strong, ATS-ready bullets and works in the skills this job wants.
-              </p>
-
-              {gapSkills.length > 0 && (
-                <div className="cvb-intake-chips">
-                  <span className="cvb-pgc-eyebrow">This role wants</span>
-                  <div>{gapSkills.slice(0, 8).map(s => <span key={s} className="cvb-intake-chip">{s}</span>)}</div>
-                </div>
-              )}
-
-              {jdText && (
-                <div className="cvb-intake-jd">
-                  <button type="button" className="cvb-intake-jd-toggle" onClick={() => setShowJd(v => !v)} aria-expanded={showJd}>
-                    <Icon name={showJd ? "chevron-down" : "chevron-right"} size={12}/> {showJd ? "Hide" : "Read"} the job description
-                  </button>
-                  {showJd && <div className="cvb-intake-jd-body">{jdText}</div>}
-                </div>
-              )}
-
-              <textarea
-                className="cvb-intake-input"
-                value={raw}
-                rows={6}
-                autoFocus
-                placeholder="e.g. At Capgemini I led a 4-person team to win a GCC enterprise client in South Europe — owned discovery, mapped their needs to our product, closed the deal."
-                onChange={e => setRaw(e.target.value)}
-              />
-              {error && <div className="cvb-intake-err" role="alert">{error}</div>}
-              <div className="cvb-intake-foot">
-                <span className="cvb-intake-nofab mono">Myro shapes your words — it never invents numbers.</span>
-                <button type="button" className="cvb-pgc-apply cvb-intake-draft" onClick={draft} disabled={!raw.trim() || drafting}>
-                  {drafting ? "Drafting…" : "Draft with Mentor →"}
-                </button>
-              </div>
-            </>
-          ) : (
+          {bullets ? (
             <>
               <p className="cvb-intake-lede">Add the ones that ring true — each drops into your CV under the right role.</p>
               <div className="cvb-intake-results">
@@ -154,6 +170,29 @@ export function ExperienceIntake({ token, jdText, gapSkills, roles, adding, onAd
                 </button>
                 <button type="button" className="cvb-pgc-apply cvb-intake-draft" onClick={onClose}>Done</button>
               </div>
+            </>
+          ) : splitMode ? (
+            <div className="cvb-intake-split">
+              <aside className="cvb-intake-brief">
+                {chips}
+                {jdBlock}
+              </aside>
+              <div className="cvb-intake-write">
+                <p className="cvb-intake-lede">
+                  Read the role, then tell Myro — in your words — what you’ve done that fits. Mentor shapes it into
+                  strong, ATS-ready bullets and works in the skills this job wants.
+                </p>
+                {writeFields}
+              </div>
+            </div>
+          ) : (
+            <>
+              <p className="cvb-intake-lede">
+                Tell Myro — in your words — what you’ve done that fits the roles you’re tailoring for. Mentor shapes it
+                into strong, ATS-ready bullets and works in the skills these jobs want.
+              </p>
+              {chips}
+              {writeFields}
             </>
           )}
         </div>
