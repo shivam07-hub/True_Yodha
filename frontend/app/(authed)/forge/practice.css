@@ -470,11 +470,18 @@ button.tm-skills-stat-tile:hover { background: var(--tm-surface-2); border-color
 .up-ladder-seg .seg-lvl { font-size: 11px; font-weight: 700; letter-spacing: 0.02em; }
 .up-ladder-seg .seg-mark { font-size: 14px; line-height: 1; }
 .up-ladder-seg.is-cleared { border-color: var(--tm-success-border); background: var(--tm-success-wash); color: var(--tm-success-text); }
-.up-ladder-seg.is-next { border-color: var(--tm-interactive); background: var(--tm-int-bg-wash); color: var(--tm-interactive-text); box-shadow: 0 0 0 3px var(--tm-int-bg-wash); cursor: pointer; }
-.up-ladder-seg.is-next:hover { background: var(--tm-int-bg-hover); transform: translateY(-1px); }
-.up-ladder-seg.is-next:focus-visible { outline: 2px solid var(--tm-int-border); outline-offset: 2px; }
+button.up-ladder-seg.is-cleared { cursor: pointer; }
+button.up-ladder-seg.is-cleared:hover { transform: translateY(-1px); }
+.up-ladder-seg.is-next,
+.up-ladder-seg.is-startable { border-color: var(--tm-interactive); background: var(--tm-int-bg-wash); color: var(--tm-interactive-text); box-shadow: 0 0 0 3px var(--tm-int-bg-wash); cursor: pointer; }
+.up-ladder-seg.is-next:hover,
+.up-ladder-seg.is-startable:hover { background: var(--tm-int-bg-hover); transform: translateY(-1px); }
+.up-ladder-seg.is-next:focus-visible,
+.up-ladder-seg.is-startable:focus-visible { outline: 2px solid var(--tm-int-border); outline-offset: 2px; }
 .up-ladder-seg.is-locked { border-color: var(--tm-border-soft); background: var(--tm-bg-inset); color: var(--tm-text-disabled); border-style: dashed; }
 .up-ladder-seg.is-locked .seg-mark { opacity: 0.7; }
+.up-ladder-seg.is-filling { border-color: var(--tm-border-soft); background: var(--tm-bg-inset); color: var(--tm-text-disabled); border-style: dashed; }
+.up-ladder-seg.is-filling .seg-mark { opacity: 0.7; }
 .up-ladder-cap { margin-top: 7px; display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--tm-text-faint); }
 .up-ladder.is-compact { gap: 4px; }
 .up-ladder.is-compact .up-ladder-seg { height: 30px; }

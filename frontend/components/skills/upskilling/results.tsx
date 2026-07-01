@@ -53,7 +53,7 @@ export function Results({
         <p className="up-res-sub">
           {cleared
             ? (firstClear
-              ? <>You passed the bar (8/10). Myro Coins banked and the next level is open.</>
+              ? <>You passed the bar (8/10). Myro Coins banked and your level progress is recorded.</>
               : <>You&apos;ve already cleared this level — great recall. Re-clears earn 0 Myro Coins, but practice is always free.</>)
             : <>You scored {score}/{max}. Clear <b>8/10</b> to earn — try a freshly drawn set, the questions rotate.</>}
         </p>
@@ -74,10 +74,10 @@ export function Results({
       </section>
 
       {!maxedOut && (
-        <div className={`up-res-unlock${cleared ? "" : " locked"}`}>
+        <div className="up-res-unlock">
           {cleared
-            ? <><Icon name="check" size={15} /> Level {nextLevel} ({PROFICIENCY[nextLevel]}) unlocked — keep climbing.</>
-            : <><Icon name="lock" size={14} /> Level {nextLevel} ({PROFICIENCY[nextLevel]}) stays locked until you clear L{level}.</>}
+            ? <><Icon name="check" size={15} /> Level {nextLevel} ({PROFICIENCY[nextLevel]}) is open — keep climbing.</>
+            : <><Icon name="bolt" size={14} /> Levels stay available for practice. Clear L{level} when ready to bank Myro Coins.</>}
         </div>
       )}
       {maxedOut && cleared && (
