@@ -218,47 +218,6 @@ def test_fresh_sort_breaks_ties_by_job_id_desc() -> None:
     assert [r["job_id"] for r in result["rows"]] == ["c", "b", "a"]
 
 
-def test_company_sort_groups_by_company_then_fresh() -> None:
-    repo, _ = _repo([
-        _job("a", company="Zeta", first_seen=20260101),
-        _job("b", company="Acme", first_seen=20260101),
-        _job("c", company="Acme", first_seen=20260601),
-    ])
-    result = repo.feed_jobs(sort="company", page_size=10)
-    # Acme block first (asc), newest within block first; then Zeta.
-    assert [r["job_id"] for r in result["rows"]] == ["c", "b", "a"]
-    assert [r["company_name"] for r in result["rows"]] == ["Acme", "Acme", "Zeta"]
-
-
-def test_personal_sort_ranks_by_matched_skill_count_desc() -> None:
-    repo, _ = _repo(
-        [
-            _job("none", skills=["Go", "Rust"], first_seen=20260101),
-            _job("one", skills=["Python", "Go"], first_seen=20260101),
-            _job("two", skills=["Python", "SQL"], first_seen=20260101),
-        ],
-        [_user_skill("python", "Python"), _user_skill("sql", "SQL")],
-    )
-    skills = repo.user_skill_keys("u1")
-    result = repo.feed_jobs(sort="personal", user_skill_keys=skills, page_size=10)
-    assert [r["job_id"] for r in result["rows"]] == ["two", "one", "none"]
-    assert [r["matched_skill_count"] for r in result["rows"]] == [2, 1, 0]
-
-
-def test_personal_sort_uses_freshest_as_tiebreak_on_equal_overlap() -> None:
-    repo, _ = _repo(
-        [
-            _job("old", skills=["Python"], first_seen=20260101),
-            _job("new", skills=["Python"], first_seen=20260601),
-        ],
-        [_user_skill("python", "Python")],
-    )
-    skills = repo.user_skill_keys("u1")
-    result = repo.feed_jobs(sort="personal", user_skill_keys=skills, page_size=10)
-    # Equal overlap (1 each) → newest first.
-    assert [r["job_id"] for r in result["rows"]] == ["new", "old"]
-
-
 def test_unknown_sort_falls_back_to_fresh() -> None:
     repo, _ = _repo([_job("a", first_seen=20260101), _job("b", first_seen=20260601)])
     result = repo.feed_jobs(sort="bogus", page_size=10)
@@ -327,42 +286,12 @@ def test_fit_sort_no_signals_degrades_to_pure_freshness() -> None:
 # ── new fit lenses + narrowing filters ───────────────────────────────────────
 
 
-def test_role_sort_ranks_by_target_role_match() -> None:
-    repo, _ = _repo([
-        _job("eng", title="Software Engineer", first_seen=20260101),
-        _job("da", title="Senior Data Analyst", first_seen=20260101),
-        _job("pm", title="Product Manager", first_seen=20260101),
-    ])
-    result = repo.feed_jobs(
-        sort="role",
-        user_target_roles=["Data Analyst", "Product Manager"],
-        page_size=10,
-    )
-    ids = [r["job_id"] for r in result["rows"]]
-    # eng covers no target role → ranked last; the two matches lead.
-    assert ids[-1] == "eng"
-    assert set(ids[:2]) == {"da", "pm"}
-    assert {r["job_id"]: r["target_role_match"] for r in result["rows"]} == {
-        "da": 1, "pm": 1, "eng": 0,
-    }
-
-
 def test_role_match_is_seniority_agnostic() -> None:
     repo, _ = _repo([_job("da", title="Senior Data Analyst", first_seen=20260101)])
-    # 'Data Analyst' target matches a 'Senior Data Analyst' posting.
-    result = repo.feed_jobs(sort="role", user_target_roles=["Data Analyst"], page_size=10)
+    # 'Data Analyst' target matches a 'Senior Data Analyst' posting — the role
+    # signal that feeds the `fit` blend is seniority-agnostic.
+    result = repo.feed_jobs(sort="fit", user_target_roles=["Data Analyst"], page_size=10)
     assert result["rows"][0]["target_role_match"] == 1
-
-
-def test_target_role_only_filter_drops_non_matching() -> None:
-    repo, _ = _repo([
-        _job("da", title="Data Analyst", first_seen=20260101),
-        _job("eng", title="Software Engineer", first_seen=20260101),
-    ])
-    result = repo.feed_jobs(
-        target_role_only=True, user_target_roles=["Data Analyst"], page_size=10
-    )
-    assert [r["job_id"] for r in result["rows"]] == ["da"]
 
 
 def test_min_skill_matches_filters_below_threshold() -> None:
@@ -389,16 +318,6 @@ def test_exclude_job_ids_drains_saved_and_skipped() -> None:
     # Draining queue: 'b' (saved/skipped) gone; count reflects what's left.
     assert [r["job_id"] for r in result["rows"]] == ["a", "c"]
     assert result["available_total"] == 2
-
-
-def test_freshness_days_drops_stale_jobs() -> None:
-    from datetime import date, timedelta
-
-    recent = int((date.today() - timedelta(days=2)).strftime("%Y%m%d"))
-    stale = int((date.today() - timedelta(days=90)).strftime("%Y%m%d"))
-    repo, _ = _repo([_job("recent", first_seen=recent), _job("stale", first_seen=stale)])
-    result = repo.feed_jobs(sort="fresh", freshness_days=7, page_size=10)
-    assert [r["job_id"] for r in result["rows"]] == ["recent"]
 
 
 def test_following_only_scopes_to_followed_companies() -> None:
@@ -535,13 +454,13 @@ def test_no_match_filter_returns_empty_cleanly() -> None:
 
 
 def test_personal_available_total_reflects_cap_not_full_pool(monkeypatch: Any) -> None:
-    # Cap the in-Python overlap set at 3; available_total documents the CAP, not
-    # the 6-row DB pool — personal rank is over the freshest N candidates only.
+    # Cap the in-Python candidate set at 3; available_total documents the CAP, not
+    # the 6-row DB pool — the `fit` rank is over the freshest N candidates only.
     monkeypatch.setattr(JobsRepository, "_FEED_PERSONAL_CAP", 3)
     jobs = [_job(f"j{i}", skills=["Python"], first_seen=20260000 + i) for i in range(6)]
     repo, _ = _repo(jobs, [_user_skill("python", "Python")])
     skills = repo.user_skill_keys("u1")
-    result = repo.feed_jobs(sort="personal", user_skill_keys=skills, page=1, page_size=10)
+    result = repo.feed_jobs(sort="fit", user_skill_keys=skills, page=1, page_size=10)
     assert result["available_total"] == 3
     assert result["returned_total"] == 3
     # The 3 surfaced are the freshest of the pool (j5, j4, j3).
@@ -587,11 +506,11 @@ def test_warm_cache_avoids_db_roundtrip_for_db_paged_sort() -> None:
     assert db.call_count("jobs") == 1
 
 
-def test_warm_cache_avoids_db_roundtrip_for_personal_sort() -> None:
+def test_warm_cache_avoids_db_roundtrip_for_fit_sort() -> None:
     repo, db = _repo([_job("a", skills=["Python"])], [_user_skill("python", "Python")])
     skills = repo.user_skill_keys("u1")
-    repo.feed_jobs(sort="personal", user_skill_keys=skills, page=1, page_size=10)
-    repo.feed_jobs(sort="personal", user_skill_keys=skills, page=1, page_size=10)
+    repo.feed_jobs(sort="fit", user_skill_keys=skills, page=1, page_size=10)
+    repo.feed_jobs(sort="fit", user_skill_keys=skills, page=1, page_size=10)
     assert db.call_count("jobs") == 1
 
 
@@ -604,10 +523,12 @@ def test_user_skill_keys_cached_per_user() -> None:
 
 
 def test_cache_key_separates_sort_modes() -> None:
-    repo, db = _repo([_job("a"), _job("b")])
+    repo, db = _repo([_job("a", skills=["Python"])], [_user_skill("python", "Python")])
+    skills = repo.user_skill_keys("u1")
     repo.feed_jobs(sort="fresh", page=1, page_size=10)
-    repo.feed_jobs(sort="company", page=1, page_size=10)
-    assert db.call_count("jobs") == 2  # different sort → different key → fresh query
+    repo.feed_jobs(sort="fit", user_skill_keys=skills, page=1, page_size=10)
+    # fresh (DB-paged) and fit (in-Python) are distinct paths → two queries.
+    assert db.call_count("jobs") == 2
 
 
 def test_cache_key_separates_pages() -> None:

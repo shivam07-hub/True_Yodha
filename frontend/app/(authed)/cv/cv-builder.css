@@ -2546,18 +2546,19 @@ mark.cvb-kw {
 .cvb-intake-split {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-  min-height: 440px;
-  max-height: min(620px, 72vh);
+  grid-template-rows: 1fr;          /* definite row → panes bound → inner scroll engages */
+  height: min(620px, 72vh);
+  overflow: hidden;
 }
 .cvb-intake-brief {
-  display: flex; flex-direction: column; min-height: 0; gap: 14px;
+  display: flex; flex-direction: column; min-height: 0; overflow: hidden; gap: 14px;
   padding: 18px 18px 18px 20px;
   background: var(--tm-surface-2);
   border-right: 1px solid var(--tm-border);
 }
 .cvb-intake-brief .cvb-intake-chips { margin-bottom: 0; flex: none; }
 .cvb-intake-write {
-  display: flex; flex-direction: column; min-height: 0;
+  display: flex; flex-direction: column; min-height: 0; overflow: hidden;
   padding: 18px 20px 18px 18px;
 }
 .cvb-intake-write .cvb-intake-lede { flex: none; }
@@ -2574,12 +2575,12 @@ mark.cvb-kw {
      collapse behind its toggle so the textarea stays reachable. */
   .cvb-intake.cvb-intake--split { max-width: 100%; }
   .cvb-intake--split .cvb-intake-body { padding: 0; overflow-y: auto; }
-  .cvb-intake-split { display: block; min-height: 0; max-height: none; }
+  .cvb-intake-split { display: block; height: auto; overflow: visible; }
   .cvb-intake-brief {
     border-right: none; border-bottom: 1px solid var(--tm-border);
-    background: transparent; padding: 16px 16px 14px;
+    background: transparent; padding: 16px 16px 14px; overflow: visible;
   }
-  .cvb-intake-write { padding: 14px 16px 18px; }
+  .cvb-intake-write { padding: 14px 16px 18px; overflow: visible; }
   .cvb-intake-split .cvb-intake-jd { flex: none; display: block; }
   .cvb-intake-split .cvb-intake-jd-toggle { display: inline-flex; }
   .cvb-intake-split .cvb-intake-jd-body { display: none; flex: none; max-height: 200px; margin-top: 8px; }

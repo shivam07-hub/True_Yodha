@@ -64,8 +64,6 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   const [local, setLocal] = useState<Omit<FeedFilters, "roleDomain">>({
     sort: pickDefaultSort(hasCv, hasTargetRoles),
     minSkillMatches: 0,
-    targetRoleOnly: false,
-    freshnessDays: 0,
     followingOnly: false,
   })
   const [openJob, setOpenJob] = useState<JobFeedItem | null>(null)
@@ -81,8 +79,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   const onChangeFilters = useCallback((f: FeedFilters) => {
     if (f.roleDomain !== selectedCluster) onSelectCluster(f.roleDomain)
     setLocal({
-      sort: f.sort, minSkillMatches: f.minSkillMatches, targetRoleOnly: f.targetRoleOnly,
-      freshnessDays: f.freshnessDays, followingOnly: f.followingOnly,
+      sort: f.sort, minSkillMatches: f.minSkillMatches, followingOnly: f.followingOnly,
     })
   }, [selectedCluster, onSelectCluster])
 

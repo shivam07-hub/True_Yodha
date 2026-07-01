@@ -14,16 +14,11 @@ import type { JobFeedSort } from "@/lib/api"
  * (optional floor, default off), followingOnly. Location is NOT here — it is
  * fixed-from-settings server-side (the feed scopes to the user's saved target
  * locations), surfaced read-only in the summary line, never a per-session filter.
- *
- * `targetRoleOnly` / `freshnessDays` remain on the shape for API back-compat but
- * the UI no longer sets them (cleanup-debt, CLAUDE.md OPEN BACKLOG #23).
  */
 export interface FeedFilters {
   sort: JobFeedSort
   roleDomain: string | null   // a target-role cluster pin
   minSkillMatches: number     // 0 = off
-  targetRoleOnly: boolean     // legacy, UI no longer sets
-  freshnessDays: number       // legacy, UI no longer sets
   followingOnly: boolean
 }
 
@@ -31,8 +26,6 @@ export const DEFAULT_FILTERS: FeedFilters = {
   sort: "fit",
   roleDomain: null,
   minSkillMatches: 0,
-  targetRoleOnly: false,
-  freshnessDays: 0,
   followingOnly: false,
 }
 

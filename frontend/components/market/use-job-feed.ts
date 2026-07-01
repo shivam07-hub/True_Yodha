@@ -67,9 +67,7 @@ export function useJobFeed({
   const [savedCount, setSavedCount] = useState(0)
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Rank (sort) + the three hard filters key the query. targetRoleOnly /
-  // freshnessDays are no longer set by the UI (cleanup-debt #23) so they stay
-  // out of the key + payload.
+  // Rank (sort) + the hard filters key the query.
   const queryKey = useMemo(
     () => jobFeedQueryKey({ token, filters, q, skill, targetLocations }),
     [token, q, skill, filters, targetLocations],

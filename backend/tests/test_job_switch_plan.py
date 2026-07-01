@@ -7,6 +7,7 @@ chains are monkeypatched — this asserts the lifecycle rules + wiring, not Supa
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import pytest
@@ -17,6 +18,7 @@ from app.main import app
 from app.routers import job_switch_plan as jsp_router
 from app.routers import payments as payments_router
 from app.services import job_switch_plan_service as svc
+from app.services import llm_provider as llm_mod
 
 
 # ── service: second-review guards (B6) ───────────────────────────────────────
@@ -185,3 +187,77 @@ def test_entitlement_dispatch_to_myrology(monkeypatch: pytest.MonkeyPatch) -> No
 
     payments_router._apply_entitlement("u9", payments_router.PRODUCTS["myrology"])
     assert called == {"uid": "u9"}  # myrology unlocked, plan NOT activated
+
+
+# ── L1: LLM review draft (model drafts → founder edits + approves) ────────────
+
+class _FakeRepo:
+    def __init__(self, rows: list[dict[str, Any]]) -> None:
+        self._rows = rows
+
+    def get_user_skills_with_taxonomy(self, user_id: str) -> list[dict[str, Any]]:
+        return self._rows
+
+
+class _FakeProvider:
+    def __init__(self, reply: str | None = "Draft note.", raise_exc: bool = False) -> None:
+        self._reply = reply
+        self._raise = raise_exc
+        self.seen: list[dict] = []
+
+    async def complete(self, messages: list[dict], max_tokens: int = 4096, temperature=None) -> str:
+        self.seen = messages
+        if self._raise:
+            raise llm_mod.LLMProviderError("boom")
+        return self._reply or ""
+
+
+def test_draft_review_note_grounds_on_user_skills(monkeypatch: pytest.MonkeyPatch) -> None:
+    rows = [{"skills": {"display_name": "SQL"}, "proficiency_title": "Proficient"}]
+    monkeypatch.setattr(svc, "get_public_jobs_repository", lambda: _FakeRepo(rows))
+    fake = _FakeProvider(reply="You already have SQL; build dbt next.")
+    monkeypatch.setattr(svc, "get_llm_provider", lambda: fake)
+    ctx = {"plan": {"id": "p1", "target_role": "Data Analyst"}, "user_id": "u1"}
+    out = asyncio.run(svc.draft_review_note(ctx))
+    assert out == "You already have SQL; build dbt next."
+    # The prompt is grounded in the real role + skills, never invented context.
+    user_msg = fake.seen[-1]["content"]
+    assert "Data Analyst" in user_msg and "SQL" in user_msg
+
+
+def test_draft_review_note_failsoft_on_llm_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(svc, "get_public_jobs_repository", lambda: _FakeRepo([]))
+    monkeypatch.setattr(svc, "get_llm_provider", lambda: _FakeProvider(raise_exc=True))
+    ctx = {"plan": {"id": "p1", "target_role": "PM"}, "user_id": "u1"}
+    assert asyncio.run(svc.draft_review_note(ctx)) is None
+
+
+def test_draft_endpoint_admin_gated_and_returns_draft(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(jsp_router.settings, "job_switch_admin_token", "secret", raising=False)
+    monkeypatch.setattr(
+        svc, "get_review_context",
+        lambda rid: {"review": {"id": rid}, "plan": {"id": "p1", "target_role": "PM"}, "user_id": "u1"},
+    )
+
+    async def _fake_draft(ctx: dict) -> str:
+        return "Personalised draft."
+
+    monkeypatch.setattr(svc, "draft_review_note", _fake_draft)
+    monkeypatch.setattr(
+        svc, "store_review_draft",
+        lambda rid, draft: {
+            "id": rid, "review_no": 1, "status": "in_progress", "review_text": draft,
+            "sla_due_at": "2026-07-04T00:00:00+00:00", "requested_at": "2026-06-27T00:00:00+00:00",
+            "delivered_at": None,
+        },
+    )
+    with TestClient(app) as client:
+        # wrong token rejected
+        bad = client.post("/job-switch-plan/reviews/r1/draft", headers={"X-Myro-Admin-Token": "nope"})
+        assert bad.status_code == 401
+        # right token → draft saved as the working note
+        ok = client.post("/job-switch-plan/reviews/r1/draft", headers={"X-Myro-Admin-Token": "secret"})
+    assert ok.status_code == 200
+    body = ok.json()
+    assert body["status"] == "in_progress"
+    assert body["review_text"] == "Personalised draft."
