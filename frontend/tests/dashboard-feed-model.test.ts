@@ -108,3 +108,67 @@ test("fitTier: low fit never reads as strong", () => {
   assert.equal(fitTier(65), "strong")
   assert.equal(fitTier(92), "strong")
 })
+
+// ── prize × winnability triage (the "which CV do I tailor next" queue) ──────────
+
+import { scoreItem, triageFeed, type TriageContext } from "../lib/dashboard/feed-model"
+
+function ctx(partial: Partial<TriageContext> = {}): TriageContext {
+  return {
+    followedCompanies: new Set<string>(),
+    targetRoles: [],
+    tailoredJobIds: new Set<string>(),
+    committedJobIds: new Set<string>(),
+    ...partial,
+  }
+}
+
+test("scoreItem: followed company + target role lift prize; fit drives winnability", () => {
+  const c = ctx({ followedCompanies: new Set(["accenture"]), targetRoles: ["Data Scientist"] })
+  const prized = scoreItem(feedItem({ company: "Accenture", role: "Senior Data Scientist", fit: 80 }), c)
+  const plain = scoreItem(feedItem({ company: "Nobody Inc", role: "Analyst", fit: 80 }), c)
+  // same winnability, but the prize company + target role rank far higher
+  assert.ok(prized.rank > plain.rank)
+  assert.ok(prized.prizeTags.length >= 1)
+  assert.equal(plain.prizeTags.length, 0)
+})
+
+test("scoreItem: prize × winnability — a winnable prize beats an unwinnable one", () => {
+  const c = ctx({ followedCompanies: new Set(["accenture"]) })
+  const winnable = scoreItem(feedItem({ company: "Accenture", fit: 85 }), c)
+  const longshot = scoreItem(feedItem({ company: "Accenture", fit: 15 }), c)
+  assert.ok(winnable.rank > longshot.rank)
+})
+
+test("triageFeed: tailored-not-applied pins to Continue; applied drops; rest is the ranked queue", () => {
+  const items = [
+    feedItem({ jobId: "applied", company: "Acme", fit: 90 }),
+    feedItem({ jobId: "tailored", company: "Acme", fit: 30 }),
+    feedItem({ jobId: "prize", company: "Accenture", fit: 70 }),
+    feedItem({ jobId: "plain", company: "Nobody", fit: 70 }),
+  ]
+  const res = triageFeed(items, ctx({
+    followedCompanies: new Set(["accenture"]),
+    tailoredJobIds: new Set(["tailored"]),
+    committedJobIds: new Set(["applied"]),
+  }))
+  // applied never appears in Continue or queue
+  assert.equal(res.appliedCount, 1)
+  assert.ok(!res.continueItems.some(i => i.jobId === "applied"))
+  assert.ok(!res.queueItems.some(i => i.jobId === "applied"))
+  // tailored-not-applied is the Continue pin
+  assert.deepEqual(res.continueItems.map(i => i.jobId), ["tailored"])
+  // queue is prize×winnability ranked — the followed-company prize outranks the plain job
+  assert.deepEqual(res.queueItems.map(i => i.jobId), ["prize", "plain"])
+})
+
+test("triageFeed: a tailored job that was also applied drops (committed wins over continue)", () => {
+  const items = [feedItem({ jobId: "done", company: "Acme", fit: 50 })]
+  const res = triageFeed(items, ctx({
+    tailoredJobIds: new Set(["done"]),
+    committedJobIds: new Set(["done"]),
+  }))
+  assert.equal(res.continueItems.length, 0)
+  assert.equal(res.queueItems.length, 0)
+  assert.equal(res.appliedCount, 1)
+})

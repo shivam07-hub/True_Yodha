@@ -125,6 +125,29 @@
 .db-fitcap { font-family: var(--tm-font-mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--db-faint); }
 
 /* ── Feed controls (db-head) ─────────────────────────────────── */
+/* "Finish tailoring" — tailored-but-unapplied jobs pinned to the top (Netflix
+   Continue Watching). Highest-priority, one step from converting. */
+.db-continue { margin: 28px 0 6px; }
+.db-continue-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+.db-continue-title { font-size: 13px; font-weight: 700; color: var(--db-ink); letter-spacing: 0.01em; }
+.db-continue-sub { font-family: var(--tm-font-mono); font-size: 11px; color: var(--db-faint); }
+.db-continue-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.db-continue-card {
+  flex: 0 0 auto; min-width: 220px; max-width: 300px; text-align: left; cursor: pointer;
+  display: flex; flex-direction: column; gap: 3px; padding: 12px 14px;
+  border: 1px solid var(--db-wash-border); border-radius: 12px;
+  background: var(--db-wash); font-family: inherit; transition: all 120ms ease;
+}
+.db-continue-card:hover { border-color: var(--db-accent); box-shadow: var(--db-card-shadow-up); }
+.db-continue-co { font-size: 12px; font-weight: 600; color: var(--db-accent-text); }
+.db-continue-role { font-size: 13.5px; font-weight: 600; color: var(--db-ink); line-height: 1.3; }
+.db-continue-cta { margin-top: 4px; font-family: var(--tm-font-mono); font-size: 11px; color: var(--db-accent-text); }
+
+.db-applied-count {
+  font-family: var(--tm-font-mono); font-size: 11px; color: var(--db-faint);
+  padding: 5px 10px; border: 1px solid var(--db-line-soft); border-radius: 99px; white-space: nowrap;
+}
+
 .db-head {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   margin: 34px 0 18px; flex-wrap: wrap;
