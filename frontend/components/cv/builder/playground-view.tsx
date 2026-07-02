@@ -65,6 +65,8 @@ export function PlaygroundView({
   const [rewriteTarget, setRewriteTarget] = useState<RewriteTarget | null>(null)
   const [intakeOpen, setIntakeOpen] = useState(false)
   const [jdOpen, setJdOpen] = useState(false)
+  const [applyConfirm, setApplyConfirm] = useState(false)
+  const [submittingApply, setSubmittingApply] = useState(false)
   const queryClient = useQueryClient()
   const dead = useDeadLinkPrompt({ token, jobId, surface: "other" })
 
@@ -218,9 +220,35 @@ export function PlaygroundView({
 
   function handleApply() {
     if (!applyHref) return
-    dead.markApplied()
-    if (!isApplied) markApplied.mutate()
-    window.open(applyHref, "_blank", "noopener,noreferrer")
+    // Don't fire the link blind — preview the CV being submitted first (5.2).
+    setApplyConfirm(true)
+  }
+
+  async function confirmApply() {
+    if (submittingApply) return
+    setSubmittingApply(true)
+    try {
+      // Freeze the exact CV submitted against this job (CVJT1 immutable attempt).
+      await cvApi.applySnapshot(token, {
+        job_id: jobId,
+        cv_snapshot: {
+          text: visibleText,
+          title: jobTitle,
+          company,
+          score: ready,
+          bullets: visibleCount,
+          words: wordCount,
+        },
+        cv_version_id: selectedVersion?.id ?? null,
+        applied_url: applyHref,
+      }).catch(() => {})   // never block the application on the snapshot write
+      dead.markApplied()
+      if (!isApplied) markApplied.mutate()
+      window.open(applyHref, "_blank", "noopener,noreferrer")
+    } finally {
+      setSubmittingApply(false)
+      setApplyConfirm(false)
+    }
   }
   function requestDownload() {
     setOverflowOpen(false)
@@ -370,6 +398,7 @@ export function PlaygroundView({
       {intakeOpen && (
         <ExperienceIntake
           token={token}
+          jobId={jobId}
           jdText={jdText}
           gapSkills={evaluatedTargets.filter(t => !t.matched).map(t => t.kw)}
           roles={roles}
@@ -391,6 +420,31 @@ export function PlaygroundView({
             queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
           }}
         />
+      )}
+
+      {applyConfirm && (
+        <div className="cvb-modal-backdrop" role="dialog" aria-modal="true" aria-label="Apply with this CV" onClick={() => !submittingApply && setApplyConfirm(false)}>
+          <div className="cvb-modal cvb-apply" onClick={e => e.stopPropagation()}>
+            <div className="cvb-modal-head">
+              <span><Icon name="sparkle" size={14}/> Apply with this CV</span>
+              <button type="button" className="cvb-intake-x" onClick={() => setApplyConfirm(false)} aria-label="Close" disabled={submittingApply}>✕</button>
+            </div>
+            <div className="cvb-modal-body cvb-apply-body">
+              <div className="cvb-apply-meta">
+                <span className="cvb-apply-role">{jobTitle}{company !== "Untitled company" ? ` · ${company}` : ""}</span>
+                <span className="mono cvb-apply-stats">Ready {ready}/100 · {visibleCount} bullets · ~{wordCount} words</span>
+              </div>
+              <div className="cvb-apply-preview">{visibleText}</div>
+              <p className="cvb-apply-note mono">This exact CV is saved as your submission for this job, then the application page opens.</p>
+            </div>
+            <div className="cvb-intake-foot">
+              <button type="button" className="cvb-btn sm" onClick={() => onExportPDF(ready)}>Download PDF</button>
+              <button type="button" className="cvb-pgc-apply cvb-intake-draft" onClick={confirmApply} disabled={submittingApply}>
+                {submittingApply ? "Saving…" : "Apply →"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

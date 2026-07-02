@@ -17,14 +17,29 @@
  */
 "use client"
 
-import { useState } from "react"
-import { cv as cvApi, type IntakeBullet } from "@/lib/api"
+import { useEffect, useRef, useState } from "react"
+import { cv as cvApi, privateNotes, type IntakeBullet } from "@/lib/api"
 import { Icon } from "./icons"
 
 interface RoleRef { index: number; label: string }
 
+// Scraped JDs arrive with raw HTML entities (GitHub&rsquo;s&nbsp;fastest…). Decode
+// the common ones so the reference reads as prose, not markup (journey 2b / ND3).
+const _ENTITIES: Record<string, string> = {
+  "&nbsp;": " ", "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"',
+  "&#39;": "'", "&apos;": "'", "&rsquo;": "’", "&lsquo;": "‘",
+  "&rdquo;": "”", "&ldquo;": "“", "&mdash;": "—", "&ndash;": "–",
+  "&hellip;": "…", "&#x27;": "'", "&#x2F;": "/",
+}
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&(nbsp|amp|lt|gt|quot|#39|apos|rsquo|lsquo|rdquo|ldquo|mdash|ndash|hellip|#x27|#x2F);/g, m => _ENTITIES[m] ?? m)
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+}
+
 interface ExperienceIntakeProps {
   token: string
+  jobId: string
   jdText: string
   gapSkills: string[]
   roles: RoleRef[]
@@ -33,7 +48,7 @@ interface ExperienceIntakeProps {
   onClose: () => void
 }
 
-export function ExperienceIntake({ token, jdText, gapSkills, roles, adding, onAdd, onClose }: ExperienceIntakeProps) {
+export function ExperienceIntake({ token, jobId, jdText, gapSkills, roles, adding, onAdd, onClose }: ExperienceIntakeProps) {
   const [raw, setRaw] = useState("")
   const [bullets, setBullets] = useState<IntakeBullet[] | null>(null)
   const [drafting, setDrafting] = useState(false)
@@ -41,9 +56,54 @@ export function ExperienceIntake({ token, jdText, gapSkills, roles, adding, onAd
   const [showJd, setShowJd] = useState(false)
   const [added, setAdded] = useState<Set<number>>(new Set())
   const [busyIdx, setBusyIdx] = useState<number | null>(null)
+  // Per-card user edits before Add: the real number they supply (3.5) and the
+  // destination role they choose, overriding Mentor's default pick (4.2).
+  const [metricInput, setMetricInput] = useState<Record<number, string>>({})
+  const [roleOverride, setRoleOverride] = useState<Record<number, number | null>>({})
+
+  // The raw story is the most valuable thing the user writes — never lose it
+  // (journey Entry 3.1/3.2). It's saved as a PRIVATE per-job note (PV1-safe):
+  // restored on reopen, autosaved as they type, and never wiped by "Write another".
+  const savedRef = useRef<string>("")   // last body flushed to the server
+  const restored = useRef(false)
+
+  useEffect(() => {
+    let alive = true
+    void privateNotes.get(token, "cv", jobId)
+      .then(note => {
+        if (alive && note.body && !restored.current) {
+          restored.current = true
+          savedRef.current = note.body
+          setRaw(prev => prev || note.body!)   // don't clobber anything already typed
+        }
+      })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [token, jobId])
+
+  function flushNote(text: string) {
+    const body = text.trim()
+    if (body === savedRef.current) return
+    savedRef.current = body
+    void privateNotes.put(token, "cv", jobId, body).catch(() => { savedRef.current = "" })
+  }
+
+  // Debounced autosave while typing; a final flush happens on close/draft too.
+  useEffect(() => {
+    if (!restored.current && !raw) return
+    const t = setTimeout(() => flushNote(raw), 1200)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [raw])
+
+  function closeAndSave() {
+    flushNote(raw)
+    onClose()
+  }
 
   async function draft() {
     if (!raw.trim() || drafting) return
+    flushNote(raw)   // the story is worth keeping the moment they draft
     setDrafting(true); setError(null)
     try {
       const res = await cvApi.intakeDraft(token, {
@@ -68,18 +128,22 @@ export function ExperienceIntake({ token, jdText, gapSkills, roles, adding, onAd
     if (added.has(i) || busyIdx !== null) return
     setBusyIdx(i)
     try {
-      await onAdd(b.role_index, b.text)
+      const destination = i in roleOverride ? roleOverride[i] : b.role_index
+      const metric = (metricInput[i] || "").trim()
+      let text = b.text
+      if (b.needs_metric && metric) {
+        // User gave the real number → Mentor places it. Falls back to the plain
+        // bullet if placement fails, so Add never blocks on the LLM.
+        try { text = (await cvApi.intakePlaceMetric(token, { bullet: b.text, metric })).text }
+        catch { /* keep original */ }
+      }
+      await onAdd(destination, text)
       setAdded(prev => new Set(prev).add(i))
     } catch {
       setError("Couldn't add that bullet. Try again.")
     } finally {
       setBusyIdx(null)
     }
-  }
-
-  function roleLabel(i: number | null): string {
-    if (i == null) return "end of your experience"
-    return roles.find(r => r.index === i)?.label ?? "your experience"
   }
 
   // Split read-while-write only when there's a role to read AND we're still
@@ -126,36 +190,72 @@ export function ExperienceIntake({ token, jdText, gapSkills, roles, adding, onAd
       >
         <Icon name={showJd ? "chevron-down" : "chevron-right"} size={12}/> {showJd ? "Hide" : "Read"} the job description
       </button>
-      <div id="cvb-intake-jd-body" className={`cvb-intake-jd-body${showJd ? " open" : ""}`}>{jdText}</div>
+      <div id="cvb-intake-jd-body" className={`cvb-intake-jd-body${showJd ? " open" : ""}`}>{decodeEntities(jdText)}</div>
     </div>
   )
 
+  const destOptions = [
+    ...roles.map(r => ({ value: String(r.index), label: r.label })),
+    { value: "end", label: "End of your experience" },
+  ]
+
   return (
-    <div className="cvb-modal-backdrop" role="dialog" aria-modal="true" aria-label="Add from your experience" onClick={onClose}>
+    <div className="cvb-modal-backdrop" role="dialog" aria-modal="true" aria-label="Add from your experience" onClick={closeAndSave}>
       <div className={`cvb-modal cvb-intake${splitMode ? " cvb-intake--split" : ""}`} onClick={e => e.stopPropagation()}>
         <div className="cvb-modal-head">
           <span><Icon name="sparkle" size={14}/> Add from your experience</span>
-          <button type="button" className="cvb-intake-x" onClick={onClose} aria-label="Close">✕</button>
+          <button type="button" className="cvb-intake-x" onClick={closeAndSave} aria-label="Close">✕</button>
         </div>
 
         <div className="cvb-modal-body cvb-intake-body">
           {bullets ? (
             <>
-              <p className="cvb-intake-lede">Add the ones that ring true — each drops into your CV under the right role.</p>
+              <p className="cvb-intake-lede">Add the ones that ring true.</p>
               <div className="cvb-intake-results">
                 {bullets.map((b, i) => {
                   const isAdded = added.has(i)
+                  const dest = i in roleOverride ? roleOverride[i] : b.role_index
                   return (
                     <div key={i} className={`cvb-intake-card${isAdded ? " added" : ""}`}>
                       <div className="cvb-intake-card-text">{b.text}</div>
-                      <div className="cvb-intake-card-meta">
-                        {b.skills_covered.map(s => <span key={s} className="cvb-intake-tag ok">✓ {s}</span>)}
-                        <span className="cvb-intake-tag role">→ {roleLabel(b.role_index)}</span>
-                        {b.needs_metric && <span className="cvb-intake-tag warn">add a real number for more punch</span>}
+
+                      {b.skills_covered.length > 0 && (
+                        <div className="cvb-intake-card-skills">
+                          {b.skills_covered.map(s => <span key={s} className="cvb-intake-tag ok">✓ {s}</span>)}
+                        </div>
+                      )}
+
+                      {/* 3.5: user supplies the real number → Mentor places it on Add */}
+                      {b.needs_metric && !isAdded && (
+                        <label className="cvb-intake-metric">
+                          <span className="mono cvb-intake-metric-label">Add a real number</span>
+                          <input
+                            type="text"
+                            className="cvb-intake-metric-input"
+                            placeholder="e.g. ₹2Cr · 10,000 users · 20%"
+                            value={metricInput[i] || ""}
+                            onChange={e => setMetricInput(p => ({ ...p, [i]: e.target.value }))}
+                          />
+                        </label>
+                      )}
+
+                      {/* 3.4 + 4.2: destination is its own line, and it's the user's to change */}
+                      <div className="cvb-intake-card-dest">
+                        <span className="mono cvb-intake-dest-label">Lands under</span>
+                        <select
+                          className="cvb-intake-dest-select"
+                          value={dest == null ? "end" : String(dest)}
+                          disabled={isAdded}
+                          aria-label="Choose where this point lands"
+                          onChange={e => setRoleOverride(p => ({ ...p, [i]: e.target.value === "end" ? null : Number(e.target.value) }))}
+                        >
+                          {destOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
                       </div>
+
                       <button
                         type="button"
-                        className={`cvb-pgc-fix-btn${isAdded ? " done" : ""}`}
+                        className={`cvb-pgc-fix-btn cvb-intake-add${isAdded ? " done" : ""}`}
                         onClick={() => add(i, b)}
                         disabled={isAdded || busyIdx !== null || adding}
                       >{isAdded ? "Added ✓" : busyIdx === i ? "Adding…" : "Add"}</button>
@@ -165,10 +265,11 @@ export function ExperienceIntake({ token, jdText, gapSkills, roles, adding, onAd
               </div>
               {error && <div className="cvb-intake-err" role="alert">{error}</div>}
               <div className="cvb-intake-foot">
-                <button type="button" className="cvb-btn sm" onClick={() => { setBullets(null); setRaw(""); setError(null) }}>
+                {/* Keep the story — never wipe raw (Entry 3.2). Just return to the writer. */}
+                <button type="button" className="cvb-btn sm" onClick={() => { setBullets(null); setError(null) }}>
                   ← Write another
                 </button>
-                <button type="button" className="cvb-pgc-apply cvb-intake-draft" onClick={onClose}>Done</button>
+                <button type="button" className="cvb-pgc-apply cvb-intake-draft" onClick={closeAndSave}>Done</button>
               </div>
             </>
           ) : splitMode ? (
@@ -178,19 +279,13 @@ export function ExperienceIntake({ token, jdText, gapSkills, roles, adding, onAd
                 {jdBlock}
               </aside>
               <div className="cvb-intake-write">
-                <p className="cvb-intake-lede">
-                  Read the role, then tell Myro — in your words — what you’ve done that fits. Mentor shapes it into
-                  strong, ATS-ready bullets and works in the skills this job wants.
-                </p>
+                <p className="cvb-intake-lede">In your words — what you’ve done that fits.</p>
                 {writeFields}
               </div>
             </div>
           ) : (
             <>
-              <p className="cvb-intake-lede">
-                Tell Myro — in your words — what you’ve done that fits the roles you’re tailoring for. Mentor shapes it
-                into strong, ATS-ready bullets and works in the skills these jobs want.
-              </p>
+              <p className="cvb-intake-lede">In your words — what you’ve done that fits.</p>
               {chips}
               {writeFields}
             </>

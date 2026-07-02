@@ -2418,6 +2418,7 @@ mark.cvb-kw {
   margin-top: 6px; border: 1px solid var(--tm-int-border); background: var(--tm-int-bg-wash);
   color: var(--tm-interactive-text); font: 600 11px var(--tm-font-sans); padding: 5px 11px; border-radius: 7px; cursor: pointer;
 }
+.cvb-pgc-donebtn { color: var(--tm-interactive-text); border-color: var(--tm-int-border); background: var(--tm-int-bg-wash); }
 .cvb-pgc-acts { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
 .cvb-pgc-icon {
   width: 28px; height: 28px; display: grid; place-items: center; border: none; background: transparent;
@@ -2488,8 +2489,22 @@ mark.cvb-kw {
   font: 14px/1.7 var(--tm-font-sans); color: var(--tm-text-muted); white-space: pre-wrap;
 }
 
+/* Apply confirm — preview the exact CV being submitted (journey 5.2 / CVJT1). */
+.cvb-apply { max-width: 640px; width: calc(100vw - 32px); }
+.cvb-apply-body { padding: 16px 20px 4px; }
+.cvb-apply-meta { display: flex; flex-direction: column; gap: 3px; margin-bottom: 12px; }
+.cvb-apply-role { font: 600 14px var(--tm-font-sans); color: var(--tm-text); }
+.cvb-apply-stats { font-size: 11.5px; color: var(--tm-text-faint); }
+.cvb-apply-preview {
+  max-height: 320px; overflow-y: auto; padding: 13px 14px; border: 1px solid var(--tm-border);
+  border-radius: 10px; background: var(--tm-surface-2); font: 12.5px/1.7 var(--tm-font-sans);
+  color: var(--tm-text-muted); white-space: pre-wrap;
+}
+.cvb-apply-note { margin: 10px 0 0; font-size: 11px; color: var(--tm-text-faint); }
+.cvb-apply .cvb-intake-foot { padding: 0 20px 18px; margin-top: 12px; }
+
 .cvb-intake { max-width: 600px; width: calc(100vw - 32px); }
-.cvb-intake .cvb-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cvb-intake .cvb-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex: none; }
 .cvb-intake .cvb-modal-head > span { display: inline-flex; align-items: center; gap: 7px; }
 .cvb-intake-x { border: none; background: none; cursor: pointer; color: var(--tm-text-faint); font-size: 15px; line-height: 1; }
 .cvb-intake-x:hover { color: var(--tm-text); }
@@ -2525,18 +2540,37 @@ mark.cvb-kw {
 .cvb-intake-nofab { font-size: 11px; color: var(--tm-text-faint); }
 .cvb-intake-draft { padding: 10px 18px; border-radius: 10px; }
 .cvb-intake-results { display: flex; flex-direction: column; gap: 10px; }
+/* Left column stacks text → skills → metric → destination (each its own line,
+   distinct hierarchy — journey 3.4); the Add button owns the right column. */
 .cvb-intake-card {
   border: 1px solid var(--tm-border); border-radius: 10px; padding: 13px 14px; background: var(--tm-surface);
-  display: grid; grid-template-columns: 1fr auto; gap: 10px 12px; align-items: start;
+  display: grid; grid-template-columns: 1fr auto; gap: 9px 12px; align-items: start;
 }
+.cvb-intake-card > * { grid-column: 1; }
 .cvb-intake-card.added { border-color: var(--tm-success-border); background: var(--tm-success-wash); }
-.cvb-intake-card-text { grid-column: 1; font: 13.5px/1.55 var(--tm-font-sans); color: var(--tm-text); }
-.cvb-intake-card .cvb-pgc-fix-btn { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
-.cvb-intake-card-meta { grid-column: 1; display: flex; flex-wrap: wrap; gap: 6px; }
+.cvb-intake-card-text { font: 13.5px/1.55 var(--tm-font-sans); color: var(--tm-text); }
+.cvb-intake-card .cvb-intake-add { grid-column: 2; grid-row: 1 / -1; align-self: center; white-space: nowrap; }
+.cvb-intake-card-skills { display: flex; flex-wrap: wrap; gap: 6px; }
 .cvb-intake-tag { font: 10.5px var(--tm-font-mono); border-radius: 99px; padding: 2px 8px; }
 .cvb-intake-tag.ok { color: var(--tm-success); background: var(--tm-success-wash); border: 1px solid var(--tm-success-border); }
-.cvb-intake-tag.role { color: var(--tm-text-faint); background: var(--tm-surface-2); border: 1px solid var(--tm-border); }
-.cvb-intake-tag.warn { color: var(--tm-warning-text); background: var(--tm-warning-wash); border: 1px solid var(--tm-border); }
+
+/* Metric prompt (3.5) — the user supplies a REAL number; Mentor places it. */
+.cvb-intake-metric { display: flex; flex-direction: column; gap: 4px; }
+.cvb-intake-metric-label { font-size: 10.5px; color: var(--tm-warning-text); letter-spacing: 0.02em; }
+.cvb-intake-metric-input {
+  width: 100%; max-width: 340px; font: 12.5px var(--tm-font-sans); color: var(--tm-text);
+  background: var(--tm-bg); border: 1px solid var(--tm-warning-border, var(--tm-border)); border-radius: 7px; padding: 7px 10px; outline: none;
+}
+.cvb-intake-metric-input:focus { border-color: var(--tm-int-border); }
+
+/* Destination (3.4 + 4.2) — quiet "lands under" row; the user owns the choice. */
+.cvb-intake-card-dest { display: flex; align-items: center; gap: 8px; }
+.cvb-intake-dest-label { font-size: 10.5px; color: var(--tm-text-faint); letter-spacing: 0.02em; text-transform: uppercase; }
+.cvb-intake-dest-select {
+  font: 11.5px var(--tm-font-sans); color: var(--tm-text-muted); background: var(--tm-surface-2);
+  border: 1px solid var(--tm-border); border-radius: 7px; padding: 4px 8px; max-width: 240px; cursor: pointer;
+}
+.cvb-intake-dest-select:disabled { opacity: 0.6; cursor: default; }
 
 /* Read-while-write split — the role (left, recessed brief) sits beside the
    draft (right, active surface) so the modal's "read the role, then write"
@@ -2562,11 +2596,14 @@ mark.cvb-kw {
   padding: 18px 20px 18px 18px;
 }
 .cvb-intake-write .cvb-intake-lede { flex: none; }
-/* On the split, the JD owns the remaining height and scrolls; the toggle is
-   redundant (it's always open beside the draft), so hide it. */
-.cvb-intake-split .cvb-intake-jd { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; margin-bottom: 0; }
-.cvb-intake-split .cvb-intake-jd-toggle { display: none; }
-.cvb-intake-split .cvb-intake-jd-body { display: block; flex: 1 1 auto; min-height: 0; max-height: none; margin-top: 0; }
+/* 2a: the distilled "This role wants" chips are the PRIMARY signal in the brief;
+   the raw JD is a SECONDARY reference the user opens only if they want it — behind
+   the toggle, collapsed by default (never dumped open at equal weight to chips). */
+.cvb-intake-split .cvb-intake-jd { flex: none; display: block; min-height: 0; margin-bottom: 0; }
+.cvb-intake-split .cvb-intake-jd-toggle { display: inline-flex; }
+.cvb-intake-split .cvb-intake-jd-body { display: none; max-height: 240px; margin-top: 8px; }
+.cvb-intake-split .cvb-intake-jd-body.open { display: block; }
+.cvb-intake-brief { overflow-y: auto; }
 /* The draft textarea grows to fill the right column. */
 .cvb-intake--split .cvb-intake-input { flex: 1 1 auto; min-height: 200px; resize: none; }
 
