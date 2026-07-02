@@ -298,41 +298,66 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-03 - Company signals scroll)
+## LAST SESSION SUMMARY (2026-07-03 - B2B recruiter and referral workspaces)
 
-Fixed the `/market` Company signals rail so the company list no longer ends at
-the first four visible rows.
+Closed the first meaningful B2B frontend slice by pairing the public recruiter /
+referral doors with actual workspace previews that show how the employer-side
+product behaves.
 
-- Removed the accidental four-company truncation in `useMarketIntel`; the rail
-  now requests the backend's 20-company window and keeps every fetched company
-  available.
-- Added `frontend/lib/company-signals.ts` as the pure source for company-signal
-  formatting, fetch limit, and row mapping, with the old component model file
-  re-exporting it for compatibility.
-- Wrapped company rows in a focusable `.mi-company-list` scroll region with
-  bounded height, touch momentum scrolling, and a focus outline.
-- Added regression coverage in
-  `frontend/tests/company-signals-model.test.ts` for the non-truncating row
-  mapping and scroll-container contract.
+- Kept the public landing surfaces at `frontend/app/recruiters/page.tsx` and
+  `frontend/app/referrals/page.tsx`, but updated their secondary CTAs to point
+  to real preview workspaces instead of dead-end exploration links.
+- Added a shared preview frame in
+  `frontend/components/b2b/public-workspace-frame.tsx` plus shared dashboard
+  primitives in `frontend/components/b2b/workspace-shell.tsx` and
+  `frontend/components/b2b/workspace-shell.css` so recruiter and referral
+  surfaces share one visual grammar.
+- Added recruiter-side preview route
+  `frontend/app/recruiters/workspace/page.tsx` with
+  `frontend/components/b2b/recruiter-dashboard.tsx` and
+  `frontend/components/b2b/recruiter-model.ts`.
+  It now demonstrates:
+  structured JD intake, L2-cluster-only filtering, live must-have skill
+  toggles, ranked shortlist cards, and a narrow handoff pipeline.
+- Added referral-side preview route
+  `frontend/app/referrals/workspace/page.tsx` with
+  `frontend/components/b2b/referral-dashboard.tsx` and
+  `frontend/components/b2b/referral-model.ts`.
+  It now demonstrates:
+  warm-path queueing, company filtering, intro-confidence ranking, visible
+  status stages, and connector reward logic.
+- Added focused model tests
+  `frontend/tests/recruiter-match-model.test.ts` and
+  `frontend/tests/referral-queue-model.test.ts` so the shortlist / referral
+  sorting rules are locked in.
 
 Validation:
 
-- `cd frontend && npx tsx --test tests/company-signals-model.test.ts`: 5 passed
-- `cd frontend && npx tsc --noEmit`: clean
-- `cd frontend && npm run lint`: clean
-- `.venv/bin/pytest backend/tests`: 908 passed, 1 skipped, 22 warnings
+- `cd frontend && npx tsx --test tests/recruiter-match-model.test.ts`: 3 passed
+- `cd frontend && npx tsx --test tests/referral-queue-model.test.ts`: 3 passed
+- `cd frontend && npx next lint --file app/recruiters/page.tsx --file app/recruiters/workspace/page.tsx --file components/b2b/public-workspace-frame.tsx --file components/b2b/workspace-shell.tsx --file components/b2b/recruiter-model.ts --file components/b2b/recruiter-dashboard.tsx --file tests/recruiter-match-model.test.ts`: clean
+- `cd frontend && npx next lint --file app/referrals/page.tsx --file app/referrals/workspace/page.tsx --file components/b2b/referral-model.ts --file components/b2b/referral-dashboard.tsx --file tests/referral-queue-model.test.ts`: clean
+- `cd frontend && npm run check:ui-drift`: clean (`publicRouteCoverage: ok`)
 - `git diff --check`: clean
-- Browser QA: local `/market?tab=jobs` redirected to
-  `/login?next=%2Fmarket%3Ftab%3Djobs` without a browser session. A local
-  browser fixture using the real `market-intel.css` verified the scroll mechanics:
-  10 rows rendered, `overflow-y: auto`, `clientHeight` 288,
-  `scrollHeight` 489, wheel scroll moved `scrollTop` to 201 and revealed the
-  hidden companies.
+- Browser QA via Playwright screenshots:
+  `/recruiters/workspace` desktop + mobile clean,
+  `/referrals/workspace` desktop + mobile clean,
+  no visible clipping or broken responsive collapse.
+
+Repo note:
+
+- Full `cd frontend && npx tsc --noEmit` was not re-run for this slice because
+  the worktree already contains unrelated in-flight edits around company signals
+  / CV builder; last known repo-wide type stability cannot be attributed to this
+  B2B change set alone.
 
 Not touched: unrelated `docs/free-llm-api-resources`,
-`frontend/app/recruiters/`, `frontend/app/referrals/`,
-`frontend/components/public/b2b-door-page.*`,
-`frontend/lib/site-routes.ts`, `frontend/lib/skill-intelligence.ts`, and
+`frontend/app/(authed)/cv/cv-builder.css`,
+`frontend/components/cv/builder/cv-editor.tsx`,
+`frontend/components/cv/builder/cv-point-row.tsx`,
+`frontend/components/cv/builder/cv-point-skill-chips.tsx`,
+`frontend/lib/company-signals.ts`,
+`frontend/lib/skill-intelligence.ts`, and
 `frontend/tests/cv-point-skills.test.ts`.
 
 ## OLDER SESSION SUMMARY (2026-07-03 - Recruiter and referral public doors)
