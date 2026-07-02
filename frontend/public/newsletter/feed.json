@@ -12,6 +12,42 @@
   ],
   "items": [
     {
+      "id": "https://www.himyro.com/newsletter/2026-07-devops-to-loop-engineering",
+      "url": "https://www.himyro.com/newsletter/2026-07-devops-to-loop-engineering",
+      "title": "From DevOps to Loop Engineering: A Four-Skill Jump",
+      "summary": "DevOps and SRE appear in 375 India postings; loop engineering in zero. The gap is four skills, not a career change. A free ladder from SRE to AI-agent reliability.",
+      "date_published": "2026-07-01T07:00:00.000Z",
+      "authors": [
+        {
+          "name": "Shivam Pathak"
+        }
+      ]
+    },
+    {
+      "id": "https://www.himyro.com/newsletter/2026-06-loop-engineering-skill",
+      "url": "https://www.himyro.com/newsletter/2026-06-loop-engineering-skill",
+      "title": "Loop Engineering: The Skill With Zero Job Titles in 2026",
+      "summary": "Zero postings say 'loop engineering.' But 213 say 'Generative AI Agents' and 30 say 'AI Agent Monitoring.' The job is hiring — free 90-day plan to do it before the title catches up.",
+      "date_published": "2026-06-30T07:00:00.000Z",
+      "authors": [
+        {
+          "name": "Shivam Pathak"
+        }
+      ]
+    },
+    {
+      "id": "https://www.himyro.com/newsletter/2026-06-services-supermajority-india",
+      "url": "https://www.himyro.com/newsletter/2026-06-services-supermajority-india",
+      "title": "India's Hiring Supermajority Isn't Tech in 2026",
+      "summary": "In 38,138 active India roles, BFSI and consulting hold 18,698 — nearly 3× pure tech. A free June 2026 breakdown, and the one employer that tops them all.",
+      "date_published": "2026-06-29T07:00:00.000Z",
+      "authors": [
+        {
+          "name": "Shivam Pathak"
+        }
+      ]
+    },
+    {
       "id": "https://www.himyro.com/newsletter/2026-06-bengaluru-hiring-share",
       "url": "https://www.himyro.com/newsletter/2026-06-bengaluru-hiring-share",
       "title": "One in Four India Roles Is in Bengaluru 2026",
