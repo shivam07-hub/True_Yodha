@@ -97,13 +97,15 @@ export function MarketRail(props: MarketRailProps) {
               ))}
             </div>
           </div>
-          {trending.map((c) => (
-            <button key={c.name} type="button" className="mi-tco" onClick={() => onSeeRoles(c.name)}>
-              <span className="mi-tco-lg" style={logoBg(c.name)} aria-hidden>{c.name.slice(0, 1)}</span>
-              <span className="mi-tco-nm">{c.name}</span>
-              <span className="mi-tco-ct">{companySignalMeta(c, companyMode)}</span>
-            </button>
-          ))}
+          <div className="mi-company-list" tabIndex={0} aria-label="Company signals list">
+            {trending.map((c) => (
+              <button key={c.name} type="button" className="mi-tco" onClick={() => onSeeRoles(c.name)}>
+                <span className="mi-tco-lg" style={logoBg(c.name)} aria-hidden>{c.name.slice(0, 1)}</span>
+                <span className="mi-tco-nm">{c.name}</span>
+                <span className="mi-tco-ct">{companySignalMeta(c, companyMode)}</span>
+              </button>
+            ))}
+          </div>
         </div>
       ) : null}
 

@@ -130,6 +130,28 @@ def test_score_cv_no_skills(monkeypatch: pytest.MonkeyPatch) -> None:
     assert res.status_code == 422
 
 
+def test_score_cv_paste_text_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Paste path (#4): the `text` form field is used directly as raw_text — file
+    # extraction is never touched (a small POST that dodges upload failures).
+    _wire_engine(monkeypatch, raw_text="UNUSED", skills=[{"display_name": "Python"}])
+
+    def _no_extract(*_a, **_k):
+        raise AssertionError("extract_raw_text must not run on the paste path")
+
+    monkeypatch.setattr(public_router.cv_parser, "extract_raw_text", _no_extract)
+
+    res = TestClient(app).post("/public/score-cv", data={"text": "A" * 400})
+    assert res.status_code == 200, res.text
+    assert res.json()["score"] == 72
+
+
+def test_score_cv_paste_too_short(monkeypatch: pytest.MonkeyPatch) -> None:
+    _wire_engine(monkeypatch, raw_text="UNUSED", skills=[{"display_name": "Python"}])
+    res = TestClient(app).post("/public/score-cv", data={"text": "hi"})
+    assert res.status_code == 422
+    assert "paste" in res.json()["detail"].lower()
+
+
 def test_score_cv_rate_limited(monkeypatch: pytest.MonkeyPatch) -> None:
     _wire_engine(monkeypatch, raw_text="A" * 400, skills=[{"display_name": "Python"}])
     client = TestClient(app)

@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useQuery } from "@tanstack/react-query"
 import "./dashboard.css"
 import { useViewport } from "@/mobile"
 import { openRefreshGate } from "@/store/refreshGateStore"
@@ -16,9 +17,13 @@ import {
   filterSegment,
   segmentCounts,
   sortItems,
+  triageFeed,
   type Segment,
   type SortKey,
+  type TriageContext,
 } from "@/lib/dashboard/feed-model"
+import { users as usersApi } from "@/lib/api"
+import { dataKeys } from "@/lib/domain-data"
 import type {
   ApplicationResponse,
   ApplicationStatus,
@@ -50,21 +55,23 @@ export interface DashboardProps {
 }
 
 const SEGMENTS: ReadonlyArray<{ key: Segment; label: string }> = [
-  { key: "myro", label: "Myro found" },
-  { key: "liked", label: "Liked" },
   { key: "all", label: "All" },
+  { key: "myro", label: "Myro found" },
+  { key: "liked", label: "Saved" },
 ]
 
 export function Dashboard(props: DashboardProps) {
   const { isDesktop } = useViewport()
-  const [segment, setSegment] = React.useState<Segment>("myro")
-  const [sort, setSort] = React.useState<SortKey>("fit")
+  // Default to "All" so a job the user added themselves (extension/manual) is
+  // never hidden behind the "Myro found" matches-only tab (journey Entry 6a).
+  const [segment, setSegment] = React.useState<Segment>("all")
+  const [sort, setSort] = React.useState<SortKey>("prize")
   const [openId, setOpenId] = React.useState<string | null>(props.initialJobId ?? null)
   const addJob = useManualAdd({
     token: props.token,
     onSaved: () => {
       props.onManualAdded?.()
-      // Surface the just-added job — self-sourced jobs land in Liked.
+      // Surface the just-added job — self-sourced jobs land in the Saved segment.
       setSegment("liked")
     },
   })
@@ -73,17 +80,56 @@ export function Dashboard(props: DashboardProps) {
     () => buildFeed(props.jobs, props.apps, props.dismissedJobIds),
     [props.jobs, props.apps, props.dismissedJobIds],
   )
-  const counts = React.useMemo(() => segmentCounts(items), [items])
+
+  // Prize signals — all cache hits (the rail + home already fetched these), no
+  // extra network. Followed companies + target roles define "prize"; the apps
+  // list tells us what's tailored (cv_badge) vs committed (applied+).
+  const { data: followed } = useQuery({
+    queryKey: ["followedCompanies", props.token],
+    queryFn: () => usersApi.followedCompanies(props.token),
+    staleTime: 5 * 60 * 1000,
+  })
+  const { data: profile } = useQuery({
+    queryKey: dataKeys.profile(),
+    queryFn: () => usersApi.me(props.token),
+    staleTime: 10 * 60 * 1000,
+  })
+
+  const triageCtx = React.useMemo<TriageContext>(() => {
+    const tailoredJobIds = new Set<string>()
+    const committedJobIds = new Set<string>()
+    for (const a of props.apps) {
+      if (a.cv_badge) tailoredJobIds.add(a.job_id)
+      if (a.status && a.status !== "saved") committedJobIds.add(a.job_id)  // applied+ = pipeline
+    }
+    return {
+      followedCompanies: new Set((followed?.companies ?? []).map((c) => c.company_name.toLowerCase().trim())),
+      targetRoles: profile?.target_roles ?? [],
+      tailoredJobIds,
+      committedJobIds,
+    }
+  }, [props.apps, followed, profile])
+
+  // The worklist: "Finish these" (tailored, unfinished) pinned; applied dropped;
+  // the rest ranked by prize × winnability (journey: "which CV do I tailor next").
+  const triage = React.useMemo(() => triageFeed(items, triageCtx), [items, triageCtx])
+  const queue = triage.queueItems
+  const counts = React.useMemo(() => segmentCounts(queue), [queue])
   const visible = React.useMemo(
-    () => sortItems(filterSegment(items, segment), sort),
-    [items, segment, sort],
+    () => sortItems(filterSegment(queue, segment), sort),
+    [queue, segment, sort],
   )
 
-  // Close the open card if it left the visible set (segment change / skip).
+  // Openable = the queue plus the pinned Continue row (both render clickable cards).
+  const openable = React.useMemo(
+    () => [...triage.continueItems, ...visible],
+    [triage.continueItems, visible],
+  )
+  // Close the open card if it left the openable set (segment change / skip).
   React.useEffect(() => {
-    if (openId && !visible.some((it) => it.jobId === openId)) setOpenId(null)
-  }, [visible, openId])
-  const openItem = visible.find((it) => it.jobId === openId) ?? null
+    if (openId && !openable.some((it) => it.jobId === openId)) setOpenId(null)
+  }, [openable, openId])
+  const openItem = openable.find((it) => it.jobId === openId) ?? null
 
   // Empty copy is scoped to *why* the view is empty, never a blanket
   // "No matches yet" when the feed actually holds jobs the user just isn't
@@ -91,11 +137,16 @@ export function Dashboard(props: DashboardProps) {
   const emptyMessage =
     items.length === 0
       ? "No matches yet — refresh after the next market batch."
-      : segment === "myro"
-        ? "No Myro picks in this batch yet — switch to All to browse every match, or refresh after the next batch."
-        : segment === "liked"
-          ? "You haven't liked any matches yet — tap the heart on a card to save it here."
-          : "Nothing in this view."
+      // Queue cleared but there's momentum to point at, not a dead end.
+      : queue.length === 0 && triage.continueItems.length > 0
+        ? "Nothing new to tailor — finish the ones you started above."
+        : queue.length === 0 && triage.appliedCount > 0
+          ? "You've triaged every match — refresh for new roles, or track your applications on CV & Applications."
+          : segment === "myro"
+            ? "No Myro picks here — switch to All to browse every match, or refresh after the next batch."
+            : segment === "liked"
+              ? "You haven't saved any jobs yet — tap the heart on a card, or add one from the extension."
+              : "Nothing in this view."
 
   const isRefreshing = props.refresh.state === "charging" || props.refresh.state === "computing"
   // Genuine new-job count from /matches (jobs.first_seen newer than this user's
@@ -104,8 +155,33 @@ export function Dashboard(props: DashboardProps) {
   const newJobsCount = props.newJobsCount
   const isFeedStale = !!props.total && newJobsCount > 0
 
+  const continueItems = triage.continueItems
+
   return (
     <div className="db" id="browse">
+      {continueItems.length > 0 ? (
+        <section className="db-continue" aria-label="Finish tailoring">
+          <div className="db-continue-head">
+            <span className="db-continue-title">Finish tailoring</span>
+            <span className="db-continue-sub">{continueItems.length} started · one step from applying</span>
+          </div>
+          <div className="db-continue-row">
+            {continueItems.map((it) => (
+              <button
+                key={it.jobId}
+                type="button"
+                className="db-continue-card tm-control-focus"
+                onClick={() => setOpenId(it.jobId)}
+              >
+                <span className="db-continue-co">{it.company ?? "Untitled company"}</span>
+                <span className="db-continue-role">{it.role}</span>
+                <span className="db-continue-cta">Finish &amp; apply →</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <div className="db-head">
         <div className="db-segments" role="tablist" aria-label="Filter matches">
           {SEGMENTS.map((s) => (
@@ -124,6 +200,11 @@ export function Dashboard(props: DashboardProps) {
           ))}
         </div>
         <div className="db-head-actions">
+          {triage.appliedCount > 0 ? (
+            <span className="db-applied-count" title="Jobs you've applied to — tracked on CV & Applications">
+              {triage.appliedCount} applied
+            </span>
+          ) : null}
           <SortMenu sort={sort} onChange={setSort} mobile={!isDesktop} />
           <button
             type="button"

@@ -23,7 +23,7 @@ import { LandingDropzone } from "@/components/public/landing/dropzone"
 import { ScoringConsole } from "@/components/public/cv-preview/scoring-console"
 import { PublicPlayground } from "@/components/public/cv-preview/public-playground"
 import { publicCv, type AnonScoreResponse } from "@/lib/api"
-import { readStashedResult, stashAnonCv, takeStashedFile } from "@/lib/anon-cv-stash"
+import { readStashedResult, stashAnonCv, stashAnonCvResult, stashComposedCvText, takeStashedFile, takeStashedText } from "@/lib/anon-cv-stash"
 import type { PdfPageContact } from "@/components/cv/builder/pdf-page"
 
 function toContact(r: AnonScoreResponse): PdfPageContact {
@@ -41,6 +41,7 @@ export default function CvPreviewPage() {
   const router = useRouter()
   const [result, setResult] = useState<AnonScoreResponse | null>(null)
   const [scoring, setScoring] = useState(false)
+  const [slow, setSlow] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hydrated, setHydrated] = useState(false)
 
@@ -68,6 +69,41 @@ export default function CvPreviewPage() {
     [router],
   )
 
+  // Paste path (#4): score raw text directly — no file transport. Same fork as
+  // score(); claim-on-signup replays the pasted text (no File to stash).
+  const scoreText = useCallback(
+    async (text: string) => {
+      setScoring(true)
+      setError(null)
+      try {
+        const r = await publicCv.scorePreview({ text })
+        stashAnonCvResult(r)
+        stashComposedCvText(text)
+        if (r.cv) {
+          setResult(r)
+          setScoring(false)
+        } else {
+          router.replace("/signup")
+        }
+      } catch (e) {
+        setScoring(false)
+        setError(e instanceof Error ? e.message : "We couldn't score that text. Add a few more lines of your CV.")
+      }
+    },
+    [router],
+  )
+
+  // Watchdog (#4): if scoring hasn't returned in 15s, stop hiding behind a
+  // naked spinner — offer the paste escape (Vaibhav's frozen-upload case).
+  useEffect(() => {
+    if (!scoring) {
+      setSlow(false)
+      return
+    }
+    const id = setTimeout(() => setSlow(true), 15_000)
+    return () => clearTimeout(id)
+  }, [scoring])
+
   // Seed from the landing drop: a stashed result means we already scored (e.g.
   // back-nav); a stashed File means we landed here to score it now.
   useEffect(() => {
@@ -78,9 +114,11 @@ export default function CvPreviewPage() {
       return
     }
     const file = takeStashedFile()
+    const text = file ? null : takeStashedText()
     setHydrated(true)
     if (file) void score(file)
-  }, [score])
+    else if (text) void scoreText(text)
+  }, [score, scoreText])
 
   const canBuild = !!result?.cv
 
@@ -89,7 +127,23 @@ export default function CvPreviewPage() {
       <PublicTopNav active="home" showSignIn />
       <main>
         {!hydrated ? null : scoring ? (
-          <ScoringConsole />
+          <div>
+            <ScoringConsole />
+            {slow && (
+              <div style={{ maxWidth: 560, margin: "18px auto 0", textAlign: "center" }}>
+                <p style={{ fontSize: 13, color: "var(--tm-text-muted)", marginBottom: 10 }}>
+                  Taking longer than usual — your network may be slow. You can paste your CV text instead.
+                </p>
+                <button
+                  type="button"
+                  className="lp-paste-score"
+                  onClick={() => { setScoring(false); setError("Paste your CV text below — it scores without an upload."); }}
+                >
+                  Paste text instead
+                </button>
+              </div>
+            )}
+          </div>
         ) : canBuild && result ? (
           <PublicPlayground cv={result.cv!} contact={toContact(result)} result={result} />
         ) : (
@@ -102,7 +156,7 @@ export default function CvPreviewPage() {
                 Get your Myro Score, then improve and download a clean CV — free, no signup.
               </p>
             </div>
-            <LandingDropzone source="cv_preview_dropzone" busy={scoring} onFile={score} />
+            <LandingDropzone source="cv_preview_dropzone" busy={scoring} onFile={score} onText={scoreText} />
             {error && (
               <p style={{ marginTop: 14, textAlign: "center", fontSize: 13, color: "var(--tm-danger, #ef4444)" }}>{error}</p>
             )}

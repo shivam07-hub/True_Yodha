@@ -11,10 +11,12 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import type { CVStructured, UserProfile } from "@/lib/api"
+import { useQuery } from "@tanstack/react-query"
+import { users, type CVStructured, type UserProfile } from "@/lib/api"
 import { itemId } from "@/lib/cv-compose"
-import { BulletRewrite } from "./bullet-rewrite"
-import { bulletKeywordHits, type KeywordTarget } from "./keyword-utils"
+import { dataKeys } from "@/lib/domain-data"
+import { CVPointRow, type CVPointMeta } from "./cv-point-row"
+import type { KeywordTarget } from "./keyword-utils"
 
 export interface RewriteTarget { iid: string; keywords: string[] }
 
@@ -62,11 +64,16 @@ export function CVEditor({
   const [composerDraft, setComposerDraft] = useState("")
   const copyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const userSkillsQuery = useQuery({
+    queryKey: dataKeys.userSkills(),
+    queryFn: () => users.mySkills(token),
+    staleTime: 5 * 60 * 1000,
+  })
 
   // Every existing bullet, keyed by its iid → which role it lives under. Powers the
   // rewrite target picker (hop the suggestion to any bullet) and "New point" (which
   // role a fresh bullet lands under). Cheap to rebuild — the CV is small.
-  const iidMeta = new Map<string, { roleIndex: number; kind: "exp" | "proj" }>()
+  const iidMeta = new Map<string, CVPointMeta>()
   const expGroups = cv.experience.map((e, ei) => ({
     label: `${e.role}${e.company ? ` · ${e.company}` : ""}`,
     opts: e.bullets.map((b, bi) => {
@@ -144,120 +151,42 @@ export function CVEditor({
     const hidden = hiddenItems.has(iid)
     const editing = editingIid === iid
     const copied = copiedId === iid
-    const hits = opts.mono ? [] : bulletKeywordHits(text, targets)
     return (
-      <div
+      <CVPointRow
         key={iid}
-        ref={el => { rowRefs.current[iid] = el }}
-        className={`cvb-pgc-row${hidden ? " hidden" : ""}`}
-      >
-        <button
-          type="button"
-          className={`cvb-pgc-check${hidden ? "" : " on"}`}
-          onClick={() => toggleItem(iid)}
-          aria-pressed={!hidden}
-          title={hidden ? "Show on this CV" : "Hide from this CV"}
-        >{hidden ? "" : "✓"}</button>
-        <div className="cvb-pgc-rowbody">
-          {editing ? (
-            <>
-              <textarea
-                className="cvb-pgc-edit"
-                value={editDraft}
-                rows={3}
-                autoFocus
-                onChange={e => setEditDraft(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveEdit(text) } }}
-              />
-            </>
-          ) : (
-            <div className={`cvb-pgc-text${opts.mono ? " mono" : ""}`}>
-              {text}
-              {hits.length > 0 && <span className="cvb-pgc-tag">✓ {hits.length} matched</span>}
-            </div>
-          )}
-          {rewriteIid === iid && !editing && (
-            <div className="cvb-pgc-rwwrap">
-              {iidMeta.has(iid) && (
-                <div className="cvb-pgc-rw-target">
-                  <span className="mono cvb-pgc-rw-label">Rewrite</span>
-                  <select
-                    className="cvb-pgc-rw-select"
-                    value={iid}
-                    onChange={e => retarget(e.target.value)}
-                    aria-label="Choose which bullet to rewrite"
-                  >
-                    {expGroups.map((g, gi) => (
-                      <optgroup key={`g-${gi}`} label={g.label}>
-                        {g.opts.map(o => <option key={o.iid} value={o.iid}>{o.label}</option>)}
-                      </optgroup>
-                    ))}
-                    {projOpts.length > 0 && (
-                      <optgroup label="Projects">
-                        {projOpts.map(o => <option key={o.iid} value={o.iid}>{o.label}</option>)}
-                      </optgroup>
-                    )}
-                  </select>
-                  {iidMeta.get(iid)?.kind === "exp" && (
-                    <button
-                      type="button"
-                      className="cvb-pgc-newpoint"
-                      onClick={() => openComposer(iidMeta.get(iid)!.roleIndex)}
-                    >＋ New point</button>
-                  )}
-                </div>
-              )}
-              <BulletRewrite
-                token={token}
-                bullet={text}
-                missingKeywords={missingKeywords}
-                seedKeywords={rewriteKw}
-                auto
-                applying={applying}
-                onApply={onApply}
-                onClose={() => setRewriteIid(null)}
-              />
-            </div>
-          )}
-        </div>
-        <div className="cvb-pgc-acts">
-          {editing ? (
-            // Confirm lives in the action row (5.1) — Copy is meaningless mid-edit,
-            // so ✓ Done takes its slot; Enter also saves.
-            <button
-              type="button"
-              className="cvb-pgc-copy cvb-pgc-donebtn"
-              onClick={() => saveEdit(text)}
-              title="Save this line"
-            >✓ Done</button>
-          ) : (
-            <button
-              type="button"
-              className={`cvb-pgc-copy${copied ? " copied" : ""}`}
-              onClick={() => copy(iid, text)}
-              title="Copy this line"
-            >⧉ {copied ? "Copied" : "Copy"}</button>
-          )}
-          {!opts.mono && !editing && (
-            <button
-              type="button"
-              className={`cvb-pgc-icon${rewriteIid === iid ? " on" : ""}`}
-              onClick={() => { setEditingIid(null); setRewriteKw(missingKeywords); setRewriteIid(p => p === iid ? null : iid) }}
-              title="Rewrite stronger with Mentor"
-              aria-label="Rewrite stronger"
-            >↻</button>
-          )}
-          {!opts.mono && !editing && (
-            <button
-              type="button"
-              className="cvb-pgc-icon"
-              onClick={() => startEdit(iid, text)}
-              title="Edit this line"
-              aria-label="Edit"
-            >✎</button>
-          )}
-        </div>
-      </div>
+        token={token}
+        iid={iid}
+        text={text}
+        hidden={hidden}
+        mono={opts.mono}
+        editing={editing}
+        editDraft={editDraft}
+        copied={copied}
+        targets={targets}
+        userSkills={userSkillsQuery.data}
+        rewriteOpen={rewriteIid === iid}
+        rewriteKeywords={rewriteKw}
+        missingKeywords={missingKeywords}
+        applying={applying}
+        meta={iidMeta.get(iid)}
+        expGroups={expGroups}
+        projOpts={projOpts}
+        rowRef={(el) => { rowRefs.current[iid] = el }}
+        onToggle={() => toggleItem(iid)}
+        onEditDraftChange={setEditDraft}
+        onSaveEdit={() => saveEdit(text)}
+        onCopy={() => copy(iid, text)}
+        onStartEdit={() => startEdit(iid, text)}
+        onToggleRewrite={() => {
+          setEditingIid(null)
+          setRewriteKw(missingKeywords)
+          setRewriteIid((prev) => prev === iid ? null : iid)
+        }}
+        onRetarget={retarget}
+        onOpenComposer={openComposer}
+        onApply={onApply}
+        onCloseRewrite={() => setRewriteIid(null)}
+      />
     )
   }
 

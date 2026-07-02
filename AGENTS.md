@@ -196,6 +196,14 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
 
 12. **Multi-location targeting (parked 2026-05-21):** Allow up to 3 target locations in onboarding StepRole. Requires full-stack change — DB migration (`target_location TEXT` → `target_locations TEXT[]` + `target_location_countries TEXT[]`), RPC `get_candidate_job_ids_for_skills` to accept array + OR across countries, repository `_filter_job_ids_by_location` rewrite, backfill existing users. Mobile UI ready (chip multi-select pattern). Path A (UI lies, only first city filters) rejected on design-over-words rule. Pick up when single-location matching quality is validated and multi-loc backlog signal is real.
 
+13. **B2B recruiter + referral platform phase 2 (parked 2026-07-03):** The frontend slice is closed for now: public recruiter/referral doors + workspace previews + auth-ready app routes are shipped. Remaining work is the real productization layer, not session cleanup.
+   - **Role / auth model** — define recruiter vs referral vs internal-ops access, nav visibility, and post-login routing. Today the workspaces are UI-ready, but not role-gated.
+   - **Recruiter persistence** — add real JD posts, saved briefs, shortlist actions, pipeline stage writes, and recruiter-side activity history.
+   - **Referral persistence** — add warm-path records, connector ownership, intro-status updates, reward ledgering, and repeat-loop visibility.
+   - **Mirror dataset contract** — wire the B2B side to the same canonical candidate skill graph as B2C, with L2-cluster-only comparison as the first-pass rule.
+   - **Matching engine** — replace demo shortlist math with backend CV↔JD scoring, evidence extraction, and top-3/top-4 recruiter handoff logic.
+   - **Go-live rule** — do not pick this up again as “frontend polish.” Next pickup should be a full-stack B2B PRD / plan with DB, API, auth, and ranking scope agreed first.
+
 ---
 
 ## INTEGRATOR ITEMS
@@ -298,7 +306,161 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-03 - Skill Intelligence heatmap redesign)
+## LAST SESSION SUMMARY (2026-07-03 - CV point ATS skill chips)
+
+Surfaced Myro's extracted skill audit directly inside the CV Playground so each
+editable CV point can show the skills already backed by that exact evidence.
+
+- Added `extractedSkillsForCvPoint()` in `frontend/lib/skill-intelligence.ts`.
+  It maps `/users/me/skills` evidence to a CV point using the same
+  exact/substr evidence rule as the backend skill-edit locator, avoiding noisy
+  tags from skill-name-only text.
+- Added `CVPointSkillChips` and extracted `CVPointRow` so the CV editor stays
+  under the 300-line guardrail while each row can render a quiet `ATS` chip
+  strip beside existing job-match metadata.
+- Wired `CVEditor` to fetch `users.mySkills()` through the existing
+  `dataKeys.userSkills()` query and pass the audit data to every visible point.
+- Added minimal responsive CSS: desktop chips sit below the CV point text; on
+  narrow mobile rows, actions move below the text so bullets do not collapse
+  into a skinny column.
+- Added `frontend/tests/cv-point-skills.test.ts` for evidence-to-point mapping,
+  false-positive prevention, and editor/chip wiring.
+
+Validation:
+
+- Red/green focused test:
+  `cd frontend && npx tsx --test tests/cv-point-skills.test.ts`
+- Final focused frontend:
+  `cd frontend && npx tsx --test tests/cv-point-skills.test.ts tests/skill-intelligence.test.ts`: 7 passed
+- `cd frontend && npx tsc --noEmit`: clean
+- `cd frontend && npm run lint`: clean
+- `.venv/bin/pytest backend/tests`: 908 passed, 1 skipped, 22 warnings
+- `git diff --check`: clean
+- Visual QA: Browser/IAB tool was unavailable in this thread, so Playwright used
+  system Chrome. A temporary local harness rendered the CV point rows with real
+  CV builder CSS; desktop and 375px mobile screenshots were inspected with
+  `view_image`, no horizontal overflow after the mobile row-action fix. The
+  harness route was removed before handoff.
+
+Not touched: unrelated `docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-07-03 - B2B recruiter and referral workspaces)
+
+Closed the first meaningful B2B frontend slice by pairing the public recruiter /
+referral doors with actual workspace previews that show how the employer-side
+product behaves.
+
+- Kept the public landing surfaces at `frontend/app/recruiters/page.tsx` and
+  `frontend/app/referrals/page.tsx`, but updated their secondary CTAs to point
+  to real preview workspaces instead of dead-end exploration links.
+- Added a shared preview frame in
+  `frontend/components/b2b/public-workspace-frame.tsx` plus shared dashboard
+  primitives in `frontend/components/b2b/workspace-shell.tsx` and
+  `frontend/components/b2b/workspace-shell.css` so recruiter and referral
+  surfaces share one visual grammar.
+- Added recruiter-side preview route
+  `frontend/app/recruiters/workspace/page.tsx` with
+  `frontend/components/b2b/recruiter-dashboard.tsx` and
+  `frontend/components/b2b/recruiter-model.ts`.
+  It now demonstrates:
+  structured JD intake, L2-cluster-only filtering, live must-have skill
+  toggles, ranked shortlist cards, and a narrow handoff pipeline.
+- Added matching authed app route `frontend/app/(authed)/recruiter/page.tsx`
+  so the same recruiter workspace can later plug into role-based auth without
+  rebuilding the surface.
+- Added referral-side preview route
+  `frontend/app/referrals/workspace/page.tsx` with
+  `frontend/components/b2b/referral-dashboard.tsx` and
+  `frontend/components/b2b/referral-model.ts`.
+  It now demonstrates:
+  warm-path queueing, company filtering, intro-confidence ranking, visible
+  status stages, and connector reward logic.
+- Added matching authed app route `frontend/app/(authed)/referral/page.tsx`
+  for the same reason — public preview now, auth-ready route later.
+- Added focused model tests
+  `frontend/tests/recruiter-match-model.test.ts` and
+  `frontend/tests/referral-queue-model.test.ts` so the shortlist / referral
+  sorting rules are locked in, plus
+  `frontend/tests/b2b-workspace-routing.test.ts` to lock the public-door →
+  workspace-preview → app-route wiring.
+
+Validation:
+
+- `cd frontend && npx tsx --test tests/recruiter-match-model.test.ts`: 3 passed
+- `cd frontend && npx tsx --test tests/referral-queue-model.test.ts`: 3 passed
+- `cd frontend && npx tsx --test tests/b2b-workspace-routing.test.ts`: 2 passed
+- `cd frontend && npx next lint --file app/recruiters/page.tsx --file app/recruiters/workspace/page.tsx --file components/b2b/public-workspace-frame.tsx --file components/b2b/workspace-shell.tsx --file components/b2b/recruiter-model.ts --file components/b2b/recruiter-dashboard.tsx --file tests/recruiter-match-model.test.ts`: clean
+- `cd frontend && npx next lint --file app/referrals/page.tsx --file app/referrals/workspace/page.tsx --file components/b2b/referral-model.ts --file components/b2b/referral-dashboard.tsx --file tests/referral-queue-model.test.ts`: clean
+- `cd frontend && npx next lint --file app/(authed)/recruiter/page.tsx --file app/(authed)/referral/page.tsx --file tests/b2b-workspace-routing.test.ts`: clean
+- `cd frontend && npm run check:ui-drift`: clean (`publicRouteCoverage: ok`)
+- `git diff --check`: clean
+- Browser QA via Playwright screenshots:
+  `/recruiters/workspace` desktop + mobile clean,
+  `/referrals/workspace` desktop + mobile clean,
+  no visible clipping or broken responsive collapse.
+
+Repo note:
+
+- Full `cd frontend && npx tsc --noEmit` was not re-run for this slice because
+  the worktree already contains unrelated in-flight edits around company signals
+  / CV builder; last known repo-wide type stability cannot be attributed to this
+  B2B change set alone.
+
+Not touched: unrelated `docs/free-llm-api-resources`,
+`frontend/app/(authed)/cv/cv-builder.css`,
+`frontend/components/cv/builder/cv-editor.tsx`,
+`frontend/components/cv/builder/cv-point-row.tsx`,
+`frontend/components/cv/builder/cv-point-skill-chips.tsx`,
+`frontend/lib/company-signals.ts`,
+`frontend/lib/skill-intelligence.ts`, and
+`frontend/tests/cv-point-skills.test.ts`.
+
+## OLDER SESSION SUMMARY (2026-07-03 - Recruiter and referral public doors)
+
+Shipped the first B2B public slice inside the existing Myro design system so
+the new employer-side story can start living on the same canonical site.
+
+- Added new public routes `frontend/app/recruiters/page.tsx` and
+  `frontend/app/referrals/page.tsx` as recruiter and referral-partner entry
+  doors, both using the existing public nav/footer and Myro token system.
+- Built shared surface primitives in
+  `frontend/components/public/b2b-door-page.tsx` +
+  `frontend/components/public/b2b-door-page.css` so both pages stay visually
+  uniform and future B2B/dashboard work can extend the same vocabulary instead
+  of forking early.
+- Framed the recruiter page around the actual mirror concept: JD intake, L2
+  cluster-only comparison, evidence-backed shortlist rows, and a 3-4 profile
+  handoff narrative.
+- Framed the referral page as a warm-intro operations layer: role-first queue,
+  connector trust, outcome tracking, and recruiter-ready filtered referrals.
+- Added `/recruiters` and `/referrals` to `frontend/lib/site-routes.ts` so the
+  footer, sitemap, and public-route coverage guard now recognize them.
+
+Validation:
+
+- `cd frontend && npx next lint --file app/recruiters/page.tsx --file app/referrals/page.tsx --file components/public/b2b-door-page.tsx --file lib/site-routes.ts`: clean
+- `cd frontend && npm run check:ui-drift`: clean (`publicRouteCoverage: ok`)
+- `cd frontend && npm run test:seo`: 5 passed
+- Browser QA via Playwright screenshots on `/recruiters` and `/referrals`:
+  desktop and mobile-width views both rendered cleanly with no visible layout
+  breakage or CTA clipping
+- `cd frontend && git diff --check`: clean
+
+Repo note:
+
+- Full `cd frontend && npx tsc --noEmit` is currently blocked by unrelated
+  existing errors in `frontend/tests/company-signals-model.test.ts`
+  (`TS1501` regex-flag target issue), outside this recruiter/referral slice.
+
+Not touched: unrelated `docs/free-llm-api-resources`,
+`frontend/components/market/company-signals-model.ts`,
+`frontend/components/market/market-intel.css`,
+`frontend/components/market/market-rail.tsx`,
+`frontend/lib/hooks/use-market-intel.ts`,
+`frontend/tests/company-signals-model.test.ts`, and untracked
+`frontend/lib/company-signals.ts`.
+
+## OLDER SESSION SUMMARY (2026-07-03 - Skill Intelligence heatmap redesign)
 
 Redesigned the `/market?tab=heatmap` surface into the Skill Intelligence
 cockpit for followed-company demand, CV skill levels, and practice actions.

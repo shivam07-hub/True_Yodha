@@ -213,42 +213,59 @@ def _verdict_for(score: int) -> str:
 
 async def _score_anon_cv(
     request: Request,
-    file: UploadFile,
+    file: UploadFile | None,
     cf_turnstile_token: str | None,
+    text: str | None = None,
 ) -> tuple[dict[str, Any], dict[str, int], AnonScoreResponse]:
     ip = _client_ip(request)
     _enforce_anon_rate("score", ip)
     await _verify_turnstile(cf_turnstile_token, ip)
 
-    content_type = (file.content_type or "").split(";")[0].strip()
-    file_type = _ALLOWED_CONTENT_TYPES.get(content_type)
-    if not file_type:
+    # Paste-text path (#4, Vaibhav email): the pasted text IS the raw CV text, so
+    # skip file transport + extraction entirely — a small form POST that dodges
+    # the multipart-upload failures some networks/regions hit. Same guards after.
+    pasted = (text or "").strip()
+    if pasted:
+        raw_text = pasted[: _MAX_CV_BYTES]
+    elif file is not None:
+        content_type = (file.content_type or "").split(";")[0].strip()
+        file_type = _ALLOWED_CONTENT_TYPES.get(content_type)
+        if not file_type:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Upload a PDF or DOCX CV, or paste your CV text.",
+            )
+
+        # Read with a hard ceiling — one extra byte tells us it's over the cap.
+        data = await file.read(_MAX_CV_BYTES + 1)
+        if len(data) > _MAX_CV_BYTES:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail="That file is over 5MB. Try a smaller PDF or DOCX.",
+            )
+
+        try:
+            raw_text = cv_parser.extract_raw_text(data, file_type)
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="We couldn't read that file. Try a different PDF or DOCX export.",
+            )
+    else:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Upload a PDF or DOCX CV.",
-        )
-
-    # Read with a hard ceiling — one extra byte tells us it's over the cap.
-    data = await file.read(_MAX_CV_BYTES + 1)
-    if len(data) > _MAX_CV_BYTES:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="That file is over 5MB. Try a smaller PDF or DOCX.",
-        )
-
-    try:
-        raw_text = cv_parser.extract_raw_text(data, file_type)
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="We couldn't read that file. Try a different PDF or DOCX export.",
+            detail="Upload a PDF or DOCX CV, or paste your CV text.",
         )
 
     # CVUP4 — reject scanned/empty PDFs before spending any LLM budget.
     if len(raw_text.strip()) < _MIN_TEXT_CHARS:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="This looks like a scanned image with no selectable text. Upload a text-based PDF or DOCX.",
+            detail=(
+                "Paste a bit more of your CV — a few lines of experience and skills."
+                if pasted
+                else "This looks like a scanned image with no selectable text. Upload a text-based PDF or DOCX."
+            ),
         )
 
     parsed = await cv_parser.parse_cv_text(raw_text, provider=get_cv_upload_provider())
@@ -342,10 +359,11 @@ def _compute_public_fit(
 @router.post("/score-cv", response_model=AnonScoreResponse)
 async def score_cv_preview(
     request: Request,
-    file: UploadFile = File(...),
+    file: UploadFile | None = File(default=None),
+    text: str | None = Form(default=None),
     cf_turnstile_token: str | None = Form(default=None),
 ) -> AnonScoreResponse:
-    _parsed, _level_map, preview = await _score_anon_cv(request, file, cf_turnstile_token)
+    _parsed, _level_map, preview = await _score_anon_cv(request, file, cf_turnstile_token, text)
     return preview
 
 
