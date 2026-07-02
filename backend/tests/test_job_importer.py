@@ -1,10 +1,36 @@
 from datetime import date
+from types import SimpleNamespace
 
 from app.services.job_importer import (
     build_extension_job_id,
+    build_imported_job,
     normalize_skill_label,
     split_confirmed_skills,
 )
+
+
+def _import_body(**overrides):
+    base = dict(
+        role_name="Senior Marketing Manager",
+        company_name="GitHub, Inc.",
+        location="Remote, India",
+        job_description="Lead regional marketing strategy and execution across India.",
+        source_url="https://githubinc.jibeapply.com/x",
+        source_platform="jibe",
+        primary_skills=[],
+        secondary_skills=[],
+        emerging_skills=[],
+    )
+    base.update(overrides)
+    return SimpleNamespace(**base)
+
+
+def test_imported_job_is_labelled_user_discovery() -> None:
+    # A job the user tracked via the extension is THEIR discovery, not a Myro
+    # algorithmic match — so it surfaces in Liked/All and never claims to be a
+    # "Myro found" match (journey: "can't find the job I added on my dashboard").
+    plan = build_imported_job("u1", _import_body())
+    assert plan["application_row"]["source"] == "user_discovery"
 
 
 def test_normalize_skill_label_collapses_case_punctuation_and_spaces() -> None:

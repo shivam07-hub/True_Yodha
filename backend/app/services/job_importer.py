@@ -239,7 +239,10 @@ def build_imported_job(user_id: str, body: Any) -> dict[str, Any]:
         "job_id": job_id,
         "job_row": job_row,
         "candidate_rows": candidate_rows,
-        "application_row": {"user_id": user_id, "job_id": job_id, "status": status},
+        # An extension/import is the user's OWN discovery — never a Myro match.
+        # Labelling it user_discovery is what makes it surface in Liked/All
+        # (buildFeed) instead of silently claiming to be a "Myro found" match.
+        "application_row": {"user_id": user_id, "job_id": job_id, "status": status, "source": "user_discovery"},
         "status": status,
     }
 
@@ -254,6 +257,7 @@ def shape_application_response(row: dict[str, Any], job_id: str, body: Any, stat
         "company": job.get("company_name") or body.company_name,
         "job_description": job.get("job_description") or body.job_description.strip(),
         "status": row.get("status", status),
+        "source": row.get("source", "user_discovery"),
         "applied_at": row.get("applied_at"),
         "response_at": row.get("response_at"),
         "checkin_sent_at": row.get("checkin_sent_at"),
