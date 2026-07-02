@@ -50,21 +50,23 @@ export interface DashboardProps {
 }
 
 const SEGMENTS: ReadonlyArray<{ key: Segment; label: string }> = [
-  { key: "myro", label: "Myro found" },
-  { key: "liked", label: "Liked" },
   { key: "all", label: "All" },
+  { key: "myro", label: "Myro found" },
+  { key: "liked", label: "Saved" },
 ]
 
 export function Dashboard(props: DashboardProps) {
   const { isDesktop } = useViewport()
-  const [segment, setSegment] = React.useState<Segment>("myro")
+  // Default to "All" so a job the user added themselves (extension/manual) is
+  // never hidden behind the "Myro found" matches-only tab (journey Entry 6a).
+  const [segment, setSegment] = React.useState<Segment>("all")
   const [sort, setSort] = React.useState<SortKey>("fit")
   const [openId, setOpenId] = React.useState<string | null>(props.initialJobId ?? null)
   const addJob = useManualAdd({
     token: props.token,
     onSaved: () => {
       props.onManualAdded?.()
-      // Surface the just-added job — self-sourced jobs land in Liked.
+      // Surface the just-added job — self-sourced jobs land in the Saved segment.
       setSegment("liked")
     },
   })
@@ -94,7 +96,7 @@ export function Dashboard(props: DashboardProps) {
       : segment === "myro"
         ? "No Myro picks in this batch yet — switch to All to browse every match, or refresh after the next batch."
         : segment === "liked"
-          ? "You haven't liked any matches yet — tap the heart on a card to save it here."
+          ? "You haven't saved any jobs yet — tap the heart on a card, or add one from the extension."
           : "Nothing in this view."
 
   const isRefreshing = props.refresh.state === "charging" || props.refresh.state === "computing"
