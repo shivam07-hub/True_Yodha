@@ -12,6 +12,8 @@ import type { TriadView } from "@/lib/views/triad"
 import { SkillIntelHeader } from "@/components/skills/skill-intel-header"
 import { SkillAuditView } from "@/components/skills/skill-audit-view"
 import { UpskillingView } from "@/components/skills/upskilling/upskilling-view"
+import { NextBestSteps } from "@/components/home/next-best-steps"
+import { deriveNextBestSteps } from "@/lib/onboarding/next-best-steps"
 import { jobs, scores, users } from "@/lib/api"
 import type { SkillGapResponse, UserSkillsByDomain } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
@@ -110,6 +112,25 @@ function ForgePageInner() {
   const allSkills = useMemo(() => Object.values(skills.by_domain).flat(), [skills])
   const totalScore = scoreData ? Math.round(scoreData.total_score) : null
 
+  // Command Center (#146 · 2026-07-02) — the score screen must END in an action.
+  // The "Your next 3 steps" triad (1 skill · 1 job · 1 CV) derived from this
+  // user's own breakdown now lives HERE, directly under the score, instead of
+  // only on the /home feed — closing the ~18-vote "I got my score and didn't
+  // know what to do next" dead-end. bestJob = strongest credible match.
+  const nextBestSteps = useMemo(() => {
+    if (!scoreData) return []
+    const best = topJobs[0] ?? null
+    return deriveNextBestSteps({
+      score: totalScore ?? 0,
+      gapSkills: scoreData.gap_skills ?? [],
+      domainScores: scoreData.domain_scores ?? {},
+      bestJob: best
+        ? { jobId: best.job_id, title: best.title, company: best.company, fit: Math.round(best.overlap_score) }
+        : null,
+      tailorJobId: topJobs[0]?.job_id ?? null,
+    })
+  }, [scoreData, topJobs, totalScore])
+
   if (!ready || scoreLoading) return <ForgeSkeleton />
 
   return (
@@ -126,6 +147,8 @@ function ForgePageInner() {
             domainScores={scoreData?.domain_scores}
             gapSkills={scoreData?.gap_skills}
           />
+
+          <NextBestSteps score={totalScore ?? 0} steps={nextBestSteps} />
 
           <ViewTriadToggle
             page="skills"
