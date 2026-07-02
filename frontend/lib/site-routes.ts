@@ -44,6 +44,8 @@ export const SITE_ROUTES: SiteRoute[] = [
   { path: "/intel", label: "Live Job Data", footer: "Product", nav: { id: "intel", treatment: "live" }, sitemap: { changeFrequency: "daily", priority: 0.8 }, route: true },
   { path: "/companies", label: "Companies", footer: "Product", sitemap: { changeFrequency: "daily", priority: 0.7 }, route: true },
   { path: "/institutions", label: "For Colleges", footer: "Product", nav: { id: "institutions", treatment: "grad" }, sitemap: { changeFrequency: "monthly", priority: 0.7 }, route: true },
+  { path: "/recruiters", label: "For Recruiters", footer: "Product", sitemap: { changeFrequency: "monthly", priority: 0.7 }, route: true },
+  { path: "/referrals", label: "Referral Partners", footer: "Product", sitemap: { changeFrequency: "monthly", priority: 0.6 }, route: true },
   { path: "/myrology", label: "Myrology", footer: "Product", sitemap: { changeFrequency: "monthly", priority: 0.6 }, route: true },
 
   // ── Learn ────────────────────────────────────────────────────────────────
