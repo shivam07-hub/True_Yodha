@@ -45,7 +45,7 @@ const questions: Array<{
   {
     field: "biggest_problem",
     label: "What was your biggest problem?",
-    placeholder: "Describe the most confusing, inaccurate, slow, or frustrating moment.",
+    placeholder: "Describe the most confusing, inaccurate, slow, or frustrating moment, if any.",
   },
   {
     field: "attempted_action",
@@ -64,8 +64,8 @@ const questions: Array<{
   },
   {
     field: "reproduction_steps",
-    label: "How can we reproduce it?",
-    placeholder: "Add the shortest steps for a bug. Leave blank when not applicable.",
+    label: "What context would help us understand it?",
+    placeholder: "Add the page, steps, screen, device, or browser when relevant. Leave blank when not applicable.",
     optional: true,
   },
   {
@@ -102,7 +102,7 @@ export function AssessmentStep({
   return (
     <div className="bf-step">
       <div className="bf-step-heading">
-        <h2>Your assessment</h2>
+        <h2>Your observations</h2>
         <p>Specific moments are more useful than general advice.</p>
       </div>
 

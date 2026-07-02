@@ -282,7 +282,8 @@ async def test_resubmit_same_attempt_replays_without_reawarding():
     reward2.assert_not_awaited()
 
 
-def test_ladder_uses_taxonomy_display_name_and_demonstrated_progress_only():
+def test_ladder_uses_taxonomy_display_name_and_exposes_all_servable_banks():
+    other_skill_id = SKILL_ID + 1
     bank = [
         {
             "id": level * 100 + offset,
@@ -293,6 +294,15 @@ def test_ladder_uses_taxonomy_display_name_and_demonstrated_progress_only():
         }
         for level in range(1, 6)
         for offset in range(10)
+    ] + [
+        {
+            "id": 900 + offset,
+            "skill_id": other_skill_id,
+            "skill_key": "product-strategy",
+            "level": 1,
+            "status": "active",
+        }
+        for offset in range(10)
     ]
     store = {
         "skill_questions": bank,
@@ -301,6 +311,11 @@ def test_ladder_uses_taxonomy_display_name_and_demonstrated_progress_only():
                 "id": SKILL_ID,
                 "taxonomy_key": "machine-learning",
                 "display_name": "Machine Learning",
+            },
+            {
+                "id": other_skill_id,
+                "taxonomy_key": "product-strategy",
+                "display_name": "Product Strategy",
             }
         ],
         "skill_assessed_level": [
@@ -318,6 +333,19 @@ def test_ladder_uses_taxonomy_display_name_and_demonstrated_progress_only():
         ladder = upskilling_service.list_skills("u1")
 
     assert ladder == [
+        {
+            "skill_id": other_skill_id,
+            "skill_key": "product-strategy",
+            "display_name": "Product Strategy",
+            "cleared_level": 0,
+            "next_level": 1,
+            "assessed_level": 0,
+            "on_cv": False,
+            "demand": "none",
+            "job_count": 0,
+            "max_bank_level": 1,
+            "locked": False,
+        },
         {
             "skill_id": SKILL_ID,
             "skill_key": "machine-learning",

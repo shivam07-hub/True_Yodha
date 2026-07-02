@@ -298,7 +298,40 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-30 - Dashboard drawer JD hierarchy)
+## LAST SESSION SUMMARY (2026-07-02 - Internshala-safe feedback messaging)
+
+Reframed the prospective-intern feedback flow so it no longer reads like a
+required beta-testing or bug-reporting selection task.
+
+- Updated the candidate message in `User_Feedbacks/01-candidate-assignment-message.md`
+  to say feedback is optional, can be skipped under Internshala guidelines, and
+  will not penalize the application.
+- Updated `User_Feedbacks/02-feedback-intake-and-scoring.md`,
+  `User_Feedbacks/03-feedback-analysis-playbook.md`, and `User_Feedbacks/README.md`
+  so optional feedback is product research only and non-submission is never a
+  negative hiring signal.
+- Updated the live `/beta-feedback` page metadata and visible copy from
+  "assignment/final submission/test session" to optional feedback language,
+  including an explicit Internshala skip boundary.
+- Removed visible "bug reporting" prompt language from the form, while keeping
+  contextual evidence fields available when voluntarily relevant.
+- Updated backend duplicate/failure messages from "beta assignment" to
+  "optional feedback".
+- Expanded `frontend/tests/beta-feedback-contract.test.mjs` so this boundary is
+  covered by regression tests.
+
+Validation:
+
+- `cd frontend && npm run test:beta-feedback`: 8 passed
+- `.venv/bin/pytest backend/tests/test_beta_feedback_router.py backend/tests/test_feedback_router.py`: 25 passed, 6 warnings
+- `cd frontend && npx tsc --noEmit`: clean
+- `cd frontend && npm run lint`: clean
+- `.venv/bin/pytest backend/tests`: 899 passed, 22 warnings
+- `git diff --check`: clean
+
+Not touched: unrelated untracked `docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-06-30 - Dashboard drawer JD hierarchy)
 
 Cleaned up the dashboard job slide-in so the job itself stays central.
 

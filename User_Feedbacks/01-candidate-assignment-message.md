@@ -1,10 +1,10 @@
-# Myro Internship Assignment - Candidate Message
+# Myro Internship - Optional Feedback Message
 
 Replace `[DEADLINE]` before sending.
 
 ---
 
-**Subject: Myro internship assignment - test Myro as a job seeker**
+**Subject: Myro internship application - optional Myro feedback**
 
 Hi,
 
@@ -13,25 +13,35 @@ Thank you for your interest in working with Myro.
 Myro helps job seekers assess their CV, identify skill gaps, discover roles,
 and decide what to improve.
 
-## Assignment
+## Important
 
-Spend **30 minutes** using [Myro](https://www.himyro.com/) on your usual
-job-application device.
+This feedback is **optional**. It is not a required selection task, and we will
+not reject or penalize you for skipping it.
+
+If Internshala guidelines prevent platform beta-testing or bug reporting as a
+selection task, you can simply skip this step. Your application can still be
+reviewed through your Internshala profile, resume, and any interview or
+portfolio material requested separately.
+
+## Optional product feedback
+
+If you still want to share your product perspective, you may spend up to
+**20 minutes** exploring [Myro](https://www.himyro.com/) on your usual device.
+Use only information you are comfortable sharing.
 
 1. Explore Myro independently.
-2. Upload your CV and continue until you receive a useful result or hit a
-   blocker.
-3. Review the CV analysis plus one other area: Skills, Jobs, Intel, Tracker, or
-   CV tailoring.
-4. Submit your response here:
+2. Use a sample/sanitized CV or your own CV only if you choose.
+3. Review any area you naturally reach: CV analysis, Skills, Jobs, Intel,
+   Tracker, Diary, Settings, or CV tailoring.
+4. Share optional feedback here:
    **[https://www.himyro.com/beta-feedback](https://www.himyro.com/beta-feedback)**
 
-## Submit
+## What to share
 
 1. In two sentences, explain Myro and its ideal user.
 2. Describe your most useful moment and why it mattered.
-3. Describe your biggest problem: what you tried, expected, and experienced.
-   Include the page, device, browser, and reproduction steps for any bug.
+3. Describe one confusing or weak moment, if any: what you tried, expected, and
+   experienced. Include page, device, and browser only when useful.
 4. Recommend **one priority improvement**. Explain the user problem, your
    proposed change, and why it should come first.
 5. Name one part of Myro that should remain unchanged.
@@ -39,10 +49,10 @@ job-application device.
    of returning, and likelihood of recommending Myro.
 7. Complete: "I would return to Myro when ______."
 
-## Evaluation
+## How we will use it
 
-Specific observation: 30% | User understanding: 25% | Prioritization: 25% |
-Clarity: 20%
+We may use optional responses to improve Myro. This is not a mandatory hiring
+filter. Not submitting feedback will not count against you.
 
 We do **not** evaluate your CV, qualifications, Myro Score, visual design, or
 whether your feedback is positive. Honest criticism will not reduce your

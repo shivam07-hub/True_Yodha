@@ -24,7 +24,7 @@ const confirmations = [
   ],
   [
     "final_submission_confirmation",
-    "I understand that this submission is final and cannot be edited.",
+    "I understand I can send this optional feedback once from this account.",
   ],
 ] as const
 
@@ -54,8 +54,8 @@ export function ReviewStep({
   return (
     <div className="bf-step">
       <div className="bf-step-heading">
-        <h2>Ratings and final review</h2>
-        <p>Check every answer before sending. This submission is final.</p>
+        <h2>Ratings and review</h2>
+        <p>Check every answer before sending.</p>
       </div>
 
       <div className="bf-ratings">
@@ -117,7 +117,7 @@ export function ReviewStep({
         loading={submitting}
         onClick={onSubmit}
       >
-        Final submission
+        Send optional feedback
       </Button>
     </div>
   )

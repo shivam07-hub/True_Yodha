@@ -6,7 +6,34 @@
     <description>Free weekly hiring intelligence. Real skill demand data from thousands of live job postings.</description>
     <language>en</language>
     <atom:link href="https://www.himyro.com/newsletter/rss.xml" rel="self" type="application/rss+xml"/>
-    <lastBuildDate>Sat, 13 Jun 2026 07:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Wed, 01 Jul 2026 07:00:00 +0000</lastBuildDate>
+
+    <item>
+      <title>From DevOps to Loop Engineering: A Four-Skill Jump</title>
+      <link>https://www.himyro.com/newsletter/2026-07-devops-to-loop-engineering</link>
+      <guid isPermaLink="true">https://www.himyro.com/newsletter/2026-07-devops-to-loop-engineering</guid>
+      <description>DevOps and SRE appear in 375 India postings; loop engineering in zero. The gap is four skills, not a career change. A free ladder from SRE to AI-agent reliability.</description>
+      <pubDate>Wed, 01 Jul 2026 07:00:00 +0000</pubDate>
+      <author>Shivam Pathak</author>
+    </item>
+
+    <item>
+      <title>Loop Engineering: The Skill With Zero Job Titles in 2026</title>
+      <link>https://www.himyro.com/newsletter/2026-06-loop-engineering-skill</link>
+      <guid isPermaLink="true">https://www.himyro.com/newsletter/2026-06-loop-engineering-skill</guid>
+      <description>Zero postings say &apos;loop engineering.&apos; But 213 say &apos;Generative AI Agents&apos; and 30 say &apos;AI Agent Monitoring.&apos; The job is hiring — free 90-day plan to do it before the title catches up.</description>
+      <pubDate>Tue, 30 Jun 2026 07:00:00 +0000</pubDate>
+      <author>Shivam Pathak</author>
+    </item>
+
+    <item>
+      <title>India&apos;s Hiring Supermajority Isn&apos;t Tech in 2026</title>
+      <link>https://www.himyro.com/newsletter/2026-06-services-supermajority-india</link>
+      <guid isPermaLink="true">https://www.himyro.com/newsletter/2026-06-services-supermajority-india</guid>
+      <description>In 38,138 active India roles, BFSI and consulting hold 18,698 — nearly 3× pure tech. A free June 2026 breakdown, and the one employer that tops them all.</description>
+      <pubDate>Mon, 29 Jun 2026 07:00:00 +0000</pubDate>
+      <author>Shivam Pathak</author>
+    </item>
 
     <item>
       <title>One in Four India Roles Is in Bengaluru 2026</title>

@@ -49,8 +49,8 @@ export function SessionStep({
   return (
     <div className="bf-step">
       <div className="bf-step-heading">
-        <h2>Your test session</h2>
-        <p>Tell us how and where you used Myro.</p>
+        <h2>Your Myro context</h2>
+        <p>Tell us how and where you looked at Myro.</p>
       </div>
 
       <div className="bf-grid">

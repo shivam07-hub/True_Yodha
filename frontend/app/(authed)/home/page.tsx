@@ -402,10 +402,11 @@ function MissionControlInner() {
             </aside>
             <div className="mc-ws-main">
             <YourMoveCard hasApplied={hasActivePursuit} topGapSkill={topGapSkill} />
-            {/* Post-score "next 3 steps" (issue #146) — the pre-activation
-                dead-end fix. Once the user has applied somewhere they're
-                activated; the feed + YourMoveCard carry them, so it retires. */}
-            {token && !hasApplied ? <NextBestSteps score={score} steps={nextBestSteps} /> : null}
+            {/* Post-score "next 3 steps" triad (#146) now lives on the score
+                screen itself — the Command Center (/forge), directly under the
+                Myro Score — so the feed no longer duplicates it (2026-07-02
+                consolidation). YourMoveCard stays as the feed's single nudge;
+                the first-run rail still shows the triad for the one-time reveal. */}
             <SectionGate
                 // Hold the jobs skeleton until the hero has also resolved, so a
                 // fast-but-empty jobs result never sits beside a still-loading

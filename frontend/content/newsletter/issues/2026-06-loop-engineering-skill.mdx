@@ -1,0 +1,90 @@
+---
+title: "Loop Engineering: The Skill With Zero Job Titles in 2026"
+seoTitle: "Loop Engineering Jobs 2026: The Skill Before Its Name"
+slug: "2026-06-loop-engineering-skill"
+publishedAt: "2026-06-30"
+theme: "skill"
+primaryKeyword: "loop engineering"
+secondaryKeywords:
+  - "AI agent engineer jobs 2026"
+  - "agentic AI skills 2026"
+  - "AI agent observability"
+  - "is prompt engineering dead"
+  - "how to learn AI agents"
+ctaRole: "AI Agent Engineer"
+ogImage: "/newsletter/issue-012-og.png"
+ogImageAlt: "Loop engineering 2026 — the discipline of building and operating AI agent loops"
+summary: "Zero postings say 'loop engineering.' But 213 say 'Generative AI Agents' and 30 say 'AI Agent Monitoring.' The job is hiring — free 90-day plan to do it before the title catches up."
+pillar: "in-demand-skills"
+issueNumber: 12
+seriesLabel: "Skill of the Week"
+readMinutes: 3
+authorName: "Myro"
+authorInitials: "M"
+dataset:
+  name: "Agentic AI skills in active India postings — Jun 2026"
+  description: "Active postings tagged with agent and LLM skills across the Myro jobs dataset, read from company career pages through 29 June 2026."
+  spatialCoverage: "India"
+  temporalCoverage: "2026-04-27/2026-06-29"
+  variableMeasured:
+    - "Active postings by agentic skill tag"
+  columns: ["Skill (as tagged today)", "Active postings"]
+  table:
+    - ["Generative AI Agents", 213]
+    - ["Agentic AI", 146]
+    - ["AI Agents", 137]
+    - ["AI Agent Monitoring", 30]
+    - ["AI Agent Observability", 25]
+    - ["Large Scale Multi-Agent Systems", 20]
+faqs:
+  - q: "What is loop engineering?"
+    a: "Loop engineering, a term from Anthropic's Claude team, is the discipline of building and operating the loop an AI agent runs in: the eval harness that scores each run, the guardrails that stop a bad one, the cost and latency budget, and the observability to see what the agent actually did. It is reliability engineering for non-deterministic AI systems."
+  - q: "Is loop engineering the same as prompt engineering?"
+    a: "No. Prompt engineering is the words you send the model. Loop engineering is the system around the words — the tool calls, retries, stop conditions, evals and traces. In the Myro dataset, 'prompt engineer' appears in exactly one active job title, while agent-operations skills appear in hundreds of postings."
+  - q: "Are there jobs for AI agent skills in 2026?"
+    a: "Yes. No posting uses the phrase 'loop engineering' yet, but 213 postings are tagged 'Generative AI Agents', 146 'Agentic AI', 30 'AI Agent Monitoring' and 25 'AI Agent Observability'. The work is being hired under older labels."
+  - q: "How do I start learning loop engineering?"
+    a: "Build one tool-using agent end to end and instrument every run (inputs, tool calls, output, cost). Then add an eval harness of 20+ scored test cases and guardrails (a stop condition and a budget cap). Then ship it against real inputs with agent tracing. Roughly a 90-day path from zero."
+---
+
+Zero active postings in the Myro database say "loop engineering." One says "prompt engineer." But **213 say "Generative AI Agents," 146 say "Agentic AI," 30 say "AI Agent Monitoring" and 25 say "AI Agent Observability."** The job is being hired at scale right now. The market just hasn't agreed on the word.
+
+Loop engineering is that word, coined by Anthropic's Claude team. Here's what it is, and how to be doing it in 90 days, before the title reaches job descriptions.
+
+### TL;DR
+
+- **"Loop engineering": 0 postings. The work behind it: 500+.** The term lags the practice.
+- Prompt engineering is the words. **Loop engineering is the system around them:** evals, guardrails, budgets, traces.
+- Closest hiring signals today: **Generative AI Agents 213, Agentic AI 146, Agent Monitoring 30, Agent Observability 25**.
+
+## What loop engineering actually is
+
+An AI agent is a loop: think, call a tool, read the result, decide again. Loop engineering runs that loop like a production system. Evals score each run against known-good cases. Guardrails stop one that's looping, over-spending or going off the rails. A cost and latency budget keeps it shippable. Observability tells you what the agent did when it failed at 2 a.m.
+
+Filing this under prompt engineering is the common mistake. The words are maybe 10% of a reliable agent; the machinery around them is the rest, and it's what those Agent Monitoring and Observability postings quietly ask for.
+
+## The 90-day plan to land it
+
+**Days 0–30, Foundation.** Build one tool-using agent that does a real task end to end. Instrument every run: inputs, tool calls, output, cost. Read Anthropic's engineering writing on agents and harnesses as you build.
+
+**Days 31–60, Build.** Add an eval harness of 20+ scored cases the loop must pass, plus two guardrails: a stop condition and a budget cap. Break it on purpose and watch the traces catch it.
+
+**Days 61–90, Ship.** Point it at messy real inputs, add tracing, and write up the failure modes you caught and how the loop recovered. That writeup is your portfolio piece.
+
+## What this means for you
+
+**Early-career.** No "AI" title required. Instrument one agent loop well, then apply to the 30 "AI Agent Monitoring" roles that want exactly that.
+
+**Mid-career (especially DevOps/SRE).** This is your reliability skillset aimed at agents. Tomorrow's issue maps that jump.
+
+**Senior.** Own the eval-and-guardrail platform. The 20 "Multi-Agent Systems" roles are leadership-shaped and mostly unfilled.
+
+This week: build the smallest agent loop that does one useful thing, instrument it, then run your skills against an AI-agent role on Myro to see the gap.
+
+## Methodology
+
+Skill counts are active postings in the Myro jobs dataset tagged with each primary skill, scrape window 27 April to 29 June 2026, India-weighted. "Loop engineering" is a coined term (Anthropic / Claude team), not yet a job title; I map it to the closest real skill tags, an interpretation stated openly. Tags are per posting and imperfect.
+
+## Coming Wednesday
+
+**From DevOps to Loop Engineering.** DevOps and SRE appear in 375 postings; loop engineering in zero. The distance between them is four skills, not a career change. Wednesday, the ladder.

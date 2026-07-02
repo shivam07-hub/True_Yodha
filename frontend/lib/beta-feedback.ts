@@ -185,7 +185,7 @@ export function validateReviewStep(draft: BetaFeedbackDraft): BetaFeedbackErrors
     errors.independent_work_confirmation = "Confirm that these are your observations."
   }
   if (!draft.final_submission_confirmation) {
-    errors.final_submission_confirmation = "Confirm that this submission is final."
+    errors.final_submission_confirmation = "Confirm that you can send this optional feedback once."
   }
   return errors
 }

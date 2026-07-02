@@ -36,7 +36,7 @@ function NextSetHero({ skill, onStart }: { skill: LadderSkill; onStart: (skill: 
         </div>
         <h2 className="up-hero-name">{skill.name} · Level {next}</h2>
         <p className="up-hero-meta">
-          Clear the <b>{titleNext} (L{next})</b> set — 10 questions, untimed. Pass <b>8/10</b> to bank Myro Coins and unlock L{Math.min(next + 1, 5)}.
+          Clear the <b>{titleNext} (L{next})</b> set — 10 questions, untimed. Pass <b>8/10</b> to bank Myro Coins and record the level.
         </p>
         <div className="up-hero-laddwrap">
           <LevelLadder clearedLevel={skill.clearedLevel} maxBankLevel={skill.maxBankLevel} onStart={(lvl) => onStart(skill, lvl)} />
@@ -110,8 +110,8 @@ function SkillCard({ skill, active, onStart }: { skill: LadderSkill; active: boo
       <div className="up-skill-foot">
         <span className="up-skill-wayfind">
           {maxed ? "Re-clear any level anytime for mastery (earns 0 — already banked)."
-            : skill.clearedLevel === 0 ? `Clear L1 ${PROFICIENCY[1]} to begin the ladder.`
-              : `${skill.clearedLevel}/5 cleared · next unlocks ${PROFICIENCY[next]} (L${next}).`}
+            : skill.clearedLevel === 0 ? "Start any banked level now. Clear L1 to begin recording the ladder."
+              : `${skill.clearedLevel}/5 cleared · all banked levels stay available for practice.`}
         </span>
       </div>
     </article>
@@ -145,7 +145,7 @@ export function SkillList({
       <div className="up-section-head">
         <div>
           <h2>Your skills</h2>
-          <div className="up-section-sub">{onCV.length} on your CV · {gaps.length} from target jobs</div>
+          <div className="up-section-sub">{onCV.length} on your CV · {gaps.length} open practice banks</div>
         </div>
         <div className="up-seg-tabs" role="group" aria-label="Sort skills">
           <button type="button" className="up-seg-tab" aria-pressed={sort === "default"} onClick={() => setSort("default")}>Quick wins</button>
@@ -158,7 +158,7 @@ export function SkillList({
           <SkillCard key={s.key} skill={s} active={s.key === activeKey} onStart={onStart} />
         ))}
         {gaps.length > 0 && (
-          <div className="up-grouplbl"><span className="up-label">Gaps from target jobs — practice, then add to CV</span><span className="ln" /></div>
+          <div className="up-grouplbl"><span className="up-label">Open practice banks — practice, then add to CV</span><span className="ln" /></div>
         )}
         {gaps.map((s) => (
           <SkillCard key={s.key} skill={s} active={s.key === activeKey} onStart={onStart} />

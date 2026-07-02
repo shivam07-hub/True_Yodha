@@ -5,9 +5,8 @@ import type { JSX } from "react"
 import { Icon } from "./icons"
 
 /* ── 5-segment level ladder ────────────────────────────────────
-   Levels L1..L5. cleared ≤ clearedLevel = ✓. next = clearedLevel+1 (CTA).
-   higher = locked. onStart(level) fires when the "next" segment is activated,
-   but only when its bank is servable (level ≤ maxBankLevel). */
+   Levels L1..L5. Cleared levels keep their check mark, but this WIP surface
+   lets users start any level whose question bank is servable. */
 export function LevelLadder({
   clearedLevel,
   onStart,
@@ -19,7 +18,6 @@ export function LevelLadder({
   compact?: boolean
   maxBankLevel?: number
 }): JSX.Element {
-  const next = Math.min(clearedLevel + 1, 5)
   return (
     <div
       className={`up-ladder${compact ? " is-compact" : ""}`}
@@ -28,32 +26,33 @@ export function LevelLadder({
     >
       {[1, 2, 3, 4, 5].map((lvl) => {
         const cleared = lvl <= clearedLevel
-        const isNext = lvl === next && clearedLevel < 5
         const bankOk = lvl <= maxBankLevel
-        const cls = cleared ? "is-cleared" : isNext ? "is-next" : "is-locked"
-        const label = cleared
-          ? `Level ${lvl} cleared`
-          : isNext ? `Start Level ${lvl} set` : `Level ${lvl} locked`
-        const title = cleared
-          ? `L${lvl} · cleared`
-          : isNext ? `L${lvl} · next — start a set` : `L${lvl} · locked`
-        if (isNext && onStart && bankOk) {
+        const startable = bankOk && Boolean(onStart)
+        const cls = cleared ? "is-cleared" : bankOk ? "is-startable" : "is-filling"
+        const label = bankOk
+          ? cleared ? `Level ${lvl} cleared — start another set` : `Start Level ${lvl} set`
+          : `Level ${lvl} question bank filling`
+        const title = bankOk
+          ? cleared ? `L${lvl} · cleared — start another set` : `L${lvl} · start a set`
+          : `L${lvl} · question bank filling`
+        const mark = cleared
+          ? <Icon name="check" size={compact ? 11 : 13} />
+          : bankOk ? <Icon name="bolt" size={compact ? 11 : 13} /> : <Icon name="sparkle" size={compact ? 10 : 12} />
+        if (startable && onStart) {
           return (
             <button
               key={lvl} type="button" className={`up-ladder-seg ${cls}`}
               title={title} aria-label={label} onClick={() => onStart(lvl)}
             >
               <span className="seg-lvl">L{lvl}</span>
-              <span className="seg-mark"><Icon name="bolt" size={compact ? 11 : 13} /></span>
+              <span className="seg-mark">{mark}</span>
             </button>
           )
         }
         return (
           <div key={lvl} className={`up-ladder-seg ${cls}`} title={title} aria-label={label}>
             <span className="seg-lvl">L{lvl}</span>
-            <span className="seg-mark">
-              {cleared ? <Icon name="check" size={compact ? 11 : 13} /> : <Icon name="lock" size={compact ? 10 : 12} />}
-            </span>
+            <span className="seg-mark">{mark}</span>
           </div>
         )
       })}

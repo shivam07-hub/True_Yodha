@@ -1,8 +1,8 @@
 # Myro Beta Feedback Analysis Playbook
 
-This playbook is designed for the prospective-intern beta cohort. It keeps
-hiring assessment separate from product research while allowing one structured
-submission to support both.
+This playbook is designed for optional feedback from prospective interns and
+other early users. It keeps product research separate from hiring decisions.
+Feedback submission is not a required selection task.
 
 ## Research question
 
@@ -19,7 +19,7 @@ Secondary questions:
 - Which product qualities should remain unchanged?
 - How do results differ by device, connection, and role stream?
 
-This cohort consists of prospective interns, not a representative sample of all
+This cohort may include prospective interns, not a representative sample of all
 job seekers. Treat percentages as cohort evidence, not universal market truth.
 
 ## Stage 1 - Protect identities
@@ -33,14 +33,15 @@ job seekers. Treat percentages as cohort evidence, not universal market truth.
 6. Use only de-identified text with AI-assisted coding tools.
 7. Commit only aggregate findings, sanitized quotations, and product evidence.
 
-Product analysts do not need candidate identity. Hiring reviewers do not need
-CV content, Myro Score, or private product data.
+Product analysts do not need candidate identity. Internship reviewers should use
+application materials, interviews, and role-relevant portfolio evidence, not
+whether someone completed optional Myro feedback.
 
 ## Stage 2 - Check data quality
 
-Mark a response `analysis_eligible = false` when:
+Mark a submitted response `analysis_eligible = false` when:
 
-- the candidate did not attempt the product;
+- the participant did not attempt or review any part of the product;
 - the response contains no first-hand observation;
 - most fields are empty or meaningless;
 - it is a clear duplicate submission; or
@@ -236,7 +237,7 @@ For non-emergency themes, assess:
 - effort and risk: engineering, design, data, policy, and operational cost.
 
 Do not turn the loudest requested solution directly into a roadmap item.
-Candidates are evidence about problems; the product team owns solution design.
+Participants are evidence about problems; the product team owns solution design.
 
 ## Stage 8 - Produce decisions
 

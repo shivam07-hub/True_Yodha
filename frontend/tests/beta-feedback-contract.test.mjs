@@ -70,7 +70,7 @@ test("review validation requires five ratings and all confirmations", async () =
   assert.equal(module.validateReviewStep(draft).rating_trust, "Choose a rating.")
   assert.equal(
     module.validateReviewStep(draft).final_submission_confirmation,
-    "Confirm that this submission is final.",
+    "Confirm that you can send this optional feedback once.",
   )
 
   Object.assign(draft, {
@@ -113,20 +113,29 @@ test("malformed or old local drafts are discarded", async () => {
   assert.equal(module.loadBetaFeedbackDraft("user-a", target).role_stream, "")
 })
 
-test("beta feedback route renders the guided final-only flow", () => {
+test("beta feedback route renders the optional feedback flow", () => {
   const page = read("app/(authed)/beta-feedback/page.tsx")
   const form = read("components/beta-feedback/beta-feedback-form.tsx")
   const review = read("components/beta-feedback/review-step.tsx")
+  const session = read("components/beta-feedback/session-step.tsx")
+  const assessment = read("components/beta-feedback/assessment-step.tsx")
 
   assert.match(page, /BetaFeedbackForm/)
+  assert.match(page, /Optional Product Feedback/)
+  assert.doesNotMatch(page, /beta testing assessment/i)
   assert.match(form, /Step \{step\} of 3/)
+  assert.match(form, /can skip this/i)
+  assert.match(form, /Internshala/)
   assert.match(form, /validateSessionStep/)
   assert.match(form, /validateAssessmentStep/)
   assert.match(form, /validateReviewStep/)
   assert.match(form, /ApiError/)
   assert.match(form, /profileQuery\.refetch/)
-  assert.match(review, /submission is final/i)
-  assert.match(review, /Final submission/)
+  assert.match(session, /Your Myro context/)
+  assert.match(assessment, /Your observations/)
+  assert.doesNotMatch(assessment, /bug/i)
+  assert.doesNotMatch(review, /submission is final/i)
+  assert.match(review, /Send optional feedback/)
 })
 
 test("beta feedback CSS preserves the approved readability contract", () => {
