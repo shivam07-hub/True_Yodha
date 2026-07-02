@@ -111,6 +111,20 @@
 .mi-mover-n { flex: 1; font-size: 14px; font-weight: 600; }
 .mi-mover-up { font-size: 13px; font-weight: 700; color: var(--tm-success-text, var(--tm-success)); }
 
+.mi-company-list {
+  max-height: min(420px, 40dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+  margin-right: -4px;
+  -webkit-overflow-scrolling: touch;
+}
+.mi-company-list:focus-visible {
+  outline: 2px solid var(--tm-interactive);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
 .mi-tco-lg, .mi-vlg {
   flex: 0 0 auto; width: 30px; height: 30px; border-radius: 8px;
   display: grid; place-items: center; font-size: 13px; font-weight: 700; text-transform: uppercase;

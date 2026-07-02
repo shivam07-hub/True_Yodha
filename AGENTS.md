@@ -298,7 +298,44 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-03 - Recruiter and referral public doors)
+## LAST SESSION SUMMARY (2026-07-03 - Company signals scroll)
+
+Fixed the `/market` Company signals rail so the company list no longer ends at
+the first four visible rows.
+
+- Removed the accidental four-company truncation in `useMarketIntel`; the rail
+  now requests the backend's 20-company window and keeps every fetched company
+  available.
+- Added `frontend/lib/company-signals.ts` as the pure source for company-signal
+  formatting, fetch limit, and row mapping, with the old component model file
+  re-exporting it for compatibility.
+- Wrapped company rows in a focusable `.mi-company-list` scroll region with
+  bounded height, touch momentum scrolling, and a focus outline.
+- Added regression coverage in
+  `frontend/tests/company-signals-model.test.ts` for the non-truncating row
+  mapping and scroll-container contract.
+
+Validation:
+
+- `cd frontend && npx tsx --test tests/company-signals-model.test.ts`: 5 passed
+- `cd frontend && npx tsc --noEmit`: clean
+- `cd frontend && npm run lint`: clean
+- `.venv/bin/pytest backend/tests`: 908 passed, 1 skipped, 22 warnings
+- `git diff --check`: clean
+- Browser QA: local `/market?tab=jobs` redirected to
+  `/login?next=%2Fmarket%3Ftab%3Djobs` without a browser session. A local
+  browser fixture using the real `market-intel.css` verified the scroll mechanics:
+  10 rows rendered, `overflow-y: auto`, `clientHeight` 288,
+  `scrollHeight` 489, wheel scroll moved `scrollTop` to 201 and revealed the
+  hidden companies.
+
+Not touched: unrelated `docs/free-llm-api-resources`,
+`frontend/app/recruiters/`, `frontend/app/referrals/`,
+`frontend/components/public/b2b-door-page.*`,
+`frontend/lib/site-routes.ts`, `frontend/lib/skill-intelligence.ts`, and
+`frontend/tests/cv-point-skills.test.ts`.
+
+## OLDER SESSION SUMMARY (2026-07-03 - Recruiter and referral public doors)
 
 Shipped the first B2B public slice inside the existing Myro design system so
 the new employer-side story can start living on the same canonical site.

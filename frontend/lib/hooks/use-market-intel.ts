@@ -3,6 +3,7 @@
 import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { jobs, type JobFeedItem, type JobPulse, type TopCompaniesSort } from "@/lib/api"
+import { COMPANY_SIGNAL_FETCH_LIMIT, companySignalRows } from "@/lib/company-signals"
 
 /** A skill the market is asking for, ranked by 30-day job demand. */
 export interface SkillMover {
@@ -47,7 +48,7 @@ export function useMarketIntel(targetLocations: string[], companySort: TopCompan
   })
   const companies = useQuery({
     queryKey: ["topCompaniesAt", "city", city ?? "", companySort],
-    queryFn: () => jobs.topCompaniesAt({ kind: "city", name: city! }, 8, companySort),
+    queryFn: () => jobs.topCompaniesAt({ kind: "city", name: city! }, COMPANY_SIGNAL_FETCH_LIMIT, companySort),
     enabled: !!city,
     staleTime: 30 * 60 * 1000,
   })
@@ -72,10 +73,7 @@ export function useMarketIntel(targetLocations: string[], companySort: TopCompan
   )
 
   const trending = useMemo<TrendingCompany[]>(
-    () =>
-      (companies.data?.companies ?? [])
-        .slice(0, 4)
-        .map((c) => ({ name: c.company_name, openCount: c.open_count, lastSeenAt: c.last_seen_at ?? null })),
+    () => companySignalRows(companies.data?.companies ?? []),
     [companies.data],
   )
 
