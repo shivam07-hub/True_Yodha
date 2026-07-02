@@ -357,6 +357,9 @@ product behaves.
   It now demonstrates:
   structured JD intake, L2-cluster-only filtering, live must-have skill
   toggles, ranked shortlist cards, and a narrow handoff pipeline.
+- Added matching authed app route `frontend/app/(authed)/recruiter/page.tsx`
+  so the same recruiter workspace can later plug into role-based auth without
+  rebuilding the surface.
 - Added referral-side preview route
   `frontend/app/referrals/workspace/page.tsx` with
   `frontend/components/b2b/referral-dashboard.tsx` and
@@ -364,17 +367,23 @@ product behaves.
   It now demonstrates:
   warm-path queueing, company filtering, intro-confidence ranking, visible
   status stages, and connector reward logic.
+- Added matching authed app route `frontend/app/(authed)/referral/page.tsx`
+  for the same reason — public preview now, auth-ready route later.
 - Added focused model tests
   `frontend/tests/recruiter-match-model.test.ts` and
   `frontend/tests/referral-queue-model.test.ts` so the shortlist / referral
-  sorting rules are locked in.
+  sorting rules are locked in, plus
+  `frontend/tests/b2b-workspace-routing.test.ts` to lock the public-door →
+  workspace-preview → app-route wiring.
 
 Validation:
 
 - `cd frontend && npx tsx --test tests/recruiter-match-model.test.ts`: 3 passed
 - `cd frontend && npx tsx --test tests/referral-queue-model.test.ts`: 3 passed
+- `cd frontend && npx tsx --test tests/b2b-workspace-routing.test.ts`: 2 passed
 - `cd frontend && npx next lint --file app/recruiters/page.tsx --file app/recruiters/workspace/page.tsx --file components/b2b/public-workspace-frame.tsx --file components/b2b/workspace-shell.tsx --file components/b2b/recruiter-model.ts --file components/b2b/recruiter-dashboard.tsx --file tests/recruiter-match-model.test.ts`: clean
 - `cd frontend && npx next lint --file app/referrals/page.tsx --file app/referrals/workspace/page.tsx --file components/b2b/referral-model.ts --file components/b2b/referral-dashboard.tsx --file tests/referral-queue-model.test.ts`: clean
+- `cd frontend && npx next lint --file app/(authed)/recruiter/page.tsx --file app/(authed)/referral/page.tsx --file tests/b2b-workspace-routing.test.ts`: clean
 - `cd frontend && npm run check:ui-drift`: clean (`publicRouteCoverage: ok`)
 - `git diff --check`: clean
 - Browser QA via Playwright screenshots:
