@@ -196,6 +196,14 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
 
 12. **Multi-location targeting (parked 2026-05-21):** Allow up to 3 target locations in onboarding StepRole. Requires full-stack change — DB migration (`target_location TEXT` → `target_locations TEXT[]` + `target_location_countries TEXT[]`), RPC `get_candidate_job_ids_for_skills` to accept array + OR across countries, repository `_filter_job_ids_by_location` rewrite, backfill existing users. Mobile UI ready (chip multi-select pattern). Path A (UI lies, only first city filters) rejected on design-over-words rule. Pick up when single-location matching quality is validated and multi-loc backlog signal is real.
 
+13. **B2B recruiter + referral platform phase 2 (parked 2026-07-03):** The frontend slice is closed for now: public recruiter/referral doors + workspace previews + auth-ready app routes are shipped. Remaining work is the real productization layer, not session cleanup.
+   - **Role / auth model** — define recruiter vs referral vs internal-ops access, nav visibility, and post-login routing. Today the workspaces are UI-ready, but not role-gated.
+   - **Recruiter persistence** — add real JD posts, saved briefs, shortlist actions, pipeline stage writes, and recruiter-side activity history.
+   - **Referral persistence** — add warm-path records, connector ownership, intro-status updates, reward ledgering, and repeat-loop visibility.
+   - **Mirror dataset contract** — wire the B2B side to the same canonical candidate skill graph as B2C, with L2-cluster-only comparison as the first-pass rule.
+   - **Matching engine** — replace demo shortlist math with backend CV↔JD scoring, evidence extraction, and top-3/top-4 recruiter handoff logic.
+   - **Go-live rule** — do not pick this up again as “frontend polish.” Next pickup should be a full-stack B2B PRD / plan with DB, API, auth, and ranking scope agreed first.
+
 ---
 
 ## INTEGRATOR ITEMS
