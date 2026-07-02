@@ -536,7 +536,20 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-06-25 · Backend score-delta deploy closeout + recompute)
+## LAST SESSION SUMMARY (2026-07-03 · 2nd-July feedback synthesis → Command Center + paste-upload; all pushed Develop)
+
+Analyzed the 2nd-July beta batch, audited the 22-June closures, then opened a build lane against the repeated problems. All work on `origin/Develop` (own files only; foreign uncommitted work left untouched). Memory: `project_feedback_july_command_center`.
+
+- **Feedback synthesis (Task 1).** Compiled `User_Feedbacks/Myro feedback 2nd july/` (17 Internshala files, ~13 unique) + `user_feedback` rows **#76–97** + **2 emails** (`email_feedback_2nd_july.pages` — read via preview.jpg; sender **Vaibhav Srivastava** = upload spinner/"Net" error, asked for paste-text primary). Both emails **merge, no new theme.** Reports: `User_Feedbacks/reports/2026-07-02-feedback-synthesis.md` + `-action-plan.md` (commit `6f89019`). Dominant ask (~18 votes) = **"what do I do next" after the score**; then score-opacity, upload-fail, generic-tailoring, career-stage relevance.
+- **June-closure audit (Task 2).** ~**10/12** fixes merged to prod, but only **3 felt-closed** (editable role, apply-fallback, matches-500). The rest were **"shipped, not felt"** — wrong placement/gating. Lesson drove #1.
+- **#1 Command Center — BUILT + pushed.** The #146 next-3-steps triad (1 skill · 1 job · 1 CV) lived only on `/home`; moved to where the score lands. (a) `/forge` score screen: triad under `SkillIntelHeader` (already has tap-for-why breakdown), done-card CTA repointed ("See your next 3 steps →"), back button, `/home` dup removed — `6ae6c18`. (b) **`/market` first-drop rail** (post-login landing): retired the daily-loop ring (its 5 "pills" only LOOKED clickable), new `CommandRail` = compact `ScoreRing` (tap→breakdown) + editable role + new `CompactMoves` (≤3-word rows, metric chip, accent on move 1); `deriveNextBestSteps` gained `short`/`metric` — `8f601e7`. Dead-but-kept: `mission-control/hero.tsx` + `LoopRing` (LoopStep type still used by /home MissionsCard).
+- **#2 recompute + #3 RAG playbook — verified DONE in live DB (not owed).** `mirror_scores` 236/236 carry `score_delta`; `playbook_chunks` 10/10 embedded. (`user_job_matches.missing_skills` 103/642 — fills forward, full re-match optional.)
+- **#4 upload never dead-ends — BUILT + pushed (`8798d11`).** Root cause: anon scorer had ONE path (multipart POST). Backend `/public/score-cv` now accepts a `text` form field (pasted text IS raw text → skips file transport + extraction; paste-specific CVUP4 msg; +2 tests, 16 passed). Landing dropzone gains first-class "Upload not working? Paste your CV text instead" → textarea → same fork (text stash). `/cv-preview` 15s watchdog offers the paste escape on a stalled spinner. Screenshots before/after captured.
+- **Green throughout:** tsc 0 · next lint 0 · next build ✓ · next-best-steps 13/13 · public-score 16/16 · ruff clean.
+
+**Owed to Shivam:** (1) **deploy** — #4 backend `text` field must reach dev backend (auto on Develop push → Railway redeploy) or paste 422s; **prod = `main` merge** for #1/#4. (2) **QA (authed, light+dark+375px):** `/market` rail (ring tap + role edit + 3 moves), `/forge` triad, paste on throttled mobile + real PDF/DOCX. **Remaining build lane (mine): #5** career-stage prior + filter persistence (#77/#84) → **#6** editable extracted skills (#89) → **#7** onboarding radio gate (#96) → **#8** apply-redirect copy. Optional cleanup: delete dead `hero.tsx`.
+
+## OLDER SESSION SUMMARY (2026-06-25 · Backend score-delta deploy closeout + recompute)
 
 Backend-only Codex session, isolated in worktree
 `.worktrees/codex-backend-score-demand` on branch
