@@ -74,7 +74,7 @@ const REFERRAL_PAGE: B2BDoorContent = {
     label: "Request referral pilot",
     external: true,
   },
-  secondaryCta: { href: "/cv-preview", label: "See candidate side" },
+  secondaryCta: { href: "/referrals/workspace", label: "Preview workspace" },
   steps: [
     {
       title: "Pick the role first",
