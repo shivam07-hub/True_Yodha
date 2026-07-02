@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { stashAnonCvFile } from "@/lib/anon-cv-stash"
+import { stashAnonCvFile, stashAnonCvText } from "@/lib/anon-cv-stash"
 
 /**
  * The live CV dropzone (grill: pre-login real score). Appears in the hero (S1),
@@ -14,39 +14,52 @@ import { stashAnonCvFile } from "@/lib/anon-cv-stash"
  * the playground (structured CV) or routes to /signup with the score readout
  * (degraded parse). One destination owns the loading + the fork.
  *
- * On /cv-preview itself the page passes `onFile` to score in place instead of
- * navigating — same picker, different owner.
+ * Paste-text (#4, Vaibhav email): a first-class alternative beside the drop —
+ * a small text POST that dodges the multipart-upload failures some networks and
+ * regions hit. Same navigate-then-load fork; text stash instead of a File.
+ *
+ * On /cv-preview itself the page passes `onFile`/`onText` to score in place
+ * instead of navigating — same inputs, different owner.
  */
 const ACCEPT = ".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 interface LandingDropzoneProps {
   source: string
   /** When set, the parent owns scoring (the /cv-preview direct-hit case). When
-   *  omitted, the dropzone stashes the file and navigates to /cv-preview. */
+   *  omitted, the dropzone stashes the file/text and navigates to /cv-preview. */
   onFile?: (file: File) => void
+  onText?: (text: string) => void
   busy?: boolean
 }
 
-export function LandingDropzone({ source, onFile, busy }: LandingDropzoneProps) {
+export function LandingDropzone({ source, onFile, onText, busy }: LandingDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
   const [navigating, setNavigating] = useState(false)
+  const [pasteOpen, setPasteOpen] = useState(false)
+  const [text, setText] = useState("")
   const pending = busy || navigating
 
   function handleFile(file: File) {
     if (pending) return
-    if (onFile) {
-      onFile(file)
-      return
-    }
+    if (onFile) return onFile(file)
     // Landing path: hold the file, jump to the scorer.
     setNavigating(true)
     stashAnonCvFile(file)
     router.push("/cv-preview")
   }
 
+  function handleText() {
+    const value = text.trim()
+    if (pending || value.length < 40) return
+    if (onText) return onText(value)
+    setNavigating(true)
+    stashAnonCvText(value)
+    router.push("/cv-preview")
+  }
+
   return (
-    <>
+    <div className="lp-dz-wrap">
       <input
         ref={inputRef}
         type="file"
@@ -102,6 +115,43 @@ export function LandingDropzone({ source, onFile, busy }: LandingDropzoneProps) 
           {pending ? "Scoring…" : "Choose file"}
         </span>
       </button>
-    </>
+
+      {pasteOpen ? (
+        <div className="lp-paste">
+          <textarea
+            className="lp-paste-area"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Paste your CV text here — experience, skills, education…"
+            rows={6}
+            aria-label="Paste your CV text"
+            disabled={pending}
+            autoFocus
+          />
+          <div className="lp-paste-actions">
+            <button
+              type="button"
+              className="lp-paste-score"
+              onClick={handleText}
+              disabled={pending || text.trim().length < 40}
+            >
+              {pending ? "Scoring…" : "Score my text"}
+            </button>
+            <button type="button" className="lp-paste-cancel" onClick={() => setPasteOpen(false)} disabled={pending}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="lp-dropzone-paste-toggle"
+          onClick={() => setPasteOpen(true)}
+          disabled={pending}
+        >
+          Upload not working? Paste your CV text instead
+        </button>
+      )}
+    </div>
   )
 }

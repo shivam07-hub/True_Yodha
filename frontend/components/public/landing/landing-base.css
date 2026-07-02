@@ -318,6 +318,81 @@
   color: var(--lp-warning);
 }
 
+/* Paste-text path (#4) — first-class alternative under the dropzone. */
+.lp-dz-wrap {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lp-dropzone-paste-toggle {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 2px 0;
+  font-family: var(--lp-mono);
+  font-size: 12px;
+  color: var(--lp-muted);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color var(--lp-dur) var(--lp-ease);
+}
+.lp-dropzone-paste-toggle:hover { color: var(--lp-accent); }
+.lp-dropzone-paste-toggle:disabled { opacity: 0.5; cursor: default; }
+
+.lp-paste { display: flex; flex-direction: column; gap: 10px; }
+
+.lp-paste-area {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--lp-accent-ring);
+  background: var(--lp-surface);
+  color: var(--lp-text);
+  font-family: var(--lp-font);
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 120px;
+}
+.lp-paste-area:focus-visible {
+  outline: none;
+  border-color: var(--lp-accent);
+  box-shadow: 0 0 0 3px var(--lp-accent-glow);
+}
+.lp-paste-area::placeholder { color: var(--lp-faint); }
+
+.lp-paste-actions { display: flex; gap: 10px; align-items: center; }
+
+.lp-paste-score {
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: none;
+  background: var(--lp-accent);
+  color: var(--lp-accent-fg);
+  font-family: var(--lp-font);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter var(--lp-dur) var(--lp-ease);
+}
+.lp-paste-score:hover:not(:disabled) { filter: brightness(1.08); }
+.lp-paste-score:disabled { opacity: 0.5; cursor: default; }
+
+.lp-paste-cancel {
+  background: none;
+  border: none;
+  padding: 8px 4px;
+  font-family: var(--lp-mono);
+  font-size: 12px;
+  color: var(--lp-muted);
+  cursor: pointer;
+}
+.lp-paste-cancel:disabled { opacity: 0.5; cursor: default; }
+
 @media (max-width: 640px) {
   .tm-landing { --lp-page-px: 20px; }
   .lp-section-title { font-size: 28px; }

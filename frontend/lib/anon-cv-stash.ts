@@ -23,6 +23,28 @@ const RESULT_KEY = "myro_anon_score_v1"
 const COMPOSED_KEY = "myro_anon_cv_text_v1"
 
 let stashedFile: File | null = null
+let stashedText: string | null = null
+
+/** Stash pasted CV text before scoring (navigate-then-load paste path, #4): the
+ *  landing dropzone holds the text in-memory and jumps to /cv-preview, which
+ *  scores it. Mirrors stashAnonCvFile; clears any stale prior result. */
+export function stashAnonCvText(text: string): void {
+  stashedText = text
+  stashedFile = null
+  try {
+    sessionStorage.removeItem(RESULT_KEY)
+  } catch {
+    // ignore — destination still finds the in-memory text to score.
+  }
+}
+
+/** Consume the in-memory pasted text for scoring. Returns null after the first
+ *  take or across a page reload. */
+export function takeStashedText(): string | null {
+  const text = stashedText
+  stashedText = null
+  return text
+}
 
 export function stashAnonCv(file: File, result: AnonScoreResponse): void {
   stashedFile = file
@@ -53,6 +75,19 @@ export function takeStashedFile(): File | null {
   const file = stashedFile
   stashedFile = null
   return file
+}
+
+/** Stash just the RESULT (paste path, #4 — there's no File to replay). Keeps the
+ *  score readout alive across the signup redirect / back-nav; claim-on-signup
+ *  uses the composed text (stashComposedCvText) instead of a File. */
+export function stashAnonCvResult(result: AnonScoreResponse): void {
+  stashedFile = null
+  try {
+    sessionStorage.setItem(RESULT_KEY, JSON.stringify(result))
+  } catch {
+    // storage blocked — the in-SPA result state still renders; only cross-
+    // redirect continuity is lost.
+  }
 }
 
 export function readStashedResult(): AnonScoreResponse | null {
@@ -88,6 +123,7 @@ export function takeStashedComposedCvText(): string | null {
 
 export function clearAnonCvStash(): void {
   stashedFile = null
+  stashedText = null
   try {
     sessionStorage.removeItem(RESULT_KEY)
     sessionStorage.removeItem(COMPOSED_KEY)

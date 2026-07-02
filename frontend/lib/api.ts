@@ -3640,11 +3640,14 @@ export const publicCv = {
       cf_turnstile_token: payload.turnstileToken ?? (await getTurnstileToken()),
     }),
 
-  scorePreview: async (file: File, turnstileToken?: string | null): Promise<AnonScoreResponse> => {
+  scorePreview: async (input: File | { text: string }, turnstileToken?: string | null): Promise<AnonScoreResponse> => {
     if (!BASE) throw new Error("API base URL is not configured.")
     const token = turnstileToken ?? (await getTurnstileToken())
     const form = new FormData()
-    form.append("file", file)
+    // Paste path (#4): a small text POST that dodges the multipart-upload
+    // failures some networks/regions hit; the file path is unchanged.
+    if (input instanceof File) form.append("file", input)
+    else form.append("text", input.text)
     if (token) form.append("cf_turnstile_token", token)
     const res = await fetch(`${BASE}/public/score-cv`, { method: "POST", body: form })
     const body = await res.json().catch(() => null)
