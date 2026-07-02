@@ -1112,6 +1112,24 @@ export const cv = {
       body: JSON.stringify(body),
       timeoutMs: LLM_REQUEST_TIMEOUT_MS,
     }),
+  // Weave a user-supplied real number into a drafted bullet (Myro never invents it).
+  intakePlaceMetric: (token: string, body: { bullet: string; metric: string }) =>
+    request<{ text: string }>("/cv/intake-place-metric", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+      timeoutMs: LLM_REQUEST_TIMEOUT_MS,
+    }),
+  // Freeze the submitted CV against a job on Apply (CVJT1 immutable attempt).
+  applySnapshot: (
+    token: string,
+    body: { job_id: string; cv_snapshot: Record<string, unknown>; cv_version_id?: number | null; applied_url?: string | null },
+  ) =>
+    request<{ id: string; submitted_at: string | null }>("/cv/apply-snapshot", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    }),
   // The experience reservoir inventory (v2): roles → points → phrasing variants.
   reservoir: (token: string) =>
     request<ReservoirView>("/cv/reservoir", {
@@ -2980,6 +2998,30 @@ export const comments = {
     request<CommentFlagResponse>(`/comments/${commentId}/flag`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
+    }),
+}
+
+// ── Private notes — the user's OWN note per entity (never public, PV1-safe) ──
+// One living note per entity; PUT upserts, GET returns { body: null } when none.
+export type PrivateNoteEntityType = "job" | "skill" | "company" | "cv"
+
+export interface PrivateNote {
+  entity_type: PrivateNoteEntityType
+  entity_id: string
+  body: string | null
+  updated_at: string | null
+}
+
+export const privateNotes = {
+  get: (token: string, entityType: PrivateNoteEntityType, entityId: string) =>
+    request<PrivateNote>(`/private-notes?entity_type=${entityType}&entity_id=${encodeURIComponent(entityId)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  put: (token: string, entityType: PrivateNoteEntityType, entityId: string, body: string) =>
+    request<PrivateNote>("/private-notes", {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ entity_type: entityType, entity_id: entityId, body }),
     }),
 }
 

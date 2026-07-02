@@ -304,7 +304,7 @@ export default async function IssuePage({ params }: Props) {
           </p>
           <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
             <Link
-              href={`/signup?utm_source=newsletter&utm_campaign=${issue.slug}`}
+              href={`/cv-preview?utm_source=newsletter&utm_campaign=${encodeURIComponent(issue.slug)}`}
               className="nl-pill"
             >
               Get my free Myro Score →

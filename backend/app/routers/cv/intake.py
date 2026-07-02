@@ -59,3 +59,21 @@ async def intake_draft(
         mode="draft",
         bullets=[IntakeBullet(**b) for b in result["bullets"]],
     )
+
+
+class PlaceMetricRequest(BaseModel):
+    bullet: str = Field(..., min_length=1)
+    metric: str = Field(..., min_length=1)  # the REAL number the user supplied
+
+
+class PlaceMetricResponse(BaseModel):
+    text: str  # bullet with the user's number woven in (or unchanged on failure)
+
+
+@router.post("/intake-place-metric", response_model=PlaceMetricResponse)
+async def intake_place_metric(
+    body: PlaceMetricRequest,
+    _principal: Principal = Depends(get_principal),
+) -> PlaceMetricResponse:
+    result = await cv_intake.place_metric(body.bullet, body.metric, get_interactive_provider())
+    return PlaceMetricResponse(text=result["text"])

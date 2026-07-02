@@ -12,8 +12,9 @@ import "@/app/(authed)/home/mission-control.css"
 import { useMemo } from "react"
 import { formatDate } from "@/lib/format"
 import { useQuery } from "@tanstack/react-query"
-import { Hero } from "@/components/mission-control/hero"
-import type { LoopStep } from "@/components/mission-control/loop-ring"
+import { CommandRail } from "@/components/mission-control/command-rail"
+import { deriveNextBestSteps } from "@/lib/onboarding/next-best-steps"
+import { adaptiveGreeting } from "@/lib/mission-control/greeting"
 import { HeroLoading } from "@/components/mission-control/hero-loading"
 import { MobileBanner } from "@/components/home/mobile-banner"
 import { MobileBannerLoading } from "@/components/home/mobile-banner-loading"
@@ -96,19 +97,27 @@ export function MissionHeroRail({ token }: { token: string | null }) {
     ["saved", "applied", "interviewing"].includes(a.status),
   ).length
   const loggedToday = entries.length > 0 && entries[0].log_date === new Date().toISOString().slice(0, 10)
-  const hasApplied = apps.some((a) => a.status !== "saved")
-  const hasForged = entries.length > 0
   const score = Math.round(scoreData?.total_score ?? 0)
   const streak = computeStreakFromDates(practiceActivityQuery.data?.dates ?? [])
   const scoreDelta = evidenceData?.score_delta ?? 0
+  const greeting = adaptiveGreeting({ streak, scoreDelta, loggedToday }).text
 
-  const steps: LoopStep[] = [
-    { label: "Find Job", done: topJobs.length > 0, icon: "target", href: "/market" },
-    { label: "Practice", done: hasForged, icon: "forge", href: "/forge" },
-    { label: "Log", done: loggedToday, icon: "diary" },
-    { label: "Level Up", done: scoreDelta > 0, icon: "star", href: "/skills" },
-    { label: "Apply", done: hasApplied, icon: "arrowRight", href: "/market" },
-  ]
+  // First-drop "next moves" — the score-improvement triad (1 skill · 1 job · 1
+  // CV) that replaced the daily-loop ring on this rail (2026-07-02). Derived from
+  // this user's own breakdown; bestJob = strongest match.
+  const nextBestSteps = useMemo(() => {
+    if (!scoreData) return []
+    const best = topJobs[0] ?? null
+    return deriveNextBestSteps({
+      score,
+      gapSkills: scoreData.gap_skills ?? [],
+      domainScores: scoreData.domain_scores ?? {},
+      bestJob: best
+        ? { jobId: best.job_id, title: best.title, company: best.company, fit: Math.round(best.overlap_score) }
+        : null,
+      tailorJobId: topJobs[0]?.job_id ?? null,
+    })
+  }, [scoreData, topJobs, score])
 
   const coreLoading = !settled || scoreLoading || profileLoading
 
@@ -123,18 +132,16 @@ export function MissionHeroRail({ token }: { token: string | null }) {
       slowText="Still loading your dashboard…"
     >
       {isDesktop ? (
-        <Hero
-          variant="rail"
+        <CommandRail
+          greeting={greeting}
           name={firstName}
           dateLine={dateLine}
           activeTargets={activeTargets}
-          steps={steps}
           score={score}
-          streak={streak}
-          scoreDelta={scoreDelta}
-          loggedToday={loggedToday}
-          sessions={entries.length}
-          diaryEntries={evidenceData?.diary_entries_count ?? entries.length}
+          domainScores={scoreData?.domain_scores ?? {}}
+          gapSkills={scoreData?.gap_skills ?? []}
+          role={profile?.target_role_title}
+          moves={nextBestSteps}
         />
       ) : (
         <MobileBanner

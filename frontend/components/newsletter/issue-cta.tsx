@@ -9,7 +9,7 @@ interface NewsletterCTAProps {
 }
 
 export function NewsletterCTA({ role, issueSlug }: NewsletterCTAProps) {
-  const href = `/signup?role=${encodeURIComponent(role)}&utm_source=newsletter&utm_campaign=${encodeURIComponent(issueSlug)}`
+  const href = `/cv-preview?role=${encodeURIComponent(role)}&utm_source=newsletter&utm_campaign=${encodeURIComponent(issueSlug)}`
 
   return (
     <div className="nl-fig nl-callout" style={{ display: "flex", flexDirection: "column", gap: 12 }}>

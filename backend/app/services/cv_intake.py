@@ -26,16 +26,29 @@ MAX_BULLET_CHARS = 320
 _GUARDRAILS = (
     "You are a sharp senior recruiter and CV editor. Turn the candidate's own "
     "description of their experience into strong, ATS-friendly résumé bullets "
-    "tailored to a target job. Unbreakable rules: use ONLY facts the candidate "
-    "wrote — NEVER invent numbers, employers, titles, dates, metrics, or "
-    "achievements. Each bullet is ONE line (max ~30 words) starting with a strong "
-    "past-tense action verb. Split distinct accomplishments into separate bullets; "
-    "merge fragments of the same one. For each bullet, list which of the target "
-    "skills it GENUINELY demonstrates (a subset — never force a skill that isn't "
-    "shown). Pick the best-fit role index from the candidate's roles, or null if it "
-    "fits none. If a bullet would be much stronger with a number the candidate did "
-    "NOT give, set needs_metric true — do not invent one. Output ONLY a JSON array "
-    'of objects: {"text": str, "skills_covered": [str], "role_index": int|null, '
+    "tailored to a target job.\n"
+    "HONESTY (unbreakable): use ONLY facts the candidate wrote — NEVER invent "
+    "numbers, employers, titles, dates, metrics, scope, or achievements.\n"
+    "PRESERVE THE SPECIFICS: keep every concrete detail the candidate stated — "
+    "named organisations, clients, events, products, teams, technologies, scope "
+    "and scale words. These specifics are what make a bullet land; stripping them "
+    "is the #1 failure. A vague, generic bullet like 'Handled marketing for X' or "
+    "'Helped X grow in India' is UNACCEPTABLE — if the candidate named the fest, "
+    "the team, the client, or the scope, that specific MUST appear in the bullet. "
+    "Never flatten a rich sentence into a bland label.\n"
+    "SHAPE: each bullet is ONE line (aim 18–30 words) starting with a strong "
+    "past-tense action verb, then the specific what + the context/scope. Prefer "
+    "FEWER, RICHER bullets over many thin ones — merge fragments of the same "
+    "accomplishment; only split genuinely distinct achievements. Even the messiest "
+    "input (pasted JD fragments, parentheticals, typos) still contains real "
+    "specifics — extract and sharpen them, don't summarise them away.\n"
+    "SKILLS: for each bullet list which target skills it GENUINELY demonstrates (a "
+    "subset — never force a skill that isn't shown).\n"
+    "ROLE: pick the best-fit role index from the candidate's roles, or null.\n"
+    "METRIC: if a bullet would be much stronger with a number the candidate did "
+    "NOT give, set needs_metric true — do NOT invent one.\n"
+    "Output ONLY a JSON array of objects: "
+    '{"text": str, "skills_covered": [str], "role_index": int|null, '
     '"needs_metric": bool}. No prose, no code fences.'
 )
 
@@ -103,6 +116,51 @@ def _coerce_bullets(raw: str, gap_skills: list[str], role_count: int) -> list[di
         if len(out) >= MAX_BULLETS:
             break
     return out
+
+
+_PLACE_METRIC_GUARD = (
+    "You are a CV editor. The candidate has supplied a REAL number for a bullet. "
+    "Rewrite the bullet so the number is woven in naturally, as ONE line starting "
+    "with a strong past-tense verb. Rules: use ONLY the given bullet and the given "
+    "number — invent NOTHING else, no extra metrics, employers, or claims. Keep the "
+    "bullet's meaning. Output ONLY the rewritten line — no quotes, no prose, no fences."
+)
+
+
+def _clean_line(raw: str) -> str:
+    text = (raw or "").strip()
+    if text.startswith("```"):
+        text = text.strip("`").strip()
+        nl = text.find("\n")
+        if nl != -1 and text[:nl].lower().startswith(("json", "text")):
+            text = text[nl + 1:]
+    text = text.strip().strip('"').strip("'").strip()
+    # collapse to a single line — the model occasionally adds a trailing note
+    return text.splitlines()[0].strip() if text else ""
+
+
+async def place_metric(bullet: str, metric: str, provider: LLMProvider | None) -> dict:
+    """Weave a user-supplied number into a bullet (4.1). Myro never invents the
+    number — the user gives it, Mentor places it. Returns:
+      {"mode": "placed",    "text": <rewritten>}   number folded in
+      {"mode": "unchanged", "text": <original>}    nothing to do / provider down
+    """
+    bullet = (bullet or "").strip()
+    metric = (metric or "").strip()
+    if not bullet or not metric or provider is None:
+        return {"mode": "unchanged", "text": bullet}
+    messages = [
+        {"role": "system", "content": _PLACE_METRIC_GUARD},
+        {"role": "user", "content": f"Bullet:\n{bullet}\n\nReal number to include:\n{metric}"},
+    ]
+    try:
+        raw = await provider.complete(messages, max_tokens=160)
+    except LLMProviderError:
+        return {"mode": "unchanged", "text": bullet}
+    line = _clean_line(raw)
+    if not line:
+        return {"mode": "unchanged", "text": bullet}
+    return {"mode": "placed", "text": line[:MAX_BULLET_CHARS]}
 
 
 async def draft_from_intake(

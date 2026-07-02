@@ -139,6 +139,18 @@ function ForgePageInner() {
           surface so no-CV users get the domain teaser, not the generic invite. */}
       <RequiresCV surface="skills">
         <div className="tm-page-enter tm-pr-page">
+          <button
+            type="button"
+            onClick={() => { if (typeof window !== "undefined" && window.history.length > 1) router.back(); else router.push("/market") }}
+            className="tm-control-focus"
+            aria-label="Go back"
+            style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--tm-text-muted)", background: "none", border: "none", padding: 0, cursor: "pointer", marginBottom: 16, font: "inherit" }}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Back
+          </button>
           <SkillIntelHeader
             totalScore={totalScore}
             ninjaName={profile?.ninja_name}

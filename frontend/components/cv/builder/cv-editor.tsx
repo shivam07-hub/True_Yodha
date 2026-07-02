@@ -169,7 +169,6 @@ export function CVEditor({
                 onChange={e => setEditDraft(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveEdit(text) } }}
               />
-              <button type="button" className="cvb-pgc-done" onClick={() => saveEdit(text)}>Done</button>
             </>
           ) : (
             <div className={`cvb-pgc-text${opts.mono ? " mono" : ""}`}>
@@ -222,13 +221,24 @@ export function CVEditor({
           )}
         </div>
         <div className="cvb-pgc-acts">
-          <button
-            type="button"
-            className={`cvb-pgc-copy${copied ? " copied" : ""}`}
-            onClick={() => copy(iid, text)}
-            title="Copy this line"
-          >⧉ {copied ? "Copied" : "Copy"}</button>
-          {!opts.mono && (
+          {editing ? (
+            // Confirm lives in the action row (5.1) — Copy is meaningless mid-edit,
+            // so ✓ Done takes its slot; Enter also saves.
+            <button
+              type="button"
+              className="cvb-pgc-copy cvb-pgc-donebtn"
+              onClick={() => saveEdit(text)}
+              title="Save this line"
+            >✓ Done</button>
+          ) : (
+            <button
+              type="button"
+              className={`cvb-pgc-copy${copied ? " copied" : ""}`}
+              onClick={() => copy(iid, text)}
+              title="Copy this line"
+            >⧉ {copied ? "Copied" : "Copy"}</button>
+          )}
+          {!opts.mono && !editing && (
             <button
               type="button"
               className={`cvb-pgc-icon${rewriteIid === iid ? " on" : ""}`}
@@ -237,7 +247,7 @@ export function CVEditor({
               aria-label="Rewrite stronger"
             >↻</button>
           )}
-          {!opts.mono && (
+          {!opts.mono && !editing && (
             <button
               type="button"
               className="cvb-pgc-icon"

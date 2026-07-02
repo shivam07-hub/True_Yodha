@@ -7,12 +7,11 @@ import type { JobFeedItem } from "@/lib/api"
 import { formatCount } from "@/lib/format"
 import { NotInterestedUndo } from "@/components/jobs/not-interested-undo"
 import { JobCard } from "./job-card"
-import { FeedCardSkeleton } from "@/components/jobs/feed-card"
-import { Skeleton } from "@/components/ui/skeleton"
 import { JobDetailDrawer } from "./job-detail-drawer"
 import { MobileFeed } from "./mobile-feed"
 import { VirtualFeed } from "@/components/jobs/virtual-feed"
 import { FeedControls, FilterChips, FiltersSheet } from "./feed-filters"
+import { EmptyHandoff, FeedSkeleton, LocationScopePill } from "./jobs-tab-helpers"
 import { useJobFeed } from "./use-job-feed"
 import { usePulses } from "@/lib/hooks/use-pulses"
 import { useMarketIntel } from "@/lib/hooks/use-market-intel"
@@ -21,21 +20,20 @@ import { StoryCard, type FeedStory } from "./story-card"
 import { interleaveStories } from "./feed-rows"
 import { HiddenJobsDialog } from "./hidden-jobs-dialog"
 import { DEFAULT_FILTERS, pickDefaultSort, type FeedFilters } from "./feed-types"
+import { Search, X } from "lucide-react"
 import "./market.css"
 import "./market-intel.css"
 
 export interface MarketJobsTabProps {
   token: string
   hasCv: boolean
-  /** True once the profile query has resolved — gates the cold-start nudge so
-   *  it never flashes while CV state is still `undefined` (the #18 bug-class). */
   cvResolved?: boolean
   targetRoles: string[]
-  /** Primary target role driving score + matches — editable in the filter (#145). */
   targetRole?: string | null
   chipCountMap: Record<string, number>
   selectedCluster: string | null         // shared with the page's analytics/heatmap
   onSelectCluster: (cluster: string | null) => void
+  initialSkillFacet?: string | null
   targetLocations: string[]
   followedNames: string[]
   onToggleFollow: (name: string) => void
@@ -46,7 +44,7 @@ export interface MarketJobsTabProps {
 export function MarketJobsTab(props: MarketJobsTabProps) {
   const {
     token, hasCv, cvResolved = false, targetRoles, targetRole, chipCountMap, selectedCluster, onSelectCluster,
-    targetLocations, followedNames, onToggleFollow,
+    targetLocations, followedNames, onToggleFollow, initialSkillFacet,
   } = props
   const router = useRouter()
   const { isDesktop } = useViewport()
@@ -55,12 +53,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   const [searchInput, setSearchInput] = useState("")
   const [searchOpen, setSearchOpen] = useState(false)
   const [q, setQ] = useState("")
-  // Skill facet — set by clicking a skill-demand mover. A first-class filter
-  // dimension (job_skills membership), distinct from the free-text search `q`.
-  const [skillFacet, setSkillFacet] = useState<string | null>(null)
-  // roleDomain is sourced from the page's selectedCluster; the rest is local.
-  // Rank defaults to "Best fit" when the user has signal (CV or roles), else
-  // "Newest" — set once on mount so the initial deck lands honestly ranked.
+  const [skillFacet, setSkillFacet] = useState<string | null>(initialSkillFacet ?? null)
   const [local, setLocal] = useState<Omit<FeedFilters, "roleDomain">>({
     sort: pickDefaultSort(hasCv, hasTargetRoles),
     minSkillMatches: 0,
@@ -73,6 +66,14 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     const id = setTimeout(() => setQ(searchInput.trim()), 350)
     return () => clearTimeout(id)
   }, [searchInput])
+
+  useEffect(() => {
+    if (initialSkillFacet) {
+      setSkillFacet(initialSkillFacet)
+      setSearchInput("")
+      setQ("")
+    }
+  }, [initialSkillFacet])
 
   const filters: FeedFilters = useMemo(() => ({ ...local, roleDomain: selectedCluster }), [local, selectedCluster])
 
@@ -100,7 +101,6 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     return () => obs.disconnect()
   }, [feed])
 
-  // Market-intel signals → the rail + the two interleaved story cards.
   const intel = useMarketIntel(targetLocations)
   const stories = useMemo<FeedStory[]>(() => {
     const out: FeedStory[] = []
@@ -118,10 +118,6 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   const rows = useMemo(() => interleaveStories(allJobs, stories, expansionDividers), [allJobs, stories, expansionDividers])
 
   const onSeeRoles = useCallback((query: string) => { setSkillFacet(null); setSearchInput(query); setQ(query) }, [])
-  // Clicking a skill mover filters by the skill facet, not the text search — the
-  // skill name almost never appears in a job title, so a text search would land
-  // on an empty feed despite the demand count. Clear `q` so the facet is the
-  // sole filter (mirrors a LinkedIn skill chip).
   const onFilterSkill = useCallback((skill: string) => { setSearchInput(""); setQ(""); setSkillFacet(skill) }, [])
   const onStoryPrimary = useCallback((s: FeedStory) => {
     if (s.kind === "skill") router.push(`/forge?skill=${encodeURIComponent(s.skill)}`)
@@ -140,20 +136,12 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   const railProps = {
     token, targetLocations, total, feed: allJobs, pulses, cvReady: hasCv,
     onSeeRoles, onFilterSkill, onOpenJob: setOpenJob,
-    // Rail strip mirrors the feed's readiness — never paints a literal "0 live
-    // roles" before the count has landed (the data-flash root cause).
     loading: feed.isLoading,
   }
 
   return (
     <div className="tm-market-layout">
       <main className="tm-market-main">
-        {/* One compact control bar (market-feed redesign 2026-06-18): search is
-            an ICON that expands on tap (triage is browse-first, not query-first),
-            then the rank toggle + Filters door. The old full-width search input,
-            the demand-movers chip strip, and the separate filter row collapsed
-            into this — the demand movers now interleave as StoryCards in the
-            scroll, not a band the user scrolls past. */}
         <div className="tm-feed-bar">
           {searchOpen ? (
             <>
@@ -161,7 +149,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
                 autoFocus
                 value={searchInput}
                 onChange={e => setSearchInput(e.target.value)}
-                placeholder="Search roles, companies, skills…"
+                placeholder="Search roles, companies, skills..."
                 aria-label="Search jobs"
                 className="tm-feed-search"
               />
@@ -171,7 +159,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
                 aria-label="Close search"
                 onClick={() => { setSearchInput(""); setSearchOpen(false) }}
               >
-                ✕
+                <X size={15} />
               </button>
             </>
           ) : (
@@ -182,7 +170,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
                 aria-label="Search jobs"
                 onClick={() => setSearchOpen(true)}
               >
-                <span aria-hidden>🔍</span>
+                <Search size={16} />
               </button>
               <FeedControls
                 filters={filters}
@@ -198,15 +186,14 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
           )}
         </div>
 
-        {/* cold-start: only once CV state is RESOLVED absent — never on load */}
         {showCvNudge ? (
           <div className="mi-nudge" style={{ marginTop: 14 }}>
-            <span aria-hidden style={{ fontSize: 20 }}>↑</span>
+            <span aria-hidden style={{ fontSize: 13, fontWeight: 800 }}>CV</span>
             <div className="mi-nudge-t">
               <b>Upload your CV to personalize</b>
               <span>See your fit, matched skills, and the roles that want you.</span>
             </div>
-            <a href="/cv" className="mi-nudge-go">Upload CV →</a>
+            <a href="/cv" className="mi-nudge-go">Upload CV</a>
           </div>
         ) : null}
 
@@ -217,11 +204,6 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
             <EmptyHandoff savedCount={savedCount} onBuild={() => router.push("/home")} onClear={() => { setSkillFacet(null); setSearchInput(""); setQ(""); onChangeFilters({ ...DEFAULT_FILTERS }) }} />
           ) : (
             <>
-              {/* One merged chip row (market-feed redesign 2026-06-18): count +
-                  location scope, then the ACTIVE role-cluster and any active hard
-                  filters as removable chips. Raw counts dropped; the standalone
-                  "adjust" link is gone — the Filters door above is the only door,
-                  and switching to a *different* cluster happens inside it. */}
               <div className="tm-feed-summary">
                 <span className="tm-feed-summary-count">{formatCount(total)} role{total === 1 ? "" : "s"}</span>
                 <LocationScopePill locations={targetLocations} onOpen={() => setFiltersOpen(true)} />
@@ -232,7 +214,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
                     onClick={() => setSkillFacet(null)}
                     aria-label={`Remove skill: ${skillFacet}`}
                   >
-                    <span className="tm-feed-chip-label" title={skillFacet}>{skillFacet}</span> <span aria-hidden>✕</span>
+                    <span className="tm-feed-chip-label" title={skillFacet}>{skillFacet}</span> <span aria-hidden>x</span>
                   </button>
                 ) : null}
                 {filters.roleDomain ? (
@@ -242,7 +224,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
                     onClick={() => onChangeFilters({ ...filters, roleDomain: null })}
                     aria-label={`Remove role: ${filters.roleDomain}`}
                   >
-                    <span className="tm-feed-chip-label" title={filters.roleDomain}>{filters.roleDomain}</span> <span aria-hidden>✕</span>
+                    <span className="tm-feed-chip-label" title={filters.roleDomain}>{filters.roleDomain}</span> <span aria-hidden>x</span>
                   </button>
                 ) : null}
                 <FilterChips filters={filters} onChange={onChangeFilters} />
@@ -268,13 +250,12 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
               )}
               <div ref={sentinelRef} style={{ height: 1 }} />
               {feed.isFetchingNextPage ? <FeedSkeleton rows={2} /> : null}
-              {!feed.hasNextPage ? <div style={{ textAlign: "center", padding: "24px", fontSize: 12, color: "var(--tm-text-faint)" }}>— end of feed —</div> : null}
+              {!feed.hasNextPage ? <div style={{ textAlign: "center", padding: "24px", fontSize: 12, color: "var(--tm-text-faint)" }}>End of feed</div> : null}
             </>
           )}
         </div>
       </main>
 
-      {/* desktop-only: the market intel rail */}
       <MarketRail {...railProps} />
 
       {openJob ? (
@@ -304,67 +285,6 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
       ) : null}
 
       {pending ? <NotInterestedUndo kind={pending.kind} jobId={pending.jobId} token={token} onUndo={undo} /> : null}
-    </div>
-  )
-}
-
-// Geo scope — settings-owned (fixed server-side), but it's a chip in the filter
-// summary row, so tapping it opens the Filters door like every other chip there.
-// Location shows read-only inside, with a bridge to Settings → Following.
-function LocationScopePill({ locations, onOpen }: { locations: string[]; onOpen: () => void }) {
-  const clean = locations.filter(l => l && l.trim())
-  const label = clean.length === 0 ? "All locations" : clean.length === 1 ? clean[0] : `${clean[0]} +${clean.length - 1}`
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      aria-haspopup="dialog"
-      aria-label={clean.length === 0 ? "Set your target locations — open filters" : `Target locations: ${clean.join(", ")}. Open filters`}
-      title={clean.length > 1 ? clean.join(", ") : undefined}
-      className="tm-feed-summary-loc"
-    >
-      <span aria-hidden>📍</span> {label}
-    </button>
-  )
-}
-
-/**
- * Feed loading shape. Mirrors the real list: the summary chip row (only on the
- * first load — `summary`) above N real-shaped <FeedCardSkeleton> rows, so when
- * the jobs land they fall into the exact same boxes with no reflow or pop-in.
- * The next-page variant (`summary={false}`) shows only the trailing cards.
- */
-function FeedSkeleton({ rows = 4, summary = false }: { rows?: number; summary?: boolean }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: summary ? 8 : 16 }} aria-hidden="true">
-      {summary ? (
-        <div className="tm-feed-summary">
-          <Skeleton style={{ width: 64, height: 11, borderRadius: 4 }} />
-          <Skeleton style={{ width: 96, height: 26, borderRadius: 999 }} />
-          <Skeleton style={{ width: 150, height: 26, borderRadius: 999 }} />
-        </div>
-      ) : null}
-      {Array.from({ length: rows }).map((_, i) => (
-        <FeedCardSkeleton key={i} />
-      ))}
-    </div>
-  )
-}
-
-/** Loop-closing empty state: route the user's saved roles into Dashboard. */
-function EmptyHandoff({ savedCount, onBuild, onClear }: { savedCount: number; onBuild: () => void; onClear: () => void }) {
-  return (
-    <div style={{ textAlign: "center", padding: "64px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
-      <div style={{ fontSize: 15, color: "var(--tm-text)", fontWeight: 600 }}>You&rsquo;ve triaged everything here</div>
-      {savedCount > 0 ? (
-        <>
-          <div style={{ fontSize: 14, color: "var(--tm-text-muted)" }}>You saved {savedCount} role{savedCount === 1 ? "" : "s"}. Build a CV for each next.</div>
-          <button type="button" onClick={onBuild} className="tm-filters-apply">Build CVs →</button>
-        </>
-      ) : (
-        <div style={{ fontSize: 14, color: "var(--tm-text-muted)" }}>Fresh roles land daily — check back, or loosen your filters.</div>
-      )}
-      <button type="button" onClick={onClear} style={{ background: "none", border: "none", color: "var(--tm-interactive)", cursor: "pointer", fontSize: 13 }}>Clear filters</button>
     </div>
   )
 }

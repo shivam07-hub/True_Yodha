@@ -26,6 +26,10 @@ export interface NextBestStep {
   detail: string
   href: string
   cta: string
+  /** ≤3-word label for the compact rail renderer (CompactMoves). */
+  short: string
+  /** Compact metric chip for the rail — "+6" (skill gain) or "21%" (job fit). */
+  metric?: string
   /**
    * Honest projected Myro Score gain (whole points) for moves whose impact is a
    * real what-if re-run of the engine — the skill step only. Omitted where the
@@ -96,6 +100,8 @@ export function deriveNextBestSteps(input: NextStepsInput): NextBestStep[] {
       detail: `${inDemand}level ${gap.current_level} → ${gap.target_level}, your highest-impact lift.`,
       href: `/forge?skill=${encodeURIComponent(gap.skill)}`,
       cta: "Practice",
+      short: `Practice ${gap.skill}`,
+      metric: gain ? `+${gain}` : undefined,
       gain,
     })
   } else if (lo) {
@@ -107,6 +113,7 @@ export function deriveNextBestSteps(input: NextStepsInput): NextBestStep[] {
       detail: `${domainLabel(lo.key)} is your lowest area at ${Math.round(lo.val)}% — practice lifts it fastest.`,
       href: "/forge",
       cta: "Practice",
+      short: `Practice ${domainLabel(lo.key)}`,
     })
   }
 
@@ -121,6 +128,8 @@ export function deriveNextBestSteps(input: NextStepsInput): NextBestStep[] {
       detail: `${input.bestJob.fit}% fit — your strongest match right now.`,
       href: `/home?jobId=${encodeURIComponent(input.bestJob.jobId)}`,
       cta: "View job",
+      short: input.bestJob.company ? `Apply · ${input.bestJob.company}` : "Apply to top match",
+      metric: `${input.bestJob.fit}%`,
     })
   } else {
     steps.push({
@@ -131,6 +140,7 @@ export function deriveNextBestSteps(input: NextStepsInput): NextBestStep[] {
       detail: "Myro ranks live jobs by how well they fit you.",
       href: "/market",
       cta: "Browse jobs",
+      short: "Browse jobs",
     })
   }
 
@@ -146,6 +156,7 @@ export function deriveNextBestSteps(input: NextStepsInput): NextBestStep[] {
       detail: `${domainLabel(lo.key)} scores lowest at ${Math.round(lo.val)}%. Tailoring to a role lifts it fastest.`,
       href: cvHref(input.tailorJobId),
       cta: "Tailor CV",
+      short: "Tailor CV",
     })
   } else {
     steps.push({
@@ -156,6 +167,7 @@ export function deriveNextBestSteps(input: NextStepsInput): NextBestStep[] {
       detail: "A role-specific version scores higher than a generic CV.",
       href: cvHref(input.tailorJobId),
       cta: "Tailor CV",
+      short: "Tailor CV",
     })
   }
 

@@ -298,7 +298,77 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-02 - Internshala-safe feedback messaging)
+## LAST SESSION SUMMARY (2026-07-03 - Skill Intelligence heatmap redesign)
+
+Redesigned the `/market?tab=heatmap` surface into the Skill Intelligence
+cockpit for followed-company demand, CV skill levels, and practice actions.
+
+- Replaced the inline market-page heatmap with extracted market components:
+  `HeatmapTab`, `SkillIntelligenceHeatmap`, `SkillIntelligencePanel`,
+  `SkillColumnPicker`, `JobDrillPanel`, `CVPrerequisiteCard`, and
+  `jobs-tab-helpers`.
+- Reframed the page around the line "We track what skills companies are hiring
+  for", with a tracked-company count, followed-company meter, personalization
+  signals, and a visible tracked-company rail above the matrix.
+- Added per-skill intelligence: level/readiness pill, L1-L5 ladder, demand
+  totals, top companies hiring for the selected skill, CV evidence, and direct
+  actions to Practice, improve CV proof, or view matching jobs.
+- Kept the heatmap columns tied to real CV skills and restored per-company row
+  queries so each followed company row can load/cache independently.
+- Added `frontend/lib/skill-intelligence.ts` plus focused frontend contract
+  tests for readiness, evidence indexing, tracked-company personalization, and
+  skill-to-jobs handoff.
+
+Validation:
+
+- `cd frontend && npx tsx --test tests/skill-intelligence.test.ts`: 4 passed
+- `cd frontend && node --test tests/skill-intelligence-ui-contract.test.mjs`: 3 passed
+- `cd frontend && npm run test:market-browse`: 3 passed
+- `cd frontend && npx tsc --noEmit`: clean
+- `cd frontend && npm run lint`: clean
+- `.venv/bin/pytest backend/tests`: 909 passed, 22 warnings
+- `git diff --check`: clean
+
+Browser QA note: local Playwright reached `/market?tab=heatmap`, but the authed
+route could not render personalized data without a local session; desktop held
+the app skeleton and mobile redirected to `/login?next=%2Fmarket%3Ftab%3Dheatmap`.
+
+Not touched: unrelated untracked `docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-07-03 - Newsletter CTA routes to CV preview)
+
+Aligned the newsletter primary score CTA with the user expectation that
+"Get my free Myro Score" gives value before signup.
+
+- Updated the newsletter article CTA in `frontend/app/newsletter/[slug]/page.tsx`
+  from `/signup?...` to `/cv-preview?...`, preserving newsletter UTM attribution.
+- Updated reusable MDX `NewsletterCTA` in
+  `frontend/components/newsletter/issue-cta.tsx` to send role-specific score CTAs
+  to `/cv-preview?...` while keeping the role and newsletter campaign query params.
+- Kept the existing `nl-pill` visual treatment, button label, and layout intact;
+  this is a route/value-flow change only.
+- Added `frontend/tests/newsletter-cta-routing.test.ts` to lock the "Get my free
+  Myro Score" CTA to the no-signup CV preview path and prevent drift back to
+  `/signup`.
+
+Validation:
+
+- `cd frontend && npx tsx --test tests/newsletter-cta-routing.test.ts`: 1 passed
+- `cd frontend && npx tsc --noEmit`: clean
+- `cd frontend && npx next lint --file 'app/newsletter/[slug]/page.tsx' --file components/newsletter/issue-cta.tsx --file tests/newsletter-cta-routing.test.ts`: clean
+- `.venv/bin/pytest backend/tests`: 909 passed, 22 warnings
+- `git diff --check`: clean
+
+Full `cd frontend && npm run lint` was blocked by unrelated untracked
+`frontend/components/market/skill-intelligence-panel.tsx`:
+`react/no-unescaped-entities` at line 83.
+
+Not touched: unrelated untracked `docs/free-llm-api-resources`,
+`frontend/components/market/skill-intelligence-heatmap.tsx`,
+`frontend/components/market/skill-intelligence-panel.tsx`, and
+`frontend/lib/skill-intelligence.ts`.
+
+## OLDER SESSION SUMMARY (2026-07-02 - Internshala-safe feedback messaging)
 
 Reframed the prospective-intern feedback flow so it no longer reads like a
 required beta-testing or bug-reporting selection task.

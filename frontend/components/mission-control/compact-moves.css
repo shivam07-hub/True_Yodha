@@ -1,0 +1,89 @@
+/* Rail-compact next-moves — terse, one accent (move 1). Tokens only. */
+
+.cmv-head {
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+  margin: 0 0 8px;
+}
+
+.cmv-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cmv-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 11px;
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius-md, 10px);
+  background: var(--tm-surface);
+  color: var(--tm-text);
+  text-decoration: none;
+  transition: border-color 140ms var(--tm-ease), background 140ms var(--tm-ease), transform 140ms var(--tm-ease);
+}
+
+.cmv-row:hover {
+  border-color: var(--tm-border-strong, var(--tm-text-faint));
+  transform: translateX(2px);
+}
+
+/* Move 1 — the highest-leverage lift wears the single accent. */
+.cmv-row[data-rank="1"] {
+  border-color: color-mix(in srgb, var(--tm-accent) 42%, var(--tm-border));
+  background: color-mix(in srgb, var(--tm-accent) 7%, var(--tm-surface));
+}
+
+.cmv-rank {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--tm-text-faint);
+  background: color-mix(in srgb, var(--tm-text-faint) 14%, transparent);
+}
+
+.cmv-row[data-rank="1"] .cmv-rank {
+  color: var(--tm-accent-fg);
+  background: var(--tm-accent);
+}
+
+.cmv-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 550;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cmv-metric {
+  flex-shrink: 0;
+  font-family: var(--tm-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tm-accent-text);
+}
+
+.cmv-arrow {
+  flex-shrink: 0;
+  color: var(--tm-text-faint);
+}
+
+.cmv-row[data-rank="1"] .cmv-arrow {
+  color: var(--tm-accent-text);
+}
