@@ -298,7 +298,52 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-03 - Skill Intelligence heatmap redesign)
+## LAST SESSION SUMMARY (2026-07-03 - Recruiter and referral public doors)
+
+Shipped the first B2B public slice inside the existing Myro design system so
+the new employer-side story can start living on the same canonical site.
+
+- Added new public routes `frontend/app/recruiters/page.tsx` and
+  `frontend/app/referrals/page.tsx` as recruiter and referral-partner entry
+  doors, both using the existing public nav/footer and Myro token system.
+- Built shared surface primitives in
+  `frontend/components/public/b2b-door-page.tsx` +
+  `frontend/components/public/b2b-door-page.css` so both pages stay visually
+  uniform and future B2B/dashboard work can extend the same vocabulary instead
+  of forking early.
+- Framed the recruiter page around the actual mirror concept: JD intake, L2
+  cluster-only comparison, evidence-backed shortlist rows, and a 3-4 profile
+  handoff narrative.
+- Framed the referral page as a warm-intro operations layer: role-first queue,
+  connector trust, outcome tracking, and recruiter-ready filtered referrals.
+- Added `/recruiters` and `/referrals` to `frontend/lib/site-routes.ts` so the
+  footer, sitemap, and public-route coverage guard now recognize them.
+
+Validation:
+
+- `cd frontend && npx next lint --file app/recruiters/page.tsx --file app/referrals/page.tsx --file components/public/b2b-door-page.tsx --file lib/site-routes.ts`: clean
+- `cd frontend && npm run check:ui-drift`: clean (`publicRouteCoverage: ok`)
+- `cd frontend && npm run test:seo`: 5 passed
+- Browser QA via Playwright screenshots on `/recruiters` and `/referrals`:
+  desktop and mobile-width views both rendered cleanly with no visible layout
+  breakage or CTA clipping
+- `cd frontend && git diff --check`: clean
+
+Repo note:
+
+- Full `cd frontend && npx tsc --noEmit` is currently blocked by unrelated
+  existing errors in `frontend/tests/company-signals-model.test.ts`
+  (`TS1501` regex-flag target issue), outside this recruiter/referral slice.
+
+Not touched: unrelated `docs/free-llm-api-resources`,
+`frontend/components/market/company-signals-model.ts`,
+`frontend/components/market/market-intel.css`,
+`frontend/components/market/market-rail.tsx`,
+`frontend/lib/hooks/use-market-intel.ts`,
+`frontend/tests/company-signals-model.test.ts`, and untracked
+`frontend/lib/company-signals.ts`.
+
+## OLDER SESSION SUMMARY (2026-07-03 - Skill Intelligence heatmap redesign)
 
 Redesigned the `/market?tab=heatmap` surface into the Skill Intelligence
 cockpit for followed-company demand, CV skill levels, and practice actions.
