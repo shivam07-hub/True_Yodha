@@ -74,7 +74,7 @@ const RECRUITER_PAGE: B2BDoorContent = {
     label: "Request recruiter pilot",
     external: true,
   },
-  secondaryCta: { href: "/intel", label: "See live hiring data" },
+  secondaryCta: { href: "/recruiters/workspace", label: "Preview workspace" },
   steps: [
     {
       title: "Post the JD once",
