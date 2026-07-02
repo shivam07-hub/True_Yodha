@@ -1652,6 +1652,9 @@ mark.cvb-kw {
   .cvb-kw-chip {
     font-size: 12.5px !important;
   }
+  .cvb-pgc-ats-chip {
+    max-width: 15ch;
+  }
   .cvb-version-tab { min-width: 180px; padding: 9px 14px 8px; }
   .cvb-save-confirm { margin: 8px 18px 0; }
   .cvb-save-bar { flex-direction: column; align-items: stretch; gap: 10px; }
@@ -1666,6 +1669,19 @@ mark.cvb-kw {
   .cvb-modal { max-width: 100%; max-height: 100vh; height: 100vh; border-radius: 0; border: none; }
   .cvb-cv-render { padding: 28px 22px; }
   .cvb-cv-render .cv-name { font-size: 22px; }
+}
+@media (max-width: 520px) {
+  .cvb-pgc-row {
+    grid-template-columns: 16px minmax(0, 1fr);
+  }
+  .cvb-pgc-rowbody {
+    grid-column: 2;
+  }
+  .cvb-pgc-acts {
+    grid-column: 2;
+    justify-content: flex-start;
+    margin-top: 2px;
+  }
 }
 
 /* ── Per-bullet Mentor rewrite (Phase 3) ─────────────────────────────────── */
@@ -2410,6 +2426,39 @@ mark.cvb-kw {
 .cvb-pgc-text.mono { font-family: var(--tm-font-mono); font-size: 13px; color: var(--tm-text-muted); }
 .cvb-pgc-row.hidden .cvb-pgc-text { text-decoration: line-through; }
 .cvb-pgc-tag { font: 10px var(--tm-font-mono); color: var(--tm-success); margin-left: 7px; }
+.cvb-pgc-ats-skills {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 7px;
+}
+.cvb-pgc-ats-label {
+  font: 9.5px var(--tm-font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+.cvb-pgc-ats-chip,
+.cvb-pgc-ats-more {
+  max-width: 18ch;
+  min-height: 20px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--tm-border-soft);
+  background: var(--tm-surface-2);
+  color: var(--tm-text-muted);
+  font: 10.5px/1 var(--tm-font-mono);
+  padding: 0 7px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cvb-pgc-ats-more {
+  color: var(--tm-text-faint);
+  padding-inline: 6px;
+}
 .cvb-pgc-edit {
   width: 100%; font: 13px/1.6 var(--tm-font-sans); color: var(--tm-text); background: var(--tm-bg);
   border: 1px solid var(--tm-int-border); border-radius: 8px; padding: 8px 10px; resize: vertical; outline: none;

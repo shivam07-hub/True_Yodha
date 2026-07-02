@@ -298,7 +298,45 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-03 - B2B recruiter and referral workspaces)
+## LAST SESSION SUMMARY (2026-07-03 - CV point ATS skill chips)
+
+Surfaced Myro's extracted skill audit directly inside the CV Playground so each
+editable CV point can show the skills already backed by that exact evidence.
+
+- Added `extractedSkillsForCvPoint()` in `frontend/lib/skill-intelligence.ts`.
+  It maps `/users/me/skills` evidence to a CV point using the same
+  exact/substr evidence rule as the backend skill-edit locator, avoiding noisy
+  tags from skill-name-only text.
+- Added `CVPointSkillChips` and extracted `CVPointRow` so the CV editor stays
+  under the 300-line guardrail while each row can render a quiet `ATS` chip
+  strip beside existing job-match metadata.
+- Wired `CVEditor` to fetch `users.mySkills()` through the existing
+  `dataKeys.userSkills()` query and pass the audit data to every visible point.
+- Added minimal responsive CSS: desktop chips sit below the CV point text; on
+  narrow mobile rows, actions move below the text so bullets do not collapse
+  into a skinny column.
+- Added `frontend/tests/cv-point-skills.test.ts` for evidence-to-point mapping,
+  false-positive prevention, and editor/chip wiring.
+
+Validation:
+
+- Red/green focused test:
+  `cd frontend && npx tsx --test tests/cv-point-skills.test.ts`
+- Final focused frontend:
+  `cd frontend && npx tsx --test tests/cv-point-skills.test.ts tests/skill-intelligence.test.ts`: 7 passed
+- `cd frontend && npx tsc --noEmit`: clean
+- `cd frontend && npm run lint`: clean
+- `.venv/bin/pytest backend/tests`: 908 passed, 1 skipped, 22 warnings
+- `git diff --check`: clean
+- Visual QA: Browser/IAB tool was unavailable in this thread, so Playwright used
+  system Chrome. A temporary local harness rendered the CV point rows with real
+  CV builder CSS; desktop and 375px mobile screenshots were inspected with
+  `view_image`, no horizontal overflow after the mobile row-action fix. The
+  harness route was removed before handoff.
+
+Not touched: unrelated `docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-07-03 - B2B recruiter and referral workspaces)
 
 Closed the first meaningful B2B frontend slice by pairing the public recruiter /
 referral doors with actual workspace previews that show how the employer-side
