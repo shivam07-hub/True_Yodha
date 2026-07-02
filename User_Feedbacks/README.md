@@ -1,13 +1,14 @@
 # Myro User Feedback
 
 This directory is the system of record for sanitized Myro user-research
-analysis.
+analysis. Optional product feedback must stay separate from internship
+selection.
 
 ## Privacy boundary
 
 Commit only:
 
-- candidate-facing research instructions;
+- candidate-facing optional research instructions;
 - blank intake and scoring templates;
 - de-identified observations;
 - aggregate counts and themes;
@@ -29,19 +30,18 @@ directory. Keep the separate identity-to-research-ID mapping outside Git.
 
 ## Canonical files
 
-- `01-candidate-assignment-message.md`: ready-to-send assignment brief.
-- `02-feedback-intake-and-scoring.md`: form schema and hiring rubric.
+- `01-candidate-assignment-message.md`: ready-to-send optional feedback brief.
+- `02-feedback-intake-and-scoring.md`: form schema and product-evidence rubric.
 - `03-feedback-analysis-playbook.md`: repeatable analysis process.
 
 ## Working rule
 
-Hiring assessment and product research use the same submission but answer
-different questions:
+Optional feedback is for product research. It is not a required selection task,
+and candidates must not be penalized for skipping it under Internshala
+guidelines.
 
-- Hiring asks how carefully the candidate observed, reasoned, prioritized, and
-  communicated.
 - Product research asks what happened in Myro, how often it happened, how
   severely it affected users, and what evidence supports a change.
 
 A low Myro Score, an imperfect CV, negative feedback, or disagreement with the
-team must never reduce a candidate's hiring score.
+team must never reduce a candidate's hiring outcome.

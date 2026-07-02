@@ -2,8 +2,8 @@ import type { Metadata } from "next"
 import { BetaFeedbackForm } from "@/components/beta-feedback/beta-feedback-form"
 
 export const metadata: Metadata = {
-  title: "Beta Feedback Assignment | Myro",
-  description: "Submit your final Myro beta testing assessment.",
+  title: "Optional Product Feedback | Myro",
+  description: "Share optional Myro feedback. This is not a required internship selection task.",
   robots: { index: false, follow: false },
 }
 

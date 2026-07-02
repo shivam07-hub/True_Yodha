@@ -193,7 +193,7 @@ def submit_beta_assignment(
     if _find_beta_assignment_receipt(user_id) is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="This account has already submitted the beta assignment",
+            detail="This account has already submitted optional feedback",
         )
 
     payload = {
@@ -252,14 +252,14 @@ def submit_beta_assignment(
         _find_beta_assignment_receipt(user_id)
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="This account has already submitted the beta assignment",
+            detail="This account has already submitted optional feedback",
         ) from exc
 
     rows = result.data or []
     if not rows:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to save beta assignment",
+            detail="Failed to save optional feedback",
         )
     return BetaAssignmentReceipt(
         id=rows[0]["id"],

@@ -1,22 +1,24 @@
-# Beta Assignment Intake and Scoring
+# Optional Feedback Intake and Research Triage
 
 Use this schema in Google Forms, Tally, Typeform, Airtable, or another form tool
 that can export one response per row.
 
 ## Form introduction
 
-> This assignment evaluates how you observe, reason, prioritize, and
-> communicate. We do not evaluate your CV, Myro Score, or whether your feedback
-> is positive. Do not attach your CV. Remove personal information from any
-> screenshot you submit.
+> This product feedback is optional. It is not a required selection task, and
+> skipping it will not affect your internship application. If Internshala
+> guidelines prevent platform beta-testing or bug reporting as a selection task,
+> you may skip this form. We do not evaluate your CV, Myro Score, or whether
+> your feedback is positive. Do not attach your CV. Remove personal information
+> from any screenshot you submit.
 
 ## Section A - Candidate and session
 
 | Field ID | Prompt | Type | Required |
 |---|---|---|---|
-| `application_email` | Email used for your internship application | Email | Yes |
+| `contact_email_optional` | Email, only if you are open to product follow-up questions | Email | No |
 | `role_stream` | Role or internship track applied for | Single select | Yes |
-| `device_type` | Primary device used for this test | Mobile / laptop / desktop / tablet | Yes |
+| `device_type` | Primary device used while looking at Myro | Mobile / laptop / desktop / tablet | Yes |
 | `operating_system` | Operating system | Single select + other | Yes |
 | `browser` | Browser used | Single select + other | Yes |
 | `connection_type` | Connection used | Wi-Fi / mobile data / mixed / unknown | Yes |
@@ -88,8 +90,9 @@ Type: long text. Required.
 
 ### `reproduction_steps`
 
-**Prompt:** If this was a bug, list the shortest steps that reproduce it. Write
-`Not a bug` when this does not apply.
+**Prompt:** Share any context that would help the team understand the moment:
+page, device, browser, steps, or screenshot description. Write `Not applicable`
+when this does not apply.
 
 Type: long text. Required.
 
@@ -154,7 +157,7 @@ The form platform will add `submitted_at` and a source response identifier.
 Keep this column order when exporting:
 
 ```text
-source_response_id,submitted_at,application_email,role_stream,device_type,
+source_response_id,submitted_at,contact_email_optional,role_stream,device_type,
 operating_system,browser,connection_type,session_outcome,time_to_value,
 areas_explored,product_understanding,most_useful_moment,biggest_problem_area,
 biggest_problem,attempted_action,expected_result,actual_result,
@@ -165,12 +168,13 @@ privacy_confirmation,independent_work_confirmation
 ```
 
 Do not commit this export. Before research analysis, replace
-`source_response_id` and `application_email` with a random `research_id`, then
-remove both source identity fields.
+`source_response_id` and `contact_email_optional` with a random `research_id`,
+then remove both source identity fields.
 
-## Hiring scorecard
+## Product-evidence scorecard
 
-Score only the written assessment. Do not open or inspect the candidate's CV,
+Score only the written feedback when triaging product evidence. Do not use this
+score as a required hiring filter. Do not open or inspect the candidate's CV,
 Myro Score, skill levels, or job recommendations.
 
 | Dimension | Weight | Strong evidence | Weak evidence |
@@ -182,14 +186,14 @@ Myro Score, skill levels, or job recommendations.
 
 ### Score anchors
 
-- `90-100`: exceptional evidence and judgment;
-- `75-89`: strong response worth advancing;
-- `60-74`: mixed evidence; review alongside the interview;
-- below `60`: insufficient evidence from this assignment.
+- `90-100`: exceptional product evidence and judgment;
+- `75-89`: strong product evidence;
+- `60-74`: mixed evidence; use only as product-research context;
+- below `60`: insufficient evidence for product analysis.
 
-Do not use the total as an automatic rejection rule. A technical blocker can
-limit what the candidate observed, and that blocker may itself be high-quality
-evidence.
+Do not use the total as an automatic rejection or selection rule. A technical
+blocker can limit what a person observed, and that blocker may itself be
+high-quality evidence. A skipped optional feedback form is not a negative signal.
 
 ## Reviewer calibration
 
@@ -203,6 +207,7 @@ Before scoring all responses:
 5. Double-score a random 10% sample to detect rubric drift.
 6. Record only the four dimension scores and a short evidence note.
 
-Never add points for praise, visual polish, university, prior employer,
-English fluency beyond basic clarity, CV quality, or agreement with a founder's
-preferred solution.
+Never add points for praise, visual polish, university, prior employer, English
+fluency beyond basic clarity, CV quality, or agreement with a founder's preferred
+solution. Never subtract points from an internship application because the
+candidate skipped optional feedback under Internshala guidelines.

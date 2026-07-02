@@ -136,7 +136,7 @@ export function BetaFeedbackForm() {
         title="Feedback received"
         body={`Submission #${receipt.id} was received on ${formatDateTime(receipt.submitted_at)}.`}
       >
-        <p className="bf-receipt-note">This final submission is linked to your Myro account.</p>
+        <p className="bf-receipt-note">This optional feedback is linked to your Myro account.</p>
       </StateCard>
     )
   }
@@ -144,12 +144,12 @@ export function BetaFeedbackForm() {
   return (
     <section className="bf-card" aria-labelledby="bf-title">
       <header className="bf-header">
-        <div className="bf-eyebrow">MYRO BETA FEEDBACK</div>
-        <h1 className="bf-title" id="bf-title">Tell us what happened</h1>
-        <p>Your honest experience matters more than positive feedback.</p>
+        <div className="bf-eyebrow">MYRO OPTIONAL FEEDBACK</div>
+        <h1 className="bf-title" id="bf-title">Share optional feedback</h1>
+        <p>If Internshala guidelines restrict product testing or bug reporting, you can skip this. Your application can still be reviewed from Internshala.</p>
         <div className="bf-progress-meta">
           <span>Step {step} of 3</span>
-          <span>{step === 1 ? "Test session" : step === 2 ? "Assessment" : "Final review"}</span>
+          <span>{step === 1 ? "Context" : step === 2 ? "Observations" : "Review"}</span>
         </div>
         <div className="bf-progress" aria-hidden="true">
           {[1, 2, 3].map((item) => <span className={item <= step ? "active" : ""} key={item} />)}
@@ -203,7 +203,7 @@ function StateCard({
 }) {
   return (
     <section className="bf-card bf-state" aria-live="polite">
-      <div className="bf-eyebrow">MYRO BETA FEEDBACK</div>
+      <div className="bf-eyebrow">MYRO OPTIONAL FEEDBACK</div>
       <h1 className="bf-title">{title}</h1>
       <p>{body}</p>
       {children}
