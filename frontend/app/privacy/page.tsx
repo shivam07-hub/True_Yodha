@@ -129,7 +129,7 @@ export default function PrivacyPage() {
             </div>
 
             <Section id="who-we-are" n="01" title="Who We Are">
-              <P>Myro is a product of <strong>Myro Career Intelligence Private Limited</strong>, a company incorporated in India with its registered office at Vasant Vihar, West Delhi, Delhi, India (&ldquo;we&rdquo;, &ldquo;us&rdquo;). Myro is an Intelligence-as-a-Service platform for job seekers, available at{" "}
+              <P>Myro is made from India and operated by Myro (&ldquo;we&rdquo;, &ldquo;us&rdquo;). Myro is an Intelligence-as-a-Service platform for job seekers, available at{" "}
                 <a href="https://himyro.com" style={{ color: "var(--tm-interactive)" }}>himyro.com</a>.
                 {" "}We also publish the <strong>Myro Job Tracker</strong> Chrome extension.</P>
             </Section>
@@ -216,9 +216,8 @@ export default function PrivacyPage() {
               <P>In accordance with the Information Technology Act, 2000 and the rules made under it, and the Digital Personal Data Protection Act, 2023, we have appointed a Grievance Officer to address your concerns about how we handle your personal data or content on the Service.</P>
               <P>If you have a complaint — for example, about a request to access, correct, or delete your data, a withdrawal of consent that was not honoured, or any other privacy concern — you may contact:</P>
               <div style={{ background: "var(--tm-surface-2)", border: "1px solid var(--tm-border-soft)", borderRadius: "var(--tm-radius)", padding: "12px 16px", marginTop: 8, fontSize: "var(--tm-fs-body)", color: "var(--tm-text-muted)", lineHeight: 1.7 }}>
-                <div><strong style={{ color: "var(--tm-text)" }}>Grievance Officer</strong>, Myro Career Intelligence Private Limited</div>
+                <div><strong style={{ color: "var(--tm-text)" }}>Grievance Officer</strong>, Myro</div>
                 <div>Email: <a href="mailto:grievance@himyro.com" style={{ color: "var(--tm-interactive)" }}>grievance@himyro.com</a></div>
-                <div>Address: Vasant Vihar, West Delhi, Delhi, India</div>
               </div>
               <P>We will acknowledge your complaint within <strong>twenty-four (24) hours</strong> of receipt and will resolve it within <strong>fifteen (15) days</strong>, in line with applicable Indian law. If your complaint concerns content you have asked us to remove, we will act within the timelines required by law.</P>
             </Section>

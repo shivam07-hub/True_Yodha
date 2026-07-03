@@ -148,7 +148,7 @@ export default function TermsPage() {
             </div>
 
             <Section id="acceptance" n="01" title="Acceptance of Terms">
-              <P>Myro (the &ldquo;Service&rdquo;) is operated by <strong>Myro Career Intelligence Private Limited</strong>, a company incorporated in India with its registered office at Vasant Vihar, West Delhi, Delhi, India (&ldquo;Myro&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;). By accessing or using the Service, you agree to these Terms. If you do not agree, do not use the Service.</P>
+              <P>Myro (the &ldquo;Service&rdquo;) is made from India and operated by Myro (&ldquo;Myro&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;). By accessing or using the Service, you agree to these Terms. If you do not agree, do not use the Service.</P>
             </Section>
 
             <Section id="service" n="02" title="Description of Service">
@@ -178,7 +178,7 @@ export default function TermsPage() {
             </Section>
 
             <Section id="ip" n="06" title="Intellectual Property">
-              <P>The Myro platform, branding, and software are owned by Myro Career Intelligence Private Limited and protected by applicable law. Nothing in these Terms grants you rights in Myro&rsquo;s IP beyond the limited right to use the Service.</P>
+              <P>The Myro platform, branding, and software are owned by Myro and protected by applicable law. Nothing in these Terms grants you rights in Myro&rsquo;s IP beyond the limited right to use the Service.</P>
             </Section>
 
             <Section id="payments" n="07" title="Payments, Tokens &amp; Refunds">
@@ -186,7 +186,7 @@ export default function TermsPage() {
               <P>Myro runs on in-platform credits called <strong>tokens</strong>. Tokens are digital, consumable credits used to unlock optional features (such as company follows, match refreshes, focused practice sessions, and premium reports). <strong>Tokens are not money, legal tender, or financial instruments.</strong> They have no cash value, are non-transferable, cannot be exchanged for cash, and exist only inside the Service. You may also earn tokens for free through ordinary use of the Service.</P>
               <P>Tokens are a <strong>closed-loop, single-merchant utility credit</strong> usable only inside Myro to unlock Myro&rsquo;s own software features. They cannot be transferred to any other person, loaded onto any card or wallet, used at any third party, or redeemed for cash, goods, or services outside the Service. Tokens are <strong>not a prepaid payment instrument</strong> under the Reserve Bank of India&rsquo;s directions and are not a means of payment to any third party — they are simply a way to access features within Myro.</P>
               <Sub title="What your payment funds" />
-              <P>When you buy tokens or any paid feature, your payment goes towards the cost of operating Myro Career Intelligence Private Limited — including servers, infrastructure, data processing, and ongoing development. <strong>The purpose of payment is to keep the Service running so that career intelligence remains accessible and affordable. Payment does not buy, and is in no way a payment for, any job, interview, application, shortlisting, placement, response, or employment outcome.</strong> Myro sells software access only — see Section 08.</P>
+              <P>When you buy tokens or any paid feature, your payment goes towards the cost of operating Myro — including servers, infrastructure, data processing, and ongoing development. <strong>The purpose of payment is to keep the Service running so that career intelligence remains accessible and affordable. Payment does not buy, and is in no way a payment for, any job, interview, application, shortlisting, placement, response, or employment outcome.</strong> Myro sells software access only — see Section 08.</P>
               <Sub title="Myro distributes listings — it does not own them" />
               <P>Job listings shown in the Service are sourced from employers&rsquo; own websites, official career portals, and public job boards. <strong>Myro acts only as a distributor and aggregator of these listings; we are not the source, author, employer, or guarantor of any listing.</strong> Your payment is for access to Myro&rsquo;s intelligence and software features, never for access to, priority in, or any advantage with any employer, listing, or hiring process. We do not charge employers to list and do not control any listing&rsquo;s accuracy, availability, or outcome.</P>
               <Sub title="Pricing" />
@@ -207,7 +207,7 @@ export default function TermsPage() {
               <Sub title="No guarantee of outcomes" />
               <P>Myro does not guarantee that you will receive interviews, offers, responses, or employment of any kind. Match scores, recommendations, and CV suggestions are algorithmic outputs, not promises of any outcome.</P>
               <Sub title="Operator &amp; grievance details" />
-              <P>The Service is owned and operated by <strong>Myro Career Intelligence Private Limited</strong> (CIN: [to be inserted]), registered at Vasant Vihar, West Delhi, Delhi, India. Myro operates as an <strong>intermediary and aggregator</strong> that distributes job listings sourced from employers&rsquo; websites and public job boards; it is not the seller, employer, or recruiter behind any listing. For any complaint about the Service, a listing, or a payment, contact our Grievance Officer at <a href="mailto:grievance@himyro.com" style={{ color: "var(--tm-interactive)" }}>grievance@himyro.com</a>. We will acknowledge complaints within 24 hours and resolve them within 15 days, as required by applicable law.</P>
+              <P>The Service is owned and operated by Myro, made from India. Myro operates as an <strong>intermediary and aggregator</strong> that distributes job listings sourced from employers&rsquo; websites and public job boards; it is not the seller, employer, or recruiter behind any listing. For any complaint about the Service, a listing, or a payment, contact our Grievance Officer at <a href="mailto:grievance@himyro.com" style={{ color: "var(--tm-interactive)" }}>grievance@himyro.com</a>. We will acknowledge complaints within 24 hours and resolve them within 15 days, as required by applicable law.</P>
             </Section>
 
             <Section id="disclaimer" n="09" title="Disclaimers">
@@ -230,7 +230,7 @@ export default function TermsPage() {
             </Section>
 
             <Section id="governing-law" n="13" title="Governing Law &amp; Jurisdiction">
-              <P>These Terms are governed by the laws of India, without regard to conflict-of-law rules. The courts at Delhi, Delhi, India will have exclusive jurisdiction over any dispute arising from or relating to the Service or these Terms, and you consent to that jurisdiction.</P>
+              <P>These Terms are governed by the laws of India, without regard to conflict-of-law rules.</P>
             </Section>
 
             <Section id="termination" n="14" title="Termination">
