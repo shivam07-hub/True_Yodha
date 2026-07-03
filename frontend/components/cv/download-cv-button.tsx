@@ -1,16 +1,20 @@
 /**
  * DownloadCVButton — one-tap master CV PDF download.
  *
- * Self-contained (inline SVG, no cv-builder Icon dep) so it mounts on both the
- * authed /cv surface and the onboarding StepScore surface. Honors the 10-min
- * North Star: a parsed master CV is downloadable immediately, no tailoring.
+ * WYSIWYG consumer (ADR-0020): renders the canonical `PdfPage` sheet from the
+ * structured CV in a hidden mount and exports its outerHTML through the same
+ * /cv/export-pdf Chromium path as the playground export — one renderer, every
+ * surface. Self-contained (inline SVG) so it mounts on both the authed /cv
+ * surface and the onboarding StepScore surface. Honors the 10-min North Star:
+ * a parsed master CV is downloadable immediately, no tailoring.
  */
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import type { CVStructured, CVVersion } from "@/lib/api"
-import { cv as cvApi } from "@/lib/api"
-import { masterFilename, resolveMasterText } from "@/lib/cv/download-master"
+import { PdfPage } from "@/components/cv/builder/pdf-page"
+import { masterContactFromCV, masterFilename, resolveMasterStructured } from "@/lib/cv/download-master"
+import { exportSheetPdf } from "@/lib/cv/sheet-pdf"
 
 interface Props {
   token: string
@@ -23,6 +27,8 @@ interface Props {
   /** Inline style applied to the button element (onboarding has no cvb-* CSS). */
   style?: React.CSSProperties
 }
+
+const NO_HIDDEN = new Set<string>()
 
 function DownloadGlyph() {
   return (
@@ -38,33 +44,23 @@ export function DownloadCVButton({
 }: Props) {
   const [downloading, setDownloading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const sheetWrapRef = useRef<HTMLDivElement>(null)
 
-  const text = resolveMasterText(baseline, cv)
-  // Endpoint requires cv_text >= 60 chars; guard against an empty master.
-  const ready = text.length >= 60
+  const structured = resolveMasterStructured(baseline, cv)
+  const ready = structured !== null
   const disabled = downloading || !ready
 
   async function handleDownload() {
     if (disabled) return
+    const sheet = sheetWrapRef.current?.querySelector<HTMLElement>(".cvb-pdf-page")
+    if (!sheet) return
     setError(null)
     setDownloading(true)
     try {
-      const filename = masterFilename(fullName)
-      const blob = await cvApi.downloadPdf(token, text, filename)
-      // Wrap in File so mobile Safari + Android Chrome honor the name even
-      // when the `download` attr alone is ignored on blob: URLs.
-      const file = new File([blob], filename, { type: "application/pdf" })
-      const url = URL.createObjectURL(file)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = filename
-      a.rel = "noopener"
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      setTimeout(() => URL.revokeObjectURL(url), 1000)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not generate PDF.")
+      const name = fullName?.trim() || structured?.contact?.name || null
+      await exportSheetPdf(token, sheet, masterFilename(name))
+    } catch {
+      setError("Could not generate the PDF — please try again.")
     } finally {
       setDownloading(false)
     }
@@ -88,6 +84,20 @@ export function DownloadCVButton({
         <p role="alert" style={{ margin: "6px 0 0", fontSize: "var(--tm-fs-meta)", color: "var(--tm-danger, #ef4444)" }}>
           {error}
         </p>
+      )}
+      {structured && (
+        // Hidden WYSIWYG sheet: the SAME PdfPage DOM every export surface
+        // renders, serialized (outerHTML) for the server Chromium render.
+        // display:none keeps it out of layout AND out of the print isolation
+        // (`@media print` visibility rules cannot resurrect display:none).
+        <div ref={sheetWrapRef} hidden aria-hidden="true">
+          <PdfPage
+            cv={structured}
+            hidden={NO_HIDDEN}
+            contact={masterContactFromCV(structured, fullName)}
+            footerMarkHidden={baseline?.footer_mark_hidden ?? false}
+          />
+        </div>
       )}
     </>
   )

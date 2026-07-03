@@ -536,7 +536,21 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-03 · 2nd-July feedback synthesis → Command Center + paste-upload; all pushed Develop)
+## LAST SESSION SUMMARY (2026-07-03b · Deveshwar mangled-PDF trust breach → ADR-0020 CV Artifact WYSIWYG contract; pushed Develop `66a14ce`)
+
+Shivam's IIM-L friend (`deveshwar.kashyap@iiml.org`, registered same day) uploaded a clean CV and downloaded a mangled PDF from the one-tap button: skills exploded one-per-line + orphan `•` lines, extraction line breaks preserved mid-sentence, `₹`→`■` tofu, headers flat. Drill-down proved the DB parse was PERFECT (`cv_structured` clean) — the fuckup was the **legacy plain-text render path**: `DownloadCVButton` → `resolveMasterText` preferred raw `body_text` (baseline = raw extraction per CONTEXT.md) → `/cv/download-pdf` reportlab line-by-line re-parse (Helvetica/WinAnsi = no ₹; ALL-CAPS-only header detection). The healthy WYSIWYG path (`PdfPage` → `/cv/export-pdf` Chromium; stylesheet+Geist byte-sync test-enforced; **Chromium confirmed IN the prod Dockerfile** — the old #26 carry was in fact done) existed all along; the button never used it.
+
+`/improve-codebase-architecture` pass → built candidates 1+2+3 in one lane (commit `66a14ce`):
+- **New seam `frontend/lib/cv/sheet-pdf.ts`** — `exportSheetPdf` (+`withRetry`/`triggerBlobDownload` moved from cv-export-view) = the ONE sheet→PDF path; consumers = `CVExportView` + rewritten `DownloadCVButton` (hidden `PdfPage` mount from `resolveMasterStructured(baseline, cv)`; `{}` snapshot → disabled, never a degraded artifact; 0/364 cv_versions lack structured).
+- **DELETED:** `/cv/download-pdf` route, `backend/app/services/cv_pdf.py`, reportlab dep, `api.downloadPdf`, `resolveMasterText`.
+- **Golden tests** `backend/tests/test_cv_artifact_golden.py` — ₹ survives real Chromium PDF render + DOCX, skills line stays one line/paragraph, bullets never split at extraction positions, legacy route stays deleted. 12/12 with local Chromium installed.
+- **ADR-0020** + CONTEXT.md **"CV Artifact"** section: every CV artifact renders from what the user previews; `body_text` = provenance, NEVER render input; plain-text re-parsing renderers forbidden.
+
+Green: backend 915 passed · tsc 0 · eslint 0 · ui-drift clean · next build ✓ (3 frontend test fails pre-existing, verified on clean tree). Memory: `project_cv_artifact_wysiwyg_contract`.
+
+**Owed (Shivam):** (1) **`main` merge — himyro.com still serves the broken path until then**; tell Deveshwar to re-download after. Dev backend auto-redeploys from Develop. (2) Browser QA: one-tap download on onboarding score reveal + /cv master panel, light+dark+375px — downloaded PDF must == preview. (3) Follow-up: unify the 3 near-duplicate contact derivations (library-master `masterContact` / mobile `previewContact` / download-master `masterContactFromCV`) next time CV contact identity is touched.
+
+## OLDER SESSION SUMMARY (2026-07-03 · 2nd-July feedback synthesis → Command Center + paste-upload; all pushed Develop)
 
 Analyzed the 2nd-July beta batch, audited the 22-June closures, then opened a build lane against the repeated problems. All work on `origin/Develop` (own files only; foreign uncommitted work left untouched). Memory: `project_feedback_july_command_center`.
 

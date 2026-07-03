@@ -418,6 +418,18 @@ Endpoints never write to `cv_versions` directly. If a new flow needs to create a
 
 ---
 
+## CV Artifact
+
+Anything a user downloads or prints that represents their CV — PDF, DOCX, native browser print. Governed by ADR-0020: **every CV Artifact is rendered from what the user previews.** The `PdfPage` sheet (`.cvb-pdf-page`, `components/cv/builder/pdf-page.tsx`) is the canonical document render; `frontend/lib/cv/sheet-pdf.ts` (`exportSheetPdf`) is the single seam through which a sheet becomes a PDF (`POST /cv/export-pdf`, headless Chromium with the test-synced sheet stylesheet). DOCX is the structured projection of the same visible sections (`selectVisibleCV` → `POST /cv/export-docx`).
+
+**Invariants**
+- `body_text` is provenance (raw upload extraction for baselines), never render input.
+- No plain-text re-parsing renderer may exist. The reportlab `/cv/download-pdf` path was deleted 2026-07-03 after it shipped a user a mangled artifact no surface ever previewed (skills exploded per-line, `₹` → `■`).
+- Surfaces without a visible sheet (one-tap `DownloadCVButton`) mount `PdfPage` hidden and export the same DOM — never a different renderer.
+- The failure shape is pinned by `backend/tests/test_cv_artifact_golden.py` (₹ survives, skills line stays one line, legacy route stays deleted); preview fidelity by `test_cv_pdf_html.py` (stylesheet + font byte-sync).
+
+---
+
 ## Match Read Seam
 
 A persisted match row (`user_job_matches` joined with `jobs`) is the matcher's durable output: deterministic skill overlap, the credibility gate (`match_credibility`), and the LLM 5-axis eval (`llm_ranker`). **Match Eval** (`MatchEval` in `schemas/jobs.py`) is the typed read model for the `user_job_matches` eval columns; `to_job_match` parses each raw row into it before building the `JobMatchResponse`, so the read boundary receives a validated shape instead of re-guessing each field with `.get()`.
