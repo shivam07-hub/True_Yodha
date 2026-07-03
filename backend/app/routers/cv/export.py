@@ -7,7 +7,6 @@ from pydantic import BaseModel, Field
 
 from app.deps import Principal, get_principal
 from app.services.cv_docx import generate_cv_docx
-from app.services.cv_pdf import generate_cv_pdf
 from app.services.cv_pdf_html import CVPdfError, render_html_to_pdf
 
 router = APIRouter()
@@ -36,27 +35,10 @@ def _content_disposition(safe: str) -> str:
     return f'attachment; filename="{safe}"; filename*=UTF-8\'\'{quote(safe)}'
 
 
-class CVDownloadRequest(BaseModel):
-    cv_text: str = Field(..., min_length=60)
-    filename: str | None = Field(default=None, max_length=160)
-
-
-@router.post("/download-pdf")
-def download_cv_pdf(
-    body: CVDownloadRequest,
-    principal: Principal = Depends(get_principal),
-) -> Response:
-    """Render *cv_text* as a PDF and stream it back for download."""
-    pdf_bytes = generate_cv_pdf(body.cv_text)
-    safe = _sanitize_filename(body.filename)
-    return Response(
-        content=pdf_bytes,
-        media_type="application/pdf",
-        headers={"Content-Disposition": _content_disposition(safe)},
-    )
-
-
 # ── DOCX export ───────────────────────────────────────────────────────
+# NOTE (ADR-0020): the plain-text /cv/download-pdf reportlab path was removed
+# 2026-07-03 — it re-parsed raw body_text and produced artifacts the user never
+# previewed. Every CV PDF now goes through /cv/export-pdf (WYSIWYG Chromium).
 # The body carries the ALREADY-VISIBLE sections (selectVisibleCV applied
 # client-side), so the .docx matches the on-screen sheet exactly — same single
 # source of truth as the WYSIWYG PDF.

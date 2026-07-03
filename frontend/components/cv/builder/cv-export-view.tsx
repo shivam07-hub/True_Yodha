@@ -29,6 +29,7 @@ import { focusEditorSection } from "./cv-edit-focus"
 import { formatDate } from "@/lib/format"
 import { PdfPage, type PdfPageContact } from "./pdf-page"
 import { printCvPage } from "@/lib/cv/print-cv"
+import { exportSheetPdf, triggerBlobDownload, withRetry } from "@/lib/cv/sheet-pdf"
 import { masterFilename } from "@/lib/cv/download-master"
 import { selectVisibleCV } from "@/lib/cv/visible-cv"
 import { ApplyRow } from "@/components/jobs/apply-row"
@@ -77,36 +78,6 @@ function slug(s: string | null | undefined): string {
 
 function formatAppliedDate(iso: string): string {
   return formatDate(iso, "medium")
-}
-
-/** Retry a flaky export call with linear backoff — weak mobile networks (the
- *  core audience) drop a single request often, but a second attempt usually
- *  lands. Keeps the export from failing on one transient blip. */
-async function withRetry<T>(fn: () => Promise<T>, attempts = 2, baseDelayMs = 600): Promise<T> {
-  let lastErr: unknown
-  for (let i = 0; i < attempts; i++) {
-    try {
-      return await fn()
-    } catch (err) {
-      lastErr = err
-      if (i < attempts - 1) await new Promise(r => setTimeout(r, baseDelayMs * (i + 1)))
-    }
-  }
-  throw lastErr
-}
-
-function triggerBlobDownload(blob: Blob, filename: string, mime: string) {
-  // Wrap in File so mobile Safari + Android Chrome honor the name on blob: URLs.
-  const file = new File([blob], filename, { type: mime })
-  const url = URL.createObjectURL(file)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = filename
-  a.rel = "noopener"
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 export function CVExportView({
@@ -207,8 +178,7 @@ export function CVExportView({
     }
     setPdfBusy(true)
     try {
-      const blob = await withRetry(() => cvApi.exportPdf(token, { html: sheet.outerHTML, filename }))
-      triggerBlobDownload(blob, filename, "application/pdf")
+      await exportSheetPdf(token, sheet, filename)
     } catch {
       // Server renderer unavailable (503 / network) → native browser print is
       // the WYSIWYG fallback, so the user always gets a real PDF.

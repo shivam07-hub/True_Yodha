@@ -1145,22 +1145,10 @@ export const cv = {
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(body),
     }),
-  downloadPdf: async (token: string, cvText: string, filename?: string): Promise<Blob> => {
-    const res = await fetch(`${BASE}/cv/download-pdf`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ cv_text: cvText, filename }),
-    })
-    if (!res.ok) {
-      const msg = await res.text().catch(() => "PDF generation failed")
-      throw new Error(msg)
-    }
-    return res.blob()
-  },
-  // WYSIWYG PDF export. The body carries the literal rendered .cvb-pdf-page
-  // outerHTML — the SAME DOM the user previewed — and headless Chromium renders
-  // it server-side with the shared sheet stylesheet, so the PDF is byte-faithful
-  // to the preview (no plain-text round-trip like downloadPdf). On 503 the caller
+  // WYSIWYG PDF export — the ONLY CV→PDF path (ADR-0020). The body carries the
+  // literal rendered .cvb-pdf-page outerHTML — the SAME DOM the user previewed —
+  // and headless Chromium renders it server-side with the shared sheet
+  // stylesheet, so the PDF is byte-faithful to the preview. On 503 the caller
   // falls back to the browser's native Save-as-PDF (printCvPage).
   exportPdf: async (
     token: string,
