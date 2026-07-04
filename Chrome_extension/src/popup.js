@@ -16,6 +16,7 @@ const elements = {
   reachView: document.querySelector("#reach-view"),
   errorView: document.querySelector("#error-view"),
   trackButton: document.querySelector("#track-button"),
+  reachFrontButton: document.querySelector("#reach-front-button"),
   connectButton: document.querySelector("#connect-button"),
   retryButton: document.querySelector("#retry-button"),
   saveButton: document.querySelector("#save-button"),
@@ -111,12 +112,18 @@ function applyPreview(draft, preview) {
   state.emergingSkills = (preview.emerging_skills || []).map((skill) => skill.label).filter(Boolean)
 }
 
+// Read the active tab + extract the job draft. Shared by Track and the
+// front-screen "Find people to reach" (both start from the current page).
+async function captureDraft() {
+  const snapshot = await getActiveSnapshot(browserPreview)
+  return extractFromDocument(documentFromSnapshot(snapshot), snapshot.url, snapshot.selectedText)
+}
+
 async function trackCurrentJob() {
   try {
     setStatus("Reading page")
     elements.trackButton.disabled = true
-    const snapshot = await getActiveSnapshot(browserPreview)
-    const draft = extractFromDocument(documentFromSnapshot(snapshot), snapshot.url, snapshot.selectedText)
+    const draft = await captureDraft()
     if (!draft.jobDescription || draft.jobDescription.length < 80) {
       setStatus("Needs selection")
       throw new Error("Select the job description on the page and click Track this job again.")
@@ -234,30 +241,62 @@ function renderReach(intel) {
     : `${web}/home`
 }
 
+function previewReachIntel() {
+  return {
+    reporting_target: "VP",
+    primary: { label: `VP ${state.companyName || "team"}`, url: "https://www.linkedin.com/search/results/people/?keywords=VP", kind: "linkedin" },
+    alternates: [
+      { label: "Director", url: "https://www.linkedin.com/search/results/people/?keywords=Director", kind: "linkedin" },
+    ],
+  }
+}
+
 // Free reach search (ADR-0018): ask the backend which roles to look for, open
-// the top search in the user's own browser, and show alternates.
+// the top search in the user's OWN browser, show alternates. Assumes
+// state.{roleName,companyName,jobDescription} are populated by the caller.
+async function runReach() {
+  const intel = browserPreview
+    ? previewReachIntel()
+    : await reachSearch(state.config.apiUrl, state.config.token, {
+        jobTitle: state.roleName,
+        company: state.companyName,
+        jobDescription: state.jobDescription,
+      })
+  renderReach(intel)
+  if (intel.primary?.url) openTab(intel.primary.url)
+  setStatus("Reach")
+  setView("reach")
+}
+
+// Front-screen fast path: capture the current page, then reach — no track/save.
+// One click from a job page → the search opens. (1-2 screens, no burying.)
+async function findPeopleFromPage() {
+  try {
+    setStatus("Reading page")
+    elements.reachFrontButton.disabled = true
+    const draft = await captureDraft()
+    if (!draft.jobDescription || draft.jobDescription.length < 80) {
+      setStatus("Needs selection")
+      throw new Error("Select the job description on the page and click Find people to reach again.")
+    }
+    state.roleName = draft.roleName || ""
+    state.companyName = draft.companyName || ""
+    state.jobDescription = draft.jobDescription || ""
+    state.savedJobId = ""
+    await runReach()
+  } catch (error) {
+    showError(error)
+  } finally {
+    elements.reachFrontButton.disabled = false
+  }
+}
+
+// Post-save path (saved-view): reach off the already-captured state.
 async function findPeopleToReach() {
   try {
     setStatus("Finding people")
     elements.reachButton.disabled = true
-    const payload = {
-      jobTitle: state.roleName,
-      company: state.companyName,
-      jobDescription: state.jobDescription,
-    }
-    const intel = browserPreview
-      ? {
-          reporting_target: "VP",
-          primary: { label: `VP ${state.companyName || "team"}`, url: "https://www.linkedin.com/search/results/people/?keywords=VP", kind: "linkedin" },
-          alternates: [
-            { label: "Director", url: "https://www.linkedin.com/search/results/people/?keywords=Director", kind: "linkedin" },
-          ],
-        }
-      : await reachSearch(state.config.apiUrl, state.config.token, payload)
-    renderReach(intel)
-    if (intel.primary?.url) openTab(intel.primary.url)
-    setStatus("Reach")
-    setView("reach")
+    await runReach()
   } catch (error) {
     showError(error)
   } finally {
@@ -358,6 +397,7 @@ async function init() {
   }
 
   elements.trackButton.addEventListener("click", trackCurrentJob)
+  elements.reachFrontButton?.addEventListener("click", findPeopleFromPage)
   elements.connectButton?.addEventListener("click", connectMyro)
   elements.retryButton.addEventListener("click", () => setView("ready"))
   elements.saveButton.addEventListener("click", saveCurrentJob)
