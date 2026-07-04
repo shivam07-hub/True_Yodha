@@ -312,6 +312,31 @@
 .db-lockbtn:hover { border-color: var(--db-wash-border); color: var(--db-accent-text); }
 .db-lockbtn.locked { background: var(--db-wash); border-color: var(--db-wash-border); color: var(--db-accent-text); }
 
+/* ── Reach the people (backlog #35) ─────────────────────────────── */
+.db-reach-searches { display: flex; flex-direction: column; gap: 6px; }
+.db-reach-search {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 9px 12px; border: 1px solid var(--db-line-soft); border-radius: 10px;
+  background: transparent; color: var(--db-ink); font-size: 13px; text-decoration: none;
+  transition: border-color 120ms ease;
+}
+.db-reach-search:hover { border-color: var(--db-wash-border); }
+.db-reach-kind { font-family: var(--tm-font-mono); font-size: 10px; color: var(--db-faint); flex-shrink: 0; }
+.db-reach-buy {
+  margin-top: 10px; padding: 12px; border: 1px dashed var(--db-line); border-radius: 10px;
+  display: flex; flex-direction: column; gap: 8px; align-items: flex-start;
+}
+.db-reach-buy-copy { font-size: 12.5px; color: var(--db-mut); margin: 0; }
+.db-reach-err { font-size: 12px; color: var(--tm-danger, #ef4444); margin: 0; }
+.db-reach-pack { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
+.db-reach-copy {
+  border: 1px solid var(--db-line-soft); border-radius: 10px; padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.db-reach-copy-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.db-reach-copy-body { margin: 0; font-size: 13px; color: var(--db-ink); white-space: pre-wrap; line-height: 1.5; }
+.db-reach-timing { margin: 0; font-size: 12.5px; color: var(--db-mut); }
+
 .db-otherrole {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   padding: 9px 12px; border: 1px solid var(--db-line-soft); border-radius: 10px;
