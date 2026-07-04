@@ -93,6 +93,20 @@ export function ReachSection({ job, token, active }: { job: JobMatch; token: str
     return [s.primary, ...s.alternates].filter(Boolean) as NonNullable<typeof s.primary>[]
   }, [search.data])
 
+  // Own-connections (ADR-0018 Path 1) — optional warm-intro source, uploaded once.
+  const conns = useQuery({
+    queryKey: ["connections-status"],
+    queryFn: () => jobsApi.connectionsStatus(token),
+    enabled: !!token && active,
+    staleTime: 10 * 60 * 1000,
+  })
+  const fileRef = React.useRef<HTMLInputElement>(null)
+  const upload = useMutation({
+    mutationFn: (file: File) => jobsApi.uploadConnections(token, file),
+    onSuccess: () => conns.refetch(),
+  })
+  const connCount = conns.data?.count ?? 0
+
   const pack = packState.data?.pack ?? buy.data?.pack ?? null
   const purchased = !!pack
 
@@ -117,6 +131,39 @@ export function ReachSection({ job, token, active }: { job: JobMatch; token: str
       ) : (
         <p className="db-lens-empty">Add a role or company to find people to reach.</p>
       )}
+
+      {/* Optional own-connections: warm intros at the company (ADR-0018 Path 1). */}
+      <div className="db-reach-conn">
+        {connCount > 0 ? (
+          <span className="db-reach-conn-on">✓ {connCount} connections — warm intros on</span>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="db-mini-btn"
+              disabled={upload.isPending}
+              onClick={() => fileRef.current?.click()}
+            >
+              {upload.isPending ? "Reading…" : "Add connections for warm intros"}
+            </button>
+            <span className="db-reach-conn-note">
+              Upload your own LinkedIn connections export — used only to find who you already know here.
+            </span>
+          </>
+        )}
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".csv"
+          hidden
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) upload.mutate(f)
+            e.target.value = ""
+          }}
+        />
+        {upload.isError ? <span className="db-reach-err">Couldn’t read that file — use your Connections.csv.</span> : null}
+      </div>
 
       {/* Paid outreach pack. */}
       {purchased && pack ? (

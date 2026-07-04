@@ -14,10 +14,15 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.deps import Principal, get_principal
+from app.repositories.connections import (
+    ConnectionsRepository,
+    get_token_connections_repository,
+)
 from app.repositories.cv import CVVersionsRepository, get_token_cv_repository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.services import reach_pack as reach_pack_service
 from app.services import xp_policy, xp_service
+from app.services.connections_import import format_warm_connection
 from app.services.llm_provider import LLMProvider, get_llm_provider
 from app.services.reach_intel import ReachSearch, build_reach_intel
 
@@ -118,6 +123,7 @@ async def create_reach_pack(
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
+    connections_repo: ConnectionsRepository = Depends(get_token_connections_repository),
     provider: LLMProvider = Depends(get_llm_provider),
 ) -> ReachPackResponse:
     """Generate the full outreach pack for a job. 50 coins, charged on success
@@ -143,13 +149,18 @@ async def create_reach_pack(
     intel = build_reach_intel(job_title=role, job_description=description, company=company)
     baseline = cv_repo.latest_baseline(user_id) or {}
 
+    # Own-connections warm intro (ADR-0018 Path 1) — optional. Empty when the
+    # user uploaded nothing or knows no one at the company; the pack proceeds.
+    matches = connections_repo.find_at_company(user_id, company, limit=1)
+    warm_connection = format_warm_connection(matches[0]) if matches else None
+
     pack = await reach_pack_service.build_reach_pack(
         cv_structured=baseline.get("cv_structured") or {},
         body_text=baseline.get("body_text") or "",
         role=role,
         company=company,
         target_titles=intel.target_titles,
-        warm_connection=None,  # slice 5 wires own-connections warm intros here
+        warm_connection=warm_connection,
         provider=provider,
     )
     if pack is None:

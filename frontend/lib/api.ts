@@ -2860,6 +2860,26 @@ export const jobs = {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     }),
+  /** How many own-connections the user has uploaded (warm-intro source). */
+  connectionsStatus: (token: string) =>
+    request<{ count: number }>(`/cv/connections`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  /** Upload the user's own LinkedIn Connections.csv export (ADR-0018 Path 1). */
+  uploadConnections: async (token: string, file: File): Promise<{ count: number }> => {
+    const form = new FormData()
+    form.append("file", file)
+    const res = await fetch(`${BASE}/cv/connections/upload`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    })
+    if (!res.ok) {
+      const msg = await res.text().catch(() => "Upload failed")
+      throw new Error(msg)
+    }
+    return res.json()
+  },
   analyseJob: (token: string, jobId: string) =>
     request<{ job_id: string; overlap_score: number; matched_count: number; total_skills: number; new_coin_balance: number }>(
       `/jobs/analyse/${jobId}`,
