@@ -30,6 +30,15 @@ FOLLOW_COMPANY_XP_COST = 10
 FOLLOW_COMPANY_XP_FLOOR = -30
 FOLLOWED_COMPANY_LIMIT = 10
 
+# Per-job Reach Pack (backlog #35, ADR-0018): the automated full reach plan —
+# outreach drafted in the user's voice from their CV + referral-ask + timing +
+# any warm intros. The free tier (which roles to search, search URLs) charges
+# nothing; this is the LLM-bearing pack. Floor 0 (premium action; charged on
+# success only, idempotent replay is free). The one-click extension search and
+# the in-drawer search list stay free.
+REACH_PACK_XP_COST = 50
+REACH_PACK_XP_FLOOR = 0
+
 # Matching Brain (Career Ops 5-axis) runs one LLM eval PER shortlisted job (~12),
 # vs the legacy single batched call — roughly 3–4× the token cost. Priced just
 # below CV_UPLOAD (the other heavy LLM action). Tune here if the economy shifts.
