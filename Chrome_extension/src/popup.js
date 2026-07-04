@@ -1,4 +1,4 @@
-import { saveImport, previewImport } from "./api.js"
+import { saveImport, previewImport, reachSearch } from "./api.js"
 import { extractFromDocument } from "./extractors.js"
 import { documentFromSnapshot, getActiveSnapshot, previewSkillSuggestions } from "./popup-capture.js"
 import { renderSkills } from "./skill-chips.js"
@@ -13,11 +13,17 @@ const elements = {
   readyView: document.querySelector("#ready-view"),
   reviewView: document.querySelector("#review-view"),
   savedView: document.querySelector("#saved-view"),
+  reachView: document.querySelector("#reach-view"),
   errorView: document.querySelector("#error-view"),
   trackButton: document.querySelector("#track-button"),
   connectButton: document.querySelector("#connect-button"),
   retryButton: document.querySelector("#retry-button"),
   saveButton: document.querySelector("#save-button"),
+  reachButton: document.querySelector("#reach-button"),
+  reachLead: document.querySelector("#reach-lead"),
+  reachAlternates: document.querySelector("#reach-alternates"),
+  reachMyroLink: document.querySelector("#reach-myro-link"),
+  reachBackButton: document.querySelector("#reach-back-button"),
   extractSkillsButton: document.querySelector("#extract-skills-button"),
   settingsLinks: document.querySelectorAll("[data-open-settings]"),
   roleName: document.querySelector("#role-name"),
@@ -47,13 +53,25 @@ const state = {
   primarySkills: [],
   secondarySkills: [],
   emergingSkills: [],
+  savedJobId: "",
 }
 
 function setView(view) {
-  for (const node of [elements.authView, elements.readyView, elements.reviewView, elements.savedView, elements.errorView]) {
+  for (const node of [elements.authView, elements.readyView, elements.reviewView, elements.savedView, elements.reachView, elements.errorView]) {
     node.hidden = true
   }
   elements[`${view}View`].hidden = false
+}
+
+// Open a URL in the user's own browser session (their logged-in LinkedIn /
+// Google). Myro never fetches it — this is the ADR-0018 wall.
+function openTab(url) {
+  if (!url) return
+  if (typeof chrome !== "undefined" && chrome.tabs?.create) {
+    chrome.tabs.create({ url })
+  } else {
+    window.open(url, "_blank", "noopener")
+  }
 }
 
 function setStatus(text) {
@@ -182,6 +200,7 @@ async function saveCurrentJob() {
     // returned no job_id.
     const web = frontendBaseUrl(state.config.apiUrl)
     const hasId = saved.job_id && saved.job_id !== "preview"
+    state.savedJobId = hasId ? saved.job_id : ""
     elements.trackerLink.href = hasId ? `${web}/cv?jobId=${encodeURIComponent(saved.job_id)}` : `${web}/cv`
     elements.trackerLink.textContent = hasId ? "Tailor your CV" : "Open tracker"
     setStatus("Saved")
@@ -190,6 +209,59 @@ async function saveCurrentJob() {
     showError(error)
   } finally {
     elements.saveButton.disabled = false
+  }
+}
+
+function renderReach(intel) {
+  const primary = intel.primary
+  elements.reachLead.textContent = primary
+    ? `Opened a search for ${primary.label}. These are the people to reach out to and network with.`
+    : "Add a company or role on the page, then try again."
+  elements.reachAlternates.innerHTML = ""
+  for (const search of intel.alternates || []) {
+    const btn = document.createElement("button")
+    btn.type = "button"
+    btn.className = "button ghost reach-item"
+    btn.textContent = search.label
+    btn.addEventListener("click", () => openTab(search.url))
+    elements.reachAlternates.appendChild(btn)
+  }
+  // Deep-link into this job's plan in Myro. Slice 3 lands the reach pack in the
+  // job drawer; until then this opens the job's CV/tailor workspace.
+  const web = frontendBaseUrl(state.config.apiUrl)
+  elements.reachMyroLink.href = state.savedJobId
+    ? `${web}/cv?jobId=${encodeURIComponent(state.savedJobId)}`
+    : `${web}/home`
+}
+
+// Free reach search (ADR-0018): ask the backend which roles to look for, open
+// the top search in the user's own browser, and show alternates.
+async function findPeopleToReach() {
+  try {
+    setStatus("Finding people")
+    elements.reachButton.disabled = true
+    const payload = {
+      jobTitle: state.roleName,
+      company: state.companyName,
+      jobDescription: state.jobDescription,
+    }
+    const intel = browserPreview
+      ? {
+          reporting_target: "VP",
+          primary: { label: `VP ${state.companyName || "team"}`, url: "https://www.linkedin.com/search/results/people/?keywords=VP", kind: "linkedin" },
+          alternates: [
+            { label: "Director", url: "https://www.linkedin.com/search/results/people/?keywords=Director", kind: "linkedin" },
+          ],
+        }
+      : await reachSearch(state.config.apiUrl, state.config.token, payload)
+    renderReach(intel)
+    if (intel.primary?.url) openTab(intel.primary.url)
+    setStatus("Reach")
+    setView("reach")
+  } catch (error) {
+    showError(error)
+  } finally {
+    elements.reachButton.disabled = false
   }
 }
 
@@ -289,6 +361,8 @@ async function init() {
   elements.connectButton?.addEventListener("click", connectMyro)
   elements.retryButton.addEventListener("click", () => setView("ready"))
   elements.saveButton.addEventListener("click", saveCurrentJob)
+  elements.reachButton?.addEventListener("click", findPeopleToReach)
+  elements.reachBackButton?.addEventListener("click", () => setView("saved"))
   elements.extractSkillsButton.addEventListener("click", extractSkillsFromReview)
   elements.settingsLinks.forEach((link) => link.addEventListener("click", openSettings))
 }

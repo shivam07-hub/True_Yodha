@@ -222,6 +222,17 @@ textarea::placeholder {
   min-height: 28px;
 }
 
+.reach-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reach-item {
+  justify-content: flex-start;
+  text-align: left;
+}
+
 .skill-chip {
   display: inline-flex;
   align-items: center;

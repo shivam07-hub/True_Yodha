@@ -93,7 +93,7 @@ export const RECRUITER_CANDIDATES: RecruiterCandidate[] = [
     name: "Neha Bansal",
     title: "ML Product Engineer",
     experience: "3 years",
-    location: "Delhi",
+    location: "Remote India",
     l2Cluster: "Applied AI",
     readiness: "Needs interview proof",
     skills: ["Prompting", "LLM Evaluation", "FastAPI", "AWS"],

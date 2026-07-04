@@ -77,6 +77,17 @@ export async function previewImport(apiUrl, token, draft) {
   return request(apiUrl, token, "/jobs/import/preview", toPreviewPayload(draft))
 }
 
+// Reach Intelligence (ADR-0018): the backend derives which leader roles to
+// search for and returns search URLs the user opens in their OWN browser.
+// Myro never fetches the results — free, no coin charge.
+export async function reachSearch(apiUrl, token, { jobTitle, company, jobDescription }) {
+  return request(apiUrl, token, "/jobs/reach/search", {
+    job_title: jobTitle || "",
+    company: company || null,
+    job_description: jobDescription || "",
+  })
+}
+
 export async function saveImport(apiUrl, token, state) {
   return request(apiUrl, token, "/jobs/import", {
     source_url: state.sourceUrl,

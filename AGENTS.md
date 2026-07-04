@@ -306,7 +306,34 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-03 - CV point ATS skill chips)
+## LAST SESSION SUMMARY (2026-07-03 - Public company-detail privacy cleanup)
+
+Removed public mentions of sensitive company registration/address details from
+the public legal and marketing-adjacent surfaces.
+
+- Replaced `Myro Career Intelligence Private Limited`, registered-office
+  wording, `CIN: [to be inserted]`, and Delhi jurisdiction/location copy in
+  `frontend/app/terms/page.tsx` with India-level Myro wording only.
+- Replaced Privacy "Who We Are" and Grievance Officer company/address text in
+  `frontend/app/privacy/page.tsx` with India-level Myro wording only.
+- Changed the recruiter preview demo candidate location from `Delhi` to
+  `Remote India` so the public B2B demo does not show a Delhi hit in privacy
+  scans.
+- Verified no public marketing/legal/B2B source matches remain for CIN, PAN,
+  GSTIN, TAN, DIN, Udyam/MSME/IEC, Private Limited, registered-office wording,
+  Vasant, West Delhi, New Delhi, Delhi, Indian CIN/PAN/GSTIN-shaped numbers,
+  Indian phone numbers, or Delhi registered-office phrasing.
+
+Validation:
+
+- `cd frontend && npx tsc --noEmit`: clean
+- `cd frontend && npm run lint`: clean
+- `.venv/bin/pytest backend/tests`: 917 passed, 28 warnings
+- `git diff --check`: clean
+
+Not touched: unrelated untracked `docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-07-03 - CV point ATS skill chips)
 
 Surfaced Myro's extracted skill audit directly inside the CV Playground so each
 editable CV point can show the skills already backed by that exact evidence.
