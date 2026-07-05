@@ -343,6 +343,7 @@ export function PlaygroundView({
         <RaiseItRail
           token={token}
           plan={gapPlanQuery.data ?? null}
+          cv={cv}
           targets={evaluatedTargets}
           pointsFor={pointsFor}
           onRaise={setRewriteTarget}

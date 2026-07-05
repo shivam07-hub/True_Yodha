@@ -1,42 +1,61 @@
 /**
- * RaiseItRail — Option C left column: the job's gaps as a prioritized worklist.
+ * RaiseItRail — Option C left column: ONE improvement worklist (backlog #34).
  *
- * Each gap is one honest move (gap-driven rewrite, GRILL-LOCKED):
- *   • Add (latent)   — skill you've done but don't show → surface it on its bullet
- *   • Sharpen (shallow) — JD wants a higher level → surface one notch on its bullet
- *   • Practice (absent / no host) — no proof yet → save to Forge, earn it
- * Add / Sharpen hand a RewriteTarget to the CV editor (inline diff on the host
- * bullet). Practice saves to the Forge queue + opens it. "+N" is the deterministic
- * readiness gain from the same keyword-weight model that drives the Ready score —
- * a row reads "done" once its keyword is covered (Add/Sharpen) or saved (Practice).
+ * The worklist is TYPE-TIERED into two buckets, RW-style:
+ *   TOP FIXES — every open move, JD-gap tier first, then recruiter-check tier:
+ *     · Add (latent)   — skill you've done but don't show → surface it on its bullet
+ *     · Sharpen (shallow) — JD wants a higher level → surface one notch on its bullet
+ *     · Practice (absent / no host) — no proof yet → save to Forge, earn it
+ *     · Cut / Quantify / Fix — deterministic recruiter checks (runContentChecks):
+ *       buzzwords, numberless bullets, weak openers, repeated phrases
+ *   COMPLETED — JD moves that are done (keyword covered / saved).
+ *
+ * JD moves carry "+N" — the deterministic readiness gain from the keyword-weight
+ * model that drives the Ready score. Recruiter-check moves show the issue + Fix
+ * only (no number): content quality does not feed the Ready model until #34 S3,
+ * so a fabricated +N would violate the honest-gain rule. All moves route the same
+ * RewriteTarget to the CV editor (inline diff on the host bullet); the bullet also
+ * gets a whole-bullet wash + issue chips from the same findings.
  */
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState } from "react"
-import { users as usersApi, type GapPlanResponse } from "@/lib/api"
+import { useEffect, useMemo, useState } from "react"
+import { users as usersApi, type CVStructured, type GapPlanResponse } from "@/lib/api"
 import { itemId } from "@/lib/cv-compose"
 import type { RewriteTarget } from "./cv-editor"
 import type { KeywordTarget } from "./keyword-utils"
+import {
+  runContentChecks,
+  type ContentFinding,
+  type ContentCheckKind,
+} from "./content-checks"
+import { CHECK_EXPLAINERS } from "./content-check-explainers"
 
 interface RaiseItRailProps {
   token: string
   plan: GapPlanResponse | null
+  cv: CVStructured
   targets: KeywordTarget[]
   pointsFor: (keywords: string[]) => number
   onRaise: (t: RewriteTarget) => void
 }
 
-type RailKind = "Add" | "Sharpen" | "Practice"
+type RailKind = "Add" | "Sharpen" | "Practice" | ContentCheckKind
 interface RailRow {
   id: string
   skill: string
   kind: RailKind
   sub: string
-  gain: number
+  /** JD moves carry a real +N; recruiter-check moves have null (no fabricated gain). */
+  gain: number | null
   keywords: string[]
   target: RewriteTarget | null
   skillKey: string | null
+  /** 0 = JD-gap tier, 1 = recruiter-check tier. Sort key within TOP FIXES. */
+  tier: 0 | 1
+  /** Present on recruiter-check rows — drives the "why" explainer. */
+  finding?: ContentFinding
 }
 
 function hostIid(section: string, itemIndex: number, bulletIndex: number, text: string): string {
@@ -44,7 +63,7 @@ function hostIid(section: string, itemIndex: number, bulletIndex: number, text: 
   return itemId(kind, itemIndex * 100 + bulletIndex, text)
 }
 
-function buildRows(plan: GapPlanResponse, pointsFor: (k: string[]) => number): RailRow[] {
+function buildGapRows(plan: GapPlanResponse, pointsFor: (k: string[]) => number): RailRow[] {
   const rows: RailRow[] = []
   plan.host_bullet_cards.forEach(c => {
     const keywords = c.skills.map(s => s.display_name)
@@ -52,7 +71,7 @@ function buildRows(plan: GapPlanResponse, pointsFor: (k: string[]) => number): R
       id: `latent-${c.order}`, skill: keywords.join(", "), kind: "Add",
       sub: "missing from CV", gain: pointsFor(keywords), keywords,
       target: { iid: hostIid(c.section, c.item_index, c.bullet_index, c.bullet_text), keywords },
-      skillKey: null,
+      skillKey: null, tier: 0,
     })
   })
   plan.below_level_cards.forEach(c => {
@@ -63,13 +82,13 @@ function buildRows(plan: GapPlanResponse, pointsFor: (k: string[]) => number): R
         sub: `L${c.current_level} → L${c.required_level} · weak phrasing`,
         gain: pointsFor(keywords), keywords,
         target: { iid: hostIid(c.host.section, c.host.item_index, c.host.bullet_index, c.host.bullet_text), keywords },
-        skillKey: c.skill,
+        skillKey: c.skill, tier: 0,
       })
     } else {
       rows.push({
         id: `practice-${c.skill}`, skill: c.display_name, kind: "Practice",
         sub: "no proof yet · Forge", gain: pointsFor(keywords), keywords,
-        target: null, skillKey: c.skill,
+        target: null, skillKey: c.skill, tier: 0,
       })
     }
   })
@@ -78,16 +97,55 @@ function buildRows(plan: GapPlanResponse, pointsFor: (k: string[]) => number): R
       id: `absent-${a.skill}`, skill: a.display_name, kind: "Practice",
       sub: a.is_primary ? "primary requirement · Forge" : "no proof yet · Forge",
       gain: pointsFor([a.display_name]), keywords: [a.display_name],
-      target: null, skillKey: a.skill,
+      target: null, skillKey: a.skill, tier: 0,
     })
   })
-  // Highest readiness gain first — the worklist mirrors the score lever.
-  return rows.sort((a, b) => b.gain - a.gain)
+  return rows
 }
 
-export function RaiseItRail({ token, plan, targets, pointsFor, onRaise }: RaiseItRailProps) {
+/** Resolve the bullet text a finding points at, so we can rebuild its editor iid. */
+function findingBulletText(cv: CVStructured, f: ContentFinding): string | null {
+  if (f.section === "summary") return cv.summary
+  if (f.section === "experience") return cv.experience[f.itemIndex]?.bullets[f.bulletIndex] ?? null
+  if (f.section === "projects") return cv.projects[f.itemIndex]?.bullets[f.bulletIndex] ?? null
+  return null
+}
+
+function findingIid(cv: CVStructured, f: ContentFinding): string | null {
+  const text = findingBulletText(cv, f)
+  if (text == null) return null
+  if (f.section === "summary") return itemId("summary", 0, text)
+  const kind = f.section === "projects" ? "proj_bullet" : "exp_bullet"
+  return itemId(kind, f.itemIndex * 100 + f.bulletIndex, text)
+}
+
+/** Recruiter-check findings → rail rows (tier 1). The offenders become the
+ *  rewrite keywords so the inline diff knows what to target; no +N (content
+ *  quality does not feed the Ready model until S3). */
+function buildContentRows(cv: CVStructured, findings: ContentFinding[]): RailRow[] {
+  return findings.map(f => {
+    const iid = findingIid(cv, f)
+    const where =
+      f.section === "summary" ? "summary" : f.section === "projects" ? "project" : "experience"
+    return {
+      id: f.id,
+      skill: f.detail,
+      kind: f.kind,
+      sub: `${where} · ${CHECK_EXPLAINERS[f.category].title.replace(/^Why /, "")}`,
+      gain: null,
+      keywords: f.offenders,
+      target: iid ? { iid, keywords: f.offenders } : null,
+      skillKey: null,
+      tier: 1,
+      finding: f,
+    }
+  })
+}
+
+export function RaiseItRail({ token, plan, cv, targets, pointsFor, onRaise }: RaiseItRailProps) {
   const [saved, setSaved] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState<Set<string>>(new Set())
+  const [openWhy, setOpenWhy] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     let alive = true
@@ -97,11 +155,18 @@ export function RaiseItRail({ token, plan, targets, pointsFor, onRaise }: RaiseI
     return () => { alive = false }
   }, [token])
 
-  const rows = plan ? buildRows(plan, pointsFor) : []
+  // Recruiter-check rows recompute from the live CV — a fix vanishes the instant
+  // the text no longer triggers it (the honest flywheel; S3 adds the score move).
+  const contentRows = useMemo(() => buildContentRows(cv, runContentChecks(cv)), [cv])
+  const rows = useMemo(
+    () => [...(plan ? buildGapRows(plan, pointsFor) : []), ...contentRows],
+    [plan, pointsFor, contentRows],
+  )
   const matched = new Set(targets.filter(t => t.matched).map(t => t.kw.toLowerCase()))
   const isCovered = (kw: string[]) => kw.length > 0 && kw.every(k => matched.has(k.toLowerCase()))
 
   function rowDone(r: RailRow): boolean {
+    if (r.tier === 1) return false // recruiter-check rows vanish when resolved; never "done" in place (S3)
     if (r.kind === "Practice") return r.skillKey ? saved.has(r.skillKey) : false
     return isCovered(r.keywords)
   }
@@ -119,47 +184,78 @@ export function RaiseItRail({ token, plan, targets, pointsFor, onRaise }: RaiseI
     }
   }
 
-  const openCount = rows.filter(r => !rowDone(r)).length
-  const clearedCount = rows.length - openCount
-  const allDone = rows.length > 0 && openCount === 0
+  // TOP FIXES = open moves, JD tier before recruiter tier, +N desc within tier
+  // (a null-gain recruiter row sorts after any numbered gap in its tier).
+  const topFixes = rows
+    .filter(r => !rowDone(r))
+    .sort((a, b) => a.tier - b.tier || (b.gain ?? -1) - (a.gain ?? -1))
+  const completed = rows.filter(rowDone)
+  const allDone = rows.length > 0 && topFixes.length === 0
+
+  function toggleWhy(id: string) {
+    setOpenWhy(p => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  }
+
+  function renderRow(r: RailRow, done: boolean) {
+    const verb = r.kind === "Practice" ? "Practiced" : r.kind === "Add" ? "Added" : "Sharpened"
+    const why = r.finding ? CHECK_EXPLAINERS[r.finding.category] : null
+    return (
+      <div key={r.id} className={`cvb-pgc-fix${done ? " done" : ""}`}>
+        <div className="cvb-pgc-fix-row">
+          <div className="cvb-pgc-fix-body">
+            <div className="cvb-pgc-fix-skill">{r.skill}</div>
+            <div className="mono cvb-pgc-fix-sub">
+              {r.sub}
+              {why && (
+                <button type="button" className="cvb-pgc-fix-why" onClick={() => toggleWhy(r.id)}
+                  aria-expanded={openWhy.has(r.id)}>
+                  {openWhy.has(r.id) ? "hide why" : "why"}
+                </button>
+              )}
+            </div>
+          </div>
+          {/* JD moves show +N; recruiter checks (null gain) show nothing — no fabricated number. */}
+          <span className="mono cvb-pgc-fix-gain">{done ? "✓" : r.gain != null ? `+${r.gain}` : ""}</span>
+          {done ? (
+            <span className="cvb-pgc-fix-btn done">{verb}</span>
+          ) : r.kind === "Practice" ? (
+            <Link
+              href={`/forge?skill=${encodeURIComponent(r.skillKey ?? "")}`}
+              target="_blank" rel="noopener noreferrer"
+              className="cvb-pgc-fix-btn"
+              onClick={() => void savePractice(r)}
+            >Practice</Link>
+          ) : (
+            <button
+              type="button"
+              className="cvb-pgc-fix-btn"
+              onClick={() => r.target && onRaise(r.target)}
+            >{r.kind}</button>
+          )}
+        </div>
+        {why && openWhy.has(r.id) && (
+          <ul className="cvb-pgc-fix-whybody">
+            {why.reasons.map((reason, i) => <li key={i}>{reason}</li>)}
+          </ul>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="cvb-pgc-rail">
       <div className="cvb-pgc-rail-head">
         <span className="cvb-pgc-eyebrow">Raise it</span>
-        <span className="mono cvb-pgc-rail-count">{clearedCount} done · {openCount} left</span>
+        <span className="mono cvb-pgc-rail-count">{completed.length} done · {topFixes.length} left</span>
       </div>
 
       <div className="cvb-pgc-fixes">
-        {rows.map(r => {
-          const done = rowDone(r)
-          const verb = r.kind === "Practice" ? "Practiced" : r.kind === "Add" ? "Added" : "Sharpened"
-          return (
-            <div key={r.id} className={`cvb-pgc-fix${done ? " done" : ""}`}>
-              <div className="cvb-pgc-fix-body">
-                <div className="cvb-pgc-fix-skill">{r.skill}</div>
-                <div className="mono cvb-pgc-fix-sub">{r.sub}</div>
-              </div>
-              <span className="mono cvb-pgc-fix-gain">{done ? "✓" : `+${r.gain}`}</span>
-              {done ? (
-                <span className="cvb-pgc-fix-btn done">{verb}</span>
-              ) : r.kind === "Practice" ? (
-                <Link
-                  href={`/forge?skill=${encodeURIComponent(r.skillKey ?? "")}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className="cvb-pgc-fix-btn"
-                  onClick={() => void savePractice(r)}
-                >Practice</Link>
-              ) : (
-                <button
-                  type="button"
-                  className="cvb-pgc-fix-btn"
-                  onClick={() => r.target && onRaise(r.target)}
-                >{r.kind}</button>
-              )}
-            </div>
-          )
-        })}
+        {topFixes.length > 0 && <div className="cvb-pgc-fix-group mono">TOP FIXES</div>}
+        {topFixes.map(r => renderRow(r, false))}
+
+        {completed.length > 0 && <div className="cvb-pgc-fix-group mono">COMPLETED</div>}
+        {completed.map(r => renderRow(r, true))}
+
         {rows.length === 0 && (
           <div className="cvb-pgc-fix-empty mono">No gaps — your CV already speaks this role.</div>
         )}
@@ -168,7 +264,7 @@ export function RaiseItRail({ token, plan, targets, pointsFor, onRaise }: RaiseI
       {rows.length > 0 && (
         <div className={`cvb-pgc-done-chip${allDone ? " all" : ""}`}>
           <span className="mono">{allDone ? "✓" : "○"}</span>
-          <span>{allDone ? "Ready to apply — all fixes cleared." : `Clear all ${rows.length} and you're application-ready.`}</span>
+          <span>{allDone ? "Ready to apply — all fixes cleared." : `Clear all ${topFixes.length} and you're application-ready.`}</span>
         </div>
       )}
 
