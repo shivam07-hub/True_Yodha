@@ -103,10 +103,10 @@ _ALLOWED_CONTENT_TYPES = {
 _ANON_RATE_WINDOW_SECONDS = 3600.0
 _ANON_RATE_MAX = {"score": 5, "rewrite": 6, "restructure": 2, "job_search": 12, "download_event": 10}
 _ANON_RATE_MSG = {
-    "score": "You've previewed a few CVs already. Sign up free to keep scoring.",
-    "rewrite": "You've polished a lot of bullets. Sign up free to keep improving your CV.",
-    "restructure": "You've restructured this CV a couple of times. Sign up free to keep going.",
-    "job_search": "You've run a lot of searches. Sign up free to save jobs and see your fit.",
+    "score": "You've previewed a few CVs already. Sign up to keep scoring.",
+    "rewrite": "You've polished a lot of bullets. Sign up to keep improving your CV.",
+    "restructure": "You've restructured this CV a couple of times. Sign up to keep going.",
+    "job_search": "You've run a lot of searches. Sign up to save jobs and see your fit.",
 }
 _anon_hits: dict[tuple[str, str], deque[float]] = {}
 
@@ -173,7 +173,7 @@ def _enforce_anon_rate(action: str, ip: str) -> None:
     if len(hits) >= limit:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=_ANON_RATE_MSG.get(action, "Too many requests. Sign up free to keep going."),
+            detail=_ANON_RATE_MSG.get(action, "Too many requests. Sign up to keep going."),
         )
     hits.append(now)
 

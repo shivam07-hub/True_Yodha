@@ -157,7 +157,7 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
           <h1 className="cvp-title">Improve your CV — the Myro way</h1>
           <p className="cvp-sub">
             Tidy your bullets, let Mentor sharpen them, and download a clean, ATS-safe
-            CV. Free — sign up only when you want to save it.
+            CV. Sign up when you want to save it and keep working.
           </p>
         </div>
         <div className="cvp-head-actions">
@@ -605,7 +605,7 @@ function RestructureModal({
                 {uncertainty && <p className="cvb-rs-why-honest"><Icon name="x" size={11} stroke={3} aria-hidden /> {uncertainty} Keep a line only if it&rsquo;s true.</p>}
               </details>
             )}
-            <p className="cvp-rs-note">Keeping it sets this as the CV you&rsquo;ll save when you sign up — free.</p>
+            <p className="cvp-rs-note">Keeping it sets this as the CV you&rsquo;ll save when you sign up.</p>
             <div className="cvb-rs-foot">
               <button type="button" className="cvb-btn sm" onClick={onClose}>Discard</button>
               <button type="button" className="cvb-btn sm primary" onClick={() => onKeep(proposed)}>
