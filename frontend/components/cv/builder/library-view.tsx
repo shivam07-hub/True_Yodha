@@ -5,11 +5,13 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import type { ApplicationResponse, ApplicationStatus, CVStructured, CVVersion, UserProfile } from "@/lib/api"
 import { CompanyAvatar, StatTile, StatusDot, STAGE_META, stageRank } from "./library-shared"
 import { APPLICATION_OUTCOMES } from "@/lib/api"
 import { buildCVWorkspaceStats, latestCVVersionForJob } from "@/lib/cv/workspace"
+import { cleanJobTitle } from "@/lib/text/strip-markdown"
 import { MasterCVPanel } from "./library-master"
 import { I, LIcon } from "./library-icons"
 import { WorkspacePipeline } from "../pipeline/workspace-pipeline"
@@ -97,7 +99,7 @@ function ClosedRail({ applications, versions, onPickJob, variant = "aside" }: {
                     onClick={() => app.job_id && onPickJob(app.job_id)}>
                     <CompanyAvatar name={app.company ?? "?"} size={22}/>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="tm-lib-rail-job-title">{app.title}</div>
+                      <div className="tm-lib-rail-job-title">{cleanJobTitle(app.title)}</div>
                       <div className="tm-lib-rail-job-meta">
                         <span>{app.company}</span>
                         {cvVersion && (
@@ -174,7 +176,13 @@ export function LibraryView({
               before. CV view needs no head. */}
           {view === "active" && (
             <div className="tm-lib-page-head">
-              <div className="tm-lib-page-head-main" />
+              <div className="tm-lib-page-head-main">
+                {cv && (
+                  <Link href="/cv?view=cv" className="tm-lib-btn sm tm-lib-view-cv">
+                    <LIcon d={I.file} size={13}/> View my 1-page CV
+                  </Link>
+                )}
+              </div>
               <div className="tm-lib-header-stat-strip tm-lib-stat-strip-thin tm-lib-head-stats" aria-label="CV workspace summary">
                 {stats.map((stat) => (
                   <StatTile key={stat.key} eyebrow={stat.eyebrow} value={stat.value} sub={stat.sub} />

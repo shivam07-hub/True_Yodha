@@ -123,3 +123,37 @@ def test_rewrite_failsoft_when_retrieval_empty(monkeypatch):
     assert out["mode"] == "rewrite"        # still succeeds
     assert out["citations"] == []
     assert "XYZ" in provider.last_messages[0]["content"]   # fell back to static guidance
+
+
+# ── 3-angle variants ─────────────────────────────────────────────────────────
+
+_VARIANTS_RAW = (
+    "[METRIC] Cut churn 18% by shipping a retention flow to 40k users\n"
+    "[IMPACT] Reversed churn and lifted retention by owning a new lifecycle flow\n"
+    "[SCOPE] Led a 12-person squad across three systems to close the churn gap"
+)
+
+
+def test_variants_returns_three_tagged_angles(monkeypatch):
+    provider = _FakeProvider(text=_VARIANTS_RAW)
+    _patch_retrieve(monkeypatch, [_Passage("Quantify impact.", "Myro CV Playbook")])
+    out = asyncio.run(cv_rewrite.suggest_rewrite_variants("Cut churn 18%", "Senior PM", [], None, provider))
+    assert out["mode"] == "variants"
+    assert [v["angle"] for v in out["variants"]] == ["metric", "impact", "scope"]
+    assert all(v["text"] and "[" not in v["text"] for v in out["variants"])  # tags stripped
+    assert out["citations"] == ["Myro CV Playbook"]
+
+
+def test_variants_share_no_fabrication_question(monkeypatch):
+    # A metric-less bullet still asks for the real number before any variants.
+    out = asyncio.run(cv_rewrite.suggest_rewrite_variants("Owned the roadmap", None, [], None, provider=None))
+    assert out["mode"] == "question"
+
+
+def test_variants_fall_back_to_single_when_untagged(monkeypatch):
+    provider = _FakeProvider(text="Cut churn 18% by shipping a retention flow")  # no tags
+    _patch_retrieve(monkeypatch, [])
+    out = asyncio.run(cv_rewrite.suggest_rewrite_variants("Cut churn 18%", None, [], None, provider))
+    assert out["mode"] == "variants"
+    assert len(out["variants"]) == 1
+    assert out["variants"][0]["text"].startswith("Cut churn 18%")

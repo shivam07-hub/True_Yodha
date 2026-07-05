@@ -3638,6 +3638,19 @@ export interface AnonRewriteResponse {
   rationale: string | null
 }
 
+export interface AnonRewriteVariant {
+  angle: string
+  label: string
+  text: string
+}
+
+export interface AnonRewriteVariantsResponse {
+  mode: "variants" | "question" | "error"
+  variants: AnonRewriteVariant[]
+  question: string | null
+  rationale: string | null
+}
+
 export interface AnonRestructureResponse {
   mode: "proposal" | "error"
   proposed_text: string | null
@@ -3742,6 +3755,23 @@ export const publicCv = {
     turnstileToken?: string | null
   }): Promise<AnonRewriteResponse> =>
     postPublicJson<AnonRewriteResponse>("/public/rewrite-bullet", {
+      bullet: payload.bullet,
+      role: payload.role ?? null,
+      missing_keywords: payload.missing_keywords ?? [],
+      metric: payload.metric ?? null,
+      allow_no_metric: payload.allow_no_metric ?? false,
+      cf_turnstile_token: payload.turnstileToken ?? (await getTurnstileToken()),
+    }),
+
+  rewriteBulletVariants: async (payload: {
+    bullet: string
+    role?: string | null
+    missing_keywords?: string[]
+    metric?: string | null
+    allow_no_metric?: boolean
+    turnstileToken?: string | null
+  }): Promise<AnonRewriteVariantsResponse> =>
+    postPublicJson<AnonRewriteVariantsResponse>("/public/rewrite-bullet/variants", {
       bullet: payload.bullet,
       role: payload.role ?? null,
       missing_keywords: payload.missing_keywords ?? [],

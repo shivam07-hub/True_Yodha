@@ -422,6 +422,19 @@ class AnonRewriteResponse(BaseModel):
     rationale:      str | None = None
 
 
+class AnonRewriteVariant(BaseModel):
+    angle: str
+    label: str
+    text:  str
+
+
+class AnonRewriteVariantsResponse(BaseModel):
+    mode:      str                       # "variants" | "question" | "error"
+    variants:  list[AnonRewriteVariant] = []
+    question:  str | None = None
+    rationale: str | None = None
+
+
 class AnonRestructureRequest(BaseModel):
     cv_text:          str
     role:             str | None = None
@@ -457,6 +470,33 @@ async def rewrite_bullet_preview(
         allow_no_metric=body.allow_no_metric,
     )
     return AnonRewriteResponse(**result)
+
+
+@router.post("/rewrite-bullet/variants", response_model=AnonRewriteVariantsResponse)
+async def rewrite_bullet_variants_preview(
+    body: AnonRewriteRequest,
+    request: Request,
+) -> AnonRewriteVariantsResponse:
+    """3-angle rewrite (metric/impact/scope) for the pick-a-version flow. Shares
+    the same IP bucket + no-fabrication question branch as the single rewrite."""
+    ip = _client_ip(request)
+    _enforce_anon_rate("rewrite", ip)
+    await _verify_turnstile(body.cf_turnstile_token, ip)
+
+    result = await cv_rewrite.suggest_rewrite_variants(
+        body.bullet,
+        body.role,
+        body.missing_keywords,
+        body.metric,
+        get_llm_provider(),
+        allow_no_metric=body.allow_no_metric,
+    )
+    return AnonRewriteVariantsResponse(
+        mode=result["mode"],
+        variants=[AnonRewriteVariant(**v) for v in result.get("variants", [])],
+        question=result.get("question"),
+        rationale=result.get("rationale"),
+    )
 
 
 @router.post("/restructure", response_model=AnonRestructureResponse)

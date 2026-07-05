@@ -24,6 +24,7 @@ import { useEffect, useMemo, useState } from "react"
 import {
   publicCv,
   type AnonScoreResponse,
+  type AnonRewriteVariant,
   type CVStructured,
   type UserProfile,
 } from "@/lib/api"
@@ -207,6 +208,15 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
             onEditProj={setProjBullet}
             onRewrite={setRewriteTarget}
           />
+        </div>
+
+        {/* Live A4 preview — the exact document that downloads. The ATS & AI
+            audit lives here, with the CV it grades — it's a property of the
+            document, not an editor tool (so on mobile it sits under Preview). */}
+        <div className="cvp-preview">
+          <div className="cvb-scope">
+            <PdfPage cv={cv} hidden={hidden} contact={contact} />
+          </div>
 
           <div className="cvp-ats">
             <div className="cvp-ats-head">
@@ -216,13 +226,6 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
             <div className="cvp-ats-grid">
               {checks.map(c => <AtsRow key={c.label} check={c} />)}
             </div>
-          </div>
-        </div>
-
-        {/* Live A4 preview — the exact document that downloads */}
-        <div className="cvp-preview">
-          <div className="cvb-scope">
-            <PdfPage cv={cv} hidden={hidden} contact={contact} />
           </div>
         </div>
       </div>
@@ -373,10 +376,13 @@ function CvEditor({
 }
 
 function AtsRow({ check }: { check: AtsCheck }) {
+  // Optional-missing is a neutral nudge, not a scored failure — so it never
+  // reads as a red ✗, and the pass count (which excludes optional) matches.
+  const state = check.pass ? "ok" : check.optional ? "opt" : "warn"
   return (
     <div className="cvp-ats-row">
-      <span className={`cvp-ats-mark${check.pass ? " ok" : " warn"}`}>
-        <Icon name={check.pass ? "check" : "x"} size={10} stroke={3} />
+      <span className={`cvp-ats-mark ${state}`}>
+        <Icon name={check.pass ? "check" : check.optional ? "plus" : "x"} size={10} stroke={3} />
       </span>
       <span>{check.pass ? check.label : (check.detail ?? check.label)}</span>
     </div>
@@ -385,7 +391,7 @@ function AtsRow({ check }: { check: AtsCheck }) {
 
 // ── Rewrite modal (per-bullet Mentor) ─────────────────────────────────────
 
-type RwPhase = "loading" | "rewrite" | "question" | "error"
+type RwPhase = "loading" | "variants" | "question" | "error"
 
 function RewriteModal({
   target, role, onClose, onAccept,
@@ -396,8 +402,8 @@ function RewriteModal({
   onAccept: (text: string) => void
 }) {
   const [phase, setPhase] = useState<RwPhase>("loading")
-  const [suggestion, setSuggestion] = useState("")
-  const [rationale, setRationale] = useState<string | null>(null)
+  const [variants, setVariants] = useState<AnonRewriteVariant[]>([])
+  const [sel, setSel] = useState(0)
   const [question, setQuestion] = useState("")
   const [metric, setMetric] = useState("")
   const [err, setErr] = useState<string | null>(null)
@@ -405,14 +411,14 @@ function RewriteModal({
   async function run(opts: { metric?: string; allowNoMetric?: boolean } = {}) {
     setPhase("loading"); setErr(null)
     try {
-      const res = await publicCv.rewriteBullet({
+      const res = await publicCv.rewriteBulletVariants({
         bullet: target.text,
         role,
         metric: opts.metric ?? null,
         allow_no_metric: opts.allowNoMetric ?? false,
       })
-      if (res.mode === "rewrite" && res.rewritten_text) {
-        setSuggestion(res.rewritten_text); setRationale(res.rationale); setPhase("rewrite")
+      if (res.mode === "variants" && res.variants.length) {
+        setVariants(res.variants); setSel(0); setPhase("variants")
       } else if (res.mode === "question") {
         setQuestion(res.question ?? "What was the measurable impact?"); setPhase("question")
       } else {
@@ -434,7 +440,7 @@ function RewriteModal({
         <div className="cvp-rw-body">
           <div className="cvp-rw-original"><span className="cvp-rw-label">Original</span><p>{target.text}</p></div>
 
-          {phase === "loading" && <div className="cvp-rw-status" role="status">✦ Mentor is rewriting…</div>}
+          {phase === "loading" && <div className="cvp-rw-status" role="status">✦ Mentor is writing three versions…</div>}
 
           {phase === "error" && (
             <>
@@ -449,8 +455,9 @@ function RewriteModal({
           {phase === "question" && (
             <>
               <p className="cvp-rw-question">{question}</p>
-              <input
+              <textarea
                 className="cvp-rw-input"
+                rows={2}
                 placeholder="e.g. cut load time 40%, saved 12 hrs/week"
                 value={metric}
                 onChange={e => setMetric(e.target.value)}
@@ -471,14 +478,28 @@ function RewriteModal({
             </>
           )}
 
-          {phase === "rewrite" && (
+          {phase === "variants" && variants.length > 0 && (
             <>
-              <div className="cvp-rw-suggestion"><span className="cvp-rw-label">Suggested</span><p>{suggestion}</p></div>
-              {rationale && <p className="cvp-rw-rationale">{rationale}</p>}
+              <div className="cvp-rw-pick-label">Pick the version that tells your story best</div>
+              <div className="cvp-rw-tabs" role="tablist">
+                {variants.map((v, i) => (
+                  <button
+                    key={v.angle}
+                    type="button"
+                    role="tab"
+                    aria-selected={i === sel}
+                    className={`cvp-rw-tab${i === sel ? " active" : ""}`}
+                    onClick={() => setSel(i)}
+                  >
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+              <div className="cvp-rw-suggestion"><p>{variants[sel]?.text}</p></div>
               <div className="cvp-rw-foot">
                 <button type="button" className="cvb-btn sm" onClick={onClose}>Discard</button>
-                <button type="button" className="cvb-btn sm primary" onClick={() => onAccept(suggestion)}>
-                  <Icon name="check" size={12} /> Use this
+                <button type="button" className="cvb-btn sm primary" onClick={() => onAccept(variants[sel]?.text ?? "")}>
+                  <Icon name="check" size={12} /> Use this version
                 </button>
               </div>
             </>

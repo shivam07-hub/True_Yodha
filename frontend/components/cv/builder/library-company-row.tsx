@@ -9,6 +9,7 @@ import {
   STAGE_META, timeAgoShort,
 } from "./library-shared"
 import { getJobWorkspaceAction, latestCVVersionForJob, pickNewCvJobId } from "@/lib/cv/workspace"
+import { cleanJobTitle } from "@/lib/text/strip-markdown"
 import { I, LIcon } from "./library-icons"
 import { StatusPicker } from "../pipeline/StatusPicker"
 
@@ -57,7 +58,7 @@ function CVJobCard({ app, cv, onOpen, onStageChange }: {
       </div>
 
       <div>
-        <div className="tm-lib-job-title">{app.title}</div>
+        <div className="tm-lib-job-title">{cleanJobTitle(app.title)}</div>
       </div>
 
       <div className="tm-lib-job-meta">
