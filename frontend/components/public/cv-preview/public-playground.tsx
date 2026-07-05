@@ -34,13 +34,14 @@ import { Icon } from "@/components/cv/builder/icons"
 import { RestructureLoading } from "@/components/cv/builder/restructure-loading"
 import { RestructuredDoc } from "@/components/cv/builder/restructured-doc"
 import { runAtsChecks, atsScore, type AtsCheck } from "@/components/cv/builder/ats-checks"
+import { runContentChecks } from "@/components/cv/builder/content-checks"
 import { itemId, renderDeterministic } from "@/lib/cv-compose"
 import { printCvPage } from "@/lib/cv/print-cv"
 import { masterFilename } from "@/lib/cv/download-master"
 import {
   IDEAL_CV_SPEC, estimateLines, pageFillFromLines, pageFillBand, type PageFill,
 } from "@/lib/cv/page-fill"
-import { stashComposedCvText } from "@/lib/anon-cv-stash"
+import { stashComposedCvText, getAnonSessionId } from "@/lib/anon-cv-stash"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 
 import "@/app/(authed)/cv/cv-fonts.css"
@@ -124,12 +125,25 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
   const pageFill = useMemo<PageFill>(() => computePageFill(cv, hidden), [cv, hidden])
   const fillBand = pageFillBand(pageFill)
 
+  // Metadata-only download telemetry (#34 S6, Q13b=C): score + count of fixes +
+  // a random anon session id. No CV body (consent-gated). Fire-and-forget.
+  function recordDownload(savedIntent: boolean) {
+    publicCv.recordDownloadEvent({
+      anonSessionId: getAnonSessionId(),
+      score: result?.score ?? null,
+      fixCount: runContentChecks(cv).length,
+      fileFormat: "pdf",
+      savedIntent,
+    })
+  }
   function doDownload() {
     setDownloadOpen(false)
+    recordDownload(false)
     printCvPage(filename)
   }
   function doSaveAndDownload() {
     setDownloadOpen(false)
+    recordDownload(true)
     stashComposedCvText(composedText)
     printCvPage(filename)
     signup.open({ surface: "manual", next: NEXT, source: "cv_preview_save_download" })
