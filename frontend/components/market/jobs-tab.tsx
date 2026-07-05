@@ -29,7 +29,6 @@ export interface MarketJobsTabProps {
   hasCv: boolean
   cvResolved?: boolean
   targetRoles: string[]
-  targetRole?: string | null
   chipCountMap: Record<string, number>
   selectedCluster: string | null         // shared with the page's analytics/heatmap
   onSelectCluster: (cluster: string | null) => void
@@ -43,7 +42,7 @@ export interface MarketJobsTabProps {
 
 export function MarketJobsTab(props: MarketJobsTabProps) {
   const {
-    token, hasCv, cvResolved = false, targetRoles, targetRole, chipCountMap, selectedCluster, onSelectCluster,
+    token, hasCv, cvResolved = false, targetRoles, chipCountMap, selectedCluster, onSelectCluster,
     targetLocations, followedNames, onToggleFollow, initialSkillFacet,
   } = props
   const router = useRouter()
@@ -276,7 +275,6 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
           onChange={onChangeFilters}
           onClose={() => setFiltersOpen(false)}
           targetRoles={targetRoles}
-          targetRole={targetRole}
           chipCountMap={chipCountMap}
           hasCv={hasCv}
           targetLocations={targetLocations}

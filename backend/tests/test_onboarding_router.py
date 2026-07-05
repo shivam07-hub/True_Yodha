@@ -83,6 +83,7 @@ def test_target_saves_literal_role_seniority_and_location(monkeypatch) -> None:
     assert captured == {
         "user_id": "u1",
         "role_title": "Senior Product Manager",
+        "role_titles": None,
         "seniority": "senior",
         "location": "Bengaluru, India",
     }

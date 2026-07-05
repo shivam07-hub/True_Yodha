@@ -353,6 +353,7 @@ export interface UserProfile {
   linkedin_url: string | null
   target_roles: string[]
   target_role_title?: string | null
+  target_role_titles?: string[]
   target_seniority?: "intern" | "entry" | "mid" | "senior" | "lead" | "executive" | "any" | null
   target_location: string | null
   target_locations: string[]
@@ -510,11 +511,19 @@ export interface OnboardingState {
 }
 
 export interface OnboardingTarget {
-  role_title: string
+  // Single role (back-compat) OR role_titles for multi-role chips (up to 5).
+  // Provide one of the two; role_titles wins when present.
+  role_title?: string
+  role_titles?: string[]
   // Optional for point-of-use "edit role" (issue #145): omit to keep the user's
   // existing seniority/location; the backend preserves them via save_target.
   seniority?: TargetSeniority
   location?: string
+}
+
+export interface RoleReadiness {
+  role: string
+  readiness: number | null
 }
 
 export interface OnboardingProofSkill {
@@ -566,6 +575,9 @@ export const onboarding = {
     }),
   saveTarget: (token: string, body: OnboardingTarget) => request<void>("/onboarding/target", {
     method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(body),
+  }),
+  roleReadiness: (token: string) => request<RoleReadiness[]>("/onboarding/role-readiness", {
+    headers: { Authorization: `Bearer ${token}` },
   }),
   result: (token: string) => request<OnboardingResult>("/onboarding/result", {
     headers: { Authorization: `Bearer ${token}` },

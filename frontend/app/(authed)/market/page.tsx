@@ -123,7 +123,6 @@ function IntelPageInner() {
             hasCv={!!profileData?.has_cv}
             cvResolved={profileData !== undefined}
             targetRoles={targetRoles}
-            targetRole={profileData?.target_role_title}
             chipCountMap={chipCountMap}
             selectedCluster={selectedCluster}
             onSelectCluster={setSelectedCluster}

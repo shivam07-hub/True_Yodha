@@ -75,3 +75,24 @@ def fetch_aspiration_skills(
             aspiration[skill] = 2
 
     return aspiration
+
+
+def role_readiness(
+    scores_repo: ScoresRepository,
+    skill_level_map: dict[str, int],
+    search_roles: list[str],
+) -> int | None:
+    """0-100 readiness of the user's current skills for ONE target role.
+
+    Readiness = how much of the role's demanded proficiency the user's evidenced
+    skills already cover. `search_roles` are the ILIKE keys to gather demand from
+    — pass `[title]` plus its taxonomy clusters so a specific human title still
+    finds real demand. Returns None when no market demand can be resolved (the UI
+    shows "—", never a fake 0). Both maps are keyed by `taxonomy_key`.
+    """
+    aspiration = fetch_aspiration_skills(scores_repo, search_roles)
+    total = sum(aspiration.values())
+    if not total:
+        return None
+    met = sum(min(skill_level_map.get(skill, 0), target) for skill, target in aspiration.items())
+    return round(100 * met / total)

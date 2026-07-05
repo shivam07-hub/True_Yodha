@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { ScoreRing } from "@/components/skills/score-ring"
 import { ScoreBreakdown } from "@/components/skills/score-breakdown"
-import { TargetRoleEditor } from "@/components/target-role/target-role-editor"
+import { TargetRolesChips } from "@/components/target-role/target-roles-chips"
 import { CompactMoves } from "./compact-moves"
 import type { NextBestStep } from "@/lib/onboarding/next-best-steps"
 import type { GapSkill } from "@/lib/api"
@@ -16,7 +16,6 @@ interface CommandRailProps {
   score: number
   domainScores: Record<string, number>
   gapSkills: GapSkill[]
-  role?: string | null
   moves: NextBestStep[]
 }
 
@@ -25,12 +24,12 @@ interface CommandRailProps {
  * daily-loop ring was retired here: a new user needs the score-improvement plan,
  * not a habit tracker. Order = how am I → why → what next:
  *   1. ScoreRing — tap unfolds the personal breakdown in place (T2-3)
- *   2. Scored-for role — editable at point of use (#145)
+ *   2. Per-role Readiness — editable at point of use
  *   3. Three ranked moves — terse, one accent, all clickable (CompactMoves)
  * Mirrors SkillIntelHeader so the two score surfaces stay one product.
  */
 export function CommandRail({
-  greeting, name, dateLine, activeTargets, score, domainScores, gapSkills, role, moves,
+  greeting, name, dateLine, activeTargets, score, domainScores, gapSkills, moves,
 }: CommandRailProps) {
   const [open, setOpen] = useState(false)
   const canExplain = score > 0 && Object.keys(domainScores).length > 0
@@ -59,8 +58,9 @@ export function CommandRail({
         />
       )}
 
+      {/* Score is CV-intrinsic; roles show per-role Readiness %, editable here. */}
       <div className="cmd-rail-role">
-        <TargetRoleEditor role={role} label="Scored for" />
+        <TargetRolesChips editable showReadiness />
       </div>
 
       <CompactMoves steps={moves} />

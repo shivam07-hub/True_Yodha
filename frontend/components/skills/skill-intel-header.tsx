@@ -4,7 +4,7 @@ import { useState } from "react"
 import { ScoreRing } from "@/components/skills/score-ring"
 import { ScoreBreakdown } from "@/components/skills/score-breakdown"
 import { ShareButton } from "@/components/profile/ShareButton"
-import { TargetRoleEditor } from "@/components/target-role/target-role-editor"
+import { TargetRolesChips } from "@/components/target-role/target-roles-chips"
 import type { SkillIntelStats } from "@/lib/skill-domains"
 import type { GapSkill } from "@/lib/api"
 
@@ -12,8 +12,6 @@ interface Props {
   totalScore: number | null
   ninjaName?: string | null
   stats: SkillIntelStats | null
-  /** Primary role the score is measured against — editable in place (#145). */
-  targetRole?: string | null
   /** Personal score decomposition (T2-3) — tapping the ring unfolds it in place. */
   domainScores?: Record<string, number>
   gapSkills?: GapSkill[]
@@ -26,7 +24,7 @@ interface Props {
  * its own organization (Quick-wins vs Hottest sort, on-CV vs gap grouping), so
  * the header carries no competing filter control.
  */
-export function SkillIntelHeader({ totalScore, ninjaName, stats, targetRole, domainScores, gapSkills }: Props) {
+export function SkillIntelHeader({ totalScore, ninjaName, stats, domainScores, gapSkills }: Props) {
   const [open, setOpen] = useState(false)
   const shareUrl =
     ninjaName && typeof window !== "undefined"
@@ -64,8 +62,10 @@ export function SkillIntelHeader({ totalScore, ninjaName, stats, targetRole, dom
         />
       )}
 
+      {/* The score above is CV-intrinsic (role-agnostic). Roles carry a per-role
+          Readiness % instead — the role-specific signal, editable in place. */}
       <div className="tm-pv-head-role" style={{ marginTop: 8 }}>
-        <TargetRoleEditor role={targetRole} label="Scored for" />
+        <TargetRolesChips editable showReadiness />
       </div>
 
       {stats && (

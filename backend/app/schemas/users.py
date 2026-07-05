@@ -9,6 +9,7 @@ class UserProfileResponse(BaseModel):
     linkedin_url: str | None
     target_roles: list[str]
     target_role_title: str | None = None
+    target_role_titles: list[str] = []
     target_seniority: str | None = None
     target_location: str | None
     target_locations: list[str] = []

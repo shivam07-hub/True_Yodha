@@ -140,7 +140,6 @@ export function MissionHeroRail({ token }: { token: string | null }) {
           score={score}
           domainScores={scoreData?.domain_scores ?? {}}
           gapSkills={scoreData?.gap_skills ?? []}
-          role={profile?.target_role_title}
           moves={nextBestSteps}
         />
       ) : (

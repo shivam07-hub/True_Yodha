@@ -134,7 +134,6 @@ function ForgePageInner() {
             totalScore={totalScore}
             ninjaName={profile?.ninja_name}
             stats={stats}
-            targetRole={profile?.target_role_title}
             domainScores={scoreData?.domain_scores}
             gapSkills={scoreData?.gap_skills}
           />

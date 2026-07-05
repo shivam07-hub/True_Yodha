@@ -8,7 +8,7 @@ import { formatCount } from "@/lib/format"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ThemeControl } from "@/components/ui/theme-control"
-import { TargetRoleEditor } from "@/components/target-role/target-role-editor"
+import { TargetRolesChips } from "@/components/target-role/target-roles-chips"
 import { CompanyLink } from "@/components/companies/company-link"
 import { billing, jobs, users } from "@/lib/api"
 import type { ProfileUpdate, UserProfile } from "@/lib/api"
@@ -29,7 +29,7 @@ import {
 import "./settings-modal.css"
 
 export type Tab = "Account" | "Following" | "Feedback" | "Billing"
-type SidebarProfile = Pick<UserProfile, "full_name" | "email" | "target_role_title" | "target_location" | "target_locations" | "linkedin_url">
+type SidebarProfile = Pick<UserProfile, "full_name" | "email" | "target_role_title" | "target_role_titles" | "target_roles" | "target_location" | "target_locations" | "linkedin_url">
 type SaveStatus = "idle" | "saving" | "saved" | "error"
 type BillingStatus = "idle" | "creating" | "verifying" | "success" | "error"
 
@@ -432,6 +432,12 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
   }
 
   const followedCompanies = following.companies
+  const targetRoleTitles =
+    profile?.target_role_titles?.length
+      ? profile.target_role_titles
+      : profile?.target_role_title
+        ? [profile.target_role_title]
+        : (profile?.target_roles ?? [])
 
   // Following-tab save state, derived from the follow hook so the indicator can
   // sit inline next to the chips. Flashes "✓ Saved" briefly once an in-flight
@@ -697,10 +703,12 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                     server-side, so there is no separate role array to manage. */}
                 <div style={ROW_STYLE}>
                   <div>
-                    <div style={ROW_LABEL}>Target Role</div>
-                    <div style={ROW_DESC}>What your Myro Score and job matches are measured against</div>
+                    <div style={ROW_LABEL}>Target Roles</div>
+                    <div style={ROW_DESC}>The roles your job matches are measured against — target up to 5</div>
                   </div>
-                  <TargetRoleEditor role={profile?.target_role_title} />
+                  <div style={{ marginTop: 10 }}>
+                    <TargetRolesChips roles={targetRoleTitles} editable showReadiness />
+                  </div>
                 </div>
 
                 {/* Target location */}
