@@ -11,10 +11,12 @@
  *     re-upload. A full-page OAuth redirect drops it → we fall back to the
  *     result-only continuity above.
  *
- * Nothing here ever persists the CV server-side — that's the whole PV1 point.
+ * This module only keeps browser-local pending data. Server persistence happens
+ * later, after auth, through the explicit claim flow.
  */
 
 import type { AnonScoreResponse } from "@/lib/api"
+import { renderDeterministic } from "@/lib/cv-compose"
 
 const RESULT_KEY = "myro_anon_score_v1"
 // The COMPOSED CV text after the logged-out user's playground edits (hides +
@@ -33,6 +35,7 @@ export function stashAnonCvText(text: string): void {
   stashedFile = null
   try {
     sessionStorage.removeItem(RESULT_KEY)
+    sessionStorage.removeItem(COMPOSED_KEY)
   } catch {
     // ignore — destination still finds the in-memory text to score.
   }
@@ -50,6 +53,8 @@ export function stashAnonCv(file: File, result: AnonScoreResponse): void {
   stashedFile = file
   try {
     sessionStorage.setItem(RESULT_KEY, JSON.stringify(result))
+    if (result.cv) sessionStorage.setItem(COMPOSED_KEY, renderDeterministic(result.cv, new Set()))
+    else sessionStorage.removeItem(COMPOSED_KEY)
   } catch {
     // sessionStorage unavailable (private mode / quota) — the in-memory File
     // still covers the same-SPA replay; only cross-redirect continuity is lost.
@@ -64,6 +69,7 @@ export function stashAnonCvFile(file: File): void {
   stashedFile = file
   try {
     sessionStorage.removeItem(RESULT_KEY)
+    sessionStorage.removeItem(COMPOSED_KEY)
   } catch {
     // ignore — destination still finds the in-memory File to score.
   }
@@ -77,6 +83,10 @@ export function takeStashedFile(): File | null {
   return file
 }
 
+export function hasStashedFile(): boolean {
+  return stashedFile !== null
+}
+
 /** Stash just the RESULT (paste path, #4 — there's no File to replay). Keeps the
  *  score readout alive across the signup redirect / back-nav; claim-on-signup
  *  uses the composed text (stashComposedCvText) instead of a File. */
@@ -84,6 +94,7 @@ export function stashAnonCvResult(result: AnonScoreResponse): void {
   stashedFile = null
   try {
     sessionStorage.setItem(RESULT_KEY, JSON.stringify(result))
+    if (!result.cv) sessionStorage.removeItem(COMPOSED_KEY)
   } catch {
     // storage blocked — the in-SPA result state still renders; only cross-
     // redirect continuity is lost.
@@ -110,11 +121,9 @@ export function stashComposedCvText(text: string): void {
   }
 }
 
-/** Consume the stashed composed text. Returns null when nothing was saved. */
-export function takeStashedComposedCvText(): string | null {
+export function readStashedComposedCvText(): string | null {
   try {
     const text = sessionStorage.getItem(COMPOSED_KEY)
-    if (text) sessionStorage.removeItem(COMPOSED_KEY)
     return text && text.trim() ? text : null
   } catch {
     return null

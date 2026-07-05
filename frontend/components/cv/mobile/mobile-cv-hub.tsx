@@ -1,7 +1,7 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import type { ApplicationResponse, CVStructured, CVVersion, UserProfile } from "@/lib/api"
+import { useState } from "react"
+import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
 import { CVExportView } from "@/components/cv/builder/cv-export-view"
 import { Icon } from "@/components/cv/builder/icons"
 import { Button } from "@/components/ui/button"
@@ -22,30 +22,16 @@ import { previewContact, type MobileCVSection, withContact } from "./mobile-cv-m
 interface Props {
   token: string
   cv: CVStructured
-  versions: CVVersion[]
   currentBaseline: CVVersion | null
-  applications: ApplicationResponse[]
   profile: UserProfile | null
-  onOpenJob: (jobId: string) => void
   onReplaceCV: () => void
-}
-
-interface VersionGroup {
-  jobId: string
-  company: string
-  role: string
-  versions: CVVersion[]
-  application: ApplicationResponse | null
 }
 
 export function MobileCVHub({
   token,
   cv: rawCv,
-  versions,
   currentBaseline,
-  applications,
   profile,
-  onOpenJob,
   onReplaceCV,
 }: Props) {
   const cv = withContact(rawCv)
@@ -53,7 +39,6 @@ export function MobileCVHub({
   const [editorSection, setEditorSection] = useState<MobileCVSection | null>(null)
   const [moreOpen, setMoreOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
-  const groups = useMemo(() => groupVersions(versions, applications), [versions, applications])
   const contact = previewContact(cv, profile)
 
   function openEditor(section: MobileCVSection | null = null) {
@@ -122,38 +107,6 @@ export function MobileCVHub({
         </div>
       </section>
 
-      <section className="tm-mcv-library" aria-labelledby="tm-mcv-library-title">
-        <h2 id="tm-mcv-library-title">Your CVs</h2>
-        {groups.length === 0 ? (
-          <div className="tm-mcv-library-empty">
-            <p>No tailored CVs yet.</p>
-            <Button type="button" variant="outline" size="md" onClick={() => window.location.assign("/market")}>Find a job</Button>
-          </div>
-        ) : groups.map(group => (
-          <details className="tm-mcv-version-group" key={group.jobId}>
-            <summary>
-              <span>
-                <strong>{group.role} · {group.company}</strong>
-                <small>{applicationLabel(group.application)} · {group.versions.length} {group.versions.length === 1 ? "version" : "versions"}</small>
-              </span>
-              <Icon name="chevron-down" size={18} />
-            </summary>
-            <div className="tm-mcv-version-list">
-              {group.versions.map((version, index) => (
-                <button type="button" key={version.id} onClick={() => onOpenJob(group.jobId)}>
-                  <span className={index === 0 ? "is-active" : ""} aria-hidden="true" />
-                  <span>
-                    <strong>{index === 0 ? "Active tailored CV" : versionKind(version)}</strong>
-                    <small>{timeAgo(version.created_at)}{version.title ? ` · ${version.title}` : ""}</small>
-                  </span>
-                  <Icon name="chevron-right" size={18} />
-                </button>
-              ))}
-            </div>
-          </details>
-        ))}
-      </section>
-
       <Dialog open={moreOpen} onOpenChange={setMoreOpen}>
         <DialogContent>
           <DialogHeader>
@@ -170,37 +123,4 @@ export function MobileCVHub({
       <MobileCVHistory token={token} open={historyOpen} onOpenChange={setHistoryOpen} />
     </div>
   )
-}
-
-function groupVersions(versions: CVVersion[], applications: ApplicationResponse[]): VersionGroup[] {
-  const applicationsByJob = new Map(applications.map(application => [application.job_id, application]))
-  const byJob = new Map<string, CVVersion[]>()
-  versions.filter(version => version.kind !== "baseline_upload" && version.job_id).forEach(version => {
-    const jobId = version.job_id!
-    byJob.set(jobId, [...(byJob.get(jobId) ?? []), version])
-  })
-  return Array.from(byJob, ([jobId, rows]) => {
-    const sorted = rows.sort((a, b) => b.user_version_number - a.user_version_number)
-    const latest = sorted[0]
-    const application = applicationsByJob.get(jobId) ?? null
-    return {
-      jobId,
-      company: latest.company_name || application?.company || "Company",
-      role: latest.job_title || application?.title || "Tailored CV",
-      versions: sorted,
-      application,
-    }
-  }).sort((a, b) => Date.parse(b.versions[0].created_at) - Date.parse(a.versions[0].created_at))
-}
-
-function applicationLabel(application: ApplicationResponse | null): string {
-  if (!application || application.status === "saved") return "Saved"
-  if (application.status === "applied") return "Applied"
-  return application.status.replaceAll("_", " ")
-}
-
-function versionKind(version: CVVersion): string {
-  if (version.kind === "polished") return "AI polished"
-  if (version.kind === "edited") return "Edited version"
-  return "Tailored version"
 }

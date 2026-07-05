@@ -13,6 +13,7 @@ import { MAX_LEVEL, sessionsForGap } from "@/lib/level-thresholds"
 import { LensWhy, jdSnippet, stripTaxonomySuffix } from "./lenses"
 import { CommentThread } from "@/components/comments/comment-thread"
 import { CompanyDrawer } from "@/components/companies/company-drawer"
+import { ReachSection } from "./reach-section"
 import type { OtherRole } from "./lens-company"
 
 /** Skills + "Why you fit" fetch only when the detail is open (expand-gated XP). */
@@ -137,6 +138,9 @@ export function DetailBody(p: DetailBodyProps) {
         ) : null}
         {loadingSkills && skills.length === 0 ? <p className="db-lens-empty">Loading skills…</p> : null}
       </div>
+
+      {/* REACH THE PEOPLE — free searches + paid outreach pack (backlog #35) */}
+      <ReachSection job={p.job} token={p.token} active={p.active} />
 
       {/* JOB DESCRIPTION */}
       {p.job.job_description ? (

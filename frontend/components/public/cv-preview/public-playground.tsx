@@ -30,6 +30,8 @@ import {
 import { PdfPage, type PdfPageContact } from "@/components/cv/builder/pdf-page"
 import { BulletRow } from "@/components/cv/builder/bullet-row"
 import { Icon } from "@/components/cv/builder/icons"
+import { RestructureLoading } from "@/components/cv/builder/restructure-loading"
+import { RestructuredDoc } from "@/components/cv/builder/restructured-doc"
 import { runAtsChecks, atsScore, type AtsCheck } from "@/components/cv/builder/ats-checks"
 import { itemId, renderDeterministic } from "@/lib/cv-compose"
 import { printCvPage } from "@/lib/cv/print-cv"
@@ -64,6 +66,12 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
   const [downloadOpen, setDownloadOpen] = useState(false)
   const [restructureOpen, setRestructureOpen] = useState(false)
   const [rewriteTarget, setRewriteTarget] = useState<RewriteTarget | null>(null)
+  // Mobile only: the editor + preview stack in series is a long scroll, so on
+  // narrow screens they become a toggle — Playground (default, edit-first) vs
+  // Preview. Desktop ignores this and keeps the live side-by-side split so you
+  // can edit and watch the sheet update at once. Driven purely by data-mtab +
+  // CSS, so the desktop split is never touched.
+  const [mtab, setMtab] = useState<"edit" | "preview">("edit")
 
   function toggle(iid: string) {
     setHidden(prev => {
@@ -97,6 +105,9 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
     () => restructuredText ?? renderDeterministic(cv, hidden),
     [restructuredText, cv, hidden],
   )
+  useEffect(() => {
+    stashComposedCvText(composedText)
+  }, [composedText])
 
   const filename = useMemo(() => masterFilename(contact.name || null), [contact.name])
 
@@ -149,7 +160,27 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
         </div>
       </header>
 
-      <div className="cvp-grid">
+      {/* Mobile-only view toggle (hidden on desktop, where both panes show). */}
+      <div className="cvp-tabs" role="group" aria-label="Switch view">
+        <button
+          type="button"
+          className={`cvp-tab${mtab === "edit" ? " active" : ""}`}
+          aria-pressed={mtab === "edit"}
+          onClick={() => setMtab("edit")}
+        >
+          <Icon name="sparkle" size={13} /> Playground
+        </button>
+        <button
+          type="button"
+          className={`cvp-tab${mtab === "preview" ? " active" : ""}`}
+          aria-pressed={mtab === "preview"}
+          onClick={() => setMtab("preview")}
+        >
+          <Icon name="file" size={13} /> Preview
+        </button>
+      </div>
+
+      <div className="cvp-grid" data-mtab={mtab}>
         {/* Editor pane */}
         <div className="cvp-editor">
           <div className={`cvp-fill cvp-fill-${fillBand}`} aria-label="Page-fill estimate">
@@ -504,7 +535,11 @@ function RestructureModal({
       <div className="cvb-modal cvb-rs-modal" onClick={e => e.stopPropagation()}>
         <div className="cvb-modal-head"><Icon name="sparkle" size={14} /> Restructure with Mentor</div>
 
-        {phase === "loading" && <div className="cvb-rs-body"><div className="cvp-rw-status" role="status">✦ Mentor is restructuring your CV…</div></div>}
+        {phase === "loading" && (
+          <div className="cvb-rs-body">
+            <RestructureLoading note="Usually about 15 seconds. Mentor only reorders and tightens your lines — it never invents anything." />
+          </div>
+        )}
 
         {phase === "error" && (
           <div className="cvb-rs-body">
@@ -526,7 +561,7 @@ function RestructureModal({
                 </ul>
               </div>
             )}
-            <div className="cvb-rs-preview" aria-label="Proposed CV"><pre>{proposed}</pre></div>
+            <div className="cvb-rs-preview" aria-label="Proposed CV"><RestructuredDoc text={proposed} /></div>
             {(rationale || playbook || uncertainty) && (
               <details className="cvb-rs-why">
                 <summary>Why this works</summary>

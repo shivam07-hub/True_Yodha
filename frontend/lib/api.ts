@@ -2405,6 +2405,35 @@ export interface DeepeningItem {
   answer: string
 }
 
+/** One reach search — opened in the user's own browser (ADR-0018). */
+export interface ReachSearchItem {
+  label: string
+  url: string
+  kind: "linkedin" | "google"
+}
+
+export interface ReachSearchResponse {
+  reporting_target: string | null
+  function: string
+  target_titles: string[]
+  primary: ReachSearchItem | null
+  alternates: ReachSearchItem[]
+}
+
+export interface ReachPack {
+  outreach_message: string
+  referral_ask: string
+  timing: string
+  warm_intro: string
+}
+
+export interface ReachPackResponse {
+  purchased: boolean
+  pack: ReachPack | null
+  cost: number
+  new_coin_balance: number | null
+}
+
 export interface UserSkillDemandItem {
   skill: string
   display_name: string
@@ -2812,6 +2841,45 @@ export const jobs = {
     request<SkillGapResponse>(`/jobs/${jobId}/skill-gap`, {
       headers: { Authorization: `Bearer ${token}` },
     }),
+  /** Free reach search (ADR-0018): roles to search for + URLs the user opens
+   *  in their own browser. Myro never fetches the results. */
+  reachSearch: (token: string, body: { job_title: string; company?: string | null; job_description?: string }) =>
+    request<ReachSearchResponse>(`/jobs/reach/search`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    }),
+  /** Purchased-state for a job's outreach pack — no charge (UI gate). */
+  getReachPack: (token: string, jobId: string) =>
+    request<ReachPackResponse>(`/jobs/${encodeURIComponent(jobId)}/reach/pack`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  /** Generate the 50-coin outreach pack (charge-on-success; replay free). */
+  createReachPack: (token: string, jobId: string) =>
+    request<ReachPackResponse>(`/jobs/${encodeURIComponent(jobId)}/reach/pack`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  /** How many own-connections the user has uploaded (warm-intro source). */
+  connectionsStatus: (token: string) =>
+    request<{ count: number }>(`/cv/connections`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  /** Upload the user's own LinkedIn Connections.csv export (ADR-0018 Path 1). */
+  uploadConnections: async (token: string, file: File): Promise<{ count: number }> => {
+    const form = new FormData()
+    form.append("file", file)
+    const res = await fetch(`${BASE}/cv/connections/upload`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    })
+    if (!res.ok) {
+      const msg = await res.text().catch(() => "Upload failed")
+      throw new Error(msg)
+    }
+    return res.json()
+  },
   analyseJob: (token: string, jobId: string) =>
     request<{ job_id: string; overlap_score: number; matched_count: number; total_skills: number; new_coin_balance: number }>(
       `/jobs/analyse/${jobId}`,
