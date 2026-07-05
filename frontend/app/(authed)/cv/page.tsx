@@ -13,6 +13,8 @@ import { CvSkeleton } from "@/components/loading/page-skeletons"
 import { PlaygroundView } from "@/components/cv/builder/playground-view"
 import { LibraryView } from "@/components/cv/builder/library-view"
 import { Icon } from "@/components/cv/builder/icons"
+import { runContentChecks } from "@/components/cv/builder/content-checks"
+import { domainLabel } from "@/lib/domain-labels"
 import {
   CVUploadFailure,
   clearPersistedCVUploadState,
@@ -148,6 +150,25 @@ function CVPage() {
       if (typeof v === "number" && v < loVal) { loVal = v; lo = k }
     }
     return lo
+  }
+
+  // The reveal beat (#34 S4): strongest + weakest domain (labelled) for the
+  // strong/weak callout. Reads the same freshly-invalidated scores cache.
+  function strongWeakFromCache(): { strong: string | null; weak: string | null } {
+    const data = queryClient.getQueryData<{ domain_scores?: Record<string, number> }>(dataKeys.scores())
+    const ds = data?.domain_scores
+    if (!ds) return { strong: null, weak: null }
+    let hi: string | null = null, lo: string | null = null
+    let hiVal = -Infinity, loVal = Infinity
+    for (const [k, v] of Object.entries(ds)) {
+      if (typeof v !== "number") continue
+      if (v > hiVal) { hiVal = v; hi = k }
+      if (v < loVal) { loVal = v; lo = k }
+    }
+    return {
+      strong: hi ? domainLabel(hi) : null,
+      weak: lo && lo !== hi ? domainLabel(lo) : null,
+    }
   }
 
   // A retryable network interrupt/timeout on the phase-1 POST means the file is
@@ -573,6 +594,11 @@ function CVPage() {
                   score: Math.round(uploadResult.score),
                   skillsDetected: uploadResult.skills_detected,
                   biggestDragDomain: biggestDrag,
+                  reveal: cvData ? {
+                    fixCount: runContentChecks(cvData).length,
+                    strongDomain: strongWeakFromCache().strong,
+                    weakDomain: strongWeakFromCache().weak,
+                  } : undefined,
                   downloadSlot: token ? (
                     <DownloadCVButton
                       token={token}
