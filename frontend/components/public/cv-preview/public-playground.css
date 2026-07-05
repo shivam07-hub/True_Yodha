@@ -49,9 +49,51 @@
   gap: 28px;
   align-items: start;
 }
+
+/* Mobile view toggle — desktop shows both panes at once, so it's hidden there. */
+.cvp-tabs {
+  display: none;
+  padding: 3px;
+  border-radius: 99px;
+  background: var(--tm-surface-2, rgba(127, 127, 127, 0.06));
+  border: 1px solid var(--tm-border-soft);
+  margin-bottom: 18px;
+}
+.cvp-tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  border-radius: 99px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tm-text-muted);
+  cursor: pointer;
+  transition: color 160ms var(--tm-ease, ease), background 160ms var(--tm-ease, ease);
+}
+.cvp-tab.active {
+  background: var(--tm-surface, #fff);
+  color: var(--tm-accent-text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.cvp-tab:focus-visible { outline: 2px solid var(--tm-accent-text); outline-offset: 2px; }
+
 @media (max-width: 880px) {
   .cvp-grid { grid-template-columns: 1fr; }
-  .cvp-preview { order: -1; } /* show the result first on mobile */
+  .cvp-preview { position: static; }
+  .cvp-tabs { display: flex; }
+  /* One pane at a time on mobile — Playground (edit) is the default landing. */
+  .cvp-grid[data-mtab="edit"] .cvp-preview { display: none; }
+  .cvp-grid[data-mtab="preview"] .cvp-editor { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cvp-tab { transition: none; }
 }
 
 /* Page-fill meter */
@@ -173,7 +215,7 @@
   position: sticky;
   top: 84px;
 }
-@media (max-width: 880px) { .cvp-preview { position: static; } }
+/* Mobile: sticky is dropped in the responsive block above (single source). */
 
 /* Fit the fixed 816px A4 sheet to the preview column so it never clips (the
    authed surface scrolls/reflows; here we show a true WYSIWYG miniature).

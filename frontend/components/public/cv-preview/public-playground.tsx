@@ -66,6 +66,12 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
   const [downloadOpen, setDownloadOpen] = useState(false)
   const [restructureOpen, setRestructureOpen] = useState(false)
   const [rewriteTarget, setRewriteTarget] = useState<RewriteTarget | null>(null)
+  // Mobile only: the editor + preview stack in series is a long scroll, so on
+  // narrow screens they become a toggle — Playground (default, edit-first) vs
+  // Preview. Desktop ignores this and keeps the live side-by-side split so you
+  // can edit and watch the sheet update at once. Driven purely by data-mtab +
+  // CSS, so the desktop split is never touched.
+  const [mtab, setMtab] = useState<"edit" | "preview">("edit")
 
   function toggle(iid: string) {
     setHidden(prev => {
@@ -154,7 +160,27 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
         </div>
       </header>
 
-      <div className="cvp-grid">
+      {/* Mobile-only view toggle (hidden on desktop, where both panes show). */}
+      <div className="cvp-tabs" role="group" aria-label="Switch view">
+        <button
+          type="button"
+          className={`cvp-tab${mtab === "edit" ? " active" : ""}`}
+          aria-pressed={mtab === "edit"}
+          onClick={() => setMtab("edit")}
+        >
+          <Icon name="sparkle" size={13} /> Playground
+        </button>
+        <button
+          type="button"
+          className={`cvp-tab${mtab === "preview" ? " active" : ""}`}
+          aria-pressed={mtab === "preview"}
+          onClick={() => setMtab("preview")}
+        >
+          <Icon name="file" size={13} /> Preview
+        </button>
+      </div>
+
+      <div className="cvp-grid" data-mtab={mtab}>
         {/* Editor pane */}
         <div className="cvp-editor">
           <div className={`cvp-fill cvp-fill-${fillBand}`} aria-label="Page-fill estimate">
