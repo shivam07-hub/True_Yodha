@@ -89,7 +89,40 @@ async def preview_job_import(
     )
     preview = jobs_workflow.preview_imported_job(repo, body)
     preview.update({k: v for k, v in filled.items() if v})
+    # Extension scored hook (#34 S5): deterministic fit of the previewed skills
+    # vs the caller's CV — same primary=2/secondary=1 weighting as fit-batch, no
+    # persist. Lets the popup show "Ready N/100 + top gaps" the moment the JD is
+    # captured, then deep-link into the report.
+    user_lower = {k.lower(): v for k, v in repo.get_user_skill_map(principal.id).items()}
+    preview.update(_preview_fit(
+        preview.get("primary_skills") or [],
+        preview.get("secondary_skills") or [],
+        user_lower,
+    ))
     return JobImportPreviewResponse(**preview)
+
+
+def _preview_fit(primary: list, secondary: list, user_lower: dict[str, int]) -> dict:
+    """Deterministic overlap of previewed job skills against the caller's CV.
+    Mirrors analyse._compute_overlap (primary weight 2, secondary 1). Returns a
+    null readiness when no taxonomy skills resolved — "unknown fit", not "no fit"."""
+    def key(s) -> str:
+        return ((s.get("taxonomy_key") if isinstance(s, dict) else getattr(s, "taxonomy_key", None)) or "").lower()
+
+    def label(s) -> str:
+        return (s.get("label") if isinstance(s, dict) else getattr(s, "label", "")) or ""
+
+    p = [s for s in primary if key(s)]
+    sec = [s for s in secondary if key(s)]
+    max_possible = 2 * len(p) + len(sec)
+    if not max_possible:
+        return {"readiness_pct": None, "matched_skills": [], "top_gaps": []}
+    p_hit = [s for s in p if key(s) in user_lower]
+    s_hit = [s for s in sec if key(s) in user_lower]
+    score = round((2 * len(p_hit) + len(s_hit)) / max_possible * 100, 1)
+    matched = list({label(s) for s in p_hit + s_hit})
+    gaps = [label(s) for s in p if key(s) not in user_lower][:2]
+    return {"readiness_pct": score, "matched_skills": matched, "top_gaps": gaps}
 
 
 @router.post("/import/extract-file", response_model=JobFileExtractResponse)

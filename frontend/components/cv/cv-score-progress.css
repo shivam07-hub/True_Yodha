@@ -112,6 +112,18 @@
 @keyframes csp-pop { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .csp-done-tier { font-size: 16px; font-weight: 650; color: var(--tm-text); }
 .csp-done-next { font-size: 13px; color: var(--tm-text-muted); }
+/* Reveal beat (#34 S4) — verdict leads with the path forward; strong/weak name
+   the extremes; the CTA count is the real number of fixes, no fabricated delta. */
+.csp-done-verdict {
+  margin: 4px 0 2px; max-width: 40ch; font-size: 13.5px; line-height: 1.55;
+  color: var(--tm-text-muted); text-align: center;
+}
+.csp-done-swx { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin: 2px 0; }
+.csp-done-sw {
+  font: 600 11px var(--tm-font-mono); padding: 3px 9px; border-radius: 6px;
+}
+.csp-done-sw.is-strong { background: var(--tm-success-wash); color: var(--tm-success); }
+.csp-done-sw.is-weak { background: var(--tm-warning-wash); color: var(--tm-warning); }
 .csp-done-method {
   font-size: 12px;
   font-weight: 650;

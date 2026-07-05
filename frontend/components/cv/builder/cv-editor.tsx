@@ -17,6 +17,7 @@ import { itemId } from "@/lib/cv-compose"
 import { dataKeys } from "@/lib/domain-data"
 import { CVPointRow, type CVPointMeta } from "./cv-point-row"
 import type { KeywordTarget } from "./keyword-utils"
+import { runContentChecks, type ContentFinding } from "./content-checks"
 
 export interface RewriteTarget { iid: string; keywords: string[] }
 
@@ -89,6 +90,24 @@ export function CVEditor({
       return { iid, label: clip(b) }
     }),
   )
+
+  // Deterministic recruiter-check findings (#34 S2), grouped by the editor iid of
+  // the bullet each one flags — so a row can wash + chip its own issues. Rebuilt
+  // from the live CV, so a fix drops off the moment the text stops triggering it.
+  const findingsByIid = new Map<string, ContentFinding[]>()
+  for (const f of runContentChecks(cv)) {
+    let iid: string | null = null
+    if (f.section === "summary" && cv.summary != null) {
+      iid = itemId("summary", 0, cv.summary)
+    } else if (f.section === "experience") {
+      const b = cv.experience[f.itemIndex]?.bullets[f.bulletIndex]
+      if (b != null) iid = itemId("exp_bullet", f.itemIndex * 100 + f.bulletIndex, b)
+    } else if (f.section === "projects") {
+      const b = cv.projects[f.itemIndex]?.bullets[f.bulletIndex]
+      if (b != null) iid = itemId("proj_bullet", f.itemIndex * 100 + f.bulletIndex, b)
+    }
+    if (iid) findingsByIid.set(iid, [...(findingsByIid.get(iid) ?? []), f])
+  }
 
   function openComposer(roleIndex: number) {
     setEditingIid(null); setRewriteIid(null); setComposerDraft(""); setComposerRole(roleIndex)
@@ -164,6 +183,7 @@ export function CVEditor({
         copied={copied}
         targets={targets}
         userSkills={userSkillsQuery.data}
+        findings={findingsByIid.get(iid)}
         rewriteOpen={rewriteIid === iid}
         rewriteKeywords={rewriteKw}
         missingKeywords={missingKeywords}

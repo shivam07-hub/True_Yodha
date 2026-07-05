@@ -55,3 +55,19 @@ export function stripMarkdown(text: string | null | undefined): string {
   }
   return out.trim()
 }
+
+/**
+ * Sanitize a scraped job title for display. On top of stripMarkdown, drops the
+ * escape backslashes and stray separator runs the scraper leaves behind
+ * (e.g. "Consulting\ \ ### Project Manager" → "Consulting · Project Manager"),
+ * so a dirty listing never renders as raw markup in the UI.
+ */
+export function cleanJobTitle(text: string | null | undefined): string {
+  if (!text) return ""
+  return stripMarkdown(text)
+    .replace(/\\/g, " ")                        // escape backslashes → space
+    .replace(/\s*[·|/–—-]{2,}\s*/g, " · ")       // stray separator runs → one dot
+    .replace(/\s{2,}/g, " ")                     // collapse whitespace
+    .replace(/^[\s·|/–—-]+|[\s·|/–—-]+$/g, "")   // trim leading/trailing separators
+    .trim()
+}

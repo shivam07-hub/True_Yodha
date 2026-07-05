@@ -210,3 +210,105 @@ async def suggest_rewrite(
         return {"mode": "error", "rationale": "Rewrite is unavailable right now."}
 
     return finalize_rewrite(raw, plan["passages"], plan["missing_keywords"])
+
+
+# ─── 3-angle variants (pick-a-version) ───────────────────────────────────────
+#
+# Instead of one rewrite, offer three framings of the SAME real facts so the user
+# picks the story that fits: metric-led, impact-led, scope-led. Same unbreakable
+# guardrails (one line, strong verb, NEVER invent numbers) — only the emphasis
+# differs. One LLM round-trip returns all three (tagged), so it's no slower than a
+# single rewrite. The no-fabrication question branch is shared verbatim via
+# prepare_rewrite, so a metric-less bullet still asks for the real number first.
+
+VARIANTS_MAX_TOKENS = 380
+
+# (angle, label, emphasis) — the label is what the UI tab shows.
+_ANGLES: list[tuple[str, str, str]] = [
+    ("metric", "Metric-led",
+     "Lead with the measurable result — a number, %, ₹/$ amount, time saved, or scale. "
+     "Use ONLY figures already present in the bullet or supplied by the user; never invent one."),
+    ("impact", "Impact-led",
+     "Lead with the business impact — what changed for the team, product, or customer as a result."),
+    ("scope", "Scope-led",
+     "Lead with the scope and scale — the systems, breadth, stakeholders, or complexity owned."),
+]
+
+_TAGS = {"metric": "[METRIC]", "impact": "[IMPACT]", "scope": "[SCOPE]"}
+
+
+def _variants_instruction() -> str:
+    angle_lines = "\n".join(f"{_TAGS[a]} {desc}" for a, _, desc in _ANGLES)
+    return (
+        "Produce THREE alternative rewrites of the SAME bullet, one per angle below. "
+        "All three describe the SAME real facts — only the emphasis differs, and every "
+        "rule above still applies to each line (one line, strong verb, no invented "
+        "numbers). Angles:\n"
+        f"{angle_lines}\n\n"
+        "Output EXACTLY three lines, each starting with its tag and nothing else:\n"
+        "[METRIC] <rewrite>\n[IMPACT] <rewrite>\n[SCOPE] <rewrite>"
+    )
+
+
+def _parse_variants(raw: str) -> list[dict[str, str]]:
+    """Pull the tagged lines back out. Tolerant of extra prose / blank lines."""
+    out: list[dict[str, str]] = []
+    for angle, label, _ in _ANGLES:
+        m = re.search(rf"{re.escape(_TAGS[angle])}\s*(.+)", raw or "")
+        if not m:
+            continue
+        text = m.group(1).strip().strip('"').strip()
+        if text:
+            out.append({"angle": angle, "label": label, "text": text})
+    return out
+
+
+async def suggest_rewrite_variants(
+    bullet: str,
+    role: str | None,
+    missing_keywords: list[str] | None,
+    metric: str | None,
+    provider: LLMProvider | None,
+    allow_no_metric: bool = False,
+) -> dict:
+    """Blocking 3-angle rewrite. Returns one of:
+      {"mode": "question", "question": str}                 — no-fab guard fired
+      {"mode": "variants", "variants": [{angle,label,text}], "citations": [...]}
+      {"mode": "error", "rationale": str}                   — provider/parse failure
+
+    Shares the no-fabrication question branch with ``suggest_rewrite`` (via
+    ``prepare_rewrite``), so a metric-less bullet is still asked for the real
+    number before any variants are produced.
+    """
+    plan = await prepare_rewrite(bullet, role, missing_keywords, metric, allow_no_metric=allow_no_metric)
+    if plan["mode"] != "stream":
+        return plan
+
+    if provider is None:
+        return {"mode": "error", "rationale": "Rewrite is unavailable right now."}
+
+    messages = list(plan["messages"])
+    # Append the 3-angle instruction to the user turn (guardrails stay in system).
+    messages[-1] = {**messages[-1], "content": messages[-1]["content"] + "\n\n" + _variants_instruction()}
+
+    try:
+        raw = await provider.complete(messages, max_tokens=VARIANTS_MAX_TOKENS)
+    except LLMProviderError:
+        logger.info("cv_rewrite: variants providers failed (bullet len=%d)", len((bullet or "").strip()))
+        return {"mode": "error", "rationale": "Rewrite is unavailable right now."}
+
+    variants = _parse_variants(raw)
+    if not variants:
+        # Model ignored the tag format — fall back to a single rewrite so the user
+        # still gets a suggestion rather than an error.
+        single = finalize_rewrite(raw, plan["passages"], plan["missing_keywords"])
+        if single["mode"] == "rewrite":
+            return {
+                "mode": "variants",
+                "variants": [{"angle": "metric", "label": "Suggested", "text": single["rewritten_text"]}],
+                "citations": single["citations"],
+            }
+        return {"mode": "error", "rationale": "No rewrite produced."}
+
+    citations: list[str] = list(dict.fromkeys(p.source_title for p in plan["passages"]))
+    return {"mode": "variants", "variants": variants, "citations": citations}

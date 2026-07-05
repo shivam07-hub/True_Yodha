@@ -31,6 +31,16 @@
 
       <section id="review-view" class="view review-grid" hidden>
         <div class="capture-meta" id="capture-meta">generic · visible_page · 0%</div>
+        <!-- Scored hook (#34 S5): the moment the JD is captured, show where the
+             user stands against it — not just "saved". Deep-links into the report. -->
+        <div id="fit-hook" class="fit-hook" hidden>
+          <div class="fit-ring"><span id="fit-num">–</span><span class="fit-100">/100</span></div>
+          <div class="fit-body">
+            <div class="fit-label" id="fit-label">Your fit for this job</div>
+            <div class="fit-gaps" id="fit-gaps"></div>
+            <a id="fit-link" class="fit-link" href="#" target="_blank" rel="noreferrer">Raise your fit in Myro →</a>
+          </div>
+        </div>
         <label>
           Role name
           <input id="role-name" type="text" autocomplete="off" />

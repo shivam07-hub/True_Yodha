@@ -4,6 +4,7 @@ import type { UserSkillsByDomain } from "@/lib/api"
 import { BulletRewrite } from "./bullet-rewrite"
 import { CVPointSkillChips } from "./cv-point-skill-chips"
 import { bulletKeywordHits, type KeywordTarget } from "./keyword-utils"
+import type { ContentFinding } from "./content-checks"
 
 export interface CVPointRewriteOption {
   iid: string
@@ -31,6 +32,8 @@ interface CVPointRowProps {
   copied: boolean
   targets: KeywordTarget[]
   userSkills?: UserSkillsByDomain | null
+  /** Deterministic recruiter-check findings anchored to this bullet (#34 S2). */
+  findings?: ContentFinding[]
   rewriteOpen: boolean
   rewriteKeywords: string[]
   missingKeywords: string[]
@@ -62,6 +65,7 @@ export function CVPointRow({
   copied,
   targets,
   userSkills,
+  findings,
   rewriteOpen,
   rewriteKeywords,
   missingKeywords,
@@ -82,9 +86,14 @@ export function CVPointRow({
   onCloseRewrite,
 }: CVPointRowProps) {
   const hits = mono ? [] : bulletKeywordHits(text, targets)
+  // Whole-bullet wash (#34 Q5-A): a flagged, visible, non-editing bullet gets a
+  // soft tint + issue chips naming the offenders. No word-level marks — our
+  // bullet is a live editor, span surgery would fight typing.
+  const flags = !hidden && !editing ? (findings ?? []) : []
+  const flagged = flags.length > 0
 
   return (
-    <div ref={rowRef} className={`cvb-pgc-row${hidden ? " hidden" : ""}`}>
+    <div ref={rowRef} className={`cvb-pgc-row${hidden ? " hidden" : ""}${flagged ? " flagged" : ""}`}>
       <button
         type="button"
         className={`cvb-pgc-check${hidden ? "" : " on"}`}
@@ -113,6 +122,15 @@ export function CVPointRow({
               {text}
               {hits.length > 0 && <span className="cvb-pgc-tag">✓ {hits.length} matched</span>}
             </div>
+            {flagged && (
+              <div className="cvb-pgc-flags">
+                {flags.map(f => (
+                  <span key={f.id} className={`cvb-pgc-flag ${f.kind.toLowerCase()}`} title={f.detail}>
+                    {f.kind}{f.offenders.length ? ` · ${f.offenders[0]}` : ""}
+                  </span>
+                ))}
+              </div>
+            )}
             <CVPointSkillChips text={text} skills={userSkills} />
           </>
         )}

@@ -3638,6 +3638,19 @@ export interface AnonRewriteResponse {
   rationale: string | null
 }
 
+export interface AnonRewriteVariant {
+  angle: string
+  label: string
+  text: string
+}
+
+export interface AnonRewriteVariantsResponse {
+  mode: "variants" | "question" | "error"
+  variants: AnonRewriteVariant[]
+  question: string | null
+  rationale: string | null
+}
+
 export interface AnonRestructureResponse {
   mode: "proposal" | "error"
   proposed_text: string | null
@@ -3696,6 +3709,31 @@ export const publicCv = {
       cf_turnstile_token: payload.turnstileToken ?? (await getTurnstileToken()),
     }),
 
+  // Metadata-only telemetry for a pre-login CV download (#34 S6). Fire-and-forget:
+  // the download already happened, so a failure must never block or surface.
+  recordDownloadEvent: (payload: {
+    anonSessionId: string
+    score?: number | null
+    fixCount?: number | null
+    careerLevel?: string | null
+    fileFormat?: string | null
+    savedIntent?: boolean
+  }): void => {
+    if (!BASE) return
+    void fetch(`${BASE}/public/cv-download-event`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        anon_session_id: payload.anonSessionId,
+        score: payload.score ?? null,
+        fix_count: payload.fixCount ?? null,
+        career_level: payload.careerLevel ?? null,
+        file_format: payload.fileFormat ?? null,
+        saved_intent: payload.savedIntent ?? false,
+      }),
+    }).catch(() => {})
+  },
+
   scorePreview: async (input: File | { text: string }, turnstileToken?: string | null): Promise<AnonScoreResponse> => {
     if (!BASE) throw new Error("API base URL is not configured.")
     const token = turnstileToken ?? (await getTurnstileToken())
@@ -3742,6 +3780,23 @@ export const publicCv = {
     turnstileToken?: string | null
   }): Promise<AnonRewriteResponse> =>
     postPublicJson<AnonRewriteResponse>("/public/rewrite-bullet", {
+      bullet: payload.bullet,
+      role: payload.role ?? null,
+      missing_keywords: payload.missing_keywords ?? [],
+      metric: payload.metric ?? null,
+      allow_no_metric: payload.allow_no_metric ?? false,
+      cf_turnstile_token: payload.turnstileToken ?? (await getTurnstileToken()),
+    }),
+
+  rewriteBulletVariants: async (payload: {
+    bullet: string
+    role?: string | null
+    missing_keywords?: string[]
+    metric?: string | null
+    allow_no_metric?: boolean
+    turnstileToken?: string | null
+  }): Promise<AnonRewriteVariantsResponse> =>
+    postPublicJson<AnonRewriteVariantsResponse>("/public/rewrite-bullet/variants", {
       bullet: payload.bullet,
       role: payload.role ?? null,
       missing_keywords: payload.missing_keywords ?? [],

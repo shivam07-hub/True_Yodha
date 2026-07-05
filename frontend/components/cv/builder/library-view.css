@@ -387,6 +387,11 @@
   max-width: 520px;
   margin-top: 12px;
 }
+.tm-lib-view-cv {
+  text-decoration: none;
+  align-self: center;
+}
+.tm-lib-view-cv svg { color: var(--tm-interactive); }
 .tm-lib-stat-tile {
   background: var(--tm-surface);
   border: 1px solid var(--tm-border-soft);

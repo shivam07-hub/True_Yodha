@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, File, Form, HTTPException, Request, Response, UploadFile, status
 from pydantic import BaseModel
 
 from app.config import settings
@@ -101,12 +101,12 @@ _ALLOWED_CONTENT_TYPES = {
 # amounts of LLM budget. Unlimited actions (page-fill, hide/show bullets) never
 # touch the server, so there's nothing to cap there.
 _ANON_RATE_WINDOW_SECONDS = 3600.0
-_ANON_RATE_MAX = {"score": 5, "rewrite": 6, "restructure": 2, "job_search": 12}
+_ANON_RATE_MAX = {"score": 5, "rewrite": 6, "restructure": 2, "job_search": 12, "download_event": 10}
 _ANON_RATE_MSG = {
-    "score": "You've previewed a few CVs already. Sign up free to keep scoring.",
-    "rewrite": "You've polished a lot of bullets. Sign up free to keep improving your CV.",
-    "restructure": "You've restructured this CV a couple of times. Sign up free to keep going.",
-    "job_search": "You've run a lot of searches. Sign up free to save jobs and see your fit.",
+    "score": "You've previewed a few CVs already. Sign up to keep scoring.",
+    "rewrite": "You've polished a lot of bullets. Sign up to keep improving your CV.",
+    "restructure": "You've restructured this CV a couple of times. Sign up to keep going.",
+    "job_search": "You've run a lot of searches. Sign up to save jobs and see your fit.",
 }
 _anon_hits: dict[tuple[str, str], deque[float]] = {}
 
@@ -173,7 +173,7 @@ def _enforce_anon_rate(action: str, ip: str) -> None:
     if len(hits) >= limit:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=_ANON_RATE_MSG.get(action, "Too many requests. Sign up free to keep going."),
+            detail=_ANON_RATE_MSG.get(action, "Too many requests. Sign up to keep going."),
         )
     hits.append(now)
 
@@ -422,6 +422,19 @@ class AnonRewriteResponse(BaseModel):
     rationale:      str | None = None
 
 
+class AnonRewriteVariant(BaseModel):
+    angle: str
+    label: str
+    text:  str
+
+
+class AnonRewriteVariantsResponse(BaseModel):
+    mode:      str                       # "variants" | "question" | "error"
+    variants:  list[AnonRewriteVariant] = []
+    question:  str | None = None
+    rationale: str | None = None
+
+
 class AnonRestructureRequest(BaseModel):
     cv_text:          str
     role:             str | None = None
@@ -457,6 +470,33 @@ async def rewrite_bullet_preview(
         allow_no_metric=body.allow_no_metric,
     )
     return AnonRewriteResponse(**result)
+
+
+@router.post("/rewrite-bullet/variants", response_model=AnonRewriteVariantsResponse)
+async def rewrite_bullet_variants_preview(
+    body: AnonRewriteRequest,
+    request: Request,
+) -> AnonRewriteVariantsResponse:
+    """3-angle rewrite (metric/impact/scope) for the pick-a-version flow. Shares
+    the same IP bucket + no-fabrication question branch as the single rewrite."""
+    ip = _client_ip(request)
+    _enforce_anon_rate("rewrite", ip)
+    await _verify_turnstile(body.cf_turnstile_token, ip)
+
+    result = await cv_rewrite.suggest_rewrite_variants(
+        body.bullet,
+        body.role,
+        body.missing_keywords,
+        body.metric,
+        get_llm_provider(),
+        allow_no_metric=body.allow_no_metric,
+    )
+    return AnonRewriteVariantsResponse(
+        mode=result["mode"],
+        variants=[AnonRewriteVariant(**v) for v in result.get("variants", [])],
+        question=result.get("question"),
+        rationale=result.get("rationale"),
+    )
 
 
 @router.post("/restructure", response_model=AnonRestructureResponse)
@@ -575,3 +615,38 @@ async def public_job_search(
         interpreted=JobSearchInterpreted(**filters),
         relaxed=result["relaxed"],
     )
+
+
+class AnonDownloadEvent(BaseModel):
+    """Metadata-only record of a pre-login CV download (#34 S6, Q13b=C).
+    NO CV content — PV1-clean. `anon_session_id` is a random client id that
+    links forward to signup; `saved_intent` distinguishes 'Save & download'
+    (chose to sign up) from 'Just download'."""
+
+    anon_session_id: str | None = None
+    score: int | None = None
+    fix_count: int | None = None
+    career_level: str | None = None
+    file_format: str | None = None
+    saved_intent: bool = False
+
+
+@router.post("/cv-download-event", status_code=status.HTTP_204_NO_CONTENT)
+async def record_cv_download_event(request: Request, body: AnonDownloadEvent) -> Response:
+    """Record that an anon visitor downloaded a CV. Fire-and-forget telemetry —
+    the download already happened client-side, so a slow/failed insert never
+    blocks it. Metadata only; the CV body is not captured here (consent-gated,
+    #17)."""
+    _enforce_anon_rate("download_event", _client_ip(request))
+    try:
+        get_supabase_admin().table("anon_cv_download_events").insert({
+            "anon_session_id": (body.anon_session_id or "")[:64] or None,
+            "score": body.score,
+            "fix_count": body.fix_count,
+            "career_level": (body.career_level or "")[:40] or None,
+            "file_format": (body.file_format or "")[:16] or None,
+            "saved_intent": body.saved_intent,
+        }).execute()
+    except Exception:  # noqa: BLE001 — telemetry must never surface to the user
+        _log.warning("metric anon_download.persist_failed")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

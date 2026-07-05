@@ -25,6 +25,7 @@ import type {
 import { jobs as jobsApi, cv as cvApi } from "@/lib/api"
 import { RestructureProposal } from "./restructure-proposal"
 import { RaiseItRail } from "./raise-it-rail"
+import { contentPenalty, runContentChecks } from "./content-checks"
 import { CVEditor, type RewriteTarget } from "./cv-editor"
 import { ExperienceIntake } from "./experience-intake"
 import { itemId } from "@/lib/cv-compose"
@@ -160,13 +161,23 @@ export function PlaygroundView({
     return allTargets.map(t => ({ ...t, matched: lower.includes(t.kw.toLowerCase()) }))
   }, [allTargets, visibleText])
 
+  // Content-quality penalty (#34 S3): open recruiter-check findings subtract real
+  // points from Ready, so a buzzword-heavy CV scores below a clean one and each
+  // fix returns its exact points. Recomputed from the live CV → moves only on a
+  // real text change (the honest flywheel).
+  const contentPenaltyPts = useMemo(() => contentPenalty(runContentChecks(cv)), [cv])
+
   const baseScore = job.readiness_pct ?? 0
   const ready = useMemo(() => {
-    if (evaluatedTargets.length === 0) return baseScore
-    const total = evaluatedTargets.reduce((s, t) => s + (t.weight ?? 1), 0)
-    const got = evaluatedTargets.filter(t => t.matched).reduce((s, t) => s + (t.weight ?? 1), 0)
-    return total === 0 ? 0 : Math.round((got / total) * 100)
-  }, [evaluatedTargets, baseScore])
+    const match = evaluatedTargets.length === 0
+      ? baseScore
+      : (() => {
+          const total = evaluatedTargets.reduce((s, t) => s + (t.weight ?? 1), 0)
+          const got = evaluatedTargets.filter(t => t.matched).reduce((s, t) => s + (t.weight ?? 1), 0)
+          return total === 0 ? 0 : Math.round((got / total) * 100)
+        })()
+    return Math.max(0, match - contentPenaltyPts)
+  }, [evaluatedTargets, baseScore, contentPenaltyPts])
   const delta = ready - baseScore
 
   const totalWeight = useMemo(
@@ -295,7 +306,7 @@ export function PlaygroundView({
           <div className="cvb-pgc-headside">
             <div className="cvb-pgc-ready">
               <div className="cvb-pgc-ready-num">
-                <span className="tabnum mono">{ready}</span><span className="cvb-pgc-ready-100 mono">/100</span>
+                <span key={ready} className="tabnum mono">{ready}</span><span className="cvb-pgc-ready-100 mono">/100</span>
               </div>
               <div className="cvb-pgc-ready-cap">
                 <span className="mono">Ready</span>
@@ -343,6 +354,7 @@ export function PlaygroundView({
         <RaiseItRail
           token={token}
           plan={gapPlanQuery.data ?? null}
+          cv={cv}
           targets={evaluatedTargets}
           pointsFor={pointsFor}
           onRaise={setRewriteTarget}

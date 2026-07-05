@@ -25,6 +25,24 @@ interface DoneData {
   /** Download-master CTA (Q7 — download is the primary action at the score
    *  reveal). Owned by the caller, which holds token + baseline + cv. */
   downloadSlot?: React.ReactNode
+  /** The reveal beat (#34 S4, Q9-A). Computed by the caller from the parsed CV:
+   *  a band verdict, the real COUNT of fixes we found (no fabricated point delta —
+   *  content fixes move the per-job Ready, not this engine score), and the
+   *  strongest / weakest domain. Omit to keep the lean done-morph. */
+  reveal?: {
+    fixCount: number
+    strongDomain?: string | null
+    weakDomain?: string | null
+  }
+}
+
+/** Band verdict for the reveal beat — leads with the path forward, never a
+ *  judgement (ND1). Derived from the engine score alone. */
+function revealVerdict(score: number): string {
+  if (score >= 80) return "Strong CV. A few sharpens and it’s recruiter-ready."
+  if (score >= 60) return "Solid base — a handful of fixes will make it land harder."
+  if (score >= 40) return "Good raw material. The fixes below are where the points are."
+  return "Early draft — let’s turn what you’ve done into what a recruiter reads."
 }
 
 interface FailData {
@@ -44,15 +62,30 @@ interface CvScoreProgressProps {
   onRetry?: () => void
 }
 
-const STEPS: ReadonlyArray<{ key: Phase; label: string }> = [
-  { key: "reading", label: "Reading your CV" },
-  { key: "scoring", label: "Scoring your domains" },
-  { key: "ready", label: "Ready" },
+// Truthful parse substeps (#34 S4, Q8-B) — the pipeline genuinely reads → finds
+// experience → matches skills → scores. Narrating them (vs one coarse "Scoring")
+// makes the wait read as "it's reading MY CV", the RW trust cue. The first four
+// advance on a timed cadence (the blessed restructure-loading pattern); the list
+// snaps to the last step the instant the real `ready` phase lands, so the timer
+// never outruns or lags the truth.
+const PARSE_STEPS: readonly string[] = [
+  "Reading your CV",
+  "Finding your experience",
+  "Matching your skills",
+  "Scoring your domains",
 ]
-
-// Phase ordinal for "done / active / pending" step states.
-const ORDINAL: Record<Phase, number> = { queued: 0, reading: 1, scoring: 2, ready: 3, failed: 1 }
+const SUBSTEP_MS = 2600
 const SLOW_AFTER_MS = 75_000
+
+function useParseStep(active: boolean, atReady: boolean): number {
+  const [i, setI] = React.useState(0)
+  React.useEffect(() => {
+    if (!active || atReady) return
+    const id = setInterval(() => setI((p) => Math.min(p + 1, PARSE_STEPS.length - 1)), SUBSTEP_MS)
+    return () => clearInterval(id)
+  }, [active, atReady])
+  return atReady ? PARSE_STEPS.length - 1 : i
+}
 
 function useElapsed(startedAt: string | null, active: boolean): number {
   const [now, setNow] = React.useState(() => Date.now())
@@ -77,6 +110,7 @@ export function CvScoreProgress({ status, phase, startedAt, done, fail, onRetry 
   const processing = status === "processing"
   const elapsed = useElapsed(startedAt, processing)
   const slow = processing && elapsed >= SLOW_AFTER_MS
+  const parseStep = useParseStep(processing, phase === "ready")
 
   if (status === "failed" && fail) {
     return (
@@ -104,15 +138,41 @@ export function CvScoreProgress({ status, phase, startedAt, done, fail, onRetry 
           <span className="csp-ring-num">{done.score}</span>
         </div>
         <div className="csp-done-tier">{tier.label}</div>
-        {tier.next !== null ? (
+        {done.reveal ? (
+          <p className="csp-done-verdict">{revealVerdict(done.score)}</p>
+        ) : tier.next !== null ? (
           <div className="csp-done-next">
             Next milestone: <strong>{tier.next}</strong> · {tier.nextLabel}
           </div>
         ) : null}
+
+        {done.reveal && (done.reveal.strongDomain || done.reveal.weakDomain) ? (
+          <div className="csp-done-swx">
+            {done.reveal.strongDomain ? (
+              <span className="csp-done-sw is-strong">Strongest · {done.reveal.strongDomain}</span>
+            ) : null}
+            {done.reveal.weakDomain ? (
+              <span className="csp-done-sw is-weak">Needs work · {done.reveal.weakDomain}</span>
+            ) : null}
+          </div>
+        ) : null}
+
         <Link href="/docs#scoring" className="csp-done-method tm-control-focus">
           How this score works
         </Link>
-        {done.downloadSlot ? (
+
+        {/* Reveal CTA points at the report (the fixes live in /cv); the count is
+            the real number of findings, never a fabricated point promise. */}
+        {done.reveal ? (
+          <div className="csp-done-actions">
+            {done.downloadSlot}
+            <Link href="/cv" className="csp-done-cta tm-control-focus">
+              {done.reveal.fixCount > 0
+                ? `See your ${done.reveal.fixCount} fix${done.reveal.fixCount === 1 ? "" : "es"} →`
+                : "Open your CV →"}
+            </Link>
+          </div>
+        ) : done.downloadSlot ? (
           <div className="csp-done-actions">
             {done.downloadSlot}
             <Link href="/forge" className="csp-done-cta-secondary tm-control-focus">
@@ -128,24 +188,18 @@ export function CvScoreProgress({ status, phase, startedAt, done, fail, onRetry 
     )
   }
 
-  // Processing — deploy-style phase log + real-shape skeleton.
-  // `queued` is a real multi-second window (phase-1 upload/extract/charge +
-  // pre-worker gap) but has no step of its own → showing it as ordinal 0 left
-  // every step "pending": three dead circles, no spinner, looks frozen. We are
-  // already reading the accepted CV, so collapse queued/null into the first
-  // step active — the deploy log never shows an inert list.
-  const current: Phase = phase && phase !== "queued" ? phase : "reading"
-  const currentOrd = ORDINAL[current]
+  // Processing — narrated parse substeps (#34 S4) + real-shape skeleton. The
+  // active step advances on a timed cadence and snaps to the last step when the
+  // real `ready` phase lands, so the list never shows an inert set of circles.
   return (
     <div className="csp csp--running" aria-live="polite" aria-busy="true">
       <ol className="csp-steps">
-        {STEPS.map((step) => {
-          const ord = ORDINAL[step.key]
-          const state = ord < currentOrd ? "done" : ord === currentOrd ? "active" : "pending"
+        {PARSE_STEPS.map((label, i) => {
+          const state = i < parseStep ? "done" : i === parseStep ? "active" : "pending"
           return (
-            <li key={step.key} className={`csp-step is-${state}`}>
+            <li key={label} className={`csp-step is-${state}`}>
               <span className="csp-step-dot" aria-hidden />
-              <span className="csp-step-label">{step.label}</span>
+              <span className="csp-step-label">{label}</span>
               {state === "active" ? <span className="csp-step-spin" aria-hidden /> : null}
             </li>
           )

@@ -140,3 +140,23 @@ export function clearAnonCvStash(): void {
     // ignore
   }
 }
+
+// A stable-per-browser random id for pre-login download telemetry (#34 S6).
+// NOT identity — a random token that links a download event forward to signup
+// when the same browser later claims its stashed CV. localStorage (survives
+// tab close) so the same visitor reads the same id across sessions.
+const ANON_SESSION_KEY = "myro_anon_session_v1"
+
+export function getAnonSessionId(): string {
+  try {
+    const existing = localStorage.getItem(ANON_SESSION_KEY)
+    if (existing) return existing
+    const id = (typeof crypto !== "undefined" && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `anon-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`
+    localStorage.setItem(ANON_SESSION_KEY, id)
+    return id
+  } catch {
+    return "anon-unknown"
+  }
+}

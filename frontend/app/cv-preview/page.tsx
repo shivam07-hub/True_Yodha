@@ -153,7 +153,7 @@ export default function CvPreviewPage() {
                 Drop your CV to start building
               </h1>
               <p style={{ marginTop: 10, fontSize: 15, color: "var(--tm-text-muted)" }}>
-                Get your Myro Score, then improve and download a clean CV — free, no signup.
+                Get your Myro Score, then improve and download a clean CV.
               </p>
             </div>
             <LandingDropzone source="cv_preview_dropzone" busy={scoring} onFile={score} onText={scoreText} />

@@ -2366,6 +2366,15 @@ mark.cvb-kw {
 .cvb-pgc-ready { text-align: right; }
 .cvb-pgc-ready-num { display: flex; align-items: baseline; gap: 6px; justify-content: flex-end; }
 .cvb-pgc-ready-num > .tabnum { font-size: 44px; font-weight: 600; line-height: 1; letter-spacing: -0.03em; color: var(--tm-text); }
+/* Score bump when Ready changes on a real fix (#34 S3 flywheel). Re-keyed on the
+   value in JSX so the animation replays each time the number moves. */
+.cvb-pgc-ready-num > .tabnum { animation: cvb-score-bump var(--tm-dur-base) var(--tm-ease); }
+@keyframes cvb-score-bump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.12); color: var(--tm-success); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) { .cvb-pgc-ready-num > .tabnum { animation: none; } }
 .cvb-pgc-ready-100 { font-size: 14px; font-weight: 500; color: var(--tm-text-faint); }
 .cvb-pgc-ready-cap { display: flex; align-items: center; gap: 8px; justify-content: flex-end; margin-top: 5px; }
 .cvb-pgc-ready-cap > .mono:first-child { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--tm-text-faint); }
@@ -2412,14 +2421,31 @@ mark.cvb-kw {
 .cvb-pgc-rail-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .cvb-pgc-rail-count { font-size: 10.5px; color: var(--tm-text-faint); }
 .cvb-pgc-fixes { display: flex; flex-direction: column; gap: 8px; }
+/* Type-tiered bucket header (#34 S2). */
+.cvb-pgc-fix-group {
+  font-size: 10px; letter-spacing: 0.09em; color: var(--tm-text-faint);
+  margin: 6px 2px 2px; text-transform: uppercase;
+}
+.cvb-pgc-fix-group:first-child { margin-top: 0; }
 .cvb-pgc-fix {
-  display: flex; align-items: center; gap: 10px; padding: 13px 14px;
+  display: flex; flex-direction: column; padding: 13px 14px;
   background: var(--tm-surface); border: 1px solid var(--tm-border); border-radius: 10px;
 }
+.cvb-pgc-fix-row { display: flex; align-items: center; gap: 10px; }
 .cvb-pgc-fix.done { opacity: 0.6; border-color: var(--tm-success-border); }
 .cvb-pgc-fix-body { flex: 1; min-width: 0; }
 .cvb-pgc-fix-skill { font: 600 12.5px var(--tm-font-sans); color: var(--tm-text); }
 .cvb-pgc-fix-sub { font-size: 11px; color: var(--tm-text-faint); margin-top: 2px; }
+.cvb-pgc-fix-why {
+  border: none; background: none; padding: 0 0 0 6px; margin-left: 4px;
+  font: 600 10.5px var(--tm-font-sans); color: var(--tm-interactive-text); cursor: pointer;
+}
+.cvb-pgc-fix-why:hover { text-decoration: underline; }
+.cvb-pgc-fix-whybody {
+  margin: 8px 0 0; padding: 0 0 0 16px; list-style: disc;
+  font-size: 11px; line-height: 1.55; color: var(--tm-text-muted);
+}
+.cvb-pgc-fix-whybody li { margin: 2px 0; }
 .cvb-pgc-fix-gain { font: 600 11px var(--tm-font-mono); color: var(--tm-success); min-width: 30px; text-align: right; }
 .cvb-pgc-fix-btn {
   border: 1px solid var(--tm-int-border); background: var(--tm-int-bg-wash); color: var(--tm-interactive-text);
@@ -2471,6 +2497,17 @@ mark.cvb-kw {
 }
 .cvb-pgc-row:hover { background: var(--tm-int-bg-wash); }
 .cvb-pgc-row.hidden { opacity: 0.42; }
+/* Whole-bullet wash for a flagged line (#34 S2, Q5-A). Soft warning tint +
+   left accent — the offending words are named in the chips below, not marked
+   inside the live-editable text. */
+.cvb-pgc-row.flagged { background: var(--tm-warning-wash); box-shadow: inset 2px 0 0 var(--tm-warning); }
+.cvb-pgc-row.flagged:hover { background: var(--tm-warning-wash); }
+.cvb-pgc-flags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.cvb-pgc-flag {
+  font: 600 10px var(--tm-font-mono); padding: 2px 7px; border-radius: 5px;
+  background: var(--tm-warning-wash); color: var(--tm-warning);
+}
+.cvb-pgc-flag.cut { background: var(--tm-danger-wash); color: var(--tm-danger); }
 .cvb-pgc-check {
   width: 16px; height: 16px; margin-top: 3px; border-radius: 4px; border: 1.5px solid var(--tm-border);
   background: transparent; display: grid; place-items: center; color: var(--tm-interactive-fg);
