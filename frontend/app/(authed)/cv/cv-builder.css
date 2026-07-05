@@ -1830,6 +1830,62 @@ mark.cvb-kw {
   .cvb-rs-preview { max-height: 220px; }
 }
 
+/* Restructured-CV preview as a real document (RestructuredDoc). Section headers
+   carry a hairline + uppercase weight (the sections ARE a sequence); role lines
+   are bold; bullets are a proper list. Quiet by default — the modal's one accent
+   is the Keep button, not the preview. Shared authed + public. */
+.cvb-rs-doc { display: flex; flex-direction: column; }
+.cvb-rs-doc-h {
+  margin: 15px 0 5px; padding-top: 9px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--tm-text); border-top: 1px solid var(--tm-border-soft);
+}
+.cvb-rs-doc-h:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+.cvb-rs-doc-sub {
+  margin: 9px 0 2px; font-size: 12.5px; font-weight: 600; line-height: 1.4; color: var(--tm-text);
+}
+.cvb-rs-doc-p { margin: 2px 0; font-size: 12.5px; line-height: 1.55; color: var(--tm-text-muted); }
+.cvb-rs-doc-ul { margin: 3px 0 6px; padding-left: 17px; list-style: disc outside; }
+.cvb-rs-doc-ul li { margin-bottom: 2px; font-size: 12.5px; line-height: 1.5; color: var(--tm-text-muted); }
+.cvb-rs-doc-ul li::marker { color: var(--tm-text-faint); }
+
+/* Perceived-speed loader for the ~15–20s restructure (RestructureLoading).
+   Compositor-only: bar = scaleX, active dot = scale/opacity pulse. */
+.cvb-rs-loading { display: flex; flex-direction: column; gap: 15px; padding: 6px 0 2px; }
+.cvb-rs-loading-track {
+  height: 4px; border-radius: 999px; overflow: hidden;
+  background: var(--tm-surface-2, rgba(127, 127, 127, 0.14));
+}
+.cvb-rs-loading-fill {
+  display: block; width: 100%; height: 100%; border-radius: 999px;
+  background: var(--tm-accent-text);
+  transform-origin: left center; transform: scaleX(0.02);
+  animation: cvb-rs-progress 18s cubic-bezier(0.2, 0.65, 0.25, 1) forwards;
+}
+@keyframes cvb-rs-progress { from { transform: scaleX(0.02); } to { transform: scaleX(0.92); } }
+.cvb-rs-loading-steps { display: flex; flex-direction: column; gap: 9px; }
+.cvb-rs-loading-step {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; color: var(--tm-text-faint); transition: color 0.3s ease;
+}
+.cvb-rs-loading-step.is-done { color: var(--tm-text-muted); }
+.cvb-rs-loading-step.is-now { color: var(--tm-text); font-weight: 500; }
+.cvb-rs-loading-dot {
+  width: 7px; height: 7px; border-radius: 999px; flex: none;
+  background: var(--tm-border, rgba(127, 127, 127, 0.4)); transition: background 0.3s ease;
+}
+.cvb-rs-loading-step.is-done .cvb-rs-loading-dot { background: var(--tm-accent-text); }
+.cvb-rs-loading-step.is-now .cvb-rs-loading-dot {
+  background: var(--tm-accent-text);
+  animation: cvb-rs-pulse 1.4s ease-in-out infinite;
+}
+@keyframes cvb-rs-pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.55; } }
+.cvb-rs-loading-note { margin: 3px 0 0; font-size: 11.5px; line-height: 1.5; color: var(--tm-text-faint); }
+@media (prefers-reduced-motion: reduce) {
+  .cvb-rs-loading-fill { animation: none; transform: scaleX(0.5); }
+  .cvb-rs-loading-step.is-now .cvb-rs-loading-dot { animation: none; }
+}
+
 /* ── Close gaps with Mentor (gap-driven rewrite session) ─────────────────────
    One accent: the climbing JD-match meter. Outcome eyebrows colour-code the
    three honest moves — surface (accent), deepen (warning), build (neutral),

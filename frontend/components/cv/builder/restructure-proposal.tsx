@@ -15,6 +15,8 @@
 import { useCallback, useEffect, useState } from "react"
 import { cv as cvApi, type CVVersion, type RestructureProposalResponse } from "@/lib/api"
 import { Icon } from "./icons"
+import { RestructureLoading } from "./restructure-loading"
+import { RestructuredDoc } from "./restructured-doc"
 
 type Phase = "loading" | "proposal" | "applying" | "error"
 
@@ -96,14 +98,9 @@ export function RestructureProposal({ token, versionId, targetLabel, onKept, onC
 
         {phase === "loading" && (
           <div className="cvb-rs-body">
-            <div className="cvb-rw-status" role="status">
-              ✦ Mentor is restructuring your CV{targetLabel ? ` for ${targetLabel}` : ""}…
-            </div>
-            <p className="cvb-rs-basis">
-              Reordering and tightening your existing CV so the proof this job wants
-              comes first. Nothing is invented — only your bullets are reordered, merged
-              or trimmed.
-            </p>
+            <RestructureLoading
+              note={`Usually about 15 seconds${targetLabel ? ` · tailoring to ${targetLabel}` : ""}. Nothing is invented — only your bullets are reordered, merged or trimmed.`}
+            />
           </div>
         )}
 
@@ -131,7 +128,7 @@ export function RestructureProposal({ token, versionId, targetLabel, onKept, onC
             )}
 
             <div className="cvb-rs-preview" aria-label="Proposed CV">
-              <pre>{data.proposed_text}</pre>
+              <RestructuredDoc text={data.proposed_text ?? ""} />
             </div>
 
             {(data.rationale || data.playbook || data.uncertainty) && (

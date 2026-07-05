@@ -175,6 +175,20 @@
 }
 @media (max-width: 880px) { .cvp-preview { position: static; } }
 
+/* Fit the fixed 816px A4 sheet to the preview column so it never clips (the
+   authed surface scrolls/reflows; here we show a true WYSIWYG miniature).
+   `zoom` shrinks AND reserves the right height (unlike transform), keyed off the
+   container's own width via container-query units. Screen only — print keeps the
+   full-size sheet from cv-builder.css's @media print rules, so the download is
+   unaffected. `width: 816px` defeats the ≤720px reflow that would fight the zoom. */
+@media screen {
+  .cvp-preview .cvb-scope { container-type: inline-size; }
+  .cvp-preview .cvb-pdf-page {
+    width: 816px !important;
+    zoom: min(1, 100cqw / 816px);
+  }
+}
+
 /* Rewrite modal */
 .cvp-rw-modal { max-width: 540px; }
 .cvp-rw-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }

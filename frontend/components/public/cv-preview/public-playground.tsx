@@ -30,6 +30,8 @@ import {
 import { PdfPage, type PdfPageContact } from "@/components/cv/builder/pdf-page"
 import { BulletRow } from "@/components/cv/builder/bullet-row"
 import { Icon } from "@/components/cv/builder/icons"
+import { RestructureLoading } from "@/components/cv/builder/restructure-loading"
+import { RestructuredDoc } from "@/components/cv/builder/restructured-doc"
 import { runAtsChecks, atsScore, type AtsCheck } from "@/components/cv/builder/ats-checks"
 import { itemId, renderDeterministic } from "@/lib/cv-compose"
 import { printCvPage } from "@/lib/cv/print-cv"
@@ -507,7 +509,11 @@ function RestructureModal({
       <div className="cvb-modal cvb-rs-modal" onClick={e => e.stopPropagation()}>
         <div className="cvb-modal-head"><Icon name="sparkle" size={14} /> Restructure with Mentor</div>
 
-        {phase === "loading" && <div className="cvb-rs-body"><div className="cvp-rw-status" role="status">✦ Mentor is restructuring your CV…</div></div>}
+        {phase === "loading" && (
+          <div className="cvb-rs-body">
+            <RestructureLoading note="Usually about 15 seconds. Mentor only reorders and tightens your lines — it never invents anything." />
+          </div>
+        )}
 
         {phase === "error" && (
           <div className="cvb-rs-body">
@@ -529,7 +535,7 @@ function RestructureModal({
                 </ul>
               </div>
             )}
-            <div className="cvb-rs-preview" aria-label="Proposed CV"><pre>{proposed}</pre></div>
+            <div className="cvb-rs-preview" aria-label="Proposed CV"><RestructuredDoc text={proposed} /></div>
             {(rationale || playbook || uncertainty) && (
               <details className="cvb-rs-why">
                 <summary>Why this works</summary>
