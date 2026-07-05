@@ -40,6 +40,29 @@ test("auth entry points write tokens through session adapter", () => {
   assert.equal(callbackPage.includes("localStorage."), false)
 })
 
+test("auth entry points route pending anonymous CVs through the CV Playground claim path", () => {
+  const loginForm = read("components/auth/login-form.tsx")
+  const callbackPage = read("app/auth/callback/page.tsx")
+
+  assert.match(loginForm, /postAuthDestination/)
+  assert.match(loginForm, /hasPendingAnonCvClaim/)
+  assert.match(callbackPage, /postAuthDestination/)
+  assert.match(callbackPage, /hasPendingAnonCvClaim/)
+})
+
+test("CV Playground saves pending anonymous CVs through the claim helper", () => {
+  const cvPage = read("app/(authed)/cv/page.tsx")
+
+  assert.match(cvPage, /claimPendingAnonCv/)
+  assert.equal(cvPage.includes("takeStashedComposedCvText"), false)
+})
+
+test("public CV preview keeps the edited composed CV claimable for auth", () => {
+  const playground = read("components/public/cv-preview/public-playground.tsx")
+
+  assert.match(playground, /useEffect\(\(\) => \{\s*stashComposedCvText\(composedText\)/)
+})
+
 test("core onboarding and recommendation surfaces share canonical data keys", () => {
   const onboardingHook = read("lib/hooks/use-onboarding-state.ts")
   const result = read("app/onboarding/result/page.tsx")

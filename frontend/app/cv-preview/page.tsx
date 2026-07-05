@@ -51,8 +51,8 @@ export default function CvPreviewPage() {
       setError(null)
       try {
         const r = await publicCv.scorePreview(file)
-        // Re-stash the File + result: the File feeds claim-on-signup later, the
-        // result lets /signup render the score readout for a degraded parse.
+        // Re-stash the File + result. A structured result also stores rendered
+        // CV text so post-auth claim survives full-page auth redirects.
         stashAnonCv(file, r)
         if (r.cv) {
           setResult(r)

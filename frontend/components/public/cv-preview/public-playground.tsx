@@ -97,6 +97,9 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
     () => restructuredText ?? renderDeterministic(cv, hidden),
     [restructuredText, cv, hidden],
   )
+  useEffect(() => {
+    stashComposedCvText(composedText)
+  }, [composedText])
 
   const filename = useMemo(() => masterFilename(contact.name || null), [contact.name])
 

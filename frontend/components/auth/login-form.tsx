@@ -10,6 +10,8 @@ import { capturePendingReferral } from "@/lib/referral"
 import { appendAttributionToUrl, capturePendingAttribution } from "@/lib/attribution"
 import { detectInAppBrowser } from "@/lib/is-in-app-browser"
 import { signupEvents } from "@/lib/analytics"
+import { hasPendingAnonCvClaim } from "@/lib/anon-cv-claim"
+import { postAuthDestination } from "@/lib/auth/post-auth-destination"
 import { GoogleAuthButton } from "@/components/auth/shared/google-button"
 import { LinkedInAuthButton } from "@/components/auth/shared/linkedin-button"
 import { MagicLinkInput } from "@/components/auth/shared/magic-link-input"
@@ -78,7 +80,11 @@ export function LoginForm({ surface, next, showSignupLink = true }: Props) {
         return
       }
       setSessionTokens({ accessToken: res.access_token, refreshToken: res.refresh_token })
-      router.push(next ?? "/market")
+      router.push(postAuthDestination({
+        next: next ?? null,
+        firstSignup: false,
+        hasPendingAnonCv: hasPendingAnonCvClaim(),
+      }))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed.")
       signupEvents.failed({ method: "password", stage: "login", error_code: "auth_failed" })

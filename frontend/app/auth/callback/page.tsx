@@ -8,6 +8,8 @@ import { setSessionTokens } from "@/lib/session"
 import { auth } from "@/lib/api"
 import { signupEvents } from "@/lib/analytics"
 import { getStoredReferral } from "@/lib/referral"
+import { hasPendingAnonCvClaim } from "@/lib/anon-cv-claim"
+import { postAuthDestination } from "@/lib/auth/post-auth-destination"
 import {
   captureAttributionFromCallback,
   clearStoredAttribution,
@@ -139,7 +141,11 @@ function CallbackInner() {
         createdAt && Math.abs(Date.now() - new Date(createdAt).getTime()) < 60_000 ? "1" : "0"
       // Returning users land on /market (Live = the primary daily surface);
       // brand-new signups still run the first-run onboarding stepper.
-      routeOnce(next ?? (firstSignup === "1" ? "/onboarding" : "/market"))
+      routeOnce(postAuthDestination({
+        next,
+        firstSignup: firstSignup === "1",
+        hasPendingAnonCv: hasPendingAnonCvClaim(),
+      }))
 
       backgroundPostSignin(session, provider, firstSignup)
     }

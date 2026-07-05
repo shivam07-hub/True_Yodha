@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { CvScoreProgress } from "@/components/cv/cv-score-progress"
 import { DownloadCVButton } from "@/components/cv/download-cv-button"
 import { tokenizedUserMessage, type CVUploadPhase } from "@/lib/cv-upload-state"
-import { takeStashedFile, takeStashedComposedCvText } from "@/lib/anon-cv-stash"
+import { claimPendingAnonCv, hasPendingAnonCvClaim } from "@/lib/anon-cv-claim"
 import { CvSkeleton } from "@/components/loading/page-skeletons"
 import { PlaygroundView } from "@/components/cv/builder/playground-view"
 import { LibraryView } from "@/components/cv/builder/library-view"
@@ -24,7 +24,6 @@ import {
   resumePendingCVUpload,
   type CVUploadResult,
   uploadCV,
-  uploadCVText,
   users,
 } from "@/lib/api"
 import { hasPendingCVUpload } from "@/lib/cv-upload-queue"
@@ -269,24 +268,23 @@ function CVPage() {
     }
   }
 
-  // Claim-on-signup for the pre-login PLAYGROUND (grill Q8): the logged-out user
-  // built + improved a CV at /cv-preview, hit "Save & download", then signed up.
-  // The composed CV text is stashed → replay it to /cv/text so the IMPROVED CV
-  // becomes their Main CV (re-parsed + scored server-side). Mirrors handleUpload
-  // but for text; uploadCVText polls internally so there's no phase callback.
-  async function handleUploadText(text: string) {
+  async function handleClaimPendingAnonCv() {
     if (!token) return
     if (uploadInFlightRef.current) return
     uploadInFlightRef.current = true
     setShowUpload(true)
-    setUploading(true); setUploadResult(null); setUploadError(null)
+    setUploading(true); setUploadResult(null); setUploadError(null); setUploadDeferred(false)
     setUploadPhase("queued"); setUploadStartedAt(null); setBiggestDrag(null)
     startCvPromiseOptimistic()
     try {
-      const result = await uploadCVText(token, text, "text_describe")
-      finishUploadSuccess(result)
+      const claim = await claimPendingAnonCv(token)
+      if (claim.claimed) finishUploadSuccess(claim.result)
+      else openFilePicker()
     } catch (err) {
-      if (err instanceof CVUploadFailure) {
+      if (isDeferrableUpload(err)) {
+        setUploadDeferred(true)
+        setLastFailureCode(err.code)
+      } else if (err instanceof CVUploadFailure) {
         if (err.newXpBalance != null) applyXpChange({ newBalance: err.newXpBalance, action: "cv_upload_refund" })
         setLastFailureCode(err.code)
         setUploadError(tokenizedUserMessage(err.message))
@@ -356,18 +354,8 @@ function CVPage() {
     if (playground.versionsLoading) return
     autoUploadFiredRef.current = true
     if (!hasBaseline) {
-      // Claim-on-signup (grill Q8). Priority order:
-      //  1. composed playground text — the user BUILT + improved a CV at
-      //     /cv-preview then chose "Save & download". sessionStorage survives the
-      //     signup redirect, so this is the most resilient path. Replay → /cv/text.
-      //  2. in-memory scored File — they scored on the landing and signed up in
-      //     the same SPA tab (email/pw). Replay it to the real upload, no re-pick.
-      //  3. neither (e.g. OAuth full-page redirect dropped the File) → open the
-      //     picker, the original first-upload flow.
-      const composed = takeStashedComposedCvText()
-      const stashed = takeStashedFile()
-      if (composed) void handleUploadText(composed)
-      else if (stashed) void handleUpload(stashed)
+      // Claim the browser-local preview CV first; otherwise fall back to picker.
+      if (hasPendingAnonCvClaim()) void handleClaimPendingAnonCv()
       else openFilePicker()
     }
     const uploadJobId = searchParams.get("jobId")?.trim()

@@ -306,7 +306,44 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-03 - Public company-detail privacy cleanup)
+## LAST SESSION SUMMARY (2026-07-05 - Anonymous CV claim-on-auth)
+
+Fixed the pre-login CV upload → auth handoff so users land in the CV
+Playground and the CV they already uploaded/edited is claimed into their
+account.
+
+- Added `frontend/lib/anon-cv-claim.ts`, a small claim helper that saves pending
+  anonymous composed CV text through `/cv/text`, falls back to the in-memory
+  File replay when available, and clears the stash only after a successful save.
+- Added `frontend/lib/auth/post-auth-destination.ts` so callback and password
+  login share one rule: pending anonymous CVs route to `/cv?upload=1` before
+  onboarding/market defaults.
+- Wired OAuth/magic-link callback and password login to detect pending anonymous
+  CVs and send users first to the CV Playground claim path.
+- Changed `/cv?upload=1` to use the claim helper instead of consuming stashed
+  text before upload success, preserving retryability on save failure.
+- Made structured anonymous preview results store rendered CV text in
+  sessionStorage, and made the public CV preview keep that composed text updated
+  as users hide/edit/restructure bullets.
+- Cleared stale composed CV text when a new anonymous upload/text score starts
+  or when a degraded preview has no structured CV, preventing an old CV from
+  being claimed accidentally.
+- Added TDD coverage in `frontend/tests/anon-cv-claim.test.ts`,
+  `frontend/tests/post-auth-destination.test.ts`, and
+  `frontend/tests/api-session-contract.test.mjs`.
+
+Validation:
+
+- `cd frontend && npx tsx --test tests/anon-cv-claim.test.ts tests/post-auth-destination.test.ts`: 4 passed
+- `cd frontend && node --test tests/api-session-contract.test.mjs`: 8 passed
+- `cd frontend && npx tsc --noEmit --pretty false`: clean
+- `cd frontend && npm run lint`: clean
+- `.venv/bin/pytest backend/tests`: 941 passed, 28 warnings
+- `git diff --check`: clean
+
+Not touched: unrelated untracked `docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-07-03 - Public company-detail privacy cleanup)
 
 Removed public mentions of sensitive company registration/address details from
 the public legal and marketing-adjacent surfaces.
