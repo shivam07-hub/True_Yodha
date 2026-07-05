@@ -2366,6 +2366,15 @@ mark.cvb-kw {
 .cvb-pgc-ready { text-align: right; }
 .cvb-pgc-ready-num { display: flex; align-items: baseline; gap: 6px; justify-content: flex-end; }
 .cvb-pgc-ready-num > .tabnum { font-size: 44px; font-weight: 600; line-height: 1; letter-spacing: -0.03em; color: var(--tm-text); }
+/* Score bump when Ready changes on a real fix (#34 S3 flywheel). Re-keyed on the
+   value in JSX so the animation replays each time the number moves. */
+.cvb-pgc-ready-num > .tabnum { animation: cvb-score-bump var(--tm-dur-base) var(--tm-ease); }
+@keyframes cvb-score-bump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.12); color: var(--tm-success); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) { .cvb-pgc-ready-num > .tabnum { animation: none; } }
 .cvb-pgc-ready-100 { font-size: 14px; font-weight: 500; color: var(--tm-text-faint); }
 .cvb-pgc-ready-cap { display: flex; align-items: center; gap: 8px; justify-content: flex-end; margin-top: 5px; }
 .cvb-pgc-ready-cap > .mono:first-child { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--tm-text-faint); }

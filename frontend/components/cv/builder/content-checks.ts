@@ -54,6 +54,32 @@ const CATEGORY_META: Record<ContentCategory, { kind: ContentCheckKind; label: st
   repetition: { kind: "Fix", label: "Repeated phrases" },
 }
 
+/**
+ * Readiness points each open finding costs — the honest flywheel weight (#34 S3).
+ * A transparent per-category rule (like the keyword is_primary=3/else=2 weights),
+ * NOT a per-instance fabrication. Ready subtracts these; fixing a finding removes
+ * it on re-scan, so the exact points return — the number moves only when the text
+ * actually changes. Quantification is the highest-signal recruiter check, so it
+ * carries the most weight.
+ */
+const CATEGORY_PENALTY: Record<ContentCategory, number> = {
+  unquantified: 3,
+  buzzword: 2,
+  "weak-verb": 2,
+  repetition: 2,
+}
+
+/** Readiness points a single fix returns. */
+export function contentFindingPoints(f: ContentFinding): number {
+  return CATEGORY_PENALTY[f.category]
+}
+
+/** Total readiness Ready loses to open content findings — subtracted from the
+ *  keyword-match Ready so a clean CV scores higher than a buzzword-heavy one. */
+export function contentPenalty(findings: ContentFinding[]): number {
+  return findings.reduce((sum, f) => sum + CATEGORY_PENALTY[f.category], 0)
+}
+
 function refId(ref: ContentBulletRef): string {
   return `${ref.section}:${ref.itemIndex}:${ref.bulletIndex}`
 }

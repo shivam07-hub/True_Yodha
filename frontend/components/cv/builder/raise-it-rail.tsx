@@ -10,10 +10,10 @@
  *       buzzwords, numberless bullets, weak openers, repeated phrases
  *   COMPLETED — JD moves that are done (keyword covered / saved).
  *
- * JD moves carry "+N" — the deterministic readiness gain from the keyword-weight
- * model that drives the Ready score. Recruiter-check moves show the issue + Fix
- * only (no number): content quality does not feed the Ready model until #34 S3,
- * so a fabricated +N would violate the honest-gain rule. All moves route the same
+ * Every move carries "+N" — the deterministic readiness points it returns. JD
+ * moves use the keyword-weight model; recruiter checks use the fixed per-category
+ * penalty they subtract from Ready (#34 S3). Fixing either raises Ready by exactly
+ * that much, and only when the CV text actually changes. All moves route the same
  * RewriteTarget to the CV editor (inline diff on the host bullet); the bullet also
  * gets a whole-bullet wash + issue chips from the same findings.
  */
@@ -27,6 +27,7 @@ import type { RewriteTarget } from "./cv-editor"
 import type { KeywordTarget } from "./keyword-utils"
 import {
   runContentChecks,
+  contentFindingPoints,
   type ContentFinding,
   type ContentCheckKind,
 } from "./content-checks"
@@ -120,8 +121,8 @@ function findingIid(cv: CVStructured, f: ContentFinding): string | null {
 }
 
 /** Recruiter-check findings → rail rows (tier 1). The offenders become the
- *  rewrite keywords so the inline diff knows what to target; no +N (content
- *  quality does not feed the Ready model until S3). */
+ *  rewrite keywords so the inline diff knows what to target; "+N" is the real
+ *  readiness points the fix returns (#34 S3, contentFindingPoints). */
 function buildContentRows(cv: CVStructured, findings: ContentFinding[]): RailRow[] {
   return findings.map(f => {
     const iid = findingIid(cv, f)
@@ -132,7 +133,7 @@ function buildContentRows(cv: CVStructured, findings: ContentFinding[]): RailRow
       skill: f.detail,
       kind: f.kind,
       sub: `${where} · ${CHECK_EXPLAINERS[f.category].title.replace(/^Why /, "")}`,
-      gain: null,
+      gain: contentFindingPoints(f),
       keywords: f.offenders,
       target: iid ? { iid, keywords: f.offenders } : null,
       skillKey: null,
@@ -214,7 +215,7 @@ export function RaiseItRail({ token, plan, cv, targets, pointsFor, onRaise }: Ra
               )}
             </div>
           </div>
-          {/* JD moves show +N; recruiter checks (null gain) show nothing — no fabricated number. */}
+          {/* Every open move shows the real points it returns (#34 S3). */}
           <span className="mono cvb-pgc-fix-gain">{done ? "✓" : r.gain != null ? `+${r.gain}` : ""}</span>
           {done ? (
             <span className="cvb-pgc-fix-btn done">{verb}</span>

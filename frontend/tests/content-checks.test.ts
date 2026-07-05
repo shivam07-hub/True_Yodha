@@ -5,6 +5,8 @@ import {
   runContentChecks,
   summarizeContentChecks,
   findingsForBullet,
+  contentPenalty,
+  contentFindingPoints,
   type ContentFinding,
 } from "../components/cv/builder/content-checks"
 import { CHECK_EXPLAINERS } from "../components/cv/builder/content-check-explainers"
@@ -119,6 +121,27 @@ test("findingsForBullet: returns only the findings anchored to that bullet", () 
   const first = findingsForBullet(findings, { section: "experience", itemIndex: 0, bulletIndex: 0 })
   assert.ok(first.length >= 2)
   assert.ok(first.every(f => f.bulletIndex === 0))
+})
+
+test("penalty: total is the sum of per-finding points, fixing one returns exactly its points", () => {
+  const messy = cv({ experience: [exp([
+    "Responsible for the out of the box roadmap.", // weak-verb(2) + buzzword(2) + unquantified(3)
+  ])] })
+  const findings = runContentChecks(messy)
+  const total = contentPenalty(findings)
+  assert.equal(total, findings.reduce((s, f) => s + contentFindingPoints(f), 0))
+  assert.ok(total >= 7) // 2 + 2 + 3
+  // removing the finding's trigger drops exactly its points
+  const clean = cv({ experience: [exp(["Shipped 10 features in 8 months, cutting latency 30%."])] })
+  assert.equal(contentPenalty(runContentChecks(clean)), 0)
+})
+
+test("penalty: unquantified is weighted highest (recruiter signal)", () => {
+  const q = runContentChecks(cv({ experience: [exp(["Improved the funnel."])] }))
+    .filter(f => f.category === "unquantified")
+  const bz = runContentChecks(cv({ summary: "A dynamic team player with 5 years." }))
+    .filter(f => f.category === "buzzword")
+  assert.ok(contentFindingPoints(q[0]) > contentFindingPoints(bz[0]))
 })
 
 test("explainers: every content category has authored copy", () => {
