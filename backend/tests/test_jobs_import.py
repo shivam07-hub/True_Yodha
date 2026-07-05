@@ -11,6 +11,10 @@ class _FakeJobsRepository:
     def client(self) -> object:
         return object()
 
+    def get_user_skill_map(self, user_id: str) -> dict[str, int]:
+        # #34 S5 — the preview handler reads this to compute the scored-hook fit.
+        return {}
+
 
 def test_import_preview_requires_description() -> None:
     app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")

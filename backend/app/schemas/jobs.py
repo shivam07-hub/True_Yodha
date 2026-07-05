@@ -415,6 +415,12 @@ class JobImportPreviewResponse(BaseModel):
     secondary_skills: list[SkillSuggestion]
     emerging_skills: list[SkillSuggestion]
     warnings: list[str] = []
+    # Extension scored hook (#34 S5). Deterministic fit of the previewed job's
+    # skills against the caller's CV, so the popup can show "Ready N/100 + your
+    # top gaps" without persisting the job. null when no taxonomy skills resolved.
+    readiness_pct: float | None = None
+    matched_skills: list[str] = []
+    top_gaps: list[str] = []
 
 
 class JobImportRequest(BaseModel):

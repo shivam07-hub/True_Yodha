@@ -39,6 +39,11 @@ const elements = {
   savedTitle: document.querySelector("#saved-title"),
   trackerLink: document.querySelector("#tracker-link"),
   captureMeta: document.querySelector("#capture-meta"),
+  fitHook: document.querySelector("#fit-hook"),
+  fitNum: document.querySelector("#fit-num"),
+  fitLabel: document.querySelector("#fit-label"),
+  fitGaps: document.querySelector("#fit-gaps"),
+  fitLink: document.querySelector("#fit-link"),
 }
 
 const state = {
@@ -110,6 +115,33 @@ function applyPreview(draft, preview) {
   state.primarySkills = (preview.primary_skills || []).map((skill) => skill.taxonomy_key || skill.label).filter(Boolean)
   state.secondarySkills = (preview.secondary_skills || []).map((skill) => skill.taxonomy_key || skill.label).filter(Boolean)
   state.emergingSkills = (preview.emerging_skills || []).map((skill) => skill.label).filter(Boolean)
+  renderFitHook(preview)
+}
+
+// Scored hook (#34 S5): the review view shows where the user stands against the
+// captured JD, computed deterministically at preview time. A real number → ring
+// + top gaps; unknown fit (no CV / no taxonomy skills) → a neutral nudge into
+// Myro, which handles the upload-your-CV case itself (keeps the extension thin).
+function renderFitHook(preview) {
+  if (!elements.fitHook) return
+  const web = frontendBaseUrl(state.config.apiUrl)
+  const pct = preview.readiness_pct
+  const gaps = preview.top_gaps || []
+  elements.fitLink.href = `${web}/cv`
+  if (typeof pct === "number") {
+    elements.fitNum.textContent = String(Math.round(pct))
+    elements.fitLabel.textContent = "Your fit for this job"
+    elements.fitGaps.textContent = gaps.length
+      ? `Close the gap: ${gaps.join(", ")}`
+      : "You already speak this role."
+    elements.fitLink.textContent = "Raise your fit in Myro →"
+  } else {
+    elements.fitNum.textContent = "–"
+    elements.fitLabel.textContent = "See your fit for this job"
+    elements.fitGaps.textContent = "Score this job against your CV in Myro."
+    elements.fitLink.textContent = "Open Myro →"
+  }
+  elements.fitHook.hidden = false
 }
 
 // Read the active tab + extract the job draft. Shared by Track and the
@@ -139,6 +171,9 @@ async function trackCurrentJob() {
         primary_skills: [{ label: "Python (Programming Language)", taxonomy_key: "Python (Programming Language)" }, { label: "SQL", taxonomy_key: "SQL" }],
         secondary_skills: [{ label: "Product Analytics", taxonomy_key: "Product Analytics" }],
         emerging_skills: [{ label: "LangGraph", normalized_label: "langgraph", skill_type: "secondary" }],
+        readiness_pct: 60,
+        matched_skills: ["Python (Programming Language)", "Product Analytics"],
+        top_gaps: ["SQL"],
       }
     } else {
       preview = await previewImport(state.config.apiUrl, state.config.token, draft)
