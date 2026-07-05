@@ -148,11 +148,8 @@ export function LibraryView({
         <MobileCVHub
           token={token}
           cv={cv}
-          versions={versions}
           currentBaseline={currentBaseline}
-          applications={applications}
           profile={profile}
-          onOpenJob={onOpenJob}
           onReplaceCV={onReplaceCV}
         />
       )
