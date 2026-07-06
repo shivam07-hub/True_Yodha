@@ -306,7 +306,36 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-05 - Anonymous CV claim-on-auth)
+## LAST SESSION SUMMARY (2026-07-06 - Market right-rail scroll fix)
+
+Fixed the desktop `/market` right rail so users can scroll past Company Signals
+into the Community Check card instead of getting stranded inside the sticky rail.
+
+- Changed `frontend/components/market/market-intel.css` so `.mi-rail` owns a
+  bounded scrollport below the desktop app chrome, using the existing
+  `--tm-desktop-nav-h` and page-spacing tokens.
+- Kept the rail sticky, but added `overflow-y: auto`, thin scrollbar support,
+  touch momentum scrolling, and scroll containment at the rail boundary.
+- Removed `overscroll-behavior: contain` from `.mi-company-list` so wheel/touch
+  gestures can hand off from the nested company list to the rail.
+- Added `frontend/tests/market-rail-scroll-contract.test.mjs` to lock the
+  height/overflow contract and prevent the nested list from reintroducing the
+  scroll trap.
+- Verified rendered behavior with a temporary localhost fixture using the real
+  `market-intel.css`: after wheel scrolling over the rail, `railScrollTop`
+  reached max and the full Community Check card became visible.
+
+Validation:
+
+- `cd frontend && node --test tests/market-rail-scroll-contract.test.mjs`: 2 passed
+- `cd frontend && npx tsc --noEmit --pretty false`: clean
+- `cd frontend && npm run lint`: clean
+- `.venv/bin/pytest backend/tests`: 1020 passed, 28 warnings
+- `git diff --check`: clean
+
+Not touched: unrelated untracked `docs/free-llm-api-resources`.
+
+## OLDER SESSION SUMMARY (2026-07-05 - Anonymous CV claim-on-auth)
 
 Fixed the pre-login CV upload → auth handoff so users land in the CV
 Playground and the CV they already uploaded/edited is claimed into their

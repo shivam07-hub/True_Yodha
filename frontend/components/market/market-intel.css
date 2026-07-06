@@ -70,7 +70,22 @@
 }
 
 /* ── right rail widgets ───────────────────────────────────────────────────── */
-.mi-rail { position: sticky; top: 76px; display: flex; flex-direction: column; gap: 14px; }
+.mi-rail {
+  --mi-rail-top: 76px;
+  --mi-rail-bottom-gap: var(--tm-page-py, 40px);
+  position: sticky;
+  top: var(--mi-rail-top);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: calc(100dvh - var(--tm-desktop-nav-h, 60px) - var(--mi-rail-top) - var(--mi-rail-bottom-gap));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 6px;
+  margin-right: -6px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
 .mi-widget {
   background: var(--tm-surface); border: 1px solid var(--tm-border-soft);
   border-radius: var(--tm-radius-lg, 16px); padding: 16px; box-shadow: var(--tm-shadow-1);
@@ -114,7 +129,6 @@
 .mi-company-list {
   max-height: min(420px, 40dvh);
   overflow-y: auto;
-  overscroll-behavior: contain;
   padding-right: 4px;
   margin-right: -4px;
   -webkit-overflow-scrolling: touch;
