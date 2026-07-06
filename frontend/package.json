@@ -19,6 +19,7 @@
     "newsletter:sync": "tsx ../scripts/sync-newsletter.ts",
     "newsletter:check": "tsx ../scripts/check-newsletter-sync.ts",
     "newsletter:feed": "tsx ../scripts/newsletter-feed.ts",
+    "seo:indexnow": "tsx ../scripts/indexnow-ping.ts",
     "growth:import-tracker": "tsx ../scripts/import-growth-tracker.ts",
     "linkedin:lint": "tsx ../scripts/linkedin-publish-due.ts --check-only",
     "linkedin:publish-due": "tsx ../scripts/linkedin-publish-due.ts",

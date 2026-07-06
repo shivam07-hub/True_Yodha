@@ -26,7 +26,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .filter((c) => c.name)
       .map((c) => ({
         url: `${BASE}/companies/${encodeURIComponent(c.name)}`,
-        lastModified: c.last_seen_at ? new Date(c.last_seen_at) : new Date(),
+        // Only claim a lastmod we actually know — an always-now fallback teaches
+        // crawlers to distrust every date in the file.
+        ...(c.last_seen_at ? { lastModified: new Date(c.last_seen_at) } : {}),
         changeFrequency: "daily" as const,
         priority: 0.6,
       }))
@@ -37,7 +39,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Static page entries derive from the single site-route registry — adding a
   // public page there (with a `sitemap:` block) lists it here automatically.
-  const staticEntries = sitemapStaticEntries(BASE).map((e) => ({ ...e, lastModified: new Date() }))
+  // No lastModified: stamping render-time on every deploy claims constant
+  // freshness, which crawlers detect and then ignore for the whole sitemap.
+  const staticEntries = sitemapStaticEntries(BASE)
 
   return [
     ...staticEntries,
