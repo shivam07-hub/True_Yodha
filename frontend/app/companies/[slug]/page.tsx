@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { cache } from "react"
 import type { CompanyJobsResponse } from "@/lib/api"
 import { CompanyJobsClient } from "@/components/companies/company-jobs-client"
+import { RelatedCompanies } from "@/components/companies/related-companies"
 
 /**
  * Company detail page — a public SEO / job-intel surface.
@@ -101,6 +102,7 @@ export default async function CompanyJobsPage(
         />
       )}
       <CompanyJobsClient companyName={companyName} initialData={data} />
+      <RelatedCompanies current={companyName} />
     </>
   )
 }
