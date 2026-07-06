@@ -6,6 +6,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { jobs as jobsApi, users } from "@/lib/api"
 import type { ApplicationResponse, CompanyPage } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { pickRelatedCompanies } from "@/lib/companies/related"
+import { formatCount } from "@/lib/format"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useCoinsGate } from "@/lib/hooks/use-xp-gate"
 import { useViewport } from "@/mobile"
@@ -73,6 +75,21 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
     staleTime: 5 * 60_000,
     retry: false,
   })
+
+  // Same recommendation module as the public company page — anon and logged-in
+  // surfaces suggest identical companies. Reuses the shared analytics cache
+  // (TanStack dedupes) so opening the drawer rarely fetches.
+  const analyticsQuery = useQuery({
+    queryKey: dataKeys.jobsAnalytics(),
+    queryFn: () => jobsApi.analytics(),
+    enabled: open,
+    staleTime: 30 * 60_000,
+  })
+  const relatedCompanies = pickRelatedCompanies(
+    (analyticsQuery.data?.by_company ?? []).map((c) => ({ name: c.name, count: c.count, industry: c.industry })),
+    company,
+    8,
+  )
 
   const followMutation = useMutation({
     mutationFn: () => users.followCompany(token!, company),
@@ -249,6 +266,34 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
               ))}
             </div>
           </div>
+
+          {/* More companies — same recommendation module as the public page */}
+          {relatedCompanies.length > 0 && (
+            <div style={{ marginTop: 22 }}>
+              <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>
+                More companies hiring
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                {relatedCompanies.map((c) => (
+                  <Link
+                    key={c.name}
+                    href={`/companies/${encodeURIComponent(c.name)}`}
+                    onClick={onClose}
+                    style={{
+                      display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12,
+                      padding: "8px 10px", borderRadius: "var(--tm-radius-sm)",
+                      color: "var(--tm-text)", textDecoration: "none", fontSize: 13,
+                    }}
+                  >
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
+                    <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)", flexShrink: 0 }}>
+                      {formatCount(c.count)} open
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
