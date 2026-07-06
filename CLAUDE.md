@@ -542,7 +542,23 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-06 · User-Memory + Personalization spine — 6 slices shipped Develop + 6 migrations applied prod)
+## LAST SESSION SUMMARY (2026-07-06b · Matching-consolidation A-D + Memory Phases 2-4 — all 6 items shipped Develop + 3 migrations applied prod)
+
+Continued the personalization lane from the prior session — built + shipped the whole matching-consolidation program (facades B/C/D) AND memory Phases 2-4. All on `origin/Develop` (own files only; the pre-existing `search_queries.record()` refactor was already in HEAD — no entanglement). Full detail + owed list: memory **`project_user_memory_personalization`** (§ "Session close — 2026-07-06b").
+
+**Matching consolidation (one common module, facades DELEGATE to the tuned SQL — no `feed_jobs` rewrite):**
+- **B — JobRanking (`b9aab39`).** `services/matching/ranking.py` `rank(profile, cv, jobs, *, provider, use_brain, budget)` + `rank_one`; combines `job_matcher.get_top_matches` + `llm_ranker.evaluate_all`. `compute_job_matches` routes through it, behaviour-identical (persistence stays in `persist_matches`). CONTEXT.md "JobRanking".
+- **C — FilterSpec/JobQuery (`d08de0f`).** `filter_spec.py` (canonical filter; `from_nl_parse`/`from_intent_diff`/`from_memory` producers + `*_kwargs` mappers) + `job_query.py` resolver. The 3 query routers (`public_job_search`/`job_feed`/`search_jobs`) became adapters → tuned SQL unchanged, full suite 981 passed. CONTEXT.md "FilterSpec"/"JobQuery".
+- **D — brain-everywhere (`bd7d1e0` backend + `cf5eac7` frontend).** `repo.get_cached_match_evals(full flag)` → the feed JOINs cached evals so cards carry grade/verdict/legitimacy/archetype (one batched read, no LLM); `POST /jobs/{id}/brain` → `on_demand.ensure_job_eval` runs `rank_one` once per opened/saved job (free provider, `is_recommended=False`, cached, idempotent). FE `CardBrainBadges` (desktop+mobile) + `<MyroTake>` full verdict on drawer open.
+
+**Memory phases:**
+- **Phase 2 distiller (`88959e8`, migration `20260706e`).** On `/home/bootstrap` a debounced (≥12h `last_memory_distill_at`) BackgroundTask reads saved/dismissed/searches/CV-dump since the watermark → PAID OpenRouter → durable facts in `user_memory`, fail-soft. Dismissed=tombstone (never re-derived); writes only reversible user_memory kinds (role/location stay propose-only via intent-chat). **RQ→BackgroundTasks deviation is deliberate** (best-effort + idempotent → below ADR-0008's durability bar).
+- **Phase 3 brain-dump (`e770705`, migration `20260706f`).** `cv_dump_entries` + `/cv/dump` + `<BrainDumpCanvas>` at `/notebook` (successor to the dead diary). Richest distiller signal + feeds cv_intake bullets. Nav placement = Shivam call.
+- **Phase 4 semantic recall (`30ffdbe`, migration `20260706g`).** `user_memory.embedding vector(768)` + HNSW + `match_user_memory` RPC + `memory_semantic.retrieve` (fail-soft); embed-on-write (distiller inline / authored via BackgroundTasks); wired into intent-chat ("What Myro remembers about them"). **Job-feed vector re-rank DEFERRED — needs per-job `jobs.embedding` (scraper epic); embedding N jobs/feed-load is cost-prohibitive at 10k.**
+
+**Green:** backend **1002 passed** / ruff clean; frontend tsc0 / next lint0 / ui-drift clean / next build ✓. Migrations `20260706e/f/g` applied prod via MCP + PostgREST-reloaded; security advisors clean for my objects (the 3 ERROR `security_definer_view`s are pre-existing, not mine). **OWED (Shivam):** (1) deploy dev backend (auto on Develop) + **`main` merge** for prod (all 6 slices). (2) Browser QA (authed, light+dark+375px): feed cards show cached brain badges; open a job → `<MyroTake>` computes+caches; `/notebook` write→save; intent-chat recalls memory; distillation lights up `user_memory` after login + real activity (needs ≥12h watermark or a manual reset). (3) `/notebook` nav placement. (4) job-side feed vector re-rank waits on `jobs.embedding`.
+
+## OLDER SESSION SUMMARY (2026-07-06 · User-Memory + Personalization spine — 6 slices shipped Develop + 6 migrations applied prod)
 
 Big multi-epic session. Grill-locked a whole personalization program, then built + shipped 6 slices to `origin/Develop` (own files only; foreign uncommitted work untouched) and applied 6 additive migrations to prod Supabase via MCP (all PostgREST-reloaded, advisor-clean). Full design + remaining plan: memory **`project_user_memory_personalization`**.
 
