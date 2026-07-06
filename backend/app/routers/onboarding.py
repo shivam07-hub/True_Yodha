@@ -1,7 +1,7 @@
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.database import get_supabase_admin
 from app.deps import Principal, get_principal
@@ -37,11 +37,20 @@ class PreviewRequest(BaseModel):
 
 
 class TargetRequest(BaseModel):
-    role_title: str = Field(min_length=2, max_length=120)
+    # Single role (back-compat) OR a list of 1-5 titles (multi-role chips).
+    # `role_titles` wins when present; otherwise `role_title` folds into a list.
+    role_title: str | None = Field(default=None, min_length=2, max_length=120)
+    role_titles: list[str] | None = Field(default=None, max_length=5)
     # Optional so a point-of-use "edit role" (issue #145) can change only the
-    # role title; save_target preserves the user's existing seniority/location.
+    # role(s); save_target preserves the user's existing seniority/location.
     seniority: Seniority | None = None
     location: str | None = Field(default=None, min_length=2, max_length=160)
+
+    @model_validator(mode="after")
+    def _require_a_role(self) -> "TargetRequest":
+        if not self.role_title and not (self.role_titles and any(t.strip() for t in self.role_titles)):
+            raise ValueError("Provide role_title or a non-empty role_titles list.")
+        return self
 
 
 class GeneratorAnswerRequest(BaseModel):
@@ -119,9 +128,24 @@ def save_target(
         get_supabase_admin(),
         principal.id,
         role_title=body.role_title,
+        role_titles=body.role_titles,
         seniority=body.seniority,
         location=body.location,
     )
+
+
+class RoleReadiness(BaseModel):
+    role: str
+    readiness: int | None = None  # 0-100, or null when no market demand resolves
+
+
+@router.get("/role-readiness", response_model=list[RoleReadiness])
+def get_role_readiness(
+    principal: Principal = Depends(get_principal),
+) -> list[RoleReadiness]:
+    """Per-target-role readiness % — the role-specific signal beside the stable,
+    CV-intrinsic Myro Score. One entry per human target title (the chips)."""
+    return onboarding_service.compute_role_readiness(get_supabase_admin(), principal.id)
 
 
 @router.get("/result")

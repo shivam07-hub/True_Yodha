@@ -85,3 +85,54 @@ def test_explicit_fields_still_override(wired) -> None:
     assert users.updates["target_roles"] == ["Data Science"]
     assert users.updates["target_seniority"] == "entry"
     assert users.updates["target_locations"] == ["Remote, India"]
+
+
+def test_multi_role_titles_project_to_union_clusters_and_primary(wired) -> None:
+    users, _onboarding, _bg = wired
+
+    onboarding_service.save_target(
+        object(),
+        "u1",
+        role_titles=["Product Manager", "Data Scientist", "  Product Manager  "],
+        location="Bengaluru, India",
+    )
+
+    # human titles are the source-of-record: de-duped (case/space-insensitive), capped
+    assert users.updates["target_role_titles"] == ["Product Manager", "Data Scientist"]
+    # primary = titles[0] (back-compat + score label)
+    assert users.updates["target_role_title"] == "Product Manager"
+    # matcher read model = union of clusters across all titles, order-preserved, de-duped
+    assert users.updates["target_roles"] == ["Product Management", "Data Science"]
+
+
+def test_title_with_no_cluster_falls_back_to_itself(wired) -> None:
+    users, _onboarding, _bg = wired
+
+    onboarding_service.save_target(object(), "u1", role_titles=["Chief of Staff"])
+
+    assert users.updates["target_role_titles"] == ["Chief of Staff"]
+    # no taxonomy cluster matches -> the title itself keeps the aspiration ILIKE broad
+    assert users.updates["target_roles"] == ["Chief of Staff"]
+
+
+def test_empty_titles_raises(wired) -> None:
+    with pytest.raises(ValueError):
+        onboarding_service.save_target(object(), "u1", role_titles=["", " "])
+
+
+def test_role_readiness_covers_demanded_proficiency(monkeypatch) -> None:
+    from app.services.scoring import aspirations
+
+    # role demands: python@L4, sql@L3 (total 7); user has python@L4, sql@L2 -> met 6
+    monkeypatch.setattr(
+        aspirations, "fetch_aspiration_skills", lambda _repo, _roles: {"python": 4, "sql": 3}
+    )
+    readiness = aspirations.role_readiness(object(), {"python": 4, "sql": 2}, ["Data Scientist"])
+    assert readiness == round(100 * 6 / 7)
+
+
+def test_role_readiness_none_when_no_demand(monkeypatch) -> None:
+    from app.services.scoring import aspirations
+
+    monkeypatch.setattr(aspirations, "fetch_aspiration_skills", lambda _repo, _roles: {})
+    assert aspirations.role_readiness(object(), {"python": 4}, ["Nowhere Role"]) is None

@@ -51,21 +51,70 @@ def target_context_hash(
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
+MAX_TARGET_ROLES = 5
+_MAX_ROLE_CLUSTERS = 8
+
+
+def _normalize_role_titles(
+    role_title: str | None, role_titles: list[str] | None
+) -> list[str]:
+    """Clean, de-dupe (case-insensitive, first-wins) and cap the human titles.
+
+    A single `role_title` (point-of-use edit) folds into the list so the whole
+    write path is list-shaped. Order is preserved: titles[0] is the primary.
+    """
+    raw = list(role_titles) if role_titles else ([role_title] if role_title else [])
+    seen: set[str] = set()
+    titles: list[str] = []
+    for candidate in raw:
+        cleaned = (candidate or "").strip()
+        key = cleaned.casefold()
+        if len(cleaned) < 2 or key in seen:
+            continue
+        seen.add(key)
+        titles.append(cleaned)
+    return titles[:MAX_TARGET_ROLES]
+
+
+def _clusters_for_titles(titles: list[str]) -> list[str]:
+    """Union of taxonomy clusters across all target titles = matcher read model.
+
+    A title with no cluster match contributes itself (keeps the aspiration
+    ILIKE broad, mirroring the single-role fallback). De-duped, capped.
+    """
+    seen: set[str] = set()
+    clusters: list[str] = []
+    for title in titles:
+        for cluster in derive_role_clusters(title) or [title]:
+            if cluster not in seen:
+                seen.add(cluster)
+                clusters.append(cluster)
+    return clusters[:_MAX_ROLE_CLUSTERS]
+
+
 def save_target(
     db: Client,
     user_id: str,
     *,
-    role_title: str,
+    role_title: str | None = None,
+    role_titles: list[str] | None = None,
     seniority: str | None = None,
     location: str | None = None,
 ) -> None:
-    """Canonical target-role write (issue #145, decision A).
+    """Canonical target-role write (issue #145 · multi-role, User Memory Phase 0).
 
-    Moves `target_role_title` + derived `target_roles` clusters in lockstep and
-    enqueues a score recompute + re-match. A point-of-use "edit role" may supply
-    only `role_title`; omitted `seniority`/`location` are preserved from the
-    user's existing profile so a role-only edit never silently wipes them.
+    The user targets up to 5 human role titles (chips). Those titles are the
+    source-of-record (`target_role_titles`); `target_roles` (taxonomy clusters,
+    the matcher + aspiration ILIKE keys) is the DERIVED union across titles, and
+    `target_role_title` stays the PRIMARY = titles[0] for back-compat + the score
+    label. A point-of-use edit may supply either `role_title` or `role_titles`.
+    Omitted `seniority`/`location` are preserved so a role-only edit never wipes
+    them. Requires the `target_role_titles` column (migration 20260706).
     """
+    titles = _normalize_role_titles(role_title, role_titles)
+    if not titles:
+        raise ValueError("At least one target role is required.")
+
     users_repo = UsersRepository(db)
     if seniority is None or location is None:
         profile = users_repo.get_profile(user_id) or {}
@@ -76,14 +125,14 @@ def save_target(
             location = (existing_locations[0] if existing_locations else None) or (
                 profile.get("target_location") or ""
             )
-    clusters = derive_role_clusters(role_title)
     users_repo.update_profile(
         user_id,
         {
-            "target_role_title": role_title.strip(),
+            "target_role_title": titles[0],
+            "target_role_titles": titles,
             "target_seniority": seniority,
-            "target_roles": clusters or [role_title.strip()],
-            "target_locations": [location.strip()],
+            "target_roles": _clusters_for_titles(titles),
+            "target_locations": [location.strip()] if location else [],
         },
     )
     OnboardingRepository(db).patch_state(
@@ -94,8 +143,32 @@ def save_target(
         background.LANE_FAST,
         "onboarding_target_refresh",
         payload={"user_id": user_id},
-        correlation_id=f"target:{user_id}:{role_title}:{seniority}:{location}",
+        correlation_id=f"target:{user_id}:{'|'.join(titles)}:{seniority}:{location}",
     )
+
+
+def compute_role_readiness(db: Client, user_id: str) -> list[dict[str, Any]]:
+    """Per-target-title readiness — the role-specific signal beside the stable
+    Myro Score. Each human title is searched by itself PLUS its taxonomy clusters
+    so a specific title still resolves real market demand. Returns [] when the
+    user has no titles or no skills yet (UI falls back to the score alone).
+    """
+    users_repo = UsersRepository(db)
+    profile = users_repo.get_profile(user_id) or {}
+    titles = profile.get("target_role_titles") or (
+        [profile["target_role_title"]] if profile.get("target_role_title") else []
+    )
+    if not titles:
+        return []
+
+    scores_repo = ScoresRepository(db)
+    skill_level_map = scores_repo.get_user_skill_level_map(user_id)
+    out: list[dict[str, Any]] = []
+    for title in titles:
+        search_roles = [title, *derive_role_clusters(title)]
+        readiness = scoring.role_readiness(scores_repo, skill_level_map, search_roles)
+        out.append({"role": title, "readiness": readiness})
+    return out
 
 
 @background.handler("onboarding_target_refresh")

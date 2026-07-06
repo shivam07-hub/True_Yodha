@@ -10,6 +10,7 @@ import { DetailDrawer } from "@/components/jobs/detail-drawer"
 import { DetailHeader } from "@/components/jobs/detail-header"
 import { useDeadLinkPrompt } from "@/components/jobs/use-dead-link-prompt"
 import { ApplyRow } from "@/components/jobs/apply-row"
+import { MyroTake } from "@/components/jobs/myro-take"
 import { LocationLine, SkillChip } from "./job-card"
 import { JobReadinessPanel } from "./job-readiness"
 import { ShareJobButton } from "./share-job-button"
@@ -96,6 +97,10 @@ export function JobDetailDrawer({
         </>
       }
     >
+      {/* Myro's take — the Matching Brain's verdict on THIS job (Consolidation D).
+          Computed once on first open, cached thereafter. Renders nothing when the
+          brain has nothing to say. */}
+      <MyroTake token={token} jobId={job.job_id} />
       {job.skills.length > 0 ? (
         <div style={{ marginBottom: 18 }}>
           <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--tm-text-muted)", marginBottom: 8 }}>Key skills</div>

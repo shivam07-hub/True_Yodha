@@ -13,8 +13,11 @@ from app.schemas import (
     RefreshTicketResponse,
     UserSkillDemandResponse,
 )
+from app.schemas.jobs import MatchBrainResult
 from app.services import jobs_workflow, progress_stream
 from app.services.job_refresh import JobRefresh
+from app.services.llm_provider import LLMProvider, get_interactive_provider
+from app.services.matching import on_demand
 
 from ._shared import last_monday, to_job_match
 
@@ -87,6 +90,27 @@ def dismiss_job_match_card(
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> None:
     repo.dismiss_dashboard_job_card(principal.id, job_id)
+
+
+@router.post("/{job_id}/brain", response_model=MatchBrainResult)
+async def ensure_job_brain(
+    job_id: str,
+    principal: Principal = Depends(get_principal),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+    provider: LLMProvider = Depends(get_interactive_provider),
+) -> MatchBrainResult:
+    """On-demand Matching-Brain for ONE job (Consolidation D: brain-everywhere).
+
+    Called when a job is opened or saved anywhere. Idempotent + cached: the first
+    call runs the brain once (free interactive provider, no XP) and stores it into
+    `user_job_matches`; every later open/save returns it with no LLM call. Failure
+    (provider down / job gone) returns `available=False` — the caller keeps showing
+    deterministic overlap, never a hard error.
+    """
+    result = await on_demand.ensure_job_eval(repo, provider, principal.id, job_id)
+    if result is None:
+        return MatchBrainResult(job_id=job_id, available=False)
+    return MatchBrainResult(job_id=job_id, **result)
 
 
 @router.post("/refresh", response_model=RefreshTicketResponse, status_code=status.HTTP_202_ACCEPTED)

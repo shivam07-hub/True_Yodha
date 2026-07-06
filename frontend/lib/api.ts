@@ -4,6 +4,7 @@
  * Never call fetch() directly in components — use TanStack Query + these functions.
  */
 
+import { getAnonSessionId } from "@/lib/anon-cv-stash"
 import {
   acquireRefreshLock,
   clearSessionTokens,
@@ -353,6 +354,7 @@ export interface UserProfile {
   linkedin_url: string | null
   target_roles: string[]
   target_role_title?: string | null
+  target_role_titles?: string[]
   target_seniority?: "intern" | "entry" | "mid" | "senior" | "lead" | "executive" | "any" | null
   target_location: string | null
   target_locations: string[]
@@ -510,11 +512,19 @@ export interface OnboardingState {
 }
 
 export interface OnboardingTarget {
-  role_title: string
+  // Single role (back-compat) OR role_titles for multi-role chips (up to 5).
+  // Provide one of the two; role_titles wins when present.
+  role_title?: string
+  role_titles?: string[]
   // Optional for point-of-use "edit role" (issue #145): omit to keep the user's
   // existing seniority/location; the backend preserves them via save_target.
   seniority?: TargetSeniority
   location?: string
+}
+
+export interface RoleReadiness {
+  role: string
+  readiness: number | null
 }
 
 export interface OnboardingProofSkill {
@@ -566,6 +576,9 @@ export const onboarding = {
     }),
   saveTarget: (token: string, body: OnboardingTarget) => request<void>("/onboarding/target", {
     method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(body),
+  }),
+  roleReadiness: (token: string) => request<RoleReadiness[]>("/onboarding/role-readiness", {
+    headers: { Authorization: `Bearer ${token}` },
   }),
   result: (token: string) => request<OnboardingResult>("/onboarding/result", {
     headers: { Authorization: `Bearer ${token}` },
@@ -931,11 +944,37 @@ export interface ReservoirView {
   certs: string[]
 }
 
+/** One entry in the persistent brain-dump notebook (User Memory Phase 3). */
+export interface DumpEntry {
+  id: string
+  text: string
+  created_at: string
+}
+
 export const cv = {
   evidence: (token: string) =>
     request<CVEvidenceSummary>("/cv/evidence", {
       headers: { Authorization: `Bearer ${token}` },
     }),
+  /** Brain-dump notebook (Phase 3) — the durable "what I've done / what I want"
+   *  notepad that feeds distillation + CV-bullet intake. */
+  dump: {
+    list: (token: string) =>
+      request<{ entries: DumpEntry[] }>("/cv/dump", {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    add: (token: string, text: string) =>
+      request<DumpEntry>("/cv/dump", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ text }),
+      }),
+    remove: (token: string, id: string) =>
+      request<void>(`/cv/dump/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+  },
   structured: (token: string) =>
     request<CVStructured>("/cv/structured", {
       headers: { Authorization: `Bearer ${token}` },
@@ -1957,6 +1996,9 @@ export interface JobMatch {
   risk_score?: number | null // HIGHER = riskier
   strengths?: string[]
   concerns?: string[]
+  archetype?: string | null                                        // Block A — role archetype
+  legitimacy_tier?: "high_confidence" | "caution" | "suspicious" | string | null // Block G
+  legitimacy_reason?: string | null
   // Scraper lifecycle (Job Intelligence) — now carried on /jobs/matches.
   // `last_seen_at` = scraper observation time, powers "Last verified".
   // `first_seen` = discovery age / sort only. Never the publication clock.
@@ -2305,6 +2347,36 @@ export interface JobFeedItem {
   matched_skills?: string[]  // which of `skills` the user's CV covers — ✓/✗ chip marking (T3-1)
   matched_skill_count: number
   target_role_match: number  // how many of the user's target roles this job covers
+  // Matching-Brain badges from the cached eval (Consolidation D). Present only when
+  // the brain already ran on this job for this user; absent = deterministic overlap.
+  overall_score?: number | null
+  grade?: string | null
+  recommendation?: "Apply" | "Negotiate" | "Skip" | string | null
+  legitimacy_tier?: "high_confidence" | "caution" | "suspicious" | string | null
+  legitimacy_reason?: string | null
+  archetype?: string | null
+}
+
+/** On-demand single-job brain eval (Consolidation D) → POST /jobs/{id}/brain. */
+export interface MatchBrainResult {
+  job_id: string
+  cached: boolean
+  available: boolean
+  overall_score?: number | null
+  grade?: string | null
+  recommendation?: "Apply" | "Negotiate" | "Skip" | string | null
+  summary?: string | null
+  application_angle?: string | null
+  role_fit?: number | null
+  comp_fit?: number | null
+  growth_fit?: number | null
+  culture_fit?: number | null
+  risk_score?: number | null
+  strengths?: string[]
+  concerns?: string[]
+  archetype?: string | null
+  legitimacy_tier?: "high_confidence" | "caution" | "suspicious" | string | null
+  legitimacy_reason?: string | null
 }
 
 export interface JobFeedResponse {
@@ -2510,6 +2582,25 @@ export interface JobFitBatchResponse {
   fits: JobFitItem[]
 }
 
+export interface IntentChatMessage {
+  role: "user" | "assistant"
+  content: string
+}
+
+export interface IntentFilterDiff {
+  add_roles: string[]
+  remove_roles: string[]
+  locations: string[]
+  seniority: string | null
+  work_mode: string | null
+  salary: string | null
+}
+
+export interface IntentChatResponse {
+  reply: string
+  proposed_diff: IntentFilterDiff | null
+}
+
 export const jobs = {
   searchCompanies: (q: string, limit = 10) =>
     request<string[]>(`/jobs/companies/search?q=${encodeURIComponent(q)}&limit=${limit}`),
@@ -2700,6 +2791,13 @@ export const jobs = {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     }),
+  /** On-demand Matching-Brain for one job (Consolidation D). Idempotent + cached:
+   *  first open/save computes it, later reads are free. Fire on drawer open. */
+  ensureBrain: (token: string, jobId: string) =>
+    request<MatchBrainResult>(`/jobs/${encodeURIComponent(jobId)}/brain`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
   /** Conditional Feed State read. Pass the last ETag; a match returns "unchanged". */
   feedState: async (token: string, etag: string | null): Promise<FeedStateResult> => {
     const r = await requestConditional("/jobs/feed-state", token, etag)
@@ -2751,6 +2849,19 @@ export const jobs = {
     request<ApplicationResponse>(`/jobs/save/${encodeURIComponent(jobId)}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
+    }),
+  // Delta-4 intent chat: talk to Myro when the feed disappoints → propose a diff.
+  intentChat: (token: string, messages: IntentChatMessage[]) =>
+    request<IntentChatResponse>("/jobs/intent-chat", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ messages }),
+    }),
+  applyIntentDiff: (token: string, diff: IntentFilterDiff) =>
+    request<{ applied: boolean; changed: Record<string, unknown> }>("/jobs/intent-chat/apply", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ diff }),
     }),
   reportInactive: (token: string, jobId: string) =>
     request<{ report_count: number; already_reported: boolean; coins_earned: number }>(
@@ -3707,6 +3818,7 @@ export const publicCv = {
     postPublicJson<PublicJobSearchResponse>("/public/job-search", {
       query: payload.query,
       cf_turnstile_token: payload.turnstileToken ?? (await getTurnstileToken()),
+      session_id: getAnonSessionId(),
     }),
 
   // Metadata-only telemetry for a pre-login CV download (#34 S6). Fire-and-forget:

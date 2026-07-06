@@ -262,6 +262,24 @@ def test_parse_eval_strips_think_block() -> None:
     assert out["overall_score"] == 3.6
 
 
+def test_parse_eval_extracts_archetype_and_legitimacy() -> None:
+    out = llm_ranker.parse_eval(
+        '{"overall_score": 4.1, "recommendation": "Apply", "archetype": "Data Scientist",'
+        ' "legitimacy_tier": "high_confidence", "legitimacy_reason": "detailed stack + scope"}'
+    )
+    assert out is not None
+    assert out["archetype"] == "Data Scientist"
+    assert out["legitimacy_tier"] == "high_confidence"
+    assert out["legitimacy_reason"] == "detailed stack + scope"
+
+
+def test_parse_eval_drops_invalid_legitimacy_tier() -> None:
+    out = llm_ranker.parse_eval('{"overall_score": 4.0, "recommendation": "Apply", "legitimacy_tier": "totally_legit"}')
+    assert out is not None
+    assert out["legitimacy_tier"] is None
+    assert out["archetype"] is None
+
+
 def test_parse_eval_returns_none_on_garbage() -> None:
     assert llm_ranker.parse_eval("no json here") is None
 

@@ -36,6 +36,7 @@ logger = logging.getLogger(__name__)
 
 _MAX_TOKENS = 900
 _RECOMMENDATIONS = {"Apply", "Negotiate", "Skip"}
+_LEGITIMACY_TIERS = {"high_confidence", "caution", "suspicious"}
 # Bound on concurrent per-job LLM calls. Keep low — the provider chain fails over
 # per call and free tiers rate-limit. See docs/MATCHING_BRAIN_CHANGE.md risks.
 _CONCURRENCY = 3
@@ -100,6 +101,14 @@ Score the posting on a 0.0–5.0 scale (use decimals; NEVER round to whole numbe
 
 Grade mapping: 4.5+ = A+, 4.0+ = A, 3.5+ = B+, 3.0+ = B, 2.5+ = C+, 2.0+ = C, below = D/F.
 
+Also classify and legitimacy-check the posting (Career Ops Block A + Block G):
+- archetype: the role's archetype in 1-3 words (e.g. "Data Scientist", "Product Manager", "Solutions Architect", "LLMOps", "Sales / GTM"). If hybrid, name the two closest joined by "/".
+- legitimacy_tier: judge whether this is a real, live, worth-applying posting from the description ALONE (you have no web access):
+    "high_confidence" — specific tech stack + team/scope detail, salary or clear responsibilities, no contradictions.
+    "caution"         — vague or boilerplate-heavy, generic responsibilities, thin detail, or mild contradictions.
+    "suspicious"      — ghost/scam signals: no real scope, pay-to-apply / upfront-fee language, contradictory seniority vs pay, mass-generic "rockstar/ninja" filler with no substance, or a JD that reads like a template with nothing concrete.
+- legitimacy_reason: one short phrase naming the strongest signal behind the tier (e.g. "detailed stack + scope", "boilerplate, no specifics", "asks for an upfront fee").
+
 Rules:
 - Reward strong alignment with the candidate's target roles; penalise roles far outside them.
 - Reward the candidate's preferred location; flag relocation risk otherwise (do not hard-fail).
@@ -120,7 +129,10 @@ Respond ONLY with valid JSON, no prose outside it, matching exactly:
   "strengths": ["...", "..."],
   "concerns": ["...", "..."],
   "recommendation": "Apply|Negotiate|Skip",
-  "application_angle": "1-2 sentences on how THIS candidate should position themselves if applying"
+  "application_angle": "1-2 sentences on how THIS candidate should position themselves if applying",
+  "archetype": "1-3 word role archetype",
+  "legitimacy_tier": "high_confidence|caution|suspicious",
+  "legitimacy_reason": "short phrase naming the strongest signal"
 }}"""
 
 
@@ -190,6 +202,13 @@ def parse_eval(text: str) -> dict[str, Any] | None:
         "concerns": [str(c) for c in (obj.get("concerns") or [])][:5],
         "recommendation": rec,
         "application_angle": (obj.get("application_angle") or None),
+        "archetype": (str(obj["archetype"]).strip()[:60] or None) if obj.get("archetype") else None,
+        "legitimacy_tier": (
+            obj["legitimacy_tier"]
+            if obj.get("legitimacy_tier") in _LEGITIMACY_TIERS
+            else None
+        ),
+        "legitimacy_reason": (str(obj["legitimacy_reason"]).strip()[:160] or None) if obj.get("legitimacy_reason") else None,
     }
 
 
@@ -325,6 +344,9 @@ def persist_matches(
             "risk_score": ev.get("risk_score"),
             "strengths": ev.get("strengths") or [],
             "concerns": ev.get("concerns") or [],
+            "archetype": ev.get("archetype"),
+            "legitimacy_tier": ev.get("legitimacy_tier"),
+            "legitimacy_reason": ev.get("legitimacy_reason"),
             "is_recommended": is_recommended,
             "baseline_version_id": baseline_version_id,
             "target_context_hash": credibility.context_hash,

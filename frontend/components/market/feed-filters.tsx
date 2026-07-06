@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import type { JobFeedSort } from "@/lib/api"
-import { TargetRoleEditor } from "@/components/target-role/target-role-editor"
+import { TargetRolesChips } from "@/components/target-role/target-roles-chips"
 import {
   type FeedFilters, SORT_TOGGLE, canRankByFit, activeFilterCount,
 } from "./feed-types"
@@ -125,14 +125,12 @@ export function RoleSwitcher({
 // ── the sheet (Location[read-only] · Role · Skill match · Companies) ──────────
 
 export function FiltersSheet({
-  filters, onChange, onClose, targetRoles, targetRole, chipCountMap, hasCv, targetLocations, onEditLocations,
+  filters, onChange, onClose, targetRoles, chipCountMap, hasCv, targetLocations, onEditLocations,
 }: {
   filters: FeedFilters
   onChange: (f: FeedFilters) => void
   onClose: () => void
   targetRoles: string[]
-  /** Primary target role driving the score + matches — editable in place (#145). */
-  targetRole?: string | null
   chipCountMap: Record<string, number>
   hasCv: boolean
   targetLocations: string[]
@@ -180,7 +178,7 @@ export function FiltersSheet({
 
           <Section title="Role">
             <div style={{ marginBottom: targetRoles.length ? 10 : 0 }}>
-              <TargetRoleEditor role={targetRole} />
+              <TargetRolesChips editable showReadiness />
             </div>
             {targetRoles.length > 0 && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>

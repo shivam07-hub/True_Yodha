@@ -2208,6 +2208,7 @@ class JobsRepository:
                 "is_recommended, baseline_version_id, target_context_hash, seniority_compatibility, "
                 "overall_score, grade, recommendation, application_angle, summary, "
                 "role_fit, comp_fit, growth_fit, culture_fit, risk_score, strengths, concerns, "
+                "archetype, legitimacy_tier, legitimacy_reason, "
                 "jobs(job_title, company_name, industry, location, location_raw, location_city, "
                 "location_country, location_mode, location_quality, locations, apply_url, "
                 "job_summary, job_description, "
@@ -2232,6 +2233,59 @@ class JobsRepository:
                 _hydrate_location_fields(row["jobs"])
             stack.append(row)
         return stack
+
+    # Feed badge subset vs the full drawer eval — one method, two column sets.
+    _MATCH_EVAL_BADGE_COLS = (
+        "job_id, batch_week, computed_at, llm_rank, overlap_score, "
+        "overall_score, grade, recommendation, "
+        "archetype, legitimacy_tier, legitimacy_reason, seniority_compatibility"
+    )
+    _MATCH_EVAL_FULL_COLS = (
+        _MATCH_EVAL_BADGE_COLS
+        + ", summary, application_angle, role_fit, comp_fit, growth_fit, "
+        "culture_fit, risk_score, strengths, concerns"
+    )
+
+    def get_cached_match_evals(
+        self, user_id: str, job_ids: list[str], *, full: bool = False
+    ) -> dict[str, dict[str, Any]]:
+        """Newest cached brain eval per job for this user (Consolidation D).
+
+        The feed/search read side JOINs this so a card shows the grade / verdict /
+        legitimacy the Matching Brain already produced on a prior refresh — no LLM
+        call at read time. Default returns the light badge subset (cheap for a whole
+        feed page); ``full=True`` adds the summary / 5-axis / strengths columns the
+        drawer needs for one job. A job with no cached row is absent from the map.
+        """
+        clean = [str(j) for j in job_ids if j]
+        if not clean:
+            return {}
+        result = (
+            self._db.table("user_job_matches")
+            .select(self._MATCH_EVAL_FULL_COLS if full else self._MATCH_EVAL_BADGE_COLS)
+            .eq("user_id", user_id)
+            .in_("job_id", clean)
+            .execute()
+        )
+        rows = list(result.data or [])
+        rows.sort(key=_match_stack_sort_key, reverse=True)  # newest refresh first
+        evals: dict[str, dict[str, Any]] = {}
+        for row in rows:
+            jid = str(row.get("job_id") or "")
+            if jid and jid not in evals:
+                evals[jid] = row
+        return evals
+
+    def upsert_single_match_eval(self, user_id: str, row: dict[str, Any]) -> None:
+        """Admin upsert of ONE on-demand match row (Consolidation D rank_one).
+
+        Uses the admin client so a token-scoped read repo can still persist the
+        brain result (RLS on user_job_matches is owner-select; writes are service
+        paths). Same conflict key as the batch persister — one row per user/job/week.
+        """
+        self._admin_db.table("user_job_matches").upsert(
+            row, on_conflict="user_id,job_id,batch_week"
+        ).execute()
 
     def dismiss_dashboard_job_card(self, user_id: str, job_id: str) -> None:
         self._db.table("user_dismissed_job_cards").upsert(
@@ -2298,6 +2352,7 @@ class JobsRepository:
                 "is_recommended, baseline_version_id, target_context_hash, seniority_compatibility, "
                 "overall_score, grade, recommendation, application_angle, summary, "
                 "role_fit, comp_fit, growth_fit, culture_fit, risk_score, strengths, concerns, "
+                "archetype, legitimacy_tier, legitimacy_reason, "
                 "jobs(job_title, company_name, industry, location, location_raw, location_city, "
                 "location_country, location_mode, location_quality, locations, apply_url, job_description)"
             )

@@ -6,6 +6,7 @@ import { PulseRow } from "@/components/dashboard/card-atoms"
 import { FeedCard, feedCardConfidenceClass } from "@/components/jobs/feed-card"
 import { VirtualFeed } from "@/components/jobs/virtual-feed"
 import { feedDataFromFeedItem } from "@/lib/jobs/card-view"
+import { CardBrainBadges } from "./job-card"
 import { StoryCard, type FeedStory } from "./story-card"
 import { ShareJobButton } from "./share-job-button"
 import type { FeedRow } from "./feed-rows"
@@ -84,6 +85,7 @@ function MobileJobCard({
           onPointerUp: onUp,
           onPointerCancel: onUp,
         }}
+        badges={<CardBrainBadges job={job} />}
         pulse={<PulseRow pulse={pulse} bare />}
         actions={
           <>

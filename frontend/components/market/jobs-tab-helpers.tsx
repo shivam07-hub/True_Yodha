@@ -39,10 +39,12 @@ export function EmptyHandoff({
   savedCount,
   onBuild,
   onClear,
+  onTellMyro,
 }: {
   savedCount: number
   onBuild: () => void
   onClear: () => void
+  onTellMyro?: () => void
 }) {
   return (
     <div style={{ textAlign: "center", padding: "64px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
@@ -55,6 +57,9 @@ export function EmptyHandoff({
       ) : (
         <div style={{ fontSize: 14, color: "var(--tm-text-muted)" }}>Fresh roles land daily. Check back, or loosen your filters.</div>
       )}
+      {onTellMyro ? (
+        <button type="button" onClick={onTellMyro} className="tm-filters-apply">Tell Myro what you want</button>
+      ) : null}
       <button type="button" onClick={onClear} style={{ background: "none", border: "none", color: "var(--tm-interactive)", cursor: "pointer", fontSize: 13 }}>Clear filters</button>
     </div>
   )

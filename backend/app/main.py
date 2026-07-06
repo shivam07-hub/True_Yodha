@@ -29,6 +29,7 @@ from app.routers import (
     status,
     telemetry,
     upskilling,
+    user_memory,
     users,
     xp,
 )
@@ -68,6 +69,7 @@ app.include_router(home.router)
 app.include_router(diary.router)
 app.include_router(comments.router)
 app.include_router(private_notes.router)
+app.include_router(user_memory.router)
 app.include_router(xp.router)
 app.include_router(profile.router)
 app.include_router(payments.router)

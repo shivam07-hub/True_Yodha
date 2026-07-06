@@ -442,6 +442,49 @@ A persisted match row (`user_job_matches` joined with `jobs`) is the matcher's d
 
 ---
 
+## JobRanking
+
+The single facade for "given a candidate pool + a targeting profile, produce ranked jobs". `app/services/matching/ranking.py` combines the matcher's two tuned stages so callers never wire them by hand:
+
+1. **Deterministic overlap** — `job_matcher.get_top_matches` (skill overlap + role boost + company cap).
+2. **Brain** — `llm_ranker.evaluate_all` (Career-Ops 5-axis + grade + Apply/Negotiate/Skip verdict + legitimacy tier + archetype).
+
+```py
+async def rank(profile, cv_markdown, jobs: RankCandidates, *, provider, use_brain=True, budget=None, ...) -> RankResult
+async def rank_one(profile, cv_markdown, job, provider) -> eval | None
+```
+
+**Invariants**
+- `ranking` **delegates, never reimplements** — it calls the same `get_top_matches` + `evaluate_all` in the same order as the old inline duo. Persistence stays in `llm_ranker.persist_matches`; `rank`/`rank_one` write nothing.
+- `RankResult.evaluations` is empty when the brain is skipped (`use_brain=False` / `provider is None`) or every eval failed — the deterministic overlap scores still stand alone, so a brain outage degrades to overlap-only matching rather than an empty feed.
+- `budget` caps how many of the shortlist reach the brain (cost control). `None` = brain the whole shortlist = the weekly-batch behaviour. `rank_one` is the single-job on-demand path (a job opened/saved anywhere) whose result is **cached** into `user_job_matches` — never a per-request LLM call in bulk.
+- `compute_job_matches` (weekly / paid Refresh) routes through `rank`; the exhausted/refund gates and candidate-id fetching stay in `jobs_workflow` (DB-coupled), unchanged.
+
+---
+
+## FilterSpec
+
+The one structured filter vocabulary for "what jobs to search for". Before it, that intent was expressed three incompatible ways — the NL parser dict, the authed feed's long `feed_jobs(**kwargs)`, and the intent-chat diff. `FilterSpec` (`app/services/matching/filter_spec.py`) is a frozen dataclass every producer maps into and every query surface reads out of.
+
+**Producers** (build a spec): `FilterSpec.from_nl_parse(parsed)` (landing NL search), `from_intent_diff(diff)` (Delta-4 intent chat), `from_memory(facts)` (Phase-2 distilled `user_memory`).
+
+**Consumers** (map a spec to the tuned SQL): `public_kwargs()` → `public_job_query`, `feed_kwargs()` → `feed_jobs` (query dimensions only), `company_drill_kwargs()` → `search_jobs_by_filters`.
+
+**Invariants**
+- A field is **not a filter until a mapper hands it to a method that understands it**. `seniority` / `salary` are targeting/memory facts the feed SQL takes no param for, so `feed_kwargs` simply omits them — the spec can carry more than any one surface consumes.
+- `location_prefs` distinguishes `None` (unset) from `()` (explicit-empty) because `build_location_scope` treats them the same but the browse-scope branches deliberately pass `[]`; the mapper preserves the distinction.
+- Producers **canonicalise vocabulary once**: `work_mode` → `location_mode`, mode validated against `{remote,hybrid,onsite}`, blanks dropped. Downstream never re-validates.
+
+## JobQuery
+
+The resolver that runs a `FilterSpec` against a jobs repository (`app/services/matching/job_query.py`). Thin call adapter — `public` / `feed` / `company_drill` each map a spec (plus, for `feed`, the injected user-context: CV skill keys, target roles, draining-queue exclusions, follow set) onto the exact keyword call the repo already exposes, then return its raw result dict.
+
+**Invariants**
+- `JobQuery` **delegates, never rewrites** — `feed_jobs` / `public_job_query` / `search_jobs_by_filters` stay the single home of the query SQL. The routers became adapters (build a spec → resolve); the tuned SQL is byte-for-byte the same call.
+- The **spec stays a pure, cacheable description** of the user-expressed search; per-request personal context is injected at `JobQuery.feed` time, not carried on the spec.
+
+---
+
 ## Generative Text Stream
 
 The one seam for typing an LLM answer at a user over SSE (ADR-0009). `services/text_stream.py` owns the token/done/error envelope, the "never swap provider mid-stream" rule, the empty-stream guard, the typewriter cache replay, and the charge-only-on-`done` hook. Every live-text surface — why-you-fit (`analyse`), deepeners (`deepen`), per-bullet Mentor rewrite (`/cv/rewrite-bullet/stream`) — is a thin caller: build messages, pass a `finalize` closure, return `text_stream.response(...)`. Before this, `analyse` and `deepen` each hand-inlined a byte-identical copy of the envelope + loop + charge logic, and rewrite didn't stream at all (a blocking `complete()` behind a dead spinner).

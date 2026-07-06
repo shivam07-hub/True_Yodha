@@ -8,8 +8,9 @@ from typing import Any, Literal
 
 from app.repositories.jobs import JobsRepository
 from app.repositories.scores import ScoresRepository
-from app.services import job_importer, job_matcher, llm_ranker
+from app.services import job_importer, llm_ranker
 from app.services.llm_provider import LLMProvider
+from app.services.matching import ranking
 from app.services.scoring.aspirations import fetch_aspiration_skills
 
 logger = logging.getLogger(__name__)
@@ -297,14 +298,24 @@ async def compute_job_matches(
 
     job_skill_rows = repo.get_all_job_skill_rows(job_ids=candidate_job_ids)
     match_debug: dict[str, int] = {}
-    top_jobs = job_matcher.get_top_matches(
-        job_skill_rows,
-        user_skill_map,
-        job_meta_fetcher=repo.get_jobs_by_ids,
-        target_roles=profile.get("target_roles") or [],
-        top_n=12,
+    # Deterministic overlap + brain in ONE facade (Consolidation B / JobRanking).
+    # Same two stages, same order as before — get_top_matches then evaluate_all —
+    # just no longer inlined here. Persistence stays below in persist_matches.
+    ranked = await ranking.rank(
+        profile,
+        profile.get("cv_markdown") or "",
+        ranking.RankCandidates(
+            job_skill_rows=job_skill_rows,
+            user_skill_map=user_skill_map,
+            job_meta_fetcher=repo.get_jobs_by_ids,
+            top_n=12,
+        ),
+        provider=llm_provider,
+        use_brain=True,
+        on_progress=on_progress,
         debug=match_debug,
     )
+    top_jobs = ranked.top_jobs
     logger.info(
         "compute_job_matches: user=%s skills=%d candidates=%d top_jobs=%d",
         user_id, len(user_skill_map), len(candidate_job_ids), len(top_jobs),
@@ -324,8 +335,8 @@ async def compute_job_matches(
             },
         )
 
-    written = await llm_ranker.rank_and_persist(
-        db, user_id, batch_week, profile, top_jobs, llm_provider, on_progress
+    written = llm_ranker.persist_matches(
+        db, user_id, batch_week, top_jobs, ranked.evaluations, profile
     )
     return MatchComputeOutcome(
         kind="written",

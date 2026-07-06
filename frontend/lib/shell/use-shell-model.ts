@@ -81,6 +81,8 @@ export function useShellModel() {
     full_name: profileData?.full_name ?? null,
     email: profileData?.email ?? "",
     target_roles: profileData?.target_roles ?? [],
+    target_role_title: profileData?.target_role_title ?? null,
+    target_role_titles: profileData?.target_role_titles ?? [],
     target_location: profileData?.target_location ?? null,
     target_locations: profileData?.target_locations ?? [],
     linkedin_url: profileData?.linkedin_url ?? null,

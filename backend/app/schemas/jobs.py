@@ -86,6 +86,9 @@ class MatchEval(BaseModel):
     risk_score: float | None = None
     strengths: list[str] = []
     concerns: list[str] = []
+    archetype: str | None = None
+    legitimacy_tier: str | None = None      # high_confidence | caution | suspicious
+    legitimacy_reason: str | None = None
 
 
 class JobMatchResponse(BaseModel):
@@ -133,6 +136,9 @@ class JobMatchResponse(BaseModel):
     risk_score: float | None = None     # HIGHER = riskier
     strengths: list[str] = []
     concerns: list[str] = []
+    archetype: str | None = None                 # Career Ops Block A — role archetype
+    legitimacy_tier: str | None = None           # Block G — high_confidence|caution|suspicious
+    legitimacy_reason: str | None = None
     is_recommended: bool = False
     baseline_version_id: int | None = None
     target_context_hash: str | None = None
@@ -509,6 +515,15 @@ class JobFeedItem(BaseModel):
     matched_skills: list[str] = []  # which of the requesting user's CV skills this job needs (T3-1)
     matched_skill_count: int = 0  # overlap with the requesting user's CV skills (0 if anon)
     target_role_match: int = 0  # how many of the user's target roles this job covers (0 if none set)
+    # Matching-Brain badges from the cached eval (Consolidation D). Present only
+    # when the brain already ran on this job for this user (prior refresh / open);
+    # absent = deterministic overlap only, no LLM call at read time.
+    overall_score: float | None = None
+    grade: str | None = None
+    recommendation: str | None = None
+    legitimacy_tier: str | None = None
+    legitimacy_reason: str | None = None
+    archetype: str | None = None
 
 
 class JobFeedResponse(BaseModel):
@@ -521,6 +536,31 @@ class JobFeedResponse(BaseModel):
     sort: str  # echo of the applied sort mode
     expansion_tier: Literal["exact", "remote_country", "country"] = "exact"
     expansion_label: str | None = None
+
+
+class MatchBrainResult(BaseModel):
+    """On-demand single-job brain eval (Consolidation D). Returned by
+    POST /jobs/{job_id}/brain; the frontend patches these onto its local job.
+    `cached=True` means it was already computed (no LLM ran this call)."""
+
+    job_id: str
+    cached: bool = False
+    available: bool = True  # False when the brain couldn't run (provider down / job gone)
+    overall_score: float | None = None
+    grade: str | None = None
+    recommendation: str | None = None
+    summary: str | None = None
+    application_angle: str | None = None
+    role_fit: float | None = None
+    comp_fit: float | None = None
+    growth_fit: float | None = None
+    culture_fit: float | None = None
+    risk_score: float | None = None
+    strengths: list[str] = []
+    concerns: list[str] = []
+    archetype: str | None = None
+    legitimacy_tier: str | None = None
+    legitimacy_reason: str | None = None
 
 
 class HiddenJobItem(BaseModel):

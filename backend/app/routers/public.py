@@ -19,10 +19,13 @@ from pydantic import BaseModel
 
 from app.config import settings
 from app.database import get_supabase_admin
+from app.repositories.search_queries import SearchQueriesRepository
 from app.repositories.jobs import get_public_jobs_repository
 from app.repositories.scores import ScoresRepository
 from app.services import cv_parser, cv_restructure, cv_rewrite, job_query_parser
 from app.services.llm_provider import get_cv_upload_provider, get_llm_provider
+from app.services.matching.filter_spec import FilterSpec
+from app.services.matching.job_query import JobQuery
 from app.services.scoring.formulas import build_skill_level_map
 from app.services.scoring.orchestrator import project_score
 
@@ -569,6 +572,7 @@ class JobSearchResponse(BaseModel):
 class JobSearchRequest(BaseModel):
     query: str
     cf_turnstile_token: str | None = None
+    session_id: str | None = None  # anon correlation → links forward to signup
 
 
 @router.post("/job-search", response_model=JobSearchResponse)
@@ -588,12 +592,10 @@ async def public_job_search(
         )
 
     filters = await job_query_parser.parse_job_query(query, get_llm_provider())
-    result = get_public_jobs_repository().public_job_query(
-        role=filters["role"],
-        location_city=filters["location_city"],
-        location_country=filters["location_country"],
-        location_mode=filters["location_mode"],
-    )
+    # NL parse → canonical FilterSpec → tuned SQL (Consolidation C). `filters` still
+    # feeds the `interpreted` echo + the search log; the spec drives the query.
+    spec = FilterSpec.from_nl_parse(filters)
+    result = JobQuery.public(get_public_jobs_repository(), spec)
 
     cards = [
         JobSearchCard(
@@ -609,6 +611,13 @@ async def public_job_search(
         for row in result["rows"]
         if row.get("job_id")
     ]
+    SearchQueriesRepository.record(
+        surface="landing",
+        query=query,
+        session_id=body.session_id,
+        parsed=filters,
+        result_count=int(result["total"]),
+    )
     return JobSearchResponse(
         cards=cards,
         total=int(result["total"]),

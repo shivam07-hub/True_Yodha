@@ -602,6 +602,9 @@ def test_feed_endpoint_returns_feed_payload() -> None:
         def get_followed_company_names(self, _user_id: str) -> set[str]:
             return set()
 
+        def get_cached_match_evals(self, _uid: str, _ids: list[str], *, full: bool = False) -> dict[str, Any]:
+            return {}
+
         def feed_jobs(self, **_kwargs: Any) -> dict[str, Any]:
             return {
                 "rows": [
@@ -639,6 +642,70 @@ def test_feed_endpoint_returns_feed_payload() -> None:
     assert body["jobs"][0]["matched_skill_count"] == 1
 
 
+def test_feed_attaches_cached_brain_badges() -> None:
+    """Consolidation D: a cached Matching-Brain eval decorates the card (grade /
+    verdict / legitimacy) at read time, no LLM."""
+
+    class _FeedRepo:
+        def resolve_role_domain_for_clusters(self, _clusters: list[str]) -> str | None:
+            return None
+
+        def user_skill_keys(self, _u: str) -> set[str]:
+            return {"python"}
+
+        def user_target_locations(self, _u: str) -> list[str]:
+            return []
+
+        def user_target_location_countries(self, _u: str) -> list[str]:
+            return []
+
+        def get_user_target_roles(self, _u: str) -> list[str]:
+            return []
+
+        def get_dismissed_job_card_ids(self, _u: str) -> list[str]:
+            return []
+
+        def get_saved_job_ids(self, _u: str) -> list[str]:
+            return []
+
+        def get_cached_match_evals(self, _u: str, ids: list[str], *, full: bool = False) -> dict[str, Any]:
+            return {
+                "j1": {
+                    "overall_score": 4.2, "grade": "A", "recommendation": "Apply",
+                    "legitimacy_tier": "suspicious", "legitimacy_reason": "no scope",
+                    "archetype": "Data Engineer",
+                }
+            }
+
+        def feed_jobs(self, **_kwargs: Any) -> dict[str, Any]:
+            return {
+                "rows": [
+                    {"job_id": "j1", "job_title": "DE", "company_name": "Acme", "job_description": "JD"},
+                    {"job_id": "j2", "job_title": "SRE", "company_name": "Beta", "job_description": "JD"},
+                ],
+                "available_total": 2, "returned_total": 2, "page": 1, "page_size": 20,
+                "has_next_page": False, "sort": "fresh",
+            }
+
+    repo = _FeedRepo()
+    app.dependency_overrides[get_principal] = lambda: Principal(id="u1")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    try:
+        with TestClient(app) as client:
+            body = client.get("/jobs/feed?sort=fresh").json()
+    finally:
+        app.dependency_overrides.clear()
+
+    j1, j2 = body["jobs"]
+    assert j1["grade"] == "A"
+    assert j1["recommendation"] == "Apply"
+    assert j1["legitimacy_tier"] == "suspicious"
+    assert j1["archetype"] == "Data Engineer"
+    # A job with no cached eval carries no badge fields (deterministic-only).
+    assert j2["grade"] is None
+    assert j2["legitimacy_tier"] is None
+
+
 def test_feed_endpoint_expands_remote_inside_saved_country() -> None:
     class _FeedRepo:
         kwargs: dict[str, Any] = {}
@@ -649,6 +716,7 @@ def test_feed_endpoint_expands_remote_inside_saved_country() -> None:
         def get_user_target_roles(self, _user_id: str) -> list[str]: return []
         def get_dismissed_job_card_ids(self, _user_id: str) -> list[str]: return ["hidden"]
         def get_saved_job_ids(self, _user_id: str) -> list[str]: return []
+        def get_cached_match_evals(self, _uid: str, _ids: list[str], *, full: bool = False) -> dict[str, Any]: return {}
 
         def feed_jobs(self, **kwargs: Any) -> dict[str, Any]:
             self.kwargs = kwargs
