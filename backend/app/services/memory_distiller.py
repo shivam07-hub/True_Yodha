@@ -78,7 +78,10 @@ def build_messages(signals: dict[str, list[str]]) -> list[dict[str, str]]:
     saved = signals.get("saved") or []
     dismissed = signals.get("dismissed") or []
     searches = signals.get("searches") or []
+    dump = signals.get("dump") or []
     parts = [
+        # The brain-dump is the user's OWN words → the richest, highest-trust signal.
+        "What they wrote about themselves (their own words): " + ("\n- ".join([""] + dump) if dump else "none"),
         "Saved (liked): " + ("; ".join(saved) if saved else "none"),
         "Dismissed (disliked): " + ("; ".join(dismissed) if dismissed else "none"),
         "Searched: " + ("; ".join(searches) if searches else "none"),
@@ -212,10 +215,18 @@ def _set_watermark(db: Any, user_id: str, when: datetime) -> None:
 
 def _collect_signals(db: Any, user_id: str, since_iso: str) -> dict[str, list[str]]:
     return {
+        "dump": _cv_dump(db, user_id, since_iso),
         "saved": _job_titles(db, "job_applications", "created_at", user_id, since_iso),
         "dismissed": _job_titles(db, "user_dismissed_job_cards", "dismissed_at", user_id, since_iso),
         "searches": _searches(db, user_id, since_iso),
     }
+
+
+def _cv_dump(db: Any, user_id: str, since_iso: str) -> list[str]:
+    from app.repositories.cv_dump import CvDumpRepository
+
+    rows = CvDumpRepository(db).list_since(user_id, since_iso, limit=_SIGNAL_CAP)
+    return [t for r in rows if (t := (r.get("text") or "").strip())]
 
 
 def _job_titles(db: Any, table: str, ts_col: str, user_id: str, since_iso: str) -> list[str]:

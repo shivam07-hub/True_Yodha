@@ -944,11 +944,37 @@ export interface ReservoirView {
   certs: string[]
 }
 
+/** One entry in the persistent brain-dump notebook (User Memory Phase 3). */
+export interface DumpEntry {
+  id: string
+  text: string
+  created_at: string
+}
+
 export const cv = {
   evidence: (token: string) =>
     request<CVEvidenceSummary>("/cv/evidence", {
       headers: { Authorization: `Bearer ${token}` },
     }),
+  /** Brain-dump notebook (Phase 3) — the durable "what I've done / what I want"
+   *  notepad that feeds distillation + CV-bullet intake. */
+  dump: {
+    list: (token: string) =>
+      request<{ entries: DumpEntry[] }>("/cv/dump", {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    add: (token: string, text: string) =>
+      request<DumpEntry>("/cv/dump", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ text }),
+      }),
+    remove: (token: string, id: string) =>
+      request<void>(`/cv/dump/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+  },
   structured: (token: string) =>
     request<CVStructured>("/cv/structured", {
       headers: { Authorization: `Bearer ${token}` },

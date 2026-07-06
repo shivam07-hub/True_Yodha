@@ -53,8 +53,13 @@ def test_select_new_caps_batch() -> None:
 
 
 def test_build_messages_labels_signals() -> None:
-    msgs = md.build_messages({"saved": ["MLE @ Acme"], "dismissed": [], "searches": ["remote data jobs"]})
+    msgs = md.build_messages({
+        "dump": ["I want to move from consulting into product."],
+        "saved": ["MLE @ Acme"], "dismissed": [], "searches": ["remote data jobs"],
+    })
     user = msgs[1]["content"]
+    assert "their own words" in user
+    assert "move from consulting into product" in user
     assert "Saved (liked): MLE @ Acme" in user
     assert "Dismissed (disliked): none" in user
     assert "Searched: remote data jobs" in user
