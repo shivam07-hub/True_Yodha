@@ -6,6 +6,7 @@ import { useStreamingText } from "@/lib/hooks/use-streaming-text"
 import { useCoinsGate } from "@/lib/hooks/use-xp-gate"
 import { useXPStore } from "@/store/xpStore"
 import { jobs as jobsApi, type JobMatch, type SkillGapItem } from "@/lib/api"
+import { verdictColor, verdictLabel } from "@/lib/jobs/match-verdict"
 import { CompanyLink } from "@/components/companies/company-link"
 import { stripMarkdown } from "@/lib/text/strip-markdown"
 import { MAX_LEVEL, sessionsForGap } from "@/lib/level-thresholds"
@@ -133,7 +134,7 @@ export function LensOverview({ job, skills }: { job: JobMatch; skills: SkillGapI
     <div className="db-lens db-lens--overview">
       <div className="db-ov-fit" style={{ ["--db-fit" as string]: `${fit}` }}>
         <div className="num">{fit}</div>
-        <div className="lbl">fit</div>
+        <div className="lbl" style={{ color: verdictColor(job.verdict) }}>{verdictLabel(job.verdict)}</div>
       </div>
       <h2 className="db-ov-role">{job.title}</h2>
       <CompanyLink company={job.company} className="db-ov-sub" />
@@ -148,7 +149,7 @@ export function LensOverview({ job, skills }: { job: JobMatch; skills: SkillGapI
         </div>
       ) : null}
       <Link className="db-ov-tailor" href={`/cv?jobId=${job.job_id}`}>
-        Tailor CV for this role →
+        Tailor &amp; apply →
       </Link>
     </div>
   )

@@ -5,6 +5,7 @@ import { SkillRow } from "./SkillRow"
 import { InfoPill } from "./interaction-pills"
 import { ApplyRow } from "@/components/jobs/apply-row"
 import type { JobMatch, ApplicationStatus, SkillGapResponse } from "@/lib/api"
+import { isStretch, verdictColor, verdictLabel } from "@/lib/jobs/match-verdict"
 import { stripMarkdown } from "@/lib/text/strip-markdown"
 
 const STAGE_OPTIONS: { value: ApplicationStatus; label: string }[] = [
@@ -111,13 +112,13 @@ export function HeroCard({ job, status, skillGapData, onStatus }: HeroCardProps)
           </div>
         </div>
 
-        {/* Fit badge */}
+        {/* Match badge — the ONE number + the verdict word (Match Verdict) */}
         <div style={{ flexShrink: 0, textAlign: "right" }}>
           <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 32, fontWeight: 700, color, lineHeight: 1, letterSpacing: "-0.02em" }}>
             {fit}
           </div>
-          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, textTransform: "uppercase", color: "var(--tm-text-faint)", letterSpacing: "0.06em", marginTop: 2 }}>
-            fit
+          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: verdictColor(job.verdict), letterSpacing: "0.06em", marginTop: 3 }}>
+            {verdictLabel(job.verdict)}
           </div>
         </div>
       </div>
@@ -135,6 +136,21 @@ export function HeroCard({ job, status, skillGapData, onStatus }: HeroCardProps)
           transition: "width 600ms var(--tm-ease)",
         }} />
       </div>
+
+      {/* Stretch honesty — never a dead end: name it early + the lift move */}
+      {isStretch(job.verdict) && (
+        <div style={{
+          marginTop: 14, padding: "10px 12px", borderRadius: 8,
+          background: "var(--tm-warning-wash, rgba(255,180,0,0.08))",
+          border: "1px solid var(--tm-border-soft)",
+          fontSize: 12.5, lineHeight: 1.5, color: "var(--tm-text-muted)",
+        }}>
+          Closest match — you&apos;re early for this one.{" "}
+          {missingSkills[0]
+            ? <>Practice <strong style={{ color: "var(--tm-text)" }}>{missingSkills[0].skill}</strong> and tailor your CV to lift it.</>
+            : <>Tailor your CV to this role to lift it.</>}
+        </div>
+      )}
 
       {/* Skill pills */}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 14 }}>
@@ -161,7 +177,7 @@ export function HeroCard({ job, status, skillGapData, onStatus }: HeroCardProps)
           onMouseEnter={e => { e.currentTarget.style.opacity = "0.85" }}
           onMouseLeave={e => { e.currentTarget.style.opacity = "1" }}
         >
-          → Tailor CV for this role
+          → Tailor &amp; apply
         </Link>
         {/* Door 2 — download the master CV without tailoring. */}
         <Link
