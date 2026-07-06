@@ -358,7 +358,24 @@ def job_feed(
             parsed={"skill": skill, "role_domain": resolved_domain, "sort": sort},
             result_count=page_result["available_total"],
         )
-    items = [JobFeedItem(**row) for row in page_result["rows"]]
+    rows = page_result["rows"]
+    # Brain-everywhere (Consolidation D): attach the cached Matching-Brain badges
+    # (grade / verdict / legitimacy) to each card from ONE batched read. No LLM at
+    # feed time — a card only carries a badge if the brain already ran on it for
+    # this user (a prior refresh or open); otherwise it stays deterministic-overlap.
+    feed_job_ids = [str(r.get("job_id")) for r in rows if r.get("job_id")]
+    brain_evals = repo.get_cached_match_evals(uid, feed_job_ids) if feed_job_ids else {}
+    for r in rows:
+        ev = brain_evals.get(str(r.get("job_id")))
+        if not ev:
+            continue
+        r["overall_score"] = ev.get("overall_score")
+        r["grade"] = ev.get("grade")
+        r["recommendation"] = ev.get("recommendation")
+        r["legitimacy_tier"] = ev.get("legitimacy_tier")
+        r["legitimacy_reason"] = ev.get("legitimacy_reason")
+        r["archetype"] = ev.get("archetype")
+    items = [JobFeedItem(**row) for row in rows]
     return JobFeedResponse(
         jobs=items,
         available_total=page_result["available_total"],
