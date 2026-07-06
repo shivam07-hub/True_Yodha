@@ -2,13 +2,7 @@ import assert from "node:assert/strict"
 import { test } from "node:test"
 
 import type { JobMatch } from "../lib/api"
-import {
-  isStretch,
-  pickBestMatch,
-  strongMatches,
-  verdictColor,
-  verdictLabel,
-} from "../lib/jobs/match-verdict"
+import { pickBestMatch, strongMatches, verdictLabel } from "../lib/jobs/match-verdict"
 
 function job(over: Partial<JobMatch>): JobMatch {
   return { match_score: 50, verdict: "worth_it", is_strong: false, ...over } as JobMatch
@@ -43,12 +37,9 @@ test("pickBestMatch returns null only with no matches", () => {
   assert.equal(pickBestMatch([]), null)
 })
 
-test("verdict presentation: every verdict has a label and a token colour", () => {
+test("verdict presentation: every verdict has a non-empty label", () => {
   for (const v of ["strong", "worth_it", "stretch", "checking"] as const) {
     assert.ok(verdictLabel(v).length > 0)
-    assert.match(verdictColor(v), /^var\(--tm-/)
   }
   assert.equal(verdictLabel("worth_it"), "Worth it")
-  assert.equal(isStretch("stretch"), true)
-  assert.equal(isStretch("strong"), false)
 })

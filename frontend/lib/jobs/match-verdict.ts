@@ -2,7 +2,11 @@ import type { JobMatch } from "@/lib/api"
 
 type Verdict = JobMatch["verdict"]
 
-/** The verdict word shown beside the Match number. One source for every surface. */
+/**
+ * The verdict WORD shown beside the Match number — the single source for the
+ * words. Its tone (colour) is the CSS split-partner: `.fc-verdict-{verdict}` in
+ * feed-card.css owns the colour, so verdict→tone lives in exactly one place.
+ */
 export function verdictLabel(v: Verdict): string {
   switch (v) {
     case "strong":
@@ -14,27 +18,6 @@ export function verdictLabel(v: Verdict): string {
     case "checking":
       return "Checking fit…"
   }
-}
-
-/** Verdict → a `--tm-*` colour token, so the word's tone matches its meaning
- *  (strong=success, worth_it=accent, stretch=warning, checking=muted) — and a
- *  Stretch reads honestly even when its number isn't low. */
-export function verdictColor(v: Verdict): string {
-  switch (v) {
-    case "strong":
-      return "var(--tm-success)"
-    case "worth_it":
-      return "var(--tm-interactive)"
-    case "stretch":
-      return "var(--tm-warning)"
-    case "checking":
-      return "var(--tm-text-faint)"
-  }
-}
-
-/** Whether to show the honest "you're early for this" Stretch framing. */
-export function isStretch(v: Verdict): boolean {
-  return v === "stretch"
 }
 
 /**

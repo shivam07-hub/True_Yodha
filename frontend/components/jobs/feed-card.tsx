@@ -5,6 +5,7 @@ import type { JobPulse } from "@/lib/api"
 import { Skeleton } from "@/components/ui/skeleton"
 import { fitTier } from "@/lib/dashboard/feed-model"
 import { ageLabel, experienceLabel, type FeedCardData, type FitView } from "@/lib/jobs/card-view"
+import { verdictLabel } from "@/lib/jobs/match-verdict"
 import { CompanyLink, companyHref } from "@/components/companies/company-link"
 import "./feed-card.css"
 
@@ -47,7 +48,15 @@ export function FitIndicator({ fit, size = 52 }: { fit: FitView; size?: number }
   if (!fit) return null
   switch (fit.kind) {
     case "score":
-      return <FeedFitRing fit={fit.value} size={size} />
+      // The ONE number + the verdict word — same template every surface reads.
+      return (
+        <span className="fc-fit-score">
+          <FeedFitRing fit={fit.value} size={size} />
+          {fit.verdict ? (
+            <span className={`fc-verdict fc-verdict-${fit.verdict}`}>{verdictLabel(fit.verdict)}</span>
+          ) : null}
+        </span>
+      )
     case "overlap": {
       // Green wash is the *strong* fit signal — reserve it for 3+ overlaps so a
       // thin 1-skill match doesn't shout success (ND1) or clash with the company

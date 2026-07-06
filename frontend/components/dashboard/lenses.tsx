@@ -1,13 +1,10 @@
 "use client"
 
 import * as React from "react"
-import Link from "next/link"
 import { useStreamingText } from "@/lib/hooks/use-streaming-text"
 import { useCoinsGate } from "@/lib/hooks/use-xp-gate"
 import { useXPStore } from "@/store/xpStore"
 import { jobs as jobsApi, type JobMatch, type SkillGapItem } from "@/lib/api"
-import { verdictColor, verdictLabel } from "@/lib/jobs/match-verdict"
-import { CompanyLink } from "@/components/companies/company-link"
 import { stripMarkdown } from "@/lib/text/strip-markdown"
 import { MAX_LEVEL, sessionsForGap } from "@/lib/level-thresholds"
 import { ForgeChip, type ForgeChipState } from "@/components/skills/forge-chip"
@@ -123,37 +120,8 @@ interface LensProps {
   onSkillToggle: (s: SkillGapItem) => void
 }
 
-/* ── Lens 0: Overview ─────────────────────────────────────────────────────── */
-
-export function LensOverview({ job, skills }: { job: JobMatch; skills: SkillGapItem[] }) {
-  // The headline number is the Match Verdict (brain-spined + overlap-gated), not
-  // raw skill overlap — a high-overlap/weak-brain job reads low, coherently.
-  const fit = Math.max(0, Math.min(100, job.match_score))
-  const matched = skills.filter((s) => (s.user_level ?? 0) > 0).slice(0, 3)
-  return (
-    <div className="db-lens db-lens--overview">
-      <div className="db-ov-fit" style={{ ["--db-fit" as string]: `${fit}` }}>
-        <div className="num">{fit}</div>
-        <div className="lbl" style={{ color: verdictColor(job.verdict) }}>{verdictLabel(job.verdict)}</div>
-      </div>
-      <h2 className="db-ov-role">{job.title}</h2>
-      <CompanyLink company={job.company} className="db-ov-sub" />
-      <LocationLine job={job} />
-      {matched.length > 0 ? (
-        <div className="db-ov-pills">
-          {matched.map((s) => (
-            <span className="db-pill matched" key={s.skill}>
-              ✓ {stripTaxonomySuffix(s.skill)}
-            </span>
-          ))}
-        </div>
-      ) : null}
-      <Link className="db-ov-tailor" href={`/cv?jobId=${job.job_id}`}>
-        Tailor &amp; apply →
-      </Link>
-    </div>
-  )
-}
+/* Lens 0 (Overview) was retired with the #29 dashboard redesign — the live card
+   is <FeedCard>, which renders the Match Verdict via the one <FitIndicator>. */
 
 /* ── Lens 1: Why you fit (streams) ────────────────────────────────────────── */
 

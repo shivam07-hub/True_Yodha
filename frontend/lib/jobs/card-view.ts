@@ -28,7 +28,7 @@ const MAX_MISSING_CHIPS = 2
  * (success pill / honest nudge). Both reduce to this union.
  */
 export type FitView =
-  | { kind: "score"; value: number } // 0–100 overlap/LLM fit → donut ring (dashboard)
+  | { kind: "score"; value: number; verdict?: JobMatch["verdict"] } // Match Verdict → donut ring + word (dashboard)
   | { kind: "overlap"; count: number } // N matched skills → success pill (market, has CV)
   | { kind: "role" } // target-role match, no skill overlap → quiet pill
   | { kind: "none" } // CV present, nothing matched → "no overlap yet"
@@ -141,7 +141,7 @@ export function feedDataFromMatch(
     chips,
     extraChipCount: extra,
     ageIso: job.first_seen ?? null,
-    fit: src.fit != null ? { kind: "score", value: src.fit } : null,
+    fit: src.fit != null ? { kind: "score", value: src.fit, verdict: job.verdict } : null,
   }
 }
 
