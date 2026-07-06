@@ -7,6 +7,7 @@ from .apply import router as apply_router
 from .deepen import router as deepen_router
 from .detail import router as detail_router
 from .intelligence import router as intelligence_router
+from .intent_chat import router as intent_chat_router
 from .list import router as list_router
 from .match import router as match_router
 from .milestone import router as milestone_router
@@ -29,5 +30,6 @@ router.include_router(analyse_router)
 router.include_router(deepen_router)
 router.include_router(reach_router)
 router.include_router(report_router)
+router.include_router(intent_chat_router)
 
 __all__ = ["router", "job_importer", "job_path_service"]
