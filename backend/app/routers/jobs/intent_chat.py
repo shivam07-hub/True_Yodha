@@ -13,7 +13,7 @@ from app.database import get_supabase_admin
 from app.deps import Principal, get_principal
 from app.repositories.search_queries import SearchQueriesRepository
 from app.repositories.users import UsersRepository
-from app.services import intent_chat_service
+from app.services import intent_chat_service, memory_semantic
 from app.services.llm_provider import LLMProvider, get_interactive_provider
 
 router = APIRouter()
@@ -56,6 +56,11 @@ async def intent_chat(
     last_user = next((m["content"] for m in reversed(messages) if m["role"] == "user"), None)
     if last_user:
         SearchQueriesRepository(db).log(surface="intent_chat", query=last_user, user_id=principal.id)
+        # Phase-4 "knows me": pull the memory facts most relevant to this turn so the
+        # concierge answers with what Myro already knows. Fail-soft → no facts.
+        hits = await memory_semantic.retrieve(principal.id, last_user, k=5)
+        if hits:
+            profile["known_facts"] = [h.text for h in hits]
 
     result = await intent_chat_service.converse(profile, messages, provider)
     diff = result.get("proposed_diff")

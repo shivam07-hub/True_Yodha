@@ -71,6 +71,17 @@ class UserMemoryRepository:
     def delete(self, user_id: str, memory_id: str) -> None:
         self._db.table("user_memory").delete().eq("user_id", user_id).eq("id", memory_id).execute()
 
+    def set_embedding(self, user_id: str, memory_id: str, vector_literal: str) -> None:
+        """Store a fact's pgvector embedding (Phase 4). `vector_literal` is the
+        '[a,b,c]' string form (embeddings.to_pgvector). Own-scoped."""
+        (
+            self._db.table("user_memory")
+            .update({"embedding": vector_literal})
+            .eq("user_id", user_id)
+            .eq("id", memory_id)
+            .execute()
+        )
+
 
 def get_user_memory_repository(db: Client = Depends(get_user_db)) -> UserMemoryRepository:
     return UserMemoryRepository(db)

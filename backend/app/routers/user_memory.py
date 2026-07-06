@@ -5,7 +5,7 @@ adds distilled facts server-side. Structured axes with profile columns
 (role/location/seniority) are NOT managed here — they keep their own setters, so
 there is one source per fact.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 
 from app.deps import CurrentUser, get_current_user
 from app.repositories.user_memory import (
@@ -34,11 +34,18 @@ def list_memory(
 @router.post("", response_model=MemoryFact, status_code=status.HTTP_201_CREATED)
 def add_memory(
     body: AddMemoryRequest,
+    background_tasks: BackgroundTasks,
     user: CurrentUser = Depends(get_current_user),
     repo: UserMemoryRepository = Depends(get_user_memory_repository),
 ) -> MemoryFact:
     """Add an authored memory fact (the user's own words)."""
-    row = repo.add(user.id, kind=body.kind, text=body.text.strip(), resolved=body.resolved)
+    text = body.text.strip()
+    row = repo.add(user.id, kind=body.kind, text=text, resolved=body.resolved)
+    # Phase-4 semantic recall: embed off the response path (best-effort).
+    if row.get("id"):
+        from app.services import memory_semantic
+
+        background_tasks.add_task(memory_semantic.embed_and_store_sync, user.id, str(row["id"]), text)
     return MemoryFact(**row)
 
 

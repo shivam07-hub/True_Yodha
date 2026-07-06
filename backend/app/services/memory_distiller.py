@@ -186,7 +186,7 @@ async def _run(user_id: str) -> None:
     if facts is None:
         return  # provider/budget failure — leave watermark for retry
 
-    _write_facts(db, user_id, facts)
+    await _write_facts(db, user_id, facts)
     _set_watermark(db, user_id, now)
     logger.info("memory_distiller.done user=%s signals=%d new_facts=%d", user_id, total, len(facts))
 
@@ -275,12 +275,17 @@ def _existing_fingerprints(db: Any, user_id: str) -> set[str]:
     return {_fingerprint(r.get("kind") or "", r.get("text") or "") for r in rows}
 
 
-def _write_facts(db: Any, user_id: str, facts: list[dict[str, str]]) -> None:
+async def _write_facts(db: Any, user_id: str, facts: list[dict[str, str]]) -> None:
     from app.repositories.user_memory import UserMemoryRepository
+    from app.services import memory_semantic
 
     repo = UserMemoryRepository(db)
     for f in facts:
         try:
-            repo.add(user_id, kind=f["kind"], text=f["text"], source="distilled", confidence=0.6)
+            row = repo.add(user_id, kind=f["kind"], text=f["text"], source="distilled", confidence=0.6)
         except Exception as exc:  # noqa: BLE001 — one bad insert must not drop the rest
             logger.info("memory_distiller: fact insert failed reason=%s", exc.__class__.__name__)
+            continue
+        # Embed for Phase-4 semantic recall (best-effort; NULL until it succeeds).
+        if row.get("id"):
+            await memory_semantic.embed_and_store(user_id, str(row["id"]), f["text"])

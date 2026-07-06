@@ -64,11 +64,17 @@ def _profile_context(profile: dict[str, Any]) -> str:
     )
     locations = profile.get("target_locations") or []
     seniority = profile.get("target_seniority") or "any"
-    return (
-        f"Current target roles: {', '.join(titles) or 'none set'}.\n"
-        f"Current target locations: {', '.join(locations) or 'none set'}.\n"
-        f"Current seniority: {seniority}."
-    )
+    lines = [
+        f"Current target roles: {', '.join(titles) or 'none set'}.",
+        f"Current target locations: {', '.join(locations) or 'none set'}.",
+        f"Current seniority: {seniority}.",
+    ]
+    # Phase-4 semantic recall: what Myro already remembers about this person,
+    # relevant to what they just said. Use it — don't re-ask what you already know.
+    known = [f for f in (profile.get("known_facts") or []) if f]
+    if known:
+        lines.append("What Myro remembers about them: " + "; ".join(known) + ".")
+    return "\n".join(lines)
 
 
 def _strip_fence(text: str) -> str:
