@@ -1,4 +1,6 @@
+import logging
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
@@ -12,6 +14,8 @@ from app.repositories.jobs import (
     get_token_jobs_repository,
 )
 from app.repositories.search_queries import SearchQueriesRepository
+from app.services.llm_provider import LLMProvider, get_interactive_provider
+from app.services.matching import feed_warm
 from app.services.matching.filter_spec import FilterSpec
 from app.services.matching.job_query import JobQuery
 from app.schemas import (
@@ -29,13 +33,16 @@ from app.schemas import (
     SkillCountItem,
 )
 from app.schemas.jobs import (
+    FeedWarmResponse,
     HiddenJobItem,
     JobFeedItem,
     JobFeedResponse,
     JobSearchItem,
+    MatchEval,
     SkillHeatmapResponse,
 )
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -248,6 +255,147 @@ def search_jobs(
     )
 
 
+@dataclass(frozen=True)
+class _FeedScope:
+    """Resolved feed query: the canonical FilterSpec plus the per-user context the
+    feed read needs. Built once from the request so the GET /feed read and the
+    POST /feed/warm shortlist rank the SAME jobs in the SAME scope (a warmed card
+    must be exactly a card the feed shows)."""
+
+    spec: FilterSpec
+    skill_keys: set[str]
+    target_roles: list[str]
+    exclude_ids: set[str]
+    followed: set[str] | None
+    location_countries: list[str]
+    resolved_domain: str | None
+
+
+def _resolve_feed_scope(
+    repo: JobsRepository,
+    uid: str,
+    *,
+    cluster: str | None,
+    role_domain: str | None,
+    q: str | None,
+    skill: str | None,
+    location_city: str | None,
+    location_country: str | None,
+    location_mode: str | None,
+    sort: str,
+    min_skill_matches: int,
+    following_only: bool,
+    browse_scope: str,
+    page: int,
+    page_size: int,
+) -> _FeedScope:
+    # The feed prelude is ~6 independent reads (skill keys, target roles, the two
+    # exclusion sets, location prefs, optionally followed companies + role-domain
+    # resolution). Run them concurrently instead of serially — wall time collapses
+    # from sum() (the prod `route.slow` on /jobs/feed) to max(). Same per-request
+    # RLS client (Depends-cached, httpx threadsafe) as the parallel home bootstrap.
+    prelude = {
+        "skill_keys": lambda: repo.user_skill_keys(uid),
+        "target_roles": lambda: repo.get_user_target_roles(uid),
+        "dismissed": lambda: repo.get_dismissed_job_card_ids(uid),
+        "saved": lambda: repo.get_saved_job_ids(uid),
+        "location_prefs": lambda: repo.user_target_locations(uid),
+        "location_countries": lambda: repo.user_target_location_countries(uid),
+    }
+    if following_only:
+        prelude["followed"] = lambda: repo.get_followed_company_names(uid)
+    if not role_domain and cluster:
+        prelude["resolved_domain"] = lambda: repo.resolve_role_domain_for_clusters([cluster])
+    with ThreadPoolExecutor(max_workers=len(prelude)) as pool:
+        futures = {key: pool.submit(fn) for key, fn in prelude.items()}
+        got = {key: future.result() for key, future in futures.items()}
+
+    resolved_domain = role_domain or got.get("resolved_domain")
+    # Draining queue: hide what the user has decided on. Skipped = the canonical
+    # rejection table (shared with the dashboard); saved = any application row.
+    exclude_ids = set(got["dismissed"]) | set(got["saved"])
+    # Geo is fixed from settings: scope the feed to the user's saved location
+    # preferences instead of re-asking. The legacy city/country/mode query params
+    # stay for back-compat but the market UI no longer sends them.
+    location_countries = got["location_countries"]
+    effective_location_prefs = got["location_prefs"]
+    effective_location_country = location_country
+    effective_location_mode = location_mode
+    if not any((location_city, location_country, location_mode)) and location_countries:
+        if browse_scope == "remote_country":
+            effective_location_prefs = []
+            effective_location_country = location_countries[0]
+            effective_location_mode = "remote"
+        elif browse_scope == "country":
+            effective_location_prefs = []
+            effective_location_country = location_countries[0]
+            effective_location_mode = None
+    followed: set[str] | None = got.get("followed") if following_only else None
+    # Canonical FilterSpec (Consolidation C): the user-expressed query dimensions.
+    # Personal context (CV skills, target roles, exclusions, follow set) is injected
+    # at resolve time by JobQuery.feed, not carried on the spec. Delegates to the
+    # tuned feed_jobs SQL unchanged.
+    spec = FilterSpec(
+        role_domain=resolved_domain,
+        q=q,
+        skill_facet=skill,
+        location_city=location_city,
+        location_country=effective_location_country,
+        location_mode=effective_location_mode,
+        location_prefs=tuple(effective_location_prefs) if effective_location_prefs is not None else None,
+        sort=sort,
+        min_skill_matches=min_skill_matches,
+        following_only=following_only,
+        page=page,
+        page_size=page_size,
+    )
+    return _FeedScope(
+        spec=spec,
+        skill_keys=got["skill_keys"],
+        target_roles=got["target_roles"],
+        exclude_ids=exclude_ids,
+        followed=followed,
+        location_countries=location_countries,
+        resolved_domain=resolved_domain,
+    )
+
+
+def _rank_feed_rows(rows: list[dict], brain_evals: dict[str, dict]) -> int:
+    """Attach cached Matching-Brain badges + the Match Verdict to each card, then
+    float the brain-ranked cards to the front ordered by verdict (best first). The
+    long tail keeps its deterministic fit order. Returns how many leading cards now
+    carry a verdict — the feed draws its "more roles" divider after this many.
+
+    No LLM here: a card only ranks if the brain already warmed it for this user.
+    """
+    ranked: list[tuple[int, dict]] = []
+    tail: list[dict] = []
+    for r in rows:
+        ev = brain_evals.get(str(r.get("job_id")))
+        if not ev:
+            tail.append(r)
+            continue
+        r["overall_score"] = ev.get("overall_score")
+        r["grade"] = ev.get("grade")
+        r["recommendation"] = ev.get("recommendation")
+        r["legitimacy_tier"] = ev.get("legitimacy_tier")
+        r["legitimacy_reason"] = ev.get("legitimacy_reason")
+        r["archetype"] = ev.get("archetype")
+        # The Match Verdict is derived server-side from the eval (never in the
+        # client): the one "how good / what to do" read every surface shares.
+        me = MatchEval.model_validate(ev)
+        r["match_score"] = me.match_score
+        r["verdict"] = me.verdict
+        r["is_strong"] = me.is_strong
+        ranked.append((me.match_score, r))
+    # Best verdict first; ties keep the incoming fit order (stable sort on a
+    # pre-fit-ordered list). Rank down, never hide — a "stretch"/"skip" card still
+    # appears, just below the strong ones.
+    ranked.sort(key=lambda pair: pair[0], reverse=True)
+    rows[:] = [r for _, r in ranked] + tail
+    return len(ranked)
+
+
 @router.get("/feed", response_model=JobFeedResponse)
 def job_feed(
     cluster: str | None = None,
@@ -281,71 +429,21 @@ def job_feed(
     # from sum() (the prod `route.slow` on /jobs/feed) to max(). Same per-request
     # RLS client (Depends-cached, httpx threadsafe) as the parallel home bootstrap.
     uid = principal.id
-    prelude = {
-        "skill_keys": lambda: repo.user_skill_keys(uid),
-        "target_roles": lambda: repo.get_user_target_roles(uid),
-        "dismissed": lambda: repo.get_dismissed_job_card_ids(uid),
-        "saved": lambda: repo.get_saved_job_ids(uid),
-        "location_prefs": lambda: repo.user_target_locations(uid),
-        "location_countries": lambda: repo.user_target_location_countries(uid),
-    }
-    if following_only:
-        prelude["followed"] = lambda: repo.get_followed_company_names(uid)
-    if not role_domain and cluster:
-        prelude["resolved_domain"] = lambda: repo.resolve_role_domain_for_clusters([cluster])
-    with ThreadPoolExecutor(max_workers=len(prelude)) as pool:
-        futures = {key: pool.submit(fn) for key, fn in prelude.items()}
-        got = {key: future.result() for key, future in futures.items()}
-
-    resolved_domain = role_domain or got.get("resolved_domain")
-    skill_keys = got["skill_keys"]
-    target_roles = got["target_roles"]
-    # Draining queue: hide what the user has decided on. Skipped = the canonical
-    # rejection table (shared with the dashboard); saved = any application row.
-    exclude_ids = set(got["dismissed"]) | set(got["saved"])
-    # Geo is fixed from settings: scope the feed to the user's saved location
-    # preferences instead of re-asking. The legacy city/country/mode query params
-    # stay for back-compat but the market UI no longer sends them.
-    location_prefs = got["location_prefs"]
-    location_countries = got["location_countries"]
-    effective_location_prefs = location_prefs
-    effective_location_country = location_country
-    effective_location_mode = location_mode
-    if not any((location_city, location_country, location_mode)) and location_countries:
-        if browse_scope == "remote_country":
-            effective_location_prefs = []
-            effective_location_country = location_countries[0]
-            effective_location_mode = "remote"
-        elif browse_scope == "country":
-            effective_location_prefs = []
-            effective_location_country = location_countries[0]
-            effective_location_mode = None
-    followed: set[str] | None = got.get("followed") if following_only else None
-    # Canonical FilterSpec (Consolidation C): the user-expressed query dimensions.
-    # Personal context (CV skills, target roles, exclusions, follow set) is injected
-    # at resolve time by JobQuery.feed, not carried on the spec. Delegates to the
-    # tuned feed_jobs SQL unchanged.
-    spec = FilterSpec(
-        role_domain=resolved_domain,
-        q=q,
-        skill_facet=skill,
-        location_city=location_city,
-        location_country=effective_location_country,
-        location_mode=effective_location_mode,
-        location_prefs=tuple(effective_location_prefs) if effective_location_prefs is not None else None,
-        sort=sort,
-        min_skill_matches=min_skill_matches,
-        following_only=following_only,
-        page=page,
-        page_size=page_size,
+    scope = _resolve_feed_scope(
+        repo, uid,
+        cluster=cluster, role_domain=role_domain, q=q, skill=skill,
+        location_city=location_city, location_country=location_country, location_mode=location_mode,
+        sort=sort, min_skill_matches=min_skill_matches, following_only=following_only,
+        browse_scope=browse_scope, page=page, page_size=page_size,
     )
+    location_countries = scope.location_countries
     page_result = JobQuery.feed(
         repo,
-        spec,
-        user_skill_keys=skill_keys,
-        user_target_roles=target_roles,
-        exclude_job_ids=exclude_ids,
-        followed_companies=followed,
+        scope.spec,
+        user_skill_keys=scope.skill_keys,
+        user_target_roles=scope.target_roles,
+        exclude_job_ids=scope.exclude_ids,
+        followed_companies=scope.followed,
     )
     # Log a deliberate text search once (page 1) — the authed intent signal.
     # Best-effort: SearchQueriesRepository swallows any failure. Pagination and
@@ -355,26 +453,18 @@ def job_feed(
             surface="market",
             query=q.strip(),
             user_id=uid,
-            parsed={"skill": skill, "role_domain": resolved_domain, "sort": sort},
+            parsed={"skill": skill, "role_domain": scope.resolved_domain, "sort": sort},
             result_count=page_result["available_total"],
         )
     rows = page_result["rows"]
-    # Brain-everywhere (Consolidation D): attach the cached Matching-Brain badges
-    # (grade / verdict / legitimacy) to each card from ONE batched read. No LLM at
-    # feed time — a card only carries a badge if the brain already ran on it for
-    # this user (a prior refresh or open); otherwise it stays deterministic-overlap.
+    # Brain-everywhere (Consolidation D): attach the cached Matching-Brain badges +
+    # the Match Verdict from ONE batched read, and float the ranked cards to the
+    # front (the "best jobs" rule). No LLM at feed time — a card only ranks if the
+    # brain already warmed it for this user (POST /feed/warm, a refresh, or an open);
+    # the rest stay deterministic-overlap browse rows below the divider.
     feed_job_ids = [str(r.get("job_id")) for r in rows if r.get("job_id")]
     brain_evals = repo.get_cached_match_evals(uid, feed_job_ids) if feed_job_ids else {}
-    for r in rows:
-        ev = brain_evals.get(str(r.get("job_id")))
-        if not ev:
-            continue
-        r["overall_score"] = ev.get("overall_score")
-        r["grade"] = ev.get("grade")
-        r["recommendation"] = ev.get("recommendation")
-        r["legitimacy_tier"] = ev.get("legitimacy_tier")
-        r["legitimacy_reason"] = ev.get("legitimacy_reason")
-        r["archetype"] = ev.get("archetype")
+    ranked_count = _rank_feed_rows(rows, brain_evals)
     items = [JobFeedItem(**row) for row in rows]
     return JobFeedResponse(
         jobs=items,
@@ -384,6 +474,7 @@ def job_feed(
         page_size=page_result["page_size"],
         has_next_page=page_result["has_next_page"],
         sort=page_result["sort"],
+        ranked_count=ranked_count,
         expansion_tier=browse_scope,
         expansion_label=(
             None
@@ -393,6 +484,58 @@ def job_feed(
             else None
         ),
     )
+
+
+@router.post("/feed/warm", response_model=FeedWarmResponse)
+async def warm_feed(
+    cluster: str | None = None,
+    role_domain: str | None = None,
+    q: str | None = None,
+    skill: str | None = None,
+    location_city: str | None = None,
+    location_country: str | None = None,
+    location_mode: str | None = None,
+    following_only: bool = False,
+    browse_scope: Literal["exact", "remote_country", "country"] = "exact",
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+    principal: Principal = Depends(get_principal),
+    provider: LLMProvider = Depends(get_interactive_provider),
+) -> FeedWarmResponse:
+    """Rank the top of the /market feed with the career-ops brain (the "best jobs"
+    rule). The frontend calls this while showing a skeleton, then re-reads GET /feed
+    — the top cards now carry a verdict + move, ordered best-first.
+
+    ONE batched brain pass over the fit-top shortlist, free provider, cached into
+    `user_job_matches` for 30 min. Idempotent (a re-warm inside the window is free)
+    and fail-soft (any brain failure returns ready=True/warmed=0 and the feed paints
+    the deterministic order). Scoped to the SAME filters as the feed so the warmed
+    cards are exactly the cards the user sees first."""
+    uid = principal.id
+    scope = _resolve_feed_scope(
+        repo, uid,
+        cluster=cluster, role_domain=role_domain, q=q, skill=skill,
+        location_city=location_city, location_country=location_country, location_mode=location_mode,
+        # The brain ranks the fit-top shortlist regardless of the user's chosen sort
+        # lens — "Best fit" is the surface the warm powers.
+        sort="fit", min_skill_matches=0, following_only=following_only,
+        browse_scope=browse_scope, page=1, page_size=feed_warm.SHORTLIST_SIZE,
+    )
+    page_result = JobQuery.feed(
+        repo,
+        scope.spec,
+        user_skill_keys=scope.skill_keys,
+        user_target_roles=scope.target_roles,
+        exclude_job_ids=scope.exclude_ids,
+        followed_companies=scope.followed,
+    )
+    candidate_ids = [str(r["job_id"]) for r in page_result["rows"] if r.get("job_id")]
+    try:
+        warmed = await feed_warm.warm_feed_shortlist(repo, provider, uid, candidate_ids)
+    except Exception:
+        # Degradation, not an error: the feed still paints deterministic overlap.
+        logger.warning("metric feed_warm.failed user=%s candidates=%d", uid, len(candidate_ids), exc_info=True)
+        return FeedWarmResponse(ready=True, warmed=0)
+    return FeedWarmResponse(ready=True, warmed=warmed)
 
 
 @router.post("/feed/{job_id}/skip", status_code=status.HTTP_204_NO_CONTENT)

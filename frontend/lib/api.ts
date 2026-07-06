@@ -2360,6 +2360,11 @@ export interface JobFeedItem {
   legitimacy_tier?: "high_confidence" | "caution" | "suspicious" | string | null
   legitimacy_reason?: string | null
   archetype?: string | null
+  // Match Verdict (server-derived, never in the client). Present only on cards the
+  // brain has ranked; absent = an un-warmed browse row below the picks divider.
+  match_score?: number | null
+  verdict?: "strong" | "worth_it" | "stretch" | "checking" | null
+  is_strong?: boolean
 }
 
 /** On-demand single-job brain eval (Consolidation D) → POST /jobs/{id}/brain. */
@@ -2394,6 +2399,15 @@ export interface JobFeedResponse {
   sort: JobFeedSort
   expansion_tier: "exact" | "remote_country" | "country"
   expansion_label: string | null
+  // How many leading cards the brain has ranked (carry a verdict). The feed draws
+  // its "more roles" divider after this many; 0 = no ranked shortlist.
+  ranked_count: number
+}
+
+/** POST /jobs/feed/warm — the brain ranked the feed's top shortlist. */
+export interface FeedWarmResponse {
+  ready: boolean
+  warmed: number
 }
 
 export interface HiddenJobItem {
@@ -2765,6 +2779,32 @@ export const jobs = {
     return request<JobFeedResponse>(`/jobs/feed${qs ? `?${qs}` : ""}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
+  },
+  /** Rank the top of the feed with the career-ops brain, then re-read /jobs/feed.
+   *  Scope params must match the feed's so the warmed cards are the ones shown.
+   *  Soft-resolves on any failure/timeout to {ready:false} — the feed then paints
+   *  the deterministic order (degradation, never a blocked page). */
+  warmFeed: async (token: string, p: JobFeedParams = {}): Promise<FeedWarmResponse> => {
+    const params = new URLSearchParams()
+    if (p.cluster && p.cluster.trim()) params.set("cluster", p.cluster.trim())
+    if (p.roleDomain && p.roleDomain.trim()) params.set("role_domain", p.roleDomain.trim())
+    if (p.q && p.q.trim()) params.set("q", p.q.trim())
+    if (p.skill && p.skill.trim()) params.set("skill", p.skill.trim())
+    if (p.locationCity && p.locationCity.trim()) params.set("location_city", p.locationCity.trim())
+    if (p.locationCountry && p.locationCountry.trim()) params.set("location_country", p.locationCountry.trim())
+    if (p.locationMode && p.locationMode.trim()) params.set("location_mode", p.locationMode.trim())
+    if (p.followingOnly) params.set("following_only", "true")
+    if (p.browseScope) params.set("browse_scope", p.browseScope)
+    const qs = params.toString()
+    try {
+      return await request<FeedWarmResponse>(`/jobs/feed/warm${qs ? `?${qs}` : ""}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        timeoutMs: 7000,
+      })
+    } catch {
+      return { ready: false, warmed: 0 }
+    }
   },
   skipJob: (token: string, jobId: string) =>
     request<void>(`/jobs/feed/${encodeURIComponent(jobId)}/skip`, {

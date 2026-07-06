@@ -234,6 +234,15 @@
   content: ""; height: 1px; flex: 1; background: var(--tm-border-soft);
 }
 
+/* Honest weak-shortlist header — calm, forward-looking. A quiet wash, not an
+   alarm: the engineer found no strong match and says so without scolding. */
+.tm-feed-weak-note {
+  margin-bottom: 12px; padding: 11px 14px; border-radius: 12px;
+  border: 1px solid var(--tm-border-soft); background: var(--tm-surface-2, var(--tm-surface));
+  color: var(--tm-text-muted); font-size: 13px; line-height: 1.5;
+}
+.tm-feed-weak-note strong { color: var(--tm-text); font-weight: 600; }
+
 @media (max-width: 719px) {
   .tm-feed-toast { bottom: calc(env(safe-area-inset-bottom, 0px) + 84px); }
 }

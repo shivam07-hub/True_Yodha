@@ -59,6 +59,29 @@ function composeChips(matched: string[], missing: string[]): { chips: FeedChip[]
 }
 
 /**
+ * The engineer's next move on a ranked card — the "what to do", not just "how
+ * good". `go` = the brain says apply (accent); `gap` = close skills first (quiet).
+ * Set only when the brain has ranked the card; a browse row has no move.
+ */
+export interface FeedMove {
+  label: string
+  kind: "go" | "gap"
+}
+
+/** The move a warmed card recommends, from its verdict + how many skills it needs
+ *  the CV to grow. Strong/Worth-it → tailor & apply; Stretch → close the gaps. */
+function marketMove(job: JobFeedItem, hasCv: boolean): FeedMove | undefined {
+  const v = job.verdict
+  if (!v || v === "checking") return undefined
+  if (v === "strong" || v === "worth_it") return { label: "Tailor & apply", kind: "go" }
+  // stretch → name the real work. Count the required skills the CV doesn't cover.
+  const matched = new Set((job.matched_skills ?? []).map((s) => s.toLowerCase()))
+  const gaps = hasCv ? job.skills.filter((s) => !matched.has(s.toLowerCase())).length : 0
+  if (gaps > 0) return { label: `Close ${gaps} gap${gaps === 1 ? "" : "s"} first`, kind: "gap" }
+  return { label: "A stretch for now", kind: "gap" }
+}
+
+/**
  * The normalized shape every feed card renders from. Both the market feed
  * (`JobFeedItem`) and the dashboard feed (`JobMatch`) adapt into this one model
  * so a single presentational `<FeedCard>` serves every surface.
@@ -82,6 +105,8 @@ export interface FeedCardData {
   ageIso: string | null
   /** The top-right fit slot view-model. The card renders `<FitIndicator>` from it. */
   fit: FitView
+  /** The engineer's directive — set only on brain-ranked market cards. */
+  move?: FeedMove
 }
 
 /** Compact relative-age badge from an ISO date (day granular). */
@@ -181,7 +206,12 @@ export function feedDataFromFeedItem(
     chips,
     extraChipCount: extra,
     ageIso: job.first_seen ?? null,
-    fit: marketFit(job, hasCv),
+    // When the brain has ranked this card it carries a verdict → show the score
+    // ring + verdict word (the "judge"); otherwise fall back to the overlap signal.
+    fit: job.verdict && job.verdict !== "checking"
+      ? { kind: "score", value: job.match_score ?? 0, verdict: job.verdict }
+      : marketFit(job, hasCv),
+    move: marketMove(job, hasCv),
   }
 }
 

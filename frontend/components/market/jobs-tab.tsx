@@ -85,8 +85,24 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     })
   }, [selectedCluster, onSelectCluster])
 
-  const { feed, allJobs, total, expansionDividers, triage, undo, pending, savedCount } =
+  const { feed, allJobs, total, rankedCount, warming, expansionDividers, triage, undo, pending, savedCount } =
     useJobFeed({ token, filters, q, skill: skillFacet, targetLocations })
+
+  // The brain's picks sit at the top; a quiet divider marks where the ranked
+  // shortlist ends and the deterministic browse feed begins (so the verdicts
+  // stopping reads as intentional, not a glitch).
+  const picksDivider = useMemo(() => {
+    if (rankedCount <= 0 || allJobs.length <= rankedCount) return []
+    const loc = targetLocations.find(l => l && l.trim())?.trim()
+    return [{ beforeJobId: allJobs[rankedCount].job_id, label: loc ? `More roles in ${loc}` : "More roles" }]
+  }, [rankedCount, allJobs, targetLocations])
+
+  // Honest weak-shortlist header (Q7): when the engineer's picks are all stretches,
+  // say so and point at the path — never fake a strong.
+  const weakShortlist = useMemo(
+    () => rankedCount > 0 && !allJobs.slice(0, rankedCount).some(j => j.verdict === "strong" || j.verdict === "worth_it"),
+    [rankedCount, allJobs],
+  )
 
   // One batched pulse request for the visible feed (not one-per-card).
   const pulses = usePulses(token, allJobs.map(j => j.job_id))
@@ -116,7 +132,10 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     return out
   }, [intel.movers, intel.trending, hasCv, followedNames, targetLocations])
 
-  const rows = useMemo(() => interleaveStories(allJobs, stories, expansionDividers), [allJobs, stories, expansionDividers])
+  const rows = useMemo(
+    () => interleaveStories(allJobs, stories, [...picksDivider, ...expansionDividers]),
+    [allJobs, stories, picksDivider, expansionDividers],
+  )
 
   const onSeeRoles = useCallback((query: string) => { setSkillFacet(null); setSearchInput(query); setQ(query) }, [])
   const onFilterSkill = useCallback((skill: string) => { setSearchInput(""); setQ(""); setSkillFacet(skill) }, [])
@@ -199,7 +218,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
         ) : null}
 
         <div style={{ marginTop: 8 }}>
-          {feed.isLoading ? (
+          {feed.isLoading || warming ? (
             <FeedSkeleton summary />
           ) : allJobs.length === 0 ? (
             <EmptyHandoff savedCount={savedCount} onBuild={() => router.push("/home")} onClear={() => { setSkillFacet(null); setSearchInput(""); setQ(""); onChangeFilters({ ...DEFAULT_FILTERS }) }} onTellMyro={() => setIntentOpen(true)} />
@@ -239,6 +258,13 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
                   Not it? Tell Myro →
                 </button>
               </div>
+              {/* Honest weak-shortlist header (Q7): the engineer found no strong
+                  matches — say so and point forward, never fake a Strong. */}
+              {weakShortlist ? (
+                <div className="tm-feed-weak-note">
+                  <strong>No strong matches yet.</strong> Here are the closest — each card shows what would move it.
+                </div>
+              ) : null}
               {/* Auto-nudge: catch the frustrated user when the feed runs thin. */}
               {total > 0 && total < 5 ? (
                 <button

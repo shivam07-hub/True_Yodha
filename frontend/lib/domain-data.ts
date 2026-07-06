@@ -90,6 +90,10 @@ export function invalidateCvData(queryClient: QueryClient): void {
   queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence() })
   queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
   invalidateScoreData(queryClient)
+  // A new CV re-scores every job → the market feed + the brain's ranked shortlist
+  // are both stale. Invalidate so the next /market visit re-warms and re-ranks.
+  queryClient.invalidateQueries({ queryKey: ["jobFeed"] })
+  queryClient.invalidateQueries({ queryKey: ["jobFeedWarm"] })
 }
 
 /**
@@ -107,6 +111,13 @@ export function invalidateTargetRoleData(queryClient: QueryClient): void {
   queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
   queryClient.invalidateQueries({ queryKey: dataKeys.applications() })
   queryClient.invalidateQueries({ queryKey: ["jobs-analytics-me"] })
+  // The role change also changes the /market feed AND the brain's shortlist. The
+  // market feed is a SEPARATE query family (["jobFeed"] / ["jobFeedWarm"]), NOT
+  // dataKeys.jobs() — invalidate both so the cards actually re-rank, not just the
+  // rail. (The Delta-4 "Tell Myro" apply is the path that used to update only the
+  // rail because this was missing.)
+  queryClient.invalidateQueries({ queryKey: ["jobFeed"] })
+  queryClient.invalidateQueries({ queryKey: ["jobFeedWarm"] })
 }
 
 export function invalidateJobData(queryClient: QueryClient): void {

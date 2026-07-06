@@ -109,6 +109,16 @@ def test_strong_requires_credibility_and_a_real_overlap_floor() -> None:
     assert ev.match_score == 84
 
 
+def test_strong_is_earned_by_the_eval_not_the_recommended_flag() -> None:
+    """The market feed warms its picks with is_recommended=False (so they don't
+    flood the dashboard top-3), but a genuine strong match must still read 'strong'
+    there. Strong is gated by the eval quality — high score, apply, compatible,
+    real overlap — never by the top-3 promotion flag."""
+    ev = _eval(overall_score=4.2, overlap_score=75, is_recommended=False)
+    assert ev.verdict == "strong"
+    assert ev.is_strong is True
+
+
 def test_strong_is_denied_without_skill_coverage_even_if_brain_is_generous() -> None:
     """The invariant: cannot read 'strong' with too few of the required skills,
     however high the brain scores it. The number can be generous; the word cannot."""
