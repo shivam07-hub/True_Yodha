@@ -2321,6 +2321,36 @@ export interface JobFeedItem {
   matched_skills?: string[]  // which of `skills` the user's CV covers — ✓/✗ chip marking (T3-1)
   matched_skill_count: number
   target_role_match: number  // how many of the user's target roles this job covers
+  // Matching-Brain badges from the cached eval (Consolidation D). Present only when
+  // the brain already ran on this job for this user; absent = deterministic overlap.
+  overall_score?: number | null
+  grade?: string | null
+  recommendation?: "Apply" | "Negotiate" | "Skip" | string | null
+  legitimacy_tier?: "high_confidence" | "caution" | "suspicious" | string | null
+  legitimacy_reason?: string | null
+  archetype?: string | null
+}
+
+/** On-demand single-job brain eval (Consolidation D) → POST /jobs/{id}/brain. */
+export interface MatchBrainResult {
+  job_id: string
+  cached: boolean
+  available: boolean
+  overall_score?: number | null
+  grade?: string | null
+  recommendation?: "Apply" | "Negotiate" | "Skip" | string | null
+  summary?: string | null
+  application_angle?: string | null
+  role_fit?: number | null
+  comp_fit?: number | null
+  growth_fit?: number | null
+  culture_fit?: number | null
+  risk_score?: number | null
+  strengths?: string[]
+  concerns?: string[]
+  archetype?: string | null
+  legitimacy_tier?: "high_confidence" | "caution" | "suspicious" | string | null
+  legitimacy_reason?: string | null
 }
 
 export interface JobFeedResponse {
@@ -2733,6 +2763,13 @@ export const jobs = {
   dismissMatchCard: (token: string, jobId: string) =>
     request<void>(`/jobs/matches/${encodeURIComponent(jobId)}`, {
       method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  /** On-demand Matching-Brain for one job (Consolidation D). Idempotent + cached:
+   *  first open/save computes it, later reads are free. Fire on drawer open. */
+  ensureBrain: (token: string, jobId: string) =>
+    request<MatchBrainResult>(`/jobs/${encodeURIComponent(jobId)}/brain`, {
+      method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     }),
   /** Conditional Feed State read. Pass the last ETag; a match returns "unchanged". */

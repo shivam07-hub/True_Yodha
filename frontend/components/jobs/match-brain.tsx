@@ -113,7 +113,18 @@ export function ArchetypeChip({ archetype }: { archetype?: string | null }) {
 
 // ── 5-axis breakdown ─────────────────────────────────────────────────────────
 
-const AXES: { key: keyof JobMatch; label: string; invert?: boolean }[] = [
+/** The 5 axes any brain eval carries — a subset both `JobMatch` and
+ *  `MatchBrainResult` (on-demand) structurally satisfy, so AxisBreakdown renders
+ *  for either without coupling to the whole match row. */
+export interface AxisScores {
+  role_fit?: number | null
+  comp_fit?: number | null
+  growth_fit?: number | null
+  culture_fit?: number | null
+  risk_score?: number | null
+}
+
+const AXES: { key: keyof AxisScores; label: string; invert?: boolean }[] = [
   { key: "role_fit", label: "Role fit" },
   { key: "comp_fit", label: "Comp fit" },
   { key: "growth_fit", label: "Growth" },
@@ -149,7 +160,7 @@ function AxisBar({ label, value, invert }: { label: string; value: number | null
   )
 }
 
-export function AxisBreakdown({ job }: { job: JobMatch }) {
+export function AxisBreakdown({ job }: { job: AxisScores }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {AXES.map((a) => (
