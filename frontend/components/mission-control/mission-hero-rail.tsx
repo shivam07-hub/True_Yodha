@@ -13,6 +13,7 @@ import { useMemo } from "react"
 import { formatDate } from "@/lib/format"
 import { useQuery } from "@tanstack/react-query"
 import { CommandRail } from "@/components/mission-control/command-rail"
+import { pickBestMatch } from "@/lib/jobs/match-verdict"
 import { deriveNextBestSteps } from "@/lib/onboarding/next-best-steps"
 import { adaptiveGreeting } from "@/lib/mission-control/greeting"
 import { HeroLoading } from "@/components/mission-control/hero-loading"
@@ -85,7 +86,6 @@ export function MissionHeroRail({ token }: { token: string | null }) {
   // ── Derivations (faithful to the former /home hero)
   const apps = useMemo(() => applications ?? [], [applications])
   const entries: DiaryEntry[] = (historyQuery.data?.entries ?? []) as DiaryEntry[]
-  const topJobs = useMemo(() => (jobsData?.jobs ?? []).slice(0, 5), [jobsData])
 
   const firstName = profile?.full_name?.split(" ")[0] ?? "there"
   const dayStr = useMemo(
@@ -103,21 +103,22 @@ export function MissionHeroRail({ token }: { token: string | null }) {
   const greeting = adaptiveGreeting({ streak, scoreDelta, loggedToday }).text
 
   // First-drop "next moves" — the score-improvement triad (1 skill · 1 job · 1
-  // CV) that replaced the daily-loop ring on this rail (2026-07-02). Derived from
-  // this user's own breakdown; bestJob = strongest match.
+  // CV) that replaced the daily-loop ring on this rail (2026-07-02). bestJob comes
+  // from the single Match Verdict selector (strong first, else closest) — the SAME
+  // best match /home names, so the two surfaces can never disagree.
   const nextBestSteps = useMemo(() => {
     if (!scoreData) return []
-    const best = topJobs[0] ?? null
+    const best = pickBestMatch(jobsData?.jobs ?? [])
     return deriveNextBestSteps({
       score,
       gapSkills: scoreData.gap_skills ?? [],
       domainScores: scoreData.domain_scores ?? {},
       bestJob: best
-        ? { jobId: best.job_id, title: best.title, company: best.company, fit: Math.round(best.overlap_score) }
+        ? { jobId: best.job_id, title: best.title, company: best.company, fit: best.match_score }
         : null,
-      tailorJobId: topJobs[0]?.job_id ?? null,
+      tailorJobId: best?.job_id ?? null,
     })
-  }, [scoreData, topJobs, score])
+  }, [scoreData, jobsData, score])
 
   const coreLoading = !settled || scoreLoading || profileLoading
 

@@ -34,6 +34,11 @@ export function synthMatch(app: ApplicationResponse): JobMatch {
     locations: app.locations ?? [],
     remote: app.location_mode === "remote" || app.work_mode === "remote",
     overlap_score: 0,
+    // A saved / self-found job carries no Match Verdict — neutral, never shown
+    // (FeedItem.fit is null for non-matches).
+    match_score: 0,
+    verdict: "checking",
+    is_strong: false,
     llm_rank: null,
     llm_explanation: null,
     batch_week: "",
