@@ -207,9 +207,6 @@ def test_compute_job_matches_force_bypasses_cache(monkeypatch: Any) -> None:
     # Cache says "valid" — force must override and still compute.
     monkeypatch.setattr(jobs_workflow.llm_ranker, "is_cache_valid", lambda *_a, **_k: True)
 
-    async def _fake_rank_and_persist(*_args: Any, **_kwargs: Any) -> int:
-        return 2
-
     def _fake_get_top_matches(*_args: Any, **kwargs: Any) -> list[dict[str, Any]]:
         kwargs["debug"].update({"min_skill_overlap": 2, "qualified_jobs_count": 2})
         return [
@@ -217,8 +214,15 @@ def test_compute_job_matches_force_bypasses_cache(monkeypatch: Any) -> None:
             {"job_id": "job-2", "overlap_score": 77.0, "matched_skills": ["SQL (Programming Language)"]},
         ]
 
-    monkeypatch.setattr(jobs_workflow.job_matcher, "get_top_matches", _fake_get_top_matches)
-    monkeypatch.setattr(jobs_workflow.llm_ranker, "rank_and_persist", _fake_rank_and_persist)
+    # Route runs through the JobRanking facade now: get_top_matches (inside ranking)
+    # → evaluate_all (brain) → persist_matches. Stub the brain + persist.
+    monkeypatch.setattr(jobs_workflow.ranking.job_matcher, "get_top_matches", _fake_get_top_matches)
+
+    async def _fake_evaluate_all(*_a: Any, **_k: Any) -> dict[str, Any]:
+        return {}
+
+    monkeypatch.setattr(jobs_workflow.llm_ranker, "evaluate_all", _fake_evaluate_all)
+    monkeypatch.setattr(jobs_workflow.llm_ranker, "persist_matches", lambda *_a, **_k: 2)
 
     result = asyncio.run(
         jobs_workflow.compute_job_matches(repo, "user-1", date.today(), object(), force=True)  # type: ignore[arg-type]
@@ -249,9 +253,6 @@ def test_compute_job_matches_includes_debug_on_success(monkeypatch: Any) -> None
     repo = _FakeComputeJobsRepository(candidate_job_ids=["job-1", "job-2"])
     captured: dict[str, Any] = {}
 
-    async def _fake_rank_and_persist(*_args: Any, **_kwargs: Any) -> int:
-        return 2
-
     monkeypatch.setattr(jobs_workflow.llm_ranker, "is_cache_valid", lambda *_args, **_kwargs: False)
 
     def _fake_get_top_matches(*_args: Any, **kwargs: Any) -> list[dict[str, Any]]:
@@ -262,8 +263,13 @@ def test_compute_job_matches_includes_debug_on_success(monkeypatch: Any) -> None
             {"job_id": "job-2", "overlap_score": 77.0, "matched_skills": ["SQL (Programming Language)"]},
         ]
 
-    monkeypatch.setattr(jobs_workflow.job_matcher, "get_top_matches", _fake_get_top_matches)
-    monkeypatch.setattr(jobs_workflow.llm_ranker, "rank_and_persist", _fake_rank_and_persist)
+    monkeypatch.setattr(jobs_workflow.ranking.job_matcher, "get_top_matches", _fake_get_top_matches)
+
+    async def _fake_evaluate_all(*_a: Any, **_k: Any) -> dict[str, Any]:
+        return {}
+
+    monkeypatch.setattr(jobs_workflow.llm_ranker, "evaluate_all", _fake_evaluate_all)
+    monkeypatch.setattr(jobs_workflow.llm_ranker, "persist_matches", lambda *_a, **_k: 2)
 
     result = asyncio.run(jobs_workflow.compute_job_matches(repo, "user-1", date.today(), object()))  # type: ignore[arg-type]
 
@@ -285,9 +291,6 @@ def test_compute_job_matches_relaxes_exclusion_when_pool_emptied(monkeypatch: An
 
     monkeypatch.setattr(jobs_workflow.llm_ranker, "is_cache_valid", lambda *_a, **_k: False)
 
-    async def _fake_rank_and_persist(*_a: Any, **_k: Any) -> int:
-        return 2
-
     def _fake_get_top_matches(*_a: Any, **kwargs: Any) -> list[dict[str, Any]]:
         kwargs["debug"].update({"min_skill_overlap": 2, "qualified_jobs_count": 2})
         return [
@@ -295,8 +298,13 @@ def test_compute_job_matches_relaxes_exclusion_when_pool_emptied(monkeypatch: An
             {"job_id": "job-2", "overlap_score": 77.0, "matched_skills": ["SQL (Programming Language)"]},
         ]
 
-    monkeypatch.setattr(jobs_workflow.job_matcher, "get_top_matches", _fake_get_top_matches)
-    monkeypatch.setattr(jobs_workflow.llm_ranker, "rank_and_persist", _fake_rank_and_persist)
+    monkeypatch.setattr(jobs_workflow.ranking.job_matcher, "get_top_matches", _fake_get_top_matches)
+
+    async def _fake_evaluate_all(*_a: Any, **_k: Any) -> dict[str, Any]:
+        return {}
+
+    monkeypatch.setattr(jobs_workflow.llm_ranker, "evaluate_all", _fake_evaluate_all)
+    monkeypatch.setattr(jobs_workflow.llm_ranker, "persist_matches", lambda *_a, **_k: 2)
 
     # Every candidate already matched → exclusion would empty the pool.
     result = asyncio.run(

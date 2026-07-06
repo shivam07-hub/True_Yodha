@@ -442,6 +442,26 @@ A persisted match row (`user_job_matches` joined with `jobs`) is the matcher's d
 
 ---
 
+## JobRanking
+
+The single facade for "given a candidate pool + a targeting profile, produce ranked jobs". `app/services/matching/ranking.py` combines the matcher's two tuned stages so callers never wire them by hand:
+
+1. **Deterministic overlap** — `job_matcher.get_top_matches` (skill overlap + role boost + company cap).
+2. **Brain** — `llm_ranker.evaluate_all` (Career-Ops 5-axis + grade + Apply/Negotiate/Skip verdict + legitimacy tier + archetype).
+
+```py
+async def rank(profile, cv_markdown, jobs: RankCandidates, *, provider, use_brain=True, budget=None, ...) -> RankResult
+async def rank_one(profile, cv_markdown, job, provider) -> eval | None
+```
+
+**Invariants**
+- `ranking` **delegates, never reimplements** — it calls the same `get_top_matches` + `evaluate_all` in the same order as the old inline duo. Persistence stays in `llm_ranker.persist_matches`; `rank`/`rank_one` write nothing.
+- `RankResult.evaluations` is empty when the brain is skipped (`use_brain=False` / `provider is None`) or every eval failed — the deterministic overlap scores still stand alone, so a brain outage degrades to overlap-only matching rather than an empty feed.
+- `budget` caps how many of the shortlist reach the brain (cost control). `None` = brain the whole shortlist = the weekly-batch behaviour. `rank_one` is the single-job on-demand path (a job opened/saved anywhere) whose result is **cached** into `user_job_matches` — never a per-request LLM call in bulk.
+- `compute_job_matches` (weekly / paid Refresh) routes through `rank`; the exhausted/refund gates and candidate-id fetching stay in `jobs_workflow` (DB-coupled), unchanged.
+
+---
+
 ## Generative Text Stream
 
 The one seam for typing an LLM answer at a user over SSE (ADR-0009). `services/text_stream.py` owns the token/done/error envelope, the "never swap provider mid-stream" rule, the empty-stream guard, the typewriter cache replay, and the charge-only-on-`done` hook. Every live-text surface — why-you-fit (`analyse`), deepeners (`deepen`), per-bullet Mentor rewrite (`/cv/rewrite-bullet/stream`) — is a thin caller: build messages, pass a `finalize` closure, return `text_stream.response(...)`. Before this, `analyse` and `deepen` each hand-inlined a byte-identical copy of the envelope + loop + charge logic, and rewrite didn't stream at all (a blocking `complete()` behind a dead spinner).
