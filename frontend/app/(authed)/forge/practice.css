@@ -528,15 +528,6 @@ button.up-ladder-seg.is-cleared:hover { transform: translateY(-1px); }
 .up-skill-foot { margin-top: 13px; padding-top: 12px; border-top: 1px solid var(--tm-border-faint); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .up-skill-wayfind { font-size: 12px; color: var(--tm-text-faint); }
 
-/* ── gap assessment entry card (Surface B / Slice 5) ───────── */
-.up-gapcard { padding: 18px 20px; display: flex; align-items: center; gap: 18px; border: 1px solid var(--tm-border-soft); background: var(--tm-surface-2); }
-.up-gapcard-ic { width: 46px; height: 46px; border-radius: 12px; background: var(--tm-surface); border: 1px solid var(--tm-border); display: grid; place-items: center; flex-shrink: 0; color: var(--tm-interactive); }
-.up-gapcard-body { flex: 1; min-width: 0; }
-.up-gapcard-body h3 { margin: 0 0 3px; font-size: 16px; font-weight: 700; }
-.up-gapcard-body p { margin: 0; font-size: 13px; color: var(--tm-text-muted); }
-.up-gapcard-job { font-weight: 700; color: var(--tm-text); }
-.up-gapcard-cta { flex-shrink: 0; }
-
 /* ── gap readiness map (Surface B) ─────────────────────────── */
 .up-readiness { display: flex; flex-direction: column; gap: 16px; }
 .up-ready-hero { padding: 22px 24px; display: flex; align-items: center; gap: 20px; }
@@ -671,7 +662,6 @@ button.up-ladder-seg.is-cleared:hover { transform: translateY(-1px); }
   .up-skill-name { font-size: 15px; }
   .up-skill-ladderrow { flex-direction: column; align-items: stretch; gap: 12px; }
   .up-skill-cta .up-btn { width: 100%; }
-  .up-gapcard { flex-direction: column; align-items: stretch; gap: 14px; }
   .up-qtext { font-size: 17px; }
   .up-res-actions { flex-direction: column-reverse; }
   .up-res-actions .up-btn { width: 100%; }

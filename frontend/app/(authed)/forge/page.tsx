@@ -105,10 +105,6 @@ function ForgePageInner() {
     [userSkills, jobGaps, skillDemand, savedSkills],
   )
 
-  const gapJob = topJobs.length > 0
-    ? { jobId: topJobs[0].job_id, title: topJobs[0].title, company: topJobs[0].company }
-    : null
-
   const skills = userSkills ?? EMPTY_SKILLS
   const domainEntries = useMemo(() => buildDomainEntries(skills), [skills])
   const stats = useMemo(
@@ -158,7 +154,6 @@ function ForgePageInner() {
             <UpskillingView
               token={token}
               practiceSkills={practiceSkills}
-              gapJob={gapJob}
               gapJobId={gapParam}
               onClearGap={clearGap}
             />

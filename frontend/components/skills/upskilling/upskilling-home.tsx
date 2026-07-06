@@ -55,21 +55,6 @@ function NextSetHero({ skill, onStart }: { skill: LadderSkill; onStart: (skill: 
   )
 }
 
-export function GapEntryCard({ job, onAssess }: { job: { title: string; company: string }; onAssess: () => void }): JSX.Element {
-  return (
-    <section className="up-card up-gapcard" aria-label="Skill-gap assessment">
-      <div className="up-gapcard-ic" aria-hidden="true"><Icon name="target" size={22} /></div>
-      <div className="up-gapcard-body">
-        <h3>Assess my readiness for a job</h3>
-        <p>Take a short calibration across the gap skills for <span className="up-gapcard-job">{job.title} · {job.company}</span> and get a readiness map — no guessing what to practice.</p>
-      </div>
-      <button type="button" className="up-btn up-btn-outline up-gapcard-cta" onClick={onAssess}>
-        <Icon name="target" size={15} /> Assess readiness
-      </button>
-    </section>
-  )
-}
-
 function SkillCard({ skill, active, onStart }: { skill: LadderSkill; active: boolean; onStart: (skill: LadderSkill, level: number) => void }): JSX.Element {
   const next = Math.min(skill.clearedLevel + 1, 5)
   const t = tierOf(skill.clearedLevel)

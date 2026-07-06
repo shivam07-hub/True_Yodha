@@ -11,7 +11,7 @@ import { upskilling, type DemandBand, type ReadinessRow, type StartGapResponse, 
 import type { PracticeSkills } from "@/lib/practice-skills"
 import { dataKeys } from "@/lib/domain-data"
 import { useParticleMoment } from "@/components/particle"
-import { GapEntryCard, NextSetHero, SkillList } from "./upskilling-home"
+import { NextSetHero, SkillList } from "./upskilling-home"
 import { GapReadiness } from "./gap-readiness"
 import { QuizRunner } from "./quiz-runner"
 import { Results } from "./results"
@@ -100,15 +100,12 @@ type GapResult = {
 export function UpskillingView({
   token,
   practiceSkills,
-  gapJob,
   gapJobId,
   onClearGap,
   onToast,
 }: {
   token: string
   practiceSkills: PracticeSkills
-  /** Top target job — surfaces the home gap-entry card when present. */
-  gapJob?: { jobId: string; title: string; company: string | null } | null
   /** Deep-link from Tracker / Market ("?gap=<jobId>") — auto-starts the flow. */
   gapJobId?: string | null
   onClearGap?: () => void
@@ -341,12 +338,6 @@ export function UpskillingView({
           {heroSkill ? (
             <>
               <NextSetHero skill={heroSkill} onStart={startSet} />
-              {gapJob && (
-                <GapEntryCard
-                  job={{ title: gapJob.title, company: gapJob.company ?? "your target job" }}
-                  onAssess={() => startGap(gapJob.jobId)}
-                />
-              )}
               <SkillList skills={skills} activeKey={quiz?.skill.key ?? null} onStart={startSet} />
               <div className="up-foot-note">
                 Myro Coins are earned only on a clear, only the first time per level. 10/10 = +50 · 9/10 = +30 · 8/10 = +20 · below 8 = 0.
