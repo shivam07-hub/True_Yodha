@@ -49,6 +49,29 @@ class SearchQueriesRepository:
                 "metric search_log.failed surface=%s reason=%s", surface, exc.__class__.__name__
             )
 
+    @staticmethod
+    def record(
+        *,
+        surface: str,
+        query: str,
+        user_id: str | None = None,
+        session_id: str | None = None,
+        parsed: dict[str, Any] | None = None,
+        result_count: int | None = None,
+    ) -> None:
+        """Fully best-effort search log — constructs its own admin client and
+        swallows EVERY failure (missing env, client build, insert). A logging
+        problem must never break a search, so callers just call this and move on."""
+        try:
+            from app.database import get_supabase_admin
+
+            SearchQueriesRepository(get_supabase_admin()).log(
+                surface=surface, query=query, user_id=user_id,
+                session_id=session_id, parsed=parsed, result_count=result_count,
+            )
+        except Exception as exc:  # noqa: BLE001 — logging must never break the request
+            logger.warning("metric search_log.skipped surface=%s reason=%s", surface, exc.__class__.__name__)
+
     def list_since(self, user_id: str, since_iso: str | None, limit: int = 50) -> list[dict[str, Any]]:
         """The user's searches newer than `since_iso` (distiller signal source)."""
         query = (

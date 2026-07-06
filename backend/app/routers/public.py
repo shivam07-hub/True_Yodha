@@ -611,7 +611,7 @@ async def public_job_search(
         for row in result["rows"]
         if row.get("job_id")
     ]
-    SearchQueriesRepository(get_supabase_admin()).log(
+    SearchQueriesRepository.record(
         surface="landing",
         query=query,
         session_id=body.session_id,

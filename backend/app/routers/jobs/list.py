@@ -3,7 +3,6 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 
-from app.database import get_supabase_admin
 from app.deps import Principal, get_principal
 from app.repositories.jobs import (
     CompanySearchUnavailable,
@@ -340,7 +339,7 @@ def job_feed(
     # Best-effort: SearchQueriesRepository swallows any failure. Pagination and
     # filter-only loads (no q) are skipped to keep the signal clean.
     if q and q.strip() and page == 1:
-        SearchQueriesRepository(get_supabase_admin()).log(
+        SearchQueriesRepository.record(
             surface="market",
             query=q.strip(),
             user_id=uid,
