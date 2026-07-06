@@ -41,7 +41,8 @@ interface HeroCardProps {
 }
 
 export function HeroCard({ job, status, skillGapData, onStatus }: HeroCardProps) {
-  const fit = Math.min(100, Math.round(job.overlap_score))
+  // Headline = the Match Verdict number (brain-spined + overlap-gated), not raw overlap.
+  const fit = Math.min(100, job.match_score)
   const color = fitColor(fit)
 
   const missingSkills = skillGapData?.skills.filter(s => s.missing) ?? []

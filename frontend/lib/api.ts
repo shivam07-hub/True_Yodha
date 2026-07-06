@@ -1969,6 +1969,11 @@ export interface JobMatch {
   industry?: string | null
   remote: boolean
   overlap_score: number
+  // Match Verdict — the single "how good / what to do" decision, computed server-side
+  // (see backend CONTEXT.md "Match Verdict"). Surfaces read THESE, never re-derive.
+  match_score: number // 0–100 — THE fit number (brain-spined, overlap-gated)
+  verdict: "strong" | "worth_it" | "stretch" | "checking"
+  is_strong: boolean // was the frontend isCredibleRecommendation
   llm_rank: number | null
   llm_explanation: string | null
   batch_week: string

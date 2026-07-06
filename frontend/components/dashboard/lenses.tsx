@@ -125,7 +125,9 @@ interface LensProps {
 /* ── Lens 0: Overview ─────────────────────────────────────────────────────── */
 
 export function LensOverview({ job, skills }: { job: JobMatch; skills: SkillGapItem[] }) {
-  const fit = Math.max(0, Math.min(100, Math.round(job.overlap_score)))
+  // The headline number is the Match Verdict (brain-spined + overlap-gated), not
+  // raw skill overlap — a high-overlap/weak-brain job reads low, coherently.
+  const fit = Math.max(0, Math.min(100, job.match_score))
   const matched = skills.filter((s) => (s.user_level ?? 0) > 0).slice(0, 3)
   return (
     <div className="db-lens db-lens--overview">

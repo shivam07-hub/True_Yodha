@@ -31,7 +31,7 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { useCartStore } from "@/store/cartStore"
 import { clearLocalCache, userCacheKey, withLocalCache } from "@/lib/local-cache"
 import { JOB_MATCHES_CACHE_PARTS, LEGACY_JOB_MATCHES_CACHE_PARTS } from "@/lib/job-matches-cache"
-import { credibleRecommendations } from "@/lib/jobs/credible-recommendation"
+import { pickBestMatch, strongMatches } from "@/lib/jobs/match-verdict"
 import { NotInterestedUndo } from "@/components/jobs/not-interested-undo"
 import { NextSteps } from "@/components/onboarding/next-steps"
 import { NextBestSteps } from "@/components/home/next-best-steps"
@@ -101,7 +101,7 @@ function MissionControlInner() {
   // it uses the genuine per-user new_jobs_count from /matches.
   useFeedState()
   const topJobs = useMemo(() => allMatchedJobs.slice(0, 5), [allMatchedJobs])
-  const credibleJobs = useMemo(() => credibleRecommendations(allMatchedJobs), [allMatchedJobs])
+  const credibleJobs = useMemo(() => strongMatches(allMatchedJobs), [allMatchedJobs])
   const apps = useMemo(() => applications ?? [], [applications])
   const entries: DiaryEntry[] = (historyQuery.data?.entries ?? []) as DiaryEntry[]
   const score = Math.round(scoreData?.total_score ?? 0)
@@ -261,21 +261,22 @@ function MissionControlInner() {
   }, [scoreData])
 
   // Post-score "Your next 3 steps" (issue #146) — three ranked, named moves
-  // derived from this user's own score breakdown. The best-fit job prefers a
-  // credible recommendation, falling back to the top raw match.
+  // derived from this user's own score breakdown. The best-fit job comes from
+  // the single Match Verdict selector (strong first, else closest) so /home and
+  // the /market rail always name the SAME best match.
   const nextBestSteps = useMemo(() => {
     if (!scoreData) return []
-    const best = credibleJobs[0] ?? topJobs[0] ?? null
+    const best = pickBestMatch(allMatchedJobs)
     return deriveNextBestSteps({
       score,
       gapSkills: scoreData.gap_skills ?? [],
       domainScores: scoreData.domain_scores ?? {},
       bestJob: best
-        ? { jobId: best.job_id, title: best.title, company: best.company, fit: Math.round(best.overlap_score) }
+        ? { jobId: best.job_id, title: best.title, company: best.company, fit: best.match_score }
         : null,
       tailorJobId: credibleJobId,
     })
-  }, [scoreData, credibleJobs, topJobs, credibleJobId, score])
+  }, [scoreData, allMatchedJobs, credibleJobId, score])
 
   // Daily loop — the five ritual steps. Still passed to the Dashboard feed
   // (the LoopRing itself moved to the /market hero). `href` = where
@@ -364,7 +365,7 @@ function MissionControlInner() {
                     title: best.title,
                     company: best.company,
                     location: best.location,
-                    fit: Math.round(best.overlap_score),
+                    fit: best.match_score,
                   }
                 : null
             }

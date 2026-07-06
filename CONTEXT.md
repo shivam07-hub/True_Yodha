@@ -442,6 +442,23 @@ A persisted match row (`user_job_matches` joined with `jobs`) is the matcher's d
 
 ---
 
+## Match Verdict
+
+The single answer to "how good is this match for this user, and what should they do about it" — computed **once, server-side**, read identically by every surface (card number, next-step "best job", `/market` rail) and by ordering. Deepens the Match Read Seam: where `MatchEval` types the raw eval columns and `JobRanking` produces the ranked pool, **Match Verdict** fuses the eval into the user-facing decision. Replaces the pre-2026-07 smear where the headline number was raw `overlap_score`, the "is this strong" rule lived in a frontend filter (`credibleRecommendation`) applied on one surface only, and the number a card showed could contradict the LLM eval that ranked it.
+
+**Shape** (derived on `MatchEval` → surfaced on `JobMatchResponse`)
+- `match_score` (0–100) — the ONE fit number. The LLM `overall_score` (0.0–5.0 → 0–100) is the spine; `overlap_score` **gates** it (a job the user has few required skills for cannot read Strong even if the LLM is generous).
+- `verdict` — `strong | worth_it | stretch | checking`, from thresholds on `match_score` plus the credibility gate (`seniority_compatibility`, `recommendation`, `is_recommended`). `checking` is the honest provisional state before the async brain runs (`overall_score` null) — the number shows overlap-only and upgrades in place, never a fake-precise final.
+- `is_strong` — `verdict == strong`; the boolean that used to be `isCredibleRecommendation` in the frontend.
+
+**Invariants**
+- Derived in `to_job_match` (the one match-row reader), never re-computed in the frontend. `frontend/lib/jobs/credible-recommendation.ts` is deleted — a surface asking "is this strong?" reads `is_strong`; "how good?" reads `match_score`; "what verdict?" reads `verdict`.
+- **No strong match ≠ empty hand.** When a user has no `strong` verdict, the surface shows the closest real jobs labelled `stretch` plus the 1–2 highest-leverage moves (Practice / CV) that would lift them to `strong` — never fabricated jobs (ADR-0001), never a dead empty state. The honest answer to the fresher-shown-senior-roles relevance pain.
+- The primary post-match action is **Tailor & apply** (why-you-fit → tailor the CV to this exact job via the Mentor retriever loop → apply); direct `Apply` stays one tap (never-block, per the CV journey north star).
+- The seam is the test surface (`test_job_match_response.py`): thresholds, the overlap gate, and the `checking` provisional path are tested once against `MatchEval` fixtures, not re-tested through each router or re-implemented per frontend surface.
+
+---
+
 ## JobRanking
 
 The single facade for "given a candidate pool + a targeting profile, produce ranked jobs". `app/services/matching/ranking.py` combines the matcher's two tuned stages so callers never wire them by hand:
