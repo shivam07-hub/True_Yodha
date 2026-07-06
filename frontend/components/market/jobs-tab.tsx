@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useViewport } from "@/mobile"
 import type { JobFeedItem } from "@/lib/api"
 import { formatCount } from "@/lib/format"
+import { IntentChat } from "@/components/jobs/intent-chat"
 import { NotInterestedUndo } from "@/components/jobs/not-interested-undo"
 import { JobCard } from "./job-card"
 import { JobDetailDrawer } from "./job-detail-drawer"
@@ -60,6 +61,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   })
   const [openJob, setOpenJob] = useState<JobFeedItem | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [intentOpen, setIntentOpen] = useState(false)
 
   useEffect(() => {
     const id = setTimeout(() => setQ(searchInput.trim()), 350)
@@ -200,7 +202,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
           {feed.isLoading ? (
             <FeedSkeleton summary />
           ) : allJobs.length === 0 ? (
-            <EmptyHandoff savedCount={savedCount} onBuild={() => router.push("/home")} onClear={() => { setSkillFacet(null); setSearchInput(""); setQ(""); onChangeFilters({ ...DEFAULT_FILTERS }) }} />
+            <EmptyHandoff savedCount={savedCount} onBuild={() => router.push("/home")} onClear={() => { setSkillFacet(null); setSearchInput(""); setQ(""); onChangeFilters({ ...DEFAULT_FILTERS }) }} onTellMyro={() => setIntentOpen(true)} />
           ) : (
             <>
               <div className="tm-feed-summary">
@@ -227,7 +229,30 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
                   </button>
                 ) : null}
                 <FilterChips filters={filters} onChange={onChangeFilters} />
+                {/* Persistent door — never a dead end (Delta-4). */}
+                <button
+                  type="button"
+                  className="tm-feed-activechip"
+                  onClick={() => setIntentOpen(true)}
+                  style={{ marginLeft: "auto" }}
+                >
+                  Not it? Tell Myro →
+                </button>
               </div>
+              {/* Auto-nudge: catch the frustrated user when the feed runs thin. */}
+              {total > 0 && total < 5 ? (
+                <button
+                  type="button"
+                  onClick={() => setIntentOpen(true)}
+                  style={{
+                    width: "100%", marginBottom: 12, padding: "11px 14px", textAlign: "left",
+                    borderRadius: 12, border: "1px solid var(--tm-int-border)", background: "var(--tm-int-bg-wash)",
+                    color: "var(--tm-text)", fontSize: 13, cursor: "pointer",
+                  }}
+                >
+                  Only a few matches here. <strong style={{ color: "var(--tm-interactive)" }}>Tell Myro what you actually want →</strong>
+                </button>
+              ) : null}
               {isDesktop ? (
                 <VirtualFeed
                   items={rows}
@@ -283,6 +308,8 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
       ) : null}
 
       {pending ? <NotInterestedUndo kind={pending.kind} jobId={pending.jobId} token={token} onUndo={undo} /> : null}
+
+      <IntentChat open={intentOpen} onClose={() => setIntentOpen(false)} />
     </div>
   )
 }

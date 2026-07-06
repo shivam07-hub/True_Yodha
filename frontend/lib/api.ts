@@ -2523,6 +2523,25 @@ export interface JobFitBatchResponse {
   fits: JobFitItem[]
 }
 
+export interface IntentChatMessage {
+  role: "user" | "assistant"
+  content: string
+}
+
+export interface IntentFilterDiff {
+  add_roles: string[]
+  remove_roles: string[]
+  locations: string[]
+  seniority: string | null
+  work_mode: string | null
+  salary: string | null
+}
+
+export interface IntentChatResponse {
+  reply: string
+  proposed_diff: IntentFilterDiff | null
+}
+
 export const jobs = {
   searchCompanies: (q: string, limit = 10) =>
     request<string[]>(`/jobs/companies/search?q=${encodeURIComponent(q)}&limit=${limit}`),
@@ -2764,6 +2783,19 @@ export const jobs = {
     request<ApplicationResponse>(`/jobs/save/${encodeURIComponent(jobId)}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
+    }),
+  // Delta-4 intent chat: talk to Myro when the feed disappoints → propose a diff.
+  intentChat: (token: string, messages: IntentChatMessage[]) =>
+    request<IntentChatResponse>("/jobs/intent-chat", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ messages }),
+    }),
+  applyIntentDiff: (token: string, diff: IntentFilterDiff) =>
+    request<{ applied: boolean; changed: Record<string, unknown> }>("/jobs/intent-chat/apply", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ diff }),
     }),
   reportInactive: (token: string, jobId: string) =>
     request<{ report_count: number; already_reported: boolean; coins_earned: number }>(
