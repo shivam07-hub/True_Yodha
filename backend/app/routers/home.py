@@ -29,7 +29,7 @@ leakage.
 
 from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from app.deps import Principal, get_principal
@@ -78,6 +78,7 @@ class HomeBootstrapResponse(BaseModel):
 
 @router.get("/bootstrap", response_model=HomeBootstrapResponse)
 def home_bootstrap(
+    background_tasks: BackgroundTasks,
     principal: Principal = Depends(get_principal),
     users_repo: UsersRepository = Depends(get_token_users_repository),
     scores_repo: ScoresRepository = Depends(get_token_scores_repository),
@@ -85,6 +86,12 @@ def home_bootstrap(
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
     diary_repo: DiaryRepository = Depends(get_token_diary_repository),
 ) -> HomeBootstrapResponse:
+    # Session-start hook (User Memory Phase 2): schedule a behavioural distillation
+    # off the response path. maybe_distill self-debounces (≥12h watermark) so the
+    # add_task cost is ~nil on most loads and it never blocks the bootstrap.
+    from app.services import memory_distiller
+
+    background_tasks.add_task(memory_distiller.maybe_distill, principal.id)
     def _score() -> MirrorScoreResponse | None:
         # A user with no CV yet has no score — the standalone endpoint 404s,
         # which the bundle degrades to null rather than failing the whole load.
