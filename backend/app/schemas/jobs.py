@@ -9,6 +9,25 @@ from pydantic import BaseModel, ConfigDict
 # the field's type again (the bool/str drift that 500'd the dashboard).
 SeniorityCompat = Literal["compatible", "incompatible", "unknown"]
 
+# Single source of type truth for the Match Verdict — "how good is this match for
+# this user, and what should they do about it" — computed once, read identically by
+# every surface (card number, next-step best-job, /market rail) and by ordering.
+# strong    → a credible recommendation worth tailoring + applying to now
+# worth_it  → a decent match; apply, but not the headline pick
+# stretch   → closest real jobs the user is early for; honest, paired with the moves
+#             that would lift them to strong (never a dead empty state)
+# checking  → provisional: the async brain hasn't run yet, number is overlap-only
+MatchVerdict = Literal["strong", "worth_it", "stretch", "checking"]
+
+# Thresholds on the brain's 0–5 overall_score (see MatchEval.match_score/verdict).
+# The overlap floor is the hard guarantee behind "cannot read strong with 2/8
+# skills even if the brain is generous" — the number is the brain's holistic view,
+# the verdict word is gated by real skill coverage.
+_VERDICT_STRONG_MIN = 3.5
+_VERDICT_WORTH_MIN = 3.0
+_VERDICT_STRONG_OVERLAP_FLOOR = 40.0
+_STRONG_RECOMMENDATIONS = frozenset({"apply", "negotiate"})
+
 
 class SkillGapItem(BaseModel):
     skill: str
@@ -90,6 +109,49 @@ class MatchEval(BaseModel):
     legitimacy_tier: str | None = None      # high_confidence | caution | suspicious
     legitimacy_reason: str | None = None
 
+    # ── Match Verdict ─────────────────────────────────────────────────────────
+    # The whole "how good is this, what should they do" decision, behind three
+    # tiny reads. Callers (to_job_match, ordering, every frontend surface via the
+    # response) never re-derive it — this is the single place the fusion lives.
+    @property
+    def match_score(self) -> int:
+        """The ONE fit number, 0–100. The brain's holistic overall_score (0–5) is
+        the spine — so a job with high raw skill overlap but a weak brain eval
+        reads *low*, fixing the old '82% shouts but it's a bad match'. Before the
+        brain runs (overall_score is None) the number is overlap-only, provisional
+        (verdict == 'checking'), and upgrades in place when the brain lands."""
+        if self.overall_score is None:
+            return round(max(0.0, min(100.0, self.overlap_score)))
+        return round(max(0.0, min(100.0, self.overall_score / 5.0 * 100.0)))
+
+    @property
+    def verdict(self) -> MatchVerdict:
+        """The verdict word. 'strong' is gated by the credibility signals AND a
+        real skill-overlap floor — the number can be generous, the word cannot."""
+        if self.overall_score is None:
+            return "checking"
+        rec = (self.recommendation or "").strip().lower()
+        if (
+            self.overall_score >= _VERDICT_STRONG_MIN
+            and self.is_recommended
+            and rec in _STRONG_RECOMMENDATIONS
+            and self.seniority_compatibility == "compatible"
+            and self.overlap_score >= _VERDICT_STRONG_OVERLAP_FLOOR
+        ):
+            return "strong"
+        if (
+            self.overall_score >= _VERDICT_WORTH_MIN
+            and self.seniority_compatibility != "incompatible"
+        ):
+            return "worth_it"
+        return "stretch"
+
+    @property
+    def is_strong(self) -> bool:
+        """Replaces the frontend `isCredibleRecommendation` filter — the one
+        boolean a surface reads to ask 'is this a headline-worthy match?'."""
+        return self.verdict == "strong"
+
 
 class JobMatchResponse(BaseModel):
     id: int                             # user_job_matches.id
@@ -105,6 +167,11 @@ class JobMatchResponse(BaseModel):
     industry: str | None = None
     remote: bool
     overlap_score: float                # 0–100 (deterministic skill overlap)
+    # Match Verdict — the single "how good / what to do" decision every surface
+    # reads. Derived server-side from the eval (see MatchEval), never in the client.
+    match_score: int = 0                # 0–100 — THE fit number (brain-spined, overlap-gated)
+    verdict: MatchVerdict = "checking"  # strong | worth_it | stretch | checking
+    is_strong: bool = False             # verdict == strong (was frontend isCredibleRecommendation)
     llm_rank: int | None                # rank within this week's batch
     llm_explanation: str | None         # back-compat: mirrors `summary`
     batch_week: date                    # Monday this match was generated
