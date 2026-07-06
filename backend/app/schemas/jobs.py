@@ -127,13 +127,19 @@ class MatchEval(BaseModel):
     @property
     def verdict(self) -> MatchVerdict:
         """The verdict word. 'strong' is gated by the credibility signals AND a
-        real skill-overlap floor — the number can be generous, the word cannot."""
+        real skill-overlap floor — the number can be generous, the word cannot.
+
+        'strong' is earned by the eval itself (the brain says apply, the seniority
+        is compatible, real overlap) — NOT by `is_recommended`. That flag only marks
+        the weekly top-3 promotion; tying 'strong' to it would mean the market feed
+        (whose warmed picks persist is_recommended=False so they don't flood the
+        dashboard) could never show a genuine strong match. The four floors below
+        keep 'strong' rare on their own."""
         if self.overall_score is None:
             return "checking"
         rec = (self.recommendation or "").strip().lower()
         if (
             self.overall_score >= _VERDICT_STRONG_MIN
-            and self.is_recommended
             and rec in _STRONG_RECOMMENDATIONS
             and self.seniority_compatibility == "compatible"
             and self.overlap_score >= _VERDICT_STRONG_OVERLAP_FLOOR
@@ -591,6 +597,12 @@ class JobFeedItem(BaseModel):
     legitimacy_tier: str | None = None
     legitimacy_reason: str | None = None
     archetype: str | None = None
+    # Match Verdict — the single "how good / what to do" decision (see MatchEval),
+    # derived server-side, never in the client. Set only when the brain has ranked
+    # this card; a card with no verdict is an un-warmed browse row.
+    match_score: int | None = None      # 0–100 — brain-spined fit number
+    verdict: MatchVerdict | None = None  # strong | worth_it | stretch (None = un-warmed)
+    is_strong: bool = False
 
 
 class JobFeedResponse(BaseModel):
@@ -603,6 +615,21 @@ class JobFeedResponse(BaseModel):
     sort: str  # echo of the applied sort mode
     expansion_tier: Literal["exact", "remote_country", "country"] = "exact"
     expansion_label: str | None = None
+    # How many leading cards the brain has ranked (carry a verdict). The feed draws
+    # the "more roles" divider after this many; 0 = no ranked shortlist yet.
+    ranked_count: int = 0
+
+
+class FeedWarmResponse(BaseModel):
+    """Result of POST /jobs/feed/warm — the brain ranked the feed's top shortlist.
+
+    `ready` is always True once the call returns (the feed is safe to paint); it is
+    True even when `warmed` is 0 (everything was already cached, or the brain was
+    unavailable and the feed falls back to deterministic order — degradation, not an
+    error). `warmed` = how many NEW evals were computed this call."""
+
+    ready: bool = True
+    warmed: int = 0
 
 
 class MatchBrainResult(BaseModel):

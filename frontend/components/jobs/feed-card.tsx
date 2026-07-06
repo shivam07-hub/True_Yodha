@@ -232,6 +232,13 @@ export function FeedCard({
         {hasFit && !fitInTop ? <div className="fc-fit">{fitNode}</div> : null}
       </div>
 
+      {data.move ? (
+        <div className={`fc-move fc-move-${data.move.kind}`}>
+          <span aria-hidden className="fc-move-arrow">→</span>
+          {data.move.label}
+        </div>
+      ) : null}
+
       {pulse}
       {actions ? <div className="fc-actions">{actions}</div> : null}
     </article>

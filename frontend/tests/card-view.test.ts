@@ -72,6 +72,42 @@ test("market: 0 overlap → no dead-end fit pill (chips carry the gap reason)", 
   assert.ok(data.chips.some((c) => c.missing))
 })
 
+// ── The "best jobs" rule — brain-ranked market cards ─────────────────────────
+
+test("market: a warmed card shows the score ring + verdict (the judge)", () => {
+  const data = feedDataFromFeedItem(
+    feedItem({ skills: ["Python"], matched_skills: ["Python"], matched_skill_count: 1,
+               match_score: 84, verdict: "strong", is_strong: true }),
+    { hasCv: true },
+  )
+  assert.deepEqual(data.fit, { kind: "score", value: 84, verdict: "strong" })
+})
+
+test("market: strong/worth_it recommend Tailor & apply (the go move)", () => {
+  const strong = feedDataFromFeedItem(feedItem({ verdict: "strong", match_score: 88 }), { hasCv: true })
+  assert.deepEqual(strong.move, { label: "Tailor & apply", kind: "go" })
+  const worth = feedDataFromFeedItem(feedItem({ verdict: "worth_it", match_score: 66 }), { hasCv: true })
+  assert.deepEqual(worth.move, { label: "Tailor & apply", kind: "go" })
+})
+
+test("market: a stretch names the exact gaps to close (the gap move)", () => {
+  const data = feedDataFromFeedItem(
+    feedItem({ skills: ["Python", "SQL", "Spark"], matched_skills: ["Python"],
+               matched_skill_count: 1, verdict: "stretch", match_score: 55 }),
+    { hasCv: true },
+  )
+  assert.deepEqual(data.move, { label: "Close 2 gaps first", kind: "gap" })
+})
+
+test("market: an un-warmed card has no verdict move and falls back to overlap", () => {
+  const data = feedDataFromFeedItem(
+    feedItem({ skills: ["Python", "SQL"], matched_skills: ["Python"], matched_skill_count: 1 }),
+    { hasCv: true },
+  )
+  assert.equal(data.move, undefined)
+  assert.deepEqual(data.fit, { kind: "overlap", count: 1 })
+})
+
 // ── Dashboard match adapter (T3-1) ────────────────────────────────────────────
 
 test("dashboard: missing_skills render as ✗ chips after matched ✓ chips", () => {

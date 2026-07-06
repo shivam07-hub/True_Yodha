@@ -1,10 +1,10 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query"
+import { useInfiniteQuery, useQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query"
 import { jobs, type JobFeedItem, type JobFeedResponse } from "@/lib/api"
 import type { FeedFilters } from "./feed-types"
-import { jobFeedQueryKey } from "./job-feed-query-key"
+import { jobFeedQueryKey, targetLocationSignature } from "./job-feed-query-key"
 
 export type TriageKind = "saved" | "skipped"
 
@@ -73,6 +73,38 @@ export function useJobFeed({
     [token, q, skill, filters, targetLocations],
   )
 
+  // The "best jobs" rule: on Best fit, the career-ops brain ranks the top shortlist
+  // BEFORE the feed paints (wait-then-paint) so the first cards are always the final
+  // brain-ranked order — no reshuffle flicker. Scoped to the same filters as the feed
+  // (sort-independent — the warm always ranks the fit-top). Soft-resolves on any
+  // failure/timeout so the feed still paints deterministic order (degradation).
+  const gateOnBrain = filters.sort === "fit"
+  const warmKey = useMemo(
+    () => [
+      "jobFeedWarm", token, targetLocationSignature(targetLocations), q, skill ?? "",
+      filters.roleDomain ?? "", filters.followingOnly,
+    ] as const,
+    [token, targetLocations, q, skill, filters.roleDomain, filters.followingOnly],
+  )
+  const warm = useQuery({
+    queryKey: warmKey,
+    queryFn: () =>
+      jobs.warmFeed(token, {
+        cluster: filters.roleDomain,
+        q: q || null,
+        skill: skill || null,
+        followingOnly: filters.followingOnly,
+      }),
+    enabled: !!token && gateOnBrain,
+    staleTime: 30 * 60 * 1000, // matches the server-side eval cache window
+    gcTime: 24 * 60 * 60 * 1000,
+    retry: false,
+  })
+  // Hold the feed until the brain has warmed (or errored/timed out). On "Newest"
+  // there's no ranking to wait for, so it paints immediately.
+  const brainReady = !gateOnBrain || warm.isSuccess || warm.isError
+  const warming = gateOnBrain && !brainReady
+
   const feed = useInfiniteQuery({
     queryKey,
     queryFn: ({ pageParam }) =>
@@ -95,7 +127,7 @@ export function useJobFeed({
       const scope = NEXT_SCOPE[last.expansion_tier]
       return scope ? { page: 1, scope } : undefined
     },
-    enabled: !!token,
+    enabled: !!token && brainReady,
     staleTime: 30 * 60 * 1000,
     gcTime: 24 * 60 * 60 * 1000,
   })
@@ -109,6 +141,9 @@ export function useJobFeed({
     })
   }, [feed.data])
   const total = Math.max(0, ...(feed.data?.pages.map((page) => page.available_total) ?? [0]))
+  // How many leading cards the brain ranked (page 1 only — the shortlist lives at
+  // the top of the feed). The feed draws its "more roles" divider after this many.
+  const rankedCount = feed.data?.pages[0]?.ranked_count ?? 0
   const expansionDividers = useMemo(() => {
     const seen = new Set<string>()
     const dividers: Array<{ beforeJobId: string; label: string }> = []
@@ -171,5 +206,5 @@ export function useJobFeed({
 
   useEffect(() => clearUndoTimer, [clearUndoTimer])
 
-  return { feed, allJobs, total, expansionDividers, triage, undo, pending, commitPending, savedCount }
+  return { feed, allJobs, total, rankedCount, warming, expansionDividers, triage, undo, pending, commitPending, savedCount }
 }

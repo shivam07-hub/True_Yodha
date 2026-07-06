@@ -162,6 +162,18 @@
 }
 .fc-fitpill-nudge { color: var(--tm-interactive-rest, var(--tm-interactive)); text-decoration: none; }
 
+/* ── the engineer's move — the verdict's action half ────────────────────────
+   States the recommended next step (design-over-words: the card opens to act on
+   it). `go` = apply, in the calm accent; `gap` = close skills first, muted — an
+   honest stretch is never alarming (rank down, never scold). */
+.fc-move {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
+  font-size: var(--tm-fs-caption); font-weight: 600; letter-spacing: 0.01em; line-height: 1;
+}
+.fc-move-arrow { font-weight: 700; opacity: 0.85; }
+.fc-move-go { color: var(--tm-interactive-rest, var(--tm-interactive)); }
+.fc-move-gap { color: var(--tm-text-muted); }
+
 /* ── action row ───────────────────────────────────────────────────────────── */
 /* PRODUCT LOCK (2026-06-22): the triage trio (Not interested · Save · Share) is
    ALWAYS one line — it never wraps to a second row. The squeeze on a narrow phone
