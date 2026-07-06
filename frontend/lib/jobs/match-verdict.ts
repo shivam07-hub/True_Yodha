@@ -1,5 +1,25 @@
 import type { JobMatch } from "@/lib/api"
 
+type Verdict = JobMatch["verdict"]
+
+/**
+ * The verdict WORD shown beside the Match number — the single source for the
+ * words. Its tone (colour) is the CSS split-partner: `.fc-verdict-{verdict}` in
+ * feed-card.css owns the colour, so verdict→tone lives in exactly one place.
+ */
+export function verdictLabel(v: Verdict): string {
+  switch (v) {
+    case "strong":
+      return "Strong"
+    case "worth_it":
+      return "Worth it"
+    case "stretch":
+      return "Stretch"
+    case "checking":
+      return "Checking fit…"
+  }
+}
+
 /**
  * Frontend reads of the server-side Match Verdict (backend CONTEXT.md "Match
  * Verdict"). No surface re-derives "how good / is it strong" — the fusion lives

@@ -38,6 +38,14 @@ export function IntentChat({ open, onClose }: { open: boolean; onClose: () => vo
   const [diff, setDiff] = useState<IntentFilterDiff | null>(null)
   const [applied, setApplied] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    const el = inputRef.current
+    if (!el) return
+    el.style.height = "auto"
+    el.style.height = `${Math.min(el.scrollHeight, 140)}px`
+  }, [input])
 
   useEffect(() => {
     if (open) {
@@ -159,21 +167,25 @@ export function IntentChat({ open, onClose }: { open: boolean; onClose: () => vo
         </div>
 
         {!applied && (
-          <div style={{ display: "flex", gap: 8, padding: 12, borderTop: "1px solid var(--tm-border-soft)" }}>
-            <input
+          <div style={{ display: "flex", gap: 8, padding: 12, borderTop: "1px solid var(--tm-border-soft)", alignItems: "flex-end" }}>
+            <textarea
+              ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") send() }}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send() } }}
               placeholder="e.g. remote product roles, not consulting"
               aria-label="Your message"
+              rows={1}
               style={{
                 flex: 1, padding: "9px 12px", borderRadius: 10, border: "1px solid var(--tm-border-soft)",
-                background: "var(--tm-bg)", color: "var(--tm-text)", fontSize: 13.5, fontFamily: "inherit", outline: "none",
+                background: "var(--tm-bg)", color: "var(--tm-text)", fontSize: 13.5, fontFamily: "inherit",
+                lineHeight: 1.5, outline: "none", resize: "none", minHeight: 40, maxHeight: 140,
+                overflowY: "auto",
               }}
             />
             <button
               type="button" onClick={send} disabled={!input.trim() || chat.isPending} aria-label="Send"
-              style={{ padding: "0 14px", borderRadius: 10, border: "none", background: "var(--tm-interactive)", color: "var(--tm-on-accent, #fff)", cursor: "pointer" }}
+              style={{ flexShrink: 0, height: 40, padding: "0 14px", borderRadius: 10, border: "none", background: "var(--tm-interactive)", color: "var(--tm-on-accent, #fff)", cursor: "pointer" }}
             >
               <Send size={16} />
             </button>

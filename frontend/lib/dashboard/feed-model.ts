@@ -167,7 +167,8 @@ export function buildFeed(
       jobId: j.job_id,
       company: j.company,
       role: j.title,
-      fit: Math.round(j.overlap_score),
+      // The Match Verdict number (brain-spined + overlap-gated), not raw overlap.
+      fit: j.match_score,
       isMatch: true,
       isLiked: likedIds.has(j.job_id),
       job: j,

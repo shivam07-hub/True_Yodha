@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useQuery } from "@tanstack/react-query"
+import { RefreshCw } from "lucide-react"
 import "./dashboard.css"
 import { useViewport } from "@/mobile"
 import { openRefreshGate } from "@/store/refreshGateStore"
@@ -206,6 +207,16 @@ export function Dashboard(props: DashboardProps) {
             </span>
           ) : null}
           <SortMenu sort={sort} onChange={setSort} mobile={!isDesktop} />
+          <button
+            type="button"
+            className="db-btn db-btn-icon tm-control-focus"
+            onClick={openRefreshGate}
+            disabled={isRefreshing}
+            aria-label="Refresh matches"
+            title="Refresh matches"
+          >
+            <RefreshCw size={15} className={isRefreshing ? "animate-spin" : undefined} />
+          </button>
           <button
             type="button"
             className="db-btn db-btn-secondary tm-control-focus"
