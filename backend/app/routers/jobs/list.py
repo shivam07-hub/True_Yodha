@@ -12,6 +12,8 @@ from app.repositories.jobs import (
     get_token_jobs_repository,
 )
 from app.repositories.search_queries import SearchQueriesRepository
+from app.services.matching.filter_spec import FilterSpec
+from app.services.matching.job_query import JobQuery
 from app.schemas import (
     AnalyticsSnapshotRefreshResponse,
     CompanyOpenRoleItem,
@@ -210,9 +212,10 @@ def search_jobs(
     page_size: Annotated[int, Query(ge=1, le=100)] = 50,
     repo: JobsRepository = Depends(get_public_jobs_repository),
 ) -> JobSearchResponse:
-    page_result = repo.search_jobs_by_filters(
-        company,
-        skill,
+    # Company × skill drill-down → canonical FilterSpec → tuned SQL (Consolidation C).
+    spec = FilterSpec(
+        company=company,
+        skill_facet=skill,
         role_domain=role_domain,
         location_city=location_city,
         location_country=location_country,
@@ -220,6 +223,7 @@ def search_jobs(
         page=page,
         page_size=page_size,
     )
+    page_result = JobQuery.company_drill(repo, spec)
     items = [
         JobSearchItem(
             job_id=row["job_id"],
@@ -317,23 +321,31 @@ def job_feed(
             effective_location_country = location_countries[0]
             effective_location_mode = None
     followed: set[str] | None = got.get("followed") if following_only else None
-    page_result = repo.feed_jobs(
+    # Canonical FilterSpec (Consolidation C): the user-expressed query dimensions.
+    # Personal context (CV skills, target roles, exclusions, follow set) is injected
+    # at resolve time by JobQuery.feed, not carried on the spec. Delegates to the
+    # tuned feed_jobs SQL unchanged.
+    spec = FilterSpec(
         role_domain=resolved_domain,
         q=q,
-        skill=skill,
+        skill_facet=skill,
         location_city=location_city,
         location_country=effective_location_country,
         location_mode=effective_location_mode,
-        location_prefs=effective_location_prefs,
+        location_prefs=tuple(effective_location_prefs) if effective_location_prefs is not None else None,
         sort=sort,
-        user_skill_keys=skill_keys,
-        user_target_roles=target_roles,
         min_skill_matches=min_skill_matches,
         following_only=following_only,
-        followed_companies=followed,
-        exclude_job_ids=exclude_ids,
         page=page,
         page_size=page_size,
+    )
+    page_result = JobQuery.feed(
+        repo,
+        spec,
+        user_skill_keys=skill_keys,
+        user_target_roles=target_roles,
+        exclude_job_ids=exclude_ids,
+        followed_companies=followed,
     )
     # Log a deliberate text search once (page 1) — the authed intent signal.
     # Best-effort: SearchQueriesRepository swallows any failure. Pagination and
