@@ -4,6 +4,7 @@
  * Never call fetch() directly in components — use TanStack Query + these functions.
  */
 
+import { getAnonSessionId } from "@/lib/anon-cv-stash"
 import {
   acquireRefreshLock,
   clearSessionTokens,
@@ -3719,6 +3720,7 @@ export const publicCv = {
     postPublicJson<PublicJobSearchResponse>("/public/job-search", {
       query: payload.query,
       cf_turnstile_token: payload.turnstileToken ?? (await getTurnstileToken()),
+      session_id: getAnonSessionId(),
     }),
 
   // Metadata-only telemetry for a pre-login CV download (#34 S6). Fire-and-forget:

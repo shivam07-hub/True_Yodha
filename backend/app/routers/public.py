@@ -19,6 +19,7 @@ from pydantic import BaseModel
 
 from app.config import settings
 from app.database import get_supabase_admin
+from app.repositories.search_queries import SearchQueriesRepository
 from app.repositories.jobs import get_public_jobs_repository
 from app.repositories.scores import ScoresRepository
 from app.services import cv_parser, cv_restructure, cv_rewrite, job_query_parser
@@ -569,6 +570,7 @@ class JobSearchResponse(BaseModel):
 class JobSearchRequest(BaseModel):
     query: str
     cf_turnstile_token: str | None = None
+    session_id: str | None = None  # anon correlation → links forward to signup
 
 
 @router.post("/job-search", response_model=JobSearchResponse)
@@ -609,6 +611,13 @@ async def public_job_search(
         for row in result["rows"]
         if row.get("job_id")
     ]
+    SearchQueriesRepository(get_supabase_admin()).log(
+        surface="landing",
+        query=query,
+        session_id=body.session_id,
+        parsed=filters,
+        result_count=int(result["total"]),
+    )
     return JobSearchResponse(
         cards=cards,
         total=int(result["total"]),

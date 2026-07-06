@@ -3,6 +3,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 
+from app.database import get_supabase_admin
 from app.deps import Principal, get_principal
 from app.repositories.jobs import (
     CompanySearchUnavailable,
@@ -11,6 +12,7 @@ from app.repositories.jobs import (
     get_public_jobs_repository,
     get_token_jobs_repository,
 )
+from app.repositories.search_queries import SearchQueriesRepository
 from app.schemas import (
     AnalyticsSnapshotRefreshResponse,
     CompanyOpenRoleItem,
@@ -334,6 +336,17 @@ def job_feed(
         page=page,
         page_size=page_size,
     )
+    # Log a deliberate text search once (page 1) — the authed intent signal.
+    # Best-effort: SearchQueriesRepository swallows any failure. Pagination and
+    # filter-only loads (no q) are skipped to keep the signal clean.
+    if q and q.strip() and page == 1:
+        SearchQueriesRepository(get_supabase_admin()).log(
+            surface="market",
+            query=q.strip(),
+            user_id=uid,
+            parsed={"skill": skill, "role_domain": resolved_domain, "sort": sort},
+            result_count=page_result["available_total"],
+        )
     items = [JobFeedItem(**row) for row in page_result["rows"]]
     return JobFeedResponse(
         jobs=items,
