@@ -502,6 +502,17 @@ The resolver that runs a `FilterSpec` against a jobs repository (`app/services/m
 
 ---
 
+## Company Recommendation
+
+The single rule for "which other companies to suggest from a company surface" — `pickRelatedCompanies(all, current, limit)` in `frontend/lib/companies/related.ts`. Pure and deterministic: same-industry peers first (ranked by open-role count desc), then a fixed alphabetical-ring backbone.
+
+**Invariants**
+- **One rule, two adapters** — the public company page (`RelatedCompanies` server block) and the logged-in `CompanyDrawer` both delegate here, so anon and authenticated surfaces recommend identically. Never inline a second selection.
+- **The backbone guarantees the crawl mesh** — every company always emits ≥6 alphabetical-ring links, so every company receives ≥6 inbound links (no crawl-orphan) regardless of industry data. Industry-first ordering must never drop the backbone.
+- Reads `industry` straight off `analytics.by_company[]` — no separate industry fetch.
+
+---
+
 ## Generative Text Stream
 
 The one seam for typing an LLM answer at a user over SSE (ADR-0009). `services/text_stream.py` owns the token/done/error envelope, the "never swap provider mid-stream" rule, the empty-stream guard, the typewriter cache replay, and the charge-only-on-`done` hook. Every live-text surface — why-you-fit (`analyse`), deepeners (`deepen`), per-bullet Mentor rewrite (`/cv/rewrite-bullet/stream`) — is a thin caller: build messages, pass a `finalize` closure, return `text_stream.response(...)`. Before this, `analyse` and `deepen` each hand-inlined a byte-identical copy of the envelope + loop + charge logic, and rewrite didn't stream at all (a blocking `complete()` behind a dead spinner).
