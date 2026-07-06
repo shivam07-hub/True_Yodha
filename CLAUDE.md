@@ -542,7 +542,28 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-03b · Deveshwar mangled-PDF trust breach → ADR-0020 CV Artifact WYSIWYG contract; pushed Develop `66a14ce`)
+## LAST SESSION SUMMARY (2026-07-06 · User-Memory + Personalization spine — 6 slices shipped Develop + 6 migrations applied prod)
+
+Big multi-epic session. Grill-locked a whole personalization program, then built + shipped 6 slices to `origin/Develop` (own files only; foreign uncommitted work untouched) and applied 6 additive migrations to prod Supabase via MCP (all PostgREST-reloaded, advisor-clean). Full design + remaining plan: memory **`project_user_memory_personalization`**.
+
+**Locked architecture (grill):** ONE canonical `user_memory` store, two writers (authored + Phase-2 distilled); **write-through** to the existing matcher columns → zero matcher rewrite; continuous auto-apply on cheap axes, propose-only on primary-role pivot; Myro Score stays CV-intrinsic (radar unchanged), roles carry per-role Readiness. Kunal Shah **Delta-4** = the retention thesis (dead-end bad results → chat → fix). Everything on PAID OpenRouter now.
+
+**Shipped (7 commits):**
+- **Phase 0 `6e251ff`** — multi-role target CHIPS (up to 5, reuse company-chip family) + **persistence bug root-fixed** (`use-shell-model` dropped `target_role_title`) + per-role **Readiness %** (`GET /onboarding/role-readiness`); dropped the misleading "Scored for X" label. `save_target` now takes a title LIST → `target_role_titles` source, `target_roles` = derived cluster union (matcher unchanged). Deleted dead single-role editor.
+- **Phase 1 `ae95ead`** — `user_memory` store (non-columnized context: aspiration/constraint/habit/salary/work_mode/note) + `/memory` CRUD, own-only RLS. Does NOT shadow role/location (one source per fact).
+- **Slice 1 `d6c9b9f`** — search-query logging (landing `/public/job-search` + authed `/jobs/feed q`), best-effort service-role, feeds distillation + dissatisfaction detection.
+- **Slice 2 `df13ac7`+`675e556`** — **Delta-4 intent chat**: `POST /jobs/intent-chat[/apply]` (concierge LLM, one Q/turn, proposes a filter DIFF; apply writes through existing setters) + frontend `IntentChat` with BOTH doors (persistent "Not it? Tell Myro →" + auto-nudge when feed <5 + empty-state CTA) → confirm → re-feed in place.
+- **Consolidation A `9da4068`** — Career-Ops brain: ported upstream **Block-A archetype + Block-G legitimacy** (ghost/scam tier, text-only, same single call) end-to-end → FE `LegitimacyBadge` (warn-only) + `ArchetypeChip`.
+
+**Migrations applied prod (MCP):** `20260706_target_role_titles` (+backfill 42/42), `20260706b_user_memory`, `20260704_user_connections` (#35 owed), `20260706c_search_queries`, `20260706d_match_legitimacy_archetype`. (`20260602_multiloc` was already applied — stale note.)
+
+**All green throughout:** backend suites + ruff; tsc0 / next lint0 / next build / ui-drift clean.
+
+**OWED (Shivam):** (1) deploy dev backend (auto from Develop) + **`main` merge** for prod (intent-chat, search-log, brain fields, readiness endpoint). (2) Browser QA (authed, light+dark+375px): target-role chips + readiness across the 4 surfaces; the intent-chat loop (thin-feed nudge → propose → apply → re-feed); legitimacy badges in the Matching Brain modal (light up on next match recompute).
+
+**REMAINING (design-locked, NOT built) — the matching-consolidation lane + memory phases:** Consolidation **B** (`JobRanking` facade `rank`/`rank_one`), **C** (`FilterSpec`+`JobQuery` facade over feed/landing/search), **D** (brain-everywhere via cached evals + on-demand rank_one) — all hot-path, facades delegate to tuned SQL, no `feed_jobs` rewrite. Then **Phase 2 distillation** (on-login batched: saved/dismissed/CV-dump/search → `user_memory`), **Phase 3** daily-CV-dump canvas (replaces dead diary; feeds distillation; builds on `cv_intake`/`cv_reservoir`), **Phase 4** semantic "search that knows me" (add `user_memory.embedding` + feed re-rank). Full specs + edge cases in the memory file.
+
+## OLDER SESSION SUMMARY (2026-07-03b · Deveshwar mangled-PDF trust breach → ADR-0020 CV Artifact WYSIWYG contract; pushed Develop `66a14ce`)
 
 Shivam's IIM-L friend (`deveshwar.kashyap@iiml.org`, registered same day) uploaded a clean CV and downloaded a mangled PDF from the one-tap button: skills exploded one-per-line + orphan `•` lines, extraction line breaks preserved mid-sentence, `₹`→`■` tofu, headers flat. Drill-down proved the DB parse was PERFECT (`cv_structured` clean) — the fuckup was the **legacy plain-text render path**: `DownloadCVButton` → `resolveMasterText` preferred raw `body_text` (baseline = raw extraction per CONTEXT.md) → `/cv/download-pdf` reportlab line-by-line re-parse (Helvetica/WinAnsi = no ₹; ALL-CAPS-only header detection). The healthy WYSIWYG path (`PdfPage` → `/cv/export-pdf` Chromium; stylesheet+Geist byte-sync test-enforced; **Chromium confirmed IN the prod Dockerfile** — the old #26 carry was in fact done) existed all along; the button never used it.
 
