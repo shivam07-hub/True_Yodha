@@ -1970,6 +1970,9 @@ export interface JobMatch {
   risk_score?: number | null // HIGHER = riskier
   strengths?: string[]
   concerns?: string[]
+  archetype?: string | null                                        // Block A — role archetype
+  legitimacy_tier?: "high_confidence" | "caution" | "suspicious" | string | null // Block G
+  legitimacy_reason?: string | null
   // Scraper lifecycle (Job Intelligence) — now carried on /jobs/matches.
   // `last_seen_at` = scraper observation time, powers "Last verified".
   // `first_seen` = discovery age / sort only. Never the publication clock.

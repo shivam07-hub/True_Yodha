@@ -86,6 +86,9 @@ class MatchEval(BaseModel):
     risk_score: float | None = None
     strengths: list[str] = []
     concerns: list[str] = []
+    archetype: str | None = None
+    legitimacy_tier: str | None = None      # high_confidence | caution | suspicious
+    legitimacy_reason: str | None = None
 
 
 class JobMatchResponse(BaseModel):
@@ -133,6 +136,9 @@ class JobMatchResponse(BaseModel):
     risk_score: float | None = None     # HIGHER = riskier
     strengths: list[str] = []
     concerns: list[str] = []
+    archetype: str | None = None                 # Career Ops Block A — role archetype
+    legitimacy_tier: str | None = None           # Block G — high_confidence|caution|suspicious
+    legitimacy_reason: str | None = None
     is_recommended: bool = False
     baseline_version_id: int | None = None
     target_context_hash: str | None = None

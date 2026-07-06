@@ -2208,6 +2208,7 @@ class JobsRepository:
                 "is_recommended, baseline_version_id, target_context_hash, seniority_compatibility, "
                 "overall_score, grade, recommendation, application_angle, summary, "
                 "role_fit, comp_fit, growth_fit, culture_fit, risk_score, strengths, concerns, "
+                "archetype, legitimacy_tier, legitimacy_reason, "
                 "jobs(job_title, company_name, industry, location, location_raw, location_city, "
                 "location_country, location_mode, location_quality, locations, apply_url, "
                 "job_summary, job_description, "
@@ -2298,6 +2299,7 @@ class JobsRepository:
                 "is_recommended, baseline_version_id, target_context_hash, seniority_compatibility, "
                 "overall_score, grade, recommendation, application_angle, summary, "
                 "role_fit, comp_fit, growth_fit, culture_fit, risk_score, strengths, concerns, "
+                "archetype, legitimacy_tier, legitimacy_reason, "
                 "jobs(job_title, company_name, industry, location, location_raw, location_city, "
                 "location_country, location_mode, location_quality, locations, apply_url, job_description)"
             )
