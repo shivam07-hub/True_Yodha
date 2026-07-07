@@ -542,7 +542,20 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-07 · Mobile "Apple standards" redesign — Jobs/Collections/Profile rebuilt to the handoff, pushed Develop `920f539`)
+## LAST SESSION SUMMARY (2026-07-07b · Collections cutover — /home dashboard RETIRED on every viewport, pushed Develop `9176cbb`)
+
+Shivam asked for the old-dashboard→Collections transition analysis + full implementation (desktop too, old page discarded after). Mapped every old-dashboard affordance three ways (→Collections / →Jobs / drop), locked 4 forks via AskUserQuestion (unsaved matches = Jobs feed only; desktop Collections = own page + drawer; PeekSurfaces → Collections rail with Followed+Live-intel MERGED — Shivam: same thing; full transition now). Full detail: memory `project_collections_cutover`.
+
+**Shipped (one commit `9176cbb`, 43 files, +1131/−3038):**
+- **`lib/collections/model.ts`** — one view-model both skins read: chips (All/Myro found/You added/Applied), pinned **finish-tailoring lane** (cv_badge ∧ !applied — the old dashboard's strongest worklist mechanic), **prize×winnability triage order** (reuses feed-model `scoreItem`; applied sinks), fit joined from cached matches (never faked), chip-scoped empty copy.
+- **Desktop `/collections`** (`components/collections/collections-desktop.tsx`) — replaces "Dashboard" in the nav 1:1: FeedCard rows + batched Job-Pulse trust rows + confidence dim, SortMenu, manual-add modal, unsave w/ 6s undo, and the FULL build drawer (why-you-fit stream, skill lock-ins, company lens, **Reach section**, notes) via `DashboardJobDrawer` reuse. Rail = missions + merged followed/intel card.
+- **Mobile CollectionsSurface** — finish-tailoring strip, triage default + sort sheet, pulse trust line (**"N reported gone" — closes the owed Apply-Transport mobile consumer**), `?jobId` deep-link, add-job sheet gains the **JD-paste fallback** its own error copy pointed at. Split into `collection-card.tsx`/`add-job-sheet.tsx` (<300 rule).
+- **Jobs owns discovery mechanics:** `matches-refresh-banner.tsx` on /market = honest `new_jobs_count` stale line + coin-charged MatchRefreshGate + refresh celebration, relocated from /home. "Myro picks" chip SKIPPED — feed already floats the brain-ranked shortlist (verified in code).
+- **/home = redirect stub** (`?jobId`→/collections, else /market). All ~12 references rewired (nav-items, top-nav, myro, onboarding, cv workspace, error panel, robots, skeletons). **Deleted orphans:** dashboard.tsx, desktop-grid (otherRolesFor→lens-company), dashboard/mobile-feed, FirstRunHero, YourMoveCard, NextSteps checklist, NextBestSteps component, dead home column files. 3 tests repointed to successors.
+
+**Green:** tsc 0 · eslint 0 · ui-drift baseline ratcheted DOWN · next build ✓ · contracts/onboarding/seo/market suites green (brand-system 1 PRE-EXISTING warm-token hex fail, not this session). **OWED (Shivam):** (1) authed browser QA — desktop /collections + mobile Collections + /market stale banner, light+dark+375px; (2) **prod = `main` merge**; (3) follow-ups: mobile coin-refresh entry absent (desktop-only for now); mission-control.css still lives under `app/(authed)/home/` (imported by rail + collections).
+
+## OLDER SESSION SUMMARY (2026-07-07 · Mobile "Apple standards" redesign — Jobs/Collections/Profile rebuilt to the handoff, pushed Develop `920f539`)
 
 Imported the `Myro app redesign for Apple standards` handoff (`reference/…zip` → `project/Myro Mobile.dc.html`) and implemented it **to the dot** for the 3 nav menus Shivam approved (Jobs · Collections · Profile), **keeping the existing CV surface** (master-CV view/edit — the prototype's thin CV tab doesn't capture it). Forks locked via AskUserQuestion: **full mobile-nav swap · mobile-only · real wiring with graceful-degrade.** All on `origin/Develop` (own files only; the pre-existing `docs/free-llm-api-resources` untracked dir left alone). Full detail: memory `project_mobile_apple_standards_redesign`.
 
