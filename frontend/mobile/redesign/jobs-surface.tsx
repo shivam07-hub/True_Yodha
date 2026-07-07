@@ -7,6 +7,7 @@ import { jobs as jobsApi, type JobFeedItem } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { DEFAULT_FILTERS } from "@/components/market/feed-types"
 import { useJobFeed } from "@/components/market/use-job-feed"
+import { IntentChat } from "@/components/jobs/intent-chat"
 import { BottomSheet } from "./bottom-sheet"
 import { JobDetailSheet, type JobDetailData } from "./job-detail-sheet"
 import { SwipeCard } from "./swipe-card"
@@ -35,6 +36,7 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [sharedId, setSharedId] = useState<string | null>(null)
+  const [intentOpen, setIntentOpen] = useState(false)
 
   const filters = useMemo(() => ({ ...DEFAULT_FILTERS, sort: sort === "best" ? "fit" as const : "fresh" as const }), [sort])
   const { allJobs, total, warming, triage, undo } = useJobFeed({ token, filters, q: searchQ, skill: null, targetLocations })
@@ -111,7 +113,7 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
               {mode !== "any" || hideCheck ? "Filters · on" : "Filters"}
             </button>
             <div style={{ flex: 1 }} />
-            <button onClick={() => snack({ msg: "Noted — Myro will tune your matches" })} style={{ border: "none", background: "transparent", color: "#8b8b84", fontSize: 11.5, cursor: "pointer", fontFamily: "inherit", padding: "4px 0" }}>Not it? Tell Myro →</button>
+            <button onClick={() => setIntentOpen(true)} style={{ border: "none", background: "transparent", color: "#8b8b84", fontSize: 11.5, cursor: "pointer", fontFamily: "inherit", padding: "4px 0" }}>Not it? Tell Myro →</button>
           </div>
         )}
       </div>
@@ -169,6 +171,10 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
         setHideCheck={setHideCheck}
         resultN={filtered.length}
       />
+
+      {/* The real Delta-4 loop (same component the desktop app uses): the user
+          tells Myro what's off → one-tap filter change → feed re-runs. */}
+      <IntentChat open={intentOpen} onClose={() => setIntentOpen(false)} />
     </div>
   )
 }
