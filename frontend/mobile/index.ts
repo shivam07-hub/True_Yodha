@@ -16,6 +16,8 @@ export { ViewportProvider, useViewport, type ViewportState } from "./provider"
 export {
   AppShellSkeleton,
   MobileBottomNav,
-  MobileProfileSheet,
   MobileTopBar,
 } from "./shell"
+
+export { MobileUIProvider, useMobileUI, useSnack, type SnackSpec } from "./redesign/mobile-ui"
+export { PracticeSheet } from "./redesign/practice-sheet"

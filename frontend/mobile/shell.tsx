@@ -1,23 +1,16 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
-import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton"
 import "react-loading-skeleton/dist/skeleton.css"
-import { MyroLogo } from "@/components/myro-logo"
 import { SettingsModal, type Tab as SettingsTab } from "@/components/settings-modal"
-import { MyrologyOptInPrompt, useMyrologyInterest } from "@/components/myrology-optin-prompt"
-import { ThemeControl } from "@/components/ui/theme-control"
-import { AccountLegalLinks } from "@/components/shell/account-legal-links"
-import { openFeedbackHub } from "@/components/feedback"
-import type { SidebarProfile } from "@/lib/shell/contract"
 import { jobs as jobsApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { useNavUnlocks } from "@/lib/hooks/use-nav-unlocks"
-import { CONTENT_NAV, type NavItem } from "@/lib/nav-items"
+import { useMobileUI } from "./redesign/mobile-ui"
 
 const SKELETON_BASE = "var(--tm-surface-2)"
 const SKELETON_HIGHLIGHT = "rgba(255,255,255,0.06)"
@@ -44,8 +37,7 @@ export function AppShellSkeleton() {
         {/* Mobile: top bar skeleton */}
         <header className="tm-mobile-topbar" style={{ background: "var(--tm-surface)" }}>
           <Skeleton width={72} height={24} />
-          <Skeleton width={68} height={28} borderRadius={99} />
-          <Skeleton width={32} height={32} circle />
+          <Skeleton width={34} height={34} borderRadius={10} />
         </header>
 
         {/* Content shimmer */}
@@ -63,8 +55,8 @@ export function AppShellSkeleton() {
         <nav className="tm-mobile-bottomnav" style={{ background: "var(--tm-surface)" }}>
           {[0, 1, 2, 3].map(i => (
             <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
-              <Skeleton width={20} height={20} />
-              <Skeleton width={32} height={8} />
+              <Skeleton width={22} height={22} />
+              <Skeleton width={34} height={9} />
             </div>
           ))}
         </nav>
@@ -73,82 +65,65 @@ export function AppShellSkeleton() {
   )
 }
 
-// Practice stays in task nav/page surfaces, never as a top chrome timer or
-// balance counter. The bottom bar is driven by shared progressive-disclosure nav so
-// gating matches the desktop topbar: first-run = Mission + Intel, growing to
-// +CV (1st tailor) → +Tracker (2nd company). Skills is deep-link only.
-type MobileNavIconName = "mission" | "intel" | "skills" | "cv" | "tracker"
+/* ── Bottom-nav icons (ported to the dot from the handoff) ─────────────────── */
+type TabIcon = "jobs" | "collections" | "cv" | "profile"
 
-function MobileNavIcon({ name, active }: { name: MobileNavIconName; active: boolean }) {
-  const common = {
-    width: 24,
-    height: 24,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.7,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    style: { opacity: active ? 1 : 0.82 },
+function NavIcon({ name }: { name: TabIcon }) {
+  const c = {
+    width: 22, height: 22, viewBox: "0 0 24 24", fill: "none",
+    stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const,
   }
-
-  if (name === "mission") {
-    return (
-      <svg {...common} aria-hidden="true">
-        <path d="M5 20V9.6L12 4l7 5.6V20" />
-        <path d="M8.5 20v-6.5h7V20" />
-        <path d="M9 11.5v3M12 9.5v5M15 12.5v2" />
-      </svg>
-    )
+  if (name === "jobs") {
+    return <svg {...c} aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="m15.5 8.5-2.2 4.8-4.8 2.2 2.2-4.8 4.8-2.2Z" /></svg>
   }
-
-  if (name === "intel") {
-    return (
-      <svg {...common} aria-hidden="true">
-        <circle cx="12" cy="12" r="8.5" />
-        <circle cx="12" cy="12" r="4.2" />
-        <circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none" />
-      </svg>
-    )
+  if (name === "collections") {
+    return <svg {...c} aria-hidden="true"><path d="M20 7.5 12 3 4 7.5v9L12 21l8-4.5v-9Z" /><path d="M4 7.5 12 12l8-4.5M12 12v9" /></svg>
   }
-
-  if (name === "skills") {
-    return (
-      <svg {...common} aria-hidden="true">
-        <path d="M12 3.2 19.7 7.6v8.8L12 20.8l-7.7-4.4V7.6L12 3.2Z" />
-      </svg>
-    )
-  }
-
   if (name === "cv") {
-    return (
-      <svg {...common} aria-hidden="true">
-        <path d="M12 3.5 18.5 12 12 20.5 5.5 12 12 3.5Z" />
-      </svg>
-    )
+    return <svg {...c} aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z" /><path d="M14 3v5h5M9 13h6M9 17h4" /></svg>
   }
+  return <svg {...c} aria-hidden="true"><circle cx="12" cy="8" r="3.6" /><path d="M5 20c1.2-3.4 3.9-5 7-5s5.8 1.6 7 5" /></svg>
+}
 
+const TABS: { key: TabIcon; label: string; href: string; match: (p: string) => boolean }[] = [
+  { key: "jobs", label: "Jobs", href: "/market", match: p => p.startsWith("/market") },
+  { key: "collections", label: "Collections", href: "/collections", match: p => p.startsWith("/collections") },
+  { key: "cv", label: "CV", href: "/cv", match: p => p.startsWith("/cv") },
+  { key: "profile", label: "Profile", href: "/me", match: p => p.startsWith("/me") },
+]
+
+function CollectionsBadge() {
+  const { token } = useAuth()
+  const { data } = useQuery({
+    queryKey: dataKeys.applications(),
+    queryFn: () => jobsApi.applications(token!),
+    enabled: !!token,
+    staleTime: 60 * 1000,
+  })
+  const n = (data ?? []).filter(a => a.status === "saved").length
+  if (n === 0) return null
   return (
-    <svg {...common} aria-hidden="true">
-      <path d="M5 7h14" />
-      <path d="M5 12h14" />
-      <path d="M5 17h10" />
-    </svg>
+    <span
+      style={{
+        position: "absolute", top: -3, right: -9, minWidth: 15, height: 15, borderRadius: 99,
+        background: "var(--mm-accent, #00f5d4)", color: "var(--mm-accent-fg, #04211b)",
+        fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "0 4px", fontVariantNumeric: "tabular-nums",
+      }}
+    >
+      {n > 9 ? "9+" : n}
+    </span>
   )
 }
 
-export function MobileTopBar({ profile, onAvatarClick }: {
-  xpBalance: number
-  profile: SidebarProfile | null
-  onAvatarClick: () => void
-  onXPOpen?: () => void
-}) {
-  const initials = profile?.full_name
-    ? profile.full_name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
-    : "HM"
+/**
+ * MobileTopBar — the handoff top bar: Myro wordmark (left) + Practice bolt
+ * (right, opens the Practice sheet). No avatar; Profile lives in the 4th tab.
+ */
+export function MobileTopBar() {
+  const { openPractice } = useMobileUI()
 
-  // Canonical "open settings" trigger — any surface (e.g. the market location
-  // chip) dispatches `tm:open-settings`; the desktop chrome listens too.
+  // Canonical "open settings" trigger — any surface dispatches `tm:open-settings`.
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("Account")
   useEffect(() => {
@@ -162,318 +137,68 @@ export function MobileTopBar({ profile, onAvatarClick }: {
   }, [])
 
   return (
-    <header className="tm-mobile-topbar">
-      <Link href="/home" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", minWidth: 0 }}>
-        <MyroLogo size={30} />
+    <header className="tm-mobile-topbar mm-root" style={{ alignItems: "center", background: "var(--mm-bg)", borderBottom: "1px solid rgba(255,255,255,0.045)" }}>
+      <Link href="/market" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", minWidth: 0 }}>
+        <svg width={22} height={22} viewBox="0 0 22 22" aria-hidden="true">
+          <circle cx="11" cy="11" r="8.6" fill="none" stroke="var(--mm-accent)" strokeWidth="1.6" />
+          <circle cx="11" cy="11" r="4.4" fill="none" stroke="var(--mm-accent)" strokeWidth="1.4" opacity="0.55" />
+          <circle cx="11" cy="11" r="1.7" fill="var(--mm-accent)" />
+        </svg>
+        <span style={{ fontSize: 17.5, fontWeight: 700, letterSpacing: "-0.02em", color: "var(--mm-text)" }}>Myro</span>
       </Link>
       <button
-        onClick={onAvatarClick}
+        onClick={openPractice}
+        aria-label="Practice"
+        className="mm-press-sm"
         style={{
-          width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
-          background: "var(--tm-surface-2)",
-          border: "1px solid var(--tm-border)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 12, fontWeight: 700, color: "var(--tm-text)", cursor: "pointer",
+          position: "relative", width: 34, height: 34, borderRadius: 10,
+          border: "1px solid rgba(255,255,255,0.07)", background: "#212120", color: "#c9c9c2",
+          display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
         }}
       >
-        {initials}
+        <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M13 2 4.5 13.5H11L9.8 22 19 10h-6.5L13 2Z" />
+        </svg>
+        <span style={{ position: "absolute", top: -3, right: -3, width: 8, height: 8, borderRadius: 99, background: "var(--mm-accent)" }} />
       </button>
-      {settingsOpen && <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} profile={profile} initialTab={settingsTab} />}
+      {settingsOpen && <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} profile={null} initialTab={settingsTab} />}
     </header>
   )
 }
 
-function MobileStaleBadge() {
-  const { token } = useAuth()
-  const { data } = useQuery({
-    queryKey: dataKeys.staleApplications(),
-    queryFn: () => jobsApi.staleApplications(token!),
-    enabled: !!token,
-    staleTime: 60 * 1000,
-  })
-  const n = data?.length ?? 0
-  if (n === 0) return null
-  return (
-    <span
-      style={{
-        position: "absolute", top: -4, right: -8,
-        minWidth: 13, height: 13, borderRadius: 99,
-        // D10: count badge is neutral, not danger — red = error in the token
-        // system. Matches the desktop StaleBadge (topbar-nav).
-        background: "var(--tm-text-muted)", color: "var(--tm-surface)",
-        fontSize: 9, fontFamily: "var(--tm-font-mono)",
-        display: "grid", placeItems: "center", padding: "0 3px",
-      }}
-    >
-      {n > 9 ? "9+" : n}
-    </span>
-  )
-}
-
+/**
+ * MobileBottomNav — the fixed 4-tab bar (Jobs · Collections · CV · Profile).
+ * Handoff: active = accent colour only, no pill; labels are sentence-case.
+ * Replaces the old progressive-disclosure nav (full IA swap, mobile only).
+ */
 export function MobileBottomNav() {
   const pathname = usePathname()
-  const searchParams = useSearchParams()
-  const nav = useNavUnlocks()
-  type MobileRenderItem = NavItem & { mobileKey: string }
-  const mobileItems = nav.visibleMobile.reduce<MobileRenderItem[]>((items, item) => {
-    if (item.id !== "cv") return [...items, { ...item, mobileKey: item.id }]
-    return [
-      ...items,
-      { ...item, mobileKey: "cv", href: "/cv?view=cv", label: "CV", stalePill: false, mobileIcon: "cv" },
-      { ...item, mobileKey: "applications", href: "/cv?view=active", label: "Applications", stalePill: true, mobileIcon: "tracker" },
-    ]
-  }, [])
-
   return (
-    <nav className="tm-mobile-bottomnav">
-      {mobileItems.map(item => {
-        const cvView = searchParams.get("view")
-        const active = item.mobileKey === "cv"
-          ? pathname === "/cv" && cvView !== "active"
-          : item.mobileKey === "applications"
-            ? pathname === "/cv" && cvView === "active"
-            : pathname.startsWith(item.href)
-        const color = active ? "var(--tm-interactive)" : "var(--tm-interactive-rest)"
-        const isNew = nav.newItems.has(item.id)
-
+    <nav
+      className="tm-mobile-bottomnav mm-root"
+      style={{ background: "rgba(23,23,22,0.94)", borderTop: "1px solid rgba(255,255,255,0.05)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", gap: 0 }}
+    >
+      {TABS.map(tab => {
+        const active = tab.match(pathname)
+        const color = active ? "var(--mm-accent)" : "#71716a"
         return (
           <Link
-            key={item.mobileKey}
-            href={item.href}
-            className="tm-mobile-nav-item"
-            data-active={active}
-            onClick={() => { if (isNew) nav.clearNew(item.id) }}
+            key={tab.key}
+            href={tab.href}
+            className="mm-press"
             style={{
-              flex: 1, display: "flex", flexDirection: "column",
-              alignItems: "center", justifyContent: "center", gap: 4, textDecoration: "none",
-              color,
+              flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+              gap: 3, textDecoration: "none", color, position: "relative", minHeight: 44,
             }}
           >
-            <span className="tm-mobile-nav-icon" style={{ position: "relative" }}>
-              <MobileNavIcon name={item.mobileIcon ?? "mission"} active={active} />
-              {item.stalePill && <MobileStaleBadge />}
-              {isNew && (
-                <span
-                  aria-hidden
-                  style={{
-                    position: "absolute", top: -3, right: -7, width: 7, height: 7,
-                    borderRadius: "50%", background: "var(--tm-accent)",
-                  }}
-                />
-              )}
+            <span style={{ position: "relative", display: "inline-flex" }}>
+              <NavIcon name={tab.key} />
+              {tab.key === "collections" && <CollectionsBadge />}
             </span>
-            <span className="tm-mobile-nav-label" style={{ fontWeight: active ? 650 : 450 }}>
-              {item.label}
-            </span>
+            <span style={{ fontSize: 10, fontWeight: 650, letterSpacing: "0.01em" }}>{tab.label}</span>
           </Link>
         )
       })}
     </nav>
-  )
-}
-
-export function MobileProfileSheet({ profile, onClose, signOut }: {
-  profile: SidebarProfile | null
-  onClose: () => void
-  signOut: () => void
-}) {
-  const [showSettings, setShowSettings] = useState(false)
-  const [signOutConfirm, setSignOutConfirm] = useState(false)
-  const [myroPromptOpen, setMyroPromptOpen] = useState(false)
-  const [dragOffset, setDragOffset] = useState(0)
-  const dragStart = useRef<number | null>(null)
-  const router = useRouter()
-  const { interested: myrologyInterested } = useMyrologyInterest()
-
-  const fullName = profile?.full_name ?? "My Account"
-  const initials = profile?.full_name
-    ? profile.full_name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
-    : "HM"
-
-  const handleSignOut = () => { signOut(); onClose() }
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    dragStart.current = e.touches[0].clientY
-  }
-  const onTouchMove = (e: React.TouchEvent) => {
-    if (dragStart.current === null) return
-    const delta = e.touches[0].clientY - dragStart.current
-    if (delta > 0) setDragOffset(delta)
-  }
-  const onTouchEnd = () => {
-    if (dragOffset > 80) onClose()
-    setDragOffset(0)
-    dragStart.current = null
-  }
-
-  return (
-    <>
-      <div
-        onClick={onClose}
-        style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.6)" }}
-      />
-
-      <div style={{
-        position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 201,
-        background: "var(--tm-surface)",
-        borderTop: "1px solid var(--tm-border-soft)",
-        borderRadius: "var(--tm-panel-radius-lg) var(--tm-panel-radius-lg) 0 0",
-        padding: "16px 20px 20px",
-        paddingBottom: "calc(20px + env(safe-area-inset-bottom))",
-        transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
-        transition: dragOffset > 0 ? "none" : "transform 200ms var(--tm-ease)",
-      }}>
-        <div
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
-          role="button"
-          aria-label="Swipe down to close"
-          style={{ padding: "4px 0 16px", margin: "-4px auto 4px", display: "flex", justifyContent: "center", touchAction: "none", cursor: "grab" }}
-        >
-          <div style={{ width: 36, height: 4, borderRadius: 99, background: "var(--tm-border)" }} />
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, paddingBottom: 16, borderBottom: "1px solid var(--tm-border-soft)" }}>
-          <div style={{
-            width: 44, height: 44, borderRadius: "50%", flexShrink: 0,
-            background: "var(--tm-surface-2)",
-            border: "1px solid var(--tm-border)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 16, fontWeight: 700, color: "var(--tm-text)",
-          }}>
-            {initials}
-          </div>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: "var(--tm-text)" }}>{fullName}</div>
-            <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>{profile?.email ?? ""}</div>
-          </div>
-        </div>
-
-        {/* Skills & Score — the upskilling hub (/skills). It has no bottom-nav
-            slot (5 are full) and /forge is nav-hidden, so the account sheet is
-            its first-class door (market-feed redesign 2026-06-18). Previously the
-            ONLY way in was tapping the score ring on /market; giving it a real
-            menu entry frees that strip to be a plain stat. */}
-        <Link
-          href="/skills"
-          onClick={onClose}
-          style={{
-            display: "flex", alignItems: "center", gap: 14,
-            width: "100%", padding: "14px 4px",
-            borderBottom: "1px solid var(--tm-border-soft)",
-            textDecoration: "none", color: "var(--tm-interactive-rest)",
-          }}
-        >
-          <span style={{ fontSize: 16, minWidth: 22, textAlign: "center" }}>▲</span>
-          <span style={{ fontSize: 15, fontWeight: 500 }}>Skills &amp; Score</span>
-        </Link>
-
-        {/* Shared content — Intel / Newsletter (intel-authed grill Q13). The
-            5-slot bottom bar has no room, so the mobile home for these is the
-            account sheet; on desktop they sit in the topbar cluster instead. */}
-        {CONTENT_NAV.map((item) => (
-          <Link
-            key={item.id}
-            href={item.href}
-            onClick={onClose}
-            style={{
-              display: "flex", alignItems: "center", gap: 14,
-              width: "100%", padding: "14px 4px",
-              borderBottom: "1px solid var(--tm-border-soft)",
-              textDecoration: "none", color: "var(--tm-interactive-rest)",
-            }}
-          >
-            <span style={{ fontSize: 16, minWidth: 22, textAlign: "center" }}>↗</span>
-            <span style={{ fontSize: 15, fontWeight: 500 }}>{item.label}</span>
-          </Link>
-        ))}
-
-        {[
-          { label: "My Profile",        icon: "⚙",  action: () => setShowSettings(true) },
-          { label: "Myrology",          icon: "✦",  action: () => { if (myrologyInterested) { onClose(); router.push("/myrology") } else setMyroPromptOpen(true) } },
-          { label: "Feedback and ideas", icon: "◎",  action: () => { openFeedbackHub({ category: "idea" }); onClose() } },
-        ].map((item) => (
-          <button
-            key={item.label}
-            onClick={item.action}
-            style={{
-              display: "flex", alignItems: "center", gap: 14,
-              width: "100%", padding: "14px 4px",
-              background: "transparent", border: "none",
-              borderBottom: "1px solid var(--tm-border-soft)",
-              cursor: "pointer", fontFamily: "inherit", textAlign: "left",
-              color: "var(--tm-interactive-rest)",
-            }}
-          >
-            <span style={{ fontSize: 16, minWidth: 22, textAlign: "center" }}>{item.icon}</span>
-            <span style={{ fontSize: 15, fontWeight: 500 }}>{item.label}</span>
-          </button>
-        ))}
-
-        <div style={{ padding: "16px 4px", borderBottom: "1px solid var(--tm-border-soft)" }}>
-          <ThemeControl fluid />
-        </div>
-
-        <button
-          onClick={() => setSignOutConfirm(true)}
-          style={{
-            display: "flex", alignItems: "center", gap: 14,
-            width: "100%", padding: "14px 4px",
-            background: "transparent", border: "none",
-            cursor: "pointer", fontFamily: "inherit", textAlign: "left",
-            color: "rgba(255,130,130,0.9)",
-          }}
-        >
-          <span style={{ fontSize: 16, minWidth: 22, textAlign: "center" }}>→</span>
-          <span style={{ fontSize: 15, fontWeight: 500 }}>Sign out</span>
-        </button>
-
-        <div style={{ marginTop: 8, paddingTop: 12, borderTop: "1px solid var(--tm-border-soft)" }}>
-          <AccountLegalLinks />
-        </div>
-
-      </div>
-
-      {showSettings && (
-        <SettingsModal open={showSettings} onClose={() => { setShowSettings(false); onClose() }} profile={profile} />
-      )}
-      <MyrologyOptInPrompt
-        open={myroPromptOpen}
-        onClose={() => setMyroPromptOpen(false)}
-        onConfirmed={() => { onClose(); router.push("/myrology") }}
-      />
-      {signOutConfirm && (
-        <div
-          onClick={() => setSignOutConfirm(false)}
-          style={{ position: "fixed", inset: 0, zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center" }}
-        >
-          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.7)" }} />
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{
-              position: "relative", background: "var(--tm-surface)",
-              border: "1px solid rgba(255,100,100,0.2)", borderRadius: "var(--tm-radius-lg)",
-              padding: "28px", width: 320, zIndex: 1, textAlign: "center",
-            }}
-          >
-            <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)", marginBottom: 8 }}>Sign out?</div>
-            <div style={{ fontSize: 13, color: "var(--tm-text-muted)", marginBottom: 24, lineHeight: 1.6 }}>
-              Your progress is saved. Sign back in anytime.
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button
-                onClick={() => setSignOutConfirm(false)}
-                style={{ flex: 1, padding: "10px", borderRadius: "var(--tm-radius)", background: "rgba(255,255,255,0.04)", border: "1px solid var(--tm-border)", color: "var(--tm-interactive-rest)", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
-              >Cancel</button>
-              <button
-                onClick={handleSignOut}
-                style={{ flex: 1, padding: "10px", borderRadius: "var(--tm-radius)", background: "rgba(255,80,80,0.1)", border: "1px solid rgba(255,80,80,0.25)", color: "rgba(255,130,130,0.9)", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}
-              >Sign out</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
   )
 }
