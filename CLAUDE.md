@@ -542,7 +542,24 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-06b · Matching-consolidation A-D + Memory Phases 2-4 — all 6 items shipped Develop + 3 migrations applied prod)
+## LAST SESSION SUMMARY (2026-07-07 · Mobile "Apple standards" redesign — Jobs/Collections/Profile rebuilt to the handoff, pushed Develop `920f539`)
+
+Imported the `Myro app redesign for Apple standards` handoff (`reference/…zip` → `project/Myro Mobile.dc.html`) and implemented it **to the dot** for the 3 nav menus Shivam approved (Jobs · Collections · Profile), **keeping the existing CV surface** (master-CV view/edit — the prototype's thin CV tab doesn't capture it). Forks locked via AskUserQuestion: **full mobile-nav swap · mobile-only · real wiring with graceful-degrade.** All on `origin/Develop` (own files only; the pre-existing `docs/free-llm-api-resources` untracked dir left alone). Full detail: memory `project_mobile_apple_standards_redesign`.
+
+**Shipped (all `frontend/mobile/redesign/`, mobile-only — desktop web-chrome untouched):**
+- **Chrome** (`mobile/shell.tsx` rewrite): top bar = Myro wordmark + Practice bolt (opens Practice sheet); **fixed 4-tab bottom nav** Jobs=/market · Collections=/collections · CV=/cv · Profile=/me. **Retired** the progressive-disclosure nav (`useNavUnlocks`) + `MobileProfileSheet` avatar sheet on mobile.
+- **Design system**: `redesign.css` (`.mm-root` scoped palette — prototype's own dark theme, accent == canonical Engine teal #00f5d4 — + keyframes); `BottomSheet` primitive (scrim/grab/drag-dismiss); `MobileUIProvider` (snackbar + Practice state, `useSnack`); `job-model.ts` (JobFeedItem/JobMatch → row).
+- **Jobs** = swipe-triage over the REAL `useJobFeed` (save/skip drain + undo), sort Best-fit/Newest→fit/fresh, server search, client mode + hide-"check details" filters, hidden-jobs eye view, job-detail sheet. verdict/grade/legitimacy from the cached brain.
+- **Collections** over real `jobs.applications`: journey strip, source/status chips, fit ring joined from `jobs.matches` (**muted "—" when unknown — no faked fit**), Tailor/Tailored (`cv_badge`), add-job sheet (`extractUrl`→`importJob`).
+- **Profile** (`/me`) over `useHomeBootstrap` + wallet: score ring + `tierForScore` + stats (sessions/streak/coins), derived missions, hub list (Skills/Practice/Intel/Newsletter/Myrology/Settings/Sign out).
+- **Practice sheet** (top-bar bolt): next set from `upskilling.skills` + L1–L5 ladder → launches `/forge`.
+- New routes `/collections` + `/me` are mobile-only (desktop redirects `/home`). `ui-drift-guard` exempts `mobile/redesign/` as the mobile primitive layer (like `components/ui/`); baseline ratcheted DOWN 29→23 / 119→99 (deleting the old avatar sheet removed real scrims).
+
+**Green:** tsc 0 · next lint 0 · ui-drift clean · **next build ✓** (/collections·/me·/market all built).
+
+**OWED (Shivam):** (1) **Browser QA on a real mobile session** — the only unverified part; the surfaces need a token (login redirect blocks the preview). Check 4-tab nav, swipe save/skip + undo snack, filters/search/hidden view, job-detail sheet, Collections chips + add-job, Profile score/missions/hub, Practice bolt sheet. (2) **prod = `main` merge** (all endpoints pre-exist; dev backend rides Develop). (3) Follow-ups: the **tailor-takeover animation** was deliberately deferred (Tailor buttons route to the existing `/cv/tailor?jobId=` real pipeline); and a mobile `/home`→`/market` redirect so Jobs is the default landing tab.
+
+## OLDER SESSION SUMMARY (2026-07-06b · Matching-consolidation A-D + Memory Phases 2-4 — all 6 items shipped Develop + 3 migrations applied prod)
 
 Continued the personalization lane from the prior session — built + shipped the whole matching-consolidation program (facades B/C/D) AND memory Phases 2-4. All on `origin/Develop` (own files only; the pre-existing `search_queries.record()` refactor was already in HEAD — no entanglement). Full detail + owed list: memory **`project_user_memory_personalization`** (§ "Session close — 2026-07-06b").
 
