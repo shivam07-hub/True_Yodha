@@ -24,7 +24,7 @@ import {
  *   - persist LinkedIn metadata + grant the one-time +50 XP
  *   - run the welcome XP grant via the BEFORE INSERT trigger
  *
- * Then we route to ?next= (whitelisted same-origin) or /home, except for
+ * Then we route to ?next= (whitelisted same-origin) or /market, except for
  * brand-new users who land on /onboarding (Day 1 first-run stepper:
  * cv → role → lens → companies → ninja → score). /welcome was merged into
  * the public landing (/), so first-run users go straight to the stepper.

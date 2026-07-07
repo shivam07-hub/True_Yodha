@@ -8,6 +8,7 @@ import type { JobLocationFilters } from "@/lib/api"
 import { HeatmapTab } from "@/components/market/heatmap-tab"
 import { MarketJobsTab } from "@/components/market/jobs-tab"
 import { MissionHeroRail } from "@/components/mission-control/mission-hero-rail"
+import { MatchesRefreshBanner } from "@/components/jobs/matches-refresh-banner"
 import { SkillMapCard } from "@/components/mission-control/peek-surfaces"
 import { useViewport } from "@/mobile"
 import { JobsSurface } from "@/mobile/redesign/jobs-surface"
@@ -126,6 +127,10 @@ function IntelPageInner() {
           ) : null}
         </aside>
         <div className="mc-ws-main">
+        {/* Match staleness + coin-charged recompute — relocated from the retired
+            /home dashboard; Jobs is the browse surface, so discovery mechanics
+            live here. Renders nothing while matches are fresh. */}
+        {token ? <MatchesRefreshBanner token={token} /> : null}
         {activeTab === "jobs" ? (
           <MarketJobsTab
             token={token ?? ""}

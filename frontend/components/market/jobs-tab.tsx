@@ -198,7 +198,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
                 hasCv={hasCv}
                 hasTargetRoles={hasTargetRoles}
                 savedCount={savedCount}
-                onOpenSaved={() => router.push("/home")}
+                onOpenSaved={() => router.push("/collections")}
                 onOpenFilters={() => setFiltersOpen(true)}
               />
               <HiddenJobsDialog token={token} />
@@ -221,7 +221,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
           {feed.isLoading || warming ? (
             <FeedSkeleton summary />
           ) : allJobs.length === 0 ? (
-            <EmptyHandoff savedCount={savedCount} onBuild={() => router.push("/home")} onClear={() => { setSkillFacet(null); setSearchInput(""); setQ(""); onChangeFilters({ ...DEFAULT_FILTERS }) }} onTellMyro={() => setIntentOpen(true)} />
+            <EmptyHandoff savedCount={savedCount} onBuild={() => router.push("/collections")} onClear={() => { setSkillFacet(null); setSearchInput(""); setQ(""); onChangeFilters({ ...DEFAULT_FILTERS }) }} onTellMyro={() => setIntentOpen(true)} />
           ) : (
             <>
               <div className="tm-feed-summary">

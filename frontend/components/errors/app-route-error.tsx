@@ -98,7 +98,7 @@ export function AppRouteError({ surface, title, reset }: AppRouteErrorProps) {
   return (
     <AppShell>
       <main style={{ minHeight: "100%", display: "grid", placeItems: "center", padding: "var(--tm-page-py) var(--tm-page-px)" }}>
-        <ErrorPanel title={title} reset={reset} homeHref="/home" />
+        <ErrorPanel title={title} reset={reset} homeHref="/market" />
       </main>
     </AppShell>
   )

@@ -3,50 +3,58 @@
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { jobs as jobsApi, type ApplicationResponse } from "@/lib/api"
+import { jobs as jobsApi, users as usersApi, type ApplicationResponse } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
-import { synthMatch } from "@/lib/dashboard/feed-model"
+import { SORTS, type SortKey } from "@/lib/dashboard/feed-model"
+import {
+  COLLECTION_CHIPS,
+  appToFeedItem,
+  buildCollectionsView,
+  chipCounts,
+  collectionsTriageCtx,
+  emptyCopy,
+  isApplied,
+  isExtSource,
+  isMyroSource,
+  matchesById,
+  type CollectionChip,
+} from "@/lib/collections/model"
+import { usePulses } from "@/lib/hooks/use-pulses"
 import { useApplyCapture } from "@/components/jobs/use-apply-capture"
 import { BottomSheet } from "./bottom-sheet"
 import { JobDetailSheet, type JobDetailData } from "./job-detail-sheet"
 import { ApplyCapturePromptMobile } from "./apply-capture-prompt"
-import { matchToRow, type MobileJobRow } from "./job-model"
+import { AddJobSheet } from "./add-job-sheet"
+import { CollectionCard, pulseLine } from "./collection-card"
+import { matchToRow } from "./job-model"
 import { useMobileUI } from "./mobile-ui"
 
 /* ══════════════════════════════════════════════════════════════════════════
    CollectionsSurface — the handoff Collections tab over REAL saved jobs
-   (jobs.applications). Journey strip · source/status filter chips · saved
-   cards with a fit ring (joined from jobs.matches, muted when unknown) ·
-   Tailor CV / Tailored ✓ · add-job sheet (paste-link → extract → import).
+   (jobs.applications). Journey strip · pinned "Finish tailoring" lane ·
+   source/status chips · triage order (prize×winnability, ported from the
+   retired /home dashboard) with a sort sheet · Job Pulse trust line ·
+   Tailor CV / Tailored ✓ · add-job sheet (link → extract, JD-paste fallback).
    ══════════════════════════════════════════════════════════════════════════ */
 
-const CIRC = 103.7
 const JOURNEY_DISMISS_KEY = "mm_collections_journey_dismissed_at"
 const JOURNEY_RESURFACE_MS = 7 * 24 * 60 * 60 * 1000 // re-teach the loop after 7 days away
 
-type ChipKey = "all" | "found" | "added" | "applied"
-
-function isMyroSource(src: string): boolean {
-  const s = src.toLowerCase()
-  return s.includes("system") || s.includes("myro") || s.includes("match") || s.includes("feed")
-}
-function isExtSource(src: string): boolean {
-  const s = src.toLowerCase()
-  return s.includes("ext") || s.includes("chrome")
-}
-const isApplied = (a: ApplicationResponse) => a.status !== "saved"
-
-export function CollectionsSurface({ token }: { token: string }) {
+export function CollectionsSurface({ token, initialJobId }: { token: string; initialJobId?: string | null }) {
   const router = useRouter()
   const qc = useQueryClient()
   const { snack, closeSnack } = useMobileUI()
 
   const appsQ = useQuery({ queryKey: dataKeys.applications(), queryFn: () => jobsApi.applications(token), enabled: !!token, staleTime: 60 * 1000 })
   const matchesQ = useQuery({ queryKey: ["jobs", "matches"], queryFn: () => jobsApi.matches(token), enabled: !!token, staleTime: 5 * 60 * 1000 })
+  const { data: followed } = useQuery({ queryKey: ["followedCompanies", token], queryFn: () => usersApi.followedCompanies(token), enabled: !!token, staleTime: 5 * 60 * 1000 })
+  const { data: profile } = useQuery({ queryKey: dataKeys.profile(), queryFn: () => usersApi.me(token), enabled: !!token, staleTime: 10 * 60 * 1000 })
 
-  const [chip, setChip] = useState<ChipKey>("all")
+  const [chip, setChip] = useState<CollectionChip>("all")
+  const [sort, setSort] = useState<SortKey>("prize")
+  const [sortOpen, setSortOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
-  const [detailId, setDetailId] = useState<string | null>(null)
+  const [detailId, setDetailId] = useState<string | null>(initialJobId ?? null)
   const [refreshing, setRefreshing] = useState(false)
   const [journeyHidden, setJourneyHidden] = useState(() => {
     if (typeof window === "undefined") return false
@@ -59,29 +67,29 @@ export function CollectionsSurface({ token }: { token: string }) {
   }
 
   const apps = useMemo(() => appsQ.data ?? [], [appsQ.data])
-  const fitMap = useMemo(() => {
-    const m = new Map<string, { score: number; verdict: string }>()
-    for (const j of matchesQ.data?.jobs ?? []) m.set(j.job_id, { score: j.match_score ?? j.overlap_score ?? 0, verdict: j.verdict })
+  const byId = useMemo(() => matchesById(matchesQ.data?.jobs), [matchesQ.data])
+  const counts = useMemo(() => chipCounts(apps), [apps])
+  const appBy = useMemo(() => {
+    const m = new Map<string, ApplicationResponse>()
+    for (const a of apps) m.set(a.job_id, a)
     return m
-  }, [matchesQ.data])
+  }, [apps])
 
-  const counts = useMemo(() => ({
-    all: apps.length,
-    found: apps.filter(a => isMyroSource(a.source) && !isApplied(a)).length,
-    added: apps.filter(a => !isMyroSource(a.source) && !isApplied(a)).length,
-    applied: apps.filter(isApplied).length,
-  }), [apps])
+  const ctx = useMemo(
+    () => collectionsTriageCtx(apps, (followed?.companies ?? []).map(c => c.company_name), profile?.target_roles ?? []),
+    [apps, followed, profile],
+  )
+  const view = useMemo(() => buildCollectionsView(apps, chip, sort, ctx, byId), [apps, chip, sort, ctx, byId])
 
-  const shown = useMemo(() => {
-    if (chip === "found") return apps.filter(a => isMyroSource(a.source) && !isApplied(a))
-    if (chip === "added") return apps.filter(a => !isMyroSource(a.source) && !isApplied(a))
-    if (chip === "applied") return apps.filter(isApplied)
-    return apps
-  }, [apps, chip])
+  const shownIds = useMemo(
+    () => [...view.continueItems, ...view.queueItems].map(it => it.jobId),
+    [view],
+  )
+  const pulses = usePulses(token, shownIds)
 
   const tailoredN = apps.filter(a => a.cv_badge).length
 
-  const detailApp = detailId ? apps.find(a => a.job_id === detailId) ?? null : null
+  const detailApp = detailId ? appBy.get(detailId) ?? null : null
   const applyCapture = useApplyCapture({
     token,
     job: { job_id: detailApp?.job_id ?? "", source_url: detailApp?.source_url ?? null, company: detailApp?.company ?? null },
@@ -111,19 +119,29 @@ export function CollectionsSurface({ token }: { token: string }) {
     })
   }
 
-  const rowFor = (a: ApplicationResponse): { row: MobileJobRow; fitKnown: boolean } => {
-    const base = synthMatch(a)
-    const hit = fitMap.get(a.job_id)
-    if (hit) { base.match_score = hit.score; base.verdict = hit.verdict as typeof base.verdict }
-    return { row: matchToRow(base), fitKnown: !!hit && hit.score > 0 }
+  // Rows render from the FeedItem's job (the REAL match when the brain has
+  // evaluated it, synthMatch otherwise) + the live pulse for the trust line.
+  const rowFor = (jobId: string) => {
+    const it = [...view.continueItems, ...view.queueItems].find(x => x.jobId === jobId)
+      ?? (appBy.get(jobId) ? appToFeedItem(appBy.get(jobId)!, byId.get(jobId)) : null)
+    if (!it) return null
+    const row = matchToRow(it.job)
+    const trust = pulseLine(pulses.get(jobId))
+    if (trust) {
+      row.verified = trust.text
+      if (trust.warn) row.checkDetails = true
+    }
+    return { row, fitKnown: it.fit != null }
   }
 
   const detailData: JobDetailData | null = detailApp
     ? (() => {
-        const { row } = rowFor(detailApp)
+        const r = rowFor(detailApp.job_id)
+        if (!r) return null
+        const match = byId.get(detailApp.job_id)
         return {
-          row,
-          whyFit: (detailApp.job_summary ?? detailApp.job_description ?? "").slice(0, 260),
+          row: r.row,
+          whyFit: match?.llm_explanation ?? (detailApp.job_summary ?? detailApp.job_description ?? "").slice(0, 260),
           matched: detailApp.matched_skills ?? [],
           gaps: detailApp.missing_skills ?? [],
           saved: true,
@@ -132,12 +150,41 @@ export function CollectionsSurface({ token }: { token: string }) {
       })()
     : null
 
+  const statusChipFor = (a: ApplicationResponse) =>
+    isApplied(a) ? "Applied" : isExtSource(a.source) ? "Extension" : !isMyroSource(a.source) ? "You added" : ""
+
+  const renderCard = (a: ApplicationResponse) => {
+    const r = rowFor(a.job_id)
+    if (!r) return null
+    return (
+      <CollectionCard
+        key={a.job_id}
+        row={r.row}
+        fitKnown={r.fitKnown}
+        statusChip={statusChipFor(a)}
+        tailored={!!a.cv_badge}
+        pulse={pulses.get(a.job_id)}
+        onOpen={() => setDetailId(a.job_id)}
+        onHeart={() => doUnsave(a)}
+        onShare={() => doShare(a)}
+        onTailor={() => router.push(`/cv/tailor?jobId=${encodeURIComponent(a.job_id)}`)}
+        onOpenCv={() => router.push("/cv")}
+      />
+    )
+  }
+
+  const continueApps = view.continueItems.map(it => appBy.get(it.jobId)).filter(Boolean) as ApplicationResponse[]
+  const queueApps = view.queueItems.map(it => appBy.get(it.jobId)).filter(Boolean) as ApplicationResponse[]
+
   return (
     <div data-screen-label="Collections" className="mm-root" style={{ background: "var(--mm-bg)", minHeight: "100%", animation: "mm-screenIn 240ms cubic-bezier(0.16,1,0.3,1)" }}>
       <div style={{ padding: "10px 16px 10px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <h1 style={{ margin: 0, fontSize: 25, fontWeight: 700, letterSpacing: "-0.03em" }}>Collections</h1>
           <div style={{ flex: 1 }} />
+          <button onClick={() => setSortOpen(true)} aria-label="Sort" style={{ width: 32, height: 32, borderRadius: 99, border: "none", background: "transparent", color: "#a6a69e", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M7 4v16m0 0-3-3m3 3 3-3M17 20V4m0 0-3 3m3-3 3 3" /></svg>
+          </button>
           <button onClick={doRefresh} aria-label="Refresh" style={{ width: 32, height: 32, borderRadius: 99, border: "none", background: "transparent", color: "#a6a69e", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: refreshing ? "mm-spin 0.9s linear infinite" : "none" }}>
             <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M20 11a8 8 0 1 0-2.3 5.6" /><path d="M20 5v6h-6" /></svg>
           </button>
@@ -162,43 +209,44 @@ export function CollectionsSurface({ token }: { token: string }) {
 
         {/* filter chips */}
         <div className="mm-scroll" style={{ display: "flex", gap: 6, marginTop: 10, overflowX: "auto" }}>
-          {([["all", "All"], ["found", "Myro found"], ["added", "You added"], ["applied", "Applied"]] as [ChipKey, string][]).map(([k, label]) => {
-            const on = chip === k
+          {COLLECTION_CHIPS.map(({ key, label }) => {
+            const on = chip === key
             return (
-              <button key={k} onClick={() => setChip(k)} style={{ flex: "none", height: 28, display: "flex", alignItems: "center", gap: 5, padding: "0 12px", borderRadius: 99, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,0.08)"}`, background: on ? "#3a3a36" : "transparent", color: on ? "#f2f2ee" : "#a6a69e", fontSize: 12, fontWeight: 650, cursor: "pointer", fontFamily: "inherit", transition: "background 160ms" }}>
-                {label}<span style={{ fontVariantNumeric: "tabular-nums", opacity: 0.65, fontWeight: 600 }}>{counts[k]}</span>
+              <button key={key} onClick={() => setChip(key)} style={{ flex: "none", height: 28, display: "flex", alignItems: "center", gap: 5, padding: "0 12px", borderRadius: 99, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,0.08)"}`, background: on ? "#3a3a36" : "transparent", color: on ? "#f2f2ee" : "#a6a69e", fontSize: 12, fontWeight: 650, cursor: "pointer", fontFamily: "inherit", transition: "background 160ms" }}>
+                {label}<span style={{ fontVariantNumeric: "tabular-nums", opacity: 0.65, fontWeight: 600 }}>{counts[key]}</span>
               </button>
             )
           })}
         </div>
       </div>
 
+      {/* finish-tailoring lane — tailored but not applied, one step from done */}
+      {continueApps.length > 0 && (
+        <div style={{ padding: "0 16px 4px" }}>
+          <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", color: "#8b8b84", textTransform: "uppercase", marginBottom: 6 }}>
+            Finish tailoring · {continueApps.length}
+          </div>
+          <div className="mm-scroll" style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 6 }}>
+            {continueApps.map(a => (
+              <button key={a.job_id} onClick={() => setDetailId(a.job_id)} className="mm-press" style={{ flex: "none", maxWidth: 220, textAlign: "left", background: "#212120", border: "1px solid rgba(0,245,212,0.22)", borderRadius: 13, padding: "10px 12px", cursor: "pointer", fontFamily: "inherit" }}>
+                <span style={{ display: "block", fontSize: 11, fontWeight: 650, color: "#c9c9c2", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.company ?? "Untitled company"}</span>
+                <span style={{ display: "block", fontSize: 12.5, fontWeight: 650, color: "#f2f2ee", marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.title}</span>
+                <span style={{ display: "block", fontSize: 10.5, fontWeight: 700, color: "var(--mm-accent)", marginTop: 3 }}>Finish &amp; apply →</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={{ padding: "2px 16px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-        {shown.length === 0 && !appsQ.isLoading ? (
+        {queueApps.length === 0 && continueApps.length === 0 && !appsQ.isLoading ? (
           <div style={{ textAlign: "center", padding: "44px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
             <div style={{ fontSize: 15, fontWeight: 650 }}>Nothing here yet</div>
-            <div style={{ fontSize: 12.5, color: "#8b8b84", lineHeight: 1.5 }}>Save roles from Jobs, paste a link,<br />or send them from the Chrome extension.</div>
+            <div style={{ fontSize: 12.5, color: "#8b8b84", lineHeight: 1.5 }}>{emptyCopy(chip)}</div>
             <button onClick={() => router.push("/market")} className="mm-press" style={ctaBtn}>Browse jobs</button>
           </div>
         ) : (
-          shown.map(a => {
-            const { row, fitKnown } = rowFor(a)
-            const statusChip = isApplied(a) ? "Applied" : isExtSource(a.source) ? "Extension" : !isMyroSource(a.source) ? "You added" : ""
-            return (
-              <CollectionCard
-                key={a.job_id}
-                row={row}
-                fitKnown={fitKnown}
-                statusChip={statusChip}
-                tailored={!!a.cv_badge}
-                onOpen={() => setDetailId(a.job_id)}
-                onHeart={() => doUnsave(a)}
-                onShare={() => doShare(a)}
-                onTailor={() => router.push(`/cv/tailor?jobId=${encodeURIComponent(a.job_id)}`)}
-                onOpenCv={() => router.push("/cv")}
-              />
-            )
-          })
+          queueApps.map(renderCard)
         )}
       </div>
 
@@ -215,6 +263,21 @@ export function CollectionsSurface({ token }: { token: string }) {
       />
 
       <AddJobSheet open={addOpen} onClose={() => setAddOpen(false)} token={token} onAdded={() => { void qc.invalidateQueries({ queryKey: dataKeys.applications() }); setChip("added") }} snack={snack} closeSnack={closeSnack} onTailor={(jobId) => router.push(`/cv/tailor?jobId=${encodeURIComponent(jobId)}`)} />
+
+      {/* sort sheet — same axes as desktop (Best next / Best fit / Recent / A–Z) */}
+      <BottomSheet open={sortOpen} onClose={() => setSortOpen(false)} label="Sort">
+        <div style={{ padding: "0 18px 18px" }}>
+          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.02em", marginTop: 4 }}>Sort by</div>
+          <div style={{ display: "flex", flexDirection: "column", marginTop: 8 }}>
+            {SORTS.map(s => (
+              <button key={s.key} onClick={() => { setSort(s.key); setSortOpen(false) }} className="mm-press-sm" style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 2px", background: "none", border: "none", borderBottom: "1px solid rgba(255,255,255,0.05)", color: sort === s.key ? "var(--mm-accent)" : "#f2f2ee", fontSize: 14, fontWeight: 650, cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
+                <span style={{ flex: 1 }}>{s.label}</span>
+                {sort === s.key && <span aria-hidden>✓</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      </BottomSheet>
     </div>
   )
 }
@@ -233,109 +296,6 @@ function JourneyStep({ label, sub, onClick, done, accent }: { label: string; sub
   return onClick ? <button onClick={onClick} style={style}>{inner}</button> : <div style={style}>{inner}</div>
 }
 
-function CollectionCard({ row, fitKnown, statusChip, tailored, onOpen, onHeart, onShare, onTailor, onOpenCv }: {
-  row: MobileJobRow; fitKnown: boolean; statusChip: string; tailored: boolean
-  onOpen: () => void; onHeart: () => void; onShare: () => void; onTailor: () => void; onOpenCv: () => void
-}) {
-  return (
-    <div onClick={onOpen} style={{ background: "#212120", border: "1px solid rgba(255,255,255,0.055)", borderRadius: 16, padding: "13px 14px 11px", cursor: "pointer", animation: "mm-screenIn 260ms cubic-bezier(0.16,1,0.3,1) both" }}>
-      <div style={{ display: "flex", gap: 11 }}>
-        <div style={{ width: 38, height: 38, borderRadius: 11, background: row.logoBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, color: "#fff", flex: "none" }}>{row.coInitial}</div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-            <span style={{ fontSize: 12.5, fontWeight: 600, color: "#c9c9c2", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{row.co}</span>
-            {statusChip && <span style={{ fontSize: 10, fontWeight: 700, color: statusChip === "Applied" ? "var(--mm-accent)" : "#a6a69e", background: statusChip === "Applied" ? "var(--mm-accent-wash)" : "rgba(255,255,255,0.06)", borderRadius: 5, padding: "1.5px 6px", flex: "none" }}>{statusChip}</span>}
-            {row.ago && <span style={{ fontSize: 11, color: "#71716a", flex: "none", marginLeft: "auto" }}>{row.ago}</span>}
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 650, letterSpacing: "-0.01em", lineHeight: 1.28, marginTop: 2, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{row.role}</div>
-          <div style={{ fontSize: 11.5, color: "#8b8b84", marginTop: 3 }}>{row.metaLine}</div>
-        </div>
-        <div style={{ flex: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, width: 44 }}>
-          <div style={{ position: "relative", width: 40, height: 40 }}>
-            <svg width={40} height={40} viewBox="0 0 40 40" aria-hidden="true">
-              <circle cx="20" cy="20" r="16.5" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="3" />
-              {fitKnown && <circle cx="20" cy="20" r="16.5" fill="none" stroke={row.ringColor} strokeWidth="3" strokeLinecap="round" strokeDasharray={CIRC} strokeDashoffset={CIRC * (1 - row.fit / 100)} transform="rotate(-90 20 20)" />}
-            </svg>
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12.5, fontWeight: 700, color: fitKnown ? "#f2f2ee" : "#71716a" }}>{fitKnown ? row.fit : "—"}</div>
-          </div>
-          {fitKnown && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.07em", color: row.ringColor, textTransform: "uppercase", whiteSpace: "nowrap" }}>{row.verdict}</span>}
-        </div>
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10 }}>
-        <button onClick={(e) => { e.stopPropagation(); onHeart() }} aria-label="Remove from saved" className="mm-press-sm" style={iconBtn}>
-          <svg width={15} height={15} viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" color="var(--mm-accent)"><path d="M19 14c1.5-1.5 2-3.2 2-4.6C21 6.4 18.6 4 15.6 4 14.2 4 12.9 4.6 12 5.6 11.1 4.6 9.8 4 8.4 4 5.4 4 3 6.4 3 9.4c0 1.4.5 3.1 2 4.6l7 6.6 7-6.6Z" /></svg>
-        </button>
-        <button onClick={(e) => { e.stopPropagation(); onShare() }} aria-label="Share" className="mm-press-sm" style={iconBtn}>
-          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round"><path d="M12 15V4m0 0 4 4m-4-4L8 8" /><path d="M4 13v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5" /></svg>
-        </button>
-        <div style={{ flex: 1 }} />
-        {tailored ? (
-          <button onClick={(e) => { e.stopPropagation(); onOpenCv() }} style={{ height: 32, padding: "0 12px", borderRadius: 99, border: "1px solid rgba(0,245,212,0.35)", background: "var(--mm-accent-wash)", color: "var(--mm-accent)", fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Tailored ✓</button>
-        ) : (
-          <button onClick={(e) => { e.stopPropagation(); onTailor() }} className="mm-press" style={{ height: 32, padding: "0 14px", borderRadius: 99, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Tailor CV</button>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function AddJobSheet({ open, onClose, token, onAdded, snack, closeSnack, onTailor }: {
-  open: boolean; onClose: () => void; token: string; onAdded: () => void
-  snack: (s: { msg: string; action?: string; onAction?: () => void }) => void; closeSnack: () => void; onTailor: (jobId: string) => void
-}) {
-  const [url, setUrl] = useState("")
-  const [busy, setBusy] = useState(false)
-  const submit = async () => {
-    const link = url.trim()
-    if (!link || busy) return
-    setBusy(true)
-    try {
-      const parsed = await jobsApi.extractUrl(token, link)
-      const app = await jobsApi.importJob(token, {
-        role_name: parsed.role || "Role from link",
-        company_name: parsed.company || null,
-        location: parsed.location || null,
-        job_description: parsed.job_description || "",
-        source_url: link,
-        primary_skills: [],
-        secondary_skills: [],
-        status: "saved",
-      })
-      setUrl("")
-      onClose()
-      onAdded()
-      snack({ msg: "Added to Collections", action: "Tailor now", onAction: () => { closeSnack(); onTailor(app.job_id) } })
-    } catch {
-      snack({ msg: "Couldn't read that link — try Upload a JD" })
-    } finally {
-      setBusy(false)
-    }
-  }
-  return (
-    <BottomSheet open={open} onClose={onClose} label="Add job">
-      <div style={{ padding: "0 18px 18px" }}>
-        <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.02em", marginTop: 4 }}>Add a job</div>
-        <div style={{ fontSize: 12, color: "#8b8b84", marginTop: 2 }}>Anything you add lands in Collections, ready to tailor.</div>
-        <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-          <input value={url} onChange={e => setUrl(e.target.value)} placeholder="Paste a job link…" style={{ flex: 1, height: 40, borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", background: "#1b1b1a", color: "#f2f2ee", padding: "0 12px", fontSize: 13.5, outline: "none", fontFamily: "inherit" }} />
-          <button onClick={submit} disabled={busy} className="mm-press" style={{ height: 40, padding: "0 16px", borderRadius: 12, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: 13, fontWeight: 700, cursor: busy ? "default" : "pointer", fontFamily: "inherit", opacity: busy ? 0.6 : 1 }}>{busy ? "…" : "Add"}</button>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", marginTop: 10, padding: "12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.07)" }}>
-          <span style={{ width: 32, height: 32, borderRadius: 9, background: "#2a2a28", display: "flex", alignItems: "center", justifyContent: "center", color: "#c9c9c2" }}><svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3.4" /></svg></span>
-          <span style={{ flex: 1 }}>
-            <span style={{ display: "block", fontSize: 13.5, fontWeight: 650, color: "#f2f2ee" }}>Chrome extension</span>
-            <span style={{ display: "block", fontSize: 11.5, color: "#8b8b84", marginTop: 1 }}>Save from any job board in one tap</span>
-          </span>
-        </div>
-      </div>
-    </BottomSheet>
-  )
-}
-
-const iconBtn: React.CSSProperties = {
-  width: 32, height: 32, borderRadius: 99, border: "1px solid rgba(255,255,255,0.08)", background: "transparent",
-  display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
-}
 const ctaBtn: React.CSSProperties = {
   marginTop: 6, height: 36, padding: "0 16px", borderRadius: 99, border: "none", background: "var(--mm-accent)",
   color: "var(--mm-accent-fg)", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",

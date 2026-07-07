@@ -24,7 +24,7 @@ const RESOURCES = [
 ] as const
 
 const SHORTCUTS = [
-  { href: "/home", label: "Dashboard", detail: "Tackle Today." },
+  { href: "/collections", label: "Collections", detail: "Saved roles — tailor next." },
   { href: "/market", label: "Live Job Data", detail: "Live company + skill demand." },
   { href: "/forge", label: "Practice", detail: "Score, gaps, and the 12-domain map." },
   { href: "/cv", label: "CV & Applications", detail: "Tailor a version per job · track every application." },

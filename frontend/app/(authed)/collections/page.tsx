@@ -1,29 +1,34 @@
 "use client"
 
-import { useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useViewport } from "@/mobile"
 import { CollectionsSurface } from "@/mobile/redesign/collections-surface"
+import { CollectionsDesktop } from "@/components/collections/collections-desktop"
 
 /**
- * /collections — the mobile Collections tab (handoff IA swap). Mobile-only:
- * desktop has its own saved-jobs surfaces (dashboard / CV & Applications) and
- * no chrome link here, so a desktop hit redirects home rather than shipping an
- * unstyled second layout.
+ * /collections — the saved-job worklist, successor of the retired /home
+ * dashboard (2026-07-07 cutover). One route, two skins: the handoff mobile
+ * surface and the desktop workspace (FeedCard rows + build drawer + rail).
+ * Browse for unsaved matches lives on Jobs (/market); this surface owns
+ * collect → tailor → apply. `?jobId=` deep-links open that job's detail.
  */
-export default function CollectionsPage() {
-  const { token } = useAuth()
+function CollectionsInner() {
+  const { token, ready } = useAuth()
   const { mode } = useViewport()
-  const router = useRouter()
+  const searchParams = useSearchParams()
+  const jobId = searchParams.get("jobId")
 
-  // Gate on viewport `mode` (matches the mobile chrome breakpoint). Desktop
-  // has its own saved-jobs surfaces and no chrome link here → send it to the
-  // market, never the legacy /home (which duplicates this view).
-  useEffect(() => {
-    if (mode !== "mobile") router.replace("/market")
-  }, [mode, router])
+  if (!ready) return null
+  if (mode === "mobile") return <CollectionsSurface token={token ?? ""} initialJobId={jobId} />
+  return <CollectionsDesktop token={token ?? ""} initialJobId={jobId} />
+}
 
-  if (mode !== "mobile") return null
-  return <CollectionsSurface token={token ?? ""} />
+export default function CollectionsPage() {
+  return (
+    <Suspense fallback={null}>
+      <CollectionsInner />
+    </Suspense>
+  )
 }

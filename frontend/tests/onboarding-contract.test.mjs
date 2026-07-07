@@ -43,10 +43,15 @@ test("accepted upload and target are persisted before result navigation", () => 
   assert.match(page, /state\.isFetchedAfterMount/)
 })
 
-test("progressive personalization uses a durable three-action checklist", () => {
-  const checklist = read("components/onboarding/next-steps.tsx")
-  assert.match(checklist, /Review one score gap/)
-  assert.match(checklist, /Save a relevant job/)
-  assert.match(checklist, /Tailor your CV/)
-  assert.match(checklist, /onboarding\.dismissChecklist/)
+test("progressive personalization derives the post-score three-move triad", () => {
+  // The old /home three-action checklist retired with the dashboard
+  // (Collections cutover 2026-07-07). Its successor is the #146 triad —
+  // one skill · one job · one CV move — derived from the user's own score
+  // and consumed by the /market Command Rail.
+  const triad = read("lib/onboarding/next-best-steps.ts")
+  assert.match(triad, /kind: "skill"/)
+  assert.match(triad, /kind: "job"/)
+  assert.match(triad, /kind: "cv"/)
+  const rail = read("components/mission-control/mission-hero-rail.tsx")
+  assert.match(rail, /deriveNextBestSteps/)
 })

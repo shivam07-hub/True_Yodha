@@ -78,7 +78,7 @@ export function PublicTopNav({ active, showSignIn, authSlot }: PublicTopNavProps
   return (
     <nav aria-label="Public navigation" className="tm-public-nav">
       <Link
-        href={isAuthed ? "/home" : "/"}
+        href={isAuthed ? "/market" : "/"}
         aria-label={isAuthed ? "Myro — back to app" : "Myro home"}
         className="tm-public-nav-brand"
       >
@@ -188,7 +188,7 @@ export function PublicTopNav({ active, showSignIn, authSlot }: PublicTopNavProps
               </Link>
             )}
             {isAuthed && (
-              <Link href="/home" className="tm-public-nav-signup">
+              <Link href="/market" className="tm-public-nav-signup">
                 Go to app →
               </Link>
             )}

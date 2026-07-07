@@ -193,7 +193,7 @@ function ReportProblem({ token, jobId }: { token: string; jobId: string }) {
     return (
       <div style={{ fontSize: 12, color: "var(--tm-text-muted)" }}>
         Daily report limit reached.{" "}
-        <Link href="/home" style={{ color: "var(--tm-interactive)" }}>Tracking what happened still counts →</Link>
+        <Link href="/collections" style={{ color: "var(--tm-interactive)" }}>Tracking what happened still counts →</Link>
       </div>
     )
   }
