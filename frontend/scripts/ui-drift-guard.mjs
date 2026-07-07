@@ -60,7 +60,10 @@ const METRICS = [
   {
     name: "handRolledModalScrim",
     exts: [".tsx"],
-    exclude: ["components/ui/", "components/loading/"],
+    // mobile/redesign/ is the mobile app's own primitive layer (BottomSheet is
+    // the one shared sheet; the other `inset:0` hits are ring-centering, not
+    // scrims) — exempt like components/ui/ + components/loading/.
+    exclude: ["components/ui/", "components/loading/", "mobile/redesign/"],
     pattern: /inset:\s*0\b/g,
     mode: "max",
     hint: "Don't hand-roll a fixed-inset scrim. Use <Dialog> from @/components/ui/dialog.",
@@ -68,7 +71,9 @@ const METRICS = [
   {
     name: "handRolledPill",
     exts: [".tsx"],
-    exclude: ["components/ui/"],
+    // mobile/redesign/ = the mobile design system; its pills are bespoke to the
+    // handoff spec (the web <Badge> can't reproduce them) — exempt like ui/.
+    exclude: ["components/ui/", "mobile/redesign/"],
     pattern: /borderRadius:\s*["']?9{2,4}\b|rounded-full/g,
     mode: "max",
     hint: "Don't hand-roll a pill/badge. Use <Badge> from @/components/ui/badge.",

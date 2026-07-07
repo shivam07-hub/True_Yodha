@@ -1,5 +1,6 @@
 "use client"
 
+import "@/mobile/redesign/redesign.css"
 import { usePathname } from "next/navigation"
 
 import { XPGateModal } from "@/components/xp/XPGateModal"
@@ -10,8 +11,9 @@ import { skeletonForPath } from "@/components/loading/page-skeletons"
 import { useShellModel } from "@/lib/shell/use-shell-model"
 import {
   MobileBottomNav,
-  MobileProfileSheet,
   MobileTopBar,
+  MobileUIProvider,
+  PracticeSheet,
   useViewport,
 } from "@/mobile"
 
@@ -47,6 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (!m.ready || !m.token) return <>{skeletonForPath(pathname)}</>
 
   return (
+    <MobileUIProvider>
     <div className="tm-shell-enter" style={{ display: "flex", flexDirection: "column", height: "100dvh", width: "100vw", overflow: "hidden", position: "relative" }}>
       <XPGateModal />
 
@@ -59,12 +62,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      <MobileTopBar
-        xpBalance={m.xpBalance}
-        profile={m.profile}
-        onAvatarClick={() => m.setMobileSheetOpen(true)}
-        onXPOpen={() => m.setXPModalOpen(true)}
-      />
+      <MobileTopBar />
 
       <main style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", position: "relative", zIndex: 2 }}>
         <div className="tm-page-enter tm-main-scroll" style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
@@ -74,13 +72,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <MobileBottomNav />
 
-      {m.mobileSheetOpen && (
-        <MobileProfileSheet
-          profile={m.profile}
-          onClose={() => m.setMobileSheetOpen(false)}
-          signOut={m.signOut}
-        />
-      )}
+      {/* Practice sheet (top-bar bolt) — mobile-only, gated on open state. */}
+      {!isDesktop && <PracticeSheet />}
 
       <XpExplainerModal open={m.xpModalOpen} onClose={() => m.setXPModalOpen(false)} balance={m.xpBalance} />
 
@@ -98,5 +91,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         userEmail={m.profile.email}
       />
     </div>
+    </MobileUIProvider>
   )
 }

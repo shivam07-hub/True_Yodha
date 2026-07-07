@@ -10,6 +10,7 @@ import { MarketJobsTab } from "@/components/market/jobs-tab"
 import { MissionHeroRail } from "@/components/mission-control/mission-hero-rail"
 import { SkillMapCard } from "@/components/mission-control/peek-surfaces"
 import { useViewport } from "@/mobile"
+import { JobsSurface } from "@/mobile/redesign/jobs-surface"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useFeedState } from "@/lib/hooks/use-feed-state"
 import { useFollowCompany } from "@/lib/hooks/use-follow-company"
@@ -103,6 +104,12 @@ function IntelPageInner() {
   useEffect(() => {
     if (paramSkill && activeTab === "jobs") setJobSkillFacet(paramSkill)
   }, [paramSkill, activeTab])
+
+  // Mobile IA swap (handoff): the whole Jobs tab is the new swipe-triage
+  // surface. Desktop keeps the workspace layout below untouched.
+  if (!isDesktop) {
+    return <JobsSurface token={token ?? ""} targetLocations={profileData?.target_locations ?? []} />
+  }
 
   return (
     <>
