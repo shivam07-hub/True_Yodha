@@ -40,6 +40,7 @@ class UpdateProfileRequest(BaseModel):
     linkedin_url: str | None = None
     target_roles: list[str] | None = None
     target_role_title: str | None = None
+    target_role_titles: list[str] | None = None
     target_seniority: str | None = None
     target_location: str | None = None
     target_locations: list[str] | None = None

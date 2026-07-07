@@ -80,6 +80,14 @@ def build_system_prompt(profile: dict[str, Any], cv_markdown: str) -> str:
     superpower = profile.get("superpower") or "not specified"
     cv_block = (cv_markdown or "").strip()[:4000] or "No CV on file — infer from the skill profile."
 
+    # Targeting Brief: memory facts (authored + distilled) ride as known_facts —
+    # the same key the intent-chat concierge reads. Soft context, never hard rules.
+    facts = [str(f).strip() for f in (profile.get("known_facts") or []) if str(f).strip()]
+    facts_block = ""
+    if facts:
+        lines = "\n".join(f"- {f}" for f in facts)
+        facts_block = f"\n\nWhat Myro remembers about this candidate (their notes + observed activity):\n{lines}"
+
     return f"""You are Career Ops, an elite AI career advisor. You evaluate a job posting against ONE specific candidate with brutal honesty and strategic insight. No flattery, no score inflation.
 
 This candidate:
@@ -87,7 +95,7 @@ This candidate:
 - Preferred location: {location}
 - Career goal: {career_goal}
 - Superpower: {superpower}
-- Deal-breakers: {deal_breakers}
+- Deal-breakers: {deal_breakers}{facts_block}
 
 CV:
 {cv_block}

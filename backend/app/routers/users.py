@@ -17,6 +17,7 @@ from app.services.xp_policy import (
     FOLLOW_COMPANY_XP_FLOOR,
     FOLLOWED_COMPANY_LIMIT,
 )
+from app.services import onboarding_service
 from app.services.xp_service import grant_linkedin_profile_xp, spend_xp_to_floor
 from app.services.taxonomy_loader import lookup_by_name
 
@@ -104,6 +105,15 @@ async def update_profile(
     updates = body.model_dump(exclude_none=True)
     if not updates:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update.")
+
+    # Target-role edits arrive as human TITLES; the taxonomy-cluster union
+    # (`target_roles`, the matcher read model) is always derived — one writer,
+    # no split-brain with intent-chat / onboarding (both ride save_target's
+    # same derivation). A raw `target_roles` sent alongside titles is ignored.
+    if "target_role_titles" in updates:
+        updates.pop("target_roles", None)
+        updates.pop("target_role_title", None)
+        updates.update(onboarding_service.role_title_updates(updates.pop("target_role_titles")))
 
     user_id = principal.id
     before = users_repo.get_profile(user_id)

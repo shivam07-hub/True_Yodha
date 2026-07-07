@@ -385,6 +385,9 @@ export interface ProfileUpdate {
   linkedin_url?: string | null
   target_roles?: string[] | null
   target_role_title?: string | null
+  /** Human titles — the canonical role write. Backend derives the
+   *  `target_roles` cluster union; never send raw clusters alongside. */
+  target_role_titles?: string[] | null
   target_seniority?: "intern" | "entry" | "mid" | "senior" | "lead" | "executive" | "any" | null
   target_location?: string | null
   target_locations?: string[] | null
@@ -2109,6 +2112,17 @@ export interface RefreshTicketResponse {
   matches_written: number | null
 }
 
+export interface RefreshPreflightResponse {
+  role_titles: string[]
+  location: string | null
+  deal_breakers: string[]
+  career_goal: string | null
+  superpower: string | null
+  /** field name → "memory" for every field gap-filled from user_memory */
+  prefilled: Record<string, string>
+  memory_count: number
+}
+
 export interface RefreshStateResponse {
   ticket_id: string
   state: RefreshLifecycle
@@ -2866,6 +2880,12 @@ export const jobs = {
   refresh: (token: string) =>
     request<RefreshTicketResponse>("/jobs/refresh", {
       method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  /** Targeting Brief manifest for the pre-flight modal — profile fields
+   *  gap-filled from user_memory (see `prefilled` provenance). */
+  refreshPreflight: (token: string) =>
+    request<RefreshPreflightResponse>("/jobs/refresh/preflight", {
       headers: { Authorization: `Bearer ${token}` },
     }),
   refreshStatus: (token: string, ticketId: string) =>
