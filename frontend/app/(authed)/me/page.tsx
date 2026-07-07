@@ -13,13 +13,16 @@ import { ProfileSurface } from "@/mobile/redesign/profile-surface"
  */
 export default function ProfilePage() {
   const { token } = useAuth()
-  const { isDesktop } = useViewport()
+  const { mode } = useViewport()
   const router = useRouter()
 
+  // Gate on viewport `mode` (matches the mobile chrome breakpoint); desktop has
+  // its own dashboard/web-chrome, so bounce it to the market rather than render
+  // the mobile column.
   useEffect(() => {
-    if (isDesktop) router.replace("/home")
-  }, [isDesktop, router])
+    if (mode !== "mobile") router.replace("/market")
+  }, [mode, router])
 
-  if (isDesktop) return null
+  if (mode !== "mobile") return null
   return <ProfileSurface token={token ?? ""} />
 }

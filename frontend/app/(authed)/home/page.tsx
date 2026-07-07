@@ -3,7 +3,8 @@
 import "./mission-control.css"
 
 import { useEffect, useMemo, useRef, useState, Suspense, type ReactNode } from "react"
-import { useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
+import { MEDIA_QUERY_MOBILE } from "@/mobile"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { RequiresCV } from "@/components/empty/RequiresCV"
 import { FirstRunHero } from "@/components/home/first-run-hero"
@@ -44,6 +45,20 @@ function MissionControlInner() {
   const { token, ready } = useAuth()
   const queryClient = useQueryClient()
   const searchParams = useSearchParams()
+  const router = useRouter()
+
+  // Mobile IA swap: the handoff has no /home — Jobs is the mobile home. Any
+  // session/redirect that lands here on a phone (returning users, old links)
+  // used to show the legacy dashboard, duplicating Collections. Bounce to the
+  // Jobs tab. Reads matchMedia directly (not the SSR-default-mobile state) so a
+  // real desktop is never wrongly redirected.
+  const [leavingMobile, setLeavingMobile] = useState(false)
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.matchMedia(MEDIA_QUERY_MOBILE).matches) {
+      setLeavingMobile(true)
+      router.replace("/market")
+    }
+  }, [router])
   const { skills: cartSkills, addSkill, removeSkill } = useCartStore()
 
   const refreshVm = useJobRefresh(token, queryClient)
@@ -319,6 +334,7 @@ function MissionControlInner() {
 
   // Auth not settled — the app shell already shows the full-bleed loader; render
   // nothing rather than a token-less flash.
+  if (leavingMobile) return null
   if (!ready) return null
 
   // Cold error: no cache to fall back on. A settled error would otherwise paint
