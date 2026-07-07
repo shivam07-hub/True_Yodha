@@ -403,6 +403,38 @@ The module hides publication clocks, idempotency, confidence policy, privacy
 thresholds, snapshot storage, and Supabase query details. HTTP routers and
 platform clients do not reproduce those rules.
 
+## Apply Transport
+
+The single frontend seam every "leave to apply" flows through — the producer of
+the click-verified liveness signal that feeds Job Feedback → Listing Confidence.
+Job boards are one-sided; this is how the user (the closest witness to whether a
+posting is real) writes their verdict back into the platform.
+
+Two halves:
+
+- **Resolution** (`lib/jobs/apply-transport.ts`, pure) — `resolveApplyTarget(job)`
+  returns where applying sends the user: the scraped portal URL, else a
+  `"{company} careers"` search (`careersSearchUrl`), else nothing. This is the
+  one place the careers heuristic lives; the Web Share sheet reads the same
+  primitive. No surface re-derives it, and none falls back to `/companies`.
+- **Capture** (`components/jobs/use-apply-capture.tsx`, headless) — arms in the
+  same act as transport (`onApply` / `open`), so a user can never be sent out
+  without being asked on return "was this still live?". A "gone" answer fires a
+  `quality: apply_link_closed` feedback event and offers a "find similar roles"
+  recovery. It emits `state` (`idle | asking | gone`); each design system renders
+  its own band (`ApplyCapturePrompt` web `--tm-*`, `ApplyCapturePromptMobile`
+  `.mm-*`) — the presentation is a real seam with two adapters.
+
+**Invariants**
+
+- Every apply-out (web drawers, CV playground, CV export, mobile Jobs/Collections)
+  routes through the capture. A new apply affordance is not done until it does.
+- The aggregate `JobPulse.quality_report_count` is the crowd's ghost verdict, read
+  back onto the card (`PulseRow`) and drawers as "N reported gone". It obeys the
+  Job Pulse privacy invariant — null below the cohort threshold, never rendered
+  as zero — and one report can never close a listing (that stays Job Pulse's
+  confidence policy).
+
 ---
 
 ## CV Version Writer Seam

@@ -18,7 +18,7 @@ import { useXPStore } from "@/store/xpStore"
 
 function IntelPageInner() {
   const { token } = useAuth()
-  const { isDesktop } = useViewport()
+  const { isDesktop, mode } = useViewport()
   // Feed publication sensing - auto-invalidates the free market feed when a new
   // batch publishes (handoff client-refresh contract).
   useFeedState()
@@ -106,8 +106,10 @@ function IntelPageInner() {
   }, [paramSkill, activeTab])
 
   // Mobile IA swap (handoff): the whole Jobs tab is the new swipe-triage
-  // surface. Desktop keeps the workspace layout below untouched.
-  if (!isDesktop) {
+  // surface. Gate on viewport `mode` (width ≤768) to match the mobile chrome's
+  // CSS breakpoint exactly — `isDesktop` also requires pointer:fine, so a
+  // touch-tablet would desync content from chrome. Desktop keeps the workspace.
+  if (mode === "mobile") {
     return <JobsSurface token={token ?? ""} targetLocations={profileData?.target_locations ?? []} />
   }
 

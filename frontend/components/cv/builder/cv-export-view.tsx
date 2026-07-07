@@ -33,6 +33,8 @@ import { exportSheetPdf, triggerBlobDownload, withRetry } from "@/lib/cv/sheet-p
 import { masterFilename } from "@/lib/cv/download-master"
 import { selectVisibleCV } from "@/lib/cv/visible-cv"
 import { ApplyRow } from "@/components/jobs/apply-row"
+import { useApplyCapture } from "@/components/jobs/use-apply-capture"
+import { ApplyCapturePrompt } from "@/components/jobs/apply-capture-prompt"
 import { CV_TEMPLATES, DEFAULT_TEMPLATE, isCVTemplate, type CVTemplate } from "@/lib/cv/templates"
 import { MobileCVExportLayout } from "@/components/cv/mobile/mobile-cv-export-layout"
 
@@ -88,6 +90,15 @@ export function CVExportView({
 }: CVExportViewProps) {
   const isTailored = context === "tailored"
   const skin: "fullpage" | "inline" = isTailored ? "fullpage" : "inline"
+
+  // Apply Transport — the "Open careers" affordance is a leave-to-apply, so it
+  // arms the liveness capture too (only when tied to a real job_id; a master
+  // export has none). company careers is the destination.
+  const capture = useApplyCapture({
+    token,
+    job: { job_id: jobId ?? "", source_url: null, company: company ?? null },
+    surface: "other",
+  })
 
   // Template: seed from prop → persisted choice → default. Persist on change so
   // the pick sticks across every export surface.
@@ -356,13 +367,14 @@ export function CVExportView({
             </span>
           )}
           {docxButton}
-          {company && (
+          {company && capture.href && (
             <a
-              href={`https://www.google.com/search?q=${encodeURIComponent(`${company} careers`)}`}
+              href={capture.href}
               target="_blank"
               rel="noopener noreferrer"
               className="cvb-btn"
               title={`Open ${company} careers in a new tab`}
+              onClick={jobId ? capture.onApply : undefined}
             >
               ↗ Open careers
             </a>
@@ -372,6 +384,7 @@ export function CVExportView({
             {pdfBusy ? "Building PDF…" : "Download PDF"}
           </button>
         </div>
+        {jobId ? <ApplyCapturePrompt capture={capture} /> : null}
       </div>
 
       <div className="cvb-pdf-stage">

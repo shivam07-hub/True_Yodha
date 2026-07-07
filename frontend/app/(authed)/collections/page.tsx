@@ -14,13 +14,16 @@ import { CollectionsSurface } from "@/mobile/redesign/collections-surface"
  */
 export default function CollectionsPage() {
   const { token } = useAuth()
-  const { isDesktop } = useViewport()
+  const { mode } = useViewport()
   const router = useRouter()
 
+  // Gate on viewport `mode` (matches the mobile chrome breakpoint). Desktop
+  // has its own saved-jobs surfaces and no chrome link here → send it to the
+  // market, never the legacy /home (which duplicates this view).
   useEffect(() => {
-    if (isDesktop) router.replace("/home")
-  }, [isDesktop, router])
+    if (mode !== "mobile") router.replace("/market")
+  }, [mode, router])
 
-  if (isDesktop) return null
+  if (mode !== "mobile") return null
   return <CollectionsSurface token={token ?? ""} />
 }

@@ -7,9 +7,19 @@ import type { MobileJobRow } from "./job-model"
    SwipeCard — the handoff Jobs feed card: swipe-right = Save, swipe-left =
    Hide, tap = open detail. Reveals Save/Hide rails under the card while
    dragging; commits past a 96px threshold with a fly-out. Ported to the dot.
+
+   The drag is driven IMPERATIVELY (writes transform + rail opacity straight
+   to the DOM per pointermove via refs) so a finger drag never triggers a React
+   re-render of the card subtree — reconciling logo + ring-SVG + chips + buttons
+   at pointer rate is what made the swipe stutter. React state is used only for
+   the commit fly-out lifecycle. Both animated properties stay composite-only
+   (transform + opacity); will-change promotes a layer for the drag and is
+   dropped the moment the card settles.
    ══════════════════════════════════════════════════════════════════════════ */
 
 const CIRC = 103.7 // 2π·16.5 — the 40px card ring
+const THRESH = 96
+const SETTLE = "transform 260ms cubic-bezier(0.32,0.72,0,1)"
 
 export function SwipeCard({
   row,
@@ -30,49 +40,80 @@ export function SwipeCard({
   onShare: () => void
   shared: boolean
 }) {
-  const [dx, setDx] = useState(0)
-  const [axis, setAxis] = useState<"" | "x" | "y">("")
   const [leaving, setLeaving] = useState<"" | "right" | "left">("")
+
+  const cardRef = useRef<HTMLDivElement | null>(null)
+  const saveRailRef = useRef<HTMLDivElement | null>(null)
+  const hideRailRef = useRef<HTMLDivElement | null>(null)
   const start = useRef<{ x: number; y: number } | null>(null)
+  const axis = useRef<"" | "x" | "y">("")
+  const dx = useRef(0)
+  const suppressClick = useRef(false)
+
+  // Write the drag frame straight to the DOM — no setState, no reconcile.
+  const paint = (v: number) => {
+    const card = cardRef.current
+    if (card) card.style.transform = `translateX(${v}px) rotate(${(v * 0.012).toFixed(2)}deg)`
+    if (saveRailRef.current) saveRailRef.current.style.opacity = v > 14 ? String(Math.min(v / THRESH, 1)) : "0"
+    if (hideRailRef.current) hideRailRef.current.style.opacity = v < -14 ? String(Math.min(-v / THRESH, 1)) : "0"
+  }
 
   const commit = (dir: "right" | "left") => {
-    setLeaving(dir)
+    setLeaving(dir) // React paints the fly-out transform/transition once
     setTimeout(() => (dir === "right" ? onSave() : onSkip()), 190)
   }
 
   const onDown = (e: React.PointerEvent) => {
     if (leaving) return
     start.current = { x: e.clientX, y: e.clientY }
-    setAxis("")
+    axis.current = ""
+    dx.current = 0
+    suppressClick.current = false
+    const card = cardRef.current
+    if (card) {
+      card.style.transition = "none"
+      card.style.willChange = "transform"
+    }
   }
+
   const onMove = (e: React.PointerEvent) => {
     if (!start.current || leaving) return
     const ddx = e.clientX - start.current.x
     const ddy = e.clientY - start.current.y
-    let a = axis
-    if (!a) {
+    if (!axis.current) {
       if (Math.abs(ddx) < 8 && Math.abs(ddy) < 8) return
-      a = Math.abs(ddx) > Math.abs(ddy) ? "x" : "y"
-      setAxis(a)
+      axis.current = Math.abs(ddx) > Math.abs(ddy) ? "x" : "y"
+      if (axis.current === "x") suppressClick.current = true
     }
-    if (a === "x") {
+    if (axis.current === "x") {
       e.preventDefault()
-      setDx(ddx)
+      dx.current = ddx
+      paint(ddx)
     }
   }
-  const onUp = () => {
-    if (axis === "x") {
-      if (dx >= 96) return commit("right")
-      if (dx <= -96) return commit("left")
+
+  const settle = () => {
+    const card = cardRef.current
+    if (card) {
+      card.style.transition = SETTLE
+      // drop the promoted layer once the spring-back finishes
+      const drop = () => { card.style.willChange = "auto"; card.removeEventListener("transitionend", drop) }
+      card.addEventListener("transitionend", drop)
     }
-    setDx(0)
-    setAxis("")
+    dx.current = 0
+    paint(0)
+  }
+
+  const onUp = () => {
+    if (axis.current === "x") {
+      if (dx.current >= THRESH) return commit("right")
+      if (dx.current <= -THRESH) return commit("left")
+    }
+    settle()
+    axis.current = ""
     start.current = null
   }
 
-  const shownDx = leaving ? (leaving === "right" ? 560 : -560) : axis === "x" ? dx : 0
-  const rot = +(shownDx * 0.012).toFixed(2)
-  const dragging = axis === "x" && !leaving
   const anim = hint && first ? "mm-peekHint 1.7s cubic-bezier(0.32,0.72,0,1) 0.7s 1" : "mm-screenIn 260ms cubic-bezier(0.16,1,0.3,1) both"
 
   const shareIcon = shared ? (
@@ -83,21 +124,23 @@ export function SwipeCard({
 
   return (
     <div style={{ position: "relative" }}>
-      {/* rails */}
-      <div style={{ position: "absolute", inset: 0, borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "flex-start", padding: "0 18px", background: "var(--mm-accent-wash)", color: "var(--mm-accent)", fontSize: 13, fontWeight: 700, opacity: shownDx > 14 ? Math.min(shownDx / 96, 1) : 0 }}>★ Save</div>
-      <div style={{ position: "absolute", inset: 0, borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "0 18px", background: "rgba(251,113,133,0.09)", color: "#fb7185", fontSize: 13, fontWeight: 700, opacity: shownDx < -14 ? Math.min(-shownDx / 96, 1) : 0 }}>Hide ✕</div>
+      {/* rails — opacity written imperatively during drag; the fly-out keeps the committed rail lit */}
+      <div ref={saveRailRef} style={{ position: "absolute", inset: 0, borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "flex-start", padding: "0 18px", background: "var(--mm-accent-wash)", color: "var(--mm-accent)", fontSize: 13, fontWeight: 700, opacity: leaving === "right" ? 1 : 0 }}>★ Save</div>
+      <div ref={hideRailRef} style={{ position: "absolute", inset: 0, borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "0 18px", background: "rgba(251,113,133,0.09)", color: "#fb7185", fontSize: 13, fontWeight: 700, opacity: leaving === "left" ? 1 : 0 }}>Hide ✕</div>
 
       <div
+        ref={cardRef}
         onPointerDown={onDown}
         onPointerMove={onMove}
         onPointerUp={onUp}
         onPointerCancel={onUp}
-        onClick={() => { if (Math.abs(dx) < 6) onOpen() }}
+        onClick={() => { if (!suppressClick.current) onOpen() }}
         style={{
           position: "relative", background: "#212120", border: "1px solid rgba(255,255,255,0.055)", borderRadius: 16,
           padding: "13px 14px 11px", cursor: "pointer", touchAction: "pan-y", userSelect: "none", WebkitUserSelect: "none",
-          transform: `translateX(${shownDx}px) rotate(${rot}deg)`,
-          transition: dragging ? "none" : "transform 260ms cubic-bezier(0.32,0.72,0,1)",
+          transform: leaving ? `translateX(${leaving === "right" ? 560 : -560}px) rotate(${leaving === "right" ? "6.72" : "-6.72"}deg)` : "translateX(0) rotate(0deg)",
+          transition: leaving ? SETTLE : undefined,
+          willChange: leaving ? "transform" : undefined,
           animation: anim,
         }}
       >

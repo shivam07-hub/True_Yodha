@@ -4,7 +4,8 @@ import * as React from "react"
 import { Heart, X } from "lucide-react"
 import { DetailDrawer } from "@/components/jobs/detail-drawer"
 import { DetailHeader } from "@/components/jobs/detail-header"
-import { useDeadLinkPrompt } from "@/components/jobs/use-dead-link-prompt"
+import { useApplyCapture } from "@/components/jobs/use-apply-capture"
+import { ApplyCapturePrompt } from "@/components/jobs/apply-capture-prompt"
 import { ApplyRow } from "@/components/jobs/apply-row"
 import { DetailBody } from "./detail-body"
 import { LocationLine } from "./lenses"
@@ -46,7 +47,18 @@ export function DashboardJobDrawer({
   onJump: (jobId: string) => void
 }) {
   const job = item.job
-  const dead = useDeadLinkPrompt({ token, jobId: item.jobId, surface: "dashboard" })
+  const capture = useApplyCapture({
+    token,
+    job: { job_id: item.jobId, source_url: job.source_url, company: job.company },
+    surface: "dashboard",
+    // "Find similar" dismisses the confirmed ghost and returns to the fit-ranked
+    // feed — the dead listing gone, the next-best roles in view. (Dismiss can't
+    // fire on the answer itself: it unmounts the drawer before recovery shows.)
+    onFindSimilar: () => {
+      onSkip()
+      onClose()
+    },
+  })
 
   return (
     <DetailDrawer
@@ -64,7 +76,7 @@ export function DashboardJobDrawer({
       }
       footer={
         <div className="db-drawer-foot">
-          {dead.prompt}
+          <ApplyCapturePrompt capture={capture} />
           <div className="db-drawer-foot-row">
             <button
               type="button"
@@ -95,12 +107,12 @@ export function DashboardJobDrawer({
               href={job.source_url}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={dead.markApplied}
+              onClick={capture.onApply}
             >
               Apply ↗
             </a>
           ) : (
-            <ApplyRow company={job.company} title={job.title} jobId={item.jobId} variant="compact" />
+            <ApplyRow company={job.company} title={job.title} jobId={item.jobId} variant="compact" onApply={capture.onApply} />
           )}
         </div>
       }

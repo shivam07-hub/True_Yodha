@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query"
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton"
 import "react-loading-skeleton/dist/skeleton.css"
 import { SettingsModal, type Tab as SettingsTab } from "@/components/settings-modal"
+import { MyroLogo } from "@/components/myro-logo"
 import { jobs as jobsApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
@@ -139,11 +140,7 @@ export function MobileTopBar() {
   return (
     <header className="tm-mobile-topbar mm-root" style={{ alignItems: "center", background: "var(--mm-bg)", borderBottom: "1px solid rgba(255,255,255,0.045)" }}>
       <Link href="/market" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", minWidth: 0 }}>
-        <svg width={22} height={22} viewBox="0 0 22 22" aria-hidden="true">
-          <circle cx="11" cy="11" r="8.6" fill="none" stroke="var(--mm-accent)" strokeWidth="1.6" />
-          <circle cx="11" cy="11" r="4.4" fill="none" stroke="var(--mm-accent)" strokeWidth="1.4" opacity="0.55" />
-          <circle cx="11" cy="11" r="1.7" fill="var(--mm-accent)" />
-        </svg>
+        <MyroLogo size={24} decorative />
         <span style={{ fontSize: 17.5, fontWeight: 700, letterSpacing: "-0.02em", color: "var(--mm-text)" }}>Myro</span>
       </Link>
       <button

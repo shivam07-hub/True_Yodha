@@ -192,10 +192,21 @@ export function PulseRow({ pulse, mobile, bare }: { pulse?: JobPulse; mobile?: b
   const tracking = pulse.tracking_count
   const signal = pulse.response_signal
   const closed = pulse.listing_confidence === "likely_closed" || pulse.listing_confidence === "closed"
+  // The crowd's ghost verdict — the count of users who tried to apply and found
+  // it gone. null = privacy cohort under five, never zero. When present it is the
+  // specific evidence, so it supersedes the generic "may be closed" label.
+  const reportedGone = pulse.quality_report_count != null && pulse.quality_report_count > 0
+    ? pulse.quality_report_count
+    : null
 
   return (
     <div className={`tm-pulse${mobile ? " mobile" : ""}${edge}`}>
-      {closed ? (
+      {reportedGone ? (
+        <span className="tm-pulse-item tm-pulse-warn">
+          <AlertTriangle size={11} aria-hidden style={{ marginRight: 3 }} />
+          {reportedGone} reported gone
+        </span>
+      ) : closed ? (
         <span className="tm-pulse-item tm-pulse-warn">
           <AlertTriangle size={11} aria-hidden style={{ marginRight: 3 }} />
           apply link may be closed

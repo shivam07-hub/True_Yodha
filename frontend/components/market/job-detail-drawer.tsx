@@ -8,7 +8,8 @@ import { ApiError } from "@/lib/api-error"
 import { QUALITY_REASONS } from "@/lib/jobs/feedback"
 import { DetailDrawer } from "@/components/jobs/detail-drawer"
 import { DetailHeader } from "@/components/jobs/detail-header"
-import { useDeadLinkPrompt } from "@/components/jobs/use-dead-link-prompt"
+import { useApplyCapture } from "@/components/jobs/use-apply-capture"
+import { ApplyCapturePrompt } from "@/components/jobs/apply-capture-prompt"
 import { ApplyRow } from "@/components/jobs/apply-row"
 import { MyroTake } from "@/components/jobs/myro-take"
 import { LocationLine, SkillChip } from "./job-card"
@@ -36,13 +37,22 @@ export function JobDetailDrawer({
   const [saved, setSaved] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [assessOpen, setAssessOpen] = useState(false)
-  const dead = useDeadLinkPrompt({ token, jobId: job.job_id, surface: "job_detail" })
+  const capture = useApplyCapture({
+    token,
+    job: { job_id: job.job_id, source_url: job.source_url, company: job.company_name },
+    surface: "job_detail",
+    // The feed is already fit-ranked, so closing back to it IS "similar roles".
+    onFindSimilar: onClose,
+  })
 
   // Confidence drives the trust band (D1). Fall back to the feed's binary
   // is_stale only when no pulse has hydrated yet (pre-backend / cold cards).
   const confidence = pulse?.listing_confidence ?? (job.is_stale ? "uncertain" : "active")
   const concerning = confidence === "uncertain" || confidence === "likely_closed" || confidence === "closed"
   const verifiedDays = daysAgo(pulse?.last_verified_at ?? job.last_seen_at)
+  const reportedGone = pulse?.quality_report_count != null && pulse.quality_report_count > 0
+    ? pulse.quality_report_count
+    : null
 
   const saveAndTailor = () => {
     if (!saved) { onSave(); setSaved(true) }
@@ -64,11 +74,18 @@ export function JobDetailDrawer({
       }
       footer={
         <>
-          {/* Dead-link prompt — highest-value, click-verified capture. */}
-          {dead.prompt}
+          {/* Apply Transport capture — highest-value, click-verified liveness. */}
+          <ApplyCapturePrompt capture={capture} />
 
-          {/* Confidence trust band (D1) — only the earned disclosure carries words. */}
-          {concerning ? (
+          {/* Confidence trust band (D1) — only the earned disclosure carries words.
+              When the crowd has reported it gone, lead with that count: it's the
+              specific, user-verified evidence behind the confidence state. */}
+          {reportedGone ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 24px", fontSize: 12, color: "var(--tm-warning)", borderTop: "1px solid var(--tm-border-soft)", background: "var(--tm-warning-wash)" }}>
+              <span aria-hidden>⚠</span>
+              <span>{reportedGone} {reportedGone === 1 ? "applicant" : "applicants"} reported this listing gone.</span>
+            </div>
+          ) : concerning ? (
             <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 24px", fontSize: 12, color: "var(--tm-warning)", borderTop: "1px solid var(--tm-border-soft)", background: "var(--tm-warning-wash)" }}>
               <span aria-hidden>⚠</span>
               <span>{verifiedDays != null ? `Last verified ${verifiedDays}d ago — ` : ""}apply link may be closed.</span>
@@ -80,9 +97,9 @@ export function JobDetailDrawer({
           <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "16px 24px calc(16px + env(safe-area-inset-bottom))" }}>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {job.source_url ? (
-                <a href={job.source_url} target="_blank" rel="noopener noreferrer" onClick={dead.markApplied} style={{ flex: "1 1 auto", textAlign: "center", padding: "11px 16px", borderRadius: 10, textDecoration: "none", fontWeight: 600, fontSize: 13, background: "var(--tm-interactive)", color: "var(--tm-on-interactive, #fff)" }}>Apply ↗</a>
+                <a href={job.source_url} target="_blank" rel="noopener noreferrer" onClick={capture.onApply} style={{ flex: "1 1 auto", textAlign: "center", padding: "11px 16px", borderRadius: 10, textDecoration: "none", fontWeight: 600, fontSize: 13, background: "var(--tm-interactive)", color: "var(--tm-on-interactive, #fff)" }}>Apply ↗</a>
               ) : (
-                <ApplyRow company={job.company_name} title={job.job_title} jobId={job.job_id} variant="compact" />
+                <ApplyRow company={job.company_name} title={job.job_title} jobId={job.job_id} variant="compact" onApply={capture.onApply} />
               )}
               <button type="button" onClick={() => { if (!saved) { onSave(); setSaved(true); setMsg("Saved to your shortlist") } }} disabled={saved} style={{ padding: "11px 16px", borderRadius: 10, border: "1px solid var(--tm-border-soft)", background: "transparent", color: "var(--tm-text)", fontWeight: 600, fontSize: 13, cursor: saved ? "default" : "pointer" }}>{saved ? "★ Saved" : "★ Save"}</button>
               <button type="button" onClick={() => onToggleFollow()} style={{ padding: "11px 16px", borderRadius: 10, border: `1px solid ${followed ? "var(--tm-interactive)" : "var(--tm-border-soft)"}`, background: followed ? "var(--tm-int-bg-wash)" : "transparent", color: followed ? "var(--tm-interactive)" : "var(--tm-text-muted)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>{followed ? "✓ Heatmap" : "+ Heatmap"}</button>

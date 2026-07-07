@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { careersSearchUrl } from "@/lib/jobs/apply-transport"
 
 interface ApplyRowProps {
   company: string | null | undefined
@@ -11,6 +12,9 @@ interface ApplyRowProps {
   /** Skip the "Open careers" link when the host already surfaces it (e.g. the
    *  export toolbar) — leaves only the copy-ID / copy-title helpers. */
   hideCareers?: boolean
+  /** Arm the dead-link capture when the user leaves to apply (careers search).
+   *  No-URL listings are the likeliest ghosts, so this path must ask too. */
+  onApply?: () => void
 }
 
 /**
@@ -23,10 +27,8 @@ interface ApplyRowProps {
  *
  * Defensible posture: we do not host or surface scraped JD URLs.
  */
-export function ApplyRow({ company, title, jobId, variant = "compact", hideCareers = false }: ApplyRowProps) {
-  const careersHref = company && !hideCareers
-    ? `https://www.google.com/search?q=${encodeURIComponent(`${company} careers`)}`
-    : null
+export function ApplyRow({ company, title, jobId, variant = "compact", hideCareers = false, onApply }: ApplyRowProps) {
+  const careersHref = hideCareers ? null : careersSearchUrl(company)
 
   const isBlock = variant === "block"
   const baseBtn: React.CSSProperties = {
@@ -53,6 +55,7 @@ export function ApplyRow({ company, title, jobId, variant = "compact", hideCaree
           href={careersHref}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={onApply}
           style={{ ...baseBtn, color: "var(--tm-interactive)", borderColor: "var(--tm-int-border)" }}
           title={`Open ${company} careers in a new tab`}
         >

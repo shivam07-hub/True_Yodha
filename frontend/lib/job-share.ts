@@ -1,12 +1,12 @@
+import { careersSearchUrl } from "@/lib/jobs/apply-transport"
+
 /** Locked share copy — sent with the job's careers link via the Web Share sheet. */
 export const JOB_SHARE_TEXT =
   "Hey, found this job on Himyro career portal, where all the company career pages are tracked and shared according to your resume"
 
-/** Careers link mirrors the ApplyRow heuristic — Google search "{company} careers". */
+/** Careers link = the shared Apply Transport careers-search primitive. */
 export function careersUrl(company: string | null | undefined): string | null {
-  return company
-    ? `https://www.google.com/search?q=${encodeURIComponent(`${company} careers`)}`
-    : null
+  return careersSearchUrl(company)
 }
 
 /**

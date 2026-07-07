@@ -30,6 +30,7 @@ export function JobDetailSheet({
   onTailor,
   onApply,
   onPractice,
+  captureSlot,
 }: {
   open: boolean
   onClose: () => void
@@ -39,6 +40,8 @@ export function JobDetailSheet({
   onTailor: () => void
   onApply: () => void
   onPractice: (skill: string) => void
+  /** Apply Transport liveness band — rendered above the footer after an apply. */
+  captureSlot?: React.ReactNode
 }) {
   if (!data) return <BottomSheet open={open} onClose={onClose} label="Job detail" maxHeight="88%"><div /></BottomSheet>
   const { row, whyFit, matched, gaps, saved, hasApply } = data
@@ -106,6 +109,8 @@ export function JobDetailSheet({
           </div>
         )}
       </div>
+
+      {captureSlot ? <div style={{ flex: "none", padding: "0 16px", background: "#232322" }}>{captureSlot}</div> : null}
 
       <div style={{ flex: "none", display: "flex", gap: 8, padding: "11px 16px 16px", borderTop: "1px solid rgba(255,255,255,0.055)", background: "#232322" }}>
         <button onClick={onHeart} aria-label="Save" className="mm-press-sm" style={footBtn}>
