@@ -314,8 +314,6 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
           pulse={pulses.get(openJob.job_id)}
           token={token}
           onClose={() => setOpenJob(null)}
-          followed={openJob.company_name ? followedNames.includes(openJob.company_name) : false}
-          onToggleFollow={() => openJob.company_name && onToggleFollow(openJob.company_name)}
           onSave={() => { onSave(openJob); setOpenJob(null) }}
         />
       ) : null}
