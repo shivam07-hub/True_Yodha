@@ -92,6 +92,25 @@ def _clusters_for_titles(titles: list[str]) -> list[str]:
     return clusters[:_MAX_ROLE_CLUSTERS]
 
 
+def role_title_updates(role_titles: list[str]) -> dict[str, Any]:
+    """Derived column set for a target-titles edit — the write-anywhere half of
+    `save_target` (no onboarding state patch, no location rewrite, no enqueue).
+
+    Titles are the source-of-record (`target_role_titles`); `target_role_title`
+    stays the primary = titles[0]; `target_roles` (taxonomy clusters, the matcher
+    read model) is ALWAYS derived here — a surface writing titles through this
+    helper cannot desync the cluster union. Empty input clears all three.
+    """
+    titles = _normalize_role_titles(None, role_titles)
+    if not titles:
+        return {"target_role_title": None, "target_role_titles": [], "target_roles": []}
+    return {
+        "target_role_title": titles[0],
+        "target_role_titles": titles,
+        "target_roles": _clusters_for_titles(titles),
+    }
+
+
 def save_target(
     db: Client,
     user_id: str,
@@ -128,10 +147,8 @@ def save_target(
     users_repo.update_profile(
         user_id,
         {
-            "target_role_title": titles[0],
-            "target_role_titles": titles,
+            **role_title_updates(titles),
             "target_seniority": seniority,
-            "target_roles": _clusters_for_titles(titles),
             "target_locations": [location.strip()] if location else [],
         },
     )

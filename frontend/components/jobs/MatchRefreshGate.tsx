@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import Link from "next/link"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
-import { users, type UserProfile } from "@/lib/api"
+import { jobs, users, type RefreshPreflightResponse, type UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
 import { useCoinsGate } from "@/lib/hooks/use-xp-gate"
@@ -15,8 +15,12 @@ import { useRefreshGateStore } from "@/store/refreshGateStore"
 /**
  * MatchRefreshGate — the consent + targeting-review gate for "Refresh matches".
  *
- * Design record (grilled 2026-05-30):
+ * Design record (grilled 2026-05-30; Targeting Brief 2026-07-07):
  *  - Persists edits to the CANONICAL profile (single source of truth).
+ *  - Seeds from GET /jobs/refresh/preflight (the Targeting Brief): empty
+ *    fields arrive silently prefilled from user_memory; prefill lives in the
+ *    DRAFT and persists only through the user's Run/Save action. Role chips
+ *    are human TITLES — the backend derives the matcher's cluster union.
  *  - The 6 Career Ops agent inputs are VISIBLE by default as a compact
  *    manifest; 5 are inline-editable, the CV is a read-only chip → new tab.
  *  - Honest conditional charge: "Up to 150 tokens · charged only if new matches".
@@ -36,6 +40,7 @@ const COST = MYRO_COINS_POLICY.matchRefreshCost
 type GateProfile = Pick<
   UserProfile,
   | "target_roles"
+  | "target_role_titles"
   | "target_location"
   | "deal_breakers"
   | "career_goal"
@@ -62,12 +67,27 @@ interface MatchRefreshGateProps {
 const MAX_CHIPS = 6
 
 function seed(p?: GateProfile | null): Draft {
+  // Role chips are the user's own TITLES (source of record); raw target_roles
+  // (taxonomy clusters) only for pre-Phase-0 rows that never stored titles.
+  const titles = (p?.target_role_titles ?? []).filter((r) => r.trim())
   return {
-    roles: (p?.target_roles ?? []).filter((r) => r.trim()),
+    roles: titles.length ? titles : (p?.target_roles ?? []).filter((r) => r.trim()),
     location: p?.target_location ?? "",
     dealBreakers: (p?.deal_breakers ?? []).filter((d) => d.trim()),
     careerGoal: p?.career_goal ?? "",
     superpower: p?.superpower ?? "",
+  }
+}
+
+/** The Targeting Brief's gap-filled manifest → draft. Same shape as seed();
+ *  empty fields arrive silently prefilled from the user's memory facts. */
+function seedFromPreflight(pf: RefreshPreflightResponse): Draft {
+  return {
+    roles: pf.role_titles,
+    location: pf.location ?? "",
+    dealBreakers: pf.deal_breakers,
+    careerGoal: pf.career_goal ?? "",
+    superpower: pf.superpower ?? "",
   }
 }
 
@@ -95,16 +115,36 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
   const [draft, setDraft] = useState<Draft>(() => seed(profile))
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
+  const touched = useRef(false)
 
   const dialogRef = useRef<HTMLDivElement>(null)
 
+  /* Targeting Brief manifest — profile fields gap-filled from user_memory.
+     Fail-soft: while loading / on error the gate runs on the raw profile. */
+  const { data: preflight } = useQuery({
+    queryKey: ["refreshPreflight"],
+    queryFn: () => jobs.refreshPreflight(token!),
+    enabled: open && !!token,
+    staleTime: 0,
+  })
+
   const base = useMemo(() => seed(profile), [profile])
-  const dirty =
-    !eqArr(draft.roles, base.roles) ||
-    draft.location !== base.location ||
-    !eqArr(draft.dealBreakers, base.dealBreakers) ||
-    draft.careerGoal !== base.careerGoal ||
-    draft.superpower !== base.superpower
+  const briefSeed = useMemo(
+    () => (preflight ? seedFromPreflight(preflight) : base),
+    [preflight, base],
+  )
+  const draftEq = (a: Draft, b: Draft) =>
+    eqArr(a.roles, b.roles) &&
+    a.location === b.location &&
+    eqArr(a.dealBreakers, b.dealBreakers) &&
+    a.careerGoal === b.careerGoal &&
+    a.superpower === b.superpower
+
+  // dirty = needs persisting (vs stored profile) — memory prefill counts, so
+  // Run/Save writes it through. userDirty = the user actually edited — only
+  // that earns a discard-confirm.
+  const dirty = !draftEq(draft, base)
+  const userDirty = !draftEq(draft, briefSeed)
 
   /* Re-seed the staging buffer each time the gate opens. */
   useEffect(() => {
@@ -112,9 +152,17 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
       setDraft(seed(profile))
       setConfirming(false)
       setBusy(false)
+      touched.current = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
+
+  /* Silent prefill: when the brief lands and the user hasn't typed yet, the
+     gap-filled manifest replaces the raw-profile seed in place. */
+  useEffect(() => {
+    if (open && preflight && !touched.current) setDraft(seedFromPreflight(preflight))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, preflight])
 
   /* Autofocus the primary action (power-user: click → Enter). */
   useEffect(() => {
@@ -129,8 +177,10 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
   const saveMutation = useMutation({
     mutationFn: () => {
       if (!token) throw new Error("Not signed in.")
+      // Titles, not clusters: the backend derives the target_roles cluster
+      // union from target_role_titles (one writer — see role_title_updates).
       return users.updateProfile(token, {
-        target_roles: draft.roles,
+        target_role_titles: draft.roles,
         target_location: draft.location.trim() || null,
         deal_breakers: draft.dealBreakers,
         career_goal: draft.careerGoal.trim() || null,
@@ -148,10 +198,11 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
 
   /* ── Exits ──────────────────────────────────────────────────────────── */
 
-  // Esc / click-outside / × / Discard
+  // Esc / click-outside / × / Discard — only USER edits earn a confirm;
+  // Myro's own memory prefill is never worth nagging about.
   const requestClose = () => {
     if (busy) return
-    if (dirty && !confirming) {
+    if (userDirty && !confirming) {
       setConfirming(true)
       return
     }
@@ -189,14 +240,17 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
   const addChip = (key: "roles" | "dealBreakers", value: string) => {
     const v = value.trim()
     if (!v) return
+    touched.current = true
     setDraft((d) => {
       const list = d[key]
       if (list.length >= MAX_CHIPS || list.some((x) => x.toLowerCase() === v.toLowerCase())) return d
       return { ...d, [key]: [...list, v] }
     })
   }
-  const removeChip = (key: "roles" | "dealBreakers", i: number) =>
+  const removeChip = (key: "roles" | "dealBreakers", i: number) => {
+    touched.current = true
     setDraft((d) => ({ ...d, [key]: d[key].filter((_, idx) => idx !== i) }))
+  }
 
   const cv = cvLabel(profile)
   const cvHref = profile?.cv_url || "/cv"
@@ -279,7 +333,7 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
           <ManifestRow n={2} label="Location">
             <TextField
               value={draft.location} placeholder="e.g. Bengaluru / Remote"
-              onChange={(v) => setDraft((d) => ({ ...d, location: v }))}
+              onChange={(v) => { touched.current = true; setDraft((d) => ({ ...d, location: v })) }}
             />
           </ManifestRow>
 
@@ -294,14 +348,14 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
           <ManifestRow n={4} label="Career goal">
             <TextField
               value={draft.careerGoal} placeholder="e.g. move into platform work in 2 years"
-              onChange={(v) => setDraft((d) => ({ ...d, careerGoal: v }))}
+              onChange={(v) => { touched.current = true; setDraft((d) => ({ ...d, careerGoal: v })) }}
             />
           </ManifestRow>
 
           <ManifestRow n={5} label="Superpower">
             <TextField
               value={draft.superpower} placeholder="e.g. untangling legacy systems"
-              onChange={(v) => setDraft((d) => ({ ...d, superpower: v }))}
+              onChange={(v) => { touched.current = true; setDraft((d) => ({ ...d, superpower: v })) }}
             />
           </ManifestRow>
 
@@ -324,6 +378,20 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
               <span aria-hidden style={{ opacity: 0.6 }}>↗</span>
             </a>
           </ManifestRow>
+
+          {/* Memory — honesty line for the full-brief prompt: the agent also
+              reads the user's memory facts, not just the rows above. */}
+          {(preflight?.memory_count ?? 0) > 0 && (
+            <ManifestRow n={7} label="Memory">
+              <span style={{
+                display: "inline-block", padding: "8px 0",
+                fontSize: 12.5, color: "var(--tm-text-muted)",
+                fontFamily: "var(--tm-font-mono)", letterSpacing: "0.01em",
+              }}>
+                {preflight!.memory_count} notes · read by the agent
+              </span>
+            </ManifestRow>
+          )}
         </div>
 
         {/* ── Consent readout (extractable core) ───────────────────────── */}

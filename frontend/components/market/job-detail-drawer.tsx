@@ -23,14 +23,12 @@ import { ShareJobButton } from "./share-job-button"
  * tailor now" is the one-tap bridge into the build stage.
  */
 export function JobDetailDrawer({
-  job, pulse, token, onClose, followed, onToggleFollow, onSave,
+  job, pulse, token, onClose, onSave,
 }: {
   job: JobFeedItem
   pulse?: JobPulse
   token: string
   onClose: () => void
-  followed: boolean
-  onToggleFollow: () => void
   onSave: () => void
 }) {
   const router = useRouter()
@@ -54,9 +52,11 @@ export function JobDetailDrawer({
     ? pulse.quality_report_count
     : null
 
+  // Capture the save, then cross straight into the build stage for THIS job —
+  // /cv?jobId opens the tailoring playground (not the generic home).
   const saveAndTailor = () => {
     if (!saved) { onSave(); setSaved(true) }
-    router.push("/home")
+    router.push(`/cv?jobId=${encodeURIComponent(job.job_id)}`)
   }
 
   return (
@@ -90,25 +90,29 @@ export function JobDetailDrawer({
               <span aria-hidden>⚠</span>
               <span>{verifiedDays != null ? `Last verified ${verifiedDays}d ago — ` : ""}apply link may be closed.</span>
             </div>
+          ) : verifiedDays != null ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 24px", fontSize: 12, color: "var(--tm-text-muted)", borderTop: "1px solid var(--tm-border-soft)" }}>
+              <span aria-hidden>✓</span>
+              <span>Verified {verifiedDays === 0 ? "today" : `${verifiedDays}d ago`}</span>
+            </div>
           ) : null}
 
           {msg ? <div style={{ padding: "10px 24px", fontSize: 12, color: "var(--tm-text-muted)", borderTop: "1px solid var(--tm-border-soft)" }}>{msg}</div> : null}
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "16px 24px calc(16px + env(safe-area-inset-bottom))" }}>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {/* PRIMARY — tailor a CV for THIS job, Myro's core value. One tap
+                  captures the save and crosses into the build stage. */}
+              <button type="button" onClick={saveAndTailor} style={{ flex: "1 1 auto", textAlign: "center", padding: "11px 16px", borderRadius: 10, border: "none", fontWeight: 600, fontSize: 13, background: "var(--tm-interactive)", color: "var(--tm-on-interactive, #fff)", cursor: "pointer" }}>Tailor now →</button>
+              {/* SECONDARY — apply on the source site (outline, not the accent). */}
               {job.source_url ? (
-                <a href={job.source_url} target="_blank" rel="noopener noreferrer" onClick={capture.onApply} style={{ flex: "1 1 auto", textAlign: "center", padding: "11px 16px", borderRadius: 10, textDecoration: "none", fontWeight: 600, fontSize: 13, background: "var(--tm-interactive)", color: "var(--tm-on-interactive, #fff)" }}>Apply ↗</a>
+                <a href={job.source_url} target="_blank" rel="noopener noreferrer" onClick={capture.onApply} style={{ padding: "11px 16px", borderRadius: 10, textDecoration: "none", fontWeight: 600, fontSize: 13, border: "1px solid var(--tm-border-soft)", background: "transparent", color: "var(--tm-text)" }}>Apply ↗</a>
               ) : (
                 <ApplyRow company={job.company_name} title={job.job_title} jobId={job.job_id} variant="compact" onApply={capture.onApply} />
               )}
               <button type="button" onClick={() => { if (!saved) { onSave(); setSaved(true); setMsg("Saved to your shortlist") } }} disabled={saved} style={{ padding: "11px 16px", borderRadius: 10, border: "1px solid var(--tm-border-soft)", background: "transparent", color: "var(--tm-text)", fontWeight: 600, fontSize: 13, cursor: saved ? "default" : "pointer" }}>{saved ? "★ Saved" : "★ Save"}</button>
-              <button type="button" onClick={() => onToggleFollow()} style={{ padding: "11px 16px", borderRadius: 10, border: `1px solid ${followed ? "var(--tm-interactive)" : "var(--tm-border-soft)"}`, background: followed ? "var(--tm-int-bg-wash)" : "transparent", color: followed ? "var(--tm-interactive)" : "var(--tm-text-muted)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>{followed ? "✓ Heatmap" : "+ Heatmap"}</button>
               <ShareJobButton job={job} variant="drawer" />
             </div>
-            {/* The build-stage bridge — one tap to capture + cross over to tailoring. */}
-            <button type="button" onClick={saveAndTailor} style={{ alignSelf: "flex-start", background: "none", border: "none", padding: 0, color: "var(--tm-interactive)", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
-              Save &amp; tailor now →
-            </button>
             <ReportProblem token={token} jobId={job.job_id} />
           </div>
         </>

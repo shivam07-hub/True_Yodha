@@ -68,7 +68,7 @@ export function TriageButtons({ job, onSave, onSkip }: { job: JobFeedItem; onSav
         onClick={e => { e.stopPropagation(); onSkip() }}
         className="tm-triage-btn tm-triage-skip"
       >
-        <span aria-hidden>✕</span> Not interested
+        <span aria-hidden>✕</span> Skip
       </button>
       <button
         type="button"

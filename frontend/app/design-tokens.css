@@ -193,6 +193,20 @@
   --tm-shadow-2:      0 8px 24px rgba(0, 0, 0, 0.32), 0 1px 2px rgba(0, 0, 0, 0.4);
   --tm-shadow-glow:   0 0 24px 0 var(--tm-accent-glow);
 
+  /* ── Deep-field (dark surface) ───────────────────────────────
+     The "vast space" plane behind the whole app — Myrology's depth
+     translated to the Engine's own palette. Star ink is the warm
+     text hue (never pure white), the aurora is the Engine teal as
+     sky-light, the ember is the warm-dark brand undertone. Static
+     by design: depth comes from layering, never motion. Consumed
+     by body::before below; light surface turns the layer off. */
+  --tm-depth-star-near: rgba(236, 230, 221, 0.50);
+  --tm-depth-star-far:  rgba(236, 230, 221, 0.25);
+  --tm-depth-star-teal: rgba(0, 245, 212, 0.38);
+  --tm-depth-aurora:    rgba(0, 245, 212, 0.10);
+  --tm-depth-ember:     rgba(255, 148, 77, 0.08);
+  --tm-depth-vignette:  rgba(0, 0, 0, 0.60);
+
   /* ── Brand + interactive split (PR1) ───────────────────────
      Brand is reserved for rare moments (completion/logo).
      Interactive owns CTAs/links/focus by default.
@@ -475,6 +489,15 @@ html, body {
   background: var(--tm-bg);
   background-attachment: fixed;
   color:      var(--tm-text);
+}
+/* The deep-field mounts on body::before at z:-1, which paints BEFORE
+   in-flow block backgrounds — an opaque body bg would cover it. The
+   canvas color lives on html (also handles overscroll); body stays
+   transparent so the field shows through. */
+body {
+  background: transparent;
+}
+html, body {
   font-family: var(--tm-font-sans);
   font-size:   var(--tm-fs-body);
   line-height: var(--tm-lh-body);
@@ -482,7 +505,43 @@ html, body {
   text-rendering: optimizeLegibility;
 }
 
+/* ── Deep-field layer (dark surface only) ───────────────────
+   Fixed pseudo-plane behind all content. Paint order top→bottom:
+   vignette (centers the lit work plane) → teal aurora (high) →
+   warm ember (low) → four tiled star layers. Prime-ish tile sizes
+   so the repeat never reads as a grid; ~50 stars per viewport,
+   alpha ≤ 0.30 — subliminal, noticed only when looked for.
+   One paint at load, zero JS, nothing animates. */
 body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(120% 95% at 50% 34%, transparent 45%, var(--tm-depth-vignette) 100%),
+    radial-gradient(85% 55% at 50% -12%, var(--tm-depth-aurora), transparent 62%),
+    radial-gradient(70% 55% at 8% 110%, var(--tm-depth-ember), transparent 65%),
+    radial-gradient(2.2px 2.2px at 64% 46%, var(--tm-depth-star-teal), transparent),
+    radial-gradient(1.6px 1.6px at 18% 27%, var(--tm-depth-star-near), transparent),
+    radial-gradient(1.4px 1.4px at 73% 64%, var(--tm-depth-star-near), transparent),
+    radial-gradient(1.2px 1.2px at 41% 82%, var(--tm-depth-star-far), transparent),
+    radial-gradient(1px 1px at 86% 13%, var(--tm-depth-star-far), transparent),
+    radial-gradient(1px 1px at 31% 8%, var(--tm-depth-star-far), transparent);
+  background-size:
+    100% 100%,
+    100% 100%,
+    100% 100%,
+    733px 733px,
+    547px 547px,
+    419px 419px,
+    341px 341px,
+    223px 223px,
+    173px 173px;
+  background-repeat: no-repeat, no-repeat, no-repeat, repeat, repeat, repeat, repeat, repeat, repeat;
+}
+/* Paper stays paper — the deep-field is a dark-brand asset. */
+:root[data-surface="light"] body::before {
   display: none;
 }
 

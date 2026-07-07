@@ -5,10 +5,13 @@ from collections.abc import AsyncIterator
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 
-from app.deps import Principal, get_principal
+from supabase import Client
+
+from app.deps import Principal, get_principal, get_user_db
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.schemas import (
     JobMatchesResponse,
+    RefreshPreflightResponse,
     RefreshStateResponse,
     RefreshTicketResponse,
     UserSkillDemandResponse,
@@ -17,7 +20,7 @@ from app.schemas.jobs import MatchBrainResult
 from app.services import jobs_workflow, progress_stream
 from app.services.job_refresh import JobRefresh
 from app.services.llm_provider import LLMProvider, get_interactive_provider
-from app.services.matching import on_demand
+from app.services.matching import on_demand, targeting
 
 from ._shared import last_monday, to_job_match
 
@@ -129,6 +132,18 @@ async def start_job_refresh(
         new_coin_balance=ticket.new_coin_balance,
         matches_written=ticket.matches_written,
     )
+
+
+@router.get("/refresh/preflight", response_model=RefreshPreflightResponse)
+def get_refresh_preflight(
+    principal: Principal = Depends(get_principal),
+    db: Client = Depends(get_user_db),
+) -> RefreshPreflightResponse:
+    """Targeting Brief manifest for the pre-flight modal — profile columns
+    gap-filled from user_memory. Declared BEFORE /refresh/{ticket_id} so
+    "preflight" is never captured as a ticket id."""
+    brief = targeting.for_preflight(db, principal.id)
+    return RefreshPreflightResponse(**brief.preflight())
 
 
 @router.get("/refresh/{ticket_id}", response_model=RefreshStateResponse)

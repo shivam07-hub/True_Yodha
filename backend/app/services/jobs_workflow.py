@@ -10,7 +10,7 @@ from app.repositories.jobs import JobsRepository
 from app.repositories.scores import ScoresRepository
 from app.services import job_importer, llm_ranker
 from app.services.llm_provider import LLMProvider
-from app.services.matching import ranking
+from app.services.matching import ranking, targeting
 from app.services.scoring.aspirations import fetch_aspiration_skills
 
 logger = logging.getLogger(__name__)
@@ -253,7 +253,8 @@ async def compute_job_matches(
         for row in skill_rows
         if row.get("skills")
     }
-    profile = repo.get_user_profile_targeting(user_id)
+    # Targeting Brief: profile columns + user_memory facts (known_facts) in one read.
+    profile = targeting.for_ranking(repo, user_id).ranking_profile()
     if hasattr(repo, "get_latest_baseline_id"):
         profile["baseline_version_id"] = repo.get_latest_baseline_id(user_id)
     target_roles_count = len(profile.get("target_roles") or [])

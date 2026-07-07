@@ -511,6 +511,14 @@
   background: var(--tm-surface);
   border-bottom: 1px solid var(--tm-border-soft);
 }
+/* Deep-field chrome: on dark the bar frosts over the starfield instead of
+   painting an opaque slab — content slides under glass. Light keeps the
+   opaque paper bar. */
+:root:not([data-surface="light"]) .tm-app-topbar {
+  background: color-mix(in srgb, var(--tm-bg) 76%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(1.15);
+  backdrop-filter: blur(14px) saturate(1.15);
+}
 
 .tm-topbar-brand {
   display: inline-flex;

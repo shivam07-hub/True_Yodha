@@ -91,12 +91,14 @@ export function AuthPageShell({ title, subtitle, children, footerCopy, aside }: 
   )
 
   return (
+    // No own background — the page canvas (html) + deep-field layer
+    // (body::before, dark only) paint behind; an opaque fill here
+    // would occlude the field.
     <main style={{
       minHeight: "100dvh",
       display: "flex",
       flexDirection: "column",
       position: "relative",
-      background: "var(--tm-bg)",
     }}>
       <div style={{
         flex: 1,

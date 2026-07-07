@@ -511,6 +511,25 @@ async def rank_one(profile, cv_markdown, job, provider) -> eval | None
 
 ---
 
+## Targeting Brief
+
+The single read for "what Myro knows about what this user wants" — one module (`app/services/matching/targeting.py`) assembles the confirmed `user_profiles` targeting columns AND the `user_memory` fact store (authored + distilled) so no consumer re-assembles its own subset.
+
+**Two constructors, two halves**
+
+- `for_ranking(jobs_repo, user_id)` → `ranking_profile()`: the dict the matcher + Career Ops prompt consume — columns passed through untouched, memory riding as `known_facts` (the key intent-chat established). `llm_ranker.build_system_prompt` renders it as the "What Myro remembers about this candidate" block.
+- `for_preflight(db, user_id)` → `preflight()`: the "Refresh your matches" pre-flight manifest (`GET /jobs/refresh/preflight`) — empty fields gap-filled from memory facts (`deal_breakers` ← constraint/work_mode, `career_goal` ← aspiration), with a `prefilled` provenance map and `memory_count`.
+
+**Invariants**
+
+- **Fill-empty-only.** A user-entered column value is never overwritten by memory — even a junk one; the modal is where the user fixes it.
+- **Prefill is draft-only.** Silent prefill lands in the modal's staging buffer; persistence happens only through the user's Run/Save action, so the distiller's propose-only lock on profile columns holds.
+- **Role titles are the one write vocabulary.** The modal edits human titles; `onboarding_service.role_title_updates(titles)` is the single derivation of the `target_roles` cluster union (shared by `save_target`, intent-chat, and `PUT /users/me/profile` when `target_role_titles` is sent). A surface can no longer desync titles from the matcher read model.
+- **Memory is fail-soft.** `list_active` degrades to `[]` (safe_read); a repo without a client (test fakes) carries no facts. Matching never breaks on the memory layer.
+- The module is the test surface (`test_targeting_brief.py`): fact→field mapping, the prompt block, and title derivation are tested once, not through each router.
+
+---
+
 ## FilterSpec
 
 The one structured filter vocabulary for "what jobs to search for". Before it, that intent was expressed three incompatible ways — the NL parser dict, the authed feed's long `feed_jobs(**kwargs)`, and the intent-chat diff. `FilterSpec` (`app/services/matching/filter_spec.py`) is a frozen dataclass every producer maps into and every query surface reads out of.
