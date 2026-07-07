@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { careersSearchUrl } from "@/lib/jobs/apply-transport"
 
 interface ApplyRowProps {
   company: string | null | undefined
@@ -27,9 +28,7 @@ interface ApplyRowProps {
  * Defensible posture: we do not host or surface scraped JD URLs.
  */
 export function ApplyRow({ company, title, jobId, variant = "compact", hideCareers = false, onApply }: ApplyRowProps) {
-  const careersHref = company && !hideCareers
-    ? `https://www.google.com/search?q=${encodeURIComponent(`${company} careers`)}`
-    : null
+  const careersHref = hideCareers ? null : careersSearchUrl(company)
 
   const isBlock = variant === "block"
   const baseBtn: React.CSSProperties = {

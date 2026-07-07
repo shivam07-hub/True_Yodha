@@ -8,8 +8,10 @@ import { dataKeys } from "@/lib/domain-data"
 import { DEFAULT_FILTERS } from "@/components/market/feed-types"
 import { useJobFeed } from "@/components/market/use-job-feed"
 import { IntentChat } from "@/components/jobs/intent-chat"
+import { useApplyCapture } from "@/components/jobs/use-apply-capture"
 import { BottomSheet } from "./bottom-sheet"
 import { JobDetailSheet, type JobDetailData } from "./job-detail-sheet"
+import { ApplyCapturePromptMobile } from "./apply-capture-prompt"
 import { SwipeCard } from "./swipe-card"
 import { feedItemToRow } from "./job-model"
 import { useMobileUI } from "./mobile-ui"
@@ -50,6 +52,14 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
 
   const rows = useMemo(() => filtered.map(feedItemToRow), [filtered])
   const detailItem = detailId ? allJobs.find(j => j.job_id === detailId) ?? null : null
+  // Apply Transport — arms the liveness capture whenever the user leaves to
+  // apply from the detail sheet; careers-search fallback when no portal link.
+  const applyCapture = useApplyCapture({
+    token,
+    job: { job_id: detailItem?.job_id ?? "", source_url: detailItem?.source_url ?? null, company: detailItem?.company_name ?? null },
+    surface: "job_detail",
+    onFindSimilar: () => setDetailId(null),
+  })
 
   const locationLabel = targetLocations.find(l => l && l.trim())?.trim() ?? ""
   const countLine = `${filtered.length} of ${total || filtered.length} live${locationLabel ? ` · ${locationLabel}` : ""}`
@@ -72,7 +82,10 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
     snack({ msg: "Link copied" })
   }
   const doTailor = (jobId: string) => { setDetailId(null); router.push(`/cv/tailor?jobId=${encodeURIComponent(jobId)}`) }
-  const doApply = (job: JobFeedItem) => { if (job.source_url) window.open(job.source_url, "_blank", "noopener"); else snack({ msg: "No apply link on this listing" }) }
+  const doApply = () => {
+    if (applyCapture.target.url) applyCapture.open()
+    else snack({ msg: "No apply link on this listing" })
+  }
 
   const detailData: JobDetailData | null = detailItem
     ? {
@@ -81,7 +94,7 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
         matched: detailItem.matched_skills ?? [],
         gaps: (detailItem.skills ?? []).filter(s => !(detailItem.matched_skills ?? []).includes(s)),
         saved: false,
-        hasApply: !!detailItem.source_url,
+        hasApply: !!applyCapture.target.url,
       }
     : null
 
@@ -157,8 +170,9 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
         onHeart={() => detailItem && doSave(detailItem, true)}
         onSkip={() => detailItem && doSkip(detailItem, true)}
         onTailor={() => detailItem && doTailor(detailItem.job_id)}
-        onApply={() => detailItem && doApply(detailItem)}
+        onApply={doApply}
         onPractice={() => { setDetailId(null); openPractice() }}
+        captureSlot={detailItem ? <ApplyCapturePromptMobile capture={applyCapture} /> : null}
       />
 
       <FiltersSheet

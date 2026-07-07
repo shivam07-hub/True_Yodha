@@ -6,8 +6,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { jobs as jobsApi, type ApplicationResponse } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { synthMatch } from "@/lib/dashboard/feed-model"
+import { useApplyCapture } from "@/components/jobs/use-apply-capture"
 import { BottomSheet } from "./bottom-sheet"
 import { JobDetailSheet, type JobDetailData } from "./job-detail-sheet"
+import { ApplyCapturePromptMobile } from "./apply-capture-prompt"
 import { matchToRow, type MobileJobRow } from "./job-model"
 import { useMobileUI } from "./mobile-ui"
 
@@ -19,6 +21,8 @@ import { useMobileUI } from "./mobile-ui"
    ══════════════════════════════════════════════════════════════════════════ */
 
 const CIRC = 103.7
+const JOURNEY_DISMISS_KEY = "mm_collections_journey_dismissed_at"
+const JOURNEY_RESURFACE_MS = 7 * 24 * 60 * 60 * 1000 // re-teach the loop after 7 days away
 
 type ChipKey = "all" | "found" | "added" | "applied"
 
@@ -44,6 +48,15 @@ export function CollectionsSurface({ token }: { token: string }) {
   const [addOpen, setAddOpen] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [journeyHidden, setJourneyHidden] = useState(() => {
+    if (typeof window === "undefined") return false
+    const at = Number(window.localStorage.getItem(JOURNEY_DISMISS_KEY))
+    return at > 0 && Date.now() - at < JOURNEY_RESURFACE_MS
+  })
+  const dismissJourney = () => {
+    setJourneyHidden(true)
+    try { window.localStorage.setItem(JOURNEY_DISMISS_KEY, String(Date.now())) } catch { /* ignore */ }
+  }
 
   const apps = useMemo(() => appsQ.data ?? [], [appsQ.data])
   const fitMap = useMemo(() => {
@@ -69,6 +82,12 @@ export function CollectionsSurface({ token }: { token: string }) {
   const tailoredN = apps.filter(a => a.cv_badge).length
 
   const detailApp = detailId ? apps.find(a => a.job_id === detailId) ?? null : null
+  const applyCapture = useApplyCapture({
+    token,
+    job: { job_id: detailApp?.job_id ?? "", source_url: detailApp?.source_url ?? null, company: detailApp?.company ?? null },
+    surface: "other",
+    onFindSimilar: () => { setDetailId(null); router.push("/market") },
+  })
 
   const remove = useMutation({
     mutationFn: (jobId: string) => jobsApi.removeTrackerJob(token, jobId),
@@ -108,7 +127,7 @@ export function CollectionsSurface({ token }: { token: string }) {
           matched: detailApp.matched_skills ?? [],
           gaps: detailApp.missing_skills ?? [],
           saved: true,
-          hasApply: !!detailApp.source_url,
+          hasApply: !!applyCapture.target.url,
         }
       })()
     : null
@@ -128,13 +147,18 @@ export function CollectionsSurface({ token }: { token: string }) {
         </div>
 
         {/* journey strip */}
-        <div style={{ display: "flex", alignItems: "stretch", gap: 0, marginTop: 10, background: "#212120", border: "1px solid rgba(255,255,255,0.055)", borderRadius: 13, padding: "9px 6px" }}>
-          <JourneyStep label="Browse" sub={`${matchesQ.data?.total ?? "—"} live`} onClick={() => router.push("/market")} done />
-          <span style={{ alignSelf: "center", color: "#4a4a45", fontSize: 11 }}>›</span>
-          <JourneyStep label="Collect" sub={`${counts.all} saved`} done />
-          <span style={{ alignSelf: "center", color: "#4a4a45", fontSize: 11 }}>›</span>
-          <JourneyStep label="Tailor" sub="the goal" onClick={() => router.push("/cv")} accent={tailoredN} />
-        </div>
+        {!journeyHidden && (
+          <div style={{ display: "flex", alignItems: "stretch", gap: 0, marginTop: 10, background: "#212120", border: "1px solid rgba(255,255,255,0.055)", borderRadius: 13, padding: "9px 6px" }}>
+            <JourneyStep label="Browse" sub={`${matchesQ.data?.total ?? "—"} live`} onClick={() => router.push("/market")} done />
+            <span style={{ alignSelf: "center", color: "#4a4a45", fontSize: 11 }}>›</span>
+            <JourneyStep label="Collect" sub={`${counts.all} saved`} done />
+            <span style={{ alignSelf: "center", color: "#4a4a45", fontSize: 11 }}>›</span>
+            <JourneyStep label="Tailor" sub="the goal" onClick={() => router.push("/cv")} accent={tailoredN} />
+            <button onClick={dismissJourney} aria-label="Dismiss" style={{ alignSelf: "flex-start", width: 22, height: 22, marginLeft: 2, flexShrink: 0, borderRadius: 99, border: "none", background: "transparent", color: "#6a6a63", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+              <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            </button>
+          </div>
+        )}
 
         {/* filter chips */}
         <div className="mm-scroll" style={{ display: "flex", gap: 6, marginTop: 10, overflowX: "auto" }}>
@@ -185,7 +209,8 @@ export function CollectionsSurface({ token }: { token: string }) {
         onHeart={() => detailApp && doUnsave(detailApp)}
         onSkip={() => detailApp && doUnsave(detailApp)}
         onTailor={() => detailApp && router.push(`/cv/tailor?jobId=${encodeURIComponent(detailApp.job_id)}`)}
-        onApply={() => detailApp?.source_url && window.open(detailApp.source_url, "_blank", "noopener")}
+        onApply={() => { if (applyCapture.target.url) applyCapture.open() }}
+        captureSlot={detailApp ? <ApplyCapturePromptMobile capture={applyCapture} /> : null}
         onPractice={() => setDetailId(null)}
       />
 

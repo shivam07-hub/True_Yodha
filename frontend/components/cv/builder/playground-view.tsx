@@ -34,7 +34,8 @@ import type { CVPlaygroundState } from "@/lib/hooks/use-cv-playground"
 import { Icon } from "./icons"
 import { DetailDrawer } from "@/components/jobs/detail-drawer"
 import { DetailHeader } from "@/components/jobs/detail-header"
-import { useDeadLinkPrompt } from "@/components/jobs/use-dead-link-prompt"
+import { useApplyCapture } from "@/components/jobs/use-apply-capture"
+import { ApplyCapturePrompt } from "@/components/jobs/apply-capture-prompt"
 import {
   resolvePlaygroundCompany,
   targetsFromSkillGap,
@@ -69,7 +70,6 @@ export function PlaygroundView({
   const [applyConfirm, setApplyConfirm] = useState(false)
   const [submittingApply, setSubmittingApply] = useState(false)
   const queryClient = useQueryClient()
-  const dead = useDeadLinkPrompt({ token, jobId, surface: "other" })
 
   const rewriteApply = useMutation({
     mutationFn: ({ oldText, newText }: { oldText: string; newText: string }) =>
@@ -133,7 +133,12 @@ export function PlaygroundView({
   const company = resolvePlaygroundCompany(job.company, gap.company)
   const jobTitle = job.job_title ?? gap.job_title ?? "Untitled role"
   const sourceUrl = application?.source_url?.trim() ?? ""
-  const applyHref = sourceUrl || (company !== "Untitled company" ? `https://www.google.com/search?q=${encodeURIComponent(`${company} careers`)}` : "")
+  const capture = useApplyCapture({
+    token,
+    job: { job_id: jobId, source_url: sourceUrl || null, company: company !== "Untitled company" ? company : null },
+    surface: "other",
+  })
+  const applyHref = capture.href ?? ""
   const isApplied = application?.status != null && application.status !== "saved"
   const jdText = (application?.job_description ?? "").trim()
   const roles = useMemo(
@@ -253,7 +258,7 @@ export function PlaygroundView({
         cv_version_id: selectedVersion?.id ?? null,
         applied_url: applyHref,
       }).catch(() => {})   // never block the application on the snapshot write
-      dead.markApplied()
+      capture.onApply()
       if (!isApplied) markApplied.mutate()
       window.open(applyHref, "_blank", "noopener,noreferrer")
     } finally {
@@ -346,7 +351,7 @@ export function PlaygroundView({
           <div className="cvb-pgc-bar-fill" style={{ width: `${ready}%` }} />
         </div>
         {saveState && <div className="cvb-pgc-savestate mono" role="status" aria-live="polite">{saveState}</div>}
-        {dead.prompt}
+        <ApplyCapturePrompt capture={capture} />
         {externalError && <div className="cvb-pgc-err" role="alert">{externalError}</div>}
       </div>
 
