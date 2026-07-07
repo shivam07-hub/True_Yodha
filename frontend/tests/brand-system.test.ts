@@ -61,12 +61,12 @@ test("button primitive uses the superseding radius and theme-specific CTA tokens
 })
 
 test("high-impact CSS no longer imports decorative one-off display fonts", () => {
+  // first-run-hero.css deleted with the /home dashboard (Collections cutover
+  // 2026-07-07); mission-control.css survives as the workspace-rail stylesheet.
   const mission = read("app/(authed)/home/mission-control.css")
-  const firstRun = read("components/home/first-run-hero.css")
 
   assert.doesNotMatch(mission, /fonts\.googleapis\.com/)
   assert.doesNotMatch(mission, /Instrument Serif/)
-  assert.doesNotMatch(firstRun, /font-serif|Georgia/)
 })
 
 test("shared shells do not mount decorative particle canvases", () => {

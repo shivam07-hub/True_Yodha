@@ -9,7 +9,7 @@ import { ApplyCapturePrompt } from "@/components/jobs/apply-capture-prompt"
 import { ApplyRow } from "@/components/jobs/apply-row"
 import { DetailBody } from "./detail-body"
 import { LocationLine } from "./lenses"
-import { otherRolesFor } from "./desktop-grid"
+import { otherRolesFor } from "./lens-company"
 import type { FeedItem } from "@/lib/dashboard/feed-model"
 import type { SkillGapItem } from "@/lib/api"
 

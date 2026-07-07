@@ -5,6 +5,16 @@ import { CompanyDrawer } from "@/components/companies/company-drawer"
 import { CompanyLink } from "@/components/companies/company-link"
 import { Deepeners } from "./deepeners"
 import type { JobMatch } from "@/lib/api"
+import type { FeedItem } from "@/lib/dashboard/feed-model"
+
+/** Sibling roles at the same company, for the drawer's company lens.
+ *  (Relocated from the deleted desktop-grid when /home retired.) */
+export function otherRolesFor(allItems: FeedItem[], it: FeedItem): OtherRole[] {
+  if (!it.company) return []
+  return allItems
+    .filter((o) => o.jobId !== it.jobId && o.company === it.company)
+    .map((o) => ({ jobId: o.jobId, role: o.role, fit: o.fit }))
+}
 
 export interface OtherRole {
   jobId: string

@@ -181,7 +181,7 @@ export function WorkspacePipeline({ filter, versions, onOpenJob }: Props) {
           <div className="tm-lib-empty-sub">
             Save jobs from Live Job Data, or add one yourself — every job you tailor a CV for is tracked here.
           </div>
-          <Link href="/home#browse" className="tm-lib-empty-link">
+          <Link href="/market" className="tm-lib-empty-link">
             Browse jobs <LIcon d={I.chevR} size={12}/>
           </Link>
         </div>

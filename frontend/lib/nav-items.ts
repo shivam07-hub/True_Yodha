@@ -80,10 +80,13 @@ export const AUTHED_NAV: NavItem[] = [
     mobileIcon: "intel",
   },
   {
+    // Collections replaced the /home dashboard (2026-07-07 cutover): the saved
+    // worklist is the surface; browse lives on Jobs. `id` stays "home" — it is
+    // only the coachmark/localStorage key and the topbar icon selector.
     id: "home",
-    href: "/home",
-    label: "Dashboard",
-    desc: "Tackle Today",
+    href: "/collections",
+    label: "Collections",
+    desc: "Your saved roles — tailor next, finish, apply",
     stage: "base",
     surfaces: ["desktop", "mobile"],
     mobileIcon: "mission",

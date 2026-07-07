@@ -34,7 +34,7 @@ export default function OnboardingPage() {
     const current = state.data?.current_stage
     if (current === "target") setStage(1)
     if (current === "result" || current === "generator") router.replace("/onboarding/result")
-    if (state.data?.status === "completed") router.replace("/home")
+    if (state.data?.status === "completed") router.replace("/market")
   }, [router, state.data, state.isFetchedAfterMount])
 
   useEffect(() => {

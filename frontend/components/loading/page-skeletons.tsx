@@ -270,7 +270,7 @@ export function GenericPageSkeleton() {
  * like the destination page rather than a centered logo splash.
  */
 export function skeletonForPath(pathname: string): React.ReactNode {
-  if (pathname.startsWith("/home")) return <DashboardSkeleton />
+  if (pathname.startsWith("/home") || pathname.startsWith("/collections")) return <DashboardSkeleton />
   if (pathname.startsWith("/market")) return <MarketSkeleton />
   if (pathname.startsWith("/skills")) return <SkillsSkeleton />
   if (pathname.startsWith("/cv")) return <CvSkeleton />

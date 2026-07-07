@@ -66,10 +66,13 @@ test("public CV preview keeps the edited composed CV claimable for auth", () => 
 test("core onboarding and recommendation surfaces share canonical data keys", () => {
   const onboardingHook = read("lib/hooks/use-onboarding-state.ts")
   const result = read("app/onboarding/result/page.tsx")
-  const home = read("app/(authed)/home/page.tsx")
+  // Collections replaced the /home dashboard as the saved-worklist surface
+  // (2026-07-07 cutover) — it must read matches through the canonical key so
+  // the fit rings share the cache with the /market rail.
+  const collections = read("components/collections/collections-desktop.tsx")
   const practice = read("app/(authed)/forge/page.tsx")
   assert.match(onboardingHook, /dataKeys\.onboarding\(\)/)
   assert.match(result, /dataKeys\.onboardingResult\(\)/)
-  assert.match(home, /dataKeys\.jobs\(\)/)
+  assert.match(collections, /dataKeys\.jobs\(\)/)
   assert.match(practice, /dataKeys\.profile\(\)/)
 })

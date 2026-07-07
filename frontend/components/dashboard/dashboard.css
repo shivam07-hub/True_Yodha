@@ -471,3 +471,16 @@
 @media (prefers-reduced-motion: reduce) {
   .db-card.is-leaving, .db-mcard.is-leaving { opacity: 0; }
 }
+
+/* ── Collections undo toast (portaled to body, .db scope re-applied) ────── */
+.db-undo-toast {
+  position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 16px; z-index: 60;
+  padding: 10px 16px; border-radius: 12px;
+  background: var(--db-card); border: 1px solid var(--db-line);
+  box-shadow: var(--db-card-shadow-up); color: var(--db-ink); font-size: 13px;
+}
+.db-undo-toast button {
+  background: none; border: none; cursor: pointer;
+  color: var(--db-accent-text); font-weight: 700; font-size: 13px;
+}

@@ -3,7 +3,7 @@
 import type { ReactNode } from "react"
 import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
-import { Target, TrendingUp, Building2, Radar, ArrowRight, Check, Coins } from "lucide-react"
+import { Target, TrendingUp, Building2, ArrowRight, Check, Coins } from "lucide-react"
 import { jobs as jobsApi, users as usersApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { DomainRadar } from "@/components/skills/domain-radar"
@@ -21,7 +21,6 @@ export function PeekSurfaces({ token, steps }: { token: string; steps: LoopStep[
     <>
       <MissionsCard steps={steps} />
       <FollowedCard token={token} />
-      <IntelCard token={token} />
     </>
   )
 }
@@ -131,7 +130,9 @@ export function SkillMapCard({ token }: { token: string }) {
   )
 }
 
-/* ── 3 · Followed companies ─────────────────────────────────────── */
+/* ── 3 · Followed companies (absorbed the old "Live intel" card — both linked
+ * to the same heatmap from the same demand read, so they were one surface
+ * wearing two frames; the top-demand line now lives here). ─────────────── */
 function FollowedCard({ token }: { token: string }) {
   const { data } = useQuery({
     queryKey: ["followedCompanies", token],
@@ -139,7 +140,14 @@ function FollowedCard({ token }: { token: string }) {
     enabled: !!token,
     staleTime: 10 * 60 * 1000,
   })
+  const { data: demand } = useQuery({
+    queryKey: dataKeys.userSkillDemand(),
+    queryFn: () => jobsApi.mySkillDemand(token),
+    enabled: !!token,
+    staleTime: 10 * 60 * 1000,
+  })
   const companies = data?.companies ?? []
+  const top = [...(demand?.skills ?? [])].sort((a, b) => b.weighted_demand - a.weighted_demand)[0]
   return (
     <PeekCard icon={<Building2 size={15} />} title="Followed companies" href={companies.length ? "/market?tab=heatmap" : "/intel"} hrefLabel={companies.length ? "Open intel heatmap" : "Browse companies"}>
       {companies.length === 0 ? (
@@ -151,29 +159,12 @@ function FollowedCard({ token }: { token: string }) {
           ))}
         </ul>
       )}
-    </PeekCard>
-  )
-}
-
-/* ── 4 · Latest intel shortcut ──────────────────────────────────── */
-function IntelCard({ token }: { token: string }) {
-  const { data } = useQuery({
-    queryKey: dataKeys.userSkillDemand(),
-    queryFn: () => jobsApi.mySkillDemand(token),
-    enabled: !!token,
-    staleTime: 10 * 60 * 1000,
-  })
-  const top = [...(data?.skills ?? [])].sort((a, b) => b.weighted_demand - a.weighted_demand)[0]
-  return (
-    <PeekCard icon={<Radar size={15} />} title="Live intel" href={top ? "/market?tab=heatmap" : "/intel"} hrefLabel="Where to invest">
       {top ? (
         <p className="mc-peek-intel">
           Most in-demand right now: <strong>{top.display_name}</strong>
           {top.job_count_30d ? <span className="mc-peek-intel-meta"> · {top.job_count_30d} open roles</span> : null}
         </p>
-      ) : (
-        <p className="mc-peek-empty">See which skills the live market is hiring for hardest.</p>
-      )}
+      ) : null}
     </PeekCard>
   )
 }
