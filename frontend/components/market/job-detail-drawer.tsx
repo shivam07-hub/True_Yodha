@@ -36,7 +36,13 @@ export function JobDetailDrawer({
   const [saved, setSaved] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [assessOpen, setAssessOpen] = useState(false)
-  const dead = useDeadLinkPrompt({ token, jobId: job.job_id, surface: "job_detail" })
+  const dead = useDeadLinkPrompt({
+    token,
+    jobId: job.job_id,
+    surface: "job_detail",
+    // The feed is already fit-ranked, so closing back to it IS "similar roles".
+    onFindSimilar: onClose,
+  })
 
   // Confidence drives the trust band (D1). Fall back to the feed's binary
   // is_stale only when no pulse has hydrated yet (pre-backend / cold cards).
@@ -82,7 +88,7 @@ export function JobDetailDrawer({
               {job.source_url ? (
                 <a href={job.source_url} target="_blank" rel="noopener noreferrer" onClick={dead.markApplied} style={{ flex: "1 1 auto", textAlign: "center", padding: "11px 16px", borderRadius: 10, textDecoration: "none", fontWeight: 600, fontSize: 13, background: "var(--tm-interactive)", color: "var(--tm-on-interactive, #fff)" }}>Apply ↗</a>
               ) : (
-                <ApplyRow company={job.company_name} title={job.job_title} jobId={job.job_id} variant="compact" />
+                <ApplyRow company={job.company_name} title={job.job_title} jobId={job.job_id} variant="compact" onApply={dead.markApplied} />
               )}
               <button type="button" onClick={() => { if (!saved) { onSave(); setSaved(true); setMsg("Saved to your shortlist") } }} disabled={saved} style={{ padding: "11px 16px", borderRadius: 10, border: "1px solid var(--tm-border-soft)", background: "transparent", color: "var(--tm-text)", fontWeight: 600, fontSize: 13, cursor: saved ? "default" : "pointer" }}>{saved ? "★ Saved" : "★ Save"}</button>
               <button type="button" onClick={() => onToggleFollow()} style={{ padding: "11px 16px", borderRadius: 10, border: `1px solid ${followed ? "var(--tm-interactive)" : "var(--tm-border-soft)"}`, background: followed ? "var(--tm-int-bg-wash)" : "transparent", color: followed ? "var(--tm-interactive)" : "var(--tm-text-muted)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>{followed ? "✓ Heatmap" : "+ Heatmap"}</button>

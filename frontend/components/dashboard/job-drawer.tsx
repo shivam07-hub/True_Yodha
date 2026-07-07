@@ -46,7 +46,18 @@ export function DashboardJobDrawer({
   onJump: (jobId: string) => void
 }) {
   const job = item.job
-  const dead = useDeadLinkPrompt({ token, jobId: item.jobId, surface: "dashboard" })
+  const dead = useDeadLinkPrompt({
+    token,
+    jobId: item.jobId,
+    surface: "dashboard",
+    // "Find similar" dismisses the confirmed ghost and returns to the fit-ranked
+    // feed — the dead listing gone, the next-best roles in view. (Dismiss can't
+    // fire on the answer itself: it unmounts the drawer before recovery shows.)
+    onFindSimilar: () => {
+      onSkip()
+      onClose()
+    },
+  })
 
   return (
     <DetailDrawer
@@ -100,7 +111,7 @@ export function DashboardJobDrawer({
               Apply ↗
             </a>
           ) : (
-            <ApplyRow company={job.company} title={job.title} jobId={item.jobId} variant="compact" />
+            <ApplyRow company={job.company} title={job.title} jobId={item.jobId} variant="compact" onApply={dead.markApplied} />
           )}
         </div>
       }
