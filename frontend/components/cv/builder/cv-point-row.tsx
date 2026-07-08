@@ -1,6 +1,8 @@
 "use client"
 
+import { useState } from "react"
 import type { UserSkillsByDomain } from "@/lib/api"
+import { extractedSkillsForCvPoint } from "@/lib/skill-intelligence"
 import { BulletRewrite } from "./bullet-rewrite"
 import { CVPointSkillChips } from "./cv-point-skill-chips"
 import { bulletKeywordHits, type KeywordTarget } from "./keyword-utils"
@@ -85,12 +87,18 @@ export function CVPointRow({
   onApply,
   onCloseRewrite,
 }: CVPointRowProps) {
+  const [showDetails, setShowDetails] = useState(false)
   const hits = mono ? [] : bulletKeywordHits(text, targets)
   // Whole-bullet wash (#34 Q5-A): a flagged, visible, non-editing bullet gets a
   // soft tint + issue chips naming the offenders. No word-level marks — our
   // bullet is a live editor, span surgery would fight typing.
   const flags = !hidden && !editing ? (findings ?? []) : []
   const flagged = flags.length > 0
+  // ATS-extracted skills the line proves. Diagnostics (flags + ATS chips) sit
+  // behind one disclosure so the default view is just the line the user reads;
+  // the soft wash still signals "this one has something to fix" at a glance.
+  const atsSkills = mono || hidden || editing ? [] : extractedSkillsForCvPoint(text, userSkills)
+  const hasDetails = flagged || atsSkills.length > 0
 
   return (
     <div ref={rowRef} className={`cvb-pgc-row${hidden ? " hidden" : ""}${flagged ? " flagged" : ""}`}>
@@ -122,7 +130,20 @@ export function CVPointRow({
               {text}
               {hits.length > 0 && <span className="cvb-pgc-tag">✓ {hits.length} matched</span>}
             </div>
-            {flagged && (
+            {hasDetails && (
+              <button
+                type="button"
+                className={`cvb-pgc-detailtoggle${flagged ? " flagged" : ""}`}
+                onClick={() => setShowDetails(v => !v)}
+                aria-expanded={showDetails}
+              >
+                {flagged
+                  ? `${flags.length} to fix`
+                  : showDetails ? "Hide ATS skills" : "ATS skills"}
+                <span className="cvb-pgc-detailcaret" aria-hidden>{showDetails ? "▾" : "▸"}</span>
+              </button>
+            )}
+            {showDetails && flagged && (
               <div className="cvb-pgc-flags">
                 {flags.map(f => (
                   <span key={f.id} className={`cvb-pgc-flag ${f.kind.toLowerCase()}`} title={f.detail}>
@@ -131,7 +152,7 @@ export function CVPointRow({
                 ))}
               </div>
             )}
-            <CVPointSkillChips text={text} skills={userSkills} />
+            {showDetails && <CVPointSkillChips text={text} skills={userSkills} />}
           </>
         )}
         {rewriteOpen && !editing && (

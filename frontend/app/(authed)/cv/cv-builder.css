@@ -2527,6 +2527,18 @@ mark.cvb-kw {
    inside the live-editable text. */
 .cvb-pgc-row.flagged { background: var(--tm-warning-wash); box-shadow: inset 2px 0 0 var(--tm-warning); }
 .cvb-pgc-row.flagged:hover { background: var(--tm-warning-wash); }
+/* One quiet disclosure for a bullet's diagnostics (recruiter flags + ATS chips).
+   Default = collapsed so the line reads clean; flagged bullets get a warning tint
+   so the "N to fix" cue still stands out at a glance. */
+.cvb-pgc-detailtoggle {
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 5px;
+  padding: 1px 6px; border: none; background: none; cursor: pointer;
+  font: 600 10px var(--tm-font-mono); letter-spacing: 0.02em;
+  color: var(--tm-text-faint); border-radius: 5px;
+}
+.cvb-pgc-detailtoggle:hover { color: var(--tm-text-muted); }
+.cvb-pgc-detailtoggle.flagged { color: var(--tm-warning); background: var(--tm-warning-wash); }
+.cvb-pgc-detailcaret { font-size: 8px; opacity: 0.7; }
 .cvb-pgc-flags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
 .cvb-pgc-flag {
   font: 600 10px var(--tm-font-mono); padding: 2px 7px; border-radius: 5px;

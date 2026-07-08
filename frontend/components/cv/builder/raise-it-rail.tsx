@@ -193,12 +193,21 @@ export function RaiseItRail({ token, plan, cv, targets, pointsFor, onRaise }: Ra
   const completed = rows.filter(rowDone)
   const allDone = rows.length > 0 && topFixes.length === 0
 
+  // Show the "+N" point-gain only on the 3 highest-leverage open moves — a
+  // number on every row reads as noise (and looks fabricated when uniform). The
+  // top movers answer "what's worth doing first"; the rest just say "do it".
+  const topMovers = new Set(
+    topFixes.filter(r => r.gain != null).slice(0, 3).map(r => r.id),
+  )
+
   function toggleWhy(id: string) {
     setOpenWhy(p => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n })
   }
 
   function renderRow(r: RailRow, done: boolean) {
-    const verb = r.kind === "Practice" ? "Practiced" : r.kind === "Add" ? "Added" : "Sharpened"
+    // One action name through the whole flow: every line-rewrite move is "Fix"
+    // (→ "Fixed"); only Forge practice keeps its own verb.
+    const verb = r.kind === "Practice" ? "Practiced" : "Fixed"
     const why = r.finding ? CHECK_EXPLAINERS[r.finding.category] : null
     return (
       <div key={r.id} className={`cvb-pgc-fix${done ? " done" : ""}`}>
@@ -215,8 +224,8 @@ export function RaiseItRail({ token, plan, cv, targets, pointsFor, onRaise }: Ra
               )}
             </div>
           </div>
-          {/* Every open move shows the real points it returns (#34 S3). */}
-          <span className="mono cvb-pgc-fix-gain">{done ? "✓" : r.gain != null ? `+${r.gain}` : ""}</span>
+          {/* Point-gain only on the top-3 movers — see topMovers. */}
+          <span className="mono cvb-pgc-fix-gain">{done ? "✓" : topMovers.has(r.id) && r.gain != null ? `+${r.gain}` : ""}</span>
           {done ? (
             <span className="cvb-pgc-fix-btn done">{verb}</span>
           ) : r.kind === "Practice" ? (
@@ -231,7 +240,7 @@ export function RaiseItRail({ token, plan, cv, targets, pointsFor, onRaise }: Ra
               type="button"
               className="cvb-pgc-fix-btn"
               onClick={() => r.target && onRaise(r.target)}
-            >{r.kind}</button>
+            >Fix</button>
           )}
         </div>
         {why && openWhy.has(r.id) && (
