@@ -54,6 +54,10 @@ interface CVPointRowProps {
   onOpenComposer: (roleIndex: number) => void
   onApply: (oldText: string, newText: string) => void
   onCloseRewrite: () => void
+  /** v2: this bullet's open fix — "{kind} +N" pill that opens the fix card. */
+  fixPill?: { label: string; onClick: () => void }
+  /** v2: session mark after a fix was applied here — "✓ +N". */
+  appliedMark?: string
 }
 
 export function CVPointRow({
@@ -86,6 +90,8 @@ export function CVPointRow({
   onOpenComposer,
   onApply,
   onCloseRewrite,
+  fixPill,
+  appliedMark,
 }: CVPointRowProps) {
   const [showDetails, setShowDetails] = useState(false)
   const hits = mono ? [] : bulletKeywordHits(text, targets)
@@ -126,9 +132,20 @@ export function CVPointRow({
           />
         ) : (
           <>
-            <div className={`cvb-pgc-text${mono ? " mono" : ""}`}>
-              {text}
-              {hits.length > 0 && <span className="cvb-pgc-tag">✓ {hits.length} matched</span>}
+            <div className="cvb-v2-textrow">
+              <div className={`cvb-pgc-text${mono ? " mono" : ""}`}>
+                {text}
+                {hits.length > 0 && <span className="cvb-pgc-tag">✓ {hits.length} matched</span>}
+              </div>
+              {fixPill && (
+                <button
+                  type="button"
+                  className="cvb-v2-bulletpill mono"
+                  onClick={e => { e.stopPropagation(); fixPill.onClick() }}
+                  title="Open this fix"
+                >{fixPill.label}</button>
+              )}
+              {appliedMark && <span className="cvb-v2-bulletdone mono">{appliedMark}</span>}
             </div>
             {hasDetails && (
               <button

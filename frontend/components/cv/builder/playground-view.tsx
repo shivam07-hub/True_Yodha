@@ -1,47 +1,42 @@
 /**
- * PlaygroundView — per-job CV tailoring surface (Option C, hierarchy redesign).
+ * PlaygroundView — per-job CV tailoring surface (v2, "CV Playground v2" handoff).
  *
- * Layout (design: CV Playground - Option C):
- *   [crumb · role title · Ready/100 · Apply →]   readiness bar
- *   [ Raise it rail (gaps) | the CV, now the editor ]
+ * Layout: sticky header (job + live count-up score + Apply) · left = the CV as
+ * the editor (bullet cards, inline skill chips, fix pills) · right = tabbed rail
+ * (Fixes / Skills / Preview). Mobile swaps the split for a bottom segmented nav
+ * (Edit / Fixes / Skills / Preview).
  *
- * One Ready number leads; the gaps are an inline worklist (no modal); the CV is
- * the editor (per-line Copy / Rewrite / Edit / Hide). Edits auto-save (no Save
- * button) — useCVPlayground owns the projection persistence. Restructure +
- * Download live in a small overflow so the header stays a single Apply CTA.
- * State machine lives in useCVPlayground — this is a thin shell.
+ * Three job-context affordances, three destinations: the header requirements
+ * pill → Skills tab; the toolbar Job Description button → the raw JD drawer;
+ * the rail Skills tab button → Skills tab. Fix cards lazy-load the Mentor
+ * pick-a-version rewrite in place; Ready recomputes deterministically so a
+ * promised +N is a delivered +N. Read model lives in usePlaygroundModel;
+ * projection persistence stays in useCVPlayground.
  */
 "use client"
 
 import { useMemo, useState } from "react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import type {
-  CVStructured,
-  GapPlanResponse,
-  JobPathResponse,
-  SkillGapResponse,
-  UserProfile,
-} from "@/lib/api"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import type { CVStructured, UserProfile } from "@/lib/api"
 import { jobs as jobsApi, cv as cvApi } from "@/lib/api"
-import { RestructureProposal } from "./restructure-proposal"
-import { RaiseItRail } from "./raise-it-rail"
-import { contentPenalty, runContentChecks } from "./content-checks"
-import { CVEditor, type RewriteTarget } from "./cv-editor"
+import { CVEditor } from "./cv-editor"
 import { ExperienceIntake } from "./experience-intake"
-import { itemId } from "@/lib/cv-compose"
+import { PlaygroundRail } from "./playground-rail"
+import { PlaygroundBottomNav } from "./playground-bottomnav"
+import { ApplyModal } from "./apply-modal"
+import { TrimConfirm } from "./trim-confirm"
+import { PlaygroundHeader } from "./playground-header"
+import { usePlaygroundModel } from "./use-playground-model"
+import type { AppliedFix, V2Fix } from "./fix-model"
 import { dataKeys } from "@/lib/domain-data"
 import type { CVPlaygroundState } from "@/lib/hooks/use-cv-playground"
-import { Icon } from "./icons"
 import { DetailDrawer } from "@/components/jobs/detail-drawer"
 import { DetailHeader } from "@/components/jobs/detail-header"
 import { useApplyCapture } from "@/components/jobs/use-apply-capture"
 import { ApplyCapturePrompt } from "@/components/jobs/apply-capture-prompt"
-import {
-  resolvePlaygroundCompany,
-  targetsFromSkillGap,
-  type KeywordTarget,
-} from "./keyword-utils"
-import { IDEAL_CV_SPEC, estimateLines, pageFillFromLines, type PageFill } from "@/lib/cv/page-fill"
+import { Icon } from "./icons"
+
+type V2Tab = "edit" | "fixes" | "skills" | "preview"
 
 interface PlaygroundViewProps {
   token: string
@@ -60,200 +55,100 @@ export function PlaygroundView({
   token, jobId, playground, cv, profile,
   onBackToBaseline, onExportPDF, externalError,
 }: PlaygroundViewProps) {
-  const { selectedVersion, selectVersion, hiddenItems, toggleItem, autosaving, autosaved } = playground
-  const [restructureOpen, setRestructureOpen] = useState(false)
-  const [overflowOpen, setOverflowOpen] = useState(false)
-  const [exportConfirm, setExportConfirm] = useState(false)
-  const [rewriteTarget, setRewriteTarget] = useState<RewriteTarget | null>(null)
+  const { selectedVersion, hiddenItems, toggleItem, autosaving, autosaved } = playground
+  const [tab, setTab] = useState<V2Tab>("edit")
+  const [expandedFixId, setExpandedFixId] = useState<string | null>(null)
+  const [appliedFixes, setAppliedFixes] = useState<AppliedFix[]>([])
+  const [flash, setFlash] = useState<{ iid: string; n: number } | null>(null)
+  const [intakeSeed, setIntakeSeed] = useState<string | null>(null)
   const [intakeOpen, setIntakeOpen] = useState(false)
   const [jdOpen, setJdOpen] = useState(false)
-  const [applyConfirm, setApplyConfirm] = useState(false)
+  const [applyOpen, setApplyOpen] = useState(false)
+  const [appliedDone, setAppliedDone] = useState(false)
   const [submittingApply, setSubmittingApply] = useState(false)
+  const [exportConfirm, setExportConfirm] = useState(false)
   const queryClient = useQueryClient()
+  const railTab: Exclude<V2Tab, "edit"> = tab === "edit" ? "fixes" : tab
+
+  const m = usePlaygroundModel(token, jobId, cv, profile, hiddenItems)
+  const sourceUrl = m.application?.source_url?.trim() ?? ""
+  const capture = useApplyCapture({
+    token,
+    job: { job_id: jobId, source_url: sourceUrl || null, company: m.company !== "Untitled company" ? m.company : null },
+    surface: "other",
+  })
+  const applyHref = capture.href ?? ""
+  const isApplied = m.application?.status != null && m.application.status !== "saved"
+
+  const openFixIds = useMemo(() => new Set(m.openFixes.map(f => f.id)), [m.openFixes])
+  const appliedShown = appliedFixes.filter(a => !openFixIds.has(a.id))
+
+  function invalidateCV() {
+    queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
+    queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
+    queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
+    queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
+    queryClient.invalidateQueries({ queryKey: ["cv-gap-plan", jobId] })
+  }
 
   const rewriteApply = useMutation({
     mutationFn: ({ oldText, newText }: { oldText: string; newText: string }) =>
       cvApi.rewriteApply(token, { old_text: oldText, new_text: newText }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
-      queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
-      queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
-      queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
-      queryClient.invalidateQueries({ queryKey: ["cv-gap-plan", jobId] })
-    },
+    onSuccess: invalidateCV,
   })
 
   // "Add from your experience": insert a Mentor-drafted bullet into the living
-  // master under the best-fit role (cheap autosave, no charge). Reads the freshest
-  // structured from cache so rapid adds don't stack on a stale base.
+  // master under the best-fit role. Reads the freshest structured from cache so
+  // rapid adds don't stack on a stale base.
   const addBullet = useMutation({
     mutationFn: ({ roleIndex, text }: { roleIndex: number | null; text: string }) => {
       const base = (queryClient.getQueryData(dataKeys.cvStructured()) as CVStructured | undefined) ?? cv
       const next: CVStructured = JSON.parse(JSON.stringify(base))
-      const ri = roleIndex != null && next.experience[roleIndex]
-        ? roleIndex
-        : next.experience.length - 1
+      const ri = roleIndex != null && next.experience[roleIndex] ? roleIndex : next.experience.length - 1
       if (ri < 0) return Promise.reject(new Error("Add a role to your CV first."))
       next.experience[ri].bullets.push(text)
       return cvApi.saveMaster(token, next)
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
-      queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
-      queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
-      queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
-      queryClient.invalidateQueries({ queryKey: ["cv-gap-plan", jobId] })
-    },
+    onSuccess: invalidateCV,
   })
-
-  const jobPathQuery = useQuery({
-    queryKey: dataKeys.jobPath(jobId),
-    queryFn: () => jobsApi.path(token, jobId),
-    staleTime: 5 * 60 * 1000,
-  })
-  const skillGapQuery = useQuery({
-    queryKey: dataKeys.skillGap(jobId),
-    queryFn: () => jobsApi.skillGap(token, jobId),
-    staleTime: 5 * 60 * 1000,
-  })
-  const applicationsQuery = useQuery({
-    queryKey: dataKeys.applications(),
-    queryFn: () => jobsApi.applications(token),
-    staleTime: 60_000,
-  })
-  const gapPlanQuery = useQuery<GapPlanResponse>({
-    queryKey: ["cv-gap-plan", jobId],
-    queryFn: () => cvApi.gapPlan(token, jobId),
-    staleTime: 60_000,
-  })
-
-  const job: Partial<JobPathResponse> = jobPathQuery.data ?? {}
-  const gap: Partial<SkillGapResponse> = skillGapQuery.data ?? {}
-  const application = applicationsQuery.data?.find(a => a.job_id === jobId) ?? null
-  const company = resolvePlaygroundCompany(job.company, gap.company)
-  const jobTitle = job.job_title ?? gap.job_title ?? "Untitled role"
-  const sourceUrl = application?.source_url?.trim() ?? ""
-  const capture = useApplyCapture({
-    token,
-    job: { job_id: jobId, source_url: sourceUrl || null, company: company !== "Untitled company" ? company : null },
-    surface: "other",
-  })
-  const applyHref = capture.href ?? ""
-  const isApplied = application?.status != null && application.status !== "saved"
-  const jdText = (application?.job_description ?? "").trim()
-  const roles = useMemo(
-    () => cv.experience.map((e, i) => ({ index: i, label: `${e.role} · ${e.company}` })),
-    [cv.experience],
-  )
-
-  const allTargets: KeywordTarget[] = useMemo(() => targetsFromSkillGap(gap.skills ?? []), [gap.skills])
-
-  const visibleText = useMemo(() => {
-    const parts: string[] = []
-    if (cv.summary && !hiddenItems.has(itemId("summary", 0, cv.summary))) parts.push(cv.summary)
-    cv.experience.forEach((e, ei) => e.bullets.forEach((b, bi) => {
-      if (!hiddenItems.has(itemId("exp_bullet", ei * 100 + bi, b))) parts.push(b)
-    }))
-    cv.projects.forEach((p, pi) => p.bullets.forEach((b, bi) => {
-      if (!hiddenItems.has(itemId("proj_bullet", pi * 100 + bi, b))) parts.push(b)
-    }))
-    if (cv.skills_line && !hiddenItems.has(itemId("skills_line", 0, cv.skills_line))) parts.push(cv.skills_line)
-    return parts.join(" ")
-  }, [hiddenItems, cv])
-
-  const evaluatedTargets = useMemo<KeywordTarget[]>(() => {
-    const lower = visibleText.toLowerCase()
-    return allTargets.map(t => ({ ...t, matched: lower.includes(t.kw.toLowerCase()) }))
-  }, [allTargets, visibleText])
-
-  // Content-quality penalty (#34 S3): open recruiter-check findings subtract real
-  // points from Ready, so a buzzword-heavy CV scores below a clean one and each
-  // fix returns its exact points. Recomputed from the live CV → moves only on a
-  // real text change (the honest flywheel).
-  const contentPenaltyPts = useMemo(() => contentPenalty(runContentChecks(cv)), [cv])
-
-  const baseScore = job.readiness_pct ?? 0
-  const ready = useMemo(() => {
-    const match = evaluatedTargets.length === 0
-      ? baseScore
-      : (() => {
-          const total = evaluatedTargets.reduce((s, t) => s + (t.weight ?? 1), 0)
-          const got = evaluatedTargets.filter(t => t.matched).reduce((s, t) => s + (t.weight ?? 1), 0)
-          return total === 0 ? 0 : Math.round((got / total) * 100)
-        })()
-    return Math.max(0, match - contentPenaltyPts)
-  }, [evaluatedTargets, baseScore, contentPenaltyPts])
-  const delta = ready - baseScore
-
-  const totalWeight = useMemo(
-    () => Math.max(1, evaluatedTargets.reduce((s, t) => s + (t.weight ?? 1), 0)),
-    [evaluatedTargets],
-  )
-  // Deterministic readiness gain for a gap's keyword(s): its share of total
-  // keyword weight, in score points (matches the Ready math above). Off-list gaps
-  // get a nominal +1 rather than a fabricated number.
-  const pointsFor = useMemo(() => (keywords: string[]): number => {
-    const set = new Set(keywords.map(k => k.toLowerCase()))
-    let w = 0
-    evaluatedTargets.forEach(t => { if (set.has(t.kw.toLowerCase())) w += (t.weight ?? 1) })
-    if (w === 0) w = 1
-    return Math.max(1, Math.round((w / totalWeight) * 100))
-  }, [evaluatedTargets, totalWeight])
-
-  const visibleCount = useMemo(() => {
-    let n = 0
-    cv.experience.forEach((e, ei) => e.bullets.forEach((b, bi) => {
-      if (!hiddenItems.has(itemId("exp_bullet", ei * 100 + bi, b))) n += 1
-    }))
-    cv.projects.forEach((p, pi) => p.bullets.forEach((b, bi) => {
-      if (!hiddenItems.has(itemId("proj_bullet", pi * 100 + bi, b))) n += 1
-    }))
-    return n
-  }, [hiddenItems, cv])
-  const wordCount = useMemo(
-    () => visibleText.trim() ? visibleText.trim().split(/\s+/).length : 0,
-    [visibleText],
-  )
-
-  const pageFill: PageFill = useMemo(() => {
-    const cpl = IDEAL_CV_SPEC.charsPerLine
-    let lines = 3
-    if (cv.summary && !hiddenItems.has(itemId("summary", 0, cv.summary))) lines += 1 + estimateLines(cv.summary, cpl)
-    let expVisible = false
-    cv.experience.forEach((e, ei) => {
-      const kept = e.bullets.filter((b, bi) => !hiddenItems.has(itemId("exp_bullet", ei * 100 + bi, b)))
-      if (kept.length) { expVisible = true; lines += 1 + kept.reduce((s, b) => s + estimateLines(b, cpl), 0) }
-    })
-    if (expVisible) lines += 1
-    if (cv.skills_line && !hiddenItems.has(itemId("skills_line", 0, cv.skills_line))) lines += 1 + estimateLines(cv.skills_line, cpl)
-    return pageFillFromLines(lines)
-  }, [cv, hiddenItems])
 
   const markApplied = useMutation({
     mutationFn: () => jobsApi.updateApplication(token, jobId, { status: "applied" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: dataKeys.applications() }),
   })
 
-  function handleApply() {
-    if (!applyHref) return
-    // Don't fire the link blind — preview the CV being submitted first (5.2).
-    setApplyConfirm(true)
+  function jumpTo(iid: string) {
+    setFlash(prev => ({ iid, n: (prev?.n ?? 0) + 1 }))
+  }
+  function openFixCard(fix: V2Fix) {
+    setTab("fixes")
+    setExpandedFixId(fix.id)
+    jumpTo(fix.iid)
+  }
+  function openIntake(seed?: string) {
+    setIntakeSeed(seed ?? null)
+    setIntakeOpen(true)
+  }
+  function applyFixRewrite(fix: V2Fix, oldText: string, newText: string) {
+    rewriteApply.mutate({ oldText, newText }, {
+      onSuccess: () => {
+        setAppliedFixes(p => p.some(a => a.id === fix.id) ? p
+          : [...p, { id: fix.id, iid: fix.iid, kind: fix.kind, title: fix.title, gain: fix.gain }])
+        setExpandedFixId(null)
+      },
+    })
   }
 
   async function confirmApply() {
-    if (submittingApply) return
+    if (submittingApply || !applyHref) return
     setSubmittingApply(true)
     try {
       // Freeze the exact CV submitted against this job (CVJT1 immutable attempt).
       await cvApi.applySnapshot(token, {
         job_id: jobId,
         cv_snapshot: {
-          text: visibleText,
-          title: jobTitle,
-          company,
-          score: ready,
-          bullets: visibleCount,
-          words: wordCount,
+          text: m.visibleText, title: m.jobTitle, company: m.company, score: m.ready,
+          bullets: m.visibleCount, words: m.wordCount,
         },
         cv_version_id: selectedVersion?.id ?? null,
         applied_url: applyHref,
@@ -261,207 +156,164 @@ export function PlaygroundView({
       capture.onApply()
       if (!isApplied) markApplied.mutate()
       window.open(applyHref, "_blank", "noopener,noreferrer")
+      setAppliedDone(true)
     } finally {
       setSubmittingApply(false)
-      setApplyConfirm(false)
     }
   }
   function requestDownload() {
-    setOverflowOpen(false)
-    if (pageFill.fits) onExportPDF(ready)
+    if (m.pageFill.fits) onExportPDF(m.ready)
     else setExportConfirm(true)
   }
-  function autoTrimToFit() {
-    setExportConfirm(false)
-    const overflow = Math.max(0, Math.round(pageFill.ratio * IDEAL_CV_SPEC.lineBudget) - IDEAL_CV_SPEC.lineBudget)
-    if (overflow <= 0) return
-    const cpl = IDEAL_CV_SPEC.charsPerLine
-    const cands: { iid: string; lines: number }[] = []
-    cv.experience.forEach((e, ei) => e.bullets.forEach((b, bi) => {
-      const iid = itemId("exp_bullet", ei * 100 + bi, b)
-      if (!hiddenItems.has(iid)) cands.push({ iid, lines: estimateLines(b, cpl) })
-    }))
-    cands.sort((a, b) => b.lines - a.lines)
-    let freed = 0
-    for (const c of cands) { if (freed >= overflow) break; toggleItem(c.iid); freed += c.lines }
-  }
+
+  const gapSkillNames = useMemo(() => {
+    const missing = m.evaluatedTargets.filter(t => !t.matched).map(t => t.kw)
+    if (!intakeSeed) return missing
+    return [intakeSeed, ...missing.filter(s => s.toLowerCase() !== intakeSeed.toLowerCase())]
+  }, [m.evaluatedTargets, intakeSeed])
 
   const saveState = autosaving ? "Saving…" : autosaved ? "Saved" : ""
+  const fixCountLabel = m.openFixes.length > 0 ? String(m.openFixes.length) : "✓"
 
   return (
-    <div className="cvb-pgc">
-      <div className="cvb-pgc-top">
-        <div className="cvb-pgc-headrow">
-          <div className="cvb-pgc-headinfo">
-            <button type="button" className="cvb-pgc-crumb" onClick={onBackToBaseline}>
-              <Icon name="chevron-right" size={12} style={{ transform: "rotate(180deg)" }}/> Library · {company}
-            </button>
-            <h1 className="cvb-pgc-title">{jobTitle}</h1>
-            <div className="cvb-pgc-head-acts">
-              <button type="button" className="cvb-pgc-head-intake" onClick={() => setIntakeOpen(true)}>
-                <Icon name="sparkle" size={13}/> Add from your experience
-              </button>
-              {jdText && (
-                <button type="button" className="cvb-pgc-head-jd" onClick={() => setJdOpen(true)}>
-                  Read the job description <Icon name="chevron-right" size={12}/>
-                </button>
-              )}
-            </div>
-          </div>
-          <div className="cvb-pgc-headside">
-            <div className="cvb-pgc-ready">
-              <div className="cvb-pgc-ready-num">
-                <span key={ready} className="tabnum mono">{ready}</span><span className="cvb-pgc-ready-100 mono">/100</span>
-              </div>
-              <div className="cvb-pgc-ready-cap">
-                <span className="mono">Ready</span>
-                <span className="mono cvb-pgc-ready-delta">{delta > 0 ? `▲ ${delta}` : "build it up"}</span>
-              </div>
-            </div>
+    <div className="cvb-v2" data-tab={tab}>
+      <PlaygroundHeader
+        jobTitle={m.jobTitle}
+        company={m.company}
+        reqCount={m.allTargets.length}
+        ready={m.ready}
+        delta={m.delta}
+        canApply={!!applyHref}
+        applyHint={applyHref ? `Open ${m.company} careers` : "No application link yet"}
+        saveState={saveState}
+        onBack={onBackToBaseline}
+        onReqPill={() => setTab("skills")}
+        onApply={() => { setAppliedDone(false); setApplyOpen(true) }}
+        onDownload={requestDownload}
+      />
+      <ApplyCapturePrompt capture={capture} />
+      {externalError && <div className="cvb-pgc-err" role="alert">{externalError}</div>}
+
+      <div className="cvb-v2-main">
+        <section className="cvb-v2-editor" aria-label="Your CV">
+          <div className="cvb-v2-toolbar">
             <button
               type="button"
-              className="cvb-pgc-apply"
-              onClick={handleApply}
-              disabled={!applyHref}
-              title={applyHref ? `Open ${company} careers` : "No application link yet"}
-            >Apply →</button>
-            <div className="cvb-pgc-overflow">
-              <button
-                type="button"
-                className="cvb-pgc-overflow-btn"
-                onClick={() => setOverflowOpen(o => !o)}
-                aria-label="More actions"
-                aria-expanded={overflowOpen}
-              >⋯</button>
-              {overflowOpen && (
-                <div className="cvb-pgc-menu" role="menu">
-                  <button type="button" role="menuitem" onClick={() => { setOverflowOpen(false); setRestructureOpen(true) }}>
-                    <Icon name="sparkle" size={13}/> Restructure with Mentor
-                  </button>
-                  <button type="button" role="menuitem" onClick={requestDownload}>
-                    <Icon name="download" size={13}/> Download PDF
-                  </button>
-                </div>
-              )}
-            </div>
+              className={`cvb-v2-tabbtn wide${tab === "preview" ? " active" : ""}`}
+              onClick={() => setTab(tab === "preview" ? "edit" : "preview")}
+            >Preview</button>
+            <span className="cvb-v2-toolbar-label mono">Your CV</span>
+            <span className="cvb-v2-headspacer" aria-hidden />
+            {m.jdText && (
+              <button type="button" className="cvb-v2-ghostbtn" onClick={() => setJdOpen(true)}>
+                Job Description
+              </button>
+            )}
+            <button type="button" className="cvb-v2-intakebtn" onClick={() => openIntake()}>
+              <Icon name="sparkle" size={13} /> Add from your experience
+            </button>
           </div>
-        </div>
+          <div className="cvb-v2-editorbody">
+            <CVEditor
+              token={token}
+              cv={cv}
+              profile={profile}
+              hiddenItems={hiddenItems}
+              toggleItem={toggleItem}
+              targets={m.evaluatedTargets}
+              missingKeywords={m.evaluatedTargets.filter(t => !t.matched).map(t => t.kw)}
+              applying={rewriteApply.isPending}
+              onApply={(oldText, newText) => rewriteApply.mutate({ oldText, newText })}
+              onAddBullet={(roleIndex, text) => addBullet.mutate({ roleIndex, text })}
+              addingBullet={addBullet.isPending}
+              visibleCount={m.visibleCount}
+              wordCount={m.wordCount}
+              rewriteTarget={null}
+              onClearRewriteTarget={() => {}}
+              fixes={m.openFixes}
+              applied={appliedShown}
+              onFixPill={openFixCard}
+              flash={flash}
+            />
+          </div>
+        </section>
 
-        <div className="cvb-pgc-bar" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={ready} aria-label="Readiness">
-          <div className="cvb-pgc-bar-fill" style={{ width: `${ready}%` }} />
-        </div>
-        {saveState && <div className="cvb-pgc-savestate mono" role="status" aria-live="polite">{saveState}</div>}
-        <ApplyCapturePrompt capture={capture} />
-        {externalError && <div className="cvb-pgc-err" role="alert">{externalError}</div>}
-      </div>
-
-      <div className="cvb-pgc-grid">
-        <RaiseItRail
+        <PlaygroundRail
           token={token}
-          plan={gapPlanQuery.data ?? null}
+          tab={railTab}
+          model={m}
           cv={cv}
-          targets={evaluatedTargets}
-          pointsFor={pointsFor}
-          onRaise={setRewriteTarget}
-        />
-        <CVEditor
-          token={token}
-          cv={cv}
-          profile={profile}
-          hiddenItems={hiddenItems}
-          toggleItem={toggleItem}
-          targets={evaluatedTargets}
-          missingKeywords={evaluatedTargets.filter(t => !t.matched).map(t => t.kw)}
+          hidden={hiddenItems}
+          contact={m.sheetContact}
+          pageFill={m.pageFill}
+          applied={appliedShown}
+          expandedId={expandedFixId}
           applying={rewriteApply.isPending}
-          onApply={(oldText, newText) => rewriteApply.mutate({ oldText, newText })}
-          onAddBullet={(roleIndex, text) => addBullet.mutate({ roleIndex, text })}
-          addingBullet={addBullet.isPending}
-          visibleCount={visibleCount}
-          wordCount={wordCount}
-          rewriteTarget={rewriteTarget}
-          onClearRewriteTarget={() => setRewriteTarget(null)}
+          canApply={!!applyHref}
+          fixCountLabel={fixCountLabel}
+          onTab={setTab}
+          onExpand={f => setExpandedFixId(f?.id ?? null)}
+          onJump={jumpTo}
+          onApplyFix={applyFixRewrite}
+          onFixCard={openFixCard}
+          onOpenIntake={openIntake}
+          onDownload={requestDownload}
+          onApplyCV={() => { setAppliedDone(false); setApplyOpen(true) }}
         />
       </div>
+
+      <PlaygroundBottomNav tab={tab} fixCountLabel={fixCountLabel} onTab={setTab} />
 
       {exportConfirm && (
-        <div className="cvb-modal-backdrop" role="dialog" aria-modal="true" aria-label="Trim to fit one page" onClick={() => setExportConfirm(false)}>
-          <div className="cvb-modal" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
-            <div className="cvb-modal-head">Spills onto {pageFill.pages} pages</div>
-            <div className="cvb-modal-body" style={{ padding: 18 }}>
-              <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "var(--tm-text-muted)" }}>
-                Recruiters skim one page. Auto-trim hides your lowest-impact bullets until it fits — or download as-is.
-              </p>
-              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 18, flexWrap: "wrap" }}>
-                <button type="button" className="cvb-btn sm" onClick={() => setExportConfirm(false)}>Cancel</button>
-                <button type="button" className="cvb-btn sm" onClick={autoTrimToFit}><Icon name="sparkle" size={12}/> Auto-trim to fit</button>
-                <button type="button" className="cvb-btn sm primary" onClick={() => { setExportConfirm(false); onExportPDF(ready) }}>
-                  <Icon name="download" size={12}/> Download anyway
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <TrimConfirm
+          cv={cv}
+          hiddenItems={hiddenItems}
+          pageFill={m.pageFill}
+          toggleItem={toggleItem}
+          onDownload={() => onExportPDF(m.ready)}
+          onClose={() => setExportConfirm(false)}
+        />
       )}
 
       <DetailDrawer
         open={jdOpen}
         onClose={() => setJdOpen(false)}
         ariaLabel="Job description"
-        header={<DetailHeader title={jobTitle} company={company} onClose={() => setJdOpen(false)} />}
+        header={<DetailHeader title={m.jobTitle} company={m.company} onClose={() => setJdOpen(false)} />}
       >
-        <div className="cvb-pgc-jd-drawer-body">{jdText}</div>
+        <div className="cvb-pgc-jd-drawer-body">{m.jdText}</div>
       </DetailDrawer>
 
       {intakeOpen && (
         <ExperienceIntake
           token={token}
           jobId={jobId}
-          jdText={jdText}
-          gapSkills={evaluatedTargets.filter(t => !t.matched).map(t => t.kw)}
-          roles={roles}
+          jdText={m.jdText}
+          gapSkills={gapSkillNames}
+          roles={m.roles}
           adding={addBullet.isPending}
           onAdd={(roleIndex, text) => addBullet.mutateAsync({ roleIndex, text }).then(() => {})}
-          onClose={() => setIntakeOpen(false)}
+          onClose={() => { setIntakeOpen(false); setIntakeSeed(null) }}
         />
       )}
 
-      {restructureOpen && selectedVersion && (
-        <RestructureProposal
-          token={token}
-          versionId={selectedVersion.id}
-          targetLabel={`${jobTitle} · ${company}`}
-          onClose={() => setRestructureOpen(false)}
-          onKept={(v) => {
-            setRestructureOpen(false)
-            selectVersion(v.id)
-            queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
-          }}
+      {applyOpen && (
+        <ApplyModal
+          cv={cv}
+          hidden={hiddenItems}
+          contact={m.sheetContact}
+          company={m.company}
+          jobTitle={m.jobTitle}
+          ready={m.ready}
+          delta={m.delta}
+          pendingFixes={m.openFixes.length}
+          submitting={submittingApply}
+          applied={appliedDone}
+          onConfirm={() => void confirmApply()}
+          onClose={() => { setApplyOpen(false); setAppliedDone(false) }}
+          onBackToFixes={() => { setApplyOpen(false); setTab("fixes") }}
+          onDownload={requestDownload}
         />
-      )}
-
-      {applyConfirm && (
-        <div className="cvb-modal-backdrop" role="dialog" aria-modal="true" aria-label="Apply with this CV" onClick={() => !submittingApply && setApplyConfirm(false)}>
-          <div className="cvb-modal cvb-apply" onClick={e => e.stopPropagation()}>
-            <div className="cvb-modal-head">
-              <span><Icon name="sparkle" size={14}/> Apply with this CV</span>
-              <button type="button" className="cvb-intake-x" onClick={() => setApplyConfirm(false)} aria-label="Close" disabled={submittingApply}>✕</button>
-            </div>
-            <div className="cvb-modal-body cvb-apply-body">
-              <div className="cvb-apply-meta">
-                <span className="cvb-apply-role">{jobTitle}{company !== "Untitled company" ? ` · ${company}` : ""}</span>
-                <span className="mono cvb-apply-stats">Ready {ready}/100 · {visibleCount} bullets · ~{wordCount} words</span>
-              </div>
-              <div className="cvb-apply-preview">{visibleText}</div>
-              <p className="cvb-apply-note mono">This exact CV is saved as your submission for this job, then the application page opens.</p>
-            </div>
-            <div className="cvb-intake-foot">
-              <button type="button" className="cvb-btn sm" onClick={() => onExportPDF(ready)}>Download PDF</button>
-              <button type="button" className="cvb-pgc-apply cvb-intake-draft" onClick={confirmApply} disabled={submittingApply}>
-                {submittingApply ? "Saving…" : "Apply →"}
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   )
