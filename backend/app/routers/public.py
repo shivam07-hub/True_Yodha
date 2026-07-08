@@ -15,7 +15,7 @@ from typing import Any
 
 import httpx
 from fastapi import APIRouter, File, Form, HTTPException, Request, Response, UploadFile, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.database import get_supabase_admin
@@ -23,6 +23,12 @@ from app.repositories.search_queries import SearchQueriesRepository
 from app.repositories.jobs import get_public_jobs_repository
 from app.repositories.scores import ScoresRepository
 from app.services import cv_parser, cv_restructure, cv_rewrite, job_query_parser
+from app.services.cv_pdf_html import (
+    CVPdfError,
+    content_disposition as _content_disposition,
+    render_html_to_pdf,
+    sanitize_pdf_filename as _sanitize_pdf_filename,
+)
 from app.services.llm_provider import get_cv_upload_provider, get_llm_provider
 from app.services.matching.filter_spec import FilterSpec
 from app.services.matching.job_query import JobQuery
@@ -104,12 +110,13 @@ _ALLOWED_CONTENT_TYPES = {
 # amounts of LLM budget. Unlimited actions (page-fill, hide/show bullets) never
 # touch the server, so there's nothing to cap there.
 _ANON_RATE_WINDOW_SECONDS = 3600.0
-_ANON_RATE_MAX = {"score": 5, "rewrite": 6, "restructure": 2, "job_search": 12, "download_event": 10}
+_ANON_RATE_MAX = {"score": 5, "rewrite": 6, "restructure": 2, "job_search": 12, "download_event": 10, "export": 10}
 _ANON_RATE_MSG = {
     "score": "You've previewed a few CVs already. Sign up to keep scoring.",
     "rewrite": "You've polished a lot of bullets. Sign up to keep improving your CV.",
     "restructure": "You've restructured this CV a couple of times. Sign up to keep going.",
     "job_search": "You've run a lot of searches. Sign up to save jobs and see your fit.",
+    "export": "You've downloaded a few CVs already. Sign up to save and keep working.",
 }
 _anon_hits: dict[tuple[str, str], deque[float]] = {}
 
@@ -527,6 +534,49 @@ async def restructure_preview(
         rationale=result.get("rationale"),
         playbook=result.get("playbook"),
         uncertainty=result.get("uncertainty"),
+    )
+
+
+# ─── Public WYSIWYG CV export (no auth) ──────────────────────────────────────
+#
+# ADR-0020: every CV artifact — authed OR logged-out — renders from the SAME
+# `.cvb-pdf-page` sheet through the SAME headless-Chromium renderer, so the
+# downloaded PDF is byte-for-byte what the user previewed (Geist embedded, ₹
+# survives, no browser-print reflow). The authed path is POST /cv/export-pdf
+# (principal-gated); this is its anon twin. The renderer is stateless (HTML →
+# PDF, no DB, no user), so it's safe behind the same Turnstile + per-IP guard
+# as the other /public CV endpoints. On 503 the client falls back to native
+# print — a visible sheet exists in the playground.
+
+
+class AnonExportPdfRequest(BaseModel):
+    html: str = Field(..., min_length=40, max_length=512_000)
+    filename: str | None = Field(default=None, max_length=160)
+    cf_turnstile_token: str | None = None
+
+
+@router.post("/cv/export-pdf")
+async def export_cv_pdf_public(
+    body: AnonExportPdfRequest,
+    request: Request,
+) -> Response:
+    ip = _client_ip(request)
+    _enforce_anon_rate("export", ip)
+    await _verify_turnstile(body.cf_turnstile_token, ip)
+
+    try:
+        pdf_bytes = render_html_to_pdf(body.html)
+    except CVPdfError as exc:
+        # Soft failure — the playground falls back to native print on 503.
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+    safe = _sanitize_pdf_filename(body.filename)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": _content_disposition(safe)},
     )
 
 

@@ -6,13 +6,18 @@
  * ephemeral (nothing is persisted; PV1).
  *
  * This is a lean shell over the SAME pure leaves the authed surface uses
- * (PdfPage, BulletRow, page-fill, ats-checks, printCvPage). It deliberately does
- * NOT reuse the authed PlaygroundView / useCVPlayground — those are per-job,
- * token + DB-bound. Zero authed regression: this file only imports pure leaves.
+ * (PdfPage, BulletRow, page-fill, ats-checks). It deliberately does NOT reuse
+ * the authed PlaygroundView / useCVPlayground — those are per-job, token +
+ * DB-bound. Zero authed regression: this file only imports pure leaves.
  *
- * Parity (grill Q7, hard constraint): the download is printCvPage() of the SAME
- * `.cvb-pdf-page` document a signed-up user exports — byte-identical, zero
- * backend, zero Chromium. DOCX + templates stay the logged-in perk.
+ * Parity (ADR-0020, hard constraint): the download renders the SAME visible
+ * `.cvb-pdf-page` through the SAME server Chromium renderer the authed export
+ * uses — via the anon twin POST /public/cv/export-pdf (exportAnonSheetPdf) — so
+ * the PDF is WYSIWYG (Geist embedded, ₹ intact, no browser-print reflow).
+ * `window.print()` is the fallback ONLY (503 / no sheet). This corrects the
+ * original "printCvPage = parity" assumption, which shipped a mangled anon PDF
+ * (2026-07: browser print embeds no font + reflows). DOCX + templates stay the
+ * logged-in perk.
  *
  * Gate (grill Q8 / Shivam): everything is free; login is an OPTIONAL "save"
  * upsell. Download offers "Save & download" (→ signup, claim-replays the
@@ -20,7 +25,7 @@
  */
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   publicCv,
   type AnonScoreResponse,
@@ -37,6 +42,7 @@ import { runAtsChecks, atsScore, type AtsCheck } from "@/components/cv/builder/a
 import { runContentChecks } from "@/components/cv/builder/content-checks"
 import { itemId, renderDeterministic } from "@/lib/cv-compose"
 import { printCvPage } from "@/lib/cv/print-cv"
+import { exportAnonSheetPdf } from "@/lib/cv/sheet-pdf"
 import { masterFilename } from "@/lib/cv/download-master"
 import {
   IDEAL_CV_SPEC, estimateLines, pageFillFromLines, pageFillBand, type PageFill,
@@ -66,6 +72,10 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
   // (parity), exactly like the authed surface where the export is structured.
   const [restructuredText, setRestructuredText] = useState<string | null>(null)
   const [downloadOpen, setDownloadOpen] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+  // The visible preview wrapper — the SAME `.cvb-pdf-page` sheet gets serialized
+  // and rendered server-side (ADR-0020 WYSIWYG), so the PDF === the preview.
+  const previewRef = useRef<HTMLDivElement>(null)
   const [restructureOpen, setRestructureOpen] = useState(false)
   const [rewriteTarget, setRewriteTarget] = useState<RewriteTarget | null>(null)
   // Mobile only: the editor + preview stack in series is a long scroll, so on
@@ -136,16 +146,44 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
       savedIntent,
     })
   }
-  function doDownload() {
-    setDownloadOpen(false)
-    recordDownload(false)
-    printCvPage(filename)
+  // ADR-0020: render the visible sheet through the SAME server Chromium path as
+  // the authed download. `window.print()` is the fallback ONLY (503 / no sheet /
+  // network) — never the primary, so anon downloads no longer diverge (Geist
+  // embedded, ₹ intact, no browser-print reflow).
+  async function downloadSheet(): Promise<void> {
+    const sheet = previewRef.current?.querySelector<HTMLElement>(".cvb-pdf-page")
+    if (!sheet) {
+      printCvPage(filename)
+      return
+    }
+    try {
+      await exportAnonSheetPdf(sheet, filename)
+    } catch {
+      printCvPage(filename)
+    }
   }
-  function doSaveAndDownload() {
-    setDownloadOpen(false)
+  async function doDownload() {
+    if (downloading) return
+    recordDownload(false)
+    setDownloading(true)
+    try {
+      await downloadSheet()
+    } finally {
+      setDownloading(false)
+      setDownloadOpen(false)
+    }
+  }
+  async function doSaveAndDownload() {
+    if (downloading) return
     recordDownload(true)
     stashComposedCvText(composedText)
-    printCvPage(filename)
+    setDownloading(true)
+    try {
+      await downloadSheet()
+    } finally {
+      setDownloading(false)
+      setDownloadOpen(false)
+    }
     signup.open({ surface: "manual", next: NEXT, source: "cv_preview_save_download" })
   }
 
@@ -228,7 +266,7 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
             audit lives here, with the CV it grades — it's a property of the
             document, not an editor tool (so on mobile it sits under Preview). */}
         <div className="cvp-preview">
-          <div className="cvb-scope">
+          <div className="cvb-scope" ref={previewRef}>
             <PdfPage cv={cv} hidden={hidden} contact={contact} />
           </div>
 
@@ -276,11 +314,11 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
             <div className="cvp-dl-body">
               <p className="cvp-dl-copy">Log in to save this CV and your edits for next time.</p>
               <div className="cvp-dl-actions">
-                <button type="button" className="cvb-btn primary" onClick={doSaveAndDownload}>
-                  <Icon name="save" size={14} /> Save &amp; download
+                <button type="button" className="cvb-btn primary" onClick={doSaveAndDownload} disabled={downloading} aria-busy={downloading}>
+                  <Icon name="save" size={14} /> {downloading ? "Preparing…" : "Save & download"}
                 </button>
-                <button type="button" className="cvb-btn ghost" onClick={doDownload}>
-                  <Icon name="download" size={14} /> Just download
+                <button type="button" className="cvb-btn ghost" onClick={doDownload} disabled={downloading} aria-busy={downloading}>
+                  <Icon name="download" size={14} /> {downloading ? "Preparing…" : "Just download"}
                 </button>
               </div>
               <p className="cvp-dl-note">PDF is selectable, ATS-safe text — what you see is what downloads.</p>

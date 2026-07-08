@@ -7,7 +7,7 @@
  * sheet stylesheet. Both consumers (CVExportView, DownloadCVButton) go
  * through here; there is no plain-text render path.
  */
-import { cv as cvApi } from "@/lib/api"
+import { cv as cvApi, publicCv } from "@/lib/api"
 
 /** Retry a flaky export call with linear backoff — weak mobile networks (the
  *  core audience) drop a single request often, but a second attempt usually
@@ -44,5 +44,14 @@ export function triggerBlobDownload(blob: Blob, filename: string, mime: string) 
  *  decide the fallback (native print where a visible sheet exists). */
 export async function exportSheetPdf(token: string, sheet: HTMLElement, filename: string): Promise<void> {
   const blob = await withRetry(() => cvApi.exportPdf(token, { html: sheet.outerHTML, filename }))
+  triggerBlobDownload(blob, filename, "application/pdf")
+}
+
+/** Anon twin of exportSheetPdf for the logged-out playground — SAME sheet,
+ *  SAME server Chromium renderer (via the public endpoint), so the download is
+ *  WYSIWYG rather than browser-print. Throws on 503; the caller falls back to
+ *  native print. */
+export async function exportAnonSheetPdf(sheet: HTMLElement, filename: string): Promise<void> {
+  const blob = await withRetry(() => publicCv.exportPdf(sheet.outerHTML, filename))
   triggerBlobDownload(blob, filename, "application/pdf")
 }

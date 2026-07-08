@@ -27,6 +27,7 @@ import base64
 import re
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import quote
 
 from playwright.sync_api import sync_playwright
 
@@ -152,3 +153,26 @@ def render_html_to_pdf(body_html: str) -> bytes:
     if not pdf:
         raise CVPdfError("renderer produced no output")
     return pdf
+
+
+_FILENAME_SAFE = re.compile(r"[^A-Za-z0-9._-]+")
+
+
+def sanitize_pdf_filename(raw: str | None) -> str:
+    """One naming policy for every rendered PDF (ADR-0020). Strips unsafe
+    characters and guarantees a single `.pdf` extension."""
+    fallback = "myro_cv.pdf"
+    if not raw:
+        return fallback
+    cleaned = _FILENAME_SAFE.sub("_", raw.strip()).strip("._-")
+    if not cleaned:
+        return fallback
+    if not cleaned.lower().endswith(".pdf"):
+        cleaned = re.sub(r"\.(pdf|docx)$", "", cleaned, flags=re.IGNORECASE)
+        cleaned += ".pdf"
+    return cleaned[:120]
+
+
+def content_disposition(safe: str) -> str:
+    """RFC 5987 attachment header — ASCII fallback + UTF-8 variant."""
+    return f'attachment; filename="{safe}"; filename*=UTF-8\'\'{quote(safe)}'
