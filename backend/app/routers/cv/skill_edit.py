@@ -32,7 +32,7 @@ from app.repositories.cv import (
 )
 from app.repositories.scores import ScoresRepository, get_token_scores_repository
 from app.services import background, cv_compose, cv_rewrite, cv_skill_edit, progress_stream, text_stream
-from app.services.llm_provider import get_llm_provider
+from app.services.llm_provider import get_interactive_provider
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +98,23 @@ class RewriteBulletResponse(BaseModel):
     # #32: authored-playbook source titles the rewrite was grounded in (empty when
     # retrieval found nothing / RAG was down — the rewrite still succeeds).
     citations:      list[str] = Field(default_factory=list)
+
+
+class RewriteVariant(BaseModel):
+    angle: str   # "metric" | "impact" | "scope"
+    label: str   # UI tab label ("Metric-led" …)
+    text:  str   # the finished bullet — never reasoning
+
+
+class RewriteVariantsResponse(BaseModel):
+    """Pick-a-version rewrite: 2–3 finished framings of the SAME real facts.
+    ``mode`` is one of "variants" | "question" | "error" (shares the no-fab
+    question branch with the single rewrite)."""
+    mode:      str
+    variants:  list[RewriteVariant] = Field(default_factory=list)
+    question:  str | None = None
+    rationale: str | None = None
+    citations: list[str] = Field(default_factory=list)
 
 
 class RewriteApplyRequest(BaseModel):
@@ -230,10 +247,37 @@ async def rewrite_bullet(
         body.role,
         body.missing_keywords,
         body.metric,
-        get_llm_provider(),
+        get_interactive_provider(),
         allow_no_metric=body.allow_no_metric,
     )
     return RewriteBulletResponse(**result)
+
+
+@router.post("/rewrite-bullet/variants", response_model=RewriteVariantsResponse)
+async def rewrite_bullet_variants(
+    body: RewriteBulletRequest,
+    principal: Principal = Depends(get_principal),  # noqa: ARG001 — auth gate
+) -> RewriteVariantsResponse:
+    """Propose 2–3 finished framings (metric/impact/scope) of ONE bullet for the
+    pick-a-version flow, or (no-fabrication guard) ask for the real metric. Uses
+    the interactive/paid provider — the user is watching a spinner — so the model
+    returns clean bullets, never streamed chain-of-thought. Stateless + free;
+    accepts go through /rewrite-bullet/apply."""
+    result = await cv_rewrite.suggest_rewrite_variants(
+        body.bullet,
+        body.role,
+        body.missing_keywords,
+        body.metric,
+        get_interactive_provider(),
+        allow_no_metric=body.allow_no_metric,
+    )
+    return RewriteVariantsResponse(
+        mode=result["mode"],
+        variants=[RewriteVariant(**v) for v in result.get("variants", [])],
+        question=result.get("question"),
+        rationale=result.get("rationale"),
+        citations=result.get("citations", []),
+    )
 
 
 @router.post("/rewrite-bullet/stream")
@@ -278,7 +322,7 @@ async def rewrite_bullet_stream(
         }
 
     return text_stream.response(
-        text_stream.live(get_llm_provider(), plan["messages"], max_tokens=cv_rewrite.MAX_TOKENS, finalize=finalize)
+        text_stream.live(get_interactive_provider(), plan["messages"], max_tokens=cv_rewrite.MAX_TOKENS, finalize=finalize)
     )
 
 

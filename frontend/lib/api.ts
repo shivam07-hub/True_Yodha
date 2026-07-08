@@ -818,6 +818,21 @@ export interface RewriteBulletResponse {
   citations?: string[]
 }
 
+export interface RewriteVariant {
+  angle: "metric" | "impact" | "scope"
+  label: string
+  text: string
+}
+
+// Pick-a-version rewrite: 2–3 finished framings of the same real facts.
+export interface RewriteVariantsResponse {
+  mode: "variants" | "question" | "error"
+  variants: RewriteVariant[]
+  question?: string | null
+  rationale?: string | null
+  citations?: string[]
+}
+
 // Whole-CV "Restructure with Mentor" (DESIGN_cv_playground_redesign §6.2, CVJT1).
 export interface RestructureProposalResponse {
   mode: "proposal" | "error"
@@ -1134,6 +1149,19 @@ export const cv = {
    * Tokens are the rewritten text; the terminal `done` frame carries
    * {mode, question?, rationale?, citations?}. */
   rewriteBulletStreamPath: "/cv/rewrite-bullet/stream",
+  // Pick-a-version rewrite: 2–3 finished framings (metric/impact/scope) of ONE
+  // bullet, or the no-fab question. Uses the paid provider server-side, so the
+  // output is finished CV lines — never streamed reasoning.
+  rewriteBulletVariants: (
+    token: string,
+    body: { bullet: string; role?: string | null; missing_keywords: string[]; metric?: string | null; allow_no_metric?: boolean },
+  ) =>
+    request<RewriteVariantsResponse>("/cv/rewrite-bullet/variants", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+      timeoutMs: LLM_REQUEST_TIMEOUT_MS,
+    }),
   // Plan the gap-driven session for a job: classify each gap → cards. Stateless,
   // free, writes nothing; accepts go through rewriteBullet/rewriteApply above.
   gapPlan: (token: string, jobId: string) =>

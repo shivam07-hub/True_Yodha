@@ -157,12 +157,39 @@ async def prepare_rewrite(
     }
 
 
+# Meta phrases a chain-of-thought leak contains but a real bullet never does.
+_REASONING_MARKERS = re.compile(
+    r"\b(we need to|let'?s craft|let'?s|must be|perhaps|the bullet|rewrite one|"
+    r"we can (?:include|weave)|max ~?\d+ words|xyz formula)\b",
+    re.IGNORECASE,
+)
+# A quoted candidate inside a longer blob — the model's actual final answer.
+_QUOTED_RE = re.compile(r"[\"'“”‘’]([^\"'“”‘’]{12,})[\"'“”‘’]")
+
+
+def _extract_bullet(raw: str) -> str:
+    """Pull the finished bullet out of a completion. Normally the model returns
+    just the line; but a weak model can leak reasoning ("We need to rewrite …
+    Let's craft: 'Generated €500K+ …'"). When the raw reads like reasoning, take
+    the last quoted candidate (the model's actual answer) instead of the ramble."""
+    text = (raw or "").strip()
+    if _REASONING_MARKERS.search(text) or "\n" in text:
+        quoted = _QUOTED_RE.findall(text)
+        if quoted:
+            return quoted[-1].strip()
+        # No quote to rescue — fall back to the last non-empty line.
+        lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+        if lines:
+            text = lines[-1]
+    return text.strip().strip('"').strip("'").strip()
+
+
 def finalize_rewrite(text: str, passages: list, missing_keywords: list[str]) -> dict:
     """Turn the fully-streamed (or fully-completed) rewrite text into the terminal
     payload: the cleaned text, a rationale, and the de-duped citation titles.
     Pure — no I/O — so it runs identically after a blocking complete() or a token
     stream. Returns ``{"mode": "error", ...}`` if the model produced nothing."""
-    text = (text or "").strip().strip('"').strip()
+    text = _extract_bullet(text)
     if not text:
         return {"mode": "error", "rationale": "No rewrite produced."}
 

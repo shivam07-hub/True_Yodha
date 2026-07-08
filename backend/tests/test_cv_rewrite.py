@@ -157,3 +157,25 @@ def test_variants_fall_back_to_single_when_untagged(monkeypatch):
     assert out["mode"] == "variants"
     assert len(out["variants"]) == 1
     assert out["variants"][0]["text"].startswith("Cut churn 18%")
+
+
+def test_finalize_salvages_bullet_from_leaked_reasoning(monkeypatch):
+    # A weak model that leaks chain-of-thought then quotes its real answer must
+    # yield the quoted bullet, never the reasoning blob (the shivam.mit20 bug).
+    _patch_retrieve(monkeypatch, [])
+    leak = (
+        "We need to rewrite one bullet, max ~30 words, start with a strong verb. "
+        "The bullet mentions shaping B2B GTM strategy. Let's craft: "
+        "'Generated €500K+ revenue by leading Product Marketing-focused B2B GTM strategy'"
+    )
+    out = cv_rewrite.finalize_rewrite(leak, [], [])
+    assert out["mode"] == "rewrite"
+    assert out["rewritten_text"].startswith("Generated €500K+ revenue")
+    assert "we need to" not in out["rewritten_text"].lower()
+
+
+def test_finalize_passes_clean_bullet_through(monkeypatch):
+    _patch_retrieve(monkeypatch, [])
+    out = cv_rewrite.finalize_rewrite("Generated €500K+ revenue by leading B2B GTM strategy", [], [])
+    assert out["mode"] == "rewrite"
+    assert out["rewritten_text"] == "Generated €500K+ revenue by leading B2B GTM strategy"
