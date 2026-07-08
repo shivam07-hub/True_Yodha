@@ -1729,6 +1729,31 @@ mark.cvb-kw {
   text-decoration: line-through; text-decoration-color: var(--tm-border-soft);
 }
 .cvb-rw-diff-new { font-size: var(--tm-fs-meta); line-height: 1.55; color: var(--tm-text); }
+/* Pick-a-version: intent header + the current line (reference, not struck) +
+   angle tabs. Says which line is changing and what it is adding. */
+.cvb-rw-intent {
+  display: flex; align-items: baseline; gap: 5px; flex-wrap: wrap;
+  font-size: var(--tm-fs-caption);
+}
+.cvb-rw-intent-what { color: var(--tm-text); font-weight: 600; }
+.cvb-rw-intent-kw { color: var(--tm-accent-text); }
+.cvb-rw-original {
+  font-size: var(--tm-fs-meta); line-height: 1.5; color: var(--tm-text-muted);
+  padding-left: 8px; border-left: 2px solid var(--tm-border-soft);
+}
+.cvb-rw-pick-label { font-size: var(--tm-fs-caption); color: var(--tm-text-muted); }
+.cvb-rw-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.cvb-rw-tab {
+  padding: 4px 10px; font: inherit; font-size: var(--tm-fs-caption);
+  color: var(--tm-text-muted); background: var(--tm-surface);
+  border: 1px solid var(--tm-border-soft); border-radius: 999px; cursor: pointer;
+}
+.cvb-rw-tab:hover { color: var(--tm-text); border-color: var(--tm-int-border); }
+.cvb-rw-tab.active {
+  color: var(--tm-accent-text); border-color: var(--tm-int-border);
+  background: var(--tm-int-bg-wash); font-weight: 600;
+}
+@media (max-width: 720px) { .cvb-rw-tab { min-height: 36px; } }
 /* Typewriter caret while the rewrite streams in (ADR-0009). */
 .cvb-rw-caret {
   display: inline-block; margin-left: 1px; color: var(--tm-accent-text);

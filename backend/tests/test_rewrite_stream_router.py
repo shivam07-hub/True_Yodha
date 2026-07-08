@@ -33,7 +33,7 @@ def _frames(body: str) -> list[dict]:
 
 def _wire(monkeypatch, tokens: list[str]) -> None:
     app.dependency_overrides[get_principal] = lambda: Principal(id="u1", email="a@b.co")
-    monkeypatch.setattr(skill_edit_router, "get_llm_provider", lambda: _FakeProvider(tokens))
+    monkeypatch.setattr(skill_edit_router, "get_interactive_provider", lambda: _FakeProvider(tokens))
 
     async def _no_passages(*_a, **_k):
         return []
@@ -92,5 +92,39 @@ def test_empty_bullet_returns_error_frame(monkeypatch):
         frames = _frames(res.text)
         errs = [f for f in frames if f["type"] == "error"]
         assert errs and not any(f["type"] == "token" for f in frames)
+    finally:
+        _unwire()
+
+
+class _CompleteProvider:
+    """Blocking provider for the variants endpoint (returns tagged lines)."""
+    def __init__(self, text: str) -> None:
+        self._text = text
+
+    async def complete(self, _messages, **_kw) -> str:
+        return self._text
+
+
+def test_variants_endpoint_returns_finished_versions(monkeypatch):
+    app.dependency_overrides[get_principal] = lambda: Principal(id="u1", email="a@b.co")
+    monkeypatch.setattr(
+        skill_edit_router, "get_interactive_provider",
+        lambda: _CompleteProvider("[METRIC] Cut churn 18% in Q3\n[IMPACT] Lifted retention across the base\n[SCOPE] Owned churn for 40k users"),
+    )
+
+    async def _no_passages(*_a, **_k):
+        return []
+    monkeypatch.setattr(cv_rewrite.mentor_retriever, "retrieve", _no_passages)
+    try:
+        with TestClient(app) as client:
+            res = client.post(
+                "/cv/rewrite-bullet/variants",
+                json={"bullet": "Reduced churn by 18% in Q3", "missing_keywords": ["churn"]},
+            )
+        body = res.json()
+        assert res.status_code == 200
+        assert body["mode"] == "variants"
+        assert [v["angle"] for v in body["variants"]] == ["metric", "impact", "scope"]
+        assert all("[" not in v["text"] for v in body["variants"])   # tags stripped, no reasoning
     finally:
         _unwire()
