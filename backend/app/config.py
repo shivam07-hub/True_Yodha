@@ -40,7 +40,8 @@ class Settings(BaseSettings):
     lm_studio_extractor_model: str = ""
     lm_studio_base_url: str        = "http://localhost:1234/v1"
 
-    # LLM keys — fallback order: groq → gemini → openrouter
+    # LLM keys — user-blocking fallback order: paid OpenRouter → Groq → Gemini.
+    # Background/fail-soft work can still use the free-first provider.
     groq_api_key: str      = ""
     google_api_key: str    = ""
     openrouter_api_key: str = ""

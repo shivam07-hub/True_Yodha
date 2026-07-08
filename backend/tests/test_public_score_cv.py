@@ -221,12 +221,15 @@ def test_job_fit_preview_rejects_wrong_file_type(monkeypatch: pytest.MonkeyPatch
 
 
 def test_rewrite_bullet_preview(monkeypatch: pytest.MonkeyPatch) -> None:
+    paid_first_provider = object()
+
     async def _fake(bullet, role, kws, metric, provider, allow_no_metric=False):
         assert bullet == "Built a thing that saved 20% time"
+        assert provider is paid_first_provider
         return {"mode": "rewrite", "rewritten_text": "Engineered X cutting cycle time 20%.", "rationale": "XYZ."}
 
     monkeypatch.setattr(public_router.cv_rewrite, "suggest_rewrite", _fake)
-    monkeypatch.setattr(public_router, "get_llm_provider", lambda: object())
+    monkeypatch.setattr(public_router, "get_interactive_provider", lambda: paid_first_provider)
 
     res = TestClient(app).post(
         "/public/rewrite-bullet",
@@ -239,20 +242,53 @@ def test_rewrite_bullet_preview(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_rewrite_bullet_no_metric_question(monkeypatch: pytest.MonkeyPatch) -> None:
+    paid_first_provider = object()
+
     async def _fake(*args, **kwargs):
+        assert args[4] is paid_first_provider
         return {"mode": "question", "question": "What was the impact?"}
 
     monkeypatch.setattr(public_router.cv_rewrite, "suggest_rewrite", _fake)
-    monkeypatch.setattr(public_router, "get_llm_provider", lambda: object())
+    monkeypatch.setattr(public_router, "get_interactive_provider", lambda: paid_first_provider)
 
     body = TestClient(app).post("/public/rewrite-bullet", json={"bullet": "Did work"}).json()
     assert body["mode"] == "question"
     assert body["question"]
 
 
+def test_rewrite_bullet_variants_preview_uses_paid_first_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    paid_first_provider = object()
+
+    async def _fake(bullet, role, kws, metric, provider, allow_no_metric=False):
+        assert bullet == "Reduced churn 18%"
+        assert provider is paid_first_provider
+        return {
+            "mode": "variants",
+            "variants": [
+                {"angle": "metric", "label": "Metric-led", "text": "Cut churn 18%."},
+            ],
+            "citations": [],
+        }
+
+    monkeypatch.setattr(public_router.cv_rewrite, "suggest_rewrite_variants", _fake)
+    monkeypatch.setattr(public_router, "get_interactive_provider", lambda: paid_first_provider)
+
+    res = TestClient(app).post(
+        "/public/rewrite-bullet/variants",
+        json={"bullet": "Reduced churn 18%", "role": "PM"},
+    )
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["mode"] == "variants"
+    assert body["variants"][0]["text"] == "Cut churn 18%."
+
+
 def test_restructure_preview(monkeypatch: pytest.MonkeyPatch) -> None:
+    paid_first_provider = object()
+
     async def _fake(*, cv_text, role, company, missing_keywords, provider):
         assert cv_text
+        assert provider is paid_first_provider
         return {
             "mode": "proposal",
             "proposed_text": "RESTRUCTURED CV",
@@ -264,7 +300,7 @@ def test_restructure_preview(monkeypatch: pytest.MonkeyPatch) -> None:
         }
 
     monkeypatch.setattr(public_router.cv_restructure, "suggest_restructure", _fake)
-    monkeypatch.setattr(public_router, "get_llm_provider", lambda: object())
+    monkeypatch.setattr(public_router, "get_interactive_provider", lambda: paid_first_provider)
 
     res = TestClient(app).post("/public/restructure", json={"cv_text": "my cv text here"})
     assert res.status_code == 200, res.text
@@ -279,7 +315,7 @@ def test_rewrite_rate_limited(monkeypatch: pytest.MonkeyPatch) -> None:
         return {"mode": "rewrite", "rewritten_text": "x", "rationale": "y"}
 
     monkeypatch.setattr(public_router.cv_rewrite, "suggest_rewrite", _fake)
-    monkeypatch.setattr(public_router, "get_llm_provider", lambda: object())
+    monkeypatch.setattr(public_router, "get_interactive_provider", lambda: object())
     client = TestClient(app)
     for _ in range(public_router._ANON_RATE_MAX["rewrite"]):
         assert client.post("/public/rewrite-bullet", json={"bullet": "b"}).status_code == 200

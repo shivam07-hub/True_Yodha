@@ -6,11 +6,8 @@ cost-tier ladder is split into multiple ProviderEntry chunks of ≤3 models each
 The outer Python loop in LLMProvider.complete walks the chunks in order.
 
 Fallback order:
-  1. OpenRouter — free tier  (gpt-oss-120b, llama-3.3-70b, qwen3-coder, nemotron)
-  2. OpenRouter — cheap paid ($0.04–$0.15/M)
-  3. OpenRouter — last resort (kimi-k2.6 → kimi-k2.5, $0.75/M)
-  4. Groq       — llama-3.3-70b-versatile
-  5. Gemini     — gemini-2.0-flash-lite
+  * User-blocking lanes: OpenRouter paid tiers -> Groq -> Gemini.
+  * Background/fail-soft lanes: OpenRouter free tiers -> paid tiers -> Groq -> Gemini.
 
 Scope: Myro cloud stack only. The scraper (skill_tagger.py / LM Studio) is intentionally
 separate — do not merge those stacks.
@@ -276,16 +273,16 @@ def get_llm_provider() -> LLMProvider:
 
 
 def get_interactive_provider() -> LLMProvider:
-    """Fast lane for any call a user is actively waiting on (a modal/spinner).
+    """Paid-first lane for any call a user is actively waiting on.
 
-    Groq llama-3.3-70b (~1.5s) → Gemini flash-lite → paid OpenRouter backstop.
-    The free OR tiers are skipped entirely: their rate-limit retries + ladder
-    walk are the multi-second latency the user feels. Free background / fire-and-
-    forget calls keep the full free-first chain via `get_llm_provider()`.
+    Paid OpenRouter tiers lead so direct-provider free quotas cannot take down a
+    user flow. Groq/Gemini remain fallbacks. The free OR tiers are skipped
+    entirely; background/fire-and-forget calls keep the full free-first chain via
+    `get_llm_provider()`.
     """
     providers: list[_ProviderEntry] = []
-    _append_fast_direct(providers)
     _append_openrouter_tiers(providers, OR_TIERS[FREE_OR_TIER_COUNT:])
+    _append_fast_direct(providers)
     return LLMProvider(providers)
 
 
@@ -296,22 +293,16 @@ def get_cv_upload_provider() -> LLMProvider:
 
 
 def get_paid_jobs_provider() -> LLMProvider:
-    """Fast-lane provider for the paid Job Refresh path.
+    """Paid-first provider for the paid Job Refresh path.
 
-    Drops the OpenRouter fallback ladder entirely. Groq llama-3.3-70b-versatile
-    is ~1.5s end-to-end; Gemini flash-lite stays as the only fallback if Groq
-    is unreachable. Used when the user has burned XP and is staring at a button
-    waiting for matches — target latency ≤ 5s.
-
-    The free auto-compute path (CV upload fire-and-forget) keeps the full
-    fallback chain via `get_llm_provider()` — no user is blocked on it.
+    The free auto-compute path keeps the full fallback chain via
+    `get_llm_provider()`; user-paid refreshes share the paid-first interactive
+    lane so free quota exhaustion cannot consume the click.
     """
-    providers: list[_ProviderEntry] = []
-    _append_fast_direct(providers)
-    if not providers:
-        # No fast-lane creds — fall back to standard chain so the feature still works.
+    provider = get_interactive_provider()
+    if not provider._providers:
         return _build_provider(OR_TIERS)
-    return LLMProvider(providers)
+    return provider
 
 
 # Multimodal-capable models, cheapest first. Used for parsing a screenshot/photo

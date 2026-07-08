@@ -306,7 +306,35 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-08 - CV rewrite LLM failure investigation)
+## LAST SESSION SUMMARY (2026-07-08 - Paid-first LLM routing for CV rewrite)
+
+Fixed the LLM provider routing so user-facing CV rewrite flows spend paid
+OpenRouter before falling back to direct-provider quotas.
+
+- Changed `backend/app/services/llm_provider.py` so `get_interactive_provider()`
+  now orders providers as paid OpenRouter tiers -> Groq -> Gemini, while
+  `get_llm_provider()` remains the free-first lane for background/fail-soft
+  work.
+- Made `get_paid_jobs_provider()` share the same paid-first interactive lane
+  instead of skipping OpenRouter entirely.
+- Routed public CV rewrite, public rewrite variants, and public restructure
+  through `get_interactive_provider()` instead of the generic free-first
+  provider; authenticated CV rewrite was already on the interactive lane and now
+  inherits paid-first ordering.
+- Updated provider tests to lock paid-first ordering, no free OpenRouter models
+  in the interactive lane, CV upload paid-first behavior, and public CV rewrite
+  provider injection.
+- Updated `docs/TECH_STACK.md` so docs match the live provider policy:
+  user-blocking = paid-first, background/fail-soft = free-first allowed.
+
+Validation:
+
+- `.venv/bin/pytest backend/tests`: 1039 passed, 28 warnings
+- `cd frontend && npx tsc --noEmit --pretty false`: clean
+- `cd frontend && npm run lint`: clean
+- `git diff --check`: clean
+
+## OLDER SESSION SUMMARY (2026-07-08 - CV rewrite LLM failure investigation)
 
 Investigated Railway logs from a CV Playground rewrite session that appeared to
 fail during "Mentor" rewrite/gap-plan work.

@@ -1,9 +1,7 @@
-"""get_interactive_provider — the fast lane for user-blocking LLM calls.
+"""Provider routing contracts for user-blocking LLM calls.
 
-Pins the latency contract behind the "Mentor is reading your gaps…" spinner (and
-every other interactive call): Groq direct first, then Gemini, then ONLY the paid
-OpenRouter tiers — never the free OR ladder whose rate-limit retries pushed
-gap-plan past the frontend's 15s abort. Regression guard for that flake.
+User-facing flows should spend paid OpenRouter first, then fall back to direct
+Groq/Gemini. Free OpenRouter tiers stay reserved for background/fail-soft work.
 """
 from __future__ import annotations
 
@@ -13,6 +11,7 @@ from app.services.llm_provider import (
     GROQ_FALLBACK_MODEL,
     OR_TIERS,
     get_interactive_provider,
+    get_paid_jobs_provider,
 )
 
 
@@ -35,11 +34,16 @@ def _with_all_keys(fn):
         ) = orig
 
 
-def test_interactive_provider_groq_then_gemini_first():
+def test_interactive_provider_uses_paid_openrouter_before_direct_fallback():
     def check():
-        models = [e[1] for e in get_interactive_provider()._providers]
-        assert models[0] == GROQ_FALLBACK_MODEL  # 1 hop, ~1.5s
-        assert models[1] == "gemini-2.0-flash-lite"
+        provider = get_interactive_provider()
+        entries = provider._providers
+        paid_tier_count = len(OR_TIERS) - FREE_OR_TIER_COUNT
+        assert [e[1] for e in entries[:paid_tier_count]] == [
+            tier[0] for tier in OR_TIERS[FREE_OR_TIER_COUNT:]
+        ]
+        assert entries[paid_tier_count][1] == GROQ_FALLBACK_MODEL
+        assert entries[paid_tier_count + 1][1] == "gemini-2.0-flash-lite"
         return True
 
     assert _with_all_keys(check)
@@ -55,6 +59,20 @@ def test_interactive_provider_excludes_free_or_tiers():
         # The paid OR backstop is still present (total provider outage safety net).
         or_entries = [e for e in p._providers if e[2] and "models" in e[2]]
         assert len(or_entries) == len(OR_TIERS) - FREE_OR_TIER_COUNT
+        return True
+
+    assert _with_all_keys(check)
+
+
+def test_paid_jobs_provider_uses_same_paid_first_lane():
+    def check():
+        provider = get_paid_jobs_provider()
+        entries = provider._providers
+        paid_tier_count = len(OR_TIERS) - FREE_OR_TIER_COUNT
+        assert [e[1] for e in entries[:paid_tier_count]] == [
+            tier[0] for tier in OR_TIERS[FREE_OR_TIER_COUNT:]
+        ]
+        assert entries[paid_tier_count][1] == GROQ_FALLBACK_MODEL
         return True
 
     assert _with_all_keys(check)
