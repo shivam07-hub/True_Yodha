@@ -306,7 +306,59 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-06 - Market right-rail scroll fix)
+## LAST SESSION SUMMARY (2026-07-08 - Paid-first LLM routing for CV rewrite)
+
+Fixed the LLM provider routing so user-facing CV rewrite flows spend paid
+OpenRouter before falling back to direct-provider quotas.
+
+- Changed `backend/app/services/llm_provider.py` so `get_interactive_provider()`
+  now orders providers as paid OpenRouter tiers -> Groq -> Gemini, while
+  `get_llm_provider()` remains the free-first lane for background/fail-soft
+  work.
+- Made `get_paid_jobs_provider()` share the same paid-first interactive lane
+  instead of skipping OpenRouter entirely.
+- Routed public CV rewrite, public rewrite variants, and public restructure
+  through `get_interactive_provider()` instead of the generic free-first
+  provider; authenticated CV rewrite was already on the interactive lane and now
+  inherits paid-first ordering.
+- Updated provider tests to lock paid-first ordering, no free OpenRouter models
+  in the interactive lane, CV upload paid-first behavior, and public CV rewrite
+  provider injection.
+- Updated `docs/TECH_STACK.md` so docs match the live provider policy:
+  user-blocking = paid-first, background/fail-soft = free-first allowed.
+
+Validation:
+
+- `.venv/bin/pytest backend/tests`: 1039 passed, 28 warnings
+- `cd frontend && npx tsc --noEmit --pretty false`: clean
+- `cd frontend && npm run lint`: clean
+- `git diff --check`: clean
+
+## OLDER SESSION SUMMARY (2026-07-08 - CV rewrite LLM failure investigation)
+
+Investigated Railway logs from a CV Playground rewrite session that appeared to
+fail during "Mentor" rewrite/gap-plan work.
+
+- Confirmed the active failing paths were `POST /cv/rewrite-bullet/variants`
+  and repeated `POST /cv/{job_id}/gap-plan` calls.
+- Root cause found in the provider chain/runtime logs: the interactive lane is
+  `Groq -> Gemini -> paid OpenRouter tiers`, not paid OpenRouter-first for all
+  app LLM work.
+- Groq `llama-3.3-70b-versatile` was out of daily token quota, repeatedly
+  returning 429 TPD errors; Gemini `gemini-2.0-flash-lite` was also quota
+  exhausted/free-tier-limited.
+- Paid OpenRouter backstop was present and reached, but the first paid tiers
+  shown in logs (`google/gemma-3-4b-it`, `openai/gpt-5-nano`) returned empty
+  completions, so the app surfaced "Rewrite is unavailable right now" while
+  requests took 60-97s through retry/fallback delays.
+- Noted stale provider documentation in `docs/TECH_STACK.md`; current source of
+  truth is `backend/app/services/llm_provider.py`.
+
+Validation:
+
+- Investigation only; no app code changed.
+
+## OLDER SESSION SUMMARY (2026-07-06 - Market right-rail scroll fix)
 
 Fixed the desktop `/market` right rail so users can scroll past Company Signals
 into the Community Check card instead of getting stranded inside the sticky rail.

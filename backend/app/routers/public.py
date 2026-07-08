@@ -29,7 +29,11 @@ from app.services.cv_pdf_html import (
     render_html_to_pdf,
     sanitize_pdf_filename as _sanitize_pdf_filename,
 )
-from app.services.llm_provider import get_cv_upload_provider, get_llm_provider
+from app.services.llm_provider import (
+    get_cv_upload_provider,
+    get_interactive_provider,
+    get_llm_provider,
+)
 from app.services.matching.filter_spec import FilterSpec
 from app.services.matching.job_query import JobQuery
 from app.services.scoring.formulas import build_skill_level_map
@@ -476,7 +480,7 @@ async def rewrite_bullet_preview(
         body.role,
         body.missing_keywords,
         body.metric,
-        get_llm_provider(),
+        get_interactive_provider(),
         allow_no_metric=body.allow_no_metric,
     )
     return AnonRewriteResponse(**result)
@@ -498,7 +502,7 @@ async def rewrite_bullet_variants_preview(
         body.role,
         body.missing_keywords,
         body.metric,
-        get_llm_provider(),
+        get_interactive_provider(),
         allow_no_metric=body.allow_no_metric,
     )
     return AnonRewriteVariantsResponse(
@@ -523,7 +527,7 @@ async def restructure_preview(
         role=body.role,
         company=body.company,
         missing_keywords=body.missing_keywords,
-        provider=get_llm_provider(),
+        provider=get_interactive_provider(),
     )
     # suggest_restructure returns a superset (includes a couple of internal keys);
     # the response_model filters to the public shape.

@@ -247,9 +247,14 @@ class TestParseCv:
         finally:
             llm_provider.settings.openrouter_api_key = original_key
 
-    def test_cv_upload_provider_prefers_fast_direct_models_before_openrouter(self) -> None:
+    def test_cv_upload_provider_prefers_paid_openrouter_before_direct_fallback(self) -> None:
         from app.services import llm_provider
-        from app.services.llm_provider import GROQ_FALLBACK_MODEL, get_cv_upload_provider
+        from app.services.llm_provider import (
+            FREE_OR_TIER_COUNT,
+            GROQ_FALLBACK_MODEL,
+            OR_TIERS,
+            get_cv_upload_provider,
+        )
 
         original_groq = llm_provider.settings.groq_api_key
         original_google = llm_provider.settings.google_api_key
@@ -260,9 +265,12 @@ class TestParseCv:
         try:
             provider = get_cv_upload_provider()
             models = [entry[1] for entry in provider._providers]
-            assert models[0] == GROQ_FALLBACK_MODEL
-            assert models[1] == "gemini-2.0-flash-lite"
-            assert models[2].startswith("google/")
+            paid_tier_count = len(OR_TIERS) - FREE_OR_TIER_COUNT
+            assert models[:paid_tier_count] == [
+                tier[0] for tier in OR_TIERS[FREE_OR_TIER_COUNT:]
+            ]
+            assert models[paid_tier_count] == GROQ_FALLBACK_MODEL
+            assert models[paid_tier_count + 1] == "gemini-2.0-flash-lite"
         finally:
             llm_provider.settings.groq_api_key = original_groq
             llm_provider.settings.google_api_key = original_google

@@ -20,10 +20,9 @@ Supabase (PostgreSQL + Auth)
     │
     └── Row Level Security on all user tables
 
-LM Studio (local, dev only)           OpenRouter (prod fallback)
-    └── CV extraction (llama-3.2-3b)      └── anthropic/claude-3.5-sonnet
-    └── Job ranking   (deepseek-r1-8b)
-    └── Skill tagging (qwen2.5-0.5b)
+OpenRouter / Groq / Gemini
+    ├── User-blocking flows: paid OpenRouter first
+    └── Background fail-soft flows: free-first ladder allowed
 ```
 
 ---
@@ -80,16 +79,18 @@ Remaining Phase 2 Repository Modules:
 ### LLM Provider Priority
 
 ```
-1. LM Studio (local, zero cost) — dev machine only
-   LM_STUDIO_BASE_URL = http://localhost:1234/v1
-   LM_STUDIO_EXTRACTOR_MODEL = llama-3.2-3b-instruct
-   LM_STUDIO_RANKER_MODEL    = deepseek-r1-0528-qwen3-8b-mlx
-   LM_STUDIO_TAGGER_MODEL    = qwen2.5-0.5b-instruct
+1. User-blocking provider
+   Paid OpenRouter tiers -> Groq -> Gemini.
+   Used for CV upload, CV rewrite/restructure, interactive analysis, and
+   any flow where the user is staring at a spinner.
 
-2. OpenRouter (prod fallback)
-   OPENROUTER_API_KEY — uses anthropic/claude-3.5-sonnet
+2. Background / fail-soft provider
+   OpenRouter free tiers -> paid OpenRouter tiers -> Groq -> Gemini.
+   Allowed only when failure can be silent/local and cannot block the user's
+   current flow.
 
-3. Groq → Gemini → OpenAI (future fallback chain — GROQ_API_KEY, GOOGLE_API_KEY)
+3. Scraper / enrichment stack
+   Intentionally separate from Myro app LLM routing.
 ```
 
 ### Key Config (backend/.env)
@@ -98,11 +99,9 @@ Remaining Phase 2 Repository Modules:
 SUPABASE_URL=
 SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_KEY=
-LM_STUDIO_EXTRACTOR_MODEL=llama-3.2-3b-instruct
-LM_STUDIO_RANKER_MODEL=deepseek-r1-0528-qwen3-8b-mlx
-LM_STUDIO_TAGGER_MODEL=qwen2.5-0.5b-instruct
-LM_STUDIO_BASE_URL=http://localhost:1234/v1
 OPENROUTER_API_KEY=
+GROQ_API_KEY=
+GOOGLE_API_KEY=
 RAILWAY_ENVIRONMENT=development
 ALLOWED_ORIGINS=http://localhost:3000
 ```
