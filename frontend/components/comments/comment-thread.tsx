@@ -6,7 +6,7 @@ import Link from "next/link"
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { comments as commentsApi } from "@/lib/api"
-import type { Comment, CommentEntityType } from "@/lib/api"
+import type { Comment, CommentEntityType, CommentListResponse } from "@/lib/api"
 import { formatDate } from "@/lib/format"
 
 function commentsKey(entityType: CommentEntityType, entityId: string) {
@@ -46,13 +46,18 @@ interface CommentThreadProps {
   entityType: CommentEntityType
   entityId: string
   placeholder?: string
+  /** Server-fetched notes seed. When present the thread renders into the initial
+   *  (crawlable) HTML instead of a client-only spinner — the UGC becomes the
+   *  page's SEO/AEO content. Signed-in users still get a live refetch on mount
+   *  (initialDataUpdatedAt: 0) so `is_own` edit controls appear. */
+  initialData?: CommentListResponse | null
 }
 
 /** PUBLIC community-notes feed on a job / company / skill entity. Anyone reads;
  *  signed-in users post (multi-note allowed), edit/delete their own, and flag
  *  others'. Author shown via ninja_name (links to their public profile); never
  *  the real identity. */
-export function CommentThread({ token, entityType, entityId, placeholder }: CommentThreadProps) {
+export function CommentThread({ token, entityType, entityId, placeholder, initialData }: CommentThreadProps) {
   const queryClient = useQueryClient()
   const key = commentsKey(entityType, entityId)
   const [draft, setDraft] = useState("")
@@ -65,6 +70,10 @@ export function CommentThread({ token, entityType, entityId, placeholder }: Comm
     queryFn: () => commentsApi.list(token, entityType, entityId),
     enabled: !!entityId,
     staleTime: 60 * 1000,
+    // Seed from the server fetch → notes render in the crawlable HTML. Mark the
+    // seed stale (updatedAt 0) so a signed-in client still refetches on mount
+    // and resolves `is_own` (edit/delete controls) against the real token.
+    ...(initialData ? { initialData, initialDataUpdatedAt: 0 } : {}),
   })
   const notes = data?.comments ?? []
 

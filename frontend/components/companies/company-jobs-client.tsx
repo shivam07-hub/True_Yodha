@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useState } from "react"
 import { formatCount } from "@/lib/format"
 import { Button } from "@/components/ui/button"
-import type { CompanyJobCard, CompanyJobsResponse } from "@/lib/api"
+import type { CommentListResponse, CompanyJobCard, CompanyJobsResponse } from "@/lib/api"
 import { formatJobLocation } from "@/lib/format-location"
 import { ParticleLoading } from "@/components/loading/particle-loading"
 import { CommentThread } from "@/components/comments/comment-thread"
@@ -22,7 +22,7 @@ async function fetchCompanyJobs(name: string, page: number): Promise<CompanyJobs
   return res.json()
 }
 
-interface PostingNote {
+export interface PostingNote {
   job_id: string
   role: string | null
   body: string
@@ -136,9 +136,15 @@ function JobRow({ job, saved, onSave }: { job: CompanyJobCard; saved: boolean; o
 export function CompanyJobsClient({
   companyName,
   initialData,
+  initialComments,
+  initialPostingNotes,
 }: {
   companyName: string
   initialData: CompanyJobsResponse | null
+  /** Server-fetched company-level notes — seeds the CommentThread into crawlable HTML. */
+  initialComments?: CommentListResponse | null
+  /** Server-fetched job-posting notes rollup — seeds the rollup into crawlable HTML. */
+  initialPostingNotes?: PostingNote[] | null
 }) {
   const { token } = useAuth()
   const signup = useSignupGate()
@@ -157,6 +163,8 @@ export function CompanyJobsClient({
     queryKey: ["company-posting-notes", companyName],
     queryFn: () => fetchPostingNotes(companyName),
     staleTime: 5 * 60 * 1000,
+    // Seed from the server fetch → the rollup is in the crawlable HTML too.
+    initialData: initialPostingNotes ?? undefined,
   })
 
   async function handleSave(jobId: string) {
@@ -255,7 +263,7 @@ export function CompanyJobsClient({
           <div className="tm-label-caps" style={{ color: "var(--tm-text-faint)", marginBottom: 12 }}>
             Notes on {companyName}
           </div>
-          <CommentThread token={token ?? null} entityType="company" entityId={companyName} placeholder={`Share what you know about applying to ${companyName}…`} />
+          <CommentThread token={token ?? null} entityType="company" entityId={companyName} placeholder={`Share what you know about applying to ${companyName}…`} initialData={initialComments ?? undefined} />
         </div>
 
         {/* Rollup: notes left on this company's individual job postings. */}
