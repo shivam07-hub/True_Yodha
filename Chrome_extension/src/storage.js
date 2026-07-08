@@ -3,7 +3,12 @@ const STORAGE_KEYS = {
   apiUrl: "myro_api_url",
   token: "myro_token",
   refreshToken: "myro_refresh_token",
+  trackedJobs: "myro_tracked_jobs",
 }
+
+// Cap the tracked-job memory so storage can't grow unbounded across a long
+// browsing history. Oldest entries drop first (LRU by saved_at).
+const TRACKED_JOBS_LIMIT = 200
 
 function hasChromeStorage() {
   return typeof chrome !== "undefined" && chrome.storage?.local
@@ -62,6 +67,67 @@ export async function saveConfig(config) {
   for (const [key, value] of Object.entries(payload)) {
     localStorage.setItem(key, value)
   }
+}
+
+// A job page's identity for "have I already tracked this?". Drop the hash and a
+// trailing slash so /jobs/123 and /jobs/123#apply resolve to the same key; keep
+// the query string because ATS boards (Ashby, Greenhouse, Lever…) carry the job
+// id there.
+export function jobUrlKey(url) {
+  if (!url) return ""
+  try {
+    const parsed = new URL(url)
+    parsed.hash = ""
+    let key = parsed.toString()
+    if (key.endsWith("/")) key = key.slice(0, -1)
+    return key
+  } catch {
+    return url.split("#")[0].replace(/\/$/, "")
+  }
+}
+
+async function readTrackedJobs() {
+  if (hasChromeStorage()) {
+    const data = await chrome.storage.local.get([STORAGE_KEYS.trackedJobs])
+    return data[STORAGE_KEYS.trackedJobs] || {}
+  }
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.trackedJobs) || "{}")
+  } catch {
+    return {}
+  }
+}
+
+async function writeTrackedJobs(map) {
+  if (hasChromeStorage()) {
+    await chrome.storage.local.set({ [STORAGE_KEYS.trackedJobs]: map })
+    return
+  }
+  localStorage.setItem(STORAGE_KEYS.trackedJobs, JSON.stringify(map))
+}
+
+/** Look up a previously-tracked job by page URL, or null if never tracked. */
+export async function getTrackedJob(url) {
+  const key = jobUrlKey(url)
+  if (!key) return null
+  const map = await readTrackedJobs()
+  return map[key] || null
+}
+
+/** Remember that this page was tracked so a return visit skips the Track menu. */
+export async function recordTrackedJob(url, { jobId, title }) {
+  const key = jobUrlKey(url)
+  if (!key) return
+  const map = await readTrackedJobs()
+  map[key] = { job_id: jobId || "", title: title || "", saved_at: Date.now() }
+  const keys = Object.keys(map)
+  if (keys.length > TRACKED_JOBS_LIMIT) {
+    keys
+      .sort((a, b) => (map[a].saved_at || 0) - (map[b].saved_at || 0))
+      .slice(0, keys.length - TRACKED_JOBS_LIMIT)
+      .forEach((stale) => delete map[stale])
+  }
+  await writeTrackedJobs(map)
 }
 
 /** Read the current refresh token (single source of truth for token rotation). */

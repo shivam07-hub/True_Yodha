@@ -3,7 +3,7 @@ import { extractFromDocument } from "./extractors.js"
 import { documentFromSnapshot, getActiveSnapshot, previewSkillSuggestions } from "./popup-capture.js"
 import { renderSkills } from "./skill-chips.js"
 import { buildSkillExtractionText, mergeSkillSuggestions } from "./skill-review.js"
-import { getConfig, saveConfig } from "./storage.js"
+import { getConfig, saveConfig, getTrackedJob, recordTrackedJob } from "./storage.js"
 
 const browserPreview = typeof chrome === "undefined" || !chrome.tabs || !chrome.scripting
 
@@ -224,26 +224,43 @@ async function extractSkillsFromReview() {
   }
 }
 
+// Save the reviewed job to Myro and remember it locally so a return visit to
+// this page skips the Track menu. Shared by the Save button and the "Raise your
+// fit" CTA. Returns { saved, hasId, jobId, web }.
+async function persistJob() {
+  // Preview may have silently refreshed + rotated the access token into
+  // storage. Re-sync so save uses the current token, not a stale one.
+  if (!browserPreview) state.config = await getConfig()
+  syncStateFromFields()
+  if (!state.roleName || !state.jobDescription) throw new Error("Role name and job description are required.")
+  setStatus("Saving")
+  const saved = browserPreview
+    ? { title: state.roleName, job_id: "preview" }
+    : await saveImport(state.config.apiUrl, state.config.token, state)
+  const web = frontendBaseUrl(state.config.apiUrl)
+  const hasId = Boolean(saved.job_id && saved.job_id !== "preview")
+  const jobId = hasId ? saved.job_id : ""
+  state.savedJobId = jobId
+  if (!browserPreview) {
+    await recordTrackedJob(state.sourceUrl, { jobId, title: saved.title || state.roleName })
+  }
+  return { saved, hasId, jobId, web }
+}
+
+// Point a link at this job's Tailor-CV workspace once saved, else the tracker.
+function tailorLinkFor(web, jobId) {
+  return jobId ? `${web}/cv?jobId=${encodeURIComponent(jobId)}` : `${web}/cv`
+}
+
 async function saveCurrentJob() {
   try {
-    // Preview may have silently refreshed + rotated the access token into
-    // storage. Re-sync so save uses the current token, not a stale one.
-    if (!browserPreview) state.config = await getConfig()
-    syncStateFromFields()
-    if (!state.roleName || !state.jobDescription) throw new Error("Role name and job description are required.")
-    setStatus("Saving")
     elements.saveButton.disabled = true
-    const saved = browserPreview
-      ? { title: state.roleName, job_id: "preview" }
-      : await saveImport(state.config.apiUrl, state.config.token, state)
+    const { saved, hasId, jobId, web } = await persistJob()
     elements.savedTitle.textContent = saved.title || state.roleName
     // Deep-link straight to this job's Tailor-CV view — the strongest next step
     // ("saved → tailor now"). Falls back to the tracker list if the save somehow
     // returned no job_id.
-    const web = frontendBaseUrl(state.config.apiUrl)
-    const hasId = saved.job_id && saved.job_id !== "preview"
-    state.savedJobId = hasId ? saved.job_id : ""
-    elements.trackerLink.href = hasId ? `${web}/cv?jobId=${encodeURIComponent(saved.job_id)}` : `${web}/cv`
+    elements.trackerLink.href = tailorLinkFor(web, jobId)
     elements.trackerLink.textContent = hasId ? "Tailor your CV" : "Open tracker"
     setStatus("Saved")
     setView("saved")
@@ -251,6 +268,23 @@ async function saveCurrentJob() {
     showError(error)
   } finally {
     elements.saveButton.disabled = false
+  }
+}
+
+// "Raise your fit in Myro →" — the user's intent is "take this job into Myro and
+// work on it", so it must SAVE first (a bare link would drop the job on the
+// floor), then open the job's Tailor-CV workspace deep-linked.
+async function raiseFitInMyro(event) {
+  if (event) event.preventDefault()
+  try {
+    elements.fitLink.style.pointerEvents = "none"
+    const { jobId, web } = await persistJob()
+    setStatus("Saved")
+    openTab(tailorLinkFor(web, jobId))
+  } catch (error) {
+    showError(error)
+  } finally {
+    elements.fitLink.style.pointerEvents = ""
   }
 }
 
@@ -421,17 +455,39 @@ async function connectMyro() {
   }
 }
 
+// If the active page was already tracked, render the saved view straight away so
+// the user isn't asked to track the same job twice. Returns true when handled.
+async function showTrackedIfKnown() {
+  if (browserPreview || !chrome.tabs?.query) return false
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+    const record = tab?.url ? await getTrackedJob(tab.url) : null
+    if (!record) return false
+    const web = frontendBaseUrl(state.config.apiUrl)
+    state.savedJobId = record.job_id || ""
+    elements.savedTitle.textContent = record.title || "This job"
+    elements.trackerLink.href = tailorLinkFor(web, record.job_id)
+    elements.trackerLink.textContent = record.job_id ? "Tailor your CV" : "Open tracker"
+    setStatus("Tracked")
+    setView("saved")
+    return true
+  } catch {
+    return false
+  }
+}
+
 async function init() {
   state.config = await getConfig()
   if (!state.config.token && !browserPreview) {
     setStatus("Connect")
     setView("auth")
-  } else {
+  } else if (!(await showTrackedIfKnown())) {
     setStatus(browserPreview ? "Preview mode" : "Ready")
     setView("ready")
   }
 
   elements.trackButton.addEventListener("click", trackCurrentJob)
+  elements.fitLink?.addEventListener("click", raiseFitInMyro)
   elements.reachFrontButton?.addEventListener("click", findPeopleFromPage)
   elements.connectButton?.addEventListener("click", connectMyro)
   elements.retryButton.addEventListener("click", () => setView("ready"))
