@@ -93,6 +93,34 @@ def test_legacy_plain_text_pdf_route_is_gone():
     assert "/cv/export-pdf" in pdf_paths
 
 
+def test_public_export_pdf_route_exists_and_is_anon():
+    """ADR-0020: the logged-out playground download must go through the SAME
+    Chromium renderer as the authed path — not browser print. Guard both that
+    the anon twin exists AND that it takes no principal (so it never regresses
+    back to a divergent `window.print()` shortcut for anon users)."""
+    routes = {
+        route.path: route
+        for route in app.routes
+        if isinstance(route, APIRoute)
+    }
+    assert "/public/cv/export-pdf" in routes
+    dep_names = {
+        d.call.__name__
+        for d in routes["/public/cv/export-pdf"].dependant.dependencies
+        if getattr(d, "call", None) is not None
+    }
+    assert "get_principal" not in dep_names
+
+
+def test_public_and_authed_pdf_share_one_renderer():
+    """Both export routes render through render_html_to_pdf — one deep module,
+    no second PDF engine (the 2026-07 divergence that shipped a mangled anon PDF)."""
+    import app.routers.cv.export as authed_export
+    import app.routers.public as public_router
+
+    assert authed_export.render_html_to_pdf is public_router.render_html_to_pdf
+
+
 def test_docx_preserves_rupee_and_dashes():
     docx = generate_cv_docx(VISIBLE_CV, CONTACT)
     text = "\n".join(_docx_paragraphs(docx))

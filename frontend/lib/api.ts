@@ -3876,6 +3876,22 @@ async function postPublicJson<T>(path: string, payload: Record<string, unknown>)
   return body as T
 }
 
+// Anon binary POST (e.g. WYSIWYG PDF export). Mirrors postPublicJson but
+// returns the raw Blob; the error body is text (may be JSON detail).
+async function postPublicBlob(path: string, payload: Record<string, unknown>): Promise<Blob> {
+  if (!BASE) throw new Error("API base URL is not configured.")
+  const res = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const msg = await res.text().catch(() => "PDF generation failed")
+    throw new Error(msg)
+  }
+  return res.blob()
+}
+
 // Public job-gen search (#33) — NL prompt → REAL openings only. No fabrication;
 // apply/save stay gated to signup. `relaxed` lists any filter dropped to surface
 // the closest real roles (e.g. ["location"]) so the UI can say "showing closest".
@@ -3938,6 +3954,21 @@ export const publicCv = {
       }),
     }).catch(() => {})
   },
+
+  // WYSIWYG PDF export for the logged-out playground (ADR-0020). Posts the
+  // SAME `.cvb-pdf-page` outerHTML the user previews to the SAME Chromium
+  // renderer the authed download uses — no browser-print divergence. Throws
+  // on 503 so the caller can fall back to native print (a visible sheet exists).
+  exportPdf: async (
+    html: string,
+    filename: string,
+    turnstileToken?: string | null,
+  ): Promise<Blob> =>
+    postPublicBlob("/public/cv/export-pdf", {
+      html,
+      filename,
+      cf_turnstile_token: turnstileToken ?? (await getTurnstileToken()),
+    }),
 
   scorePreview: async (input: File | { text: string }, turnstileToken?: string | null): Promise<AnonScoreResponse> => {
     if (!BASE) throw new Error("API base URL is not configured.")

@@ -1,20 +1,17 @@
 /**
- * printCvPage — WYSIWYG CV download via the browser's native "Save as PDF".
+ * printCvPage — FALLBACK CV download via the browser's native "Save as PDF".
  *
- * The `.cvb-pdf-page` element on screen IS the document. The print stylesheet
- * in cv-builder.css isolates it, so the saved PDF is exactly what the user
- * previewed — real selectable text (ATS-parseable), not a rasterized image.
- * Swapping document.title seeds the suggested filename in the Save dialog.
+ * NOT the primary path. Every CV download — authed and logged-out — now renders
+ * through server-side headless Chromium (ADR-0020: exportSheetPdf /
+ * exportAnonSheetPdf → POST /cv/export-pdf or /public/cv/export-pdf), which
+ * embeds the exact Geist woff bytes and the shared sheet stylesheet so the PDF
+ * cannot drift from the preview (₹ survives, no browser-print reflow). This
+ * `window.print()` bridge remains ONLY as the fallback when that server render
+ * is unavailable (503) — the browser's print engine does not embed fonts and
+ * reflows layout, so it is a last resort, never the default.
  *
- * This is the client-side bridge and the PDF engine: the print dialog's "Save
- * as PDF" already emits the exact on-screen sheet as selectable, ATS-parseable
- * text, so preview === download. DOCX export is server-side (python-docx, see
- * cvApi.exportDocx → /cv/export-docx), fed the SAME visible sections.
- *
- * FUTURE (infra step, not yet wired): a server-side headless Chromium
- * (Playwright) rendering this SAME `.cvb-pdf-page` HTML/CSS for pixel-stable,
- * machine-generated PDFs. Deferred because it needs a chromium binary in the
- * backend image — a deploy decision, not a code-only change.
+ * The `.cvb-pdf-page` element on screen IS the document; swapping document.title
+ * seeds the suggested filename in the Save dialog.
  */
 export function printCvPage(filename: string): void {
   if (typeof window === "undefined") return
