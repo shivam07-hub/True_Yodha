@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 
 /* ══════════════════════════════════════════════════════════════════════════
    BottomSheet — the shared modal sheet chrome for the mobile redesign (job
@@ -37,7 +38,7 @@ export function BottomSheet({
     setTimeout(() => { setMounted(false); setClosing(false); setDy(0); onClose() }, 230)
   }
 
-  if (!mounted) return null
+  if (!mounted || typeof document === "undefined") return null
 
   const onGrabDown = (e: React.PointerEvent) => { grabY.current = e.clientY }
   const onGrabMove = (e: React.PointerEvent) => {
@@ -51,7 +52,12 @@ export function BottomSheet({
     grabY.current = null
   }
 
-  return (
+  // Portalled to <body> — a mobile sheet must outrank the fixed bottom nav,
+  // and <main> (app-shell.tsx) sets z-index:2, which traps any in-tree
+  // fixed-position z-index below the nav's z-index:30 in the real root
+  // stacking context. Escaping the tree is the only fix that isn't a z-index
+  // arms race.
+  return createPortal(
     <div className="mm-root" role="dialog" aria-label={label} aria-modal="true" style={{ position: "fixed", inset: 0, zIndex: 240 }}>
       <div
         onClick={requestClose}
@@ -79,6 +85,7 @@ export function BottomSheet({
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

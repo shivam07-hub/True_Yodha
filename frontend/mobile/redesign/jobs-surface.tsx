@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { jobs as jobsApi, type JobFeedItem } from "@/lib/api"
@@ -25,6 +25,8 @@ import { useMobileUI } from "./mobile-ui"
 
 type Mode = "any" | "onsite" | "hybrid" | "remote"
 
+const SWIPE_HINT_KEY = "myro_swipe_hint_seen_v1"
+
 export function JobsSurface({ token, targetLocations }: { token: string; targetLocations: string[] }) {
   const router = useRouter()
   const { snack, closeSnack, openPractice } = useMobileUI()
@@ -39,6 +41,16 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
   const [detailId, setDetailId] = useState<string | null>(null)
   const [sharedId, setSharedId] = useState<string | null>(null)
   const [intentOpen, setIntentOpen] = useState(false)
+  const [showSwipeHint, setShowSwipeHint] = useState(false)
+
+  // Peek-hint teaches the swipe gesture once per user, ever — not once per
+  // "current top card" (which would replay it after every save/skip).
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    if (window.localStorage.getItem(SWIPE_HINT_KEY)) return
+    window.localStorage.setItem(SWIPE_HINT_KEY, "1")
+    setShowSwipeHint(true)
+  }, [])
 
   const filters = useMemo(() => ({ ...DEFAULT_FILTERS, sort: sort === "best" ? "fit" as const : "fresh" as const }), [sort])
   const { allJobs, total, warming, triage, undo } = useJobFeed({ token, filters, q: searchQ, skill: null, targetLocations })
@@ -65,11 +77,13 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
   const countLine = `${filtered.length} of ${total || filtered.length} live${locationLabel ? ` · ${locationLabel}` : ""}`
 
   const doSave = (job: JobFeedItem, fromSheet?: boolean) => {
+    setShowSwipeHint(false)
     triage(job, "saved")
     if (fromSheet) setDetailId(null)
     snack({ msg: "Saved to Collections", action: "Tailor now", onAction: () => { closeSnack(); router.push(`/cv/tailor?jobId=${encodeURIComponent(job.job_id)}`) } })
   }
   const doSkip = (job: JobFeedItem, fromSheet?: boolean) => {
+    setShowSwipeHint(false)
     triage(job, "skipped")
     if (fromSheet) setDetailId(null)
     snack({ msg: "Hidden from your feed", action: "Undo", onAction: () => { undo(); closeSnack() } })
@@ -151,7 +165,7 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
                 key={row.id}
                 row={row}
                 first={i === 0}
-                hint={i === 0}
+                hint={showSwipeHint && i === 0}
                 shared={sharedId === row.id}
                 onOpen={() => setDetailId(row.id)}
                 onSave={() => doSave(job)}
