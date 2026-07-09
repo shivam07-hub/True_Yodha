@@ -79,7 +79,7 @@ export function IntelPane() {
     setSavedJobIds((prev) => new Set(prev).add(jobId))
     void jobs.saveJob(token, jobId).catch(() => { /* already saved / transient */ })
   }
-  const tailorJob = (jobId: string) => router.push(`/cv/tailor?jobId=${encodeURIComponent(jobId)}`)
+  const tailorJob = (jobId: string) => router.push(`/cv?jobId=${encodeURIComponent(jobId)}`)
 
   // Personal header data (grill Q4=B/Q5=A). One cheap BFF call already used by
   // the dashboard; reused here for score + CV presence. Anon never fetches it.

@@ -282,7 +282,7 @@ export function CollectionsDesktop({ token, initialJobId }: { token: string; ini
                     pulse={pulses.get(it.jobId)}
                     onOpen={() => setOpenId(openId === it.jobId ? null : it.jobId)}
                     onUnsave={() => unsave(it.jobId)}
-                    onTailor={() => router.push(`/cv/tailor?jobId=${encodeURIComponent(it.jobId)}`)}
+                    onTailor={() => router.push(`/cv?jobId=${encodeURIComponent(it.jobId)}`)}
                     onOpenCv={() => router.push("/cv")}
                   />
                 )}

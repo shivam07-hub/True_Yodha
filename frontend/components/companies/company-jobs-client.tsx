@@ -264,7 +264,7 @@ export function CompanyJobsClient({
                   companyName={companyName}
                   onSave={() => handleSave(job.job_id)}
                   onSignUp={openSignup}
-                  onTailor={() => router.push(`/cv/tailor?jobId=${encodeURIComponent(job.job_id)}`)}
+                  onTailor={() => router.push(`/cv?jobId=${encodeURIComponent(job.job_id)}`)}
                 />
               ))}
             </div>

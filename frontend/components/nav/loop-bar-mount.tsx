@@ -59,7 +59,7 @@ export function LoopBarMount({ token }: { token: string }) {
     const next = toTailor
       ? {
           label: `Tailor ${toTailor.a.company ?? toTailor.a.title}${toTailor.fit ? ` · ${toTailor.fit}%` : ""}`,
-          href: `/cv/tailor?jobId=${encodeURIComponent(toTailor.a.job_id)}`,
+          href: `/cv?jobId=${encodeURIComponent(toTailor.a.job_id)}`,
         }
       : undefined
 

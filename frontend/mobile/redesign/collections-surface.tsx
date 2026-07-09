@@ -167,7 +167,7 @@ export function CollectionsSurface({ token, initialJobId }: { token: string; ini
         onOpen={() => setDetailId(a.job_id)}
         onHeart={() => doUnsave(a)}
         onShare={() => doShare(a)}
-        onTailor={() => router.push(`/cv/tailor?jobId=${encodeURIComponent(a.job_id)}`)}
+        onTailor={() => router.push(`/cv?jobId=${encodeURIComponent(a.job_id)}`)}
         onOpenCv={() => router.push("/cv")}
       />
     )
@@ -256,13 +256,13 @@ export function CollectionsSurface({ token, initialJobId }: { token: string; ini
         data={detailData}
         onHeart={() => detailApp && doUnsave(detailApp)}
         onSkip={() => detailApp && doUnsave(detailApp)}
-        onTailor={() => detailApp && router.push(`/cv/tailor?jobId=${encodeURIComponent(detailApp.job_id)}`)}
+        onTailor={() => detailApp && router.push(`/cv?jobId=${encodeURIComponent(detailApp.job_id)}`)}
         onApply={() => { if (applyCapture.target.url) applyCapture.open() }}
         captureSlot={detailApp ? <ApplyCapturePromptMobile capture={applyCapture} /> : null}
         onPractice={() => setDetailId(null)}
       />
 
-      <AddJobSheet open={addOpen} onClose={() => setAddOpen(false)} token={token} onAdded={() => { void qc.invalidateQueries({ queryKey: dataKeys.applications() }); setChip("added") }} snack={snack} closeSnack={closeSnack} onTailor={(jobId) => router.push(`/cv/tailor?jobId=${encodeURIComponent(jobId)}`)} />
+      <AddJobSheet open={addOpen} onClose={() => setAddOpen(false)} token={token} onAdded={() => { void qc.invalidateQueries({ queryKey: dataKeys.applications() }); setChip("added") }} snack={snack} closeSnack={closeSnack} onTailor={(jobId) => router.push(`/cv?jobId=${encodeURIComponent(jobId)}`)} />
 
       {/* sort sheet — same axes as desktop (Best next / Best fit / Recent / A–Z) */}
       <BottomSheet open={sortOpen} onClose={() => setSortOpen(false)} label="Sort">
