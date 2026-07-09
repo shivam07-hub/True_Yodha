@@ -140,6 +140,14 @@ export function FeedCard({
   // right column (that's its design).
   const fitInTop = fit == null && data.fit != null && data.fit.kind !== "score"
 
+  // Unified skill language: when the CV is known, lead with a "N/M skills" count
+  // (matching the playground's Skills tab) + the top missing skills as one-tap
+  // Forge gap CTAs. Matched skills fold into the count, not a wall of ✓ chips.
+  const gapChips = data.skillCount ? data.chips.filter((c) => c.missing) : []
+  const moreGaps = data.skillCount
+    ? Math.max(0, (data.skillCount.total - data.skillCount.matched) - gapChips.length)
+    : 0
+
   return (
     <article
       className={`fc-card fc-${variant}${open ? " is-open" : ""}${leaving ? " is-leaving" : ""}${extraClass}`}
@@ -198,34 +206,50 @@ export function FeedCard({
             </div>
           ) : null}
 
-          {data.chips.length > 0 ? (
+          {data.skillCount ? (
             <div
               className="fc-chips"
               style={{ touchAction: "pan-x pan-y" }}
               onPointerDown={(e) => e.stopPropagation()}
             >
-              {data.chips.map((c) =>
-                c.missing ? (
-                  // A gap → one tap to start closing it. The chip IS the Forge CTA
-                  // (design-over-words), so a 0-fit card reads as "here's the path".
-                  <a
-                    key={c.name}
-                    href={`/forge?skill=${encodeURIComponent(c.name)}`}
-                    className="fc-chip is-gap"
-                    title={`Practice ${c.name} in Forge`}
-                    aria-label={`Missing: ${c.name}. Practice it in Forge`}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Cross8 />
-                    <span className="fc-chip-name">{c.name}</span>
-                  </a>
-                ) : (
-                  <span key={c.name} className={`fc-chip${c.matched ? " is-match" : ""}`}>
-                    {c.matched ? <Check8 /> : null}
-                    <span className="fc-chip-name">{c.name}</span>
-                  </span>
-                )
-              )}
+              <span
+                className={`fc-chip fc-chip-count${data.skillCount.matched >= 3 ? " is-strong" : ""}`}
+                title={`Your CV covers ${data.skillCount.matched} of ${data.skillCount.total} required skills`}
+              >
+                <Check8 />
+                {data.skillCount.matched}/{data.skillCount.total} skills
+              </span>
+              {gapChips.map((c) => (
+                // A gap → one tap to start closing it. The chip IS the Forge CTA
+                // (design-over-words), so the card reads as "here's the path".
+                <a
+                  key={c.name}
+                  href={`/forge?skill=${encodeURIComponent(c.name)}`}
+                  className="fc-chip is-gap"
+                  title={`Practice ${c.name} in Forge`}
+                  aria-label={`Missing: ${c.name}. Practice it in Forge`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Cross8 />
+                  <span className="fc-chip-name">{c.name}</span>
+                </a>
+              ))}
+              {moreGaps > 0 ? (
+                <span className="fc-chip fc-chip-more">+{moreGaps} to close</span>
+              ) : null}
+            </div>
+          ) : data.chips.length > 0 ? (
+            <div
+              className="fc-chips"
+              style={{ touchAction: "pan-x pan-y" }}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              {/* Anon / no-CV browse: the job's required skills, plain (no have/haven't split). */}
+              {data.chips.map((c) => (
+                <span key={c.name} className="fc-chip">
+                  <span className="fc-chip-name">{c.name}</span>
+                </span>
+              ))}
               {data.extraChipCount > 0 ? (
                 <span className="fc-chip fc-chip-more">+{data.extraChipCount}</span>
               ) : null}

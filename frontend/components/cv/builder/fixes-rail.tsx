@@ -35,11 +35,15 @@ interface FixesRailProps {
   onApply: (fix: V2Fix, oldText: string, newText: string) => void
   onGoPreview: () => void
   onOpenIntake: () => void
+  /** Master surface: a rewrite improves the CV but doesn't move the Myro Score
+   *  (that's radar/skill-based), so the per-fix "+N" is suppressed rather than
+   *  fabricated. Cards still name the defect and offer the Mentor rewrite. */
+  hideGain?: boolean
 }
 
 export function FixesRail({
   token, fixes, applied, delta, expandedId, applying,
-  onExpand, onJump, onApply, onGoPreview, onOpenIntake,
+  onExpand, onJump, onApply, onGoPreview, onOpenIntake, hideGain,
 }: FixesRailProps) {
   const allFixed = fixes.length === 0
 
@@ -47,8 +51,9 @@ export function FixesRail({
     <div className="cvb-v2-railpane">
       {!allFixed && (
         <p className="cvb-v2-rail-lede">
-          Each fix targets one bullet. Click a card to jump to it; applying rewrites
-          it in place and raises your score by exactly the amount shown.
+          {hideGain
+            ? "Each fix targets one bullet. Click a card to jump to it; applying rewrites it in place."
+            : "Each fix targets one bullet. Click a card to jump to it; applying rewrites it in place and raises your score by exactly the amount shown."}
         </p>
       )}
 
@@ -69,7 +74,7 @@ export function FixesRail({
             <div className="cvb-v2-fixcard-top">
               <span className={`cvb-v2-kind ${KIND_CLASS[f.kind]} mono`}>{f.kind}</span>
               {f.levelNote && <span className="cvb-v2-lvlnote mono">{f.levelNote}</span>}
-              <span className="cvb-v2-fixgain mono">+{f.gain}</span>
+              {!hideGain && <span className="cvb-v2-fixgain mono">+{f.gain}</span>}
             </div>
             <div className="cvb-v2-fixtitle">{f.title}</div>
             <div className="cvb-v2-fixdesc">{f.desc}</div>
@@ -101,7 +106,7 @@ export function FixesRail({
                 className="cvb-v2-fixapply"
                 onClick={e => { e.stopPropagation(); onJump(f.iid); onExpand(f) }}
               >
-                Rewrite with Mentor · +{f.gain}
+                {hideGain ? "Rewrite with Mentor" : `Rewrite with Mentor · +${f.gain}`}
               </button>
             )}
           </div>
@@ -111,7 +116,7 @@ export function FixesRail({
       {allFixed && (
         <div className="cvb-v2-allfixed">
           <div className="cvb-v2-allfixed-title">
-            {delta > 0 ? <>All fixes applied — ▲ +{delta}</> : "No fixes open — this CV reads clean."}
+            {!hideGain && delta > 0 ? <>All fixes applied — ▲ +{delta}</> : "No fixes open — this CV reads clean."}
           </div>
           <div className="cvb-v2-allfixed-sub">
             See your sheet in{" "}
@@ -135,7 +140,7 @@ export function FixesRail({
             >
               <span className="cvb-v2-donecheck">✓</span>
               <span className="cvb-v2-donetitle">{d.title}</span>
-              <span className="cvb-v2-donegain mono">+{d.gain}</span>
+              {!hideGain && <span className="cvb-v2-donegain mono">+{d.gain}</span>}
             </button>
           ))}
         </>

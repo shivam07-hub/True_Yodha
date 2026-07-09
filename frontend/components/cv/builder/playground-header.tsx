@@ -61,29 +61,52 @@ interface PlaygroundHeaderProps {
   onReqPill: () => void
   onApply: () => void
   onDownload: () => void
+  /** "master" reshapes the SAME header for the Main-CV surface: brand "Main CV",
+   *  a plain context line (no JD requirements pill), the score capped as the Myro
+   *  Score, no delta chip, and the primary button labelled by primaryLabel. */
+  variant?: "job" | "master"
+  /** Master/anon context line, e.g. "v78 · autosaves" or "Free preview". */
+  masterMeta?: string
+  /** Primary button label (default "Apply with this CV"; master → "Done"). */
+  primaryLabel?: string
+  /** Hide the ⋯ overflow (master keeps download in the view-mode surface). */
+  hideOverflow?: boolean
+  /** Brand override (default per variant: "CV Playground" / "Main CV"). */
+  brandLabel?: string
+  /** Score caption override (default per variant). */
+  scoreCaption?: string
 }
 
 export function PlaygroundHeader({
   jobTitle, company, reqCount, ready, delta, canApply, applyHint, saveState,
   onBack, onReqPill, onApply, onDownload,
+  variant = "job", masterMeta, primaryLabel = "Apply with this CV", hideOverflow,
+  brandLabel, scoreCaption,
 }: PlaygroundHeaderProps) {
   const shown = useCountUp(ready)
   const [menuOpen, setMenuOpen] = useState(false)
+  const isMaster = variant === "master"
 
   return (
     <header className="cvb-v2-head">
       <button type="button" className="cvb-v2-crumb" onClick={onBack} aria-label="Back to CV library">
         <Icon name="chevron-right" size={12} style={{ transform: "rotate(180deg)" }} />
       </button>
-      <span className="cvb-v2-brand">CV Playground</span>
+      <span className="cvb-v2-brand">{brandLabel ?? (isMaster ? "Main CV" : "CV Playground")}</span>
       <span className="cvb-v2-headrule" aria-hidden />
-      <span className="cvb-v2-jobline" title={`${jobTitle} · ${company}`}>
-        {jobTitle}{company !== "Untitled company" ? ` · ${company}` : ""}
-      </span>
-      {reqCount > 0 && (
-        <button type="button" className="cvb-v2-reqpill mono" onClick={onReqPill}>
-          {reqCount} requirements extracted →
-        </button>
+      {isMaster ? (
+        masterMeta && <span className="cvb-v2-jobline mono" title={masterMeta}>{masterMeta}</span>
+      ) : (
+        <>
+          <span className="cvb-v2-jobline" title={`${jobTitle} · ${company}`}>
+            {jobTitle}{company !== "Untitled company" ? ` · ${company}` : ""}
+          </span>
+          {reqCount > 0 && (
+            <button type="button" className="cvb-v2-reqpill mono" onClick={onReqPill}>
+              {reqCount} requirements extracted →
+            </button>
+          )}
+        </>
       )}
 
       <span className="cvb-v2-headspacer" aria-hidden />
@@ -93,35 +116,38 @@ export function PlaygroundHeader({
       <div className="cvb-v2-score" data-band={scoreBand(shown)}>
         <div className="cvb-v2-score-nums">
           <span className="cvb-v2-score-num mono tabnum">{shown}</span>
-          <span className="cvb-v2-score-cap mono">/100 for this job</span>
+          <span className="cvb-v2-score-cap mono">{scoreCaption ?? (isMaster ? "/100 · Myro Score" : "/100 · Ready")}</span>
         </div>
-        <div className="cvb-v2-score-bar" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={ready} aria-label="Readiness for this job">
+        <div className="cvb-v2-score-bar" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={ready}
+          aria-label={isMaster ? "Myro Score" : "Readiness for this job"}>
           <div className="cvb-v2-score-fill" style={{ width: `${Math.max(0, Math.min(100, shown))}%` }} />
         </div>
       </div>
 
-      {delta > 0 && <span className="cvb-v2-deltachip mono">▲ +{delta} raised</span>}
+      {!isMaster && delta > 0 && <span className="cvb-v2-deltachip mono">▲ +{delta} raised</span>}
 
       <button type="button" className="cvb-v2-applybtn" onClick={onApply} disabled={!canApply} title={applyHint}>
-        Apply with this CV
+        {primaryLabel}
       </button>
 
-      <div className="cvb-pgc-overflow">
-        <button
-          type="button"
-          className="cvb-pgc-overflow-btn"
-          onClick={() => setMenuOpen(o => !o)}
-          aria-label="More actions"
-          aria-expanded={menuOpen}
-        >⋯</button>
-        {menuOpen && (
-          <div className="cvb-pgc-menu" role="menu">
-            <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onDownload() }}>
-              <Icon name="download" size={13} /> Download PDF
-            </button>
-          </div>
-        )}
-      </div>
+      {!hideOverflow && (
+        <div className="cvb-pgc-overflow">
+          <button
+            type="button"
+            className="cvb-pgc-overflow-btn"
+            onClick={() => setMenuOpen(o => !o)}
+            aria-label="More actions"
+            aria-expanded={menuOpen}
+          >⋯</button>
+          {menuOpen && (
+            <div className="cvb-pgc-menu" role="menu">
+              <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onDownload() }}>
+                <Icon name="download" size={13} /> Download PDF
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </header>
   )
 }

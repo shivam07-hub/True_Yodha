@@ -69,6 +69,37 @@ a.tm-loopbar-hit:focus-visible {
   white-space: nowrap;
 }
 
+/* Live signal on a step (e.g. "12 new" on Capture) — its own tappable pill that
+   reads as an alert: teal-washed, one-tap. Distinct from the quiet step link so
+   the user's eye catches it; never shouts (no fill/animation). */
+.tm-loopbar-alert {
+  flex-shrink: 0;
+  margin-left: 2px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-family: var(--tm-font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+  white-space: nowrap;
+  cursor: pointer;
+  color: var(--tm-accent-text);
+  background: var(--tm-int-bg-wash);
+  border: 1px solid var(--tm-int-border);
+  text-decoration: none;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.tm-loopbar-alert:hover,
+.tm-loopbar-alert:focus-visible {
+  background: color-mix(in srgb, var(--tm-interactive) 16%, transparent);
+  border-color: var(--tm-interactive);
+}
+.tm-loopbar-alert:focus-visible {
+  outline: 2px solid var(--tm-int-border, var(--tm-interactive));
+  outline-offset: 1px;
+}
+
 /* Active step — the only teal on the bar (where you are now). */
 .tm-loopbar-step.is-active .tm-loopbar-hit { color: var(--tm-interactive); }
 .tm-loopbar-step.is-active .tm-loopbar-num { color: var(--tm-interactive); }

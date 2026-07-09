@@ -1,15 +1,14 @@
 /**
  * PlaygroundRail — CV Playground v2 right rail: Fixes / Skills tab bar + the
- * active pane (Preview mounts here too, toggled from the editor toolbar).
+ * active pane. Preview lives in the main editor pane (playground-view), not
+ * here — a WYSIWYG sheet needs the editor's full width to read as an actual
+ * CV, not a squeezed sidebar. `onGoPreview` still routes there.
  * Pure composition — all state and data stay in the view.
  */
 "use client"
 
-import type { CVStructured } from "@/lib/api"
-import type { PageFill } from "@/lib/cv/page-fill"
 import { FixesRail } from "./fixes-rail"
 import { SkillsRail } from "./skills-rail"
-import { PreviewRail, type SheetContact } from "./preview-rail"
 import type { AppliedFix, V2Fix } from "./fix-model"
 import type { usePlaygroundModel } from "./use-playground-model"
 
@@ -17,31 +16,24 @@ type Model = ReturnType<typeof usePlaygroundModel>
 
 interface PlaygroundRailProps {
   token: string
-  tab: "fixes" | "skills" | "preview"
+  tab: "fixes" | "skills"
   model: Model
-  cv: CVStructured
-  hidden: Set<string>
-  contact: SheetContact
-  pageFill: PageFill
   applied: AppliedFix[]
   expandedId: string | null
   applying: boolean
-  canApply: boolean
   fixCountLabel: string
-  onTab: (tab: "fixes" | "skills" | "preview") => void
+  onTab: (tab: "fixes" | "skills") => void
+  onGoPreview: () => void
   onExpand: (fix: V2Fix | null) => void
   onJump: (iid: string) => void
   onApplyFix: (fix: V2Fix, oldText: string, newText: string) => void
   onFixCard: (fix: V2Fix) => void
   onOpenIntake: (seed?: string) => void
-  onDownload: () => void
-  onApplyCV: () => void
 }
 
 export function PlaygroundRail({
-  token, tab, model: m, cv, hidden, contact, pageFill, applied, expandedId, applying,
-  canApply, fixCountLabel, onTab, onExpand, onJump, onApplyFix, onFixCard, onOpenIntake,
-  onDownload, onApplyCV,
+  token, tab, model: m, applied, expandedId, applying,
+  fixCountLabel, onTab, onGoPreview, onExpand, onJump, onApplyFix, onFixCard, onOpenIntake,
 }: PlaygroundRailProps) {
   return (
     <aside className="cvb-v2-rail" aria-label="Job fit">
@@ -69,7 +61,7 @@ export function PlaygroundRail({
             onExpand={onExpand}
             onJump={onJump}
             onApply={onApplyFix}
-            onGoPreview={() => onTab("preview")}
+            onGoPreview={onGoPreview}
             onOpenIntake={() => onOpenIntake()}
           />
         )}
@@ -81,21 +73,6 @@ export function PlaygroundRail({
             total={m.skillRows.length || m.allTargets.length}
             onFix={onFixCard}
             onAdd={onOpenIntake}
-          />
-        )}
-        {tab === "preview" && (
-          <PreviewRail
-            cv={cv}
-            hidden={hidden}
-            contact={contact}
-            baseScore={m.baseScore}
-            ready={m.ready}
-            delta={m.delta}
-            company={m.company}
-            pageFill={pageFill}
-            onDownload={onDownload}
-            onApply={onApplyCV}
-            canApply={canApply}
           />
         )}
       </div>

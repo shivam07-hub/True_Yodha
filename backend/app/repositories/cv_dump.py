@@ -19,10 +19,10 @@ class CvDumpRepository:
     def __init__(self, db: Client):
         self._db = db
 
-    def add(self, user_id: str, text: str) -> dict[str, Any]:
+    def add(self, user_id: str, text: str, source: str = "manual") -> dict[str, Any]:
         result = (
             self._db.table("cv_dump_entries")
-            .insert({"user_id": user_id, "text": text})
+            .insert({"user_id": user_id, "text": text, "source": source})
             .execute()
         )
         return (result.data or [{}])[0]
@@ -30,7 +30,7 @@ class CvDumpRepository:
     def list_recent(self, user_id: str, limit: int = 30) -> list[dict[str, Any]]:
         return safe_read(
             self._db.table("cv_dump_entries")
-            .select("id, text, created_at")
+            .select("id, text, source, created_at")
             .eq("user_id", user_id)
             .order("created_at", desc=True)
             .limit(limit),

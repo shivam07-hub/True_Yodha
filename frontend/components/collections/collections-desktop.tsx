@@ -12,6 +12,7 @@ import { VirtualFeed } from "@/components/jobs/virtual-feed"
 import { feedDataFromMatch } from "@/lib/jobs/card-view"
 import { PulseRow } from "@/components/dashboard/card-atoms"
 import { DashboardJobDrawer } from "@/components/dashboard/job-drawer"
+import { AgentPicksBand } from "@/components/jobs/agent-picks-band"
 import { SortMenu } from "@/components/dashboard/sort-menu"
 import { PeekSurfaces } from "@/components/mission-control/peek-surfaces"
 import type { LoopStep } from "@/components/mission-control/loop-ring"
@@ -201,6 +202,7 @@ export function CollectionsDesktop({ token, initialJobId }: { token: string; ini
 
         <div className="mc-ws-main">
           <div className="db">
+            <AgentPicksBand token={token} context="collections" />
             {view.continueItems.length > 0 ? (
               <section className="db-continue" aria-label="Finish tailoring">
                 <div className="db-continue-head">

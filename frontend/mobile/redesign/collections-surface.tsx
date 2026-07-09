@@ -26,6 +26,7 @@ import { JobDetailSheet, type JobDetailData } from "./job-detail-sheet"
 import { ApplyCapturePromptMobile } from "./apply-capture-prompt"
 import { AddJobSheet } from "./add-job-sheet"
 import { CollectionCard, pulseLine } from "./collection-card"
+import { MobileAgentPicks } from "./agent-picks-mobile"
 import { matchToRow } from "./job-model"
 import { useMobileUI } from "./mobile-ui"
 
@@ -239,6 +240,8 @@ export function CollectionsSurface({ token, initialJobId }: { token: string; ini
       )}
 
       <div style={{ padding: "2px 16px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+        {/* Curated Agent Picks above the saved worklist (default "All" view). */}
+        {chip === "all" ? <MobileAgentPicks token={token} context="collections" /> : null}
         {queueApps.length === 0 && continueApps.length === 0 && !appsQ.isLoading ? (
           <div style={{ textAlign: "center", padding: "44px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
             <div style={{ fontSize: 15, fontWeight: 650 }}>Nothing here yet</div>

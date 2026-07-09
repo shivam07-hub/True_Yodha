@@ -58,6 +58,13 @@ function composeChips(matched: string[], missing: string[]): { chips: FeedChip[]
   return { chips: [...m, ...g], extra: Math.max(0, total - shown) }
 }
 
+/** Skill coverage for the unified "N/M skills" count. Undefined when the job
+ *  lists no required skills (nothing to count). */
+function skillCountOf(matched: string[], missing: string[]): { matched: number; total: number } | undefined {
+  const total = matched.length + missing.length
+  return total > 0 ? { matched: matched.length, total } : undefined
+}
+
 /**
  * The engineer's next move on a ranked card — the "what to do", not just "how
  * good". `go` = the brain says apply (accent); `gap` = close skills first (quiet).
@@ -102,6 +109,11 @@ export interface FeedCardData {
   chips: FeedChip[]
   /** Skills beyond the shown chips → rendered as a `+N` overflow pill. */
   extraChipCount: number
+  /** Skill coverage when the CV is known: `matched`/`total` required skills.
+   *  Renders the unified "N/M skills" count (same language the playground's
+   *  Skills tab speaks) in place of individual matched ✓ chips. Undefined for
+   *  anon / no-CV browse (no have/haven't split → a count would be misleading). */
+  skillCount?: { matched: number; total: number }
   ageIso: string | null
   /** The top-right fit slot view-model. The card renders `<FitIndicator>` from it. */
   fit: FitView
@@ -149,7 +161,9 @@ export function feedDataFromMatch(
   opts: { maxChips?: number; snippetMax?: number } = {},
 ): FeedCardData {
   const { job } = src
-  const { chips, extra } = composeChips(job.matched_skills ?? [], job.missing_skills ?? [])
+  const matchedSkills = job.matched_skills ?? []
+  const missingSkills = job.missing_skills ?? []
+  const { chips, extra } = composeChips(matchedSkills, missingSkills)
   return {
     jobId: src.jobId,
     company: src.company,
@@ -165,6 +179,7 @@ export function feedDataFromMatch(
     snippet: snippetOf(job.job_summary?.trim() || job.job_description, opts.snippetMax),
     chips,
     extraChipCount: extra,
+    skillCount: skillCountOf(matchedSkills, missingSkills),
     ageIso: job.first_seen ?? null,
     fit: src.fit != null ? { kind: "score", value: src.fit, verdict: job.verdict } : null,
   }
@@ -181,11 +196,13 @@ export function feedDataFromFeedItem(
   // they're just the role's required skills (plain), never marked as gaps.
   let chips: FeedChip[]
   let extra: number
+  let skillCount: { matched: number; total: number } | undefined
   if (hasCv) {
     const matchedSet = new Set((job.matched_skills ?? []).map((s) => s.toLowerCase()))
     const matched = job.skills.filter((s) => matchedSet.has(s.toLowerCase()))
     const missing = job.skills.filter((s) => !matchedSet.has(s.toLowerCase()))
     ;({ chips, extra } = composeChips(matched, missing))
+    skillCount = skillCountOf(matched, missing)
   } else {
     chips = job.skills.slice(0, maxChips).map((name) => ({ name }))
     extra = Math.max(0, job.skills.length - maxChips)
@@ -205,6 +222,7 @@ export function feedDataFromFeedItem(
     snippet: snippetOf(job.job_description, opts.snippetMax),
     chips,
     extraChipCount: extra,
+    skillCount,
     ageIso: job.first_seen ?? null,
     // When the brain has ranked this card it carries a verdict → show the score
     // ring + verdict word (the "judge"); otherwise fall back to the overlap signal.

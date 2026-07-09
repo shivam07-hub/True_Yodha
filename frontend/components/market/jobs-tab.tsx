@@ -6,6 +6,7 @@ import { useViewport } from "@/mobile"
 import type { JobFeedItem } from "@/lib/api"
 import { formatCount } from "@/lib/format"
 import { IntentChat } from "@/components/jobs/intent-chat"
+import { AgentPicksBand } from "@/components/jobs/agent-picks-band"
 import { NotInterestedUndo } from "@/components/jobs/not-interested-undo"
 import { JobCard } from "./job-card"
 import { JobDetailDrawer } from "./job-detail-drawer"
@@ -215,6 +216,13 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
             </div>
             <a href="/cv" className="mi-nudge-go">Upload CV</a>
           </div>
+        ) : null}
+
+        {/* Curated Agent Picks band — only on the default feed view (hidden while
+            the user is actively searching or filtering, where fixed picks would be
+            out of context). Renders nothing when the user has no picks. */}
+        {!q && !skillFacet && !filters.roleDomain ? (
+          <AgentPicksBand token={token} hasCv={hasCv} context="feed" />
         ) : null}
 
         <div style={{ marginTop: 8 }}>

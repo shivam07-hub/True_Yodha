@@ -5,7 +5,7 @@ import { createPortal } from "react-dom"
 import Link from "next/link"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
-import { jobs, users, type RefreshPreflightResponse, type UserProfile } from "@/lib/api"
+import { jobs, users, type JobMatchesResponse, type RefreshPreflightResponse, type UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
 import { useCoinsGate } from "@/lib/hooks/use-xp-gate"
@@ -109,8 +109,20 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
   const open = useRefreshGateStore((s) => s.open)
   const close = useRefreshGateStore((s) => s.closeRefreshGate)
   const balance = useXPStore((s) => s.balance)
-  const { canAfford, attempt } = useCoinsGate({ cost: COST, action: "match_refresh" })
   const queryClient = useQueryClient()
+
+  // Free when there's genuinely new inventory — we added those jobs, so seeing
+  // whether they fit costs nothing. Read passively from the matches cache (the
+  // backend enforces the waiver independently; this is just honest UX). The 150
+  // conditional charge stays for a re-run with no new jobs.
+  const { data: matchesCache } = useQuery<JobMatchesResponse>({
+    queryKey: dataKeys.jobs(),
+    enabled: false,
+  })
+  const newJobsCount = matchesCache?.new_jobs_count ?? 0
+  const willBeFree = newJobsCount > 0
+  const effectiveCost = willBeFree ? 0 : COST
+  const { canAfford, attempt } = useCoinsGate({ cost: effectiveCost, action: "match_refresh" })
 
   const [draft, setDraft] = useState<Draft>(() => seed(profile))
   const [confirming, setConfirming] = useState(false)
@@ -254,7 +266,7 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
 
   const cv = cvLabel(profile)
   const cvHref = profile?.cv_url || "/cv"
-  const shortfall = COST - balance
+  const shortfall = effectiveCost - balance
 
   return createPortal(
     <div
@@ -403,7 +415,14 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
             border: `1px solid ${canAfford ? "var(--tm-int-border)" : "rgba(251,113,133,0.3)"}`,
           }}>
             <XPCoin />
-            {canAfford ? (
+            {willBeFree ? (
+              <div style={{ fontSize: 12.5, color: "var(--tm-text)", lineHeight: 1.5 }}>
+                <strong style={{ fontFamily: "var(--tm-font-mono)", fontWeight: 600, color: "var(--tm-accent-text)" }}>Free</strong>
+                {" · "}<span style={{ color: "var(--tm-text-muted)" }}>
+                  {newJobsCount} new {newJobsCount === 1 ? "job" : "jobs"} since your last match
+                </span>
+              </div>
+            ) : canAfford ? (
               <div style={{ fontSize: 12.5, color: "var(--tm-text)", lineHeight: 1.5 }}>
                 <strong style={{ fontFamily: "var(--tm-font-mono)", fontWeight: 600 }}>Up to {COST} Myro Coins</strong>
                 {" · "}<span style={{ color: "var(--tm-text-muted)" }}>charged only if new matches are found</span>

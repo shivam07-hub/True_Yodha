@@ -634,6 +634,21 @@ class JobFeedResponse(BaseModel):
     ranked_count: int = 0
 
 
+class AgentPickItem(JobFeedItem):
+    """One card in the "Myro Agent Picks" band — a normal feed card plus the
+    Career-Ops brain's rank + why-it-fits note (migration 20260709). The editorial
+    layer: hand-vetted and walled off from the algorithm feed below."""
+
+    agent_rank: int
+    agent_tier: str | None = None  # 'bullseye' | 'strong' | 'reach'
+    agent_comment: str = ""        # the brain's why-it-fits, shown on the card
+
+
+class AgentPicksResponse(BaseModel):
+    picks: list[AgentPickItem]
+    total: int = 0
+
+
 class FeedWarmResponse(BaseModel):
     """Result of POST /jobs/feed/warm — the brain ranked the feed's top shortlist.
 

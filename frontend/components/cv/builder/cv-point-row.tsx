@@ -58,6 +58,9 @@ interface CVPointRowProps {
   fixPill?: { label: string; onClick: () => void }
   /** v2: session mark after a fix was applied here — "✓ +N". */
   appliedMark?: string
+  /** Master surface: no per-job projection, so the hide toggle is meaningless —
+   *  render an empty column keeper instead of a dead control. */
+  hideToggle?: boolean
 }
 
 export function CVPointRow({
@@ -92,6 +95,7 @@ export function CVPointRow({
   onCloseRewrite,
   fixPill,
   appliedMark,
+  hideToggle,
 }: CVPointRowProps) {
   const [showDetails, setShowDetails] = useState(false)
   const hits = mono ? [] : bulletKeywordHits(text, targets)
@@ -108,13 +112,17 @@ export function CVPointRow({
 
   return (
     <div ref={rowRef} className={`cvb-pgc-row${hidden ? " hidden" : ""}${flagged ? " flagged" : ""}`}>
-      <button
-        type="button"
-        className={`cvb-pgc-check${hidden ? "" : " on"}`}
-        onClick={onToggle}
-        aria-pressed={!hidden}
-        title={hidden ? "Show on this CV" : "Hide from this CV"}
-      >{hidden ? "" : "✓"}</button>
+      {hideToggle ? (
+        <span aria-hidden />
+      ) : (
+        <button
+          type="button"
+          className={`cvb-pgc-check${hidden ? "" : " on"}`}
+          onClick={onToggle}
+          aria-pressed={!hidden}
+          title={hidden ? "Show on this CV" : "Hide from this CV"}
+        >{hidden ? "" : "✓"}</button>
+      )}
       <div className="cvb-pgc-rowbody">
         {editing ? (
           <textarea

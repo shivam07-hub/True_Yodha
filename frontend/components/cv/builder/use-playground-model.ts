@@ -23,32 +23,49 @@ import { buildV2Fixes, type V2Fix } from "./fix-model"
 import { buildSkillRows } from "./skills-rail"
 import { resolvePlaygroundCompany, targetsFromSkillGap, type KeywordTarget } from "./keyword-utils"
 
+export interface PlaygroundModelOpts {
+  /** "master" = the Main-CV surface: no job, no JD gap. Score is the CV-intrinsic
+   *  Myro Score (passed as masterScore), fixes are recruiter-check content only,
+   *  and no per-job point-gain is claimed. Default "job". */
+  mode?: "job" | "master"
+  /** Myro Score (0–100) — the header meter in master mode. Ignored for jobs. */
+  masterScore?: number
+}
+
 export function usePlaygroundModel(
   token: string,
   jobId: string,
   cv: CVStructured,
   profile: UserProfile | null,
   hiddenItems: Set<string>,
+  opts?: PlaygroundModelOpts,
 ) {
+  // Master mode has no job → the four job reads never fire (a blank jobId would
+  // otherwise 404). Content-quality fixes work from the CV alone.
+  const isMaster = opts?.mode === "master"
   const jobPathQuery = useQuery({
     queryKey: dataKeys.jobPath(jobId),
     queryFn: () => jobsApi.path(token, jobId),
     staleTime: 5 * 60 * 1000,
+    enabled: !isMaster,
   })
   const skillGapQuery = useQuery({
     queryKey: dataKeys.skillGap(jobId),
     queryFn: () => jobsApi.skillGap(token, jobId),
     staleTime: 5 * 60 * 1000,
+    enabled: !isMaster,
   })
   const applicationsQuery = useQuery({
     queryKey: dataKeys.applications(),
     queryFn: () => jobsApi.applications(token),
     staleTime: 60_000,
+    enabled: !isMaster,
   })
   const gapPlanQuery = useQuery<GapPlanResponse>({
     queryKey: ["cv-gap-plan", jobId],
     queryFn: () => cvApi.gapPlan(token, jobId),
     staleTime: 60_000,
+    enabled: !isMaster,
   })
 
   const job: Partial<JobPathResponse> = jobPathQuery.data ?? {}
@@ -86,8 +103,13 @@ export function usePlaygroundModel(
   // points from Ready, and each fix returns its exact points on a real text change.
   const contentPenaltyPts = useMemo(() => contentPenalty(runContentChecks(cv)), [cv])
 
-  const baseScore = job.readiness_pct ?? 0
+  // Master: the header shows the Myro Score verbatim (CV-intrinsic, radar-based).
+  // A bullet rewrite does NOT move the Myro Score, so the content-quality penalty
+  // never subtracts from it — honesty (job Ready is a separate, penalty-bearing
+  // number). Job: keyword-match minus the content penalty, as before.
+  const baseScore = isMaster ? Math.round(opts?.masterScore ?? 0) : (job.readiness_pct ?? 0)
   const ready = useMemo(() => {
+    if (isMaster) return baseScore
     const match = evaluatedTargets.length === 0
       ? baseScore
       : (() => {
@@ -96,7 +118,7 @@ export function usePlaygroundModel(
           return total === 0 ? 0 : Math.round((got / total) * 100)
         })()
     return Math.max(0, match - contentPenaltyPts)
-  }, [evaluatedTargets, baseScore, contentPenaltyPts])
+  }, [isMaster, evaluatedTargets, baseScore, contentPenaltyPts])
 
   const totalWeight = useMemo(
     () => Math.max(1, evaluatedTargets.reduce((s, t) => s + (t.weight ?? 1), 0)),

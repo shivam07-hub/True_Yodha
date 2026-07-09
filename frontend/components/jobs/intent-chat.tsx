@@ -5,7 +5,7 @@ import { createPortal } from "react-dom"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Loader2, Send, Sparkles, X } from "lucide-react"
 
-import { jobs, type IntentChatMessage, type IntentFilterDiff } from "@/lib/api"
+import { cv, jobs, type IntentChatMessage, type IntentFilterDiff } from "@/lib/api"
 import { invalidateTargetRoleData } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 
@@ -40,6 +40,11 @@ export function IntentChat({ open, onClose }: { open: boolean; onClose: () => vo
   const [applied, setApplied] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  // Latest messages, read by the capture path (avoids stale-closure in the
+  // apply mutation's onSuccess + the close handler).
+  const messagesRef = useRef(messages)
+  const capturedRef = useRef(false)
+  useEffect(() => { messagesRef.current = messages }, [messages])
 
   useEffect(() => {
     const el = inputRef.current
@@ -54,8 +59,30 @@ export function IntentChat({ open, onClose }: { open: boolean; onClose: () => vo
       setInput("")
       setDiff(null)
       setApplied(false)
+      capturedRef.current = false
     }
   }, [open])
+
+  // Every "Tell Myro" session the user typed into is his own words about the job
+  // he wants → dump it into the one notebook reservoir (source job_intent) so it's
+  // visible in /notebook + fed to distillation → user_memory → the brain
+  // everywhere, EVEN when he never confirmed a filter change. Best-effort: never
+  // blocks or errors the close.
+  function captureToNotebook() {
+    if (capturedRef.current || !token) return
+    const turns = messagesRef.current
+      .filter((m) => m.role === "user")
+      .map((m) => m.content.trim())
+      .filter(Boolean)
+    if (turns.length === 0) return
+    capturedRef.current = true
+    cv.dump.add(token, turns.join("\n\n"), "job_intent").catch(() => {})
+  }
+
+  function handleClose() {
+    captureToNotebook()
+    onClose()
+  }
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" })
@@ -74,7 +101,7 @@ export function IntentChat({ open, onClose }: { open: boolean; onClose: () => vo
     onSuccess: () => {
       invalidateTargetRoleData(queryClient) // re-runs the feed + score with new filters
       setApplied(true)
-      setTimeout(onClose, 1100)
+      setTimeout(handleClose, 1100)
     },
   })
 
@@ -103,7 +130,7 @@ export function IntentChat({ open, onClose }: { open: boolean; onClose: () => vo
         alignItems: "flex-end", justifyContent: "center",
         background: "var(--tm-scrim, rgba(0,0,0,0.5))",
       }}
-      onClick={onClose}
+      onClick={handleClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
@@ -117,7 +144,7 @@ export function IntentChat({ open, onClose }: { open: boolean; onClose: () => vo
           <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontWeight: 600, fontSize: 14, color: "var(--tm-text)" }}>
             <Sparkles size={16} style={{ color: "var(--tm-interactive)" }} /> Tell Myro what you want
           </span>
-          <button type="button" onClick={onClose} aria-label="Close" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--tm-text-muted)" }}>
+          <button type="button" onClick={handleClose} aria-label="Close" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--tm-text-muted)" }}>
             <X size={18} />
           </button>
         </div>
