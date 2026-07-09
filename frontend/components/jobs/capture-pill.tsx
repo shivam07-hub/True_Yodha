@@ -28,8 +28,13 @@ export interface CapturePillProps {
   onSave?: () => void
   /** saved → jump to tailoring this job. Omit to hide the inline next-step. */
   onTailor?: () => void
-  /** signed-out → where the anon funnel points (default /signup). */
+  /** signed-out → where the anon funnel points (default /signup). Kept as a real
+   *  href so it's crawlable on SEO pages + middle-click works. */
   signUpHref?: string
+  /** signed-out → optional handler (e.g. open the signup-gate modal). When given,
+   *  a plain click calls it (the consumer preventDefaults); the href still serves
+   *  crawlers + modified clicks. */
+  onSignUp?: () => void
   /** Compact rows (Intel / company pages) use "sm". */
   size?: "md" | "sm"
   /** Accessible name for the job being captured, e.g. "Decision Analyst at Barclays". */
@@ -42,6 +47,7 @@ export function CapturePill({
   onSave,
   onTailor,
   signUpHref = "/signup",
+  onSignUp,
   size = "md",
   label,
   className = "",
@@ -77,7 +83,15 @@ export function CapturePill({
       <a
         href={signUpHref}
         className={`${cls} is-signup`}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation()
+          // Progressive enhancement: keep the crawlable href + modified-click,
+          // but a plain click opens the signup gate when the surface provides one.
+          if (onSignUp && !e.metaKey && !e.ctrlKey && !e.shiftKey && e.button === 0) {
+            e.preventDefault()
+            onSignUp()
+          }
+        }}
         aria-label={label ? `Save ${label} — sign up to keep it` : "Save — sign up to keep it"}
       >
         <Star aria-hidden /> Save

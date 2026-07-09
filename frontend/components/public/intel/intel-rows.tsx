@@ -6,6 +6,7 @@ import {
 } from "./intel-data"
 import { formatCount } from "@/lib/format"
 import { CompanyLink } from "@/components/companies/company-link"
+import { CapturePill } from "@/components/jobs/capture-pill"
 import type { ResultCompany, ResultGroup, ResultJob } from "./intel-results"
 
 export function Spark({
@@ -220,12 +221,18 @@ function FitSlot({
 
 export function JobRow({
   job, authed = false, hasCv = false, fit = null, onCheckFit,
+  saved = false, onSave, onSignup, onTailor,
 }: {
   job: ResultJob
   authed?: boolean
   hasCv?: boolean
   fit?: JobRowFit | null
   onCheckFit: () => void
+  /** Capture state (unified control) — Intel is a capture surface in the loop. */
+  saved?: boolean
+  onSave?: () => void
+  onSignup?: () => void
+  onTailor?: () => void
 }) {
   const ageLabel = fmtAgeMin(job.ageMin)
   const fresh = job.ageMin != null && job.ageMin < 60 * 24
@@ -234,6 +241,14 @@ export function JobRow({
       <div className="tm-intel-job-head">
         <div className="tm-intel-job-title">{job.title}</div>
         <FitSlot authed={authed} hasCv={hasCv} fit={fit} onCheckFit={onCheckFit} />
+        <CapturePill
+          status={!authed ? "signed-out" : saved ? "saved" : "rest"}
+          size="sm"
+          label={job.title}
+          onSave={onSave}
+          onSignUp={onSignup}
+          onTailor={onTailor}
+        />
       </div>
       <div className="tm-intel-job-sub">
         <span>{job.city}</span>

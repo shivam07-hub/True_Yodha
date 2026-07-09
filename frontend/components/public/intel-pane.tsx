@@ -8,6 +8,7 @@ import { getAccessToken } from "@/lib/session"
 import { dataKeys } from "@/lib/domain-data"
 import { cacheKey, withLocalCache } from "@/lib/local-cache"
 import { useJobsRealtime } from "@/lib/hooks/use-jobs-realtime"
+import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import { useGlobalJobSearch } from "@/lib/hooks/use-global-job-search"
 import { useResultsSort, type ResultsSortKey } from "@/lib/hooks/use-results-sort"
 import { JobSearchConsole } from "@/components/public/job-search-console"
@@ -66,6 +67,19 @@ export function IntelPane() {
   const [token, setToken] = useState<string | null>(null)
   useEffect(() => { setToken(getAccessToken()) }, [])
   const authed = !!token
+
+  // Unified capture on role rows (Intel is a loop surface). Anon → signup gate;
+  // authed → optimistic save, then the pill names Tailor. Save is best-effort:
+  // a role may already be saved, and a failed save never disturbs browsing.
+  const signup = useSignupGate()
+  const [savedJobIds, setSavedJobIds] = useState<Set<string>>(new Set())
+  const openSignup = () => signup.open({ surface: "intel_save", next: "/collections" })
+  const saveJobRow = (jobId: string) => {
+    if (!token) return openSignup()
+    setSavedJobIds((prev) => new Set(prev).add(jobId))
+    void jobs.saveJob(token, jobId).catch(() => { /* already saved / transient */ })
+  }
+  const tailorJob = (jobId: string) => router.push(`/cv/tailor?jobId=${encodeURIComponent(jobId)}`)
 
   // Personal header data (grill Q4=B/Q5=A). One cheap BFF call already used by
   // the dashboard; reused here for score + CV presence. Anon never fetches it.
@@ -384,6 +398,10 @@ export function IntelPane() {
         hasCv={hasCv}
         fits={fits}
         onCheckFit={(job, companyName) => setFitDrawer({ job, companyName })}
+        savedJobIds={savedJobIds}
+        onSaveJob={saveJobRow}
+        onSignup={openSignup}
+        onTailor={tailorJob}
       />
 
       <JobFitDrawer

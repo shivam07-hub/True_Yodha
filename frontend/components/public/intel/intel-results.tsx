@@ -95,6 +95,11 @@ interface ResultsProps {
   /** job_id → fit, lazily fetched for the active company's open roles. */
   fits: Map<string, JobRowFit>
   onCheckFit: (job: ResultJob, companyName: string | null) => void
+  /** Unified capture (the ★ Save pill on each role row). */
+  savedJobIds: Set<string>
+  onSaveJob: (jobId: string) => void
+  onSignup: () => void
+  onTailor: (jobId: string) => void
 }
 
 export function IntelResults(props: ResultsProps) {
@@ -313,6 +318,10 @@ function Split(props: ResultsProps) {
                 hasCv={props.hasCv}
                 fit={props.fits.get(j.id) ?? null}
                 onCheckFit={() => props.onCheckFit(j, props.activeCompanyName)}
+                saved={props.savedJobIds.has(j.id)}
+                onSave={() => props.onSaveJob(j.id)}
+                onSignup={props.onSignup}
+                onTailor={() => props.onTailor(j.id)}
               />
             ))
           : <Empty />}
