@@ -306,7 +306,33 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-08 - Paid-first LLM routing for CV rewrite)
+## LAST SESSION SUMMARY (2026-07-10 - Signup email-password creation)
+
+Fixed signup so new users can create an account with their own email and
+password, matching the access returning users already had on sign-in.
+
+- Added `frontend/components/auth/signup-password-form.tsx` as the default
+  signup path after social auth: email, password, show/hide toggle,
+  `/auth/signup`, token persistence, referral/attribution echo, first-signup
+  routing, and email-confirmation fallback.
+- Kept magic link signup available behind the alternate "Email me a link
+  instead" action.
+- Split the password form out of `SignupForm` so auth components stay under the
+  300-line file limit.
+- Added an auth-copy contract test that locks signup email/password account
+  creation.
+- Started the frontend dev server and verified `/signup` returns 200 at
+  `http://127.0.0.1:3000/signup`.
+
+Validation:
+
+- `cd frontend && npx tsx --test tests/auth-copy.test.ts`: 5 passed
+- `cd frontend && npx tsc --noEmit --pretty false`: clean
+- `cd frontend && npm run lint`: clean
+- `.venv/bin/pytest backend/tests`: 1044 passed, 28 warnings
+- `git diff --check`: clean
+
+## OLDER SESSION SUMMARY (2026-07-08 - Paid-first LLM routing for CV rewrite)
 
 Fixed the LLM provider routing so user-facing CV rewrite flows spend paid
 OpenRouter before falling back to direct-provider quotas.

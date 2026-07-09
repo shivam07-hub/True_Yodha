@@ -38,6 +38,17 @@ test("signup auth copy stays short before the user acts", () => {
   assert.doesNotMatch(signupModal, /Myro tells you which skills to close/)
 })
 
+test("signup form offers email and password account creation", () => {
+  const signupForm = [
+    read("components/auth/signup-form.tsx"),
+    read("components/auth/signup-password-form.tsx"),
+  ].join("\n")
+
+  assert.match(signupForm, /auth\.signup\(/)
+  assert.match(signupForm, /autoComplete="new-password"/)
+  assert.match(signupForm, /Create account/)
+})
+
 test("cv prerequisite copy avoids long explanations before the action", () => {
   const cvPage = read("app/(authed)/cv/page.tsx")
   const requiresCv = read("components/empty/RequiresCV.tsx")
