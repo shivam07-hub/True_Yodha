@@ -12,6 +12,8 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import type { JobMatch } from "@/lib/api"
+import { verdictLabel } from "@/lib/jobs/match-verdict"
 import { Icon } from "./icons"
 
 /** Count the number up to its target — the one orchestrated moment. */
@@ -75,13 +77,17 @@ interface PlaygroundHeaderProps {
   brandLabel?: string
   /** Score caption override (default per variant). */
   scoreCaption?: string
+  /** The job's Worth-it verdict — the OTHER axis (prize) beside Ready (winnability).
+   *  Read from the matches cache; omit when unknown/"checking" so we never invent
+   *  a judgment. Shows "Strong · 76" alongside the job context. */
+  worthIt?: { verdict: JobMatch["verdict"]; score: number }
 }
 
 export function PlaygroundHeader({
   jobTitle, company, reqCount, ready, delta, canApply, applyHint, saveState,
   onBack, onReqPill, onApply, onDownload,
   variant = "job", masterMeta, primaryLabel = "Apply with this CV", hideOverflow,
-  brandLabel, scoreCaption,
+  brandLabel, scoreCaption, worthIt,
 }: PlaygroundHeaderProps) {
   const shown = useCountUp(ready)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -105,6 +111,13 @@ export function PlaygroundHeader({
             <button type="button" className="cvb-v2-reqpill mono" onClick={onReqPill}>
               {reqCount} requirements extracted →
             </button>
+          )}
+          {worthIt && worthIt.verdict !== "checking" && worthIt.score > 0 && (
+            // The prize axis beside Ready (winnability) — "this job is a strong
+            // match; now get your CV ready for it."
+            <span className={`cvb-v2-worth mono cvb-v2-worth-${worthIt.verdict}`}>
+              {verdictLabel(worthIt.verdict)} · {worthIt.score}
+            </span>
           )}
         </>
       )}

@@ -4,7 +4,10 @@ import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase"
 import { capturePendingReferral } from "@/lib/referral"
-import { appendAttributionToUrl, capturePendingAttribution } from "@/lib/attribution"
+import {
+  appendAttributionToUrl,
+  capturePendingAttribution,
+} from "@/lib/attribution"
 import { detectInAppBrowser } from "@/lib/is-in-app-browser"
 import { signupEvents } from "@/lib/analytics"
 import { GoogleAuthButton } from "@/components/auth/shared/google-button"
@@ -12,6 +15,7 @@ import { LinkedInAuthButton } from "@/components/auth/shared/linkedin-button"
 import { MagicLinkInput } from "@/components/auth/shared/magic-link-input"
 import { CheckInboxPanel } from "@/components/auth/shared/check-inbox-panel"
 import { InAppBrowserWarning } from "@/components/auth/shared/in-app-browser-warning"
+import { SignupPasswordForm } from "@/components/auth/signup-password-form"
 
 interface Props {
   /** Where the form is mounted — used for telemetry + post-auth routing. */
@@ -25,7 +29,7 @@ interface Props {
 /**
  * ADR-0006 §14 — SignupForm.
  *
- * Three signup paths in locked order: Google → LinkedIn → magic-link.
+ * Four signup paths in locked order: Google → LinkedIn → password → magic-link.
  * Auth-before-file: file pickers are routed via ?upload=1 on the post-auth
  * destination (set by callers via `next`), no anon state to preserve.
  */
@@ -33,6 +37,7 @@ export function SignupForm({ surface, next, showLoginLink = true }: Props) {
   const [pendingEmail, setPendingEmail] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [agent, setAgent] = useState<string | null>(null)
+  const [mode, setMode] = useState<"password" | "magic">("password")
 
   useEffect(() => {
     capturePendingReferral()
@@ -110,11 +115,34 @@ export function SignupForm({ surface, next, showLoginLink = true }: Props) {
         <div style={{ flex: 1, height: 1, background: "var(--tm-border-soft)" }} />
       </div>
 
-      <MagicLinkInput
-        surface={surface}
-        redirectTo={redirectTo}
-        onSent={(email) => setPendingEmail(email)}
-      />
+      {mode === "password" && (
+        <SignupPasswordForm
+          surface={surface}
+          next={next}
+          onPendingEmail={(email) => setPendingEmail(email)}
+          onUseMagicLink={() => { setError(null); setMode("magic") }}
+        />
+      )}
+
+      {mode === "magic" && (
+        <>
+          <MagicLinkInput
+            surface={surface}
+            redirectTo={redirectTo}
+            onSent={(email) => setPendingEmail(email)}
+          />
+          <button
+            type="button"
+            onClick={() => { setError(null); setMode("password") }}
+            style={{
+              background: "none", border: "none", color: "var(--tm-text-faint)",
+              fontSize: 13, cursor: "pointer", padding: 0, textAlign: "center", marginTop: 4,
+            }}
+          >
+            <span style={{ color: "var(--tm-interactive)" }}>Use email and password</span>
+          </button>
+        </>
+      )}
 
       {error && (
         <p role="alert" style={{
