@@ -15,6 +15,13 @@ import "./brain-dump-canvas.css"
  * distillation) and their CV bullets (the "Add from your experience" intake).
  * Design-over-words: the value is the writing surface, not instructions.
  */
+
+// Provenance for entries Myro captured on the user's behalf from other surfaces.
+// Hand-typed ("manual") entries get no chip — the default needs no label.
+const SOURCE_LABEL: Record<string, string> = {
+  job_intent: "From Tell Myro",
+}
+
 export function BrainDumpCanvas() {
   const { token, ready } = useSession()
   const qc = useQueryClient()
@@ -90,6 +97,9 @@ export function BrainDumpCanvas() {
               <p className="bd-entry-text">{e.text}</p>
               <div className="bd-entry-foot">
                 <time className="bd-entry-time">{formatDate(e.created_at, "medium")}</time>
+                {e.source && SOURCE_LABEL[e.source] ? (
+                  <span className="bd-entry-src">{SOURCE_LABEL[e.source]}</span>
+                ) : null}
                 <button
                   type="button"
                   className="bd-entry-del"

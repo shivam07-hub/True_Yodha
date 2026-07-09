@@ -31,7 +31,7 @@ def add_dump(
     repo: CvDumpRepository = Depends(get_cv_dump_repository),
 ) -> DumpEntry:
     """Append one brain-dump entry (the user's own words)."""
-    return DumpEntry(**repo.add(user.id, body.text.strip()))
+    return DumpEntry(**repo.add(user.id, body.text.strip(), body.source))
 
 
 @router.delete("/dump/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)

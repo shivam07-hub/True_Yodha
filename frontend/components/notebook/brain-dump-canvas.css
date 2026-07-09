@@ -145,6 +145,21 @@
   color: var(--tm-text-faint);
 }
 
+/* Provenance chip — where Myro captured an entry from (e.g. "From Tell Myro").
+   margin-right:auto keeps time + chip grouped left, delete pinned right. */
+.bd-entry-src {
+  margin-right: auto;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--tm-accent-text);
+  background: var(--tm-int-bg-wash);
+  border: 1px solid var(--tm-border-soft);
+  padding: 1px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
 .bd-entry-del {
   border: none;
   background: transparent;

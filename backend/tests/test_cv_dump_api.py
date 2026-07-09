@@ -14,9 +14,15 @@ class _FakeRepo:
         self.rows: list[dict[str, Any]] = []
         self._seq = 0
 
-    def add(self, user_id: str, text: str) -> dict[str, Any]:
+    def add(self, user_id: str, text: str, source: str = "manual") -> dict[str, Any]:
         self._seq += 1
-        row = {"id": f"d{self._seq}", "user_id": user_id, "text": text, "created_at": datetime.now(timezone.utc)}
+        row = {
+            "id": f"d{self._seq}",
+            "user_id": user_id,
+            "text": text,
+            "source": source,
+            "created_at": datetime.now(timezone.utc),
+        }
         self.rows.append(row)
         return row
 
@@ -51,6 +57,38 @@ def test_dump_add_list_delete_roundtrip() -> None:
     assert [e["text"] for e in listed.json()["entries"]] == ["Led the campus fest sponsorship drive, raised 4L."]
     assert deleted.status_code == 204
     assert after.json()["entries"] == []
+
+
+def test_dump_records_source_provenance() -> None:
+    """A capture from another surface (e.g. "Not it? Tell Myro") tags its source
+    so /notebook can show where the entry came from; hand-typed defaults to manual."""
+    repo = _FakeRepo()
+    _override(repo)
+    try:
+        with TestClient(app) as client:
+            h = {"Authorization": "Bearer t1"}
+            tagged = client.post("/cv/dump", json={"text": "want data roles, not sales", "source": "job_intent"}, headers=h)
+            plain = client.post("/cv/dump", json={"text": "led the fest drive"}, headers=h)
+    finally:
+        app.dependency_overrides.clear()
+    assert tagged.status_code == 201
+    assert tagged.json()["source"] == "job_intent"
+    assert plain.json()["source"] == "manual"
+
+
+def test_dump_rejects_bad_source() -> None:
+    repo = _FakeRepo()
+    _override(repo)
+    try:
+        with TestClient(app) as client:
+            resp = client.post(
+                "/cv/dump",
+                json={"text": "hi", "source": "Not A Source!"},
+                headers={"Authorization": "Bearer t1"},
+            )
+    finally:
+        app.dependency_overrides.clear()
+    assert resp.status_code == 422
 
 
 def test_dump_rejects_blank() -> None:
