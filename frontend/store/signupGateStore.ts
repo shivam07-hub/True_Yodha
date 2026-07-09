@@ -7,6 +7,7 @@ export type SignupGateSurface =
   | "share_deeplink"
   | "company_jobs_save"
   | "company_jobs_cta"
+  | "intel_save"
   | "manual"
 
 /** Which auth view the modal opens in. Returning users → "login". */

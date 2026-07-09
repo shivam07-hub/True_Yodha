@@ -2,9 +2,11 @@
 
 import { useQuery } from "@tanstack/react-query"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { formatCount } from "@/lib/format"
 import { Button } from "@/components/ui/button"
+import { CapturePill } from "@/components/jobs/capture-pill"
 import type { CommentListResponse, CompanyJobCard, CompanyJobsResponse } from "@/lib/api"
 import { formatJobLocation } from "@/lib/format-location"
 import { ParticleLoading } from "@/components/loading/particle-loading"
@@ -66,7 +68,17 @@ function locationStr(job: CompanyJobCard): string | null {
 
 // ── Components ────────────────────────────────────────────────────────────────
 
-function JobRow({ job, saved, onSave }: { job: CompanyJobCard; saved: boolean; onSave: () => void }) {
+function JobRow({
+  job, saved, isAuthed, companyName, onSave, onSignUp, onTailor,
+}: {
+  job: CompanyJobCard
+  saved: boolean
+  isAuthed: boolean
+  companyName: string
+  onSave: () => void
+  onSignUp: () => void
+  onTailor: () => void
+}) {
   const loc = locationStr(job)
   const mode = modeLabel(job.location_mode)
 
@@ -94,21 +106,18 @@ function JobRow({ job, saved, onSave }: { job: CompanyJobCard; saved: boolean; o
             </div>
           )}
         </div>
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={saved}
-          style={{
-            flexShrink: 0, padding: "6px 14px", borderRadius: 99, fontSize: 12, fontWeight: 600,
-            background: saved ? "var(--tm-success-wash)" : "var(--tm-int-bg-wash)",
-            border: `1px solid ${saved ? "var(--tm-success-border)" : "var(--tm-int-border)"}`,
-            color: saved ? "var(--tm-success)" : "var(--tm-interactive)",
-            cursor: saved ? "default" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
-            transition: "background 160ms, border-color 160ms, color 160ms",
-          }}
-        >
-          {saved ? "Saved ✓" : "+ Save"}
-        </button>
+        {/* The ONE capture control (unified). Anon → sign-up funnel (crawlable
+            href + modal); authed → Save, then the saved state names Tailor. */}
+        <div style={{ flexShrink: 0 }}>
+          <CapturePill
+            status={!isAuthed ? "signed-out" : saved ? "saved" : "rest"}
+            size="sm"
+            label={`${job.title} at ${companyName}`}
+            onSave={onSave}
+            onSignUp={onSignUp}
+            onTailor={onTailor}
+          />
+        </div>
       </div>
       {job.primary_skills.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
@@ -148,6 +157,7 @@ export function CompanyJobsClient({
 }) {
   const { token } = useAuth()
   const signup = useSignupGate()
+  const router = useRouter()
   const [page, setPage] = useState(1)
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
 
@@ -167,11 +177,12 @@ export function CompanyJobsClient({
     initialData: initialPostingNotes ?? undefined,
   })
 
+  function openSignup() {
+    signup.open({ surface: "company_jobs_save", next: `/companies/${encodeURIComponent(companyName)}` })
+  }
+
   async function handleSave(jobId: string) {
-    if (!token) {
-      signup.open({ surface: "company_jobs_save", next: `/companies/${encodeURIComponent(companyName)}` })
-      return
-    }
+    if (!token) return openSignup()
     // Optimistic update — ignore errors (job may already be saved)
     setSavedIds(prev => new Set(Array.from(prev).concat(jobId)))
     try { await saveJobReq(token, jobId) } catch { /* already saved */ }
@@ -245,7 +256,16 @@ export function CompanyJobsClient({
           <>
             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24, opacity: isFetching ? 0.6 : 1, transition: "opacity 200ms" }}>
               {jobs.map(job => (
-                <JobRow key={job.job_id} job={job} saved={savedIds.has(job.job_id)} onSave={() => handleSave(job.job_id)} />
+                <JobRow
+                  key={job.job_id}
+                  job={job}
+                  saved={savedIds.has(job.job_id)}
+                  isAuthed={!!token}
+                  companyName={companyName}
+                  onSave={() => handleSave(job.job_id)}
+                  onSignUp={openSignup}
+                  onTailor={() => router.push(`/cv/tailor?jobId=${encodeURIComponent(job.job_id)}`)}
+                />
               ))}
             </div>
             {hasNext && (
