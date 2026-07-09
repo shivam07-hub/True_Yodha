@@ -45,7 +45,7 @@ export function NotInterestedUndo({ kind, jobId, token, onUndo, queuePosition, s
           <button
             type="button"
             className="tm-feed-toast-tailor"
-            onClick={() => router.push(`/cv/tailor?jobId=${encodeURIComponent(jobId)}`)}
+            onClick={() => router.push(`/cv?jobId=${encodeURIComponent(jobId)}`)}
           >
             Tailor now <span aria-hidden>→</span>
           </button>

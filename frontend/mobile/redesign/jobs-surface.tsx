@@ -80,7 +80,7 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
     setShowSwipeHint(false)
     triage(job, "saved")
     if (fromSheet) setDetailId(null)
-    snack({ msg: "Saved to Collections", action: "Tailor now", onAction: () => { closeSnack(); router.push(`/cv/tailor?jobId=${encodeURIComponent(job.job_id)}`) } })
+    snack({ msg: "Saved to Collections", action: "Tailor now", onAction: () => { closeSnack(); router.push(`/cv?jobId=${encodeURIComponent(job.job_id)}`) } })
   }
   const doSkip = (job: JobFeedItem, fromSheet?: boolean) => {
     setShowSwipeHint(false)
@@ -95,7 +95,7 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
     setTimeout(() => setSharedId(null), 1500)
     snack({ msg: "Link copied" })
   }
-  const doTailor = (jobId: string) => { setDetailId(null); router.push(`/cv/tailor?jobId=${encodeURIComponent(jobId)}`) }
+  const doTailor = (jobId: string) => { setDetailId(null); router.push(`/cv?jobId=${encodeURIComponent(jobId)}`) }
   const doApply = () => {
     if (applyCapture.target.url) applyCapture.open()
     else snack({ msg: "No apply link on this listing" })
