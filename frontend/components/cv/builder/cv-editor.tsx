@@ -12,7 +12,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { users, type CVStructured, type UserProfile } from "@/lib/api"
+import { users, type CVContact, type CVStructured, type UserProfile } from "@/lib/api"
 import { itemId } from "@/lib/cv-compose"
 import { dataKeys } from "@/lib/domain-data"
 import { CVPointRow, type CVPointMeta } from "./cv-point-row"
@@ -45,6 +45,15 @@ interface CVEditorProps {
   onFixPill?: (fix: V2Fix) => void
   /** v2: jump request — scroll to and pulse a bullet (n re-triggers same iid). */
   flash?: { iid: string; n: number } | null
+  /** Main-CV surface: the SAME paper, but identity fields become editable and
+   *  Education + Certifications render (a job-tailored CV can't touch identity —
+   *  one source of truth is the master). Summary + Skills stay always-visible so
+   *  an empty master can be filled. Every write is a cheap living-master patch
+   *  via onPatch (autosave), never a rewrite baseline. Fix "+N" is suppressed —
+   *  a rewrite doesn't move the Myro Score. */
+  master?: {
+    onPatch: (mut: (d: CVStructured) => CVStructured) => void
+  }
 }
 
 const clip = (s: string, n = 56) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s)
@@ -63,8 +72,9 @@ function copyText(text: string) {
 export function CVEditor({
   token, cv, profile, hiddenItems, toggleItem, targets, missingKeywords,
   applying, onApply, onAddBullet, addingBullet, visibleCount, wordCount, rewriteTarget, onClearRewriteTarget,
-  fixes, applied, onFixPill, flash,
+  fixes, applied, onFixPill, flash, master,
 }: CVEditorProps) {
+  const isMaster = !!master
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [editingIid, setEditingIid] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState("")
@@ -238,17 +248,29 @@ export function CVEditor({
         onOpenComposer={openComposer}
         onApply={onApply}
         onCloseRewrite={() => setRewriteIid(null)}
-        fixPill={fix && onFixPill ? { label: `${fix.kind} +${fix.gain}`, onClick: () => onFixPill(fix) } : undefined}
-        appliedMark={appliedFix ? `✓ +${appliedFix.gain}` : undefined}
+        fixPill={fix && onFixPill ? { label: isMaster ? fix.kind : `${fix.kind} +${fix.gain}`, onClick: () => onFixPill(fix) } : undefined}
+        appliedMark={appliedFix ? (isMaster ? "✓" : `✓ +${appliedFix.gain}`) : undefined}
+        hideToggle={isMaster}
       />
     )
   }
+
+  // Master identity/section editing — every write is a living-master patch.
+  const setContact = (key: keyof CVContact, value: string) =>
+    master?.onPatch(d => ({
+      ...d,
+      contact: {
+        name: "", title: "", email: "", phone: "", location: "", linkedin: "",
+        ...(d.contact ?? {}), [key]: value,
+      },
+    }))
+  const c = cv.contact
 
   const allCopied = copiedId === "__all"
   return (
     <div>
       <div className="cvb-pgc-editor-head">
-        <span className="cvb-pgc-eyebrow accent">Your CV · this job</span>
+        <span className="cvb-pgc-eyebrow accent">{isMaster ? "Your Main CV" : "Your CV · this job"}</span>
         <div className="cvb-pgc-editor-meta">
           <span className="mono">{visibleCount} bullets · ~{wordCount} words · one page</span>
           <button
@@ -260,14 +282,44 @@ export function CVEditor({
       </div>
 
       <div className="cvb-pgc-paper">
-        <div className="cvb-pgc-contact-card">
-          <div className="cvb-pgc-name">{contactName}</div>
-          {contactTitle && <div className="cvb-pgc-role">{contactTitle}</div>}
-          {contactMeta && <div className="cvb-pgc-contact mono">{contactMeta}</div>}
-        </div>
+        {isMaster ? (
+          <div className="cvb-pgc-contact-card cvb-pgc-mcard">
+            <input className="cvb-pgc-minput name" value={c?.name ?? ""} placeholder="Full name"
+              onChange={e => setContact("name", e.target.value)} />
+            <input className="cvb-pgc-minput role" value={c?.title ?? ""} placeholder="Headline (e.g. GTM Manager)"
+              onChange={e => setContact("title", e.target.value)} />
+            <div className="cvb-pgc-mgrid">
+              <input className="cvb-pgc-minput mono" type="email" value={c?.email ?? ""} placeholder="Email"
+                onChange={e => setContact("email", e.target.value)} />
+              <input className="cvb-pgc-minput mono" type="tel" value={c?.phone ?? ""} placeholder="Phone"
+                onChange={e => setContact("phone", e.target.value)} />
+              <input className="cvb-pgc-minput mono" value={c?.location ?? ""} placeholder="Location"
+                onChange={e => setContact("location", e.target.value)} />
+              <input className="cvb-pgc-minput mono" value={c?.linkedin ?? ""} placeholder="LinkedIn URL"
+                onChange={e => setContact("linkedin", e.target.value)} />
+            </div>
+          </div>
+        ) : (
+          <div className="cvb-pgc-contact-card">
+            <div className="cvb-pgc-name">{contactName}</div>
+            {contactTitle && <div className="cvb-pgc-role">{contactTitle}</div>}
+            {contactMeta && <div className="cvb-pgc-contact mono">{contactMeta}</div>}
+          </div>
+        )}
         <div className="cvb-pgc-rule" />
 
-        {cv.summary && (
+        {isMaster ? (
+          <>
+            <div className="cvb-pgc-section">SUMMARY</div>
+            <textarea
+              className="cvb-pgc-edit cvb-pgc-mtext"
+              rows={3}
+              value={cv.summary ?? ""}
+              placeholder="One short paragraph about who you are."
+              onChange={e => master?.onPatch(d => ({ ...d, summary: e.target.value }))}
+            />
+          </>
+        ) : cv.summary && (
           <>
             <div className="cvb-pgc-section">SUMMARY</div>
             {row(itemId("summary", 0, cv.summary), cv.summary)}
@@ -317,7 +369,55 @@ export function CVEditor({
           </div>
         ))}
 
-        {cv.skills_line && (
+        {isMaster ? (
+          <>
+            <div className="cvb-pgc-section">SKILLS</div>
+            <textarea
+              className="cvb-pgc-edit cvb-pgc-mtext mono"
+              rows={2}
+              value={cv.skills_line ?? ""}
+              placeholder="Comma-separated skills."
+              onChange={e => master?.onPatch(d => ({ ...d, skills_line: e.target.value }))}
+            />
+
+            <div className="cvb-pgc-section cvb-pgc-msection-head">
+              <span>EDUCATION</span>
+              <button type="button" className="cvb-pgc-addpoint" onClick={() => master?.onPatch(d => ({
+                ...d, education: [...d.education, { institution: "", degree: "", dates: "", grade: "", location: "" }],
+              }))}>＋ Add</button>
+            </div>
+            {cv.education.map((ed, i) => (
+              <div key={`edu-${i}`} className="cvb-pgc-mentry">
+                <div className="cvb-pgc-mgrid two">
+                  <input className="cvb-pgc-minput" value={ed.institution} placeholder="Institution"
+                    onChange={e => master?.onPatch(d => { d.education[i].institution = e.target.value; return d })} />
+                  <input className="cvb-pgc-minput" value={ed.degree} placeholder="Degree"
+                    onChange={e => master?.onPatch(d => { d.education[i].degree = e.target.value; return d })} />
+                  <input className="cvb-pgc-minput mono" value={ed.dates} placeholder="Dates"
+                    onChange={e => master?.onPatch(d => { d.education[i].dates = e.target.value; return d })} />
+                  <input className="cvb-pgc-minput mono" value={ed.grade} placeholder="Grade"
+                    onChange={e => master?.onPatch(d => { d.education[i].grade = e.target.value; return d })} />
+                </div>
+                <button type="button" className="cvb-pgc-mdel" aria-label="Remove education"
+                  onClick={() => master?.onPatch(d => { d.education.splice(i, 1); return d })}>×</button>
+              </div>
+            ))}
+
+            <div className="cvb-pgc-section cvb-pgc-msection-head">
+              <span>CERTIFICATIONS</span>
+              <button type="button" className="cvb-pgc-addpoint"
+                onClick={() => master?.onPatch(d => ({ ...d, certs: [...d.certs, ""] }))}>＋ Add</button>
+            </div>
+            {cv.certs.map((cert, i) => (
+              <div key={`cert-${i}`} className="cvb-pgc-mentry">
+                <input className="cvb-pgc-minput" value={cert} placeholder="Certification"
+                  onChange={e => master?.onPatch(d => { d.certs[i] = e.target.value; return d })} />
+                <button type="button" className="cvb-pgc-mdel" aria-label="Remove certification"
+                  onClick={() => master?.onPatch(d => { d.certs.splice(i, 1); return d })}>×</button>
+              </div>
+            ))}
+          </>
+        ) : cv.skills_line && (
           <>
             <div className="cvb-pgc-section">SKILLS</div>
             {row(itemId("skills_line", 0, cv.skills_line), cv.skills_line, { mono: true })}
