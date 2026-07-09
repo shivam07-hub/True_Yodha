@@ -19,8 +19,8 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import type { CVStructured, UserProfile } from "@/lib/api"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import type { CVStructured, JobMatchesResponse, UserProfile } from "@/lib/api"
 import { jobs as jobsApi, cv as cvApi } from "@/lib/api"
 import { CVEditor } from "./cv-editor"
 import { ExperienceIntake } from "./experience-intake"
@@ -75,6 +75,16 @@ export function PlaygroundView({
   const railTab: "fixes" | "skills" = tab === "fixes" || tab === "skills" ? tab : "fixes"
 
   const m = usePlaygroundModel(token, jobId, cv, profile, hiddenItems)
+
+  // The job's Worth-it verdict (the prize axis, beside the header's Ready score).
+  // Passive read of the matches cache — never fetches; absent when the user
+  // reached tailoring without a cached match → the chip simply hides (no fabrication).
+  const { data: matchesCache } = useQuery<JobMatchesResponse>({ queryKey: dataKeys.jobs(), enabled: false })
+  const worthIt = useMemo(() => {
+    const match = matchesCache?.jobs?.find((j) => j.job_id === jobId)
+    return match && match.match_score > 0 ? { verdict: match.verdict, score: match.match_score } : undefined
+  }, [matchesCache, jobId])
+
   const sourceUrl = m.application?.source_url?.trim() ?? ""
   const capture = useApplyCapture({
     token,
@@ -187,6 +197,7 @@ export function PlaygroundView({
         reqCount={m.allTargets.length}
         ready={m.ready}
         delta={m.delta}
+        worthIt={worthIt}
         canApply={!!applyHref}
         applyHint={applyHref ? `Open ${m.company} careers` : "No application link yet"}
         saveState={saveState}
