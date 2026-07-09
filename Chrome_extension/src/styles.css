@@ -76,6 +76,17 @@ a:focus-visible {
   margin-bottom: 18px;
 }
 
+.topbar-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-mark {
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
 .eyebrow,
 .section-label,
 .capture-meta {
