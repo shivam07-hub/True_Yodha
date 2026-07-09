@@ -116,7 +116,7 @@ export function PlaygroundHeader({
       <div className="cvb-v2-score" data-band={scoreBand(shown)}>
         <div className="cvb-v2-score-nums">
           <span className="cvb-v2-score-num mono tabnum">{shown}</span>
-          <span className="cvb-v2-score-cap mono">{scoreCaption ?? (isMaster ? "/100 · Myro Score" : "/100 for this job")}</span>
+          <span className="cvb-v2-score-cap mono">{scoreCaption ?? (isMaster ? "/100 · Myro Score" : "/100 · Ready")}</span>
         </div>
         <div className="cvb-v2-score-bar" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={ready}
           aria-label={isMaster ? "Myro Score" : "Readiness for this job"}>

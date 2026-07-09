@@ -63,6 +63,20 @@ test("market: no CV → plain chips, nothing flagged as a gap", () => {
   assert.ok(data.chips.every((c) => !c.matched && !c.missing))
 })
 
+test("skillCount: unified 'N/M skills' coverage set with a CV, undefined without", () => {
+  const withCv = feedDataFromFeedItem(
+    feedItem({ skills: ["Python", "SQL", "Spark"], matched_skills: ["Python"], matched_skill_count: 1 }),
+    { hasCv: true },
+  )
+  assert.deepEqual(withCv.skillCount, { matched: 1, total: 3 }) // "1/3 skills"
+
+  const noCv = feedDataFromFeedItem(feedItem({ skills: ["Python", "SQL"] }), { hasCv: false })
+  assert.equal(noCv.skillCount, undefined) // no have/haven't split → no count
+
+  const noSkills = feedDataFromFeedItem(feedItem({ skills: [], matched_skills: [] }), { hasCv: true })
+  assert.equal(noSkills.skillCount, undefined) // nothing required → nothing to count
+})
+
 test("market: 0 overlap → no dead-end fit pill (chips carry the gap reason)", () => {
   const data = feedDataFromFeedItem(
     feedItem({ skills: ["Go", "Rust"], matched_skills: [], matched_skill_count: 0 }),
