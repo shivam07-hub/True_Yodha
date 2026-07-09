@@ -966,6 +966,8 @@ export interface ReservoirView {
 export interface DumpEntry {
   id: string
   text: string
+  /** Which surface authored it: "manual" (hand-typed) | "job_intent" (Tell Myro) | … */
+  source?: string
   created_at: string
 }
 
@@ -981,11 +983,11 @@ export const cv = {
       request<{ entries: DumpEntry[] }>("/cv/dump", {
         headers: { Authorization: `Bearer ${token}` },
       }),
-    add: (token: string, text: string) =>
+    add: (token: string, text: string, source?: string) =>
       request<DumpEntry>("/cv/dump", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify(source ? { text, source } : { text }),
       }),
     remove: (token: string, id: string) =>
       request<void>(`/cv/dump/${encodeURIComponent(id)}`, {
@@ -2409,6 +2411,20 @@ export interface JobFeedItem {
   is_strong?: boolean
 }
 
+/** One card in the "Myro Agent Picks" band — a feed card plus the Career-Ops
+ *  brain's rank + why-it-fits note (the curated editorial layer above the
+ *  algorithm feed). GET /jobs/agent-picks. */
+export interface AgentPickItem extends JobFeedItem {
+  agent_rank: number
+  agent_tier?: "bullseye" | "strong" | "reach" | string | null
+  agent_comment: string
+}
+
+export interface AgentPicksResponse {
+  picks: AgentPickItem[]
+  total: number
+}
+
 /** On-demand single-job brain eval (Consolidation D) → POST /jobs/{id}/brain. */
 export interface MatchBrainResult {
   job_id: string
@@ -2848,6 +2864,12 @@ export const jobs = {
       return { ready: false, warmed: 0 }
     }
   },
+  /** The curated "Myro Agent Picks" band — the brain's hand-vetted shortlist that
+   *  sits above the algorithm feed. Empty list for users with no picks. */
+  agentPicks: (token: string) =>
+    request<AgentPicksResponse>(`/jobs/agent-picks`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
   skipJob: (token: string, jobId: string) =>
     request<void>(`/jobs/feed/${encodeURIComponent(jobId)}/skip`, {
       method: "POST",

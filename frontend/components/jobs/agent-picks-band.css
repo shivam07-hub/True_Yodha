@@ -1,0 +1,143 @@
+/* Myro Agent Picks — the curated editorial band above the algorithm feed.
+   Token-only (light Firecrawl / dark Engine both resolve); the accent marks the
+   editorial layer without shouting, the dashed divider walls it off from the
+   algorithm feed below. */
+
+.tm-agentpicks {
+  margin: 4px 0 18px;
+}
+
+.tm-agentpicks-head {
+  margin-bottom: 12px;
+}
+
+.tm-agentpicks-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tm-agentpicks-mark {
+  color: var(--tm-accent-text);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.tm-agentpicks-title h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--tm-text);
+}
+
+.tm-agentpicks-sub {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--tm-text-muted);
+}
+
+.tm-agentpicks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* One pick = an editorial note strip sitting atop a standard feed card. */
+.tm-agentpick {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  border-left: 2px solid color-mix(in srgb, var(--tm-accent) 55%, transparent);
+  padding-left: 12px;
+}
+.tm-agentpick.tier-strong {
+  border-left-color: var(--tm-border-soft);
+}
+.tm-agentpick.tier-reach {
+  border-left-color: color-mix(in srgb, var(--tm-border-soft) 60%, transparent);
+}
+
+.tm-agentpick-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding-top: 2px;
+}
+
+.tm-agentpick-rank {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  font-family: var(--tm-font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--tm-accent-ink, #fff);
+  background: var(--tm-accent);
+}
+.tm-agentpick.tier-strong .tm-agentpick-rank,
+.tm-agentpick.tier-reach .tm-agentpick-rank {
+  color: var(--tm-text-muted);
+  background: var(--tm-surface-2, var(--tm-surface));
+  border: 1px solid var(--tm-border-soft);
+}
+
+.tm-agentpick-why {
+  flex: 1;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--tm-text-muted);
+}
+
+.tm-agentpick-tier {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  font-family: var(--tm-font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: var(--tm-accent-text);
+  background: color-mix(in srgb, var(--tm-accent) 12%, transparent);
+}
+.tm-agentpick.tier-strong .tm-agentpick-tier,
+.tm-agentpick.tier-reach .tm-agentpick-tier {
+  color: var(--tm-text-faint);
+  background: transparent;
+  border: 1px solid var(--tm-border-soft);
+}
+
+/* The wall: dashed rule + the honest "algorithm only below" note. */
+.tm-agentpicks-divider {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 18px 0 4px;
+}
+
+.tm-agentpicks-divider-line {
+  height: 1px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--tm-border-soft) 0 6px,
+    transparent 6px 12px
+  );
+}
+
+.tm-agentpicks-divider-copy {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--tm-text-faint);
+}
+.tm-agentpicks-divider-copy strong {
+  color: var(--tm-text-muted);
+  font-weight: 700;
+}

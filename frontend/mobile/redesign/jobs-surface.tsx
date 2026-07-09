@@ -14,6 +14,7 @@ import { JobDetailSheet, type JobDetailData } from "./job-detail-sheet"
 import { ApplyCapturePromptMobile } from "./apply-capture-prompt"
 import { SwipeCard } from "./swipe-card"
 import { feedItemToRow } from "./job-model"
+import { MobileAgentPicks } from "./agent-picks-mobile"
 import { useMobileUI } from "./mobile-ui"
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -147,6 +148,11 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
 
       {/* body */}
       <div style={{ padding: "2px 16px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+        {/* Curated Agent Picks — default view only (hidden while searching, filtering
+            or viewing hidden jobs). Renders nothing when the user has no picks. */}
+        {!eyeOn && !searchQ && mode === "any" && !hideCheck ? (
+          <MobileAgentPicks token={token} context="feed" />
+        ) : null}
         {eyeOn ? (
           <HiddenView token={token} snack={snack} />
         ) : warming && rows.length === 0 ? (

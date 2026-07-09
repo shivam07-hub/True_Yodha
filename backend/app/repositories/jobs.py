@@ -1833,6 +1833,57 @@ class JobsRepository:
         _user_skill_keys_cache[user_id] = (now, keys)
         return keys
 
+    _AGENT_PICK_JOB_COLUMNS = (
+        "job_id, job_title, company_name, job_description, industry, industry_group, "
+        "role_domain, apply_url, location, location_raw, location_city, location_country, "
+        "location_mode, location_quality, locations, main_skills, first_seen, last_seen, is_active"
+    )
+
+    def get_agent_picks(self, user_id: str) -> list[dict[str, Any]]:
+        """Career-Ops "Agent Picks" — the curated editorial shortlist that sits
+        ABOVE the algorithm feed (see migration 20260709_agent_job_picks).
+
+        Distinct from the algorithm layer (`user_job_matches`, rewritten on every
+        recompute): these are hand-vetted picks that survive recompute. Rows are
+        shaped exactly like feed rows (via `_feed_shape_row`) so the card renders
+        identically to a normal feed card. A pick whose job has since delisted is
+        dropped from the view — never a dead card.
+        """
+        pick_rows = (
+            self._db.table("user_agent_job_picks")
+            .select("job_id, agent_rank, tier, comment")
+            .eq("user_id", user_id)
+            .order("agent_rank")
+            .execute()
+            .data
+            or []
+        )
+        if not pick_rows:
+            return []
+        job_ids = [r["job_id"] for r in pick_rows]
+        job_rows = (
+            self._db.table("jobs")
+            .select(self._AGENT_PICK_JOB_COLUMNS)
+            .in_("job_id", job_ids)
+            .eq("is_active", True)
+            .execute()
+            .data
+            or []
+        )
+        jobs_by_id = {r["job_id"]: r for r in job_rows}
+        skill_keys = self.user_skill_keys(user_id)
+        out: list[dict[str, Any]] = []
+        for pr in pick_rows:
+            jr = jobs_by_id.get(pr["job_id"])
+            if not jr:  # delisted since the pick was cut → drop it from the view
+                continue
+            item = self._feed_shape_row(jr, skill_keys, [])
+            item["agent_rank"] = pr.get("agent_rank")
+            item["agent_tier"] = pr.get("tier")
+            item["agent_comment"] = pr.get("comment") or ""
+            out.append(item)
+        return out
+
     def user_target_locations(self, user_id: str) -> list[str]:
         """The user's saved multi-location preference (freeform labels).
 
@@ -2150,6 +2201,27 @@ class JobsRepository:
 
     def count_new_jobs_since(self, marker: int) -> int:
         return count_jobs_first_seen_after(self._db, marker)
+
+    def count_new_jobs_for_user(self, user_id: str) -> int:
+        """New live jobs (first_seen) inserted since this user's last match compute.
+
+        Server-authoritative twin of the /matches banner signal — used to WAIVE the
+        refresh charge when there is genuinely new inventory to see (we added it, so
+        the user shouldn't pay to check whether it fits). 0 for never-matched users
+        (no baseline → nothing is "new"). Never trust a client-supplied "free" flag.
+        """
+        rows = (
+            self._db.table("user_job_matches")
+            .select("computed_at")
+            .eq("user_id", user_id)
+            .order("computed_at", desc=True)
+            .limit(1)
+            .execute()
+        ).data or []
+        computed_at = _parse_iso_dt(rows[0].get("computed_at")) if rows else None
+        if computed_at is None:
+            return 0
+        return self.count_new_jobs_since(int(computed_at.strftime("%Y%m%d")))
 
     def get_dismissed_job_card_ids(self, user_id: str) -> list[str]:
         result = (

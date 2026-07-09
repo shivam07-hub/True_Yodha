@@ -10,6 +10,8 @@ from supabase import Client
 from app.deps import Principal, get_principal, get_user_db
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.schemas import (
+    AgentPickItem,
+    AgentPicksResponse,
     JobMatchesResponse,
     RefreshPreflightResponse,
     RefreshStateResponse,
@@ -84,6 +86,19 @@ def get_job_matches(
         new_jobs_count=new_jobs_count,
         dismissed_job_ids=repo.get_dismissed_job_card_ids(principal.id),
     )
+
+
+@router.get("/agent-picks", response_model=AgentPicksResponse)
+def get_agent_picks(
+    principal: Principal = Depends(get_principal),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+) -> AgentPicksResponse:
+    """The curated "Myro Agent Picks" band — the Career-Ops brain's hand-vetted
+    shortlist that sits ABOVE the algorithm feed (the roles a user is told to
+    actually apply to). Empty for users with no picks → the band never renders.
+    Editorial layer, distinct from `/matches` (the algorithm layer)."""
+    rows = repo.get_agent_picks(principal.id)
+    return AgentPicksResponse(picks=[AgentPickItem(**row) for row in rows], total=len(rows))
 
 
 @router.delete("/matches/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
