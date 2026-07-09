@@ -18,6 +18,7 @@ import { dataKeys } from "@/lib/domain-data"
 import { CVPointRow, type CVPointMeta } from "./cv-point-row"
 import type { KeywordTarget } from "./keyword-utils"
 import { runContentChecks, type ContentFinding } from "./content-checks"
+import type { AppliedFix, V2Fix } from "./fix-model"
 
 export interface RewriteTarget { iid: string; keywords: string[] }
 
@@ -37,6 +38,13 @@ interface CVEditorProps {
   wordCount: number
   rewriteTarget: RewriteTarget | null
   onClearRewriteTarget: () => void
+  /** v2: open fixes → each host bullet wears a "{kind} +N" pill that opens its
+   *  fix card; applied fixes mark their bullet "✓ +N" for the session. */
+  fixes?: V2Fix[]
+  applied?: AppliedFix[]
+  onFixPill?: (fix: V2Fix) => void
+  /** v2: jump request — scroll to and pulse a bullet (n re-triggers same iid). */
+  flash?: { iid: string; n: number } | null
 }
 
 const clip = (s: string, n = 56) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s)
@@ -55,6 +63,7 @@ function copyText(text: string) {
 export function CVEditor({
   token, cv, profile, hiddenItems, toggleItem, targets, missingKeywords,
   applying, onApply, onAddBullet, addingBullet, visibleCount, wordCount, rewriteTarget, onClearRewriteTarget,
+  fixes, applied, onFixPill, flash,
 }: CVEditorProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [editingIid, setEditingIid] = useState<string | null>(null)
@@ -133,6 +142,27 @@ export function CVEditor({
     onClearRewriteTarget()
   }, [rewriteTarget, onClearRewriteTarget])
 
+  // v2 jump: a fix card / skill row names a bullet — scroll to it and pulse.
+  useEffect(() => {
+    if (!flash) return
+    const el = rowRefs.current[flash.iid]
+    if (!el) return
+    el.scrollIntoView({ behavior: "smooth", block: "center" })
+    el.classList.remove("cvb-v2-pulse")
+    // Force a reflow so re-jumping the same bullet replays the pulse.
+    void el.offsetWidth
+    el.classList.add("cvb-v2-pulse")
+    const t = setTimeout(() => el.classList.remove("cvb-v2-pulse"), 1600)
+    return () => clearTimeout(t)
+  }, [flash])
+
+  // v2: first open fix / last applied fix per host bullet — drives the inline
+  // "{kind} +N" pill and the session "✓ +N" mark.
+  const fixByIid = new Map<string, V2Fix>()
+  for (const f of fixes ?? []) if (!fixByIid.has(f.iid)) fixByIid.set(f.iid, f)
+  const appliedByIid = new Map<string, AppliedFix>()
+  for (const a of applied ?? []) appliedByIid.set(a.iid, a)
+
   function copy(id: string, text: string) {
     copyText(text)
     setCopiedId(id)
@@ -170,6 +200,8 @@ export function CVEditor({
     const hidden = hiddenItems.has(iid)
     const editing = editingIid === iid
     const copied = copiedId === iid
+    const fix = !hidden && !editing ? fixByIid.get(iid) : undefined
+    const appliedFix = !hidden && !editing && !fix ? appliedByIid.get(iid) : undefined
     return (
       <CVPointRow
         key={iid}
@@ -206,6 +238,8 @@ export function CVEditor({
         onOpenComposer={openComposer}
         onApply={onApply}
         onCloseRewrite={() => setRewriteIid(null)}
+        fixPill={fix && onFixPill ? { label: `${fix.kind} +${fix.gain}`, onClick: () => onFixPill(fix) } : undefined}
+        appliedMark={appliedFix ? `✓ +${appliedFix.gain}` : undefined}
       />
     )
   }
@@ -226,9 +260,11 @@ export function CVEditor({
       </div>
 
       <div className="cvb-pgc-paper">
-        <div className="cvb-pgc-name">{contactName}</div>
-        {contactTitle && <div className="cvb-pgc-role">{contactTitle}</div>}
-        {contactMeta && <div className="cvb-pgc-contact mono">{contactMeta}</div>}
+        <div className="cvb-pgc-contact-card">
+          <div className="cvb-pgc-name">{contactName}</div>
+          {contactTitle && <div className="cvb-pgc-role">{contactTitle}</div>}
+          {contactMeta && <div className="cvb-pgc-contact mono">{contactMeta}</div>}
+        </div>
         <div className="cvb-pgc-rule" />
 
         {cv.summary && (

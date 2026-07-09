@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Myro Job Tracker",
   "description": "Capture any job page and save it to your Myro tracker.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "action": {
     "default_title": "Track this job",
     "default_popup": "popup.html"

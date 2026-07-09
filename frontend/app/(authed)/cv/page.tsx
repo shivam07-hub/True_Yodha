@@ -40,6 +40,7 @@ import { useParticleMoment } from "@/components/particle"
 import "./cv-fonts.css"
 import "./cv-sheet.css"
 import "./cv-builder.css"
+import "./playground-v2.css"
 
 type ViewMode = "baseline" | "playground"
 
