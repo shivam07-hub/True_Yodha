@@ -542,7 +542,15 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-07b · Collections cutover — /home dashboard RETIRED on every viewport, pushed Develop `9176cbb`)
+## LAST SESSION SUMMARY (2026-07-09 · CV Playground v2 — design-handoff rework of the per-job tailoring surface, pushed Develop `77b3bb6`)
+
+Implemented the `reference/CV Playground Redesign Strategy-handoff.zip` prototype (`CV Playground v2.dc.html` + Mobile) on the authed `/cv?jobId` surface, "to the dot" plus Shivam's two nuances: **(1) skills are LEVELLED** — Skills tab rows carry `L{user}→L{required}` (from `SkillGapItem` levels + `below_level_cards`), Sharpen fixes raise the level phrasing; **(2) three job-context buttons → three destinations** (prototype wired all 3 to the skills tab): header "N requirements extracted →" → Skills tab · toolbar "Job Description" → raw-JD drawer · rail tab → Skills. Forks locked via AskUserQuestion: fix cards lazy-load the Mentor **pick-a-version** rewrite in-card (keeps `55aa96e`); mobile built same pass (bottom segmented Edit/Fixes/Skills/Preview above the app nav); **Restructure dropped from this surface** (files kept for public playground); Download PDF + auto-trim + per-line hide/copy/edit kept.
+
+**Shipped (one commit `77b3bb6`, 16 files, +1886/−640):** sticky header (count-up score 480ms, band 80/65, delta chip, Apply) · `fix-model.ts` (unified fix list: gap plan Surface-skill/Sharpen + content checks Quantify/Verb/Cut/Fix, each anchored to its host bullet with the deterministic +N Ready actually delivers) · `use-playground-model.ts` read-model hook · fixes/skills/preview rails + `V2Sheet` (WYSIWYG sheet reused by Preview tab AND the new apply modal w/ applied-success state) · editor gains per-bullet fix pills + session ✓+N marks + jump/pulse · `playground-v2.css` all `--tm-*` tokens (light Firecrawl / dark Engine) · **deleted `raise-it-rail.tsx`**. Green: tsc 0 · lint 0 · ui-drift clean · next build ✓ · content-checks 16/16 (pr5-display-fixes fail = pre-existing stale /intel expectation).
+
+**OWED (Shivam):** (1) authed browser QA light+dark+375px (fix-card expand→versions→apply→count-up; level chips; JD drawer; mobile nav; apply modal). (2) **prod = `main` merge.** (3) **NEXT BUILD LANE (urgent, Shivam-ordered): Mentor rewrite metric regression** — rewrite stripped real metrics ("over 50"→"numerous"; a "Metric-led" version with zero metrics); fix = no-deletion guard in `cv_rewrite.py` + fold rewrite into the brain-dump context surface. Memory: `project_mentor_rewrite_metric_regression`, `project_cv_playground_v2`.
+
+## OLDER SESSION SUMMARY (2026-07-07b · Collections cutover — /home dashboard RETIRED on every viewport, pushed Develop `9176cbb`)
 
 Shivam asked for the old-dashboard→Collections transition analysis + full implementation (desktop too, old page discarded after). Mapped every old-dashboard affordance three ways (→Collections / →Jobs / drop), locked 4 forks via AskUserQuestion (unsaved matches = Jobs feed only; desktop Collections = own page + drawer; PeekSurfaces → Collections rail with Followed+Live-intel MERGED — Shivam: same thing; full transition now). Full detail: memory `project_collections_cutover`.
 
