@@ -358,9 +358,12 @@
   .cvb-v2-railtabs { display: none; }     /* the bottom nav drives the tab */
   .cvb-v2-railbody { overflow: visible; }
 
-  /* pane switching via the shell's data-tab */
-  .cvb-v2:not([data-tab="edit"]) .cvb-v2-editor { display: none; }
-  .cvb-v2[data-tab="edit"] .cvb-v2-rail { display: none; }
+  /* pane switching via the shell's data-tab — Edit/Preview share the editor
+     pane, Fixes/Skills share the rail pane */
+  .cvb-v2[data-tab="fixes"] .cvb-v2-editor,
+  .cvb-v2[data-tab="skills"] .cvb-v2-editor { display: none; }
+  .cvb-v2[data-tab="edit"] .cvb-v2-rail,
+  .cvb-v2[data-tab="preview"] .cvb-v2-rail { display: none; }
 
   .cvb-v2-bottomnav {
     position: fixed; left: 0; right: 0; z-index: 28;

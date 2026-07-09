@@ -1,10 +1,13 @@
 /**
  * PlaygroundView — per-job CV tailoring surface (v2, "CV Playground v2" handoff).
  *
- * Layout: sticky header (job + live count-up score + Apply) · left = the CV as
- * the editor (bullet cards, inline skill chips, fix pills) · right = tabbed rail
- * (Fixes / Skills / Preview). Mobile swaps the split for a bottom segmented nav
- * (Edit / Fixes / Skills / Preview).
+ * Layout: sticky header (job + live count-up score + Apply) · left = the CV
+ * pane, toggling between the editor (bullet cards, inline skill chips, fix
+ * pills) and the full-width WYSIWYG sheet (Preview) · right = tabbed rail
+ * (Fixes / Skills — Preview stays out of the rail, it needs the editor's
+ * width to read as an actual CV, not a squeezed sidebar). Mobile swaps the
+ * split for a bottom segmented nav (Edit / Fixes / Skills / Preview), with
+ * Edit/Preview sharing the editor pane and Fixes/Skills sharing the rail.
  *
  * Three job-context affordances, three destinations: the header requirements
  * pill → Skills tab; the toolbar Job Description button → the raw JD drawer;
@@ -22,6 +25,7 @@ import { jobs as jobsApi, cv as cvApi } from "@/lib/api"
 import { CVEditor } from "./cv-editor"
 import { ExperienceIntake } from "./experience-intake"
 import { PlaygroundRail } from "./playground-rail"
+import { PreviewRail } from "./preview-rail"
 import { PlaygroundBottomNav } from "./playground-bottomnav"
 import { ApplyModal } from "./apply-modal"
 import { TrimConfirm } from "./trim-confirm"
@@ -68,7 +72,7 @@ export function PlaygroundView({
   const [submittingApply, setSubmittingApply] = useState(false)
   const [exportConfirm, setExportConfirm] = useState(false)
   const queryClient = useQueryClient()
-  const railTab: Exclude<V2Tab, "edit"> = tab === "edit" ? "fixes" : tab
+  const railTab: "fixes" | "skills" = tab === "fixes" || tab === "skills" ? tab : "fixes"
 
   const m = usePlaygroundModel(token, jobId, cv, profile, hiddenItems)
   const sourceUrl = m.application?.source_url?.trim() ?? ""
@@ -214,27 +218,43 @@ export function PlaygroundView({
             </button>
           </div>
           <div className="cvb-v2-editorbody">
-            <CVEditor
-              token={token}
-              cv={cv}
-              profile={profile}
-              hiddenItems={hiddenItems}
-              toggleItem={toggleItem}
-              targets={m.evaluatedTargets}
-              missingKeywords={m.evaluatedTargets.filter(t => !t.matched).map(t => t.kw)}
-              applying={rewriteApply.isPending}
-              onApply={(oldText, newText) => rewriteApply.mutate({ oldText, newText })}
-              onAddBullet={(roleIndex, text) => addBullet.mutate({ roleIndex, text })}
-              addingBullet={addBullet.isPending}
-              visibleCount={m.visibleCount}
-              wordCount={m.wordCount}
-              rewriteTarget={null}
-              onClearRewriteTarget={() => {}}
-              fixes={m.openFixes}
-              applied={appliedShown}
-              onFixPill={openFixCard}
-              flash={flash}
-            />
+            {tab === "preview" ? (
+              <PreviewRail
+                cv={cv}
+                hidden={hiddenItems}
+                contact={m.sheetContact}
+                baseScore={m.baseScore}
+                ready={m.ready}
+                delta={m.delta}
+                company={m.company}
+                pageFill={m.pageFill}
+                onDownload={requestDownload}
+                onApply={() => { setAppliedDone(false); setApplyOpen(true) }}
+                canApply={!!applyHref}
+              />
+            ) : (
+              <CVEditor
+                token={token}
+                cv={cv}
+                profile={profile}
+                hiddenItems={hiddenItems}
+                toggleItem={toggleItem}
+                targets={m.evaluatedTargets}
+                missingKeywords={m.evaluatedTargets.filter(t => !t.matched).map(t => t.kw)}
+                applying={rewriteApply.isPending}
+                onApply={(oldText, newText) => rewriteApply.mutate({ oldText, newText })}
+                onAddBullet={(roleIndex, text) => addBullet.mutate({ roleIndex, text })}
+                addingBullet={addBullet.isPending}
+                visibleCount={m.visibleCount}
+                wordCount={m.wordCount}
+                rewriteTarget={null}
+                onClearRewriteTarget={() => {}}
+                fixes={m.openFixes}
+                applied={appliedShown}
+                onFixPill={openFixCard}
+                flash={flash}
+              />
+            )}
           </div>
         </section>
 
@@ -242,23 +262,17 @@ export function PlaygroundView({
           token={token}
           tab={railTab}
           model={m}
-          cv={cv}
-          hidden={hiddenItems}
-          contact={m.sheetContact}
-          pageFill={m.pageFill}
           applied={appliedShown}
           expandedId={expandedFixId}
           applying={rewriteApply.isPending}
-          canApply={!!applyHref}
           fixCountLabel={fixCountLabel}
           onTab={setTab}
+          onGoPreview={() => setTab("preview")}
           onExpand={f => setExpandedFixId(f?.id ?? null)}
           onJump={jumpTo}
           onApplyFix={applyFixRewrite}
           onFixCard={openFixCard}
           onOpenIntake={openIntake}
-          onDownload={requestDownload}
-          onApplyCV={() => { setAppliedDone(false); setApplyOpen(true) }}
         />
       </div>
 
