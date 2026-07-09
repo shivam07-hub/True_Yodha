@@ -244,9 +244,13 @@ async def dispatch(
     batch_week: date,
     excluded_job_ids: list[str],
     xp_charged: int,
-    new_coin_balance: int,
+    new_coin_balance: int | None,
 ) -> RefreshTicket:
-    """Create a ticket, kick off compute, return queued state."""
+    """Create a ticket, kick off compute, return queued state.
+
+    `new_coin_balance` is None when the refresh was free (no charge) — the client
+    only reconciles the wallet when it's non-null.
+    """
     tid = _ticket_id()
     queued = _state(tid, "queued", batch_week)
     _write_state(user_id, queued)

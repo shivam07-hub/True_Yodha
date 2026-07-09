@@ -2,10 +2,11 @@
 
 import * as React from "react"
 import { usePathname } from "next/navigation"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import { jobs as jobsApi, type JobMatchesResponse } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { chipCounts, isApplied, matchesById } from "@/lib/collections/model"
+import { openRefreshGate } from "@/store/refreshGateStore"
 import { LoopBar, type LoopBarModel } from "./loop-bar"
 
 /**
@@ -15,9 +16,9 @@ import { LoopBar, type LoopBarModel } from "./loop-bar"
  * chrome noise, not orientation.
  *
  * Data is deliberately cheap: it fetches `applications` (small, and shares the
- * Collections cache via dataKeys.applications) and only READS cached matches for
- * the fit % on the "next" magnet — it never triggers a matches fetch from the
- * shell.
+ * Collections cache via dataKeys.applications) and only READS cached matches
+ * (passive subscription, never a fetch) for the fit % on the "next" magnet and
+ * the "N new" signal on Capture.
  */
 
 const LOOP_ROUTES = ["/market", "/collections", "/cv/tailor", "/applications"]
@@ -31,14 +32,23 @@ function activeStep(pathname: string): number {
 
 export function LoopBarMount({ token }: { token: string }) {
   const pathname = usePathname()
-  const qc = useQueryClient()
   const onLoop = LOOP_ROUTES.some((r) => pathname.startsWith(r))
+  const onMarket = pathname.startsWith("/market")
 
   const appsQ = useQuery({
     queryKey: dataKeys.applications(),
     queryFn: () => jobsApi.applications(token),
     enabled: onLoop && !!token,
     staleTime: 60_000,
+  })
+
+  // Passive read of the matches cache — subscribes (so the bar re-renders when
+  // /market populates it) but `enabled:false` guarantees the bar never triggers a
+  // matches fetch itself. Source for the "next" fit + the "N new" Capture signal.
+  const { data: matches } = useQuery<JobMatchesResponse>({
+    queryKey: dataKeys.jobs(),
+    queryFn: () => jobsApi.matches(token),
+    enabled: false,
   })
 
   const model = React.useMemo<LoopBarModel | null>(() => {
@@ -50,8 +60,7 @@ export function LoopBarMount({ token }: { token: string }) {
 
     // "Next" = the highest-fit saved job that still needs tailoring. Fit is joined
     // from cached matches only (never faked); absent → the row still points there.
-    const cached = qc.getQueryData<JobMatchesResponse>(dataKeys.jobs())
-    const byId = matchesById(cached?.jobs)
+    const byId = matchesById(matches?.jobs)
     const toTailor = apps
       .filter((a) => !isApplied(a) && !a.cv_badge)
       .map((a) => ({ a, fit: byId.get(a.job_id)?.match_score ?? null }))
@@ -63,9 +72,21 @@ export function LoopBarMount({ token }: { token: string }) {
         }
       : undefined
 
+    // "N new" on Capture — new live jobs since the user's last match. On /market
+    // the refresh gate is mounted, so one tap opens it; elsewhere it deep-links to
+    // /market where the refresh lives. The Tailor magnet is never displaced.
+    const newJobs = matches?.new_jobs_count ?? 0
+    const captureAlert =
+      newJobs > 0
+        ? {
+            label: `${newJobs} new`,
+            ...(onMarket ? { onClick: openRefreshGate } : { href: "/market" }),
+          }
+        : undefined
+
     return {
       steps: [
-        { label: "Capture", value: `${counts.all}`, href: "/market" },
+        { label: "Capture", value: `${counts.all}`, href: "/market", alert: captureAlert },
         { label: "Collect", value: `${collected}`, href: "/collections" },
         { label: "Tailor", value: `${tailored}/${collected}`, href: "/collections" },
         { label: "Apply", value: `${counts.applied} sent`, href: "/collections" },
@@ -73,7 +94,7 @@ export function LoopBarMount({ token }: { token: string }) {
       activeIndex: activeStep(pathname),
       next,
     }
-  }, [appsQ.data, pathname, qc])
+  }, [appsQ.data, matches, pathname, onMarket])
 
   if (!onLoop || !model) return null
   return <LoopBar {...model} />

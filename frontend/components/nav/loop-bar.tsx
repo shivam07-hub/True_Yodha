@@ -21,6 +21,10 @@ export interface LoopStepModel {
   /** Right-hand value, e.g. "12 this wk", "5", "2/5", "3 sent". */
   value?: string
   href?: string
+  /** Optional live signal pinned to this step, e.g. "12 new" on Capture. Its own
+   *  hit target (button when it triggers an action, link when it routes) so it
+   *  reads as an alert without hijacking the step's own link. */
+  alert?: { label: string; onClick?: () => void; href?: string }
 }
 
 export interface LoopBarModel {
@@ -55,6 +59,15 @@ export function LoopBar({ steps, activeIndex, next }: LoopBarModel) {
               ) : (
                 <span className="tm-loopbar-hit" aria-current={active ? "step" : undefined}>{body}</span>
               )}
+              {s.alert ? (
+                s.alert.href ? (
+                  <Link href={s.alert.href} className="tm-loopbar-alert">{s.alert.label}</Link>
+                ) : (
+                  <button type="button" className="tm-loopbar-alert" onClick={s.alert.onClick}>
+                    {s.alert.label}
+                  </button>
+                )
+              ) : null}
               {i < steps.length - 1 ? <span className="tm-loopbar-sep" aria-hidden>›</span> : null}
             </li>
           )
