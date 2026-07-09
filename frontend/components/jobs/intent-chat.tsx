@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Loader2, Send, Sparkles, X } from "lucide-react"
 
@@ -87,9 +88,13 @@ export function IntentChat({ open, onClose }: { open: boolean; onClose: () => vo
     chat.mutate(next)
   }
 
-  if (!open) return null
+  if (!open || typeof document === "undefined") return null
 
-  return (
+  // Portalled to <body> — on mobile this dialog is opened from inside <main>
+  // (app-shell.tsx), which sets z-index:2 and traps any in-tree fixed-position
+  // z-index below the bottom nav's z-index:30 in the real root stacking
+  // context. Without the portal, the footer input row renders behind the nav.
+  return createPortal(
     <div
       role="dialog"
       aria-label="Talk to Myro about your job search"
@@ -167,7 +172,7 @@ export function IntentChat({ open, onClose }: { open: boolean; onClose: () => vo
         </div>
 
         {!applied && (
-          <div style={{ display: "flex", gap: 8, padding: 12, borderTop: "1px solid var(--tm-border-soft)", alignItems: "flex-end" }}>
+          <div style={{ display: "flex", gap: 8, padding: "12px 12px calc(12px + env(safe-area-inset-bottom))", borderTop: "1px solid var(--tm-border-soft)", alignItems: "flex-end" }}>
             <textarea
               ref={inputRef}
               value={input}
@@ -192,6 +197,7 @@ export function IntentChat({ open, onClose }: { open: boolean; onClose: () => vo
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

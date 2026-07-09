@@ -1,0 +1,82 @@
+/* ── CaptureConfirm — the in-card save band (journey B) ───────────────────────
+   Full-width band inside the Signal Card. Success-toned hairline top so it reads
+   as "this happened", not a new action row. Tokens only. */
+
+.tm-capconfirm {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding: 12px 4px 2px;
+  border-top: 1px solid var(--tm-success-border, rgba(52, 211, 158, 0.32));
+  font-size: 13px;
+  animation: tm-capconfirm-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tm-capconfirm-lead {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--tm-success, #34d39e);
+  font-weight: 600;
+}
+.tm-capconfirm-pos {
+  color: var(--tm-text-faint);
+  font-family: var(--tm-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.tm-capconfirm-tailor {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--tm-interactive);
+  background: var(--tm-int-bg-wash);
+  color: var(--tm-interactive);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.tm-capconfirm-tailor:hover,
+.tm-capconfirm-tailor:focus-visible {
+  background: var(--tm-interactive);
+  color: var(--tm-interactive-fg, #fff);
+}
+
+/* Undo is quiet + pushed to the trailing edge — reversible, not a headline. */
+.tm-capconfirm-undo {
+  margin-left: auto;
+  padding: 4px 6px;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--tm-text-muted);
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+.tm-capconfirm-undo:hover,
+.tm-capconfirm-undo:focus-visible { color: var(--tm-text); }
+
+.tm-capconfirm-tailor:focus-visible,
+.tm-capconfirm-undo:focus-visible {
+  outline: 2px solid var(--tm-int-border, var(--tm-interactive));
+  outline-offset: 2px;
+}
+
+@keyframes tm-capconfirm-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tm-capconfirm { animation: none; }
+}

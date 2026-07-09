@@ -331,7 +331,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
         />
       ) : null}
 
-      {pending ? <NotInterestedUndo kind={pending.kind} jobId={pending.jobId} token={token} onUndo={undo} /> : null}
+      {pending ? <NotInterestedUndo kind={pending.kind} jobId={pending.jobId} token={token} onUndo={undo} queuePosition={pending.kind === "saved" ? savedCount : undefined} /> : null}
 
       <IntentChat open={intentOpen} onClose={() => setIntentOpen(false)} />
     </div>

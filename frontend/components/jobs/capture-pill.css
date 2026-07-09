@@ -1,0 +1,112 @@
+/* ── CapturePill — the ONE capture control, every surface ─────────────────────
+   Tokens only (themes light + dark automatically). Rest state is the canonical
+   teal-outline "★ Save" carried over from the old market TriageButtons; saved +
+   signed-out extend the same shape so the control reads identically everywhere. */
+
+.tm-capture {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+/* Sizes — md = feed cards / Collections; sm = compact Intel + company rows. */
+.tm-capture-md {
+  min-height: 38px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 13px;
+}
+.tm-capture-sm {
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  gap: 5px;
+}
+
+/* ── rest: ★ Save (teal outline + wash → fills teal on hover/focus) ────────── */
+.tm-capture.is-rest {
+  border: 1px solid var(--tm-interactive);
+  background: var(--tm-int-bg-wash);
+  color: var(--tm-interactive);
+}
+.tm-capture.is-rest:hover,
+.tm-capture.is-rest:focus-visible {
+  background: var(--tm-interactive);
+  color: var(--tm-interactive-fg, #fff);
+}
+
+/* ── signed-out: same shape, quiet "→ sign up" tail (SEO → funnel) ─────────── */
+.tm-capture.is-signup {
+  border: 1px solid var(--tm-int-border, var(--tm-interactive));
+  background: var(--tm-int-bg-wash);
+  color: var(--tm-interactive);
+  text-decoration: none;
+}
+.tm-capture.is-signup:hover,
+.tm-capture.is-signup:focus-visible {
+  background: var(--tm-interactive);
+  color: var(--tm-interactive-fg, #fff);
+}
+.tm-capture-hint {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.72;
+}
+
+/* ── saved: ✓ In Collections · Tailor → (status + inline next step) ────────── */
+.tm-capture.is-saved {
+  padding: 0;
+  min-height: 38px;
+  gap: 10px;
+  background: transparent;
+  cursor: default;
+}
+.tm-capture-sm.is-saved {
+  min-height: 30px;
+  gap: 8px;
+}
+.tm-capture-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--tm-success, #34d39e);
+  font-weight: 600;
+}
+.tm-capture-md.is-saved .tm-capture-state { font-size: 13px; }
+.tm-capture-sm.is-saved .tm-capture-state { font-size: 12px; }
+
+/* Inline next-step — the actionable half of the saved state (the "no dead end"). */
+.tm-capture-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-weight: 600;
+  color: var(--tm-interactive);
+  cursor: pointer;
+}
+.tm-capture-md .tm-capture-next { font-size: 13px; }
+.tm-capture-sm .tm-capture-next { font-size: 12px; }
+.tm-capture-next:hover,
+.tm-capture-next:focus-visible { color: var(--tm-interactive-hover, var(--tm-interactive)); }
+
+/* Keyboard focus — consistent ring on every interactive form. */
+.tm-capture:focus-visible {
+  outline: 2px solid var(--tm-int-border, var(--tm-interactive));
+  outline-offset: 2px;
+}
+
+/* Touch: keep a 44px hit target on coarse pointers without changing the visual. */
+@media (pointer: coarse) {
+  .tm-capture-md { min-height: 44px; }
+  .tm-capture-sm { min-height: 36px; }
+}

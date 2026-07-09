@@ -4,6 +4,7 @@ import type { JobFeedItem, JobPulse } from "@/lib/api"
 import { PulseRow } from "@/components/dashboard/card-atoms"
 import { FeedCard, feedCardConfidenceClass } from "@/components/jobs/feed-card"
 import { GradeBadge, LegitimacyBadge } from "@/components/jobs/match-brain"
+import { CapturePill } from "@/components/jobs/capture-pill"
 import { feedDataFromFeedItem } from "@/lib/jobs/card-view"
 import { ShareJobButton } from "@/components/market/share-job-button"
 
@@ -59,8 +60,9 @@ export function LocationLine({ job }: { job: JobFeedItem }) {
 // ── triage buttons (Save / Skip — the curation front door) ───────────────────
 
 export function TriageButtons({ job, onSave, onSkip }: { job: JobFeedItem; onSave: () => void; onSkip: () => void }) {
+  const label = job.job_title ? `${job.job_title}${job.company_name ? ` at ${job.company_name}` : ""}` : undefined
   return (
-    <div style={{ display: "inline-flex", gap: 8 }}>
+    <div style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
       <button
         type="button"
         aria-label="Mark this job as not interested"
@@ -70,15 +72,10 @@ export function TriageButtons({ job, onSave, onSkip }: { job: JobFeedItem; onSav
       >
         <span aria-hidden>✕</span> Skip
       </button>
-      <button
-        type="button"
-        aria-label="Save this job to your shortlist"
-        title="Save to shortlist"
-        onClick={e => { e.stopPropagation(); onSave() }}
-        className="tm-triage-btn tm-triage-save"
-      >
-        <span aria-hidden>★</span> Save
-      </button>
+      {/* The ONE capture control (unified). Market saving drains the card, so the
+          pill only ever shows its rest state here; the confirmation + next-step
+          live in the upgraded triage band. */}
+      <CapturePill status="rest" onSave={onSave} label={label} />
       <ShareJobButton job={job} />
     </div>
   )

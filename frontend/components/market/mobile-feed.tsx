@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import type { JobFeedItem, JobPulse } from "@/lib/api"
 import { PulseRow } from "@/components/dashboard/card-atoms"
 import { FeedCard, feedCardConfidenceClass } from "@/components/jobs/feed-card"
+import { CapturePill } from "@/components/jobs/capture-pill"
 import { VirtualFeed } from "@/components/jobs/virtual-feed"
 import { feedDataFromFeedItem } from "@/lib/jobs/card-view"
 import { CardBrainBadges } from "./job-card"
@@ -90,7 +91,7 @@ function MobileJobCard({
         actions={
           <>
             <button type="button" aria-label="Not interested" className="tm-triage-btn tm-triage-skip" onClick={e => { e.stopPropagation(); commit("left") }}><span aria-hidden>✕</span> Skip</button>
-            <button type="button" aria-label="Save" className="tm-triage-btn tm-triage-save" onClick={e => { e.stopPropagation(); commit("right") }}><span aria-hidden>★</span> Save</button>
+            <CapturePill status="rest" onSave={() => commit("right")} label={job.job_title ?? undefined} />
             <ShareJobButton job={job} />
           </>
         }

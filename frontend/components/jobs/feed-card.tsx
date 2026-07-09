@@ -109,6 +109,9 @@ export interface FeedCardProps {
   pulse?: React.ReactNode
   /** Bottom action row — triage (market) or like/skip/tailor (dashboard). */
   actions?: React.ReactNode
+  /** In-card save confirmation (journey B). Rendered below the actions the moment
+   *  a job is captured — the <CaptureConfirm> band. Additive; omit when idle. */
+  confirm?: React.ReactNode
   /** "row" = compact list card; "immersive" = tall single-screen card (mobile). */
   variant?: "row" | "immersive"
   open?: boolean
@@ -121,7 +124,7 @@ export interface FeedCardProps {
 }
 
 export function FeedCard({
-  data, fit, fitSize, badges, pulse, actions, variant = "row", open, leaving, extraClass = "", onOpen, articleProps,
+  data, fit, fitSize, badges, pulse, actions, confirm, variant = "row", open, leaving, extraClass = "", onOpen, articleProps,
 }: FeedCardProps) {
   const age = ageLabel(data.ageIso)
   const exp = experienceLabel(data.minYears, data.maxYears)
@@ -241,6 +244,7 @@ export function FeedCard({
 
       {pulse}
       {actions ? <div className="fc-actions">{actions}</div> : null}
+      {confirm}
     </article>
   )
 }

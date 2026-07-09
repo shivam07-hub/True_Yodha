@@ -3,12 +3,27 @@ raw/
 private/
 candidate-uploads/
 
+# Local raw feedback batches from users/interns.
+User feedback docs_1st/
+UserFeedback_28h may/
+Myro feedback 2nd july/
+Myro Feedbacks 22nd june/
+
 # CV and office-document formats may contain personal information.
 *.doc
 *.docx
 *.odt
 *.pages
 *.pdf
+*.ppt
+*.pptx
+*.key
+
+# Screenshots and exported images may contain personal information.
+*.jpg
+*.jpeg
+*.heic
+*.webp
 
 # Local exports from form and spreadsheet tools.
 *.csv
