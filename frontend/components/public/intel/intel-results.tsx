@@ -309,8 +309,9 @@ function Split(props: ResultsProps) {
               : <Empty />
         ) : isOpenRolesLoading && !jobsForActive.length ? (
           <IntelRowSkeletonList count={4} variant="job" />
-        ) : jobsForActive.length
-          ? jobsForActive.map((j) => (
+        ) : jobsForActive.length ? (
+          <div className="tm-intel-role-cards">
+            {jobsForActive.map((j) => (
               <JobRow
                 key={j.id}
                 job={j}
@@ -323,8 +324,9 @@ function Split(props: ResultsProps) {
                 onSignup={props.onSignup}
                 onTailor={() => props.onTailor(j.id)}
               />
-            ))
-          : <Empty />}
+            ))}
+          </div>
+        ) : <Empty />}
         {props.authed ? null : <LockedCta />}
       </div>
     </div>

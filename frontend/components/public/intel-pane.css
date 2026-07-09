@@ -864,35 +864,16 @@
   margin-top: 4px;
 }
 
-/* Job row */
-.tm-intel-job-row {
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--tm-border-soft);
+/* Job rows now render through the unified <FeedCard variant="compact"> — the
+   old .tm-intel-job-* row styles were superseded and removed. The fit affordance
+   (.tm-intel-fit-*) stays: it is Intel's own FitSlot, passed into the card.
+   The role list gets its own padded, gapped container (the cards carry their own
+   border + shadow, so the old border-bottom-connected list rhythm is gone). */
+.tm-intel-role-cards {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  cursor: pointer;
-  transition: background var(--tm-dur-fast) var(--tm-ease);
-}
-
-.tm-intel-job-row:last-child { border-bottom: none; }
-
-.tm-intel-job-row:hover {
-  background: var(--tm-hover);
-}
-
-.tm-intel-job-head {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.tm-intel-job-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--tm-text);
-  flex: 1;
-  line-height: 1.4;
+  padding: 12px 14px;
 }
 
 .tm-intel-fit-locked {
@@ -1173,55 +1154,8 @@
   margin: 14px 0 12px;
 }
 
-.tm-intel-job-sub {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  font-size: 11px;
-  color: var(--tm-text-muted);
-}
-
-.tm-intel-job-mode {
-  padding: 1px 7px;
-  border-radius: 99px;
-  font-size: 10px;
-  font-weight: 600;
-  background: var(--tm-info-wash);
-  color: var(--tm-info);
-  border: 1px solid var(--tm-info-border);
-  letter-spacing: 0.02em;
-}
-
-.tm-intel-job-salary {
-  font-family: var(--tm-font-mono);
-  color: var(--tm-text);
-}
-
-.tm-intel-job-age {
-  font-family: var(--tm-font-mono);
-  color: var(--tm-text-faint);
-}
-
-.tm-intel-job-age.is-fresh {
-  color: var(--tm-accent);
-}
-
-.tm-intel-job-skills {
-  display: flex;
-  gap: 5px;
-  flex-wrap: wrap;
-}
-
-.tm-intel-job-skill {
-  font-size: 10px;
-  padding: 1px 7px;
-  border-radius: 99px;
-  background: var(--tm-surface-2);
-  color: var(--tm-text-muted);
-  border: 1px solid var(--tm-border-soft);
-  font-weight: 500;
-}
+/* (.tm-intel-job-sub / -mode / -salary / -age / -skills / -skill removed —
+   superseded by <FeedCard variant="compact">.) */
 
 /* Locked CTA */
 .tm-intel-locked-cta {
