@@ -36,8 +36,7 @@
 }
 .tm-triage-skip { color: var(--tm-interactive-rest); }
 .tm-triage-skip:hover { border-color: var(--tm-border); color: var(--tm-text); }
-.tm-triage-save { border-color: var(--tm-interactive); color: var(--tm-interactive); background: var(--tm-int-bg-wash); }
-.tm-triage-save:hover { background: var(--tm-interactive); color: var(--tm-on-interactive, #fff); }
+/* .tm-triage-save superseded by <CapturePill> (the unified capture control). */
 .tm-triage-share { color: var(--tm-text-muted); }
 .tm-triage-share:hover { border-color: var(--tm-border); color: var(--tm-text); }
 
@@ -226,6 +225,19 @@
 }
 .tm-reason-chip:hover { background: color-mix(in srgb, var(--tm-bg, #fff) 24%, transparent); }
 .tm-feed-toast-noted { font-size: 12px; font-weight: 500; opacity: 0.8; }
+/* Saved confirmation — the unified capture language on the inverted toast.
+   Check + bold dark lead reads as "done" on the cream surface (green would
+   clash); "Tailor now" is the teal next-step magnet. */
+.tm-feed-toast-saved-lead { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
+.tm-feed-toast-pos { font-family: var(--tm-font-mono); font-size: 11px; font-weight: 500; opacity: 0.62; }
+.tm-feed-toast-tailor {
+  align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 5px;
+  min-height: 30px; padding: 0 12px; border-radius: 999px;
+  background: var(--tm-interactive) !important; color: var(--tm-interactive-fg, #04211c) !important;
+  border: none; font-size: 12.5px; font-weight: 700 !important; cursor: pointer;
+}
+.tm-feed-toast-tailor:hover { filter: brightness(1.06); }
 .tm-feed-expansion-divider {
   display: flex; align-items: center; gap: 10px;
   min-height: 40px; color: var(--tm-text-muted); font-size: 12px; font-weight: 600;

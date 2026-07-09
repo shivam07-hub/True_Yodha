@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation"
 import { XPGateModal } from "@/components/xp/XPGateModal"
 import { XpExplainerModal } from "@/components/xp/xp-explainer-modal"
 import { WebChrome } from "@/components/shell/web-chrome"
+import { LoopBarMount } from "@/components/nav/loop-bar-mount"
 import { FeedbackHub } from "@/components/feedback"
 import { skeletonForPath } from "@/components/loading/page-skeletons"
 import { useShellModel } from "@/lib/shell/use-shell-model"
@@ -54,12 +55,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <XPGateModal />
 
       {isDesktop && (
-        <WebChrome
-          xpBalance={m.xpBalance}
-          profile={m.profile}
-          signOut={m.signOut}
-          onXPOpen={() => m.setXPModalOpen(true)}
-        />
+        <>
+          <WebChrome
+            xpBalance={m.xpBalance}
+            profile={m.profile}
+            signOut={m.signOut}
+            onXPOpen={() => m.setXPModalOpen(true)}
+          />
+          {/* Loop Bar (journey B) — thin orientation strip under the nav, shown
+              only on the loop surfaces (self-gated by route). */}
+          <LoopBarMount token={m.token} />
+        </>
       )}
 
       <MobileTopBar />
