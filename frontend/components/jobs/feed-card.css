@@ -29,6 +29,22 @@
 .fc-card.fc-conf-uncertain { opacity: 0.88; }
 .fc-card.fc-conf-closed { opacity: 0.66; }
 
+/* A card with no whole-row action (company-page rows) — hairline hover only,
+   no pointer cursor, no button semantics. */
+.fc-card.fc-static { cursor: default; }
+
+/* ── Compact density (Intel + company pages) — role-led dense row ─────────────
+   Same atoms as the full card (fc-role / fc-loc / fc-chip), tighter rhythm, and
+   no identity tile: the company is the page/pane context. Fit + capture ride the
+   role line. This is what makes a job read as ONE object across every surface. */
+.fc-card.fc-compact { padding: 14px 16px; gap: 8px; }
+.fc-chead { display: flex; align-items: center; gap: 10px; }
+.fc-chead .fc-role { flex: 1 1 auto; min-width: 0; font-size: 15px; }
+.fc-chead-fit,
+.fc-chead-actions { flex-shrink: 0; display: inline-flex; align-items: center; }
+.fc-compact .fc-loc { font-size: 12.5px; }
+.fc-loc-age { color: var(--tm-text-faint); }
+
 /* ── main row: monogram · body · fit ──────────────────────────────────────── */
 .fc-row { display: flex; gap: 14px; align-items: flex-start; }
 

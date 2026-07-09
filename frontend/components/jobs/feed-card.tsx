@@ -112,8 +112,10 @@ export interface FeedCardProps {
   /** In-card save confirmation (journey B). Rendered below the actions the moment
    *  a job is captured — the <CaptureConfirm> band. Additive; omit when idle. */
   confirm?: React.ReactNode
-  /** "row" = compact list card; "immersive" = tall single-screen card (mobile). */
-  variant?: "row" | "immersive"
+  /** "row" = list card (identity tile + bottom actions); "compact" = role-led
+   *  dense row for surfaces where the company is context (Intel, company pages);
+   *  "immersive" = tall single-screen card (mobile). */
+  variant?: "row" | "compact" | "immersive"
   open?: boolean
   leaving?: boolean
   /** Extra class — listing-confidence dim, hint shake, etc. */
@@ -140,6 +142,11 @@ export function FeedCard({
   // right column (that's its design).
   const fitInTop = fit == null && data.fit != null && data.fit.kind !== "score"
 
+  // Compact density (Intel + company pages): the company is the page/pane context,
+  // so the identity tile is dropped and the role leads, with fit + capture on the
+  // role line. Same body atoms (fc-role / fc-loc / fc-chip) → one card language.
+  const compact = variant === "compact"
+
   // Unified skill language: when the CV is known, lead with a "N/M skills" count
   // (matching the playground's Skills tab) + the top missing skills as one-tap
   // Forge gap CTAs. Matched skills fold into the count, not a wall of ✓ chips.
@@ -148,23 +155,33 @@ export function FeedCard({
     ? Math.max(0, (data.skillCount.total - data.skillCount.matched) - gapChips.length)
     : 0
 
+  // A card is only a button when the whole row does something (opens a drawer).
+  // Company-page rows have no whole-card action (Save is the only affordance), so
+  // they render as a plain container — not a misleading focusable "button".
+  const interactive = !!onOpen
+
   return (
     <article
-      className={`fc-card fc-${variant}${open ? " is-open" : ""}${leaving ? " is-leaving" : ""}${extraClass}`}
-      role="button"
-      tabIndex={0}
-      aria-expanded={open}
-      onClick={onOpen}
-      onKeyDown={(e) => {
-        if ((e.key === "Enter" || e.key === " ") && onOpen) {
-          e.preventDefault()
-          onOpen()
-        }
-      }}
+      className={`fc-card fc-${variant}${interactive ? "" : " fc-static"}${open ? " is-open" : ""}${leaving ? " is-leaving" : ""}${extraClass}`}
+      {...(interactive
+        ? {
+            role: "button",
+            tabIndex: 0,
+            "aria-expanded": open,
+            onClick: onOpen,
+            onKeyDown: (e: React.KeyboardEvent) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault()
+                onOpen!()
+              }
+            },
+          }
+        : {})}
       {...articleProps}
     >
       <div className="fc-row">
-        {data.company ? (
+        {/* Identity tile — dropped in compact density (company is the context). */}
+        {compact ? null : data.company ? (
           <a
             href={companyHref(data.company)}
             target="_blank"
@@ -181,20 +198,36 @@ export function FeedCard({
           <span className="fc-mono" style={logoStyle(data.company)} aria-hidden>—</span>
         )}
         <div className="fc-body">
-          <div className={`fc-top${fitInTop ? " fc-top-inlinefit" : ""}`}>
-            <CompanyLink company={data.company} className="fc-co" />
-            {badges}
-            {age ? <span className="fc-age">{age}</span> : null}
-            {fitInTop ? fitNode : null}
-          </div>
-          <h3 className="fc-role">{data.role}</h3>
+          {compact ? (
+            // Role-led head: role · fit · capture on one line. Same fc-role type
+            // as every other surface — only the arrangement is denser.
+            <div className="fc-chead">
+              <h3 className="fc-role">{data.role}</h3>
+              {badges}
+              {hasFit ? <span className="fc-chead-fit">{fitNode}</span> : null}
+              {actions ? (
+                <span className="fc-chead-actions" onClick={(e) => e.stopPropagation()}>{actions}</span>
+              ) : null}
+            </div>
+          ) : (
+            <>
+              <div className={`fc-top${fitInTop ? " fc-top-inlinefit" : ""}`}>
+                <CompanyLink company={data.company} className="fc-co" />
+                {badges}
+                {age ? <span className="fc-age">{age}</span> : null}
+                {fitInTop ? fitNode : null}
+              </div>
+              <h3 className="fc-role">{data.role}</h3>
+            </>
+          )}
 
-          {hasLoc ? (
+          {hasLoc || (compact && age) ? (
             <div className="fc-loc">
               {data.locations.length > 0
                 ? data.locations.map((c) => <span key={c}>{c}</span>)
                 : data.location ? <span>{data.location}</span> : null}
               {showMode ? <span className="fc-loc-mode">{MODE_LABEL[data.locationMode!] ?? data.locationMode}</span> : null}
+              {compact && age ? <span className="fc-loc-age">{age}</span> : null}
             </div>
           ) : null}
 
@@ -256,7 +289,7 @@ export function FeedCard({
             </div>
           ) : null}
         </div>
-        {hasFit && !fitInTop ? <div className="fc-fit">{fitNode}</div> : null}
+        {!compact && hasFit && !fitInTop ? <div className="fc-fit">{fitNode}</div> : null}
       </div>
 
       {data.move ? (
@@ -267,7 +300,8 @@ export function FeedCard({
       ) : null}
 
       {pulse}
-      {actions ? <div className="fc-actions">{actions}</div> : null}
+      {/* In compact density the capture lives in the head, not a bottom row. */}
+      {!compact && actions ? <div className="fc-actions">{actions}</div> : null}
       {confirm}
     </article>
   )

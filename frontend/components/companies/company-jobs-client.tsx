@@ -7,8 +7,10 @@ import { useState } from "react"
 import { formatCount } from "@/lib/format"
 import { Button } from "@/components/ui/button"
 import { CapturePill } from "@/components/jobs/capture-pill"
+import { FeedCard } from "@/components/jobs/feed-card"
+import { feedDataFromCompanyJob } from "@/lib/jobs/card-view"
+import "@/components/jobs/feed-card.css"
 import type { CommentListResponse, CompanyJobCard, CompanyJobsResponse } from "@/lib/api"
-import { formatJobLocation } from "@/lib/format-location"
 import { ParticleLoading } from "@/components/loading/particle-loading"
 import { CommentThread } from "@/components/comments/comment-thread"
 import { useAuth } from "@/lib/hooks/use-auth"
@@ -51,23 +53,11 @@ async function saveJobReq(token: string, jobId: string): Promise<void> {
   })
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-function modeLabel(mode: string | null): string | null {
-  if (!mode || mode === "unknown") return null
-  return ({ onsite: "On-site", remote: "Remote", hybrid: "Hybrid" } as Record<string, string>)[mode] ?? null
-}
-
-function locationStr(job: CompanyJobCard): string | null {
-  return formatJobLocation({
-    location: job.location,
-    city: job.location_city,
-    country: job.location_country,
-  })
-}
-
 // ── Components ────────────────────────────────────────────────────────────────
 
+// The ONE job card (compact density) — identical anatomy to /market and /intel.
+// The <h3> role heading is preserved by FeedCard's fc-role (SEO/AI outline); the
+// company is the page context so the per-row identity tile is dropped.
 function JobRow({
   job, saved, isAuthed, companyName, onSave, onSignUp, onTailor,
 }: {
@@ -79,58 +69,21 @@ function JobRow({
   onSignUp: () => void
   onTailor: () => void
 }) {
-  const loc = locationStr(job)
-  const mode = modeLabel(job.location_mode)
-
   return (
-    <div style={{
-      background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)",
-      borderRadius: 10, padding: "16px 18px", display: "flex", flexDirection: "column", gap: 10,
-      transition: "border-color 120ms",
-    }}>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          {/* h3 (not a div) — gives crawlers a per-role heading inside the H1/H2
-              outline, and reads as a proper job-listing item for AI retrieval. */}
-          <h3 style={{ margin: "0 0 5px", fontSize: 15, fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.3 }}>
-            {job.title}
-          </h3>
-          {(loc || mode) && (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", fontFamily: "var(--tm-font-mono)", fontSize: 11, color: "var(--tm-text-faint)" }}>
-              {loc && <span>{loc}</span>}
-              {mode && (
-                <span style={{ color: "var(--tm-text-muted)", background: "var(--tm-hover)", padding: "2px 8px", borderRadius: 99, border: "1px solid var(--tm-border-soft)" }}>
-                  {mode}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-        {/* The ONE capture control (unified). Anon → sign-up funnel (crawlable
-            href + modal); authed → Save, then the saved state names Tailor. */}
-        <div style={{ flexShrink: 0 }}>
-          <CapturePill
-            status={!isAuthed ? "signed-out" : saved ? "saved" : "rest"}
-            size="sm"
-            label={`${job.title} at ${companyName}`}
-            onSave={onSave}
-            onSignUp={onSignUp}
-            onTailor={onTailor}
-          />
-        </div>
-      </div>
-      {job.primary_skills.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-          {job.primary_skills.map(s => (
-            <span key={s} style={{
-              fontSize: 11, padding: "3px 9px", borderRadius: 999,
-              background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)",
-              color: "var(--tm-interactive)",
-            }}>{s}</span>
-          ))}
-        </div>
-      )}
-    </div>
+    <FeedCard
+      variant="compact"
+      data={feedDataFromCompanyJob(job)}
+      actions={
+        <CapturePill
+          status={!isAuthed ? "signed-out" : saved ? "saved" : "rest"}
+          size="sm"
+          label={`${job.title} at ${companyName}`}
+          onSave={onSave}
+          onSignUp={onSignUp}
+          onTailor={onTailor}
+        />
+      }
+    />
   )
 }
 

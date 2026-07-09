@@ -2,11 +2,13 @@
 
 import { fitBand } from "@/lib/job-fit-intent"
 import {
-  COUNTRY_NAMES, fmtAgeMin, fmtBatch, hexToRgba, initialsFor, logoColorFor,
+  COUNTRY_NAMES, fmtBatch, hexToRgba, initialsFor, logoColorFor,
 } from "./intel-data"
 import { formatCount } from "@/lib/format"
 import { CompanyLink } from "@/components/companies/company-link"
 import { CapturePill } from "@/components/jobs/capture-pill"
+import { FeedCard } from "@/components/jobs/feed-card"
+import { feedDataFromIntelJob } from "@/lib/jobs/card-view"
 import type { ResultCompany, ResultGroup, ResultJob } from "./intel-results"
 
 export function Spark({
@@ -219,6 +221,11 @@ function FitSlot({
   )
 }
 
+// The ONE job card (compact density) — identical anatomy to /market and
+// /companies. The fit affordance stays Intel's own <FitSlot> (it carries the
+// anon "check fit" states the market card has no concept of), passed as the card's
+// fit override; everything else — role type, ✓/✗ chips, context, capture — is the
+// shared FeedCard.
 export function JobRow({
   job, authed = false, hasCv = false, fit = null, onCheckFit,
   saved = false, onSave, onSignup, onTailor,
@@ -234,13 +241,13 @@ export function JobRow({
   onSignup?: () => void
   onTailor?: () => void
 }) {
-  const ageLabel = fmtAgeMin(job.ageMin)
-  const fresh = job.ageMin != null && job.ageMin < 60 * 24
   return (
-    <div className="tm-intel-job-row">
-      <div className="tm-intel-job-head">
-        <div className="tm-intel-job-title">{job.title}</div>
-        <FitSlot authed={authed} hasCv={hasCv} fit={fit} onCheckFit={onCheckFit} />
+    <FeedCard
+      variant="compact"
+      data={feedDataFromIntelJob(job, fit ? { matched_skills: fit.matched_skills, total_skills: fit.total_skills } : null)}
+      onOpen={onCheckFit}
+      fit={<FitSlot authed={authed} hasCv={hasCv} fit={fit} onCheckFit={onCheckFit} />}
+      actions={
         <CapturePill
           status={!authed ? "signed-out" : saved ? "saved" : "rest"}
           size="sm"
@@ -249,30 +256,8 @@ export function JobRow({
           onSignUp={onSignup}
           onTailor={onTailor}
         />
-      </div>
-      <div className="tm-intel-job-sub">
-        <span>{job.city}</span>
-        <span className="tm-intel-co-sep">·</span>
-        <span className="tm-intel-job-mode">{job.mode}</span>
-        {job.comp ? (
-          <>
-            <span className="tm-intel-co-sep">·</span>
-            <span className="tm-intel-job-salary">{job.comp}</span>
-          </>
-        ) : null}
-        {ageLabel ? (
-          <>
-            <span className="tm-intel-co-sep">·</span>
-            <span className={"tm-intel-job-age" + (fresh ? " is-fresh" : "")}>
-              {ageLabel}
-            </span>
-          </>
-        ) : null}
-      </div>
-      <div className="tm-intel-job-skills">
-        {job.skills.map((s) => <span className="tm-intel-job-skill" key={s}>{s}</span>)}
-      </div>
-    </div>
+      }
+    />
   )
 }
 

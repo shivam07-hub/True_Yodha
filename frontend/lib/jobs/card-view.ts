@@ -1,4 +1,4 @@
-import type { JobFeedItem, JobMatch } from "@/lib/api"
+import type { CompanyJobCard, JobFeedItem, JobMatch } from "@/lib/api"
 
 /**
  * A skill pill on a feed card.
@@ -240,4 +240,83 @@ function normalizeMode(
   if (scalar && scalar !== "unknown") return scalar
   const w = work?.trim().toLowerCase()
   return w && w !== "unknown" ? w : null
+}
+
+/* ── Compact-surface adapters (Intel + company pages) ─────────────────────────
+ * These surfaces render the SAME <FeedCard> as market/collections, at compact
+ * density (`variant="compact"`): the company is the page/pane context, so the
+ * per-row identity tile is suppressed and the role leads. Same normalized shape
+ * → same role type, ✓/✗ evidence chips, context line, and capture pill. This is
+ * what makes a job read as ONE object across every surface. */
+
+/** Company-page `CompanyJobCard` → FeedCardData. No CV context on the public page,
+ *  so skills render as plain required-skill chips (no ✓/✗ split); fit is left to
+ *  the surface (none on the anonymous company page). */
+export function feedDataFromCompanyJob(job: CompanyJobCard, maxChips = 4): FeedCardData {
+  const skills = job.primary_skills ?? []
+  return {
+    jobId: job.job_id,
+    company: null, // the company IS the page — no redundant per-row identity
+    role: job.title,
+    locations: [],
+    location: job.location_city?.trim() || job.location?.trim() || job.location_country?.trim() || null,
+    locationMode: normalizeMode(job.location_mode as JobMatch["location_mode"], null),
+    sourceUrl: null,
+    datePosted: null,
+    seniority: null,
+    minYears: null,
+    maxYears: null,
+    snippet: "",
+    chips: skills.slice(0, maxChips).map((name) => ({ name })),
+    extraChipCount: Math.max(0, skills.length - maxChips),
+    ageIso: null,
+    fit: null,
+  }
+}
+
+/** Intel role-row source → FeedCardData. Structural params (not the `ResultJob`
+ *  component type) so this stays in the lib layer with no back-import. When a fit
+ *  is known its `matched_skills` split the chips into ✓have / ✗missing exactly
+ *  like the market card; otherwise skills render plain. The fit SLOT itself stays
+ *  the surface's own <FitSlot> (it carries the anon "check fit" states the market
+ *  card has no concept of) — passed to FeedCard as a `fit` node override. */
+export function feedDataFromIntelJob(
+  job: { id: string; title: string; skills: string[]; city: string | null; mode: string | null; ageMin: number | null },
+  fit: { matched_skills: string[]; total_skills: number } | null,
+  maxChips = 4,
+): FeedCardData {
+  const skills = job.skills ?? []
+  let chips: FeedChip[]
+  let extra: number
+  let skillCount: { matched: number; total: number } | undefined
+  if (fit) {
+    const matchedSet = new Set(fit.matched_skills.map((s) => s.toLowerCase()))
+    const matched = skills.filter((s) => matchedSet.has(s.toLowerCase()))
+    const missing = skills.filter((s) => !matchedSet.has(s.toLowerCase()))
+    ;({ chips, extra } = composeChips(matched, missing))
+    skillCount = skillCountOf(matched, missing)
+  } else {
+    chips = skills.slice(0, maxChips).map((name) => ({ name }))
+    extra = Math.max(0, skills.length - maxChips)
+  }
+  return {
+    jobId: job.id,
+    company: null, // the selected company is the pane context
+    role: job.title,
+    locations: [],
+    location: job.city?.trim() || null,
+    locationMode: normalizeMode((job.mode ?? null) as JobMatch["location_mode"], job.mode),
+    sourceUrl: null,
+    datePosted: null,
+    seniority: null,
+    minYears: null,
+    maxYears: null,
+    snippet: "",
+    chips,
+    extraChipCount: extra,
+    skillCount,
+    // ageMin (minutes) → an ISO the shared ageLabel understands (day-granular).
+    ageIso: job.ageMin != null ? new Date(Date.now() - job.ageMin * 60_000).toISOString() : null,
+    fit: null, // the surface passes its own <FitSlot> node (has anon "check fit" states)
+  }
 }
