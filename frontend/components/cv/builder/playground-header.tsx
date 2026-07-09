@@ -65,18 +65,23 @@ interface PlaygroundHeaderProps {
    *  a plain context line (no JD requirements pill), the score capped as the Myro
    *  Score, no delta chip, and the primary button labelled by primaryLabel. */
   variant?: "job" | "master"
-  /** Master context line, e.g. "v78 · autosaves". */
+  /** Master/anon context line, e.g. "v78 · autosaves" or "Free preview". */
   masterMeta?: string
   /** Primary button label (default "Apply with this CV"; master → "Done"). */
   primaryLabel?: string
   /** Hide the ⋯ overflow (master keeps download in the view-mode surface). */
   hideOverflow?: boolean
+  /** Brand override (default per variant: "CV Playground" / "Main CV"). */
+  brandLabel?: string
+  /** Score caption override (default per variant). */
+  scoreCaption?: string
 }
 
 export function PlaygroundHeader({
   jobTitle, company, reqCount, ready, delta, canApply, applyHint, saveState,
   onBack, onReqPill, onApply, onDownload,
   variant = "job", masterMeta, primaryLabel = "Apply with this CV", hideOverflow,
+  brandLabel, scoreCaption,
 }: PlaygroundHeaderProps) {
   const shown = useCountUp(ready)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -87,7 +92,7 @@ export function PlaygroundHeader({
       <button type="button" className="cvb-v2-crumb" onClick={onBack} aria-label="Back to CV library">
         <Icon name="chevron-right" size={12} style={{ transform: "rotate(180deg)" }} />
       </button>
-      <span className="cvb-v2-brand">{isMaster ? "Main CV" : "CV Playground"}</span>
+      <span className="cvb-v2-brand">{brandLabel ?? (isMaster ? "Main CV" : "CV Playground")}</span>
       <span className="cvb-v2-headrule" aria-hidden />
       {isMaster ? (
         masterMeta && <span className="cvb-v2-jobline mono" title={masterMeta}>{masterMeta}</span>
@@ -111,7 +116,7 @@ export function PlaygroundHeader({
       <div className="cvb-v2-score" data-band={scoreBand(shown)}>
         <div className="cvb-v2-score-nums">
           <span className="cvb-v2-score-num mono tabnum">{shown}</span>
-          <span className="cvb-v2-score-cap mono">{isMaster ? "/100 · Myro Score" : "/100 for this job"}</span>
+          <span className="cvb-v2-score-cap mono">{scoreCaption ?? (isMaster ? "/100 · Myro Score" : "/100 for this job")}</span>
         </div>
         <div className="cvb-v2-score-bar" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={ready}
           aria-label={isMaster ? "Myro Score" : "Readiness for this job"}>

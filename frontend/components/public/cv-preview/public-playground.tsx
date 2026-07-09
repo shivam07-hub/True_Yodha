@@ -26,6 +26,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import {
   publicCv,
   type AnonScoreResponse,
@@ -36,6 +37,8 @@ import {
 import { PdfPage, type PdfPageContact } from "@/components/cv/builder/pdf-page"
 import { BulletRow } from "@/components/cv/builder/bullet-row"
 import { Icon } from "@/components/cv/builder/icons"
+import { PlaygroundHeader } from "@/components/cv/builder/playground-header"
+import { buildV2Fixes, type V2Fix } from "@/components/cv/builder/fix-model"
 import { RestructureLoading } from "@/components/cv/builder/restructure-loading"
 import { RestructuredDoc } from "@/components/cv/builder/restructured-doc"
 import { runAtsChecks, atsScore, type AtsCheck } from "@/components/cv/builder/ats-checks"
@@ -53,6 +56,7 @@ import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import "@/app/(authed)/cv/cv-fonts.css"
 import "@/app/(authed)/cv/cv-sheet.css"
 import "@/app/(authed)/cv/cv-builder.css"
+import "@/app/(authed)/cv/playground-v2.css"
 import "./public-playground.css"
 
 const NEXT = "/cv?upload=1"
@@ -63,7 +67,10 @@ interface PublicPlaygroundProps {
   result: AnonScoreResponse
 }
 
+type AnonTab = "edit" | "fixes" | "ats" | "preview"
+
 export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlaygroundProps) {
+  const router = useRouter()
   const signup = useSignupGate()
   const [cv, setCv] = useState<CVStructured>(initialCv)
   const [hidden, setHidden] = useState<Set<string>>(() => new Set())
@@ -78,12 +85,10 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
   const previewRef = useRef<HTMLDivElement>(null)
   const [restructureOpen, setRestructureOpen] = useState(false)
   const [rewriteTarget, setRewriteTarget] = useState<RewriteTarget | null>(null)
-  // Mobile only: the editor + preview stack in series is a long scroll, so on
-  // narrow screens they become a toggle — Playground (default, edit-first) vs
-  // Preview. Desktop ignores this and keeps the live side-by-side split so you
-  // can edit and watch the sheet update at once. Driven purely by data-mtab +
-  // CSS, so the desktop split is never touched.
-  const [mtab, setMtab] = useState<"edit" | "preview">("edit")
+  // Unified v2 shell: `tab` drives the editor pane (edit ↔ preview) + the rail
+  // pane (fixes ↔ ats). Desktop shows editor + rail side by side; mobile shows
+  // one pane, switched by the bottom nav (data-tab CSS).
+  const [tab, setTab] = useState<AnonTab>("edit")
 
   function toggle(iid: string) {
     setHidden(prev => {
@@ -134,6 +139,28 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
 
   const pageFill = useMemo<PageFill>(() => computePageFill(cv, hidden), [cv, hidden])
   const fillBand = pageFillBand(pageFill)
+
+  // The Fixes rail — the SAME deterministic recruiter checks the authed surface
+  // shows (content only; no job here). No "+N": a rewrite improves the CV but
+  // doesn't move the anon score, so nothing is fabricated. A card opens the anon
+  // Mentor rewrite for its host bullet.
+  const anonFixes = useMemo<V2Fix[]>(() => buildV2Fixes(cv, null, () => 1), [cv])
+  const fixCountLabel = anonFixes.length > 0 ? String(anonFixes.length) : "✓"
+  const railTab: "fixes" | "ats" = tab === "ats" ? "ats" : "fixes"
+
+  // Resolve a fix's host bullet back to its (kind, index) so the rewrite modal
+  // targets the right line. First verbatim match wins (same text-identity the
+  // rest of the surface uses).
+  function openFix(fix: V2Fix) {
+    for (let ei = 0; ei < cv.experience.length; ei++) {
+      const bi = cv.experience[ei].bullets.indexOf(fix.bulletText)
+      if (bi >= 0) { setRewriteTarget({ kind: "exp", gi: ei, bi, text: fix.bulletText }); return }
+    }
+    for (let pi = 0; pi < cv.projects.length; pi++) {
+      const bi = cv.projects[pi].bullets.indexOf(fix.bulletText)
+      if (bi >= 0) { setRewriteTarget({ kind: "proj", gi: pi, bi, text: fix.bulletText }); return }
+    }
+  }
 
   // Metadata-only download telemetry (#34 S6, Q13b=C): score + count of fixes +
   // a random anon session id. No CV body (consent-gated). Fire-and-forget.
@@ -188,99 +215,122 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
   }
 
   return (
-    <div className="cvp">
-      <header className="cvp-head">
-        <div className="cvp-head-text">
-          <div className="cvp-eyebrow">CV PLAYGROUND · FREE PREVIEW</div>
-          <h1 className="cvp-title">Improve your CV — the Myro way</h1>
-          <p className="cvp-sub">
-            Tidy your bullets, let Mentor sharpen them, and download a clean, ATS-safe
-            CV. Sign up when you want to save it and keep working.
-          </p>
-        </div>
-        <div className="cvp-head-actions">
-          <button type="button" className="cvb-btn sm" onClick={() => setRestructureOpen(true)}>
-            <Icon name="sparkle" size={13} /> Restructure with Mentor
-          </button>
+    <div className="cvb-v2 cvp-anon" data-tab={tab}>
+      <PlaygroundHeader
+        variant="master"
+        brandLabel="CV Playground"
+        masterMeta="Free preview · nothing saved"
+        scoreCaption="/100 · your CV score"
+        jobTitle="" company="Untitled company" reqCount={0}
+        ready={result.score} delta={0}
+        canApply primaryLabel="Download CV"
+        applyHint={pageFill.fits ? "Download your CV" : `Spills onto ${pageFill.pages} pages`}
+        saveState=""
+        hideOverflow
+        onBack={() => router.push("/")}
+        onReqPill={() => {}}
+        onApply={() => setDownloadOpen(true)}
+        onDownload={() => setDownloadOpen(true)}
+      />
+
+      <div className="cvb-v2-main">
+        <section className="cvb-v2-editor" aria-label="Your CV">
+          <div className="cvb-v2-toolbar">
+            <button
+              type="button"
+              className={`cvb-v2-tabbtn wide${tab === "preview" ? " active" : ""}`}
+              onClick={() => setTab(tab === "preview" ? "edit" : "preview")}
+            >Preview</button>
+            <span className="cvb-v2-toolbar-label mono">Your CV</span>
+            <span className="cvb-v2-headspacer" aria-hidden />
+            <button type="button" className="cvb-v2-ghostbtn" onClick={() => setRestructureOpen(true)}>
+              <Icon name="sparkle" size={13} /> Restructure
+            </button>
+          </div>
+          <div className="cvb-v2-editorbody">
+            {/* The sheet stays mounted regardless of tab — it's the WYSIWYG
+                download source (ADR-0020). Shown only in Preview. */}
+            <div className={`cvb-scope cvp-anon-sheet${tab === "preview" ? " show" : ""}`} ref={previewRef}>
+              <PdfPage cv={cv} hidden={hidden} contact={contact} />
+            </div>
+
+            {tab === "preview" ? (
+              <div className="cvp-anon-previewfoot">
+                <span className="mono">
+                  {pageFill.fits ? `Fits one page · ${pageFill.pct}% full` : `Spills onto ${pageFill.pages} pages`}
+                </span>
+                <button type="button" className="cvb-v2-ghostbtn" onClick={() => setDownloadOpen(true)}>
+                  <Icon name="download" size={13} /> Download CV
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className={`cvp-fill cvp-fill-${fillBand}`} aria-label="Page-fill estimate">
+                  <div className="cvp-fill-bar"><span style={{ width: `${Math.min(100, pageFill.pct)}%` }} /></div>
+                  <div className="cvp-fill-label">
+                    {pageFill.fits
+                      ? `Fits one page · ${pageFill.pct}% full`
+                      : `Spills onto ${pageFill.pages} pages — hide lower-impact bullets`}
+                  </div>
+                </div>
+                <CvEditor
+                  cv={cv}
+                  hidden={hidden}
+                  onToggle={toggle}
+                  onEditExp={setExpBullet}
+                  onEditProj={setProjBullet}
+                  onRewrite={setRewriteTarget}
+                />
+              </>
+            )}
+          </div>
+        </section>
+
+        <aside className="cvb-v2-rail" aria-label="Improve your CV">
+          <div className="cvb-v2-railtabs">
+            <button
+              type="button"
+              className={`cvb-v2-tabbtn${railTab === "fixes" ? " active" : ""}`}
+              onClick={() => setTab("fixes")}
+            >Fixes · {fixCountLabel}</button>
+            <button
+              type="button"
+              className={`cvb-v2-tabbtn${railTab === "ats" ? " active" : ""}`}
+              onClick={() => setTab("ats")}
+            >ATS · {passed}/{total}</button>
+          </div>
+          <div className="cvb-v2-railbody">
+            {railTab === "fixes" ? (
+              <AnonFixesRail fixes={anonFixes} onFix={openFix} />
+            ) : (
+              <div className="cvb-v2-railpane">
+                <p className="cvb-v2-rail-lede">
+                  ATS &amp; AI readability — {passed}/{total} checks pass. Fix the flagged rows,
+                  then download.
+                </p>
+                <div className="cvp-ats-grid">
+                  {checks.map(c => <AtsRow key={c.label} check={c} />)}
+                </div>
+              </div>
+            )}
+          </div>
+        </aside>
+      </div>
+
+      <nav className="cvb-v2-bottomnav" aria-label="Sections">
+        {(["edit", "fixes", "ats", "preview"] as const).map(t => (
           <button
+            key={t}
             type="button"
-            className="cvb-btn sm primary"
-            onClick={() => setDownloadOpen(true)}
-            title={pageFill.fits ? "Download your CV" : `Spills onto ${pageFill.pages} pages — trim to fit`}
+            className={`cvb-v2-tabbtn${tab === t ? " active" : ""}`}
+            onClick={() => setTab(t)}
           >
-            <Icon name="download" size={13} /> Download CV
+            {t === "edit" ? "Edit"
+              : t === "fixes" ? `Fixes · ${fixCountLabel}`
+              : t === "ats" ? `ATS · ${passed}/${total}` : "Preview"}
           </button>
-        </div>
-      </header>
-
-      {/* Mobile-only view toggle (hidden on desktop, where both panes show). */}
-      <div className="cvp-tabs" role="group" aria-label="Switch view">
-        <button
-          type="button"
-          className={`cvp-tab${mtab === "edit" ? " active" : ""}`}
-          aria-pressed={mtab === "edit"}
-          onClick={() => setMtab("edit")}
-        >
-          <Icon name="sparkle" size={13} /> Playground
-        </button>
-        <button
-          type="button"
-          className={`cvp-tab${mtab === "preview" ? " active" : ""}`}
-          aria-pressed={mtab === "preview"}
-          onClick={() => setMtab("preview")}
-        >
-          <Icon name="file" size={13} /> Preview
-        </button>
-      </div>
-
-      <div className="cvp-grid" data-mtab={mtab}>
-        {/* Editor pane */}
-        <div className="cvp-editor">
-          <div className={`cvp-fill cvp-fill-${fillBand}`} aria-label="Page-fill estimate">
-            <div className="cvp-fill-bar"><span style={{ width: `${Math.min(100, pageFill.pct)}%` }} /></div>
-            <div className="cvp-fill-label">
-              {pageFill.fits
-                ? `Fits one page · ${pageFill.pct}% full`
-                : `Spills onto ${pageFill.pages} pages — hide lower-impact bullets`}
-            </div>
-          </div>
-
-          {result.score > 0 && (
-            <div className="cvp-score-note">
-              <span className="cvp-score-num">{result.score}</span>/100 ·
-              {" "}{result.skills_detected} skills read. Improve below, then download.
-            </div>
-          )}
-
-          <CvEditor
-            cv={cv}
-            hidden={hidden}
-            onToggle={toggle}
-            onEditExp={setExpBullet}
-            onEditProj={setProjBullet}
-            onRewrite={setRewriteTarget}
-          />
-        </div>
-
-        {/* Live A4 preview — the exact document that downloads. The ATS & AI
-            audit lives here, with the CV it grades — it's a property of the
-            document, not an editor tool (so on mobile it sits under Preview). */}
-        <div className="cvp-preview">
-          <div className="cvb-scope" ref={previewRef}>
-            <PdfPage cv={cv} hidden={hidden} contact={contact} />
-          </div>
-
-          <div className="cvp-ats">
-            <div className="cvp-ats-head">
-              <span><Icon name="sparkle" size={13} /> ATS &amp; AI audit</span>
-              <span className="cvp-ats-count">{passed}/{total} checks</span>
-            </div>
-            <div className="cvp-ats-grid">
-              {checks.map(c => <AtsRow key={c.label} check={c} />)}
-            </div>
-          </div>
-        </div>
-      </div>
+        ))}
+      </nav>
 
       {rewriteTarget && (
         <RewriteModal
@@ -422,6 +472,50 @@ function CvEditor({
             )
           })}
         </section>
+      ))}
+    </div>
+  )
+}
+
+// ── Fixes rail (recruiter checks → anon Mentor rewrite) ───────────────────────
+
+const KIND_CLASS: Record<string, string> = {
+  Quantify: "quantify", Verb: "verb", Cut: "cut", Fix: "dedupe",
+  "Surface skill": "surface", Sharpen: "sharpen",
+}
+
+function AnonFixesRail({ fixes, onFix }: { fixes: V2Fix[]; onFix: (fix: V2Fix) => void }) {
+  if (fixes.length === 0) {
+    return (
+      <div className="cvb-v2-railpane">
+        <div className="cvb-v2-allfixed">
+          <div className="cvb-v2-allfixed-title">No fixes open — this CV reads clean.</div>
+          <div className="cvb-v2-allfixed-sub">Preview it, then download.</div>
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div className="cvb-v2-railpane">
+      <p className="cvb-v2-rail-lede">
+        Each fix targets one bullet. Open it and Mentor writes a stronger version — your words,
+        no invented facts.
+      </p>
+      {fixes.map(f => (
+        <div key={f.id} className="cvb-v2-fixcard" role="button" tabIndex={0}
+          onClick={() => onFix(f)}
+          onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onFix(f) } }}
+        >
+          <div className="cvb-v2-fixcard-top">
+            <span className={`cvb-v2-kind ${KIND_CLASS[f.kind] ?? ""} mono`}>{f.kind}</span>
+          </div>
+          <div className="cvb-v2-fixtitle">{f.title}</div>
+          <div className="cvb-v2-fixdesc">{f.desc}</div>
+          <div className="cvb-v2-fixhost mono"><span>bullet → </span>{f.bulletText}</div>
+          <button type="button" className="cvb-v2-fixapply" onClick={e => { e.stopPropagation(); onFix(f) }}>
+            Rewrite with Mentor
+          </button>
+        </div>
       ))}
     </div>
   )
