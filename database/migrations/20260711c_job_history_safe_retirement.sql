@@ -13,6 +13,8 @@ ALTER TABLE public.job_application_milestones
 ALTER TABLE public.jobs
     ADD COLUMN IF NOT EXISTS last_source_run_id UUID
         REFERENCES public.job_source_runs(id) ON DELETE SET NULL;
+ALTER TABLE public.jobs
+    ADD COLUMN IF NOT EXISTS quarantine_until TIMESTAMPTZ;
 
 CREATE OR REPLACE FUNCTION private.job_snapshot_for(p_job_id TEXT)
 RETURNS JSONB
