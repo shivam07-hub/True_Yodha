@@ -16,13 +16,16 @@ from app.services.scoring.aspirations import fetch_aspiration_skills
 logger = logging.getLogger(__name__)
 
 # Two-tier brain sizing (career-ops shape). The deterministic pre-filter hands a
-# POOL of this many role-relevant, fresh candidates to the cheap batched brain
-# triage, which picks KEEP best-fit for the expensive per-job 5-axis reasoning.
-# POOL widens the net well past the old raw top-12 (so a role-fit job that ranked
-# low on noisy skill-overlap can still be promoted by the brain); KEEP bounds the
-# per-job LLM cost per compute. The long tail past KEEP is rated on-open
-# (on_demand.ensure_job_eval), cached, so nothing is permanently missed.
-MATCH_TRIAGE_POOL = 60
+# POOL of this many role-relevant, fresh candidates to the batched brain triage,
+# which picks KEEP best-fit for the expensive per-job 5-axis reasoning.
+#
+# POOL is large on purpose: the brain (which reads the CV) does the real role-fit
+# judgment, so the more relevant candidates it sees the better — the old raw top-12
+# starved it. A POOL > the triage chunk size (llm_ranker._TRIAGE_CHUNK) is triaged
+# as a cheap parallel tournament, so widening it costs a few small triage calls, NOT
+# a deep eval per job. KEEP bounds the expensive per-job reasoning; the long tail
+# past KEEP is rated on-open (on_demand.ensure_job_eval), cached — nothing missed.
+MATCH_TRIAGE_POOL = 150
 MATCH_TRIAGE_KEEP = 15
 
 

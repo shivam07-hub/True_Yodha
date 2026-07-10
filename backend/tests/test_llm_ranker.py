@@ -380,3 +380,34 @@ def test_triage_falls_back_on_unparseable_shortlist() -> None:
     pool = _pool(6)
     out = asyncio.run(llm_ranker.triage_shortlist({}, pool, prov, keep_n=2))
     assert [j["job_id"] for j in out] == ["j0", "j1"]
+
+
+def test_triage_tournament_for_large_pool() -> None:
+    # Pool > _TRIAGE_CHUNK is triaged as a tournament: parallel chunk calls, then a
+    # final call over the merged winners. Provider picks the first two of each pool.
+    import asyncio
+    prov = _TriageProvider('{"shortlist": [1, 2]}')
+    pool = _pool(120)  # 3 chunks of 50/50/20
+    out = asyncio.run(llm_ranker.triage_shortlist({"target_roles": ["PM"]}, pool, prov, keep_n=2))
+    assert [j["job_id"] for j in out] == ["j0", "j1"]  # winners of chunk 0 survive the final
+    assert prov.calls == 4  # 3 chunk calls + 1 final
+
+
+def test_triage_tournament_survives_a_failed_chunk() -> None:
+    # A chunk whose call fails falls back to that chunk's overlap head — the
+    # tournament still completes, never raises.
+    import asyncio
+
+    class _FlakyProvider:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def complete(self, _messages: list[Any], max_tokens: int = 0) -> str:
+            self.calls += 1
+            if self.calls == 1:
+                raise llm_ranker.LLMProviderError("chunk down")
+            return '{"shortlist": [1]}'
+
+    pool = _pool(120)
+    out = asyncio.run(llm_ranker.triage_shortlist({}, pool, _FlakyProvider(), keep_n=2))
+    assert len(out) <= 2
