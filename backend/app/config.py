@@ -101,6 +101,13 @@ class Settings(BaseSettings):
     llm_transient_retries: int = 2
     llm_retry_base_seconds: float = 1.0
     llm_retry_max_seconds: float = 20.0
+    # Per-request HTTP timeout on every provider client. Without this the OpenAI
+    # SDK default (600s + its own internal retries) lets ONE stalled provider
+    # block a user-facing call for minutes before the fallback ladder can reach
+    # the fast Groq lane (the 2m15s anon /score-cv incident). A slow-but-real
+    # 4096-token extraction finishes well inside this; a genuine stall trips here
+    # and falls through. SDK-level retries are disabled so the app loop owns them.
+    llm_request_timeout_seconds: float = 45.0
 
     # CORS — comma-separated string, e.g.:
     # ALLOWED_ORIGINS=https://truemirror.vercel.app,http://localhost:3000

@@ -21,17 +21,25 @@ const STAGES = [
 
 export function ScoringConsole() {
   const [active, setActive] = useState(0)
+  // Elapsed seconds — turns a slow tail into "thorough" rather than "frozen".
+  // The real score has no progress events, so once the stages are lit the
+  // indeterminate bar carries motion and this line reassures after a few sec.
+  const [elapsed, setElapsed] = useState(0)
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       setActive(STAGES.length - 1)
       return
     }
-    const id = window.setInterval(
+    const stage = window.setInterval(
       () => setActive((a) => Math.min(a + 1, STAGES.length - 1)),
-      1100,
+      1400,
     )
-    return () => window.clearInterval(id)
+    const tick = window.setInterval(() => setElapsed((s) => s + 1), 1000)
+    return () => {
+      window.clearInterval(stage)
+      window.clearInterval(tick)
+    }
   }, [])
 
   return (
@@ -62,9 +70,19 @@ export function ScoringConsole() {
             </li>
           ))}
         </ol>
+
+        {/* Indeterminate bar — always in motion, so the wait never reads as
+            frozen no matter how long the real score takes. */}
+        <div className="sc-bar" aria-hidden>
+          <span className="sc-bar-fill" />
+        </div>
       </div>
 
-      <p className="sc-foot">Processed in memory, never stored.</p>
+      {elapsed >= 6 && (
+        <p className="sc-foot">
+          Still scoring — a thorough read of your CV takes a few seconds.
+        </p>
+      )}
     </div>
   )
 }
