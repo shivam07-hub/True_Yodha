@@ -47,6 +47,7 @@ def test_retirement_is_service_only_and_audited() -> None:
     assert "ALTER TABLE public.job_retirement_events ENABLE ROW LEVEL SECURITY" in sql
     assert "REVOKE ALL ON FUNCTION public.retire_closed_jobs(INTEGER) FROM PUBLIC" in sql
     assert "GRANT EXECUTE ON FUNCTION public.retire_closed_jobs(INTEGER) TO service_role" in sql
+    assert "company_id BIGINT REFERENCES public.companies(id)" in sql
 
 
 def test_company_skill_facts_are_not_deleted_by_retirement_function() -> None:
