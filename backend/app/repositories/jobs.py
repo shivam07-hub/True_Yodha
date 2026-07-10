@@ -46,7 +46,7 @@ STALE_AFTER_DAYS = 21
 # .in_() serialises each id into the URL query string — cap batch size so a huge
 # scrape's job_id list can't blow the PostgREST URL length limit (Backlog #36).
 _SWEEP_IN_CHUNK_SIZE = 200
-_ANALYTICS_TTL = 7 * 24 * 3600  # 7 days — jobs scraped weekly
+_ANALYTICS_TTL = 7 * 24 * 3600  # 7 days — market analytics change slowly
 _SEARCH_TTL = 24 * 3600          # 1 day — job listings stale tolerance
 _COMPANY_SEARCH_TTL = 24 * 3600  # 1 day — scraped companies change with the job feed
 _analytics_cache: dict[tuple[str | None, str | None, str | None, str | None], tuple[float, dict[str, Any]]] = {}
@@ -66,7 +66,7 @@ _feed_ts_cache: tuple[float, str | None] = (0.0, None)
 # leak each other's overlap. Keys carry every dimension that changes the query:
 # sort + role_domain + location + free-text + page bounds (DB paths) — the
 # personal path paginates in Python, so its candidate set is page-independent.
-_FEED_TTL = 5 * 60  # 5 minutes — bound browse staleness against weekly scrapes
+_FEED_TTL = 5 * 60  # 5 minutes — bound browse staleness against continuous scrapes
 _feed_page_cache: dict[
     tuple[str, str | None, str | None, str | None, str | None, str, int, int],
     tuple[float, tuple[list[dict[str, Any]], int]],
@@ -933,8 +933,9 @@ class JobsRepository:
     def refresh_analytics_snapshot_if_stale(self, *, refreshed_by: str = "cron") -> dict[str, Any]:
         """Recompile the snapshot ONLY when the jobs table changed since the last
         refresh. The daily cron calls this; the expensive compile (full jobs scan)
-        runs at most once per scraper batch (~weekly), idle days cost two cheap
-        marker queries. Returns refreshed=False with the existing totals on a skip.
+        runs at most once per scraper batch (scrapes land continuously, by
+        company/industry/location), idle spans cost two cheap marker queries.
+        Returns refreshed=False with the existing totals on a skip.
         """
         current = self._jobs_source_marker()
         stored = self._read_snapshot_marker()
@@ -953,7 +954,7 @@ class JobsRepository:
     ) -> dict[str, Any]:
         """Recompile the unfiltered analytics payload and write it to the snapshot table.
 
-        Called by the admin refresh endpoint after a weekly batch finalises, and by
+        Called by the admin refresh endpoint after a scraper batch finalises, and by
         the dirty-guarded daily refresh. Bypasses the in-process cache so the snapshot
         always reflects current DB state. ``marker`` (count + last_seen) is persisted
         alongside so the next dirty-guard can detect a no-op.
@@ -2355,10 +2356,12 @@ class JobsRepository:
     def get_user_match_stack(self, user_id: str) -> list[dict[str, Any]]:
         """Return the user's durable match stack, newest refresh rows first.
 
-        Matches are weekly snapshots. The dashboard should not go empty at a
-        week boundary, so read every retained row, sort newest-first, and keep
-        the latest row for each job. Fresh refreshes naturally stack above older
-        rows without duplicating the same job card.
+        Matches are permanent per-(user,job) evals (Backlog #36 de-weekly;
+        migration 20260710) — one row per job, upserted in place on re-eval, not
+        a per-week snapshot. Read every retained row, sort newest-first, keep the
+        latest per job. (The de-dupe here is belt-and-suspenders now the unique
+        index is (user_id, job_id); it also absorbs any legacy multi-week rows
+        that predate the migration.)
         """
         result = (
             self._db.table("user_job_matches")

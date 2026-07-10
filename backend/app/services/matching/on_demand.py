@@ -7,7 +7,7 @@ exactly once, and caches the result into `user_job_matches` so every later read
 (the feed JOIN, the drawer, the dashboard) is free.
 
 Reuses the JobRanking facade (`ranking.rank_one`) for the eval and the same
-credibility gate + row shape as the weekly persister — the only difference is the
+credibility gate + row shape as the batch persister — the only difference is the
 row is written with `is_recommended=False` (opening a job must not promote it into
 the user's top-3 recommended set).
 """

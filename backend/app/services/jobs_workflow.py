@@ -221,7 +221,7 @@ async def compute_job_matches(
     No cooldown — XP economy gates concurrency at the Job Refresh seam.
     See CONTEXT.md "Job Refresh" for the policy decision.
 
-    `force=True` skips the weekly cache short-circuit: a paid Refresh always
+    `force=True` skips the cache short-circuit: a paid Refresh always
     re-runs the brain (the user chose to spend XP). The free CV-upload initial
     compute leaves `force=False` so it never re-charges work already done.
 

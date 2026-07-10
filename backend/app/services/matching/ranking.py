@@ -12,9 +12,9 @@ tuned stages — it never reimplements them:
     (Consolidation A).
 
 Callers:
-  - ``jobs_workflow.compute_job_matches`` (the weekly batch / paid Refresh) routes
-    through ``rank()`` — behaviour-identical to the old inline get_top_matches +
-    rank_and_persist duo.
+  - ``jobs_workflow.compute_job_matches`` (the batch compute — CV upload, paid
+    Refresh, or scrape-triggered sweep) routes through ``rank()`` —
+    behaviour-identical to the old inline get_top_matches + rank_and_persist duo.
   - Consolidation D (a job opened/saved anywhere) routes through ``rank_one()`` for
     a single on-demand brain eval, then caches it into ``user_job_matches``.
 

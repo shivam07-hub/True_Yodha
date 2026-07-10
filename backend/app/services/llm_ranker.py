@@ -272,7 +272,11 @@ def persist_matches(
     evaluations: dict[str, dict],
     profile: dict[str, Any] | None = None,
 ) -> int:
-    """Upsert weekly matches to user_job_matches. Returns count written.
+    """Upsert the user's Job Matches to user_job_matches. Returns count written.
+
+    Backlog #36 (de-weekly): one permanent row per (user, job) — a re-eval
+    upserts in place. `batch_week` still rides in each row for provenance, but is
+    NOT part of the identity (migration 20260710).
 
     `evaluations` maps job_id → parse_eval() output. Jobs without an evaluation
     fall back to overlap-score-only rows (verdict fields null).
