@@ -1815,10 +1815,25 @@ mark.cvb-kw {
   font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
   color: var(--tm-text-faint); margin-bottom: 6px;
 }
-.cvb-rs-change-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+/* "What changed" — collapsible, mirrors .cvb-rs-why. Summary carries the edit
+   count so the header reads as a scannable total when collapsed. */
+.cvb-rs-changes > summary {
+  cursor: pointer; list-style: revert; padding: 2px 0;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; font-weight: 600; color: var(--tm-text);
+}
+.cvb-rs-changes > summary:focus-visible { outline: 2px solid var(--tm-int-border); outline-offset: 2px; }
+.cvb-rs-count {
+  font-size: 10px; font-weight: 600; line-height: 1;
+  padding: 3px 6px; border-radius: 999px;
+  background: var(--tm-surface); color: var(--tm-text-muted);
+  border: 1px solid var(--tm-border-soft);
+}
+.cvb-rs-change-verb { color: var(--tm-text); font-weight: 600; }
+.cvb-rs-change-list { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
 .cvb-rs-change-list li {
   display: flex; gap: 8px; align-items: flex-start;
-  font-size: 12.5px; line-height: 1.5; color: var(--tm-text);
+  font-size: 12.5px; line-height: 1.5; color: var(--tm-text-muted);
 }
 .cvb-rs-change-list li svg { color: var(--tm-interactive); flex: none; margin-top: 2px; }
 .cvb-rs-preview {
