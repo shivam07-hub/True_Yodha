@@ -30,8 +30,24 @@ function diffSummary(d: IntentFilterDiff): string[] {
  * Delta-4 intent chat. When the feed disappoints, the user talks to Myro instead
  * of dead-ending; Myro asks one thing at a time and, when it understands, proposes
  * a concrete filter change to one-tap confirm — then the feed re-runs. Not a form.
+ *
+ * `onExpand` (Backlog #36 N3, "want more" coin expansion): when the confirmed diff
+ * WIDENS the search — adds roles or locations — applying it only re-runs the feed
+ * over the *cached* match set; the newly in-scope jobs aren't rated yet. So we hand
+ * off to the coin-charged expansion recompute (the existing MatchRefreshGate: free
+ * when new jobs exist, else the 150-coin vanity charge) so the widened targeting
+ * actually gets matched. A narrowing-only diff (dropping roles) needs no recompute —
+ * the cached re-run is already correct, so `onExpand` is not fired.
  */
-export function IntentChat({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function IntentChat({
+  open,
+  onClose,
+  onExpand,
+}: {
+  open: boolean
+  onClose: () => void
+  onExpand?: () => void
+}) {
   const { token } = useAuth()
   const queryClient = useQueryClient()
   const [messages, setMessages] = useState<IntentChatMessage[]>([SEED])
@@ -98,10 +114,17 @@ export function IntentChat({ open, onClose }: { open: boolean; onClose: () => vo
 
   const apply = useMutation({
     mutationFn: (d: IntentFilterDiff) => jobs.applyIntentDiff(token!, d),
-    onSuccess: () => {
+    onSuccess: (_res, d) => {
       invalidateTargetRoleData(queryClient) // re-runs the feed + score with new filters
       setApplied(true)
-      setTimeout(handleClose, 1100)
+      // Widened the search → the newly in-scope jobs need rating; hand off to the
+      // coin-charged expansion recompute after the "Updated" beat. Narrowing only
+      // (removed roles) is fully served by the cached re-run above — no charge.
+      const widened = d.add_roles.length > 0 || d.locations.length > 0
+      setTimeout(() => {
+        handleClose()
+        if (widened) onExpand?.()
+      }, 1100)
     },
   })
 

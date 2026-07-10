@@ -7,6 +7,7 @@ import type { JobFeedItem } from "@/lib/api"
 import { formatCount } from "@/lib/format"
 import { IntentChat } from "@/components/jobs/intent-chat"
 import { AgentPicksBand } from "@/components/jobs/agent-picks-band"
+import { openRefreshGate } from "@/store/refreshGateStore"
 import { NotInterestedUndo } from "@/components/jobs/not-interested-undo"
 import { JobCard } from "./job-card"
 import { JobDetailDrawer } from "./job-detail-drawer"
@@ -341,7 +342,14 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
 
       {pending ? <NotInterestedUndo kind={pending.kind} jobId={pending.jobId} token={token} onUndo={undo} queuePosition={pending.kind === "saved" ? savedCount : undefined} /> : null}
 
-      <IntentChat open={intentOpen} onClose={() => setIntentOpen(false)} />
+      {/* Backlog #36 N3: a widening intent-diff hands off to the coin-charged
+          expansion recompute — the gate lives in <MatchesRefreshBanner> on the
+          /market page (this component's parent), so openRefreshGate reaches it. */}
+      <IntentChat
+        open={intentOpen}
+        onClose={() => setIntentOpen(false)}
+        onExpand={() => openRefreshGate()}
+      />
     </div>
   )
 }
