@@ -15,6 +15,7 @@ from typing import Any
 
 import httpx
 from fastapi import APIRouter, File, Form, HTTPException, Request, Response, UploadFile, status
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
 from app.config import settings
@@ -569,7 +570,10 @@ async def export_cv_pdf_public(
     await _verify_turnstile(body.cf_turnstile_token, ip)
 
     try:
-        pdf_bytes = render_html_to_pdf(body.html)
+        # sync_playwright() cannot run inside the asyncio event loop — this route
+        # is `async` (for the awaited Turnstile check), so the blocking render must
+        # hop to a worker thread (mirrors the authed `def` route's threadpool run).
+        pdf_bytes = await run_in_threadpool(render_html_to_pdf, body.html)
     except CVPdfError as exc:
         # Soft failure — the playground falls back to native print on 503.
         raise HTTPException(
