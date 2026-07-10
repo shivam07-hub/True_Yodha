@@ -306,7 +306,44 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-10 - Signup email-password creation)
+## LAST SESSION SUMMARY (2026-07-11 - Trusted job lifecycle retirement plan)
+
+Audited live job freshness, retirement, personalized outputs, user signals, and
+the scraper-to-Supabase transfer contract; then wrote a proposed trust-first
+job lifecycle plan.
+
+- Found 46,187 jobs marked active, but 33,185 are older than the current 21-day
+  freshness window and 17,472 are older than 45 days.
+- The July 3 corpus has 9,100 current rows across 160 companies while 17,838
+  older rows at those companies remain active.
+- Ran the existing importer retirement check in dry-run mode only. It identified
+  6,172 rows eligible under the current guard and blocked 11,666 rows across 25
+  companies where a large drop may indicate incomplete scraping.
+- Found no `job_versions` retirement history and only 11 structured feedback
+  events; positive “still live” answers are not persisted and failed negative
+  events are silently dropped by the frontend.
+- Quantified user impact: 133 of 178 users with durable matches have a majority
+  outside the trusted window, and 8 of 11 current Myro Agent Picks are stale.
+- Proposed a source-run ledger, append-only observations, one lifecycle policy,
+  reliable user-signal outbox, exposure ledger, provider-specific verification,
+  soft retirement/reactivation, and free replacement matches.
+- Recommended north star: verified-live recommendation rate, with a stricter
+  99% target for Myro Agent Picks and confirmed-dead click rate below 1%.
+
+Artifact:
+`docs/superpowers/plans/2026-07-11-trusted-job-lifecycle-retirement.md`
+
+Validation:
+
+- Live Supabase queries were read-only.
+- Scraper command used `--dry-run`; no Supabase writes were made.
+- `.venv/bin/pytest backend/tests -q`: 1085 passed, 28 warnings.
+- `cd frontend && npx tsc --noEmit --pretty false`: clean.
+- `cd frontend && npm run lint`: clean.
+- `git diff --check`: clean.
+- No production code or database state changed.
+
+## OLDER SESSION SUMMARY (2026-07-10 - Signup email-password creation)
 
 Fixed signup so new users can create an account with their own email and
 password, matching the access returning users already had on sign-in.
