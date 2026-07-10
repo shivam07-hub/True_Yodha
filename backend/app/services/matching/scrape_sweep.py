@@ -27,6 +27,7 @@ from app.repositories.jobs import JobsRepository
 from app.repositories.notifications import NotificationsRepository
 from app.services import background, jobs_workflow
 from app.services.llm_provider import get_llm_provider
+from app.services.matching import agent_picks
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,7 @@ def run_sweep(
         background.enqueue(
             background.LANE_BULK,
             "scrape_match_recompute",
-            payload={"user_id": user_id},
+            payload={"user_id": user_id, "since_marker": since_marker},
             # Idempotent per (user, marker) — a re-run of the same sweep (e.g.
             # retry) can't double-enqueue the same user's recompute.
             correlation_id=f"scrape_recompute:{user_id}:{since_marker}",
@@ -79,6 +80,7 @@ async def _scrape_match_recompute_handler(payload: dict[str, Any], allow_retry: 
     from app.routers.jobs._shared import last_monday  # local: avoid router→service load cycle
 
     user_id = payload["user_id"]
+    since_marker = payload.get("since_marker")
     admin_db = get_supabase_admin()
     repo = JobsRepository(admin_db, admin_db)
     try:
@@ -94,6 +96,14 @@ async def _scrape_match_recompute_handler(payload: dict[str, Any], allow_retry: 
             force=False,
         )
         _notify_fresh_matches(admin_db, repo, user_id, before_ids)
+        # N5: fold Agent Picks into the SAME brain pass — the eval just ran, so
+        # re-cut the editorial band from the fresh verdicts (reuses cached evals,
+        # no new LLM). Guarded separately so a pick-gen failure never loses the
+        # recompute or the notification above.
+        try:
+            agent_picks.regenerate_for_user(repo, user_id, scrape_batch=since_marker)
+        except Exception as pick_exc:
+            logger.warning("agent_picks regen failed for user=%s: %s", user_id, pick_exc)
     except Exception as exc:
         # Best-effort — a sweep recompute failing for one user must never break
         # the sweep or retry-storm; log and move on (fire-and-forget, same
