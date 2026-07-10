@@ -73,9 +73,10 @@ export function IntelPane() {
   // a role may already be saved, and a failed save never disturbs browsing.
   const signup = useSignupGate()
   const [savedJobIds, setSavedJobIds] = useState<Set<string>>(new Set())
-  const openSignup = () => signup.open({ surface: "intel_save", next: "/collections" })
+  const openSignup = (jobId?: string) =>
+    signup.open({ surface: "intel_save", next: "/collections", pendingJobId: jobId ?? null })
   const saveJobRow = (jobId: string) => {
-    if (!token) return openSignup()
+    if (!token) return openSignup(jobId)
     setSavedJobIds((prev) => new Set(prev).add(jobId))
     void jobs.saveJob(token, jobId).catch(() => { /* already saved / transient */ })
   }

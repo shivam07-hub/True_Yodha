@@ -130,12 +130,16 @@ export function CompanyJobsClient({
     initialData: initialPostingNotes ?? undefined,
   })
 
-  function openSignup() {
-    signup.open({ surface: "company_jobs_save", next: `/companies/${encodeURIComponent(companyName)}` })
+  function openSignup(jobId?: string) {
+    signup.open({
+      surface: "company_jobs_save",
+      next: `/companies/${encodeURIComponent(companyName)}`,
+      pendingJobId: jobId ?? null,
+    })
   }
 
   async function handleSave(jobId: string) {
-    if (!token) return openSignup()
+    if (!token) return openSignup(jobId)
     // Optimistic update — ignore errors (job may already be saved)
     setSavedIds(prev => new Set(Array.from(prev).concat(jobId)))
     try { await saveJobReq(token, jobId) } catch { /* already saved */ }
@@ -216,7 +220,7 @@ export function CompanyJobsClient({
                   isAuthed={!!token}
                   companyName={companyName}
                   onSave={() => handleSave(job.job_id)}
-                  onSignUp={openSignup}
+                  onSignUp={() => openSignup(job.job_id)}
                   onTailor={() => router.push(`/cv?jobId=${encodeURIComponent(job.job_id)}`)}
                 />
               ))}

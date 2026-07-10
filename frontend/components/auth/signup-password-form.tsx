@@ -8,6 +8,7 @@ import { getStoredReferral } from "@/lib/referral"
 import { clearStoredAttribution, readStoredAttribution } from "@/lib/attribution"
 import { signupEvents } from "@/lib/analytics"
 import { hasPendingAnonCvClaim } from "@/lib/anon-cv-claim"
+import { hasPendingJobSaveClaim } from "@/lib/anon-job-stash"
 import { postAuthDestination } from "@/lib/auth/post-auth-destination"
 
 interface Props {
@@ -69,6 +70,7 @@ export function SignupPasswordForm({
         next: next ?? null,
         firstSignup: true,
         hasPendingAnonCv: hasPendingAnonCvClaim(),
+        hasPendingJobSave: hasPendingJobSaveClaim(),
       }))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Signup failed.")

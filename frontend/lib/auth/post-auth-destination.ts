@@ -10,14 +10,21 @@ interface PostAuthDestinationInput {
   next: string | null
   firstSignup: boolean
   hasPendingAnonCv: boolean
+  /** The anon user clicked Save on a job card before auth (Exception 2). */
+  hasPendingJobSave: boolean
 }
 
 export function postAuthDestination({
   firstSignup,
   hasPendingAnonCv,
+  hasPendingJobSave,
 }: PostAuthDestinationInput): string {
   // Exception 1: a CV dropped on the marketing page before login → claim + score it.
   if (hasPendingAnonCv) return "/cv?upload=1"
+  // Exception 2: a job saved from a job card → the replay saves it; land on the
+  // saved worklist so it's the first thing they see. Carried intent overrides
+  // onboarding, exactly as the anon-CV claim does.
+  if (hasPendingJobSave) return "/collections"
   // Brand-new signup runs the first-run onboarding stepper.
   if (firstSignup) return "/onboarding"
   // Everyone else: the daily surface, always. No `next` deep-link return.

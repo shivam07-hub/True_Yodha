@@ -11,6 +11,7 @@ import { appendAttributionToUrl, capturePendingAttribution } from "@/lib/attribu
 import { detectInAppBrowser } from "@/lib/is-in-app-browser"
 import { signupEvents } from "@/lib/analytics"
 import { hasPendingAnonCvClaim } from "@/lib/anon-cv-claim"
+import { hasPendingJobSaveClaim } from "@/lib/anon-job-stash"
 import { postAuthDestination } from "@/lib/auth/post-auth-destination"
 import { GoogleAuthButton } from "@/components/auth/shared/google-button"
 import { LinkedInAuthButton } from "@/components/auth/shared/linkedin-button"
@@ -84,6 +85,7 @@ export function LoginForm({ surface, next, showSignupLink = true }: Props) {
         next: next ?? null,
         firstSignup: false,
         hasPendingAnonCv: hasPendingAnonCvClaim(),
+        hasPendingJobSave: hasPendingJobSaveClaim(),
       }))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed.")
