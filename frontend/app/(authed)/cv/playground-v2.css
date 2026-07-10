@@ -39,6 +39,13 @@
   transition: color var(--tm-dur-fast) var(--tm-ease), border-color var(--tm-dur-fast) var(--tm-ease);
 }
 .cvb-v2-reqpill:hover { border-color: var(--tm-int-border); color: var(--tm-interactive-text); }
+/* The clickable meta CTA (anon "Match this CV to jobs →") — accent-tinted so it
+   outranks the neutral nav pills, while staying below the solid primary button. */
+.cvb-v2-metacta {
+  border-color: var(--tm-int-border); background: var(--tm-int-bg-wash);
+  color: var(--tm-interactive-text); font-weight: 600;
+}
+.cvb-v2-metacta:hover { border-color: var(--tm-interactive); background: var(--tm-int-bg-hover); color: var(--tm-interactive-text); }
 
 /* Worth-it chip — the prize axis beside the Ready score. Verdict colour mirrors
    the feed card's fc-verdict so "Strong / Worth it / Stretch" reads identically

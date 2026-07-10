@@ -104,7 +104,7 @@ export function PlaygroundHeader({
       <span className="cvb-v2-headrule" aria-hidden />
       {isMaster ? (
         masterMeta && (onMeta
-          ? <button type="button" className="cvb-v2-reqpill mono" onClick={onMeta}>{masterMeta}</button>
+          ? <button type="button" className="cvb-v2-reqpill cvb-v2-metacta mono" onClick={onMeta}>{masterMeta}</button>
           : <span className="cvb-v2-jobline mono" title={masterMeta}>{masterMeta}</span>)
       ) : (
         <>
