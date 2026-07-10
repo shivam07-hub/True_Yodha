@@ -3186,6 +3186,8 @@ class JobsRepository:
                 count="exact",
             )
             .ilike("company_name", company_name)
+            .eq("is_active", True)
+            .eq("listing_confidence", "active")
             .order("job_id")
             .range(start, end)
             .execute()

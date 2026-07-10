@@ -2276,6 +2276,35 @@ export interface CompanyJobsResponse {
   has_next: boolean
 }
 
+export interface CompanySkillProfile {
+  skill_id: number
+  display_name: string
+  taxonomy_key: string
+  domain: string
+  current_job_count: number
+  peak_job_count: number
+  observation_run_count: number
+  avg_required_level: number | null
+  trend_signal: "emerging" | "steady" | "declining" | "dormant"
+  first_seen_at: string
+  last_seen_at: string
+}
+
+export interface CompanySkillIntelligence {
+  company_id: number
+  company_name: string
+  slug: string
+  as_of: string | null
+  source_run_id: string | null
+  skills: CompanySkillProfile[]
+  newsletter_summary: {
+    top_skills: string[]
+    emerging_skills: string[]
+    declining_skills: string[]
+    dormant_skills: string[]
+  }
+}
+
 export interface CVBadge {
   version_id: number
   version_number: number
@@ -2722,6 +2751,11 @@ export interface IntentChatResponse {
 }
 
 export const jobs = {
+  companySkillIntelligence: (company: string, limit = 20) =>
+    request<CompanySkillIntelligence>(
+      `/companies/${encodeURIComponent(company)}/skill-intelligence?limit=${limit}`,
+    ),
+
   searchCompanies: (q: string, limit = 10) =>
     request<string[]>(`/jobs/companies/search?q=${encodeURIComponent(q)}&limit=${limit}`),
 

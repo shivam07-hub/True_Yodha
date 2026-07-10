@@ -10,11 +10,12 @@ import { CapturePill } from "@/components/jobs/capture-pill"
 import { FeedCard } from "@/components/jobs/feed-card"
 import { feedDataFromCompanyJob } from "@/lib/jobs/card-view"
 import "@/components/jobs/feed-card.css"
-import type { CommentListResponse, CompanyJobCard, CompanyJobsResponse } from "@/lib/api"
+import type { CommentListResponse, CompanyJobCard, CompanyJobsResponse, CompanySkillIntelligence } from "@/lib/api"
 import { ParticleLoading } from "@/components/loading/particle-loading"
 import { CommentThread } from "@/components/comments/comment-thread"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
+import { CompanySkillIntelligenceCard } from "./company-skill-intelligence"
 
 // ── API ───────────────────────────────────────────────────────────────────────
 
@@ -100,6 +101,7 @@ export function CompanyJobsClient({
   initialData,
   initialComments,
   initialPostingNotes,
+  initialSkillIntelligence,
 }: {
   companyName: string
   initialData: CompanyJobsResponse | null
@@ -107,6 +109,7 @@ export function CompanyJobsClient({
   initialComments?: CommentListResponse | null
   /** Server-fetched job-posting notes rollup — seeds the rollup into crawlable HTML. */
   initialPostingNotes?: PostingNote[] | null
+  initialSkillIntelligence?: CompanySkillIntelligence | null
 }) {
   const { token } = useAuth()
   const signup = useSignupGate()
@@ -192,6 +195,11 @@ export function CompanyJobsClient({
 
       {/* Body */}
       <div style={{ maxWidth: 860, margin: "0 auto", padding: "32px 32px 80px" }}>
+
+        <CompanySkillIntelligenceCard
+          companyName={companyName}
+          data={initialSkillIntelligence ?? null}
+        />
 
         {/* Question-style H2 — structural clarity for crawlers + AI answer engines. */}
         <h2 style={{ margin: "0 0 18px", fontSize: 18, fontWeight: 600, color: "var(--tm-text)" }}>
