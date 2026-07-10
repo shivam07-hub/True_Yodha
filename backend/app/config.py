@@ -83,6 +83,13 @@ class Settings(BaseSettings):
     job_switch_reviewer_email: str = ""
     job_switch_admin_token: str = ""
 
+    # Backlog #36 (event-driven matching) — token guarding the scrape-landed
+    # webhook (POST /internal/scrape/landed). The scraper (firecrawl_Supabase)
+    # fires this after it finishes writing a batch of new jobs, so the app sweeps
+    # + notifies affected users immediately instead of polling. Empty = the
+    # endpoint returns 503 (safe before the scraper is wired).
+    scrape_webhook_token: str = ""
+
     # Environment
     railway_environment: str = "development"
 

@@ -14,6 +14,7 @@ from app.routers import (
     growth,
     home,
     institutions,
+    internal,
     job_switch_plan,
     jobs,
     myrology,
@@ -84,6 +85,7 @@ app.include_router(public.router)
 app.include_router(status.router)
 app.include_router(telemetry.router)
 app.include_router(upskilling.router)
+app.include_router(internal.router)
 
 
 @app.on_event("startup")
