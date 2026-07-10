@@ -249,7 +249,9 @@ def _to_job_pulse(row: dict, *, now: datetime) -> JobPulse:
     return JobPulse(
         job_id=str(row["job_id"]),
         first_seen_at=marker_to_iso_date(row.get("first_seen")),
-        last_verified_at=marker_to_iso_date(row.get("last_seen")),
+        last_verified_at=marker_to_iso_date(
+            row.get("last_verified_at") or row.get("last_seen")
+        ),
         is_stale=is_stale,
         listing_confidence=confidence,
         tracking_count=visible_count(

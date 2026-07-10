@@ -26,6 +26,19 @@ FEEDBACK_SURFACES = frozenset({"dashboard", "market", "job_detail", "other"})
 PRIVACY_COHORT_MIN = 5
 STALE_AFTER_DAYS = 21
 LIKELY_CLOSED_AFTER_DAYS = 45
+LISTING_CONFIDENCE_VALUES = frozenset(
+    {"active", "uncertain", "likely_closed", "closed"}
+)
+
+
+def is_recommendable_listing(row: dict) -> bool:
+    """Return True only for a listing explicitly verified as active.
+
+    Missing lifecycle state is deliberately untrusted. Once the lifecycle
+    migration is deployed every jobs row has a value; treating absence as
+    uncertain keeps partial rollouts and malformed reads fail-closed.
+    """
+    return bool(row.get("is_active")) and row.get("listing_confidence") == "active"
 
 
 def validate_feedback(
@@ -92,6 +105,12 @@ def listing_confidence(
         row, "posting_inactive_count"
     )
     looks_old = _count(row, "looks_old_count")
+
+    stored_confidence = row.get("listing_confidence")
+    if stored_confidence in LISTING_CONFIDENCE_VALUES:
+        if not bool(row.get("is_active", True)):
+            return "closed", is_stale
+        return str(stored_confidence), is_stale
 
     if not bool(row.get("is_active", True)):
         return "closed", is_stale

@@ -147,6 +147,7 @@ def _job(
     role_domain: str = "engineering",
     skills: list[str] | None = None,
     is_active: bool = True,
+    listing_confidence: str = "active",
 ) -> dict[str, Any]:
     return {
         "job_id": job_id,
@@ -165,6 +166,7 @@ def _job(
         "apply_url": f"https://jobs.example.com/{job_id}",
         "first_seen": first_seen,
         "is_active": is_active,
+        "listing_confidence": listing_confidence,
         "main_skills": skills if skills is not None else ["Python", "SQL"],
     }
 
@@ -206,6 +208,18 @@ def test_fresh_sort_returns_newest_first() -> None:
     result = repo.feed_jobs(sort="fresh", page_size=10)
     assert [r["job_id"] for r in result["rows"]] == ["b", "c", "a"]
     assert result["sort"] == "fresh"
+
+
+def test_feed_hides_non_active_listing_confidence() -> None:
+    repo, _ = _repo([
+        _job("verified"),
+        _job("uncertain", listing_confidence="uncertain"),
+        _job("closed", listing_confidence="closed"),
+    ])
+
+    result = repo.feed_jobs(sort="fresh", page_size=10)
+
+    assert [row["job_id"] for row in result["rows"]] == ["verified"]
 
 
 def test_fresh_sort_breaks_ties_by_job_id_desc() -> None:

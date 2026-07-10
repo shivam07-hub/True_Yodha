@@ -17,6 +17,7 @@ from app.deps import get_user_db
 from app.repositories.job_skills_read_model import fetch_all_rows, fetch_job_skill_rows, fetch_job_skill_rows_for_ids, group_job_skill_rows
 from app.services import job_importer
 from app.services.industry_grouping import normalize_industry_group
+from app.services.job_intelligence_policy import is_recommendable_listing
 from app.services.location_normalizer import normalize_location
 
 _log = logging.getLogger("app.repositories.jobs")
@@ -1585,7 +1586,8 @@ class JobsRepository:
     _FEED_COLUMNS = (
         "job_id, job_title, company_name, job_description, "
         "location, location_raw, location_city, location_country, location_mode, location_quality, locations, "
-        "role_domain, industry, industry_group, apply_url, first_seen, last_seen, is_active, main_skills"
+        "role_domain, industry, industry_group, apply_url, first_seen, last_seen, "
+        "is_active, listing_confidence, last_verified_at, main_skills"
     )
     _FEED_PERSONAL_CAP = 500  # bound the in-Python overlap rank set
 
@@ -1717,7 +1719,7 @@ class JobsRepository:
         # DB-level filters are user-independent (shareable cache); exclusion +
         # computed filters are per-user and run after shaping.
         def _apply_filters(query: Any) -> Any:
-            query = query.eq("is_active", True)
+            query = query.eq("is_active", True).eq("listing_confidence", "active")
             if skill_facet:
                 # Array-contains on the canonical skill name. main_skills mirrors
                 # job_skills (CLAUDE.md: back-compat name mirror == [all names]).
@@ -1852,7 +1854,8 @@ class JobsRepository:
     _AGENT_PICK_JOB_COLUMNS = (
         "job_id, job_title, company_name, job_description, industry, industry_group, "
         "role_domain, apply_url, location, location_raw, location_city, location_country, "
-        "location_mode, location_quality, locations, main_skills, first_seen, last_seen, is_active"
+        "location_mode, location_quality, locations, main_skills, first_seen, last_seen, "
+        "is_active, listing_confidence, last_verified_at"
     )
 
     def get_agent_picks(self, user_id: str) -> list[dict[str, Any]]:
@@ -1882,6 +1885,7 @@ class JobsRepository:
             .select(self._AGENT_PICK_JOB_COLUMNS)
             .in_("job_id", job_ids)
             .eq("is_active", True)
+            .eq("listing_confidence", "active")
             .execute()
             .data
             or []
@@ -2179,6 +2183,7 @@ class JobsRepository:
                 .select("job_id")
                 .in_("job_id", chunk)
                 .eq("is_active", True)
+                .eq("listing_confidence", "active")
                 .gte("last_seen", cutoff)
                 .execute()
             ).data or []
@@ -2202,9 +2207,8 @@ class JobsRepository:
         require_fresh: when True (default) stale/likely-closed listings are
         dropped BEFORE the pool is ranked to the top-N sent to the LLM, so the
         user never gets matched to a job that has aged out of the crawl. Applied
-        as a *soft* gate: location is hard (a Delhi user never gets Mumbai jobs),
-        but if every located job is stale we fall back to the located set rather
-        than return nothing — the user still sees their best available matches.
+        as a hard trust gate: an honest empty result is preferable to showing a
+        listing that Myro cannot currently verify.
         Set False only for callers that deliberately want the full history.
         """
         if not skill_keys:
@@ -2250,16 +2254,7 @@ class JobsRepository:
             return located
 
         fresh = self._filter_job_ids_by_freshness(located)
-        if fresh:
-            return fresh
-        # Every located candidate is stale — prefer showing the user their best
-        # available matches over an empty pool (soft gate, mirrors the
-        # exclusion-relaxed philosophy in compute_job_matches).
-        _log.info(
-            "get_candidate_job_ids_for_skills: no fresh candidates (located=%d), "
-            "falling back to stale pool", len(located),
-        )
-        return located
+        return fresh
 
     def get_all_job_skill_rows(self, *, job_ids: list[str] | None = None) -> list[dict[str, Any]]:
         """Raw job_skills JOIN skills rows for the matcher. No grouping."""
@@ -2471,7 +2466,7 @@ class JobsRepository:
                 "location_country, location_mode, location_quality, locations, apply_url, "
                 "job_summary, job_description, "
                 "date_posted, seniority_level, work_mode, min_years_experience, max_years_experience, "
-                "first_seen, last_seen, is_active)"
+                "first_seen, last_seen, is_active, listing_confidence, last_verified_at)"
             )
             .eq("user_id", user_id)
             .execute()
@@ -2487,8 +2482,10 @@ class JobsRepository:
             if not job_id or job_id in seen or job_id in dismissed:
                 continue
             seen.add(job_id)
-            if row.get("jobs"):
-                _hydrate_location_fields(row["jobs"])
+            job = row.get("jobs") or {}
+            if not is_recommendable_listing(job):
+                continue
+            _hydrate_location_fields(job)
             stack.append(row)
         return stack
 
