@@ -26,6 +26,7 @@ class _FakeQuery:
         self._db = db
         self._eq_filters: list[tuple[str, Any]] = []
         self._in_filters: list[tuple[str, list[Any]]] = []
+        self._gte_filters: list[tuple[str, Any]] = []
         self._range: tuple[int, int] | None = None
         self._limit: int | None = None
 
@@ -38,6 +39,10 @@ class _FakeQuery:
 
     def in_(self, key: str, values: list[Any]) -> "_FakeQuery":
         self._in_filters.append((key, values))
+        return self
+
+    def gte(self, key: str, value: Any) -> "_FakeQuery":
+        self._gte_filters.append((key, value))
         return self
 
     def limit(self, value: int) -> "_FakeQuery":
@@ -55,6 +60,8 @@ class _FakeQuery:
             rows = [row for row in rows if row.get(key) == value]
         for key, values in self._in_filters:
             rows = [row for row in rows if row.get(key) in values]
+        for key, value in self._gte_filters:
+            rows = [row for row in rows if row.get(key) is not None and row.get(key) >= value]
 
         if self._range is not None:
             start, end = self._range
@@ -392,6 +399,64 @@ def test_get_candidate_job_ids_for_skills_preserves_canonical_case() -> None:
     )
 
     assert set(result) == {"j1", "j2"}
+
+
+def _fresh_marker(days_ago: int) -> int:
+    from datetime import datetime, timedelta, timezone
+    return int((datetime.now(timezone.utc) - timedelta(days=days_ago)).strftime("%Y%m%d"))
+
+
+def test_get_candidate_job_ids_for_skills_drops_stale_listings() -> None:
+    # j1 fresh, j2 stale (last_seen 60d old), j3 flagged inactive → only j1 survives
+    # the freshness gate before ranking/LLM. This is the fix for old postings
+    # surfacing as matches.
+    db = _FakeDB({
+        "skills": [
+            {"id": "s1", "taxonomy_key": "python"},
+            {"id": "s2", "taxonomy_key": "sql"},
+            {"id": "s3", "taxonomy_key": "excel"},
+        ],
+        "job_skills": [
+            {"job_id": "j1", "skill_id": "s1"},
+            {"job_id": "j2", "skill_id": "s2"},
+            {"job_id": "j3", "skill_id": "s3"},
+        ],
+        "jobs": [
+            {"job_id": "j1", "is_active": True, "last_seen": _fresh_marker(2)},
+            {"job_id": "j2", "is_active": True, "last_seen": _fresh_marker(60)},
+            {"job_id": "j3", "is_active": False, "last_seen": _fresh_marker(1)},
+        ],
+    })
+
+    result = JobsRepository(db).get_candidate_job_ids_for_skills(["python", "sql", "excel"])
+
+    assert set(result) == {"j1"}
+
+
+def test_get_candidate_job_ids_for_skills_relaxes_when_all_stale() -> None:
+    # If every overlapping job is stale, fall back to the full pool rather than
+    # return nothing — the user still sees their best available matches.
+    db = _FakeDB({
+        "skills": [{"id": "s1", "taxonomy_key": "python"}],
+        "job_skills": [{"job_id": "j1", "skill_id": "s1"}],
+        "jobs": [{"job_id": "j1", "is_active": True, "last_seen": _fresh_marker(90)}],
+    })
+
+    result = JobsRepository(db).get_candidate_job_ids_for_skills(["python"])
+
+    assert result == ["j1"]
+
+
+def test_get_candidate_job_ids_for_skills_require_fresh_false_keeps_stale() -> None:
+    db = _FakeDB({
+        "skills": [{"id": "s1", "taxonomy_key": "python"}],
+        "job_skills": [{"job_id": "j1", "skill_id": "s1"}],
+        "jobs": [{"job_id": "j1", "is_active": True, "last_seen": _fresh_marker(90)}],
+    })
+
+    result = JobsRepository(db).get_candidate_job_ids_for_skills(["python"], require_fresh=False)
+
+    assert result == ["j1"]
 
 
 # ---------------------------------------------------------------------------
