@@ -121,6 +121,38 @@ def test_public_and_authed_pdf_share_one_renderer():
     assert authed_export.render_html_to_pdf is public_router.render_html_to_pdf
 
 
+def test_public_export_pdf_offloads_sync_render_to_thread(monkeypatch):
+    """The anon route is `async` (awaits Turnstile) but render_html_to_pdf uses
+    sync_playwright, which RAISES inside a running asyncio loop. Regression guard
+    for the 2026-07 bug where the route called it directly → every anon export
+    503'd → users fell back to browser print (blank trailing page, dropped
+    bullets). We assert the renderer runs OFF the event loop, without needing
+    Chromium: the stub fails iff it is invoked while a loop is running."""
+    import asyncio
+
+    from starlette.testclient import TestClient
+
+    import app.routers.public as public_router
+
+    def _renderer_must_run_in_thread(html: str) -> bytes:
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return b"%PDF-1.4 ok"  # no loop → correctly offloaded to a worker thread
+        raise AssertionError("render_html_to_pdf ran inside the asyncio event loop")
+
+    monkeypatch.setattr(public_router, "render_html_to_pdf", _renderer_must_run_in_thread)
+
+    with TestClient(app) as client:
+        resp = client.post(
+            "/public/cv/export-pdf",
+            json={"html": "<div class='cvb-pdf-page'>" + ("x" * 60) + "</div>"},
+        )
+
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "application/pdf"
+
+
 def test_docx_preserves_rupee_and_dashes():
     docx = generate_cv_docx(VISIBLE_CV, CONTACT)
     text = "\n".join(_docx_paragraphs(docx))
