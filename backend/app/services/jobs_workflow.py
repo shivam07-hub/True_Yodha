@@ -15,6 +15,16 @@ from app.services.scoring.aspirations import fetch_aspiration_skills
 
 logger = logging.getLogger(__name__)
 
+# Two-tier brain sizing (career-ops shape). The deterministic pre-filter hands a
+# POOL of this many role-relevant, fresh candidates to the cheap batched brain
+# triage, which picks KEEP best-fit for the expensive per-job 5-axis reasoning.
+# POOL widens the net well past the old raw top-12 (so a role-fit job that ranked
+# low on noisy skill-overlap can still be promoted by the brain); KEEP bounds the
+# per-job LLM cost per compute. The long tail past KEEP is rated on-open
+# (on_demand.ensure_job_eval), cached, so nothing is permanently missed.
+MATCH_TRIAGE_POOL = 60
+MATCH_TRIAGE_KEEP = 15
+
 
 OutcomeKind = Literal[
     "written",
@@ -314,7 +324,12 @@ async def compute_job_matches(
             job_skill_rows=job_skill_rows,
             user_skill_map=user_skill_map,
             job_meta_fetcher=repo.get_jobs_by_ids,
-            top_n=12,
+            # Two-tier brain (career-ops shape): the deterministic pool (role-boost +
+            # skill-overlap + freshness, company-capped) hands MATCH_TRIAGE_POOL
+            # candidates to the cheap batched triage, which picks the
+            # MATCH_TRIAGE_KEEP best-fit for the expensive per-job reasoning.
+            top_n=MATCH_TRIAGE_POOL,
+            triage_keep=MATCH_TRIAGE_KEEP,
             # Backlog #36: reuse any prior eval for this user/job — never re-pay
             # the LLM for a job already rated (permanent identity, mgr 20260710).
             eval_cache_fetcher=lambda ids: repo.get_cached_match_evals(user_id, ids, full=True),

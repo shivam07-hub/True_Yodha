@@ -145,6 +145,122 @@ Job Description:
 {(job.get('description') or 'No description available')[:6000]}"""
 
 
+# ── Tier-1 triage (cheap, batched: pool → shortlist) ──────────────────────────
+# Career-Ops shape: a deterministic pre-filter (role-title + location + freshness +
+# skill-overlap) hands the brain a POOL of candidates (~tens), and ONE cheap batched
+# call picks the best-fit shortlist. Only that shortlist then gets the expensive
+# per-job 5-axis "why it fits" reasoning (evaluate_all). This is how we rate against
+# the whole relevant pool without paying a deep eval per pool job.
+
+_TRIAGE_MAX_TOKENS = 500
+# Per-job description slice in the triage prompt — enough to judge fit, small enough
+# to keep a ~60-job pool inside every provider's context window.
+_TRIAGE_SNIPPET = 220
+
+
+def build_triage_prompt(profile: dict[str, Any], cv_markdown: str) -> str:
+    """Compact evaluator persona for the batched pool→shortlist triage pass."""
+    roles = ", ".join(profile.get("target_roles") or []) or "their stated target roles"
+    location = (
+        profile.get("target_location")
+        or profile.get("target_location_country")
+        or "flexible"
+    )
+    cv_block = (cv_markdown or "").strip()[:2000] or "No CV on file — infer from the skill profile."
+    return f"""You are Career Ops, an elite AI career advisor triaging a batch of job postings for ONE candidate. Pick only the strongest genuine fits — never pad the list to reach the count. Judge on true role/skill/seniority fit to THIS candidate, not keyword overlap.
+
+Candidate target roles: {roles}
+Preferred location: {location}
+
+CV:
+{cv_block}"""
+
+
+def build_triage_user(pool_jobs: list[dict[str, Any]], keep_n: int) -> str:
+    """Numbered pool for the triage call. Uses 1-based indices (robust — the model
+    echoes small integers, never mangled job_ids)."""
+    lines = []
+    for i, job in enumerate(pool_jobs, start=1):
+        matched = ", ".join((job.get("matched_skills") or [])[:8]) or "n/a"
+        snippet = " ".join((job.get("description") or "").split())[:_TRIAGE_SNIPPET]
+        lines.append(
+            f"{i}. {job.get('title')} — {job.get('company') or 'n/a'} "
+            f"| {job.get('location') or 'n/a'} | matched: {matched} | overlap: {job.get('overlap_score')}"
+            f"\n   {snippet}"
+        )
+    listing = "\n".join(lines)
+    return f"""{len(pool_jobs)} candidate postings below. Select the {keep_n} BEST-FIT for this candidate, ranked best-first. Fewer is fine if fewer are genuinely strong — do NOT include weak fits to reach {keep_n}.
+
+{listing}
+
+Respond ONLY with valid JSON, no prose:
+{{"shortlist": [<index>, <index>, ...]}}"""
+
+
+def parse_triage(text: str, pool_size: int, keep_n: int) -> list[int] | None:
+    """Parse the triage JSON → 0-based pool indices. None on unparseable output."""
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+    if "```" in text:
+        text = text.split("```")[1].split("```")[0].strip()
+        if text.startswith("json"):
+            text = text[4:].strip()
+    start = text.find("{")
+    if start == -1:
+        return None
+    try:
+        obj, _ = json.JSONDecoder().raw_decode(text, start)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(obj, dict) or not isinstance(obj.get("shortlist"), list):
+        return None
+    seen: set[int] = set()
+    out: list[int] = []
+    for raw in obj["shortlist"]:
+        try:
+            idx = int(raw) - 1
+        except (TypeError, ValueError):
+            continue
+        if 0 <= idx < pool_size and idx not in seen:
+            seen.add(idx)
+            out.append(idx)
+        if len(out) >= keep_n:
+            break
+    return out
+
+
+async def triage_shortlist(
+    profile: dict[str, Any],
+    pool_jobs: list[dict[str, Any]],
+    provider: LLMProvider,
+    keep_n: int,
+) -> list[dict[str, Any]]:
+    """Cheap batched pass: pool → the ``keep_n`` best-fit jobs, brain-ranked.
+
+    ONE LLM call over the whole pool. Fails soft: on any provider/parse failure
+    return the pool's deterministic-overlap order truncated to ``keep_n`` — the
+    deep eval still runs, just on the overlap-ranked head instead of the
+    brain-ranked head. Never breaks the compute.
+    """
+    if keep_n <= 0:
+        return []
+    if len(pool_jobs) <= keep_n:
+        return pool_jobs
+    messages = [
+        {"role": "system", "content": build_triage_prompt(profile, profile.get("cv_markdown") or "")},
+        {"role": "user", "content": build_triage_user(pool_jobs, keep_n)},
+    ]
+    try:
+        content = await provider.complete(messages, max_tokens=_TRIAGE_MAX_TOKENS)
+    except LLMProviderError:
+        logger.error("triage: providers failed over pool=%d — falling back to overlap order", len(pool_jobs))
+        return pool_jobs[:keep_n]
+    indices = parse_triage(content, len(pool_jobs), keep_n)
+    if not indices:
+        logger.warning("triage: unparseable/empty shortlist — falling back to overlap order")
+        return pool_jobs[:keep_n]
+    return [pool_jobs[i] for i in indices]
+
+
 # ── Response parser ───────────────────────────────────────────────────────────
 
 def _clamp(value: Any, lo: float, hi: float, default: float | None) -> float | None:
