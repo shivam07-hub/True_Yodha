@@ -24,6 +24,7 @@ from typing import Any
 
 from app.database import get_supabase_admin
 from app.repositories.jobs import JobsRepository
+from app.repositories.notifications import NotificationsRepository
 from app.services import background, jobs_workflow
 from app.services.llm_provider import get_llm_provider
 
@@ -81,6 +82,10 @@ async def _scrape_match_recompute_handler(payload: dict[str, Any], allow_retry: 
     admin_db = get_supabase_admin()
     repo = JobsRepository(admin_db, admin_db)
     try:
+        # Snapshot BEFORE so we can diff genuinely-new matches after — the
+        # notification (N1) must carry real fresh matches, never fire on a
+        # no-op recompute (N4: compute-then-notify, never on speculation).
+        before_ids = set(repo.get_existing_match_job_ids(user_id))
         await jobs_workflow.compute_job_matches(
             repo=repo,
             user_id=user_id,
@@ -88,8 +93,39 @@ async def _scrape_match_recompute_handler(payload: dict[str, Any], allow_retry: 
             llm_provider=get_llm_provider(),
             force=False,
         )
+        _notify_fresh_matches(admin_db, repo, user_id, before_ids)
     except Exception as exc:
         # Best-effort — a sweep recompute failing for one user must never break
         # the sweep or retry-storm; log and move on (fire-and-forget, same
         # posture as cv_workflow._trigger_initial_match_compute).
         logger.warning("scrape_match_recompute failed for user=%s: %s", user_id, exc)
+
+
+def _notify_fresh_matches(
+    admin_db: Any, repo: JobsRepository, user_id: str, before_ids: set[str]
+) -> None:
+    """Write a debounced 'fresh_matches' notification IF the recompute produced
+    matches this user didn't have before. The ping carries the top new match
+    (highest brain score, else overlap) so opening the bell is the reward (N1)."""
+    stack = repo.get_user_match_stack(user_id)
+    new_rows = [r for r in stack if str(r.get("job_id") or "") not in before_ids]
+    if not new_rows:
+        return
+
+    top = max(
+        new_rows,
+        key=lambda r: (float(r.get("overall_score") or 0), float(r.get("overlap_score") or 0)),
+    )
+    job = top.get("jobs") or {}
+    company = (job.get("company_name") or "").strip()
+    role = (job.get("job_title") or "").strip()
+    body = " · ".join(p for p in (company, role) if p) or "New role matched to your profile"
+
+    count = len(new_rows)
+    NotificationsRepository(admin_db, admin_db).record_fresh_matches(
+        user_id,
+        job_id=str(top.get("job_id") or "") or None,
+        title=f"{count} fresh match{'es' if count != 1 else ''}",
+        body=body,
+        count=count,
+    )

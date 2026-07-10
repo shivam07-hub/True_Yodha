@@ -8,6 +8,7 @@ import Skeleton, { SkeletonTheme } from "react-loading-skeleton"
 import "react-loading-skeleton/dist/skeleton.css"
 import { SettingsModal, type Tab as SettingsTab } from "@/components/settings-modal"
 import { MyroLogo } from "@/components/myro-logo"
+import { NotificationBell } from "@/components/nav/notification-bell"
 import { jobs as jobsApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
@@ -143,21 +144,25 @@ export function MobileTopBar() {
         <MyroLogo size={24} decorative />
         <span style={{ fontSize: 17.5, fontWeight: 700, letterSpacing: "-0.02em", color: "var(--mm-text)" }}>Myro</span>
       </Link>
-      <button
-        onClick={openPractice}
-        aria-label="Practice"
-        className="mm-press-sm"
-        style={{
-          position: "relative", width: 34, height: 34, borderRadius: 10,
-          border: "1px solid rgba(255,255,255,0.07)", background: "#212120", color: "#c9c9c2",
-          display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
-        }}
-      >
-        <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M13 2 4.5 13.5H11L9.8 22 19 10h-6.5L13 2Z" />
-        </svg>
-        <span style={{ position: "absolute", top: -3, right: -3, width: 8, height: 8, borderRadius: 99, background: "var(--mm-accent)" }} />
-      </button>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {/* Fresh-match notifications (Backlog #36) */}
+        <NotificationBell />
+        <button
+          onClick={openPractice}
+          aria-label="Practice"
+          className="mm-press-sm"
+          style={{
+            position: "relative", width: 34, height: 34, borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.07)", background: "#212120", color: "#c9c9c2",
+            display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+          }}
+        >
+          <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M13 2 4.5 13.5H11L9.8 22 19 10h-6.5L13 2Z" />
+          </svg>
+          <span style={{ position: "absolute", top: -3, right: -3, width: 8, height: 8, borderRadius: 99, background: "var(--mm-accent)" }} />
+        </button>
+      </div>
       {settingsOpen && <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} profile={null} initialTab={settingsTab} />}
     </header>
   )

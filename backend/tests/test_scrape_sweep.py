@@ -157,6 +157,14 @@ def test_run_sweep_enqueues_one_job_per_affected_user_capped(monkeypatch: Any) -
     assert enqueued[0]["cid"] == "scrape_recompute:u1:20260705"
 
 
+class _HandlerRepo:
+    def get_existing_match_job_ids(self, _user_id: str) -> list[str]:
+        return []
+
+    def get_user_match_stack(self, _user_id: str) -> list[dict[str, Any]]:
+        return []
+
+
 def test_scrape_match_recompute_handler_forces_false_and_never_raises(monkeypatch: Any) -> None:
     """The handler must never propagate — one user's failure can't break the
     sweep or trigger an RQ retry storm (fire-and-forget, like the CV-upload
@@ -164,7 +172,7 @@ def test_scrape_match_recompute_handler_forces_false_and_never_raises(monkeypatc
     captured: dict[str, Any] = {}
 
     monkeypatch.setattr(scrape_sweep, "get_supabase_admin", lambda: object())
-    monkeypatch.setattr(scrape_sweep, "JobsRepository", lambda *_a, **_k: object())
+    monkeypatch.setattr(scrape_sweep, "JobsRepository", lambda *_a, **_k: _HandlerRepo())
     monkeypatch.setattr(scrape_sweep, "get_llm_provider", lambda: object())
 
     async def _fake_compute(*, repo: Any, user_id: str, batch_week: Any, llm_provider: Any, force: bool) -> None:
