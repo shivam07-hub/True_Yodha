@@ -153,6 +153,14 @@ def is_transient(exc: BaseException) -> bool:
     return isinstance(exc, _TRANSIENT)
 
 
+def is_rate_limited(exc: BaseException) -> bool:
+    """True only for a 429. A rate limit is worth retrying the SAME provider with
+    backoff (honouring Retry-After). A timeout / dropped connection / 5xx means
+    the provider is stalled or down — retrying it just burns the user's wait; the
+    caller should fall through to the next (faster) provider immediately."""
+    return isinstance(exc, RateLimitError)
+
+
 def retry_after_seconds(exc: BaseException) -> float | None:
     """Extract a server-advised Retry-After (seconds) from a RateLimitError, if present."""
     resp = getattr(exc, "response", None)

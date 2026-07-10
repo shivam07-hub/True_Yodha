@@ -50,7 +50,9 @@ def _eval(**over: Any) -> dict[str, Any]:
 
 # ── persist_matches ────────────────────────────────────────────────────────────
 
-def test_persist_matches_upserts_on_weekly_unique_key() -> None:
+def test_persist_matches_upserts_on_permanent_unique_key() -> None:
+    """Backlog #36 de-weekly: permanent per-(user,job) identity (migration
+    20260710) — re-evaluating a job upserts in place, not a new row per week."""
     db = _FakeDB()
     written = llm_ranker.persist_matches(
         db=db,  # type: ignore[arg-type]
@@ -61,7 +63,7 @@ def test_persist_matches_upserts_on_weekly_unique_key() -> None:
     )
     assert written == 1
     assert db.tape["table"] == "user_job_matches"
-    assert db.tape["on_conflict"] == "user_id,job_id,batch_week"
+    assert db.tape["on_conflict"] == "user_id,job_id"
     assert db.tape["executed"] is True
 
 

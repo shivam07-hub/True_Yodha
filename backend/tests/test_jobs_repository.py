@@ -80,7 +80,10 @@ class _SelectHistoryDB(_FakeDB):
         )
 
 
-def test_upsert_job_match_uses_weekly_conflict_key() -> None:
+def test_upsert_job_match_uses_permanent_conflict_key() -> None:
+    """Backlog #36 de-weekly: eval identity is (user, job) — permanent, not
+    per-week (migration 20260710). `batch_week` still rides in the payload for
+    provenance, just no longer part of the conflict key."""
     user_db = _FakeDB()
     admin_db = _FakeDB()
     repo = JobsRepository(user_db, admin_db)  # type: ignore[arg-type]
@@ -95,7 +98,7 @@ def test_upsert_job_match_uses_weekly_conflict_key() -> None:
     )
 
     assert admin_db.tape["table"] == "user_job_matches"
-    assert admin_db.tape["on_conflict"] == "user_id,job_id,batch_week"
+    assert admin_db.tape["on_conflict"] == "user_id,job_id"
     assert admin_db.tape["payload"]["batch_week"] == "2026-05-26"
     assert admin_db.tape["executed"] is True
 

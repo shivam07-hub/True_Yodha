@@ -163,9 +163,28 @@ def test_cv_workflow_background_run_uses_scores_repository_for_scoring(monkeypat
 
 
 class _FakeComputeJobsRepository:
-    def __init__(self, candidate_job_ids: list[str]) -> None:
+    def __init__(
+        self,
+        candidate_job_ids: list[str],
+        *,
+        has_computed: bool = False,
+        new_jobs: int = 1,
+    ) -> None:
         self.client = object()
         self._candidate_job_ids = candidate_job_ids
+        self._has_computed = has_computed
+        self._new_jobs = new_jobs
+
+    def has_computed_matches(self, _user_id: str) -> bool:
+        return self._has_computed
+
+    def count_new_jobs_for_user(self, _user_id: str) -> int:
+        return self._new_jobs
+
+    def get_cached_match_evals(
+        self, _user_id: str, _job_ids: list[str], *, full: bool = False
+    ) -> dict[str, Any]:
+        return {}
 
     def get_user_skill_rows(self, _user_id: str) -> list[dict[str, Any]]:
         return [{"matched_level": 3, "skills": {"taxonomy_key": "Python (Programming Language)"}}]
@@ -187,9 +206,9 @@ class _FakeComputeJobsRepository:
 
 
 def test_compute_job_matches_includes_debug_on_cache_hit(monkeypatch: Any) -> None:
-    repo = _FakeComputeJobsRepository(candidate_job_ids=["job-1"])
-
-    monkeypatch.setattr(jobs_workflow.llm_ranker, "is_cache_valid", lambda *_args, **_kwargs: True)
+    # Returning user (has_computed=True) with nothing new since last compute
+    # (new_jobs=0) — the de-weekly, event-driven cache-hit case (Backlog #36).
+    repo = _FakeComputeJobsRepository(candidate_job_ids=["job-1"], has_computed=True, new_jobs=0)
 
     result = asyncio.run(jobs_workflow.compute_job_matches(repo, "user-1", date.today(), object()))  # type: ignore[arg-type]
 
@@ -201,11 +220,11 @@ def test_compute_job_matches_includes_debug_on_cache_hit(monkeypatch: Any) -> No
 
 
 def test_compute_job_matches_force_bypasses_cache(monkeypatch: Any) -> None:
-    """Paid Refresh (force=True) re-runs the brain even when a weekly cache exists."""
-    repo = _FakeComputeJobsRepository(candidate_job_ids=["job-1", "job-2"])
-
-    # Cache says "valid" — force must override and still compute.
-    monkeypatch.setattr(jobs_workflow.llm_ranker, "is_cache_valid", lambda *_a, **_k: True)
+    """Paid Refresh (force=True) re-runs the brain even when the cache-hit gate
+    would otherwise short-circuit (nothing new since last compute)."""
+    repo = _FakeComputeJobsRepository(
+        candidate_job_ids=["job-1", "job-2"], has_computed=True, new_jobs=0
+    )
 
     def _fake_get_top_matches(*_args: Any, **kwargs: Any) -> list[dict[str, Any]]:
         kwargs["debug"].update({"min_skill_overlap": 2, "qualified_jobs_count": 2})
@@ -236,8 +255,6 @@ def test_compute_job_matches_force_bypasses_cache(monkeypatch: Any) -> None:
 def test_compute_job_matches_includes_debug_when_no_candidates(monkeypatch: Any) -> None:
     repo = _FakeComputeJobsRepository(candidate_job_ids=[])
 
-    monkeypatch.setattr(jobs_workflow.llm_ranker, "is_cache_valid", lambda *_args, **_kwargs: False)
-
     result = asyncio.run(jobs_workflow.compute_job_matches(repo, "user-1", date.today(), object()))  # type: ignore[arg-type]
 
     assert result.kind == "exhausted"
@@ -252,8 +269,6 @@ def test_compute_job_matches_includes_debug_when_no_candidates(monkeypatch: Any)
 def test_compute_job_matches_includes_debug_on_success(monkeypatch: Any) -> None:
     repo = _FakeComputeJobsRepository(candidate_job_ids=["job-1", "job-2"])
     captured: dict[str, Any] = {}
-
-    monkeypatch.setattr(jobs_workflow.llm_ranker, "is_cache_valid", lambda *_args, **_kwargs: False)
 
     def _fake_get_top_matches(*_args: Any, **kwargs: Any) -> list[dict[str, Any]]:
         captured["top_n"] = kwargs.get("top_n")
@@ -289,8 +304,6 @@ def test_compute_job_matches_relaxes_exclusion_when_pool_emptied(monkeypatch: An
     re-ranks the full pool instead of refunding (XP is the only gate)."""
     repo = _FakeComputeJobsRepository(candidate_job_ids=["job-1", "job-2"])
 
-    monkeypatch.setattr(jobs_workflow.llm_ranker, "is_cache_valid", lambda *_a, **_k: False)
-
     def _fake_get_top_matches(*_a: Any, **kwargs: Any) -> list[dict[str, Any]]:
         kwargs["debug"].update({"min_skill_overlap": 2, "qualified_jobs_count": 2})
         return [
@@ -324,7 +337,6 @@ def test_compute_job_matches_exhausted_only_on_zero_overlap(monkeypatch: Any) ->
     """A genuinely empty candidate pool (no skill overlap at all) still
     refunds — the only honest exhausted case."""
     repo = _FakeComputeJobsRepository(candidate_job_ids=[])
-    monkeypatch.setattr(jobs_workflow.llm_ranker, "is_cache_valid", lambda *_a, **_k: False)
 
     result = asyncio.run(
         jobs_workflow.compute_job_matches(

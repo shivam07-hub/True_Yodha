@@ -18,6 +18,7 @@ from app.routers import (
     jobs,
     myrology,
     newsletter,
+    notifications,
     private_notes,
     newsletter_distribution,
     onboarding,
@@ -76,6 +77,7 @@ app.include_router(payments.router)
 app.include_router(myrology.router)
 app.include_router(job_switch_plan.router)
 app.include_router(newsletter.router)
+app.include_router(notifications.router)
 app.include_router(newsletter_distribution.router)
 app.include_router(onboarding.router)
 app.include_router(public.router)

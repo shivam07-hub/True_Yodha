@@ -111,6 +111,30 @@
   50% { box-shadow: 0 0 0 5px transparent; }
 }
 
+/* Indeterminate progress bar — the always-moving "still working" signal, so a
+   long real score never reads as a frozen screen. Compositor-only (transform). */
+.sc-bar {
+  position: relative;
+  overflow: hidden;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--lp-border);
+}
+.sc-bar-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 40%;
+  border-radius: 999px;
+  background: var(--lp-accent);
+  animation: sc-indeterminate 1.4s ease-in-out infinite;
+}
+@keyframes sc-indeterminate {
+  0%   { transform: translateX(-110%); }
+  100% { transform: translateX(360%); }
+}
+
 .sc-foot {
   margin: 16px 0 0;
   text-align: center;
@@ -121,4 +145,5 @@
 @media (prefers-reduced-motion: reduce) {
   .sc-scan { animation: none; opacity: 0; }
   .sc-stage.is-active .sc-dot { animation: none; }
+  .sc-bar-fill { animation: none; width: 100%; opacity: 0.6; }
 }

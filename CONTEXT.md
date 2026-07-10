@@ -226,7 +226,7 @@ The authenticated identity behind a request. One row in `auth.users`, surfaced i
 
 ## Job Refresh
 
-A user-initiated request to recompute the user's weekly Job Matches. Modelled as a discrete **action** — every click of the dashboard's "Refresh matches" button creates one Job Refresh, identified by a `ticket_id`. There is no per-week singleton; users may fire as many refreshes as their XP balance allows.
+A user-initiated request to recompute the user's Job Matches. Modelled as a discrete **action** — every click of the dashboard's "Refresh matches" button creates one Job Refresh, identified by a `ticket_id`. Users may fire as many refreshes as their XP balance allows. (Matching is **event-driven, not weekly** — Backlog #36: an eval is a permanent per-`(user, job)` fact, migration 20260710; a Job Refresh re-ranks that stack, it is not a per-week snapshot. Scrapes land continuously and trigger free auto-recompute for affected users; a manual Refresh is the user-pulled path.)
 
 **Economy**
 
@@ -386,7 +386,7 @@ A headless engine (`createTaxonomy({ fetch })`, the `field-motion.ts` precedent)
 **Boundary**
 
 - The demand `band` reuses market-wide demand (`weighted_demand` from `build_user_skill_demand`) — the same unscoped signal the Skills page reads — never a fresh per-page `jobCount`. The build-time generator is a thin adapter that exports that already-computed signal into `priority.json`.
-- Artifacts are forward-only: regenerated on the weekly scrape, committed, **not** wired into `prebuild` (no build-time DB coupling).
+- Artifacts are forward-only: regenerated on a scraper batch refresh, committed, **not** wired into `prebuild` (no build-time DB coupling).
 
 ## Job Intelligence
 
@@ -506,8 +506,9 @@ async def rank_one(profile, cv_markdown, job, provider) -> eval | None
 **Invariants**
 - `ranking` **delegates, never reimplements** — it calls the same `get_top_matches` + `evaluate_all` in the same order as the old inline duo. Persistence stays in `llm_ranker.persist_matches`; `rank`/`rank_one` write nothing.
 - `RankResult.evaluations` is empty when the brain is skipped (`use_brain=False` / `provider is None`) or every eval failed — the deterministic overlap scores still stand alone, so a brain outage degrades to overlap-only matching rather than an empty feed.
-- `budget` caps how many of the shortlist reach the brain (cost control). `None` = brain the whole shortlist = the weekly-batch behaviour. `rank_one` is the single-job on-demand path (a job opened/saved anywhere) whose result is **cached** into `user_job_matches` — never a per-request LLM call in bulk.
-- `compute_job_matches` (weekly / paid Refresh) routes through `rank`; the exhausted/refund gates and candidate-id fetching stay in `jobs_workflow` (DB-coupled), unchanged.
+- `budget` caps how many of the shortlist reach the brain (cost control). `None` = brain the whole shortlist = the batch-compute behaviour. `rank_one` is the single-job on-demand path (a job opened/saved anywhere) whose result is **cached** into `user_job_matches` — never a per-request LLM call in bulk.
+- `RankCandidates.eval_cache_fetcher` (Backlog #36) lets `rank` skip any shortlist job already evaluated for this user — a job is brain-rated **once per `(user, job)`, ever** (permanent identity, migration 20260710), never re-paid on a later compute. Omit it for the old always-eval behaviour.
+- `compute_job_matches` (the batch compute — CV upload, paid Refresh, or scrape-triggered sweep) routes through `rank`; the exhausted/refund gates and candidate-id fetching stay in `jobs_workflow` (DB-coupled), unchanged. Its skip gate is **event-driven** (has-ever-matched + nothing-new-since), not calendar-driven.
 
 ---
 

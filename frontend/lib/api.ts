@@ -492,6 +492,45 @@ export const users = {
     }),
 }
 
+// ── Notifications (Backlog #36 Slice 2) ─────────────────────────────────────
+
+/** One inbox row. `read_at` null = unread. For 'fresh_matches', `job_id` is the
+ *  top match carried in the ping and `match_count` how many landed. */
+export interface NotificationItem {
+  id: number
+  kind: string
+  title: string
+  body: string | null
+  job_id: string | null
+  match_count: number
+  read_at: string | null
+  created_at: string
+}
+
+export interface NotificationsResponse {
+  items: NotificationItem[]
+  unread_count: number
+}
+
+export const notifications = {
+  /** Cheap badge poll — the bell reads this often; the inbox loads only on open. */
+  unreadCount: (token: string) =>
+    request<{ count: number }>("/notifications/unread-count", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  list: (token: string) =>
+    request<NotificationsResponse>("/notifications", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  /** Mark specific notifications read, or all unread when `ids` is omitted. */
+  markRead: (token: string, ids?: number[]) =>
+    request<void>("/notifications/read", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(ids ? { ids } : {}),
+    }),
+}
+
 // ── Trustworthy onboarding ──────────────────────────────────────────────────
 
 export type OnboardingStage = "experience" | "target" | "result" | "generator"

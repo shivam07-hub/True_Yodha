@@ -215,18 +215,23 @@ async def compute_job_matches(
     force: bool = False,
     on_progress: Callable[[int, int, dict[str, Any]], None] | None = None,
 ) -> MatchComputeOutcome:
-    """Compute and persist the user's weekly Job Matches.
+    """Compute and persist the user's Job Matches (Backlog #36: permanent
+    per-(user,job) identity, not a weekly snapshot — see migration 20260710).
 
     No cooldown — XP economy gates concurrency at the Job Refresh seam.
     See CONTEXT.md "Job Refresh" for the policy decision.
 
-    `force=True` skips the weekly cache short-circuit: a paid Refresh always
+    `force=True` skips the cache short-circuit: a paid Refresh always
     re-runs the brain (the user chose to spend XP). The free CV-upload initial
     compute leaves `force=False` so it never re-charges work already done.
-    """
-    db = repo.client
 
-    if not force and llm_ranker.is_cache_valid(db, user_id, batch_week):
+    Backlog #36 (de-weekly): the skip gate is event-driven, not calendar-driven —
+    a returning user with NO new candidate jobs since their last compute is a
+    cache hit (nothing changed, don't re-run); a never-matched user always
+    computes (first match); a returning user WITH new jobs always computes (this
+    is what makes the scrape-triggered auto-update actually update something).
+    """
+    if not force and repo.has_computed_matches(user_id) and repo.count_new_jobs_for_user(user_id) == 0:
         return MatchComputeOutcome(
             kind="cache_hit",
             matches_written=0,
@@ -310,6 +315,9 @@ async def compute_job_matches(
             user_skill_map=user_skill_map,
             job_meta_fetcher=repo.get_jobs_by_ids,
             top_n=12,
+            # Backlog #36: reuse any prior eval for this user/job — never re-pay
+            # the LLM for a job already rated (permanent identity, mgr 20260710).
+            eval_cache_fetcher=lambda ids: repo.get_cached_match_evals(user_id, ids, full=True),
         ),
         provider=llm_provider,
         use_brain=True,
@@ -337,7 +345,7 @@ async def compute_job_matches(
         )
 
     written = llm_ranker.persist_matches(
-        db, user_id, batch_week, top_jobs, ranked.evaluations, profile
+        repo.client, user_id, batch_week, top_jobs, ranked.evaluations, profile
     )
     return MatchComputeOutcome(
         kind="written",

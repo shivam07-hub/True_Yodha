@@ -1,0 +1,190 @@
+/* Notification bell (Backlog #36 Slice 2) — token-only, mirrors the account-menu
+   chrome (tm-topbar-menu) so it reads as native, not a bolted-on widget. */
+
+.tm-bell {
+  position: relative;
+  display: inline-flex;
+}
+
+.tm-bell-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--tm-text-muted);
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+.tm-bell-btn:hover {
+  background: var(--tm-surface-2, var(--tm-surface));
+  border-color: var(--tm-border-soft);
+  color: var(--tm-text);
+}
+.tm-bell-btn[aria-expanded="true"] {
+  background: var(--tm-surface-2, var(--tm-surface));
+  border-color: var(--tm-border-soft);
+  color: var(--tm-text);
+}
+.tm-bell-btn:focus-visible {
+  outline: 2px solid var(--tm-accent);
+  outline-offset: 2px;
+}
+
+/* Neutral badge — count, not alarm (this app rejects red nav badges). */
+.tm-bell-badge {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--tm-accent-ink, #fff);
+  background: var(--tm-accent);
+  border: 1.5px solid var(--tm-bg-page, var(--tm-surface));
+}
+
+.tm-bell-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 29;
+}
+
+.tm-bell-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius-lg, 14px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+  animation: tm-bell-in 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes tm-bell-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.tm-bell-head {
+  padding: 12px 14px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tm-text);
+  border-bottom: 1px solid var(--tm-border-soft);
+}
+
+.tm-bell-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 26px 18px;
+  text-align: center;
+}
+.tm-bell-empty-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tm-text);
+}
+.tm-bell-empty-sub {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--tm-text-faint);
+}
+
+.tm-bell-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.tm-bell-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 10px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.tm-bell-row:hover {
+  background: var(--tm-surface-2, var(--tm-int-bg-wash));
+}
+.tm-bell-row.is-unread {
+  background: color-mix(in srgb, var(--tm-accent) 7%, transparent);
+}
+.tm-bell-row.is-unread:hover {
+  background: color-mix(in srgb, var(--tm-accent) 12%, transparent);
+}
+
+.tm-bell-dot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  margin-top: 5px;
+  border-radius: 999px;
+  background: transparent;
+}
+.tm-bell-dot[data-on="true"] {
+  background: var(--tm-accent);
+}
+
+.tm-bell-rowbody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tm-bell-rowtitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tm-text);
+}
+.tm-bell-rowmatch {
+  font-size: 12.5px;
+  color: var(--tm-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tm-bell-rowtime {
+  font-size: 11px;
+  color: var(--tm-text-faint);
+  font-family: var(--tm-font-mono);
+}
+
+.tm-bell-go {
+  flex: 0 0 auto;
+  align-self: center;
+  color: var(--tm-text-faint);
+  font-size: 14px;
+}
+.tm-bell-row:hover .tm-bell-go {
+  color: var(--tm-accent-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tm-bell-panel { animation: none; }
+}

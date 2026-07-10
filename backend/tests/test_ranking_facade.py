@@ -18,6 +18,7 @@ def _candidates(**over: Any) -> ranking.RankCandidates:
         user_skill_map=over.get("skills", {"python": 3}),
         job_meta_fetcher=over.get("fetch", lambda _ids: []),
         top_n=over.get("top_n", 12),
+        eval_cache_fetcher=over.get("eval_cache_fetcher"),
     )
 
 
@@ -116,6 +117,75 @@ def test_rank_falls_back_to_profile_cv(monkeypatch: Any) -> None:
     # Empty explicit cv → the facade falls back to profile["cv_markdown"].
     asyncio.run(ranking.rank({"cv_markdown": "PROFILE CV"}, "", _candidates(), provider=object()))  # type: ignore[arg-type]
     assert captured["cv"] == "PROFILE CV"
+
+
+def test_rank_reuses_cached_eval_never_calls_brain_for_it(monkeypatch: Any) -> None:
+    """Backlog #36: a job already evaluated for this user (permanent per-(user,
+    job) identity) is NEVER re-sent to the LLM — its cached row is reused as-is,
+    only the genuinely uncached job reaches evaluate_all."""
+    monkeypatch.setattr(ranking.job_matcher, "get_top_matches", lambda *_a, **_k: _two_top_jobs())
+    captured: dict[str, Any] = {}
+
+    async def _brain(_profile: Any, jobs: list[dict[str, Any]], _prov: Any, _cb: Any) -> dict[str, Any]:
+        captured["ids"] = [j["job_id"] for j in jobs]
+        return {j["job_id"]: {"overall_score": 9.0} for j in jobs}
+
+    monkeypatch.setattr(ranking.llm_ranker, "evaluate_all", _brain)
+
+    def _cache_fetcher(job_ids: list[str]) -> dict[str, dict[str, Any]]:
+        assert set(job_ids) == {"j1", "j2"}
+        return {"j1": {"overall_score": 4.2, "grade": "B"}}  # j1 already rated
+
+    result = asyncio.run(
+        ranking.rank(
+            {}, "cv", _candidates(eval_cache_fetcher=_cache_fetcher), provider=object(), use_brain=True  # type: ignore[arg-type]
+        )
+    )
+
+    assert captured["ids"] == ["j2"]  # only the uncached job reached the brain
+    assert result.evaluations["j1"] == {"overall_score": 4.2, "grade": "B"}  # cached row reused verbatim
+    assert result.evaluations["j2"]["overall_score"] == 9.0
+
+
+def test_rank_ignores_cached_row_with_no_verdict(monkeypatch: Any) -> None:
+    """A cached row with overall_score=None (brain never actually ran on it —
+    e.g. a stale overlap-only row) does not count as 'already evaluated'."""
+    monkeypatch.setattr(ranking.job_matcher, "get_top_matches", lambda *_a, **_k: _two_top_jobs())
+    captured: dict[str, Any] = {}
+
+    async def _brain(_profile: Any, jobs: list[dict[str, Any]], _prov: Any, _cb: Any) -> dict[str, Any]:
+        captured["ids"] = [j["job_id"] for j in jobs]
+        return {}
+
+    monkeypatch.setattr(ranking.llm_ranker, "evaluate_all", _brain)
+
+    def _cache_fetcher(_job_ids: list[str]) -> dict[str, dict[str, Any]]:
+        return {"j1": {"overall_score": None}}
+
+    asyncio.run(
+        ranking.rank(
+            {}, "cv", _candidates(eval_cache_fetcher=_cache_fetcher), provider=object(), use_brain=True  # type: ignore[arg-type]
+        )
+    )
+
+    assert set(captured["ids"]) == {"j1", "j2"}  # both still reach the brain
+
+
+def test_rank_no_cache_fetcher_evaluates_everything(monkeypatch: Any) -> None:
+    """Callers that omit eval_cache_fetcher (e.g. rank_one's caller) get the old
+    always-eval behaviour — back-compat, no cache lookup attempted."""
+    monkeypatch.setattr(ranking.job_matcher, "get_top_matches", lambda *_a, **_k: _two_top_jobs())
+    captured: dict[str, Any] = {}
+
+    async def _brain(_profile: Any, jobs: list[dict[str, Any]], _prov: Any, _cb: Any) -> dict[str, Any]:
+        captured["ids"] = [j["job_id"] for j in jobs]
+        return {}
+
+    monkeypatch.setattr(ranking.llm_ranker, "evaluate_all", _brain)
+
+    asyncio.run(ranking.rank({}, "cv", _candidates(), provider=object(), use_brain=True))  # type: ignore[arg-type]
+
+    assert set(captured["ids"]) == {"j1", "j2"}
 
 
 def test_rank_one_delegates_to_evaluate_job(monkeypatch: Any) -> None:

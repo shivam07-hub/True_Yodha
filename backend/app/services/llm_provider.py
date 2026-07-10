@@ -34,6 +34,23 @@ _OR_BASE = "https://openrouter.ai/api/v1"
 _GROQ_BASE = "https://api.groq.com/openai/v1"
 _GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/openai/"
 
+
+def _make_client(api_key: str, base_url: str, headers: dict | None = None) -> AsyncOpenAI:
+    """Every provider client carries an explicit per-request timeout and NO
+    SDK-level retries. Without the timeout the SDK default (600s) governs, so one
+    stalled provider blocks a user-facing call for minutes before the fallback
+    ladder can reach the fast lane. `max_retries=0` hands retry control to the
+    app loop (`llm_transient_retries`) so a single click can't silently fan out."""
+    kwargs: dict = dict(
+        api_key=api_key,
+        base_url=base_url,
+        timeout=settings.llm_request_timeout_seconds,
+        max_retries=0,
+    )
+    if headers:
+        kwargs["default_headers"] = headers
+    return AsyncOpenAI(**kwargs)
+
 # OpenRouter caps the `models` fallback array at this length per call.
 OR_MAX_MODELS_PER_CALL = 3
 
@@ -135,19 +152,22 @@ class LLMProvider:
                     logger.warning("LLM provider %s returned empty response — trying next", model)
                     break  # empty is not retryable on the same model
                 except Exception as exc:
-                    transient = llm_budget.is_transient(exc)
-                    if transient and attempt < max_retries:
+                    # Only a 429 is worth retrying the SAME provider (with backoff /
+                    # Retry-After). A timeout / dropped connection / 5xx means it is
+                    # stalled or down — retrying it just burns the user's wait, so
+                    # fall through to the next (faster) provider immediately.
+                    if llm_budget.is_rate_limited(exc) and attempt < max_retries:
                         delay = llm_budget.backoff_delay(
                             attempt, llm_budget.retry_after_seconds(exc)
                         )
                         logger.warning(
-                            "LLM provider %s transient failure (%s) — retry %d/%d in %.1fs",
-                            model, type(exc).__name__, attempt + 1, max_retries, delay,
+                            "LLM provider %s rate-limited — retry %d/%d in %.1fs",
+                            model, attempt + 1, max_retries, delay,
                         )
                         await asyncio.sleep(delay)
                         continue
                     logger.warning("LLM provider %s failed: %s — trying next", model, exc)
-                    break  # exhausted retries or non-transient → next provider
+                    break  # rate-limit exhausted or stalled/down → next provider
         raise LLMProviderError("All LLM providers failed")
 
     async def stream_complete(
@@ -201,19 +221,18 @@ class LLMProvider:
                         raise LLMProviderError(
                             f"Stream interrupted on {model}: {exc}"
                         ) from exc
-                    transient = llm_budget.is_transient(exc)
-                    if transient and attempt < max_retries:
+                    if llm_budget.is_rate_limited(exc) and attempt < max_retries:
                         delay = llm_budget.backoff_delay(
                             attempt, llm_budget.retry_after_seconds(exc)
                         )
                         logger.warning(
-                            "LLM stream %s transient failure (%s) — retry %d/%d in %.1fs",
-                            model, type(exc).__name__, attempt + 1, max_retries, delay,
+                            "LLM stream %s rate-limited — retry %d/%d in %.1fs",
+                            model, attempt + 1, max_retries, delay,
                         )
                         await asyncio.sleep(delay)
                         continue
                     logger.warning("LLM stream %s failed pre-token: %s — trying next", model, exc)
-                    break  # exhausted retries or non-transient → next provider
+                    break  # rate-limit exhausted or stalled/down → next provider
         raise LLMProviderError("All LLM providers failed to stream")
 
 
@@ -222,11 +241,7 @@ def _append_openrouter_tiers(
     or_tiers: list[list[str]],
 ) -> None:
     if settings.openrouter_api_key:
-        or_client = AsyncOpenAI(
-            api_key=settings.openrouter_api_key,
-            base_url=_OR_BASE,
-            default_headers=_OR_HEADERS,
-        )
+        or_client = _make_client(settings.openrouter_api_key, _OR_BASE, _OR_HEADERS)
         for tier in or_tiers:
             providers.append((or_client, tier[0], {"models": tier}))
 
@@ -237,13 +252,13 @@ def _append_fast_direct(providers: list[_ProviderEntry]) -> None:
     rate-limit retries. The shared spine of every user-blocking provider."""
     if settings.groq_api_key:
         providers.append((
-            AsyncOpenAI(api_key=settings.groq_api_key, base_url=_GROQ_BASE),
+            _make_client(settings.groq_api_key, _GROQ_BASE),
             GROQ_FALLBACK_MODEL,
             None,
         ))
     if settings.google_api_key:
         providers.append((
-            AsyncOpenAI(api_key=settings.google_api_key, base_url=_GEMINI_BASE),
+            _make_client(settings.google_api_key, _GEMINI_BASE),
             "gemini-2.0-flash-lite",
             None,
         ))
@@ -254,13 +269,13 @@ def _build_provider(or_tiers: list[list[str]]) -> LLMProvider:
     _append_openrouter_tiers(providers, or_tiers)
     if settings.groq_api_key:
         providers.append((
-            AsyncOpenAI(api_key=settings.groq_api_key, base_url=_GROQ_BASE),
+            _make_client(settings.groq_api_key, _GROQ_BASE),
             GROQ_FALLBACK_MODEL,
             None,
         ))
     if settings.google_api_key:
         providers.append((
-            AsyncOpenAI(api_key=settings.google_api_key, base_url=_GEMINI_BASE),
+            _make_client(settings.google_api_key, _GEMINI_BASE),
             "gemini-2.0-flash-lite",
             None,
         ))

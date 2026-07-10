@@ -132,7 +132,7 @@ export default function CvPreviewPage() {
             {slow && (
               <div style={{ maxWidth: 560, margin: "18px auto 0", textAlign: "center" }}>
                 <p style={{ fontSize: 13, color: "var(--tm-text-muted)", marginBottom: 10 }}>
-                  Taking longer than usual — your network may be slow. You can paste your CV text instead.
+                  This is taking longer than usual. You can keep waiting, or paste your CV text to score it instantly.
                 </p>
                 <button
                   type="button"
