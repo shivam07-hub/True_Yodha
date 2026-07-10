@@ -1888,6 +1888,34 @@ class JobsRepository:
             out.append(item)
         return out
 
+    def replace_agent_picks(
+        self, user_id: str, picks: list[dict[str, Any]], scrape_batch: int | None = None
+    ) -> int:
+        """Cut a fresh Agent Picks set for one user (Backlog #36 N5 auto-gen).
+
+        Picks are a per-scrape recommendation set (migration 20260709), so a new
+        generation REPLACES the prior one wholesale — delete-then-insert, not an
+        upsert-and-orphan. Service-role only (the table has no client write
+        policy). `picks` are already selected + ranked by the agent_picks service;
+        an empty list clears the band. Returns rows written.
+        """
+        self._admin_db.table("user_agent_job_picks").delete().eq("user_id", user_id).execute()
+        if not picks:
+            return 0
+        rows = [
+            {
+                "user_id": user_id,
+                "job_id": str(p["job_id"]),
+                "agent_rank": int(p["agent_rank"]),
+                "tier": p.get("tier"),
+                "comment": p["comment"],
+                "scrape_batch": scrape_batch,
+            }
+            for p in picks
+        ]
+        self._admin_db.table("user_agent_job_picks").insert(rows).execute()
+        return len(rows)
+
     def user_target_locations(self, user_id: str) -> list[str]:
         """The user's saved multi-location preference (freeform labels).
 

@@ -219,7 +219,8 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
       <PlaygroundHeader
         variant="master"
         brandLabel="CV Playground"
-        masterMeta="Free preview · nothing saved"
+        masterMeta="Match this CV to jobs →"
+        onMeta={() => signup.open({ surface: "manual", next: NEXT, source: "cv_preview_match" })}
         scoreCaption="/100 · your CV score"
         jobTitle="" company="Untitled company" reqCount={0}
         ready={result.score} delta={0}

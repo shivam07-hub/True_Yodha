@@ -69,6 +69,8 @@ interface PlaygroundHeaderProps {
   variant?: "job" | "master"
   /** Master/anon context line, e.g. "v78 · autosaves" or "Free preview". */
   masterMeta?: string
+  /** When set, masterMeta renders as a clickable pill (anon → sign-in invite). */
+  onMeta?: () => void
   /** Primary button label (default "Apply with this CV"; master → "Done"). */
   primaryLabel?: string
   /** Hide the ⋯ overflow (master keeps download in the view-mode surface). */
@@ -86,7 +88,7 @@ interface PlaygroundHeaderProps {
 export function PlaygroundHeader({
   jobTitle, company, reqCount, ready, delta, canApply, applyHint, saveState,
   onBack, onReqPill, onApply, onDownload,
-  variant = "job", masterMeta, primaryLabel = "Apply with this CV", hideOverflow,
+  variant = "job", masterMeta, onMeta, primaryLabel = "Apply with this CV", hideOverflow,
   brandLabel, scoreCaption, worthIt,
 }: PlaygroundHeaderProps) {
   const shown = useCountUp(ready)
@@ -101,7 +103,9 @@ export function PlaygroundHeader({
       <span className="cvb-v2-brand">{brandLabel ?? (isMaster ? "Main CV" : "CV Playground")}</span>
       <span className="cvb-v2-headrule" aria-hidden />
       {isMaster ? (
-        masterMeta && <span className="cvb-v2-jobline mono" title={masterMeta}>{masterMeta}</span>
+        masterMeta && (onMeta
+          ? <button type="button" className="cvb-v2-reqpill mono" onClick={onMeta}>{masterMeta}</button>
+          : <span className="cvb-v2-jobline mono" title={masterMeta}>{masterMeta}</span>)
       ) : (
         <>
           <span className="cvb-v2-jobline" title={`${jobTitle} · ${company}`}>

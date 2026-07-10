@@ -187,6 +187,7 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
         open={!!detailId}
         onClose={() => setDetailId(null)}
         data={detailData}
+        token={token}
         onHeart={() => detailItem && doSave(detailItem, true)}
         onSkip={() => detailItem && doSkip(detailItem, true)}
         onTailor={() => detailItem && doTailor(detailItem.job_id)}

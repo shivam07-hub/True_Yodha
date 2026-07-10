@@ -1,4 +1,5 @@
 import type { CompanyJobCard, JobFeedItem, JobMatch } from "@/lib/api"
+import { matchFitScore, verdictMove } from "@/lib/jobs/match-verdict"
 
 /**
  * A skill pill on a feed card.
@@ -75,17 +76,13 @@ export interface FeedMove {
   kind: "go" | "gap"
 }
 
-/** The move a warmed card recommends, from its verdict + how many skills it needs
- *  the CV to grow. Strong/Worth-it → tailor & apply; Stretch → close the gaps. */
+/** The move a warmed card recommends — the canonical verdict→intent
+ *  (`verdictMove`), fed the count of required skills the CV doesn't cover. Both
+ *  this and the mobile row read the ONE mapping, so the directive never drifts. */
 function marketMove(job: JobFeedItem, hasCv: boolean): FeedMove | undefined {
-  const v = job.verdict
-  if (!v || v === "checking") return undefined
-  if (v === "strong" || v === "worth_it") return { label: "Tailor & apply", kind: "go" }
-  // stretch → name the real work. Count the required skills the CV doesn't cover.
   const matched = new Set((job.matched_skills ?? []).map((s) => s.toLowerCase()))
   const gaps = hasCv ? job.skills.filter((s) => !matched.has(s.toLowerCase())).length : 0
-  if (gaps > 0) return { label: `Close ${gaps} gap${gaps === 1 ? "" : "s"} first`, kind: "gap" }
-  return { label: "A stretch for now", kind: "gap" }
+  return verdictMove(job.verdict, gaps) ?? undefined
 }
 
 /**
@@ -227,7 +224,7 @@ export function feedDataFromFeedItem(
     // When the brain has ranked this card it carries a verdict → show the score
     // ring + verdict word (the "judge"); otherwise fall back to the overlap signal.
     fit: job.verdict && job.verdict !== "checking"
-      ? { kind: "score", value: job.match_score ?? 0, verdict: job.verdict }
+      ? { kind: "score", value: matchFitScore(job), verdict: job.verdict }
       : marketFit(job, hasCv),
     move: marketMove(job, hasCv),
   }
