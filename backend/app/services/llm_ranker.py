@@ -13,7 +13,9 @@ per-user profile (target_roles + location). See docs/MATCHING_BRAIN_CHANGE.md.
 Cost control:
   - One LLM call PER job over the top ~12 — richer but pricier than the old single
     batched call. XP economy bump is deferred (measure first).
-  - Result cached in user_job_matches for the user/week; invalidated on CV upload.
+  - Result cached in user_job_matches permanently per (user, job) — Backlog #36
+    de-weekly; reused across scrapes/opens, overwritten on re-eval (CV upload,
+    force refresh).
 
 Provider chain is managed by LLMProvider (services/llm_provider.py).
 Called from: the Job Refresh seam (services/job_refresh/) and the
@@ -40,25 +42,6 @@ _LEGITIMACY_TIERS = {"high_confidence", "caution", "suspicious"}
 # Bound on concurrent per-job LLM calls. Keep low — the provider chain fails over
 # per call and free tiers rate-limit. See docs/MATCHING_BRAIN_CHANGE.md risks.
 _CONCURRENCY = 3
-
-
-# ── Cache check ───────────────────────────────────────────────────────────────
-
-def has_matches_this_week(db: Client, user_id: str, batch_week: date) -> bool:
-    """Returns True if any matches exist for this user/week."""
-    result = (
-        db.table("user_job_matches")
-        .select("job_id")
-        .eq("user_id", user_id)
-        .eq("batch_week", str(batch_week))
-        .limit(1)
-        .execute()
-    )
-    return bool(result.data)
-
-
-def is_cache_valid(db: Client, user_id: str, batch_week: date) -> bool:
-    return has_matches_this_week(db, user_id, batch_week)
 
 
 # ── Prompt building ───────────────────────────────────────────────────────────
@@ -363,8 +346,11 @@ def persist_matches(
         })
 
     if rows:
+        # Permanent per-(user,job) identity (Backlog #36 de-weekly; migration
+        # 20260710) — re-evaluating a job upserts the same row instead of
+        # stacking a duplicate per week.
         db.table("user_job_matches").upsert(
-            rows, on_conflict="user_id,job_id,batch_week"
+            rows, on_conflict="user_id,job_id"
         ).execute()
 
     return len(rows)

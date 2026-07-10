@@ -43,6 +43,9 @@ SKILL_DRILL_DEFAULT_PAGE_SIZE = 50
 # A posting the scraper hasn't re-confirmed live in this many days is flagged
 # stale on job cards. Below the scraper's 45-day hard-delist so it warns first.
 STALE_AFTER_DAYS = 21
+# .in_() serialises each id into the URL query string — cap batch size so a huge
+# scrape's job_id list can't blow the PostgREST URL length limit (Backlog #36).
+_SWEEP_IN_CHUNK_SIZE = 200
 _ANALYTICS_TTL = 7 * 24 * 3600  # 7 days — jobs scraped weekly
 _SEARCH_TTL = 24 * 3600          # 1 day — job listings stale tolerance
 _COMPANY_SEARCH_TTL = 24 * 3600  # 1 day — scraped companies change with the job feed
@@ -2202,6 +2205,23 @@ class JobsRepository:
     def count_new_jobs_since(self, marker: int) -> int:
         return count_jobs_first_seen_after(self._db, marker)
 
+    def has_computed_matches(self, user_id: str) -> bool:
+        """Cheap existence check — has this user EVER had a match computed?
+
+        Backlog #36 (de-weekly): distinguishes "never matched" (must always
+        compute) from "matched, nothing new since" (safe to skip) — the two
+        cases `count_new_jobs_for_user` alone can't tell apart (it returns 0
+        for both a never-matched user and a fully-caught-up one).
+        """
+        rows = (
+            self._db.table("user_job_matches")
+            .select("job_id")
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        ).data or []
+        return bool(rows)
+
     def count_new_jobs_for_user(self, user_id: str) -> int:
         """New live jobs (first_seen) inserted since this user's last match compute.
 
@@ -2222,6 +2242,74 @@ class JobsRepository:
         if computed_at is None:
             return 0
         return self.count_new_jobs_since(int(computed_at.strftime("%Y%m%d")))
+
+    def get_new_job_ids_since(self, marker: int) -> list[str]:
+        """Job ids inserted (first_seen, YYYYMMDD) strictly after `marker`.
+
+        Backlog #36 (event-driven scrape): the deterministic candidate set for a
+        sweep — jobs a fresh scrape actually added, not a re-crawl/re-publish of
+        the same rows (see `count_jobs_first_seen_after`)."""
+        rows = fetch_all_rows(
+            self._db,
+            table="jobs",
+            columns="job_id",
+            query_builder=lambda q: q.eq("is_active", True).gt("first_seen", marker),
+        )
+        return [r["job_id"] for r in rows if r.get("job_id")]
+
+    def get_affected_user_ids(self, job_ids: list[str], *, limit: int) -> list[str]:
+        """Deterministic pre-filter (Backlog #36 N4): users whose CV skills
+        overlap ANY of the given (newly-scraped) job_ids, priority-ordered —
+        users who follow one of the new jobs' companies (the scrape likely ran
+        FOR them) come first, everyone else after — capped at `limit`.
+
+        This is the cheap SQL gate that turns "every user" into "the few
+        genuinely affected", before any LLM eval is queued. Bounded by `limit`
+        so a hot-company scrape can't blow the shared LLM budget in one sweep.
+        """
+        if not job_ids or limit <= 0:
+            return []
+
+        js_rows = fetch_all_rows(
+            self._db,
+            table="job_skills",
+            columns="skill_id",
+            query_builder=lambda q: q.in_("job_id", job_ids[:_SWEEP_IN_CHUNK_SIZE]),
+        )
+        skill_ids = list({r["skill_id"] for r in js_rows if r.get("skill_id")})
+        if not skill_ids:
+            return []
+
+        us_rows = fetch_all_rows(
+            self._db,
+            table="user_skills",
+            columns="user_id",
+            query_builder=lambda q: q.in_("skill_id", skill_ids),
+        )
+        affected = list({r["user_id"] for r in us_rows if r.get("user_id")})
+        if not affected:
+            return []
+
+        company_rows = (
+            self._db.table("jobs")
+            .select("company_name")
+            .in_("job_id", job_ids[:_SWEEP_IN_CHUNK_SIZE])
+            .execute()
+        ).data or []
+        companies = list({r["company_name"] for r in company_rows if r.get("company_name")})
+        power_ids: set[str] = set()
+        if companies:
+            follow_rows = (
+                self._db.table("followed_companies")
+                .select("user_id")
+                .in_("company_name", companies)
+                .in_("user_id", affected)
+                .execute()
+            ).data or []
+            power_ids = {r["user_id"] for r in follow_rows if r.get("user_id")}
+
+        ordered = sorted(affected, key=lambda uid: uid not in power_ids)  # power users first
+        return ordered[:limit]
 
     def get_dismissed_job_card_ids(self, user_id: str) -> list[str]:
         result = (
@@ -2353,10 +2441,10 @@ class JobsRepository:
 
         Uses the admin client so a token-scoped read repo can still persist the
         brain result (RLS on user_job_matches is owner-select; writes are service
-        paths). Same conflict key as the batch persister — one row per user/job/week.
-        """
+        paths). Same conflict key as the batch persister — one row per user/job,
+        permanent (Backlog #36 de-weekly; migration 20260710)."""
         self._admin_db.table("user_job_matches").upsert(
-            row, on_conflict="user_id,job_id,batch_week"
+            row, on_conflict="user_id,job_id"
         ).execute()
 
     def dismiss_dashboard_job_card(self, user_id: str, job_id: str) -> None:
@@ -2491,7 +2579,7 @@ class JobsRepository:
     def upsert_job_match(self, user_id: str, job_id: str, data: dict[str, Any]) -> None:
         self._admin_db.table("user_job_matches").upsert(
             {"user_id": user_id, "job_id": job_id, **data},
-            on_conflict="user_id,job_id,batch_week",
+            on_conflict="user_id,job_id",
         ).execute()
 
     # ── Q8 deepeners — XP-gated follow-up answers, cached per (user, job, prompt)

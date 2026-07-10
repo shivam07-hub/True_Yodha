@@ -28,7 +28,13 @@ async def _trigger_initial_match_compute(
     *,
     force_context_refresh: bool = False,
 ) -> None:
-    """Fire-and-forget: compute first 5 matches after CV upload (free welcome bonus)."""
+    """Fire-and-forget: compute first 5 matches after CV upload (free welcome bonus).
+
+    Backlog #36 (de-weekly): no separate "matched this week?" pre-check — that
+    used to be a `batch_week`-scoped short-circuit which would wrongly re-fire a
+    full compute on a week rollover. `compute_job_matches`'s own cache-hit gate
+    (has this user ever matched + anything new since?) is the single source of
+    truth for "is there anything to do here" and already handles this."""
     try:
         from app.repositories.jobs import JobsRepository
         from app.services.llm_provider import get_llm_provider
@@ -36,18 +42,13 @@ async def _trigger_initial_match_compute(
 
         admin_db = get_supabase_admin()
         jobs_repo = JobsRepository(admin_db, admin_db)
-        batch_week = last_monday()
-
-        existing = jobs_repo.get_existing_match_job_ids(user_id, batch_week)
-        if existing and not force_context_refresh:
-            return
         if force_context_refresh:
             jobs_repo.clear_recommendations(user_id)
 
         await jobs_workflow.compute_job_matches(
             repo=jobs_repo,
             user_id=user_id,
-            batch_week=batch_week,
+            batch_week=last_monday(),
             llm_provider=get_llm_provider(),
             excluded_job_ids=[],
             force=force_context_refresh,

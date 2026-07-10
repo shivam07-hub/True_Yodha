@@ -47,6 +47,11 @@ class RankCandidates:
     user_skill_map: dict[str, int]
     job_meta_fetcher: Callable[[list[str]], list[dict[str, Any]]]
     top_n: int = 12
+    # Backlog #36 (brain-everywhere, cost control): looks up already-cached evals
+    # for a batch of job_ids (typically JobsRepository.get_cached_match_evals).
+    # Optional — omit for the old always-eval behaviour (on-demand rank_one path
+    # doesn't need it, it has its own cache check one level up).
+    eval_cache_fetcher: Callable[[list[str]], dict[str, dict[str, Any]]] | None = None
 
 
 @dataclass(frozen=True)
@@ -77,8 +82,14 @@ async def rank(
 
     ``use_brain=False`` or ``provider is None`` → deterministic-only (overlap
     scores, no evals). ``budget`` caps how many of the shortlist reach the brain
-    (cost control for on-demand callers); ``None`` = brain every shortlisted job,
-    which is the weekly-batch behaviour.
+    (cost control for on-demand callers); ``None`` = brain every shortlisted job.
+
+    Backlog #36 (brain-everywhere, cost control): when ``jobs.eval_cache_fetcher``
+    is given, a job already evaluated for this user (any prior run — permanent
+    per-(user,job) identity, migration 20260710) is NEVER re-sent to the LLM; its
+    cached row is reused verbatim. Only genuinely new/uncached jobs reach
+    ``evaluate_all``. This is what makes rating "as much as possible" affordable —
+    every job is brain-evaluated once, ever, not once per compute call.
     """
     top_jobs = job_matcher.get_top_matches(
         jobs.job_skill_rows,
@@ -92,9 +103,27 @@ async def rank(
         return RankResult(top_jobs=top_jobs, evaluations={})
 
     brain_jobs = top_jobs if budget is None else top_jobs[: max(0, budget)]
+
+    cached_evals: dict[str, dict[str, Any]] = {}
+    if jobs.eval_cache_fetcher is not None:
+        job_ids = [str(j["job_id"]) for j in brain_jobs]
+        cached_evals = jobs.eval_cache_fetcher(job_ids)
+    # A cached row must carry a real verdict (overall_score) to count as "already
+    # evaluated" — a stale overlap-only row (brain never ran) still needs rating.
+    cached_evals = {k: v for k, v in cached_evals.items() if v.get("overall_score") is not None}
+    uncached_jobs = [j for j in brain_jobs if str(j["job_id"]) not in cached_evals]
+    if debug is not None:
+        debug["brain_cache_hits"] = len(cached_evals)
+        debug["brain_cache_misses"] = len(uncached_jobs)
+
     eval_profile = _eval_profile(profile, cv_markdown)
-    evaluations = await llm_ranker.evaluate_all(eval_profile, brain_jobs, provider, on_progress)
-    if not evaluations:
+    new_evaluations = (
+        await llm_ranker.evaluate_all(eval_profile, uncached_jobs, provider, on_progress)
+        if uncached_jobs
+        else {}
+    )
+    evaluations = {**cached_evals, **new_evaluations}
+    if not evaluations and brain_jobs:
         logger.warning("JobRanking: all brain evals failed — deterministic scores only")
     return RankResult(top_jobs=top_jobs, evaluations=evaluations)
 
