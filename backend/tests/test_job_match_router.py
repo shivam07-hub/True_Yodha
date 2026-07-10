@@ -18,6 +18,7 @@ class _FakeJobsRepo:
         self._new_jobs = new_jobs
         self._agent_picks = agent_picks or []
         self.count_markers: list[int] = []
+        self.exposures: list[tuple[str, str, list[str]]] = []
 
     def get_agent_picks(self, user_id: str) -> list[dict]:
         return self._agent_picks
@@ -37,6 +38,14 @@ class _FakeJobsRepo:
     def count_new_jobs_since(self, marker: int) -> int:
         self.count_markers.append(marker)
         return self._new_jobs
+
+    def record_recommendation_exposures(
+        self, user_id: str, rows: list[dict], *, surface: str
+    ) -> int:
+        self.exposures.append(
+            (user_id, surface, [str(row["job_id"]) for row in rows])
+        )
+        return len(rows)
 
 
 def test_matches_new_jobs_count_skipped_when_never_matched() -> None:
@@ -73,6 +82,7 @@ def test_matches_new_jobs_count_uses_first_seen_marker() -> None:
     assert response.json()["new_jobs_count"] == 7
     # Match date 2026-06-04 → YYYYMMDD int marker; count is "strictly after".
     assert repo.count_markers == [20260604]
+    assert repo.exposures == [("u1", "dashboard", ["j1"])]
 
 
 def test_agent_picks_empty_when_no_picks() -> None:
@@ -126,6 +136,7 @@ def test_agent_picks_returns_curated_shortlist_with_comment() -> None:
     assert pick["agent_rank"] == 1
     assert pick["agent_tier"] == "bullseye"
     assert pick["agent_comment"] == "A direct mirror of your growth work."
+    assert repo.exposures == [("u1", "agent_pick", ["j1"])]
 
 
 def test_dismiss_match_card_marks_card_removed_for_current_user() -> None:

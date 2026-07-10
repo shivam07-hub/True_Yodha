@@ -3,13 +3,19 @@
 import * as React from "react"
 import { jobs, type FeedbackSurface } from "@/lib/api"
 import { resolveApplyTarget, type ApplyTarget } from "@/lib/jobs/apply-transport"
+import {
+  enqueueFeedback,
+  feedbackOutboxKey,
+  feedbackReasonForLiveness,
+  flushFeedbackOutbox,
+} from "@/lib/jobs/feedback-outbox"
 
 /**
  * Apply Transport (behaviour half) — the one seam every "leave to apply" flows
  * through. It resolves the destination, arms the click-verified liveness capture
  * in the same act (so no surface can transport a user without asking), and on a
- * "gone" answer fires the `apply_link_closed` quality signal that feeds Job
- * Intelligence → Listing Confidence → the crowd-sourced ghost count on the card.
+ * Both answers enter a retrying outbox: `apply_link_live` can re-verify a role,
+ * while `apply_link_closed` feeds the retirement path and ghost signal.
  *
  * Headless by design: it emits `state` (`idle | asking | gone`) and handlers;
  * each design system renders its own band via a presentational adapter
@@ -52,6 +58,27 @@ export function useApplyCapture({
   const appliedAt = React.useRef<number | null>(null)
   const [state, setState] = React.useState<CaptureState>("idle")
   const answered = React.useRef(false)
+  const outboxKey = React.useMemo(() => feedbackOutboxKey(token), [token])
+
+  const flushFeedback = React.useCallback(() => {
+    if (typeof window === "undefined") return Promise.resolve()
+    return flushFeedbackOutbox(window.localStorage, outboxKey, input =>
+      jobs.submitFeedback(token, input),
+    )
+  }, [outboxKey, token])
+
+  React.useEffect(() => {
+    void flushFeedback()
+    const onOnline = () => void flushFeedback()
+    window.addEventListener("online", onOnline)
+    return () => window.removeEventListener("online", onOnline)
+  }, [flushFeedback])
+
+  React.useEffect(() => {
+    answered.current = false
+    appliedAt.current = null
+    setState("idle")
+  }, [job.job_id])
 
   React.useEffect(() => {
     const onVisible = () => {
@@ -77,25 +104,24 @@ export function useApplyCapture({
 
   const answer = React.useCallback(
     (live: boolean) => {
+      if (answered.current) return
       answered.current = true
       if (live) {
         setState("idle")
-        return
+      } else {
+        setState("gone")
       }
-      setState("gone")
-      void jobs
-        .submitFeedback(token, {
-          client_event_id: crypto.randomUUID(),
-          job_id: job.job_id,
-          feedback_kind: "quality",
-          reason_code: "apply_link_closed",
-          surface,
-        })
-        .catch(() => {
-          /* best-effort — a failed signal never disturbs the apply flow */
-        })
+      if (typeof window === "undefined") return
+      enqueueFeedback(window.localStorage, outboxKey, {
+        client_event_id: crypto.randomUUID(),
+        job_id: job.job_id,
+        feedback_kind: "quality",
+        reason_code: feedbackReasonForLiveness(live),
+        surface,
+      })
+      void flushFeedback()
     },
-    [token, job.job_id, surface],
+    [flushFeedback, job.job_id, outboxKey, surface],
   )
 
   const findSimilar = React.useCallback(() => {

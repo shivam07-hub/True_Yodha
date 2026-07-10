@@ -53,6 +53,9 @@ def get_job_matches(
     batch_week = last_monday()
     rows = repo.get_user_match_stack(principal.id)
     jobs = [to_job_match(row, batch_week) for row in rows]
+    repo.record_recommendation_exposures(
+        principal.id, rows, surface="dashboard"
+    )
 
     feed_ts_raw = repo.get_feed_updated_at()
     feed_updated_at = datetime.fromisoformat(feed_ts_raw) if feed_ts_raw else None
@@ -98,6 +101,9 @@ def get_agent_picks(
     actually apply to). Empty for users with no picks → the band never renders.
     Editorial layer, distinct from `/matches` (the algorithm layer)."""
     rows = repo.get_agent_picks(principal.id)
+    repo.record_recommendation_exposures(
+        principal.id, rows, surface="agent_pick"
+    )
     return AgentPicksResponse(picks=[AgentPickItem(**row) for row in rows], total=len(rows))
 
 

@@ -21,6 +21,10 @@ class _FakeQuery:
         self._tape["payload"] = payload
         return self
 
+    def insert(self, payload: Any) -> "_FakeQuery":
+        self._tape["payload"] = payload
+        return self
+
     def select(self, value: str) -> "_FakeQuery":
         self._tape["select"] = value
         return self
@@ -254,6 +258,46 @@ def test_get_existing_match_job_ids_includes_dismissed_cards_for_refresh_exclusi
 
     assert repo.get_existing_match_job_ids("user-1") == ["prior-job", "dismissed-job"]
     assert repo.get_existing_match_job_ids("user-1", batch_week=date(2026, 6, 1)) == ["prior-job"]
+
+
+def test_record_recommendation_exposures_captures_confidence_at_show() -> None:
+    admin_db = _FakeDB()
+    repo = JobsRepository(_FakeDB(), admin_db)  # type: ignore[arg-type]
+
+    written = repo.record_recommendation_exposures(
+        "user-1",
+        [
+            {
+                "id": 42,
+                "job_id": "job-1",
+                "jobs": {
+                    "is_active": True,
+                    "listing_confidence": "active",
+                    "last_verified_live_at": "2026-07-11T09:00:00+00:00",
+                },
+            },
+            {
+                "job_id": "job-2",
+                "is_active": True,
+                "listing_confidence": "active",
+                "last_verified_live_at": "2026-07-11T10:00:00+00:00",
+            },
+            {
+                "job_id": "job-3",
+                "is_active": True,
+                "listing_confidence": "uncertain",
+            },
+        ],
+        surface="dashboard",
+    )
+
+    assert written == 2
+    assert admin_db.tape["table"] == "job_recommendation_exposures"
+    payload = admin_db.tape["payload"]
+    assert [row["job_id"] for row in payload] == ["job-1", "job-2"]
+    assert payload[0]["match_id"] == 42
+    assert payload[0]["confidence_at_show"] == "active"
+    assert payload[0]["metadata"] == {"position": 1}
 
 
 def test_dismiss_dashboard_job_card_upserts_dismissal() -> None:

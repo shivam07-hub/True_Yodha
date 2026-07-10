@@ -198,6 +198,21 @@ def test_record_feedback_caps_new_quality_reports_per_day() -> None:
         )
 
 
+def test_record_feedback_does_not_drop_positive_liveness_at_negative_report_cap() -> None:
+    repo = _FakeRepository(None)
+    repo.quality_feedback_today = 3
+    intelligence = JobIntelligence(repo, feed_cache=FeedStateCache())
+
+    receipt = intelligence.record_feedback(
+        "user-1",
+        _feedback_command(kind="quality", reason="apply_link_live"),
+    )
+
+    assert receipt.created is True
+    assert repo.inserted_feedback is not None
+    assert repo.inserted_feedback["reason_code"] == "apply_link_live"
+
+
 def test_record_feedback_inserts_personal_signal_without_quality_cap() -> None:
     repo = _FakeRepository(None)
     repo.quality_feedback_today = 99

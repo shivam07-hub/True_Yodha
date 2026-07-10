@@ -2125,6 +2125,10 @@ export type PersonalReasonCode =
 export type QualityReasonCode =
   | "looks_old"
   | "apply_link_closed"
+  | "apply_link_live"
+  | "apply_redirected"
+  | "apply_wrong_role"
+  | "apply_technical_error"
   | "duplicate"
   | "details_wrong"
   | "posting_inactive"

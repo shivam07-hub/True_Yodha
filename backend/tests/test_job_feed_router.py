@@ -60,6 +60,10 @@ class _Query:
             self._count_exact = True
         return self
 
+    def insert(self, payload: Any) -> "_Query":
+        self._db.inserted[self._table] = payload
+        return self
+
     def eq(self, col: str, val: Any) -> "_Query":
         self._eq[col] = val
         return self
@@ -127,6 +131,7 @@ class _FakeDB:
     def __init__(self, jobs: list[dict[str, Any]], user_skills: list[dict[str, Any]]) -> None:
         self.tables = {"jobs": jobs, "user_skills": user_skills}
         self.calls: list[str] = []
+        self.inserted: dict[str, Any] = {}
 
     def table(self, name: str) -> _Query:
         return _Query(self, name)
@@ -619,6 +624,9 @@ def test_feed_endpoint_returns_feed_payload() -> None:
         def get_cached_match_evals(self, _uid: str, _ids: list[str], *, full: bool = False) -> dict[str, Any]:
             return {}
 
+        def record_recommendation_exposures(self, _uid: str, rows: list[dict], *, surface: str) -> int:
+            return len(rows)
+
         def feed_jobs(self, **_kwargs: Any) -> dict[str, Any]:
             return {
                 "rows": [
@@ -691,6 +699,9 @@ def test_feed_attaches_cached_brain_badges() -> None:
                 }
             }
 
+        def record_recommendation_exposures(self, _uid: str, rows: list[dict], *, surface: str) -> int:
+            return len(rows)
+
         def feed_jobs(self, **_kwargs: Any) -> dict[str, Any]:
             return {
                 "rows": [
@@ -731,6 +742,7 @@ def test_feed_endpoint_expands_remote_inside_saved_country() -> None:
         def get_dismissed_job_card_ids(self, _user_id: str) -> list[str]: return ["hidden"]
         def get_saved_job_ids(self, _user_id: str) -> list[str]: return []
         def get_cached_match_evals(self, _uid: str, _ids: list[str], *, full: bool = False) -> dict[str, Any]: return {}
+        def record_recommendation_exposures(self, _uid: str, rows: list[dict], *, surface: str) -> int: return len(rows)
 
         def feed_jobs(self, **kwargs: Any) -> dict[str, Any]:
             self.kwargs = kwargs

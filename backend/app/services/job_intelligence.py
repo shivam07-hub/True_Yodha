@@ -153,7 +153,10 @@ class JobIntelligence:
         if existing is not None:
             return _feedback_receipt(existing, created=False)
 
-        if command.feedback_kind == "quality":
+        if (
+            command.feedback_kind == "quality"
+            and command.reason_code != "apply_link_live"
+        ):
             today = self.now().date()
             since = datetime.combine(
                 today,

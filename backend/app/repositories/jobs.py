@@ -1630,6 +1630,8 @@ class JobsRepository:
             "last_seen_at": _job_feed_marker_to_iso(row.get("last_seen")),
             "is_stale": _is_marker_stale(row.get("last_seen")),
             "is_active": bool(row.get("is_active", True)),
+            "listing_confidence": row.get("listing_confidence"),
+            "last_verified_live_at": row.get("last_verified_live_at"),
             "skills": skills,
             "matched_skills": matched_skills,
             "matched_skill_count": matched,
@@ -1904,6 +1906,50 @@ class JobsRepository:
             item["agent_comment"] = pr.get("comment") or ""
             out.append(item)
         return out
+
+    def record_recommendation_exposures(
+        self,
+        user_id: str,
+        rows: list[dict[str, Any]],
+        *,
+        surface: str,
+    ) -> int:
+        """Best-effort ledger of jobs returned on a recommendation surface."""
+        if surface not in {
+            "dashboard", "market", "collections", "agent_pick",
+            "notification", "other",
+        }:
+            raise ValueError(f"Unsupported recommendation surface: {surface}")
+        payload: list[dict[str, Any]] = []
+        for position, row in enumerate(rows, start=1):
+            job = row.get("jobs") or row
+            if not is_recommendable_listing(job):
+                continue
+            job_id = str(row.get("job_id") or job.get("job_id") or "")
+            if not job_id:
+                continue
+            match_id = row.get("id")
+            payload.append(
+                {
+                    "user_id": user_id,
+                    "job_id": job_id,
+                    "surface": surface,
+                    "confidence_at_show": "active",
+                    "verified_live_at": job.get("last_verified_live_at"),
+                    "match_id": match_id if isinstance(match_id, int) else None,
+                    "metadata": {"position": position},
+                }
+            )
+        if not payload:
+            return 0
+        try:
+            self._admin_db.table("job_recommendation_exposures").insert(
+                payload
+            ).execute()
+        except APIError as exc:
+            _log.warning("metric job_exposure.write_failed rows=%d error=%s", len(payload), exc)
+            return 0
+        return len(payload)
 
     def replace_agent_picks(
         self, user_id: str, picks: list[dict[str, Any]], scrape_batch: int | None = None

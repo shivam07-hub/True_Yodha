@@ -465,6 +465,7 @@ def job_feed(
     feed_job_ids = [str(r.get("job_id")) for r in rows if r.get("job_id")]
     brain_evals = repo.get_cached_match_evals(uid, feed_job_ids) if feed_job_ids else {}
     ranked_count = _rank_feed_rows(rows, brain_evals)
+    repo.record_recommendation_exposures(uid, rows, surface="market")
     items = [JobFeedItem(**row) for row in rows]
     return JobFeedResponse(
         jobs=items,
