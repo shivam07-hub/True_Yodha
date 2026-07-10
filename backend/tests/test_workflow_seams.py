@@ -296,7 +296,7 @@ def test_compute_job_matches_includes_debug_on_success(monkeypatch: Any) -> None
     assert result.debug["top_jobs_count"] == 2
     assert result.debug["min_skill_overlap"] == 2
     assert result.debug["qualified_jobs_count"] == 2
-    assert captured["top_n"] == 12
+    assert captured["top_n"] == jobs_workflow.MATCH_TRIAGE_POOL
 
 
 def test_compute_job_matches_relaxes_exclusion_when_pool_emptied(monkeypatch: Any) -> None:

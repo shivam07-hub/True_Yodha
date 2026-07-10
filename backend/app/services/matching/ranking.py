@@ -47,6 +47,11 @@ class RankCandidates:
     user_skill_map: dict[str, int]
     job_meta_fetcher: Callable[[list[str]], list[dict[str, Any]]]
     top_n: int = 12
+    # Two-tier brain (career-ops shape): when set, ``top_n`` is the deterministic
+    # POOL depth and ``triage_keep`` is how many of that pool survive the cheap
+    # batched brain-triage into the expensive per-job 5-axis eval. None → no triage
+    # (eval every one of the ``top_n`` shortlist, the pre-triage behaviour).
+    triage_keep: int | None = None
     # Backlog #36 (brain-everywhere, cost control): looks up already-cached evals
     # for a batch of job_ids (typically JobsRepository.get_cached_match_evals).
     # Optional — omit for the old always-eval behaviour (on-demand rank_one path
@@ -102,6 +107,20 @@ async def rank(
     if not top_jobs or not use_brain or provider is None:
         return RankResult(top_jobs=top_jobs, evaluations={})
 
+    eval_profile = _eval_profile(profile, cv_markdown)
+
+    # Tier-1 triage: brain picks the best-fit shortlist out of the deterministic
+    # pool BEFORE the expensive per-job reasoning. One cheap batched call; the
+    # persisted matches become the triaged shortlist, not the raw overlap head.
+    if jobs.triage_keep is not None and len(top_jobs) > jobs.triage_keep:
+        pool_size = len(top_jobs)
+        top_jobs = await llm_ranker.triage_shortlist(
+            eval_profile, top_jobs, provider, jobs.triage_keep
+        )
+        if debug is not None:
+            debug["triage_pool"] = pool_size
+            debug["triage_kept"] = len(top_jobs)
+
     brain_jobs = top_jobs if budget is None else top_jobs[: max(0, budget)]
 
     cached_evals: dict[str, dict[str, Any]] = {}
@@ -116,7 +135,6 @@ async def rank(
         debug["brain_cache_hits"] = len(cached_evals)
         debug["brain_cache_misses"] = len(uncached_jobs)
 
-    eval_profile = _eval_profile(profile, cv_markdown)
     new_evaluations = (
         await llm_ranker.evaluate_all(eval_profile, uncached_jobs, provider, on_progress)
         if uncached_jobs

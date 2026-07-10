@@ -20,6 +20,23 @@ import { RestructuredDoc } from "./restructured-doc"
 
 type Phase = "loading" | "proposal" | "applying" | "error"
 
+/** Past-tense action verbs Mentor leads each change with — the verb IS the type
+ * of edit (reorder / merge / cut), so surfacing it gives the list real hierarchy. */
+const CHANGE_VERBS = new Set([
+  "moved", "merged", "cut", "reordered", "trimmed", "tightened", "combined",
+  "removed", "promoted", "grouped", "condensed", "rewrote", "split", "reworded",
+  "shortened", "elevated", "dropped", "consolidated", "led",
+])
+
+/** Split "Moved the Stripe role above the internship" → verb "Moved" + rest.
+ * Falls back to no verb when the string doesn't open with a known action word. */
+function splitChange(text: string): { verb: string | null; rest: string } {
+  const [first, ...tail] = text.trim().split(" ")
+  const key = first.toLowerCase().replace(/[^a-z]/g, "")
+  if (tail.length && CHANGE_VERBS.has(key)) return { verb: first, rest: " " + tail.join(" ") }
+  return { verb: null, rest: text }
+}
+
 interface RestructureProposalProps {
   token: string
   versionId: number
@@ -117,14 +134,23 @@ export function RestructureProposal({ token, versionId, targetLabel, onKept, onC
         {(phase === "proposal" || phase === "applying") && data && (
           <div className="cvb-rs-body">
             {data.changes.length > 0 && (
-              <div className="cvb-rs-changes">
-                <div className="cvb-rs-label">What changed</div>
+              <details className="cvb-rs-changes" open>
+                <summary>
+                  What changed
+                  <span className="cvb-rs-count">{data.changes.length}</span>
+                </summary>
                 <ul className="cvb-rs-change-list">
-                  {data.changes.map((c, i) => (
-                    <li key={i}><Icon name="check" size={12} stroke={3} aria-hidden/> <span>{c}</span></li>
-                  ))}
+                  {data.changes.map((c, i) => {
+                    const { verb, rest } = splitChange(c)
+                    return (
+                      <li key={i}>
+                        <Icon name="check" size={12} stroke={3} aria-hidden/>
+                        <span>{verb && <b className="cvb-rs-change-verb">{verb}</b>}{rest}</span>
+                      </li>
+                    )
+                  })}
                 </ul>
-              </div>
+              </details>
             )}
 
             <div className="cvb-rs-preview" aria-label="Proposed CV">

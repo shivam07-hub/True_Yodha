@@ -18,6 +18,7 @@ def _candidates(**over: Any) -> ranking.RankCandidates:
         user_skill_map=over.get("skills", {"python": 3}),
         job_meta_fetcher=over.get("fetch", lambda _ids: []),
         top_n=over.get("top_n", 12),
+        triage_keep=over.get("triage_keep"),
         eval_cache_fetcher=over.get("eval_cache_fetcher"),
     )
 
@@ -87,6 +88,63 @@ def test_rank_runs_brain_and_returns_evals(monkeypatch: Any) -> None:
     assert captured["cv"] == "MY CV"  # explicit cv wins
     assert captured["n"] == 2
     assert set(result.evaluations) == {"j1", "j2"}
+
+
+def _five_top_jobs() -> list[dict[str, Any]]:
+    return [
+        {"job_id": f"j{i}", "overlap_score": 90.0 - i, "matched_skills": ["python"]}
+        for i in range(5)
+    ]
+
+
+def test_rank_triage_narrows_pool_before_brain(monkeypatch: Any) -> None:
+    """Two-tier brain: the cheap triage picks the shortlist out of the pool, and
+    only that shortlist reaches the expensive per-job eval + persistence."""
+    monkeypatch.setattr(ranking.job_matcher, "get_top_matches", lambda *_a, **_k: _five_top_jobs())
+
+    async def _triage(_profile: Any, pool: list[dict[str, Any]], _prov: Any, keep_n: int) -> list[dict[str, Any]]:
+        assert len(pool) == 5 and keep_n == 2
+        return [pool[3], pool[1]]  # brain reorders + narrows
+
+    captured: dict[str, Any] = {}
+
+    async def _brain(_profile: Any, jobs: list[dict[str, Any]], _prov: Any, _cb: Any) -> dict[str, Any]:
+        captured["ids"] = [j["job_id"] for j in jobs]
+        return {j["job_id"]: {"overall_score": 4.0} for j in jobs}
+
+    monkeypatch.setattr(ranking.llm_ranker, "triage_shortlist", _triage)
+    monkeypatch.setattr(ranking.llm_ranker, "evaluate_all", _brain)
+
+    debug: dict[str, int] = {}
+    result = asyncio.run(
+        ranking.rank(
+            {"target_roles": ["PM"]}, "cv",
+            _candidates(top_n=60, triage_keep=2),
+            provider=object(), use_brain=True, debug=debug,  # type: ignore[arg-type]
+        )
+    )
+
+    assert captured["ids"] == ["j3", "j1"]  # only the triaged shortlist evaluated
+    assert [j["job_id"] for j in result.top_jobs] == ["j3", "j1"]  # persisted set = shortlist
+    assert debug["triage_pool"] == 5 and debug["triage_kept"] == 2
+
+
+def test_rank_no_triage_when_keep_none(monkeypatch: Any) -> None:
+    monkeypatch.setattr(ranking.job_matcher, "get_top_matches", lambda *_a, **_k: _five_top_jobs())
+
+    async def _boom(*_a: Any, **_k: Any) -> list[dict[str, Any]]:
+        raise AssertionError("triage must not run when triage_keep is None")
+
+    monkeypatch.setattr(ranking.llm_ranker, "triage_shortlist", _boom)
+    monkeypatch.setattr(ranking.llm_ranker, "evaluate_all",
+                        lambda *_a, **_k: _async_ret({}))
+
+    result = asyncio.run(ranking.rank({}, "cv", _candidates(top_n=60), provider=object()))  # type: ignore[arg-type]
+    assert len(result.top_jobs) == 5  # untouched — every pool job flows to brain
+
+
+async def _async_ret(value: Any) -> Any:
+    return value
 
 
 def test_rank_budget_caps_brain_jobs(monkeypatch: Any) -> None:

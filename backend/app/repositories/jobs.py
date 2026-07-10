@@ -391,6 +391,18 @@ def _is_marker_stale(value: Any) -> bool:
     return (datetime.now(dt.tzinfo) - dt).days > STALE_AFTER_DAYS
 
 
+def _fresh_cutoff_marker(days: int = STALE_AFTER_DAYS) -> int:
+    """YYYYMMDD int for `today - days` — the freshness floor for matching.
+
+    A job whose last_seen is below this hasn't re-appeared in a crawl within the
+    window and is treated as stale/likely-delisted (same threshold the UI uses to
+    badge a listing stale — see `_is_marker_stale`). Kept as one constant so the
+    matcher and the badge can never disagree.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    return int(cutoff.strftime("%Y%m%d"))
+
+
 def get_feed_updated_at(db: Client) -> str | None:
     """Returns an ISO date for the latest job feed marker. Cached 5 min."""
     global _feed_ts_cache
@@ -2145,17 +2157,55 @@ class JobsRepository:
                     result.append(row["job_id"])
         return result
 
+    def _filter_job_ids_by_freshness(self, job_ids: list[str]) -> list[str]:
+        """Keep only job_ids that are still live: is_active AND last_seen within
+        STALE_AFTER_DAYS of today.
+
+        This is the fix for the "old postings surface as matches" problem: the
+        skill-overlap candidate set is ranked by overlap only, so without this
+        gate a stale/closed listing can land in the top-N that reaches the LLM.
+        `is_active` alone is unreliable (rows stay flagged active long after they
+        stop re-appearing in crawls), so we gate on last_seen recency — the real
+        live signal. Queries in chunks of 200 to stay within PostgREST URL limits.
+        """
+        if not job_ids:
+            return []
+        cutoff = _fresh_cutoff_marker()
+        result: list[str] = []
+        for i in range(0, len(job_ids), self._LOCATION_FILTER_CHUNK):
+            chunk = job_ids[i:i + self._LOCATION_FILTER_CHUNK]
+            rows = (
+                self._db.table("jobs")
+                .select("job_id")
+                .in_("job_id", chunk)
+                .eq("is_active", True)
+                .gte("last_seen", cutoff)
+                .execute()
+            ).data or []
+            result.extend(r["job_id"] for r in rows)
+        return result
+
     def get_candidate_job_ids_for_skills(
         self,
         skill_keys: list[str],
         *,
         target_location_countries: list[str] | None = None,
+        require_fresh: bool = True,
     ) -> list[str]:
-        """Job_ids that have at least one skill in skill_keys, filtered by target location.
+        """Job_ids that have at least one skill in skill_keys, filtered by target
+        location and (by default) job freshness.
 
         target_location_countries: if non-empty, only jobs in one of those
         countries (or remote/hybrid with no country set) are returned. None or
         empty means no location filter.
+
+        require_fresh: when True (default) stale/likely-closed listings are
+        dropped BEFORE the pool is ranked to the top-N sent to the LLM, so the
+        user never gets matched to a job that has aged out of the crawl. Applied
+        as a *soft* gate: location is hard (a Delhi user never gets Mumbai jobs),
+        but if every located job is stale we fall back to the located set rather
+        than return nothing — the user still sees their best available matches.
+        Set False only for callers that deliberately want the full history.
         """
         if not skill_keys:
             return []
@@ -2190,9 +2240,26 @@ class JobsRepository:
             query_builder=lambda q: q.in_("skill_id", skill_ids),
         )
         all_job_ids = list({r["job_id"] for r in js_rows})
-        if not target_location_countries:
-            return all_job_ids
-        return self._filter_job_ids_by_location(all_job_ids, target_location_countries)
+
+        located = (
+            self._filter_job_ids_by_location(all_job_ids, target_location_countries)
+            if target_location_countries
+            else all_job_ids
+        )
+        if not require_fresh:
+            return located
+
+        fresh = self._filter_job_ids_by_freshness(located)
+        if fresh:
+            return fresh
+        # Every located candidate is stale — prefer showing the user their best
+        # available matches over an empty pool (soft gate, mirrors the
+        # exclusion-relaxed philosophy in compute_job_matches).
+        _log.info(
+            "get_candidate_job_ids_for_skills: no fresh candidates (located=%d), "
+            "falling back to stale pool", len(located),
+        )
+        return located
 
     def get_all_job_skill_rows(self, *, job_ids: list[str] | None = None) -> list[dict[str, Any]]:
         """Raw job_skills JOIN skills rows for the matcher. No grouping."""

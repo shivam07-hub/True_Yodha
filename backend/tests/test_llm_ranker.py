@@ -313,3 +313,70 @@ def test_evaluate_all_fires_on_progress_per_job(monkeypatch) -> None:
     assert sorted(c[0] for c in calls) == [1, 2, 3]   # done counts 1..3
     assert {c[1] for c in calls} == {3}                # total always 3
     assert {c[2] for c in calls} == {"a", "b", "c"}    # every job reported
+
+
+# ── Tier-1 triage (pool → shortlist) ──────────────────────────────────────────
+
+class _TriageProvider:
+    def __init__(self, response: str = "", fail: bool = False) -> None:
+        self._response = response
+        self._fail = fail
+        self.calls = 0
+
+    async def complete(self, _messages: list[dict[str, Any]], max_tokens: int = 0) -> str:
+        self.calls += 1
+        if self._fail:
+            raise llm_ranker.LLMProviderError("providers down")
+        return self._response
+
+
+def _pool(n: int) -> list[dict[str, Any]]:
+    return [
+        {"job_id": f"j{i}", "title": f"Role {i}", "company": "Co",
+         "overlap_score": 90 - i, "matched_skills": ["python"], "description": "desc"}
+        for i in range(n)
+    ]
+
+
+def test_parse_triage_maps_indices_dedupes_and_caps() -> None:
+    out = llm_ranker.parse_triage('{"shortlist": [3, 1, 3, 99, 2]}', pool_size=5, keep_n=2)
+    assert out == [2, 0]
+
+
+def test_parse_triage_returns_none_on_garbage() -> None:
+    assert llm_ranker.parse_triage("not json", pool_size=5, keep_n=3) is None
+    assert llm_ranker.parse_triage('{"nope": []}', pool_size=5, keep_n=3) is None
+
+
+def test_triage_returns_pool_unchanged_when_within_keep() -> None:
+    import asyncio
+    prov = _TriageProvider()
+    pool = _pool(3)
+    out = asyncio.run(llm_ranker.triage_shortlist({"target_roles": ["PM"]}, pool, prov, keep_n=5))
+    assert out == pool
+    assert prov.calls == 0
+
+
+def test_triage_selects_brain_ranked_shortlist() -> None:
+    import asyncio
+    prov = _TriageProvider('{"shortlist": [5, 2]}')
+    pool = _pool(6)
+    out = asyncio.run(llm_ranker.triage_shortlist({"target_roles": ["PM"]}, pool, prov, keep_n=2))
+    assert [j["job_id"] for j in out] == ["j4", "j1"]
+    assert prov.calls == 1
+
+
+def test_triage_falls_back_to_overlap_head_on_provider_failure() -> None:
+    import asyncio
+    prov = _TriageProvider(fail=True)
+    pool = _pool(6)
+    out = asyncio.run(llm_ranker.triage_shortlist({}, pool, prov, keep_n=3))
+    assert [j["job_id"] for j in out] == ["j0", "j1", "j2"]
+
+
+def test_triage_falls_back_on_unparseable_shortlist() -> None:
+    import asyncio
+    prov = _TriageProvider("garbage no json")
+    pool = _pool(6)
+    out = asyncio.run(llm_ranker.triage_shortlist({}, pool, prov, keep_n=2))
+    assert [j["job_id"] for j in out] == ["j0", "j1"]
