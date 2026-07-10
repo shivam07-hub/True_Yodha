@@ -166,7 +166,7 @@ def test_get_user_match_stack_selects_job_lifecycle_fields() -> None:
     assert "last_seen" in match_select
     assert "is_active" in match_select
     assert "listing_confidence" in match_select
-    assert "last_verified_at" in match_select
+    assert "last_verified_live_at" in match_select
 
 
 def test_get_user_match_stack_hides_untrusted_listings() -> None:

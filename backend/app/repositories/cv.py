@@ -15,6 +15,7 @@ from fastapi import Depends, HTTPException, status
 from supabase import Client
 
 from app.deps import get_user_db
+from app.services.job_history import hydrate_job_snapshot
 
 
 CVKind = Literal["baseline_upload", "deterministic", "polished", "edited"]
@@ -82,7 +83,7 @@ class CVVersionsRepository:
             .order("user_version_number", desc=True)
             .execute()
         )
-        return result.data or []
+        return [hydrate_job_snapshot(row) for row in (result.data or [])]
 
     def list_thread_for_job(self, user_id: str, job_id: str) -> list[dict[str, Any]]:
         """Baselines + the Company CV Thread for `job_id`'s company.
@@ -125,7 +126,7 @@ class CVVersionsRepository:
             .execute()
         ).data or []
         return sorted(
-            [*baselines, *variants],
+            [hydrate_job_snapshot(row) for row in [*baselines, *variants]],
             key=lambda row: int(row.get("user_version_number") or 0),
             reverse=True,
         )
@@ -155,7 +156,8 @@ class CVVersionsRepository:
             .limit(1)
             .execute()
         )
-        return (result.data or [None])[0]
+        row = (result.data or [None])[0]
+        return hydrate_job_snapshot(row) if row else None
 
     def latest_for_thread_batch(
         self,
@@ -172,31 +174,20 @@ class CVVersionsRepository:
         if not unique:
             return {}
 
-        company_jobs = (
-            self._db.table("jobs")
-            .select("job_id, company_name")
-            .in_("company_name", unique)
-            .execute()
-        ).data or []
-        if not company_jobs:
-            return {}
-
-        job_to_company = {row["job_id"]: row["company_name"] for row in company_jobs if row.get("job_id")}
-        scoped_job_ids = list(job_to_company.keys())
         rows = (
             self._db.table("cv_versions")
             .select("*, jobs(job_title, company_name)")
             .eq("user_id", user_id)
             .neq("kind", "baseline_upload")
-            .in_("job_id", scoped_job_ids)
             .order("user_version_number", desc=True)
             .execute()
         ).data or []
 
         latest_per_company: dict[str, dict[str, Any]] = {}
         for row in rows:
-            company = job_to_company.get(row.get("job_id") or "")
-            if not company or company in latest_per_company:
+            hydrate_job_snapshot(row)
+            company = (row.get("jobs") or {}).get("company_name")
+            if company not in unique or company in latest_per_company:
                 continue
             latest_per_company[company] = row
         return latest_per_company

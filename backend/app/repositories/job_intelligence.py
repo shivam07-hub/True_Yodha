@@ -114,7 +114,7 @@ class JobIntelligenceRepository:
             self.admin_db.table("jobs")
             .select(
                 "job_id, first_seen, last_seen, is_active, listing_confidence, "
-                "last_verified_at"
+                "last_verified_live_at"
             )
             .in_("job_id", job_ids)
             .execute()
