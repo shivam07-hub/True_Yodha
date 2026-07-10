@@ -257,6 +257,7 @@ export function CollectionsSurface({ token, initialJobId }: { token: string; ini
         open={!!detailId}
         onClose={() => setDetailId(null)}
         data={detailData}
+        token={token}
         onHeart={() => detailApp && doUnsave(detailApp)}
         onSkip={() => detailApp && doUnsave(detailApp)}
         onTailor={() => detailApp && router.push(`/cv?jobId=${encodeURIComponent(detailApp.job_id)}`)}

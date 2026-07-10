@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { jobs, type MatchBrainResult } from "@/lib/api"
 import {
   GradeBadge,
   VerdictPill,
@@ -9,31 +8,18 @@ import {
   ArchetypeChip,
   AxisBreakdown,
 } from "@/components/jobs/match-brain"
+import { useMatchBrain } from "@/lib/hooks/use-match-brain"
 
 /**
  * "Myro's take" — the Matching Brain's verdict on ONE job, wherever it's opened
- * (Consolidation D: brain-everywhere). Fetches the on-demand eval on mount; the
- * backend computes it once and caches it, so repeat opens are free. Design-over-
- * words: if the brain has nothing to say (unavailable / not yet scored) the panel
- * renders NOTHING rather than an apology.
+ * (Consolidation D: brain-everywhere). Reads the on-open eval via the shared
+ * `useMatchBrain` hook (the backend computes it once and caches it, so repeat
+ * opens are free + opening warms the card). Design-over-words: if the brain has
+ * nothing to say (unavailable / not yet scored) the panel renders NOTHING rather
+ * than an apology.
  */
 export function MyroTake({ token, jobId }: { token: string; jobId: string }) {
-  const [loading, setLoading] = React.useState(true)
-  const [result, setResult] = React.useState<MatchBrainResult | null>(null)
-
-  React.useEffect(() => {
-    let live = true
-    setLoading(true)
-    setResult(null)
-    jobs
-      .ensureBrain(token, jobId)
-      .then((r) => live && setResult(r))
-      .catch(() => live && setResult(null))
-      .finally(() => live && setLoading(false))
-    return () => {
-      live = false
-    }
-  }, [token, jobId])
+  const { loading, result } = useMatchBrain(token, jobId)
 
   if (loading) {
     return (

@@ -1,5 +1,6 @@
 "use client"
 
+import { useMatchBrain } from "@/lib/hooks/use-match-brain"
 import { BottomSheet } from "./bottom-sheet"
 import type { MobileJobRow } from "./job-model"
 
@@ -25,6 +26,7 @@ export function JobDetailSheet({
   open,
   onClose,
   data,
+  token,
   onHeart,
   onSkip,
   onTailor,
@@ -35,6 +37,11 @@ export function JobDetailSheet({
   open: boolean
   onClose: () => void
   data: JobDetailData | null
+  /** When given, opening the sheet WARMS the Matching Brain for this job
+   *  (on_demand.ensure_job_eval) and shows its summary as the "why" — the mobile
+   *  half of brain-everywhere (Backlog #36 Slice 3). Opening a mobile job now
+   *  warms its verdict, exactly like the desktop drawer's MyroTake. */
+  token?: string | null
   onHeart: () => void
   onSkip: () => void
   onTailor: () => void
@@ -43,8 +50,14 @@ export function JobDetailSheet({
   /** Apply Transport liveness band — rendered above the footer after an apply. */
   captureSlot?: React.ReactNode
 }) {
+  // Hook must run before the early return (rules of hooks). Fetches only while
+  // the sheet is open for a real job — that call both warms the cache and gives
+  // us the brain's summary to show as the "why".
+  const { result: brain } = useMatchBrain(token, open && data ? data.row.id : null)
   if (!data) return <BottomSheet open={open} onClose={onClose} label="Job detail" maxHeight="88%"><div /></BottomSheet>
-  const { row, whyFit, matched, gaps, saved, hasApply } = data
+  const { row, matched, gaps, saved, hasApply } = data
+  // Prefer the brain's real "why this fits you" summary over the static JD slice.
+  const whyFit = (brain?.available ? brain.summary : null) || data.whyFit
 
   return (
     <BottomSheet open={open} onClose={onClose} label="Job detail" maxHeight="88%">
