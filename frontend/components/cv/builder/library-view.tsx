@@ -13,6 +13,7 @@ import { APPLICATION_OUTCOMES } from "@/lib/api"
 import { buildCVWorkspaceStats, latestCVVersionForJob } from "@/lib/cv/workspace"
 import { cleanJobTitle } from "@/lib/text/strip-markdown"
 import { MasterCVPanel } from "./library-master"
+import { ReservoirProfile } from "./reservoir-profile"
 import { I, LIcon } from "./library-icons"
 import { WorkspacePipeline } from "../pipeline/workspace-pipeline"
 import { MobileCVHub } from "../mobile/mobile-cv-hub"
@@ -22,8 +23,9 @@ import "../mobile/mobile-cv-hub.css"
 import "../mobile/mobile-cv-editor.css"
 
 // Top-level view switcher (market Jobs/Heatmap pill pattern). CV = master CV on
-// its own full-width page; Active = stat strip + live pipeline + closed rail.
-type View = "cv" | "active"
+// its own full-width page; Active = stat strip + live pipeline + closed rail;
+// Stories = the Career Story Reservoir (the dump-built profile behind the CV).
+type View = "cv" | "active" | "stories"
 
 interface LibraryViewProps {
   token: string
@@ -40,6 +42,17 @@ interface LibraryViewProps {
 // from lib/api — APPLICATION_OUTCOMES — so the rail count, the folder badge, and
 // the main board can never disagree on what counts as closed.
 const CLOSED_ORDER: ApplicationStatus[] = ["offer", "rejected", "ghosted"]
+
+// CV ↔ Stories mode pill (reuses the canonical .tm-lib-seg family). The master
+// CV is the artifact; Stories is the reservoir it projects from.
+function CvStoriesToggle({ view }: { view: View }) {
+  return (
+    <div className="tm-lib-seg tm-lib-cv-mode" aria-label="CV workspace mode">
+      <Link href="/cv?view=cv" className={`tm-lib-seg-btn${view === "cv" ? " active" : ""}`}>CV</Link>
+      <Link href="/cv?view=stories" className={`tm-lib-seg-btn${view === "stories" ? " active" : ""}`}>Stories</Link>
+    </div>
+  )
+}
 
 // Closed verdicts list — the right rail no longer toggles. It is a single
 // always-closed surface (outcomes only). Active pursuits live in the main panel
@@ -139,12 +152,21 @@ export function LibraryView({
   const view: View =
     viewParam === "cv" || legacyMaster ? "cv"
     : viewParam === "active" || legacyClosed ? "active"
+    : viewParam === "stories" ? "stories"
     : "cv"
 
   const stats = buildCVWorkspaceStats(versions, applications)
   const isNewUser = applications.length === 0
 
   if (!isDesktop) {
+    if (view === "stories") {
+      return (
+        <div className="tm-mcv-stories">
+          <CvStoriesToggle view={view} />
+          <ReservoirProfile token={token} applications={applications} onOpenJob={onOpenJob} />
+        </div>
+      )
+    }
     if (view === "cv" && cv) {
       return (
         <MobileCVHub
@@ -199,12 +221,25 @@ export function LibraryView({
           {view === "cv" && (
             <>
               {isNewUser && <WorkspaceIntroCard />}
+              <CvStoriesToggle view={view} />
               <MasterCVPanel
                 token={token}
                 baseline={currentBaseline}
                 cv={cv}
                 profile={profile}
                 onReplace={onReplaceCV}
+              />
+            </>
+          )}
+
+          {/* ── Stories view: the Career Story Reservoir behind the CV ── */}
+          {view === "stories" && (
+            <>
+              <CvStoriesToggle view={view} />
+              <ReservoirProfile
+                token={token}
+                applications={applications}
+                onOpenJob={onOpenJob}
               />
             </>
           )}

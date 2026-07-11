@@ -943,3 +943,11 @@
 @media (prefers-reduced-motion: reduce) {
   .tm-lib-job-stage-btn { transition: none; }
 }
+
+/* CV ↔ Stories mode pill (Career Story Reservoir toggle). Link-based seg
+   buttons: same look as .tm-lib-seg-btn, plus anchor resets. */
+.tm-lib-cv-mode { margin: 0 0 14px; }
+.tm-lib-cv-mode .tm-lib-seg-btn { text-decoration: none; display: inline-block; }
+
+/* Mobile Stories view wrapper — the reservoir owns its own rhythm. */
+.tm-mcv-stories { padding: 14px 14px 32px; }

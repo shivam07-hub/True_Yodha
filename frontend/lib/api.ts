@@ -1051,6 +1051,49 @@ export interface ReservoirView {
   certs: string[]
 }
 
+// Career Story Reservoir — the comprehensive profile built from the user's dump
+// (old CVs, LinkedIn export, notes): roles → STAR stories → canonical pointers.
+export interface CareerStoryMetric { value: string; what: string }
+export interface CareerStory {
+  id: string
+  kind: "project" | "achievement" | "accolade" | "education" | "research" | "other"
+  title: string
+  narrative: Partial<Record<"situation" | "task" | "action" | "result", string>>
+  metrics: CareerStoryMetric[]
+  skills: string[]
+  status: "active" | "archived"
+  /** Canonical CV line projected from this story ("" when none yet). */
+  pointer: string
+  variant_count: number
+}
+export interface CareerProfileRole {
+  id: string
+  company: string
+  title: string
+  location: string
+  date_label: string
+  kind: "work" | "education" | "leadership" | "volunteer" | "other"
+  stories: CareerStory[]
+}
+export interface CareerProfile {
+  roles: CareerProfileRole[]
+  /** Role-less stories: accolades, olympiads, competitions. */
+  highlights: CareerStory[]
+  competencies: string[]
+  story_count: number
+  /** Dumped files still being read — poll while > 0. */
+  pending_inflows: number
+}
+export interface CareerIngestResponse {
+  entries: { id: string; filename: string | null; kind: string; chars: number }[]
+  skipped: { filename: string; reason: string }[]
+}
+export interface CareerProjectResponse {
+  version_id: number
+  included: number
+  parked: number
+}
+
 /** One entry in the persistent brain-dump notebook (User Memory Phase 3). */
 export interface DumpEntry {
   id: string
@@ -1291,6 +1334,41 @@ export const cv = {
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(body),
     }),
+  /** Career Story Reservoir — dump in, comprehensive profile out, project per job. */
+  career: {
+    profile: (token: string) =>
+      request<CareerProfile>("/cv/reservoir/profile", {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    /** Multipart by design (files) — bypasses request()'s forced JSON header. */
+    ingest: async (token: string, files: File[], text?: string): Promise<CareerIngestResponse> => {
+      const form = new FormData()
+      for (const f of files) form.append("files", f)
+      if (text && text.trim()) form.append("text", text)
+      const res = await fetch(`${BASE}/cv/reservoir/ingest`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+        body: form,
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ detail: res.statusText }))
+        throw new ApiError(extractError(body, res.status), { status: res.status, kind: "http" })
+      }
+      return res.json() as Promise<CareerIngestResponse>
+    },
+    patchStory: (token: string, storyId: string, patch: Partial<Pick<CareerStory, "status" | "title" | "skills">> & { narrative?: Record<string, string> }) =>
+      request<CareerStory>(`/cv/reservoir/stories/${encodeURIComponent(storyId)}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify(patch),
+      }),
+    project: (token: string, jobId: string) =>
+      request<CareerProjectResponse>("/cv/reservoir/project", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ job_id: jobId }),
+      }),
+  },
   // The experience reservoir inventory (v2): roles → points → phrasing variants.
   reservoir: (token: string) =>
     request<ReservoirView>("/cv/reservoir", {

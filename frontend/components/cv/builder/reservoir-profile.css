@@ -1,0 +1,404 @@
+/* Career Story Reservoir — the "Stories" mode of the CV workspace.
+   Canonical --tm-* tokens only (light Firecrawl orange / dark Engine teal come
+   free). Accent is rationed to three roles: the dump CTA (cvb-btn primary,
+   owned by cv-builder.css), the canonical ◆ diamond, and the reading pulse. */
+
+.tm-rsv-scope {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 8px 0 64px;
+  font-family: var(--tm-font-sans);
+  color: var(--tm-text);
+}
+
+/* ── head ─────────────────────────────────────────────────────────────── */
+.tm-rsv-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.tm-rsv-title {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.tm-rsv-count {
+  font-family: var(--tm-font-mono);
+  font-size: 13px;
+  color: var(--tm-text-muted);
+}
+.tm-rsv-competencies {
+  margin: 6px 0 0;
+  font-family: var(--tm-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--tm-text-muted);
+  max-width: 60ch;
+}
+.tm-rsv-head-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.tm-rsv-pending {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  font-family: var(--tm-font-mono);
+  font-size: 11px;
+  color: var(--tm-text-muted);
+}
+.tm-rsv-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tm-interactive);
+  animation: tm-rsv-pulse 1.6s ease-in-out infinite;
+}
+@keyframes tm-rsv-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.7); }
+}
+
+.tm-rsv-loading {
+  height: 120px;
+  border: 1px dashed var(--tm-border-soft);
+  border-radius: 12px;
+  background: var(--tm-surface);
+}
+
+/* ── role sections ────────────────────────────────────────────────────── */
+.tm-rsv-role { margin-bottom: 26px; }
+.tm-rsv-role-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--tm-border-soft);
+  margin-bottom: 8px;
+}
+.tm-rsv-role-names {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.tm-rsv-role-company {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.tm-rsv-role-title {
+  font-size: 12px;
+  color: var(--tm-text-muted);
+}
+.tm-rsv-role-meta {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  color: var(--tm-text-faint);
+  white-space: nowrap;
+}
+.tm-rsv-role-kind {
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+
+/* ── story card: a CV line on the surface, the story underneath ───────── */
+.tm-rsv-story {
+  border: 1px solid transparent;
+  border-radius: 10px;
+}
+.tm-rsv-story.open {
+  border-color: var(--tm-border-soft);
+  background: var(--tm-surface);
+  margin: 6px 0;
+}
+.tm-rsv-story-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  background: none;
+  border: 0;
+  border-radius: 10px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.tm-rsv-story-line:hover { background: var(--tm-surface-2); }
+.tm-rsv-story-line:focus-visible {
+  outline: 2px solid var(--tm-interactive-ring);
+  outline-offset: 1px;
+}
+.tm-rsv-diamond {
+  color: var(--tm-accent-text);
+  font-size: 9px;
+  flex-shrink: 0;
+  transform: translateY(-1px);
+}
+.tm-rsv-pointer {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.tm-rsv-chips {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.tm-rsv-chip {
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  color: var(--tm-text-muted);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 999px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+
+.tm-rsv-under {
+  padding: 4px 12px 12px 29px;
+}
+.tm-rsv-star {
+  margin: 0 0 10px;
+  display: grid;
+  gap: 6px;
+}
+.tm-rsv-star-row {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 10px;
+  align-items: baseline;
+}
+.tm-rsv-star-row dt {
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  color: var(--tm-text-faint);
+  text-align: center;
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 4px;
+  line-height: 16px;
+}
+.tm-rsv-star-row dd {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--tm-text-secondary);
+}
+.tm-rsv-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.tm-rsv-skill {
+  font-size: 10.5px;
+  color: var(--tm-text-muted);
+  background: var(--tm-surface-2);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+.tm-rsv-story-actions { display: flex; justify-content: flex-end; }
+.tm-rsv-quiet-btn {
+  font: inherit;
+  font-size: 11px;
+  color: var(--tm-text-muted);
+  background: none;
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 7px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+.tm-rsv-quiet-btn:hover { color: var(--tm-text); background: var(--tm-surface-2); }
+.tm-rsv-quiet-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* ── tailor-for-job menu ──────────────────────────────────────────────── */
+.tm-rsv-tailor { position: relative; }
+.tm-rsv-tailor-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+  min-width: 260px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border);
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: var(--tm-shadow-md, 0 8px 24px rgba(0, 0, 0, 0.18));
+}
+.tm-rsv-tailor-menu button {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  padding: 8px 10px;
+  background: none;
+  border: 0;
+  border-radius: 7px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.tm-rsv-tailor-menu button:hover { background: var(--tm-surface-2); }
+.tm-rsv-tailor-menu button:disabled { opacity: 0.5; cursor: default; }
+.tm-rsv-tailor-title { font-size: 12.5px; }
+.tm-rsv-tailor-co {
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  color: var(--tm-text-faint);
+}
+.tm-rsv-tailor-error {
+  margin: 4px 6px 6px;
+  font-size: 11px;
+  color: var(--tm-danger-text);
+}
+
+/* ── dump panel ───────────────────────────────────────────────────────── */
+.tm-rsv-dump {
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 14px;
+  background: var(--tm-surface);
+  padding: 16px;
+  margin-bottom: 24px;
+  display: grid;
+  gap: 12px;
+}
+.tm-rsv-dump.hero { padding: 28px; }
+.tm-rsv-dump-head h3 {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.tm-rsv-dump-head p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--tm-text-muted);
+  max-width: 52ch;
+}
+.tm-rsv-dropzone {
+  border: 1.5px dashed var(--tm-border-soft);
+  border-radius: 12px;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.tm-rsv-dropzone.over {
+  border-color: var(--tm-interactive);
+  background: var(--tm-interactive-wash);
+}
+.tm-rsv-drop-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  padding: 22px 12px;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.tm-rsv-drop-title { font-size: 13px; font-weight: 600; }
+.tm-rsv-drop-sub {
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  color: var(--tm-text-faint);
+}
+.tm-rsv-file-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tm-rsv-file-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--tm-font-mono);
+  font-size: 10.5px;
+  color: var(--tm-text-muted);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 999px;
+  padding: 2px 4px 2px 10px;
+}
+.tm-rsv-file-name { max-width: 26ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tm-rsv-file-list button {
+  background: none;
+  border: 0;
+  color: var(--tm-text-faint);
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px 5px;
+  cursor: pointer;
+  border-radius: 50%;
+}
+.tm-rsv-file-list button:hover { color: var(--tm-text); background: var(--tm-surface-2); }
+.tm-rsv-paste {
+  width: 100%;
+  resize: vertical;
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--tm-text);
+  background: var(--tm-bg-inset);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.tm-rsv-paste:focus-visible {
+  outline: 2px solid var(--tm-interactive-ring);
+  outline-offset: 1px;
+}
+.tm-rsv-dump-actions { display: flex; justify-content: flex-end; }
+.tm-rsv-dump-error { margin: 0; font-size: 11.5px; color: var(--tm-danger-text); }
+.tm-rsv-skipped {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 3px;
+  font-family: var(--tm-font-mono);
+  font-size: 10.5px;
+  color: var(--tm-text-faint);
+}
+
+/* ── mobile ───────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .tm-rsv-scope { padding: 4px 0 48px; }
+  .tm-rsv-head { flex-direction: column; }
+  .tm-rsv-head-actions { width: 100%; justify-content: flex-start; }
+  .tm-rsv-chips { display: none; }         /* pointer text owns the narrow line */
+  .tm-rsv-under { padding-left: 12px; }
+  .tm-rsv-tailor-menu { left: 0; right: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tm-rsv-pulse { animation: none; }
+  .tm-rsv-dropzone { transition: none; }
+}
