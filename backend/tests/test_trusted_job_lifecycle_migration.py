@@ -21,6 +21,7 @@ def test_jobs_gain_materialized_lifecycle_state_without_deleting_rows() -> None:
     assert "ADD COLUMN IF NOT EXISTS last_verified_live_at TIMESTAMPTZ" in sql
     assert "ADD COLUMN IF NOT EXISTS consecutive_complete_misses INTEGER" in sql
     assert "ADD COLUMN IF NOT EXISTS quarantined_at TIMESTAMPTZ" in sql
+    assert "ADD COLUMN IF NOT EXISTS quarantine_until TIMESTAMPTZ" in sql
     assert "ADD COLUMN IF NOT EXISTS deletion_eligible_at TIMESTAMPTZ" in sql
     assert "listing_confidence IN ('active', 'uncertain', 'likely_closed', 'closed')" in sql
     assert "DELETE FROM public.jobs" not in sql

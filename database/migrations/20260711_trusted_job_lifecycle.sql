@@ -10,6 +10,7 @@ ALTER TABLE public.jobs
         CHECK (consecutive_complete_misses >= 0),
     ADD COLUMN IF NOT EXISTS confidence_reason TEXT,
     ADD COLUMN IF NOT EXISTS quarantined_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS quarantine_until TIMESTAMPTZ,
     ADD COLUMN IF NOT EXISTS deletion_eligible_at TIMESTAMPTZ,
     ADD COLUMN IF NOT EXISTS retired_at TIMESTAMPTZ,
     ADD COLUMN IF NOT EXISTS reactivated_at TIMESTAMPTZ,
@@ -190,6 +191,7 @@ BEGIN
             consecutive_complete_misses = 0,
             confidence_reason = 'user_confirmed_live',
             quarantined_at = NULL,
+            quarantine_until = NULL,
             deletion_eligible_at = NULL,
             retired_at = NULL,
             reactivated_at = CASE
