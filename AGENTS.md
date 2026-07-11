@@ -306,7 +306,52 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-11 - Trusted job lifecycle retirement plan)
+## LAST SESSION SUMMARY (2026-07-11 - Trusted job lifecycle implementation)
+
+Implemented and rolled out the trust-first job retirement and company-skill
+intelligence loop across Myro, Supabase, and the independent scraper repository.
+
+- Added explicit listing confidence, source-run completeness, append-only listing
+  observations, recommendation exposures, user apply-link feedback transfer, and
+  verified-live/dead-click metric views.
+- Enforced `active + is_active` across discovery, matching, Agent Picks, company
+  jobs, and the Supabase public jobs RLS policy. Live classification now exposes
+  12,994 trusted jobs and hides 39,957 uncertain/closed listings.
+- Preserved application, CV, attempt, skill-target, and milestone snapshots before
+  raw job deletion. Physical retirement requires the exact complete source run,
+  three misses, and a 30-day quarantine; zero rows are eligible today.
+- Added ATS-aware verification and successfully ran a 20-URL canary: 1 strong
+  live reactivation, 14 generic closure signals, 5 weak/error responses, and no
+  deletions. Fixed the target-queue timeout with a covering index.
+- Added canonical companies, per-run company-skill facts, durable trend profiles,
+  API/UI read models, and newsletter summaries. Seeded 26,996 profiles across 168
+  companies from trusted active jobs.
+- Updated `firecrawl_Supabase` so only complete current runs create absence
+  evidence, missing jobs close after three misses, dormant skill history is kept,
+  company profiles refresh before retirement, and unsafe mass-deactivation
+  override is retired.
+- Added a Railway cron config and operations runbook. Creating the live cron
+  service remains blocked on Railway OAuth re-login (`invalid_grant`); the worker
+  itself and live database loop were exercised successfully.
+
+Artifacts:
+
+- `docs/runbooks/trusted-job-lifecycle.md`
+- `docs/reports/2026-07-11-job-trust-rollout.md`
+- `backend/railway-verifier.json`
+
+Validation:
+
+- `.venv/bin/pytest backend/tests -q`: 1142 passed, 28 warnings.
+- `cd frontend && npx tsc --noEmit --pretty false`: clean.
+- `cd frontend && npm run lint`: clean.
+- Scraper lifecycle/full in-scope suite: 187 passed; the one ignored importer
+  empty-file test is a pre-existing dirty-branch contract mismatch.
+- Live Supabase migrations and RLS policy verified; new FK advisor findings are
+  resolved and no jobs were physically deleted.
+- `git diff --check`: clean.
+
+## OLDER SESSION SUMMARY (2026-07-11 - Trusted job lifecycle retirement plan)
 
 Audited live job freshness, retirement, personalized outputs, user signals, and
 the scraper-to-Supabase transfer contract; then wrote a proposed trust-first
