@@ -19,12 +19,21 @@ class CvDumpRepository:
     def __init__(self, db: Client):
         self._db = db
 
-    def add(self, user_id: str, text: str, source: str = "manual") -> dict[str, Any]:
-        result = (
-            self._db.table("cv_dump_entries")
-            .insert({"user_id": user_id, "text": text, "source": source})
-            .execute()
-        )
+    def add(
+        self,
+        user_id: str,
+        text: str,
+        source: str = "manual",
+        *,
+        kind: str = "note",
+        payload: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """kind/payload (20260711h): 'note' = written words (notebook, Tell-Myro);
+        'file' / 'linkedin' = reservoir dump inflows the story extractor processes."""
+        row: dict[str, Any] = {"user_id": user_id, "text": text, "source": source, "kind": kind}
+        if payload:
+            row["payload"] = payload
+        result = self._db.table("cv_dump_entries").insert(row).execute()
         return (result.data or [{}])[0]
 
     def list_recent(self, user_id: str, limit: int = 30) -> list[dict[str, Any]]:
