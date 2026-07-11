@@ -435,6 +435,26 @@ export interface PracticeSavesResponse {
   total: number
 }
 
+/** Per-skill learning intent — count = how many of the user's jobs it was
+ *  upvoted from. Feeds Forge practice ordering. */
+export interface SkillUpvote {
+  skill_key: string
+  display_name: string
+  count: number
+  job_ids: string[]
+}
+
+export interface SkillUpvotesResponse {
+  skills: SkillUpvote[]
+  total: number
+}
+
+export interface SkillUpvoteToggleResponse {
+  skill_key: string
+  upvoted: boolean
+  count: number
+}
+
 export const users = {
   me: (token: string) =>
     request<UserProfile>("/users/me", {
@@ -479,6 +499,16 @@ export const users = {
     request<void>(`/users/me/practice-saves/${encodeURIComponent(skillKey)}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
+    }),
+  skillUpvotes: (token: string) =>
+    request<SkillUpvotesResponse>("/users/me/skill-upvotes", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  toggleSkillUpvote: (token: string, body: { skill_key: string; display_name?: string; job_id: string }) =>
+    request<SkillUpvoteToggleResponse>("/users/me/skill-upvotes/toggle", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
     }),
   updateNinjaName: (token: string, ninjaName: string) =>
     request<{ ninja_name: string }>("/profile/ninja-name", {

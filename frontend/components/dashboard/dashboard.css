@@ -326,6 +326,29 @@
 .db-lockbtn:hover { border-color: var(--db-wash-border); color: var(--db-accent-text); }
 .db-lockbtn.locked { background: var(--db-wash); border-color: var(--db-wash-border); color: var(--db-accent-text); }
 
+/* Skill upvote — the row's one action ("I want to learn this"). Fill is
+   optimistic; the pop plays once on the tap that turns it on. */
+.db-upvote {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--tm-font-mono); font-size: 11px; letter-spacing: 0.04em;
+  min-width: 44px; justify-content: center;
+  padding: 4px 10px; border-radius: 99px; border: 1px solid var(--db-line);
+  background: transparent; color: var(--db-mut); cursor: pointer; flex-shrink: 0; white-space: nowrap;
+  transition: all 120ms ease;
+}
+.db-upvote:hover { border-color: var(--db-wash-border); color: var(--db-accent-text); }
+.db-upvote:active { transform: scale(0.92); }
+.db-upvote.on { background: var(--db-wash); border-color: var(--db-wash-border); color: var(--db-accent-text); }
+.db-upvote .n { font-weight: 700; }
+@media (prefers-reduced-motion: no-preference) {
+  .db-upvote.db-just-upvoted { animation: db-upvote-pop 280ms var(--db-ease); }
+  @keyframes db-upvote-pop {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.22); }
+    100% { transform: scale(1); }
+  }
+}
+
 /* ── Reach the people (backlog #35) ─────────────────────────────── */
 .db-reach-searches { display: flex; flex-direction: column; gap: 6px; }
 .db-reach-search {

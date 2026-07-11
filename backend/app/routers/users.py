@@ -7,6 +7,10 @@ from app.schemas import (
     FollowedCompaniesResponse,
     PracticeSavesResponse,
     SavePracticeSkillRequest,
+    SkillUpvoteItem,
+    SkillUpvotesResponse,
+    SkillUpvoteToggleRequest,
+    SkillUpvoteToggleResponse,
     UpdateProfileRequest,
     UpdateProfileResponse,
     UserProfileResponse,
@@ -226,3 +230,77 @@ def remove_practice_skill(
     users_repo: UsersRepository = Depends(get_token_users_repository),
 ) -> None:
     users_repo.remove_practice_save(principal.id, skill_key)
+
+
+# ── Skill upvotes: per-(skill, job) "I want to learn this" — the job-drawer
+#    signal that orders Forge practice ("N of my jobs need this skill"). An
+#    upvote also lands the skill in the practice queue so it is guaranteed to
+#    appear in Forge; un-upvoting the last job removes only that auto-created
+#    row, never a user-curated save. ──────────────────────────────────────────
+
+_UPVOTE_PRACTICE_SOURCE = "job_upvote"
+
+
+def _upvote_items(rows: list[dict]) -> list[SkillUpvoteItem]:
+    """Aggregate raw (skill, job) rows into per-skill counts, most-upvoted first."""
+    by_key: dict[str, SkillUpvoteItem] = {}
+    for r in rows:
+        key = (r.get("skill_key") or "").strip()
+        job_id = r.get("job_id")
+        if not key or not job_id:
+            continue
+        item = by_key.get(key)
+        if item is None:
+            by_key[key] = SkillUpvoteItem(
+                skill_key=key,
+                display_name=(r.get("display_name") or "").strip() or key,
+                count=1,
+                job_ids=[job_id],
+            )
+        elif job_id not in item.job_ids:
+            item.job_ids.append(job_id)
+            item.count += 1
+    return sorted(by_key.values(), key=lambda i: -i.count)
+
+
+@router.get("/me/skill-upvotes", response_model=SkillUpvotesResponse)
+def get_skill_upvotes(
+    principal: Principal = Depends(get_principal),
+    users_repo: UsersRepository = Depends(get_token_users_repository),
+) -> SkillUpvotesResponse:
+    skills = _upvote_items(users_repo.list_skill_upvotes(principal.id))
+    return SkillUpvotesResponse(skills=skills, total=len(skills))
+
+
+@router.post("/me/skill-upvotes/toggle", response_model=SkillUpvoteToggleResponse)
+def toggle_skill_upvote(
+    body: SkillUpvoteToggleRequest,
+    principal: Principal = Depends(get_principal),
+    users_repo: UsersRepository = Depends(get_token_users_repository),
+) -> SkillUpvoteToggleResponse:
+    skill_key = body.skill_key.strip()
+    job_id = body.job_id.strip()
+    if not skill_key or not job_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="skill_key and job_id required."
+        )
+    display_name = body.display_name.strip() or skill_key
+
+    mine = {
+        r["job_id"]
+        for r in users_repo.list_skill_upvotes(principal.id)
+        if (r.get("skill_key") or "").strip() == skill_key and r.get("job_id")
+    }
+
+    if job_id in mine:
+        users_repo.remove_skill_upvote(principal.id, skill_key, job_id)
+        count = len(mine) - 1
+        if count <= 0:
+            users_repo.remove_practice_save_if_source(
+                principal.id, skill_key, _UPVOTE_PRACTICE_SOURCE
+            )
+        return SkillUpvoteToggleResponse(skill_key=skill_key, upvoted=False, count=max(0, count))
+
+    users_repo.add_skill_upvote(principal.id, skill_key, display_name, job_id)
+    users_repo.add_practice_save(principal.id, skill_key, display_name, _UPVOTE_PRACTICE_SOURCE)
+    return SkillUpvoteToggleResponse(skill_key=skill_key, upvoted=True, count=len(mine) + 1)

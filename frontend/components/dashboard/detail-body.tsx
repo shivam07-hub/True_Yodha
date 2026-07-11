@@ -9,7 +9,8 @@ import {
   type SkillGapResponse,
 } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
-import { MAX_LEVEL, sessionsForGap } from "@/lib/level-thresholds"
+import { MAX_LEVEL } from "@/lib/level-thresholds"
+import { useSkillUpvotes } from "@/lib/hooks/use-skill-upvotes"
 import { LensWhy, jdSnippet, stripTaxonomySuffix } from "./lenses"
 import { CommentThread } from "@/components/comments/comment-thread"
 import { CompanyDrawer } from "@/components/companies/company-drawer"
@@ -27,21 +28,26 @@ export function useSkillGap(job: JobMatch, token: string, active: boolean) {
   return { skills: data?.skills ?? [], loadingSkills: isLoading }
 }
 
-/* ── One skill row: name · L0→L2 · 5 dots · Lock-in pill ─────────── */
+/* ── One skill row: name · L0→L2 · 5 dots · upvote ────────────────
+   The upvote is the row's ONE action — "I want to learn this" — counted
+   per job, so ▲3 literally means "3 of my jobs need this". Feeds Forge
+   ordering; the fill is optimistic (lands on tap, before the network). */
 function SkillRow({
   skill,
   target,
-  locked,
-  onLock,
+  upvoted,
+  count,
+  onUpvote,
 }: {
   skill: SkillGapItem
   target: number
-  locked: boolean
-  onLock: () => void
+  upvoted: boolean
+  count: number
+  onUpvote: () => void
 }) {
+  const [pop, setPop] = React.useState(false)
   const level = Math.max(0, Math.min(MAX_LEVEL, Math.round(skill.user_level ?? 0)))
   const tgt = Math.min(MAX_LEVEL, target)
-  const ses = level >= MAX_LEVEL ? 0 : sessionsForGap(level, tgt)
   return (
     <div className="db-skillrow">
       <span className="sname">{stripTaxonomySuffix(skill.skill)}</span>
@@ -53,11 +59,20 @@ function SkillRow({
       </span>
       <button
         type="button"
-        className={`db-lockbtn${locked ? " locked" : ""}`}
-        onClick={onLock}
-        aria-pressed={locked}
+        className={`db-upvote${upvoted ? " on" : ""}${pop ? " db-just-upvoted" : ""}`}
+        onClick={() => {
+          if (!upvoted) {
+            setPop(true)
+            window.setTimeout(() => setPop(false), 300)
+          }
+          onUpvote()
+        }}
+        aria-pressed={upvoted}
+        aria-label={`Upvote ${stripTaxonomySuffix(skill.skill)} to practice`}
+        title={count > 0 ? `Upvoted from ${count} of your jobs — ranks it in Practice` : "Upvote to practice first"}
       >
-        {locked ? "Locked ✓" : `Lock in · ${ses} ses`}
+        <span aria-hidden>▲</span>
+        {count > 0 ? <span className="n">{count}</span> : null}
       </button>
     </div>
   )
@@ -75,11 +90,18 @@ export interface DetailBodyProps {
 
 export function DetailBody(p: DetailBodyProps) {
   const { skills, loadingSkills } = useSkillGap(p.job, p.token, p.active)
+  const upvotes = useSkillUpvotes(p.token)
   const [drawerOpen, setDrawerOpen] = React.useState(false)
 
   const matched = skills.filter((s) => (s.user_level ?? 0) > 0).slice(0, 6)
   const build = skills.filter((s) => (s.user_level ?? 0) === 0).slice(0, 6)
   const company = p.job.company
+  const rowProps = (s: SkillGapItem) => ({
+    upvoted: upvotes.upvotedFor(s.skill, p.job.job_id),
+    count: upvotes.countFor(s.skill),
+    onUpvote: () =>
+      upvotes.toggle({ skill_key: s.skill, display_name: stripTaxonomySuffix(s.skill) }, p.job.job_id),
+  })
 
   return (
     <div className="db-detail">
@@ -107,15 +129,7 @@ export function DetailBody(p: DetailBodyProps) {
             </div>
             {matched.map((s) => {
               const cur = Math.max(0, Math.round(s.user_level ?? 0))
-              return (
-                <SkillRow
-                  key={s.skill}
-                  skill={s}
-                  target={cur + 1}
-                  locked={p.cartSkillNames.has(s.skill)}
-                  onLock={() => p.onSkillToggle({ ...s, user_level: cur, required_level: cur + 1, missing: true })}
-                />
-              )
+              return <SkillRow key={s.skill} skill={s} target={cur + 1} {...rowProps(s)} />
             })}
           </>
         ) : null}
@@ -125,13 +139,7 @@ export function DetailBody(p: DetailBodyProps) {
               <span className="db-label">Skills to build · {build.length}</span>
             </div>
             {build.map((s) => (
-              <SkillRow
-                key={s.skill}
-                skill={s}
-                target={s.required_level ?? 1}
-                locked={p.cartSkillNames.has(s.skill)}
-                onLock={() => p.onSkillToggle(s)}
-              />
+              <SkillRow key={s.skill} skill={s} target={s.required_level ?? 1} {...rowProps(s)} />
             ))}
           </>
         ) : null}

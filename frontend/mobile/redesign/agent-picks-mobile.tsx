@@ -26,7 +26,7 @@ export function MobileAgentPicks({
   context?: "feed" | "collections"
 }) {
   const router = useRouter()
-  const { snack, closeSnack, openPractice } = useMobileUI()
+  const { snack, closeSnack } = useMobileUI()
   const [openId, setOpenId] = useState<string | null>(null)
   const [saved, setSaved] = useState<Set<string>>(new Set())
 
@@ -147,7 +147,6 @@ export function MobileAgentPicks({
         onSkip={() => setOpenId(null)}
         onTailor={() => { if (openItem) { setOpenId(null); router.push(`/cv?jobId=${encodeURIComponent(openItem.job_id)}`) } }}
         onApply={doApply}
-        onPractice={() => { setOpenId(null); openPractice() }}
         captureSlot={openItem ? <ApplyCapturePromptMobile capture={applyCapture} /> : null}
       />
     </div>

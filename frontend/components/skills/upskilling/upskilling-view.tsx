@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { upskilling, type DemandBand, type ReadinessRow, type StartGapResponse, type UpskillingSkill } from "@/lib/api"
+import { upskilling, users, type DemandBand, type ReadinessRow, type SkillUpvote, type StartGapResponse, type UpskillingSkill } from "@/lib/api"
 import type { PracticeSkills } from "@/lib/practice-skills"
 import { dataKeys } from "@/lib/domain-data"
 import { useParticleMoment } from "@/components/particle"
@@ -38,7 +38,22 @@ function demandIndex(practice: PracticeSkills): { byKey: Map<string, DemandInfo>
   return { byKey, byName }
 }
 
-function mergeSkills(backend: UpskillingSkill[], practice: PracticeSkills): LadderSkill[] {
+/** Upvote counts joined by taxonomy key OR display name — the desktop drawer
+ *  sends keys, the mobile sheet sends names; both must land on the ladder. */
+function upvoteIndex(upvotes: SkillUpvote[]): Map<string, number> {
+  const map = new Map<string, number>()
+  upvotes.forEach((u) => {
+    map.set(norm(u.skill_key), u.count)
+    if (u.display_name) map.set(norm(u.display_name), u.count)
+  })
+  return map
+}
+
+function mergeSkills(
+  backend: UpskillingSkill[],
+  practice: PracticeSkills,
+  upvotes: Map<string, number>,
+): LadderSkill[] {
   const { byKey, byName } = demandIndex(practice)
   return backend.map((s) => {
     const info = byKey.get(s.skill_key) ?? byName.get(norm(s.display_name))
@@ -52,6 +67,7 @@ function mergeSkills(backend: UpskillingSkill[], practice: PracticeSkills): Ladd
       onCV: s.on_cv,
       demand: info?.demand ?? "none",
       jobCount: info?.jobCount ?? 0,
+      upvotes: upvotes.get(norm(s.skill_key)) ?? upvotes.get(norm(s.display_name)) ?? 0,
       maxBankLevel: s.max_bank_level,
       locked: s.locked,
     }
@@ -61,6 +77,9 @@ function mergeSkills(backend: UpskillingSkill[], practice: PracticeSkills): Ladd
 function pickHero(skills: LadderSkill[]): LadderSkill | null {
   const startable = skills.filter((s) => s.clearedLevel < 5 && s.maxBankLevel >= Math.min(s.clearedLevel + 1, 5))
   const ranked = [...startable].sort((a, b) => {
+    // The user's own upvotes lead — "N of my jobs need this" beats every
+    // derived signal. Then in-progress ladders, then market demand.
+    if (a.upvotes !== b.upvotes) return b.upvotes - a.upvotes
     const ai = a.clearedLevel > 0 ? 1 : 0
     const bi = b.clearedLevel > 0 ? 1 : 0
     if (ai !== bi) return bi - ai
@@ -140,9 +159,15 @@ export function UpskillingView({
     staleTime: 60 * 1000,
   })
 
+  const { data: upvotesData } = useQuery({
+    queryKey: dataKeys.skillUpvotes(),
+    queryFn: () => users.skillUpvotes(token),
+    staleTime: 60 * 1000,
+  })
+
   const skills = useMemo(
-    () => mergeSkills(backendSkills ?? [], practiceSkills),
-    [backendSkills, practiceSkills],
+    () => mergeSkills(backendSkills ?? [], practiceSkills, upvoteIndex(upvotesData?.skills ?? [])),
+    [backendSkills, practiceSkills, upvotesData],
   )
   const heroSkill = useMemo(() => pickHero(skills), [skills])
 

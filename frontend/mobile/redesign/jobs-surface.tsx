@@ -30,7 +30,7 @@ const SWIPE_HINT_KEY = "myro_swipe_hint_seen_v1"
 
 export function JobsSurface({ token, targetLocations }: { token: string; targetLocations: string[] }) {
   const router = useRouter()
-  const { snack, closeSnack, openPractice } = useMobileUI()
+  const { snack, closeSnack } = useMobileUI()
 
   const [sort, setSort] = useState<"best" | "new">("best")
   const [searchOpen, setSearchOpen] = useState(false)
@@ -192,7 +192,6 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
         onSkip={() => detailItem && doSkip(detailItem, true)}
         onTailor={() => detailItem && doTailor(detailItem.job_id)}
         onApply={doApply}
-        onPractice={() => { setDetailId(null); openPractice() }}
         captureSlot={detailItem ? <ApplyCapturePromptMobile capture={applyCapture} /> : null}
       />
 

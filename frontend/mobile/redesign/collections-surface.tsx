@@ -263,7 +263,6 @@ export function CollectionsSurface({ token, initialJobId }: { token: string; ini
         onTailor={() => detailApp && router.push(`/cv?jobId=${encodeURIComponent(detailApp.job_id)}`)}
         onApply={() => { if (applyCapture.target.url) applyCapture.open() }}
         captureSlot={detailApp ? <ApplyCapturePromptMobile capture={applyCapture} /> : null}
-        onPractice={() => setDetailId(null)}
       />
 
       <AddJobSheet open={addOpen} onClose={() => setAddOpen(false)} token={token} onAdded={() => { void qc.invalidateQueries({ queryKey: dataKeys.applications() }); setChip("added") }} snack={snack} closeSnack={closeSnack} onTailor={(jobId) => router.push(`/cv?jobId=${encodeURIComponent(jobId)}`)} />

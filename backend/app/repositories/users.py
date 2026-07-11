@@ -216,6 +216,52 @@ class UsersRepository:
     def remove_practice_save(self, user_id: str, skill_key: str) -> None:
         self._db.table("practice_saves").delete().eq("user_id", user_id).eq("skill_key", skill_key).execute()
 
+    def remove_practice_save_if_source(self, user_id: str, skill_key: str, source: str) -> None:
+        """Delete a practice save only when it was created by `source` — never
+        removes a row the user curated themselves under another source."""
+        (
+            self._db.table("practice_saves")
+            .delete()
+            .eq("user_id", user_id)
+            .eq("skill_key", skill_key)
+            .eq("source", source)
+            .execute()
+        )
+
+    # ── Skill upvotes: per-(skill, job) learning intent, feeds Forge ordering ──
+
+    def list_skill_upvotes(self, user_id: str) -> list[dict]:
+        result = (
+            self._db.table("skill_upvotes")
+            .select("skill_key, display_name, job_id, created_at")
+            .eq("user_id", user_id)
+            .order("created_at", desc=True)
+            .execute()
+        )
+        return result.data or []
+
+    def add_skill_upvote(self, user_id: str, skill_key: str, display_name: str, job_id: str) -> None:
+        self._db.table("skill_upvotes").upsert(
+            {
+                "user_id": user_id,
+                "skill_key": skill_key,
+                "display_name": display_name,
+                "job_id": job_id,
+            },
+            on_conflict="user_id,skill_key,job_id",
+            ignore_duplicates=True,
+        ).execute()
+
+    def remove_skill_upvote(self, user_id: str, skill_key: str, job_id: str) -> None:
+        (
+            self._db.table("skill_upvotes")
+            .delete()
+            .eq("user_id", user_id)
+            .eq("skill_key", skill_key)
+            .eq("job_id", job_id)
+            .execute()
+        )
+
 
 def get_admin_users_repository(db: Client = Depends(get_supabase_admin)) -> UsersRepository:
     return UsersRepository(db)

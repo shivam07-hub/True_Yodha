@@ -23,6 +23,16 @@ function DemandTag({ demand, jobCount }: { demand: DemandBand; jobCount: number 
   )
 }
 
+/** The user's own signal — upvoted from N job drawers ("N of my jobs need this"). */
+function UpvoteTag({ upvotes }: { upvotes: number }): JSX.Element | null {
+  if (upvotes <= 0) return null
+  return (
+    <span className="up-upvoted" title={`You upvoted this from ${upvotes} of your jobs`}>
+      ▲ {upvotes} {upvotes === 1 ? "job" : "jobs"}
+    </span>
+  )
+}
+
 /* The single highest-leverage next action — minimum-clicks entry. */
 function NextSetHero({ skill, onStart }: { skill: LadderSkill; onStart: (skill: LadderSkill, level: number) => void }): JSX.Element {
   const next = Math.min(skill.clearedLevel + 1, 5)
@@ -72,6 +82,7 @@ function SkillCard({ skill, active, onStart }: { skill: LadderSkill; active: boo
             {!skill.onCV && <span className="up-badge up-badge-notcv">Not on CV</span>}
           </div>
           <div className="up-skill-meta">
+            <UpvoteTag upvotes={skill.upvotes} />
             <DemandTag demand={skill.demand} jobCount={skill.jobCount} />
           </div>
         </div>
@@ -116,6 +127,9 @@ export function SkillList({
 }): JSX.Element {
   const [sort, setSort] = useState<SortMode>("default")
   const ranked = [...skills].sort((a, b) => {
+    // The user's own upvotes lead every mode — they SAID which skills their
+    // jobs need; the list must answer "practice what first" at a glance.
+    if (a.upvotes !== b.upvotes) return b.upvotes - a.upvotes
     if (sort === "demand") {
       const d = (DEMAND_RANK[b.demand] - DEMAND_RANK[a.demand]) || (b.jobCount - a.jobCount)
       if (d) return d
