@@ -226,6 +226,17 @@ class JobMatchesResponse(BaseModel):
     matches_computed_at: datetime | None = None  # when this user's matches were last computed
     new_jobs_count: int = 0  # genuinely-new live jobs (first_seen) inserted since this user last matched
     dismissed_job_ids: list[str] = []
+    # Career-Ops vetting health (trust surface): vetted | overlap_only | computing
+    # | failed | empty. overlap_only/failed drive the honest "not AI-vetted — retry"
+    # banner. vetted_count/total let the UI flag exactly which cards are un-vetted.
+    match_health: str = "empty"
+    match_vetted_count: int = 0
+
+
+class MatchRetryResponse(BaseModel):
+    """Ack for the FREE re-vet after a failed / un-vetted match run."""
+    accepted: bool
+    match_health: str  # the health that justified (or refused) the retry
 
 
 APPLICATION_STAGES = {"saved", "applied", "interviewing"}

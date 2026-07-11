@@ -155,3 +155,23 @@ def fetch_status_for_owner(job_id: str, user_id: str, db: Client | None = None) 
     )
     rows = result.data or []
     return rows[0] if rows else None
+
+
+def get_latest_status(user_id: str) -> dict[str, Any] | None:
+    """Latest CV-upload job for a user — `{status, created_at, finished_at}`.
+
+    Used by the matches read seam to tell an in-flight compute ("still parsing /
+    matching") apart from a genuine failure (upload terminally done long ago, yet
+    no matches landed). Admin client + explicit user filter — a server-side read,
+    never user-supplied ids."""
+    admin = get_supabase_admin()
+    result = (
+        admin.table(_TABLE)
+        .select("status, created_at, finished_at")
+        .eq("user_id", user_id)
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+    rows = result.data or []
+    return rows[0] if rows else None

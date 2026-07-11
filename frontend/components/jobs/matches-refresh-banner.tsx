@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import "@/components/dashboard/dashboard.css"
 import { MatchRefreshGate } from "@/components/jobs/MatchRefreshGate"
 import { useJobRefresh } from "@/lib/hooks/use-job-refresh"
 import { useParticleMoment } from "@/components/particle"
-import { jobs, users } from "@/lib/api"
+import { jobs, users, type MatchHealth } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { withLocalCache, userCacheKey } from "@/lib/local-cache"
 import { JOB_MATCHES_CACHE_PARTS } from "@/lib/job-matches-cache"
@@ -29,8 +29,9 @@ export function MatchesRefreshBanner({ token }: { token: string | null }) {
   const fireMoment = useParticleMoment()
 
   // Warms dataKeys.jobs(); the Loop Bar's Capture "N new" badge + "next" fit read
-  // this cache. Called for its cache side-effect (the bar is the renderer now).
-  useQuery({
+  // this cache. Called for its cache side-effect (the bar is the renderer now) —
+  // and here also for match_health (the Career-Ops vetting trust banner below).
+  const { data: matchesData } = useQuery({
     queryKey: dataKeys.jobs(),
     queryFn: () =>
       withLocalCache(userCacheKey(token!, JOB_MATCHES_CACHE_PARTS), MATCHES_TTL, () => jobs.matches(token!)),
@@ -67,7 +68,76 @@ export function MatchesRefreshBanner({ token }: { token: string | null }) {
           <span>{refreshVm.progressLabel}</span>
         </div>
       ) : null}
+      <MatchVettingBanner token={token} health={matchesData?.match_health} />
       <MatchRefreshGate token={token} profile={profile} onRun={() => refreshVm.refresh()} />
     </>
+  )
+}
+
+/**
+ * The honest Career-Ops vetting banner. When the matcher's LLM pass fails, the
+ * user is either looking at un-vetted overlap picks (`overlap_only`) or an empty
+ * feed that should have matched (`failed`). We say so — a silent degradation
+ * depreciates trust — and offer a FREE re-vet (undelivered work ≠ paid refresh).
+ * On retry we poll the matches cache until Career Ops lands a verdict.
+ */
+function MatchVettingBanner({ token, health }: { token: string | null; health?: MatchHealth }) {
+  const queryClient = useQueryClient()
+  const [retrying, setRetrying] = useState(false)
+
+  // While retrying, re-check the matches cache until health leaves the failed/
+  // un-vetted states (Career Ops landed) or we time out — never spins forever.
+  useEffect(() => {
+    if (!retrying || !token) return
+    let ticks = 0
+    const id = window.setInterval(() => {
+      ticks += 1
+      queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
+      if (ticks >= 15) {
+        setRetrying(false)   // ~60s cap; the user can trigger again
+      }
+    }, 4000)
+    return () => window.clearInterval(id)
+  }, [retrying, token, queryClient])
+
+  // Stop the poll the moment the feed becomes vetted (or is being computed).
+  useEffect(() => {
+    if (retrying && health && health !== "failed" && health !== "overlap_only") {
+      setRetrying(false)
+    }
+  }, [retrying, health])
+
+  const needsBanner = health === "overlap_only" || health === "failed"
+  if (!needsBanner && !retrying) return null
+
+  async function onRetry() {
+    if (!token || retrying) return
+    setRetrying(true)
+    try {
+      await jobs.retryMatches(token)
+    } catch {
+      setRetrying(false)   // let them try again; never leave a stuck spinner
+    }
+  }
+
+  const failed = health === "failed"
+  return (
+    <div className="db db-stale db-vetting" style={{ marginTop: 14 }} role="status" aria-live="polite">
+      <span>
+        {retrying
+          ? "Re-checking these with Career Ops…"
+          : failed
+            ? "Career Ops couldn’t rank your matches. Your matches aren’t AI-vetted yet."
+            : "These matches aren’t AI-vetted yet — Career Ops couldn’t finish."}
+      </span>
+      <button
+        type="button"
+        className="db-vetting-retry"
+        onClick={onRetry}
+        disabled={retrying}
+      >
+        {retrying ? "Retrying…" : "Retry — free"}
+      </button>
+    </div>
   )
 }

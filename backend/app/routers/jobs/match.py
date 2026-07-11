@@ -18,8 +18,8 @@ from app.schemas import (
     RefreshTicketResponse,
     UserSkillDemandResponse,
 )
-from app.schemas.jobs import MatchBrainResult
-from app.services import jobs_workflow, progress_stream
+from app.schemas.jobs import MatchBrainResult, MatchRetryResponse
+from app.services import background, jobs_workflow, progress_stream
 from app.services.job_refresh import JobRefresh
 from app.services.llm_provider import LLMProvider, get_interactive_provider
 from app.services.matching import on_demand, targeting
@@ -80,6 +80,9 @@ def get_job_matches(
         marker = int(matches_computed_at.strftime("%Y%m%d"))
         new_jobs_count = repo.count_new_jobs_since(marker)
 
+    match_health = jobs_workflow.compute_match_health(repo, principal.id, rows)
+    vetted_count = sum(1 for r in rows if r.get("overall_score") is not None)
+
     return JobMatchesResponse(
         jobs=jobs,
         batch_week=batch_week,
@@ -88,7 +91,37 @@ def get_job_matches(
         matches_computed_at=matches_computed_at,
         new_jobs_count=new_jobs_count,
         dismissed_job_ids=repo.get_dismissed_job_card_ids(principal.id),
+        match_health=match_health,
+        match_vetted_count=vetted_count,
     )
+
+
+@router.post("/matches/retry", response_model=MatchRetryResponse)
+def retry_match_vetting(
+    principal: Principal = Depends(get_principal),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+) -> MatchRetryResponse:
+    """Re-run the Career-Ops matcher for FREE after a failed / un-vetted run.
+
+    This is NOT the paid Refresh (150 coins, vanity re-run). It re-does work the
+    user never received — so it's free, and gated server-side on the match health
+    actually being `failed`/`overlap_only`. A `vetted` user can't use it to dodge
+    the paid refresh. Re-dispatches the same durable `initial_match` bulk job
+    (ADR-0008) with `force` so the brain re-runs even against cached rows."""
+    rows = repo.get_user_match_stack(principal.id)
+    health = jobs_workflow.compute_match_health(repo, principal.id, rows)
+    if health not in ("failed", "overlap_only"):
+        # Nothing failed — the free re-vet doesn't apply. (A well-behaved client
+        # never shows the button here; this is the honest server-side guard.)
+        return MatchRetryResponse(accepted=False, match_health=health)
+
+    background.enqueue(
+        background.LANE_BULK,
+        "initial_match",
+        payload={"user_id": principal.id, "force_context_refresh": True},
+        correlation_id=f"revet:{principal.id}",
+    )
+    return MatchRetryResponse(accepted=True, match_health=health)
 
 
 @router.get("/agent-picks", response_model=AgentPicksResponse)

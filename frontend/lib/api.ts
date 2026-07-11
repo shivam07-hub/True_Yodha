@@ -2097,6 +2097,17 @@ export interface JobMatchesResponse {
   matches_computed_at: string | null
   new_jobs_count: number
   dismissed_job_ids: string[]
+  /** Career-Ops vetting health: vetted | overlap_only | computing | failed | empty.
+   *  overlap_only/failed drive the honest "not AI-vetted — retry (free)" banner. */
+  match_health: MatchHealth
+  match_vetted_count: number
+}
+
+export type MatchHealth = "vetted" | "overlap_only" | "computing" | "failed" | "empty"
+
+export interface MatchRetryResponse {
+  accepted: boolean
+  match_health: MatchHealth
 }
 
 /* ─── Job Intelligence (Feed State · Feedback · Pulse) ───────────────────── */
@@ -2975,6 +2986,13 @@ export const jobs = {
   dismissMatchCard: (token: string, jobId: string) =>
     request<void>(`/jobs/matches/${encodeURIComponent(jobId)}`, {
       method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  /** FREE re-vet after a failed / un-vetted match run (NOT the paid refresh).
+   *  Server gates it on match_health being failed/overlap_only. */
+  retryMatches: (token: string) =>
+    request<MatchRetryResponse>("/jobs/matches/retry", {
+      method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     }),
   /** On-demand Matching-Brain for one job (Consolidation D). Idempotent + cached:

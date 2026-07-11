@@ -47,6 +47,14 @@ class _FakeJobsRepo:
         )
         return len(rows)
 
+    # compute_match_health lookups — empty defaults keep the health path at
+    # "empty" (no skills → no failure) for these router tests.
+    def has_computed_matches(self, user_id: str) -> bool:
+        return False
+
+    def get_user_skill_rows(self, user_id: str) -> list[dict]:
+        return []
+
 
 def test_matches_new_jobs_count_skipped_when_never_matched() -> None:
     # No persisted matches → no baseline → "new since last match" is meaningless,
@@ -83,6 +91,43 @@ def test_matches_new_jobs_count_uses_first_seen_marker() -> None:
     # Match date 2026-06-04 → YYYYMMDD int marker; count is "strictly after".
     assert repo.count_markers == [20260604]
     assert repo.exposures == [("u1", "dashboard", ["j1"])]
+
+
+def test_retry_accepted_when_overlap_only(monkeypatch) -> None:
+    # Matches exist but none vetted → free re-vet is allowed and enqueues work.
+    repo = _FakeJobsRepo(stack=[{"job_id": "j1", "overall_score": None}])
+    enqueued: list = []
+    from app.services import background
+    monkeypatch.setattr(background, "enqueue", lambda *a, **k: enqueued.append((a, k)))
+    app.dependency_overrides[get_principal] = lambda: Principal(id="u1")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    try:
+        with TestClient(app) as client:
+            response = client.post("/jobs/matches/retry")
+    finally:
+        app.dependency_overrides.clear()
+    assert response.status_code == 200
+    body = response.json()
+    assert body == {"accepted": True, "match_health": "overlap_only"}
+    assert len(enqueued) == 1
+
+
+def test_retry_refused_when_vetted(monkeypatch) -> None:
+    # A vetted user can't use the free re-vet to dodge the paid refresh.
+    repo = _FakeJobsRepo(stack=[{"job_id": "j1", "overall_score": 4.5}])
+    enqueued: list = []
+    from app.services import background
+    monkeypatch.setattr(background, "enqueue", lambda *a, **k: enqueued.append((a, k)))
+    app.dependency_overrides[get_principal] = lambda: Principal(id="u1")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    try:
+        with TestClient(app) as client:
+            response = client.post("/jobs/matches/retry")
+    finally:
+        app.dependency_overrides.clear()
+    assert response.status_code == 200
+    assert response.json() == {"accepted": False, "match_health": "vetted"}
+    assert enqueued == []
 
 
 def test_agent_picks_empty_when_no_picks() -> None:
