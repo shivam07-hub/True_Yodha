@@ -450,6 +450,22 @@ Endpoints never write to `cv_versions` directly. If a new flow needs to create a
 
 ---
 
+## Career Story Reservoir
+
+The consolidation spine of the CV knowledge/inflow layer (migration `20260711h`): the user gives a DUMP — old CVs, pointer docs, a LinkedIn export zip, pasted notes — and Myro builds a comprehensive career profile from it. Three entities:
+
+- **Career Role** (`career_roles`) — a stable role container (company, title, dates, kind). Kills the positional `role_anchor` fragility: stories reference `role_id`, never a list index.
+- **Career Story** (`career_stories`) — the first-class parent narrative: one real project/achievement with a STAR narrative (situation/task/action/result), verbatim metrics, skills proven, an embedding, and `inflow_ids` provenance back to the dump entries that produced it. Interview prep reads stories directly.
+- **Pointer** — a `cv_points` row with `story_id` set (`role_anchor = "story:{id}"`): one CV-ready phrasing OF a story. A tailored CV is a **projection**: `career_projection` ranks stories against a job's skills, selects with per-role guarantees, composes a `cv_structured`, and writes it through the CV Version Writer Seam as a normal `deterministic` version.
+
+**Inflow ledger** — `cv_dump_entries` is the ONE place every capture surface writes (`kind`: note | file | linkedin; `payload` shape metadata; `processed_at` + `derived_story_ids` forward provenance). `story_ingest` (durable Work Lane, idempotent on entry id) runs `story_extractor` (playbook-grounded, no-fab ADR-0016, verbatim metrics, deterministic role-link verification) and folds near-duplicate stories silently via embedding cosine (`DEDUP_COSINE`).
+
+**Policy (2026-07-11, Shivam):** dump extraction **auto-accepts** into the reservoir — the user curates after (archive-not-delete). This supersedes the 2026-06-24 "every inflow user-confirmed" rule for the dump flow.
+
+Surfaces: `/cv?view=stories` (Stories mode pill on the CV workspace) — profile + dump panel + per-job "Tailor for job". Endpoints: `POST /cv/reservoir/ingest`, `GET /cv/reservoir/profile`, `PATCH /cv/reservoir/stories/{id}`, `POST /cv/reservoir/project`.
+
+---
+
 ## CV Artifact
 
 Anything a user downloads or prints that represents their CV — PDF, DOCX, native browser print. Governed by ADR-0020: **every CV Artifact is rendered from what the user previews.** The `PdfPage` sheet (`.cvb-pdf-page`, `components/cv/builder/pdf-page.tsx`) is the canonical document render; `frontend/lib/cv/sheet-pdf.ts` (`exportSheetPdf`) is the single seam through which a sheet becomes a PDF (`POST /cv/export-pdf`, headless Chromium with the test-synced sheet stylesheet). DOCX is the structured projection of the same visible sections (`selectVisibleCV` → `POST /cv/export-docx`).

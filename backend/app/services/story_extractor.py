@@ -30,7 +30,7 @@ logger = logging.getLogger("myro.story_extractor")
 MAX_INPUT_CHARS = 24_000   # one CV / pointers doc / LinkedIn render fits well inside
 MAX_STORIES = 24           # per extraction call
 MAX_ROLES = 16
-MAX_TOKENS = 3600
+MAX_TOKENS = 8000
 _RETRIEVE_K = 3
 
 ROLE_KINDS = {"work", "education", "leadership", "volunteer", "other"}
@@ -51,15 +51,20 @@ _GUARDRAILS = (
     "real project/achievement, not a duplicate phrasing of another. Flesh out the "
     "narrative as situation / task / action / result, each 1-2 sentences built "
     "strictly from stated facts (leave a field empty when the material doesn't "
-    "say). Keep every concrete specific: client names, scale, technologies, "
-    "stakeholders.\n"
+    "say). The RESULT field is the most important — whenever the material states "
+    "any outcome, impact, or metric, it MUST appear in result. Keep every "
+    "concrete specific: client names, scale, technologies, stakeholders.\n"
+    "ROLE LINKING: role_index MUST be the exact index into your roles array of "
+    "the role where the story happened, and role_company MUST repeat that role's "
+    "company verbatim — re-check each story against the role list before "
+    "answering; a story linked to the wrong employer is a serious error.\n"
     "POINTER: for each story write ONE canonical CV bullet (18-30 words, strong "
     "past-tense verb, the story's best metric woven in when one exists).\n"
     "SKILLS: per story, the skills it genuinely demonstrates (max 8, no forcing).\n"
     'Return ONLY compact JSON: {"roles": [{"company": str, "title": str, '
     '"location": str, "date_label": str, "kind": one of '
     "[work, education, leadership, volunteer, other]}], "
-    '"stories": [{"role_index": int|null, "kind": one of '
+    '"stories": [{"role_index": int|null, "role_company": str, "kind": one of '
     "[project, achievement, accolade, education, research, other], "
     '"title": str, "narrative": {"situation": str, "task": str, "action": str, '
     '"result": str}, "metrics": [{"value": str, "what": str}], '
@@ -100,12 +105,54 @@ def _json_object(raw: str) -> dict | None:
     try:
         parsed = json.loads(text[start:end + 1])
     except (json.JSONDecodeError, ValueError):
-        return None
+        parsed = _salvage_truncated(text[start:])
     return parsed if isinstance(parsed, dict) else None
+
+
+def _salvage_truncated(text: str, attempts: int = 24) -> dict | None:
+    """A max_tokens-clipped response ends mid-object. Recover every COMPLETE
+    story by cutting back to the last closed object and re-closing the arrays —
+    losing the clipped tail beats losing the whole extraction."""
+    cut = len(text)
+    for _ in range(attempts):
+        cut = text.rfind("}", 0, cut)
+        if cut <= 0:
+            return None
+        for closer in ("]}", "}]}"):
+            try:
+                parsed = json.loads(text[: cut + 1] + closer)
+            except (json.JSONDecodeError, ValueError):
+                continue
+            if isinstance(parsed, dict):
+                return parsed
+    return None
 
 
 def _clean_str(value: Any, cap: int = 400) -> str:
     return str(value or "").strip()[:cap]
+
+
+def _company_matches(a: str, b: str) -> bool:
+    na, nb = " ".join(a.lower().split()), " ".join(b.lower().split())
+    return bool(na) and bool(nb) and (na in nb or nb in na)
+
+
+def _verify_role_link(role_index: int | None, role_company: str, roles: list[dict[str, Any]]) -> int | None:
+    """Deterministic guard against the model mis-indexing a story's role: the
+    echoed role_company must match the indexed role's company. On mismatch,
+    re-match by company when it identifies exactly one role; otherwise drop the
+    link (a role-less story is curatable — a wrong employer is not)."""
+    if not role_company:
+        return role_index
+    if role_index is not None and _company_matches(role_company, roles[role_index].get("company") or ""):
+        return role_index
+    matches = [i for i, r in enumerate(roles) if _company_matches(role_company, r.get("company") or "")]
+    if len(matches) == 1:
+        return matches[0]
+    if len(matches) > 1:
+        work = [i for i in matches if (roles[i].get("kind") or "work") == "work"]
+        return work[0] if len(work) == 1 else None  # still ambiguous → role-less, curatable
+    return role_index if role_index is not None else None
 
 
 def parse_extraction(raw: str) -> dict[str, list[dict[str, Any]]]:
@@ -144,6 +191,7 @@ def parse_extraction(raw: str) -> dict[str, list[dict[str, Any]]]:
             continue
         ri = item.get("role_index")
         role_index = ri if isinstance(ri, int) and 0 <= ri < len(roles) else None
+        role_index = _verify_role_link(role_index, _clean_str(item.get("role_company"), 200), roles)
         kind = _clean_str(item.get("kind"), 20).lower()
         narrative_in = item.get("narrative") if isinstance(item.get("narrative"), dict) else {}
         narrative = {

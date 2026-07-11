@@ -121,3 +121,57 @@ def test_build_messages_grounds_static_when_no_passages():
     assert msgs[0]["role"] == "system"
     assert "XYZ formula" in msgs[0]["content"]
     assert "raw career text" in msgs[1]["content"]
+
+
+def test_role_link_verified_by_company_echo():
+    payload = {
+        "roles": [
+            {"company": "Manfest", "title": "Core Team", "kind": "leadership"},
+            {"company": "JLL Technologies", "title": "Data Engineer", "kind": "work"},
+        ],
+        "stories": [{
+            "role_index": 0,  # WRONG index …
+            "role_company": "JLL Technologies",  # … but honest echo → re-matched
+            "kind": "project", "title": "Dashboards", "pointer": "Built 10+ dashboards.",
+        }],
+    }
+    out = story_extractor.parse_extraction(json.dumps(payload))
+    assert out["stories"][0]["role_index"] == 1
+
+
+def test_role_link_ambiguous_companies_prefers_unique_work_role():
+    payload = {
+        "roles": [
+            {"company": "JLL Technologies", "title": "Intern", "kind": "education"},
+            {"company": "JLL Technologies", "title": "Data Engineer", "kind": "work"},
+        ],
+        "stories": [{
+            "role_index": None, "role_company": "JLL",
+            "kind": "project", "title": "Pipelines", "pointer": "Migrated 200+ ETL jobs.",
+        }],
+    }
+    out = story_extractor.parse_extraction(json.dumps(payload))
+    assert out["stories"][0]["role_index"] == 1
+
+
+def test_role_link_unknown_echo_keeps_index():
+    payload = {
+        "roles": [{"company": "Capgemini", "title": "Manager", "kind": "work"}],
+        "stories": [{
+            "role_index": 0, "role_company": "Some Unknown Co",
+            "kind": "project", "title": "X", "pointer": "Did X well.",
+        }],
+    }
+    out = story_extractor.parse_extraction(json.dumps(payload))
+    assert out["stories"][0]["role_index"] == 0
+
+
+def test_parse_extraction_salvages_truncated_json():
+    full = json.dumps(_valid_payload())
+    # clip mid-way through the SECOND story (as a max_tokens cutoff would)
+    clip_at = full.rfind('"title": "CAT')
+    truncated = full[:clip_at]
+    out = story_extractor.parse_extraction(truncated)
+    assert len(out["roles"]) == 2
+    assert len(out["stories"]) == 1          # complete first story recovered
+    assert out["stories"][0]["title"] == "T&M expansion pipeline"

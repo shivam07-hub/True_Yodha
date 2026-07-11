@@ -17,7 +17,7 @@ from app.deps import get_user_db
 from app.repositories.job_skills_read_model import fetch_all_rows, fetch_job_skill_rows, fetch_job_skill_rows_for_ids, group_job_skill_rows
 from app.services import job_importer
 from app.services.industry_grouping import normalize_industry_group
-from app.services.job_history import hydrate_job_snapshot
+from app.services.job_history import attach_jobs
 from app.services.job_intelligence_policy import is_recommendable_listing
 from app.services.location_normalizer import normalize_location
 
@@ -813,14 +813,17 @@ class JobsRepository:
 
         result = (
             self._db.table("job_applications")
-            .select("*, jobs(job_title, company_name, job_description)")
+            .select("*")
             .eq("user_id", user_id)
             .eq("job_id", plan["job_id"])
             .single()
             .execute()
         )
+        row = result.data or {}
+        if row:
+            attach_jobs([row], self._db, "job_title, company_name, job_description")
         return job_importer.shape_application_response(
-            result.data or {}, plan["job_id"], body, plan["status"]
+            row, plan["job_id"], body, plan["status"]
         )
 
     # ── public / global data ───────────────────────────────────────────────────
@@ -2852,25 +2855,28 @@ class JobsRepository:
     # ── applications ───────────────────────────────────────────────────────────
 
     def get_user_applications(self, user_id: str) -> list[dict[str, Any]]:
-        # NOTE: join on `jobs` requires RLS to allow `authenticated` reads on public.jobs.
+        # NOTE: job_applications carries no FK to jobs (20260711c retirement
+        # migration) — attach_jobs joins in Python instead of a PostgREST embed.
         # Pull the card-render columns so a tracked job renders the full FeedCard
         # (chips/location/meta), not just title/company. Mirrors the match-stack join.
         result = (
             self._db.table("job_applications")
-            .select(
-                "*, jobs(job_title, company_name, job_description, main_skills, "
-                "job_summary, apply_url, location, location_raw, location_city, "
-                "location_country, location_mode, location_quality, locations, "
-                "date_posted, seniority_level, work_mode, "
-                "min_years_experience, max_years_experience)"
-            )
+            .select("*")
             .eq("user_id", user_id)
             .order("created_at", desc=True)
             .execute()
         )
         rows = result.data or []
+        attach_jobs(
+            rows,
+            self._db,
+            "job_title, company_name, job_description, main_skills, "
+            "job_summary, apply_url, location, location_raw, location_city, "
+            "location_country, location_mode, location_quality, locations, "
+            "date_posted, seniority_level, work_mode, "
+            "min_years_experience, max_years_experience",
+        )
         for row in rows:
-            hydrate_job_snapshot(row)
             if row.get("jobs"):
                 _hydrate_location_fields(row["jobs"])
         return rows
@@ -2886,17 +2892,21 @@ class JobsRepository:
     def get_application_with_job(
         self, user_id: str, job_id: str
     ) -> dict[str, Any] | None:
-        # NOTE: join on `jobs` requires RLS to allow `authenticated` reads on public.jobs.
+        # NOTE: job_applications carries no FK to jobs (20260711c retirement
+        # migration) — attach_jobs joins in Python instead of a PostgREST embed.
         row = safe_read(
             self._db.table("job_applications")
-            .select("*, jobs(job_title, company_name, job_description)")
+            .select("*")
             .eq("user_id", user_id)
             .eq("job_id", job_id)
             .maybe_single(),
             default=None,
             context="application_with_job",
         )
-        return hydrate_job_snapshot(row) if row else None
+        if not row:
+            return None
+        attach_jobs([row], self._db, "job_title, company_name, job_description")
+        return row
 
     def delete_tracker_rows(self, user_id: str, job_id: str) -> None:
         for table_name in ("job_applications", "user_job_matches"):
@@ -2916,7 +2926,7 @@ class JobsRepository:
         stages = ["saved", "applied", "interviewing"]
         result = (
             self._db.table("job_applications")
-            .select("id, job_id, status, last_stage_changed_at, updated_at, jobs(job_title, company_name)")
+            .select("id, job_id, status, last_stage_changed_at, updated_at")
             .eq("user_id", user_id)
             .in_("status", stages)
             .lt("last_stage_changed_at", cutoff)
@@ -2924,8 +2934,7 @@ class JobsRepository:
             .execute()
         )
         rows = result.data or []
-        for row in rows:
-            hydrate_job_snapshot(row)
+        attach_jobs(rows, self._db, "job_title, company_name")
         return rows
 
     def dismiss_stale_application(self, user_id: str, job_id: str) -> bool:
