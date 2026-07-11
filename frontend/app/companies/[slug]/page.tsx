@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { cache } from "react"
-import type { CommentListResponse, CompanyJobsResponse } from "@/lib/api"
+import type { CommentListResponse, CompanyJobsResponse, CompanySkillIntelligence } from "@/lib/api"
 import { CompanyJobsClient, type PostingNote } from "@/components/companies/company-jobs-client"
 import { RelatedCompanies } from "@/components/companies/related-companies"
 
@@ -60,6 +60,23 @@ const getCompanyNotes = cache(async (companyName: string): Promise<CommentListRe
   }
 })
 
+const getCompanySkillIntelligence = cache(
+  async (companyName: string): Promise<CompanySkillIntelligence | null> => {
+    const base = process.env.NEXT_PUBLIC_API_URL ?? ""
+    if (!base) return null
+    try {
+      const res = await fetch(
+        `${base}/companies/${encodeURIComponent(companyName)}/skill-intelligence?limit=20`,
+        { next: { revalidate: 3600 } },
+      )
+      if (!res.ok) return null
+      return (await res.json()) as CompanySkillIntelligence
+    } catch {
+      return null
+    }
+  },
+)
+
 // Notes left on this company's individual job postings, rolled up. The endpoint
 // 404s when the company has neither reviews nor notes → treat as an empty rollup.
 const getPostingNotes = cache(async (companyName: string): Promise<PostingNote[]> => {
@@ -111,10 +128,11 @@ export default async function CompanyJobsPage(
   const companyName = decodeURIComponent(params.slug)
   // Parallel — the three reads are independent (React.cache dedupes the two
   // getCompanyJobs/notes calls this page + generateMetadata each make).
-  const [data, notes, postingNotes] = await Promise.all([
+  const [data, notes, postingNotes, skillIntelligence] = await Promise.all([
     getCompanyJobs(companyName),
     getCompanyNotes(companyName),
     getPostingNotes(companyName),
+    getCompanySkillIntelligence(companyName),
   ])
   const canonical = `${BASE}/companies/${encodeURIComponent(companyName)}`
 
@@ -187,6 +205,7 @@ export default async function CompanyJobsPage(
         initialData={data}
         initialComments={notes}
         initialPostingNotes={postingNotes}
+        initialSkillIntelligence={skillIntelligence}
       />
       <RelatedCompanies current={companyName} />
     </>

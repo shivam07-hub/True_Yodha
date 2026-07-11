@@ -3,6 +3,7 @@
 import { useCallback } from "react"
 import { useSignupGateStore, type SignupGateOpenParams } from "@/store/signupGateStore"
 import { trackEvent } from "@/lib/analytics"
+import { stashPendingJobSave } from "@/lib/anon-job-stash"
 
 /**
  * ADR-0006 §15 — useSignupGate hook.
@@ -18,6 +19,9 @@ export function useSignupGate() {
 
   const open = useCallback(
     (params: SignupGateOpenParams) => {
+      // Carry an anon Save intent across the auth round-trip (Exception 2): the
+      // job is replayed + saved post-login and the user lands on Collections.
+      if (params.pendingJobId) stashPendingJobSave(params.pendingJobId)
       openGate(params)
       const hasRef = typeof window !== "undefined" && /\bmyro_ref=/.test(document.cookie)
       trackEvent("signup_modal_shown", {

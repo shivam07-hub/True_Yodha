@@ -21,6 +21,9 @@ export interface SignupGateOpenParams {
   next?: string | null
   /** Free-text reason for analytics — e.g. "score-comparison". */
   source?: string | null
+  /** A job the anon user tried to save. Stashed on open, replayed post-login →
+   *  the job is saved and the user lands on Collections (Exception 2). */
+  pendingJobId?: string | null
 }
 
 interface SignupGateState {

@@ -154,8 +154,15 @@ Job Description:
 
 _TRIAGE_MAX_TOKENS = 500
 # Per-job description slice in the triage prompt — enough to judge fit, small enough
-# to keep a ~60-job pool inside every provider's context window.
+# to keep the pool inside every provider's context window.
 _TRIAGE_SNIPPET = 220
+# Max jobs in ONE triage LLM call. A larger pool is triaged as a tournament: chunks
+# of this size run in parallel, each yields its best keep_n, and the winners triage
+# again until they fit one call. This lets the POOL grow large (more role-relevant
+# candidates reach the brain) while every prompt stays inside the free-provider
+# context window and keeps triage quality high (a model ranks 50 rows far better
+# than 300). Must stay > any realistic keep_n so the tournament always converges.
+_TRIAGE_CHUNK = 50
 
 
 def build_triage_prompt(profile: dict[str, Any], cv_markdown: str) -> str:
@@ -228,23 +235,18 @@ def parse_triage(text: str, pool_size: int, keep_n: int) -> list[int] | None:
     return out
 
 
-async def triage_shortlist(
+async def _triage_once(
     profile: dict[str, Any],
     pool_jobs: list[dict[str, Any]],
     provider: LLMProvider,
     keep_n: int,
 ) -> list[dict[str, Any]]:
-    """Cheap batched pass: pool → the ``keep_n`` best-fit jobs, brain-ranked.
+    """ONE triage LLM call over a single (chunk-sized) pool → keep_n best-fit.
 
-    ONE LLM call over the whole pool. Fails soft: on any provider/parse failure
-    return the pool's deterministic-overlap order truncated to ``keep_n`` — the
-    deep eval still runs, just on the overlap-ranked head instead of the
-    brain-ranked head. Never breaks the compute.
+    Fails soft: on any provider/parse failure return the pool's deterministic-
+    overlap order truncated to keep_n — the deep eval still runs, just on the
+    overlap head instead of the brain-ranked head. Never breaks the compute.
     """
-    if keep_n <= 0:
-        return []
-    if len(pool_jobs) <= keep_n:
-        return pool_jobs
     messages = [
         {"role": "system", "content": build_triage_prompt(profile, profile.get("cv_markdown") or "")},
         {"role": "user", "content": build_triage_user(pool_jobs, keep_n)},
@@ -259,6 +261,37 @@ async def triage_shortlist(
         logger.warning("triage: unparseable/empty shortlist — falling back to overlap order")
         return pool_jobs[:keep_n]
     return [pool_jobs[i] for i in indices]
+
+
+async def triage_shortlist(
+    profile: dict[str, Any],
+    pool_jobs: list[dict[str, Any]],
+    provider: LLMProvider,
+    keep_n: int,
+) -> list[dict[str, Any]]:
+    """Cheap batched pass: pool → the ``keep_n`` best-fit jobs, brain-ranked.
+
+    A pool up to ``_TRIAGE_CHUNK`` is one LLM call. A larger pool is a tournament:
+    chunks of ``_TRIAGE_CHUNK`` triage in parallel, each yields its best ``keep_n``,
+    and the merged winners triage again until they fit one call. So the pool can be
+    large (more role-relevant candidates reach the brain) while every prompt stays
+    within context and triage stays sharp. Converges because ``keep_n`` <
+    ``_TRIAGE_CHUNK``, so each round shrinks the field. Fails soft throughout.
+    """
+    if keep_n <= 0:
+        return []
+    if len(pool_jobs) <= keep_n:
+        return pool_jobs
+    if len(pool_jobs) <= _TRIAGE_CHUNK:
+        return await _triage_once(profile, pool_jobs, provider, keep_n)
+
+    chunks = [pool_jobs[i:i + _TRIAGE_CHUNK] for i in range(0, len(pool_jobs), _TRIAGE_CHUNK)]
+    round_results = await asyncio.gather(
+        *(_triage_once(profile, chunk, provider, keep_n) for chunk in chunks)
+    )
+    finalists = [job for chunk_result in round_results for job in chunk_result]
+    # Winners collapse toward keep_n each round → recursion terminates.
+    return await triage_shortlist(profile, finalists, provider, keep_n)
 
 
 # ── Response parser ───────────────────────────────────────────────────────────

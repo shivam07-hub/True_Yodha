@@ -9,6 +9,7 @@ import { auth } from "@/lib/api"
 import { signupEvents } from "@/lib/analytics"
 import { getStoredReferral } from "@/lib/referral"
 import { hasPendingAnonCvClaim } from "@/lib/anon-cv-claim"
+import { hasPendingJobSaveClaim } from "@/lib/anon-job-stash"
 import { postAuthDestination } from "@/lib/auth/post-auth-destination"
 import {
   captureAttributionFromCallback,
@@ -145,6 +146,7 @@ function CallbackInner() {
         next,
         firstSignup: firstSignup === "1",
         hasPendingAnonCv: hasPendingAnonCvClaim(),
+        hasPendingJobSave: hasPendingJobSaveClaim(),
       }))
 
       backgroundPostSignin(session, provider, firstSignup)

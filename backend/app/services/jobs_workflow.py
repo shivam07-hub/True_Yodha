@@ -15,14 +15,112 @@ from app.services.scoring.aspirations import fetch_aspiration_skills
 
 logger = logging.getLogger(__name__)
 
+MatchHealth = Literal["vetted", "overlap_only", "computing", "failed", "empty"]
+
+# How long after a CV upload terminally finishes we still treat an empty match
+# feed as "computing" (the `initial_match` bulk job runs a few seconds behind the
+# parse job). Only past this window is a persistently-empty feed a genuine failure.
+_MATCH_COMPUTE_GRACE_SECONDS = 120
+
+
+def _match_pool_nonempty(repo: JobsRepository, user_id: str) -> bool:
+    """Would the matcher find ANY skill-overlapping, location-eligible candidate?
+
+    The one honest separator between `failed` (compute errored — retry helps) and
+    a legitimately-empty feed (`exhausted` — no job in the market overlaps this
+    user's skills, so retry only wastes their time). Mirrors the candidate filter
+    `compute_job_matches` uses. Only called for the rare empty-but-skilled user."""
+    skill_rows = repo.get_user_skill_rows(user_id)
+    keys = [
+        r["skills"]["taxonomy_key"]
+        for r in skill_rows
+        if r.get("skills") and r["skills"].get("taxonomy_key")
+    ]
+    if not keys:
+        return False
+    profile = targeting.for_ranking(repo, user_id).ranking_profile()
+    countries = profile.get("target_location_countries") or []
+    if not countries and profile.get("target_location_country"):
+        countries = [profile["target_location_country"]]
+    ids = repo.get_candidate_job_ids_for_skills(keys, target_location_countries=countries)
+    return bool(ids)
+
+
+def compute_match_health(
+    repo: JobsRepository,
+    user_id: str,
+    match_rows: list[dict[str, Any]],
+    *,
+    now: Any = None,
+) -> MatchHealth:
+    """Honest state of a user's job matches, for the trust banner + free re-vet.
+
+    - ``vetted``       — at least one recommended row carries a Career-Ops eval.
+    - ``overlap_only`` — matches exist but NONE were LLM-vetted (the brain failed;
+      the user is looking at un-vetted overlap picks). The core silent-degradation
+      case → banner + free retry.
+    - ``computing``    — no matches yet, but a compute is plausibly still in flight.
+    - ``failed``       — skilled user, a real candidate pool exists, yet no match
+      ever landed and the upload finished long ago → the compute silently died.
+    - ``empty``        — nothing to surface (no CV/skills, or the market genuinely
+      has no overlapping jobs). NOT a failure; no retry offered.
+    """
+    from datetime import datetime, timezone
+
+    from app.repositories import cv_upload_jobs
+
+    if match_rows:
+        vetted = any(r.get("overall_score") is not None for r in match_rows)
+        return "vetted" if vetted else "overlap_only"
+
+    # No matches. A user who has matched before but shows none now (dismissed all)
+    # is not a failure — only a never-matched user can have silently failed.
+    if repo.has_computed_matches(user_id):
+        return "empty"
+    if not repo.get_user_skill_rows(user_id):
+        return "empty"  # no CV/skills yet — nothing to match
+
+    latest = cv_upload_jobs.get_latest_status(user_id)
+    status = (latest or {}).get("status")
+    if status == "processing":
+        return "computing"
+
+    ref = (latest or {}).get("finished_at") or (latest or {}).get("created_at")
+    now = now or datetime.now(timezone.utc)
+    age = _iso_age_seconds(ref, now)
+    if age is None or age < _MATCH_COMPUTE_GRACE_SECONDS:
+        return "computing"  # unknown/just-finished timing → never cry failure early
+
+    # Upload done long ago, skilled, never matched. Failure only if there was
+    # actually something to match — otherwise it's a genuine (exhausted) empty.
+    return "failed" if _match_pool_nonempty(repo, user_id) else "empty"
+
+
+def _iso_age_seconds(ref: Any, now: Any) -> float | None:
+    from datetime import datetime, timezone
+
+    if not ref:
+        return None
+    try:
+        ts = datetime.fromisoformat(str(ref))
+    except (ValueError, TypeError):
+        return None
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    return (now - ts).total_seconds()
+
+
 # Two-tier brain sizing (career-ops shape). The deterministic pre-filter hands a
-# POOL of this many role-relevant, fresh candidates to the cheap batched brain
-# triage, which picks KEEP best-fit for the expensive per-job 5-axis reasoning.
-# POOL widens the net well past the old raw top-12 (so a role-fit job that ranked
-# low on noisy skill-overlap can still be promoted by the brain); KEEP bounds the
-# per-job LLM cost per compute. The long tail past KEEP is rated on-open
-# (on_demand.ensure_job_eval), cached, so nothing is permanently missed.
-MATCH_TRIAGE_POOL = 60
+# POOL of this many role-relevant, fresh candidates to the batched brain triage,
+# which picks KEEP best-fit for the expensive per-job 5-axis reasoning.
+#
+# POOL is large on purpose: the brain (which reads the CV) does the real role-fit
+# judgment, so the more relevant candidates it sees the better — the old raw top-12
+# starved it. A POOL > the triage chunk size (llm_ranker._TRIAGE_CHUNK) is triaged
+# as a cheap parallel tournament, so widening it costs a few small triage calls, NOT
+# a deep eval per job. KEEP bounds the expensive per-job reasoning; the long tail
+# past KEEP is rated on-open (on_demand.ensure_job_eval), cached — nothing missed.
+MATCH_TRIAGE_POOL = 150
 MATCH_TRIAGE_KEEP = 15
 
 

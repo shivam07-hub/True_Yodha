@@ -153,7 +153,10 @@ class JobIntelligence:
         if existing is not None:
             return _feedback_receipt(existing, created=False)
 
-        if command.feedback_kind == "quality":
+        if (
+            command.feedback_kind == "quality"
+            and command.reason_code != "apply_link_live"
+        ):
             today = self.now().date()
             since = datetime.combine(
                 today,
@@ -249,7 +252,9 @@ def _to_job_pulse(row: dict, *, now: datetime) -> JobPulse:
     return JobPulse(
         job_id=str(row["job_id"]),
         first_seen_at=marker_to_iso_date(row.get("first_seen")),
-        last_verified_at=marker_to_iso_date(row.get("last_seen")),
+        last_verified_at=marker_to_iso_date(
+            row.get("last_verified_live_at") or row.get("last_seen")
+        ),
         is_stale=is_stale,
         listing_confidence=confidence,
         tracking_count=visible_count(

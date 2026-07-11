@@ -22,6 +22,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from app.services.job_intelligence_policy import is_recommendable_listing
+
 logger = logging.getLogger(__name__)
 
 # Editorial gate — only genuinely-strong evals become picks (never padded).
@@ -57,7 +59,7 @@ def select_agent_picks(
         if str(row.get("legitimacy_tier") or "").strip().lower() in _JUNK_TIERS:
             continue
         job = row.get("jobs") or {}
-        if not job.get("is_active"):
+        if not is_recommendable_listing(job):
             continue
         comment = (row.get("summary") or "").strip()
         if not comment:  # no grounded "why" → never fabricate one; drop the pick

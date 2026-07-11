@@ -2,6 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.database import get_supabase_admin
 from app.repositories.jobs import JobsRepository, get_public_jobs_repository
+from app.repositories.company_intelligence import (
+    CompanyIntelligenceRepository,
+    get_company_intelligence_repository,
+)
+from app.schemas.company_intelligence import CompanySkillIntelligenceResponse
 from app.schemas import (
     CompanyJobCardItem,
     CompanyJobsResponse,
@@ -13,6 +18,23 @@ from app.schemas import (
 _POSTING_NOTES_LIMIT = 20
 
 router = APIRouter(prefix="/companies", tags=["companies"])
+
+
+@router.get(
+    "/{company_name}/skill-intelligence",
+    response_model=CompanySkillIntelligenceResponse,
+)
+def get_company_skill_intelligence(
+    company_name: str,
+    limit: int = Query(20, ge=1, le=100),
+    repo: CompanyIntelligenceRepository = Depends(
+        get_company_intelligence_repository
+    ),
+) -> CompanySkillIntelligenceResponse:
+    result = repo.get(company_name, limit=limit)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Company intelligence not found")
+    return CompanySkillIntelligenceResponse(**result)
 
 
 @router.get("/{company_name}/jobs", response_model=CompanyJobsResponse)

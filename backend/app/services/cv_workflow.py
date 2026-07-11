@@ -54,7 +54,12 @@ async def _trigger_initial_match_compute(
             force=force_context_refresh,
         )
     except Exception as exc:
-        _log.warning("Initial match compute failed for user=%s: %s", user_id, exc)
+        # Not swallowed silently: the matches read seam infers `failed` from the
+        # empty feed and offers a free re-vet; this metric line is the alerting
+        # hook (spike = matcher/provider degradation). See compute_match_health.
+        _log.warning(
+            "metric match.initial_compute_failed user=%s error=%s", user_id, exc
+        )
 
 
 def _persist_baseline_cv(

@@ -21,6 +21,10 @@ class _FakeQuery:
         self._tape["payload"] = payload
         return self
 
+    def insert(self, payload: Any) -> "_FakeQuery":
+        self._tape["payload"] = payload
+        return self
+
     def select(self, value: str) -> "_FakeQuery":
         self._tape["select"] = value
         return self
@@ -112,7 +116,7 @@ def test_get_user_match_stack_keeps_old_matches_under_new_refreshes() -> None:
             "batch_week": "2026-05-25",
             "computed_at": "2026-05-25T10:00:00+00:00",
             "llm_rank": 1,
-            "jobs": {"location": "Bengaluru, India"},
+            "jobs": {"location": "Bengaluru, India", "is_active": True, "listing_confidence": "active"},
         },
         {
             "id": 2,
@@ -121,7 +125,7 @@ def test_get_user_match_stack_keeps_old_matches_under_new_refreshes() -> None:
             "batch_week": "2026-05-25",
             "computed_at": "2026-05-25T10:00:00+00:00",
             "llm_rank": 2,
-            "jobs": {"location": "Remote"},
+            "jobs": {"location": "Remote", "is_active": True, "listing_confidence": "active"},
         },
         {
             "id": 3,
@@ -130,7 +134,7 @@ def test_get_user_match_stack_keeps_old_matches_under_new_refreshes() -> None:
             "batch_week": "2026-06-01",
             "computed_at": "2026-06-01T09:00:00+00:00",
             "llm_rank": 1,
-            "jobs": {"location": "Mumbai, India"},
+            "jobs": {"location": "Mumbai, India", "is_active": True, "listing_confidence": "active"},
         },
         {
             "id": 4,
@@ -139,7 +143,7 @@ def test_get_user_match_stack_keeps_old_matches_under_new_refreshes() -> None:
             "batch_week": "2026-06-01",
             "computed_at": "2026-06-01T09:00:00+00:00",
             "llm_rank": 2,
-            "jobs": {"location": "Remote"},
+            "jobs": {"location": "Remote", "is_active": True, "listing_confidence": "active"},
         },
     ]
     repo = JobsRepository(_FakeDB(rows), _FakeDB())  # type: ignore[arg-type]
@@ -165,6 +169,39 @@ def test_get_user_match_stack_selects_job_lifecycle_fields() -> None:
     assert "first_seen" in match_select
     assert "last_seen" in match_select
     assert "is_active" in match_select
+    assert "listing_confidence" in match_select
+    assert "last_verified_live_at" in match_select
+
+
+def test_get_user_match_stack_hides_untrusted_listings() -> None:
+    repo = JobsRepository(
+        _FakeDB(
+            tables={
+                "user_job_matches": [
+                    {
+                        "id": 1,
+                        "user_id": "user-1",
+                        "job_id": "trusted-job",
+                        "computed_at": "2026-06-01T09:00:00+00:00",
+                        "jobs": {"is_active": True, "listing_confidence": "active"},
+                    },
+                    {
+                        "id": 2,
+                        "user_id": "user-1",
+                        "job_id": "uncertain-job",
+                        "computed_at": "2026-06-01T10:00:00+00:00",
+                        "jobs": {"is_active": True, "listing_confidence": "uncertain"},
+                    },
+                ],
+                "user_dismissed_job_cards": [],
+            }
+        ),
+        _FakeDB(),
+    )  # type: ignore[arg-type]
+
+    stack = repo.get_user_match_stack("user-1")
+
+    assert [row["job_id"] for row in stack] == ["trusted-job"]
 
 
 def test_get_user_match_stack_excludes_user_dismissed_cards() -> None:
@@ -179,7 +216,7 @@ def test_get_user_match_stack_excludes_user_dismissed_cards() -> None:
                         "batch_week": "2026-06-01",
                         "computed_at": "2026-06-01T09:00:00+00:00",
                         "llm_rank": 1,
-                        "jobs": {"location": "Bengaluru, India"},
+                        "jobs": {"location": "Bengaluru, India", "is_active": True, "listing_confidence": "active"},
                     },
                     {
                         "id": 2,
@@ -188,7 +225,7 @@ def test_get_user_match_stack_excludes_user_dismissed_cards() -> None:
                         "batch_week": "2026-06-01",
                         "computed_at": "2026-06-01T09:00:00+00:00",
                         "llm_rank": 2,
-                        "jobs": {"location": "Remote"},
+                        "jobs": {"location": "Remote", "is_active": True, "listing_confidence": "active"},
                     },
                 ],
                 "user_dismissed_job_cards": [
@@ -221,6 +258,46 @@ def test_get_existing_match_job_ids_includes_dismissed_cards_for_refresh_exclusi
 
     assert repo.get_existing_match_job_ids("user-1") == ["prior-job", "dismissed-job"]
     assert repo.get_existing_match_job_ids("user-1", batch_week=date(2026, 6, 1)) == ["prior-job"]
+
+
+def test_record_recommendation_exposures_captures_confidence_at_show() -> None:
+    admin_db = _FakeDB()
+    repo = JobsRepository(_FakeDB(), admin_db)  # type: ignore[arg-type]
+
+    written = repo.record_recommendation_exposures(
+        "user-1",
+        [
+            {
+                "id": 42,
+                "job_id": "job-1",
+                "jobs": {
+                    "is_active": True,
+                    "listing_confidence": "active",
+                    "last_verified_live_at": "2026-07-11T09:00:00+00:00",
+                },
+            },
+            {
+                "job_id": "job-2",
+                "is_active": True,
+                "listing_confidence": "active",
+                "last_verified_live_at": "2026-07-11T10:00:00+00:00",
+            },
+            {
+                "job_id": "job-3",
+                "is_active": True,
+                "listing_confidence": "uncertain",
+            },
+        ],
+        surface="dashboard",
+    )
+
+    assert written == 2
+    assert admin_db.tape["table"] == "job_recommendation_exposures"
+    payload = admin_db.tape["payload"]
+    assert [row["job_id"] for row in payload] == ["job-1", "job-2"]
+    assert payload[0]["match_id"] == 42
+    assert payload[0]["confidence_at_show"] == "active"
+    assert payload[0]["metadata"] == {"position": 1}
 
 
 def test_dismiss_dashboard_job_card_upserts_dismissal() -> None:

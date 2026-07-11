@@ -98,7 +98,7 @@ interface ResultsProps {
   /** Unified capture (the ★ Save pill on each role row). */
   savedJobIds: Set<string>
   onSaveJob: (jobId: string) => void
-  onSignup: () => void
+  onSignup: (jobId: string) => void
   onTailor: (jobId: string) => void
 }
 
@@ -321,7 +321,7 @@ function Split(props: ResultsProps) {
                 onCheckFit={() => props.onCheckFit(j, props.activeCompanyName)}
                 saved={props.savedJobIds.has(j.id)}
                 onSave={() => props.onSaveJob(j.id)}
-                onSignup={props.onSignup}
+                onSignup={() => props.onSignup(j.id)}
                 onTailor={() => props.onTailor(j.id)}
               />
             ))}

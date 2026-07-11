@@ -16,6 +16,7 @@ def _row(
     overlap: float = 50.0,
     tier: str | None = None,
     active: bool = True,
+    listing_confidence: str = "active",
 ) -> dict[str, Any]:
     return {
         "job_id": job_id,
@@ -24,7 +25,12 @@ def _row(
         "summary": summary,
         "overlap_score": overlap,
         "legitimacy_tier": tier,
-        "jobs": {"is_active": active, "job_title": f"Role {job_id}", "company_name": "Acme"},
+        "jobs": {
+            "is_active": active,
+            "listing_confidence": listing_confidence,
+            "job_title": f"Role {job_id}",
+            "company_name": "Acme",
+        },
     }
 
 
@@ -56,6 +62,7 @@ def test_drops_junk_legitimacy_and_inactive_jobs() -> None:
         _row("good", score=4.5),
         _row("scam", score=4.9, tier="scam"),       # flagged junk → out even if high
         _row("delisted", score=4.4, active=False),   # job gone → out
+        _row("uncertain", score=4.8, listing_confidence="uncertain"),
     ]
     picks = agent_picks.select_agent_picks(stack)
     assert [p["job_id"] for p in picks] == ["good"]

@@ -139,7 +139,7 @@ export function LibraryView({
   const view: View =
     viewParam === "cv" || legacyMaster ? "cv"
     : viewParam === "active" || legacyClosed ? "active"
-    : "active"
+    : "cv"
 
   const stats = buildCVWorkspaceStats(versions, applications)
   const isNewUser = applications.length === 0

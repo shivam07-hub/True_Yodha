@@ -282,6 +282,10 @@ def test_get_candidate_job_ids_for_skills_scopes_correctly() -> None:
             {"job_id": "j3", "skill_id": "s3"},
             {"job_id": "j1", "skill_id": "s2"},
         ],
+        "jobs": [
+            {"job_id": "j1", "is_active": True, "listing_confidence": "active", "last_seen": _fresh_marker(1)},
+            {"job_id": "j2", "is_active": True, "listing_confidence": "active", "last_seen": _fresh_marker(1)},
+        ],
     })
 
     result = JobsRepository(db).get_candidate_job_ids_for_skills(["python", "sql"])
@@ -392,6 +396,10 @@ def test_get_candidate_job_ids_for_skills_preserves_canonical_case() -> None:
             {"job_id": "j2", "skill_id": "s2"},
             {"job_id": "j3", "skill_id": "s3"},
         ],
+        "jobs": [
+            {"job_id": "j1", "is_active": True, "listing_confidence": "active", "last_seen": _fresh_marker(1)},
+            {"job_id": "j2", "is_active": True, "listing_confidence": "active", "last_seen": _fresh_marker(1)},
+        ],
     })
 
     result = JobsRepository(db).get_candidate_job_ids_for_skills(
@@ -422,9 +430,9 @@ def test_get_candidate_job_ids_for_skills_drops_stale_listings() -> None:
             {"job_id": "j3", "skill_id": "s3"},
         ],
         "jobs": [
-            {"job_id": "j1", "is_active": True, "last_seen": _fresh_marker(2)},
-            {"job_id": "j2", "is_active": True, "last_seen": _fresh_marker(60)},
-            {"job_id": "j3", "is_active": False, "last_seen": _fresh_marker(1)},
+            {"job_id": "j1", "is_active": True, "listing_confidence": "active", "last_seen": _fresh_marker(2)},
+            {"job_id": "j2", "is_active": True, "listing_confidence": "uncertain", "last_seen": _fresh_marker(60)},
+            {"job_id": "j3", "is_active": False, "listing_confidence": "closed", "last_seen": _fresh_marker(1)},
         ],
     })
 
@@ -433,25 +441,24 @@ def test_get_candidate_job_ids_for_skills_drops_stale_listings() -> None:
     assert set(result) == {"j1"}
 
 
-def test_get_candidate_job_ids_for_skills_relaxes_when_all_stale() -> None:
-    # If every overlapping job is stale, fall back to the full pool rather than
-    # return nothing — the user still sees their best available matches.
+def test_get_candidate_job_ids_for_skills_returns_empty_when_none_are_trusted() -> None:
+    # Trust is a hard gate: an empty honest pool is better than a stale match.
     db = _FakeDB({
         "skills": [{"id": "s1", "taxonomy_key": "python"}],
         "job_skills": [{"job_id": "j1", "skill_id": "s1"}],
-        "jobs": [{"job_id": "j1", "is_active": True, "last_seen": _fresh_marker(90)}],
+        "jobs": [{"job_id": "j1", "is_active": True, "listing_confidence": "uncertain", "last_seen": _fresh_marker(90)}],
     })
 
     result = JobsRepository(db).get_candidate_job_ids_for_skills(["python"])
 
-    assert result == ["j1"]
+    assert result == []
 
 
 def test_get_candidate_job_ids_for_skills_require_fresh_false_keeps_stale() -> None:
     db = _FakeDB({
         "skills": [{"id": "s1", "taxonomy_key": "python"}],
         "job_skills": [{"job_id": "j1", "skill_id": "s1"}],
-        "jobs": [{"job_id": "j1", "is_active": True, "last_seen": _fresh_marker(90)}],
+        "jobs": [{"job_id": "j1", "is_active": True, "listing_confidence": "uncertain", "last_seen": _fresh_marker(90)}],
     })
 
     result = JobsRepository(db).get_candidate_job_ids_for_skills(["python"], require_fresh=False)
