@@ -10,6 +10,7 @@ export const dataKeys = {
   scores: () => ["scores"] as const,
   userSkills: () => ["user-skills"] as const,
   practiceSaves: () => ["practice-saves"] as const,
+  skillUpvotes: () => ["skill-upvotes"] as const,
   jobs: () => ["jobs"] as const,
   hiddenJobs: () => ["jobs", "hidden"] as const,
   feedState: () => ["jobs", "feed-state"] as const,

@@ -97,3 +97,27 @@ class PracticeSavesResponse(BaseModel):
     skills: list[PracticeSave]
     total: int
 
+
+class SkillUpvoteToggleRequest(BaseModel):
+    skill_key: str
+    display_name: str = ""
+    job_id: str
+
+
+class SkillUpvoteItem(BaseModel):
+    skill_key: str
+    display_name: str
+    count: int
+    job_ids: list[str]
+
+
+class SkillUpvotesResponse(BaseModel):
+    skills: list[SkillUpvoteItem]
+    total: int
+
+
+class SkillUpvoteToggleResponse(BaseModel):
+    skill_key: str
+    upvoted: bool
+    count: int
+

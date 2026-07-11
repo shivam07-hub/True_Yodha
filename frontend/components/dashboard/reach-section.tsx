@@ -110,6 +110,11 @@ export function ReachSection({ job, token, active }: { job: JobMatch; token: str
   const pack = packState.data?.pack ?? buy.data?.pack ?? null
   const purchased = !!pack
 
+  // No searches to offer and nothing purchased → no section. The backend
+  // already degrades unreliable role parses to a company-level search; when
+  // even that is impossible, absence beats a dead-end row.
+  if (!search.isLoading && searches.length === 0 && !purchased) return null
+
   return (
     <div className="db-dsec">
       <div className="db-dsec-head">
@@ -128,9 +133,7 @@ export function ReachSection({ job, token, active }: { job: JobMatch; token: str
             </a>
           ))}
         </div>
-      ) : (
-        <p className="db-lens-empty">Add a role or company to find people to reach.</p>
-      )}
+      ) : null}
 
       {/* Optional own-connections: warm intros at the company (ADR-0018 Path 1). */}
       <div className="db-reach-conn">

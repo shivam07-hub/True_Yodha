@@ -14,6 +14,9 @@ export interface LadderSkill {
   onCV: boolean
   demand: DemandBand
   jobCount: number
+  /** The user's own learning intent — how many of THEIR jobs upvoted this
+      skill from the job drawer. Leads practice ordering. */
+  upvotes: number
   maxBankLevel: number
   locked: boolean
 }

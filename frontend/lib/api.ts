@@ -435,6 +435,46 @@ export interface PracticeSavesResponse {
   total: number
 }
 
+/** Per-skill learning intent — count = how many of the user's jobs it was
+ *  upvoted from. Feeds Forge practice ordering. */
+export interface SkillUpvote {
+  skill_key: string
+  display_name: string
+  count: number
+  job_ids: string[]
+}
+
+export interface SkillUpvotesResponse {
+  skills: SkillUpvote[]
+  total: number
+}
+
+export interface SkillUpvoteToggleResponse {
+  skill_key: string
+  upvoted: boolean
+  count: number
+}
+
+/** One live opening on a company's public jobs page. */
+export interface CompanyJobCard {
+  job_id: string
+  title: string
+  location: string | null
+  location_city: string | null
+  location_country: string | null
+  location_mode: string | null
+  primary_skills: string[]
+}
+
+export interface CompanyJobsResponse {
+  company_name: string
+  total: number
+  jobs: CompanyJobCard[]
+  page: number
+  page_size: number
+  has_next: boolean
+}
+
 export const users = {
   me: (token: string) =>
     request<UserProfile>("/users/me", {
@@ -479,6 +519,16 @@ export const users = {
     request<void>(`/users/me/practice-saves/${encodeURIComponent(skillKey)}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
+    }),
+  skillUpvotes: (token: string) =>
+    request<SkillUpvotesResponse>("/users/me/skill-upvotes", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  toggleSkillUpvote: (token: string, body: { skill_key: string; display_name?: string; job_id: string }) =>
+    request<SkillUpvoteToggleResponse>("/users/me/skill-upvotes/toggle", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
     }),
   updateNinjaName: (token: string, ninjaName: string) =>
     request<{ ninja_name: string }>("/profile/ninja-name", {
@@ -3060,6 +3110,12 @@ export const jobs = {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     }),
+  /** A company's live openings (public read) — powers the drawer's one-tap
+   *  "collect more roles here" list. */
+  companyJobs: (company: string) =>
+    request<CompanyJobsResponse>(
+      `/companies/${encodeURIComponent(company)}/jobs?page=1&page_size=50`,
+    ),
   // Delta-4 intent chat: talk to Myro when the feed disappoints → propose a diff.
   intentChat: (token: string, messages: IntentChatMessage[]) =>
     request<IntentChatResponse>("/jobs/intent-chat", {

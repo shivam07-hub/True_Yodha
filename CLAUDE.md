@@ -544,7 +544,19 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-09 · CV Playground v2 — design-handoff rework of the per-job tailoring surface, pushed Develop `77b3bb6`)
+## LAST SESSION SUMMARY (2026-07-11 · Job drawer = CV funnel — readability + upvotes + one-tap collect + one detail contract, pushed Develop)
+
+Trigger: Shivam's two screenshots — grey unreadable drawer prose on light theme + mobile sheet showing a different flow than desktop — plus the Delta-4 lock: **job detail = CV-creation funnel; every non-CV affordance is upvote, one-tap save, or motivation toward Tailor CV** (memory `product_job_detail_cv_funnel`). Five commits, all Develop, own files only:
+
+- **`999f916` readability** — root cause: `.db-why-quote`/`.db-jdbox` (reading prose) set in the muted caption token on warm-light. Prose → `--db-ink`; mono section labels faint→muted (AA).
+- **`9d011ec` junk gates** — `reach_intel.derive_function` refuses titles with non-ASCII letters (the "Head of … Recrutamento Sele" garble → degrades to honest "People at {company}" search; nothing → section hides). "No skill data for this role yet" dead text removed; skills section hides when empty (design-over-words). 12 reach tests.
+- **`173e2a4` skill upvotes** — "Skills to build" rows (desktop drawer + mobile sheet) swap Lock-in pill for an upvote toggle: one per (user, skill, job) → **▲3 = "3 of my jobs need this"**. New `skill_upvotes` table (own-only RLS, **migration `20260711i` APPLIED to prod + PostgREST reloaded**), `GET/POST /users/me/skill-upvotes[/toggle]`; upvote auto-lands the skill in `practice_saves` (source `job_upvote`, un-upvote of last job removes only that auto row). **Forge**: upvotes lead hero pick + both sort modes, accent `▲N jobs` chip. Optimistic fill both skins. 5 backend tests.
+- **`fb32a34` More Roles = one-tap collect** — drawer merges company LIVE openings (public `/companies/{name}/jobs`, already built) with collection siblings; uncollected rows save to Collections on one tap, ✓+pop lands optimistically (revert on fail); collected rows keep fit% + drawer jump.
+- **`732261f` one Job Plan contract** — `lib/jobs/detail-model.ts` owns section order + gating (why → skills → reach → jd → company → notes; Tailor CV = footer hero); desktop `detail-body.tsx` AND mobile `job-detail-sheet.tsx` render from it → skins can't drift again (collections/model.ts pattern). 5 model tests.
+
+Green: backend full suite + ruff clean · tsc 0 · eslint 0 · ui-drift clean · next build ✓. **OWED (Shivam):** (1) **prod = `main` merge** (upvote endpoints + reach gate must reach dev/prod backends — dev auto-deploys from Develop); (2) authed browser QA light+dark+375px: drawer prose ink, ▲ upvote fill + count, Forge "▲N jobs" ordering, More-Roles one-tap ✓, garbled-title job shows "People at {company}" or no Reach; (3) follow-up idea: verdict-word slice 4 (match-verdict seam) still open — the model's "why" slot is where it lands.
+
+## OLDER SESSION SUMMARY (2026-07-09 · CV Playground v2 — design-handoff rework of the per-job tailoring surface, pushed Develop `77b3bb6`)
 
 Implemented the `reference/CV Playground Redesign Strategy-handoff.zip` prototype (`CV Playground v2.dc.html` + Mobile) on the authed `/cv?jobId` surface, "to the dot" plus Shivam's two nuances: **(1) skills are LEVELLED** — Skills tab rows carry `L{user}→L{required}` (from `SkillGapItem` levels + `below_level_cards`), Sharpen fixes raise the level phrasing; **(2) three job-context buttons → three destinations** (prototype wired all 3 to the skills tab): header "N requirements extracted →" → Skills tab · toolbar "Job Description" → raw-JD drawer · rail tab → Skills. Forks locked via AskUserQuestion: fix cards lazy-load the Mentor **pick-a-version** rewrite in-card (keeps `55aa96e`); mobile built same pass (bottom segmented Edit/Fixes/Skills/Preview above the app nav); **Restructure dropped from this surface** (files kept for public playground); Download PDF + auto-trim + per-line hide/copy/edit kept.
 

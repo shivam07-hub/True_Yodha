@@ -1,6 +1,8 @@
 "use client"
 
 import { useMatchBrain } from "@/lib/hooks/use-match-brain"
+import { useSkillUpvotes } from "@/lib/hooks/use-skill-upvotes"
+import { jobPlanSections } from "@/lib/jobs/detail-model"
 import { BottomSheet } from "./bottom-sheet"
 import type { MobileJobRow } from "./job-model"
 
@@ -31,7 +33,6 @@ export function JobDetailSheet({
   onSkip,
   onTailor,
   onApply,
-  onPractice,
   captureSlot,
 }: {
   open: boolean
@@ -46,18 +47,27 @@ export function JobDetailSheet({
   onSkip: () => void
   onTailor: () => void
   onApply: () => void
-  onPractice: (skill: string) => void
   /** Apply Transport liveness band — rendered above the footer after an apply. */
   captureSlot?: React.ReactNode
 }) {
-  // Hook must run before the early return (rules of hooks). Fetches only while
-  // the sheet is open for a real job — that call both warms the cache and gives
-  // us the brain's summary to show as the "why".
+  // Hooks must run before the early return (rules of hooks). The brain fetch
+  // only runs while the sheet is open for a real job — that call both warms the
+  // cache and gives us the brain's summary to show as the "why".
   const { result: brain } = useMatchBrain(token, open && data ? data.row.id : null)
+  const upvotes = useSkillUpvotes(token)
   if (!data) return <BottomSheet open={open} onClose={onClose} label="Job detail" maxHeight="88%"><div /></BottomSheet>
   const { row, matched, gaps, saved, hasApply } = data
   // Prefer the brain's real "why this fits you" summary over the static JD slice.
   const whyFit = (brain?.available ? brain.summary : null) || data.whyFit
+
+  // Section order + gating from the ONE Job Plan contract shared with the
+  // desktop drawer (lib/jobs/detail-model) — mobile just supports fewer slots.
+  const sections = jobPlanSections({
+    hasWhy: !!whyFit,
+    matchedCount: matched.length,
+    buildCount: gaps.length,
+    supports: { reach: false, jd: false, company: false, notes: false },
+  })
 
   return (
     <BottomSheet open={open} onClose={onClose} label="Job detail" maxHeight="88%">
@@ -87,14 +97,14 @@ export function JobDetailSheet({
           </div>
         )}
 
-        {whyFit && (
+        {sections.includes("why") && (
           <div style={{ marginTop: 14 }}>
             <div style={sectionLabel}>Why you fit</div>
             <p style={{ margin: "6px 0 0", fontSize: 13.5, lineHeight: 1.55, color: "#d6d6cf" }}>{whyFit}</p>
           </div>
         )}
 
-        {matched.length > 0 && (
+        {sections.includes("skills") && matched.length > 0 && (
           <div style={{ marginTop: 14 }}>
             <div style={sectionLabel}>You already match · {matched.length}</div>
             <div style={{ display: "flex", flexDirection: "column", marginTop: 4 }}>
@@ -108,16 +118,36 @@ export function JobDetailSheet({
           </div>
         )}
 
-        {gaps.length > 0 && (
+        {sections.includes("skills") && gaps.length > 0 && (
           <div style={{ marginTop: 14 }}>
             <div style={sectionLabel}>Skills to build · {gaps.length}</div>
             <div style={{ display: "flex", flexDirection: "column", marginTop: 4 }}>
-              {gaps.map((name, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.045)" }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</span>
-                  <button onClick={() => onPractice(name)} className="mm-press-sm" style={{ height: 24, padding: "0 10px", borderRadius: 99, border: "1px solid rgba(255,255,255,0.09)", background: "transparent", color: "#c9c9c2", fontSize: 10.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flex: "none" }}>Practice</button>
-                </div>
-              ))}
+              {gaps.map((name, i) => {
+                // Upvote = "I want to learn this", counted per job — ▲3 means
+                // 3 of my jobs need it. Orders Practice; fill is optimistic.
+                const on = upvotes.upvotedFor(name, row.id)
+                const count = upvotes.countFor(name)
+                return (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.045)" }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</span>
+                    <button
+                      onClick={() => upvotes.toggle({ skill_key: name }, row.id)}
+                      aria-pressed={on}
+                      aria-label={`Upvote ${name} to practice`}
+                      className="mm-press-sm"
+                      style={{
+                        height: 24, minWidth: 40, padding: "0 10px", borderRadius: 99,
+                        border: `1px solid ${on ? "var(--mm-accent)" : "rgba(255,255,255,0.09)"}`,
+                        background: on ? "rgba(0,245,212,0.08)" : "transparent",
+                        color: on ? "var(--mm-accent)" : "#c9c9c2",
+                        fontSize: 10.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flex: "none",
+                      }}
+                    >
+                      ▲{count > 0 ? ` ${count}` : ""}
+                    </button>
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}
