@@ -385,6 +385,20 @@
 }
 .db-otherrole:hover { border-color: var(--db-wash-border); }
 .db-otherrole .fit { font-family: var(--tm-font-mono); font-size: 11px; color: var(--db-accent-text); flex-shrink: 0; }
+.db-otherrole:active { transform: scale(0.985); }
+
+/* One-tap collect state — flips optimistically on the tap. */
+.db-orstate {
+  font-family: var(--tm-font-mono); font-size: 10.5px; letter-spacing: 0.04em;
+  padding: 3px 9px; border-radius: 99px; border: 1px solid var(--db-line);
+  color: var(--db-mut); flex-shrink: 0; white-space: nowrap;
+  transition: all 120ms ease;
+}
+.db-otherrole:hover .db-orstate { border-color: var(--db-wash-border); color: var(--db-accent-text); }
+.db-orstate.on { background: var(--db-wash); border-color: var(--db-wash-border); color: var(--db-accent-text); }
+@media (prefers-reduced-motion: no-preference) {
+  .db-otherrole.db-just-saved .db-orstate { animation: db-upvote-pop 280ms var(--db-ease); }
+}
 
 .db-notes-input {
   width: 100%; min-height: 64px; resize: vertical;

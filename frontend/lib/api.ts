@@ -455,6 +455,26 @@ export interface SkillUpvoteToggleResponse {
   count: number
 }
 
+/** One live opening on a company's public jobs page. */
+export interface CompanyJobCard {
+  job_id: string
+  title: string
+  location: string | null
+  location_city: string | null
+  location_country: string | null
+  location_mode: string | null
+  primary_skills: string[]
+}
+
+export interface CompanyJobsResponse {
+  company_name: string
+  total: number
+  jobs: CompanyJobCard[]
+  page: number
+  page_size: number
+  has_next: boolean
+}
+
 export const users = {
   me: (token: string) =>
     request<UserProfile>("/users/me", {
@@ -3090,6 +3110,12 @@ export const jobs = {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     }),
+  /** A company's live openings (public read) — powers the drawer's one-tap
+   *  "collect more roles here" list. */
+  companyJobs: (company: string) =>
+    request<CompanyJobsResponse>(
+      `/companies/${encodeURIComponent(company)}/jobs?page=1&page_size=50`,
+    ),
   // Delta-4 intent chat: talk to Myro when the feed disappoints → propose a diff.
   intentChat: (token: string, messages: IntentChatMessage[]) =>
     request<IntentChatResponse>("/jobs/intent-chat", {

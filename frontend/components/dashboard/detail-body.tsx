@@ -15,6 +15,7 @@ import { LensWhy, jdSnippet, stripTaxonomySuffix } from "./lenses"
 import { CommentThread } from "@/components/comments/comment-thread"
 import { CompanyDrawer } from "@/components/companies/company-drawer"
 import { ReachSection } from "./reach-section"
+import { MoreRoles } from "./more-roles"
 import type { OtherRole } from "./lens-company"
 
 /** Skills + "Why you fit" fetch only when the detail is open (expand-gated XP). */
@@ -168,17 +169,13 @@ export function DetailBody(p: DetailBodyProps) {
             </button>
           ) : null}
         </div>
-        {p.otherRoles.length > 0 ? (
-          <>
-            <span className="db-label">More roles</span>
-            {p.otherRoles.slice(0, 4).map((o) => (
-              <button key={o.jobId} type="button" className="db-otherrole" onClick={() => p.onJump?.(o.jobId)}>
-                <span>{o.role}</span>
-                <span className="fit">{o.fit != null ? `${o.fit}% fit` : "★"}</span>
-              </button>
-            ))}
-          </>
-        ) : null}
+        <MoreRoles
+          company={company}
+          currentJobId={p.job.job_id}
+          token={p.token}
+          otherRoles={p.otherRoles}
+          onJump={p.onJump}
+        />
       </div>
 
       {/* NOTES — public community feed on this posting */}
