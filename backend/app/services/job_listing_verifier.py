@@ -155,7 +155,6 @@ def _title_is_present(title: str, normalized_body: str) -> bool:
 
 
 def _looks_like_homepage_redirect(source_url: str, final_url: str) -> bool:
-    source = urlparse(source_url)
     final = urlparse(final_url)
     final_path = final.path.rstrip("/").lower()
     return source_url != final_url and final_path in {"", "/jobs", "/careers"}
