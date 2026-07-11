@@ -96,7 +96,9 @@ export function DetailBody(p: DetailBodyProps) {
         />
       </div>
 
-      {/* SKILLS — you already match · skills to build */}
+      {/* SKILLS — you already match · skills to build. No data → no section:
+          the drawer never announces its own gaps (design-over-words). */}
+      {matched.length > 0 || build.length > 0 || loadingSkills ? (
       <div className="db-dsec">
         {matched.length > 0 ? (
           <>
@@ -133,11 +135,9 @@ export function DetailBody(p: DetailBodyProps) {
             ))}
           </>
         ) : null}
-        {!loadingSkills && matched.length === 0 && build.length === 0 ? (
-          <p className="db-lens-empty">No skill data for this role yet.</p>
-        ) : null}
         {loadingSkills && skills.length === 0 ? <p className="db-lens-empty">Loading skills…</p> : null}
       </div>
+      ) : null}
 
       {/* REACH THE PEOPLE — free searches + paid outreach pack (backlog #35) */}
       <ReachSection job={p.job} token={p.token} active={p.active} />

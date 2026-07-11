@@ -114,3 +114,38 @@ def test_empty_everything_yields_no_search():
     intel = build_reach_intel(job_title="", job_description="", company=None)
     assert intel.primary is None
     assert intel.alternates == []
+
+
+def test_non_ascii_title_degrades_to_company_search():
+    # "Analista de Recrutamento e Seleção" — the ASCII tokenizer would truncate
+    # "Seleção" mid-word ("Sele") and the English noise lists don't apply, so
+    # the function derivation is unreliable. The gate drops the function and the
+    # search degrades to the honest company-level people search.
+    intel = build_reach_intel(
+        job_title="Analista de Recrutamento e Seleção",
+        job_description="",
+        company="Accenture",
+    )
+    assert intel.function == ""
+    assert intel.primary is not None
+    assert intel.primary.label == "People at Accenture"
+    for search in [intel.primary, *intel.alternates]:
+        assert "Sele" not in search.label
+        assert "Sele" not in search.url
+
+
+def test_non_ascii_title_without_company_hides_searches():
+    intel = build_reach_intel(
+        job_title="Développeur Logiciel Sénior",
+        job_description="",
+        company=None,
+    )
+    assert intel.primary is None
+    assert intel.alternates == []
+
+
+def test_ascii_punctuation_dashes_do_not_trigger_the_gate():
+    # En-dash between words is common in scraped titles and harmless — only
+    # non-ASCII LETTERS mark the tokenizer unreliable.
+    fn = derive_function("Manager – Data Science", company=None)
+    assert "Data" in fn and "Science" in fn

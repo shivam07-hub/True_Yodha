@@ -171,6 +171,10 @@ def _titlecase_leader(title: str) -> str:
     return " ".join(w.capitalize() for w in title.split())
 
 
+def _has_non_ascii_letters(text: str) -> bool:
+    return any(ch.isalpha() and ord(ch) > 127 for ch in text)
+
+
 def derive_function(job_title: str, company: str | None = None) -> str:
     """Strip seniority + location + employment noise (and the company name)
     from a job title, leaving the functional phrase to search for. "Netscribes
@@ -178,6 +182,13 @@ def derive_function(job_title: str, company: str | None = None) -> str:
     Analytics Data Engineering". The company is dropped so it is not doubled
     when we later append it as a search keyword."""
     if not job_title:
+        return ""
+    if _has_non_ascii_letters(job_title):
+        # Accented / non-Latin titles get mangled by the ASCII tokenizer
+        # ("Analista de Recrutamento e Seleção" → "…Recrutamento Sele"), and the
+        # English seniority/noise lists don't apply. A wrong role string in a
+        # search row destroys trust — degrade to the company-level people
+        # search (build_searches' no-titles fallback) instead.
         return ""
     raw = re.sub(r"[|·—]+", " - ", job_title)
     tokens = re.findall(r"[A-Za-z][A-Za-z+#.]*", raw)
