@@ -231,16 +231,19 @@ def _cv_dump(db: Any, user_id: str, since_iso: str) -> list[str]:
 
 def _job_titles(db: Any, table: str, ts_col: str, user_id: str, since_iso: str) -> list[str]:
     """Recent job titles (+company) from a user-owned join table, newest first."""
+    from app.services.job_history import attach_jobs
+
     try:
         rows = (
             db.table(table)
-            .select(f"{ts_col}, jobs(job_title, company_name)")
+            .select(f"{ts_col}, job_id")
             .eq("user_id", user_id)
             .gt(ts_col, since_iso)
             .order(ts_col, desc=True)
             .limit(_SIGNAL_CAP)
             .execute()
         ).data or []
+        attach_jobs(rows, db, "job_title, company_name")
     except Exception as exc:  # noqa: BLE001 — one dead signal source must not sink the batch
         logger.info("memory_distiller: signal read failed table=%s reason=%s", table, exc.__class__.__name__)
         return []

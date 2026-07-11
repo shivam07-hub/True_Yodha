@@ -15,7 +15,7 @@ from fastapi import Depends, HTTPException, status
 from supabase import Client
 
 from app.deps import get_user_db
-from app.services.job_history import hydrate_job_snapshot
+from app.services.job_history import attach_jobs
 
 
 CVKind = Literal["baseline_upload", "deterministic", "polished", "edited"]
@@ -78,12 +78,12 @@ class CVVersionsRepository:
         """
         result = (
             self._db.table("cv_versions")
-            .select("*, jobs(job_title, company_name)")
+            .select("*")
             .eq("user_id", user_id)
             .order("user_version_number", desc=True)
             .execute()
         )
-        return [hydrate_job_snapshot(row) for row in (result.data or [])]
+        return attach_jobs(result.data or [], self._db, "job_title, company_name")
 
     def list_thread_for_job(self, user_id: str, job_id: str) -> list[dict[str, Any]]:
         """Baselines + the Company CV Thread for `job_id`'s company.
@@ -109,24 +109,24 @@ class CVVersionsRepository:
 
         Ordered by user_version_number DESC (newest first).
         """
-        select_cols = "*, jobs(job_title, company_name)"
         scoped_job_ids = self._thread_job_ids(company_name, fallback_job_id)
         baselines = (
             self._db.table("cv_versions")
-            .select(select_cols)
+            .select("*")
             .eq("user_id", user_id)
             .eq("kind", "baseline_upload")
             .execute()
         ).data or []
         variants = (
             self._db.table("cv_versions")
-            .select(select_cols)
+            .select("*")
             .eq("user_id", user_id)
             .in_("job_id", scoped_job_ids)
             .execute()
         ).data or []
+        rows = attach_jobs([*baselines, *variants], self._db, "job_title, company_name")
         return sorted(
-            [hydrate_job_snapshot(row) for row in [*baselines, *variants]],
+            rows,
             key=lambda row: int(row.get("user_version_number") or 0),
             reverse=True,
         )
@@ -148,7 +148,7 @@ class CVVersionsRepository:
             return None
         result = (
             self._db.table("cv_versions")
-            .select("*, jobs(job_title, company_name)")
+            .select("*")
             .eq("user_id", user_id)
             .neq("kind", "baseline_upload")
             .in_("job_id", scoped_job_ids)
@@ -157,7 +157,10 @@ class CVVersionsRepository:
             .execute()
         )
         row = (result.data or [None])[0]
-        return hydrate_job_snapshot(row) if row else None
+        if not row:
+            return None
+        attach_jobs([row], self._db, "job_title, company_name")
+        return row
 
     def latest_for_thread_batch(
         self,
@@ -176,16 +179,16 @@ class CVVersionsRepository:
 
         rows = (
             self._db.table("cv_versions")
-            .select("*, jobs(job_title, company_name)")
+            .select("*")
             .eq("user_id", user_id)
             .neq("kind", "baseline_upload")
             .order("user_version_number", desc=True)
             .execute()
         ).data or []
+        attach_jobs(rows, self._db, "job_title, company_name")
 
         latest_per_company: dict[str, dict[str, Any]] = {}
         for row in rows:
-            hydrate_job_snapshot(row)
             company = (row.get("jobs") or {}).get("company_name")
             if company not in unique or company in latest_per_company:
                 continue
