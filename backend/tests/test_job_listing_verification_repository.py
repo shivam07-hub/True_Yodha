@@ -34,6 +34,52 @@ class DB:
         return Query(self, name)
 
 
+class TargetQuery:
+    def __init__(self):
+        self.filters = []
+
+    def select(self, _columns):
+        return self
+
+    def in_(self, key, values):
+        self.filters.append(("in", key, values))
+        return self
+
+    def like(self, key, pattern):
+        self.filters.append(("like", key, pattern))
+        return self
+
+    def order(self, key, *, desc):
+        self.filters.append(("order", key, desc))
+        return self
+
+    def limit(self, value):
+        self.filters.append(("limit", value))
+        return self
+
+    def execute(self):
+        return type("Response", (), {"data": []})()
+
+
+class TargetDB:
+    def __init__(self):
+        self.query = TargetQuery()
+
+    def table(self, name):
+        assert name == "jobs"
+        return self.query
+
+
+def test_targets_filter_invalid_or_missing_apply_urls_before_limit() -> None:
+    db = TargetDB()
+
+    targets = ListingVerificationRepository(db).targets(limit=20)
+
+    assert targets == []
+    assert ("like", "apply_url", "http%") in db.query.filters
+    assert ("limit", 20) in db.query.filters
+
+
 def test_strong_closed_verification_starts_quarantine() -> None:
     db = DB()
     now = datetime(2026, 7, 11, tzinfo=timezone.utc)

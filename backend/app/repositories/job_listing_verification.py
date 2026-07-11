@@ -29,6 +29,7 @@ class ListingVerificationRepository:
             self.db.table("jobs")
             .select("job_id,job_title,apply_url,listing_confidence")
             .in_("listing_confidence", ["uncertain", "likely_closed"])
+            .like("apply_url", "http%")
             .order("last_verification_attempt_at", desc=False)
             .limit(max(1, min(limit, 1000)))
             .execute()
