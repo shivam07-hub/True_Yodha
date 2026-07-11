@@ -66,10 +66,21 @@ traffic accumulates.
 The legacy public jobs policy was narrowed from `true` to only trusted active
 listings, so direct database reads now obey the same trust gate as the API.
 
-## Remaining deployment action
+## Railway activation update
 
-The Railway cron service could not be created during this rollout because both
-the CLI and Railway MCP OAuth session returned `invalid_grant` / unauthorized.
-The runnable worker and `backend/railway-verifier.json` are ready. After
-`railway login`, create the isolated cron service described in the runbook and
-verify its first deployment log contains `metric job_verifier.sweep`.
+The isolated `job-listing-verifier` service is active in `clever-embrace` /
+`production` and runs at minute 17 every six hours from `Develop` with a
+500-target, 15-concurrent-request bound.
+
+The activation sweep checked 101 listings including the one-listing diagnostic:
+
+- 76 strong closures entered quarantine;
+- 19 medium closures became/stayed likely closed without deletion authority;
+- 1 strong live listing reactivated;
+- 4 weak errors and 1 blocked response remained non-authoritative;
+- 0 jobs were physically retired.
+
+Post-activation inventory is 12,995 active, 33,097 uncertain, 19 likely closed,
+and 6,840 closed. Publicly delisted count is 39,956. The 76 strong closures have
+an earliest deletion clock of 2026-08-10 UTC, but physical retirement will still
+require the exact complete company source-run evidence at that time.

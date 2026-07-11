@@ -306,7 +306,39 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-11 - Trusted job lifecycle implementation)
+## LAST SESSION SUMMARY (2026-07-11 - Railway job verifier activation)
+
+Activated the continuous trusted-listing verifier on Railway and ran the first
+expanded production sweep without bypassing the retirement rulebook.
+
+- Created isolated Railway service `job-listing-verifier`
+  (`62b216d5-6388-4b16-a970-b7f41f52c875`) in `clever-embrace` / `production`.
+- Connected `shivam07-hub/True_Yodha`, branch `Develop`, root `/backend`, with
+  start command `python -m app.workers.job_listing_verifier`.
+- Scheduled `17 */6 * * *`; next run verified as `2026-07-11T18:17:00Z`.
+- Referenced Supabase credentials from `mirror-backend-dev` and set bounded
+  limits of 500 targets / 15 concurrent requests for scheduled runs.
+- Ran one pinned-environment diagnostic and a 100-listing sweep through Railway
+  variables. The sweep recorded 76 strong closures, 19 medium closures,
+  1 strong live reactivation, 4 weak errors, and 1 blocked response.
+- Strong closures entered 30-day quarantine. Medium/weak signals did not gain
+  deletion authority. The earliest quarantine date is 2026-08-10 UTC.
+- Post-sweep live state: 12,995 active, 33,097 uncertain, 19 likely closed,
+  6,840 closed; 39,956 listings are excluded from public reads/discovery.
+- `retire_closed_jobs` ran and deleted zero rows because zero listings currently
+  satisfy the exact complete-run plus elapsed-quarantine contract.
+- Railway token was used only as an ephemeral shell variable and removed after
+  configuration. Rotate the shared token because it appeared in chat.
+
+Validation:
+
+- Railway deployment `1671d096-5ded-4ada-ae04-61340ee76f69`: success.
+- Cron/source/start-command/variable-name readback: correct.
+- `.venv/bin/pytest backend/tests -q`: 1189 passed, 29 warnings.
+- `cd frontend && npx tsc --noEmit --pretty false`: clean.
+- `cd frontend && npm run lint`: clean.
+
+## OLDER SESSION SUMMARY (2026-07-11 - Trusted job lifecycle implementation)
 
 Implemented and rolled out the trust-first job retirement and company-skill
 intelligence loop across Myro, Supabase, and the independent scraper repository.
