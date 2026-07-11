@@ -11,6 +11,7 @@ import {
 import { dataKeys } from "@/lib/domain-data"
 import { MAX_LEVEL } from "@/lib/level-thresholds"
 import { useSkillUpvotes } from "@/lib/hooks/use-skill-upvotes"
+import { jobPlanSections, type JobPlanSectionId } from "@/lib/jobs/detail-model"
 import { LensWhy, jdSnippet, stripTaxonomySuffix } from "./lenses"
 import { CommentThread } from "@/components/comments/comment-thread"
 import { CompanyDrawer } from "@/components/companies/company-drawer"
@@ -104,91 +105,105 @@ export function DetailBody(p: DetailBodyProps) {
       upvotes.toggle({ skill_key: s.skill, display_name: stripTaxonomySuffix(s.skill) }, p.job.job_id),
   })
 
+  // Section order + gating come from the ONE Job Plan contract both skins
+  // read (lib/jobs/detail-model) — this file only owns the desktop rendering.
+  const sections = jobPlanSections({
+    hasWhy: true, // LensWhy owns its unlock/stream states, so it always mounts
+    matchedCount: matched.length,
+    buildCount: build.length,
+    loadingSkills,
+    hasJd: !!p.job.job_description,
+    hasCompany: !!company,
+  })
+
+  const renderSection = (id: JobPlanSectionId) => {
+    switch (id) {
+      case "why":
+        return (
+          <div className="db-dsec" key={id}>
+            <LensWhy
+              job={p.job}
+              skills={skills}
+              loadingSkills={loadingSkills}
+              token={p.token}
+              active={p.active}
+              cartSkillNames={p.cartSkillNames}
+              onSkillToggle={p.onSkillToggle}
+            />
+          </div>
+        )
+      case "skills":
+        return (
+          <div className="db-dsec" key={id}>
+            {matched.length > 0 ? (
+              <>
+                <div className="db-dsec-head">
+                  <span className="db-label">You already match · {matched.length}</span>
+                </div>
+                {matched.map((s) => {
+                  const cur = Math.max(0, Math.round(s.user_level ?? 0))
+                  return <SkillRow key={s.skill} skill={s} target={cur + 1} {...rowProps(s)} />
+                })}
+              </>
+            ) : null}
+            {build.length > 0 ? (
+              <>
+                <div className="db-dsec-head" style={{ marginTop: matched.length ? 8 : 0 }}>
+                  <span className="db-label">Skills to build · {build.length}</span>
+                </div>
+                {build.map((s) => (
+                  <SkillRow key={s.skill} skill={s} target={s.required_level ?? 1} {...rowProps(s)} />
+                ))}
+              </>
+            ) : null}
+            {loadingSkills && skills.length === 0 ? <p className="db-lens-empty">Loading skills…</p> : null}
+          </div>
+        )
+      case "reach":
+        return <ReachSection key={id} job={p.job} token={p.token} active={p.active} />
+      case "jd":
+        return (
+          <div className="db-dsec" key={id}>
+            <span className="db-label">Job description</span>
+            <pre className="db-jdbox">{p.job.job_description}</pre>
+          </div>
+        )
+      case "company":
+        return (
+          <div className="db-dsec" key={id}>
+            <div className="db-dsec-head">
+              <span className="db-label">Company</span>
+              <button type="button" className="db-mini-btn" onClick={() => setDrawerOpen(true)}>
+                Company report →
+              </button>
+            </div>
+            <MoreRoles
+              company={company}
+              currentJobId={p.job.job_id}
+              token={p.token}
+              otherRoles={p.otherRoles}
+              onJump={p.onJump}
+            />
+          </div>
+        )
+      case "notes":
+        return (
+          <div className="db-dsec" key={id}>
+            <span className="db-label">Notes · what applicants say</span>
+            <CommentThread
+              token={p.token}
+              entityType="job"
+              entityId={p.job.job_id}
+              placeholder={`Leave a note for future applicants to ${company ?? "this role"}…`}
+            />
+          </div>
+        )
+    }
+  }
+
   return (
     <div className="db-detail">
-      {/* WHY YOU FIT — keeps the existing XP-gated streaming model. */}
-      <div className="db-dsec">
-        <LensWhy
-          job={p.job}
-          skills={skills}
-          loadingSkills={loadingSkills}
-          token={p.token}
-          active={p.active}
-          cartSkillNames={p.cartSkillNames}
-          onSkillToggle={p.onSkillToggle}
-        />
-      </div>
-
-      {/* SKILLS — you already match · skills to build. No data → no section:
-          the drawer never announces its own gaps (design-over-words). */}
-      {matched.length > 0 || build.length > 0 || loadingSkills ? (
-      <div className="db-dsec">
-        {matched.length > 0 ? (
-          <>
-            <div className="db-dsec-head">
-              <span className="db-label">You already match · {matched.length}</span>
-            </div>
-            {matched.map((s) => {
-              const cur = Math.max(0, Math.round(s.user_level ?? 0))
-              return <SkillRow key={s.skill} skill={s} target={cur + 1} {...rowProps(s)} />
-            })}
-          </>
-        ) : null}
-        {build.length > 0 ? (
-          <>
-            <div className="db-dsec-head" style={{ marginTop: matched.length ? 8 : 0 }}>
-              <span className="db-label">Skills to build · {build.length}</span>
-            </div>
-            {build.map((s) => (
-              <SkillRow key={s.skill} skill={s} target={s.required_level ?? 1} {...rowProps(s)} />
-            ))}
-          </>
-        ) : null}
-        {loadingSkills && skills.length === 0 ? <p className="db-lens-empty">Loading skills…</p> : null}
-      </div>
-      ) : null}
-
-      {/* REACH THE PEOPLE — free searches + paid outreach pack (backlog #35) */}
-      <ReachSection job={p.job} token={p.token} active={p.active} />
-
-      {/* JOB DESCRIPTION */}
-      {p.job.job_description ? (
-        <div className="db-dsec">
-          <span className="db-label">Job description</span>
-          <pre className="db-jdbox">{p.job.job_description}</pre>
-        </div>
-      ) : null}
-
-      {/* COMPANY + other open roles */}
-      <div className="db-dsec">
-        <div className="db-dsec-head">
-          <span className="db-label">Company</span>
-          {company ? (
-            <button type="button" className="db-mini-btn" onClick={() => setDrawerOpen(true)}>
-              Company report →
-            </button>
-          ) : null}
-        </div>
-        <MoreRoles
-          company={company}
-          currentJobId={p.job.job_id}
-          token={p.token}
-          otherRoles={p.otherRoles}
-          onJump={p.onJump}
-        />
-      </div>
-
-      {/* NOTES — public community feed on this posting */}
-      <div className="db-dsec">
-        <span className="db-label">Notes · what applicants say</span>
-        <CommentThread
-          token={p.token}
-          entityType="job"
-          entityId={p.job.job_id}
-          placeholder={`Leave a note for future applicants to ${company ?? "this role"}…`}
-        />
-      </div>
-
+      {sections.map(renderSection)}
       {company ? <CompanyDrawer company={company} open={drawerOpen} onClose={() => setDrawerOpen(false)} /> : null}
     </div>
   )

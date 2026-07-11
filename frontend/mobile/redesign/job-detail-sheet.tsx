@@ -2,6 +2,7 @@
 
 import { useMatchBrain } from "@/lib/hooks/use-match-brain"
 import { useSkillUpvotes } from "@/lib/hooks/use-skill-upvotes"
+import { jobPlanSections } from "@/lib/jobs/detail-model"
 import { BottomSheet } from "./bottom-sheet"
 import type { MobileJobRow } from "./job-model"
 
@@ -59,6 +60,15 @@ export function JobDetailSheet({
   // Prefer the brain's real "why this fits you" summary over the static JD slice.
   const whyFit = (brain?.available ? brain.summary : null) || data.whyFit
 
+  // Section order + gating from the ONE Job Plan contract shared with the
+  // desktop drawer (lib/jobs/detail-model) — mobile just supports fewer slots.
+  const sections = jobPlanSections({
+    hasWhy: !!whyFit,
+    matchedCount: matched.length,
+    buildCount: gaps.length,
+    supports: { reach: false, jd: false, company: false, notes: false },
+  })
+
   return (
     <BottomSheet open={open} onClose={onClose} label="Job detail" maxHeight="88%">
       <div className="mm-scroll" style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "2px 18px 14px" }}>
@@ -87,14 +97,14 @@ export function JobDetailSheet({
           </div>
         )}
 
-        {whyFit && (
+        {sections.includes("why") && (
           <div style={{ marginTop: 14 }}>
             <div style={sectionLabel}>Why you fit</div>
             <p style={{ margin: "6px 0 0", fontSize: 13.5, lineHeight: 1.55, color: "#d6d6cf" }}>{whyFit}</p>
           </div>
         )}
 
-        {matched.length > 0 && (
+        {sections.includes("skills") && matched.length > 0 && (
           <div style={{ marginTop: 14 }}>
             <div style={sectionLabel}>You already match · {matched.length}</div>
             <div style={{ display: "flex", flexDirection: "column", marginTop: 4 }}>
@@ -108,7 +118,7 @@ export function JobDetailSheet({
           </div>
         )}
 
-        {gaps.length > 0 && (
+        {sections.includes("skills") && gaps.length > 0 && (
           <div style={{ marginTop: 14 }}>
             <div style={sectionLabel}>Skills to build · {gaps.length}</div>
             <div style={{ display: "flex", flexDirection: "column", marginTop: 4 }}>
