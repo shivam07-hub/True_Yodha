@@ -17,7 +17,7 @@ from app.services.job_path._helpers import _single_or_none
 def _get_job(db: Client, job_id: str) -> dict[str, Any]:
     row = _single_or_none(
         db.table("jobs")
-        .select("job_id, job_title, company_name, apply_url, job_description")
+        .select("job_id, job_title, company_name, apply_url, job_description, main_skills, side_skills")
         .eq("job_id", job_id)
         .limit(1)
     )
@@ -37,6 +37,14 @@ def _get_job(db: Client, job_id: str) -> dict[str, Any]:
         if not key:
             continue
         (main_skills if r.get("is_primary") else side_skills).append(key)
+
+    # Extension-imported jobs carry no canonical job_skills rows (the scraper
+    # pipeline writes those). Fall back to the taxonomy-validated skills the
+    # importer stored on the jobs row, so readiness isn't a phantom 0%. Mirrors
+    # JobsRepository.get_job_skills's _synth_skills_from_text fallback.
+    if not main_skills and not side_skills:
+        main_skills = [s for s in (row.get("main_skills") or []) if s]
+        side_skills = [s for s in (row.get("side_skills") or []) if s]
 
     return {**row, "main_skills": main_skills, "side_skills": side_skills}
 

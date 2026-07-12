@@ -128,3 +128,39 @@ def test_blocked_verification_only_updates_attempt_clock() -> None:
 
     update = next(payload for table, payload in db.calls if table == "jobs")
     assert set(update) == {"last_verification_attempt_at", "lifecycle_updated_at"}
+
+
+def test_with_retry_recovers_from_transient_edge_500(monkeypatch) -> None:
+    from app.repositories import job_listing_verification as mod
+    from postgrest.exceptions import APIError
+
+    monkeypatch.setattr(mod.time, "sleep", lambda _s: None)
+    calls = {"n": 0}
+
+    def flaky():
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise APIError({"message": "JSON could not be generated", "code": 500})
+        return "ok"
+
+    assert mod._with_retry(flaky, attempts=3, base_delay=0) == "ok"
+    assert calls["n"] == 3
+
+
+def test_with_retry_reraises_client_error(monkeypatch) -> None:
+    from app.repositories import job_listing_verification as mod
+    from postgrest.exceptions import APIError
+
+    monkeypatch.setattr(mod.time, "sleep", lambda _s: None)
+    calls = {"n": 0}
+
+    def bad_column():
+        calls["n"] += 1
+        raise APIError({"message": "column does not exist", "code": "42703"})
+
+    try:
+        mod._with_retry(bad_column, attempts=3, base_delay=0)
+        raise AssertionError("should have re-raised")
+    except APIError:
+        pass
+    assert calls["n"] == 1  # no retries on a genuine 4xx-class bug
