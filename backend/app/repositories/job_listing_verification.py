@@ -1,15 +1,70 @@
 from __future__ import annotations
 
+import logging
+import time
 from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, TypeVar
 
+from postgrest.exceptions import APIError
 from supabase import Client
 
 from app.services.job_listing_verifier import (
     VerificationResult,
     VerificationTarget,
 )
+
+log = logging.getLogger(__name__)
+
+_T = TypeVar("_T")
+
+# Supabase's edge/data-api layer intermittently 500s (Cloudflare "1101 Worker
+# threw exception" — an HTML body, not a PostgREST JSON error), unrelated to
+# query content. A single blip must not crash this best-effort cron sweep. Retry
+# only genuinely transient failures (5xx / dropped transport); re-raise 4xx so
+# real bugs (bad column, RLS, malformed filter) still surface loudly.
+_TRANSIENT_STATUS = {"500", "502", "503", "504"}
+
+
+def _is_transient(err: Exception) -> bool:
+    if isinstance(err, APIError):
+        code = str(getattr(err, "code", "") or "")
+        message = str(getattr(err, "message", "") or "")
+        return code in _TRANSIENT_STATUS or "Worker threw exception" in message
+    # httpcore / httpx transport failures (idle-drop, server disconnect) surface
+    # by name across versions; match defensively without a hard import.
+    return type(err).__name__ in {
+        "RemoteProtocolError",
+        "ConnectError",
+        "ReadError",
+        "WriteError",
+        "PoolTimeout",
+        "ConnectTimeout",
+        "ReadTimeout",
+    }
+
+
+def _with_retry(build: Callable[[], _T], *, attempts: int = 3, base_delay: float = 0.75) -> _T:
+    """Execute a Supabase call, retrying transient upstream failures with backoff.
+
+    ``build`` must construct AND execute the query on each call — a consumed
+    PostgREST builder cannot be re-executed, so the whole chain is rebuilt per
+    attempt.
+    """
+    last: Exception | None = None
+    for attempt in range(attempts):
+        try:
+            return build()
+        except Exception as err:  # noqa: BLE001 — classified immediately below
+            if not _is_transient(err) or attempt == attempts - 1:
+                raise
+            last = err
+            log.warning(
+                "metric job_verifier.retry attempt=%d/%d err=%s",
+                attempt + 1, attempts, err,
+            )
+            time.sleep(base_delay * (2 ** attempt))
+    raise last  # pragma: no cover — loop always returns or raises
 
 
 class ListingVerificationRepository:
@@ -25,13 +80,14 @@ class ListingVerificationRepository:
         self.now = now
 
     def targets(self, *, limit: int = 200) -> list[VerificationTarget]:
-        rows = (
-            self.db.table("jobs")
+        capped = max(1, min(limit, 1000))
+        rows = _with_retry(
+            lambda: self.db.table("jobs")
             .select("job_id,job_title,apply_url,listing_confidence")
             .in_("listing_confidence", ["uncertain", "likely_closed"])
             .like("apply_url", "http%")
             .order("last_verification_attempt_at", desc=False)
-            .limit(max(1, min(limit, 1000)))
+            .limit(capped)
             .execute()
         ).data or []
         return [
@@ -54,17 +110,19 @@ class ListingVerificationRepository:
             "status_code": result.status_code,
             "final_url": result.final_url,
         }
-        self.db.table("job_listing_observations").insert(
-            {
-                "job_id": result.job_id,
-                "observer": "verifier",
-                "result": result.result,
-                "strength": result.strength,
-                "observed_at": timestamp,
-                "evidence": evidence,
-                "verifier_version": "provider_http_v1",
-            }
-        ).execute()
+        _with_retry(
+            lambda: self.db.table("job_listing_observations").insert(
+                {
+                    "job_id": result.job_id,
+                    "observer": "verifier",
+                    "result": result.result,
+                    "strength": result.strength,
+                    "observed_at": timestamp,
+                    "evidence": evidence,
+                    "verifier_version": "provider_http_v1",
+                }
+            ).execute()
+        )
 
         update: dict[str, Any] = {
             "last_verification_attempt_at": timestamp,
@@ -112,10 +170,16 @@ class ListingVerificationRepository:
                     "confidence_reason": f"{result.provider}_verifier_{result.result}",
                 }
             )
-        self.db.table("jobs").update(update).eq("job_id", result.job_id).execute()
+        _with_retry(
+            lambda: self.db.table("jobs")
+            .update(update)
+            .eq("job_id", result.job_id)
+            .execute()
+        )
 
     def retire_eligible(self, *, limit: int = 500) -> int:
-        result = self.db.rpc(
-            "retire_closed_jobs", {"p_limit": max(1, min(limit, 5000))}
-        ).execute()
+        capped = max(1, min(limit, 5000))
+        result = _with_retry(
+            lambda: self.db.rpc("retire_closed_jobs", {"p_limit": capped}).execute()
+        )
         return len(result.data or [])
