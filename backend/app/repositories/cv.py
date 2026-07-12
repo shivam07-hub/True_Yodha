@@ -399,6 +399,39 @@ class CVVersionsRepository:
             )
         return result.data[0]
 
+    def set_master_hidden_items(
+        self, user_id: str, hidden_items: list[str]
+    ) -> dict[str, Any]:
+        """Set the living master's shape (which bullets it shows) — the Delta-4
+        promote path: the CV a user just applied with becomes their living master
+        (project_living_cv_delta4). Only hidden_items changes; the master's
+        immutable body_text / cv_structured content is untouched (a hidden bullet
+        is kept-but-hidden, so it's reversible and never globally deleted).
+
+        Scoped to the latest baseline_upload so no history row is rewritten. 404
+        if the user has no baseline yet.
+        """
+        master = self.latest_baseline(user_id)
+        if master is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Upload a baseline CV first.",
+            )
+        result = (
+            self._db.table("cv_versions")
+            .update({"hidden_items": hidden_items})
+            .eq("id", int(master["id"]))
+            .eq("user_id", user_id)
+            .eq("kind", "baseline_upload")
+            .execute()
+        )
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Could not update your Main CV.",
+            )
+        return result.data[0]
+
     # ── living-master autosave (PR-3) ─────────────────────────────────────────
     # "Master" ≡ latest_baseline. Autosave MUTATES it in place instead of
     # appending a new baseline_upload row (the pile the living-master grill

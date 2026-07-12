@@ -222,6 +222,15 @@ export function PlaygroundView({
         cv_version_id: selectedVersion?.id ?? null,
         applied_url: applyHref,
       }).catch(() => {})   // never block the application on the snapshot write
+      // Delta-4: the CV you just applied with becomes your living master, so it
+      // persists and seeds every future tailoring (project_living_cv_delta4).
+      // Best-effort — the application never waits on the promote.
+      cvApi.versions.promoteMaster(token, Array.from(hiddenItems))
+        .then(() => {
+          queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
+          queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
+        })
+        .catch(() => {})
       capture.onApply()
       if (!isApplied) markApplied.mutate()
       window.open(applyHref, "_blank", "noopener,noreferrer")

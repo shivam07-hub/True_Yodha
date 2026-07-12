@@ -40,6 +40,9 @@ class _Query:
     def eq(self, *_a, **_k):
         return self
 
+    def order(self, *_a, **_k):
+        return self
+
     def limit(self, *_a, **_k):
         return self
 
@@ -151,3 +154,51 @@ def test_router_400_on_master_baseline() -> None:
     with pytest.raises(HTTPException) as exc:
         _call(_FakeRepo(row), [])
     assert exc.value.status_code == 400
+
+
+# ── Delta-4 promote: applied projection → living master ──────────────────────
+
+
+def test_set_master_hidden_items_writes_shape_on_latest_baseline() -> None:
+    # latest_baseline select returns the master row; the update stamps only
+    # hidden_items — content (body_text/cv_structured) is never touched.
+    master = {"id": 42, "kind": "baseline_upload", "hidden_items": []}
+    sink = {"row": master, "match": True}
+    row = _repo(sink).set_master_hidden_items("u1", ["exp_bullet:3:bb28cbee"])
+    assert sink["update_payload"] == {"hidden_items": ["exp_bullet:3:bb28cbee"]}
+    assert "body_text" not in sink["update_payload"]  # content stays immutable
+    assert row["hidden_items"] == ["exp_bullet:3:bb28cbee"]
+
+
+def test_set_master_hidden_items_404_without_baseline() -> None:
+    sink = {"row": None, "match": True}
+    with pytest.raises(HTTPException) as exc:
+        _repo(sink).set_master_hidden_items("u1", [])
+    assert exc.value.status_code == 404
+
+
+class _PromoteRepo:
+    def __init__(self, row: dict) -> None:
+        self._row = row
+        self.promoted: list[str] | None = None
+
+    def set_master_hidden_items(self, user_id: str, hidden_items: list[str]) -> dict:
+        self.promoted = hidden_items
+        return {**self._row, "hidden_items": hidden_items}
+
+
+def _baseline_row() -> dict:
+    return {**_det_row(), "id": 42, "kind": "baseline_upload", "job_id": None, "user_version_number": 96}
+
+
+def test_promote_master_sets_the_living_master_shape() -> None:
+    from app.routers.cv.versions import promote_projection_to_master
+
+    repo = _PromoteRepo(_baseline_row())
+    resp = promote_projection_to_master(
+        body=HiddenItemsRequest(hidden_items=["exp_bullet:3:bb28cbee"]),
+        principal=_Principal(),  # type: ignore[arg-type]
+        cv_repo=repo,  # type: ignore[arg-type]
+    )
+    assert repo.promoted == ["exp_bullet:3:bb28cbee"]
+    assert resp.hidden_items == ["exp_bullet:3:bb28cbee"]

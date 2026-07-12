@@ -1278,6 +1278,14 @@ export const cv = {
         headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify({ hidden_items: hiddenItems }),
       }),
+    // Delta-4 promote: the applied CV's shape becomes the living master, so it
+    // persists + seeds every future tailoring (project_living_cv_delta4).
+    promoteMaster: (token: string, hiddenItems: string[]) =>
+      request<CVVersion>(`/cv/versions/promote-master`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ hidden_items: hiddenItems }),
+      }),
   },
   skillEdit: async (
     token: string,

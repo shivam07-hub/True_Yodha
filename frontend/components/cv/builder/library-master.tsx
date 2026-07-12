@@ -1,14 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { DownloadCVButton } from "@/components/cv/download-cv-button"
 import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
 import { CVExportView } from "./cv-export-view"
 import { MasterWorkspace } from "./master-workspace"
 import { I, LIcon } from "./library-icons"
-
-// Master CV has no per-job hidden items — every section renders.
-const NO_HIDDEN: Set<string> = new Set()
 
 interface MasterCVPanelProps {
   token: string
@@ -40,6 +37,10 @@ export function MasterCVPanel({
   const [editing, setEditing] = useState(false)
   const fallbackText = baseline?.body_text?.trim() ?? ""
   const canEdit = !!baseline && !!cv
+  // The master's shape = the CV the user last applied with (Delta-4 living
+  // master, project_living_cv_delta4). Render + download honor its hidden_items
+  // so the promoted projection is exactly what the user sees and exports.
+  const masterHidden = useMemo(() => new Set(baseline?.hidden_items ?? []), [baseline?.hidden_items])
 
   // Editing is the unified playground surface (owns its own header + autosave).
   if (editing && cv) {
@@ -90,7 +91,7 @@ export function MasterCVPanel({
           <CVExportView
             token={token}
             cv={cv}
-            hidden={NO_HIDDEN}
+            hidden={masterHidden}
             contact={masterContact(cv, profile)}
             profile={profile}
             context="master"
