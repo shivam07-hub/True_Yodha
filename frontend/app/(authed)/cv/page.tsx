@@ -29,6 +29,7 @@ import {
   users,
 } from "@/lib/api"
 import { hasPendingCVUpload } from "@/lib/cv-upload-queue"
+import { jwtSub } from "@/lib/cv-resumable-upload"
 import { dataKeys } from "@/lib/domain-data"
 import { preflightCVUploadFile } from "@/lib/cv-file-detect"
 import { startCvPromiseOptimistic } from "@/lib/cv-promise"
@@ -443,7 +444,7 @@ function CVPage() {
     if (getPersistedCVUploadJobId()) return
     let cancelled = false
     void (async () => {
-      const pending = await hasPendingCVUpload()
+      const pending = await hasPendingCVUpload(jwtSub(token))
       if (cancelled || !pending || uploadInFlightRef.current) return
       if (typeof navigator !== "undefined" && navigator.onLine === false) {
         setShowUpload(true); setUploadDeferred(true)

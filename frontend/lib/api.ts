@@ -1532,7 +1532,8 @@ export async function beginCVUpload(
   // Durable "we've got it" hold (weak-radio resilience). A retryable interrupt
   // leaves the stash so the /cv resume effects can replay it on next visit with
   // the same Idempotency-Key (CVUP1 dedup). Cleared once the bytes land.
-  await stashPendingCVUpload({ file: safeFile, source, idempotencyKey })
+  // Owner-bound: resume only ever replays it for the account that picked it.
+  await stashPendingCVUpload({ file: safeFile, source, idempotencyKey, ownerSub: jwtSub(token) })
   let initial: CVUploadResponse
   try {
     initial = await _transferCV(token, safeFile, idempotencyKey, source)
@@ -1594,8 +1595,8 @@ export async function uploadCV(
   // interrupted) the throw below leaves this stash intact so the upload can
   // resume on reconnect / next app load with the SAME Idempotency-Key (CVUP1
   // dedups → no double charge). Cleared the instant the bytes land, after which
-  // the server job_id (CVUP2) owns the lifecycle.
-  await stashPendingCVUpload({ file: safeFile, source, idempotencyKey })
+  // the server job_id (CVUP2) owns the lifecycle. Owner-bound (see PendingCVUpload).
+  await stashPendingCVUpload({ file: safeFile, source, idempotencyKey, ownerSub: jwtSub(token) })
   try {
     const initial = await _transferCV(token, safeFile, idempotencyKey, source)
     if (initial.status === "processing") persistCVUploadJob(initial.job_id)
@@ -1633,7 +1634,9 @@ export async function resumePendingCVUpload(
   // A landed-but-still-parsing upload is owned by the job_id resume path, not
   // this one — don't re-POST bytes the server already has.
   if (getPersistedCVUploadJobId()) return null
-  const pending = await readPendingCVUpload()
+  // Owner check: a stash picked under a different account is dropped, never
+  // replayed into this one (2026-07-11 foreign-baseline incident).
+  const pending = await readPendingCVUpload(jwtSub(token))
   if (!pending) return null
   // Pin the original key so the replay dedups against the first attempt.
   persistCVUploadIdempotencyKey(pending.idempotencyKey)
