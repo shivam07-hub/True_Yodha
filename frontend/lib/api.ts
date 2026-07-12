@@ -1087,6 +1087,8 @@ export interface CareerProfile {
 export interface CareerIngestResponse {
   entries: { id: string; filename: string | null; kind: string; chars: number }[]
   skipped: { filename: string; reason: string }[]
+  /** LinkedIn connections found in the dump, saved for warm intros (undoable). */
+  connections_saved: number
 }
 export interface CareerProjectResponse {
   version_id: number
@@ -1101,6 +1103,44 @@ export interface DumpEntry {
   /** Which surface authored it: "manual" (hand-typed) | "job_intent" (Tell Myro) | … */
   source?: string
   created_at: string
+}
+
+/** One remembered fact in the user_memory store (authored or distilled). */
+export type MemoryKind =
+  | "aspiration" | "constraint" | "habit" | "preference"
+  | "salary" | "work_mode" | "target_company" | "note"
+export interface MemoryFact {
+  id: string
+  kind: MemoryKind
+  text: string
+  source: "authored" | "distilled"
+  status: "active" | "dismissed"
+  created_at: string
+}
+
+/** Token-scoped CRUD over what Myro remembers (the Memory panel on /cv). */
+export const memory = {
+  list: (token: string) =>
+    request<{ facts: MemoryFact[] }>("/memory", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  add: (token: string, kind: MemoryKind, text: string) =>
+    request<MemoryFact>("/memory", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ kind, text }),
+    }),
+  update: (token: string, id: string, patch: { text?: string; status?: "active" | "dismissed" }) =>
+    request<MemoryFact>(`/memory/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(patch),
+    }),
+  remove: (token: string, id: string) =>
+    request<void>(`/memory/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
 }
 
 export const cv = {
@@ -3321,6 +3361,12 @@ export const jobs = {
   /** How many own-connections the user has uploaded (warm-intro source). */
   connectionsStatus: (token: string) =>
     request<{ count: number }>(`/cv/connections`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  /** Forget every uploaded connection (undo for the dump auto-save). */
+  clearConnections: (token: string) =>
+    request<{ count: number }>(`/cv/connections`, {
+      method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     }),
   /** Upload the user's own LinkedIn Connections.csv export (ADR-0018 Path 1). */

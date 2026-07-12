@@ -54,6 +54,20 @@ def parse_connections_csv(raw: bytes) -> list[dict]:
     return rows
 
 
+def looks_like_connections_csv(raw: bytes) -> bool:
+    """Cheap header sniff: is this a LinkedIn Connections.csv export? Scans the
+    first few lines (the export has a "Notes:" preamble above the header)."""
+    try:
+        head = raw[:4096].decode("utf-8-sig", errors="replace")
+    except Exception:  # noqa: BLE001 — undecodable bytes are simply not a connections CSV
+        return False
+    for line in head.splitlines()[:10]:
+        lower = line.lower()
+        if _HEADER_HINT in lower and "company" in lower and "connected on" in lower:
+            return True
+    return False
+
+
 def format_warm_connection(row: dict) -> str:
     """A one-line warm-intro descriptor for the reach pack prompt."""
     name = (row.get("full_name") or "").strip()

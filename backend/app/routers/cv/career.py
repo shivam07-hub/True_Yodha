@@ -12,7 +12,6 @@ through the same extraction path. Extraction auto-accepts (curate-after policy,
 """
 from __future__ import annotations
 
-import io
 import zipfile
 from typing import Any
 
@@ -25,17 +24,23 @@ from app.repositories.career_reservoir import (
     CareerReservoirRepository,
     get_career_reservoir_repository,
 )
+from app.repositories.connections import ConnectionsRepository, get_token_connections_repository
 from app.repositories.cv import CVVersionsRepository, CVVersionWriteSpec, get_token_cv_repository
 from app.repositories.cv_dump import CvDumpRepository, get_cv_dump_repository
-from app.services import career_projection, career_reservoir, cv_compose, cv_parser
-from app.services.story_extractor import linkedin_csv_kind, render_linkedin_csv
+from app.services import career_projection, career_reservoir, cv_compose
+from app.services.connections_import import looks_like_connections_csv, parse_connections_csv
+from app.services.reservoir_intake import (
+    MAX_FILE_BYTES,
+    extract_file_text,
+    is_linkedin_noise,
+    is_recommendations_given,
+    read_linkedin_zip,
+)
 
 router = APIRouter()
 
 _MAX_FILES = 15
-_MAX_FILE_BYTES = 8 * 1024 * 1024
 _MIN_CHARS = 80          # CVUP4-style scanned/empty guard
-_MAX_ZIP_MEMBERS = 60
 
 
 # ── ingest ───────────────────────────────────────────────────────────────────
@@ -55,50 +60,7 @@ class SkippedFile(BaseModel):
 class IngestResponse(BaseModel):
     entries: list[IngestedEntry]
     skipped: list[SkippedFile]
-
-
-def _read_zip(raw: bytes) -> tuple[str, int]:
-    """LinkedIn export zip → one combined career-text render + CSVs used."""
-    blocks: list[str] = []
-    used = 0
-    with zipfile.ZipFile(io.BytesIO(raw)) as zf:
-        for name in zf.namelist()[:_MAX_ZIP_MEMBERS]:
-            if not name.lower().endswith(".csv"):
-                continue
-            data = zf.read(name)[:_MAX_FILE_BYTES]
-            kind = linkedin_csv_kind(data)
-            if kind:
-                block = render_linkedin_csv(kind, data)
-                if block:
-                    blocks.append(block)
-                    used += 1
-    return "\n\n".join(blocks), used
-
-
-def _extract_file_text(filename: str, raw: bytes) -> tuple[str, str]:
-    """(text, entry_kind) for one uploaded file. Raises ValueError with a
-    user-facing reason when the file can't yield career text."""
-    lower = filename.lower()
-    if lower.endswith(".zip"):
-        try:
-            text, used = _read_zip(raw)
-        except zipfile.BadZipFile as exc:
-            raise ValueError("Not a readable zip") from exc
-        if not used:
-            raise ValueError("No LinkedIn CSVs found in the zip")
-        return text, "linkedin"
-    if lower.endswith(".csv"):
-        kind = linkedin_csv_kind(raw)
-        if kind:
-            return render_linkedin_csv(kind, raw), "linkedin"
-        return raw.decode("utf-8-sig", errors="replace"), "file"
-    if lower.endswith(".pdf"):
-        return cv_parser.extract_raw_text(raw, "pdf"), "file"
-    if lower.endswith(".docx"):
-        return cv_parser.extract_raw_text(raw, "docx"), "file"
-    if lower.endswith((".txt", ".md")):
-        return raw.decode("utf-8", errors="replace"), "file"
-    raise ValueError("Unsupported file type")
+    connections_saved: int = 0
 
 
 @router.post("/reservoir/ingest", response_model=IngestResponse)
@@ -107,24 +69,54 @@ async def ingest_dump(
     text: str | None = Form(default=None),
     user: CurrentUser = Depends(get_current_user),
     dump_repo: CvDumpRepository = Depends(get_cv_dump_repository),
+    conn_repo: ConnectionsRepository = Depends(get_token_connections_repository),
 ) -> IngestResponse:
     if len(files) > _MAX_FILES:
         raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, f"Max {_MAX_FILES} files per dump.")
 
     entries: list[IngestedEntry] = []
     skipped: list[SkippedFile] = []
+    connections: dict[tuple, dict] = {}
+
+    def _collect_connections(rows: list[dict]) -> None:
+        for r in rows:
+            connections[(r.get("full_name"), r.get("company"), r.get("position"))] = r
 
     for f in files:
         name = f.filename or "file"
         raw = await f.read()
-        if len(raw) > _MAX_FILE_BYTES:
+        if len(raw) > MAX_FILE_BYTES:
             skipped.append(SkippedFile(filename=name, reason="Over 8MB"))
             continue
-        try:
-            file_text, kind = _extract_file_text(name, raw)
-        except ValueError as exc:
-            skipped.append(SkippedFile(filename=name, reason=str(exc)))
-            continue
+        lower = name.lower()
+        if lower.endswith(".csv"):
+            if is_linkedin_noise(name):
+                skipped.append(SkippedFile(filename=name, reason="LinkedIn telemetry — no career signal"))
+                continue
+            if is_recommendations_given(name):
+                skipped.append(SkippedFile(filename=name, reason="Recommendations you wrote about others"))
+                continue
+            if looks_like_connections_csv(raw):
+                _collect_connections(parse_connections_csv(raw))
+                continue
+        if lower.endswith(".zip"):
+            try:
+                zip_text, used, zip_conns = read_linkedin_zip(raw)
+            except zipfile.BadZipFile:
+                skipped.append(SkippedFile(filename=name, reason="Not a readable zip"))
+                continue
+            _collect_connections(zip_conns)
+            if not used:
+                if not zip_conns:
+                    skipped.append(SkippedFile(filename=name, reason="No LinkedIn CSVs found in the zip"))
+                continue
+            file_text, kind = zip_text, "linkedin"
+        else:
+            try:
+                file_text, kind = extract_file_text(name, raw)
+            except ValueError as exc:
+                skipped.append(SkippedFile(filename=name, reason=str(exc)))
+                continue
         if len("".join(file_text.split())) < _MIN_CHARS:
             skipped.append(SkippedFile(filename=name, reason="No readable text"))
             continue
@@ -149,13 +141,17 @@ async def ingest_dump(
             if entry_id:
                 entries.append(IngestedEntry(id=entry_id, filename=None, kind="file", chars=len(pasted)))
 
-    if not entries and not skipped:
+    connections_saved = 0
+    if connections:
+        connections_saved = conn_repo.replace_all(user.id, list(connections.values()))
+
+    if not entries and not skipped and not connections_saved:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Nothing to ingest — add files or text.")
 
     for e in entries:
         career_reservoir.enqueue_ingest(user.id, e.id)
 
-    return IngestResponse(entries=entries, skipped=skipped)
+    return IngestResponse(entries=entries, skipped=skipped, connections_saved=connections_saved)
 
 
 # ── profile ──────────────────────────────────────────────────────────────────

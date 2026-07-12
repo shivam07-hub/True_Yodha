@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from app.deps import CurrentUser, get_current_user, get_user_db
 from app.main import app
 from app.repositories.career_reservoir import get_career_reservoir_repository
+from app.repositories.connections import get_token_connections_repository
 from app.repositories.cv import get_token_cv_repository
 from app.repositories.cv_dump import get_cv_dump_repository
 from app.services import career_reservoir
@@ -25,6 +26,15 @@ class _FakeDumpRepo:
                "source": source, "kind": kind, "payload": payload or {}}
         self.rows.append(row)
         return row
+
+
+class _FakeConnectionsRepo:
+    def __init__(self) -> None:
+        self.saved: list[dict[str, Any]] = []
+
+    def replace_all(self, user_id: str, rows: list[dict[str, Any]]) -> int:
+        self.saved = rows
+        return len(rows)
 
 
 class _FakeReservoirRepo:
@@ -56,8 +66,13 @@ class _FakeReservoirRepo:
         return None
 
 
-def _override(dump: _FakeDumpRepo | None = None, reservoir: _FakeReservoirRepo | None = None):
+def _override(
+    dump: _FakeDumpRepo | None = None,
+    reservoir: _FakeReservoirRepo | None = None,
+    connections: _FakeConnectionsRepo | None = None,
+):
     app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
+    app.dependency_overrides[get_token_connections_repository] = lambda: connections or _FakeConnectionsRepo()
     if dump is not None:
         app.dependency_overrides[get_cv_dump_repository] = lambda: dump
     if reservoir is not None:
@@ -138,6 +153,91 @@ def test_ingest_linkedin_zip(monkeypatch):
     assert entry["kind"] == "linkedin"
     assert "ROLE: Sales Manager @ Capgemini" in dump.rows[0]["text"]
     assert enqueued == ["e1"]
+
+
+_CONNECTIONS_CSV = (
+    "Notes:\n"
+    '"Some LinkedIn preamble about emails."\n'
+    "\n"
+    "First Name,Last Name,URL,Email Address,Company,Position,Connected On\n"
+    "Sarvesh,Patkar,https://linkedin.com/in/x,,AkzoNobel,Manager - Strategy,27 May 2026\n"
+    "Asha,Rao,https://linkedin.com/in/y,,3M,Data Lead,12 Apr 2026\n"
+)
+
+
+def test_ingest_routes_connections_csv_to_warm_intro_store(monkeypatch):
+    monkeypatch.setattr(career_reservoir, "enqueue_ingest", lambda uid, eid: None)
+    conns = _FakeConnectionsRepo()
+    _override(dump=_FakeDumpRepo(), connections=conns)
+    with TestClient(app) as client:
+        resp = client.post(
+            "/cv/reservoir/ingest",
+            files=[("files", ("Connections.csv", _CONNECTIONS_CSV.encode(), "text/csv"))],
+            headers=_H,
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["connections_saved"] == 2
+    assert body["entries"] == [] and body["skipped"] == []
+    assert conns.saved[0]["full_name"] == "Sarvesh Patkar"
+
+
+def test_ingest_zip_extracts_connections_and_career_text(monkeypatch):
+    enqueued: list[str] = []
+    monkeypatch.setattr(career_reservoir, "enqueue_ingest", lambda uid, eid: enqueued.append(eid))
+    dump = _FakeDumpRepo()
+    conns = _FakeConnectionsRepo()
+    _override(dump=dump, connections=conns)
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr(
+            "Positions.csv",
+            "Company Name,Title,Description,Location,Started On,Finished On\n"
+            "Capgemini,Sales Manager,Grew pipeline fifty percent in two quarters flat.,Hyderabad,May 2025,\n",
+        )
+        zf.writestr("Connections.csv", _CONNECTIONS_CSV)
+        zf.writestr(
+            "Shares_622594202.csv",
+            "Date,ShareLink,ShareCommentary,SharedUrl,MediaUrl,Visibility\n"
+            '2026-05-09 05:24:05,link,"Shipped the analytics revamp — 30k jobs tracked.",,,PUBLIC\n',
+        )
+        zf.writestr("Recommendations_Given.csv",
+                    "First Name,Last Name,Company,Job Title,Text,Creation Date,Status\n"
+                    "Someone,Else,Acme,PM,Great colleague I praised.,2026-01-01,VISIBLE\n")
+    with TestClient(app) as client:
+        resp = client.post(
+            "/cv/reservoir/ingest",
+            files=[("files", ("Complete_LinkedInDataExport.zip", buf.getvalue(), "application/zip"))],
+            headers=_H,
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["connections_saved"] == 2
+    assert len(body["entries"]) == 1
+    text = dump.rows[0]["text"]
+    assert "ROLE: Sales Manager @ Capgemini" in text
+    assert "POSTS AUTHORED BY THE USER" in text and "analytics revamp" in text
+    assert "praised" not in text  # recommendations GIVEN never enter the story corpus
+
+
+def test_ingest_skips_linkedin_telemetry_csvs(monkeypatch):
+    monkeypatch.setattr(career_reservoir, "enqueue_ingest", lambda uid, eid: None)
+    _override(dump=_FakeDumpRepo())
+    with TestClient(app) as client:
+        resp = client.post(
+            "/cv/reservoir/ingest",
+            files=[
+                ("files", ("Ads Clicked.csv", b"Ad Title,Clicked At\nx,y\n" * 20, "text/csv")),
+                ("files", ("Logins.csv", b"Login Date,IP Address\nx,y\n" * 20, "text/csv")),
+                ("files", ("Comments_622594202.csv", b"Date,Link,Message\nx,y,z\n" * 20, "text/csv")),
+            ],
+            headers=_H,
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["entries"] == []
+    assert {s["reason"] for s in body["skipped"]} == {"LinkedIn telemetry — no career signal"}
 
 
 def test_profile_endpoint_grouping():
