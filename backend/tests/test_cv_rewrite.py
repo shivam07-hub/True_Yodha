@@ -129,8 +129,8 @@ def test_rewrite_failsoft_when_retrieval_empty(monkeypatch):
 
 _VARIANTS_RAW = (
     "[METRIC] Cut churn 18% by shipping a retention flow to 40k users\n"
-    "[IMPACT] Reversed churn and lifted retention by owning a new lifecycle flow\n"
-    "[SCOPE] Led a 12-person squad across three systems to close the churn gap"
+    "[IMPACT] Reversed churn 18% and lifted retention by owning a new lifecycle flow\n"
+    "[SCOPE] Led a 12-person squad across three systems to cut the churn gap 18%"
 )
 
 
@@ -157,6 +157,47 @@ def test_variants_fall_back_to_single_when_untagged(monkeypatch):
     assert out["mode"] == "variants"
     assert len(out["variants"]) == 1
     assert out["variants"][0]["text"].startswith("Cut churn 18%")
+
+
+def test_variants_dropping_source_numbers_are_filtered(monkeypatch):
+    # No-DELETION guard: "over 50" → "numerous" is a regression, not a version.
+    raw = (
+        "[METRIC] Generated 50 outbound AI pitches building a revenue pipeline\n"
+        "[IMPACT] Generated numerous outbound AI pitches for GCC clients\n"       # dropped 50 → filtered
+        "[SCOPE] Owned outbound AI pitching across 50 GCC accounts"
+    )
+    provider = _FakeProvider(text=raw)
+    _patch_retrieve(monkeypatch, [])
+    out = asyncio.run(cv_rewrite.suggest_rewrite_variants(
+        "Generated over 50 outbound AI pitches", None, [], None, provider))
+    assert out["mode"] == "variants"
+    assert [v["angle"] for v in out["variants"]] == ["metric", "scope"]
+
+
+def test_all_variants_losing_metrics_is_an_error(monkeypatch):
+    provider = _FakeProvider(text=(
+        "[METRIC] Generated numerous pitches\n[IMPACT] Drove many pitches\n[SCOPE] Owned several pitches"
+    ))
+    _patch_retrieve(monkeypatch, [])
+    out = asyncio.run(cv_rewrite.suggest_rewrite_variants(
+        "Generated over 50 outbound pitches", None, [], None, provider))
+    assert out["mode"] == "error"
+    assert "numbers" in out["rationale"]
+
+
+def test_loses_metrics_normalizes_forms():
+    assert cv_rewrite.loses_metrics("Tracked 30,000 jobs", "Tracked jobs at scale") is True
+    assert cv_rewrite.loses_metrics("Tracked 30,000 jobs", "Tracked 30k jobs across India") is False
+    assert cv_rewrite.loses_metrics("Improved onboarding", "Improved onboarding flows") is False  # no numbers → no guard
+    assert cv_rewrite.loses_metrics("Saved ₹2 crore", "Saved ₹2 crore annually") is False
+
+
+def test_single_rewrite_dropping_numbers_errors(monkeypatch):
+    provider = _FakeProvider(text="Generated numerous outbound pitches for clients")
+    _patch_retrieve(monkeypatch, [])
+    out = asyncio.run(cv_rewrite.suggest_rewrite("Generated over 50 outbound pitches", None, [], None, provider))
+    assert out["mode"] == "error"
+    assert "kept your original" in out["rationale"]
 
 
 def test_finalize_salvages_bullet_from_leaked_reasoning(monkeypatch):

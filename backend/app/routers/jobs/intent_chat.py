@@ -13,7 +13,7 @@ from app.database import get_supabase_admin
 from app.deps import Principal, get_principal
 from app.repositories.search_queries import SearchQueriesRepository
 from app.repositories.users import UsersRepository
-from app.services import intent_chat_service, memory_semantic
+from app.services import intent_chat_service, memory_recall, memory_semantic
 from app.services.llm_provider import LLMProvider, get_interactive_provider
 
 router = APIRouter()
@@ -61,6 +61,13 @@ async def intent_chat(
         hits = await memory_semantic.retrieve(principal.id, last_user, k=5)
         if hits:
             profile["known_facts"] = [h.text for h in hits]
+        # Career Memory: the user's own stories nearest this turn — lets the
+        # concierge reason from what they've actually done. Fail-soft → none.
+        story_hits = await memory_recall.recall_stories(principal.id, last_user, k=3)
+        if story_hits:
+            profile["known_stories"] = [
+                " — ".join(p for p in (h.title, h.result) if p) for h in story_hits
+            ]
 
     result = await intent_chat_service.converse(profile, messages, provider)
     diff = result.get("proposed_diff")

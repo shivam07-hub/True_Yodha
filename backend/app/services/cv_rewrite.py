@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 import re
 
-from app.services import mentor_retriever
+from app.services import memory_recall, mentor_retriever
 from app.services.llm_provider import LLMProvider, LLMProviderError
 
 logger = logging.getLogger(__name__)
@@ -64,6 +64,38 @@ def metric_question(bullet: str) -> str:  # noqa: ARG001 — bullet kept for fut
         "a %, a ₹/$ amount, time saved, users reached, or team size? "
         "Myro won't invent a number — tell me the real one and I'll work it in."
     )
+
+
+# ── no-DELETION guard (mirror of no-fabrication) ─────────────────────────────
+# A rewrite must never carry FEWER real numbers than the source ("over 50" →
+# "numerous" is a regression, not a rewrite). We extract every numeric token
+# from the source and require each to survive into the rewrite.
+
+_NUM_RE = re.compile(r"\d[\d,]*(?:\.\d+)?\s*(k|m|bn|mn|lakh|crore)?", re.IGNORECASE)
+
+_SUFFIX_MULT = {"k": 1_000, "m": 1_000_000, "mn": 1_000_000, "bn": 1_000_000_000,
+                "lakh": 100_000, "crore": 10_000_000}
+
+
+def _numbers_in(text: str) -> set[str]:
+    """Canonical numeric tokens in a bullet ('30,000' == '30k' == '30000')."""
+    out: set[str] = set()
+    for m in _NUM_RE.finditer(text or ""):
+        raw = m.group(0).lower().replace(",", "").strip()
+        suffix = (m.group(1) or "").lower()
+        num_part = raw[: len(raw) - len(suffix)].strip() if suffix else raw
+        try:
+            value = float(num_part) * _SUFFIX_MULT.get(suffix, 1)
+        except ValueError:
+            continue
+        out.add(f"{value:g}")
+    return out
+
+
+def loses_metrics(source: str, rewrite: str) -> bool:
+    """True when the source states numbers the rewrite dropped."""
+    src = _numbers_in(source)
+    return bool(src) and not src <= _numbers_in(rewrite)
 
 
 # Invariant guardrails — true regardless of which playbook rules are retrieved.
@@ -120,6 +152,7 @@ async def prepare_rewrite(
     metric: str | None,
     *,
     allow_no_metric: bool = False,
+    user_id: str | None = None,
 ) -> dict:
     """Resolve everything that must happen BEFORE any token streams, so a caller
     knows whether this turn is a question, an error, or a real rewrite — and (if
@@ -149,9 +182,20 @@ async def prepare_rewrite(
     query = " ".join(p for p in [bullet, role or "", " ".join(missing_keywords)] if p).strip()
     passages = await mentor_retriever.retrieve(query, shelf="cv", k=_RETRIEVE_K)
 
+    # Career Memory: ground the rewrite in the user's OWN verified stories, so
+    # specifics come from their real history, not model imagination. Fail-soft.
+    story_block = ""
+    if user_id:
+        story_hits = await memory_recall.recall_stories(user_id, query, k=3)
+        story_block = memory_recall.story_grounding_block(story_hits)
+
+    messages = _build_messages(bullet, role, missing_keywords, metric, passages)
+    if story_block:
+        messages[-1] = {**messages[-1], "content": messages[-1]["content"] + "\n\n" + story_block}
+
     return {
         "mode": "stream",
-        "messages": _build_messages(bullet, role, missing_keywords, metric, passages),
+        "messages": messages,
         "passages": passages,
         "missing_keywords": missing_keywords,
     }
@@ -184,14 +228,20 @@ def _extract_bullet(raw: str) -> str:
     return text.strip().strip('"').strip("'").strip()
 
 
-def finalize_rewrite(text: str, passages: list, missing_keywords: list[str]) -> dict:
+def finalize_rewrite(text: str, passages: list, missing_keywords: list[str], source_bullet: str = "") -> dict:
     """Turn the fully-streamed (or fully-completed) rewrite text into the terminal
     payload: the cleaned text, a rationale, and the de-duped citation titles.
     Pure — no I/O — so it runs identically after a blocking complete() or a token
-    stream. Returns ``{"mode": "error", ...}`` if the model produced nothing."""
+    stream. Returns ``{"mode": "error", ...}`` if the model produced nothing or
+    (no-DELETION guard) dropped real numbers the source stated."""
     text = _extract_bullet(text)
     if not text:
         return {"mode": "error", "rationale": "No rewrite produced."}
+    if source_bullet and loses_metrics(source_bullet, text):
+        return {
+            "mode": "error",
+            "rationale": "The rewrite dropped real numbers from your bullet — kept your original.",
+        }
 
     # De-duped source titles, preserving retrieval order, for the UI citation chip.
     citations: list[str] = list(dict.fromkeys(p.source_title for p in passages))
@@ -212,6 +262,7 @@ async def suggest_rewrite(
     metric: str | None,
     provider: LLMProvider | None,
     allow_no_metric: bool = False,
+    user_id: str | None = None,
 ) -> dict:
     """Blocking rewrite (one shot, no streaming). Returns one of:
       {"mode": "question", "question": str}                      — no-fab guard fired
@@ -223,7 +274,10 @@ async def suggest_rewrite(
     from ``prepare_rewrite`` + ``finalize_rewrite`` — the streaming endpoint
     shares the exact same two halves, only with a token stream in between.
     """
-    plan = await prepare_rewrite(bullet, role, missing_keywords, metric, allow_no_metric=allow_no_metric)
+    plan = await prepare_rewrite(
+        bullet, role, missing_keywords, metric,
+        allow_no_metric=allow_no_metric, user_id=user_id,
+    )
     if plan["mode"] != "stream":
         return plan
 
@@ -236,7 +290,7 @@ async def suggest_rewrite(
         logger.info("cv_rewrite: all providers failed (bullet len=%d)", len((bullet or "").strip()))
         return {"mode": "error", "rationale": "Rewrite is unavailable right now."}
 
-    return finalize_rewrite(raw, plan["passages"], plan["missing_keywords"])
+    return finalize_rewrite(raw, plan["passages"], plan["missing_keywords"], source_bullet=bullet)
 
 
 # ─── 3-angle variants (pick-a-version) ───────────────────────────────────────
@@ -297,6 +351,7 @@ async def suggest_rewrite_variants(
     metric: str | None,
     provider: LLMProvider | None,
     allow_no_metric: bool = False,
+    user_id: str | None = None,
 ) -> dict:
     """Blocking 3-angle rewrite. Returns one of:
       {"mode": "question", "question": str}                 — no-fab guard fired
@@ -307,7 +362,10 @@ async def suggest_rewrite_variants(
     ``prepare_rewrite``), so a metric-less bullet is still asked for the real
     number before any variants are produced.
     """
-    plan = await prepare_rewrite(bullet, role, missing_keywords, metric, allow_no_metric=allow_no_metric)
+    plan = await prepare_rewrite(
+        bullet, role, missing_keywords, metric,
+        allow_no_metric=allow_no_metric, user_id=user_id,
+    )
     if plan["mode"] != "stream":
         return plan
 
@@ -328,14 +386,23 @@ async def suggest_rewrite_variants(
     if not variants:
         # Model ignored the tag format — fall back to a single rewrite so the user
         # still gets a suggestion rather than an error.
-        single = finalize_rewrite(raw, plan["passages"], plan["missing_keywords"])
+        single = finalize_rewrite(raw, plan["passages"], plan["missing_keywords"], source_bullet=bullet)
         if single["mode"] == "rewrite":
             return {
                 "mode": "variants",
                 "variants": [{"angle": "metric", "label": "Suggested", "text": single["rewritten_text"]}],
                 "citations": single["citations"],
             }
-        return {"mode": "error", "rationale": "No rewrite produced."}
+        return {"mode": "error", "rationale": single.get("rationale") or "No rewrite produced."}
+
+    # No-DELETION guard: a version that dropped the source's real numbers is not
+    # a valid framing of the same facts — filter it, never show it.
+    variants = [v for v in variants if not loses_metrics(bullet, v["text"])]
+    if not variants:
+        return {
+            "mode": "error",
+            "rationale": "Every rewrite dropped real numbers from your bullet — kept your original.",
+        }
 
     citations: list[str] = list(dict.fromkeys(p.source_title for p in plan["passages"]))
     return {"mode": "variants", "variants": variants, "citations": citations}

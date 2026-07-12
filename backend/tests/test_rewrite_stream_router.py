@@ -39,6 +39,7 @@ def _wire(monkeypatch, tokens: list[str]) -> None:
         return []
 
     monkeypatch.setattr(cv_rewrite.mentor_retriever, "retrieve", _no_passages)
+    monkeypatch.setattr(cv_rewrite.memory_recall, "recall_stories", _no_passages)
 
 
 def _unwire() -> None:
@@ -46,7 +47,8 @@ def _unwire() -> None:
 
 
 def test_rewrite_streams_tokens_then_done(monkeypatch):
-    _wire(monkeypatch, ["Cut ", "churn ", "18%."])
+    # The streamed rewrite keeps every source number (no-DELETION guard) — 18% and Q3.
+    _wire(monkeypatch, ["Cut ", "churn ", "18% ", "in Q3."])
     try:
         with TestClient(app) as client:
             res = client.post(
@@ -56,9 +58,9 @@ def test_rewrite_streams_tokens_then_done(monkeypatch):
         frames = _frames(res.text)
         tokens = "".join(f.get("text", "") for f in frames if f["type"] == "token")
         done = [f for f in frames if f["type"] == "done"]
-        assert tokens == "Cut churn 18%."
+        assert tokens == "Cut churn 18% in Q3."
         assert done and done[0]["mode"] == "rewrite"
-        assert done[0]["rewritten_text"] == "Cut churn 18%."
+        assert done[0]["rewritten_text"] == "Cut churn 18% in Q3."
         assert "citations" in done[0]
     finally:
         _unwire()
@@ -109,12 +111,17 @@ def test_variants_endpoint_returns_finished_versions(monkeypatch):
     app.dependency_overrides[get_principal] = lambda: Principal(id="u1", email="a@b.co")
     monkeypatch.setattr(
         skill_edit_router, "get_interactive_provider",
-        lambda: _CompleteProvider("[METRIC] Cut churn 18% in Q3\n[IMPACT] Lifted retention across the base\n[SCOPE] Owned churn for 40k users"),
+        lambda: _CompleteProvider(
+            "[METRIC] Cut churn 18% in Q3 for the whole base\n"
+            "[IMPACT] Lifted retention by cutting churn 18% in Q3\n"
+            "[SCOPE] Owned the Q3 churn program end to end, cutting it 18%"
+        ),
     )
 
     async def _no_passages(*_a, **_k):
         return []
     monkeypatch.setattr(cv_rewrite.mentor_retriever, "retrieve", _no_passages)
+    monkeypatch.setattr(cv_rewrite.memory_recall, "recall_stories", _no_passages)
     try:
         with TestClient(app) as client:
             res = client.post(

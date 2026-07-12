@@ -13,6 +13,7 @@ import { APPLICATION_OUTCOMES } from "@/lib/api"
 import { buildCVWorkspaceStats, latestCVVersionForJob } from "@/lib/cv/workspace"
 import { cleanJobTitle } from "@/lib/text/strip-markdown"
 import { MasterCVPanel } from "./library-master"
+import { MemoryPanel } from "./memory-panel"
 import { ReservoirProfile } from "./reservoir-profile"
 import { I, LIcon } from "./library-icons"
 import { WorkspacePipeline } from "../pipeline/workspace-pipeline"
@@ -25,7 +26,7 @@ import "../mobile/mobile-cv-editor.css"
 // Top-level view switcher (market Jobs/Heatmap pill pattern). CV = master CV on
 // its own full-width page; Active = stat strip + live pipeline + closed rail;
 // Stories = the Career Story Reservoir (the dump-built profile behind the CV).
-type View = "cv" | "active" | "stories"
+type View = "cv" | "active" | "stories" | "memory"
 
 interface LibraryViewProps {
   token: string
@@ -43,13 +44,15 @@ interface LibraryViewProps {
 // the main board can never disagree on what counts as closed.
 const CLOSED_ORDER: ApplicationStatus[] = ["offer", "rejected", "ghosted"]
 
-// CV ↔ Stories mode pill (reuses the canonical .tm-lib-seg family). The master
-// CV is the artifact; Stories is the reservoir it projects from.
+// CV ↔ Stories ↔ Memory mode pill (reuses the canonical .tm-lib-seg family).
+// The master CV is the artifact; Stories is the reservoir it projects from;
+// Memory is everything Myro remembers across the product.
 function CvStoriesToggle({ view }: { view: View }) {
   return (
     <div className="tm-lib-seg tm-lib-cv-mode" aria-label="CV workspace mode">
       <Link href="/cv?view=cv" className={`tm-lib-seg-btn${view === "cv" ? " active" : ""}`}>CV</Link>
       <Link href="/cv?view=stories" className={`tm-lib-seg-btn${view === "stories" ? " active" : ""}`}>Stories</Link>
+      <Link href="/cv?view=memory" className={`tm-lib-seg-btn${view === "memory" ? " active" : ""}`}>Memory</Link>
     </div>
   )
 }
@@ -153,6 +156,7 @@ export function LibraryView({
     viewParam === "cv" || legacyMaster ? "cv"
     : viewParam === "active" || legacyClosed ? "active"
     : viewParam === "stories" ? "stories"
+    : viewParam === "memory" ? "memory"
     : "cv"
 
   const stats = buildCVWorkspaceStats(versions, applications)
@@ -164,6 +168,14 @@ export function LibraryView({
         <div className="tm-mcv-stories">
           <CvStoriesToggle view={view} />
           <ReservoirProfile token={token} applications={applications} onOpenJob={onOpenJob} />
+        </div>
+      )
+    }
+    if (view === "memory") {
+      return (
+        <div className="tm-mcv-stories">
+          <CvStoriesToggle view={view} />
+          <MemoryPanel token={token} />
         </div>
       )
     }
@@ -241,6 +253,14 @@ export function LibraryView({
                 applications={applications}
                 onOpenJob={onOpenJob}
               />
+            </>
+          )}
+
+          {/* ── Memory view: what Myro remembers, yours to edit/forget ── */}
+          {view === "memory" && (
+            <>
+              <CvStoriesToggle view={view} />
+              <MemoryPanel token={token} />
             </>
           )}
 

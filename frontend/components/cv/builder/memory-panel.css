@@ -1,0 +1,163 @@
+/* MemoryPanel — "What Myro remembers" (/cv?view=memory). Token-only. */
+
+.tm-mem-scope {
+  display: grid;
+  gap: 18px;
+  max-width: 720px;
+  padding: 4px 0 48px;
+}
+.tm-mem-head h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.tm-mem-head p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--tm-text-muted);
+  max-width: 52ch;
+}
+
+.tm-mem-stores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.tm-mem-store {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 10px;
+  padding: 10px 14px;
+  text-decoration: none;
+  color: inherit;
+  background: var(--tm-surface);
+}
+a.tm-mem-store:hover { border-color: var(--tm-border); }
+.tm-mem-store-count {
+  font-size: 17px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.tm-mem-store-label {
+  font-family: var(--tm-font-mono);
+  font-size: 10.5px;
+  color: var(--tm-text-muted);
+}
+
+.tm-mem-composer {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.tm-mem-kind-select {
+  font: inherit;
+  font-size: 12px;
+  color: var(--tm-text);
+  background: var(--tm-bg-inset);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 8px;
+  padding: 8px 8px;
+}
+.tm-mem-composer-input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--tm-text);
+  background: var(--tm-bg-inset);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.tm-mem-composer-input:focus-visible,
+.tm-mem-kind-select:focus-visible,
+.tm-mem-edit-input:focus-visible {
+  outline: 2px solid var(--tm-interactive-ring);
+  outline-offset: 1px;
+}
+
+.tm-mem-facts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.tm-mem-fact {
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: grid;
+  gap: 6px;
+  background: var(--tm-surface);
+}
+.tm-mem-fact-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.tm-mem-kind {
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tm-text-faint);
+}
+.tm-mem-source {
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  color: var(--tm-accent-text);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+.tm-mem-fact-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.tm-mem-fact-actions {
+  display: flex;
+  gap: 12px;
+}
+.tm-mem-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--tm-text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.tm-mem-link:hover { color: var(--tm-text); }
+.tm-mem-link:disabled { opacity: 0.5; cursor: default; }
+
+.tm-mem-edit { display: grid; gap: 8px; }
+.tm-mem-edit-input {
+  width: 100%;
+  resize: vertical;
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--tm-text);
+  background: var(--tm-bg-inset);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.tm-mem-empty {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--tm-text-faint);
+}
+
+@media (max-width: 640px) {
+  .tm-mem-composer { flex-wrap: wrap; }
+  .tm-mem-composer-input { flex-basis: 100%; order: -1; }
+}

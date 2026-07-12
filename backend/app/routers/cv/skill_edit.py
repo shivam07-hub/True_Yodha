@@ -249,6 +249,7 @@ async def rewrite_bullet(
         body.metric,
         get_interactive_provider(),
         allow_no_metric=body.allow_no_metric,
+        user_id=principal.id,
     )
     return RewriteBulletResponse(**result)
 
@@ -270,6 +271,7 @@ async def rewrite_bullet_variants(
         body.metric,
         get_interactive_provider(),
         allow_no_metric=body.allow_no_metric,
+        user_id=principal.id,
     )
     return RewriteVariantsResponse(
         mode=result["mode"],
@@ -296,7 +298,7 @@ async def rewrite_bullet_stream(
     through /rewrite-bullet/apply."""
     plan = await cv_rewrite.prepare_rewrite(
         body.bullet, body.role, body.missing_keywords, body.metric,
-        allow_no_metric=body.allow_no_metric,
+        allow_no_metric=body.allow_no_metric, user_id=principal.id,
     )
     if plan["mode"] == "question":
         return text_stream.response(
@@ -311,7 +313,7 @@ async def rewrite_bullet_stream(
     missing = plan["missing_keywords"]
 
     async def finalize(text: str) -> dict:
-        result = cv_rewrite.finalize_rewrite(text, passages, missing)
+        result = cv_rewrite.finalize_rewrite(text, passages, missing, source_bullet=body.bullet)
         if result.get("mode") == "error":
             raise text_stream.StreamAbort(result.get("rationale") or "No rewrite produced.", recoverable=True)
         return {
