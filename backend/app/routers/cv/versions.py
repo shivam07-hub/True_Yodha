@@ -302,6 +302,37 @@ def promote_projection_to_master(
     return _to_response(row)
 
 
+class RestoreMasterRequest(BaseModel):
+    cv:           CVStructuredResponse
+    hidden_items: list[str] = []
+
+
+@router.post("/restore-master", response_model=CVVersionResponse)
+def restore_master(
+    body: RestoreMasterRequest,
+    principal: Principal = Depends(get_principal),
+    cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
+) -> CVVersionResponse:
+    """Make a past applied CV the living master again (Delta-4 restore).
+
+    Overwrites the master's content + shape with the chosen version. The prior
+    master is preserved in cv_master_revisions by update_master, so a restore is
+    itself reversible. project_living_cv_delta4.
+    """
+    structured = body.cv.model_dump()
+    body_text = cv_compose.render_deterministic(
+        structured, hidden_items=body.hidden_items, edited_items=None,
+    )
+    row = cv_repo.update_master(
+        principal.id,
+        body_text=body_text,
+        cv_structured=structured,
+        snapshot_hash=cv_compose.item_id("restore", 0, body_text),
+        hidden_items=body.hidden_items,
+    )
+    return _to_response(row)
+
+
 @router.patch("/{version_id}/footer-mark", response_model=CVVersionResponse)
 def set_footer_mark(
     version_id: int,

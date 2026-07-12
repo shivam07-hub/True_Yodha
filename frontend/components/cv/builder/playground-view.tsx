@@ -218,6 +218,9 @@ export function PlaygroundView({
         cv_snapshot: {
           text: m.visibleText, title: m.jobTitle, company: m.company, score: m.ready,
           bullets: m.visibleCount, words: m.wordCount,
+          // Self-contained artifact so the version history can re-render + restore
+          // this exact CV later (WYSIWYG, ADR-0020) — Delta-4 version history.
+          structured: cv, hidden: Array.from(hiddenItems),
         },
         cv_version_id: selectedVersion?.id ?? null,
         applied_url: applyHref,

@@ -484,6 +484,7 @@ class CVVersionsRepository:
         body_text: str,
         cv_structured: dict[str, Any],
         snapshot_hash: str | None = None,
+        hidden_items: list[str] | None = None,
     ) -> dict[str, Any]:
         """Non-destructive autosave of the user's Main CV (master ≡ latest_baseline).
 
@@ -512,15 +513,20 @@ class CVVersionsRepository:
         }).execute()
 
         # 2. Mutate the master. user_id filter is defensive (RLS also scopes).
+        patch: dict[str, Any] = {
+            "body_text":             body_text,
+            "cv_structured":         cv_structured or {},
+            "snapshot_hash":         snapshot_hash,
+            "confidence_label":      "user-edited",
+            "recompute_finished_at": None,
+        }
+        # Restore also carries the applied shape (Delta-4); a plain autosave leaves
+        # hidden_items untouched.
+        if hidden_items is not None:
+            patch["hidden_items"] = hidden_items
         result = (
             self._db.table("cv_versions")
-            .update({
-                "body_text":             body_text,
-                "cv_structured":         cv_structured or {},
-                "snapshot_hash":         snapshot_hash,
-                "confidence_label":      "user-edited",
-                "recompute_finished_at": None,
-            })
+            .update(patch)
             .eq("id", master_id)
             .eq("user_id", user_id)
             .execute()
