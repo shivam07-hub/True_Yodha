@@ -56,6 +56,11 @@ export interface CVPlaygroundState {
   // Option C auto-save: hide/show edits persist as the user works (no Save button).
   autosaving: boolean
   autosaved: boolean
+  /** Persist any pending (debounced) hide/show toggles NOW. Await before
+   *  navigating to a surface that re-hydrates from the saved version
+   *  (/cv/export) — otherwise unmount cancels the debounce and the toggles
+   *  silently die. Rejects on save failure (error is surfaced via `error`). */
+  flushHidden: () => Promise<void>
 
   // Mutations
   saveVersion: ReturnType<typeof useMutation<CVVersion, Error, void>>
@@ -196,6 +201,15 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
   const canSave = isDirty || companyVersions.length === 0
 
   const onMutationSuccess = useCallback((action: CVWriteAction, v: CVVersion) => {
+    // Patch the cache with the new row BEFORE the invalidate refetch lands, so
+    // a surface that mounts right after a write (e.g. /cv/export after a
+    // flushed save) hydrates from the fresh version, not the stale list.
+    queryClient.setQueryData<{ versions: CVVersion[] }>(
+      dataKeys.cvVersions(jobId),
+      (old) => old
+        ? { versions: [v, ...old.versions.filter(row => row.id !== v.id)] }
+        : old,
+    )
     queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
     setSelectedVersionId(v.id)
     setHiddenItems(new Set(v.hidden_items))
@@ -252,12 +266,15 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
   // Debounced auto-save: 1.2s after the user stops toggling, persist the
   // projection. The first edit on a job with no working draft creates one
   // (saveVersion); subsequent edits patch it in place (no snapshot pile-up).
+  // The timer lives in a ref so flushHidden can cancel it and persist NOW.
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
     if (!enabled || !token || !jobId) return
     const serialized = serializeHidden(hiddenItems)
     if (serialized === lastSavedRef.current) return
     setAutosaved(false)
-    const t = setTimeout(() => {
+    debounceRef.current = setTimeout(() => {
+      debounceRef.current = null
       const sel = selectedVersion
       if (sel && sel.kind === "deterministic" && sel.job_id) {
         autosave.mutate({ versionId: sel.id, hidden: Array.from(hiddenItems) })
@@ -265,9 +282,57 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
         saveVersion.mutate()
       }
     }, 1200)
-    return () => clearTimeout(t)
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current)
+        debounceRef.current = null
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hiddenItems, enabled, token, jobId, selectedVersion])
+
+  // Persist pending toggles immediately (cancel the debounce, run the same
+  // save path, await it). Callers navigating to a re-hydrating surface MUST
+  // await this — otherwise the export renders the last SAVED projection and
+  // deselected lines resurrect in the artifact (ADR-0020: render what the
+  // user sees).
+  const flushHidden = useCallback(async (): Promise<void> => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
+      debounceRef.current = null
+    }
+    if (!enabled || !token || !jobId) return
+    if (serializeHidden(hiddenItems) === lastSavedRef.current) return
+    const sel = selectedVersion
+    if (sel && sel.kind === "deterministic" && sel.job_id) {
+      await autosave.mutateAsync({ versionId: sel.id, hidden: Array.from(hiddenItems) })
+    } else {
+      await saveVersion.mutateAsync()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, token, jobId, hiddenItems, selectedVersion])
+
+  // Unmount safety net: any exit (back to library, top-nav away, tab route
+  // change) with an un-flushed debounce would otherwise drop the user's
+  // toggles on the floor. Fire-and-forget the same persist with raw API
+  // calls — the component (and its mutation observers) is gone by then.
+  const unmountRef = useRef({ enabled, token, jobId, hiddenItems, selectedVersion })
+  unmountRef.current = { enabled, token, jobId, hiddenItems, selectedVersion }
+  useEffect(() => () => {
+    const { enabled: en, token: tk, jobId: jid, hiddenItems: hid, selectedVersion: sel } = unmountRef.current
+    if (!en || !tk || !jid) return
+    if (serializeHidden(hid) === lastSavedRef.current) return
+    const hidden = Array.from(hid)
+    const persist = sel && sel.kind === "deterministic" && sel.job_id
+      ? cv.versions.updateHiddenItems(tk, sel.id, hidden)
+      : cv.versions.create(tk, jid, hidden)
+    persist
+      .then(() => queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jid) }))
+      // Degradation: the user already left this surface — nothing to render an
+      // error into. The projection stays at its last saved state; log for triage.
+      .catch((err) => console.warn("metric cv.hidden_flush_unmount_failed", err))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const clearLastWrite = useCallback(() => setLastWrite(null), [])
 
@@ -290,6 +355,7 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
     clearLastWrite,
     autosaving: autosave.isPending || saveVersion.isPending,
     autosaved,
+    flushHidden,
     saveVersion,
     polishVersion,
     editVersion,

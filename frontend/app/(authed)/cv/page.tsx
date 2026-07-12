@@ -121,8 +121,16 @@ function CVPage() {
   function backToBaseline() { navigate("/cv") }
   // Tailored export is a dedicated full-page route (Design C). Carry the match
   // score so the export header can show the JD-match pill without a refetch.
-  function openPdf(matchScore = 0) {
+  // The export page re-hydrates hidden items from the SAVED version, so any
+  // pending (debounced) toggles must be flushed before leaving — else the
+  // artifact resurrects deselected lines (ADR-0020).
+  async function openPdf(matchScore = 0) {
     if (!jobId) return
+    try {
+      await playground.flushHidden()
+    } catch {
+      return // save failed — stay put; the hook surfaced the error banner
+    }
     if (matchScore > 0) {
       try { sessionStorage.setItem(`myro-cv-score-${jobId}`, String(matchScore)) } catch { /* blocked */ }
     }
