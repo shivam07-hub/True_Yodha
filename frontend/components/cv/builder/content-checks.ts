@@ -15,6 +15,7 @@
  * function of the current CV text.
  */
 import type { CVStructured } from "@/lib/api"
+import { itemId } from "@/lib/cv-compose"
 import { BUZZWORDS, WEAK_OPENERS } from "./cv-buzzwords"
 
 export type ContentCheckKind = "Cut" | "Quantify" | "Fix"
@@ -147,9 +148,18 @@ interface BulletUnit extends ContentBulletRef {
   text: string
 }
 
+/** Editor row id of a scannable unit — the same identity the playground's
+ *  hidden set and jump anchors use, computed from FULL-CV indices. */
+export function unitIid(u: ContentBulletRef & { text: string }): string {
+  if (u.section === "summary") return itemId("summary", 0, u.text)
+  const kind = u.section === "projects" ? "proj_bullet" : "exp_bullet"
+  return itemId(kind, u.itemIndex * 100 + u.bulletIndex, u.text)
+}
+
 /** Flatten every scannable text region into addressable units. Summary + skills
- *  are single blocks (bulletIndex -1); experience/projects are per-bullet. */
-function collectUnits(cv: CVStructured): BulletUnit[] {
+ *  are single blocks (bulletIndex -1); experience/projects are per-bullet.
+ *  Units keep their full-CV indices, so filtering hidden ones never shifts a ref. */
+function collectUnits(cv: CVStructured, hiddenIids?: Set<string>): BulletUnit[] {
   const units: BulletUnit[] = []
   if (cv.summary?.trim()) {
     units.push({ section: "summary", itemIndex: -1, bulletIndex: -1, text: cv.summary })
@@ -164,15 +174,21 @@ function collectUnits(cv: CVStructured): BulletUnit[] {
       if (b.trim()) units.push({ section: "projects", itemIndex: i, bulletIndex: j, text: b })
     })
   })
-  return units
+  if (!hiddenIids?.size) return units
+  return units.filter(u => !hiddenIids.has(unitIid(u)))
 }
 
 /**
  * Run every deterministic content check over the CV. Returns a flat, stable list
  * of findings. Pure — same CV in ⇒ same findings out (so the flywheel can diff).
+ *
+ * `hiddenIids` (the playground's deselected lines, by editor iid) drops those
+ * units BEFORE any rule runs, so a hidden bullet neither raises findings nor
+ * counts as the second leg of a repetition pair — what isn't on the CV can't
+ * cost points or demand a fix.
  */
-export function runContentChecks(cv: CVStructured): ContentFinding[] {
-  const units = collectUnits(cv)
+export function runContentChecks(cv: CVStructured, hiddenIids?: Set<string>): ContentFinding[] {
+  const units = collectUnits(cv, hiddenIids)
   const findings: ContentFinding[] = []
 
   // buzzwords — summary + every experience/project bullet

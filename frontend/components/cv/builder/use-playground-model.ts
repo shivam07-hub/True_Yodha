@@ -101,7 +101,12 @@ export function usePlaygroundModel(
 
   // Content-quality penalty (#34 S3): open recruiter-check findings subtract real
   // points from Ready, and each fix returns its exact points on a real text change.
-  const contentPenaltyPts = useMemo(() => contentPenalty(runContentChecks(cv)), [cv])
+  // Hidden lines are excluded — Ready's keyword side already reads visible text
+  // only, so a deselected bullet can neither cost points nor earn them back.
+  const contentPenaltyPts = useMemo(
+    () => contentPenalty(runContentChecks(cv, hiddenItems)),
+    [cv, hiddenItems],
+  )
 
   // Master: the header shows the Myro Score verbatim (CV-intrinsic, radar-based).
   // A bullet rewrite does NOT move the Myro Score, so the content-quality penalty
@@ -142,10 +147,10 @@ export function usePlaygroundModel(
     [evaluatedTargets],
   )
   const openFixes: V2Fix[] = useMemo(() => {
-    const all = buildV2Fixes(cv, gapPlanQuery.data ?? null, pointsFor)
+    const all = buildV2Fixes(cv, gapPlanQuery.data ?? null, pointsFor, hiddenItems)
     return all.filter(f =>
       f.tier === 1 || f.keywords.length === 0 || !f.keywords.every(k => matchedKw.has(k.toLowerCase())))
-  }, [cv, gapPlanQuery.data, pointsFor, matchedKw])
+  }, [cv, gapPlanQuery.data, pointsFor, matchedKw, hiddenItems])
 
   const skillRows = useMemo(
     () => buildSkillRows(gap.skills ?? [], gapPlanQuery.data ?? null, evaluatedTargets, openFixes, cv, hiddenItems),

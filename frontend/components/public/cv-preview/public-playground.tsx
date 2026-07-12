@@ -144,7 +144,7 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
   // shows (content only; no job here). No "+N": a rewrite improves the CV but
   // doesn't move the anon score, so nothing is fabricated. A card opens the anon
   // Mentor rewrite for its host bullet.
-  const anonFixes = useMemo<V2Fix[]>(() => buildV2Fixes(cv, null, () => 1), [cv])
+  const anonFixes = useMemo<V2Fix[]>(() => buildV2Fixes(cv, null, () => 1, hidden), [cv, hidden])
   const fixCountLabel = anonFixes.length > 0 ? String(anonFixes.length) : "✓"
   const railTab: "fixes" | "ats" = tab === "ats" ? "ats" : "fixes"
 
@@ -168,7 +168,7 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
     publicCv.recordDownloadEvent({
       anonSessionId: getAnonSessionId(),
       score: result?.score ?? null,
-      fixCount: runContentChecks(cv).length,
+      fixCount: runContentChecks(cv, hidden).length,
       fileFormat: "pdf",
       savedIntent,
     })

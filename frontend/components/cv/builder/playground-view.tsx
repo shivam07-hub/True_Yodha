@@ -31,6 +31,7 @@ import { ApplyModal } from "./apply-modal"
 import { TrimConfirm } from "./trim-confirm"
 import { PlaygroundHeader } from "./playground-header"
 import { usePlaygroundModel } from "./use-playground-model"
+import { useDismissedFixes } from "./use-dismissed-fixes"
 import type { AppliedFix, V2Fix } from "./fix-model"
 import { dataKeys } from "@/lib/domain-data"
 import type { CVPlaygroundState } from "@/lib/hooks/use-cv-playground"
@@ -75,6 +76,19 @@ export function PlaygroundView({
   const railTab: "fixes" | "skills" = tab === "fixes" || tab === "skills" ? tab : "fixes"
 
   const m = usePlaygroundModel(token, jobId, cv, profile, hiddenItems)
+  const { dismissed, dismiss, restore } = useDismissedFixes(`job:${jobId}`)
+
+  // The rail/editor/counters read the non-dismissed list; dismissed-but-still-
+  // open fixes render in the rail's collapsed Dismissed group (their penalty
+  // stays in Ready — dismissing never buys points).
+  const visibleFixes = useMemo(
+    () => m.openFixes.filter(f => !dismissed.has(f.id)),
+    [m.openFixes, dismissed],
+  )
+  const dismissedFixes = useMemo(
+    () => m.openFixes.filter(f => dismissed.has(f.id)),
+    [m.openFixes, dismissed],
+  )
 
   // The job's Worth-it verdict (the prize axis, beside the header's Ready score).
   // Passive read of the matches cache — never fetches; absent when the user
@@ -135,9 +149,14 @@ export function PlaygroundView({
     setFlash(prev => ({ iid, n: (prev?.n ?? 0) + 1 }))
   }
   function openFixCard(fix: V2Fix) {
+    restore(fix.id) // a Skills-tab "Fix it" on a dismissed fix is explicit intent — bring the card back
     setTab("fixes")
     setExpandedFixId(fix.id)
     jumpTo(fix.iid)
+  }
+  function dismissFix(fix: V2Fix) {
+    if (expandedFixId === fix.id) setExpandedFixId(null)
+    dismiss(fix.id, openFixIds)
   }
   function openIntake(seed?: string) {
     setIntakeSeed(seed ?? null)
@@ -187,7 +206,7 @@ export function PlaygroundView({
   }, [m.evaluatedTargets, intakeSeed])
 
   const saveState = autosaving ? "Saving…" : autosaved ? "Saved" : ""
-  const fixCountLabel = m.openFixes.length > 0 ? String(m.openFixes.length) : "✓"
+  const fixCountLabel = visibleFixes.length > 0 ? String(visibleFixes.length) : "✓"
 
   return (
     <div className="cvb-v2" data-tab={tab}>
@@ -260,9 +279,10 @@ export function PlaygroundView({
                 wordCount={m.wordCount}
                 rewriteTarget={null}
                 onClearRewriteTarget={() => {}}
-                fixes={m.openFixes}
+                fixes={visibleFixes}
                 applied={appliedShown}
                 onFixPill={openFixCard}
+                dismissedFixIds={dismissed}
                 flash={flash}
               />
             )}
@@ -273,6 +293,8 @@ export function PlaygroundView({
           token={token}
           tab={railTab}
           model={m}
+          fixes={visibleFixes}
+          dismissedFixes={dismissedFixes}
           applied={appliedShown}
           expandedId={expandedFixId}
           applying={rewriteApply.isPending}
@@ -282,6 +304,8 @@ export function PlaygroundView({
           onExpand={f => setExpandedFixId(f?.id ?? null)}
           onJump={jumpTo}
           onApplyFix={applyFixRewrite}
+          onDismissFix={dismissFix}
+          onRestoreFix={f => restore(f.id)}
           onFixCard={openFixCard}
           onOpenIntake={openIntake}
         />
@@ -331,7 +355,7 @@ export function PlaygroundView({
           jobTitle={m.jobTitle}
           ready={m.ready}
           delta={m.delta}
-          pendingFixes={m.openFixes.length}
+          pendingFixes={visibleFixes.length}
           submitting={submittingApply}
           applied={appliedDone}
           onConfirm={() => void confirmApply()}

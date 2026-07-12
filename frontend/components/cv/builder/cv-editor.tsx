@@ -43,6 +43,9 @@ interface CVEditorProps {
   fixes?: V2Fix[]
   applied?: AppliedFix[]
   onFixPill?: (fix: V2Fix) => void
+  /** Fix ids the user dismissed in the rail — their issue chips stop nagging the
+   *  bullet too (finding id == fix id for recruiter checks). */
+  dismissedFixIds?: Set<string>
   /** v2: jump request — scroll to and pulse a bullet (n re-triggers same iid). */
   flash?: { iid: string; n: number } | null
   /** Main-CV surface: the SAME paper, but identity fields become editable and
@@ -72,7 +75,7 @@ function copyText(text: string) {
 export function CVEditor({
   token, cv, profile, hiddenItems, toggleItem, targets, missingKeywords,
   applying, onApply, onAddBullet, addingBullet, visibleCount, wordCount, rewriteTarget, onClearRewriteTarget,
-  fixes, applied, onFixPill, flash, master,
+  fixes, applied, onFixPill, dismissedFixIds, flash, master,
 }: CVEditorProps) {
   const isMaster = !!master
   const [copiedId, setCopiedId] = useState<string | null>(null)
@@ -113,8 +116,12 @@ export function CVEditor({
   // Deterministic recruiter-check findings (#34 S2), grouped by the editor iid of
   // the bullet each one flags — so a row can wash + chip its own issues. Rebuilt
   // from the live CV, so a fix drops off the moment the text stops triggering it.
+  // Hidden lines are excluded from the scan (they're off this CV — a visible
+  // bullet must not read as "repeats" against a hidden twin), and dismissed
+  // fixes drop their chips (finding id == fix id).
   const findingsByIid = new Map<string, ContentFinding[]>()
-  for (const f of runContentChecks(cv)) {
+  for (const f of runContentChecks(cv, hiddenItems)) {
+    if (dismissedFixIds?.has(f.id)) continue
     let iid: string | null = null
     if (f.section === "summary" && cv.summary != null) {
       iid = itemId("summary", 0, cv.summary)
