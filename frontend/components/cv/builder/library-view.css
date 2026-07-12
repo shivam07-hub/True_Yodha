@@ -300,6 +300,17 @@
   margin-top: auto;
 }
 
+/* Document workbench column — the Main CV surface is an A4 sheet (~816px), so
+   the whole CV view (mode pill + panel + toolbar + sheet) shares one centered
+   measure. Without it the panel spans the full viewport: the head flings its
+   title and actions to opposite edges, the toolbar splits picker from download,
+   and the sheet floats in a wide void. One column, read as one object. */
+.tm-lib-doc {
+  width: 100%;
+  max-width: 920px;
+  margin-inline: auto;
+}
+
 .tm-lib-master-panel {
   border: 1px solid var(--tm-border-soft);
   border-radius: 10px;
