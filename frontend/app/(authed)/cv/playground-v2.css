@@ -139,6 +139,59 @@
 }
 .cvb-v2-linkbtn:hover { text-decoration: underline; }
 
+/* ── Skill provenance: where each skill came from in the CV (audit, homed here) ── */
+.cvb-prov-status {
+  margin: 0; padding: 0 2px; font-size: 11px; font-weight: 600;
+  color: var(--tm-success);
+}
+.cvb-prov-empty {
+  margin: 8px 0 0; padding: 0 2px; font-size: 11.5px; line-height: 1.5;
+  color: var(--tm-text-faint);
+}
+.cvb-prov {
+  display: flex; flex-direction: column; gap: 8px;
+  margin-top: 10px; padding-top: 12px;
+  border-top: 1px solid var(--tm-border-soft);
+}
+.cvb-prov-label {
+  font: 600 10px var(--tm-font-mono); letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--tm-text-muted); padding: 0 2px;
+}
+.cvb-prov-point {
+  display: flex; flex-direction: column; gap: 7px;
+  background: var(--tm-surface); border: 1px solid var(--tm-border-soft);
+  border-radius: 10px; padding: 10px 11px;
+}
+.cvb-prov-quote {
+  margin: 0; font-size: 11.5px; line-height: 1.5; font-style: italic;
+  color: var(--tm-text-muted);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.cvb-prov-quote::before { content: "\201C"; }
+.cvb-prov-quote::after  { content: "\201D"; }
+.cvb-prov-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.cvb-prov-chip {
+  display: inline-flex; align-items: baseline; gap: 5px;
+  background: var(--tm-surface-2, var(--tm-bg)); border: 1px solid var(--tm-border-soft);
+  color: var(--tm-text); font: 600 11px var(--tm-font-sans);
+  padding: 3px 8px; border-radius: 999px; white-space: nowrap;
+}
+.cvb-prov-lvl { font: 600 9.5px var(--tm-font-mono); color: var(--tm-text-faint); font-style: normal; }
+.cvb-prov-chip.weak {
+  background: var(--tm-warning-wash); border-color: var(--tm-warning-border);
+  color: var(--tm-warning-text, var(--tm-warning));
+}
+.cvb-prov-gap {
+  display: flex; flex-direction: column; gap: 7px;
+  background: var(--tm-warning-wash); border: 1px solid var(--tm-warning-border);
+  border-radius: 10px; padding: 10px 11px;
+}
+.cvb-prov-gap-label {
+  font: 600 10px var(--tm-font-mono); letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--tm-warning-text, var(--tm-warning));
+}
+.cvb-prov-gap-note { margin: 0; font-size: 11px; line-height: 1.5; color: var(--tm-text-muted); }
+
 /* ── editor paper → contact + role cards (prototype card-per-role) ── */
 .cvb-v2 .cvb-pgc-paper { background: transparent; border: none; padding: 0; box-shadow: none; }
 .cvb-v2 .cvb-pgc-contact-card,

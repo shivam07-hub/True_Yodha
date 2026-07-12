@@ -7,10 +7,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useQueries, useQuery } from "@tanstack/react-query"
 import { RequiresCV } from "@/components/empty/RequiresCV"
 import { ForgeSkeleton } from "@/components/loading/page-skeletons"
-import { ViewTriadToggle } from "@/components/ui/view-triad-toggle"
-import type { TriadView } from "@/lib/views/triad"
 import { SkillIntelHeader } from "@/components/skills/skill-intel-header"
-import { SkillAuditView } from "@/components/skills/skill-audit-view"
 import { UpskillingView } from "@/components/skills/upskilling/upskilling-view"
 import { jobs, scores, users } from "@/lib/api"
 import type { SkillGapResponse, UserSkillsByDomain } from "@/lib/api"
@@ -28,27 +25,10 @@ function ForgePageInner() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
-  const skillParam = searchParams.get("skill")
-  const viewParam = searchParams.get("view")
   const gapParam = searchParams.get("gap")
 
-  // Intel (the Upskilling ladder) leads — the page's primary job. URL is the
-  // source of truth: ?view / ?skill / ?gap override. No localStorage sticky.
-  // The Map (domain radar) moved to the home rail — only Skills + Audit remain.
-  const view: TriadView =
-    skillParam || gapParam ? "intel"
-      : viewParam === "audit" ? "audit"
-        : "intel"
-
-  const setView = useCallback((next: TriadView) => {
-    const params = new URLSearchParams(searchParams.toString())
-    if (next === "intel") params.delete("view")
-    else params.set("view", next)
-    params.delete("domain")
-    const qs = params.toString()
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
-  }, [searchParams, pathname, router])
-
+  // /forge is the Upskilling ladder only. The evidence audit moved to the CV
+  // Skills rail (its per-CV-point home); the Map radar lives in the home rail.
   const clearGap = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString())
     params.delete("gap")
@@ -111,7 +91,6 @@ function ForgePageInner() {
     () => (scoreData ? skillIntelStats(skills, domainEntries) : null),
     [scoreData, skills, domainEntries],
   )
-  const allSkills = useMemo(() => Object.values(skills.by_domain).flat(), [skills])
   const totalScore = scoreData ? Math.round(scoreData.total_score) : null
 
   if (!ready || scoreLoading) return <ForgeSkeleton />
@@ -142,28 +121,13 @@ function ForgePageInner() {
             gapSkills={scoreData?.gap_skills}
           />
 
-          <ViewTriadToggle
-            page="skills"
-            value={view}
-            onChange={setView}
-            views={["intel", "audit"]}
-            ariaLabel="Skill view"
-          />
-
-          {view === "intel" && token && (
+          {token && (
             <UpskillingView
               token={token}
               practiceSkills={practiceSkills}
               gapJobId={gapParam}
               onClearGap={clearGap}
             />
-          )}
-
-          {view === "audit" && (
-            <section className="tm-pr-skills">
-              <h2 className="tm-pr-skills-title" style={{ marginBottom: 14 }}>Evidence audit</h2>
-              <SkillAuditView allSkills={allSkills} />
-            </section>
           )}
         </div>
       </RequiresCV>

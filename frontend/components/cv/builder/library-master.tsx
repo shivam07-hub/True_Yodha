@@ -4,7 +4,6 @@ import { useMemo, useState } from "react"
 import { DownloadCVButton } from "@/components/cv/download-cv-button"
 import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
 import { CVExportView } from "./cv-export-view"
-import { MasterWorkspace } from "./master-workspace"
 import { AppliedVersionsPanel } from "./applied-versions"
 import { I, LIcon } from "./library-icons"
 
@@ -14,6 +13,8 @@ interface MasterCVPanelProps {
   cv: CVStructured | null
   profile: UserProfile | null
   onReplace: () => void
+  /** Enter the full-bleed master editor (a page-level view, not a nested card). */
+  onEditMaster: () => void
 }
 
 function masterDisplayName(profile: UserProfile | null): string {
@@ -33,9 +34,8 @@ function masterContact(cv: CVStructured | null, profile: UserProfile | null) {
 }
 
 export function MasterCVPanel({
-  token, baseline, cv, profile, onReplace,
+  token, baseline, cv, profile, onReplace, onEditMaster,
 }: MasterCVPanelProps) {
-  const [editing, setEditing] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const fallbackText = baseline?.body_text?.trim() ?? ""
   const canEdit = !!baseline && !!cv
@@ -44,14 +44,9 @@ export function MasterCVPanel({
   // so the promoted projection is exactly what the user sees and exports.
   const masterHidden = useMemo(() => new Set(baseline?.hidden_items ?? []), [baseline?.hidden_items])
 
-  // Editing is the unified playground surface (owns its own header + autosave).
-  if (editing && cv) {
-    return <MasterWorkspace token={token} baseline={baseline} cv={cv} profile={profile} onDone={() => setEditing(false)} />
-  }
-
-  // A failing ATS row (from CVExportView's audit) enters the editor — the
-  // workspace surfaces the actionable content fixes.
-  const handleFix = () => setEditing(true)
+  // A failing ATS row (from CVExportView's audit) enters the full-bleed editor
+  // (a page-level view) — the workspace surfaces the actionable content fixes.
+  const handleFix = onEditMaster
 
   return (
     <section className="tm-lib-master-panel tm-lib-fade-in" aria-label="Main CV preview">
@@ -63,7 +58,7 @@ export function MasterCVPanel({
           </div>
         </div>
         <div className="tm-lib-master-panel-actions">
-          <button type="button" className="tm-lib-btn sm" onClick={() => setEditing(true)} disabled={!canEdit}>
+          <button type="button" className="tm-lib-btn sm" onClick={onEditMaster} disabled={!canEdit}>
             <LIcon d={I.edit ?? I.file} size={12}/> Edit
           </button>
           <button

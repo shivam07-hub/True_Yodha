@@ -113,9 +113,9 @@ export function SkillMapCard({ token }: { token: string }) {
   const hasRadar = !!skills && Object.keys(skills.by_domain).length > 0
   const topGap = (demand?.skills ?? []).find((s) => s.needs_upgrade)
   return (
-    <PeekCard icon={<TrendingUp size={15} />} title="Skill map" href="/forge?view=audit" hrefLabel="Open skill audit">
+    <PeekCard icon={<TrendingUp size={15} />} title="Skill map" href="/cv?edit=1&tab=skills" hrefLabel="Open skill audit">
       {hasRadar ? (
-        <Link href="/forge?view=audit" className="mc-peek-radar tm-control-focus" aria-label="Open your skill audit">
+        <Link href="/cv?edit=1&tab=skills" className="mc-peek-radar tm-control-focus" aria-label="Open your skill audit">
           <DomainRadar userSkills={skills} />
           <span className="mc-peek-radar-cap">
             {topGap

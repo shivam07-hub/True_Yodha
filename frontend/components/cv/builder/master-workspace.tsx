@@ -19,14 +19,15 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
-import { scores } from "@/lib/api"
+import { scores, users, cv as cvApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useMasterAutosave } from "@/lib/hooks/use-master-autosave"
 import { CVEditor } from "./cv-editor"
 import { FixesRail } from "./fixes-rail"
-import { SkillsRefresh } from "./skills-refresh"
+import { SkillProvenance } from "./skill-provenance"
 import { V2Sheet } from "./preview-rail"
 import { PlaygroundBottomNav } from "./playground-bottomnav"
 import { PlaygroundHeader } from "./playground-header"
@@ -51,11 +52,14 @@ interface MasterWorkspaceProps {
 export function MasterWorkspace({ token, baseline, cv, profile, onDone }: MasterWorkspaceProps) {
   const userKey = profile?.ninja_name?.trim() || profile?.email?.trim() || "anon"
   const autosave = useMasterAutosave({ token, enabled: true, userKey })
-  const [tab, setTab] = useState<MasterTab>("edit")
+  // Deep-link: ?tab=skills opens straight on the Skills rail (the skill-audit home).
+  const initialTab: MasterTab = useSearchParams().get("tab") === "skills" ? "skills" : "edit"
+  const [tab, setTab] = useState<MasterTab>(initialTab)
   const [expandedFixId, setExpandedFixId] = useState<string | null>(null)
   const [appliedFixes, setAppliedFixes] = useState<AppliedFix[]>([])
   const [flash, setFlash] = useState<{ iid: string; n: number } | null>(null)
-  const [refreshOpen, setRefreshOpen] = useState(false)
+  const [addingProven, setAddingProven] = useState(false)
+  const [provenStatus, setProvenStatus] = useState<string | null>(null)
 
   const scoreQuery = useQuery({
     queryKey: dataKeys.scores(),
@@ -63,6 +67,16 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
     staleTime: 5 * 60 * 1000,
   })
   const myroScore = scoreQuery.data?.total_score ?? 0
+
+  const skillsQuery = useQuery({
+    queryKey: dataKeys.userSkills(),
+    queryFn: () => users.mySkills(token),
+    staleTime: 5 * 60 * 1000,
+  })
+  const allSkills = useMemo(
+    () => Object.values(skillsQuery.data?.by_domain ?? {}).flat(),
+    [skillsQuery.data],
+  )
 
   const draft = autosave.draft ?? cv
   const m = usePlaygroundModel(token, "", draft, profile, NO_HIDDEN, {
@@ -87,6 +101,27 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
 
   const onPatch = (mut: (d: CVStructured) => CVStructured) =>
     autosave.update(mut(structuredClone(draft)))
+
+  // Add proven-but-missing skills to the line, inline — no modal. The proposal
+  // keeps every existing skill and only reorders + appends proven ones, so the
+  // live textarea update above IS the review (retype to undo; autosave persists).
+  async function addProvenToLine() {
+    if (addingProven) return
+    setAddingProven(true); setProvenStatus(null)
+    try {
+      const res = await cvApi.skillsRefresh(token)
+      if (res.changed) {
+        onPatch(d => ({ ...d, skills_line: res.proposed_skills_line }))
+        setProvenStatus(`Added ${res.added.length} proven skill${res.added.length === 1 ? "" : "s"}`)
+      } else {
+        setProvenStatus("Already up to date")
+      }
+    } catch (e) {
+      setProvenStatus(e instanceof Error ? e.message : "Couldn’t read your proven skills")
+    } finally {
+      setAddingProven(false)
+    }
+  }
 
   // A bullet rewrite / inline edit targets one line by its exact text (the same
   // text-identity the playground uses). First occurrence wins.
@@ -247,16 +282,17 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
                   placeholder="Comma-separated skills."
                   onChange={e => onPatch(d => ({ ...d, skills_line: e.target.value }))}
                 />
-                <button type="button" className="cvb-v2-intakebtn" onClick={() => setRefreshOpen(true)}>
-                  ✦ Refresh from proven skills
+                <button
+                  type="button"
+                  className="cvb-v2-intakebtn"
+                  onClick={addProvenToLine}
+                  disabled={addingProven}
+                >
+                  ✦ {addingProven ? "Reading your proven skills…" : "Add proven skills"}
                 </button>
-                {refreshOpen && (
-                  <SkillsRefresh
-                    token={token}
-                    onKeep={line => onPatch(d => ({ ...d, skills_line: line }))}
-                    onClose={() => setRefreshOpen(false)}
-                  />
-                )}
+                {provenStatus && <p className="cvb-prov-status" role="status">{provenStatus}</p>}
+
+                <SkillProvenance allSkills={allSkills} />
               </div>
             )}
           </div>
