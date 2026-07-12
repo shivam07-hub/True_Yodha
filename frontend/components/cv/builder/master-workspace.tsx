@@ -19,6 +19,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
 import { scores, users, cv as cvApi } from "@/lib/api"
@@ -51,7 +52,9 @@ interface MasterWorkspaceProps {
 export function MasterWorkspace({ token, baseline, cv, profile, onDone }: MasterWorkspaceProps) {
   const userKey = profile?.ninja_name?.trim() || profile?.email?.trim() || "anon"
   const autosave = useMasterAutosave({ token, enabled: true, userKey })
-  const [tab, setTab] = useState<MasterTab>("edit")
+  // Deep-link: ?tab=skills opens straight on the Skills rail (the skill-audit home).
+  const initialTab: MasterTab = useSearchParams().get("tab") === "skills" ? "skills" : "edit"
+  const [tab, setTab] = useState<MasterTab>(initialTab)
   const [expandedFixId, setExpandedFixId] = useState<string | null>(null)
   const [appliedFixes, setAppliedFixes] = useState<AppliedFix[]>([])
   const [flash, setFlash] = useState<{ iid: string; n: number } | null>(null)
