@@ -14,6 +14,7 @@
 import { useEffect, useRef, useState } from "react"
 import type { JobMatch } from "@/lib/api"
 import { verdictLabel } from "@/lib/jobs/match-verdict"
+import { CV_TEMPLATES, type CVTemplate } from "@/lib/cv/templates"
 import { Icon } from "./icons"
 
 /** Count the number up to its target — the one orchestrated moment. */
@@ -62,7 +63,9 @@ interface PlaygroundHeaderProps {
   onBack: () => void
   onReqPill: () => void
   onApply: () => void
-  onDownload: () => void
+  /** Download the sheet as a PDF in the given template variant. Omitted template
+   *  → the last-picked / default variant (non-menu paths). */
+  onDownload: (template?: CVTemplate) => void
   /** "master" reshapes the SAME header for the Main-CV surface: brand "Main CV",
    *  a plain context line (no JD requirements pill), the score capped as the Myro
    *  Score, no delta chip, and the primary button labelled by primaryLabel. */
@@ -158,9 +161,18 @@ export function PlaygroundHeader({
           >⋯</button>
           {menuOpen && (
             <div className="cvb-pgc-menu" role="menu">
-              <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onDownload() }}>
-                <Icon name="download" size={13} /> Download PDF
-              </button>
+              <div className="cvb-pgc-menu-label mono">Download as</div>
+              {CV_TEMPLATES.map(t => (
+                <button
+                  key={t.id}
+                  type="button"
+                  role="menuitem"
+                  title={t.description}
+                  onClick={() => { setMenuOpen(false); onDownload(t.id) }}
+                >
+                  <Icon name="download" size={13} /> {t.label}
+                </button>
+              ))}
             </div>
           )}
         </div>

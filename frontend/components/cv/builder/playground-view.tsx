@@ -33,6 +33,7 @@ import { PlaygroundHeader } from "./playground-header"
 import { PdfPage, type PdfPageContact } from "./pdf-page"
 import { exportSheetPdf } from "@/lib/cv/sheet-pdf"
 import { printCvPage } from "@/lib/cv/print-cv"
+import { DEFAULT_TEMPLATE, isCVTemplate, type CVTemplate } from "@/lib/cv/templates"
 import { usePlaygroundModel } from "./use-playground-model"
 import { useDismissedFixes } from "./use-dismissed-fixes"
 import type { AppliedFix, V2Fix } from "./fix-model"
@@ -45,6 +46,15 @@ import { ApplyCapturePrompt } from "@/components/jobs/apply-capture-prompt"
 import { Icon } from "./icons"
 
 type V2Tab = "edit" | "fixes" | "skills" | "preview"
+
+/** Last-picked export template, shared with the master export surface. */
+function readTemplatePref(): CVTemplate {
+  try {
+    const saved = localStorage.getItem("myro-cv-template-v1")
+    if (isCVTemplate(saved)) return saved
+  } catch { /* storage blocked */ }
+  return DEFAULT_TEMPLATE
+}
 
 interface PlaygroundViewProps {
   token: string
@@ -77,6 +87,10 @@ export function PlaygroundView({
   const [exportConfirm, setExportConfirm] = useState(false)
   const [pdfBusy, setPdfBusy] = useState(false)
   const sheetWrapRef = useRef<HTMLDivElement>(null)
+  // Chosen print-CSS template for the download. Shared localStorage key with the
+  // master export surface so the pick is consistent across both. A trim-gated
+  // download stashes the picked template here until the user confirms the trim.
+  const pendingTemplateRef = useRef<CVTemplate>(DEFAULT_TEMPLATE)
   const queryClient = useQueryClient()
   const railTab: "fixes" | "skills" = tab === "fixes" || tab === "skills" ? tab : "fixes"
 
@@ -221,13 +235,24 @@ export function PlaygroundView({
   // its DOM, and let server Chromium render it. No navigation → the exact sheet
   // the user sees is the artifact, and deselected lines can never resurrect
   // through a re-hydrating export page.
-  async function downloadInPlace() {
+  async function downloadInPlace(template: CVTemplate = pendingTemplateRef.current) {
     if (pdfBusy) return
     const sheet = sheetWrapRef.current?.querySelector<HTMLElement>(".cvb-pdf-page")
     if (!sheet) { printCvPage(pdfFilename); return }
+    // The template is pure CSS keyed off `data-cv-template` on the sheet root;
+    // clone the previewed DOM and stamp the chosen variant so the server render
+    // picks it up — no React re-render, no race with the hidden mount.
+    const el = template === sheet.getAttribute("data-cv-template")
+      ? sheet
+      : (() => {
+          const clone = sheet.cloneNode(true) as HTMLElement
+          clone.setAttribute("data-cv-template", template)
+          return clone
+        })()
     setPdfBusy(true)
     try {
-      await exportSheetPdf(token, sheet, pdfFilename)
+      await exportSheetPdf(token, el, pdfFilename)
+      try { localStorage.setItem("myro-cv-template-v1", template) } catch { /* storage blocked */ }
     } catch {
       // Server renderer down (503 / network) → native browser print of the same
       // visible sheet is the WYSIWYG fallback, so a real PDF always lands.
@@ -237,8 +262,9 @@ export function PlaygroundView({
     }
   }
 
-  function requestDownload() {
-    if (m.pageFill.fits) void downloadInPlace()
+  function requestDownload(template?: CVTemplate) {
+    pendingTemplateRef.current = template ?? readTemplatePref()
+    if (m.pageFill.fits) void downloadInPlace(pendingTemplateRef.current)
     else setExportConfirm(true)
   }
 
