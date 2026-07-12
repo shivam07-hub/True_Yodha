@@ -18,7 +18,7 @@
  */
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { CVStructured, JobMatchesResponse, UserProfile } from "@/lib/api"
 import { jobs as jobsApi, cv as cvApi } from "@/lib/api"
@@ -30,6 +30,9 @@ import { PlaygroundBottomNav } from "./playground-bottomnav"
 import { ApplyModal } from "./apply-modal"
 import { TrimConfirm } from "./trim-confirm"
 import { PlaygroundHeader } from "./playground-header"
+import { PdfPage, type PdfPageContact } from "./pdf-page"
+import { exportSheetPdf } from "@/lib/cv/sheet-pdf"
+import { printCvPage } from "@/lib/cv/print-cv"
 import { usePlaygroundModel } from "./use-playground-model"
 import { useDismissedFixes } from "./use-dismissed-fixes"
 import type { AppliedFix, V2Fix } from "./fix-model"
@@ -58,7 +61,7 @@ interface PlaygroundViewProps {
 
 export function PlaygroundView({
   token, jobId, playground, cv, profile,
-  onBackToBaseline, onExportPDF, externalError,
+  onBackToBaseline, externalError,
 }: PlaygroundViewProps) {
   const { selectedVersion, hiddenItems, toggleItem, autosaving, autosaved } = playground
   const [tab, setTab] = useState<V2Tab>("edit")
@@ -72,11 +75,30 @@ export function PlaygroundView({
   const [appliedDone, setAppliedDone] = useState(false)
   const [submittingApply, setSubmittingApply] = useState(false)
   const [exportConfirm, setExportConfirm] = useState(false)
+  const [pdfBusy, setPdfBusy] = useState(false)
+  const sheetWrapRef = useRef<HTMLDivElement>(null)
   const queryClient = useQueryClient()
   const railTab: "fixes" | "skills" = tab === "fixes" || tab === "skills" ? tab : "fixes"
 
   const m = usePlaygroundModel(token, jobId, cv, profile, hiddenItems)
   const { dismissed, dismiss, restore } = useDismissedFixes(`job:${jobId}`)
+
+  // Full PdfPageContact for the canonical artifact (the model's sheetContact is
+  // the compact V2Sheet shape; the exported sheet needs the full contact line).
+  const pdfContact = useMemo<PdfPageContact>(() => ({
+    name: cv.contact?.name?.trim() || profile?.full_name?.trim() || "Your name",
+    title: cv.contact?.title?.trim() || cv.experience[0]?.role || "",
+    location: cv.contact?.location?.trim() || profile?.target_location || "",
+    email: cv.contact?.email?.trim() || profile?.email || "",
+    phone: cv.contact?.phone?.trim() || "",
+    linkedin: cv.contact?.linkedin?.trim() || profile?.linkedin_url || "",
+  }), [cv, profile])
+  const pdfFilename = useMemo(() => {
+    const slug = (s: string | null | undefined) =>
+      (s ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")
+    const parts = [slug(pdfContact.name) || "myro_cv", slug(m.company), slug(m.jobTitle)].filter(Boolean)
+    return `${parts.join("__")}.pdf`
+  }, [pdfContact.name, m.company, m.jobTitle])
 
   // The rail/editor/counters read the non-dismissed list; dismissed-but-still-
   // open fixes render in the rail's collapsed Dismissed group (their penalty
@@ -194,8 +216,29 @@ export function PlaygroundView({
       setSubmittingApply(false)
     }
   }
+  // WYSIWYG download in place (ADR-0020): render the canonical PdfPage sheet
+  // from the LIVE projection (cv + hiddenItems) in a hidden mount, serialize
+  // its DOM, and let server Chromium render it. No navigation → the exact sheet
+  // the user sees is the artifact, and deselected lines can never resurrect
+  // through a re-hydrating export page.
+  async function downloadInPlace() {
+    if (pdfBusy) return
+    const sheet = sheetWrapRef.current?.querySelector<HTMLElement>(".cvb-pdf-page")
+    if (!sheet) { printCvPage(pdfFilename); return }
+    setPdfBusy(true)
+    try {
+      await exportSheetPdf(token, sheet, pdfFilename)
+    } catch {
+      // Server renderer down (503 / network) → native browser print of the same
+      // visible sheet is the WYSIWYG fallback, so a real PDF always lands.
+      printCvPage(pdfFilename)
+    } finally {
+      setPdfBusy(false)
+    }
+  }
+
   function requestDownload() {
-    if (m.pageFill.fits) onExportPDF(m.ready)
+    if (m.pageFill.fits) void downloadInPlace()
     else setExportConfirm(true)
   }
 
@@ -319,7 +362,7 @@ export function PlaygroundView({
           hiddenItems={hiddenItems}
           pageFill={m.pageFill}
           toggleItem={toggleItem}
-          onDownload={() => onExportPDF(m.ready)}
+          onDownload={() => void downloadInPlace()}
           onClose={() => setExportConfirm(false)}
         />
       )}
@@ -364,6 +407,20 @@ export function PlaygroundView({
           onDownload={requestDownload}
         />
       )}
+
+      {/* Hidden canonical artifact: the SAME PdfPage every export surface renders,
+          serialized (outerHTML) for the server Chromium render. Mirrors the live
+          projection (cv + hiddenItems) so the download is exactly the preview.
+          `hidden` keeps it out of layout and out of print isolation. */}
+      <div ref={sheetWrapRef} hidden aria-hidden="true">
+        <PdfPage
+          cv={cv}
+          hidden={hiddenItems}
+          contact={pdfContact}
+          company={m.company !== "Untitled company" ? m.company : undefined}
+          footerMarkHidden={selectedVersion?.footer_mark_hidden ?? false}
+        />
+      </div>
     </div>
   )
 }
