@@ -62,7 +62,7 @@ export function MobileCVHub({
       <CVExportView
         token={token}
         cv={cv}
-        hidden={new Set()}
+        hidden={new Set(currentBaseline?.hidden_items ?? [])}
         contact={contact}
         profile={profile}
         context="master"

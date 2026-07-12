@@ -40,6 +40,20 @@ class ApplySnapshotResponse(BaseModel):
     submitted_at: datetime | None = None
 
 
+class AppliedVersion(BaseModel):
+    """One entry in the applied-CV history (Delta-4 'Versions')."""
+    id: str
+    job_id: str | None = None
+    cv_version_id: int | None = None
+    cv_snapshot: dict[str, Any]
+    applied_url: str | None = None
+    submitted_at: datetime | None = None
+
+
+class AppliedVersionsResponse(BaseModel):
+    versions: list[AppliedVersion]
+
+
 @router.post("/apply-snapshot", response_model=ApplySnapshotResponse, status_code=status.HTTP_201_CREATED)
 def apply_snapshot(
     body: ApplySnapshotRequest,
@@ -48,3 +62,29 @@ def apply_snapshot(
 ) -> ApplySnapshotResponse:
     row = repo.record(user.id, body.job_id, body.cv_snapshot, body.cv_version_id, body.applied_url)
     return ApplySnapshotResponse(id=str(row.get("id", "")), submitted_at=row.get("submitted_at"))
+
+
+@router.get("/apply-snapshots", response_model=AppliedVersionsResponse)
+def list_applied_versions(
+    user: CurrentUser = Depends(get_current_user),
+    repo: ApplySnapshotRepository = Depends(get_apply_snapshot_repository),
+) -> AppliedVersionsResponse:
+    """The user's version history — every CV they applied with, newest first.
+
+    Delta-4 (project_living_cv_delta4): a 'Version' is a CV a user *applied*
+    with, not a WIP autosave. This is the Google-Docs-style version list.
+    """
+    rows = repo.list_for_user(user.id)
+    return AppliedVersionsResponse(
+        versions=[
+            AppliedVersion(
+                id=str(r.get("id", "")),
+                job_id=r.get("job_id"),
+                cv_version_id=r.get("cv_version_id"),
+                cv_snapshot=r.get("cv_snapshot") or {},
+                applied_url=r.get("applied_url"),
+                submitted_at=r.get("submitted_at"),
+            )
+            for r in rows
+        ]
+    )

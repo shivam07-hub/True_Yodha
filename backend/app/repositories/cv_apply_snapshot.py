@@ -41,6 +41,21 @@ class ApplySnapshotRepository:
         )
         return (result.data or [{}])[0]
 
+    def list_for_user(self, user_id: str, limit: int = 60) -> list[dict[str, Any]]:
+        """The user's applied-CV history — the Delta-4 'Versions' surface
+        (project_living_cv_delta4): one row per Apply, newest first. Own-only
+        (RLS); the user_id filter is defensive.
+        """
+        result = (
+            self._db.table("cv_application_attempts")
+            .select("id, job_id, cv_version_id, cv_snapshot, applied_url, submitted_at")
+            .eq("user_id", user_id)
+            .order("submitted_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        return result.data or []
+
 
 def get_apply_snapshot_repository(db: Client = Depends(get_user_db)) -> ApplySnapshotRepository:
     return ApplySnapshotRepository(db)

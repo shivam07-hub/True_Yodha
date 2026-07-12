@@ -1,14 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { DownloadCVButton } from "@/components/cv/download-cv-button"
 import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
 import { CVExportView } from "./cv-export-view"
 import { MasterWorkspace } from "./master-workspace"
+import { AppliedVersionsPanel } from "./applied-versions"
 import { I, LIcon } from "./library-icons"
-
-// Master CV has no per-job hidden items — every section renders.
-const NO_HIDDEN: Set<string> = new Set()
 
 interface MasterCVPanelProps {
   token: string
@@ -38,8 +36,13 @@ export function MasterCVPanel({
   token, baseline, cv, profile, onReplace,
 }: MasterCVPanelProps) {
   const [editing, setEditing] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
   const fallbackText = baseline?.body_text?.trim() ?? ""
   const canEdit = !!baseline && !!cv
+  // The master's shape = the CV the user last applied with (Delta-4 living
+  // master, project_living_cv_delta4). Render + download honor its hidden_items
+  // so the promoted projection is exactly what the user sees and exports.
+  const masterHidden = useMemo(() => new Set(baseline?.hidden_items ?? []), [baseline?.hidden_items])
 
   // Editing is the unified playground surface (owns its own header + autosave).
   if (editing && cv) {
@@ -57,12 +60,19 @@ export function MasterCVPanel({
           <div className="tm-lib-eyebrow">MAIN CV</div>
           <div className="tm-lib-master-panel-title">
             {masterDisplayName(profile)}
-            {baseline && <span className="tm-lib-master-version">v{baseline.user_version_number}</span>}
           </div>
         </div>
         <div className="tm-lib-master-panel-actions">
           <button type="button" className="tm-lib-btn sm" onClick={() => setEditing(true)} disabled={!canEdit}>
             <LIcon d={I.edit ?? I.file} size={12}/> Edit
+          </button>
+          <button
+            type="button"
+            className={`tm-lib-btn sm${showHistory ? " primary" : ""}`}
+            onClick={() => setShowHistory(v => !v)}
+            aria-expanded={showHistory}
+          >
+            <LIcon d={I.pulse} size={12}/> Version history
           </button>
           {/* When a structured CV exists, CVExportView (below) owns download
               — WYSIWYG PDF + DOCX + template picker. Only the text-only
@@ -83,6 +93,13 @@ export function MasterCVPanel({
         </div>
       </div>
 
+      {showHistory && (
+        <div className="tm-lib-master-panel-body" style={{ paddingBottom: 4 }}>
+          <div className="tm-lib-eyebrow" style={{ marginBottom: 8 }}>CVS YOU&apos;VE APPLIED WITH</div>
+          <AppliedVersionsPanel token={token} />
+        </div>
+      )}
+
       <div className="tm-lib-master-panel-body">
         {cv ? (
           // Master export: the inline skin downloads the CV directly — no
@@ -90,7 +107,7 @@ export function MasterCVPanel({
           <CVExportView
             token={token}
             cv={cv}
-            hidden={NO_HIDDEN}
+            hidden={masterHidden}
             contact={masterContact(cv, profile)}
             profile={profile}
             context="master"

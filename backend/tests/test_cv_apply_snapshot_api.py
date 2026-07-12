@@ -31,6 +31,9 @@ class _FakeRepo:
         self.rows.append(row)
         return row
 
+    def list_for_user(self, user_id: str, limit: int = 60):
+        return [r for r in self.rows if r["user_id"] == user_id]
+
 
 def _override(repo: _FakeRepo) -> None:
     app.dependency_overrides[get_apply_snapshot_repository] = lambda: repo
@@ -63,6 +66,24 @@ def test_apply_snapshot_records_the_submitted_cv() -> None:
     assert row["cv_snapshot"]["score"] == 78
     assert row["cv_version_id"] == 42
     assert row["user_id"] == "u1"
+
+
+def test_list_applied_versions_returns_the_users_history() -> None:
+    repo = _FakeRepo()
+    repo.record("u1", "job-1", {"title": "PM", "structured": {"a": 1}, "hidden": ["x"]}, 7, None)
+    _override(repo)
+    try:
+        with TestClient(app) as client:
+            res = client.get("/cv/apply-snapshots", headers={"Authorization": "Bearer t1"})
+    finally:
+        app.dependency_overrides.clear()
+    assert res.status_code == 200
+    versions = res.json()["versions"]
+    assert len(versions) == 1
+    assert versions[0]["job_id"] == "job-1"
+    # the self-contained artifact travels so history can re-render/restore it
+    assert versions[0]["cv_snapshot"]["structured"] == {"a": 1}
+    assert versions[0]["cv_snapshot"]["hidden"] == ["x"]
 
 
 def test_apply_snapshot_requires_a_snapshot_body() -> None:

@@ -399,6 +399,39 @@ class CVVersionsRepository:
             )
         return result.data[0]
 
+    def set_master_hidden_items(
+        self, user_id: str, hidden_items: list[str]
+    ) -> dict[str, Any]:
+        """Set the living master's shape (which bullets it shows) — the Delta-4
+        promote path: the CV a user just applied with becomes their living master
+        (project_living_cv_delta4). Only hidden_items changes; the master's
+        immutable body_text / cv_structured content is untouched (a hidden bullet
+        is kept-but-hidden, so it's reversible and never globally deleted).
+
+        Scoped to the latest baseline_upload so no history row is rewritten. 404
+        if the user has no baseline yet.
+        """
+        master = self.latest_baseline(user_id)
+        if master is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Upload a baseline CV first.",
+            )
+        result = (
+            self._db.table("cv_versions")
+            .update({"hidden_items": hidden_items})
+            .eq("id", int(master["id"]))
+            .eq("user_id", user_id)
+            .eq("kind", "baseline_upload")
+            .execute()
+        )
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Could not update your Main CV.",
+            )
+        return result.data[0]
+
     # ── living-master autosave (PR-3) ─────────────────────────────────────────
     # "Master" ≡ latest_baseline. Autosave MUTATES it in place instead of
     # appending a new baseline_upload row (the pile the living-master grill
@@ -451,6 +484,7 @@ class CVVersionsRepository:
         body_text: str,
         cv_structured: dict[str, Any],
         snapshot_hash: str | None = None,
+        hidden_items: list[str] | None = None,
     ) -> dict[str, Any]:
         """Non-destructive autosave of the user's Main CV (master ≡ latest_baseline).
 
@@ -479,15 +513,20 @@ class CVVersionsRepository:
         }).execute()
 
         # 2. Mutate the master. user_id filter is defensive (RLS also scopes).
+        patch: dict[str, Any] = {
+            "body_text":             body_text,
+            "cv_structured":         cv_structured or {},
+            "snapshot_hash":         snapshot_hash,
+            "confidence_label":      "user-edited",
+            "recompute_finished_at": None,
+        }
+        # Restore also carries the applied shape (Delta-4); a plain autosave leaves
+        # hidden_items untouched.
+        if hidden_items is not None:
+            patch["hidden_items"] = hidden_items
         result = (
             self._db.table("cv_versions")
-            .update({
-                "body_text":             body_text,
-                "cv_structured":         cv_structured or {},
-                "snapshot_hash":         snapshot_hash,
-                "confidence_label":      "user-edited",
-                "recompute_finished_at": None,
-            })
+            .update(patch)
             .eq("id", master_id)
             .eq("user_id", user_id)
             .execute()

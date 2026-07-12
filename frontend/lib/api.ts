@@ -823,6 +823,25 @@ export interface MasterRevision {
   cv_structured: CVStructured
 }
 
+/** One entry in the Delta-4 version history — a CV the user APPLIED with. */
+export interface AppliedVersion {
+  id: string
+  job_id: string | null
+  cv_version_id: number | null
+  cv_snapshot: {
+    text?: string
+    title?: string
+    company?: string
+    score?: number
+    bullets?: number
+    words?: number
+    structured?: CVStructured
+    hidden?: string[]
+  }
+  applied_url: string | null
+  submitted_at: string | null
+}
+
 export type CVVersionKind = "baseline_upload" | "deterministic" | "polished" | "edited"
 
 export interface CVVersion {
@@ -1278,6 +1297,21 @@ export const cv = {
         headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify({ hidden_items: hiddenItems }),
       }),
+    // Delta-4 promote: the applied CV's shape becomes the living master, so it
+    // persists + seeds every future tailoring (project_living_cv_delta4).
+    promoteMaster: (token: string, hiddenItems: string[]) =>
+      request<CVVersion>(`/cv/versions/promote-master`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ hidden_items: hiddenItems }),
+      }),
+    // Delta-4 restore: make a past applied CV the living master again.
+    restoreMaster: (token: string, body: { cv: CVStructured; hidden_items: string[] }) =>
+      request<CVVersion>(`/cv/versions/restore-master`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      }),
   },
   skillEdit: async (
     token: string,
@@ -1373,6 +1407,11 @@ export const cv = {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(body),
+    }),
+  /** Delta-4 version history: every CV the user applied with, newest first. */
+  appliedVersions: (token: string) =>
+    request<{ versions: AppliedVersion[] }>("/cv/apply-snapshots", {
+      headers: { Authorization: `Bearer ${token}` },
     }),
   /** Career Story Reservoir — dump in, comprehensive profile out, project per job. */
   career: {

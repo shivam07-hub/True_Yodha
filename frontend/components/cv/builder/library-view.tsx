@@ -231,7 +231,7 @@ export function LibraryView({
               this is a dedicated page, you leave via nav, not by hiding
               the one thing you came to see. */}
           {view === "cv" && (
-            <>
+            <div className="tm-lib-doc">
               {isNewUser && <WorkspaceIntroCard />}
               <CvStoriesToggle view={view} />
               <MasterCVPanel
@@ -241,7 +241,7 @@ export function LibraryView({
                 profile={profile}
                 onReplace={onReplaceCV}
               />
-            </>
+            </div>
           )}
 
           {/* ── Stories view: the Career Story Reservoir behind the CV ── */}
