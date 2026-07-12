@@ -252,6 +252,31 @@
 .cvb-v2-donetitle { flex: 1; min-width: 0; font-size: 12px; color: var(--tm-text-muted); }
 .cvb-v2-donegain { font-size: 11px; font-weight: 600; color: var(--tm-success); flex: none; }
 
+/* dismiss ("not for this line") — × on the card, collapsed Restore group below */
+.cvb-v2-fixdismiss {
+  flex: none; width: 20px; height: 20px; border: none; border-radius: 6px;
+  background: transparent; color: var(--tm-text-faint); font-size: 14px; line-height: 1;
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  transition: color var(--tm-dur-fast) var(--tm-ease), background var(--tm-dur-fast) var(--tm-ease);
+}
+.cvb-v2-fixdismiss.solo { margin-left: auto; }
+.cvb-v2-fixdismiss:hover { color: var(--tm-text); background: var(--tm-surface-2); }
+.cvb-v2-dismissedcard {
+  display: flex; align-items: center; gap: 8px;
+  border: 1px dashed var(--tm-border-soft); background: transparent; border-radius: 10px;
+  padding: 8px 12px; opacity: 0.7;
+}
+.cvb-v2-dismissedtitle {
+  flex: 1; min-width: 0; font-size: 12px; color: var(--tm-text-faint);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cvb-v2-restorebtn {
+  flex: none; border: none; background: transparent; padding: 2px 4px;
+  font: 600 11px var(--tm-font-sans); color: var(--tm-text-muted);
+  cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
+}
+.cvb-v2-restorebtn:hover { color: var(--tm-text); }
+
 /* skills tab — levelled requirements checklist */
 .cvb-v2-skillshead { display: flex; align-items: baseline; gap: 8px; padding: 0 2px 4px; }
 .cvb-v2-skillshead-title { font: 700 13px var(--tm-font-sans); color: var(--tm-text); flex: 1; }

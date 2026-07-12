@@ -31,6 +31,7 @@ import { V2Sheet } from "./preview-rail"
 import { PlaygroundBottomNav } from "./playground-bottomnav"
 import { PlaygroundHeader } from "./playground-header"
 import { usePlaygroundModel } from "./use-playground-model"
+import { useDismissedFixes } from "./use-dismissed-fixes"
 import type { AppliedFix, V2Fix } from "./fix-model"
 
 type MasterTab = "edit" | "fixes" | "skills" | "preview"
@@ -72,7 +73,17 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
   const openFixIds = useMemo(() => new Set(m.openFixes.map(f => f.id)), [m.openFixes])
   const appliedShown = appliedFixes.filter(a => !openFixIds.has(a.id))
   const railTab: "fixes" | "skills" = tab === "skills" ? "skills" : "fixes"
-  const fixCountLabel = m.openFixes.length > 0 ? String(m.openFixes.length) : "✓"
+
+  const { dismissed, dismiss, restore } = useDismissedFixes("master")
+  const visibleFixes = useMemo(
+    () => m.openFixes.filter(f => !dismissed.has(f.id)),
+    [m.openFixes, dismissed],
+  )
+  const dismissedFixes = useMemo(
+    () => m.openFixes.filter(f => dismissed.has(f.id)),
+    [m.openFixes, dismissed],
+  )
+  const fixCountLabel = visibleFixes.length > 0 ? String(visibleFixes.length) : "✓"
 
   const onPatch = (mut: (d: CVStructured) => CVStructured) =>
     autosave.update(mut(structuredClone(draft)))
@@ -103,7 +114,11 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
   }
 
   function jumpTo(iid: string) { setFlash(prev => ({ iid, n: (prev?.n ?? 0) + 1 })) }
-  function openFixCard(fix: V2Fix) { setTab("fixes"); setExpandedFixId(fix.id); jumpTo(fix.iid) }
+  function openFixCard(fix: V2Fix) { restore(fix.id); setTab("fixes"); setExpandedFixId(fix.id); jumpTo(fix.iid) }
+  function dismissFix(fix: V2Fix) {
+    if (expandedFixId === fix.id) setExpandedFixId(null)
+    dismiss(fix.id, openFixIds)
+  }
   function applyFixRewrite(fix: V2Fix, oldText: string, newText: string) {
     applyText(oldText, newText)
     setAppliedFixes(p => p.some(a => a.id === fix.id) ? p
@@ -176,9 +191,10 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
                 wordCount={m.wordCount}
                 rewriteTarget={null}
                 onClearRewriteTarget={() => {}}
-                fixes={m.openFixes}
+                fixes={visibleFixes}
                 applied={appliedShown}
                 onFixPill={openFixCard}
+                dismissedFixIds={dismissed}
                 flash={flash}
                 master={{ onPatch }}
               />
@@ -203,8 +219,9 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
             {railTab === "fixes" ? (
               <FixesRail
                 token={token}
-                fixes={m.openFixes}
+                fixes={visibleFixes}
                 applied={appliedShown}
+                dismissed={dismissedFixes}
                 delta={0}
                 expandedId={expandedFixId}
                 applying={false}
@@ -212,6 +229,8 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
                 onExpand={f => setExpandedFixId(f?.id ?? null)}
                 onJump={jumpTo}
                 onApply={applyFixRewrite}
+                onDismiss={dismissFix}
+                onRestore={f => restore(f.id)}
                 onGoPreview={() => setTab("preview")}
                 onOpenIntake={() => setTab("skills")}
               />

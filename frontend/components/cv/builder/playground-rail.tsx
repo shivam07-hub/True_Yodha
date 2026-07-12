@@ -18,6 +18,10 @@ interface PlaygroundRailProps {
   token: string
   tab: "fixes" | "skills"
   model: Model
+  /** Non-dismissed open fixes — what the Fixes tab renders as cards. */
+  fixes: V2Fix[]
+  /** Dismissed-but-still-open fixes — the collapsed Restore group. */
+  dismissedFixes: V2Fix[]
   applied: AppliedFix[]
   expandedId: string | null
   applying: boolean
@@ -27,13 +31,16 @@ interface PlaygroundRailProps {
   onExpand: (fix: V2Fix | null) => void
   onJump: (iid: string) => void
   onApplyFix: (fix: V2Fix, oldText: string, newText: string) => void
+  onDismissFix: (fix: V2Fix) => void
+  onRestoreFix: (fix: V2Fix) => void
   onFixCard: (fix: V2Fix) => void
   onOpenIntake: (seed?: string) => void
 }
 
 export function PlaygroundRail({
-  token, tab, model: m, applied, expandedId, applying,
-  fixCountLabel, onTab, onGoPreview, onExpand, onJump, onApplyFix, onFixCard, onOpenIntake,
+  token, tab, model: m, fixes, dismissedFixes, applied, expandedId, applying,
+  fixCountLabel, onTab, onGoPreview, onExpand, onJump, onApplyFix,
+  onDismissFix, onRestoreFix, onFixCard, onOpenIntake,
 }: PlaygroundRailProps) {
   return (
     <aside className="cvb-v2-rail" aria-label="Job fit">
@@ -53,14 +60,17 @@ export function PlaygroundRail({
         {tab === "fixes" && (
           <FixesRail
             token={token}
-            fixes={m.openFixes}
+            fixes={fixes}
             applied={applied}
+            dismissed={dismissedFixes}
             delta={m.delta}
             expandedId={expandedId}
             applying={applying}
             onExpand={onExpand}
             onJump={onJump}
             onApply={onApplyFix}
+            onDismiss={onDismissFix}
+            onRestore={onRestoreFix}
             onGoPreview={onGoPreview}
             onOpenIntake={() => onOpenIntake()}
           />

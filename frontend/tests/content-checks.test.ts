@@ -10,6 +10,7 @@ import {
   type ContentFinding,
 } from "../components/cv/builder/content-checks"
 import { CHECK_EXPLAINERS } from "../components/cv/builder/content-check-explainers"
+import { itemId } from "../lib/cv-compose"
 import type { CVStructured } from "../lib/api"
 
 function cv(partial: Partial<CVStructured>): CVStructured {
@@ -142,6 +143,49 @@ test("penalty: unquantified is weighted highest (recruiter signal)", () => {
   const bz = runContentChecks(cv({ summary: "A dynamic team player with 5 years." }))
     .filter(f => f.category === "buzzword")
   assert.ok(contentFindingPoints(q[0]) > contentFindingPoints(bz[0]))
+})
+
+test("hidden: a deselected bullet raises no findings and costs no points", () => {
+  const input = cv({ experience: [exp([
+    "Worked on the roadmap.",              // weak-verb + unquantified
+    "Shipped 10 features in 8 months.",    // clean
+  ])] })
+  const hiddenIid = itemId("exp_bullet", 0, "Worked on the roadmap.")
+  const all = runContentChecks(input)
+  const filtered = runContentChecks(input, new Set([hiddenIid]))
+  assert.ok(all.some(f => f.bulletIndex === 0))
+  assert.equal(filtered.filter(f => f.bulletIndex === 0).length, 0)
+  assert.ok(contentPenalty(filtered) < contentPenalty(all))
+})
+
+test("hidden: repetition needs two VISIBLE bullets — hiding one twin clears both flags", () => {
+  const input = cv({ experience: [exp([
+    "Designed EV charging infrastructure and rollout for the north region.",
+    "Led EV charging infrastructure and delivery across three states.",
+  ])] })
+  assert.equal(runContentChecks(input).filter(f => f.category === "repetition").length, 2)
+  const hiddenIid = itemId("exp_bullet", 1, "Led EV charging infrastructure and delivery across three states.")
+  const filtered = runContentChecks(input, new Set([hiddenIid]))
+  assert.equal(filtered.filter(f => f.category === "repetition").length, 0)
+})
+
+test("hidden: finding refs keep full-CV indices (jump anchors stay correct)", () => {
+  const input = cv({ experience: [exp([
+    "Improved the funnel with no numbers.", // unquantified — index 0 hidden
+    "Improved the checkout experience too.", // unquantified — index 1 visible
+  ])] })
+  const hiddenIid = itemId("exp_bullet", 0, "Improved the funnel with no numbers.")
+  const filtered = runContentChecks(input, new Set([hiddenIid]))
+  const q = filtered.filter(f => f.category === "unquantified")
+  assert.equal(q.length, 1)
+  assert.equal(q[0].bulletIndex, 1) // NOT re-indexed to 0
+})
+
+test("hidden: empty hidden set behaves exactly like the one-arg call", () => {
+  const input = cv({ summary: "A dynamic team player.", experience: [exp(["Worked on stuff."])] })
+  const a = runContentChecks(input).map(f => f.id).sort()
+  const b = runContentChecks(input, new Set()).map(f => f.id).sort()
+  assert.deepEqual(a, b)
 })
 
 test("explainers: every content category has authored copy", () => {

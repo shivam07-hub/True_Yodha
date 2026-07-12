@@ -27,12 +27,18 @@ interface FixesRailProps {
   token: string
   fixes: V2Fix[]
   applied: AppliedFix[]
+  /** Fixes the user marked "not for this line" — collapsed group, one-tap
+   *  Restore. Their content penalty stays in Ready (dismiss hides the card,
+   *  it never buys points). */
+  dismissed?: V2Fix[]
   delta: number
   expandedId: string | null
   applying: boolean
   onExpand: (fix: V2Fix | null) => void
   onJump: (iid: string) => void
   onApply: (fix: V2Fix, oldText: string, newText: string) => void
+  onDismiss?: (fix: V2Fix) => void
+  onRestore?: (fix: V2Fix) => void
   onGoPreview: () => void
   onOpenIntake: () => void
   /** Master surface: a rewrite improves the CV but doesn't move the Myro Score
@@ -42,8 +48,8 @@ interface FixesRailProps {
 }
 
 export function FixesRail({
-  token, fixes, applied, delta, expandedId, applying,
-  onExpand, onJump, onApply, onGoPreview, onOpenIntake, hideGain,
+  token, fixes, applied, dismissed, delta, expandedId, applying,
+  onExpand, onJump, onApply, onDismiss, onRestore, onGoPreview, onOpenIntake, hideGain,
 }: FixesRailProps) {
   const allFixed = fixes.length === 0
 
@@ -75,6 +81,15 @@ export function FixesRail({
               <span className={`cvb-v2-kind ${KIND_CLASS[f.kind]} mono`}>{f.kind}</span>
               {f.levelNote && <span className="cvb-v2-lvlnote mono">{f.levelNote}</span>}
               {!hideGain && <span className="cvb-v2-fixgain mono">+{f.gain}</span>}
+              {onDismiss && (
+                <button
+                  type="button"
+                  className={`cvb-v2-fixdismiss${hideGain ? " solo" : ""}`}
+                  aria-label="Dismiss this fix"
+                  title="Not for this line — dismiss"
+                  onClick={e => { e.stopPropagation(); if (open) onExpand(null); onDismiss(f) }}
+                >×</button>
+              )}
             </div>
             <div className="cvb-v2-fixtitle">{f.title}</div>
             <div className="cvb-v2-fixdesc">{f.desc}</div>
@@ -116,7 +131,11 @@ export function FixesRail({
       {allFixed && (
         <div className="cvb-v2-allfixed">
           <div className="cvb-v2-allfixed-title">
-            {!hideGain && delta > 0 ? <>All fixes applied — ▲ +{delta}</> : "No fixes open — this CV reads clean."}
+            {!hideGain && delta > 0
+              ? <>All fixes applied — ▲ +{delta}</>
+              : (dismissed?.length ?? 0) > 0
+                ? "No fixes open."
+                : "No fixes open — this CV reads clean."}
           </div>
           <div className="cvb-v2-allfixed-sub">
             See your sheet in{" "}
@@ -142,6 +161,22 @@ export function FixesRail({
               <span className="cvb-v2-donetitle">{d.title}</span>
               {!hideGain && <span className="cvb-v2-donegain mono">+{d.gain}</span>}
             </button>
+          ))}
+        </>
+      )}
+
+      {onRestore && (dismissed?.length ?? 0) > 0 && (
+        <>
+          <div className="cvb-v2-rail-group mono">Dismissed</div>
+          {dismissed!.map(d => (
+            <div key={d.id} className="cvb-v2-dismissedcard">
+              <span className="cvb-v2-dismissedtitle" title={d.title}>{d.title}</span>
+              <button
+                type="button"
+                className="cvb-v2-restorebtn"
+                onClick={() => { onRestore(d); onJump(d.iid) }}
+              >Restore</button>
+            </div>
           ))}
         </>
       )}

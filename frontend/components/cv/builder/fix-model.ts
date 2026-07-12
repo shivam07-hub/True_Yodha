@@ -109,19 +109,25 @@ export function buildV2Fixes(
   cv: CVStructured,
   plan: GapPlanResponse | null,
   pointsFor: (keywords: string[]) => number,
+  hiddenIids?: Set<string>,
 ): V2Fix[] {
   const fixes: V2Fix[] = []
+  // A fix on a deselected line is a promise the score can't keep (Ready reads
+  // visible text only) — skip it; re-selecting the line brings it straight back.
+  const visible = (iid: string) => !hiddenIids?.has(iid)
 
   if (plan) {
     plan.host_bullet_cards.forEach(c => {
       const keywords = c.skills.map(s => s.display_name)
+      const iid = hostIid(c.section, c.item_index, c.bullet_index, c.bullet_text)
+      if (!visible(iid)) return
       fixes.push({
         id: `surface-${c.order}`,
         kind: "Surface skill",
         title: `Surface ${quote(keywords.join(", "))} — the job asks for it and you have it`,
         desc: "This bullet proves it, but the word never appears. ATS can’t infer it.",
         gain: pointsFor(keywords),
-        iid: hostIid(c.section, c.item_index, c.bullet_index, c.bullet_text),
+        iid,
         bulletText: c.bullet_text,
         keywords,
         tier: 0,
@@ -129,13 +135,15 @@ export function buildV2Fixes(
     })
     plan.below_level_cards.forEach(c => {
       if (!c.host) return // practice-only — Skills tab routes it to Forge
+      const iid = hostIid(c.host.section, c.host.item_index, c.host.bullet_index, c.host.bullet_text)
+      if (!visible(iid)) return
       fixes.push({
         id: `sharpen-${c.skill}`,
         kind: "Sharpen",
         title: `Raise ${c.display_name} to L${c.required_level}`,
         desc: `Your bullet reads L${c.current_level}. Phrase the depth this job asks for — same facts, full weight.`,
         gain: pointsFor([c.display_name]),
-        iid: hostIid(c.host.section, c.host.item_index, c.host.bullet_index, c.host.bullet_text),
+        iid,
         bulletText: c.host.bullet_text,
         keywords: [c.display_name],
         levelNote: `L${c.current_level} → L${c.required_level}`,
@@ -144,7 +152,7 @@ export function buildV2Fixes(
     })
   }
 
-  for (const f of runContentChecks(cv)) {
+  for (const f of runContentChecks(cv, hiddenIids)) {
     const iid = findingIid(cv, f)
     const text = findingBulletText(cv, f)
     if (!iid || text == null) continue
