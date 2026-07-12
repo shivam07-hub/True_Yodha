@@ -277,7 +277,6 @@ export function CVEditor({
   return (
     <div>
       <div className="cvb-pgc-editor-head">
-        <span className="cvb-pgc-eyebrow accent">{isMaster ? "Your Main CV" : "Your CV · this job"}</span>
         <div className="cvb-pgc-editor-meta">
           <span className="mono">{visibleCount} bullets · ~{wordCount} words · one page</span>
           <button
