@@ -1087,6 +1087,8 @@ export interface CareerProfile {
 export interface CareerIngestResponse {
   entries: { id: string; filename: string | null; kind: string; chars: number }[]
   skipped: { filename: string; reason: string }[]
+  /** LinkedIn connections found in the dump, saved for warm intros (undoable). */
+  connections_saved: number
 }
 export interface CareerProjectResponse {
   version_id: number
@@ -1101,6 +1103,44 @@ export interface DumpEntry {
   /** Which surface authored it: "manual" (hand-typed) | "job_intent" (Tell Myro) | … */
   source?: string
   created_at: string
+}
+
+/** One remembered fact in the user_memory store (authored or distilled). */
+export type MemoryKind =
+  | "aspiration" | "constraint" | "habit" | "preference"
+  | "salary" | "work_mode" | "target_company" | "note"
+export interface MemoryFact {
+  id: string
+  kind: MemoryKind
+  text: string
+  source: "authored" | "distilled"
+  status: "active" | "dismissed"
+  created_at: string
+}
+
+/** Token-scoped CRUD over what Myro remembers (the Memory panel on /cv). */
+export const memory = {
+  list: (token: string) =>
+    request<{ facts: MemoryFact[] }>("/memory", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  add: (token: string, kind: MemoryKind, text: string) =>
+    request<MemoryFact>("/memory", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ kind, text }),
+    }),
+  update: (token: string, id: string, patch: { text?: string; status?: "active" | "dismissed" }) =>
+    request<MemoryFact>(`/memory/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(patch),
+    }),
+  remove: (token: string, id: string) =>
+    request<void>(`/memory/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
 }
 
 export const cv = {
@@ -1532,7 +1572,8 @@ export async function beginCVUpload(
   // Durable "we've got it" hold (weak-radio resilience). A retryable interrupt
   // leaves the stash so the /cv resume effects can replay it on next visit with
   // the same Idempotency-Key (CVUP1 dedup). Cleared once the bytes land.
-  await stashPendingCVUpload({ file: safeFile, source, idempotencyKey })
+  // Owner-bound: resume only ever replays it for the account that picked it.
+  await stashPendingCVUpload({ file: safeFile, source, idempotencyKey, ownerSub: jwtSub(token) })
   let initial: CVUploadResponse
   try {
     initial = await _transferCV(token, safeFile, idempotencyKey, source)
@@ -1594,8 +1635,8 @@ export async function uploadCV(
   // interrupted) the throw below leaves this stash intact so the upload can
   // resume on reconnect / next app load with the SAME Idempotency-Key (CVUP1
   // dedups → no double charge). Cleared the instant the bytes land, after which
-  // the server job_id (CVUP2) owns the lifecycle.
-  await stashPendingCVUpload({ file: safeFile, source, idempotencyKey })
+  // the server job_id (CVUP2) owns the lifecycle. Owner-bound (see PendingCVUpload).
+  await stashPendingCVUpload({ file: safeFile, source, idempotencyKey, ownerSub: jwtSub(token) })
   try {
     const initial = await _transferCV(token, safeFile, idempotencyKey, source)
     if (initial.status === "processing") persistCVUploadJob(initial.job_id)
@@ -1633,7 +1674,9 @@ export async function resumePendingCVUpload(
   // A landed-but-still-parsing upload is owned by the job_id resume path, not
   // this one — don't re-POST bytes the server already has.
   if (getPersistedCVUploadJobId()) return null
-  const pending = await readPendingCVUpload()
+  // Owner check: a stash picked under a different account is dropped, never
+  // replayed into this one (2026-07-11 foreign-baseline incident).
+  const pending = await readPendingCVUpload(jwtSub(token))
   if (!pending) return null
   // Pin the original key so the replay dedups against the first attempt.
   persistCVUploadIdempotencyKey(pending.idempotencyKey)
@@ -3318,6 +3361,12 @@ export const jobs = {
   /** How many own-connections the user has uploaded (warm-intro source). */
   connectionsStatus: (token: string) =>
     request<{ count: number }>(`/cv/connections`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  /** Forget every uploaded connection (undo for the dump auto-save). */
+  clearConnections: (token: string) =>
+    request<{ count: number }>(`/cv/connections`, {
+      method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     }),
   /** Upload the user's own LinkedIn Connections.csv export (ADR-0018 Path 1). */

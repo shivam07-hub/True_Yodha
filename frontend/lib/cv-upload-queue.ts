@@ -32,6 +32,11 @@ export interface PendingCVUpload {
   source: CVUploadSource
   idempotencyKey: string
   createdAt: number
+  /** JWT `sub` of the account that picked the file. The stash is browser-scoped
+   *  storage, so without this a same-browser account switch would replay one
+   *  user's picked CV into another user's account (incident 2026-07-11:
+   *  shivam.mit20 received a foreign baseline). Resume requires a match. */
+  ownerSub: string | null
 }
 
 function idbAvailable(): boolean {
@@ -86,12 +91,18 @@ export async function stashPendingCVUpload(entry: Omit<PendingCVUpload, "created
   db.close()
 }
 
-/** Read the pending upload, pruning a stale one. Returns null when none/expired. */
-export async function readPendingCVUpload(): Promise<PendingCVUpload | null> {
+/** Read the pending upload for THIS account, pruning stale or foreign-owner
+ *  entries. `expectedSub` is the current session's JWT sub: an entry stashed by
+ *  a different account (or a pre-fix entry with no owner recorded) is deleted,
+ *  never replayed — the wrong-account replay is worse than asking the original
+ *  user to re-pick their file. Returns null when none/expired/foreign. */
+export async function readPendingCVUpload(expectedSub: string | null): Promise<PendingCVUpload | null> {
   const db = await openDB()
   if (!db) return null
   const value = (await tx<PendingCVUpload>(db, "readonly", (s) => s.get(PENDING_KEY) as IDBRequest<PendingCVUpload>)) ?? null
-  if (value && Date.now() - value.createdAt > PENDING_TTL_MS) {
+  const expired = value != null && Date.now() - value.createdAt > PENDING_TTL_MS
+  const foreign = value != null && (!value.ownerSub || !expectedSub || value.ownerSub !== expectedSub)
+  if (expired || foreign) {
     await tx(db, "readwrite", (s) => s.delete(PENDING_KEY))
     db.close()
     return null
@@ -103,8 +114,8 @@ export async function readPendingCVUpload(): Promise<PendingCVUpload | null> {
 }
 
 /** Cheap existence probe for resume effects that only need a yes/no. */
-export async function hasPendingCVUpload(): Promise<boolean> {
-  return (await readPendingCVUpload()) != null
+export async function hasPendingCVUpload(expectedSub: string | null): Promise<boolean> {
+  return (await readPendingCVUpload(expectedSub)) != null
 }
 
 /** Bytes landed (or the upload is terminal) — drop the stash. */

@@ -1,0 +1,189 @@
+/**
+ * MemoryPanel — "What Myro remembers", the visible face of Career Memory.
+ *
+ * Claude-style transparency over the stores every intelligent surface reads:
+ * memory facts (authored + distilled — view/edit/forget), career stories
+ * (count → Stories view), and warm-intro connections (count + forget-all).
+ * Trust comes from the user seeing and controlling the memory, so recall
+ * never feels like surveillance.
+ */
+"use client"
+
+import { useState } from "react"
+import Link from "next/link"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import type { MemoryFact, MemoryKind } from "@/lib/api"
+import { cv as cvApi, jobs as jobsApi, memory as memoryApi } from "@/lib/api"
+import { formatCount } from "@/lib/format"
+import "./memory-panel.css"
+
+const KIND_LABELS: Record<MemoryKind, string> = {
+  aspiration: "Aspiration",
+  constraint: "Constraint",
+  habit: "Habit",
+  preference: "Preference",
+  salary: "Salary",
+  work_mode: "Work mode",
+  target_company: "Target company",
+  note: "Note",
+}
+
+function FactRow({ token, fact }: { token: string; fact: MemoryFact }) {
+  const qc = useQueryClient()
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(fact.text)
+  const invalidate = () => void qc.invalidateQueries({ queryKey: ["userMemory"] })
+
+  const save = useMutation({
+    mutationFn: () => memoryApi.update(token, fact.id, { text: draft.trim() }),
+    onSuccess: () => { setEditing(false); invalidate() },
+  })
+  const forget = useMutation({
+    mutationFn: () => memoryApi.remove(token, fact.id),
+    onSuccess: invalidate,
+  })
+
+  return (
+    <li className="tm-mem-fact">
+      <div className="tm-mem-fact-meta">
+        <span className="tm-mem-kind">{KIND_LABELS[fact.kind] ?? fact.kind}</span>
+        {fact.source === "distilled" && <span className="tm-mem-source">learned</span>}
+      </div>
+      {editing ? (
+        <div className="tm-mem-edit">
+          <textarea
+            className="tm-mem-edit-input"
+            rows={2}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+          />
+          <div className="tm-mem-fact-actions">
+            <button type="button" className="cvb-btn primary sm" disabled={!draft.trim() || save.isPending} onClick={() => save.mutate()}>Save</button>
+            <button type="button" className="cvb-btn ghost sm" onClick={() => { setEditing(false); setDraft(fact.text) }}>Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <p className="tm-mem-fact-text">{fact.text}</p>
+          <div className="tm-mem-fact-actions">
+            <button type="button" className="tm-mem-link" onClick={() => setEditing(true)}>Edit</button>
+            <button type="button" className="tm-mem-link" disabled={forget.isPending} onClick={() => forget.mutate()}>Forget</button>
+          </div>
+        </>
+      )}
+    </li>
+  )
+}
+
+export function MemoryPanel({ token }: { token: string }) {
+  const qc = useQueryClient()
+  const [kind, setKind] = useState<MemoryKind>("note")
+  const [text, setText] = useState("")
+
+  const facts = useQuery({
+    queryKey: ["userMemory"],
+    queryFn: () => memoryApi.list(token),
+  })
+  const profile = useQuery({
+    queryKey: ["careerReservoirProfile"],
+    queryFn: () => cvApi.career.profile(token),
+  })
+  const connections = useQuery({
+    queryKey: ["connectionsStatus"],
+    queryFn: () => jobsApi.connectionsStatus(token),
+  })
+
+  const add = useMutation({
+    mutationFn: () => memoryApi.add(token, kind, text.trim()),
+    onSuccess: () => {
+      setText("")
+      void qc.invalidateQueries({ queryKey: ["userMemory"] })
+    },
+  })
+  const forgetConnections = useMutation({
+    mutationFn: () => jobsApi.clearConnections(token),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["connectionsStatus"] }),
+  })
+
+  const activeFacts = (facts.data?.facts ?? []).filter((f) => f.status === "active")
+  const storyCount = profile.data?.story_count ?? 0
+  const connectionCount = connections.data?.count ?? 0
+
+  return (
+    <section className="tm-mem-scope" aria-label="What Myro remembers">
+      <header className="tm-mem-head">
+        <h2>What Myro remembers</h2>
+        <p>
+          Everything below feeds your rewrites, matches, and plans. Yours to
+          edit or forget, any time.
+        </p>
+      </header>
+
+      <div className="tm-mem-stores">
+        <Link href="/cv?view=stories" className="tm-mem-store">
+          <span className="tm-mem-store-count">{storyCount}</span>
+          <span className="tm-mem-store-label">career stories</span>
+        </Link>
+        <div className="tm-mem-store">
+          <span className="tm-mem-store-count">{formatCount(connectionCount)}</span>
+          <span className="tm-mem-store-label">connections</span>
+          {connectionCount > 0 && (
+            <button
+              type="button"
+              className="tm-mem-link"
+              disabled={forgetConnections.isPending}
+              onClick={() => forgetConnections.mutate()}
+            >
+              Forget all
+            </button>
+          )}
+        </div>
+        <div className="tm-mem-store">
+          <span className="tm-mem-store-count">{activeFacts.length}</span>
+          <span className="tm-mem-store-label">facts</span>
+        </div>
+      </div>
+
+      <form
+        className="tm-mem-composer"
+        onSubmit={(e) => { e.preventDefault(); if (text.trim()) add.mutate() }}
+      >
+        <select
+          className="tm-mem-kind-select"
+          value={kind}
+          aria-label="Fact type"
+          onChange={(e) => setKind(e.target.value as MemoryKind)}
+        >
+          {Object.entries(KIND_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
+        <input
+          className="tm-mem-composer-input"
+          placeholder="Tell Myro something to remember…"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+        />
+        <button type="submit" className="cvb-btn primary sm" disabled={!text.trim() || add.isPending}>
+          Remember
+        </button>
+      </form>
+
+      {facts.isPending && <p className="tm-mem-empty">Loading…</p>}
+      {facts.isError && <p className="tm-mem-empty" role="alert">Couldn’t load memory — try again.</p>}
+      {facts.isSuccess && activeFacts.length === 0 && (
+        <p className="tm-mem-empty">
+          Nothing remembered yet. Add a fact above, or drop your files into
+          Stories — Myro learns as you go.
+        </p>
+      )}
+      {activeFacts.length > 0 && (
+        <ul className="tm-mem-facts">
+          {activeFacts.map((fact) => (
+            <FactRow key={fact.id} token={token} fact={fact} />
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}

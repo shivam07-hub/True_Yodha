@@ -74,6 +74,9 @@ def _profile_context(profile: dict[str, Any]) -> str:
     known = [f for f in (profile.get("known_facts") or []) if f]
     if known:
         lines.append("What Myro remembers about them: " + "; ".join(known) + ".")
+    stories = [s for s in (profile.get("known_stories") or []) if s]
+    if stories:
+        lines.append("Career stories Myro holds for them: " + "; ".join(stories) + ".")
     return "\n".join(lines)
 
 

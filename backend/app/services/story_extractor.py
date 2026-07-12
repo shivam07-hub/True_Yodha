@@ -251,6 +251,8 @@ _LINKEDIN_RENDERERS = {
     "education": ("School Name", "Degree Name"),
     "profile": ("First Name", "Headline"),
     "certifications": ("Name", "Authority"),
+    "shares": ("Date", "ShareCommentary"),
+    "recommendations": ("First Name", "Text", "Creation Date"),
     "skills": ("Name",),
 }
 
@@ -307,4 +309,24 @@ def render_linkedin_csv(kind: str, raw: bytes) -> str:
         return "CERTIFICATIONS (LinkedIn):\n" + "\n".join(lines)
     if kind == "skills":
         return "SKILLS (LinkedIn): " + ", ".join(r.get("Name", "") for r in rows[:80] if r.get("Name"))
+    if kind == "shares":
+        posts = [
+            f"[{r.get('Date', '')[:10]}] {r.get('ShareCommentary', '')[:800]}"
+            for r in rows[:40]
+            if r.get("ShareCommentary", "").strip()
+        ]
+        if not posts:
+            return ""
+        return "POSTS AUTHORED BY THE USER (LinkedIn — their own words):\n\n" + "\n\n".join(posts)
+    if kind == "recommendations":
+        lines = [
+            f"- {r.get('First Name', '')} {r.get('Last Name', '')} "
+            f"({r.get('Job Title', '')}, {r.get('Company', '')}, {r.get('Creation Date', '')[:10]}): "
+            f"“{r.get('Text', '')[:600]}”"
+            for r in rows[:20]
+            if r.get("Text", "").strip()
+        ]
+        if not lines:
+            return ""
+        return "RECOMMENDATIONS RECEIVED (LinkedIn — colleagues wrote these about the user):\n" + "\n".join(lines)
     return ""
