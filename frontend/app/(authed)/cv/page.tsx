@@ -11,6 +11,7 @@ import { tokenizedUserMessage, type CVUploadPhase } from "@/lib/cv-upload-state"
 import { claimPendingAnonCv, hasPendingAnonCvClaim } from "@/lib/anon-cv-claim"
 import { CvSkeleton } from "@/components/loading/page-skeletons"
 import { PlaygroundView } from "@/components/cv/builder/playground-view"
+import { MasterWorkspace } from "@/components/cv/builder/master-workspace"
 import { LibraryView } from "@/components/cv/builder/library-view"
 import { Icon } from "@/components/cv/builder/icons"
 import { runContentChecks } from "@/components/cv/builder/content-checks"
@@ -43,7 +44,7 @@ import "./cv-sheet.css"
 import "./cv-builder.css"
 import "./playground-v2.css"
 
-type ViewMode = "baseline" | "playground"
+type ViewMode = "baseline" | "playground" | "master-edit"
 
 function CVPage() {
   const router = useRouter()
@@ -114,10 +115,15 @@ function CVPage() {
     staleTime: 2 * 60 * 1000,
   })
 
-  const view: ViewMode = !jobId ? "baseline" : "playground"
+  const editParam = searchParams.get("edit")
+  const view: ViewMode = jobId ? "playground" : editParam === "1" ? "master-edit" : "baseline"
 
   function navigate(href: string) { router.push(href) }
   function openJob(id: string) { navigate(`/cv?jobId=${encodeURIComponent(id)}`) }
+  // Editing the master is a page-level full-bleed view (same mount level as the
+  // per-job PlaygroundView) — NOT a card buried in LibraryView's chrome, so the
+  // editing surface has the same boundary as the playground.
+  function openMasterEdit() { navigate("/cv?edit=1") }
   function backToBaseline() { navigate("/cv") }
   // Tailored export is a dedicated full-page route (Design C). Carry the match
   // score so the export header can show the JD-match pill without a refetch.
@@ -536,6 +542,17 @@ function CVPage() {
               profile={profileQuery.data ?? null}
               onOpenJob={openJob}
               onReplaceCV={openFilePicker}
+              onEditMaster={openMasterEdit}
+            />
+          )}
+
+          {hasBaseline && view === "master-edit" && cvData && (
+            <MasterWorkspace
+              token={token!}
+              baseline={playground.currentBaseline}
+              cv={cvData}
+              profile={profileQuery.data ?? null}
+              onDone={backToBaseline}
             />
           )}
 

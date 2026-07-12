@@ -37,6 +37,7 @@ interface LibraryViewProps {
   profile: UserProfile | null
   onOpenJob: (jobId: string) => void
   onReplaceCV: () => void
+  onEditMaster: () => void
 }
 
 // Display order only (presentation). Membership is the canonical predicate
@@ -139,7 +140,7 @@ function ClosedRail({ applications, versions, onPickJob, variant = "aside" }: {
 }
 
 export function LibraryView({
-  token, cv, versions, currentBaseline, applications, profile, onOpenJob, onReplaceCV,
+  token, cv, versions, currentBaseline, applications, profile, onOpenJob, onReplaceCV, onEditMaster,
 }: LibraryViewProps) {
   const searchParams = useSearchParams()
   const { isDesktop } = useViewport()
@@ -240,6 +241,7 @@ export function LibraryView({
                 cv={cv}
                 profile={profile}
                 onReplace={onReplaceCV}
+                onEditMaster={onEditMaster}
               />
             </div>
           )}
