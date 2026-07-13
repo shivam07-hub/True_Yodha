@@ -6,7 +6,9 @@ export const MYRO_COINS_POLICY = {
   followedCompanyLimit: 10,
   followCompanyFloor: -30,
   analyseJobCost: 10,
-  matchRefreshCost: 150,
+  // Myro Search — flat, every run (no free-if-new tier). Mirrors the backend
+  // MATCH_RUN_COST=100. Charged on confirm; refund only on system failure.
+  matchRefreshCost: 100,
   verifiedInviteReward: 100,
   addJobReward: 20,
 } as const
@@ -68,8 +70,8 @@ export const XP_SPEND_ACTIONS = [
     amount: `-${MYRO_COINS_POLICY.followCompanyCost} Myro Coins`,
   },
   {
-    title: "Refresh matches",
-    detail: "Requires enough Myro Coins to start. Charged only when new matches are written.",
-    amount: `-${MYRO_COINS_POLICY.matchRefreshCost} Myro Coins if new`,
+    title: "Myro Search",
+    detail: "Run the brain over the live market against your CV — the matches that clear the bar fill your Myro Ops folder.",
+    amount: `-${MYRO_COINS_POLICY.matchRefreshCost} Myro Coins per search`,
   },
 ] as const

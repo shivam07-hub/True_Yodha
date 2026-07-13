@@ -4,15 +4,18 @@ import * as React from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { RefreshCw } from "lucide-react"
+import { Search } from "lucide-react"
 import "@/components/dashboard/dashboard.css"
 import "@/app/(authed)/home/mission-control.css"
-import { FeedCard, feedCardConfidenceClass } from "@/components/jobs/feed-card"
+import "./collections.css"
 import { VirtualFeed } from "@/components/jobs/virtual-feed"
-import { feedDataFromMatch } from "@/lib/jobs/card-view"
-import { PulseRow } from "@/components/dashboard/card-atoms"
 import { DashboardJobDrawer } from "@/components/dashboard/job-drawer"
 import { AgentPicksBand } from "@/components/jobs/agent-picks-band"
+import { MatchRefreshGate } from "@/components/jobs/MatchRefreshGate"
+import { MatchVettingBanner } from "@/components/jobs/matches-refresh-banner"
+import { useJobRefresh } from "@/lib/hooks/use-job-refresh"
+import { useParticleMoment } from "@/components/particle"
+import { openRefreshGate } from "@/store/refreshGateStore"
 import { SortMenu } from "@/components/dashboard/sort-menu"
 import { PeekSurfaces } from "@/components/mission-control/peek-surfaces"
 import type { LoopStep } from "@/components/mission-control/loop-ring"
@@ -20,40 +23,49 @@ import { useManualAdd, ADD_JOB_LABEL } from "@/components/cv/pipeline/useManualA
 import { usePulses } from "@/lib/hooks/use-pulses"
 import { useCartStore } from "@/store/cartStore"
 import { cv, diary, jobs as jobsApi, users as usersApi } from "@/lib/api"
-import type { ApplicationResponse, JobPulse, SkillGapItem } from "@/lib/api"
+import type { ApplicationResponse, SkillGapItem } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { withLocalCache, userCacheKey } from "@/lib/local-cache"
 import { JOB_MATCHES_CACHE_PARTS } from "@/lib/job-matches-cache"
 import type { FeedItem, SortKey } from "@/lib/dashboard/feed-model"
 import {
-  COLLECTION_CHIPS,
+  FOLDER_CHIPS,
   buildCollectionsView,
+  buildContinueLane,
+  buildMyroFound,
   chipCounts,
   collectionsTriageCtx,
   emptyCopy,
-  isExtSource,
-  isMyroSource,
   matchesById,
   type CollectionChip,
 } from "@/lib/collections/model"
+import { CollectionRow, MyroFoundRow } from "./collection-rows"
 import type { DiaryEntry } from "@/lib/forge-helpers"
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Desktop Collections — successor of the /home dashboard (retired 2026-07-07).
-   Saved-job worklist: pinned "Finish tailoring" lane · source chips · triage
-   order (prize×winnability) · FeedCard rows with the live Job Pulse trust row ·
-   the full build drawer (why-you-fit / skills / company / Reach / notes).
-   Browse for UNSAVED matches lives on Jobs (/market) — this page is the
-   collect→tailor half of the journey only.
+   The Myro Ops folder (desktop). "Myro found" reads the brain match stack —
+   threshold-split (above-bar here, below-bar → Jobs, rejected hidden) with the
+   Agent Picks pinned above and an honest split footer. "You added" / "Applied"
+   are the saved-job worklist. A Myro Search (the paid run) reveals in place.
    ══════════════════════════════════════════════════════════════════════════ */
 
 const isAppliedStatus = (a: ApplicationResponse) => a.status !== "saved"
 const MATCHES_TTL = 7 * 24 * 60 * 60 * 1000
 
-export function CollectionsDesktop({ token, initialJobId }: { token: string; initialJobId?: string | null }) {
+export function CollectionsDesktop({
+  token,
+  initialJobId,
+  openSearch,
+}: {
+  token: string
+  initialJobId?: string | null
+  openSearch?: boolean
+}) {
   const router = useRouter()
   const qc = useQueryClient()
   const { skills: cartSkills, addSkill, removeSkill } = useCartStore()
+  const refreshVm = useJobRefresh(token, qc)
+  const fireMoment = useParticleMoment()
 
   const appsQ = useQuery({
     queryKey: dataKeys.applications(),
@@ -68,6 +80,12 @@ export function CollectionsDesktop({ token, initialJobId }: { token: string; ini
     enabled: !!token,
     staleTime: MATCHES_TTL,
   })
+  const picksQ = useQuery({
+    queryKey: ["agentPicks", token],
+    queryFn: () => jobsApi.agentPicks(token),
+    enabled: !!token,
+    staleTime: 30 * 60 * 1000,
+  })
   const { data: followed } = useQuery({
     queryKey: ["followedCompanies", token],
     queryFn: () => usersApi.followedCompanies(token),
@@ -80,7 +98,6 @@ export function CollectionsDesktop({ token, initialJobId }: { token: string; ini
     enabled: !!token,
     staleTime: 10 * 60 * 1000,
   })
-  // Rail missions — same cheap shared-key reads the old dashboard used.
   const historyQ = useQuery({
     queryKey: dataKeys.diary(),
     queryFn: () => diary.history(token),
@@ -93,10 +110,10 @@ export function CollectionsDesktop({ token, initialJobId }: { token: string; ini
     staleTime: 5 * 60 * 1000,
   })
 
-  const [chip, setChip] = React.useState<CollectionChip>("all")
+  const [chip, setChip] = React.useState<CollectionChip>("found")
   const [sort, setSort] = React.useState<SortKey>("prize")
   const [openId, setOpenId] = React.useState<string | null>(initialJobId ?? null)
-  const [refreshing, setRefreshing] = React.useState(false)
+  const [dismissed, setDismissed] = React.useState<Set<string>>(new Set())
   const [undo, setUndo] = React.useState<ApplicationResponse | null>(null)
   const undoTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -110,7 +127,6 @@ export function CollectionsDesktop({ token, initialJobId }: { token: string; ini
 
   const apps = React.useMemo(() => appsQ.data ?? [], [appsQ.data])
   const byId = React.useMemo(() => matchesById(matchesQ.data?.jobs), [matchesQ.data])
-  const counts = React.useMemo(() => chipCounts(apps), [apps])
   const appByJobId = React.useMemo(() => {
     const m = new Map<string, ApplicationResponse>()
     for (const a of apps) m.set(a.job_id, a)
@@ -126,18 +142,47 @@ export function CollectionsDesktop({ token, initialJobId }: { token: string; ini
       ),
     [apps, followed, profile],
   )
-  const view = React.useMemo(() => buildCollectionsView(apps, chip, sort, ctx, byId), [apps, chip, sort, ctx, byId])
 
-  const openable = React.useMemo(() => [...view.continueItems, ...view.queueItems], [view])
+  const continueItems = React.useMemo(() => buildContinueLane(apps, ctx, byId), [apps, ctx, byId])
+  const dismissedIds = React.useMemo(() => {
+    const s = new Set(matchesQ.data?.dismissed_job_ids ?? [])
+    dismissed.forEach((id) => s.add(id))
+    return s
+  }, [matchesQ.data, dismissed])
+  const shownElsewhere = React.useMemo(() => {
+    const s = new Set(continueItems.map((it) => it.jobId))
+    for (const p of picksQ.data?.picks ?? []) s.add(p.job_id)
+    return s
+  }, [continueItems, picksQ.data])
+  const myroFound = React.useMemo(
+    () => buildMyroFound(matchesQ.data?.jobs, dismissedIds, shownElsewhere),
+    [matchesQ.data, dismissedIds, shownElsewhere],
+  )
+
+  const counts = React.useMemo(() => chipCounts(apps, myroFound.found.length), [apps, myroFound.found.length])
+  const appView = React.useMemo(
+    () => (chip === "added" || chip === "applied" ? buildCollectionsView(apps, chip, sort, ctx, byId) : null),
+    [apps, chip, sort, ctx, byId],
+  )
+
+  // The open drawer can point at a found match OR a saved application.
+  const openable = React.useMemo(() => {
+    const map = new Map<string, FeedItem>()
+    for (const it of [...continueItems, ...myroFound.found, ...(appView?.queueItems ?? [])]) {
+      if (!map.has(it.jobId)) map.set(it.jobId, it)
+    }
+    return Array.from(map.values())
+  }, [continueItems, myroFound.found, appView])
   React.useEffect(() => {
     if (openId && !openable.some((it) => it.jobId === openId)) setOpenId(null)
   }, [openable, openId])
   const openItem = openable.find((it) => it.jobId === openId) ?? null
+  const openIsSavedApp = openItem ? appByJobId.has(openItem.jobId) : false
 
   const pulses = usePulses(token, openable.map((it) => it.jobId))
   const cartSkillNames = React.useMemo(() => new Set(cartSkills.map((c) => c.skill_name)), [cartSkills])
 
-  // ── Unsave with a 6s undo (heart / drawer ✕ both land here)
+  // ── Unsave a saved application (6s undo)
   const remove = useMutation({
     mutationFn: (jobId: string) => jobsApi.removeTrackerJob(token, jobId),
     onSettled: () => qc.invalidateQueries({ queryKey: dataKeys.applications() }),
@@ -160,27 +205,47 @@ export function CollectionsDesktop({ token, initialJobId }: { token: string; ini
   }
   React.useEffect(() => () => { if (undoTimer.current) clearTimeout(undoTimer.current) }, [])
 
-  const doRefresh = () => {
-    if (refreshing) return
-    setRefreshing(true)
-    void Promise.all([appsQ.refetch(), matchesQ.refetch()]).finally(() =>
-      setTimeout(() => setRefreshing(false), 500),
-    )
+  // Deep-linked from the Loop Bar "N new" signal (Slice 5) → open the gate once.
+  const searchOpened = React.useRef(false)
+  React.useEffect(() => {
+    if (openSearch && !searchOpened.current) {
+      searchOpened.current = true
+      openRefreshGate()
+    }
+  }, [openSearch])
+
+  // ── Myro Found match actions — dismiss (hide) / save (track)
+  const dismissMut = useMutation({
+    mutationFn: (jobId: string) => jobsApi.dismissMatchCard(token, jobId),
+    onSettled: () => qc.invalidateQueries({ queryKey: dataKeys.jobs() }),
+  })
+  const dismissMatch = (jobId: string) => {
+    setDismissed((prev) => new Set(prev).add(jobId))
+    setOpenId((cur) => (cur === jobId ? null : cur))
+    dismissMut.mutate(jobId)
   }
+  const saveMatch = (jobId: string) => {
+    void jobsApi.saveJob(token, jobId).then(() => qc.invalidateQueries({ queryKey: dataKeys.applications() }))
+  }
+
+  // Celebration on a successful run — only when matches were actually written.
+  const firedRef = React.useRef(false)
+  React.useEffect(() => {
+    if (refreshVm.state === "done" && (refreshVm.matchesWritten ?? 0) > 0) {
+      if (!firedRef.current) { firedRef.current = true; fireMoment({ intensity: 1.4 }) }
+    } else {
+      firedRef.current = false
+    }
+  }, [refreshVm.state, refreshVm.matchesWritten, fireMoment])
 
   function handleSkillToggle(skill: SkillGapItem) {
     if (cartSkills.find((c) => c.skill_name === skill.skill)) {
       removeSkill(skill.skill)
     } else {
-      addSkill({
-        skill_name: skill.skill,
-        level_from: skill.user_level ?? 0,
-        level_to: skill.required_level ?? 1,
-      })
+      addSkill({ skill_name: skill.skill, level_from: skill.user_level ?? 0, level_to: skill.required_level ?? 1 })
     }
   }
 
-  // ── Rail missions (ported from the retired /home page — same signals)
   const entries = (historyQ.data?.entries ?? []) as DiaryEntry[]
   const loggedToday = entries.length > 0 && entries[0].log_date === new Date().toISOString().slice(0, 10)
   const steps: LoopStep[] = [
@@ -190,6 +255,11 @@ export function CollectionsDesktop({ token, initialJobId }: { token: string; ini
     { label: "Level Up", done: (evidenceData?.score_delta ?? 0) > 0, icon: "star", href: "/skills" },
     { label: "Apply", done: apps.some(isAppliedStatus), icon: "arrowRight", href: "/market" },
   ]
+
+  const isRefreshing = refreshVm.state === "charging" || refreshVm.state === "computing"
+  const newJobs = matchesQ.data?.new_jobs_count ?? 0
+  const trulyEmpty =
+    !appsQ.isLoading && !matchesQ.isLoading && apps.length === 0 && (matchesQ.data?.jobs?.length ?? 0) === 0
 
   return (
     <div className="tm-intel-page" style={{ padding: "32px 36px 64px", maxWidth: 1480, margin: "0 auto" }}>
@@ -202,17 +272,16 @@ export function CollectionsDesktop({ token, initialJobId }: { token: string; ini
 
         <div className="mc-ws-main">
           <div className="db">
-            <AgentPicksBand token={token} context="collections" />
-            {view.continueItems.length > 0 ? (
+            {continueItems.length > 0 ? (
               <section className="db-continue" aria-label="Finish tailoring">
                 <div className="db-continue-head">
                   <span className="db-continue-title">Finish tailoring</span>
                   <span className="db-continue-sub">
-                    {view.continueItems.length} started · one step from applying
+                    {continueItems.length} started · one step from applying
                   </span>
                 </div>
                 <div className="db-continue-row">
-                  {view.continueItems.map((it) => (
+                  {continueItems.map((it) => (
                     <button
                       key={it.jobId}
                       type="button"
@@ -229,8 +298,8 @@ export function CollectionsDesktop({ token, initialJobId }: { token: string; ini
             ) : null}
 
             <div className="db-head">
-              <div className="db-segments" role="tablist" aria-label="Filter saved jobs">
-                {COLLECTION_CHIPS.map((c) => (
+              <div className="db-segments" role="tablist" aria-label="Filter the folder">
+                {FOLDER_CHIPS.map((c) => (
                   <button
                     key={c.key}
                     type="button"
@@ -245,16 +314,19 @@ export function CollectionsDesktop({ token, initialJobId }: { token: string; ini
                 ))}
               </div>
               <div className="db-head-actions">
-                <SortMenu sort={sort} onChange={setSort} />
+                {chip !== "found" ? <SortMenu sort={sort} onChange={setSort} /> : null}
                 <button
                   type="button"
-                  className="db-btn db-btn-icon tm-control-focus"
-                  onClick={doRefresh}
-                  disabled={refreshing}
-                  aria-label="Refresh"
-                  title="Refresh"
+                  className="db-btn db-btn-primary tm-control-focus mf-searchbtn"
+                  onClick={() => openRefreshGate()}
+                  disabled={isRefreshing}
+                  title="Run Myro Search"
                 >
-                  <RefreshCw size={15} className={refreshing ? "animate-spin" : undefined} />
+                  <Search size={14} aria-hidden />
+                  {isRefreshing ? "Searching…" : "Myro Search"}
+                  {!isRefreshing && newJobs > 0 ? (
+                    <span className="mf-searchbtn-new" aria-label={`${newJobs} new`}>{newJobs}</span>
+                  ) : null}
                 </button>
                 <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={addJob.open}>
                   + {ADD_JOB_LABEL}
@@ -262,33 +334,58 @@ export function CollectionsDesktop({ token, initialJobId }: { token: string; ini
               </div>
             </div>
 
-            {view.queueItems.length === 0 && view.continueItems.length === 0 && !appsQ.isLoading ? (
-              <div className="db-empty">
-                {emptyCopy(chip)}{" "}
-                <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={() => router.push("/market")}>
-                  Browse jobs
-                </button>
-              </div>
+            <MatchVettingBanner token={token} health={matchesQ.data?.match_health} />
+
+            {chip === "found" ? (
+              <MyroFoundBody
+                token={token}
+                found={myroFound.found}
+                belowBarCount={myroFound.belowBarCount}
+                rejectedCount={myroFound.rejectedCount}
+                isRefreshing={isRefreshing}
+                progressLabel={refreshVm.progressLabel}
+                progressDone={refreshVm.progressDone}
+                progressTotal={refreshVm.progressTotal}
+                trulyEmpty={trulyEmpty}
+                openId={openId}
+                pulses={pulses}
+                onSearch={() => openRefreshGate()}
+                onBrowseJobs={() => router.push("/market")}
+                onOpen={(id) => setOpenId(openId === id ? null : id)}
+                onTailor={(id) => router.push(`/cv?jobId=${encodeURIComponent(id)}`)}
+                onDismiss={dismissMatch}
+              />
             ) : (
-              <VirtualFeed
-                items={view.queueItems}
-                getKey={(it) => it.jobId}
-                estimateSize={190}
-                gap={14}
-                className="db-feed"
-                renderItem={(it) => (
-                  <CollectionRow
-                    it={it}
-                    app={appByJobId.get(it.jobId)}
-                    open={openId === it.jobId}
-                    pulse={pulses.get(it.jobId)}
-                    onOpen={() => setOpenId(openId === it.jobId ? null : it.jobId)}
-                    onUnsave={() => unsave(it.jobId)}
-                    onTailor={() => router.push(`/cv?jobId=${encodeURIComponent(it.jobId)}`)}
-                    onOpenCv={() => router.push("/cv")}
+              <>
+                {(appView?.queueItems.length ?? 0) === 0 && !appsQ.isLoading ? (
+                  <div className="db-empty">
+                    {emptyCopy(chip)}{" "}
+                    <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={() => router.push("/market")}>
+                      Browse jobs
+                    </button>
+                  </div>
+                ) : (
+                  <VirtualFeed
+                    items={appView?.queueItems ?? []}
+                    getKey={(it) => it.jobId}
+                    estimateSize={190}
+                    gap={14}
+                    className="db-feed"
+                    renderItem={(it) => (
+                      <CollectionRow
+                        it={it}
+                        app={appByJobId.get(it.jobId)}
+                        open={openId === it.jobId}
+                        pulse={pulses.get(it.jobId)}
+                        onOpen={() => setOpenId(openId === it.jobId ? null : it.jobId)}
+                        onUnsave={() => unsave(it.jobId)}
+                        onTailor={() => router.push(`/cv?jobId=${encodeURIComponent(it.jobId)}`)}
+                        onOpenCv={() => router.push("/cv")}
+                      />
+                    )}
                   />
                 )}
-              />
+              </>
             )}
 
             {openItem ? (
@@ -297,10 +394,10 @@ export function CollectionsDesktop({ token, initialJobId }: { token: string; ini
                 allItems={openable}
                 token={token}
                 cartSkillNames={cartSkillNames}
-                liked
+                liked={openIsSavedApp}
                 onClose={() => setOpenId(null)}
-                onLike={() => unsave(openItem.jobId)}
-                onSkip={() => unsave(openItem.jobId)}
+                onLike={() => (openIsSavedApp ? unsave(openItem.jobId) : saveMatch(openItem.jobId))}
+                onSkip={() => (openIsSavedApp ? unsave(openItem.jobId) : dismissMatch(openItem.jobId))}
                 onSkillToggle={handleSkillToggle}
                 onJump={(jobId) => setOpenId(jobId)}
               />
@@ -308,10 +405,10 @@ export function CollectionsDesktop({ token, initialJobId }: { token: string; ini
 
             {addJob.modal}
 
+            <MatchRefreshGate token={token} profile={profile} onRun={() => refreshVm.refresh()} />
+
             {undo && typeof document !== "undefined"
-              ? // Portaled to <body> so position:fixed escapes the transformed
-                // .tm-page-enter containing block (same pattern as NotInterestedUndo).
-                createPortal(
+              ? createPortal(
                   <div className="db db-undo-toast" role="status" aria-live="polite">
                     <span>Removed from Collections</span>
                     <button type="button" onClick={undoUnsave}>Undo</button>
@@ -326,82 +423,129 @@ export function CollectionsDesktop({ token, initialJobId }: { token: string; ini
   )
 }
 
-/** One saved row — the dashboard FeedCard skin with Collections actions
- *  (heart = unsave · Tailor CV / Tailored ✓) and the live trust row. */
-function CollectionRow({
-  it,
-  app,
-  open,
-  pulse,
+/** The "Myro found" body — Agent Picks, the cleared-the-bar list, the reveal
+ *  while a run streams, and the honest below-bar / rejected footer. */
+function MyroFoundBody({
+  token,
+  found,
+  belowBarCount,
+  rejectedCount,
+  isRefreshing,
+  progressLabel,
+  progressDone,
+  progressTotal,
+  trulyEmpty,
+  openId,
+  pulses,
+  onSearch,
+  onBrowseJobs,
   onOpen,
-  onUnsave,
   onTailor,
-  onOpenCv,
+  onDismiss,
 }: {
-  it: FeedItem
-  app: ApplicationResponse | undefined
-  open: boolean
-  pulse?: JobPulse
-  onOpen: () => void
-  onUnsave: () => void
-  onTailor: () => void
-  onOpenCv: () => void
+  token: string
+  found: FeedItem[]
+  belowBarCount: number
+  rejectedCount: number
+  isRefreshing: boolean
+  progressLabel: string | null
+  progressDone: number | null
+  progressTotal: number | null
+  trulyEmpty: boolean
+  openId: string | null
+  pulses: ReturnType<typeof usePulses>
+  onSearch: () => void
+  onBrowseJobs: () => void
+  onOpen: (id: string) => void
+  onTailor: (id: string) => void
+  onDismiss: (id: string) => void
 }) {
-  const [leaving, setLeaving] = React.useState(false)
-  const leaveThen = (fn: () => void) => {
-    setLeaving(true)
-    window.setTimeout(fn, 230)
-  }
-  const applied = app ? app.status !== "saved" : false
-  const tailored = !!app?.cv_badge
   return (
-    <FeedCard
-      data={feedDataFromMatch({ jobId: it.jobId, company: it.company, role: it.role, job: it.job, fit: it.fit })}
-      variant="row"
-      open={open}
-      leaving={leaving}
-      extraClass={feedCardConfidenceClass(pulse)}
-      onOpen={onOpen}
-      badges={
+    <>
+      <AgentPicksBand token={token} context="collections" />
+      {isRefreshing ? (
         <>
-          {applied ? <span className="db-statuschip">Applied</span> : null}
-          {app && isExtSource(app.source) ? <span className="db-sourcechip">Extension</span> : null}
-          {app && !isExtSource(app.source) && !isMyroSource(app.source) ? (
-            <span className="db-sourcechip">You added</span>
-          ) : null}
+          <div className="mf-reading" role="status" aria-live="polite">
+            <span className="mf-reading-dot" aria-hidden />
+            <span>
+              {progressLabel ?? "Myro Ops · reading the market"}
+              {progressTotal != null && progressDone != null ? ` · ranked ${progressDone}/${progressTotal}` : ""}
+            </span>
+          </div>
+          <div className="mf-skel" />
+          <div className="mf-skel" />
+          <div className="mf-skel" />
         </>
-      }
-      pulse={<PulseRow pulse={pulse} />}
-      actions={
-        <div className="db-card-actions" onClick={(e) => e.stopPropagation()}>
-          <button
-            type="button"
-            className="db-icon-btn liked"
-            aria-label="Remove from Collections"
-            title="Remove from Collections"
-            onClick={() => leaveThen(onUnsave)}
-          >
-            <HeartGlyph />
+      ) : found.length > 0 ? (
+        <>
+          <div className="mf-secthead">
+            <span className="mf-secthead-title">Cleared the bar</span>
+            <span className="mf-secthead-sub">{found.length} more worth your time</span>
+          </div>
+          <VirtualFeed
+            items={found}
+            getKey={(it) => it.jobId}
+            estimateSize={190}
+            gap={14}
+            className="db-feed"
+            renderItem={(it) => (
+              <MyroFoundRow
+                it={it}
+                open={openId === it.jobId}
+                pulse={pulses.get(it.jobId)}
+                onOpen={() => onOpen(it.jobId)}
+                onTailor={() => onTailor(it.jobId)}
+                onDismiss={() => onDismiss(it.jobId)}
+              />
+            )}
+          />
+          <SplitFooter belowBarCount={belowBarCount} rejectedCount={rejectedCount} onBrowseJobs={onBrowseJobs} />
+        </>
+      ) : trulyEmpty ? (
+        <div className="mf-firstrun">
+          <div className="mf-firstrun-title">Run your first Myro Search</div>
+          <p className="mf-firstrun-sub">
+            Myro reads the live market against your CV and fills this folder with the roles that clear its quality bar.
+          </p>
+          <button type="button" className="db-btn db-btn-primary tm-control-focus" onClick={onSearch}>
+            <Search size={14} aria-hidden style={{ marginRight: 6 }} /> Myro Search
           </button>
-          {tailored ? (
-            <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={onOpenCv}>
-              Tailored ✓
-            </button>
-          ) : (
-            <button type="button" className="db-btn db-btn-primary tm-control-focus" onClick={onTailor}>
-              Tailor CV
-            </button>
-          )}
         </div>
-      }
-    />
+      ) : (
+        <div className="db-empty" style={{ flexDirection: "column", alignItems: "flex-start", gap: 12 }}>
+          <span>Nothing cleared the bar in your last search.</span>
+          <SplitFooter belowBarCount={belowBarCount} rejectedCount={rejectedCount} onBrowseJobs={onBrowseJobs} />
+        </div>
+      )}
+    </>
   )
 }
 
-function HeartGlyph() {
+function SplitFooter({
+  belowBarCount,
+  rejectedCount,
+  onBrowseJobs,
+}: {
+  belowBarCount: number
+  rejectedCount: number
+  onBrowseJobs: () => void
+}) {
+  if (belowBarCount === 0 && rejectedCount === 0) return null
   return (
-    <svg width={16} height={16} viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M19 14c1.5-1.5 2-3.2 2-4.6C21 6.4 18.6 4 15.6 4 14.2 4 12.9 4.6 12 5.6 11.1 4.6 9.8 4 8.4 4 5.4 4 3 6.4 3 9.4c0 1.4.5 3.1 2 4.6l7 6.6 7-6.6Z" />
-    </svg>
+    <div className="mf-footer">
+      {belowBarCount > 0 ? (
+        <p className="mf-footer-line">
+          {belowBarCount} more ranked below the bar —{" "}
+          <button type="button" className="mf-footer-link" onClick={onBrowseJobs}>
+            see them in Jobs, best first →
+          </button>
+        </p>
+      ) : null}
+      {rejectedCount > 0 ? (
+        <p className="mf-footer-line">
+          {rejectedCount} rejected — dead listing, wrong level, or off your deal-breakers.
+        </p>
+      ) : null}
+    </div>
   )
 }

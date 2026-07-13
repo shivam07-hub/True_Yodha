@@ -1,0 +1,148 @@
+/* Myro Ops folder — Myro Found section (the brain match stack). Reuses the
+   dashboard `.db` token scope; these are the split-specific bits. */
+
+.mf-searchbtn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.mf-searchbtn-new {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--tm-accent);
+  color: var(--tm-accent-ink, #04211c);
+  font-family: var(--tm-font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.mf-secthead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 18px 0 10px;
+}
+
+.mf-secthead-title {
+  font-family: var(--tm-font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--db-ink, var(--tm-text));
+}
+
+.mf-secthead-sub {
+  font-size: 12px;
+  color: var(--tm-text-muted);
+}
+
+/* Reading-the-market reveal — the in-place wait while a run streams. */
+.mf-reading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--tm-radius-md, 12px);
+  border: 1px solid var(--tm-int-border);
+  background: var(--tm-int-bg-wash);
+  color: var(--tm-text);
+  font-size: 13px;
+  margin: 14px 0;
+}
+
+.mf-reading-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--tm-accent);
+  animation: mf-pulse 1.1s var(--tm-ease, ease) infinite;
+  flex-shrink: 0;
+}
+
+@keyframes mf-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+.mf-skel {
+  height: 84px;
+  border-radius: var(--tm-radius-md, 12px);
+  border: 1px solid var(--tm-border-soft);
+  background: linear-gradient(
+    100deg,
+    var(--tm-surface) 30%,
+    var(--tm-surface-2, rgba(255, 255, 255, 0.04)) 50%,
+    var(--tm-surface) 70%
+  );
+  background-size: 200% 100%;
+  animation: mf-shimmer 1.4s ease-in-out infinite;
+  margin-bottom: 12px;
+}
+
+@keyframes mf-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mf-reading-dot,
+  .mf-skel { animation: none; }
+}
+
+/* Honest split footer — below-bar → Jobs, rejected excluded. */
+.mf-footer {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--tm-border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mf-footer-line {
+  font-size: 12.5px;
+  color: var(--tm-text-muted);
+  line-height: 1.5;
+}
+
+.mf-footer-link {
+  color: var(--tm-interactive);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.mf-footer-link:hover { text-decoration: underline; }
+
+/* True-empty first-run CTA. */
+.mf-firstrun {
+  text-align: center;
+  padding: 40px 24px;
+  border: 1px dashed var(--tm-border-soft);
+  border-radius: var(--tm-radius-md, 12px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.mf-firstrun-title {
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--tm-text);
+}
+
+.mf-firstrun-sub {
+  font-size: 13px;
+  color: var(--tm-text-muted);
+  max-width: 42ch;
+  line-height: 1.55;
+}
