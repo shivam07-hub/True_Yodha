@@ -174,11 +174,11 @@ def test_scrape_match_recompute_handler_forces_false_and_never_raises(monkeypatc
     monkeypatch.setattr(scrape_sweep, "get_supabase_admin", lambda: object())
     monkeypatch.setattr(scrape_sweep, "JobsRepository", lambda *_a, **_k: _HandlerRepo())
 
-    async def _fake_compute(*, repo: Any, user_id: str, batch_week: Any, force: bool) -> None:
+    async def _fake_run(_repo: Any, user_id: str, _batch_week: Any, *, force: bool, **_kw: Any) -> None:
         captured.update(user_id=user_id, force=force)
         raise RuntimeError("boom — must be swallowed")
 
-    monkeypatch.setattr(scrape_sweep.jobs_workflow, "compute_job_matches", _fake_compute)
+    monkeypatch.setattr(scrape_sweep.match_run, "run_match", _fake_run)
 
     # Must not raise.
     asyncio.run(scrape_sweep._scrape_match_recompute_handler({"user_id": "u1"}, True))

@@ -8,8 +8,8 @@ from datetime import date
 from typing import Any
 
 from app.repositories.jobs import JobsRepository, get_admin_jobs_repository
-from app.services import jobs_workflow
 from app.services.jobs_workflow import MatchComputeOutcome
+from app.services.matching import match_run
 
 _log = logging.getLogger(__name__)
 
@@ -30,11 +30,15 @@ async def run(
     is forwarded to the ranker so the dispatch layer can publish per-job reveal progress.
     """
     jobs_repo = repo or get_admin_jobs_repository()
-    return await jobs_workflow.compute_job_matches(
-        repo=jobs_repo,
-        user_id=user_id,
-        batch_week=batch_week,
-        excluded_job_ids=excluded_job_ids,
+    # The whole run goes through the ONE Match Run module: compute → Agent Picks regen
+    # → (no bell — the reveal streams live, notify=False). Before this a paid Refresh
+    # computed but left the picks band stale; now every surface refreshes it.
+    return await match_run.run_match(
+        jobs_repo,
+        user_id,
+        batch_week,
         force=True,  # paid Refresh: user spent coins → always re-run the brain
+        excluded_job_ids=excluded_job_ids,
         on_progress=on_progress,
+        notify=False,
     )

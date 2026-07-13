@@ -14,7 +14,8 @@ from app.repositories.cv import (
     CVVersionsRepository,
 )
 from app.repositories.scores import ScoresRepository
-from app.services import background, cv_parser, jobs_workflow, scoring
+from app.services import background, cv_parser, scoring
+from app.services.matching import match_run
 from app.services.background import TransientJobError
 from app.services.llm_provider import get_cv_upload_provider
 from app.services.xp_policy import CV_UPLOAD_XP_COST, CV_UPLOAD_XP_FLOOR
@@ -44,14 +45,17 @@ async def _trigger_initial_match_compute(
         if force_context_refresh:
             jobs_repo.clear_recommendations(user_id)
 
-        # Provider is owned by compute_job_matches (the strong-only judgment lane) —
-        # the initial match ranks on the same strong models as every other run.
-        await jobs_workflow.compute_job_matches(
-            repo=jobs_repo,
-            user_id=user_id,
-            batch_week=last_monday(),
-            excluded_job_ids=[],
+        # The whole run through the ONE Match Run module — the initial match now also
+        # regenerates the Agent Picks band (it never did before). notify=False: the
+        # user is in onboarding watching the score reveal, so the bell is redundant.
+        # Provider (strong-only judgment lane) is owned by compute_job_matches.
+        await match_run.run_match(
+            jobs_repo,
+            user_id,
+            last_monday(),
             force=force_context_refresh,
+            excluded_job_ids=[],
+            notify=False,
         )
     except Exception as exc:
         # Not swallowed silently: the matches read seam infers `failed` from the

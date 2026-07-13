@@ -24,9 +24,8 @@ from typing import Any
 
 from app.database import get_supabase_admin
 from app.repositories.jobs import JobsRepository
-from app.repositories.notifications import NotificationsRepository
-from app.services import background, jobs_workflow
-from app.services.matching import agent_picks
+from app.services import background
+from app.services.matching import match_run
 
 logger = logging.getLogger(__name__)
 
@@ -83,57 +82,20 @@ async def _scrape_match_recompute_handler(payload: dict[str, Any], allow_retry: 
     admin_db = get_supabase_admin()
     repo = JobsRepository(admin_db, admin_db)
     try:
-        # Snapshot BEFORE so we can diff genuinely-new matches after — the
-        # notification (N1) must carry real fresh matches, never fire on a
-        # no-op recompute (N4: compute-then-notify, never on speculation).
-        before_ids = set(repo.get_existing_match_job_ids(user_id))
-        await jobs_workflow.compute_job_matches(
-            repo=repo,
-            user_id=user_id,
-            batch_week=last_monday(),
+        # The whole run — compute → Agent Picks regen → fresh-match notification —
+        # is the ONE Match Run module now (compute-then-notify, N4). A background
+        # sweep notifies (the user is away); force=False so the per-user cache-hit
+        # gate silently no-ops a user with nothing new.
+        await match_run.run_match(
+            repo,
+            user_id,
+            last_monday(),
             force=False,
+            notify=True,
+            scrape_batch=since_marker,
         )
-        _notify_fresh_matches(admin_db, repo, user_id, before_ids)
-        # N5: fold Agent Picks into the SAME brain pass — the eval just ran, so
-        # re-cut the editorial band from the fresh verdicts (reuses cached evals,
-        # no new LLM). Guarded separately so a pick-gen failure never loses the
-        # recompute or the notification above.
-        try:
-            agent_picks.regenerate_for_user(repo, user_id, scrape_batch=since_marker)
-        except Exception as pick_exc:
-            logger.warning("agent_picks regen failed for user=%s: %s", user_id, pick_exc)
     except Exception as exc:
         # Best-effort — a sweep recompute failing for one user must never break
         # the sweep or retry-storm; log and move on (fire-and-forget, same
         # posture as cv_workflow._trigger_initial_match_compute).
         logger.warning("scrape_match_recompute failed for user=%s: %s", user_id, exc)
-
-
-def _notify_fresh_matches(
-    admin_db: Any, repo: JobsRepository, user_id: str, before_ids: set[str]
-) -> None:
-    """Write a debounced 'fresh_matches' notification IF the recompute produced
-    matches this user didn't have before. The ping carries the top new match
-    (highest brain score, else overlap) so opening the bell is the reward (N1)."""
-    stack = repo.get_user_match_stack(user_id)
-    new_rows = [r for r in stack if str(r.get("job_id") or "") not in before_ids]
-    if not new_rows:
-        return
-
-    top = max(
-        new_rows,
-        key=lambda r: (float(r.get("overall_score") or 0), float(r.get("overlap_score") or 0)),
-    )
-    job = top.get("jobs") or {}
-    company = (job.get("company_name") or "").strip()
-    role = (job.get("job_title") or "").strip()
-    body = " · ".join(p for p in (company, role) if p) or "New role matched to your profile"
-
-    count = len(new_rows)
-    NotificationsRepository(admin_db, admin_db).record_fresh_matches(
-        user_id,
-        job_id=str(top.get("job_id") or "") or None,
-        title=f"{count} fresh match{'es' if count != 1 else ''}",
-        body=body,
-        count=count,
-    )
