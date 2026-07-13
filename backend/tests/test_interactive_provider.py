@@ -9,8 +9,11 @@ from app.services import llm_provider
 from app.services.llm_provider import (
     FREE_OR_TIER_COUNT,
     GROQ_FALLBACK_MODEL,
+    JUDGMENT_OR_TIERS,
     OR_TIERS,
+    _JUDGMENT_UNSAFE_MODELS,
     get_interactive_provider,
+    get_judgment_provider,
     get_paid_jobs_provider,
 )
 
@@ -76,3 +79,56 @@ def test_paid_jobs_provider_uses_same_paid_first_lane():
         return True
 
     assert _with_all_keys(check)
+
+
+# ── Judgment lane — the model floor for feedback_no_cheap_models_judgment ────────
+
+def _judgment_model_ids(provider) -> set[str]:
+    """Every model id reachable on a provider's chain (OR fallback arrays + direct)."""
+    ids: set[str] = set()
+    for _client, model, extra_body in provider._providers:
+        ids.add(model)
+        for m in (extra_body or {}).get("models", []):
+            ids.add(m)
+    return ids
+
+
+def test_judgment_provider_never_includes_a_small_model():
+    """THE trust invariant: no ranking/eval/verdict call may ever hit a 4B model."""
+    def check():
+        ids = _judgment_model_ids(get_judgment_provider())
+        leaked = ids & _JUDGMENT_UNSAFE_MODELS
+        assert not leaked, f"Small model leaked onto the judgment lane: {leaked}"
+        # Gemini flash-lite is too small to judge — must be absent (outage → fail, not guess).
+        assert "gemini-2.0-flash-lite" not in ids
+        return True
+
+    assert _with_all_keys(check)
+
+
+def test_judgment_provider_leads_free_strong_then_paid_strong():
+    """Strong FREE tiers lead (cost managed, no quality loss); strong PAID backstops."""
+    def check():
+        provider = get_judgment_provider()
+        or_entries = [e for e in provider._providers if e[2] and "models" in e[2]]
+        # First OR call is a free-strong tier (leads with no cost).
+        assert or_entries[0][1] == OR_TIERS[0][0]
+        ids = _judgment_model_ids(provider)
+        # Strong paid backstop present.
+        assert "openai/gpt-4o-mini" in ids
+        assert "meta-llama/llama-3.3-70b-instruct" in ids
+        # Groq llama-3.3-70b direct is the strong last-hop.
+        assert GROQ_FALLBACK_MODEL in ids
+        return True
+
+    assert _with_all_keys(check)
+
+
+def test_judgment_or_tiers_derived_by_exclusion_is_reorder_safe():
+    """A small model slipped into any tier drops that WHOLE tier from judgment."""
+    flat = {m for tier in JUDGMENT_OR_TIERS for m in tier}
+    assert not (flat & _JUDGMENT_UNSAFE_MODELS)
+    assert JUDGMENT_OR_TIERS, "judgment lane must not be empty"
+    # Every retained tier must be wholly free of unsafe models (fail-safe exclusion).
+    for tier in JUDGMENT_OR_TIERS:
+        assert not any(m in _JUDGMENT_UNSAFE_MODELS for m in tier)
