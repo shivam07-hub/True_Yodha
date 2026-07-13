@@ -20,13 +20,15 @@ function CollectionsInner() {
   const { mode } = useViewport()
   const searchParams = useSearchParams()
   const jobId = searchParams.get("jobId")
+  // Deep-link from the Loop Bar "N new" signal (Slice 5) — open the pre-flight gate.
+  const openSearch = searchParams.get("search") === "1"
 
   // Replay a job saved while logged out (Exception 2) — saves it + refreshes the list.
   usePendingJobSaveClaim(token)
 
   if (!ready) return null
   if (mode === "mobile") return <CollectionsSurface token={token ?? ""} initialJobId={jobId} />
-  return <CollectionsDesktop token={token ?? ""} initialJobId={jobId} />
+  return <CollectionsDesktop token={token ?? ""} initialJobId={jobId} openSearch={openSearch} />
 }
 
 export default function CollectionsPage() {

@@ -37,6 +37,71 @@ def test_reconcile_companyless_exact_title():
     assert cr.reconcile_role({"company": "", "title": "CAT 2021"}, _EXISTING) == "r3"
 
 
+def test_reconcile_cross_slot_same_dates():
+    """One CV lists the team as company, another as title (same period) → same role.
+    The live repro: 'Capgemini GCC Growth · Sales Enablement Team' vs
+    'Sales Enablement Team · Agentic Sales Enablement' (July 2024 – April 2025)."""
+    existing = [{
+        "id": "r9", "company": "Capgemini GCC Growth", "title": "Sales Enablement Team",
+        "kind": "work", "date_label": "July 2024 - April 2025",
+    }]
+    assert cr.reconcile_role(
+        {"company": "Sales Enablement Team", "title": "Agentic Sales Enablement",
+         "date_label": "July 2024 – April 2025"},
+        existing,
+    ) == "r9"
+    # different period → NOT merged (cross-slot is date-gated)
+    assert cr.reconcile_role(
+        {"company": "Sales Enablement Team", "title": "Agentic Sales Enablement",
+         "date_label": "Jan 2020 - June 2022"},
+        existing,
+    ) is None
+    # no dates on either side → never cross-slot merged
+    assert cr.reconcile_role(
+        {"company": "Sales Enablement Team", "title": "Agentic Sales Enablement", "date_label": ""},
+        existing,
+    ) is None
+
+
+def test_dates_match_normalizes_dashes_and_case():
+    assert cr._dates_match("July 2024 - April 2025", "july 2024 – april 2025")
+    assert not cr._dates_match("July 2024 - April 2025", "May 2025 - Present")
+    assert not cr._dates_match("", "")
+
+
+# ── retry_stale_ingests ──────────────────────────────────────────────────────
+
+class _PendingRepo:
+    def __init__(self, entries):
+        self._entries = entries
+
+    def pending_entries(self, user_id, limit=20):
+        return self._entries
+
+
+def test_retry_stale_ingests_requeues_old_and_debounces(monkeypatch):
+    from datetime import datetime, timedelta, timezone
+
+    calls: list[str] = []
+    monkeypatch.setattr(cr, "enqueue_ingest", lambda uid, eid: calls.append(eid))
+    cr._last_requeue.clear()
+
+    old = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    fresh = datetime.now(timezone.utc).isoformat()
+    repo = _PendingRepo([
+        {"id": "stale-1", "created_at": old},
+        {"id": "fresh-1", "created_at": fresh},   # too young → left alone
+        {"id": "junk-ts", "created_at": "not-a-date"},  # unparseable → eligible
+    ])
+
+    assert cr.retry_stale_ingests(repo, "u1") == 2
+    assert calls == ["stale-1", "junk-ts"]
+    # second poll inside the debounce window is a no-op
+    assert cr.retry_stale_ingests(repo, "u1") == 0
+    assert calls == ["stale-1", "junk-ts"]
+    cr._last_requeue.clear()
+
+
 # ── dedup ────────────────────────────────────────────────────────────────────
 
 def test_cosine_and_is_duplicate():

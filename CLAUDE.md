@@ -548,7 +548,17 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-10→13 · Trust lane: vetting-failure retry + semantic Slice 1 + Rishabh full-brain case study → NEXT SESSION = standardized-matcher grill)
+## LAST SESSION SUMMARY (2026-07-13b · Stories/Memory program — Lane A reservoir quality BUILT + mit20 repaired in prod; Lanes B+C locked)
+
+Shivam dumped `Shivam_CV_Base` (43 files) → Stories exploded 24→203 near-duplicates, roles fragmented (Capgemini/Sales-Enablement cross-slot split), metric chips raw (`500000`), Memory = contradictory fragment pile ("Targeting FAANG" + "Targeting well-established" coexist). Diagnosis grounded in code; **4 forks locked via AskUserQuestion (all recommended): fold-as-variant · persona-doc-over-facts · proactive JD coverage panel · Lane A first.** Full program: memory `project_story_memory_jd_interview`.
+
+**Lane A BUILT + pushed Develop (5 commits, `addd0c7f`…):** (1) `story_dedup.py` — two-stage same-achievement detection: cosine ≥0.90 auto-fold; 0.80–0.90 band → ONE batched strong-model judge (no-cheap-models rule); same-normalized-title forces judge below the band; **fold = incoming pointer attaches as VARIANT on the canonical story** (old-CV angles preserved — the prior code SKIPPED them, losing exactly the value Shivam wants). ⚠️ Judge pair-text must carry full STAR + metrics — title+result starved it to all-False (0→28 folds on identical data, proven live). (2) `reconcile_role` v2 — date-gated cross-slot pass (team-as-company vs team-as-title). (3) `verbatim_metric_value` guard — re-anchors normalized metrics to the exact source token (`500000`→`€500K+`, `20`→`~20%`), drops large pure-digit values anchoring to nothing (ADR-0016); prompt hardened. (4) **stale-ingest self-heal** — profile poll re-enqueues pending entries >15min (13 entries were stuck forever on mit20; enqueue idempotent + processed_at guard). (5) `scripts/repair_reservoir.py` — retro-repair, dry-run default, archive-only. Backend suite **1257 passed**, ruff clean.
+
+**mit20 repair APPLIED prod:** 203→**142 active stories (141 distinct titles)**, 61 dupes archived w/ 61 variant pointers, 2 role merges, 46 metric fixes; 13 stuck dumps drained locally through the new path. Deliberately stopped repeated judge passes (non-determinism ratchets toward over-merge).
+
+**LOCKED, NOT BUILT:** **Lane B** — Memory persona synthesis: keep atomic facts as evidence; agent chain-of-reasoning rewrites ONE "How Myro sees you" doc per distill cycle, resolving contradictions + retiring stale facts; distiller also needs semantic near-dupe + contradiction check. **Lane C (Delta-4 core)** — playground JD-interview: "What this job wants" coverage panel per requirement = covered (one-tap story pointer) / weak (grounded rewrite) / **gap → mentor asks ONE question → answer becomes a NEW story via dump pipeline** → CV + interview-prep compound. Reuses memory_recall + cv_rewrite + intent-chat pattern. **OWED (Shivam):** main merge (fold + self-heal to prod backend/worker); browser QA Stories tab on mit20.
+
+## OLDER SESSION SUMMARY (2026-07-10→13 · Trust lane: vetting-failure retry + semantic Slice 1 + Rishabh full-brain case study → NEXT SESSION = standardized-matcher grill)
 
 Multi-day session: three shipped units + one operator case study. All pushed Develop (own files only).
 

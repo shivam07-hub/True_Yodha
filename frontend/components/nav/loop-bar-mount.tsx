@@ -6,7 +6,6 @@ import { useQuery } from "@tanstack/react-query"
 import { jobs as jobsApi, type JobMatchesResponse } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { chipCounts, isApplied, matchesById } from "@/lib/collections/model"
-import { openRefreshGate } from "@/store/refreshGateStore"
 import { LoopBar, type LoopBarModel } from "./loop-bar"
 
 /**
@@ -33,7 +32,6 @@ function activeStep(pathname: string): number {
 export function LoopBarMount({ token }: { token: string }) {
   const pathname = usePathname()
   const onLoop = LOOP_ROUTES.some((r) => pathname.startsWith(r))
-  const onMarket = pathname.startsWith("/market")
 
   const appsQ = useQuery({
     queryKey: dataKeys.applications(),
@@ -72,16 +70,14 @@ export function LoopBarMount({ token }: { token: string }) {
         }
       : undefined
 
-    // "N new" on Capture — new live jobs since the user's last match. On /market
-    // the refresh gate is mounted, so one tap opens it; elsewhere it deep-links to
-    // /market where the refresh lives. The Tailor magnet is never displaced.
+    // "N new" on Capture — new live jobs since the user's last match. Demoted to a
+    // pure signal (Slice 5): it never opens the gate inline — it deep-links to the
+    // Myro Ops folder, which opens the pre-flight gate there (?search=1). One home
+    // for the run. The Tailor magnet is never displaced.
     const newJobs = matches?.new_jobs_count ?? 0
     const captureAlert =
       newJobs > 0
-        ? {
-            label: `${newJobs} new`,
-            ...(onMarket ? { onClick: openRefreshGate } : { href: "/market" }),
-          }
+        ? { label: `${newJobs} new`, href: "/collections?search=1" }
         : undefined
 
     return {
@@ -94,7 +90,7 @@ export function LoopBarMount({ token }: { token: string }) {
       activeIndex: activeStep(pathname),
       next,
     }
-  }, [appsQ.data, matches, pathname, onMarket])
+  }, [appsQ.data, matches, pathname])
 
   if (!onLoop || !model) return null
   return <LoopBar {...model} />

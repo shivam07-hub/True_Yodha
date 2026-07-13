@@ -20,6 +20,7 @@ from __future__ import annotations
 import csv
 import json
 import logging
+import re
 from typing import Any
 
 from app.services import mentor_retriever
@@ -45,8 +46,10 @@ _GUARDRAILS = (
     "reused for any future CV or interview.\n"
     "HONESTY (unbreakable): use ONLY facts stated in the material. NEVER invent "
     "numbers, employers, titles, dates, scope, or outcomes. Copy every metric "
-    "VERBATIM (the exact figure as written). A story with no stated number has an "
-    "empty metrics list.\n"
+    "VERBATIM — the exact token as written, keeping currency symbols and "
+    "suffixes: '€500K+' stays '€500K+', '~200' stays '~200', '₹1 Crore+' stays "
+    "'₹1 Crore+'. NEVER normalize to a plain number like 500000. A story with "
+    "no stated number has an empty metrics list.\n"
     "STORIES: extract as many DISTINCT stories as the material supports — each a "
     "real project/achievement, not a duplicate phrasing of another. Flesh out the "
     "narrative as situation / task / action / result, each 1-2 sentences built "
@@ -132,6 +135,63 @@ def _clean_str(value: Any, cap: int = 400) -> str:
     return str(value or "").strip()[:cap]
 
 
+# ── verbatim-metric guard (pure) ─────────────────────────────────────────────
+#
+# The model sometimes normalizes a stated figure ('€500K+' → 500000) despite the
+# verbatim rule. This deterministic pass re-anchors every metric to the exact
+# token in the story's own text — and DROPS a large pure-digit value that maps
+# to nothing (a normalized form the material never stated = fabricated shape,
+# ADR-0016).
+
+_METRIC_TOKEN_RE = re.compile(
+    r"[€$₹£]?\s?~?\d[\d,.]*(?:\s?(?:k|m|bn|b|cr(?:ore)?s?|l(?:akh)?s?)\b|%)?\+?",
+    re.IGNORECASE,
+)
+_SUFFIX_MULT = {
+    "k": 1e3, "m": 1e6, "b": 1e9, "bn": 1e9,
+    "cr": 1e7, "crore": 1e7, "crores": 1e7,
+    "l": 1e5, "lakh": 1e5, "lakhs": 1e5,
+}
+
+
+def _magnitude(token: str) -> float | None:
+    t = (token or "").strip().lower()
+    t = t.lstrip("€$₹£").strip().lstrip("~").rstrip("+").rstrip("%").strip()
+    m = re.fullmatch(r"([\d,.]+)\s*([a-z]*)", t)
+    if not m:
+        return None
+    try:
+        num = float(m.group(1).replace(",", ""))
+    except ValueError:
+        return None
+    return num * _SUFFIX_MULT.get(m.group(2), 1.0)
+
+
+def verbatim_metric_value(value: str, texts: list[str]) -> str | None:
+    """The display form a metric chip should carry: the exact token as written in
+    the story's own text. Pure-digit values re-anchor by magnitude ('500000' →
+    '€500K+'); unverifiable large pure-digit values drop (None); everything else
+    passes through unchanged."""
+    v = (value or "").strip()
+    if not v:
+        return None
+    pure_digits = bool(re.fullmatch(r"\d[\d,]*", v))
+    mag = _magnitude(v)
+
+    if not pure_digits and any(v.lower() in (t or "").lower() for t in texts):
+        return v
+    if mag is not None:
+        for text in texts:
+            for m in _METRIC_TOKEN_RE.finditer(text or ""):
+                if _magnitude(m.group(0)) == mag:
+                    return m.group(0).strip().rstrip(",.")
+    if pure_digits and any(v in (t or "") for t in texts):
+        return v
+    if pure_digits and (mag or 0) >= 1000:
+        return None  # normalized number the material never states → not a real chip
+    return v
+
+
 def _company_matches(a: str, b: str) -> bool:
     na, nb = " ".join(a.lower().split()), " ".join(b.lower().split())
     return bool(na) and bool(nb) and (na in nb or nb in na)
@@ -199,11 +259,22 @@ def parse_extraction(raw: str) -> dict[str, list[dict[str, Any]]]:
             for k in ("situation", "task", "action", "result")
             if _clean_str(narrative_in.get(k), 600)
         }
-        metrics = [
-            {"value": _clean_str(m.get("value"), 60), "what": _clean_str(m.get("what"), 160)}
-            for m in (item.get("metrics") or [])
-            if isinstance(m, dict) and _clean_str(m.get("value"), 60)
-        ][:8]
+        metric_texts = [title, pointer, *narrative.values()]
+        metrics: list[dict[str, str]] = []
+        seen_metrics: set[tuple[str, str]] = set()
+        for m in (item.get("metrics") or []):
+            if not isinstance(m, dict) or not _clean_str(m.get("value"), 60):
+                continue
+            anchored = verbatim_metric_value(_clean_str(m.get("value"), 60), metric_texts)
+            if not anchored:
+                continue
+            what = _clean_str(m.get("what"), 160)
+            if (anchored.lower(), what.lower()) in seen_metrics:
+                continue
+            seen_metrics.add((anchored.lower(), what.lower()))
+            metrics.append({"value": anchored, "what": what})
+            if len(metrics) >= 8:
+                break
         skills = list(dict.fromkeys(
             s for raw_s in (item.get("skills") or [])
             if isinstance(raw_s, str) and (s := raw_s.strip()[:60])

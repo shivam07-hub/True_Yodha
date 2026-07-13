@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import "@/components/dashboard/dashboard.css"
 import { MatchRefreshGate } from "@/components/jobs/MatchRefreshGate"
+import { SmartSearchPrompt } from "@/components/jobs/smart-search-prompt"
 import { useJobRefresh } from "@/lib/hooks/use-job-refresh"
 import { useParticleMoment } from "@/components/particle"
 import { jobs, users, type MatchHealth } from "@/lib/api"
@@ -69,6 +70,11 @@ export function MatchesRefreshBanner({ token }: { token: string | null }) {
         </div>
       ) : null}
       <MatchVettingBanner token={token} health={matchesData?.match_health} />
+      <SmartSearchPrompt
+        onboardingComplete={profile?.onboarding_complete ?? false}
+        hasCv={profile?.has_cv ?? false}
+        newJobsCount={matchesData?.new_jobs_count ?? 0}
+      />
       <MatchRefreshGate token={token} profile={profile} onRun={() => refreshVm.refresh()} />
     </>
   )
@@ -81,7 +87,7 @@ export function MatchesRefreshBanner({ token }: { token: string | null }) {
  * depreciates trust — and offer a FREE re-vet (undelivered work ≠ paid refresh).
  * On retry we poll the matches cache until Career Ops lands a verdict.
  */
-function MatchVettingBanner({ token, health }: { token: string | null; health?: MatchHealth }) {
+export function MatchVettingBanner({ token, health }: { token: string | null; health?: MatchHealth }) {
   const queryClient = useQueryClient()
   const [retrying, setRetrying] = useState(false)
 
@@ -125,10 +131,10 @@ function MatchVettingBanner({ token, health }: { token: string | null; health?: 
     <div className="db db-stale db-vetting" style={{ marginTop: 14 }} role="status" aria-live="polite">
       <span>
         {retrying
-          ? "Re-checking these with Career Ops…"
+          ? "Re-checking these with Myro Ops…"
           : failed
-            ? "Career Ops couldn’t rank your matches. Your matches aren’t AI-vetted yet."
-            : "These matches aren’t AI-vetted yet — Career Ops couldn’t finish."}
+            ? "Myro Ops couldn’t rank your matches. Your matches aren’t AI-vetted yet."
+            : "These matches aren’t AI-vetted yet — Myro Ops couldn’t finish."}
       </span>
       <button
         type="button"

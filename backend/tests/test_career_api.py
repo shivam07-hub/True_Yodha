@@ -57,6 +57,9 @@ class _FakeReservoirRepo:
     def ingest_status(self, user_id):
         return {"pending": self.pending, "processed": 0}
 
+    def pending_entries(self, user_id, limit=20):
+        return []
+
     def update_story(self, user_id, story_id, updates):
         self.patches.append((story_id, updates))
         for s in self.stories:

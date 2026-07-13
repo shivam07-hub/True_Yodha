@@ -5,7 +5,7 @@ import { createPortal } from "react-dom"
 import Link from "next/link"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
-import { jobs, users, type JobMatchesResponse, type RefreshPreflightResponse, type UserProfile } from "@/lib/api"
+import { jobs, users, type RefreshPreflightResponse, type UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
 import { useCoinsGate } from "@/lib/hooks/use-xp-gate"
@@ -21,10 +21,11 @@ import { useRefreshGateStore } from "@/store/refreshGateStore"
  *    fields arrive silently prefilled from user_memory; prefill lives in the
  *    DRAFT and persists only through the user's Run/Save action. Role chips
  *    are human TITLES — the backend derives the matcher's cluster union.
- *  - The 6 Career Ops agent inputs are VISIBLE by default as a compact
+ *  - The 6 Myro Ops agent inputs are VISIBLE by default as a compact
  *    manifest; 5 are inline-editable, the CV is a read-only chip → new tab.
- *  - Honest conditional charge: "Up to 150 tokens · charged only if new matches".
- *  - Three exits: Run analysis (save+spend) / Save targeting only / Discard.
+ *  - Flat charge: "100 Myro Coins per search" — every run, no free-if-new tier
+ *    (mirrors the backend MATCH_RUN_COST=100; refund only on system failure).
+ *  - Three exits: Run · 100 (save+spend) / Save targeting only / Discard.
  *  - Broke: gate opens, edits stay free, Run disabled + shortfall + /xp link
  *    (reuses the canonical "See how tokens works →" route, not a new earn path).
  *  - Reuses useCoinsGate (policy/telemetry) + the JobMatchDetail dialog pattern.
@@ -111,18 +112,9 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
   const balance = useXPStore((s) => s.balance)
   const queryClient = useQueryClient()
 
-  // Free when there's genuinely new inventory — we added those jobs, so seeing
-  // whether they fit costs nothing. Read passively from the matches cache (the
-  // backend enforces the waiver independently; this is just honest UX). The 150
-  // conditional charge stays for a re-run with no new jobs.
-  const { data: matchesCache } = useQuery<JobMatchesResponse>({
-    queryKey: dataKeys.jobs(),
-    enabled: false,
-  })
-  const newJobsCount = matchesCache?.new_jobs_count ?? 0
-  const willBeFree = newJobsCount > 0
-  const effectiveCost = willBeFree ? 0 : COST
-  const { canAfford, attempt } = useCoinsGate({ cost: effectiveCost, action: "match_refresh" })
+  // Flat charge, every run — no free-if-new tier (the backend charges a flat
+  // MATCH_RUN_COST=100 on confirm; refund only on system failure).
+  const { canAfford, attempt } = useCoinsGate({ cost: COST, action: "match_refresh" })
 
   const [draft, setDraft] = useState<Draft>(() => seed(profile))
   const [confirming, setConfirming] = useState(false)
@@ -266,13 +258,13 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
 
   const cv = cvLabel(profile)
   const cvHref = profile?.cv_url || "/cv"
-  const shortfall = effectiveCost - balance
+  const shortfall = COST - balance
 
   return createPortal(
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Refresh your matches"
+      aria-label="Myro Search"
       onClick={requestClose}
       style={{
         position: "fixed", inset: 0, zIndex: 500,
@@ -315,10 +307,10 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
                 fontFamily: "var(--tm-font-mono)", fontSize: 10.5, letterSpacing: "0.14em",
                 textTransform: "uppercase", color: "var(--tm-interactive)", marginBottom: 6,
               }}>
-                Career Ops · pre-flight
+                Myro Ops · pre-flight
               </div>
               <h3 style={{ margin: 0, fontSize: 19, fontWeight: 650, color: "var(--tm-text)", lineHeight: 1.2 }}>
-                Refresh your matches
+                Myro Search
               </h3>
             </div>
             <button
@@ -327,7 +319,7 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
             >×</button>
           </div>
           <p style={{ margin: "10px 0 0", fontSize: 12.5, color: "var(--tm-text-muted)", lineHeight: 1.55 }}>
-            The agent re-reads the inputs below, then re-scans the latest market batch.
+            Myro reads the inputs below, then scans the live market against your CV.
             Edit anything here — it saves to your profile.
           </p>
         </div>
@@ -415,17 +407,10 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
             border: `1px solid ${canAfford ? "var(--tm-int-border)" : "rgba(251,113,133,0.3)"}`,
           }}>
             <XPCoin />
-            {willBeFree ? (
+            {canAfford ? (
               <div style={{ fontSize: 12.5, color: "var(--tm-text)", lineHeight: 1.5 }}>
-                <strong style={{ fontFamily: "var(--tm-font-mono)", fontWeight: 600, color: "var(--tm-accent-text)" }}>Free</strong>
-                {" · "}<span style={{ color: "var(--tm-text-muted)" }}>
-                  {newJobsCount} new {newJobsCount === 1 ? "job" : "jobs"} since your last match
-                </span>
-              </div>
-            ) : canAfford ? (
-              <div style={{ fontSize: 12.5, color: "var(--tm-text)", lineHeight: 1.5 }}>
-                <strong style={{ fontFamily: "var(--tm-font-mono)", fontWeight: 600 }}>Up to {COST} Myro Coins</strong>
-                {" · "}<span style={{ color: "var(--tm-text-muted)" }}>charged only if new matches are found</span>
+                <strong style={{ fontFamily: "var(--tm-font-mono)", fontWeight: 600 }}>{COST} Myro Coins</strong>
+                {" · "}<span style={{ color: "var(--tm-text-muted)" }}>per search</span>
               </div>
             ) : (
               <div style={{ fontSize: 12.5, lineHeight: 1.5 }}>
@@ -474,7 +459,7 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
                   disabled={!canAfford || busy}
                   loading={busy}
                 >
-                  ▸ Run analysis
+                  ▸ Run · {COST}
                 </Button>
               </div>
             </div>
