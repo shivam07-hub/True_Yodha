@@ -43,13 +43,26 @@ def _norm(text: str) -> str:
     return " ".join((text or "").lower().split())
 
 
+def _dates_match(a: str, b: str) -> bool:
+    """Same-period signal: date labels with identical word tokens after stripping
+    dash/en-dash punctuation ('July 2024 - April 2025' == 'July 2024 – April 2025')."""
+    def tokens(label: str) -> list[str]:
+        return [t for t in _norm(label).replace("–", " ").replace("-", " ").split() if t]
+
+    ta, tb = tokens(a), tokens(b)
+    return bool(ta) and ta == tb
+
+
 def reconcile_role(extracted: dict[str, Any], existing: list[dict[str, Any]]) -> str | None:
     """Match an extracted role to an existing career_roles row (same company AND
-    ~same title, or same company for single-word titles). None → mint a new role.
-    Deliberately conservative: a wrong merge pollutes a container; a miss just
-    creates a role the user can merge later."""
+    ~same title, or same company for single-word titles). A second, date-gated
+    pass catches CROSS-SLOT extractions — one CV lists a team as the company,
+    another as the title — merging only when the date labels are identical.
+    None → mint a new role. Deliberately conservative: a wrong merge pollutes a
+    container; a miss just creates a role the user can merge later."""
     company = _norm(extracted.get("company") or "")
     title = _norm(extracted.get("title") or "")
+    date_label = extracted.get("date_label") or ""
     for row in existing:
         row_company = _norm(row.get("company") or "")
         row_title = _norm(row.get("title") or "")
@@ -63,6 +76,17 @@ def reconcile_role(extracted: dict[str, Any], existing: list[dict[str, Any]]) ->
                 if overlap >= 0.6:
                     return str(row["id"])
         elif not company and not row_company and title and title == row_title:
+            return str(row["id"])
+    # Cross-slot pass: same exact period AND the extracted company matches the
+    # row's title (or vice versa) → the same role sliced differently upstream.
+    for row in existing:
+        if not _dates_match(date_label, row.get("date_label") or ""):
+            continue
+        row_company = _norm(row.get("company") or "")
+        row_title = _norm(row.get("title") or "")
+        if (company and row_title and (company in row_title or row_title in company)) or (
+            title and row_company and (title in row_company or row_company in title)
+        ):
             return str(row["id"])
     return None
 
@@ -212,13 +236,14 @@ async def _ingest_entry(payload: dict[str, Any], allow_retry: bool) -> None:
     if not entry or entry.get("processed_at"):
         return  # unknown or already done — idempotent on at-least-once delivery
 
-    extraction = await story_extractor.extract(entry.get("text") or "", get_paid_jobs_provider())
+    provider = get_paid_jobs_provider()
+    extraction = await story_extractor.extract(entry.get("text") or "", provider)
     if extraction is None:
         if allow_retry:
             raise TransientJobError("provider/budget unavailable")
         return  # in-process path: stays pending, visible in the status line
 
-    story_ids = await _persist_extraction(repo, user_id, entry_id, extraction)
+    story_ids = await _persist_extraction(repo, user_id, entry_id, extraction, provider)
     repo.mark_processed(user_id, entry_id, story_ids)
     logger.info(
         "career_reservoir.ingested user=%s entry=%s stories=%d", user_id, entry_id, len(story_ids),
@@ -227,11 +252,15 @@ async def _ingest_entry(payload: dict[str, Any], allow_retry: bool) -> None:
 
 async def _persist_extraction(
     repo: Any, user_id: str, entry_id: str, extraction: dict[str, list[dict[str, Any]]],
+    provider: Any,
 ) -> list[str]:
-    """Reconcile roles, silently fold duplicate stories, persist the rest with
-    their canonical pointer + embedding. Embedding failure never blocks a write
+    """Reconcile roles, FOLD duplicate stories into their canonical story (the
+    alternate phrasing lands as a pointer variant — never dropped), persist the
+    rest with their canonical pointer + embedding. Ambiguous near-matches go
+    through one batched LLM judge call. Embedding failure never blocks a write
     (the story lands without one; dedup just can't see it yet)."""
-    from app.services.embeddings import embed_texts, to_pgvector
+    from app.services import story_dedup
+    from app.services.embeddings import embed_texts
 
     existing_roles = repo.list_roles(user_id)
     role_ids: list[str | None] = []
@@ -257,53 +286,133 @@ async def _persist_extraction(
     except Exception as exc:  # noqa: BLE001 — embedding is best-effort, never blocks ingest
         logger.info("career_reservoir: embed failed (%s) — storing without vectors", exc.__class__.__name__)
 
-    existing_vectors = [
-        vec for row in repo.story_embeddings(user_id)[:_EMBED_CAP]
-        if (vec := _parse_vector(row.get("embedding"))) is not None
-    ]
+    candidates: list[tuple[str, list[float]]] = []
+    rows_by_id: dict[str, dict[str, Any]] = {}
+    for row in repo.story_dedup_rows(user_id)[:_EMBED_CAP]:
+        vec = _parse_vector(row.get("embedding"))
+        if vec is None:
+            continue
+        sid = str(row["id"])
+        candidates.append((sid, vec))
+        rows_by_id[sid] = row
+
+    def role_of(story: dict[str, Any]) -> tuple[str | None, str | None]:
+        ri = story.get("role_index")
+        if isinstance(ri, int) and 0 <= ri < len(role_ids):
+            return role_ids[ri], role_kinds[ri]
+        return None, None
 
     created: list[str] = []
+    deferred: list[tuple[dict[str, Any], list[float] | None, str]] = []
     for i, story in enumerate(stories):
         vec = vectors[i] if i < len(vectors) else None
-        if vec and is_duplicate(vec, existing_vectors):
-            continue  # silent fold-in: same achievement already in the reservoir
-
-        ri = story.get("role_index")
-        role_id = role_ids[ri] if isinstance(ri, int) and 0 <= ri < len(role_ids) else None
-        role_kind = role_kinds[ri] if isinstance(ri, int) and 0 <= ri < len(role_kinds) else None
-
-        row = repo.add_story(user_id, {
-            "role_id": role_id,
-            "kind": story.get("kind"),
-            "title": story.get("title"),
-            "narrative": story.get("narrative"),
-            "metrics": story.get("metrics"),
-            "skills": story.get("skills"),
-            "source": "ingest",
-            "inflow_ids": [entry_id],
-        })
-        story_id = str(row.get("id") or "")
-        if not story_id:
+        target_id, score = story_dedup.best_match(vec, candidates) if vec else (None, 0.0)
+        verdict = story_dedup.classify(score) if target_id else "new"
+        if verdict == "fold":
+            _fold_into(repo, user_id, entry_id, rows_by_id[target_id], story, role_of(story)[1])
             continue
-        created.append(story_id)
-        if vec:
-            existing_vectors.append(vec)  # in-batch dedup too
-            try:
-                repo.set_story_embedding(user_id, story_id, to_pgvector(vec))
-            except Exception:  # noqa: BLE001
-                logger.info("career_reservoir: embedding write failed story=%s", story_id)
+        if verdict == "judge":
+            deferred.append((story, vec, target_id))  # type: ignore[arg-type]
+            continue
+        _create_story(repo, user_id, entry_id, story, role_of(story), vec, created, candidates, rows_by_id)
 
+    if deferred:
+        pairs = [{"new": s, "existing": rows_by_id[tid]} for s, _, tid in deferred]
+        flags = await story_dedup.judge_pairs(pairs, provider)
+        for (story, vec, target_id), same in zip(deferred, flags):
+            if same:
+                _fold_into(repo, user_id, entry_id, rows_by_id[target_id], story, role_of(story)[1])
+            else:
+                _create_story(repo, user_id, entry_id, story, role_of(story), vec, created, candidates, rows_by_id)
+
+    return created
+
+
+def _create_story(
+    repo: Any, user_id: str, entry_id: str, story: dict[str, Any],
+    role: tuple[str | None, str | None], vec: list[float] | None,
+    created: list[str], candidates: list[tuple[str, list[float]]],
+    rows_by_id: dict[str, dict[str, Any]],
+) -> None:
+    from app.services.embeddings import to_pgvector
+
+    role_id, role_kind = role
+    row = repo.add_story(user_id, {
+        "role_id": role_id,
+        "kind": story.get("kind"),
+        "title": story.get("title"),
+        "narrative": story.get("narrative"),
+        "metrics": story.get("metrics"),
+        "skills": story.get("skills"),
+        "source": "ingest",
+        "inflow_ids": [entry_id],
+    })
+    story_id = str(row.get("id") or "")
+    if not story_id:
+        return
+    created.append(story_id)
+    if vec:
+        candidates.append((story_id, vec))  # in-batch dedup folds later dupes here
+        rows_by_id[story_id] = {**story, "id": story_id, "inflow_ids": [entry_id]}
+        try:
+            repo.set_story_embedding(user_id, story_id, to_pgvector(vec))
+        except Exception:  # noqa: BLE001
+            logger.info("career_reservoir: embedding write failed story=%s", story_id)
+
+    pointer = (story.get("pointer") or "").strip()
+    if pointer:
+        try:
+            repo.add_story_pointer(
+                user_id, story_id,
+                point_key=str(uuid.uuid4()),
+                section=pointer_section(story, role_kind),
+                text=pointer,
+                ordering=float(len(created)),
+            )
+        except Exception:  # noqa: BLE001 — a pointer miss leaves a curatable story
+            logger.info("career_reservoir: pointer write failed story=%s", story_id)
+
+
+def _fold_into(
+    repo: Any, user_id: str, entry_id: str, target_row: dict[str, Any],
+    story: dict[str, Any], role_kind: str | None,
+) -> None:
+    """Merge a same-achievement story into its canonical: the incoming pointer
+    attaches as a variant (the old-CV angle stays selectable), metrics/skills
+    union in, provenance appends. Failure degrades to the pre-fold behaviour
+    (achievement already in the reservoir) — logged, never raised."""
+    from app.services import story_dedup
+
+    target_id = str(target_row.get("id") or "")
+    if not target_id:
+        return
+    try:
         pointer = (story.get("pointer") or "").strip()
         if pointer:
-            try:
+            existing = repo.story_pointers(user_id, [target_id])
+            texts = [p.get("text") or "" for p in existing]
+            if story_dedup.pointer_is_new(pointer, texts):
                 repo.add_story_pointer(
-                    user_id, story_id,
+                    user_id, target_id,
                     point_key=str(uuid.uuid4()),
                     section=pointer_section(story, role_kind),
                     text=pointer,
-                    ordering=float(len(created)),
+                    ordering=float(len(existing) + 1),
+                    is_canonical=False,
                 )
-            except Exception:  # noqa: BLE001 — a pointer miss leaves a curatable story
-                logger.info("career_reservoir: pointer write failed story=%s", story_id)
 
-    return created
+        updates: dict[str, Any] = {}
+        merged_m = story_dedup.merged_metrics(target_row.get("metrics") or [], story.get("metrics") or [])
+        if merged_m != (target_row.get("metrics") or []):
+            updates["metrics"] = merged_m
+        merged_s = story_dedup.merged_skills(target_row.get("skills") or [], story.get("skills") or [])
+        if merged_s != (target_row.get("skills") or []):
+            updates["skills"] = merged_s
+        inflows = list(target_row.get("inflow_ids") or [])
+        if entry_id not in inflows:
+            updates["inflow_ids"] = inflows + [entry_id]
+        if updates:
+            repo.update_story(user_id, target_id, updates)
+            target_row.update(updates)  # keep the in-batch view current
+    except Exception as exc:  # noqa: BLE001 — a failed fold leaves a curatable dupe-free reservoir
+        logger.info("career_reservoir: fold failed story=%s reason=%s", target_id, exc.__class__.__name__)

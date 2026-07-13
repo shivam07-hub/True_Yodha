@@ -37,6 +37,38 @@ def test_reconcile_companyless_exact_title():
     assert cr.reconcile_role({"company": "", "title": "CAT 2021"}, _EXISTING) == "r3"
 
 
+def test_reconcile_cross_slot_same_dates():
+    """One CV lists the team as company, another as title (same period) → same role.
+    The live repro: 'Capgemini GCC Growth · Sales Enablement Team' vs
+    'Sales Enablement Team · Agentic Sales Enablement' (July 2024 – April 2025)."""
+    existing = [{
+        "id": "r9", "company": "Capgemini GCC Growth", "title": "Sales Enablement Team",
+        "kind": "work", "date_label": "July 2024 - April 2025",
+    }]
+    assert cr.reconcile_role(
+        {"company": "Sales Enablement Team", "title": "Agentic Sales Enablement",
+         "date_label": "July 2024 – April 2025"},
+        existing,
+    ) == "r9"
+    # different period → NOT merged (cross-slot is date-gated)
+    assert cr.reconcile_role(
+        {"company": "Sales Enablement Team", "title": "Agentic Sales Enablement",
+         "date_label": "Jan 2020 - June 2022"},
+        existing,
+    ) is None
+    # no dates on either side → never cross-slot merged
+    assert cr.reconcile_role(
+        {"company": "Sales Enablement Team", "title": "Agentic Sales Enablement", "date_label": ""},
+        existing,
+    ) is None
+
+
+def test_dates_match_normalizes_dashes_and_case():
+    assert cr._dates_match("July 2024 - April 2025", "july 2024 – april 2025")
+    assert not cr._dates_match("July 2024 - April 2025", "May 2025 - Present")
+    assert not cr._dates_match("", "")
+
+
 # ── dedup ────────────────────────────────────────────────────────────────────
 
 def test_cosine_and_is_duplicate():

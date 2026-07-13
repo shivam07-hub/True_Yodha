@@ -117,10 +117,25 @@ class CareerReservoirRepository:
         )
         return rows
 
+    def story_dedup_rows(self, user_id: str) -> list[dict[str, Any]]:
+        """Active embedded stories with the fields the fold path needs: identity
+        text for the judge (title/narrative) + merge targets (metrics/skills/
+        inflow_ids)."""
+        return safe_read(
+            self._db.table("career_stories")
+            .select("id, title, narrative, metrics, skills, inflow_ids, embedding")
+            .eq("user_id", user_id)
+            .eq("status", "active")
+            .not_.is_("embedding", "null"),
+            default=[],
+            context="career_stories_dedup_rows",
+        )
+
     # ── story-linked pointers (cv_points) ────────────────────────────────────
 
     def add_story_pointer(
-        self, user_id: str, story_id: str, *, point_key: str, section: str, text: str, ordering: float,
+        self, user_id: str, story_id: str, *, point_key: str, section: str, text: str,
+        ordering: float, is_canonical: bool = True,
     ) -> dict[str, Any]:
         result = (
             self._db.table("cv_points")
@@ -132,7 +147,7 @@ class CareerReservoirRepository:
                 "section": section,
                 "text": text,
                 "source": "manual",
-                "is_canonical": True,
+                "is_canonical": is_canonical,
                 "ordering": ordering,
             })
             .execute()

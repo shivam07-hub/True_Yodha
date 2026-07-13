@@ -74,6 +74,47 @@ def test_parse_extraction_coerces_bad_kinds_and_caps():
     assert len(story["metrics"]) == 8
 
 
+def test_verbatim_metric_value_reanchors_normalized_numbers():
+    texts = ["Achieved €500K+ in revenue by owning GTM strategy for GCC clients."]
+    assert story_extractor.verbatim_metric_value("500000", texts) == "€500K+"
+    texts = ["Shaped $2M+ multi-year proposals by leading the expansion."]
+    assert story_extractor.verbatim_metric_value("2000000", texts) == "$2M+"
+    texts = ["raising ₹1 Crore+ and generating 30,000+ footfall."]
+    assert story_extractor.verbatim_metric_value("30000", texts) == "30,000+"
+    assert story_extractor.verbatim_metric_value("10000000", texts) == "₹1 Crore+"
+
+
+def test_verbatim_metric_value_prefers_full_token_over_bare_digits():
+    texts = ["Generated 50+ qualified leads by driving account penetration."]
+    assert story_extractor.verbatim_metric_value("50", texts) == "50+"
+    texts = ["Cut client costs by ~20% through expense-tracking KPIs."]
+    assert story_extractor.verbatim_metric_value("20", texts) == "~20%"
+
+
+def test_verbatim_metric_value_drops_unanchored_normalizations():
+    # 100000000 (1e8) maps to NOTHING the text states → fabricated shape, dropped
+    texts = ["raising ₹1 Crore+ and generating 30,000+ footfall."]
+    assert story_extractor.verbatim_metric_value("100000000", texts) is None
+    # non-numeric / unverifiable values pass through unchanged
+    assert story_extractor.verbatim_metric_value("Top 10", ["no numbers here"]) == "Top 10"
+    assert story_extractor.verbatim_metric_value("", texts) is None
+
+
+def test_parse_extraction_metric_guard_applies():
+    payload = {"roles": [], "stories": [{
+        "title": "GTM revenue",
+        "pointer": "Achieved €500K+ in revenue by owning GTM strategy.",
+        "narrative": {"result": "€500K+ revenue."},
+        "metrics": [
+            {"value": "500000", "what": "revenue"},
+            {"value": "500000", "what": "revenue"},  # dedup after re-anchor
+        ],
+        "skills": [],
+    }]}
+    out = story_extractor.parse_extraction(json.dumps(payload))
+    assert out["stories"][0]["metrics"] == [{"value": "€500K+", "what": "revenue"}]
+
+
 def test_parse_extraction_pointer_title_fallbacks():
     payload = {"roles": [], "stories": [
         {"title": "", "pointer": "Only a pointer given here."},
