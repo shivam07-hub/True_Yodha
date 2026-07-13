@@ -103,6 +103,26 @@ GROQ_FALLBACK_MODEL = "llama-3.3-70b-versatile"
 # user-blocking CV upload path.
 FREE_OR_TIER_COUNT = 2
 
+# Models too small to trust with a JUDGMENT call — ranking, triage, 5/6-axis eval,
+# verdicts, agent picks. Trust rule (feedback_no_cheap_models_judgment / ADR-0017):
+# a confidently-wrong shortlist is invisible to fallback logic and breaks trust
+# irreversibly (gemma-3-4b ranked banker jobs for a senior SWE with zero errors).
+_JUDGMENT_UNSAFE_MODELS = frozenset({
+    "google/gemma-3-4b-it",
+    "google/gemma-3-12b-it",
+    "ibm-granite/granite-4.1-8b",
+    "openai/gpt-5-nano",
+    "z-ai/glm-4.7-flash",
+    "google/gemma-4-26b-a4b-it",
+})
+# The judgment lane = every OR tier with NO small model. Derived by EXCLUSION so a
+# reorder of OR_TIERS (or a small model slipped into a strong tier) can never silently
+# leak a 4B model onto a ranking path — the whole tier drops instead (fail-safe).
+JUDGMENT_OR_TIERS: list[list[str]] = [
+    tier for tier in OR_TIERS
+    if not any(model in _JUDGMENT_UNSAFE_MODELS for model in tier)
+]
+
 
 class LLMProviderError(Exception):
     """Raised when all configured providers fail or return empty responses."""
@@ -318,6 +338,31 @@ def get_paid_jobs_provider() -> LLMProvider:
     if not provider._providers:
         return _build_provider(OR_TIERS)
     return provider
+
+
+def get_judgment_provider() -> LLMProvider:
+    """Strong-only lane for every JUDGMENT call — triage, 5/6-axis eval, verdicts,
+    agent picks. This is THE model floor for [[feedback_no_cheap_models_judgment]].
+
+    Leads with the strong FREE tiers (gpt-oss-120b, llama-3.3-70b — no cost, no
+    quality loss), backstops with strong PAID (gpt-4o-mini, llama-70b) and the last
+    resort (kimi-k2), plus Groq llama-3.3-70b direct. It NEVER falls to a small
+    model: the cheap paid tiers (gemma / granite / nano / glm-flash) are excluded by
+    ``JUDGMENT_OR_TIERS`` and Gemini flash-lite is deliberately omitted — so a total
+    strong-model outage fails the run (→ refund + honest retry) rather than emitting a
+    confidently-wrong shortlist. Every surface that ranks/judges routes through this;
+    callers no longer pass a provider into a judgment path.
+    """
+    providers: list[_ProviderEntry] = []
+    _append_openrouter_tiers(providers, JUDGMENT_OR_TIERS)
+    # Groq llama-3.3-70b only (strong). NOT Gemini flash-lite — too small to judge.
+    if settings.groq_api_key:
+        providers.append((
+            _make_client(settings.groq_api_key, _GROQ_BASE),
+            GROQ_FALLBACK_MODEL,
+            None,
+        ))
+    return LLMProvider(providers)
 
 
 # Multimodal-capable models, cheapest first. Used for parsing a screenshot/photo

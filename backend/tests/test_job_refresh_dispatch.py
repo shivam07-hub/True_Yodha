@@ -96,30 +96,31 @@ def test_refresh_excludes_all_prior_match_jobs_for_novelty(monkeypatch: pytest.M
     assert ticket.id == "ticket-1"
     assert repo.batch_week_arg is None
     assert captured["excluded_job_ids"] == ["old-job", "older-job"]
-    assert captured["xp_charged"] == 150  # MATCH_REFRESH_XP_COST — no new jobs, so charged
+    assert captured["xp_charged"] == 100  # MATCH_RUN_COST — flat, every run
 
 
-def test_refresh_is_free_when_new_jobs_exist(monkeypatch: pytest.MonkeyPatch) -> None:
-    """We added the inventory — the user shouldn't pay to see whether it fits.
-    New jobs present → charge is never called and the ticket reports xp_charged=0."""
+def test_refresh_charges_flat_even_when_new_jobs_exist(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Standardized matcher: EVERY run costs the flat MATCH_RUN_COST — the old
+    'free when new jobs' waiver (#36 N2) is gone. New jobs present → still charged.
+    The fairness backstop (refund a no-op run) stays at _dispatch, not here."""
     repo = _RefreshRepo(new_jobs=12)
     captured: dict[str, Any] = {}
 
-    async def fail_charge(*_args: Any, **_kwargs: Any) -> int:
-        pytest.fail("refresh must be FREE when new jobs exist — charge() should not run")
+    async def fake_charge(*_args: Any, **_kwargs: Any) -> int:
+        return 450
 
     async def fake_dispatch(**kwargs: Any):
         captured.update(kwargs)
         return _fake_ticket(**kwargs)
 
-    monkeypatch.setattr("app.services.job_refresh._xp_charge.charge", fail_charge)
+    monkeypatch.setattr("app.services.job_refresh._xp_charge.charge", fake_charge)
     monkeypatch.setattr("app.services.job_refresh._dispatch.dispatch", fake_dispatch)
 
     ticket = asyncio.run(JobRefresh.start("user-1", repo, date(2026, 6, 1)))  # type: ignore[arg-type]
 
-    assert ticket.xp_charged == 0
-    assert captured["xp_charged"] == 0
-    assert captured["new_coin_balance"] is None  # balance untouched → client skips reconcile
+    assert ticket.xp_charged == 100
+    assert captured["xp_charged"] == 100  # charged despite new inventory
+    assert captured["new_coin_balance"] == 450
 
 
 def test_rq_connection_is_binary_state_connection_is_decoded(monkeypatch) -> None:

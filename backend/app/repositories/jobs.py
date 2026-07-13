@@ -2306,6 +2306,56 @@ class JobsRepository:
         fresh = self._filter_job_ids_by_freshness(located)
         return fresh
 
+    def get_candidate_job_ids_for_roles(
+        self,
+        role_titles: list[str],
+        *,
+        target_location_countries: list[str] | None = None,
+        require_fresh: bool = True,
+        limit: int = 400,
+    ) -> list[str]:
+        """career-ops title_filter as a candidate SELECTOR — jobs whose TITLE matches
+        the user's target roles, independent of skill overlap.
+
+        The skill-overlap selector (`get_candidate_job_ids_for_skills`) can never see a
+        role-right job whose skills the taxonomy missed; this reaches it. Recall is an
+        index-backed title ilike over the roles' significant tokens (GIN trigram index
+        idx_jobs_job_title_trgm); precision is `_role_match_score` (ALL tokens of some
+        role present in the title/role_domain — no fuzzy or fabricated relevance).
+        Freshness + location gate the same way the skill selector does. Newest-first,
+        capped. Returns [] when the user has no target roles (nothing to match on).
+        """
+        token_sets = _role_token_sets(role_titles)
+        if not token_sets:
+            return []
+        positive = sorted({tok for toks in token_sets for tok in toks})
+        or_clause = ",".join(f"job_title.ilike.%{tok}%" for tok in positive)
+        query = (
+            self._db.table("jobs")
+            .select("job_id, job_title, role_domain")
+            .or_(or_clause)
+        )
+        if require_fresh:
+            query = (
+                query.eq("is_active", True)
+                .eq("listing_confidence", "active")
+                .gte("last_seen", _fresh_cutoff_marker())
+            )
+        rows = (
+            query.order("last_seen", desc=True).limit(limit * 4).execute()
+        ).data or []
+        # Precision: keep only true role-title matches (all tokens of some role present).
+        matched_ids = [
+            r["job_id"]
+            for r in rows
+            if _role_match_score(r.get("job_title"), r.get("role_domain"), token_sets) > 0
+        ]
+        if target_location_countries:
+            matched_ids = self._filter_job_ids_by_location(
+                matched_ids, target_location_countries
+            )
+        return matched_ids[:limit]
+
     def get_all_job_skill_rows(self, *, job_ids: list[str] | None = None) -> list[dict[str, Any]]:
         """Raw job_skills JOIN skills rows for the matcher. No grouping."""
         return fetch_job_skill_rows(self._db, job_ids=job_ids)
@@ -2512,6 +2562,7 @@ class JobsRepository:
                 "overall_score, grade, recommendation, application_angle, summary, "
                 "role_fit, comp_fit, growth_fit, culture_fit, risk_score, strengths, concerns, "
                 "archetype, legitimacy_tier, legitimacy_reason, "
+                "level_strategy, personalization, star_pointers, "
                 "jobs(job_title, company_name, industry, location, location_raw, location_city, "
                 "location_country, location_mode, location_quality, locations, apply_url, "
                 "job_summary, job_description, "
@@ -2548,7 +2599,8 @@ class JobsRepository:
     _MATCH_EVAL_FULL_COLS = (
         _MATCH_EVAL_BADGE_COLS
         + ", summary, application_angle, role_fit, comp_fit, growth_fit, "
-        "culture_fit, risk_score, strengths, concerns"
+        "culture_fit, risk_score, strengths, concerns, "
+        "level_strategy, personalization, star_pointers"
     )
 
     def get_cached_match_evals(
@@ -2658,6 +2710,7 @@ class JobsRepository:
                 "overall_score, grade, recommendation, application_angle, summary, "
                 "role_fit, comp_fit, growth_fit, culture_fit, risk_score, strengths, concerns, "
                 "archetype, legitimacy_tier, legitimacy_reason, "
+                "level_strategy, personalization, star_pointers, "
                 "jobs(job_title, company_name, industry, location, location_raw, location_city, "
                 "location_country, location_mode, location_quality, locations, apply_url, job_description)"
             )

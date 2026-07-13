@@ -527,6 +527,34 @@ async def rank_one(profile, cv_markdown, job, provider) -> eval | None
 - `budget` caps how many of the shortlist reach the brain (cost control). `None` = brain the whole shortlist = the batch-compute behaviour. `rank_one` is the single-job on-demand path (a job opened/saved anywhere) whose result is **cached** into `user_job_matches` — never a per-request LLM call in bulk.
 - `RankCandidates.eval_cache_fetcher` (Backlog #36) lets `rank` skip any shortlist job already evaluated for this user — a job is brain-rated **once per `(user, job)`, ever** (permanent identity, migration 20260710), never re-paid on a later compute. Omit it for the old always-eval behaviour.
 - `compute_job_matches` (the batch compute — CV upload, paid Refresh, or scrape-triggered sweep) routes through `rank`; the exhausted/refund gates and candidate-id fetching stay in `jobs_workflow` (DB-coupled), unchanged. Its skip gate is **event-driven** (has-ever-matched + nothing-new-since), not calendar-driven.
+- **The model floor (F1) is owned inside `compute_job_matches`, not passed by callers.** Every judgment call (triage + eval) runs on `get_judgment_provider()` — the strong-only lane (see **Judgment provider** below). The `llm_provider` arg is a test-only override; no caller can put a small model on a ranking path.
+- **`RankCandidates.pool_augmenter`** (standardized matcher) unions the CandidatePool title_filter selector onto the overlap pool *before* triage, keeping `rank` DB-agnostic (the caller supplies the callback). None → overlap-only pool.
+
+## Judgment provider
+
+`llm_provider.get_judgment_provider()` is THE model floor for every LLM call that RANKS / JUDGES / VETS / RECOMMENDS (triage, 5/6-axis eval, verdicts, agent picks). It leads with the strong FREE tiers (gpt-oss-120b, llama-3.3-70b) → strong PAID (gpt-4o-mini, llama-70b) → Groq direct, and **never** falls to a small model: `JUDGMENT_OR_TIERS` is derived by *exclusion* (any OR tier containing gemma/granite/nano/glm-flash drops whole, so a reorder can't leak a 4B model) and Gemini flash-lite is omitted — a total strong-model outage fails the run (→ refund) rather than emitting a confidently-wrong shortlist. Rationale: a weak model's judgment failure is silent (it answers "successfully"); only the model floor catches it. See `feedback_no_cheap_models_judgment` + ADR-0017. Cheap tiers stay valid for *extraction* (CV parse, screenshot OCR) — only judgment is floored.
+
+## CandidatePool
+
+The seam that decides WHICH jobs reach the brain (`app/services/matching/candidate_pool.py`). Unions the deterministic selectors so a role-right job reaches triage regardless of how it was found:
+
+1. **skill-overlap** — `get_candidate_job_ids_for_skills` + `get_top_matches` scoring (the caller's overlap pool).
+2. **title_filter** (career-ops) — `get_candidate_job_ids_for_roles`: jobs whose TITLE matches the target roles, recall via the index-backed title ilike (`idx_jobs_job_title_trgm`), precision via `_role_match_score` (all tokens of some role present — no fabricated relevance), gated by the same freshness + location rules.
+
+**Invariants**
+- Overlap is a **ranking signal inside the pool, no longer the gate**. A title-matched job with zero skill overlap still enters (`merge_triage_pool` reserves up to half the pool for title-only candidates, as zero-overlap rows) and the **strong-model triage — not overlap — does the real selection**. This is the "brain is boss, overlap only cost-bounds" shape.
+- `assemble` **fails open** — a title-selector error leaves the overlap pool intact + emits `metric candidate_pool.title_selector_failed`.
+- Same seam the semantic retrieval slice (`project_semantic_job_retrieval` Slice 2) unions into later — swap `title_ids` for semantic ids, same merge.
+
+## Match Run
+
+The ONE module every match surface routes through (`app/services/matching/match_run.py`): **compute → Agent Picks regen → fresh-match notification**. Before it, only the scrape sweep did picks + notify; a paid Refresh and the CV-upload initial match computed but left the picks band stale and never notified — so the outputs of a match run drifted per-path. `run_match(repo, user_id, batch_week, *, force, excluded_job_ids, on_progress, notify, regenerate_picks, scrape_batch)` returns the `MatchComputeOutcome` so ticket/dispatch callers read the same shape.
+
+**Invariants**
+- Picks + notify are **best-effort side-effects** (guarded, logged) — a failure in either never loses the compute or its outcome.
+- `notify=False` where the user watches the reveal live (paid Refresh, onboarding initial); background runs (sweep, future login-confirm async) notify — debounced 12h, so it's spam-safe.
+- The **100-coin charge** (`MATCH_RUN_COST`) is a property of a run but lives at the entry seam that owns the wallet + reveal ticket (`job_refresh` charges at dispatch, `_dispatch` refunds on failure). This module owns the WORK, not the charge.
+- Callers: `job_refresh/_pipeline` (paid Refresh worker), `cv_workflow` (onboarding initial), `scrape_sweep` (background sweep). Every one now gets identical outputs.
 
 ---
 

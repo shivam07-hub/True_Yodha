@@ -57,6 +57,11 @@ class RankCandidates:
     # Optional — omit for the old always-eval behaviour (on-demand rank_one path
     # doesn't need it, it has its own cache check one level up).
     eval_cache_fetcher: Callable[[list[str]], dict[str, dict[str, Any]]] | None = None
+    # Standardized matcher (CandidatePool seam): given the overlap-ranked pool, returns
+    # the FINAL triage pool — overlap ∪ career-ops title_filter (∪ semantic, later). The
+    # brain triage then selects over the union, so a role-right, overlap-poor job reaches
+    # it. None → overlap-only pool (rank stays DB-agnostic; the caller owns the union).
+    pool_augmenter: Callable[[list[dict[str, Any]]], list[dict[str, Any]]] | None = None
 
 
 @dataclass(frozen=True)
@@ -104,6 +109,10 @@ async def rank(
         top_n=jobs.top_n,
         debug=debug,
     )
+    # CandidatePool: union the career-ops title_filter selector onto the overlap pool
+    # BEFORE triage, so a role-right job the taxonomy missed still reaches the brain.
+    if jobs.pool_augmenter is not None:
+        top_jobs = jobs.pool_augmenter(top_jobs)
     if not top_jobs or not use_brain or provider is None:
         return RankResult(top_jobs=top_jobs, evaluations={})
 
