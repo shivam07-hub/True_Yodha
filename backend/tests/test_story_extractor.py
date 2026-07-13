@@ -89,6 +89,9 @@ def test_verbatim_metric_value_prefers_full_token_over_bare_digits():
     assert story_extractor.verbatim_metric_value("50", texts) == "50+"
     texts = ["Cut client costs by ~20% through expense-tracking KPIs."]
     assert story_extractor.verbatim_metric_value("20", texts) == "~20%"
+    # sentence punctuation never rides along on the token
+    texts = ["leading the expansion to grow ~200, supporting proposals."]
+    assert story_extractor.verbatim_metric_value("200", texts) == "~200"
 
 
 def test_verbatim_metric_value_drops_unanchored_normalizations():

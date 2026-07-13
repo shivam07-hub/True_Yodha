@@ -184,7 +184,7 @@ def verbatim_metric_value(value: str, texts: list[str]) -> str | None:
         for text in texts:
             for m in _METRIC_TOKEN_RE.finditer(text or ""):
                 if _magnitude(m.group(0)) == mag:
-                    return m.group(0).strip()
+                    return m.group(0).strip().rstrip(",.")
     if pure_digits and any(v in (t or "") for t in texts):
         return v
     if pure_digits and (mag or 0) >= 1000:
