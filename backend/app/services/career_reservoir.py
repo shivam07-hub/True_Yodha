@@ -220,6 +220,41 @@ def enqueue_ingest(user_id: str, entry_id: str) -> None:
     )
 
 
+_REQUEUE_AFTER_SECONDS = 15 * 60
+_last_requeue: dict[str, float] = {}  # per-process debounce; profile polls every 4s
+
+
+def retry_stale_ingests(repo: Any, user_id: str) -> int:
+    """Re-enqueue pending inflow entries whose ingest job died (worker redeploy,
+    exhausted retries, flushed queue) — enqueue is idempotent on the entry id and
+    the handler no-ops on processed_at, so a duplicate delivery is safe. Called
+    from the profile read (the surface already polling while entries pend), so a
+    stuck 'Reading N dumps' heals itself instead of pulsing forever."""
+    import time
+    from datetime import datetime, timezone
+
+    now = time.time()
+    requeued = 0
+    for entry in repo.pending_entries(user_id):
+        raw = entry.get("created_at")
+        try:
+            created = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+            age = now - created.timestamp() if created.tzinfo else now - created.replace(tzinfo=timezone.utc).timestamp()
+        except (ValueError, TypeError):
+            age = _REQUEUE_AFTER_SECONDS  # unparseable timestamp → eligible
+        if age < _REQUEUE_AFTER_SECONDS:
+            continue
+        entry_id = str(entry.get("id") or "")
+        if not entry_id or now - _last_requeue.get(entry_id, 0.0) < _REQUEUE_AFTER_SECONDS:
+            continue
+        _last_requeue[entry_id] = now
+        enqueue_ingest(user_id, entry_id)
+        requeued += 1
+    if requeued:
+        logger.info("career_reservoir.requeued_stale user=%s entries=%d", user_id, requeued)
+    return requeued
+
+
 @handler(JOB_TYPE_INGEST)
 async def _ingest_entry(payload: dict[str, Any], allow_retry: bool) -> None:
     from app.database import get_supabase_admin

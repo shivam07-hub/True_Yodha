@@ -69,6 +69,39 @@ def test_dates_match_normalizes_dashes_and_case():
     assert not cr._dates_match("", "")
 
 
+# ── retry_stale_ingests ──────────────────────────────────────────────────────
+
+class _PendingRepo:
+    def __init__(self, entries):
+        self._entries = entries
+
+    def pending_entries(self, user_id, limit=20):
+        return self._entries
+
+
+def test_retry_stale_ingests_requeues_old_and_debounces(monkeypatch):
+    from datetime import datetime, timedelta, timezone
+
+    calls: list[str] = []
+    monkeypatch.setattr(cr, "enqueue_ingest", lambda uid, eid: calls.append(eid))
+    cr._last_requeue.clear()
+
+    old = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    fresh = datetime.now(timezone.utc).isoformat()
+    repo = _PendingRepo([
+        {"id": "stale-1", "created_at": old},
+        {"id": "fresh-1", "created_at": fresh},   # too young → left alone
+        {"id": "junk-ts", "created_at": "not-a-date"},  # unparseable → eligible
+    ])
+
+    assert cr.retry_stale_ingests(repo, "u1") == 2
+    assert calls == ["stale-1", "junk-ts"]
+    # second poll inside the debounce window is a no-op
+    assert cr.retry_stale_ingests(repo, "u1") == 0
+    assert calls == ["stale-1", "junk-ts"]
+    cr._last_requeue.clear()
+
+
 # ── dedup ────────────────────────────────────────────────────────────────────
 
 def test_cosine_and_is_duplicate():

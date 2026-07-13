@@ -191,6 +191,7 @@ def reservoir_profile(
     user: CurrentUser = Depends(get_current_user),
     repo: CareerReservoirRepository = Depends(get_career_reservoir_repository),
 ) -> ProfileView:
+    career_reservoir.retry_stale_ingests(repo, user.id)  # heal dead ingest jobs
     roles = repo.list_roles(user.id)
     stories = repo.list_stories(user.id)
     pointers = repo.story_pointers(user.id, [str(s["id"]) for s in stories])
