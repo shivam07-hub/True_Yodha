@@ -306,7 +306,40 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-11 - Railway job verifier activation)
+## LAST SESSION SUMMARY (2026-07-13 - Railway verifier failure diagnosis)
+
+Diagnosed failed Railway cron deployment
+`90e61fa0-b4f4-44c9-9052-14dede01b2c5` for `job-listing-verifier`
+without changing code or infrastructure.
+
+- The container and verifier entrypoint started successfully; the failure was
+  not a Railway build, source, or start-command problem.
+- The first target-selection request to Supabase REST returned HTTP 500 with a
+  Cloudflare 1101 `Worker threw exception` HTML response.
+- The repository classified the response as transient and retried three times
+  with exponential backoff. All three upstream requests failed, so the final
+  `postgrest.exceptions.APIError` propagated and the one-shot cron process
+  exited non-zero.
+- The queue query is bounded to 500 rows and backed by
+  `idx_jobs_verification_queue`; the same query had completed successfully in
+  the earlier production sweep. Evidence therefore points to an isolated
+  Supabase edge/Data API failure, not malformed query content.
+- Supabase reported no platform-wide incident for 2026-07-13. A later public
+  REST-edge probe returned the expected JSON 401 in 83 ms, showing the edge was
+  responding normally again.
+- Live Railway readback was unavailable because both local CLI and Railway MCP
+  OAuth require `railway login` again; diagnosis used the attached deployment
+  log and repository evidence.
+
+Validation:
+
+- `.venv/bin/pytest backend/tests/test_job_listing_verification_repository.py backend/tests/test_job_listing_verifier.py backend/tests/test_job_verification_queue_migration.py -q`:
+  17 passed, 1 warning.
+- `.venv/bin/pytest backend/tests -q`: 1250 passed, 29 warnings.
+- `cd frontend && npx tsc --noEmit --pretty false`: clean.
+- `cd frontend && npm run lint`: clean.
+
+## OLDER SESSION SUMMARY (2026-07-11 - Railway job verifier activation)
 
 Activated the continuous trusted-listing verifier on Railway and ran the first
 expanded production sweep without bypassing the retirement rulebook.
