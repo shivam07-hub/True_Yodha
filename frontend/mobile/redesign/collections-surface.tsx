@@ -1,15 +1,16 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { jobs as jobsApi, users as usersApi, type ApplicationResponse } from "@/lib/api"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { jobs as jobsApi, users as usersApi, type ApplicationResponse, type JobMatch } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { SORTS, type SortKey } from "@/lib/dashboard/feed-model"
 import {
-  COLLECTION_CHIPS,
-  appToFeedItem,
+  FOLDER_CHIPS,
   buildCollectionsView,
+  buildContinueLane,
+  buildMyroFound,
   chipCounts,
   collectionsTriageCtx,
   emptyCopy,
@@ -19,44 +20,49 @@ import {
   matchesById,
   type CollectionChip,
 } from "@/lib/collections/model"
+import { useJobRefresh } from "@/lib/hooks/use-job-refresh"
+import { openRefreshGate } from "@/store/refreshGateStore"
+import { MatchRefreshGate } from "@/components/jobs/MatchRefreshGate"
 import { usePulses } from "@/lib/hooks/use-pulses"
 import { useApplyCapture } from "@/components/jobs/use-apply-capture"
 import { BottomSheet } from "./bottom-sheet"
 import { JobDetailSheet, type JobDetailData } from "./job-detail-sheet"
 import { ApplyCapturePromptMobile } from "./apply-capture-prompt"
 import { AddJobSheet } from "./add-job-sheet"
-import { CollectionCard, pulseLine } from "./collection-card"
+import { CollectionCard, MyroFoundCard, pulseLine } from "./collection-card"
 import { MobileAgentPicks } from "./agent-picks-mobile"
 import { matchToRow } from "./job-model"
 import { useMobileUI } from "./mobile-ui"
 
 /* ══════════════════════════════════════════════════════════════════════════
-   CollectionsSurface — the handoff Collections tab over REAL saved jobs
-   (jobs.applications). Journey strip · pinned "Finish tailoring" lane ·
-   source/status chips · triage order (prize×winnability, ported from the
-   retired /home dashboard) with a sort sheet · Job Pulse trust line ·
-   Tailor CV / Tailored ✓ · add-job sheet (link → extract, JD-paste fallback).
+   CollectionsSurface — the mobile Myro Ops folder. "Myro found" reads the brain
+   match stack (jobs.matches) THRESHOLD-split (above-bar here + Agent Picks,
+   below-bar → Jobs, rejected hidden); "You added" / "Applied" are the saved-job
+   worklist. A Myro Search (the paid run) reveals in place. Journey strip ·
+   pinned "Finish tailoring" lane · sort sheet · Job Pulse trust line · add-job.
    ══════════════════════════════════════════════════════════════════════════ */
 
 const JOURNEY_DISMISS_KEY = "mm_collections_journey_dismissed_at"
 const JOURNEY_RESURFACE_MS = 7 * 24 * 60 * 60 * 1000 // re-teach the loop after 7 days away
 
-export function CollectionsSurface({ token, initialJobId }: { token: string; initialJobId?: string | null }) {
+export function CollectionsSurface({ token, initialJobId, openSearch }: { token: string; initialJobId?: string | null; openSearch?: boolean }) {
   const router = useRouter()
   const qc = useQueryClient()
   const { snack, closeSnack } = useMobileUI()
+  const refreshVm = useJobRefresh(token, qc)
 
   const appsQ = useQuery({ queryKey: dataKeys.applications(), queryFn: () => jobsApi.applications(token), enabled: !!token, staleTime: 60 * 1000 })
   const matchesQ = useQuery({ queryKey: ["jobs", "matches"], queryFn: () => jobsApi.matches(token), enabled: !!token, staleTime: 5 * 60 * 1000 })
+  const picksQ = useQuery({ queryKey: ["agentPicks", token], queryFn: () => jobsApi.agentPicks(token), enabled: !!token, staleTime: 30 * 60 * 1000 })
   const { data: followed } = useQuery({ queryKey: ["followedCompanies", token], queryFn: () => usersApi.followedCompanies(token), enabled: !!token, staleTime: 5 * 60 * 1000 })
   const { data: profile } = useQuery({ queryKey: dataKeys.profile(), queryFn: () => usersApi.me(token), enabled: !!token, staleTime: 10 * 60 * 1000 })
 
-  const [chip, setChip] = useState<CollectionChip>("all")
+  const [chip, setChip] = useState<CollectionChip>("found")
   const [sort, setSort] = useState<SortKey>("prize")
   const [sortOpen, setSortOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(initialJobId ?? null)
-  const [refreshing, setRefreshing] = useState(false)
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set())
   const [journeyHidden, setJourneyHidden] = useState(() => {
     if (typeof window === "undefined") return false
     const at = Number(window.localStorage.getItem(JOURNEY_DISMISS_KEY))
@@ -69,7 +75,6 @@ export function CollectionsSurface({ token, initialJobId }: { token: string; ini
 
   const apps = useMemo(() => appsQ.data ?? [], [appsQ.data])
   const byId = useMemo(() => matchesById(matchesQ.data?.jobs), [matchesQ.data])
-  const counts = useMemo(() => chipCounts(apps), [apps])
   const appBy = useMemo(() => {
     const m = new Map<string, ApplicationResponse>()
     for (const a of apps) m.set(a.job_id, a)
@@ -80,30 +85,66 @@ export function CollectionsSurface({ token, initialJobId }: { token: string; ini
     () => collectionsTriageCtx(apps, (followed?.companies ?? []).map(c => c.company_name), profile?.target_roles ?? []),
     [apps, followed, profile],
   )
-  const view = useMemo(() => buildCollectionsView(apps, chip, sort, ctx, byId), [apps, chip, sort, ctx, byId])
+  const continueItems = useMemo(() => buildContinueLane(apps, ctx, byId), [apps, ctx, byId])
+  const dismissedIds = useMemo(() => {
+    const s = new Set(matchesQ.data?.dismissed_job_ids ?? [])
+    dismissed.forEach(id => s.add(id))
+    return s
+  }, [matchesQ.data, dismissed])
+  const shownElsewhere = useMemo(() => {
+    const s = new Set(continueItems.map(it => it.jobId))
+    for (const p of picksQ.data?.picks ?? []) s.add(p.job_id)
+    return s
+  }, [continueItems, picksQ.data])
+  const myroFound = useMemo(() => buildMyroFound(matchesQ.data?.jobs, dismissedIds, shownElsewhere), [matchesQ.data, dismissedIds, shownElsewhere])
+
+  const counts = useMemo(() => chipCounts(apps, myroFound.found.length), [apps, myroFound.found.length])
+  const appView = useMemo(
+    () => (chip === "added" || chip === "applied" ? buildCollectionsView(apps, chip, sort, ctx, byId) : null),
+    [apps, chip, sort, ctx, byId],
+  )
+
+  const continueApps = useMemo(() => continueItems.map(it => appBy.get(it.jobId)).filter(Boolean) as ApplicationResponse[], [continueItems, appBy])
+  const queueApps = useMemo(() => (appView?.queueItems ?? []).map(it => appBy.get(it.jobId)).filter(Boolean) as ApplicationResponse[], [appView, appBy])
 
   const shownIds = useMemo(
-    () => [...view.continueItems, ...view.queueItems].map(it => it.jobId),
-    [view],
+    () => [...continueItems.map(it => it.jobId), ...myroFound.found.map(it => it.jobId), ...queueApps.map(a => a.job_id)],
+    [continueItems, myroFound.found, queueApps],
   )
   const pulses = usePulses(token, shownIds)
-
   const tailoredN = apps.filter(a => a.cv_badge).length
 
+  // Deep-linked from the Loop Bar "N new" signal (Slice 5) → open the gate once.
+  const searchOpened = useRef(false)
+  useEffect(() => {
+    if (openSearch && !searchOpened.current) { searchOpened.current = true; openRefreshGate() }
+  }, [openSearch])
+
+  // Fresh-matches nudge on a successful run (mobile: a snack, not particles).
+  const firedRef = useRef(false)
+  useEffect(() => {
+    if (refreshVm.state === "done" && (refreshVm.matchesWritten ?? 0) > 0) {
+      if (!firedRef.current) { firedRef.current = true; snack({ msg: "Fresh matches ready" }) }
+    } else if (refreshVm.state !== "done") {
+      firedRef.current = false
+    }
+  }, [refreshVm.state, refreshVm.matchesWritten, snack])
+
   const detailApp = detailId ? appBy.get(detailId) ?? null : null
+  const detailMatch = detailId && !detailApp ? byId.get(detailId) ?? null : null
   const applyCapture = useApplyCapture({
     token,
-    job: { job_id: detailApp?.job_id ?? "", source_url: detailApp?.source_url ?? null, company: detailApp?.company ?? null },
+    job: {
+      job_id: detailApp?.job_id ?? detailMatch?.job_id ?? "",
+      source_url: detailApp?.source_url ?? detailMatch?.source_url ?? null,
+      company: detailApp?.company ?? detailMatch?.company ?? null,
+    },
     surface: "other",
     onFindSimilar: () => { setDetailId(null); router.push("/market") },
   })
 
-  const remove = useMutation({
-    mutationFn: (jobId: string) => jobsApi.removeTrackerJob(token, jobId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: dataKeys.applications() }),
-  })
   const doUnsave = (a: ApplicationResponse) => {
-    remove.mutate(a.job_id)
+    void jobsApi.removeTrackerJob(token, a.job_id).then(() => qc.invalidateQueries({ queryKey: dataKeys.applications() }))
     setDetailId(null)
     snack({ msg: "Removed from Collections", action: "Undo", onAction: () => { void jobsApi.saveJob(token, a.job_id).then(() => qc.invalidateQueries({ queryKey: dataKeys.applications() })); closeSnack() } })
   }
@@ -112,56 +153,62 @@ export function CollectionsSurface({ token, initialJobId }: { token: string; ini
     if (url) void navigator.clipboard?.writeText(url).catch(() => {})
     snack({ msg: url ? "Link copied" : "No link on this role" })
   }
-  const doRefresh = () => {
-    if (refreshing) return
-    setRefreshing(true)
-    void Promise.all([appsQ.refetch(), matchesQ.refetch()]).finally(() => {
-      setTimeout(() => { setRefreshing(false); snack({ msg: "Fresh — every link re-verified today" }) }, 600)
-    })
+  const saveMatch = (jobId: string) => {
+    void jobsApi.saveJob(token, jobId).then(() => qc.invalidateQueries({ queryKey: dataKeys.applications() }))
+    setDetailId(null)
+    snack({ msg: "Saved to Collections" })
+  }
+  const dismissMatch = (jobId: string) => {
+    setDismissed(prev => new Set(prev).add(jobId))
+    setDetailId(cur => (cur === jobId ? null : cur))
+    void jobsApi.dismissMatchCard(token, jobId).then(() => qc.invalidateQueries({ queryKey: dataKeys.jobs() }))
   }
 
-  // Rows render from the FeedItem's job (the REAL match when the brain has
-  // evaluated it, synthMatch otherwise) + the live pulse for the trust line.
-  const rowFor = (jobId: string) => {
-    const it = [...view.continueItems, ...view.queueItems].find(x => x.jobId === jobId)
-      ?? (appBy.get(jobId) ? appToFeedItem(appBy.get(jobId)!, byId.get(jobId)) : null)
-    if (!it) return null
-    const row = matchToRow(it.job)
-    const trust = pulseLine(pulses.get(jobId))
-    if (trust) {
-      row.verified = trust.text
-      if (trust.warn) row.checkDetails = true
+  // Detail data — a saved application OR an above-bar Myro Found match.
+  const detailData: JobDetailData | null = (() => {
+    if (detailApp) {
+      const row = matchToRow((byId.get(detailApp.job_id)) ?? synthFromApp(detailApp))
+      const trust = pulseLine(pulses.get(detailApp.job_id))
+      if (trust) { row.verified = trust.text; if (trust.warn) row.checkDetails = true }
+      const match = byId.get(detailApp.job_id)
+      return {
+        row,
+        whyFit: match?.llm_explanation ?? (detailApp.job_summary ?? detailApp.job_description ?? "").slice(0, 260),
+        matched: detailApp.matched_skills ?? [],
+        gaps: detailApp.missing_skills ?? [],
+        saved: true,
+        hasApply: !!applyCapture.target.url,
+      }
     }
-    return { row, fitKnown: it.fit != null }
-  }
-
-  const detailData: JobDetailData | null = detailApp
-    ? (() => {
-        const r = rowFor(detailApp.job_id)
-        if (!r) return null
-        const match = byId.get(detailApp.job_id)
-        return {
-          row: r.row,
-          whyFit: match?.llm_explanation ?? (detailApp.job_summary ?? detailApp.job_description ?? "").slice(0, 260),
-          matched: detailApp.matched_skills ?? [],
-          gaps: detailApp.missing_skills ?? [],
-          saved: true,
-          hasApply: !!applyCapture.target.url,
-        }
-      })()
-    : null
+    if (detailMatch) {
+      const row = matchToRow(detailMatch)
+      const trust = pulseLine(pulses.get(detailMatch.job_id))
+      if (trust) { row.verified = trust.text; if (trust.warn) row.checkDetails = true }
+      return {
+        row,
+        whyFit: detailMatch.llm_explanation ?? (detailMatch.job_summary ?? detailMatch.job_description ?? "").slice(0, 260),
+        matched: detailMatch.matched_skills ?? [],
+        gaps: detailMatch.missing_skills ?? [],
+        saved: false,
+        hasApply: !!applyCapture.target.url,
+      }
+    }
+    return null
+  })()
 
   const statusChipFor = (a: ApplicationResponse) =>
     isApplied(a) ? "Applied" : isExtSource(a.source) ? "Extension" : !isMyroSource(a.source) ? "You added" : ""
 
-  const renderCard = (a: ApplicationResponse) => {
-    const r = rowFor(a.job_id)
-    if (!r) return null
+  const renderAppCard = (a: ApplicationResponse) => {
+    const it = byId.get(a.job_id) ?? synthFromApp(a)
+    const row = matchToRow(it)
+    const trust = pulseLine(pulses.get(a.job_id))
+    if (trust) { row.verified = trust.text; if (trust.warn) row.checkDetails = true }
     return (
       <CollectionCard
         key={a.job_id}
-        row={r.row}
-        fitKnown={r.fitKnown}
+        row={row}
+        fitKnown={(byId.get(a.job_id)?.match_score ?? 0) > 0}
         statusChip={statusChipFor(a)}
         tailored={!!a.cv_badge}
         pulse={pulses.get(a.job_id)}
@@ -174,23 +221,30 @@ export function CollectionsSurface({ token, initialJobId }: { token: string; ini
     )
   }
 
-  const continueApps = view.continueItems.map(it => appBy.get(it.jobId)).filter(Boolean) as ApplicationResponse[]
-  const queueApps = view.queueItems.map(it => appBy.get(it.jobId)).filter(Boolean) as ApplicationResponse[]
+  const isRefreshing = refreshVm.state === "charging" || refreshVm.state === "computing"
+  const newJobs = matchesQ.data?.new_jobs_count ?? 0
+  const trulyEmpty = !appsQ.isLoading && !matchesQ.isLoading && apps.length === 0 && (matchesQ.data?.jobs?.length ?? 0) === 0
 
   return (
     <div data-screen-label="Collections" className="mm-root" style={{ background: "var(--mm-bg)", minHeight: "100%", animation: "mm-screenIn 240ms cubic-bezier(0.16,1,0.3,1)" }}>
       <div style={{ padding: "10px 16px 10px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <h1 style={{ margin: 0, fontSize: 25, fontWeight: 700, letterSpacing: "-0.03em" }}>Collections</h1>
           <div style={{ flex: 1 }} />
-          <button onClick={() => setSortOpen(true)} aria-label="Sort" style={{ width: 32, height: 32, borderRadius: 99, border: "none", background: "transparent", color: "#a6a69e", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M7 4v16m0 0-3-3m3 3 3-3M17 20V4m0 0-3 3m3-3 3 3" /></svg>
+          {chip !== "found" && (
+            <button onClick={() => setSortOpen(true)} aria-label="Sort" style={{ width: 32, height: 32, borderRadius: 99, border: "none", background: "transparent", color: "#a6a69e", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M7 4v16m0 0-3-3m3 3 3-3M17 20V4m0 0-3 3m3-3 3 3" /></svg>
+            </button>
+          )}
+          <button onClick={() => openRefreshGate()} disabled={isRefreshing} className="mm-press" style={{ position: "relative", height: 32, display: "flex", alignItems: "center", gap: 5, padding: "0 12px", borderRadius: 99, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", opacity: isRefreshing ? 0.6 : 1 }}>
+            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+            {isRefreshing ? "Searching…" : "Search"}
+            {!isRefreshing && newJobs > 0 ? (
+              <span style={{ position: "absolute", top: -4, right: -4, minWidth: 16, height: 16, padding: "0 4px", borderRadius: 99, background: "#fb7185", color: "#1a0d10", fontSize: 9.5, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>{newJobs}</span>
+            ) : null}
           </button>
-          <button onClick={doRefresh} aria-label="Refresh" style={{ width: 32, height: 32, borderRadius: 99, border: "none", background: "transparent", color: "#a6a69e", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: refreshing ? "mm-spin 0.9s linear infinite" : "none" }}>
-            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M20 11a8 8 0 1 0-2.3 5.6" /><path d="M20 5v6h-6" /></svg>
-          </button>
-          <button onClick={() => setAddOpen(true)} className="mm-press" style={{ height: 32, display: "flex", alignItems: "center", gap: 5, padding: "0 12px", borderRadius: 99, border: "1px solid rgba(255,255,255,0.09)", background: "#212120", color: "#f2f2ee", fontSize: 12.5, fontWeight: 650, cursor: "pointer", fontFamily: "inherit" }}>
-            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>Add job
+          <button onClick={() => setAddOpen(true)} className="mm-press" style={{ height: 32, display: "flex", alignItems: "center", gap: 5, padding: "0 11px", borderRadius: 99, border: "1px solid rgba(255,255,255,0.09)", background: "#212120", color: "#f2f2ee", fontSize: 12.5, fontWeight: 650, cursor: "pointer", fontFamily: "inherit" }}>
+            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>Add
           </button>
         </div>
 
@@ -210,7 +264,7 @@ export function CollectionsSurface({ token, initialJobId }: { token: string; ini
 
         {/* filter chips */}
         <div className="mm-scroll" style={{ display: "flex", gap: 6, marginTop: 10, overflowX: "auto" }}>
-          {COLLECTION_CHIPS.map(({ key, label }) => {
+          {FOLDER_CHIPS.map(({ key, label }) => {
             const on = chip === key
             return (
               <button key={key} onClick={() => setChip(key)} style={{ flex: "none", height: 28, display: "flex", alignItems: "center", gap: 5, padding: "0 12px", borderRadius: 99, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,0.08)"}`, background: on ? "#3a3a36" : "transparent", color: on ? "#f2f2ee" : "#a6a69e", fontSize: 12, fontWeight: 650, cursor: "pointer", fontFamily: "inherit", transition: "background 160ms" }}>
@@ -221,7 +275,7 @@ export function CollectionsSurface({ token, initialJobId }: { token: string; ini
         </div>
       </div>
 
-      {/* finish-tailoring lane — tailored but not applied, one step from done */}
+      {/* finish-tailoring lane — tailored but not applied, chip-independent */}
       {continueApps.length > 0 && (
         <div style={{ padding: "0 16px 4px" }}>
           <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", color: "#8b8b84", textTransform: "uppercase", marginBottom: 6 }}>
@@ -240,16 +294,62 @@ export function CollectionsSurface({ token, initialJobId }: { token: string; ini
       )}
 
       <div style={{ padding: "2px 16px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-        {/* Curated Agent Picks above the saved worklist (default "All" view). */}
-        {chip === "all" ? <MobileAgentPicks token={token} context="collections" /> : null}
-        {queueApps.length === 0 && continueApps.length === 0 && !appsQ.isLoading ? (
+        {chip === "found" ? (
+          <>
+            <MobileAgentPicks token={token} context="collections" />
+            {isRefreshing ? (
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "12px 14px", borderRadius: 13, border: "1px solid rgba(0,245,212,0.2)", background: "var(--mm-accent-wash)", fontSize: 12.5, color: "#d6d6cf" }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 99, background: "var(--mm-accent)", animation: "mm-dotBlink 1.1s infinite", flex: "none" }} />
+                  {refreshVm.progressLabel ?? "Myro Ops · reading the market"}
+                  {refreshVm.progressTotal != null && refreshVm.progressDone != null ? ` · ${refreshVm.progressDone}/${refreshVm.progressTotal}` : ""}
+                </div>
+                {[0, 1, 2].map(i => <div key={i} style={{ height: 86, borderRadius: 16, background: "#212120", border: "1px solid rgba(255,255,255,0.04)", opacity: 0.55 }} />)}
+              </>
+            ) : myroFound.found.length > 0 ? (
+              <>
+                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", color: "#8b8b84", textTransform: "uppercase" }}>
+                  Cleared the bar · {myroFound.found.length}
+                </div>
+                {myroFound.found.map(it => {
+                  const row = matchToRow(it.job)
+                  const trust = pulseLine(pulses.get(it.jobId))
+                  if (trust) { row.verified = trust.text; if (trust.warn) row.checkDetails = true }
+                  return (
+                    <MyroFoundCard
+                      key={it.jobId}
+                      row={row}
+                      fitKnown={it.fit != null}
+                      pulse={pulses.get(it.jobId)}
+                      onOpen={() => setDetailId(it.jobId)}
+                      onDismiss={() => dismissMatch(it.jobId)}
+                      onTailor={() => router.push(`/cv?jobId=${encodeURIComponent(it.jobId)}`)}
+                    />
+                  )
+                })}
+                <SplitFooter belowBarCount={myroFound.belowBarCount} rejectedCount={myroFound.rejectedCount} onBrowseJobs={() => router.push("/market")} />
+              </>
+            ) : trulyEmpty ? (
+              <div style={{ textAlign: "center", padding: "40px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, border: "1px dashed rgba(255,255,255,0.1)", borderRadius: 16 }}>
+                <div style={{ fontSize: 15.5, fontWeight: 700 }}>Run your first Myro Search</div>
+                <div style={{ fontSize: 12.5, color: "#8b8b84", lineHeight: 1.5, maxWidth: "34ch" }}>Myro reads the live market against your CV and fills this folder with the roles that clear its quality bar.</div>
+                <button onClick={() => openRefreshGate()} className="mm-press" style={ctaBtn}>Myro Search</button>
+              </div>
+            ) : (
+              <div style={{ padding: "8px 2px", display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ fontSize: 13, color: "#c9c9c2" }}>Nothing cleared the bar in your last search.</div>
+                <SplitFooter belowBarCount={myroFound.belowBarCount} rejectedCount={myroFound.rejectedCount} onBrowseJobs={() => router.push("/market")} />
+              </div>
+            )}
+          </>
+        ) : queueApps.length === 0 && !appsQ.isLoading ? (
           <div style={{ textAlign: "center", padding: "44px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
             <div style={{ fontSize: 15, fontWeight: 650 }}>Nothing here yet</div>
             <div style={{ fontSize: 12.5, color: "#8b8b84", lineHeight: 1.5 }}>{emptyCopy(chip)}</div>
             <button onClick={() => router.push("/market")} className="mm-press" style={ctaBtn}>Browse jobs</button>
           </div>
         ) : (
-          queueApps.map(renderCard)
+          queueApps.map(renderAppCard)
         )}
       </div>
 
@@ -258,14 +358,17 @@ export function CollectionsSurface({ token, initialJobId }: { token: string; ini
         onClose={() => setDetailId(null)}
         data={detailData}
         token={token}
-        onHeart={() => detailApp && doUnsave(detailApp)}
-        onSkip={() => detailApp && doUnsave(detailApp)}
-        onTailor={() => detailApp && router.push(`/cv?jobId=${encodeURIComponent(detailApp.job_id)}`)}
+        onHeart={() => (detailApp ? doUnsave(detailApp) : detailMatch && saveMatch(detailMatch.job_id))}
+        onSkip={() => (detailApp ? doUnsave(detailApp) : detailMatch && dismissMatch(detailMatch.job_id))}
+        onTailor={() => { const id = detailApp?.job_id ?? detailMatch?.job_id; if (id) router.push(`/cv?jobId=${encodeURIComponent(id)}`) }}
         onApply={() => { if (applyCapture.target.url) applyCapture.open() }}
-        captureSlot={detailApp ? <ApplyCapturePromptMobile capture={applyCapture} /> : null}
+        captureSlot={detailApp || detailMatch ? <ApplyCapturePromptMobile capture={applyCapture} /> : null}
       />
 
       <AddJobSheet open={addOpen} onClose={() => setAddOpen(false)} token={token} onAdded={() => { void qc.invalidateQueries({ queryKey: dataKeys.applications() }); setChip("added") }} snack={snack} closeSnack={closeSnack} onTailor={(jobId) => router.push(`/cv?jobId=${encodeURIComponent(jobId)}`)} />
+
+      {/* Pre-flight gate — opened by the Search button / deep-link; charges the flat run. */}
+      <MatchRefreshGate token={token} profile={profile} onRun={() => refreshVm.refresh()} />
 
       {/* sort sheet — same axes as desktop (Best next / Best fit / Recent / A–Z) */}
       <BottomSheet open={sortOpen} onClose={() => setSortOpen(false)} label="Sort">
@@ -281,6 +384,40 @@ export function CollectionsSurface({ token, initialJobId }: { token: string; ini
           </div>
         </div>
       </BottomSheet>
+    </div>
+  )
+}
+
+/** Synthesise a JobMatch shape from an application so a saved row renders the
+ *  same card as a real match (mirrors feed-model.synthMatch, mobile-lean). */
+function synthFromApp(a: ApplicationResponse): JobMatch {
+  return {
+    id: a.id, job_id: a.job_id, title: a.title, company: a.company,
+    location: a.location ?? null, location_city: a.location_city ?? null,
+    location_country: a.location_country ?? null, location_mode: a.location_mode ?? null,
+    locations: a.locations ?? [], remote: a.location_mode === "remote", overlap_score: 0,
+    match_score: 0, verdict: "checking", is_strong: false, llm_rank: null, llm_explanation: null,
+    batch_week: "", source_url: a.source_url ?? null, matched_skills: a.matched_skills ?? [],
+    missing_skills: a.missing_skills ?? [], job_summary: a.job_summary ?? null,
+    job_description: a.job_description ?? null, date_posted: a.date_posted ?? null,
+    seniority_level: a.seniority_level ?? null, work_mode: a.work_mode ?? null,
+    min_years_experience: a.min_years_experience ?? null, max_years_experience: a.max_years_experience ?? null,
+  }
+}
+
+function SplitFooter({ belowBarCount, rejectedCount, onBrowseJobs }: { belowBarCount: number; rejectedCount: number; onBrowseJobs: () => void }) {
+  if (belowBarCount === 0 && rejectedCount === 0) return null
+  return (
+    <div style={{ marginTop: 4, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: 7 }}>
+      {belowBarCount > 0 ? (
+        <div style={{ fontSize: 12, color: "#8b8b84", lineHeight: 1.5 }}>
+          {belowBarCount} more ranked below the bar —{" "}
+          <button onClick={onBrowseJobs} style={{ background: "none", border: "none", padding: 0, color: "var(--mm-accent)", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", fontSize: 12 }}>see them in Jobs →</button>
+        </div>
+      ) : null}
+      {rejectedCount > 0 ? (
+        <div style={{ fontSize: 12, color: "#71716a", lineHeight: 1.5 }}>{rejectedCount} rejected — dead listing, wrong level, or off your deal-breakers.</div>
+      ) : null}
     </div>
   )
 }

@@ -27,7 +27,7 @@ function CollectionsInner() {
   usePendingJobSaveClaim(token)
 
   if (!ready) return null
-  if (mode === "mobile") return <CollectionsSurface token={token ?? ""} initialJobId={jobId} />
+  if (mode === "mobile") return <CollectionsSurface token={token ?? ""} initialJobId={jobId} openSearch={openSearch} />
   return <CollectionsDesktop token={token ?? ""} initialJobId={jobId} openSearch={openSearch} />
 }
 
