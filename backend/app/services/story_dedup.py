@@ -84,6 +84,19 @@ def classify(score: float) -> str:
     return "new"
 
 
+def find_title_twin(title: str, rows_by_id: dict[str, dict[str, Any]]) -> str | None:
+    """An existing story with the SAME normalized title — a deterministic dupe
+    signal that embeddings can miss when the phrasings diverge. A twin is never
+    auto-folded, only sent to the judge."""
+    norm = _norm(title)
+    if not norm:
+        return None
+    for sid, row in rows_by_id.items():
+        if _norm(str(row.get("title") or "")) == norm:
+            return sid
+    return None
+
+
 # ── pure: fold merging ───────────────────────────────────────────────────────
 
 def _norm(text: str) -> str:

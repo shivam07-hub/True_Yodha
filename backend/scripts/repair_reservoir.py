@@ -78,6 +78,10 @@ async def _plan_story_folds(
             continue
         target_id, score = story_dedup.best_match(vec, kept)
         verdict = story_dedup.classify(score) if target_id else "new"
+        if verdict == "new":
+            twin = story_dedup.find_title_twin(str(story.get("title") or ""), rows_by_id)
+            if twin:
+                target_id, verdict = twin, "judge"
         if verdict == "fold":
             folds.append((sid, target_id))
             continue

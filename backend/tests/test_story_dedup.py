@@ -25,6 +25,13 @@ def test_classify_thresholds():
     assert sd.classify(0.79) == "new"
 
 
+def test_find_title_twin_normalized():
+    rows = {"s1": {"title": "Reduced Client Costs"}, "s2": {"title": "Other"}}
+    assert sd.find_title_twin("reduced  client costs", rows) == "s1"
+    assert sd.find_title_twin("Something new", rows) is None
+    assert sd.find_title_twin("", rows) is None
+
+
 # ── fold merging ─────────────────────────────────────────────────────────────
 
 def test_pointer_is_new_normalizes():

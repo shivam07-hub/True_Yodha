@@ -308,6 +308,10 @@ async def _persist_extraction(
         vec = vectors[i] if i < len(vectors) else None
         target_id, score = story_dedup.best_match(vec, candidates) if vec else (None, 0.0)
         verdict = story_dedup.classify(score) if target_id else "new"
+        if verdict == "new":
+            twin = story_dedup.find_title_twin(str(story.get("title") or ""), rows_by_id)
+            if twin:
+                target_id, verdict = twin, "judge"
         if verdict == "fold":
             _fold_into(repo, user_id, entry_id, rows_by_id[target_id], story, role_of(story)[1])
             continue
