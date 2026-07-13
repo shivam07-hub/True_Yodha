@@ -108,6 +108,10 @@ class MatchEval(BaseModel):
     archetype: str | None = None
     legitimacy_tier: str | None = None      # high_confidence | caution | suspicious
     legitimacy_reason: str | None = None
+    # Career Ops strategy block (6-block eval) — per-candidate positioning
+    level_strategy: str | None = None       # level fit + how to play it
+    personalization: str | None = None      # how THIS candidate tailors their application
+    star_pointers: list[str] = []           # the candidate's own STAR stories to cite (no-fab)
 
     # ── Match Verdict ─────────────────────────────────────────────────────────
     # The whole "how good is this, what should they do" decision, behind three
@@ -212,6 +216,9 @@ class JobMatchResponse(BaseModel):
     archetype: str | None = None                 # Career Ops Block A — role archetype
     legitimacy_tier: str | None = None           # Block G — high_confidence|caution|suspicious
     legitimacy_reason: str | None = None
+    level_strategy: str | None = None            # 6-block — level fit + how to play it
+    personalization: str | None = None           # 6-block — per-candidate application tailoring
+    star_pointers: list[str] = []                # 6-block — candidate's own STAR stories to cite
     is_recommended: bool = False
     baseline_version_id: int | None = None
     target_context_hash: str | None = None

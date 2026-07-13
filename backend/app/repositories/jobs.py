@@ -2512,6 +2512,7 @@ class JobsRepository:
                 "overall_score, grade, recommendation, application_angle, summary, "
                 "role_fit, comp_fit, growth_fit, culture_fit, risk_score, strengths, concerns, "
                 "archetype, legitimacy_tier, legitimacy_reason, "
+                "level_strategy, personalization, star_pointers, "
                 "jobs(job_title, company_name, industry, location, location_raw, location_city, "
                 "location_country, location_mode, location_quality, locations, apply_url, "
                 "job_summary, job_description, "
@@ -2548,7 +2549,8 @@ class JobsRepository:
     _MATCH_EVAL_FULL_COLS = (
         _MATCH_EVAL_BADGE_COLS
         + ", summary, application_angle, role_fit, comp_fit, growth_fit, "
-        "culture_fit, risk_score, strengths, concerns"
+        "culture_fit, risk_score, strengths, concerns, "
+        "level_strategy, personalization, star_pointers"
     )
 
     def get_cached_match_evals(
@@ -2658,6 +2660,7 @@ class JobsRepository:
                 "overall_score, grade, recommendation, application_angle, summary, "
                 "role_fit, comp_fit, growth_fit, culture_fit, risk_score, strengths, concerns, "
                 "archetype, legitimacy_tier, legitimacy_reason, "
+                "level_strategy, personalization, star_pointers, "
                 "jobs(job_title, company_name, industry, location, location_raw, location_city, "
                 "location_country, location_mode, location_quality, locations, apply_url, job_description)"
             )

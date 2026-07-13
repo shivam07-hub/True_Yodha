@@ -100,6 +100,11 @@ Also classify and legitimacy-check the posting (Career Ops Block A + Block G):
     "suspicious"      — ghost/scam signals: no real scope, pay-to-apply / upfront-fee language, contradictory seniority vs pay, mass-generic "rockstar/ninja" filler with no substance, or a JD that reads like a template with nothing concrete.
 - legitimacy_reason: one short phrase naming the strongest signal behind the tier (e.g. "detailed stack + scope", "boilerplate, no specifics", "asks for an upfront fee").
 
+Then give this specific candidate their strategy for THIS posting (Career Ops strategy block):
+- level_strategy: one honest sentence on the candidate's level vs this role and how to play it (e.g. "at level — apply directly", "slightly below level; lead with growth and adjacent wins", "over-qualified; frame as a deliberate pivot"). When the title's seniority is ambiguous, judge it from the JD scope, NOT the title string.
+- personalization: 2-3 sentences on how THIS candidate should tailor their application — what to lead with, which of THEIR experiences to foreground, what gap to pivot around. Ground every claim in the CV above; never invent experience.
+- star_pointers: a JSON array of 2-4 SHORT phrases naming the candidate's OWN most-relevant projects/achievements to cite for this role, taken verbatim-in-spirit from the CV above. NO fabrication (ADR-0016): include ONLY real items present in the CV; if nothing is clearly relevant, return [].
+
 Rules:
 - Reward strong alignment with the candidate's target roles; penalise roles far outside them.
 - Reward the candidate's preferred location; flag relocation risk otherwise (do not hard-fail).
@@ -123,7 +128,10 @@ Respond ONLY with valid JSON, no prose outside it, matching exactly:
   "application_angle": "1-2 sentences on how THIS candidate should position themselves if applying",
   "archetype": "1-3 word role archetype",
   "legitimacy_tier": "high_confidence|caution|suspicious",
-  "legitimacy_reason": "short phrase naming the strongest signal"
+  "legitimacy_reason": "short phrase naming the strongest signal",
+  "level_strategy": "one sentence on level fit + how to play it",
+  "personalization": "2-3 sentences tailoring THIS candidate's application, grounded in the CV",
+  "star_pointers": ["real CV project/achievement to cite", "..."]
 }}"""
 
 
@@ -257,9 +265,12 @@ async def _triage_once(
         logger.error("triage: providers failed over pool=%d — falling back to overlap order", len(pool_jobs))
         return pool_jobs[:keep_n]
     indices = parse_triage(content, len(pool_jobs), keep_n)
-    if not indices:
-        logger.warning("triage: unparseable/empty shortlist — falling back to overlap order")
+    if indices is None:
+        logger.warning("triage: unparseable — falling back to overlap order")
         return pool_jobs[:keep_n]
+    # F2: an empty shortlist `[]` is a DELIBERATE "none of these fit" from a strong
+    # model (never-pad) — honour it, never pad with overlap-head junk. Only genuinely
+    # unparseable output (None) falls back to the overlap head.
     return [pool_jobs[i] for i in indices]
 
 
@@ -349,6 +360,11 @@ def parse_eval(text: str) -> dict[str, Any] | None:
             else None
         ),
         "legitimacy_reason": (str(obj["legitimacy_reason"]).strip()[:160] or None) if obj.get("legitimacy_reason") else None,
+        # Career Ops strategy block (6-block extension): level fit, per-candidate
+        # application tailoring, and the candidate's own STAR pointers to cite.
+        "level_strategy": (str(obj["level_strategy"]).strip()[:400] or None) if obj.get("level_strategy") else None,
+        "personalization": (str(obj["personalization"]).strip()[:1000] or None) if obj.get("personalization") else None,
+        "star_pointers": [str(s).strip()[:160] for s in (obj.get("star_pointers") or []) if str(s).strip()][:4],
     }
 
 
@@ -491,6 +507,9 @@ def persist_matches(
             "archetype": ev.get("archetype"),
             "legitimacy_tier": ev.get("legitimacy_tier"),
             "legitimacy_reason": ev.get("legitimacy_reason"),
+            "level_strategy": ev.get("level_strategy"),
+            "personalization": ev.get("personalization"),
+            "star_pointers": ev.get("star_pointers") or [],
             "is_recommended": is_recommended,
             "baseline_version_id": baseline_version_id,
             "target_context_hash": credibility.context_hash,

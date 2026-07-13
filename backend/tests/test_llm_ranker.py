@@ -90,6 +90,39 @@ def test_persist_matches_writes_5axis_fields() -> None:
     assert row["concerns"] == ["Comp unclear"]
 
 
+def test_persist_matches_writes_6block_strategy() -> None:
+    db = _FakeDB()
+    llm_ranker.persist_matches(
+        db=db,  # type: ignore[arg-type]
+        user_id="user-1",
+        batch_week=date(2026, 5, 25),
+        top_jobs=[{"job_id": "job-1", "overlap_score": 82.0, "matched_skills": ["Python"]}],
+        evaluations={"job-1": _eval(
+            level_strategy="at level; apply directly",
+            personalization="Lead with your backend wins.",
+            star_pointers=["PDWare API", "Walmart cost-saving app"],
+        )},
+    )
+    row = db.tape["rows"][0]
+    assert row["level_strategy"] == "at level; apply directly"
+    assert row["personalization"] == "Lead with your backend wins."
+    assert row["star_pointers"] == ["PDWare API", "Walmart cost-saving app"]
+
+
+def test_persist_matches_6block_defaults_empty_star_pointers() -> None:
+    db = _FakeDB()
+    llm_ranker.persist_matches(
+        db=db,  # type: ignore[arg-type]
+        user_id="user-1",
+        batch_week=date(2026, 5, 25),
+        top_jobs=[{"job_id": "job-1", "overlap_score": 82.0, "matched_skills": []}],
+        evaluations={"job-1": _eval()},  # no 6-block keys
+    )
+    row = db.tape["rows"][0]
+    assert row["level_strategy"] is None
+    assert row["star_pointers"] == []  # never NULL — jsonb default '[]'
+
+
 def test_persist_matches_unevaluated_job_gets_null_brain_fields() -> None:
     db = _FakeDB()
     llm_ranker.persist_matches(
@@ -286,6 +319,27 @@ def test_parse_eval_returns_none_on_garbage() -> None:
     assert llm_ranker.parse_eval("no json here") is None
 
 
+def test_parse_eval_extracts_6block_strategy() -> None:
+    out = llm_ranker.parse_eval(
+        '{"overall_score": 4.2, "recommendation": "Apply",'
+        ' "level_strategy": "at level; apply directly",'
+        ' "personalization": "Lead with your backend wins.",'
+        ' "star_pointers": ["PDWare API", "Walmart cost-saving app", "", "  "]}'
+    )
+    assert out is not None
+    assert out["level_strategy"] == "at level; apply directly"
+    assert out["personalization"] == "Lead with your backend wins."
+    assert out["star_pointers"] == ["PDWare API", "Walmart cost-saving app"]  # blanks dropped
+
+
+def test_parse_eval_6block_defaults_when_absent() -> None:
+    out = llm_ranker.parse_eval('{"overall_score": 4.0, "recommendation": "Apply"}')
+    assert out is not None
+    assert out["level_strategy"] is None
+    assert out["personalization"] is None
+    assert out["star_pointers"] == []
+
+
 # ── per-job reveal callback (ADR-0009) ──────────────────────────────────────────
 
 def test_evaluate_all_fires_on_progress_per_job(monkeypatch) -> None:
@@ -380,6 +434,18 @@ def test_triage_falls_back_on_unparseable_shortlist() -> None:
     pool = _pool(6)
     out = asyncio.run(llm_ranker.triage_shortlist({}, pool, prov, keep_n=2))
     assert [j["job_id"] for j in out] == ["j0", "j1"]
+
+
+def test_triage_honours_deliberate_empty_shortlist() -> None:
+    # F2: a strong model returning {"shortlist": []} means "none of these fit" —
+    # honour it (never-pad). Unlike unparseable output, it does NOT fall back to the
+    # overlap head, so junk never propagates on an honest "no fits here".
+    import asyncio
+    prov = _TriageProvider('{"shortlist": []}')
+    pool = _pool(6)
+    out = asyncio.run(llm_ranker.triage_shortlist({}, pool, prov, keep_n=2))
+    assert out == []
+    assert prov.calls == 1
 
 
 def test_triage_tournament_for_large_pool() -> None:

@@ -50,6 +50,15 @@ def location_compatible(profile: dict[str, Any], job: dict[str, Any]) -> bool:
     target = _location_token(str(profile.get("target_location") or ""))
     if not target:
         return True
+    # F4: a job dict with NO location signal at all reached this gate from a lean
+    # caller that didn't attach location meta. The candidate pool already location-
+    # filtered upstream, so a metaless job here was pool-approved — absent meta is not
+    # a mismatch. Barring it is a false negative that silently blocks recommendations.
+    if not any(
+        str(job.get(key) or "").strip()
+        for key in ("location_country", "location_city", "location_mode", "location")
+    ):
+        return True
     target_country = _location_token(str(profile.get("target_location_country") or ""))
     job_country = _location_token(str(job.get("location_country") or ""))
     if target_country and job_country and target_country != job_country:
@@ -82,6 +91,18 @@ def evaluate_credibility(
             int(baseline_id), role_title, seniority, target_location,
         )
     seniority_fit = seniority_compatibility(seniority, str(job.get("title") or ""))
+    if seniority_fit == "unknown":
+        # F3: the title's seniority is unreadable ("Software Engineer II", "SDE N 4A").
+        # Defer to the brain — a strong Apply/Negotiate at >=3.5 already encodes an
+        # at-level judgment (the eval prompt makes it Skip roles far outside level), so
+        # an unreadable title must not structurally bar a genuinely strong match. A
+        # weak/absent verdict leaves it "unknown" (honest — no forced compatibility).
+        if (
+            recommendation in {"Apply", "Negotiate"}
+            and overall_score is not None
+            and overall_score >= 3.5
+        ):
+            seniority_fit = "compatible"
     credible = bool(
         context_hash
         and overall_score is not None
