@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from app.deps import CurrentUser, get_current_user
 from app.main import app
 from app.repositories.notifications import NotificationsRepository, get_notifications_repository
-from app.services.matching import scrape_sweep
+from app.services.matching import match_run
 
 
 # ── router ──────────────────────────────────────────────────────────────────
@@ -185,6 +185,8 @@ def test_record_fresh_matches_merges_into_unread_within_window() -> None:
 
 
 class _FakeSweepRepo2:
+    client = object()  # match_run._notify_fresh_matches reads repo.client (admin) for notifs
+
     def __init__(self, before_ids: list[str], after_stack: list[dict[str, Any]]) -> None:
         self._before = before_ids
         self._after = after_stack
@@ -210,9 +212,9 @@ def test_notify_fresh_matches_writes_only_new_and_picks_top(monkeypatch: Any) ->
     def _fake_record(self: Any, user_id: str, **kwargs: Any) -> None:
         captured.update(user_id=user_id, **kwargs)
 
-    monkeypatch.setattr(scrape_sweep.NotificationsRepository, "record_fresh_matches", _fake_record)
+    monkeypatch.setattr(match_run.NotificationsRepository, "record_fresh_matches", _fake_record)
 
-    scrape_sweep._notify_fresh_matches(object(), repo, "u1", {"old1"})  # type: ignore[arg-type]
+    match_run._notify_fresh_matches(repo, "u1", {"old1"})  # type: ignore[arg-type]
 
     assert captured["count"] == 2  # new1 + new2, old1 excluded
     assert captured["job_id"] == "new2"  # highest overall_score among the NEW ones
@@ -230,8 +232,8 @@ def test_notify_fresh_matches_noop_when_nothing_new(monkeypatch: Any) -> None:
     def _fake_record(self: Any, *_a: Any, **_k: Any) -> None:
         called["n"] += 1
 
-    monkeypatch.setattr(scrape_sweep.NotificationsRepository, "record_fresh_matches", _fake_record)
+    monkeypatch.setattr(match_run.NotificationsRepository, "record_fresh_matches", _fake_record)
 
-    scrape_sweep._notify_fresh_matches(object(), repo, "u1", {"a", "b"})  # type: ignore[arg-type]
+    match_run._notify_fresh_matches(repo, "u1", {"a", "b"})  # type: ignore[arg-type]
 
     assert called["n"] == 0  # never notify on speculation

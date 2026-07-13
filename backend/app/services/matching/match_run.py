@@ -22,12 +22,11 @@ from app.repositories.notifications import NotificationsRepository
 from app.services import jobs_workflow
 from app.services.jobs_workflow import MatchComputeOutcome
 from app.services.matching import agent_picks
+from app.services.xp_policy import MATCH_RUN_COST  # noqa: F401 — re-exported: the run's one price
 
 logger = logging.getLogger(__name__)
 
-# Every match run costs the same — flat, no free tier, no vanity surcharge. The charge
-# is applied at the entry seam (job_refresh); the constant lives here as the one price.
-MATCH_RUN_COST = 100
+__all__ = ["run_match", "MATCH_RUN_COST"]
 
 
 async def run_match(

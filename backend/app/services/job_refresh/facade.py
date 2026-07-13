@@ -9,7 +9,7 @@ from fastapi import HTTPException, status
 from app.repositories.jobs import JobsRepository
 from app.services.job_refresh import _dispatch, _xp_charge
 from app.services.job_refresh.types import RefreshState, RefreshTicket
-from app.services.xp_policy import MATCH_REFRESH_XP_COST
+from app.services.xp_policy import MATCH_RUN_COST
 
 
 class JobRefresh:
@@ -23,31 +23,22 @@ class JobRefresh:
         repo: JobsRepository,
         batch_week: date,
     ) -> RefreshTicket:
-        """Charge XP, kick off compute, return ticket. Raises 400 on insufficient XP.
+        """Charge the flat run price, kick off compute, return ticket. Raises 400 on
+        insufficient coins.
 
-        Free when there is genuinely new inventory: if new live jobs have been
-        inserted since the user's last match, the refresh costs nothing — we added
-        those jobs, so the user shouldn't pay to see whether they fit. The
-        conditional 150-coin charge stays only for vanity re-runs with no new jobs.
-        Enforced server-side (the count is recomputed here, never taken from the
-        client) so the waiver can't be spoofed.
+        Standardized matcher: EVERY run costs the same flat `MATCH_RUN_COST` — no free
+        tier, no vanity surcharge (reverses the old "free when new jobs" waiver, #36
+        N2). The user pays to ask Myro to match. Fairness backstop stays at `_dispatch`:
+        a run that produces nothing chargeable (`should_charge_xp` False — exhausted /
+        cache-hit) is refunded, so the flat charge never bills a no-op.
         """
         excluded_job_ids = repo.get_existing_match_job_ids(user_id)
-        free_because_new = repo.count_new_jobs_for_user(user_id) > 0
-        if free_because_new:
-            return await _dispatch.dispatch(
-                user_id=user_id,
-                batch_week=batch_week,
-                excluded_job_ids=excluded_job_ids,
-                xp_charged=0,
-                new_coin_balance=None,
-            )
-        new_balance = await _xp_charge.charge(user_id, MATCH_REFRESH_XP_COST)
+        new_balance = await _xp_charge.charge(user_id, MATCH_RUN_COST)
         return await _dispatch.dispatch(
             user_id=user_id,
             batch_week=batch_week,
             excluded_job_ids=excluded_job_ids,
-            xp_charged=MATCH_REFRESH_XP_COST,
+            xp_charged=MATCH_RUN_COST,
             new_coin_balance=new_balance,
         )
 
