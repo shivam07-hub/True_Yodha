@@ -26,7 +26,6 @@ from app.database import get_supabase_admin
 from app.repositories.jobs import JobsRepository
 from app.repositories.notifications import NotificationsRepository
 from app.services import background, jobs_workflow
-from app.services.llm_provider import get_llm_provider
 from app.services.matching import agent_picks
 
 logger = logging.getLogger(__name__)
@@ -92,7 +91,6 @@ async def _scrape_match_recompute_handler(payload: dict[str, Any], allow_retry: 
             repo=repo,
             user_id=user_id,
             batch_week=last_monday(),
-            llm_provider=get_llm_provider(),
             force=False,
         )
         _notify_fresh_matches(admin_db, repo, user_id, before_ids)

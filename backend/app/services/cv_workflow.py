@@ -37,7 +37,6 @@ async def _trigger_initial_match_compute(
     truth for "is there anything to do here" and already handles this."""
     try:
         from app.repositories.jobs import JobsRepository
-        from app.services.llm_provider import get_llm_provider
         from app.routers.jobs._shared import last_monday
 
         admin_db = get_supabase_admin()
@@ -45,11 +44,12 @@ async def _trigger_initial_match_compute(
         if force_context_refresh:
             jobs_repo.clear_recommendations(user_id)
 
+        # Provider is owned by compute_job_matches (the strong-only judgment lane) —
+        # the initial match ranks on the same strong models as every other run.
         await jobs_workflow.compute_job_matches(
             repo=jobs_repo,
             user_id=user_id,
             batch_week=last_monday(),
-            llm_provider=get_llm_provider(),
             excluded_job_ids=[],
             force=force_context_refresh,
         )

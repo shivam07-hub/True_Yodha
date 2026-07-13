@@ -9,8 +9,8 @@ from typing import Any, Literal
 from app.repositories.jobs import JobsRepository
 from app.repositories.scores import ScoresRepository
 from app.services import job_importer, llm_ranker
-from app.services.llm_provider import LLMProvider
-from app.services.matching import ranking, targeting
+from app.services.llm_provider import LLMProvider, get_judgment_provider
+from app.services.matching import candidate_pool, ranking, targeting
 from app.services.scoring.aspirations import fetch_aspiration_skills
 
 logger = logging.getLogger(__name__)
@@ -318,7 +318,7 @@ async def compute_job_matches(
     repo: JobsRepository,
     user_id: str,
     batch_week: date,
-    llm_provider: LLMProvider,
+    llm_provider: LLMProvider | None = None,
     excluded_job_ids: list[str] | None = None,
     force: bool = False,
     on_progress: Callable[[int, int, dict[str, Any]], None] | None = None,
@@ -412,9 +412,16 @@ async def compute_job_matches(
 
     job_skill_rows = repo.get_all_job_skill_rows(job_ids=candidate_job_ids)
     match_debug: dict[str, int] = {}
-    # Deterministic overlap + brain in ONE facade (Consolidation B / JobRanking).
-    # Same two stages, same order as before — get_top_matches then evaluate_all —
-    # just no longer inlined here. Persistence stays below in persist_matches.
+    # Standardized matcher — the model floor (F1): every judgment call (triage +
+    # 5/6-axis eval) runs on the strong-only judgment lane, never a small model. The
+    # `llm_provider` arg is a test-only override; production owns the provider here so
+    # no caller can pass gemma into a ranking path (feedback_no_cheap_models_judgment).
+    provider = llm_provider or get_judgment_provider()
+    # career-ops title_filter selector: role-right jobs the skill taxonomy missed still
+    # reach the brain. Human role titles drive the title match; fall back to the derived
+    # cluster roles when titles aren't set.
+    title_roles = profile.get("target_role_titles") or profile.get("target_roles") or []
+    excluded_set = set(excluded_job_ids or [])
     ranked = await ranking.rank(
         profile,
         profile.get("cv_markdown") or "",
@@ -431,8 +438,17 @@ async def compute_job_matches(
             # Backlog #36: reuse any prior eval for this user/job — never re-pay
             # the LLM for a job already rated (permanent identity, mgr 20260710).
             eval_cache_fetcher=lambda ids: repo.get_cached_match_evals(user_id, ids, full=True),
+            # CandidatePool: union the title_filter selector onto the overlap pool.
+            pool_augmenter=lambda overlap_jobs: candidate_pool.assemble(
+                repo,
+                overlap_jobs,
+                role_titles=title_roles,
+                target_location_countries=target_countries,
+                pool_size=MATCH_TRIAGE_POOL,
+                exclude_ids=excluded_set,
+            ),
         ),
-        provider=llm_provider,
+        provider=provider,
         use_brain=True,
         on_progress=on_progress,
         debug=match_debug,

@@ -81,14 +81,17 @@ def assemble(
     role_titles: list[str],
     target_location_countries: list[str] | None,
     pool_size: int,
+    exclude_ids: set[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Union the caller's overlap-scored jobs with the title_filter selector.
 
     The caller keeps its own overlap path (get_candidate_job_ids_for_skills →
     get_top_matches, with any novelty exclusions already applied) and hands the ranked
     ``overlap_jobs`` in. This adds the career-ops title selector on top: jobs whose
-    title matches the target roles but which the overlap selector never surfaced. Fails
-    open — a title-selector error leaves the overlap pool intact (never breaks a run).
+    title matches the target roles but which the overlap selector never surfaced.
+    ``exclude_ids`` (the caller's novelty-preference set) drops already-matched title
+    jobs so they respect the same "prefer unseen" rule the overlap set does. Fails open
+    — a title-selector error leaves the overlap pool intact (never breaks a run).
     """
     if not role_titles:
         return overlap_jobs[:pool_size]
@@ -103,6 +106,8 @@ def assemble(
         logger.warning("metric candidate_pool.title_selector_failed error=%s", exc)
         return overlap_jobs[:pool_size]
     have = {j["job_id"] for j in overlap_jobs}
+    if exclude_ids:
+        have = have | exclude_ids
     title_only_ids = [jid for jid in title_ids if jid not in have]
     title_metas = repo.get_jobs_by_ids(title_only_ids) if title_only_ids else []
     return merge_triage_pool(overlap_jobs, title_metas, pool_size=pool_size)
