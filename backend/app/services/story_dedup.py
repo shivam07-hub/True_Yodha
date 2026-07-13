@@ -136,12 +136,20 @@ def merged_metrics(
 # ── judge (batched, fail-soft) ───────────────────────────────────────────────
 
 def _pair_text(story: dict[str, Any]) -> str:
+    """Everything the judge can use to tell same-vs-different: title, pointer
+    (when the caller has one), the full STAR narrative, and the metrics — the
+    strongest discriminator between two similarly-titled stories."""
     narrative = story.get("narrative") or {}
+    metrics = ", ".join(
+        f"{m.get('value')} ({m.get('what')})" for m in (story.get("metrics") or [])
+        if isinstance(m, dict) and m.get("value")
+    )
     return " | ".join(
         p for p in (
             story.get("title") or "",
             story.get("pointer") or "",
-            narrative.get("result") or "",
+            *(narrative.get(k) or "" for k in ("situation", "task", "action", "result")),
+            f"metrics: {metrics}" if metrics else "",
         ) if p
     )
 
