@@ -24,7 +24,7 @@ export function PlaygroundBottomNav({ tab, fixCountLabel, onTab }: PlaygroundBot
         >
           {t === "edit" ? "Edit"
             : t === "fixes" ? `Fixes · ${fixCountLabel}`
-            : t === "skills" ? "Skills" : "Preview"}
+            : t === "skills" ? "Job fit" : "Preview"}
         </button>
       ))}
     </nav>

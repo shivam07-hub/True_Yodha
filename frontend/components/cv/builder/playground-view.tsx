@@ -24,7 +24,9 @@ import type { CVStructured, JobMatchesResponse, UserProfile } from "@/lib/api"
 import { jobs as jobsApi, cv as cvApi } from "@/lib/api"
 import { CVEditor } from "./cv-editor"
 import { ExperienceIntake } from "./experience-intake"
+import { MentorWalk, MentorWalkLoading } from "./mentor-walk"
 import { PlaygroundRail } from "./playground-rail"
+import "./mentor-walk.css"
 import { PreviewRail } from "./preview-rail"
 import { PlaygroundBottomNav } from "./playground-bottomnav"
 import { ApplyModal } from "./apply-modal"
@@ -80,6 +82,7 @@ export function PlaygroundView({
   const [flash, setFlash] = useState<{ iid: string; n: number } | null>(null)
   const [intakeSeed, setIntakeSeed] = useState<string | null>(null)
   const [intakeOpen, setIntakeOpen] = useState(false)
+  const [walkOpen, setWalkOpen] = useState(false)
   const [jdOpen, setJdOpen] = useState(false)
   const [applyOpen, setApplyOpen] = useState(false)
   const [appliedDone, setAppliedDone] = useState(false)
@@ -96,6 +99,22 @@ export function PlaygroundView({
 
   const m = usePlaygroundModel(token, jobId, cv, profile, hiddenItems)
   const { dismissed, dismiss, restore } = useDismissedFixes(`job:${jobId}`)
+
+  // Lane C — "What this job wants": the JD's real requirements classified against
+  // the user's career stories (covered / partial / missing). Powers the Job-fit
+  // rail map and the Mentor walk.
+  const [walkStart, setWalkStart] = useState<number | undefined>(undefined)
+  const coverageQuery = useQuery({
+    queryKey: ["jd-coverage", jobId],
+    queryFn: () => cvApi.career.jdCoverage(token, jobId),
+    staleTime: 5 * 60 * 1000,
+  })
+  function openWalk(atIndex?: number) { setWalkStart(atIndex); setWalkOpen(true) }
+  // A gap answer banks a reusable career story via the dump pipeline (async
+  // ingest); the walk also drafts an immediate bullet, so this is fire-and-forget.
+  function bankAnswer(requirement: string, answer: string) {
+    void cvApi.career.jdCoverageAnswer(token, requirement, answer, jobId).catch(() => {})
+  }
 
   // Full PdfPageContact for the canonical artifact (the model's sheetContact is
   // the compact V2Sheet shape; the exported sheet needs the full contact line).
@@ -324,8 +343,8 @@ export function PlaygroundView({
                 Job Description
               </button>
             )}
-            <button type="button" className="cvb-v2-intakebtn" onClick={() => openIntake()}>
-              <Icon name="sparkle" size={13} /> Add from your experience
+            <button type="button" className="cvb-v2-intakebtn" onClick={() => openWalk()}>
+              <Icon name="sparkle" size={13} /> Fix your CV with Mentor
             </button>
           </div>
           <div className="cvb-v2-editorbody">
@@ -380,6 +399,9 @@ export function PlaygroundView({
           expandedId={expandedFixId}
           applying={rewriteApply.isPending}
           fixCountLabel={fixCountLabel}
+          coverage={coverageQuery.data}
+          coverageLoading={coverageQuery.isLoading}
+          coverageError={coverageQuery.isError}
           onTab={setTab}
           onGoPreview={() => setTab("preview")}
           onExpand={f => setExpandedFixId(f?.id ?? null)}
@@ -387,8 +409,9 @@ export function PlaygroundView({
           onApplyFix={applyFixRewrite}
           onDismissFix={dismissFix}
           onRestoreFix={f => restore(f.id)}
-          onFixCard={openFixCard}
           onOpenIntake={openIntake}
+          onOpenWalk={openWalk}
+          onRetryCoverage={() => void coverageQuery.refetch()}
         />
       </div>
 
@@ -426,6 +449,25 @@ export function PlaygroundView({
           onClose={() => { setIntakeOpen(false); setIntakeSeed(null) }}
         />
       )}
+
+      {walkOpen && (coverageQuery.data ? (
+        <MentorWalk
+          token={token}
+          coverage={coverageQuery.data}
+          initialStep={walkStart}
+          jdText={m.jdText}
+          roles={m.roles}
+          onAddBullet={(roleIndex, text) => addBullet.mutateAsync({ roleIndex, text }).then(() => {})}
+          onBankAnswer={bankAnswer}
+          onClose={() => setWalkOpen(false)}
+        />
+      ) : (
+        <MentorWalkLoading
+          error={coverageQuery.isError}
+          onRetry={() => void coverageQuery.refetch()}
+          onClose={() => setWalkOpen(false)}
+        />
+      ))}
 
       {applyOpen && (
         <ApplyModal
