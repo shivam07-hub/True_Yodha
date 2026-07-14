@@ -80,8 +80,12 @@ function openTab(url) {
   }
 }
 
-function setStatus(text) {
+// A single busy flag drives the living-mark pulse + status dot. Pass busy=true
+// for any read/fetch state so the popup never reads as hung; terminal states
+// (Review, Saved, error…) clear it.
+function setStatus(text, busy = false) {
   elements.status.textContent = text
+  document.body.classList.toggle("is-busy", busy)
 }
 
 function syncFieldsFromState() {
@@ -153,7 +157,7 @@ async function captureDraft() {
 
 async function trackCurrentJob() {
   try {
-    setStatus("Reading page")
+    setStatus("Reading page", true)
     elements.trackButton.disabled = true
     const draft = await captureDraft()
     if (!draft.jobDescription || draft.jobDescription.length < 80) {
@@ -195,7 +199,7 @@ async function extractSkillsFromReview() {
     const extractionText = buildSkillExtractionText(state.jobDescription, state.skillEvidence)
     if (!extractionText) throw new Error("Paste a job description or skills before extracting.")
 
-    setStatus("Extracting skills")
+    setStatus("Extracting skills", true)
     elements.extractSkillsButton.disabled = true
     const draft = {
       sourceUrl: state.sourceUrl,
@@ -233,7 +237,7 @@ async function persistJob() {
   if (!browserPreview) state.config = await getConfig()
   syncStateFromFields()
   if (!state.roleName || !state.jobDescription) throw new Error("Role name and job description are required.")
-  setStatus("Saving")
+  setStatus("Saving", true)
   const saved = browserPreview
     ? { title: state.roleName, job_id: "preview" }
     : await saveImport(state.config.apiUrl, state.config.token, state)
@@ -341,7 +345,7 @@ async function runReach() {
 // One click from a job page → the search opens. (1-2 screens, no burying.)
 async function findPeopleFromPage() {
   try {
-    setStatus("Reading page")
+    setStatus("Reading page", true)
     elements.reachFrontButton.disabled = true
     const draft = await captureDraft()
     if (!draft.jobDescription || draft.jobDescription.length < 80) {
@@ -363,7 +367,7 @@ async function findPeopleFromPage() {
 // Post-save path (saved-view): reach off the already-captured state.
 async function findPeopleToReach() {
   try {
-    setStatus("Finding people")
+    setStatus("Finding people", true)
     elements.reachButton.disabled = true
     await runReach()
   } catch (error) {
@@ -424,7 +428,7 @@ async function connectMyro() {
     return
   }
   try {
-    setStatus("Connecting")
+    setStatus("Connecting", true)
     elements.connectButton.disabled = true
     const redirectUri = chrome.identity.getRedirectURL()
     const authUrl = `${frontendBaseUrl(state.config.apiUrl)}/extension/connect?redirect_uri=${encodeURIComponent(redirectUri)}`

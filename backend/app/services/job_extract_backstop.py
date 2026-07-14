@@ -25,6 +25,21 @@ _GENERIC_COMPANY = {
     "jobs", "careers", "job", "apply", "home", "search", "linkedin", "indeed",
     "naukri", "glassdoor", "amazon.jobs", "workday", "greenhouse",
 }
+# Function/department nouns. A "company" whose EVERY word is one of these is an
+# internal team name leaking out of the JD ("Sales Strategy", "Digital
+# Transformation Team"), not an employer — real employers carry a proper noun.
+# Caught live 2026-07-14: LinkedIn import stored company "Sales Strategy" for a
+# Deloitte posting ("the USI Sales Strategy and Transformation team…").
+_TEAM_WORDS = {
+    "sales", "strategy", "marketing", "growth", "transformation", "team",
+    "digital", "customer", "consulting", "operations", "product", "products",
+    "engineering", "data", "insights", "analytics", "design", "technology",
+    "cloud", "platform", "innovation", "delivery", "enablement", "success",
+    "experience", "talent", "people", "finance", "commercial", "business",
+    "development", "management", "services", "solutions", "practice", "unit",
+    "group", "department", "division", "global", "regional", "enterprise",
+    "and", "of", "the", "&",
+}
 _JOB_ID_RE = re.compile(r"^(job|req|requisition|posting)\s*(id|#|number)?\b", re.I)
 _NUMERIC_RE = re.compile(r"^[\d\s.,#:/-]+$")
 _URL_RE = re.compile(r"^https?://", re.I)
@@ -40,7 +55,12 @@ def is_valid_company(value: Any) -> bool:
         return False
     if _JOB_ID_RE.match(t) or _NUMERIC_RE.match(t) or _URL_RE.match(t):
         return False
-    return t.lower() not in _GENERIC_COMPANY
+    if t.lower() in _GENERIC_COMPANY:
+        return False
+    words = re.findall(r"[a-z&]+", t.lower())
+    if words and all(w in _TEAM_WORDS for w in words):
+        return False  # pure function-noun phrase = team name, not an employer
+    return True
 
 
 def is_valid_role(value: Any) -> bool:

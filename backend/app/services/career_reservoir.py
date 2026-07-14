@@ -271,6 +271,19 @@ async def _ingest_entry(payload: dict[str, Any], allow_retry: bool) -> None:
     if not entry or entry.get("processed_at"):
         return  # unknown or already done — idempotent on at-least-once delivery
 
+    # Foreign-document guard: a bulk dump can contain other people's CVs.
+    # Deterministic + fail-open (see reservoir_identity) — skip only on a
+    # confident owner mismatch, and record WHY so the skip is never silent.
+    from app.services import reservoir_identity
+
+    if reservoir_identity.classify_entry(entry, user_id) == "foreign":
+        repo.mark_skipped(user_id, entry_id, entry.get("payload"), "foreign_owner")
+        logger.warning(
+            "metric reservoir.foreign_doc_skipped user=%s entry=%s file=%s",
+            user_id, entry_id, (entry.get("payload") or {}).get("filename"),
+        )
+        return
+
     provider = get_paid_jobs_provider()
     extraction = await story_extractor.extract(entry.get("text") or "", provider)
     if extraction is None:

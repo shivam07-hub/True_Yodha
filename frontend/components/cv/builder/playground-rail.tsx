@@ -1,15 +1,16 @@
 /**
- * PlaygroundRail — CV Playground v2 right rail: Fixes / Skills tab bar + the
- * active pane. Preview lives in the main editor pane (playground-view), not
- * here — a WYSIWYG sheet needs the editor's full width to read as an actual
- * CV, not a squeezed sidebar. `onGoPreview` still routes there.
- * Pure composition — all state and data stay in the view.
+ * PlaygroundRail — CV Playground v2 right rail: Fixes / Job fit tab bar + the
+ * active pane. The Job-fit tab is the Lane C coverage map (what this job wants,
+ * matched against the user's stories); it opens the Mentor walk. Preview lives
+ * in the main editor pane (playground-view), not here. Pure composition — all
+ * state and data stay in the view.
  */
 "use client"
 
 import { FixesRail } from "./fixes-rail"
-import { SkillsRail } from "./skills-rail"
+import { CoveragePanel } from "./coverage-panel"
 import type { AppliedFix, V2Fix } from "./fix-model"
+import type { JDCoverageResponse } from "@/lib/api"
 import type { usePlaygroundModel } from "./use-playground-model"
 
 type Model = ReturnType<typeof usePlaygroundModel>
@@ -26,6 +27,9 @@ interface PlaygroundRailProps {
   expandedId: string | null
   applying: boolean
   fixCountLabel: string
+  coverage: JDCoverageResponse | undefined
+  coverageLoading: boolean
+  coverageError: boolean
   onTab: (tab: "fixes" | "skills") => void
   onGoPreview: () => void
   onExpand: (fix: V2Fix | null) => void
@@ -33,15 +37,18 @@ interface PlaygroundRailProps {
   onApplyFix: (fix: V2Fix, oldText: string, newText: string) => void
   onDismissFix: (fix: V2Fix) => void
   onRestoreFix: (fix: V2Fix) => void
-  onFixCard: (fix: V2Fix) => void
   onOpenIntake: (seed?: string) => void
+  onOpenWalk: (atIndex?: number) => void
+  onRetryCoverage: () => void
 }
 
 export function PlaygroundRail({
   token, tab, model: m, fixes, dismissedFixes, applied, expandedId, applying,
-  fixCountLabel, onTab, onGoPreview, onExpand, onJump, onApplyFix,
-  onDismissFix, onRestoreFix, onFixCard, onOpenIntake,
+  fixCountLabel, coverage, coverageLoading, coverageError, onTab, onGoPreview,
+  onExpand, onJump, onApplyFix, onDismissFix, onRestoreFix, onOpenIntake,
+  onOpenWalk, onRetryCoverage,
 }: PlaygroundRailProps) {
+  const fitLabel = coverage ? `${coverage.covered}/${coverage.requirements.length}` : "·"
   return (
     <aside className="cvb-v2-rail" aria-label="Job fit">
       <div className="cvb-v2-railtabs">
@@ -54,7 +61,7 @@ export function PlaygroundRail({
           type="button"
           className={`cvb-v2-tabbtn${tab === "skills" ? " active" : ""}`}
           onClick={() => onTab("skills")}
-        >Skills · {m.coveredCount}/{m.skillRows.length || m.allTargets.length}</button>
+        >Job fit · {fitLabel}</button>
       </div>
       <div className="cvb-v2-railbody">
         {tab === "fixes" && (
@@ -76,13 +83,12 @@ export function PlaygroundRail({
           />
         )}
         {tab === "skills" && (
-          <SkillsRail
-            token={token}
-            rows={m.skillRows}
-            coveredCount={m.coveredCount}
-            total={m.skillRows.length || m.allTargets.length}
-            onFix={onFixCard}
-            onAdd={onOpenIntake}
+          <CoveragePanel
+            coverage={coverage}
+            loading={coverageLoading}
+            error={coverageError}
+            onOpenWalk={onOpenWalk}
+            onRetry={onRetryCoverage}
           />
         )}
       </div>

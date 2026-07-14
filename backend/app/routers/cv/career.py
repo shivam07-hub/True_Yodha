@@ -27,7 +27,9 @@ from app.repositories.career_reservoir import (
 from app.repositories.connections import ConnectionsRepository, get_token_connections_repository
 from app.repositories.cv import CVVersionsRepository, CVVersionWriteSpec, get_token_cv_repository
 from app.repositories.cv_dump import CvDumpRepository, get_cv_dump_repository
-from app.services import career_projection, career_reservoir, cv_compose
+from app.repositories.jobs import JobsRepository, get_token_jobs_repository
+from app.services import career_projection, career_reservoir, cv_compose, jd_coverage
+from app.services.llm_provider import get_judgment_provider
 from app.services.connections_import import looks_like_connections_csv, parse_connections_csv
 from app.services.reservoir_intake import (
     MAX_FILE_BYTES,
@@ -299,3 +301,85 @@ def project_reservoir(
         included=len(result["included_ids"]),
         parked=len(result["parked_ids"]),
     )
+
+
+# ── JD coverage (Lane C — the JD-interview loop) ───────────────────────────────
+
+class JDCoverageRequest(BaseModel):
+    job_id: str
+
+
+class CoverageRow(BaseModel):
+    requirement: str
+    status: str  # covered | weak | gap
+    story_id: str | None = None
+    story_title: str = ""
+    story_pointer: str = ""
+
+
+class JDCoverageResponse(BaseModel):
+    requirements: list[CoverageRow]
+    covered: int
+    weak: int
+    gap: int
+
+
+@router.post("/jd-coverage", response_model=JDCoverageResponse)
+async def jd_coverage_for_job(
+    body: JDCoverageRequest,
+    user: CurrentUser = Depends(get_current_user),
+    jobs_repo: JobsRepository = Depends(get_token_jobs_repository),
+) -> JDCoverageResponse:
+    """"What this job wants" — LLM-parse the JD's real requirements, classify each
+    against the user's career stories: covered / weak / gap. The panel that drives
+    the tailoring interview (replaces the job_skills taxonomy list)."""
+    rows = jobs_repo.get_jobs_by_ids([body.job_id])
+    if not rows:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Job not found.")
+    jd_text = rows[0].get("job_description") or ""
+    result = await jd_coverage.assess(user.id, jd_text, get_judgment_provider())
+    return JDCoverageResponse(
+        requirements=[
+            CoverageRow(
+                requirement=i.requirement, status=i.status, story_id=i.story_id,
+                story_title=i.story_title, story_pointer=i.story_pointer,
+            )
+            for i in result.requirements
+        ],
+        covered=result.covered, weak=result.weak, gap=result.gap,
+    )
+
+
+class GapAnswerRequest(BaseModel):
+    requirement: str = Field(max_length=400)
+    answer: str = Field(min_length=1, max_length=4000)
+    job_id: str | None = None
+
+
+class GapAnswerResponse(BaseModel):
+    entry_id: str
+
+
+@router.post("/jd-coverage/answer", response_model=GapAnswerResponse)
+async def jd_coverage_answer(
+    body: GapAnswerRequest,
+    user: CurrentUser = Depends(get_current_user),
+    dump_repo: CvDumpRepository = Depends(get_cv_dump_repository),
+) -> GapAnswerResponse:
+    """The mentor asked ONE question about a gap; the user's answer flows through
+    the dump pipeline into a NEW career story — immediately reusable for this CV
+    and banked for interview prep. Every tailoring session grows the reservoir."""
+    answer = body.answer.strip()
+    if len("".join(answer.split())) < 12:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Tell me a bit more so I can capture it.")
+    requirement = " ".join(body.requirement.split()).strip()
+    framed = f"Career experience — {requirement}:\n{answer}" if requirement else f"Career experience:\n{answer}"
+    row = dump_repo.add(
+        user.id, framed, source="jd_gap_answer",
+        kind="note", payload={"requirement": requirement or None, "job_id": body.job_id},
+    )
+    entry_id = str(row.get("id") or "")
+    if not entry_id:
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Could not save your answer.")
+    career_reservoir.enqueue_ingest(user.id, entry_id)
+    return GapAnswerResponse(entry_id=entry_id)
