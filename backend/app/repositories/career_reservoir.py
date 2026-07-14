@@ -198,6 +198,17 @@ class CareerReservoirRepository:
             {"processed_at": "now()", "derived_story_ids": story_ids}
         ).eq("user_id", user_id).eq("id", entry_id).execute()
 
+    def mark_skipped(self, user_id: str, entry_id: str, payload: dict[str, Any] | None, reason: str) -> None:
+        """Close an entry WITHOUT extraction, recording why in its payload —
+        a guarded skip must stay queryable, never silent."""
+        self._db.table("cv_dump_entries").update(
+            {
+                "processed_at": "now()",
+                "derived_story_ids": [],
+                "payload": {**(payload or {}), "skip_reason": reason},
+            }
+        ).eq("user_id", user_id).eq("id", entry_id).execute()
+
     def ingest_status(self, user_id: str) -> dict[str, int]:
         """Pending vs processed FILE-class inflow counts (the toggle's progress line)."""
         rows = safe_read(

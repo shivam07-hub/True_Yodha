@@ -21,6 +21,21 @@ def test_is_valid_company_rejects_junk() -> None:
     assert bs.is_valid_company("Capgemini GCC Growth")
 
 
+def test_is_valid_company_rejects_team_names() -> None:
+    # Live 2026-07-14: Deloitte LinkedIn import stored company "Sales Strategy"
+    # (the JD's "USI Sales Strategy and Transformation team"). Pure function-noun
+    # phrases are team names, not employers.
+    assert not bs.is_valid_company("Sales Strategy")
+    assert not bs.is_valid_company("Sales Strategy and Transformation")
+    assert not bs.is_valid_company("Digital Transformation Team")
+    assert not bs.is_valid_company("Customer Strategy & Design")
+    # Real employers keep a proper noun and must survive.
+    assert bs.is_valid_company("Deloitte")
+    assert bs.is_valid_company("Accenture Strategy")
+    assert bs.is_valid_company("Sun Pharmaceutical Industries Ltd")
+    assert bs.is_valid_company("Monitor Deloitte")
+
+
 def test_is_valid_role_and_location() -> None:
     assert bs.is_valid_role("Account Manager I")
     assert not bs.is_valid_role("Job ID: 5")
@@ -82,6 +97,26 @@ async def test_backfill_uses_llm_when_still_missing(monkeypatch: Any) -> None:
         json_ld=None, needs_backstop=True,
     )
     assert out == {"role_name": "Engineer", "company_name": "Stripe", "location": "Remote"}
+
+
+@pytest.mark.asyncio
+async def test_backfill_replaces_team_name_company_via_llm(monkeypatch: Any) -> None:
+    # The Deloitte case end-to-end: client scraped the team name → invalid →
+    # hardened LLM prompt returns the employer.
+    async def _llm(text: str, provider: Any) -> dict:
+        return {"company": "Deloitte", "role": "", "location": "Bengaluru"}
+
+    monkeypatch.setattr(bs, "extract_job_from_text", _llm)
+    monkeypatch.setattr(bs, "get_llm_provider", lambda: object())
+
+    out = await bs.backfill_fields(
+        role_name="Manager, Strategy, Growth, and Transformation",
+        company_name="Sales Strategy",              # team name → dropped
+        location=None,
+        job_description="The USI Sales Strategy and Transformation team within CS&D…" + "x" * 100,
+        json_ld=None, needs_backstop=False,
+    )
+    assert out["company_name"] == "Deloitte"
 
 
 @pytest.mark.asyncio

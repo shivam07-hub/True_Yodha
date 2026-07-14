@@ -46,7 +46,11 @@ _SYSTEM = (
     "You extract structured fields from a single job posting. "
     "Return ONLY a JSON object with exactly these keys: "
     '"company", "role", "location", "job_description". '
-    "company = the hiring company name. role = the job title. "
+    "company = the EMPLOYER's brand name (e.g. 'Deloitte', 'Amazon') — never an "
+    "internal team, practice, or business-unit name (a posting by Deloitte's "
+    "'Sales Strategy and Transformation team' has company 'Deloitte', not "
+    "'Sales Strategy'). Use the employer wherever it appears in the posting. "
+    "role = the job title. "
     "location = work location or mode (e.g. 'Remote', 'Bengaluru', 'Hybrid · London'). "
     "job_description = the full posting body as clean plain text. "
     "If a field is not present, use an empty string. Do not invent values. "
