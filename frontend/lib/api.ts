@@ -1115,6 +1115,22 @@ export interface CareerProjectResponse {
   parked: number
 }
 
+/** Lane C — the JD-interview coverage panel. */
+export type CoverageStatus = "covered" | "weak" | "gap"
+export interface CoverageRow {
+  requirement: string
+  status: CoverageStatus
+  story_id: string | null
+  story_title: string
+  story_pointer: string
+}
+export interface JDCoverageResponse {
+  requirements: CoverageRow[]
+  covered: number
+  weak: number
+  gap: number
+}
+
 /** One entry in the persistent brain-dump notebook (User Memory Phase 3). */
 export interface DumpEntry {
   id: string
@@ -1446,6 +1462,21 @@ export const cv = {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify({ job_id: jobId }),
+      }),
+    /** Lane C: "What this job wants" — JD requirements classified against the
+     *  user's stories (covered / weak / gap). */
+    jdCoverage: (token: string, jobId: string) =>
+      request<JDCoverageResponse>("/cv/jd-coverage", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ job_id: jobId }),
+      }),
+    /** A gap answer → a NEW career story via the dump pipeline. */
+    jdCoverageAnswer: (token: string, requirement: string, answer: string, jobId?: string) =>
+      request<{ entry_id: string }>("/cv/jd-coverage/answer", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ requirement, answer, job_id: jobId ?? null }),
       }),
   },
   // The experience reservoir inventory (v2): roles → points → phrasing variants.
