@@ -307,6 +307,9 @@ def project_reservoir(
 
 class JDCoverageRequest(BaseModel):
     job_id: str
+    # Recompute even when a cached panel exists — used after a banked gap answer's
+    # story lands. Default reads the cache so requirements stay stable per job.
+    refresh: bool = False
 
 
 class CoverageRow(BaseModel):
@@ -322,6 +325,8 @@ class JDCoverageResponse(BaseModel):
     covered: int
     weak: int
     gap: int
+    cached: bool = False
+    computed_at: str = ""
 
 
 @router.post("/jd-coverage", response_model=JDCoverageResponse)
@@ -332,22 +337,43 @@ async def jd_coverage_for_job(
 ) -> JDCoverageResponse:
     """"What this job wants" — LLM-parse the JD's real requirements, classify each
     against the user's career stories: covered / weak / gap. The panel that drives
-    the tailoring interview (replaces the job_skills taxonomy list)."""
+    the tailoring interview AND the Preparations room. Cached per (user, job) in
+    job_deepenings — stable requirements between visits; `refresh` recomputes."""
     rows = jobs_repo.get_jobs_by_ids([body.job_id])
     if not rows:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Job not found.")
+
+    def _respond(res: jd_coverage.CoverageResult, cached: bool, computed_at: str) -> JDCoverageResponse:
+        return JDCoverageResponse(
+            requirements=[
+                CoverageRow(
+                    requirement=i.requirement, status=i.status, story_id=i.story_id,
+                    story_title=i.story_title, story_pointer=i.story_pointer,
+                )
+                for i in res.requirements
+            ],
+            covered=res.covered, weak=res.weak, gap=res.gap,
+            cached=cached, computed_at=computed_at,
+        )
+
+    if not body.refresh:
+        hit = jd_coverage.payload_to_result(
+            jobs_repo.get_deepening(user.id, body.job_id, jd_coverage.CACHE_PROMPT_KEY)
+        )
+        if hit is not None:
+            result, computed_at = hit
+            return _respond(result, cached=True, computed_at=computed_at)
+
     jd_text = rows[0].get("job_description") or ""
     result = await jd_coverage.assess(user.id, jd_text, get_judgment_provider())
-    return JDCoverageResponse(
-        requirements=[
-            CoverageRow(
-                requirement=i.requirement, status=i.status, story_id=i.story_id,
-                story_title=i.story_title, story_pointer=i.story_pointer,
-            )
-            for i in result.requirements
-        ],
-        covered=result.covered, weak=result.weak, gap=result.gap,
-    )
+    # Never cache an empty parse — it usually means a provider failure (fail-soft
+    # []), and freezing that would blank the panel forever.
+    if result.requirements:
+        jobs_repo.upsert_deepening(
+            user.id, body.job_id, jd_coverage.CACHE_PROMPT_KEY,
+            jd_coverage.result_to_payload(result),
+        )
+    return _respond(result, cached=False, computed_at="")
 
 
 class GapAnswerRequest(BaseModel):

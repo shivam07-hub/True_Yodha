@@ -52,7 +52,9 @@ class _FakeProvider:
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    # Fresh loop per call — get_event_loop() breaks when TestClient tests in
+    # this module (or elsewhere in the suite) close the ambient loop.
+    return asyncio.run(coro)
 
 
 def test_assess_classifies_each_requirement(monkeypatch):
@@ -94,3 +96,124 @@ def test_assess_recall_failure_downgrades_to_gap(monkeypatch):
     monkeypatch.setattr(jd_coverage.memory_recall, "recall_stories", _empty)
     result = _run(jd_coverage.assess("u1", "A long enough job description prose here.", provider))
     assert result.requirements[0].status == "gap"
+
+
+# ── cache payload round-trip (Preparations room) ───────────────────────────────
+
+def _sample_result():
+    return jd_coverage.CoverageResult(
+        requirements=[
+            jd_coverage.CoverageItem(
+                requirement="Own quota", status="covered", story_id="s1",
+                story_title="Beat quota", story_pointer="120%", similarity=0.85,
+            ),
+            jd_coverage.CoverageItem(requirement="Rust systems", status="gap"),
+        ],
+        covered=1, weak=0, gap=1,
+    )
+
+
+def test_payload_round_trip():
+    raw = jd_coverage.result_to_payload(_sample_result())
+    hit = jd_coverage.payload_to_result(raw)
+    assert hit is not None
+    result, computed_at = hit
+    assert computed_at  # stamped
+    assert (result.covered, result.weak, result.gap) == (1, 0, 1)
+    assert result.requirements[0].story_id == "s1"
+    assert result.requirements[1].status == "gap"
+
+
+def test_payload_to_result_rejects_garbage():
+    assert jd_coverage.payload_to_result(None) is None
+    assert jd_coverage.payload_to_result("") is None
+    assert jd_coverage.payload_to_result("not json") is None
+    assert jd_coverage.payload_to_result('{"requirements": []}') is None
+    assert jd_coverage.payload_to_result('{"requirements": [{"status": "bogus"}]}') is None
+
+
+# ── router cache behaviour (/cv/jd-coverage) ───────────────────────────────────
+
+def test_router_cache_hit_skips_llm_and_refresh_recomputes(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from app.deps import CurrentUser, get_current_user
+    from app.main import app
+    from app.repositories.jobs import get_token_jobs_repository
+
+    class _Repo:
+        def __init__(self):
+            self.deepenings: dict[str, str] = {}
+
+        def get_jobs_by_ids(self, _ids):
+            return [{"job_description": "A long enough job description prose here."}]
+
+        def get_deepening(self, _u, _j, key):
+            return self.deepenings.get(key)
+
+        def upsert_deepening(self, _u, _j, key, text):
+            self.deepenings[key] = text
+
+    calls = {"n": 0}
+
+    async def _assess(user_id, jd_text, provider):
+        calls["n"] += 1
+        return _sample_result()
+
+    monkeypatch.setattr(jd_coverage, "assess", _assess)
+    repo = _Repo()
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email="t@e.com", token="tok")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    try:
+        client = TestClient(app)
+        # First call computes + caches.
+        r1 = client.post("/cv/jd-coverage", json={"job_id": "j1"})
+        assert r1.status_code == 200 and r1.json()["cached"] is False
+        assert calls["n"] == 1 and jd_coverage.CACHE_PROMPT_KEY in repo.deepenings
+        # Second call is a cache hit — no LLM.
+        r2 = client.post("/cv/jd-coverage", json={"job_id": "j1"})
+        assert r2.json()["cached"] is True and r2.json()["computed_at"]
+        assert calls["n"] == 1
+        assert r2.json()["covered"] == 1 and r2.json()["gap"] == 1
+        # refresh forces a recompute.
+        r3 = client.post("/cv/jd-coverage", json={"job_id": "j1", "refresh": True})
+        assert r3.json()["cached"] is False
+        assert calls["n"] == 2
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_router_never_caches_empty_parse(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from app.deps import CurrentUser, get_current_user
+    from app.main import app
+    from app.repositories.jobs import get_token_jobs_repository
+
+    class _Repo:
+        def __init__(self):
+            self.deepenings: dict[str, str] = {}
+
+        def get_jobs_by_ids(self, _ids):
+            return [{"job_description": "A long enough job description prose here."}]
+
+        def get_deepening(self, _u, _j, key):
+            return self.deepenings.get(key)
+
+        def upsert_deepening(self, _u, _j, key, text):
+            self.deepenings[key] = text
+
+    async def _assess(user_id, jd_text, provider):
+        return jd_coverage.CoverageResult()  # provider failure → fail-soft empty
+
+    monkeypatch.setattr(jd_coverage, "assess", _assess)
+    repo = _Repo()
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email="t@e.com", token="tok")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    try:
+        resp = TestClient(app).post("/cv/jd-coverage", json={"job_id": "j1"})
+        assert resp.status_code == 200
+        assert resp.json()["requirements"] == []
+        assert repo.deepenings == {}  # a failed parse is never frozen
+    finally:
+        app.dependency_overrides.clear()

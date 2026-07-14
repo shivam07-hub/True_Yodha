@@ -26,6 +26,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 
 from app.services import memory_recall
 from app.services.llm_provider import LLMProvider, LLMProviderError
@@ -171,3 +172,70 @@ async def assess(user_id: str, jd_text: str, provider: LLMProvider) -> CoverageR
         weak=sum(1 for i in items if i.status == "weak"),
         gap=sum(1 for i in items if i.status == "gap"),
     )
+
+
+# ── cache (Preparations room, 2026-07-15) ─────────────────────────────────────
+# Coverage is cached per (user, job) in job_deepenings under this key so the prep
+# room and the playground read ONE stable panel (stable requirements = trust; a
+# re-parse can shuffle phrasing between visits). Coverage only changes when the
+# user banks a new story, so consumers refresh explicitly, not per visit.
+
+CACHE_PROMPT_KEY = "jd_coverage"
+
+
+def result_to_payload(result: CoverageResult) -> str:
+    """Serialize for the job_deepenings text column, stamped with computed_at."""
+    return json.dumps({
+        "computed_at": datetime.now(timezone.utc).isoformat(),
+        "covered": result.covered,
+        "weak": result.weak,
+        "gap": result.gap,
+        "requirements": [
+            {
+                "requirement": i.requirement,
+                "status": i.status,
+                "story_id": i.story_id,
+                "story_title": i.story_title,
+                "story_pointer": i.story_pointer,
+                "similarity": i.similarity,
+            }
+            for i in result.requirements
+        ],
+    })
+
+
+def payload_to_result(raw: str | None) -> tuple[CoverageResult, str] | None:
+    """(result, computed_at) from a cached payload; None on any malformed data
+    (caller then recomputes — a corrupt cache never takes the surface down)."""
+    if not raw:
+        return None
+    try:
+        obj = json.loads(raw)
+    except (json.JSONDecodeError, ValueError):
+        return None
+    if not isinstance(obj, dict) or not isinstance(obj.get("requirements"), list):
+        return None
+    items: list[CoverageItem] = []
+    for entry in obj["requirements"]:
+        if not isinstance(entry, dict) or not entry.get("requirement"):
+            continue
+        status = entry.get("status")
+        if status not in ("covered", "weak", "gap"):
+            continue
+        items.append(CoverageItem(
+            requirement=str(entry["requirement"]),
+            status=status,
+            story_id=entry.get("story_id") or None,
+            story_title=str(entry.get("story_title") or ""),
+            story_pointer=str(entry.get("story_pointer") or ""),
+            similarity=float(entry.get("similarity") or 0.0),
+        ))
+    if not items:
+        return None
+    result = CoverageResult(
+        requirements=items,
+        covered=sum(1 for i in items if i.status == "covered"),
+        weak=sum(1 for i in items if i.status == "weak"),
+        gap=sum(1 for i in items if i.status == "gap"),
+    )
+    return result, str(obj.get("computed_at") or "")
