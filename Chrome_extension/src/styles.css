@@ -82,9 +82,60 @@ a:focus-visible {
   gap: 10px;
 }
 
+.brand-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
 .brand-mark {
   border-radius: 6px;
   flex-shrink: 0;
+}
+
+/* Living mark — while Myro is reading/working, the brand icon breathes and
+   emits a teal sonar ring so a busy popup never reads as a hung screen. Two
+   staggered rings keep the pulse continuous. Driven by body.is-busy. */
+.brand-badge::before,
+.brand-badge::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 8px;
+  border: 1px solid var(--tm-accent);
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.is-busy .brand-badge::before {
+  animation: tm-sonar 1.7s var(--tm-ease) infinite;
+}
+
+body.is-busy .brand-badge::after {
+  animation: tm-sonar 1.7s var(--tm-ease) infinite;
+  animation-delay: 0.85s;
+}
+
+body.is-busy .brand-mark {
+  animation: tm-breathe 1.7s ease-in-out infinite;
+}
+
+@keyframes tm-sonar {
+  0% { opacity: 0.55; transform: scale(1); }
+  70% { opacity: 0; }
+  100% { opacity: 0; transform: scale(2.6); }
+}
+
+@keyframes tm-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes tm-dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.25; transform: scale(0.6); }
 }
 
 .eyebrow,
@@ -108,6 +159,8 @@ h1 {
 
 .status-pill {
   flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
   padding: 4px 9px;
   border: 1px solid var(--tm-border-soft);
   border-radius: var(--tm-radius-pill);
@@ -115,6 +168,23 @@ h1 {
   color: var(--tm-accent);
   font-size: 12px;
   line-height: 16px;
+}
+
+/* Leading dot — collapsed to zero width when idle, so terminal states read as
+   a plain label. Expands and pulses in sync with the mark while busy. */
+.status-pill::before {
+  content: "";
+  width: 0;
+  height: 6px;
+  border-radius: var(--tm-radius-pill);
+  background: currentColor;
+  transition: width var(--tm-dur) var(--tm-ease), margin-right var(--tm-dur) var(--tm-ease);
+}
+
+body.is-busy .status-pill::before {
+  width: 6px;
+  margin-right: 6px;
+  animation: tm-dot-pulse 1.2s ease-in-out infinite;
 }
 
 .view {
@@ -317,6 +387,26 @@ textarea::placeholder {
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
+  }
+
+  /* No pulse, but busy must still be legible: hold a static teal dot and a
+     dimmed mark instead of animating. */
+  body.is-busy .brand-badge::before,
+  body.is-busy .brand-badge::after {
+    animation: none;
+    opacity: 0;
+  }
+
+  body.is-busy .brand-mark {
+    animation: none;
+    opacity: 0.62;
+  }
+
+  body.is-busy .status-pill::before {
+    width: 6px;
+    margin-right: 6px;
+    animation: none;
+    opacity: 1;
   }
 }
 
