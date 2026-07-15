@@ -1,24 +1,28 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname, useSearchParams } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { jobs as jobsApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { Badge } from "@/components/ui/badge"
+import { attentionCount } from "@/components/preparations/prep-model"
 import type { NavItem } from "@/lib/nav-items"
 import type { NavUnlocksVm } from "@/lib/hooks/use-nav-unlocks"
 
-function StaleBadge() {
+function AttentionBadge() {
+  // "Rooms needing you" (Preparations grill Q8): overdue stage-checks +
+  // follow-ups due, computed from the shared applications cache — the pill
+  // finally counts something the click resolves.
   const { token } = useAuth()
   const { data } = useQuery({
-    queryKey: dataKeys.staleApplications(),
-    queryFn: () => jobsApi.staleApplications(token!),
+    queryKey: dataKeys.applications(),
+    queryFn: () => jobsApi.applications(token!),
     enabled: !!token,
     staleTime: 60 * 1000,
   })
-  const n = data?.length ?? 0
+  const n = attentionCount(data ?? [], new Date())
   if (n === 0) return null
   return (
     <Badge variant="neutral" style={{ marginLeft: 4, fontFamily: "var(--tm-font-mono)" }}>
@@ -53,21 +57,20 @@ function Coachmark({ item, onAck }: { item: NavItem; onAck: () => void }) {
 
 export function TopbarNav({ nav }: { nav: NavUnlocksVm }) {
   const pathname = usePathname()
-  const searchParams = useSearchParams()
   const activeCoachId = nav.activeCoach?.id ?? null
 
-  // Split the merged CV workspace into two sibling tabs — CV and Applications —
-  // exactly as the mobile bottom bar does (mobile/shell.tsx). Both point at the
-  // same /cv surface via a ?view= param, so the route contract is shared and the
-  // /cv page needs no change. renderKey disambiguates the two cv slots; the
-  // coachmark and NEW pill stay on the primary (CV) slot only so they don't fire twice.
+  // Split the merged CV workspace into two sibling tabs — CV and Preparations.
+  // Preparations (2026-07-15 grill) is the post-apply prep surface at its own
+  // route; the old /cv?view=active Applications tab redirects there. renderKey
+  // disambiguates the two cv slots; the coachmark and NEW pill stay on the
+  // primary (CV) slot only so they don't fire twice.
   type RenderItem = NavItem & { renderKey: string }
   const items = nav.visibleDesktop.reduce<RenderItem[]>((acc, item) => {
     if (item.id !== "cv") return [...acc, { ...item, renderKey: item.id }]
     return [
       ...acc,
       { ...item, renderKey: "cv", href: "/cv?view=cv", label: "CV", stalePill: false },
-      { ...item, renderKey: "applications", href: "/cv?view=active", label: "Applications", stalePill: true },
+      { ...item, renderKey: "preparations", href: "/preparations", label: "Preparations", stalePill: true },
     ]
   }, [])
 
@@ -76,11 +79,10 @@ export function TopbarNav({ nav }: { nav: NavUnlocksVm }) {
       {activeCoachId && <div className="tm-nav-scrim" onClick={nav.ackCoach} aria-hidden />}
       <nav className="tm-topbar-nav" aria-label="Primary navigation">
         {items.map((item) => {
-          const cvView = searchParams.get("view")
           const active = item.renderKey === "cv"
-            ? pathname === "/cv" && cvView !== "active"
-            : item.renderKey === "applications"
-              ? pathname === "/cv" && cvView === "active"
+            ? pathname === "/cv"
+            : item.renderKey === "preparations"
+              ? pathname.startsWith("/preparations")
               : pathname.startsWith(item.href)
           const isPrimarySlot = item.id !== "cv" || item.renderKey === "cv"
           const isTarget = activeCoachId === item.id && isPrimarySlot
@@ -97,7 +99,7 @@ export function TopbarNav({ nav }: { nav: NavUnlocksVm }) {
                 {item.id === "home" && <ApertureIcon active={active} />}
                 {item.id === "market" && <span className="tm-nav-live-dot" aria-hidden />}
                 {item.special ? `✦ ${item.label}` : item.label}
-                {item.stalePill && <StaleBadge />}
+                {item.stalePill && <AttentionBadge />}
                 {isNew && <span className="tm-nav-new">NEW</span>}
               </Link>
               {isTarget && nav.activeCoach && <Coachmark item={nav.activeCoach} onAck={nav.ackCoach} />}

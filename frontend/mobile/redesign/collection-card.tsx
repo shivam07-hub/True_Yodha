@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import type { JobPulse } from "@/lib/api"
 import type { MobileJobRow } from "./job-model"
 
@@ -89,7 +90,16 @@ export function CollectionCard({ row, fitKnown, statusChip, tailored, pulse, onO
         <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round"><path d="M12 15V4m0 0 4 4m-4-4L8 8" /><path d="M4 13v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5" /></svg>
       </button>
       <div style={{ flex: 1 }} />
-      {tailored ? (
+      {statusChip === "Applied" ? (
+        <Link
+          href={`/preparations/${encodeURIComponent(row.id)}`}
+          onClick={(e) => e.stopPropagation()}
+          className="mm-press"
+          style={{ height: 32, padding: "0 14px", borderRadius: 99, display: "inline-flex", alignItems: "center", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: 12.5, fontWeight: 700, fontFamily: "inherit", textDecoration: "none" }}
+        >
+          Prep room →
+        </Link>
+      ) : tailored ? (
         <button onClick={(e) => { e.stopPropagation(); onOpenCv() }} style={{ height: 32, padding: "0 12px", borderRadius: 99, border: "1px solid rgba(0,245,212,0.35)", background: "var(--mm-accent-wash)", color: "var(--mm-accent)", fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Tailored ✓</button>
       ) : (
         <button onClick={(e) => { e.stopPropagation(); onTailor() }} className="mm-press" style={{ height: 32, padding: "0 14px", borderRadius: 99, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Tailor CV</button>

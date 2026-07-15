@@ -118,6 +118,16 @@ function CVPage() {
   const editParam = searchParams.get("edit")
   const view: ViewMode = jobId ? "playground" : editParam === "1" ? "master-edit" : "baseline"
 
+  // The old Applications tab (?view=active, legacy ?filter=closed) moved to its
+  // own surface — /preparations (grill 2026-07-15). Redirect so deep links and
+  // bookmarks keep working.
+  const legacyView = searchParams.get("view")
+  const legacyFilter = searchParams.get("filter")
+  useEffect(() => {
+    if (legacyView === "active" || legacyFilter === "closed") router.replace("/preparations")
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [legacyView, legacyFilter])
+
   function navigate(href: string) { router.push(href) }
   function openJob(id: string) { navigate(`/cv?jobId=${encodeURIComponent(id)}`) }
   // Editing the master is a page-level full-bleed view (same mount level as the
@@ -536,7 +546,6 @@ function CVPage() {
             <LibraryView
               token={token!}
               cv={cvData}
-              versions={playground.allVersions}
               currentBaseline={playground.currentBaseline}
               applications={applicationsQuery.data ?? []}
               profile={profileQuery.data ?? null}

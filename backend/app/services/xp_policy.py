@@ -39,6 +39,12 @@ FOLLOWED_COMPANY_LIMIT = 10
 REACH_PACK_XP_COST = 50
 REACH_PACK_XP_FLOOR = 0
 
+# Preparations room day-of brief (grill lock Q5, 2026-07-15): the ONE paid
+# artifact in the prep room — coverage / rehearse / drills / gap-banking stay
+# free (never tax the flywheel). Charged on success only; replay free.
+PREP_BRIEF_XP_COST = 30
+PREP_BRIEF_XP_FLOOR = 0
+
 # Standardized matcher: every match run costs the same flat price — no free tier, no
 # vanity surcharge (reverses the old "free when new jobs / 150 for vanity" waiver,
 # #36 N2). A run is the strong-judgment triage + 6-block eval over the overlap ∪

@@ -7,7 +7,7 @@ import "./loop-bar.css"
 /**
  * The Loop Bar (journey treatment B) — a thin strip pinned under the nav that
  * makes the whole loop legible at a glance: 01 Capture → 02 Collect → 03 Tailor →
- * 04 Apply, plus the single most valuable next action ("Next: Tailor Barclays →").
+ * 04 Apply → 05 Prep, plus the single most valuable next action ("Next: Tailor Barclays →").
  * It is the always-on orientation half of the Delta-4 promise; <CaptureConfirm>
  * is the at-the-card half.
  *
@@ -28,14 +28,14 @@ export interface LoopStepModel {
 }
 
 export interface LoopBarModel {
-  steps: [LoopStepModel, LoopStepModel, LoopStepModel, LoopStepModel]
-  /** 0–3 — the step the user is currently on. */
+  steps: LoopStepModel[]
+  /** Index of the step the user is currently on. */
   activeIndex: number
   /** The one next action; omit to hide the trailing CTA. */
   next?: { label: string; href: string }
 }
 
-const NUM = ["01", "02", "03", "04"]
+const NUM = ["01", "02", "03", "04", "05"]
 
 export function LoopBar({ steps, activeIndex, next }: LoopBarModel) {
   return (

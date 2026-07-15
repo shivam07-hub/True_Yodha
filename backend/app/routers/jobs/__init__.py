@@ -11,6 +11,7 @@ from .intent_chat import router as intent_chat_router
 from .list import router as list_router
 from .match import router as match_router
 from .milestone import router as milestone_router
+from .prep import router as prep_router
 from .reach import router as reach_router
 from .report import router as report_router
 from .review import router as review_router
@@ -28,6 +29,7 @@ router.include_router(milestone_router)
 router.include_router(detail_router)
 router.include_router(analyse_router)
 router.include_router(deepen_router)
+router.include_router(prep_router)
 router.include_router(reach_router)
 router.include_router(report_router)
 router.include_router(intent_chat_router)
