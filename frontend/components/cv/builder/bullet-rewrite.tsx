@@ -1,15 +1,17 @@
 /**
- * BulletRewrite — per-bullet Mentor rewrite (pick-a-version).
+ * BulletRewrite — per-bullet Mentor rewrite.
  *
- * Object-action on ONE bullet: Mentor proposes 2–3 FINISHED framings of the same
- * real facts (Metric-led / Impact-led / Scope-led) and the user picks the one
- * that tells their story best. Output is finished CV lines — never the model's
- * reasoning (the server uses the paid interactive provider + a reasoning-salvage
- * guard). Nothing changes until the user clicks "Use this version".
+ * Object-action on ONE bullet: Mentor proposes the strongest rewrite of the same
+ * real facts (recommended first), with alternate framings on tap. The card reads
+ * as a transformation — your current line (reference) → the stronger line + a plain
+ * reason it wins for YOU. Output is finished CV lines, never the model's reasoning
+ * (server: strong-only writer floor + reasoning-salvage guard). Nothing changes
+ * until "Use this line".
  *
- * No-fabrication guard (ADR-0016): when the bullet has no metric, Mentor asks for
- * the real number instead of inventing one. Accept writes via cv.rewriteApply (a
- * new baseline); Discard throws it away.
+ * No-fabrication (ADR-0016): a metric-less bullet is never given an invented number.
+ * First Mentor looks in the user's OWN stories for a real one and offers it with
+ * provenance (suggest_metric); if there's none it asks (question). A Quantify fix is
+ * satisfied ONLY by a real number — for it, `quantifyOnly` hides the reframe escape.
  */
 "use client"
 
@@ -17,7 +19,7 @@ import { useEffect, useState } from "react"
 import { cv as cvApi, type RewriteVariant } from "@/lib/api"
 import { Icon } from "./icons"
 
-type Phase = "idle" | "loading" | "variants" | "question" | "error"
+type Phase = "idle" | "loading" | "variants" | "question" | "suggest_metric" | "error"
 
 interface BulletRewriteProps {
   token: string
@@ -26,30 +28,26 @@ interface BulletRewriteProps {
   missingKeywords: string[]
   applying?: boolean
   onApply: (oldText: string, newText: string) => void
-  /** Option C: start the rewrite immediately on mount (no idle trigger button) —
-   *  the parent owns the affordance (per-line ↻ or a rail "Sharpen" action). */
   auto?: boolean
-  /** Keyword(s) to target for this rewrite; falls back to missingKeywords. Also
-   *  named in the intent header so the user knows what this rewrite is adding. */
   seedKeywords?: string[]
-  /** Called after Use / Discard / Dismiss in auto mode so the parent collapses. */
   onClose?: () => void
+  /** Quantify context (Q2): the fix promises a real number, so a metric-less
+   *  reframe is not a valid outcome — the question is the only path (no escape). */
+  quantifyOnly?: boolean
 }
 
-export function BulletRewrite({ token, bullet, role, missingKeywords, applying, onApply, auto, seedKeywords, onClose }: BulletRewriteProps) {
+export function BulletRewrite({ token, bullet, role, missingKeywords, applying, onApply, auto, seedKeywords, onClose, quantifyOnly }: BulletRewriteProps) {
   const [phase, setPhase] = useState<Phase>("idle")
   const [variants, setVariants] = useState<RewriteVariant[]>([])
   const [sel, setSel] = useState(0)
+  const [showAlternates, setShowAlternates] = useState(false)
   const [question, setQuestion] = useState<string | null>(null)
-  const [citations, setCitations] = useState<string[]>([])
+  const [candidate, setCandidate] = useState<{ value: string; source: string } | null>(null)
   const [metric, setMetric] = useState("")
   const [errMsg, setErrMsg] = useState<string | null>(null)
 
-  // The skill(s) this rewrite is surfacing — drives the intent header.
-  const intent = (seedKeywords && seedKeywords.length ? seedKeywords : []).filter(Boolean)
-
   async function run(opts: { metric?: string; allowNoMetric?: boolean } = {}) {
-    setPhase("loading"); setErrMsg(null); setQuestion(null)
+    setPhase("loading"); setErrMsg(null); setQuestion(null); setCandidate(null)
     try {
       const res = await cvApi.rewriteBulletVariants(token, {
         bullet,
@@ -59,9 +57,12 @@ export function BulletRewrite({ token, bullet, role, missingKeywords, applying, 
         allow_no_metric: opts.allowNoMetric ?? false,
       })
       if (res.mode === "variants" && res.variants.length) {
-        setVariants(res.variants); setSel(0); setCitations(res.citations ?? []); setPhase("variants")
+        setVariants(res.variants); setSel(0); setShowAlternates(false); setPhase("variants")
+      } else if (res.mode === "suggest_metric" && res.candidate_value) {
+        setCandidate({ value: res.candidate_value, source: res.candidate_source ?? "your story" })
+        setQuestion(res.question ?? null); setMetric(""); setPhase("suggest_metric")
       } else if (res.mode === "question") {
-        setQuestion(res.question ?? "What was the measurable result?"); setPhase("question")
+        setQuestion(res.question ?? "What was the measurable result?"); setMetric(""); setPhase("question")
       } else {
         setErrMsg(res.rationale ?? "Rewrite is unavailable right now."); setPhase("error")
       }
@@ -70,13 +71,12 @@ export function BulletRewrite({ token, bullet, role, missingKeywords, applying, 
     }
   }
 
-  // Auto mode: the parent renders this only when the user invoked it, so kick the
-  // rewrite on mount and let Discard/Use collapse it via onClose.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (auto) void run() }, [])
 
   function reset() {
-    setPhase("idle"); setVariants([]); setSel(0); setMetric(""); setQuestion(null); setCitations([]); setErrMsg(null)
+    setPhase("idle"); setVariants([]); setSel(0); setShowAlternates(false)
+    setMetric(""); setQuestion(null); setCandidate(null); setErrMsg(null)
     onClose?.()
   }
 
@@ -91,19 +91,33 @@ export function BulletRewrite({ token, bullet, role, missingKeywords, applying, 
     )
   }
 
+  const recommended = variants[sel]
+  const hasAlternates = variants.length > 1
+
   return (
     <div className="cvb-rw-panel" role="group" aria-label="Rewrite suggestion">
-      {/* Intent header — say exactly what this rewrite is doing to which line. */}
-      <div className="cvb-rw-intent">
-        <span className="cvb-rw-intent-what">Rewriting this line</span>
-        {intent.length > 0 && (
-          <span className="cvb-rw-intent-kw">· adding {intent.join(", ")}</span>
-        )}
-      </div>
+      {/* The current line — the "before", quiet reference; the user judges the change. */}
       <div className="cvb-rw-original" title="Your current line">{bullet}</div>
 
       {phase === "loading" && (
-        <div className="cvb-rw-status" role="status">✦ Mentor is writing three versions…</div>
+        <div className="cvb-rw-status" role="status">✦ Mentor is writing a stronger line…</div>
+      )}
+
+      {/* A real number from the user's own history — offered, never assumed (Q5). */}
+      {phase === "suggest_metric" && candidate && (
+        <div className="cvb-rw-ask">
+          <div className="cvb-rw-ask-q">
+            <Icon name="sparkle" size={12}/> {question ?? `Your story “${candidate.source}” mentions ${candidate.value}.`}
+          </div>
+          <div className="cvb-rw-ask-actions">
+            <button type="button" className="cvb-btn sm primary" onClick={() => void run({ metric: candidate.value })}>
+              Use {candidate.value}
+            </button>
+            <button type="button" className="cvb-rw-skip" onClick={() => { setQuestion("What was the real number?"); setPhase("question") }}>
+              No — my own number
+            </button>
+          </div>
+        </div>
       )}
 
       {phase === "question" && (
@@ -116,53 +130,67 @@ export function BulletRewrite({ token, bullet, role, missingKeywords, applying, 
               onChange={(e) => setMetric(e.target.value)}
               placeholder="e.g. activation 22% → 31% in Q2"
               aria-label="Real measurable result"
+              autoFocus
               onKeyDown={(e) => { if (e.key === "Enter" && metric.trim()) void run({ metric: metric.trim() }) }}
             />
             <button type="button" className="cvb-btn sm primary" disabled={!metric.trim()} onClick={() => void run({ metric: metric.trim() })}>
               Rewrite
             </button>
           </div>
-          <button type="button" className="cvb-rw-skip" onClick={() => void run({ allowNoMetric: true })}>
-            No number — reframe qualitatively
-          </button>
+          {!quantifyOnly && (
+            <button type="button" className="cvb-rw-skip" onClick={() => void run({ allowNoMetric: true })}>
+              No number — reframe the wording
+            </button>
+          )}
           <div className="cvb-rw-nofab">Myro never invents numbers</div>
         </div>
       )}
 
-      {phase === "variants" && variants.length > 0 && (
+      {phase === "variants" && recommended && (
         <>
-          <div className="cvb-rw-pick-label">Pick the version that tells your story best</div>
-          {variants.length > 1 && (
-            <div className="cvb-rw-tabs" role="tablist">
-              {variants.map((v, i) => (
-                <button
-                  key={v.angle}
-                  type="button"
-                  role="tab"
-                  aria-selected={i === sel}
-                  className={`cvb-rw-tab${i === sel ? " active" : ""}`}
-                  onClick={() => setSel(i)}
-                >
-                  {v.label}
-                </button>
-              ))}
+          {/* The recommendation — the "after", accent, with the plain reason it wins. */}
+          <div className="cvb-rw-diff-new">{recommended.text}</div>
+          {recommended.why && <div className="cvb-rw-why">{recommended.why}</div>}
+
+          {hasAlternates && (
+            <div className="cvb-rw-alt">
+              <button
+                type="button"
+                className="cvb-rw-alt-toggle"
+                aria-expanded={showAlternates}
+                onClick={() => setShowAlternates(v => !v)}
+              >
+                <Icon name="chevron-down" size={12} className={showAlternates ? "cvb-rw-chev-open" : ""}/>
+                {showAlternates ? "Hide angles" : `Other angles (${variants.length - 1})`}
+              </button>
+              {showAlternates && (
+                <div className="cvb-rw-alt-chips" role="tablist">
+                  {variants.map((v, i) => (
+                    <button
+                      key={v.angle}
+                      type="button"
+                      role="tab"
+                      aria-selected={i === sel}
+                      className={`cvb-rw-alt-chip${i === sel ? " active" : ""}`}
+                      onClick={() => setSel(i)}
+                    >
+                      {v.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
-          <div className="cvb-rw-diff-new">{variants[sel]?.text}</div>
-          {citations.length > 0 && (
-            <div className="cvb-rw-citation" title="These versions were grounded in the Myro CV Playbook">
-              <Icon name="sparkle" size={11}/> Grounded in {citations.join(", ")}
-            </div>
-          )}
+
           <div className="cvb-rw-actions">
             <button type="button" className="cvb-btn sm" onClick={reset} disabled={applying}>Discard</button>
             <button
               type="button"
               className="cvb-btn sm primary"
-              disabled={applying || !variants[sel]?.text.trim()}
-              onClick={() => { onApply(bullet, (variants[sel]?.text ?? "").trim()); reset() }}
+              disabled={applying || !recommended.text.trim()}
+              onClick={() => { onApply(bullet, recommended.text.trim()); reset() }}
             >
-              <Icon name="check" size={12}/> {applying ? "Applying…" : "Use this version"}
+              <Icon name="check" size={12}/> {applying ? "Applying…" : "Use this line"}
             </button>
           </div>
         </>

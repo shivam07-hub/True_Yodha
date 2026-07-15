@@ -105,6 +105,7 @@ export function FixesRail({
                   seedKeywords={f.keywords}
                   auto
                   applying={applying}
+                  quantifyOnly={f.kind === "Quantify"}
                   onApply={(oldText, newText) => onApply(f, oldText, newText)}
                   onClose={() => onExpand(null)}
                 />

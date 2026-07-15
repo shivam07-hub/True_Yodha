@@ -16,7 +16,6 @@ from pydantic import BaseModel, Field
 
 from app.deps import Principal, get_principal
 from app.services import cv_intake
-from app.services.llm_provider import get_interactive_provider
 
 router = APIRouter()
 
@@ -51,7 +50,6 @@ async def intake_draft(
         jd_text=body.jd_text,
         gap_skills=body.gap_skills,
         roles=body.roles,
-        provider=get_interactive_provider(),
     )
     if result["mode"] != "draft":
         return IntakeDraftResponse(mode="error", rationale=result.get("rationale"))
@@ -75,5 +73,5 @@ async def intake_place_metric(
     body: PlaceMetricRequest,
     _principal: Principal = Depends(get_principal),
 ) -> PlaceMetricResponse:
-    result = await cv_intake.place_metric(body.bullet, body.metric, get_interactive_provider())
+    result = await cv_intake.place_metric(body.bullet, body.metric)
     return PlaceMetricResponse(text=result["text"])

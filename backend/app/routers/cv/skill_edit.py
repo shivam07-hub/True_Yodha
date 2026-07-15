@@ -32,7 +32,7 @@ from app.repositories.cv import (
 )
 from app.repositories.scores import ScoresRepository, get_token_scores_repository
 from app.services import background, cv_compose, cv_rewrite, cv_skill_edit, progress_stream, text_stream
-from app.services.llm_provider import get_interactive_provider
+from app.services.llm_provider import get_writer_provider
 
 logger = logging.getLogger(__name__)
 
@@ -91,29 +91,36 @@ class RewriteBulletRequest(BaseModel):
 
 
 class RewriteBulletResponse(BaseModel):
-    mode:           str               # "rewrite" | "question" | "error"
+    mode:           str               # "rewrite" | "question" | "suggest_metric" | "error"
     rewritten_text: str | None = None
     question:       str | None = None
     rationale:      str | None = None
-    # #32: authored-playbook source titles the rewrite was grounded in (empty when
-    # retrieval found nothing / RAG was down — the rewrite still succeeds).
+    # A real number found in the user's own stories (suggest_metric mode) — offered
+    # with provenance so they confirm before it lands (never invented, never silent).
+    candidate_value:  str | None = None
+    candidate_source: str | None = None
+    # Internal grounding record (playbook source titles). NOT shown on the card —
+    # grounding is our method, not the user's concern.
     citations:      list[str] = Field(default_factory=list)
 
 
 class RewriteVariant(BaseModel):
     angle: str   # "metric" | "impact" | "scope"
-    label: str   # UI tab label ("Metric-led" …)
+    label: str   # chip label for an alternate ("Metric-led" …)
     text:  str   # the finished bullet — never reasoning
+    why:   str = ""  # plain candidate-facing reason it's strong ("leads with the 40% result")
 
 
 class RewriteVariantsResponse(BaseModel):
-    """Pick-a-version rewrite: 2–3 finished framings of the SAME real facts.
-    ``mode`` is one of "variants" | "question" | "error" (shares the no-fab
-    question branch with the single rewrite)."""
+    """Recommended + alternates rewrite: framings of the SAME real facts, strongest-
+    first (variants[0] = the Mentor's recommendation). ``mode`` is one of
+    "variants" | "question" | "suggest_metric" | "error"."""
     mode:      str
     variants:  list[RewriteVariant] = Field(default_factory=list)
     question:  str | None = None
     rationale: str | None = None
+    candidate_value:  str | None = None
+    candidate_source: str | None = None
     citations: list[str] = Field(default_factory=list)
 
 
@@ -247,7 +254,6 @@ async def rewrite_bullet(
         body.role,
         body.missing_keywords,
         body.metric,
-        get_interactive_provider(),
         allow_no_metric=body.allow_no_metric,
         user_id=principal.id,
     )
@@ -259,17 +265,17 @@ async def rewrite_bullet_variants(
     body: RewriteBulletRequest,
     principal: Principal = Depends(get_principal),  # noqa: ARG001 — auth gate
 ) -> RewriteVariantsResponse:
-    """Propose 2–3 finished framings (metric/impact/scope) of ONE bullet for the
-    pick-a-version flow, or (no-fabrication guard) ask for the real metric. Uses
-    the interactive/paid provider — the user is watching a spinner — so the model
-    returns clean bullets, never streamed chain-of-thought. Stateless + free;
-    accepts go through /rewrite-bullet/apply."""
+    """Propose the Mentor's recommended rewrite + alternates (strongest-first) for
+    ONE bullet, or ask for the real metric — offering a number from the user's own
+    stories first (suggest_metric). The writer floor (strong-only, paid-first) is
+    owned inside the service; the user is watching a spinner, so the model returns
+    clean bullets, never streamed chain-of-thought. Stateless + free; accepts go
+    through /rewrite-bullet/apply."""
     result = await cv_rewrite.suggest_rewrite_variants(
         body.bullet,
         body.role,
         body.missing_keywords,
         body.metric,
-        get_interactive_provider(),
         allow_no_metric=body.allow_no_metric,
         user_id=principal.id,
     )
@@ -279,6 +285,8 @@ async def rewrite_bullet_variants(
         question=result.get("question"),
         rationale=result.get("rationale"),
         citations=result.get("citations", []),
+        candidate_value=result.get("candidate_value"),
+        candidate_source=result.get("candidate_source"),
     )
 
 
@@ -304,16 +312,27 @@ async def rewrite_bullet_stream(
         return text_stream.response(
             text_stream.one({"type": "done", "mode": "question", "question": plan["question"]})
         )
+    if plan["mode"] == "suggest_metric":
+        # A real number from the user's own stories — carries no prose to type, so it
+        # arrives as one terminal frame (frontend offers Use / give-another-number).
+        return text_stream.response(
+            text_stream.one({
+                "type": "done", "mode": "suggest_metric",
+                "candidate_value": plan["candidate_value"],
+                "candidate_source": plan["candidate_source"],
+                "question": plan["question"],
+            })
+        )
     if plan["mode"] == "error":
         return text_stream.response(
             text_stream.one({"type": "error", "recoverable": False, "message": plan["rationale"]})
         )
 
-    passages = plan["passages"]
+    grounding = plan["grounding"]
     missing = plan["missing_keywords"]
 
     async def finalize(text: str) -> dict:
-        result = cv_rewrite.finalize_rewrite(text, passages, missing, source_bullet=body.bullet)
+        result = cv_rewrite.finalize_rewrite(text, grounding, missing, source_bullet=body.bullet)
         if result.get("mode") == "error":
             raise text_stream.StreamAbort(result.get("rationale") or "No rewrite produced.", recoverable=True)
         return {
@@ -324,7 +343,7 @@ async def rewrite_bullet_stream(
         }
 
     return text_stream.response(
-        text_stream.live(get_interactive_provider(), plan["messages"], max_tokens=cv_rewrite.MAX_TOKENS, finalize=finalize)
+        text_stream.live(get_writer_provider(), plan["messages"], max_tokens=cv_rewrite.MAX_TOKENS, finalize=finalize)
     )
 
 

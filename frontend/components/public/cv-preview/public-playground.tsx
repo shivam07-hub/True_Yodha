@@ -551,6 +551,7 @@ function RewriteModal({
   const [phase, setPhase] = useState<RwPhase>("loading")
   const [variants, setVariants] = useState<AnonRewriteVariant[]>([])
   const [sel, setSel] = useState(0)
+  const [showAlt, setShowAlt] = useState(false)
   const [question, setQuestion] = useState("")
   const [metric, setMetric] = useState("")
   const [err, setErr] = useState<string | null>(null)
@@ -565,7 +566,7 @@ function RewriteModal({
         allow_no_metric: opts.allowNoMetric ?? false,
       })
       if (res.mode === "variants" && res.variants.length) {
-        setVariants(res.variants); setSel(0); setPhase("variants")
+        setVariants(res.variants); setSel(0); setShowAlt(false); setPhase("variants")
       } else if (res.mode === "question") {
         setQuestion(res.question ?? "What was the measurable impact?"); setPhase("question")
       } else {
@@ -587,7 +588,7 @@ function RewriteModal({
         <div className="cvp-rw-body">
           <div className="cvp-rw-original"><span className="cvp-rw-label">Original</span><p>{target.text}</p></div>
 
-          {phase === "loading" && <div className="cvp-rw-status" role="status">✦ Mentor is writing three versions…</div>}
+          {phase === "loading" && <div className="cvp-rw-status" role="status">✦ Mentor is writing a stronger line…</div>}
 
           {phase === "error" && (
             <>
@@ -627,26 +628,40 @@ function RewriteModal({
 
           {phase === "variants" && variants.length > 0 && (
             <>
-              <div className="cvp-rw-pick-label">Pick the version that tells your story best</div>
-              <div className="cvp-rw-tabs" role="tablist">
-                {variants.map((v, i) => (
-                  <button
-                    key={v.angle}
-                    type="button"
-                    role="tab"
-                    aria-selected={i === sel}
-                    className={`cvp-rw-tab${i === sel ? " active" : ""}`}
-                    onClick={() => setSel(i)}
-                  >
-                    {v.label}
-                  </button>
-                ))}
-              </div>
               <div className="cvp-rw-suggestion"><p>{variants[sel]?.text}</p></div>
+              {variants[sel]?.why && <div className="cvp-rw-why">{variants[sel]?.why}</div>}
+              {variants.length > 1 && (
+                <div className="cvp-rw-alt">
+                  <button
+                    type="button"
+                    className="cvp-rw-alt-toggle"
+                    aria-expanded={showAlt}
+                    onClick={() => setShowAlt(v => !v)}
+                  >
+                    {showAlt ? "Hide angles" : `Other angles (${variants.length - 1})`}
+                  </button>
+                  {showAlt && (
+                    <div className="cvp-rw-tabs" role="tablist">
+                      {variants.map((v, i) => (
+                        <button
+                          key={v.angle}
+                          type="button"
+                          role="tab"
+                          aria-selected={i === sel}
+                          className={`cvp-rw-tab${i === sel ? " active" : ""}`}
+                          onClick={() => setSel(i)}
+                        >
+                          {v.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="cvp-rw-foot">
                 <button type="button" className="cvb-btn sm" onClick={onClose}>Discard</button>
                 <button type="button" className="cvb-btn sm primary" onClick={() => onAccept(variants[sel]?.text ?? "")}>
-                  <Icon name="check" size={12} /> Use this version
+                  <Icon name="check" size={12} /> Use this line
                 </button>
               </div>
             </>

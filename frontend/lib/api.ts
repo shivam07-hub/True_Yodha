@@ -920,12 +920,16 @@ export interface CVUploadFallbackSubmissionResponse {
 }
 
 export interface RewriteBulletResponse {
-  mode: "rewrite" | "question" | "error"
+  mode: "rewrite" | "question" | "suggest_metric" | "error"
   rewritten_text?: string | null
   question?: string | null
   rationale?: string | null
-  // #32: authored-playbook sources this rewrite was grounded in. Empty when
-  // retrieval found nothing (the rewrite still succeeds on the static rules).
+  // A real number found in the user's own stories (suggest_metric) — offered with
+  // provenance so they confirm before it lands, never invented, never silent.
+  candidate_value?: string | null
+  candidate_source?: string | null
+  // Internal grounding record — not shown on the card (grounding is method, not
+  // the user's concern).
   citations?: string[]
 }
 
@@ -933,14 +937,19 @@ export interface RewriteVariant {
   angle: "metric" | "impact" | "scope"
   label: string
   text: string
+  // Plain candidate-facing reason this framing is strong ("leads with the 40% result").
+  why?: string
 }
 
-// Pick-a-version rewrite: 2–3 finished framings of the same real facts.
+// Recommended + alternates rewrite: framings of the same real facts, strongest-first
+// (variants[0] = the Mentor's recommendation).
 export interface RewriteVariantsResponse {
-  mode: "variants" | "question" | "error"
+  mode: "variants" | "question" | "suggest_metric" | "error"
   variants: RewriteVariant[]
   question?: string | null
   rationale?: string | null
+  candidate_value?: string | null
+  candidate_source?: string | null
   citations?: string[]
 }
 
@@ -4306,6 +4315,7 @@ export interface AnonRewriteVariant {
   angle: string
   label: string
   text: string
+  why?: string
 }
 
 export interface AnonRewriteVariantsResponse {

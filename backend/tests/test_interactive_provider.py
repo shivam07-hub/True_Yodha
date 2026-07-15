@@ -11,10 +11,12 @@ from app.services.llm_provider import (
     GROQ_FALLBACK_MODEL,
     JUDGMENT_OR_TIERS,
     OR_TIERS,
+    WRITER_OR_TIERS,
     _JUDGMENT_UNSAFE_MODELS,
     get_interactive_provider,
     get_judgment_provider,
     get_paid_jobs_provider,
+    get_writer_provider,
 )
 
 
@@ -127,6 +129,45 @@ def test_judgment_provider_leads_free_strong_then_paid_strong():
 def test_judgment_or_tiers_derived_by_exclusion_is_reorder_safe():
     """A small model slipped into any tier drops that WHOLE tier from judgment."""
     flat = {m for tier in JUDGMENT_OR_TIERS for m in tier}
+    assert not (flat & _JUDGMENT_UNSAFE_MODELS)
+
+
+# ── writer lane (CV core loop) ───────────────────────────────────────────────
+
+def test_writer_provider_never_includes_a_small_model():
+    """THE trust invariant for CV WRITING: no rewrite/draft/restructure call may ever
+    hit a 4B model (a small model truncates a rich bullet — the core-loop regression)."""
+    def check():
+        ids = _judgment_model_ids(get_writer_provider())
+        leaked = ids & _JUDGMENT_UNSAFE_MODELS
+        assert not leaked, f"Small model leaked onto the writer lane: {leaked}"
+        assert "gemini-2.0-flash-lite" not in ids     # too small to write, like judgment
+        return True
+
+    assert _with_all_keys(check)
+
+
+def test_writer_provider_leads_paid_strong_for_the_blocking_spinner():
+    """Unlike judgment (free-strong-first), the writer lane leads PAID-strong so a
+    free-tier queue never stalls a user watching the rewrite spinner."""
+    def check():
+        provider = get_writer_provider()
+        or_entries = [e for e in provider._providers if e[2] and "models" in e[2]]
+        first_tier = or_entries[0][2]["models"]
+        assert ":free" not in "".join(first_tier)      # first OR call is a PAID tier
+        ids = _judgment_model_ids(provider)
+        assert "openai/gpt-4o-mini" in ids or "meta-llama/llama-3.3-70b-instruct" in ids
+        assert GROQ_FALLBACK_MODEL in ids              # strong direct last-hop
+        return True
+
+    assert _with_all_keys(check)
+
+
+def test_writer_or_tiers_are_the_judgment_tiers_reordered():
+    """Writer = judgment tiers (small-excluded) reordered paid-first — no new model
+    set to keep in sync, and the small-model exclusion is inherited structurally."""
+    assert sorted(map(tuple, WRITER_OR_TIERS)) == sorted(map(tuple, JUDGMENT_OR_TIERS))
+    flat = {m for tier in WRITER_OR_TIERS for m in tier}
     assert not (flat & _JUDGMENT_UNSAFE_MODELS)
     assert JUDGMENT_OR_TIERS, "judgment lane must not be empty"
     # Every retained tier must be wholly free of unsafe models (fail-safe exclusion).

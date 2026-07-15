@@ -1729,6 +1729,53 @@ mark.cvb-kw {
   text-decoration: line-through; text-decoration-color: var(--tm-border-soft);
 }
 .cvb-rw-diff-new { font-size: var(--tm-fs-meta); line-height: 1.55; color: var(--tm-text); }
+
+/* ── recommended + alternates card ──────────────────────────────────────────
+   The recommendation is the "after" — set off with an accent rule. Accent is
+   rationed: it marks the line the user will keep + the reason it wins (their
+   language), never method/grounding chrome. */
+.cvb-rw-panel .cvb-rw-diff-new {
+  font-weight: 500;
+  padding-left: 9px; border-left: 2px solid var(--tm-int-border);
+}
+.cvb-rw-why {
+  display: flex; align-items: baseline; gap: 7px;
+  font-size: var(--tm-fs-caption); line-height: 1.5; color: var(--tm-text-muted);
+  padding-left: 9px;
+}
+.cvb-rw-why::before {
+  content: ""; flex: none; width: 5px; height: 5px; margin-top: 5px;
+  border-radius: 50%; background: var(--tm-accent-text);
+}
+/* suggest_metric: the reservoir-number offer (Use N / my own number). */
+.cvb-rw-ask-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+/* Other angles: quiet reveal → chip row. Only the recommendation shows by default. */
+.cvb-rw-alt { display: flex; flex-direction: column; gap: 8px; }
+.cvb-rw-alt-toggle {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 5px;
+  background: none; border: none; padding: 0; font: inherit;
+  font-size: var(--tm-fs-caption); color: var(--tm-text-muted); cursor: pointer;
+}
+.cvb-rw-alt-toggle:hover { color: var(--tm-text); }
+.cvb-rw-chev-open { transform: rotate(180deg); }
+.cvb-rw-alt-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.cvb-rw-alt-chip {
+  padding: 4px 10px; font: inherit; font-size: var(--tm-fs-caption);
+  color: var(--tm-text-muted); background: var(--tm-surface);
+  border: 1px solid var(--tm-border-soft); border-radius: 999px; cursor: pointer;
+}
+.cvb-rw-alt-chip:hover { color: var(--tm-text); border-color: var(--tm-int-border); }
+.cvb-rw-alt-chip.active {
+  color: var(--tm-accent-text); border-color: var(--tm-int-border);
+  background: var(--tm-int-bg-wash); font-weight: 600;
+}
+@media (max-width: 720px) {
+  .cvb-rw-alt-chip { min-height: 36px; }
+  .cvb-rw-alt-toggle { min-height: 32px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cvb-rw-alt-toggle .cvb-rw-chev-open { transition: transform 0.18s ease; }
+}
 /* Pick-a-version: intent header + the current line (reference, not struck) +
    angle tabs. Says which line is changing and what it is adding. */
 .cvb-rw-intent {

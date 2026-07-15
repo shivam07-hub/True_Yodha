@@ -84,12 +84,6 @@ async def test_draft_empty_input_errors() -> None:
 
 
 @pytest.mark.asyncio
-async def test_draft_no_provider_errors() -> None:
-    res = await cv_intake.draft_from_intake("did things", None, [], [], None)
-    assert res["mode"] == "error"
-
-
-@pytest.mark.asyncio
 async def test_draft_provider_failure_errors() -> None:
     res = await cv_intake.draft_from_intake("did things", None, [], [], _Provider(boom=True))
     assert res["mode"] == "error"
@@ -111,12 +105,11 @@ async def test_place_metric_weaves_user_number_into_bullet() -> None:
 
 @pytest.mark.asyncio
 async def test_place_metric_empty_inputs_return_original() -> None:
-    # No number / no bullet / no provider → never fabricate, just hand back the
-    # bullet unchanged so the caller can Add it as-is.
+    # No number / no bullet → never fabricate, just hand back the bullet unchanged
+    # so the caller can Add it as-is (returns before the provider is ever resolved).
     for bullet, metric, prov in [
         ("A bullet", "  ", _Provider("x")),
         ("  ", "50%", _Provider("x")),
-        ("A bullet", "50%", None),
     ]:
         res = await cv_intake.place_metric(bullet, metric, prov)
         assert res["mode"] == "unchanged"
