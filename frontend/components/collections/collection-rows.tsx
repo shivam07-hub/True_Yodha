@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
 import { X } from "lucide-react"
 import { FeedCard, feedCardConfidenceClass } from "@/components/jobs/feed-card"
 import { feedDataFromMatch } from "@/lib/jobs/card-view"
@@ -143,11 +144,20 @@ export function CollectionRow({
             <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={onOpenCv}>
               Tailored ✓
             </button>
-          ) : (
+          ) : !applied ? (
             <button type="button" className="db-btn db-btn-primary tm-control-focus" onClick={onTailor}>
               Tailor CV
             </button>
-          )}
+          ) : null}
+          {applied ? (
+            <Link
+              href={`/preparations/${encodeURIComponent(it.jobId)}`}
+              className="db-btn db-btn-primary tm-control-focus"
+              style={{ textDecoration: "none" }}
+            >
+              Prep room →
+            </Link>
+          ) : null}
         </div>
       }
     />

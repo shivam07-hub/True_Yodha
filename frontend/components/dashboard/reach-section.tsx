@@ -11,11 +11,20 @@
 
 import * as React from "react"
 import { useQuery, useMutation } from "@tanstack/react-query"
-import { jobs as jobsApi, type JobMatch, type ReachPack } from "@/lib/api"
+import { jobs as jobsApi, type ReachPack } from "@/lib/api"
 import { useCoinsGate } from "@/lib/hooks/use-xp-gate"
 import { useXPStore } from "@/store/xpStore"
 
 const PACK_COST = 50
+
+/** Structural subset — JobMatch satisfies it, and so does an ApplicationResponse
+ *  mapped by the Preparations room. Only what reach actually reads. */
+export interface ReachJobRef {
+  job_id: string
+  title: string
+  company: string | null
+  job_description?: string | null
+}
 
 function CopyRow({ label, text }: { label: string; text: string }) {
   const [copied, setCopied] = React.useState(false)
@@ -52,7 +61,7 @@ function PackView({ pack }: { pack: ReachPack }) {
   )
 }
 
-export function ReachSection({ job, token, active }: { job: JobMatch; token: string; active: boolean }) {
+export function ReachSection({ job, token, active }: { job: ReachJobRef; token: string; active: boolean }) {
   const applyXpChange = useXPStore((s) => s.applyXpChange)
   const gate = useCoinsGate({ cost: PACK_COST, action: "reach_pack" })
 

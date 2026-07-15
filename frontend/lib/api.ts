@@ -1129,6 +1129,9 @@ export interface JDCoverageResponse {
   covered: number
   weak: number
   gap: number
+  /** Served from the per-(user, job) cache — requirements stay stable per job. */
+  cached: boolean
+  computed_at: string
 }
 
 /** One entry in the persistent brain-dump notebook (User Memory Phase 3). */
@@ -1465,11 +1468,11 @@ export const cv = {
       }),
     /** Lane C: "What this job wants" — JD requirements classified against the
      *  user's stories (covered / weak / gap). */
-    jdCoverage: (token: string, jobId: string) =>
+    jdCoverage: (token: string, jobId: string, opts?: { refresh?: boolean }) =>
       request<JDCoverageResponse>("/cv/jd-coverage", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ job_id: jobId }),
+        body: JSON.stringify({ job_id: jobId, refresh: opts?.refresh ?? false }),
       }),
     /** A gap answer → a NEW career story via the dump pipeline. */
     jdCoverageAnswer: (token: string, requirement: string, answer: string, jobId?: string) =>
@@ -2907,6 +2910,27 @@ export interface ReachPackResponse {
   new_coin_balance: number | null
 }
 
+// Preparations room day-of brief (30 coins, charge-on-success, replay free).
+export interface PrepBriefLead {
+  story: string
+  why: string
+}
+
+export interface PrepBrief {
+  snapshot: string
+  leads: PrepBriefLead[]
+  likely_questions: string[]
+  watch_out: string
+  plan: string[]
+}
+
+export interface PrepBriefResponse {
+  purchased: boolean
+  brief: PrepBrief | null
+  cost: number
+  new_coin_balance: number | null
+}
+
 export interface UserSkillDemandItem {
   skill: string
   display_name: string
@@ -3425,6 +3449,17 @@ export const jobs = {
   /** Generate the 50-coin outreach pack (charge-on-success; replay free). */
   createReachPack: (token: string, jobId: string) =>
     request<ReachPackResponse>(`/jobs/${encodeURIComponent(jobId)}/reach/pack`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  /** Purchased-state for a job's day-of brief — no charge (UI gate). */
+  getPrepBrief: (token: string, jobId: string) =>
+    request<PrepBriefResponse>(`/jobs/${encodeURIComponent(jobId)}/prep/brief`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  /** Generate the 30-coin day-of brief (charge-on-success; replay free). */
+  createPrepBrief: (token: string, jobId: string) =>
+    request<PrepBriefResponse>(`/jobs/${encodeURIComponent(jobId)}/prep/brief`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     }),

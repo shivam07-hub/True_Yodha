@@ -20,12 +20,12 @@ import { LoopBar, type LoopBarModel } from "./loop-bar"
  * the "N new" signal on Capture.
  */
 
-const LOOP_ROUTES = ["/market", "/collections", "/cv/tailor", "/applications"]
+const LOOP_ROUTES = ["/market", "/collections", "/cv/tailor", "/preparations"]
 
 function activeStep(pathname: string): number {
   if (pathname.startsWith("/collections")) return 1
   if (pathname.startsWith("/cv/tailor")) return 2
-  if (pathname.startsWith("/applications")) return 3
+  if (pathname.startsWith("/preparations")) return 4
   return 0 // /market and anything else on the loop
 }
 
@@ -80,12 +80,16 @@ export function LoopBarMount({ token }: { token: string }) {
         ? { label: `${newJobs} new`, href: "/collections?search=1" }
         : undefined
 
+    // 05 Prep (Preparations grill Q9): live rooms = applied + interviewing.
+    const liveRooms = apps.filter((a) => a.status === "applied" || a.status === "interviewing").length
+
     return {
       steps: [
         { label: "Capture", value: `${counts.all}`, href: "/market", alert: captureAlert },
         { label: "Collect", value: `${collected}`, href: "/collections" },
         { label: "Tailor", value: `${tailored}/${collected}`, href: "/collections" },
         { label: "Apply", value: `${counts.applied} sent`, href: "/collections" },
+        { label: "Prep", value: liveRooms > 0 ? `${liveRooms} live` : undefined, href: "/preparations" },
       ],
       activeIndex: activeStep(pathname),
       next,

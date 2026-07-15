@@ -1,37 +1,32 @@
 /**
  * CV Library Atelier — main workspace surface for /cv (no jobId).
- * Company-folder layout with an active pipeline rail.
+ *
+ * Views: CV (the Main CV, full width) · Stories (the Career Story Reservoir) ·
+ * Memory (what Myro remembers). The old "Active" applications view moved to its
+ * own surface — /preparations (grill 2026-07-15); the /cv page redirects the
+ * legacy ?view=active / ?filter=closed deep links there.
  */
 "use client"
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import type { ApplicationResponse, ApplicationStatus, CVStructured, CVVersion, UserProfile } from "@/lib/api"
-import { CompanyAvatar, StatTile, StatusDot, STAGE_META, stageRank } from "./library-shared"
-import { APPLICATION_OUTCOMES } from "@/lib/api"
-import { buildCVWorkspaceStats, latestCVVersionForJob } from "@/lib/cv/workspace"
-import { cleanJobTitle } from "@/lib/text/strip-markdown"
+import type { ApplicationResponse, CVStructured, CVVersion, UserProfile } from "@/lib/api"
 import { MasterCVPanel } from "./library-master"
 import { MemoryPanel } from "./memory-panel"
 import { ReservoirProfile } from "./reservoir-profile"
 import { I, LIcon } from "./library-icons"
-import { WorkspacePipeline } from "../pipeline/workspace-pipeline"
 import { MobileCVHub } from "../mobile/mobile-cv-hub"
 import { useViewport } from "@/mobile"
 import "./library-view.css"
 import "../mobile/mobile-cv-hub.css"
 import "../mobile/mobile-cv-editor.css"
 
-// Top-level view switcher (market Jobs/Heatmap pill pattern). CV = master CV on
-// its own full-width page; Active = stat strip + live pipeline + closed rail;
-// Stories = the Career Story Reservoir (the dump-built profile behind the CV).
-type View = "cv" | "active" | "stories" | "memory"
+type View = "cv" | "stories" | "memory"
 
 interface LibraryViewProps {
   token: string
   cv: CVStructured | null
-  versions: CVVersion[]
   currentBaseline: CVVersion | null
   applications: ApplicationResponse[]
   profile: UserProfile | null
@@ -39,11 +34,6 @@ interface LibraryViewProps {
   onReplaceCV: () => void
   onEditMaster: () => void
 }
-
-// Display order only (presentation). Membership is the canonical predicate
-// from lib/api — APPLICATION_OUTCOMES — so the rail count, the folder badge, and
-// the main board can never disagree on what counts as closed.
-const CLOSED_ORDER: ApplicationStatus[] = ["offer", "rejected", "ghosted"]
 
 // CV ↔ Stories ↔ Memory mode pill (reuses the canonical .tm-lib-seg family).
 // The master CV is the artifact; Stories is the reservoir it projects from;
@@ -58,109 +48,21 @@ function CvStoriesToggle({ view }: { view: View }) {
   )
 }
 
-// Closed verdicts list — the right rail no longer toggles. It is a single
-// always-closed surface (outcomes only). Active pursuits live in the main panel
-// now, so the rail's job is purely "what already resolved". Rendered as an
-// <aside> on desktop and an inline block on mobile (variant), since the aside is
-// CSS-hidden below 1100px and closed work must stay reachable.
-function ClosedRail({ applications, versions, onPickJob, variant = "aside" }: {
-  applications: ApplicationResponse[]
-  versions: CVVersion[]
-  onPickJob: (jobId: string) => void
-  variant?: "aside" | "inline"
-}) {
-  const scoped = applications
-    .filter((application) => APPLICATION_OUTCOMES.includes(application.status))
-    .sort((a, b) => stageRank(b.status) - stageRank(a.status))
-
-  const grouped = CLOSED_ORDER
-    .map((stage) => ({ stage, items: scoped.filter((application) => application.status === stage) }))
-    .filter((group) => group.items.length > 0)
-
-  const Wrapper = variant === "inline" ? "section" : "aside"
-
-  return (
-    <Wrapper className={variant === "inline" ? "tm-lib-rail tm-lib-closed-inline" : "tm-lib-rail"}>
-      <div className="tm-lib-rail-head">
-        <div className="tm-lib-rail-head-row">
-          <div className="tm-lib-rail-head-eyebrow">
-            <LIcon d={I.pulse} size={11}/>
-            CLOSED
-          </div>
-          <span className="tm-lib-rail-count">{scoped.length}</span>
-        </div>
-      </div>
-
-      <div className="tm-lib-rail-body">
-        {grouped.length === 0 && (
-          <div style={{ padding: "20px 0", textAlign: "center", color: "var(--tm-text-faint)", fontSize: 12 }}>
-            No closed applications yet.
-          </div>
-        )}
-        {grouped.map(({ stage, items }) => {
-          const meta = STAGE_META[stage]
-          return (
-            <div key={stage} className="tm-lib-stage-group">
-              <div className="tm-lib-stage-group-head">
-                <StatusDot stage={stage}/>
-                <span className="tm-lib-stage-group-label" style={{ color: meta.color }}>
-                  {meta.label}
-                </span>
-                <span className="tm-lib-stage-group-count">{items.length}</span>
-                <span className="tm-lib-stage-group-line"/>
-              </div>
-              {items.map((app) => {
-                const cvVersion = app.job_id ? latestCVVersionForJob(app.job_id, versions) : null
-                return (
-                  <button key={app.id} className="tm-lib-rail-job-row"
-                    onClick={() => app.job_id && onPickJob(app.job_id)}>
-                    <CompanyAvatar name={app.company ?? "?"} size={22}/>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="tm-lib-rail-job-title">{cleanJobTitle(app.title)}</div>
-                      <div className="tm-lib-rail-job-meta">
-                        <span>{app.company}</span>
-                        {cvVersion && (
-                          <>
-                            <span className="tm-lib-rail-job-meta-sep">·</span>
-                            <span style={{ color: "var(--tm-interactive)" }}>v{cvVersion.user_version_number}</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    <LIcon d={I.chevR} size={12}/>
-                  </button>
-                )
-              })}
-            </div>
-          )
-        })}
-      </div>
-    </Wrapper>
-  )
-}
-
 export function LibraryView({
-  token, cv, versions, currentBaseline, applications, profile, onOpenJob, onReplaceCV, onEditMaster,
+  token, cv, currentBaseline, applications, profile, onOpenJob, onReplaceCV, onEditMaster,
 }: LibraryViewProps) {
   const searchParams = useSearchParams()
   const { isDesktop } = useViewport()
 
-  // Top-level view (market Jobs/Heatmap pill). CV leads by default — the master
-  // CV is the source of truth, so it gets its own full-width page. Legacy deep
-  // links resolve here: `?master=1` (dashboard "Door 2") and the old
-  // `?filter=closed` /tracker redirect both land on a sensible view — master CV
-  // for the former, the pipeline (closed now lives in the rail) for the latter.
-  const legacyMaster = searchParams.get("master") === "1"
-  const legacyClosed = searchParams.get("filter") === "closed"
+  // `?master=1` (dashboard "Door 2") lands on the CV view; ?view=active and the
+  // old ?filter=closed are redirected to /preparations by the page before this
+  // renders, so they need no branch here.
   const viewParam = searchParams.get("view")
   const view: View =
-    viewParam === "cv" || legacyMaster ? "cv"
-    : viewParam === "active" || legacyClosed ? "active"
-    : viewParam === "stories" ? "stories"
+    viewParam === "stories" ? "stories"
     : viewParam === "memory" ? "memory"
     : "cv"
 
-  const stats = buildCVWorkspaceStats(versions, applications)
   const isNewUser = applications.length === 0
 
   if (!isDesktop) {
@@ -180,23 +82,15 @@ export function LibraryView({
         </div>
       )
     }
-    if (view === "cv" && cv) {
-      return (
-        <MobileCVHub
-          token={token}
-          cv={cv}
-          currentBaseline={currentBaseline}
-          profile={profile}
-          onReplaceCV={onReplaceCV}
-        />
-      )
-    }
+    if (!cv) return null
     return (
-      <div className="tm-mcv-applications">
-        <header><h1>Applications</h1></header>
-        <WorkspacePipeline filter="active" versions={versions} onOpenJob={onOpenJob} />
-        <ClosedRail applications={applications} versions={versions} onPickJob={onOpenJob} variant="inline" />
-      </div>
+      <MobileCVHub
+        token={token}
+        cv={cv}
+        currentBaseline={currentBaseline}
+        profile={profile}
+        onReplaceCV={onReplaceCV}
+      />
     )
   }
 
@@ -204,28 +98,6 @@ export function LibraryView({
     <div className="tm-lib-scope">
       <div className="tm-lib-root">
         <div className="tm-lib-main">
-          {/* Active/CV switching now lives in the top nav (CV + Applications
-              tabs) on both shells, so the in-page ViewSwitch is retired. The
-              head survives only to carry the Active-view stat strip; the empty
-              head-main is a flex spacer that keeps the strip right-aligned as
-              before. CV view needs no head. */}
-          {view === "active" && (
-            <div className="tm-lib-page-head">
-              <div className="tm-lib-page-head-main">
-                {cv && (
-                  <Link href="/cv?view=cv" className="tm-lib-btn sm tm-lib-view-cv">
-                    <LIcon d={I.file} size={13}/> View my 1-page CV
-                  </Link>
-                )}
-              </div>
-              <div className="tm-lib-header-stat-strip tm-lib-stat-strip-thin tm-lib-head-stats" aria-label="CV workspace summary">
-                {stats.map((stat) => (
-                  <StatTile key={stat.key} eyebrow={stat.eyebrow} value={stat.value} sub={stat.sub} />
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* ── CV view: the Main CV is the whole point, full width ──────
               The panel is the surface — it always renders; its own head
               carries name / version / Edit / Replace. No close/collapse:
@@ -265,32 +137,7 @@ export function LibraryView({
               <MemoryPanel token={token} />
             </>
           )}
-
-          {/* ── Active view: thin stat strip + live pipeline ─────────── */}
-          {view === "active" && (
-            <>
-              <WorkspacePipeline filter="active" versions={versions} onOpenJob={onOpenJob} />
-
-              {/* Mobile fallback: the closed rail is CSS-hidden below 1100px,
-                  so render the closed verdicts inline here to keep them reachable. */}
-              <ClosedRail
-                applications={applications}
-                versions={versions}
-                onPickJob={onOpenJob}
-                variant="inline"
-              />
-            </>
-          )}
         </div>
-
-        {/* Right rail = closed verdicts only, and only on the Active view. */}
-        {view === "active" && (
-          <ClosedRail
-            applications={applications}
-            versions={versions}
-            onPickJob={onOpenJob}
-          />
-        )}
       </div>
     </div>
   )
