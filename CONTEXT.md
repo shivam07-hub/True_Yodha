@@ -577,6 +577,42 @@ The single read for "what Myro knows about what this user wants" — one module 
 
 ---
 
+## Seniority Eligibility
+
+The deterministic boundary that protects a candidate from implausible job levels
+before a job reaches the feed or the Career Ops ranking pool.
+
+**Terms**
+
+- **Target Seniority** — the candidate's durable level preference in
+  `user_profiles.target_seniority`: `intern`, `entry`, `mid`, `senior`,
+  `lead`, `executive`, or `any`. It is a targeting preference, not a
+  per-visit filter.
+- **Job Seniority** — the canonical normalized level of a posting. It is
+  source-owned and generated prospectively by the scraper from the provider's
+  structured level/experience data, title, and JD; Myro may make a
+  deterministic compatibility read for incomplete legacy rows but never
+  backfills the source table.
+- **Eligibility Boundary** — the server-side hard gate that filters
+  incompatible jobs before the browse feed, candidate selection, and
+  Career-Ops ranking. A client-side filter alone is never sufficient.
+- **Stretch Scope** — an explicit, temporary expansion to the next higher
+  compatible level. It is opt-in, URL-backed for back-navigation, and never
+  admits senior, lead, or executive postings for an intern or entry candidate.
+
+**Default policy**
+
+- Intern and entry candidates receive Intern + Entry postings by default.
+- Mid, senior, lead, and executive postings are excluded from those default
+  feeds; titles such as Vice President are never a fresher stretch.
+- Career Ops ranks and explains jobs only after this boundary. It may rank an
+  opted-in adjacent stretch below at-level work, but cannot override the gate.
+- Target seniority persists with the candidate profile. Browse state persists
+  in the URL so opening a role, navigating back, or reloading does not require
+  the candidate to restate their intent.
+
+---
+
 ## FilterSpec
 
 The one structured filter vocabulary for "what jobs to search for". Before it, that intent was expressed three incompatible ways — the NL parser dict, the authed feed's long `feed_jobs(**kwargs)`, and the intent-chat diff. `FilterSpec` (`app/services/matching/filter_spec.py`) is a frozen dataclass every producer maps into and every query surface reads out of.
