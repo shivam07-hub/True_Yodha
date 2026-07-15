@@ -1179,6 +1179,49 @@ export const memory = {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     }),
+  /** The persona canvas — "What Myro knows about you" (Lane B). */
+  persona: (token: string) =>
+    request<PersonaResponse>("/memory/persona", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  /** Edit a canvas paragraph. Edits are law: the paragraph becomes the user's
+   *  words, pinned, and survives every regeneration. */
+  personaEdit: (token: string, paragraphId: string, patch: { text?: string; pinned?: boolean }) =>
+    request<PersonaParagraph>(`/memory/persona/paragraphs/${encodeURIComponent(paragraphId)}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(patch),
+    }),
+  personaRefresh: (token: string) =>
+    request<{ scheduled: boolean }>("/memory/persona/refresh", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+}
+
+/** Persona canvas (Lane B) — one living document in three movements. */
+export type PersonaMovement = "past" | "present" | "future"
+export interface PersonaParagraph {
+  id: string
+  movement: PersonaMovement
+  text: string
+  author: "myro" | "user"
+  pinned: boolean
+  /** Resolved signal lines this paragraph draws on — the visible trace. */
+  grounds: string[]
+}
+export interface PersonaTimelineRole {
+  company: string
+  title: string
+  date_label: string
+  started_on: string | null
+}
+export interface PersonaResponse {
+  status: "ready" | "pending"
+  paragraphs: PersonaParagraph[]
+  generated_at: string | null
+  timeline: PersonaTimelineRole[]
+  cosmos: "none" | "on_file"
 }
 
 export const cv = {

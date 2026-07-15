@@ -45,3 +45,41 @@ class UpdateMemoryRequest(BaseModel):
 
 class MemoryListResponse(BaseModel):
     facts: list[MemoryFact] = Field(default_factory=list)
+
+
+# ── Persona canvas (Lane B — "What Myro knows about you") ────────────────────
+
+PersonaMovement = Literal["past", "present", "future"]
+
+
+class PersonaParagraph(BaseModel):
+    id: str
+    movement: PersonaMovement
+    text: str
+    author: Literal["myro", "user"] = "myro"
+    pinned: bool = False
+    # Resolved signal lines this paragraph draws on — the visible trace.
+    grounds: list[str] = Field(default_factory=list)
+
+
+class PersonaTimelineRole(BaseModel):
+    company: str = ""
+    title: str
+    date_label: str = ""
+    started_on: str | None = None
+
+
+class PersonaResponse(BaseModel):
+    # pending = no canvas yet, synthesis scheduled; FE polls while pending.
+    status: Literal["ready", "pending"]
+    paragraphs: list[PersonaParagraph] = Field(default_factory=list)
+    generated_at: datetime | None = None
+    timeline: list[PersonaTimelineRole] = Field(default_factory=list)
+    # Cosmos lens state: 'none' → dormant constellation; 'on_file' → birth
+    # details exist via Myrology intake (reading arrives with Myrology).
+    cosmos: Literal["none", "on_file"] = "none"
+
+
+class PersonaEditRequest(BaseModel):
+    text: str | None = Field(default=None, min_length=1, max_length=1200)
+    pinned: bool | None = None
