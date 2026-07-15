@@ -9,7 +9,6 @@ const SENIORITIES: Array<{ value: TargetSeniority; label: string }> = [
   { value: "intern", label: "Intern" }, { value: "entry", label: "Entry" },
   { value: "mid", label: "Mid" }, { value: "senior", label: "Senior" },
   { value: "lead", label: "Lead" }, { value: "executive", label: "Executive" },
-  { value: "any", label: "Any" },
 ]
 
 interface Props {
@@ -24,13 +23,13 @@ interface Props {
 
 export function TargetStep({ initial, busy, analysisPhase, error, onSubmit, onBack, onBrowse }: Props) {
   const [role, setRole] = useState(initial?.role_title ?? "")
-  const [seniority, setSeniority] = useState<TargetSeniority>(initial?.seniority ?? "any")
+  const [seniority, setSeniority] = useState<TargetSeniority>(initial?.seniority === "any" ? "entry" : initial?.seniority ?? "entry")
   const [location, setLocation] = useState(initial?.location ?? "")
   const [roleSuggestions, setRoleSuggestions] = useState<string[]>([])
 
   useEffect(() => {
     if (initial?.role_title) setRole(initial.role_title)
-    if (initial?.seniority) setSeniority(initial.seniority)
+    if (initial?.seniority) setSeniority(initial.seniority === "any" ? "entry" : initial.seniority)
     if (initial?.location) setLocation(initial.location)
   }, [initial])
 

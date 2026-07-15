@@ -306,7 +306,38 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-15 - pre-deploy secret safety pass)
+## LAST SESSION SUMMARY (2026-07-16 - Career Band and seniority eligibility)
+
+Implemented the four-band role-family boundary plus a durable seniority gate
+for browse and Career Ops.
+
+- The eligibility contract is now shared by browse and the Career Ops candidate
+  pool: Engineering & Data, Business/Product/Operations,
+  Research/People/Public Impact, and Design/Creative must match before ranking.
+- Target bands derive from durable role titles; additional target roles and the
+  explicit Explore controls become persisted `explored_career_bands`. A route
+  change cannot widen the feed.
+- New and legacy `any` seniority defaults are evaluated as Entry. Intern/Entry
+  candidates see Intern/Entry only by default; one explicit stretch step admits
+  Mid but never Senior/Lead/Executive.
+- Added live Supabase columns and checks under migration
+  `20260715190252_career_band_eligibility.sql`; the Data API was read back using
+  both new job and profile columns. No historical job backfill was performed.
+- The independent Firecrawl source now performs the matching deterministic,
+  forward-only `career_band` normalization before publication (commit
+  `00b3268ce`).
+
+Validation:
+
+- Focused eligibility/feed/Career Ops/target tests: 75 passed.
+- Source normalizer tests: 17 passed.
+- `cd frontend && npx tsc --noEmit --pretty false`: clean.
+- `cd frontend && npm run lint`: clean.
+- Full backend suite: 1311 passed, 23 failed in pre-existing uncommitted CV
+  mentor/rewrite and telemetry work; this eligibility slice's focused suite
+  stays green.
+
+## OLDER SESSION SUMMARY (2026-07-15 - pre-deploy secret safety pass)
 
 Completed a repository-wide secret safety pass on `Develop` before deployment.
 

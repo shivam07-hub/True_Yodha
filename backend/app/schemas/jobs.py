@@ -610,6 +610,10 @@ class JobFeedItem(BaseModel):
     location_quality: str | None = None
     locations: list[str] = []  # per-city array for multi-location postings (firecrawl #6)
     role_domain: str | None = None
+    career_band: str | None = None
+    seniority_level: str | None = None
+    min_years_experience: int | None = None
+    max_years_experience: int | None = None
     industry: str | None = None
     source_url: str | None = None
     first_seen: str | None = None  # ISO date derived from the feed marker

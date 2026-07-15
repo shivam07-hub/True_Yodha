@@ -613,6 +613,46 @@ before a job reaches the feed or the Career Ops ranking pool.
 
 ---
 
+## Career Band Eligibility
+
+The role-family boundary that prevents a candidate from being recommended jobs
+from an unrelated career path before a job reaches the feed or Career Ops.
+
+**Terms**
+
+- **Career Band** — one of four broad role families: `engineering_data`,
+  `business_product_operations`, `research_people_public_impact`, or
+  `design_creative`. It is coarser than the existing controlled
+  `role_domain`; `role_domain` remains the detailed functional classification.
+- **Primary Career Band** — the candidate's durable default role family. Myro
+  derives it from their CV and target-role titles, persists it in the profile,
+  and lets the candidate correct it.
+- **Explored Career Bands** — zero or more additional role families the
+  candidate explicitly enables. They are the only valid cross-band route.
+- **Job Career Band** — the deterministic family assigned to a job from its
+  source role domain and explicit title signals. A title such as Product
+  Designer may take the Design & Creative band even if its detailed role domain
+  is Product Management.
+- **Career Band Boundary** — the server-side hard gate that admits a posting
+  only when its Job Career Band is the Primary Career Band or an explicitly
+  Explored Career Band. Unknown bands do not become silent cross-band matches.
+
+**Default policy**
+
+- Existing detailed domains map into the four bands: Engineering & Data
+  (software, data, IT, manufacturing); Business, Product & Operations
+  (finance, consulting, product, sales, operations, supply chain, risk, general
+  management); Research, People & Public Impact (research, HR, legal and
+  compliance); and Design & Creative (UX/UI, graphic, visual, content/design).
+- A job reaches browse or Career Ops only when it passes both the Career Band
+  Boundary and the Seniority Eligibility Boundary.
+- When the eligible entry-level pool is thin, Myro reports that inventory truth;
+  it does not fill the feed by silently crossing into Engineering or MBA roles.
+- Career-band expansion is a deliberate persisted preference. It is not an
+  implicit consequence of a search string, skill overlap, or LLM verdict.
+
+---
+
 ## FilterSpec
 
 The one structured filter vocabulary for "what jobs to search for". Before it, that intent was expressed three incompatible ways — the NL parser dict, the authed feed's long `feed_jobs(**kwargs)`, and the intent-chat diff. `FilterSpec` (`app/services/matching/filter_spec.py`) is a frozen dataclass every producer maps into and every query surface reads out of.

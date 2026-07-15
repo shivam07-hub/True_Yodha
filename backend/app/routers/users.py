@@ -22,6 +22,11 @@ from app.services.xp_policy import (
     FOLLOWED_COMPANY_LIMIT,
 )
 from app.services import onboarding_service
+from app.services.job_eligibility import (
+    career_band_for_profile,
+    explored_bands_for_profile,
+    target_seniority_for_profile,
+)
 from app.services.xp_service import grant_linkedin_profile_xp, spend_xp_to_floor
 from app.services.taxonomy_loader import lookup_by_name
 
@@ -36,6 +41,8 @@ def get_me(
     profile = users_repo.get_profile(principal.id)
     if not profile:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found.")
+    profile["target_career_band"] = profile.get("target_career_band") or career_band_for_profile(profile) or None
+    profile["target_seniority"] = target_seniority_for_profile(profile)
     has_cv = users_repo.has_baseline_cv(principal.id)
     profile["has_cv"] = has_cv
     profile["cv_readiness"] = "ready" if has_cv else "missing"
@@ -109,6 +116,8 @@ async def update_profile(
     updates = body.model_dump(exclude_none=True)
     if not updates:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update.")
+    user_id = principal.id
+    before = users_repo.get_profile(user_id) or {}
 
     # Target-role edits arrive as human TITLES; the taxonomy-cluster union
     # (`target_roles`, the matcher read model) is always derived — one writer,
@@ -118,14 +127,21 @@ async def update_profile(
         updates.pop("target_roles", None)
         updates.pop("target_role_title", None)
         updates.update(onboarding_service.role_title_updates(updates.pop("target_role_titles")))
+        updates["target_career_band"] = career_band_for_profile(updates) or None
+        updates["explored_career_bands"] = explored_bands_for_profile(
+            {**before, **updates},
+            primary=updates["target_career_band"] or "",
+        )
+    if "target_seniority" in updates:
+        updates["target_seniority"] = target_seniority_for_profile(updates)
 
-    user_id = principal.id
-    before = users_repo.get_profile(user_id)
     should_grant_linkedin_xp = _linkedin_reward_is_due(before, updates)
     users_repo.update_profile(user_id, updates)
     profile = users_repo.get_profile(user_id)
     if not profile:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found.")
+    profile["target_career_band"] = profile.get("target_career_band") or career_band_for_profile(profile) or None
+    profile["target_seniority"] = target_seniority_for_profile(profile)
 
     coins_earned = 0
     new_coin_balance = None

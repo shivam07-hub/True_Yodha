@@ -10,6 +10,12 @@ import { CompanyLink, companyHref } from "@/components/companies/company-link"
 import "./feed-card.css"
 
 const MODE_LABEL: Record<string, string> = { onsite: "On-site", hybrid: "Hybrid", remote: "Remote" }
+const CAREER_BAND_LABEL: Record<string, string> = {
+  engineering_data: "Engineering & Data",
+  business_product_operations: "Business, Product & Operations",
+  research_people_public_impact: "Research, People & Public Impact",
+  design_creative: "Design & Creative",
+}
 
 /** Deterministic per-company logo-tile colour. Replaces the letter-on-black
  *  monogram (the strongest "terminal" tell) with a warm coloured chip while we
@@ -132,7 +138,7 @@ export function FeedCard({
   const exp = experienceLabel(data.minYears, data.maxYears)
   const showMode = data.locationMode && (!data.location || !data.location.toLowerCase().includes(data.locationMode))
   const hasLoc = data.locations.length > 0 || data.location || showMode
-  const hasMeta = data.datePosted || data.seniority || exp
+  const hasMeta = data.datePosted || data.careerBand || data.seniority || exp
   // The fit slot is derived from the data by default; an explicit `fit` node overrides.
   const fitNode = fit ?? <FitIndicator fit={data.fit} size={fitSize} />
   const hasFit = fit != null || data.fit != null
@@ -234,6 +240,7 @@ export function FeedCard({
           {hasMeta ? (
             <div className="fc-meta">
               {data.datePosted ? <span className="fc-metachip">Posted {data.datePosted}</span> : null}
+              {data.careerBand ? <span className="fc-metachip">{CAREER_BAND_LABEL[data.careerBand] ?? data.careerBand}</span> : null}
               {data.seniority ? <span className="fc-metachip">{data.seniority}</span> : null}
               {exp ? <span className="fc-metachip">{exp}</span> : null}
             </div>

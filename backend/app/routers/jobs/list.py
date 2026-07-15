@@ -269,6 +269,9 @@ class _FeedScope:
     followed: set[str] | None
     location_countries: list[str]
     resolved_domain: str | None
+    primary_career_band: str | None
+    explored_career_bands: list[str]
+    target_seniority: str
 
 
 def _resolve_feed_scope(
@@ -285,6 +288,7 @@ def _resolve_feed_scope(
     sort: str,
     min_skill_matches: int,
     following_only: bool,
+    include_stretch: bool,
     browse_scope: str,
     page: int,
     page_size: int,
@@ -302,6 +306,8 @@ def _resolve_feed_scope(
         "location_prefs": lambda: repo.user_target_locations(uid),
         "location_countries": lambda: repo.user_target_location_countries(uid),
     }
+    if hasattr(repo, "get_user_eligibility_preferences"):
+        prelude["eligibility"] = lambda: repo.get_user_eligibility_preferences(uid)
     if following_only:
         prelude["followed"] = lambda: repo.get_followed_company_names(uid)
     if not role_domain and cluster:
@@ -331,6 +337,11 @@ def _resolve_feed_scope(
             effective_location_country = location_countries[0]
             effective_location_mode = None
     followed: set[str] | None = got.get("followed") if following_only else None
+    eligibility = got.get("eligibility") or {
+        "target_career_band": None,
+        "explored_career_bands": [],
+        "target_seniority": "any",
+    }
     # Canonical FilterSpec (Consolidation C): the user-expressed query dimensions.
     # Personal context (CV skills, target roles, exclusions, follow set) is injected
     # at resolve time by JobQuery.feed, not carried on the spec. Delegates to the
@@ -346,6 +357,7 @@ def _resolve_feed_scope(
         sort=sort,
         min_skill_matches=min_skill_matches,
         following_only=following_only,
+        include_stretch=include_stretch,
         page=page,
         page_size=page_size,
     )
@@ -357,6 +369,9 @@ def _resolve_feed_scope(
         followed=followed,
         location_countries=location_countries,
         resolved_domain=resolved_domain,
+        primary_career_band=eligibility["target_career_band"],
+        explored_career_bands=eligibility["explored_career_bands"],
+        target_seniority=eligibility["target_seniority"],
     )
 
 
@@ -408,6 +423,7 @@ def job_feed(
     sort: str = "fresh",
     min_skill_matches: Annotated[int, Query(ge=0, le=20)] = 0,
     following_only: bool = False,
+    include_stretch: bool = False,
     browse_scope: Literal["exact", "remote_country", "country"] = "exact",
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=50)] = 20,
@@ -433,7 +449,7 @@ def job_feed(
         repo, uid,
         cluster=cluster, role_domain=role_domain, q=q, skill=skill,
         location_city=location_city, location_country=location_country, location_mode=location_mode,
-        sort=sort, min_skill_matches=min_skill_matches, following_only=following_only,
+        sort=sort, min_skill_matches=min_skill_matches, following_only=following_only, include_stretch=include_stretch,
         browse_scope=browse_scope, page=page, page_size=page_size,
     )
     location_countries = scope.location_countries
@@ -442,6 +458,9 @@ def job_feed(
         scope.spec,
         user_skill_keys=scope.skill_keys,
         user_target_roles=scope.target_roles,
+        primary_career_band=scope.primary_career_band,
+        explored_career_bands=scope.explored_career_bands,
+        target_seniority=scope.target_seniority,
         exclude_job_ids=scope.exclude_ids,
         followed_companies=scope.followed,
     )
@@ -497,6 +516,7 @@ async def warm_feed(
     location_country: str | None = None,
     location_mode: str | None = None,
     following_only: bool = False,
+    include_stretch: bool = False,
     browse_scope: Literal["exact", "remote_country", "country"] = "exact",
     repo: JobsRepository = Depends(get_token_jobs_repository),
     principal: Principal = Depends(get_principal),
@@ -518,7 +538,7 @@ async def warm_feed(
         location_city=location_city, location_country=location_country, location_mode=location_mode,
         # The brain ranks the fit-top shortlist regardless of the user's chosen sort
         # lens — "Best fit" is the surface the warm powers.
-        sort="fit", min_skill_matches=0, following_only=following_only,
+        sort="fit", min_skill_matches=0, following_only=following_only, include_stretch=include_stretch,
         browse_scope=browse_scope, page=1, page_size=feed_warm.SHORTLIST_SIZE,
     )
     page_result = JobQuery.feed(
@@ -526,6 +546,9 @@ async def warm_feed(
         scope.spec,
         user_skill_keys=scope.skill_keys,
         user_target_roles=scope.target_roles,
+        primary_career_band=scope.primary_career_band,
+        explored_career_bands=scope.explored_career_bands,
+        target_seniority=scope.target_seniority,
         exclude_job_ids=scope.exclude_ids,
         followed_companies=scope.followed,
     )

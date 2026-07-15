@@ -67,6 +67,7 @@ def test_role_only_edit_preserves_seniority_and_location(wired) -> None:
     # role title + re-derived clusters move in lockstep
     assert users.updates["target_role_title"] == "Product Manager"
     assert users.updates["target_roles"] == ["Product Management"]
+    assert users.updates["target_career_band"] == "business_product_operations"
     # omitted fields preserved from the existing profile, not wiped
     assert users.updates["target_seniority"] == "senior"
     assert users.updates["target_locations"] == ["Bengaluru, India"]
@@ -83,6 +84,7 @@ def test_explicit_fields_still_override(wired) -> None:
 
     assert users.updates["target_role_title"] == "Data Scientist"
     assert users.updates["target_roles"] == ["Data Science"]
+    assert users.updates["target_career_band"] == "engineering_data"
     assert users.updates["target_seniority"] == "entry"
     assert users.updates["target_locations"] == ["Remote, India"]
 
@@ -103,6 +105,8 @@ def test_multi_role_titles_project_to_union_clusters_and_primary(wired) -> None:
     assert users.updates["target_role_title"] == "Product Manager"
     # matcher read model = union of clusters across all titles, order-preserved, de-duped
     assert users.updates["target_roles"] == ["Product Management", "Data Science"]
+    assert users.updates["target_career_band"] == "business_product_operations"
+    assert users.updates["explored_career_bands"] == ["engineering_data"]
 
 
 def test_title_with_no_cluster_falls_back_to_itself(wired) -> None:

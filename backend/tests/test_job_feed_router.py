@@ -151,6 +151,8 @@ def _job(
     mode: str = "onsite",
     role_domain: str = "engineering",
     skills: list[str] | None = None,
+    seniority_level: str | None = None,
+    min_years_experience: int | None = None,
     is_active: bool = True,
     listing_confidence: str = "active",
 ) -> dict[str, Any]:
@@ -166,6 +168,8 @@ def _job(
         "location_mode": mode,
         "location_quality": "ok",
         "role_domain": role_domain,
+        "seniority_level": seniority_level,
+        "min_years_experience": min_years_experience,
         "industry": "Technology",
         "industry_group": "Technology",
         "apply_url": f"https://jobs.example.com/{job_id}",
@@ -410,6 +414,56 @@ def test_role_domain_filter_narrows_results() -> None:
     ])
     result = repo.feed_jobs(role_domain="engineering", page_size=10)
     assert [r["job_id"] for r in result["rows"]] == ["eng"]
+
+
+def test_career_band_and_seniority_gate_feed_before_sorting() -> None:
+    repo, _ = _repo([
+        _job(
+            "policy-entry", title="Graduate Policy Research Associate",
+            role_domain="Research & Science", seniority_level="entry",
+        ),
+        _job(
+            "business-entry", title="Graduate Business Analyst",
+            role_domain="Strategy & Consulting", seniority_level="entry",
+        ),
+        _job(
+            "policy-vp", title="Vice President, Public Policy",
+            role_domain="Research & Science", seniority_level="executive",
+            min_years_experience=10,
+        ),
+    ])
+
+    result = repo.feed_jobs(
+        primary_career_band="research_people_public_impact",
+        target_seniority="entry",
+        page_size=10,
+    )
+
+    assert [row["job_id"] for row in result["rows"]] == ["policy-entry"]
+
+
+def test_entry_stretch_admits_only_adjacent_mid_level() -> None:
+    repo, _ = _repo([
+        _job(
+            "policy-mid", title="Policy Researcher",
+            role_domain="Research & Science", seniority_level="mid",
+            min_years_experience=3,
+        ),
+        _job(
+            "policy-senior", title="Senior Policy Researcher",
+            role_domain="Research & Science", seniority_level="senior",
+            min_years_experience=5,
+        ),
+    ])
+
+    result = repo.feed_jobs(
+        primary_career_band="research_people_public_impact",
+        target_seniority="entry",
+        include_stretch=True,
+        page_size=10,
+    )
+
+    assert [row["job_id"] for row in result["rows"]] == ["policy-mid"]
 
 
 def test_q_free_text_filter_matches_title_or_company() -> None:

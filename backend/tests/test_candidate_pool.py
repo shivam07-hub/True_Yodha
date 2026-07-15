@@ -99,3 +99,31 @@ def test_assemble_fails_open_when_selector_errors() -> None:
         target_location_countries=None, pool_size=10,
     )
     assert [j["job_id"] for j in pool] == ["o1", "o2"]
+
+
+def test_assemble_never_adds_cross_band_or_senior_title_candidates() -> None:
+    class _EligibilityRepo(_FakeRepo):
+        def get_jobs_by_ids(self, job_ids):
+            return [
+                {
+                    "job_id": job_id,
+                    "job_title": "Vice President, Corporate Strategy",
+                    "role_domain": "Strategy & Consulting",
+                    "seniority_level": "executive",
+                }
+                for job_id in job_ids
+            ]
+
+    repo = _EligibilityRepo(["vp1"])
+    pool = candidate_pool.assemble(
+        repo,
+        [_overlap("policy1", 88)],
+        role_titles=["Policy Researcher"],
+        target_location_countries=None,
+        pool_size=10,
+        eligibility_profile={
+            "target_career_band": "research_people_public_impact",
+            "target_seniority": "entry",
+        },
+    )
+    assert [job["job_id"] for job in pool] == ["policy1"]

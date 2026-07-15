@@ -356,6 +356,8 @@ export interface UserProfile {
   target_role_title?: string | null
   target_role_titles?: string[]
   target_seniority?: "intern" | "entry" | "mid" | "senior" | "lead" | "executive" | "any" | null
+  target_career_band?: CareerBand | null
+  explored_career_bands?: CareerBand[]
   target_location: string | null
   target_locations: string[]
   deal_breakers: string[]
@@ -389,6 +391,7 @@ export interface ProfileUpdate {
    *  `target_roles` cluster union; never send raw clusters alongside. */
   target_role_titles?: string[] | null
   target_seniority?: "intern" | "entry" | "mid" | "senior" | "lead" | "executive" | "any" | null
+  explored_career_bands?: CareerBand[] | null
   target_location?: string | null
   target_locations?: string[] | null
   deal_breakers?: string[] | null
@@ -2744,6 +2747,8 @@ export interface JobSearchResponse {
 // CLAUDE.md OPEN BACKLOG #23) — kept so the API stays back-compatible.
 export type JobFeedSort = "fit" | "fresh"
 
+export type CareerBand = "engineering_data" | "business_product_operations" | "research_people_public_impact" | "design_creative"
+
 export interface JobFeedItem {
   job_id: string
   job_title: string
@@ -2756,6 +2761,10 @@ export interface JobFeedItem {
   location_quality?: "ok" | "unknown" | null
   locations?: string[]
   role_domain?: string | null
+  career_band?: CareerBand | null
+  seniority_level?: string | null
+  min_years_experience?: number | null
+  max_years_experience?: number | null
   industry?: string | null
   source_url?: string | null
   first_seen?: string | null
@@ -2859,6 +2868,7 @@ export interface JobFeedParams {
   sort?: JobFeedSort
   minSkillMatches?: number
   followingOnly?: boolean
+  includeStretch?: boolean
   page?: number
   pageSize?: number
   browseScope?: "exact" | "remote_country" | "country"
@@ -3226,6 +3236,7 @@ export const jobs = {
     if (p.sort) params.set("sort", p.sort)
     if (p.minSkillMatches && p.minSkillMatches > 0) params.set("min_skill_matches", String(p.minSkillMatches))
     if (p.followingOnly) params.set("following_only", "true")
+    if (p.includeStretch) params.set("include_stretch", "true")
     if (p.page && p.page > 0) params.set("page", String(p.page))
     if (p.pageSize && p.pageSize > 0) params.set("page_size", String(p.pageSize))
     if (p.browseScope) params.set("browse_scope", p.browseScope)
@@ -3248,6 +3259,7 @@ export const jobs = {
     if (p.locationCountry && p.locationCountry.trim()) params.set("location_country", p.locationCountry.trim())
     if (p.locationMode && p.locationMode.trim()) params.set("location_mode", p.locationMode.trim())
     if (p.followingOnly) params.set("following_only", "true")
+    if (p.includeStretch) params.set("include_stretch", "true")
     if (p.browseScope) params.set("browse_scope", p.browseScope)
     const qs = params.toString()
     try {

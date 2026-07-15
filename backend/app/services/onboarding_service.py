@@ -14,6 +14,11 @@ from app.repositories.onboarding import OnboardingRepository
 from app.repositories.scores import ScoresRepository
 from app.repositories.users import UsersRepository
 from app.services import background, scoring
+from app.services.job_eligibility import (
+    career_band_for_profile,
+    explored_bands_for_profile,
+    target_seniority_for_profile,
+)
 
 
 _ROLE_CLUSTERS: tuple[tuple[tuple[str, ...], str], ...] = (
@@ -135,8 +140,8 @@ def save_target(
         raise ValueError("At least one target role is required.")
 
     users_repo = UsersRepository(db)
+    profile = users_repo.get_profile(user_id) or {}
     if seniority is None or location is None:
-        profile = users_repo.get_profile(user_id) or {}
         if seniority is None:
             seniority = profile.get("target_seniority") or "any"
         if location is None:
@@ -144,11 +149,18 @@ def save_target(
             location = (existing_locations[0] if existing_locations else None) or (
                 profile.get("target_location") or ""
             )
+    updates = role_title_updates(titles)
+    derived_band = career_band_for_profile(updates)
+    updates["target_career_band"] = derived_band or None
+    updates["explored_career_bands"] = explored_bands_for_profile(
+        {**profile, **updates},
+        primary=derived_band,
+    ) if derived_band else []
     users_repo.update_profile(
         user_id,
         {
-            **role_title_updates(titles),
-            "target_seniority": seniority,
+            **updates,
+            "target_seniority": target_seniority_for_profile({"target_seniority": seniority}),
             "target_locations": [location.strip()] if location else [],
         },
     )

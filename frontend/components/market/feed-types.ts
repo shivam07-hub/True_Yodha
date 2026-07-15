@@ -11,7 +11,8 @@ import type { JobFeedSort } from "@/lib/api"
  * live INSIDE the fit score, never as separate user-picked sorts.
  *
  * Filters are the hard inclusion gates: roleDomain (cluster pin), minSkillMatches
- * (optional floor, default off), followingOnly. Location is NOT here — it is
+ * (optional floor, default off), followingOnly, and explicit seniority stretch.
+ * Location is NOT here — it is
  * fixed-from-settings server-side (the feed scopes to the user's saved target
  * locations), surfaced read-only in the summary line, never a per-session filter.
  */
@@ -20,6 +21,7 @@ export interface FeedFilters {
   roleDomain: string | null   // a target-role cluster pin
   minSkillMatches: number     // 0 = off
   followingOnly: boolean
+  includeStretch: boolean     // explicit adjacent-level expansion
 }
 
 export const DEFAULT_FILTERS: FeedFilters = {
@@ -27,6 +29,7 @@ export const DEFAULT_FILTERS: FeedFilters = {
   roleDomain: null,
   minSkillMatches: 0,
   followingOnly: false,
+  includeStretch: false,
 }
 
 /** The two-way rank toggle. "Best fit" is hidden when the user has neither a CV
@@ -54,5 +57,6 @@ export function activeFilterCount(f: FeedFilters): number {
   if (f.roleDomain) n += 1
   if (f.minSkillMatches > 0) n += 1
   if (f.followingOnly) n += 1
+  if (f.includeStretch) n += 1
   return n
 }

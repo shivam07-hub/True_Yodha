@@ -17,6 +17,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from app.services.job_eligibility import job_is_eligible
+
 logger = logging.getLogger(__name__)
 
 # A title-matched candidate reserves up to this share of the triage pool, so a large
@@ -82,6 +84,7 @@ def assemble(
     target_location_countries: list[str] | None,
     pool_size: int,
     exclude_ids: set[str] | None = None,
+    eligibility_profile: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Union the caller's overlap-scored jobs with the title_filter selector.
 
@@ -110,4 +113,6 @@ def assemble(
         have = have | exclude_ids
     title_only_ids = [jid for jid in title_ids if jid not in have]
     title_metas = repo.get_jobs_by_ids(title_only_ids) if title_only_ids else []
+    if eligibility_profile is not None:
+        title_metas = [job for job in title_metas if job_is_eligible(eligibility_profile, job)]
     return merge_triage_pool(overlap_jobs, title_metas, pool_size=pool_size)

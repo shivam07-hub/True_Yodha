@@ -82,9 +82,9 @@ export function useJobFeed({
   const warmKey = useMemo(
     () => [
       "jobFeedWarm", token, targetLocationSignature(targetLocations), q, skill ?? "",
-      filters.roleDomain ?? "", filters.followingOnly,
+      filters.roleDomain ?? "", filters.followingOnly, filters.includeStretch,
     ] as const,
-    [token, targetLocations, q, skill, filters.roleDomain, filters.followingOnly],
+    [token, targetLocations, q, skill, filters.roleDomain, filters.followingOnly, filters.includeStretch],
   )
   const warm = useQuery({
     queryKey: warmKey,
@@ -94,6 +94,7 @@ export function useJobFeed({
         q: q || null,
         skill: skill || null,
         followingOnly: filters.followingOnly,
+        includeStretch: filters.includeStretch,
       }),
     enabled: !!token && gateOnBrain,
     staleTime: 30 * 60 * 1000, // matches the server-side eval cache window
@@ -117,6 +118,7 @@ export function useJobFeed({
         sort: filters.sort,
         minSkillMatches: filters.minSkillMatches,
         followingOnly: filters.followingOnly,
+        includeStretch: filters.includeStretch,
         page: pageParam.page,
         pageSize: 20,
         browseScope: pageParam.scope,

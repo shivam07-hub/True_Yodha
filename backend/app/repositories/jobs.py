@@ -19,6 +19,13 @@ from app.services import job_importer
 from app.services.industry_grouping import normalize_industry_group
 from app.services.job_history import attach_jobs
 from app.services.job_intelligence_policy import is_recommendable_listing
+from app.services.job_eligibility import (
+    career_band_for_job,
+    career_band_for_profile,
+    job_is_eligible,
+    seniority_for_job,
+    target_seniority_for_profile,
+)
 from app.services.location_normalizer import normalize_location
 
 _log = logging.getLogger("app.repositories.jobs")
@@ -1590,7 +1597,8 @@ class JobsRepository:
     _FEED_COLUMNS = (
         "job_id, job_title, company_name, job_description, "
         "location, location_raw, location_city, location_country, location_mode, location_quality, locations, "
-        "role_domain, industry, industry_group, apply_url, first_seen, last_seen, "
+        "role_domain, career_band, industry, industry_group, apply_url, first_seen, last_seen, "
+        "seniority_level, min_years_experience, max_years_experience, "
         "is_active, listing_confidence, last_verified_live_at, main_skills"
     )
     _FEED_PERSONAL_CAP = 500  # bound the in-Python overlap rank set
@@ -1627,6 +1635,10 @@ class JobsRepository:
             "location_quality": row.get("location_quality"),
             "locations": [c for c in (row.get("locations") or []) if c and c.strip()],
             "role_domain": row.get("role_domain"),
+            "career_band": career_band_for_job(row) or None,
+            "seniority_level": seniority_for_job(row) or None,
+            "min_years_experience": row.get("min_years_experience"),
+            "max_years_experience": row.get("max_years_experience"),
             "industry": row.get("industry_group") or row.get("industry"),
             "source_url": row.get("apply_url"),
             "first_seen": _job_feed_marker_to_iso(row.get("first_seen")),
@@ -1654,6 +1666,10 @@ class JobsRepository:
         sort: str = "fresh",
         user_skill_keys: set[str] | None = None,
         user_target_roles: list[str] | None = None,
+        primary_career_band: str | None = None,
+        explored_career_bands: list[str] | None = None,
+        target_seniority: str = "any",
+        include_stretch: bool = False,
         min_skill_matches: int | None = None,
         following_only: bool = False,
         followed_companies: set[str] | None = None,
@@ -1721,6 +1737,12 @@ class JobsRepository:
                 return _empty_feed(mode, scoped_page, scoped_page_size)
         follow_sig = ",".join(follow_scope) if follow_scope is not None else ""
         exclude = {str(j) for j in (exclude_job_ids or set()) if j}
+        eligibility_profile = {
+            "target_career_band": primary_career_band,
+            "explored_career_bands": explored_career_bands or [],
+            "target_seniority": target_seniority,
+        }
+        eligibility_active = bool(primary_career_band) or target_seniority not in {"", "any"}
 
         # DB-level filters are user-independent (shareable cache); exclusion +
         # computed filters are per-user and run after shaping.
@@ -1751,7 +1773,7 @@ class JobsRepository:
                 query = query.or_(",".join(clauses))
             return query
 
-        wants_inpython = mode == "fit" or min_skill > 0 or bool(exclude)
+        wants_inpython = mode == "fit" or min_skill > 0 or bool(exclude) or eligibility_active
 
         if wants_inpython:
             # Load + cache the freshest CAP candidates (raw rows, no per-user
@@ -1772,6 +1794,11 @@ class JobsRepository:
                 _feed_personal_cache[pkey] = (now, rows)
 
             shaped = [self._feed_shape_row(r, user_skill_keys, role_token_sets) for r in rows]
+            if eligibility_active:
+                shaped = [
+                    row for row in shaped
+                    if job_is_eligible(eligibility_profile, row, include_stretch=include_stretch)
+                ]
             if exclude:
                 shaped = [r for r in shaped if r["job_id"] not in exclude]
             if min_skill > 0:
@@ -2356,6 +2383,23 @@ class JobsRepository:
             )
         return matched_ids[:limit]
 
+    def filter_job_ids_for_eligibility(
+        self,
+        job_ids: list[str],
+        *,
+        profile: dict[str, Any],
+        include_stretch: bool = False,
+    ) -> list[str]:
+        """Keep candidate IDs that pass the same gate as the browse feed."""
+        if not job_ids:
+            return []
+        allowed = {
+            str(job["job_id"])
+            for job in self.get_jobs_by_ids(job_ids)
+            if job.get("job_id") and job_is_eligible(profile, job, include_stretch=include_stretch)
+        }
+        return [job_id for job_id in job_ids if job_id in allowed]
+
     def get_all_job_skill_rows(self, *, job_ids: list[str] | None = None) -> list[dict[str, Any]]:
         """Raw job_skills JOIN skills rows for the matcher. No grouping."""
         return fetch_job_skill_rows(self._db, job_ids=job_ids)
@@ -2369,6 +2413,7 @@ class JobsRepository:
             .select(
                 "job_id, job_title, job_description, company_name, industry, "
                 "location, location_raw, location_city, location_country, location_mode, location_quality, apply_url"
+                ", role_domain, career_band, seniority_level, min_years_experience, max_years_experience"
             )
             .in_("job_id", job_ids)
             .execute()
@@ -2387,6 +2432,30 @@ class JobsRepository:
             context="user_target_roles",
         )
         return (data or {}).get("target_roles") or []
+
+    def get_user_eligibility_preferences(self, user_id: str) -> dict[str, Any]:
+        """Profile-backed Career Band and seniority gates for feed/ranking.
+
+        A target band written by onboarding is preferred. Existing candidates are
+        derived from their durable role titles until their next profile save;
+        unknown profiles stay unclassified instead of receiving cross-band work.
+        """
+        data = safe_read(
+            self._db.table("user_profiles")
+            .select(
+                "target_role_titles,target_role_title,target_roles,target_seniority,"
+                "target_career_band,explored_career_bands"
+            )
+            .eq("id", user_id)
+            .maybe_single(),
+            default=None,
+            context="user_eligibility_preferences",
+        ) or {}
+        return {
+            "target_career_band": career_band_for_profile(data) or None,
+            "explored_career_bands": data.get("explored_career_bands") or [],
+            "target_seniority": target_seniority_for_profile(data),
+        }
 
     # ── job matches ────────────────────────────────────────────────────────────
 
@@ -2848,7 +2917,8 @@ class JobsRepository:
             .select(
                 "target_roles, target_location, target_location_country, "
                 "target_locations, target_location_countries, "
-                "target_role_title, target_seniority, "
+                "target_role_title, target_role_titles, target_seniority, "
+                "target_career_band, explored_career_bands, "
                 "deal_breakers, career_goal, superpower"
             )
             .eq("id", user_id)
