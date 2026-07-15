@@ -550,7 +550,21 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-15 · Preparations surface — Applications tab reframed as post-apply prep rooms, BUILT + pushed Develop `4ea7f020`+`601af1c5`)
+## LAST SESSION SUMMARY (2026-07-16 · Mentor writer floor — one CV brain, kill the 4B rewrite regression, BUILT + pushed Develop `c117fe2c`)
+
+Shivam (3 screenshots): the CV "Fixes" pick-a-version produced rewrites STRICTLY WEAKER than the original ("Enhanced sales conversion by co-designing AI bots with campaign measurement…" → "Enhanced sales conversion consistency"), and it wasn't consistent with the deeper "Fix with Mentor" surface. Root cause found in code: EVERY Mentor writing call ran on `get_interactive_provider()` → **gemma-3-4b lead** — the exact model the codebase bans from judgment. A 4B truncates instead of synthesizing. "Fix with Mentor" only *felt* deeper (its prose was 4B too, just built from real reservoir stories). Two brains, one lobotomized. `/grill-me` (10 forks, Kunal Delta-4) → `/improve-codebase-architecture` (backend seams) → `/frontend-design` (card) → built + shipped same session. Full detail: memory **`project_mentor_writer_floor`**.
+
+**⚠️ Load-bearing correction (Shivam):** grounding-as-hero of the card was a BUILDER's view — the user doesn't care if the CV is "grounded" (only recruiters care about STAR); the user cares only whether the line is the best it can be + will get them hired. Signature reframed: hero = better line + plain user-outcome "why", method stays a silent engine. New durable rule: memory `feedback_user_pov_not_builder_pov`.
+
+**Backend (2 deepenings, mirror the F1 judgment floor):** (1) `get_writer_provider()` — strong-only, PAID-first lane (`WRITER_OR_TIERS` = judgment tiers reordered, small-model exclusion inherited by derivation); owned INSIDE each writing module, `provider=None` resolves it (test-only override) → no caller can lower the floor; applied to rewrite/variants/stream + intake draft + place_metric + restructure + tailor polish, authed AND anon. (2) `mentor_grounding.assemble()` — ONE seam (playbook STAR/XYZ injected silently + user stories + reservoir-first `CandidateMetric` with provenance); reservoir-first `suggest_metric` mode offers the user's OWN number ("your 'Sales bots' story mentions 40%") before asking, never invents. `cv_rewrite` rewritten (variants strongest-first + user-outcome `why` + no-substance-loss guard). CONTEXT.md: "Writer floor" + "Mentor grounding".
+
+**Frontend:** `bullet-rewrite.tsx` — new `suggest_metric` provenance phase, `quantifyOnly` gate (Quantify = question-only, no metric-less reframe), recommended-lead + "Other angles (N)" reveal (killed the 3-tab menu), user-outcome `why` line, **no grounding chip**. Anon `RewriteModal` reshaped identically (funnel-top, Q6). Types + CSS added; old shared `cvb-rw-tab/intent/citation` kept (gap-session).
+
+**Green:** backend **1345 passed**, ruff clean · frontend tsc 0 / lint 0 / ui-drift clean / next build ✓.
+
+**OWED (Shivam):** (1) **prod = `main` merge** (dev backend auto-deploys from Develop). (2) Authed browser QA light+dark+375px: Quantify fix with a reservoir number → "Use 40%" provenance offer; metric-less bullet, no story → question only (no reframe escape); rewrite leads with ONE line + "Other angles" reveal + why; anon playground modal same shape. (3) Verify `playbook_chunks` holds STAR content (data enrichment so retrieval can cite the specific rule — not a code gate; cross-link #32). Follow-ups (mine): gap classification (`gap_plan.py`) is a judgment call still on the 4B interactive lane — route to `get_judgment_provider()` separately (has a documented 15s-abort latency reason).
+
+## OLDER SESSION SUMMARY (2026-07-15 · Preparations surface — Applications tab reframed as post-apply prep rooms, BUILT + pushed Develop `4ea7f020`+`601af1c5`)
 
 Started as a product question (post-apply redirect → utility of the Applications tab vs Collections) → Shivam's reframe: **Applications = where Myro trains you for a company AFTER you apply.** Full `/grill-me` (10 locks, Kunal Delta-4 lens per fork) then built end-to-end same session. Full locks + build detail: memory **`project_preparations_surface`**.
 
