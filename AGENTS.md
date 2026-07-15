@@ -323,8 +323,8 @@ Completed a repository-wide secret safety pass on `Develop` before deployment.
   ignore rules.
 - Added RLS hardening for all 84 declared database tables. The seven previously
   uncovered tables now have explicit RLS/revocation policies in
-  `20260715_secret_safety_rls.sql`; taxonomy lookup tables have public
-  read-only policies.
+  `20260715_secret_safety_rls.sql`; legacy taxonomy policies are guarded
+  because the live schema uses flattened `skills`.
 - Added bounded redaction for bearer/JWT/provider keys, credentialed database
   URLs, and SDK exception text before logs, API errors, and maintenance-script
   output. Added regression tests for RLS, frontend env boundaries, and redaction.

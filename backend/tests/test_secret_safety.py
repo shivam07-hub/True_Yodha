@@ -43,6 +43,23 @@ def test_every_declared_table_enables_rls() -> None:
     assert tables - rls_tables == set()
 
 
+def test_optional_rls_migration_guards_absent_legacy_tables() -> None:
+    migration = (ROOT / "database/migrations/20260715_secret_safety_rls.sql").read_text(
+        encoding="utf-8"
+    )
+
+    for table in (
+        "job_feed_run_audits",
+        "job_skill_candidates",
+        "magic_link_attempts",
+        "market_analytics_snapshot",
+        "newsletter_subscribers",
+        "skill_domains",
+        "skill_clusters",
+    ):
+        assert f"IF to_regclass('public.{table}') IS NOT NULL THEN" in migration
+
+
 def test_frontend_does_not_reference_server_only_env_values() -> None:
     forbidden = re.compile(
         r"NEXT_PUBLIC_[A-Z0-9_]*(?:SECRET|PASSWORD|TOKEN|SERVICE|PRIVATE|JWT)",
