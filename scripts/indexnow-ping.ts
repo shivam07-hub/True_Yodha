@@ -18,6 +18,8 @@
  * and fails fast if it is missing or drifted.
  */
 
+import { redactSensitiveText } from "./redact-sensitive"
+
 const HOST = "www.himyro.com"
 const KEY = "7f8c756acf23e9e679c686dfbfb0fc30"
 const KEY_LOCATION = `https://${HOST}/${KEY}.txt`
@@ -78,7 +80,7 @@ async function main(): Promise<void> {
     })
     // 200 = submitted, 202 = accepted (key validation pending) — both fine.
     if (res.status !== 200 && res.status !== 202) {
-      throw new Error(`IndexNow POST → ${res.status} ${await res.text()}`)
+      throw new Error(`IndexNow POST → ${res.status} ${redactSensitiveText(await res.text())}`)
     }
     console.log(`Batch ${i / BATCH_SIZE + 1}: ${batch.length} URL(s) → ${res.status}`)
   }
@@ -86,6 +88,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  console.error(err instanceof Error ? err.message : err)
+  console.error(redactSensitiveText(err instanceof Error ? err.message : err))
   process.exit(1)
 })

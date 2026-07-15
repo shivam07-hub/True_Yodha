@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from app.deps import Principal, get_principal
 from app.repositories.cv import CVVersionsRepository, get_token_cv_repository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
+from app.security import redact_sensitive_text
 from app.schemas import (
     APPLICATION_STATUSES,
     ApplicationResponse,
@@ -156,7 +157,7 @@ async def extract_job_file(
         else:
             raise HTTPException(status_code=422, detail="Unsupported file — upload a PDF, Word doc, or an image.")
     except JobFileParseError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise HTTPException(status_code=422, detail=redact_sensitive_text(exc)) from exc
 
     return JobFileExtractResponse(**parsed)
 
@@ -177,7 +178,7 @@ async def extract_job_url(
     try:
         parsed = await extract_job_from_url(body.url, get_llm_provider())
     except JobFileParseError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise HTTPException(status_code=422, detail=redact_sensitive_text(exc)) from exc
     return JobFileExtractResponse(**parsed)
 
 

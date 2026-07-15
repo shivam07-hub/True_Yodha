@@ -4,6 +4,8 @@ import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import vm from "node:vm"
 
+import { redactSensitiveText } from "./redact-sensitive"
+
 type LegacyRow = Record<string, unknown>
 type Overrides = Record<string, Record<string, unknown>>
 
@@ -311,14 +313,16 @@ async function main(): Promise<void> {
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   })
-  if (!response.ok) throw new Error(`Import failed (${response.status}): ${await response.text()}`)
+  if (!response.ok) {
+    throw new Error(`Import failed (${response.status}): ${redactSensitiveText(await response.text())}`)
+  }
   console.log(JSON.stringify(await response.json(), null, 2))
 }
 
 const invokedPath = process.argv[1] ? resolve(process.argv[1]) : ""
 if (invokedPath === fileURLToPath(import.meta.url)) {
   main().catch((error: unknown) => {
-    console.error(error instanceof Error ? error.message : error)
+    console.error(redactSensitiveText(error instanceof Error ? error.message : error))
     process.exitCode = 1
   })
 }

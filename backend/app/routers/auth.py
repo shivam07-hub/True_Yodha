@@ -85,8 +85,12 @@ def signup(
             "password": body.password,
             "options": {"data": {"full_name": body.full_name}},
         })
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as exc:
+        _log.warning("signup failed reason=%s", type(exc).__name__)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not create the account. Please try again.",
+        ) from exc
 
     if not response.user:
         raise HTTPException(
@@ -110,8 +114,12 @@ def signup(
             body.full_name,
             myro_ref=referrer,
         )
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as exc:
+        _log.warning("signup provisioning failed reason=%s", type(exc).__name__)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not finish account setup. Please try again.",
+        ) from exc
 
     if body.attribution:
         try:
@@ -142,8 +150,12 @@ def login(
             "email": body.email,
             "password": body.password,
         })
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+    except Exception as exc:
+        _log.warning("login failed reason=%s", type(exc).__name__)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password.",
+        ) from exc
 
     if not response.user or not response.session:
         raise HTTPException(
@@ -169,8 +181,12 @@ def login(
 def refresh_token(body: RefreshRequest) -> RefreshResponse:
     try:
         response = get_supabase().auth.refresh_session(body.refresh_token)
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+    except Exception as exc:
+        _log.warning("token refresh failed reason=%s", type(exc).__name__)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token refresh failed.",
+        ) from exc
 
     if not response.session:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token refresh failed")

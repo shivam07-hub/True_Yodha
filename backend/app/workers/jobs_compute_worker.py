@@ -22,9 +22,11 @@ import app.services.cv_workflow  # noqa: F401  (cv_parse_score, initial_match)
 import app.services.matching.scrape_sweep  # noqa: F401  (scrape_match_recompute)
 from app.services.background.dispatch import LANE_BULK, LANE_FAST
 from app.services.job_refresh._redis_state import get_redis_connection, queue_name
+from app.security import install_sensitive_log_filter
 
 
 def run() -> None:
+    install_sensitive_log_filter()
     connection = get_redis_connection()
     # Priority order: fast lane (a user is waiting) → bulk → legacy refresh queue
     # (until Job Refresh is ported onto the generalized seam).

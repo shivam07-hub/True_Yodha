@@ -10,6 +10,7 @@ from app.repositories.job_intelligence import (
     JobIntelligenceRepository,
     get_job_intelligence_repository,
 )
+from app.security import redact_sensitive_text
 from app.schemas.job_intelligence import (
     FeedStateResponse,
     JobFeedbackRequest,
@@ -86,7 +87,7 @@ def record_job_feedback(
     except InvalidJobFeedbackError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(exc),
+            detail=redact_sensitive_text(exc),
         ) from exc
     except FeedbackRateLimitError as exc:
         raise HTTPException(
@@ -116,7 +117,7 @@ def get_job_pulses(
     except InvalidJobPulseRequest as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(exc),
+            detail=redact_sensitive_text(exc),
         ) from exc
     return JobPulsesResponse(
         pulses=[JobPulseResponse(**pulse.__dict__) for pulse in pulses]

@@ -4,6 +4,8 @@
  * Minimal LinkedIn Marketing API client for organization page posting.
  */
 
+import { redactSensitiveText } from "./redact-sensitive"
+
 interface LinkedInAuthResponse {
   access_token: string
   expires_in: number
@@ -54,7 +56,7 @@ export async function fetchLinkedInAccessToken(): Promise<string> {
 
   if (!response.ok) {
     const body = await response.text()
-    throw new Error(`LinkedIn token refresh failed (${response.status}): ${body.slice(0, 800)}`)
+    throw new Error(`LinkedIn token refresh failed (${response.status}): ${redactSensitiveText(body)}`)
   }
 
   const json = (await response.json()) as LinkedInAuthResponse
@@ -94,7 +96,7 @@ export async function publishOrganizationPost(input: PublishPostInput): Promise<
 
   if (!response.ok) {
     const body = await response.text()
-    throw new Error(`LinkedIn post publish failed (${response.status}): ${body.slice(0, 1200)}`)
+    throw new Error(`LinkedIn post publish failed (${response.status}): ${redactSensitiveText(body)}`)
   }
 
   const postUrn = response.headers.get("x-restli-id")

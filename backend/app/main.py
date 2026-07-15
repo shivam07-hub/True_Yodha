@@ -35,9 +35,12 @@ from app.routers import (
     users,
     xp,
 )
+from app.security import install_sensitive_log_filter
 from app.services.job_feed.taxonomy import JobFeedTaxonomyMismatchError, verify_taxonomy_integrity
 
 _TAXONOMY_PATH = Path(__file__).resolve().parent.parent / "lightcast_skills_taxonomy.json"
+
+install_sensitive_log_filter()
 
 app = FastAPI(
     title="Mirror API",
