@@ -256,3 +256,57 @@
   color: var(--tm-text);
   line-height: 1;
 }
+
+/* ── Global Next chip (unified-structure S2) ────────────────────────────────
+   The one "what do I do now" — a quiet directive instrument in the right
+   cluster. Mono key label ("next") + the action; accent arrives on hover only,
+   respecting the 3-accent budget (live-dot, active tab, score arc). */
+
+.tm-next-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: var(--tm-desktop-nav-item-h);
+  padding: 0 11px;
+  border-radius: var(--tm-panel-radius);
+  border: 1px solid var(--tm-border-soft);
+  background: transparent;
+  text-decoration: none;
+  max-width: 260px;
+  transition: border-color var(--tm-dur-fast) var(--tm-ease),
+              background var(--tm-dur-fast) var(--tm-ease);
+}
+.tm-next-chip:hover {
+  background: var(--tm-int-bg-wash);
+  border-color: var(--tm-int-border);
+}
+.tm-next-chip-key {
+  font-family: var(--tm-font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+  flex-shrink: 0;
+}
+.tm-next-chip-label {
+  font-size: 12.5px;
+  font-weight: 550;
+  color: var(--tm-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tm-next-chip:hover .tm-next-chip-label { color: var(--tm-interactive); }
+.tm-next-chip-arrow {
+  font-size: 11px;
+  color: var(--tm-text-muted);
+  flex-shrink: 0;
+}
+/* Tight viewports: the chip is the first thing to shrink, never the tabs. */
+@media (max-width: 1240px) {
+  .tm-next-chip { max-width: 170px; }
+}
+@media (max-width: 1080px) {
+  .tm-next-chip-key { display: none; }
+}
