@@ -14,6 +14,7 @@ from .skills_refresh import router as skills_refresh_router
 from .structured import router as structured_router
 from .upload import router as upload_router
 from .versions import router as versions_router
+from .weave import router as weave_router
 
 router = APIRouter(prefix="/cv", tags=["cv"])
 
@@ -31,5 +32,6 @@ router.include_router(career_router)
 router.include_router(apply_snapshot_router)
 router.include_router(connections_router)
 router.include_router(dump_router)
+router.include_router(weave_router)
 
 __all__ = ["router"]
