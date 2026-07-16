@@ -59,6 +59,21 @@ For deeper detail, start here:
 - `docs/SCORING_ALGORITHM.md`
 - `docs/DEPLOYMENT_GUIDE.md`
 
+## Secret safety before deployment
+
+Populate secrets only through local ignored env files or the deployment
+provider's secret store. Never put a service-role key, JWT signing secret,
+OAuth client secret, payment secret, database URL, or third-party API key in
+frontend code, documentation, comments, logs, or API responses. Any variable
+whose name starts with `NEXT_PUBLIC_` is browser-visible; use that prefix only
+for public values, including the Supabase anon key only while RLS is enabled on
+every exposed table and storage object.
+
+Git history warning: if a secret was ever hardcoded, deleting it from the
+working tree does not remove it from git history. Rotate any previously
+hardcoded secrets immediately, then provision the replacement through the
+deployment provider's secret manager.
+
 ## Contributing
 
 Contributions are welcome. Please read `CONTRIBUTING.md` for:

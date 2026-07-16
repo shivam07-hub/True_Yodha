@@ -1,11 +1,9 @@
 /**
- * MemoryPanel — "What Myro remembers", the visible face of Career Memory.
- *
- * Claude-style transparency over the stores every intelligent surface reads:
- * memory facts (authored + distilled — view/edit/forget), career stories
- * (count → Stories view), and warm-intro connections (count + forget-all).
- * Trust comes from the user seeing and controlling the memory, so recall
- * never feels like surveillance.
+ * MemoryPanel — the Memory view on /cv: the persona canvas leads ("What Myro
+ * knows about you", Lane B — one living document in three movements), with the
+ * evidence substrate demoted below it: store counts (stories / connections /
+ * facts) and the fact list behind a review disclosure. Trust comes from the
+ * user seeing and controlling everything the canvas is written from.
  */
 "use client"
 
@@ -15,6 +13,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { MemoryFact, MemoryKind } from "@/lib/api"
 import { cv as cvApi, jobs as jobsApi, memory as memoryApi } from "@/lib/api"
 import { formatCount } from "@/lib/format"
+import { PersonaCanvas } from "./persona-canvas"
 import "./memory-panel.css"
 
 const KIND_LABELS: Record<MemoryKind, string> = {
@@ -110,14 +109,13 @@ export function MemoryPanel({ token }: { token: string }) {
   const connectionCount = connections.data?.count ?? 0
 
   return (
-    <section className="tm-mem-scope" aria-label="What Myro remembers">
-      <header className="tm-mem-head">
-        <h2>What Myro remembers</h2>
-        <p>
-          Everything below feeds your rewrites, matches, and plans. Yours to
-          edit or forget, any time.
-        </p>
-      </header>
+    <section className="tm-mem-scope" aria-label="What Myro knows about you">
+      <PersonaCanvas token={token} />
+
+      <p className="tm-mem-substrate-note">
+        Everything above is written from stores you can see, edit and forget.
+        Nothing here is invented.
+      </p>
 
       <div className="tm-mem-stores">
         <Link href="/cv?view=stories" className="tm-mem-store">
@@ -144,46 +142,54 @@ export function MemoryPanel({ token }: { token: string }) {
         </div>
       </div>
 
-      <form
-        className="tm-mem-composer"
-        onSubmit={(e) => { e.preventDefault(); if (text.trim()) add.mutate() }}
-      >
-        <select
-          className="tm-mem-kind-select"
-          value={kind}
-          aria-label="Fact type"
-          onChange={(e) => setKind(e.target.value as MemoryKind)}
-        >
-          {Object.entries(KIND_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
-        </select>
-        <input
-          className="tm-mem-composer-input"
-          placeholder="Tell Myro something to remember…"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-        />
-        <button type="submit" className="cvb-btn primary sm" disabled={!text.trim() || add.isPending}>
-          Remember
-        </button>
-      </form>
+      <details className="tm-mem-review">
+        <summary>
+          {activeFacts.length > 0
+            ? `Review the ${activeFacts.length} learned facts behind this`
+            : "Tell Myro something to remember"}
+        </summary>
 
-      {facts.isPending && <p className="tm-mem-empty">Loading…</p>}
-      {facts.isError && <p className="tm-mem-empty" role="alert">Couldn’t load memory — try again.</p>}
-      {facts.isSuccess && activeFacts.length === 0 && (
-        <p className="tm-mem-empty">
-          Nothing remembered yet. Add a fact above, or drop your files into
-          Stories — Myro learns as you go.
-        </p>
-      )}
-      {activeFacts.length > 0 && (
-        <ul className="tm-mem-facts">
-          {activeFacts.map((fact) => (
-            <FactRow key={fact.id} token={token} fact={fact} />
-          ))}
-        </ul>
-      )}
+        <form
+          className="tm-mem-composer"
+          onSubmit={(e) => { e.preventDefault(); if (text.trim()) add.mutate() }}
+        >
+          <select
+            className="tm-mem-kind-select"
+            value={kind}
+            aria-label="Fact type"
+            onChange={(e) => setKind(e.target.value as MemoryKind)}
+          >
+            {Object.entries(KIND_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+          <input
+            className="tm-mem-composer-input"
+            placeholder="Tell Myro something to remember…"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+          />
+          <button type="submit" className="cvb-btn primary sm" disabled={!text.trim() || add.isPending}>
+            Remember
+          </button>
+        </form>
+
+        {facts.isPending && <p className="tm-mem-empty">Loading…</p>}
+        {facts.isError && <p className="tm-mem-empty" role="alert">Couldn’t load memory — try again.</p>}
+        {facts.isSuccess && activeFacts.length === 0 && (
+          <p className="tm-mem-empty">
+            Nothing remembered yet. Add a fact above, or drop your files into
+            Stories — Myro learns as you go.
+          </p>
+        )}
+        {activeFacts.length > 0 && (
+          <ul className="tm-mem-facts">
+            {activeFacts.map((fact) => (
+              <FactRow key={fact.id} token={token} fact={fact} />
+            ))}
+          </ul>
+        )}
+      </details>
     </section>
   )
 }

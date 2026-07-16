@@ -16,6 +16,7 @@ from app.deps import Principal, get_principal
 from app.main import app
 from app.routers.cv import skill_edit as skill_edit_router
 from app.services import cv_rewrite
+from app.services.mentor_grounding import MentorGrounding
 
 
 class _FakeProvider:
@@ -31,15 +32,14 @@ def _frames(body: str) -> list[dict]:
     return [json.loads(c[5:].strip()) for c in body.split("\n\n") if c.strip().startswith("data:")]
 
 
+async def _empty_grounding(*_a, **_k):
+    return MentorGrounding()
+
+
 def _wire(monkeypatch, tokens: list[str]) -> None:
     app.dependency_overrides[get_principal] = lambda: Principal(id="u1", email="a@b.co")
-    monkeypatch.setattr(skill_edit_router, "get_interactive_provider", lambda: _FakeProvider(tokens))
-
-    async def _no_passages(*_a, **_k):
-        return []
-
-    monkeypatch.setattr(cv_rewrite.mentor_retriever, "retrieve", _no_passages)
-    monkeypatch.setattr(cv_rewrite.memory_recall, "recall_stories", _no_passages)
+    monkeypatch.setattr(skill_edit_router, "get_writer_provider", lambda: _FakeProvider(tokens))
+    monkeypatch.setattr(cv_rewrite.mentor_grounding, "assemble", _empty_grounding)
 
 
 def _unwire() -> None:
@@ -109,19 +109,17 @@ class _CompleteProvider:
 
 def test_variants_endpoint_returns_finished_versions(monkeypatch):
     app.dependency_overrides[get_principal] = lambda: Principal(id="u1", email="a@b.co")
+    # The variants endpoint resolves the writer floor INSIDE the service (not the
+    # router), so patch cv_rewrite's own reference.
     monkeypatch.setattr(
-        skill_edit_router, "get_interactive_provider",
+        cv_rewrite, "get_writer_provider",
         lambda: _CompleteProvider(
             "[METRIC] Cut churn 18% in Q3 for the whole base\n"
             "[IMPACT] Lifted retention by cutting churn 18% in Q3\n"
             "[SCOPE] Owned the Q3 churn program end to end, cutting it 18%"
         ),
     )
-
-    async def _no_passages(*_a, **_k):
-        return []
-    monkeypatch.setattr(cv_rewrite.mentor_retriever, "retrieve", _no_passages)
-    monkeypatch.setattr(cv_rewrite.memory_recall, "recall_stories", _no_passages)
+    monkeypatch.setattr(cv_rewrite.mentor_grounding, "assemble", _empty_grounding)
     try:
         with TestClient(app) as client:
             res = client.post(

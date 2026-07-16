@@ -124,6 +124,23 @@ JUDGMENT_OR_TIERS: list[list[str]] = [
 ]
 
 
+def _is_free_tier(tier: list[str]) -> bool:
+    """A tier whose every model is a free OpenRouter variant (':free' suffix)."""
+    return all(":free" in model for model in tier)
+
+
+# The WRITER lane = every strong tier (small models excluded, same rule as
+# JUDGMENT), but reordered PAID-STRONG-FIRST. A CV rewrite is a judgment-grade
+# generation the user is watching on a spinner: free strong tiers can queue, so a
+# paid-strong tier (gpt-4o-mini / llama-70b, ~$0.15/M) leads to keep the blocking
+# path fast, with the free strong tiers as the no-cost backstop. Small models can
+# never appear — derived from JUDGMENT_OR_TIERS, which already dropped them.
+WRITER_OR_TIERS: list[list[str]] = (
+    [t for t in JUDGMENT_OR_TIERS if not _is_free_tier(t)]
+    + [t for t in JUDGMENT_OR_TIERS if _is_free_tier(t)]
+)
+
+
 class LLMProviderError(Exception):
     """Raised when all configured providers fail or return empty responses."""
 
@@ -356,6 +373,32 @@ def get_judgment_provider() -> LLMProvider:
     providers: list[_ProviderEntry] = []
     _append_openrouter_tiers(providers, JUDGMENT_OR_TIERS)
     # Groq llama-3.3-70b only (strong). NOT Gemini flash-lite — too small to judge.
+    if settings.groq_api_key:
+        providers.append((
+            _make_client(settings.groq_api_key, _GROQ_BASE),
+            GROQ_FALLBACK_MODEL,
+            None,
+        ))
+    return LLMProvider(providers)
+
+
+def get_writer_provider() -> LLMProvider:
+    """Strong-only, paid-first lane for every MENTOR WRITING call — the prose the
+    user will put on their CV (per-bullet rewrite, variants, intake draft, restructure,
+    gap-plan draft). THE model floor for CV writing, the sibling of `get_judgment_provider`.
+
+    Writing a CV bullet is a judgment-grade generation: a small model truncates
+    instead of synthesizing (gemma-3-4b turned a rich bullet into a 4-word fragment —
+    the exact failure that breaks trust on the core loop). So the writer lane leads
+    with strong PAID tiers (gpt-4o-mini / llama-70b) to keep the user-blocking spinner
+    fast, backstops with strong FREE tiers, adds Groq llama-3.3-70b direct, and — like
+    judgment — NEVER falls to a small model or Gemini flash-lite. A total strong-model
+    outage fails the call (→ honest "unavailable") rather than emitting a rewrite worse
+    than the user's original. See `feedback_no_cheap_models_judgment`. Callers no longer
+    pass a provider into a writing path; the floor is owned here, not by discipline.
+    """
+    providers: list[_ProviderEntry] = []
+    _append_openrouter_tiers(providers, WRITER_OR_TIERS)
     if settings.groq_api_key:
         providers.append((
             _make_client(settings.groq_api_key, _GROQ_BASE),

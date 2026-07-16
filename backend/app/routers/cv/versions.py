@@ -29,7 +29,7 @@ from app.repositories.cv import (
 from app.services import cv_compose, cv_restructure, xp_policy, xp_service
 from app.services.job_path._db import _fetch_milestones, _fetch_targets, _get_job
 from app.services.job_path.llm_polish import _call_ai_polish
-from app.services.llm_provider import get_interactive_provider
+from app.services.llm_provider import get_writer_provider
 from app.routers.cv.structured import CVStructuredResponse
 
 router = APIRouter(prefix="/versions")
@@ -383,7 +383,7 @@ async def polish_cv_version(
         job=job,
         targets=targets,
         completed=completed,
-        provider=get_interactive_provider(),
+        provider=get_writer_provider(),
     )
     if not polished_text:
         raise HTTPException(
@@ -511,7 +511,6 @@ async def restructure_cv_version(
         role=job.get("job_title"),
         company=job.get("company_name"),
         missing_keywords=missing_keywords,
-        provider=get_interactive_provider(),
     )
     return RestructureProposalResponse(
         mode=result["mode"],

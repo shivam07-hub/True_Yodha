@@ -1,12 +1,15 @@
-"""Unit tests for the per-bullet rewrite no-fabrication guard (cv_rewrite).
+"""Unit tests for the per-bullet rewrite (cv_rewrite) — the Mentor core loop.
 
-Logic + the #32 grounding path. The LLM provider and the Mentor retriever are
-faked — no network, no real model.
+Logic + the grounding path + the reservoir-first-number guard. The grounding seam
+(`mentor_grounding.assemble`) and the LLM provider are faked — no network, no real
+model. The writer floor is owned inside the service; tests pass a fake provider as
+the documented test-only override.
 """
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from app.services import cv_rewrite
+from app.services.mentor_grounding import CandidateMetric, MentorGrounding
 
 
 @dataclass
@@ -28,12 +31,28 @@ class _FakeProvider:
         return self._text
 
 
-def _patch_retrieve(monkeypatch, passages):
-    async def fake_retrieve(query, shelf="cv", k=3):
-        return passages
+class _DeadProvider:
+    async def complete(self, messages, max_tokens=0, temperature=None):
+        raise cv_rewrite.LLMProviderError("all providers down")
 
-    monkeypatch.setattr(cv_rewrite.mentor_retriever, "retrieve", fake_retrieve)
 
+def _grounding(passages=None, stories=None, candidate_metrics=None) -> MentorGrounding:
+    return MentorGrounding(
+        passages=passages or [],
+        stories=stories or [],
+        candidate_metrics=candidate_metrics or [],
+    )
+
+
+def _patch_grounding(monkeypatch, grounding: MentorGrounding):
+    """Patch the one grounding seam cv_rewrite composes, so no network runs."""
+    async def fake_assemble(query, *, user_id=None, shelf="cv", passage_k=3, story_k=3):
+        return grounding
+
+    monkeypatch.setattr(cv_rewrite.mentor_grounding, "assemble", fake_assemble)
+
+
+# ── metric guard ─────────────────────────────────────────────────────────────
 
 def test_has_metric_detects_numbers_and_magnitudes():
     assert cv_rewrite.has_metric("Cut churn 18% in two quarters")
@@ -50,11 +69,8 @@ def test_has_metric_false_for_vague_bullets():
 
 
 def test_should_ask_for_metric_guard():
-    # No metric, no user-supplied number → ask.
     assert cv_rewrite.should_ask_for_metric("Owned the roadmap", None) is True
-    # User supplied a metric → don't ask.
     assert cv_rewrite.should_ask_for_metric("Owned the roadmap", "activation 22%→31%") is False
-    # Bullet already has a metric → don't ask.
     assert cv_rewrite.should_ask_for_metric("Cut churn 18%", None) is False
 
 
@@ -69,107 +85,143 @@ def test_build_messages_includes_role_metric_and_keywords():
     assert "Senior PM" in user
     assert "shipped 9 releases" in user
     assert "A/B testing" in user
-    assert "no-fabrication" in msgs[0]["content"].lower() or "never invent" in msgs[0]["content"].lower()
+    assert "never invent" in msgs[0]["content"].lower()
 
 
-def test_suggest_rewrite_returns_question_when_no_metric():
-    out = asyncio.run(cv_rewrite.suggest_rewrite("Owned the roadmap", None, [], None, provider=None))
+# ── no-fabrication branch ────────────────────────────────────────────────────
+
+def test_suggest_rewrite_returns_question_when_no_metric(monkeypatch):
+    _patch_grounding(monkeypatch, _grounding())  # no stories → no candidate number
+    out = asyncio.run(cv_rewrite.suggest_rewrite("Owned the roadmap", None, [], None))
     assert out["mode"] == "question"
-    assert "metric" not in out  # only a question is returned
     assert out["question"]
 
 
-def test_suggest_rewrite_errors_without_provider_when_metric_present():
-    # Has a metric → no-fab guard passes → provider needed; None → graceful error.
-    out = asyncio.run(cv_rewrite.suggest_rewrite("Cut churn 18%", None, [], None, provider=None))
-    assert out["mode"] == "error"
-
-
 def test_suggest_rewrite_empty_bullet_is_error():
-    out = asyncio.run(cv_rewrite.suggest_rewrite("   ", None, [], None, provider=None))
+    out = asyncio.run(cv_rewrite.suggest_rewrite("   ", None, [], None))
     assert out["mode"] == "error"
 
 
-# ── #32 grounding ──────────────────────────────────────────────────────────────
+def test_dead_provider_yields_graceful_error(monkeypatch):
+    # Has a metric → guard passes → the (test-injected) provider fails → graceful error.
+    _patch_grounding(monkeypatch, _grounding())
+    out = asyncio.run(cv_rewrite.suggest_rewrite("Cut churn 18%", None, [], None, provider=_DeadProvider()))
+    assert out["mode"] == "error"
 
-def test_build_messages_injects_retrieved_passages():
-    passages = [_Passage("Start every bullet with a strong action verb.", "Myro CV Playbook")]
-    sys_grounded = cv_rewrite._build_messages("Cut churn 18%", None, [], None, passages)[0]["content"]
+
+# ── reservoir-first number (Q5) ──────────────────────────────────────────────
+
+def test_reservoir_first_offers_the_users_own_number(monkeypatch):
+    # A metric-less bullet, but the user's stories hold a real number → offer it with
+    # provenance (suggest_metric), never a blank ask, never an invented figure.
+    _patch_grounding(monkeypatch, _grounding(
+        candidate_metrics=[CandidateMetric(value="40%", story_id="s1", story_title="Sales bots")],
+    ))
+    out = asyncio.run(cv_rewrite.suggest_rewrite("Owned the sales-proposal flow", None, [], None))
+    assert out["mode"] == "suggest_metric"
+    assert out["candidate_value"] == "40%"
+    assert out["candidate_source"] == "Sales bots"
+    assert "40%" in out["question"] and "Sales bots" in out["question"]
+
+
+def test_no_reservoir_number_falls_to_the_question(monkeypatch):
+    _patch_grounding(monkeypatch, _grounding())  # stories present but no number
+    out = asyncio.run(cv_rewrite.suggest_rewrite("Owned the roadmap", None, [], None))
+    assert out["mode"] == "question"
+
+
+# ── grounding injection ──────────────────────────────────────────────────────
+
+def test_build_messages_injects_grounding():
+    g = _grounding([_Passage("Start every bullet with a strong action verb.", "Myro CV Playbook")])
+    sys_grounded = cv_rewrite._build_messages("Cut churn 18%", None, [], None, g)[0]["content"]
     assert "strong action verb" in sys_grounded
     assert "Myro CV Playbook" in sys_grounded
-    # No passages → static XYZ guidance instead.
+    # No grounding → static STAR/XYZ guidance instead.
     sys_static = cv_rewrite._build_messages("Cut churn 18%", None, [], None, None)[0]["content"]
-    assert "XYZ" in sys_static
+    assert "XYZ" in sys_static or "STAR" in sys_static
     assert "strong action verb" not in sys_static
 
 
 def test_grounded_rewrite_surfaces_citations(monkeypatch):
     provider = _FakeProvider()
-    _patch_retrieve(monkeypatch, [
+    _patch_grounding(monkeypatch, _grounding([
         _Passage("Quantify impact, and never invent the number.", "Myro CV Playbook"),
         _Passage("Tailor the bullet to the target job description.", "Myro CV Playbook"),
-    ])
-    out = asyncio.run(cv_rewrite.suggest_rewrite("Cut churn 18%", "Senior PM", [], None, provider))
+    ]))
+    out = asyncio.run(cv_rewrite.suggest_rewrite("Cut churn 18%", "Senior PM", [], None, provider=provider))
     assert out["mode"] == "rewrite"
-    assert out["citations"] == ["Myro CV Playbook"]          # de-duped, separate from rationale
-    # the retrieved rule reached the system prompt
+    assert out["citations"] == ["Myro CV Playbook"]           # de-duped internal record
     assert "never invent the number" in provider.last_messages[0]["content"]
 
 
-def test_rewrite_failsoft_when_retrieval_empty(monkeypatch):
+def test_rewrite_failsoft_when_grounding_empty(monkeypatch):
     provider = _FakeProvider()
-    _patch_retrieve(monkeypatch, [])      # RAG down / empty corpus
-    out = asyncio.run(cv_rewrite.suggest_rewrite("Cut churn 18%", None, [], None, provider))
-    assert out["mode"] == "rewrite"        # still succeeds
+    _patch_grounding(monkeypatch, _grounding())               # RAG down / empty corpus
+    out = asyncio.run(cv_rewrite.suggest_rewrite("Cut churn 18%", None, [], None, provider=provider))
+    assert out["mode"] == "rewrite"
     assert out["citations"] == []
-    assert "XYZ" in provider.last_messages[0]["content"]   # fell back to static guidance
+    sys = provider.last_messages[0]["content"]
+    assert "XYZ" in sys or "STAR" in sys                      # fell back to static guidance
 
 
-# ── 3-angle variants ─────────────────────────────────────────────────────────
+# ── recommended + alternates ─────────────────────────────────────────────────
 
 _VARIANTS_RAW = (
-    "[METRIC] Cut churn 18% by shipping a retention flow to 40k users\n"
-    "[IMPACT] Reversed churn 18% and lifted retention by owning a new lifecycle flow\n"
-    "[SCOPE] Led a 12-person squad across three systems to cut the churn gap 18%"
+    "[METRIC] Cut churn 18% by shipping a retention flow to 40k users || leads with the 18% cut\n"
+    "[IMPACT] Reversed churn 18% and lifted retention by owning a new lifecycle flow || shows the business win\n"
+    "[SCOPE] Led a 12-person squad across three systems to cut the churn gap 18% || shows the scope you owned"
 )
 
 
-def test_variants_returns_three_tagged_angles(monkeypatch):
+def test_variants_recommended_first_with_reasons(monkeypatch):
     provider = _FakeProvider(text=_VARIANTS_RAW)
-    _patch_retrieve(monkeypatch, [_Passage("Quantify impact.", "Myro CV Playbook")])
-    out = asyncio.run(cv_rewrite.suggest_rewrite_variants("Cut churn 18%", "Senior PM", [], None, provider))
+    _patch_grounding(monkeypatch, _grounding([_Passage("Quantify impact.", "Myro CV Playbook")]))
+    out = asyncio.run(cv_rewrite.suggest_rewrite_variants("Cut churn 18%", "Senior PM", [], None, provider=provider))
     assert out["mode"] == "variants"
+    # Emitted order preserved → variants[0] is the recommendation.
     assert [v["angle"] for v in out["variants"]] == ["metric", "impact", "scope"]
-    assert all(v["text"] and "[" not in v["text"] for v in out["variants"])  # tags stripped
+    assert out["variants"][0]["why"] == "leads with the 18% cut"
+    assert all(v["text"] and "[" not in v["text"] and "||" not in v["text"] for v in out["variants"])
     assert out["citations"] == ["Myro CV Playbook"]
 
 
+def test_variants_strongest_first_honours_model_order(monkeypatch):
+    # Model puts SCOPE first as its recommendation → we keep that order.
+    raw = (
+        "[SCOPE] Led a 12-person squad to cut churn 18% || biggest scope\n"
+        "[METRIC] Cut churn 18% for 40k users || leads with the number\n"
+        "[IMPACT] Reversed an 18% churn trend || the business win"
+    )
+    _patch_grounding(monkeypatch, _grounding())
+    out = asyncio.run(cv_rewrite.suggest_rewrite_variants("Cut churn 18%", None, [], None, provider=_FakeProvider(text=raw)))
+    assert [v["angle"] for v in out["variants"]] == ["scope", "metric", "impact"]
+
+
 def test_variants_share_no_fabrication_question(monkeypatch):
-    # A metric-less bullet still asks for the real number before any variants.
-    out = asyncio.run(cv_rewrite.suggest_rewrite_variants("Owned the roadmap", None, [], None, provider=None))
+    _patch_grounding(monkeypatch, _grounding())
+    out = asyncio.run(cv_rewrite.suggest_rewrite_variants("Owned the roadmap", None, [], None))
     assert out["mode"] == "question"
 
 
 def test_variants_fall_back_to_single_when_untagged(monkeypatch):
     provider = _FakeProvider(text="Cut churn 18% by shipping a retention flow")  # no tags
-    _patch_retrieve(monkeypatch, [])
-    out = asyncio.run(cv_rewrite.suggest_rewrite_variants("Cut churn 18%", None, [], None, provider))
+    _patch_grounding(monkeypatch, _grounding())
+    out = asyncio.run(cv_rewrite.suggest_rewrite_variants("Cut churn 18%", None, [], None, provider=provider))
     assert out["mode"] == "variants"
     assert len(out["variants"]) == 1
     assert out["variants"][0]["text"].startswith("Cut churn 18%")
 
 
 def test_variants_dropping_source_numbers_are_filtered(monkeypatch):
-    # No-DELETION guard: "over 50" → "numerous" is a regression, not a version.
     raw = (
-        "[METRIC] Generated 50 outbound AI pitches building a revenue pipeline\n"
-        "[IMPACT] Generated numerous outbound AI pitches for GCC clients\n"       # dropped 50 → filtered
-        "[SCOPE] Owned outbound AI pitching across 50 GCC accounts"
+        "[METRIC] Generated 50 outbound AI pitches building a revenue pipeline || leads with 50\n"
+        "[IMPACT] Generated numerous outbound AI pitches for GCC clients || the business win\n"  # dropped 50 → filtered
+        "[SCOPE] Owned outbound AI pitching across 50 GCC accounts || the scope"
     )
-    provider = _FakeProvider(text=raw)
-    _patch_retrieve(monkeypatch, [])
+    _patch_grounding(monkeypatch, _grounding())
     out = asyncio.run(cv_rewrite.suggest_rewrite_variants(
-        "Generated over 50 outbound AI pitches", None, [], None, provider))
+        "Generated over 50 outbound AI pitches", None, [], None, provider=_FakeProvider(text=raw)))
     assert out["mode"] == "variants"
     assert [v["angle"] for v in out["variants"]] == ["metric", "scope"]
 
@@ -178,45 +230,43 @@ def test_all_variants_losing_metrics_is_an_error(monkeypatch):
     provider = _FakeProvider(text=(
         "[METRIC] Generated numerous pitches\n[IMPACT] Drove many pitches\n[SCOPE] Owned several pitches"
     ))
-    _patch_retrieve(monkeypatch, [])
+    _patch_grounding(monkeypatch, _grounding())
     out = asyncio.run(cv_rewrite.suggest_rewrite_variants(
-        "Generated over 50 outbound pitches", None, [], None, provider))
+        "Generated over 50 outbound pitches", None, [], None, provider=provider))
     assert out["mode"] == "error"
     assert "numbers" in out["rationale"]
 
 
+# ── no-DELETION guard + salvage ──────────────────────────────────────────────
+
 def test_loses_metrics_normalizes_forms():
     assert cv_rewrite.loses_metrics("Tracked 30,000 jobs", "Tracked jobs at scale") is True
     assert cv_rewrite.loses_metrics("Tracked 30,000 jobs", "Tracked 30k jobs across India") is False
-    assert cv_rewrite.loses_metrics("Improved onboarding", "Improved onboarding flows") is False  # no numbers → no guard
+    assert cv_rewrite.loses_metrics("Improved onboarding", "Improved onboarding flows") is False
     assert cv_rewrite.loses_metrics("Saved ₹2 crore", "Saved ₹2 crore annually") is False
 
 
 def test_single_rewrite_dropping_numbers_errors(monkeypatch):
     provider = _FakeProvider(text="Generated numerous outbound pitches for clients")
-    _patch_retrieve(monkeypatch, [])
-    out = asyncio.run(cv_rewrite.suggest_rewrite("Generated over 50 outbound pitches", None, [], None, provider))
+    _patch_grounding(monkeypatch, _grounding())
+    out = asyncio.run(cv_rewrite.suggest_rewrite("Generated over 50 outbound pitches", None, [], None, provider=provider))
     assert out["mode"] == "error"
     assert "kept your original" in out["rationale"]
 
 
-def test_finalize_salvages_bullet_from_leaked_reasoning(monkeypatch):
-    # A weak model that leaks chain-of-thought then quotes its real answer must
-    # yield the quoted bullet, never the reasoning blob (the shivam.mit20 bug).
-    _patch_retrieve(monkeypatch, [])
+def test_finalize_salvages_bullet_from_leaked_reasoning():
     leak = (
         "We need to rewrite one bullet, max ~30 words, start with a strong verb. "
         "The bullet mentions shaping B2B GTM strategy. Let's craft: "
         "'Generated €500K+ revenue by leading Product Marketing-focused B2B GTM strategy'"
     )
-    out = cv_rewrite.finalize_rewrite(leak, [], [])
+    out = cv_rewrite.finalize_rewrite(leak, None, [])
     assert out["mode"] == "rewrite"
     assert out["rewritten_text"].startswith("Generated €500K+ revenue")
     assert "we need to" not in out["rewritten_text"].lower()
 
 
-def test_finalize_passes_clean_bullet_through(monkeypatch):
-    _patch_retrieve(monkeypatch, [])
-    out = cv_rewrite.finalize_rewrite("Generated €500K+ revenue by leading B2B GTM strategy", [], [])
+def test_finalize_passes_clean_bullet_through():
+    out = cv_rewrite.finalize_rewrite("Generated €500K+ revenue by leading B2B GTM strategy", None, [])
     assert out["mode"] == "rewrite"
     assert out["rewritten_text"] == "Generated €500K+ revenue by leading B2B GTM strategy"

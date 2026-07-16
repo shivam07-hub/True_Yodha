@@ -29,6 +29,9 @@ class JobQuery:
         *,
         user_skill_keys: set[str] | None = None,
         user_target_roles: list[str] | None = None,
+        primary_career_band: str | None = None,
+        explored_career_bands: list[str] | None = None,
+        target_seniority: str = "any",
         exclude_job_ids: set[str] | None = None,
         followed_companies: set[str] | None = None,
     ) -> dict[str, Any]:
@@ -40,6 +43,9 @@ class JobQuery:
             **spec.feed_kwargs(),
             user_skill_keys=user_skill_keys,
             user_target_roles=user_target_roles,
+            primary_career_band=primary_career_band,
+            explored_career_bands=explored_career_bands,
+            target_seniority=target_seniority,
             followed_companies=followed_companies,
             exclude_job_ids=exclude_job_ids,
         )

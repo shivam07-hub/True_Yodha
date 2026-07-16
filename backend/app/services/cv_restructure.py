@@ -24,7 +24,7 @@ import json
 import logging
 
 from app.services import mentor_retriever
-from app.services.llm_provider import LLMProvider, LLMProviderError
+from app.services.llm_provider import LLMProvider, LLMProviderError, get_writer_provider
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +129,7 @@ async def suggest_restructure(
     role: str | None,
     company: str | None,
     missing_keywords: list[str] | None,
-    provider: LLMProvider | None,
+    provider: LLMProvider | None = None,
 ) -> dict:
     """Return one of:
       {"mode": "proposal", "proposed_text": str, "changes": list[str],
@@ -143,8 +143,8 @@ async def suggest_restructure(
     missing_keywords = missing_keywords or []
     if not cv_text:
         return {"mode": "error", "rationale": "Nothing to restructure."}
-    if provider is None:
-        return {"mode": "error", "rationale": "Restructure is unavailable right now."}
+    # Writer floor owned here (Candidate 1) — `provider` is a test-only override.
+    provider = provider or get_writer_provider()
 
     # #32: ground in the authored CV playbook (fail-soft → [] uses static guidance).
     query = " ".join(p for p in [role or "", company or "", " ".join(missing_keywords)] if p).strip()

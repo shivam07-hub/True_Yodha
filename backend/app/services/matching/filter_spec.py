@@ -68,6 +68,7 @@ class FilterSpec:
     sort: str = "fresh"
     min_skill_matches: int = 0
     following_only: bool = False
+    include_stretch: bool = False
     # Paging / bounds
     page: int = 1
     page_size: int = 20
@@ -164,6 +165,7 @@ class FilterSpec:
             "sort": self.sort,
             "min_skill_matches": self.min_skill_matches,
             "following_only": self.following_only,
+            "include_stretch": self.include_stretch,
             "page": self.page,
             "page_size": self.page_size,
         }

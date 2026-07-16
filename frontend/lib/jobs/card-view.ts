@@ -99,6 +99,7 @@ export interface FeedCardData {
   locationMode: string | null
   sourceUrl: string | null
   datePosted: string | null
+  careerBand?: string | null
   seniority: string | null
   minYears: number | null
   maxYears: number | null
@@ -170,6 +171,7 @@ export function feedDataFromMatch(
     locationMode: normalizeMode(job.location_mode, job.work_mode),
     sourceUrl: job.source_url ?? null,
     datePosted: job.date_posted?.trim() || null,
+    careerBand: null,
     seniority: job.seniority_level?.trim() || null,
     minYears: job.min_years_experience ?? null,
     maxYears: job.max_years_experience ?? null,
@@ -213,9 +215,10 @@ export function feedDataFromFeedItem(
     locationMode: normalizeMode(job.location_mode, null),
     sourceUrl: job.source_url ?? null,
     datePosted: null,
-    seniority: null,
-    minYears: null,
-    maxYears: null,
+    careerBand: job.career_band?.trim() || null,
+    seniority: job.seniority_level?.trim() || null,
+    minYears: job.min_years_experience ?? null,
+    maxYears: job.max_years_experience ?? null,
     snippet: snippetOf(job.job_description, opts.snippetMax),
     chips,
     extraChipCount: extra,
@@ -260,6 +263,7 @@ export function feedDataFromCompanyJob(job: CompanyJobCard, maxChips = 4): FeedC
     locationMode: normalizeMode(job.location_mode as JobMatch["location_mode"], null),
     sourceUrl: null,
     datePosted: null,
+    careerBand: null,
     seniority: null,
     minYears: null,
     maxYears: null,
@@ -305,6 +309,7 @@ export function feedDataFromIntelJob(
     locationMode: normalizeMode((job.mode ?? null) as JobMatch["location_mode"], job.mode),
     sourceUrl: null,
     datePosted: null,
+    careerBand: null,
     seniority: null,
     minYears: null,
     maxYears: null,

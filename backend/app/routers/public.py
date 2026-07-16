@@ -23,6 +23,7 @@ from app.database import get_supabase_admin
 from app.repositories.search_queries import SearchQueriesRepository
 from app.repositories.jobs import get_public_jobs_repository
 from app.repositories.scores import ScoresRepository
+from app.security import redact_sensitive_text
 from app.services import cv_parser, cv_restructure, cv_rewrite, job_query_parser
 from app.services.cv_pdf_html import (
     CVPdfError,
@@ -32,7 +33,6 @@ from app.services.cv_pdf_html import (
 )
 from app.services.llm_provider import (
     get_cv_upload_provider,
-    get_interactive_provider,
     get_llm_provider,
 )
 from app.services.matching.filter_spec import FilterSpec
@@ -441,10 +441,13 @@ class AnonRewriteVariant(BaseModel):
     angle: str
     label: str
     text:  str
+    why:   str = ""
 
 
 class AnonRewriteVariantsResponse(BaseModel):
-    mode:      str                       # "variants" | "question" | "error"
+    # variants[0] = the recommendation (strongest-first). suggest_metric never fires
+    # pre-login (no reservoir) — anon sees variants | question | error only.
+    mode:      str
     variants:  list[AnonRewriteVariant] = []
     question:  str | None = None
     rationale: str | None = None
@@ -481,7 +484,6 @@ async def rewrite_bullet_preview(
         body.role,
         body.missing_keywords,
         body.metric,
-        get_interactive_provider(),
         allow_no_metric=body.allow_no_metric,
     )
     return AnonRewriteResponse(**result)
@@ -503,7 +505,6 @@ async def rewrite_bullet_variants_preview(
         body.role,
         body.missing_keywords,
         body.metric,
-        get_interactive_provider(),
         allow_no_metric=body.allow_no_metric,
     )
     return AnonRewriteVariantsResponse(
@@ -528,7 +529,6 @@ async def restructure_preview(
         role=body.role,
         company=body.company,
         missing_keywords=body.missing_keywords,
-        provider=get_interactive_provider(),
     )
     # suggest_restructure returns a superset (includes a couple of internal keys);
     # the response_model filters to the public shape.
@@ -578,7 +578,7 @@ async def export_cv_pdf_public(
         # Soft failure — the playground falls back to native print on 503.
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(exc),
+            detail=redact_sensitive_text(exc),
         ) from exc
     safe = _sanitize_pdf_filename(body.filename)
     return Response(

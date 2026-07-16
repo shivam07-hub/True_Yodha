@@ -6,6 +6,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from app.deps import Principal, get_principal
+from app.security import redact_sensitive_text
 from app.services.cv_docx import generate_cv_docx
 from app.services.cv_pdf_html import CVPdfError, render_html_to_pdf
 
@@ -115,7 +116,7 @@ def export_cv_pdf(
         # Soft failure: the client falls back to native print on 503.
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(exc),
+            detail=redact_sensitive_text(exc),
         ) from exc
     safe = _sanitize_filename(body.filename, ext="pdf")
     return Response(

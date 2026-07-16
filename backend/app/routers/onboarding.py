@@ -7,6 +7,7 @@ from app.database import get_supabase_admin
 from app.deps import Principal, get_principal
 from app.repositories.cv import CVVersionsRepository
 from app.repositories.onboarding import OnboardingRepository
+from app.security import redact_sensitive_text
 from app.services import cv_workflow, onboarding_service
 from app.services.baseline_generator import generate_baseline, validate_answer
 from app.services.onboarding_preview import start_profile_preview
@@ -162,7 +163,10 @@ def save_generator_answer(
     try:
         answer = validate_answer(step, body.answer)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=redact_sensitive_text(exc),
+        ) from exc
     OnboardingRepository(get_supabase_admin()).save_generator_answer(principal.id, step, answer)
 
 
@@ -173,7 +177,10 @@ def create_baseline_draft(principal: Principal = Depends(get_principal)) -> dict
     try:
         generated = generate_baseline(state.get("generator_answers") or {})
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=redact_sensitive_text(exc),
+        ) from exc
     repo.save_generated_draft(principal.id, generated.draft)
     return {"draft": generated.draft, "source_ids": generated.source_ids}
 

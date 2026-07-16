@@ -195,6 +195,11 @@ class _FakeComputeJobsRepository:
     def get_candidate_job_ids_for_skills(self, _skill_keys: list[str], *, target_location_countries: list[str] | None = None) -> list[str]:
         return self._candidate_job_ids
 
+    def filter_job_ids_for_eligibility(
+        self, job_ids: list[str], *, profile: dict[str, Any], include_stretch: bool = False
+    ) -> list[str]:
+        return job_ids
+
     def get_candidate_job_ids_for_roles(self, _role_titles: list[str], *, target_location_countries: list[str] | None = None) -> list[str]:
         # CandidatePool title_filter selector — no extra title-only jobs in this fake.
         return []

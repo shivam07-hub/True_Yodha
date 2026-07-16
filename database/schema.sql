@@ -367,6 +367,8 @@ ALTER TABLE user_feedback      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE jobs               ENABLE ROW LEVEL SECURITY;
 ALTER TABLE skills             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE job_skills         ENABLE ROW LEVEL SECURITY;
+-- Operational feed telemetry is service-role-only; no client policy is intentional.
+ALTER TABLE job_feed_run_audits ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "own profile"        ON user_profiles    FOR ALL     USING (auth.uid() = id);
 CREATE POLICY "own skills"         ON user_skills       FOR ALL     USING (auth.uid() = user_id);

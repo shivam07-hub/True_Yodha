@@ -31,5 +31,6 @@ export function jobFeedQueryKey({
     filters.roleDomain ?? "",
     filters.minSkillMatches,
     filters.followingOnly,
+    filters.includeStretch,
   ] as const
 }

@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 import logging
 
-from app.services.llm_provider import LLMProvider, LLMProviderError
+from app.services.llm_provider import LLMProvider, LLMProviderError, get_writer_provider
 
 logger = logging.getLogger("myro.cv_intake")
 
@@ -139,16 +139,18 @@ def _clean_line(raw: str) -> str:
     return text.splitlines()[0].strip() if text else ""
 
 
-async def place_metric(bullet: str, metric: str, provider: LLMProvider | None) -> dict:
+async def place_metric(bullet: str, metric: str, provider: LLMProvider | None = None) -> dict:
     """Weave a user-supplied number into a bullet (4.1). Myro never invents the
-    number — the user gives it, Mentor places it. Returns:
+    number — the user gives it, Mentor places it. `provider` is a test-only override
+    (writer floor owned here). Returns:
       {"mode": "placed",    "text": <rewritten>}   number folded in
       {"mode": "unchanged", "text": <original>}    nothing to do / provider down
     """
     bullet = (bullet or "").strip()
     metric = (metric or "").strip()
-    if not bullet or not metric or provider is None:
+    if not bullet or not metric:
         return {"mode": "unchanged", "text": bullet}
+    provider = provider or get_writer_provider()
     messages = [
         {"role": "system", "content": _PLACE_METRIC_GUARD},
         {"role": "user", "content": f"Bullet:\n{bullet}\n\nReal number to include:\n{metric}"},
@@ -168,17 +170,17 @@ async def draft_from_intake(
     jd_text: str | None,
     gap_skills: list[str],
     roles: list[str],
-    provider: LLMProvider | None,
+    provider: LLMProvider | None = None,
 ) -> dict:
-    """Shape the candidate's raw experience into JD-aligned bullets. Returns one of:
+    """Shape the candidate's raw experience into JD-aligned bullets. `provider` is a
+    test-only override (writer floor owned here). Returns one of:
       {"mode": "draft", "bullets": [...]}
       {"mode": "error", "rationale": str}
     """
     raw_text = (raw_text or "").strip()
     if not raw_text:
         return {"mode": "error", "rationale": "Tell me what you did and I'll shape it into a bullet."}
-    if provider is None:
-        return {"mode": "error", "rationale": "Drafting is unavailable right now. Try again."}
+    provider = provider or get_writer_provider()
 
     messages = _build_messages(raw_text, jd_text, gap_skills or [], roles or [])
     try:

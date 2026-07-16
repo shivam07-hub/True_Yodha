@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useMemo, useEffect, Suspense } from "react"
-import { useSearchParams } from "next/navigation"
-import { useQuery, useQueries } from "@tanstack/react-query"
+import { useCallback, useMemo, Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query"
 import { jobs, users, xp } from "@/lib/api"
 import type { JobLocationFilters } from "@/lib/api"
 import { HeatmapTab } from "@/components/market/heatmap-tab"
@@ -16,28 +16,34 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { useFeedState } from "@/lib/hooks/use-feed-state"
 import { useFollowCompany } from "@/lib/hooks/use-follow-company"
 import { useXPStore } from "@/store/xpStore"
+import { pickDefaultSort, type FeedFilters } from "@/components/market/feed-types"
+
+type BrowsePatch = {
+  tab?: "jobs" | "heatmap"
+  q?: string
+  skill?: string | null
+  filters?: FeedFilters
+}
 
 function IntelPageInner() {
   const { token } = useAuth()
+  const queryClient = useQueryClient()
   const { isDesktop, mode } = useViewport()
   // Feed publication sensing - auto-invalidates the free market feed when a new
   // batch publishes (handoff client-refresh contract).
   useFeedState()
   const { balance: xpBalance, setBalance: setXPBalance } = useXPStore()
+  const router = useRouter()
   const searchParams = useSearchParams()
-  const paramSkill = searchParams.get("skill")
-
-  const [selectedCluster, setSelectedCluster] = useState<string | null>(null)
+  const selectedCluster = searchParams.get("cluster") || null
   // Intel/heatmap analytics stay on the FULL market (facets are unscoped); the
   // job feed is scoped server-side from the user's saved location prefs. The UI
   // no longer re-asks for geo, so these are fixed empty here.
   const locationCity = ""
   const locationCountry = ""
   const locationMode = ""
-  const [activeTab, setActiveTab] = useState<"jobs" | "heatmap">(
-    searchParams.get("tab") === "heatmap" ? "heatmap" : "jobs",
-  )
-  const [jobSkillFacet, setJobSkillFacet] = useState<string | null>(paramSkill)
+  const activeTab: "jobs" | "heatmap" = searchParams.get("tab") === "heatmap" ? "heatmap" : "jobs"
+  const jobSkillFacet = searchParams.get("skill") || null
 
   // Sync tokens balance if not yet set from another page visit
   useQuery({
@@ -68,6 +74,37 @@ function IntelPageInner() {
     return profileData?.cv_readiness ?? "missing"
   }, [token, profileData?.cv_readiness, profileData?.has_cv])
   const cvReadyForPersonalization = cvReadiness === "ready"
+  const browseFilters = useMemo<FeedFilters>(() => {
+    const rawMinimum = Number(searchParams.get("min_skills") || 0)
+    return {
+      sort: searchParams.get("sort") === "fresh" ? "fresh" : pickDefaultSort(!!profileData?.has_cv, targetRoles.length > 0),
+      roleDomain: selectedCluster,
+      minSkillMatches: Number.isFinite(rawMinimum) ? Math.min(20, Math.max(0, Math.floor(rawMinimum))) : 0,
+      followingOnly: searchParams.get("following") === "1",
+      includeStretch: searchParams.get("stretch") === "1",
+    }
+  }, [searchParams, profileData?.has_cv, selectedCluster, targetRoles.length])
+  const browseQuery = searchParams.get("q") || ""
+
+  const updateBrowse = useCallback((patch: BrowsePatch) => {
+    const next = new URLSearchParams(searchParams.toString())
+    const set = (key: string, value: string | null | undefined) => {
+      if (value) next.set(key, value)
+      else next.delete(key)
+    }
+    if (patch.tab !== undefined) set("tab", patch.tab === "jobs" ? null : patch.tab)
+    if (patch.q !== undefined) set("q", patch.q.trim() || null)
+    if (patch.skill !== undefined) set("skill", patch.skill?.trim() || null)
+    if (patch.filters) {
+      set("cluster", patch.filters.roleDomain)
+      set("sort", patch.filters.sort === pickDefaultSort(!!profileData?.has_cv, targetRoles.length > 0) ? null : patch.filters.sort)
+      set("min_skills", patch.filters.minSkillMatches > 0 ? String(patch.filters.minSkillMatches) : null)
+      set("following", patch.filters.followingOnly ? "1" : null)
+      set("stretch", patch.filters.includeStretch ? "1" : null)
+    }
+    const query = next.toString()
+    router.replace(`/market${query ? `?${query}` : ""}`, { scroll: false })
+  }, [router, searchParams, profileData?.has_cv, targetRoles.length])
 
   const locFilters = useMemo(
     () => ({
@@ -102,10 +139,6 @@ function IntelPageInner() {
   const followedCompanies = following.companies
   const followedNames = following.followedNames
 
-  useEffect(() => {
-    if (paramSkill && activeTab === "jobs") setJobSkillFacet(paramSkill)
-  }, [paramSkill, activeTab])
-
   // Mobile IA swap (handoff): the whole Jobs tab is the new swipe-triage
   // surface. Gate on viewport `mode` (width ≤768) to match the mobile chrome's
   // CSS breakpoint exactly — `isDesktop` also requires pointer:fine, so a
@@ -139,8 +172,21 @@ function IntelPageInner() {
             targetRoles={targetRoles}
             chipCountMap={chipCountMap}
             selectedCluster={selectedCluster}
-            onSelectCluster={setSelectedCluster}
+            onSelectCluster={(roleDomain) => updateBrowse({ filters: { ...browseFilters, roleDomain } })}
+            initialFilters={browseFilters}
+            initialQuery={browseQuery}
+            onFiltersChange={(filters) => updateBrowse({ filters })}
+            onQueryChange={(q) => updateBrowse({ q })}
             initialSkillFacet={jobSkillFacet}
+            onSkillFacetChange={(skill) => updateBrowse({ skill })}
+            primaryCareerBand={profileData?.target_career_band}
+            exploredCareerBands={profileData?.explored_career_bands ?? []}
+            onExploredCareerBandsChange={(bands) => {
+              if (!token) return
+              void users.updateProfile(token, { explored_career_bands: bands }).then(() => {
+                void queryClient.invalidateQueries({ queryKey: ["profile"] })
+              })
+            }}
             targetLocations={profileData?.target_locations ?? []}
             followedNames={followedNames}
             onToggleFollow={following.toggle}
@@ -158,12 +204,11 @@ function IntelPageInner() {
             targetRoles={targetRoles}
             targetLocations={profileData?.target_locations ?? []}
             locFilters={locFilters}
-            paramSkill={paramSkill}
-            onBackToJobs={() => setActiveTab("jobs")}
-            onPersonalise={() => setActiveTab("jobs")}
+            paramSkill={jobSkillFacet}
+            onBackToJobs={() => updateBrowse({ tab: "jobs" })}
+            onPersonalise={() => updateBrowse({ tab: "jobs" })}
             onViewSkillJobs={(skill) => {
-              setJobSkillFacet(skill)
-              setActiveTab("jobs")
+              updateBrowse({ tab: "jobs", skill })
             }}
           />
         )}

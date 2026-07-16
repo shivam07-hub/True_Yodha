@@ -28,6 +28,8 @@ import fs from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
+import { redactSensitiveText } from "./redact-sensitive"
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ENV_FILE = path.join(__dirname, ".env.linkedin")
 const PORT = 5599
@@ -94,7 +96,7 @@ async function exchangeCode(
     body: params,
   })
   if (!res.ok) {
-    throw new Error(`Token exchange failed (${res.status}): ${(await res.text()).slice(0, 800)}`)
+    throw new Error(`Token exchange failed (${res.status}): ${redactSensitiveText(await res.text())}`)
   }
   return (await res.json()) as { access_token: string; refresh_token?: string; expires_in: number }
 }
@@ -117,7 +119,7 @@ async function lookupAdminOrgs(accessToken: string): Promise<string[]> {
   })
   if (!res.ok) {
     console.warn(
-      `\n(Could not auto-list admin orgs: ${res.status} ${(await res.text()).slice(0, 300)})\n` +
+      `\n(Could not auto-list admin orgs: ${res.status} ${redactSensitiveText(await res.text())})\n` +
         `You can set LINKEDIN_ORGANIZATION_URN manually as urn:li:organization:<id>.`,
     )
     return []
@@ -212,6 +214,6 @@ async function main(): Promise<void> {
 }
 
 main().catch(e => {
-  console.error("\nFailed:", e instanceof Error ? e.message : e)
+  console.error("\nFailed:", redactSensitiveText(e instanceof Error ? e.message : e))
   process.exit(1)
 })

@@ -356,6 +356,8 @@ export interface UserProfile {
   target_role_title?: string | null
   target_role_titles?: string[]
   target_seniority?: "intern" | "entry" | "mid" | "senior" | "lead" | "executive" | "any" | null
+  target_career_band?: CareerBand | null
+  explored_career_bands?: CareerBand[]
   target_location: string | null
   target_locations: string[]
   deal_breakers: string[]
@@ -389,6 +391,7 @@ export interface ProfileUpdate {
    *  `target_roles` cluster union; never send raw clusters alongside. */
   target_role_titles?: string[] | null
   target_seniority?: "intern" | "entry" | "mid" | "senior" | "lead" | "executive" | "any" | null
+  explored_career_bands?: CareerBand[] | null
   target_location?: string | null
   target_locations?: string[] | null
   deal_breakers?: string[] | null
@@ -917,12 +920,16 @@ export interface CVUploadFallbackSubmissionResponse {
 }
 
 export interface RewriteBulletResponse {
-  mode: "rewrite" | "question" | "error"
+  mode: "rewrite" | "question" | "suggest_metric" | "error"
   rewritten_text?: string | null
   question?: string | null
   rationale?: string | null
-  // #32: authored-playbook sources this rewrite was grounded in. Empty when
-  // retrieval found nothing (the rewrite still succeeds on the static rules).
+  // A real number found in the user's own stories (suggest_metric) — offered with
+  // provenance so they confirm before it lands, never invented, never silent.
+  candidate_value?: string | null
+  candidate_source?: string | null
+  // Internal grounding record — not shown on the card (grounding is method, not
+  // the user's concern).
   citations?: string[]
 }
 
@@ -930,14 +937,19 @@ export interface RewriteVariant {
   angle: "metric" | "impact" | "scope"
   label: string
   text: string
+  // Plain candidate-facing reason this framing is strong ("leads with the 40% result").
+  why?: string
 }
 
-// Pick-a-version rewrite: 2–3 finished framings of the same real facts.
+// Recommended + alternates rewrite: framings of the same real facts, strongest-first
+// (variants[0] = the Mentor's recommendation).
 export interface RewriteVariantsResponse {
-  mode: "variants" | "question" | "error"
+  mode: "variants" | "question" | "suggest_metric" | "error"
   variants: RewriteVariant[]
   question?: string | null
   rationale?: string | null
+  candidate_value?: string | null
+  candidate_source?: string | null
   citations?: string[]
 }
 
@@ -1179,6 +1191,49 @@ export const memory = {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     }),
+  /** The persona canvas — "What Myro knows about you" (Lane B). */
+  persona: (token: string) =>
+    request<PersonaResponse>("/memory/persona", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  /** Edit a canvas paragraph. Edits are law: the paragraph becomes the user's
+   *  words, pinned, and survives every regeneration. */
+  personaEdit: (token: string, paragraphId: string, patch: { text?: string; pinned?: boolean }) =>
+    request<PersonaParagraph>(`/memory/persona/paragraphs/${encodeURIComponent(paragraphId)}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(patch),
+    }),
+  personaRefresh: (token: string) =>
+    request<{ scheduled: boolean }>("/memory/persona/refresh", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+}
+
+/** Persona canvas (Lane B) — one living document in three movements. */
+export type PersonaMovement = "past" | "present" | "future"
+export interface PersonaParagraph {
+  id: string
+  movement: PersonaMovement
+  text: string
+  author: "myro" | "user"
+  pinned: boolean
+  /** Resolved signal lines this paragraph draws on — the visible trace. */
+  grounds: string[]
+}
+export interface PersonaTimelineRole {
+  company: string
+  title: string
+  date_label: string
+  started_on: string | null
+}
+export interface PersonaResponse {
+  status: "ready" | "pending"
+  paragraphs: PersonaParagraph[]
+  generated_at: string | null
+  timeline: PersonaTimelineRole[]
+  cosmos: "none" | "on_file"
 }
 
 export const cv = {
@@ -2701,6 +2756,8 @@ export interface JobSearchResponse {
 // CLAUDE.md OPEN BACKLOG #23) — kept so the API stays back-compatible.
 export type JobFeedSort = "fit" | "fresh"
 
+export type CareerBand = "engineering_data" | "business_product_operations" | "research_people_public_impact" | "design_creative"
+
 export interface JobFeedItem {
   job_id: string
   job_title: string
@@ -2713,6 +2770,10 @@ export interface JobFeedItem {
   location_quality?: "ok" | "unknown" | null
   locations?: string[]
   role_domain?: string | null
+  career_band?: CareerBand | null
+  seniority_level?: string | null
+  min_years_experience?: number | null
+  max_years_experience?: number | null
   industry?: string | null
   source_url?: string | null
   first_seen?: string | null
@@ -2816,6 +2877,7 @@ export interface JobFeedParams {
   sort?: JobFeedSort
   minSkillMatches?: number
   followingOnly?: boolean
+  includeStretch?: boolean
   page?: number
   pageSize?: number
   browseScope?: "exact" | "remote_country" | "country"
@@ -3183,6 +3245,7 @@ export const jobs = {
     if (p.sort) params.set("sort", p.sort)
     if (p.minSkillMatches && p.minSkillMatches > 0) params.set("min_skill_matches", String(p.minSkillMatches))
     if (p.followingOnly) params.set("following_only", "true")
+    if (p.includeStretch) params.set("include_stretch", "true")
     if (p.page && p.page > 0) params.set("page", String(p.page))
     if (p.pageSize && p.pageSize > 0) params.set("page_size", String(p.pageSize))
     if (p.browseScope) params.set("browse_scope", p.browseScope)
@@ -3205,6 +3268,7 @@ export const jobs = {
     if (p.locationCountry && p.locationCountry.trim()) params.set("location_country", p.locationCountry.trim())
     if (p.locationMode && p.locationMode.trim()) params.set("location_mode", p.locationMode.trim())
     if (p.followingOnly) params.set("following_only", "true")
+    if (p.includeStretch) params.set("include_stretch", "true")
     if (p.browseScope) params.set("browse_scope", p.browseScope)
     const qs = params.toString()
     try {
@@ -4251,6 +4315,7 @@ export interface AnonRewriteVariant {
   angle: string
   label: string
   text: string
+  why?: string
 }
 
 export interface AnonRewriteVariantsResponse {

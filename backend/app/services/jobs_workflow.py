@@ -378,6 +378,10 @@ async def compute_job_matches(
         list(user_skill_map.keys()),
         target_location_countries=target_countries,
     )
+    candidate_job_ids = repo.filter_job_ids_for_eligibility(
+        candidate_job_ids,
+        profile=profile,
+    )
 
     # Self-healing exclusion (Backlog #14 / 2026-05-30 decision: refresh is
     # gated only by XP). `excluded_job_ids` is a *novelty preference*, not a
@@ -446,6 +450,7 @@ async def compute_job_matches(
                 target_location_countries=target_countries,
                 pool_size=MATCH_TRIAGE_POOL,
                 exclude_ids=excluded_set,
+                eligibility_profile=profile,
             ),
         ),
         provider=provider,

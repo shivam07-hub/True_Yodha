@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useViewport } from "@/mobile"
-import type { JobFeedItem } from "@/lib/api"
+import type { CareerBand, JobFeedItem } from "@/lib/api"
 import { formatCount } from "@/lib/format"
 import { IntentChat } from "@/components/jobs/intent-chat"
 import { AgentPicksBand } from "@/components/jobs/agent-picks-band"
@@ -35,7 +35,15 @@ export interface MarketJobsTabProps {
   chipCountMap: Record<string, number>
   selectedCluster: string | null         // shared with the page's analytics/heatmap
   onSelectCluster: (cluster: string | null) => void
+  initialFilters?: FeedFilters
+  initialQuery?: string
+  onFiltersChange?: (filters: FeedFilters) => void
+  onQueryChange?: (query: string) => void
   initialSkillFacet?: string | null
+  onSkillFacetChange?: (skill: string | null) => void
+  primaryCareerBand?: CareerBand | null
+  exploredCareerBands?: CareerBand[]
+  onExploredCareerBandsChange?: (bands: CareerBand[]) => void
   targetLocations: string[]
   followedNames: string[]
   onToggleFollow: (name: string) => void
@@ -46,29 +54,44 @@ export interface MarketJobsTabProps {
 export function MarketJobsTab(props: MarketJobsTabProps) {
   const {
     token, hasCv, cvResolved = false, targetRoles, chipCountMap, selectedCluster, onSelectCluster,
-    targetLocations, followedNames, onToggleFollow, initialSkillFacet,
+    initialFilters, initialQuery = "", onFiltersChange, onQueryChange,
+    targetLocations, followedNames, onToggleFollow, initialSkillFacet, onSkillFacetChange,
+    primaryCareerBand, exploredCareerBands, onExploredCareerBandsChange,
   } = props
   const router = useRouter()
   const { isDesktop } = useViewport()
   const hasTargetRoles = targetRoles.length > 0
 
-  const [searchInput, setSearchInput] = useState("")
+  const [searchInput, setSearchInput] = useState(initialQuery)
   const [searchOpen, setSearchOpen] = useState(false)
-  const [q, setQ] = useState("")
+  const [q, setQ] = useState(initialQuery)
   const [skillFacet, setSkillFacet] = useState<string | null>(initialSkillFacet ?? null)
   const [local, setLocal] = useState<Omit<FeedFilters, "roleDomain">>({
-    sort: pickDefaultSort(hasCv, hasTargetRoles),
-    minSkillMatches: 0,
-    followingOnly: false,
+    sort: initialFilters?.sort ?? pickDefaultSort(hasCv, hasTargetRoles),
+    minSkillMatches: initialFilters?.minSkillMatches ?? 0,
+    followingOnly: initialFilters?.followingOnly ?? false,
+    includeStretch: initialFilters?.includeStretch ?? false,
   })
   const [openJob, setOpenJob] = useState<JobFeedItem | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [intentOpen, setIntentOpen] = useState(false)
 
   useEffect(() => {
-    const id = setTimeout(() => setQ(searchInput.trim()), 350)
+    const id = setTimeout(() => {
+      const next = searchInput.trim()
+      if (next !== q) {
+        setQ(next)
+        onQueryChange?.(next)
+      }
+    }, 350)
     return () => clearTimeout(id)
-  }, [searchInput])
+  }, [searchInput, q, onQueryChange])
+
+  useEffect(() => {
+    const next = initialQuery.trim()
+    setSearchInput(next)
+    setQ(next)
+  }, [initialQuery])
 
   useEffect(() => {
     if (initialSkillFacet) {
@@ -78,14 +101,24 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     }
   }, [initialSkillFacet])
 
+  useEffect(() => {
+    setLocal({
+      sort: initialFilters?.sort ?? pickDefaultSort(hasCv, hasTargetRoles),
+      minSkillMatches: initialFilters?.minSkillMatches ?? 0,
+      followingOnly: initialFilters?.followingOnly ?? false,
+      includeStretch: initialFilters?.includeStretch ?? false,
+    })
+  }, [initialFilters?.sort, initialFilters?.minSkillMatches, initialFilters?.followingOnly, initialFilters?.includeStretch, hasCv, hasTargetRoles])
+
   const filters: FeedFilters = useMemo(() => ({ ...local, roleDomain: selectedCluster }), [local, selectedCluster])
 
   const onChangeFilters = useCallback((f: FeedFilters) => {
-    if (f.roleDomain !== selectedCluster) onSelectCluster(f.roleDomain)
+    if (f.roleDomain !== selectedCluster && !onFiltersChange) onSelectCluster(f.roleDomain)
     setLocal({
-      sort: f.sort, minSkillMatches: f.minSkillMatches, followingOnly: f.followingOnly,
+      sort: f.sort, minSkillMatches: f.minSkillMatches, followingOnly: f.followingOnly, includeStretch: f.includeStretch,
     })
-  }, [selectedCluster, onSelectCluster])
+    onFiltersChange?.(f)
+  }, [selectedCluster, onSelectCluster, onFiltersChange])
 
   const { feed, allJobs, total, rankedCount, warming, expansionDividers, triage, undo, pending, savedCount } =
     useJobFeed({ token, filters, q, skill: skillFacet, targetLocations })
@@ -139,8 +172,28 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     [allJobs, stories, picksDivider, expansionDividers],
   )
 
-  const onSeeRoles = useCallback((query: string) => { setSkillFacet(null); setSearchInput(query); setQ(query) }, [])
-  const onFilterSkill = useCallback((skill: string) => { setSearchInput(""); setQ(""); setSkillFacet(skill) }, [])
+  const onSeeRoles = useCallback((query: string) => {
+    setSkillFacet(null)
+    onSkillFacetChange?.(null)
+    setSearchInput(query)
+    setQ(query)
+    onQueryChange?.(query)
+  }, [onSkillFacetChange, onQueryChange])
+  const onFilterSkill = useCallback((skill: string) => {
+    setSearchInput("")
+    setQ("")
+    onQueryChange?.("")
+    setSkillFacet(skill)
+    onSkillFacetChange?.(skill)
+  }, [onQueryChange, onSkillFacetChange])
+  const clearBrowse = useCallback(() => {
+    setSkillFacet(null)
+    onSkillFacetChange?.(null)
+    setSearchInput("")
+    setQ("")
+    onQueryChange?.("")
+    onChangeFilters({ ...DEFAULT_FILTERS })
+  }, [onSkillFacetChange, onQueryChange, onChangeFilters])
   const onStoryPrimary = useCallback((s: FeedStory) => {
     if (s.kind === "skill") router.push(`/forge?skill=${encodeURIComponent(s.skill)}`)
     else onSeeRoles(s.company)
@@ -179,7 +232,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
                 type="button"
                 className="tm-feed-iconbtn"
                 aria-label="Close search"
-                onClick={() => { setSearchInput(""); setSearchOpen(false) }}
+                onClick={() => { setSearchInput(""); setQ(""); onQueryChange?.(""); setSearchOpen(false) }}
               >
                 <X size={15} />
               </button>
@@ -230,7 +283,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
           {feed.isLoading || warming ? (
             <FeedSkeleton summary />
           ) : allJobs.length === 0 ? (
-            <EmptyHandoff savedCount={savedCount} onBuild={() => router.push("/collections")} onClear={() => { setSkillFacet(null); setSearchInput(""); setQ(""); onChangeFilters({ ...DEFAULT_FILTERS }) }} onTellMyro={() => setIntentOpen(true)} />
+            <EmptyHandoff savedCount={savedCount} onBuild={() => router.push("/collections")} onClear={clearBrowse} onTellMyro={() => setIntentOpen(true)} />
           ) : (
             <>
               <div className="tm-feed-summary">
@@ -240,7 +293,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
                   <button
                     type="button"
                     className="tm-feed-activechip"
-                    onClick={() => setSkillFacet(null)}
+                    onClick={() => { setSkillFacet(null); onSkillFacetChange?.(null) }}
                     aria-label={`Remove skill: ${skillFacet}`}
                   >
                     <span className="tm-feed-chip-label" title={skillFacet}>{skillFacet}</span> <span aria-hidden>x</span>
@@ -337,6 +390,9 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
           hasCv={hasCv}
           targetLocations={targetLocations}
           onEditLocations={() => document.dispatchEvent(new CustomEvent("tm:open-settings", { detail: { tab: "Following" } }))}
+          primaryCareerBand={primaryCareerBand}
+          exploredCareerBands={exploredCareerBands}
+          onExploredCareerBandsChange={onExploredCareerBandsChange}
         />
       ) : null}
 

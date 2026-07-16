@@ -1,5 +1,15 @@
 from datetime import datetime
+from typing import Literal
+
 from pydantic import BaseModel, EmailStr
+
+
+CareerBand = Literal[
+    "engineering_data",
+    "business_product_operations",
+    "research_people_public_impact",
+    "design_creative",
+]
 
 
 class UserProfileResponse(BaseModel):
@@ -11,6 +21,8 @@ class UserProfileResponse(BaseModel):
     target_role_title: str | None = None
     target_role_titles: list[str] = []
     target_seniority: str | None = None
+    target_career_band: CareerBand | None = None
+    explored_career_bands: list[CareerBand] = []
     target_location: str | None
     target_locations: list[str] = []
     deal_breakers: list[str] = []
@@ -42,6 +54,7 @@ class UpdateProfileRequest(BaseModel):
     target_role_title: str | None = None
     target_role_titles: list[str] | None = None
     target_seniority: str | None = None
+    explored_career_bands: list[CareerBand] | None = None
     target_location: str | None = None
     target_locations: list[str] | None = None
     deal_breakers: list[str] | None = None
@@ -120,4 +133,3 @@ class SkillUpvoteToggleResponse(BaseModel):
     skill_key: str
     upvoted: bool
     count: int
-

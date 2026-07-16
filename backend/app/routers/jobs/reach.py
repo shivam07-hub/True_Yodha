@@ -20,6 +20,7 @@ from app.repositories.connections import (
 )
 from app.repositories.cv import CVVersionsRepository, get_token_cv_repository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
+from app.security import redact_sensitive_text
 from app.services import reach_pack as reach_pack_service
 from app.services import xp_policy, xp_service
 from app.services.connections_import import format_warm_connection
@@ -181,7 +182,7 @@ async def create_reach_pack(
     except xp_service.InsufficientXPError as exc:
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
-            detail=f"{exc} Earn coins by practising a skill, or unlock this later.",
+            detail=f"{redact_sensitive_text(exc)} Earn coins by practising a skill, or unlock this later.",
         ) from exc
 
     repo.upsert_deepening(user_id, job_id, _PACK_PROMPT_KEY, json.dumps(pack))

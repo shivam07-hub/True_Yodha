@@ -13,6 +13,7 @@ import httpx
 
 from app.database import get_supabase_admin
 from app.repositories.job_listing_verification import ListingVerificationRepository
+from app.security import install_sensitive_log_filter
 from app.services.job_listing_verifier import verify_listing
 
 
@@ -49,4 +50,5 @@ async def run() -> None:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
+    install_sensitive_log_filter()
     asyncio.run(run())

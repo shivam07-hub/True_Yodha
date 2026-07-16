@@ -17,6 +17,7 @@ from pydantic import BaseModel
 
 from app.deps import Principal, get_principal
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
+from app.security import redact_sensitive_text
 from app.services import jd_coverage, prep_brief as prep_brief_service, xp_policy, xp_service
 from app.services.llm_provider import LLMProvider, get_judgment_provider, get_llm_provider
 
@@ -135,7 +136,7 @@ async def create_prep_brief(
     except xp_service.InsufficientXPError as exc:
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
-            detail=f"{exc} Earn coins by practising a skill, or unlock this later.",
+            detail=f"{redact_sensitive_text(exc)} Earn coins by practising a skill, or unlock this later.",
         ) from exc
 
     repo.upsert_deepening(user_id, job_id, _BRIEF_PROMPT_KEY, json.dumps(brief))

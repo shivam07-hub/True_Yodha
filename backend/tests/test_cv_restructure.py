@@ -92,9 +92,11 @@ def test_suggest_restructure_returns_proposal():
     assert provider.calls and provider.calls[0]["max_tokens"] == cv_restructure._MAX_TOKENS
 
 
-def test_suggest_restructure_errors_without_provider():
+def test_suggest_restructure_errors_when_provider_fails():
+    # Writer floor is owned inside the service; a total provider outage → graceful error.
     out = asyncio.run(cv_restructure.suggest_restructure(
-        "some cv", role=None, company=None, missing_keywords=[], provider=None,
+        "some cv", role=None, company=None, missing_keywords=[],
+        provider=_FakeProvider(raise_error=True),
     ))
     assert out["mode"] == "error"
 

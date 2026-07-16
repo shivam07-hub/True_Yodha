@@ -2,11 +2,18 @@
 
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
-import type { JobFeedSort } from "@/lib/api"
+import type { CareerBand, JobFeedSort } from "@/lib/api"
 import { TargetRolesChips } from "@/components/target-role/target-roles-chips"
 import {
   type FeedFilters, SORT_TOGGLE, canRankByFit, activeFilterCount,
 } from "./feed-types"
+
+const CAREER_BANDS: ReadonlyArray<readonly [CareerBand, string]> = [
+  ["engineering_data", "Engineering & Data"],
+  ["business_product_operations", "Business, Product & Operations"],
+  ["research_people_public_impact", "Research, People & Public Impact"],
+  ["design_creative", "Design & Creative"],
+] as const
 
 // ── the control row: rank toggle · Filters button · Saved ─────────────────────
 
@@ -73,6 +80,7 @@ export function FilterChips({ filters, onChange }: { filters: FeedFilters; onCha
   const chips: { key: string; label: string; clear: () => void }[] = []
   if (filters.minSkillMatches > 0) chips.push({ key: "skill", label: `≥ ${filters.minSkillMatches} skills`, clear: () => onChange({ ...filters, minSkillMatches: 0 }) })
   if (filters.followingOnly) chips.push({ key: "follow", label: "Following", clear: () => onChange({ ...filters, followingOnly: false }) })
+  if (filters.includeStretch) chips.push({ key: "stretch", label: "Next-level stretch", clear: () => onChange({ ...filters, includeStretch: false }) })
   if (chips.length === 0) return null
   return (
     <>
@@ -126,6 +134,7 @@ export function RoleSwitcher({
 
 export function FiltersSheet({
   filters, onChange, onClose, targetRoles, chipCountMap, hasCv, targetLocations, onEditLocations,
+  primaryCareerBand, exploredCareerBands, onExploredCareerBandsChange,
 }: {
   filters: FeedFilters
   onChange: (f: FeedFilters) => void
@@ -135,11 +144,16 @@ export function FiltersSheet({
   hasCv: boolean
   targetLocations: string[]
   onEditLocations: () => void
+  primaryCareerBand?: CareerBand | null
+  exploredCareerBands?: CareerBand[]
+  onExploredCareerBandsChange?: (bands: CareerBand[]) => void
 }) {
   const cleanLocations = targetLocations.filter(l => l && l.trim())
   const [mounted, setMounted] = useState(false)
   const [draft, setDraft] = useState<FeedFilters>(filters)
+  const [draftCareerBands, setDraftCareerBands] = useState<CareerBand[]>(exploredCareerBands ?? [])
   useEffect(() => { setMounted(true) }, [])
+  useEffect(() => { setDraftCareerBands(exploredCareerBands ?? []) }, [exploredCareerBands])
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
     window.addEventListener("keydown", onKey)
@@ -147,8 +161,12 @@ export function FiltersSheet({
   }, [onClose])
   if (!mounted) return null
 
-  const apply = () => { onChange(draft); onClose() }
-  const reset = () => setDraft({ ...draft, roleDomain: null, minSkillMatches: 0, followingOnly: false })
+  const apply = () => {
+    onChange(draft)
+    onExploredCareerBandsChange?.(draftCareerBands)
+    onClose()
+  }
+  const reset = () => setDraft({ ...draft, roleDomain: null, minSkillMatches: 0, followingOnly: false, includeStretch: false })
 
   return createPortal(
     <>
@@ -196,12 +214,36 @@ export function FiltersSheet({
             )}
           </Section>
 
+          <Section title="Career path">
+            <div className="tm-sheet-empty" style={{ marginBottom: 8 }}>
+              {primaryCareerBand
+                ? `Your primary path: ${CAREER_BANDS.find(([key]) => key === primaryCareerBand)?.[1] ?? primaryCareerBand}`
+                : "Your primary path is inferred from your CV and target role."}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {CAREER_BANDS.filter(([key]) => key !== primaryCareerBand).map(([key, label]) => (
+                <Toggle
+                  key={key}
+                  checked={draftCareerBands.includes(key)}
+                  onChange={(enabled) => setDraftCareerBands(current => enabled
+                    ? Array.from(new Set([...current, key]))
+                    : current.filter((band) => band !== key))}
+                  label={`Also explore ${label}`}
+                />
+              ))}
+            </div>
+          </Section>
+
           <Section title="Skill match" locked={!hasCv} lockNote="Upload your CV to filter by skill match">
             <Stepper value={draft.minSkillMatches} onChange={v => setDraft({ ...draft, minSkillMatches: v })} disabled={!hasCv} suffix="skills" />
           </Section>
 
           <Section title="Companies">
             <Toggle checked={draft.followingOnly} onChange={v => setDraft({ ...draft, followingOnly: v })} label="Only companies I follow" />
+          </Section>
+
+          <Section title="Seniority">
+            <Toggle checked={draft.includeStretch} onChange={v => setDraft({ ...draft, includeStretch: v })} label="Include next-level stretch roles" />
           </Section>
         </div>
         <footer className="tm-filters-foot">

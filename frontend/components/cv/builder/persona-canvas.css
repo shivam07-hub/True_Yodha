@@ -1,0 +1,280 @@
+/* PersonaCanvas — "What Myro knows about you" (Lane B living document).
+   Document, not UI: prose set in the reading serif, chrome in sans/mono.
+   The career meridian rail threads the three movements: solid evidence line
+   through the past, accent NOW node, projected (dashed) future arc. Accent
+   is rationed to the NOW node + pinned rule + the one cosmos CTA. */
+
+.tm-pc {
+  max-width: 760px;
+}
+
+/* ── header ── */
+.tm-pc-head { margin-bottom: 28px; }
+.tm-pc-eyebrow {
+  font-family: var(--tm-font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+  margin: 0 0 10px;
+}
+.tm-pc-title {
+  font-family: var(--tm-font-reading);
+  font-weight: 500;
+  font-size: clamp(26px, 4.5vw, 36px);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  margin: 0 0 10px;
+  text-wrap: balance;
+}
+.tm-pc-meta {
+  font-size: 13px;
+  color: var(--tm-text-muted);
+  line-height: 1.6;
+  max-width: 56ch;
+  margin: 0 0 12px;
+}
+.tm-pc-badges { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.tm-pc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--tm-border);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+.tm-pc-badge.is-lit { color: var(--tm-text-primary); border-color: var(--tm-accent); }
+.tm-pc-updated { font-size: 12px; color: var(--tm-text-faint); }
+.tm-pc-refresh {
+  font-size: 12px;
+  color: var(--tm-text-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.tm-pc-refresh:hover:not(:disabled) { color: var(--tm-text-primary); }
+.tm-pc-refresh:disabled { opacity: 0.6; cursor: default; }
+
+/* ── pending / error states ── */
+.tm-pc-state { font-size: 14px; color: var(--tm-text-muted); padding: 18px 0; }
+.tm-pc-hint { font-size: 13px; color: var(--tm-text-faint); margin-top: 8px; }
+.tm-pc-hint a { color: var(--tm-text-secondary); text-decoration: underline; text-underline-offset: 2px; }
+
+/* ── movements + meridian ── */
+.tm-pc-movement {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  column-gap: 22px;
+}
+.tm-pc-rail { position: relative; }
+.tm-pc-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 52px;
+  width: 1px;
+  background: var(--tm-border);
+}
+.tm-pc-line.is-projected {
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--tm-border) 0 5px,
+    transparent 5px 12px
+  );
+}
+.tm-pc-node {
+  position: absolute;
+  left: 52px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+}
+.tm-pc-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--tm-bg-page);
+  border: 1.5px solid var(--tm-text-faint);
+}
+.tm-pc-yr {
+  position: absolute;
+  right: 14px;
+  font-family: var(--tm-font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: var(--tm-text-faint);
+  white-space: nowrap;
+  text-align: right;
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tm-pc-node.is-now .tm-pc-dot {
+  width: 12px;
+  height: 12px;
+  background: var(--tm-accent);
+  border-color: var(--tm-accent);
+}
+.tm-pc-node.is-now .tm-pc-yr { color: var(--tm-text-primary); font-weight: 600; }
+.tm-pc-node.is-terminal .tm-pc-dot { width: 7px; height: 7px; }
+
+/* ── prose ── */
+.tm-pc-prose { padding-bottom: 40px; }
+.tm-pc-m-eyebrow {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 4px 0 16px;
+}
+.tm-pc-m-eyebrow::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--tm-border-faint);
+  align-self: center;
+}
+.tm-pc-numeral {
+  font-family: var(--tm-font-reading);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--tm-text-faint);
+}
+.tm-pc-m-title {
+  font-family: var(--tm-font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--tm-text-muted);
+}
+
+.tm-pc-para { position: relative; margin: 0 0 20px; }
+.tm-pc-text {
+  font-family: var(--tm-font-reading);
+  font-size: 16.5px;
+  line-height: 1.7;
+  margin: 0;
+  max-width: 62ch;
+}
+.tm-pc-para.is-pinned {
+  border-left: 2px solid var(--tm-accent);
+  padding-left: 14px;
+}
+.tm-pc-pin-tag {
+  display: block;
+  font-family: var(--tm-font-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tm-accent-text);
+  margin-bottom: 6px;
+}
+
+/* the grounding trace — real data points under the claim */
+.tm-pc-grounds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-top: 7px;
+}
+.tm-pc-ground {
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--tm-text-faint);
+  border-bottom: 1px dotted var(--tm-border);
+  padding-bottom: 1px;
+  cursor: default;
+}
+
+.tm-pc-edit-btn {
+  position: absolute;
+  top: 2px;
+  right: -8px;
+  transform: translateX(100%);
+  opacity: 0;
+  transition: opacity var(--tm-dur, 0.18s);
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+  border: 1px solid var(--tm-border);
+  border-radius: 6px;
+  padding: 3px 8px;
+  background: var(--tm-surface);
+}
+.tm-pc-para:hover .tm-pc-edit-btn,
+.tm-pc-para:focus-within .tm-pc-edit-btn { opacity: 1; }
+.tm-pc-edit-btn:hover { color: var(--tm-text-primary); }
+
+.tm-pc-edit-input {
+  width: 100%;
+  min-height: 96px;
+  font-family: var(--tm-font-reading);
+  font-size: 15.5px;
+  line-height: 1.6;
+  color: var(--tm-text-primary);
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+.tm-pc-edit-actions { display: flex; gap: 8px; margin-top: 8px; }
+
+/* ── cosmos: dormant constellation / on-file note ── */
+.tm-pc-constellation {
+  border: 1px dashed var(--tm-border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 6px;
+  background: var(--tm-surface);
+}
+.tm-pc-constellation-label {
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+  margin: 0 0 8px;
+}
+.tm-pc-constellation p {
+  font-family: var(--tm-font-reading);
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--tm-text-muted);
+  max-width: 48ch;
+  margin: 0 0 14px;
+}
+.tm-pc-fine {
+  font-size: 11px !important;
+  font-family: var(--tm-font-sans) !important;
+  color: var(--tm-text-faint) !important;
+  margin: 12px 0 0 !important;
+}
+.tm-pc-cosmos-note {
+  font-family: var(--tm-font-reading);
+  font-style: italic;
+  font-size: 14.5px;
+  color: var(--tm-text-muted);
+  max-width: 56ch;
+}
+
+/* ── mobile ── */
+@media (max-width: 640px) {
+  .tm-pc-movement { grid-template-columns: 30px minmax(0, 1fr); column-gap: 14px; }
+  .tm-pc-line, .tm-pc-node { left: 18px; }
+  .tm-pc-yr { display: none; }
+  .tm-pc-text { font-size: 15.5px; }
+  .tm-pc-edit-btn {
+    position: static;
+    transform: none;
+    opacity: 1;
+    margin-top: 6px;
+    display: inline-block;
+  }
+}

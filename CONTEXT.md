@@ -534,6 +534,14 @@ async def rank_one(profile, cv_markdown, job, provider) -> eval | None
 
 `llm_provider.get_judgment_provider()` is THE model floor for every LLM call that RANKS / JUDGES / VETS / RECOMMENDS (triage, 5/6-axis eval, verdicts, agent picks). It leads with the strong FREE tiers (gpt-oss-120b, llama-3.3-70b) → strong PAID (gpt-4o-mini, llama-70b) → Groq direct, and **never** falls to a small model: `JUDGMENT_OR_TIERS` is derived by *exclusion* (any OR tier containing gemma/granite/nano/glm-flash drops whole, so a reorder can't leak a 4B model) and Gemini flash-lite is omitted — a total strong-model outage fails the run (→ refund) rather than emitting a confidently-wrong shortlist. Rationale: a weak model's judgment failure is silent (it answers "successfully"); only the model floor catches it. See `feedback_no_cheap_models_judgment` + ADR-0017. Cheap tiers stay valid for *extraction* (CV parse, screenshot OCR) — only judgment is floored.
 
+## Writer floor
+
+`llm_provider.get_writer_provider()` is THE model floor for every LLM call that WRITES prose the user will put on their CV — per-bullet rewrite + variants + stream, intake draft, `place_metric`, whole-CV restructure, job-path tailor polish. Writing a CV bullet is a judgment-grade generation: a small model *truncates* a rich bullet into a fragment instead of synthesizing it (gemma-3-4b turned "Enhanced sales conversion by co-designing AI bots with campaign measurement…" into "Enhanced sales conversion consistency" — the core-loop trust break). So writing is floored the same way judgment is. `WRITER_OR_TIERS = JUDGMENT_OR_TIERS reordered PAID-strong-first` (same small-model exclusion, inherited structurally by derivation — no second list to keep in sync), because the user is watching a blocking spinner and a free-tier queue can't be allowed to stall it. **The floor is owned INSIDE each writing module, not passed by callers** (mirrors "F1 owned inside `compute_job_matches`"): `cv_rewrite` / `cv_intake` / `cv_restructure` take a `provider=None` that resolves `get_writer_provider()` — the arg is a test-only override; no caller can lower the floor. Verdict/classification calls (JD coverage, gap classification) stay on the judgment lane — writing ≠ judging.
+
+## Mentor grounding
+
+`mentor_grounding.assemble(query, user_id, shelf)` is the ONE seam every Mentor writing surface composes to write from: the authored CV playbook (STAR/XYZ/ATS via `mentor_retriever` — the *method*, injected into the prompt, **never surfaced to the user**), the user's OWN verified career stories (`memory_recall` — the truthful raw material), and candidate NUMBERS already present in those stories with provenance (`CandidateMetric`). Reservoir-first: a metric-less bullet is quantified from the user's real history ("your 'Sales bots' story mentions 40%", confirmed before it lands) before it is ever asked for or — never — invented (ADR-0016). Everything is fail-soft: grounding is leverage, never an outage; a surface with no grounding still writes on the static rule. Before this, only `cv_rewrite` assembled grounding, ad-hoc — the two-"Mentor" depth gap users felt. Product rule: **grounding is HOW Myro makes the line great, not WHAT the user sees.** Recruiters care about STAR; the user only cares whether the line is the best it can be, so the card leads with the stronger line + a plain-language reason it wins (their language), and never shows a "grounded in the playbook" badge.
+
 ## CandidatePool
 
 The seam that decides WHICH jobs reach the brain (`app/services/matching/candidate_pool.py`). Unions the deterministic selectors so a role-right job reaches triage regardless of how it was found:
@@ -574,6 +582,82 @@ The single read for "what Myro knows about what this user wants" — one module 
 - **Role titles are the one write vocabulary.** The modal edits human titles; `onboarding_service.role_title_updates(titles)` is the single derivation of the `target_roles` cluster union (shared by `save_target`, intent-chat, and `PUT /users/me/profile` when `target_role_titles` is sent). A surface can no longer desync titles from the matcher read model.
 - **Memory is fail-soft.** `list_active` degrades to `[]` (safe_read); a repo without a client (test fakes) carries no facts. Matching never breaks on the memory layer.
 - The module is the test surface (`test_targeting_brief.py`): fact→field mapping, the prompt block, and title derivation are tested once, not through each router.
+
+---
+
+## Seniority Eligibility
+
+The deterministic boundary that protects a candidate from implausible job levels
+before a job reaches the feed or the Career Ops ranking pool.
+
+**Terms**
+
+- **Target Seniority** — the candidate's durable level preference in
+  `user_profiles.target_seniority`: `intern`, `entry`, `mid`, `senior`,
+  `lead`, `executive`, or `any`. It is a targeting preference, not a
+  per-visit filter.
+- **Job Seniority** — the canonical normalized level of a posting. It is
+  source-owned and generated prospectively by the scraper from the provider's
+  structured level/experience data, title, and JD; Myro may make a
+  deterministic compatibility read for incomplete legacy rows but never
+  backfills the source table.
+- **Eligibility Boundary** — the server-side hard gate that filters
+  incompatible jobs before the browse feed, candidate selection, and
+  Career-Ops ranking. A client-side filter alone is never sufficient.
+- **Stretch Scope** — an explicit, temporary expansion to the next higher
+  compatible level. It is opt-in, URL-backed for back-navigation, and never
+  admits senior, lead, or executive postings for an intern or entry candidate.
+
+**Default policy**
+
+- Intern and entry candidates receive Intern + Entry postings by default.
+- Mid, senior, lead, and executive postings are excluded from those default
+  feeds; titles such as Vice President are never a fresher stretch.
+- Career Ops ranks and explains jobs only after this boundary. It may rank an
+  opted-in adjacent stretch below at-level work, but cannot override the gate.
+- Target seniority persists with the candidate profile. Browse state persists
+  in the URL so opening a role, navigating back, or reloading does not require
+  the candidate to restate their intent.
+
+---
+
+## Career Band Eligibility
+
+The role-family boundary that prevents a candidate from being recommended jobs
+from an unrelated career path before a job reaches the feed or Career Ops.
+
+**Terms**
+
+- **Career Band** — one of four broad role families: `engineering_data`,
+  `business_product_operations`, `research_people_public_impact`, or
+  `design_creative`. It is coarser than the existing controlled
+  `role_domain`; `role_domain` remains the detailed functional classification.
+- **Primary Career Band** — the candidate's durable default role family. Myro
+  derives it from their CV and target-role titles, persists it in the profile,
+  and lets the candidate correct it.
+- **Explored Career Bands** — zero or more additional role families the
+  candidate explicitly enables. They are the only valid cross-band route.
+- **Job Career Band** — the deterministic family assigned to a job from its
+  source role domain and explicit title signals. A title such as Product
+  Designer may take the Design & Creative band even if its detailed role domain
+  is Product Management.
+- **Career Band Boundary** — the server-side hard gate that admits a posting
+  only when its Job Career Band is the Primary Career Band or an explicitly
+  Explored Career Band. Unknown bands do not become silent cross-band matches.
+
+**Default policy**
+
+- Existing detailed domains map into the four bands: Engineering & Data
+  (software, data, IT, manufacturing); Business, Product & Operations
+  (finance, consulting, product, sales, operations, supply chain, risk, general
+  management); Research, People & Public Impact (research, HR, legal and
+  compliance); and Design & Creative (UX/UI, graphic, visual, content/design).
+- A job reaches browse or Career Ops only when it passes both the Career Band
+  Boundary and the Seniority Eligibility Boundary.
+- When the eligible entry-level pool is thin, Myro reports that inventory truth;
+  it does not fill the feed by silently crossing into Engineering or MBA roles.
+- Career-band expansion is a deliberate persisted preference. It is not an
+  implicit consequence of a search string, skill overlap, or LLM verdict.
 
 ---
 
