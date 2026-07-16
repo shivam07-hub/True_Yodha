@@ -1114,6 +1114,16 @@ export interface CareerProfile {
   story_count: number
   /** Dumped files still being read — poll while > 0. */
   pending_inflows: number
+  /** Judge-proposed same-role pairs awaiting the user's ruling (#38). */
+  merge_suggestions: MergeSuggestion[]
+  /** Auto-folded duplicate roles in the last 7 days — the visible receipt. */
+  tidied_roles: number
+}
+export interface MergeSuggestion {
+  role_a: string
+  role_b: string
+  a_label: string
+  b_label: string
 }
 export interface CareerIngestResponse {
   entries: { id: string; filename: string | null; kind: string; chars: number }[]
@@ -1536,6 +1546,13 @@ export const cv = {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify({ requirement, answer, job_id: jobId ?? null }),
+      }),
+    /** Rule on a judge-proposed same-role pair (#38) — a human ruling is law. */
+    mergeVerdict: (token: string, roleA: string, roleB: string, verdict: "merged" | "keep_separate") =>
+      request<{ verdict: string }>("/cv/reservoir/roles/merge-verdict", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ role_a: roleA, role_b: roleB, verdict }),
       }),
   },
   // The experience reservoir inventory (v2): roles → points → phrasing variants.
