@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from app.deps import Principal, get_principal
+from app.repositories.cv import CVVersionsRepository, get_token_cv_repository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.security import redact_sensitive_text
 from app.services import jd_coverage, prep_brief as prep_brief_service, xp_policy, xp_service
@@ -73,6 +74,7 @@ async def create_prep_brief(
     job_id: str,
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
+    cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
     provider: LLMProvider = Depends(get_llm_provider),
 ) -> PrepBriefResponse:
     """Generate the day-of brief. 30 coins, charged on success only; a
@@ -104,8 +106,13 @@ async def create_prep_brief(
         coverage_rows = hit[0].requirements
     else:
         # Same blocking-panel lane as the /cv/jd-coverage route — the brief must
-        # never render from a free-tier 429 blank.
-        result = await jd_coverage.assess(user_id, jd_text, get_blocking_judgment_provider())
+        # never render from a free-tier 429 blank. Stories ∪ CV bullets, like
+        # every other coverage compute site.
+        baseline = cv_repo.latest_baseline(user_id)
+        result = await jd_coverage.assess(
+            user_id, jd_text, get_blocking_judgment_provider(),
+            cv_bullets=jd_coverage.bullets_from_cv((baseline or {}).get("cv_structured") or {}),
+        )
         if result.requirements:
             repo.upsert_deepening(
                 user_id, job_id, jd_coverage.CACHE_PROMPT_KEY,

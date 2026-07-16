@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 
 from app.deps import Principal, get_principal
 from app.main import app
+from app.repositories.cv import get_token_cv_repository
 from app.repositories.jobs import get_token_jobs_repository
 from app.services import jd_coverage, prep_brief, xp_policy, xp_service
 from app.services.jd_coverage import CoverageItem
@@ -133,9 +134,17 @@ _COVERAGE_PAYLOAD = json.dumps({
 })
 
 
+class _FakeCVRepo:
+    """No CV on file → coverage computes stories-only (bullets = [])."""
+
+    def latest_baseline(self, _u: str) -> dict | None:
+        return None
+
+
 def _client(repo: _FakeRepo, provider: _StubProvider) -> TestClient:
     app.dependency_overrides[get_principal] = lambda: Principal(id="u1", email="t@e.com")
     app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    app.dependency_overrides[get_token_cv_repository] = lambda: _FakeCVRepo()
     app.dependency_overrides[get_llm_provider] = lambda: provider
     return TestClient(app)
 
@@ -236,7 +245,7 @@ def test_post_computes_coverage_inline_on_cache_miss(monkeypatch):
     repo = _FakeRepo()  # no cached coverage
     provider = _StubProvider(_GOOD_REPLY)
 
-    async def _assess(user_id, jd_text, _provider):
+    async def _assess(user_id, jd_text, _provider, cv_bullets=None):
         return jd_coverage.CoverageResult(
             requirements=[CoverageItem(requirement="Own quota", status="gap")],
             covered=0, weak=0, gap=1,

@@ -156,7 +156,7 @@ def test_router_cache_hit_skips_llm_and_refresh_recomputes(monkeypatch):
 
     calls = {"n": 0}
 
-    async def _assess(user_id, jd_text, provider):
+    async def _assess(user_id, jd_text, provider, cv_bullets=None):
         calls["n"] += 1
         return _sample_result()
 
@@ -164,6 +164,8 @@ def test_router_cache_hit_skips_llm_and_refresh_recomputes(monkeypatch):
     repo = _Repo()
     app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email="t@e.com", token="tok")
     app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    from app.repositories.cv import get_token_cv_repository
+    app.dependency_overrides[get_token_cv_repository] = lambda: type("CVRepo", (), {"latest_baseline": staticmethod(lambda _u: None)})()
     try:
         client = TestClient(app)
         # First call computes + caches.
@@ -203,13 +205,15 @@ def test_router_never_caches_empty_parse(monkeypatch):
         def upsert_deepening(self, _u, _j, key, text):
             self.deepenings[key] = text
 
-    async def _assess(user_id, jd_text, provider):
+    async def _assess(user_id, jd_text, provider, cv_bullets=None):
         return jd_coverage.CoverageResult()  # provider failure → fail-soft empty
 
     monkeypatch.setattr(jd_coverage, "assess", _assess)
     repo = _Repo()
     app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email="t@e.com", token="tok")
     app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    from app.repositories.cv import get_token_cv_repository
+    app.dependency_overrides[get_token_cv_repository] = lambda: type("CVRepo", (), {"latest_baseline": staticmethod(lambda _u: None)})()
     try:
         resp = TestClient(app).post("/cv/jd-coverage", json={"job_id": "j1"})
         assert resp.status_code == 200

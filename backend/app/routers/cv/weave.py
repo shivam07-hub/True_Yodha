@@ -235,6 +235,7 @@ async def weave_answer(
     body: WeaveAnswerRequest,
     user: CurrentUser = Depends(get_current_user),
     dump_repo: CvDumpRepository = Depends(get_cv_dump_repository),
+    jobs_repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> WeaveAnswerResponse:
     """Bank one interview answer as a reusable career story. A thin first
     answer gets exactly ONE pointed probe back (L4) — nothing is banked until
@@ -256,6 +257,16 @@ async def weave_answer(
     if not entry_id:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Could not save your answer.")
     career_reservoir.enqueue_ingest(user.id, entry_id)
+    # Flip the cached coverage row to covered NOW (deterministic, no LLM) so a
+    # later interview never re-asks an answered question; the next real refresh
+    # replaces the patch with the ingested story. Best-effort.
+    if body.job_id and requirement:
+        patched = jd_coverage.patch_requirement_answered(
+            jobs_repo.get_deepening(user.id, body.job_id, jd_coverage.CACHE_PROMPT_KEY),
+            requirement, answer,
+        )
+        if patched:
+            jobs_repo.upsert_deepening(user.id, body.job_id, jd_coverage.CACHE_PROMPT_KEY, patched)
     return WeaveAnswerResponse(entry_id=entry_id)
 
 

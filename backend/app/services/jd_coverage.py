@@ -267,6 +267,42 @@ def result_to_payload(result: CoverageResult) -> str:
     })
 
 
+def patch_requirement_answered(raw: str | None, requirement: str, answer: str) -> str | None:
+    """Deterministically flip ONE cached requirement to covered after the user
+    banked an answer for it — no LLM. Without this the frozen cache keeps the
+    ask at gap and every later weave interview RE-ASKS an answered question
+    (the loop that never converges). The next real recompute (refresh) replaces
+    this patch with the ingested story. None when the cache is absent/malformed
+    or the requirement isn't in it — caller then leaves the cache alone."""
+    hit = payload_to_result(raw)
+    if hit is None:
+        return None
+    result, _ = hit
+    want = " ".join(requirement.split()).strip().lower()
+    patched = False
+    for i, item in enumerate(result.requirements):
+        if item.requirement.strip().lower() != want or item.status == "covered":
+            continue
+        snippet = " ".join(answer.split())
+        result.requirements[i] = CoverageItem(
+            requirement=item.requirement,
+            status="covered",
+            story_id=None,
+            story_title="Your answer",
+            story_pointer=snippet[:160],
+            similarity=item.similarity,
+            source="story",
+        )
+        patched = True
+        break
+    if not patched:
+        return None
+    result.covered = sum(1 for i in result.requirements if i.status == "covered")
+    result.weak = sum(1 for i in result.requirements if i.status == "weak")
+    result.gap = sum(1 for i in result.requirements if i.status == "gap")
+    return result_to_payload(result)
+
+
 def payload_to_result(raw: str | None) -> tuple[CoverageResult, str] | None:
     """(result, computed_at) from a cached payload; None on any malformed data
     (caller then recomputes — a corrupt cache never takes the surface down)."""
