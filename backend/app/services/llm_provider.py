@@ -397,6 +397,24 @@ def get_writer_provider() -> LLMProvider:
     than the user's original. See `feedback_no_cheap_models_judgment`. Callers no longer
     pass a provider into a writing path; the floor is owned here, not by discipline.
     """
+    return _strong_paid_first_provider()
+
+
+def get_blocking_judgment_provider() -> LLMProvider:
+    """Strong-only, paid-first lane for USER-BLOCKING judgment calls — a panel the
+    user is watching load (jd-coverage requirement parse). Same model floor as
+    `get_judgment_provider` (no small models, ever), but paid-strong LEADS: the
+    free strong tiers 429-storm under load and their retry backoff (5s + 20s per
+    tier) turns a blocking panel into a blank one. Background judgment (matching
+    fleet) stays on the free-first `get_judgment_provider` — cost matters there;
+    here the result is cached once per (user, job), so reliability wins outright.
+    """
+    return _strong_paid_first_provider()
+
+
+def _strong_paid_first_provider() -> LLMProvider:
+    """The shared strong paid-first chain: WRITER_OR_TIERS (paid strong → free
+    strong, small models structurally excluded) + Groq llama-3.3-70b direct."""
     providers: list[_ProviderEntry] = []
     _append_openrouter_tiers(providers, WRITER_OR_TIERS)
     if settings.groq_api_key:

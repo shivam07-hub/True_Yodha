@@ -22,7 +22,7 @@ type Phase =
   | { kind: "starting" }
   | { kind: "quiz"; assessmentId: string; questions: QuizQuestion[] }
   | { kind: "done"; readiness: ReadinessRow[]; overallPct: number }
-  | { kind: "empty" }
+  | { kind: "empty"; reason: "no_gaps" | "no_bank" }
   | { kind: "error" }
 
 const BAND_GLYPH: Record<ReadinessRow["band"], string> = { ready: "●", close: "◐", gap: "○" }
@@ -40,7 +40,7 @@ export function DrillPanel({ token, jobId }: { token: string; jobId: string }) {
         s.calibration_set.map((q) => ({ id: q.id, q: q.question_text, options: q.options })),
       )
       if (questions.length === 0) {
-        setPhase({ kind: "empty" })
+        setPhase({ kind: "empty", reason: res.reason === "no_gaps" ? "no_gaps" : "no_bank" })
         return
       }
       setPhase({ kind: "quiz", assessmentId: res.assessment_id, questions })
@@ -79,7 +79,13 @@ export function DrillPanel({ token, jobId }: { token: string; jobId: string }) {
   }
 
   if (phase.kind === "empty") {
-    return <p className="prp-quiet">No drill questions for this job&rsquo;s skills yet — the rehearsal above is the prep.</p>
+    return (
+      <p className="prp-quiet">
+        {phase.reason === "no_gaps"
+          ? "Your CV already meets this job's required skill levels — nothing to drill."
+          : "No drill questions for this job's skills yet — the rehearsal above is the prep."}
+      </p>
+    )
   }
 
   if (phase.kind === "error") {

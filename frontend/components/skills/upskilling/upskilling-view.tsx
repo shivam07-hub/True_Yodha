@@ -275,7 +275,11 @@ export function UpskillingView({
         s.calibration_set.map((q) => ({ id: q.id, q: q.question_text, options: q.options })),
       )
       if (questions.length === 0) {
-        flashToast("No calibration questions are ready for this job yet.")
+        flashToast(
+          res.reason === "no_gaps"
+            ? "Your CV already meets this job's required skill levels."
+            : "No calibration questions are ready for this job yet.",
+        )
         onClearGap?.()
         return
       }

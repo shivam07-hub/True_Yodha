@@ -29,7 +29,7 @@ from app.repositories.cv import CVVersionsRepository, CVVersionWriteSpec, get_to
 from app.repositories.cv_dump import CvDumpRepository, get_cv_dump_repository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.services import career_projection, career_reservoir, cv_compose, jd_coverage
-from app.services.llm_provider import get_judgment_provider
+from app.services.llm_provider import get_blocking_judgment_provider
 from app.services.connections_import import looks_like_connections_csv, parse_connections_csv
 from app.services.reservoir_intake import (
     MAX_FILE_BYTES,
@@ -365,7 +365,9 @@ async def jd_coverage_for_job(
             return _respond(result, cached=True, computed_at=computed_at)
 
     jd_text = rows[0].get("job_description") or ""
-    result = await jd_coverage.assess(user.id, jd_text, get_judgment_provider())
+    # Blocking panel → paid-first strong lane; free-tier 429 storms were blanking
+    # the coverage panel (2026-07-16, Sanofi/mit20). Cached once per (user, job).
+    result = await jd_coverage.assess(user.id, jd_text, get_blocking_judgment_provider())
     # Never cache an empty parse — it usually means a provider failure (fail-soft
     # []), and freezing that would blank the panel forever.
     if result.requirements:

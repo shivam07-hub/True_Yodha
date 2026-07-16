@@ -370,3 +370,72 @@ def test_skill_display_columns_match_checked_in_schema():
 
     assert columns == "id, taxonomy_key, display_name"
     assert "display_name VARCHAR(200) NOT NULL" in schema
+
+
+# ── start_gap empty states (Preparations drill) ──────────────────────────────
+# A diagnostic surface with nothing to test is EMPTY, not an error: the old 409s
+# rendered as "Couldn't load the drill. Try again" in the prep room (Sanofi PM
+# job — 0 of 13 skills had a question bank, 2026-07-16).
+
+
+def _start_gap(store, required):
+    fake = _FakeAdmin(store)
+    with patch("app.services.upskilling_service.get_supabase_admin", return_value=fake):
+        return upskilling_service.start_gap(
+            user_id="u1",
+            job_id="job-1",
+            job_title="Head of PM",
+            company="Sanofi",
+            required=required,
+        )
+
+
+def test_start_gap_no_gaps_returns_empty_not_409():
+    result = _start_gap(
+        {"skill_questions": [], "skills": [], "quiz_attempts": []},
+        required=[{"skill_key": "sql", "target_level": 2, "user_level": 3, "is_primary": True}],
+    )
+    assert result["skills"] == []
+    assert result["reason"] == "no_gaps"
+    assert result["assessment_id"] == ""
+
+
+def test_start_gap_no_question_bank_returns_empty_not_409():
+    store = {"skill_questions": [], "skills": [], "quiz_attempts": []}
+    result = _start_gap(
+        store,
+        required=[
+            {"skill_key": "stakeholder-management", "target_level": 3, "user_level": 0, "is_primary": True},
+        ],
+    )
+    assert result["skills"] == []
+    assert result["reason"] == "no_bank"
+    assert result["assessment_id"] == ""
+    # No phantom attempt row written for an empty drill.
+    assert store["quiz_attempts"] == []
+
+
+def test_start_gap_served_carries_no_reason():
+    store = {
+        "skill_questions": [
+            {
+                "id": qid,
+                "skill_id": SKILL_ID,
+                "skill_key": "sql",
+                "status": "active",
+                "question_text": f"Q{qid}",
+                "options": ["a", "b", "c", "d"],
+            }
+            for qid in range(1, 4)
+        ],
+        "skills": [{"id": SKILL_ID, "taxonomy_key": "sql", "display_name": "SQL"}],
+        "quiz_attempts": [],
+    }
+    result = _start_gap(
+        store,
+        required=[{"skill_key": "sql", "target_level": 3, "user_level": 1, "is_primary": True}],
+    )
+    assert result["reason"] is None
+    assert result["assessment_id"]
+    assert len(result["skills"]) == 1
+    assert len(store["quiz_attempts"]) == 1
