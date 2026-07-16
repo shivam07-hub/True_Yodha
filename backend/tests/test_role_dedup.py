@@ -178,9 +178,7 @@ def test_run_role_dedup_folds_proposes_records(monkeypatch):
     provider = _FakeProvider(
         '[{"index": 0, "verdict": "high"}, {"index": 1, "verdict": "maybe"}, {"index": 2, "verdict": "different"}]'
     )
-    out = asyncio.get_event_loop().run_until_complete(
-        role_dedup.run_role_dedup("u1", provider=provider)
-    )
+    out = asyncio.run(role_dedup.run_role_dedup("u1", provider=provider))
     assert out == {"judged": 3, "folded": 1, "proposed": 1}
     # fold: b kept (2 stories) — a's stories repointed to b, a archived
     story_moves = [u for u in db.updates if u[0] == "career_stories"]
@@ -194,6 +192,6 @@ def test_run_role_dedup_folds_proposes_records(monkeypatch):
 def test_run_role_dedup_no_candidates_is_free(monkeypatch):
     db = _FakeDb(reads={"career_roles": [], "role_merge_verdicts": [], "career_stories": []})
     monkeypatch.setattr("app.database.get_supabase_admin", lambda: db)
-    out = asyncio.get_event_loop().run_until_complete(role_dedup.run_role_dedup("u1"))
+    out = asyncio.run(role_dedup.run_role_dedup("u1"))
     assert out == {"judged": 0, "folded": 0, "proposed": 0}
     assert db.upserts == []

@@ -103,6 +103,22 @@ class CareerReservoirRepository:
             "user_id", user_id
         ).eq("id", story_id).execute()
 
+    def stories_missing_embedding(self, user_id: str, limit: int = 20) -> list[dict[str, Any]]:
+        """Active stories the ingest path stored WITHOUT a vector (embed is
+        best-effort there) — invisible to every recall/coverage consumer until
+        backfilled. Verified live 2026-07-16: a banked gap answer shipped
+        embedding-less, so its requirement read "Missing" forever."""
+        return safe_read(
+            self._db.table("career_stories")
+            .select("id, title, narrative")
+            .eq("user_id", user_id)
+            .eq("status", "active")
+            .is_("embedding", "null")
+            .limit(limit),
+            default=[],
+            context="career_stories_missing_embedding",
+        )
+
     def story_embeddings(self, user_id: str) -> list[dict[str, Any]]:
         """(id, embedding) of active stories that HAVE an embedding — the in-Python
         dedup candidate set (user story counts are small; no ANN RPC needed)."""
@@ -208,6 +224,45 @@ class CareerReservoirRepository:
                 "payload": {**(payload or {}), "skip_reason": reason},
             }
         ).eq("user_id", user_id).eq("id", entry_id).execute()
+
+    # ── role-merge verdicts (#38) ────────────────────────────────────────────
+
+    def merge_proposals(self, user_id: str) -> list[dict[str, Any]]:
+        """Judge-proposed pairs awaiting the user's ruling (Stories-tab cards)."""
+        return safe_read(
+            self._db.table("role_merge_verdicts")
+            .select("role_a, role_b")
+            .eq("user_id", user_id)
+            .eq("verdict", "proposed"),
+            default=[],
+            context="role_merge_proposals",
+        )
+
+    def recent_auto_folds(self, user_id: str, days: int = 7) -> int:
+        """Auto-folded pairs in the last N days — the visible 'Tidied N duplicate
+        roles' receipt (no silent mutation)."""
+        from datetime import datetime, timedelta, timezone
+
+        since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        rows = safe_read(
+            self._db.table("role_merge_verdicts")
+            .select("id")
+            .eq("user_id", user_id)
+            .eq("verdict", "auto_folded")
+            .gte("created_at", since),
+            default=[],
+            context="role_merge_recent_folds",
+        )
+        return len(rows)
+
+    def record_merge_verdict(
+        self, user_id: str, role_a: str, role_b: str, verdict: str, decided_by: str,
+    ) -> None:
+        a, b = (role_a, role_b) if role_a < role_b else (role_b, role_a)
+        self._db.table("role_merge_verdicts").upsert(
+            {"user_id": user_id, "role_a": a, "role_b": b, "verdict": verdict, "decided_by": decided_by},
+            on_conflict="user_id,role_a,role_b",
+        ).execute()
 
     def ingest_status(self, user_id: str) -> dict[str, int]:
         """Pending vs processed FILE-class inflow counts (the toggle's progress line)."""
