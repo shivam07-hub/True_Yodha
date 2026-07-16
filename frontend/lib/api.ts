@@ -1156,6 +1156,74 @@ export interface JDCoverageResponse {
   computed_at: string
 }
 
+// ── Tailor with Mentor weave (Lane C v2, grill locks 2026-07-16) ──────────────
+
+/** A mined candidate answer for one interview ask — the user's OWN story or an
+ *  on-CV line, never invented (grounded by construction). */
+export interface WeaveOption {
+  kind: "story" | "cv"
+  label: string
+  detail: string
+  story_id: string | null
+}
+export interface WeaveQuestion {
+  requirement: string
+  status: "weak" | "gap"
+  options: WeaveOption[]
+}
+export interface WeaveInterviewResponse {
+  questions: WeaveQuestion[]
+  requirements_total: number
+  unproven: number
+  cost: number
+}
+export interface WeaveAnswerResponse {
+  /** ONE pointed probe back on a thin answer — nothing banked yet. */
+  follow_up: string | null
+  entry_id: string | null
+}
+export interface WeaveBullet {
+  text: string
+  /** The old CV lines this line was reworked from (provenance). */
+  from_lines: string[]
+  story_titles: string[]
+  used_answer: boolean
+}
+export interface WeaveRole {
+  role_index: number
+  role: string
+  company: string
+  changed: boolean
+  /** Honesty guard rejected the rework — original lines kept. */
+  guarded: boolean
+  why: string
+  bullets: WeaveBullet[]
+  dropped_lines: string[]
+}
+export interface WeaveProposal {
+  fingerprint: string
+  summary: string | null
+  skills_line: string | null
+  roles: WeaveRole[]
+  changed_roles: number
+  requirements_total: number
+  asks_unproven: number
+  computed_at: string
+}
+export interface WeaveRunResponse {
+  proposal: WeaveProposal
+  cached: boolean
+  /** The master changed since this draft — apply would 409; offer a re-run. */
+  stale: boolean
+  cost: number
+  new_coin_balance: number | null
+}
+export interface WeaveGetResponse {
+  purchased: boolean
+  proposal: WeaveProposal | null
+  stale: boolean
+}
+
 /** One entry in the persistent brain-dump notebook (User Memory Phase 3). */
 export interface DumpEntry {
   id: string
@@ -1553,6 +1621,46 @@ export const cv = {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify({ role_a: roleA, role_b: roleB, verdict }),
+      }),
+  },
+  /** "Tailor with Mentor" — the draft-first whole-CV weave for one job.
+   *  Interview + answer-banking + apply are free; the weave RUN is 50 coins,
+   *  charged on delivery only (a cached proposal replays free). */
+  weave: {
+    interview: (token: string, jobId: string) =>
+      request<WeaveInterviewResponse>("/cv/weave/interview", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ job_id: jobId }),
+      }),
+    answer: (token: string, body: { requirement: string; answer: string; jobId?: string; final?: boolean }) =>
+      request<WeaveAnswerResponse>("/cv/weave/answer", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          requirement: body.requirement, answer: body.answer,
+          job_id: body.jobId ?? null, final: body.final ?? false,
+        }),
+      }),
+    run: (token: string, jobId: string, answers: { requirement: string; text: string }[], opts?: { refresh?: boolean }) =>
+      request<WeaveRunResponse>("/cv/weave", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ job_id: jobId, answers, refresh: opts?.refresh ?? false }),
+      }),
+    get: (token: string, jobId: string) =>
+      request<WeaveGetResponse>(`/cv/weave/${encodeURIComponent(jobId)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    apply: (token: string, jobId: string, acceptedRoles: number[], opts?: { acceptSummary?: boolean; acceptSkillsLine?: boolean }) =>
+      request<{ version_id: number }>("/cv/weave/apply", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          job_id: jobId, accepted_roles: acceptedRoles,
+          accept_summary: opts?.acceptSummary ?? true,
+          accept_skills_line: opts?.acceptSkillsLine ?? true,
+        }),
       }),
   },
   // The experience reservoir inventory (v2): roles → points → phrasing variants.
