@@ -48,25 +48,8 @@ function ApertureIcon({ active }: { active: boolean }) {
   )
 }
 
-function Coachmark({ item, onAck }: { item: NavItem; onAck: () => void }) {
-  if (!item.coach) return null
-  const align = item.surfaces.length && item.stage === "gated" ? "right" : "left"
-  return (
-    <div className={`tm-coach tm-coach--${align}`} role="dialog" aria-label={`${item.label} unlocked`}>
-      <span className="tm-coach-caret" aria-hidden />
-      <div className="tm-coach-tag">{item.coach.tag}</div>
-      <div className="tm-coach-title">{item.label}</div>
-      <p className="tm-coach-body">{item.coach.body}</p>
-      <div className="tm-coach-foot">
-        <button type="button" className="tm-coach-btn" onClick={onAck}>Got it</button>
-      </div>
-    </div>
-  )
-}
-
 export function TopbarNav({ nav }: { nav: NavUnlocksVm }) {
   const pathname = usePathname()
-  const activeCoachId = nav.activeCoach?.id ?? null
   const counts = useJourneyCounts()
 
   // Split the merged CV workspace into two sibling tabs — CV and Prep.
@@ -102,40 +85,31 @@ export function TopbarNav({ nav }: { nav: NavUnlocksVm }) {
   }
 
   return (
-    <>
-      {activeCoachId && <div className="tm-nav-scrim" onClick={nav.ackCoach} aria-hidden />}
-      <nav className="tm-topbar-nav" aria-label="Primary navigation">
-        {items.map((item) => {
-          const active = item.renderKey === "cv"
-            ? pathname === "/cv"
-            : item.renderKey === "preparations"
-              ? pathname.startsWith("/preparations")
-              : pathname.startsWith(item.href)
-          const isPrimarySlot = item.id !== "cv" || item.renderKey === "cv"
-          const isTarget = activeCoachId === item.id && isPrimarySlot
-          const isNew = nav.newItems.has(item.id) && isPrimarySlot
-          return (
-            <div key={item.renderKey} className={`tm-nav-slot${isTarget ? " tm-nav-slot--target" : ""}`}>
-              <Link
-                href={item.href}
-                title={item.desc}
-                className={`tm-topbar-link${item.special ? " tm-topbar-link-myrology" : ""}`}
-                data-active={active}
-                onClick={() => { if (isNew) nav.clearNew(item.id) }}
-              >
-                {item.id === "home" && <ApertureIcon active={active} />}
-                {item.id === "market" && <span className="tm-nav-live-dot" aria-hidden />}
-                {item.special ? `✦ ${item.label}` : item.label}
-                <TabCount n={countFor(item)} />
-                {item.stalePill && <AttentionBadge />}
-                {isNew && <span className="tm-nav-new">NEW</span>}
-              </Link>
-              {isTarget && nav.activeCoach && <Coachmark item={nav.activeCoach} onAck={nav.ackCoach} />}
-            </div>
-          )
-        })}
-      </nav>
-    </>
+    <nav className="tm-topbar-nav" aria-label="Primary navigation">
+      {items.map((item) => {
+        const active = item.renderKey === "cv"
+          ? pathname === "/cv"
+          : item.renderKey === "preparations"
+            ? pathname.startsWith("/preparations")
+            : pathname.startsWith(item.href)
+        return (
+          <div key={item.renderKey} className="tm-nav-slot">
+            <Link
+              href={item.href}
+              title={item.desc}
+              className={`tm-topbar-link${item.special ? " tm-topbar-link-myrology" : ""}`}
+              data-active={active}
+            >
+              {item.id === "home" && <ApertureIcon active={active} />}
+              {item.id === "market" && <span className="tm-nav-live-dot" aria-hidden />}
+              {item.special ? `✦ ${item.label}` : item.label}
+              <TabCount n={countFor(item)} />
+              {item.stalePill && <AttentionBadge />}
+            </Link>
+          </div>
+        )
+      })}
+    </nav>
   )
 }
 
@@ -151,22 +125,17 @@ export function NavContentCluster({ nav }: { nav: NavUnlocksVm }) {
   if (nav.content.length === 0) return null
   return (
     <div className="tm-nav-content-cluster" aria-label="Browse">
-      {nav.content.map((item) => {
-        const isNew = nav.newItems.has(item.id)
-        return (
-          <Link
-            key={item.id}
-            href={item.href}
-            title={item.desc}
-            className={`tm-topbar-link ${item.special ? "tm-topbar-link-myrology" : "tm-topbar-link-content"}`}
-            data-active={pathname.startsWith(item.href)}
-            onClick={() => { if (isNew) nav.clearNew(item.id) }}
-          >
-            {item.special ? `✦ ${item.label}` : item.label}
-            {isNew && <span className="tm-nav-new">NEW</span>}
-          </Link>
-        )
-      })}
+      {nav.content.map((item) => (
+        <Link
+          key={item.id}
+          href={item.href}
+          title={item.desc}
+          className={`tm-topbar-link ${item.special ? "tm-topbar-link-myrology" : "tm-topbar-link-content"}`}
+          data-active={pathname.startsWith(item.href)}
+        >
+          {item.special ? `✦ ${item.label}` : item.label}
+        </Link>
+      ))}
     </div>
   )
 }

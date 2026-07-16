@@ -62,7 +62,7 @@ export function WebChrome({ profile, signOut }: WebChromeProps) {
 
   return (
     <>
-      <header className="tm-app-topbar" aria-label="App navigation" data-coaching={!!nav.activeCoach}>
+      <header className="tm-app-topbar" aria-label="App navigation">
         {/* Brand — aperture + beta badge (wordmark dropped) */}
         <Link href="/myro" className="tm-topbar-brand" aria-label="Myro — home">
           <MyroLogo size={26} />

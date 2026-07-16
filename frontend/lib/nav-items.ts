@@ -1,14 +1,14 @@
-/* Single source of truth for the authed progressive-disclosure nav.
+/* Single source of truth for the authed nav.
  *
- * Decision context: progressive-nav grill 2026-05-29 (Q1, Q2, Q8, Q11).
- * First-run operators see only the 3 base surfaces that deliver the 10-min-CV
- * promise (Dashboard / Practice / Live Job Data). CV Library, Tracker and
- * Myrology gate on real milestones derived client-side from cv.versions +
- * users.me — never from the phantom /onboarding/state endpoint (which does not
- * exist). Gating spans BOTH the desktop topbar and the mobile bottom bar, so
- * the unlock logic must live once here or it drifts across the two shells.
+ * Full map, day one (unified-structure grill 2026-07-16, lock #7): every
+ * journey stage is always visible — the nav IS the product map, and a day-1
+ * user must see the whole path. Stages without prerequisites render honest
+ * empty states pointing at the one unlock action; nothing hides. The old
+ * progressive-disclosure gating (2026-05-29) + its coachmark queue are retired.
+ * Only Myrology keeps a gate — a side offering revealed by free opt-in, not a
+ * journey stage.
  *
- * Skills is intentionally absent from the nav (Q1) — the page stays routable
+ * Skills is intentionally absent from the nav — the page stays routable
  * via score-tap / ?skill= / ?domain= deep-links and a bridge link in Practice.
  */
 import type { CVVersion, UserProfile } from "@/lib/api"
@@ -30,15 +30,8 @@ export interface NavUnlockCtx {
   myrologyUnlocked: boolean
 }
 
-export interface NavCoach {
-  /** Eyebrow tag, e.g. "UNLOCKED · FIRST CV READY". */
-  tag: string
-  /** One-line body the coachmark introduces the surface with. */
-  body: string
-}
-
 export interface NavItem {
-  /** Stable id, also the localStorage coachmark-seen key suffix and the gate key. */
+  /** Stable id, also the gate key for Myrology. */
   id: "home" | "forge" | "market" | "cv" | "tracker" | "myrology" | "intel" | "newsletter"
   href: string
   label: string
@@ -51,8 +44,6 @@ export interface NavItem {
   mobileIcon?: "mission" | "intel" | "cv" | "tracker"
   /** Gate predicate for stage === "gated". Base items are always visible. */
   unlock?: (ctx: NavUnlockCtx) => boolean
-  /** Coachmark copy fired once when a gated surface flips locked → unlocked. */
-  coach?: NavCoach
   /** Violet special treatment (Myrology). */
   special?: boolean
   /** Shows the stale-application "9+" pill. */
@@ -97,28 +88,17 @@ export const AUTHED_NAV: NavItem[] = [
   // NavItem union so restoring is a one-object add, not a contract change.
   // Re-add the item here when Practice is shippable.
   {
-    // Tracker merged into CV (tracker→CV merge grill 2026-06-02): /cv is now the
-    // Career Workspace — Master CV + the full application pipeline (kanban,
-    // verdicts, stale-recovery, manual-add) on one surface. The standalone
-    // /tracker route is gone (next.config redirects it here). Unlock moves to
-    // hasBaseline so pursuits are reachable from the first SAVED job, not the
-    // second tailored company. stalePill migrates here from the dead tracker item.
+    // Tracker merged into CV (tracker→CV merge grill 2026-06-02); desktop splits
+    // this slot into CV + Prep tabs (topbar-nav). Always visible (unified-structure
+    // lock #7): a no-CV user lands on the upload door, not a locked tab.
     id: "cv",
     href: "/cv",
-    // Desktop splits this slot into CV + Prep tabs (topbar-nav); this label is
-    // the mobile slot + coachmark name until S3 mirrors the journey there.
     label: "CV & Applications",
     desc: "Your CV, stories, and score",
-    stage: "gated",
+    stage: "base",
     surfaces: ["desktop", "mobile"],
     mobileIcon: "cv",
     stalePill: true,
-    unlock: (ctx) => ctx.hasBaseline,
-    coach: {
-      // ≤3 impactful words per brand rule (grill Q10). Exact copy → /ux-copy.
-      tag: "UNLOCKED · WORKSPACE",
-      body: "Build. Track. Win.",
-    },
   },
   {
     id: "myrology",
@@ -128,8 +108,7 @@ export const AUTHED_NAV: NavItem[] = [
     stage: "gated",
     surfaces: ["desktop"],
     special: true,
-    // Free opt-in reveals the icon; the intro+confirm prompt is the
-    // introduction, so no coachmark here (NEW pill still fires on transition).
+    // Free opt-in reveals the icon; the intro+confirm prompt is the introduction.
     unlock: (ctx) => ctx.myrologyInterested,
   },
 ]
