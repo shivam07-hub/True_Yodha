@@ -8,6 +8,7 @@ import { useNavUnlocks } from "@/lib/hooks/use-nav-unlocks"
 import { MyroLogo } from "@/components/myro-logo"
 import { TopbarNav, NavContentCluster } from "@/components/nav/topbar-nav"
 import { NotificationBell } from "@/components/nav/notification-bell"
+import { ScoreChip } from "@/components/nav/score-chip"
 import { CvPromisePill } from "@/components/nav/cv-promise-pill"
 import { SettingsModal, type Tab as SettingsTab } from "@/components/settings-modal"
 import { MyrologyOptInPrompt } from "@/components/myrology-optin-prompt"
@@ -79,6 +80,9 @@ export function WebChrome({ profile, signOut }: WebChromeProps) {
           {nav.firstRun && (
             <CvPromisePill firstRun={nav.firstRun} hasCv={nav.hasCv} onClick={() => router.push("/cv")} />
           )}
+
+          {/* Myro Score — status carried through every stage (unified-structure lock #9) */}
+          <ScoreChip />
 
           {/* Fresh-match notifications (Backlog #36) */}
           <NotificationBell />

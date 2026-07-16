@@ -65,7 +65,7 @@ export function groupForList(apps: ApplicationResponse[]): PrepGroups {
   }
 }
 
-/** Live rooms = the loop-bar `05 Prep` count and the list headline. */
+/** Live rooms = the nav Prep tab count and the list headline. */
 export function liveRoomCount(apps: ApplicationResponse[]): number {
   return apps.filter((a) => a.status === "applied" || a.status === "interviewing").length
 }
