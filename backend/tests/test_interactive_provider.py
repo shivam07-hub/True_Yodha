@@ -13,6 +13,7 @@ from app.services.llm_provider import (
     OR_TIERS,
     WRITER_OR_TIERS,
     _JUDGMENT_UNSAFE_MODELS,
+    get_blocking_judgment_provider,
     get_interactive_provider,
     get_judgment_provider,
     get_paid_jobs_provider,
@@ -173,3 +174,20 @@ def test_writer_or_tiers_are_the_judgment_tiers_reordered():
     # Every retained tier must be wholly free of unsafe models (fail-safe exclusion).
     for tier in JUDGMENT_OR_TIERS:
         assert not any(m in _JUDGMENT_UNSAFE_MODELS for m in tier)
+
+
+def test_blocking_judgment_provider_is_strong_paid_first():
+    """USER-BLOCKING judgment (jd-coverage parse) leads PAID-strong — a free-tier
+    429 storm must never blank the coverage panel — and, like every judgment
+    lane, can never include a small model."""
+    def check():
+        provider = get_blocking_judgment_provider()
+        ids = _judgment_model_ids(provider)
+        assert not (ids & _JUDGMENT_UNSAFE_MODELS)
+        or_entries = [e for e in provider._providers if e[2] and "models" in e[2]]
+        first_tier = or_entries[0][2]["models"]
+        assert ":free" not in "".join(first_tier)      # paid-strong leads
+        assert GROQ_FALLBACK_MODEL in ids              # strong direct last-hop
+        return True
+
+    assert _with_all_keys(check)

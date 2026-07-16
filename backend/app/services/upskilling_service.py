@@ -420,16 +420,26 @@ def start_gap(
     """
     admin = get_supabase_admin()
 
+    def _empty(reason: str) -> dict:
+        # A diagnostic surface with nothing to test is an EMPTY state, not a
+        # client error — the panels render their own graceful copy per reason.
+        # (The old 409 surfaced as "Couldn't load the drill" in the prep room.)
+        return {
+            "assessment_id": "",
+            "job_id": job_id,
+            "job_title": job_title or None,
+            "company_name": company,
+            "skills": [],
+            "reason": reason,
+        }
+
     gaps = [r for r in required if int(r["user_level"]) < int(r["target_level"])]
     # Biggest, most-required gaps first (primary, then level distance).
     gaps.sort(key=lambda r: (0 if r["is_primary"] else 1, -(int(r["target_level"]) - int(r["user_level"]))))
     gaps = gaps[:GAP_MAX_SKILLS]
     keys = [r["skill_key"] for r in gaps]
     if not keys:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="No gap skills to assess — your CV already meets this job's required levels.",
-        )
+        return _empty("no_gaps")
 
     bank_rows = (
         admin.table("skill_questions")
@@ -476,10 +486,7 @@ def start_gap(
         all_qids.extend(int(q["id"]) for q in drawn)
 
     if not served:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Question banks for this job's gap skills are still filling — check back soon.",
-        )
+        return _empty("no_bank")
 
     attempt = (
         admin.table("quiz_attempts")
@@ -501,6 +508,7 @@ def start_gap(
         "job_title": job_title or None,
         "company_name": company,
         "skills": served,
+        "reason": None,
     }
 
 

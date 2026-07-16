@@ -21,7 +21,7 @@ import { IDEAL_CV_SPEC, estimateLines, pageFillFromLines, type PageFill } from "
 import { contentPenalty, runContentChecks } from "./content-checks"
 import { buildV2Fixes, type V2Fix } from "./fix-model"
 import { buildSkillRows } from "./skills-rail"
-import { resolvePlaygroundCompany, targetsFromSkillGap, type KeywordTarget } from "./keyword-utils"
+import { evaluateTargets, resolvePlaygroundCompany, targetsFromSkillGap, type KeywordTarget } from "./keyword-utils"
 
 export interface PlaygroundModelOpts {
   /** "master" = the Main-CV surface: no job, no JD gap. Score is the CV-intrinsic
@@ -94,10 +94,12 @@ export function usePlaygroundModel(
     return parts.join(" ")
   }, [hiddenItems, cv])
 
-  const evaluatedTargets = useMemo<KeywordTarget[]>(() => {
-    const lower = visibleText.toLowerCase()
-    return allTargets.map(t => ({ ...t, matched: lower.includes(t.kw.toLowerCase()) }))
-  }, [allTargets, visibleText])
+  // Server semantic credit is the floor; verbatim text hits add on top (the
+  // live +N mechanic for missing keywords). See evaluateTargets.
+  const evaluatedTargets = useMemo<KeywordTarget[]>(
+    () => evaluateTargets(allTargets, visibleText),
+    [allTargets, visibleText],
+  )
 
   // Content-quality penalty (#34 S3): open recruiter-check findings subtract real
   // points from Ready, and each fix returns its exact points on a real text change.

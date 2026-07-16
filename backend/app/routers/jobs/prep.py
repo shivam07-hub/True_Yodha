@@ -19,7 +19,7 @@ from app.deps import Principal, get_principal
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.security import redact_sensitive_text
 from app.services import jd_coverage, prep_brief as prep_brief_service, xp_policy, xp_service
-from app.services.llm_provider import LLMProvider, get_judgment_provider, get_llm_provider
+from app.services.llm_provider import LLMProvider, get_blocking_judgment_provider, get_llm_provider
 
 router = APIRouter()
 
@@ -103,7 +103,9 @@ async def create_prep_brief(
     if hit is not None:
         coverage_rows = hit[0].requirements
     else:
-        result = await jd_coverage.assess(user_id, jd_text, get_judgment_provider())
+        # Same blocking-panel lane as the /cv/jd-coverage route — the brief must
+        # never render from a free-tier 429 blank.
+        result = await jd_coverage.assess(user_id, jd_text, get_blocking_judgment_provider())
         if result.requirements:
             repo.upsert_deepening(
                 user_id, job_id, jd_coverage.CACHE_PROMPT_KEY,

@@ -94,11 +94,14 @@ class GapSkillSet(BaseModel):
 
 
 class StartGapResponse(BaseModel):
-    assessment_id: str               # quiz_attempts.id (mode='gap_calibration')
+    assessment_id: str               # quiz_attempts.id; "" when skills is empty
     job_id: str
     job_title: str | None = None
     company_name: str | None = None
     skills: list[GapSkillSet]
+    # Why skills is empty: "no_gaps" (CV already meets required levels) or
+    # "no_bank" (no question banks for this job's gap skills). None when served.
+    reason: str | None = None
 
 
 class SubmitGapRequest(BaseModel):

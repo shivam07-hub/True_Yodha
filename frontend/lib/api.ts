@@ -4615,6 +4615,8 @@ export interface StartGapResponse {
   job_title: string | null
   company_name: string | null
   skills: GapSkillSet[]
+  /** Why skills is empty: "no_gaps" (CV already meets levels) | "no_bank". */
+  reason?: "no_gaps" | "no_bank" | null
 }
 
 export interface ReadinessRow {
