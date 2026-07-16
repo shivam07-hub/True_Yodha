@@ -40,6 +40,11 @@ export function V2Sheet({ cv, hidden, contact, compact }: V2SheetProps) {
     .filter(p => p.kept.length > 0)
   const summaryVisible = cv.summary && !hidden.has(itemId("summary", 0, cv.summary))
   const skillsVisible = cv.skills_line && !hidden.has(itemId("skills_line", 0, cv.skills_line))
+  const education = cv.education.filter((ed, i) => {
+    const idLine = [ed.institution, ed.degree, ed.dates].filter(Boolean).join(" · ")
+    return !hidden.has(itemId("edu", i, idLine))
+  })
+  const certs = cv.certs.filter((c, i) => !hidden.has(itemId("cert", i, c)))
 
   return (
     <div className={`cvb-v2-sheet${compact ? " compact" : ""}`}>
@@ -75,12 +80,39 @@ export function V2Sheet({ cv, hidden, contact, compact }: V2SheetProps) {
         </div>
       ))}
 
+      {education.length > 0 && (
+        <div className="cvb-v2-sheet-role">
+          <div className="cvb-v2-sheet-rolehead">
+            <span className="cvb-v2-sheet-roletitle">Education</span>
+          </div>
+          {education.map((ed, i) => (
+            <div key={`ed-${i}`} className="cvb-v2-sheet-rolehead">
+              <span className="cvb-v2-sheet-roleco">
+                {[ed.institution, ed.degree, ed.grade].filter(Boolean).join(" · ")}
+              </span>
+              <span className="cvb-v2-sheet-dates">{ed.dates ?? ""}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {skillsVisible && (
         <div className="cvb-v2-sheet-role">
           <div className="cvb-v2-sheet-rolehead">
             <span className="cvb-v2-sheet-roletitle">Skills</span>
           </div>
           <p className="cvb-v2-sheet-skills">{cv.skills_line}</p>
+        </div>
+      )}
+
+      {certs.length > 0 && (
+        <div className="cvb-v2-sheet-role">
+          <div className="cvb-v2-sheet-rolehead">
+            <span className="cvb-v2-sheet-roletitle">Certifications</span>
+          </div>
+          <ul className="cvb-v2-sheet-bullets">
+            {certs.map((c, i) => <li key={i}>{c}</li>)}
+          </ul>
         </div>
       )}
     </div>

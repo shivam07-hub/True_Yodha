@@ -49,10 +49,11 @@ interface CVEditorProps {
   /** v2: jump request — scroll to and pulse a bullet (n re-triggers same iid). */
   flash?: { iid: string; n: number } | null
   /** Main-CV surface: the SAME paper, but identity fields become editable and
-   *  Education + Certifications render (a job-tailored CV can't touch identity —
-   *  one source of truth is the master). Summary + Skills stay always-visible so
-   *  an empty master can be filled. Every write is a cheap living-master patch
-   *  via onPatch (autosave), never a rewrite baseline. Fix "+N" is suppressed —
+   *  Education + Certifications become editable entries (a job-tailored CV can't
+   *  touch identity — one source of truth is the master; the tailoring surface
+   *  renders them read-only). Summary + Skills stay always-visible so an empty
+   *  master can be filled. Every write is a cheap living-master patch via
+   *  onPatch (autosave), never a rewrite baseline. Fix "+N" is suppressed —
    *  a rewrite doesn't move the Myro Score. */
   master?: {
     onPatch: (mut: (d: CVStructured) => CVStructured) => void
@@ -205,8 +206,19 @@ export function CVEditor({
       if (!hiddenItems.has(itemId("proj_bullet", pi * 100 + bi, b))) parts.push(b)
     }))
     if (cv.skills_line && !hiddenItems.has(itemId("skills_line", 0, cv.skills_line))) parts.push(cv.skills_line)
+    visibleEducation.forEach(ed =>
+      parts.push([ed.institution, ed.degree, ed.grade, ed.dates].filter(Boolean).join(" · ")))
+    visibleCerts.forEach(c => parts.push(c))
     return parts.join("\n\n")
   }
+
+  // Master-owned identity sections, filtered by the projection like the exported
+  // artifact (pdf-page.tsx uses the same iid derivation — keep in sync).
+  const visibleEducation = cv.education.filter((ed, i) => {
+    const idLine = [ed.institution, ed.degree, ed.dates].filter(Boolean).join(" · ")
+    return !hiddenItems.has(itemId("edu", i, idLine))
+  })
+  const visibleCerts = cv.certs.filter((c, i) => !hiddenItems.has(itemId("cert", i, c)))
 
   const contactName = cv.contact?.name?.trim() || profile?.full_name?.trim() || "Your name"
   const contactTitle = cv.contact?.title?.trim() || cv.experience[0]?.role || ""
@@ -427,6 +439,39 @@ export function CVEditor({
           <>
             <div className="cvb-pgc-section">SKILLS</div>
             {row(itemId("skills_line", 0, cv.skills_line), cv.skills_line, { mono: true })}
+          </>
+        )}
+
+        {/* Tailoring surface: Education + Certifications are master-owned identity
+            sections — shown read-only (hidden-item filtered, so the paper matches
+            the exported artifact), edited only on the Main CV. */}
+        {!isMaster && visibleEducation.length > 0 && (
+          <>
+            <div className="cvb-pgc-section">EDUCATION</div>
+            {visibleEducation.map((ed, i) => (
+              <div key={`edu-${i}`} className="cvb-pgc-role-block">
+                <div className="cvb-pgc-role-head">
+                  <span className="cvb-pgc-role-title">
+                    {ed.institution}
+                    {ed.degree && <span> · {ed.degree}</span>}
+                    {ed.grade && <span> · {ed.grade}</span>}
+                  </span>
+                  {ed.dates && <span className="mono cvb-pgc-role-dates">{ed.dates}</span>}
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+        {!isMaster && visibleCerts.length > 0 && (
+          <>
+            <div className="cvb-pgc-section">CERTIFICATIONS</div>
+            {visibleCerts.map((cert, i) => (
+              <div key={`cert-${i}`} className="cvb-pgc-role-block">
+                <div className="cvb-pgc-role-head">
+                  <span className="cvb-pgc-role-title">{cert}</span>
+                </div>
+              </div>
+            ))}
           </>
         )}
       </div>
