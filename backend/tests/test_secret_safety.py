@@ -20,6 +20,83 @@ def test_error_redaction_removes_credentials_and_connection_passwords() -> None:
     assert "REDACTED" in safe
 
 
+def test_access_log_record_survives_redaction_filter() -> None:
+    """uvicorn's AccessFormatter unpacks record.args as a 5-tuple; the
+    redaction filter must preserve that contract (regression: flattening
+    args to () made EVERY access line raise 'Logging error' in prod)."""
+    import logging
+
+    from uvicorn.logging import AccessFormatter
+
+    from app.security.redaction import _SensitiveLogFilter
+
+    record = logging.LogRecord(
+        name="uvicorn.access",
+        level=logging.INFO,
+        pathname=__file__,
+        lineno=0,
+        msg='%s - "%s %s HTTP/%s" %d',
+        args=("100.64.0.20:21430", "GET", "/jobs/analytics", "1.1", 200),
+        exc_info=None,
+    )
+
+    assert _SensitiveLogFilter().filter(record) is True
+    rendered = AccessFormatter('%(client_addr)s - "%(request_line)s" %(status_code)s').format(record)
+    assert '"GET /jobs/analytics HTTP/1.1" 200' in rendered
+
+
+def test_redaction_filter_still_redacts_secrets_inside_args() -> None:
+    import logging
+
+    from app.security.redaction import _SensitiveLogFilter
+
+    secret = "sk_live_" + "abcdefgh12345678"
+    record = logging.LogRecord(
+        name="app.some_module",
+        level=logging.WARNING,
+        pathname=__file__,
+        lineno=0,
+        msg="upstream said %s",
+        args=(f"api_key={secret}",),
+        exc_info=None,
+    )
+
+    assert _SensitiveLogFilter().filter(record) is True
+    rendered = record.getMessage()
+    assert secret not in rendered
+    assert "REDACTED" in rendered
+
+
+def test_redaction_filter_redacts_exception_trace_via_exc_text() -> None:
+    import logging
+
+    from app.security.redaction import _SensitiveLogFilter
+
+    secret = "sk_live_" + "abcdefgh12345678"
+    try:
+        raise RuntimeError(f"api_key={secret}")
+    except RuntimeError:
+        import sys
+
+        record = logging.LogRecord(
+            name="app.some_module",
+            level=logging.ERROR,
+            pathname=__file__,
+            lineno=0,
+            msg="boom",
+            args=(),
+            exc_info=sys.exc_info(),
+        )
+
+    assert _SensitiveLogFilter().filter(record) is True
+    assert record.exc_info is None
+    assert record.exc_text is not None
+    assert secret not in record.exc_text
+    rendered = logging.Formatter().format(record)
+    assert secret not in rendered
+    assert "RuntimeError" in rendered
+
+
 def test_every_declared_table_enables_rls() -> None:
     create = re.compile(
         r"create\s+table\s+(?:if\s+not\s+exists\s+)?"

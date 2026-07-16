@@ -31,7 +31,7 @@ _PROVIDER_KEY = re.compile(
 )
 
 
-def redact_sensitive_text(value: Any, *, max_length: int = 1200) -> str:
+def redact_sensitive_text(value: Any, *, max_length: int | None = 1200) -> str:
     """Return bounded text with common credential formats redacted."""
 
     text = str(value)
@@ -40,18 +40,37 @@ def redact_sensitive_text(value: Any, *, max_length: int = 1200) -> str:
     text = _ASSIGNMENT.sub(r"\1[REDACTED]", text)
     text = _JWT.sub("[REDACTED_JWT]", text)
     text = _PROVIDER_KEY.sub("[REDACTED_PROVIDER_KEY]", text)
-    return text[:max_length]
+    return text if max_length is None else text[:max_length]
+
+
+def _redact_if_str(value: Any) -> Any:
+    return redact_sensitive_text(value) if isinstance(value, str) else value
 
 
 class _SensitiveLogFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
-        rendered = redact_sensitive_text(record.getMessage())
         if record.exc_info:
+            # Stash the redacted traceback in exc_text — the stdlib Formatter
+            # appends exc_text to the rendered line even when exc_info is
+            # cleared, so the trace still reaches the log sink redacted.
             trace = "".join(traceback.format_exception(*record.exc_info))
-            rendered = f"{rendered}\n{redact_sensitive_text(trace)}"
+            record.exc_text = redact_sensitive_text(trace)
             record.exc_info = None
-        record.msg = rendered
-        record.args = ()
+        if record.args:
+            # Preserve the msg/args contract: some formatters (uvicorn's
+            # AccessFormatter unpacks record.args as a 5-tuple) re-read args
+            # at format time, so redact in place instead of flattening.
+            # msg keeps its % placeholders — never truncate it, a slice
+            # could cut a placeholder and break formatting.
+            if isinstance(record.args, dict):
+                record.args = {k: _redact_if_str(v) for k, v in record.args.items()}
+            else:
+                record.args = tuple(_redact_if_str(a) for a in record.args)
+            if isinstance(record.msg, str):
+                record.msg = redact_sensitive_text(record.msg, max_length=None)
+        else:
+            record.msg = redact_sensitive_text(record.getMessage())
+            record.args = ()
         return True
 
 
