@@ -1,18 +1,19 @@
 /**
  * usePlaygroundModel — the CV Playground v2 read model.
  *
- * One hook that turns (job, skill gap, gap plan, live CV, hidden set) into
- * everything the v2 surface renders: evaluated keyword targets, the honest
- * Ready score (keyword weights minus the content-quality penalty), the
- * deterministic +N per fix, the unified fix list, the levelled skill rows,
- * and the sheet metadata. Pure reads — mutations stay in the view.
+ * One hook that turns (job, skill gap, gap plan, JD coverage, live CV, hidden
+ * set) into everything the v2 surface renders: evaluated keyword targets, the
+ * ONE Match score (70% requirement coverage + 30% keyword landing − content
+ * penalty — see match-score.ts), the deterministic +N per fix, the unified
+ * fix list, the levelled skill rows, and the sheet metadata. Pure reads —
+ * mutations stay in the view.
  */
 "use client"
 
 import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import type {
-  CVStructured, GapPlanResponse, JobPathResponse, SkillGapResponse, UserProfile,
+  CVStructured, GapPlanResponse, JDCoverageResponse, JobPathResponse, SkillGapResponse, UserProfile,
 } from "@/lib/api"
 import { jobs as jobsApi, cv as cvApi } from "@/lib/api"
 import { itemId } from "@/lib/cv-compose"
@@ -20,6 +21,7 @@ import { dataKeys } from "@/lib/domain-data"
 import { IDEAL_CV_SPEC, estimateLines, pageFillFromLines, type PageFill } from "@/lib/cv/page-fill"
 import { contentPenalty, runContentChecks } from "./content-checks"
 import { buildV2Fixes, type V2Fix } from "./fix-model"
+import { keywordLayerSpan, matchScore } from "./match-score"
 import { buildSkillRows } from "./skills-rail"
 import { evaluateTargets, resolvePlaygroundCompany, targetsFromSkillGap, type KeywordTarget } from "./keyword-utils"
 
@@ -67,6 +69,16 @@ export function usePlaygroundModel(
     staleTime: 60_000,
     enabled: !isMaster,
   })
+  // Lane C — the JD's real requirements classified against the user's career
+  // stories (covered / partial / missing). The semantic 70% of the Match score;
+  // also powers the Job-fit rail and the Mentor walk (the view reads this same
+  // query object).
+  const coverageQuery = useQuery<JDCoverageResponse>({
+    queryKey: ["jd-coverage", jobId],
+    queryFn: () => cvApi.career.jdCoverage(token, jobId),
+    staleTime: 5 * 60 * 1000,
+    enabled: !isMaster,
+  })
 
   const job: Partial<JobPathResponse> = jobPathQuery.data ?? {}
   const gap: Partial<SkillGapResponse> = skillGapQuery.data ?? {}
@@ -112,34 +124,47 @@ export function usePlaygroundModel(
 
   // Master: the header shows the Myro Score verbatim (CV-intrinsic, radar-based).
   // A bullet rewrite does NOT move the Myro Score, so the content-quality penalty
-  // never subtracts from it — honesty (job Ready is a separate, penalty-bearing
-  // number). Job: keyword-match minus the content penalty, as before.
+  // never subtracts from it — honesty (job Match is a separate, penalty-bearing
+  // number). Job: the keyword-landing percent (server skill credit + live text
+  // hits) — the 30% layer of the Match score, and the whole score until the
+  // requirement coverage lands.
   const baseScore = isMaster ? Math.round(opts?.masterScore ?? 0) : (job.readiness_pct ?? 0)
+  const keywordPct = useMemo(() => {
+    if (evaluatedTargets.length === 0) return baseScore
+    const total = evaluatedTargets.reduce((s, t) => s + (t.weight ?? 1), 0)
+    const got = evaluatedTargets.filter(t => t.matched).reduce((s, t) => s + (t.weight ?? 1), 0)
+    return total === 0 ? 0 : Math.round((got / total) * 100)
+  }, [evaluatedTargets, baseScore])
+
+  // ONE number (see match-score.ts): 70% requirement coverage (semantic) +
+  // 30% keyword landing − content penalty. Keyword-only until coverage lands.
+  const coverageCounts = useMemo(() => {
+    const c = coverageQuery.data
+    return c && c.requirements.length > 0
+      ? { covered: c.covered, weak: c.weak, gap: c.gap }
+      : null
+  }, [coverageQuery.data])
+  const hasSemantic = !isMaster && coverageCounts != null
   const ready = useMemo(() => {
     if (isMaster) return baseScore
-    const match = evaluatedTargets.length === 0
-      ? baseScore
-      : (() => {
-          const total = evaluatedTargets.reduce((s, t) => s + (t.weight ?? 1), 0)
-          const got = evaluatedTargets.filter(t => t.matched).reduce((s, t) => s + (t.weight ?? 1), 0)
-          return total === 0 ? 0 : Math.round((got / total) * 100)
-        })()
-    return Math.max(0, match - contentPenaltyPts)
-  }, [isMaster, evaluatedTargets, baseScore, contentPenaltyPts])
+    return matchScore(coverageCounts, keywordPct, contentPenaltyPts)
+  }, [isMaster, baseScore, coverageCounts, keywordPct, contentPenaltyPts])
 
   const totalWeight = useMemo(
     () => Math.max(1, evaluatedTargets.reduce((s, t) => s + (t.weight ?? 1), 0)),
     [evaluatedTargets],
   )
-  // Deterministic readiness gain for a gap's keyword(s): its share of total
-  // keyword weight, in score points — the same math Ready uses.
+  // Deterministic Match gain for a gap's keyword(s): its share of the keyword
+  // LAYER (30 pts beside coverage, 100 standalone) — the same math the score
+  // uses, so "+N" promised is +N delivered.
   const pointsFor = useMemo(() => (keywords: string[]): number => {
+    const span = keywordLayerSpan(hasSemantic)
     const set = new Set(keywords.map(k => k.toLowerCase()))
     let w = 0
     evaluatedTargets.forEach(t => { if (set.has(t.kw.toLowerCase())) w += (t.weight ?? 1) })
     if (w === 0) w = 1
-    return Math.max(1, Math.round((w / totalWeight) * 100))
-  }, [evaluatedTargets, totalWeight])
+    return Math.max(1, Math.round((w / totalWeight) * span))
+  }, [evaluatedTargets, totalWeight, hasSemantic])
 
   // The unified fix list. JD-tier fixes stay open until their keyword actually
   // lands on the CV (honest — an applied rewrite that missed the word keeps its
@@ -199,7 +224,7 @@ export function usePlaygroundModel(
   return {
     job, gap, application, company, jobTitle, jdText, roles,
     allTargets, visibleText, evaluatedTargets,
-    baseScore, ready, delta: ready - baseScore, pointsFor,
+    baseScore, ready, hasSemantic, coverageQuery, pointsFor,
     openFixes, skillRows, coveredCount,
     visibleCount, wordCount, pageFill, sheetContact,
   }

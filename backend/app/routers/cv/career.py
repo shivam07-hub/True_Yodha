@@ -28,7 +28,7 @@ from app.repositories.connections import ConnectionsRepository, get_token_connec
 from app.repositories.cv import CVVersionsRepository, CVVersionWriteSpec, get_token_cv_repository
 from app.repositories.cv_dump import CvDumpRepository, get_cv_dump_repository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
-from app.services import career_projection, career_reservoir, cv_compose, jd_coverage
+from app.services import career_projection, career_reservoir, cv_compose, jd_coverage, role_dedup
 from app.services.llm_provider import get_blocking_judgment_provider
 from app.services.connections_import import looks_like_connections_csv, parse_connections_csv
 from app.services.reservoir_intake import (
@@ -180,12 +180,31 @@ class ProfileRole(BaseModel):
     stories: list[ProfileStory]
 
 
+class MergeSuggestion(BaseModel):
+    """A judge-proposed same-role pair awaiting the user's ruling (#38)."""
+    role_a: str
+    role_b: str
+    a_label: str
+    b_label: str
+
+
 class ProfileView(BaseModel):
     roles: list[ProfileRole]
     highlights: list[ProfileStory]
     competencies: list[str]
     story_count: int
     pending_inflows: int
+    merge_suggestions: list[MergeSuggestion] = Field(default_factory=list)
+    #: auto-folded duplicate roles in the last 7 days — the visible receipt
+    tidied_roles: int = 0
+
+
+def _role_label(role: dict) -> str:
+    company = str(role.get("company") or "").strip()
+    title = str(role.get("title") or "").strip()
+    dates = str(role.get("date_label") or "").strip()
+    head = " — ".join(p for p in (company, title) if p)
+    return f"{head} ({dates})" if dates else head
 
 
 @router.get("/reservoir/profile", response_model=ProfileView)
@@ -195,12 +214,64 @@ def reservoir_profile(
 ) -> ProfileView:
     career_reservoir.retry_stale_ingests(repo, user.id)  # heal dead ingest jobs
     roles = repo.list_roles(user.id)
+    career_reservoir.maybe_enqueue_role_dedup(user.id, roles)  # lazy #38 sweep
     stories = repo.list_stories(user.id)
     pointers = repo.story_pointers(user.id, [str(s["id"]) for s in stories])
     view = career_reservoir.build_profile_view(
         roles, stories, pointers, pending_inflows=repo.ingest_status(user.id)["pending"],
     )
-    return ProfileView(**view)
+    # Judge-proposed merge cards: only pairs whose BOTH roles are still active
+    # (a curation archive in between voids the question).
+    active = {str(r["id"]): r for r in roles if (r.get("status") or "active") == "active"}
+    suggestions = [
+        MergeSuggestion(
+            role_a=str(p["role_a"]), role_b=str(p["role_b"]),
+            a_label=_role_label(active[str(p["role_a"])]),
+            b_label=_role_label(active[str(p["role_b"])]),
+        )
+        for p in repo.merge_proposals(user.id)
+        if str(p["role_a"]) in active and str(p["role_b"]) in active
+    ]
+    return ProfileView(
+        **view,
+        merge_suggestions=suggestions,
+        tidied_roles=repo.recent_auto_folds(user.id),
+    )
+
+
+class MergeVerdictRequest(BaseModel):
+    role_a: str
+    role_b: str
+    verdict: str = Field(pattern="^(merged|keep_separate)$")
+
+
+class MergeVerdictResponse(BaseModel):
+    verdict: str
+
+
+@router.post("/reservoir/roles/merge-verdict", response_model=MergeVerdictResponse)
+def role_merge_verdict(
+    body: MergeVerdictRequest,
+    user: CurrentUser = Depends(get_current_user),
+    repo: CareerReservoirRepository = Depends(get_career_reservoir_repository),
+    db: Any = Depends(get_user_db),
+) -> MergeVerdictResponse:
+    """The user rules on a proposed same-role pair (Stories-tab merge card).
+    A human ruling is LAW — the judge never re-litigates a decided pair."""
+    roles = {str(r["id"]): r for r in repo.list_roles(user.id)}
+    a, b = roles.get(body.role_a), roles.get(body.role_b)
+    if not a or not b:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Role not found.")
+    if body.verdict == "merged":
+        counts: dict[str, int] = {}
+        for s in repo.list_stories(user.id):
+            rid = str(s.get("role_id") or "")
+            if rid:
+                counts[rid] = counts.get(rid, 0) + 1
+        keep, dup = role_dedup.pick_keep(a, b, counts)
+        role_dedup.apply_fold(db, user.id, keep, dup)
+    repo.record_merge_verdict(user.id, body.role_a, body.role_b, body.verdict, "user")
+    return MergeVerdictResponse(verdict=body.verdict)
 
 
 # ── curation ─────────────────────────────────────────────────────────────────

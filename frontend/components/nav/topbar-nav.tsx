@@ -8,8 +8,17 @@ import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { Badge } from "@/components/ui/badge"
 import { attentionCount } from "@/components/preparations/prep-model"
+import { useJourneyCounts } from "@/components/nav/journey-counts"
 import type { NavItem } from "@/lib/nav-items"
 import type { NavUnlocksVm } from "@/lib/hooks/use-nav-unlocks"
+
+/** Instrument-readout count on a stage tab — quiet mono numeral, state not alert
+ *  (the Prep AttentionBadge keeps alert semantics). Hidden at 0 — an empty stage
+ *  tab stays quiet; the surface's own empty state does the talking. */
+function TabCount({ n }: { n: number | undefined }) {
+  if (!n) return null
+  return <span className="tm-topbar-count">{n}</span>
+}
 
 function AttentionBadge() {
   // "Rooms needing you" (Preparations grill Q8): overdue stage-checks +
@@ -58,21 +67,39 @@ function Coachmark({ item, onAck }: { item: NavItem; onAck: () => void }) {
 export function TopbarNav({ nav }: { nav: NavUnlocksVm }) {
   const pathname = usePathname()
   const activeCoachId = nav.activeCoach?.id ?? null
+  const counts = useJourneyCounts()
 
-  // Split the merged CV workspace into two sibling tabs — CV and Preparations.
-  // Preparations (2026-07-15 grill) is the post-apply prep surface at its own
-  // route; the old /cv?view=active Applications tab redirects there. renderKey
-  // disambiguates the two cv slots; the coachmark and NEW pill stay on the
-  // primary (CV) slot only so they don't fire twice.
+  // Split the merged CV workspace into two sibling tabs — CV and Prep.
+  // Prep (2026-07-15 grill; "Prep" label per unified-structure lock #8) is the
+  // post-apply prep surface at its own route; the old /cv?view=active
+  // Applications tab redirects there. renderKey disambiguates the two cv slots;
+  // the coachmark and NEW pill stay on the primary (CV) slot only so they don't
+  // fire twice.
   type RenderItem = NavItem & { renderKey: string }
   const items = nav.visibleDesktop.reduce<RenderItem[]>((acc, item) => {
     if (item.id !== "cv") return [...acc, { ...item, renderKey: item.id }]
     return [
       ...acc,
-      { ...item, renderKey: "cv", href: "/cv?view=cv", label: "CV", stalePill: false },
-      { ...item, renderKey: "preparations", href: "/preparations", label: "Preparations", stalePill: true },
+      { ...item, renderKey: "cv", href: "/cv?view=cv", label: "CV", desc: "Your CV, stories, and score", stalePill: false },
+      {
+        ...item,
+        renderKey: "preparations",
+        href: "/preparations",
+        label: "Prep",
+        desc: "A prep room for every application",
+        stalePill: true,
+      },
     ]
   }, [])
+
+  // Journey counts (unified-structure S1): the nav IS the pipeline read.
+  const countFor = (r: RenderItem): number | undefined => {
+    if (!counts) return undefined
+    if (r.renderKey === "home") return counts.collected
+    if (r.renderKey === "cv") return counts.tailored
+    if (r.renderKey === "preparations") return counts.liveRooms
+    return undefined
+  }
 
   return (
     <>
@@ -99,6 +126,7 @@ export function TopbarNav({ nav }: { nav: NavUnlocksVm }) {
                 {item.id === "home" && <ApertureIcon active={active} />}
                 {item.id === "market" && <span className="tm-nav-live-dot" aria-hidden />}
                 {item.special ? `✦ ${item.label}` : item.label}
+                <TabCount n={countFor(item)} />
                 {item.stalePill && <AttentionBadge />}
                 {isNew && <span className="tm-nav-new">NEW</span>}
               </Link>

@@ -51,7 +51,7 @@ export const isApplied = (a: ApplicationResponse) => a.status !== "saved"
 
 /** Chip counts. When `foundCount` is passed (the Myro Ops folder), "Myro found"
  *  is the above-bar brain match count from the match stack; otherwise it falls
- *  back to the application-source count (loop-bar / legacy consumers). */
+ *  back to the application-source count (nav journey counts / legacy consumers). */
 export function chipCounts(
   apps: ApplicationResponse[],
   foundCount?: number,

@@ -45,6 +45,13 @@ REACH_PACK_XP_FLOOR = 0
 PREP_BRIEF_XP_COST = 30
 PREP_BRIEF_XP_FLOOR = 0
 
+# "Tailor with Mentor" whole-CV weave (grill lock L6, 2026-07-16 — memory
+# project_tailor_weave_mentor): flat 50 per weave RUN, explicit tap only, charged
+# on delivery (provider failure charges nothing); the cached proposal replays
+# free. Interview, answer-banking, and apply stay free. Floor 0.
+CV_WEAVE_XP_COST = 50
+CV_WEAVE_XP_FLOOR = 0
+
 # Standardized matcher: every match run costs the same flat price — no free tier, no
 # vanity surcharge (reverses the old "free when new jobs / 150 for vanity" waiver,
 # #36 N2). A run is the strong-judgment triage + 6-block eval over the overlap ∪

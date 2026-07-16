@@ -255,6 +255,86 @@ def retry_stale_ingests(repo: Any, user_id: str) -> int:
     return requeued
 
 
+# ── role-dedup sweep (#38, lazy Stories-visit trigger) ───────────────────────
+
+JOB_TYPE_ROLE_DEDUP = "role_dedup"
+_last_dedup_enqueue: dict[str, float] = {}  # per-process debounce, like _last_requeue
+
+
+def maybe_enqueue_role_dedup(user_id: str, roles: list[dict[str, Any]]) -> bool:
+    """The retro/heal path: when a fragmented inventory (> SWEEP_MIN_ROLES active
+    roles) is about to be LOOKED AT (Stories-tab profile read), enqueue one sweep.
+    Decided pairs make the sweep near-free once converged; dormant users never
+    trigger it (no cron — compute only where someone will see the result)."""
+    import time
+
+    from app.services.role_dedup import SWEEP_MIN_ROLES
+
+    active = sum(1 for r in roles if (r.get("status") or "active") == "active")
+    if active <= SWEEP_MIN_ROLES:
+        return False
+    now = time.time()
+    if now - _last_dedup_enqueue.get(user_id, 0.0) < _REQUEUE_AFTER_SECONDS:
+        return False
+    _last_dedup_enqueue[user_id] = now
+    enqueue(
+        LANE_FAST,
+        JOB_TYPE_ROLE_DEDUP,
+        payload={"user_id": user_id},
+        correlation_id=f"role_dedup:{user_id}",
+    )
+    return True
+
+
+@handler(JOB_TYPE_ROLE_DEDUP)
+async def _role_dedup_job(payload: dict[str, Any], allow_retry: bool) -> None:  # noqa: ARG001
+    user_id = str(payload.get("user_id") or "")
+    if not user_id:
+        return
+    from app.services import role_dedup
+
+    try:
+        await role_dedup.run_role_dedup(user_id)
+    except Exception as exc:  # noqa: BLE001 — sweep is best-effort by design
+        logger.info("role_dedup: sweep failed user=%s (%s)", user_id, exc.__class__.__name__)
+
+
+async def backfill_missing_embeddings(repo: Any, user_id: str, limit: int = 20) -> int:
+    """Self-heal the ingest path's best-effort embedding: stories stored without a
+    vector are invisible to memory_recall and jd_coverage (a banked gap answer
+    reads "Missing" forever — prod-verified 2026-07-16). Called best-effort from
+    the surfaces about to recall (weave interview, coverage refresh); any failure
+    returns 0 and the caller proceeds on whatever IS embedded."""
+    from app.services.embeddings import embed_texts, to_pgvector
+
+    try:
+        rows = repo.stories_missing_embedding(user_id, limit)
+        if not rows:
+            return 0
+        pointers = repo.story_pointers(user_id, [str(r["id"]) for r in rows])
+        canonical: dict[str, str] = {}
+        for p in pointers:
+            sid = str(p.get("story_id"))
+            if p.get("is_canonical") and sid not in canonical:
+                canonical[sid] = p.get("text") or ""
+        texts = [
+            story_embed_text({**r, "pointer": canonical.get(str(r["id"]), "")})
+            for r in rows
+        ]
+        vectors = list(await embed_texts(texts))
+        healed = 0
+        for row, vec in zip(rows, vectors):
+            if vec:
+                repo.set_story_embedding(user_id, str(row["id"]), to_pgvector(vec))
+                healed += 1
+        if healed:
+            logger.info("metric reservoir.embed_backfilled user=%s stories=%d", user_id, healed)
+        return healed
+    except Exception as exc:  # noqa: BLE001 — self-heal must never take a surface down
+        logger.info("career_reservoir: embed backfill failed (%s)", exc.__class__.__name__)
+        return 0
+
+
 @handler(JOB_TYPE_INGEST)
 async def _ingest_entry(payload: dict[str, Any], allow_retry: bool) -> None:
     from app.database import get_supabase_admin
@@ -296,6 +376,17 @@ async def _ingest_entry(payload: dict[str, Any], allow_retry: bool) -> None:
     logger.info(
         "career_reservoir.ingested user=%s entry=%s stories=%d", user_id, entry_id, len(story_ids),
     )
+
+    # Post-ingest role-dedup (#38): a dump can land the same job under a new
+    # label — judge the fresh pairs NOW so fragmentation never accumulates.
+    # Decided pairs are skipped, so this is near-free when nothing changed.
+    # Best-effort: dedup garnishes the reservoir, never fails the ingest.
+    try:
+        from app.services import role_dedup
+
+        await role_dedup.run_role_dedup(user_id)
+    except Exception as exc:  # noqa: BLE001 — ingest must never fail on dedup
+        logger.info("role_dedup: post-ingest pass failed (%s)", exc.__class__.__name__)
 
 
 async def _persist_extraction(

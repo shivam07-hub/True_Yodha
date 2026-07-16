@@ -57,6 +57,16 @@ class _FakeReservoirRepo:
     def ingest_status(self, user_id):
         return {"pending": self.pending, "processed": 0}
 
+    # role-dedup (#38) contract
+    def merge_proposals(self, user_id):
+        return []
+
+    def recent_auto_folds(self, user_id, days=7):
+        return 0
+
+    def record_merge_verdict(self, user_id, role_a, role_b, verdict, decided_by):
+        return None
+
     def pending_entries(self, user_id, limit=20):
         return []
 

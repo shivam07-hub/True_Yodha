@@ -105,8 +105,10 @@ export const AUTHED_NAV: NavItem[] = [
     // second tailored company. stalePill migrates here from the dead tracker item.
     id: "cv",
     href: "/cv",
+    // Desktop splits this slot into CV + Prep tabs (topbar-nav); this label is
+    // the mobile slot + coachmark name until S3 mirrors the journey there.
     label: "CV & Applications",
-    desc: "Build your CV · track every application",
+    desc: "Your CV, stories, and score",
     stage: "gated",
     surfaces: ["desktop", "mobile"],
     mobileIcon: "cv",

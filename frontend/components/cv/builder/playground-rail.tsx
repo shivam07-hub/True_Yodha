@@ -11,14 +11,10 @@ import { FixesRail } from "./fixes-rail"
 import { CoveragePanel } from "./coverage-panel"
 import type { AppliedFix, V2Fix } from "./fix-model"
 import type { JDCoverageResponse } from "@/lib/api"
-import type { usePlaygroundModel } from "./use-playground-model"
-
-type Model = ReturnType<typeof usePlaygroundModel>
 
 interface PlaygroundRailProps {
   token: string
   tab: "fixes" | "skills"
-  model: Model
   /** Non-dismissed open fixes — what the Fixes tab renders as cards. */
   fixes: V2Fix[]
   /** Dismissed-but-still-open fixes — the collapsed Restore group. */
@@ -43,7 +39,7 @@ interface PlaygroundRailProps {
 }
 
 export function PlaygroundRail({
-  token, tab, model: m, fixes, dismissedFixes, applied, expandedId, applying,
+  token, tab, fixes, dismissedFixes, applied, expandedId, applying,
   fixCountLabel, coverage, coverageLoading, coverageError, onTab, onGoPreview,
   onExpand, onJump, onApplyFix, onDismissFix, onRestoreFix, onOpenIntake,
   onOpenWalk, onRetryCoverage,
@@ -70,7 +66,7 @@ export function PlaygroundRail({
             fixes={fixes}
             applied={applied}
             dismissed={dismissedFixes}
-            delta={m.delta}
+            delta={applied.reduce((s, a) => s + a.gain, 0)}
             expandedId={expandedId}
             applying={applying}
             onExpand={onExpand}

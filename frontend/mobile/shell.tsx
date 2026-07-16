@@ -12,6 +12,7 @@ import { NotificationBell } from "@/components/nav/notification-bell"
 import { jobs as jobsApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { attentionCount } from "@/components/preparations/prep-model"
 import { useMobileUI } from "./redesign/mobile-ui"
 
 const SKELETON_BASE = "var(--tm-surface-2)"
@@ -68,7 +69,7 @@ export function AppShellSkeleton() {
 }
 
 /* ── Bottom-nav icons (ported to the dot from the handoff) ─────────────────── */
-type TabIcon = "jobs" | "collections" | "cv" | "profile"
+type TabIcon = "jobs" | "collections" | "cv" | "prep"
 
 function NavIcon({ name }: { name: TabIcon }) {
   const c = {
@@ -84,25 +85,20 @@ function NavIcon({ name }: { name: TabIcon }) {
   if (name === "cv") {
     return <svg {...c} aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z" /><path d="M14 3v5h5M9 13h6M9 17h4" /></svg>
   }
-  return <svg {...c} aria-hidden="true"><circle cx="12" cy="8" r="3.6" /><path d="M5 20c1.2-3.4 3.9-5 7-5s5.8 1.6 7 5" /></svg>
+  // prep — interview mic
+  return <svg {...c} aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
 }
 
+// Mobile mirrors the desktop journey exactly (unified-structure S3, lock #6):
+// Jobs · Collections · CV · Prep. Profile moved to the top-bar avatar.
 const TABS: { key: TabIcon; label: string; href: string; match: (p: string) => boolean }[] = [
   { key: "jobs", label: "Jobs", href: "/market", match: p => p.startsWith("/market") },
   { key: "collections", label: "Collections", href: "/collections", match: p => p.startsWith("/collections") },
   { key: "cv", label: "CV", href: "/cv", match: p => p.startsWith("/cv") },
-  { key: "profile", label: "Profile", href: "/me", match: p => p.startsWith("/me") },
+  { key: "prep", label: "Prep", href: "/preparations", match: p => p.startsWith("/preparations") },
 ]
 
-function CollectionsBadge() {
-  const { token } = useAuth()
-  const { data } = useQuery({
-    queryKey: dataKeys.applications(),
-    queryFn: () => jobsApi.applications(token!),
-    enabled: !!token,
-    staleTime: 60 * 1000,
-  })
-  const n = (data ?? []).filter(a => a.status === "saved").length
+function TabBadge({ n }: { n: number }) {
   if (n === 0) return null
   return (
     <span
@@ -118,9 +114,27 @@ function CollectionsBadge() {
   )
 }
 
+/** Journey badges on the mobile tabs — same reads as the desktop nav: saved
+ *  count on Collections, rooms-needing-you on Prep. One shared cache. */
+function useTabBadges() {
+  const { token } = useAuth()
+  const { data } = useQuery({
+    queryKey: dataKeys.applications(),
+    queryFn: () => jobsApi.applications(token!),
+    enabled: !!token,
+    staleTime: 60 * 1000,
+  })
+  const apps = data ?? []
+  return {
+    collections: apps.filter(a => a.status === "saved").length,
+    prep: attentionCount(apps, new Date()),
+  }
+}
+
 /**
- * MobileTopBar — the handoff top bar: Myro wordmark (left) + Practice bolt
- * (right, opens the Practice sheet). No avatar; Profile lives in the 4th tab.
+ * MobileTopBar — the handoff top bar: Myro wordmark (left) + Practice bolt +
+ * Profile avatar (right). Profile moved here from the 4th tab when Prep took
+ * its slot (unified-structure S3, lock #6) — same pattern as every consumer app.
  */
 export function MobileTopBar() {
   const { openPractice } = useMobileUI()
@@ -162,6 +176,21 @@ export function MobileTopBar() {
           </svg>
           <span style={{ position: "absolute", top: -3, right: -3, width: 8, height: 8, borderRadius: 99, background: "var(--mm-accent)" }} />
         </button>
+        {/* Profile — moved up from the retired 4th tab (Prep owns it now). */}
+        <Link
+          href="/me"
+          aria-label="Profile"
+          className="mm-press-sm"
+          style={{
+            width: 34, height: 34, borderRadius: 99,
+            border: "1px solid rgba(255,255,255,0.07)", background: "#212120", color: "#c9c9c2",
+            display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none",
+          }}
+        >
+          <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="8" r="3.6" /><path d="M5 20c1.2-3.4 3.9-5 7-5s5.8 1.6 7 5" />
+          </svg>
+        </Link>
       </div>
       {settingsOpen && <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} profile={null} initialTab={settingsTab} />}
     </header>
@@ -175,6 +204,7 @@ export function MobileTopBar() {
  */
 export function MobileBottomNav() {
   const pathname = usePathname()
+  const badges = useTabBadges()
   return (
     <nav
       className="tm-mobile-bottomnav mm-root"
@@ -195,7 +225,8 @@ export function MobileBottomNav() {
           >
             <span style={{ position: "relative", display: "inline-flex" }}>
               <NavIcon name={tab.key} />
-              {tab.key === "collections" && <CollectionsBadge />}
+              {tab.key === "collections" && <TabBadge n={badges.collections} />}
+              {tab.key === "prep" && <TabBadge n={badges.prep} />}
             </span>
             <span style={{ fontSize: 10, fontWeight: 650, letterSpacing: "0.01em" }}>{tab.label}</span>
           </Link>

@@ -67,6 +67,7 @@ class CoverageItem:
     story_title: str = ""
     story_pointer: str = ""
     similarity: float = 0.0
+    source: str = "story"  # "story" | "cv" — what evidenced it
 
 
 @dataclass
@@ -162,10 +163,71 @@ async def _cover_one(user_id: str, requirement: str) -> CoverageItem:
     )
 
 
-async def assess(user_id: str, jd_text: str, provider: LLMProvider) -> CoverageResult:
-    """Parse the JD then classify every requirement against the user's stories."""
+def bullets_from_cv(cv_structured: dict | None) -> list[str]:
+    """Pure: every experience/project bullet on the CV — the evidence the user is
+    literally showing recruiters. Coverage that ignores these says "Missing" while
+    the line sits on screen (the Oracle/mit20 trust breach, 2026-07-16)."""
+    out: list[str] = []
+    for block in (cv_structured or {}).get("experience") or []:
+        for b in block.get("bullets") or []:
+            text = str(b or "").strip()
+            if text:
+                out.append(text)
+    for block in (cv_structured or {}).get("projects") or []:
+        for b in block.get("bullets") or []:
+            text = str(b or "").strip()
+            if text:
+                out.append(text)
+    return out
+
+
+async def _apply_cv_bullet_pass(items: list[CoverageItem], cv_bullets: list[str]) -> None:
+    """Second evidence leg: match each requirement against the CV's own bullets and
+    keep whichever evidence (story vs CV line) is stronger. FAIL-SOFT — any
+    embedding failure leaves the story-only verdicts untouched."""
+    from app.services import embeddings
+    from app.services.career_reservoir import cosine
+
+    bullets = [b for b in cv_bullets if b.strip()][:80]
+    if not items or not bullets:
+        return
+    try:
+        qvecs = await embeddings.embed_texts([i.requirement for i in items])
+        bvecs = await embeddings.embed_texts(bullets)
+    except Exception as exc:  # noqa: BLE001 — the CV leg is an upgrade, never an outage
+        logger.info("jd_coverage: cv-bullet embed failed (%s)", exc.__class__.__name__)
+        return
+    for i, item in enumerate(items):
+        best_sim, best_bullet = 0.0, ""
+        for bullet, bvec in zip(bullets, bvecs):
+            sim = cosine(qvecs[i], bvec)
+            if sim > best_sim:
+                best_sim, best_bullet = sim, bullet
+        if best_sim >= WEAK_MIN and best_sim > item.similarity:
+            items[i] = CoverageItem(
+                requirement=item.requirement,
+                status=_classify(best_sim),
+                story_id=None,
+                story_title="On your CV",
+                story_pointer=best_bullet,
+                similarity=round(best_sim, 3),
+                source="cv",
+            )
+
+
+async def assess(
+    user_id: str,
+    jd_text: str,
+    provider: LLMProvider,
+    cv_bullets: list[str] | None = None,
+) -> CoverageResult:
+    """Parse the JD then classify every requirement against the user's stories —
+    and, when the caller passes the CV's bullets, against what the CV already
+    proves (stories ∪ CV pointers; the stronger evidence wins)."""
     requirements = await parse_requirements(jd_text, provider)
     items = [await _cover_one(user_id, req) for req in requirements]
+    if cv_bullets:
+        await _apply_cv_bullet_pass(items, cv_bullets)
     return CoverageResult(
         requirements=items,
         covered=sum(1 for i in items if i.status == "covered"),
@@ -198,6 +260,7 @@ def result_to_payload(result: CoverageResult) -> str:
                 "story_title": i.story_title,
                 "story_pointer": i.story_pointer,
                 "similarity": i.similarity,
+                "source": i.source,
             }
             for i in result.requirements
         ],
@@ -229,6 +292,7 @@ def payload_to_result(raw: str | None) -> tuple[CoverageResult, str] | None:
             story_title=str(entry.get("story_title") or ""),
             story_pointer=str(entry.get("story_pointer") or ""),
             similarity=float(entry.get("similarity") or 0.0),
+            source=str(entry.get("source") or "story"),
         ))
     if not items:
         return None

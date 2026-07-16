@@ -934,7 +934,7 @@ export interface RewriteBulletResponse {
 }
 
 export interface RewriteVariant {
-  angle: "metric" | "impact" | "scope"
+  angle: "metric" | "impact" | "scope" | "weave"
   label: string
   text: string
   // Plain candidate-facing reason this framing is strong ("leads with the 40% result").
@@ -1114,6 +1114,16 @@ export interface CareerProfile {
   story_count: number
   /** Dumped files still being read — poll while > 0. */
   pending_inflows: number
+  /** Judge-proposed same-role pairs awaiting the user's ruling (#38). */
+  merge_suggestions: MergeSuggestion[]
+  /** Auto-folded duplicate roles in the last 7 days — the visible receipt. */
+  tidied_roles: number
+}
+export interface MergeSuggestion {
+  role_a: string
+  role_b: string
+  a_label: string
+  b_label: string
 }
 export interface CareerIngestResponse {
   entries: { id: string; filename: string | null; kind: string; chars: number }[]
@@ -1431,12 +1441,13 @@ export const cv = {
    * Tokens are the rewritten text; the terminal `done` frame carries
    * {mode, question?, rationale?, citations?}. */
   rewriteBulletStreamPath: "/cv/rewrite-bullet/stream",
-  // Pick-a-version rewrite: 2–3 finished framings (metric/impact/scope) of ONE
-  // bullet, or the no-fab question. Uses the paid provider server-side, so the
-  // output is finished CV lines — never streamed reasoning.
+  // Recommended + alternates rewrite (strongest-first), or the no-fab question /
+  // reservoir-number offer. intent="weave" (Surface-skill fixes) = one minimal
+  // keyword-insertion edit instead of the reframe. Strong writer floor server-side —
+  // output is finished CV lines, never streamed reasoning.
   rewriteBulletVariants: (
     token: string,
-    body: { bullet: string; role?: string | null; missing_keywords: string[]; metric?: string | null; allow_no_metric?: boolean },
+    body: { bullet: string; role?: string | null; missing_keywords: string[]; metric?: string | null; allow_no_metric?: boolean; intent?: "weave" },
   ) =>
     request<RewriteVariantsResponse>("/cv/rewrite-bullet/variants", {
       method: "POST",
@@ -1535,6 +1546,13 @@ export const cv = {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify({ requirement, answer, job_id: jobId ?? null }),
+      }),
+    /** Rule on a judge-proposed same-role pair (#38) — a human ruling is law. */
+    mergeVerdict: (token: string, roleA: string, roleB: string, verdict: "merged" | "keep_separate") =>
+      request<{ verdict: string }>("/cv/reservoir/roles/merge-verdict", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ role_a: roleA, role_b: roleB, verdict }),
       }),
   },
   // The experience reservoir inventory (v2): roles → points → phrasing variants.
