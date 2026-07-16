@@ -6,7 +6,7 @@ model. The writer floor is owned inside the service; tests pass a fake provider 
 the documented test-only override.
 """
 import asyncio
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from app.services import cv_rewrite
 from app.services.mentor_grounding import CandidateMetric, MentorGrounding
@@ -22,7 +22,9 @@ class _Passage:
 
 
 class _FakeProvider:
-    def __init__(self, text="Led a team of 12 to cut churn 18% by shipping a retention flow"):
+    # Default reply reuses ONLY the source's figures — a fake that invents "team of
+    # 12" now (correctly) trips the foreign-number guard.
+    def __init__(self, text="Cut churn 18% by shipping a lifecycle retention flow"):
         self._text = text
         self.last_messages = None
 
@@ -168,9 +170,9 @@ def test_rewrite_failsoft_when_grounding_empty(monkeypatch):
 # ── recommended + alternates ─────────────────────────────────────────────────
 
 _VARIANTS_RAW = (
-    "[METRIC] Cut churn 18% by shipping a retention flow to 40k users || leads with the 18% cut\n"
-    "[IMPACT] Reversed churn 18% and lifted retention by owning a new lifecycle flow || shows the business win\n"
-    "[SCOPE] Led a 12-person squad across three systems to cut the churn gap 18% || shows the scope you owned"
+    "[METRIC] Cut churn 18% by shipping a lifecycle retention flow || leads with the 18% cut\n"
+    "[IMPACT] Reversed an 18% churn trend by owning a new lifecycle flow || shows the business win\n"
+    "[SCOPE] Owned the churn program end to end, cutting it 18% || shows the scope you owned"
 )
 
 
@@ -189,8 +191,8 @@ def test_variants_recommended_first_with_reasons(monkeypatch):
 def test_variants_strongest_first_honours_model_order(monkeypatch):
     # Model puts SCOPE first as its recommendation → we keep that order.
     raw = (
-        "[SCOPE] Led a 12-person squad to cut churn 18% || biggest scope\n"
-        "[METRIC] Cut churn 18% for 40k users || leads with the number\n"
+        "[SCOPE] Owned the churn program end to end, cutting it 18% || biggest scope\n"
+        "[METRIC] Cut churn 18% with a lifecycle retention flow || leads with the number\n"
         "[IMPACT] Reversed an 18% churn trend || the business win"
     )
     _patch_grounding(monkeypatch, _grounding())
@@ -234,7 +236,142 @@ def test_all_variants_losing_metrics_is_an_error(monkeypatch):
     out = asyncio.run(cv_rewrite.suggest_rewrite_variants(
         "Generated over 50 outbound pitches", None, [], None, provider=provider))
     assert out["mode"] == "error"
-    assert "numbers" in out["rationale"]
+    assert "kept your original" in out["rationale"]
+
+
+# ── substance guard (the Capgemini + Azure regressions, 2026-07-16) ─────────
+
+_CAPGEMINI = (
+    "Delivered €500K+ revenue last year by shaping India Cloud leverage B2B GTM "
+    "strategy for GCC clients, aligning India insights with global MNCs through "
+    "targeted personal meetings & delivery execution, and delivering a cross-BU "
+    "pitch for Life Sciences, Energy, and Aerospace clients."
+)
+
+_AZURE = (
+    "Led Platform Transformation & reduced platform maintenance spend by ~30% "
+    "through shifting from legacy to Azure infrastructure. Reduced client costs by "
+    "~20% via expense-tracking KPIs on property dashboards"
+)
+
+
+def test_loses_substance_catches_the_capgemini_truncation():
+    # The live regression: number kept, everything named dropped.
+    bad = "Generated €500K+ revenue by shaping India Cloud B2B GTM strategy"
+    assert cv_rewrite.loses_substance(_CAPGEMINI, bad) is True
+
+
+def test_loses_substance_passes_a_preserving_tighten():
+    good = (
+        "Delivered €500K+ revenue in a year by shaping India Cloud B2B GTM strategy "
+        "for GCC clients — aligning India insights with global MNCs and pitching "
+        "cross-BU wins across Life Sciences, Energy, and Aerospace."
+    )
+    assert cv_rewrite.loses_substance(_CAPGEMINI, good) is False
+
+
+def test_sentence_initial_capitals_are_not_entities():
+    # "Led"/"Reduced" open their sentences — grammar, not names. A rewrite saying
+    # "reducing" instead of "Reduced" must NOT be rejected for it.
+    ents = cv_rewrite._entities_in(_AZURE)
+    assert "led" not in ents and "reduced" not in ents
+    assert {"platform", "transformation", "azure", "kpi"} <= ents
+
+
+def test_loses_substance_catches_the_azure_kpi_drop():
+    # The screenshot-2 reframe: kept both %s, silently dropped the KPIs clause.
+    bad = (
+        "Led platform transformation to Azure infrastructure, reducing spend by "
+        "~30% and client costs by ~20%"
+    )
+    assert cv_rewrite.loses_substance(_AZURE, bad) is True
+
+
+def test_gains_foreign_numbers_blocks_minted_figures():
+    src = "Improved client onboarding for GCC accounts"
+    assert cv_rewrite.gains_foreign_numbers(src, "Improved onboarding 40% for GCC accounts") is True
+    # …but a user-supplied metric makes the figure legitimate.
+    assert cv_rewrite.gains_foreign_numbers(
+        src, "Improved onboarding 40% for GCC accounts", allowed_text="40%") is False
+
+
+def test_finalize_rejects_foreign_numbers(monkeypatch):
+    out = cv_rewrite.finalize_rewrite(
+        "Improved onboarding 40% for GCC accounts", None, [],
+        source_bullet="Improved client onboarding for GCC accounts",
+    )
+    assert out["mode"] == "error"
+    assert "never stated" in out["rationale"]
+
+
+# ── markup can never ship (the "SCOPE … || why" leak, 2026-07-16) ────────────
+
+def test_parse_accepts_bracketless_tags_and_strips_why():
+    raw = "SCOPE Led platform transformation to Azure, cutting spend ~30% || Highlights system scope"
+    out = cv_rewrite._parse_variants(raw)
+    assert len(out) == 1
+    assert out[0]["angle"] == "scope"
+    assert out[0]["text"] == "Led platform transformation to Azure, cutting spend ~30%"
+    assert out[0]["why"] == "Highlights system scope"
+
+
+def test_extract_bullet_strips_tag_and_reason_tail():
+    leak = "[SCOPE] Led platform transformation to Azure, cutting spend ~30% || Highlights system scope"
+    assert cv_rewrite._extract_bullet(leak) == "Led platform transformation to Azure, cutting spend ~30%"
+    bare = "SCOPE: Led platform transformation to Azure, cutting spend ~30%"
+    assert cv_rewrite._extract_bullet(bare) == "Led platform transformation to Azure, cutting spend ~30%"
+
+
+def test_variants_dropping_named_specifics_are_filtered(monkeypatch):
+    raw = (
+        "[METRIC] Delivered €500K+ revenue in a year by shaping India Cloud B2B GTM strategy for GCC clients — "
+        "aligning India insights with global MNCs and pitching cross-BU wins across Life Sciences, Energy, and Aerospace. || leads with the result\n"
+        "[IMPACT] Generated €500K+ revenue by shaping India Cloud B2B GTM strategy || the business win"
+    )
+    _patch_grounding(monkeypatch, _grounding())
+    out = asyncio.run(cv_rewrite.suggest_rewrite_variants(
+        _CAPGEMINI, None, [], None, provider=_FakeProvider(text=raw)))
+    assert out["mode"] == "variants"
+    assert [v["angle"] for v in out["variants"]] == ["metric"]   # substance-dropper filtered
+
+
+# ── weave intent (Surface-skill fixes) ───────────────────────────────────────
+
+def test_weave_returns_one_minimal_suggestion(monkeypatch):
+    woven = (
+        "Led Platform Transformation & reduced platform maintenance spend by ~30% "
+        "through shifting from legacy to Microsoft Azure infrastructure. Reduced "
+        "client costs by ~20% via expense-tracking KPIs on property dashboards"
+    )
+    _patch_grounding(monkeypatch, _grounding())
+    out = asyncio.run(cv_rewrite.suggest_rewrite_variants(
+        _AZURE, None, ["Microsoft Azure"], None,
+        provider=_FakeProvider(text=woven), intent="weave"))
+    assert out["mode"] == "variants"
+    assert len(out["variants"]) == 1
+    assert out["variants"][0]["angle"] == "weave"
+    assert "Microsoft Azure" in out["variants"][0]["text"]
+    assert "Microsoft Azure" in out["variants"][0]["why"]
+
+
+def test_weave_skips_the_metric_question(monkeypatch):
+    # Surfacing a term needs no number — a metric-less bullet must not be asked.
+    _patch_grounding(monkeypatch, _grounding())
+    out = asyncio.run(cv_rewrite.suggest_rewrite_variants(
+        "Managed cloud infrastructure migration for enterprise clients", None,
+        ["Microsoft Azure"], None,
+        provider=_FakeProvider(text="Managed Microsoft Azure cloud infrastructure migration for enterprise clients"),
+        intent="weave"))
+    assert out["mode"] == "variants"
+
+
+def test_weave_that_loses_substance_keeps_the_original(monkeypatch):
+    _patch_grounding(monkeypatch, _grounding())
+    out = asyncio.run(cv_rewrite.suggest_rewrite_variants(
+        _AZURE, None, ["Microsoft Azure"], None,
+        provider=_FakeProvider(text="Migrated to Microsoft Azure"), intent="weave"))
+    assert out["mode"] == "error"
+    assert "kept your original" in out["rationale"]
 
 
 # ── no-DELETION guard + salvage ──────────────────────────────────────────────

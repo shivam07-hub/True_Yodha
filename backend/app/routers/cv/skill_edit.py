@@ -88,6 +88,9 @@ class RewriteBulletRequest(BaseModel):
     missing_keywords: list[str] = Field(default_factory=list)
     metric:           str | None = None
     allow_no_metric:  bool = False
+    # "weave" (Surface-skill fixes) = one minimal keyword-insertion edit instead of
+    # the 3-angle reframe. The fix KIND drives the instruction.
+    intent:           str | None = None
 
 
 class RewriteBulletResponse(BaseModel):
@@ -278,6 +281,7 @@ async def rewrite_bullet_variants(
         body.metric,
         allow_no_metric=body.allow_no_metric,
         user_id=principal.id,
+        intent=body.intent,
     )
     return RewriteVariantsResponse(
         mode=result["mode"],
@@ -332,7 +336,7 @@ async def rewrite_bullet_stream(
     missing = plan["missing_keywords"]
 
     async def finalize(text: str) -> dict:
-        result = cv_rewrite.finalize_rewrite(text, grounding, missing, source_bullet=body.bullet)
+        result = cv_rewrite.finalize_rewrite(text, grounding, missing, source_bullet=body.bullet, metric=body.metric)
         if result.get("mode") == "error":
             raise text_stream.StreamAbort(result.get("rationale") or "No rewrite produced.", recoverable=True)
         return {

@@ -106,6 +106,7 @@ export function FixesRail({
                   auto
                   applying={applying}
                   quantifyOnly={f.kind === "Quantify"}
+                  intent={f.kind === "Surface skill" ? "weave" : undefined}
                   onApply={(oldText, newText) => onApply(f, oldText, newText)}
                   onClose={() => onExpand(null)}
                 />

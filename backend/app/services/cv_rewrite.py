@@ -32,7 +32,7 @@ from app.services.llm_provider import LLMProvider, LLMProviderError, get_writer_
 
 logger = logging.getLogger(__name__)
 
-MAX_TOKENS = 220
+MAX_TOKENS = 300
 
 
 def has_metric(text: str) -> bool:
@@ -102,17 +102,80 @@ def loses_metrics(source: str, rewrite: str) -> bool:
     return bool(src) and not src <= _numbers_in(rewrite)
 
 
+def gains_foreign_numbers(source: str, rewrite: str, allowed_text: str = "") -> bool:
+    """True when the rewrite INTRODUCES numbers absent from the source (and from the
+    user-supplied metric / target keywords). The other half of the no-fabrication
+    law: a rewrite may reuse the user's figures, never mint new ones — including
+    figures copied out of a prompt example."""
+    allowed = _numbers_in(source) | _numbers_in(allowed_text)
+    return not _numbers_in(rewrite) <= allowed
+
+
+# ── substance guard (the Capgemini regression, 2026-07-16) ───────────────────
+# The numbers guard let "Delivered €500K+ revenue … for GCC clients … cross-BU pitch
+# for Life Sciences, Energy, and Aerospace" collapse to "Generated €500K+ revenue by
+# shaping India Cloud B2B GTM strategy" — number kept, substance gone. Prompt
+# discipline alone did not hold, so the specifics get a structural floor too: every
+# NAMED entity in the source (capitalized words/acronyms — clients, markets, domains,
+# products) must survive into the rewrite, or the version is filtered exactly like a
+# dropped number. Un-capitalized specifics stay prompt-enforced; entities are the
+# hard floor because losing a named client/domain is never "tightening".
+
+_TOKEN_RE = re.compile(r"[A-Za-z0-9][\w&+/-]*")
+
+
+def _entities_in(text: str) -> set[str]:
+    """Named specifics in a bullet: capitalized words (excluding each sentence's
+    opening verb — grammar, not a name), acronyms (GCC, MNCs, KPIs) and mixed
+    alphanumerics (B2B). Lowercased, plural 's' stripped, so 'MNCs' matches 'MNC'."""
+    ents: set[str] = set()
+    for sentence in re.split(r"[.!?]+\s+", text or ""):
+        for i, tok in enumerate(_TOKEN_RE.findall(sentence)):
+            is_acronym = tok.isupper() and len(tok) >= 2
+            has_upper_tail = any(c.isupper() for c in tok[1:])
+            if i == 0 and not (is_acronym or has_upper_tail):
+                continue  # sentence-initial capital ("Delivered", "Reduced") is grammar
+            if tok[0].isupper() or is_acronym or has_upper_tail:
+                ent = tok.lower()
+                if len(ent) > 3:
+                    ent = ent.rstrip("s")
+                ents.add(ent)
+    return ents
+
+
+def loses_substance(source: str, rewrite: str) -> bool:
+    """True when the source names entities the rewrite dropped."""
+    hay = (rewrite or "").lower()
+    return any(ent not in hay for ent in _entities_in(source))
+
+
 # Invariant guardrails — true regardless of which playbook rules are retrieved.
 # Structural + the no-fabrication law + the no-substance-loss law (Q9). Never
-# style-overridable.
+# style-overridable. NO hard word cap: a cap the original already exceeds makes the
+# model obey the number by deleting clauses — the exact truncation this exists to
+# prevent. Length guidance is relative to the original instead.
 _GUARDRAILS = (
     "You are a sharp senior recruiter and CV editor. You rewrite ONE résumé bullet "
     "to be stronger and ATS-friendly. Unbreakable rules:\n"
-    "- ONE line (max ~30 words); start with a strong past-tense action verb.\n"
-    "- NEVER invent numbers, employers, titles, dates, or achievements.\n"
-    "- NEVER drop the concrete specifics the original states — named tools, systems, "
-    "clients, domains, scope, or scale. Tighten the LANGUAGE, never the substance; a "
-    "rewrite that is vaguer than the original is a failure, not an improvement.\n"
+    "- ONE line, tight and readable. Aim for 20–35 words; a rich original may take "
+    "~40. NEVER solve length by deleting content — compress connectors, articles and "
+    "filler, never facts. The rewrite must carry EVERYTHING the original states.\n"
+    "- Start with a strong past-tense action verb.\n"
+    "- NEVER invent numbers, employers, titles, dates, or achievements — and never "
+    "copy any figure or fact from the example below into your rewrite.\n"
+    "- EVERY concrete specific in the original MUST survive: named clients and "
+    "markets, products, technologies, domains, org units, team/scope words, and time "
+    "context. A rewrite that is vaguer or thinner than the original is a FAILURE, "
+    "not an improvement.\n"
+    "- Example of the standard. Original: 'Delivered €500K+ revenue last year by "
+    "shaping India Cloud B2B GTM strategy for GCC clients, aligning India insights "
+    "with global MNCs through targeted personal meetings, and delivering a cross-BU "
+    "pitch for Life Sciences, Energy, and Aerospace clients.' GOOD rewrite: "
+    "'Delivered €500K+ revenue in a year by shaping India Cloud B2B GTM strategy for "
+    "GCC clients — aligning India insights with global MNCs and pitching cross-BU "
+    "wins across Life Sciences, Energy, and Aerospace.' BAD rewrite (substance "
+    "loss — forbidden): 'Generated €500K+ revenue by shaping India Cloud B2B GTM "
+    "strategy.'\n"
     "- Weave in a target keyword ONLY if genuinely implied by the original — never "
     "keyword-stuff.\n"
     "Output ONLY the rewritten bullet: no quotes, no preamble, no explanation."
@@ -215,19 +278,32 @@ _REASONING_MARKERS = re.compile(
 )
 _QUOTED_RE = re.compile(r"[\"'“”‘’]([^\"'“”‘’]{12,})[\"'“”‘’]")
 
+# A variant tag the model may emit with or without brackets ("[SCOPE]" / "SCOPE").
+# Stripped at EVERY exit — a tag or a "|| why" tail must never reach the CV artifact
+# (live leak 2026-07-16: "SCOPE Led platform transformation … || Highlights system
+# scope" rendered as the suggested line).
+_TAG_PREFIX_RE = re.compile(r"^\s*\[?\s*(?:METRIC|IMPACT|SCOPE)\s*\]?\s*[:\-–]?\s+", re.IGNORECASE)
+
+
+def _strip_variant_markup(text: str) -> str:
+    """Remove a leading angle tag and a trailing '|| reason' from a line."""
+    text = _TAG_PREFIX_RE.sub("", (text or "").strip())
+    return text.split("||")[0].strip().strip('"').strip("'").strip()
+
 
 def _extract_bullet(raw: str) -> str:
     """Pull the finished bullet out of a completion. Normally the model returns just
-    the line; a weak model can leak reasoning — take the last quoted candidate."""
+    the line; a weak model can leak reasoning — take the last quoted candidate. Any
+    variant markup (tags, '|| why') is stripped so it can never ship."""
     text = (raw or "").strip()
     if _REASONING_MARKERS.search(text) or "\n" in text:
         quoted = _QUOTED_RE.findall(text)
         if quoted:
-            return quoted[-1].strip()
+            return _strip_variant_markup(quoted[-1])
         lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
         if lines:
             text = lines[-1]
-    return text.strip().strip('"').strip("'").strip()
+    return _strip_variant_markup(text)
 
 
 def finalize_rewrite(
@@ -235,18 +311,31 @@ def finalize_rewrite(
     grounding: mentor_grounding.MentorGrounding | None,
     missing_keywords: list[str],
     source_bullet: str = "",
+    metric: str | None = None,
 ) -> dict:
     """Turn the fully-streamed (or completed) rewrite text into the terminal payload:
     the cleaned line, a user-outcome rationale, and the internal citation record. Pure
-    — no I/O. Returns ``{"mode": "error", ...}`` if the model produced nothing or (no-
-    DELETION guard) dropped real numbers the source stated."""
+    — no I/O. Returns ``{"mode": "error", ...}`` if the model produced nothing, or a
+    not-worse guard fired: dropped a real number, dropped a named specific (substance
+    guard), or minted a number the user never stated."""
     text = _extract_bullet(text)
     if not text:
         return {"mode": "error", "rationale": "No rewrite produced."}
+    allowed = " ".join([metric or "", *missing_keywords])
     if source_bullet and loses_metrics(source_bullet, text):
         return {
             "mode": "error",
             "rationale": "The rewrite dropped real numbers from your line — kept your original.",
+        }
+    if source_bullet and loses_substance(source_bullet, text):
+        return {
+            "mode": "error",
+            "rationale": "The rewrite lost real substance from your line — kept your original.",
+        }
+    if source_bullet and gains_foreign_numbers(source_bullet, text, allowed):
+        return {
+            "mode": "error",
+            "rationale": "The rewrite added a number you never stated — kept your original.",
         }
     used = [k for k in missing_keywords if k.strip() and k.lower() in text.lower()]
     # User-outcome wording (not "tightened with XYZ" — method is invisible to the user).
@@ -286,7 +375,7 @@ async def suggest_rewrite(
         logger.info("cv_rewrite: all providers failed (bullet len=%d)", len((bullet or "").strip()))
         return {"mode": "error", "rationale": "Rewrite is unavailable right now."}
 
-    return finalize_rewrite(raw, plan["grounding"], plan["missing_keywords"], source_bullet=bullet)
+    return finalize_rewrite(raw, plan["grounding"], plan["missing_keywords"], source_bullet=bullet, metric=metric)
 
 
 # ─── recommended + alternates (was: 3 equal tabs) ────────────────────────────
@@ -297,7 +386,7 @@ async def suggest_rewrite(
 # The frontend leads with variants[0] (the recommendation) and tucks the rest behind
 # "other angles". Same unbreakable guardrails; one LLM round-trip returns all three.
 
-VARIANTS_MAX_TOKENS = 420
+VARIANTS_MAX_TOKENS = 640
 
 # (angle, label, emphasis). label = the small chip shown on an alternate.
 _ANGLES: list[tuple[str, str, str]] = [
@@ -312,7 +401,9 @@ _ANGLES: list[tuple[str, str, str]] = [
 
 _TAGS = {"metric": "[METRIC]", "impact": "[IMPACT]", "scope": "[SCOPE]"}
 _LABELS = {a: label for a, label, _ in _ANGLES}
-_TAG_LINE_RE = re.compile(r"\[(METRIC|IMPACT|SCOPE)\]\s*(.+)", re.IGNORECASE)
+# Tolerant: models emit the tag with or without brackets ("[SCOPE] …" / "SCOPE …"),
+# line-anchored so a mid-sentence word can't false-match.
+_TAG_LINE_RE = re.compile(r"^\s*\[?\s*(METRIC|IMPACT|SCOPE)\s*\]?\s*[:\-–]?\s+(.+)", re.IGNORECASE)
 
 
 def _variants_instruction() -> str:
@@ -356,6 +447,35 @@ def _parse_variants(raw: str) -> list[dict[str, str]]:
     return out
 
 
+# Surface-skill fixes are a WEAVE, not a reframe: the job is to name the missing
+# term for ATS scanning with the SMALLEST possible edit. Forcing a rich bullet
+# through a 3-angle one-line reframe invites the not-worse guards (a 2-sentence
+# bullet can't compress to one line without losing something) — the live Azure
+# dead-end. The fix KIND drives the instruction.
+def _weave_instruction(keywords: list[str]) -> str:
+    kws = ", ".join(f"“{k}”" for k in keywords[:3] if k.strip()) or "the target keyword"
+    return (
+        f"Weave {kws} into this bullet so an ATS scanner sees the exact term. Make "
+        "the SMALLEST possible edit: keep the structure, sentence count, every fact "
+        "and every number exactly as they are — only add or adjust the few words "
+        "needed to name the term naturally where the work already implies it.\n"
+        "Output ONLY the edited bullet: no tags, no explanation."
+    )
+
+
+def _passes_guards(bullet: str, text: str, allowed_text: str) -> bool:
+    return not (
+        loses_metrics(bullet, text)
+        or loses_substance(bullet, text)
+        or gains_foreign_numbers(bullet, text, allowed_text)
+    )
+
+
+_KEPT_ORIGINAL_RATIONALE = (
+    "Mentor couldn't beat this line without losing real substance — kept your original."
+)
+
+
 async def suggest_rewrite_variants(
     bullet: str,
     role: str | None,
@@ -364,24 +484,31 @@ async def suggest_rewrite_variants(
     provider: LLMProvider | None = None,
     allow_no_metric: bool = False,
     user_id: str | None = None,
+    intent: str | None = None,
 ) -> dict:
     """Blocking recommended+alternates rewrite. `provider` is a TEST-ONLY override.
-    Returns one of:
+    ``intent="weave"`` (Surface-skill fixes) = one minimal keyword-insertion edit
+    instead of the 3-angle reframe; the metric question never fires for it (adding
+    a term needs no number). Returns one of:
       {"mode": "question", ...} / {"mode": "suggest_metric", ...}
       {"mode": "variants", "variants": [{angle,label,text,why}], "citations": [...]}
           — variants[0] is the Mentor's recommendation (strongest-first).
       {"mode": "error", "rationale": str}
     """
+    weave = intent == "weave"
     plan = await prepare_rewrite(
         bullet, role, missing_keywords, metric,
-        allow_no_metric=allow_no_metric, user_id=user_id,
+        allow_no_metric=allow_no_metric or weave, user_id=user_id,
     )
     if plan["mode"] != "stream":
         return plan
 
     provider = provider or get_writer_provider()
+    keywords = plan["missing_keywords"]
+    allowed_text = " ".join([metric or "", *keywords])
+    instruction = _weave_instruction(keywords) if weave else _variants_instruction()
     messages = list(plan["messages"])
-    messages[-1] = {**messages[-1], "content": messages[-1]["content"] + "\n\n" + _variants_instruction()}
+    messages[-1] = {**messages[-1], "content": messages[-1]["content"] + "\n\n" + instruction}
 
     try:
         raw = await provider.complete(messages, max_tokens=VARIANTS_MAX_TOKENS)
@@ -391,11 +518,25 @@ async def suggest_rewrite_variants(
 
     grounding = plan["grounding"]
     citations = grounding.citations() if grounding else []
+
+    if weave:
+        single = finalize_rewrite(raw, grounding, keywords, source_bullet=bullet, metric=metric)
+        if single["mode"] != "rewrite":
+            return {"mode": "error", "rationale": single.get("rationale") or _KEPT_ORIGINAL_RATIONALE}
+        named = ", ".join(k for k in keywords[:3] if k.strip())
+        return {
+            "mode": "variants",
+            "variants": [{"angle": "weave", "label": "Suggested",
+                          "text": single["rewritten_text"],
+                          "why": f"Names {named} — scanners can now see it" if named else single["rationale"]}],
+            "citations": citations,
+        }
+
     variants = _parse_variants(raw)
     if not variants:
         # Model ignored the tag format — fall back to a single rewrite so the user
         # still gets a recommendation rather than an error.
-        single = finalize_rewrite(raw, grounding, plan["missing_keywords"], source_bullet=bullet)
+        single = finalize_rewrite(raw, grounding, keywords, source_bullet=bullet, metric=metric)
         if single["mode"] == "rewrite":
             return {
                 "mode": "variants",
@@ -405,13 +546,11 @@ async def suggest_rewrite_variants(
             }
         return {"mode": "error", "rationale": single.get("rationale") or "No rewrite produced."}
 
-    # No-DELETION guard: a version that dropped the source's real numbers is not a
-    # valid framing of the same facts — filter it, never show it.
-    variants = [v for v in variants if not loses_metrics(bullet, v["text"])]
+    # Not-worse guards: a version that dropped a real number, dropped a named
+    # specific, or minted a foreign number is not a framing of the same facts —
+    # filter it, never show it.
+    variants = [v for v in variants if _passes_guards(bullet, v["text"], allowed_text)]
     if not variants:
-        return {
-            "mode": "error",
-            "rationale": "Every rewrite dropped real numbers from your line — kept your original.",
-        }
+        return {"mode": "error", "rationale": _KEPT_ORIGINAL_RATIONALE}
 
     return {"mode": "variants", "variants": variants, "citations": citations}

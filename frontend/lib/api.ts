@@ -934,7 +934,7 @@ export interface RewriteBulletResponse {
 }
 
 export interface RewriteVariant {
-  angle: "metric" | "impact" | "scope"
+  angle: "metric" | "impact" | "scope" | "weave"
   label: string
   text: string
   // Plain candidate-facing reason this framing is strong ("leads with the 40% result").
@@ -1431,12 +1431,13 @@ export const cv = {
    * Tokens are the rewritten text; the terminal `done` frame carries
    * {mode, question?, rationale?, citations?}. */
   rewriteBulletStreamPath: "/cv/rewrite-bullet/stream",
-  // Pick-a-version rewrite: 2–3 finished framings (metric/impact/scope) of ONE
-  // bullet, or the no-fab question. Uses the paid provider server-side, so the
-  // output is finished CV lines — never streamed reasoning.
+  // Recommended + alternates rewrite (strongest-first), or the no-fab question /
+  // reservoir-number offer. intent="weave" (Surface-skill fixes) = one minimal
+  // keyword-insertion edit instead of the reframe. Strong writer floor server-side —
+  // output is finished CV lines, never streamed reasoning.
   rewriteBulletVariants: (
     token: string,
-    body: { bullet: string; role?: string | null; missing_keywords: string[]; metric?: string | null; allow_no_metric?: boolean },
+    body: { bullet: string; role?: string | null; missing_keywords: string[]; metric?: string | null; allow_no_metric?: boolean; intent?: "weave" },
   ) =>
     request<RewriteVariantsResponse>("/cv/rewrite-bullet/variants", {
       method: "POST",

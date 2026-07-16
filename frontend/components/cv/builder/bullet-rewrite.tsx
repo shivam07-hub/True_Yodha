@@ -34,9 +34,12 @@ interface BulletRewriteProps {
   /** Quantify context (Q2): the fix promises a real number, so a metric-less
    *  reframe is not a valid outcome — the question is the only path (no escape). */
   quantifyOnly?: boolean
+  /** "weave" (Surface-skill fixes): one minimal keyword-insertion edit instead of
+   *  the reframe — the fix kind drives the rewrite instruction. */
+  intent?: "weave"
 }
 
-export function BulletRewrite({ token, bullet, role, missingKeywords, applying, onApply, auto, seedKeywords, onClose, quantifyOnly }: BulletRewriteProps) {
+export function BulletRewrite({ token, bullet, role, missingKeywords, applying, onApply, auto, seedKeywords, onClose, quantifyOnly, intent }: BulletRewriteProps) {
   const [phase, setPhase] = useState<Phase>("idle")
   const [variants, setVariants] = useState<RewriteVariant[]>([])
   const [sel, setSel] = useState(0)
@@ -55,6 +58,7 @@ export function BulletRewrite({ token, bullet, role, missingKeywords, applying, 
         missing_keywords: seedKeywords && seedKeywords.length ? seedKeywords : missingKeywords,
         metric: opts.metric ?? null,
         allow_no_metric: opts.allowNoMetric ?? false,
+        intent,
       })
       if (res.mode === "variants" && res.variants.length) {
         setVariants(res.variants); setSel(0); setShowAlternates(false); setPhase("variants")
