@@ -23,13 +23,25 @@ export function targetsFromSkillGap(items: SkillGapItem[]): KeywordTarget[] {
     }))
 }
 
+/**
+ * Coverage verdict per target: the server's semantic credit (`matched` seeded
+ * from the skill-gap's `!missing` — the user HAS the skill per taxonomy) is the
+ * floor; a verbatim keyword hit on the visible CV text ADDs coverage on top.
+ * Text alone must never zero a server-credited skill — taxonomy keys rarely
+ * appear word-for-word in CV prose, and scoring them 0 while the match brain
+ * says "Worth it" is the two-numbers-disagree header bug.
+ */
+export function evaluateTargets(targets: KeywordTarget[], visibleText: string): KeywordTarget[] {
+  return targets.map(t => ({ ...t, matched: t.matched || kwMatches(visibleText, t.kw) }))
+}
+
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }
 
 // Word-boundary aware match: short keywords (≤3 chars like "R", "Go", "AI")
 // use \b guards to avoid false positives ("R" inside "React", "Go" inside "Google").
-function kwMatches(text: string, kw: string): boolean {
+export function kwMatches(text: string, kw: string): boolean {
   if (kw.length <= 3) {
     return new RegExp(`\\b${escapeRegex(kw)}\\b`, "i").test(text)
   }
