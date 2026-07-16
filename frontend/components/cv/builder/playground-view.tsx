@@ -19,8 +19,8 @@
 "use client"
 
 import { useMemo, useRef, useState } from "react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import type { CVStructured, JobMatchesResponse, UserProfile } from "@/lib/api"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import type { CVStructured, UserProfile } from "@/lib/api"
 import { jobs as jobsApi, cv as cvApi } from "@/lib/api"
 import { CVEditor } from "./cv-editor"
 import { ExperienceIntake } from "./experience-intake"
@@ -101,14 +101,11 @@ export function PlaygroundView({
   const { dismissed, dismiss, restore } = useDismissedFixes(`job:${jobId}`)
 
   // Lane C — "What this job wants": the JD's real requirements classified against
-  // the user's career stories (covered / partial / missing). Powers the Job-fit
-  // rail map and the Mentor walk.
+  // the user's career stories (covered / partial / missing). Owned by the model
+  // (it's the semantic 70% of the Match score); the rail map and the Mentor walk
+  // read the same query object.
   const [walkStart, setWalkStart] = useState<number | undefined>(undefined)
-  const coverageQuery = useQuery({
-    queryKey: ["jd-coverage", jobId],
-    queryFn: () => cvApi.career.jdCoverage(token, jobId),
-    staleTime: 5 * 60 * 1000,
-  })
+  const coverageQuery = m.coverageQuery
   function openWalk(atIndex?: number) { setWalkStart(atIndex); setWalkOpen(true) }
   // A gap answer banks a reusable career story via the dump pipeline (async
   // ingest); the walk also drafts an immediate bullet, so this is fire-and-forget.
@@ -145,15 +142,6 @@ export function PlaygroundView({
     [m.openFixes, dismissed],
   )
 
-  // The job's Worth-it verdict (the prize axis, beside the header's Ready score).
-  // Passive read of the matches cache — never fetches; absent when the user
-  // reached tailoring without a cached match → the chip simply hides (no fabrication).
-  const { data: matchesCache } = useQuery<JobMatchesResponse>({ queryKey: dataKeys.jobs(), enabled: false })
-  const worthIt = useMemo(() => {
-    const match = matchesCache?.jobs?.find((j) => j.job_id === jobId)
-    return match && match.match_score > 0 ? { verdict: match.verdict, score: match.match_score } : undefined
-  }, [matchesCache, jobId])
-
   const sourceUrl = m.application?.source_url?.trim() ?? ""
   const capture = useApplyCapture({
     token,
@@ -165,6 +153,9 @@ export function PlaygroundView({
 
   const openFixIds = useMemo(() => new Set(m.openFixes.map(f => f.id)), [m.openFixes])
   const appliedShown = appliedFixes.filter(a => !openFixIds.has(a.id))
+  // "▲ +N raised" = points actually landed this session (each applied fix's
+  // deterministic gain) — not a diff of two differently-scaled scores.
+  const sessionRaised = appliedShown.reduce((s, a) => s + a.gain, 0)
 
   function invalidateCV() {
     queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
@@ -315,8 +306,8 @@ export function PlaygroundView({
         company={m.company}
         reqCount={m.allTargets.length}
         ready={m.ready}
-        delta={m.delta}
-        worthIt={worthIt}
+        delta={sessionRaised}
+        scoreCaption={!m.hasSemantic && coverageQuery.isLoading ? "/100 · Match…" : undefined}
         canApply={!!applyHref}
         applyHint={applyHref ? `Open ${m.company} careers` : "No application link yet"}
         saveState={saveState}
@@ -353,9 +344,9 @@ export function PlaygroundView({
                 cv={cv}
                 hidden={hiddenItems}
                 contact={m.sheetContact}
-                baseScore={m.baseScore}
+                baseScore={Math.max(0, m.ready - sessionRaised)}
                 ready={m.ready}
-                delta={m.delta}
+                delta={sessionRaised}
                 company={m.company}
                 pageFill={m.pageFill}
                 onDownload={requestDownload}
@@ -392,7 +383,6 @@ export function PlaygroundView({
         <PlaygroundRail
           token={token}
           tab={railTab}
-          model={m}
           fixes={visibleFixes}
           dismissedFixes={dismissedFixes}
           applied={appliedShown}
@@ -477,7 +467,7 @@ export function PlaygroundView({
           company={m.company}
           jobTitle={m.jobTitle}
           ready={m.ready}
-          delta={m.delta}
+          delta={sessionRaised}
           pendingFixes={visibleFixes.length}
           submitting={submittingApply}
           applied={appliedDone}

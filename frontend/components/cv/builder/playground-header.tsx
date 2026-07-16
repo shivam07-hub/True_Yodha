@@ -12,8 +12,6 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import type { JobMatch } from "@/lib/api"
-import { verdictLabel } from "@/lib/jobs/match-verdict"
 import { CV_TEMPLATES, type CVTemplate } from "@/lib/cv/templates"
 import { Icon } from "./icons"
 
@@ -82,17 +80,13 @@ interface PlaygroundHeaderProps {
   brandLabel?: string
   /** Score caption override (default per variant). */
   scoreCaption?: string
-  /** The job's Worth-it verdict — the OTHER axis (prize) beside Ready (winnability).
-   *  Read from the matches cache; omit when unknown/"checking" so we never invent
-   *  a judgment. Shows "Strong · 76" alongside the job context. */
-  worthIt?: { verdict: JobMatch["verdict"]; score: number }
 }
 
 export function PlaygroundHeader({
   jobTitle, company, reqCount, ready, delta, canApply, applyHint, saveState,
   onBack, onReqPill, onApply, onDownload,
   variant = "job", masterMeta, onMeta, primaryLabel = "Apply with this CV", hideOverflow,
-  brandLabel, scoreCaption, worthIt,
+  brandLabel, scoreCaption,
 }: PlaygroundHeaderProps) {
   const shown = useCountUp(ready)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -119,13 +113,6 @@ export function PlaygroundHeader({
               {reqCount} requirements extracted →
             </button>
           )}
-          {worthIt && worthIt.verdict !== "checking" && worthIt.score > 0 && (
-            // The prize axis beside Ready (winnability) — "this job is a strong
-            // match; now get your CV ready for it."
-            <span className={`cvb-v2-worth mono cvb-v2-worth-${worthIt.verdict}`}>
-              {verdictLabel(worthIt.verdict)} · {worthIt.score}
-            </span>
-          )}
         </>
       )}
 
@@ -136,10 +123,10 @@ export function PlaygroundHeader({
       <div className="cvb-v2-score" data-band={scoreBand(shown)}>
         <div className="cvb-v2-score-nums">
           <span className="cvb-v2-score-num mono tabnum">{shown}</span>
-          <span className="cvb-v2-score-cap mono">{scoreCaption ?? (isMaster ? "/100 · Myro Score" : "/100 · Ready")}</span>
+          <span className="cvb-v2-score-cap mono">{scoreCaption ?? (isMaster ? "/100 · Myro Score" : "/100 · Match")}</span>
         </div>
         <div className="cvb-v2-score-bar" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={ready}
-          aria-label={isMaster ? "Myro Score" : "Readiness for this job"}>
+          aria-label={isMaster ? "Myro Score" : "Match to this job"}>
           <div className="cvb-v2-score-fill" style={{ width: `${Math.max(0, Math.min(100, shown))}%` }} />
         </div>
       </div>

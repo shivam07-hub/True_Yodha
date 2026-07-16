@@ -47,18 +47,6 @@
 }
 .cvb-v2-metacta:hover { border-color: var(--tm-interactive); background: var(--tm-int-bg-hover); color: var(--tm-interactive-text); }
 
-/* Worth-it chip — the prize axis beside the Ready score. Verdict colour mirrors
-   the feed card's fc-verdict so "Strong / Worth it / Stretch" reads identically
-   on both surfaces (one product language). */
-.cvb-v2-worth {
-  flex: none; padding: 4px 10px; border-radius: 999px; white-space: nowrap;
-  font: 600 11px var(--tm-font-mono);
-  border: 1px solid var(--tm-border-soft); background: var(--tm-surface-2);
-}
-.cvb-v2-worth-strong { color: var(--tm-success-text, var(--tm-success)); }
-.cvb-v2-worth-worth_it { color: var(--tm-interactive-rest, var(--tm-interactive)); }
-.cvb-v2-worth-stretch { color: var(--tm-warning-text, var(--tm-warning)); }
-
 .cvb-v2-headspacer { flex: 1; }
 .cvb-v2-savestate { font-size: 11px; color: var(--tm-text-faint); white-space: nowrap; }
 
@@ -441,7 +429,6 @@
   .cvb-v2-brand, .cvb-v2-headrule, .cvb-v2-savestate { display: none; }
   .cvb-v2-jobline { flex: 1; }
   .cvb-v2-reqpill { order: 5; }
-  .cvb-v2-worth { order: 6; }
   .cvb-v2-score { order: 3; }
   .cvb-v2-score-bar { width: 110px; }
   .cvb-v2-applybtn { order: 4; padding: 9px 13px; }
