@@ -55,6 +55,7 @@ export function TailorWeave({
   // Interview state
   const [qIdx, setQIdx] = useState(0)
   const [draft, setDraft] = useState("")
+  const [picked, setPicked] = useState<Set<number>>(new Set())
   const [probe, setProbe] = useState<string | null>(null)
   const [answers, setAnswers] = useState<{ requirement: string; text: string }[]>([])
 
@@ -135,12 +136,25 @@ export function TailorWeave({
   ], [loomRoles])
 
   function advanceInterview() {
-    setDraft(""); setProbe(null)
+    setDraft(""); setProbe(null); setPicked(new Set())
     if (qIdx >= questions.length - 1) runWeave.mutate({ refresh: stale })
     else setQIdx(i => i + 1)
   }
+  // Multi-select: the picked options (any that fit) plus any free-text elaboration
+  // compose ONE grounded answer — Mentor weaves them together.
+  function composedAnswer(): string {
+    const cur = questions[qIdx]
+    const parts = cur
+      ? Array.from(picked).sort((a, b) => a - b)
+          .filter(i => cur.options[i])
+          .map(i => optionSentence(cur.options[i].kind, cur.options[i].label, cur.options[i].detail))
+      : []
+    const free = draft.trim()
+    if (free) parts.push(free)
+    return parts.join(" ")
+  }
   function submitAnswer() {
-    const text = draft.trim()
+    const text = composedAnswer()
     const q = questions[qIdx]
     if (!q || text.length < 12 || bankAnswer.isPending) return
     const final = probe != null
@@ -224,15 +238,24 @@ export function TailorWeave({
               <h2 className="tw-int-req">{q.requirement}</h2>
               {q.options.length > 0 && !probe && (
                 <div className="tw-opts">
-                  <p className="tw-opts-label">Myro found this in your history — was it one of these?</p>
+                  <p className="tw-opts-label">Pick any that fit — Myro weaves them together. Add your own below.</p>
                   {q.options.map((o, i) => (
                     <button
                       key={i} type="button" className="tw-opt"
-                      onClick={() => setDraft(optionSentence(o.kind, o.label, o.detail))}
+                      data-picked={picked.has(i)} aria-pressed={picked.has(i)}
+                      onClick={() => setPicked(prev => {
+                        const next = new Set(prev)
+                        if (next.has(i)) next.delete(i)
+                        else next.add(i)
+                        return next
+                      })}
                     >
-                      <span className="tw-opt-kind mono">{o.kind === "cv" ? "on your CV" : "your story"}</span>
-                      <span className="tw-opt-label">{o.label}</span>
-                      {o.detail && o.kind !== "cv" && <span className="tw-opt-detail">{o.detail}</span>}
+                      <span className="tw-opt-check" aria-hidden="true">{picked.has(i) ? "✓" : ""}</span>
+                      <span className="tw-opt-body">
+                        <span className="tw-opt-kind mono">{o.kind === "cv" ? "on your CV" : "your story"}</span>
+                        <span className="tw-opt-label">{o.label}</span>
+                        {o.detail && o.kind !== "cv" && <span className="tw-opt-detail">{o.detail}</span>}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -251,7 +274,7 @@ export function TailorWeave({
               <div className="tw-int-actions">
                 <button
                   type="button" className="tw-btn tw-btn-primary"
-                  disabled={draft.trim().length < 12 || bankAnswer.isPending}
+                  disabled={(picked.size === 0 && draft.trim().length < 12) || bankAnswer.isPending}
                   onClick={submitAnswer}
                 >
                   {bankAnswer.isPending ? <MentorThinking size={16} /> : null}
