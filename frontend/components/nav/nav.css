@@ -1,8 +1,8 @@
-/* Progressive-disclosure nav — slots, NEW pills, unlock coachmark, countdown
- * pill, beta badge. Page-scoped per ADR-0003. Token-faithful to the design
- * handoff (progressive-nav grill 2026-05-29). Animate transform only on
- * entrance (the README "motion gotcha"): opacity-keyframing the nav reveal
- * fights the topbar's own paint and flickers.
+/* Authed nav chrome — journey tabs, counts, chips, countdown pill, beta badge.
+ * Page-scoped per ADR-0003. Full map, day one (unified-structure 2026-07-16,
+ * lock #7): the progressive-unlock coachmark/scrim/NEW-pill styles are retired
+ * with their machinery. Animate transform only on entrance (the README "motion
+ * gotcha"): opacity-keyframing the nav reveal fights the topbar's own paint.
  */
 
 /* ── Brand: beta badge (wordmark dropped) ───────────────────────────── */
@@ -21,7 +21,7 @@
   border: 1px solid var(--tm-border-soft);
 }
 
-/* ── Nav slot wraps each item so its coachmark can anchor ────────────── */
+/* ── Nav slot wraps each tab ────────────────────────────────────────── */
 .tm-nav-slot {
   position: relative;
   display: inline-flex;
@@ -31,122 +31,6 @@
   from { transform: translateY(-5px) scale(0.94); }
   to   { transform: none; }
 }
-
-/* NEW pill replaces the numeric badge while an item is freshly unlocked. */
-.tm-nav-new {
-  margin-left: 5px;
-  padding: 1px 5px;
-  border-radius: var(--tm-radius-pill, 99px);
-  font-family: var(--tm-font-mono);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: var(--tm-accent-fg);
-  background: var(--tm-accent);
-}
-
-/* ── Coaching state: dim everything but the target ──────────────────── */
-.tm-app-topbar[data-coaching="true"] .tm-nav-slot:not(.tm-nav-slot--target) .tm-topbar-link {
-  opacity: 0.32;
-}
-.tm-app-topbar[data-coaching="true"] .tm-nav-slot--target .tm-topbar-link {
-  color: var(--tm-accent);
-  background: var(--tm-accent-wash);
-  border-color: var(--tm-accent-ring);
-}
-.tm-app-topbar[data-coaching="true"] .tm-topbar-right {
-  opacity: 0.38;
-  pointer-events: none;
-}
-
-/* ── Scrim behind the coachmark ─────────────────────────────────────── */
-.tm-nav-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 30;
-  background: var(--tm-scrim);
-  animation: tm-nav-fade 0.2s ease;
-}
-@keyframes tm-nav-fade { from { opacity: 0; } to { opacity: 1; } }
-
-/* ── Coachmark popover ──────────────────────────────────────────────── */
-.tm-coach {
-  position: absolute;
-  top: calc(100% + 14px);
-  width: 304px;
-  max-width: calc(100vw - 32px);
-  z-index: 60;
-  padding: 16px 17px 14px;
-  border-radius: var(--tm-radius-lg);
-  background: var(--tm-surface-2);
-  border: 1px solid var(--tm-accent-ring);
-  box-shadow: var(--tm-shadow-2);
-  animation: tm-coach-in 0.26s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.tm-coach--left { left: 0; }
-.tm-coach--right { right: 0; }
-@keyframes tm-coach-in {
-  from { transform: translateY(-6px); }
-  to   { transform: none; }
-}
-.tm-coach-caret {
-  position: absolute;
-  top: -6px;
-  width: 11px;
-  height: 11px;
-  transform: rotate(45deg);
-  background: var(--tm-surface-2);
-  border-left: 1px solid var(--tm-accent-ring);
-  border-top: 1px solid var(--tm-accent-ring);
-}
-.tm-coach--left .tm-coach-caret { left: 26px; }
-.tm-coach--right .tm-coach-caret { right: 26px; }
-
-.tm-coach-tag {
-  font-family: var(--tm-font-mono);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--tm-accent);
-}
-.tm-coach-title {
-  margin-top: 7px;
-  font-family: var(--tm-font-display);
-  font-size: 19px;
-  letter-spacing: 0;
-  font-weight: 600;
-  color: var(--tm-text);
-}
-.tm-coach-body {
-  margin-top: 7px;
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--tm-text-muted);
-}
-.tm-coach-foot {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  margin-top: 14px;
-}
-.tm-coach-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 30px;
-  padding: 0 13px;
-  border-radius: var(--tm-button-radius);
-  border: none;
-  background: var(--tm-accent);
-  color: var(--tm-accent-fg);
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: filter var(--tm-dur-fast) var(--tm-ease);
-}
-.tm-coach-btn:active { filter: brightness(0.92); }
 
 /* ── CV-promise countdown pill (first-run only) ─────────────────────── */
 .tm-cv-promise {
@@ -208,7 +92,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tm-nav-slot, .tm-coach, .tm-nav-scrim { animation: none; }
+  .tm-nav-slot { animation: none; }
   .tm-cv-promise-pulse { animation: none; }
   .tm-nav-live-dot { animation: none; }
 }

@@ -405,10 +405,12 @@ async def jd_coverage_for_job(
     body: JDCoverageRequest,
     user: CurrentUser = Depends(get_current_user),
     jobs_repo: JobsRepository = Depends(get_token_jobs_repository),
+    cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
 ) -> JDCoverageResponse:
     """"What this job wants" — LLM-parse the JD's real requirements, classify each
-    against the user's career stories: covered / weak / gap. The panel that drives
-    the tailoring interview AND the Preparations room. Cached per (user, job) in
+    against the user's career stories AND the CV's own lines (a line already on
+    the CV must never read "Missing"). The panel that drives the tailoring
+    interview AND the Preparations room. Cached per (user, job) in
     job_deepenings — stable requirements between visits; `refresh` recomputes."""
     rows = jobs_repo.get_jobs_by_ids([body.job_id])
     if not rows:
@@ -436,9 +438,13 @@ async def jd_coverage_for_job(
             return _respond(result, cached=True, computed_at=computed_at)
 
     jd_text = rows[0].get("job_description") or ""
+    baseline = cv_repo.latest_baseline(user.id)
     # Blocking panel → paid-first strong lane; free-tier 429 storms were blanking
     # the coverage panel (2026-07-16, Sanofi/mit20). Cached once per (user, job).
-    result = await jd_coverage.assess(user.id, jd_text, get_blocking_judgment_provider())
+    result = await jd_coverage.assess(
+        user.id, jd_text, get_blocking_judgment_provider(),
+        cv_bullets=jd_coverage.bullets_from_cv((baseline or {}).get("cv_structured") or {}),
+    )
     # Never cache an empty parse — it usually means a provider failure (fail-soft
     # []), and freezing that would blank the panel forever.
     if result.requirements:
@@ -464,6 +470,7 @@ async def jd_coverage_answer(
     body: GapAnswerRequest,
     user: CurrentUser = Depends(get_current_user),
     dump_repo: CvDumpRepository = Depends(get_cv_dump_repository),
+    jobs_repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> GapAnswerResponse:
     """The mentor asked ONE question about a gap; the user's answer flows through
     the dump pipeline into a NEW career story — immediately reusable for this CV
@@ -481,4 +488,14 @@ async def jd_coverage_answer(
     if not entry_id:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Could not save your answer.")
     career_reservoir.enqueue_ingest(user.id, entry_id)
+    # Flip the cached coverage row to covered NOW (deterministic, no LLM) so the
+    # panel — and any later weave interview — never re-asks an answered question.
+    # The next refresh recompute replaces the patch with the ingested story.
+    if body.job_id and requirement:
+        patched = jd_coverage.patch_requirement_answered(
+            jobs_repo.get_deepening(user.id, body.job_id, jd_coverage.CACHE_PROMPT_KEY),
+            requirement, answer,
+        )
+        if patched:
+            jobs_repo.upsert_deepening(user.id, body.job_id, jd_coverage.CACHE_PROMPT_KEY, patched)
     return GapAnswerResponse(entry_id=entry_id)

@@ -551,3 +551,71 @@ def test_router_apply_fingerprint_gate(monkeypatch):
         assert spec.cv_structured["experience"][1]["bullets"] == CV["experience"][1]["bullets"]
     finally:
         app.dependency_overrides.clear()
+
+
+# ── S3: answered-ask cache patch (no re-asking answered questions) ─────────────
+
+def test_patch_requirement_answered_flips_gap_to_covered():
+    raw = jd_coverage.result_to_payload(jd_coverage.CoverageResult(
+        requirements=[
+            CoverageItem(requirement="Own India territory", status="gap"),
+            CoverageItem(requirement="Sell platforms", status="covered", story_id="s1"),
+        ],
+        covered=1, weak=0, gap=1,
+    ))
+    patched = jd_coverage.patch_requirement_answered(raw, "own india territory", "I ran the north region for 2 years")
+    assert patched is not None
+    hit = jd_coverage.payload_to_result(patched)
+    assert hit is not None
+    result, _ = hit
+    row = next(r for r in result.requirements if r.requirement == "Own India territory")
+    assert row.status == "covered"
+    assert row.story_title == "Your answer"
+    assert row.story_pointer.startswith("I ran the north region")
+    assert (result.covered, result.gap) == (2, 0)
+
+
+def test_patch_requirement_answered_none_on_miss_or_garbage():
+    assert jd_coverage.patch_requirement_answered(None, "x", "y") is None
+    assert jd_coverage.patch_requirement_answered("not json", "x", "y") is None
+    raw = jd_coverage.result_to_payload(jd_coverage.CoverageResult(
+        requirements=[CoverageItem(requirement="A", status="covered", story_id="s1")],
+        covered=1, weak=0, gap=0,
+    ))
+    # already covered → nothing to patch
+    assert jd_coverage.patch_requirement_answered(raw, "A", "answer") is None
+    # unknown requirement → leave cache alone
+    assert jd_coverage.patch_requirement_answered(raw, "B", "answer") is None
+
+
+def test_router_answer_patches_coverage_cache(monkeypatch):
+    from app.main import app
+
+    from app.repositories.cv_dump import get_cv_dump_repository
+    from app.routers.cv import weave as weave_router
+
+    class _DumpRepo:
+        def add(self, _u, text, source, kind, payload):
+            return {"id": "e1"}
+
+    monkeypatch.setattr(weave_router.career_reservoir, "enqueue_ingest", lambda u, e: None)
+    jobs_repo, cv_repo, charges = _JobsRepo(), _CVRepo(), []
+    jobs_repo.deepenings[jd_coverage.CACHE_PROMPT_KEY] = jd_coverage.result_to_payload(
+        jd_coverage.CoverageResult(
+            requirements=[CoverageItem(requirement="Own India territory", status="gap")],
+            covered=0, weak=0, gap=1,
+        )
+    )
+    client = _client(monkeypatch, jobs_repo, cv_repo, charges)
+    app.dependency_overrides[get_cv_dump_repository] = lambda: _DumpRepo()
+    try:
+        r = client.post("/cv/weave/answer", json={
+            "requirement": "Own India territory",
+            "answer": "I ran the north region for 2 years across 12 cities.",
+            "job_id": "j1",
+        })
+        assert r.status_code == 200 and r.json()["entry_id"] == "e1"
+        hit = jd_coverage.payload_to_result(jobs_repo.deepenings[jd_coverage.CACHE_PROMPT_KEY])
+        assert hit is not None and hit[0].requirements[0].status == "covered"
+    finally:
+        app.dependency_overrides.clear()

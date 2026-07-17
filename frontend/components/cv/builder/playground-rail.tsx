@@ -1,9 +1,9 @@
 /**
  * PlaygroundRail — CV Playground v2 right rail: Fixes / Job fit tab bar + the
  * active pane. The Job-fit tab is the Lane C coverage map (what this job wants,
- * matched against the user's stories); it opens the Mentor walk. Preview lives
- * in the main editor pane (playground-view), not here. Pure composition — all
- * state and data stay in the view.
+ * matched against the user's stories + CV); it opens Tailor with Mentor.
+ * Preview lives in the main editor pane (playground-view), not here. Pure
+ * composition — all state and data stay in the view.
  */
 "use client"
 
@@ -34,7 +34,7 @@ interface PlaygroundRailProps {
   onDismissFix: (fix: V2Fix) => void
   onRestoreFix: (fix: V2Fix) => void
   onOpenIntake: (seed?: string) => void
-  onOpenWalk: (atIndex?: number) => void
+  onOpenWeave: () => void
   onRetryCoverage: () => void
 }
 
@@ -42,7 +42,7 @@ export function PlaygroundRail({
   token, tab, fixes, dismissedFixes, applied, expandedId, applying,
   fixCountLabel, coverage, coverageLoading, coverageError, onTab, onGoPreview,
   onExpand, onJump, onApplyFix, onDismissFix, onRestoreFix, onOpenIntake,
-  onOpenWalk, onRetryCoverage,
+  onOpenWeave, onRetryCoverage,
 }: PlaygroundRailProps) {
   const fitLabel = coverage ? `${coverage.covered}/${coverage.requirements.length}` : "·"
   return (
@@ -83,7 +83,7 @@ export function PlaygroundRail({
             coverage={coverage}
             loading={coverageLoading}
             error={coverageError}
-            onOpenWalk={onOpenWalk}
+            onOpenWeave={onOpenWeave}
             onRetry={onRetryCoverage}
           />
         )}

@@ -24,9 +24,9 @@ import type { CVStructured, UserProfile } from "@/lib/api"
 import { jobs as jobsApi, cv as cvApi } from "@/lib/api"
 import { CVEditor } from "./cv-editor"
 import { ExperienceIntake } from "./experience-intake"
-import { MentorWalk, MentorWalkLoading } from "./mentor-walk"
+import { TailorWeave } from "./tailor-weave"
 import { PlaygroundRail } from "./playground-rail"
-import "./mentor-walk.css"
+import "./tailor-weave.css"
 import { PreviewRail } from "./preview-rail"
 import { PlaygroundBottomNav } from "./playground-bottomnav"
 import { ApplyModal } from "./apply-modal"
@@ -82,7 +82,7 @@ export function PlaygroundView({
   const [flash, setFlash] = useState<{ iid: string; n: number } | null>(null)
   const [intakeSeed, setIntakeSeed] = useState<string | null>(null)
   const [intakeOpen, setIntakeOpen] = useState(false)
-  const [walkOpen, setWalkOpen] = useState(false)
+  const [weaveOpen, setWeaveOpen] = useState(false)
   const [jdOpen, setJdOpen] = useState(false)
   const [applyOpen, setApplyOpen] = useState(false)
   const [appliedDone, setAppliedDone] = useState(false)
@@ -101,17 +101,10 @@ export function PlaygroundView({
   const { dismissed, dismiss, restore } = useDismissedFixes(`job:${jobId}`)
 
   // Lane C — "What this job wants": the JD's real requirements classified against
-  // the user's career stories (covered / partial / missing). Owned by the model
-  // (it's the semantic 70% of the Match score); the rail map and the Mentor walk
-  // read the same query object.
-  const [walkStart, setWalkStart] = useState<number | undefined>(undefined)
+  // the user's career stories + CV lines (covered / partial / missing). Owned by
+  // the model (it's the semantic 70% of the Match score); the rail map reads it,
+  // and Tailor with Mentor grounds its interview on the same panel server-side.
   const coverageQuery = m.coverageQuery
-  function openWalk(atIndex?: number) { setWalkStart(atIndex); setWalkOpen(true) }
-  // A gap answer banks a reusable career story via the dump pipeline (async
-  // ingest); the walk also drafts an immediate bullet, so this is fire-and-forget.
-  function bankAnswer(requirement: string, answer: string) {
-    void cvApi.career.jdCoverageAnswer(token, requirement, answer, jobId).catch(() => {})
-  }
 
   // Full PdfPageContact for the canonical artifact (the model's sheetContact is
   // the compact V2Sheet shape; the exported sheet needs the full contact line).
@@ -334,8 +327,9 @@ export function PlaygroundView({
                 Job Description
               </button>
             )}
-            <button type="button" className="cvb-v2-intakebtn" onClick={() => openWalk()}>
-              <Icon name="sparkle" size={13} /> Fix your CV with Mentor
+            <button type="button" className="tw-cta" onClick={() => setWeaveOpen(true)}>
+              <Icon name="sparkle" size={13} /> Tailor with Mentor
+              <span className="tw-cta-cost">50</span>
             </button>
           </div>
           <div className="cvb-v2-editorbody">
@@ -400,7 +394,7 @@ export function PlaygroundView({
           onDismissFix={dismissFix}
           onRestoreFix={f => restore(f.id)}
           onOpenIntake={openIntake}
-          onOpenWalk={openWalk}
+          onOpenWeave={() => setWeaveOpen(true)}
           onRetryCoverage={() => void coverageQuery.refetch()}
         />
       </div>
@@ -440,24 +434,23 @@ export function PlaygroundView({
         />
       )}
 
-      {walkOpen && (coverageQuery.data ? (
-        <MentorWalk
+      {weaveOpen && (
+        <TailorWeave
           token={token}
-          coverage={coverageQuery.data}
-          initialStep={walkStart}
-          jdText={m.jdText}
-          roles={m.roles}
-          onAddBullet={(roleIndex, text) => addBullet.mutateAsync({ roleIndex, text }).then(() => {})}
-          onBankAnswer={bankAnswer}
-          onClose={() => setWalkOpen(false)}
+          jobId={jobId}
+          company={m.company}
+          jobTitle={m.jobTitle}
+          loomRoles={cv.experience.map(e => e.company || e.role).filter(Boolean)}
+          onApplied={versionId => {
+            // The tailored version is the artifact (L3): select it so the
+            // playground edits AGAINST it, and refresh the version ledger.
+            playground.selectVersion(versionId)
+            queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
+            queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
+          }}
+          onClose={() => setWeaveOpen(false)}
         />
-      ) : (
-        <MentorWalkLoading
-          error={coverageQuery.isError}
-          onRetry={() => void coverageQuery.refetch()}
-          onClose={() => setWalkOpen(false)}
-        />
-      ))}
+      )}
 
       {applyOpen && (
         <ApplyModal
