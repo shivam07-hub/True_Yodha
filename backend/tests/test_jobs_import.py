@@ -127,3 +127,66 @@ def test_import_job_calls_service_and_returns_application(monkeypatch) -> None:
 
     assert response.status_code == 200
     assert response.json()["job_id"] == "ext_abc"
+
+
+def _override_auth_and_repo(repo: object) -> None:
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+
+
+def test_update_imported_details_rejects_scraped_job() -> None:
+    _override_auth_and_repo(_FakeJobsRepository())
+    try:
+        with TestClient(app) as client:
+            r = client.patch("/jobs/applications/job_scraped_1/imported-details",
+                             json={"title": "Sales Manager"})
+    finally:
+        app.dependency_overrides.clear()
+    assert r.status_code == 422  # only ext_ imports are editable
+
+
+def test_update_imported_details_rejects_invalid_title() -> None:
+    _override_auth_and_repo(_FakeJobsRepository())
+    try:
+        with TestClient(app) as client:
+            r = client.patch("/jobs/applications/ext_abc/imported-details",
+                             json={"title": "https://x.com/job"})
+    finally:
+        app.dependency_overrides.clear()
+    assert r.status_code == 422
+
+
+def test_update_imported_details_404_when_not_owned() -> None:
+    repo = _FakeJobsRepository()
+    repo.update_imported_job_details = lambda user_id, job_id, *, title, company: None
+    _override_auth_and_repo(repo)
+    try:
+        with TestClient(app) as client:
+            r = client.patch("/jobs/applications/ext_abc/imported-details",
+                             json={"title": "Sales Manager"})
+    finally:
+        app.dependency_overrides.clear()
+    assert r.status_code == 404
+
+
+def test_update_imported_details_success() -> None:
+    repo = _FakeJobsRepository()
+    seen: dict = {}
+
+    def _update(user_id, job_id, *, title, company):
+        seen.update(user_id=user_id, job_id=job_id, title=title, company=company)
+        return {"job_title": title or "Old", "company_name": company or "MOPID"}
+
+    repo.update_imported_job_details = _update
+    _override_auth_and_repo(repo)
+    try:
+        with TestClient(app) as client:
+            r = client.patch("/jobs/applications/ext_abc/imported-details",
+                             json={"title": "Enterprise Sales Manager", "company": "MOPID"})
+    finally:
+        app.dependency_overrides.clear()
+    assert r.status_code == 200
+    body = r.json()
+    assert body["job_title"] == "Enterprise Sales Manager"
+    assert body["company"] == "MOPID"
+    assert seen["job_id"] == "ext_abc" and seen["user_id"] == "u1"

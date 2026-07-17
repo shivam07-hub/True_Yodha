@@ -44,6 +44,48 @@ _JOB_ID_RE = re.compile(r"^(job|req|requisition|posting)\s*(id|#|number)?\b", re
 _NUMERIC_RE = re.compile(r"^[\d\s.,#:/-]+$")
 _URL_RE = re.compile(r"^https?://", re.I)
 
+# A genuine job title almost always carries a role noun. When one is present the
+# title is trusted as-is; only titles WITHOUT one can be flagged as taglines.
+_ROLE_NOUNS = {
+    "manager", "engineer", "developer", "analyst", "lead", "director", "officer",
+    "specialist", "consultant", "designer", "associate", "executive", "head",
+    "intern", "coordinator", "architect", "scientist", "representative", "agent",
+    "administrator", "technician", "strategist", "vp", "president", "founder",
+    "recruiter", "marketer", "accountant", "nurse", "teacher", "assistant",
+    "supervisor", "advisor", "adviser", "partner", "principal", "fellow",
+    "apprentice", "trainee", "clerk", "operator", "planner", "controller",
+    "auditor", "counsel", "attorney", "paralegal", "writer", "editor",
+    "producer", "chef", "cook", "driver", "pilot", "electrician", "plumber",
+    "mechanic", "technologist", "practitioner", "therapist", "pharmacist",
+    "physician", "surgeon", "dentist", "teller", "cashier", "salesperson",
+    "seller", "buyer", "broker", "trader", "underwriter", "actuary",
+    "statistician", "researcher", "instructor", "professor", "tutor", "coach",
+    "chief", "evangelist", "advocate", "ambassador", "liaison", "generalist",
+    "bdr", "sdr", "ae", "cto", "ceo", "cfo", "coo", "cmo", "cio", "hacker",
+}
+# Marketing-page headlines/CTAs start with an imperative verb. A "title" that
+# opens with one and carries no role noun is a product tagline, not a role
+# ("Accelerate Your Hiring Process" — MOPID's OG title leaked in as the role).
+_MARKETING_VERBS = {
+    "accelerate", "boost", "hire", "find", "discover", "unlock", "transform",
+    "grow", "scale", "simplify", "streamline", "empower", "get", "join", "meet",
+    "welcome", "introducing", "start", "create", "power", "supercharge",
+    "elevate", "drive", "achieve", "reach", "build", "launch", "explore",
+    "try", "book", "learn", "see", "make",
+}
+
+
+def _is_tagline_role(value: Any) -> bool:
+    """True when a *valid-looking* role reads like a marketing tagline rather
+    than a job title — an OG/page-title headline that slipped past ``is_valid_role``.
+    Conservative: any role carrying a real role noun is never a tagline."""
+    words = re.findall(r"[a-z]+", _clean(value).lower())
+    if not words or any(w in _ROLE_NOUNS for w in words):
+        return False
+    if "your" in words or "you" in words:  # taglines address the reader
+        return True
+    return words[0] in _MARKETING_VERBS  # imperative headline
+
 
 def _clean(value: Any) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()
@@ -98,11 +140,15 @@ async def backfill_fields(
     company = _clean(company_name) if is_valid_company(company_name) else ""
     loc = _clean(location) if is_valid_location(location) else ""
 
-    # Cheap structured fill before any LLM.
-    if not role:
+    # A role that passed is_valid_role but reads like a page tagline is treated
+    # as unresolved — re-derived from JSON-LD, then the JD, before being trusted.
+    role_suspicious = bool(role) and _is_tagline_role(role)
+
+    # Cheap structured fill/repair before any LLM.
+    if not role or role_suspicious:
         cand = _json_ld_field(json_ld, "roleName")
-        if is_valid_role(cand):
-            role = cand
+        if is_valid_role(cand) and not _is_tagline_role(cand):
+            role, role_suspicious = cand, False
     if not company:
         cand = _json_ld_field(json_ld, "companyName")
         if is_valid_company(cand):
@@ -113,14 +159,16 @@ async def backfill_fields(
             loc = cand
 
     missing = (not role) or (not company) or (not loc)
-    if (needs_backstop or missing) and len(job_description.strip()) >= 80:
+    if (needs_backstop or missing or role_suspicious) and len(job_description.strip()) >= 80:
         try:
             parsed = await extract_job_from_text(job_description, get_llm_provider())
         except JobFileParseError as exc:
             logger.warning("metric import.backstop_failed reason=llm error=%s", exc)
         else:
-            if not role and is_valid_role(parsed.get("role")):
-                role = _clean(parsed["role"])
+            cand = _clean(parsed.get("role"))
+            # Fill an empty role, or swap a tagline for a real (non-tagline) one.
+            if is_valid_role(cand) and (not role or (role_suspicious and not _is_tagline_role(cand))):
+                role = cand
             if not company and is_valid_company(parsed.get("company")):
                 company = _clean(parsed["company"])
             if not loc and is_valid_location(parsed.get("location")):

@@ -32,6 +32,37 @@
   font: 600 13px var(--tm-font-sans); color: var(--tm-text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
 }
+/* Editable job line (imported jobs): the label doubles as an edit trigger, with
+   the pencil disclosing on hover — the parser sometimes reads a page tagline as
+   the role, so the user can correct it in place. */
+.cvb-v2-jobline--edit {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+  border: 0; background: none; cursor: pointer; text-align: left;
+  padding: 2px 6px; margin: -2px -6px; border-radius: 6px;
+  transition: background var(--tm-dur-fast) var(--tm-ease);
+}
+.cvb-v2-jobline--edit :global(svg) { flex: none; color: var(--tm-text-faint); opacity: 0; transition: opacity var(--tm-dur-fast) var(--tm-ease); }
+.cvb-v2-jobline--edit:hover { background: var(--tm-surface-2); }
+.cvb-v2-jobline--edit:hover :global(svg), .cvb-v2-jobline--edit:focus-visible :global(svg) { opacity: 1; }
+.cvb-v2-jobedit { display: inline-flex; align-items: center; gap: 6px; min-width: 0; flex: 1; }
+.cvb-v2-jobinput {
+  font: 600 13px var(--tm-font-sans); color: var(--tm-text);
+  background: var(--tm-surface); border: 1px solid var(--tm-int-border);
+  border-radius: 6px; padding: 4px 8px; min-width: 0; width: 100%;
+}
+.cvb-v2-jobinput:focus { outline: none; border-color: var(--tm-interactive); }
+.cvb-v2-jobsave {
+  flex: none; font: 600 12px var(--tm-font-sans); cursor: pointer;
+  color: var(--tm-interactive-fg); background: var(--tm-interactive);
+  border: 1px solid var(--tm-interactive); border-radius: 6px; padding: 4px 12px;
+}
+.cvb-v2-jobsave:disabled { opacity: 0.5; cursor: default; }
+.cvb-v2-jobcancel {
+  flex: none; display: inline-flex; cursor: pointer; color: var(--tm-text-muted);
+  background: none; border: 0; padding: 4px;
+}
+.cvb-v2-jobcancel:hover { color: var(--tm-text); }
+
 .cvb-v2-reqpill {
   flex: none; border: 1px solid var(--tm-border); background: var(--tm-surface-2);
   color: var(--tm-text-muted); font: 500 11px var(--tm-font-mono);
@@ -194,8 +225,8 @@
 .cvb-v2 .cvb-pgc-row { border: 1px solid transparent; }
 .cvb-v2 .cvb-pgc-row:hover { border-color: var(--tm-border-soft); }
 
-.cvb-v2-textrow { display: flex; align-items: flex-start; gap: 8px; }
-.cvb-v2-textrow > .cvb-pgc-text { flex: 1; min-width: 0; }
+.cvb-v2-metarow { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.cvb-v2-metarow > .cvb-pgc-detailtoggle { margin-top: 0; }
 .cvb-v2-bulletpill {
   flex: none; border: 1px solid var(--tm-warning-border); background: var(--tm-warning-wash);
   color: var(--tm-warning-text, var(--tm-warning)); font-size: 10.5px; font-weight: 600;

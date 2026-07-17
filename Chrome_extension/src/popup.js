@@ -21,6 +21,7 @@ const elements = {
   retryButton: document.querySelector("#retry-button"),
   saveButton: document.querySelector("#save-button"),
   reachButton: document.querySelector("#reach-button"),
+  reviewButton: document.querySelector("#review-button"),
   reachLead: document.querySelector("#reach-lead"),
   reachAlternates: document.querySelector("#reach-alternates"),
   reachMyroLink: document.querySelector("#reach-myro-link"),
@@ -275,6 +276,21 @@ async function saveCurrentJob() {
   }
 }
 
+// Saved-view → reopen the editable review card so the user can SEE and fix what
+// was captured (the parser occasionally reads a page tagline as the role). On a
+// fresh save the captured fields are still in state; on a return visit (tracked-
+// if-known, state is empty) re-read the page. Re-saving keeps the same job_id
+// (it's hashed from the source URL), so the correction updates the same row.
+async function reviewCapturedDetails() {
+  if (state.jobDescription && state.roleName) {
+    syncFieldsFromState()
+    setStatus("Review")
+    setView("review")
+    return
+  }
+  await trackCurrentJob()
+}
+
 // "Raise your fit in Myro →" — the user's intent is "take this job into Myro and
 // work on it", so it must SAVE first (a bare link would drop the job on the
 // floor), then open the job's Tailor-CV workspace deep-linked.
@@ -497,6 +513,7 @@ async function init() {
   elements.retryButton.addEventListener("click", () => setView("ready"))
   elements.saveButton.addEventListener("click", saveCurrentJob)
   elements.reachButton?.addEventListener("click", findPeopleToReach)
+  elements.reviewButton?.addEventListener("click", reviewCapturedDetails)
   elements.reachBackButton?.addEventListener("click", () => setView("saved"))
   elements.extractSkillsButton.addEventListener("click", extractSkillsFromReview)
   elements.settingsLinks.forEach((link) => link.addEventListener("click", openSettings))

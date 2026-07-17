@@ -20,7 +20,7 @@ from app.services.job_listing_verifier import verify_listing
 log = logging.getLogger(__name__)
 
 
-async def run() -> None:
+async def _sweep() -> None:
     limit = max(1, min(int(os.getenv("JOB_VERIFY_LIMIT", "200")), 1000))
     concurrency = max(1, min(int(os.getenv("JOB_VERIFY_CONCURRENCY", "10")), 30))
     repo = ListingVerificationRepository(get_supabase_admin())
@@ -46,6 +46,17 @@ async def run() -> None:
         "metric job_verifier.sweep targets=%d results=%s retired=%d",
         len(targets), counts, retired,
     )
+
+
+async def run() -> None:
+    # Best-effort cron sweep: a terminal failure (e.g. a real Supabase outage
+    # outlasting the in-repo transient retries) must NOT crash-loop the service.
+    # Log a loud metric — the alert hook — and exit cleanly; the next scheduled
+    # tick retries against fresh upstream state.
+    try:
+        await _sweep()
+    except Exception:  # noqa: BLE001 — terminal fallback for a best-effort sweep
+        log.exception("metric job_verifier.sweep_failed")
 
 
 if __name__ == "__main__":

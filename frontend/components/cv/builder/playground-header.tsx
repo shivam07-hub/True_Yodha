@@ -80,17 +80,34 @@ interface PlaygroundHeaderProps {
   brandLabel?: string
   /** Score caption override (default per variant). */
   scoreCaption?: string
+  /** When set (imported jobs only), the job line becomes editable — the parser
+   *  occasionally reads a page tagline as the role. Resolves once persisted. */
+  onSaveJobMeta?: (v: { title: string; company: string }) => Promise<void>
 }
 
 export function PlaygroundHeader({
   jobTitle, company, reqCount, ready, delta, canApply, applyHint, saveState,
   onBack, onReqPill, onApply, onDownload,
   variant = "job", masterMeta, onMeta, primaryLabel = "Apply with this CV", hideOverflow,
-  brandLabel, scoreCaption,
+  brandLabel, scoreCaption, onSaveJobMeta,
 }: PlaygroundHeaderProps) {
   const shown = useCountUp(ready)
   const [menuOpen, setMenuOpen] = useState(false)
   const isMaster = variant === "master"
+  const knownCompany = company !== "Untitled company" ? company : ""
+  const [editing, setEditing] = useState(false)
+  const [titleDraft, setTitleDraft] = useState(jobTitle)
+  const [companyDraft, setCompanyDraft] = useState(knownCompany)
+  const [savingMeta, setSavingMeta] = useState(false)
+
+  const openEdit = () => { setTitleDraft(jobTitle); setCompanyDraft(knownCompany); setEditing(true) }
+  const saveMeta = async () => {
+    const title = titleDraft.trim()
+    if (!title || !onSaveJobMeta) return
+    setSavingMeta(true)
+    try { await onSaveJobMeta({ title, company: companyDraft.trim() }); setEditing(false) }
+    finally { setSavingMeta(false) }
+  }
 
   return (
     <header className="cvb-v2-head">
@@ -105,9 +122,33 @@ export function PlaygroundHeader({
           : <span className="cvb-v2-jobline mono" title={masterMeta}>{masterMeta}</span>)
       ) : (
         <>
-          <span className="cvb-v2-jobline" title={`${jobTitle} · ${company}`}>
-            {jobTitle}{company !== "Untitled company" ? ` · ${company}` : ""}
-          </span>
+          {editing ? (
+            <span className="cvb-v2-jobedit">
+              <input className="cvb-v2-jobinput" value={titleDraft} placeholder="Role title"
+                aria-label="Role title" autoFocus
+                onChange={e => setTitleDraft(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") void saveMeta(); if (e.key === "Escape") setEditing(false) }} />
+              <input className="cvb-v2-jobinput" value={companyDraft} placeholder="Company"
+                aria-label="Company"
+                onChange={e => setCompanyDraft(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") void saveMeta(); if (e.key === "Escape") setEditing(false) }} />
+              <button type="button" className="cvb-v2-jobsave" onClick={() => void saveMeta()}
+                disabled={savingMeta || !titleDraft.trim()}>{savingMeta ? "Saving…" : "Save"}</button>
+              <button type="button" className="cvb-v2-jobcancel" onClick={() => setEditing(false)} aria-label="Cancel">
+                <Icon name="x" size={12} />
+              </button>
+            </span>
+          ) : onSaveJobMeta ? (
+            <button type="button" className="cvb-v2-jobline cvb-v2-jobline--edit"
+              onClick={openEdit} title="Edit role & company">
+              {jobTitle}{knownCompany ? ` · ${knownCompany}` : ""}
+              <Icon name="edit" size={11} />
+            </button>
+          ) : (
+            <span className="cvb-v2-jobline" title={`${jobTitle} · ${company}`}>
+              {jobTitle}{knownCompany ? ` · ${knownCompany}` : ""}
+            </span>
+          )}
           {reqCount > 0 && (
             <button type="button" className="cvb-v2-reqpill mono" onClick={onReqPill}>
               {reqCount} requirements extracted →
