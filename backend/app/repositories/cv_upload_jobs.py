@@ -14,6 +14,7 @@ from typing import Any
 from supabase import Client
 
 from app.database import get_supabase_admin
+from app.repositories.notifications import NotificationsRepository
 
 _log = logging.getLogger(__name__)
 
@@ -47,6 +48,17 @@ def create_processing_job(
     if not job_id:
         raise RuntimeError("cv_upload_jobs insert returned no id")
     return str(job_id)
+
+
+def record_notification_started(job_id: str, user_id: str) -> None:
+    """Project an accepted, funded baseline analysis into the inbox."""
+    try:
+        admin = get_supabase_admin()
+        NotificationsRepository(admin, admin).record_cv_analysis_started(
+            user_id, source_id=job_id
+        )
+    except Exception as exc:  # notification projection must not block upload
+        _log.warning("CV job %s notification start failed: %s", job_id, exc)
 
 
 def find_by_idempotency_key(user_id: str, idempotency_key: str) -> dict[str, Any] | None:
@@ -91,6 +103,11 @@ def set_phase(job_id: str, phase: str) -> None:
         admin.table(_TABLE).update({"current_phase": phase}).eq("id", job_id).execute()
     except Exception as exc:  # pragma: no cover — telemetry only, never fatal
         _log.warning("set_phase(%s, %s) failed: %s", job_id, phase, exc)
+        return
+    try:
+        NotificationsRepository(admin, admin).update_cv_analysis_phase(job_id, phase)
+    except Exception as exc:  # notification projection has separate observability
+        _log.warning("CV job %s phase notification failed: %s", job_id, exc)
 
 
 def mark_done(
@@ -114,6 +131,12 @@ def mark_done(
     if baseline_version_id is not None:
         payload["baseline_version_id"] = baseline_version_id
     admin.table(_TABLE).update(payload).eq("id", job_id).execute()
+    try:
+        NotificationsRepository(admin, admin).record_cv_analysis_done(
+            job_id, skills_detected=skills_detected, score=score
+        )
+    except Exception as exc:  # notification projection must not change job truth
+        _log.warning("CV job %s ready notification failed: %s", job_id, exc)
 
 
 def mark_failed(
@@ -132,6 +155,12 @@ def mark_failed(
         "xp_refunded": refunded,
         "finished_at": datetime.now(timezone.utc).isoformat(),
     }).eq("id", job_id).execute()
+    try:
+        NotificationsRepository(admin, admin).record_cv_analysis_failed(
+            job_id, refunded=refunded
+        )
+    except Exception as exc:  # notification projection must not change job truth
+        _log.warning("CV job %s failure notification failed: %s", job_id, exc)
 
 
 def fetch_status_for_owner(job_id: str, user_id: str, db: Client | None = None) -> dict[str, Any] | None:

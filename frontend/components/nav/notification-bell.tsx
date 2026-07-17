@@ -9,13 +9,7 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { formatRelativeAge } from "@/lib/format"
 import "./notification-bell.css"
 
-/* ══════════════════════════════════════════════════════════════════════════
-   Notification bell (Backlog #36 Slice 2). The ping CARRIES the match: every
-   row is a real fresh-match line (company · role + count), so opening the bell
-   is the reward, not a "go check" nudge (N1, Kunal lens). Badge is neutral —
-   this app already rejects alarmist-red nav badges. Fits the existing account-
-   menu chrome; no new visual identity.
-   ══════════════════════════════════════════════════════════════════════════ */
+/* One inbox for durable product events: fresh matches and CV analysis. */
 
 const UNREAD_POLL_MS = 60_000
 
@@ -58,9 +52,14 @@ export function NotificationBell() {
 
   const onRowClick = (n: NotificationItem) => {
     setOpen(false)
-    // The ping is a shortcut to the match — land where they can act on it.
+    if (n.action_url) {
+      router.push(n.action_url)
+      return
+    }
     if (n.kind === "fresh_matches") {
       router.push(n.job_id ? `/collections?jobId=${encodeURIComponent(n.job_id)}` : "/market")
+    } else if (n.kind === "cv_analysis") {
+      router.push("/cv")
     }
   }
 
@@ -92,7 +91,7 @@ export function NotificationBell() {
             ) : items.length === 0 ? (
               <div className="tm-bell-empty">
                 <span className="tm-bell-empty-title">You’re all caught up</span>
-                <span className="tm-bell-empty-sub">We’ll ping you the moment fresh roles match your profile.</span>
+                <span className="tm-bell-empty-sub">CV results and fresh job matches will appear here.</span>
               </div>
             ) : (
               <ul className="tm-bell-list">
@@ -109,6 +108,9 @@ export function NotificationBell() {
                         <span className="tm-bell-rowbody">
                           <span className="tm-bell-rowtitle">{n.title}</span>
                           {n.body && <span className="tm-bell-rowmatch">{n.body}</span>}
+                          {n.kind === "cv_analysis" && n.state === "processing" && (
+                            <span className="tm-bell-rowstate">In progress</span>
+                          )}
                           <span className="tm-bell-rowtime">{relTime(n.created_at)}</span>
                         </span>
                         <span className="tm-bell-go" aria-hidden>→</span>

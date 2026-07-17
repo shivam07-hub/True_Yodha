@@ -1,3 +1,5 @@
+import { announceCVUploadJob } from "./cv-upload-events"
+
 const CV_UPLOAD_JOB_KEY = "myro_cv_upload_job_v1"
 const CV_UPLOAD_IDEM_KEY = "myro_cv_upload_idem_v1"
 
@@ -10,6 +12,7 @@ export function createCVUploadIdempotencyKey(): string {
 
 export function persistCVUploadJob(jobId: string): void {
   try { localStorage.setItem(CV_UPLOAD_JOB_KEY, jobId) } catch { /* private mode */ }
+  announceCVUploadJob(jobId)
 }
 
 export function readCVUploadJob(): string | null {

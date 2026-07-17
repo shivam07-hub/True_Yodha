@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 
 from app.deps import CurrentUser, get_current_user
 from app.main import app
+from app.repositories import cv_upload_jobs
 from app.repositories.notifications import NotificationsRepository, get_notifications_repository
 from app.services.matching import match_run
 
@@ -51,10 +52,12 @@ def test_unread_count_endpoint() -> None:
 
 def test_list_returns_items_and_derived_unread() -> None:
     repo = _FakeNotifRepo(items=[
-        {"id": 2, "kind": "fresh_matches", "title": "3 fresh matches", "body": "Paytm · Growth Manager",
-         "job_id": "j1", "match_count": 3, "read_at": None, "created_at": "2026-07-10T10:00:00+00:00"},
+        {"id": 2, "kind": "cv_analysis", "title": "Your Myro Score is ready", "body": "6 skills mapped · Myro Score 42",
+         "job_id": None, "source_id": "upload-1", "action_url": "/cv", "state": "ready",
+         "match_count": 1, "read_at": None, "created_at": "2026-07-10T10:00:00+00:00"},
         {"id": 1, "kind": "fresh_matches", "title": "1 fresh match", "body": "Adidas · CRM",
-         "job_id": "j2", "match_count": 1, "read_at": "2026-07-09T10:00:00+00:00", "created_at": "2026-07-09T10:00:00+00:00"},
+         "job_id": "j2", "source_id": None, "action_url": None, "state": None,
+         "match_count": 1, "read_at": "2026-07-09T10:00:00+00:00", "created_at": "2026-07-09T10:00:00+00:00"},
     ])
     _override(repo)
     try:
@@ -65,7 +68,9 @@ def test_list_returns_items_and_derived_unread() -> None:
     assert r.status_code == 200
     body = r.json()
     assert body["unread_count"] == 1  # only the unread (read_at None) one
-    assert body["items"][0]["job_id"] == "j1"
+    assert body["items"][0]["source_id"] == "upload-1"
+    assert body["items"][0]["action_url"] == "/cv"
+    assert body["items"][0]["state"] == "ready"
 
 
 def test_mark_read_all_when_no_ids() -> None:
@@ -179,6 +184,145 @@ def test_record_fresh_matches_merges_into_unread_within_window() -> None:
     assert patch["match_count"] == 5  # 3 + 2
     assert patch["title"] == "5 fresh matches"  # recomputed on merge
     assert patch["job_id"] == "j9"  # top match refreshed
+
+
+# ── CV-analysis lifecycle projection ────────────────────────────────────────
+
+
+class _LifecycleQuery:
+    def __init__(self, cap: _Capture) -> None:
+        self._cap = cap
+        self._pending_update: dict[str, Any] | None = None
+
+    def upsert(self, row: dict[str, Any], **_kwargs: Any) -> "_LifecycleQuery":
+        self._cap.inserted.append(row)
+        return self
+
+    def update(self, patch: dict[str, Any]) -> "_LifecycleQuery":
+        self._pending_update = patch
+        return self
+
+    def eq(self, *_args: Any) -> "_LifecycleQuery":
+        return self
+
+    def execute(self) -> Any:
+        if self._pending_update is not None:
+            self._cap.updated.append((0, self._pending_update))
+        return type("R", (), {"data": []})()
+
+
+class _LifecycleDB:
+    def __init__(self, cap: _Capture) -> None:
+        self._cap = cap
+
+    def table(self, _name: str) -> _LifecycleQuery:
+        return _LifecycleQuery(self._cap)
+
+
+def test_cv_analysis_notification_projects_processing_and_ready_states() -> None:
+    cap = _Capture()
+    db = _LifecycleDB(cap)
+    repo = NotificationsRepository(db, db)  # type: ignore[arg-type]
+
+    repo.record_cv_analysis_started("u1", source_id="upload-1")
+    assert cap.inserted[0] | {"read_at": "timestamp"} == {
+        "user_id": "u1",
+        "kind": "cv_analysis",
+        "source_id": "upload-1",
+        "state": "processing",
+        "title": "Analyzing your CV",
+        "body": "Reading your CV",
+        "action_url": "/cv",
+        "match_count": 1,
+        "read_at": "timestamp",
+    }
+    assert cap.inserted[0]["read_at"] is not None
+
+    repo.update_cv_analysis_phase("upload-1", "scoring")
+    _, phase = cap.updated[-1]
+    assert phase["state"] == "processing"
+    assert phase["body"] == "Scoring your domains"
+
+    repo.record_cv_analysis_done("upload-1", skills_detected=6, score=42.4)
+    _, done = cap.updated[-1]
+    assert done["state"] == "ready"
+    assert done["title"] == "Your Myro Score is ready"
+    assert done["body"] == "6 skills mapped · Myro Score 42"
+    assert done["read_at"] is None
+
+
+def test_cv_analysis_failure_becomes_unread_actionable_notification() -> None:
+    cap = _Capture()
+    db = _LifecycleDB(cap)
+    repo = NotificationsRepository(db, db)  # type: ignore[arg-type]
+
+    repo.record_cv_analysis_failed("upload-1", refunded=True)
+
+    _, failed = cap.updated[-1]
+    assert failed["state"] == "failed"
+    assert failed["title"] == "CV analysis needs attention"
+    assert failed["body"] == "Analysis stopped. Your Myro Coins were refunded."
+    assert failed["read_at"] is None
+
+
+class _JobQuery:
+    def __init__(self) -> None:
+        self._inserted = False
+
+    def insert(self, _row: dict[str, Any]) -> "_JobQuery":
+        self._inserted = True
+        return self
+
+    def update(self, _patch: dict[str, Any]) -> "_JobQuery":
+        return self
+
+    def eq(self, *_args: Any) -> "_JobQuery":
+        return self
+
+    def execute(self) -> Any:
+        data = [{"id": "upload-1"}] if self._inserted else []
+        return type("R", (), {"data": data})()
+
+
+class _JobDB:
+    def table(self, _name: str) -> _JobQuery:
+        return _JobQuery()
+
+
+def test_cv_upload_job_projects_every_lifecycle_transition(monkeypatch: Any) -> None:
+    calls: list[tuple[Any, ...]] = []
+
+    class _Projection:
+        def __init__(self, *_args: Any) -> None:
+            pass
+
+        def record_cv_analysis_started(self, user_id: str, *, source_id: str) -> None:
+            calls.append(("started", user_id, source_id))
+
+        def update_cv_analysis_phase(self, source_id: str, phase: str) -> None:
+            calls.append(("phase", source_id, phase))
+
+        def record_cv_analysis_done(self, source_id: str, **payload: Any) -> None:
+            calls.append(("done", source_id, payload))
+
+        def record_cv_analysis_failed(self, source_id: str, *, refunded: bool) -> None:
+            calls.append(("failed", source_id, refunded))
+
+    monkeypatch.setattr(cv_upload_jobs, "get_supabase_admin", lambda: _JobDB())
+    monkeypatch.setattr(cv_upload_jobs, "NotificationsRepository", _Projection)
+
+    job_id = cv_upload_jobs.create_processing_job(user_id="u1", content_hash="hash")
+    cv_upload_jobs.record_notification_started(job_id, "u1")
+    cv_upload_jobs.set_phase(job_id, "scoring")
+    cv_upload_jobs.mark_done(job_id, skills_detected=6, score=42.4)
+    cv_upload_jobs.mark_failed(job_id, error_code="provider", error_detail="down", refunded=True)
+
+    assert calls == [
+        ("started", "u1", "upload-1"),
+        ("phase", "upload-1", "scoring"),
+        ("done", "upload-1", {"skills_detected": 6, "score": 42.4}),
+        ("failed", "upload-1", True),
+    ]
 
 
 # ── sweep write path: compute-then-notify ───────────────────────────────────

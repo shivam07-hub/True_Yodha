@@ -4,14 +4,18 @@ from pydantic import BaseModel
 
 
 class NotificationItem(BaseModel):
-    """One inbox row. `read_at` None = unread. For 'fresh_matches', `job_id` is
-    the top match carried in the ping and `match_count` how many landed."""
+    """One inbox row. `read_at` None = unread. `source_id` ties lifecycle
+    notifications to their durable source row; `action_url` is the owner-safe
+    destination rendered by the inbox."""
 
     id: int
     kind: str
     title: str
     body: str | None = None
     job_id: str | None = None
+    source_id: str | None = None
+    action_url: str | None = None
+    state: str | None = None
     match_count: int = 1
     read_at: str | None = None
     created_at: str

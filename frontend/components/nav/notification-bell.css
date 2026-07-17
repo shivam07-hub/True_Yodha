@@ -175,6 +175,17 @@
   font-family: var(--tm-font-mono);
 }
 
+.tm-bell-rowstate {
+  width: fit-content;
+  margin-top: 2px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--tm-border-soft);
+  color: var(--tm-text-muted);
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+}
+
 .tm-bell-go {
   flex: 0 0 auto;
   align-self: center;

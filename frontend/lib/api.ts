@@ -555,6 +555,9 @@ export interface NotificationItem {
   title: string
   body: string | null
   job_id: string | null
+  source_id: string | null
+  action_url: string | null
+  state: "processing" | "ready" | "failed" | null
   match_count: number
   read_at: string | null
   created_at: string
