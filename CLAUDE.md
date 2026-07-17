@@ -552,7 +552,25 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-16c/17 · "Tailor with Mentor" weave — grill-locked + ALL 3 SLICES BUILT, pushed Develop `05c65e76`+`abe5ce7c`+`5354eae0`)
+## LAST SESSION SUMMARY (2026-07-17 · Prep-room bugfix + Delta-4 unified nav structure — ALL 4 SLICES BUILT, pushed Develop)
+
+Trigger: Shivam screenshot — Preparations room on the Sanofi PM job (mit20): "What this job wants" + "Skill drill" both failing. Then: "Kunal-Shah Delta-4 lens on the WHOLE product — users feel lost, need ONE unified structure."
+
+**Bugfix (`3396593d`)** — two distinct root causes, neither a missing wire (endpoints live on prod, 401 not 404). (1) **Coverage flaky**, not broken: reproduced against the real provider on the exact job — 0 requirements one run, 14 the next. `jd_coverage.assess` ran the free-first `get_judgment_provider`; strong FREE tiers 429-storm under load, sometimes exhausting before the paid/Groq backstop → `parse_requirements` catches → [] → blank panel. Fix = new **`get_blocking_judgment_provider`** (strong PAID-first, same no-small-model floor, shared chain w/ writer lane); both jd-coverage call sites swapped (cached once per user+job, so reliability > free-tier cost). (2) **Drill** — the job's 13 PM/healthcare skills have ZERO question banks (`skill_questions` = tech only); `start_gap` raised HTTP 409 for a legit empty state → FE showed "Couldn't load the drill." Fix = `start_gap` returns 200 + `reason` (no_gaps | no_bank); drill panel + upskilling view render honest per-reason copy. backend 1352 passed.
+
+**`/grill-me` Delta-4 (9 locks, memory `project_unified_structure_delta4`):** two structures competed (5-step Loop Bar strip + flat nav) = lostness. Shivam's correction: **nav STAYS the visible structure, loop sinks into background.** Locks: plain tabs + live counts (Loop Bar dies) · 4 journey stages only, satellites contextual · global Next chip · landing stays /market · mobile mirrors desktop · full map day one (gating dies) · labels Jobs·Collections·CV·Prep · quiet score chip.
+
+**BUILT — 4 slices, all pushed Develop (used `/frontend-design`):**
+- **S1 `453bc273`** — journey counts on stage tabs (mono, hidden at 0; `journey-counts.ts` pure+hook, 4 tests) · "Preparations"→"Prep" · quiet score chip (mini accent ring, absent until real score) · **Loop Bar deleted** (3 files + orphaned `common/loop-bar.tsx`, −451).
+- **S2 `4ad91a05`** — global Next chip: `next-action.ts` pure finish-first ladder (7 tests) — no-CV→upload · interviewing→prep · follow-up→check · tailored-unsent→apply · saved→tailor best-fit(real fit%) · fresh→new-jobs · else→find role(hides on /market). Topbar, shared caches only, first-run keeps CV-promise pill.
+- **S3 `adf64931`** — mobile bottom tabs = Jobs·Collections·CV·Prep (Prep=mic + attentionCount badge); Profile→top-bar avatar.
+- **S4 `7bbb3f5f`** — full map day one: CV tab de-gated; `useNavUnlocks` slimmed (coachmark queue/NEW pills/mount-snapshot/localStorage-seen deleted); Coachmark+scrim+NEW + NavCoach type + coach CSS removed (−349). Stage empty states already honest (verified /cv onboarding door etc).
+
+All slices green (tests + tsc/eslint own-files + `next build` isolated + ui-drift). Built alongside a live agent editing cv/builder+jd_coverage (Tailor-weave) — stash-isolation for every build/push; foreign work untouched; my `get_blocking_judgment_provider` confirmed adopted in their prep.py. Net ~800 lines of disclosure machinery removed.
+
+**OWED (Shivam):** (1) **prod = main merge** (all 5 commits). (2) Authed browser QA light+dark, desktop+375px: tab counts live, score chip→breakdown, Next chip points right + hides on /market, mobile Prep tab+avatar, day-1 no-CV user sees 4 tabs + honest empty states (no locked chrome). Memory: `project_unified_structure_delta4`.
+
+## OLDER SESSION SUMMARY (2026-07-16c/17 · "Tailor with Mentor" weave — grill-locked + ALL 3 SLICES BUILT, pushed Develop `05c65e76`+`abe5ce7c`+`5354eae0`)
 
 Trigger: Shivam ran the just-shipped MentorWalk on the Oracle Multi-Cloud Sales job — finished all 3 asks, CV never updated the way the Deloitte case study did. Diagnosis (code + prod): the walk was an append-only widget — `cv_intake` never saw existing CV bullets, `addBullet` raw-pushed to the LIVING MASTER (Oracle lines polluting every future CV), coverage cache never recomputed after banking, the banked story shipped WITHOUT an embedding (→ ask read "Missing" forever, duplicate stories 30min apart in prod), and there was NO synthesis step at all. "How is it Delta-4 if writing CV pointers has no assistance from Myro?"
 
