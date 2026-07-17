@@ -548,6 +548,18 @@ class JobImportRequest(BaseModel):
     status: str = "saved"  # one of APPLICATION_STATUSES; manual web add sends "applied", extension defaults to saved
 
 
+class JobImportedDetailsUpdate(BaseModel):
+    """User correction of a mis-parsed imported job's role/company."""
+    title: str | None = None
+    company: str | None = None
+
+
+class JobImportedDetailsResponse(BaseModel):
+    job_id: str
+    job_title: str
+    company: str | None = None
+
+
 class JobUrlExtractRequest(BaseModel):
     """A public posting URL to fetch and parse into tracker fields."""
     url: str

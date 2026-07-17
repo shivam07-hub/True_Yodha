@@ -292,6 +292,18 @@ export function PlaygroundView({
   const saveState = autosaving ? "Saving…" : autosaved ? "Saved" : ""
   const fixCountLabel = visibleFixes.length > 0 ? String(visibleFixes.length) : "✓"
 
+  // Only extension imports (ext_ ids) carry a user-editable role/company — a
+  // scraped job's fields are scraper-owned. Correcting it re-reads the header.
+  const editableJobMeta = jobId.startsWith("ext_")
+  const saveJobMeta = useMutation({
+    mutationFn: (v: { title: string; company: string }) => jobsApi.updateImportedDetails(token, jobId, v),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: dataKeys.jobPath(jobId) })
+      queryClient.invalidateQueries({ queryKey: dataKeys.skillGap(jobId) })
+      queryClient.invalidateQueries({ queryKey: ["jd-coverage", jobId] })
+    },
+  })
+
   return (
     <div className="cvb-v2" data-tab={tab}>
       <PlaygroundHeader
@@ -308,6 +320,7 @@ export function PlaygroundView({
         onReqPill={() => setTab("skills")}
         onApply={() => { setAppliedDone(false); setApplyOpen(true) }}
         onDownload={requestDownload}
+        onSaveJobMeta={editableJobMeta ? (async v => { await saveJobMeta.mutateAsync(v) }) : undefined}
       />
       <ApplyCapturePrompt capture={capture} />
       {externalError && <div className="cvb-pgc-err" role="alert">{externalError}</div>}

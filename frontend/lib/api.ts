@@ -3716,6 +3716,12 @@ export const jobs = {
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(data),
     }),
+  /** Correct a mis-parsed role/company on an imported (ext_) job. */
+  updateImportedDetails: (token: string, jobId: string, data: { title?: string; company?: string }) =>
+    request<{ job_id: string; job_title: string; company: string | null }>(
+      `/jobs/applications/${encodeURIComponent(jobId)}/imported-details`,
+      { method: "PATCH", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(data) },
+    ),
 }
 
 // ── Diary ────────────────────────────────────────────────────────────────────

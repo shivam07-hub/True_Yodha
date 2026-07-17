@@ -833,6 +833,46 @@ class JobsRepository:
             row, plan["job_id"], body, plan["status"]
         )
 
+    def update_imported_job_details(
+        self, user_id: str, job_id: str, *, title: str | None, company: str | None
+    ) -> dict[str, Any] | None:
+        """Correct a user's OWN imported job's role/company (parse fixes).
+
+        Ownership is proven with the user-token client (the "own applications"
+        RLS policy); the ``jobs`` write goes through the admin client because
+        ``jobs`` is community/scraper-owned — same split as ``save_imported_job``.
+        Returns the updated {job_title, company_name}, or ``None`` when the caller
+        has no application for this job (not theirs to edit).
+        """
+        owned = (
+            self._db.table("job_applications")
+            .select("job_id")
+            .eq("user_id", user_id)
+            .eq("job_id", job_id)
+            .limit(1)
+            .execute()
+        )
+        if not (owned.data or []):
+            return None
+
+        updates: dict[str, Any] = {}
+        if title is not None:
+            updates["job_title"] = title
+        if company is not None:
+            updates["company_name"] = company
+        if updates:
+            self._admin_db.table("jobs").update(updates).eq("job_id", job_id).execute()
+
+        current = (
+            self._admin_db.table("jobs")
+            .select("job_title, company_name")
+            .eq("job_id", job_id)
+            .limit(1)
+            .execute()
+        )
+        row = (current.data or [{}])[0]
+        return {"job_title": row.get("job_title") or "", "company_name": row.get("company_name")}
+
     # ── public / global data ───────────────────────────────────────────────────
 
     def fetch_analytics_rows(

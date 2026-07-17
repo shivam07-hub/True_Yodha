@@ -15,10 +15,12 @@ from app.schemas import (
     JobImportPreviewRequest,
     JobImportPreviewResponse,
     JobImportRequest,
+    JobImportedDetailsResponse,
+    JobImportedDetailsUpdate,
     JobUrlExtractRequest,
 )
 from app.services import jobs_workflow, xp_service
-from app.services.job_extract_backstop import backfill_fields
+from app.services.job_extract_backstop import backfill_fields, is_valid_company, is_valid_role
 from app.services.cv_parser import extract_raw_text
 from app.services.job_file_parser import (
     MAX_FILE_BYTES,
@@ -210,6 +212,35 @@ async def import_job(
         _log.warning("add_job reward failed for user=%s id=%s: %s", principal.id, saved.get("id"), exc)
 
     return ApplicationResponse(**saved)
+
+
+@router.patch("/applications/{job_id}/imported-details", response_model=JobImportedDetailsResponse)
+def update_imported_job_details(
+    job_id: str,
+    body: JobImportedDetailsUpdate,
+    principal: Principal = Depends(get_principal),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+) -> JobImportedDetailsResponse:
+    """Fix a mis-parsed role/company on an imported job (the extractor sometimes
+    reads a page tagline as the role). Only extension imports are editable —
+    scraped ``jobs`` rows are scraper-owned and shared."""
+    if not job_id.startswith("ext_"):
+        raise HTTPException(status_code=422, detail="Only imported jobs can be edited here.")
+    title = body.title.strip() if body.title is not None else None
+    company = body.company.strip() if body.company is not None else None
+    if title is None and company is None:
+        raise HTTPException(status_code=422, detail="Nothing to update.")
+    if title is not None and not is_valid_role(title):
+        raise HTTPException(status_code=422, detail="That role title looks invalid.")
+    if company is not None and not is_valid_company(company):
+        raise HTTPException(status_code=422, detail="That company name looks invalid.")
+
+    updated = repo.update_imported_job_details(principal.id, job_id, title=title, company=company)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Imported job not found.")
+    return JobImportedDetailsResponse(
+        job_id=job_id, job_title=updated["job_title"], company=updated.get("company_name")
+    )
 
 
 @router.put("/applications/{job_id}", response_model=ApplicationResponse)
