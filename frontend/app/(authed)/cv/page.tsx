@@ -284,6 +284,15 @@ function CVPage() {
     if (!token) return
     if (uploadInFlightRef.current) return
     if (typeof navigator !== "undefined" && navigator.onLine === false) return
+    // Check BEFORE opening the modal — an `online` reconnect fires on every
+    // wifi blip/laptop wake regardless of what the user is doing, and
+    // resumePendingCVUpload() resolves null (nothing to do) with no code path
+    // to close a dialog that was opened speculatively. That left a blank
+    // "Replace your Main CV" dropzone stuck open over whatever the user was
+    // actually working on. Gate on real pending state first, same as the
+    // mount-time resume effect below.
+    const pending = await hasPendingCVUpload(jwtSub(token))
+    if (!pending || uploadInFlightRef.current) return
     uploadInFlightRef.current = true
     setShowUpload(true)
     setUploading(true); setUploadResult(null); setUploadError(null); setUploadDeferred(false)
