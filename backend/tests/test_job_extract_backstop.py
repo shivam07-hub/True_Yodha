@@ -119,6 +119,86 @@ async def test_backfill_replaces_team_name_company_via_llm(monkeypatch: Any) -> 
     assert out["company_name"] == "Deloitte"
 
 
+# ── tagline-role hardening ────────────────────────────────────────────────────
+
+def test_is_tagline_role_flags_marketing_headlines() -> None:
+    # Live 2026-07-17: MOPID's OG title "Accelerate Your Hiring Process" passed
+    # is_valid_role and became the role for a sales posting.
+    assert bs._is_tagline_role("Accelerate Your Hiring Process")
+    assert bs._is_tagline_role("Find Your Dream Job")
+    assert bs._is_tagline_role("Join our team")
+    assert bs._is_tagline_role("Grow with us")
+
+
+def test_is_tagline_role_keeps_real_titles() -> None:
+    # A role noun anywhere → never a tagline, even next to marketing words.
+    assert not bs._is_tagline_role("Growth Marketing Manager")
+    assert not bs._is_tagline_role("Head of Sales")
+    assert not bs._is_tagline_role("Sales Development Representative")
+    assert not bs._is_tagline_role("Software Engineer")
+    assert not bs._is_tagline_role("Account Executive")
+
+
+@pytest.mark.asyncio
+async def test_backfill_rederives_tagline_role_from_llm(monkeypatch: Any) -> None:
+    # The MOPID case: a valid-looking-but-tagline role, no JSON-LD, real JD →
+    # the LLM re-derives the true role from the JD.
+    async def _llm(text: str, provider: Any) -> dict:
+        return {"company": "MOPID", "role": "Enterprise Sales Manager", "location": "Remote"}
+
+    monkeypatch.setattr(bs, "extract_job_from_text", _llm)
+    monkeypatch.setattr(bs, "get_llm_provider", lambda: object())
+
+    out = await bs.backfill_fields(
+        role_name="Accelerate Your Hiring Process",   # tagline → suspicious
+        company_name="MOPID",
+        location="Remote",
+        job_description="Proven track record of closing deals and managing multi-stakeholder sales cycles." * 3,
+        json_ld=None, needs_backstop=False,           # og-sourced → client didn't flag it
+    )
+    assert out["role_name"] == "Enterprise Sales Manager"
+
+
+@pytest.mark.asyncio
+async def test_backfill_tagline_role_prefers_json_ld_over_llm(monkeypatch: Any) -> None:
+    called = False
+
+    async def _boom(*a: Any, **k: Any) -> dict:
+        nonlocal called
+        called = True
+        return {}
+
+    monkeypatch.setattr(bs, "extract_job_from_text", _boom)
+
+    out = await bs.backfill_fields(
+        role_name="Accelerate Your Hiring Process",   # tagline → suspicious
+        company_name="MOPID", location="Remote",
+        job_description="x" * 200,
+        json_ld={"roleName": "Account Executive"},    # structured real role
+        needs_backstop=False,
+    )
+    assert out["role_name"] == "Account Executive"
+    assert called is False  # JSON-LD resolved it → no LLM
+
+
+@pytest.mark.asyncio
+async def test_backfill_tagline_role_keeps_original_when_llm_also_tagline(monkeypatch: Any) -> None:
+    # Fail-safe: if the JD read is itself junk/tagline, keep the original rather
+    # than swap one bad role for another.
+    async def _llm(text: str, provider: Any) -> dict:
+        return {"company": "MOPID", "role": "Unlock Your Potential", "location": None}
+
+    monkeypatch.setattr(bs, "extract_job_from_text", _llm)
+    monkeypatch.setattr(bs, "get_llm_provider", lambda: object())
+
+    out = await bs.backfill_fields(
+        role_name="Accelerate Your Hiring Process",
+        company_name="MOPID", location="Remote",
+        job_description="x" * 200, json_ld=None, needs_backstop=False,
+    )
+    assert out["role_name"] == "Accelerate Your Hiring Process"
+
+
 @pytest.mark.asyncio
 async def test_backfill_failsoft_when_llm_errors(monkeypatch: Any) -> None:
     from app.services.job_file_parser import JobFileParseError
