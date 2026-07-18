@@ -17,6 +17,7 @@ from app.services import background, scoring
 from app.services.job_eligibility import (
     career_band_for_profile,
     explored_bands_for_profile,
+    seniority_for_job,
     target_seniority_for_profile,
 )
 from app.services.scoring.percentile import top_percent
@@ -256,6 +257,27 @@ def _score_factors(score: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
+def _infer_target_suggestion(baseline: dict[str, Any] | None) -> dict[str, str]:
+    """Deterministic target pre-fill for the score-first confirm card (Slice 4).
+
+    Role  = parsed contact.title → fallback experience[0].role → "".
+    Location = parsed contact.location → "".
+    Seniority = derived from the role title (title regex); unknown → entry.
+    No LLM — the CV parser already extracted contact + experience. An empty role
+    (weak/scanned CV) leaves the card asking fresh, so matching never runs on junk.
+    """
+    structured = (baseline or {}).get("cv_structured") or {}
+    contact = structured.get("contact") or {}
+    role = (contact.get("title") or "").strip()
+    if not role:
+        experience = structured.get("experience") or []
+        if experience and isinstance(experience[0], dict):
+            role = (experience[0].get("role") or "").strip()
+    location = (contact.get("location") or "").strip()
+    seniority = seniority_for_job({"job_title": role}) if role else ""
+    return {"role": role, "location": location, "seniority": seniority or "entry"}
+
+
 def get_result(db: Client, user_id: str) -> dict[str, Any]:
     onboarding_repo = OnboardingRepository(db)
     users_repo = UsersRepository(db)
@@ -268,6 +290,7 @@ def get_result(db: Client, user_id: str) -> dict[str, Any]:
         "seniority": profile.get("target_seniority") or "any",
         "location": profile.get("target_location") or "",
     }
+    has_target = bool(profile.get("target_role_title") or profile.get("target_role_titles"))
     if not baseline:
         if state.get("preview_payload"):
             return {
@@ -304,6 +327,30 @@ def get_result(db: Client, user_id: str) -> dict[str, Any]:
             "target": target,
             "phase": "scoring",
         }
+
+    # Score-first onboarding (Slice 4): the CV is parsed + scored, but the user
+    # hasn't confirmed a target yet. Show the score now + a pre-filled confirm
+    # card; matching runs only after they tap Confirm (save_target), so a weak/
+    # empty role never produces junk matches.
+    if not has_target:
+        band = target_seniority_for_profile({"target_seniority": profile.get("target_seniority")})
+        return {
+            "kind": "awaiting_target",
+            "baseline_version_id": int(baseline["id"]),
+            "suggestion": _infer_target_suggestion(baseline),
+            "skills": _proof_skills(users_repo, user_id),
+            "score": {
+                "total_score": float(score["total_score"]),
+                "domain_scores": score.get("domain_scores") or {},
+                "gap_skills": score.get("gap_skills") or [],
+                "skills_assessed": int(score.get("skills_assessed") or 0),
+                "band": band,
+                "band_percentile": score.get("percentile"),
+                "top_percent": top_percent(score.get("percentile")),
+            },
+            "score_factors": _score_factors(score),
+        }
+
     context_hash = target_context_hash(
         int(baseline["id"]),
         target["role_title"],

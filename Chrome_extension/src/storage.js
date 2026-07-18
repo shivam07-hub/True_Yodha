@@ -4,6 +4,7 @@ const STORAGE_KEYS = {
   token: "myro_token",
   refreshToken: "myro_refresh_token",
   trackedJobs: "myro_tracked_jobs",
+  careerProfile: "myro_career_profile",
 }
 
 // Cap the tracked-job memory so storage can't grow unbounded across a long
@@ -152,4 +153,25 @@ export async function setTokens({ token, refreshToken }) {
   for (const [key, value] of Object.entries(payload)) {
     localStorage.setItem(key, value)
   }
+}
+
+/** Cache the Career Profile for background-fed ATS auto-fill (lock L9). Stored
+ *  under the caller's session; cleared on disconnect alongside tokens. */
+export async function setCachedCareerProfile(profile) {
+  const value = profile || null
+  if (hasChromeStorage()) {
+    await chrome.storage.local.set({ [STORAGE_KEYS.careerProfile]: value })
+    return
+  }
+  localStorage.setItem(STORAGE_KEYS.careerProfile, JSON.stringify(value))
+}
+
+/** Read the cached Career Profile (CareerProfileData), or null when absent. */
+export async function getCachedCareerProfile() {
+  if (hasChromeStorage()) {
+    const data = await chrome.storage.local.get([STORAGE_KEYS.careerProfile])
+    return data[STORAGE_KEYS.careerProfile] || null
+  }
+  const raw = localStorage.getItem(STORAGE_KEYS.careerProfile)
+  return raw ? JSON.parse(raw) : null
 }

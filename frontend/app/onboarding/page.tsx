@@ -4,21 +4,15 @@ import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { MyroLogo } from "@/components/myro-logo"
 import { ExperienceStep } from "@/components/onboarding/experience-step"
-import { OnboardingProgress } from "@/components/onboarding/onboarding-progress"
-import { TargetStep } from "@/components/onboarding/target-step"
 import { Button } from "@/components/ui/button"
 import {
   beginCVUpload,
   clearPersistedCVUploadState,
   onboarding,
   pollCVUploadStatus,
-  type CVUploadStatusResponse,
-  type OnboardingTarget,
 } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useOnboardingState } from "@/lib/hooks/use-onboarding-state"
-
-type Stage = 0 | 1
 
 export default function OnboardingPage() {
   const router = useRouter()
@@ -26,46 +20,35 @@ export default function OnboardingPage() {
   const { state, profile, refresh } = useOnboardingState(token)
   const pollingJob = useRef<string | null>(null)
   const resolved = useRef(false)
-  const [stage, setStage] = useState<Stage>(0)
   const [entryMode, setEntryMode] = useState<"flow" | "completed">("flow")
   const [busy, setBusy] = useState(false)
-  const [phase, setPhase] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  // Resolve the entry destination ONCE from the first fetch. A warranted
-  // redirect (result/generator resume) fires before any interactive step
-  // renders; a completed profile gets an explicit choice, never a silent
-  // replace. Once resolved, background state refetches (e.g. the CV-upload
-  // poll's refresh()) can never navigate — that reactive redirect was what
-  // yanked returning users off the target step mid-interaction.
+  // Resolve the entry destination ONCE from the first fetch (Slice 1 fix — do
+  // NOT make this reactive to background refetches, that raced returning users
+  // off their step). Score-first onboarding (Slice 4): the target is now
+  // confirmed on the result screen, so any in-flight stage (target/result/
+  // generator) resumes there — there is no blocking target step on this page.
   useEffect(() => {
     if (resolved.current || !state.isFetchedAfterMount) return
     resolved.current = true
     const data = state.data
     if (data?.status === "completed") { setEntryMode("completed"); return }
-    if (data?.current_stage === "result" || data?.current_stage === "generator") {
+    if (["target", "result", "generator"].includes(data?.current_stage ?? "")) {
       router.replace("/onboarding/result")
-      return
     }
-    if (data?.current_stage === "target") setStage(1)
   }, [router, state.data, state.isFetchedAfterMount])
 
+  // Keep the CV-upload localStorage resume record tidy on completion. Narration
+  // + reveal live on /onboarding/result (driven by GET /onboarding/result), so
+  // this page only needs to reconcile the persisted job, not render phases.
   useEffect(() => {
     const jobId = state.data?.upload_job_id
     if (!token || !jobId || pollingJob.current === jobId || state.data?.entry_mode !== "uploaded_cv") return
     pollingJob.current = jobId
-    setPhase("queued")
-    void pollCVUploadStatus(token, jobId, {
-      timeoutMs: 10 * 60_000,
-      onProgress: (status: CVUploadStatusResponse) => setPhase(status.current_phase ?? "queued"),
-    }).then(() => {
-      clearPersistedCVUploadState()
-      setPhase(null)
-      refresh()
-    }).catch(() => {
-      pollingJob.current = null
-      setPhase("reconnecting")
-    })
+    void pollCVUploadStatus(token, jobId, { timeoutMs: 10 * 60_000 })
+      .then(() => { clearPersistedCVUploadState(); refresh() })
+      .catch(() => { pollingJob.current = null })
   }, [refresh, state.data, token])
 
   async function handleUpload(file: File) {
@@ -80,12 +63,10 @@ export default function OnboardingPage() {
         upload_job_id: jobId,
         file_metadata: { name: file.name, mime: file.type, size_bytes: file.size },
       })
-      setStage(1)
       refresh()
-      if (jobId) setPhase("queued")
+      router.push("/onboarding/result")
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "The CV could not be accepted.")
-    } finally {
       setBusy(false)
     }
   }
@@ -96,26 +77,10 @@ export default function OnboardingPage() {
     setError(null)
     try {
       await onboarding.profilePreview(token, description, crypto.randomUUID())
-      setStage(1)
-      refresh()
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "The description could not be saved.")
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function handleTarget(target: OnboardingTarget) {
-    if (!token) return
-    setBusy(true)
-    setError(null)
-    try {
-      await onboarding.saveTarget(token, target)
       refresh()
       router.push("/onboarding/result")
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "The target could not be saved.")
-    } finally {
+      setError(reason instanceof Error ? reason.message : "The description could not be saved.")
       setBusy(false)
     }
   }
@@ -126,7 +91,6 @@ export default function OnboardingPage() {
     await onboarding.startOver(token).catch(() => undefined)
     refresh()
     setEntryMode("flow")
-    setStage(0)
     setBusy(false)
   }
 
@@ -154,12 +118,6 @@ export default function OnboardingPage() {
     )
   }
 
-  const initialTarget: Partial<OnboardingTarget> = {
-    role_title: profile.data?.target_role_title ?? "",
-    seniority: profile.data?.target_seniority ?? "any",
-    location: profile.data?.target_location ?? "",
-  }
-
   return (
     <main className="min-h-dvh bg-[var(--tm-bg)] text-[var(--tm-text)]">
       <header className="border-b border-[var(--tm-border-soft)]">
@@ -167,13 +125,8 @@ export default function OnboardingPage() {
           <MyroLogo size={25} /><span className="ml-2 text-base font-semibold">Myro</span>
         </div>
       </header>
-      <OnboardingProgress current={stage} onStageClick={(next) => { if (next === 0 || next === 1) setStage(next) }} />
-      <div className="mx-auto flex min-h-[calc(100dvh-150px)] max-w-5xl items-center justify-center px-5 py-8 sm:px-8">
-        {stage === 0 ? (
-          <ExperienceStep busy={busy} error={error} onUpload={(file) => void handleUpload(file)} onDescribe={(description) => void handleDescription(description)} onBrowse={() => router.push("/market")} />
-        ) : (
-          <TargetStep initial={initialTarget} busy={busy} analysisPhase={phase} error={error} onSubmit={(target) => void handleTarget(target)} onBack={() => setStage(0)} onBrowse={() => router.push("/market")} />
-        )}
+      <div className="mx-auto flex min-h-[calc(100dvh-80px)] max-w-5xl items-center justify-center px-5 py-8 sm:px-8">
+        <ExperienceStep busy={busy} error={error} onUpload={(file) => void handleUpload(file)} onDescribe={(description) => void handleDescription(description)} onBrowse={() => router.push("/market")} />
       </div>
     </main>
   )

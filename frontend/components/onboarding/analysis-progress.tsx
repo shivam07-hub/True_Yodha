@@ -2,9 +2,9 @@ import { LoaderCircle, Wifi } from "lucide-react"
 
 const PHASES: Record<string, string> = {
   queued: "Preparing your analysis",
-  reading: "Reading your experience",
-  finding_skills: "Finding evidence-backed skills",
-  scoring: "Scoring against your target",
+  reading: "Reading your CV",
+  finding_skills: "Extracting your skills",
+  scoring: "Scoring your 10 domains",
   reconnecting: "Reconnecting to your analysis",
 }
 
