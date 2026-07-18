@@ -69,8 +69,14 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
   // apply from the detail sheet; careers-search fallback when no portal link.
   const applyCapture = useApplyCapture({
     token,
-    job: { job_id: detailItem?.job_id ?? "", source_url: detailItem?.source_url ?? null, company: detailItem?.company_name ?? null },
+    job: {
+      job_id: detailItem?.job_id ?? "",
+      source_url: detailItem?.source_url ?? null,
+      company: detailItem?.company_name ?? null,
+      listing_confidence: detailItem?.is_stale || detailItem?.is_active === false ? "uncertain" : undefined,
+    },
     surface: "job_detail",
+    intentSurface: "mobile_jobs",
     onFindSimilar: () => setDetailId(null),
   })
 
@@ -99,7 +105,7 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
   const doTailor = (jobId: string) => { setDetailId(null); router.push(`/cv?jobId=${encodeURIComponent(jobId)}`) }
   const doApply = () => {
     if (applyCapture.target.url) applyCapture.open()
-    else snack({ msg: "No apply link on this listing" })
+    else snack({ msg: "No official opening found" })
   }
 
   const detailData: JobDetailData | null = detailItem
@@ -110,6 +116,7 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
         gaps: (detailItem.skills ?? []).filter(s => !(detailItem.matched_skills ?? []).includes(s)),
         saved: false,
         hasApply: !!applyCapture.target.url,
+        applyLabel: applyCapture.target.actionLabel ?? undefined,
       }
     : null
 

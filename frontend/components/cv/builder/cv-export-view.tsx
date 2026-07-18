@@ -91,13 +91,15 @@ export function CVExportView({
   const isTailored = context === "tailored"
   const skin: "fullpage" | "inline" = isTailored ? "fullpage" : "inline"
 
-  // Apply Transport — the "Open careers" affordance is a leave-to-apply, so it
+  // Apply Transport — the official-opening affordance is a leave-to-apply, so it
   // arms the liveness capture too (only when tied to a real job_id; a master
   // export has none). company careers is the destination.
   const capture = useApplyCapture({
     token,
     job: { job_id: jobId ?? "", source_url: null, company: company ?? null },
     surface: "other",
+    intentSurface: "cv_export",
+    onSubmitted: recordSubmittedCv,
   })
 
   // Template: seed from prop → persisted choice → default. Persist on change so
@@ -177,6 +179,23 @@ export function CVExportView({
   const [appliedDate, setAppliedDate] = useState<string | null>(appliedAt)
   const [trackBusy, setTrackBusy] = useState(false)
   const [trackError, setTrackError] = useState<string | null>(null)
+  const submittedSnapshotWritten = useRef(false)
+  useEffect(() => { submittedSnapshotWritten.current = false }, [jobId])
+
+  async function recordSubmittedCv() {
+    if (!jobId || submittedSnapshotWritten.current) return
+    const visible = selectVisibleCV(cv, hidden)
+    await cvApi.applySnapshot(token, {
+      job_id: jobId,
+      cv_snapshot: {
+        title: jobTitle ?? "", company: company ?? "", score: effectiveScore,
+        structured: visible, hidden: Array.from(hidden),
+      },
+      cv_version_id: versionId,
+      applied_url: capture.href,
+    }).catch(() => {})
+    submittedSnapshotWritten.current = true
+  }
 
   async function handleDownloadPdf() {
     if (pdfBusy) return
@@ -205,6 +224,7 @@ export function CVExportView({
     setTrackBusy(true)
     setTrackError(null)
     try {
+      await recordSubmittedCv()
       const res = await jobsApi.updateApplication(token, jobId, { status: "applied" })
       setAppliedDate(res.applied_at ?? new Date().toISOString())
       // Refresh the tracker so /cv and the applications view reflect it.
@@ -373,10 +393,10 @@ export function CVExportView({
               target="_blank"
               rel="noopener noreferrer"
               className="cvb-btn"
-              title={`Open ${company} careers in a new tab`}
+              title={`Find ${company} opening on its official careers site`}
               onClick={jobId ? capture.onApply : undefined}
             >
-              ↗ Open careers
+              ↗ {capture.target.actionLabel}
             </a>
           )}
           <button type="button" className="cvb-btn primary" onClick={handleDownloadPdf} disabled={pdfBusy}>
@@ -410,7 +430,7 @@ export function CVExportView({
             <div className="eyebrow" style={{ color: "var(--tm-interactive)", marginBottom: 8 }}>
               Apply with this CV
             </div>
-            <ApplyRow company={company ?? null} title={jobTitle ?? null} jobId={jobId ?? null} variant="block" hideCareers={Boolean(company)} />
+            <ApplyRow company={company ?? null} title={jobTitle ?? null} jobId={jobId ?? null} variant="block" hideCareers={Boolean(company)} onApply={capture.onApply} />
 
             {jobId && (
               <div className="cvb-export-track">
@@ -466,4 +486,3 @@ function TemplatePicker({ value, onChange }: { value: CVTemplate; onChange: (t: 
     </div>
   )
 }
-

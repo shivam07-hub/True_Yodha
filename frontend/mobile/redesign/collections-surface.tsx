@@ -166,8 +166,10 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
       job_id: detailApp?.job_id ?? detailMatch?.job_id ?? "",
       source_url: detailApp?.source_url ?? detailMatch?.source_url ?? null,
       company: detailApp?.company ?? detailMatch?.company ?? null,
+      listing_confidence: pulses.get(detailApp?.job_id ?? detailMatch?.job_id ?? "")?.listing_confidence,
     },
     surface: "other",
+    intentSurface: "mobile_collections",
     onFindSimilar: () => { setDetailId(null); router.push("/market") },
   })
 
@@ -207,6 +209,7 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
         saved: true,
         canDismiss: canDismissSavedApplication(detailApp),
         hasApply: !!applyCapture.target.url,
+        applyLabel: applyCapture.target.actionLabel ?? undefined,
       }
     }
     if (detailMatch) {
@@ -221,6 +224,7 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
         saved: false,
         canDismiss: true,
         hasApply: !!applyCapture.target.url,
+        applyLabel: applyCapture.target.actionLabel ?? undefined,
       }
     }
     return null

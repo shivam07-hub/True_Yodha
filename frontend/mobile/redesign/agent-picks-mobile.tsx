@@ -43,8 +43,14 @@ export function MobileAgentPicks({
 
   const applyCapture = useApplyCapture({
     token,
-    job: { job_id: openItem?.job_id ?? "", source_url: openItem?.source_url ?? null, company: openItem?.company_name ?? null },
+    job: {
+      job_id: openItem?.job_id ?? "",
+      source_url: openItem?.source_url ?? null,
+      company: openItem?.company_name ?? null,
+      listing_confidence: openItem?.is_stale || openItem?.is_active === false ? "uncertain" : undefined,
+    },
     surface: "job_detail",
+    intentSurface: "agent_pick",
     onFindSimilar: () => setOpenId(null),
   })
 
@@ -57,8 +63,9 @@ export function MobileAgentPicks({
       gaps: (openItem.skills ?? []).filter(s => !(openItem.matched_skills ?? []).includes(s)),
       saved: saved.has(openItem.job_id),
       hasApply: !!applyCapture.target.url,
+      applyLabel: applyCapture.target.actionLabel ?? undefined,
     }
-  }, [openItem, saved, applyCapture.target.url])
+  }, [openItem, saved, applyCapture.target.actionLabel, applyCapture.target.url])
 
   if (!picks.length) return null
 
@@ -72,7 +79,7 @@ export function MobileAgentPicks({
   }
   const doApply = () => {
     if (applyCapture.target.url) applyCapture.open()
-    else snack({ msg: "No apply link on this listing" })
+    else snack({ msg: "No official opening found" })
   }
 
   return (

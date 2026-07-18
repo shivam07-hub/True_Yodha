@@ -384,6 +384,7 @@ export function CollectionsDesktop({
                 cartSkillNames={cartSkillNames}
                 liked={openIsSavedApp}
                 canDismiss={openCanDismiss}
+                applyIntentSurface="collections"
                 onClose={() => setOpenId(null)}
                 onLike={() => (openIsSavedApp ? unsave(openItem.jobId) : saveMatch(openItem.jobId))}
                 onSkip={() => (openIsSavedApp ? unsave(openItem.jobId) : dismissMatch(openItem.jobId))}

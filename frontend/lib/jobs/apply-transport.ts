@@ -8,14 +8,18 @@
  * module is pure — no React, no DOM — so the resolution rule is Node-testable.
  */
 
-export type ApplyKind = "portal" | "careers" | "none"
+export type ApplyKind = "direct" | "discovery" | "none"
+export type ApplyDestinationType = "direct_role" | "career_search"
 
 export interface ApplyTarget {
   /** Where to send the user, or null when we have neither a link nor a company. */
   url: string | null
-  /** portal = the scraped source URL; careers = "{company} careers" search; none = nothing. */
+  /** direct = an exact role URL; discovery = official-opening search; none = nothing. */
   kind: ApplyKind
   company: string | null
+  /** Discovery is deliberately never labelled Apply. */
+  actionLabel: "Apply" | "Find official opening" | null
+  destinationType: ApplyDestinationType | null
 }
 
 /** The careers-search primitive — Google "{company} careers". Shared by the
@@ -34,11 +38,29 @@ export function careersSearchUrl(company: string | null | undefined): string | n
 export function resolveApplyTarget(job: {
   source_url?: string | null
   company?: string | null
+  listing_confidence?: "active" | "uncertain" | "likely_closed" | "closed" | null
 }): ApplyTarget {
   const company = job.company?.trim() || null
-  const portal = job.source_url?.trim()
-  if (portal) return { url: portal, kind: "portal", company }
+  const knownUnhealthy = job.listing_confidence != null && job.listing_confidence !== "active"
+  const portal = knownUnhealthy ? null : job.source_url?.trim()
+  if (portal) {
+    return {
+      url: portal,
+      kind: "direct",
+      company,
+      actionLabel: "Apply",
+      destinationType: "direct_role",
+    }
+  }
   const careers = careersSearchUrl(company)
-  if (careers) return { url: careers, kind: "careers", company }
-  return { url: null, kind: "none", company }
+  if (careers) {
+    return {
+      url: careers,
+      kind: "discovery",
+      company,
+      actionLabel: "Find official opening",
+      destinationType: "career_search",
+    }
+  }
+  return { url: null, kind: "none", company, actionLabel: null, destinationType: null }
 }

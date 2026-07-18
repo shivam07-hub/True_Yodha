@@ -21,7 +21,7 @@
 import { useMemo, useRef, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import type { CVStructured, UserProfile } from "@/lib/api"
-import { jobs as jobsApi, cv as cvApi } from "@/lib/api"
+import { cv as cvApi, jobs as jobsApi } from "@/lib/api"
 import { CVEditor } from "./cv-editor"
 import { ExperienceIntake } from "./experience-intake"
 import { TailorWeave } from "./tailor-weave"
@@ -85,8 +85,6 @@ export function PlaygroundView({
   const [weaveOpen, setWeaveOpen] = useState(false)
   const [jdOpen, setJdOpen] = useState(false)
   const [applyOpen, setApplyOpen] = useState(false)
-  const [appliedDone, setAppliedDone] = useState(false)
-  const [submittingApply, setSubmittingApply] = useState(false)
   const [exportConfirm, setExportConfirm] = useState(false)
   const [pdfBusy, setPdfBusy] = useState(false)
   const sheetWrapRef = useRef<HTMLDivElement>(null)
@@ -140,9 +138,10 @@ export function PlaygroundView({
     token,
     job: { job_id: jobId, source_url: sourceUrl || null, company: m.company !== "Untitled company" ? m.company : null },
     surface: "other",
+    intentSurface: "cv_playground",
+    onSubmitted: recordSubmittedCv,
   })
   const applyHref = capture.href ?? ""
-  const isApplied = m.application?.status != null && m.application.status !== "saved"
 
   const openFixIds = useMemo(() => new Set(m.openFixes.map(f => f.id)), [m.openFixes])
   const appliedShown = appliedFixes.filter(a => !openFixIds.has(a.id))
@@ -179,11 +178,6 @@ export function PlaygroundView({
     onSuccess: invalidateCV,
   })
 
-  const markApplied = useMutation({
-    mutationFn: () => jobsApi.updateApplication(token, jobId, { status: "applied" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: dataKeys.applications() }),
-  })
-
   function jumpTo(iid: string) {
     setFlash(prev => ({ iid, n: (prev?.n ?? 0) + 1 }))
   }
@@ -211,39 +205,31 @@ export function PlaygroundView({
     })
   }
 
-  async function confirmApply() {
-    if (submittingApply || !applyHref) return
-    setSubmittingApply(true)
-    try {
-      // Freeze the exact CV submitted against this job (CVJT1 immutable attempt).
-      await cvApi.applySnapshot(token, {
-        job_id: jobId,
-        cv_snapshot: {
-          text: m.visibleText, title: m.jobTitle, company: m.company, score: m.ready,
-          bullets: m.visibleCount, words: m.wordCount,
-          // Self-contained artifact so the version history can re-render + restore
-          // this exact CV later (WYSIWYG, ADR-0020) — Delta-4 version history.
-          structured: cv, hidden: Array.from(hiddenItems),
-        },
-        cv_version_id: selectedVersion?.id ?? null,
-        applied_url: applyHref,
-      }).catch(() => {})   // never block the application on the snapshot write
-      // Delta-4: the CV you just applied with becomes your living master, so it
-      // persists and seeds every future tailoring (project_living_cv_delta4).
-      // Best-effort — the application never waits on the promote.
-      cvApi.versions.promoteMaster(token, Array.from(hiddenItems))
-        .then(() => {
-          queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
-          queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
-        })
-        .catch(() => {})
-      capture.onApply()
-      if (!isApplied) markApplied.mutate()
-      window.open(applyHref, "_blank", "noopener,noreferrer")
-      setAppliedDone(true)
-    } finally {
-      setSubmittingApply(false)
-    }
+  function confirmApply() {
+    if (!applyHref) return
+    capture.open()
+    setApplyOpen(false)
+  }
+
+  async function recordSubmittedCv() {
+    // Only the user's explicit "Yes" freezes a submission artifact. Opening an
+    // external page is an attempt, never proof that this CV was submitted.
+    await cvApi.applySnapshot(token, {
+      job_id: jobId,
+      cv_snapshot: {
+        text: m.visibleText, title: m.jobTitle, company: m.company, score: m.ready,
+        bullets: m.visibleCount, words: m.wordCount,
+        structured: cv, hidden: Array.from(hiddenItems),
+      },
+      cv_version_id: selectedVersion?.id ?? null,
+      applied_url: applyHref,
+    }).catch(() => {})
+    cvApi.versions.promoteMaster(token, Array.from(hiddenItems))
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
+        queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
+      })
+      .catch(() => {})
   }
   // WYSIWYG download in place (ADR-0020): render the canonical PdfPage sheet
   // from the LIVE projection (cv + hiddenItems) in a hidden mount, serialize
@@ -318,7 +304,7 @@ export function PlaygroundView({
         saveState={saveState}
         onBack={onBackToBaseline}
         onReqPill={() => setTab("skills")}
-        onApply={() => { setAppliedDone(false); setApplyOpen(true) }}
+        onApply={() => setApplyOpen(true)}
         onDownload={requestDownload}
         onSaveJobMeta={editableJobMeta ? (async v => { await saveJobMeta.mutateAsync(v) }) : undefined}
       />
@@ -357,7 +343,7 @@ export function PlaygroundView({
                 company={m.company}
                 pageFill={m.pageFill}
                 onDownload={requestDownload}
-                onApply={() => { setAppliedDone(false); setApplyOpen(true) }}
+                onApply={() => setApplyOpen(true)}
                 canApply={!!applyHref}
               />
             ) : (
@@ -475,10 +461,8 @@ export function PlaygroundView({
           ready={m.ready}
           delta={sessionRaised}
           pendingFixes={visibleFixes.length}
-          submitting={submittingApply}
-          applied={appliedDone}
-          onConfirm={() => void confirmApply()}
-          onClose={() => { setApplyOpen(false); setAppliedDone(false) }}
+          onConfirm={confirmApply}
+          onClose={() => setApplyOpen(false)}
           onBackToFixes={() => { setApplyOpen(false); setTab("fixes") }}
           onDownload={requestDownload}
         />

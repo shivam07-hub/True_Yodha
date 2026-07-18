@@ -12,7 +12,7 @@ import type { ApplicationResponse, JobPulse } from "@/lib/api"
 import type { FeedItem } from "@/lib/dashboard/feed-model"
 
 /* Row skins for the Myro Ops folder. Both wrap the shared FeedCard; the actions
-   differ by spine: an above-bar brain match (Tailor / Apply / Dismiss, no save —
+   differ by spine: an above-bar brain match (Tailor / Dismiss, no save —
    it's already in the folder) vs a saved application (unsave / Tailor). */
 
 function useLeave(): [boolean, (fn: () => void) => void] {
@@ -68,17 +68,6 @@ export function MyroFoundRow({
           >
             <X size={16} aria-hidden />
           </button>
-          {job.source_url ? (
-            <a
-              className="db-btn db-btn-secondary tm-control-focus"
-              href={job.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-            >
-              Apply ↗
-            </a>
-          ) : null}
           <button type="button" className="db-btn db-btn-primary tm-control-focus" onClick={onTailor}>
             Tailor CV
           </button>

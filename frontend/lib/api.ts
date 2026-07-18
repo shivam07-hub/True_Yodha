@@ -2580,6 +2580,23 @@ export type QualityReasonCode =
 
 export type FeedbackSurface = "dashboard" | "market" | "job_detail" | "other"
 
+export type ApplyIntentSurface =
+  | "dashboard"
+  | "market"
+  | "collections"
+  | "cv_playground"
+  | "cv_export"
+  | "mobile_jobs"
+  | "mobile_collections"
+  | "agent_pick"
+  | "other"
+
+export interface ApplyIntentInput {
+  client_event_id: string
+  surface: ApplyIntentSurface
+  destination_type: "direct_role" | "career_search"
+}
+
 export interface JobFeedbackInput {
   client_event_id: string
   job_id: string
@@ -3504,6 +3521,12 @@ export const jobs = {
   applications: (token: string) =>
     request<ApplicationResponse[]>("/jobs/applications", {
       headers: { Authorization: `Bearer ${token}` },
+    }),
+  recordApplyIntent: (token: string, jobId: string, input: ApplyIntentInput) =>
+    request<void>(`/jobs/${encodeURIComponent(jobId)}/apply-intents`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(input),
     }),
   staleApplications: (token: string) =>
     request<StaleApplication[]>("/jobs/applications/stale", {

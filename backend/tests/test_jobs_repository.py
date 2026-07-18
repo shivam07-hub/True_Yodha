@@ -372,6 +372,30 @@ def test_restore_saved_job_uses_authenticated_atomic_rpc() -> None:
     assert user_db.tape["executed"] is True
 
 
+def test_record_apply_intent_uses_authenticated_identity_scoped_rpc() -> None:
+    user_db = _RpcDB()
+    repo = JobsRepository(user_db, _FakeDB())  # type: ignore[arg-type]
+
+    repo.record_apply_intent(
+        "user-1",
+        "job-1",
+        {
+            "client_event_id": "123e4567-e89b-12d3-a456-426614174000",
+            "surface": "market",
+            "destination_type": "direct_role",
+        },
+    )
+
+    assert user_db.tape["rpc"] == "record_job_apply_intent"
+    assert user_db.tape["params"] == {
+        "p_job_id": "job-1",
+        "p_client_event_id": "123e4567-e89b-12d3-a456-426614174000",
+        "p_surface": "market",
+        "p_destination_type": "direct_role",
+    }
+    assert user_db.tape["executed"] is True
+
+
 def test_context_refresh_clears_old_recommendations() -> None:
     user_db = _FakeDB()
     repo = JobsRepository(user_db, _FakeDB())  # type: ignore[arg-type]

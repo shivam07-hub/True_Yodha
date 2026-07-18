@@ -3098,6 +3098,24 @@ class JobsRepository:
             raise
         return True
 
+    def record_apply_intent(
+        self,
+        user_id: str,
+        job_id: str,
+        intent: dict[str, str],
+    ) -> None:
+        """Persist an outbound attempt without claiming the user submitted."""
+        _ = user_id
+        self._db.rpc(
+            "record_job_apply_intent",
+            {
+                "p_job_id": job_id,
+                "p_client_event_id": intent["client_event_id"],
+                "p_surface": intent["surface"],
+                "p_destination_type": intent["destination_type"],
+            },
+        ).execute()
+
     def get_stale_applications(self, user_id: str) -> list[dict[str, Any]]:
         # Q7: filter on dedicated last_stage_changed_at column so notes/followed_up
         # edits don't mask company silence. Dismiss also bumps this column → 7-day snooze.
