@@ -38,7 +38,7 @@ export function useSnack() {
 }
 
 interface SnackState extends SnackSpec {
-  w: string
+  scale: number
   tr: string
 }
 
@@ -55,11 +55,11 @@ export function MobileUIProvider({ children }: { children: React.ReactNode }) {
   const snack = useCallback((spec: SnackSpec) => {
     const ms = spec.ms ?? 4600
     if (timer.current) clearTimeout(timer.current)
-    setSnackState({ ...spec, w: "100%", tr: "none" })
-    // Two RAFs so the width transition animates from 100% → 0%.
+    setSnackState({ ...spec, scale: 1, tr: "none" })
+    // Two RAFs so the compositor-only timer animates from full → empty.
     requestAnimationFrame(() =>
       requestAnimationFrame(() =>
-        setSnackState(s => (s ? { ...s, w: "0%", tr: `width ${ms}ms linear` } : s)),
+        setSnackState(s => (s ? { ...s, scale: 0, tr: `transform ${ms}ms linear` } : s)),
       ),
     )
     timer.current = setTimeout(() => setSnackState(null), ms)
@@ -76,12 +76,14 @@ export function MobileUIProvider({ children }: { children: React.ReactNode }) {
       {snackState && (
         <div
           className="mm-root"
+          role="status"
+          aria-live="polite"
           style={{
             position: "fixed", left: 14, right: 14,
             bottom: "calc(var(--tm-mobile-bottomnav-h, 62px) + 12px + env(safe-area-inset-bottom))",
             zIndex: 260, background: "#2e2e2b", border: "1px solid rgba(255,255,255,0.09)",
             borderRadius: 14, boxShadow: "0 10px 30px rgba(0,0,0,0.45)", overflow: "hidden",
-            animation: "mm-snackIn 260ms cubic-bezier(0.16,1,0.3,1)",
+            animation: "mm-snackIn 180ms ease-out",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px" }}>
@@ -95,7 +97,7 @@ export function MobileUIProvider({ children }: { children: React.ReactNode }) {
               </button>
             )}
           </div>
-          <div style={{ height: 2, background: "var(--mm-accent)", width: snackState.w, transition: snackState.tr }} />
+          <div style={{ height: 2, background: "var(--mm-accent)", transform: `scaleX(${snackState.scale})`, transformOrigin: "left", transition: snackState.tr }} />
         </div>
       )}
     </Ctx.Provider>

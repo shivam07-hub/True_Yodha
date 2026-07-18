@@ -108,7 +108,6 @@ export function CollectionRow({
   onTailor: () => void
   onOpenCv: () => void
 }) {
-  const [leaving, leaveThen] = useLeave()
   const applied = app ? app.status !== "saved" : false
   const tailored = !!app?.cv_badge
   return (
@@ -116,7 +115,6 @@ export function CollectionRow({
       data={feedDataFromMatch({ jobId: it.jobId, company: it.company, role: it.role, job: it.job, fit: it.fit })}
       variant="row"
       open={open}
-      leaving={leaving}
       extraClass={feedCardConfidenceClass(pulse)}
       onOpen={onOpen}
       badges={
@@ -131,15 +129,17 @@ export function CollectionRow({
       pulse={<PulseRow pulse={pulse} />}
       actions={
         <div className="db-card-actions" onClick={(e) => e.stopPropagation()}>
-          <button
-            type="button"
-            className="db-icon-btn liked"
-            aria-label="Remove from Collections"
-            title="Remove from Collections"
-            onClick={() => leaveThen(onUnsave)}
-          >
-            <HeartGlyph />
-          </button>
+          {!applied ? (
+            <button
+              type="button"
+              className="db-icon-btn liked"
+              aria-label="Remove from Collections"
+              title="Remove from Collections"
+              onClick={onUnsave}
+            >
+              <HeartGlyph />
+            </button>
+          ) : null}
           {tailored ? (
             <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={onOpenCv}>
               Tailored ✓

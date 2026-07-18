@@ -21,6 +21,7 @@ export interface JobDetailData {
   matched: string[]
   gaps: string[]
   saved: boolean
+  canDismiss?: boolean
   hasApply: boolean
 }
 
@@ -56,7 +57,7 @@ export function JobDetailSheet({
   const { result: brain } = useMatchBrain(token, open && data ? data.row.id : null)
   const upvotes = useSkillUpvotes(token)
   if (!data) return <BottomSheet open={open} onClose={onClose} label="Job detail" maxHeight="88%"><div /></BottomSheet>
-  const { row, matched, gaps, saved, hasApply } = data
+  const { row, matched, gaps, saved, hasApply, canDismiss = true } = data
   // Prefer the brain's real "why this fits you" summary over the static JD slice.
   const whyFit = (brain?.available ? brain.summary : null) || data.whyFit
 
@@ -156,12 +157,16 @@ export function JobDetailSheet({
       {captureSlot ? <div style={{ flex: "none", padding: "0 16px", background: "#232322" }}>{captureSlot}</div> : null}
 
       <div style={{ flex: "none", display: "flex", gap: 8, padding: "11px 16px 16px", borderTop: "1px solid rgba(255,255,255,0.055)", background: "#232322" }}>
-        <button onClick={onHeart} aria-label="Save" className="mm-press-sm" style={footBtn}>
-          <svg width={17} height={17} viewBox="0 0 24 24" fill={saved ? "currentColor" : "none"} stroke={saved ? "var(--mm-accent)" : "#a6a69e"} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.5-1.5 2-3.2 2-4.6C21 6.4 18.6 4 15.6 4 14.2 4 12.9 4.6 12 5.6 11.1 4.6 9.8 4 8.4 4 5.4 4 3 6.4 3 9.4c0 1.4.5 3.1 2 4.6l7 6.6 7-6.6Z" /></svg>
-        </button>
-        <button onClick={onSkip} aria-label="Not interested" className="mm-press-sm" style={footBtn}>
-          <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#a6a69e" strokeWidth={2.2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
-        </button>
+        {canDismiss ? (
+          <>
+            <button onClick={onHeart} aria-label={saved ? "Remove from saved" : "Save"} className="mm-press-sm" style={footBtn}>
+              <svg width={17} height={17} viewBox="0 0 24 24" fill={saved ? "currentColor" : "none"} stroke={saved ? "var(--mm-accent)" : "#a6a69e"} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.5-1.5 2-3.2 2-4.6C21 6.4 18.6 4 15.6 4 14.2 4 12.9 4.6 12 5.6 11.1 4.6 9.8 4 8.4 4 5.4 4 3 6.4 3 9.4c0 1.4.5 3.1 2 4.6l7 6.6 7-6.6Z" /></svg>
+            </button>
+            <button onClick={onSkip} aria-label="Not interested" className="mm-press-sm" style={footBtn}>
+              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#a6a69e" strokeWidth={2.2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
+          </>
+        ) : null}
         <button onClick={onTailor} className="mm-press" style={{ flex: 1, height: 42, borderRadius: 13, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-0.01em" }}>Tailor CV</button>
         {hasApply && (
           <button onClick={onApply} className="mm-press-sm" style={{ height: 42, padding: "0 14px", borderRadius: 13, border: "1px solid rgba(255,255,255,0.09)", background: "transparent", color: "#f2f2ee", fontSize: 13, fontWeight: 650, cursor: "pointer", fontFamily: "inherit", flex: "none" }}>Apply ↗</button>

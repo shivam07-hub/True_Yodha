@@ -3071,15 +3071,32 @@ class JobsRepository:
         attach_jobs([row], self._db, "job_title, company_name, job_description")
         return row
 
-    def delete_tracker_rows(self, user_id: str, job_id: str) -> None:
-        for table_name in ("job_applications", "user_job_matches"):
-            (
-                self._db.table(table_name)
-                .delete()
-                .eq("user_id", user_id)
-                .eq("job_id", job_id)
-                .execute()
-            )
+    def dismiss_saved_job(self, user_id: str, job_id: str) -> bool:
+        """Remove saved intent + record Not Interested in one RLS-scoped RPC.
+
+        The database function derives ownership from ``auth.uid()``. ``user_id``
+        remains in this repository interface so callers cannot accidentally lose
+        the principal boundary, but it is deliberately never sent to PostgREST.
+        """
+        _ = user_id
+        try:
+            self._db.rpc("dismiss_saved_job", {"p_job_id": job_id}).execute()
+        except APIError as exc:
+            if exc.code == "P0002":
+                return False
+            raise
+        return True
+
+    def restore_saved_job(self, user_id: str, job_id: str) -> bool:
+        """Undo a saved-job dismissal through the caller's RLS-scoped client."""
+        _ = user_id
+        try:
+            self._db.rpc("restore_saved_job", {"p_job_id": job_id}).execute()
+        except APIError as exc:
+            if exc.code == "P0002":
+                return False
+            raise
+        return True
 
     def get_stale_applications(self, user_id: str) -> list[dict[str, Any]]:
         # Q7: filter on dedicated last_stage_changed_at column so notes/followed_up

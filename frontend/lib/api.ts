@@ -3563,6 +3563,11 @@ export const jobs = {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     }),
+  restoreTrackerJob: (token: string, jobId: string) =>
+    request<void>(`/jobs/tracker/${encodeURIComponent(jobId)}/restore`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
   dismissStale: (token: string, jobId: string) =>
     request<void>(`/jobs/applications/${encodeURIComponent(jobId)}/dismiss-stale`, {
       method: "POST",

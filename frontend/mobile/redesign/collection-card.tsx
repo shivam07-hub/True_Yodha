@@ -79,13 +79,15 @@ function CardShell({
 /** A saved application (You added / Applied chips) — unsave / share / Tailor. */
 export function CollectionCard({ row, fitKnown, statusChip, tailored, pulse, onOpen, onHeart, onShare, onTailor, onOpenCv }: {
   row: MobileJobRow; fitKnown: boolean; statusChip: string; tailored: boolean; pulse?: JobPulse
-  onOpen: () => void; onHeart: () => void; onShare: () => void; onTailor: () => void; onOpenCv: () => void
+  onOpen: () => void; onHeart?: () => void; onShare: () => void; onTailor: () => void; onOpenCv: () => void
 }) {
   return (
     <CardShell row={row} fitKnown={fitKnown} statusChip={statusChip} pulse={pulse} onOpen={onOpen}>
-      <button onClick={(e) => { e.stopPropagation(); onHeart() }} aria-label="Remove from saved" className="mm-press-sm" style={iconBtn}>
-        <svg width={15} height={15} viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" color="var(--mm-accent)"><path d="M19 14c1.5-1.5 2-3.2 2-4.6C21 6.4 18.6 4 15.6 4 14.2 4 12.9 4.6 12 5.6 11.1 4.6 9.8 4 8.4 4 5.4 4 3 6.4 3 9.4c0 1.4.5 3.1 2 4.6l7 6.6 7-6.6Z" /></svg>
-      </button>
+      {onHeart ? (
+        <button onClick={(e) => { e.stopPropagation(); onHeart() }} aria-label="Remove from saved" className="mm-press-sm" style={iconBtn}>
+          <svg width={15} height={15} viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" color="var(--mm-accent)"><path d="M19 14c1.5-1.5 2-3.2 2-4.6C21 6.4 18.6 4 15.6 4 14.2 4 12.9 4.6 12 5.6 11.1 4.6 9.8 4 8.4 4 5.4 4 3 6.4 3 9.4c0 1.4.5 3.1 2 4.6l7 6.6 7-6.6Z" /></svg>
+        </button>
+      ) : null}
       <button onClick={(e) => { e.stopPropagation(); onShare() }} aria-label="Share" className="mm-press-sm" style={iconBtn}>
         <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round"><path d="M12 15V4m0 0 4 4m-4-4L8 8" /><path d="M4 13v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5" /></svg>
       </button>

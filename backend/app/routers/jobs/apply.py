@@ -313,4 +313,21 @@ def remove_tracker_job(
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> None:
-    repo.delete_tracker_rows(principal.id, job_id)
+    if not repo.dismiss_saved_job(principal.id, job_id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only saved jobs can be removed from Collections.",
+        )
+
+
+@router.post("/tracker/{job_id}/restore", status_code=status.HTTP_204_NO_CONTENT)
+def restore_tracker_job(
+    job_id: str,
+    principal: Principal = Depends(get_principal),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+) -> None:
+    if not repo.restore_saved_job(principal.id, job_id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This saved-job dismissal can no longer be undone.",
+        )

@@ -29,6 +29,7 @@ export function DashboardJobDrawer({
   token,
   cartSkillNames,
   liked,
+  canDismiss = true,
   onClose,
   onLike,
   onSkip,
@@ -40,6 +41,7 @@ export function DashboardJobDrawer({
   token: string
   cartSkillNames: Set<string>
   liked: boolean
+  canDismiss?: boolean
   onClose: () => void
   onLike: () => void
   onSkip: () => void
@@ -78,25 +80,29 @@ export function DashboardJobDrawer({
         <div className="db-drawer-foot">
           <ApplyCapturePrompt capture={capture} />
           <div className="db-drawer-foot-row">
-            <button
-              type="button"
-              className={`db-icon-btn${liked ? " liked" : ""}`}
-              aria-label={liked ? "Unlike" : "Like"}
-              onClick={onLike}
-            >
-              <Heart size={18} fill={liked ? "currentColor" : "none"} aria-hidden />
-            </button>
-            <button
-              type="button"
-              className="db-icon-btn"
-              aria-label="Not interested"
-              onClick={() => {
-                onSkip()
-                onClose()
-              }}
-            >
-              <X size={18} aria-hidden />
-            </button>
+            {canDismiss ? (
+              <>
+                <button
+                  type="button"
+                  className={`db-icon-btn${liked ? " liked" : ""}`}
+                  aria-label={liked ? "Unlike" : "Like"}
+                  onClick={onLike}
+                >
+                  <Heart size={18} fill={liked ? "currentColor" : "none"} aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  className="db-icon-btn"
+                  aria-label="Not interested"
+                  onClick={() => {
+                    onSkip()
+                    onClose()
+                  }}
+                >
+                  <X size={18} aria-hidden />
+                </button>
+              </>
+            ) : null}
             <a className="db-btn db-btn-primary" href={`/cv?jobId=${item.jobId}`}>
               Tailor CV
             </a>
