@@ -10,6 +10,7 @@ const PLATFORM_PATTERNS = [
   ["oracle_hcm", /oraclecloud\.com$/],
   ["successfactors", /successfactors\.(com|eu)$/],
   ["amazon", /(^|\.)amazon\.jobs$/],
+  ["mopid", /(^|\.)mopid\.me$/],
 ]
 
 const KNOWN_SELECTORS = {
@@ -57,6 +58,12 @@ const KNOWN_SELECTORS = {
     company: ".company",  // usually absent — backstop/JSON-LD fills "Amazon"
     location: ".location-icon + *, .association",
     description: ".content, #job-detail, .job-detail",
+  },
+  mopid: {
+    role: ".header-wrapper__company__title-section",
+    company: ".header-wrapper__company__company-section",
+    location: ".header-wrapper .tags__content",
+    description: ".job-description-container",
   },
 }
 

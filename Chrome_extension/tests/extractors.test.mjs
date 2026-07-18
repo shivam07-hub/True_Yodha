@@ -2,6 +2,7 @@ import { strict as assert } from "node:assert"
 import test from "node:test"
 
 import { extractFromDocument, extractKnownPortal, sourcePlatformFromUrl } from "../src/extractors.js"
+import { enrichMopidPortalDraft, mopidJobIdFromUrl } from "../src/mopid-portal.js"
 
 function makeElement(textContent = "", attrs = {}) {
   return {
@@ -84,6 +85,24 @@ test("extracts known LinkedIn selectors (authenticated view classes)", () => {
   assert.equal(draft.captureMethod, "known_portal")
 })
 
+test("extracts MOPID's visible job header before endpoint enrichment", () => {
+  const doc = makeDocument({
+    selectors: {
+      ".header-wrapper__company__title-section": makeElement("Sales Manager - Real Estate AI SaaS"),
+      ".header-wrapper__company__company-section": makeElement("Huvo AI"),
+      ".header-wrapper .tags__content": makeElement("Gurugram"),
+      ".job-description-container": makeElement("Required fields View Job Description"),
+    },
+  })
+
+  const draft = extractKnownPortal(doc, "https://start.mopid.me/jobapply/?jobId=687-f96ba")
+
+  assert.equal(draft.roleName, "Sales Manager - Real Estate AI SaaS")
+  assert.equal(draft.companyName, "Huvo AI")
+  assert.equal(draft.location, "Gurugram")
+  assert.equal(draft.captureMethod, "known_portal")
+})
+
 test("selected JD does NOT poison company — JSON-LD company still wins (Amazon bug)", () => {
   // Reproduces the amazon.jobs failure: the user selects the JD, the page title
   // is "… - Job ID: 10426211". Old code title-parsed company = "Job ID: 10426211".
@@ -142,5 +161,67 @@ test("identifies common source platforms from URLs", () => {
   assert.equal(sourcePlatformFromUrl("https://boards.greenhouse.io/acme/jobs/1"), "greenhouse")
   assert.equal(sourcePlatformFromUrl("https://jobs.lever.co/acme/1"), "lever")
   assert.equal(sourcePlatformFromUrl("https://www.naukri.com/job-listings-1"), "naukri")
+  assert.equal(sourcePlatformFromUrl("https://start.mopid.me/jobapply/?jobId=687-f96ba"), "mopid")
   assert.equal(sourcePlatformFromUrl("https://example.com/jobs/1"), "generic")
+})
+
+test("enriches a MOPID capture from its public job endpoint", async () => {
+  const draft = {
+    sourceUrl: "https://start.mopid.me/jobapply/?jobId=687-f96ba&source=job-board",
+    sourcePlatform: "mopid",
+    captureMethod: "visible_page",
+    confidence: 0.42,
+    roleName: "Sales Manager - Real Estate AI SaaS",
+    companyName: "Huvo AI",
+    location: "Gurugram",
+    jobDescription: "Application form fields only.",
+    fieldSources: { role: "known_portal", company: "known_portal", location: "known_portal", jobDescription: "visible_page" },
+    needsBackstop: false,
+  }
+  let requestedUrl = ""
+  const enriched = await enrichMopidPortalDraft(draft, async (url) => {
+    requestedUrl = url
+    return {
+      ok: true,
+      json: async () => ({
+        status: 200,
+        data: {
+          job_name: "Sales Manager - Real Estate AI SaaS",
+          company_name: "Huvo AI",
+          job_location: "Gurugram",
+          job_description: "<p>Own the full sales cycle with <b>real estate</b> customers.</p>",
+        },
+      }),
+    }
+  })
+
+  assert.equal(mopidJobIdFromUrl(draft.sourceUrl), "687-f96ba")
+  assert.equal(requestedUrl, "https://ats.mopid.me/api/v1.0/job?job_uuid=687-f96ba")
+  assert.equal(enriched.captureMethod, "known_portal")
+  assert.equal(enriched.jobDescription, "Own the full sales cycle with real estate customers.")
+  assert.equal(enriched.fieldSources.jobDescription, "known_portal")
+})
+
+test("preserves selected MOPID text while enriching structured fields", async () => {
+  const draft = {
+    sourceUrl: "https://start.mopid.me/jobapply/?jobId=687-f96ba",
+    sourcePlatform: "mopid",
+    captureMethod: "selected_text",
+    confidence: 0.7,
+    roleName: null,
+    companyName: null,
+    location: null,
+    jobDescription: "Candidate-selected description with extra context.",
+    fieldSources: { role: null, company: null, location: null, jobDescription: "selected_text" },
+    needsBackstop: true,
+  }
+  const enriched = await enrichMopidPortalDraft(draft, async () => ({
+    ok: true,
+    json: async () => ({ status: 200, data: { job_name: "Sales Manager", company_name: "Huvo AI", job_location: "Gurugram", job_description: "Endpoint text" } }),
+  }))
+
+  assert.equal(enriched.jobDescription, draft.jobDescription)
+  assert.equal(enriched.captureMethod, "selected_text")
+  assert.equal(enriched.roleName, "Sales Manager")
+  assert.equal(enriched.needsBackstop, false)
 })
