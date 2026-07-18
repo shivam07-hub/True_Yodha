@@ -1292,6 +1292,53 @@ export const memory = {
     }),
 }
 
+/** Career Profile — the recruiter/logistics fact-layer (comp / notice / quota /
+ *  targets / reporting line / availability / experience splits). Captured once,
+ *  reused: extension ATS auto-fill + persona/Prep/₹99 surfacing. All optional —
+ *  capture is progressive. Numeric keys are typed so the extension fills clean
+ *  values, not parsed prose. */
+export interface CareerProfileData {
+  total_experience_years?: number | null
+  bd_experience_years?: number | null
+  it_services_years?: number | null
+  gcc_bd_years?: number | null
+  current_ctc_fixed_lpa?: number | null
+  current_ctc_variable_lpa?: number | null
+  expected_ctc_lpa?: number | null
+  notice_period_days?: number | null
+  current_location?: string | null
+  open_to_relocate?: boolean | null
+  interview_availability?: string | null
+  sales_target?: string | null
+  target_achievement?: string | null
+  new_logos_last_year?: number | null
+  reporting_manager?: string | null
+  reason_for_change?: string | null
+  notes?: string | null
+}
+export interface CareerProfileResponse {
+  profile: CareerProfileData
+  updated_at: string | null
+  /** Reservoir-derived pre-fill the user hasn't confirmed yet (S2). */
+  suggested?: CareerProfileData | null
+}
+
+/** Token-scoped read/write of the caller's Career Profile. */
+export const careerProfile = {
+  get: (token: string) =>
+    request<CareerProfileResponse>("/career-profile", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  /** PATCH semantics: supplied keys merge, absent keys untouched, explicit null
+   *  clears a key. */
+  update: (token: string, profile: Partial<CareerProfileData>) =>
+    request<CareerProfileResponse>("/career-profile", {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ profile }),
+    }),
+}
+
 /** Persona canvas (Lane B) — one living document in three movements. */
 export type PersonaMovement = "past" | "present" | "future"
 export interface PersonaParagraph {

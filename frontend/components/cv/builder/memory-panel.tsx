@@ -13,6 +13,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { MemoryFact, MemoryKind } from "@/lib/api"
 import { cv as cvApi, jobs as jobsApi, memory as memoryApi } from "@/lib/api"
 import { formatCount } from "@/lib/format"
+import { CareerProfileCard } from "./career-profile-card"
 import { PersonaCanvas } from "./persona-canvas"
 import "./memory-panel.css"
 
@@ -111,6 +112,8 @@ export function MemoryPanel({ token }: { token: string }) {
   return (
     <section className="tm-mem-scope" aria-label="What Myro knows about you">
       <PersonaCanvas token={token} />
+
+      <CareerProfileCard token={token} title="Career profile — what recruiters ask" />
 
       <p className="tm-mem-substrate-note">
         Everything above is written from stores you can see, edit and forget.
