@@ -18,14 +18,15 @@
  */
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
 import { scores, users, cv as cvApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useMasterAutosave } from "@/lib/hooks/use-master-autosave"
-import { CVEditor } from "./cv-editor"
+import { mentorRewriteTarget } from "@/lib/cv/mentor-rewrite-target"
+import { CVEditor, type RewriteTarget } from "./cv-editor"
 import { FixesRail } from "./fixes-rail"
 import { SkillProvenance } from "./skill-provenance"
 import { V2Sheet } from "./preview-rail"
@@ -52,14 +53,19 @@ interface MasterWorkspaceProps {
 export function MasterWorkspace({ token, baseline, cv, profile, onDone }: MasterWorkspaceProps) {
   const userKey = profile?.ninja_name?.trim() || profile?.email?.trim() || "anon"
   const autosave = useMasterAutosave({ token, enabled: true, userKey })
+  const searchParams = useSearchParams()
   // Deep-link: ?tab=skills opens straight on the Skills rail (the skill-audit home).
-  const initialTab: MasterTab = useSearchParams().get("tab") === "skills" ? "skills" : "edit"
+  const initialTab: MasterTab = searchParams.get("tab") === "skills" ? "skills" : "edit"
+  const requestedMentorSkill = searchParams.get("mentor") === "1" ? searchParams.get("skill") : null
   const [tab, setTab] = useState<MasterTab>(initialTab)
   const [expandedFixId, setExpandedFixId] = useState<string | null>(null)
   const [appliedFixes, setAppliedFixes] = useState<AppliedFix[]>([])
   const [flash, setFlash] = useState<{ iid: string; n: number } | null>(null)
   const [addingProven, setAddingProven] = useState(false)
   const [provenStatus, setProvenStatus] = useState<string | null>(null)
+  const [rewriteTarget, setRewriteTarget] = useState<RewriteTarget | null>(null)
+  const [mentorResolved, setMentorResolved] = useState(false)
+  const [mentorMiss, setMentorMiss] = useState(false)
 
   const scoreQuery = useQuery({
     queryKey: dataKeys.scores(),
@@ -83,6 +89,18 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
     mode: "master",
     masterScore: myroScore,
   })
+
+  useEffect(() => {
+    if (!requestedMentorSkill || mentorResolved || !skillsQuery.isSuccess || !autosave.ready) return
+    const target = mentorRewriteTarget(draft, allSkills, requestedMentorSkill)
+    setMentorResolved(true)
+    if (target) {
+      setTab("edit")
+      setRewriteTarget(target)
+    } else {
+      setMentorMiss(true)
+    }
+  }, [allSkills, autosave.ready, draft, mentorResolved, requestedMentorSkill, skillsQuery.isSuccess])
 
   const openFixIds = useMemo(() => new Set(m.openFixes.map(f => f.id)), [m.openFixes])
   const appliedShown = appliedFixes.filter(a => !openFixIds.has(a.id))
@@ -189,6 +207,15 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
         onDownload={onDone}
       />
 
+      {mentorMiss ? (
+        <div className="cvb-pgc-err" role="alert">
+          Mentor needs a CV bullet that shows this skill before it can rewrite it.
+          <button type="button" className="cvb-btn sm" onClick={() => { setMentorMiss(false); setTab("skills") }}>
+            Review CV proof
+          </button>
+        </div>
+      ) : null}
+
       <div className="cvb-v2-main">
         <section className="cvb-v2-editor" aria-label="Your Main CV">
           <div className="cvb-v2-toolbar">
@@ -224,8 +251,8 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
                 addingBullet={false}
                 visibleCount={m.visibleCount}
                 wordCount={m.wordCount}
-                rewriteTarget={null}
-                onClearRewriteTarget={() => {}}
+                rewriteTarget={rewriteTarget}
+                onClearRewriteTarget={() => setRewriteTarget(null)}
                 fixes={visibleFixes}
                 applied={appliedShown}
                 onFixPill={openFixCard}

@@ -9,6 +9,7 @@ from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.security import redact_sensitive_text
 from app.schemas import (
     APPLICATION_STATUSES,
+    ApplyIntentRequest,
     ApplicationResponse,
     ApplicationStatusUpdate,
     JobFileExtractResponse,
@@ -39,6 +40,24 @@ from ._shared import cv_badge_from_row, to_application
 _log = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+@router.post("/{job_id}/apply-intents", status_code=status.HTTP_204_NO_CONTENT)
+def record_apply_intent(
+    job_id: str,
+    body: ApplyIntentRequest,
+    principal: Principal = Depends(get_principal),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+) -> None:
+    repo.record_apply_intent(
+        principal.id,
+        job_id,
+        {
+            "client_event_id": str(body.client_event_id),
+            "surface": body.surface,
+            "destination_type": body.destination_type,
+        },
+    )
 
 
 @router.get("/applications", response_model=list[ApplicationResponse])
@@ -313,4 +332,21 @@ def remove_tracker_job(
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> None:
-    repo.delete_tracker_rows(principal.id, job_id)
+    if not repo.dismiss_saved_job(principal.id, job_id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only saved jobs can be removed from Collections.",
+        )
+
+
+@router.post("/tracker/{job_id}/restore", status_code=status.HTTP_204_NO_CONTENT)
+def restore_tracker_job(
+    job_id: str,
+    principal: Principal = Depends(get_principal),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+) -> None:
+    if not repo.restore_saved_job(principal.id, job_id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This saved-job dismissal can no longer be undone.",
+        )

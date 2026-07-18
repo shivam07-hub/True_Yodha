@@ -11,6 +11,7 @@ from app.services.scoring import (
     _PROFICIENCY_TITLES,
     _RANK_TIERS,
     _SIGNAL_LEVEL_MAP,
+    DEFAULT_TARGET_LEVEL,
     build_skill_level_map,
     compute_cluster_scores,
     compute_domain_scores,
@@ -19,6 +20,7 @@ from app.services.scoring import (
     compute_rank_tier,
     infer_level_from_signals,
     project_total_with_skill_bump,
+    target_level_for_seniority,
 )
 
 # ── Shared taxonomy fixtures ──────────────────────────────────────────────────
@@ -80,6 +82,63 @@ class TestClusterScores:
     def test_zero_level_skill_gives_zero_cluster_score(self) -> None:
         scores = compute_cluster_scores({"Django": 0}, CLUSTER_CHILDREN, SKILL_TO_CLUSTER)
         assert scores.get("Web Frameworks", 0.0) == pytest.approx(0.0)
+
+
+# ── Banded scoring (seniority-relative denominator) ───────────────────────────
+
+class TestBandedScoring:
+    def test_band_to_target_level(self) -> None:
+        assert target_level_for_seniority("intern") == 2
+        assert target_level_for_seniority("entry") == 2
+        assert target_level_for_seniority("mid") == 3
+        assert target_level_for_seniority("senior") == 4
+        assert target_level_for_seniority("lead") == 5
+        assert target_level_for_seniority("executive") == 5
+
+    def test_unknown_band_defaults_to_entry(self) -> None:
+        assert target_level_for_seniority(None) == DEFAULT_TARGET_LEVEL == 2
+        assert target_level_for_seniority("") == 2
+        assert target_level_for_seniority("any") == 2
+        assert target_level_for_seniority("nonsense") == 2
+
+    def test_default_target_level_5_matches_legacy(self) -> None:
+        # No target_level arg == legacy absolute /5 scale (backward compatible).
+        legacy = compute_cluster_scores({"Django": 3}, CLUSTER_CHILDREN, SKILL_TO_CLUSTER)
+        explicit = compute_cluster_scores({"Django": 3}, CLUSTER_CHILDREN, SKILL_TO_CLUSTER, 5)
+        assert legacy == explicit
+
+    def test_entry_band_lifts_a_junior_above_absolute(self) -> None:
+        # A max-L2 skill: absolute /5 gives 0.4 proficiency; entry /2 gives 1.0.
+        level_map = {"Django": 2}
+        absolute = compute_cluster_scores(level_map, CLUSTER_CHILDREN, SKILL_TO_CLUSTER, 5)
+        banded = compute_cluster_scores(level_map, CLUSTER_CHILDREN, SKILL_TO_CLUSTER, 2)
+        assert banded["Web Frameworks"] > absolute["Web Frameworks"]
+
+    def test_at_band_target_gets_full_proficiency_credit(self) -> None:
+        # L2 against entry target L2 → proficiency multiplier 1.0 → coverage only.
+        import math
+        level_map = {"Django": 2}
+        scores = compute_cluster_scores(level_map, CLUSTER_CHILDREN, SKILL_TO_CLUSTER, 2)
+        log_cov = math.log1p(1) / math.log1p(3)
+        assert scores["Web Frameworks"] == pytest.approx(1.0 * (0.3 + 0.7 * log_cov), rel=1e-3)
+
+    def test_above_band_is_capped_never_inflates(self) -> None:
+        # L4 against entry target L2 would be 2.0 uncapped — must cap at 1.0, so
+        # it equals an L2-at-L2 candidate (same coverage). No inflation above band.
+        at_band = compute_cluster_scores({"Django": 2}, CLUSTER_CHILDREN, SKILL_TO_CLUSTER, 2)
+        above = compute_cluster_scores({"Django": 4}, CLUSTER_CHILDREN, SKILL_TO_CLUSTER, 2)
+        assert above["Web Frameworks"] == pytest.approx(at_band["Web Frameworks"])
+
+    def test_bump_respects_band_denominator(self) -> None:
+        # The what-if projection must use the same band as the displayed total.
+        level_map = {"Django": 1, "SQL": 1}
+        projected = project_total_with_skill_bump(
+            level_map, "Django", 2, CLUSTER_CHILDREN, SKILL_TO_CLUSTER, CLUSTER_TO_DOMAIN, 2,
+        )
+        cluster_scores = compute_cluster_scores({"Django": 2, "SQL": 1}, CLUSTER_CHILDREN, SKILL_TO_CLUSTER, 2)
+        counts = {c: sum(1 for s in {"Django": 2, "SQL": 1} if SKILL_TO_CLUSTER.get(s) == c) for c in cluster_scores}
+        expected = compute_mirror_score(compute_domain_scores(cluster_scores, CLUSTER_TO_DOMAIN, counts))
+        assert projected == pytest.approx(expected)
 
 
 # ── Domain Score ──────────────────────────────────────────────────────────────
@@ -276,16 +335,16 @@ class TestGapAnalysis:
 class TestRankTier:
     @pytest.mark.parametrize("score, expected", [
         (0.0,   "Newcomer"),
-        (20.0,  "Newcomer"),
-        (21.0,  "Explorer"),
-        (40.0,  "Explorer"),
-        (41.0,  "Practitioner"),
-        (60.0,  "Practitioner"),
-        (61.0,  "Specialist"),
-        (75.0,  "Specialist"),
-        (76.0,  "Professional"),
-        (88.0,  "Professional"),
-        (89.0,  "Expert"),
+        (19.0,  "Newcomer"),
+        (20.0,  "Explorer"),
+        (34.0,  "Explorer"),
+        (35.0,  "Practitioner"),
+        (49.0,  "Practitioner"),
+        (50.0,  "Specialist"),
+        (64.0,  "Specialist"),
+        (65.0,  "Professional"),
+        (79.0,  "Professional"),
+        (80.0,  "Expert"),
         (100.0, "Expert"),
     ])
     def test_tier_bands(self, score: float, expected: str) -> None:

@@ -11,23 +11,30 @@ remains canonically derived (OQ4). See docs/adr/0002-scoring-facade-split.md.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
 from app.repositories.scores import ScoresRepository
+from app.services.job_eligibility import target_seniority_for_profile
 from app.services.scoring.aspirations import fetch_aspiration_skills
+from app.services.scoring.percentile import percentile_rank
 from app.services.scoring.formulas import (
     _PROFICIENCY_TITLES,
+    DEFAULT_TARGET_LEVEL,
     _build_cluster_maps,
     build_skill_level_map,
     compute_cluster_scores,
     compute_domain_scores,
     compute_mirror_score,
     project_total_with_skill_bump,
+    target_level_for_seniority,
 )
 from app.services.scoring.gap import compute_gap_skills, compute_rank_tier
 from app.services.scoring.market import fetch_skill_demand
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -42,6 +49,16 @@ class ScoreProjection:
 # ── Facades ───────────────────────────────────────────────────────────────────
 
 
+def _band_target_level(seniority: str | None) -> int:
+    """Raw profile seniority → band-relative scoring denominator.
+
+    Normalizes aliases + the 'any'/null default through the one canonical
+    resolver, then maps the band to its target proficiency level.
+    """
+    band = target_seniority_for_profile({"target_seniority": seniority})
+    return target_level_for_seniority(band)
+
+
 def record_cv_score(
     scores_repo: ScoresRepository,
     user_id: str,
@@ -50,22 +67,27 @@ def record_cv_score(
     """CV ingest path. Infers levels from raw signals, writes user_skills + score.
 
     Raises ValueError when zero skills can be persisted (caller maps to 422).
+    Scored against the profile's seniority band (entry when unset — a fresher
+    uploading at onboarding is not measured against L5).
     """
     skill_level_map = build_skill_level_map(skills_detected)
     skill_rows = _build_user_skill_rows(scores_repo, user_id, skill_level_map, skills_detected)
     if not skill_rows:
         raise ValueError("No valid skills could be persisted for this user.")
 
+    seniority = scores_repo.get_target_seniority(user_id)
     projection = _score_math(
         scores_repo,
         skill_level_map,
         aspiration_skills={},
         include_market_signals=False,
+        target_level=_band_target_level(seniority),
         skills_assessed_override=len(skill_rows),
     )
-    score_row = _persist_score(scores_repo, user_id, projection)
+    _persist_score(scores_repo, user_id, projection)
     scores_repo.upsert_user_skill_rows(skill_rows)
-    return score_row
+    _persist_band_percentile(scores_repo, user_id, seniority, projection.total_score)
+    return scores_repo.require_mirror_score(user_id)
 
 
 def recompute_score(scores_repo: ScoresRepository, user_id: str) -> dict:
@@ -80,8 +102,11 @@ def recompute_score(scores_repo: ScoresRepository, user_id: str) -> dict:
         inputs.skill_level_map,
         aspiration_skills=aspiration,
         include_market_signals=True,
+        target_level=_band_target_level(inputs.target_seniority),
     )
-    return _persist_score(scores_repo, user_id, projection)
+    _persist_score(scores_repo, user_id, projection)
+    _persist_band_percentile(scores_repo, user_id, inputs.target_seniority, projection.total_score)
+    return scores_repo.require_mirror_score(user_id)
 
 
 def project_score(
@@ -89,13 +114,19 @@ def project_score(
     skill_level_map: dict[str, int],
     aspiration_skills: dict[str, int] | None = None,
     include_market_signals: bool = True,
+    target_seniority: str | None = None,
 ) -> ScoreProjection:
-    """Pure math, no writes. Tests + future what-if UX."""
+    """Pure math, no writes. Tests + future what-if UX + anon preview.
+
+    ``target_seniority`` bands the score; None → entry (the anon pre-login
+    scorer has no confirmed band).
+    """
     return _score_math(
         scores_repo,
         skill_level_map,
         aspiration_skills=aspiration_skills or {},
         include_market_signals=include_market_signals,
+        target_level=_band_target_level(target_seniority),
     )
 
 
@@ -108,6 +139,7 @@ def _score_math(
     *,
     aspiration_skills: dict[str, int],
     include_market_signals: bool,
+    target_level: int = DEFAULT_TARGET_LEVEL,
     skills_assessed_override: int | None = None,
 ) -> ScoreProjection:
     cluster_children, skill_to_cluster, cluster_to_domain = _build_cluster_maps()
@@ -116,7 +148,9 @@ def _score_math(
         fetch_skill_demand(scores_repo, demand_scope) if include_market_signals else {}
     )
 
-    cluster_scores = compute_cluster_scores(skill_level_map, cluster_children, skill_to_cluster)
+    cluster_scores = compute_cluster_scores(
+        skill_level_map, cluster_children, skill_to_cluster, target_level
+    )
     cluster_skill_counts = {
         cluster: sum(1 for s in skill_level_map if skill_to_cluster.get(s) == cluster)
         for cluster in cluster_scores
@@ -133,7 +167,7 @@ def _score_math(
         next_level = min(gap["current_level"] + 1, 5)
         projected = project_total_with_skill_bump(
             skill_level_map, gap["taxonomy_key"], next_level,
-            cluster_children, skill_to_cluster, cluster_to_domain,
+            cluster_children, skill_to_cluster, cluster_to_domain, target_level,
         )
         gap["score_delta"] = round(max(0.0, projected - total_score), 1)
         # Domain the gap belongs to — lets the personal score breakdown render
@@ -150,6 +184,41 @@ def _score_math(
         rank_tier=rank_tier,
         skills_assessed=skills_assessed,
     )
+
+
+def _persist_band_percentile(
+    scores_repo: ScoresRepository,
+    user_id: str,
+    seniority: str | None,
+    total_score: float,
+) -> None:
+    """Rank the user against same-band peers and persist mirror_scores.percentile.
+
+    Best-effort: percentile is a confidence garnish, never a gate — a population
+    read failure must not fail the score write. The band cutover script does the
+    full-population pass; this keeps the subject's own cell fresh on every
+    recompute at current scale.
+
+    Only writes when the band has ≥2 peers. A caller with an RLS-scoped (token)
+    client can only see its own row, so ranking against a population of one is
+    meaningless — we skip and leave the last admin-computed value intact rather
+    than clobber it with a bogus 0.
+    """
+    try:
+        band = target_seniority_for_profile({"target_seniority": seniority})
+        peers = [
+            total
+            for raw, total in scores_repo.get_all_band_scores()
+            if target_seniority_for_profile({"target_seniority": raw}) == band
+        ]
+        if len(peers) < 2:
+            return
+        scores_repo.update_percentile(user_id, percentile_rank(total_score, peers))
+    except Exception as exc:  # noqa: BLE001 — non-critical, log + move on
+        logger.warning(
+            "metric scoring.percentile_persist_failed user=%s exc=%s",
+            user_id, exc.__class__.__name__,
+        )
 
 
 def _persist_score(

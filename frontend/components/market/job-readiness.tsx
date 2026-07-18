@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
 import { jobs, type SkillGapItem } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { practiceHref } from "@/lib/practice-mentor-handoff"
 
 /**
  * Instant, job-SPECIFIC readiness (T2-5). "Assess my readiness for this job" used
@@ -73,7 +74,7 @@ export function JobReadinessPanel({ token, jobId }: { token: string; jobId: stri
           <div style={LABEL}>To close{missing.length > 6 ? ` (top ${6})` : ""}</div>
           <div style={CHIP_ROW}>
             {missing.slice(0, 6).map((s) => (
-              <ForgeGapChip key={s.skill} skill={s} />
+              <ForgeGapChip key={s.skill} skill={s} jobId={jobId} />
             ))}
           </div>
         </div>
@@ -86,11 +87,11 @@ export function JobReadinessPanel({ token, jobId }: { token: string; jobId: stri
 
 /** A missing skill = one tap into Forge. Shows the level delta when we have a
  *  required level to aim at, so the gap is concrete (you're L1, this needs L3). */
-function ForgeGapChip({ skill }: { skill: SkillGapItem }) {
+function ForgeGapChip({ skill, jobId }: { skill: SkillGapItem; jobId: string }) {
   const delta = skill.required_level > 0 ? ` · L${skill.user_level}→L${skill.required_level}` : ""
   return (
     <Link
-      href={`/forge?skill=${encodeURIComponent(skill.skill)}`}
+      href={practiceHref(skill.skill, jobId)}
       style={{ ...CHIP, color: "var(--tm-warning)", borderColor: "var(--tm-warning-border)", background: "var(--tm-warning-wash)", textDecoration: "none" }}
       title={`Practice ${skill.skill} in Forge`}
     >

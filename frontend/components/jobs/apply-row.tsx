@@ -9,7 +9,7 @@ interface ApplyRowProps {
   jobId: string | number | null | undefined
   /** Visual density. "compact" = single-line meta; "block" = larger stacked buttons. */
   variant?: "compact" | "block"
-  /** Skip the "Open careers" link when the host already surfaces it (e.g. the
+  /** Skip the discovery link when the host already surfaces it (e.g. the
    *  export toolbar) — leaves only the copy-ID / copy-title helpers. */
   hideCareers?: boolean
   /** Arm the dead-link capture when the user leaves to apply (careers search).
@@ -18,9 +18,9 @@ interface ApplyRowProps {
 }
 
 /**
- * Three-affordance apply row. Replaces the scraped `source_url` "Open JD" link.
+ * Three-affordance discovery row for listings without an exact role URL.
  *
- * 1. Open {company} careers → Google search "{company} careers".
+ * 1. Find official opening → Google search "{company} careers".
  *    Zero backfill; lands on the right careers page in ~95% of cases.
  * 2. Copy Job ID → user pastes in the careers-page search box.
  * 3. Copy title → fallback when the careers page does not support ID search.
@@ -57,9 +57,9 @@ export function ApplyRow({ company, title, jobId, variant = "compact", hideCaree
           rel="noopener noreferrer"
           onClick={onApply}
           style={{ ...baseBtn, color: "var(--tm-interactive)", borderColor: "var(--tm-int-border)" }}
-          title={`Open ${company} careers in a new tab`}
+          title={`Find ${company} opening on its official careers site`}
         >
-          ↗ Open {company} careers
+          ↗ Find official opening
         </a>
       )}
       {jobId != null && jobId !== "" && (

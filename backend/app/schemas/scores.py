@@ -16,14 +16,23 @@ class GapSkillResponse(BaseModel):
 
 class MirrorScoreResponse(BaseModel):
     """
-    IMPORTANT: rank_tier and percentile are NEVER included here.
-    They are computed internally and stored in DB but never returned via API.
+    IMPORTANT: rank_tier (internal tier label) is NEVER included here.
+
+    The band percentile IS surfaced: the score is seniority-band-relative, so
+    "top X% for {band}" is the honest confidence line beside the number. Fields:
+      band            — the seniority band the score was measured against
+      band_percentile — percentile RANK within that band (0–100, higher=better)
+      top_percent     — presentation of the rank ("top {top_percent}% for {band}")
+    band_percentile is null until the population has been ranked at least once.
     """
     total_score: float                  # 0–100
     domain_scores: dict[str, float]     # {"SD": 72.0, "DE": 45.0, ...}
     gap_skills: list[GapSkillResponse]  # top 5 upgrade priorities
     skills_assessed: int
     computed_at: datetime
+    band: str = "entry"                 # seniority band the score is relative to
+    band_percentile: float | None = None
+    top_percent: int | None = None      # 100 − rank, floored at 1
 
     @field_validator("total_score")
     @classmethod

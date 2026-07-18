@@ -21,6 +21,8 @@ import {
   type CollectionChip,
 } from "@/lib/collections/model"
 import { useJobRefresh } from "@/lib/hooks/use-job-refresh"
+import { useSavedJobDismissal } from "@/lib/hooks/use-saved-job-dismissal"
+import { canDismissSavedApplication } from "@/lib/collections/saved-job-dismissal"
 import { openRefreshGate } from "@/store/refreshGateStore"
 import { MatchRefreshGate } from "@/components/jobs/MatchRefreshGate"
 import { usePulses } from "@/lib/hooks/use-pulses"
@@ -50,9 +52,15 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
   const qc = useQueryClient()
   const { snack, closeSnack } = useMobileUI()
   const refreshVm = useJobRefresh(token, qc)
+  const {
+    notice: dismissalNotice,
+    dismiss: dismissSavedJob,
+    undo: undoSavedJobDismissal,
+    retry: retrySavedJobDismissal,
+  } = useSavedJobDismissal(token)
 
   const appsQ = useQuery({ queryKey: dataKeys.applications(), queryFn: () => jobsApi.applications(token), enabled: !!token, staleTime: 60 * 1000 })
-  const matchesQ = useQuery({ queryKey: ["jobs", "matches"], queryFn: () => jobsApi.matches(token), enabled: !!token, staleTime: 5 * 60 * 1000 })
+  const matchesQ = useQuery({ queryKey: dataKeys.jobs(), queryFn: () => jobsApi.matches(token), enabled: !!token, staleTime: 5 * 60 * 1000 })
   const picksQ = useQuery({ queryKey: ["agentPicks", token], queryFn: () => jobsApi.agentPicks(token), enabled: !!token, staleTime: 30 * 60 * 1000 })
   const { data: followed } = useQuery({ queryKey: ["followedCompanies", token], queryFn: () => usersApi.followedCompanies(token), enabled: !!token, staleTime: 5 * 60 * 1000 })
   const { data: profile } = useQuery({ queryKey: dataKeys.profile(), queryFn: () => usersApi.me(token), enabled: !!token, staleTime: 10 * 60 * 1000 })
@@ -130,6 +138,26 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
     }
   }, [refreshVm.state, refreshVm.matchesWritten, snack])
 
+  useEffect(() => {
+    const notice = dismissalNotice
+    if (!notice) return
+    const isUndo = notice.kind === "undo"
+    snack({
+      msg: isUndo
+        ? "Removed from Collections"
+        : notice.kind === "dismiss-error"
+          ? "Couldn’t remove this job"
+          : "Couldn’t undo removal",
+      action: isUndo ? "Undo" : "Retry",
+      ms: 6_000,
+      onAction: () => {
+        closeSnack()
+        if (isUndo) undoSavedJobDismissal()
+        else retrySavedJobDismissal()
+      },
+    })
+  }, [closeSnack, dismissalNotice, retrySavedJobDismissal, snack, undoSavedJobDismissal])
+
   const detailApp = detailId ? appBy.get(detailId) ?? null : null
   const detailMatch = detailId && !detailApp ? byId.get(detailId) ?? null : null
   const applyCapture = useApplyCapture({
@@ -138,15 +166,17 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
       job_id: detailApp?.job_id ?? detailMatch?.job_id ?? "",
       source_url: detailApp?.source_url ?? detailMatch?.source_url ?? null,
       company: detailApp?.company ?? detailMatch?.company ?? null,
+      listing_confidence: pulses.get(detailApp?.job_id ?? detailMatch?.job_id ?? "")?.listing_confidence,
     },
     surface: "other",
+    intentSurface: "mobile_collections",
     onFindSimilar: () => { setDetailId(null); router.push("/market") },
   })
 
   const doUnsave = (a: ApplicationResponse) => {
-    void jobsApi.removeTrackerJob(token, a.job_id).then(() => qc.invalidateQueries({ queryKey: dataKeys.applications() }))
+    if (!canDismissSavedApplication(a)) return
+    dismissSavedJob(a)
     setDetailId(null)
-    snack({ msg: "Removed from Collections", action: "Undo", onAction: () => { void jobsApi.saveJob(token, a.job_id).then(() => qc.invalidateQueries({ queryKey: dataKeys.applications() })); closeSnack() } })
   }
   const doShare = (a: ApplicationResponse) => {
     const url = a.source_url ?? ""
@@ -177,7 +207,9 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
         matched: detailApp.matched_skills ?? [],
         gaps: detailApp.missing_skills ?? [],
         saved: true,
+        canDismiss: canDismissSavedApplication(detailApp),
         hasApply: !!applyCapture.target.url,
+        applyLabel: applyCapture.target.actionLabel ?? undefined,
       }
     }
     if (detailMatch) {
@@ -190,7 +222,9 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
         matched: detailMatch.matched_skills ?? [],
         gaps: detailMatch.missing_skills ?? [],
         saved: false,
+        canDismiss: true,
         hasApply: !!applyCapture.target.url,
+        applyLabel: applyCapture.target.actionLabel ?? undefined,
       }
     }
     return null
@@ -213,7 +247,7 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
         tailored={!!a.cv_badge}
         pulse={pulses.get(a.job_id)}
         onOpen={() => setDetailId(a.job_id)}
-        onHeart={() => doUnsave(a)}
+        onHeart={canDismissSavedApplication(a) ? () => doUnsave(a) : undefined}
         onShare={() => doShare(a)}
         onTailor={() => router.push(`/cv?jobId=${encodeURIComponent(a.job_id)}`)}
         onOpenCv={() => router.push("/cv")}

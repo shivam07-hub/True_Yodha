@@ -4,6 +4,7 @@ import { ArrowRight, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScoreExplanation } from "@/components/onboarding/score-explanation"
 import { SkillCorrectionSheet } from "@/components/onboarding/skill-correction-sheet"
+import { BandPercentileLine } from "@/components/skills/band-percentile-line"
 import type { OnboardingResult } from "@/lib/api"
 
 type FullResultData = Extract<OnboardingResult, { kind: "full_result_ready" }>
@@ -24,7 +25,13 @@ export function FullResult({ token, result, onAction, onCorrected }: Props) {
         <aside className="flex min-h-44 flex-col justify-center rounded-md border border-[var(--tm-border)] bg-[var(--tm-surface)] p-5 text-center">
           <p className="text-sm font-medium text-[var(--tm-text-muted)]">Your Myro Score</p>
           <p className="mt-2 text-5xl font-semibold tabular-nums text-[var(--tm-text)]">{Math.round(result.score.total_score)}</p>
-          <p className="mt-2 text-xs leading-5 text-[var(--tm-text-muted)]">Starting point for your target role</p>
+          {result.score.top_percent != null ? (
+            <div className="mt-2 flex justify-center">
+              <BandPercentileLine band={result.score.band} topPercent={result.score.top_percent} />
+            </div>
+          ) : (
+            <p className="mt-2 text-xs leading-5 text-[var(--tm-text-muted)]">Starting point for your target role</p>
+          )}
         </aside>
       </div>
       <div className="mt-6"><ScoreExplanation factors={result.score_factors} /></div>

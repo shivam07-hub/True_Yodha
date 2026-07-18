@@ -648,7 +648,7 @@ export type OnboardingResult =
       target_context_hash: string
       target: OnboardingTarget
       skills: OnboardingProofSkill[]
-      score: { total_score: number; domain_scores: Record<string, number>; gap_skills: GapSkill[]; skills_assessed: number }
+      score: { total_score: number; domain_scores: Record<string, number>; gap_skills: GapSkill[]; skills_assessed: number; band?: string; band_percentile?: number | null; top_percent?: number | null }
       score_factors: Array<{ kind: "gap" | "strength"; label: string; detail: string }>
       credible_match: (JobMatch & { jobs?: { job_title?: string; company_name?: string } }) | null
       primary_action: { kind: string; label: string; href: string }
@@ -1289,6 +1289,53 @@ export const memory = {
     request<{ scheduled: boolean }>("/memory/persona/refresh", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
+    }),
+}
+
+/** Career Profile — the recruiter/logistics fact-layer (comp / notice / quota /
+ *  targets / reporting line / availability / experience splits). Captured once,
+ *  reused: extension ATS auto-fill + persona/Prep/₹99 surfacing. All optional —
+ *  capture is progressive. Numeric keys are typed so the extension fills clean
+ *  values, not parsed prose. */
+export interface CareerProfileData {
+  total_experience_years?: number | null
+  bd_experience_years?: number | null
+  it_services_years?: number | null
+  gcc_bd_years?: number | null
+  current_ctc_fixed_lpa?: number | null
+  current_ctc_variable_lpa?: number | null
+  expected_ctc_lpa?: number | null
+  notice_period_days?: number | null
+  current_location?: string | null
+  open_to_relocate?: boolean | null
+  interview_availability?: string | null
+  sales_target?: string | null
+  target_achievement?: string | null
+  new_logos_last_year?: number | null
+  reporting_manager?: string | null
+  reason_for_change?: string | null
+  notes?: string | null
+}
+export interface CareerProfileResponse {
+  profile: CareerProfileData
+  updated_at: string | null
+  /** Reservoir-derived pre-fill the user hasn't confirmed yet (S2). */
+  suggested?: CareerProfileData | null
+}
+
+/** Token-scoped read/write of the caller's Career Profile. */
+export const careerProfile = {
+  get: (token: string) =>
+    request<CareerProfileResponse>("/career-profile", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  /** PATCH semantics: supplied keys merge, absent keys untouched, explicit null
+   *  clears a key. */
+  update: (token: string, profile: Partial<CareerProfileData>) =>
+    request<CareerProfileResponse>("/career-profile", {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ profile }),
     }),
 }
 
@@ -2434,6 +2481,12 @@ export interface ScoreResponse {
   gap_skills: GapSkill[]
   skills_assessed: number
   computed_at: string
+  /** Seniority band the score is measured against (entry/mid/senior/…). */
+  band?: string
+  /** Percentile RANK within the band (0–100, higher = better). Null until ranked. */
+  band_percentile?: number | null
+  /** Presentation of the rank: "top {top_percent}% for {band}". Null until ranked. */
+  top_percent?: number | null
 }
 
 interface ComputeScoreApiResponse {
@@ -2573,6 +2626,23 @@ export type QualityReasonCode =
   | "posting_inactive"
 
 export type FeedbackSurface = "dashboard" | "market" | "job_detail" | "other"
+
+export type ApplyIntentSurface =
+  | "dashboard"
+  | "market"
+  | "collections"
+  | "cv_playground"
+  | "cv_export"
+  | "mobile_jobs"
+  | "mobile_collections"
+  | "agent_pick"
+  | "other"
+
+export interface ApplyIntentInput {
+  client_event_id: string
+  surface: ApplyIntentSurface
+  destination_type: "direct_role" | "career_search"
+}
 
 export interface JobFeedbackInput {
   client_event_id: string
@@ -3499,6 +3569,12 @@ export const jobs = {
     request<ApplicationResponse[]>("/jobs/applications", {
       headers: { Authorization: `Bearer ${token}` },
     }),
+  recordApplyIntent: (token: string, jobId: string, input: ApplyIntentInput) =>
+    request<void>(`/jobs/${encodeURIComponent(jobId)}/apply-intents`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(input),
+    }),
   staleApplications: (token: string) =>
     request<StaleApplication[]>("/jobs/applications/stale", {
       headers: { Authorization: `Bearer ${token}` },
@@ -3555,6 +3631,11 @@ export const jobs = {
   removeTrackerJob: (token: string, jobId: string) =>
     request<void>(`/jobs/tracker/${encodeURIComponent(jobId)}`, {
       method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  restoreTrackerJob: (token: string, jobId: string) =>
+    request<void>(`/jobs/tracker/${encodeURIComponent(jobId)}/restore`, {
+      method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     }),
   dismissStale: (token: string, jobId: string) =>

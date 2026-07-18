@@ -16,7 +16,7 @@ import type { SkillGapItem } from "@/lib/api"
 /**
  * Dashboard job detail (build stage). Same drawer shell + header as live, a
  * build-focused body (DetailBody: why-you-fit, skills-to-build, JD, notes), and
- * a footer whose primary is Tailor CV. "Apply ↗" is the cross-link back out to
+ * a footer whose primary is Tailor CV. The apply action crosses back out to
  * the portal — and it carries the shared dead-link capture, same as live.
  *
  * `scopeClassName="db"` re-introduces the dashboard CSS scope through the body
@@ -29,6 +29,8 @@ export function DashboardJobDrawer({
   token,
   cartSkillNames,
   liked,
+  canDismiss = true,
+  applyIntentSurface = "dashboard",
   onClose,
   onLike,
   onSkip,
@@ -40,6 +42,8 @@ export function DashboardJobDrawer({
   token: string
   cartSkillNames: Set<string>
   liked: boolean
+  canDismiss?: boolean
+  applyIntentSurface?: "dashboard" | "collections"
   onClose: () => void
   onLike: () => void
   onSkip: () => void
@@ -49,8 +53,14 @@ export function DashboardJobDrawer({
   const job = item.job
   const capture = useApplyCapture({
     token,
-    job: { job_id: item.jobId, source_url: job.source_url, company: job.company },
+    job: {
+      job_id: item.jobId,
+      source_url: job.source_url,
+      company: job.company,
+      listing_confidence: job.is_stale || job.is_active === false ? "uncertain" : undefined,
+    },
     surface: "dashboard",
+    intentSurface: applyIntentSurface,
     // "Find similar" dismisses the confirmed ghost and returns to the fit-ranked
     // feed — the dead listing gone, the next-best roles in view. (Dismiss can't
     // fire on the answer itself: it unmounts the drawer before recovery shows.)
@@ -78,38 +88,42 @@ export function DashboardJobDrawer({
         <div className="db-drawer-foot">
           <ApplyCapturePrompt capture={capture} />
           <div className="db-drawer-foot-row">
-            <button
-              type="button"
-              className={`db-icon-btn${liked ? " liked" : ""}`}
-              aria-label={liked ? "Unlike" : "Like"}
-              onClick={onLike}
-            >
-              <Heart size={18} fill={liked ? "currentColor" : "none"} aria-hidden />
-            </button>
-            <button
-              type="button"
-              className="db-icon-btn"
-              aria-label="Not interested"
-              onClick={() => {
-                onSkip()
-                onClose()
-              }}
-            >
-              <X size={18} aria-hidden />
-            </button>
+            {canDismiss ? (
+              <>
+                <button
+                  type="button"
+                  className={`db-icon-btn${liked ? " liked" : ""}`}
+                  aria-label={liked ? "Unlike" : "Like"}
+                  onClick={onLike}
+                >
+                  <Heart size={18} fill={liked ? "currentColor" : "none"} aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  className="db-icon-btn"
+                  aria-label="Not interested"
+                  onClick={() => {
+                    onSkip()
+                    onClose()
+                  }}
+                >
+                  <X size={18} aria-hidden />
+                </button>
+              </>
+            ) : null}
             <a className="db-btn db-btn-primary" href={`/cv?jobId=${item.jobId}`}>
               Tailor CV
             </a>
           </div>
-          {job.source_url ? (
+          {capture.target.kind === "direct" ? (
             <a
               className="db-drawer-apply"
-              href={job.source_url}
+              href={capture.href ?? undefined}
               target="_blank"
               rel="noopener noreferrer"
               onClick={capture.onApply}
             >
-              Apply ↗
+              {capture.target.actionLabel} ↗
             </a>
           ) : (
             <ApplyRow company={job.company} title={job.title} jobId={item.jobId} variant="compact" onApply={capture.onApply} />

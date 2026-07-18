@@ -2,20 +2,15 @@ import test from "node:test"
 import assert from "node:assert/strict"
 
 import {
-  KEYWORD_WEIGHT,
-  SEMANTIC_WEIGHT,
   coveragePct,
-  keywordLayerSpan,
   matchScore,
 } from "../components/cv/builder/match-score"
 
-// ── The one-number contract (Shivam lock, 2026-07-16) ───────────────────────
-// Semantic requirement coverage leads (70%), keyword landing assists (30%),
-// content quality subtracts. High job fit → high CV score, structurally.
-
-test("weights sum to a whole score", () => {
-  assert.equal(SEMANTIC_WEIGHT + KEYWORD_WEIGHT, 1)
-})
+// ── The one-number contract (coverage-only, 2026-07-18) ─────────────────────
+// The JD's real requirements (jd_coverage), classified against the user's
+// stories + CV lines, ARE the Match score; content quality subtracts. No
+// taxonomy keyword layer — a covered CV scores high, an uncovered one low,
+// never a fake 0 from a keyword that never appears verbatim.
 
 test("coveragePct: covered full, partial half, missing none", () => {
   assert.equal(coveragePct({ covered: 10, weak: 0, gap: 0 }), 100)
@@ -30,27 +25,28 @@ test("coveragePct: null when nothing to score against", () => {
   assert.equal(coveragePct({ covered: 0, weak: 0, gap: 0 }), null)
 })
 
-test("a well-covered job scores high even with zero verbatim keyword hits", () => {
-  // The header bug: brain said "Worth it · 84", keyword-only Ready said 0.
-  // 12/14 requirements covered, no taxonomy key verbatim on the CV:
-  const score = matchScore({ covered: 12, weak: 0, gap: 2 }, 0, 0)
-  assert.equal(score, 60) // 0.7 × 85.7 — semantic floor holds the score up
+test("coverage IS the score — the readiness fallback is ignored once it lands", () => {
+  // The header bug: brain said "Worth it · 84", taxonomy keyword-only Ready
+  // said 0. Now 12/14 requirements covered scores high regardless of readiness.
+  assert.equal(matchScore({ covered: 12, weak: 0, gap: 2 }, 0, 0), 86) // 12/14
+  assert.equal(matchScore({ covered: 12, weak: 0, gap: 2 }, 100, 0), 86) // fallback ignored
 })
 
-test("keywords assist but never control", () => {
-  const counts = { covered: 7, weak: 2, gap: 5 } // 57.1% semantic
-  const noKw = matchScore(counts, 0, 0)
-  const allKw = matchScore(counts, 100, 0)
-  assert.equal(allKw - noKw, 30) // the keyword layer moves at most 30 points
+test("a well-covered CV can reach a high Match honestly", () => {
+  assert.equal(matchScore({ covered: 13, weak: 0, gap: 0 }, 0, 0), 100)
 })
 
-test("content-quality penalty subtracts from the blended score", () => {
+test("a genuinely uncovered CV scores low, not a fake 0-vs-100 mismatch", () => {
+  assert.equal(matchScore({ covered: 0, weak: 0, gap: 13 }, 0, 0), 0)
+})
+
+test("content-quality penalty subtracts from the coverage score", () => {
   const counts = { covered: 10, weak: 0, gap: 0 }
   assert.equal(matchScore(counts, 100, 0), 100)
   assert.equal(matchScore(counts, 100, 12), 88)
 })
 
-test("keyword-only fallback when coverage has not landed", () => {
+test("readiness fallback only when coverage has not landed", () => {
   assert.equal(matchScore(null, 62, 0), 62)
   assert.equal(matchScore(null, 62, 10), 52)
 })
@@ -58,9 +54,4 @@ test("keyword-only fallback when coverage has not landed", () => {
 test("score clamps to 0..100", () => {
   assert.equal(matchScore(null, 5, 40), 0)
   assert.equal(matchScore({ covered: 10, weak: 0, gap: 0 }, 100, -5), 100)
-})
-
-test("fix +N math reads the layer span the score actually uses", () => {
-  assert.equal(keywordLayerSpan(true), 30)
-  assert.equal(keywordLayerSpan(false), 100)
 })

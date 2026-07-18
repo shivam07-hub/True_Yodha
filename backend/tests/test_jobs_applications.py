@@ -11,13 +11,29 @@ from app.repositories.jobs import get_token_jobs_repository
 
 class _FakeJobsRepository:
     def __init__(self) -> None:
-        self.deleted: list[tuple[str, str, str]] = []
+        self.dismissed_saved_jobs: list[tuple[str, str]] = []
+        self.restored_saved_jobs: list[tuple[str, str]] = []
+        self.dismiss_result = True
+        self.restore_result = True
+        self.apply_intents: list[tuple[str, str, dict[str, str]]] = []
         self.applications_rows: list[dict[str, Any]] = []
         self.skill_keys: set[str] = set()
 
-    def delete_tracker_rows(self, user_id: str, job_id: str) -> None:
-        self.deleted.append(("job_applications", user_id, job_id))
-        self.deleted.append(("user_job_matches", user_id, job_id))
+    def dismiss_saved_job(self, user_id: str, job_id: str) -> bool:
+        self.dismissed_saved_jobs.append((user_id, job_id))
+        return self.dismiss_result
+
+    def restore_saved_job(self, user_id: str, job_id: str) -> bool:
+        self.restored_saved_jobs.append((user_id, job_id))
+        return self.restore_result
+
+    def record_apply_intent(
+        self,
+        user_id: str,
+        job_id: str,
+        intent: dict[str, str],
+    ) -> None:
+        self.apply_intents.append((user_id, job_id, intent))
 
     def get_user_applications(self, user_id: str) -> list[dict[str, Any]]:
         assert user_id == "user-123"
@@ -41,7 +57,7 @@ class _FakeCVRepository:
         return self._latest
 
 
-def test_remove_tracker_job_deletes_current_users_application_and_match() -> None:
+def test_remove_saved_job_records_not_interested_without_deleting_match() -> None:
     repo = _FakeJobsRepository()
 
     app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="user-123", email=None, token="token-123")
@@ -54,9 +70,74 @@ def test_remove_tracker_job_deletes_current_users_application_and_match() -> Non
         app.dependency_overrides.clear()
 
     assert response.status_code == 204
-    assert repo.deleted == [
-        ("job_applications", "user-123", "job-456"),
-        ("user_job_matches", "user-123", "job-456"),
+    assert repo.dismissed_saved_jobs == [("user-123", "job-456")]
+
+
+def test_submitted_application_cannot_be_removed_from_collections() -> None:
+    repo = _FakeJobsRepository()
+    repo.dismiss_result = False
+
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="user-123", email=None, token="token-123")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+
+    try:
+        with TestClient(app) as client:
+            response = client.delete("/jobs/tracker/job-456")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 409
+    assert response.json() == {
+        "detail": "Only saved jobs can be removed from Collections."
+    }
+
+
+def test_undo_restores_saved_job_and_clears_not_interested() -> None:
+    repo = _FakeJobsRepository()
+
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="user-123", email=None, token="token-123")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+
+    try:
+        with TestClient(app) as client:
+            response = client.post("/jobs/tracker/job-456/restore")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 204
+    assert repo.restored_saved_jobs == [("user-123", "job-456")]
+
+
+def test_apply_click_records_an_attempt_without_marking_application_applied() -> None:
+    repo = _FakeJobsRepository()
+
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="user-123", email=None, token="token-123")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/jobs/job-456/apply-intents",
+                json={
+                    "client_event_id": "123e4567-e89b-12d3-a456-426614174000",
+                    "surface": "market",
+                    "destination_type": "direct_role",
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 204
+    assert repo.apply_intents == [
+        (
+            "user-123",
+            "job-456",
+            {
+                "client_event_id": "123e4567-e89b-12d3-a456-426614174000",
+                "surface": "market",
+                "destination_type": "direct_role",
+            },
+        )
     ]
 
 

@@ -1,20 +1,18 @@
 /**
- * fix-model — the CV Playground v2 unified fix list (one card per bullet issue).
+ * fix-model — the CV Playground v2 Fixes list (one card per bullet issue).
  *
- * Merges the two honest fix sources into the shape the Fixes rail renders:
- *   · JD gaps (gap plan): Surface skill (latent — you did it, the word never
- *     appears) and Sharpen (below the level this job asks — carries L{cur}→L{req},
- *     the levelled-skill nuance).
- *   · Recruiter checks (runContentChecks): Quantify / Verb-opener / Cut / Fix —
- *     deterministic, anchored to the exact bullet.
+ * Content-quality fixes only (2026-07-18): Quantify / Verb-opener / Cut / Fix,
+ * from runContentChecks — deterministic, anchored to the exact CV bullet, each
+ * inline-rewritable and carrying the exact readiness points it returns (the same
+ * math Ready uses, so "+N" promised is +N delivered).
  *
- * Every fix names its host bullet (editor iid) so a card click can jump to and
- * pulse the line, and carries the exact readiness points the fix returns — the
- * same deterministic math Ready uses, so "+N" promised is +N delivered.
- * Practice-only gaps (no proof yet) are NOT fixes — they live on the Skills tab
- * and route to Forge.
+ * JD-requirement work (weak → sharpen, gap → bank a story) does NOT live here.
+ * It lives on the Job-fit tab, driven by jd_coverage (the JD's real requirements
+ * matched against the user's stories + CV), and routes to Tailor with Mentor.
+ * The old taxonomy gap-plan fix cards (Surface skill / Sharpen from job_skills)
+ * are gone — they scored keyword garbage on non-tech roles.
  */
-import type { CVStructured, GapPlanResponse } from "@/lib/api"
+import type { CVStructured } from "@/lib/api"
 import { itemId } from "@/lib/cv-compose"
 import {
   contentFindingPoints,
@@ -23,7 +21,7 @@ import {
   type ContentFinding,
 } from "./content-checks"
 
-export type V2FixKind = "Surface skill" | "Sharpen" | "Quantify" | "Verb" | "Cut" | "Fix"
+export type V2FixKind = "Quantify" | "Verb" | "Cut" | "Fix"
 
 export interface V2Fix {
   id: string
@@ -35,12 +33,9 @@ export interface V2Fix {
   /** Host bullet: editor row id + its current text (the rewrite input). */
   iid: string
   bulletText: string
-  /** Skill keyword(s) the rewrite should weave in (empty for recruiter checks
-   *  that only rephrase). */
+  /** Skill keyword(s) the rewrite should weave in — empty for content-quality
+   *  checks, which only rephrase. */
   keywords: string[]
-  /** Sharpen only — "L2 → L4", the level this job asks for (levelled skills). */
-  levelNote?: string
-  /** JD-gap tier sorts before recruiter-check tier. */
   tier: 0 | 1
 }
 
@@ -52,11 +47,6 @@ export interface AppliedFix {
   kind: V2FixKind
   title: string
   gain: number
-}
-
-export function hostIid(section: string, itemIndex: number, bulletIndex: number, text: string): string {
-  const kind = section.toLowerCase().startsWith("proj") ? "proj_bullet" : "exp_bullet"
-  return itemId(kind, itemIndex * 100 + bulletIndex, text)
 }
 
 function findingBulletText(cv: CVStructured, f: ContentFinding): string | null {
@@ -107,50 +97,9 @@ function contentCard(f: ContentFinding): { kind: V2FixKind; title: string; desc:
 
 export function buildV2Fixes(
   cv: CVStructured,
-  plan: GapPlanResponse | null,
-  pointsFor: (keywords: string[]) => number,
   hiddenIids?: Set<string>,
 ): V2Fix[] {
   const fixes: V2Fix[] = []
-  // A fix on a deselected line is a promise the score can't keep (Ready reads
-  // visible text only) — skip it; re-selecting the line brings it straight back.
-  const visible = (iid: string) => !hiddenIids?.has(iid)
-
-  if (plan) {
-    plan.host_bullet_cards.forEach(c => {
-      const keywords = c.skills.map(s => s.display_name)
-      const iid = hostIid(c.section, c.item_index, c.bullet_index, c.bullet_text)
-      if (!visible(iid)) return
-      fixes.push({
-        id: `surface-${c.order}`,
-        kind: "Surface skill",
-        title: `Surface ${quote(keywords.join(", "))} — the job asks for it and you have it`,
-        desc: "This bullet proves it, but the word never appears. ATS can’t infer it.",
-        gain: pointsFor(keywords),
-        iid,
-        bulletText: c.bullet_text,
-        keywords,
-        tier: 0,
-      })
-    })
-    plan.below_level_cards.forEach(c => {
-      if (!c.host) return // practice-only — Skills tab routes it to Forge
-      const iid = hostIid(c.host.section, c.host.item_index, c.host.bullet_index, c.host.bullet_text)
-      if (!visible(iid)) return
-      fixes.push({
-        id: `sharpen-${c.skill}`,
-        kind: "Sharpen",
-        title: `Raise ${c.display_name} to L${c.required_level}`,
-        desc: `Your bullet reads L${c.current_level}. Phrase the depth this job asks for — same facts, full weight.`,
-        gain: pointsFor([c.display_name]),
-        iid,
-        bulletText: c.host.bullet_text,
-        keywords: [c.display_name],
-        levelNote: `L${c.current_level} → L${c.required_level}`,
-        tier: 0,
-      })
-    })
-  }
 
   for (const f of runContentChecks(cv, hiddenIids)) {
     const iid = findingIid(cv, f)
@@ -168,6 +117,6 @@ export function buildV2Fixes(
     })
   }
 
-  // JD tier first, then biggest gain first within each tier.
-  return fixes.sort((a, b) => a.tier - b.tier || b.gain - a.gain)
+  // Biggest gain first.
+  return fixes.sort((a, b) => b.gain - a.gain)
 }

@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from typing import Any, Literal
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
@@ -249,6 +250,22 @@ class MatchRetryResponse(BaseModel):
 APPLICATION_STAGES = {"saved", "applied", "interviewing"}
 APPLICATION_OUTCOMES = {"ghosted", "rejected", "offer"}
 APPLICATION_STATUSES = APPLICATION_STAGES | APPLICATION_OUTCOMES
+
+
+class ApplyIntentRequest(BaseModel):
+    client_event_id: UUID
+    surface: Literal[
+        "dashboard",
+        "market",
+        "collections",
+        "cv_playground",
+        "cv_export",
+        "mobile_jobs",
+        "mobile_collections",
+        "agent_pick",
+        "other",
+    ]
+    destination_type: Literal["direct_role", "career_search"]
 
 
 class ApplicationStatusUpdate(BaseModel):

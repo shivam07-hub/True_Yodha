@@ -306,7 +306,48 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-17 - Non-blocking CV analysis notifications)
+## LAST SESSION SUMMARY (2026-07-18 - Beta feedback UX trust loop)
+
+Implemented the three locked fixes from the Rishabh Sahu and Kashish Deopura
+feedback analysis without fabricating application or CV state.
+
+- Saved-job dismissal is immediate on desktop and mobile, updates the visible
+  counts optimistically, and exposes a six-second Undo in the page's existing
+  fixed action area. The atomic backend operation removes only the saved intent,
+  records Not Interested, and preserves the underlying match.
+- Apply clicks now create durable attempts, not false `applied` state. On return,
+  every apply surface asks whether submission succeeded; Yes persists the
+  applied status and CV snapshot, Not yet preserves intent, and Couldn't apply
+  captures the failure reason. Known unhealthy links fall back to
+  `Find official opening`.
+- A passed Practice result now offers `Improve CV with Mentor` at the success
+  moment only when stored CV evidence exists. Job-origin practice preserves the
+  job and opens the existing Tailor with Mentor weave; generic practice opens
+  the exact evidence-backed Main CV bullet rewrite. Practice never invents a CV
+  claim.
+- Applied and rollback-verified the saved-dismissal and apply-intent migrations
+  on shared Supabase project `gipvxuugajkugntwkeiz`, including RLS and anonymous
+  denial checks.
+
+Commits:
+
+- `6a1e088b` — `fix(collections): make saved-job removal instant and reversible`
+- `8fdfbc87` — `fix(apply): confirm submission after return`
+- `eca5b230` — `feat(practice): hand proven skills to Mentor`
+
+Validation:
+
+- Full backend suite: 1458 passed.
+- Focused saved-dismissal, apply-return, and Practice-to-Mentor contract suites:
+  clean; the final Mentor pass covered 14 related tests.
+- Full frontend Next.js lint: clean.
+- Full TypeScript reaches only the parallel untracked Career Profile card's
+  pre-existing `Set` iteration error at `career-profile-card.tsx:105`; no file
+  owned by these three tasks reports a type error.
+- Supabase rollback checks passed and related security/performance advisors are
+  empty.
+
+## OLDER SESSION SUMMARY (2026-07-17 - Non-blocking CV analysis notifications)
 
 Implemented the CV upload experience as an accepted background job with a
 durable notification lifecycle.

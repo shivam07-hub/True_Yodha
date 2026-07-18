@@ -3,8 +3,8 @@
  *
  * Shows the SAME rendered sheet the Preview tab shows (never a text blob), the
  * score + "▲ +N raised in playground" delta, and how many fixes are still open.
- * Confirm freezes the exact sheet as the submission snapshot, then opens the
- * application page; the applied state confirms what was sent.
+ * Opening the application page does not claim submission. The exact sheet is
+ * frozen only after the user returns and confirms that they submitted it.
  */
 "use client"
 
@@ -20,8 +20,6 @@ interface ApplyModalProps {
   ready: number
   delta: number
   pendingFixes: number
-  submitting: boolean
-  applied: boolean
   onConfirm: () => void
   onClose: () => void
   onBackToFixes: () => void
@@ -30,7 +28,7 @@ interface ApplyModalProps {
 
 export function ApplyModal({
   cv, hidden, contact, company, jobTitle, ready, delta, pendingFixes,
-  submitting, applied, onConfirm, onClose, onBackToFixes, onDownload,
+  onConfirm, onClose, onBackToFixes, onDownload,
 }: ApplyModalProps) {
   return (
     <div
@@ -38,28 +36,16 @@ export function ApplyModal({
       role="dialog"
       aria-modal="true"
       aria-label={`Apply to ${company}`}
-      onClick={() => !submitting && onClose()}
+      onClick={onClose}
     >
       <div className="cvb-modal cvb-v2-applymodal" onClick={e => e.stopPropagation()}>
-        {applied ? (
-          <div className="cvb-v2-appliedstate">
-            <div className="cvb-v2-appliedcheck" aria-hidden>✓</div>
-            <div className="cvb-v2-appliedtitle">Application sent to {company}</div>
-            <div className="cvb-v2-appliedsub">
-              Submitted at <b className="mono">{ready}/100</b> match
-              {delta > 0 && <> — ▲ +{delta} of that you raised right here.</>}
-            </div>
-            <button type="button" className="cvb-v2-ghostbtn" onClick={onClose}>Back to playground</button>
-          </div>
-        ) : (
-          <>
+        <>
             <div className="cvb-v2-applyhead">
               <span className="cvb-v2-applytitle">Apply to {company}</span>
-              <button type="button" className="cvb-intake-x" onClick={onClose} aria-label="Close" disabled={submitting}>✕</button>
+              <button type="button" className="cvb-intake-x" onClick={onClose} aria-label="Close">✕</button>
             </div>
             <p className="cvb-v2-applylede">
-              This exact sheet — the one you shaped — is saved as your submission for {jobTitle}.
-              What you see is what they get.
+              Myro freezes this exact sheet only after you return and confirm you submitted it for {jobTitle}.
             </p>
 
             <div className="cvb-v2-applyscore">
@@ -82,18 +68,17 @@ export function ApplyModal({
             </div>
 
             <div className="cvb-v2-applyfoot">
-              <button type="button" className="cvb-v2-ghostbtn" onClick={onDownload} disabled={submitting}>
+              <button type="button" className="cvb-v2-ghostbtn" onClick={onDownload}>
                 Download PDF
               </button>
-              <button type="button" className="cvb-v2-ghostbtn" onClick={onClose} disabled={submitting}>
+              <button type="button" className="cvb-v2-ghostbtn" onClick={onClose}>
                 Keep polishing
               </button>
-              <button type="button" className="cvb-v2-applywide grow" onClick={onConfirm} disabled={submitting}>
-                {submitting ? "Saving…" : "Confirm — apply with this CV"}
+              <button type="button" className="cvb-v2-applywide grow" onClick={onConfirm}>
+                Open application page
               </button>
             </div>
-          </>
-        )}
+        </>
       </div>
     </div>
   )

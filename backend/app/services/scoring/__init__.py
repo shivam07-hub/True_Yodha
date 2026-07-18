@@ -16,6 +16,8 @@ from app.services.scoring.formulas import (
     _DAYS_PER_STEP,
     _PROFICIENCY_TITLES,
     _SIGNAL_LEVEL_MAP,
+    DEFAULT_TARGET_LEVEL,
+    TARGET_LEVEL_BY_BAND,
     _build_cluster_maps,
     build_skill_level_map,
     compute_cluster_scores,
@@ -23,6 +25,7 @@ from app.services.scoring.formulas import (
     compute_mirror_score,
     infer_level_from_signals,
     project_total_with_skill_bump,
+    target_level_for_seniority,
 )
 from app.services.scoring.gap import (
     _RANK_TIERS,
@@ -42,6 +45,9 @@ __all__ = [
     "_PROFICIENCY_TITLES",
     "_RANK_TIERS",
     "_SIGNAL_LEVEL_MAP",
+    "DEFAULT_TARGET_LEVEL",
+    "TARGET_LEVEL_BY_BAND",
+    "target_level_for_seniority",
     "_build_cluster_maps",
     "build_skill_level_map",
     "compute_cluster_scores",

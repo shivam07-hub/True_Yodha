@@ -57,6 +57,7 @@ function CVPage() {
   const searchParams = useSearchParams()
   const jobId = searchParams.get("jobId")
   const focusSkill = searchParams.get("skill")
+  const mentorRequested = searchParams.get("mentor") === "1"
 
   const [showUpload, setShowUpload] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -609,6 +610,7 @@ function CVPage() {
               onEditPolished={openEdit}
               externalError={surfacedError}
               focusSkill={focusSkill}
+              mentorRequested={mentorRequested}
             />
           )}
 

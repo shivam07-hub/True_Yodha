@@ -21,6 +21,7 @@ import { PeekSurfaces } from "@/components/mission-control/peek-surfaces"
 import type { LoopStep } from "@/components/mission-control/loop-ring"
 import { useManualAdd, ADD_JOB_LABEL } from "@/components/cv/pipeline/useManualAdd"
 import { usePulses } from "@/lib/hooks/use-pulses"
+import { useSavedJobDismissal } from "@/lib/hooks/use-saved-job-dismissal"
 import { useCartStore } from "@/store/cartStore"
 import { cv, diary, jobs as jobsApi, users as usersApi } from "@/lib/api"
 import type { ApplicationResponse, SkillGapItem } from "@/lib/api"
@@ -41,6 +42,7 @@ import {
 } from "@/lib/collections/model"
 import { CollectionRow, MyroFoundRow } from "./collection-rows"
 import type { DiaryEntry } from "@/lib/forge-helpers"
+import { canDismissSavedApplication } from "@/lib/collections/saved-job-dismissal"
 
 /* ══════════════════════════════════════════════════════════════════════════
    The Myro Ops folder (desktop). "Myro found" reads the brain match stack —
@@ -65,6 +67,7 @@ export function CollectionsDesktop({
   const qc = useQueryClient()
   const { skills: cartSkills, addSkill, removeSkill } = useCartStore()
   const refreshVm = useJobRefresh(token, qc)
+  const savedJobDismissal = useSavedJobDismissal(token)
   const fireMoment = useParticleMoment()
 
   const appsQ = useQuery({
@@ -114,8 +117,6 @@ export function CollectionsDesktop({
   const [sort, setSort] = React.useState<SortKey>("prize")
   const [openId, setOpenId] = React.useState<string | null>(initialJobId ?? null)
   const [dismissed, setDismissed] = React.useState<Set<string>>(new Set())
-  const [undo, setUndo] = React.useState<ApplicationResponse | null>(null)
-  const undoTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const addJob = useManualAdd({
     token,
@@ -178,32 +179,19 @@ export function CollectionsDesktop({
   }, [openable, openId])
   const openItem = openable.find((it) => it.jobId === openId) ?? null
   const openIsSavedApp = openItem ? appByJobId.has(openItem.jobId) : false
+  const openApplication = openItem ? appByJobId.get(openItem.jobId) : undefined
+  const openCanDismiss = openApplication ? canDismissSavedApplication(openApplication) : true
 
   const pulses = usePulses(token, openable.map((it) => it.jobId))
   const cartSkillNames = React.useMemo(() => new Set(cartSkills.map((c) => c.skill_name)), [cartSkills])
 
-  // ── Unsave a saved application (6s undo)
-  const remove = useMutation({
-    mutationFn: (jobId: string) => jobsApi.removeTrackerJob(token, jobId),
-    onSettled: () => qc.invalidateQueries({ queryKey: dataKeys.applications() }),
-  })
+  // ── Saved intent → immediate Not Interested, with serialized 6s Undo.
   const unsave = (jobId: string) => {
     const app = appByJobId.get(jobId)
-    if (!app) return
-    remove.mutate(jobId)
+    if (!app || !canDismissSavedApplication(app)) return
+    savedJobDismissal.dismiss(app)
     setOpenId((cur) => (cur === jobId ? null : cur))
-    setUndo(app)
-    if (undoTimer.current) clearTimeout(undoTimer.current)
-    undoTimer.current = setTimeout(() => setUndo(null), 6_000)
   }
-  const undoUnsave = () => {
-    const app = undo
-    setUndo(null)
-    if (undoTimer.current) clearTimeout(undoTimer.current)
-    if (!app) return
-    void jobsApi.saveJob(token, app.job_id).then(() => qc.invalidateQueries({ queryKey: dataKeys.applications() }))
-  }
-  React.useEffect(() => () => { if (undoTimer.current) clearTimeout(undoTimer.current) }, [])
 
   // Deep-linked from the Loop Bar "N new" signal (Slice 5) → open the gate once.
   const searchOpened = React.useRef(false)
@@ -395,6 +383,8 @@ export function CollectionsDesktop({
                 token={token}
                 cartSkillNames={cartSkillNames}
                 liked={openIsSavedApp}
+                canDismiss={openCanDismiss}
+                applyIntentSurface="collections"
                 onClose={() => setOpenId(null)}
                 onLike={() => (openIsSavedApp ? unsave(openItem.jobId) : saveMatch(openItem.jobId))}
                 onSkip={() => (openIsSavedApp ? unsave(openItem.jobId) : dismissMatch(openItem.jobId))}
@@ -407,11 +397,22 @@ export function CollectionsDesktop({
 
             <MatchRefreshGate token={token} profile={profile} onRun={() => refreshVm.refresh()} />
 
-            {undo && typeof document !== "undefined"
+            {savedJobDismissal.notice && typeof document !== "undefined"
               ? createPortal(
                   <div className="db db-undo-toast" role="status" aria-live="polite">
-                    <span>Removed from Collections</span>
-                    <button type="button" onClick={undoUnsave}>Undo</button>
+                    <span>
+                      {savedJobDismissal.notice.kind === "undo"
+                        ? "Removed from Collections"
+                        : savedJobDismissal.notice.kind === "dismiss-error"
+                          ? "Couldn’t remove this job"
+                          : "Couldn’t undo removal"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={savedJobDismissal.notice.kind === "undo" ? savedJobDismissal.undo : savedJobDismissal.retry}
+                    >
+                      {savedJobDismissal.notice.kind === "undo" ? "Undo" : "Retry"}
+                    </button>
                   </div>,
                   document.body,
                 )

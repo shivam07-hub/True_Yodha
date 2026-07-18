@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.request_timing import RequestTimingMiddleware
 from app.routers import (
     auth,
+    career_profile,
     comments,
     companies,
     cv,
@@ -75,6 +76,7 @@ app.include_router(diary.router)
 app.include_router(comments.router)
 app.include_router(private_notes.router)
 app.include_router(user_memory.router)
+app.include_router(career_profile.router)
 app.include_router(xp.router)
 app.include_router(profile.router)
 app.include_router(payments.router)

@@ -84,6 +84,34 @@ class _SelectHistoryDB(_FakeDB):
         )
 
 
+class _RpcDB(_FakeDB):
+    def rpc(self, name: str, params: dict[str, Any]) -> _FakeQuery:
+        self.tape["rpc"] = name
+        self.tape["params"] = params
+        return _FakeQuery(self.tape)
+
+
+class _MissingSavedApplicationQuery(_FakeQuery):
+    def execute(self) -> "_MissingSavedApplicationQuery":
+        from postgrest.exceptions import APIError
+
+        raise APIError(
+            {
+                "code": "P0002",
+                "message": "Saved application not found",
+                "hint": None,
+                "details": None,
+            }
+        )
+
+
+class _MissingSavedApplicationDB(_RpcDB):
+    def rpc(self, name: str, params: dict[str, Any]) -> _FakeQuery:
+        self.tape["rpc"] = name
+        self.tape["params"] = params
+        return _MissingSavedApplicationQuery(self.tape)
+
+
 def test_upsert_job_match_uses_permanent_conflict_key() -> None:
     """Backlog #36 de-weekly: eval identity is (user, job) — permanent, not
     per-week (migration 20260710). `batch_week` still rides in the payload for
@@ -309,6 +337,63 @@ def test_dismiss_dashboard_job_card_upserts_dismissal() -> None:
     assert user_db.tape["table"] == "user_dismissed_job_cards"
     assert user_db.tape["payload"] == {"user_id": "user-1", "job_id": "job-1"}
     assert user_db.tape["on_conflict"] == "user_id,job_id"
+
+
+def test_dismiss_saved_job_uses_authenticated_atomic_rpc() -> None:
+    user_db = _RpcDB()
+    repo = JobsRepository(user_db, _FakeDB())  # type: ignore[arg-type]
+
+    dismissed = repo.dismiss_saved_job("user-1", "job-1")
+
+    assert dismissed is True
+    assert user_db.tape["rpc"] == "dismiss_saved_job"
+    assert user_db.tape["params"] == {"p_job_id": "job-1"}
+    assert user_db.tape["executed"] is True
+
+
+def test_dismiss_saved_job_returns_false_when_saved_intent_is_missing() -> None:
+    user_db = _MissingSavedApplicationDB()
+    repo = JobsRepository(user_db, _FakeDB())  # type: ignore[arg-type]
+
+    dismissed = repo.dismiss_saved_job("user-1", "job-1")
+
+    assert dismissed is False
+
+
+def test_restore_saved_job_uses_authenticated_atomic_rpc() -> None:
+    user_db = _RpcDB()
+    repo = JobsRepository(user_db, _FakeDB())  # type: ignore[arg-type]
+
+    restored = repo.restore_saved_job("user-1", "job-1")
+
+    assert restored is True
+    assert user_db.tape["rpc"] == "restore_saved_job"
+    assert user_db.tape["params"] == {"p_job_id": "job-1"}
+    assert user_db.tape["executed"] is True
+
+
+def test_record_apply_intent_uses_authenticated_identity_scoped_rpc() -> None:
+    user_db = _RpcDB()
+    repo = JobsRepository(user_db, _FakeDB())  # type: ignore[arg-type]
+
+    repo.record_apply_intent(
+        "user-1",
+        "job-1",
+        {
+            "client_event_id": "123e4567-e89b-12d3-a456-426614174000",
+            "surface": "market",
+            "destination_type": "direct_role",
+        },
+    )
+
+    assert user_db.tape["rpc"] == "record_job_apply_intent"
+    assert user_db.tape["params"] == {
+        "p_job_id": "job-1",
+        "p_client_event_id": "123e4567-e89b-12d3-a456-426614174000",
+        "p_surface": "market",
+        "p_destination_type": "direct_role",
+    }
+    assert user_db.tape["executed"] is True
 
 
 def test_context_refresh_clears_old_recommendations() -> None:

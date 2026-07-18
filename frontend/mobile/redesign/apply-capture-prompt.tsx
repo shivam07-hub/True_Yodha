@@ -3,35 +3,59 @@
 import type { ApplyCapture } from "@/components/jobs/use-apply-capture"
 
 /**
- * Apply Transport (presentation half, mobile) — the same headless capture the
- * web drawers use, rendered in the mobile design system's `.mm-*` palette. Keeps
- * the ghost signal flowing from the mobile Jobs/Collections sheets, not just web.
+ * Mobile presentation of the same return-confirmation contract as web.
  */
 export function ApplyCapturePromptMobile({ capture }: { capture: ApplyCapture }) {
   if (capture.state === "asking") {
     return (
       <div style={row}>
-        <span style={{ color: "var(--mm-text)", fontWeight: 650 }}>Was this still live?</span>
-        <button type="button" onClick={() => capture.answer(true)} style={pill(false)}>Yes</button>
-        <button type="button" onClick={() => capture.answer(false)} style={pill(true)}>No, it&rsquo;s gone</button>
+        <span style={{ color: "var(--mm-text)", fontWeight: 650 }}>Did you submit?</span>
+        <button type="button" disabled={capture.pending} onClick={() => capture.answer("submitted")} style={pill(false)}>Yes</button>
+        <button type="button" disabled={capture.pending} onClick={() => capture.answer("not_yet")} style={pill(false)}>Not yet</button>
+        <button type="button" disabled={capture.pending} onClick={() => capture.answer("couldnt")} style={pill(true)}>Couldn&rsquo;t apply</button>
       </div>
     )
   }
-  if (capture.state === "gone") {
+  if (capture.state === "issue") {
+    return (
+      <div style={row}>
+        <span style={{ color: "var(--mm-text)", fontWeight: 650 }}>What blocked you?</span>
+        <button type="button" disabled={capture.pending} onClick={() => capture.reportIssue("link_gone")} style={pill(true)}>Link gone</button>
+        <button type="button" disabled={capture.pending} onClick={() => capture.reportIssue("wrong_page")} style={pill(true)}>Wrong page</button>
+        <button type="button" disabled={capture.pending} onClick={() => capture.reportIssue("wrong_role")} style={pill(true)}>Wrong role</button>
+        <button type="button" disabled={capture.pending} onClick={() => capture.reportIssue("technical")} style={pill(true)}>Technical</button>
+      </div>
+    )
+  }
+  const message = capture.state === "saved"
+    ? "Kept in Collections"
+    : capture.state === "submitted"
+      ? "Marked applied"
+      : capture.state === "reported"
+        ? "Thanks — kept in Collections"
+        : null
+  if (message) {
     return (
       <div style={{ ...row, justifyContent: "space-between" }}>
-        <span style={{ color: "var(--mm-muted)" }}>Flagged as a ghost job — thanks.</span>
-        <button
-          type="button"
-          onClick={capture.findSimilar}
-          style={{ background: "none", border: "none", padding: 0, color: "var(--mm-accent)", fontSize: 12.5, fontWeight: 650, cursor: "pointer", fontFamily: "inherit" }}
-        >
-          Find similar roles →
-        </button>
+        <span style={{ color: "var(--mm-muted)" }}>{message}</span>
+        {capture.state === "reported" ? <button type="button" onClick={capture.findSimilar} style={link}>Find similar →</button> : null}
+      </div>
+    )
+  }
+  if (capture.state === "error") {
+    return (
+      <div style={{ ...row, justifyContent: "space-between" }} role="alert">
+        <span style={{ color: "var(--mm-bad)" }}>Couldn&rsquo;t save that update</span>
+        <button type="button" disabled={capture.pending} onClick={capture.retry} style={link}>{capture.pending ? "Saving…" : "Retry"}</button>
       </div>
     )
   }
   return null
+}
+
+const link: React.CSSProperties = {
+  background: "none", border: "none", padding: 0, color: "var(--mm-accent)",
+  fontSize: 12.5, fontWeight: 650, cursor: "pointer", fontFamily: "inherit",
 }
 
 const row: React.CSSProperties = {

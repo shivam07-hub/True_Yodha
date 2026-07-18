@@ -15,15 +15,17 @@ export function Results({
   onPracticeAgain,
   onNextLevel,
   onBackToSkills,
+  onImproveCv,
 }: {
   result: ResultModel
   onPracticeAgain: () => void
   onNextLevel: () => void
   onBackToSkills: () => void
+  onImproveCv: (href: string) => void
 }): JSX.Element {
   const {
     skillName, level, score, max, passed, firstClear, tokens, items, nextLevel, maxedOut,
-    elapsedSeconds, prevBestSeconds, newBest,
+    elapsedSeconds, prevBestSeconds, newBest, mentorHref,
   } = result
   const headingRef = useRef<HTMLHeadingElement>(null)
   useEffect(() => { headingRef.current?.focus({ preventScroll: true }) }, [])
@@ -71,6 +73,11 @@ export function Results({
         )}
 
         <div className={`up-res-time${cleared && newBest ? " is-best" : ""}`} aria-hidden="true">{timeLine}</div>
+        {cleared && mentorHref ? (
+          <button type="button" className="up-btn up-btn-primary up-res-mentor" onClick={() => onImproveCv(mentorHref)}>
+            <Icon name="sparkle" size={14} /> Improve CV with Mentor
+          </button>
+        ) : null}
       </section>
 
       {!maxedOut && (
@@ -116,7 +123,7 @@ export function Results({
         {cleared && !maxedOut ? (
           <>
             <button type="button" className="up-btn up-btn-outline" onClick={onPracticeAgain}>Practice L{level} again</button>
-            <button type="button" className="up-btn up-btn-primary" onClick={onNextLevel}><Icon name="bolt" size={14} /> Start L{nextLevel}</button>
+            <button type="button" className={`up-btn ${mentorHref ? "up-btn-outline" : "up-btn-primary"}`} onClick={onNextLevel}><Icon name="bolt" size={14} /> Start L{nextLevel}</button>
           </>
         ) : !cleared ? (
           <button type="button" className="up-btn up-btn-primary" onClick={onPracticeAgain}><Icon name="bolt" size={14} /> Try a fresh set</button>

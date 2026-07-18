@@ -35,17 +35,18 @@ export function JobDetailDrawer({
   const [saved, setSaved] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [assessOpen, setAssessOpen] = useState(false)
+  const confidence = pulse?.listing_confidence ?? (job.is_stale ? "uncertain" : "active")
   const capture = useApplyCapture({
     token,
-    job: { job_id: job.job_id, source_url: job.source_url, company: job.company_name },
+    job: { job_id: job.job_id, source_url: job.source_url, company: job.company_name, listing_confidence: confidence },
     surface: "job_detail",
+    intentSurface: "market",
     // The feed is already fit-ranked, so closing back to it IS "similar roles".
     onFindSimilar: onClose,
   })
 
   // Confidence drives the trust band (D1). Fall back to the feed's binary
   // is_stale only when no pulse has hydrated yet (pre-backend / cold cards).
-  const confidence = pulse?.listing_confidence ?? (job.is_stale ? "uncertain" : "active")
   const concerning = confidence === "uncertain" || confidence === "likely_closed" || confidence === "closed"
   const verifiedDays = daysAgo(pulse?.last_verified_at ?? job.last_seen_at)
   const reportedGone = pulse?.quality_report_count != null && pulse.quality_report_count > 0
@@ -105,8 +106,8 @@ export function JobDetailDrawer({
                   captures the save and crosses into the build stage. */}
               <button type="button" onClick={saveAndTailor} style={{ flex: "1 1 auto", textAlign: "center", padding: "11px 16px", borderRadius: 10, border: "none", fontWeight: 600, fontSize: 13, background: "var(--tm-interactive)", color: "var(--tm-on-interactive, #fff)", cursor: "pointer" }}>Tailor now →</button>
               {/* SECONDARY — apply on the source site (outline, not the accent). */}
-              {job.source_url ? (
-                <a href={job.source_url} target="_blank" rel="noopener noreferrer" onClick={capture.onApply} style={{ padding: "11px 16px", borderRadius: 10, textDecoration: "none", fontWeight: 600, fontSize: 13, border: "1px solid var(--tm-border-soft)", background: "transparent", color: "var(--tm-text)" }}>Apply ↗</a>
+              {capture.target.kind === "direct" ? (
+                <a href={capture.href ?? undefined} target="_blank" rel="noopener noreferrer" onClick={capture.onApply} style={{ padding: "11px 16px", borderRadius: 10, textDecoration: "none", fontWeight: 600, fontSize: 13, border: "1px solid var(--tm-border-soft)", background: "transparent", color: "var(--tm-text)" }}>{capture.target.actionLabel} ↗</a>
               ) : (
                 <ApplyRow company={job.company_name} title={job.job_title} jobId={job.job_id} variant="compact" onApply={capture.onApply} />
               )}

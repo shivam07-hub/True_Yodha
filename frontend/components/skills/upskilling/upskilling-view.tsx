@@ -10,6 +10,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { upskilling, users, type DemandBand, type ReadinessRow, type SkillUpvote, type StartGapResponse, type UpskillingSkill } from "@/lib/api"
 import type { PracticeSkills } from "@/lib/practice-skills"
 import { dataKeys } from "@/lib/domain-data"
+import { mentorRewriteHref } from "@/lib/practice-mentor-handoff"
 import { useParticleMoment } from "@/components/particle"
 import { NextSetHero, SkillList } from "./upskilling-home"
 import { GapReadiness } from "./gap-readiness"
@@ -21,19 +22,23 @@ import type { LadderSkill, QuizQuestion, ResultModel } from "./types"
 
 const norm = (s: string): string => s.trim().toLowerCase()
 
-interface DemandInfo { demand: DemandBand; jobCount: number }
+interface DemandInfo { demand: DemandBand; jobCount: number; hasCvEvidence: boolean }
 
 /** Build a name/key → demand lookup from the existing practice-skill signal. */
 function demandIndex(practice: PracticeSkills): { byKey: Map<string, DemandInfo>; byName: Map<string, DemandInfo> } {
   const byKey = new Map<string, DemandInfo>()
   const byName = new Map<string, DemandInfo>()
   practice.owned.forEach((o) => {
-    const info: DemandInfo = { demand: o.demandBand, jobCount: o.jobCount }
+    const info: DemandInfo = {
+      demand: o.demandBand,
+      jobCount: o.jobCount,
+      hasCvEvidence: Boolean(o.item.evidence_text?.trim()),
+    }
     if (o.item.key) byKey.set(o.item.key, info)
     byName.set(norm(o.item.display_name), info)
   })
   practice.gaps.forEach((g) => {
-    byName.set(norm(g.skill_name), { demand: g.demandBand, jobCount: g.jobCount })
+    byName.set(norm(g.skill_name), { demand: g.demandBand, jobCount: g.jobCount, hasCvEvidence: false })
   })
   return { byKey, byName }
 }
@@ -70,6 +75,7 @@ function mergeSkills(
       upvotes: upvotes.get(norm(s.skill_key)) ?? upvotes.get(norm(s.display_name)) ?? 0,
       maxBankLevel: s.max_bank_level,
       locked: s.locked,
+      hasCvEvidence: info?.hasCvEvidence ?? false,
     }
   })
 }
@@ -97,6 +103,7 @@ type QuizState = {
   setId: string
   idempotencyKey: string
   questions: QuizQuestion[]
+  originJobId: string | null
 }
 
 type Screen = "home" | "quiz" | "results" | "gap-quiz" | "gap-result"
@@ -120,15 +127,22 @@ export function UpskillingView({
   token,
   practiceSkills,
   gapJobId,
+  focusSkill,
+  originJobId,
   onClearGap,
   onToast,
+  onNavigate,
 }: {
   token: string
   practiceSkills: PracticeSkills
   /** Deep-link from Tracker / Market ("?gap=<jobId>") — auto-starts the flow. */
   gapJobId?: string | null
+  /** Direct practice link and the job it came from, when any. */
+  focusSkill?: string | null
+  originJobId?: string | null
   onClearGap?: () => void
   onToast?: (msg: string) => void
+  onNavigate: (href: string) => void
 }): JSX.Element {
   const queryClient = useQueryClient()
   const fireMoment = useParticleMoment()
@@ -171,7 +185,7 @@ export function UpskillingView({
   )
   const heroSkill = useMemo(() => pickHero(skills), [skills])
 
-  const startSet = useCallback(async (skill: LadderSkill, level: number) => {
+  const startSet = useCallback(async (skill: LadderSkill, level: number, sourceJobId: string | null = null) => {
     if (starting) return
     setStarting(true)
     try {
@@ -182,6 +196,7 @@ export function UpskillingView({
         setId: res.set_id,
         idempotencyKey: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${res.set_id}-${Date.now()}`,
         questions: res.questions.map((q) => ({ id: q.id, q: q.question_text, options: q.options })),
+        originJobId: sourceJobId,
       })
       setScreen("quiz")
     } catch {
@@ -233,6 +248,11 @@ export function UpskillingView({
         elapsedSeconds,
         prevBestSeconds,
         newBest,
+        mentorHref: res.passed ? mentorRewriteHref({
+          skill: quiz.skill.name,
+          jobId: quiz.originJobId,
+          hasCvEvidence: quiz.skill.hasCvEvidence,
+        }) : null,
       })
       setScreen("results")
 
@@ -333,9 +353,21 @@ export function UpskillingView({
 
   const practiceFromGap = useCallback((row: ReadinessRow) => {
     const s = skills.find((sk) => sk.key === row.skill_key || sk.name === row.skill)
-    if (s) startSet(s, s.nextLevel)
+    if (s) startSet(s, s.nextLevel, gap?.jobId ?? null)
     else flashToast("Start this skill from the ladder below.")
-  }, [skills, startSet, flashToast])
+  }, [skills, startSet, gap?.jobId, flashToast])
+
+  const autoStartedSkillRef = useRef<string | null>(null)
+  useEffect(() => {
+    const wanted = focusSkill?.trim()
+    if (!wanted) { autoStartedSkillRef.current = null; return }
+    const marker = `${norm(wanted)}:${originJobId ?? "generic"}`
+    if (autoStartedSkillRef.current === marker || isLoading) return
+    const skill = skills.find(item => norm(item.key) === norm(wanted) || norm(item.name) === norm(wanted))
+    if (!skill) return
+    autoStartedSkillRef.current = marker
+    void startSet(skill, skill.nextLevel, originJobId ?? null)
+  }, [focusSkill, originJobId, isLoading, skills, startSet])
 
   if (isLoading) {
     return <div className="up-root"><div className="up-empty">Loading your upskilling ladder…</div></div>
@@ -416,8 +448,9 @@ export function UpskillingView({
         <Results
           result={result}
           onBackToSkills={goHome}
-          onPracticeAgain={() => { const s = skillByName(result.skillName); if (s) startSet(s, result.level) }}
-          onNextLevel={() => { const s = skillByName(result.skillName); if (s) startSet(s, result.nextLevel) }}
+          onPracticeAgain={() => { const s = skillByName(result.skillName); if (s) startSet(s, result.level, quiz?.originJobId ?? null) }}
+          onNextLevel={() => { const s = skillByName(result.skillName); if (s) startSet(s, result.nextLevel, quiz?.originJobId ?? null) }}
+          onImproveCv={onNavigate}
         />
       )}
 
