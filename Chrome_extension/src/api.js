@@ -25,25 +25,26 @@ async function refreshSession(apiUrl) {
   return data.access_token
 }
 
-async function request(apiUrl, token, path, body, _retried = false) {
+async function request(apiUrl, token, path, body, _retried = false, method = "POST") {
   if (!token) {
     const err = new Error("Connect Myro before saving jobs.")
     err.code = "auth_required"
     throw err
   }
-  const response = await fetch(endpoint(apiUrl, path), {
-    method: "POST",
+  const init = {
+    method,
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify(body),
-  })
+  }
+  if (method !== "GET" && method !== "HEAD") init.body = JSON.stringify(body)
+  const response = await fetch(endpoint(apiUrl, path), init)
   // Access token expired (1h Supabase TTL) — refresh once and retry so the user
   // never has to reconnect mid-session.
   if (response.status === 401 && !_retried) {
     const fresh = await refreshSession(apiUrl)
-    if (fresh) return request(apiUrl, fresh, path, body, true)
+    if (fresh) return request(apiUrl, fresh, path, body, true, method)
     // No working refresh token (stale/expired session) — signal the popup to
     // drop the dead token and surface "Connect with Myro" instead of trapping
     // the user on a retry loop.
@@ -75,6 +76,14 @@ function toPreviewPayload(draft) {
 
 export async function previewImport(apiUrl, token, draft) {
   return request(apiUrl, token, "/jobs/import/preview", toPreviewPayload(draft))
+}
+
+// Career Profile (P2 auto-fill): the recruiter fact-layer the user captured once
+// in Myro. Fetched + cached in the background (lock L9) so filling an ATS form
+// is instant. Returns { profile, updated_at } — profile is the CareerProfileData
+// shape the autofill dictionary maps into form fields.
+export async function fetchCareerProfile(apiUrl, token) {
+  return request(apiUrl, token, "/career-profile", null, false, "GET")
 }
 
 // Reach Intelligence (ADR-0018): the backend derives which leader roles to
