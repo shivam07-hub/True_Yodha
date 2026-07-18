@@ -19,8 +19,6 @@ const KIND_CLASS: Record<V2FixKind, string> = {
   Verb: "verb",
   Cut: "cut",
   Fix: "dedupe",
-  "Surface skill": "surface",
-  Sharpen: "sharpen",
 }
 
 interface FixesRailProps {
@@ -79,7 +77,6 @@ export function FixesRail({
           >
             <div className="cvb-v2-fixcard-top">
               <span className={`cvb-v2-kind ${KIND_CLASS[f.kind]} mono`}>{f.kind}</span>
-              {f.levelNote && <span className="cvb-v2-lvlnote mono">{f.levelNote}</span>}
               {!hideGain && <span className="cvb-v2-fixgain mono">+{f.gain}</span>}
               {onDismiss && (
                 <button
@@ -106,7 +103,6 @@ export function FixesRail({
                   auto
                   applying={applying}
                   quantifyOnly={f.kind === "Quantify"}
-                  intent={f.kind === "Surface skill" ? "weave" : undefined}
                   onApply={(oldText, newText) => onApply(f, oldText, newText)}
                   onClose={() => onExpand(null)}
                 />

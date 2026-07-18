@@ -275,11 +275,13 @@ export function PlaygroundView({
     else setExportConfirm(true)
   }
 
+  // "Add from your experience" seeds off the JD's real GAP requirements
+  // (jd_coverage), never taxonomy keywords.
   const gapSkillNames = useMemo(() => {
-    const missing = m.evaluatedTargets.filter(t => !t.matched).map(t => t.kw)
-    if (!intakeSeed) return missing
-    return [intakeSeed, ...missing.filter(s => s.toLowerCase() !== intakeSeed.toLowerCase())]
-  }, [m.evaluatedTargets, intakeSeed])
+    const gaps = m.gapRequirements
+    if (!intakeSeed) return gaps
+    return [intakeSeed, ...gaps.filter(s => s.toLowerCase() !== intakeSeed.toLowerCase())]
+  }, [m.gapRequirements, intakeSeed])
 
   const saveState = autosaving ? "Saving…" : autosaved ? "Saved" : ""
   const fixCountLabel = visibleFixes.length > 0 ? String(visibleFixes.length) : "✓"
@@ -301,7 +303,7 @@ export function PlaygroundView({
       <PlaygroundHeader
         jobTitle={m.jobTitle}
         company={m.company}
-        reqCount={m.allTargets.length}
+        reqCount={m.reqCount}
         ready={m.ready}
         delta={sessionRaised}
         scoreCaption={!m.hasSemantic && coverageQuery.isLoading ? "/100 · Match…" : undefined}
@@ -359,8 +361,8 @@ export function PlaygroundView({
                 profile={profile}
                 hiddenItems={hiddenItems}
                 toggleItem={toggleItem}
-                targets={m.evaluatedTargets}
-                missingKeywords={m.evaluatedTargets.filter(t => !t.matched).map(t => t.kw)}
+                targets={[]}
+                missingKeywords={[]}
                 applying={rewriteApply.isPending}
                 onApply={(oldText, newText) => rewriteApply.mutate({ oldText, newText })}
                 onAddBullet={(roleIndex, text) => addBullet.mutate({ roleIndex, text })}

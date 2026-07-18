@@ -3,7 +3,6 @@
  * Targets refer to the JD/required skills the user is tailoring against.
  */
 import { Fragment, type ReactNode } from "react"
-import type { SkillGapItem } from "@/lib/api"
 
 export interface KeywordTarget {
   kw: string
@@ -12,28 +11,6 @@ export interface KeywordTarget {
 }
 
 const CHIP_LOWER_WORDS = new Set(["and", "or", "of", "for", "to", "in", "with", "on", "at"])
-
-export function targetsFromSkillGap(items: SkillGapItem[]): KeywordTarget[] {
-  return items
-    .filter(s => s.skill && s.skill.length > 1)
-    .map(s => ({
-      kw: s.skill,
-      weight: s.is_primary ? 3 : 2,
-      matched: !s.missing,
-    }))
-}
-
-/**
- * Coverage verdict per target: the server's semantic credit (`matched` seeded
- * from the skill-gap's `!missing` — the user HAS the skill per taxonomy) is the
- * floor; a verbatim keyword hit on the visible CV text ADDs coverage on top.
- * Text alone must never zero a server-credited skill — taxonomy keys rarely
- * appear word-for-word in CV prose, and scoring them 0 while the match brain
- * says "Worth it" is the two-numbers-disagree header bug.
- */
-export function evaluateTargets(targets: KeywordTarget[], visibleText: string): KeywordTarget[] {
-  return targets.map(t => ({ ...t, matched: t.matched || kwMatches(visibleText, t.kw) }))
-}
 
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")

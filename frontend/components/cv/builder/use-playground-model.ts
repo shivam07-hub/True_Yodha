@@ -1,34 +1,37 @@
 /**
  * usePlaygroundModel — the CV Playground v2 read model.
  *
- * One hook that turns (job, skill gap, gap plan, JD coverage, live CV, hidden
- * set) into everything the v2 surface renders: evaluated keyword targets, the
- * ONE Match score (70% requirement coverage + 30% keyword landing − content
- * penalty — see match-score.ts), the deterministic +N per fix, the unified
- * fix list, the levelled skill rows, and the sheet metadata. Pure reads —
- * mutations stay in the view.
+ * Turns (job, JD coverage, live CV, hidden set) into what the v2 surface renders:
+ * the ONE Match score, the requirement count for the header, the coverage gap
+ * requirements for the intake seed, the content-quality fix list, and the sheet
+ * metadata. Pure reads — mutations stay in the view.
+ *
+ * Taxonomy is banned here (2026-07-18): the job's requirements, the score, and
+ * the JD-fix work ALL come from jd_coverage (the JD's REAL requirements, parsed
+ * by a judgment-lane model and matched against the user's stories + CV lines) —
+ * never job_skills. The old keyword-landing layer (verbatim taxonomy terms) is
+ * gone: coverage IS the Match score (match-score.ts), and JD weak/gap work lives
+ * on the Job-fit tab → Tailor with Mentor. Only the content-quality fixes
+ * (Quantify / Verb / Cut) stay in the Fixes rail — those are CV-intrinsic.
  */
 "use client"
 
 import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
-import type {
-  CVStructured, GapPlanResponse, JDCoverageResponse, JobPathResponse, SkillGapResponse, UserProfile,
-} from "@/lib/api"
+import type { CVStructured, JDCoverageResponse, JobPathResponse, UserProfile } from "@/lib/api"
 import { jobs as jobsApi, cv as cvApi } from "@/lib/api"
 import { itemId } from "@/lib/cv-compose"
 import { dataKeys } from "@/lib/domain-data"
 import { IDEAL_CV_SPEC, estimateLines, pageFillFromLines, type PageFill } from "@/lib/cv/page-fill"
 import { contentPenalty, runContentChecks } from "./content-checks"
 import { buildV2Fixes, type V2Fix } from "./fix-model"
-import { keywordLayerSpan, matchScore } from "./match-score"
-import { buildSkillRows } from "./skills-rail"
-import { evaluateTargets, resolvePlaygroundCompany, targetsFromSkillGap, type KeywordTarget } from "./keyword-utils"
+import { matchScore } from "./match-score"
+import { resolvePlaygroundCompany } from "./keyword-utils"
 
 export interface PlaygroundModelOpts {
-  /** "master" = the Main-CV surface: no job, no JD gap. Score is the CV-intrinsic
-   *  Myro Score (passed as masterScore), fixes are recruiter-check content only,
-   *  and no per-job point-gain is claimed. Default "job". */
+  /** "master" = the Main-CV surface: no job, no JD coverage. Score is the
+   *  CV-intrinsic Myro Score (passed as masterScore), fixes are recruiter-check
+   *  content only, and no per-job point-gain is claimed. Default "job". */
   mode?: "job" | "master"
   /** Myro Score (0–100) — the header meter in master mode. Ignored for jobs. */
   masterScore?: number
@@ -42,18 +45,12 @@ export function usePlaygroundModel(
   hiddenItems: Set<string>,
   opts?: PlaygroundModelOpts,
 ) {
-  // Master mode has no job → the four job reads never fire (a blank jobId would
+  // Master mode has no job → the job reads never fire (a blank jobId would
   // otherwise 404). Content-quality fixes work from the CV alone.
   const isMaster = opts?.mode === "master"
   const jobPathQuery = useQuery({
     queryKey: dataKeys.jobPath(jobId),
     queryFn: () => jobsApi.path(token, jobId),
-    staleTime: 5 * 60 * 1000,
-    enabled: !isMaster,
-  })
-  const skillGapQuery = useQuery({
-    queryKey: dataKeys.skillGap(jobId),
-    queryFn: () => jobsApi.skillGap(token, jobId),
     staleTime: 5 * 60 * 1000,
     enabled: !isMaster,
   })
@@ -63,16 +60,10 @@ export function usePlaygroundModel(
     staleTime: 60_000,
     enabled: !isMaster,
   })
-  const gapPlanQuery = useQuery<GapPlanResponse>({
-    queryKey: ["cv-gap-plan", jobId],
-    queryFn: () => cvApi.gapPlan(token, jobId),
-    staleTime: 60_000,
-    enabled: !isMaster,
-  })
-  // Lane C — the JD's real requirements classified against the user's career
-  // stories (covered / partial / missing). The semantic 70% of the Match score;
-  // also powers the Job-fit rail and the Mentor walk (the view reads this same
-  // query object).
+  // Lane C — THE JD source. The job's real requirements classified against the
+  // user's career stories + CV lines (covered / partial / missing). Drives the
+  // Match score (its coverage IS the score), the header requirement count, the
+  // Job-fit rail, and the intake/weave gap list. Replaces job_skills taxonomy.
   const coverageQuery = useQuery<JDCoverageResponse>({
     queryKey: ["jd-coverage", jobId],
     queryFn: () => cvApi.career.jdCoverage(token, jobId),
@@ -81,17 +72,14 @@ export function usePlaygroundModel(
   })
 
   const job: Partial<JobPathResponse> = jobPathQuery.data ?? {}
-  const gap: Partial<SkillGapResponse> = skillGapQuery.data ?? {}
   const application = applicationsQuery.data?.find(a => a.job_id === jobId) ?? null
-  const company = resolvePlaygroundCompany(job.company, gap.company)
-  const jobTitle = job.job_title ?? gap.job_title ?? "Untitled role"
+  const company = resolvePlaygroundCompany(job.company, undefined)
+  const jobTitle = job.job_title ?? "Untitled role"
   const jdText = (application?.job_description ?? "").trim()
   const roles = useMemo(
     () => cv.experience.map((e, i) => ({ index: i, label: `${e.role} · ${e.company}` })),
     [cv.experience],
   )
-
-  const allTargets: KeywordTarget[] = useMemo(() => targetsFromSkillGap(gap.skills ?? []), [gap.skills])
 
   const visibleText = useMemo(() => {
     const parts: string[] = []
@@ -106,38 +94,17 @@ export function usePlaygroundModel(
     return parts.join(" ")
   }, [hiddenItems, cv])
 
-  // Server semantic credit is the floor; verbatim text hits add on top (the
-  // live +N mechanic for missing keywords). See evaluateTargets.
-  const evaluatedTargets = useMemo<KeywordTarget[]>(
-    () => evaluateTargets(allTargets, visibleText),
-    [allTargets, visibleText],
-  )
-
   // Content-quality penalty (#34 S3): open recruiter-check findings subtract real
-  // points from Ready, and each fix returns its exact points on a real text change.
-  // Hidden lines are excluded — Ready's keyword side already reads visible text
-  // only, so a deselected bullet can neither cost points nor earn them back.
+  // points from the score, and each fix returns its exact points on a real text
+  // change. Hidden lines are excluded.
   const contentPenaltyPts = useMemo(
     () => contentPenalty(runContentChecks(cv, hiddenItems)),
     [cv, hiddenItems],
   )
 
-  // Master: the header shows the Myro Score verbatim (CV-intrinsic, radar-based).
-  // A bullet rewrite does NOT move the Myro Score, so the content-quality penalty
-  // never subtracts from it — honesty (job Match is a separate, penalty-bearing
-  // number). Job: the keyword-landing percent (server skill credit + live text
-  // hits) — the 30% layer of the Match score, and the whole score until the
-  // requirement coverage lands.
-  const baseScore = isMaster ? Math.round(opts?.masterScore ?? 0) : (job.readiness_pct ?? 0)
-  const keywordPct = useMemo(() => {
-    if (evaluatedTargets.length === 0) return baseScore
-    const total = evaluatedTargets.reduce((s, t) => s + (t.weight ?? 1), 0)
-    const got = evaluatedTargets.filter(t => t.matched).reduce((s, t) => s + (t.weight ?? 1), 0)
-    return total === 0 ? 0 : Math.round((got / total) * 100)
-  }, [evaluatedTargets, baseScore])
-
-  // ONE number (see match-score.ts): 70% requirement coverage (semantic) +
-  // 30% keyword landing − content penalty. Keyword-only until coverage lands.
+  // Coverage counts drive the score. Null until the parse lands (or if it finds
+  // nothing) → the score falls back to the job's deterministic readiness, never
+  // a fabricated 0.
   const coverageCounts = useMemo(() => {
     const c = coverageQuery.data
     return c && c.requirements.length > 0
@@ -145,45 +112,35 @@ export function usePlaygroundModel(
       : null
   }, [coverageQuery.data])
   const hasSemantic = !isMaster && coverageCounts != null
+
+  // Master: the header shows the Myro Score verbatim (radar-based; a bullet
+  // rewrite never moves it, so the content penalty never subtracts from it). Job:
+  // coverage − content penalty, with the deterministic readiness as the honest
+  // pre-coverage fallback.
+  const fallbackPct = isMaster ? Math.round(opts?.masterScore ?? 0) : (job.readiness_pct ?? 0)
   const ready = useMemo(() => {
-    if (isMaster) return baseScore
-    return matchScore(coverageCounts, keywordPct, contentPenaltyPts)
-  }, [isMaster, baseScore, coverageCounts, keywordPct, contentPenaltyPts])
+    if (isMaster) return fallbackPct
+    return matchScore(coverageCounts, fallbackPct, contentPenaltyPts)
+  }, [isMaster, fallbackPct, coverageCounts, contentPenaltyPts])
 
-  const totalWeight = useMemo(
-    () => Math.max(1, evaluatedTargets.reduce((s, t) => s + (t.weight ?? 1), 0)),
-    [evaluatedTargets],
+  // The header requirement count — the SAME number as the Job-fit denominator
+  // (coverage requirements), so the two never disagree. The gap requirements
+  // seed the "Add from your experience" intake with the JD's real gaps.
+  const requirements = useMemo(
+    () => coverageQuery.data?.requirements ?? [],
+    [coverageQuery.data],
   )
-  // Deterministic Match gain for a gap's keyword(s): its share of the keyword
-  // LAYER (30 pts beside coverage, 100 standalone) — the same math the score
-  // uses, so "+N" promised is +N delivered.
-  const pointsFor = useMemo(() => (keywords: string[]): number => {
-    const span = keywordLayerSpan(hasSemantic)
-    const set = new Set(keywords.map(k => k.toLowerCase()))
-    let w = 0
-    evaluatedTargets.forEach(t => { if (set.has(t.kw.toLowerCase())) w += (t.weight ?? 1) })
-    if (w === 0) w = 1
-    return Math.max(1, Math.round((w / totalWeight) * span))
-  }, [evaluatedTargets, totalWeight, hasSemantic])
+  const reqCount = requirements.length
+  const gapRequirements = useMemo(
+    () => requirements.filter(r => r.status === "gap").map(r => r.requirement),
+    [requirements],
+  )
 
-  // The unified fix list. JD-tier fixes stay open until their keyword actually
-  // lands on the CV (honest — an applied rewrite that missed the word keeps its
-  // card); recruiter-check fixes vanish when the text stops triggering them.
-  const matchedKw = useMemo(
-    () => new Set(evaluatedTargets.filter(t => t.matched).map(t => t.kw.toLowerCase())),
-    [evaluatedTargets],
+  // Content-quality fixes only — anchored to real CV bullets, inline-rewritable.
+  const openFixes: V2Fix[] = useMemo(
+    () => buildV2Fixes(cv, hiddenItems),
+    [cv, hiddenItems],
   )
-  const openFixes: V2Fix[] = useMemo(() => {
-    const all = buildV2Fixes(cv, gapPlanQuery.data ?? null, pointsFor, hiddenItems)
-    return all.filter(f =>
-      f.tier === 1 || f.keywords.length === 0 || !f.keywords.every(k => matchedKw.has(k.toLowerCase())))
-  }, [cv, gapPlanQuery.data, pointsFor, matchedKw, hiddenItems])
-
-  const skillRows = useMemo(
-    () => buildSkillRows(gap.skills ?? [], gapPlanQuery.data ?? null, evaluatedTargets, openFixes, cv, hiddenItems),
-    [gap.skills, gapPlanQuery.data, evaluatedTargets, openFixes, cv, hiddenItems],
-  )
-  const coveredCount = skillRows.filter(r => r.status === "covered").length
 
   const visibleCount = useMemo(() => {
     let n = 0
@@ -222,10 +179,8 @@ export function usePlaygroundModel(
   }), [cv, profile])
 
   return {
-    job, gap, application, company, jobTitle, jdText, roles,
-    allTargets, visibleText, evaluatedTargets,
-    baseScore, ready, hasSemantic, coverageQuery, pointsFor,
-    openFixes, skillRows, coveredCount,
-    visibleCount, wordCount, pageFill, sheetContact,
+    job, application, company, jobTitle, jdText, roles,
+    visibleText, ready, hasSemantic, coverageQuery, reqCount, gapRequirements,
+    openFixes, visibleCount, wordCount, pageFill, sheetContact,
   }
 }
