@@ -26,6 +26,8 @@ function ForgePageInner() {
   const searchParams = useSearchParams()
 
   const gapParam = searchParams.get("gap")
+  const skillParam = searchParams.get("skill")
+  const practiceJobId = searchParams.get("jobId")
 
   // /forge is the Upskilling ladder only. The evidence audit moved to the CV
   // Skills rail (its per-CV-point home); the Map radar lives in the home rail.
@@ -128,7 +130,10 @@ function ForgePageInner() {
               token={token}
               practiceSkills={practiceSkills}
               gapJobId={gapParam}
+              focusSkill={skillParam}
+              originJobId={practiceJobId}
               onClearGap={clearGap}
+              onNavigate={href => router.push(href)}
             />
           )}
         </div>

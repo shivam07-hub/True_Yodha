@@ -18,7 +18,7 @@
  */
 "use client"
 
-import { useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import type { CVStructured, UserProfile } from "@/lib/api"
 import { cv as cvApi, jobs as jobsApi } from "@/lib/api"
@@ -69,11 +69,13 @@ interface PlaygroundViewProps {
   onEditPolished: (versionId: number) => void
   externalError?: string | null
   focusSkill?: string | null
+  /** Practice handoff opens the existing deep, evidence-grounded Mentor weave. */
+  mentorRequested?: boolean
 }
 
 export function PlaygroundView({
   token, jobId, playground, cv, profile,
-  onBackToBaseline, externalError,
+  onBackToBaseline, externalError, mentorRequested = false,
 }: PlaygroundViewProps) {
   const { selectedVersion, hiddenItems, toggleItem, autosaving, autosaved } = playground
   const [tab, setTab] = useState<V2Tab>("edit")
@@ -82,7 +84,7 @@ export function PlaygroundView({
   const [flash, setFlash] = useState<{ iid: string; n: number } | null>(null)
   const [intakeSeed, setIntakeSeed] = useState<string | null>(null)
   const [intakeOpen, setIntakeOpen] = useState(false)
-  const [weaveOpen, setWeaveOpen] = useState(false)
+  const [weaveOpen, setWeaveOpen] = useState(mentorRequested)
   const [jdOpen, setJdOpen] = useState(false)
   const [applyOpen, setApplyOpen] = useState(false)
   const [exportConfirm, setExportConfirm] = useState(false)
@@ -94,6 +96,10 @@ export function PlaygroundView({
   const pendingTemplateRef = useRef<CVTemplate>(DEFAULT_TEMPLATE)
   const queryClient = useQueryClient()
   const railTab: "fixes" | "skills" = tab === "fixes" || tab === "skills" ? tab : "fixes"
+
+  useEffect(() => {
+    if (mentorRequested) setWeaveOpen(true)
+  }, [mentorRequested])
 
   const m = usePlaygroundModel(token, jobId, cv, profile, hiddenItems)
   const { dismissed, dismiss, restore } = useDismissedFixes(`job:${jobId}`)

@@ -19,6 +19,8 @@ export interface LadderSkill {
   upvotes: number
   maxBankLevel: number
   locked: boolean
+  /** Stored CV evidence exists; a quiz pass alone never creates CV evidence. */
+  hasCvEvidence: boolean
 }
 
 /** A question as the runner consumes it (answer key withheld until grading). */
@@ -54,4 +56,6 @@ export interface ResultModel {
   elapsedSeconds: number
   prevBestSeconds: number | null
   newBest: boolean
+  /** Existing Mentor destination, or null when no real CV evidence exists. */
+  mentorHref: string | null
 }
