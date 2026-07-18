@@ -119,6 +119,8 @@ function ForgePageInner() {
             stats={stats}
             domainScores={scoreData?.domain_scores}
             gapSkills={scoreData?.gap_skills}
+            band={scoreData?.band}
+            topPercent={scoreData?.top_percent}
           />
 
           {token && (

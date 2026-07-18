@@ -24,6 +24,9 @@ class _FakeScoresRepository:
     def get_recompute_inputs(self, _user_id: str) -> ScoreRecomputeInputs:
         return self.recompute_inputs
 
+    def get_target_seniority(self, _user_id: str) -> str:
+        return ""
+
 
 def _score_row(total_score: float = 72.5) -> dict[str, Any]:
     return {
@@ -50,6 +53,25 @@ def test_get_my_score_reads_through_scores_repository() -> None:
     assert response.status_code == 200
     assert response.json()["total_score"] == 72.5
     assert "rank_tier" not in response.json()
+
+
+def test_get_my_score_surfaces_band_percentile() -> None:
+    row = _score_row()
+    row["percentile"] = 82.0  # rank within band
+    repo = _FakeScoresRepository(score_row=row)
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
+    app.dependency_overrides[scores.get_token_scores_repository] = lambda: repo
+
+    try:
+        with TestClient(app) as client:
+            body = client.get("/scores/me").json()
+    finally:
+        app.dependency_overrides.clear()
+
+    assert body["band"] == "entry"          # get_target_seniority "" → entry default
+    assert body["band_percentile"] == 82.0
+    assert body["top_percent"] == 18         # 100 − 82
+    assert "rank_tier" not in body
 
 
 def test_get_my_score_returns_404_when_missing() -> None:

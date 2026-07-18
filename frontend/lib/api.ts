@@ -648,7 +648,7 @@ export type OnboardingResult =
       target_context_hash: string
       target: OnboardingTarget
       skills: OnboardingProofSkill[]
-      score: { total_score: number; domain_scores: Record<string, number>; gap_skills: GapSkill[]; skills_assessed: number }
+      score: { total_score: number; domain_scores: Record<string, number>; gap_skills: GapSkill[]; skills_assessed: number; band?: string; band_percentile?: number | null; top_percent?: number | null }
       score_factors: Array<{ kind: "gap" | "strength"; label: string; detail: string }>
       credible_match: (JobMatch & { jobs?: { job_title?: string; company_name?: string } }) | null
       primary_action: { kind: string; label: string; href: string }
@@ -2434,6 +2434,12 @@ export interface ScoreResponse {
   gap_skills: GapSkill[]
   skills_assessed: number
   computed_at: string
+  /** Seniority band the score is measured against (entry/mid/senior/…). */
+  band?: string
+  /** Percentile RANK within the band (0–100, higher = better). Null until ranked. */
+  band_percentile?: number | null
+  /** Presentation of the rank: "top {top_percent}% for {band}". Null until ranked. */
+  top_percent?: number | null
 }
 
 interface ComputeScoreApiResponse {

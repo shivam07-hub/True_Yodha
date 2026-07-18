@@ -22,6 +22,15 @@ export function ScoringSection() {
         score; it explains the same backend engine used after CV upload and score refresh.
       </P>
       <P>
+        The score is <strong>relative to your career stage</strong>. An entry-level
+        candidate is measured against what an entry-level role needs — not against a
+        20-year veteran. Your stage sets the proficiency you are scored against
+        (entry and intern aim for a solid working level, mid one higher, senior and
+        lead higher still), so a strong junior CV reads as strong, not as an incomplete
+        senior one. Reaching or exceeding your stage&rsquo;s level earns full credit for
+        that skill — going beyond it never inflates the number.
+      </P>
+      <P>
         There are no fixed domain weights. A skill only contributes when your CV has
         evidence for it, and domains with no evidence are not counted against you.
       </P>
@@ -44,7 +53,8 @@ export function ScoringSection() {
           </li>
           <li>
             <strong>Cluster score</strong> — related skills are grouped first. The
-            strongest level is divided by 5, then multiplied by a log coverage factor:
+            strongest level is divided by your stage&rsquo;s target level (capped at
+            full credit), then multiplied by a log coverage factor:
             <code style={{ marginLeft: 4 }}>{SCORE_ENGINE_FACTS.clusterFormula}</code>.
           </li>
           <li>

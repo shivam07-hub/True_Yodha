@@ -19,6 +19,7 @@ from app.services.job_eligibility import (
     explored_bands_for_profile,
     target_seniority_for_profile,
 )
+from app.services.scoring.percentile import top_percent
 
 
 _ROLE_CLUSTERS: tuple[tuple[tuple[str, ...], str], ...] = (
@@ -336,6 +337,10 @@ def get_result(db: Client, user_id: str) -> dict[str, Any]:
             "domain_scores": score.get("domain_scores") or {},
             "gap_skills": score.get("gap_skills") or [],
             "skills_assessed": int(score.get("skills_assessed") or 0),
+            # Band-relative confidence line for the reveal ("top X% for {band}").
+            "band": target_seniority_for_profile({"target_seniority": target.get("seniority")}),
+            "band_percentile": score.get("percentile"),
+            "top_percent": top_percent(score.get("percentile")),
         },
         "score_factors": _score_factors(score),
         "credible_match": credible_match,

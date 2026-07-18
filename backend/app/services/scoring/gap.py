@@ -9,13 +9,19 @@ to an internal tier label (NEVER exposed via API).
 
 from app.services.scoring.formulas import _DAYS_PER_STEP, _PROFICIENCY_TITLES
 
+# Band-relative completeness tiers. The Mirror Score is now scored against the
+# candidate's seniority band (see formulas.target_level_for_seniority), so a
+# tier reads as "how proven are you FOR YOUR STAGE", not an absolute rank.
+# Recalibrated 2026-07 to the banded distribution (prod cutover modelled at
+# min 20.7 / median 35.6 / max 64.1 — old absolute engine was capped ~31).
+# Top two tiers are intentional headroom: reachable, rare at beta sparsity.
 _RANK_TIERS = [
-    (89, 100, "Expert"),
-    (76, 88,  "Professional"),
-    (61, 75,  "Specialist"),
-    (41, 60,  "Practitioner"),
-    (21, 40,  "Explorer"),
-    (0,  20,  "Newcomer"),
+    (80, 100, "Expert"),
+    (65, 79,  "Professional"),
+    (50, 64,  "Specialist"),
+    (35, 49,  "Practitioner"),
+    (20, 34,  "Explorer"),
+    (0,  19,  "Newcomer"),
 ]
 
 

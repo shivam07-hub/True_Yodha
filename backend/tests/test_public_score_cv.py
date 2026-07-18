@@ -50,7 +50,7 @@ def _wire_engine(
     monkeypatch.setattr(
         public_router,
         "project_score",
-        lambda repo, level_map, include_market_signals=True: _FakeProjection(
+        lambda repo, level_map, include_market_signals=True, target_seniority=None: _FakeProjection(
             total_score=72.4,
             domain_scores={"Technology": 80.0, "Data": 61.0, "Leadership": 22.0, "Finance": 9.0},
         ),

@@ -68,6 +68,7 @@ def _retry_supabase(fn: Callable[[], T], *, attempts: int = 3, base_delay: float
 class ScoreRecomputeInputs:
     skill_level_map: dict[str, int]
     target_roles: list[str]
+    target_seniority: str = ""
 
 
 class ScoresRepository:
@@ -136,10 +137,27 @@ class ScoresRepository:
         roles = ((result.data if result else {}) or {}).get("target_roles") or []
         return [str(role).strip() for role in roles if str(role).strip()]
 
+    def get_target_seniority(self, user_id: str) -> str:
+        """Raw target_seniority string for band-relative scoring ('' when unset).
+
+        Normalization (aliases, 'any'/null → entry) happens in the scoring
+        orchestrator via job_eligibility.target_seniority_for_profile.
+        """
+        result = (
+            self._db.table("user_profiles")
+            .select("target_seniority")
+            .eq("id", user_id)
+            .maybe_single()
+            .execute()
+        )
+        value = ((result.data if result else {}) or {}).get("target_seniority")
+        return str(value).strip() if value else ""
+
     def get_recompute_inputs(self, user_id: str) -> ScoreRecomputeInputs:
         return ScoreRecomputeInputs(
             skill_level_map=self.get_user_skill_level_map(user_id),
             target_roles=self.get_target_roles(user_id),
+            target_seniority=self.get_target_seniority(user_id),
         )
 
     def find_role_skill_rows(self, role: str) -> list[dict[str, Any]]:
@@ -262,6 +280,35 @@ class ScoresRepository:
 
     def insert_mirror_score(self, user_id: str, payload: dict[str, Any]) -> None:
         self._db.table("mirror_scores").insert({"user_id": user_id, **payload}).execute()
+
+    def update_percentile(self, user_id: str, percentile: float) -> None:
+        self._db.table("mirror_scores").update({"percentile": percentile}).eq(
+            "user_id", user_id
+        ).execute()
+
+    def get_all_band_scores(self) -> list[tuple[str, float]]:
+        """(raw target_seniority, total_score) for every scored user.
+
+        Feeds band-relative percentile: the caller resolves each raw seniority
+        to its band and ranks the subject against same-band peers. Two small
+        reads joined in Python — the scored population is well under 10k, so a
+        band-filtered SQL join isn't worth the derived-band complexity yet.
+        """
+        scores = (
+            self._db.table("mirror_scores").select("user_id, total_score").execute().data or []
+        )
+        profiles = (
+            self._db.table("user_profiles").select("id, target_seniority").execute().data or []
+        )
+        seniority_by_id = {p["id"]: p.get("target_seniority") for p in profiles if p.get("id")}
+        out: list[tuple[str, float]] = []
+        for row in scores:
+            uid = row.get("user_id")
+            total = row.get("total_score")
+            if uid is None or total is None:
+                continue
+            out.append((str(seniority_by_id.get(uid) or ""), float(total)))
+        return out
 
     def append_score_history(self, user_id: str, total_score: float) -> None:
         self._db.table("mirror_score_history").insert(

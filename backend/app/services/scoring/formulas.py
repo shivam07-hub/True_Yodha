@@ -29,6 +29,34 @@ _PROFICIENCY_TITLES: dict[int, str] = {
     5: "Legend",
 }
 
+# ── Seniority band → scoring denominator ──────────────────────────────────────
+# The Mirror Score is band-relative: a candidate is measured against the
+# proficiency their STAGE requires, not against L5 "Legend". Scoring an
+# entry-level fresher against L5 structurally caps them (the beta bug: mean
+# 15.7/100). Coarse by design — grill-locked. Keys are the canonical seniority
+# bands from job_eligibility (intern/entry/mid/senior/lead/executive).
+TARGET_LEVEL_BY_BAND: dict[str, int] = {
+    "intern":    2,
+    "entry":     2,
+    "mid":       3,
+    "senior":    4,
+    "lead":      5,
+    "executive": 5,
+}
+DEFAULT_TARGET_LEVEL = 2  # entry — the default band when none is set
+
+
+def target_level_for_seniority(seniority: str | None) -> int:
+    """Coarse band → the proficiency level the score is measured against.
+
+    Unknown / null / 'any' → entry (L2). Callers should pass a band already
+    normalized by ``job_eligibility.target_seniority_for_profile`` so aliases
+    (junior→entry, director→executive) resolve upstream; this is the final
+    lookup with a safe entry default.
+    """
+    key = (seniority or "").strip().lower()
+    return TARGET_LEVEL_BY_BAND.get(key, DEFAULT_TARGET_LEVEL)
+
 # Days to close a single proficiency step (current → current+1)
 _DAYS_PER_STEP: dict[tuple[int, int], int] = {
     (0, 1): 1,
@@ -99,14 +127,21 @@ def compute_cluster_scores(
     skill_level_map: dict[str, int],
     cluster_children: dict[str, list[str]],
     skill_to_cluster: dict[str, str],
+    target_level: int = 5,
 ) -> dict[str, float]:
     """
     Returns {cluster_name: cluster_score} for clusters the user has ≥1 skill in.
-    cluster_score = cluster_coverage × (max_proficiency / 5)
+    cluster_score = cluster_coverage × min(max_proficiency / target_level, 1.0)
+
+    ``target_level`` is the band-relative denominator (see
+    ``target_level_for_seniority``). Default 5 preserves the legacy absolute
+    scale. The 1.0 cap means a candidate at or above their band's target gets
+    full proficiency credit — never score inflation above it.
 
     Rewards users who are broad AND deep within a sub-skill cluster, not just
     those who name-dropped many skills.
     """
+    denominator = target_level if target_level > 0 else 5
     user_by_cluster: dict[str, list[int]] = {}
     for skill, level in skill_level_map.items():
         cluster = skill_to_cluster.get(skill)
@@ -121,7 +156,7 @@ def compute_cluster_scores(
         # log1p scaling: 1 skill in a 362-skill cluster → 0.14 credit, not 0.003.
         # Proficiency floor (0.3) ensures having any skill in a domain counts.
         coverage_score = math.log1p(len(levels)) / math.log1p(total)
-        max_prof = max(levels) / 5
+        max_prof = min(max(levels) / denominator, 1.0)
         result[cluster] = round(max_prof * (0.3 + 0.7 * coverage_score), 4)
     return result
 
@@ -170,6 +205,7 @@ def project_total_with_skill_bump(
     cluster_children: dict[str, list[str]],
     skill_to_cluster: dict[str, str],
     cluster_to_domain: dict[str, str],
+    target_level: int = 5,
 ) -> float:
     """
     What-if total Mirror Score if `skill_name` were raised to `new_level`.
@@ -179,10 +215,13 @@ def project_total_with_skill_bump(
     each gap skill ("practice this one level → +N pts") — never fabricated, it
     is the real engine re-run. Adding an absent skill (level 0 → 1) can introduce
     a new evidenced domain, which the mean-of-evidenced-domains formula reflects.
+
+    ``target_level`` must match the score's band denominator so the projected
+    gain lives in the same band-relative space as the displayed total.
     """
     bumped = dict(skill_level_map)
     bumped[skill_name] = new_level
-    cluster_scores = compute_cluster_scores(bumped, cluster_children, skill_to_cluster)
+    cluster_scores = compute_cluster_scores(bumped, cluster_children, skill_to_cluster, target_level)
     cluster_skill_counts = {
         cluster: sum(1 for s in bumped if skill_to_cluster.get(s) == cluster)
         for cluster in cluster_scores

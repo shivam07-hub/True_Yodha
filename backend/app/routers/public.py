@@ -299,9 +299,12 @@ async def _score_anon_cv(
 
     # Real engine, compute-only. include_market_signals=False mirrors the authed
     # CV-ingest path (record_cv_score) and keeps this off the demand tables.
+    # Anon has no confirmed seniority band → entry (L2), the safe default.
     level_map = build_skill_level_map(skills_detected)
     repo = ScoresRepository(get_supabase_admin())
-    projection = project_score(repo, level_map, include_market_signals=False)
+    projection = project_score(
+        repo, level_map, include_market_signals=False, target_seniority=None
+    )
 
     score = int(round(projection.total_score))
     domains = sorted(

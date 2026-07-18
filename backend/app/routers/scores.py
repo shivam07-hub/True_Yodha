@@ -6,8 +6,25 @@ from app.deps import Principal, get_principal
 from app.repositories.scores import ScoresRepository, get_token_scores_repository
 from app.schemas import ComputeScoreResponse, GapSkillResponse, MirrorScoreResponse
 from app.services import scoring
+from app.services.job_eligibility import target_seniority_for_profile
+from app.services.scoring.percentile import top_percent
 
 router = APIRouter(prefix="/scores", tags=["scores"])
+
+
+def _to_score_response(row: dict, band: str) -> MirrorScoreResponse:
+    """Build the API response. rank_tier stays internal; band percentile ships."""
+    rank = row.get("percentile")
+    return MirrorScoreResponse(
+        total_score=row["total_score"],
+        domain_scores=row.get("domain_scores", {}),
+        gap_skills=[GapSkillResponse(**g) for g in row.get("gap_skills", [])],
+        skills_assessed=row.get("skills_assessed", 0),
+        computed_at=row.get("computed_at", datetime.now(timezone.utc)),
+        band=band,
+        band_percentile=rank,
+        top_percent=top_percent(rank) if rank is not None else None,
+    )
 
 
 @router.get("/me", response_model=MirrorScoreResponse)
@@ -21,15 +38,8 @@ def get_my_score(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No score found. Upload your CV first.",
         )
-
-    # rank_tier is intentionally excluded from the response
-    return MirrorScoreResponse(
-        total_score=row["total_score"],
-        domain_scores=row.get("domain_scores", {}),
-        gap_skills=[GapSkillResponse(**g) for g in row.get("gap_skills", [])],
-        skills_assessed=row.get("skills_assessed", 0),
-        computed_at=row.get("computed_at", datetime.now(timezone.utc)),
-    )
+    band = target_seniority_for_profile({"target_seniority": scores_repo.get_target_seniority(principal.id)})
+    return _to_score_response(row, band)
 
 
 @router.post("/compute", response_model=ComputeScoreResponse)
@@ -46,14 +56,8 @@ def recompute_score(
         )
 
     score_row = scoring.recompute_score(scores_repo, principal.id)
-
-    score_response = MirrorScoreResponse(
-        total_score=score_row["total_score"],
-        domain_scores=score_row.get("domain_scores", {}),
-        gap_skills=[GapSkillResponse(**g) for g in score_row.get("gap_skills", [])],
-        skills_assessed=score_row.get("skills_assessed", 0),
-        computed_at=score_row.get("computed_at", datetime.now(timezone.utc)),
-    )
+    band = target_seniority_for_profile({"target_seniority": inputs.target_seniority})
+    score_response = _to_score_response(score_row, band)
     return ComputeScoreResponse(
         score=score_response,
         skills_updated=score_row.get("skills_assessed", 0),
