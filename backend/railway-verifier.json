@@ -5,7 +5,7 @@
   },
   "deploy": {
     "startCommand": "python -m app.workers.job_listing_verifier",
-    "cronSchedule": "17 */6 * * *",
+    "cronSchedule": "*/15 * * * *",
     "restartPolicyType": "NEVER"
   }
 }
