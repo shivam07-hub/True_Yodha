@@ -70,6 +70,34 @@ class TargetDB:
         return self.query
 
 
+class CountQuery:
+    def select(self, _columns, count=None):
+        self.count = count
+        return self
+
+    def in_(self, _key, _values):
+        return self
+
+    def like(self, _key, _pattern):
+        return self
+
+    def limit(self, _value):
+        return self
+
+    def execute(self):
+        return type("Response", (), {"count": 42, "data": []})()
+
+
+class CountDB:
+    def table(self, name):
+        assert name == "jobs"
+        return CountQuery()
+
+
+def test_pending_count_returns_exact_count() -> None:
+    assert ListingVerificationRepository(CountDB()).pending_count() == 42
+
+
 def test_targets_filter_invalid_or_missing_apply_urls_before_limit() -> None:
     db = TargetDB()
 
