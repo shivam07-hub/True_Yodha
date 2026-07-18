@@ -6,6 +6,7 @@ import { MyroLogo } from "@/components/myro-logo"
 import { ExperienceStep } from "@/components/onboarding/experience-step"
 import { OnboardingProgress } from "@/components/onboarding/onboarding-progress"
 import { TargetStep } from "@/components/onboarding/target-step"
+import { Button } from "@/components/ui/button"
 import {
   beginCVUpload,
   clearPersistedCVUploadState,
@@ -24,17 +25,29 @@ export default function OnboardingPage() {
   const { token, ready } = useAuth()
   const { state, profile, refresh } = useOnboardingState(token)
   const pollingJob = useRef<string | null>(null)
+  const resolved = useRef(false)
   const [stage, setStage] = useState<Stage>(0)
+  const [entryMode, setEntryMode] = useState<"flow" | "completed">("flow")
   const [busy, setBusy] = useState(false)
   const [phase, setPhase] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // Resolve the entry destination ONCE from the first fetch. A warranted
+  // redirect (result/generator resume) fires before any interactive step
+  // renders; a completed profile gets an explicit choice, never a silent
+  // replace. Once resolved, background state refetches (e.g. the CV-upload
+  // poll's refresh()) can never navigate — that reactive redirect was what
+  // yanked returning users off the target step mid-interaction.
   useEffect(() => {
-    if (!state.isFetchedAfterMount) return
-    const current = state.data?.current_stage
-    if (current === "target") setStage(1)
-    if (current === "result" || current === "generator") router.replace("/onboarding/result")
-    if (state.data?.status === "completed") router.replace("/market")
+    if (resolved.current || !state.isFetchedAfterMount) return
+    resolved.current = true
+    const data = state.data
+    if (data?.status === "completed") { setEntryMode("completed"); return }
+    if (data?.current_stage === "result" || data?.current_stage === "generator") {
+      router.replace("/onboarding/result")
+      return
+    }
+    if (data?.current_stage === "target") setStage(1)
   }, [router, state.data, state.isFetchedAfterMount])
 
   useEffect(() => {
@@ -107,7 +120,39 @@ export default function OnboardingPage() {
     }
   }
 
+  async function handleReRun() {
+    if (!token) return
+    setBusy(true)
+    await onboarding.startOver(token).catch(() => undefined)
+    refresh()
+    setEntryMode("flow")
+    setStage(0)
+    setBusy(false)
+  }
+
   if (!ready || state.isLoading || profile.isLoading) return null
+
+  if (entryMode === "completed") {
+    return (
+      <main className="min-h-dvh bg-[var(--tm-bg)] text-[var(--tm-text)]">
+        <header className="border-b border-[var(--tm-border-soft)]">
+          <div className="mx-auto flex h-16 max-w-5xl items-center px-5 sm:px-8">
+            <MyroLogo size={25} /><span className="ml-2 text-base font-semibold">Myro</span>
+          </div>
+        </header>
+        <div className="mx-auto flex min-h-[calc(100dvh-64px)] max-w-5xl items-center justify-center px-5 py-8 sm:px-8">
+          <section className="w-full max-w-md text-center">
+            <h1 className="text-balance text-3xl font-semibold tracking-normal text-[var(--tm-text)]">You&apos;re all set</h1>
+            <p className="mt-2 text-base leading-6 text-[var(--tm-text-muted)]">Your Myro profile is ready. Head to your dashboard, or re-run the analysis with a fresh CV.</p>
+            <Button size="lg" className="mt-6 w-full" onClick={() => router.push("/market")}>Go to dashboard</Button>
+            <button type="button" onClick={() => void handleReRun()} disabled={busy} className="tm-control-focus mx-auto mt-3 block rounded px-3 py-2 text-sm text-[var(--tm-text-muted)] underline-offset-4 hover:underline">
+              {busy ? "Starting over..." : "Re-run analysis"}
+            </button>
+          </section>
+        </div>
+      </main>
+    )
+  }
 
   const initialTarget: Partial<OnboardingTarget> = {
     role_title: profile.data?.target_role_title ?? "",
