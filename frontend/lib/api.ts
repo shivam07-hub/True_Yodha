@@ -643,6 +643,17 @@ export type OnboardingResult =
   | { kind: "full_result_processing"; target: OnboardingTarget; phase: string }
   | { kind: "terminal_failure"; target: OnboardingTarget; error_code?: string; message?: string; xp_refunded: boolean }
   | {
+      // Score-first onboarding (Slice 4): CV parsed + scored, target not yet
+      // confirmed. Show the score + a pre-filled confirm card; matching runs
+      // only after the user taps Confirm (saveTarget).
+      kind: "awaiting_target"
+      baseline_version_id: number
+      suggestion: { role: string; location: string; seniority: string }
+      skills: OnboardingProofSkill[]
+      score: { total_score: number; domain_scores: Record<string, number>; gap_skills: GapSkill[]; skills_assessed: number; band?: string; band_percentile?: number | null; top_percent?: number | null }
+      score_factors: Array<{ kind: "gap" | "strength"; label: string; detail: string }>
+    }
+  | {
       kind: "full_result_ready"
       baseline_version_id: number
       target_context_hash: string
