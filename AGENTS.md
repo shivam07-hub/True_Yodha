@@ -306,7 +306,35 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-16 - Career Band and seniority eligibility)
+## LAST SESSION SUMMARY (2026-07-17 - Non-blocking CV analysis notifications)
+
+Implemented the CV upload experience as an accepted background job with a
+durable notification lifecycle.
+
+- `/cv` now stops blocking after the backend accepts and funds the upload job.
+  The user can close the dialog or continue to the job market while analysis
+  runs.
+- `AppShell` owns job reconciliation across route changes and reloads. It
+  refreshes CV, score, skill, job, profile, and notification caches when the
+  worker reaches a terminal state.
+- The existing notification inbox now projects one row per CV upload job. The
+  row shows processing without raising an unread badge, then becomes unread and
+  actionable when the score is ready or the job fails.
+- Applied and verified live migration
+  `20260717_cv_analysis_notification_lifecycle.sql` on the shared Supabase
+  project, including lifecycle columns, uniqueness, state constraint, RLS, and
+  a transactional insert/update/rollback check.
+
+Validation:
+
+- Focused CV upload/notification backend tests rerun after the final lifecycle
+  adjustment: 32 passed.
+- Frontend lifecycle contract tests: 3 passed.
+- Feature-owned frontend ESLint check: clean.
+- Full backend suite: 1417 passed before that final focused adjustment.
+- Full frontend TypeScript check and Next.js lint: clean.
+
+## OLDER SESSION SUMMARY (2026-07-16 - Career Band and seniority eligibility)
 
 Implemented the four-band role-family boundary plus a durable seniority gate
 for browse and Career Ops.

@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useEffect, useRef, useState } from "react"
+import { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
@@ -18,17 +18,21 @@ import { runContentChecks } from "@/components/cv/builder/content-checks"
 import { domainLabel } from "@/lib/domain-labels"
 import {
   CVUploadFailure,
-  clearPersistedCVUploadState,
+  beginCVUpload,
   type CVUploadFallbackSubmissionResponse,
   cv,
   jobs as jobsApi,
   getPersistedCVUploadJobId,
-  pollCVUploadStatus,
   resumePendingCVUpload,
   type CVUploadResult,
-  uploadCV,
   users,
 } from "@/lib/api"
+import {
+  CV_UPLOAD_PROGRESS_EVENT,
+  CV_UPLOAD_TERMINAL_EVENT,
+  type CVUploadProgressEventDetail,
+  type CVUploadTerminalEventDetail,
+} from "@/lib/cv-upload-events"
 import { hasPendingCVUpload } from "@/lib/cv-upload-queue"
 import { jwtSub } from "@/lib/cv-resumable-upload"
 import { dataKeys } from "@/lib/domain-data"
@@ -56,6 +60,7 @@ function CVPage() {
 
   const [showUpload, setShowUpload] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [activeUploadJobId, setActiveUploadJobId] = useState<string | null>(null)
   const [uploadResult, setUploadResult] = useState<{ skills_detected: number; score: number } | null>(null)
   // #6 deploy-style loading: live phase + start-time + the done-morph's Improve target.
   const [uploadPhase, setUploadPhase] = useState<CVUploadPhase | null>(null)
@@ -166,7 +171,7 @@ function CVPage() {
   // #6 — the status payload carries no domain breakdown, so read the freshly
   // invalidated scores cache to pick the biggest-drag domain for the one
   // Improve action on the done-morph (Q4 / OPEN GAP resolution).
-  function lowestDomainFromCache(): string | null {
+  const lowestDomainFromCache = useCallback((): string | null => {
     const data = queryClient.getQueryData<{ domain_scores?: Record<string, number> }>(dataKeys.scores())
     const ds = data?.domain_scores
     if (!ds) return null
@@ -176,7 +181,7 @@ function CVPage() {
       if (typeof v === "number" && v < loVal) { loVal = v; lo = k }
     }
     return lo
-  }
+  }, [queryClient])
 
   // The reveal beat (#34 S4): strongest + weakest domain (labelled) for the
   // strong/weak callout. Reads the same freshly-invalidated scores cache.
@@ -209,7 +214,7 @@ function CVPage() {
   }
 
   // Shared terminal-success handling for first upload, text claim, and resume.
-  function finishUploadSuccess(result: CVUploadResult) {
+  const finishUploadSuccess = useCallback((result: CVUploadResult) => {
     if (result.new_coin_balance != null) applyXpChange({ newBalance: result.new_coin_balance, action: "cv_upload" })
     queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
     queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
@@ -226,11 +231,50 @@ function CVPage() {
     setFallbackError(null)
     setFallbackReceipt(null)
     setUploadDeferred(false)
-  }
+    setActiveUploadJobId(null)
+  }, [applyXpChange, jobId, lowestDomainFromCache, queryClient])
+
+  // The AppShell owns polling so this page can unmount while work continues.
+  // When the user stays here, these events keep the existing truthful progress
+  // UI in sync without creating a second poller.
+  useEffect(() => {
+    const onProgress = (event: Event) => {
+      const { jobId: progressJobId, status } = (event as CustomEvent<CVUploadProgressEventDetail>).detail
+      if (!progressJobId) return
+      setActiveUploadJobId((current) => current ?? progressJobId)
+      setUploadPhase(status.current_phase ?? "queued")
+      if (status.started_at) setUploadStartedAt(status.started_at)
+    }
+    const onTerminal = (event: Event) => {
+      const detail = (event as CustomEvent<CVUploadTerminalEventDetail>).detail
+      if (!detail?.jobId) return
+      setActiveUploadJobId((current) => current === detail.jobId ? null : current)
+      if (detail.outcome === "done") {
+        finishUploadSuccess(detail.result)
+        return
+      }
+      setUploadPhase("failed")
+      setLastFailureCode(detail.error instanceof CVUploadFailure ? detail.error.code : "upload_unknown_error")
+      setUploadError(tokenizedUserMessage(detail.error.message))
+      setUploadFailureCount((count) => count + 1)
+    }
+    window.addEventListener(CV_UPLOAD_PROGRESS_EVENT, onProgress)
+    window.addEventListener(CV_UPLOAD_TERMINAL_EVENT, onTerminal)
+    return () => {
+      window.removeEventListener(CV_UPLOAD_PROGRESS_EVENT, onProgress)
+      window.removeEventListener(CV_UPLOAD_TERMINAL_EVENT, onTerminal)
+    }
+  }, [finishUploadSuccess])
 
   async function handleUpload(file: File) {
     if (!token) return
     if (uploadInFlightRef.current) return  // double-fire guard
+    const existingJobId = getPersistedCVUploadJobId()
+    if (existingJobId) {
+      setActiveUploadJobId(existingJobId)
+      setShowUpload(true)
+      return
+    }
     setLastUploadMeta({ name: file.name, type: file.type, size: file.size })
 
     // Client-side preflight — catches wrong-format files before any network round-trip
@@ -248,13 +292,29 @@ function CVPage() {
     // Start the 10-min CV-promise clock the instant the upload begins (Q4).
     startCvPromiseOptimistic()
     try {
-      const result = await uploadCV(token, file, "pdf_upload", (s) => {
-        setUploadPhase(s.current_phase ?? null)
-        if (s.started_at) setUploadStartedAt(s.started_at)
-      })
-      finishUploadSuccess(result)
-      // #6: no auto-close — the done-morph holds the score + Improve action
-      // until the user acts or dismisses (inline-done, Q4).
+      const { initial } = await beginCVUpload(token, file, "pdf_upload")
+      if (initial.status === "done") {
+        finishUploadSuccess({
+          skills_detected: initial.skills_detected,
+          score: initial.score,
+          xp_charged: initial.xp_charged,
+          new_coin_balance: null,
+          redirect_to: initial.redirect_to,
+        })
+      } else if (initial.status === "processing") {
+        // Acceptance ends the blocking interaction. AppShell tracks the durable
+        // job while the user closes this dialog or navigates anywhere in Myro.
+        setActiveUploadJobId(initial.job_id)
+        setUploadPhase("queued")
+        setUploadStartedAt(new Date().toISOString())
+      } else {
+        throw new CVUploadFailure(
+          initial.error_detail ?? "CV analysis could not start.",
+          initial.error_code ?? "unknown",
+          initial.xp_refunded ?? false,
+          initial.new_coin_balance ?? null,
+        )
+      }
     } catch (err) {
       if (isDeferrableUpload(err)) {
         // Radio dropped mid-upload. The file is held; auto-resume on reconnect.
@@ -284,6 +344,15 @@ function CVPage() {
     if (!token) return
     if (uploadInFlightRef.current) return
     if (typeof navigator !== "undefined" && navigator.onLine === false) return
+    // Check BEFORE opening the modal — an `online` reconnect fires on every
+    // wifi blip/laptop wake regardless of what the user is doing, and
+    // resumePendingCVUpload() resolves null (nothing to do) with no code path
+    // to close a dialog that was opened speculatively. That left a blank
+    // "Replace your Main CV" dropzone stuck open over whatever the user was
+    // actually working on. Gate on real pending state first, same as the
+    // mount-time resume effect below.
+    const pending = await hasPendingCVUpload(jwtSub(token))
+    if (!pending || uploadInFlightRef.current) return
     uploadInFlightRef.current = true
     setShowUpload(true)
     setUploading(true); setUploadResult(null); setUploadError(null); setUploadDeferred(false)
@@ -410,51 +479,14 @@ function CVPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, token, searchParams, playground.versionsLoading, hasBaseline])
 
-  // Resume an upload that was in flight when the tab closed / page reloaded.
-  // The job is server-side; polling reconciles its terminal state.
+  // Rejoin the shell-owned lifecycle when /cv is opened during an analysis.
   useEffect(() => {
-    if (!token || !ready || uploadInFlightRef.current) return
+    if (!token || !ready) return
     const persistedJobId = getPersistedCVUploadJobId()
     if (!persistedJobId) return
-    uploadInFlightRef.current = true
-    setShowUpload(true); setUploading(true); setUploadError(null)
+    setShowUpload(true); setUploadError(null)
+    setActiveUploadJobId(persistedJobId)
     setUploadPhase("queued"); setUploadStartedAt(null); setBiggestDrag(null)
-    pollCVUploadStatus(token, persistedJobId, {
-      onProgress: (s) => {
-        setUploadPhase(s.current_phase ?? null)
-        if (s.started_at) setUploadStartedAt(s.started_at)
-      },
-    })
-      .then((result) => {
-        if (result.new_coin_balance != null) applyXpChange({ newBalance: result.new_coin_balance, action: "cv_upload" })
-        queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
-        queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
-        queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
-        queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
-        queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
-        setUploadPhase("ready")
-        setBiggestDrag(lowestDomainFromCache())
-        setUploadResult({ skills_detected: result.skills_detected, score: result.score })
-        setUploadFailureCount(0)
-        clearPersistedCVUploadState()
-        // #6: no auto-close — done-morph holds the score + Improve action.
-      })
-      .catch((err) => {
-        if (err instanceof CVUploadFailure) {
-          if (err.newXpBalance != null) applyXpChange({ newBalance: err.newXpBalance, action: "cv_upload_refund" })
-          setLastFailureCode(err.code)
-          if (!err.retryable) clearPersistedCVUploadState()
-        } else {
-          setLastFailureCode("upload_unknown_error")
-          clearPersistedCVUploadState()
-        }
-        setUploadFailureCount((n) => n + 1)
-        setUploadError(err instanceof Error ? tokenizedUserMessage(err.message) : "Upload could not be resumed.")
-      })
-      .finally(() => {
-        setUploading(false)
-        uploadInFlightRef.current = false
-      })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, ready])
 
@@ -608,7 +640,10 @@ function CVPage() {
         onOpenChange={(o) => {
           if (uploading) return
           setShowUpload(o)
-          if (!o) { setUploadResult(null); setUploadPhase(null); setUploadStartedAt(null) }
+          if (!o) {
+            setUploadResult(null)
+            if (!activeUploadJobId) { setUploadPhase(null); setUploadStartedAt(null) }
+          }
         }}
       >
         <DialogContent>
@@ -620,7 +655,7 @@ function CVPage() {
                 : "We extract skills and split your CV into editable sections."}
             </DialogDescription>
           </DialogHeader>
-          {uploading || uploadResult ? (
+          {uploading || activeUploadJobId || uploadResult ? (
             <>
               <CvScoreProgress
                 status={uploadResult ? "done" : "processing"}
@@ -647,6 +682,18 @@ function CVPage() {
                   ) : null,
                 } : null}
               />
+              {activeUploadJobId && !uploading && (
+                <div className="cvb-upload-continue" role="status">
+                  <span>We’ll notify you here when your score is ready.</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setShowUpload(false); router.push("/market") }}
+                  >
+                    Browse jobs
+                  </Button>
+                </div>
+              )}
               {uploadResult?.skills_detected === 0 && (
                 <div style={{
                   marginTop: 14, padding: "12px 14px",

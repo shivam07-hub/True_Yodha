@@ -1,14 +1,12 @@
-"""notifications — the in-app inbox (Backlog #36, Slice 2).
+"""notifications — the in-app inbox.
 
 Two access modes on the same table (RLS split, like jobs):
   - token client (owner): list own inbox + mark read.
   - admin client (service): write a notification — the scrape sweep, after a
     user's recompute produced genuinely-new matches.
 
-v1 has exactly one `kind`: 'fresh_matches'. The write path DEBOUNCES — a burst of
-scrapes for the same user merges into one unread digest within a window, so the
-bell shows "3 fresh matches", never three separate pings (N1, Kunal: one ping per
-window or the channel gets muted).
+`fresh_matches` debounces a burst into one digest. `cv_analysis` projects one
+durable upload job into one inbox row and updates that row through its lifecycle.
 """
 from __future__ import annotations
 
@@ -40,7 +38,10 @@ class NotificationsRepository:
         # PostgREST returns PGRST205 — degrade to an empty inbox, never 500 the bell.
         return safe_read(
             self._db.table("user_notifications")
-            .select("id, kind, title, body, job_id, match_count, read_at, created_at")
+            .select(
+                "id, kind, title, body, job_id, source_id, action_url, state, "
+                "match_count, read_at, created_at"
+            )
             .eq("user_id", user_id)
             .order("created_at", desc=True)
             .limit(limit),
@@ -129,6 +130,71 @@ class NotificationsRepository:
             "job_id": job_id,
             "match_count": count,
         }).execute()
+
+    # ── CV-analysis lifecycle projection (admin client) ─────────────────────
+
+    def record_cv_analysis_started(self, user_id: str, *, source_id: str) -> None:
+        """Create the single inbox row for a durable CV upload job.
+
+        Upsert makes the notification projection idempotent on the same key as
+        the Background Job. A retry can update the row; it cannot stack pings.
+        """
+        self._admin_db.table("user_notifications").upsert({
+            "user_id": user_id,
+            "kind": "cv_analysis",
+            "source_id": source_id,
+            "state": "processing",
+            "title": "Analyzing your CV",
+            "body": "Reading your CV",
+            "action_url": "/cv",
+            "match_count": 1,
+            # Processing is visible in the inbox, but completion is the ping.
+            # The terminal transition resets this to NULL so the bell becomes unread.
+            "read_at": datetime.now(timezone.utc).isoformat(),
+        }, on_conflict="user_id,kind,source_id").execute()
+
+    def update_cv_analysis_phase(self, source_id: str, phase: str) -> None:
+        body = {
+            "queued": "Waiting to start",
+            "reading": "Reading your CV",
+            "scoring": "Scoring your domains",
+        }.get(phase, "Analyzing your CV")
+        self._admin_db.table("user_notifications").update({
+            "state": "processing",
+            "title": "Analyzing your CV",
+            "body": body,
+        }).eq("kind", "cv_analysis").eq("source_id", source_id).execute()
+
+    def record_cv_analysis_done(
+        self,
+        source_id: str,
+        *,
+        skills_detected: int,
+        score: float,
+    ) -> None:
+        self._admin_db.table("user_notifications").update({
+            "state": "ready",
+            "title": "Your Myro Score is ready",
+            "body": f"{skills_detected} skills mapped · Myro Score {round(score)}",
+            "action_url": "/cv",
+            "read_at": None,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }).eq("kind", "cv_analysis").eq("source_id", source_id).execute()
+
+    def record_cv_analysis_failed(self, source_id: str, *, refunded: bool) -> None:
+        body = (
+            "Analysis stopped. Your Myro Coins were refunded."
+            if refunded
+            else "Analysis stopped. Open your CV to try again."
+        )
+        self._admin_db.table("user_notifications").update({
+            "state": "failed",
+            "title": "CV analysis needs attention",
+            "body": body,
+            "action_url": "/cv",
+            "read_at": None,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }).eq("kind", "cv_analysis").eq("source_id", source_id).execute()
 
 
 def _fresh_title(count: int) -> str:

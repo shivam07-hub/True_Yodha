@@ -117,10 +117,24 @@
   text-align: left; cursor: pointer;
   border: 1px solid var(--tm-border-faint); border-radius: var(--tm-radius);
   background: var(--tm-bg-inset); padding: 10px 12px;
-  display: flex; flex-direction: column; gap: 3px;
+  display: flex; align-items: flex-start; gap: 10px;
   transition: border-color 120ms ease, background 120ms ease;
 }
 .tw-opt:hover { border-color: var(--tm-int-border); background: var(--tm-surface-2); }
+.tw-opt-check {
+  flex: none; width: 18px; height: 18px; margin-top: 1px;
+  display: grid; place-items: center;
+  border: 1.5px solid var(--tm-border); border-radius: 5px;
+  font-size: 12px; line-height: 1; color: var(--tm-interactive-fg);
+  background: transparent; transition: background 120ms ease, border-color 120ms ease;
+}
+.tw-opt-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.tw-opt[data-picked="true"] {
+  border-color: var(--tm-interactive); background: var(--tm-int-bg-wash);
+}
+.tw-opt[data-picked="true"] .tw-opt-check {
+  background: var(--tm-interactive); border-color: var(--tm-interactive);
+}
 .tw-opt-kind {
   font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--tm-accent-text);

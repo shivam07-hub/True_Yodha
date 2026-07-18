@@ -177,6 +177,22 @@ class ListingVerificationRepository:
             .execute()
         )
 
+    def pending_count(self) -> int:
+        """Count of unverified/uncertain listings still awaiting a check.
+
+        The health signal for the drain belt — served by the partial
+        idx_jobs_verify_pending, so it is a fast index-only count.
+        """
+        res = _with_retry(
+            lambda: self.db.table("jobs")
+            .select("job_id", count="exact")
+            .in_("listing_confidence", ["uncertain", "likely_closed"])
+            .like("apply_url", "http%")
+            .limit(1)
+            .execute()
+        )
+        return int(getattr(res, "count", 0) or 0)
+
     def retire_eligible(self, *, limit: int = 500) -> int:
         capped = max(1, min(limit, 5000))
         result = _with_retry(

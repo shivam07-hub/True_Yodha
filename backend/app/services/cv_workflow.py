@@ -472,6 +472,7 @@ async def _start_async_upload_job(
         ) from exc
 
     upload_jobs_repo.mark_charged(job_id, CV_UPLOAD_XP_COST)
+    upload_jobs_repo.record_notification_started(job_id, user_id)
 
     # ADR-0008 — fast Work Lane. Durable via RQ when REDIS_URL is set; in-process
     # asyncio fallback (today's behaviour) otherwise. correlation_id = job_id
