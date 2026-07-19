@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { jobs, users } from "@/lib/api"
 import type { FollowedCompany, JobLocationFilters } from "@/lib/api"
 import { buildSkillEvidenceIndex } from "@/lib/skill-intelligence"
@@ -91,24 +91,29 @@ export function HeatmapTab({
     () => followedCompanies.map((company) => company.company_name),
     [followedCompanies],
   )
-  const heatmapRows = useQueries({
-    queries: heatmapCompanyNames.map((companyName) => ({
-      queryKey: ["heatmap-row", companyName, heatmapSkills.join(",")],
-      queryFn: () => jobs.skillHeatmapRow(companyName, heatmapSkills),
-      enabled: heatmapSkills.length > 0,
-      staleTime: 30 * 60 * 1000,
-    })),
+  // ONE batched matrix fetch, not a per-company fan-out (IH3-REVERSED). The
+  // /jobs/analytics/skill-heatmap endpoint already returns the full
+  // company × skill matrix in one call; a followed company that has no data
+  // still comes back seeded with all-zero skills, so a row is never "missing".
+  const heatmapQuery = useQuery({
+    queryKey: ["heatmap-matrix", heatmapCompanyNames.join(","), heatmapSkills.join(",")],
+    queryFn: () => jobs.skillHeatmap(heatmapCompanyNames, heatmapSkills),
+    enabled: heatmapCompanyNames.length > 0 && heatmapSkills.length > 0,
+    staleTime: 30 * 60 * 1000,
   })
 
   const rowDataMap = useMemo(() => {
+    const matrix = heatmapQuery.data?.matrix
     const map: Record<string, Record<string, number> | null> = {}
-    followedCompanies.forEach((company, index) => {
-      map[company.company_name] = heatmapRows[index]?.data?.matrix?.[company.company_name] ?? null
+    followedCompanies.forEach((company) => {
+      // null = still loading (drives the row skeleton); once the batched query
+      // resolves every followed company has a row (backend seeds zeros).
+      map[company.company_name] = matrix ? (matrix[company.company_name] ?? {}) : null
     })
     return map
-  }, [followedCompanies, heatmapRows])
+  }, [followedCompanies, heatmapQuery.data])
 
-  const heatmapFetching = heatmapRows.some((row) => row.isFetching)
+  const heatmapFetching = heatmapQuery.isFetching
 
   const resolvedCell = useMemo(() => {
     if (!selectedCell) return null
