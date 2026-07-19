@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useMemo, Suspense } from "react"
+import { useCallback, useEffect, useMemo, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query"
 import { jobs, users, xp } from "@/lib/api"
@@ -44,6 +44,14 @@ function IntelPageInner() {
   const locationMode = ""
   const activeTab: "jobs" | "heatmap" = searchParams.get("tab") === "heatmap" ? "heatmap" : "jobs"
   const jobSkillFacet = searchParams.get("skill") || null
+
+  // The intel heatmap moved to its own home at /intel (Signal Thread L2). Any
+  // old ?tab=heatmap link redirects there, carrying a skill facet through.
+  useEffect(() => {
+    if (activeTab === "heatmap") {
+      router.replace(jobSkillFacet ? `/intel?skill=${encodeURIComponent(jobSkillFacet)}` : "/intel")
+    }
+  }, [activeTab, jobSkillFacet, router])
 
   // Sync tokens balance if not yet set from another page visit
   useQuery({
@@ -146,6 +154,10 @@ function IntelPageInner() {
   if (mode === "mobile") {
     return <JobsSurface token={token ?? ""} targetLocations={profileData?.target_locations ?? []} />
   }
+
+  // Heatmap moved to /intel — render nothing while the effect above redirects,
+  // so the retired HeatmapTab never mounts and fires its queries.
+  if (activeTab === "heatmap") return null
 
   return (
     <>

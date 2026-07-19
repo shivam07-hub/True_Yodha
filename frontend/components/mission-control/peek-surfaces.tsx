@@ -143,7 +143,7 @@ function FollowedCard({ token }: { token: string }) {
   const companies = data?.companies ?? []
   const top = [...(demand?.skills ?? [])].sort((a, b) => b.weighted_demand - a.weighted_demand)[0]
   return (
-    <PeekCard icon={<Building2 size={15} />} title="Followed companies" href={companies.length ? "/market?tab=heatmap" : "/intel"} hrefLabel={companies.length ? "Open intel heatmap" : "Browse companies"}>
+    <PeekCard icon={<Building2 size={15} />} title="Followed companies" href="/intel" hrefLabel={companies.length ? "Open Intel" : "Browse companies"}>
       {companies.length === 0 ? (
         <p className="mc-peek-empty">Follow a company to compare which skills it hires for most.</p>
       ) : (

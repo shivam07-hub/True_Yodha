@@ -171,8 +171,9 @@ export function SkillIntelligenceHeatmap({
     <section className="si-shell" aria-label="Skill Intelligence">
       <div className="si-cockpit">
         <div className="si-cockpit-copy">
-          <h1>We track what skills companies are hiring for.</h1>
-          <p>Skill Intelligence merges your CV levels with live company demand.</p>
+          <SignalLabel>Myro Intel</SignalLabel>
+          <h1>Their hiring. Your readiness.</h1>
+          <p>Live demand from the companies you follow, matched to your CV.</p>
         </div>
         <div className="si-meter" aria-label={`${trackedCompanyTotal} companies tracked`}>
           <div className="si-meter-top">
