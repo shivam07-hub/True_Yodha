@@ -17,7 +17,7 @@ from app.repositories.scores import ScoresRepository
 from app.services import background, cv_parser, scoring
 from app.services.matching import match_run
 from app.services.background import TransientJobError
-from app.services.llm_provider import get_cv_upload_provider
+from app.services.llm_provider import get_cv_skill_provider
 from app.services.xp_policy import CV_UPLOAD_XP_COST, CV_UPLOAD_XP_FLOOR
 from app.services.xp_service import InsufficientXPError, charge_or_raise, get_xp_balance, refund
 
@@ -104,7 +104,8 @@ def _persist_baseline_cv(
 # ── ADR-0004 two-phase upload ─────────────────────────────────────────────────
 # Phase 1 — synchronous, fast (~500ms): validate, extract raw text, hash-check
 #   cache, charge XP, persist a processing row, return job_id.
-# Phase 2 — async (10-60s): LLM parse, score, persist baseline, mark done.
+# Phase 2 — async: deterministic recall + skills-only LLM, score, persist, done.
+# Phase 3 — bulk lane: structured CV enrichment after the trusted result is ready.
 #   Refund XP on provider failure or empty extraction.
 
 _MIN_CV_TEXT_LEN = 80  # below this the LLM has nothing useful to extract
@@ -525,6 +526,25 @@ async def _initial_match_handler(payload: dict[str, Any], allow_retry: bool) -> 
     )
 
 
+@background.handler("cv_structured_enrich")
+async def _cv_structured_enrich_handler(
+    payload: dict[str, Any], allow_retry: bool
+) -> None:
+    """Enrich CV layout after the latency-sensitive skill path is complete."""
+    structured = await cv_parser.reparse_structured_only(payload["raw_text"])
+    if structured is None:
+        if allow_retry:
+            raise TransientJobError("structured_cv_provider_unavailable")
+        _log.warning(
+            "Structured CV enrichment unavailable for baseline=%s",
+            payload["baseline_version_id"],
+        )
+        return
+    CVVersionsRepository(get_supabase_admin()).update_structured(
+        int(payload["baseline_version_id"]), structured
+    )
+
+
 async def _handle_job_failure(
     job_id: str,
     user_id: str,
@@ -583,7 +603,10 @@ async def _run_cv_upload_job(
     # reflects truth (Reading → Scoring → Ready), not a fabricated clock.
     upload_jobs_repo.set_phase(job_id, "reading")
     try:
-        parsed = await cv_parser.parse_cv_text(raw_text, provider=get_cv_upload_provider())
+        parsed = await cv_parser.parse_cv_skills(
+            raw_text,
+            provider=get_cv_skill_provider(),
+        )
     except Exception:  # network / provider library blew up — transient
         _log.exception("CV parse crashed for job=%s user=%s", job_id, user_id)
         await _handle_job_failure(
@@ -630,7 +653,7 @@ async def _run_cv_upload_job(
         cv_repo, user_id,
         raw_text=raw_text,
         content_hash=content_hash,
-        cv_structured=parsed.get("cv_structured"),
+        cv_structured=None,
         source=source,
     )
     upload_jobs_repo.mark_done(
@@ -638,7 +661,21 @@ async def _run_cv_upload_job(
         skills_detected=len(skills_detected),
         score=score_total,
         baseline_version_id=baseline_version_id,
+        result_payload={
+            "extraction": parsed.get("provenance", {}),
+            "llm_enrichment_failed": bool(parsed.get("llm_enrichment_failed", False)),
+        },
     )
+    if baseline_version_id is not None:
+        background.enqueue(
+            background.LANE_BULK,
+            "cv_structured_enrich",
+            payload={
+                "baseline_version_id": baseline_version_id,
+                "raw_text": raw_text,
+            },
+            correlation_id=f"cv-structured:{baseline_version_id}",
+        )
     # ADR-0008 — initial match runs on the bulk Work Lane (nobody's waiting on it).
     background.enqueue(
         background.LANE_BULK,

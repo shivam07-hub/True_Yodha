@@ -34,6 +34,7 @@ import re
 from difflib import get_close_matches
 from functools import lru_cache
 
+from app.services.cv_explicit_skills import extract_explicit_skills, reconcile_skill_signals
 from app.services.llm_provider import LLMProvider, LLMProviderError, get_llm_provider
 from app.services.taxonomy_loader import _name_index, lookup_by_name
 
@@ -80,7 +81,7 @@ def _extract_text_pdf(file_bytes: bytes) -> str:
     import fitz  # pymupdf
 
     with fitz.open(stream=file_bytes, filetype="pdf") as doc:
-        pages = [page.get_text("text") for page in doc]
+        pages = [page.get_text("text", sort=True) for page in doc]
     return "\n\n".join(pages).strip()
 
 
@@ -141,6 +142,56 @@ Structured-section rules:
   - "skills_line": the single skills paragraph (comma/pipe-separated list) verbatim, or null if no dedicated skills section
   - "certs": each certification as a single string. Empty array if none.
   - Do NOT invent fields, dates, or bullets. Extract only what is present in the CV text."""
+
+_SKILLS_SYSTEM_PROMPT = """Extract every evidenced professional skill from this CV.
+Return JSON only as an array of objects with exactly these keys:
+[{"taxonomy_key":"canonical Lightcast skill name","signal_type":"mention|project|impact|leadership","evidence":"short verbatim evidence"}]
+
+Rules:
+- Include explicit hard skills, tools, methods, and evidenced human skills.
+- Prefer canonical Lightcast names such as "Python (Programming Language)".
+- mention = listed only; project = used in work/project; impact = measurable outcome; leadership = led team/design/architecture.
+- Keep the strongest signal when a skill appears more than once.
+- Extract only evidenced skills. Never infer or invent a skill.
+- Return at most 50 skills. No prose or markdown fences."""
+
+
+async def _llm_extract_skills(
+    cv_text: str,
+    provider: LLMProvider | None = None,
+) -> tuple[list[dict] | None, dict[str, object]]:
+    """Fast judgment path: skill extraction only, with model provenance."""
+    messages = [
+        {"role": "system", "content": _SKILLS_SYSTEM_PROMPT},
+        {
+            "role": "user",
+            "content": f"CV text:\n---\n{cv_text[:_CV_TEXT_CHAR_LIMIT]}\n---\nReturn the JSON array only.",
+        },
+    ]
+    selected = provider or get_llm_provider()
+    metadata: dict[str, object] = {}
+    try:
+        if hasattr(selected, "complete_with_metadata"):
+            completion = await selected.complete_with_metadata(
+                messages,
+                max_tokens=3072,
+                temperature=0,
+            )
+            raw = completion.content
+            metadata = {
+                "llm_model": completion.model,
+                "llm_elapsed_ms": completion.elapsed_ms,
+            }
+        else:
+            raw = await selected.complete(messages, max_tokens=3072, temperature=0)
+    except LLMProviderError:
+        logger.error("All CV skill extraction providers failed")
+        return None, metadata
+
+    skills, _structured = _parse_llm_json(raw)
+    if skills is None:
+        logger.warning("CV skill extraction returned unparseable JSON")
+    return skills, metadata
 
 
 async def _llm_extract(
@@ -399,6 +450,46 @@ async def parse_cv_text(raw_text: str, provider: LLMProvider | None = None) -> d
         "cv_structured":   structured,
         "raw_text":        raw_text,
         "provider_failed": provider_failed,
+    }
+
+
+async def parse_cv_skills(raw_text: str, provider: LLMProvider | None = None) -> dict:
+    """Trusted persisted-CV path: literal recall plus model enrichment.
+
+    Explicit taxonomy skills are deterministic, so an incomplete model response
+    can enrich but can never erase what the candidate actually wrote.
+    """
+    deterministic = extract_explicit_skills(raw_text)
+    if not raw_text or len(raw_text.strip()) < _MIN_RAW_TEXT_LEN:
+        return {
+            "skills_detected": deterministic,
+            "cv_structured": None,
+            "raw_text": raw_text,
+            "provider_failed": not bool(deterministic),
+            "provenance": {
+                "deterministic_skill_count": len(deterministic),
+                "llm_skill_count": 0,
+                "validated_skill_count": len(deterministic),
+            },
+        }
+
+    raw_skills, model_metadata = await _llm_extract_skills(raw_text, provider)
+    enriched = _validate_and_normalize(raw_skills or [])
+    skills = reconcile_skill_signals(deterministic, enriched)
+    llm_failed = raw_skills is None
+    return {
+        "skills_detected": skills,
+        "cv_structured": None,
+        "raw_text": raw_text,
+        "provider_failed": llm_failed and not skills,
+        "llm_enrichment_failed": llm_failed,
+        "provenance": {
+            "deterministic_skill_count": len(deterministic),
+            "llm_skill_count": len(raw_skills or []),
+            "validated_llm_skill_count": len(enriched),
+            "validated_skill_count": len(skills),
+            **model_metadata,
+        },
     }
 
 

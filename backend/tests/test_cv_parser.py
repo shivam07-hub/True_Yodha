@@ -7,6 +7,7 @@ LLM + file I/O are mocked — tests run without network access or real PDFs.
 import pytest
 
 from app.services import cv_parser
+from app.services.cv_explicit_skills import extract_explicit_skills
 from app.services.cv_parser import (
     _MAX_SKILLS,
     _SIGNAL_XP,
@@ -16,7 +17,43 @@ from app.services.cv_parser import (
     _validate_structured,
     _validate_and_normalize,
     parse_cv,
+    parse_cv_skills,
 )
+from app.services.llm_provider import LLMCompletion
+
+
+class _StaticProvider:
+    def __init__(self, response: str) -> None:
+        self._response = response
+
+    async def complete(
+        self,
+        _messages: list[dict],
+        max_tokens: int = 4096,
+        temperature: float | None = None,
+    ) -> str:
+        return self._response
+
+
+class _ObservedProvider(_StaticProvider):
+    def __init__(self, response: str) -> None:
+        super().__init__(response)
+        self.messages: list[dict] = []
+        self.max_tokens = 0
+
+    async def complete_with_metadata(
+        self,
+        messages: list[dict],
+        max_tokens: int = 4096,
+        temperature: float | None = None,
+    ) -> LLMCompletion:
+        self.messages = messages
+        self.max_tokens = max_tokens
+        return LLMCompletion(
+            content=self._response,
+            model="test/strong-model",
+            elapsed_ms=37,
+        )
 
 
 # ── _parse_llm_json ────────────────────────────────────────────────────────────
@@ -177,6 +214,72 @@ class TestFuzzyMatch:
 # ── parse_cv end-to-end ────────────────────────────────────────────────────────
 
 class TestParseCv:
+    def test_literal_recall_ignores_generic_words_and_parenthetical_acronyms(self) -> None:
+        text = (
+            "Ready to work on a project or programming task. "
+            "International candidate with digital counters and media experience."
+        )
+
+        keys = {item["taxonomy_key"] for item in extract_explicit_skills(text)}
+
+        assert "Air Force Technical Order (TO)" not in keys
+        assert "Operating Room (OR)" not in keys
+        assert "Corosync (Project)" not in keys
+        assert "Programming (Music)" not in keys
+        assert "International (SEO Software)" not in keys
+        assert "Counters (Digital)" not in keys
+
+    @pytest.mark.asyncio
+    async def test_skill_path_uses_compact_prompt_and_records_model_provenance(self) -> None:
+        provider = _ObservedProvider(
+            '[{"taxonomy_key":"Python (Programming Language)",'
+            '"signal_type":"project","evidence":"Python project"}]'
+        )
+
+        out = await parse_cv_skills(
+            "Python engineer who built several production services and APIs. " * 3,
+            provider=provider,
+        )
+
+        prompt = "\n".join(str(message["content"]) for message in provider.messages)
+        assert "structured" not in prompt.lower()
+        assert provider.max_tokens <= 3072
+        assert out["provenance"]["llm_model"] == "test/strong-model"
+        assert out["provenance"]["llm_elapsed_ms"] == 37
+
+    @pytest.mark.asyncio
+    async def test_explicit_cv_skills_survive_incomplete_model_extraction(self) -> None:
+        text = """CONTACT
+HTML
+CSS
+JavaScript
+MySQL
+EXPERTISE SKILLS
+English
+LANGUAGE
+Hindi
+Marathi
+Built a responsive website for a college project using browser technologies.
+"""
+        provider = _StaticProvider(
+            '{"skills": ['
+            '{"taxonomy_key": "JavaScript (Programming Language)", "signal_type": "project", "evidence": "JavaScript"},'
+            '{"taxonomy_key": "English Language", "signal_type": "mention", "evidence": "English"}'
+            ']}'
+        )
+
+        out = await parse_cv_skills(text, provider=provider)
+
+        keys = {item["taxonomy_key"] for item in out["skills_detected"]}
+        assert {
+            "HyperText Markup Language (HTML)",
+            "Cascading Style Sheets (CSS)",
+            "JavaScript (Programming Language)",
+            "MySQL",
+        } <= keys
+        assert out["provenance"]["deterministic_skill_count"] >= 4
+        assert out["provenance"]["llm_skill_count"] == 2
+
     @pytest.mark.asyncio
     async def test_unsupported_file_type_raises(self) -> None:
         with pytest.raises(ValueError):
@@ -274,6 +377,28 @@ class TestParseCv:
         finally:
             llm_provider.settings.groq_api_key = original_groq
             llm_provider.settings.google_api_key = original_google
+            llm_provider.settings.openrouter_api_key = original_openrouter
+
+    def test_cv_skill_provider_excludes_judgment_unsafe_models(self) -> None:
+        from app.services import llm_provider
+        from app.services.llm_provider import get_cv_skill_provider
+
+        original_groq = llm_provider.settings.groq_api_key
+        original_openrouter = llm_provider.settings.openrouter_api_key
+        llm_provider.settings.groq_api_key = "sk-groq-test"
+        llm_provider.settings.openrouter_api_key = "sk-openrouter-test"
+        try:
+            provider = get_cv_skill_provider()
+            routed = {
+                routed_model
+                for _, lead_model, extra_body in provider._providers
+                for routed_model in ((extra_body or {}).get("models") or [lead_model])
+            }
+            assert routed
+            assert routed.isdisjoint(llm_provider._JUDGMENT_UNSAFE_MODELS)
+            assert all("flash-lite" not in model for model in routed)
+        finally:
+            llm_provider.settings.groq_api_key = original_groq
             llm_provider.settings.openrouter_api_key = original_openrouter
 
     @pytest.mark.asyncio
