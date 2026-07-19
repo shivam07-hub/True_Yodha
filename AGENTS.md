@@ -306,6 +306,28 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-07-19 - truthful Next Best Step loop)
+
+Replaced the obsolete CV countdown prompt with the single durable Next Best
+Step loop. A completed Main CV is never described as unfinished.
+
+- Main CV + no saved role → `Find a role to tailor` in Jobs.
+- Any saved role (including a system match) → tailor the highest Career Ops
+  match score; source does not change eligibility.
+- Tailored but unsubmitted → review and apply; confirmed applications remain
+  tracked while the prompt advances to the next saved, untailored role unless
+  an interview or follow-up is due.
+- Added `match_score` to the Applications read contract, sourced from durable
+  `user_job_matches`, so first-run selection does not depend on a warm feed
+  cache. The top bar and reminder bell now share the same persisted lifecycle.
+- Removed the CV-promise countdown code and documented the canonical ladder in
+  `CONTEXT.md`.
+
+Validation: 1486 backend tests passed; TypeScript, frontend lint, focused
+Next Best Step contracts, and `git diff --check` passed.
+
+---
+
 ## LAST SESSION SUMMARY (2026-07-19 - Feedback prompt copy correction)
 
 ## LAST SESSION SUMMARY (2026-07-19 - Collections attention loop)

@@ -20,6 +20,7 @@ from app.schemas import (
     JobImportRequest,
     JobImportedDetailsResponse,
     JobImportedDetailsUpdate,
+    MatchEval,
     JobUrlExtractRequest,
 )
 from app.services import jobs_workflow, xp_service
@@ -79,15 +80,23 @@ def get_applications(
         principal.id,
         [c for c in companies if c],
     )
+    match_evals = repo.get_cached_match_evals(
+        principal.id,
+        [str(row.get("job_id") or "") for row in rows],
+    )
     # One CV-skill read powers the ✓/✗ chip split for every tracked card (esp.
     # extension-added jobs, which carry no precomputed match).
     skill_keys = repo.user_skill_keys(principal.id)
     out: list[ApplicationResponse] = []
     for row in rows:
         company = (row.get("jobs") or {}).get("company_name")
+        match_row = match_evals.get(str(row.get("job_id") or ""))
         out.append(
             to_application(
-                row, cv_badge_from_row(latest_by_company.get(company)), skill_keys
+                row,
+                cv_badge_from_row(latest_by_company.get(company)),
+                skill_keys,
+                MatchEval.model_validate(match_row).match_score if match_row else None,
             )
         )
     return out

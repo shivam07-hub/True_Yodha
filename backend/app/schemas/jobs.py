@@ -423,6 +423,9 @@ class ApplicationResponse(BaseModel):
     last_stage_changed_at: datetime | None = None  # Q7 — stale-clock signal
     collection_snoozed_until: datetime | None = None
     collection_attention_level: str | None = None
+    # Persisted Career Ops fit for this tracked role. The global Next action uses
+    # this durable value to choose the best saved role even before a feed cache warms.
+    match_score: int | None = None
     is_first_offer: bool = False                    # Q6 — set true on the first-ever offer per user (transient)
     cv_badge: CVBadge | None = None                 # CV3/CV4 — Company CV Thread head for this row's company
     # First-class card data: a tracked job (incl. extension-added) renders the

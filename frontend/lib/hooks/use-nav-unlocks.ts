@@ -1,13 +1,12 @@
 /* Single seam both shells (desktop topbar + public authed bar) consume for the
- * nav view-model: which items render, first-run state, and the shared gate ctx.
+ * nav view-model: which items render and the shared gate ctx.
  *
  * Full map, day one (unified-structure grill 2026-07-16, lock #7): every journey
  * stage is always visible, so the old progressive-unlock coachmark queue, NEW
  * pills, and localStorage seen-guards are retired. The only remaining gate is
  * Myrology's free opt-in (a side offering, not a journey stage). Unlock ctx
  * still derives from cv.versions + users.me — the two queries every authed page
- * already shares — because first-run (CV-promise pill / Next chip handoff) and
- * the Myrology reveal read it.
+ * already shares — because the global Next action and the Myrology reveal read it.
  */
 import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
@@ -18,7 +17,6 @@ import {
   AUTHED_NAV,
   CONTENT_NAV,
   deriveNavUnlockCtx,
-  firstRunFromData,
   isNavItemUnlocked,
   visibleNavItems,
   type NavItem,
@@ -27,9 +25,7 @@ import {
 
 export interface NavUnlocksVm {
   ctx: NavUnlockCtx
-  /** First-run = promise not yet delivered once (0 tailored CVs). */
-  firstRun: boolean
-  /** Baseline CV uploaded — the journey has started (drives countdown phase). */
+  /** Baseline CV uploaded — enables the job-search loop. */
   hasCv: boolean
   /** Loading flag for the two backing queries (drives data-shaped skeletons). */
   loading: boolean
@@ -67,9 +63,6 @@ export function useNavUnlocks(): NavUnlocksVm {
 
   return {
     ctx,
-    // Proven-only: not-first-run until BOTH queries resolve, so a returning
-    // user never flashes the first-run promise pill mid-load (grill Q3).
-    firstRun: firstRunFromData(versions, profile),
     hasCv: profile?.has_cv ?? false,
     loading: versionsLoading || profileLoading,
     visibleDesktop: visibleNavItems("desktop", ctx).filter((i) => i.id !== "myrology"),

@@ -2851,6 +2851,8 @@ export interface ApplicationResponse {
   last_stage_changed_at?: string | null
   collection_snoozed_until?: string | null
   collection_attention_level?: "review" | "decide" | "urgent" | null
+  /** Persisted Career Ops fit for this saved role, when it has been ranked. */
+  match_score?: number | null
   is_first_offer?: boolean
   cv_badge?: CVBadge | null
   coins_earned?: number | null

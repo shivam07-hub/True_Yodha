@@ -19,6 +19,7 @@ class _FakeJobsRepository:
         self.apply_intents: list[tuple[str, str, dict[str, str]]] = []
         self.applications_rows: list[dict[str, Any]] = []
         self.skill_keys: set[str] = set()
+        self.match_evals: dict[str, dict[str, Any]] = {}
 
     def dismiss_saved_job(self, user_id: str, job_id: str) -> bool:
         self.dismissed_saved_jobs.append((user_id, job_id))
@@ -43,6 +44,13 @@ class _FakeJobsRepository:
     def user_skill_keys(self, user_id: str) -> set[str]:
         assert user_id == "user-123"
         return self.skill_keys
+
+    def get_cached_match_evals(
+        self, user_id: str, job_ids: list[str], *, full: bool = False,
+    ) -> dict[str, dict[str, Any]]:
+        assert user_id == "user-123"
+        assert full is False
+        return {job_id: self.match_evals[job_id] for job_id in job_ids if job_id in self.match_evals}
 
 
 class _FakeCVRepository:
@@ -247,6 +255,27 @@ def test_get_applications_enriches_card_with_skill_split_and_location() -> None:
     assert card["location"] == "Bengaluru"
     assert card["location_mode"] == "hybrid"
     assert card["seniority_level"] == "Senior"
+
+
+def test_get_applications_carries_the_durable_match_score_for_next_action_ranking() -> None:
+    repo = _FakeJobsRepository()
+    repo.applications_rows = [
+        _make_application_row(app_id=1, job_id="best", company="Best Co"),
+    ]
+    repo.match_evals = {"best": {"overlap_score": 72.4, "overall_score": 4.6}}
+
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="user-123", email=None, token="token-123")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    app.dependency_overrides[get_token_cv_repository] = lambda: _FakeCVRepository(latest={})
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/jobs/applications")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()[0]["match_score"] == 92
 
 
 def test_get_applications_returns_empty_badges_when_no_thread_data() -> None:

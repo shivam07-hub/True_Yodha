@@ -700,7 +700,6 @@ async def get_cv_upload_status(job_id: str, user_id: str) -> dict[str, Any]:
         "xp_refunded": bool(row.get("xp_refunded", False)),
         "new_coin_balance": balance,
         # Job-creation timestamp = the moment the user committed to the upload.
-        # Anchors the 10-min CV-promise countdown pill (progressive-nav Q4).
         "started_at": row.get("created_at"),
         "redirect_to": "/onboarding/result" if row["status"] == "done" else None,
     }

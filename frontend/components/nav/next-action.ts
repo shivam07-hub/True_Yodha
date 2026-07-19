@@ -14,7 +14,7 @@ import { followUpLine, needsStageCheck } from "@/components/preparations/prep-mo
  *   4. tailored, unsent → apply it (finished work waiting at the door)
  *   5. saved, untailored→ tailor the best-fit one (the core loop)
  *   6. fresh matches    → review them (Myro searched while you were away)
- *   7. otherwise        → find the next role
+ *   7. otherwise        → find a role to tailor
  */
 
 export interface NextAction {
@@ -59,11 +59,11 @@ export function deriveNextAction(
   const byId = matchesById(matches)
   const toTailor = inPlay
     .filter((a) => !a.cv_badge)
-    .map((a) => ({ a, fit: byId.get(a.job_id)?.match_score ?? null }))
+    .map((a) => ({ a, fit: a.match_score ?? byId.get(a.job_id)?.match_score ?? null }))
     .sort((x, y) => (y.fit ?? -1) - (x.fit ?? -1))[0]
   if (toTailor) {
     return {
-      label: `Tailor ${name(toTailor.a)}${toTailor.fit ? ` · ${toTailor.fit}%` : ""}`,
+      label: `Tailor ${name(toTailor.a)}${toTailor.fit !== null ? ` · ${toTailor.fit}%` : ""}`,
       href: `/cv?jobId=${encodeURIComponent(toTailor.a.job_id)}`,
     }
   }
@@ -72,5 +72,5 @@ export function deriveNextAction(
     return { label: `See ${opts.newJobs} new matches`, href: "/collections?search=1" }
   }
 
-  return { label: "Find your next role", href: "/market", generic: true }
+  return { label: "Find a role to tailor", href: "/market", generic: true }
 }

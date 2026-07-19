@@ -10,7 +10,6 @@ import { TopbarNav, NavContentCluster } from "@/components/nav/topbar-nav"
 import { NotificationBell } from "@/components/nav/notification-bell"
 import { ScoreChip } from "@/components/nav/score-chip"
 import { NextChip } from "@/components/nav/next-chip"
-import { CvPromisePill } from "@/components/nav/cv-promise-pill"
 import { SettingsModal, type Tab as SettingsTab } from "@/components/settings-modal"
 import { MyrologyOptInPrompt } from "@/components/myrology-optin-prompt"
 import { ThemeControl } from "@/components/ui/theme-control"
@@ -77,14 +76,10 @@ export function WebChrome({ profile, signOut }: WebChromeProps) {
 
         {/* Right cluster */}
         <div className="tm-topbar-right">
-          {/* 10-min CV-promise countdown — first-run only */}
-          {nav.firstRun && (
-            <CvPromisePill firstRun={nav.firstRun} hasCv={nav.hasCv} onClick={() => router.push("/cv")} />
-          )}
-
-          {/* Global Next chip (unified-structure lock #4) — the one "what now".
-              First-run keeps the CV-promise pill instead; no doubled CTA. */}
-          {!nav.firstRun && <NextChip hasCv={nav.hasCv} />}
+          {/* The one durable answer to "what now". It reads the same saved-job
+              and application state as Collections and the reminder bell, so a
+              finished Main CV never masquerades as unfinished. */}
+          <NextChip hasCv={nav.hasCv} />
 
           {/* Myro Score — status carried through every stage (unified-structure lock #9) */}
           <ScoreChip />

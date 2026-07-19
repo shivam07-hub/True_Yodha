@@ -37,7 +37,6 @@ import { hasPendingCVUpload } from "@/lib/cv-upload-queue"
 import { jwtSub } from "@/lib/cv-resumable-upload"
 import { dataKeys } from "@/lib/domain-data"
 import { preflightCVUploadFile } from "@/lib/cv-file-detect"
-import { startCvPromiseOptimistic } from "@/lib/cv-promise"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useCVPlayground } from "@/lib/hooks/use-cv-playground"
 import { useXPStore } from "@/store/xpStore"
@@ -290,8 +289,6 @@ function CVPage() {
     setShowUpload(true)
     setUploading(true); setUploadResult(null); setUploadError(null); setUploadDeferred(false)
     setUploadPhase("queued"); setUploadStartedAt(null); setBiggestDrag(null)
-    // Start the 10-min CV-promise clock the instant the upload begins (Q4).
-    startCvPromiseOptimistic()
     try {
       const { initial } = await beginCVUpload(token, file, "pdf_upload")
       if (initial.status === "done") {
@@ -392,7 +389,6 @@ function CVPage() {
     setShowUpload(true)
     setUploading(true); setUploadResult(null); setUploadError(null); setUploadDeferred(false)
     setUploadPhase("queued"); setUploadStartedAt(null); setBiggestDrag(null)
-    startCvPromiseOptimistic()
     try {
       const claim = await claimPendingAnonCv(token)
       if (claim.claimed) finishUploadSuccess(claim.result)
