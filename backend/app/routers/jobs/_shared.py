@@ -119,6 +119,8 @@ def to_application(
         notes=row.get("notes"),
         created_at=row["created_at"],
         last_stage_changed_at=row.get("last_stage_changed_at"),
+        collection_snoozed_until=row.get("collection_snoozed_until"),
+        collection_attention_level=row.get("collection_attention_level"),
         cv_badge=cv_badge,
         skills=skills,
         matched_skills=matched,

@@ -175,6 +175,12 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
     dismissSavedJob(a)
     setDetailId(null)
   }
+  const snooze = (a: ApplicationResponse) => {
+    void jobsApi.snoozeCollection(token, a.job_id, 3).then(() => {
+      void qc.invalidateQueries({ queryKey: dataKeys.applications() })
+      void qc.invalidateQueries({ queryKey: dataKeys.notificationsUnread() })
+    })
+  }
   const doShare = (a: ApplicationResponse) => {
     const url = a.source_url ?? ""
     if (url) void navigator.clipboard?.writeText(url).catch(() => {})
@@ -228,7 +234,7 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
   })()
 
   const statusChipFor = (a: ApplicationResponse) =>
-    isApplied(a) ? "Applied" : isExtSource(a.source) ? "Extension" : !isMyroSource(a.source) ? "You added" : ""
+    isApplied(a) ? "Applied" : a.collection_attention_level ? "Decide" : isExtSource(a.source) ? "Extension" : !isMyroSource(a.source) ? "You added" : ""
 
   const renderAppCard = (a: ApplicationResponse) => {
     const it = byId.get(a.job_id) ?? synthFromApp(a)
@@ -248,6 +254,7 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
         onShare={() => doShare(a)}
         onTailor={() => router.push(`/cv?jobId=${encodeURIComponent(a.job_id)}`)}
         onOpenCv={() => router.push("/cv")}
+        onSnooze={canDismissSavedApplication(a) ? () => snooze(a) : undefined}
       />
     )
   }

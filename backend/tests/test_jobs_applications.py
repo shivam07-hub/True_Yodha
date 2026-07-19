@@ -7,6 +7,7 @@ from app.deps import CurrentUser, get_current_user
 from app.main import app
 from app.repositories.cv import get_token_cv_repository
 from app.repositories.jobs import get_token_jobs_repository
+from app.repositories.notifications import get_notifications_repository
 
 
 class _FakeJobsRepository:
@@ -57,11 +58,17 @@ class _FakeCVRepository:
         return self._latest
 
 
+class _FakeNotificationsRepository:
+    def resolve_collection_attention(self, _user_id: str, _job_id: str) -> None:
+        return None
+
+
 def test_remove_saved_job_records_not_interested_without_deleting_match() -> None:
     repo = _FakeJobsRepository()
 
     app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="user-123", email=None, token="token-123")
     app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    app.dependency_overrides[get_notifications_repository] = _FakeNotificationsRepository
 
     try:
         with TestClient(app) as client:

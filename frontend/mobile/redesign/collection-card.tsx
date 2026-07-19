@@ -77,9 +77,9 @@ function CardShell({
 }
 
 /** A saved application (You added / Applied chips) — unsave / share / Tailor. */
-export function CollectionCard({ row, fitKnown, statusChip, tailored, pulse, onOpen, onHeart, onShare, onTailor, onOpenCv }: {
+export function CollectionCard({ row, fitKnown, statusChip, tailored, pulse, onOpen, onHeart, onShare, onTailor, onOpenCv, onSnooze }: {
   row: MobileJobRow; fitKnown: boolean; statusChip: string; tailored: boolean; pulse?: JobPulse
-  onOpen: () => void; onHeart?: () => void; onShare: () => void; onTailor: () => void; onOpenCv: () => void
+  onOpen: () => void; onHeart?: () => void; onShare: () => void; onTailor: () => void; onOpenCv: () => void; onSnooze?: () => void
 }) {
   return (
     <CardShell row={row} fitKnown={fitKnown} statusChip={statusChip} pulse={pulse} onOpen={onOpen}>
@@ -91,6 +91,11 @@ export function CollectionCard({ row, fitKnown, statusChip, tailored, pulse, onO
       <button onClick={(e) => { e.stopPropagation(); onShare() }} aria-label="Share" className="mm-press-sm" style={iconBtn}>
         <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round"><path d="M12 15V4m0 0 4 4m-4-4L8 8" /><path d="M4 13v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5" /></svg>
       </button>
+      {onSnooze ? (
+        <button onClick={(e) => { e.stopPropagation(); onSnooze() }} aria-label="Snooze for 3 days" title="Snooze for 3 days" className="mm-press-sm" style={iconBtn}>
+          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round"><circle cx="12" cy="12" r="8" /><path d="M12 8v4l3 2" /></svg>
+        </button>
+      ) : null}
       <div style={{ flex: 1 }} />
       {statusChip === "Applied" ? (
         <Link

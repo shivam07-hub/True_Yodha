@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { notifications as notificationsApi, type NotificationItem } from "@/lib/api"
@@ -36,21 +36,15 @@ export function NotificationBell() {
     staleTime: 30_000,
   })
 
-  // Opening the bell is an implicit "seen" — mark all read + zero the badge, and
-  // reconcile the poll. Optimistic so the count clears the instant it opens.
-  useEffect(() => {
-    if (!open || !token) return
-    if (unreadCount === 0) return
-    void notificationsApi.markRead(token).then(() => {
-      qc.setQueryData(dataKeys.notificationsUnread(), { count: 0 })
-      void qc.invalidateQueries({ queryKey: dataKeys.notifications() })
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
-
   const items = inbox.data?.items ?? []
 
   const onRowClick = (n: NotificationItem) => {
+    if (n.read_at === null) {
+      void notificationsApi.markRead(token!, [n.id]).then(() => {
+        void qc.invalidateQueries({ queryKey: dataKeys.notificationsUnread() })
+        void qc.invalidateQueries({ queryKey: dataKeys.notifications() })
+      })
+    }
     setOpen(false)
     if (n.action_url) {
       router.push(n.action_url)

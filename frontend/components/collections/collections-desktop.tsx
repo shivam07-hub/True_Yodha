@@ -185,6 +185,17 @@ export function CollectionsDesktop({
     savedJobDismissal.dismiss(app)
     setOpenId((cur) => (cur === jobId ? null : cur))
   }
+  const snooze = (jobId: string) => {
+    void jobsApi.snoozeCollection(token, jobId, 3).then(() => {
+      void qc.invalidateQueries({ queryKey: dataKeys.applications() })
+      void qc.invalidateQueries({ queryKey: dataKeys.notificationsUnread() })
+    })
+  }
+  const saveNote = (jobId: string, notes: string) => {
+    void jobsApi.updateApplication(token, jobId, { status: "saved", notes }).then(() => {
+      void qc.invalidateQueries({ queryKey: dataKeys.applications() })
+    })
+  }
 
   // Deep-linked from the Loop Bar "N new" signal (Slice 5) → open the gate once.
   const searchOpened = React.useRef(false)
@@ -347,6 +358,8 @@ export function CollectionsDesktop({
                         onUnsave={() => unsave(it.jobId)}
                         onTailor={() => router.push(`/cv?jobId=${encodeURIComponent(it.jobId)}`)}
                         onOpenCv={() => router.push("/cv")}
+                        onSnooze={() => snooze(it.jobId)}
+                        onSaveNote={(notes) => saveNote(it.jobId, notes)}
                       />
                     )}
                   />

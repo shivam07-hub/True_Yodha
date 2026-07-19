@@ -2849,6 +2849,8 @@ export interface ApplicationResponse {
   notes: string | null
   created_at: string
   last_stage_changed_at?: string | null
+  collection_snoozed_until?: string | null
+  collection_attention_level?: "review" | "decide" | "urgent" | null
   is_first_offer?: boolean
   cv_badge?: CVBadge | null
   coins_earned?: number | null
@@ -3649,6 +3651,12 @@ export const jobs = {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(data),
+    }),
+  snoozeCollection: (token: string, jobId: string, days: number) =>
+    request<ApplicationResponse>(`/jobs/applications/${encodeURIComponent(jobId)}/collection-snooze`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ days }),
     }),
   removeTrackerJob: (token: string, jobId: string) =>
     request<void>(`/jobs/tracker/${encodeURIComponent(jobId)}`, {

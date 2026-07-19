@@ -275,6 +275,10 @@ class ApplicationStatusUpdate(BaseModel):
     followed_up: bool | None = None
 
 
+class CollectionSnoozeRequest(BaseModel):
+    days: int
+
+
 class ApplicationReviewRequest(BaseModel):
     star_rating: int            # 1–5
     last_stage: str             # one of APPLICATION_STAGES
@@ -417,6 +421,8 @@ class ApplicationResponse(BaseModel):
     notes: str | None
     created_at: datetime
     last_stage_changed_at: datetime | None = None  # Q7 — stale-clock signal
+    collection_snoozed_until: datetime | None = None
+    collection_attention_level: str | None = None
     is_first_offer: bool = False                    # Q6 — set true on the first-ever offer per user (transient)
     cv_badge: CVBadge | None = None                 # CV3/CV4 — Company CV Thread head for this row's company
     # First-class card data: a tracked job (incl. extension-added) renders the

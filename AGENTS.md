@@ -308,6 +308,26 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ## LAST SESSION SUMMARY (2026-07-19 - Feedback prompt copy correction)
 
+## LAST SESSION SUMMARY (2026-07-19 - Collections attention loop)
+
+Implemented the durable saved-job attention loop requested from beta feedback.
+
+- Saved roles now advance through one-day, three-day, and seven-day attention
+  checkpoints only while the listing remains active; each reminder is one
+  actionable inbox lifecycle row that deep-links to the exact Collections job.
+- Reminder/snooze state is source-owned by `job_applications`, so apply,
+  Not Interested, and snooze resolve the bell prompt instead of leaving stale
+  calls to action. The 15-minute listing-verifier cron runs the attention sweep.
+- Collections now surfaces a decision state, persisted notes, and a 3-day
+  snooze action. Mobile receives the same decision state and snooze control.
+- Opening the notification bell no longer clears every unread item; only the
+  reminder the user opens is marked read.
+- Applied migration `collection_attention` to the shared Supabase project and
+  verified all three new `job_applications` columns are present.
+
+Validation: focused attention/notifications/application suites passed (20),
+full backend suite completed, TypeScript passed, and frontend lint passed.
+
 Removed the Internshala disclaimer from the optional feedback form. The prompt
 now leads directly into the form rather than introducing a concern that could
 make applicants second-guess their participation.
