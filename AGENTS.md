@@ -306,7 +306,32 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-19 - truthful Next Best Step loop)
+## LAST SESSION SUMMARY (2026-07-19 - unified Score and Skills journey)
+
+Implemented one causal Score and Skills surface from onboarding through CV
+evidence, with the persisted scoring output as the only visual truth.
+
+- `/skills` now explains the Myro Score, renders the radar from the exact
+  persisted domain scores, prioritizes only engine-verified point lifts, and
+  keeps the full personalized breakdown on the same page.
+- The global score chip and Jobs score-map card route into this surface. The CV
+  evidence handoff preserves domain and skill context and highlights the exact
+  provenance chip, with a visible route back to Score and Skills.
+- Onboarding now shows the same CV to skills to score relationship and clearly
+  separates CV-intrinsic Myro Score from role-specific Job Readiness.
+- Added a two-read `/scores/map` BFF with shared concurrent fan-out, then seeds
+  canonical TanStack caches from one browser request. Coherent invalidation
+  prevents the transport bundle from restoring stale score or skill state.
+- Kept the already-shipped Mentor before/after rewrite and Collections
+  attention/apply loops as the implementation for those feedback items instead
+  of creating duplicate flows.
+
+Validation: 1487 backend tests passed; TypeScript, frontend lint, UI drift,
+focused score-map/methodology tests, and `git diff --check` passed.
+
+---
+
+## OLDER SESSION SUMMARY (2026-07-19 - truthful Next Best Step loop)
 
 Replaced the obsolete CV countdown prompt with the single durable Next Best
 Step loop. A completed Main CV is never described as unfinished.
@@ -328,9 +353,9 @@ Next Best Step contracts, and `git diff --check` passed.
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-19 - Feedback prompt copy correction)
+## OLDER SESSION SUMMARY (2026-07-19 - Feedback prompt copy correction)
 
-## LAST SESSION SUMMARY (2026-07-19 - Collections attention loop)
+## OLDER SESSION SUMMARY (2026-07-19 - Collections attention loop)
 
 Implemented the durable saved-job attention loop requested from beta feedback.
 

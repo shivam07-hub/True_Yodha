@@ -12,7 +12,7 @@ import type {
   SkillEditResponse,
   UserSkillItem,
 } from "@/lib/api"
-import { dataKeys } from "@/lib/domain-data"
+import { invalidateScoreMapData } from "@/lib/domain-data"
 
 interface Props {
   skill: UserSkillItem
@@ -68,8 +68,7 @@ export function SkillEditDialog({ skill, token, open, onClose, onSaved }: Props)
       const saved = result as SkillEditResponse
       // Sync user_skills / scores reflect the eviction immediately; the async
       // re-tag may invalidate again from the parent once polling completes.
-      queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
-      queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
+      invalidateScoreMapData(queryClient)
       onSaved(saved.baseline_id)
       onClose()
     },

@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 import { ArrowRight, ChevronDown, LoaderCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScoreExplanation } from "@/components/onboarding/score-explanation"
+import { ScoreMapPreview } from "@/components/onboarding/score-map-preview"
 import { SkillCorrectionSheet } from "@/components/onboarding/skill-correction-sheet"
 import { BandPercentileLine } from "@/components/skills/band-percentile-line"
 import { jobs, type OnboardingResult } from "@/lib/api"
@@ -77,6 +78,7 @@ export function FullResult({ token, result, onAction, onCorrected }: Props) {
           )}
         </aside>
       </div>
+      <ScoreMapPreview score={result.score} link />
       <div className="mt-6"><ScoreExplanation factors={result.score_factors} /></div>
       <div className="mt-6 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
         <Button size="lg" onClick={() => onAction("browse_jobs", "/market")}>See all matches<ArrowRight className="size-5" /></Button>

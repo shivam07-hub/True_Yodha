@@ -6,6 +6,8 @@ import { useQuery } from "@tanstack/react-query"
 import { Target, TrendingUp, Building2, ArrowRight, Check, Coins } from "lucide-react"
 import { jobs as jobsApi, users as usersApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { useScoreMapData } from "@/lib/hooks/use-score-map-data"
+import { buildScoreMap, buildScoreMapHref } from "@/lib/score-map"
 import { DomainRadar } from "@/components/skills/domain-radar"
 import { CompanySignalChip } from "@/components/companies/company-signal"
 import type { LoopStep } from "./loop-ring"
@@ -99,33 +101,24 @@ function MissionsCard({ steps }: { steps: LoopStep[] }) {
  * app/(authed)/market/page.tsx. Exported so /market mounts it under the
  * greeting hero; the shared React Query keys dedupe its reads. */
 export function SkillMapCard({ token }: { token: string }) {
-  const { data: demand } = useQuery({
-    queryKey: dataKeys.userSkillDemand(),
-    queryFn: () => jobsApi.mySkillDemand(token),
-    enabled: !!token,
-    staleTime: 10 * 60 * 1000,
-  })
-  const { data: skills } = useQuery({
-    queryKey: dataKeys.userSkills(),
-    queryFn: () => usersApi.mySkills(token),
-    enabled: !!token,
-    staleTime: 10 * 60 * 1000,
-  })
-  const hasRadar = !!skills && Object.keys(skills.by_domain).length > 0
-  const topGap = (demand?.skills ?? []).find((s) => s.needs_upgrade)
+  const { score, skills } = useScoreMapData(token)
+  const hasRadar = !!score && Object.keys(score.domain_scores).length > 0
+  const model = score && skills ? buildScoreMap(score, skills) : null
+  const topGap = model?.topMove
+  const href = buildScoreMapHref({ domain: model?.selected?.domain, skill: topGap?.skill })
   return (
-    <PeekCard icon={<TrendingUp size={15} />} title="Skill map" href="/cv?edit=1&tab=skills" hrefLabel="Open skill audit">
+    <PeekCard icon={<TrendingUp size={15} />} title="Score map" href={href} hrefLabel="See why and what moves it">
       {hasRadar ? (
-        <Link href="/cv?edit=1&tab=skills" className="mc-peek-radar tm-control-focus" aria-label="Open your skill audit">
-          <DomainRadar userSkills={skills} />
+        <Link href={href} className="mc-peek-radar tm-control-focus" aria-label="Open your Score map">
+          <DomainRadar domainScores={score.domain_scores} />
           <span className="mc-peek-radar-cap">
             {topGap
-              ? <>Biggest gap: <strong>{topGap.display_name}</strong> · L{topGap.current_level}{topGap.target_level != null ? `→${topGap.target_level}` : ""}</>
+              ? <>Highest verified lift: <strong>{topGap.skill}</strong> · +{topGap.gain}</>
               : "Your skills track the market — keep practising to climb."}
           </span>
         </Link>
       ) : (
-        <p className="mc-peek-empty">Upload a CV to map your skills across the 12 career domains.</p>
+        <p className="mc-peek-empty">Upload a CV to map the skill evidence behind your Myro Score.</p>
       )}
     </PeekCard>
   )

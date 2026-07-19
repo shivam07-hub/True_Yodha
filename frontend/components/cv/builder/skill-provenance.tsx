@@ -21,7 +21,13 @@ interface PointGroup {
   topLevel: number
 }
 
-export function SkillProvenance({ allSkills }: { allSkills: UserSkillItem[] }) {
+export function SkillProvenance({
+  allSkills,
+  focusSkill,
+}: {
+  allSkills: UserSkillItem[]
+  focusSkill?: string | null
+}) {
   const { points, keywordOnly } = useMemo(() => {
     const byPoint = new Map<string, UserSkillItem[]>()
     const kw: UserSkillItem[] = []
@@ -55,7 +61,11 @@ export function SkillProvenance({ allSkills }: { allSkills: UserSkillItem[] }) {
           <p className="cvb-prov-quote">{pt.evidence}</p>
           <div className="cvb-prov-chips">
             {pt.skills.map((s) => (
-              <span key={s.key} className="cvb-prov-chip" title={s.proficiency_title || undefined}>
+              <span
+                key={s.key}
+                className={`cvb-prov-chip${s.display_name.toLocaleLowerCase() === focusSkill?.toLocaleLowerCase() ? " is-focus" : ""}`}
+                title={s.proficiency_title || undefined}
+              >
                 {s.display_name}
                 <em className="cvb-prov-lvl">L{s.level}</em>
               </span>
@@ -70,7 +80,12 @@ export function SkillProvenance({ allSkills }: { allSkills: UserSkillItem[] }) {
           <p className="cvb-prov-gap-note">Keyword-inferred — add a line that shows these to log proof.</p>
           <div className="cvb-prov-chips">
             {keywordOnly.map((s) => (
-              <span key={s.key} className="cvb-prov-chip weak">{s.display_name}</span>
+              <span
+                key={s.key}
+                className={`cvb-prov-chip weak${s.display_name.toLocaleLowerCase() === focusSkill?.toLocaleLowerCase() ? " is-focus" : ""}`}
+              >
+                {s.display_name}
+              </span>
             ))}
           </div>
         </div>

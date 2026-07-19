@@ -19,6 +19,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
@@ -26,6 +27,7 @@ import { scores, users, cv as cvApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useMasterAutosave } from "@/lib/hooks/use-master-autosave"
 import { mentorRewriteTarget } from "@/lib/cv/mentor-rewrite-target"
+import { buildScoreMapHref } from "@/lib/score-map"
 import { CVEditor, type RewriteTarget } from "./cv-editor"
 import { FixesRail } from "./fixes-rail"
 import { SkillProvenance } from "./skill-provenance"
@@ -57,6 +59,9 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
   // Deep-link: ?tab=skills opens straight on the Skills rail (the skill-audit home).
   const initialTab: MasterTab = searchParams.get("tab") === "skills" ? "skills" : "edit"
   const requestedMentorSkill = searchParams.get("mentor") === "1" ? searchParams.get("skill") : null
+  const fromScoreMap = searchParams.get("from") === "score-map"
+  const scoreDomain = fromScoreMap ? searchParams.get("domain") : null
+  const scoreSkill = fromScoreMap ? searchParams.get("skill") : null
   const [tab, setTab] = useState<MasterTab>(initialTab)
   const [expandedFixId, setExpandedFixId] = useState<string | null>(null)
   const [appliedFixes, setAppliedFixes] = useState<AppliedFix[]>([])
@@ -298,6 +303,16 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
               />
             ) : (
               <div className="cvb-v2-railpane">
+                {fromScoreMap && (
+                  <Link
+                    className="cvb-score-context tm-control-focus"
+                    href={buildScoreMapHref({ domain: scoreDomain, skill: scoreSkill })}
+                  >
+                    <span>Score &amp; skills</span>
+                    {scoreDomain && <strong>{scoreDomain}</strong>}
+                    {scoreSkill && <em>{scoreSkill}</em>}
+                  </Link>
+                )}
                 <p className="cvb-v2-rail-lede">
                   Your skills line — comma-separated, most relevant first. It shows on the CV
                   and helps ATS keyword matching.
@@ -319,7 +334,7 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
                 </button>
                 {provenStatus && <p className="cvb-prov-status" role="status">{provenStatus}</p>}
 
-                <SkillProvenance allSkills={allSkills} />
+                <SkillProvenance allSkills={allSkills} focusSkill={scoreSkill} />
               </div>
             )}
           </div>

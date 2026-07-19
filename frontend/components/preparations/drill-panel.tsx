@@ -12,7 +12,7 @@ import * as React from "react"
 import Link from "next/link"
 import { useQueryClient } from "@tanstack/react-query"
 import { upskilling, type ReadinessRow, type StartGapResponse } from "@/lib/api"
-import { dataKeys } from "@/lib/domain-data"
+import { invalidateScoreMapData } from "@/lib/domain-data"
 import { QuizRunner } from "@/components/skills/upskilling/quiz-runner"
 import type { QuizQuestion } from "@/components/skills/upskilling/types"
 import { Icon } from "@/components/skills/upskilling/icons"
@@ -59,7 +59,7 @@ export function DrillPanel({ token, jobId }: { token: string; jobId: string }) {
       const res = await upskilling.submitGap(token, jobId, phase.assessmentId, payload)
       setPhase({ kind: "done", readiness: res.readiness, overallPct: res.overall_readiness_pct })
       // The diagnostic writes assessed levels server-side — refresh the ladder.
-      queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
+      invalidateScoreMapData(queryClient)
     } catch {
       setPhase({ kind: "error" })
     }

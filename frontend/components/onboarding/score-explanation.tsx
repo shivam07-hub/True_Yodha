@@ -13,8 +13,8 @@ export function ScoreExplanation({ factors }: { factors: Factor[] }) {
         <Dialog>
           <DialogTrigger className="tm-control-focus rounded p-2 text-[var(--tm-text-muted)]" aria-label="How the Myro Score works"><Info className="size-4" /></DialogTrigger>
           <DialogContent className="max-w-lg bg-[var(--tm-surface)] text-[var(--tm-text)]">
-            <DialogHeader><DialogTitle>How the score works</DialogTitle><DialogDescription>Your starting point against skills currently required for your target role.</DialogDescription></DialogHeader>
-            <p className="leading-6 text-[var(--tm-text-muted)]">Myro combines evidence in your CV across skill domains, then compares it with current role demand. It is not an ATS pass guarantee or a prediction of a hiring decision.</p>
+            <DialogHeader><DialogTitle>How the score works</DialogTitle><DialogDescription>Your starting point from skill evidence in your CV.</DialogDescription></DialogHeader>
+            <p className="leading-6 text-[var(--tm-text-muted)]">Myro scores the skill domains your CV proves and calibrates proficiency to your experience level. Job Readiness is separate and role-specific. Neither is an ATS guarantee or a prediction of a hiring decision.</p>
           </DialogContent>
         </Dialog>
       </div>

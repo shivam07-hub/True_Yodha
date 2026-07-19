@@ -35,7 +35,7 @@ import {
 } from "@/lib/cv-upload-events"
 import { hasPendingCVUpload } from "@/lib/cv-upload-queue"
 import { jwtSub } from "@/lib/cv-resumable-upload"
-import { dataKeys } from "@/lib/domain-data"
+import { dataKeys, invalidateCvData } from "@/lib/domain-data"
 import { preflightCVUploadFile } from "@/lib/cv-file-detect"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useCVPlayground } from "@/lib/hooks/use-cv-playground"
@@ -216,12 +216,9 @@ function CVPage() {
   // Shared terminal-success handling for first upload, text claim, and resume.
   const finishUploadSuccess = useCallback((result: CVUploadResult) => {
     if (result.new_coin_balance != null) applyXpChange({ newBalance: result.new_coin_balance, action: "cv_upload" })
-    queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
+    invalidateCvData(queryClient)
     queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
-    queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
-    queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
     queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
-    queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
     queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
     setUploadPhase("ready")
     setBiggestDrag(lowestDomainFromCache())

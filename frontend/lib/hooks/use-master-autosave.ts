@@ -15,7 +15,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { cv } from "@/lib/api"
 import type { CVStructured } from "@/lib/api"
-import { dataKeys } from "@/lib/domain-data"
+import { dataKeys, invalidateScoreData, invalidateScoreMapData } from "@/lib/domain-data"
 import {
   cvStructuredEqual,
   masterDraftKey,
@@ -88,8 +88,7 @@ export function useMasterAutosave({ token, enabled, userKey }: Args): MasterAuto
         const res = await cv.recomputeStatus(token, baselineId)
         if (res.recompute_finished_at) {
           setRecomputePending(false)
-          queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
-          queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
+          invalidateScoreMapData(queryClient)
           queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
           return
         }
@@ -101,7 +100,7 @@ export function useMasterAutosave({ token, enabled, userKey }: Args): MasterAuto
       } else {
         // Cap hit — stop the shimmer, refresh best-effort so the score isn't stale.
         setRecomputePending(false)
-        queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
+        invalidateScoreData(queryClient)
       }
     }
     setTimeout(tick, RECOMPUTE_POLL_MS)

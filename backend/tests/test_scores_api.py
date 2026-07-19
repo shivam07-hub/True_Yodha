@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from threading import Barrier
 from typing import Any
 
 from fastapi.testclient import TestClient
@@ -6,6 +7,7 @@ from fastapi.testclient import TestClient
 from app.deps import CurrentUser, get_current_user
 from app.main import app
 from app.repositories.scores import ScoreRecomputeInputs
+from app.repositories.users import get_token_users_repository
 from app.routers import scores
 
 
@@ -88,6 +90,49 @@ def test_get_my_score_returns_404_when_missing() -> None:
     assert response.status_code == 404
 
 
+def test_score_map_returns_score_and_skills_in_one_parallel_read(monkeypatch) -> None:
+    """The Score & Skills surface paints from one latency-bounded round-trip."""
+    gate = Barrier(2)
+
+    def concurrent(value):
+        gate.wait(timeout=1)
+        return value
+
+    monkeypatch.setattr(
+        scores,
+        "get_my_score",
+        lambda **_: concurrent(
+            {
+                "total_score": 30,
+                "domain_scores": {"Information Technology": 30},
+                "gap_skills": [],
+                "skills_assessed": 2,
+                "computed_at": datetime.now(timezone.utc),
+                "band": "entry",
+            }
+        ),
+    )
+    monkeypatch.setattr(
+        scores,
+        "get_my_skills",
+        lambda **_: concurrent({"by_domain": {"Information Technology": []}, "by_cluster": {}}),
+        raising=False,
+    )
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
+    app.dependency_overrides[scores.get_token_scores_repository] = lambda: object()
+    app.dependency_overrides[get_token_users_repository] = lambda: object()
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/scores/map")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["score"]["total_score"] == 30
+    assert set(response.json()) == {"score", "skills"}
+
+
 def test_recompute_score_uses_repository_inputs(monkeypatch) -> None:
     repo = _FakeScoresRepository(
         recompute_inputs=ScoreRecomputeInputs(
@@ -132,4 +177,3 @@ def test_recompute_score_returns_404_without_skills() -> None:
         app.dependency_overrides.clear()
 
     assert response.status_code == 404
-

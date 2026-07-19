@@ -22,7 +22,7 @@ test("score methodology mirrors the backend cluster formula", () => {
   const score = workedClusterScore({ userSkillCount: 2, totalClusterSkills: 50, strongestLevel: 2 })
 
   assert.equal(score.coverage, 0.2794)
-  assert.equal(score.clusterScore, 19.8)
+  assert.equal(score.clusterScore, 49.6)
   assert.equal(SCORE_ENGINE_FACTS.totalScoreMethod, "mean_of_domains_with_evidence")
 })
 

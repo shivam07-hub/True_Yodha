@@ -2500,6 +2500,11 @@ export interface ScoreResponse {
   top_percent?: number | null
 }
 
+export interface ScoreMapResponse {
+  score: ScoreResponse
+  skills: UserSkillsByDomain
+}
+
 interface ComputeScoreApiResponse {
   score: ScoreResponse
   skills_updated: number
@@ -2513,6 +2518,10 @@ export const scores = {
     }).then((res) => res.score),
   me: (token: string) =>
     request<ScoreResponse>("/scores/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  map: (token: string) =>
+    request<ScoreMapResponse>("/scores/map", {
       headers: { Authorization: `Bearer ${token}` },
     }),
 }

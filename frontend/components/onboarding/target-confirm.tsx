@@ -5,6 +5,7 @@ import { ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { BandPercentileLine } from "@/components/skills/band-percentile-line"
 import { ScoreExplanation } from "@/components/onboarding/score-explanation"
+import { ScoreMapPreview } from "@/components/onboarding/score-map-preview"
 import { onboarding, type OnboardingResult, type TargetSeniority } from "@/lib/api"
 
 type AwaitingTarget = Extract<OnboardingResult, { kind: "awaiting_target" }>
@@ -70,6 +71,7 @@ export function TargetConfirm({ token, result, onConfirmed }: Props) {
         <BandPercentileLine band={result.score.band} topPercent={result.score.top_percent} />
       </div>
 
+      <ScoreMapPreview score={result.score} />
       <div className="mt-6"><ScoreExplanation factors={result.score_factors} /></div>
 
       <div className="mt-6 rounded-md border border-[var(--tm-border)] bg-[var(--tm-surface)] p-5">
