@@ -1,5 +1,9 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { ArrowRight, BookOpen, Brain, ChevronRight, Compass, Flame, Globe, ShieldCheck, Sparkles, Target } from "lucide-react"
+import { getAccessToken } from "@/lib/session"
 import { MyroLogo } from "@/components/myro-logo"
 import { SkillGraphPreview } from "@/components/skill-graph-preview"
 
@@ -37,6 +41,11 @@ const VALUES = [
 ]
 
 export function MissionContent({ showCta = false, compact = false }: MissionContentProps) {
+  // Auth-aware CTA: a logged-in reader maps their CV in-app (skill map), never
+  // bounced through /signup. Same getAccessToken() seam as the public nav + docs.
+  const [isAuthed, setIsAuthed] = useState(false)
+  useEffect(() => { setIsAuthed(!!getAccessToken()) }, [])
+
   return (
     <div className="space-y-12">
 
@@ -56,17 +65,19 @@ export function MissionContent({ showCta = false, compact = false }: MissionCont
         {showCta && (
           <div className="mt-6 flex flex-col sm:flex-row items-center gap-3">
             <Link
-              href="/signup"
+              href={isAuthed ? "/skills" : "/signup"}
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
             >
               Map my CV <ArrowRight className="h-4 w-4" />
             </Link>
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Already have an account <ChevronRight className="h-3.5 w-3.5" />
-            </Link>
+            {!isAuthed && (
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Already have an account <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            )}
           </div>
         )}
       </section>
@@ -192,7 +203,7 @@ export function MissionContent({ showCta = false, compact = false }: MissionCont
             One CV in. A tailored version for every role — you decide which to send.
           </p>
           <Link
-            href="/signup"
+            href={isAuthed ? "/skills" : "/signup"}
             className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary-foreground px-5 py-2.5 text-sm font-semibold text-primary hover:opacity-90 transition-opacity"
           >
             Map my CV <ArrowRight className="h-4 w-4" />

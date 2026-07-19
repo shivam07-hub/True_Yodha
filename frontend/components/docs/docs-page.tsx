@@ -1,6 +1,8 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
+import { getAccessToken } from "@/lib/session"
 import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
 import { ScoringSection } from "@/components/docs/scoring-section"
@@ -29,6 +31,12 @@ const TOC = [
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function DocsPage() {
+  // Auth-aware CTA: a logged-in reader who came from the app must land back in
+  // the app (the skill map = where "Map my CV" belongs), never bounced through
+  // /signup → /login. Same getAccessToken() seam the public nav uses.
+  const [isAuthed, setIsAuthed] = useState(false)
+  useEffect(() => { setIsAuthed(!!getAccessToken()) }, [])
+
   return (
     <div style={{ minHeight: "100vh", background: "var(--tm-bg)", color: "var(--tm-text)", display: "flex", flexDirection: "column" }}>
       <PublicTopNav active="docs" />
@@ -83,7 +91,7 @@ export function DocsPage() {
               One CV in. A tailored version for every role — you decide which to send.
             </p>
             <Link
-              href="/signup"
+              href={isAuthed ? "/skills" : "/signup"}
               style={{
                 display: "inline-block",
                 padding: "12px 28px",
