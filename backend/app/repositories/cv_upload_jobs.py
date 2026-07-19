@@ -114,7 +114,7 @@ def mark_done(
     job_id: str,
     *,
     skills_detected: int,
-    score: float,
+    score: float | None,
     result_payload: dict[str, Any] | None = None,
     baseline_version_id: int | None = None,
 ) -> None:

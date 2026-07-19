@@ -12,6 +12,7 @@ from app.services import cv_workflow, onboarding_service
 from app.services.baseline_generator import generate_baseline, validate_answer
 from app.services.onboarding_preview import start_profile_preview
 from app.services.skill_overrides import apply_skill_overrides
+from app.services.skill_confirmation import confirm_baseline_skills
 
 
 router = APIRouter(prefix="/onboarding", tags=["onboarding"])
@@ -228,6 +229,21 @@ def save_skill_overrides(
     principal: Principal = Depends(get_principal),
 ) -> dict[str, Any]:
     score = apply_skill_overrides(
+        get_supabase_admin(),
+        principal.id,
+        baseline_id,
+        [item.model_dump() for item in body.overrides],
+    )
+    return {"status": "done", "total_score": float(score["total_score"])}
+
+
+@router.post("/baseline/{baseline_id}/confirm-skills")
+def confirm_skills(
+    baseline_id: int,
+    body: SkillOverridesRequest,
+    principal: Principal = Depends(get_principal),
+) -> dict[str, Any]:
+    score = confirm_baseline_skills(
         get_supabase_admin(),
         principal.id,
         baseline_id,

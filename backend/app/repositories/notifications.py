@@ -157,6 +157,7 @@ class NotificationsRepository:
         body = {
             "queued": "Waiting to start",
             "reading": "Reading your CV",
+            "finding_skills": "Extracting your skills",
             "scoring": "Scoring your domains",
         }.get(phase, "Analyzing your CV")
         self._admin_db.table("user_notifications").update({
@@ -170,13 +171,21 @@ class NotificationsRepository:
         source_id: str,
         *,
         skills_detected: int,
-        score: float,
+        score: float | None,
     ) -> None:
+        if score is None:
+            title = "Review the skills Myro found"
+            body = f"{skills_detected} skills mapped · confirm them before scoring"
+            action_url = "/onboarding/result"
+        else:
+            title = "Your Myro Score is ready"
+            body = f"{skills_detected} skills mapped · Myro Score {round(score)}"
+            action_url = "/cv"
         self._admin_db.table("user_notifications").update({
             "state": "ready",
-            "title": "Your Myro Score is ready",
-            "body": f"{skills_detected} skills mapped · Myro Score {round(score)}",
-            "action_url": "/cv",
+            "title": title,
+            "body": body,
+            "action_url": action_url,
             "read_at": None,
             "created_at": datetime.now(timezone.utc).isoformat(),
         }).eq("kind", "cv_analysis").eq("source_id", source_id).execute()

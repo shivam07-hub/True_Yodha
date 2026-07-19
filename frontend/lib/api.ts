@@ -643,6 +643,11 @@ export type OnboardingResult =
   | { kind: "full_result_processing"; target: OnboardingTarget; phase: string }
   | { kind: "terminal_failure"; target: OnboardingTarget; error_code?: string; message?: string; xp_refunded: boolean }
   | {
+      kind: "awaiting_skill_confirmation"
+      baseline_version_id: number
+      skills: OnboardingProofSkill[]
+    }
+  | {
       // Score-first onboarding (Slice 4): CV parsed + scored, target not yet
       // confirmed. Show the score + a pre-filled confirm card; matching runs
       // only after the user taps Confirm (saveTarget).
@@ -711,6 +716,11 @@ export const onboarding = {
     skill_id: number; action: "include" | "exclude"; evidence_text: string; source_location?: Record<string, unknown>
   }>) => request<{ status: "done"; total_score: number }>(`/onboarding/baseline/${baselineId}/skill-overrides`, {
     method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ overrides }),
+  }),
+  confirmSkills: (token: string, baselineId: number, overrides: Array<{
+    skill_id: number; action: "include" | "exclude"; evidence_text: string; source_location?: Record<string, unknown>
+  }>) => request<{ status: "done"; total_score: number }>(`/onboarding/baseline/${baselineId}/confirm-skills`, {
+    method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ overrides }),
   }),
   complete: (token: string) => request<void>("/onboarding/complete", {
     method: "POST", headers: { Authorization: `Bearer ${token}` },

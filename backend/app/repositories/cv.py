@@ -36,6 +36,7 @@ class CVVersionWriteSpec:
     parent_version_id:  int | None
     body_text:          str
     cv_structured:      dict[str, Any] = field(default_factory=dict)
+    skills_detected:    list[dict[str, Any]] = field(default_factory=list)
     polished_text:      str | None = None
     hidden_items:       list[str] = field(default_factory=list)
     edited_items:       dict[str, str] = field(default_factory=dict)
@@ -323,7 +324,7 @@ class CVVersionsRepository:
         """Look up a prior baseline by content hash (used by upload short-circuit)."""
         result = (
             self._db.table("cv_versions")
-            .select("id, body_text, cv_structured")
+            .select("id, body_text, cv_structured, skills_detected, skills_confirmed_at")
             .eq("user_id", user_id)
             .eq("kind", "baseline_upload")
             .eq("snapshot_hash", content_hash)
@@ -375,6 +376,30 @@ class CVVersionsRepository:
         self._db.table("cv_versions").update(
             {"cv_structured": cv_structured}
         ).eq("id", version_id).execute()
+
+    def confirm_skills(
+        self,
+        user_id: str,
+        baseline_version_id: int,
+        skill_rows: list[dict[str, Any]],
+        overrides: list[dict[str, Any]],
+    ) -> str:
+        """Atomically publish one baseline's reviewed skills as user truth."""
+        result = self._db.rpc(
+            "confirm_cv_skills",
+            {
+                "p_user_id": user_id,
+                "p_baseline_version_id": baseline_version_id,
+                "p_skill_rows": skill_rows,
+                "p_overrides": overrides,
+            },
+        ).execute()
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Could not confirm CV skills.",
+            )
+        return str(result.data)
 
     def update_hidden_items(
         self, version_id: int, user_id: str, hidden_items: list[str], body_text: str
@@ -589,6 +614,7 @@ class CVVersionsRepository:
             "baseline_version_id": baseline_version_id,
             "title":               spec.title,
             "cv_structured":       spec.cv_structured or {},
+            "skills_detected":     spec.skills_detected,
             "body_text":           spec.body_text,
             "polished_text":       spec.polished_text,
             "hidden_items":        spec.hidden_items,

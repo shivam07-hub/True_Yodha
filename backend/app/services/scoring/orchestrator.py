@@ -90,6 +90,25 @@ def record_cv_score(
     return scores_repo.require_mirror_score(user_id)
 
 
+def build_cv_skill_rows(
+    scores_repo: ScoresRepository,
+    user_id: str,
+    skills_detected: list[dict],
+) -> list[dict[str, Any]]:
+    """Map reviewed extraction signals to canonical ``user_skills`` rows.
+
+    This performs taxonomy resolution only. It does not write or score, which
+    lets the baseline confirmation transaction remain the publication gate.
+    """
+    skill_level_map = build_skill_level_map(skills_detected)
+    return _build_user_skill_rows(
+        scores_repo,
+        user_id,
+        skill_level_map,
+        skills_detected,
+    )
+
+
 def recompute_score(scores_repo: ScoresRepository, user_id: str) -> dict:
     """Recompute path. Reads user_skills + target_roles, writes mirror_scores only.
 

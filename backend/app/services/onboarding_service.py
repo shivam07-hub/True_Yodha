@@ -206,9 +206,17 @@ def compute_role_readiness(db: Client, user_id: str) -> list[dict[str, Any]]:
 async def refresh_target_result(payload: dict[str, Any], allow_retry: bool) -> None:
     user_id = str(payload["user_id"])
     db = get_supabase_admin()
+    baseline = CVVersionsRepository(db).latest_baseline(user_id)
+    if not baseline or not baseline.get("skills_confirmed_at"):
+        OnboardingRepository(db).patch_state(
+            user_id,
+            {"status": "analyzing", "current_stage": "result"},
+        )
+        return
     scores_repo = ScoresRepository(db)
     if scores_repo.get_user_skill_level_map(user_id):
-        scoring.recompute_score(scores_repo, user_id)
+        if not payload.get("score_fresh"):
+            scoring.recompute_score(scores_repo, user_id)
         background.enqueue(
             background.LANE_BULK,
             "initial_match",
@@ -232,6 +240,25 @@ def _proof_skills(users_repo: UsersRepository, user_id: str) -> list[dict[str, A
             "evidence": item.evidence_text or "",
         }
         for item in records[:5]
+    ]
+
+
+def _candidate_skills(baseline: dict[str, Any]) -> list[dict[str, Any]]:
+    """Baseline-scoped candidates shown before any user-skill publication."""
+    return [
+        {
+            "taxonomy_key": str(item.get("taxonomy_key") or ""),
+            "name": str(item.get("taxonomy_key") or ""),
+            "level": {
+                "mention": 1,
+                "project": 2,
+                "impact": 3,
+                "leadership": 4,
+            }.get(str(item.get("signal_type") or "mention"), 1),
+            "evidence": str(item.get("evidence") or ""),
+        }
+        for item in (baseline.get("skills_detected") or [])
+        if item.get("taxonomy_key")
     ]
 
 
@@ -318,6 +345,13 @@ def get_result(db: Client, user_id: str) -> dict[str, Any]:
             "kind": "full_result_processing",
             "target": target,
             "phase": (job or {}).get("current_phase") or "queued",
+        }
+
+    if not baseline.get("skills_confirmed_at"):
+        return {
+            "kind": "awaiting_skill_confirmation",
+            "baseline_version_id": int(baseline["id"]),
+            "skills": _candidate_skills(baseline),
         }
 
     score = ScoresRepository(db).get_mirror_score(user_id)

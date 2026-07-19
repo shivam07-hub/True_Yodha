@@ -7,7 +7,7 @@ class CVUploadDoneResponse(BaseModel):
     """Synchronous hash-cache-hit response — no LLM call, no XP charge."""
     status: Literal["done"] = "done"
     skills_detected: int
-    score: float
+    score: float | None = None
     redirect_to: str
     xp_charged: int = 0
 
