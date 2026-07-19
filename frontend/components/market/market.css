@@ -124,6 +124,17 @@
 }
 .tm-feed-activechip:hover { border-color: var(--tm-int-border); color: var(--tm-interactive); }
 
+/* Myro Search — the one primary discovery action in the feed bar (paid re-vet).
+   Filled accent so it reads above the neutral filter/intent chips. */
+.tm-feed-searchchip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; cursor: pointer;
+  font-size: 12px; font-weight: 600; color: var(--tm-interactive-fg);
+  background: var(--tm-interactive); border: 1px solid var(--tm-interactive);
+  font-family: inherit; transition: all 120ms ease;
+}
+.tm-feed-searchchip:hover { filter: brightness(1.06); }
+.tm-feed-searchchip:disabled { opacity: 0.6; cursor: default; filter: none; }
+
 /* Inactive target-role chip — one tap loads that role's feed (active one uses
    .tm-feed-activechip = accent: orange in light, teal in dark). */
 .tm-feed-rolechip {

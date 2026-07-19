@@ -245,7 +245,6 @@ export function CollectionsDesktop({
   ]
 
   const isRefreshing = refreshVm.state === "charging" || refreshVm.state === "computing"
-  const newJobs = matchesQ.data?.new_jobs_count ?? 0
   const trulyEmpty =
     !appsQ.isLoading && !matchesQ.isLoading && apps.length === 0 && (matchesQ.data?.jobs?.length ?? 0) === 0
 
@@ -303,19 +302,6 @@ export function CollectionsDesktop({
               </div>
               <div className="db-head-actions">
                 {chip !== "found" ? <SortMenu sort={sort} onChange={setSort} /> : null}
-                <button
-                  type="button"
-                  className="db-btn db-btn-primary tm-control-focus mf-searchbtn"
-                  onClick={() => openRefreshGate()}
-                  disabled={isRefreshing}
-                  title="Run Myro Search"
-                >
-                  <Search size={14} aria-hidden />
-                  {isRefreshing ? "Searching…" : "Myro Search"}
-                  {!isRefreshing && newJobs > 0 ? (
-                    <span className="mf-searchbtn-new" aria-label={`${newJobs} new`}>{newJobs}</span>
-                  ) : null}
-                </button>
                 <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={addJob.open}>
                   + {ADD_JOB_LABEL}
                 </button>
@@ -482,6 +468,16 @@ function MyroFoundBody({
           <div className="mf-secthead">
             <span className="mf-secthead-title">Cleared the bar</span>
             <span className="mf-secthead-sub">{found.length} more worth your time</span>
+            <button
+              type="button"
+              className="mf-footer-link"
+              style={{ marginLeft: "auto" }}
+              onClick={onSearch}
+              disabled={isRefreshing}
+            >
+              <Search size={12} aria-hidden style={{ marginRight: 4, verticalAlign: "-1px" }} />
+              {isRefreshing ? "Searching…" : "Search again"}
+            </button>
           </div>
           <VirtualFeed
             items={found}
