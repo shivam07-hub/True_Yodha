@@ -556,6 +556,22 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-07-19 · Signal Thread intel unification — S1 + S2 BUILT, 8 commits on Develop)
+
+Trigger: `MNC Hiring Tracking Design.zip` handoff — "unify the language used for tracking across the entire website." Audited (11 divergent company treatments, 4-way vocab split, a live IH3 regression), then `/grill-me` (7 locks, Kunal Delta-4). Full detail: memory `project_signal_thread_intel_unification`.
+
+**7 grill locks:** track=engine / follow=user / **save=jobs**; authed /intel (NOT a nav tab); ONE /companies SSR+islands; **following is FREE (IH2 partial reversal)**; ordering = your-order-in-workspaces / pulse-in-discovery; demand color = **accent TOKEN** (teal dark / orange light, not pinned teal); 3 slices no-fab.
+
+**S1 (4 commits):** `d422d5ec` IH3 fix (batched skill-heatmap, killed the reintroduced per-company fan-out) · `e5f768f4` free-follow (backend drops `spend_xp_to_floor`, cap-only; frontend gate + all cost disclosures removed; grandfathered payers) · `5ab8ad75` vocab (extension "Track this job"→"Save this job" + xp-policy/ManualAddModal/signup-modal; **extension dist gitignored → Shivam rebuild owed**) · `8cdac8e7` **CompanySignal unit** (CompanyTile/SignalLabel/Row/Chip; accent-wash tiles kill random-hue logos; `companyInitials` pure+fixed to "AC"; swapped into rail/peek/drawer/public-card).
+
+**S2 (4 commits) — the heatmap CONVERGED onto /intel (Shivam's Q answered: yes, same page for logged-in users):** `d17eacb0` **pulse endpoint** `GET /jobs/companies/pulse` (pure deterministic scorer `0.5·volume+0.3·momentum+0.2·freshness` over real first_seen/last_seen markers; **pulse=None when no live roles — no fabricated 0**; 12 tests) · `6e14c802` **compare strip** (L-card + sparkline + `useCompanyPulse` batched; heatmap "Tracked"→"Followed" strip) · `a32ac471` **/companies directory 1d** (SSR crawlable list + featured pulse grid + slots meter + follow islands via `useSession`; anon star→signup; degrades cleanly with backend down; **live-verified public path**) · `76437a79` **authed /intel** (session-branched: anon SEO pane / authed workspace mounting HeatmapTab; `/market?tab=heatmap`→redirect; cockpit → "Their hiring. Your readiness.").
+
+**⚠️ Concurrent-agent collision handled:** another session was building job-listing-verifier P2 + collection-attention across ~10 shared/foreign files (incl. `lib/api.ts`, CLAUDE.md). Never touched their work; isolated my api.ts pulse hunks via stash→re-apply→commit→restore (verified foreign preserved byte-for-byte). Backend pulse used NEW `schemas/company_pulse.py` to avoid their `schemas/jobs.py`.
+
+All green each commit: tsc0 · lint0 · ui-drift clean · `next build`✓ · backend pulse 12 + adjacent 37 tests · ruff clean.
+
+**OWED (Shivam):** (1) **prod `main` merge** (all 8 commits). (2) **Extension rebuild + reload** (dist gitignored). (3) **Authed browser QA w/ real prod data** (light+dark+375px): /intel workspace (masthead voice, compare-strip pulse+sparkline+accent-ring, matrix, personalise→/companies, /market?tab=heatmap redirect); /companies directory (featured pulse cards, slots meter increments on follow, search, sector pills); following = 0 coins + caps at 10. Sandbox verified only anon/public + degraded paths (no token+backend). **REMAINING = S3:** gap-alert strip (Zone 3, new postings ∩ user Gap/Building skills) + "L{n} in ~N weeks" prediction (deterministic from forge cadence + LEVEL_THRESHOLDS). Deferred tails: settings "Following" tab slim, top_skill on pulse card, mobile MarketChipStrip chip.
+
 ## LAST SESSION SUMMARY (2026-07-20b · Newsletter acquisition-page density — 5 layout laws + shared rail, pushed Develop `95f737c9`)
 
 Shivam, 3 screenshots: *"our newsletter is the acquisition page — shared on LinkedIn/Insta — and it genuinely looks very ugly, especially the spacing. Make it something Kunal Shah would be proud of."* Measured the live page at ~2000px before touching anything: the issue page rendered **~1/3 of its width as content**, the rest as near-black void.
