@@ -256,7 +256,6 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
   }
 
   const isRefreshing = refreshVm.state === "charging" || refreshVm.state === "computing"
-  const newJobs = matchesQ.data?.new_jobs_count ?? 0
   const trulyEmpty = !appsQ.isLoading && !matchesQ.isLoading && apps.length === 0 && (matchesQ.data?.jobs?.length ?? 0) === 0
 
   return (
@@ -270,13 +269,6 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
               <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M7 4v16m0 0-3-3m3 3 3-3M17 20V4m0 0-3 3m3-3 3 3" /></svg>
             </button>
           )}
-          <button onClick={() => openRefreshGate()} disabled={isRefreshing} className="mm-press" style={{ position: "relative", height: 32, display: "flex", alignItems: "center", gap: 5, padding: "0 12px", borderRadius: 99, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", opacity: isRefreshing ? 0.6 : 1 }}>
-            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
-            {isRefreshing ? "Searching…" : "Search"}
-            {!isRefreshing && newJobs > 0 ? (
-              <span style={{ position: "absolute", top: -4, right: -4, minWidth: 16, height: 16, padding: "0 4px", borderRadius: 99, background: "#fb7185", color: "#1a0d10", fontSize: 9.5, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>{newJobs}</span>
-            ) : null}
-          </button>
           <button onClick={() => setAddOpen(true)} className="mm-press" style={{ height: 32, display: "flex", alignItems: "center", gap: 5, padding: "0 11px", borderRadius: 99, border: "1px solid rgba(255,255,255,0.09)", background: "#212120", color: "#f2f2ee", fontSize: 12.5, fontWeight: 650, cursor: "pointer", fontFamily: "inherit" }}>
             <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>Add
           </button>
@@ -342,8 +334,14 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
               </>
             ) : myroFound.found.length > 0 ? (
               <>
-                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", color: "#8b8b84", textTransform: "uppercase" }}>
-                  Cleared the bar · {myroFound.found.length}
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", color: "#8b8b84", textTransform: "uppercase" }}>
+                    Cleared the bar · {myroFound.found.length}
+                  </div>
+                  <button onClick={() => openRefreshGate()} disabled={isRefreshing} className="mm-press" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4, padding: "0 4px", border: "none", background: "transparent", color: "var(--mm-accent)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", opacity: isRefreshing ? 0.6 : 1 }}>
+                    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+                    {isRefreshing ? "Searching…" : "Search again"}
+                  </button>
                 </div>
                 {myroFound.found.map(it => {
                   const row = matchToRow(it.job)
