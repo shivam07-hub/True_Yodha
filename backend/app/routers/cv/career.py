@@ -18,7 +18,6 @@ from typing import Any
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 
-from app.db_safe import safe_read
 from app.deps import CurrentUser, get_current_user, get_user_db
 from app.repositories.career_reservoir import (
     CareerReservoirRepository,
@@ -324,27 +323,21 @@ class ProjectResponse(BaseModel):
 
 
 @router.post("/reservoir/project", response_model=ProjectResponse)
-def project_reservoir(
+async def project_reservoir(
     body: ProjectRequest,
     user: CurrentUser = Depends(get_current_user),
     repo: CareerReservoirRepository = Depends(get_career_reservoir_repository),
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
-    db: Any = Depends(get_user_db),
+    jobs_repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> ProjectResponse:
     baseline = cv_repo.latest_baseline(user.id)
     if not baseline or not (baseline.get("cv_structured") or {}):
         raise HTTPException(status.HTTP_409_CONFLICT, "Upload a CV first.")
 
-    job = safe_read(
-        db.table("jobs")
-        .select("job_id, job_title, company_name, main_skills, side_skills")
-        .eq("job_id", body.job_id)
-        .maybe_single(),
-        default=None,
-        context="career_project_job",
-    )
-    if not job:
+    rows = jobs_repo.get_jobs_by_ids([body.job_id])
+    if not rows:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Job not found.")
+    job = rows[0]
 
     roles = repo.list_roles(user.id)
     stories = repo.list_stories(user.id)
@@ -352,9 +345,26 @@ def project_reservoir(
         raise HTTPException(status.HTTP_409_CONFLICT, "No stories in your reservoir yet — dump your CVs first.")
     pointers = repo.story_pointers(user.id, [str(s["id"]) for s in stories])
 
-    result = career_projection.project_for_job(
-        user_id=user.id, job=job, baseline=baseline,
+    # Rank against the JD's REAL requirements (Lane C), not the scraped skill
+    # taxonomy. Reuse the "Job fit" panel's cached parse when present (same
+    # requirements the user already saw, no duplicate LLM spend); parse fresh on
+    # the paid-first blocking lane otherwise. Only reached once the user actually
+    # has stories to project — never burn a JD parse on an empty reservoir.
+    requirements: list[str] = []
+    cached = jd_coverage.payload_to_result(
+        jobs_repo.get_deepening(user.id, body.job_id, jd_coverage.CACHE_PROMPT_KEY)
+    )
+    if cached is not None:
+        requirements = [i.requirement for i in cached[0].requirements]
+    if not requirements:
+        requirements = await jd_coverage.parse_requirements(
+            job.get("job_description") or "", get_blocking_judgment_provider()
+        )
+
+    result = await career_projection.project_for_job(
+        user_id=user.id, job=job, requirements=requirements, baseline=baseline,
         roles=roles, stories=stories, pointers=pointers,
+        story_embeddings=repo.story_embeddings(user.id),
     )
     if not result["included_ids"]:
         raise HTTPException(status.HTTP_409_CONFLICT, "No stories have pointers to project yet.")

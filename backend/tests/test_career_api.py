@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from app.deps import CurrentUser, get_current_user, get_user_db
+from app.deps import CurrentUser, get_current_user
 from app.main import app
 from app.repositories.career_reservoir import get_career_reservoir_repository
 from app.repositories.connections import get_token_connections_repository
@@ -77,6 +77,21 @@ class _FakeReservoirRepo:
                 s.update(updates)
                 return s
         return None
+
+    def story_embeddings(self, user_id):
+        return getattr(self, "embeddings", [])
+
+
+class _FakeJobsRepo:
+    def __init__(self, job=None, deepening=None):
+        self.job = job
+        self.deepening = deepening
+
+    def get_jobs_by_ids(self, ids):
+        return [self.job] if self.job else []
+
+    def get_deepening(self, user_id, job_id, prompt_key):
+        return self.deepening
 
 
 def _override(
@@ -288,28 +303,6 @@ def test_patch_story_archive():
     assert empty.status_code == 422
 
 
-class _Chain:
-    """Minimal PostgREST query-builder fake ending in .execute().data."""
-    def __init__(self, data):
-        self._data = data
-
-    def __getattr__(self, name):
-        def _link(*args, **kwargs):
-            return self
-        return _link
-
-    def execute(self):
-        return type("R", (), {"data": self._data})()
-
-
-class _FakeDb:
-    def __init__(self, job):
-        self._job = job
-
-    def table(self, name):
-        return _Chain(self._job if name == "jobs" else None)
-
-
 class _FakeCvRepo:
     def __init__(self, baseline):
         self.baseline = baseline
@@ -323,21 +316,44 @@ class _FakeCvRepo:
         return {"id": 42}
 
 
-def test_project_endpoint_writes_deterministic_version():
+def test_project_endpoint_writes_deterministic_version(monkeypatch):
+    from app.repositories.jobs import get_token_jobs_repository
+    from app.routers.cv import career as career_router
+
     reservoir = _FakeReservoirRepo(
         roles=[{"id": "r1", "company": "Capgemini", "title": "Sales Manager", "kind": "work",
-                "date_label": "2025–", "status": "active"}],
+                "date_label": "May 2025 – Present", "status": "active"}],
         stories=[{"id": "s1", "role_id": "r1", "kind": "project", "title": "Pipeline",
                   "narrative": {}, "metrics": [{"value": "50+", "what": "reqs"}],
                   "skills": ["GTM"], "status": "active"}],
         pointers=[{"story_id": "s1", "text": "Generated 50+ inbound requirements.", "is_canonical": True}],
     )
+    reservoir.embeddings = [{"id": "s1", "embedding": [1.0, 0.0]}]
     cv_repo = _FakeCvRepo(baseline={"id": 7, "cv_structured": {"summary": "S", "contact": {"name": "N"}}})
-    job = {"job_id": "j1", "job_title": "AM", "company_name": "Amazon",
-           "main_skills": ["GTM"], "side_skills": []}
+    jobs_repo = _FakeJobsRepo(job={"job_id": "j1", "job_title": "Sales Manager", "company_name": "Huvo",
+                                   "job_description": "Own the full sales cycle."})
     _override(reservoir=reservoir)
     app.dependency_overrides[get_token_cv_repository] = lambda: cv_repo
-    app.dependency_overrides[get_user_db] = lambda: _FakeDb(job)
+    app.dependency_overrides[get_token_jobs_repository] = lambda: jobs_repo
+
+    # No cached coverage → route parses; stub the LLM parse + the projection internals
+    # (ranking/reword are covered by test_career_projection). The route test proves
+    # wiring: parsed requirements flow through and a deterministic version is written.
+    async def fake_parse(jd_text, provider):
+        assert jd_text == "Own the full sales cycle."
+        return ["own the full sales cycle"]
+    monkeypatch.setattr(career_router.jd_coverage, "parse_requirements", fake_parse)
+
+    async def fake_project(**kw):
+        assert kw["requirements"] == ["own the full sales cycle"]
+        assert kw["story_embeddings"] == [{"id": "s1", "embedding": [1.0, 0.0]}]
+        return {
+            "cv_structured": {"experience": [{"role": "Sales Manager", "company": "Capgemini",
+                                              "dates": "May 2025 – Present",
+                                              "bullets": ["Generated 50+ inbound requirements."]}]},
+            "included_ids": ["s1"], "parked_ids": [],
+        }
+    monkeypatch.setattr(career_router.career_projection, "project_for_job", fake_project)
 
     with TestClient(app) as client:
         resp = client.post("/cv/reservoir/project", json={"job_id": "j1"}, headers=_H)
@@ -350,11 +366,14 @@ def test_project_endpoint_writes_deterministic_version():
 
 
 def test_project_conflicts_without_stories():
+    from app.repositories.jobs import get_token_jobs_repository
+
     reservoir = _FakeReservoirRepo()
     cv_repo = _FakeCvRepo(baseline={"id": 7, "cv_structured": {"summary": "S"}})
+    jobs_repo = _FakeJobsRepo(job={"job_id": "j1", "job_description": "x"})
     _override(reservoir=reservoir)
     app.dependency_overrides[get_token_cv_repository] = lambda: cv_repo
-    app.dependency_overrides[get_user_db] = lambda: _FakeDb({"job_id": "j1", "main_skills": [], "side_skills": []})
+    app.dependency_overrides[get_token_jobs_repository] = lambda: jobs_repo
     with TestClient(app) as client:
         resp = client.post("/cv/reservoir/project", json={"job_id": "j1"}, headers=_H)
     assert resp.status_code == 409
