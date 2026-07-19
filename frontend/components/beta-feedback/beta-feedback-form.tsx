@@ -146,7 +146,6 @@ export function BetaFeedbackForm() {
       <header className="bf-header">
         <div className="bf-eyebrow">MYRO OPTIONAL FEEDBACK</div>
         <h1 className="bf-title" id="bf-title">Share optional feedback</h1>
-        <p>If Internshala guidelines restrict product testing or bug reporting, you can skip this. Your application can still be reviewed from Internshala.</p>
         <div className="bf-progress-meta">
           <span>Step {step} of 3</span>
           <span>{step === 1 ? "Context" : step === 2 ? "Observations" : "Review"}</span>
