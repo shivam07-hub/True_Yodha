@@ -1,0 +1,140 @@
+/* Companies directory (Signal Thread 1d). Tokens only; theme-directional accent
+ * (teal dark / orange light) rides through the CompanySignal primitives. */
+
+.cd-root {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+
+/* ── Masthead ──────────────────────────────────────────────────────────── */
+.cd-masthead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.cd-masthead-copy { min-width: 0; }
+.cd-h1 {
+  margin: 10px 0 8px;
+  font-size: clamp(28px, 4vw, 36px);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--tm-text);
+}
+.cd-sub {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--tm-text-muted);
+  max-width: 560px;
+}
+
+/* ── Slots meter ───────────────────────────────────────────────────────── */
+.cd-slots {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.cd-slots-label {
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+.cd-slots-dots { display: inline-flex; gap: 5px; }
+.cd-slot-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  border: 1px solid var(--tm-border);
+  background: transparent;
+}
+.cd-slot-dot.is-on { background: var(--tm-accent); border-color: var(--tm-accent); }
+.cd-slots-count { font-family: var(--tm-font-mono); font-size: 12px; font-weight: 700; color: var(--tm-text); }
+.cd-slots-cap { font-size: 11px; color: var(--tm-text-faint); max-width: 220px; text-align: right; }
+
+/* ── Toolbar ───────────────────────────────────────────────────────────── */
+.cd-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 28px 0 20px;
+}
+.cd-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 240px;
+  min-width: 200px;
+  padding: 9px 14px;
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius-sm);
+  background: var(--tm-surface);
+  color: var(--tm-text-faint);
+}
+.cd-search:focus-within { border-color: var(--tm-accent-ring); }
+.cd-search input {
+  flex: 1; min-width: 0; border: none; background: transparent;
+  color: var(--tm-text); font: inherit; font-size: 14px; outline: none;
+}
+.cd-sectors { display: flex; flex-wrap: wrap; gap: 8px; }
+.cd-pill {
+  padding: 7px 14px;
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius-pill);
+  background: transparent;
+  color: var(--tm-text-muted);
+  font: inherit; font-size: 13px; cursor: pointer;
+}
+.cd-pill.is-on {
+  background: var(--tm-accent);
+  border-color: var(--tm-accent);
+  color: var(--tm-accent-fg);
+  font-weight: 600;
+}
+.cd-sort { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+.cd-sort-label {
+  font-family: var(--tm-font-mono); font-size: 10px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--tm-text-faint);
+}
+.cd-sort button {
+  border: none; background: transparent; cursor: pointer; font: inherit;
+  font-size: 13px; color: var(--tm-text-muted); padding: 4px 6px; border-radius: 6px;
+}
+.cd-sort button.is-on { color: var(--tm-accent-text); font-weight: 600; }
+
+/* ── Featured pulse grid ───────────────────────────────────────────────── */
+.cd-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+  margin-bottom: 40px;
+}
+
+/* ── Full directory list ───────────────────────────────────────────────── */
+.cd-all-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--tm-border-soft);
+}
+.cd-all-count { font-family: var(--tm-font-mono); font-size: 12px; color: var(--tm-text-faint); }
+.cd-all-list {
+  margin-top: 6px;
+  columns: 2;
+  column-gap: 40px;
+}
+.cd-all-list > .cs-row { break-inside: avoid; }
+.cd-empty { margin: 20px 0; font-size: 14px; color: var(--tm-text-faint); }
+
+@media (max-width: 720px) {
+  .cd-root { padding: 28px 16px 64px; }
+  .cd-slots { justify-items: start; }
+  .cd-slots-cap { text-align: left; }
+  .cd-sort { margin-left: 0; }
+  .cd-all-list { columns: 1; }
+}

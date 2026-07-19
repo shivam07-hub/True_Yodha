@@ -1,95 +1,89 @@
 import type { Metadata } from "next"
-import { jobs } from "@/lib/api"
-import { CompanyLink } from "@/components/companies/company-link"
-import { formatCount } from "@/lib/format"
+import { jobs, type CompanyPulseItem } from "@/lib/api"
+import { CompaniesDirectory, type DirectoryCompany } from "@/components/companies/companies-directory"
 
 /**
- * The companies directory — a SERVER-rendered hub linking to every company page.
+ * The companies directory (Signal Thread 1d) — a dual-audience surface.
  *
- * Why this exists (SEO/AEO): the interactive /intel pane fetches its company
- * list client-side, so those links never reach the initial HTML — a crawler or
- * AI engine that doesn't run JS sees nothing, and the ~260 /companies/{name}
- * pages stay orphaned. This page fetches the list on the server and renders the
- * links into the HTML directly: no JS required, bulletproof for every crawler.
- * Paired with sitemap.ts (which now emits every company URL).
+ * SEO/AEO: every /companies/{name} link is rendered into the initial HTML (the
+ * CompaniesDirectory client component is server-rendered, links and all), so a
+ * crawler that runs no JS still sees the full list. Paired with sitemap.ts.
  *
- * Public data (jobs.analytics has no auth), revalidated hourly (ISR).
+ * Product: a featured grid of the top companies by open roles carries their REAL
+ * demand pulse (server-fetched from the public pulse endpoint), sortable and
+ * followable. Follow stars + the compare-slots meter hydrate as authed islands.
+ *
+ * Public data (no auth), revalidated hourly (ISR).
  */
 const BASE = "https://www.himyro.com"
+const POOL_SIZE = 20 // the pulse endpoint caps at 20 companies per call
 
 export const revalidate = 3600
 
 export const metadata: Metadata = {
   title: "Companies hiring now — Myro",
   description:
-    "Browse every company Myro tracks and jump to their live open roles. Hundreds of companies, updated from live job data.",
+    "Browse every company Myro tracks and jump to their live open roles. Hundreds of companies, ranked by live hiring demand.",
   alternates: { canonical: `${BASE}/companies` },
   robots: { index: true, follow: true },
   openGraph: {
     title: "Companies hiring now — Myro",
-    description: "Browse every company Myro tracks and jump to their live open roles.",
+    description: "Browse every company Myro tracks, ranked by live hiring demand.",
     type: "website",
     url: `${BASE}/companies`,
   },
 }
 
-export default async function CompaniesDirectory() {
-  let companies: { name: string; count: number }[] = []
+function topSectors(companies: DirectoryCompany[], max = 5): string[] {
+  const counts = new Map<string, number>()
+  for (const c of companies) {
+    const s = (c.industry ?? "").trim()
+    if (s) counts.set(s, (counts.get(s) ?? 0) + 1)
+  }
+  return Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, max)
+    .map(([s]) => s)
+}
+
+export default async function CompaniesDirectoryPage() {
+  let companies: DirectoryCompany[] = []
   try {
     const analytics = await jobs.analytics()
     companies = (analytics.by_company ?? [])
       .filter((c) => c.name)
-      .map((c) => ({ name: c.name, count: c.count }))
-      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((c) => ({ name: c.name, count: c.count, industry: c.industry ?? null }))
   } catch {
-    // Backend unreachable at render time → render the shell; ISR retries on the
-    // next request. Never 500 a crawlable page over a transient fetch.
+    // Backend unreachable → render the masthead shell; ISR retries next request.
+    // Never 500 a crawlable page over a transient fetch.
+  }
+
+  const alphabetical = [...companies].sort((a, b) => a.name.localeCompare(b.name))
+  const byOpen = [...companies].sort((a, b) => b.count - a.count)
+
+  // Featured pool = top companies by open roles; fetch their real pulse. On any
+  // failure the pool empties → the directory degrades to the crawlable list
+  // (no stuck cards, no fabricated numbers).
+  let pool: DirectoryCompany[] = []
+  let pulses: CompanyPulseItem[] = []
+  const candidates = byOpen.slice(0, POOL_SIZE)
+  if (candidates.length > 0) {
+    try {
+      const res = await jobs.companyPulse(candidates.map((c) => c.name))
+      pulses = res.companies
+      pool = candidates
+    } catch {
+      // pulse unavailable → featured grid hidden, list still renders
+    }
   }
 
   return (
-    <div style={{ maxWidth: 1080, margin: "0 auto", padding: "48px 24px 80px" }}>
-      <div
-        style={{
-          fontFamily: "var(--tm-font-mono)", fontSize: 11, letterSpacing: "0.14em",
-          textTransform: "uppercase", color: "var(--tm-interactive)", marginBottom: 10,
-        }}
-      >
-        Live job database
-      </div>
-      <h1 style={{ margin: 0, fontSize: 36, fontWeight: 700, letterSpacing: "-0.025em", color: "var(--tm-text)" }}>
-        Companies hiring now
-      </h1>
-      <p style={{ marginTop: 12, fontSize: 15, color: "var(--tm-text-muted)", maxWidth: 560, lineHeight: 1.6 }}>
-        {companies.length > 0
-          ? `Every one of the ${formatCount(companies.length)} companies Myro tracks. Open any company to see its live roles.`
-          : "Loading the company list — check back in a moment."}
-      </p>
-
-      {companies.length > 0 && (
-        <ul
-          style={{
-            listStyle: "none", margin: "32px 0 0", padding: 0,
-            display: "grid", gap: "2px",
-            gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-          }}
-        >
-          {companies.map((c) => (
-            <li key={c.name}>
-              <div
-                style={{
-                  display: "flex", alignItems: "baseline", justifyContent: "space-between",
-                  gap: 12, padding: "9px 12px", borderRadius: "var(--tm-radius-sm)",
-                }}
-              >
-                <CompanyLink company={c.name} />
-                <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 12, color: "var(--tm-text-faint)", flexShrink: 0 }}>
-                  {formatCount(c.count)} open
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+    <CompaniesDirectory
+      companies={alphabetical}
+      pool={pool}
+      pulses={pulses}
+      totalCount={companies.length}
+      sectors={topSectors(companies)}
+    />
   )
 }
