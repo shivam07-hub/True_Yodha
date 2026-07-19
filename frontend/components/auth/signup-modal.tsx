@@ -20,8 +20,8 @@ const CONCEPTS: Array<{ title: string; body: string }> = [
     body: "One master, role-specific copies.",
   },
   {
-    title: "Track jobs",
-    body: "Save roles. Close skill gaps.",
+    title: "Save jobs",
+    body: "Collect roles. Close skill gaps.",
   },
 ]
 

@@ -165,7 +165,7 @@ async function trackCurrentJob() {
     const draft = await captureDraft()
     if (!draft.jobDescription || draft.jobDescription.length < 80) {
       setStatus("Needs selection")
-      throw new Error("Select the job description on the page and click Track this job again.")
+      throw new Error("Select the job description on the page and click Save this job again.")
     }
 
     let preview

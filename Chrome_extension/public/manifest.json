@@ -10,7 +10,7 @@
     "128": "icons/icon-128.png"
   },
   "action": {
-    "default_title": "Track this job",
+    "default_title": "Save this job",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon-16.png",

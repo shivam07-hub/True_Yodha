@@ -20,7 +20,7 @@ async function init() {
       token: token.value.trim(),
       refreshToken: current.refreshToken,
     })
-    statusText.textContent = "Saved. Myro can now track jobs from the extension."
+    statusText.textContent = "Saved. Myro can now save jobs from the extension."
   })
 }
 

@@ -42,8 +42,8 @@ export const XP_EARN_ACTIONS = [
     status: "live",
   },
   {
-    title: "Track a job",
-    detail: "Add a job to your tracker — paste it, or upload the posting as a PDF, Word doc, or screenshot.",
+    title: "Save a job",
+    detail: "Add a job to your collection — paste it, or upload the posting as a PDF, Word doc, or screenshot.",
     amount: `+${MYRO_COINS_POLICY.addJobReward} Myro Coins`,
     meta: "per job",
     status: "live",
