@@ -6,7 +6,16 @@
     <description>Free weekly hiring intelligence. Real skill demand data from thousands of live job postings.</description>
     <language>en</language>
     <atom:link href="https://www.himyro.com/newsletter/rss.xml" rel="self" type="application/rss+xml"/>
-    <lastBuildDate>Fri, 17 Jul 2026 07:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Mon, 20 Jul 2026 07:00:00 +0000</lastBuildDate>
+
+    <item>
+      <title>Two Industries Are Quietly Hiring 5× Harder Than Tech. Neither Is the One You&apos;re Watching.</title>
+      <link>https://www.himyro.com/newsletter/2026-07-industry-hiring-report</link>
+      <guid isPermaLink="true">https://www.himyro.com/newsletter/2026-07-industry-hiring-report</guid>
+      <description>Everyone watches tech hiring. The jobs are somewhere else. In the second week of July 2026, consulting and BFSI carried 62% of all active postings — more than five times technology. And the AI roles you imagine sit at product companies are actually concentrated inside the consulting giants.</description>
+      <pubDate>Mon, 20 Jul 2026 07:00:00 +0000</pubDate>
+      <author>Shivam Pathak</author>
+    </item>
 
     <item>
       <title>Bengaluru Builds, Mumbai Banks, Hyderabad Ships. Your City Is Quietly Picking Your Skills.</title>
