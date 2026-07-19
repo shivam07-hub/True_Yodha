@@ -554,6 +554,16 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-07-20 · Auth-aware public CTAs + hardcoding sweep — pushed Develop `7448da27`)
+
+Shivam screenshot: logged-in user on `/how-it-works` clicks "Map my CV" → **login page**. Root cause = [docs-page.tsx](frontend/components/docs/docs-page.tsx) hardcoded `href="/signup"`; the page had **neither** of the two established auth patterns — route-level redirect (`landing-page.tsx:48` sends authed → `/market`) nor component-level `isAuthed` split (top-nav, all of `intel/*`). Fix: same `getAccessToken()` seam the public nav uses → authed `/skills` (the skill map), anon `/signup`.
+
+**Sweep (Shivam ask: "more hardcoding we shouldn't have?") — docs was the ONLY live bug.** Verified clean, not assumed: `top-nav` (gated `!isAuthed`) · `intel-hero:135` `/cv?upload=1` (inside authed hero branch) · `intel-hero:156`/`intel-results:345` signup (logged-out branches; `{props.authed ? null : <LockedCta/>}`) · `intel-pane`/`job-fit-drawer` (`signup.open()` in logged-out branches) · landing `dropzone`→`/cv-preview` + `job-switch-plan`→`/signup` (never reached — landing route-guards authed) · `company-jobs-client` (`useAuth` split) · newsletter/institutions (no hardcoded auth CTAs). One **latent** fixed too: `mission-content.tsx` signup/login CTAs — unreachable today (every caller passes `showCta={false}`) but a trap if flipped; now auth-aware + hides "Already have an account" when authed.
+
+**Deliberately NOT built:** a shared `useAuthedHref()` hook. The idiom is now in exactly 2 spots (top-nav, docs) — below the bar for a new primitive. Extract when a 3rd continuous-public-surface CTA needs it. Standard going forward: a new public page either route-guards authed users OR splits the CTA in-component.
+
+Green: tsc 0 · eslint 0 · `next build` ✓ · ui-drift clean. **OWED (Shivam):** prod = `main` merge; quick check logged-in on `/how-it-works` → "Map my CV" lands `/skills`.
+
 ## LAST SESSION SUMMARY (2026-07-17 · Prep-room bugfix + Delta-4 unified nav structure — ALL 4 SLICES BUILT, pushed Develop)
 
 Trigger: Shivam screenshot — Preparations room on the Sanofi PM job (mit20): "What this job wants" + "Skill drill" both failing. Then: "Kunal-Shah Delta-4 lens on the WHOLE product — users feel lost, need ONE unified structure."
