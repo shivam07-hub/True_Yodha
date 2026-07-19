@@ -6,7 +6,34 @@
     <description>Free weekly hiring intelligence. Real skill demand data from thousands of live job postings.</description>
     <language>en</language>
     <atom:link href="https://www.himyro.com/newsletter/rss.xml" rel="self" type="application/rss+xml"/>
-    <lastBuildDate>Wed, 01 Jul 2026 07:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Mon, 20 Jul 2026 07:00:00 +0000</lastBuildDate>
+
+    <item>
+      <title>Two Industries Are Quietly Hiring 5× Harder Than Tech. Neither Is the One You&apos;re Watching.</title>
+      <link>https://www.himyro.com/newsletter/2026-07-industry-hiring-report</link>
+      <guid isPermaLink="true">https://www.himyro.com/newsletter/2026-07-industry-hiring-report</guid>
+      <description>Everyone watches tech hiring. The jobs are somewhere else. In the second week of July 2026, consulting and BFSI carried 62% of all active postings — more than five times technology. And the AI roles you imagine sit at product companies are actually concentrated inside the consulting giants.</description>
+      <pubDate>Mon, 20 Jul 2026 07:00:00 +0000</pubDate>
+      <author>Shivam Pathak</author>
+    </item>
+
+    <item>
+      <title>Bengaluru Builds, Mumbai Banks, Hyderabad Ships. Your City Is Quietly Picking Your Skills.</title>
+      <link>https://www.himyro.com/newsletter/2026-07-metro-skills-map</link>
+      <guid isPermaLink="true">https://www.himyro.com/newsletter/2026-07-metro-skills-map</guid>
+      <description>Same country, four different job markets. In the second week of July 2026, Bengaluru&apos;s postings ask for AI and platform engineering, Mumbai&apos;s for banking and regulation, Hyderabad&apos;s for delivery and QA, and Delhi&apos;s for AI consulting. Where you live is quietly choosing your skills — and AI is the one that travels everywhere.</description>
+      <pubDate>Fri, 17 Jul 2026 07:00:00 +0000</pubDate>
+      <author>Shivam Pathak</author>
+    </item>
+
+    <item>
+      <title>Agentic AI Hit 843 Job Posts in the Second Week of July 2026. We Checked What&apos;s Real.</title>
+      <link>https://www.himyro.com/newsletter/2026-07-agentic-ai-job-descriptions</link>
+      <guid isPermaLink="true">https://www.himyro.com/newsletter/2026-07-agentic-ai-job-descriptions</guid>
+      <description>In the second week of July 2026, 843 India postings named &apos;Agentic AI&apos; as a required skill — up from a handful in spring. But 499 came from a single company. Before you panic that you&apos;re behind, sit down. We looked properly. The real number is 344, spread across 73 employers and 8 industries.</description>
+      <pubDate>Tue, 14 Jul 2026 07:00:00 +0000</pubDate>
+      <author>Shivam Pathak</author>
+    </item>
 
     <item>
       <title>From DevOps to Loop Engineering: A Four-Skill Jump</title>

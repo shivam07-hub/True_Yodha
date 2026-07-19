@@ -87,6 +87,8 @@ export function CollectionRow({
   onUnsave,
   onTailor,
   onOpenCv,
+  onSnooze,
+  onSaveNote,
 }: {
   it: FeedItem
   app: ApplicationResponse | undefined
@@ -96,10 +98,16 @@ export function CollectionRow({
   onUnsave: () => void
   onTailor: () => void
   onOpenCv: () => void
+  onSnooze: () => void
+  onSaveNote: (note: string) => void
 }) {
   const applied = app ? app.status !== "saved" : false
   const tailored = !!app?.cv_badge
+  const [noteOpen, setNoteOpen] = React.useState(false)
+  const [note, setNote] = React.useState(app?.notes ?? "")
+  const attention = app?.collection_attention_level
   return (
+    <div>
     <FeedCard
       data={feedDataFromMatch({ jobId: it.jobId, company: it.company, role: it.role, job: it.job, fit: it.fit })}
       variant="row"
@@ -109,6 +117,7 @@ export function CollectionRow({
       badges={
         <>
           {applied ? <span className="db-statuschip">Applied</span> : null}
+          {!applied && attention ? <span className="db-statuschip">Needs a decision</span> : null}
           {app && isExtSource(app.source) ? <span className="db-sourcechip">Extension</span> : null}
           {app && !isExtSource(app.source) && !isMyroSource(app.source) ? (
             <span className="db-sourcechip">You added</span>
@@ -128,6 +137,16 @@ export function CollectionRow({
             >
               <HeartGlyph />
             </button>
+          ) : null}
+          {!applied ? (
+            <>
+              <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={() => setNoteOpen((open) => !open)}>
+                Note
+              </button>
+              <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={onSnooze}>
+                Snooze 3d
+              </button>
+            </>
           ) : null}
           {tailored ? (
             <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={onOpenCv}>
@@ -150,6 +169,18 @@ export function CollectionRow({
         </div>
       }
     />
+    {noteOpen ? (
+      <textarea
+        aria-label={`Note for ${it.role}`}
+        value={note}
+        onChange={(event) => setNote(event.target.value)}
+        onBlur={() => onSaveNote(note)}
+        placeholder="Why this role is worth applying to…"
+        rows={2}
+        style={{ width: "100%", marginTop: 8, padding: "9px 10px", borderRadius: 8, border: "1px solid var(--tm-border)", background: "var(--tm-surface-2)", color: "var(--tm-text)", resize: "vertical" }}
+      />
+    ) : null}
+    </div>
   )
 }
 

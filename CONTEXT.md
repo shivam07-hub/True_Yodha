@@ -509,6 +509,25 @@ The single answer to "how good is this match for this user, and what should they
 
 ---
 
+## Next Best Step
+
+The one state-derived action that moves a candidate through the active job-search loop without describing a completed Main CV as incomplete.
+
+**Ladder**
+
+1. No Main CV → upload a CV.
+2. An interview or a due application follow-up → prepare or check in; time-sensitive commitments outrank new work.
+3. A saved role with a tailored CV but no confirmed submission → review and apply.
+4. A saved role without a tailored CV → tailor the highest-`match_score` saved role.
+5. No saved role → find a role to tailor in Jobs.
+
+**Invariants**
+- A **Saved Role** is an intended application whether its source is `system_match`, a user save, or an imported job. Source never changes eligibility for tailoring.
+- `ApplicationResponse.match_score` is projected from the durable `user_job_matches` evaluation on the Applications read, so Next Best Step does not depend on a warmed feed cache to choose the highest-fit role.
+- A confirmed application returns to the remaining saved-role queue when there is no more urgent interview or follow-up. It stays visible in Applications for tracking; it is not silently treated as complete.
+
+---
+
 ## JobRanking
 
 The single facade for "given a candidate pool + a targeting profile, produce ranked jobs". `app/services/matching/ranking.py` combines the matcher's two tuned stages so callers never wire them by hand:

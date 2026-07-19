@@ -11,7 +11,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { cv as cvApi, type AppliedVersion } from "@/lib/api"
-import { dataKeys } from "@/lib/domain-data"
+import { dataKeys, invalidateScoreMapData } from "@/lib/domain-data"
 import { PdfPage, type PdfPageContact } from "./pdf-page"
 import { exportSheetPdf } from "@/lib/cv/sheet-pdf"
 import { printCvPage } from "@/lib/cv/print-cv"
@@ -82,7 +82,7 @@ export function AppliedVersionsPanel({ token }: { token: string }) {
       setConfirmId(null)
       qc.invalidateQueries({ queryKey: dataKeys.cvStructured() })
       qc.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
-      qc.invalidateQueries({ queryKey: dataKeys.scores() })
+      invalidateScoreMapData(qc)
     },
   })
 

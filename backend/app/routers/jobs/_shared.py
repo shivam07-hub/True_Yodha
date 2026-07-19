@@ -90,6 +90,7 @@ def to_application(
     row: dict,
     cv_badge: CVBadge | None = None,
     user_skill_keys: set[str] | None = None,
+    match_score: int | None = None,
 ) -> ApplicationResponse:
     job = row.get("jobs") or {}
     # First-class card data. `skills` = the job's skills; `matched`/`missing` split
@@ -119,6 +120,9 @@ def to_application(
         notes=row.get("notes"),
         created_at=row["created_at"],
         last_stage_changed_at=row.get("last_stage_changed_at"),
+        collection_snoozed_until=row.get("collection_snoozed_until"),
+        collection_attention_level=row.get("collection_attention_level"),
+        match_score=match_score,
         cv_badge=cv_badge,
         skills=skills,
         matched_skills=matched,

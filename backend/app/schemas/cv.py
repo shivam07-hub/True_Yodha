@@ -71,7 +71,7 @@ class CVUploadStatusResponse(BaseModel):
     xp_charged: int = 0
     xp_refunded: bool = False
     new_coin_balance: int
-    # Job-creation timestamp (ISO). Anchors the 10-min CV-promise countdown.
+    # Job-creation timestamp (ISO), retained for upload lifecycle observability.
     started_at: str | None = None
     redirect_to: str | None = None
 

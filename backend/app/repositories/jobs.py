@@ -16,6 +16,7 @@ from app.db_safe import safe_read
 from app.deps import get_user_db
 from app.repositories.job_skills_read_model import fetch_all_rows, fetch_job_skill_rows, fetch_job_skill_rows_for_ids, group_job_skill_rows
 from app.services import job_importer
+from app.services.company_pulse import SERIES_DAYS, build_series, compute_pulse
 from app.services.industry_grouping import normalize_industry_group
 from app.services.job_history import attach_jobs
 from app.services.job_intelligence_policy import is_recommendable_listing
@@ -62,6 +63,8 @@ _analytics_cache: dict[tuple[str | None, str | None, str | None, str | None], tu
 _entity_skills_cache: dict[tuple[str, str, str | None, str | None, str | None], tuple[float, list[dict[str, Any]]]] = {}
 _heatmap_cache: dict[tuple[frozenset[str], frozenset[str]], tuple[float, dict[str, dict[str, int]]]] = {}
 _heatmap_row_cache: dict[tuple[str, frozenset[str]], tuple[float, dict[str, int]]] = {}
+_pulse_cache: dict[frozenset[str], tuple[float, list[dict[str, Any]]]] = {}
+_PULSE_TTL = 30 * 60  # 30 min — pulse tracks daily scrape batches, not real-time
 _skill_name_to_id_cache: dict[str, int] = {}  # display_name.lower() → skill_id; skills table is static
 _search_cache: dict[tuple[str, str, str | None, str | None, str | None, str | None, int, int], tuple[float, dict[str, Any]]] = {}
 _company_search_cache: dict[tuple[str, int], tuple[float, list[str]]] = {}
@@ -398,6 +401,20 @@ def _is_marker_stale(value: Any) -> bool:
     if dt is None:
         return False
     return (datetime.now(dt.tzinfo) - dt).days > STALE_AFTER_DAYS
+
+
+def _marker_int(value: Any) -> int | None:
+    """A jobs first_seen/last_seen marker as a comparable YYYYMMDD int, or None.
+
+    The column stores integer YYYYMMDD markers; tolerate str/float and reject
+    anything non-numeric so a malformed marker never crashes pulse math.
+    """
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _fresh_cutoff_marker(days: int = STALE_AFTER_DAYS) -> int:
@@ -1158,6 +1175,89 @@ class JobsRepository:
 
         _heatmap_cache[cache_key] = (time.monotonic(), matrix)
         return matrix
+
+    def fetch_company_pulse(self, companies: list[str]) -> list[dict[str, Any]]:
+        """Per-company demand pulse (Signal Thread S2) — ONE batched scan.
+
+        Reads every job for the requested companies (first_seen / last_seen
+        markers only) and derives, per company: open_roles (live = last_seen
+        within the freshness window), weekly_delta (first_seen in the last 7d), a
+        30-point trailing-inflow sparkline, and the 0-100 pulse from
+        `company_pulse.compute_pulse`. Every number is real — a company with no
+        live roles gets pulse=None (the em-dash state), never a fabricated 0.
+        Cached _PULSE_TTL, keyed on the company set. Mirrors fetch_skill_heatmap:
+        APIError → cached/[]. Order follows the input list (caller's ordering).
+        """
+        names = [c.strip() for c in companies if c and c.strip()]
+        if not names:
+            return []
+
+        cache_key = frozenset(names)
+        now = time.monotonic()
+        cached = _pulse_cache.get(cache_key)
+        if cached is not None and (now - cached[0]) < _PULSE_TTL:
+            return list(cached[1])
+
+        try:
+            rows = fetch_all_rows(
+                self._admin_db,
+                table="jobs",
+                columns="company_name, first_seen, last_seen",
+                query_builder=lambda q: q.in_("company_name", names),
+            )
+        except APIError:
+            return list(cached[1]) if cached else []
+
+        fresh_marker = _fresh_cutoff_marker(STALE_AFTER_DAYS)  # live floor
+        week_marker = _fresh_cutoff_marker(7)  # new-this-week floor
+        now_dt = datetime.now(timezone.utc)
+
+        open_roles: dict[str, int] = {name: 0 for name in names}
+        weekly_delta: dict[str, int] = {name: 0 for name in names}
+        last_seen: dict[str, datetime] = {}
+        offsets: dict[str, list[int]] = {name: [] for name in names}
+        # Resolve each row's company back to the exact requested-name casing so a
+        # scrape-side case variant still lands in the right bucket.
+        by_key = {" ".join(n.casefold().split()): n for n in names}
+        for r in rows:
+            raw = (r.get("company_name") or "").strip()
+            name = by_key.get(" ".join(raw.casefold().split()))
+            if name is None:
+                continue
+            last_m = _marker_int(r.get("last_seen"))
+            first_m = _marker_int(r.get("first_seen"))
+            if last_m is not None and last_m >= fresh_marker:
+                open_roles[name] += 1
+            if first_m is not None and first_m >= week_marker:
+                weekly_delta[name] += 1
+            seen_dt = _marker_to_dt(r.get("last_seen")) or _marker_to_dt(r.get("first_seen"))
+            if seen_dt is not None:
+                prev = last_seen.get(name)
+                if prev is None or seen_dt > prev:
+                    last_seen[name] = seen_dt
+            first_dt = _marker_to_dt(r.get("first_seen"))
+            if first_dt is not None:
+                days_ago = (now_dt - first_dt).days
+                if 0 <= days_ago < SERIES_DAYS:
+                    offsets[name].append((SERIES_DAYS - 1) - days_ago)
+
+        out: list[dict[str, Any]] = []
+        for name in names:  # preserve caller order
+            seen = last_seen.get(name)
+            days_since = (now_dt - seen).days if seen else None
+            out.append(
+                {
+                    "company_name": name,
+                    "open_roles": open_roles[name],
+                    "weekly_delta": weekly_delta[name],
+                    "pulse": compute_pulse(open_roles[name], weekly_delta[name], days_since),
+                    "series": build_series(offsets[name]),
+                    "last_seen_at": seen.isoformat() if seen else None,
+                }
+            )
+
+        _pulse_cache[cache_key] = (time.monotonic(), out)
+        return out
 
     def fetch_skill_heatmap_row(
         self,

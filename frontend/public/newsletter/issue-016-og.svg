@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Consulting and BFSI out-hire technology five to one in India, July 2026</title>
+  <desc id="desc">Myro newsletter image: consulting 10,110 and BFSI 8,299 active postings versus technology 3,630 in the second week of July 2026.</desc>
+  <rect width="1200" height="630" fill="#fbfaf7"/>
+  <rect x="52" y="50" width="1096" height="530" rx="28" fill="#ffffff" stroke="#e7e0d4" stroke-width="2"/>
+  <rect x="52" y="50" width="1096" height="120" rx="28" fill="#0f172a"/>
+  <rect x="52" y="132" width="1096" height="38" fill="#0f172a"/>
+  <text x="92" y="112" fill="#f8fafc" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="700">Myro &#183; Hiring Heatmap</text>
+  <text x="92" y="148" fill="#fbbf24" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="600">Industry report &#183; July 2026</text>
+
+  <text x="92" y="238" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="48" font-weight="800">Two industries out-hire tech 5&#215;</text>
+  <text x="92" y="290" fill="#374151" font-family="Inter, Arial, sans-serif" font-size="27" font-weight="600">Neither is the one you&#8217;re watching</text>
+
+  <g font-family="Inter, Arial, sans-serif" font-size="26" font-weight="700">
+    <text x="92" y="356" fill="#334155" font-size="22" font-weight="600">Active postings, 12&#8211;13 July</text>
+
+    <text x="92" y="404" fill="#1d4ed8">Consulting</text>
+    <rect x="330" y="384" width="640" height="26" rx="13" fill="#2563eb"/>
+    <text x="984" y="404" fill="#111827">10,110</text>
+
+    <text x="92" y="450" fill="#166534">BFSI</text>
+    <rect x="330" y="430" width="525" height="26" rx="13" fill="#16a34a"/>
+    <text x="869" y="450" fill="#111827">8,299</text>
+
+    <text x="92" y="496" fill="#9a3412">Technology</text>
+    <rect x="330" y="476" width="230" height="26" rx="13" fill="#f59e0b"/>
+    <text x="574" y="496" fill="#111827">3,630</text>
+  </g>
+
+  <text x="92" y="548" fill="#4b5563" font-family="Inter, Arial, sans-serif" font-size="22">And AI hiring&#8217;s real home is consulting, not product tech.</text>
+
+  <text x="1098" y="548" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="800" text-anchor="end">himyro.com/newsletter</text>
+</svg>

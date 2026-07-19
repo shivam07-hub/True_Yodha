@@ -22,6 +22,9 @@ const app = (over: Partial<ApplicationResponse>): ApplicationResponse =>
     ...over,
   }) as ApplicationResponse
 
+const scoredApp = (over: Partial<ApplicationResponse> & { match_score?: number | null }): ApplicationResponse =>
+  app(over)
+
 const match = (job_id: string, match_score: number): JobMatch => ({ job_id, match_score }) as JobMatch
 
 test("no CV beats everything", () => {
@@ -72,14 +75,28 @@ test("tailor targets the best-fit untailored save, fit from cached matches", () 
   assert.match(next.label, /Tailor High · 91%/)
 })
 
+test("tailor selects the highest durable saved-match score before a matches cache exists", () => {
+  const next = deriveNextAction(
+    [
+      scoredApp({ job_id: "lo", company: "Low", match_score: 48 }),
+      scoredApp({ job_id: "hi", company: "High", match_score: 91 }),
+    ],
+    undefined,
+    { hasCv: true, now: NOW },
+  )
+  assert.equal(next.href, "/cv?jobId=hi")
+  assert.match(next.label, /Tailor High · 91%/)
+})
+
 test("empty pipeline with fresh matches points at the new-jobs run", () => {
   const next = deriveNextAction([], undefined, { hasCv: true, newJobs: 12, now: NOW })
   assert.equal(next.href, "/collections?search=1")
   assert.match(next.label, /12 new/)
 })
 
-test("nothing anywhere → find the next role, marked generic", () => {
+test("nothing saved → find a role to tailor, marked generic", () => {
   const next = deriveNextAction([], undefined, { hasCv: true, now: NOW })
   assert.equal(next.href, "/market")
+  assert.equal(next.label, "Find a role to tailor")
   assert.equal(next.generic, true)
 })

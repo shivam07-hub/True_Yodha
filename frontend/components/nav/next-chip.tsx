@@ -12,10 +12,10 @@ import { deriveNextAction } from "@/components/nav/next-action"
  * The global Next chip (unified-structure S2, lock #4) — the one persistent
  * "what do I do now" in the topbar, on every authed desktop surface. Reads the
  * same shared caches as the journey counts: applications (cheap fetch, shared
- * key) + a PASSIVE matches read (subscribes, never fetches — fit % and the
- * new-jobs signal appear once /market populates the cache).
+ * key) carry durable saved-role fit scores; a passive matches read supplements
+ * fresh-match volume once /market has populated the cache.
  *
- * A generic pointer ("Find your next role") hides on its own surface —
+ * A generic pointer ("Find a role to tailor") hides on its own surface —
  * pointing at the page you're on is noise, not orientation.
  */
 

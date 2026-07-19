@@ -3,11 +3,10 @@
 import { useEffect, useRef, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import "@/components/dashboard/dashboard.css"
-import { MatchRefreshGate } from "@/components/jobs/MatchRefreshGate"
 import { SmartSearchPrompt } from "@/components/jobs/smart-search-prompt"
-import { useJobRefresh } from "@/lib/hooks/use-job-refresh"
+import { useMyroSearch } from "@/lib/hooks/use-myro-search"
 import { useParticleMoment } from "@/components/particle"
-import { jobs, users, type MatchHealth } from "@/lib/api"
+import { jobs, type MatchHealth } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { withLocalCache, userCacheKey } from "@/lib/local-cache"
 import { JOB_MATCHES_CACHE_PARTS } from "@/lib/job-matches-cache"
@@ -25,8 +24,9 @@ const MATCHES_TTL = 7 * 24 * 60 * 60 * 1000
  *   - shows in-progress status and fires the every-successful-refresh celebration.
  */
 export function MatchesRefreshBanner({ token }: { token: string | null }) {
-  const queryClient = useQueryClient()
-  const refreshVm = useJobRefresh(token, queryClient)
+  // Shared Myro Search wiring (VM + profile + gate). This banner layers the
+  // /market-only extras on top: progress line, celebration, smart-search prompt.
+  const { refreshVm, profile, gate } = useMyroSearch(token)
   const fireMoment = useParticleMoment()
 
   // Warms dataKeys.jobs(); the Loop Bar's Capture "N new" badge + "next" fit read
@@ -38,12 +38,6 @@ export function MatchesRefreshBanner({ token }: { token: string | null }) {
       withLocalCache(userCacheKey(token!, JOB_MATCHES_CACHE_PARTS), MATCHES_TTL, () => jobs.matches(token!)),
     enabled: !!token,
     staleTime: MATCHES_TTL,
-  })
-  const { data: profile } = useQuery({
-    queryKey: dataKeys.profile(),
-    queryFn: () => users.me(token!),
-    enabled: !!token,
-    staleTime: 10 * 60 * 1000,
   })
 
   // Celebration fires on the done-transition, only when matches were actually
@@ -75,7 +69,7 @@ export function MatchesRefreshBanner({ token }: { token: string | null }) {
         hasCv={profile?.has_cv ?? false}
         newJobsCount={matchesData?.new_jobs_count ?? 0}
       />
-      <MatchRefreshGate token={token} profile={profile} onRun={() => refreshVm.refresh()} />
+      {gate}
     </>
   )
 }

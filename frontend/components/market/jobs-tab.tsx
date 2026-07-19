@@ -319,6 +319,17 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
                 >
                   Not it? Tell Myro →
                 </button>
+                {/* Myro Search = the paid re-vet run. Lives here — the discovery
+                    surface — beside the intent door (moved off Collections). */}
+                <button
+                  type="button"
+                  className="tm-feed-searchchip"
+                  onClick={() => openRefreshGate()}
+                  title="Run Myro Search"
+                >
+                  <Search size={13} aria-hidden />
+                  Myro Search
+                </button>
               </div>
               {/* Honest weak-shortlist header (Q7): the engineer found no strong
                   matches — say so and point forward, never fake a Strong. */}

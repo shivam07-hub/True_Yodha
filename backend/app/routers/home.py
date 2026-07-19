@@ -27,8 +27,6 @@ user_id-filter audit — bypassing RLS here without that audit risks cross-user
 leakage.
 """
 
-from concurrent.futures import ThreadPoolExecutor
-
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel
 
@@ -55,6 +53,7 @@ from app.schemas import (
 )
 from app.schemas.upskilling import ActivityDatesResponse
 from app.services import upskilling_service
+from app.services.concurrent_reads import run_concurrently
 
 router = APIRouter(prefix="/home", tags=["home"])
 
@@ -117,8 +116,4 @@ def home_bootstrap(
         ),
         "diary": lambda: get_diary_history(principal=principal, diary_repo=diary_repo, limit=30),
     }
-    with ThreadPoolExecutor(max_workers=len(sections)) as pool:
-        futures = {key: pool.submit(fn) for key, fn in sections.items()}
-        results = {key: future.result() for key, future in futures.items()}
-
-    return HomeBootstrapResponse(**results)
+    return HomeBootstrapResponse(**run_concurrently(sections))

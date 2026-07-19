@@ -17,6 +17,7 @@ import httpx
 from app.database import get_supabase_admin
 from app.repositories.job_listing_verification import ListingVerificationRepository
 from app.security import install_sensitive_log_filter
+from app.services.collection_attention import sweep_collection_attention
 from app.services.job_listing_verifier import VerificationResult, VerificationTarget, verify_listing
 
 
@@ -76,13 +77,14 @@ async def _sweep() -> None:
         repo.record(result)
         counts[result.result] = counts.get(result.result, 0) + 1
     retired = repo.retire_eligible(limit=500)
+    attention = sweep_collection_attention(get_supabase_admin())
     # backlog + rate + duration are the health signals: a draining belt trends
     # backlog down; a stalled one is visible before users hit a ghost listing.
     duration = round(time.monotonic() - started, 1)
     backlog = repo.pending_count()
     log.info(
-        "metric job_verifier.sweep targets=%d results=%s retired=%d backlog=%d duration_s=%s",
-        len(targets), counts, retired, backlog, duration,
+        "metric job_verifier.sweep targets=%d results=%s retired=%d attention=%d backlog=%d duration_s=%s",
+        len(targets), counts, retired, attention, backlog, duration,
     )
 
 

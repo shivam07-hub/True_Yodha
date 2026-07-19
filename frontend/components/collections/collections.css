@@ -1,29 +1,6 @@
 /* Myro Ops folder — Myro Found section (the brain match stack). Reuses the
    dashboard `.db` token scope; these are the split-specific bits. */
 
-.mf-searchbtn {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.mf-searchbtn-new {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 999px;
-  background: var(--tm-accent);
-  color: var(--tm-accent-ink, #04211c);
-  font-family: var(--tm-font-mono);
-  font-size: 10.5px;
-  font-weight: 700;
-  line-height: 1;
-}
-
 .mf-secthead {
   display: flex;
   align-items: baseline;

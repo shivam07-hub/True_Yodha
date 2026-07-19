@@ -2500,6 +2500,11 @@ export interface ScoreResponse {
   top_percent?: number | null
 }
 
+export interface ScoreMapResponse {
+  score: ScoreResponse
+  skills: UserSkillsByDomain
+}
+
 interface ComputeScoreApiResponse {
   score: ScoreResponse
   skills_updated: number
@@ -2513,6 +2518,10 @@ export const scores = {
     }).then((res) => res.score),
   me: (token: string) =>
     request<ScoreResponse>("/scores/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  map: (token: string) =>
+    request<ScoreMapResponse>("/scores/map", {
       headers: { Authorization: `Bearer ${token}` },
     }),
 }
@@ -2849,6 +2858,10 @@ export interface ApplicationResponse {
   notes: string | null
   created_at: string
   last_stage_changed_at?: string | null
+  collection_snoozed_until?: string | null
+  collection_attention_level?: "review" | "decide" | "urgent" | null
+  /** Persisted Career Ops fit for this saved role, when it has been ranked. */
+  match_score?: number | null
   is_first_offer?: boolean
   cv_badge?: CVBadge | null
   coins_earned?: number | null
@@ -3123,6 +3136,20 @@ export interface SkillHeatmapData {
   matrix: Record<string, Record<string, number>>
 }
 
+/** Company demand pulse (Signal Thread S2). pulse === null = live but no signal. */
+export interface CompanyPulseItem {
+  company_name: string
+  open_roles: number
+  weekly_delta: number
+  pulse: number | null
+  series: number[]
+  last_seen_at?: string | null
+}
+
+export interface CompanyPulseResponse {
+  companies: CompanyPulseItem[]
+}
+
 export interface JobLocationFilters {
   locationCity?: string | null
   locationCountry?: string | null
@@ -3384,6 +3411,10 @@ export const jobs = {
     })
     return request<SkillHeatmapData>(`/jobs/analytics/skill-heatmap?${params.toString()}`)
   },
+  companyPulse: (companies: string[]) => {
+    const params = new URLSearchParams({ companies: companies.join(",") })
+    return request<CompanyPulseResponse>(`/jobs/companies/pulse?${params.toString()}`)
+  },
   analyticsEntitySkills: (
     entity: string,
     type: "company" | "industry",
@@ -3631,6 +3662,12 @@ export const jobs = {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(data),
+    }),
+  snoozeCollection: (token: string, jobId: string, days: number) =>
+    request<ApplicationResponse>(`/jobs/applications/${encodeURIComponent(jobId)}/collection-snooze`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ days }),
     }),
   removeTrackerJob: (token: string, jobId: string) =>
     request<void>(`/jobs/tracker/${encodeURIComponent(jobId)}`, {

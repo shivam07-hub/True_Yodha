@@ -196,6 +196,43 @@ class NotificationsRepository:
             "created_at": datetime.now(timezone.utc).isoformat(),
         }).eq("kind", "cv_analysis").eq("source_id", source_id).execute()
 
+    # ── Collections attention projection (admin client) ─────────────────────
+
+    def record_collection_attention(
+        self,
+        user_id: str,
+        *,
+        job_id: str,
+        title: str,
+        body: str,
+    ) -> None:
+        """Re-open the one durable saved-role attention notification.
+
+        The corresponding ``job_applications`` fields decide *whether* this
+        should be shown. The inbox row only projects that truth and supplies the
+        action destination, so a bell row can never outlive a dismissed/applied
+        saved intent as an actionable prompt.
+        """
+        self._admin_db.table("user_notifications").upsert({
+            "user_id": user_id,
+            "kind": "collection_attention",
+            "source_id": job_id,
+            "job_id": job_id,
+            "title": title,
+            "body": body,
+            "action_url": f"/collections?jobId={job_id}",
+            "state": None,
+            "match_count": 1,
+            "read_at": None,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }, on_conflict="user_id,kind,source_id").execute()
+
+    def resolve_collection_attention(self, user_id: str, job_id: str) -> None:
+        """Make a saved-role reminder non-actionable once its intent is resolved."""
+        self._db.table("user_notifications").update({
+            "read_at": datetime.now(timezone.utc).isoformat(),
+        }).eq("user_id", user_id).eq("kind", "collection_attention").eq("source_id", job_id).execute()
+
 
 def _fresh_title(count: int) -> str:
     return f"{count} fresh match{'es' if count != 1 else ''}"

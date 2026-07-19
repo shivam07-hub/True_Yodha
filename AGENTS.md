@@ -306,7 +306,74 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-19 - Feedback prompt copy correction)
+## LAST SESSION SUMMARY (2026-07-19 - unified Score and Skills journey)
+
+Implemented one causal Score and Skills surface from onboarding through CV
+evidence, with the persisted scoring output as the only visual truth.
+
+- `/skills` now explains the Myro Score, renders the radar from the exact
+  persisted domain scores, prioritizes only engine-verified point lifts, and
+  keeps the full personalized breakdown on the same page.
+- The global score chip and Jobs score-map card route into this surface. The CV
+  evidence handoff preserves domain and skill context and highlights the exact
+  provenance chip, with a visible route back to Score and Skills.
+- Onboarding now shows the same CV to skills to score relationship and clearly
+  separates CV-intrinsic Myro Score from role-specific Job Readiness.
+- Added a two-read `/scores/map` BFF with shared concurrent fan-out, then seeds
+  canonical TanStack caches from one browser request. Coherent invalidation
+  prevents the transport bundle from restoring stale score or skill state.
+- Kept the already-shipped Mentor before/after rewrite and Collections
+  attention/apply loops as the implementation for those feedback items instead
+  of creating duplicate flows.
+
+Validation: 1487 backend tests passed; TypeScript, frontend lint, UI drift,
+focused score-map/methodology tests, and `git diff --check` passed.
+
+---
+
+## OLDER SESSION SUMMARY (2026-07-19 - truthful Next Best Step loop)
+
+Replaced the obsolete CV countdown prompt with the single durable Next Best
+Step loop. A completed Main CV is never described as unfinished.
+
+- Main CV + no saved role → `Find a role to tailor` in Jobs.
+- Any saved role (including a system match) → tailor the highest Career Ops
+  match score; source does not change eligibility.
+- Tailored but unsubmitted → review and apply; confirmed applications remain
+  tracked while the prompt advances to the next saved, untailored role unless
+  an interview or follow-up is due.
+- Added `match_score` to the Applications read contract, sourced from durable
+  `user_job_matches`, so first-run selection does not depend on a warm feed
+  cache. The top bar and reminder bell now share the same persisted lifecycle.
+- Removed the CV-promise countdown code and documented the canonical ladder in
+  `CONTEXT.md`.
+
+Validation: 1486 backend tests passed; TypeScript, frontend lint, focused
+Next Best Step contracts, and `git diff --check` passed.
+
+---
+
+## OLDER SESSION SUMMARY (2026-07-19 - Feedback prompt copy correction)
+
+## OLDER SESSION SUMMARY (2026-07-19 - Collections attention loop)
+
+Implemented the durable saved-job attention loop requested from beta feedback.
+
+- Saved roles now advance through one-day, three-day, and seven-day attention
+  checkpoints only while the listing remains active; each reminder is one
+  actionable inbox lifecycle row that deep-links to the exact Collections job.
+- Reminder/snooze state is source-owned by `job_applications`, so apply,
+  Not Interested, and snooze resolve the bell prompt instead of leaving stale
+  calls to action. The 15-minute listing-verifier cron runs the attention sweep.
+- Collections now surfaces a decision state, persisted notes, and a 3-day
+  snooze action. Mobile receives the same decision state and snooze control.
+- Opening the notification bell no longer clears every unread item; only the
+  reminder the user opens is marked read.
+- Applied migration `collection_attention` to the shared Supabase project and
+  verified all three new `job_applications` columns are present.
+
+Validation: focused attention/notifications/application suites passed (20),
+full backend suite completed, TypeScript passed, and frontend lint passed.
 
 Removed the Internshala disclaimer from the optional feedback form. The prompt
 now leads directly into the form rather than introducing a concern that could

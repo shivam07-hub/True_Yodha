@@ -11,11 +11,9 @@ import "./collections.css"
 import { VirtualFeed } from "@/components/jobs/virtual-feed"
 import { DashboardJobDrawer } from "@/components/dashboard/job-drawer"
 import { AgentPicksBand } from "@/components/jobs/agent-picks-band"
-import { MatchRefreshGate } from "@/components/jobs/MatchRefreshGate"
 import { MatchVettingBanner } from "@/components/jobs/matches-refresh-banner"
-import { useJobRefresh } from "@/lib/hooks/use-job-refresh"
+import { useMyroSearch } from "@/lib/hooks/use-myro-search"
 import { useParticleMoment } from "@/components/particle"
-import { openRefreshGate } from "@/store/refreshGateStore"
 import { SortMenu } from "@/components/dashboard/sort-menu"
 import { PeekSurfaces } from "@/components/mission-control/peek-surfaces"
 import type { LoopStep } from "@/components/mission-control/loop-ring"
@@ -66,7 +64,8 @@ export function CollectionsDesktop({
   const router = useRouter()
   const qc = useQueryClient()
   const { skills: cartSkills, addSkill, removeSkill } = useCartStore()
-  const refreshVm = useJobRefresh(token, qc)
+  // Shared Myro Search wiring (VM + profile + gate) — one source across surfaces.
+  const { refreshVm, profile, gate: myroSearchGate, run: runMyroSearch, isRefreshing } = useMyroSearch(token)
   const savedJobDismissal = useSavedJobDismissal(token)
   const fireMoment = useParticleMoment()
 
@@ -94,12 +93,6 @@ export function CollectionsDesktop({
     queryFn: () => usersApi.followedCompanies(token),
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
-  })
-  const { data: profile } = useQuery({
-    queryKey: dataKeys.profile(),
-    queryFn: () => usersApi.me(token),
-    enabled: !!token,
-    staleTime: 10 * 60 * 1000,
   })
   const historyQ = useQuery({
     queryKey: dataKeys.diary(),
@@ -192,15 +185,26 @@ export function CollectionsDesktop({
     savedJobDismissal.dismiss(app)
     setOpenId((cur) => (cur === jobId ? null : cur))
   }
+  const snooze = (jobId: string) => {
+    void jobsApi.snoozeCollection(token, jobId, 3).then(() => {
+      void qc.invalidateQueries({ queryKey: dataKeys.applications() })
+      void qc.invalidateQueries({ queryKey: dataKeys.notificationsUnread() })
+    })
+  }
+  const saveNote = (jobId: string, notes: string) => {
+    void jobsApi.updateApplication(token, jobId, { status: "saved", notes }).then(() => {
+      void qc.invalidateQueries({ queryKey: dataKeys.applications() })
+    })
+  }
 
   // Deep-linked from the Loop Bar "N new" signal (Slice 5) → open the gate once.
   const searchOpened = React.useRef(false)
   React.useEffect(() => {
     if (openSearch && !searchOpened.current) {
       searchOpened.current = true
-      openRefreshGate()
+      runMyroSearch()
     }
-  }, [openSearch])
+  }, [openSearch, runMyroSearch])
 
   // ── Myro Found match actions — dismiss (hide) / save (track)
   const dismissMut = useMutation({
@@ -244,8 +248,6 @@ export function CollectionsDesktop({
     { label: "Apply", done: apps.some(isAppliedStatus), icon: "arrowRight", href: "/market" },
   ]
 
-  const isRefreshing = refreshVm.state === "charging" || refreshVm.state === "computing"
-  const newJobs = matchesQ.data?.new_jobs_count ?? 0
   const trulyEmpty =
     !appsQ.isLoading && !matchesQ.isLoading && apps.length === 0 && (matchesQ.data?.jobs?.length ?? 0) === 0
 
@@ -303,19 +305,6 @@ export function CollectionsDesktop({
               </div>
               <div className="db-head-actions">
                 {chip !== "found" ? <SortMenu sort={sort} onChange={setSort} /> : null}
-                <button
-                  type="button"
-                  className="db-btn db-btn-primary tm-control-focus mf-searchbtn"
-                  onClick={() => openRefreshGate()}
-                  disabled={isRefreshing}
-                  title="Run Myro Search"
-                >
-                  <Search size={14} aria-hidden />
-                  {isRefreshing ? "Searching…" : "Myro Search"}
-                  {!isRefreshing && newJobs > 0 ? (
-                    <span className="mf-searchbtn-new" aria-label={`${newJobs} new`}>{newJobs}</span>
-                  ) : null}
-                </button>
                 <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={addJob.open}>
                   + {ADD_JOB_LABEL}
                 </button>
@@ -337,7 +326,7 @@ export function CollectionsDesktop({
                 trulyEmpty={trulyEmpty}
                 openId={openId}
                 pulses={pulses}
-                onSearch={() => openRefreshGate()}
+                onSearch={runMyroSearch}
                 onBrowseJobs={() => router.push("/market")}
                 onOpen={(id) => setOpenId(openId === id ? null : id)}
                 onTailor={(id) => router.push(`/cv?jobId=${encodeURIComponent(id)}`)}
@@ -369,6 +358,8 @@ export function CollectionsDesktop({
                         onUnsave={() => unsave(it.jobId)}
                         onTailor={() => router.push(`/cv?jobId=${encodeURIComponent(it.jobId)}`)}
                         onOpenCv={() => router.push("/cv")}
+                        onSnooze={() => snooze(it.jobId)}
+                        onSaveNote={(notes) => saveNote(it.jobId, notes)}
                       />
                     )}
                   />
@@ -395,7 +386,7 @@ export function CollectionsDesktop({
 
             {addJob.modal}
 
-            <MatchRefreshGate token={token} profile={profile} onRun={() => refreshVm.refresh()} />
+            {myroSearchGate}
 
             {savedJobDismissal.notice && typeof document !== "undefined"
               ? createPortal(
@@ -482,6 +473,16 @@ function MyroFoundBody({
           <div className="mf-secthead">
             <span className="mf-secthead-title">Cleared the bar</span>
             <span className="mf-secthead-sub">{found.length} more worth your time</span>
+            <button
+              type="button"
+              className="mf-footer-link"
+              style={{ marginLeft: "auto" }}
+              onClick={onSearch}
+              disabled={isRefreshing}
+            >
+              <Search size={12} aria-hidden style={{ marginRight: 4, verticalAlign: "-1px" }} />
+              {isRefreshing ? "Searching…" : "Search again"}
+            </button>
           </div>
           <VirtualFeed
             items={found}

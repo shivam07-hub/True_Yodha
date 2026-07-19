@@ -15,7 +15,7 @@ import {
   CV_UPLOAD_JOB_EVENT,
   type CVUploadJobEventDetail,
 } from "@/lib/cv-upload-events"
-import { dataKeys } from "@/lib/domain-data"
+import { dataKeys, invalidateCvData } from "@/lib/domain-data"
 
 const RETRY_AFTER_MS = 5_000
 
@@ -39,11 +39,8 @@ export function CVUploadLifecycleObserver({ token }: { token: string }) {
     }
 
     const refreshCVData = () => {
-      void queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
-      void queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
-      void queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
+      invalidateCvData(queryClient)
       void queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
-      void queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
       void queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
     }
 

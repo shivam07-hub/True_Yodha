@@ -1,10 +1,8 @@
 "use client"
 
-import type { UserSkillsByDomain } from "@/lib/api"
 import {
   RADAR_CX,
   RADAR_CY,
-  RADAR_LEVEL_MAX,
   RADAR_R,
   RADAR_SVG_SIZE,
   pointsToPolygonAttr,
@@ -12,24 +10,20 @@ import {
 } from "@/lib/radar-geometry"
 
 export interface DomainRadarProps {
-  userSkills: UserSkillsByDomain
+  /** Persisted domain scores from the canonical scoring engine (0–100). */
+  domainScores: Record<string, number>
   onDomainClick?: (domain: string) => void
   activeDomain?: string | null
 }
 
 // SVG-only radar — right panel is owned by the parent page
-export function DomainRadar({ userSkills, onDomainClick, activeDomain }: DomainRadarProps) {
-  const domains = Object.keys(userSkills.by_domain)
+export function DomainRadar({ domainScores, onDomainClick, activeDomain }: DomainRadarProps) {
+  const domains = Object.keys(domainScores)
   if (domains.length === 0) return null
 
   const scoresByDomain: Record<string, number> = {}
   for (const d of domains) {
-    const items = userSkills.by_domain[d] ?? []
-    if (!items.length) {
-      scoresByDomain[d] = 0
-      continue
-    }
-    scoresByDomain[d] = items.reduce((s, it) => s + it.level, 0) / items.length / RADAR_LEVEL_MAX
+    scoresByDomain[d] = Math.min(1, Math.max(0, (domainScores[d] ?? 0) / 100))
   }
 
   const { spokes, rings, polygon, labels } = radarShape(domains, scoresByDomain)
@@ -92,7 +86,7 @@ export function DomainRadar({ userSkills, onDomainClick, activeDomain }: DomainR
         const pt = polygon[i]
         const isActive = activeDomain === domain
         return (
-          <g key={domain} onClick={() => onDomainClick?.(domain)} style={{ cursor: "pointer" }}>
+          <g key={domain} onClick={() => onDomainClick?.(domain)} style={{ cursor: onDomainClick ? "pointer" : "default" }}>
             <circle cx={pt.x} cy={pt.y} r={isActive ? 7 : 4}
               fill="var(--data-1)"
               opacity={activeDomain && !isActive ? 0.3 : 1}
@@ -113,7 +107,7 @@ export function DomainRadar({ userSkills, onDomainClick, activeDomain }: DomainR
             fontFamily="inherit"
             opacity={activeDomain && !isActive ? 0.4 : 1}
             onClick={() => onDomainClick?.(domain)}
-            style={{ cursor: "pointer", userSelect: "none", transition: "opacity 250ms" }}
+            style={{ cursor: onDomainClick ? "pointer" : "default", userSelect: "none", transition: "opacity 250ms" }}
           >
             <title>{domain}</title>
             {firstWord}

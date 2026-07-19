@@ -39,7 +39,7 @@ import { DEFAULT_TEMPLATE, isCVTemplate, type CVTemplate } from "@/lib/cv/templa
 import { usePlaygroundModel } from "./use-playground-model"
 import { useDismissedFixes } from "./use-dismissed-fixes"
 import type { AppliedFix, V2Fix } from "./fix-model"
-import { dataKeys } from "@/lib/domain-data"
+import { dataKeys, invalidateScoreMapData } from "@/lib/domain-data"
 import type { CVPlaygroundState } from "@/lib/hooks/use-cv-playground"
 import { DetailDrawer } from "@/components/jobs/detail-drawer"
 import { DetailHeader } from "@/components/jobs/detail-header"
@@ -158,8 +158,7 @@ export function PlaygroundView({
   function invalidateCV() {
     queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
     queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
-    queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
-    queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
+    invalidateScoreMapData(queryClient)
     queryClient.invalidateQueries({ queryKey: ["cv-gap-plan", jobId] })
   }
 

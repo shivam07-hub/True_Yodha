@@ -5,12 +5,13 @@ import { useQuery } from "@tanstack/react-query"
 import { scores } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { buildScoreMapHref } from "@/lib/score-map"
 
 /**
  * Quiet Myro Score chip (unified-structure S1, lock #9) — the status the user
  * carries through every stage, always visible in the topbar right cluster. A
  * miniature ring instrument: accent arc over a border track + the mono number.
- * Taps to /market, where the ScoreRing + personal breakdown live.
+ * Taps to the canonical Score & Skills explanation surface.
  *
  * Renders nothing until a real score exists — no fake zero, no locked chrome.
  */
@@ -35,7 +36,7 @@ export function ScoreChip() {
 
   return (
     <Link
-      href="/market"
+      href={buildScoreMapHref({ panel: "why" })}
       className="tm-score-chip"
       title={`Myro Score ${shown} — see what moves it`}
       aria-label={`Myro Score ${shown}`}

@@ -8,6 +8,7 @@ export const dataKeys = {
   onboardingResult: () => ["onboarding", "result"] as const,
   roleReadiness: () => ["onboarding", "role-readiness"] as const,
   scores: () => ["scores"] as const,
+  scoreMap: (token: string | null | undefined) => ["score-map-bootstrap", token ?? ""] as const,
   userSkills: () => ["user-skills"] as const,
   practiceSaves: () => ["practice-saves"] as const,
   skillUpvotes: () => ["skill-upvotes"] as const,
@@ -85,14 +86,21 @@ export const dataKeys = {
 
 export function invalidateScoreData(queryClient: QueryClient): void {
   queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
+  queryClient.invalidateQueries({ queryKey: ["score-map-bootstrap"] })
+}
+
+/** Invalidate the complete Score & Skills read model after evidence changes. */
+export function invalidateScoreMapData(queryClient: QueryClient): void {
+  invalidateScoreData(queryClient)
+  queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
+  queryClient.invalidateQueries({ queryKey: dataKeys.userSkillDemand() })
 }
 
 export function invalidateCvData(queryClient: QueryClient): void {
   queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
   queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
   queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence() })
-  queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
-  invalidateScoreData(queryClient)
+  invalidateScoreMapData(queryClient)
   // A new CV re-scores every job → the market feed + the brain's ranked shortlist
   // are both stale. Invalidate so the next /market visit re-warms and re-ranks.
   queryClient.invalidateQueries({ queryKey: ["jobFeed"] })
@@ -108,9 +116,7 @@ export function invalidateCvData(queryClient: QueryClient): void {
 export function invalidateTargetRoleData(queryClient: QueryClient): void {
   queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
   queryClient.invalidateQueries({ queryKey: dataKeys.roleReadiness() })
-  queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
-  queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
-  queryClient.invalidateQueries({ queryKey: dataKeys.userSkillDemand() })
+  invalidateScoreMapData(queryClient)
   queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
   queryClient.invalidateQueries({ queryKey: dataKeys.applications() })
   queryClient.invalidateQueries({ queryKey: ["jobs-analytics-me"] })

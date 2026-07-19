@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "rea
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { upskilling, users, type DemandBand, type ReadinessRow, type SkillUpvote, type StartGapResponse, type UpskillingSkill } from "@/lib/api"
 import type { PracticeSkills } from "@/lib/practice-skills"
-import { dataKeys } from "@/lib/domain-data"
+import { dataKeys, invalidateScoreMapData } from "@/lib/domain-data"
 import { mentorRewriteHref } from "@/lib/practice-mentor-handoff"
 import { useParticleMoment } from "@/components/particle"
 import { NextSetHero, SkillList } from "./upskilling-home"
@@ -263,8 +263,7 @@ export function UpskillingView({
       if (res.passed) {
         // DEC-1a: a clear bumps the headline level + token balance server-side.
         queryClient.invalidateQueries({ queryKey: UPSKILLING_SKILLS_KEY(token) })
-        queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
-        queryClient.invalidateQueries({ queryKey: dataKeys.scores() })
+        invalidateScoreMapData(queryClient)
       }
     } catch {
       flashToast("Couldn’t grade this set — check your connection and try again.")
@@ -336,7 +335,7 @@ export function UpskillingView({
       setScreen("gap-result")
       // Diagnostic writes assessed levels server-side — refresh the ladder.
       queryClient.invalidateQueries({ queryKey: UPSKILLING_SKILLS_KEY(token) })
-      queryClient.invalidateQueries({ queryKey: dataKeys.userSkills() })
+      invalidateScoreMapData(queryClient)
     } catch {
       flashToast("Couldn’t score the readiness check — try again in a moment.")
     }
