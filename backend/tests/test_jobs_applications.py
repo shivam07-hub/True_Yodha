@@ -94,6 +94,7 @@ def test_submitted_application_cannot_be_removed_from_collections() -> None:
 
     app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="user-123", email=None, token="token-123")
     app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    app.dependency_overrides[get_notifications_repository] = _FakeNotificationsRepository
 
     try:
         with TestClient(app) as client:
