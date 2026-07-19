@@ -5,33 +5,28 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { users } from "@/lib/api"
 import type { FollowedCompany, FollowedCompaniesResponse } from "@/lib/api"
 import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
-import { useXPStore } from "@/store/xpStore"
 
-const COST = MYRO_COINS_POLICY.followCompanyCost
 const LIMIT = MYRO_COINS_POLICY.followedCompanyLimit
-const FLOOR = MYRO_COINS_POLICY.followCompanyFloor
 
-// ── IH2 reasons, single source ───────────────────────────────────────────────
-const REASON_LIMIT = `Heatmap limit ${LIMIT}`
-const REASON_XP = "Not enough tokens"
+// The compare-slot cap is the only follow constraint (following is free).
+const REASON_LIMIT = `All ${LIMIT} compare slots in use`
 
 /**
- * Pure IH2 gate: can this company be *added* right now?
+ * Pure follow gate: can this company be *added* right now?
  * Returns the blocking reason, or null when the follow is allowed.
  * Already-followed returns null (it's not addable, but that's not a *block* to
  * surface — the caller treats it as a no-op / unfollow path).
- * Exported so the cap/floor math is testable without React.
+ * Following is free, so the slot cap is the only gate. Exported so the cap math
+ * is testable without React.
  */
 export function followGateReason(args: {
   name: string
   followedNames: string[]
   count: number
-  balance: number
 }): string | null {
-  const { name, followedNames, count, balance } = args
+  const { name, followedNames, count } = args
   if (followedNames.includes(name)) return null
   if (count >= LIMIT) return REASON_LIMIT
-  if (balance - COST < FLOOR) return REASON_XP
   return null
 }
 
@@ -68,15 +63,14 @@ export interface UseFollowCompany {
  * useFollowCompany — the one deep module for the "follow a target company" act.
  *
  * Owns the whole optimistic contract so no caller can get it half-right:
- *   click → optimistic chip add/remove (instant) → authoritative tokens echo on
- *   success → rollback + error on failure. The heavy heatmap pipeline (per-row
- *   useQueries on /market) is a *separate*, background concern — this hook only
- *   makes the follow act itself instant, which is the point: feedback now,
+ *   click → optimistic chip add/remove (instant) → rollback + error on failure.
+ *   The heavy heatmap pipeline is a *separate*, background concern — this hook
+ *   only makes the follow act itself instant, which is the point: feedback now,
  *   pipeline later.
  *
- * Also owns the IH2 invariant (cost 10 · floor −30 · cap 10) via canFollow /
- * disabledReason, reading the live tokens balance — so cap/floor gating lives in one
- * place instead of being re-derived at each star/chip.
+ * Following is free, so the only invariant is the compare-slot cap (10) via
+ * canFollow / disabledReason — gating lives in one place instead of being
+ * re-derived at each star/chip.
  *
  * Single canonical cache key ["followedCompanies", token]; pass enabled to gate
  * the fetch (e.g. only when a settings tab is open).
@@ -86,7 +80,6 @@ export function useFollowCompany(
   opts: { enabled?: boolean } = {},
 ): UseFollowCompany {
   const queryClient = useQueryClient()
-  const { balance, applyXpChange } = useXPStore()
   const [pending, setPending] = useState<Set<string>>(new Set())
   const [error, setError] = useState<FollowError | null>(null)
 
@@ -135,11 +128,6 @@ export function useFollowCompany(
       })
       return { previous }
     },
-    onSuccess: (result) => {
-      if (result && typeof result.new_coin_balance === "number") {
-        applyXpChange({ newBalance: result.new_coin_balance, action: "follow_company" })
-      }
-    },
     onError: (err, vars, context) => {
       if (context?.previous) queryClient.setQueryData(queryKey, context.previous)
       setError({ name: vars.name, message: err instanceof Error ? err.message : "Could not update." })
@@ -157,28 +145,28 @@ export function useFollowCompany(
   const canFollow = useCallback(
     (name: string) =>
       !followedNames.includes(name) &&
-      followGateReason({ name, followedNames, count, balance }) === null,
-    [followedNames, count, balance],
+      followGateReason({ name, followedNames, count }) === null,
+    [followedNames, count],
   )
 
   const disabledReason = useCallback(
     (name: string): string | undefined =>
-      followGateReason({ name, followedNames, count, balance }) ?? undefined,
-    [followedNames, count, balance],
+      followGateReason({ name, followedNames, count }) ?? undefined,
+    [followedNames, count],
   )
 
   const follow = useCallback(
     (name: string) => {
       if (!token) return
       if (followedNames.includes(name)) return
-      const blocked = followGateReason({ name, followedNames, count, balance })
+      const blocked = followGateReason({ name, followedNames, count })
       if (blocked) {
         setError({ name, message: blocked })
         return
       }
       mutation.mutate({ name, follow: true })
     },
-    [token, followedNames, count, balance, mutation],
+    [token, followedNames, count, mutation],
   )
 
   const unfollow = useCallback(

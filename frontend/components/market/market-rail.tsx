@@ -1,11 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import type { CSSProperties } from "react"
 import type { JobFeedItem, JobPulse } from "@/lib/api"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useMarketIntel, uncertainListings } from "@/lib/hooks/use-market-intel"
 import { formatCount } from "@/lib/format"
+import { CompanySignalRow, CompanyTile } from "@/components/companies/company-signal"
 import {
   companySignalHeading,
   companySignalMeta,
@@ -97,13 +97,14 @@ export function MarketRail(props: MarketRailProps) {
               ))}
             </div>
           </div>
-          <div className="mi-company-list" tabIndex={0} aria-label="Company signals list">
+          <div className="mi-company-list cs-row-list" tabIndex={0} aria-label="Company signals list">
             {trending.map((c) => (
-              <button key={c.name} type="button" className="mi-tco" onClick={() => onSeeRoles(c.name)}>
-                <span className="mi-tco-lg" style={logoBg(c.name)} aria-hidden>{c.name.slice(0, 1)}</span>
-                <span className="mi-tco-nm">{c.name}</span>
-                <span className="mi-tco-ct">{companySignalMeta(c, companyMode)}</span>
-              </button>
+              <CompanySignalRow
+                key={c.name}
+                name={c.name}
+                meta={companySignalMeta(c, companyMode)}
+                onClick={() => onSeeRoles(c.name)}
+              />
             ))}
           </div>
         </div>
@@ -116,7 +117,7 @@ export function MarketRail(props: MarketRailProps) {
           <p className="mi-sub">{uncertain.length} role{uncertain.length === 1 ? "" : "s"} you saw may be gone. A quick vote keeps the feed honest for everyone.</p>
           {uncertain.map(({ job }) => (
             <button key={job.job_id} type="button" className="mi-vrow" onClick={() => onOpenJob(job)}>
-              <span className="mi-tco-lg mi-vlg" style={logoBg(job.company_name)} aria-hidden>{(job.company_name ?? "—").slice(0, 1)}</span>
+              <CompanyTile name={job.company_name ?? "—"} size="s" />
               <span className="mi-vrow-nm">{job.job_title}{job.company_name ? ` · ${job.company_name}` : ""}</span>
               <span className="mi-vchip">may be closed</span>
             </button>
@@ -168,7 +169,7 @@ export function MarketChipStrip(props: MarketRailProps) {
  * Loading shape for the rail's two intel widgets, co-located here so a rail
  * layout change moves it too. Keeps the real headings (so they don't pop in for
  * the common non-empty case) and shimmers the rows over the real `mi-mover` /
- * `mi-tco` classes — content lands in place. Decorative; aria-hidden.
+ * `cs-row` shapes — content lands in place. Decorative; aria-hidden.
  */
 function MarketRailLoading() {
   return (
@@ -185,21 +186,16 @@ function MarketRailLoading() {
       </div>
       <div className="mi-widget" aria-hidden="true">
         <h4 className="mi-h4">{companySignalHeading()}</h4>
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="mi-tco">
-            <Skeleton style={{ width: 30, height: 30, borderRadius: 8, flex: "0 0 auto" }} />
-            <Skeleton style={{ flex: 1, height: 14, borderRadius: 4, maxWidth: `${62 - i * 6}%` }} />
-            <Skeleton style={{ width: 44, height: 12, borderRadius: 4, flexShrink: 0 }} />
-          </div>
-        ))}
+        <div className="cs-row-list">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="cs-row">
+              <Skeleton style={{ width: 26, height: 26, borderRadius: 7, flex: "0 0 auto" }} />
+              <Skeleton style={{ flex: 1, height: 14, borderRadius: 4, maxWidth: `${62 - i * 6}%` }} />
+              <Skeleton style={{ width: 44, height: 12, borderRadius: 4, flexShrink: 0 }} />
+            </div>
+          ))}
+        </div>
       </div>
     </>
   )
-}
-
-function logoBg(company: string | null): CSSProperties {
-  if (!company) return {}
-  let h = 0
-  for (let i = 0; i < company.length; i++) h = (h * 31 + company.charCodeAt(i)) % 360
-  return { background: `hsl(${h} 52% 42%)`, color: "#fff" }
 }

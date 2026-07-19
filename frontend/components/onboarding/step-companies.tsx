@@ -14,7 +14,6 @@ import {
   shouldSearchCompanies,
 } from "@/lib/onboarding-company-selection"
 import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
-import { useXPStore } from "@/store/xpStore"
 import "./step-companies.css"
 import "./step-companies.states.css"
 
@@ -39,7 +38,6 @@ function statusLabel(status: CVAnalysisStatus): string {
 
 export function StepCompanies({ token, cvStatus, cvError, finishing, onBack, onRestartCV, onNext }: Props) {
   const queryClient = useQueryClient()
-  const applyXpChange = useXPStore((s) => s.applyXpChange)
   const [input, setInput] = useState("")
   const [debouncedInput, setDebouncedInput] = useState("")
   const [selected, setSelected] = useState<string[]>([])
@@ -93,10 +91,7 @@ export function StepCompanies({ token, cvStatus, cvError, finishing, onBack, onR
     addPending(name)
     setSelected((prev) => prependCompany(prev, name, MYRO_COINS_POLICY.followedCompanyLimit))
     try {
-      const result = await users.followCompany(token, name)
-      if (typeof result.new_coin_balance === "number") {
-        applyXpChange({ newBalance: result.new_coin_balance, action: "follow_company" })
-      }
+      await users.followCompany(token, name)
       setInput("")
       queryClient.invalidateQueries({ queryKey: ["followedCompanies"] })
     } catch (err) {
@@ -245,7 +240,7 @@ export function StepCompanies({ token, cvStatus, cvError, finishing, onBack, onR
       {error ? <p className="tm-company-error" role="alert">{error}</p> : null}
 
       <div className="tm-company-footer">
-        <span>Following costs {MYRO_COINS_POLICY.followCompanyCost} Myro Coins per company.</span>
+        <span>Following is free — up to {MYRO_COINS_POLICY.followedCompanyLimit} companies.</span>
         <button type="button" onClick={onNext} disabled={finishing || cvStatus === "failed"}>
           {finishing ? "Finishing analysis" : selected.length > 0 ? "Continue" : "Skip"}
           {finishing ? <Loader2 size={15} className="tm-company-spin" aria-hidden="true" /> : <ArrowRight size={15} aria-hidden="true" />}

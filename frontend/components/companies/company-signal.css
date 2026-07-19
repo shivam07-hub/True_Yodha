@@ -1,0 +1,124 @@
+/* Company Signal unit — the shared visual language for every company treatment
+ * (Signal Thread, handoff 1b). All color rides the accent token so the unit
+ * brands teal in dark / orange in light (L6). */
+
+/* ── Logo tile ─────────────────────────────────────────────────────────── */
+.cs-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--tm-accent-wash);
+  color: var(--tm-accent-text);
+  font-family: var(--tm-font-mono);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+/* ── Signal label (pulsing dot + mono-caps) ────────────────────────────── */
+.cs-signal-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--tm-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+.cs-signal-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tm-accent);
+  flex-shrink: 0;
+}
+.cs-signal-dot.is-live {
+  animation: cs-sig-pulse 2.4s ease-in-out infinite;
+}
+@keyframes cs-sig-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--tm-accent) 45%, transparent); }
+  50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--tm-accent) 0%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cs-signal-dot.is-live { animation: none; }
+}
+
+/* ── S-size list row ───────────────────────────────────────────────────── */
+/* Vertical padding only — the container owns the horizontal inset. Divider look
+ * (handoff S-spec) comes from wrapping the rows in .cs-row-list. */
+.cs-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 0;
+  border: none;
+  background: transparent;
+  color: var(--tm-text);
+  font-family: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.cs-row:is(div) { cursor: default; }
+.cs-row-list > .cs-row:not(:last-child) {
+  border-bottom: 1px solid var(--tm-border-soft);
+}
+.cs-row-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 120ms var(--tm-ease, ease);
+}
+.cs-row:hover .cs-row-name { color: var(--tm-accent-text); }
+.cs-row-star { color: var(--tm-accent); font-size: 11px; }
+.cs-row-meta {
+  flex-shrink: 0;
+  font-family: var(--tm-font-mono);
+  font-size: 11px;
+  color: var(--tm-text-faint);
+}
+
+/* ── M-size chip ───────────────────────────────────────────────────────── */
+.cs-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 5px;
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius-pill);
+  background: var(--tm-surface);
+  color: var(--tm-text);
+  font-family: inherit;
+  font-size: 12.5px;
+  text-decoration: none;
+  cursor: pointer;
+  max-width: 100%;
+}
+.cs-chip:is(span) { cursor: default; }
+.cs-chip:hover:not(:is(span)) { border-color: var(--tm-accent-ring); }
+.cs-chip-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.cs-chip-star { color: var(--tm-accent); font-size: 11px; flex-shrink: 0; }
+.cs-chip-meta {
+  flex-shrink: 0;
+  font-family: var(--tm-font-mono);
+  font-size: 10.5px;
+  color: var(--tm-text-faint);
+}

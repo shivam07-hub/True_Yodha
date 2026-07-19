@@ -7,7 +7,7 @@ import { trackEvent } from "@/lib/analytics"
 interface UseXPGateParams {
   /** Cost in XP for the gated action. */
   cost: number
-  /** Stable string identifying the action (e.g. "follow_company", "polish_skill"). Used for telemetry. */
+  /** Stable string identifying the action (e.g. "analyse_job", "match_refresh"). Used for telemetry. */
   action: string
   /** Optional XP floor — balance after spend must stay >= floor. Default 0. */
   floor?: number
@@ -25,15 +25,15 @@ interface XPGateResult {
  *
  * Decision context: Ousterhout audit 2026-05-23 flagged XPStore as a
  * shallow module — interface is a number, policy lives in every caller.
- * Five sites (follow company, polish skill, CV upload, job analysis,
- * match refresh) each re-implemented "do I have enough?", insufficient-
- * funds copy, and disabled state.
+ * Paid sites (polish skill, CV upload, job analysis, match refresh) each
+ * re-implemented "do I have enough?", insufficient-funds copy, and disabled
+ * state. (Following a company is free as of 2026-07-19 — no longer gated.)
  *
  * This hook is the deep-module read API; the heavy lifting (modal,
  * telemetry, future earn-path routing) lives behind it. Callers do:
  *
- *     const gate = useCoinsGate({ cost: 10, action: "follow_company" })
- *     <button disabled={!gate.canAfford} onClick={() => gate.attempt(() => follow())}>
+ *     const gate = useCoinsGate({ cost: 10, action: "analyse_job" })
+ *     <button disabled={!gate.canAfford} onClick={() => gate.attempt(() => analyse())}>
  */
 export function useCoinsGate({ cost, action, floor = 0 }: UseXPGateParams): XPGateResult {
   const balance = useXPStore((s) => s.balance)

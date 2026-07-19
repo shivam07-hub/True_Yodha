@@ -1,5 +1,6 @@
 import { saveImport, previewImport, reachSearch } from "./api.js"
 import { extractFromDocument } from "./extractors.js"
+import { enrichMopidPortalDraft } from "./mopid-portal.js"
 import { documentFromSnapshot, getActiveSnapshot, previewSkillSuggestions } from "./popup-capture.js"
 import { renderSkills } from "./skill-chips.js"
 import { buildSkillExtractionText, mergeSkillSuggestions } from "./skill-review.js"
@@ -153,7 +154,8 @@ function renderFitHook(preview) {
 // front-screen "Find people to reach" (both start from the current page).
 async function captureDraft() {
   const snapshot = await getActiveSnapshot(browserPreview)
-  return extractFromDocument(documentFromSnapshot(snapshot), snapshot.url, snapshot.selectedText)
+  const draft = extractFromDocument(documentFromSnapshot(snapshot), snapshot.url, snapshot.selectedText)
+  return enrichMopidPortalDraft(draft)
 }
 
 async function trackCurrentJob() {
@@ -163,7 +165,7 @@ async function trackCurrentJob() {
     const draft = await captureDraft()
     if (!draft.jobDescription || draft.jobDescription.length < 80) {
       setStatus("Needs selection")
-      throw new Error("Select the job description on the page and click Track this job again.")
+      throw new Error("Select the job description on the page and click Save this job again.")
     }
 
     let preview

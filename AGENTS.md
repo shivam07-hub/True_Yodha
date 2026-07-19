@@ -306,7 +306,20 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-18 - Beta feedback UX trust loop)
+## LAST SESSION SUMMARY (2026-07-19 - Feedback prompt copy correction)
+
+Removed the Internshala disclaimer from the optional feedback form. The prompt
+now leads directly into the form rather than introducing a concern that could
+make applicants second-guess their participation.
+
+- Updated the feedback form contract to explicitly prevent this guideline or
+  product-testing wording from returning.
+- Commit: `056dc640` — `fix(feedback): remove Internshala disclaimer`
+- Validation: beta feedback contract suite (8 passed), backend suite (1471
+  passed), and frontend lint passed. Full TypeScript remains blocked only by
+  unrelated in-progress Follow Company errors.
+
+## OLDER SESSION SUMMARY (2026-07-18 - Beta feedback UX trust loop)
 
 Implemented the three locked fixes from the Rishabh Sahu and Kashish Deopura
 feedback analysis without fabricating application or CV state.

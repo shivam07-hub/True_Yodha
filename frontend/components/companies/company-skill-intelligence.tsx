@@ -1,4 +1,5 @@
 import type { CompanySkillIntelligence } from "@/lib/api"
+import { SignalLabel } from "@/components/companies/company-signal"
 
 
 const TREND_LABEL = {
@@ -25,9 +26,9 @@ export function CompanySkillIntelligenceCard({
     >
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="mb-1 text-xs font-semibold uppercase text-[var(--tm-interactive)]">
-            Company skill intelligence
-          </p>
+          <div className="mb-1.5">
+            <SignalLabel>Company skill intelligence</SignalLabel>
+          </div>
           <h2
             id="company-skill-intelligence-title"
             className="text-balance text-lg font-semibold text-[var(--tm-text)]"

@@ -270,8 +270,7 @@
   padding: 2px 7px; border-radius: 99px;
 }
 .mc-peek-reward svg { width: 11px; height: 11px; }
-.mc-peek-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
-.mc-peek-chip { font-size: 12px; padding: 3px 9px; border-radius: 99px; border: 1px solid var(--tm-border); color: var(--tm-text-muted); }
+.mc-peek-chips { margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .mc-peek-intel { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--tm-text-muted); }
 .mc-peek-intel strong { color: var(--tm-text); font-weight: 650; }
 .mc-peek-intel-meta { color: var(--tm-text-faint); }

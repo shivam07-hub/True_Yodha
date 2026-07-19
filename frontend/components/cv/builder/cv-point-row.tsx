@@ -140,33 +140,35 @@ export function CVPointRow({
           />
         ) : (
           <>
-            <div className="cvb-v2-textrow">
-              <div className={`cvb-pgc-text${mono ? " mono" : ""}`}>
-                {text}
-                {hits.length > 0 && <span className="cvb-pgc-tag">✓ {hits.length} matched</span>}
-              </div>
-              {fixPill && (
-                <button
-                  type="button"
-                  className="cvb-v2-bulletpill mono"
-                  onClick={e => { e.stopPropagation(); fixPill.onClick() }}
-                  title="Open this fix"
-                >{fixPill.label}</button>
-              )}
-              {appliedMark && <span className="cvb-v2-bulletdone mono">{appliedMark}</span>}
+            <div className={`cvb-pgc-text${mono ? " mono" : ""}`}>
+              {text}
+              {hits.length > 0 && <span className="cvb-pgc-tag">✓ {hits.length} matched</span>}
             </div>
-            {hasDetails && (
-              <button
-                type="button"
-                className={`cvb-pgc-detailtoggle${flagged ? " flagged" : ""}`}
-                onClick={() => setShowDetails(v => !v)}
-                aria-expanded={showDetails}
-              >
-                {flagged
-                  ? `${flags.length} to fix`
-                  : showDetails ? "Hide ATS skills" : "ATS skills"}
-                <span className="cvb-pgc-detailcaret" aria-hidden>{showDetails ? "▾" : "▸"}</span>
-              </button>
+            {(fixPill || appliedMark || hasDetails) && (
+              <div className="cvb-v2-metarow">
+                {fixPill && (
+                  <button
+                    type="button"
+                    className="cvb-v2-bulletpill mono"
+                    onClick={e => { e.stopPropagation(); fixPill.onClick() }}
+                    title="Open this fix"
+                  >{fixPill.label}</button>
+                )}
+                {appliedMark && <span className="cvb-v2-bulletdone mono">{appliedMark}</span>}
+                {hasDetails && (
+                  <button
+                    type="button"
+                    className={`cvb-pgc-detailtoggle${flagged ? " flagged" : ""}`}
+                    onClick={() => setShowDetails(v => !v)}
+                    aria-expanded={showDetails}
+                  >
+                    {flagged
+                      ? `${flags.length} to fix`
+                      : showDetails ? "Hide ATS skills" : "ATS skills"}
+                    <span className="cvb-pgc-detailcaret" aria-hidden>{showDetails ? "▾" : "▸"}</span>
+                  </button>
+                )}
+              </div>
             )}
             {showDetails && flagged && (
               <div className="cvb-pgc-flags">

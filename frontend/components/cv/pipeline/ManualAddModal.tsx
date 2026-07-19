@@ -156,7 +156,7 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
               {step === 1 ? ADD_JOB_LABEL : "Confirm skills"}
             </div>
             <div style={{ fontSize: 18, fontWeight: 600, color: "var(--tm-text)", marginTop: 4 }}>
-              {step === 1 ? "Track a job from anywhere" : `${company || "Company"} — ${role}`}
+              {step === 1 ? "Save a job from anywhere" : `${company || "Company"} — ${role}`}
             </div>
           </div>
           <CloseButton onClick={onClose} />

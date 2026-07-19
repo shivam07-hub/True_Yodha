@@ -9,10 +9,9 @@ import { dataKeys } from "@/lib/domain-data"
 import { pickRelatedCompanies } from "@/lib/companies/related"
 import { formatCount } from "@/lib/format"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { useCoinsGate } from "@/lib/hooks/use-xp-gate"
 import { useViewport } from "@/mobile"
-import { useXPStore } from "@/store/xpStore"
 import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
+import { CompanyTile, SignalLabel } from "@/components/companies/company-signal"
 
 const MAX_FOLLOWED = MYRO_COINS_POLICY.followedCompanyLimit
 
@@ -36,12 +35,6 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
   const { token } = useAuth()
   const queryClient = useQueryClient()
   const { isDesktop } = useViewport()
-  const applyXpChange = useXPStore(s => s.applyXpChange)
-  const gate = useCoinsGate({
-    cost: MYRO_COINS_POLICY.followCompanyCost,
-    action: "follow_company",
-    floor: MYRO_COINS_POLICY.followCompanyFloor,
-  })
   const [dragOffset, setDragOffset] = useState(0)
   const dragStart = useRef<number | null>(null)
 
@@ -93,10 +86,7 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
 
   const followMutation = useMutation({
     mutationFn: () => users.followCompany(token!, company),
-    onSuccess: (data) => {
-      if (typeof data.new_coin_balance === "number") applyXpChange({ newBalance: data.new_coin_balance, action: "follow_company" })
-      queryClient.invalidateQueries({ queryKey: ["followedCompanies"] })
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["followedCompanies"] }),
   })
 
   const unfollowMutation = useMutation({
@@ -169,13 +159,16 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
 
         {/* Header */}
         <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--tm-border-soft)", flexShrink: 0 }}>
-          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 4 }}>
-            Company
+          <div style={{ marginBottom: 8 }}>
+            <SignalLabel>Company signal</SignalLabel>
           </div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-            <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--tm-text)", letterSpacing: "-0.02em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
-              {company}
-            </h2>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+              <CompanyTile name={company} size="xl" />
+              <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--tm-text)", letterSpacing: "-0.02em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+                {company}
+              </h2>
+            </div>
             <button
               type="button"
               onClick={onClose}
@@ -209,12 +202,10 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
 
         {/* Body */}
         <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "16px 20px" }}>
-          {/* Follow toggle */}
+          {/* Follow toggle — following is free; the slot cap is the only limit */}
           <button
             type="button"
-            onClick={() => isFollowed
-              ? unfollowMutation.mutate()
-              : gate.attempt(() => followMutation.mutate())}
+            onClick={() => isFollowed ? unfollowMutation.mutate() : followMutation.mutate()}
             disabled={atCap || followMutation.isPending || unfollowMutation.isPending}
             style={{
               width: "100%", padding: "12px 16px", borderRadius: "var(--tm-radius-sm)",
@@ -225,9 +216,9 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
               opacity: atCap ? 0.55 : 1,
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
             }}
-            title={atCap ? `Cap: ${MAX_FOLLOWED} companies` : ""}
+            title={atCap ? `All ${MAX_FOLLOWED} compare slots in use` : ""}
           >
-            {isFollowed ? "★ Following" : `☆ Follow · -${MYRO_COINS_POLICY.followCompanyCost} Myro Coins`}
+            {isFollowed ? "★ Following" : "☆ Follow"}
           </button>
 
           {/* Saved jobs section */}

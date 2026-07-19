@@ -770,7 +770,7 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                     <div>
                       <div style={ROW_LABEL}>Target Companies</div>
                       <div style={ROW_DESC}>
-                        Companies whose jobs you track in Market · -{MYRO_COINS_POLICY.followCompanyCost} Myro Coins each
+                        Companies you follow to compare their hiring against your CV · free
                       </div>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0, marginLeft: 12 }}>
@@ -824,9 +824,6 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                           >
                             <CompanyAvatar name={name} />
                             <span style={{ flex: 1 }}>{name}</span>
-                            <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, color: "var(--tm-interactive)", whiteSpace: "nowrap" }}>
-                              -{MYRO_COINS_POLICY.followCompanyCost} Myro Coins
-                            </span>
                           </button>
                         ))}
                       </div>
@@ -860,7 +857,7 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "32px 0", textAlign: "center" }}>
                     <div style={{ fontSize: 28, opacity: 0.2, color: "var(--tm-interactive)" }}>★</div>
                     <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>
-                      No companies followed yet. Following costs {MYRO_COINS_POLICY.followCompanyCost} Myro Coins.
+                      No companies followed yet. Following is free.
                     </div>
                   </div>
                 ) : (
