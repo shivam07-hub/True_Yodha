@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Four Indian metros hire for four different skill sets, July 2026</title>
+  <desc id="desc">Myro newsletter image: Bengaluru builds, Hyderabad ships, Mumbai banks, Delhi sells AI — active postings by metro in the second week of July 2026.</desc>
+  <rect width="1200" height="630" fill="#fbfaf7"/>
+  <rect x="52" y="50" width="1096" height="530" rx="28" fill="#ffffff" stroke="#e7e0d4" stroke-width="2"/>
+  <rect x="52" y="50" width="1096" height="120" rx="28" fill="#0f172a"/>
+  <rect x="52" y="132" width="1096" height="38" fill="#0f172a"/>
+  <text x="92" y="112" fill="#f8fafc" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="700">Myro &#183; Hiring Heatmap</text>
+  <text x="92" y="148" fill="#fbbf24" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="600">Metro skill map &#183; July 2026</text>
+
+  <text x="92" y="242" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="50" font-weight="800">One country, four job markets</text>
+  <text x="92" y="296" fill="#374151" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="600">Your city is quietly picking your skills</text>
+
+  <g font-family="Inter, Arial, sans-serif">
+    <rect x="92" y="338" width="240" height="92" rx="18" fill="#eff6ff" stroke="#bfdbfe"/>
+    <text x="112" y="372" fill="#1d4ed8" font-size="24" font-weight="800">Bengaluru builds</text>
+    <text x="112" y="404" fill="#334155" font-size="20">10,426 &#183; AI, CI/CD</text>
+
+    <rect x="352" y="338" width="240" height="92" rx="18" fill="#f0fdf4" stroke="#bbf7d0"/>
+    <text x="372" y="372" fill="#166534" font-size="24" font-weight="800">Hyderabad ships</text>
+    <text x="372" y="404" fill="#334155" font-size="20">3,409 &#183; QA, delivery</text>
+
+    <rect x="612" y="338" width="240" height="92" rx="18" fill="#fff7ed" stroke="#fed7aa"/>
+    <text x="632" y="372" fill="#9a3412" font-size="24" font-weight="800">Mumbai banks</text>
+    <text x="632" y="404" fill="#334155" font-size="20">3,103 &#183; banking, risk</text>
+
+    <rect x="872" y="338" width="226" height="92" rx="18" fill="#f5f3ff" stroke="#ddd6fe"/>
+    <text x="892" y="372" fill="#6d28d9" font-size="24" font-weight="800">Delhi sells AI</text>
+    <text x="892" y="404" fill="#334155" font-size="20">2,811 &#183; Agentic AI</text>
+  </g>
+
+  <text x="92" y="492" fill="#4b5563" font-family="Inter, Arial, sans-serif" font-size="23">AI now travels to every metro — the one skill you can build anywhere.</text>
+
+  <line x1="830" y1="522" x2="1098" y2="522" stroke="#e5e7eb" stroke-width="2"/>
+  <text x="830" y="552" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="800">himyro.com/newsletter</text>
+</svg>

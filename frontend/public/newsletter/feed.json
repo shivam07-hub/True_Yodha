@@ -12,6 +12,18 @@
   ],
   "items": [
     {
+      "id": "https://www.himyro.com/newsletter/2026-07-metro-skills-map",
+      "url": "https://www.himyro.com/newsletter/2026-07-metro-skills-map",
+      "title": "Bengaluru Builds, Mumbai Banks, Hyderabad Ships. Your City Is Quietly Picking Your Skills.",
+      "summary": "Same country, four different job markets. In the second week of July 2026, Bengaluru's postings ask for AI and platform engineering, Mumbai's for banking and regulation, Hyderabad's for delivery and QA, and Delhi's for AI consulting. Where you live is quietly choosing your skills — and AI is the one that travels everywhere.",
+      "date_published": "2026-07-17T07:00:00.000Z",
+      "authors": [
+        {
+          "name": "Shivam Pathak"
+        }
+      ]
+    },
+    {
       "id": "https://www.himyro.com/newsletter/2026-07-agentic-ai-job-descriptions",
       "url": "https://www.himyro.com/newsletter/2026-07-agentic-ai-job-descriptions",
       "title": "Agentic AI Hit 843 Job Posts in the Second Week of July 2026. We Checked What's Real.",
