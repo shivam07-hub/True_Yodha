@@ -2,9 +2,8 @@ export const MYRO_COINS_POLICY = {
   welcomeBaseline: 3000,
   linkedInProfile: 50,
   diaryEntry: 30,
-  followCompanyCost: 10,
+  // Following a company is FREE — the 10 compare-slot cap is the only limit.
   followedCompanyLimit: 10,
-  followCompanyFloor: -30,
   analyseJobCost: 10,
   // Myro Search — flat, every run (no free-if-new tier). Mirrors the backend
   // MATCH_RUN_COST=100. Charged on confirm; refund only on system failure.
@@ -63,11 +62,6 @@ export const XP_SPEND_ACTIONS = [
     title: "Analyse a job",
     detail: "Run the skill gap and explanation for a saved job.",
     amount: `-${MYRO_COINS_POLICY.analyseJobCost} Myro Coins`,
-  },
-  {
-    title: "Follow a target company",
-    detail: `Track up to ${MYRO_COINS_POLICY.followedCompanyLimit} companies. Following can use the ${MYRO_COINS_POLICY.followCompanyFloor} Myro Coin floor.`,
-    amount: `-${MYRO_COINS_POLICY.followCompanyCost} Myro Coins`,
   },
   {
     title: "Myro Search",

@@ -16,18 +16,14 @@ from app.schemas import (
     UserProfileResponse,
     UserSkillsByDomainResponse,
 )
-from app.services.xp_policy import (
-    FOLLOW_COMPANY_XP_COST,
-    FOLLOW_COMPANY_XP_FLOOR,
-    FOLLOWED_COMPANY_LIMIT,
-)
+from app.services.xp_policy import FOLLOWED_COMPANY_LIMIT
 from app.services import onboarding_service
 from app.services.job_eligibility import (
     career_band_for_profile,
     explored_bands_for_profile,
     target_seniority_for_profile,
 )
-from app.services.xp_service import grant_linkedin_profile_xp, spend_xp_to_floor
+from app.services.xp_service import grant_linkedin_profile_xp
 from app.services.taxonomy_loader import lookup_by_name
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -160,7 +156,6 @@ def get_followed_companies(
     return FollowedCompaniesResponse(companies=rows, total=len(rows))
 
 
-_FOLLOW_XP_COST = FOLLOW_COMPANY_XP_COST
 _MAX_FOLLOWED = FOLLOWED_COMPANY_LIMIT
 
 
@@ -169,11 +164,14 @@ def _company_key(name: str) -> str:
 
 
 @router.post("/me/following/companies", status_code=status.HTTP_201_CREATED)
-async def follow_company(
+def follow_company(
     body: FollowCompanyRequest,
     principal: Principal = Depends(get_principal),
     users_repo: UsersRepository = Depends(get_token_users_repository),
 ) -> dict:
+    # Following is FREE — the compare-slot cap (FOLLOWED_COMPANY_LIMIT) is the
+    # only constraint. `new_coin_balance` stays in the response (always None now)
+    # so the client contract is unchanged; the number just never moves.
     name = body.company_name.strip()
     if not name:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="company_name required.")
@@ -188,17 +186,11 @@ async def follow_company(
     if len(existing) >= _MAX_FOLLOWED:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Follow limit reached — max {_MAX_FOLLOWED} companies.",
+            detail=f"Slot limit reached — max {_MAX_FOLLOWED} companies.",
         )
 
-    new_balance = await spend_xp_to_floor(
-        principal.id,
-        _FOLLOW_XP_COST,
-        "follow_company",
-        floor=FOLLOW_COMPANY_XP_FLOOR,
-    )
     users_repo.follow_company(principal.id, name)
-    return {"company_name": name, "new_coin_balance": new_balance}
+    return {"company_name": name, "new_coin_balance": None}
 
 
 @router.delete("/me/following/companies/{company_name}", status_code=status.HTTP_204_NO_CONTENT)

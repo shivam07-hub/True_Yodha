@@ -26,8 +26,9 @@ REWRITE_BULLET_XP_COST = 0
 RESTRUCTURE_CV_XP_COST = 20
 RESTRUCTURE_CV_XP_FLOOR = 0
 
-FOLLOW_COMPANY_XP_COST = 10
-FOLLOW_COMPANY_XP_FLOOR = -30
+# Following a company is FREE — the compare-slot cap is the only constraint.
+# (The old FOLLOW_COMPANY_XP_COST/FLOOR were retired 2026-07-19; following no
+# longer spends coins.)
 FOLLOWED_COMPANY_LIMIT = 10
 
 # Per-job Reach Pack (backlog #35, ADR-0018): the automated full reach plan —

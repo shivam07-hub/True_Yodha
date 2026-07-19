@@ -260,16 +260,12 @@ def test_get_my_skills_groups_repository_records(monkeypatch) -> None:
     assert body["by_cluster"]["Databases"][0]["forged_level_up_available"] is True
 
 
-def test_follow_company_case_insensitive_duplicate_does_not_spend_xp(monkeypatch) -> None:
+def test_follow_company_case_insensitive_duplicate_is_a_noop() -> None:
     repo = _FakeUsersRepository()
     repo.followed_companies = [
         {"company_name": "Google", "created_at": datetime.now(timezone.utc)},
     ]
 
-    async def _spend(*_args: Any, **_kwargs: Any) -> int:  # pragma: no cover
-        raise AssertionError("Duplicate follows should not spend XP")
-
-    monkeypatch.setattr(users, "spend_xp_to_floor", _spend)
     app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
     app.dependency_overrides[users.get_token_users_repository] = lambda: repo
 
@@ -281,4 +277,44 @@ def test_follow_company_case_insensitive_duplicate_does_not_spend_xp(monkeypatch
 
     assert response.status_code == 201
     assert response.json() == {"company_name": "Google", "new_coin_balance": None}
+    assert repo.followed_writes == []
+
+
+def test_follow_company_is_free() -> None:
+    # Following spends no coins (2026-07-19): a fresh follow writes the row and
+    # returns a null balance — the number never moves.
+    repo = _FakeUsersRepository()
+
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
+    app.dependency_overrides[users.get_token_users_repository] = lambda: repo
+
+    try:
+        with TestClient(app) as client:
+            response = client.post("/users/me/following/companies", json={"company_name": "Acme"})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 201
+    assert response.json() == {"company_name": "Acme", "new_coin_balance": None}
+    assert repo.followed_writes == [("u1", "Acme")]
+
+
+def test_follow_company_blocks_at_slot_cap() -> None:
+    repo = _FakeUsersRepository()
+    repo.followed_companies = [
+        {"company_name": f"Co{i}", "created_at": datetime.now(timezone.utc)}
+        for i in range(users.FOLLOWED_COMPANY_LIMIT)
+    ]
+
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
+    app.dependency_overrides[users.get_token_users_repository] = lambda: repo
+
+    try:
+        with TestClient(app) as client:
+            response = client.post("/users/me/following/companies", json={"company_name": "OneMore"})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 400
+    assert "Slot limit reached" in response.json()["detail"]
     assert repo.followed_writes == []

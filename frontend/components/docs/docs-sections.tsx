@@ -157,7 +157,7 @@ export function MatchingSection() {
 // ── Section 5: Myro Coins ─────────────────────────────────────────────────────────
 
 const EARN_ROWS = [["Welcome bonus", "+3,000 Myro Coins"], ["Clear an upskilling set", "+20–50 Myro Coins"], ["Daily diary entry", "+30 Myro Coins"]]
-const SPEND_ROWS = [["Refresh your job matches", "150 Myro Coins"], ["Follow a company on the heatmap", "10 Myro Coins"]]
+const SPEND_ROWS = [["Refresh your job matches", "150 Myro Coins"]]
 
 export function XPSection() {
   return (
