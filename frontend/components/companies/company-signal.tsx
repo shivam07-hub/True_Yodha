@@ -105,6 +105,111 @@ export function CompanySignalRow({ name, meta, followed, href, onClick, size = "
   return <div className="cs-row">{inner}</div>
 }
 
+/**
+ * Tiny token-correct sparkline for the L card — accent polyline + endpoint dot.
+ * Flat/degenerate series (all-equal) draws a midline so it never disappears.
+ */
+export function Signalline({ data, width = 96, height = 30 }: { data: number[]; width?: number; height?: number }) {
+  if (data.length < 2) return null
+  const max = Math.max(...data)
+  const min = Math.min(...data)
+  const span = max - min || 1
+  const px = (i: number) => (i / (data.length - 1)) * (width - 4) + 2
+  const py = (v: number) => height - 3 - ((v - min) / span) * (height - 8)
+  const pts = data.map((v, i) => `${px(i)},${py(v)}`).join(" ")
+  const lastX = px(data.length - 1)
+  const lastY = py(data[data.length - 1])
+  return (
+    <svg className="cs-spark" width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden>
+      <polyline points={pts} fill="none" stroke="var(--tm-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={lastX} cy={lastY} r="2.4" fill="var(--tm-accent)" />
+    </svg>
+  )
+}
+
+/** Real pulse payload shape (mirrors CompanyPulseItem from the API). */
+export interface CompanyPulseData {
+  open_roles: number
+  weekly_delta: number
+  pulse: number | null
+  series: number[]
+  last_seen_at?: string | null
+}
+
+interface CardProps {
+  name: string
+  /** undefined = still loading; a value with pulse===null = live but no signal. */
+  pulse?: CompanyPulseData
+  topSkill?: string | null
+  followed?: boolean
+  /** Highest-pulse card in a set → accent-ring border. */
+  highlight?: boolean
+  href?: string
+  onToggleFollow?: () => void
+}
+
+/**
+ * L-size compare card (handoff 1a compare strip / 1d directory). Header (tile +
+ * name + open/top sub-line + follow star) → pulse number + sparkline + weekly
+ * delta. Honest states: no data yet → "…"; live but pulse===null (no open
+ * roles) → em-dash "no live roles"; a real pulse → the number. Never fabricates.
+ */
+export function CompanySignalCard({ name, pulse, topSkill, followed, highlight, href, onToggleFollow }: CardProps) {
+  const loading = pulse === undefined
+  const noSignal = !loading && pulse.pulse === null
+  const subParts: string[] = []
+  if (!loading) subParts.push(`${pulse.open_roles} open role${pulse.open_roles === 1 ? "" : "s"}`)
+  if (topSkill) subParts.push(`top: ${topSkill}`)
+
+  const body = (
+    <>
+      <div className="cs-card-head">
+        <CompanyTile name={name} size="l" />
+        <div className="cs-card-id">
+          <span className="cs-card-name">{name}</span>
+          {subParts.length ? <span className="cs-card-sub">{subParts.join(" · ")}</span> : null}
+        </div>
+        {onToggleFollow ? (
+          <button
+            type="button"
+            className={`cs-card-star${followed ? " is-on" : ""}`}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleFollow() }}
+            aria-label={followed ? `Unfollow ${name}` : `Follow ${name}`}
+            aria-pressed={followed}
+          >
+            {followed ? "★" : "☆"}
+          </button>
+        ) : followed ? (
+          <span className="cs-card-star is-on" aria-label="Following">★</span>
+        ) : null}
+      </div>
+
+      <div className="cs-card-metric">
+        <div className="cs-card-pulse">
+          <span className="cs-card-pulse-num">{loading ? "…" : noSignal ? "—" : pulse.pulse}</span>
+          <span className="cs-card-pulse-label">Demand pulse</span>
+        </div>
+        {!loading && !noSignal ? (
+          <div className="cs-card-trend">
+            <Signalline data={pulse.series} />
+            {pulse.weekly_delta > 0 ? (
+              <span className="cs-card-delta">▲ {pulse.weekly_delta} this week</span>
+            ) : (
+              <span className="cs-card-delta is-flat">no new roles</span>
+            )}
+          </div>
+        ) : noSignal ? (
+          <span className="cs-card-quiet">no live roles</span>
+        ) : null}
+      </div>
+    </>
+  )
+
+  const className = `cs-card${highlight ? " is-top" : ""}`
+  if (href) return <Link href={href} className={className}>{body}</Link>
+  return <div className={className}>{body}</div>
+}
+
 interface ChipProps {
   name: string
   meta?: ReactNode

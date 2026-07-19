@@ -90,6 +90,54 @@
   color: var(--tm-text-faint);
 }
 
+/* ── L-size compare card ───────────────────────────────────────────────── */
+.cs-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius);
+  background: var(--tm-surface-2);
+  box-shadow: var(--tm-shadow-1, none);
+  text-decoration: none;
+  color: var(--tm-text);
+}
+a.cs-card:hover { border-color: var(--tm-accent-ring); }
+.cs-card.is-top { border-color: var(--tm-accent-ring); }
+.cs-card-head { display: flex; align-items: center; gap: 10px; }
+.cs-card-id { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cs-card-name {
+  font-size: 14px; font-weight: 650; color: var(--tm-text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cs-card-sub {
+  font-family: var(--tm-font-mono); font-size: 10.5px; color: var(--tm-text-faint);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cs-card-star {
+  flex-shrink: 0; width: 26px; height: 26px; border: none; background: transparent;
+  color: var(--tm-text-faint); font-size: 15px; cursor: pointer; line-height: 1; border-radius: 6px;
+}
+.cs-card-star.is-on { color: var(--tm-accent); }
+.cs-card-metric { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.cs-card-pulse { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cs-card-pulse-num {
+  font-family: var(--tm-font-mono); font-size: 34px; font-weight: 700; line-height: 1;
+  color: var(--tm-text); letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+}
+.cs-card-pulse-label {
+  font-family: var(--tm-font-mono); font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--tm-text-faint);
+}
+.cs-card-trend { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.cs-card-delta {
+  font-family: var(--tm-font-mono); font-size: 11px; font-weight: 700;
+  color: var(--tm-success-text, var(--tm-success));
+}
+.cs-card-delta.is-flat { color: var(--tm-text-faint); font-weight: 500; }
+.cs-card-quiet { font-family: var(--tm-font-mono); font-size: 11px; color: var(--tm-text-faint); }
+
 /* ── M-size chip ───────────────────────────────────────────────────────── */
 .cs-chip {
   display: inline-flex;

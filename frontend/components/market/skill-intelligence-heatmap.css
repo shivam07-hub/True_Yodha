@@ -60,24 +60,14 @@
 
 .si-company-rail { padding: 18px; overflow: hidden; }
 .si-section-label { font-family: var(--tm-font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tm-text-faint); }
-.si-company-strip { display: flex; gap: 12px; overflow-x: auto; padding: 14px 2px 4px; scrollbar-width: none; }
-.si-company-strip::-webkit-scrollbar, .si-matrix-scroll::-webkit-scrollbar { display: none; }
-.si-company-card {
-  flex: 0 0 126px;
+.si-matrix-scroll::-webkit-scrollbar { display: none; }
+/* Compare strip — L-size pulse cards, 4-up on desktop, wrapping down to one. */
+.si-compare-strip {
   display: grid;
-  grid-template-rows: 54px auto auto;
-  gap: 7px;
-  min-height: 112px;
-  padding: 10px;
-  border: 1px solid var(--tm-border-soft);
-  border-radius: var(--tm-radius-lg);
-  color: var(--tm-text);
-  text-decoration: none;
+  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
 }
-.si-company-card:first-child { border-color: var(--tm-int-border); }
-.si-company-logo { display: grid; place-items: center; width: 54px; height: 54px; border-radius: var(--tm-radius); background: color-mix(in srgb, var(--si-teal) 14%, var(--tm-surface)); color: var(--si-orange); font-size: 17px; font-weight: 800; }
-.si-company-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 650; }
-.si-company-total { color: var(--tm-text-faint); font-family: var(--tm-font-mono); font-size: 10px; }
 
 .si-board { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 14px; align-items: start; }
 .si-main { overflow: hidden; }

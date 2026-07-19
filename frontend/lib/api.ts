@@ -3123,6 +3123,20 @@ export interface SkillHeatmapData {
   matrix: Record<string, Record<string, number>>
 }
 
+/** Company demand pulse (Signal Thread S2). pulse === null = live but no signal. */
+export interface CompanyPulseItem {
+  company_name: string
+  open_roles: number
+  weekly_delta: number
+  pulse: number | null
+  series: number[]
+  last_seen_at?: string | null
+}
+
+export interface CompanyPulseResponse {
+  companies: CompanyPulseItem[]
+}
+
 export interface JobLocationFilters {
   locationCity?: string | null
   locationCountry?: string | null
@@ -3383,6 +3397,10 @@ export const jobs = {
       skills: skills.join(","),
     })
     return request<SkillHeatmapData>(`/jobs/analytics/skill-heatmap?${params.toString()}`)
+  },
+  companyPulse: (companies: string[]) => {
+    const params = new URLSearchParams({ companies: companies.join(",") })
+    return request<CompanyPulseResponse>(`/jobs/companies/pulse?${params.toString()}`)
   },
   analyticsEntitySkills: (
     entity: string,

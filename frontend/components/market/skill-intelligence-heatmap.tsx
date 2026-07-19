@@ -8,6 +8,8 @@ import { Briefcase, ChevronRight, Settings2, Target, TrendingUp, Users } from "l
 import type { FollowedCompany, UserSkillDemandItem, UserSkillItem } from "@/lib/api"
 import { buildSkillEvidenceIndex, nextSkillLevel, skillDemandTotal, skillReadiness } from "@/lib/skill-intelligence"
 import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
+import { CompanySignalCard, SignalLabel } from "@/components/companies/company-signal"
+import { useCompanyPulse } from "@/lib/hooks/use-company-pulse"
 import { SkillColumnPicker } from "./skill-column-picker"
 import { SkillIntelligencePanel } from "./skill-intelligence-panel"
 
@@ -87,6 +89,23 @@ export function SkillIntelligenceHeatmap({
   const [hoverCell, setHoverCell] = useState<HeatmapCell>(null)
   const [selectedSkillName, setSelectedSkillName] = useState<string | null>(skills[0] ?? null)
   const [showSkillPicker, setShowSkillPicker] = useState(false)
+
+  // Real demand pulse for the compare strip — ONE batched read for the whole
+  // followed set. Called before the early returns below (hooks rule).
+  const companyNames = useMemo(() => companies.map((c) => c.company_name), [companies])
+  const { byName: pulseByName } = useCompanyPulse(companyNames)
+  const topPulseCompany = useMemo(() => {
+    let best: string | null = null
+    let bestVal = -1
+    for (const c of companies) {
+      const p = pulseByName.get(c.company_name)?.pulse
+      if (p != null && p > bestVal) {
+        bestVal = p
+        best = c.company_name
+      }
+    }
+    return best
+  }, [companies, pulseByName])
 
   useEffect(() => {
     if (!selectedSkillName || !skills.includes(selectedSkillName)) {
@@ -176,15 +195,18 @@ export function SkillIntelligenceHeatmap({
         </button>
       </div>
 
-      <div className="si-company-rail" aria-label="Tracked companies">
-        <div className="si-section-label">Tracked companies</div>
-        <div className="si-company-strip">
-          {companyTotals.map(({ company, total }) => (
-            <Link key={company.company_name} href={`/companies/${encodeURIComponent(company.company_name)}`} className="si-company-card">
-              <span className="si-company-logo">{companyInitials(company.company_name)}</span>
-              <span className="si-company-name">{company.company_name}</span>
-              <span className="si-company-total">{total == null ? "Syncing" : `${total} roles`}</span>
-            </Link>
+      <div className="si-company-rail" aria-label="Followed companies">
+        <SignalLabel>Followed companies</SignalLabel>
+        <div className="si-compare-strip">
+          {companies.map((company) => (
+            <CompanySignalCard
+              key={company.company_name}
+              name={company.company_name}
+              pulse={pulseByName.get(company.company_name)}
+              followed
+              highlight={topPulseCompany === company.company_name}
+              href={`/companies/${encodeURIComponent(company.company_name)}`}
+            />
           ))}
         </div>
       </div>
