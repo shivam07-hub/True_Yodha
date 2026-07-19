@@ -45,6 +45,14 @@ test("skill confirmation is the score and matching trust gate", () => {
   assert.match(confirmation, /Confirm \$\{confirmedCount\} skills/)
 })
 
+test("first-success checklist reads and dismisses durable server state", () => {
+  const checklist = read("components/onboarding/first-success-checklist.tsx")
+  const market = read("app/(authed)/market/page.tsx")
+  assert.match(checklist, /onboarding\.checklist/)
+  assert.match(checklist, /onboarding\.dismissChecklist/)
+  assert.match(market, /FirstSuccessChecklist/)
+})
+
 test("accepted upload and target are persisted before result navigation", () => {
   const page = read("app/onboarding/page.tsx")
   const target = read("components/onboarding/target-confirm.tsx")

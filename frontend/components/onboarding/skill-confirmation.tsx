@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Check, Plus, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { onboarding, skills, type OnboardingProofSkill, type OnboardingResult, type Skill } from "@/lib/api"
+import { onboarding, skills, type OnboardingResult, type Skill } from "@/lib/api"
 
 type Pending = Extract<OnboardingResult, { kind: "awaiting_skill_confirmation" }>
 
@@ -22,7 +22,7 @@ interface SkillConfirmationProps {
 
 export function SkillConfirmation({ token, result, onConfirmed }: SkillConfirmationProps) {
   const catalogQuery = useQuery({ queryKey: ["skill-catalog"], queryFn: () => skills.all() })
-  const catalog = catalogQuery.data ?? []
+  const catalog = useMemo(() => catalogQuery.data ?? [], [catalogQuery.data])
   const byKey = useMemo(
     () => new Map(catalog.map((skill) => [skill.taxonomy_key, skill])),
     [catalog],

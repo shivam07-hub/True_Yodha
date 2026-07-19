@@ -282,6 +282,13 @@ def dismiss_checklist(principal: Principal = Depends(get_principal)) -> None:
     OnboardingRepository(get_supabase_admin()).dismiss_checklist(principal.id)
 
 
+@router.get("/checklist")
+def get_checklist(principal: Principal = Depends(get_principal)) -> dict[str, Any]:
+    return onboarding_service.get_first_success_checklist(
+        get_supabase_admin(), principal.id
+    )
+
+
 @router.post("/start-over", status_code=status.HTTP_204_NO_CONTENT)
 def start_over(principal: Principal = Depends(get_principal)) -> None:
     repo = OnboardingRepository(get_supabase_admin())

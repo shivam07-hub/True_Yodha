@@ -437,3 +437,54 @@ def mark_completed(db: Client, user_id: str) -> None:
 
 def mark_activated(db: Client, user_id: str, activation_kind: str) -> None:
     OnboardingRepository(db).mark_activated(user_id, activation_kind)
+
+
+def build_first_success_checklist(
+    state: dict[str, Any],
+    *,
+    skills_confirmed: bool,
+    tailored_cv_exists: bool,
+    tracked_application_exists: bool,
+) -> dict[str, Any]:
+    """Pure projection over persisted journey facts; no click-local completion."""
+    items = [
+        {"id": "confirm_skills", "label": "Confirm your CV skills", "href": "/onboarding/result", "done": skills_confirmed},
+        {"id": "review_roles", "label": "Review your top roles", "href": "/onboarding/result", "done": bool(state.get("result_seen_at"))},
+        {"id": "tailor_cv", "label": "Tailor one CV", "href": "/cv", "done": tailored_cv_exists},
+        {"id": "track_application", "label": "Track one application", "href": "/tracker", "done": tracked_application_exists},
+    ]
+    return {
+        "dismissed": bool(state.get("checklist_dismissed_at")),
+        "complete": all(bool(item["done"]) for item in items),
+        "items": items,
+    }
+
+
+def get_first_success_checklist(db: Client, user_id: str) -> dict[str, Any]:
+    state = OnboardingRepository(db).get_state(user_id) or {}
+    baseline = CVVersionsRepository(db).latest_baseline(user_id)
+    tailored = (
+        db.table("cv_versions")
+        .select("id")
+        .eq("user_id", user_id)
+        .neq("kind", "baseline_upload")
+        .limit(1)
+        .execute()
+        .data
+        or []
+    )
+    tracked = (
+        db.table("job_applications")
+        .select("id")
+        .eq("user_id", user_id)
+        .limit(1)
+        .execute()
+        .data
+        or []
+    )
+    return build_first_success_checklist(
+        state,
+        skills_confirmed=bool(baseline and baseline.get("skills_confirmed_at")),
+        tailored_cv_exists=bool(tailored),
+        tracked_application_exists=bool(tracked),
+    )

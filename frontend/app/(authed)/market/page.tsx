@@ -8,6 +8,7 @@ import type { JobLocationFilters } from "@/lib/api"
 import { HeatmapTab } from "@/components/market/heatmap-tab"
 import { MarketJobsTab } from "@/components/market/jobs-tab"
 import { MissionHeroRail } from "@/components/mission-control/mission-hero-rail"
+import { FirstSuccessChecklist } from "@/components/onboarding/first-success-checklist"
 import { MatchesRefreshBanner } from "@/components/jobs/matches-refresh-banner"
 import { SkillMapCard } from "@/components/mission-control/peek-surfaces"
 import { useViewport } from "@/mobile"
@@ -152,7 +153,12 @@ function IntelPageInner() {
   // CSS breakpoint exactly — `isDesktop` also requires pointer:fine, so a
   // touch-tablet would desync content from chrome. Desktop keeps the workspace.
   if (mode === "mobile") {
-    return <JobsSurface token={token ?? ""} targetLocations={profileData?.target_locations ?? []} />
+    return (
+      <>
+        {token ? <div className="px-4 pt-4"><FirstSuccessChecklist token={token} /></div> : null}
+        <JobsSurface token={token ?? ""} targetLocations={profileData?.target_locations ?? []} />
+      </>
+    )
   }
 
   // Heatmap moved to /intel — render nothing while the effect above redirects,
@@ -172,6 +178,7 @@ function IntelPageInner() {
           ) : null}
         </aside>
         <div className="mc-ws-main">
+        {token ? <FirstSuccessChecklist token={token} /> : null}
         {/* Match staleness + coin-charged recompute — relocated from the retired
             /home dashboard; Jobs is the browse surface, so discovery mechanics
             live here. Renders nothing while matches are fresh. */}

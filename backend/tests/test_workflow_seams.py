@@ -116,37 +116,34 @@ class _FakeCVRepository:
         return 68.4
 
 
-def test_cv_workflow_background_run_uses_scores_repository_for_scoring(monkeypatch: Any) -> None:
-    """ADR-0004: scoring runs inside _run_cv_upload_job (background) with a fresh
-    admin-scoped ScoresRepository. This validates the seam survives the 2-phase split.
-    """
+def test_cv_workflow_background_run_persists_candidates_without_scoring(monkeypatch: Any) -> None:
+    """The background upload stops at baseline-scoped candidates; confirmation
+    owns the later user-skill publication and scoring seam."""
     repo = _FakeCVRepository()
-    captured: dict[str, Any] = {}
+    done: dict[str, Any] = {}
+    enqueued: list[str] = []
 
     monkeypatch.setattr(cv_workflow, "get_supabase_admin", lambda: object())
     monkeypatch.setattr(cv_workflow, "CVVersionsRepository", lambda _c: repo)
-    monkeypatch.setattr(cv_workflow, "ScoresRepository", lambda _c: ScoresRepository(_c))
 
-    async def _fake_parse_cv_text(_raw_text: str, provider=None) -> dict[str, Any]:
+    async def _fake_parse_cv_skills(_raw_text: str, provider=None) -> dict[str, Any]:
         return {
             "raw_text": _raw_text,
             "skills_detected": [{"taxonomy_key": "Python", "signal_type": "project", "xp_awarded": 150, "evidence": "Shipped APIs"}],
         }
 
-    def _fake_record_cv_score(
-        scores_repo: ScoresRepository,
-        _user_id: str,
-        _skills_detected: list[dict[str, Any]],
-    ) -> dict[str, float]:
-        captured["scores_repo"] = scores_repo
-        return {"total_score": 68.4}
-
-    monkeypatch.setattr(cv_workflow.cv_parser, "parse_cv_text", _fake_parse_cv_text)
-    monkeypatch.setattr(cv_workflow.scoring, "record_cv_score", _fake_record_cv_score)
-    monkeypatch.setattr(cv_workflow.upload_jobs_repo, "mark_done", lambda *_a, **_k: None)
+    monkeypatch.setattr(cv_workflow.cv_parser, "parse_cv_skills", _fake_parse_cv_skills)
+    monkeypatch.setattr(
+        cv_workflow.upload_jobs_repo,
+        "mark_done",
+        lambda *_a, **kwargs: done.update(kwargs),
+    )
     monkeypatch.setattr(cv_workflow.upload_jobs_repo, "mark_failed", lambda *_a, **_k: None)
-    async def _no_initial(_user_id): return None
-    monkeypatch.setattr(cv_workflow, "_trigger_initial_match_compute", _no_initial)
+    monkeypatch.setattr(
+        cv_workflow.background,
+        "enqueue",
+        lambda _lane, name, **_kwargs: enqueued.append(name),
+    )
 
     asyncio.run(
         cv_workflow._run_cv_upload_job(
@@ -156,10 +153,12 @@ def test_cv_workflow_background_run_uses_scores_repository_for_scoring(monkeypat
         )
     )
 
-    assert isinstance(captured["scores_repo"], ScoresRepository)
+    assert done["score"] is None
     assert repo.updated_profile is None
     assert repo.created_spec is not None
     assert repo.created_spec.kind == "baseline_upload"
+    assert repo.created_spec.skills_detected[0]["taxonomy_key"] == "Python"
+    assert enqueued == ["cv_structured_enrich"]
 
 
 class _FakeComputeJobsRepository:

@@ -625,6 +625,12 @@ export interface RoleReadiness {
   readiness: number | null
 }
 
+export interface FirstSuccessChecklist {
+  dismissed: boolean
+  complete: boolean
+  items: Array<{ id: string; label: string; href: string; done: boolean }>
+}
+
 export interface OnboardingProofSkill {
   taxonomy_key: string
   name: string
@@ -736,6 +742,9 @@ export const onboarding = {
     }),
   dismissChecklist: (token: string) => request<void>("/onboarding/checklist/dismiss", {
     method: "POST", headers: { Authorization: `Bearer ${token}` },
+  }),
+  checklist: (token: string) => request<FirstSuccessChecklist>("/onboarding/checklist", {
+    headers: { Authorization: `Bearer ${token}` },
   }),
   startOver: (token: string) => request<void>("/onboarding/start-over", {
     method: "POST", headers: { Authorization: `Bearer ${token}` },
