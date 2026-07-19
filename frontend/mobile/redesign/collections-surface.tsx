@@ -20,11 +20,9 @@ import {
   matchesById,
   type CollectionChip,
 } from "@/lib/collections/model"
-import { useJobRefresh } from "@/lib/hooks/use-job-refresh"
+import { useMyroSearch } from "@/lib/hooks/use-myro-search"
 import { useSavedJobDismissal } from "@/lib/hooks/use-saved-job-dismissal"
 import { canDismissSavedApplication } from "@/lib/collections/saved-job-dismissal"
-import { openRefreshGate } from "@/store/refreshGateStore"
-import { MatchRefreshGate } from "@/components/jobs/MatchRefreshGate"
 import { usePulses } from "@/lib/hooks/use-pulses"
 import { useApplyCapture } from "@/components/jobs/use-apply-capture"
 import { BottomSheet } from "./bottom-sheet"
@@ -51,7 +49,7 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
   const router = useRouter()
   const qc = useQueryClient()
   const { snack, closeSnack } = useMobileUI()
-  const refreshVm = useJobRefresh(token, qc)
+  const { refreshVm, profile, gate: myroSearchGate, run: runMyroSearch, isRefreshing } = useMyroSearch(token)
   const {
     notice: dismissalNotice,
     dismiss: dismissSavedJob,
@@ -63,7 +61,6 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
   const matchesQ = useQuery({ queryKey: dataKeys.jobs(), queryFn: () => jobsApi.matches(token), enabled: !!token, staleTime: 5 * 60 * 1000 })
   const picksQ = useQuery({ queryKey: ["agentPicks", token], queryFn: () => jobsApi.agentPicks(token), enabled: !!token, staleTime: 30 * 60 * 1000 })
   const { data: followed } = useQuery({ queryKey: ["followedCompanies", token], queryFn: () => usersApi.followedCompanies(token), enabled: !!token, staleTime: 5 * 60 * 1000 })
-  const { data: profile } = useQuery({ queryKey: dataKeys.profile(), queryFn: () => usersApi.me(token), enabled: !!token, staleTime: 10 * 60 * 1000 })
 
   const [chip, setChip] = useState<CollectionChip>("found")
   const [sort, setSort] = useState<SortKey>("prize")
@@ -125,8 +122,8 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
   // Deep-linked from the Loop Bar "N new" signal (Slice 5) → open the gate once.
   const searchOpened = useRef(false)
   useEffect(() => {
-    if (openSearch && !searchOpened.current) { searchOpened.current = true; openRefreshGate() }
-  }, [openSearch])
+    if (openSearch && !searchOpened.current) { searchOpened.current = true; runMyroSearch() }
+  }, [openSearch, runMyroSearch])
 
   // Fresh-matches nudge on a successful run (mobile: a snack, not particles).
   const firedRef = useRef(false)
@@ -255,7 +252,6 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
     )
   }
 
-  const isRefreshing = refreshVm.state === "charging" || refreshVm.state === "computing"
   const trulyEmpty = !appsQ.isLoading && !matchesQ.isLoading && apps.length === 0 && (matchesQ.data?.jobs?.length ?? 0) === 0
 
   return (
@@ -338,7 +334,7 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
                   <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", color: "#8b8b84", textTransform: "uppercase" }}>
                     Cleared the bar · {myroFound.found.length}
                   </div>
-                  <button onClick={() => openRefreshGate()} disabled={isRefreshing} className="mm-press" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4, padding: "0 4px", border: "none", background: "transparent", color: "var(--mm-accent)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", opacity: isRefreshing ? 0.6 : 1 }}>
+                  <button onClick={runMyroSearch} disabled={isRefreshing} className="mm-press" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4, padding: "0 4px", border: "none", background: "transparent", color: "var(--mm-accent)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", opacity: isRefreshing ? 0.6 : 1 }}>
                     <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
                     {isRefreshing ? "Searching…" : "Search again"}
                   </button>
@@ -365,7 +361,7 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
               <div style={{ textAlign: "center", padding: "40px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, border: "1px dashed rgba(255,255,255,0.1)", borderRadius: 16 }}>
                 <div style={{ fontSize: 15.5, fontWeight: 700 }}>Run your first Myro Search</div>
                 <div style={{ fontSize: 12.5, color: "#8b8b84", lineHeight: 1.5, maxWidth: "34ch" }}>Myro reads the live market against your CV and fills this folder with the roles that clear its quality bar.</div>
-                <button onClick={() => openRefreshGate()} className="mm-press" style={ctaBtn}>Myro Search</button>
+                <button onClick={runMyroSearch} className="mm-press" style={ctaBtn}>Myro Search</button>
               </div>
             ) : (
               <div style={{ padding: "8px 2px", display: "flex", flexDirection: "column", gap: 10 }}>
@@ -400,7 +396,7 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
       <AddJobSheet open={addOpen} onClose={() => setAddOpen(false)} token={token} onAdded={() => { void qc.invalidateQueries({ queryKey: dataKeys.applications() }); setChip("added") }} snack={snack} closeSnack={closeSnack} onTailor={(jobId) => router.push(`/cv?jobId=${encodeURIComponent(jobId)}`)} />
 
       {/* Pre-flight gate — opened by the Search button / deep-link; charges the flat run. */}
-      <MatchRefreshGate token={token} profile={profile} onRun={() => refreshVm.refresh()} />
+      {myroSearchGate}
 
       {/* sort sheet — same axes as desktop (Best next / Best fit / Recent / A–Z) */}
       <BottomSheet open={sortOpen} onClose={() => setSortOpen(false)} label="Sort">

@@ -3,13 +3,11 @@
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { jobs as jobsApi, users as usersApi, type JobFeedItem } from "@/lib/api"
+import { jobs as jobsApi, type JobFeedItem } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { DEFAULT_FILTERS } from "@/components/market/feed-types"
 import { useJobFeed } from "@/components/market/use-job-feed"
-import { useJobRefresh } from "@/lib/hooks/use-job-refresh"
-import { openRefreshGate } from "@/store/refreshGateStore"
-import { MatchRefreshGate } from "@/components/jobs/MatchRefreshGate"
+import { useMyroSearch } from "@/lib/hooks/use-myro-search"
 import { IntentChat } from "@/components/jobs/intent-chat"
 import { useApplyCapture } from "@/components/jobs/use-apply-capture"
 import { BottomSheet } from "./bottom-sheet"
@@ -33,14 +31,9 @@ const SWIPE_HINT_KEY = "myro_swipe_hint_seen_v1"
 
 export function JobsSurface({ token, targetLocations }: { token: string; targetLocations: string[] }) {
   const router = useRouter()
-  const qc = useQueryClient()
   const { snack, closeSnack } = useMobileUI()
-  // Myro Search (the paid re-vet run) lives on this discovery surface. Its gate
-  // is only mounted in <MatchesRefreshBanner> on the desktop branch, so mobile
-  // wires its own refresh VM + gate here (mirrors CollectionsSurface).
-  const refreshVm = useJobRefresh(token, qc)
-  const { data: profile } = useQuery({ queryKey: dataKeys.profile(), queryFn: () => usersApi.me(token), enabled: !!token, staleTime: 10 * 60 * 1000 })
-  const isRefreshing = refreshVm.state === "charging" || refreshVm.state === "computing"
+  // Myro Search (the paid re-vet run) — one shared wiring across every surface.
+  const { run: runMyroSearch, isRefreshing, gate: myroSearchGate } = useMyroSearch(token)
 
   const [sort, setSort] = useState<"best" | "new">("best")
   const [searchOpen, setSearchOpen] = useState(false)
@@ -159,7 +152,7 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
             </button>
             <div style={{ flex: 1 }} />
             <button onClick={() => setIntentOpen(true)} style={{ border: "none", background: "transparent", color: "#8b8b84", fontSize: 11.5, cursor: "pointer", fontFamily: "inherit", padding: "4px 0" }}>Not it? Tell Myro →</button>
-            <button onClick={() => openRefreshGate()} disabled={isRefreshing} className="mm-press" title="Run Myro Search" style={{ height: 30, display: "flex", alignItems: "center", gap: 5, padding: "0 11px", borderRadius: 99, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", opacity: isRefreshing ? 0.6 : 1 }}>
+            <button onClick={runMyroSearch} disabled={isRefreshing} className="mm-press" title="Run Myro Search" style={{ height: 30, display: "flex", alignItems: "center", gap: 5, padding: "0 11px", borderRadius: 99, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", opacity: isRefreshing ? 0.6 : 1 }}>
               <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
               {isRefreshing ? "Searching…" : "Myro Search"}
             </button>
@@ -229,8 +222,8 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
 
       {/* The real Delta-4 loop (same component the desktop app uses): the user
           tells Myro what's off → one-tap filter change → feed re-runs. */}
-      <IntentChat open={intentOpen} onClose={() => setIntentOpen(false)} onExpand={() => openRefreshGate()} />
-      <MatchRefreshGate token={token} profile={profile} onRun={() => refreshVm.refresh()} />
+      <IntentChat open={intentOpen} onClose={() => setIntentOpen(false)} onExpand={runMyroSearch} />
+      {myroSearchGate}
     </div>
   )
 }

@@ -11,11 +11,9 @@ import "./collections.css"
 import { VirtualFeed } from "@/components/jobs/virtual-feed"
 import { DashboardJobDrawer } from "@/components/dashboard/job-drawer"
 import { AgentPicksBand } from "@/components/jobs/agent-picks-band"
-import { MatchRefreshGate } from "@/components/jobs/MatchRefreshGate"
 import { MatchVettingBanner } from "@/components/jobs/matches-refresh-banner"
-import { useJobRefresh } from "@/lib/hooks/use-job-refresh"
+import { useMyroSearch } from "@/lib/hooks/use-myro-search"
 import { useParticleMoment } from "@/components/particle"
-import { openRefreshGate } from "@/store/refreshGateStore"
 import { SortMenu } from "@/components/dashboard/sort-menu"
 import { PeekSurfaces } from "@/components/mission-control/peek-surfaces"
 import type { LoopStep } from "@/components/mission-control/loop-ring"
@@ -66,7 +64,8 @@ export function CollectionsDesktop({
   const router = useRouter()
   const qc = useQueryClient()
   const { skills: cartSkills, addSkill, removeSkill } = useCartStore()
-  const refreshVm = useJobRefresh(token, qc)
+  // Shared Myro Search wiring (VM + profile + gate) — one source across surfaces.
+  const { refreshVm, profile, gate: myroSearchGate, run: runMyroSearch, isRefreshing } = useMyroSearch(token)
   const savedJobDismissal = useSavedJobDismissal(token)
   const fireMoment = useParticleMoment()
 
@@ -94,12 +93,6 @@ export function CollectionsDesktop({
     queryFn: () => usersApi.followedCompanies(token),
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
-  })
-  const { data: profile } = useQuery({
-    queryKey: dataKeys.profile(),
-    queryFn: () => usersApi.me(token),
-    enabled: !!token,
-    staleTime: 10 * 60 * 1000,
   })
   const historyQ = useQuery({
     queryKey: dataKeys.diary(),
@@ -198,9 +191,9 @@ export function CollectionsDesktop({
   React.useEffect(() => {
     if (openSearch && !searchOpened.current) {
       searchOpened.current = true
-      openRefreshGate()
+      runMyroSearch()
     }
-  }, [openSearch])
+  }, [openSearch, runMyroSearch])
 
   // ── Myro Found match actions — dismiss (hide) / save (track)
   const dismissMut = useMutation({
@@ -244,7 +237,6 @@ export function CollectionsDesktop({
     { label: "Apply", done: apps.some(isAppliedStatus), icon: "arrowRight", href: "/market" },
   ]
 
-  const isRefreshing = refreshVm.state === "charging" || refreshVm.state === "computing"
   const trulyEmpty =
     !appsQ.isLoading && !matchesQ.isLoading && apps.length === 0 && (matchesQ.data?.jobs?.length ?? 0) === 0
 
@@ -323,7 +315,7 @@ export function CollectionsDesktop({
                 trulyEmpty={trulyEmpty}
                 openId={openId}
                 pulses={pulses}
-                onSearch={() => openRefreshGate()}
+                onSearch={runMyroSearch}
                 onBrowseJobs={() => router.push("/market")}
                 onOpen={(id) => setOpenId(openId === id ? null : id)}
                 onTailor={(id) => router.push(`/cv?jobId=${encodeURIComponent(id)}`)}
@@ -381,7 +373,7 @@ export function CollectionsDesktop({
 
             {addJob.modal}
 
-            <MatchRefreshGate token={token} profile={profile} onRun={() => refreshVm.refresh()} />
+            {myroSearchGate}
 
             {savedJobDismissal.notice && typeof document !== "undefined"
               ? createPortal(
