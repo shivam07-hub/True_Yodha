@@ -11,6 +11,7 @@ import { formatCount } from "@/lib/format"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useViewport } from "@/mobile"
 import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
+import { CompanyTile, SignalLabel } from "@/components/companies/company-signal"
 
 const MAX_FOLLOWED = MYRO_COINS_POLICY.followedCompanyLimit
 
@@ -158,13 +159,16 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
 
         {/* Header */}
         <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--tm-border-soft)", flexShrink: 0 }}>
-          <div style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 4 }}>
-            Company
+          <div style={{ marginBottom: 8 }}>
+            <SignalLabel>Company signal</SignalLabel>
           </div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-            <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--tm-text)", letterSpacing: "-0.02em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
-              {company}
-            </h2>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+              <CompanyTile name={company} size="xl" />
+              <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--tm-text)", letterSpacing: "-0.02em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+                {company}
+              </h2>
+            </div>
             <button
               type="button"
               onClick={onClose}

@@ -7,6 +7,7 @@ import { Target, TrendingUp, Building2, ArrowRight, Check, Coins } from "lucide-
 import { jobs as jobsApi, users as usersApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { DomainRadar } from "@/components/skills/domain-radar"
+import { CompanySignalChip } from "@/components/companies/company-signal"
 import type { LoopStep } from "./loop-ring"
 
 /**
@@ -151,13 +152,18 @@ function FollowedCard({ token }: { token: string }) {
   return (
     <PeekCard icon={<Building2 size={15} />} title="Followed companies" href={companies.length ? "/market?tab=heatmap" : "/intel"} hrefLabel={companies.length ? "Open intel heatmap" : "Browse companies"}>
       {companies.length === 0 ? (
-        <p className="mc-peek-empty">Star a company to track which skills it hires for most.</p>
+        <p className="mc-peek-empty">Follow a company to compare which skills it hires for most.</p>
       ) : (
-        <ul className="mc-peek-chips">
+        <div className="mc-peek-chips">
           {companies.slice(0, 6).map((c) => (
-            <li key={c.company_name} className="mc-peek-chip">{c.company_name}</li>
+            <CompanySignalChip
+              key={c.company_name}
+              name={c.company_name}
+              followed
+              href={`/companies/${encodeURIComponent(c.company_name)}`}
+            />
           ))}
-        </ul>
+        </div>
       )}
       {top ? (
         <p className="mc-peek-intel">
