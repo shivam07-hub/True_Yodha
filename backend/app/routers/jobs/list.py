@@ -41,6 +41,7 @@ from app.schemas.jobs import (
     MatchEval,
     SkillHeatmapResponse,
 )
+from app.schemas.company_pulse import CompanyPulseItem, CompanyPulseResponse
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -139,6 +140,21 @@ def get_skill_heatmap(
         return SkillHeatmapResponse(matrix={company_list[0]: row})
     matrix = repo.fetch_skill_heatmap(company_list, skill_list)
     return SkillHeatmapResponse(matrix=matrix)
+
+
+@router.get("/companies/pulse", response_model=CompanyPulseResponse)
+def get_company_pulse(
+    companies: Annotated[str, Query(min_length=1)],
+    repo: JobsRepository = Depends(get_public_jobs_repository),
+) -> CompanyPulseResponse:
+    """Demand pulse for a set of companies (Signal Thread S2). Public — the
+    compare strip + directory read it. Capped at 20 companies (the compare-slot
+    ceiling is 10; the directory pages its visible cards)."""
+    names = [c.strip() for c in companies.split(",") if c.strip()][:20]
+    if not names:
+        return CompanyPulseResponse(companies=[])
+    rows = repo.fetch_company_pulse(names)
+    return CompanyPulseResponse(companies=[CompanyPulseItem(**r) for r in rows])
 
 
 @router.get("/analytics/skills", response_model=EntitySkillsResponse)
