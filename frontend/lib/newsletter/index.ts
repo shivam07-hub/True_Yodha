@@ -35,6 +35,16 @@ export interface IssueDataset {
   table: (string | number)[][]
 }
 
+/**
+ * One headline figure for the above-the-fold key-numbers strip.
+ * Authored in frontmatter — never derived from the article body. A data
+ * newsletter must lead with data, but only figures the author has verified.
+ */
+export interface IssueKeyStat {
+  value: string
+  label: string
+}
+
 export interface IssueFrontmatter {
   title: string
   seoTitle?: string
@@ -58,6 +68,8 @@ export interface IssueFrontmatter {
   faqs?: IssueFaq[]
   steps?: IssueStep[]
   dataset?: IssueDataset
+  /** 2–4 headline figures rendered directly under the standfirst. */
+  keyStats?: IssueKeyStat[]
 }
 
 export interface Issue extends IssueFrontmatter {

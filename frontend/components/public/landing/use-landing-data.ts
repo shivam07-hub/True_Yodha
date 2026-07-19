@@ -2,19 +2,12 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { jobs, publicStats, type MarketAnalytics, type PublicStatsResponse } from "@/lib/api"
+import { LANDING_FLOORS, displayCount } from "@/lib/public-stats-display"
 
-/* Static floors — verified Engine-corpus values confirmed in the design handoff
-   (DEC-L2). Rendered whenever live data is unavailable; live values are floored
-   so the public numbers only ever grow. These describe the SCRAPED CORPUS (jobs,
-   companies, skills) — real engine scale, safe to floor.
-   NOTE: there is deliberately NO `seekers` floor here. The user count is real-
-   but-small (<400) and must never be inflated into fake social proof (PV1 /
-   no-fabrication). See `seekers` below — it is env-gated, not floored. */
-export const LANDING_FLOORS = {
-  jobs: 4000,
-  companies: 150,
-  skills: 32000,
-} as const
+/* Floors + flooring helpers live in a plain module so the server-rendered
+   newsletter rail shares them (a "use client" file can't be imported by a
+   server component). Re-exported here for existing consumers. */
+export { LANDING_FLOORS, floorTo, displayCount } from "@/lib/public-stats-display"
 
 /* T3 social proof — honest by construction. We do NOT auto-publish the live
    user count (small + reveals traction) and we NEVER hardcode a fake "10,000+".
@@ -26,18 +19,6 @@ function configuredSeekerCount(): number | null {
   if (!raw) return null
   const n = Number(raw)
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : null
-}
-
-export function floorTo(n: number, step: number): number {
-  return Math.floor(n / step) * step
-}
-
-/** Floored live value, never below the verified static floor. */
-export function displayCount(live: number | null | undefined, floor: number, step: number): number {
-  if (typeof live === "number" && Number.isFinite(live) && live > 0) {
-    return Math.max(floor, floorTo(live, step))
-  }
-  return floor
 }
 
 export interface IntelTeaserRow {
