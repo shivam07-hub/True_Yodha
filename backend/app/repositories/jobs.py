@@ -64,6 +64,7 @@ _entity_skills_cache: dict[tuple[str, str, str | None, str | None, str | None], 
 _heatmap_cache: dict[tuple[frozenset[str], frozenset[str]], tuple[float, dict[str, dict[str, int]]]] = {}
 _heatmap_row_cache: dict[tuple[str, frozenset[str]], tuple[float, dict[str, int]]] = {}
 _pulse_cache: dict[frozenset[str], tuple[float, list[dict[str, Any]]]] = {}
+_gap_signal_cache: dict[tuple[frozenset[str], frozenset[str]], tuple[float, dict[str, dict[str, int]]]] = {}
 _PULSE_TTL = 30 * 60  # 30 min — pulse tracks daily scrape batches, not real-time
 _skill_name_to_id_cache: dict[str, int] = {}  # display_name.lower() → skill_id; skills table is static
 _search_cache: dict[tuple[str, str, str | None, str | None, str | None, str | None, int, int], tuple[float, dict[str, Any]]] = {}
@@ -1174,6 +1175,64 @@ class JobsRepository:
                 matrix[company][canonical] += 1
 
         _heatmap_cache[cache_key] = (time.monotonic(), matrix)
+        return matrix
+
+    def fetch_new_role_skill_counts(
+        self,
+        companies: list[str],
+        skills: list[str],
+    ) -> dict[str, dict[str, int]]:
+        """New-this-week (company × skill) role counts — the gap-alert signal (S3).
+
+        Same (company × skill) matrix as fetch_skill_heatmap but restricted to
+        jobs whose first_seen is within the last 7 days — the honest 'posted N new
+        {skill} roles this week' number behind the /intel gap-alert strip. Cached
+        _PULSE_TTL (tracks the same daily-scrape cadence as pulse).
+        """
+        matrix: dict[str, dict[str, int]] = {c: {s: 0 for s in skills} for c in companies}
+        if not companies or not skills:
+            return matrix
+
+        cache_key = (frozenset(companies), frozenset(skills))
+        now = time.monotonic()
+        cached = _gap_signal_cache.get(cache_key)
+        if cached is not None and (now - cached[0]) < _PULSE_TTL:
+            return cached[1]
+
+        week_marker = _fresh_cutoff_marker(7)
+        job_rows = fetch_all_rows(
+            self._db,
+            table="jobs",
+            columns="job_id, company_name",
+            query_builder=lambda q: q.in_("company_name", companies).gte("first_seen", week_marker),
+        )
+        job_company: dict[str, str] = {
+            r["job_id"]: r["company_name"]
+            for r in job_rows
+            if r.get("job_id") and r.get("company_name")
+        }
+        if not job_company:
+            _gap_signal_cache[cache_key] = (time.monotonic(), matrix)
+            return matrix
+
+        skill_rows = fetch_job_skill_rows_for_ids(
+            self._db,
+            list(job_company.keys()),
+            columns="job_id, skills(taxonomy_key, display_name)",
+        )
+        skill_lower_map = {s.strip().lower(): s for s in skills}
+        for row in skill_rows:
+            job_id = row.get("job_id")
+            skill_data = row.get("skills") or {}
+            company = job_company.get(job_id)
+            if not company:
+                continue
+            key = (skill_data.get("display_name") or skill_data.get("taxonomy_key") or "").strip().lower()
+            canonical = skill_lower_map.get(key)
+            if canonical:
+                matrix[company][canonical] += 1
+
+        _gap_signal_cache[cache_key] = (time.monotonic(), matrix)
         return matrix
 
     def fetch_company_pulse(self, companies: list[str]) -> list[dict[str, Any]]:
