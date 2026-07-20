@@ -607,7 +607,27 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-19 · Signal Thread intel unification — ✅ COMPLETE S1+S2+S3, 12 commits on Develop)
+## LAST SESSION SUMMARY (2026-07-21 · Listing verification belt — dead 4 days, root-fixed + intent gate + dead-man alert; 2 commits Develop, both migrations APPLIED prod)
+
+Shivam: *"is the job-listing-verifier doing its job?"* **No — it had been crashing every 15-min sweep since ~2026-07-17, and nothing paged.** Diagnosed live (Railway logs + Supabase), then built the fix end-to-end. Full detail: memory `project_listing_verification_trust`.
+
+**Root cause (3 faults, all structural):** (1) `.like("apply_url","http%")` put a **bare `%` in the PostgREST query string** → Supabase edge returned a Cloudflare **1101 HTML** body → postgrest called `r.json()` on HTML → `JSONDecodeError` → whole sweep died. **113 of 47,618 listings had EVER been checked.** (2) The queue filtered `listing_confidence IN ('uncertain','likely_closed')` — a row once marked `active` was **never re-checked**, so liveness decayed silently. (3) Read and stamp were separate round-trips → a crash mid-sweep persisted nothing and overlapping ticks re-picked the same rows.
+
+**⚠️ Bigger finding — the scraper never re-crawls.** `last_seen == first_seen` on **all 47,561 rows**; newest `first_seen` = **2026-07-13** (ingest dead 8 days). `last_seen` is ingest date wearing a liveness name — **zero** liveness information. Consequence: the Tier-1 freshness gate (`last_seen >= marker−14d`) would **hide the entire corpus** as it ages. Also: these columns are **`YYYYMMDD` ints, not epoch-day offsets** — I quoted one bad stat before catching it; check the format before trusting any freshness number.
+
+**BUILT — `9e8a0b21` (claim path) + `b077776f` (surface + alerting):**
+- **`claim_verify_targets(p_limit, p_stale)`** (`20260721_job_verify_claim.sql`) — selects oldest-unchecked **and stamps `last_verification_attempt_at` in the same statement** under `FOR UPDATE SKIP LOCKED`. Confidence-agnostic; `NULLS FIRST` drains the never-checked tail first. Queue access is now **RPC-only** — the repo test raises if `.table()` is reached, so the `%` bug cannot return. Plus `count_verify_due`.
+- **Intent gate** — `app/services/job_liveness.py` + `GET /jobs/{id}/liveness`: verifies the ONE listing a user is about to act on, cached 6h; `apply-intents` fires a background re-verify. Freshness requires attempt-time **and** a resolved confidence (else a claimed-then-crashed row reads as "just checked").
+- **Frontend** — `livenessNotice()` in `lib/jobs/detail-model.ts` is the one copy contract; `<ListingLiveness>` mounts in desktop `detail-body.tsx` + mobile `job-detail-sheet.tsx`. Only `closed` earns colour; `unverified` stays muted (common case while draining — a warning everywhere trains users to ignore the state that matters). **`unknown` is a first-class verdict** — a 429 from an ATS is not evidence the role is gone; a failed check renders nothing.
+- **Dead-man alert** — `verifier_last_attempt()` RPC (`20260721b`); no new table, the claim stamp IS the heartbeat. Read from `/health` in the always-up API, throttled 5 min, fail-soft to `unknown`. **A stalled belt never fails the health probe.** Sweep also flags a batch with zero productive verdicts. Durable rule: memory `feedback_absence_of_signal_alerting`.
+
+**Both migrations APPLIED to prod via MCP (Shivam permission) + PostgREST reloaded + smoke-verified.** Green: backend **1518 passed**, ruff clean (own files); tsc 0 · eslint 0 · ui-drift clean · `next build` ✓ · detail-model 10/10.
+
+**✅ LIVE + VERIFIED at session close:** belt draining — 500 checked in first 30 min, backlog 47,598 → 47,098 (~19k/day capacity, full corpus in ~2.5 days). First 257 verdicts: **60 closed — 23% of checked listings are dead**, 39 redirected, 3 seen_live, 154 `error/weak`, 1 blocked.
+
+**OWED / NEXT:** (1) **Scraper re-crawl — Shivam starting 2026-07-21.** The big lever: re-crawl makes disappearance free liveness evidence corpus-wide and shrinks the verifier to the suspicious residual. Ingest is also dead. (2) **60% of checks land `error/weak`** — the generic-host classifier learns nothing from most pages; tighten `classify_listing_response` before trusting coverage numbers. (3) Wire `job_verifier.alert` (and the long-unarmed `cv_upload.alert` / METRIC1 refund alert) to a real destination — the metrics exist, nothing pages. (4) **prod = `main` merge.** (5) Authed browser QA of the liveness note, light+dark+375px.
+
+## OLDER SESSION SUMMARY (2026-07-19 · Signal Thread intel unification — ✅ COMPLETE S1+S2+S3, 12 commits on Develop)
 
 Trigger: `MNC Hiring Tracking Design.zip` handoff — "unify the language used for tracking across the entire website." Audited (11 divergent company treatments, 4-way vocab split, a live IH3 regression), then `/grill-me` (7 locks, Kunal Delta-4). Full detail: memory `project_signal_thread_intel_unification`.
 
