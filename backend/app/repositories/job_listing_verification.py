@@ -79,16 +79,21 @@ class ListingVerificationRepository:
         self.db = db
         self.now = now
 
-    def targets(self, *, limit: int = 200) -> list[VerificationTarget]:
+    def claim_targets(self, *, limit: int = 200, stale_days: int = 7) -> list[VerificationTarget]:
+        """Atomically claim the oldest-unchecked listings due for verification.
+
+        The claim RPC stamps ``last_verification_attempt_at`` in the same
+        statement that selects (FOR UPDATE SKIP LOCKED), so a row is served to
+        exactly one worker and a crashed sweep cannot re-serve the same batch.
+        Confidence-agnostic: a row previously marked ``active`` re-enters the
+        queue once it goes stale, which a confidence-scoped query never allowed.
+        """
         capped = max(1, min(limit, 1000))
         rows = _with_retry(
-            lambda: self.db.table("jobs")
-            .select("job_id,job_title,apply_url,listing_confidence")
-            .in_("listing_confidence", ["uncertain", "likely_closed"])
-            .like("apply_url", "http%")
-            .order("last_verification_attempt_at", desc=False)
-            .limit(capped)
-            .execute()
+            lambda: self.db.rpc(
+                "claim_verify_targets",
+                {"p_limit": capped, "p_stale": f"{max(0, stale_days)} days"},
+            ).execute()
         ).data or []
         return [
             VerificationTarget(
@@ -100,6 +105,33 @@ class ListingVerificationRepository:
             for row in rows
             if row.get("job_id") and row.get("apply_url")
         ]
+
+    def snapshot(self, job_id: str) -> dict[str, Any] | None:
+        """Current verification state of one listing — the intent-gate read.
+
+        Keyed by job_id rather than claimed from the queue: an on-intent check
+        jumps the queue for the one listing a user is about to act on.
+        """
+        rows = _with_retry(
+            lambda: self.db.table("jobs")
+            .select(
+                "job_id,job_title,apply_url,listing_confidence,"
+                "last_verified_live_at,last_verification_attempt_at,retired_at"
+            )
+            .eq("job_id", job_id)
+            .limit(1)
+            .execute()
+        ).data or []
+        return rows[0] if rows else None
+
+    def mark_attempted(self, job_id: str) -> None:
+        """Stamp an out-of-band (intent-gate) check so it also ages the queue."""
+        _with_retry(
+            lambda: self.db.table("jobs")
+            .update({"last_verification_attempt_at": self.now().isoformat()})
+            .eq("job_id", job_id)
+            .execute()
+        )
 
     def record(self, result: VerificationResult) -> None:
         now = self.now()
@@ -177,21 +209,19 @@ class ListingVerificationRepository:
             .execute()
         )
 
-    def pending_count(self) -> int:
-        """Count of unverified/uncertain listings still awaiting a check.
+    def pending_count(self, *, stale_days: int = 7) -> int:
+        """Count of listings past their staleness horizon — the drain-belt signal.
 
-        The health signal for the drain belt — served by the partial
-        idx_jobs_verify_pending, so it is a fast index-only count.
+        Served by idx_jobs_verify_due. Goes through the RPC rather than a
+        PostgREST filter chain because ``apply_url=like.http%`` puts a bare ``%``
+        in the query string, which the Supabase edge rejects with an HTML 500.
         """
         res = _with_retry(
-            lambda: self.db.table("jobs")
-            .select("job_id", count="exact")
-            .in_("listing_confidence", ["uncertain", "likely_closed"])
-            .like("apply_url", "http%")
-            .limit(1)
-            .execute()
+            lambda: self.db.rpc(
+                "count_verify_due", {"p_stale": f"{max(0, stale_days)} days"}
+            ).execute()
         )
-        return int(getattr(res, "count", 0) or 0)
+        return int(res.data or 0)
 
     def retire_eligible(self, *, limit: int = 500) -> int:
         capped = max(1, min(limit, 5000))

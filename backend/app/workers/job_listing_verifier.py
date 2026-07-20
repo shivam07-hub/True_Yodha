@@ -57,8 +57,9 @@ async def _sweep() -> None:
     limit = max(1, min(int(os.getenv("JOB_VERIFY_LIMIT", "200")), 1000))
     concurrency = max(1, min(int(os.getenv("JOB_VERIFY_CONCURRENCY", "10")), 30))
     per_host = max(1, min(int(os.getenv("JOB_VERIFY_PER_HOST", "4")), concurrency))
+    stale_days = max(1, int(os.getenv("JOB_VERIFY_STALE_DAYS", "7")))
     repo = ListingVerificationRepository(get_supabase_admin())
-    targets = repo.targets(limit=limit)
+    targets = repo.claim_targets(limit=limit, stale_days=stale_days)
     started = time.monotonic()
 
     async with httpx.AsyncClient(
@@ -81,10 +82,11 @@ async def _sweep() -> None:
     # backlog + rate + duration are the health signals: a draining belt trends
     # backlog down; a stalled one is visible before users hit a ghost listing.
     duration = round(time.monotonic() - started, 1)
-    backlog = repo.pending_count()
+    backlog = repo.pending_count(stale_days=stale_days)
     log.info(
-        "metric job_verifier.sweep targets=%d results=%s retired=%d attention=%d backlog=%d duration_s=%s",
-        len(targets), counts, retired, attention, backlog, duration,
+        "metric job_verifier.sweep targets=%d results=%s retired=%d attention=%d "
+        "backlog=%d stale_days=%d duration_s=%s",
+        len(targets), counts, retired, attention, backlog, stale_days, duration,
     )
 
 

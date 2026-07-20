@@ -777,3 +777,14 @@ A single global ceiling on concurrent LLM calls, shared across all Job Runners a
 ## Overload Policy
 
 Uploads are never rejected for load (your "never fail an upload" rule). At peak the durable rail absorbs the spike; the loading screen surfaces honest backpressure ("high demand — still working, you're in line"), feeding the >90s honest-copy state of the CV-loading redesign. Charge stays at enqueue; refund only on terminal failure after retries.
+
+## Listing Verification
+
+Whether a job we surface still exists. Two triggers, one truth — every verdict lands in the same `jobs` transition (`listing_confidence` · `last_verified_live_at` · quarantine/retire ladder), so the surface never has to ask which path checked it.
+
+- **Drain sweep** — background belt over the whole corpus. Claims work via `claim_verify_targets`, which selects the oldest-unchecked rows and stamps `last_verification_attempt_at` in the *same* statement under `FOR UPDATE SKIP LOCKED`. Claim-on-read is what makes a crashed sweep cost one batch instead of re-serving the same rows forever, and `NULLS FIRST` ordering keeps the never-checked tail draining ahead of any re-check. The queue is **confidence-agnostic**: a row marked `active` re-enters once stale, because a queue scoped to low-confidence rows lets verified listings decay invisibly.
+- **Intent gate** (`app/services/job_liveness.py`) — jumps the queue for the single listing a user is about to act on (open / apply), cached ~6h. This is where a ghost actually costs someone effort, so it is checked at that moment rather than on a calendar. Volume is user-actions/day, not corpus size.
+
+**`unknown` is a first-class verdict.** A 401/403/429/timeout from an ATS is not evidence a role is gone; it resolves to `unknown` and the surface discloses "couldn't check". Only real closure evidence (404/410, explicit closed-marker copy) may read as `closed`.
+
+**Liveness is not freshness.** `last_seen` records when the scraper last *ingested* a row, not when anyone confirmed it exists — while the scraper does not re-crawl, `last_seen` carries no liveness information at all and must not be rendered as if it does.

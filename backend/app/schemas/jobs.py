@@ -268,6 +268,20 @@ class ApplyIntentRequest(BaseModel):
     destination_type: Literal["direct_role", "career_search"]
 
 
+class JobLivenessResponse(BaseModel):
+    """Whether this listing is still live, checked at the moment of intent.
+
+    ``unknown`` is a first-class answer, not a failure: an ATS that blocks or
+    times out our check is no evidence the role is gone, and the surface must
+    say "couldn't check" rather than imply either verdict.
+    """
+    job_id: str
+    state: Literal["live", "closed", "unverified", "unknown"]
+    checked_at: str | None = None
+    verified_live_at: str | None = None
+    from_cache: bool = False
+
+
 class ApplicationStatusUpdate(BaseModel):
     status: str     # saved | applied | interviewing | ghosted | rejected | offer
     notes: str | None = None
