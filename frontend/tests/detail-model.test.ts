@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert"
 import { test } from "node:test"
-import { JOB_PLAN_ORDER, jobPlanSections } from "../lib/jobs/detail-model"
+import { JOB_PLAN_ORDER, jobPlanSections, livenessNotice } from "../lib/jobs/detail-model"
 
 test("full-data desktop render follows the funnel order", () => {
   const sections = jobPlanSections({
@@ -54,4 +54,41 @@ test("missing company and JD gate their sections", () => {
     hasCompany: false,
   })
   assert.deepEqual(sections, ["skills", "reach", "notes"])
+})
+
+test("a closed listing is the only state loud enough to guard Apply", () => {
+  const closed = livenessNotice("closed")
+  assert.equal(closed?.tone, "warn")
+  assert.equal(closed?.guardsApply, true)
+
+  for (const state of ["live", "unknown", "unverified"] as const) {
+    const notice = livenessNotice(state)
+    assert.equal(notice?.tone, "quiet", `${state} must stay quiet`)
+    assert.equal(notice?.guardsApply, false, `${state} must never block Apply`)
+  }
+})
+
+test("a failed check reads as 'couldn't check', never as closed", () => {
+  // An ATS blocking our verifier is not evidence the role is gone. If this ever
+  // starts implying closure, we are lying to users about their own shortlist.
+  const unknown = livenessNotice("unknown")
+  assert.match(unknown!.text, /couldn't check/i)
+  assert.doesNotMatch(unknown!.text, /closed/i)
+})
+
+test("an unchecked listing is disclosed, not implied live", () => {
+  const unverified = livenessNotice("unverified")
+  assert.match(unverified!.text, /not yet checked/i)
+  assert.doesNotMatch(unverified!.text, /live/i)
+})
+
+test("a live verdict carries when we last saw it", () => {
+  assert.match(livenessNotice("live", { relativeAge: "2 hours ago" })!.text, /2 hours ago/)
+  // No stamp is still a valid verdict — just without the age clause.
+  assert.match(livenessNotice("live")!.text, /confirmed live$/)
+})
+
+test("no verdict renders nothing at all", () => {
+  assert.equal(livenessNotice(null), null)
+  assert.equal(livenessNotice(undefined), null)
 })

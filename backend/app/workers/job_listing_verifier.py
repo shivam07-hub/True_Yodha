@@ -88,6 +88,27 @@ async def _sweep() -> None:
         "backlog=%d stale_days=%d duration_s=%s",
         len(targets), counts, retired, attention, backlog, stale_days, duration,
     )
+    _alert_on_unproductive_sweep(targets, counts)
+
+
+# A verdict that moves a listing's confidence. `blocked`/`timeout`/`error` claim
+# rows and stamp them without learning anything — a belt producing only those is
+# running, draining the queue, and teaching us nothing.
+_PRODUCTIVE = {"seen_live", "closed", "redirected", "wrong_role"}
+
+
+def _alert_on_unproductive_sweep(targets: list, counts: dict[str, int]) -> None:
+    if not targets:
+        return
+    productive = sum(count for result, count in counts.items() if result in _PRODUCTIVE)
+    if productive:
+        return
+    # Every claimed row burned its attempt stamp on a blocked/errored fetch. Left
+    # unsaid, this looks identical to a healthy sweep in the backlog trend.
+    log.warning(
+        "metric job_verifier.alert reason=no_productive_verdicts targets=%d results=%s",
+        len(targets), counts,
+    )
 
 
 async def run() -> None:
@@ -98,7 +119,7 @@ async def run() -> None:
     try:
         await _sweep()
     except Exception:  # noqa: BLE001 — terminal fallback for a best-effort sweep
-        log.exception("metric job_verifier.sweep_failed")
+        log.exception("metric job_verifier.alert reason=sweep_failed")
 
 
 if __name__ == "__main__":

@@ -12,6 +12,7 @@ import { dataKeys } from "@/lib/domain-data"
 import { MAX_LEVEL } from "@/lib/level-thresholds"
 import { useSkillUpvotes } from "@/lib/hooks/use-skill-upvotes"
 import { jobPlanSections, type JobPlanSectionId } from "@/lib/jobs/detail-model"
+import { ListingLiveness } from "@/components/jobs/listing-liveness"
 import { LensWhy, jdSnippet, stripTaxonomySuffix } from "./lenses"
 import { CommentThread } from "@/components/comments/comment-thread"
 import { CompanyDrawer } from "@/components/companies/company-drawer"
@@ -203,6 +204,9 @@ export function DetailBody(p: DetailBodyProps) {
 
   return (
     <div className="db-detail">
+      {/* Liveness leads: whether the role still exists outranks every reason to
+          want it. Renders nothing when we have no verdict. */}
+      <ListingLiveness jobId={p.job.job_id} />
       {sections.map(renderSection)}
       {company ? <CompanyDrawer company={company} open={drawerOpen} onClose={() => setDrawerOpen(false)} /> : null}
     </div>
