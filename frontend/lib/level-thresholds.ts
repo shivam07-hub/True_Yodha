@@ -21,3 +21,19 @@ export function sessionsForGap(fromLevel: number, toLevel: number): number {
   }
   return total
 }
+
+/**
+ * Honest "practice sessions remaining to the next level" for a skill (S3).
+ * Deterministic — no fabricated weekly cadence. Handles a CV-inferred level with
+ * zero forge sessions: `forgeSessions - sessionsForGap(0, level)` goes negative,
+ * so the sessions-into-current-level clamps to 0 and the answer is the full
+ * next-level threshold (honest: the CV proved the level, forging to the next
+ * takes the whole threshold). Returns 0 at or beyond MAX_LEVEL.
+ */
+export function sessionsToNextLevel(level: number, forgeSessions: number): number {
+  const lvl = Math.max(0, Math.min(MAX_LEVEL, Math.floor(level)))
+  if (lvl >= MAX_LEVEL) return 0
+  const threshold = LEVEL_THRESHOLDS[lvl] ?? 0
+  const into = Math.max(0, forgeSessions - sessionsForGap(0, lvl))
+  return Math.max(0, threshold - into)
+}

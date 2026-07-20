@@ -22,6 +22,11 @@ def apply_skill_overrides(
     baseline = CVVersionsRepository(db).find(baseline_version_id, user_id)
     if not baseline or baseline.get("kind") != "baseline_upload":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Baseline CV not found.")
+    if not baseline.get("skills_confirmed_at"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Confirm the extracted skills before editing a scored baseline.",
+        )
 
     current_rows = (
         db.table("user_skills")

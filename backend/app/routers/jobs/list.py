@@ -42,6 +42,7 @@ from app.schemas.jobs import (
     SkillHeatmapResponse,
 )
 from app.schemas.company_pulse import CompanyPulseItem, CompanyPulseResponse
+from app.schemas.company_gap_signals import CompanyGapSignalItem, CompanyGapSignalsResponse
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -155,6 +156,30 @@ def get_company_pulse(
         return CompanyPulseResponse(companies=[])
     rows = repo.fetch_company_pulse(names)
     return CompanyPulseResponse(companies=[CompanyPulseItem(**r) for r in rows])
+
+
+@router.get("/companies/gap-signals", response_model=CompanyGapSignalsResponse)
+def get_company_gap_signals(
+    companies: Annotated[str, Query(min_length=1)],
+    skills: Annotated[str, Query(min_length=1)],
+    repo: JobsRepository = Depends(get_public_jobs_repository),
+) -> CompanyGapSignalsResponse:
+    """New-this-week (company × skill) role counts — the /intel gap-alert signal
+    (S3). Public. The frontend passes the user's followed companies + their
+    Gap/Building skills; the strip surfaces the strongest match."""
+    company_list = [c.strip() for c in companies.split(",") if c.strip()][:20]
+    skill_list = [s.strip() for s in skills.split(",") if s.strip()][:40]
+    if not company_list or not skill_list:
+        return CompanyGapSignalsResponse(signals=[])
+    matrix = repo.fetch_new_role_skill_counts(company_list, skill_list)
+    signals = [
+        CompanyGapSignalItem(company_name=company, skill=skill, new_roles=count)
+        for company, row in matrix.items()
+        for skill, count in row.items()
+        if count > 0
+    ]
+    signals.sort(key=lambda s: s.new_roles, reverse=True)
+    return CompanyGapSignalsResponse(signals=signals)
 
 
 @router.get("/analytics/skills", response_model=EntitySkillsResponse)

@@ -12,6 +12,7 @@ from app.services import cv_workflow, onboarding_service
 from app.services.baseline_generator import generate_baseline, validate_answer
 from app.services.onboarding_preview import start_profile_preview
 from app.services.skill_overrides import apply_skill_overrides
+from app.services.skill_confirmation import confirm_baseline_skills
 
 
 router = APIRouter(prefix="/onboarding", tags=["onboarding"])
@@ -236,6 +237,21 @@ def save_skill_overrides(
     return {"status": "done", "total_score": float(score["total_score"])}
 
 
+@router.post("/baseline/{baseline_id}/confirm-skills")
+def confirm_skills(
+    baseline_id: int,
+    body: SkillOverridesRequest,
+    principal: Principal = Depends(get_principal),
+) -> dict[str, Any]:
+    score = confirm_baseline_skills(
+        get_supabase_admin(),
+        principal.id,
+        baseline_id,
+        [item.model_dump() for item in body.overrides],
+    )
+    return {"status": "done", "total_score": float(score["total_score"])}
+
+
 @router.post("/complete", status_code=status.HTTP_204_NO_CONTENT)
 def complete(principal: Principal = Depends(get_principal)) -> None:
     db = get_supabase_admin()
@@ -264,6 +280,13 @@ def mark_milestone(
 @router.post("/checklist/dismiss", status_code=status.HTTP_204_NO_CONTENT)
 def dismiss_checklist(principal: Principal = Depends(get_principal)) -> None:
     OnboardingRepository(get_supabase_admin()).dismiss_checklist(principal.id)
+
+
+@router.get("/checklist")
+def get_checklist(principal: Principal = Depends(get_principal)) -> dict[str, Any]:
+    return onboarding_service.get_first_success_checklist(
+        get_supabase_admin(), principal.id
+    )
 
 
 @router.post("/start-over", status_code=status.HTTP_204_NO_CONTENT)

@@ -40,7 +40,7 @@ class _CachedCVRepository:
         self.client = object()
 
     def find_by_content_hash(self, _user_id: str, _content_hash: str) -> dict:
-        return {"id": 42}
+        return {"id": 42, "skills_confirmed_at": "2026-07-20T00:00:00+00:00"}
 
     def count_user_skills(self, _user_id: str) -> int:
         return 7
@@ -255,7 +255,6 @@ class _AdminFakeRepo:
 def _patch_admin_repo(monkeypatch, repo) -> None:
     monkeypatch.setattr(cv_workflow, "get_supabase_admin", lambda: object())
     monkeypatch.setattr(cv_workflow, "CVVersionsRepository", lambda _client: repo)
-    monkeypatch.setattr(cv_workflow, "ScoresRepository", lambda _client: repo)
 
 
 def test_background_run_marks_done_on_success(monkeypatch) -> None:
@@ -265,10 +264,15 @@ def test_background_run_marks_done_on_success(monkeypatch) -> None:
     async def _parse(_text, provider=None):
         return {
             "skills_detected": [{"taxonomy_key": "Python", "signal_type": "project", "xp_awarded": 150, "evidence": "X"}],
-            "cv_structured": {"summary": "Engineer"},
+            "provenance": {"llm_model": "provider/strong", "llm_elapsed_ms": 91},
         }
-    monkeypatch.setattr(cv_workflow.cv_parser, "parse_cv_text", _parse)
-    monkeypatch.setattr(cv_workflow.scoring, "record_cv_score", lambda *_a, **_k: {"total_score": 71.0})
+    monkeypatch.setattr(cv_workflow.cv_parser, "parse_cv_skills", _parse)
+    enqueued: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        cv_workflow.background,
+        "enqueue",
+        lambda lane, name, **_kwargs: enqueued.append((lane, name)),
+    )
 
     done_calls: list[dict] = []
     monkeypatch.setattr(cv_workflow.upload_jobs_repo, "mark_done", lambda job_id, **kw: done_calls.append({"job_id": job_id, **kw}))
@@ -284,12 +288,19 @@ def test_background_run_marks_done_on_success(monkeypatch) -> None:
         {
             "job_id": "job-1",
             "skills_detected": 1,
-            "score": 71.0,
+            "score": None,
             "baseline_version_id": 1,
+            "result_payload": {
+                "extraction": {"llm_model": "provider/strong", "llm_elapsed_ms": 91},
+                "llm_enrichment_failed": False,
+            },
         }
     ]
     assert repo.profile_updates == []
     assert repo.created and repo.created[0].kind == "baseline_upload"
+    assert repo.created[0].cv_structured == {}
+    assert repo.created[0].skills_detected[0]["taxonomy_key"] == "Python"
+    assert enqueued == [(cv_workflow.background.LANE_BULK, "cv_structured_enrich")]
 
 
 def test_background_run_refunds_and_fails_on_provider_outage(monkeypatch) -> None:
@@ -298,7 +309,7 @@ def test_background_run_refunds_and_fails_on_provider_outage(monkeypatch) -> Non
 
     async def _parse(_text, provider=None):
         return {"skills_detected": [], "provider_failed": True}
-    monkeypatch.setattr(cv_workflow.cv_parser, "parse_cv_text", _parse)
+    monkeypatch.setattr(cv_workflow.cv_parser, "parse_cv_skills", _parse)
 
     refunds: list[tuple] = []
     async def _refund(user_id, amount, action, reason, *, ref_table, ref_id):
@@ -326,7 +337,7 @@ def test_background_run_refunds_when_no_skills_extracted(monkeypatch) -> None:
 
     async def _parse(_text, provider=None):
         return {"skills_detected": []}
-    monkeypatch.setattr(cv_workflow.cv_parser, "parse_cv_text", _parse)
+    monkeypatch.setattr(cv_workflow.cv_parser, "parse_cv_skills", _parse)
 
     refunded = {"count": 0}
     async def _refund(*_a, **_k):
@@ -344,36 +355,6 @@ def test_background_run_refunds_when_no_skills_extracted(monkeypatch) -> None:
 
     assert refunded["count"] == 1
     assert failed_calls[0]["error_code"] == "no_skills"
-
-
-def test_background_run_refunds_when_taxonomy_mapping_fails(monkeypatch) -> None:
-    repo = _AdminFakeRepo()
-    _patch_admin_repo(monkeypatch, repo)
-
-    async def _parse(_text, provider=None):
-        return {"skills_detected": [{"taxonomy_key": "Made-up", "signal_type": "project", "xp_awarded": 50, "evidence": "X"}]}
-    monkeypatch.setattr(cv_workflow.cv_parser, "parse_cv_text", _parse)
-
-    def _fail_score(*_a, **_k):
-        raise ValueError("no taxonomy")
-    monkeypatch.setattr(cv_workflow.scoring, "record_cv_score", _fail_score)
-
-    refunded = {"count": 0}
-    async def _refund(*_a, **_k):
-        refunded["count"] += 1
-        return 3000
-    monkeypatch.setattr(cv_workflow, "refund", _refund)
-
-    failed_calls: list[dict] = []
-    monkeypatch.setattr(cv_workflow.upload_jobs_repo, "mark_failed", lambda job_id, **kw: failed_calls.append(kw))
-    monkeypatch.setattr(cv_workflow.upload_jobs_repo, "mark_done", lambda *a, **k: pytest.fail("should not mark done"))
-
-    asyncio.run(cv_workflow._run_cv_upload_job(
-        job_id="job-4", user_id="u1", raw_text="text", content_hash="h",
-    ))
-
-    assert refunded["count"] == 1
-    assert failed_calls[0]["error_code"] == "taxonomy_unmapped"
 
 
 # ─── Status endpoint test ────────────────────────────────────────────────────

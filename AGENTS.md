@@ -306,7 +306,43 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-19 - unified Score and Skills journey)
+## LAST SESSION SUMMARY (2026-07-20 - trusted CV skills and first-success loop)
+
+Closed the first three Harshada/Hetvi trust actions without touching the
+landing-page or tutorial-video work.
+
+- CV skill extraction now unions high-precision deterministic Lightcast recall
+  with a strong-model enrichment pass, records the actual response model and
+  elapsed time, improves PDF reading order, and moves structured CV parsing to
+  the bulk lane after the user-facing skill result is ready.
+- A baseline now owns its extracted skill candidates. `skills_confirmed_at` is
+  the hard gate: neither Myro Score nor initial job matching can use a new
+  baseline before the owner reviews it. Confirmation atomically replaces only
+  CV/user-override skills, then computes one score and permits target matching.
+- Applied `cv_skill_confirmation_gate` to shared Supabase and ran the safe
+  production backfill. 274 affected baselines are queued for review with durable
+  inbox actions; no candidate was silently published into `user_skills`.
+  Harshada's pending baseline now contains English, Hindi, Marathi, JavaScript,
+  HTML, CSS, MySQL, and Computer Science.
+- Jobs now shows a dismissible first-success checklist on desktop and mobile.
+  Completion derives from persisted facts only: confirmed baseline skills,
+  viewed result, a real tailored CV version, and a real tracked application.
+
+Commits:
+
+- `e334db39` — `fix: make CV skill extraction trustworthy and fast`
+- `a6425b46` — `feat: require skill confirmation before scoring`
+- `feat: add durable first-success checklist` (this session's closing commit)
+
+Validation: 1496 backend tests passed; TypeScript, Next lint, onboarding/upload
+contracts, UI drift, migration checks, and `git diff --check` passed. Supabase
+security/performance advisors reported no new confirmation-gate security issue;
+the fresh partial index appears only as expected-unused immediately after
+creation.
+
+---
+
+## OLDER SESSION SUMMARY (2026-07-19 - unified Score and Skills journey)
 
 Implemented one causal Score and Skills surface from onboarding through CV
 evidence, with the persisted scoring output as the only visual truth.

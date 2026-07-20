@@ -4,10 +4,14 @@ import test from "node:test"
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8")
 
-test("onboarding exposes only Experience, Target, and Result stages", () => {
-  const progress = read("components/onboarding/onboarding-progress.tsx")
-  assert.match(progress, /\["Experience", "Target", "Result"\]/)
-  assert.doesNotMatch(progress, /Companies|Lens|Ninja/)
+test("onboarding routes CV evidence through skill confirmation before target and result", () => {
+  const entry = read("app/onboarding/page.tsx")
+  const result = read("app/onboarding/result/page.tsx")
+  assert.match(entry, /ExperienceStep/)
+  assert.match(result, /awaiting_skill_confirmation/)
+  assert.match(result, /SkillConfirmation/)
+  assert.match(result, /awaiting_target/)
+  assert.match(result, /TargetConfirm/)
 })
 
 test("description result remains an explicitly incomplete preview", () => {
@@ -34,10 +38,26 @@ test("full result leads with proof and keeps correction available", () => {
   assert.doesNotMatch(result, /Download/)
 })
 
+test("skill confirmation is the score and matching trust gate", () => {
+  const confirmation = read("components/onboarding/skill-confirmation.tsx")
+  assert.match(confirmation, /score and job matches will use only the skills you confirm/i)
+  assert.match(confirmation, /onboarding\.confirmSkills/)
+  assert.match(confirmation, /Confirm \$\{confirmedCount\} skills/)
+})
+
+test("first-success checklist reads and dismisses durable server state", () => {
+  const checklist = read("components/onboarding/first-success-checklist.tsx")
+  const market = read("app/(authed)/market/page.tsx")
+  assert.match(checklist, /onboarding\.checklist/)
+  assert.match(checklist, /onboarding\.dismissChecklist/)
+  assert.match(market, /FirstSuccessChecklist/)
+})
+
 test("accepted upload and target are persisted before result navigation", () => {
   const page = read("app/onboarding/page.tsx")
+  const target = read("components/onboarding/target-confirm.tsx")
   assert.match(page, /onboarding\.saveExperience/)
-  assert.match(page, /onboarding\.saveTarget/)
+  assert.match(target, /onboarding\.saveTarget/)
   assert.match(page, /router\.push\("\/onboarding\/result"\)/)
   assert.match(page, /pollCVUploadStatus/)
   assert.match(page, /state\.isFetchedAfterMount/)

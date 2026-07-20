@@ -250,6 +250,12 @@ def test_cv_analysis_notification_projects_processing_and_ready_states() -> None
     assert done["body"] == "6 skills mapped · Myro Score 42"
     assert done["read_at"] is None
 
+    repo.record_cv_analysis_done("upload-1", skills_detected=6, score=None)
+    _, pending = cap.updated[-1]
+    assert pending["state"] == "ready"
+    assert pending["title"] == "Review the skills Myro found"
+    assert pending["action_url"] == "/onboarding/result"
+
 
 def test_cv_analysis_failure_becomes_unread_actionable_notification() -> None:
     cap = _Capture()

@@ -220,6 +220,12 @@ function CVPage() {
     queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
     queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
     queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
+    if (result.score == null) {
+      setUploadPhase("ready")
+      setActiveUploadJobId(null)
+      router.push(result.redirect_to)
+      return
+    }
     setUploadPhase("ready")
     setBiggestDrag(lowestDomainFromCache())
     setUploadResult({ skills_detected: result.skills_detected, score: result.score })
@@ -229,7 +235,7 @@ function CVPage() {
     setFallbackReceipt(null)
     setUploadDeferred(false)
     setActiveUploadJobId(null)
-  }, [applyXpChange, jobId, lowestDomainFromCache, queryClient])
+  }, [applyXpChange, jobId, lowestDomainFromCache, queryClient, router])
 
   // The AppShell owns polling so this page can unmount while work continues.
   // When the user stays here, these events keep the existing truthful progress

@@ -65,6 +65,22 @@ test("processing → done resolves with status payload", async () => {
   assert.equal(result.redirect_to, "/onboarding/score")
 })
 
+test("skill extraction completes without inventing a pre-confirmation score", async () => {
+  const result = await resolveCVUploadResult(
+    { status: "processing", job_id: "job-review" },
+    async () => makeStatus({
+      status: "done",
+      skills_detected: 11,
+      score: null,
+      redirect_to: "/onboarding/result",
+    }),
+    { sleep, intervalMs: 1, timeoutMs: 1000, now: () => 0 },
+  )
+
+  assert.equal(result.score, null)
+  assert.equal(result.redirect_to, "/onboarding/result")
+})
+
 test("processing → failed throws CVUploadFailure with refund context", async () => {
   let didThrow = false
   try {

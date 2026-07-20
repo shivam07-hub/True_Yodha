@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useMemo, Suspense } from "react"
+import { useCallback, useEffect, useMemo, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query"
 import { jobs, users, xp } from "@/lib/api"
@@ -8,6 +8,7 @@ import type { JobLocationFilters } from "@/lib/api"
 import { HeatmapTab } from "@/components/market/heatmap-tab"
 import { MarketJobsTab } from "@/components/market/jobs-tab"
 import { MissionHeroRail } from "@/components/mission-control/mission-hero-rail"
+import { FirstSuccessChecklist } from "@/components/onboarding/first-success-checklist"
 import { MatchesRefreshBanner } from "@/components/jobs/matches-refresh-banner"
 import { SkillMapCard } from "@/components/mission-control/peek-surfaces"
 import { useViewport } from "@/mobile"
@@ -44,6 +45,14 @@ function IntelPageInner() {
   const locationMode = ""
   const activeTab: "jobs" | "heatmap" = searchParams.get("tab") === "heatmap" ? "heatmap" : "jobs"
   const jobSkillFacet = searchParams.get("skill") || null
+
+  // The intel heatmap moved to its own home at /intel (Signal Thread L2). Any
+  // old ?tab=heatmap link redirects there, carrying a skill facet through.
+  useEffect(() => {
+    if (activeTab === "heatmap") {
+      router.replace(jobSkillFacet ? `/intel?skill=${encodeURIComponent(jobSkillFacet)}` : "/intel")
+    }
+  }, [activeTab, jobSkillFacet, router])
 
   // Sync tokens balance if not yet set from another page visit
   useQuery({
@@ -144,8 +153,17 @@ function IntelPageInner() {
   // CSS breakpoint exactly — `isDesktop` also requires pointer:fine, so a
   // touch-tablet would desync content from chrome. Desktop keeps the workspace.
   if (mode === "mobile") {
-    return <JobsSurface token={token ?? ""} targetLocations={profileData?.target_locations ?? []} />
+    return (
+      <>
+        {token ? <div className="px-4 pt-4"><FirstSuccessChecklist token={token} /></div> : null}
+        <JobsSurface token={token ?? ""} targetLocations={profileData?.target_locations ?? []} />
+      </>
+    )
   }
+
+  // Heatmap moved to /intel — render nothing while the effect above redirects,
+  // so the retired HeatmapTab never mounts and fires its queries.
+  if (activeTab === "heatmap") return null
 
   return (
     <>
@@ -160,6 +178,7 @@ function IntelPageInner() {
           ) : null}
         </aside>
         <div className="mc-ws-main">
+        {token ? <FirstSuccessChecklist token={token} /> : null}
         {/* Match staleness + coin-charged recompute — relocated from the retired
             /home dashboard; Jobs is the browse surface, so discovery mechanics
             live here. Renders nothing while matches are fresh. */}

@@ -13,6 +13,10 @@ interface SkillIntelligencePanelProps {
   readiness: SkillReadiness
   nextLevel: number
   demand: number
+  /** Deterministic practice sessions remaining to the next level (S3). */
+  sessionsToNext: number
+  /** Backend says the user has already forged enough to advance. */
+  levelUpReady: boolean
   topCompanies: TopCompany[]
   evidenceLines: string[]
   selectedCell: HeatmapCell
@@ -26,6 +30,8 @@ export function SkillIntelligencePanel({
   readiness,
   nextLevel,
   demand,
+  sessionsToNext,
+  levelUpReady,
   topCompanies,
   evidenceLines,
   selectedCell,
@@ -81,7 +87,16 @@ export function SkillIntelligencePanel({
 
       <div className="si-panel-block">
         <h3>Next step</h3>
-        <p>Move from L{level} to L{nextLevel} by practicing applied questions, then add proof back to your CV.</p>
+        {level >= nextLevel ? (
+          <p>You&rsquo;re at the top level for this skill — keep your CV proof fresh.</p>
+        ) : levelUpReady ? (
+          <p className="si-predict"><strong>You&rsquo;ve practiced enough — level up to L{nextLevel} now.</strong></p>
+        ) : (
+          <>
+            <p className="si-predict"><strong>≈{sessionsToNext}</strong> focused practice session{sessionsToNext === 1 ? "" : "s"} to L{nextLevel}.</p>
+            <p>Practice applied questions, then add the proof back to your CV.</p>
+          </>
+        )}
       </div>
 
       <div className="si-panel-actions">

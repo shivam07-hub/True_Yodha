@@ -21,6 +21,8 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import AsyncIterator
+from dataclasses import dataclass
+from time import perf_counter
 
 from openai import AsyncOpenAI
 
@@ -149,6 +151,15 @@ class LLMProviderError(Exception):
 _ProviderEntry = tuple[AsyncOpenAI, str, dict | None]
 
 
+@dataclass(frozen=True)
+class LLMCompletion:
+    """Successful completion plus the provider-reported model provenance."""
+
+    content: str
+    model: str
+    elapsed_ms: int
+
+
 class LLMProvider:
     def __init__(self, providers: list[_ProviderEntry]) -> None:
         self._providers = providers
@@ -170,6 +181,21 @@ class LLMProvider:
         through to the next — rate limits no longer burn the whole fallback
         ladder on the first 429.
         """
+        result = await self.complete_with_metadata(
+            messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+        return result.content
+
+    async def complete_with_metadata(
+        self,
+        messages: list[dict],
+        max_tokens: int = 4096,
+        temperature: float | None = None,
+    ) -> LLMCompletion:
+        """Complete once and retain the actual model and elapsed time."""
+        started_at = perf_counter()
         max_retries = int(settings.llm_transient_retries)
         for client, model, extra_body in self._providers:
             logger.info("LLM provider: trying %s", model)
@@ -185,7 +211,12 @@ class LLMProvider:
                         response = await client.chat.completions.create(**kwargs)
                     content = (response.choices[0].message.content or "").strip()
                     if content:
-                        return content
+                        actual_model = getattr(response, "model", None) or model
+                        return LLMCompletion(
+                            content=content,
+                            model=str(actual_model),
+                            elapsed_ms=max(0, round((perf_counter() - started_at) * 1000)),
+                        )
                     logger.warning("LLM provider %s returned empty response — trying next", model)
                     break  # empty is not retryable on the same model
                 except Exception as exc:
@@ -396,6 +427,15 @@ def get_writer_provider() -> LLMProvider:
     outage fails the call (→ honest "unavailable") rather than emitting a rewrite worse
     than the user's original. See `feedback_no_cheap_models_judgment`. Callers no longer
     pass a provider into a writing path; the floor is owned here, not by discipline.
+    """
+    return _strong_paid_first_provider()
+
+
+def get_cv_skill_provider() -> LLMProvider:
+    """Strong-only, paid-first extraction for the CV skill trust boundary.
+
+    A syntactically valid but incomplete skill list is a silent judgment error,
+    so the CV path must never use the small-model interactive tiers.
     """
     return _strong_paid_first_provider()
 

@@ -4,13 +4,13 @@
  * without spinning up Next, fetch, or the auth refresh stack.
  */
 
-export type CVUploadPhase = "queued" | "reading" | "scoring" | "ready" | "failed"
+export type CVUploadPhase = "queued" | "reading" | "finding_skills" | "scoring" | "ready" | "failed"
 
 export type CVUploadInitial =
   | {
       status: "done"
       skills_detected: number
-      score: number
+      score: number | null
       redirect_to: string
       xp_charged: number
     }
@@ -49,7 +49,7 @@ export interface CVUploadPolledStatus {
 
 export interface CVUploadResultShape {
   skills_detected: number
-  score: number
+  score: number | null
   xp_charged: number
   new_coin_balance: number | null
   redirect_to: string
@@ -149,10 +149,10 @@ export async function resolveCVUploadResult(
     if (status.status === "done") {
       return {
         skills_detected: status.skills_detected ?? 0,
-        score: status.score ?? 0,
+        score: status.score,
         xp_charged: status.xp_charged,
         new_coin_balance: status.new_coin_balance,
-        redirect_to: status.redirect_to ?? "/onboarding/score",
+        redirect_to: status.redirect_to ?? "/onboarding/result",
       }
     }
     if (status.status === "failed") {

@@ -7,6 +7,7 @@ import Link from "next/link"
 import { Briefcase, ChevronRight, Settings2, Target, TrendingUp, Users } from "lucide-react"
 import type { FollowedCompany, UserSkillDemandItem, UserSkillItem } from "@/lib/api"
 import { buildSkillEvidenceIndex, nextSkillLevel, skillDemandTotal, skillReadiness } from "@/lib/skill-intelligence"
+import { sessionsToNextLevel } from "@/lib/level-thresholds"
 import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
 import { CompanySignalCard, SignalLabel } from "@/components/companies/company-signal"
 import { useCompanyPulse } from "@/lib/hooks/use-company-pulse"
@@ -136,6 +137,11 @@ export function SkillIntelligenceHeatmap({
   const selectedLevel = selectedSkill?.current_level ?? selectedEvidence?.level ?? 0
   const readiness = skillReadiness(selectedLevel)
   const nextLevel = nextSkillLevel(selectedLevel)
+  // Honest, deterministic prediction — practice sessions to the next level (no
+  // fabricated weekly cadence). levelUpReady = the backend says they've forged
+  // enough to advance already.
+  const sessionsToNext = sessionsToNextLevel(selectedLevel, selectedEvidence?.forge_sessions_count ?? 0)
+  const levelUpReady = selectedEvidence?.forged_level_up_available ?? false
   const selectedDemand = selectedSkillName ? skillDemandTotal(rowDataMap, selectedSkillName) : 0
   const selectedEvidenceLines = evidenceLines(selectedEvidence)
   const topCompaniesForSkill = useMemo(() => {
@@ -171,8 +177,9 @@ export function SkillIntelligenceHeatmap({
     <section className="si-shell" aria-label="Skill Intelligence">
       <div className="si-cockpit">
         <div className="si-cockpit-copy">
-          <h1>We track what skills companies are hiring for.</h1>
-          <p>Skill Intelligence merges your CV levels with live company demand.</p>
+          <SignalLabel>Myro Intel</SignalLabel>
+          <h1>Their hiring. Your readiness.</h1>
+          <p>Live demand from the companies you follow, matched to your CV.</p>
         </div>
         <div className="si-meter" aria-label={`${trackedCompanyTotal} companies tracked`}>
           <div className="si-meter-top">
@@ -310,6 +317,8 @@ export function SkillIntelligenceHeatmap({
           readiness={readiness}
           nextLevel={nextLevel}
           demand={selectedDemand}
+          sessionsToNext={sessionsToNext}
+          levelUpReady={levelUpReady}
           topCompanies={topCompaniesForSkill}
           evidenceLines={selectedEvidenceLines}
           selectedCell={selectedCell}

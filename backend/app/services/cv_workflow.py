@@ -13,11 +13,10 @@ from app.repositories.cv import (
     CVVersionWriteSpec,
     CVVersionsRepository,
 )
-from app.repositories.scores import ScoresRepository
-from app.services import background, cv_parser, scoring
+from app.services import background, cv_parser
 from app.services.matching import match_run
 from app.services.background import TransientJobError
-from app.services.llm_provider import get_cv_upload_provider
+from app.services.llm_provider import get_cv_skill_provider
 from app.services.xp_policy import CV_UPLOAD_XP_COST, CV_UPLOAD_XP_FLOOR
 from app.services.xp_service import InsufficientXPError, charge_or_raise, get_xp_balance, refund
 
@@ -73,6 +72,7 @@ def _persist_baseline_cv(
     raw_text: str,
     content_hash: str,
     cv_structured: dict | None,
+    skills_detected: list[dict[str, Any]] | None = None,
     source: str = "pdf_upload",
 ) -> int | None:
     """Write a new baseline_upload row into cv_versions."""
@@ -82,6 +82,7 @@ def _persist_baseline_cv(
         parent_version_id=None,
         body_text=raw_text,
         cv_structured=cv_structured or {},
+        skills_detected=skills_detected or [],
         title="Uploaded baseline CV",
         snapshot_hash=content_hash,
     )
@@ -104,7 +105,8 @@ def _persist_baseline_cv(
 # ── ADR-0004 two-phase upload ─────────────────────────────────────────────────
 # Phase 1 — synchronous, fast (~500ms): validate, extract raw text, hash-check
 #   cache, charge XP, persist a processing row, return job_id.
-# Phase 2 — async (10-60s): LLM parse, score, persist baseline, mark done.
+# Phase 2 — async: deterministic recall + skills-only LLM, score, persist, done.
+# Phase 3 — bulk lane: structured CV enrichment after the trusted result is ready.
 #   Refund XP on provider failure or empty extraction.
 
 _MIN_CV_TEXT_LEN = 80  # below this the LLM has nothing useful to extract
@@ -268,11 +270,12 @@ async def start_cv_upload_job(
     cached = cv_repo.find_by_content_hash(user_id, content_hash)
     if cached:
         _log.info("CV hash match for user=%s — free synchronous return", user_id)
+        confirmed = bool(cached.get("skills_confirmed_at"))
         return {
             "status": "done",
-            "skills_detected": cv_repo.count_user_skills(user_id),
-            "score": float(cv_repo.get_current_score(user_id) or 0),
-            "redirect_to": "/onboarding/score",
+            "skills_detected": len(cached.get("skills_detected") or []) or cv_repo.count_user_skills(user_id),
+            "score": float(cv_repo.get_current_score(user_id) or 0) if confirmed else None,
+            "redirect_to": "/onboarding/result",
             "xp_charged": 0,
         }
 
@@ -359,11 +362,12 @@ def _idem_response(existing: dict[str, Any]) -> dict[str, Any]:
     frontend's state machine doesn't have to special-case retries."""
     status = existing["status"]
     if status == "done":
+        raw_score = existing.get("score")
         return {
             "status": "done",
             "skills_detected": existing.get("skills_detected") or 0,
-            "score": float(existing.get("score") or 0),
-            "redirect_to": "/onboarding/score",
+            "score": float(raw_score) if raw_score is not None else None,
+            "redirect_to": "/onboarding/result",
             "xp_charged": existing.get("xp_charged", 0),
         }
     if status == "failed":
@@ -402,11 +406,12 @@ async def start_cv_upload_job_from_text(
     cached = cv_repo.find_by_content_hash(user_id, content_hash)
     if cached:
         _log.info("CV text hash match for user=%s — free synchronous return", user_id)
+        confirmed = bool(cached.get("skills_confirmed_at"))
         return {
             "status": "done",
-            "skills_detected": cv_repo.count_user_skills(user_id),
-            "score": float(cv_repo.get_current_score(user_id) or 0),
-            "redirect_to": "/onboarding/score",
+            "skills_detected": len(cached.get("skills_detected") or []) or cv_repo.count_user_skills(user_id),
+            "score": float(cv_repo.get_current_score(user_id) or 0) if confirmed else None,
+            "redirect_to": "/onboarding/result",
             "xp_charged": 0,
         }
 
@@ -525,6 +530,25 @@ async def _initial_match_handler(payload: dict[str, Any], allow_retry: bool) -> 
     )
 
 
+@background.handler("cv_structured_enrich")
+async def _cv_structured_enrich_handler(
+    payload: dict[str, Any], allow_retry: bool
+) -> None:
+    """Enrich CV layout after the latency-sensitive skill path is complete."""
+    structured = await cv_parser.reparse_structured_only(payload["raw_text"])
+    if structured is None:
+        if allow_retry:
+            raise TransientJobError("structured_cv_provider_unavailable")
+        _log.warning(
+            "Structured CV enrichment unavailable for baseline=%s",
+            payload["baseline_version_id"],
+        )
+        return
+    CVVersionsRepository(get_supabase_admin()).update_structured(
+        int(payload["baseline_version_id"]), structured
+    )
+
+
 async def _handle_job_failure(
     job_id: str,
     user_id: str,
@@ -564,7 +588,6 @@ async def _run_cv_upload_job(
     """
     admin_db = get_supabase_admin()
     cv_repo = CVVersionsRepository(admin_db)
-    scores_repo = ScoresRepository(admin_db)
 
     # Idempotency guard — a retried/duplicate delivery for an already-terminal
     # job must not re-parse or double-write a baseline. Fail-open: this is an
@@ -580,10 +603,14 @@ async def _run_cv_upload_job(
         return
 
     # #6 deploy-style phases — write before each real stage so the loading UI
-    # reflects truth (Reading → Scoring → Ready), not a fabricated clock.
+    # reflects truth (Reading → Finding skills → Ready), not a fabricated clock.
     upload_jobs_repo.set_phase(job_id, "reading")
+    upload_jobs_repo.set_phase(job_id, "finding_skills")
     try:
-        parsed = await cv_parser.parse_cv_text(raw_text, provider=get_cv_upload_provider())
+        parsed = await cv_parser.parse_cv_skills(
+            raw_text,
+            provider=get_cv_skill_provider(),
+        )
     except Exception:  # network / provider library blew up — transient
         _log.exception("CV parse crashed for job=%s user=%s", job_id, user_id)
         await _handle_job_failure(
@@ -613,39 +640,34 @@ async def _run_cv_upload_job(
         )
         return
 
-    upload_jobs_repo.set_phase(job_id, "scoring")
-    try:
-        score_row = scoring.record_cv_score(scores_repo, user_id, skills_detected)
-    except ValueError:  # permanent — taxonomy mapping won't change on retry
-        await _handle_job_failure(
-            job_id, user_id,
-            error_code="taxonomy_unmapped",
-            detail="CV skills could not be mapped to the skill taxonomy. Your tokens have been refunded.",
-            transient=False, allow_retry=allow_retry,
-        )
-        return
-
-    score_total = float(score_row["total_score"])
     baseline_version_id = _persist_baseline_cv(
         cv_repo, user_id,
         raw_text=raw_text,
         content_hash=content_hash,
-        cv_structured=parsed.get("cv_structured"),
+        cv_structured=None,
+        skills_detected=skills_detected,
         source=source,
     )
     upload_jobs_repo.mark_done(
         job_id,
         skills_detected=len(skills_detected),
-        score=score_total,
+        score=None,
         baseline_version_id=baseline_version_id,
+        result_payload={
+            "extraction": parsed.get("provenance", {}),
+            "llm_enrichment_failed": bool(parsed.get("llm_enrichment_failed", False)),
+        },
     )
-    # ADR-0008 — initial match runs on the bulk Work Lane (nobody's waiting on it).
-    background.enqueue(
-        background.LANE_BULK,
-        "initial_match",
-        payload={"user_id": user_id, "force_context_refresh": True},
-        correlation_id=user_id,
-    )
+    if baseline_version_id is not None:
+        background.enqueue(
+            background.LANE_BULK,
+            "cv_structured_enrich",
+            payload={
+                "baseline_version_id": baseline_version_id,
+                "raw_text": raw_text,
+            },
+            correlation_id=f"cv-structured:{baseline_version_id}",
+        )
 
 
 async def _fail_and_refund(

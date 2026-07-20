@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import { MDXRemote } from "next-mdx-remote/rsc"
 import remarkGfm from "remark-gfm"
 import { getAllIssues, getIssueBySlug, getRelatedIssues, getSpokesOf } from "@/lib/newsletter"
+import { NewsletterRail, buildClusters } from "@/components/newsletter/rail"
 import { NewsletterCTA } from "@/components/newsletter/issue-cta"
 import { NewsletterFAQ } from "@/components/newsletter/newsletter-faq"
 import { formatDate } from "@/lib/format"
@@ -95,9 +96,12 @@ export default async function IssuePage({ params }: Props) {
   const issue = await getIssueBySlug(params.slug)
   if (!issue) notFound()
 
-  const moreIssues = await getRelatedIssues(issue, 3)
+  // 6, not 3 — the rail must fill a 4000px article's column (rail parity law).
+  const moreIssues = await getRelatedIssues(issue, 6)
   const spokes = await getSpokesOf(issue.slug)
   const pillar = issue.sourceIssue ? await getIssueBySlug(issue.sourceIssue) : null
+  const allIssues = await getAllIssues()
+  const clusters = buildClusters(allIssues.filter((i) => i.slug !== "_placeholder"))
 
   const canonicalUrl = `${BASE}/newsletter/${issue.slug}`
   const date = formatDate(issue.publishedAt, "long")
@@ -203,7 +207,7 @@ export default async function IssuePage({ params }: Props) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <ReadingProgress />
 
-      <div style={{ maxWidth: 1040, margin: "0 auto", padding: "32px 32px 96px" }}>
+      <div className="nl-shell">
        <div className="nl-grid">
         <div style={{ minWidth: 0 }}>
 
@@ -213,45 +217,34 @@ export default async function IssuePage({ params }: Props) {
         <article className="nl-article">
 
         {/* Issue tag */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
-          <span style={{
-            fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase",
-            color: "var(--tm-interactive)", background: "var(--tm-int-bg-wash)",
-            border: "1px solid var(--tm-int-border)", padding: "3px 10px", borderRadius: "var(--tm-radius-pill)",
-          }}>
-            {themeLabel(issue.theme)}
-          </span>
-          <time dateTime={issue.publishedAt} style={{ fontSize: 13, color: "var(--tm-text-faint)", letterSpacing: "0.02em" }}>
-            {date}
-          </time>
+        <div className="nl-tagline">
+          <span className="nl-tag">{themeLabel(issue.theme)}</span>
+          <time dateTime={issue.publishedAt}>{date}</time>
         </div>
 
         {/* Headline + standfirst — serif publication voice */}
         <h1 className="nl-headline">{issue.title}</h1>
         <p className="nl-standfirst">{issue.summary}</p>
 
-        {/* Byline */}
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12,
-          padding: "16px 0", borderTop: "1px solid var(--tm-border-soft)", borderBottom: "1px solid var(--tm-border-soft)", marginBottom: 48,
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div aria-hidden="true" style={{
-              width: 36, height: 36, borderRadius: "50%", background: "var(--tm-int-bg-wash)",
-              border: "1px solid var(--tm-int-border)", display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 13, fontWeight: 600, color: "var(--tm-interactive)", flexShrink: 0,
-            }}>
-              {initials}
-            </div>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--tm-text)" }}>{authorName}</div>
-              <div style={{ fontSize: 12, color: "var(--tm-text-faint)", marginTop: 2 }}>
-                Issue {issueNum} · {series} · {mins}-minute read
-              </div>
-            </div>
+        {/* Byline — one line. It is provenance, not a section; it must not cost
+            a screen of an acquisition page's above-the-fold budget. */}
+        <div className="nl-byline">
+          <div className="nl-byline-who">
+            <div aria-hidden="true" className="nl-byline-avatar">{initials}</div>
+            <span className="nl-byline-name">{authorName}</span>
+            <span className="nl-byline-meta">
+              Issue {issueNum} · {series} · {mins}-min read
+            </span>
           </div>
           <ShareButton url={canonicalUrl} title={issue.title} />
         </div>
+
+        {/* KEY NUMBERS — the above-the-fold data law. A data newsletter shows
+            its data before its prose. Presence-gated on `keyStats` frontmatter:
+            authored figures only, never derived or inferred here. */}
+        {issue.keyStats?.length ? (
+          <StatCards cards={issue.keyStats.map((s, i) => ({ ...s, accent: i === 0 }))} />
+        ) : null}
 
         {/* ── VALUE ZONE — editorial only, no product pitch (see HowMyroWorks below the divider) ── */}
         {/* MDX content */}
@@ -319,44 +312,12 @@ export default async function IssuePage({ params }: Props) {
         </article>
         </div>
 
-        <aside className="nl-rail" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          <div style={{ padding: 20, borderRadius: "var(--tm-radius-lg)", background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", boxShadow: "var(--tm-shadow-1)" }}>
-            <div style={{ fontSize: 11, color: "var(--tm-interactive)", letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 600 }}>
-              Get it weekly
-            </div>
-            <div style={{ fontSize: 16, fontWeight: 600, color: "var(--tm-text)", marginTop: 6, letterSpacing: "var(--tm-tracking-tight)" }}>
-              Hiring intel in your inbox
-            </div>
-            <p style={{ fontSize: 13, color: "var(--tm-text-muted)", lineHeight: 1.55, margin: "6px 0 16px" }}>
-              Skill-demand data from thousands of live postings. Every week. No fluff.
-            </p>
-            <EmailSubscribe compact />
-          </div>
-
-          {moreIssues.length > 0 && (
-            <div>
-              <div style={{ fontSize: 11, color: "var(--tm-text-faint)", letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 600, marginBottom: 12 }}>
-                More issues
-              </div>
-              <div style={{ display: "flex", flexDirection: "column" }}>
-                {moreIssues.map((m) => (
-                  <Link
-                    key={m.slug}
-                    href={`/newsletter/${m.slug}`}
-                    style={{ display: "block", textDecoration: "none", padding: "10px 0", borderTop: "1px solid var(--tm-border-soft)" }}
-                  >
-                    <div style={{ fontSize: 10, color: "var(--tm-interactive)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4, fontWeight: 500 }}>
-                      {themeLabel(m.theme)}
-                    </div>
-                    <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--tm-text)", lineHeight: 1.35 }}>
-                      {m.title}
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
-        </aside>
+        <NewsletterRail
+          issues={moreIssues}
+          clusters={clusters}
+          listTitle="More issues"
+          campaign={issue.slug}
+        />
        </div>
       </div>
     </>

@@ -1,0 +1,200 @@
+/* ── Newsletter rail — shared by /newsletter and /newsletter/[slug] ─────────
+   Rail parity law: a reserved column must fill its main column or lose the
+   column. Both surfaces render THIS file so the acquisition page can never
+   again show a 300px empty gutter beside a 4000px article. */
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.panel {
+  padding: 20px;
+  border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius-lg);
+  background: var(--tm-surface);
+  box-shadow: var(--tm-shadow-1);
+}
+
+/* Quiet panel — ruled, no card. Used for list panels (issues, clusters) so the
+   rail reads as one column of content, not a stack of competing boxes. */
+.panelQuiet {
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+}
+
+.kicker {
+  margin: 0;
+  color: var(--tm-interactive);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.kickerMuted {
+  color: var(--tm-text-faint);
+}
+
+.panelTitle {
+  margin: 7px 0 8px;
+  color: var(--tm-text);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: var(--tm-tracking-tight);
+}
+
+.panelBody {
+  margin: 0 0 16px;
+  color: var(--tm-text-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+/* ── Live proof — the engine's real corpus counts ───────────────────────── */
+
+.proofRows {
+  display: flex;
+  flex-direction: column;
+  margin-top: 12px;
+}
+
+.proofRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-top: 1px solid var(--tm-border-soft);
+}
+
+.proofRow:first-child {
+  border-top: none;
+}
+
+.proofLabel {
+  color: var(--tm-text-muted);
+  font-size: 13px;
+}
+
+.proofValue {
+  color: var(--tm-text);
+  font-family: var(--tm-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.proofFoot {
+  margin: 12px 0 0;
+  color: var(--tm-text-faint);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+/* ── Issue list ────────────────────────────────────────────────────────── */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 10px;
+}
+
+.item {
+  display: block;
+  padding: 11px 0;
+  border-top: 1px solid var(--tm-border-soft);
+  text-decoration: none;
+}
+
+.itemMeta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tm-interactive);
+}
+
+.itemDate {
+  color: var(--tm-text-faint);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+.itemTitle {
+  color: var(--tm-text);
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  transition: color var(--tm-dur) var(--tm-ease);
+}
+
+.item:hover .itemTitle {
+  color: var(--tm-interactive);
+}
+
+/* ── Topic clusters ────────────────────────────────────────────────────── */
+
+.cluster {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--tm-border-soft);
+  color: var(--tm-text-muted);
+  font-size: 13px;
+  text-decoration: none;
+  transition: color var(--tm-dur) var(--tm-ease);
+}
+
+.cluster:hover {
+  color: var(--tm-interactive);
+}
+
+.clusterCount {
+  color: var(--tm-text);
+  font-family: var(--tm-font-mono);
+  font-size: 12px;
+}
+
+/* ── Score CTA — the one accent action in the rail ──────────────────────── */
+
+.ctaPanel {
+  padding: 20px;
+  border: 1px solid var(--tm-int-border);
+  border-radius: var(--tm-radius-lg);
+  background: var(--tm-int-bg-wash);
+}
+
+.ctaLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: var(--tm-radius);
+  background: var(--tm-interactive);
+  color: var(--tm-interactive-fg);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  transition:
+    background var(--tm-dur) var(--tm-ease),
+    box-shadow var(--tm-dur) var(--tm-ease);
+}
+
+.ctaLink:hover {
+  background: var(--tm-interactive-hover);
+  box-shadow: var(--tm-shadow-glow);
+}

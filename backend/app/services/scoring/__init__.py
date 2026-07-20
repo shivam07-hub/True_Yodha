@@ -35,6 +35,7 @@ from app.services.scoring.gap import (
 from app.services.scoring.market import fetch_skill_demand
 from app.services.scoring.orchestrator import (
     ScoreProjection,
+    build_cv_skill_rows,
     project_score,
     recompute_score,
     record_cv_score,
@@ -64,4 +65,5 @@ __all__ = [
     "recompute_score",
     "record_cv_score",
     "ScoreProjection",
+    "build_cv_skill_rows",
 ]

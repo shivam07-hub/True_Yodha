@@ -191,7 +191,60 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
 
 ---
 
+## OPEN WORK — VERIFIED 80/20 TRACKER (audited 2026-07-20)
+
+> Audit method: every claim below was checked against `git`/live state, NOT copied from memory or the backlog prose. Re-audit the same way before trusting it — entries rot ([[feedback_verify_backlog_stale]]).
+
+### Scope rule (locked 2026-07-20)
+
+**An agent's work is DONE when it is verified green and pushed to `Develop` with only its own files staged.** Shivam owns the `main` merge; Railway auto-deploys dev from Develop, so the push IS the dev deploy. **Never write "OWED: main merge" or "OWED: deploy dev backend"** — they are not agent-actionable and they poisoned the tracker (see below). OWED lists should carry only: migrations for Shivam to apply, env vars/provisioning, QA needing a real authed session, content to author, or genuinely-unbuilt slices.
+
+### ⚠️ The tracker was lying — phantom backlog cleared
+
+Memory carried "OWED: main merge" on ~25 entries. **Audit: 20 of 23 spot-checked commits were already in `main`** (main was last merged 2026-07-20 02:43 via PR #240; Develop is only ~7 commits ahead, all from today). Three further corrections:
+
+- **STALE "NOT built" / "BUILDING"** — `cv_weave.py` (Tailor weave), `frontend/components/preparations/`, `prep_brief.py`, `role_dedup.py` are all **built and in `main`**. Memory said otherwise.
+- **STALE "OWED: push `57a33f20`"** (job-listing-verifier) — that commit is an **orphan on no branch** (lost in the 2026-07-17 concurrent-session collision), but its content is **superseded**: `origin/Develop` holds a strictly newer `job_listing_verifier.py` (per-host throttle, backlog/duration metrics, attention sweep) and `20260717_job_verify_pending_partial_index.sql` is tracked. **No action — do not resurrect it.**
+- `semantic_candidates.py` lives at `backend/app/services/matching/`, not `services/` — it IS built.
+
+### TIER 1 — do next (high value ÷ low effort)
+
+1. **Match freshness gate — `jobs.is_active` is stale (~46k flagged active vs ~9k seen in ≤14d).** Every match surface reads it, so users are shown dead listings — a direct hit on the trust north star, and the semantic-retrieval RPC filters on it too. Fix = gate on `last_seen >= marker − 14d` instead of the boolean. Small backend change, product-wide payoff. Memory `project_match_freshness_gate`.
+2. **#40 `keyStats` backfill (2–4 verified figures per issue).** Zero code — the mechanism shipped in `95f737c9` and is presence-gated, so **law L4 currently pays nothing**. Acquisition page, cheapest visible win on the list. Figures must be author-verified, never derived.
+3. **Rishabh case-study findings F2 + F3** (memory `project_rishabh_case_study_full_brain`). **F3:** `recommended_credible_chk` + seniority `unknown` structurally bar a 4.3/A- job from ever reading "Apply" — a CHECK constraint overruling the brain's own verdict. **F2:** `parse_triage` treats an honest-empty shortlist as failure, so junk propagates. Both are matching-trust bugs on the core loop.
+
+### TIER 2 — bounded, meaningful
+
+4. **Signal Thread S3** — gap-alert strip + "L{n} in ~N weeks" prediction. S1+S2 are on Develop; this closes the arc. ⚠️ **a concurrent agent has been active in this area** — check `git log` and isolate before starting.
+5. **Match Verdict seam — Slice 4** (surface the visible verdict word). Small, completes an already-built seam. Memory `project_match_verdict_seam`.
+6. **#33 ₹99 Job-Switch Plan — the remaining build**: gap-personalised offer card (desktop rail + mobile feed inline), LLM review-draft → approve-queue → deliver, kill-switch env flag, L5 verbatim copy. Only revenue-bearing item in Tier 1–2.
+
+### TIER 3 — needs a decision or a grill BEFORE code
+
+7. **#37 ranked job-skill importance** — `/grill-me` first (ordinal vs weight vs 3-tier; extension-only vs whole matcher; sister-repo scraper coordination).
+8. **#36 event-driven matching — Slices 2–5** (notifications inbox/bell → brain-everywhere read audit → Agent Picks auto-gen → "want more" coin expansion). Slice 1 shipped.
+9. **#20 leftovers** — PR-EMPTY, PR-COACHMARKS, PR-SIGNUP-REDESIGN (ND14), PR-REFERRAL-V1 (ND6), PR-BRAND-TOKEN-AUDIT, PR-LANDING-VISUAL-WARMTH. Sprint is old; **re-verify each against code before building** — several siblings turned out already shipped.
+
+### TIER 4 — correctly deferred, DO NOT pick up
+
+- **#39 per-skill band percentile** — gated on peer density (≥20 per band+skill); at current scale every chip would hide.
+- **#32 publish portability** — deferred to 5k users; RAG works, only reproducible re-publish is blocked.
+- **#18 PR2 teal-field loading** — vetoed: it decorates a wait that no longer exists (~1.5s post-login).
+- **Semantic retrieval Slices 2–3** — **externally blocked** on `firecrawl_Supabase` embed-on-ingest + backfill; Slice 1 is inert until then. Not actionable in this repo.
+
+### SHIVAM-ONLY (no agent action possible)
+
+- `main` merges (all of the above, ongoing).
+- Run `recompute_banded_scores.py --apply`; apply the #34 **S6** `20260705_anon_cv_download_events.sql` migration (+ PostgREST reload).
+- Provision: `job_switch_reviewer_email` + `job_switch_admin_token` (review delivery 503s without them); confirm Vercel prod `NEXT_PUBLIC_RAZORPAY_KEY_ID` is the live pair. Turnstile stays **off** (arm-on-abuse, #30).
+- **#17 counsel-gated legal**: CIN, named Grievance Officer, registered address, liability cap, SDF check.
+- Authed browser QA across the many built-but-uneyeballed surfaces (light+dark+375px).
+
+---
+
 ## OPEN BACKLOG
+
+40. **Newsletter layout laws + acquisition-page density — CORE FIX BUILT + pushed Develop `95f737c9` (2026-07-20). OWED: `main` merge · QA · `keyStats` backfill.** Trigger: Shivam — *"the newsletter is our acquisition page, shared on LinkedIn/Insta, and the spacing genuinely looks ugly."* Measured at ~2000px: the issue page rendered ~1/3 of its width as content, the rest as near-black void. **Three structural root causes, all fixed:** (a) issue page hardcoded `maxWidth: 1040` inside a 2000px viewport → ~480px dead void per side; both surfaces now `min(100%, 1280px)` (`.nl-shell` / `.shell`). Prose measure stays 68ch — the FRAME grew, not the text. (b) **Rail parity** — 300–340px reserved for a subscribe box + 3 links beside a 4000px article → the right third of the page permanently empty after first scroll. Now **ONE shared rail** (`frontend/components/newsletter/rail.tsx` + `rail.module.css`) rendered by BOTH index and issue: subscribe → live corpus proof → 6 issues → topic clusters → score CTA. **Dropped sticky** (it was a crutch for a thin rail; a sticky rail taller than the viewport hides its own bottom). (c) Article header (tag/headline/standfirst/byline) burned the above-fold budget before a single number appeared on a *data* newsletter → byline compressed to one line + optional `keyStats` frontmatter renders a stat strip under the standfirst. **Honesty invariants:** proof numbers read `/public/stats` floored through `frontend/lib/public-stats-display.ts` — extracted out of the `"use client"` `use-landing-data.ts` so a server component can import it, ONE source so landing + newsletter can never quote different numbers; panel **hides entirely** when the endpoint is unreachable (no placeholder counts on a page whose whole claim is real data). `keyStats` is **authored-only, never derived** from the body. **THE 5 LAWS** (full text `docs/NEWSLETTER_LAYOUT_LAWS.md` — ⚠️ `/docs` is GITIGNORED so that file is local-only on Shivam's Mac; canonical copy = memory `project_newsletter_layout_laws`): **L1** no band under ~30% ink (whitespace reads as paper on light, as a failed page on our near-black surface) — never hardcode a px container on these routes; **L2** a reserved rail must fill its main column or lose the column; **L3** prose stays 68ch (`--tm-reading-measure`) — widen the frame, not the text; wide tables/charts break out via `.nl-fullbleed` (most issues don't use it and should); **L4** data above the fold via `keyStats`; **L5** proof real or absent. **OWED (Shivam):** (1) **prod = `main` merge** — himyro.com serves the old layout until then; (2) browser QA light+dark at 1920/1440/375px; (3) **backfill `keyStats` (2–4 verified figures) into existing issues — L4 pays nothing until authored; the field is live and presence-gated, no issue has it yet.** **Deliberately NOT built (deferred, judge after the backfill):** 3-column article layout at ≥1440px (`[meta 160px | sheet | rail 320px]`) giving `ReadingProgress` + share + section links a left-gutter home — adding a third column before the second one is full would be decoration, not density. Green: tsc 0 · eslint 0 · ui-drift clean · `next build` ✓. Memory: `project_newsletter_layout_laws`. Cross-link `project_newsletter_editorial_figure_system`, `project_newsletter_publish_pipeline` (the publish checklist should gain the L4 `keyStats` gate).
 
 39. **Per-skill band percentile (density-gated) — LOGGED 2026-07-18 (grill-locked decision 3 of the banded-score redesign, NOT built — deferred at 296-user scale).** Trigger: the banded Myro Score redesign (backlog closed via `54d0825f`, memory `project_banded_myro_score`). Decision 3 locked a per-skill percentile: same-band, **density-gated (show only where the (band, skill) cell has ≥20 peers, else hide)**, honest tie semantics (share of band-peers at a **strictly lower** level). NOT built because at 296 users the (band, skill) cells are almost all <20 peers → every chip hides → zero visible value now, and a heavy cross-user aggregate read for nothing = speculative. **Scaffolding ready:** `backend/app/services/scoring/percentile.py` already has `percentile_rank` (strictly-below tie semantics) + `MIN_BAND_PEERS = 20`. **Build sketch when density arrives:** (a) repo aggregate — group `user_skills` by (skill_id, matched_level) joined to `user_profiles` band (`target_seniority_for_profile`), filter to the viewer's band, per skill compute peer count + share strictly below the viewer's level; (b) gate ≥20 peers → else omit; (c) endpoint (e.g. `GET /scores/skill-percentiles` or fold into the user-skills payload the forge/skills page reads); (d) frontend chip on the skill card, rendered ONLY when the API supplies a value (conditional, never an empty shell). Bound the aggregate (band-filtered SQL, not full-table scan) before shipping at scale. Cross-link `project_banded_myro_score`, [[feedback_no_cheap_models_judgment]] N/A (pure stat, no LLM). Trigger to pick up: a band grows past ~20 peers holding common skills (watch `user_skills` volume), or Shivam asks for it.
 
@@ -554,7 +607,41 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-20 · Auth-aware public CTAs + hardcoding sweep — pushed Develop `7448da27`)
+## LAST SESSION SUMMARY (2026-07-19 · Signal Thread intel unification — ✅ COMPLETE S1+S2+S3, 12 commits on Develop)
+
+Trigger: `MNC Hiring Tracking Design.zip` handoff — "unify the language used for tracking across the entire website." Audited (11 divergent company treatments, 4-way vocab split, a live IH3 regression), then `/grill-me` (7 locks, Kunal Delta-4). Full detail: memory `project_signal_thread_intel_unification`.
+
+**7 grill locks:** track=engine / follow=user / **save=jobs**; authed /intel (NOT a nav tab); ONE /companies SSR+islands; **following is FREE (IH2 partial reversal)**; ordering = your-order-in-workspaces / pulse-in-discovery; demand color = **accent TOKEN** (teal dark / orange light, not pinned teal); 3 slices no-fab.
+
+**S1 (4 commits):** `d422d5ec` IH3 fix (batched skill-heatmap, killed the reintroduced per-company fan-out) · `e5f768f4` free-follow (backend drops `spend_xp_to_floor`, cap-only; frontend gate + all cost disclosures removed; grandfathered payers) · `5ab8ad75` vocab (extension "Track this job"→"Save this job" + xp-policy/ManualAddModal/signup-modal; **extension dist gitignored → Shivam rebuild owed**) · `8cdac8e7` **CompanySignal unit** (CompanyTile/SignalLabel/Row/Chip; accent-wash tiles kill random-hue logos; `companyInitials` pure+fixed to "AC"; swapped into rail/peek/drawer/public-card).
+
+**S2 (4 commits) — the heatmap CONVERGED onto /intel (Shivam's Q answered: yes, same page for logged-in users):** `d17eacb0` **pulse endpoint** `GET /jobs/companies/pulse` (pure deterministic scorer `0.5·volume+0.3·momentum+0.2·freshness` over real first_seen/last_seen markers; **pulse=None when no live roles — no fabricated 0**; 12 tests) · `6e14c802` **compare strip** (L-card + sparkline + `useCompanyPulse` batched; heatmap "Tracked"→"Followed" strip) · `a32ac471` **/companies directory 1d** (SSR crawlable list + featured pulse grid + slots meter + follow islands via `useSession`; anon star→signup; degrades cleanly with backend down; **live-verified public path**) · `76437a79` **authed /intel** (session-branched: anon SEO pane / authed workspace mounting HeatmapTab; `/market?tab=heatmap`→redirect; cockpit → "Their hiring. Your readiness.").
+
+**⚠️ Concurrent-agent collision handled:** another session was building job-listing-verifier P2 + collection-attention across ~10 shared/foreign files (incl. `lib/api.ts`, CLAUDE.md). Never touched their work; isolated my api.ts pulse hunks via stash→re-apply→commit→restore (verified foreign preserved byte-for-byte). Backend pulse used NEW `schemas/company_pulse.py` to avoid their `schemas/jobs.py`.
+
+All green each commit: tsc0 · lint0 · ui-drift clean · `next build`✓ · backend pulse 12 + adjacent 37 tests · ruff clean.
+
+**S3 (2 commits) — the Signal Thread CLOSES:** `d0597692` **gap-alert endpoint** `GET /jobs/companies/gap-signals` (new-this-week company×skill counts, `first_seen>=marker-7d`; 4 tests) · `4962569b` **gap-alert strip + prediction** — `useGapAlert` ranks the user's Gap/Building skills by fewest `sessionsToNextLevel`, surfaces the closest one a followed company posted new roles for this week (accent-wash strip, See-roles/Practice CTAs, hides on no match); focus-panel prediction "≈N focused practice sessions to L{n+1}" (deterministic `sessionsToNextLevel(level, forgeSessions)`, **no fabricated weekly cadence** — sessions-count is the honest floor; CV-inferred levels clamp to full threshold). 5 threshold tests.
+
+**OWED (Shivam):** (1) **prod `main` merge** (all 12 commits). (2) **Extension rebuild + reload** (dist gitignored; S1 "Save this job"). (3) **Authed browser QA w/ real prod data** (light+dark+375px): /intel (gap-alert strip when a followed co posted a matching gap-skill role this week; compare-strip pulse+sparkline+accent-ring; focus-panel "≈N sessions to L{n+1}"; matrix; /market?tab=heatmap redirect); /companies directory (featured pulse cards, slots meter +1 on follow, search, sector pills); following=0 coins, caps at 10. **Sandbox verified only anon/public + degraded (no token+backend) — the authed /intel surfaces are UNEYEBALLED.** Deferred tails: settings "Following" tab slim; pulse-card top_skill; mobile MarketChipStrip chip; real forge-cadence → "~N weeks" on the prediction.
+
+## LAST SESSION SUMMARY (2026-07-20b · Newsletter acquisition-page density — 5 layout laws + shared rail, pushed Develop `95f737c9`)
+
+Shivam, 3 screenshots: *"our newsletter is the acquisition page — shared on LinkedIn/Insta — and it genuinely looks very ugly, especially the spacing. Make it something Kunal Shah would be proud of."* Measured the live page at ~2000px before touching anything: the issue page rendered **~1/3 of its width as content**, the rest as near-black void.
+
+**Three structural root causes (not a styling problem):** (1) issue page hardcoded `maxWidth: 1040` inside a 2000px viewport → ~480px dead void per side (48% of screen); (2) **rail starvation** — 300–340px reserved for a subscribe box + 3 links beside a 4000px article, sticky, so after the first scroll the right third was permanently empty; (3) header (tag → 60px headline → italic standfirst → byline) burned the entire above-fold budget before showing a single number on a *data* newsletter.
+
+**Built:** frames → `min(100%, 1280px)` on BOTH surfaces (prose measure stays 68ch — the frame grew, not the text). **ONE shared rail** `components/newsletter/rail.tsx` + `rail.module.css` rendered by index AND issue (subscribe → live corpus proof → 6 issues → clusters → score CTA); **sticky dropped** (crutch for a thin rail; a tall sticky rail hides its own bottom). Byline compressed to one line; new optional **`keyStats`** frontmatter → verified stat strip under the standfirst. Index masthead compressed (h1 60→52). Deleted the index's now-duplicate rail CSS.
+
+**Honesty invariants:** rail proof reads `/public/stats`, floored via new `frontend/lib/public-stats-display.ts` — **extracted out of the `"use client"` `use-landing-data.ts`** so a server component can import it → ONE source, landing + newsletter can never quote different numbers; the panel **hides entirely** when the endpoint is down (no placeholder counts on a page whose whole claim is real data). `keyStats` is **authored-only, never derived** from the body.
+
+**5 laws codified** — L1 no band under ~30% ink · L2 rail parity (fill the column or lose it) · L3 prose 68ch, widen the frame not the text (`.nl-fullbleed` for wide figures) · L4 data above the fold · L5 proof real or absent. Written to `docs/NEWSLETTER_LAYOUT_LAWS.md` but **`/docs` is gitignored → local-only**, so the canonical copy is memory `project_newsletter_layout_laws` + backlog **#40**.
+
+Green: tsc 0 · eslint 0 · ui-drift clean · `next build` ✓. Staged my 9 files only; foreign backend/market/intel/mission-control work left untouched.
+
+**OWED (Shivam):** (1) **prod = `main` merge** — himyro.com serves the old layout until then; (2) browser QA light+dark at 1920/1440/375px; (3) **backfill `keyStats` into existing issues** — L4 pays nothing until authored, the field is live + presence-gated and no issue has it yet. **Deliberately deferred:** 3-column article layout at ≥1440px (meta gutter for ReadingProgress/share) — judge after the backfill; a third column before the second is full = decoration, not density.
+
+## OLDER SESSION SUMMARY (2026-07-20 · Auth-aware public CTAs + hardcoding sweep — pushed Develop `7448da27`)
 
 Shivam screenshot: logged-in user on `/how-it-works` clicks "Map my CV" → **login page**. Root cause = [docs-page.tsx](frontend/components/docs/docs-page.tsx) hardcoded `href="/signup"`; the page had **neither** of the two established auth patterns — route-level redirect (`landing-page.tsx:48` sends authed → `/market`) nor component-level `isAuthed` split (top-nav, all of `intel/*`). Fix: same `getAccessToken()` seam the public nav uses → authed `/skills` (the skill map), anon `/signup`.
 

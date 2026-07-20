@@ -625,6 +625,12 @@ export interface RoleReadiness {
   readiness: number | null
 }
 
+export interface FirstSuccessChecklist {
+  dismissed: boolean
+  complete: boolean
+  items: Array<{ id: string; label: string; href: string; done: boolean }>
+}
+
 export interface OnboardingProofSkill {
   taxonomy_key: string
   name: string
@@ -642,6 +648,11 @@ export type OnboardingResult =
     }
   | { kind: "full_result_processing"; target: OnboardingTarget; phase: string }
   | { kind: "terminal_failure"; target: OnboardingTarget; error_code?: string; message?: string; xp_refunded: boolean }
+  | {
+      kind: "awaiting_skill_confirmation"
+      baseline_version_id: number
+      skills: OnboardingProofSkill[]
+    }
   | {
       // Score-first onboarding (Slice 4): CV parsed + scored, target not yet
       // confirmed. Show the score + a pre-filled confirm card; matching runs
@@ -712,6 +723,11 @@ export const onboarding = {
   }>) => request<{ status: "done"; total_score: number }>(`/onboarding/baseline/${baselineId}/skill-overrides`, {
     method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ overrides }),
   }),
+  confirmSkills: (token: string, baselineId: number, overrides: Array<{
+    skill_id: number; action: "include" | "exclude"; evidence_text: string; source_location?: Record<string, unknown>
+  }>) => request<{ status: "done"; total_score: number }>(`/onboarding/baseline/${baselineId}/confirm-skills`, {
+    method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ overrides }),
+  }),
   complete: (token: string) => request<void>("/onboarding/complete", {
     method: "POST", headers: { Authorization: `Bearer ${token}` },
   }),
@@ -726,6 +742,9 @@ export const onboarding = {
     }),
   dismissChecklist: (token: string) => request<void>("/onboarding/checklist/dismiss", {
     method: "POST", headers: { Authorization: `Bearer ${token}` },
+  }),
+  checklist: (token: string) => request<FirstSuccessChecklist>("/onboarding/checklist", {
+    headers: { Authorization: `Bearer ${token}` },
   }),
   startOver: (token: string) => request<void>("/onboarding/start-over", {
     method: "POST", headers: { Authorization: `Bearer ${token}` },
@@ -3150,6 +3169,17 @@ export interface CompanyPulseResponse {
   companies: CompanyPulseItem[]
 }
 
+/** New-this-week (company × skill) role count — the gap-alert signal (S3). */
+export interface CompanyGapSignalItem {
+  company_name: string
+  skill: string
+  new_roles: number
+}
+
+export interface CompanyGapSignalsResponse {
+  signals: CompanyGapSignalItem[]
+}
+
 export interface JobLocationFilters {
   locationCity?: string | null
   locationCountry?: string | null
@@ -3414,6 +3444,10 @@ export const jobs = {
   companyPulse: (companies: string[]) => {
     const params = new URLSearchParams({ companies: companies.join(",") })
     return request<CompanyPulseResponse>(`/jobs/companies/pulse?${params.toString()}`)
+  },
+  companyGapSignals: (companies: string[], skills: string[]) => {
+    const params = new URLSearchParams({ companies: companies.join(","), skills: skills.join(",") })
+    return request<CompanyGapSignalsResponse>(`/jobs/companies/gap-signals?${params.toString()}`)
   },
   analyticsEntitySkills: (
     entity: string,

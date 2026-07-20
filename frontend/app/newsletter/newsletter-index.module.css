@@ -1,15 +1,19 @@
+/* Frame matches the issue page (docs/NEWSLETTER_LAYOUT_LAWS.md) so a visitor
+   moving index → article sees one publication, not two page widths. */
 .shell {
-  width: min(100%, 1220px);
+  width: min(100%, 1280px);
   margin: 0 auto;
-  padding: 36px var(--tm-page-px) 72px;
+  padding: 28px var(--tm-page-px) 72px;
 }
 
+/* The masthead is a wayfinding band, not a section. It previously burned
+   ~260px of vertical space at ~15% ink before any content. */
 .masthead {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 28px;
+  gap: 22px;
   align-items: center;
-  padding-bottom: 28px;
+  padding-bottom: 22px;
   border-bottom: 1px solid var(--tm-border-soft);
 }
 
@@ -75,64 +79,13 @@
   margin-top: 28px;
 }
 
-.main,
-.rail {
-  min-width: 0;
-}
-
+/* Rail panels/clusters now live in components/newsletter/rail.module.css —
+   one rail, rendered by both surfaces. */
 .main {
   display: flex;
   flex-direction: column;
   gap: 32px;
-}
-
-.rail {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.panel {
-  padding: 20px;
-  border: 1px solid var(--tm-border-soft);
-  border-radius: var(--tm-radius-lg);
-  background: var(--tm-surface);
-  box-shadow: var(--tm-shadow-1);
-}
-
-.panel h2 {
-  margin: 7px 0 16px;
-  color: var(--tm-text);
-  font-size: 18px;
-  line-height: 1.25;
-}
-
-.clusters {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.cluster {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 0;
-  border-top: 1px solid var(--tm-border-soft);
-  color: var(--tm-text-muted);
-  font-size: 13px;
-  text-decoration: none;
-}
-
-.cluster:hover {
-  color: var(--tm-interactive);
-}
-
-.cluster strong {
-  color: var(--tm-text);
-  font-family: var(--tm-font-mono);
-  font-size: 12px;
+  min-width: 0;
 }
 
 .primaryLink,
@@ -241,17 +194,12 @@
 
 @media (min-width: 1024px) {
   .copy h1 {
-    font-size: 60px;
+    font-size: 52px;
   }
 
   .grid {
     grid-template-columns: minmax(0, 1fr) 320px;
-    gap: 36px;
-  }
-
-  .rail {
-    position: sticky;
-    top: 24px;
+    gap: 40px;
   }
 }
 

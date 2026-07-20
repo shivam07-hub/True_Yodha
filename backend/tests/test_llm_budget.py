@@ -15,8 +15,11 @@ from app.services.llm_provider import LLMProvider, LLMProviderError
 
 # ── fakes ───────────────────────────────────────────────────────────────────────
 
-def _msg(content: str):
-    return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=content))])
+def _msg(content: str, *, model: str | None = None):
+    return SimpleNamespace(
+        choices=[SimpleNamespace(message=SimpleNamespace(content=content))],
+        model=model,
+    )
 
 
 class _Completions:
@@ -163,6 +166,19 @@ def test_redis_slot_released_frees_budget(monkeypatch):
 
 
 # ── complete() retry behaviour ──────────────────────────────────────────────────
+
+def test_complete_with_metadata_reports_actual_response_model():
+    client = _Client(lambda _call_n: _msg("ok", model="provider/actual-model"))
+    provider = LLMProvider([(client, "router/requested-model", None)])
+
+    result = asyncio.run(
+        provider.complete_with_metadata([{"role": "user", "content": "hi"}])
+    )
+
+    assert result.content == "ok"
+    assert result.model == "provider/actual-model"
+    assert result.elapsed_ms >= 0
+
 
 def test_complete_retries_transient_then_succeeds(monkeypatch):
     monkeypatch.setattr(llm_budget.settings, "llm_transient_retries", 2)

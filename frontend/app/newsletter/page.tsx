@@ -1,9 +1,10 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { getAllIssues, type Issue, type IssueTheme } from "@/lib/newsletter"
+import { getAllIssues, type IssueTheme } from "@/lib/newsletter"
 import { IssueCard } from "@/components/newsletter/issue-card"
 import { JourneyLoop } from "@/components/newsletter/journey-loop"
 import { EmailSubscribe } from "@/components/newsletter/email-subscribe"
+import { NewsletterRail, buildClusters } from "@/components/newsletter/rail"
 import styles from "./newsletter-index.module.css"
 
 const BASE = "https://www.himyro.com"
@@ -38,32 +39,6 @@ export const metadata: Metadata = {
   },
 }
 
-const THEME_LABELS: Record<IssueTheme, string> = {
-  heatmap: "Hiring heatmap",
-  skill: "Skill of the week",
-  trajectory: "Career trajectory",
-  "boom-watch": "Boom watch",
-  "future-of-work": "Future of work",
-}
-
-function topicClusters(issues: Issue[]) {
-  const clusters = new Map<IssueTheme, { count: number; latest: Issue }>()
-  for (const issue of issues) {
-    const current = clusters.get(issue.theme)
-    if (!current) {
-      clusters.set(issue.theme, { count: 1, latest: issue })
-    } else {
-      current.count += 1
-    }
-  }
-  return Array.from(clusters.entries()).map(([theme, data]) => ({
-    theme,
-    label: THEME_LABELS[theme],
-    count: data.count,
-    latest: data.latest,
-  }))
-}
-
 export default async function NewsletterIndexPage({
   searchParams,
 }: {
@@ -81,7 +56,13 @@ export default async function NewsletterIndexPage({
     : publishedIssues
 
   const [featuredIssue, ...archiveIssues] = shownIssues
-  const clusters = topicClusters(publishedIssues)
+  const clusters = buildClusters(publishedIssues)
+
+  // The rail lists issues the main column is NOT already showing, so the two
+  // columns never mirror each other. On the unfiltered index the feed shows
+  // everything, so the rail leans on the other panels (proof, clusters, CTA).
+  const shownSlugs = new Set(shownIssues.map((i) => i.slug))
+  const railIssues = publishedIssues.filter((i) => !shownSlugs.has(i.slug)).slice(0, 6)
 
   // CollectionPage + ItemList + publisher entity: lets search + AI engines read
   // /newsletter as a recurring hiring-data publication (AEO — citable source),
@@ -174,29 +155,12 @@ export default async function NewsletterIndexPage({
             )}
           </main>
 
-          <aside className={styles.rail} aria-label="Newsletter briefing">
-            <section className={styles.panel}>
-              <p className={styles.panelKicker}>Get it weekly</p>
-              <h2>Hiring intel in your inbox</h2>
-              <EmailSubscribe compact />
-            </section>
-
-            {/* Topic clusters earn a panel only once the taxonomy is real
-                (≥2 themes). One theme = a dead single-row list → hidden. */}
-            {clusters.length > 1 && (
-              <section className={styles.panel}>
-                <p className={styles.panelKicker}>Topic clusters</p>
-                <div className={styles.clusters}>
-                  {clusters.map((cluster) => (
-                    <Link key={cluster.theme} href={`/newsletter/${cluster.latest.slug}`} className={styles.cluster}>
-                      <span>{cluster.label}</span>
-                      <strong>{cluster.count}</strong>
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            )}
-          </aside>
+          <NewsletterRail
+            issues={railIssues}
+            clusters={clusters}
+            listTitle={activeStage ? "Other issues" : "From the archive"}
+            campaign="index"
+          />
         </div>
       )}
     </div>

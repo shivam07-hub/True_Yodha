@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { Suspense } from "react"
 import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
-import { IntelPane } from "@/components/public/intel-pane"
+import { IntelSurface } from "@/components/market/intel-surface"
 
 const BASE = "https://www.himyro.com"
 
@@ -30,7 +30,7 @@ export default function IntelPage() {
       <PublicTopNav active="intel" showSignIn />
       <div style={{ flex: 1, width: "100%", minWidth: 0, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 2 }}>
         <Suspense fallback={null}>
-          <IntelPane />
+          <IntelSurface />
         </Suspense>
         <PublicFooter commons />
       </div>
