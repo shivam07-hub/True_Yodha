@@ -7,6 +7,7 @@ import { useViewport } from "@/mobile"
 import { CollectionsSurface } from "@/mobile/redesign/collections-surface"
 import { CollectionsDesktop } from "@/components/collections/collections-desktop"
 import { usePendingJobSaveClaim } from "@/lib/hooks/use-pending-job-save-claim"
+import { FirstSuccessChecklist } from "@/components/onboarding/first-success-checklist"
 
 /**
  * /collections — the saved-job worklist, successor of the retired /home
@@ -27,7 +28,13 @@ function CollectionsInner() {
   usePendingJobSaveClaim(token)
 
   if (!ready) return null
-  if (mode === "mobile") return <CollectionsSurface token={token ?? ""} initialJobId={jobId} openSearch={openSearch} />
+  if (mode === "mobile")
+    return (
+      <>
+        {token ? <div className="px-4 pt-4"><FirstSuccessChecklist token={token} /></div> : null}
+        <CollectionsSurface token={token ?? ""} initialJobId={jobId} openSearch={openSearch} />
+      </>
+    )
   return <CollectionsDesktop token={token ?? ""} initialJobId={jobId} openSearch={openSearch} />
 }
 
