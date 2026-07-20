@@ -1,7 +1,10 @@
 from pathlib import Path
 
 
-MIGRATION = Path("database/migrations/20260720010000_cv_skill_confirmation_gate.sql")
+MIGRATION = (
+    Path(__file__).parents[2]
+    / "database/migrations/20260720010000_cv_skill_confirmation_gate.sql"
+)
 
 
 def test_migration_adds_baseline_scoped_skill_confirmation_gate() -> None:
