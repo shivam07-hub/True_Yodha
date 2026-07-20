@@ -1,0 +1,70 @@
+/* /intel gap-alert strip (Signal Thread Zone 3). Accent-wash band, tokens only
+ * so it themes teal (dark) / orange (light) with the rest of the surface. */
+.gap-alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 15px 20px;
+  margin-bottom: 22px;
+  background: var(--tm-accent-wash);
+  border: 1px solid var(--tm-accent-ring);
+  border-radius: var(--tm-radius);
+}
+.gap-alert-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tm-accent);
+  flex-shrink: 0;
+  animation: gap-alert-pulse 2.4s ease-in-out infinite;
+}
+@keyframes gap-alert-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--tm-accent) 45%, transparent); }
+  50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--tm-accent) 0%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) { .gap-alert-dot { animation: none; } }
+
+.gap-alert-copy {
+  flex: 1;
+  min-width: 220px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--tm-text);
+}
+.gap-alert-copy strong { font-weight: 650; }
+.gap-alert-sub { color: var(--tm-text-muted); }
+
+.gap-alert-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+.gap-alert-link {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--tm-accent-text);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.gap-alert-link:hover { text-decoration: underline; }
+.gap-alert-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 15px;
+  border-radius: var(--tm-radius-sm);
+  background: var(--tm-accent);
+  color: var(--tm-accent-fg);
+  font-size: 12.5px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.gap-alert-cta:hover { background: var(--tm-accent-hover, var(--tm-accent)); }
+
+@media (max-width: 720px) {
+  .gap-alert-actions { width: 100%; justify-content: space-between; }
+}

@@ -3169,6 +3169,17 @@ export interface CompanyPulseResponse {
   companies: CompanyPulseItem[]
 }
 
+/** New-this-week (company × skill) role count — the gap-alert signal (S3). */
+export interface CompanyGapSignalItem {
+  company_name: string
+  skill: string
+  new_roles: number
+}
+
+export interface CompanyGapSignalsResponse {
+  signals: CompanyGapSignalItem[]
+}
+
 export interface JobLocationFilters {
   locationCity?: string | null
   locationCountry?: string | null
@@ -3433,6 +3444,10 @@ export const jobs = {
   companyPulse: (companies: string[]) => {
     const params = new URLSearchParams({ companies: companies.join(",") })
     return request<CompanyPulseResponse>(`/jobs/companies/pulse?${params.toString()}`)
+  },
+  companyGapSignals: (companies: string[], skills: string[]) => {
+    const params = new URLSearchParams({ companies: companies.join(","), skills: skills.join(",") })
+    return request<CompanyGapSignalsResponse>(`/jobs/companies/gap-signals?${params.toString()}`)
   },
   analyticsEntitySkills: (
     entity: string,

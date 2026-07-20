@@ -64,6 +64,10 @@
 .intel-workspace { max-width: 1560px; margin: 0 auto; padding: 24px 40px 48px; }
 @media (max-width: 720px) { .intel-workspace { padding: 16px 16px 40px; } }
 
+/* Focus-panel prediction line (S3) — "≈N sessions to L{n+1}". */
+.si-predict { font-size: 14px; color: var(--tm-text-muted); margin: 0 0 4px; }
+.si-predict strong { color: var(--tm-accent-text); font-weight: 700; }
+
 .si-matrix-scroll::-webkit-scrollbar { display: none; }
 /* Compare strip — L-size pulse cards, 4-up on desktop, wrapping down to one. */
 .si-compare-strip {
