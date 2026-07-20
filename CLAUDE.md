@@ -607,7 +607,7 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-19 · Signal Thread intel unification — S1 + S2 BUILT, 8 commits on Develop)
+## LAST SESSION SUMMARY (2026-07-19 · Signal Thread intel unification — ✅ COMPLETE S1+S2+S3, 12 commits on Develop)
 
 Trigger: `MNC Hiring Tracking Design.zip` handoff — "unify the language used for tracking across the entire website." Audited (11 divergent company treatments, 4-way vocab split, a live IH3 regression), then `/grill-me` (7 locks, Kunal Delta-4). Full detail: memory `project_signal_thread_intel_unification`.
 
@@ -621,7 +621,9 @@ Trigger: `MNC Hiring Tracking Design.zip` handoff — "unify the language used f
 
 All green each commit: tsc0 · lint0 · ui-drift clean · `next build`✓ · backend pulse 12 + adjacent 37 tests · ruff clean.
 
-**OWED (Shivam):** (1) **prod `main` merge** (all 8 commits). (2) **Extension rebuild + reload** (dist gitignored). (3) **Authed browser QA w/ real prod data** (light+dark+375px): /intel workspace (masthead voice, compare-strip pulse+sparkline+accent-ring, matrix, personalise→/companies, /market?tab=heatmap redirect); /companies directory (featured pulse cards, slots meter increments on follow, search, sector pills); following = 0 coins + caps at 10. Sandbox verified only anon/public + degraded paths (no token+backend). **REMAINING = S3:** gap-alert strip (Zone 3, new postings ∩ user Gap/Building skills) + "L{n} in ~N weeks" prediction (deterministic from forge cadence + LEVEL_THRESHOLDS). Deferred tails: settings "Following" tab slim, top_skill on pulse card, mobile MarketChipStrip chip.
+**S3 (2 commits) — the Signal Thread CLOSES:** `d0597692` **gap-alert endpoint** `GET /jobs/companies/gap-signals` (new-this-week company×skill counts, `first_seen>=marker-7d`; 4 tests) · `4962569b` **gap-alert strip + prediction** — `useGapAlert` ranks the user's Gap/Building skills by fewest `sessionsToNextLevel`, surfaces the closest one a followed company posted new roles for this week (accent-wash strip, See-roles/Practice CTAs, hides on no match); focus-panel prediction "≈N focused practice sessions to L{n+1}" (deterministic `sessionsToNextLevel(level, forgeSessions)`, **no fabricated weekly cadence** — sessions-count is the honest floor; CV-inferred levels clamp to full threshold). 5 threshold tests.
+
+**OWED (Shivam):** (1) **prod `main` merge** (all 12 commits). (2) **Extension rebuild + reload** (dist gitignored; S1 "Save this job"). (3) **Authed browser QA w/ real prod data** (light+dark+375px): /intel (gap-alert strip when a followed co posted a matching gap-skill role this week; compare-strip pulse+sparkline+accent-ring; focus-panel "≈N sessions to L{n+1}"; matrix; /market?tab=heatmap redirect); /companies directory (featured pulse cards, slots meter +1 on follow, search, sector pills); following=0 coins, caps at 10. **Sandbox verified only anon/public + degraded (no token+backend) — the authed /intel surfaces are UNEYEBALLED.** Deferred tails: settings "Following" tab slim; pulse-card top_skill; mobile MarketChipStrip chip; real forge-cadence → "~N weeks" on the prediction.
 
 ## LAST SESSION SUMMARY (2026-07-20b · Newsletter acquisition-page density — 5 layout laws + shared rail, pushed Develop `95f737c9`)
 
