@@ -1,8 +1,9 @@
 import logging
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
 
+from app.database import get_supabase_admin
 from app.deps import Principal, get_principal
 from app.repositories.cv import CVVersionsRepository, get_token_cv_repository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
@@ -20,10 +21,11 @@ from app.schemas import (
     JobImportRequest,
     JobImportedDetailsResponse,
     JobImportedDetailsUpdate,
+    JobLivenessResponse,
     MatchEval,
     JobUrlExtractRequest,
 )
-from app.services import jobs_workflow, xp_service
+from app.services import job_liveness, jobs_workflow, xp_service
 from app.services.job_extract_backstop import backfill_fields, is_valid_company, is_valid_role
 from app.services.cv_parser import extract_raw_text
 from app.services.job_file_parser import (
@@ -49,6 +51,7 @@ router = APIRouter()
 def record_apply_intent(
     job_id: str,
     body: ApplyIntentRequest,
+    background_tasks: BackgroundTasks,
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> None:
@@ -60,6 +63,43 @@ def record_apply_intent(
             "surface": body.surface,
             "destination_type": body.destination_type,
         },
+    )
+    # An apply is the strongest liveness signal we get for free: someone is
+    # about to spend real effort on this listing. Re-verify it out of band so the
+    # corpus learns from intent, without adding latency to the click.
+    background_tasks.add_task(_verify_after_intent, job_id)
+
+
+async def _verify_after_intent(job_id: str) -> None:
+    try:
+        await job_liveness.check_liveness(get_supabase_admin(), job_id)
+    except Exception:  # noqa: BLE001 — best-effort; the apply already happened
+        _log.warning("metric job_liveness.intent_check_failed job_id=%s", job_id, exc_info=True)
+
+
+@router.get("/{job_id}/liveness", response_model=JobLivenessResponse)
+async def get_job_liveness(
+    job_id: str,
+    force: bool = False,
+    principal: Principal = Depends(get_principal),
+) -> JobLivenessResponse:
+    """Is this listing still live? Checked now if the last verdict is stale.
+
+    The intent gate: called when a user opens or is about to act on a job, so a
+    ghost listing is caught at the one moment it would cost them effort. Cached
+    ~6h, so repeated opens in a session cost one fetch.
+    """
+    verdict = await job_liveness.check_liveness(
+        get_supabase_admin(), job_id, force=force
+    )
+    if verdict is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found.")
+    return JobLivenessResponse(
+        job_id=verdict.job_id,
+        state=verdict.state,
+        checked_at=verdict.checked_at,
+        verified_live_at=verdict.verified_live_at,
+        from_cache=verdict.from_cache,
     )
 
 

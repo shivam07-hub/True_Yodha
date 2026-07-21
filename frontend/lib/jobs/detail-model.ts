@@ -35,6 +35,50 @@ export const JOB_PLAN_ORDER: readonly JobPlanSectionId[] = [
   "notes",
 ]
 
+/** Liveness states, mirrored from the backend verdict (see CONTEXT.md →
+ *  Listing Verification). `unknown` is a real answer, not a failure. */
+export type JobLivenessState = "live" | "closed" | "unverified" | "unknown"
+
+export interface LivenessNotice {
+  /** `warn` earns colour + prominence; `quiet` is a muted one-liner. */
+  tone: "warn" | "quiet"
+  text: string
+  /** Whether the Apply action should carry a confirmation instead of firing
+   *  straight out. Only a real closure verdict blocks — never a failed check. */
+  guardsApply: boolean
+}
+
+/**
+ * What to tell the user about this listing's liveness — the honesty layer of
+ * the funnel. Deliberately says something in every state:
+ *   live       → the trust payoff, quiet, with when we last saw it
+ *   closed     → the one loud state; guards Apply so nobody tailors a dead role
+ *   unknown    → we tried and couldn't tell; NEVER dressed up as either verdict
+ *   unverified → we haven't checked yet; disclosed rather than implied-live
+ *
+ * `unverified` is muted on purpose: while the drain belt is still catching up
+ * it is the common case, and a loud warning on every card would train users to
+ * ignore the one state that matters (`closed`).
+ */
+export function livenessNotice(
+  state: JobLivenessState | null | undefined,
+  opts: { relativeAge?: string | null } = {},
+): LivenessNotice | null {
+  const age = opts.relativeAge
+  switch (state) {
+    case "live":
+      return { tone: "quiet", text: age ? `Listing confirmed live ${age}` : "Listing confirmed live", guardsApply: false }
+    case "closed":
+      return { tone: "warn", text: "This listing looks closed — it may no longer accept applications", guardsApply: true }
+    case "unknown":
+      return { tone: "quiet", text: "Couldn't check whether this listing is still open", guardsApply: false }
+    case "unverified":
+      return { tone: "quiet", text: "Not yet checked by Myro", guardsApply: false }
+    default:
+      return null
+  }
+}
+
 export interface JobPlanInput {
   /** Any why/verdict prose available (streamed, cached, or brain summary). */
   hasWhy: boolean

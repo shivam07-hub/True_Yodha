@@ -34,78 +34,61 @@ class DB:
         return Query(self, name)
 
 
-class TargetQuery:
-    def __init__(self):
-        self.filters = []
-
-    def select(self, _columns):
-        return self
-
-    def in_(self, key, values):
-        self.filters.append(("in", key, values))
-        return self
-
-    def like(self, key, pattern):
-        self.filters.append(("like", key, pattern))
-        return self
-
-    def order(self, key, *, desc):
-        self.filters.append(("order", key, desc))
-        return self
-
-    def limit(self, value):
-        self.filters.append(("limit", value))
-        return self
+class RpcCall:
+    def __init__(self, db, name, params, data):
+        self.db = db
+        self.name = name
+        self.params = params
+        self._data = data
 
     def execute(self):
-        return type("Response", (), {"data": []})()
+        self.db.calls.append((self.name, self.params))
+        return type("Response", (), {"data": self._data})()
 
 
-class TargetDB:
-    def __init__(self):
-        self.query = TargetQuery()
+class RpcDB:
+    """Stands in for the claim/count RPCs. No .table() — reaching for PostgREST
+    filters here would reintroduce the bare-`%` query string that 500s."""
 
-    def table(self, name):
-        assert name == "jobs"
-        return self.query
+    def __init__(self, data):
+        self.calls = []
+        self._data = data
 
+    def rpc(self, name, params):
+        return RpcCall(self, name, params, self._data)
 
-class CountQuery:
-    def select(self, _columns, count=None):
-        self.count = count
-        return self
-
-    def in_(self, _key, _values):
-        return self
-
-    def like(self, _key, _pattern):
-        return self
-
-    def limit(self, _value):
-        return self
-
-    def execute(self):
-        return type("Response", (), {"count": 42, "data": []})()
+    def table(self, name):  # pragma: no cover — guards against a regression
+        raise AssertionError("verification queue must go through the RPC, not PostgREST filters")
 
 
-class CountDB:
-    def table(self, name):
-        assert name == "jobs"
-        return CountQuery()
+def test_pending_count_reads_the_due_rpc() -> None:
+    db = RpcDB(42)
+
+    assert ListingVerificationRepository(db).pending_count(stale_days=7) == 42
+    assert db.calls == [("count_verify_due", {"p_stale": "7 days"})]
 
 
-def test_pending_count_returns_exact_count() -> None:
-    assert ListingVerificationRepository(CountDB()).pending_count() == 42
+def test_claim_targets_caps_limit_and_passes_staleness() -> None:
+    db = RpcDB([])
 
-
-def test_targets_filter_invalid_or_missing_apply_urls_before_limit() -> None:
-    db = TargetDB()
-
-    targets = ListingVerificationRepository(db).targets(limit=20)
+    targets = ListingVerificationRepository(db).claim_targets(limit=5000, stale_days=3)
 
     assert targets == []
-    assert ("like", "apply_url", "http%") in db.query.filters
-    assert ("limit", 20) in db.query.filters
+    assert db.calls == [("claim_verify_targets", {"p_limit": 1000, "p_stale": "3 days"})]
+
+
+def test_claim_targets_skips_rows_without_a_usable_apply_url() -> None:
+    db = RpcDB([
+        {"job_id": "a", "job_title": "Engineer", "apply_url": "https://x/1", "listing_confidence": "active"},
+        {"job_id": "b", "job_title": "Analyst", "apply_url": None, "listing_confidence": "uncertain"},
+        {"job_id": None, "job_title": "Ghost", "apply_url": "https://x/2", "listing_confidence": "uncertain"},
+    ])
+
+    targets = ListingVerificationRepository(db).claim_targets(limit=10)
+
+    assert [t.job_id for t in targets] == ["a"]
+    # Confidence-agnostic: an already-`active` row is a legitimate re-check target.
+    assert targets[0].current_confidence == "active"
 
 
 def test_strong_closed_verification_starts_quarantine() -> None:

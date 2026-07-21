@@ -127,6 +127,11 @@ class Settings(BaseSettings):
     cv_upload_alert_min_samples: int = 25
     cv_upload_alert_failure_ratio: float = 0.25
 
+    # Listing-verification belt. The sweep claims a batch every ~15 min, so two
+    # hours of silence is several missed ticks — a stall, not a slow run.
+    verifier_dead_man_hours: int = 2
+    verifier_health_interval_minutes: int = 5
+
     @property
     def cors_origins(self) -> list[str]:
         if self.allowed_origins.strip() == "*":

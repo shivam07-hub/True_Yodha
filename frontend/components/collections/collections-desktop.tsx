@@ -16,6 +16,7 @@ import { useMyroSearch } from "@/lib/hooks/use-myro-search"
 import { useParticleMoment } from "@/components/particle"
 import { SortMenu } from "@/components/dashboard/sort-menu"
 import { PeekSurfaces } from "@/components/mission-control/peek-surfaces"
+import { FirstSuccessChecklist } from "@/components/onboarding/first-success-checklist"
 import type { LoopStep } from "@/components/mission-control/loop-ring"
 import { useManualAdd, ADD_JOB_LABEL } from "@/components/cv/pipeline/useManualAdd"
 import { usePulses } from "@/lib/hooks/use-pulses"
@@ -255,6 +256,10 @@ export function CollectionsDesktop({
     <div className="tm-intel-page" style={{ padding: "32px 36px 64px", maxWidth: 1480, margin: "0 auto" }}>
       <div className="mc-workspace">
         <aside className="mc-ws-rail mc-ws-rail--peek">
+          {/* First-run loop lives in the rail, not the Jobs feed — it is
+              onboarding context beside the worklist, never a banner on top of
+              browsing. Renders nothing once dismissed/complete. */}
+          <FirstSuccessChecklist token={token} />
           <div className="mc-rail">
             <PeekSurfaces token={token} steps={steps} />
           </div>

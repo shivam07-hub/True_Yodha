@@ -1,0 +1,34 @@
+/* Listing liveness note — one line, both skins, both themes.
+   Tone carries the whole signal: `warn` is the only state that earns colour,
+   so a closed listing stands out against the quiet common cases. */
+
+.jlive {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.jlive--quiet {
+  color: var(--tm-text-muted);
+}
+
+.jlive--warn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--tm-warning-border);
+  border-radius: var(--tm-radius-sm, 8px);
+  background: var(--tm-warning-wash);
+  color: var(--tm-warning-text);
+  font-weight: 500;
+}
+
+.jlive--warn::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tm-warning);
+}

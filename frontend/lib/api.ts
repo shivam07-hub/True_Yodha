@@ -2683,6 +2683,17 @@ export interface ApplyIntentInput {
   destination_type: "direct_role" | "career_search"
 }
 
+/** Whether a listing still exists. `unknown` is a real answer — an ATS that
+ *  blocks or times out our check is no evidence the role is gone, so the
+ *  surface says "couldn't check" rather than implying either verdict. */
+export interface JobLiveness {
+  job_id: string
+  state: "live" | "closed" | "unverified" | "unknown"
+  checked_at: string | null
+  verified_live_at: string | null
+  from_cache: boolean
+}
+
 export interface JobFeedbackInput {
   client_event_id: string
   job_id: string
@@ -3643,6 +3654,12 @@ export const jobs = {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(input),
+    }),
+  /** Is this listing still live? Verified on demand when the last verdict is
+   *  stale, so a ghost is caught before the user spends effort on it. */
+  liveness: (token: string, jobId: string) =>
+    request<JobLiveness>(`/jobs/${encodeURIComponent(jobId)}/liveness`, {
+      headers: { Authorization: `Bearer ${token}` },
     }),
   staleApplications: (token: string) =>
     request<StaleApplication[]>("/jobs/applications/stale", {
