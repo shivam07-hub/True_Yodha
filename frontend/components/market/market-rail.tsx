@@ -4,6 +4,8 @@ import { useState } from "react"
 import type { JobFeedItem, JobPulse } from "@/lib/api"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useMarketIntel, uncertainListings } from "@/lib/hooks/use-market-intel"
+import { useSkillDemand } from "@/lib/hooks/use-skill-demand"
+import { SkillDemandPanel } from "./skill-demand-panel"
 import { CompanySignalRow, CompanyTile } from "@/components/companies/company-signal"
 import {
   companySignalHeading,
@@ -24,12 +26,12 @@ export interface MarketRailProps {
   onFilterSkill: (skill: string) => void
   /** Open a job's detail (where the deliberate verify/report flow lives). */
   onOpenJob: (job: JobFeedItem) => void
-  /** @deprecated Skill-demand movers are now the universal market aggregate, not
+  /** @deprecated Skill demand is the universal market aggregate, not
    *  CV-personalized, so this no longer gates anything. Kept until callers drop
    *  it from the shared rail props. */
   cvReady?: boolean
-  /** Wave-3 intent gate (#41 L3): when false the `/jobs/analytics` movers +
-   *  trending queries stay unfetched (never fired on login). */
+  /** Wave-3 intent gate (#41 L3): when false the skill-demand + trending queries
+   *  stay unfetched (never fired on login). */
   analyticsEnabled?: boolean
 }
 
@@ -38,35 +40,31 @@ export interface MarketRailProps {
 export function MarketRail(props: MarketRailProps) {
   const { targetLocations, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob, analyticsEnabled = true } = props
   const [companyMode, setCompanyMode] = useState<CompanySignalMode>("roles")
-  const { movers, trending, loading: intelLoading } = useMarketIntel(targetLocations, companySignalSortParam(companyMode), analyticsEnabled)
+  const { trending, loading: intelLoading } = useMarketIntel(targetLocations, companySignalSortParam(companyMode), analyticsEnabled)
+  const homeCity = targetLocations.find((l) => l && l.trim())?.trim() ?? null
   const uncertain = uncertainListings(feed, pulses)
 
   // NOTE: no count/scope strip here. The feed summary line ("N roles" + the
   // Location chip) already states both facts one column left, and the chip is
   // the affordance that EDITS them — a second, read-only rendering of the same
   // `total` under a second name ("live roles") is duplicate ink and a second
-  // vocabulary for one fact. The rail carries intel the feed can't: movers,
-  // who's hiring, listings to verify.
+  // vocabulary for one fact. The rail carries intel the feed can't: skill
+  // demand, who's hiring, listings to verify.
   return (
     <aside className="mi-rail" aria-label="Market intel">
-      {/* movers + trending resolve independently of the feed; while their query
-          is in flight show the real-shape widget skeletons rather than blank
-          (the missing-right-rail root cause). */}
-      {intelLoading ? <MarketRailLoading /> : null}
+      {/* HERO: the core market lesson. Owns its own loading/empty state — it
+          reads the skill-demand snapshot, not the /jobs/analytics scan the
+          trending widget below still uses. */}
+      <SkillDemandPanel
+        homeCity={homeCity}
+        onFilterSkill={onFilterSkill}
+        enabled={analyticsEnabled}
+      />
 
-      {/* HERO: the core market lesson */}
-      {!intelLoading && movers.length > 0 ? (
-        <div className="mi-widget mi-hero">
-          <h4 className="mi-h4">Skill-demand movers</h4>
-          <p className="mi-sub">What the market is asking for, this month.</p>
-          {movers.map((m) => (
-            <button key={m.skill} type="button" className="mi-mover" onClick={() => onFilterSkill(m.display)}>
-              <span className="mi-mover-n">{m.display}</span>
-              <span className="mi-mover-up">↑ {m.jobCount}</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
+      {/* trending resolves independently of the feed; while its query is in
+          flight show the real-shape widget skeleton rather than blank (the
+          missing-right-rail root cause). */}
+      {intelLoading ? <MarketRailLoading /> : null}
 
       {/* who's hiring in scope */}
       {!intelLoading && trending.length > 0 ? (
@@ -123,25 +121,29 @@ export function MarketRail(props: MarketRailProps) {
  *  the same action its rail widget would route to. */
 export function MarketChipStrip(props: MarketRailProps) {
   const { targetLocations, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob, analyticsEnabled = true } = props
-  const { movers, trending } = useMarketIntel(targetLocations, "roles", analyticsEnabled)
+  const { trending } = useMarketIntel(targetLocations, "roles", analyticsEnabled)
   const uncertain = uncertainListings(feed, pulses)
-  const top = movers[0]
   const co = trending[0]
+  // Mobile takes the 30d window in the viewer's own city — no picker in a chip
+  // strip. A city we hold no snapshot for yields no chips rather than a chip
+  // built from a number we cannot stand behind.
+  const city = targetLocations.find((l) => l && l.trim())?.trim() ?? null
+  const { skills } = useSkillDemand(city, "30d", analyticsEnabled, 2)
 
   // Lead count chip dropped for the same reason as the rail strip — the feed
   // summary line above it already carries the count. Every chip here is a tap.
   return (
     <div className="mi-chipstrip" role="region" aria-label="Market intel">
-      {top ? (
-        <button type="button" className="mi-chip" onClick={() => onFilterSkill(top.display)}>
-          {top.display} <span className="mi-chip-up">↑{top.jobCount}</span>
+      {skills.map((s) => (
+        <button
+          key={s.skill}
+          type="button"
+          className="mi-chip"
+          onClick={() => onFilterSkill(s.skill)}
+        >
+          {s.skill} <span className="mi-chip-up">{s.roles}</span>
         </button>
-      ) : null}
-      {movers[1] ? (
-        <button type="button" className="mi-chip" onClick={() => onFilterSkill(movers[1].display)}>
-          {movers[1].display} <span className="mi-chip-up">↑{movers[1].jobCount}</span>
-        </button>
-      ) : null}
+      ))}
       {co ? (
         <button type="button" className="mi-chip" onClick={() => onSeeRoles(co.name)}>
           {co.name} · {co.openCount}
@@ -157,24 +159,14 @@ export function MarketChipStrip(props: MarketRailProps) {
 }
 
 /**
- * Loading shape for the rail's two intel widgets, co-located here so a rail
- * layout change moves it too. Keeps the real headings (so they don't pop in for
- * the common non-empty case) and shimmers the rows over the real `mi-mover` /
- * `cs-row` shapes — content lands in place. Decorative; aria-hidden.
+ * Loading shape for the trending widget, co-located here so a rail layout change
+ * moves it too. Keeps the real heading (so it doesn't pop in for the common
+ * non-empty case) and shimmers rows over the real `cs-row` shape — content lands
+ * in place. The skill-demand panel owns its own skeleton. Decorative; aria-hidden.
  */
 function MarketRailLoading() {
   return (
     <>
-      <div className="mi-widget mi-hero" aria-hidden="true">
-        <h4 className="mi-h4">Skill-demand movers</h4>
-        <p className="mi-sub">What the market is asking for, this month.</p>
-        {[0, 1, 2, 3, 4].map((i) => (
-          <div key={i} className="mi-mover">
-            <Skeleton style={{ flex: 1, height: 14, borderRadius: 4, maxWidth: `${72 - i * 7}%` }} />
-            <Skeleton style={{ width: 34, height: 13, borderRadius: 4, flexShrink: 0 }} />
-          </div>
-        ))}
-      </div>
       <div className="mi-widget" aria-hidden="true">
         <h4 className="mi-h4">{companySignalHeading()}</h4>
         <div className="cs-row-list">

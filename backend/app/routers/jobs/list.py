@@ -749,10 +749,36 @@ def refresh_analytics_snapshot(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="invalid refresh secret")
     if force:
         summary = repo.persist_analytics_snapshot(refreshed_by="batch-finalize")
+        _refresh_skill_demand("batch-finalize")
         return AnalyticsSnapshotRefreshResponse(refreshed=True, **summary)
     summary = repo.refresh_analytics_snapshot_if_stale(refreshed_by="cron")
+    # Ride the same dirty guard: recompute the skill-demand panel only when the
+    # analytics snapshot actually recompiled, so idle days stay cheap.
+    if summary["refreshed"]:
+        _refresh_skill_demand("cron")
     return AnalyticsSnapshotRefreshResponse(
         refreshed=summary["refreshed"],
         total_jobs=summary["total_jobs"],
         total_companies=summary["total_companies"],
     )
+
+
+def _refresh_skill_demand(trigger: str) -> None:
+    """Recompute the skill-demand panel after the corpus changed.
+
+    Best-effort by design: this endpoint's contract is the analytics snapshot,
+    and a panel refresh failing must not fail the batch-finalisation call the
+    scraper depends on. Logged either way — a silently stale panel is the exact
+    failure this feature replaced.
+    """
+    from app.database import get_supabase_admin
+    from app.repositories.skill_demand import SkillDemandRepository
+
+    try:
+        summary = SkillDemandRepository(get_supabase_admin()).refresh()
+        logger.info(
+            "metric skill_demand.refreshed trigger=%s cities=%d rows=%d",
+            trigger, summary["cities"], summary["rows_written"],
+        )
+    except Exception:  # noqa: BLE001 — never fail the caller's snapshot refresh
+        logger.exception("metric skill_demand.refresh_failed trigger=%s", trigger)

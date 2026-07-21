@@ -102,12 +102,37 @@ async def _sweep() -> None:
         priority_backlog, stale_days, priority_stale_hours, duration,
     )
     _alert_on_unproductive_sweep(targets, counts)
+    _refresh_skill_demand_if_changed(counts, retired)
 
 
 # A verdict that moves a listing's confidence. `blocked`/`timeout`/`error` claim
 # rows and stamp them without learning anything — a belt producing only those is
 # running, draining the queue, and teaching us nothing.
 _PRODUCTIVE = {"seen_live", "closed", "redirected", "wrong_role"}
+
+
+def _refresh_skill_demand_if_changed(counts: dict[str, int], retired: int) -> None:
+    """Recompute the skill-demand panel when this sweep removed listings from it.
+
+    The panel counts live listings only, so the verifier moves its numbers as
+    much as new ingest does — a skill whose roles all closed should stop being
+    advertised as in demand. Gated on verdicts that actually change membership
+    (`closed`, plus retirements): a sweep of `seen_live` leaves the set intact,
+    and the refresh is ~9s of DB work that should not run every tick for nothing.
+    """
+    changed = counts.get("closed", 0) + retired
+    if not changed:
+        return
+    from app.repositories.skill_demand import SkillDemandRepository
+
+    try:
+        summary = SkillDemandRepository(get_supabase_admin()).refresh()
+        log.info(
+            "metric skill_demand.refreshed trigger=verifier changed=%d cities=%d rows=%d",
+            changed, summary["cities"], summary["rows_written"],
+        )
+    except Exception:  # noqa: BLE001 — the sweep's own work is already durable
+        log.exception("metric skill_demand.refresh_failed trigger=verifier")
 
 
 def _alert_on_unproductive_sweep(targets: list, counts: dict[str, int]) -> None:

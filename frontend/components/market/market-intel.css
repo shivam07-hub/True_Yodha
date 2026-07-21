@@ -160,3 +160,76 @@
 .mi-chip-warn { background: var(--tm-warning-wash); color: var(--tm-warning-text, var(--tm-warning)); border-color: transparent; }
 
 @media (min-width: 1081px) { .mi-chipstrip { display: none; } }
+
+/* ── skill demand panel ───────────────────────────────────────────────────── */
+/* Replaces the old "movers" list. Reuses .mi-widget/.mi-hero/.mi-seg wholesale;
+   only the row and its bar are new, because only they carry a new fact. */
+
+.sd-city {
+  display: flex; align-items: center; gap: 5px;
+  margin: -4px 0 12px; position: relative;
+  font-size: 12.5px; color: var(--tm-text-muted);
+}
+.sd-city-label { flex: 0 0 auto; }
+.sd-city select {
+  appearance: none; font: inherit; font-weight: 600; cursor: pointer;
+  color: var(--tm-text); background: none; border: none;
+  padding: 2px 15px 2px 2px; margin-left: -2px; border-radius: 6px;
+  max-width: 190px; text-overflow: ellipsis;
+}
+.sd-city select:hover { background: var(--tm-surface-2, var(--tm-surface)); }
+.sd-city select:focus-visible { outline: 2px solid var(--tm-interactive); outline-offset: 1px; }
+/* Sits over the select's right edge; the select owns the click. */
+.sd-caret { position: absolute; right: 4px; color: var(--tm-text-faint); pointer-events: none; }
+.sd-city:has(select:hover) .sd-caret { color: var(--tm-text-muted); }
+
+.sd-list { list-style: none; margin: 0; padding: 0; }
+
+.sd-row {
+  width: 100%; display: block; text-align: left; font: inherit; cursor: pointer;
+  background: none; border: none; border-radius: 8px;
+  padding: 7px 6px 8px; margin: 0 -6px;
+  color: var(--tm-text);
+  transition: background 120ms ease;
+}
+.sd-row:hover { background: var(--tm-surface-2, var(--tm-surface)); }
+.sd-row:focus-visible { outline: 2px solid var(--tm-interactive); outline-offset: -1px; }
+
+.sd-row-top { display: flex; align-items: baseline; gap: 10px; }
+.sd-skill {
+  flex: 1; min-width: 0; font-size: 13.5px; font-weight: 600; line-height: 1.35;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sd-roles {
+  flex: 0 0 auto; font-size: 13px; font-weight: 700;
+  font-variant-numeric: tabular-nums; color: var(--tm-interactive);
+}
+
+/* The signature mark: one tick per employer. Fixed pitch, so the field's WIDTH
+   is employer breadth and nothing else — an earlier version also scaled total
+   width by role count, which made a 4-employer skill draw fatter than a
+   10-employer one and inverted the mark's own meaning. */
+.sd-row-btm { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.sd-bar { display: flex; gap: 2px; flex: 0 0 auto; }
+.sd-tick {
+  width: 3px; height: 8px; border-radius: 1px;
+  background: var(--tm-interactive); opacity: 0.6;
+}
+/* Firecrawl orange at low alpha washes out on warm paper; dark's teal does not. */
+:root[data-surface="light"] .sd-tick { opacity: 0.75; }
+/* Breadth past the tick cap: the exact count is in the label beside it. */
+.sd-tick-more { opacity: 0.22; }
+.sd-row:hover .sd-tick { opacity: 0.85; }
+.sd-row:hover .sd-tick-more { opacity: 0.35; }
+
+.sd-meta { font-size: 11.5px; color: var(--tm-text-muted); white-space: nowrap; }
+
+.sd-empty { margin: 4px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--tm-text-muted); }
+.sd-foot {
+  margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--tm-border-soft);
+  font-size: 11px; color: var(--tm-text-faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sd-row { transition: none; }
+}

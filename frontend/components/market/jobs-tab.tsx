@@ -18,6 +18,7 @@ import { EmptyHandoff, FeedSkeleton, LocationScopePill } from "./jobs-tab-helper
 import { useJobFeed } from "./use-job-feed"
 import { usePulses } from "@/lib/hooks/use-pulses"
 import { useMarketIntel } from "@/lib/hooks/use-market-intel"
+import { useSkillDemand } from "@/lib/hooks/use-skill-demand"
 import { MarketRail } from "./market-rail"
 import { StoryCard, type FeedStory } from "./story-card"
 import { interleaveStories } from "./feed-rows"
@@ -152,18 +153,26 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   }, [feed])
 
   const intel = useMarketIntel(targetLocations, "roles", analyticsEnabled)
+  const storyCity = targetLocations.find(l => l && l.trim())?.trim() ?? null
+  const { skills: demandSkills } = useSkillDemand(storyCity, "30d", analyticsEnabled, 1)
   const stories = useMemo<FeedStory[]>(() => {
     const out: FeedStory[] = []
-    const topSkill = intel.movers.find(m => m.needsUpgrade) ?? intel.movers[0]
+    const topSkill = demandSkills[0]
     if (hasCv && topSkill) {
-      out.push({ kind: "skill", skill: topSkill.skill, display: topSkill.display, jobCount: topSkill.jobCount, level: topSkill.level, needsUpgrade: topSkill.needsUpgrade })
+      out.push({
+        kind: "skill",
+        skill: topSkill.skill,
+        roles: topSkill.roles,
+        companies: topSkill.companies,
+        city: storyCity,
+      })
     }
     const topCo = intel.trending[0]
     if (topCo) {
       out.push({ kind: "company", company: topCo.name, openCount: topCo.openCount, location: targetLocations.find(l => l && l.trim())?.trim() ?? null, followed: followedNames.includes(topCo.name) })
     }
     return out
-  }, [intel.movers, intel.trending, hasCv, followedNames, targetLocations])
+  }, [demandSkills, intel.trending, hasCv, followedNames, targetLocations, storyCity])
 
   const rows = useMemo(
     () => interleaveStories(visibleJobs, stories, [...picksDivider, ...expansionDividers]),
@@ -197,7 +206,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     else onSeeRoles(s.company)
   }, [router, onSeeRoles])
   const onStorySecondary = useCallback((s: FeedStory) => {
-    if (s.kind === "skill") onFilterSkill(s.display)
+    if (s.kind === "skill") onFilterSkill(s.skill)
     else if (s.company) onToggleFollow(s.company)
   }, [onFilterSkill, onToggleFollow])
 

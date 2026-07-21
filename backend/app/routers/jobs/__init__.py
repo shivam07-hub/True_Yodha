@@ -15,11 +15,14 @@ from .prep import router as prep_router
 from .reach import router as reach_router
 from .report import router as report_router
 from .review import router as review_router
+from .skill_demand import router as skill_demand_router
 from .stale import router as stale_router
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 router.include_router(list_router)
+# Before detail_router: its `/{job_id}` would otherwise swallow `/skill-demand`.
+router.include_router(skill_demand_router)
 router.include_router(intelligence_router)
 router.include_router(match_router)
 router.include_router(apply_router)

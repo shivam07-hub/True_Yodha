@@ -3166,6 +3166,34 @@ export interface SkillHeatmapData {
   matrix: Record<string, Record<string, number>>
 }
 
+export type SkillDemandWindow = "30d" | "all"
+
+/** One skill a city is hiring for. `companies` is not decoration: a role count
+ *  alone cannot tell a broad market from one employer's bulk posting. */
+export interface SkillDemandItem {
+  skill: string
+  roles: number
+  companies: number
+}
+
+export interface SkillDemand {
+  city: string
+  window: SkillDemandWindow
+  skills: SkillDemandItem[]
+  /** When the snapshot was computed — shown, so a stale corpus reads as stale. */
+  computed_at?: string | null
+}
+
+export interface SkillDemandCityItem {
+  city: string
+  live_roles: number
+}
+
+export interface SkillDemandCities {
+  cities: SkillDemandCityItem[]
+  computed_at?: string | null
+}
+
 /** Company demand pulse (Signal Thread S2). pulse === null = live but no signal. */
 export interface CompanyPulseItem {
   company_name: string
@@ -3444,6 +3472,11 @@ export const jobs = {
     return request<MarketAnalytics>(`/jobs/analytics/me${query ? `?${query}` : ""}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
+  },
+  skillDemandCities: () => request<SkillDemandCities>("/jobs/skill-demand/cities"),
+  skillDemand: (city: string, window: SkillDemandWindow = "30d", limit = 8) => {
+    const params = new URLSearchParams({ city, window, limit: String(limit) })
+    return request<SkillDemand>(`/jobs/skill-demand?${params.toString()}`)
   },
   skillHeatmap: (companies: string[], skills: string[]) => {
     const params = new URLSearchParams({
