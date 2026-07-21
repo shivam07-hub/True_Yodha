@@ -196,6 +196,102 @@
   color: var(--tm-accent-text);
 }
 
+/* ── Saved-role decision group — one batched to-do, decided inline ───────── */
+.tm-bell-attn {
+  margin: 2px 0 6px;
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--tm-accent) 6%, transparent);
+  overflow: hidden;
+}
+.tm-bell-attn-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.tm-bell-attn-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tm-text);
+}
+.tm-bell-chev {
+  flex: 0 0 auto;
+  color: var(--tm-text-muted);
+  font-size: 14px;
+  transition: transform 140ms ease;
+}
+.tm-bell-chev.is-open {
+  transform: rotate(180deg);
+}
+
+.tm-bell-attn-body {
+  display: flex;
+  flex-direction: column;
+}
+.tm-bell-attn-item {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 9px 12px 11px;
+  border-top: 1px solid var(--tm-border-soft);
+}
+.tm-bell-attn-role {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--tm-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tm-bell-attn-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tm-bell-act {
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--tm-border-soft);
+  background: var(--tm-surface);
+  color: var(--tm-text-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.tm-bell-act:hover:not(:disabled) {
+  color: var(--tm-text);
+  border-color: var(--tm-border);
+}
+.tm-bell-act.is-primary {
+  background: var(--tm-accent);
+  border-color: var(--tm-accent);
+  color: var(--tm-accent-ink, #fff);
+}
+.tm-bell-act.is-primary:hover:not(:disabled) {
+  color: var(--tm-accent-ink, #fff);
+}
+.tm-bell-act.is-quiet {
+  color: var(--tm-text-muted);
+}
+.tm-bell-act:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.tm-bell-act:focus-visible {
+  outline: 2px solid var(--tm-accent);
+  outline-offset: 1px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tm-bell-panel { animation: none; }
+  .tm-bell-chev { transition: none; }
 }
