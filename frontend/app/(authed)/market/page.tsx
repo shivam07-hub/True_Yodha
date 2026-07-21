@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query"
 import { jobs, users, xp } from "@/lib/api"
+import { dataKeys } from "@/lib/domain-data"
 import type { JobLocationFilters } from "@/lib/api"
 import { HeatmapTab } from "@/components/market/heatmap-tab"
 import { MarketJobsTab } from "@/components/market/jobs-tab"
@@ -65,9 +66,13 @@ function IntelPageInner() {
     staleTime: 60 * 1000,
   })
 
-  // Profile - needed for target_roles
+  // Profile — needed for target_roles.
+  // Uses the CANONICAL dataKeys.profile() key so this shares one cache entry
+  // with the app shell and with the /home/bootstrap seed. It previously used a
+  // bare ["profile"] key, which is a different entry: the bootstrap seed never
+  // reached it and every login paid for a third redundant GET /users/me.
   const { data: profileData } = useQuery({
-    queryKey: ["profile"],
+    queryKey: dataKeys.profile(),
     queryFn: () => users.me(token!),
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
@@ -196,7 +201,7 @@ function IntelPageInner() {
             onExploredCareerBandsChange={(bands) => {
               if (!token) return
               void users.updateProfile(token, { explored_career_bands: bands }).then(() => {
-                void queryClient.invalidateQueries({ queryKey: ["profile"] })
+                void queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
               })
             }}
             targetLocations={profileData?.target_locations ?? []}
