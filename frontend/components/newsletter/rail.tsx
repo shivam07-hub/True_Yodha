@@ -14,6 +14,7 @@
  */
 
 import Link from "next/link"
+import { ScoreCta } from "./score-cta"
 import { publicStats } from "@/lib/api"
 import { LANDING_FLOORS, displayCount } from "@/lib/public-stats-display"
 import { formatDate, formatCount } from "@/lib/format"
@@ -174,15 +175,7 @@ function ScorePanel({ campaign }: { campaign: string }) {
     <section className={styles.ctaPanel}>
       <p className={styles.kicker}>Your turn</p>
       <h2 className={styles.panelTitle}>See where your CV stands</h2>
-      <p className={styles.panelBody}>
-        Drop your CV against this same live hiring data. Free, no account needed.
-      </p>
-      <Link
-        href={`/cv-preview?utm_source=newsletter&utm_campaign=${encodeURIComponent(campaign)}`}
-        className={styles.ctaLink}
-      >
-        Get my free Myro Score →
-      </Link>
+      <ScoreCta campaign={campaign} linkClassName={styles.ctaLink} bodyClassName={styles.panelBody} />
     </section>
   )
 }
