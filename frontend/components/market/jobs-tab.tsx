@@ -213,9 +213,8 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   const onSkip = (j: JobFeedItem) => triage(j, "skipped")
 
   const railProps = {
-    token, targetLocations, total, feed: allJobs, pulses, cvReady: hasCv,
-    onSeeRoles, onFilterSkill, onOpenJob: setOpenJob,
-    loading: feed.isLoading, analyticsEnabled,
+    token, targetLocations, feed: allJobs, pulses, cvReady: hasCv,
+    onSeeRoles, onFilterSkill, onOpenJob: setOpenJob, analyticsEnabled,
   }
 
   return (

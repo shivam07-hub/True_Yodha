@@ -4,7 +4,6 @@ import { useState } from "react"
 import type { JobFeedItem, JobPulse } from "@/lib/api"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useMarketIntel, uncertainListings } from "@/lib/hooks/use-market-intel"
-import { formatCount } from "@/lib/format"
 import { CompanySignalRow, CompanyTile } from "@/components/companies/company-signal"
 import {
   companySignalHeading,
@@ -17,7 +16,6 @@ import "./market-intel.css"
 export interface MarketRailProps {
   token: string
   targetLocations: string[]
-  total: number
   feed: JobFeedItem[]
   pulses: Map<string, JobPulse>
   /** Filter the feed to a company (sets the free-text search box). */
@@ -26,8 +24,6 @@ export interface MarketRailProps {
   onFilterSkill: (skill: string) => void
   /** Open a job's detail (where the deliberate verify/report flow lives). */
   onOpenJob: (job: JobFeedItem) => void
-  /** Feed still resolving — strip shows a shimmer, never a literal "0". */
-  loading?: boolean
   /** @deprecated Skill-demand movers are now the universal market aggregate, not
    *  CV-personalized, so this no longer gates anything. Kept until callers drop
    *  it from the shared rail props. */
@@ -40,28 +36,19 @@ export interface MarketRailProps {
 /** Desktop right rail — market dashboard + community listing-status. CV-coach
  *  intel lives on /dashboard; this surface stays about the market. */
 export function MarketRail(props: MarketRailProps) {
-  const { targetLocations, total, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob, loading = false, analyticsEnabled = true } = props
+  const { targetLocations, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob, analyticsEnabled = true } = props
   const [companyMode, setCompanyMode] = useState<CompanySignalMode>("roles")
   const { movers, trending, loading: intelLoading } = useMarketIntel(targetLocations, companySignalSortParam(companyMode), analyticsEnabled)
-  const city = targetLocations.find((l) => l && l.trim())?.trim() ?? null
   const uncertain = uncertainListings(feed, pulses)
 
+  // NOTE: no count/scope strip here. The feed summary line ("N roles" + the
+  // Location chip) already states both facts one column left, and the chip is
+  // the affordance that EDITS them — a second, read-only rendering of the same
+  // `total` under a second name ("live roles") is duplicate ink and a second
+  // vocabulary for one fact. The rail carries intel the feed can't: movers,
+  // who's hiring, listings to verify.
   return (
     <aside className="mi-rail" aria-label="Market intel">
-      {/* thin scope strip — real live-role count, no fabricated daily delta.
-          While the feed is still loading the number is a shimmer, not "0" — a
-          literal zero here reads as "no jobs", the opposite of the truth. */}
-      <div className="mi-strip mi-widget">
-        {loading ? (
-          <Skeleton style={{ width: 104, height: 22, borderRadius: 6 }} />
-        ) : (
-          <>
-            <span className="mi-strip-num">{formatCount(total)}</span>
-            <span className="mi-strip-sub">live role{total === 1 ? "" : "s"}{city ? ` · ${city}` : ""}</span>
-          </>
-        )}
-      </div>
-
       {/* movers + trending resolve independently of the feed; while their query
           is in flight show the real-shape widget skeletons rather than blank
           (the missing-right-rail root cause). */}
@@ -135,15 +122,16 @@ export function MarketRail(props: MarketRailProps) {
 /** Mobile: the rail collapses to a sticky horizontal chip strip. Tap a chip →
  *  the same action its rail widget would route to. */
 export function MarketChipStrip(props: MarketRailProps) {
-  const { targetLocations, total, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob, analyticsEnabled = true } = props
+  const { targetLocations, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob, analyticsEnabled = true } = props
   const { movers, trending } = useMarketIntel(targetLocations, "roles", analyticsEnabled)
   const uncertain = uncertainListings(feed, pulses)
   const top = movers[0]
   const co = trending[0]
 
+  // Lead count chip dropped for the same reason as the rail strip — the feed
+  // summary line above it already carries the count. Every chip here is a tap.
   return (
     <div className="mi-chipstrip" role="region" aria-label="Market intel">
-      <span className="mi-chip mi-chip-lead">{formatCount(total)} live</span>
       {top ? (
         <button type="button" className="mi-chip" onClick={() => onFilterSkill(top.display)}>
           {top.display} <span className="mi-chip-up">↑{top.jobCount}</span>

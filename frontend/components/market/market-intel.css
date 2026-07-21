@@ -110,10 +110,6 @@
   box-shadow: var(--tm-shadow-1);
 }
 
-.mi-strip { display: flex; align-items: baseline; gap: 9px; padding: 13px 16px; }
-.mi-strip-num { font-size: 22px; font-weight: 700; color: var(--tm-interactive); letter-spacing: -0.01em; }
-.mi-strip-sub { font-size: 13px; color: var(--tm-text-muted); }
-
 .mi-hero { border-color: var(--tm-int-border, var(--tm-border)); }
 
 .mi-mover, .mi-vrow {
@@ -160,7 +156,6 @@
   padding: 7px 13px; border-radius: 999px;
   border: 1px solid var(--tm-border-soft); background: var(--tm-surface); color: var(--tm-text);
 }
-.mi-chip-lead { background: var(--tm-int-bg-wash); color: var(--tm-interactive); border-color: transparent; }
 .mi-chip-up { color: var(--tm-success-text, var(--tm-success)); font-weight: 700; }
 .mi-chip-warn { background: var(--tm-warning-wash); color: var(--tm-warning-text, var(--tm-warning)); border-color: transparent; }
 
