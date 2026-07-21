@@ -93,6 +93,19 @@
   color: var(--tm-text);
   line-height: 1;
 }
+/* SWR refreshing hint (#41 L2): a returning user sees last session's score
+   instantly; while it revalidates in the background the ring breathes, so a
+   number that then changes reads as "just updated", never a silent surprise. */
+.tm-score-chip--refreshing .tm-score-chip-ring {
+  animation: tm-score-chip-breathe 1.1s var(--tm-ease) infinite;
+}
+@keyframes tm-score-chip-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tm-score-chip--refreshing .tm-score-chip-ring { animation: none; opacity: 0.7; }
+}
 
 /* ── Global Next chip (unified-structure S2) ────────────────────────────────
    The one "what do I do now" — a quiet directive instrument in the right

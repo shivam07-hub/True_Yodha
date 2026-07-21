@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import { useAuth } from "@/lib/hooks/use-auth"
-import { users, xp } from "@/lib/api"
+import { users, xp, type UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { readIdentitySnapshot, writeIdentitySnapshot } from "@/lib/identity-cache"
 import { useXPStore } from "@/store/xpStore"
 import {
   OPEN_FEEDBACK_EVENT,
@@ -70,12 +71,24 @@ export function useShellModel() {
     return () => window.removeEventListener("keydown", onKey)
   }, [])
 
+  // SWR-persist (#41 L2): seed the nav's name from last session so a returning
+  // user sees it instantly, then refetch. The old timestamp keeps it stale so
+  // the background revalidation still fires.
+  const profileSnapshot = useMemo(
+    () => readIdentitySnapshot<UserProfile>("profile", token),
+    [token],
+  )
   const { data: profileData } = useQuery({
     queryKey: dataKeys.profile(),
     queryFn: () => users.me(token!),
     enabled: !!token,
     staleTime: 10 * 60 * 1000,
+    initialData: profileSnapshot?.data,
+    initialDataUpdatedAt: profileSnapshot?.ts,
   })
+  useEffect(() => {
+    if (profileData) writeIdentitySnapshot("profile", token, profileData)
+  }, [profileData, token])
 
   const profile: SidebarProfile = {
     full_name: profileData?.full_name ?? null,
