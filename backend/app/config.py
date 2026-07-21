@@ -61,6 +61,10 @@ class Settings(BaseSettings):
     # manual sales follow-up. Empty = persist-only (email send is skipped).
     institutions_lead_email: str = ""
 
+    # Distribution Tracker — access requests from signed-in non-operators are
+    # emailed here so the owner can promote them. Empty = persist-only.
+    growth_ops_email: str = ""
+
     # Razorpay checkout
     razorpay_key_id: str = ""
     razorpay_key_secret: str = ""

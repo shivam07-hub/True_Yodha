@@ -79,6 +79,20 @@ const METRICS = [
     hint: "Don't hand-roll a pill/badge. Use <Badge> from @/components/ui/badge.",
   },
   {
+    name: "readingTextInFaintToken",
+    exts: [".css"],
+    // --tm-text-faint is ~4.3:1 on the dark surface — it FAILS WCAG AA for text.
+    // It's the caption tier: fine on <13px micro-labels, but reading/body text
+    // (>=13px) set in faint is the "barely visible on dark" bug that keeps
+    // recurring (Deveshwar CV prose, newsletter prose, the Score & Skills
+    // standfirst). Decoration (bar fills, hairlines) uses background/border, not
+    // `color:`, so keying on a faint TEXT color co-occurring with a >=13px font
+    // isolates exactly the failing class without flagging legit small captions.
+    pattern: /\{(?=[^{}]*color:\s*var\(--tm-text-faint\))[^{}]*(?:font-size:\s*|font:[^{};]*?)(?:1[3-9]|[2-9]\d)px[^{}]*\}/g,
+    mode: "max",
+    hint: "Reading/body text (>=13px) coloured with --tm-text-faint fails AA on the dark surface. Use --tm-text-muted for labels or --tm-reading-ink for prose. faint stays for <13px captions and non-text decoration only.",
+  },
+  {
     name: "rawDateNumberFormat",
     exts: [".tsx", ".ts"],
     exclude: ["lib/format", "scripts/"],

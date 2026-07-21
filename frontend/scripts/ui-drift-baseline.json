@@ -1,7 +1,8 @@
 {
   "navUsesCanonicalClass": 4,
   "jsHoverStyleMutation": 66,
-  "handRolledModalScrim": 23,
-  "handRolledPill": 80,
+  "handRolledModalScrim": 22,
+  "handRolledPill": 75,
+  "readingTextInFaintToken": 40,
   "rawDateNumberFormat": 0
 }

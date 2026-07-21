@@ -120,7 +120,9 @@
 .gc-gate-card > span { width: 32px; height: 32px; margin: 0 auto 14px; display: grid; place-items: center; border-radius: 9px; background: #1e3a5f; color: #fff; font-weight: 750; }
 .gc-gate-card h1 { margin: 0 0 8px; font-size: 21px; }
 .gc-gate-card p, .gc-gate > p { color: var(--gc-muted, #64748b); font-size: 12px; }
-.gc-gate-card a { display: inline-flex; margin-top: 8px; padding: 9px 14px; border-radius: 8px; background: var(--gc-blue, #2563eb); color: #fff; text-decoration: none; font-size: 12px; font-weight: 650; }
+.gc-gate-card a, .gc-gate-card button { display: inline-flex; margin-top: 8px; padding: 9px 14px; border-radius: 8px; background: var(--gc-blue, #2563eb); color: #fff; text-decoration: none; font-size: 12px; font-weight: 650; border: 0; cursor: pointer; }
+.gc-gate-card button:disabled { opacity: .6; cursor: default; }
+.gc-gate-error { margin-top: 10px; color: #dc2626; }
 .gc-loader { width: 24px; height: 24px; border: 2px solid #cbd5e1; border-top-color: var(--gc-blue, #2563eb); border-radius: 50%; animation: gc-spin .7s linear infinite; }
 @keyframes gc-spin { to { transform: rotate(360deg); } }
 

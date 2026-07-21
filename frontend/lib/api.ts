@@ -4497,6 +4497,15 @@ export const growth = {
     request<GrowthBootstrapResponse>("/growth/bootstrap", {
       headers: { Authorization: `Bearer ${token}` },
     }),
+  requestAccess: (token: string, note?: string) =>
+    request<{ ok: boolean; status: "pending" | "granted" }>(
+      "/growth/access-request",
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ note: note ?? null }),
+      },
+    ),
   updateMessage: (token: string, messageId: string, body: GrowthMessageUpdate) =>
     request<GrowthMessage>(`/growth/messages/${encodeURIComponent(messageId)}`, {
       method: "PATCH",
