@@ -33,7 +33,15 @@ export interface UncertainListing {
  *   movers   ← /jobs/analytics top_skills (universal market demand, city-scoped)
  *   trending ← /jobs/companies-at         (who's hiring in the user's city)
  */
-export function useMarketIntel(targetLocations: string[], companySort: TopCompaniesSort = "roles") {
+export function useMarketIntel(
+  targetLocations: string[],
+  companySort: TopCompaniesSort = "roles",
+  // Wave-3 gate (#41 L3). The movers/trending rail is backed by `/jobs/analytics`
+  // (22–25s under load), so it must never fire on login. Callers pass the
+  // intent flag; until it's true both queries stay disabled and `loading` is
+  // false (no eternal skeleton — the widgets simply don't render yet).
+  enabled = true,
+) {
   const city = targetLocations.find((l) => l && l.trim())?.trim() ?? null
 
   // Skill-demand movers = the market overall, NOT the user's CV. Universal and
@@ -44,12 +52,13 @@ export function useMarketIntel(targetLocations: string[], companySort: TopCompan
   const demand = useQuery({
     queryKey: ["marketTopSkills", city ?? ""],
     queryFn: () => jobs.analytics(null, { locationCity: city }),
+    enabled,
     staleTime: 30 * 60 * 1000,
   })
   const companies = useQuery({
     queryKey: ["topCompaniesAt", "city", city ?? "", companySort],
     queryFn: () => jobs.topCompaniesAt({ kind: "city", name: city! }, COMPANY_SIGNAL_FETCH_LIMIT, companySort),
-    enabled: !!city,
+    enabled: enabled && !!city,
     staleTime: 30 * 60 * 1000,
   })
 

@@ -16,6 +16,8 @@ import { JobsSurface } from "@/mobile/redesign/jobs-surface"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useFeedState } from "@/lib/hooks/use-feed-state"
 import { useFollowCompany } from "@/lib/hooks/use-follow-company"
+import { useHomeBootstrap } from "@/lib/hooks/use-home-bootstrap"
+import { useIdleWave, useIntentWave } from "@/lib/hooks/use-load-waves"
 import { useXPStore } from "@/store/xpStore"
 import { pickDefaultSort, type FeedFilters } from "@/components/market/feed-types"
 
@@ -33,6 +35,16 @@ function IntelPageInner() {
   // Feed publication sensing - auto-invalidates the free market feed when a new
   // batch publishes (handoff client-refresh contract).
   useFeedState()
+
+  // Three-wave login loading (#41 L3). Wave 1 = identity + score + feed +
+  // Agent Picks (the BFF bootstrap + the feed below). Wave 2 = idle cascade,
+  // armed once wave 1 has settled and the browser is idle. Wave 3 = on-intent,
+  // armed only on the user's first interaction — this keeps the 22–25s
+  // `/jobs/analytics` (movers rail + per-role chip counts) OFF the login path.
+  const bootstrap = useHomeBootstrap(token)
+  const wave2 = useIdleWave(bootstrap.settled)
+  const intent = useIntentWave()
+
   const { balance: xpBalance, setBalance: setXPBalance } = useXPStore()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -133,7 +145,8 @@ function IntelPageInner() {
     queries: targetRoles.map(role => ({
       queryKey: ["intel-chip-count", token ?? "", role, locationCity, locationCountry, locationMode],
       queryFn: () => jobs.analyticsForMe(token!, role, locFilters),
-      enabled: !!token && targetRoles.length > 0,
+      // Wave 3: `/jobs/analytics/me` is a per-role aggregate — never on login.
+      enabled: !!token && targetRoles.length > 0 && intent,
       staleTime: 30 * 60 * 1000,
     })),
   })
@@ -148,7 +161,9 @@ function IntelPageInner() {
   }, [targetRoles, chipCountQueries])
 
   // Optimistic follow/unfollow + IH2 gating, shared with Settings.
-  const following = useFollowCompany(token)
+  // Wave 2: `/users/me/following/companies` is cheap + likely used, so it warms
+  // on the idle cascade rather than competing during the login instant.
+  const following = useFollowCompany(token, { enabled: wave2 })
   const followedCompanies = following.companies
   const followedNames = following.followedNames
 
@@ -170,8 +185,9 @@ function IntelPageInner() {
        <div className="mc-workspace">
         <aside className="mc-ws-rail">
           <MissionHeroRail token={token ?? null} />
-          {isDesktop && token ? (
+          {isDesktop && token && wave2 ? (
             <div className="mc-rail" style={{ marginTop: 16 }}>
+              {/* Wave 2: /scores/map warms on the idle cascade, not the login instant. */}
               <SkillMapCard token={token} />
             </div>
           ) : null}
@@ -209,6 +225,7 @@ function IntelPageInner() {
             onToggleFollow={following.toggle}
             canFollow={following.canFollow}
             disabledReason={following.disabledReason}
+            analyticsEnabled={intent}
           />
         ) : (
           <HeatmapTab

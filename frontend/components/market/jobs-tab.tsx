@@ -49,6 +49,9 @@ export interface MarketJobsTabProps {
   onToggleFollow: (name: string) => void
   canFollow: (name: string) => boolean
   disabledReason: (name: string) => string | undefined
+  /** Wave-3 intent gate (#41 L3): when false, the `/jobs/analytics`-backed
+   *  market-intel rail + interleaved story cards stay unfetched. */
+  analyticsEnabled?: boolean
 }
 
 export function MarketJobsTab(props: MarketJobsTabProps) {
@@ -57,6 +60,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     initialFilters, initialQuery = "", onFiltersChange, onQueryChange,
     targetLocations, followedNames, onToggleFollow, initialSkillFacet, onSkillFacetChange,
     primaryCareerBand, exploredCareerBands, onExploredCareerBandsChange,
+    analyticsEnabled = true,
   } = props
   const router = useRouter()
   const { isDesktop } = useViewport()
@@ -153,7 +157,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     return () => obs.disconnect()
   }, [feed])
 
-  const intel = useMarketIntel(targetLocations)
+  const intel = useMarketIntel(targetLocations, "roles", analyticsEnabled)
   const stories = useMemo<FeedStory[]>(() => {
     const out: FeedStory[] = []
     const topSkill = intel.movers.find(m => m.needsUpgrade) ?? intel.movers[0]
@@ -211,7 +215,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   const railProps = {
     token, targetLocations, total, feed: allJobs, pulses, cvReady: hasCv,
     onSeeRoles, onFilterSkill, onOpenJob: setOpenJob,
-    loading: feed.isLoading,
+    loading: feed.isLoading, analyticsEnabled,
   }
 
   return (
