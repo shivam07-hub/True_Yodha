@@ -283,6 +283,7 @@ _QUOTED_RE = re.compile(r"[\"'“”‘’]([^\"'“”‘’]{12,})[\"'“”�
 # (live leak 2026-07-16: "SCOPE Led platform transformation … || Highlights system
 # scope" rendered as the suggested line).
 _TAG_PREFIX_RE = re.compile(r"^\s*\[?\s*(?:METRIC|IMPACT|SCOPE)\s*\]?\s*[:\-–]?\s+", re.IGNORECASE)
+_UNRESOLVED_TEMPLATE_TOKEN_RE = re.compile(r"<\s*(?:rewrite|reason)\s*>", re.IGNORECASE)
 
 
 def _strip_variant_markup(text: str) -> str:
@@ -319,7 +320,7 @@ def finalize_rewrite(
     not-worse guard fired: dropped a real number, dropped a named specific (substance
     guard), or minted a number the user never stated."""
     text = _extract_bullet(text)
-    if not text:
+    if not text or _UNRESOLVED_TEMPLATE_TOKEN_RE.search(text):
         return {"mode": "error", "rationale": "No rewrite produced."}
     allowed = " ".join([metric or "", *missing_keywords])
     if source_bullet and loses_metrics(source_bullet, text):
@@ -419,8 +420,9 @@ def _variants_instruction() -> str:
         "Never mention formulas, STAR, XYZ, or ATS in the reason.\n"
         "Angles:\n"
         f"{angle_lines}\n\n"
-        "Output EXACTLY three lines, strongest first, each: TAG <rewrite> || <reason>\n"
-        "[METRIC|IMPACT|SCOPE] <rewrite> || <reason>"
+        "Output EXACTLY three lines, strongest first. Start each line with its angle "
+        "tag, then the completed résumé bullet, then ||, then the completed reason. "
+        "Never output template tokens or placeholder text."
     )
 
 
@@ -440,7 +442,11 @@ def _parse_variants(raw: str) -> list[dict[str, str]]:
         text, _, why = body.partition("||")
         text = text.strip().strip('"').strip()
         why = why.strip().strip('"').strip()
-        if not text:
+        if (
+            not text
+            or _UNRESOLVED_TEMPLATE_TOKEN_RE.search(text)
+            or _UNRESOLVED_TEMPLATE_TOKEN_RE.search(why)
+        ):
             continue
         seen.add(angle)
         out.append({"angle": angle, "label": _LABELS.get(angle, "Alternate"), "text": text, "why": why})

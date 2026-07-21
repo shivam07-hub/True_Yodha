@@ -306,6 +306,34 @@ def test_finalize_rejects_foreign_numbers(monkeypatch):
 
 # ── markup can never ship (the "SCOPE … || why" leak, 2026-07-16) ────────────
 
+def test_finalize_rejects_unresolved_rewrite_placeholder():
+    out = cv_rewrite.finalize_rewrite(
+        "<rewrite>",
+        None,
+        [],
+        source_bullet="Cut churn 18% by shipping a lifecycle retention flow",
+    )
+    assert out == {"mode": "error", "rationale": "No rewrite produced."}
+
+
+def test_variants_reject_unresolved_template_placeholders(monkeypatch):
+    raw = (
+        "[METRIC] <rewrite> || <reason>\n"
+        "[IMPACT] <rewrite> || <reason>\n"
+        "[SCOPE] <rewrite> || <reason>"
+    )
+    _patch_grounding(monkeypatch, _grounding())
+    out = asyncio.run(cv_rewrite.suggest_rewrite_variants(
+        "Owned the lifecycle retention flow",
+        None,
+        [],
+        None,
+        provider=_FakeProvider(text=raw),
+        allow_no_metric=True,
+    ))
+    assert out == {"mode": "error", "rationale": "No rewrite produced."}
+
+
 def test_parse_accepts_bracketless_tags_and_strips_why():
     raw = "SCOPE Led platform transformation to Azure, cutting spend ~30% || Highlights system scope"
     out = cv_rewrite._parse_variants(raw)

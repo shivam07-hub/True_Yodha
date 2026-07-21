@@ -306,7 +306,34 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-20 - trusted CV skills and first-success loop)
+## LAST SESSION SUMMARY (2026-07-22 - CV rewrite placeholder output guard)
+
+Closed the backend-only Haneen #115 regression without touching the concurrent
+frontend work.
+
+- CV rewrite finalization now rejects unresolved `<rewrite>` / `<reason>` template
+  tokens before a suggestion can reach the candidate. The same guard covers the
+  single-rewrite, three-variant, and keyword-weave paths.
+- The three-variant prompt no longer seeds literal placeholder tokens. Tagged
+  responses containing unfinished template text are filtered, and an all-invalid
+  response keeps the original instead of publishing model scaffolding.
+- Added public-interface regression coverage for both the single and variant
+  paths. The tests failed against the prior behavior, then passed with the shared
+  output guard.
+- Reconciled the beta feedback against current `CLAUDE.md`, this cockpit, ADRs,
+  and Develop history. Do not pick the old `last_seen` freshness gate while
+  scraper re-observation is absent; Signal Thread S3, perceived-speed #41, the
+  trusted CV confirmation gate, and listing-priority/Apply guards are already
+  shipped. Genuine unresolved candidates remain evidence-owned skill truth,
+  listing-classifier/alert/receipt correctness, matcher findings F2/F3, search
+  outcome observability, and production read-capacity.
+
+Validation: 1537 backend tests passed; focused CV rewrite suite 36 passed; Ruff,
+TypeScript, Next lint, and `git diff --check` passed.
+
+---
+
+## OLDER SESSION SUMMARY (2026-07-20 - trusted CV skills and first-success loop)
 
 Closed the first three Harshada/Hetvi trust actions without touching the
 landing-page or tutorial-video work.
