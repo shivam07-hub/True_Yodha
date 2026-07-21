@@ -135,16 +135,7 @@ export function GrowthCommand() {
   }
   if (commandQuery.isLoading) return <CommandLoading />
   if (commandQuery.isError || !data) {
-    return (
-      <CommandGate
-        title="Distribution Tracker is restricted"
-        detail={
-          commandQuery.error instanceof Error
-            ? commandQuery.error.message
-            : "Your account is not on the active operator list."
-        }
-      />
-    )
+    return <AccessRequestGate token={token} />
   }
 
   const draftCount = filtered.filter(
@@ -293,6 +284,48 @@ function CommandGate({ title, detail }: { title: string; detail: string }) {
         <h1>{title}</h1>
         <p>{detail}</p>
         <Link href="/login">Sign in</Link>
+      </div>
+    </div>
+  )
+}
+
+function AccessRequestGate({ token }: { token: string }) {
+  const requestMutation = useMutation({
+    mutationFn: (note: string) => growth.requestAccess(token, note || undefined),
+  })
+  const status = requestMutation.data?.status
+  const done = requestMutation.isSuccess
+
+  return (
+    <div className="gc-gate">
+      <div className="gc-gate-card">
+        <span>M</span>
+        <h1>Distribution Tracker is restricted</h1>
+        {done ? (
+          <p>
+            {status === "granted"
+              ? "You already have access — refresh the page."
+              : "Request sent. You'll get access once an owner approves it."}
+          </p>
+        ) : (
+          <>
+            <p>This surface is limited to approved Myro operators. Request access with the email you&apos;re signed in with.</p>
+            <button
+              type="button"
+              onClick={() => requestMutation.mutate("")}
+              disabled={requestMutation.isPending}
+            >
+              {requestMutation.isPending ? "Requesting…" : "Request access"}
+            </button>
+            {requestMutation.isError ? (
+              <p className="gc-gate-error">
+                {requestMutation.error instanceof Error
+                  ? requestMutation.error.message
+                  : "Could not send the request. Try again."}
+              </p>
+            ) : null}
+          </>
+        )}
       </div>
     </div>
   )

@@ -201,3 +201,12 @@ class LegacyGrowthImportResult(BaseModel):
     messages: int
     publications: int
     sweeps: int
+
+
+class GrowthAccessRequestBody(BaseModel):
+    note: str | None = Field(default=None, max_length=500)
+
+
+class GrowthAccessRequestResponse(BaseModel):
+    ok: bool = True
+    status: Literal["pending", "granted"]

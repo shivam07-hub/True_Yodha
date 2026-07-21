@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from supabase import Client
 
+from app.config import settings
 from app.database import get_supabase_admin
 from app.deps import Principal, get_principal
 from app.repositories.growth import (
@@ -12,7 +13,10 @@ from app.repositories.growth import (
     GrowthRepository,
     get_growth_repository,
 )
+from app.services import email_service
 from app.schemas.growth import (
+    GrowthAccessRequestBody,
+    GrowthAccessRequestResponse,
     GrowthBootstrapResponse,
     GrowthMessage,
     GrowthMessageUpdate,
@@ -120,6 +124,67 @@ def import_legacy(
     repo: GrowthRepository = Depends(get_growth_repository),
 ) -> LegacyGrowthImportResult:
     return repo.import_legacy(body)
+
+
+def _notify_access_request(email: str, user_id: str, note: str | None) -> None:
+    """Email the tracker owner about a new access request (best-effort).
+
+    The durable row is written before this runs, so a missing key or failed
+    send never loses the request — it just won't ping the inbox. Runs in a
+    BackgroundTask so the requester isn't blocked on the Resend round-trip.
+    """
+    to = settings.growth_ops_email.strip()
+    if not to:
+        return
+    text = (
+        "New Distribution Tracker access request.\n\n"
+        f"Email: {email or '—'}\n"
+        f"User ID: {user_id}\n"
+        f"Note: {note or '—'}\n\n"
+        "Grant by adding a row to public.growth_operators for this user_id."
+    )
+    email_service.send_email(
+        to=to,
+        subject=f"Distribution Tracker · access request — {email or user_id}",
+        text=text,
+    )
+
+
+@router.post("/access-request", response_model=GrowthAccessRequestResponse)
+def request_access(
+    body: GrowthAccessRequestBody,
+    background_tasks: BackgroundTasks,
+    principal: Principal = Depends(get_principal),
+    db: Client = Depends(get_supabase_admin),
+) -> GrowthAccessRequestResponse:
+    """Signed-in non-operator asks for tracker access. Auth only, no operator gate.
+
+    Already-active operators short-circuit as 'granted'. Otherwise the request
+    is upserted (one row per user, idempotent) and the owner is emailed so they
+    can promote the account. Access is granted out-of-band via growth_operators.
+    """
+    existing_operator = _rows(
+        db.table("growth_operators")
+        .select("active")
+        .eq("user_id", principal.id)
+        .limit(1)
+        .execute()
+    )
+    if existing_operator and existing_operator[0].get("active"):
+        return GrowthAccessRequestResponse(ok=True, status="granted")
+
+    email = (principal.email or "").strip().lower()
+    db.table("growth_access_requests").upsert(
+        {
+            "user_id": principal.id,
+            "email": email,
+            "note": body.note,
+            "status": "pending",
+        },
+        on_conflict="user_id",
+    ).execute()
+    background_tasks.add_task(_notify_access_request, email, principal.id, body.note)
+    return GrowthAccessRequestResponse(ok=True, status="pending")
 
 
 def _rows(result: Any) -> list[dict[str, Any]]:
