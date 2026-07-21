@@ -204,6 +204,27 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
    - **Matching engine** — replace demo shortlist math with backend CV↔JD scoring, evidence extraction, and top-3/top-4 recruiter handoff logic.
    - **Go-live rule** — do not pick this up again as “frontend polish.” Next pickup should be a full-stack B2B PRD / plan with DB, API, auth, and ranking scope agreed first.
 
+14. **Career Ops × listing-verifier parity (important trust backlog, order TBD 2026-07-22):** Keep `santifer/career-ops` as the matching brain and the existing Supabase job-listing verifier as the liveness source of truth. Do not invent a second age or verification model inside matching.
+   - **Upstream contract to preserve:** Career Ops treats Block G posting legitimacy independently from candidate fit. Its scanner can apply `max_posting_age_days` only when a provider supplies a real posting date (missing dates pass), and `scan --verify` checks new URLs after dedupe and drops expired postings before they enter the pipeline.
+   - **Myro mapping:** source age may use `date_posted` when present; never use scraper `last_seen` as proof of liveness while re-observation is absent. Career Ops candidate selection and Agent Picks consume verifier-owned `listing_confidence`, `job_listing_observations`, and `last_verified_live_at`.
+   - **Eligibility:** `closed` / `likely_closed` never reach recommendation; `active` is eligible; `uncertain` work is pushed through the existing priority verifier rather than silently relabelled. The current Apply rule remains: only an explicit closed verdict blocks the handoff.
+   - **Parity defect to close:** Career Ops emits `high_confidence | caution | suspicious`, but Agent Picks still filters legacy `scam | ghost | spam` values. Align the vocabulary so a `suspicious` posting cannot become an editorial recommendation.
+   - **No duplicate infrastructure:** the Railway worker and Supabase lifecycle are already live. This item changes consumers and tests around that durable state; it does not build another verifier.
+
+15. **Learning Ladder content foundation (important product backlog, order TBD 2026-07-22):** Expand the ladder before Myro assigns users skills to learn. The live bank snapshot is 450 active questions across 9 skills; the useful coverage target is roughly 50–60 skills × five levels × 10–12 questions per level.
+   - **Coverage gate:** do not present personalized skill assignments as comprehensive until the agreed 50–60-skill curriculum has servable L1–L5 coverage. Pick the curriculum from the canonical taxonomy plus verified market demand, then publish coverage explicitly.
+   - **Trusted sourcing:** maintain a per-skill source allowlist (official vendor documentation, standards bodies, authoritative textbooks/open course material, and other reviewed primary references). Preserve source URL, provenance, license posture, reviewer, and verification date; never serve unreviewed generated questions.
+   - **Explanation contract:** the existing backend/UI `explanation` plumbing is present, but content must explain why the correct choice is correct, why each distractor is wrong, and which trusted source supports the reasoning. A generic one-line answer is not sufficient.
+   - **Publication workflow:** ingest candidates → normalize/dedupe → assign L1–L5 → generate answer/distractor rationales → human review → publish an immutable content edition. Retire or correct a question without rewriting prior attempt history.
+   - **Learning loop after coverage:** durable Learning Tracks, daily assignments, spaced repetition, and progress explanations come after the publication gate. Fold the earlier skill-truth concern into this work: ladder progress stays an assessed-learning signal and must not silently change CV-based matching before that product contract is agreed.
+
+16. **Production read capacity and speed (important performance backlog, order TBD 2026-07-22):** Preserve speed as a first-class product requirement after the perceived-speed frontend work. The remaining problem is backend queueing under concurrent reads, not cosmetic loading states.
+   - **Known evidence:** a real browsing burst made many otherwise-successful endpoints complete together after roughly 5–6 seconds, while `/jobs/analytics` reached 22–25 seconds. CPU stayed nearly idle, pointing to blocked AnyIO/Supabase connection capacity rather than compute saturation.
+   - **Measure first:** establish reproducible concurrent-load tests for login bootstrap, company browsing, and expensive analytics; capture p50/p95/p99 plus threadpool, HTTP connection-pool, Supabase pooler, and database wait signals.
+   - **Fix order:** verify the Supabase pooler ceiling before raising application pools; then remove hot synchronous reads from the AnyIO threadpool and tune bounded pools. Add a replica only if measurements show capacity still requires it.
+   - **Regression contract:** `/jobs/analytics` remains off the login path, a company-browsing burst must not stall unrelated identity/score/feed reads, and saturation must page through a real alert destination.
+   - **Not a route-by-route patch:** solve the shared read-capacity seam and publish an operational runbook/SLO. Do not add isolated endpoint workarounds that hide queueing.
+
 ---
 
 ## INTEGRATOR ITEMS
@@ -306,9 +327,9 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-22 - CV rewrite placeholder output guard)
+## LAST SESSION SUMMARY (2026-07-22 - CV output guard and beta backlog reconciliation)
 
-Closed the backend-only Haneen #115 regression without touching the concurrent
+Closed the backend-only feedback #115 regression without touching the concurrent
 frontend work.
 
 - CV rewrite finalization now rejects unresolved `<rewrite>` / `<reason>` template
@@ -321,12 +342,19 @@ frontend work.
   paths. The tests failed against the prior behavior, then passed with the shared
   output guard.
 - Reconciled the beta feedback against current `CLAUDE.md`, this cockpit, ADRs,
-  and Develop history. Do not pick the old `last_seen` freshness gate while
-  scraper re-observation is absent; Signal Thread S3, perceived-speed #41, the
-  trusted CV confirmation gate, and listing-priority/Apply guards are already
-  shipped. Genuine unresolved candidates remain evidence-owned skill truth,
-  listing-classifier/alert/receipt correctness, matcher findings F2/F3, search
-  outcome observability, and production read-capacity.
+  upstream `santifer/career-ops`, live Supabase state, and Develop history.
+  Search/filter work is closed by today's shared FilterSpec rollout. The old
+  `last_seen` freshness gate is superseded because scraper re-observation is
+  absent.
+- Added canonical backlog #14–#16: Career Ops × existing-verifier parity, the
+  50–60-skill Learning Ladder content foundation, and production read capacity.
+  The earlier standalone skill-truth proposal is now a constraint inside the
+  learning work, not a separate epic.
+- Live read-only snapshot: the verifier recorded 44,088 observations in 24h,
+  including 21,148 productive verdicts; the question bank has 450 active
+  questions across 9 skills. All rows have the existing explanation field, but
+  150 lack source URLs and the explanation quality/publication contract remains
+  open.
 
 Validation: 1537 backend tests passed; focused CV rewrite suite 36 passed; Ruff,
 TypeScript, Next lint, and `git diff --check` passed.
