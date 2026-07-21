@@ -128,11 +128,20 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
       {/* header */}
       <div style={{ padding: "10px 16px 10px" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-          <h1 style={{ margin: 0, fontSize: 25, fontWeight: 700, letterSpacing: "-0.03em" }}>Jobs</h1>
-          <span style={{ fontSize: 12, color: "#8b8b84", fontVariantNumeric: "tabular-nums" }}>{countLine}</span>
+          <h1 style={{ margin: 0, flex: "none", fontSize: 25, fontWeight: 700, letterSpacing: "-0.03em" }}>Jobs</h1>
+          {/* The one shrinkable child on this row, so a long city name can never
+              push the Myro Search pill off-screen. Truncates from the tail —
+              the counts survive, the location degrades. */}
+          <span title={countLine} style={{ flex: "0 1 auto", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12, color: "#8b8b84", fontVariantNumeric: "tabular-nums" }}>{countLine}</span>
           <div style={{ flex: 1 }} />
-          <button onClick={() => setSearchOpen(o => !o)} aria-label="Search" style={roundIcon}><svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.8-3.8" /></svg></button>
-          <button onClick={() => setEyeOn(o => !o)} aria-label="Hidden jobs" style={{ ...roundIcon, background: eyeOn ? "rgba(255,255,255,0.08)" : "transparent", color: eyeOn ? "#f2f2ee" : "#a6a69e" }}><svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12Z" /><circle cx="12" cy="12" r="2.6" /><path d="M4 4l16 16" /></svg></button>
+          {/* Myro Search (the paid run) lives on the header row — it needs the
+              width its label deserves. The free in-feed search is a filter and
+              sits with the other filters below. */}
+          <button onClick={runMyroSearch} disabled={isRefreshing} className="mm-press" title="Run Myro Search" style={{ height: 30, flex: "none", alignSelf: "center", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 5, padding: "0 11px", borderRadius: 99, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", opacity: isRefreshing ? 0.6 : 1 }}>
+            <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8" /></svg>
+            {isRefreshing ? "Searching…" : "Myro Search"}
+          </button>
+          <button onClick={() => setEyeOn(o => !o)} aria-label="Hidden jobs" style={{ ...roundIcon, alignSelf: "center", background: eyeOn ? "rgba(255,255,255,0.08)" : "transparent", color: eyeOn ? "#f2f2ee" : "#a6a69e" }}><svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12Z" /><circle cx="12" cy="12" r="2.6" /><path d="M4 4l16 16" /></svg></button>
         </div>
 
         {searchOpen ? (
@@ -146,16 +155,12 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
               <SegBtn on={sort === "best"} onClick={() => setSort("best")}>Best fit</SegBtn>
               <SegBtn on={sort === "new"} onClick={() => setSort("new")}>Newest</SegBtn>
             </div>
-            <button onClick={() => setFiltersOpen(true)} style={{ height: 32, display: "flex", alignItems: "center", gap: 6, padding: "0 11px", borderRadius: 99, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#c9c9c2", fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+            <button onClick={() => setFiltersOpen(true)} style={{ height: 32, flex: "none", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6, padding: "0 11px", borderRadius: 99, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#c9c9c2", fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
               <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M4 7h16M7 12h10M10 17h4" /></svg>
               {mode !== "any" || hideCheck ? "Filters · on" : "Filters"}
             </button>
             <div style={{ flex: 1 }} />
-            <button onClick={() => setIntentOpen(true)} style={{ border: "none", background: "transparent", color: "#8b8b84", fontSize: 11.5, cursor: "pointer", fontFamily: "inherit", padding: "4px 0" }}>Not it? Tell Myro →</button>
-            <button onClick={runMyroSearch} disabled={isRefreshing} className="mm-press" title="Run Myro Search" style={{ height: 30, display: "flex", alignItems: "center", gap: 5, padding: "0 11px", borderRadius: 99, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", opacity: isRefreshing ? 0.6 : 1 }}>
-              <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
-              {isRefreshing ? "Searching…" : "Myro Search"}
-            </button>
+            <button onClick={() => setSearchOpen(true)} aria-label="Search this feed" style={roundIcon}><svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.8-3.8" /></svg></button>
           </div>
         )}
       </div>
@@ -176,6 +181,7 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
             <div style={{ fontSize: 15, fontWeight: 650 }}>Feed clear 🎯</div>
             <div style={{ fontSize: 12.5, color: "#8b8b84", lineHeight: 1.5 }}>You&apos;ve triaged everything here.<br />Next: tailor a CV for what you saved.</div>
             <button onClick={() => router.push("/collections")} className="mm-press" style={ctaBtn}>Open Collections</button>
+            <button onClick={() => setIntentOpen(true)} style={intentLink}>Not what you wanted? Tell Myro →</button>
           </div>
         ) : (
           rows.map((row, i) => {
@@ -195,6 +201,14 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
             )
           })
         )}
+        {/* Delta-4 door. Off the toolbar (it competed with two search
+            affordances in a 375px strip) and onto the moment it's actually
+            true: a feed too thin to be what the user asked for. */}
+        {!eyeOn && rows.length > 0 && rows.length < 5 ? (
+          <button onClick={() => setIntentOpen(true)} style={{ ...intentLink, alignSelf: "center", marginTop: 2 }}>
+            Not what you wanted? Tell Myro →
+          </button>
+        ) : null}
       </div>
 
       <JobDetailSheet
@@ -314,6 +328,10 @@ function FiltersSheet({ open, onClose, locationLabel, mode, setMode, hideCheck, 
 const roundIcon: React.CSSProperties = {
   width: 32, height: 32, borderRadius: 99, border: "none", background: "transparent", color: "#a6a69e",
   display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+}
+const intentLink: React.CSSProperties = {
+  border: "none", background: "transparent", color: "#8b8b84", fontSize: 12, cursor: "pointer",
+  fontFamily: "inherit", padding: "6px 4px",
 }
 const ctaBtn: React.CSSProperties = {
   marginTop: 6, height: 36, padding: "0 16px", borderRadius: 99, border: "none", background: "var(--mm-accent)",
