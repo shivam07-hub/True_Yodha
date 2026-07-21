@@ -11,6 +11,27 @@ import type { ApplyCapture } from "./use-apply-capture"
  * The user, not an outbound click, owns the application truth.
  */
 export function ApplyCapturePrompt({ capture }: { capture: ApplyCapture }) {
+  if (capture.state === "checking") {
+    return (
+      <div style={bandStyle} role="status">
+        <span style={{ color: "var(--tm-text-muted)" }}>
+          Checking whether this listing is still open…
+        </span>
+      </div>
+    )
+  }
+  if (capture.state === "closed") {
+    return (
+      <div style={{ ...bandStyle, justifyContent: "space-between" }} role="status">
+        <span style={{ color: "var(--tm-danger)", fontWeight: 600 }}>
+          This listing is closed — Myro stopped the handoff.
+        </span>
+        <button type="button" onClick={capture.findSimilar} style={linkStyle}>
+          Find live alternatives →
+        </button>
+      </div>
+    )
+  }
   if (capture.state === "asking") {
     return (
       <div

@@ -74,7 +74,21 @@ def test_claim_targets_caps_limit_and_passes_staleness() -> None:
     targets = ListingVerificationRepository(db).claim_targets(limit=5000, stale_days=3)
 
     assert targets == []
-    assert db.calls == [("claim_verify_targets", {"p_limit": 1000, "p_stale": "3 days"})]
+    assert db.calls == [(
+        "claim_verify_targets",
+        {
+            "p_limit": 1000,
+            "p_stale": "3 days",
+            "p_priority_stale": "24 hours",
+        },
+    )]
+
+
+def test_priority_pending_count_reads_priority_rpc() -> None:
+    db = RpcDB(17)
+
+    assert ListingVerificationRepository(db).priority_pending_count(stale_hours=12) == 17
+    assert db.calls == [("count_priority_verify_due", {"p_stale": "12 hours"})]
 
 
 def test_claim_targets_skips_rows_without_a_usable_apply_url() -> None:
@@ -89,6 +103,7 @@ def test_claim_targets_skips_rows_without_a_usable_apply_url() -> None:
     assert [t.job_id for t in targets] == ["a"]
     # Confidence-agnostic: an already-`active` row is a legitimate re-check target.
     assert targets[0].current_confidence == "active"
+    assert targets[0].verification_priority == "corpus"
 
 
 def test_strong_closed_verification_starts_quarantine() -> None:

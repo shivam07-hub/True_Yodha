@@ -32,14 +32,17 @@ export interface MarketRailProps {
    *  CV-personalized, so this no longer gates anything. Kept until callers drop
    *  it from the shared rail props. */
   cvReady?: boolean
+  /** Wave-3 intent gate (#41 L3): when false the `/jobs/analytics` movers +
+   *  trending queries stay unfetched (never fired on login). */
+  analyticsEnabled?: boolean
 }
 
 /** Desktop right rail — market dashboard + community listing-status. CV-coach
  *  intel lives on /dashboard; this surface stays about the market. */
 export function MarketRail(props: MarketRailProps) {
-  const { targetLocations, total, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob, loading = false } = props
+  const { targetLocations, total, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob, loading = false, analyticsEnabled = true } = props
   const [companyMode, setCompanyMode] = useState<CompanySignalMode>("roles")
-  const { movers, trending, loading: intelLoading } = useMarketIntel(targetLocations, companySignalSortParam(companyMode))
+  const { movers, trending, loading: intelLoading } = useMarketIntel(targetLocations, companySignalSortParam(companyMode), analyticsEnabled)
   const city = targetLocations.find((l) => l && l.trim())?.trim() ?? null
   const uncertain = uncertainListings(feed, pulses)
 
@@ -132,8 +135,8 @@ export function MarketRail(props: MarketRailProps) {
 /** Mobile: the rail collapses to a sticky horizontal chip strip. Tap a chip →
  *  the same action its rail widget would route to. */
 export function MarketChipStrip(props: MarketRailProps) {
-  const { targetLocations, total, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob } = props
-  const { movers, trending } = useMarketIntel(targetLocations)
+  const { targetLocations, total, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob, analyticsEnabled = true } = props
+  const { movers, trending } = useMarketIntel(targetLocations, "roles", analyticsEnabled)
   const uncertain = uncertainListings(feed, pulses)
   const top = movers[0]
   const co = trending[0]

@@ -134,4 +134,10 @@ async def health_check() -> dict:
     from app.services import verifier_health
 
     belt = verifier_health.check_belt()
-    return {"status": "ok", "verifier": belt.state, "verifier_stale_hours": belt.stale_hours}
+    return {
+        "status": "ok",
+        "verifier": belt.state,
+        "verifier_stale_hours": belt.stale_hours,
+        "verifier_productive_stale_hours": belt.productive_stale_hours,
+        "verifier_priority_backlog": belt.priority_backlog,
+    }

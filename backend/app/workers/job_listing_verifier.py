@@ -58,8 +58,15 @@ async def _sweep() -> None:
     concurrency = max(1, min(int(os.getenv("JOB_VERIFY_CONCURRENCY", "10")), 30))
     per_host = max(1, min(int(os.getenv("JOB_VERIFY_PER_HOST", "4")), concurrency))
     stale_days = max(1, int(os.getenv("JOB_VERIFY_STALE_DAYS", "7")))
+    priority_stale_hours = max(
+        1, int(os.getenv("JOB_VERIFY_PRIORITY_STALE_HOURS", "24"))
+    )
     repo = ListingVerificationRepository(get_supabase_admin())
-    targets = repo.claim_targets(limit=limit, stale_days=stale_days)
+    targets = repo.claim_targets(
+        limit=limit,
+        stale_days=stale_days,
+        priority_stale_hours=priority_stale_hours,
+    )
     started = time.monotonic()
 
     async with httpx.AsyncClient(
@@ -83,10 +90,16 @@ async def _sweep() -> None:
     # backlog down; a stalled one is visible before users hit a ghost listing.
     duration = round(time.monotonic() - started, 1)
     backlog = repo.pending_count(stale_days=stale_days)
+    priority_backlog = repo.priority_pending_count(stale_hours=priority_stale_hours)
+    priority_targets = sum(
+        target.verification_priority != "corpus" for target in targets
+    )
     log.info(
-        "metric job_verifier.sweep targets=%d results=%s retired=%d attention=%d "
-        "backlog=%d stale_days=%d duration_s=%s",
-        len(targets), counts, retired, attention, backlog, stale_days, duration,
+        "metric job_verifier.sweep targets=%d priority_targets=%d results=%s "
+        "retired=%d attention=%d backlog=%d priority_backlog=%d stale_days=%d "
+        "priority_stale_hours=%d duration_s=%s",
+        len(targets), priority_targets, counts, retired, attention, backlog,
+        priority_backlog, stale_days, priority_stale_hours, duration,
     )
     _alert_on_unproductive_sweep(targets, counts)
 

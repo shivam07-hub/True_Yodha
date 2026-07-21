@@ -14,7 +14,13 @@ def test_health_check(monkeypatch) -> None:
         response = client.get("/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "verifier": "ok", "verifier_stale_hours": 0.3}
+    assert response.json() == {
+        "status": "ok",
+        "verifier": "ok",
+        "verifier_stale_hours": 0.3,
+        "verifier_productive_stale_hours": None,
+        "verifier_priority_backlog": None,
+    }
 
 
 def test_stalled_verifier_does_not_make_the_api_unhealthy(monkeypatch) -> None:

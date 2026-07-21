@@ -29,11 +29,13 @@ import {
   feedbackOutboxKey,
   flushFeedbackOutbox,
 } from "@/lib/jobs/feedback-outbox"
+import { useJobLiveness } from "@/lib/hooks/use-job-liveness"
+import { livenessNotice } from "@/lib/jobs/detail-model"
 
 export interface ApplyCapture {
   target: ApplyTarget
   href: string | null
-  onApply: () => void
+  onApply: (event?: React.MouseEvent<HTMLElement>) => boolean
   open: () => void
   state: ApplyReturnStep
   pending: boolean
@@ -72,6 +74,7 @@ export function useApplyCapture({
 }: UseApplyCaptureInput): ApplyCapture {
   const queryClient = useQueryClient()
   const target = resolveApplyTarget(job)
+  const { liveness, loading: livenessLoading } = useJobLiveness(job.job_id)
   const appliedAt = React.useRef<number | null>(null)
   const answered = React.useRef(false)
   const submittedArtifactWritten = React.useRef(false)
@@ -151,26 +154,49 @@ export function useApplyCapture({
     void flushFeedback()
   }, [feedbackKey, flushFeedback, job.job_id, surface])
 
-  const onApply = React.useCallback(() => {
-    if (!target.destinationType || !job.job_id || typeof window === "undefined") return
+  const livenessState = liveness?.state
+    ?? (job.listing_confidence === "closed" || job.listing_confidence === "likely_closed"
+      ? "closed"
+      : job.listing_confidence === "active" ? "live" : "unverified")
+
+  React.useEffect(() => {
+    if (state !== "checking" || livenessLoading) return
+    setState(livenessNotice(livenessState)?.guardsApply ? "closed" : "idle")
+  }, [livenessLoading, livenessState, state])
+
+  const onApply = React.useCallback((event?: React.MouseEvent<HTMLElement>) => {
+    if (livenessLoading) {
+      event?.preventDefault()
+      event?.stopPropagation()
+      setState("checking")
+      return false
+    }
+    if (livenessNotice(livenessState)?.guardsApply) {
+      event?.preventDefault()
+      event?.stopPropagation()
+      setState("closed")
+      return false
+    }
+    if (!target.destinationType || !job.job_id || typeof window === "undefined") return false
     answered.current = false
     submittedArtifactWritten.current = false
     appliedAt.current = Date.now()
     setState("idle")
-    const event = {
+    const intentEvent = {
       client_event_id: crypto.randomUUID(),
       job_id: job.job_id,
       surface: intentSurface,
       destination_type: target.destinationType,
     }
-    enqueueApplyIntent(window.localStorage, intentKey, event)
+    enqueueApplyIntent(window.localStorage, intentKey, intentEvent)
     void flushIntents()
     if (returnTimer.current != null) window.clearTimeout(returnTimer.current)
     returnTimer.current = window.setTimeout(showReturnPrompt, 1_200)
-  }, [flushIntents, intentKey, intentSurface, job.job_id, showReturnPrompt, target.destinationType])
+    return true
+  }, [flushIntents, intentKey, intentSurface, job.job_id, livenessLoading, livenessState, showReturnPrompt, target.destinationType])
 
   const open = React.useCallback(() => {
-    onApply()
+    if (!onApply()) return
     if (target.url && typeof window !== "undefined") {
       window.open(target.url, "_blank", "noopener,noreferrer")
     }
@@ -237,7 +263,7 @@ export function useApplyCapture({
 
   return {
     target,
-    href: target.url,
+    href: livenessLoading ? null : target.url,
     onApply,
     open,
     state,
