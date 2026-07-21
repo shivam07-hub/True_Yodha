@@ -362,21 +362,27 @@ def _resolve_feed_scope(
     # rejection table (shared with the dashboard); saved = any application row.
     exclude_ids = set(got["dismissed"]) | set(got["saved"])
     # Geo is fixed from settings: scope the feed to the user's saved location
-    # preferences instead of re-asking. The legacy city/country/mode query params
-    # stay for back-compat but the market UI no longer sends them.
+    # preferences instead of re-asking. The legacy city/country query params stay
+    # for back-compat but the market UI no longer sends them.
+    #
+    # `location_mode` is different — it IS a live user filter (the Work mode
+    # control in the filters sheet), so it must NOT disable the browse-scope
+    # expansion ladder. A user asking for remote roles still deserves the widen
+    # to country when their exact locations run dry; their chosen mode simply
+    # rides along through each tier.
     location_countries = got["location_countries"]
     effective_location_prefs = got["location_prefs"]
     effective_location_country = location_country
     effective_location_mode = location_mode
-    if not any((location_city, location_country, location_mode)) and location_countries:
+    if not any((location_city, location_country)) and location_countries:
         if browse_scope == "remote_country":
             effective_location_prefs = []
             effective_location_country = location_countries[0]
-            effective_location_mode = "remote"
+            effective_location_mode = location_mode or "remote"
         elif browse_scope == "country":
             effective_location_prefs = []
             effective_location_country = location_countries[0]
-            effective_location_mode = None
+            effective_location_mode = location_mode
     followed: set[str] | None = got.get("followed") if following_only else None
     eligibility = got.get("eligibility") or {
         "target_career_band": None,

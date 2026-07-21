@@ -29,3 +29,27 @@ test("job feed query key changes when saved target locations change", () => {
 
   assert.notDeepEqual(bengaluruKey, gurugramKey)
 })
+
+test("work mode is a server filter, so it keys the query", () => {
+  const any = jobFeedQueryKey({ token: "t", filters: DEFAULT_FILTERS, q: "", skill: null, targetLocations: [] })
+  const remote = jobFeedQueryKey({
+    token: "t",
+    filters: { ...DEFAULT_FILTERS, locationMode: "remote" },
+    q: "",
+    skill: null,
+    targetLocations: [],
+  })
+  assert.notDeepEqual(any, remote)
+})
+
+test("hideLowConfidence is view-scope, so it must NOT evict the feed cache", () => {
+  const off = jobFeedQueryKey({ token: "t", filters: DEFAULT_FILTERS, q: "", skill: null, targetLocations: [] })
+  const on = jobFeedQueryKey({
+    token: "t",
+    filters: { ...DEFAULT_FILTERS, hideLowConfidence: true },
+    q: "",
+    skill: null,
+    targetLocations: [],
+  })
+  assert.deepEqual(off, on)
+})

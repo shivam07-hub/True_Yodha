@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query"
 import { jobs, users, xp } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
-import type { JobLocationFilters } from "@/lib/api"
+import type { CareerBand, JobLocationFilters } from "@/lib/api"
 import { HeatmapTab } from "@/components/market/heatmap-tab"
 import { MarketJobsTab } from "@/components/market/jobs-tab"
 import { MissionHeroRail } from "@/components/mission-control/mission-hero-rail"
@@ -19,7 +19,7 @@ import { useFollowCompany } from "@/lib/hooks/use-follow-company"
 import { useHomeBootstrap } from "@/lib/hooks/use-home-bootstrap"
 import { useIdleWave, useIntentWave } from "@/lib/hooks/use-load-waves"
 import { useXPStore } from "@/store/xpStore"
-import { pickDefaultSort, type FeedFilters } from "@/components/market/feed-types"
+import { parseLocationMode, pickDefaultSort, type FeedFilters } from "@/components/market/feed-types"
 
 type BrowsePatch = {
   tab?: "jobs" | "heatmap"
@@ -107,6 +107,8 @@ function IntelPageInner() {
       minSkillMatches: Number.isFinite(rawMinimum) ? Math.min(20, Math.max(0, Math.floor(rawMinimum))) : 0,
       followingOnly: searchParams.get("following") === "1",
       includeStretch: searchParams.get("stretch") === "1",
+      locationMode: parseLocationMode(searchParams.get("mode")),
+      hideLowConfidence: searchParams.get("quality") === "1",
     }
   }, [searchParams, profileData?.has_cv, selectedCluster, targetRoles.length])
   const browseQuery = searchParams.get("q") || ""
@@ -126,6 +128,8 @@ function IntelPageInner() {
       set("min_skills", patch.filters.minSkillMatches > 0 ? String(patch.filters.minSkillMatches) : null)
       set("following", patch.filters.followingOnly ? "1" : null)
       set("stretch", patch.filters.includeStretch ? "1" : null)
+      set("mode", patch.filters.locationMode)
+      set("quality", patch.filters.hideLowConfidence ? "1" : null)
     }
     const query = next.toString()
     router.replace(`/market${query ? `?${query}` : ""}`, { scroll: false })
@@ -167,12 +171,34 @@ function IntelPageInner() {
   const followedCompanies = following.companies
   const followedNames = following.followedNames
 
+  // Explored career bands persist on the profile — shared by both surfaces so
+  // the filters sheet behaves identically wherever it is opened.
+  const onExploredCareerBandsChange = useCallback((bands: CareerBand[]) => {
+    if (!token) return
+    void users.updateProfile(token, { explored_career_bands: bands }).then(() => {
+      void queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
+    })
+  }, [token, queryClient])
+
   // Mobile IA swap (handoff): the whole Jobs tab is the new swipe-triage
   // surface. Gate on viewport `mode` (width ≤768) to match the mobile chrome's
   // CSS breakpoint exactly — `isDesktop` also requires pointer:fine, so a
   // touch-tablet would desync content from chrome. Desktop keeps the workspace.
   if (mode === "mobile") {
-    return <JobsSurface token={token ?? ""} targetLocations={profileData?.target_locations ?? []} />
+    return (
+      <JobsSurface
+        token={token ?? ""}
+        targetLocations={profileData?.target_locations ?? []}
+        filters={browseFilters}
+        onFiltersChange={(filters) => updateBrowse({ filters })}
+        targetRoles={targetRoles}
+        chipCountMap={chipCountMap}
+        hasCv={!!profileData?.has_cv}
+        primaryCareerBand={profileData?.target_career_band}
+        exploredCareerBands={profileData?.explored_career_bands ?? []}
+        onExploredCareerBandsChange={onExploredCareerBandsChange}
+      />
+    )
   }
 
   // Heatmap moved to /intel — render nothing while the effect above redirects,
@@ -214,12 +240,7 @@ function IntelPageInner() {
             onSkillFacetChange={(skill) => updateBrowse({ skill })}
             primaryCareerBand={profileData?.target_career_band}
             exploredCareerBands={profileData?.explored_career_bands ?? []}
-            onExploredCareerBandsChange={(bands) => {
-              if (!token) return
-              void users.updateProfile(token, { explored_career_bands: bands }).then(() => {
-                void queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
-              })
-            }}
+            onExploredCareerBandsChange={onExploredCareerBandsChange}
             targetLocations={profileData?.target_locations ?? []}
             followedNames={followedNames}
             onToggleFollow={following.toggle}

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useInfiniteQuery, useQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query"
 import { jobs, type JobFeedItem, type JobFeedResponse } from "@/lib/api"
-import type { FeedFilters } from "./feed-types"
+import { applyViewFilters, type FeedFilters } from "./feed-types"
 import { jobFeedQueryKey, targetLocationSignature } from "./job-feed-query-key"
 
 export type TriageKind = "saved" | "skipped"
@@ -83,8 +83,9 @@ export function useJobFeed({
     () => [
       "jobFeedWarm", token, targetLocationSignature(targetLocations), q, skill ?? "",
       filters.roleDomain ?? "", filters.followingOnly, filters.includeStretch,
+      filters.locationMode ?? "",
     ] as const,
-    [token, targetLocations, q, skill, filters.roleDomain, filters.followingOnly, filters.includeStretch],
+    [token, targetLocations, q, skill, filters.roleDomain, filters.followingOnly, filters.includeStretch, filters.locationMode],
   )
   const warm = useQuery({
     queryKey: warmKey,
@@ -93,6 +94,7 @@ export function useJobFeed({
         cluster: filters.roleDomain,
         q: q || null,
         skill: skill || null,
+        locationMode: filters.locationMode,
         followingOnly: filters.followingOnly,
         includeStretch: filters.includeStretch,
       }),
@@ -116,6 +118,7 @@ export function useJobFeed({
         q: q || null,
         skill: skill || null,
         sort: filters.sort,
+        locationMode: filters.locationMode,
         minSkillMatches: filters.minSkillMatches,
         followingOnly: filters.followingOnly,
         includeStretch: filters.includeStretch,
@@ -142,6 +145,9 @@ export function useJobFeed({
       return true
     })
   }, [feed.data])
+  // The one client-side pass, applied here so BOTH skins inherit it (a skin
+  // that filtered locally is how desktop and mobile drifted apart).
+  const visibleJobs = useMemo(() => applyViewFilters(allJobs, filters), [allJobs, filters])
   const total = Math.max(0, ...(feed.data?.pages.map((page) => page.available_total) ?? [0]))
   // How many leading cards the brain ranked (page 1 only — the shortlist lives at
   // the top of the feed). The feed draws its "more roles" divider after this many.
@@ -208,5 +214,5 @@ export function useJobFeed({
 
   useEffect(() => clearUndoTimer, [clearUndoTimer])
 
-  return { feed, allJobs, total, rankedCount, warming, expansionDividers, triage, undo, pending, commitPending, savedCount }
+  return { feed, allJobs, visibleJobs, total, rankedCount, warming, expansionDividers, triage, undo, pending, commitPending, savedCount }
 }
