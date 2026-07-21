@@ -60,7 +60,7 @@ function ScoreMapPageInner() {
                 <p className="sm-kicker">Score &amp; skills</p>
                 <h1>One score. The evidence behind it.</h1>
                 <p className="sm-hero-copy">
-                  Your {model.totalScore} is the average of {model.axes.length} skill {model.axes.length === 1 ? "domain" : "domains"} your CV currently proves. Every axis below is one of those same values.
+                  Your {model.totalScore} is the average of the {model.axes.length} skill {model.axes.length === 1 ? "domain" : "domains"} your CV currently proves.
                 </p>
               </div>
               <div className="sm-score">
