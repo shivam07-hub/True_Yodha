@@ -428,10 +428,9 @@ def _fresh_marker(days_ago: int) -> int:
     return int((datetime.now(timezone.utc) - timedelta(days=days_ago)).strftime("%Y%m%d"))
 
 
-def test_get_candidate_job_ids_for_skills_drops_stale_listings() -> None:
-    # j1 fresh, j2 stale (last_seen 60d old), j3 flagged inactive → only j1 survives
-    # the freshness gate before ranking/LLM. This is the fix for old postings
-    # surfacing as matches.
+def test_get_candidate_job_ids_for_skills_drops_untrusted_listings() -> None:
+    # Only the verifier-active listing reaches ranking/LLM. Scraper age is not
+    # the liveness signal; uncertain and closed verifier states are excluded.
     db = _FakeDB({
         "skills": [
             {"id": "s1", "taxonomy_key": "python"},
@@ -455,6 +454,23 @@ def test_get_candidate_job_ids_for_skills_drops_stale_listings() -> None:
     assert set(result) == {"j1"}
 
 
+def test_get_candidate_job_ids_for_skills_trusts_verifier_over_scraper_age() -> None:
+    db = _FakeDB({
+        "skills": [{"id": "s1", "taxonomy_key": "python"}],
+        "job_skills": [{"job_id": "j1", "skill_id": "s1"}],
+        "jobs": [{
+            "job_id": "j1",
+            "is_active": True,
+            "listing_confidence": "active",
+            "last_seen": _fresh_marker(90),
+        }],
+    })
+
+    result = JobsRepository(db).get_candidate_job_ids_for_skills(["python"])
+
+    assert result == ["j1"]
+
+
 def test_get_candidate_job_ids_for_skills_returns_empty_when_none_are_trusted() -> None:
     # Trust is a hard gate: an empty honest pool is better than a stale match.
     db = _FakeDB({
@@ -468,7 +484,7 @@ def test_get_candidate_job_ids_for_skills_returns_empty_when_none_are_trusted() 
     assert result == []
 
 
-def test_get_candidate_job_ids_for_skills_require_fresh_false_keeps_stale() -> None:
+def test_get_candidate_job_ids_for_skills_require_fresh_false_bypasses_trust_gate() -> None:
     db = _FakeDB({
         "skills": [{"id": "s1", "taxonomy_key": "python"}],
         "job_skills": [{"job_id": "j1", "skill_id": "s1"}],
@@ -506,7 +522,7 @@ def test_get_candidate_job_ids_for_roles_precision_matches_title() -> None:
     assert set(result) == {"j1", "j2"}
 
 
-def test_get_candidate_job_ids_for_roles_drops_stale() -> None:
+def test_get_candidate_job_ids_for_roles_drops_untrusted_not_old_listings() -> None:
     db = _roles_jobs_db([
         {"job_id": "j1", "job_title": "Software Engineer", "role_domain": "",
          "is_active": True, "listing_confidence": "active", "last_seen": _fresh_marker(1)},
@@ -514,8 +530,25 @@ def test_get_candidate_job_ids_for_roles_drops_stale() -> None:
          "is_active": True, "listing_confidence": "active", "last_seen": _fresh_marker(90)},
         {"job_id": "j3", "job_title": "Software Engineer", "role_domain": "",
          "is_active": False, "listing_confidence": "closed", "last_seen": _fresh_marker(1)},
+        {"job_id": "j4", "job_title": "Software Engineer", "role_domain": "",
+         "is_active": True, "listing_confidence": "uncertain", "last_seen": _fresh_marker(1)},
     ])
     result = JobsRepository(db).get_candidate_job_ids_for_roles(["Software Engineer"])
+    assert result == ["j1", "j2"]
+
+
+def test_get_candidate_job_ids_for_roles_trusts_verifier_over_scraper_age() -> None:
+    db = _roles_jobs_db([{
+        "job_id": "j1",
+        "job_title": "Software Engineer",
+        "role_domain": "",
+        "is_active": True,
+        "listing_confidence": "active",
+        "last_seen": _fresh_marker(90),
+    }])
+
+    result = JobsRepository(db).get_candidate_job_ids_for_roles(["Software Engineer"])
+
     assert result == ["j1"]
 
 

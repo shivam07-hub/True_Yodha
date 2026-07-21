@@ -195,7 +195,7 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
 
 > Audit method: every claim below was checked against `git`/live state, NOT copied from memory or the backlog prose. Re-audit the same way before trusting it — entries rot ([[feedback_verify_backlog_stale]]).
 
-> **2026-07-22 correction:** the decision-ready trust/learning/speed work is now canonical in `AGENTS.md` backlog #14–#16. Search/filter work from the beta reconciliation is CLOSED by the shared desktop/mobile FilterSpec work (`2bf49177` and companions); do not recreate a separate search-observability epic. The earlier standalone “skill truth” proposal is folded into Learning Ladder #15, after the bank expands to meaningful coverage.
+> **2026-07-22 correction:** Career Ops × verifier parity is now CLOSED in `AGENTS.md` backlog #14; Learning Ladder #15 and production read capacity #16 remain open. Search/filter work from the beta reconciliation is CLOSED by the shared desktop/mobile FilterSpec work (`2bf49177` and companions); do not recreate a separate search-observability epic. The earlier standalone “skill truth” proposal is folded into Learning Ladder #15, after the bank expands to meaningful coverage.
 
 ### Scope rule (locked 2026-07-20)
 
@@ -211,10 +211,10 @@ Memory carried "OWED: main merge" on ~25 entries. **Audit: 20 of 23 spot-checked
 
 ### TIER 1 — do next (high value ÷ low effort)
 
-1. **❌ SUPERSEDED — DO NOT BUILD the `last_seen` freshness gate.** Scraper re-observation is absent, so `last_seen` is ingest time rather than liveness evidence; aging on it would eventually hide the corpus. Follow `AGENTS.md` #14 instead: optional source-age filtering from real `date_posted`, Career Ops Block G for text legitimacy, and the existing Supabase listing verifier for liveness.
+1. **✅ CLOSED 2026-07-22 — the superseded `last_seen` freshness gate was removed from Career Ops candidate selection.** Scraper re-observation is absent, so `last_seen` is ingest time rather than liveness evidence. Candidate eligibility now consumes the existing Supabase verifier state, and Agent Picks blocks Career Ops' `suspicious` legitimacy verdict. See closed `AGENTS.md` #14.
 2. **#40 `keyStats` backfill (2–4 verified figures per issue).** Zero code — the mechanism shipped in `95f737c9` and is presence-gated, so **law L4 currently pays nothing**. Acquisition page, cheapest visible win on the list. Figures must be author-verified, never derived.
 3. **Prod read-latency under concurrent load — IMPORTANT; canonical backlog = `AGENTS.md` #16.** Diagnosed from a real user complaint: Rishabh Guha (`6b624e2e-…`) reported "credentials not shown after login" on 20 Jul ~18:41 IST. **Root cause is NOT auth or data** — his login succeeded, profile + CV + score + skills + matches were intact, and every authed call returned **200**. A concurrent company-browsing burst made ~20 endpoints complete together at ~5,200–5,900ms and `/jobs/analytics` hit 22–25s while CPU stayed nearly idle: blocked AnyIO/Supabase connection capacity, not compute. Preserve this as a first-class speed backlog; measure the Supabase pooler ceiling and shared read seam before pool, async-read, or replica changes.
-4. **Career Ops matcher findings F2/F3 — evidence retained, not a standalone pickup.** Do not patch these in isolation or create a new brain. Fold their disposition into `AGENTS.md` #14 after auditing the current `santifer/career-ops` behavior and the existing Supabase verifier contract; Career Ops remains the one ranking brain.
+4. **✅ CLOSED 2026-07-22 — Career Ops matcher findings F2/F3.** Disposition is recorded in closed `AGENTS.md` #14: Career Ops remains the one ranking brain, Supabase remains the one liveness authority, and no duplicate verifier was created.
 
 ### TIER 2 — bounded, meaningful
 

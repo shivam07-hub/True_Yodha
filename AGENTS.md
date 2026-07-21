@@ -204,13 +204,6 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
    - **Matching engine** — replace demo shortlist math with backend CV↔JD scoring, evidence extraction, and top-3/top-4 recruiter handoff logic.
    - **Go-live rule** — do not pick this up again as “frontend polish.” Next pickup should be a full-stack B2B PRD / plan with DB, API, auth, and ranking scope agreed first.
 
-14. **Career Ops × listing-verifier parity (important trust backlog, order TBD 2026-07-22):** Keep `santifer/career-ops` as the matching brain and the existing Supabase job-listing verifier as the liveness source of truth. Do not invent a second age or verification model inside matching.
-   - **Upstream contract to preserve:** Career Ops treats Block G posting legitimacy independently from candidate fit. Its scanner can apply `max_posting_age_days` only when a provider supplies a real posting date (missing dates pass), and `scan --verify` checks new URLs after dedupe and drops expired postings before they enter the pipeline.
-   - **Myro mapping:** source age may use `date_posted` when present; never use scraper `last_seen` as proof of liveness while re-observation is absent. Career Ops candidate selection and Agent Picks consume verifier-owned `listing_confidence`, `job_listing_observations`, and `last_verified_live_at`.
-   - **Eligibility:** `closed` / `likely_closed` never reach recommendation; `active` is eligible; `uncertain` work is pushed through the existing priority verifier rather than silently relabelled. The current Apply rule remains: only an explicit closed verdict blocks the handoff.
-   - **Parity defect to close:** Career Ops emits `high_confidence | caution | suspicious`, but Agent Picks still filters legacy `scam | ghost | spam` values. Align the vocabulary so a `suspicious` posting cannot become an editorial recommendation.
-   - **No duplicate infrastructure:** the Railway worker and Supabase lifecycle are already live. This item changes consumers and tests around that durable state; it does not build another verifier.
-
 15. **Learning Ladder content foundation (important product backlog, order TBD 2026-07-22):** Expand the ladder before Myro assigns users skills to learn. The live bank snapshot is 450 active questions across 9 skills; the useful coverage target is roughly 50–60 skills × five levels × 10–12 questions per level.
    - **Coverage gate:** do not present personalized skill assignments as comprehensive until the agreed 50–60-skill curriculum has servable L1–L5 coverage. Pick the curriculum from the canonical taxonomy plus verified market demand, then publish coverage explicitly.
    - **Trusted sourcing:** maintain a per-skill source allowlist (official vendor documentation, standards bodies, authoritative textbooks/open course material, and other reviewed primary references). Preserve source URL, provenance, license posture, reviewer, and verification date; never serve unreviewed generated questions.
@@ -224,6 +217,26 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
    - **Fix order:** verify the Supabase pooler ceiling before raising application pools; then remove hot synchronous reads from the AnyIO threadpool and tune bounded pools. Add a replica only if measurements show capacity still requires it.
    - **Regression contract:** `/jobs/analytics` remains off the login path, a company-browsing burst must not stall unrelated identity/score/feed reads, and saturation must page through a real alert destination.
    - **Not a route-by-route patch:** solve the shared read-capacity seam and publish an operational runbook/SLO. Do not add isolated endpoint workarounds that hide queueing.
+
+---
+
+## CLOSED — BACKLOG #14 CAREER OPS × LISTING-VERIFIER PARITY (2026-07-22)
+
+- `santifer/career-ops` remains the one matching brain; the existing Supabase
+  verifier remains the one liveness authority. No verifier, schema, or worker
+  was added.
+- Skill and role candidate selectors now admit only verifier-active listings
+  (`is_active = TRUE`, `listing_confidence = 'active'`). Scraper `last_seen`
+  never ages a verified-live listing out; role candidates are ordered by
+  `last_verified_live_at`.
+- `closed`, `likely_closed`, and `uncertain` remain outside recommendations.
+  The live confidence-agnostic verifier queue continues to recheck the corpus,
+  reserving priority for tracked, shown, and matched jobs.
+- Agent Picks now rejects Career Ops' real `suspicious` legitimacy verdict and
+  preserves the legacy `scam | ghost | spam` deny-list for historical rows.
+- The Apply contract is unchanged: only an explicit closed verdict blocks the
+  handoff. Live read-only verification found 1,030 verifier-active listings with
+  pre-July scraper markers that the removed age gate would have hidden.
 
 ---
 
@@ -327,7 +340,35 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-22 - CV output guard and beta backlog reconciliation)
+## LAST SESSION SUMMARY (2026-07-22 - Career Ops verifier parity)
+
+Closed backlog #14 without changing the frontend, Apply semantics, database
+schema, or live verifier infrastructure.
+
+- Career Ops skill and role candidate selectors now trust the durable verifier
+  state (`is_active = TRUE`, `listing_confidence = 'active'`) instead of aging
+  listings out on the scraper-owned `last_seen` marker.
+- Role candidates are ordered by `last_verified_live_at`, so the consumer uses
+  verifier freshness without turning it into a second liveness model.
+- Agent Picks now blocks Career Ops' actual `suspicious` legitimacy verdict and
+  retains the legacy `scam | ghost | spam` exclusions for historical match rows.
+- Regression tests cover old-scraper-marker-but-verifier-active listings through
+  both public candidate interfaces, untrusted verifier states, and the exact
+  `suspicious` Agent Picks vocabulary mismatch.
+- Live read-only Supabase validation found 9,818 recommendable listings, including
+  1,030 with pre-July scraper markers that the old gate would have hidden. The
+  existing verifier continued producing durable observations; no new queue or
+  liveness system was introduced.
+- Updated `CLAUDE.md` and this cockpit so #14 is closed; Learning Ladder #15 and
+  production read capacity #16 remain the next open reconciled items.
+
+Validation: 1,540 backend tests passed; focused trust/matching/verifier suite 85
+passed; Ruff, TypeScript, Next lint, live role-selector query, and
+`git diff --check` passed.
+
+---
+
+## OLDER SESSION SUMMARY (2026-07-22 - CV output guard and beta backlog reconciliation)
 
 Closed the backend-only feedback #115 regression without touching the concurrent
 frontend work.
