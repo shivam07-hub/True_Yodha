@@ -2,7 +2,7 @@ import type { QualityReasonCode } from "@/lib/api"
 
 export type ApplyReturnAnswer = "submitted" | "not_yet" | "couldnt"
 export type ApplyIssue = "link_gone" | "wrong_page" | "wrong_role" | "technical"
-export type ApplyReturnStep = "idle" | "asking" | "issue" | "saved" | "submitted" | "reported" | "error"
+export type ApplyReturnStep = "idle" | "checking" | "closed" | "asking" | "issue" | "saved" | "submitted" | "reported" | "error"
 
 export interface ApplyReturnState {
   step: ApplyReturnStep

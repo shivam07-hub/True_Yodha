@@ -33,6 +33,7 @@ class VerificationTarget:
     apply_url: str
     job_title: str
     current_confidence: str = "uncertain"
+    verification_priority: str = "corpus"
 
 
 @dataclass(frozen=True)
@@ -108,7 +109,11 @@ async def verify_listing(
         )
     except httpx.TimeoutException:
         return VerificationResult(
-            target.job_id, "timeout", "weak", provider_for_url(target.apply_url)
+            target.job_id,
+            "timeout",
+            "weak",
+            provider_for_url(target.apply_url),
+            evidence={"verification_priority": target.verification_priority},
         )
     except httpx.RequestError as exc:
         return VerificationResult(
@@ -116,7 +121,10 @@ async def verify_listing(
             "error",
             "weak",
             provider_for_url(target.apply_url),
-            evidence={"error_type": type(exc).__name__},
+            evidence={
+                "error_type": type(exc).__name__,
+                "verification_priority": target.verification_priority,
+            },
         )
     return classify_listing_response(
         target,
@@ -133,6 +141,7 @@ def _result(
     provider: str,
     evidence: dict[str, object],
 ) -> VerificationResult:
+    evidence["verification_priority"] = target.verification_priority
     return VerificationResult(
         target.job_id,
         result,

@@ -6,6 +6,23 @@ import type { ApplyCapture } from "@/components/jobs/use-apply-capture"
  * Mobile presentation of the same return-confirmation contract as web.
  */
 export function ApplyCapturePromptMobile({ capture }: { capture: ApplyCapture }) {
+  if (capture.state === "checking") {
+    return (
+      <div style={row} role="status">
+        <span style={{ color: "var(--mm-muted)" }}>Checking whether this listing is still open…</span>
+      </div>
+    )
+  }
+  if (capture.state === "closed") {
+    return (
+      <div style={{ ...row, justifyContent: "space-between" }} role="status">
+        <span style={{ color: "var(--mm-bad)", fontWeight: 650 }}>
+          This listing is closed — Myro stopped the handoff.
+        </span>
+        <button type="button" onClick={capture.findSimilar} style={link}>Find live alternatives →</button>
+      </div>
+    )
+  }
   if (capture.state === "asking") {
     return (
       <div style={row}>

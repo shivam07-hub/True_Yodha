@@ -131,6 +131,7 @@ class Settings(BaseSettings):
     # hours of silence is several missed ticks — a stall, not a slow run.
     verifier_dead_man_hours: int = 2
     verifier_health_interval_minutes: int = 5
+    verifier_priority_stale_hours: int = 24
 
     @property
     def cors_origins(self) -> list[str]:

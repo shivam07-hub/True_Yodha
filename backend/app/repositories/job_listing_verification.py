@@ -79,20 +79,31 @@ class ListingVerificationRepository:
         self.db = db
         self.now = now
 
-    def claim_targets(self, *, limit: int = 200, stale_days: int = 7) -> list[VerificationTarget]:
-        """Atomically claim the oldest-unchecked listings due for verification.
+    def claim_targets(
+        self,
+        *,
+        limit: int = 200,
+        stale_days: int = 7,
+        priority_stale_hours: int = 24,
+    ) -> list[VerificationTarget]:
+        """Atomically claim due listings, prioritising durable user relevance.
 
         The claim RPC stamps ``last_verification_attempt_at`` in the same
         statement that selects (FOR UPDATE SKIP LOCKED), so a row is served to
         exactly one worker and a crashed sweep cannot re-serve the same batch.
-        Confidence-agnostic: a row previously marked ``active`` re-enters the
-        queue once it goes stale, which a confidence-scoped query never allowed.
+        Up to 80% of a claim is reserved for tracked, recently shown, or matched
+        jobs. The rest preserves oldest-first corpus progress. Confidence remains
+        irrelevant: a row previously marked ``active`` re-enters once stale.
         """
         capped = max(1, min(limit, 1000))
         rows = _with_retry(
             lambda: self.db.rpc(
                 "claim_verify_targets",
-                {"p_limit": capped, "p_stale": f"{max(0, stale_days)} days"},
+                {
+                    "p_limit": capped,
+                    "p_stale": f"{max(0, stale_days)} days",
+                    "p_priority_stale": f"{max(1, priority_stale_hours)} hours",
+                },
             ).execute()
         ).data or []
         return [
@@ -101,6 +112,7 @@ class ListingVerificationRepository:
                 apply_url=str(row["apply_url"]),
                 job_title=str(row.get("job_title") or ""),
                 current_confidence=str(row.get("listing_confidence") or "uncertain"),
+                verification_priority=str(row.get("verification_priority") or "corpus"),
             )
             for row in rows
             if row.get("job_id") and row.get("apply_url")
@@ -219,6 +231,16 @@ class ListingVerificationRepository:
         res = _with_retry(
             lambda: self.db.rpc(
                 "count_verify_due", {"p_stale": f"{max(0, stale_days)} days"}
+            ).execute()
+        )
+        return int(res.data or 0)
+
+    def priority_pending_count(self, *, stale_hours: int = 24) -> int:
+        """User-relevant listings past their tighter freshness horizon."""
+        res = _with_retry(
+            lambda: self.db.rpc(
+                "count_priority_verify_due",
+                {"p_stale": f"{max(1, stale_hours)} hours"},
             ).execute()
         )
         return int(res.data or 0)
