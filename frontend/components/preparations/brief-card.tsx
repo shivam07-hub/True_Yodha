@@ -82,8 +82,7 @@ export function BriefCard({ token, jobId }: { token: string; jobId: string }) {
   return (
     <div>
       <p className="prp-sec-note" style={{ marginBottom: 10 }}>
-        One page for the day: what the role is really about, the stories to lead
-        with, likely questions, and your before/during/after plan.
+        Your stories, their likely questions, a day-of plan — one page.
       </p>
       <button
         type="button"
