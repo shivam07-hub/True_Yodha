@@ -1,5 +1,6 @@
-/* Skill room — altitude 3+4 of the evidence ladder. Tokens only; light + dark.
-   Boldness is spent exactly twice: the CV receipt and the one primary CTA. */
+/* Skill page — provenance + classification in one place. Tokens only.
+   Boldness is spent once, on the classification spine. The CV quote stays a
+   plain quoted document on purpose: evidence should look like evidence. */
 
 .sr {
   width: min(720px, 100%);
@@ -29,7 +30,8 @@
 }
 .sr-bracket {
   display: flex;
-  align-items: baseline;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 9px;
   margin: 10px 0 0;
 }
@@ -61,7 +63,7 @@
 }
 
 .sr-label {
-  margin: 0 0 10px;
+  margin: 0 0 12px;
   color: var(--tm-text-muted);
   font: 600 10px/1.3 var(--tm-font-mono);
   letter-spacing: 0.12em;
@@ -81,12 +83,83 @@
   font-size: 13px;
 }
 
-/* The receipt. The one block that earns weight: this is what makes the level
-   falsifiable, so it reads as a quoted document, not a caption. */
-.sr-evidence { border-color: color-mix(in srgb, var(--tm-interactive) 26%, var(--tm-border-soft)); }
+/* ── Signature: the classification spine ──────────────────────────────────
+   The nesting is real (domain > cluster > skill), so indentation carries
+   information; the scale sits right-aligned in the catalogue's own register. */
+.sr-spine {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-left: 1px solid var(--tm-border);
+}
+.sr-rung {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  position: relative;
+  padding: 7px 0 7px 16px;
+}
+.sr-rung::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 9px;
+  height: 1px;
+  background: var(--tm-border);
+}
+.sr-rung + .sr-rung { padding-left: 34px; }
+.sr-rung + .sr-rung::before { width: 27px; }
+.sr-rung + .sr-rung + .sr-rung { padding-left: 52px; }
+.sr-rung + .sr-rung + .sr-rung::before { width: 45px; }
+
+.sr-rung-name {
+  color: var(--tm-text-muted);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.sr-rung-scale {
+  flex-shrink: 0;
+  color: var(--tm-text-muted);
+  font-family: var(--tm-font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.sr-rung--here .sr-rung-name {
+  color: var(--tm-text);
+  font-weight: 650;
+}
+.sr-rung--here .sr-rung-scale { color: var(--tm-accent-text, var(--tm-interactive)); }
+.sr-rung--here::before { background: var(--tm-interactive); }
+
+.sr-spine-fact { margin-top: 14px; }
+.sr-catalogue {
+  margin: 6px 0 0;
+  color: var(--tm-text-muted);
+  font-family: var(--tm-font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+
+/* One orchestrated moment: the path narrows onto the skill. Compositor only. */
+@media (prefers-reduced-motion: no-preference) {
+  .sr-rung {
+    animation: sr-rung-in 300ms var(--tm-ease) both;
+  }
+  .sr-rung + .sr-rung { animation-delay: 70ms; }
+  .sr-rung + .sr-rung + .sr-rung { animation-delay: 140ms; }
+}
+@keyframes sr-rung-in {
+  from { opacity: 0; transform: translateX(-6px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ── The receipt. Quoted document, not a styled feature. ───────────────── */
 .sr-quote {
   margin: 0;
-  border-left: 2px solid var(--tm-interactive);
+  border-left: 2px solid var(--tm-border);
   padding: 2px 0 2px 16px;
   max-width: var(--tm-reading-measure, 68ch);
   color: var(--tm-reading-ink);
@@ -129,6 +202,11 @@
   .sr { padding-bottom: 96px; }
   .sr-block { border-radius: 12px; padding: 15px 16px; }
   .sr-quote { font-size: 15px; padding-left: 13px; }
+  .sr-rung { flex-wrap: wrap; gap: 2px 14px; }
+  .sr-rung + .sr-rung { padding-left: 26px; }
+  .sr-rung + .sr-rung::before { width: 19px; }
+  .sr-rung + .sr-rung + .sr-rung { padding-left: 38px; }
+  .sr-rung + .sr-rung + .sr-rung::before { width: 31px; }
   .sr-primary,
   .sr-secondary { width: 100%; }
 }
