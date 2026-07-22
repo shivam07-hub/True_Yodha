@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, ArrowRight, FileText, Sparkles } from "lucide-react"
+import { ArrowRight, FileText, Sparkles } from "lucide-react"
 
 import { RequiresCV } from "@/components/empty/RequiresCV"
 import { ForgeSkeleton } from "@/components/loading/page-skeletons"
@@ -11,10 +11,11 @@ import { BandPercentileLine } from "@/components/skills/band-percentile-line"
 import { DomainRadar } from "@/components/skills/domain-radar"
 import { ScoreBreakdown } from "@/components/skills/score-breakdown"
 import { ScoreRing } from "@/components/skills/score-ring"
+import { SkillRoom } from "@/components/skills/skill-room"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useScoreMapData } from "@/lib/hooks/use-score-map-data"
-import { bandLabel } from "@/lib/score-methodology"
 import { buildCvEvidenceHref, buildScoreMap, buildScoreMapHref } from "@/lib/score-map"
+import { buildSkillRoom } from "@/lib/skill-room"
 import "./score-map.css"
 
 function ScoreMapPageInner() {
@@ -25,63 +26,59 @@ function ScoreMapPageInner() {
   const { score, skills, isLoading, isError } = useScoreMapData(token)
   const domainParam = searchParams.get("domain")
   const panelParam = searchParams.get("panel")
+  const skillParam = searchParams.get("skill")
 
   const model = useMemo(
     () => score && skills ? buildScoreMap(score, skills, domainParam) : null,
     [score, skills, domainParam],
   )
+  // Altitude 3+4: when a skill is addressed, it owns the page — one question
+  // per screen. The room carries its own way back to the map.
+  const room = useMemo(
+    () => score && skills ? buildSkillRoom(score, skills, skillParam) : null,
+    [score, skills, skillParam],
+  )
 
   const showBreakdown = () => breakdownRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
 
   useEffect(() => {
-    if (panelParam !== "why" || !model) return
+    if (panelParam !== "why" || !model || room) return
     const id = requestAnimationFrame(showBreakdown)
     return () => cancelAnimationFrame(id)
-  }, [panelParam, model])
+  }, [panelParam, model, room])
 
   if (!ready || isLoading) return <ForgeSkeleton />
 
   return (
     <RequiresCV surface="skills">
       <main className="sm-page">
-        <Link href="/market" className="sm-back tm-control-focus">
-          <ArrowLeft size={14} aria-hidden /> Jobs
-        </Link>
-
         {isError || !score || !skills || !model || model.axes.length === 0 ? (
           <section className="sm-error" role="status">
             <h1>Score map unavailable</h1>
             <p>Your CV is safe. Refresh once scoring finishes.</p>
           </section>
+        ) : room ? (
+          <SkillRoom room={room} />
         ) : (
           <>
+            <h1 className="sm-sr-only">Your Myro Score and the evidence behind it</h1>
             <header className="sm-hero">
-              <div>
-                <p className="sm-kicker">Score &amp; skills</p>
-                <h1>One score. The evidence behind it.</h1>
-                <p className="sm-hero-copy">
-                  Your {model.totalScore} is the average of the {model.axes.length} skill {model.axes.length === 1 ? "domain" : "domains"} your CV currently proves.
-                </p>
-              </div>
-              <div className="sm-score">
-                <ScoreRing
-                  score={model.totalScore}
-                  onExpand={showBreakdown}
-                  expanded={false}
-                  controls="score-map-breakdown"
-                />
-                <BandPercentileLine band={score.band} topPercent={score.top_percent} />
-                <span>Calibrated for {bandLabel(score.band)}</span>
-              </div>
+              <ScoreRing
+                score={model.totalScore}
+                onExpand={showBreakdown}
+                expanded={false}
+                controls="score-map-breakdown"
+              />
+              <BandPercentileLine band={score.band} topPercent={score.top_percent} />
+              <p className="sm-hero-copy">
+                Your {model.totalScore} is the average of the {model.axes.length} skill {model.axes.length === 1 ? "domain" : "domains"} your CV currently proves.
+              </p>
             </header>
 
             <div className="sm-grid">
               <section className="sm-card sm-radar-card" aria-labelledby="score-map-title">
                 <div className="sm-card-head">
-                  <div>
-                    <p className="sm-eyebrow">Same calculation</p>
-                    <h2 id="score-map-title">Your Score map</h2>
-                  </div>
+                  <h2 id="score-map-title">Your Score map</h2>
                   <span>{model.axes.length} evidenced domains</span>
                 </div>
                 <div className="sm-radar-wrap">
@@ -130,9 +127,14 @@ function ScoreMapPageInner() {
 
                   <div className="sm-skill-chips">
                     {model.selected.skills.slice(0, 8).map((skill) => (
-                      <span key={skill.key} data-proof={skill.evidence_text ? "yes" : "no"}>
+                      <Link
+                        key={skill.key}
+                        className="tm-control-focus"
+                        href={buildScoreMapHref({ domain: model.selected?.domain, skill: skill.key })}
+                        data-proof={skill.evidence_text ? "yes" : "no"}
+                      >
                         {skill.display_name} <em>L{skill.level}</em>
-                      </span>
+                      </Link>
                     ))}
                   </div>
 

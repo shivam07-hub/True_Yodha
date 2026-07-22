@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { jobs as jobsApi, type JobFeedItem } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
-import { DEFAULT_FILTERS } from "@/components/market/feed-types"
+import type { CareerBand } from "@/lib/api"
+import { activeFilterCount, type FeedFilters } from "@/components/market/feed-types"
+import { FiltersSheet } from "@/components/market/filters-sheet"
 import { useJobFeed } from "@/components/market/use-job-feed"
 import { useMyroSearch } from "@/lib/hooks/use-myro-search"
 import { IntentChat } from "@/components/jobs/intent-chat"
 import { useApplyCapture } from "@/components/jobs/use-apply-capture"
-import { BottomSheet } from "./bottom-sheet"
 import { JobDetailSheet, type JobDetailData } from "./job-detail-sheet"
 import { ApplyCapturePromptMobile } from "./apply-capture-prompt"
 import { SwipeCard } from "./swipe-card"
@@ -21,26 +22,43 @@ import { useMobileUI } from "./mobile-ui"
 /* ══════════════════════════════════════════════════════════════════════════
    JobsSurface — the handoff Jobs tab: swipe-triage feed over the REAL market
    feed (useJobFeed). Sort (Best fit/Newest) ↔ fit/fresh · server search ·
-   client-side Work-mode + hide-"check details" filters · hidden-jobs (eye)
-   view with restore · job-detail sheet. Save/Skip drain the queue + snack.
-   ══════════════════════════════════════════════════════════════════════════ */
+   hidden-jobs (eye) view with restore · job-detail sheet. Save/Skip drain the
+   queue + snack.
 
-type Mode = "any" | "onsite" | "hybrid" | "remote"
+   Filtering is NOT re-implemented here. This surface owns the same `FeedFilters`
+   object the desktop workspace owns and opens the same <FiltersSheet> (which
+   renders as a bottom sheet at ≤600px). Mobile previously carried a private
+   two-filter fork that applied client-side and could not reach the server
+   filters at all — that is the drift this contract exists to prevent.
+   ══════════════════════════════════════════════════════════════════════════ */
 
 const SWIPE_HINT_KEY = "myro_swipe_hint_seen_v1"
 
-export function JobsSurface({ token, targetLocations }: { token: string; targetLocations: string[] }) {
+export interface JobsSurfaceProps {
+  token: string
+  targetLocations: string[]
+  filters: FeedFilters
+  onFiltersChange: (f: FeedFilters) => void
+  targetRoles: string[]
+  chipCountMap: Record<string, number>
+  hasCv: boolean
+  primaryCareerBand?: CareerBand | null
+  exploredCareerBands?: CareerBand[]
+  onExploredCareerBandsChange?: (bands: CareerBand[]) => void
+}
+
+export function JobsSurface({
+  token, targetLocations, filters, onFiltersChange, targetRoles, chipCountMap, hasCv,
+  primaryCareerBand, exploredCareerBands, onExploredCareerBandsChange,
+}: JobsSurfaceProps) {
   const router = useRouter()
   const { snack, closeSnack } = useMobileUI()
   // Myro Search (the paid re-vet run) — one shared wiring across every surface.
   const { run: runMyroSearch, isRefreshing, gate: myroSearchGate } = useMyroSearch(token)
 
-  const [sort, setSort] = useState<"best" | "new">("best")
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQ, setSearchQ] = useState("")
   const [eyeOn, setEyeOn] = useState(false)
-  const [mode, setMode] = useState<Mode>("any")
-  const [hideCheck, setHideCheck] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [sharedId, setSharedId] = useState<string | null>(null)
@@ -56,17 +74,11 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
     setShowSwipeHint(true)
   }, [])
 
-  const filters = useMemo(() => ({ ...DEFAULT_FILTERS, sort: sort === "best" ? "fit" as const : "fresh" as const }), [sort])
-  const { allJobs, total, warming, triage, undo } = useJobFeed({ token, filters, q: searchQ, skill: null, targetLocations })
+  const { allJobs, visibleJobs, total, loading, triage, undo } =
+    useJobFeed({ token, filters, q: searchQ, skill: null, targetLocations })
+  const filterCount = activeFilterCount(filters)
 
-  const filtered = useMemo(() => {
-    let f = allJobs
-    if (mode !== "any") f = f.filter(j => (j.location_mode ?? "").toLowerCase() === mode)
-    if (hideCheck) f = f.filter(j => !(j.legitimacy_tier === "caution" || j.legitimacy_tier === "suspicious" || j.is_stale))
-    return f
-  }, [allJobs, mode, hideCheck])
-
-  const rows = useMemo(() => filtered.map(feedItemToRow), [filtered])
+  const rows = useMemo(() => visibleJobs.map(feedItemToRow), [visibleJobs])
   const detailItem = detailId ? allJobs.find(j => j.job_id === detailId) ?? null : null
   // Apply Transport — arms the liveness capture whenever the user leaves to
   // apply from the detail sheet; careers-search fallback when no portal link.
@@ -84,7 +96,11 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
   })
 
   const locationLabel = targetLocations.find(l => l && l.trim())?.trim() ?? ""
-  const countLine = `${filtered.length} of ${total || filtered.length} live${locationLabel ? ` · ${locationLabel}` : ""}`
+  // While loading the counts are 0 — don't paint a false "0 of 0 live" that the
+  // arriving feed immediately contradicts. Show the location alone until settled.
+  const countLine = loading
+    ? locationLabel
+    : `${rows.length} of ${total || rows.length} live${locationLabel ? ` · ${locationLabel}` : ""}`
 
   const doSave = (job: JobFeedItem, fromSheet?: boolean) => {
     setShowSwipeHint(false)
@@ -128,11 +144,20 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
       {/* header */}
       <div style={{ padding: "10px 16px 10px" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-          <h1 style={{ margin: 0, fontSize: 25, fontWeight: 700, letterSpacing: "-0.03em" }}>Jobs</h1>
-          <span style={{ fontSize: 12, color: "#8b8b84", fontVariantNumeric: "tabular-nums" }}>{countLine}</span>
+          <h1 style={{ margin: 0, flex: "none", fontSize: 25, fontWeight: 700, letterSpacing: "-0.03em" }}>Jobs</h1>
+          {/* The one shrinkable child on this row, so a long city name can never
+              push the Myro Search pill off-screen. Truncates from the tail —
+              the counts survive, the location degrades. */}
+          <span title={countLine} style={{ flex: "0 1 auto", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12, color: "#8b8b84", fontVariantNumeric: "tabular-nums" }}>{countLine}</span>
           <div style={{ flex: 1 }} />
-          <button onClick={() => setSearchOpen(o => !o)} aria-label="Search" style={roundIcon}><svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.8-3.8" /></svg></button>
-          <button onClick={() => setEyeOn(o => !o)} aria-label="Hidden jobs" style={{ ...roundIcon, background: eyeOn ? "rgba(255,255,255,0.08)" : "transparent", color: eyeOn ? "#f2f2ee" : "#a6a69e" }}><svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12Z" /><circle cx="12" cy="12" r="2.6" /><path d="M4 4l16 16" /></svg></button>
+          {/* Myro Search (the paid run) lives on the header row — it needs the
+              width its label deserves. The free in-feed search is a filter and
+              sits with the other filters below. */}
+          <button onClick={runMyroSearch} disabled={isRefreshing} className="mm-press" title="Run Myro Search" style={{ height: 30, flex: "none", alignSelf: "center", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 5, padding: "0 11px", borderRadius: 99, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", opacity: isRefreshing ? 0.6 : 1 }}>
+            <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8" /></svg>
+            {isRefreshing ? "Searching…" : "Myro Search"}
+          </button>
+          <button onClick={() => setEyeOn(o => !o)} aria-label="Hidden jobs" style={{ ...roundIcon, alignSelf: "center", background: eyeOn ? "rgba(255,255,255,0.08)" : "transparent", color: eyeOn ? "#f2f2ee" : "#a6a69e" }}><svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12Z" /><circle cx="12" cy="12" r="2.6" /><path d="M4 4l16 16" /></svg></button>
         </div>
 
         {searchOpen ? (
@@ -143,19 +168,15 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
         ) : (
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
             <div style={{ display: "flex", flex: "none", background: "#262624", borderRadius: 9, padding: 2 }}>
-              <SegBtn on={sort === "best"} onClick={() => setSort("best")}>Best fit</SegBtn>
-              <SegBtn on={sort === "new"} onClick={() => setSort("new")}>Newest</SegBtn>
+              <SegBtn on={filters.sort === "fit"} onClick={() => onFiltersChange({ ...filters, sort: "fit" })}>Best fit</SegBtn>
+              <SegBtn on={filters.sort === "fresh"} onClick={() => onFiltersChange({ ...filters, sort: "fresh" })}>Newest</SegBtn>
             </div>
-            <button onClick={() => setFiltersOpen(true)} style={{ height: 32, display: "flex", alignItems: "center", gap: 6, padding: "0 11px", borderRadius: 99, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#c9c9c2", fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+            <button onClick={() => setFiltersOpen(true)} style={{ height: 32, flex: "none", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6, padding: "0 11px", borderRadius: 99, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#c9c9c2", fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
               <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M4 7h16M7 12h10M10 17h4" /></svg>
-              {mode !== "any" || hideCheck ? "Filters · on" : "Filters"}
+              {filterCount > 0 ? `Filters · ${filterCount}` : "Filters"}
             </button>
             <div style={{ flex: 1 }} />
-            <button onClick={() => setIntentOpen(true)} style={{ border: "none", background: "transparent", color: "#8b8b84", fontSize: 11.5, cursor: "pointer", fontFamily: "inherit", padding: "4px 0" }}>Not it? Tell Myro →</button>
-            <button onClick={runMyroSearch} disabled={isRefreshing} className="mm-press" title="Run Myro Search" style={{ height: 30, display: "flex", alignItems: "center", gap: 5, padding: "0 11px", borderRadius: 99, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", opacity: isRefreshing ? 0.6 : 1 }}>
-              <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
-              {isRefreshing ? "Searching…" : "Myro Search"}
-            </button>
+            <button onClick={() => setSearchOpen(true)} aria-label="Search this feed" style={roundIcon}><svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.8-3.8" /></svg></button>
           </div>
         )}
       </div>
@@ -164,22 +185,23 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
       <div style={{ padding: "2px 16px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
         {/* Curated Agent Picks — default view only (hidden while searching, filtering
             or viewing hidden jobs). Renders nothing when the user has no picks. */}
-        {!eyeOn && !searchQ && mode === "any" && !hideCheck ? (
+        {!eyeOn && !searchQ && filterCount === 0 ? (
           <MobileAgentPicks token={token} context="feed" />
         ) : null}
         {eyeOn ? (
           <HiddenView token={token} snack={snack} />
-        ) : warming && rows.length === 0 ? (
+        ) : loading ? (
           <FeedSkeleton />
         ) : rows.length === 0 ? (
           <div style={{ textAlign: "center", padding: "44px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
             <div style={{ fontSize: 15, fontWeight: 650 }}>Feed clear 🎯</div>
             <div style={{ fontSize: 12.5, color: "#8b8b84", lineHeight: 1.5 }}>You&apos;ve triaged everything here.<br />Next: tailor a CV for what you saved.</div>
             <button onClick={() => router.push("/collections")} className="mm-press" style={ctaBtn}>Open Collections</button>
+            <button onClick={() => setIntentOpen(true)} style={intentLink}>Not what you wanted? Tell Myro →</button>
           </div>
         ) : (
           rows.map((row, i) => {
-            const job = filtered[i]
+            const job = visibleJobs[i]
             return (
               <SwipeCard
                 key={row.id}
@@ -195,6 +217,14 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
             )
           })
         )}
+        {/* Delta-4 door. Off the toolbar (it competed with two search
+            affordances in a 375px strip) and onto the moment it's actually
+            true: a feed too thin to be what the user asked for. */}
+        {!eyeOn && rows.length > 0 && rows.length < 5 ? (
+          <button onClick={() => setIntentOpen(true)} style={{ ...intentLink, alignSelf: "center", marginTop: 2 }}>
+            Not what you wanted? Tell Myro →
+          </button>
+        ) : null}
       </div>
 
       <JobDetailSheet
@@ -209,16 +239,24 @@ export function JobsSurface({ token, targetLocations }: { token: string; targetL
         captureSlot={detailItem ? <ApplyCapturePromptMobile capture={applyCapture} /> : null}
       />
 
-      <FiltersSheet
-        open={filtersOpen}
-        onClose={() => setFiltersOpen(false)}
-        locationLabel={locationLabel}
-        mode={mode}
-        setMode={setMode}
-        hideCheck={hideCheck}
-        setHideCheck={setHideCheck}
-        resultN={filtered.length}
-      />
+      {/* The SAME sheet the desktop workspace opens — it renders as a bottom
+          sheet at ≤600px. Both surfaces therefore expose the identical filter
+          set against the identical backend contract. */}
+      {filtersOpen ? (
+        <FiltersSheet
+          filters={filters}
+          onChange={onFiltersChange}
+          onClose={() => setFiltersOpen(false)}
+          targetRoles={targetRoles}
+          chipCountMap={chipCountMap}
+          hasCv={hasCv}
+          targetLocations={targetLocations}
+          onEditLocations={() => document.dispatchEvent(new CustomEvent("tm:open-settings", { detail: { tab: "Following" } }))}
+          primaryCareerBand={primaryCareerBand}
+          exploredCareerBands={exploredCareerBands}
+          onExploredCareerBandsChange={onExploredCareerBandsChange}
+        />
+      ) : null}
 
       {/* The real Delta-4 loop (same component the desktop app uses): the user
           tells Myro what's off → one-tap filter change → feed re-runs. */}
@@ -278,42 +316,13 @@ function HiddenView({ token, snack }: { token: string; snack: (s: { msg: string 
   )
 }
 
-function FiltersSheet({ open, onClose, locationLabel, mode, setMode, hideCheck, setHideCheck, resultN }: {
-  open: boolean; onClose: () => void; locationLabel: string
-  mode: Mode; setMode: (m: Mode) => void; hideCheck: boolean; setHideCheck: (b: boolean) => void; resultN: number
-}) {
-  const modes: [Mode, string][] = [["any", "Any"], ["onsite", "On-site"], ["hybrid", "Hybrid"], ["remote", "Remote"]]
-  return (
-    <BottomSheet open={open} onClose={onClose} label="Filters">
-      <div style={{ padding: "0 18px 18px" }}>
-        <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.02em", marginTop: 4 }}>Filters</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>Location</span>
-          <span style={{ height: 28, display: "inline-flex", alignItems: "center", padding: "0 12px", borderRadius: 99, background: "#2a2a28", color: "#c9c9c2", fontSize: 12, fontWeight: 600 }}>{locationLabel ? `${locationLabel} · from profile` : "From profile"}</span>
-        </div>
-        <div style={{ marginTop: 14 }}>
-          <span style={{ fontSize: 13, fontWeight: 600 }}>Work mode</span>
-          <div style={{ display: "flex", background: "#1b1b1a", borderRadius: 10, padding: 2, marginTop: 8 }}>
-            {modes.map(([m, label]) => (
-              <button key={m} onClick={() => setMode(m)} style={{ flex: 1, height: 30, borderRadius: 8, border: "none", background: mode === m ? "#3a3a36" : "transparent", color: mode === m ? "#f2f2ee" : "#8b8b84", fontSize: 12, fontWeight: 650, cursor: "pointer", fontFamily: "inherit", transition: "background 160ms" }}>{label}</button>
-            ))}
-          </div>
-        </div>
-        <button onClick={() => setHideCheck(!hideCheck)} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", marginTop: 16, border: "none", background: "transparent", cursor: "pointer", fontFamily: "inherit", padding: 0 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: "#f2f2ee", flex: 1, textAlign: "left" }}>Hide &quot;check details&quot; roles</span>
-          <span style={{ width: 40, height: 24, borderRadius: 99, background: hideCheck ? "var(--mm-accent)" : "rgba(255,255,255,0.14)", position: "relative", transition: "background 200ms", flex: "none" }}>
-            <span style={{ position: "absolute", top: 2, left: hideCheck ? 18 : 2, width: 20, height: 20, borderRadius: 99, background: "#fff", transition: "left 200ms cubic-bezier(0.32,0.72,0,1)" }} />
-          </span>
-        </button>
-        <button onClick={onClose} className="mm-press" style={{ width: "100%", height: 42, marginTop: 18, borderRadius: 13, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Show {resultN} roles</button>
-      </div>
-    </BottomSheet>
-  )
-}
-
 const roundIcon: React.CSSProperties = {
   width: 32, height: 32, borderRadius: 99, border: "none", background: "transparent", color: "#a6a69e",
   display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+}
+const intentLink: React.CSSProperties = {
+  border: "none", background: "transparent", color: "#8b8b84", fontSize: 12, cursor: "pointer",
+  fontFamily: "inherit", padding: "6px 4px",
 }
 const ctaBtn: React.CSSProperties = {
   marginTop: 6, height: 36, padding: "0 16px", borderRadius: 99, border: "none", background: "var(--mm-accent)",

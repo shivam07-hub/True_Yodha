@@ -69,7 +69,7 @@ export function DrillPanel({ token, jobId }: { token: string; jobId: string }) {
     return (
       <div>
         <p className="prp-sec-note" style={{ marginBottom: 10 }}>
-          A short question set on the skills this job tests — see where you stand before they ask.
+          Test yourself on this job&rsquo;s skills.
         </p>
         <button type="button" className="prp-btn" onClick={() => void start()} disabled={phase.kind === "starting"}>
           {phase.kind === "starting" ? "Preparing questions…" : "Start the drill"}

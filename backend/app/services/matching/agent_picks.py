@@ -31,8 +31,9 @@ STRONG_SCORE = 3.5          # user_job_matches.overall_score is 0–5 (match_cre
 BULLSEYE_SCORE = 4.3        # a pick this strong is a "bullseye", else "strong"
 MAX_PICKS = 8               # the band is a shortlist, not a second feed
 _APPLY_VERDICTS = {"Apply", "Negotiate"}
-# Legitimacy tiers the brain flags as junk — never recommend one to apply to.
-_JUNK_TIERS = {"scam", "ghost", "spam"}
+# Career-Ops' current blocked legitimacy verdict plus legacy persisted values.
+# Keep the older vocabulary readable so historical match rows remain safe.
+_BLOCKED_LEGITIMACY_TIERS = {"suspicious", "scam", "ghost", "spam"}
 
 
 def _tier_for(score: float) -> str:
@@ -56,7 +57,10 @@ def select_agent_picks(
             continue
         if row.get("recommendation") not in _APPLY_VERDICTS:
             continue
-        if str(row.get("legitimacy_tier") or "").strip().lower() in _JUNK_TIERS:
+        if (
+            str(row.get("legitimacy_tier") or "").strip().lower()
+            in _BLOCKED_LEGITIMACY_TIERS
+        ):
             continue
         job = row.get("jobs") or {}
         if not is_recommendable_listing(job):

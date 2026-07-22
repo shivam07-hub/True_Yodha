@@ -112,16 +112,13 @@ export function PrepRoom({ token, app }: { token: string; app: ApplicationRespon
         </Section>
       ) : (
         <>
-          <Section
-            label="What this job wants"
-            note="Every answer you bank becomes a story you keep."
-          >
+          <Section label="What this job wants">
             <CoveragePanel token={token} jobId={app.job_id} />
           </Section>
 
           {stage === "interviewing" && (
             <>
-              <Section label="Rehearse" note="Their questions, your stories.">
+              <Section label="Rehearse">
                 <RehearsePanel token={token} jobId={app.job_id} />
               </Section>
               <Section label="Skill drill">
@@ -132,6 +129,16 @@ export function PrepRoom({ token, app }: { token: string; app: ApplicationRespon
               </Section>
             </>
           )}
+
+          {/* The floor: the raw JD, always here, zero LLM. When any surface
+              above fails to parse, the user can still read the job and prep
+              like a human — never a dead end. */}
+          {app.job_description ? (
+            <details className="prp-jd">
+              <summary className="prp-jd-summary">The full job description</summary>
+              <div className="prp-jd-body">{app.job_description}</div>
+            </details>
+          ) : null}
 
           {/* ReachSection carries its own head; the .db wrapper scopes the
               --db-* tokens it styles with (portal token-scope precedent). */}

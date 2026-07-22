@@ -30,6 +30,7 @@ import { JOB_MATCHES_CACHE_PARTS } from "@/lib/job-matches-cache"
 import type { FeedItem, SortKey } from "@/lib/dashboard/feed-model"
 import {
   FOLDER_CHIPS,
+  appToFeedItem,
   buildCollectionsView,
   buildContinueLane,
   buildMyroFound,
@@ -166,8 +167,15 @@ export function CollectionsDesktop({
     for (const it of [...continueItems, ...myroFound.found, ...(appView?.queueItems ?? [])]) {
       if (!map.has(it.jobId)) map.set(it.jobId, it)
     }
+    // A deep-linked saved role (e.g. from a bell decision prompt) must always be
+    // openable, even when the active chip filters it out of every lane — otherwise
+    // the drawer silently never opens and the prompt looks like it did nothing.
+    if (openId && !map.has(openId)) {
+      const app = appByJobId.get(openId)
+      if (app) map.set(openId, appToFeedItem(app, byId.get(openId)))
+    }
     return Array.from(map.values())
-  }, [continueItems, myroFound.found, appView])
+  }, [continueItems, myroFound.found, appView, openId, appByJobId, byId])
   React.useEffect(() => {
     if (openId && !openable.some((it) => it.jobId === openId)) setOpenId(null)
   }, [openable, openId])

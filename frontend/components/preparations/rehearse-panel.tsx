@@ -33,7 +33,7 @@ export function RehearsePanel({ token, jobId }: { token: string; jobId: string }
 
   const rows: CoverageRow[] = coverage.data?.requirements ?? []
   if (coverage.isLoading) return <p className="prp-quiet">Preparing your rehearsal…</p>
-  if (rows.length === 0) return <p className="prp-quiet">No requirements read yet — the coverage panel above builds this.</p>
+  if (rows.length === 0) return <p className="prp-quiet">No requirements read yet. Read the full job below.</p>
 
   // Strongest answers first: covered → weak → gap.
   const order = { covered: 0, weak: 1, gap: 2 } as const

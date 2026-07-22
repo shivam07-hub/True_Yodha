@@ -87,10 +87,10 @@ export function CoveragePanel({ token, jobId }: { token: string; jobId: string }
   if (coverage.isError || rows.length === 0) {
     return (
       <p className="prp-quiet">
-        Couldn&rsquo;t read this job&rsquo;s requirements yet.{" "}
+        Couldn&rsquo;t read the requirements. Read the full job below, or{" "}
         <button type="button" className="prp-req-action" onClick={() => recheck.mutate()} disabled={recheck.isPending}>
-          {recheck.isPending ? "Reading…" : "Try again"}
-        </button>
+          {recheck.isPending ? "reading…" : "try again"}
+        </button>.
       </p>
     )
   }

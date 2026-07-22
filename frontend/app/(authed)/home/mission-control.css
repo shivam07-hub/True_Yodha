@@ -243,33 +243,9 @@
 .mc-peek-radar svg { width: 100%; height: auto; max-width: 240px; display: block; }
 .mc-peek-radar-cap { font-size: 12px; line-height: 1.45; color: var(--tm-text-muted); text-align: center; }
 .mc-peek-radar-cap strong { color: var(--tm-text); font-weight: 600; }
-.mc-peek-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.mc-peek-row {
-  display: flex; align-items: center; gap: 8px; width: 100%;
-  font-size: 13px; color: var(--tm-text); text-decoration: none;
-}
-.mc-peek-row .dot { width: 6px; height: 6px; border-radius: 99px; border: 1.5px solid var(--tm-text-faint); flex-shrink: 0; }
-.mc-peek-row.is-done { color: var(--tm-text-faint); }
-.mc-peek-row.is-done svg { color: var(--tm-success); flex-shrink: 0; }
-.mc-peek-row.is-open .go { margin-left: auto; color: var(--tm-text-faint); opacity: 0; transition: opacity 120ms ease; }
-.mc-peek-row.is-open:hover .go { opacity: 1; }
-.mc-peek-row.is-open:hover { color: var(--tm-accent-text); }
-.mc-peek-progress { display: flex; align-items: center; gap: 8px; }
-.mc-peek-prog-num { font-family: var(--tm-font-mono); font-size: 11px; color: var(--tm-text-muted); white-space: nowrap; }
-.mc-peek-prog-track { flex: 1; height: 5px; border-radius: 99px; background: var(--tm-border); overflow: hidden; }
-.mc-peek-prog-track .fill { display: block; height: 100%; background: var(--tm-interactive); border-radius: 99px; transition: width 300ms ease; }
 .mc-peek-gap { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
 .mc-peek-gap .lab { color: var(--tm-text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mc-peek-lvl { font-family: var(--tm-font-mono); font-size: 11px; color: var(--tm-accent-text); flex-shrink: 0; }
-/* Myro Coins incentive chip on open daily missions (MissionsCard). */
-.mc-peek-reward {
-  margin-left: auto; flex-shrink: 0;
-  display: inline-flex; align-items: center; gap: 3px;
-  font-family: var(--tm-font-mono); font-size: 10.5px; font-weight: 600;
-  color: var(--tm-accent-text); background: var(--tm-interactive-wash);
-  padding: 2px 7px; border-radius: 99px;
-}
-.mc-peek-reward svg { width: 11px; height: 11px; }
 .mc-peek-chips { margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .mc-peek-intel { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--tm-text-muted); }
 .mc-peek-intel strong { color: var(--tm-text); font-weight: 650; }

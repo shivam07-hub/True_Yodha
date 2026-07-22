@@ -18,11 +18,12 @@ import { EmptyHandoff, FeedSkeleton, LocationScopePill } from "./jobs-tab-helper
 import { useJobFeed } from "./use-job-feed"
 import { usePulses } from "@/lib/hooks/use-pulses"
 import { useMarketIntel } from "@/lib/hooks/use-market-intel"
+import { useSkillDemand } from "@/lib/hooks/use-skill-demand"
 import { MarketRail } from "./market-rail"
 import { StoryCard, type FeedStory } from "./story-card"
 import { interleaveStories } from "./feed-rows"
 import { HiddenJobsDialog } from "./hidden-jobs-dialog"
-import { DEFAULT_FILTERS, pickDefaultSort, type FeedFilters } from "./feed-types"
+import { DEFAULT_FILTERS, applyViewFilters, localFilters, pickDefaultSort, type FeedFilters } from "./feed-types"
 import { Search, X } from "lucide-react"
 import "./market.css"
 import "./market-intel.css"
@@ -70,12 +71,9 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   const [searchOpen, setSearchOpen] = useState(false)
   const [q, setQ] = useState(initialQuery)
   const [skillFacet, setSkillFacet] = useState<string | null>(initialSkillFacet ?? null)
-  const [local, setLocal] = useState<Omit<FeedFilters, "roleDomain">>({
-    sort: initialFilters?.sort ?? pickDefaultSort(hasCv, hasTargetRoles),
-    minSkillMatches: initialFilters?.minSkillMatches ?? 0,
-    followingOnly: initialFilters?.followingOnly ?? false,
-    includeStretch: initialFilters?.includeStretch ?? false,
-  })
+  const [local, setLocal] = useState<Omit<FeedFilters, "roleDomain">>(
+    () => localFilters(initialFilters, pickDefaultSort(hasCv, hasTargetRoles)),
+  )
   const [openJob, setOpenJob] = useState<JobFeedItem | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [intentOpen, setIntentOpen] = useState(false)
@@ -106,35 +104,32 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   }, [initialSkillFacet])
 
   useEffect(() => {
-    setLocal({
-      sort: initialFilters?.sort ?? pickDefaultSort(hasCv, hasTargetRoles),
-      minSkillMatches: initialFilters?.minSkillMatches ?? 0,
-      followingOnly: initialFilters?.followingOnly ?? false,
-      includeStretch: initialFilters?.includeStretch ?? false,
-    })
-  }, [initialFilters?.sort, initialFilters?.minSkillMatches, initialFilters?.followingOnly, initialFilters?.includeStretch, hasCv, hasTargetRoles])
+    setLocal(localFilters(initialFilters, pickDefaultSort(hasCv, hasTargetRoles)))
+  }, [initialFilters, hasCv, hasTargetRoles])
 
   const filters: FeedFilters = useMemo(() => ({ ...local, roleDomain: selectedCluster }), [local, selectedCluster])
 
   const onChangeFilters = useCallback((f: FeedFilters) => {
     if (f.roleDomain !== selectedCluster && !onFiltersChange) onSelectCluster(f.roleDomain)
-    setLocal({
-      sort: f.sort, minSkillMatches: f.minSkillMatches, followingOnly: f.followingOnly, includeStretch: f.includeStretch,
-    })
+    setLocal(localFilters(f, f.sort))
     onFiltersChange?.(f)
   }, [selectedCluster, onSelectCluster, onFiltersChange])
 
-  const { feed, allJobs, total, rankedCount, warming, expansionDividers, triage, undo, pending, savedCount } =
+  const { feed, allJobs, visibleJobs, total, rankedCount, loading, expansionDividers, triage, undo, pending, savedCount } =
     useJobFeed({ token, filters, q, skill: skillFacet, targetLocations })
 
   // The brain's picks sit at the top; a quiet divider marks where the ranked
   // shortlist ends and the deterministic browse feed begins (so the verdicts
-  // stopping reads as intentional, not a glitch).
+  // stopping reads as intentional, not a glitch). Counted over the SURVIVING
+  // shortlist — a view filter that hides two picks must move the divider up two,
+  // not point at whatever now sits at that index.
   const picksDivider = useMemo(() => {
-    if (rankedCount <= 0 || allJobs.length <= rankedCount) return []
+    if (rankedCount <= 0) return []
+    const visibleRanked = applyViewFilters(allJobs.slice(0, rankedCount), filters).length
+    if (visibleJobs.length <= visibleRanked) return []
     const loc = targetLocations.find(l => l && l.trim())?.trim()
-    return [{ beforeJobId: allJobs[rankedCount].job_id, label: loc ? `More roles in ${loc}` : "More roles" }]
-  }, [rankedCount, allJobs, targetLocations])
+    return [{ beforeJobId: visibleJobs[visibleRanked].job_id, label: loc ? `More roles in ${loc}` : "More roles" }]
+  }, [rankedCount, allJobs, visibleJobs, filters, targetLocations])
 
   // Honest weak-shortlist header (Q7): when the engineer's picks are all stretches,
   // say so and point at the path — never fake a strong.
@@ -144,7 +139,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   )
 
   // One batched pulse request for the visible feed (not one-per-card).
-  const pulses = usePulses(token, allJobs.map(j => j.job_id))
+  const pulses = usePulses(token, visibleJobs.map(j => j.job_id))
 
   const sentinelRef = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
@@ -158,22 +153,30 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   }, [feed])
 
   const intel = useMarketIntel(targetLocations, "roles", analyticsEnabled)
+  const storyCity = targetLocations.find(l => l && l.trim())?.trim() ?? null
+  const { skills: demandSkills } = useSkillDemand(storyCity, "30d", analyticsEnabled, 1)
   const stories = useMemo<FeedStory[]>(() => {
     const out: FeedStory[] = []
-    const topSkill = intel.movers.find(m => m.needsUpgrade) ?? intel.movers[0]
+    const topSkill = demandSkills[0]
     if (hasCv && topSkill) {
-      out.push({ kind: "skill", skill: topSkill.skill, display: topSkill.display, jobCount: topSkill.jobCount, level: topSkill.level, needsUpgrade: topSkill.needsUpgrade })
+      out.push({
+        kind: "skill",
+        skill: topSkill.skill,
+        roles: topSkill.roles,
+        companies: topSkill.companies,
+        city: storyCity,
+      })
     }
     const topCo = intel.trending[0]
     if (topCo) {
       out.push({ kind: "company", company: topCo.name, openCount: topCo.openCount, location: targetLocations.find(l => l && l.trim())?.trim() ?? null, followed: followedNames.includes(topCo.name) })
     }
     return out
-  }, [intel.movers, intel.trending, hasCv, followedNames, targetLocations])
+  }, [demandSkills, intel.trending, hasCv, followedNames, targetLocations, storyCity])
 
   const rows = useMemo(
-    () => interleaveStories(allJobs, stories, [...picksDivider, ...expansionDividers]),
-    [allJobs, stories, picksDivider, expansionDividers],
+    () => interleaveStories(visibleJobs, stories, [...picksDivider, ...expansionDividers]),
+    [visibleJobs, stories, picksDivider, expansionDividers],
   )
 
   const onSeeRoles = useCallback((query: string) => {
@@ -203,7 +206,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     else onSeeRoles(s.company)
   }, [router, onSeeRoles])
   const onStorySecondary = useCallback((s: FeedStory) => {
-    if (s.kind === "skill") onFilterSkill(s.display)
+    if (s.kind === "skill") onFilterSkill(s.skill)
     else if (s.company) onToggleFollow(s.company)
   }, [onFilterSkill, onToggleFollow])
 
@@ -213,9 +216,8 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   const onSkip = (j: JobFeedItem) => triage(j, "skipped")
 
   const railProps = {
-    token, targetLocations, total, feed: allJobs, pulses, cvReady: hasCv,
-    onSeeRoles, onFilterSkill, onOpenJob: setOpenJob,
-    loading: feed.isLoading, analyticsEnabled,
+    token, targetLocations, feed: allJobs, pulses, cvReady: hasCv,
+    onSeeRoles, onFilterSkill, onOpenJob: setOpenJob, analyticsEnabled,
   }
 
   return (
@@ -284,9 +286,9 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
         ) : null}
 
         <div style={{ marginTop: 8 }}>
-          {feed.isLoading || warming ? (
+          {loading ? (
             <FeedSkeleton summary />
-          ) : allJobs.length === 0 ? (
+          ) : visibleJobs.length === 0 ? (
             <EmptyHandoff savedCount={savedCount} onBuild={() => router.push("/collections")} onClear={clearBrowse} onTellMyro={() => setIntentOpen(true)} />
           ) : (
             <>

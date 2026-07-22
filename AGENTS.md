@@ -204,6 +204,40 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
    - **Matching engine** — replace demo shortlist math with backend CV↔JD scoring, evidence extraction, and top-3/top-4 recruiter handoff logic.
    - **Go-live rule** — do not pick this up again as “frontend polish.” Next pickup should be a full-stack B2B PRD / plan with DB, API, auth, and ranking scope agreed first.
 
+15. **Learning Ladder content foundation (important product backlog, order TBD 2026-07-22):** Expand the ladder before Myro assigns users skills to learn. The live bank snapshot is 450 active questions across 9 skills; the useful coverage target is roughly 50–60 skills × five levels × 10–12 questions per level.
+   - **Coverage gate:** do not present personalized skill assignments as comprehensive until the agreed 50–60-skill curriculum has servable L1–L5 coverage. Pick the curriculum from the canonical taxonomy plus verified market demand, then publish coverage explicitly.
+   - **Trusted sourcing:** maintain a per-skill source allowlist (official vendor documentation, standards bodies, authoritative textbooks/open course material, and other reviewed primary references). Preserve source URL, provenance, license posture, reviewer, and verification date; never serve unreviewed generated questions.
+   - **Explanation contract:** the existing backend/UI `explanation` plumbing is present, but content must explain why the correct choice is correct, why each distractor is wrong, and which trusted source supports the reasoning. A generic one-line answer is not sufficient.
+   - **Publication workflow:** ingest candidates → normalize/dedupe → assign L1–L5 → generate answer/distractor rationales → human review → publish an immutable content edition. Retire or correct a question without rewriting prior attempt history.
+   - **Learning loop after coverage:** durable Learning Tracks, daily assignments, spaced repetition, and progress explanations come after the publication gate. Fold the earlier skill-truth concern into this work: ladder progress stays an assessed-learning signal and must not silently change CV-based matching before that product contract is agreed.
+
+16. **Production read capacity and speed (important performance backlog, order TBD 2026-07-22):** Preserve speed as a first-class product requirement after the perceived-speed frontend work. The remaining problem is backend queueing under concurrent reads, not cosmetic loading states.
+   - **Known evidence:** a real browsing burst made many otherwise-successful endpoints complete together after roughly 5–6 seconds, while `/jobs/analytics` reached 22–25 seconds. CPU stayed nearly idle, pointing to blocked AnyIO/Supabase connection capacity rather than compute saturation.
+   - **Measure first:** establish reproducible concurrent-load tests for login bootstrap, company browsing, and expensive analytics; capture p50/p95/p99 plus threadpool, HTTP connection-pool, Supabase pooler, and database wait signals.
+   - **Fix order:** verify the Supabase pooler ceiling before raising application pools; then remove hot synchronous reads from the AnyIO threadpool and tune bounded pools. Add a replica only if measurements show capacity still requires it.
+   - **Regression contract:** `/jobs/analytics` remains off the login path, a company-browsing burst must not stall unrelated identity/score/feed reads, and saturation must page through a real alert destination.
+   - **Not a route-by-route patch:** solve the shared read-capacity seam and publish an operational runbook/SLO. Do not add isolated endpoint workarounds that hide queueing.
+
+---
+
+## CLOSED — BACKLOG #14 CAREER OPS × LISTING-VERIFIER PARITY (2026-07-22)
+
+- `santifer/career-ops` remains the one matching brain; the existing Supabase
+  verifier remains the one liveness authority. No verifier, schema, or worker
+  was added.
+- Skill and role candidate selectors now admit only verifier-active listings
+  (`is_active = TRUE`, `listing_confidence = 'active'`). Scraper `last_seen`
+  never ages a verified-live listing out; role candidates are ordered by
+  `last_verified_live_at`.
+- `closed`, `likely_closed`, and `uncertain` remain outside recommendations.
+  The live confidence-agnostic verifier queue continues to recheck the corpus,
+  reserving priority for tracked, shown, and matched jobs.
+- Agent Picks now rejects Career Ops' real `suspicious` legitimacy verdict and
+  preserves the legacy `scam | ghost | spam` deny-list for historical rows.
+- The Apply contract is unchanged: only an explicit closed verdict blocks the
+  handoff. Live read-only verification found 1,030 verifier-active listings with
+  pre-July scraper markers that the removed age gate would have hidden.
+
 ---
 
 ## INTEGRATOR ITEMS
@@ -306,7 +340,69 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-20 - trusted CV skills and first-success loop)
+## LAST SESSION SUMMARY (2026-07-22 - Career Ops verifier parity)
+
+Closed backlog #14 without changing the frontend, Apply semantics, database
+schema, or live verifier infrastructure.
+
+- Career Ops skill and role candidate selectors now trust the durable verifier
+  state (`is_active = TRUE`, `listing_confidence = 'active'`) instead of aging
+  listings out on the scraper-owned `last_seen` marker.
+- Role candidates are ordered by `last_verified_live_at`, so the consumer uses
+  verifier freshness without turning it into a second liveness model.
+- Agent Picks now blocks Career Ops' actual `suspicious` legitimacy verdict and
+  retains the legacy `scam | ghost | spam` exclusions for historical match rows.
+- Regression tests cover old-scraper-marker-but-verifier-active listings through
+  both public candidate interfaces, untrusted verifier states, and the exact
+  `suspicious` Agent Picks vocabulary mismatch.
+- Live read-only Supabase validation found 9,818 recommendable listings, including
+  1,030 with pre-July scraper markers that the old gate would have hidden. The
+  existing verifier continued producing durable observations; no new queue or
+  liveness system was introduced.
+- Updated `CLAUDE.md` and this cockpit so #14 is closed; Learning Ladder #15 and
+  production read capacity #16 remain the next open reconciled items.
+
+Validation: 1,540 backend tests passed; focused trust/matching/verifier suite 85
+passed; Ruff, TypeScript, Next lint, live role-selector query, and
+`git diff --check` passed.
+
+---
+
+## OLDER SESSION SUMMARY (2026-07-22 - CV output guard and beta backlog reconciliation)
+
+Closed the backend-only feedback #115 regression without touching the concurrent
+frontend work.
+
+- CV rewrite finalization now rejects unresolved `<rewrite>` / `<reason>` template
+  tokens before a suggestion can reach the candidate. The same guard covers the
+  single-rewrite, three-variant, and keyword-weave paths.
+- The three-variant prompt no longer seeds literal placeholder tokens. Tagged
+  responses containing unfinished template text are filtered, and an all-invalid
+  response keeps the original instead of publishing model scaffolding.
+- Added public-interface regression coverage for both the single and variant
+  paths. The tests failed against the prior behavior, then passed with the shared
+  output guard.
+- Reconciled the beta feedback against current `CLAUDE.md`, this cockpit, ADRs,
+  upstream `santifer/career-ops`, live Supabase state, and Develop history.
+  Search/filter work is closed by today's shared FilterSpec rollout. The old
+  `last_seen` freshness gate is superseded because scraper re-observation is
+  absent.
+- Added canonical backlog #14–#16: Career Ops × existing-verifier parity, the
+  50–60-skill Learning Ladder content foundation, and production read capacity.
+  The earlier standalone skill-truth proposal is now a constraint inside the
+  learning work, not a separate epic.
+- Live read-only snapshot: the verifier recorded 44,088 observations in 24h,
+  including 21,148 productive verdicts; the question bank has 450 active
+  questions across 9 skills. All rows have the existing explanation field, but
+  150 lack source URLs and the explanation quality/publication contract remains
+  open.
+
+Validation: 1537 backend tests passed; focused CV rewrite suite 36 passed; Ruff,
+TypeScript, Next lint, and `git diff --check` passed.
+
+---
+
+## OLDER SESSION SUMMARY (2026-07-20 - trusted CV skills and first-success loop)
 
 Closed the first three Harshada/Hetvi trust actions without touching the
 landing-page or tutorial-video work.

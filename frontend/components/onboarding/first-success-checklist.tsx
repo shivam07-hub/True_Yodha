@@ -29,13 +29,13 @@ export function FirstSuccessChecklist({ token }: { token: string }) {
   const completed = data.items.filter((item) => item.done).length
 
   return (
-    <section className="mb-5 rounded-md border border-[var(--tm-border)] bg-[var(--tm-surface)] p-4" aria-labelledby="first-loop-title">
+    <section className="mb-5 rounded-md border border-[var(--tm-border)] bg-[var(--tm-surface)] p-4" aria-labelledby="first-setup-title">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 id="first-loop-title" className="text-sm font-semibold text-[var(--tm-text)]">Your first Myro loop</h2>
+          <h2 id="first-setup-title" className="text-sm font-semibold text-[var(--tm-text)]">Get set up</h2>
           <p className="mt-1 text-xs tabular-nums text-[var(--tm-text-muted)]">{completed} of {data.items.length} complete</p>
         </div>
-        <button type="button" onClick={() => dismiss.mutate()} disabled={dismiss.isPending} className="tm-control-focus flex size-10 items-center justify-center rounded text-[var(--tm-text-muted)] hover:text-[var(--tm-text)] disabled:opacity-50" aria-label="Dismiss first Myro loop">
+        <button type="button" onClick={() => dismiss.mutate()} disabled={dismiss.isPending} className="tm-control-focus flex size-10 items-center justify-center rounded text-[var(--tm-text-muted)] hover:text-[var(--tm-text)] disabled:opacity-50" aria-label="Dismiss setup checklist">
           <X className="size-4" aria-hidden="true" />
         </button>
       </div>

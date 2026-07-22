@@ -92,7 +92,11 @@ export function MissionHeroRail({ token }: { token: string | null }) {
     () => formatDate(new Date(), "weekday"),
     [],
   )
-  const dateLine = [dayStr, profile?.target_location].filter(Boolean).join(" · ")
+  // Date only. Location belongs to the feed's Location chip — the ONE place it
+  // is stated and the only place it can be changed. Stating it here as well
+  // also under-reported scope: this read `target_location` (first city) while
+  // the feed is scoped to all target locations ("Gurugram +1").
+  const dateLine = dayStr
   const activeTargets = apps.filter((a) =>
     ["saved", "applied", "interviewing"].includes(a.status),
   ).length

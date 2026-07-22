@@ -33,7 +33,11 @@ export function CommandRail({
 }: CommandRailProps) {
   const [open, setOpen] = useState(false)
   const canExplain = score > 0 && Object.keys(domainScores).length > 0
-  const targets = `${activeTargets} active target${activeTargets === 1 ? "" : "s"}`
+  // Names the surface it lives on, not an abstraction. "active targets" read as
+  // a third unexplained number beside the feed's "N roles" — and "target"
+  // already means target role / target location elsewhere. This counts the jobs
+  // in Collections (saved + applied + interviewing), so say that.
+  const targets = `${activeTargets} in Collections`
 
   return (
     <div className="mc-rail cmd-rail">

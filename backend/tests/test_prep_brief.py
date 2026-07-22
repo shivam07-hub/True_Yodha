@@ -13,7 +13,7 @@ from app.repositories.cv import get_token_cv_repository
 from app.repositories.jobs import get_token_jobs_repository
 from app.services import jd_coverage, prep_brief, xp_policy, xp_service
 from app.services.jd_coverage import CoverageItem
-from app.services.llm_provider import get_llm_provider
+from app.services.llm_provider import get_blocking_judgment_provider
 
 
 class _StubProvider:
@@ -145,7 +145,7 @@ def _client(repo: _FakeRepo, provider: _StubProvider) -> TestClient:
     app.dependency_overrides[get_principal] = lambda: Principal(id="u1", email="t@e.com")
     app.dependency_overrides[get_token_jobs_repository] = lambda: repo
     app.dependency_overrides[get_token_cv_repository] = lambda: _FakeCVRepo()
-    app.dependency_overrides[get_llm_provider] = lambda: provider
+    app.dependency_overrides[get_blocking_judgment_provider] = lambda: provider
     return TestClient(app)
 
 

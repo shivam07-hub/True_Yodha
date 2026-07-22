@@ -68,6 +68,17 @@ def test_drops_junk_legitimacy_and_inactive_jobs() -> None:
     assert [p["job_id"] for p in picks] == ["good"]
 
 
+def test_drops_career_ops_suspicious_legitimacy_verdict() -> None:
+    stack = [
+        _row("good", score=4.5, tier="high_confidence"),
+        _row("suspicious", score=4.9, tier="suspicious"),
+    ]
+
+    picks = agent_picks.select_agent_picks(stack)
+
+    assert [p["job_id"] for p in picks] == ["good"]
+
+
 def test_no_fabrication_drops_pick_without_summary() -> None:
     stack = [
         _row("has_why", score=4.2),

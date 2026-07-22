@@ -402,6 +402,39 @@
 /* drill embed wraps the up-* quiz kit — give it breathing room only */
 .prp-drill-wrap { margin-top: 4px; }
 
+/* the floor: full JD, collapsible, always present — the resilient fallback
+   when the LLM-derived surfaces above can't parse */
+.prp-jd {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--tm-border-soft);
+}
+.prp-jd-summary {
+  font-family: var(--tm-font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+  cursor: pointer;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.prp-jd-summary::-webkit-details-marker { display: none; }
+.prp-jd-summary::before { content: "▸"; font-size: 9px; }
+.prp-jd[open] .prp-jd-summary::before { content: "▾"; }
+.prp-jd-summary:hover { color: var(--tm-text-muted); }
+.prp-jd-body {
+  margin-top: 12px;
+  max-height: 460px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--tm-text-muted);
+}
+
 @media (max-width: 640px) {
   .prp-page { padding: 18px 14px 96px; }
   .prp-room-role { font-size: 17px; }

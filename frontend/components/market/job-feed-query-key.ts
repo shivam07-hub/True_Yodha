@@ -21,6 +21,9 @@ export function jobFeedQueryKey({
   skill: string | null
   targetLocations: string[]
 }) {
+  // Only SERVER filters key the query. `hideLowConfidence` is view-scope
+  // (applied to the fetched page in `applyViewFilters`), so toggling it must
+  // not evict the cache and re-fetch.
   return [
     "jobFeed",
     token,
@@ -32,5 +35,6 @@ export function jobFeedQueryKey({
     filters.minSkillMatches,
     filters.followingOnly,
     filters.includeStretch,
+    filters.locationMode ?? "",
   ] as const
 }

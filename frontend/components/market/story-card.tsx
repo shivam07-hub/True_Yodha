@@ -9,7 +9,12 @@ import "./market-intel.css"
  * and routes via an EXISTING action (track skill · see roles), never a new one.
  */
 export type FeedStory =
-  | { kind: "skill"; skill: string; display: string; jobCount: number; level: number; needsUpgrade: boolean }
+  /** `roles` is live listings in `city`, `companies` the distinct employers
+   *  behind them — market-wide, not the viewer's matches. The previous shape
+   *  carried a CV `level` that was hard-coded to 0 for every viewer, so the card
+   *  told everyone "You're at L0"; a fact we don't have here is now absent
+   *  rather than invented. */
+  | { kind: "skill"; skill: string; roles: number; companies: number; city: string | null }
   | { kind: "company"; company: string; openCount: number; location: string | null; followed: boolean }
 
 export function StoryCard({
@@ -21,19 +26,18 @@ export function StoryCard({
 }) {
   if (story.kind === "skill") {
     return (
-      <article className="mi-story" aria-label={`Skill in demand: ${story.display}`}>
+      <article className="mi-story" aria-label={`Skill in demand: ${story.skill}`}>
         <div className="mi-story-kicker">Skill in demand</div>
         <h3 className="mi-story-h">
-          <span className="mi-accent">{story.display}</span> — {story.jobCount} of your matched roles want it
+          <span className="mi-accent">{story.skill}</span> — {story.roles} open role
+          {story.roles === 1 ? "" : "s"}{story.city ? ` in ${story.city}` : ""} want it
         </h3>
         <p className="mi-story-p">
-          {story.needsUpgrade
-            ? `You're at L${story.level}. Closing this gap lifts your fit across the board.`
-            : `You're at L${story.level} — keep it sharp as demand climbs.`}
+          Across {story.companies} employer{story.companies === 1 ? "" : "s"} hiring right now.
         </p>
         <div className="mi-story-cta">
           <button type="button" className="mi-go" onClick={onPrimary}>Track skill →</button>
-          <button type="button" className="mi-quiet" onClick={onSecondary}>see {story.jobCount} roles</button>
+          <button type="button" className="mi-quiet" onClick={onSecondary}>see {story.roles} roles</button>
         </div>
       </article>
     )

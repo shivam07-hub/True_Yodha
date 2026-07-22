@@ -3,14 +3,15 @@
 import type { ReactNode } from "react"
 import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
-import { Target, TrendingUp, Building2, ArrowRight, Check, Coins } from "lucide-react"
-import { jobs as jobsApi, users as usersApi } from "@/lib/api"
+import { Target, TrendingUp, Building2, ArrowRight } from "lucide-react"
+import { jobs as jobsApi, users as usersApi, scores, diary, upskilling } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useScoreMapData } from "@/lib/hooks/use-score-map-data"
 import { buildScoreMap, buildScoreMapHref } from "@/lib/score-map"
 import { DomainRadar } from "@/components/skills/domain-radar"
 import { CompanySignalChip } from "@/components/companies/company-signal"
-import type { LoopStep } from "./loop-ring"
+import { computeStreakFromDates, type DiaryEntry } from "@/lib/forge-helpers"
+import { LoopRing, type LoopStep } from "./loop-ring"
 
 /**
  * The four glanceable surfaces that fill the desktop workspace's right zone and
@@ -22,7 +23,7 @@ import type { LoopStep } from "./loop-ring"
 export function PeekSurfaces({ token, steps }: { token: string; steps: LoopStep[] }) {
   return (
     <>
-      <MissionsCard steps={steps} />
+      <MissionsCard token={token} steps={steps} />
       <FollowedCard token={token} />
     </>
   )
@@ -38,8 +39,8 @@ function PeekCard({
 }: {
   icon: ReactNode
   title: string
-  href: string
-  hrefLabel: string
+  href?: string
+  hrefLabel?: string
   children: ReactNode
 }) {
   return (
@@ -49,49 +50,48 @@ function PeekCard({
         <h3 className="mc-peek-title">{title}</h3>
       </header>
       <div className="mc-peek-body">{children}</div>
-      <Link href={href} className="mc-peek-link tm-control-focus">
-        {hrefLabel} <ArrowRight size={13} aria-hidden />
-      </Link>
+      {href ? (
+        <Link href={href} className="mc-peek-link tm-control-focus">
+          {hrefLabel} <ArrowRight size={13} aria-hidden />
+        </Link>
+      ) : null}
     </section>
   )
 }
 
-/* ── 1 · Today's missions (from the daily-loop steps) ───────────── */
-function MissionsCard({ steps }: { steps: LoopStep[] }) {
-  const open = steps.filter((s) => !s.done)
-  const done = steps.length - open.length
+/* ── 1 · Today's loop — the same Apple-Activity-style ring the home hero
+ * used, moved here so it reads as a closing loop (five segments) instead of a
+ * flat checklist. Self-fetches score/streak/sessions like its rail siblings;
+ * the ring's own nudge line already names the next open step, so this card
+ * skips the generic footer link the other peek cards carry. */
+function MissionsCard({ token, steps }: { token: string; steps: LoopStep[] }) {
+  const { data: scoreData } = useQuery({
+    queryKey: dataKeys.scores(),
+    queryFn: () => scores.me(token),
+    enabled: !!token,
+    staleTime: 5 * 60 * 1000,
+  })
+  const { data: history } = useQuery({
+    queryKey: dataKeys.diary(),
+    queryFn: () => diary.history(token),
+    enabled: !!token,
+  })
+  const { data: activity } = useQuery({
+    queryKey: ["practice-activity-dates", token],
+    queryFn: () => upskilling.activityDates(token),
+    enabled: !!token,
+    staleTime: 5 * 60 * 1000,
+  })
+  const entries = (history?.entries ?? []) as DiaryEntry[]
   return (
-    <PeekCard icon={<Target size={15} />} title="Today's missions" href="/forge" hrefLabel="Open practice yard">
-      <div className="mc-peek-progress">
-        <span className="mc-peek-prog-num">{done}/{steps.length}</span>
-        <span className="mc-peek-prog-track"><span className="fill" style={{ width: `${steps.length ? (done / steps.length) * 100 : 0}%` }} /></span>
-      </div>
-      <ul className="mc-peek-list">
-        {steps.slice(0, 4).map((s) =>
-          s.done ? (
-            <li key={s.label} className="mc-peek-row is-done">
-              <Check size={13} aria-hidden /> <span>{s.label}</span>
-            </li>
-          ) : s.href ? (
-            <li key={s.label}>
-              <Link href={s.href} className="mc-peek-row is-open tm-control-focus">
-                <span className="dot" aria-hidden /> <span>{s.label}</span>
-                {s.reward ? (
-                  <span className="mc-peek-reward"><Coins size={11} aria-hidden /> {s.reward}</span>
-                ) : null}
-                <ArrowRight size={12} aria-hidden className="go" />
-              </Link>
-            </li>
-          ) : (
-            <li key={s.label} className="mc-peek-row is-open">
-              <span className="dot" aria-hidden /> <span>{s.label}</span>
-              {s.reward ? (
-                <span className="mc-peek-reward"><Coins size={11} aria-hidden /> {s.reward}</span>
-              ) : null}
-            </li>
-          ),
-        )}
-      </ul>
+    <PeekCard icon={<Target size={15} />} title="Today's loop">
+      <LoopRing
+        score={Math.round(scoreData?.total_score ?? 0)}
+        scoreDelta={0}
+        streak={computeStreakFromDates(activity?.dates ?? [])}
+        sessions={entries.length}
+        steps={steps}
+      />
     </PeekCard>
   )
 }
