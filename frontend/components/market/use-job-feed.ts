@@ -149,6 +149,14 @@ export function useJobFeed({
   // that filtered locally is how desktop and mobile drifted apart).
   const visibleJobs = useMemo(() => applyViewFilters(allJobs, filters), [allJobs, filters])
   const total = Math.max(0, ...(feed.data?.pages.map((page) => page.available_total) ?? [0]))
+  // Loading = the brain is still warming OR the feed query is enabled but has
+  // not produced a first result yet. `warming` alone misses the enable-transition
+  // window: the tick where warm has resolved (warming→false) but the infinite
+  // query, only just enabled, hasn't started fetching — the gap that flashed the
+  // "Feed clear" empty state before the first cards arrived. On "Newest" there is
+  // no warm phase, so this is the ONLY thing that keeps the skeleton up.
+  const feedSettled = feed.isSuccess || feed.isError
+  const loading = warming || (!!token && brainReady && !feedSettled)
   // How many leading cards the brain ranked (page 1 only — the shortlist lives at
   // the top of the feed). The feed draws its "more roles" divider after this many.
   const rankedCount = feed.data?.pages[0]?.ranked_count ?? 0
@@ -214,5 +222,5 @@ export function useJobFeed({
 
   useEffect(() => clearUndoTimer, [clearUndoTimer])
 
-  return { feed, allJobs, visibleJobs, total, rankedCount, warming, expansionDividers, triage, undo, pending, commitPending, savedCount }
+  return { feed, allJobs, visibleJobs, total, rankedCount, warming, loading, expansionDividers, triage, undo, pending, commitPending, savedCount }
 }

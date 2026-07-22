@@ -74,7 +74,7 @@ export function JobsSurface({
     setShowSwipeHint(true)
   }, [])
 
-  const { allJobs, visibleJobs, total, warming, triage, undo } =
+  const { allJobs, visibleJobs, total, loading, triage, undo } =
     useJobFeed({ token, filters, q: searchQ, skill: null, targetLocations })
   const filterCount = activeFilterCount(filters)
 
@@ -96,7 +96,11 @@ export function JobsSurface({
   })
 
   const locationLabel = targetLocations.find(l => l && l.trim())?.trim() ?? ""
-  const countLine = `${rows.length} of ${total || rows.length} live${locationLabel ? ` · ${locationLabel}` : ""}`
+  // While loading the counts are 0 — don't paint a false "0 of 0 live" that the
+  // arriving feed immediately contradicts. Show the location alone until settled.
+  const countLine = loading
+    ? locationLabel
+    : `${rows.length} of ${total || rows.length} live${locationLabel ? ` · ${locationLabel}` : ""}`
 
   const doSave = (job: JobFeedItem, fromSheet?: boolean) => {
     setShowSwipeHint(false)
@@ -186,7 +190,7 @@ export function JobsSurface({
         ) : null}
         {eyeOn ? (
           <HiddenView token={token} snack={snack} />
-        ) : warming && rows.length === 0 ? (
+        ) : loading ? (
           <FeedSkeleton />
         ) : rows.length === 0 ? (
           <div style={{ textAlign: "center", padding: "44px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>

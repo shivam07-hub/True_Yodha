@@ -115,7 +115,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     onFiltersChange?.(f)
   }, [selectedCluster, onSelectCluster, onFiltersChange])
 
-  const { feed, allJobs, visibleJobs, total, rankedCount, warming, expansionDividers, triage, undo, pending, savedCount } =
+  const { feed, allJobs, visibleJobs, total, rankedCount, loading, expansionDividers, triage, undo, pending, savedCount } =
     useJobFeed({ token, filters, q, skill: skillFacet, targetLocations })
 
   // The brain's picks sit at the top; a quiet divider marks where the ranked
@@ -286,7 +286,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
         ) : null}
 
         <div style={{ marginTop: 8 }}>
-          {feed.isLoading || warming ? (
+          {loading ? (
             <FeedSkeleton summary />
           ) : visibleJobs.length === 0 ? (
             <EmptyHandoff savedCount={savedCount} onBuild={() => router.push("/collections")} onClear={clearBrowse} onTellMyro={() => setIntentOpen(true)} />
