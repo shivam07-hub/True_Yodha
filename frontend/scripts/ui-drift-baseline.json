@@ -1,6 +1,6 @@
 {
-  "navUsesCanonicalClass": 4,
-  "jsHoverStyleMutation": 66,
+  "publicNavDelegatesAuthedStrip": 2,
+  "jsHoverStyleMutation": 64,
   "handRolledModalScrim": 22,
   "handRolledPill": 75,
   "readingTextInFaintToken": 40,

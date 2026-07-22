@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation"
 import { XPGateModal } from "@/components/xp/XPGateModal"
 import { CVUploadLifecycleObserver } from "@/components/cv/cv-upload-lifecycle-observer"
 import { XpExplainerModal } from "@/components/xp/xp-explainer-modal"
-import { WebChrome } from "@/components/shell/web-chrome"
+import { AuthedTopStrip } from "@/components/shell/authed-top-strip"
 import { FeedbackHub } from "@/components/feedback"
 import { skeletonForPath } from "@/components/loading/page-skeletons"
 import { useShellModel } from "@/lib/shell/use-shell-model"
@@ -57,12 +57,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {isDesktop && (
         <>
-          <WebChrome
-            xpBalance={m.xpBalance}
-            profile={m.profile}
-            signOut={m.signOut}
-            onXPOpen={() => m.setXPModalOpen(true)}
-          />
+          {/* The ONE logged-in strip — the SAME component the public bar's
+              authed branch mounts (components/public/top-nav). AppShell already
+              hosts the FeedbackHub below, so the strip doesn't re-mount it. */}
+          <AuthedTopStrip model={m} mountFeedbackHub={false} />
           {/* The Loop Bar strip is gone (unified-structure S1): the loop lives in
               the nav itself — journey-ordered tabs + live counts + score chip. */}
         </>

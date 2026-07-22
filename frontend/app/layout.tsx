@@ -3,10 +3,9 @@ import { Inter, Space_Grotesk, Newsreader } from "next/font/google"
 import Script from "next/script"
 import { Providers } from "@/components/providers"
 import "./globals.css"
-// Progressive-nav chrome (beta badge and live dot). Disjoint from globals.css's topbar rules — loaded
-// globally here because it renders on both the authed shell (web-chrome) and the
-// public bar's authed view (top-nav). The import was lost in the repo reshuffle,
-// leaving these classes unstyled in production until restored.
+// Progressive-nav chrome (Myro wordmark, journey tabs/counts, live dot). Disjoint
+// from globals.css's topbar rules — loaded globally here because the shared
+// AuthedTopStrip renders on both the app shell and the public bar's authed view.
 import "@/components/nav/nav.css"
 
 // Space Grotesk is the core UI family site-wide (--tm-font-sans). Inter is kept
