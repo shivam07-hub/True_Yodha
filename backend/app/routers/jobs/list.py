@@ -41,7 +41,12 @@ from app.schemas.jobs import (
     MatchEval,
     SkillHeatmapResponse,
 )
-from app.schemas.company_pulse import CompanyPulseItem, CompanyPulseResponse
+from app.schemas.company_pulse import (
+    CompanyPulseItem,
+    CompanyPulseResponse,
+    IndexableCompaniesResponse,
+    IndexableCompanyItem,
+)
 from app.schemas.company_gap_signals import CompanyGapSignalItem, CompanyGapSignalsResponse
 
 logger = logging.getLogger(__name__)
@@ -156,6 +161,21 @@ def get_company_pulse(
         return CompanyPulseResponse(companies=[])
     rows = repo.fetch_company_pulse(names)
     return CompanyPulseResponse(companies=[CompanyPulseItem(**r) for r in rows])
+
+
+@router.get("/companies/indexable", response_model=IndexableCompaniesResponse)
+def get_indexable_companies(
+    repo: JobsRepository = Depends(get_public_jobs_repository),
+) -> IndexableCompaniesResponse:
+    """Companies whose detail page renders real content (>=1 live listing) — the
+    SEO-indexing allowlist the sitemap reads (Fix 1, 2026-07-23 GSC report). A
+    company with only delisted/unverified rows is a thin page Google crawls then
+    drops; emitting only these keeps the sitemap honest and protects crawl
+    budget. Public, cached 1h. Never 500s — degrades to the last good result."""
+    rows = repo.fetch_indexable_companies()
+    return IndexableCompaniesResponse(
+        companies=[IndexableCompanyItem(**r) for r in rows]
+    )
 
 
 @router.get("/companies/gap-signals", response_model=CompanyGapSignalsResponse)

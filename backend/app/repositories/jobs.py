@@ -66,6 +66,8 @@ _heatmap_row_cache: dict[tuple[str, frozenset[str]], tuple[float, dict[str, int]
 _pulse_cache: dict[frozenset[str], tuple[float, list[dict[str, Any]]]] = {}
 _gap_signal_cache: dict[tuple[frozenset[str], frozenset[str]], tuple[float, dict[str, dict[str, int]]]] = {}
 _PULSE_TTL = 30 * 60  # 30 min — pulse tracks daily scrape batches, not real-time
+_indexable_companies_cache: tuple[float, list[dict[str, Any]]] | None = None
+_INDEXABLE_TTL = 60 * 60  # 1 hour — matches the /companies page ISR window
 _skill_name_to_id_cache: dict[str, int] = {}  # display_name.lower() → skill_id; skills table is static
 _search_cache: dict[tuple[str, str, str | None, str | None, str | None, str | None, int, int], tuple[float, dict[str, Any]]] = {}
 _company_search_cache: dict[tuple[str, int], tuple[float, list[str]]] = {}
@@ -1316,6 +1318,46 @@ class JobsRepository:
             )
 
         _pulse_cache[cache_key] = (time.monotonic(), out)
+        return out
+
+    def fetch_indexable_companies(self) -> list[dict[str, Any]]:
+        """Companies whose /companies/{name} page renders real content — i.e.
+        has >=1 job passing the SAME live filter the detail page uses
+        (``is_active AND listing_confidence='active'``). This is the SEO-indexing
+        allowlist: the sitemap emits only these, and the detail page noindexes
+        itself when it falls out (see app/companies/[slug]/page.tsx). A company
+        with only delisted/unverified rows is a thin shell Google crawls then
+        drops as "Crawled - currently not indexed" — omitting it protects crawl
+        budget for the pages that earn indexing.
+
+        One paged scan of the ~10k live rows (single column), deduped to
+        distinct names with a role count, cached 1h (the page ISR window).
+        APIError → last good result or [] (never 500 the sitemap).
+        """
+        global _indexable_companies_cache
+        now = time.monotonic()
+        if _indexable_companies_cache is not None and (now - _indexable_companies_cache[0]) < _INDEXABLE_TTL:
+            return list(_indexable_companies_cache[1])
+        try:
+            rows = fetch_all_rows(
+                self._admin_db,
+                table="jobs",
+                columns="company_name",
+                query_builder=lambda q: q.eq("is_active", True).eq("listing_confidence", "active"),
+            )
+        except APIError:
+            return list(_indexable_companies_cache[1]) if _indexable_companies_cache else []
+
+        counts: dict[str, int] = {}
+        for r in rows:
+            name = (r.get("company_name") or "").strip()
+            if name:
+                counts[name] = counts.get(name, 0) + 1
+        out = [
+            {"name": name, "active_count": count}
+            for name, count in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0].casefold()))
+        ]
+        _indexable_companies_cache = (now, out)
         return out
 
     def fetch_skill_heatmap_row(
