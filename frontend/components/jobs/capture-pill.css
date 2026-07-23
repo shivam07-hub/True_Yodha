@@ -29,14 +29,19 @@
   gap: 5px;
 }
 
-/* ── rest: ★ Save (teal outline + wash → fills teal on hover/focus) ────────── */
+/* ── rest: ★ Save — QUIET (aligned teal-budget 2026-07-23) ────────────────────
+   On authed surfaces Save is secondary to Tailor (the primary CTA), so at rest
+   it is a neutral outline and reveals teal only on hover/focus. Teal stays
+   reserved for signal rings / active segment / the primary CTA. The signed-out
+   funnel below keeps teal-at-rest — there Save IS the primary action. */
 .tm-capture.is-rest {
-  border: 1px solid var(--tm-interactive);
-  background: var(--tm-int-bg-wash);
-  color: var(--tm-interactive);
+  border: 1px solid var(--tm-border);
+  background: transparent;
+  color: var(--tm-text);
 }
 .tm-capture.is-rest:hover,
 .tm-capture.is-rest:focus-visible {
+  border-color: var(--tm-interactive);
   background: var(--tm-interactive);
   color: var(--tm-interactive-fg, #fff);
 }
