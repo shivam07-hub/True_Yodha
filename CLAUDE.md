@@ -642,7 +642,23 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-07-21b · Backlog #41 perceived-speed contract — three-wave login + SWR identity + CV FOUC root-fix, 3 commits Develop)
+## LAST SESSION SUMMARY (2026-07-23 · Score & Skills page — evidence ladder + skill room + taxonomy provenance + domain-vocabulary bug, 7 commits Develop)
+
+Started as a `/frontend-design` critique of `/skills` (screenshots), then two grills (`/grill-me`) locked the build. Full arc: dark-page contrast/heading fix → skill room (Delta-4 provenance) → kill the domain-score triplication → a real cross-surface vocabulary bug found + fixed → Q7 (uncounted-domains-as-doors) closed. All 7 commits own-files-only; a concurrent Claude session was active in the same tree throughout (nav delegation refactor, CV loading, PWA work) — never touched their files, verified via `git status`/`git diff --stat` before every stage.
+
+- **`321644bf`+`332c3fa3`** — reading prose was set in `--tm-text-faint` (~4.3:1, fails AA on dark); moved to `--tm-reading-ink`/`muted`. Hero H1 wrapped at a random word → `text-wrap:balance`+`max-width:16ch`. New **ui-drift-guard metric `readingTextInFaintToken`** (baseline 40) so this class of bug can't regress silently — flags faint TEXT color co-occurring with ≥13px font, leaves micro-labels/decoration alone.
+- **`543f1790`+`41b8dc06`** — the skill room (`/skills?skill=`): named bracket (`proficiency_title` not `L2`), Lightcast `description`, **the verbatim CV line the level was read from** (the trust signature — falsifiable, unforgeable by a scorer without a taxonomy), + a **classification spine** (domain → cluster → skill, real scale at each rung, "you are here") sourced from a NEW structure-only `useTaxonomyContext` that reads just the 19K skeleton + 383K priority tiers (never the 4MB leaf index — opted out via the engine's existing `scheduleIdle` DI seam, zero engine changes).
+- **`3d378bac`** — CEO-named "same number 3×" resolved: bespoke domain grid deleted, `ScoreBreakdown` gained additive `variant="selector"` (same bars become the picker, mounted under the radar). Page now opens on the **biggest available lift** (highest `score_delta`), never lowest-score (was leading with the user's worst, least-informative number). Standalone "How the score is calculated" section removed; ring dropped its now-dishonest `aria-expanded`.
+- **`4cfcf618`** — real finding: **three domain vocabularies existed** (real 31 Tax-L1 names / a dead 10-code `DOMAIN_LABELS` scheme / the deliberate 10-bucket public-landing rollup). The "uncounted domains" tier iterated the DEAD one — rendered a fictional, coherent-looking list on **/forge and /market**, and the test suite was written in the same fake vocabulary so nothing caught it. Fixed with a verified-byte-exact `ALL_SCORE_DOMAINS`; capped the now-correctly-larger tier (8 + honest "+N more") since `/market`'s rail is explicitly compact.
+- **`450f27a6`** — Q7 closed: uncounted domains are now selectable doors → empty-state aside with the real cluster count (`domainClusterCount()`, same null-not-invented rule as everything else this session). Caught its own bug pre-ship (raw URL value stored instead of the canonical matched name) via its own test.
+
+Every commit: tsc 0 · eslint 0 · ui-drift clean · `next build` ✓ · model-test suite grew 0→40 across the session (skill-room/skill-placement/score-map/score-breakdown).
+
+**OWED (Shivam):** (1) **`main` merge** — all 7 commits ride Develop only. (2) **Authed browser QA, light+dark+375px** — genuinely unverified here (no test-account access): skill room's CV-line receipt shows the user's REAL line; classification spine shows real domain/cluster counts; selector bars pick correctly + radar highlights; uncounted-domain chips open the empty state; `/forge`+`/market` uncounted tier now shows real domain names capped at 8, not the old phantom SD/DE/AML set. (3) Decide whether `top_percent`/`band_percentile` wording ("ahead of N% of seniors") needs further tuning — flagged mid-session, not re-litigated since.
+
+---
+
+## OLDER SESSION SUMMARY (2026-07-21b · Backlog #41 perceived-speed contract — three-wave login + SWR identity + CV FOUC root-fix, 3 commits Develop)
 
 Closed out #41 L1/L2/L4 + delivered the Part-4 capacity recommendation (no code). Full detail sits in backlog **#41** above (updated this session). All own-files only; foreign `docs/free-llm-api-resources` left untracked.
 
