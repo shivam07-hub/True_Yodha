@@ -12,7 +12,10 @@ import type { PracticeSkills } from "@/lib/practice-skills"
 import { dataKeys, invalidateScoreMapData } from "@/lib/domain-data"
 import { mentorRewriteHref } from "@/lib/practice-mentor-handoff"
 import { useParticleMoment } from "@/components/particle"
-import { NextSetHero, SkillList } from "./upskilling-home"
+import type { SkillIntelStats } from "@/lib/skill-domains"
+import { ForgeContextBar } from "./forge-bar"
+import { MoveHero } from "./move-hero"
+import { ClimbList } from "./climb-list"
 import { GapReadiness } from "./gap-readiness"
 import { QuizRunner } from "./quiz-runner"
 import { Results } from "./results"
@@ -132,6 +135,13 @@ export function UpskillingView({
   onClearGap,
   onToast,
   onNavigate,
+  onBack,
+  totalScore,
+  band,
+  topPercent,
+  stats,
+  ninjaName,
+  roleTitles,
 }: {
   token: string
   practiceSkills: PracticeSkills
@@ -143,6 +153,15 @@ export function UpskillingView({
   onClearGap?: () => void
   onToast?: (msg: string) => void
   onNavigate: (href: string) => void
+  /** The Forge context bar's "‹ Back" affordance. */
+  onBack: () => void
+  totalScore: number | null
+  band?: string | null
+  topPercent?: number | null
+  stats: SkillIntelStats | null
+  ninjaName?: string | null
+  /** Target role titles, primary first — the collapsed bar pill. */
+  roleTitles: string[]
 }): JSX.Element {
   const queryClient = useQueryClient()
   const fireMoment = useParticleMoment()
@@ -391,25 +410,37 @@ export function UpskillingView({
     )
   }
 
+  const bar = (
+    <ForgeContextBar
+      onBack={onBack}
+      score={totalScore}
+      band={band}
+      topPercent={topPercent}
+      stats={stats}
+      ninjaName={ninjaName}
+      roleTitles={roleTitles}
+    />
+  )
+
   return (
     <div className="up-root">
       {screen === "home" && (
-        <div className="up-page up-enter">
-          {heroSkill ? (
-            <>
-              <NextSetHero skill={heroSkill} onStart={startSet} />
-              <SkillList skills={skills} activeKey={quiz?.skill.key ?? null} onStart={startSet} />
-              <div className="up-foot-note">
-                Myro Coins are earned only on a clear, only the first time per level. 10/10 = +50 · 9/10 = +30 · 8/10 = +20 · below 8 = 0.
+        <>
+          {bar}
+          <div className="up-below-bar up-enter">
+            {heroSkill ? (
+              <>
+                <MoveHero skill={heroSkill} primaryRole={roleTitles[0] ?? null} onStart={startSet} />
+                <ClimbList skills={skills} onStart={startSet} />
+              </>
+            ) : (
+              <div className="up-card up-empty-card">
+                <h3>Your upskilling ladder is on the way</h3>
+                <p>Question banks for your skills are still filling. Check back soon — clearing a level set earns Myro Coins and raises your real skill level.</p>
               </div>
-            </>
-          ) : (
-            <div className="up-card up-empty-card">
-              <h3>Your upskilling ladder is on the way</h3>
-              <p>Question banks for your skills are still filling. Check back soon — clearing a level set earns Myro Coins and raises your real skill level.</p>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        </>
       )}
 
       {screen === "gap-quiz" && gap && (
@@ -424,13 +455,18 @@ export function UpskillingView({
       )}
 
       {screen === "gap-result" && gapResult && (
-        <GapReadiness
-          job={{ title: gapResult.jobTitle, company: gapResult.company }}
-          rows={gapResult.readiness}
-          overallPct={gapResult.overallPct}
-          onPractice={practiceFromGap}
-          onBack={goHome}
-        />
+        <>
+          {bar}
+          <div className="up-below-bar up-narrow up-enter">
+            <GapReadiness
+              job={{ title: gapResult.jobTitle, company: gapResult.company }}
+              rows={gapResult.readiness}
+              overallPct={gapResult.overallPct}
+              onPractice={practiceFromGap}
+              onBack={goHome}
+            />
+          </div>
+        </>
       )}
 
       {screen === "quiz" && quiz && (
@@ -444,13 +480,18 @@ export function UpskillingView({
       )}
 
       {screen === "results" && result && (
-        <Results
-          result={result}
-          onBackToSkills={goHome}
-          onPracticeAgain={() => { const s = skillByName(result.skillName); if (s) startSet(s, result.level, quiz?.originJobId ?? null) }}
-          onNextLevel={() => { const s = skillByName(result.skillName); if (s) startSet(s, result.nextLevel, quiz?.originJobId ?? null) }}
-          onImproveCv={onNavigate}
-        />
+        <>
+          {bar}
+          <div className="up-below-bar up-narrow up-enter">
+            <Results
+              result={result}
+              onBackToSkills={goHome}
+              onPracticeAgain={() => { const s = skillByName(result.skillName); if (s) startSet(s, result.level, quiz?.originJobId ?? null) }}
+              onNextLevel={() => { const s = skillByName(result.skillName); if (s) startSet(s, result.nextLevel, quiz?.originJobId ?? null) }}
+              onImproveCv={onNavigate}
+            />
+          </div>
+        </>
       )}
 
       {toast && <div className="up-toast" role="status">{toast}</div>}

@@ -1,13 +1,15 @@
 "use client"
 
 import "./practice.css"
+import "./forge-bar.css"
+import "./forge-hero.css"
+import "./forge-climb.css"
 
 import { Suspense, useCallback, useMemo } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useQueries, useQuery } from "@tanstack/react-query"
 import { RequiresCV } from "@/components/empty/RequiresCV"
 import { ForgeSkeleton } from "@/components/loading/page-skeletons"
-import { SkillIntelHeader } from "@/components/skills/skill-intel-header"
 import { UpskillingView } from "@/components/skills/upskilling/upskilling-view"
 import { jobs, scores, users } from "@/lib/api"
 import type { SkillGapResponse, UserSkillsByDomain } from "@/lib/api"
@@ -95,6 +97,17 @@ function ForgePageInner() {
   )
   const totalScore = scoreData ? Math.round(scoreData.total_score) : null
 
+  const goBack = useCallback(() => {
+    if (typeof window !== "undefined" && window.history.length > 1) router.back()
+    else router.push("/market")
+  }, [router])
+
+  const roleTitles = useMemo(() => {
+    if (profile?.target_role_titles?.length) return profile.target_role_titles
+    if (profile?.target_role_title) return [profile.target_role_title]
+    return []
+  }, [profile])
+
   if (!ready || scoreLoading) return <ForgeSkeleton />
 
   return (
@@ -102,29 +115,7 @@ function ForgePageInner() {
       {/* Practice absorbed Skills (Audit tab; the Map radar lives in the home rail) — gate with the skills
           surface so no-CV users get the domain teaser, not the generic invite. */}
       <RequiresCV surface="skills">
-        <div className="tm-page-enter tm-pr-page">
-          <button
-            type="button"
-            onClick={() => { if (typeof window !== "undefined" && window.history.length > 1) router.back(); else router.push("/market") }}
-            className="tm-control-focus"
-            aria-label="Go back"
-            style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--tm-text-muted)", background: "none", border: "none", padding: 0, cursor: "pointer", marginBottom: 16, font: "inherit" }}
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-              <path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Back
-          </button>
-          <SkillIntelHeader
-            totalScore={totalScore}
-            ninjaName={profile?.ninja_name}
-            stats={stats}
-            domainScores={scoreData?.domain_scores}
-            gapSkills={scoreData?.gap_skills}
-            band={scoreData?.band}
-            topPercent={scoreData?.top_percent}
-          />
-
+        <div className="tm-page-enter">
           {token && (
             <UpskillingView
               token={token}
@@ -134,6 +125,13 @@ function ForgePageInner() {
               originJobId={practiceJobId}
               onClearGap={clearGap}
               onNavigate={href => router.push(href)}
+              onBack={goBack}
+              totalScore={totalScore}
+              band={scoreData?.band}
+              topPercent={scoreData?.top_percent}
+              stats={stats}
+              ninjaName={profile?.ninja_name}
+              roleTitles={roleTitles}
             />
           )}
         </div>
