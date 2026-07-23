@@ -65,3 +65,14 @@ export function placeSkill(
   }
   return placement.resolved ? placement : null
 }
+
+/**
+ * Real cluster count for an UNEVIDENCED domain (Q7 empty state) — "Myro
+ * tracks N clusters here" instead of a blank chip. Null when the score
+ * domain isn't in the catalogue, same honesty rule as `placeSkill`: absence
+ * renders as absence, never an invented denominator.
+ */
+export function domainClusterCount(domain: string, source: PlacementSource | null): number | null {
+  if (!source) return null
+  return source.domains.find((d) => norm(d.name) === norm(domain))?.clusters ?? null
+}

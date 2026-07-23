@@ -75,6 +75,30 @@ test("a lever in an uncounted domain is ignored — the default only opens a dom
   assert.equal(model.selected?.domain, "Business")
 })
 
+test("requesting a real but unevidenced domain opens its empty state, not the default axis (Q7)", () => {
+  const model = buildScoreMap(score, skills, "Engineering")
+  assert.equal(model.selected, null)
+  assert.equal(model.selectedEmptyDomain, "Engineering")
+  assert.equal(model.topMove, null)
+})
+
+test("an unevidenced-domain request tolerates case and whitespace, same as an evidenced one", () => {
+  const model = buildScoreMap(score, skills, "  engineering ")
+  assert.equal(model.selectedEmptyDomain, "Engineering")
+})
+
+test("requesting a name that isn't in the real taxonomy at all falls back to the default axis, not an empty state", () => {
+  const model = buildScoreMap(score, skills, "Not A Real Domain")
+  assert.equal(model.selectedEmptyDomain, null)
+  assert.equal(model.selected?.domain, "Business")
+})
+
+test("with no domain requested, selectedEmptyDomain stays null — the default is always an evidenced axis", () => {
+  const model = buildScoreMap(score, skills)
+  assert.equal(model.selectedEmptyDomain, null)
+  assert.ok(model.selected)
+})
+
 test("score and CV evidence links preserve the selected domain and skill", () => {
   assert.equal(
     buildScoreMapHref({ panel: "why", domain: "Information Technology", skill: "Data Visualization" }),
