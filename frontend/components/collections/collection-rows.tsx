@@ -4,6 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { X } from "lucide-react"
 import { FeedCard, feedCardConfidenceClass } from "@/components/jobs/feed-card"
+import { CardDetailRail } from "@/components/jobs/card-detail-rail"
 import { feedDataFromMatch } from "@/lib/jobs/card-view"
 import { PulseRow } from "@/components/dashboard/card-atoms"
 import { GradeBadge, LegitimacyBadge } from "@/components/jobs/match-brain"
@@ -27,6 +28,7 @@ function useLeave(): [boolean, (fn: () => void) => void] {
 /** An above-bar Myro Search match. Carries its real brain grade + legitimacy. */
 export function MyroFoundRow({
   it,
+  token,
   open,
   pulse,
   onOpen,
@@ -34,6 +36,7 @@ export function MyroFoundRow({
   onDismiss,
 }: {
   it: FeedItem
+  token: string
   open: boolean
   pulse?: JobPulse
   onOpen: () => void
@@ -57,6 +60,7 @@ export function MyroFoundRow({
         </>
       }
       pulse={<PulseRow pulse={pulse} />}
+      rail={<CardDetailRail token={token} jobId={it.jobId} job={job} />}
       actions={
         <div className="db-card-actions" onClick={(e) => e.stopPropagation()}>
           <button
@@ -80,6 +84,7 @@ export function MyroFoundRow({
 /** A saved application (You added / Applied chips) — unsave + Tailor. */
 export function CollectionRow({
   it,
+  token,
   app,
   open,
   pulse,
@@ -91,6 +96,7 @@ export function CollectionRow({
   onSaveNote,
 }: {
   it: FeedItem
+  token: string
   app: ApplicationResponse | undefined
   open: boolean
   pulse?: JobPulse
@@ -125,6 +131,7 @@ export function CollectionRow({
         </>
       }
       pulse={<PulseRow pulse={pulse} />}
+      rail={<CardDetailRail token={token} jobId={it.jobId} job={it.job} />}
       actions={
         <div className="db-card-actions" onClick={(e) => e.stopPropagation()}>
           {!applied ? (

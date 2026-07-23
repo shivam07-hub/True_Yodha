@@ -27,6 +27,16 @@ const MM_TIER_COLOR: Record<ReturnType<typeof fitTier>, string> = {
   low: "#fb7185",
 }
 
+// Verdict → ring/word hue (the ranked card). Hue tracks the VERDICT so the ring
+// and the word below it always agree — matching desktop's verdict-driven ring.
+// Never orange (that's the accent CTA). Falls back to the fit tier when unranked.
+const MM_VERDICT_COLOR: Record<NonNullable<JobFeedItem["verdict"]>, string> = {
+  strong: "#4ade80",
+  worth_it: "#f59e0b",
+  stretch: "#a6a69e",
+  checking: "#71716a",
+}
+
 export interface JobChip {
   name: string
   sym: "✓" | "✕"
@@ -69,6 +79,11 @@ export function logoBg(co: string): string {
  *  mm palette. */
 export function ringColor(fit: number): string {
   return MM_TIER_COLOR[fitTier(fit)]
+}
+
+/** Ring/word hue for a ranked card — verdict-driven, tier fallback when unranked. */
+export function verdictColor(verdict: JobFeedItem["verdict"], fit: number): string {
+  return verdict ? MM_VERDICT_COLOR[verdict] : ringColor(fit)
 }
 
 /** The verdict WORD — the ONE server-derived label (`verdictLabel`), never a
@@ -136,7 +151,7 @@ function buildRow(j: RowInput): MobileJobRow {
     gradeBd: isC ? "rgba(245,158,11,0.35)" : "rgba(255,255,255,0.13)",
     checkDetails,
     fit: j.fit,
-    ringColor: ringColor(j.fit),
+    ringColor: verdictColor(j.verdict, j.fit),
     verdict: verdictWord(j.verdict),
     chips: shown,
     hasExtra: extra > 0,

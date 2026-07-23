@@ -27,11 +27,22 @@ export function verdictTone(rec?: string | null): string {
   }
 }
 
+/** The Career Ops letter grade, decoded — the badge is a bare letter, so the
+ *  tooltip names what it means (design-over-words: the letter carries the signal,
+ *  the title makes it legible on hover). */
+function gradeTitle(grade: string): string {
+  const g = grade[0].toUpperCase()
+  const meaning =
+    g === "A" ? "top-tier match" : g === "B" ? "solid match" : g === "C" ? "weak match" : "poor match"
+  return `Career Ops grade ${grade} — ${meaning}`
+}
+
 export function GradeBadge({ grade }: { grade?: string | null }) {
   if (!grade) return null
   const tone = gradeTone(grade)
   return (
     <span
+      title={gradeTitle(grade)}
       style={{
         display: "inline-flex",
         alignItems: "center",
