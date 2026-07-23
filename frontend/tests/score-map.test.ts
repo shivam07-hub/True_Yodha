@@ -46,6 +46,35 @@ test("the map opens the requested domain and ranks its highest verified score li
   assert.deepEqual(model.topMove, { skill: "Storytelling", gain: 4, jobs: 18, domain: "Sales" })
 })
 
+test("with no domain requested, the map opens where the biggest verified lift is, not the lowest score", () => {
+  const model = buildScoreMap({
+    ...score,
+    gap_skills: [
+      { skill: "Storytelling", current_level: 1, target_level: 2, gap_score: 0.6, job_count_30d: 18, why_it_matters: "", score_delta: 5, domain: "Business" },
+    ],
+  }, skills)
+
+  // Business (50) outscores Sales (10), so lowest-score would have opened Sales.
+  // The biggest lever lives in Business, so that is where the page opens.
+  assert.equal(model.selected?.domain, "Business")
+  assert.equal(model.topMove?.skill, "Storytelling")
+})
+
+test("with no lever reaching +1 pt, the default leads with the strongest domain, never the lowest", () => {
+  const model = buildScoreMap({ ...score, gap_skills: [] }, skills)
+  assert.equal(model.selected?.domain, "Business")
+})
+
+test("a lever in an uncounted domain is ignored — the default only opens a domain that is on the radar", () => {
+  const model = buildScoreMap({
+    ...score,
+    gap_skills: [
+      { skill: "Ghost", current_level: 1, target_level: 2, gap_score: 0.9, job_count_30d: 40, why_it_matters: "", score_delta: 9, domain: "Astral Projection" },
+    ],
+  }, skills)
+  assert.equal(model.selected?.domain, "Business")
+})
+
 test("score and CV evidence links preserve the selected domain and skill", () => {
   assert.equal(
     buildScoreMapHref({ panel: "why", domain: "Information Technology", skill: "Data Visualization" }),

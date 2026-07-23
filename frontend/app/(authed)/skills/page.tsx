@@ -22,7 +22,7 @@ function ScoreMapPageInner() {
   const { token, ready } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const breakdownRef = useRef<HTMLDivElement>(null)
+  const whyRef = useRef<HTMLElement>(null)
   const { score, skills, isLoading, isError } = useScoreMapData(token)
   const domainParam = searchParams.get("domain")
   const panelParam = searchParams.get("panel")
@@ -39,11 +39,21 @@ function ScoreMapPageInner() {
     [score, skills, skillParam],
   )
 
-  const showBreakdown = () => breakdownRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+  // The decomposition now lives permanently in the score-map card, so "why"
+  // deep-links (nav score chip) just bring it into view — no disclosure to open.
+  const showWhy = () => whyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+
+  // Selecting a domain (radar axis or a breakdown bar) is one URL change; the
+  // model re-derives `selected`, updating the radar highlight and focus panel
+  // together. `scroll: false` keeps the picker steady while the aside updates.
+  const selectDomain = (domain: string) => router.replace(
+    buildScoreMapHref({ panel: panelParam === "why" ? "why" : undefined, domain }),
+    { scroll: false },
+  )
 
   useEffect(() => {
     if (panelParam !== "why" || !model || room) return
-    const id = requestAnimationFrame(showBreakdown)
+    const id = requestAnimationFrame(showWhy)
     return () => cancelAnimationFrame(id)
   }, [panelParam, model, room])
 
@@ -63,12 +73,7 @@ function ScoreMapPageInner() {
           <>
             <h1 className="sm-sr-only">Your Myro Score and the evidence behind it</h1>
             <header className="sm-hero">
-              <ScoreRing
-                score={model.totalScore}
-                onExpand={showBreakdown}
-                expanded={false}
-                controls="score-map-breakdown"
-              />
+              <ScoreRing score={model.totalScore} />
               <BandPercentileLine band={score.band} topPercent={score.top_percent} />
               <p className="sm-hero-copy">
                 Your {model.totalScore} is the average of the {model.axes.length} skill {model.axes.length === 1 ? "domain" : "domains"} your CV currently proves.
@@ -76,7 +81,7 @@ function ScoreMapPageInner() {
             </header>
 
             <div className="sm-grid">
-              <section className="sm-card sm-radar-card" aria-labelledby="score-map-title">
+              <section ref={whyRef} id="score-map-breakdown" className="sm-card sm-radar-card" aria-labelledby="score-map-title">
                 <div className="sm-card-head">
                   <h2 id="score-map-title">Your Score map</h2>
                   <span>{model.axes.length} evidenced domains</span>
@@ -85,33 +90,17 @@ function ScoreMapPageInner() {
                   <DomainRadar
                     domainScores={score.domain_scores}
                     activeDomain={model.selected?.domain}
-                    onDomainClick={(domain) => router.replace(
-                      buildScoreMapHref({
-                        panel: panelParam === "why" ? "why" : undefined,
-                        domain,
-                      }),
-                      { scroll: false },
-                    )}
+                    onDomainClick={selectDomain}
                   />
                 </div>
-                <nav className="sm-domain-list" aria-label="Scored skill domains">
-                  {model.axes.map((axis) => (
-                    <button
-                      key={axis.domain}
-                      type="button"
-                      className={axis.domain === model.selected?.domain ? "is-active" : ""}
-                      onClick={() => router.replace(
-                        buildScoreMapHref({
-                          panel: panelParam === "why" ? "why" : undefined,
-                          domain: axis.domain,
-                        }),
-                        { scroll: false },
-                      )}
-                    >
-                      <span>{axis.domain}</span><strong>{axis.score}</strong>
-                    </button>
-                  ))}
-                </nav>
+                <ScoreBreakdown
+                  variant="selector"
+                  score={model.totalScore}
+                  domainScores={score.domain_scores}
+                  gapSkills={score.gap_skills}
+                  activeDomain={model.selected?.domain}
+                  onSelectDomain={selectDomain}
+                />
               </section>
 
               {model.selected && (
@@ -167,18 +156,6 @@ function ScoreMapPageInner() {
                   )}
                 </aside>
               )}
-            </div>
-
-            <div ref={breakdownRef} className="sm-breakdown" id="score-map-breakdown">
-              <div className="sm-breakdown-head">
-                <p className="sm-eyebrow">Why {model.totalScore}</p>
-                <h2>How the score is calculated</h2>
-              </div>
-              <ScoreBreakdown
-                score={model.totalScore}
-                domainScores={score.domain_scores}
-                gapSkills={score.gap_skills}
-              />
             </div>
           </>
         )}
