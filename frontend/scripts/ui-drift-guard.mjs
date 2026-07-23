@@ -153,7 +153,7 @@ function countMetric(metric) {
  * A public app/<seg>/page.tsx with no `route: true` entry there fails the build
  * — a page can't be silently forgotten (the /companies-in-footer bug class).
  */
-const NON_PUBLIC_SEGMENTS = new Set(["dashboard", "diary", "login", "onboarding", "signup", "welcome"])
+const NON_PUBLIC_SEGMENTS = new Set(["dashboard", "diary", "login", "offline", "onboarding", "signup", "welcome"])
 
 function registeredRouteSegments() {
   const segs = new Set()

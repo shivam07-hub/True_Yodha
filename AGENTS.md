@@ -293,6 +293,30 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
 
 v1 PWA detail archived in `docs/session-history/2026-05.md`. v2 kicks off after 1000 PWA users.
 
+### v1.5 — Android APK via TWA (Play Store NOW, ship current PWA — chosen 2026-07-23)
+
+**Decision (Shivam):** ship a Trusted Web Activity wrapper of the existing responsive PWA to the Play Store now — Path A over the full Expo native rewrite (Path B = the v2 section below). Product is 100% mobile-responsive + already has `mobile/redesign/` surfaces; TWA = zero React rewrite, a signed `.aab` in days.
+
+**✅ STEP 1 BUILT + pushed Develop 2026-07-23 (the pre-flight fixes that make TWA install-clean, not read as a webview):**
+- **manifest** (`frontend/public/manifest.webmanifest`) — `start_url` `/home`→`/market` (`/home` is the retired Collections-cutover redirect stub → cold launch was a blank screen then JS-redirect; `/market` is the real Jobs landing + mobile nav tab 1); `background_color`/`theme_color` `#050A18` (pre-#28 navy) → `#F9F9F9` (canonical light Firecrawl paper → correct splash + task-switcher brand).
+- **maskable icon** (`frontend/public/brand/icon-512-maskable.png`) — was byte-identical to `icon-512.png` (a fake full-bleed dup → adaptive mask would crop the logo). Rebuilt edge-to-edge dark with the signal-dot ring inside the 80% safe zone → survives circle/squircle masks.
+- **service worker** (`frontend/public/sw.js` + `frontend/components/pwa/sw-register.tsx`, mounted in providers) — minimal, prod-only: navigations network-first → cached `/offline` shell fallback; hashed static (`/_next/static`, `/brand`) cache-first; cross-origin API (`api.himyro.com`) untouched. Satisfies install criteria + kills the in-app Chrome error page when offline.
+- **offline shell** (`frontend/app/offline/page.tsx`) — self-contained inline-styled, theme-aware, noindex (added to `NON_PUBLIC_SEGMENTS` in the ui-drift guard — utility route, not a nav surface).
+- **assetlinks scaffold** (`frontend/public/.well-known/assetlinks.json`) — placeholder `package_name: com.himyro.app` + `REPLACE_WITH_SIGNING_KEY_SHA256_FINGERPRINT`. **Without this file the TWA shows the Chrome URL bar → reads as a wrapper.** Chicken-and-egg: keystore → SHA-256 → fill this → publish on himyro.com → THEN build APK.
+- Green: tsc 0 · next lint 0 · `next build` ✓ (`/offline` static) · ui-drift clean.
+
+**OWED (Shivam) — the remaining TWA path, in order:**
+1. **`main` merge** (this Develop work → himyro.com must serve the fixed manifest + assetlinks + SW before any APK is built against prod).
+2. **⚠️ THE REAL GATE = one real-device authed mobile QA pass** — the whole `mobile/redesign/` surface (Jobs/Collections/CV/Prep/Profile) was built+pushed but NEVER eyeballed on a real authed mobile session (sandbox has no token). Must verify before an APK puts the bugs in Play Store reviews: login → **CV upload on throttled 3G** (BUG-2 TUS resumable path — the #1 funnel action) → 4 bottom-nav tabs → #41 login waterfall → PR-F `/skills` 375px (sticky-pill overlap + SE14 icon-only buttons).
+3. **Confirm package name** `com.himyro.app` (or pick another reverse-domain).
+4. **Generate upload keystore** → take SHA-256 fingerprint → give it to Claude → Claude fills `assetlinks.json` + commits → merge main.
+5. **Build:** Bubblewrap/PWABuilder → signed `.aab` → **Play Console ($25 one-time)**.
+6. **Native push (FCM)** — the actual retention hook (diary/score/new-match notifications). Needed under TWA too; = v2 prerequisite 3 (`device_tokens` + `POST /push/register`). Do this AFTER install is live, then decide if native shell (Path B) earns its weeks.
+
+---
+
+### v2 — full Expo native (Path B, still gated on 1000 PWA users)
+
 **v2 prerequisites (all must ship first):**
 1. `packages/api-client/` extraction with injectable storage adapter (AsyncStorage/localStorage).
 2. All backend routes prefixed `/v1/` — versioning contract.
