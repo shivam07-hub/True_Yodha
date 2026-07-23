@@ -91,13 +91,15 @@
   line-height: 1.5;
 }
 
+/* Ink at rest, teal on hover (aligned teal-budget 2026-07-23) — a secondary
+   text link is not a signal/CTA, so it must not spend the accent standing still. */
 .mf-footer-link {
-  color: var(--tm-interactive);
+  color: var(--tm-text);
   text-decoration: none;
   font-weight: 600;
 }
 
-.mf-footer-link:hover { text-decoration: underline; }
+.mf-footer-link:hover { color: var(--tm-interactive); text-decoration: underline; }
 
 /* True-empty first-run CTA. */
 .mf-firstrun {
@@ -123,3 +125,32 @@
   max-width: 42ch;
   line-height: 1.55;
 }
+
+/* ── Aligned teal-budget (2026-07-23) — Collections rail scoped ────────────────
+   The "Today's loop" widget is a secondary retention gadget in this rail, not a
+   signal. Teal is reserved for signal rings / active segment / the primary CTA,
+   so here the progress ring, its step legend, and the followed stars go quiet —
+   the filled shape (done segment, ✓ dot, ★) still carries state without spending
+   the accent. Scoped to `.mc-ws-rail--peek` so the /home hero that shares this
+   CSS and the public /intel stars are untouched. Hover still reveals teal. */
+.mc-ws-rail--peek .mc-loopring-seg.is-done { stroke: var(--tm-text-muted); }
+.mc-ws-rail--peek .mc-loopring.is-complete .mc-loopring-svg { filter: none; }
+.mc-ws-rail--peek .mc-loopring-leg.is-done { border-color: var(--tm-border); }
+.mc-ws-rail--peek .mc-loopring-leg.is-done .dot {
+  background: var(--tm-text-muted);
+  color: var(--tm-surface);
+}
+.mc-ws-rail--peek .mc-loopring-nudge {
+  background: transparent;
+  border-color: var(--tm-border-soft);
+  color: var(--tm-text-muted);
+}
+.mc-ws-rail--peek .mc-loopring-nudge svg { color: var(--tm-text-muted); }
+.mc-ws-rail--peek a.mc-loopring-nudge:hover {
+  background: var(--tm-interactive);
+  color: var(--tm-interactive-fg);
+  border-color: var(--tm-interactive);
+}
+.mc-ws-rail--peek a.mc-loopring-nudge:hover svg { color: var(--tm-interactive-fg); }
+.mc-ws-rail--peek .cs-chip-star,
+.mc-ws-rail--peek .cs-row-star { color: var(--tm-text-faint); }

@@ -25,6 +25,27 @@ class Settings(BaseSettings):
     # for a non-standard auth host. See deps._asymmetric_signing_key.
     supabase_jwks_url: str = ""
 
+    # Backlog #16 (prod read-capacity). Sync FastAPI routes (`def`, not
+    # `async def`) run in Starlette's default AnyIO thread limiter — 40 tokens
+    # out of the box. Each Supabase/PostgREST call blocks its thread for up to
+    # `_POSTGREST_TIMEOUT_SECONDS` (8s), so a concurrent burst exhausts 40
+    # threads fast: prod logs show request clusters landing together at
+    # exactly ms=8023-8029 (the timeout), not spread out — a thread-starvation
+    # signature, not compute (CPU stays <1% during these bursts). Raising this
+    # does NOT raise Postgres connection count — the app talks to PostgREST
+    # over HTTP, and PostgREST enforces its own connection pool independent of
+    # how many concurrent HTTP requests hit it. Kept conservative (100, not
+    # 200) pending a decision on the actual Supabase compute tier (currently
+    # max_connections=60 on the DB itself, shared by dev+prod+worker+MCP).
+    sync_threadpool_tokens: int = 100
+
+    # Backlog #16 regression contract: "saturation must page a real alert
+    # destination." When `_ALERT_THRESHOLD` slow requests land inside
+    # `_ALERT_WINDOW_SECONDS` (request_timing.py), one email fires here via
+    # the existing send_email() pathway. Empty = skipped (log-only, same
+    # fail-soft convention as every other notify email in this file).
+    ops_alert_email: str = ""
+
     # Cloudflare Turnstile secret for the public, no-auth CV-score preview
     # endpoint (POST /public/score-cv). When set, the endpoint verifies the
     # client's Turnstile token server-side before spending any LLM budget.

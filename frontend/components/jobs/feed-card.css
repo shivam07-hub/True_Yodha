@@ -64,7 +64,11 @@
 .fc-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 
 .fc-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.fc-co { font-size: 14px; font-weight: 500; color: var(--tm-interactive); min-width: 0; }
+/* Company name = identity, NOT the action (aligned teal-budget 2026-07-23): teal
+   is reserved for signal rings / active segment / the one primary CTA. Ink at
+   rest; the crawlable link reveals teal only on hover. */
+.fc-co { font-size: 14px; font-weight: 500; color: var(--tm-text); min-width: 0; }
+a.fc-co:hover { color: var(--tm-interactive); }
 .fc-age {
   margin-left: auto; flex-shrink: 0;
   font-size: 12px; font-weight: 500;
@@ -203,7 +207,9 @@
   font-size: var(--tm-fs-caption); font-weight: 600; letter-spacing: 0.01em; line-height: 1;
 }
 .fc-move-arrow { font-weight: 700; opacity: 0.85; }
-.fc-move-go { color: var(--tm-interactive-rest, var(--tm-interactive)); }
+/* Muted, not teal (aligned teal-budget 2026-07-23): the primary CTA (Tailor CV)
+   button carries the accent — the move line must not double it. */
+.fc-move-go { color: var(--tm-text-muted); }
 .fc-move-gap { color: var(--tm-text-muted); }
 
 /* ── action row ───────────────────────────────────────────────────────────── */

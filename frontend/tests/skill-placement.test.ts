@@ -1,7 +1,7 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 
-import { placeSkill, type PlacementSource } from "../lib/skill-placement"
+import { domainClusterCount, placeSkill, type PlacementSource } from "../lib/skill-placement"
 import type { SkillRoomModel } from "../lib/skill-room"
 
 const room: SkillRoomModel = {
@@ -76,4 +76,20 @@ test("a taxonomy that resolved nothing renders nothing", () => {
 test("demand band is absent, not zeroed, for a skill outside the priority set", () => {
   const p = placeSkill({ ...room, skill: { ...room.skill, display_name: "Basket Weaving" } }, source)
   assert.equal(p?.band, null)
+})
+
+test("domainClusterCount gives the real cluster count for an unevidenced domain's empty state (Q7)", () => {
+  assert.equal(domainClusterCount("Science and Research", source), 18)
+})
+
+test("domainClusterCount tolerates case and whitespace, same convention as placeSkill", () => {
+  assert.equal(domainClusterCount("  SCIENCE and research ", source), 18)
+})
+
+test("domainClusterCount reports null for an uncatalogued domain — never an invented number", () => {
+  assert.equal(domainClusterCount("Astral Projection", source), null)
+})
+
+test("domainClusterCount reports null with no taxonomy loaded yet", () => {
+  assert.equal(domainClusterCount("Science and Research", null), null)
 })

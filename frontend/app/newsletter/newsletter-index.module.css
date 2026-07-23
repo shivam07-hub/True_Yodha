@@ -21,6 +21,14 @@
   max-width: 720px;
 }
 
+/* Topic Clusters live BESIDE the "Myro Letters" title (not lower in the rail),
+   filling the void the single-column masthead left to the right of the h1. The
+   aside column matches the grid's rail width below, so clusters sit directly
+   above the rail as one continuous right column. */
+.mastheadAside {
+  min-width: 0;
+}
+
 /* Filter bar above the feed when a loop stage is active. */
 .filterBar {
   display: flex;
@@ -184,9 +192,9 @@
   line-height: 1.55;
 }
 
-/* Masthead is a single-column wayfinding band. The weekly-loop nav that used to
-   sit beside the copy moved to the landing (backlog #33); the Topic Clusters rail
-   now owns dividing the newsletter by section. */
+/* The weekly-loop nav that used to sit beside the copy moved to the landing
+   (backlog #33). The masthead's right column now carries Topic Clusters
+   (.mastheadAside), the newsletter's section taxonomy, beside the title. */
 
 @media (min-width: 1024px) {
   .copy h1 {
@@ -197,10 +205,24 @@
     grid-template-columns: minmax(0, 1fr) 320px;
     gap: 40px;
   }
+
+  /* Clusters beside the title — column width + gap track the grid rail so the
+     two right columns line up vertically. align-items:end drops the cluster
+     list onto the h1 baseline instead of floating centred beside it. */
+  .hasAside {
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 40px;
+    align-items: end;
+  }
 }
 
 @media (min-width: 1180px) {
   .grid {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 48px;
+  }
+
+  .hasAside {
     grid-template-columns: minmax(0, 1fr) 340px;
     gap: 48px;
   }

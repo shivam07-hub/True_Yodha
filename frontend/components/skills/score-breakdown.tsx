@@ -105,6 +105,30 @@ export function ScoreBreakdown({
         })}
       </ol>
 
+      {isSelector && b.emptyCount > 0 && (
+        <div className="sb-empty sb-empty--selector">
+          <span className="sb-empty-label">Not yet evidenced</span>
+          <div className="sb-empty-chips">
+            {b.emptyDomains.slice(0, EMPTY_DOMAIN_CAP).map((e) => (
+              <button
+                key={e.code}
+                type="button"
+                className={`sb-chip sb-chip-select tm-control-focus${e.code === activeDomain ? " is-active" : ""}`}
+                aria-pressed={e.code === activeDomain}
+                onClick={() => onSelectDomain?.(e.code)}
+              >
+                {e.label}
+              </button>
+            ))}
+            {b.emptyDomains.length > EMPTY_DOMAIN_CAP && (
+              <span className="sb-chip sb-chip-more">
+                +{b.emptyDomains.length - EMPTY_DOMAIN_CAP} more
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
       {!isSelector && b.emptyCount > 0 && (
         <div className="sb-empty">
           <span className="sb-empty-label">Uncounted domains</span>

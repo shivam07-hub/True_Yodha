@@ -164,6 +164,36 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
 
         {step === 1 && (
           <>
+            {/* Extension awareness — this is the highest-intent moment (the user is
+               manually adding a job, the exact friction the extension removes). One
+               quiet strip; aligned teal-budget (2026-07-23) keeps it a helper link,
+               not a signal — muted body, the CTA phrase in interactive-rest. */}
+            <a
+              href="https://chromewebstore.google.com/detail/paofacokffpipcpljelckndgghkddoph"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "10px 12px", borderRadius: 8, textDecoration: "none",
+                border: "1px solid var(--tm-border-soft)", background: "var(--tm-surface-2, transparent)",
+              }}
+            >
+              <span aria-hidden style={{ display: "grid", placeItems: "center", width: 26, height: 26, borderRadius: 6, flexShrink: 0, border: "1px solid var(--tm-border)", color: "var(--tm-text-muted)" }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 3v9l6 3" /></svg>
+              </span>
+              <span style={{ minWidth: 0, flex: 1 }}>
+                <span style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "var(--tm-text)" }}>
+                  Save jobs in one click from LinkedIn
+                </span>
+                <span style={{ display: "block", fontSize: 11, color: "var(--tm-text-muted)", marginTop: 1 }}>
+                  Skip the paste — the Myro extension reads the posting for you
+                </span>
+              </span>
+              <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 600, color: "var(--tm-interactive-rest)" }}>
+                Get it →
+              </span>
+            </a>
+
             {/* Smart import first — paste a link or drop the posting and we fill the rest. */}
             <Field label="Paste a link or upload the posting — we'll fill the rest">
               <div style={{ display: "flex", gap: 8 }}>

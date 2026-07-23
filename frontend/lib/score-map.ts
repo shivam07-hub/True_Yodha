@@ -1,4 +1,5 @@
 import type { ScoreResponse, UserSkillItem, UserSkillsByDomain } from "@/lib/api"
+import { ALL_SCORE_DOMAINS } from "@/lib/domain-labels"
 
 export interface ScoreMapAxis {
   domain: string
@@ -20,6 +21,13 @@ export interface ScoreMapModel {
   axes: ScoreMapAxis[]
   selected: ScoreMapAxis | null
   topMove: ScoreMapMove | null
+  /**
+   * Set when the URL names a real taxonomy domain that has no evidence yet
+   * (Q7: uncounted domains are selectable doors, not dead chips). Mutually
+   * exclusive with `selected` — an explicit request for an unevidenced domain
+   * is honoured as-is, never silently redirected to the default axis.
+   */
+  selectedEmptyDomain: string | null
 }
 
 interface ScoreMapLocation {
@@ -62,6 +70,10 @@ export function buildCvEvidenceHref(location: Pick<ScoreMapLocation, "domain" | 
  * real lever (highest score_delta gap). Absent any lever ≥1pt, lead with the
  * strongest domain — the edge, not the wound.
  */
+function norm(value: string): string {
+  return value.trim().toLowerCase()
+}
+
 function defaultAxis(axes: ScoreMapAxis[], gapSkills: ScoreResponse["gap_skills"]): ScoreMapAxis | undefined {
   if (axes.length === 0) return undefined
   const byDomain = new Map(axes.map((axis) => [axis.domain, axis]))
@@ -88,9 +100,18 @@ export function buildScoreMap(
       evidenceCount: domainSkills.filter((skill) => Boolean(skill.evidence_text?.trim())).length,
     }
   })
-  const selected = axes.find((axis) => axis.domain === requestedDomain)
-    ?? defaultAxis(axes, score.gap_skills)
+  const requestedAxis = axes.find((axis) => axis.domain === requestedDomain)
+  // Store the canonical catalogue name, never the raw URL value — same
+  // convention as placeSkill/domainClusterCount, so a case/whitespace variant
+  // in the URL still resolves to the one real domain string everywhere else
+  // on the page reads (radar highlight, breakdown active chip, CV deep-link).
+  const matchedEmptyDomain = !requestedAxis && requestedDomain
+    ? ALL_SCORE_DOMAINS.find((name) => norm(name) === norm(requestedDomain)) ?? null
+    : null
+  const selected = requestedAxis
+    ?? (matchedEmptyDomain ? null : defaultAxis(axes, score.gap_skills))
     ?? null
+  const selectedEmptyDomain = matchedEmptyDomain
   const gap = score.gap_skills
     .filter((item) => item.domain === selected?.domain && (item.score_delta ?? 0) >= 1)
     .sort((a, b) =>
@@ -103,6 +124,7 @@ export function buildScoreMap(
     totalScore: Math.round(score.total_score),
     axes,
     selected,
+    selectedEmptyDomain,
     topMove: gap && selected
       ? {
           skill: gap.skill,

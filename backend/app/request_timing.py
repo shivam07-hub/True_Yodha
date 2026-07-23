@@ -12,8 +12,10 @@ captures perceived (browser) latency, this captures real backend latency.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
+from collections import deque
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -23,6 +25,67 @@ _logger = logging.getLogger("app.request_timing")
 # <1s end-to-end; 1000ms of pure backend time is already over budget once
 # network + render are added, so we flag at it.
 SLOW_REQUEST_MS = 1000.0
+
+# Backlog #16: a single slow request is noise (one heavy company page, one
+# cold cache). A BURST is the signal worth waking someone for — the prod
+# incident that named this backlog was 8 unrelated endpoints landing
+# together at the 8s timeout. Threshold tuned to that shape: 5 slow
+# requests inside 2 minutes. Cooldown keeps a sustained bad period from
+# spamming — one email per 30 min, not one per request.
+_ALERT_WINDOW_SECONDS = 120.0
+_ALERT_THRESHOLD = 5
+_ALERT_COOLDOWN_SECONDS = 1800.0
+
+_slow_events: deque[tuple[float, str, str, float]] = deque()
+_last_alert_at = 0.0
+
+
+def _maybe_alert_saturation(method: str, path: str, elapsed_ms: float) -> None:
+    """Fire-and-forget email when slow requests cluster into a burst. Never
+    raises — a broken alert path must not break the request it's timing.
+    """
+    global _last_alert_at
+    try:
+        from app.config import settings
+
+        now = time.time()
+        _slow_events.append((now, method, path, elapsed_ms))
+        while _slow_events and now - _slow_events[0][0] > _ALERT_WINDOW_SECONDS:
+            _slow_events.popleft()
+
+        if len(_slow_events) < _ALERT_THRESHOLD:
+            return
+        if now - _last_alert_at < _ALERT_COOLDOWN_SECONDS:
+            return
+
+        recipient = settings.ops_alert_email.strip()
+        if not recipient:
+            _logger.warning("metric saturation.alert_skipped reason=no_recipient")
+            return
+
+        _last_alert_at = now  # claim before dispatch — never double-fire concurrently
+        sample = "\n".join(
+            f"  {m} {p} {t:.0f}ms" for _, m, p, t in list(_slow_events)[-8:]
+        )
+        body = (
+            f"{len(_slow_events)} requests over {SLOW_REQUEST_MS:.0f}ms in the last "
+            f"{_ALERT_WINDOW_SECONDS:.0f}s. Most recent:\n{sample}"
+        )
+        _logger.warning("metric saturation.alert_fired count=%d", len(_slow_events))
+
+        def _send() -> None:
+            from app.services.email_service import send_email
+
+            send_email(
+                to=recipient,
+                subject="Myro backend: read-latency saturation",
+                text=body,
+            )
+
+        loop = asyncio.get_running_loop()
+        loop.run_in_executor(None, _send)
+    except Exception:  # pragma: no cover — alerting must never break the request
+        _logger.exception("saturation alert path failed")
 
 
 class RequestTimingMiddleware:
@@ -60,6 +123,7 @@ class RequestTimingMiddleware:
                         status,
                         elapsed_ms,
                     )
+                    _maybe_alert_saturation(method, path, elapsed_ms)
             await send(message)
 
         await self.app(scope, receive, send_with_timing)

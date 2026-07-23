@@ -154,6 +154,21 @@
 }
 .sb-empty-cta:hover { color: var(--tm-interactive); text-decoration: underline; }
 
+/* Selector variant: uncounted domains become doors (Q7), sitting quieter than
+   the scored bars above — real chips, no fabricated bar, but genuinely
+   clickable. Selection lands in the aside's empty-state panel. */
+.sb-empty--selector { margin-top: 12px; padding-top: 12px; }
+.sb-chip-select {
+  cursor: pointer;
+  transition: border-color 140ms var(--tm-ease), color 140ms var(--tm-ease), background 140ms var(--tm-ease);
+}
+.sb-chip-select:hover { border-color: var(--tm-text-muted); color: var(--tm-text); }
+.sb-chip-select.is-active {
+  border-color: color-mix(in srgb, var(--tm-interactive) 55%, transparent);
+  background: color-mix(in srgb, var(--tm-interactive) 9%, transparent);
+  color: var(--tm-text);
+}
+
 .sb-method {
   display: inline-block;
   margin-top: 16px;

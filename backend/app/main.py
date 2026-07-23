@@ -94,6 +94,26 @@ app.include_router(internal.router)
 
 
 @app.on_event("startup")
+async def _raise_sync_threadpool_limit() -> None:
+    """Backlog #16 (prod read-capacity). Sync routes block a thread for the
+    duration of each Supabase call; the AnyIO default of 40 threads queues a
+    concurrent burst behind each other, surfacing as `metric route.slow`
+    clusters landing together at the 8s PostgREST timeout. Raising the token
+    count only widens app-side concurrency — it does not raise Postgres
+    connection count (the app talks to PostgREST over HTTP; PostgREST bounds
+    its own DB pool regardless of app-side concurrency). See
+    app.config.Settings.sync_threadpool_tokens for the full rationale.
+    """
+    import anyio.to_thread
+
+    from app.config import settings
+
+    anyio.to_thread.current_default_thread_limiter().total_tokens = (
+        settings.sync_threadpool_tokens
+    )
+
+
+@app.on_event("startup")
 async def _verify_taxonomy_integrity() -> None:
     try:
         verify_taxonomy_integrity(_TAXONOMY_PATH)

@@ -11,6 +11,15 @@ import "./cv-fonts.css"
 import "./cv-sheet.css"
 import "./cv-builder.css"
 import "./playground-v2.css"
+// The baseline (no ?jobId) view mounts LibraryView, whose CSS is its own
+// route-scoped chunk — not covered by the four imports above, so it hit the
+// exact same flash #41 L4 fixed for the playground (raw LibraryView markup,
+// e.g. the CV/Stories/Memory pills + job rows, painting before its rules
+// download). Bind it here too so it's ready before LibraryView mounts.
+import "@/components/cv/builder/library-view.css"
+import "@/components/cv/mobile/mobile-cv-hub.css"
+import "@/components/cv/mobile/mobile-cv-editor.css"
+import "@/components/cv/builder/tailor-weave.css"
 
 import { CVBaselineSkeleton } from "@/components/loading/route-loading/skeleton-mirrors/cv-baseline-skeleton"
 import { CVPlaygroundSkeleton } from "@/components/loading/route-loading/skeleton-mirrors/cv-playground-skeleton"

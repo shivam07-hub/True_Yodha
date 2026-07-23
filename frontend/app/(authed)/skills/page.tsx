@@ -15,7 +15,9 @@ import { SkillRoom } from "@/components/skills/skill-room"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useScoreMapData } from "@/lib/hooks/use-score-map-data"
 import { buildCvEvidenceHref, buildScoreMap, buildScoreMapHref } from "@/lib/score-map"
+import { domainClusterCount } from "@/lib/skill-placement"
 import { buildSkillRoom } from "@/lib/skill-room"
+import { useTaxonomyContext } from "@/lib/taxonomy/use-taxonomy-context"
 import "./score-map.css"
 
 function ScoreMapPageInner() {
@@ -24,6 +26,7 @@ function ScoreMapPageInner() {
   const searchParams = useSearchParams()
   const whyRef = useRef<HTMLElement>(null)
   const { score, skills, isLoading, isError } = useScoreMapData(token)
+  const taxonomy = useTaxonomyContext()
   const domainParam = searchParams.get("domain")
   const panelParam = searchParams.get("panel")
   const skillParam = searchParams.get("skill")
@@ -98,7 +101,7 @@ function ScoreMapPageInner() {
                   score={model.totalScore}
                   domainScores={score.domain_scores}
                   gapSkills={score.gap_skills}
-                  activeDomain={model.selected?.domain}
+                  activeDomain={model.selected?.domain ?? model.selectedEmptyDomain}
                   onSelectDomain={selectDomain}
                 />
               </section>
@@ -156,6 +159,28 @@ function ScoreMapPageInner() {
                   )}
                 </aside>
               )}
+
+              {model.selectedEmptyDomain && (() => {
+                const domain = model.selectedEmptyDomain
+                const clusters = domainClusterCount(domain, taxonomy)
+                return (
+                  <aside className="sm-card sm-focus sm-focus-empty" aria-live="polite">
+                    <p className="sm-eyebrow">Not yet evidenced</p>
+                    <div className="sm-focus-title">
+                      <h2>{domain}</h2>
+                    </div>
+                    <p className="sm-focus-meta">
+                      No CV evidence in {domain} yet — it isn&rsquo;t counted for or against your score.
+                      {clusters !== null && <> Myro tracks <strong>{clusters}</strong> {clusters === 1 ? "cluster" : "clusters"} here.</>}
+                    </p>
+                    <section className="sm-move">
+                      <Link className="sm-primary tm-control-focus" href={buildCvEvidenceHref({ domain })}>
+                        <FileText size={15} aria-hidden /> Add evidence to your CV <ArrowRight size={14} aria-hidden />
+                      </Link>
+                    </section>
+                  </aside>
+                )
+              })()}
             </div>
           </>
         )}
