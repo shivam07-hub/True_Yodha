@@ -2,7 +2,6 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { getAllIssues, type IssueTheme } from "@/lib/newsletter"
 import { IssueCard } from "@/components/newsletter/issue-card"
-import { JourneyLoop } from "@/components/newsletter/journey-loop"
 import { EmailSubscribe } from "@/components/newsletter/email-subscribe"
 import { NewsletterRail, buildClusters } from "@/components/newsletter/rail"
 import styles from "./newsletter-index.module.css"
@@ -106,7 +105,6 @@ export default async function NewsletterIndexPage({
           <p className={styles.kicker}>Weekly hiring intelligence</p>
           <h1>Myro Letters</h1>
         </div>
-        <JourneyLoop activeStage={activeStage} />
       </header>
 
       {!featuredIssue ? (
