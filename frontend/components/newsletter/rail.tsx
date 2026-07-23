@@ -148,7 +148,7 @@ function IssueListPanel({ issues, title }: { issues: Issue[]; title: string }) {
 
 /* ── Clusters ──────────────────────────────────────────────────────────── */
 
-function ClusterPanel({ clusters }: { clusters: RailCluster[] }) {
+export function ClusterPanel({ clusters }: { clusters: RailCluster[] }) {
   return (
     <section className={styles.panelQuiet}>
       <p className={`${styles.kicker} ${styles.kickerMuted}`}>Topic clusters</p>

@@ -3,7 +3,7 @@ import Link from "next/link"
 import { getAllIssues, type IssueTheme } from "@/lib/newsletter"
 import { IssueCard } from "@/components/newsletter/issue-card"
 import { EmailSubscribe } from "@/components/newsletter/email-subscribe"
-import { NewsletterRail, buildClusters } from "@/components/newsletter/rail"
+import { NewsletterRail, ClusterPanel, buildClusters } from "@/components/newsletter/rail"
 import styles from "./newsletter-index.module.css"
 
 const BASE = "https://www.himyro.com"
@@ -100,11 +100,16 @@ export default async function NewsletterIndexPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(indexJsonLd) }}
       />
-      <header className={styles.masthead}>
+      <header className={`${styles.masthead} ${clusters.length > 1 ? styles.hasAside : ""}`}>
         <div className={styles.copy}>
           <p className={styles.kicker}>Weekly hiring intelligence</p>
           <h1>Myro Letters</h1>
         </div>
+        {clusters.length > 1 && (
+          <div className={styles.mastheadAside}>
+            <ClusterPanel clusters={clusters} />
+          </div>
+        )}
       </header>
 
       {!featuredIssue ? (
@@ -155,7 +160,9 @@ export default async function NewsletterIndexPage({
 
           <NewsletterRail
             issues={railIssues}
-            clusters={clusters}
+            // Clusters now sit beside the masthead title (see <header>), so the
+            // index rail omits them — the article rail still carries its own.
+            clusters={[]}
             listTitle={activeStage ? "Other issues" : "From the archive"}
             campaign="index"
           />
