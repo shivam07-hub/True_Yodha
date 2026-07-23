@@ -275,31 +275,9 @@ export function CollectionsDesktop({
 
         <div className="mc-ws-main">
           <div className="db">
-            {continueItems.length > 0 ? (
-              <section className="db-continue" aria-label="Finish tailoring">
-                <div className="db-continue-head">
-                  <span className="db-continue-title">Finish tailoring</span>
-                  <span className="db-continue-sub">
-                    {continueItems.length} started · one step from applying
-                  </span>
-                </div>
-                <div className="db-continue-row">
-                  {continueItems.map((it) => (
-                    <button
-                      key={it.jobId}
-                      type="button"
-                      className="db-continue-card tm-control-focus"
-                      onClick={() => setOpenId(it.jobId)}
-                    >
-                      <span className="db-continue-co">{it.company ?? "Untitled company"}</span>
-                      <span className="db-continue-role">{it.role}</span>
-                      <span className="db-continue-cta">Finish &amp; apply →</span>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
+            {/* "Finish tailoring" lane moved to the CV workspace (/cv) — a
+                half-finished tailored CV belongs with the CV, not the feed.
+                `continueItems` still drives Agent-Picks dedup + prefetch below. */}
             <div className="db-head">
               <div className="db-segments" role="tablist" aria-label="Filter the folder">
                 {FOLDER_CHIPS.map((c) => (
