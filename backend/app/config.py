@@ -39,6 +39,13 @@ class Settings(BaseSettings):
     # max_connections=60 on the DB itself, shared by dev+prod+worker+MCP).
     sync_threadpool_tokens: int = 100
 
+    # Backlog #16 regression contract: "saturation must page a real alert
+    # destination." When `_ALERT_THRESHOLD` slow requests land inside
+    # `_ALERT_WINDOW_SECONDS` (request_timing.py), one email fires here via
+    # the existing send_email() pathway. Empty = skipped (log-only, same
+    # fail-soft convention as every other notify email in this file).
+    ops_alert_email: str = ""
+
     # Cloudflare Turnstile secret for the public, no-auth CV-score preview
     # endpoint (POST /public/score-cv). When set, the endpoint verifies the
     # client's Turnstile token server-side before spending any LLM budget.
