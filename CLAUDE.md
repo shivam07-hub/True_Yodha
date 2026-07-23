@@ -219,7 +219,7 @@ Memory carried "OWED: main merge" on ~25 entries. **Audit: 20 of 23 spot-checked
 ### TIER 2 — bounded, meaningful
 
 5. **Signal Thread S3** — gap-alert strip + "L{n} in ~N weeks" prediction. S1+S2 are on Develop; this closes the arc. ⚠️ **a concurrent agent has been active in this area** — check `git log` and isolate before starting.
-6. **Match Verdict seam — Slice 4** (surface the visible verdict word). Small, completes an already-built seam. Memory `project_match_verdict_seam`.
+6. ~~**Match Verdict seam — Slice 4**~~ — ✅ CLOSED. Verified in memory `project_match_verdict_seam`: slice 4 built+shipped (`7643efc`), folded into the later standardization pass (`f3f1a2a`) which fixed the live dashboard fit bug + deleted the dead components slice 4 had decorated. Verdict word is live on `FeedFitRing`. Only remaining polish (tap-on-number→axes reveal panel) is deferred, not blocking.
 7. **#33 ₹99 Job-Switch Plan — the remaining build**: gap-personalised offer card (desktop rail + mobile feed inline), LLM review-draft → approve-queue → deliver, kill-switch env flag, L5 verbatim copy. Only revenue-bearing item in Tier 1–2.
 
 ### TIER 3 — needs a decision or a grill BEFORE code
