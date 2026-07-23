@@ -13,6 +13,7 @@ import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import type { ApplicationResponse, CVStructured, CVVersion, UserProfile } from "@/lib/api"
 import { MasterCVPanel } from "./library-master"
+import { FinishTailoringLane } from "./finish-tailoring-lane"
 import { MemoryPanel } from "./memory-panel"
 import { ReservoirProfile } from "./reservoir-profile"
 import { I, LIcon } from "./library-icons"
@@ -89,6 +90,8 @@ export function LibraryView({
         cv={cv}
         currentBaseline={currentBaseline}
         profile={profile}
+        applications={applications}
+        onOpenJob={onOpenJob}
         onReplaceCV={onReplaceCV}
       />
     )
@@ -107,6 +110,7 @@ export function LibraryView({
             <div className="tm-lib-doc">
               {isNewUser && <WorkspaceIntroCard />}
               <CvStoriesToggle view={view} />
+              <FinishTailoringLane applications={applications} onOpenJob={onOpenJob} />
               <MasterCVPanel
                 token={token}
                 baseline={currentBaseline}

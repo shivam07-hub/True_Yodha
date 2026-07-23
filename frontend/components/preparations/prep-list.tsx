@@ -84,7 +84,7 @@ export function PrepList({ token }: { token: string }) {
         <h1 className="prp-title">Preparations</h1>
         {live > 0 && <span className="prp-count">{live} live</span>}
       </div>
-      <p className="prp-sub">Every job you applied to gets a room — Myro preps you for it.</p>
+      <p className="prp-sub">Prepare for every job</p>
 
       {live === 0 && groups.closed.length === 0 ? (
         <div className="prp-empty">

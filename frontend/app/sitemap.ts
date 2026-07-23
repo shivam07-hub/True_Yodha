@@ -16,19 +16,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     }))
 
-  // Every tracked company gets a crawlable sitemap entry — previously the
-  // ~260 /companies/{name} pages were absent entirely. Public analytics (no
-  // auth); a transient backend miss still ships the rest of the sitemap.
+  // Only companies whose detail page renders real content (>=1 live listing)
+  // are emitted. Gating on the all-time `by_company` count shipped ~285 URLs,
+  // ~95 of them empty shells (delisted/unverified rows) → Google crawled them
+  // and dropped them as "Crawled - currently not indexed", and the sitemap⊆
+  // indexable contract broke (a sitemap URL that noindexes itself is a mixed
+  // signal). The /companies/indexable allowlist is the SAME live filter the
+  // detail page uses, so sitemap membership and the page's index/noindex always
+  // agree. Public (no auth); a transient backend miss still ships the rest.
   let companyPaths: MetadataRoute.Sitemap = []
   try {
-    const analytics = await jobs.analytics()
-    companyPaths = (analytics.by_company ?? [])
+    const { companies } = await jobs.indexableCompanies()
+    companyPaths = companies
       .filter((c) => c.name)
       .map((c) => ({
         url: `${BASE}/companies/${encodeURIComponent(c.name)}`,
-        // Only claim a lastmod we actually know — an always-now fallback teaches
-        // crawlers to distrust every date in the file.
-        ...(c.last_seen_at ? { lastModified: new Date(c.last_seen_at) } : {}),
         changeFrequency: "daily" as const,
         priority: 0.6,
       }))

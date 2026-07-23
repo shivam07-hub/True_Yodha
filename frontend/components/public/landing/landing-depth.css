@@ -108,7 +108,89 @@
   outline-offset: 2px;
 }
 
+/* ── The weekly loop ────────────────────────────────────────── */
+.lp-loop {
+  --lp-loop-arrow: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12h14M13 6l6 6-6 6'/></svg>");
+  padding: var(--lp-section-py) 0;
+  border-top: 1px solid var(--lp-border);
+}
+
+.lp-loop-flow {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  align-items: start;
+  gap: 0;
+}
+
+.lp-loop-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 8px 4px;
+  position: relative;
+}
+
+/* Arrow riding the gap between nodes — the loop advancing. */
+.lp-loop-node:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 18px;
+  right: -9px;
+  width: 16px;
+  height: 16px;
+  background: var(--lp-faint);
+  opacity: 0.65;
+  -webkit-mask: var(--lp-loop-arrow) center / contain no-repeat;
+  mask: var(--lp-loop-arrow) center / contain no-repeat;
+}
+
+.lp-loop-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--lp-accent);
+  background: var(--lp-accent-wash);
+  border: 1px solid var(--lp-accent-ring);
+}
+
+.lp-loop-noun {
+  font-size: var(--lp-fs-title);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--lp-text);
+}
+
+.lp-loop-sub {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--lp-muted);
+  max-width: 14ch;
+}
+
+.lp-loop-repeat {
+  margin: 28px 0 0;
+  text-align: center;
+  font-family: var(--lp-mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lp-faint);
+}
+
 /* ── Responsive ─────────────────────────────────────────────── */
 @media (max-width: 1060px) {
   .lp-howit-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+  .lp-loop-node:not(:last-child)::after { display: none; }
+  .lp-loop-icon { width: 46px; height: 46px; }
+  .lp-loop-sub { display: none; }
 }

@@ -7,7 +7,7 @@ import { PublicFooter } from "@/components/public/public-footer"
 import { LandingHero } from "@/components/public/landing/hero"
 import { LandingJobSearch } from "@/components/public/landing/job-search"
 import { LandingHowItWorks } from "@/components/public/landing/how-it-works"
-import { LandingEngine } from "@/components/public/landing/engine"
+import { LandingLoop } from "@/components/public/landing/loop"
 import { LandingDomains } from "@/components/public/landing/domains"
 import { LandingJobSwitchPlan } from "@/components/public/landing/job-switch-plan"
 import { LandingProof } from "@/components/public/landing/proof"
@@ -17,7 +17,6 @@ import { useReveal } from "@/components/public/landing/use-reveal"
 import { getAccessToken, getRefreshToken } from "@/lib/session"
 import "@/components/public/landing/landing-base.css"
 import "@/components/public/landing/landing-hero.css"
-import "@/components/public/landing/landing-engine.css"
 import "@/components/public/landing/landing-sections.css"
 import "@/components/public/landing/job-gen.css"
 import "@/components/public/landing/landing-depth.css"
@@ -25,13 +24,16 @@ import "@/components/public/landing/landing-depth.css"
 /**
  * Myro landing — single job-seeker funnel (backlog #33, grill-locked 2026-06-27).
  * One promise, one story: hero (CV → live score) → job-gen proof-search (type the
- * job you want → REAL openings) → how-it-works → 10-domain chips → ₹99
- * Personalised Job-Switch Plan teaser → proof/FAQ → footer. Dropping a CV in any
+ * job you want → REAL openings) → how-it-works (the one-time way in) → the weekly
+ * loop (the recurring cycle) → 10-domain chips → ₹99 Personalised Job-Switch Plan
+ * teaser → proof/FAQ → footer. Dropping a CV in any
  * band navigates to /cv-preview, which scores it and either opens the playground
  * or routes to /signup with the readout (navigate-then-load; the dropzone owns
  * that jump, so the landing holds no scoring state).
  * Demoted off the landing per #33 Q7: Myrology (footer only), the multi-product
- * "Surfaces" breadth section, coins as a cold-visitor concept.
+ * "Surfaces" breadth section, coins as a cold-visitor concept. Removed 2026-07-23:
+ * the animated Engine band — it was the machine-view of the same loop HowItWorks
+ * and the weekly loop already tell, so it told one story a third time (declutter).
  * Design source: reference/building landing page.zip (confirmed).
  */
 export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) {
@@ -53,9 +55,8 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
   }, [router])
 
   // The landing now follows the canonical surface (it consumes --tm-* like the
-  // rest of the product — pre = post). No force-dark: a light-pref/OS visitor
-  // sees the light Engine; a dark one sees the dark Engine. The Engine pipeline
-  // stays a dark console regardless (pinned in landing-engine.css).
+  // rest of the product — pre = post). No force-dark: it themes light/dark with
+  // the visitor's OS preference like the rest of the app.
 
   // Nav hairline fades in after 8px scroll (handoff §Interactions).
   const [scrolled, setScrolled] = useState(false)
@@ -94,7 +95,7 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
 
         <LandingHowItWorks />
 
-        <LandingEngine companiesLabel={data.companiesLabel} />
+        <LandingLoop />
 
         <LandingDomains />
 

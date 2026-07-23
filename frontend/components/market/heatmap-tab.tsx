@@ -20,7 +20,7 @@ interface HeatmapTabProps {
   targetLocations: string[]
   locFilters: JobLocationFilters
   paramSkill: string | null
-  onBackToJobs: () => void
+  onBackToJobs?: () => void
   onPersonalise: () => void
   onViewSkillJobs: (skillName: string) => void
 }
@@ -157,9 +157,11 @@ export function HeatmapTab({
 
   return (
     <div style={{ marginTop: 20 }}>
-      <button type="button" onClick={onBackToJobs} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--tm-interactive)", fontSize: 13, fontWeight: 600, marginBottom: 20 }}>
-        <span aria-hidden>&lt;-</span> Back to jobs
-      </button>
+      {onBackToJobs ? (
+        <button type="button" onClick={onBackToJobs} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--tm-interactive)", fontSize: 13, fontWeight: 600, marginBottom: 20 }}>
+          <span aria-hidden>&lt;-</span> Back to jobs
+        </button>
+      ) : null}
       {token && !cvReadyForPersonalization ? (
         <CVPrerequisiteCard readiness={cvReadiness as "missing" | "processing" | "failed"} errorCode={cvUploadErrorCode ?? null} />
       ) : (

@@ -22,17 +22,14 @@
 
 .sm-eyebrow { margin: 0; color: var(--tm-interactive); font: 600 10px/1.3 var(--tm-font-mono); letter-spacing: .12em; text-transform: uppercase; }
 .sm-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(300px, .75fr); gap: 16px; align-items: start; }
-.sm-card, .sm-breakdown, .sm-error { border: 1px solid var(--tm-border); border-radius: 18px; background: var(--tm-surface); }
+.sm-card, .sm-error { border: 1px solid var(--tm-border); border-radius: 18px; background: var(--tm-surface); }
+.sm-radar-card { scroll-margin-top: 88px; }
 .sm-card { padding: 22px; }
 .sm-card-head, .sm-focus-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.sm-card h2, .sm-breakdown h2 { margin: 0; color: var(--tm-text); font-size: 20px; letter-spacing: -.025em; }
+.sm-card h2 { margin: 0; color: var(--tm-text); font-size: 20px; letter-spacing: -.025em; }
 .sm-card-head > span { color: var(--tm-text-muted); font-size: 11px; }
-.sm-radar-wrap { display: grid; place-items: center; min-height: 330px; }
+.sm-radar-wrap { display: grid; place-items: center; min-height: 330px; margin-bottom: 8px; padding-bottom: 14px; border-bottom: 1px solid var(--tm-border-soft); }
 .sm-radar-wrap svg { width: min(100%, 430px); height: auto; overflow: visible; }
-.sm-domain-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-.sm-domain-list button { display: flex; min-height: 38px; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid var(--tm-border-soft); border-radius: 9px; background: transparent; padding: 0 11px; color: var(--tm-text-muted); cursor: pointer; text-align: left; }
-.sm-domain-list button.is-active { border-color: color-mix(in srgb, var(--tm-interactive) 55%, transparent); background: color-mix(in srgb, var(--tm-interactive) 9%, transparent); color: var(--tm-text); }
-.sm-domain-list strong { color: var(--tm-text); font: 650 12px var(--tm-font-mono); }
 .sm-focus { position: sticky; top: 88px; }
 .sm-focus-title h2 { max-width: 240px; font-size: 25px; }
 .sm-focus-title > strong { color: var(--tm-interactive); font: 650 38px/1 var(--tm-font-mono); }
@@ -54,9 +51,6 @@
 .sm-primary { margin-top: 16px; background: var(--tm-interactive); color: var(--tm-bg); }
 .sm-actions .sm-primary { margin-top: 0; }
 .sm-secondary { border: 1px solid var(--tm-border); color: var(--tm-text); }
-.sm-breakdown { scroll-margin-top: 88px; margin-top: 16px; padding: 22px; }
-.sm-breakdown-head { margin-bottom: 16px; }
-.sm-breakdown-head h2 { margin-top: 4px; }
 .sm-error { margin-top: 30px; padding: 28px; }
 .sm-error h1 { margin: 0; color: var(--tm-text); }
 .sm-error p { margin: 8px 0 0; color: var(--tm-text-muted); }
@@ -70,8 +64,7 @@
 
 @media (max-width: 480px) {
   .sm-page { width: calc(100% - 24px); padding-bottom: 96px; }
-  .sm-card, .sm-breakdown { border-radius: 14px; padding: 16px; }
-  .sm-domain-list { grid-template-columns: 1fr; }
+  .sm-card { border-radius: 14px; padding: 16px; }
   .sm-radar-wrap { min-height: 245px; }
   .sm-hero svg { width: 78px; height: 78px; }
 }

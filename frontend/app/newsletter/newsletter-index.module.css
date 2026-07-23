@@ -184,13 +184,9 @@
   line-height: 1.55;
 }
 
-/* Loop sits beside the masthead once there's room for 4 nodes. */
-@media (min-width: 860px) {
-  .masthead {
-    grid-template-columns: minmax(0, 1fr) minmax(380px, 0.92fr);
-    gap: 40px;
-  }
-}
+/* Masthead is a single-column wayfinding band. The weekly-loop nav that used to
+   sit beside the copy moved to the landing (backlog #33); the Topic Clusters rail
+   now owns dividing the newsletter by section. */
 
 @media (min-width: 1024px) {
   .copy h1 {

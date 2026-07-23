@@ -52,6 +52,26 @@ export function buildCvEvidenceHref(location: Pick<ScoreMapLocation, "domain" | 
  * recomputes a second score from raw skill levels; every axis is the persisted
  * domain score that the canonical backend averaged into `total_score`.
  */
+/**
+ * The domain the page opens on when the URL names none.
+ *
+ * Not the lowest score — that is almost always a thin-evidence domain (one
+ * detected skill), so it is the least informative axis AND leads with the
+ * user's worst number on a page meant to make the score legible, not indict.
+ * Instead open where the points actually are: the domain holding the biggest
+ * real lever (highest score_delta gap). Absent any lever ≥1pt, lead with the
+ * strongest domain — the edge, not the wound.
+ */
+function defaultAxis(axes: ScoreMapAxis[], gapSkills: ScoreResponse["gap_skills"]): ScoreMapAxis | undefined {
+  if (axes.length === 0) return undefined
+  const byDomain = new Map(axes.map((axis) => [axis.domain, axis]))
+  const bestLever = [...gapSkills]
+    .filter((g) => (g.score_delta ?? 0) >= 1 && g.domain && byDomain.has(g.domain))
+    .sort((a, b) => (b.score_delta ?? 0) - (a.score_delta ?? 0))[0]
+  if (bestLever?.domain) return byDomain.get(bestLever.domain)
+  return [...axes].sort((a, b) => b.score - a.score)[0]
+}
+
 export function buildScoreMap(
   score: ScoreResponse,
   skills: UserSkillsByDomain,
@@ -69,7 +89,7 @@ export function buildScoreMap(
     }
   })
   const selected = axes.find((axis) => axis.domain === requestedDomain)
-    ?? [...axes].sort((a, b) => a.score - b.score)[0]
+    ?? defaultAxis(axes, score.gap_skills)
     ?? null
   const gap = score.gap_skills
     .filter((item) => item.domain === selected?.domain && (item.score_delta ?? 0) >= 1)

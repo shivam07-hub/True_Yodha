@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 
 import { useNavUnlocks } from "@/lib/hooks/use-nav-unlocks"
+import { useShellModel, type ShellModel } from "@/lib/shell/use-shell-model"
 import { MyroLogo } from "@/components/myro-logo"
 import { TopbarNav, NavContentCluster } from "@/components/nav/topbar-nav"
 import { NotificationBell } from "@/components/nav/notification-bell"
@@ -15,33 +16,54 @@ import { MyrologyOptInPrompt } from "@/components/myrology-optin-prompt"
 import { ThemeControl } from "@/components/ui/theme-control"
 import { Button } from "@/components/ui/button"
 import { AccountLegalLinks } from "@/components/shell/account-legal-links"
-import { openFeedbackHub, type FeedbackCategory } from "@/components/feedback"
-import type { SidebarProfile } from "@/lib/shell/contract"
+import { FeedbackHub, openFeedbackHub, type FeedbackCategory } from "@/components/feedback"
 
 /**
- * WEB-only chrome adapter (ADR-0010). The desktop top bar: brand, progressive
- * nav, account menu, settings/sign-out/myrology surfaces. Mounted by AppShell
- * only when `isDesktop`. The mobile shell (mobile/shell.tsx) is the parallel
- * adapter; neither imports the other.
+ * AuthedTopStrip — the ONE logged-in top strip (ADR-0010). The app shell AND the
+ * public bar's authed branch mount this SAME component, so a signed-in user sees
+ * the identical strip on every surface (marketing + app) — one app, no drift.
+ * The old split (app shell had score/bell/avatar; the public authed bar had a
+ * bare "Go to app →") is retired here.
+ *
+ * Self-contained: the tabs (NavContentCluster + TopbarNav) self-derive active +
+ * the CV→Prep split + journey counts from the route, so the two navs cannot
+ * diverge again. The account-menu flows (settings, myrology, sign-out) mount
+ * their own dialogs. The one cross-cutting overlay is the FeedbackHub: the app
+ * shell already mounts it, so it passes `mountFeedbackHub={false}`; the public
+ * standalone passes it true (no AppShell to host it).
+ *
+ * `model` is threaded in on app routes (AppShell already holds it — no double
+ * useShellModel); AuthedTopStripStandalone sources its own for public routes.
  */
 
-export const FEEDBACK_QUICK_ACTIONS: {
+const FEEDBACK_QUICK_ACTIONS: {
   id: string; category: FeedbackCategory; icon: string; label: string; color: string; bg: string
 }[] = [
-  { id: "bug",    category: "bug",    icon: "⚠",  label: "Report a bug",       color: "var(--tm-warning)", bg: "var(--tm-warning-wash)" },
-  { id: "praise", category: "idea",   icon: "◎",  label: "Feedback and ideas", color: "var(--tm-success)",  bg: "var(--tm-success-wash)" },
+  { id: "bug",    category: "bug",  icon: "⚠",  label: "Report a bug",       color: "var(--tm-warning)", bg: "var(--tm-warning-wash)" },
+  { id: "praise", category: "idea", icon: "◎",  label: "Feedback and ideas", color: "var(--tm-success)",  bg: "var(--tm-success-wash)" },
 ]
 
-interface WebChromeProps {
-  xpBalance: number
-  profile: SidebarProfile | null
-  signOut: () => void
-  onXPOpen: () => void
+// The old /myro "Welcome to Myro" hub is retired as the logo target (logo now
+// drops the user in their feed). Its two homeless resource cards live here, in
+// the account menu's Learn group; the workspace cards were tab duplicates and
+// were dropped. Newsletter keeps its first-class home (a tab desktop / Profile
+// mobile), so it is not re-listed here.
+const LEARN_LINKS = [
+  { href: "/",       label: "About us" },
+  { href: "/tokens", label: "Myro Coins guide" },
+] as const
+
+interface AuthedTopStripProps {
+  model: ShellModel
+  /** Mount the shared FeedbackHub. False on app routes (AppShell hosts it);
+   *  true on public routes where nothing else does. */
+  mountFeedbackHub?: boolean
 }
 
-export function WebChrome({ profile, signOut }: WebChromeProps) {
+export function AuthedTopStrip({ model, mountFeedbackHub = false }: AuthedTopStripProps) {
   const router = useRouter()
   const nav = useNavUnlocks()
+  const { profile, signOut } = model
   const [menuOpen, setMenuOpen] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("Account")
@@ -62,10 +84,11 @@ export function WebChrome({ profile, signOut }: WebChromeProps) {
   return (
     <>
       <header className="tm-app-topbar" aria-label="App navigation">
-        {/* Brand — aperture + beta badge (wordmark dropped) */}
-        <Link href="/myro" className="tm-topbar-brand" aria-label="Myro — home">
+        {/* Brand — aperture + Myro wordmark. Logo → the feed (the one home;
+            LinkedIn/X pattern). The old "beta" pill is gone. */}
+        <Link href="/market" className="tm-topbar-brand" aria-label="Myro — home">
           <MyroLogo size={26} />
-          <span className="tm-nav-beta" title="Early access — Myro is still evolving">beta</span>
+          <span className="tm-topbar-wordmark">Myro</span>
         </Link>
 
         {/* Browse cluster (Intel / Newsletter) — hugs the logo, left of the tabs */}
@@ -155,6 +178,22 @@ export function WebChrome({ profile, signOut }: WebChromeProps) {
                       <span style={{ fontSize: 13, color: a.color }}>{a.label}</span>
                     </button>
                   ))}
+                  {/* Learn — the retired /myro hub's reference cards find their home
+                      here, with the other secondary/reference links. */}
+                  <div className="tm-topbar-menu-divider" />
+                  {LEARN_LINKS.map((l) => (
+                    <Link
+                      key={l.href}
+                      href={l.href}
+                      onClick={() => setMenuOpen(false)}
+                      className="tm-topbar-menu-item"
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.04)" }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
+                    >
+                      <span style={{ fontSize: 13, color: "var(--tm-text-faint)", minWidth: 18 }}>·</span>
+                      <span style={{ fontSize: 13, color: "var(--tm-interactive-rest)" }}>{l.label}</span>
+                    </Link>
+                  ))}
                   <div className="tm-topbar-menu-divider" />
                   <AccountLegalLinks />
                 </div>
@@ -170,6 +209,19 @@ export function WebChrome({ profile, signOut }: WebChromeProps) {
         onClose={() => setMyroPromptOpen(false)}
         onConfirmed={() => router.push("/myrology")}
       />
+
+      {mountFeedbackHub && (
+        <FeedbackHub
+          open={model.feedbackHubOpen}
+          onClose={() => model.setFeedbackHubOpen(false)}
+          defaultCategory={model.feedbackHubCategory}
+          defaultTab={model.feedbackHubTab}
+          showHistory={!!model.token}
+          showContext
+          userName={profile.full_name}
+          userEmail={profile.email}
+        />
+      )}
 
       {signOutConfirm && (
         <div style={{ position: "fixed", inset: 0, zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setSignOutConfirm(false)}>
@@ -187,4 +239,14 @@ export function WebChrome({ profile, signOut }: WebChromeProps) {
       )}
     </>
   )
+}
+
+/**
+ * Public-route wrapper: sources its own shell model. ONLY mount when a session
+ * exists — useShellModel → useAuth redirects to /login on no token, so a
+ * logged-out visitor must never reach this (PublicTopNav gates on useSession).
+ */
+export function AuthedTopStripStandalone() {
+  const model = useShellModel()
+  return <AuthedTopStrip model={model} mountFeedbackHub />
 }

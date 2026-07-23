@@ -137,6 +137,13 @@
   border-radius: 999px;
   padding: 3px 10px;
 }
+/* The overflow count: a real number, styled quieter than a real domain chip
+   so it reads as "and more exist" rather than another catalogued domain. */
+.sb-chip-more {
+  border-style: dashed;
+  color: var(--tm-text-muted);
+  font-weight: 500;
+}
 .sb-empty-cta {
   display: inline-block;
   margin-top: 12px;
@@ -158,3 +165,36 @@
   text-decoration-color: color-mix(in srgb, var(--tm-text-muted) 40%, transparent);
 }
 .sb-method:hover { color: var(--tm-text); text-decoration-color: currentColor; }
+
+/* ── Selector variant: the same bars ARE the domain picker on /skills. ──────
+   Nested inside the radar card, so it drops its own frame + top margin and
+   lets the card own the surface. Each row is a real button; the active row
+   carries the interactive edge that ties it to the highlighted radar axis. */
+.sb--selector {
+  margin-top: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  animation: none;
+}
+.sb--selector .sb-domains { gap: 4px; }
+.sb--selector .sb-row { border-radius: 9px; }
+
+.sb-row-select {
+  display: block;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  padding: 8px 10px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 140ms var(--tm-ease), border-color 140ms var(--tm-ease);
+}
+.sb-row-select:hover { background: color-mix(in srgb, var(--tm-text) 5%, transparent); }
+.sb-row-select.is-active {
+  border-color: color-mix(in srgb, var(--tm-interactive) 55%, transparent);
+  background: color-mix(in srgb, var(--tm-interactive) 9%, transparent);
+}
+.sb-row-select .sb-bar { margin-top: 7px; }

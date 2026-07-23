@@ -3208,6 +3208,15 @@ export interface CompanyPulseResponse {
   companies: CompanyPulseItem[]
 }
 
+/** Company with an indexable detail page (>=1 live listing) — sitemap allowlist. */
+export interface IndexableCompanyItem {
+  name: string
+  active_count: number
+}
+export interface IndexableCompaniesResponse {
+  companies: IndexableCompanyItem[]
+}
+
 /** New-this-week (company × skill) role count — the gap-alert signal (S3). */
 export interface CompanyGapSignalItem {
   company_name: string
@@ -3489,6 +3498,11 @@ export const jobs = {
     const params = new URLSearchParams({ companies: companies.join(",") })
     return request<CompanyPulseResponse>(`/jobs/companies/pulse?${params.toString()}`)
   },
+  // SEO-indexing allowlist: companies whose detail page has real content
+  // (>=1 live listing). The sitemap emits only these (Fix 1, GSC report
+  // 2026-07-23) so Google isn't sent thin/empty company pages.
+  indexableCompanies: () =>
+    request<IndexableCompaniesResponse>(`/jobs/companies/indexable`),
   companyGapSignals: (companies: string[], skills: string[]) => {
     const params = new URLSearchParams({ companies: companies.join(","), skills: skills.join(",") })
     return request<CompanyGapSignalsResponse>(`/jobs/companies/gap-signals?${params.toString()}`)

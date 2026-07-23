@@ -71,7 +71,6 @@ export function IntelWorkspace({ token }: { token: string }) {
         targetLocations={profile?.target_locations ?? []}
         locFilters={{}}
         paramSkill={paramSkill}
-        onBackToJobs={() => router.push("/market")}
         onPersonalise={() => router.push("/companies")}
         onViewSkillJobs={(skill) => router.push(`/market?skill=${encodeURIComponent(skill)}`)}
       />

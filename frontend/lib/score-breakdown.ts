@@ -1,5 +1,5 @@
 import type { GapSkill } from "@/lib/api"
-import { DOMAIN_LABELS, domainLabel } from "@/lib/domain-labels"
+import { ALL_SCORE_DOMAINS, domainLabel } from "@/lib/domain-labels"
 
 /**
  * Personal Myro Score decomposition (T2-3 Part A) — turns the user's own score
@@ -78,10 +78,14 @@ export function buildScoreBreakdown(
     })
     .sort((a, b) => b.score - a.score)
 
-  const evidencedCodes = new Set(domains.map((d) => d.code))
-  const emptyDomains: EmptyDomain[] = Object.keys(DOMAIN_LABELS)
-    .filter((code) => !evidencedCodes.has(code))
-    .map((code) => ({ code, label: domainLabel(code) }))
+  // The uncounted tier must diff against the REAL 31-domain universe, not the
+  // dead DOMAIN_LABELS code set — see lib/domain-labels.ts. Case/whitespace
+  // normalized defensively; domain_scores and ALL_SCORE_DOMAINS come from the
+  // same taxonomy source so this should always be an exact match in practice.
+  const evidencedCodes = new Set(domains.map((d) => d.code.trim().toLowerCase()))
+  const emptyDomains: EmptyDomain[] = ALL_SCORE_DOMAINS
+    .filter((name) => !evidencedCodes.has(name.trim().toLowerCase()))
+    .map((name) => ({ code: name, label: domainLabel(name) }))
 
   return {
     score,

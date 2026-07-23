@@ -293,18 +293,6 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
     onClose()
   }
 
-  function saveNow() {
-    if (autosaveTimer.current) { clearTimeout(autosaveTimer.current); autosaveTimer.current = null }
-    const payload: ProfileUpdate = {
-      full_name: normalize(name),
-      target_locations: normalizeLocations(locations),
-      linkedin_url: normalizeLinkedIn(linkedin),
-    }
-    pending.current = {}
-    setSaveStatus("saving"); setSaveError(null)
-    mutation.mutate(payload)
-  }
-
   const locationCatalogQuery = useQuery({
     queryKey: dataKeys.jobsAnalytics(),
     queryFn: () => jobs.analytics(),
@@ -564,6 +552,15 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
             <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--tm-text)", margin: 0 }}>
               {activeTab}
             </h2>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {/* One Save for the whole modal: flushes any pending edit and closes,
+                so the tap itself is the acknowledgement (no waiting on a round-trip). */}
+            <Button
+              type="button" variant="solid" size="sm" onClick={flushAndClose}
+              style={{ touchAction: "manipulation" }}
+            >
+              Save
+            </Button>
             <button
               type="button" aria-label="Close settings" onClick={flushAndClose}
               style={{
@@ -575,6 +572,7 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
               onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.borderColor = "var(--tm-border-soft)" }}
               onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent" }}
             >×</button>
+            </div>
           </div>
 
           {/* Scrollable body */}
@@ -630,7 +628,7 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                 <div style={{ ...ROW_STYLE, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                   <div style={{ paddingRight: 16 }}>
                     <div style={ROW_LABEL}>✦ Myrology</div>
-                    <div style={ROW_DESC}>A second signal from your birth chart. Turn on to show Myrology in your navigation.</div>
+                    <div style={ROW_DESC}>A second signal from your birth chart — shown in your navigation.</div>
                   </div>
                   <button
                     type="button"
@@ -659,35 +657,22 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                 {/* Appearance — applies instantly, independent of Save. */}
                 <div style={SECTION_HEADER}>Appearance</div>
                 <div style={{ ...ROW_STYLE, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                  <div style={{ paddingRight: 16 }}>
-                    <div style={ROW_LABEL}>Theme</div>
-                    <div style={ROW_DESC}>System follows your device.</div>
-                  </div>
+                  <div style={ROW_LABEL}>Theme</div>
                   <ThemeControl />
                 </div>
 
-                {/* Save button */}
-                <div style={{ paddingTop: 20, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12 }}>
-                  {rewardNotice && (
-                    <span style={{ fontSize: 12, color: "var(--tm-success)", fontWeight: 600 }}>{rewardNotice}</span>
-                  )}
-                  {saveStatus === "error" && saveError && (
-                    <span style={{ fontSize: 12, color: "var(--tm-danger)" }}>{saveError}</span>
-                  )}
-                  <button type="button" onClick={saveNow} disabled={saveStatus === "saving"}
-                    style={{
-                      padding: "9px 24px", borderRadius: "var(--tm-radius-sm)", border: "none",
-                      background: saveStatus === "saved" ? "var(--tm-success)" : "var(--tm-interactive)",
-                      color: "var(--tm-interactive-fg)", fontSize: 13, fontWeight: 600, fontFamily: "inherit",
-                      cursor: saveStatus === "saving" ? "not-allowed" : "pointer",
-                      opacity: saveStatus === "saving" ? 0.65 : 1,
-                      transition: "background var(--tm-dur) var(--tm-ease), opacity var(--tm-dur)",
-                      minWidth: 100,
-                    }}
-                  >
-                    {saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "✓ Saved" : "Save"}
-                  </button>
-                </div>
+                {/* Save lives in the header — this row carries only what the
+                    header can't show: an earned reward, or a failed save. */}
+                {(rewardNotice || (saveStatus === "error" && saveError)) && (
+                  <div style={{ paddingTop: 20, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12 }}>
+                    {rewardNotice && (
+                      <span style={{ fontSize: 12, color: "var(--tm-success)", fontWeight: 600 }}>{rewardNotice}</span>
+                    )}
+                    {saveStatus === "error" && saveError && (
+                      <span style={{ fontSize: 12, color: "var(--tm-danger)" }}>{saveError}</span>
+                    )}
+                  </div>
+                )}
               </>
             )}
 
@@ -702,10 +687,7 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                     recompute-wired path (#145); job-match clusters are derived
                     server-side, so there is no separate role array to manage. */}
                 <div style={ROW_STYLE}>
-                  <div>
-                    <div style={ROW_LABEL}>Target Roles</div>
-                    <div style={ROW_DESC}>The roles your job matches are measured against — target up to 5</div>
-                  </div>
+                  <div style={ROW_LABEL}>Target Roles</div>
                   <div style={{ marginTop: 10 }}>
                     <TargetRolesChips roles={targetRoleTitles} editable showReadiness />
                   </div>
@@ -713,10 +695,7 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
 
                 {/* Target location */}
                 <div style={ROW_STYLE}>
-                  <div>
-                    <div style={ROW_LABEL}>Target Locations</div>
-                    <div style={ROW_DESC}>Where you want to work — scopes your job feed and matches</div>
-                  </div>
+                  <div style={ROW_LABEL}>Target Locations</div>
                   <div style={{ position: "relative" }}>
                     <input
                       ref={locationInputRef} id="sm-location" type="text" value={locationInput}
@@ -761,19 +740,11 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                   )}
                 </div>
 
-                {/* Target companies section */}
-                <div style={{ ...SECTION_HEADER, marginTop: 32 }}>Target Companies</div>
-
                 {/* Company search combobox — same pattern as Target Roles */}
-                <div style={{ ...ROW_STYLE, marginTop: 0 }}>
-                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-                    <div>
-                      <div style={ROW_LABEL}>Target Companies</div>
-                      <div style={ROW_DESC}>
-                        Companies you follow to compare their hiring against your CV · free
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0, marginLeft: 12 }}>
+                <div style={{ ...ROW_STYLE, marginTop: 24 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                    <div style={ROW_LABEL}>Target Companies</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                       <SaveBadge status={followStatus} />
                       {followedCompanies.length > 0 && (
                         <span style={{ fontSize: 11, color: "var(--tm-text-faint)" }}>
@@ -857,7 +828,7 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "32px 0", textAlign: "center" }}>
                     <div style={{ fontSize: 28, opacity: 0.2, color: "var(--tm-interactive)" }}>★</div>
                     <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>
-                      No companies followed yet. Following is free.
+                      Follow a company to track its hiring
                     </div>
                   </div>
                 ) : (

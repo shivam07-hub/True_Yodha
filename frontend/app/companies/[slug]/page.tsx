@@ -98,9 +98,25 @@ export async function generateMetadata(
   { params }: { params: { slug: string } },
 ): Promise<Metadata> {
   const companyName = decodeURIComponent(params.slug)
-  const data = await getCompanyJobs(companyName)
+  // Same cached reads the page makes → no extra round-trips (React.cache dedupes).
+  const [data, notes, postingNotes] = await Promise.all([
+    getCompanyJobs(companyName),
+    getCompanyNotes(companyName),
+    getPostingNotes(companyName),
+  ])
   const total = data?.total ?? 0
   const canonical = `${BASE}/companies/${encodeURIComponent(companyName)}`
+
+  // A company page earns indexing only when it has real crawlable content:
+  // live roles OR first-hand community notes (the "what's it like at X" AEO
+  // text). An empty shell (0 live roles, 0 notes) is the thin page Google
+  // crawls then drops as "Crawled - currently not indexed" — worse than not
+  // asking. noindex here + omission from the sitemap (see sitemap.ts) keep the
+  // request honest. follow:true so Googlebot still walks the links. When the
+  // scraper re-lists roles (or a note lands), ISR flips the page back to
+  // index automatically — no manual step.
+  const hasNotes = (notes?.comments?.length ?? 0) > 0 || postingNotes.length > 0
+  const indexable = total > 0 || hasNotes
 
   const title = `${companyName} jobs and hiring signals | Myro`
   const description =
@@ -113,9 +129,9 @@ export async function generateMetadata(
     description,
     alternates: { canonical },
     robots: {
-      index: true,
+      index: indexable,
       follow: true,
-      googleBot: { index: true, follow: true, "max-image-preview": "large" },
+      googleBot: { index: indexable, follow: true, "max-image-preview": "large" },
     },
     openGraph: { title, description, type: "website", url: canonical },
     twitter: { card: "summary_large_image", title, description },

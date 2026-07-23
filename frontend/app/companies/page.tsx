@@ -47,12 +47,30 @@ function topSectors(companies: DirectoryCompany[], max = 5): string[] {
 }
 
 export default async function CompaniesDirectoryPage() {
+  // The crawlable list = only companies with an indexable detail page (>=1 live
+  // listing). Two reasons: (1) the directory's internal links must not pass
+  // link-equity to /companies pages that noindex themselves — a link farm
+  // pointing at thin pages drags the directory's own quality signal down;
+  // (2) `count` here is the REAL live-role count, so "sort by open roles" and
+  // the featured pulse grid stop ranking companies with a 3,000 all-time count
+  // but zero live roles (which rendered a misleading em-dash at the top).
+  // Industry is enriched from analytics (all-time is fine for a sector label).
   let companies: DirectoryCompany[] = []
   try {
-    const analytics = await jobs.analytics()
-    companies = (analytics.by_company ?? [])
+    const [indexable, analytics] = await Promise.all([
+      jobs.indexableCompanies(),
+      jobs.analytics().catch(() => null),
+    ])
+    const industryOf = new Map(
+      (analytics?.by_company ?? []).map((c) => [c.name, c.industry ?? null]),
+    )
+    companies = indexable.companies
       .filter((c) => c.name)
-      .map((c) => ({ name: c.name, count: c.count, industry: c.industry ?? null }))
+      .map((c) => ({
+        name: c.name,
+        count: c.active_count,
+        industry: industryOf.get(c.name) ?? null,
+      }))
   } catch {
     // Backend unreachable → render the masthead shell; ISR retries next request.
     // Never 500 a crawlable page over a transient fetch.

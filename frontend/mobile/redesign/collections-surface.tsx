@@ -39,7 +39,8 @@ import { useMobileUI } from "./mobile-ui"
    match stack (jobs.matches) THRESHOLD-split (above-bar here + Agent Picks,
    below-bar → Jobs, rejected hidden); "You added" / "Applied" are the saved-job
    worklist. A Myro Search (the paid run) reveals in place. Journey strip ·
-   pinned "Finish tailoring" lane · sort sheet · Job Pulse trust line · add-job.
+   sort sheet · Job Pulse trust line · add-job. (The "Finish tailoring" lane
+   moved to the CV workspace, /cv.)
    ══════════════════════════════════════════════════════════════════════════ */
 
 const JOURNEY_DISMISS_KEY = "mm_collections_journey_dismissed_at"
@@ -109,7 +110,6 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
     [apps, chip, sort, ctx, byId],
   )
 
-  const continueApps = useMemo(() => continueItems.map(it => appBy.get(it.jobId)).filter(Boolean) as ApplicationResponse[], [continueItems, appBy])
   const queueApps = useMemo(() => (appView?.queueItems ?? []).map(it => appBy.get(it.jobId)).filter(Boolean) as ApplicationResponse[], [appView, appBy])
 
   const shownIds = useMemo(
@@ -304,23 +304,8 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
         </div>
       </div>
 
-      {/* finish-tailoring lane — tailored but not applied, chip-independent */}
-      {continueApps.length > 0 && (
-        <div style={{ padding: "0 16px 4px" }}>
-          <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", color: "#8b8b84", textTransform: "uppercase", marginBottom: 6 }}>
-            Finish tailoring · {continueApps.length}
-          </div>
-          <div className="mm-scroll" style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 6 }}>
-            {continueApps.map(a => (
-              <button key={a.job_id} onClick={() => setDetailId(a.job_id)} className="mm-press" style={{ flex: "none", maxWidth: 220, textAlign: "left", background: "#212120", border: "1px solid rgba(0,245,212,0.22)", borderRadius: 13, padding: "10px 12px", cursor: "pointer", fontFamily: "inherit" }}>
-                <span style={{ display: "block", fontSize: 11, fontWeight: 650, color: "#c9c9c2", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.company ?? "Untitled company"}</span>
-                <span style={{ display: "block", fontSize: 12.5, fontWeight: 650, color: "#f2f2ee", marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.title}</span>
-                <span style={{ display: "block", fontSize: 10.5, fontWeight: 700, color: "var(--mm-accent)", marginTop: 3 }}>Finish &amp; apply →</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* "Finish tailoring" lane moved to the CV workspace (/cv). continueItems
+          still feeds Agent-Picks dedup + prefetch above. */}
 
       <div style={{ padding: "2px 16px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
         {chip === "found" ? (

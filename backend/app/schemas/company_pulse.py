@@ -25,3 +25,14 @@ class CompanyPulseItem(BaseModel):
 
 class CompanyPulseResponse(BaseModel):
     companies: list[CompanyPulseItem]
+
+
+class IndexableCompanyItem(BaseModel):
+    # Company whose /companies/{name} page has real content (>=1 live listing).
+    name: str
+    # Live roles passing the detail page's filter (is_active AND confidence=active).
+    active_count: int
+
+
+class IndexableCompaniesResponse(BaseModel):
+    companies: list[IndexableCompanyItem]

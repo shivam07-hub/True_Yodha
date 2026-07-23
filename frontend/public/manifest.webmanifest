@@ -2,12 +2,12 @@
   "name": "Myro — Career Intelligence",
   "short_name": "Myro",
   "description": "Upload your CV and discover your Myro Score across 10 professional domains.",
-  "start_url": "/home",
+  "start_url": "/market",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#050A18",
-  "theme_color": "#050A18",
+  "background_color": "#F9F9F9",
+  "theme_color": "#F9F9F9",
   "categories": ["productivity", "education", "business"],
   "icons": [
     {

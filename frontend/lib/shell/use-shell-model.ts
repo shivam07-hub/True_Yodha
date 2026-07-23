@@ -17,6 +17,10 @@ import type { SidebarProfile } from "@/lib/shell/contract"
 
 export type FeedbackHubTab = "new" | "reports" | "shipped"
 
+/** The shell model shape — consumed by every chrome adapter (web strip, mobile
+ *  bars) and the shared AuthedTopStrip so it can mount in any layout. */
+export type ShellModel = ReturnType<typeof useShellModel>
+
 /**
  * The platform-neutral shell model (ADR-0010). Owns the state every shell
  * adapter needs — XP balance, the chrome profile, feedback-hub + XP-modal +

@@ -64,6 +64,8 @@ export function ProfileSurface({ token }: { token: string }) {
     { label: "Intel", meta: "Market mirror", onTap: () => router.push("/intel") },
     { label: "Newsletter", meta: "Weekly signals", onTap: () => router.push("/newsletter") },
     { label: "Myrology ✦", onTap: () => router.push("/myrology") },
+    { label: "About us", meta: "How Myro works", onTap: () => router.push("/") },
+    { label: "Myro Coins guide", onTap: () => router.push("/tokens") },
     { label: "Settings", onTap: () => document.dispatchEvent(new CustomEvent("tm:open-settings")) },
     { label: "Sign out", danger: true, onTap: signOut },
   ]

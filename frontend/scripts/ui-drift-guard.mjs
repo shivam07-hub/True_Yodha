@@ -40,14 +40,17 @@ const SRC_DIRS = ["app", "components", "mobile", "lib"]
  */
 const METRICS = [
   {
-    name: "navUsesCanonicalClass",
+    name: "publicNavDelegatesAuthedStrip",
     file: "components/public/top-nav.tsx",
     exts: [".tsx"],
-    // className contexts only (preceded by quote/backtick/space) — NOT comment
-    // mentions like `.tm-topbar-link`, so editing a comment can't trip the gate.
-    pattern: /["'`\s]tm-topbar-link/g,
+    // The public bar's authed view must DELEGATE to the one shared strip, not
+    // hand-render its own authed tabs. This is stronger than the old
+    // canonical-class check: there's now a single <AuthedTopStrip> both the app
+    // shell and the public bar mount, so the two navs cannot diverge (the
+    // 2026-07 Delta-4 drift). A drop = someone reintroduced a parallel authed nav.
+    pattern: /AuthedTopStripStandalone/g,
     mode: "min",
-    hint: "The public bar's authed tabs must keep rendering the canonical `.tm-topbar-link` classes from globals.css. A drop means someone reintroduced a parallel nav-link style — re-point it at the shared class.",
+    hint: "The public bar's authed view must mount the shared <AuthedTopStripStandalone> (the ONE logged-in strip), never hand-render its own authed tabs. Restore the delegation.",
   },
   {
     name: "jsHoverStyleMutation",
@@ -150,7 +153,7 @@ function countMetric(metric) {
  * A public app/<seg>/page.tsx with no `route: true` entry there fails the build
  * — a page can't be silently forgotten (the /companies-in-footer bug class).
  */
-const NON_PUBLIC_SEGMENTS = new Set(["dashboard", "diary", "login", "onboarding", "signup", "welcome"])
+const NON_PUBLIC_SEGMENTS = new Set(["dashboard", "diary", "login", "offline", "onboarding", "signup", "welcome"])
 
 function registeredRouteSegments() {
   const segs = new Set()

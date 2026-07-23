@@ -124,3 +124,36 @@ def test_fetch_company_pulse_empty_input_short_circuits() -> None:
     repo = JobsRepository(db=object(), admin_db=object())  # type: ignore[arg-type]
     assert repo.fetch_company_pulse([]) == []
     assert repo.fetch_company_pulse(["  ", ""]) == []
+
+
+# ── Indexable-companies allowlist (SEO sitemap gate, GSC 2026-07-23) ─────────
+
+
+def test_fetch_indexable_companies_dedupes_counts_and_sorts(monkeypatch) -> None:
+    # The repo scans jobs already filtered to live rows (is_active AND
+    # confidence=active) — the fake returns that filtered set. Method dedupes to
+    # distinct companies with a role count, sorted by count desc then name.
+    rows = [
+        {"company_name": "Wipro"},
+        {"company_name": "Wipro"},
+        {"company_name": "Wipro"},
+        {"company_name": " Axis Bank "},  # trimmed
+        {"company_name": "Axis Bank"},
+        {"company_name": ""},  # blank dropped
+        {"company_name": None},  # null dropped
+    ]
+    monkeypatch.setattr(jobs_module, "fetch_all_rows", lambda *a, **k: rows)
+    jobs_module._indexable_companies_cache = None
+    repo = JobsRepository(db=object(), admin_db=object())  # type: ignore[arg-type]
+    out = repo.fetch_indexable_companies()
+    assert out == [
+        {"name": "Wipro", "active_count": 3},
+        {"name": "Axis Bank", "active_count": 2},
+    ]
+
+
+def test_fetch_indexable_companies_empty_when_no_live_rows(monkeypatch) -> None:
+    monkeypatch.setattr(jobs_module, "fetch_all_rows", lambda *a, **k: [])
+    jobs_module._indexable_companies_cache = None
+    repo = JobsRepository(db=object(), admin_db=object())  # type: ignore[arg-type]
+    assert repo.fetch_indexable_companies() == []

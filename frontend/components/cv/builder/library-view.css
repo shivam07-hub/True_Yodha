@@ -978,3 +978,22 @@
 .tm-cvhist-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 2px; font-size: 11.5px; color: var(--tm-text-muted); }
 .tm-cvhist-sep { color: var(--tm-text-faint); }
 .tm-cvhist-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+/* ── Finish-tailoring lane — resume tailored-not-applied copies ──────
+   Relocated from Collections (2026-07-23). Horizontal scroll strip above
+   the Main CV. Accent = --tm-interactive; card lift on hover. */
+.tm-lib-continue { margin: 0 0 22px; }
+.tm-lib-continue-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+.tm-lib-continue-title { font-size: 13px; font-weight: 700; color: var(--tm-text); letter-spacing: 0.01em; }
+.tm-lib-continue-sub { font-family: var(--tm-font-mono); font-size: 11px; color: var(--tm-text-faint); }
+.tm-lib-continue-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.tm-lib-continue-card {
+  flex: 0 0 auto; min-width: 220px; max-width: 300px; text-align: left; cursor: pointer;
+  display: flex; flex-direction: column; gap: 3px; padding: 12px 14px;
+  border: 1px solid var(--tm-accent-ring); border-radius: 12px;
+  background: var(--tm-accent-wash); font-family: inherit; transition: all 120ms var(--tm-ease);
+}
+.tm-lib-continue-card:hover { border-color: var(--tm-interactive); transform: translateY(-1px); }
+.tm-lib-continue-co { font-size: 12px; font-weight: 600; color: var(--tm-interactive); }
+.tm-lib-continue-role { font-size: 13.5px; font-weight: 600; color: var(--tm-text); line-height: 1.3; }
+.tm-lib-continue-cta { margin-top: 4px; font-family: var(--tm-font-mono); font-size: 11px; color: var(--tm-interactive); }
