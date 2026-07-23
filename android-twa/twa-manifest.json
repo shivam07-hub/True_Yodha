@@ -1,0 +1,45 @@
+{
+  "packageId": "com.himyro.app",
+  "host": "www.himyro.com",
+  "name": "Myro — Career Intelligence",
+  "launcherName": "Myro",
+  "display": "standalone",
+  "orientation": "portrait",
+  "themeColor": "#F9F9F9",
+  "themeColorDark": "#0a0a0c",
+  "navigationColor": "#F9F9F9",
+  "navigationColorDark": "#0a0a0c",
+  "navigationDividerColor": "#F9F9F9",
+  "navigationDividerColorDark": "#0a0a0c",
+  "backgroundColor": "#F9F9F9",
+  "backgroundColorDark": "#0a0a0c",
+  "startUrl": "/market",
+  "iconUrl": "https://www.himyro.com/brand/icon-512.png",
+  "maskableIconUrl": "https://www.himyro.com/brand/icon-512-maskable.png",
+  "monochromeIconUrl": "",
+  "webManifestUrl": "https://www.himyro.com/manifest.webmanifest",
+  "fullScopeUrl": "https://www.himyro.com/",
+  "fallbackType": "customtabs",
+  "enableNotifications": false,
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "minSdkVersion": 21,
+  "shortcuts": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "generatorApp": "bubblewrap-cli",
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "himyro-upload"
+  },
+  "fingerprints": [
+    {
+      "name": "Upload key certificate",
+      "value": "DD:11:DD:0B:56:2F:47:D8:7F:DD:F8:AC:3D:4E:DB:CD:7E:30:15:FA:F2:F8:7D:98:D0:D3:D4:D7:D4:78:E7:56"
+    }
+  ]
+}
