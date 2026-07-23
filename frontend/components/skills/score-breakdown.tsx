@@ -5,6 +5,14 @@ import type { GapSkill } from "@/lib/api"
 import { buildScoreBreakdown } from "@/lib/score-breakdown"
 import "./score-breakdown.css"
 
+/**
+ * Cap on rendered "uncounted domain" chips (default variant only). The real
+ * 31-domain universe means this tier can run to ~20+ names for a fresh CV —
+ * too many for a compact rail (/market command-rail is explicitly compact).
+ * Capped, never silently: the remainder shows as a real count, not omitted.
+ */
+const EMPTY_DOMAIN_CAP = 8
+
 interface Props {
   score: number
   domainScores: Record<string, number>
@@ -104,9 +112,14 @@ export function ScoreBreakdown({
             Covering one starts a new area. Build it past your average to lift the total.
           </p>
           <div className="sb-empty-chips">
-            {b.emptyDomains.map((e) => (
+            {b.emptyDomains.slice(0, EMPTY_DOMAIN_CAP).map((e) => (
               <span key={e.code} className="sb-chip">{e.label}</span>
             ))}
+            {b.emptyDomains.length > EMPTY_DOMAIN_CAP && (
+              <span className="sb-chip sb-chip-more">
+                +{b.emptyDomains.length - EMPTY_DOMAIN_CAP} more
+              </span>
+            )}
           </div>
           <Link className="sb-empty-cta" href="/cv">Add evidence to your CV →</Link>
         </div>

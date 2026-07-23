@@ -137,6 +137,13 @@
   border-radius: 999px;
   padding: 3px 10px;
 }
+/* The overflow count: a real number, styled quieter than a real domain chip
+   so it reads as "and more exist" rather than another catalogued domain. */
+.sb-chip-more {
+  border-style: dashed;
+  color: var(--tm-text-muted);
+  font-weight: 500;
+}
 .sb-empty-cta {
   display: inline-block;
   margin-top: 12px;
