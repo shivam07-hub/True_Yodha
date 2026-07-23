@@ -59,13 +59,15 @@ OR_MAX_MODELS_PER_CALL = 3
 # Ordered chunks of OpenRouter models. Each chunk is one API call with native
 # fallback inside. Order = cost-tier ladder; cheaper chunks tried first.
 OR_TIERS: list[list[str]] = [
-    # Tier 1a: free, top picks
-    [
-        "openai/gpt-oss-120b:free",
-        "meta-llama/llama-3.3-70b-instruct:free",
-        "qwen/qwen3-coder:free",
-    ],
-    # Tier 1b: free, remaining
+    # Tier 1a (former): "openai/gpt-oss-120b:free", "meta-llama/llama-3.3-70b-
+    # instruct:free", "qwen/qwen3-coder:free" — ALL THREE removed 2026-07-24,
+    # confirmed dead live (OpenRouter 404s each: "unavailable for free, use
+    # <paid slug>"). OpenRouter appears to have sunset this whole free-variant
+    # batch. Each dead lead model was silently wasting a round trip on EVERY
+    # call through this tier before falling through — the paid equivalents
+    # backstop in Tier 2c below. Re-check openrouter.ai/models for revived or
+    # new free-tier candidates before re-adding a Tier 1a.
+    # Tier 1b: free, remaining (verified live 2026-07-24)
     ["nvidia/nemotron-3-super-120b-a12b:free"],
     # Tier 2a: cheap paid — $0.04–$0.05/M
     [
@@ -103,7 +105,10 @@ GROQ_FALLBACK_MODEL = "llama-3.3-70b-versatile"
 # OR_TIERS[0:FREE_OR_TIER_COUNT] are free tiers.
 # get_cv_upload_provider() skips these to avoid free-tier exhaustion on the
 # user-blocking CV upload path.
-FREE_OR_TIER_COUNT = 2
+# 2026-07-24: was 2 (Tier 1a + Tier 1b) — Tier 1a's three :free slugs all went
+# dead and were removed above, leaving only Tier 1b free. Must track the real
+# tier count or this silently skips the first PAID tier too.
+FREE_OR_TIER_COUNT = 1
 
 # Models too small to trust with a JUDGMENT call — ranking, triage, 5/6-axis eval,
 # verdicts, agent picks. Trust rule (feedback_no_cheap_models_judgment / ADR-0017):
@@ -392,7 +397,7 @@ def get_judgment_provider() -> LLMProvider:
     """Strong-only lane for every JUDGMENT call — triage, 5/6-axis eval, verdicts,
     agent picks. This is THE model floor for [[feedback_no_cheap_models_judgment]].
 
-    Leads with the strong FREE tiers (gpt-oss-120b, llama-3.3-70b — no cost, no
+    Leads with the strong FREE tiers (llama-3.3-70b, qwen3-coder — no cost, no
     quality loss), backstops with strong PAID (gpt-4o-mini, llama-70b) and the last
     resort (kimi-k2), plus Groq llama-3.3-70b direct. It NEVER falls to a small
     model: the cheap paid tiers (gemma / granite / nano / glm-flash) are excluded by
