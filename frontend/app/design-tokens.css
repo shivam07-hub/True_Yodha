@@ -308,6 +308,36 @@
   --my-gold-ring:       rgba(230, 185, 104, 0.30);
 }
 
+/* ── Accent: FORGE — dark-mode opt-in amber (backlog ND15) ──────
+   Signal (teal, above) is the default "analytical" accent. Forge is the
+   warmer opt-in — same structure as the teal ramp, amber hue. Scoped to
+   dark only: light's own brand IS the warm orange already (Firecrawl,
+   below), so light + forge intentionally falls back to that unchanged —
+   this block sits BEFORE the light surface block in source order, so
+   the light block's own --tm-interactive* redefinition wins the cascade
+   for light+forge users (equal specificity, later source wins). --tm-brand
+   (logo/completion moments) is deliberately untouched — accent ≠ brand. */
+:root[data-accent="forge"] {
+  --tm-int-bg-subtle:      rgba(255, 179, 71, 0.05);
+  --tm-int-bg-wash:        rgba(255, 179, 71, 0.10);
+  --tm-int-bg-hover:       rgba(255, 179, 71, 0.16);
+  --tm-int-border-soft:    rgba(255, 179, 71, 0.26);
+  --tm-int-border:         rgba(255, 179, 71, 0.42);
+  --tm-int-solid:          #FFB347;
+  --tm-int-solid-hover:    #FFD07A;
+  --tm-int-text:           #ffcf8f;
+  --tm-int-text-strong:    #ffe0b3;
+
+  --tm-interactive:        #FFB347;
+  --tm-interactive-hover:  #FFD07A;
+  --tm-interactive-press:  #E08E1F;
+  --tm-interactive-glow:   rgba(255, 179, 71, 0.20);
+  --tm-interactive-wash:   var(--tm-int-bg-wash);
+  --tm-interactive-ring:   var(--tm-int-border);
+  --tm-interactive-grid:   rgba(255, 179, 71, 0.05);
+  --tm-interactive-fg:     #2b1600;
+}
+
 /* ── Surface: LIGHT · Spirit — daylight clarity (MYRO-THM-001) ──
    Pure-paper cards on a cool off-white page. Same skeleton as Ghost;
    tokens flip. Spirit doesn't glow — it casts (glow → soft drop). */
@@ -441,9 +471,12 @@
   --ring:                18 100% 50%;
 }
 :root[data-accent="forge"] {
-  --primary:             171 83% 41%;
-  --accent:              171 83% 41%;
-  --ring:                171 83% 41%;
+  /* #FFB347 — matches the real --tm-interactive forge override above. */
+  --primary:             35 100% 64%;
+  --accent:              35 100% 64%;
+  --ring:                35 100% 64%;
+  --primary-foreground:  30 100% 8%;
+  --accent-foreground:   30 100% 8%;
 }
 :root[data-surface="light"][data-accent="forge"] {
   --primary:             18 100% 50%;

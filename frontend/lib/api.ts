@@ -375,6 +375,7 @@ export interface UserProfile {
   cv_upload_error_code?: string | null
   myrology_unlocked?: boolean
   myrology_interested?: boolean
+  accent_pref?: "signal" | "forge"
 }
 
 export interface ProfileUpdateResponse extends UserProfile {
@@ -398,6 +399,7 @@ export interface ProfileUpdate {
   career_goal?: string | null
   superpower?: string | null
   myrology_interested?: boolean
+  accent_pref?: "signal" | "forge"
 }
 
 export interface UserSkillItem {

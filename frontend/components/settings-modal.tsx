@@ -8,6 +8,7 @@ import { formatCount } from "@/lib/format"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ThemeControl } from "@/components/ui/theme-control"
+import { AccentControl } from "@/components/ui/accent-control"
 import { TargetRolesChips } from "@/components/target-role/target-roles-chips"
 import { CompanyLink } from "@/components/companies/company-link"
 import { billing, jobs, users } from "@/lib/api"
@@ -659,6 +660,10 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                 <div style={{ ...ROW_STYLE, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                   <div style={ROW_LABEL}>Theme</div>
                   <ThemeControl />
+                </div>
+                <div style={{ ...ROW_STYLE, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={ROW_LABEL}>Accent</div>
+                  <AccentControl onPersist={(next) => mutation.mutate({ accent_pref: next })} />
                 </div>
 
                 {/* Save lives in the header — this row carries only what the
