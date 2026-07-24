@@ -84,6 +84,12 @@ interface ResultsProps {
     isActive: boolean
     isLoading: boolean
     hits: GlobalHitLite[]
+    /** #33 thin-market fallback — populated only once `hits` has settled empty. */
+    closestMatch: {
+      loading: boolean
+      relaxedLocation: boolean
+      cards: GlobalHitLite[]
+    }
   }
   sort: ResultsSortKey
   onSortChange: (k: ResultsSortKey) => void
@@ -306,7 +312,31 @@ function Split(props: ResultsProps) {
                     </div>
                   </div>
                 ))
-              : <Empty />
+              : globalSearch.closestMatch.loading
+                ? <IntelRowSkeletonList count={4} variant="job" />
+                : globalSearch.closestMatch.cards.length
+                  ? (
+                    <>
+                      <div className="tm-intel-closest-note">
+                        No exact matches. Closest real openings
+                        {globalSearch.closestMatch.relaxedLocation ? " (nearest location)" : ""}:
+                      </div>
+                      {globalSearch.closestMatch.cards.map((h) => (
+                        <div className="tm-intel-global-hit-row" key={h.job_id}>
+                          <div>
+                            <div className="tm-intel-global-hit-title">{h.job_title}</div>
+                            <div className="tm-intel-global-hit-co">
+                              {h.company_name ?? "—"}
+                            </div>
+                          </div>
+                          <div className="tm-intel-global-hit-meta">
+                            {[h.city, h.mode].filter(Boolean).join(" · ")}
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )
+                  : <Empty />
         ) : isOpenRolesLoading && !jobsForActive.length ? (
           <IntelRowSkeletonList count={4} variant="job" />
         ) : jobsForActive.length ? (
