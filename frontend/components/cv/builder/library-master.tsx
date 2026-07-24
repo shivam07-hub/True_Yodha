@@ -15,6 +15,9 @@ interface MasterCVPanelProps {
   onReplace: () => void
   /** Enter the full-bleed master editor (a page-level view, not a nested card). */
   onEditMaster: () => void
+  /** CV workspace provenance rail (see PdfPage). */
+  onBulletClick?: (id: string, text: string) => void
+  selectedBulletId?: string | null
 }
 
 function masterDisplayName(profile: UserProfile | null): string {
@@ -35,6 +38,7 @@ function masterContact(cv: CVStructured | null, profile: UserProfile | null) {
 
 export function MasterCVPanel({
   token, baseline, cv, profile, onReplace, onEditMaster,
+  onBulletClick, selectedBulletId = null,
 }: MasterCVPanelProps) {
   const [showHistory, setShowHistory] = useState(false)
   const fallbackText = baseline?.body_text?.trim() ?? ""
@@ -109,6 +113,8 @@ export function MasterCVPanel({
             versionId={baseline?.id ?? null}
             footerMarkHidden={baseline?.footer_mark_hidden ?? false}
             onAtsFix={handleFix}
+            onBulletClick={onBulletClick}
+            selectedBulletId={selectedBulletId}
           />
         ) : (
           <pre className="tm-lib-master-panel-text">

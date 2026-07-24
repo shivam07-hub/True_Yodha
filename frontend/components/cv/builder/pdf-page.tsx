@@ -31,6 +31,12 @@ interface PdfPageProps {
   template?: CVTemplate
   /** Hide the Myro mark in the footer (un-certify). Default false = mark shown. */
   footerMarkHidden?: boolean
+  /** Provenance rail hookup — CV workspace only. When set, experience/project
+   *  bullets become clickable. Never wired on export/print consumers, and the
+   *  selected-state CSS is ancestor-scoped + screen-only (see library-view.css)
+   *  so it can never bleed into a downloaded PDF (ADR-0020 WYSIWYG contract). */
+  onBulletClick?: (id: string, text: string) => void
+  selectedBulletId?: string | null
 }
 
 /** Monochrome Myro footer mark — self-contained inline SVG so it survives the
@@ -48,9 +54,28 @@ function FooterMark() {
   )
 }
 
-export function PdfPage({ cv, hidden, contact, company, template = "classic", footerMarkHidden = false }: PdfPageProps) {
+/** A bullet `<li>`. Plain text when no click handler is wired (every export/
+ *  print path) — a button only in the interactive CV-workspace browsing view,
+ *  and its selected-state look is CSS-scoped so it never reaches a download. */
+function PdfBullet({ id, text, onClick, selected }: {
+  id: string; text: string; onClick?: (id: string, text: string) => void; selected: boolean
+}) {
+  if (!onClick) return <li>{text}</li>
+  return (
+    <li className={`pdf-bullet-interactive${selected ? " is-selected" : ""}`}>
+      <button type="button" className="pdf-bullet-btn" onClick={() => onClick(id, text)}>{text}</button>
+    </li>
+  )
+}
+
+export function PdfPage({
+  cv, hidden, contact, company, template = "classic", footerMarkHidden = false,
+  onBulletClick, selectedBulletId = null,
+}: PdfPageProps) {
   const renderBullets = (bullets: string[], section: "exp_bullet" | "proj_bullet", ei: number) =>
-    bullets.filter((b, bi) => !hidden.has(itemId(section, ei * 100 + bi, b)))
+    bullets
+      .map((b, bi) => ({ id: itemId(section, ei * 100 + bi, b), text: b }))
+      .filter(({ id }) => !hidden.has(id))
 
   const visibleExperience = cv.experience.map((e, ei) => ({
     ...e,
@@ -101,7 +126,9 @@ export function PdfPage({ cv, hidden, contact, company, template = "classic", fo
                 </div>
                 {e.dates && <span className="pdf-dates">{e.dates}</span>}
               </div>
-              <ul>{e.keptBullets.map((b, i) => <li key={i}>{b}</li>)}</ul>
+              <ul>{e.keptBullets.map((b) => (
+                <PdfBullet key={b.id} id={b.id} text={b.text} onClick={onBulletClick} selected={b.id === selectedBulletId}/>
+              ))}</ul>
             </div>
           ))}
         </>
@@ -116,7 +143,9 @@ export function PdfPage({ cv, hidden, contact, company, template = "classic", fo
                 <div><span className="pdf-role">{p.name}</span></div>
                 {p.dates && <span className="pdf-dates">{p.dates}</span>}
               </div>
-              <ul>{p.keptBullets.map((b, i) => <li key={i}>{b}</li>)}</ul>
+              <ul>{p.keptBullets.map((b) => (
+                <PdfBullet key={b.id} id={b.id} text={b.text} onClick={onBulletClick} selected={b.id === selectedBulletId}/>
+              ))}</ul>
             </div>
           ))}
         </>

@@ -73,6 +73,9 @@ interface CVExportViewProps {
   /** Route a failing audit check into the editor. When set, audit rows route
    *  here instead of the same-page section scroll. */
   onAtsFix?: (target: AtsFixTarget) => void
+  /** CV workspace provenance rail — see PdfPage for the WYSIWYG-safety note. */
+  onBulletClick?: (id: string, text: string) => void
+  selectedBulletId?: string | null
 }
 
 function slug(s: string | null | undefined): string {
@@ -88,6 +91,7 @@ export function CVExportView({
   template, versionId = null, footerMarkHidden = false,
   company, jobTitle, jobId, matchScore = 0, appliedAt = null,
   onBack, backLabel = "Back", mobile = false, onFixContact, onAtsFix,
+  onBulletClick, selectedBulletId = null,
 }: CVExportViewProps) {
   const isTailored = context === "tailored"
   const skin: "fullpage" | "inline" = isTailored ? "fullpage" : "inline"
@@ -269,6 +273,8 @@ export function CVExportView({
         company={isTailored ? company : undefined}
         template={activeTemplate}
         footerMarkHidden={markHidden}
+        onBulletClick={onBulletClick}
+        selectedBulletId={selectedBulletId}
       />
     </div>
   )

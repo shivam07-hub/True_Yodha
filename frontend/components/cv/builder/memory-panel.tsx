@@ -114,7 +114,7 @@ export function MemoryPanel({ token }: { token: string }) {
     <section className="tm-mem-scope" aria-label="What Myro knows about you">
       <PersonaCanvas token={token} />
 
-      <CareerProfileCard token={token} title="Career profile — what recruiters ask" />
+      <CareerProfileCard token={token} title="What recruiters ask" />
 
       <p className="tm-mem-substrate-note">
         Everything above is written from stores you can see, edit and forget.

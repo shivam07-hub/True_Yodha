@@ -1,11 +1,12 @@
 /* PersonaCanvas — "What Myro knows about you" (Lane B living document).
-   Document, not UI: prose set in the reading serif, chrome in sans/mono.
-   The career meridian rail threads the three movements: solid evidence line
-   through the past, accent NOW node, projected (dashed) future arc. Accent
-   is rationed to the NOW node + pinned rule + the one cosmos CTA. */
+   Rebuilt from a long serif essay + margin timeline into scannable evidence
+   cards (2026-07-24 workspace-unification redesign): each movement is a
+   labelled divider over a responsive card grid, one card per claim, the
+   grounding trace + an Edit affordance riding along every card. Accent is
+   rationed to the pinned rule + the one cosmos CTA. */
 
 .tm-pc {
-  max-width: 760px;
+  max-width: 900px;
 }
 
 /* ── header ── */
@@ -64,83 +65,24 @@
 .tm-pc-hint { font-size: 13px; color: var(--tm-text-faint); margin-top: 8px; }
 .tm-pc-hint a { color: var(--tm-text-secondary); text-decoration: underline; text-underline-offset: 2px; }
 
-/* ── movements + meridian ── */
-.tm-pc-movement {
-  display: grid;
-  grid-template-columns: 72px minmax(0, 1fr);
-  column-gap: 22px;
-}
-.tm-pc-rail { position: relative; }
-.tm-pc-line {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 52px;
-  width: 1px;
-  background: var(--tm-border);
-}
-.tm-pc-line.is-projected {
-  background: repeating-linear-gradient(
-    to bottom,
-    var(--tm-border) 0 5px,
-    transparent 5px 12px
-  );
-}
-.tm-pc-node {
-  position: absolute;
-  left: 52px;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-}
-.tm-pc-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--tm-bg-page);
-  border: 1.5px solid var(--tm-text-faint);
-}
-.tm-pc-yr {
-  position: absolute;
-  right: 14px;
-  font-family: var(--tm-font-mono);
-  font-size: 9px;
-  letter-spacing: 0.06em;
-  color: var(--tm-text-faint);
-  white-space: nowrap;
-  text-align: right;
-  max-width: 96px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.tm-pc-node.is-now .tm-pc-dot {
-  width: 12px;
-  height: 12px;
-  background: var(--tm-accent);
-  border-color: var(--tm-accent);
-}
-.tm-pc-node.is-now .tm-pc-yr { color: var(--tm-text-primary); font-weight: 600; }
-.tm-pc-node.is-terminal .tm-pc-dot { width: 7px; height: 7px; }
-
-/* ── prose ── */
-.tm-pc-prose { padding-bottom: 40px; }
+/* ── movements ── */
+.tm-pc-movement { margin-bottom: 24px; }
 .tm-pc-m-eyebrow {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 12px;
-  margin: 4px 0 16px;
+  margin: 4px 0 14px;
 }
 .tm-pc-m-eyebrow::after {
   content: "";
   flex: 1;
   height: 1px;
-  background: var(--tm-border-faint);
-  align-self: center;
+  background: var(--tm-border);
 }
 .tm-pc-numeral {
   font-family: var(--tm-font-reading);
   font-style: italic;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--tm-text-faint);
 }
 .tm-pc-m-title {
@@ -151,18 +93,23 @@
   color: var(--tm-text-muted);
 }
 
-.tm-pc-para { position: relative; margin: 0 0 20px; }
-.tm-pc-text {
-  font-family: var(--tm-font-reading);
-  font-size: 16.5px;
-  line-height: 1.7;
-  margin: 0;
-  max-width: 62ch;
+/* ── evidence card grid ── */
+.tm-pc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
 }
-.tm-pc-para.is-pinned {
-  border-left: 2px solid var(--tm-accent);
-  padding-left: 14px;
+.tm-pc-card {
+  position: relative;
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 14px;
+  padding: 16px 17px;
+  box-shadow: var(--tm-shadow-1);
+  transition: border-color 140ms var(--tm-ease);
 }
+.tm-pc-card:hover { border-color: var(--tm-border); }
+.tm-pc-card.is-pinned { border-left: 2px solid var(--tm-accent); }
 .tm-pc-pin-tag {
   display: block;
   font-family: var(--tm-font-mono);
@@ -170,45 +117,56 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--tm-accent-text);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+}
+.tm-pc-text {
+  font-family: var(--tm-font-reading);
+  font-size: 15px;
+  line-height: 1.55;
+  margin: 0 0 12px;
+  padding-right: 44px;
 }
 
 /* the grounding trace — real data points under the claim */
 .tm-pc-grounds {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 10px;
-  margin-top: 7px;
+  gap: 6px;
 }
 .tm-pc-ground {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-family: var(--tm-font-mono);
   font-size: 10px;
-  letter-spacing: 0.04em;
-  color: var(--tm-text-faint);
-  border-bottom: 1px dotted var(--tm-border);
-  padding-bottom: 1px;
+  color: var(--tm-text-muted);
+  background: var(--tm-surface-2);
+  border-radius: 999px;
+  padding: 2px 9px;
   cursor: default;
+}
+.tm-pc-ground-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--tm-interactive);
+  flex-shrink: 0;
 }
 
 .tm-pc-edit-btn {
   position: absolute;
-  top: 2px;
-  right: -8px;
-  transform: translateX(100%);
-  opacity: 0;
-  transition: opacity var(--tm-dur, 0.18s);
+  top: 12px;
+  right: 12px;
   font-family: var(--tm-font-mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
+  font-size: 9px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--tm-text-faint);
   border: 1px solid var(--tm-border);
   border-radius: 6px;
-  padding: 3px 8px;
+  padding: 3px 7px;
   background: var(--tm-surface);
 }
-.tm-pc-para:hover .tm-pc-edit-btn,
-.tm-pc-para:focus-within .tm-pc-edit-btn { opacity: 1; }
 .tm-pc-edit-btn:hover { color: var(--tm-text-primary); }
 
 .tm-pc-edit-input {
@@ -266,15 +224,6 @@
 
 /* ── mobile ── */
 @media (max-width: 640px) {
-  .tm-pc-movement { grid-template-columns: 30px minmax(0, 1fr); column-gap: 14px; }
-  .tm-pc-line, .tm-pc-node { left: 18px; }
-  .tm-pc-yr { display: none; }
-  .tm-pc-text { font-size: 15.5px; }
-  .tm-pc-edit-btn {
-    position: static;
-    transform: none;
-    opacity: 1;
-    margin-top: 6px;
-    display: inline-block;
-  }
+  .tm-pc-grid { grid-template-columns: 1fr; }
+  .tm-pc-text { font-size: 15.5px; padding-right: 40px; }
 }
