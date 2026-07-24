@@ -5,8 +5,8 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 20px 22px;
+  gap: 8px;
+  padding: 15px 18px;
   background: var(--tm-surface);
   border: 1px solid var(--tm-border-soft);
   border-radius: var(--tm-radius-lg, 16px);
@@ -54,14 +54,14 @@
 .fc-mono {
   flex: 0 0 auto;
   display: inline-flex; align-items: center; justify-content: center;
-  width: 42px; height: 42px; border-radius: 12px;
+  width: 34px; height: 34px; border-radius: 10px;
   background: var(--fc-logo-bg, var(--tm-int-bg-wash, var(--tm-surface-2, var(--tm-surface))));
   border: 1px solid transparent;
-  font-family: var(--tm-font-sans, inherit); font-size: 17px; font-weight: 700;
+  font-family: var(--tm-font-sans, inherit); font-size: 14px; font-weight: 700;
   color: var(--fc-logo-ink, var(--tm-interactive)); text-transform: uppercase;
 }
 
-.fc-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.fc-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 
 .fc-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 /* Company name = identity, NOT the action (aligned teal-budget 2026-07-23): teal
@@ -182,7 +182,7 @@ a.fc-co:hover { color: var(--tm-interactive); }
 /* Number-tier fallback (un-ranked card, no verdict). */
 .fc-ring.fit-strong .fc-ring-arc { stroke: var(--tm-success, var(--tm-interactive)); }
 .fc-ring.fit-mid .fc-ring-arc { stroke: var(--tm-text-muted); }
-.fc-ring-num { font-size: 15px; font-weight: 700; fill: var(--tm-text); }
+.fc-ring-num { font-size: 12px; font-weight: 700; fill: var(--tm-text); }
 
 /* Match Verdict word under the ring — the ONE number + the verdict word, one
    template every surface reads. Caption scale, tone-coloured by verdict. */
@@ -247,7 +247,7 @@ a.fc-co:hover { color: var(--tm-interactive); }
 }
 .fc-rail-tab svg { flex: 0 0 auto; }
 .fc-rail-panel {
-  margin-top: 12px; padding-top: 12px;
+  margin-top: 10px; padding-top: 10px;
   border-top: 1px solid var(--tm-border-soft);
   font-size: 13.5px; line-height: 1.55; color: var(--tm-text-muted);
 }

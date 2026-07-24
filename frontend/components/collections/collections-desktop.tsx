@@ -31,6 +31,7 @@ import type { FeedItem, SortKey } from "@/lib/dashboard/feed-model"
 import {
   FOLDER_CHIPS,
   appToFeedItem,
+  buildClosedView,
   buildCollectionsView,
   buildContinueLane,
   buildMyroFound,
@@ -38,9 +39,10 @@ import {
   collectionsTriageCtx,
   emptyCopy,
   matchesById,
+  splitClosedApps,
   type CollectionChip,
 } from "@/lib/collections/model"
-import { CollectionRow, MyroFoundRow } from "./collection-rows"
+import { ClosedRow, CollectionRow, MyroFoundRow } from "./collection-rows"
 import type { DiaryEntry } from "@/lib/forge-helpers"
 import { canDismissSavedApplication } from "@/lib/collections/saved-job-dismissal"
 
@@ -129,17 +131,36 @@ export function CollectionsDesktop({
     return m
   }, [apps])
 
+  // Pulses hydrate from the FULL candidate set (every saved/applied job + every
+  // found match) — not just the active chip's visible lane — so the closed
+  // split works no matter which chip the user is looking at.
+  const trackedIds = React.useMemo(() => {
+    const ids = new Set<string>()
+    for (const a of apps) ids.add(a.job_id)
+    for (const m of matchesQ.data?.jobs ?? []) ids.add(m.job_id)
+    return Array.from(ids)
+  }, [apps, matchesQ.data])
+  const pulses = usePulses(token, trackedIds)
+
+  // Closed lifecycle: a role whose listing verifies dead moves out of its
+  // origin chip (found / added / applied) into its own Closed chip — never
+  // deleted, never left full-weight in the primary lists forever.
+  const { open: openApps, closed: closedApps } = React.useMemo(
+    () => splitClosedApps(apps, pulses),
+    [apps, pulses],
+  )
+
   const ctx = React.useMemo(
     () =>
       collectionsTriageCtx(
-        apps,
+        openApps,
         (followed?.companies ?? []).map((c) => c.company_name),
         profile?.target_roles ?? [],
       ),
-    [apps, followed, profile],
+    [openApps, followed, profile],
   )
 
-  const continueItems = React.useMemo(() => buildContinueLane(apps, ctx, byId), [apps, ctx, byId])
+  const continueItems = React.useMemo(() => buildContinueLane(openApps, ctx, byId), [openApps, ctx, byId])
   const dismissedIds = React.useMemo(() => {
     const s = new Set(matchesQ.data?.dismissed_job_ids ?? [])
     dismissed.forEach((id) => s.add(id))
@@ -151,20 +172,28 @@ export function CollectionsDesktop({
     return s
   }, [continueItems, picksQ.data])
   const myroFound = React.useMemo(
-    () => buildMyroFound(matchesQ.data?.jobs, dismissedIds, shownElsewhere),
-    [matchesQ.data, dismissedIds, shownElsewhere],
+    () => buildMyroFound(matchesQ.data?.jobs, dismissedIds, shownElsewhere, pulses),
+    [matchesQ.data, dismissedIds, shownElsewhere, pulses],
+  )
+  const closedView = React.useMemo(
+    () => buildClosedView(closedApps, myroFound.closedMatches, byId),
+    [closedApps, myroFound.closedMatches, byId],
   )
 
-  const counts = React.useMemo(() => chipCounts(apps, myroFound.found.length), [apps, myroFound.found.length])
+  const counts = React.useMemo(
+    () => chipCounts(openApps, myroFound.found.length, closedView.length),
+    [openApps, myroFound.found.length, closedView.length],
+  )
   const appView = React.useMemo(
-    () => (chip === "added" || chip === "applied" ? buildCollectionsView(apps, chip, sort, ctx, byId) : null),
-    [apps, chip, sort, ctx, byId],
+    () => (chip === "added" || chip === "applied" ? buildCollectionsView(openApps, chip, sort, ctx, byId) : null),
+    [openApps, chip, sort, ctx, byId],
   )
 
-  // The open drawer can point at a found match OR a saved application.
+  // The open drawer can point at a found match, a saved application, or a
+  // closed row.
   const openable = React.useMemo(() => {
     const map = new Map<string, FeedItem>()
-    for (const it of [...continueItems, ...myroFound.found, ...(appView?.queueItems ?? [])]) {
+    for (const it of [...continueItems, ...myroFound.found, ...(appView?.queueItems ?? []), ...closedView]) {
       if (!map.has(it.jobId)) map.set(it.jobId, it)
     }
     // A deep-linked saved role (e.g. from a bell decision prompt) must always be
@@ -175,7 +204,7 @@ export function CollectionsDesktop({
       if (app) map.set(openId, appToFeedItem(app, byId.get(openId)))
     }
     return Array.from(map.values())
-  }, [continueItems, myroFound.found, appView, openId, appByJobId, byId])
+  }, [continueItems, myroFound.found, appView, closedView, openId, appByJobId, byId])
   React.useEffect(() => {
     if (openId && !openable.some((it) => it.jobId === openId)) setOpenId(null)
   }, [openable, openId])
@@ -184,7 +213,6 @@ export function CollectionsDesktop({
   const openApplication = openItem ? appByJobId.get(openItem.jobId) : undefined
   const openCanDismiss = openApplication ? canDismissSavedApplication(openApplication) : true
 
-  const pulses = usePulses(token, openable.map((it) => it.jobId))
   const cartSkillNames = React.useMemo(() => new Set(cartSkills.map((c) => c.skill_name)), [cartSkills])
 
   // ── Saved intent → immediate Not Interested, with serialized 6s Undo.
@@ -334,6 +362,26 @@ export function CollectionsDesktop({
                 onTailor={(id) => router.push(`/cv?jobId=${encodeURIComponent(id)}`)}
                 onDismiss={dismissMatch}
               />
+            ) : chip === "closed" ? (
+              closedView.length === 0 ? (
+                <div className="db-empty">{emptyCopy("closed")}</div>
+              ) : (
+                <VirtualFeed
+                  items={closedView}
+                  getKey={(it) => it.jobId}
+                  estimateSize={190}
+                  gap={14}
+                  className="db-feed"
+                  renderItem={(it) => (
+                    <ClosedRow
+                      it={it}
+                      app={appByJobId.get(it.jobId)}
+                      open={openId === it.jobId}
+                      onOpen={() => setOpenId(openId === it.jobId ? null : it.jobId)}
+                    />
+                  )}
+                />
+              )
             ) : (
               <>
                 {(appView?.queueItems.length ?? 0) === 0 && !appsQ.isLoading ? (

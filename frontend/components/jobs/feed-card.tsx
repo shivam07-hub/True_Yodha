@@ -54,7 +54,7 @@ function FeedFitRing({ fit, size, verdict }: { fit: number; size: number; verdic
  * compute in `card-view.ts`. The ring-vs-pill choice lives in the data, not at
  * the call site — so adding a surface is one adapter, no new renderer.
  */
-export function FitIndicator({ fit, size = 52 }: { fit: FitView; size?: number }) {
+export function FitIndicator({ fit, size = 40 }: { fit: FitView; size?: number }) {
   if (!fit) return null
   switch (fit.kind) {
     case "score":

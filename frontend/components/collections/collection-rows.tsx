@@ -8,6 +8,7 @@ import { CardDetailRail } from "@/components/jobs/card-detail-rail"
 import { feedDataFromMatch } from "@/lib/jobs/card-view"
 import { PulseRow } from "@/components/dashboard/card-atoms"
 import { GradeBadge, LegitimacyBadge } from "@/components/jobs/match-brain"
+import { companyHref } from "@/components/companies/company-link"
 import { isExtSource, isMyroSource } from "@/lib/collections/model"
 import type { ApplicationResponse, JobPulse } from "@/lib/api"
 import type { FeedItem } from "@/lib/dashboard/feed-model"
@@ -188,6 +189,55 @@ export function CollectionRow({
       />
     ) : null}
     </div>
+  )
+}
+
+/** A dead listing — found, saved, or applied, doesn't matter which. Nothing
+ *  actionable left on the listing itself (no unsave/tailor/apply), so the row
+ *  trades those for the one thing worth doing next: the company that posted it
+ *  is already auto-followed (backend sweep), so this is just a direct path to
+ *  its live openings — the "similar roles from this company" ask. */
+export function ClosedRow({
+  it,
+  app,
+  open,
+  onOpen,
+}: {
+  it: FeedItem
+  app: ApplicationResponse | undefined
+  open: boolean
+  onOpen: () => void
+}) {
+  const origin = app ? (app.status !== "saved" ? "Applied" : isExtSource(app.source) ? "Extension" : isMyroSource(app.source) ? "Myro found" : "You added") : "Myro found"
+  return (
+    <FeedCard
+      data={feedDataFromMatch({ jobId: it.jobId, company: it.company, role: it.role, job: it.job, fit: it.fit })}
+      variant="row"
+      open={open}
+      extraClass=" fc-conf-closed"
+      onOpen={onOpen}
+      badges={<span className="db-sourcechip">{origin}</span>}
+      pulse={
+        <div className="tm-pulse">
+          <span className="tm-pulse-item tm-pulse-warn">Closed listing</span>
+        </div>
+      }
+      actions={
+        it.company ? (
+          <div className="db-card-actions" onClick={(e) => e.stopPropagation()}>
+            <a
+              href={companyHref(it.company)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="db-btn db-btn-secondary tm-control-focus"
+              style={{ textDecoration: "none" }}
+            >
+              More at {it.company} ↗
+            </a>
+          </div>
+        ) : null
+      }
+    />
   )
 }
 
