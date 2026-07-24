@@ -1,6 +1,7 @@
 /* "Your move" — the single calm next action. Replaces NextSetHero. */
 
 import type { JSX } from "react"
+import { Button } from "@/components/ui/button"
 import { Icon } from "./icons"
 import { PROFICIENCY } from "./proficiency"
 import { buildRungs, RungPath } from "./rung-path"
@@ -52,9 +53,9 @@ export function MoveHero({
       </div>
 
       <div className="up-move-r">
-        <button type="button" className="up-btn up-btn-primary up-move-cta" onClick={() => onStart(skill, next)}>
+        <Button size="lg" className="up-move-cta" onClick={() => onStart(skill, next)}>
           <Icon name="bolt" size={16} /> Start · {nextTier}
-        </button>
+        </Button>
         <div className="up-move-tiers">
           <Icon name="coin" size={13} /> +50 · +30 · +20 by score
         </div>

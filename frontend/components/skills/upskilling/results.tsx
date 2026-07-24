@@ -4,6 +4,7 @@
 "use client"
 
 import { useEffect, useRef, type JSX } from "react"
+import { Button } from "@/components/ui/button"
 import { Icon } from "./icons"
 import { ScoreRing } from "./primitives"
 import { formatClock } from "./quiz-best"
@@ -74,9 +75,9 @@ export function Results({
 
         <div className={`up-res-time${cleared && newBest ? " is-best" : ""}`} aria-hidden="true">{timeLine}</div>
         {cleared && mentorHref ? (
-          <button type="button" className="up-btn up-btn-primary up-res-mentor" onClick={() => onImproveCv(mentorHref)}>
+          <Button className="up-res-mentor" onClick={() => onImproveCv(mentorHref)}>
             <Icon name="sparkle" size={14} /> Improve CV with Mentor
-          </button>
+          </Button>
         ) : null}
       </section>
 
@@ -118,17 +119,17 @@ export function Results({
       </div>
 
       <div className="up-res-actions">
-        <button type="button" className="up-btn up-btn-ghost" onClick={onBackToSkills}><Icon name="back" size={15} /> Back to skills</button>
+        <Button variant="ghost" onClick={onBackToSkills}><Icon name="back" size={15} /> Back to skills</Button>
         <div style={{ flex: 1 }} />
         {cleared && !maxedOut ? (
           <>
-            <button type="button" className="up-btn up-btn-outline" onClick={onPracticeAgain}>Practice L{level} again</button>
-            <button type="button" className={`up-btn ${mentorHref ? "up-btn-outline" : "up-btn-primary"}`} onClick={onNextLevel}><Icon name="bolt" size={14} /> Start L{nextLevel}</button>
+            <Button variant="outline" onClick={onPracticeAgain}>Practice L{level} again</Button>
+            <Button variant={mentorHref ? "outline" : "solid"} onClick={onNextLevel}><Icon name="bolt" size={14} /> Start L{nextLevel}</Button>
           </>
         ) : !cleared ? (
-          <button type="button" className="up-btn up-btn-primary" onClick={onPracticeAgain}><Icon name="bolt" size={14} /> Try a fresh set</button>
+          <Button onClick={onPracticeAgain}><Icon name="bolt" size={14} /> Try a fresh set</Button>
         ) : (
-          <button type="button" className="up-btn up-btn-outline" onClick={onPracticeAgain}>Practice again</button>
+          <Button variant="outline" onClick={onPracticeAgain}>Practice again</Button>
         )}
       </div>
     </div>

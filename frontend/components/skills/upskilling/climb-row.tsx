@@ -3,6 +3,7 @@
 
 import type { JSX } from "react"
 import type { DemandBand } from "@/lib/api"
+import { Button } from "@/components/ui/button"
 import { Icon } from "./icons"
 import { DEMAND_LABEL } from "./proficiency"
 import { buildRungs, climbFraction, RungPath } from "./rung-path"
@@ -54,9 +55,9 @@ export function ClimbRow({
         {maxed ? (
           <span className="up-climb-legend"><Icon name="star" size={13} /> Legend</span>
         ) : (
-          <button type="button" className="up-btn up-btn-primary up-btn-sm" onClick={() => onStart(skill, next)}>
+          <Button size="sm" className="up-btn" onClick={() => onStart(skill, next)}>
             <Icon name="bolt" size={14} /> Start · L{next}
-          </button>
+          </Button>
         )}
       </div>
     </article>

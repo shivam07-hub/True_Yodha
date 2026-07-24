@@ -5,6 +5,7 @@
 
 import type { JSX } from "react"
 import type { ReadinessRow } from "@/lib/api"
+import { Button } from "@/components/ui/button"
 import { Icon, type IconName } from "./icons"
 import { PROFICIENCY } from "./proficiency"
 
@@ -85,9 +86,9 @@ export function GapReadiness({
               <div className="up-ready-mini">
                 <span className={`up-band ${m.cls}`}><Icon name={m.icon} size={13} /> {m.label}</span>
                 {r.band !== "ready" ? (
-                  <button type="button" className="up-btn up-btn-primary up-btn-sm" onClick={() => onPractice(r)}>
+                  <Button size="sm" onClick={() => onPractice(r)}>
                     Practice this <Icon name="arrow" size={14} />
-                  </button>
+                  </Button>
                 ) : (
                   <span className="up-ready-meets">Meets the bar</span>
                 )}
