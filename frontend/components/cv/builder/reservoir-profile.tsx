@@ -14,6 +14,7 @@
 "use client"
 
 import { useMemo, useRef, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { ApplicationResponse, CareerProfile, CareerStory, MergeSuggestion } from "@/lib/api"
 import { APPLICATION_OUTCOMES, cv as cvApi } from "@/lib/api"
@@ -180,7 +181,9 @@ export function ReservoirProfile({ token, applications, onOpenJob }: {
   onOpenJob: (jobId: string) => void
 }) {
   const queryClient = useQueryClient()
-  const [dumpOpen, setDumpOpen] = useState(false)
+  const searchParams = useSearchParams()
+  // Flow ribbon's "Add your past" (?dump=1) opens the panel straight away.
+  const [dumpOpen, setDumpOpen] = useState(() => searchParams.get("dump") === "1")
   // Poll while the extractor is still reading dumped files, then settle.
   const pendingRef = useRef(0)
   const profileQuery = useQuery({

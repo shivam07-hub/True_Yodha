@@ -37,24 +37,26 @@
 }
 .tm-mem-store {
   display: flex;
-  align-items: baseline;
-  gap: 6px;
+  flex-direction: column;
+  gap: 2px;
   border: 1px solid var(--tm-border-soft);
-  border-radius: 10px;
-  padding: 10px 14px;
+  border-radius: 12px;
+  padding: 13px 18px;
+  box-shadow: var(--tm-shadow-1);
   text-decoration: none;
   color: inherit;
   background: var(--tm-surface);
 }
-a.tm-mem-store:hover { border-color: var(--tm-border); }
+a.tm-mem-store:hover { border-color: var(--tm-accent-ring); }
 .tm-mem-store-count {
-  font-size: 17px;
-  font-weight: 650;
+  font-family: var(--tm-font-mono);
+  font-size: 20px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
+  color: var(--tm-text);
 }
 .tm-mem-store-label {
-  font-family: var(--tm-font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--tm-text-muted);
 }
 

@@ -997,3 +997,341 @@
 .tm-lib-continue-co { font-size: 12px; font-weight: 600; color: var(--tm-interactive); }
 .tm-lib-continue-role { font-size: 13.5px; font-weight: 600; color: var(--tm-text); line-height: 1.3; }
 .tm-lib-continue-cta { margin-top: 4px; font-family: var(--tm-font-mono); font-size: 11px; color: var(--tm-interactive); }
+
+/* ── Flow ribbon — the workspace nav (replaces the CV/Stories/Memory pill).
+   1 Dump your past -> 2 Myro understands you -> 3 Tailor per job. The active
+   step mirrors the current tab; "Add your past" rides beside it, same row. ── */
+.tm-flow-ribbon {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+.tm-flow-steps {
+  flex: 1 1 520px;
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  flex-wrap: wrap;
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 14px;
+  padding: 5px;
+  box-shadow: var(--tm-shadow-1);
+}
+.tm-flow-step {
+  flex: 1 1 210px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+  transition: background 160ms var(--tm-ease);
+}
+.tm-flow-step:hover { background: var(--tm-surface-2); }
+.tm-flow-step.active { background: var(--tm-accent-wash); }
+.tm-flow-step.active:hover { background: var(--tm-accent-wash); }
+.tm-flow-step-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--tm-font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--tm-surface-2);
+  color: var(--tm-text-muted);
+}
+.tm-flow-step.active .tm-flow-step-num {
+  background: var(--tm-interactive);
+  color: var(--tm-interactive-fg);
+}
+.tm-flow-step-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  text-align: left;
+}
+.tm-flow-step-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--tm-text);
+  white-space: nowrap;
+}
+.tm-flow-step-sub {
+  font-size: 11px;
+  color: var(--tm-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tm-flow-add {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 18px;
+  border-radius: 14px;
+  background: var(--tm-interactive);
+  color: var(--tm-interactive-fg);
+  border: 1px solid var(--tm-interactive);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 3px 12px var(--tm-accent-glow);
+  transition: background 120ms var(--tm-ease);
+}
+.tm-flow-add:hover { background: var(--tm-interactive-hover); border-color: var(--tm-interactive-hover); }
+@media (max-width: 640px) {
+  .tm-flow-add { flex: 1 1 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tm-flow-step, .tm-flow-add { transition: none; }
+}
+
+/* ── Tailored-context bar (CV tab, when viewing a per-job tailored copy) ── */
+.tm-lib-tailored-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.tm-lib-tailored-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.tm-lib-tailored-eyebrow {
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+.tm-lib-tailored-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--tm-accent-wash);
+  border: 1px solid var(--tm-accent-ring);
+}
+.tm-lib-tailored-pill-co { font-size: 12.5px; font-weight: 700; color: var(--tm-accent-text); }
+.tm-lib-tailored-pill-role { font-size: 12.5px; color: var(--tm-text); }
+.tm-lib-tailored-switch {
+  font-size: 12px;
+  color: var(--tm-text-muted);
+  background: none;
+  border: none;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.tm-lib-tailored-switch:hover { color: var(--tm-text); }
+
+/* ── CV document + provenance rail row ── */
+.tm-lib-cvdoc-row {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+.tm-lib-cvdoc-col { flex: 1 1 440px; min-width: 0; }
+.tm-lib-cvdoc-rail-slot { flex: 1 1 320px; min-width: 290px; max-width: 400px; }
+
+/* ── Provenance rail ── */
+.tm-prov-rail { position: sticky; top: 76px; }
+.tm-prov-rail-eyebrow {
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+  margin-bottom: 12px;
+}
+.tm-prov-card {
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 14px;
+  padding: 16px 17px;
+  box-shadow: var(--tm-shadow-1);
+}
+.tm-prov-card.molded {
+  border-color: var(--tm-accent-ring);
+  box-shadow: 0 6px 20px var(--tm-accent-glow);
+}
+.tm-prov-card-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 12px;
+}
+.tm-prov-card-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--tm-surface-2);
+  color: var(--tm-text-muted);
+  flex-shrink: 0;
+}
+.tm-prov-card.molded .tm-prov-card-icon { background: var(--tm-accent-wash); color: var(--tm-accent-text); }
+.tm-prov-card-label {
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tm-text-muted);
+}
+.tm-prov-card.molded .tm-prov-card-label { color: var(--tm-accent-text); }
+.tm-prov-role-co { font-size: 12px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--tm-text); }
+.tm-prov-role-title { font-size: 12px; color: var(--tm-text-muted); margin: 2px 0 1px; }
+.tm-prov-role-date { font-family: var(--tm-font-mono); font-size: 10.5px; color: var(--tm-text-faint); margin-bottom: 12px; }
+.tm-prov-raw {
+  font-family: var(--tm-font-reading);
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--tm-text);
+  margin: 0 0 12px;
+  border-left: 2px solid var(--tm-border);
+  padding-left: 12px;
+}
+.tm-prov-star {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  gap: 8px 9px;
+}
+.tm-prov-star dt {
+  font-family: var(--tm-font-mono);
+  font-size: 9px;
+  color: var(--tm-text-faint);
+  border: 1px solid var(--tm-border);
+  border-radius: 4px;
+  text-align: center;
+  line-height: 15px;
+  height: 16px;
+  margin: 0;
+}
+.tm-prov-star dd { margin: 0; font-size: 12px; line-height: 1.5; color: var(--tm-text-muted); }
+.tm-prov-connector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 4px;
+}
+.tm-prov-connector-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--tm-accent-wash);
+  border: 1px solid var(--tm-accent-ring);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tm-accent-text);
+  flex-shrink: 0;
+}
+.tm-prov-connector-text { font-family: var(--tm-font-mono); font-size: 10.5px; color: var(--tm-accent-text); }
+.tm-prov-molded-text { font-size: 14px; line-height: 1.55; color: var(--tm-text); margin: 0 0 13px; font-weight: 500; }
+.tm-prov-terms-label {
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  color: var(--tm-text-faint);
+  margin-bottom: 7px;
+}
+.tm-prov-terms { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 14px; }
+.tm-prov-term {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tm-accent-text);
+  background: var(--tm-accent-wash);
+  border: 1px solid var(--tm-accent-ring);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+.tm-prov-actions {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  padding-top: 12px;
+  border-top: 1px solid var(--tm-border-soft);
+}
+.tm-prov-act {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+  border-radius: 8px;
+  padding: 6px 11px;
+  border: 1px solid var(--tm-border);
+  background: var(--tm-surface);
+  color: var(--tm-text);
+  cursor: pointer;
+}
+.tm-prov-act:hover { background: var(--tm-surface-2); }
+.tm-prov-act.primary {
+  color: var(--tm-accent-text);
+  background: var(--tm-accent-wash);
+  border-color: var(--tm-accent-ring);
+}
+.tm-prov-act.primary:hover { background: var(--tm-int-bg-hover, var(--tm-accent-wash)); }
+.tm-prov-act.quiet { border-color: transparent; background: none; color: var(--tm-text-muted); }
+.tm-prov-act.quiet:hover { color: var(--tm-text); }
+.tm-prov-foot { font-size: 11px; line-height: 1.5; color: var(--tm-text-faint); margin: 12px 2px 0; }
+.tm-prov-empty {
+  background: var(--tm-surface);
+  border: 1px dashed var(--tm-border-soft);
+  border-radius: 14px;
+  padding: 20px 17px;
+  font-size: 12.5px;
+  color: var(--tm-text-faint);
+  line-height: 1.5;
+}
+@media (max-width: 1100px) {
+  .tm-prov-rail { position: static; }
+}
+
+/* ── Interactive bullet click-through (CV tab browsing only) ──────────────
+   Ancestor-scoped (`.tm-lib-cv-interactive`) + screen-only: `.cvb-pdf-page`'s
+   outerHTML is exactly what a PDF export captures (ADR-0020), and a capture
+   never includes this ancestor wrapper — so `.is-selected` can NEVER reach a
+   downloaded/printed CV, even if a bullet happens to be selected at the time. */
+@media screen {
+  .tm-lib-cv-interactive .cvb-pdf-page .pdf-bullet-btn {
+    display: block;
+    width: 100%;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    padding: 1px 6px;
+    margin: 0 -6px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .tm-lib-cv-interactive .cvb-pdf-page li.pdf-bullet-interactive.is-selected {
+    background: var(--tm-accent-wash);
+    border-left: 2px solid var(--tm-interactive);
+    margin-left: -2px;
+    padding-left: 4px;
+    border-radius: 4px;
+  }
+  .tm-lib-cv-interactive .cvb-pdf-page .pdf-bullet-btn:hover {
+    background: var(--tm-surface-2);
+  }
+}

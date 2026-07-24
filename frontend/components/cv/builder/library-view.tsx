@@ -9,13 +9,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import type { ApplicationResponse, CVStructured, CVVersion, UserProfile } from "@/lib/api"
-import { MasterCVPanel } from "./library-master"
-import { FinishTailoringLane } from "./finish-tailoring-lane"
+import { CvTabView } from "./cv-tab-view"
 import { MemoryPanel } from "./memory-panel"
 import { ReservoirProfile } from "./reservoir-profile"
+import { FlowRibbon } from "./flow-ribbon"
 import { I, LIcon } from "./library-icons"
 import { MobileCVHub } from "../mobile/mobile-cv-hub"
 import { useViewport } from "@/mobile"
@@ -34,19 +33,6 @@ interface LibraryViewProps {
   onOpenJob: (jobId: string) => void
   onReplaceCV: () => void
   onEditMaster: () => void
-}
-
-// CV ↔ Stories ↔ Memory mode pill (reuses the canonical .tm-lib-seg family).
-// The master CV is the artifact; Stories is the reservoir it projects from;
-// Memory is everything Myro remembers across the product.
-function CvStoriesToggle({ view }: { view: View }) {
-  return (
-    <div className="tm-lib-seg tm-lib-cv-mode" aria-label="CV workspace mode">
-      <Link href="/cv?view=cv" className={`tm-lib-seg-btn${view === "cv" ? " active" : ""}`}>CV</Link>
-      <Link href="/cv?view=stories" className={`tm-lib-seg-btn${view === "stories" ? " active" : ""}`}>Stories</Link>
-      <Link href="/cv?view=memory" className={`tm-lib-seg-btn${view === "memory" ? " active" : ""}`}>Memory</Link>
-    </div>
-  )
 }
 
 export function LibraryView({
@@ -70,7 +56,7 @@ export function LibraryView({
     if (view === "stories") {
       return (
         <div className="tm-mcv-stories">
-          <CvStoriesToggle view={view} />
+          <FlowRibbon view={view} />
           <ReservoirProfile token={token} applications={applications} onOpenJob={onOpenJob} />
         </div>
       )
@@ -78,7 +64,7 @@ export function LibraryView({
     if (view === "memory") {
       return (
         <div className="tm-mcv-stories">
-          <CvStoriesToggle view={view} />
+          <FlowRibbon view={view} />
           <MemoryPanel token={token} />
         </div>
       )
@@ -101,46 +87,36 @@ export function LibraryView({
     <div className="tm-lib-scope">
       <div className="tm-lib-root">
         <div className="tm-lib-main">
-          {/* ── CV view: the Main CV is the whole point, full width ──────
-              The panel is the surface — it always renders; its own head
-              carries name / version / Edit / Replace. No close/collapse:
-              this is a dedicated page, you leave via nav, not by hiding
-              the one thing you came to see. */}
+          <FlowRibbon view={view} />
+
+          {/* ── CV view: the Main CV, or a per-job tailored copy ────────── */}
           {view === "cv" && (
             <div className="tm-lib-doc">
               {isNewUser && <WorkspaceIntroCard />}
-              <CvStoriesToggle view={view} />
-              <FinishTailoringLane applications={applications} onOpenJob={onOpenJob} />
-              <MasterCVPanel
+              <CvTabView
                 token={token}
-                baseline={currentBaseline}
                 cv={cv}
+                currentBaseline={currentBaseline}
+                applications={applications}
                 profile={profile}
-                onReplace={onReplaceCV}
+                onReplaceCV={onReplaceCV}
                 onEditMaster={onEditMaster}
+                onOpenJob={onOpenJob}
               />
             </div>
           )}
 
           {/* ── Stories view: the Career Story Reservoir behind the CV ── */}
           {view === "stories" && (
-            <>
-              <CvStoriesToggle view={view} />
-              <ReservoirProfile
-                token={token}
-                applications={applications}
-                onOpenJob={onOpenJob}
-              />
-            </>
+            <ReservoirProfile
+              token={token}
+              applications={applications}
+              onOpenJob={onOpenJob}
+            />
           )}
 
           {/* ── Memory view: what Myro remembers, yours to edit/forget ── */}
-          {view === "memory" && (
-            <>
-              <CvStoriesToggle view={view} />
-              <MemoryPanel token={token} />
-            </>
-          )}
+          {view === "memory" && <MemoryPanel token={token} />}
         </div>
       </div>
     </div>

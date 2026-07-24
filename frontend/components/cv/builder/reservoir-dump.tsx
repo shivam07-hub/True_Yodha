@@ -108,12 +108,19 @@ export function ReservoirDump({ token, hero = false, onIngested }: {
     <section className={`tm-rsv-dump${hero ? " hero" : ""}`}>
       {hero && (
         <header className="tm-rsv-dump-head">
-          <h3>Every job you’ve done holds stories.</h3>
-          <p>
-            Drop everything — old CVs, your LinkedIn export, whole folders of
-            notes. Myro reads it all and builds your career story vault: the raw
-            material behind every future CV and interview.
-          </p>
+          <span className="tm-rsv-dump-icon" aria-hidden>
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3v13m0 0l4-4m-4 4l-4-4M4 21h16"/>
+            </svg>
+          </span>
+          <div>
+            <h3>Every job you’ve done holds stories.</h3>
+            <p>
+              Drop everything — old CVs, your LinkedIn export, whole folders of
+              notes. Myro reads it all and builds your career story vault: the raw
+              material behind every future CV and interview.
+            </p>
+          </div>
         </header>
       )}
 

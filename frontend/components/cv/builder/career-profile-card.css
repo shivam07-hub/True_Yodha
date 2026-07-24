@@ -1,31 +1,101 @@
 .tm-cp {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  border: 1px solid var(--tm-border);
-  border-radius: var(--tm-radius-md, 12px);
-  background: var(--tm-surface);
-  padding: 16px;
+  gap: 14px;
 }
 
 .tm-cp-head {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
+  align-items: center;
+  gap: 12px;
+}
+.tm-cp-head::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--tm-border);
 }
 
 .tm-cp-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--tm-text);
+  font-family: var(--tm-font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--tm-text-muted);
   margin: 0;
+  white-space: nowrap;
 }
 
-.tm-cp-saved {
-  font-size: 11px;
-  color: var(--tm-text-muted);
+/* ── fact cards (read mode) ── */
+.tm-cp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
 }
+.tm-cp-card {
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 12px;
+  padding: 13px 15px;
+  box-shadow: var(--tm-shadow-1);
+}
+.tm-cp-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.tm-cp-card-label { font-size: 12px; font-weight: 600; color: var(--tm-text-muted); }
+.tm-cp-card-kind {
+  font-family: var(--tm-font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: var(--tm-text-faint);
+  border: 1px solid var(--tm-border);
+  border-radius: 5px;
+  padding: 1px 6px;
+  white-space: nowrap;
+}
+.tm-cp-card-value { font-size: 13px; line-height: 1.5; color: var(--tm-text); margin: 0 0 9px; }
+.tm-cp-card-actions { display: flex; gap: 12px; align-items: center; }
+.tm-cp-card-bool {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--tm-text);
+  margin-bottom: 9px;
+}
+.tm-cp-card.is-editing { border-color: var(--tm-accent-ring); }
+.tm-cp-card .tm-cp-input,
+.tm-cp-card .tm-cp-field { margin-bottom: 9px; }
+
+.tm-cp-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 11px;
+  color: var(--tm-accent-text);
+  cursor: pointer;
+}
+.tm-cp-link:nth-of-type(2) { color: var(--tm-text-muted); }
+.tm-cp-link:hover { text-decoration: underline; text-underline-offset: 2px; }
+.tm-cp-link:disabled { opacity: 0.5; cursor: default; }
+
+/* ── "Add a detail" disclosure (the full grouped form) ── */
+.tm-cp-add { margin-top: 2px; }
+.tm-cp-add > summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--tm-text-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  width: fit-content;
+}
+.tm-cp-add > summary:hover { color: var(--tm-text); }
+.tm-cp-add[open] > summary { margin-bottom: 12px; }
 
 .tm-cp-form {
   display: flex;

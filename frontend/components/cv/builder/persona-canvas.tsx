@@ -14,7 +14,7 @@ import { useRef, useState } from "react"
 import Link from "next/link"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { memory as memoryApi } from "@/lib/api"
-import type { PersonaParagraph, PersonaTimelineRole } from "@/lib/api"
+import type { PersonaParagraph } from "@/lib/api"
 import { formatRelativeAge } from "@/lib/format"
 import { Button } from "@/components/ui/button"
 import "./persona-canvas.css"
@@ -33,11 +33,6 @@ function groundChip(line: string): string {
   return cut.length > 52 ? `${cut.slice(0, 49)}…` : cut
 }
 
-function yearOf(role: PersonaTimelineRole): string {
-  if (role.started_on) return role.started_on.slice(0, 4)
-  return role.date_label.match(/\d{4}/)?.[0] ?? ""
-}
-
 function Paragraph({ token, paragraph }: { token: string; paragraph: PersonaParagraph }) {
   const qc = useQueryClient()
   const [editing, setEditing] = useState(false)
@@ -53,13 +48,14 @@ function Paragraph({ token, paragraph }: { token: string; paragraph: PersonaPara
 
   if (editing) {
     return (
-      <div className={`tm-pc-para${paragraph.pinned ? " is-pinned" : ""}`}>
+      <div className={`tm-pc-card${paragraph.pinned ? " is-pinned" : ""}`}>
         <textarea
           className="tm-pc-edit-input"
           rows={4}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           aria-label="Edit this passage"
+          autoFocus
         />
         <div className="tm-pc-edit-actions">
           <Button
@@ -82,59 +78,21 @@ function Paragraph({ token, paragraph }: { token: string; paragraph: PersonaPara
   }
 
   return (
-    <div className={`tm-pc-para${paragraph.pinned ? " is-pinned" : ""}`}>
+    <div className={`tm-pc-card${paragraph.pinned ? " is-pinned" : ""}`}>
       {paragraph.pinned && <span className="tm-pc-pin-tag">Yours · pinned</span>}
       <p className="tm-pc-text">{paragraph.text}</p>
       {paragraph.grounds.length > 0 && (
-        <span className="tm-pc-grounds">
+        <div className="tm-pc-grounds">
           {paragraph.grounds.slice(0, 3).map((g) => (
-            <span key={g} className="tm-pc-ground" title={g}>{groundChip(g)}</span>
+            <span key={g} className="tm-pc-ground" title={g}>
+              <span className="tm-pc-ground-dot" aria-hidden />{groundChip(g)}
+            </span>
           ))}
-        </span>
+        </div>
       )}
       <button type="button" className="tm-pc-edit-btn" onClick={() => setEditing(true)}>
         Edit
       </button>
-    </div>
-  )
-}
-
-function Rail({ movement, timeline }: { movement: string; timeline: PersonaTimelineRole[] }) {
-  if (movement === "past") {
-    const nodes = timeline.slice(0, 4)
-    return (
-      <div className="tm-pc-rail" aria-hidden="true">
-        <span className="tm-pc-line" />
-        {nodes.map((r, i) => (
-          <span
-            key={`${r.company}-${r.title}-${i}`}
-            className="tm-pc-node"
-            style={{ top: `${12 + (i * 72) / Math.max(nodes.length, 1)}%` }}
-          >
-            <span className="tm-pc-yr">{[yearOf(r), r.company || r.title].filter(Boolean).join(" · ")}</span>
-            <span className="tm-pc-dot" />
-          </span>
-        ))}
-      </div>
-    )
-  }
-  if (movement === "present") {
-    return (
-      <div className="tm-pc-rail" aria-hidden="true">
-        <span className="tm-pc-line" />
-        <span className="tm-pc-node is-now" style={{ top: "24%" }}>
-          <span className="tm-pc-yr">Now</span>
-          <span className="tm-pc-dot" />
-        </span>
-      </div>
-    )
-  }
-  return (
-    <div className="tm-pc-rail" aria-hidden="true">
-      <span className="tm-pc-line is-projected" />
-      <span className="tm-pc-node is-terminal" style={{ top: "78%" }}>
-        <span className="tm-pc-dot" />
-      </span>
     </div>
   )
 }
@@ -218,38 +176,37 @@ export function PersonaCanvas({ token }: { token: string }) {
           if (paragraphs.length === 0 && movement.key !== "future") return null
           return (
             <div className="tm-pc-movement" key={movement.key}>
-              <Rail movement={movement.key} timeline={timeline} />
-              <div className="tm-pc-prose">
-                <div className="tm-pc-m-eyebrow">
-                  <span className="tm-pc-numeral">{movement.numeral}</span>
-                  <span className="tm-pc-m-title">{movement.title}</span>
-                </div>
+              <div className="tm-pc-m-eyebrow">
+                <span className="tm-pc-numeral">{movement.numeral}</span>
+                <span className="tm-pc-m-title">{movement.title}</span>
+              </div>
+              <div className="tm-pc-grid">
                 {paragraphs.map((p) => (
                   <Paragraph key={p.id} token={token} paragraph={p} />
                 ))}
-                {movement.key === "future" && data.cosmos === "none" && (
-                  <div className="tm-pc-constellation">
-                    <p className="tm-pc-constellation-label">Second lens · unlit</p>
-                    <p>
-                      Your arc above is drawn from evidence alone. There is a second lens —
-                      timing windows read from your birth chart — and it is currently dark.
-                    </p>
-                    <Button size="sm" render={<Link href="/myrology" />}>
-                      Align with your cosmos
-                    </Button>
-                    <p className="tm-pc-fine">
-                      Date, time and place of birth · asked once, with consent · the chart
-                      times, it never overrides evidence.
-                    </p>
-                  </div>
-                )}
-                {movement.key === "future" && data.cosmos === "on_file" && (
-                  <p className="tm-pc-cosmos-note">
-                    ✦ Birth chart on file — your cosmos reading arrives with your Myrology
-                    session, beside the evidence, never over it.
-                  </p>
-                )}
               </div>
+              {movement.key === "future" && data.cosmos === "none" && (
+                <div className="tm-pc-constellation">
+                  <p className="tm-pc-constellation-label">Second lens · unlit</p>
+                  <p>
+                    Your arc above is drawn from evidence alone. There is a second lens —
+                    timing windows read from your birth chart — and it is currently dark.
+                  </p>
+                  <Button size="sm" render={<Link href="/myrology" />}>
+                    Align with your cosmos
+                  </Button>
+                  <p className="tm-pc-fine">
+                    Date, time and place of birth · asked once, with consent · the chart
+                    times, it never overrides evidence.
+                  </p>
+                </div>
+              )}
+              {movement.key === "future" && data.cosmos === "on_file" && (
+                <p className="tm-pc-cosmos-note">
+                  ✦ Birth chart on file — your cosmos reading arrives with your Myrology
+                  session, beside the evidence, never over it.
+                </p>
+              )}
             </div>
           )
         })}
