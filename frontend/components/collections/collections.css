@@ -1,27 +1,6 @@
 /* Myro Ops folder — Myro Found section (the brain match stack). Reuses the
    dashboard `.db` token scope; these are the split-specific bits. */
 
-.mf-secthead {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin: 18px 0 10px;
-}
-
-.mf-secthead-title {
-  font-family: var(--tm-font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--db-ink, var(--tm-text));
-}
-
-.mf-secthead-sub {
-  font-size: 12px;
-  color: var(--tm-text-muted);
-}
-
 /* Reading-the-market reveal — the in-place wait while a run streams. */
 .mf-reading {
   display: flex;

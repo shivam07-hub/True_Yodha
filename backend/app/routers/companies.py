@@ -14,6 +14,7 @@ from app.schemas import (
     CompanyReviewItem,
     PostingNoteItem,
 )
+from app.services.concurrent_reads import run_concurrently
 
 _POSTING_NOTES_LIMIT = 20
 
@@ -59,19 +60,36 @@ def get_company_jobs(
 def get_company_page(company_name: str) -> CompanyPageResponse:
     db = get_supabase_admin()
 
-    rows = (
-        db.table("application_reviews")
-        .select("star_rating, last_stage, outcome, written_note, created_at")
-        .ilike("company_name", company_name)
-        .order("created_at", desc=True)
-        .execute()
-    ).data or []
+    # reviews and this company's job listings are independent reads (neither
+    # depends on the other's result) — run concurrently so wall time is
+    # max(), not sum(). Same serial-fan-out shape already fixed on
+    # /home/bootstrap and /jobs/feed (backlog #21).
+    reads = run_concurrently(
+        {
+            "reviews": lambda: (
+                db.table("application_reviews")
+                .select("star_rating, last_stage, outcome, written_note, created_at")
+                .ilike("company_name", company_name)
+                .order("created_at", desc=True)
+                .execute()
+            ).data
+            or [],
+            "jobs": lambda: _fetch_company_jobs_for_notes(db, company_name),
+        }
+    )
+    rows = reads["reviews"]
+    company_jobs = reads["jobs"]
+    posting_notes = _notes_from_jobs(db, company_jobs) if company_jobs else []
 
-    posting_notes = _fetch_posting_notes(db, company_name)
-
-    # Render the page if there are EITHER structured reviews OR public posting
-    # notes. Only 404 when both are empty.
-    if not rows and not posting_notes:
+    # A company page exists if the company has EITHER a real job listing
+    # (the common case pre-trust — most companies have zero reviews this
+    # early, that's not the same as not existing) OR structured reviews OR
+    # public posting notes. Checking reviews/notes alone 404'd nearly every
+    # real company (Costco, Bain, Asian Paints, MSD all confirmed live in
+    # /jobs but 404ing here) — reviews are a trust output, not an existence
+    # gate; requiring them to render the page created a chicken-and-egg trust
+    # never gets a chance to build.
+    if not rows and not posting_notes and not company_jobs:
         raise HTTPException(status_code=404, detail="Nothing found for this company")
 
     review_count = len(rows)
@@ -109,18 +127,22 @@ def get_company_page(company_name: str) -> CompanyPageResponse:
     )
 
 
-def _fetch_posting_notes(db, company_name: str) -> list[PostingNoteItem]:
-    """Roll up public notes left on this company's job postings (entity_type='job',
-    entity_id=job_id). Joins job title + author ninja_name service-side; user_id is
-    never surfaced. Returns [] on any miss so the company page never 500s on notes."""
-    jobs = (
+def _fetch_company_jobs_for_notes(db, company_name: str) -> list[dict]:
+    """This company's job rows (job_id, job_title only) — feeds both the
+    posting-notes join below and the company-page existence check (a company
+    with live listings and zero reviews/comments still exists)."""
+    return (
         db.table("jobs")
         .select("job_id, job_title")
         .ilike("company_name", company_name)
         .execute()
     ).data or []
-    if not jobs:
-        return []
+
+
+def _notes_from_jobs(db, jobs: list[dict]) -> list[PostingNoteItem]:
+    """Roll up public notes left on this company's job postings (entity_type='job',
+    entity_id=job_id). Joins job title + author ninja_name service-side; user_id is
+    never surfaced. Returns [] on any miss so the company page never 500s on notes."""
     title_by_id = {j["job_id"]: j.get("job_title") for j in jobs}
 
     notes = (

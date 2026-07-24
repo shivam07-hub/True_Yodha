@@ -473,10 +473,6 @@ function MyroFoundBody({
         </>
       ) : found.length > 0 ? (
         <>
-          <div className="mf-secthead">
-            <span className="mf-secthead-title">Cleared the bar</span>
-            <span className="mf-secthead-sub">{found.length} worth your time</span>
-          </div>
           <VirtualFeed
             items={found}
             getKey={(it) => it.jobId}
