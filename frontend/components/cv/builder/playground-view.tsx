@@ -23,6 +23,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import type { CVStructured, UserProfile } from "@/lib/api"
 import { cv as cvApi, jobs as jobsApi } from "@/lib/api"
 import { CVEditor } from "./cv-editor"
+import type { MergePayload } from "./bullet-merge"
 import { ExperienceIntake } from "./experience-intake"
 import { TailorWeave } from "./tailor-weave"
 import { PlaygroundRail } from "./playground-rail"
@@ -165,6 +166,15 @@ export function PlaygroundView({
   const rewriteApply = useMutation({
     mutationFn: ({ oldText, newText }: { oldText: string; newText: string }) =>
       cvApi.rewriteApply(token, { old_text: oldText, new_text: newText }),
+    onSuccess: invalidateCV,
+  })
+
+  const mergeApply = useMutation({
+    mutationFn: (p: MergePayload) => cvApi.mergeBulletApply(token, {
+      old_text_a: p.oldTextA, old_text_b: p.oldTextB, merged_text: p.mergedText,
+      section_hint: p.section, item_index: p.itemIndex,
+      bullet_index_a: p.bulletIndexA, bullet_index_b: p.bulletIndexB,
+    }),
     onSuccess: invalidateCV,
   })
 
@@ -364,6 +374,8 @@ export function PlaygroundView({
                 missingKeywords={[]}
                 applying={rewriteApply.isPending}
                 onApply={(oldText, newText) => rewriteApply.mutate({ oldText, newText })}
+                onMergeApply={(payload: MergePayload) => mergeApply.mutate(payload)}
+                mergeApplying={mergeApply.isPending}
                 onAddBullet={(roleIndex, text) => addBullet.mutate({ roleIndex, text })}
                 addingBullet={addBullet.isPending}
                 visibleCount={m.visibleCount}

@@ -99,6 +99,11 @@ export const viewport: Viewport = {
 // form controls / scrollbars match.
 const SURFACE_INIT = `(function(){try{var s=localStorage.getItem('myro-surface');if(s!=='light'&&s!=='dark'){s=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.dataset.surface=s;d.style.colorScheme=s;}catch(e){document.documentElement.dataset.surface='light';}})();`
 
+// Flash-free accent resolution (backlog ND15) — mirrors SURFACE_INIT. Source
+// of truth = the `myro-accent` localStorage key owned by lib/hooks/use-accent.ts.
+// Absent/invalid → "signal" (the default every existing user already sees).
+const ACCENT_INIT = `(function(){try{var a=localStorage.getItem('myro-accent');document.documentElement.dataset.accent=(a==='forge')?'forge':'signal';}catch(e){document.documentElement.dataset.accent='signal';}})();`
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
@@ -111,6 +116,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="font-sans antialiased">
         <Script id="myro-surface-init" strategy="beforeInteractive">
           {SURFACE_INIT}
+        </Script>
+        <Script id="myro-accent-init" strategy="beforeInteractive">
+          {ACCENT_INIT}
         </Script>
         {process.env.NEXT_PUBLIC_GA_ID && (
           <>

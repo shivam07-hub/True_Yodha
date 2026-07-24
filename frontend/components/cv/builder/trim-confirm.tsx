@@ -8,6 +8,7 @@
 import type { CVStructured } from "@/lib/api"
 import { itemId } from "@/lib/cv-compose"
 import { IDEAL_CV_SPEC, estimateLines, type PageFill } from "@/lib/cv/page-fill"
+import { Button } from "@/components/ui/button"
 import { Icon } from "./icons"
 
 interface TrimConfirmProps {
@@ -44,11 +45,11 @@ export function TrimConfirm({ cv, hiddenItems, pageFill, toggleItem, onDownload,
             Recruiters skim one page. Auto-trim hides your lowest-impact bullets until it fits — or download as-is.
           </p>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 18, flexWrap: "wrap" }}>
-            <button type="button" className="cvb-btn sm" onClick={onClose}>Cancel</button>
-            <button type="button" className="cvb-btn sm" onClick={autoTrimToFit}><Icon name="sparkle" size={12} /> Auto-trim to fit</button>
-            <button type="button" className="cvb-btn sm primary" onClick={() => { onClose(); onDownload() }}>
+            <Button variant="neutral" size="sm" onClick={onClose}>Cancel</Button>
+            <Button variant="neutral" size="sm" onClick={autoTrimToFit}><Icon name="sparkle" size={12} /> Auto-trim to fit</Button>
+            <Button size="sm" onClick={() => { onClose(); onDownload() }}>
               <Icon name="download" size={12} /> Download anyway
-            </button>
+            </Button>
           </div>
         </div>
       </div>

@@ -247,6 +247,7 @@ function IntelPageInner() {
             canFollow={following.canFollow}
             disabledReason={following.disabledReason}
             analyticsEnabled={intent}
+            demandEnabled={wave2}
           />
         ) : (
           <HeatmapTab

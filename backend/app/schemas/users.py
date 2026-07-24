@@ -40,6 +40,7 @@ class UserProfileResponse(BaseModel):
     cv_upload_error_code: str | None = None
     myrology_unlocked: bool = False
     myrology_interested: bool = False
+    accent_pref: Literal["signal", "forge"] = "signal"
 
 
 class UpdateProfileResponse(UserProfileResponse):
@@ -61,6 +62,7 @@ class UpdateProfileRequest(BaseModel):
     career_goal: str | None = None
     superpower: str | None = None
     myrology_interested: bool | None = None
+    accent_pref: Literal["signal", "forge"] | None = None
 
 
 class UserSkillItem(BaseModel):

@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { upskilling, users, type DemandBand, type ReadinessRow, type SkillUpvote, type StartGapResponse, type UpskillingSkill } from "@/lib/api"
+import { Button } from "@/components/ui/button"
 import type { PracticeSkills } from "@/lib/practice-skills"
 import { dataKeys, invalidateScoreMapData } from "@/lib/domain-data"
 import { mentorRewriteHref } from "@/lib/practice-mentor-handoff"
@@ -397,14 +398,9 @@ export function UpskillingView({
         <div className="up-card up-empty-card" role="alert">
           <h3>Couldn’t load your upskilling ladder</h3>
           <p>We couldn’t reach your question bank. Your progress is safe.</p>
-          <button
-            type="button"
-            className="up-btn up-btn-primary"
-            onClick={() => void refetch()}
-            disabled={isFetching}
-          >
+          <Button onClick={() => void refetch()} disabled={isFetching}>
             Retry
-          </button>
+          </Button>
         </div>
       </div>
     )

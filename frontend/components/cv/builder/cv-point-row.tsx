@@ -5,6 +5,7 @@ import type { UserSkillsByDomain } from "@/lib/api"
 import { extractedSkillsForCvPoint } from "@/lib/skill-intelligence"
 import { BulletRewrite } from "./bullet-rewrite"
 import { CVPointSkillChips } from "./cv-point-skill-chips"
+import { Icon } from "./icons"
 import { bulletKeywordHits, type KeywordTarget } from "./keyword-utils"
 import type { ContentFinding } from "./content-checks"
 
@@ -61,6 +62,10 @@ interface CVPointRowProps {
   /** Master surface: no per-job projection, so the hide toggle is meaningless —
    *  render an empty column keeper instead of a dead control. */
   hideToggle?: boolean
+  /** Merge (combine two near-duplicate lines): only exp/proj bullets qualify. */
+  mergeSelectable?: boolean
+  mergeSelected?: boolean
+  onToggleMergeSelect?: () => void
 }
 
 export function CVPointRow({
@@ -96,6 +101,9 @@ export function CVPointRow({
   fixPill,
   appliedMark,
   hideToggle,
+  mergeSelectable,
+  mergeSelected,
+  onToggleMergeSelect,
 }: CVPointRowProps) {
   const [showDetails, setShowDetails] = useState(false)
   const hits = mono ? [] : bulletKeywordHits(text, targets)
@@ -263,6 +271,16 @@ export function CVPointRow({
             title="Edit this line"
             aria-label="Edit"
           >✎</button>
+        )}
+        {!mono && !editing && !hidden && mergeSelectable && onToggleMergeSelect && (
+          <button
+            type="button"
+            className={`cvb-pgc-icon${mergeSelected ? " on" : ""}`}
+            onClick={onToggleMergeSelect}
+            title={mergeSelected ? "Selected for merge — click to deselect" : "Select to merge with another line"}
+            aria-label="Select to merge with another line"
+            aria-pressed={mergeSelected ?? false}
+          ><Icon name="merge" size={12}/></button>
         )}
       </div>
     </div>

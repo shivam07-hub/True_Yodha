@@ -302,6 +302,14 @@
   white-space: nowrap;
 }
 
+/* #33 thin-market fallback note — sits above the closest-real-openings list
+   when the strict search comes up empty. */
+.tm-intel-closest-note {
+  padding: 10px 14px 4px;
+  font-size: 12px;
+  color: var(--tm-text-muted);
+}
+
 .tm-intel-sort-menu {
   position: absolute;
   top: calc(100% + 6px);

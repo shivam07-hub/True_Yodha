@@ -17,6 +17,7 @@ import { useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { ApplicationResponse, CareerProfile, CareerStory, MergeSuggestion } from "@/lib/api"
 import { APPLICATION_OUTCOMES, cv as cvApi } from "@/lib/api"
+import { Button } from "@/components/ui/button"
 import { ReservoirDump } from "./reservoir-dump"
 import "./reservoir-profile.css"
 
@@ -109,9 +110,9 @@ function TailorMenu({ applications, token, onOpenJob }: {
 
   return (
     <div className="tm-rsv-tailor">
-      <button type="button" className="cvb-btn" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+      <Button variant="neutral" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
         Tailor for job
-      </button>
+      </Button>
       {open && (
         <div className="tm-rsv-tailor-menu" role="menu">
           {targets.map((a) => (
@@ -157,16 +158,16 @@ function MergeCard({ token, pair, onDecided }: {
         <span>{pair.b_label}</span>
       </p>
       <div className="tm-rsv-merge-actions">
-        <button
-          type="button" className="cvb-btn primary sm"
+        <Button
+          size="sm"
           disabled={decide.isPending}
           onClick={() => decide.mutate("merged")}
-        >Merge</button>
-        <button
-          type="button" className="cvb-btn sm"
+        >Merge</Button>
+        <Button
+          variant="neutral" size="sm"
           disabled={decide.isPending}
           onClick={() => decide.mutate("keep_separate")}
-        >Keep separate</button>
+        >Keep separate</Button>
         {decide.isError && <span className="tm-rsv-merge-err" role="alert">Didn’t save — try again.</span>}
       </div>
     </div>
@@ -216,9 +217,9 @@ export function ReservoirProfile({ token, applications, onOpenJob }: {
             <TailorMenu applications={applications} token={token} onOpenJob={onOpenJob} />
           )}
           {!isEmpty && (
-            <button type="button" className="cvb-btn primary" onClick={() => setDumpOpen((v) => !v)}>
+            <Button onClick={() => setDumpOpen((v) => !v)}>
               Add your past
-            </button>
+            </Button>
           )}
         </div>
       </header>

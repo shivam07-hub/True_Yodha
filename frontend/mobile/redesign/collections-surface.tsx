@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { jobs as jobsApi, users as usersApi, type ApplicationResponse, type JobMatch } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
-import { SORTS, type SortKey } from "@/lib/dashboard/feed-model"
+import { SORTS, type FeedItem, type SortKey } from "@/lib/dashboard/feed-model"
 import {
   FOLDER_CHIPS,
+  buildClosedView,
   buildCollectionsView,
   buildContinueLane,
   buildMyroFound,
@@ -18,6 +19,7 @@ import {
   isExtSource,
   isMyroSource,
   matchesById,
+  splitClosedApps,
   type CollectionChip,
 } from "@/lib/collections/model"
 import { useMyroSearch } from "@/lib/hooks/use-myro-search"
@@ -87,11 +89,26 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
     return m
   }, [apps])
 
+  // Pulses hydrate from the FULL candidate set (every saved/applied job + every
+  // found match), not just the active chip's visible lane — the closed split
+  // has to work no matter which chip is open.
+  const trackedIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const a of apps) ids.add(a.job_id)
+    for (const m of matchesQ.data?.jobs ?? []) ids.add(m.job_id)
+    return Array.from(ids)
+  }, [apps, matchesQ.data])
+  const pulses = usePulses(token, trackedIds)
+
+  // Closed lifecycle: a role whose listing verifies dead moves out of its
+  // origin chip into its own Closed chip.
+  const { open: openApps, closed: closedApps } = useMemo(() => splitClosedApps(apps, pulses), [apps, pulses])
+
   const ctx = useMemo(
-    () => collectionsTriageCtx(apps, (followed?.companies ?? []).map(c => c.company_name), profile?.target_roles ?? []),
-    [apps, followed, profile],
+    () => collectionsTriageCtx(openApps, (followed?.companies ?? []).map(c => c.company_name), profile?.target_roles ?? []),
+    [openApps, followed, profile],
   )
-  const continueItems = useMemo(() => buildContinueLane(apps, ctx, byId), [apps, ctx, byId])
+  const continueItems = useMemo(() => buildContinueLane(openApps, ctx, byId), [openApps, ctx, byId])
   const dismissedIds = useMemo(() => {
     const s = new Set(matchesQ.data?.dismissed_job_ids ?? [])
     dismissed.forEach(id => s.add(id))
@@ -102,21 +119,25 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
     for (const p of picksQ.data?.picks ?? []) s.add(p.job_id)
     return s
   }, [continueItems, picksQ.data])
-  const myroFound = useMemo(() => buildMyroFound(matchesQ.data?.jobs, dismissedIds, shownElsewhere), [matchesQ.data, dismissedIds, shownElsewhere])
+  const myroFound = useMemo(
+    () => buildMyroFound(matchesQ.data?.jobs, dismissedIds, shownElsewhere, pulses),
+    [matchesQ.data, dismissedIds, shownElsewhere, pulses],
+  )
+  const closedView = useMemo(
+    () => buildClosedView(closedApps, myroFound.closedMatches, byId),
+    [closedApps, myroFound.closedMatches, byId],
+  )
 
-  const counts = useMemo(() => chipCounts(apps, myroFound.found.length), [apps, myroFound.found.length])
+  const counts = useMemo(
+    () => chipCounts(openApps, myroFound.found.length, closedView.length),
+    [openApps, myroFound.found.length, closedView.length],
+  )
   const appView = useMemo(
-    () => (chip === "added" || chip === "applied" ? buildCollectionsView(apps, chip, sort, ctx, byId) : null),
-    [apps, chip, sort, ctx, byId],
+    () => (chip === "added" || chip === "applied" ? buildCollectionsView(openApps, chip, sort, ctx, byId) : null),
+    [openApps, chip, sort, ctx, byId],
   )
 
   const queueApps = useMemo(() => (appView?.queueItems ?? []).map(it => appBy.get(it.jobId)).filter(Boolean) as ApplicationResponse[], [appView, appBy])
-
-  const shownIds = useMemo(
-    () => [...continueItems.map(it => it.jobId), ...myroFound.found.map(it => it.jobId), ...queueApps.map(a => a.job_id)],
-    [continueItems, myroFound.found, queueApps],
-  )
-  const pulses = usePulses(token, shownIds)
   const tailoredN = apps.filter(a => a.cv_badge).length
 
   // Deep-linked from the Loop Bar "N new" signal (Slice 5) → open the gate once.
@@ -259,6 +280,33 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
     )
   }
 
+  // A dead listing — found, saved, or applied. Nothing left to unsave/tailor
+  // toward on the listing itself; the company is already auto-followed
+  // (backend sweep), so Share just copies the dead link for reference.
+  const renderClosedItem = (it: FeedItem) => {
+    const app = appBy.get(it.jobId)
+    const row = matchToRow(it.job)
+    return (
+      <CollectionCard
+        key={it.jobId}
+        row={row}
+        fitKnown={(it.fit ?? 0) > 0}
+        statusChip="Closed"
+        tailored={false}
+        pulse={pulses.get(it.jobId)}
+        onOpen={() => setDetailId(it.jobId)}
+        onHeart={app && canDismissSavedApplication(app) ? () => doUnsave(app) : undefined}
+        onShare={() => {
+          const url = it.job.source_url ?? ""
+          if (url) void navigator.clipboard?.writeText(url).catch(() => {})
+          snack({ msg: url ? "Link copied" : "No link on this role" })
+        }}
+        onTailor={() => router.push(`/cv?jobId=${encodeURIComponent(it.jobId)}`)}
+        onOpenCv={() => router.push("/cv")}
+      />
+    )
+  }
+
   const trulyEmpty = !appsQ.isLoading && !matchesQ.isLoading && apps.length === 0 && (matchesQ.data?.jobs?.length ?? 0) === 0
 
   return (
@@ -362,6 +410,15 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
               </div>
             )}
           </>
+        ) : chip === "closed" ? (
+          closedView.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "44px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+              <div style={{ fontSize: 15, fontWeight: 650 }}>Nothing closed</div>
+              <div style={{ fontSize: 12.5, color: "#8b8b84", lineHeight: 1.5 }}>{emptyCopy("closed")}</div>
+            </div>
+          ) : (
+            closedView.map(renderClosedItem)
+          )
         ) : queueApps.length === 0 && !appsQ.isLoading ? (
           <div style={{ textAlign: "center", padding: "44px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
             <div style={{ fontSize: 15, fontWeight: 650 }}>Nothing here yet</div>

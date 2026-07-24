@@ -103,6 +103,19 @@ const METRICS = [
     mode: "max",
     hint: "Don't format dates/numbers inline. Use the shared helpers in @/lib/format.",
   },
+  {
+    name: "rawFontSizeLiteral",
+    exts: [".css"],
+    // design-tokens.css DEFINES the --tm-fs-* scale (hero/display/title/heading/
+    // body/meta/caption) — that's the canonical source, not drift. Everywhere
+    // else, font-size should reference one of those tokens, not a hand-picked
+    // px/rem/clamp() value (BRAND_IDENTITY.md §6 — disciplined scale, enforced
+    // via tokens, not by hoping nobody free-types a size).
+    exclude: ["design-tokens.css"],
+    pattern: /font-size:\s*(?!var\(--tm-fs-)[^;{}]+;/g,
+    mode: "max",
+    hint: "Use a canonical --tm-fs-* scale token (see design-tokens.css) instead of a literal font-size value.",
+  },
 ]
 
 function walk(dir, exts, acc) {

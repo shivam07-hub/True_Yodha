@@ -1,4 +1,4 @@
-import type { ApplicationResponse, JobMatch } from "@/lib/api"
+import type { ApplicationResponse, JobMatch, JobPulse } from "@/lib/api"
 import {
   scoreItem,
   synthMatch,
@@ -18,22 +18,33 @@ import {
  * One model, two skins (desktop rows / mobile cards).
  * ────────────────────────────────────────────────────────────────────────── */
 
-export type CollectionChip = "all" | "found" | "added" | "applied"
+export type CollectionChip = "all" | "found" | "added" | "applied" | "closed"
 
 export const COLLECTION_CHIPS: ReadonlyArray<{ key: CollectionChip; label: string }> = [
   { key: "all", label: "All" },
   { key: "found", label: "Myro found" },
   { key: "added", label: "You added" },
   { key: "applied", label: "Applied" },
+  { key: "closed", label: "Closed" },
 ]
 
 /** Desktop Myro Ops folder chips — "All" is dropped (the folder lands on Myro
- *  found, and All blurred the match-stack ↔ applications split). */
+ *  found, and All blurred the match-stack ↔ applications split). "Closed" is a
+ *  lifecycle bucket, not a source: any role — found, saved, or applied — whose
+ *  listing verifies closed moves out of its origin chip and lands here instead
+ *  of sitting full-weight in the primary lists forever. */
 export const FOLDER_CHIPS: ReadonlyArray<{ key: CollectionChip; label: string }> = [
   { key: "found", label: "Myro found" },
   { key: "added", label: "You added" },
   { key: "applied", label: "Applied" },
+  { key: "closed", label: "Closed" },
 ]
+
+/** The verifier's authoritative "this listing is dead" call (mirrors the
+ *  PulseRow "apply link may be closed" predicate — one definition, reused). */
+export function isPulseClosed(pulse?: JobPulse): boolean {
+  return pulse?.listing_confidence === "closed" || pulse?.listing_confidence === "likely_closed"
+}
 
 /** A saved row Myro discovered (match feed / system) vs one the user brought. */
 export function isMyroSource(src: string): boolean {
@@ -55,13 +66,50 @@ export const isApplied = (a: ApplicationResponse) => a.status !== "saved"
 export function chipCounts(
   apps: ApplicationResponse[],
   foundCount?: number,
+  closedCount = 0,
 ): Record<CollectionChip, number> {
   return {
     all: apps.length,
     found: foundCount ?? apps.filter((a) => isMyroSource(a.source) && !isApplied(a)).length,
     added: apps.filter((a) => !isMyroSource(a.source) && !isApplied(a)).length,
     applied: apps.filter(isApplied).length,
+    closed: closedCount,
   }
+}
+
+/** Split saved/applied rows on the verifier's closed call. `open` feeds the
+ *  found/added/applied chips exactly as before; `closed` feeds the Closed chip
+ *  and nothing else — a role only ever counts toward one bucket. */
+export function splitClosedApps(
+  apps: ApplicationResponse[],
+  pulses: ReadonlyMap<string, JobPulse>,
+): { open: ApplicationResponse[]; closed: ApplicationResponse[] } {
+  const open: ApplicationResponse[] = []
+  const closed: ApplicationResponse[] = []
+  for (const a of apps) {
+    if (isPulseClosed(pulses.get(a.job_id))) closed.push(a)
+    else open.push(a)
+  }
+  return { open, closed }
+}
+
+/** The Closed chip: dead-listing saved/applied roles first (real intent —
+ *  these are the ones that drove the company auto-follow), then dead
+ *  Myro-found matches the user never acted on. Never double-counts a job
+ *  present in both. */
+export function buildClosedView(
+  closedApps: ApplicationResponse[],
+  closedFoundMatches: JobMatch[],
+  byId: Map<string, JobMatch>,
+): FeedItem[] {
+  const items = closedApps.map((a) => appToFeedItem(a, byId.get(a.job_id)))
+  const seen = new Set(closedApps.map((a) => a.job_id))
+  for (const m of closedFoundMatches) {
+    if (seen.has(m.job_id)) continue
+    seen.add(m.job_id)
+    items.push(matchToFeedItem(m))
+  }
+  return items
 }
 
 export function filterChip(apps: ApplicationResponse[], chip: CollectionChip): ApplicationResponse[] {
@@ -156,23 +204,29 @@ export interface MyroFoundView {
   belowBarCount: number
   /** Rejected for cause — dead listing, wrong level, off deal-breakers. */
   rejectedCount: number
+  /** Verifier-confirmed dead, never acted on → moved to the Closed chip. */
+  closedMatches: JobMatch[]
 }
 
 /**
  * Split the match stack. `pickedIds` are already pinned in the Agent Picks band
  * (don't repeat them); `dismissedIds` are hidden from the folder entirely and
- * count toward nothing.
+ * count toward nothing. A closed listing is pulled out before grading — a dead
+ * role never belongs in "found" no matter how good its brain grade was.
  */
 export function buildMyroFound(
   matches: JobMatch[] | undefined,
   dismissedIds: ReadonlySet<string>,
   pickedIds: ReadonlySet<string>,
+  pulses: ReadonlyMap<string, JobPulse> = new Map(),
 ): MyroFoundView {
   const found: FeedItem[] = []
+  const closedMatches: JobMatch[] = []
   let belowBarCount = 0
   let rejectedCount = 0
   for (const m of matches ?? []) {
     if (dismissedIds.has(m.job_id)) continue
+    if (isPulseClosed(pulses.get(m.job_id))) { closedMatches.push(m); continue }
     const bucket = classifyMatch(m)
     if (bucket === "rejected") { rejectedCount += 1; continue }
     if (bucket === "below") { belowBarCount += 1; continue }
@@ -180,7 +234,7 @@ export function buildMyroFound(
     found.push(matchToFeedItem(m))
   }
   found.sort((a, b) => (b.fit ?? -1) - (a.fit ?? -1))
-  return { found, belowBarCount, rejectedCount }
+  return { found, belowBarCount, rejectedCount, closedMatches }
 }
 
 export interface CollectionsView {
@@ -277,6 +331,8 @@ export function emptyCopy(chip: CollectionChip): string {
       return "Nothing added by you yet — paste a link, or send roles from the Chrome extension."
     case "applied":
       return "No applications yet — tailor a saved role, then apply."
+    case "closed":
+      return "Nothing closed — everything you're tracking is still live."
     default:
       return "Nothing here yet — save roles from Jobs, paste a link, or send them from the Chrome extension."
   }

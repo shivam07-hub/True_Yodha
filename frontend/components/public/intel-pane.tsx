@@ -10,6 +10,7 @@ import { cacheKey, withLocalCache } from "@/lib/local-cache"
 import { useJobsRealtime } from "@/lib/hooks/use-jobs-realtime"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import { useGlobalJobSearch } from "@/lib/hooks/use-global-job-search"
+import { useJobGenFallback } from "@/lib/hooks/use-job-gen-fallback"
 import { useResultsSort, type ResultsSortKey } from "@/lib/hooks/use-results-sort"
 import { JobSearchConsole } from "@/components/public/job-search-console"
 import {
@@ -121,6 +122,11 @@ export function IntelPane() {
 
   // Global ⌘K search (real, debounced, trigram-backed).
   const globalSearch = useGlobalJobSearch(query, { limit: 12 })
+
+  // #33 thin-market fallback — only fires once the fast search has settled on
+  // zero hits (never on every keystroke; see use-job-gen-fallback.ts).
+  const searchEmpty = globalSearch.isActive && !globalSearch.isLoading && globalSearch.hits.length === 0
+  const closestMatch = useJobGenFallback(query, { enabled: searchEmpty })
 
   // Real open-roles for the active company. DB-bounded LIMIT 6.
   const { data: openRolesData, isLoading: openRolesLoading } = useQuery({
@@ -391,6 +397,17 @@ export function IntelPane() {
             city: h.location_city ?? null,
             mode: humanMode(h.location_mode),
           })),
+          closestMatch: {
+            loading: closestMatch.loading,
+            relaxedLocation: closestMatch.relaxed.includes("location"),
+            cards: closestMatch.cards.map((c) => ({
+              job_id: c.job_id,
+              job_title: c.title,
+              company_name: c.company ?? null,
+              city: c.location_city ?? null,
+              mode: humanMode(c.location_mode),
+            })),
+          },
         }}
         sort={sort}
         onSortChange={setSort}

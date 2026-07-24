@@ -213,6 +213,35 @@ def apply_bullet_edit(
     return fresh
 
 
+def apply_bullet_merge(
+    cv_structured: dict[str, Any],
+    location_a: BulletLocation,
+    location_b: BulletLocation,
+    merged_text: str,
+) -> dict[str, Any]:
+    """Return a deep-copied cv_structured with two bullets from the SAME
+    experience/project item collapsed into one, at the lower of the two
+    indices. Merge is a repeated-content cleanup, not a rewrite — it only makes
+    sense within one item's own bullet list (exp_bullet/proj_bullet); singleton
+    sections (summary/skills_line/cert) have nothing to merge with."""
+    if location_a.section not in ("exp_bullet", "proj_bullet"):
+        raise ValueError(f"Merge is not supported for {location_a.section!r}.")
+    if location_a.section != location_b.section or location_a.item_index != location_b.item_index:
+        raise ValueError("Bullets to merge must be in the same experience/project item.")
+    if location_a.bullet_index == location_b.bullet_index:
+        raise ValueError("Cannot merge a bullet with itself.")
+    if not merged_text or not merged_text.strip():
+        raise ValueError("merged_text cannot be empty")
+
+    lo, hi = sorted((location_a.bullet_index, location_b.bullet_index))
+    fresh = deepcopy(cv_structured)
+    list_key = "experience" if location_a.section == "exp_bullet" else "projects"
+    bullets = fresh[list_key][location_a.item_index]["bullets"]
+    bullets[lo] = merged_text.strip()
+    del bullets[hi]
+    return fresh
+
+
 # ── Sync skill diff ───────────────────────────────────────────────────────────
 
 

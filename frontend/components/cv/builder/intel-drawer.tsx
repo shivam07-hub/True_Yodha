@@ -9,6 +9,7 @@ import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import Link from "next/link"
 import type { CVVersion } from "@/lib/api"
+import { Button } from "@/components/ui/button"
 import { Icon } from "./icons"
 import { ScoreGauge } from "./score-gauge"
 import { KindDot } from "./commit-graph"
@@ -65,9 +66,9 @@ export function IntelDrawer({
             <div className="eyebrow" style={{ color: "var(--tm-interactive)" }}>jd intel</div>
             <div style={{ fontSize: 14, color: "var(--tm-text)", marginTop: 4 }}>{jobLabel}</div>
           </div>
-          <button type="button" className="cvb-btn ghost sm" onClick={onClose} aria-label="Close drawer">
+          <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close drawer">
             <Icon name="x" size={14}/>
-          </button>
+          </Button>
         </div>
 
         <div className="cvb-drawer-body">

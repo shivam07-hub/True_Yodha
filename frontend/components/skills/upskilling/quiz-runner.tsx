@@ -6,6 +6,7 @@
 
 import { useEffect, useRef, useState, type JSX } from "react"
 import { useViewport } from "@/mobile"
+import { Button } from "@/components/ui/button"
 import { Icon } from "./icons"
 import { formatClock } from "./quiz-best"
 import type { QuizQuestion } from "./types"
@@ -154,9 +155,9 @@ export function QuizRunner({
           <div className="up-progress" aria-hidden="true"><i style={{ width: `${(answeredCount / questions.length) * 100}%` }} /></div>
           <span className="up-progress-txt">{answeredCount}/{questions.length}</span>
           <span className="up-quiz-clock" aria-hidden="true">{formatClock(elapsed)}</span>
-          <button type="button" className="up-iconbtn up-quiz-x" aria-label="Exit quiz" onClick={() => setConfirmExit(true)}>
+          <Button variant="ghost" size="icon-md" className="up-quiz-x" aria-label="Exit quiz" onClick={() => setConfirmExit(true)}>
             <Icon name="close" size={16} />
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -178,9 +179,9 @@ export function QuizRunner({
               </div>
             )}
             <div className="up-quiz-foot">
-              <button type="button" className="up-btn up-btn-ghost" onClick={goBack} disabled={current === 0}>
+              <Button variant="ghost" onClick={goBack} disabled={current === 0}>
                 <Icon name="back" size={15} /> Back
-              </button>
+              </Button>
               <div className="spacer" />
               <div className="up-quiz-dots" role="tablist" aria-label="Jump to question">
                 {questions.map((_, i) => (
@@ -194,9 +195,9 @@ export function QuizRunner({
               </div>
               <div className="spacer" />
               {current < questions.length - 1 ? (
-                <button type="button" className="up-btn up-btn-primary" onClick={goNext}>Next <Icon name="arrow" size={15} /></button>
+                <Button onClick={goNext}>Next <Icon name="arrow" size={15} /></Button>
               ) : (
-                <button type="button" className="up-btn up-btn-primary" onClick={trySubmit}>{submitLabel}</button>
+                <Button onClick={trySubmit}>{submitLabel}</Button>
               )}
             </div>
           </>
@@ -214,10 +215,10 @@ export function QuizRunner({
               </div>
             )}
             <div className="up-quiz-foot" style={{ marginTop: 22 }}>
-              <button type="button" className="up-btn up-btn-ghost" onClick={() => setConfirmExit(true)}><Icon name="back" size={15} /> Exit</button>
+              <Button variant="ghost" onClick={() => setConfirmExit(true)}><Icon name="back" size={15} /> Exit</Button>
               <div className="spacer" />
               <span className="up-progress-txt">{answeredCount}/{questions.length} answered</span>
-              <button type="button" className="up-btn up-btn-primary" onClick={trySubmit} disabled={!allAnswered}>{submitLabel}</button>
+              <Button onClick={trySubmit} disabled={!allAnswered}>{submitLabel}</Button>
             </div>
           </>
         )}
@@ -229,8 +230,8 @@ export function QuizRunner({
             <h3>Exit this set?</h3>
             <p>Your answers won&apos;t be saved. The set isn&apos;t graded until you submit — you can always start a fresh set later.</p>
             <div className="up-modal-actions">
-              <button type="button" className="up-btn up-btn-ghost" onClick={() => setConfirmExit(false)}>Keep going</button>
-              <button type="button" className="up-btn up-btn-primary" onClick={onExit}>Exit</button>
+              <Button variant="ghost" onClick={() => setConfirmExit(false)}>Keep going</Button>
+              <Button onClick={onExit}>Exit</Button>
             </div>
           </div>
         </div>

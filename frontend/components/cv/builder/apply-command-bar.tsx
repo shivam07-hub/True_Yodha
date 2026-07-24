@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { Button } from "@/components/ui/button"
 import { getApplyCommandState } from "./apply-command-model"
 import { Icon, type IconName } from "./icons"
 
@@ -83,14 +84,14 @@ export function ApplyCommandBar({
         : state.primaryLabel
 
   const primaryButton = state.phase === "applied" ? (
-    <Link href="/applications" className="cvb-btn sm primary cvb-apply-primary">
+    <Button size="sm" className="cvb-apply-primary" render={<Link href="/applications" />}>
       <Icon name={primaryIcon} size={13} />
       {primaryLabel}
-    </Link>
+    </Button>
   ) : (
-    <button
-      type="button"
-      className="cvb-btn sm primary cvb-apply-primary"
+    <Button
+      size="sm"
+      className="cvb-apply-primary"
       onClick={
         state.phase === "draft"
           ? onSaveAndPreview
@@ -102,7 +103,7 @@ export function ApplyCommandBar({
     >
       <Icon name={primaryIcon} size={13} />
       {primaryLabel}
-    </button>
+    </Button>
   )
 
   return (
@@ -133,23 +134,22 @@ export function ApplyCommandBar({
 
       <div className="cvb-apply-actions">
         {state.phase === "opened" && (
-          <button type="button" className="cvb-btn sm" onClick={onPreviewDownload}>
+          <Button variant="neutral" size="sm" onClick={onPreviewDownload}>
             <Icon name="download" size={13} />
             Preview &amp; download
-          </button>
+          </Button>
         )}
         {primaryButton}
         {!isDirty && !isApplied && applyHref && (
-          <a
-            href={applyHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="cvb-btn sm cvb-apply-open"
-            onClick={onOpenApply}
+          <Button
+            variant="neutral"
+            size="sm"
+            className="cvb-apply-open"
+            render={<a href={applyHref} target="_blank" rel="noopener noreferrer" onClick={onOpenApply} />}
           >
             <Icon name="external-link" size={13} />
             {applyLabel}
-          </a>
+          </Button>
         )}
       </div>
 

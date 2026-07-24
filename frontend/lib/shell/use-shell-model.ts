@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { users, xp, type UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { readIdentitySnapshot, writeIdentitySnapshot } from "@/lib/identity-cache"
+import { reconcileAccentFromServer } from "@/lib/hooks/use-accent"
 import { useXPStore } from "@/store/xpStore"
 import {
   OPEN_FEEDBACK_EVENT,
@@ -93,6 +94,13 @@ export function useShellModel() {
   useEffect(() => {
     if (profileData) writeIdentitySnapshot("profile", token, profileData)
   }, [profileData, token])
+
+  // ND15: server accent_pref is the cross-device source of truth; sync it into
+  // the per-device localStorage cache once the profile loads (no-op if already
+  // matching — never clobbers a same-session toggle mid-flight).
+  useEffect(() => {
+    if (profileData?.accent_pref) reconcileAccentFromServer(profileData.accent_pref)
+  }, [profileData?.accent_pref])
 
   const profile: SidebarProfile = {
     full_name: profileData?.full_name ?? null,

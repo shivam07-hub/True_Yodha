@@ -29,6 +29,7 @@ import {
   type UpgradeOffer,
 } from "@/lib/api"
 import { useStreamingText, type StreamEvent } from "@/lib/hooks/use-streaming-text"
+import { Button } from "@/components/ui/button"
 import { Icon } from "./icons"
 
 interface GapSessionProps {
@@ -119,8 +120,8 @@ export function GapSession({ token, jobId, score, onApplied, onClose }: GapSessi
           <div className="cvb-gs-body">
             <p className="cvb-rs-error" role="alert">{loadErr}</p>
             <div className="cvb-gs-foot">
-              <button type="button" className="cvb-btn sm" onClick={onClose}>Close</button>
-              <button type="button" className="cvb-btn sm primary" onClick={() => void load()}>Try again</button>
+              <Button variant="neutral" size="sm" onClick={onClose}>Close</Button>
+              <Button size="sm" onClick={() => void load()}>Try again</Button>
             </div>
           </div>
         </div>
@@ -224,9 +225,9 @@ function Header({ score, startScore, plan, onClose }: { score: number; startScor
         {plan && <div className="cvb-gs-sub">{plan.company ?? "This role"} · {plan.job_title}</div>}
       </div>
       <LiveMeter score={score} startScore={startScore} />
-      <button type="button" className="cvb-btn ghost sm" aria-label="Close" onClick={onClose}>
+      <Button variant="ghost" size="icon-sm" aria-label="Close" onClick={onClose}>
         <Icon name="x" size={16}/>
-      </button>
+      </Button>
     </div>
   )
 }
@@ -298,10 +299,10 @@ function SurfaceCard({ token, card, onResolved, onSkip }: {
 
       {phase === "intro" && (
         <div className="cvb-gs-actions">
-          <button type="button" className="cvb-btn sm ghost" onClick={onSkip}>Not really</button>
-          <button type="button" className="cvb-btn sm primary" onClick={() => void propose()}>
+          <Button variant="ghost" size="sm" onClick={onSkip}>Not really</Button>
+          <Button size="sm" onClick={() => void propose()}>
             <Icon name="sparkle" size={12}/> Yes, I did this
-          </button>
+          </Button>
         </div>
       )}
 
@@ -361,15 +362,15 @@ function ShallowCard({ token, card, onResolved, onSkip }: {
             }}
           />
           <div className="cvb-gs-actions">
-            <Link href={forgeHref(card.skill)} target="_blank" rel="noopener noreferrer" className="cvb-btn sm">
+            <Button variant="neutral" size="sm" render={<Link href={forgeHref(card.skill)} target="_blank" rel="noopener noreferrer" />}>
               Earn L{card.required_level} in practice
-            </Link>
-            <button
-              type="button" className="cvb-btn sm primary"
+            </Button>
+            <Button
+              size="sm"
               disabled={!anecdote.trim()} onClick={() => void propose(anecdote.trim())}
             >
               Surface to L{card.surface_to}
-            </button>
+            </Button>
           </div>
           <div className="cvb-gs-nofab">Myro surfaces what&apos;s true — it never inflates your level.</div>
           <button type="button" className="cvb-rw-skip" onClick={onSkip}>Skip this gap</button>
@@ -595,18 +596,18 @@ function RewriteBody({ phase, proposed, onProposedChange, rationale, citations, 
               disabled={busy}
               onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); submitRefine() } }}
             />
-            <button type="button" className="cvb-btn sm ghost" disabled={busy || !note.trim()} onClick={submitRefine}>
+            <Button variant="ghost" size="sm" disabled={busy || !note.trim()} onClick={submitRefine}>
               <Icon name="sparkle" size={12}/> Refine
-            </button>
+            </Button>
           </div>
           {errMsg && <div className="cvb-rw-refine-err" role="alert">{errMsg}</div>}
         </div>
 
         <div className="cvb-rw-actions">
-          <button type="button" className="cvb-btn sm" onClick={onDiscard} disabled={busy}>Discard</button>
-          <button type="button" className="cvb-btn sm primary" disabled={busy || !proposed.trim()} onClick={onAccept}>
+          <Button variant="neutral" size="sm" onClick={onDiscard} disabled={busy}>Discard</Button>
+          <Button size="sm" disabled={busy || !proposed.trim()} onClick={onAccept}>
             <Icon name="check" size={12}/> {applying ? "Saving…" : "Accept"}
-          </button>
+          </Button>
         </div>
       </div>
     )
@@ -632,10 +633,10 @@ function Checkpoint({ resolved, remaining, onContinue, onWrap }: {
         Keep going, or wrap up and review what you&apos;ve surfaced.
       </p>
       <div className="cvb-gs-actions">
-        <button type="button" className="cvb-btn sm ghost" onClick={onWrap}>Wrap up</button>
-        <button type="button" className="cvb-btn sm primary" onClick={onContinue}>
+        <Button variant="ghost" size="sm" onClick={onWrap}>Wrap up</Button>
+        <Button size="sm" onClick={onContinue}>
           <Icon name="sparkle" size={12}/> Keep going · {Math.min(SESSION_BATCH, remaining)} more
-        </button>
+        </Button>
       </div>
     </div>
   )
@@ -681,9 +682,9 @@ function ClaimableUpgrade({ token, upgrade, host, meta, onApplied }: {
       <div className="cvb-gs-row proven">
         <span className="cvb-gs-row-name">{upgrade.display_name}</span>
         <span className="cvb-gs-row-meta">{meta}</span>
-        <button type="button" className="cvb-btn sm primary cvb-gs-claim" onClick={() => void propose()}>
+        <Button size="sm" className="cvb-gs-claim" onClick={() => void propose()}>
           <Icon name="sparkle" size={12}/> Claim on CV
-        </button>
+        </Button>
       </div>
     )
   }
@@ -835,7 +836,7 @@ function ClosingPanel({ token, resolved, startScore, score, practiceSkills, upgr
       )}
 
       <div className="cvb-gs-foot">
-        <button type="button" className="cvb-btn sm primary" onClick={onClose}>Done</button>
+        <Button size="sm" onClick={onClose}>Done</Button>
       </div>
     </div>
   )

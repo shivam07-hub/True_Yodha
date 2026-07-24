@@ -113,7 +113,9 @@ export function DetailBody(p: DetailBodyProps) {
     matchedCount: matched.length,
     buildCount: build.length,
     loadingSkills,
-    hasJd: !!p.job.job_description,
+    // The card's rail (CardDetailRail, desktop-only) already has a JD tab reading
+    // the same text — the drawer doesn't need a second full-text dump of it.
+    hasJd: false,
     hasCompany: !!company,
   })
 
@@ -162,13 +164,6 @@ export function DetailBody(p: DetailBodyProps) {
         )
       case "reach":
         return <ReachSection key={id} job={p.job} token={p.token} active={p.active} />
-      case "jd":
-        return (
-          <div className="db-dsec" key={id}>
-            <span className="db-label">Job description</span>
-            <pre className="db-jdbox">{p.job.job_description}</pre>
-          </div>
-        )
       case "company":
         return (
           <div className="db-dsec" key={id}>

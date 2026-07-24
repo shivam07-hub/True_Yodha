@@ -291,6 +291,20 @@
   outline-offset: 1px;
 }
 
+/* Mobile: the bell sits mid-header (lightning + avatar follow it), so anchoring
+   the 320px panel to the bell's right edge pushes it off the left of the phone.
+   Pin it to the viewport's right edge instead — right-aligned to the phone. */
+@media (max-width: 768px) {
+  .tm-bell-panel {
+    position: fixed;
+    top: calc(var(--tm-mobile-topbar-h, 56px) + env(safe-area-inset-top, 0px) + 6px);
+    right: 12px;
+    left: auto;
+    width: min(320px, calc(100vw - 24px));
+    max-width: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tm-bell-panel { animation: none; }
   .tm-bell-chev { transition: none; }

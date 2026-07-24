@@ -34,6 +34,7 @@ import {
   type CVStructured,
   type UserProfile,
 } from "@/lib/api"
+import { Button } from "@/components/ui/button"
 import { PdfPage, type PdfPageContact } from "@/components/cv/builder/pdf-page"
 import { BulletRow } from "@/components/cv/builder/bullet-row"
 import { Icon } from "@/components/cv/builder/icons"
@@ -365,12 +366,12 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
             <div className="cvp-dl-body">
               <p className="cvp-dl-copy">Log in to save this CV and your edits for next time.</p>
               <div className="cvp-dl-actions">
-                <button type="button" className="cvb-btn primary" onClick={doSaveAndDownload} disabled={downloading} aria-busy={downloading}>
+                <Button onClick={doSaveAndDownload} disabled={downloading} aria-busy={downloading}>
                   <Icon name="save" size={14} /> {downloading ? "Preparing…" : "Save & download"}
-                </button>
-                <button type="button" className="cvb-btn ghost" onClick={doDownload} disabled={downloading} aria-busy={downloading}>
+                </Button>
+                <Button variant="ghost" onClick={doDownload} disabled={downloading} aria-busy={downloading}>
                   <Icon name="download" size={14} /> {downloading ? "Preparing…" : "Just download"}
-                </button>
+                </Button>
               </div>
               <p className="cvp-dl-note">PDF is selectable, ATS-safe text — what you see is what downloads.</p>
             </div>
@@ -594,8 +595,8 @@ function RewriteModal({
             <>
               <p className="cvp-rw-error" role="alert">{err}</p>
               <div className="cvp-rw-foot">
-                <button type="button" className="cvb-btn sm" onClick={onClose}>Close</button>
-                <button type="button" className="cvb-btn sm primary" onClick={() => void run()}>Try again</button>
+                <Button variant="neutral" size="sm" onClick={onClose}>Close</Button>
+                <Button size="sm" onClick={() => void run()}>Try again</Button>
               </div>
             </>
           )}
@@ -611,17 +612,16 @@ function RewriteModal({
                 onChange={e => setMetric(e.target.value)}
               />
               <div className="cvp-rw-foot">
-                <button type="button" className="cvb-btn sm" onClick={() => void run({ allowNoMetric: true })}>
+                <Button variant="neutral" size="sm" onClick={() => void run({ allowNoMetric: true })}>
                   Rewrite without a number
-                </button>
-                <button
-                  type="button"
-                  className="cvb-btn sm primary"
+                </Button>
+                <Button
+                  size="sm"
                   disabled={!metric.trim()}
                   onClick={() => void run({ metric: metric.trim() })}
                 >
                   Use this number
-                </button>
+                </Button>
               </div>
             </>
           )}
@@ -659,10 +659,10 @@ function RewriteModal({
                 </div>
               )}
               <div className="cvp-rw-foot">
-                <button type="button" className="cvb-btn sm" onClick={onClose}>Discard</button>
-                <button type="button" className="cvb-btn sm primary" onClick={() => onAccept(variants[sel]?.text ?? "")}>
+                <Button variant="neutral" size="sm" onClick={onClose}>Discard</Button>
+                <Button size="sm" onClick={() => onAccept(variants[sel]?.text ?? "")}>
                   <Icon name="check" size={12} /> Use this line
-                </button>
+                </Button>
               </div>
             </>
           )}
@@ -728,8 +728,8 @@ function RestructureModal({
           <div className="cvb-rs-body">
             <p className="cvb-rs-error" role="alert">{err}</p>
             <div className="cvb-rs-foot">
-              <button type="button" className="cvb-btn sm" onClick={onClose}>Close</button>
-              <button type="button" className="cvb-btn sm primary" onClick={() => void run()}>Try again</button>
+              <Button variant="neutral" size="sm" onClick={onClose}>Close</Button>
+              <Button size="sm" onClick={() => void run()}>Try again</Button>
             </div>
           </div>
         )}
@@ -755,10 +755,10 @@ function RestructureModal({
             )}
             <p className="cvp-rs-note">Keeping it sets this as the CV you&rsquo;ll save when you sign up.</p>
             <div className="cvb-rs-foot">
-              <button type="button" className="cvb-btn sm" onClick={onClose}>Discard</button>
-              <button type="button" className="cvb-btn sm primary" onClick={() => onKeep(proposed)}>
+              <Button variant="neutral" size="sm" onClick={onClose}>Discard</Button>
+              <Button size="sm" onClick={() => onKeep(proposed)}>
                 <Icon name="check" size={12} /> {kept ? "Replace kept draft" : "Keep this"}
-              </button>
+              </Button>
             </div>
           </div>
         )}

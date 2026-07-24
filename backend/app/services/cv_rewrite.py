@@ -307,6 +307,17 @@ def _extract_bullet(raw: str) -> str:
     return _strip_variant_markup(text)
 
 
+def clean_bullet_output(raw: str) -> str | None:
+    """Extract + validate a single bullet from raw model output. Shared by
+    finalize_rewrite and any other single-bullet completion (e.g. cv_merge) so
+    the leaked-reasoning salvage and unresolved-template-token guard live once.
+    Returns None when the output is empty or still carries a template token."""
+    text = _extract_bullet(raw)
+    if not text or _UNRESOLVED_TEMPLATE_TOKEN_RE.search(text):
+        return None
+    return text
+
+
 def finalize_rewrite(
     text: str,
     grounding: mentor_grounding.MentorGrounding | None,
@@ -319,9 +330,10 @@ def finalize_rewrite(
     — no I/O. Returns ``{"mode": "error", ...}`` if the model produced nothing, or a
     not-worse guard fired: dropped a real number, dropped a named specific (substance
     guard), or minted a number the user never stated."""
-    text = _extract_bullet(text)
-    if not text or _UNRESOLVED_TEMPLATE_TOKEN_RE.search(text):
+    cleaned = clean_bullet_output(text)
+    if cleaned is None:
         return {"mode": "error", "rationale": "No rewrite produced."}
+    text = cleaned
     allowed = " ".join([metric or "", *missing_keywords])
     if source_bullet and loses_metrics(source_bullet, text):
         return {

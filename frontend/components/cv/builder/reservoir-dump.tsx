@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react"
 import { useMutation } from "@tanstack/react-query"
 import type { CareerIngestResponse } from "@/lib/api"
 import { cv as cvApi, jobs as jobsApi } from "@/lib/api"
+import { Button } from "@/components/ui/button"
 import { batches, filesFromDataTransfer, skipSummary, triageFiles, type TriagedFiles } from "@/lib/cv/dump-triage"
 import { formatCount } from "@/lib/format"
 
@@ -184,18 +185,13 @@ export function ReservoirDump({ token, hero = false, onIngested }: {
       />
 
       <div className="tm-rsv-dump-actions">
-        <button
-          type="button"
-          className="cvb-btn primary"
-          disabled={!canSubmit}
-          onClick={() => ingest.mutate()}
-        >
+        <Button disabled={!canSubmit} onClick={() => ingest.mutate()}>
           {ingest.isPending
             ? progress && progress.total > 1
               ? `Sending ${progress.done + 1}/${progress.total}…`
               : "Sending…"
             : "Build stories"}
-        </button>
+        </Button>
       </div>
 
       {ingest.isError && (

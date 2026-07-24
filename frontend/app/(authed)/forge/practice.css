@@ -25,28 +25,10 @@
 
 .up-label { font-family: var(--tm-font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--tm-text-faint); }
 
-.up-btn {
-  -webkit-appearance: none; appearance: none; cursor: pointer;
-  font-family: inherit; font-weight: 650; font-size: 14px;
-  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  min-height: 44px; padding: 0 18px; border-radius: var(--tm-button-radius);
-  border: 1px solid var(--tm-border); background: var(--tm-surface); color: var(--tm-interactive-rest);
-  transition: background var(--tm-dur) var(--tm-ease), border-color var(--tm-dur) var(--tm-ease), color var(--tm-dur) var(--tm-ease), transform var(--tm-dur-fast) var(--tm-ease), box-shadow var(--tm-dur) var(--tm-ease);
-}
-.up-btn:active { transform: translateY(1px); }
-.up-btn:focus-visible { outline: 2px solid var(--tm-accent-ring); outline-offset: 2px; }
-.up-btn:disabled { cursor: default; opacity: 0.55; filter: saturate(0.4); }
-.up-btn-primary {
-  background: var(--tm-accent); border-color: var(--tm-accent); color: var(--tm-accent-fg);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 1px 0 rgba(0,0,0,0.06);
-}
-.up-btn-primary:hover { background: var(--tm-accent-hover); border-color: var(--tm-accent-hover); }
-.up-btn-primary:active { background: var(--tm-accent-pressed); border-color: var(--tm-accent-pressed); }
-.up-btn-outline { background: transparent; border-color: var(--tm-accent-ring); color: var(--tm-interactive-text); }
-.up-btn-outline:hover { background: var(--tm-accent-wash); border-color: var(--tm-accent); }
-.up-btn-ghost { background: transparent; border-color: transparent; color: var(--tm-interactive-rest); }
-.up-btn-ghost:hover { background: var(--tm-hover); }
-.up-btn-sm { min-height: 36px; padding: 0 14px; font-size: 13px; border-radius: var(--tm-radius); }
+/* Buttons on this page now render the canonical <Button> primitive
+   (components/ui/button.tsx) — see backlog #32 kit-unification. `.up-btn`
+   itself survives only as a bare positioning hook on a couple of instances
+   (up-move-cta, up-quiz-x); it carries no styling of its own anymore. */
 
 .up-card { background: var(--tm-surface); border: 1px solid var(--tm-border-soft); border-radius: var(--tm-radius-lg); box-shadow: var(--tm-shadow-1); }
 
@@ -101,9 +83,7 @@
 .up-quiz-bar .q-skill { font-weight: 700; font-size: 15px; color: var(--tm-text); }
 .up-quiz-bar .q-lvl { font-family: var(--tm-font-mono); font-size: 12px; color: var(--tm-text-faint); }
 .up-quiz-x { margin-left: auto; }
-.up-iconbtn { -webkit-appearance: none; appearance: none; cursor: pointer; width: 44px; height: 44px; border-radius: var(--tm-radius); border: 1px solid transparent; background: transparent; color: var(--tm-interactive-rest); display: grid; place-items: center; }
-.up-iconbtn:hover { background: var(--tm-hover); color: var(--tm-danger); border-color: var(--tm-danger); }
-.up-iconbtn:focus-visible { outline: 2px solid var(--tm-accent-ring); outline-offset: 2px; }
+.up-quiz-x:hover { color: var(--tm-danger); border-color: var(--tm-danger); }
 
 .up-progress { height: 5px; border-radius: 99px; background: var(--tm-surface-2); overflow: hidden; flex: 1; max-width: 320px; }
 .up-progress > i { display: block; height: 100%; background: linear-gradient(90deg, var(--tm-accent), var(--tm-accent-hover)); border-radius: 99px; transition: width var(--tm-dur) var(--tm-ease); }
@@ -184,7 +164,7 @@
 .up-modal h3 { margin: 0 0 6px; font-size: 16px; font-weight: 700; color: var(--tm-text); }
 .up-modal p { margin: 0 0 18px; font-size: 13px; color: var(--tm-text-muted); line-height: 1.5; }
 .up-modal-actions { display: flex; gap: 10px; }
-.up-modal-actions .up-btn { flex: 1; }
+.up-modal-actions button { flex: 1; }
 
 .up-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: var(--z-toast); background: var(--tm-surface-2); color: var(--tm-interactive); border: 1px solid var(--tm-accent-ring); border-radius: var(--tm-radius-pill); padding: 11px 20px; font-size: 13px; font-weight: 650; box-shadow: var(--tm-shadow-2); pointer-events: none; animation: up-toastin 200ms var(--tm-ease); }
 
@@ -198,7 +178,7 @@
   .up-below-bar { gap: 20px; padding: 18px var(--tm-page-px) 32px; }
   .up-qtext { font-size: 18px; }
   .up-res-actions { flex-direction: column-reverse; }
-  .up-res-actions .up-btn { width: 100%; }
+  .up-res-actions button { width: 100%; }
   .up-ready-hero { flex-direction: column; align-items: stretch; text-align: center; gap: 14px; }
   .up-ready-row { flex-wrap: wrap; gap: 12px; }
   .up-ready-mini { width: 100%; justify-content: space-between; }

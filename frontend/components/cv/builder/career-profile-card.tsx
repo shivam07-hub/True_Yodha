@@ -18,6 +18,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { CareerProfileData } from "@/lib/api"
 import { careerProfile as api } from "@/lib/api"
+import { Button } from "@/components/ui/button"
 import "./career-profile-card.css"
 
 type FieldKey = keyof CareerProfileData
@@ -194,13 +195,13 @@ export function CareerProfileCard({
         ))}
 
         <div className="tm-cp-actions">
-          <button
+          <Button
             type="submit"
-            className="cvb-btn primary sm"
+            size="sm"
             disabled={!dirty.size || save.isPending}
           >
             {save.isPending ? "Saving…" : dirty.size ? "Save" : "Saved"}
-          </button>
+          </Button>
           {save.isError && <span className="tm-cp-err" role="alert">Couldn’t save — try again.</span>}
         </div>
       </form>

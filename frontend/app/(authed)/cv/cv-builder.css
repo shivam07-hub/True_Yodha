@@ -65,48 +65,13 @@
 .cvb-crumbs .accent { color: var(--tm-interactive); }
 .cvb-crumbs .sep { color: var(--tm-text-faint); opacity: 0.4; }
 
-/* ─── Buttons (page-scoped, distinct from Button primitive) ──── */
-.cvb-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 8px 14px;
-  border-radius: var(--tm-radius-sm);
-  font-family: var(--cvb-font-sans);
-  font-size: 13px;
-  font-weight: 500;
-  border: 1px solid var(--tm-border);
-  color: var(--tm-text);
-  background: var(--tm-surface);
-  cursor: pointer;
-  transition: border-color var(--tm-dur-fast) var(--tm-ease), color var(--tm-dur-fast) var(--tm-ease), background var(--tm-dur-fast) var(--tm-ease);
-  white-space: nowrap;
-}
-.cvb-btn:hover { border-color: var(--tm-int-border); }
-.cvb-btn:focus-visible { outline: 2px solid var(--tm-int-border); outline-offset: 2px; }
-.cvb-btn.primary {
-  background: var(--tm-interactive);
-  color: var(--tm-interactive-fg);
-  border-color: var(--tm-interactive);
-  box-shadow: 0 0 16px var(--tm-int-bg-hover);
-  font-weight: 600;
-}
-.cvb-btn.primary:hover { background: var(--tm-interactive-hover); }
-.cvb-btn.ghost { background: transparent; border-color: transparent; color: var(--tm-text-muted); }
-.cvb-btn.ghost:hover { color: var(--tm-text); background: var(--tm-surface); }
-.cvb-btn.sm { padding: 5px 10px; font-size: 11.5px; gap: 5px; }
-.cvb-btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
-/* Disabled primary: recede to a flat neutral instead of a washed-out terracotta
-   (opacity-faded brand reads as a render bug, not a "fill the field first" state). */
-.cvb-btn.primary:disabled {
-  opacity: 1; background: var(--tm-border-soft);
-  color: var(--tm-text-faint); border-color: var(--tm-border-soft); box-shadow: none;
-}
+/* Buttons on this page now render the canonical <Button> primitive
+   (components/ui/button.tsx) — see backlog #32 kit-unification. `.cvb-btn`
+   is gone; remaining page-scoped classes on buttons (cvb-gs-claim,
+   cvb-rw-trigger, cvb-apply-primary, …) are pure positioning hooks. */
 
 /* Top-bar action group (Action Law L1/L2): context lives left, actions right.
-   Holds the two utilities + secondary actions + the single state-driven primary.
-   The primary (.cvb-btn.primary) is always the last child. */
+   Holds the two utilities + secondary actions + the single state-driven primary. */
 .cvb-action-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .cvb-action-sep { width: 1px; align-self: stretch; min-height: 22px; background: var(--tm-border-soft); margin: 0 2px; }
 .cvb-action-badge {
@@ -1611,7 +1576,7 @@ mark.cvb-kw {
     display: grid;
     grid-template-columns: 1fr;
   }
-  .cvb-apply-actions .cvb-btn {
+  .cvb-apply-actions button {
     width: 100%;
     justify-content: center;
   }
@@ -1644,11 +1609,6 @@ mark.cvb-kw {
   .cvb-intel-strip .gaps {
     width: 100%;
   }
-  .cvb-intel-strip .cvb-btn {
-    width: 100%;
-    justify-content: center;
-    min-height: 42px;
-  }
   .cvb-kw-chip {
     font-size: 12.5px !important;
   }
@@ -1661,8 +1621,7 @@ mark.cvb-kw {
   /* Action group goes full-width; primary pins right in the thumb zone; all
      targets clear 44px (WCAG 2.5.5). */
   .cvb-action-group { width: 100%; justify-content: flex-start; }
-  .cvb-action-group .cvb-btn { min-height: 44px; }
-  .cvb-action-group .cvb-btn.primary { margin-left: auto; }
+  .cvb-action-group button { min-height: 44px; }
   .cvb-drawer { width: 100vw; }
   .cvb-pdf-page { width: 100%; padding: 32px 24px; min-height: auto; }
   .cvb-modal-backdrop { padding: 0; }
@@ -1849,7 +1808,7 @@ mark.cvb-kw {
 .cvb-rw-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
 .cvb-rw-error { font-size: 12px; color: var(--tm-danger); display: flex; gap: 10px; align-items: center; }
 @media (max-width: 720px) {
-  .cvb-rw-input, .cvb-rw-panel .cvb-btn { min-height: 44px; }
+  .cvb-rw-input, .cvb-rw-panel button { min-height: 44px; }
 }
 
 /* ── Whole-CV "Restructure with Mentor" (Phase 4) ────────────────────────── */
@@ -1913,7 +1872,7 @@ mark.cvb-kw {
 .cvb-rs-error { font-size: 12px; color: var(--tm-danger); margin: 0; }
 .cvb-rs-foot { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 @media (max-width: 720px) {
-  .cvb-rs-foot .cvb-btn { min-height: 44px; }
+  .cvb-rs-foot button { min-height: 44px; }
   .cvb-rs-preview { max-height: 220px; }
 }
 
@@ -2141,7 +2100,7 @@ mark.cvb-kw {
 .cvb-gs-checkpoint-lede { font-size: var(--tm-fs-caption); line-height: 1.55; color: var(--tm-text-muted); margin: 0; }
 @media (max-width: 720px) {
   .cvb-gs-modal { max-width: 100%; }
-  .cvb-gs-body .cvb-btn, .cvb-gs-row, .cvb-rw-input { min-height: 44px; }
+  .cvb-gs-body button, .cvb-gs-row, .cvb-rw-input { min-height: 44px; }
   .cvb-gs-meter-num { font-size: 22px; }
 }
 
@@ -2730,6 +2689,8 @@ mark.cvb-kw {
 .cvb-pgc-addpoint:hover { color: var(--tm-interactive-text); }
 .cvb-pgc-composer { margin: 6px 0 2px 26px; }
 .cvb-pgc-composer-acts { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; }
+.cvb-merge-bar { margin: 6px 0 2px 26px; }
+.cvb-merge-bar .cvb-rw-original + .cvb-rw-original { margin-top: 4px; }
 
 @media (max-width: 900px) {
   .cvb-pgc-rw-select, .cvb-pgc-newpoint, .cvb-pgc-addpoint { min-height: 40px; }

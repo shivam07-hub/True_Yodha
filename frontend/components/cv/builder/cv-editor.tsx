@@ -16,9 +16,14 @@ import { users, type CVContact, type CVStructured, type UserProfile } from "@/li
 import { itemId } from "@/lib/cv-compose"
 import { dataKeys } from "@/lib/domain-data"
 import { CVPointRow, type CVPointMeta } from "./cv-point-row"
+import { BulletMerge, type MergePayload } from "./bullet-merge"
 import type { KeywordTarget } from "./keyword-utils"
 import { runContentChecks, type ContentFinding } from "./content-checks"
 import type { AppliedFix, V2Fix } from "./fix-model"
+
+type MergeSection = "exp_bullet" | "proj_bullet"
+interface MergeEntry { iid: string; text: string; bulletIndex: number }
+interface MergeSelection { section: MergeSection; itemIndex: number; entries: MergeEntry[] }
 
 export interface RewriteTarget { iid: string; keywords: string[] }
 
@@ -32,6 +37,9 @@ interface CVEditorProps {
   missingKeywords: string[]
   applying: boolean
   onApply: (oldText: string, newText: string) => void
+  /** Combine two selected bullets (same experience/project item) into one. */
+  onMergeApply: (payload: MergePayload) => void
+  mergeApplying?: boolean
   onAddBullet: (roleIndex: number, text: string) => void
   addingBullet: boolean
   visibleCount: number
@@ -75,11 +83,12 @@ function copyText(text: string) {
 
 export function CVEditor({
   token, cv, profile, hiddenItems, toggleItem, targets, missingKeywords,
-  applying, onApply, onAddBullet, addingBullet, visibleCount, wordCount, rewriteTarget, onClearRewriteTarget,
+  applying, onApply, onMergeApply, mergeApplying, onAddBullet, addingBullet, visibleCount, wordCount, rewriteTarget, onClearRewriteTarget,
   fixes, applied, onFixPill, dismissedFixIds, flash, master,
 }: CVEditorProps) {
   const isMaster = !!master
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [mergeSel, setMergeSel] = useState<MergeSelection | null>(null)
   const [editingIid, setEditingIid] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState("")
   const [rewriteIid, setRewriteIid] = useState<string | null>(null)
@@ -196,6 +205,29 @@ export function CVEditor({
     setEditingIid(null)
   }
 
+  // Merge selection: pick two bullets from the SAME experience/project item.
+  // Picking in a different item replaces the selection (a merge can't span
+  // items); a third pick in the same item is a no-op until one is deselected.
+  function toggleMergeSelect(section: MergeSection, itemIndex: number, entry: MergeEntry) {
+    setMergeSel(prev => {
+      if (!prev || prev.section !== section || prev.itemIndex !== itemIndex) {
+        return { section, itemIndex, entries: [entry] }
+      }
+      const already = prev.entries.some(e => e.iid === entry.iid)
+      if (already) {
+        const entries = prev.entries.filter(e => e.iid !== entry.iid)
+        return entries.length ? { ...prev, entries } : null
+      }
+      if (prev.entries.length >= 2) return prev
+      return { ...prev, entries: [...prev.entries, entry] }
+    })
+  }
+  function discardMerge() { setMergeSel(null) }
+  function applyMerge(payload: MergePayload) {
+    onMergeApply(payload)
+    setMergeSel(null)
+  }
+
   function copyAllText(): string {
     const parts: string[] = []
     if (cv.summary && !hiddenItems.has(itemId("summary", 0, cv.summary))) parts.push(cv.summary)
@@ -225,12 +257,19 @@ export function CVEditor({
   const contactMeta = [cv.contact?.email || profile?.email, cv.contact?.linkedin || profile?.linkedin_url]
     .filter(Boolean).join(" · ")
 
-  function row(iid: string, text: string, opts: { mono?: boolean } = {}) {
+  function row(
+    iid: string,
+    text: string,
+    opts: { mono?: boolean; merge?: { section: MergeSection; itemIndex: number; bulletIndex: number } } = {},
+  ) {
     const hidden = hiddenItems.has(iid)
     const editing = editingIid === iid
     const copied = copiedId === iid
     const fix = !hidden && !editing ? fixByIid.get(iid) : undefined
     const appliedFix = !hidden && !editing && !fix ? appliedByIid.get(iid) : undefined
+    const merge = opts.merge
+    const mergeSelected = !!merge && mergeSel?.section === merge.section && mergeSel.itemIndex === merge.itemIndex
+      && mergeSel.entries.some(e => e.iid === iid)
     return (
       <CVPointRow
         key={iid}
@@ -270,6 +309,11 @@ export function CVEditor({
         fixPill={fix && onFixPill ? { label: isMaster ? fix.kind : `${fix.kind} +${fix.gain}`, onClick: () => onFixPill(fix) } : undefined}
         appliedMark={appliedFix ? (isMaster ? "✓" : `✓ +${appliedFix.gain}`) : undefined}
         hideToggle={isMaster}
+        mergeSelectable={!!merge}
+        mergeSelected={mergeSelected}
+        onToggleMergeSelect={merge
+          ? () => toggleMergeSelect(merge.section, merge.itemIndex, { iid, text, bulletIndex: merge.bulletIndex })
+          : undefined}
       />
     )
   }
@@ -351,7 +395,22 @@ export function CVEditor({
               <span className="cvb-pgc-role-title">{exp.role} <span>· {exp.company}</span></span>
               {exp.dates && <span className="mono cvb-pgc-role-dates">{exp.dates}</span>}
             </div>
-            {exp.bullets.map((b, bi) => row(itemId("exp_bullet", ei * 100 + bi, b), b))}
+            {exp.bullets.map((b, bi) => row(itemId("exp_bullet", ei * 100 + bi, b), b, {
+              merge: { section: "exp_bullet", itemIndex: ei, bulletIndex: bi },
+            }))}
+            {mergeSel?.section === "exp_bullet" && mergeSel.itemIndex === ei && mergeSel.entries.length === 2 && (
+              <BulletMerge
+                token={token}
+                bulletA={mergeSel.entries[0]}
+                bulletB={mergeSel.entries[1]}
+                section="exp_bullet"
+                itemIndex={ei}
+                role={exp.role}
+                applying={mergeApplying}
+                onApply={applyMerge}
+                onDiscard={discardMerge}
+              />
+            )}
             {composerRole === ei ? (
               <div className="cvb-pgc-composer">
                 <textarea
@@ -383,7 +442,22 @@ export function CVEditor({
         {cv.projects.map((p, pi) => (
           <div key={`proj-${pi}`} className="cvb-pgc-role-block">
             {p.name && <div className="cvb-pgc-role-head"><span className="cvb-pgc-role-title">{p.name}</span></div>}
-            {p.bullets.map((b, bi) => row(itemId("proj_bullet", pi * 100 + bi, b), b))}
+            {p.bullets.map((b, bi) => row(itemId("proj_bullet", pi * 100 + bi, b), b, {
+              merge: { section: "proj_bullet", itemIndex: pi, bulletIndex: bi },
+            }))}
+            {mergeSel?.section === "proj_bullet" && mergeSel.itemIndex === pi && mergeSel.entries.length === 2 && (
+              <BulletMerge
+                token={token}
+                bulletA={mergeSel.entries[0]}
+                bulletB={mergeSel.entries[1]}
+                section="proj_bullet"
+                itemIndex={pi}
+                role={p.name}
+                applying={mergeApplying}
+                onApply={applyMerge}
+                onDiscard={discardMerge}
+              />
+            )}
           </div>
         ))}
 

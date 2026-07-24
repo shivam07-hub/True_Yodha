@@ -3,6 +3,7 @@
   "jsHoverStyleMutation": 64,
   "handRolledModalScrim": 22,
   "handRolledPill": 75,
-  "readingTextInFaintToken": 40,
-  "rawDateNumberFormat": 0
+  "readingTextInFaintToken": 37,
+  "rawDateNumberFormat": 0,
+  "rawFontSizeLiteral": 1618
 }

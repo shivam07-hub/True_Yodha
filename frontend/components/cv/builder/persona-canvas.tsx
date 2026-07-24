@@ -16,6 +16,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { memory as memoryApi } from "@/lib/api"
 import type { PersonaParagraph, PersonaTimelineRole } from "@/lib/api"
 import { formatRelativeAge } from "@/lib/format"
+import { Button } from "@/components/ui/button"
 import "./persona-canvas.css"
 
 const MOVEMENTS = [
@@ -61,21 +62,20 @@ function Paragraph({ token, paragraph }: { token: string; paragraph: PersonaPara
           aria-label="Edit this passage"
         />
         <div className="tm-pc-edit-actions">
-          <button
-            type="button"
-            className="cvb-btn primary sm"
+          <Button
+            size="sm"
             disabled={!draft.trim() || save.isPending}
             onClick={() => save.mutate()}
           >
             Save — becomes yours
-          </button>
-          <button
-            type="button"
-            className="cvb-btn ghost sm"
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => { setEditing(false); setDraft(paragraph.text) }}
           >
             Cancel
-          </button>
+          </Button>
         </div>
       </div>
     )
@@ -234,9 +234,9 @@ export function PersonaCanvas({ token }: { token: string }) {
                       Your arc above is drawn from evidence alone. There is a second lens —
                       timing windows read from your birth chart — and it is currently dark.
                     </p>
-                    <Link href="/myrology" className="cvb-btn primary sm">
+                    <Button size="sm" render={<Link href="/myrology" />}>
                       Align with your cosmos
-                    </Link>
+                    </Button>
                     <p className="tm-pc-fine">
                       Date, time and place of birth · asked once, with consent · the chart
                       times, it never overrides evidence.

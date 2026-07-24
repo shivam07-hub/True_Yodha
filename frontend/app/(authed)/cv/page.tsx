@@ -554,9 +554,9 @@ function CVPage() {
                     Keep the CV you already use, then let Myro organize tailored copies for each job.
                   </p>
                 </div>
-                <button type="button" className="cvb-btn primary" onClick={openFilePicker}>
+                <Button onClick={openFilePicker}>
                   <Icon name="download" size={14} style={{ transform: "rotate(180deg)" }}/> Upload Main CV
-                </button>
+                </Button>
               </div>
               <div style={{
                 padding: 48, textAlign: "center",

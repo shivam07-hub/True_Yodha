@@ -375,6 +375,7 @@ export interface UserProfile {
   cv_upload_error_code?: string | null
   myrology_unlocked?: boolean
   myrology_interested?: boolean
+  accent_pref?: "signal" | "forge"
 }
 
 export interface ProfileUpdateResponse extends UserProfile {
@@ -398,6 +399,7 @@ export interface ProfileUpdate {
   career_goal?: string | null
   superpower?: string | null
   myrology_interested?: boolean
+  accent_pref?: "signal" | "forge"
 }
 
 export interface UserSkillItem {
@@ -933,6 +935,15 @@ export interface SkillEditConflictDetail {
 }
 
 export type SkillEditConflict = SkillEditConflictDetail & { conflict: true }
+
+// Combine two near-duplicate bullets into one — Myro Mentor (same no-DELETION
+// guard as rewrite, applied to the concatenated pair).
+export interface MergeBulletResponse {
+  mode: "merge" | "error"
+  merged_text?: string | null
+  rationale?: string | null
+  citations?: string[]
+}
 
 export interface CVUploadFallbackSubmissionRequest {
   attempts: number
@@ -1754,6 +1765,27 @@ export const cv = {
     body: { old_text: string; new_text: string; section_hint?: string | null; item_index?: number | null; bullet_index?: number | null },
   ) =>
     request<SkillEditResponse>("/cv/rewrite-bullet/apply", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    }),
+  // Propose a combined line for two selected bullets. Stateless, free.
+  mergeBullet: (token: string, body: { bullet_a: string; bullet_b: string; role?: string | null }) =>
+    request<MergeBulletResponse>("/cv/merge-bullet", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+      timeoutMs: LLM_REQUEST_TIMEOUT_MS,
+    }),
+  // Apply an accepted merge — writes a new baseline (mirrors rewriteApply).
+  mergeBulletApply: (
+    token: string,
+    body: {
+      old_text_a: string; old_text_b: string; merged_text: string
+      section_hint: string; item_index: number; bullet_index_a: number; bullet_index_b: number
+    },
+  ) =>
+    request<SkillEditResponse>("/cv/merge-bullet/apply", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(body),
