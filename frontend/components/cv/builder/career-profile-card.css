@@ -29,14 +29,14 @@
 /* ── fact cards (read mode) ── */
 .tm-cp-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px;
 }
 .tm-cp-card {
   background: var(--tm-surface);
   border: 1px solid var(--tm-border-soft);
-  border-radius: 12px;
-  padding: 13px 15px;
+  border-radius: 14px;
+  padding: 16px 18px;
   box-shadow: var(--tm-shadow-1);
 }
 .tm-cp-card-head {

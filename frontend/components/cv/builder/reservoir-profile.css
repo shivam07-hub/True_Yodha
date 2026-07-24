@@ -4,8 +4,10 @@
    solid variant), the canonical ◆ diamond, and the reading pulse. */
 
 .tm-rsv-scope {
-  max-width: 860px;
-  margin: 0 auto;
+  /* Fills the shared .tm-lib-main frame (see library-view.css) — no narrower
+     local cap, or the flow ribbon above reads full-width while this strands
+     a dead column on the right. */
+  width: 100%;
   padding: 8px 0 64px;
   font-family: var(--tm-font-sans);
   color: var(--tm-text);

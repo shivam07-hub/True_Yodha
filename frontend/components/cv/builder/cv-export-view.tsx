@@ -76,6 +76,11 @@ interface CVExportViewProps {
   /** CV workspace provenance rail — see PdfPage for the WYSIWYG-safety note. */
   onBulletClick?: (id: string, text: string) => void
   selectedBulletId?: string | null
+  /** Override the skin the context would otherwise pick. The CV workspace's
+   *  tailored view embeds beside a provenance rail (~660px column) — the
+   *  fullpage skin assumes it owns the whole viewport (sticky toolbar,
+   *  ApplyRow) and breaks at that width, so it asks for "inline" instead. */
+  skin?: "inline" | "fullpage"
 }
 
 function slug(s: string | null | undefined): string {
@@ -91,10 +96,10 @@ export function CVExportView({
   template, versionId = null, footerMarkHidden = false,
   company, jobTitle, jobId, matchScore = 0, appliedAt = null,
   onBack, backLabel = "Back", mobile = false, onFixContact, onAtsFix,
-  onBulletClick, selectedBulletId = null,
+  onBulletClick, selectedBulletId = null, skin: skinOverride,
 }: CVExportViewProps) {
   const isTailored = context === "tailored"
-  const skin: "fullpage" | "inline" = isTailored ? "fullpage" : "inline"
+  const skin: "fullpage" | "inline" = skinOverride ?? (isTailored ? "fullpage" : "inline")
 
   // Apply Transport — the official-opening affordance is a leave-to-apply, so it
   // arms the liveness capture too (only when tied to a real job_id; a master
