@@ -14,6 +14,7 @@ import type { ApplicationResponse, CVStructured, CVVersion, UserProfile } from "
 import { jobs as jobsApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { timeAgo } from "@/lib/cv/version-format"
+import { Button } from "@/components/ui/button"
 import { Icon } from "./icons"
 import { KindDot } from "./commit-graph"
 import { CVRender } from "./cv-render"
@@ -155,21 +156,21 @@ export function BaselineView({
           )}
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <Link href="/tracker?stage=saved" className="cvb-btn primary">
+          <Button render={<Link href="/tracker?stage=saved" />}>
             <Icon name="target" size={14}/> Pick a target job
             <Icon name="arrow-right" size={14}/>
-          </Link>
+          </Button>
           <DownloadCVButton
             token={token}
             baseline={currentBaseline}
             cv={cv}
             fullName={profile?.full_name}
-            className="cvb-btn"
+            variant="neutral"
             label="Download CV"
           />
-          <button type="button" className="cvb-btn" onClick={onRework}>
+          <Button variant="neutral" onClick={onRework}>
             <Icon name="edit" size={14}/> Update Main CV
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -316,12 +317,12 @@ function TargetJobsPanel({ applications, isLoading, onOpen }: TargetJobsPanelPro
               Find a job you want, save it, then tailor your CV for it here in 5 minutes.
             </p>
             <div className="cvb-jobs-empty-actions">
-              <Link href="/market" className="cvb-btn primary sm">
+              <Button size="sm" render={<Link href="/market" />}>
                 <Icon name="target" size={13}/> Browse jobs
-              </Link>
-              <Link href="/tracker?stage=saved" className="cvb-btn sm">
+              </Button>
+              <Button variant="neutral" size="sm" render={<Link href="/tracker?stage=saved" />}>
                 My tracker →
-              </Link>
+              </Button>
             </div>
           </div>
         )}
@@ -399,15 +400,15 @@ function CVInlineViewer({ version, cv, contact, onClose, onOpenJob, focusSkill }
     <>
       <div className="cvb-inline-cv-head cvb-fade-in">
         <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 8, flex: 1, flexWrap: "wrap" }}>
-          <button
-            type="button"
-            className="cvb-btn ghost sm"
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={onClose}
             aria-label="Back to target jobs"
             style={{ padding: "2px 8px", flexShrink: 0 }}
           >
             <Icon name="chevron-right" size={12} style={{ transform: "rotate(180deg)" }}/>
-          </button>
+          </Button>
           <KindDot kind={version.kind} inline/>
           <span className="mono" style={{ fontSize: 13, color: "var(--tm-interactive)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {titleLabel}
@@ -415,14 +416,14 @@ function CVInlineViewer({ version, cv, contact, onClose, onOpenJob, focusSkill }
           <span className="cvb-pill" style={{ fontSize: 10, flexShrink: 0 }}>{kindLabel}</span>
         </div>
         {!isMaster && version.job_id && (
-          <button
-            type="button"
-            className="cvb-btn sm"
+          <Button
+            variant="neutral"
+            size="sm"
             onClick={() => onOpenJob(version.job_id!)}
             style={{ flexShrink: 0 }}
           >
             <Icon name="folder" size={11}/> Open tailored CV
-          </button>
+          </Button>
         )}
       </div>
 

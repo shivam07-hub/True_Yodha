@@ -1,7 +1,7 @@
 /* Career Story Reservoir — the "Stories" mode of the CV workspace.
    Canonical --tm-* tokens only (light Firecrawl orange / dark Engine teal come
-   free). Accent is rationed to three roles: the dump CTA (cvb-btn primary,
-   owned by cv-builder.css), the canonical ◆ diamond, and the reading pulse. */
+   free). Accent is rationed to three roles: the dump CTA (canonical <Button>,
+   solid variant), the canonical ◆ diamond, and the reading pulse. */
 
 .tm-rsv-scope {
   max-width: 860px;

@@ -17,6 +17,7 @@
 
 import { useEffect, useState } from "react"
 import { cv as cvApi, type RewriteVariant } from "@/lib/api"
+import { Button } from "@/components/ui/button"
 import { Icon } from "./icons"
 
 type Phase = "idle" | "loading" | "variants" | "question" | "suggest_metric" | "error"
@@ -88,9 +89,9 @@ export function BulletRewrite({ token, bullet, role, missingKeywords, applying, 
     if (auto) return null
     return (
       <div className="cvb-rw-trigger-row">
-        <button type="button" className="cvb-btn ghost sm cvb-rw-trigger" onClick={() => void run()}>
+        <Button variant="ghost" size="sm" className="cvb-rw-trigger" onClick={() => void run()}>
           <Icon name="sparkle" size={12}/> Rewrite
-        </button>
+        </Button>
       </div>
     )
   }
@@ -114,9 +115,9 @@ export function BulletRewrite({ token, bullet, role, missingKeywords, applying, 
             <Icon name="sparkle" size={12}/> {question ?? `Your story “${candidate.source}” mentions ${candidate.value}.`}
           </div>
           <div className="cvb-rw-ask-actions">
-            <button type="button" className="cvb-btn sm primary" onClick={() => void run({ metric: candidate.value })}>
+            <Button size="sm" onClick={() => void run({ metric: candidate.value })}>
               Use {candidate.value}
-            </button>
+            </Button>
             <button type="button" className="cvb-rw-skip" onClick={() => { setQuestion("What was the real number?"); setPhase("question") }}>
               No — my own number
             </button>
@@ -137,9 +138,9 @@ export function BulletRewrite({ token, bullet, role, missingKeywords, applying, 
               autoFocus
               onKeyDown={(e) => { if (e.key === "Enter" && metric.trim()) void run({ metric: metric.trim() }) }}
             />
-            <button type="button" className="cvb-btn sm primary" disabled={!metric.trim()} onClick={() => void run({ metric: metric.trim() })}>
+            <Button size="sm" disabled={!metric.trim()} onClick={() => void run({ metric: metric.trim() })}>
               Rewrite
-            </button>
+            </Button>
           </div>
           {!quantifyOnly && (
             <button type="button" className="cvb-rw-skip" onClick={() => void run({ allowNoMetric: true })}>
@@ -187,15 +188,14 @@ export function BulletRewrite({ token, bullet, role, missingKeywords, applying, 
           )}
 
           <div className="cvb-rw-actions">
-            <button type="button" className="cvb-btn sm" onClick={reset} disabled={applying}>Discard</button>
-            <button
-              type="button"
-              className="cvb-btn sm primary"
+            <Button variant="neutral" size="sm" onClick={reset} disabled={applying}>Discard</Button>
+            <Button
+              size="sm"
               disabled={applying || !recommended.text.trim()}
               onClick={() => { onApply(bullet, recommended.text.trim()); reset() }}
             >
               <Icon name="check" size={12}/> {applying ? "Applying…" : "Use this line"}
-            </button>
+            </Button>
           </div>
         </>
       )}

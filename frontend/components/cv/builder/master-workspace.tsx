@@ -24,6 +24,7 @@ import { useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
 import { scores, users, cv as cvApi } from "@/lib/api"
+import { Button } from "@/components/ui/button"
 import { dataKeys } from "@/lib/domain-data"
 import { useMasterAutosave } from "@/lib/hooks/use-master-autosave"
 import { mentorRewriteTarget } from "@/lib/cv/mentor-rewrite-target"
@@ -215,9 +216,9 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
       {mentorMiss ? (
         <div className="cvb-pgc-err" role="alert">
           Mentor needs a CV bullet that shows this skill before it can rewrite it.
-          <button type="button" className="cvb-btn sm" onClick={() => { setMentorMiss(false); setTab("skills") }}>
+          <Button variant="neutral" size="sm" onClick={() => { setMentorMiss(false); setTab("skills") }}>
             Review CV proof
-          </button>
+          </Button>
         </div>
       ) : null}
 

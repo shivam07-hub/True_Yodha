@@ -19,6 +19,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { cv as cvApi, privateNotes, type IntakeBullet } from "@/lib/api"
+import { Button } from "@/components/ui/button"
 import { Icon } from "./icons"
 
 interface RoleRef { index: number; label: string }
@@ -266,9 +267,9 @@ export function ExperienceIntake({ token, jobId, jdText, gapSkills, roles, addin
               {error && <div className="cvb-intake-err" role="alert">{error}</div>}
               <div className="cvb-intake-foot">
                 {/* Keep the story — never wipe raw (Entry 3.2). Just return to the writer. */}
-                <button type="button" className="cvb-btn sm" onClick={() => { setBullets(null); setError(null) }}>
+                <Button variant="neutral" size="sm" onClick={() => { setBullets(null); setError(null) }}>
                   ← Write another
-                </button>
+                </Button>
                 <button type="button" className="cvb-pgc-apply cvb-intake-draft" onClick={closeAndSave}>Done</button>
               </div>
             </>

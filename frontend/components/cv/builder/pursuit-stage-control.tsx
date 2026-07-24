@@ -10,6 +10,7 @@
 "use client"
 
 import { useState } from "react"
+import { Button } from "@/components/ui/button"
 import { APPLICATION_OUTCOMES } from "@/lib/api"
 import type { ApplicationResponse } from "@/lib/api"
 import { useApplicationStatus } from "@/lib/hooks/use-application-status"
@@ -32,16 +33,16 @@ export function PursuitStageControl({ token, application }: {
 
   return (
     <div style={{ position: "relative" }}>
-      <button
-        type="button"
-        className="cvb-btn sm"
+      <Button
+        variant="neutral"
+        size="sm"
         onClick={() => setOpen(o => !o)}
         title="Move this application's stage"
         aria-haspopup="menu"
         aria-expanded={open}
       >
         {label} ▾
-      </button>
+      </Button>
       {open && (
         <StatusPicker
           current={application.status}

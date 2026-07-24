@@ -22,6 +22,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { cv as cvApi, jobs as jobsApi, type CVStructured, type UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { Button } from "@/components/ui/button"
 import { Icon } from "./icons"
 import { runAtsChecks, atsScore, type AtsFixTarget } from "./ats-checks"
 import { AtsAudit } from "./ats-audit"
@@ -295,9 +296,9 @@ export function CVExportView({
   ) : null
 
   const docxButton = (
-    <button type="button" className="cvb-btn ghost" onClick={handleDownloadDocx} disabled={docxBusy}>
+    <Button variant="ghost" onClick={handleDownloadDocx} disabled={docxBusy}>
       <Icon name="file" size={14} /> {docxBusy ? "Building DOCX…" : "Download DOCX"}
-    </button>
+    </Button>
   )
 
   // Failing rows route into the master editor sections, which live on the same
@@ -343,9 +344,9 @@ export function CVExportView({
               <Icon name="check" size={11} /> ATS · {passedCount}/{totalChecks}
             </span>
             {docxButton}
-            <button type="button" className="cvb-btn primary" onClick={handleDownloadPdf} disabled={pdfBusy}>
+            <Button onClick={handleDownloadPdf} disabled={pdfBusy}>
               <Icon name="download" size={14} /> {pdfBusy ? "Building PDF…" : "Download PDF"}
-            </button>
+            </Button>
           </div>
         </div>
         {docxError && <div className="cvb-export-err">{docxError}</div>}
@@ -368,9 +369,9 @@ export function CVExportView({
       <div className="cvb-pdf-toolbar">
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           {onBack && (
-            <button type="button" className="cvb-btn ghost" onClick={onBack}>
+            <Button variant="ghost" onClick={onBack}>
               <Icon name="chevron-right" size={14} style={{ transform: "rotate(180deg)" }} /> {backLabel}
-            </button>
+            </Button>
           )}
           <div>
             <div className="eyebrow mono">cv export</div>
@@ -388,21 +389,25 @@ export function CVExportView({
           )}
           {docxButton}
           {company && capture.href && (
-            <a
-              href={capture.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="cvb-btn"
+            <Button
+              variant="neutral"
               title={`Find ${company} opening on its official careers site`}
-              onClick={jobId ? capture.onApply : undefined}
+              render={
+                <a
+                  href={capture.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={jobId ? capture.onApply : undefined}
+                />
+              }
             >
               ↗ {capture.target.actionLabel}
-            </a>
+            </Button>
           )}
-          <button type="button" className="cvb-btn primary" onClick={handleDownloadPdf} disabled={pdfBusy}>
+          <Button onClick={handleDownloadPdf} disabled={pdfBusy}>
             <Icon name="download" size={14} />
             {pdfBusy ? "Building PDF…" : "Download PDF"}
-          </button>
+          </Button>
         </div>
         {jobId ? <ApplyCapturePrompt capture={capture} /> : null}
       </div>
@@ -445,14 +450,13 @@ export function CVExportView({
                         Saved ✓ — did you apply? Track it so your CV hub remembers.
                       </span>
                     )}
-                    <button
-                      type="button"
-                      className={`cvb-btn ${downloaded ? "primary" : "ghost"}`}
+                    <Button
+                      variant={downloaded ? "solid" : "ghost"}
                       onClick={handleMarkApplied}
                       disabled={trackBusy}
                     >
                       <Icon name="check" size={14} /> {trackBusy ? "Saving…" : "Mark as applied"}
-                    </button>
+                    </Button>
                   </>
                 )}
                 {trackError && <div className="cvb-export-err">{trackError}</div>}

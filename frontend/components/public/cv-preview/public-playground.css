@@ -214,7 +214,7 @@
 .cvp-dl-body { padding: 16px; }
 .cvp-dl-copy { margin: 0 0 14px; font-size: 14px; color: var(--tm-text); }
 .cvp-dl-actions { display: flex; flex-direction: column; gap: 10px; }
-.cvp-dl-actions .cvb-btn { justify-content: center; }
+.cvp-dl-actions button { justify-content: center; }
 .cvp-dl-note { margin: 12px 0 0; font-size: 11.5px; color: var(--tm-text-faint); }
 
 /* ── v2-shell fold (unified with the authed CV Playground) ──────────────────

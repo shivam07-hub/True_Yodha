@@ -12,6 +12,8 @@
 
 import { useRef, useState } from "react"
 import type { CVStructured, CVVersion } from "@/lib/api"
+import { Button, type buttonVariants } from "@/components/ui/button"
+import type { VariantProps } from "class-variance-authority"
 import { PdfPage } from "@/components/cv/builder/pdf-page"
 import { masterContactFromCV, masterFilename, resolveMasterStructured } from "@/lib/cv/download-master"
 import { exportSheetPdf } from "@/lib/cv/sheet-pdf"
@@ -22,10 +24,14 @@ interface Props {
   cv?: CVStructured | null
   fullName?: string | null
   label?: string
-  /** Class applied to the button element (e.g. `cvb-btn` on the /cv surface). */
+  /** Class applied to the button element (e.g. on the /cv surface). */
   className?: string
   /** Inline style applied to the button element (onboarding has no cvb-* CSS). */
   style?: React.CSSProperties
+  /** Opt into the canonical <Button> primitive. Omitted = plain <button> (back-compat
+      for callers with their own bespoke className/style, e.g. onboarding's inline CTA). */
+  variant?: VariantProps<typeof buttonVariants>["variant"]
+  size?: VariantProps<typeof buttonVariants>["size"]
 }
 
 const NO_HIDDEN = new Set<string>()
@@ -40,7 +46,7 @@ function DownloadGlyph() {
 }
 
 export function DownloadCVButton({
-  token, baseline, cv, fullName, label = "Download CV", className, style,
+  token, baseline, cv, fullName, label = "Download CV", className, style, variant, size,
 }: Props) {
   const [downloading, setDownloading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -68,18 +74,34 @@ export function DownloadCVButton({
 
   return (
     <>
-      <button
-        type="button"
-        className={className}
-        style={style}
-        onClick={handleDownload}
-        disabled={disabled}
-        aria-busy={downloading}
-        title={ready ? label : "Upload a CV first"}
-      >
-        <DownloadGlyph />
-        {downloading ? "Preparing…" : label}
-      </button>
+      {variant ? (
+        <Button
+          variant={variant}
+          size={size}
+          className={className}
+          style={style}
+          onClick={handleDownload}
+          disabled={disabled}
+          aria-busy={downloading}
+          title={ready ? label : "Upload a CV first"}
+        >
+          <DownloadGlyph />
+          {downloading ? "Preparing…" : label}
+        </Button>
+      ) : (
+        <button
+          type="button"
+          className={className}
+          style={style}
+          onClick={handleDownload}
+          disabled={disabled}
+          aria-busy={downloading}
+          title={ready ? label : "Upload a CV first"}
+        >
+          <DownloadGlyph />
+          {downloading ? "Preparing…" : label}
+        </button>
+      )}
       {error && (
         <p role="alert" style={{ margin: "6px 0 0", fontSize: "var(--tm-fs-meta)", color: "var(--tm-danger, #ef4444)" }}>
           {error}

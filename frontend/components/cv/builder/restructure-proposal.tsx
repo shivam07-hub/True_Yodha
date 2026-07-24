@@ -14,6 +14,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { cv as cvApi, type CVVersion, type RestructureProposalResponse } from "@/lib/api"
+import { Button } from "@/components/ui/button"
 import { Icon } from "./icons"
 import { RestructureLoading } from "./restructure-loading"
 import { RestructuredDoc } from "./restructured-doc"
@@ -125,8 +126,8 @@ export function RestructureProposal({ token, versionId, targetLabel, onKept, onC
           <div className="cvb-rs-body">
             <p className="cvb-rs-error" role="alert">{errMsg}</p>
             <div className="cvb-rs-foot">
-              <button type="button" className="cvb-btn sm" onClick={onClose}>Close</button>
-              <button type="button" className="cvb-btn sm primary" onClick={() => void propose()}>Try again</button>
+              <Button variant="neutral" size="sm" onClick={onClose}>Close</Button>
+              <Button size="sm" onClick={() => void propose()}>Try again</Button>
             </div>
           </div>
         )}
@@ -173,10 +174,10 @@ export function RestructureProposal({ token, versionId, targetLabel, onKept, onC
             {errMsg && <p className="cvb-rs-error" role="alert">{errMsg}</p>}
 
             <div className="cvb-rs-foot">
-              <button type="button" className="cvb-btn sm" onClick={onClose} disabled={busy}>Discard</button>
-              <button type="button" className="cvb-btn sm primary" onClick={keep} disabled={busy}>
+              <Button variant="neutral" size="sm" onClick={onClose} disabled={busy}>Discard</Button>
+              <Button size="sm" onClick={keep} disabled={busy}>
                 <Icon name="check" size={12}/> {busy ? "Keeping…" : `Keep · ${cost} Myro Coins`}
-              </button>
+              </Button>
             </div>
           </div>
         )}

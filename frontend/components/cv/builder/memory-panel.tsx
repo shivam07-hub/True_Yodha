@@ -13,6 +13,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { MemoryFact, MemoryKind } from "@/lib/api"
 import { cv as cvApi, jobs as jobsApi, memory as memoryApi } from "@/lib/api"
 import { formatCount } from "@/lib/format"
+import { Button } from "@/components/ui/button"
 import { CareerProfileCard } from "./career-profile-card"
 import { PersonaCanvas } from "./persona-canvas"
 import "./memory-panel.css"
@@ -58,8 +59,8 @@ function FactRow({ token, fact }: { token: string; fact: MemoryFact }) {
             onChange={(e) => setDraft(e.target.value)}
           />
           <div className="tm-mem-fact-actions">
-            <button type="button" className="cvb-btn primary sm" disabled={!draft.trim() || save.isPending} onClick={() => save.mutate()}>Save</button>
-            <button type="button" className="cvb-btn ghost sm" onClick={() => { setEditing(false); setDraft(fact.text) }}>Cancel</button>
+            <Button size="sm" disabled={!draft.trim() || save.isPending} onClick={() => save.mutate()}>Save</Button>
+            <Button variant="ghost" size="sm" onClick={() => { setEditing(false); setDraft(fact.text) }}>Cancel</Button>
           </div>
         </div>
       ) : (
@@ -172,9 +173,9 @@ export function MemoryPanel({ token }: { token: string }) {
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
-          <button type="submit" className="cvb-btn primary sm" disabled={!text.trim() || add.isPending}>
+          <Button type="submit" size="sm" disabled={!text.trim() || add.isPending}>
             Remember
-          </button>
+          </Button>
         </form>
 
         {facts.isPending && <p className="tm-mem-empty">Loading…</p>}
