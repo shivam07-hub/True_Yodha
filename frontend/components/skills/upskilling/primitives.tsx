@@ -1,64 +1,7 @@
-/* Level ladder + score ring — the two visual primitives of the Upskilling
-   surface. Ported from the design handoff (bars variant only). */
+/* Score ring — the results-screen primitive. The level path lives in
+   rung-path.tsx now (RungPath); this file keeps only the graded-set ring. */
 
 import type { JSX } from "react"
-import { Icon } from "./icons"
-
-/* ── 5-segment level ladder ────────────────────────────────────
-   Levels L1..L5. Cleared levels keep their check mark, but this WIP surface
-   lets users start any level whose question bank is servable. */
-export function LevelLadder({
-  clearedLevel,
-  onStart,
-  compact = false,
-  maxBankLevel = 5,
-}: {
-  clearedLevel: number
-  onStart?: (level: number) => void
-  compact?: boolean
-  maxBankLevel?: number
-}): JSX.Element {
-  return (
-    <div
-      className={`up-ladder${compact ? " is-compact" : ""}`}
-      role="group"
-      aria-label={`Level ladder — cleared ${clearedLevel} of 5`}
-    >
-      {[1, 2, 3, 4, 5].map((lvl) => {
-        const cleared = lvl <= clearedLevel
-        const bankOk = lvl <= maxBankLevel
-        const startable = bankOk && Boolean(onStart)
-        const cls = cleared ? "is-cleared" : bankOk ? "is-startable" : "is-filling"
-        const label = bankOk
-          ? cleared ? `Level ${lvl} cleared — start another set` : `Start Level ${lvl} set`
-          : `Level ${lvl} question bank filling`
-        const title = bankOk
-          ? cleared ? `L${lvl} · cleared — start another set` : `L${lvl} · start a set`
-          : `L${lvl} · question bank filling`
-        const mark = cleared
-          ? <Icon name="check" size={compact ? 11 : 13} />
-          : bankOk ? <Icon name="bolt" size={compact ? 11 : 13} /> : <Icon name="sparkle" size={compact ? 10 : 12} />
-        if (startable && onStart) {
-          return (
-            <button
-              key={lvl} type="button" className={`up-ladder-seg ${cls}`}
-              title={title} aria-label={label} onClick={() => onStart(lvl)}
-            >
-              <span className="seg-lvl">L{lvl}</span>
-              <span className="seg-mark">{mark}</span>
-            </button>
-          )
-        }
-        return (
-          <div key={lvl} className={`up-ladder-seg ${cls}`} title={title} aria-label={label}>
-            <span className="seg-lvl">L{lvl}</span>
-            <span className="seg-mark">{mark}</span>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
 
 /* ── Score ring (results) ──────────────────────────────────── */
 export function ScoreRing({

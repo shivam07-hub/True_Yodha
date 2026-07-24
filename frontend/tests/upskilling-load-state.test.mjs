@@ -9,8 +9,8 @@ const source = readFileSync(
   join(__dirname, "..", "components", "skills", "upskilling", "upskilling-view.tsx"),
   "utf8",
 )
-const primitivesSource = readFileSync(
-  join(__dirname, "..", "components", "skills", "upskilling", "primitives.tsx"),
+const rungPathSource = readFileSync(
+  join(__dirname, "..", "components", "skills", "upskilling", "rung-path.tsx"),
   "utf8",
 )
 const resultsSource = readFileSync(
@@ -29,9 +29,13 @@ test("upskilling distinguishes an API failure from an empty question bank", () =
   assert.match(source, /Your upskilling ladder is on the way/)
 })
 
-test("upskilling WIP opens every banked ladder level", () => {
-  assert.match(primitivesSource, /const startable = bankOk && Boolean\(onStart\)/)
-  assert.doesNotMatch(primitivesSource, /Level \$\{lvl\} locked/)
+test("the Forge climb path opens banked rungs and the next focus rung, keeps the rest locked", () => {
+  // Myro Forge redesign: banked (re-practice) and the immediate next rung are
+  // startable; anything beyond that stays locked regardless of bank
+  // readiness — the rare "bank is ready two levels ahead" case is no longer
+  // previewed as a shortcut (startSet()'s catch still toasts if it fails).
+  assert.match(rungPathSource, /banked \|\| focus \? \(\) => onStart\(lvl\) : null/)
+  assert.match(rungPathSource, /const focus = !maxed && lvl === next/)
   assert.doesNotMatch(resultsSource, /stays locked until/)
   assert.match(resultsSource, /Levels stay available for practice/)
 })

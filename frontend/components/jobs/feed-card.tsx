@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import type { JobPulse } from "@/lib/api"
+import type { JobMatch, JobPulse } from "@/lib/api"
 import { Skeleton } from "@/components/ui/skeleton"
 import { fitTier } from "@/lib/dashboard/feed-model"
 import { ageLabel, experienceLabel, type FeedCardData, type FitView } from "@/lib/jobs/card-view"
@@ -29,14 +29,18 @@ function logoStyle(company: string | null): React.CSSProperties {
 
 /* ── Fit indicator (the top-right slot — ONE component, every surface) ──────── */
 
-/** Donut fit ring (0–100). Arc colour scales with the fit tier (D9).
- *  Internal — surfaces render <FitIndicator>, never this directly. */
-function FeedFitRing({ fit, size }: { fit: number; size: number }) {
+/** Donut fit ring (0–100). Arc colour tracks the VERDICT (strong/worth_it/
+ *  stretch), NOT the raw number — so the ring hue and the verdict word below it
+ *  always agree and never disagree the way a green ring + orange word did. The
+ *  number lives inside as detail. Falls back to the fit tier only when the brain
+ *  hasn't ranked the card (no verdict). Internal — surfaces render <FitIndicator>. */
+function FeedFitRing({ fit, size, verdict }: { fit: number; size: number; verdict?: JobMatch["verdict"] }) {
   const r = (size - 8) / 2
   const c = 2 * Math.PI * r
   const off = c * (1 - Math.max(0, Math.min(100, fit)) / 100)
+  const toneClass = verdict ? `verdict-${verdict}` : `fit-${fitTier(fit)}`
   return (
-    <svg className={`fc-ring fit-${fitTier(fit)}`} width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`${fit} percent fit`}>
+    <svg className={`fc-ring ${toneClass}`} width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`${fit} percent fit`}>
       <circle className="fc-ring-track" cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth="3" />
       <circle className="fc-ring-arc" cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth="3" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={off} transform={`rotate(-90 ${size / 2} ${size / 2})`} />
       <text className="fc-ring-num" x="50%" y="50%" dominantBaseline="central" textAnchor="middle">{fit}</text>
@@ -57,7 +61,7 @@ export function FitIndicator({ fit, size = 52 }: { fit: FitView; size?: number }
       // The ONE number + the verdict word — same template every surface reads.
       return (
         <span className="fc-fit-score">
-          <FeedFitRing fit={fit.value} size={size} />
+          <FeedFitRing fit={fit.value} size={size} verdict={fit.verdict} />
           {fit.verdict ? (
             <span className={`fc-verdict fc-verdict-${fit.verdict}`}>{verdictLabel(fit.verdict)}</span>
           ) : null}
@@ -115,6 +119,10 @@ export interface FeedCardProps {
   pulse?: React.ReactNode
   /** Bottom action row — triage (market) or like/skip/tailor (dashboard). */
   actions?: React.ReactNode
+  /** Per-section disclosure rail (Why fit · Match · Reach · JD) — rendered
+   *  between the trust row and the actions. Fills the card's dead space with
+   *  CTAs, not filler; each opens only its own panel inline. Row variant only. */
+  rail?: React.ReactNode
   /** In-card save confirmation (journey B). Rendered below the actions the moment
    *  a job is captured — the <CaptureConfirm> band. Additive; omit when idle. */
   confirm?: React.ReactNode
@@ -132,7 +140,7 @@ export interface FeedCardProps {
 }
 
 export function FeedCard({
-  data, fit, fitSize, badges, pulse, actions, confirm, variant = "row", open, leaving, extraClass = "", onOpen, articleProps,
+  data, fit, fitSize, badges, pulse, actions, rail, confirm, variant = "row", open, leaving, extraClass = "", onOpen, articleProps,
 }: FeedCardProps) {
   const age = ageLabel(data.ageIso)
   const exp = experienceLabel(data.minYears, data.maxYears)
@@ -307,6 +315,7 @@ export function FeedCard({
       ) : null}
 
       {pulse}
+      {!compact && rail ? rail : null}
       {/* In compact density the capture lives in the head, not a bottom row. */}
       {!compact && actions ? <div className="fc-actions">{actions}</div> : null}
       {confirm}

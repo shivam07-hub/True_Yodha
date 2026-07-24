@@ -1,0 +1,81 @@
+/* ─────────────────────────────────────────────────────────────
+   "Your move" hero — the single calm next action. (Myro Forge redesign.)
+   ───────────────────────────────────────────────────────────── */
+
+.up-move {
+  position: relative; overflow: hidden;
+  border-radius: var(--tm-radius-lg); border: 1px solid var(--tm-accent-ring);
+  background: linear-gradient(135deg, var(--tm-accent-wash) 0%, transparent 55%), var(--tm-surface);
+  box-shadow: 0 0 50px var(--tm-accent-glow);
+  padding: 30px 32px;
+  display: flex; gap: 36px; align-items: center; flex-wrap: wrap;
+}
+.up-move-ring {
+  position: absolute; top: -40px; right: -40px; width: 180px; height: 180px;
+  border-radius: 50%; border: 1px solid var(--tm-accent-ring); opacity: 0.25; pointer-events: none;
+}
+.up-move-l { flex: 1; min-width: 320px; }
+.up-move-kicker { display: flex; align-items: center; gap: 9px; margin-bottom: 14px; }
+.up-move-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--tm-accent);
+  box-shadow: 0 0 10px var(--tm-accent); animation: up-move-dot 2s ease-in-out infinite;
+}
+@keyframes up-move-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.7); } }
+.up-move-name { font-size: 34px; line-height: 1.1; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 10px; }
+.up-move-body { font-size: 15px; color: var(--tm-text-muted); line-height: 1.5; margin: 0 0 8px; max-width: 480px; }
+.up-move-body b { color: var(--tm-text); }
+.up-move-reason {
+  font-size: 13px; color: var(--tm-text-faint); margin: 0 0 24px;
+  display: inline-flex; align-items: center; gap: 7px;
+}
+.up-move-reason span { color: var(--tm-text-muted); font-weight: 600; }
+
+.up-move-path { max-width: 440px; margin-bottom: 8px; }
+.up-move-path-cap { margin-top: 7px; display: flex; justify-content: space-between; gap: 8px; font-size: 10px; letter-spacing: 0.03em; color: var(--tm-text-faint); }
+.up-move-path-cap b { color: var(--tm-warning); }
+
+.up-move-r { display: flex; flex-direction: column; align-items: flex-end; gap: 14px; min-width: 200px; flex-shrink: 0; }
+.up-move-cta { height: 56px; padding: 0 30px; border-radius: var(--tm-radius-lg); font-size: 17px; white-space: nowrap; box-shadow: 0 0 28px var(--tm-accent-glow); }
+.up-move-tiers { display: flex; align-items: center; justify-content: center; gap: 7px; font-family: var(--tm-font-mono); font-size: 13px; color: var(--tm-warning); }
+
+/* ── shared rung path (hero variant) — row variant styled in forge-climb.css ── */
+.up-rung-path { position: relative; }
+.up-rung-path.is-hero { max-width: 440px; }
+.up-rung-track { position: absolute; top: 22px; left: 26px; right: 26px; height: 2px; background: var(--tm-border-soft); }
+.up-rung-fill { position: absolute; top: 22px; left: 26px; height: 2px; background: var(--tm-accent); }
+.up-rung-nodes { position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: center; }
+
+.up-rung {
+  width: 52px; height: 44px; border-radius: 11px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--tm-font-mono); font-size: 13px; font-weight: 700;
+  border: 1px solid var(--tm-border); color: var(--tm-text-faint); background: transparent;
+  cursor: default;
+}
+.up-rung.is-focus, .up-rung.is-banked { cursor: pointer; }
+.up-rung.is-banked { border-color: var(--tm-accent-ring); color: var(--tm-accent); background: var(--tm-accent-wash); }
+.up-rung.is-banked:hover { background: var(--tm-hover); }
+.up-rung.is-focus {
+  border-color: var(--tm-warning); color: var(--tm-warning); background: var(--tm-warning-wash);
+  animation: up-rung-pulse 2.4s var(--tm-ease) infinite;
+}
+.up-rung.is-locked { border-style: dashed; }
+.up-rung:focus-visible { outline: 2px solid var(--tm-accent-ring); outline-offset: 2px; }
+
+@keyframes up-rung-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px var(--tm-warning-wash), 0 0 16px var(--tm-warning-wash); }
+  50% { box-shadow: 0 0 0 4px var(--tm-warning-wash), 0 0 26px var(--tm-warning-wash); }
+}
+
+@media (max-width: 768px) {
+  .up-move { flex-direction: column; align-items: stretch; gap: 20px; padding: 22px; }
+  .up-move-l { min-width: 0; }
+  .up-move-name { font-size: 26px; }
+  .up-move-r { align-items: stretch; min-width: 0; }
+  .up-move-cta { width: 100%; }
+  .up-rung { width: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .up-move-dot, .up-rung.is-focus { animation: none; }
+}

@@ -1,0 +1,64 @@
+/* ─────────────────────────────────────────────────────────────
+   Forge context bar — the slim, sticky, full-bleed strip under the app
+   nav that replaces the old fixed Skill-Intelligence header. Score
+   module + band line + stat chips + share + collapsed role pill.
+   (Myro Forge redesign.)
+   ───────────────────────────────────────────────────────────── */
+
+.up-forge-bar {
+  position: sticky; top: 0; z-index: 15; width: 100%;
+  background: color-mix(in srgb, var(--tm-bg-page) 88%, transparent);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--tm-border-soft);
+}
+.up-forge-bar-inner {
+  max-width: var(--tm-content-max); margin: 0 auto;
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  padding: 11px var(--tm-page-px);
+}
+.up-forge-bar-spacer { flex: 1; min-width: 20px; }
+
+.up-bar-back {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: none; font: inherit; font-size: 14px;
+  color: var(--tm-text-muted); cursor: pointer; padding: 0;
+}
+.up-bar-back:hover { color: var(--tm-text); }
+
+.up-bar-score { display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; }
+.up-bar-score-id { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.up-bar-score-line { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.up-bar-score-line .tier { font-size: 15px; font-weight: 600; color: var(--tm-text); }
+.up-bar-score-line .next { font-family: var(--tm-font-mono); font-size: 12px; color: var(--tm-text-faint); }
+.up-bar-score-track { display: flex; align-items: center; gap: 8px; }
+.up-bar-score-track-bg {
+  width: 60px; height: 4px; border-radius: 999px; overflow: hidden;
+  background: var(--tm-border-soft); flex-shrink: 0;
+}
+.up-bar-score-fill { height: 100%; border-radius: 999px; background: var(--tm-accent); }
+
+.up-bar-stats { display: flex; align-items: center; gap: 8px; font-family: var(--tm-font-mono); font-size: 12px; }
+.up-bar-stats .chip {
+  padding: 5px 10px; border-radius: 999px; background: var(--tm-surface);
+  border: 1px solid var(--tm-border-soft); color: var(--tm-text-muted);
+}
+.up-bar-stats .chip b { color: var(--tm-text); }
+.up-bar-stats .chip.is-warning { background: var(--tm-warning-wash); color: var(--tm-warning); border-color: var(--tm-border-soft); }
+
+.up-bar-role {
+  display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 12px;
+  border-radius: 999px; background: var(--tm-accent-wash); border: 1px solid var(--tm-accent-ring);
+  color: var(--tm-accent); font: inherit; font-size: 13px; cursor: pointer;
+}
+.up-bar-role:hover { background: var(--tm-hover); }
+.up-bar-role .name { color: var(--tm-text); }
+.up-bar-role .n { color: var(--tm-text-faint); }
+
+@media (max-width: 900px) {
+  .up-bar-stats { display: none; }
+}
+@media (max-width: 640px) {
+  .up-forge-bar-inner { gap: 12px; padding: 10px 16px; }
+  .up-bar-back span { display: none; }
+  .up-bar-role .name { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}

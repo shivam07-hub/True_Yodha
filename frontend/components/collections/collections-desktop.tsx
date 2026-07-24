@@ -296,6 +296,17 @@ export function CollectionsDesktop({
               </div>
               <div className="db-head-actions">
                 {chip !== "found" ? <SortMenu sort={sort} onChange={setSort} /> : null}
+                {chip === "found" ? (
+                  <button
+                    type="button"
+                    className="db-btn db-btn-secondary tm-control-focus"
+                    onClick={runMyroSearch}
+                    disabled={isRefreshing}
+                  >
+                    <Search size={14} aria-hidden style={{ marginRight: 6, verticalAlign: "-2px" }} />
+                    {isRefreshing ? "Searching…" : "Search again"}
+                  </button>
+                ) : null}
                 <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={addJob.open}>
                   + {ADD_JOB_LABEL}
                 </button>
@@ -342,6 +353,7 @@ export function CollectionsDesktop({
                     renderItem={(it) => (
                       <CollectionRow
                         it={it}
+                        token={token}
                         app={appByJobId.get(it.jobId)}
                         open={openId === it.jobId}
                         pulse={pulses.get(it.jobId)}
@@ -463,17 +475,7 @@ function MyroFoundBody({
         <>
           <div className="mf-secthead">
             <span className="mf-secthead-title">Cleared the bar</span>
-            <span className="mf-secthead-sub">{found.length} more worth your time</span>
-            <button
-              type="button"
-              className="mf-footer-link"
-              style={{ marginLeft: "auto" }}
-              onClick={onSearch}
-              disabled={isRefreshing}
-            >
-              <Search size={12} aria-hidden style={{ marginRight: 4, verticalAlign: "-1px" }} />
-              {isRefreshing ? "Searching…" : "Search again"}
-            </button>
+            <span className="mf-secthead-sub">{found.length} worth your time</span>
           </div>
           <VirtualFeed
             items={found}
@@ -484,6 +486,7 @@ function MyroFoundBody({
             renderItem={(it) => (
               <MyroFoundRow
                 it={it}
+                token={token}
                 open={openId === it.jobId}
                 pulse={pulses.get(it.jobId)}
                 onOpen={() => onOpen(it.jobId)}

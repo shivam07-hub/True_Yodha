@@ -84,7 +84,9 @@ a.fc-co:hover { color: var(--tm-interactive); }
   font-size: 17px; line-height: 1.3; letter-spacing: -0.01em;
 }
 
-.fc-loc { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 13px; color: var(--tm-text-muted); }
+/* Location leads the meta (it's the load-bearing fact on a saved job) — stronger
+   ink than the muted skill chips below. The mode pill keeps its own quiet tone. */
+.fc-loc { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 13px; color: var(--tm-text); }
 .fc-loc-mode {
   font-size: 11px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase;
   padding: 2px 8px; border-radius: 999px; border: 1px solid var(--tm-border-soft); color: var(--tm-text-muted);
@@ -170,6 +172,14 @@ a.fc-co:hover { color: var(--tm-interactive); }
 
 .fc-ring .fc-ring-track { stroke: var(--tm-border-soft); }
 .fc-ring .fc-ring-arc { stroke: var(--tm-text-faint); }
+/* Verdict-driven hue (the ranked card) — the ring colour tracks the verdict, so
+   two 84s read as their verdict (green Strong vs amber Worth-it), never as the
+   same number in two colours. Orange is NEVER a rating (it's the Tailor CTA). */
+.fc-ring.verdict-strong .fc-ring-arc { stroke: var(--tm-success, var(--tm-interactive)); }
+.fc-ring.verdict-worth_it .fc-ring-arc { stroke: var(--tm-warning-text, var(--tm-warning)); }
+.fc-ring.verdict-stretch .fc-ring-arc { stroke: var(--tm-text-muted); }
+.fc-ring.verdict-checking .fc-ring-arc { stroke: var(--tm-text-faint); }
+/* Number-tier fallback (un-ranked card, no verdict). */
 .fc-ring.fit-strong .fc-ring-arc { stroke: var(--tm-success, var(--tm-interactive)); }
 .fc-ring.fit-mid .fc-ring-arc { stroke: var(--tm-text-muted); }
 .fc-ring-num { font-size: 15px; font-weight: 700; fill: var(--tm-text); }
@@ -181,9 +191,12 @@ a.fc-co:hover { color: var(--tm-interactive); }
   font-size: var(--tm-fs-caption); font-weight: 700; letter-spacing: 0.04em;
   text-transform: uppercase; line-height: 1; white-space: nowrap;
 }
+/* Tone tracks the ring hue above — worth_it was the "orange 84" leak: it used
+   --tm-interactive (the brand accent = the Tailor CTA colour), so a green ring
+   sat under an orange word. Amber here matches verdict-worth_it on the ring. */
 .fc-verdict-strong { color: var(--tm-success-text, var(--tm-success)); }
-.fc-verdict-worth_it { color: var(--tm-interactive-rest, var(--tm-interactive)); }
-.fc-verdict-stretch { color: var(--tm-warning-text, var(--tm-warning)); }
+.fc-verdict-worth_it { color: var(--tm-warning-text, var(--tm-warning)); }
+.fc-verdict-stretch { color: var(--tm-text-muted); }
 .fc-verdict-checking { color: var(--tm-text-faint); }
 
 /* fit pill — semantic: a skill match earns the success-wash badge, an empty
@@ -211,6 +224,56 @@ a.fc-co:hover { color: var(--tm-interactive); }
    button carries the accent — the move line must not double it. */
 .fc-move-go { color: var(--tm-text-muted); }
 .fc-move-gap { color: var(--tm-text-muted); }
+
+/* ── per-section disclosure rail (Why fit · Match · Reach · JD) ───────────────
+   Fills the card's dead space with real CTAs (Cred: every pixel info or CTA),
+   not filler. Each chip opens ONLY its own panel inline — never the whole
+   drawer, never all sections at once. Quiet at rest; the open chip + its panel
+   are the only lift. Orange stays the Tailor CTA's alone. */
+.fc-rail { display: flex; flex-direction: column; gap: 0; }
+.fc-rail-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.fc-rail-tab {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 11px; border-radius: 9px;
+  border: 1px solid var(--tm-border-soft); background: transparent;
+  color: var(--tm-text-muted); font-size: 12.5px; font-weight: 500;
+  font-family: inherit; cursor: pointer; white-space: nowrap;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+}
+.fc-rail-tab:hover { border-color: var(--tm-border); color: var(--tm-text); }
+.fc-rail-tab.is-on {
+  border-color: var(--tm-border); color: var(--tm-text);
+  background: var(--tm-surface-2, var(--tm-surface));
+}
+.fc-rail-tab svg { flex: 0 0 auto; }
+.fc-rail-panel {
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid var(--tm-border-soft);
+  font-size: 13.5px; line-height: 1.55; color: var(--tm-text-muted);
+}
+.fc-rail-panel h4 {
+  margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--tm-text); font-family: var(--tm-font-mono, inherit);
+}
+.fc-rail-panel p { margin: 0 0 8px; color: var(--tm-text); }
+.fc-rail-panel ul { margin: 6px 0 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px; }
+.fc-rail-panel .fc-rail-jd { max-height: 220px; overflow-y: auto; white-space: pre-wrap; color: var(--tm-text-muted); }
+.fc-rail-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.fc-rail-reach { display: flex; flex-direction: column; gap: 2px; }
+.fc-rail-reach a {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 9px 2px; border-bottom: 1px solid var(--tm-border-soft);
+  color: var(--tm-text); text-decoration: none; font-size: 13px;
+}
+.fc-rail-reach a:last-child { border-bottom: none; }
+.fc-rail-reach a:hover { color: var(--tm-interactive); }
+.fc-rail-reach .fc-rail-reach-kind { color: var(--tm-text-faint); font-size: 11px; white-space: nowrap; }
+.fc-rail-loading { color: var(--tm-text-muted); font-size: 13px; }
+
+/* Verified trust stamp — lift it from the faintest line to a live signal (it's
+   the differentiator). A small success dot precedes the positive stamp; the
+   warn state keeps its own colour. Scoped to the pulse row inside a feed card. */
+.fc-card .tm-pulse .tm-pulse-item:not(.tm-pulse-warn):not(.tm-pulse-signal) { color: var(--tm-text-muted); }
 
 /* ── action row ───────────────────────────────────────────────────────────── */
 /* PRODUCT LOCK (2026-06-22): the triage trio (Not interested · Save · Share) is

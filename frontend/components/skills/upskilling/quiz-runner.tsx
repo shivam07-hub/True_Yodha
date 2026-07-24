@@ -146,16 +146,18 @@ export function QuizRunner({
   return (
     <div className="up-quiz" role="region" aria-label={`${title} quiz`}>
       <div className="up-quiz-bar">
-        <div style={{ minWidth: 0 }}>
-          <div className="q-skill">{title}</div>
-          <div className="q-lvl">{subtitle}</div>
+        <div className="up-quiz-bar-inner">
+          <div style={{ minWidth: 0 }}>
+            <div className="q-skill">{title}</div>
+            <div className="q-lvl">{subtitle}</div>
+          </div>
+          <div className="up-progress" aria-hidden="true"><i style={{ width: `${(answeredCount / questions.length) * 100}%` }} /></div>
+          <span className="up-progress-txt">{answeredCount}/{questions.length}</span>
+          <span className="up-quiz-clock" aria-hidden="true">{formatClock(elapsed)}</span>
+          <button type="button" className="up-iconbtn up-quiz-x" aria-label="Exit quiz" onClick={() => setConfirmExit(true)}>
+            <Icon name="close" size={16} />
+          </button>
         </div>
-        <div className="up-progress" aria-hidden="true"><i style={{ width: `${(answeredCount / questions.length) * 100}%` }} /></div>
-        <span className="up-progress-txt">{answeredCount}/{questions.length}</span>
-        <span className="up-quiz-clock" aria-hidden="true">{formatClock(elapsed)}</span>
-        <button type="button" className="up-iconbtn up-quiz-x" aria-label="Exit quiz" onClick={() => setConfirmExit(true)}>
-          <Icon name="close" size={16} />
-        </button>
       </div>
 
       <div className="up-quiz-body">
