@@ -92,7 +92,7 @@ export function GrowthTable({
               return (
                 <Fragment key={message.id}>
                   <tr className="gc-main-row">
-                    <td>{plannedDate(message.planned_at)}</td>
+                    <td>{plannedDate(publication?.published_at ?? message.planned_at)}</td>
                     <td>
                       <span className={`gc-pill gc-pill--${message.channel}`}>
                         {message.channel.replaceAll("_", "/")}
