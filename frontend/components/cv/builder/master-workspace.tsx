@@ -30,6 +30,7 @@ import { useMasterAutosave } from "@/lib/hooks/use-master-autosave"
 import { mentorRewriteTarget } from "@/lib/cv/mentor-rewrite-target"
 import { buildScoreMapHref } from "@/lib/score-map"
 import { CVEditor, type RewriteTarget } from "./cv-editor"
+import type { MergePayload } from "./bullet-merge"
 import { FixesRail } from "./fixes-rail"
 import { SkillProvenance } from "./skill-provenance"
 import { V2Sheet } from "./preview-rail"
@@ -171,6 +172,21 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
       return d
     })
   }
+  // No baseline round-trip on the master surface (unlike the tailored playground's
+  // mergeBulletApply) — a plain structural collapse of the living-master draft,
+  // same cheap PUT /cv/master path every other master edit uses.
+  function applyMerge(payload: MergePayload) {
+    onPatch(d => {
+      const list = payload.section === "exp_bullet" ? d.experience : d.projects
+      const item = list[payload.itemIndex]
+      if (!item) return d
+      const lo = Math.min(payload.bulletIndexA, payload.bulletIndexB)
+      const hi = Math.max(payload.bulletIndexA, payload.bulletIndexB)
+      item.bullets[lo] = payload.mergedText
+      item.bullets.splice(hi, 1)
+      return d
+    })
+  }
 
   function jumpTo(iid: string) { setFlash(prev => ({ iid, n: (prev?.n ?? 0) + 1 })) }
   function openFixCard(fix: V2Fix) { restore(fix.id); setTab("fixes"); setExpandedFixId(fix.id); jumpTo(fix.iid) }
@@ -253,6 +269,8 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
                 missingKeywords={[]}
                 applying={false}
                 onApply={applyText}
+                onMergeApply={applyMerge}
+                mergeApplying={false}
                 onAddBullet={addBullet}
                 addingBullet={false}
                 visibleCount={m.visibleCount}
