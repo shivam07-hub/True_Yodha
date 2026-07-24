@@ -200,7 +200,7 @@
 @media (prefers-reduced-motion: no-preference) {
   .lp-mini-flow-pulse {
     opacity: 0.85;
-    animation: lp-mini-pulse 7s var(--lp-ease) infinite;
+    animation: lp-mini-pulse 13s var(--lp-ease) infinite;
   }
   @keyframes lp-mini-pulse {
     0%   { stroke-dashoffset: 246; opacity: 0; }
@@ -267,7 +267,7 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .lp-me-core { animation: lp-core-breathe 7s var(--lp-ease) infinite; }
+  .lp-me-core { animation: lp-core-breathe 13s var(--lp-ease) infinite; }
   @keyframes lp-core-breathe {
     0%, 100% { box-shadow: 0 0 36px var(--lp-accent-glow), inset 0 0 24px rgba(0, 245, 212, 0.05); }
     50%      { box-shadow: 0 0 64px rgba(0, 245, 212, 0.22), inset 0 0 30px rgba(0, 245, 212, 0.09); }
