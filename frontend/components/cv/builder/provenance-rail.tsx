@@ -23,12 +23,11 @@ interface ProvenanceRailProps {
   story: CareerStory | null
   role: CareerProfileRole | null
   /** Present only when viewing a per-job tailored copy (context = "tailored"). */
-  tailoredFor: { company: string; jobId: string } | null
+  tailoredFor: { company: string } | null
   matchedTerms: string[]
-  onOpenTailorWorkspace: (jobId: string) => void
 }
 
-export function ProvenanceRail({ bulletText, story, role, tailoredFor, matchedTerms, onOpenTailorWorkspace }: ProvenanceRailProps) {
+export function ProvenanceRail({ bulletText, story, role, tailoredFor, matchedTerms }: ProvenanceRailProps) {
   if (!story) {
     return (
       <aside className="tm-prov-rail" aria-label="The story behind this line">
@@ -92,15 +91,6 @@ export function ProvenanceRail({ bulletText, story, role, tailoredFor, matchedTe
                 </div>
               </>
             )}
-            <div className="tm-prov-actions">
-              <button
-                type="button"
-                className="tm-prov-act primary"
-                onClick={() => onOpenTailorWorkspace(tailoredFor.jobId)}
-              >
-                Edit in Tailor workspace →
-              </button>
-            </div>
           </div>
         </>
       )}

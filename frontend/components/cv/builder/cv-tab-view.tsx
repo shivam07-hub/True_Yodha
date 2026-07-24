@@ -17,9 +17,8 @@ import { useQuery } from "@tanstack/react-query"
 import type { ApplicationResponse, CVStructured, CVVersion, UserProfile } from "@/lib/api"
 import { cv as cvApi } from "@/lib/api"
 import { MasterCVPanel } from "./library-master"
-import { CVExportView } from "./cv-export-view"
+import { TailoredCVPanel } from "./tailored-cv-panel"
 import { FinishTailoringLane } from "./finish-tailoring-lane"
-import { TailoredContextBar } from "./tailored-context-bar"
 import { ProvenanceRail } from "./provenance-rail"
 import { buildPointerIndex, matchedTerms } from "@/lib/cv/provenance"
 
@@ -118,35 +117,28 @@ export function CvTabView({
     <>
       <FinishTailoringLane applications={applications} onOpenJob={pickTailored} />
 
-      {tailorJobId && tailoredVersion && (
-        <TailoredContextBar
-          company={tailoredVersion.company_name ?? tailoredApp?.company ?? ""}
-          jobTitle={tailoredVersion.job_title ?? tailoredApp?.title ?? ""}
-          onSwitchToMain={switchToMain}
-        />
-      )}
-
       <div className="tm-lib-cv-interactive">
         {tailorJobId ? (
           tailoredStructured ? (
             <div className="tm-lib-cvdoc-row">
               <div className="tm-lib-cvdoc-col">
-                <CVExportView
+                <TailoredCVPanel
                   token={token}
-                  cv={tailoredStructured}
+                  structured={tailoredStructured}
                   hidden={new Set(tailoredVersion?.hidden_items ?? [])}
                   contact={contactFrom(tailoredStructured, profile)}
                   profile={profile}
-                  context="tailored"
                   versionId={tailoredVersion?.id ?? null}
                   footerMarkHidden={tailoredVersion?.footer_mark_hidden ?? false}
-                  company={tailoredVersion?.company_name ?? tailoredApp?.company ?? undefined}
-                  jobTitle={tailoredVersion?.job_title ?? tailoredApp?.title ?? undefined}
+                  company={tailoredVersion?.company_name ?? tailoredApp?.company ?? ""}
+                  jobTitle={tailoredVersion?.job_title ?? tailoredApp?.title ?? ""}
                   jobId={tailorJobId}
                   matchScore={tailoredApp?.match_score ?? 0}
                   appliedAt={tailoredApp?.applied_at ?? null}
                   onBulletClick={handleBulletClick}
                   selectedBulletId={selectedBulletId}
+                  onEditInPlayground={onOpenJob}
+                  onSwitchToMain={switchToMain}
                 />
               </div>
               <div className="tm-lib-cvdoc-rail-slot">
@@ -154,9 +146,8 @@ export function CvTabView({
                   bulletText={selectedBulletText ?? ""}
                   story={matched?.story ?? null}
                   role={matched?.role ?? null}
-                  tailoredFor={{ company: tailoredVersion?.company_name ?? tailoredApp?.company ?? "this job", jobId: tailorJobId }}
+                  tailoredFor={{ company: tailoredVersion?.company_name ?? tailoredApp?.company ?? "this job" }}
                   matchedTerms={terms}
-                  onOpenTailorWorkspace={onOpenJob}
                 />
               </div>
             </div>
@@ -187,7 +178,6 @@ export function CvTabView({
                   role={matched?.role ?? null}
                   tailoredFor={null}
                   matchedTerms={[]}
-                  onOpenTailorWorkspace={onOpenJob}
                 />
               </div>
             )}
