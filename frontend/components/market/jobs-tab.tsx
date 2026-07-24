@@ -51,8 +51,13 @@ export interface MarketJobsTabProps {
   canFollow: (name: string) => boolean
   disabledReason: (name: string) => string | undefined
   /** Wave-3 intent gate (#41 L3): when false, the `/jobs/analytics`-backed
-   *  market-intel rail + interleaved story cards stay unfetched. */
+   *  market-intel rail (movers/company-signal trending) + interleaved story
+   *  cards stay unfetched (the 22–25s scan never fires on login). */
   analyticsEnabled?: boolean
+  /** Wave-2 idle gate (#41 L3): cheap skill-demand snapshot (`/jobs/my-skills/
+   *  demand`) — warms on the idle cascade so the rail is ready before the user
+   *  scrolls, NOT lumped behind the expensive wave-3 intent gate above. */
+  demandEnabled?: boolean
 }
 
 export function MarketJobsTab(props: MarketJobsTabProps) {
@@ -61,7 +66,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     initialFilters, initialQuery = "", onFiltersChange, onQueryChange,
     targetLocations, followedNames, onToggleFollow, initialSkillFacet, onSkillFacetChange,
     primaryCareerBand, exploredCareerBands, onExploredCareerBandsChange,
-    analyticsEnabled = true,
+    analyticsEnabled = true, demandEnabled = true,
   } = props
   const router = useRouter()
   const { isDesktop } = useViewport()
@@ -154,7 +159,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
 
   const intel = useMarketIntel(targetLocations, "roles", analyticsEnabled)
   const storyCity = targetLocations.find(l => l && l.trim())?.trim() ?? null
-  const { skills: demandSkills } = useSkillDemand(storyCity, "30d", analyticsEnabled, 1)
+  const { skills: demandSkills } = useSkillDemand(storyCity, "30d", demandEnabled, 1)
   const stories = useMemo<FeedStory[]>(() => {
     const out: FeedStory[] = []
     const topSkill = demandSkills[0]
@@ -217,7 +222,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
 
   const railProps = {
     token, targetLocations, feed: allJobs, pulses, cvReady: hasCv,
-    onSeeRoles, onFilterSkill, onOpenJob: setOpenJob, analyticsEnabled,
+    onSeeRoles, onFilterSkill, onOpenJob: setOpenJob, analyticsEnabled, demandEnabled,
   }
 
   return (

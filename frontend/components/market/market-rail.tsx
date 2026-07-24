@@ -30,15 +30,19 @@ export interface MarketRailProps {
    *  CV-personalized, so this no longer gates anything. Kept until callers drop
    *  it from the shared rail props. */
   cvReady?: boolean
-  /** Wave-3 intent gate (#41 L3): when false the skill-demand + trending queries
-   *  stay unfetched (never fired on login). */
+  /** Wave-3 intent gate (#41 L3): when false the `/jobs/analytics` trending
+   *  ("who's hiring") query stays unfetched (the 22–25s scan never fires on
+   *  login). */
   analyticsEnabled?: boolean
+  /** Wave-2 idle gate (#41 L3): the cheap skill-demand snapshot warms on the
+   *  idle cascade, independent of the expensive wave-3 trending above. */
+  demandEnabled?: boolean
 }
 
 /** Desktop right rail — market dashboard + community listing-status. CV-coach
  *  intel lives on /dashboard; this surface stays about the market. */
 export function MarketRail(props: MarketRailProps) {
-  const { targetLocations, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob, analyticsEnabled = true } = props
+  const { targetLocations, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob, analyticsEnabled = true, demandEnabled = true } = props
   const [companyMode, setCompanyMode] = useState<CompanySignalMode>("roles")
   const { trending, loading: intelLoading } = useMarketIntel(targetLocations, companySignalSortParam(companyMode), analyticsEnabled)
   const homeCity = targetLocations.find((l) => l && l.trim())?.trim() ?? null
@@ -58,7 +62,7 @@ export function MarketRail(props: MarketRailProps) {
       <SkillDemandPanel
         homeCity={homeCity}
         onFilterSkill={onFilterSkill}
-        enabled={analyticsEnabled}
+        enabled={demandEnabled}
       />
 
       {/* trending resolves independently of the feed; while its query is in
@@ -120,7 +124,7 @@ export function MarketRail(props: MarketRailProps) {
 /** Mobile: the rail collapses to a sticky horizontal chip strip. Tap a chip →
  *  the same action its rail widget would route to. */
 export function MarketChipStrip(props: MarketRailProps) {
-  const { targetLocations, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob, analyticsEnabled = true } = props
+  const { targetLocations, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob, analyticsEnabled = true, demandEnabled = true } = props
   const { trending } = useMarketIntel(targetLocations, "roles", analyticsEnabled)
   const uncertain = uncertainListings(feed, pulses)
   const co = trending[0]
@@ -128,7 +132,7 @@ export function MarketChipStrip(props: MarketRailProps) {
   // strip. A city we hold no snapshot for yields no chips rather than a chip
   // built from a number we cannot stand behind.
   const city = targetLocations.find((l) => l && l.trim())?.trim() ?? null
-  const { skills } = useSkillDemand(city, "30d", analyticsEnabled, 2)
+  const { skills } = useSkillDemand(city, "30d", demandEnabled, 2)
 
   // Lead count chip dropped for the same reason as the rail strip — the feed
   // summary line above it already carries the count. Every chip here is a tap.
