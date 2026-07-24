@@ -19,6 +19,7 @@ Usage in a FastAPI route:
 
 from functools import lru_cache
 
+import httpx
 from postgrest.utils import SyncClient as _PostgrestSyncClient
 from supabase import Client, create_client
 from supabase.lib.client_options import ClientOptions
@@ -36,6 +37,38 @@ def _client_options() -> ClientOptions:
     return ClientOptions(postgrest_client_timeout=_POSTGREST_TIMEOUT_SECONDS)
 
 
+class _RetryingHTTPTransport(httpx.HTTPTransport):
+    """Retries once on a transient pooled-connection failure, GET/HEAD only.
+
+    httpx/httpcore's built-in ``retries=`` only covers the TCP-connect phase
+    (``ConnectError``/``ConnectTimeout``). It does NOT cover a connection that
+    was already established, sat idle in the keep-alive pool, got closed by
+    Supabase's edge between requests, and only fails once httpx reuses it and
+    tries to read a response — exactly the shape of the prod 500s on
+    ``/companies/{name}`` (``httpcore.ReadError``/``RemoteProtocolError``
+    inside ``_receive_response_headers``, after the request was already sent
+    on a connection the pool believed was still alive). This is a well-known
+    gap in pooled HTTP clients (same class of bug urllib3's Retry(connect=,
+    read=) exists for) — disabling HTTP/2 (see below) fixed the H2-specific
+    manifestation but not this more general one.
+
+    Scoped to GET/HEAD only: a failure here happens strictly after
+    ``_send_request_body`` succeeds, so for a write the request may already
+    have reached the server — blindly retrying a POST/PATCH risks a double
+    write. Reads are safe to retry once on a fresh connection.
+    """
+
+    _RETRYABLE = (httpx.ReadError, httpx.RemoteProtocolError, httpx.ConnectError)
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        try:
+            return super().handle_request(request)
+        except self._RETRYABLE:
+            if request.method not in ("GET", "HEAD"):
+                raise
+            return super().handle_request(request)
+
+
 def _force_postgrest_http1(client: Client) -> Client:
     """postgrest 0.16.x hardcodes ``http2=True`` on its httpx session. A
     long-lived (lru_cached) client plus an HTTP/2 keepalive pool throws
@@ -44,6 +77,8 @@ def _force_postgrest_http1(client: Client) -> Client:
     with no partial body, independent of query content. HTTP/2 buys a
     synchronous request/response client nothing (no multiplexing), so rebuild
     the PostgREST session as HTTP/1.1, which reconnects cleanly on an idle drop.
+    Also swaps in ``_RetryingHTTPTransport`` (see above) — HTTP/1.1 alone
+    doesn't eliminate stale-connection reuse, only the H2-specific crash mode.
     Mirrors the exact factory params (base_url / headers / timeout /
     follow_redirects) so behaviour is otherwise unchanged.
     """
@@ -53,7 +88,7 @@ def _force_postgrest_http1(client: Client) -> Client:
         headers=old.headers,
         timeout=old.timeout,
         follow_redirects=True,
-        http2=False,
+        transport=_RetryingHTTPTransport(http2=False),
     )
     return client
 
