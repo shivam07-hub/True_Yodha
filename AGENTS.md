@@ -364,6 +364,59 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-07-26 - Pre-launch security hardening)
+
+Completed the requested pre-launch security checklist across application code,
+tests, local production builds, live Supabase metadata, and observable deployed
+headers. Canonical evidence:
+`docs/security/2026-07-26-prelaunch-security-checklist.md`.
+
+- Added fail-closed production environment validation for backend and frontend,
+  with source-to-example coverage gates and debug mode off by default.
+- Added a permanent regression gate for runtime debug consoles, test-only
+  endpoints, hardcoded test credentials, commented-out executable blocks, and
+  incomplete security markers.
+- Added a centralized API error boundary: generic validation/5xx responses,
+  internal-detail suppression, correlation IDs on all responses, and frontend
+  correlation-ID support.
+- Added API and Next.js security headers. Frontend CSP uses per-request nonces
+  with strict script policy; every response denies framing. Newsletter chart
+  iframes became reviewed static previews linked to standalone hash-locked
+  interactive charts so no framing exception remains.
+- Added Redis-backed, atomic per-IP limits: login/signup 5 per minute;
+  magic-link OTP/recovery 3 per hour; production fails closed if Redis is down.
+- Replaced wildcard CORS with exact configured origins, explicit
+  method/header lists, HTTPS-only production validation, and exposed
+  correlation/retry headers.
+- Live Supabase verification: project healthy, current DB session TLS 1.3 /
+  256-bit, 91/91 public tables have RLS, 0 API-granted tables lack RLS, and only
+  password-configured native roles can log in. Broader advisor findings were
+  recorded but not mutated without a dedicated privilege/view review.
+
+Commits:
+
+- `843698d1 fix: fail closed on invalid production config`
+- `9cb58cb5 test: block prelaunch debug artifacts`
+- `2e446147 fix: sanitize API error responses`
+- `93b71717 fix: enforce response security headers`
+- `9a8d5d45 fix: deny framing on newsletter charts`
+- `3d9c67b2 fix: rate limit authentication attempts`
+- `9116777f fix: restrict API CORS origins`
+
+Validation: backend `1621 passed`; focused security suites pass; TypeScript and
+Next lint pass; production frontend build passes; runtime CSP nonce/header
+inspection passes for app, chart HTML, and chart preview responses.
+
+Deployment gate remains: after this summary/report commit, local `Develop` is
+eight commits ahead of
+`origin/Develop`; live frontend/APIs still show the old headers/wildcard CORS.
+Railway variable verification is blocked until `railway login` is restored;
+Vercel connector surfaced no team/project. No changes were pushed or deployed.
+Unrelated workspace state remains untouched:
+`docs/free-llm-api-resources` and nested untracked `True_Yodha/`.
+
+---
+
 ## LAST SESSION SUMMARY (2026-07-25 - Personal data flow and erasure audit)
 
 Completed the pre-deploy personal-data audit across frontend, backend, scripts,
