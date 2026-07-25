@@ -27,6 +27,7 @@ from time import perf_counter
 from openai import AsyncOpenAI
 
 from app.config import settings
+from app.security.personal_data import sanitize_ai_messages
 from app.services import llm_budget
 
 logger = logging.getLogger(__name__)
@@ -201,10 +202,11 @@ class LLMProvider:
     ) -> LLMCompletion:
         """Complete once and retain the actual model and elapsed time."""
         started_at = perf_counter()
+        safe_messages = sanitize_ai_messages(messages)
         max_retries = int(settings.llm_transient_retries)
         for client, model, extra_body in self._providers:
             logger.info("LLM provider: trying %s", model)
-            kwargs: dict = dict(model=model, max_tokens=max_tokens, messages=messages)
+            kwargs: dict = dict(model=model, max_tokens=max_tokens, messages=safe_messages)
             if temperature is not None:
                 kwargs["temperature"] = temperature
             if extra_body:
@@ -239,7 +241,7 @@ class LLMProvider:
                         )
                         await asyncio.sleep(delay)
                         continue
-                    logger.warning("LLM provider %s failed: %s — trying next", model, exc)
+                    logger.warning("LLM provider %s failed: %s — trying next", model, type(exc).__name__)
                     break  # rate-limit exhausted or stalled/down → next provider
         raise LLMProviderError("All LLM providers failed")
 
@@ -261,11 +263,12 @@ class LLMProvider:
 
         One ADR-0008 Provider Budget slot is held for the full stream.
         """
+        safe_messages = sanitize_ai_messages(messages)
         max_retries = int(settings.llm_transient_retries)
         for client, model, extra_body in self._providers:
             logger.info("LLM stream: trying %s", model)
             kwargs: dict = dict(
-                model=model, max_tokens=max_tokens, messages=messages, stream=True
+                model=model, max_tokens=max_tokens, messages=safe_messages, stream=True
             )
             if temperature is not None:
                 kwargs["temperature"] = temperature
@@ -290,9 +293,9 @@ class LLMProvider:
                 except Exception as exc:
                     if emitted:
                         # Committed to this provider — never swap mid-stream.
-                        logger.warning("LLM stream %s died mid-stream: %s", model, exc)
+                        logger.warning("LLM stream %s died mid-stream: %s", model, type(exc).__name__)
                         raise LLMProviderError(
-                            f"Stream interrupted on {model}: {exc}"
+                            f"Stream interrupted on {model}"
                         ) from exc
                     if llm_budget.is_rate_limited(exc) and attempt < max_retries:
                         delay = llm_budget.backoff_delay(
@@ -304,7 +307,7 @@ class LLMProvider:
                         )
                         await asyncio.sleep(delay)
                         continue
-                    logger.warning("LLM stream %s failed pre-token: %s — trying next", model, exc)
+                    logger.warning("LLM stream %s failed pre-token: %s — trying next", model, type(exc).__name__)
                     break  # rate-limit exhausted or stalled/down → next provider
         raise LLMProviderError("All LLM providers failed to stream")
 

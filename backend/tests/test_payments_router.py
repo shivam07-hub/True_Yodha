@@ -103,12 +103,11 @@ def test_create_order_calls_razorpay_and_records_pending_payment(monkeypatch: py
         "currency": "INR",
         "product": "myro_xp_launch_pack",
     }
-    assert fake_client.order.created_payload == {
-        "amount": 9900,
-        "currency": "INR",
-        "receipt": "xp_123",
-        "notes": {"user_id": "user-1", "xp_amount": "1000", "product": "myro_xp_launch_pack"},
-    }
+    assert fake_client.order.created_payload["amount"] == 9900
+    assert fake_client.order.created_payload["currency"] == "INR"
+    assert fake_client.order.created_payload["receipt"] != "xp_123"
+    assert "user-1" not in fake_client.order.created_payload["receipt"]
+    assert "notes" not in fake_client.order.created_payload
     assert fake_client.order.received_timeout == payments_router.RAZORPAY_ORDER_TIMEOUT_SECONDS
     assert recorded["user_id"] == "user-1"
     assert recorded["razorpay_order_id"] == "order_test_123"
@@ -139,11 +138,7 @@ def test_create_order_myrology_records_entitlement_product(monkeypatch: pytest.M
         "currency": "INR",
         "product": "myro_myrology_unlock",
     }
-    assert fake_client.order.created_payload["notes"] == {
-        "user_id": "user-1",
-        "xp_amount": "0",
-        "product": "myro_myrology_unlock",
-    }
+    assert "notes" not in fake_client.order.created_payload
     assert recorded["xp_amount"] == 0
     assert recorded["product_key"] == "myro_myrology_unlock"
 

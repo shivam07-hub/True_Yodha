@@ -103,6 +103,7 @@ from app.schemas.skills import (
     SkillsListResponse,
 )
 from app.schemas.users import (
+    AccountDeletionResponse,
     FollowCompanyRequest,
     FollowedCompaniesResponse,
     FollowedCompany,
@@ -129,6 +130,7 @@ from app.schemas.profile import (
 )
 
 __all__ = [
+    "AccountDeletionResponse",
     "SignupRequest", "LoginRequest", "AuthResponse", "RefreshRequest", "RefreshResponse",
     "ExtensionSessionResponse",
     "CVUploadResponse", "CVUploadAcceptedResponse", "CVUploadDoneResponse", "CVUploadFailedResponse",

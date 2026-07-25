@@ -5,7 +5,7 @@
  * user has a token, so signing up from a job card saves that job and lands the
  * user on Collections — no "where did my job go?" surprise.
  *
- * Only a job_id needs to survive, so localStorage (survives the OAuth full-page
+ * Only a job_id needs to survive, so sessionStorage (survives the OAuth full-page
  * redirect) holds it directly. Server persistence happens after auth via the
  * explicit claim flow (usePendingJobSaveClaim).
  */
@@ -16,9 +16,9 @@ const KEY = "myro_pending_job_save_v1"
 export function stashPendingJobSave(jobId: string): void {
   if (!jobId) return
   try {
-    localStorage.setItem(KEY, jobId)
+    sessionStorage.setItem(KEY, jobId)
   } catch {
-    // localStorage unavailable (private mode / quota) — the save is best-effort;
+    // sessionStorage unavailable (private mode / quota) — the save is best-effort;
     // the user still lands on Collections and can re-save from Jobs.
   }
 }
@@ -26,7 +26,7 @@ export function stashPendingJobSave(jobId: string): void {
 /** Read without clearing — used by postAuthDestination to pick the landing. */
 export function readPendingJobSave(): string | null {
   try {
-    return localStorage.getItem(KEY)
+    return sessionStorage.getItem(KEY)
   } catch {
     return null
   }
@@ -36,7 +36,7 @@ export function readPendingJobSave(): string | null {
 export function takePendingJobSave(): string | null {
   const jobId = readPendingJobSave()
   try {
-    localStorage.removeItem(KEY)
+    sessionStorage.removeItem(KEY)
   } catch {
     // ignore — the replay guards on token; a stale key at worst re-saves (idempotent).
   }

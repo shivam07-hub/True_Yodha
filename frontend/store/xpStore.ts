@@ -49,12 +49,12 @@ export const useXPStore = create<XPStore>()(
   clearDelta: () => set({ lastDelta: null }),
     }),
     {
-      // Persist only the balance so a returning user sees their real XP from
-      // localStorage instead of a "0" flash while the authoritative fetch
+      // Persist only the balance for this tab so the user avoids a "0" flash
+      // while the authoritative fetch
       // resolves. skipHydration + rehydrate-on-mount (use-shell-model) avoids
       // an SSR/client hydration mismatch on the number. Wiped on logout.
       name: "myro_xp",
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => sessionStorage),
       partialize: (s) => ({ balance: s.balance }),
       skipHydration: true,
     },

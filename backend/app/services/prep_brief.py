@@ -128,6 +128,6 @@ async def build_prep_brief(
     try:
         raw = await provider.complete(messages, max_tokens=_MAX_TOKENS)
     except LLMProviderError:
-        logger.info("prep_brief: all providers failed (company=%s)", company)
+        logger.info("prep_brief: all providers failed")
         return None
     return parse_brief(raw or "")

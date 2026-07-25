@@ -153,7 +153,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return asyncio.run(publish(Path(args.chunks), dry_run=args.dry_run, prune=args.prune))
     except embeddings.EmbeddingError as exc:
-        print(f"ERROR (embedding): {exc}", file=sys.stderr)
+        print(f"ERROR (embedding): {exc.__class__.__name__}", file=sys.stderr)
         return 1
 
 

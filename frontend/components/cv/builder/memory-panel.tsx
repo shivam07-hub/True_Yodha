@@ -123,11 +123,15 @@ export function MemoryPanel({ token }: { token: string }) {
 
       <div className="tm-mem-stores">
         <Link href="/cv?view=stories" className="tm-mem-store">
-          <span className="tm-mem-store-count">{storyCount}</span>
+          {profile.isLoading
+            ? <span className="tm-skeleton tm-mem-store-skel" aria-hidden />
+            : <span className="tm-mem-store-count">{storyCount}</span>}
           <span className="tm-mem-store-label">career stories</span>
         </Link>
         <div className="tm-mem-store">
-          <span className="tm-mem-store-count">{formatCount(connectionCount)}</span>
+          {connections.isLoading
+            ? <span className="tm-skeleton tm-mem-store-skel" aria-hidden />
+            : <span className="tm-mem-store-count">{formatCount(connectionCount)}</span>}
           <span className="tm-mem-store-label">connections</span>
           {connectionCount > 0 && (
             <button
@@ -141,7 +145,9 @@ export function MemoryPanel({ token }: { token: string }) {
           )}
         </div>
         <div className="tm-mem-store">
-          <span className="tm-mem-store-count">{activeFacts.length}</span>
+          {facts.isLoading
+            ? <span className="tm-skeleton tm-mem-store-skel" aria-hidden />
+            : <span className="tm-mem-store-count">{activeFacts.length}</span>}
           <span className="tm-mem-store-label">facts</span>
         </div>
       </div>

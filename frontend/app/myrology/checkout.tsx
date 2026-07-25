@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 
 import { billing, myrology, users, type MyrologyBooking, type MyrologyIntake, type MyrologyIntakePayload } from "@/lib/api"
 import { getAccessToken } from "@/lib/session"
+import { loadRazorpay } from "@/lib/razorpay"
 
 // Logged-out visitors must keep this public page; bounce them to signup with a
 // return hop instead of mounting useAuth (which auto-redirects to /login).
@@ -123,21 +124,20 @@ export function MyrologyProvider({ children }: { children: ReactNode }) {
     }
 
     const key = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID
-    const Razorpay = (window as unknown as { Razorpay?: RazorpayConstructor }).Razorpay
     if (!key) {
       setPayStatus("error")
       setPayError("Payments aren’t configured yet.")
       return
     }
-    if (!Razorpay) {
-      setPayStatus("error")
-      setPayError("Checkout is still loading — try again in a moment.")
-      return
-    }
-
     setPayStatus("starting")
     void (async () => {
       try {
+        const Razorpay = await loadRazorpay<RazorpayConstructor>()
+        if (!Razorpay) {
+          setPayStatus("error")
+          setPayError("Checkout is unavailable. Try again in a moment.")
+          return
+        }
         const order = await billing.createOrder(token, "myrology")
         let completed = false
 

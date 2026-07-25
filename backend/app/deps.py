@@ -173,15 +173,55 @@ class CurrentUser(Principal):
     token: str
 
 
+def _profile_exists(user_id: str) -> bool:
+    result = (
+        get_supabase_admin()
+        .table("user_profiles")
+        .select("id")
+        .eq("id", user_id)
+        .maybe_single()
+        .execute()
+    )
+    return bool(result and result.data)
+
+
+def _auth_user_exists(user_id: str) -> bool:
+    try:
+        response = get_supabase_admin().auth.admin.get_user_by_id(user_id)
+    except Exception:
+        return False
+    return bool(getattr(response, "user", None))
+
+
+def forget_provisioned_user(user_id: str) -> None:
+    """Drop request fast-path state when an account is being erased."""
+    _provisioned_users.discard(user_id)
+    _location_backfilled_users.discard(user_id)
+
+
 def _ensure_profile_provisioned(user_id: str, email: str | None, full_name: str | None) -> None:
-    """Idempotent profile seed with ninja_name. Fails open."""
+    """Idempotent profile seed that cannot resurrect a deleted Auth user."""
     if user_id in _provisioned_users or not email:
         return
     try:
+        if _profile_exists(user_id):
+            _provisioned_users.add(user_id)
+            return
+        if not _auth_user_exists(user_id):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Account no longer exists",
+            )
         ensure_user_provisioned(user_id, email, full_name, myro_ref=None)
         _provisioned_users.add(user_id)
+    except HTTPException:
+        raise
     except Exception as exc:
-        _logger.warning("Auto-provision failed for user %s: %s: %s", user_id, type(exc).__name__, exc)
+        _logger.warning("Auto-provision failed reason=%s", type(exc).__name__)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Account setup is temporarily unavailable",
+        ) from exc
 
 
 def _ensure_location_country_backfilled(user_id: str) -> None:

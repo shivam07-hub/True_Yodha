@@ -60,6 +60,38 @@
 .tm-pc-refresh:hover:not(:disabled) { color: var(--tm-text-primary); }
 .tm-pc-refresh:disabled { opacity: 0.6; cursor: default; }
 
+/* ── building (loading / synthesizing) ── */
+.tm-pc-building {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--tm-text-muted);
+  margin: 0 0 20px;
+}
+.tm-pc-building-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tm-accent);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tm-pc-building-dot { animation: none; }
+}
+/* skeleton claim card — the real card shell, shimmer content, no hover shift */
+.tm-pc-card-skel { pointer-events: none; }
+.tm-pc-card-skel:hover { border-color: var(--tm-border-soft); }
+.tm-pc-skel-line {
+  display: block;
+  height: 13px;
+  border-radius: 5px;
+  margin-bottom: 11px;
+}
+.tm-pc-skel-line.short { width: 62%; margin-bottom: 18px; }
+.tm-pc-skel-grounds { display: flex; gap: 6px; }
+.tm-pc-skel-chip { width: 84px; height: 16px; border-radius: 999px; }
+
 /* ── pending / error states ── */
 .tm-pc-state { font-size: 14px; color: var(--tm-text-muted); padding: 18px 0; }
 .tm-pc-hint { font-size: 13px; color: var(--tm-text-faint); margin-top: 8px; }

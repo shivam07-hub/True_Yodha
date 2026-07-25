@@ -67,8 +67,8 @@ def test_mints_independent_session(client, monkeypatch):
     assert body["access_token"] == "acc-tok"
     assert body["refresh_token"] == "ref-tok"
     assert body["expires_at"] == 1234567890
-    assert body["user_id"] == "u1"
-    assert body["email"] == "ninja@example.com"
+    assert "user_id" not in body
+    assert "email" not in body
 
 
 def test_requires_email(monkeypatch):

@@ -206,7 +206,7 @@ async def _verify_turnstile(token: str | None, ip: str) -> None:
         async with httpx.AsyncClient(timeout=8) as client:
             resp = await client.post(
                 _TURNSTILE_VERIFY_URL,
-                data={"secret": secret, "response": token, "remoteip": ip},
+                data={"secret": secret, "response": token},
             )
         ok = bool(resp.json().get("success"))
     except Exception:

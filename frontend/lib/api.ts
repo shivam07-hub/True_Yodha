@@ -154,6 +154,7 @@ async function tryRefreshToken(): Promise<string | null> {
 }
 
 function forceLogout(): never {
+  queryClient.clear()
   clearSessionTokens()
   if (typeof window !== "undefined") window.location.href = "/login"
   throw new Error("Session expired. Please sign in again.")
@@ -245,14 +246,11 @@ export interface AuthResponse {
   access_token: string | null
   refresh_token: string | null
   token_type: string
-  user_id: string
-  email: string | null
   requires_email_confirmation: boolean
   message: string | null
 }
 
 export interface PostSigninResponse {
-  user_id: string
   provider: string | null
   referral_attributed: boolean
   attribution_recorded: boolean
@@ -287,8 +285,6 @@ export interface ExtensionSessionResponse {
   refresh_token: string
   token_type: string
   expires_at: number | null
-  user_id: string
-  email: string | null
 }
 
 export const auth = {
@@ -348,7 +344,6 @@ export const auth = {
 // ── User ──────────────────────────────────────────────────────────────────────
 
 export interface UserProfile {
-  id: string
   email: string
   full_name: string | null
   linkedin_url: string | null
@@ -365,10 +360,7 @@ export interface UserProfile {
   superpower: string | null
   cv_url: string | null
   onboarding_complete: boolean
-  created_at: string
-  last_active_at: string
   ninja_name: string | null
-  referred_by_user_id: string | null
   has_cv: boolean
   cv_readiness?: "ready" | "missing" | "processing" | "failed"
   cv_upload_job_id?: string | null
@@ -483,6 +475,11 @@ export interface CompanyJobsResponse {
 export const users = {
   me: (token: string) =>
     request<UserProfile>("/users/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  deleteAccount: (token: string) =>
+    request<{ deleted: boolean }>("/users/me", {
+      method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     }),
   mySkills: (token: string) =>

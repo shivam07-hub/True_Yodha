@@ -1,8 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+import logging
 
-from app.deps import Principal, get_principal
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.concurrency import run_in_threadpool
+from supabase import Client
+
+from app.deps import Principal, get_principal, get_user_db
 from app.repositories.users import UsersRepository, get_token_users_repository
 from app.schemas import (
+    AccountDeletionResponse,
     FollowCompanyRequest,
     FollowedCompaniesResponse,
     PracticeSavesResponse,
@@ -24,9 +29,11 @@ from app.services.job_eligibility import (
     target_seniority_for_profile,
 )
 from app.services.xp_service import grant_linkedin_profile_xp
+from app.services.account_deletion import delete_account
 from app.services.taxonomy_loader import lookup_by_name
 
 router = APIRouter(prefix="/users", tags=["users"])
+logger = logging.getLogger(__name__)
 
 
 @router.get("/me", response_model=UserProfileResponse)
@@ -57,6 +64,22 @@ def get_me(
             profile["cv_upload_error_code"] = latest_job.get("error_code")
 
     return UserProfileResponse(**profile)
+
+
+@router.delete("/me", response_model=AccountDeletionResponse)
+async def delete_me(
+    principal: Principal = Depends(get_principal),
+    db: Client = Depends(get_user_db),
+) -> AccountDeletionResponse:
+    try:
+        await run_in_threadpool(delete_account, principal.id, db)
+    except Exception as exc:
+        logger.error("Account deletion failed stage=server reason=%s", type(exc).__name__)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Account deletion could not be completed. Please retry.",
+        ) from exc
+    return AccountDeletionResponse(deleted=True)
 
 
 @router.get("/me/skills", response_model=UserSkillsByDomainResponse)

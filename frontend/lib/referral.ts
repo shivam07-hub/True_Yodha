@@ -2,7 +2,7 @@
  * Referral capture helper.
  *
  * Reads `?ref=` from the current URL on first paint, persists it both as a
- * cookie (`myro_ref`, 30d) and in localStorage as a cross-origin fallback,
+ * cookie (`myro_ref`, 30d) and in sessionStorage as a cross-origin fallback,
  * and returns the value so it can be echoed to `/auth/signup` as a body
  * field. Cross-origin CORS strips cookies on the actual signup POST, hence
  * the body echo.
@@ -27,7 +27,11 @@ export function readRefFromUrl(): string | null {
 function setCookie(value: string): void {
   if (typeof document === "undefined") return
   const maxAge = TTL_DAYS * 24 * 60 * 60
-  document.cookie = `${COOKIE}=${encodeURIComponent(value)}; Max-Age=${maxAge}; Path=/; SameSite=Lax`
+  const secure = window.location.protocol === "https:" ? "; Secure" : ""
+  // This cookie is a user-chosen public referral slug, not an auth credential.
+  // JavaScript must read it to bridge the cross-origin signup request, so it
+  // intentionally cannot be HttpOnly.
+  document.cookie = `${COOKIE}=${encodeURIComponent(value)}; Max-Age=${maxAge}; Path=/; SameSite=Lax${secure}`
 }
 
 function readCookie(): string | null {
@@ -46,7 +50,7 @@ export function persistReferral(ref: string): void {
   if (!NAME_RE.test(ref)) return
   setCookie(ref)
   try {
-    window.localStorage.setItem(STORAGE_KEY, ref)
+    window.sessionStorage.setItem(STORAGE_KEY, ref)
   } catch {
     // Ignore restricted storage contexts.
   }
@@ -57,7 +61,7 @@ export function getStoredReferral(): string | null {
   if (cookie) return cookie
   if (typeof window === "undefined") return null
   try {
-    const local = window.localStorage.getItem(STORAGE_KEY)
+    const local = window.sessionStorage.getItem(STORAGE_KEY)
     return local && NAME_RE.test(local) ? local : null
   } catch {
     return null

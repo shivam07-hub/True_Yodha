@@ -29,6 +29,19 @@ _PROVIDER_KEY = re.compile(
     r"\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{12,}\b|"
     r"\bxox[baprs]-[A-Za-z0-9-]{12,}\b"
 )
+_EMAIL = re.compile(r"(?i)(?<![\w.+-])[\w.+-]+@[\w-]+(?:\.[\w-]+)+(?![\w.-])")
+_UUID = re.compile(
+    r"(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-"
+    r"[89ab][0-9a-f]{3}-[0-9a-f]{12}\b"
+)
+_IPV4 = re.compile(
+    r"(?<![\d.])(?:25[0-5]|2[0-4]\d|1?\d?\d)"
+    r"(?:\.(?:25[0-5]|2[0-4]\d|1?\d?\d)){3}(?![\d.])"
+)
+_IPV6 = re.compile(
+    r"(?i)(?<![0-9a-f:])(?:[0-9a-f]{1,4}:){2,7}[0-9a-f]{0,4}(?![0-9a-f:])"
+)
+_PHONE = re.compile(r"(?<!\w)(?:\+\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?){2,5}\d{3,4}(?!\w)")
 
 
 def redact_sensitive_text(value: Any, *, max_length: int | None = 1200) -> str:
@@ -40,6 +53,11 @@ def redact_sensitive_text(value: Any, *, max_length: int | None = 1200) -> str:
     text = _ASSIGNMENT.sub(r"\1[REDACTED]", text)
     text = _JWT.sub("[REDACTED_JWT]", text)
     text = _PROVIDER_KEY.sub("[REDACTED_PROVIDER_KEY]", text)
+    text = _EMAIL.sub("[REDACTED]", text)
+    text = _UUID.sub("[REDACTED]", text)
+    text = _IPV4.sub("[REDACTED]", text)
+    text = _IPV6.sub("[REDACTED]", text)
+    text = _PHONE.sub("[REDACTED]", text)
     return text if max_length is None else text[:max_length]
 
 

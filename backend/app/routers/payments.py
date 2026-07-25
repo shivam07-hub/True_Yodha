@@ -4,7 +4,7 @@ import hashlib
 import hmac
 import json
 import logging
-import time
+import secrets
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
@@ -90,8 +90,9 @@ class VerifyPaymentResponse(BaseModel):
     job_switch_plan_active: bool = False
 
 
-def _default_receipt(user_id: str) -> str:
-    return f"xp_{int(time.time())}_{user_id[:8]}"
+def _default_receipt() -> str:
+    """Opaque gateway receipt; never disclose the account id to Razorpay."""
+    return f"myro_{secrets.token_hex(10)}"
 
 
 def _clean_credential(value: str) -> str:
@@ -301,7 +302,9 @@ async def create_order(
             detail="Amount does not match the selected product price",
         )
 
-    receipt = body.receipt or _default_receipt(principal.id)
+    # The caller-provided legacy field is deliberately ignored: arbitrary
+    # account data must not be forwarded to the payment processor.
+    receipt = _default_receipt()
     if len(receipt) > 40:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Receipt must be 40 characters or fewer")
 
@@ -309,20 +312,15 @@ async def create_order(
         "amount": product.price_paise,
         "currency": currency,
         "receipt": receipt,
-        "notes": {
-            "user_id": principal.id,
-            "xp_amount": str(product.xp_amount),
-            "product": product.key,
-        },
     }
 
     try:
         order = await run_in_threadpool(_create_razorpay_order, payload)
     except (razorpay_errors.BadRequestError, razorpay_errors.GatewayError, razorpay_errors.ServerError) as exc:
-        logger.warning("Razorpay order create failed for user %s: %s", principal.id, str(exc))
+        logger.warning("Razorpay order create failed reason=%s", type(exc).__name__)
         raise _razorpay_error(exc) from exc
     except requests.exceptions.RequestException as exc:
-        logger.error("Razorpay network failure for user %s: %s", principal.id, str(exc))
+        logger.error("Razorpay network failure reason=%s", type(exc).__name__)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Payment gateway is temporarily unavailable",
@@ -330,7 +328,7 @@ async def create_order(
 
     order_id = order.get("id")
     if not order_id:
-        logger.error("Razorpay order create returned no id for user %s", principal.id)
+        logger.error("Razorpay order create returned no id")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Razorpay did not return an order id",
@@ -488,17 +486,17 @@ async def razorpay_webhook(
     if not payment:
         # Order we never created (e.g. a different Razorpay account / env). Ack
         # so Razorpay stops retrying; nothing to fulfil here.
-        logger.warning("metric webhook.unknown_order order=%s", order_id)
+        logger.warning("metric webhook.unknown_order")
         return WebhookAck(status="unknown_order")
 
     product = _PRODUCT_BY_KEY.get(str(payment.get("product") or XP_PACK_PRODUCT))
     if product is None:
-        logger.error("metric webhook.unknown_product order=%s product=%s", order_id, payment.get("product"))
+        logger.error("metric webhook.unknown_product")
         return WebhookAck(status="unknown_product")
 
     payment_currency = str(payment.get("currency", "")).strip().upper()
     if int(payment.get("amount_paise", 0)) != product.price_paise or payment_currency != CURRENCY:
-        logger.error("metric webhook.amount_mismatch order=%s", order_id)
+        logger.error("metric webhook.amount_mismatch")
         return WebhookAck(status="amount_mismatch")
 
     if payment.get("status") == "verified":
@@ -516,10 +514,5 @@ async def razorpay_webhook(
         return WebhookAck(status="already_verified")
 
     await _apply_fulfilment(str(payment["user_id"]), product, payment)
-    logger.info(
-        "metric webhook.reconciled order=%s product=%s user=%s",
-        order_id,
-        product.key,
-        payment.get("user_id"),
-    )
+    logger.info("metric webhook.reconciled product=%s", product.key)
     return WebhookAck(status="reconciled")
