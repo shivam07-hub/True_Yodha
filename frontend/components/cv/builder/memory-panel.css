@@ -63,6 +63,12 @@ a.tm-mem-store:hover { border-color: var(--tm-accent-ring); }
   font-size: 11px;
   color: var(--tm-text-muted);
 }
+.tm-mem-store-skel {
+  display: block;
+  width: 30px;
+  height: 24px;
+  border-radius: 6px;
+}
 
 .tm-mem-composer {
   display: flex;

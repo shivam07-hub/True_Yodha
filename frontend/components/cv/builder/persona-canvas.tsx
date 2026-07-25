@@ -33,6 +33,38 @@ function groundChip(line: string): string {
   return cut.length > 52 ? `${cut.slice(0, 49)}…` : cut
 }
 
+/** Skeleton mirroring the real three-movement layout while the document loads
+ *  or is being (re)written — never a blank "Loading…", never honest-looking
+ *  zeros. The movement dividers are true constants, so they render for real;
+ *  only the claim cards shimmer in. */
+function SkeletonMovements() {
+  return (
+    <div aria-hidden>
+      {MOVEMENTS.map((movement, mi) => (
+        <div className="tm-pc-movement" key={movement.key}>
+          <div className="tm-pc-m-eyebrow">
+            <span className="tm-pc-numeral">{movement.numeral}</span>
+            <span className="tm-pc-m-title">{movement.title}</span>
+          </div>
+          <div className="tm-pc-grid">
+            {Array.from({ length: mi === 0 ? 3 : 2 }).map((_, ci) => (
+              <div className="tm-pc-card tm-pc-card-skel" key={ci}>
+                <span className="tm-skeleton tm-pc-skel-line" />
+                <span className="tm-skeleton tm-pc-skel-line" />
+                <span className="tm-skeleton tm-pc-skel-line short" />
+                <span className="tm-pc-skel-grounds">
+                  <span className="tm-skeleton tm-pc-skel-chip" />
+                  <span className="tm-skeleton tm-pc-skel-chip" />
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function Paragraph({ token, paragraph }: { token: string; paragraph: PersonaParagraph }) {
   const qc = useQueryClient()
   const [editing, setEditing] = useState(false)
@@ -120,6 +152,11 @@ export function PersonaCanvas({ token }: { token: string }) {
 
   const data = persona.data
   const timeline = data?.timeline ?? []
+  // Building = first fetch in flight, OR the backend is synthesizing. Both
+  // paint the real-layout skeleton; pending just adds an honest "writing" line.
+  const building = persona.isLoading || data?.status === "pending"
+  // Only bail to the empty-nudge when there is genuinely nothing to write from.
+  const nothingToWriteFrom = data?.status === "pending" && timeline.length === 0
 
   return (
     <section className="tm-pc" aria-label="What Myro knows about you">
@@ -157,17 +194,24 @@ export function PersonaCanvas({ token }: { token: string }) {
         <p className="tm-pc-state" role="alert">Couldn’t load your document — try again.</p>
       )}
 
-      {data?.status === "pending" && (
+      {nothingToWriteFrom ? (
         <div className="tm-pc-state">
-          <p>Myro is reading your evidence and writing this document…</p>
-          {timeline.length === 0 && (
-            <p className="tm-pc-hint">
-              Nothing to write from yet?{" "}
-              <Link href="/cv?view=stories">Drop your CV and stories</Link> — the document
-              builds itself from there.
+          <p className="tm-pc-hint">
+            Nothing to write from yet?{" "}
+            <Link href="/cv?view=stories">Drop your CV and stories</Link> — the document
+            builds itself from there.
+          </p>
+        </div>
+      ) : building && (
+        <>
+          {data?.status === "pending" && (
+            <p className="tm-pc-building" role="status">
+              <span className="tm-pc-building-dot" aria-hidden />
+              Myro is reading your evidence and writing this document…
             </p>
           )}
-        </div>
+          <SkeletonMovements />
+        </>
       )}
 
       {data?.status === "ready" &&
