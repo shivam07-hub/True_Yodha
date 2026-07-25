@@ -107,6 +107,10 @@ def _request() -> Any:
     return SimpleNamespace(
         headers={"x-forwarded-for": "9.9.9.9"},
         client=SimpleNamespace(host="9.9.9.9"),
+        scope={
+            "headers": [(b"x-forwarded-for", b"9.9.9.9")],
+            "client": ("9.9.9.9", 443),
+        },
     )
 
 

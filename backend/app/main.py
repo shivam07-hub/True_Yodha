@@ -38,6 +38,7 @@ from app.routers import (
     xp,
 )
 from app.security import (
+    install_auth_rate_limits,
     install_error_handling,
     install_security_headers,
     install_sensitive_log_filter,
@@ -54,6 +55,7 @@ app = FastAPI(
     version="0.1.0",
     debug=settings.debug,
 )
+install_auth_rate_limits(app)
 install_error_handling(app)
 install_security_headers(app)
 

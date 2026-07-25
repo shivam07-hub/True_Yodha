@@ -33,6 +33,7 @@ from app.schemas import (
     RefreshResponse,
     SignupRequest,
 )
+from app.security.auth_rate_limit import client_ip_from_scope
 from app.services import auth_links, email_service
 from app.services.growth_attribution import record_if_new_signup, record_signup_attribution
 from app.services.user_provisioning import ensure_user_provisioned, set_linkedin_identity
@@ -44,16 +45,6 @@ _REF_COOKIE = "myro_ref"
 _MAGIC_LINK_WINDOW_MINUTES = 60
 _MAGIC_LINK_MAX_PER_WINDOW = 3
 _SUPPORTED_REVOKE_PROVIDERS = {"google", "linkedin_oidc"}
-
-
-def _client_ip(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    real = request.headers.get("x-real-ip")
-    if real:
-        return real.strip()
-    return request.client.host if request.client else "0.0.0.0"
 
 
 def _safe_user_agent(value: str | None) -> str | None:
@@ -324,7 +315,7 @@ def magic_link_request(
 ) -> MagicLinkResponse:
     """ADR-0006 §10 — rate-limited magic-link send. 3 per hour per IP."""
     admin = get_supabase_admin()
-    ip = _client_ip(request)
+    ip = client_ip_from_scope(request.scope)
     email = body.email.lower().strip()
 
     try:
