@@ -3,6 +3,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.config import settings
 from app.request_timing import RequestTimingMiddleware
 from app.routers import (
     auth,
@@ -47,6 +48,7 @@ app = FastAPI(
     title="Mirror API",
     description="Mirror — The Job Seeker's Reality Check",
     version="0.1.0",
+    debug=settings.debug,
 )
 
 app.add_middleware(
@@ -94,6 +96,11 @@ app.include_router(internal.router)
 
 
 @app.on_event("startup")
+async def _validate_runtime_configuration() -> None:
+    settings.validate_runtime_configuration()
+
+
+@app.on_event("startup")
 async def _raise_sync_threadpool_limit() -> None:
     """Backlog #16 (prod read-capacity). Sync routes block a thread for the
     duration of each Supabase call; the AnyIO default of 40 threads queues a
@@ -105,8 +112,6 @@ async def _raise_sync_threadpool_limit() -> None:
     app.config.Settings.sync_threadpool_tokens for the full rationale.
     """
     import anyio.to_thread
-
-    from app.config import settings
 
     anyio.to_thread.current_default_thread_limiter().total_tokens = (
         settings.sync_threadpool_tokens
