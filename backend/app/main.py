@@ -1,7 +1,6 @@
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.request_timing import RequestTimingMiddleware
@@ -39,6 +38,7 @@ from app.routers import (
 )
 from app.security import (
     install_auth_rate_limits,
+    install_cors,
     install_error_handling,
     install_security_headers,
     install_sensitive_log_filter,
@@ -59,13 +59,7 @@ install_auth_rate_limits(app)
 install_error_handling(app)
 install_security_headers(app)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+install_cors(app, settings.cors_origins)
 
 # Server-side per-request timing → X-Process-Time header + slow-request log.
 # Added after CORS so timing wraps the inner app (CORS preflight stays instant).

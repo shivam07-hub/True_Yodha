@@ -209,6 +209,12 @@ class Settings(BaseSettings):
                 missing.append("OPENROUTER_API_KEY or GROQ_API_KEY or GOOGLE_API_KEY")
         if self.allowed_origins.strip() == "*":
             missing.append("ALLOWED_ORIGINS (wildcard is forbidden in production)")
+        if any(
+            not origin.strip().startswith("https://")
+            for origin in self.allowed_origins.split(",")
+            if origin.strip()
+        ):
+            missing.append("ALLOWED_ORIGINS (must use HTTPS in production)")
         if self.debug:
             missing.append("DEBUG (must be false in production)")
         if self.supabase_url and not self.supabase_url.startswith("https://"):

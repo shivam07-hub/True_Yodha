@@ -47,6 +47,26 @@ def test_production_configuration_rejects_wildcard_cors() -> None:
         config.validate_runtime_configuration()
 
 
+def test_production_configuration_rejects_insecure_cors_origins() -> None:
+    config = Settings(
+        _env_file=None,
+        railway_environment="production",
+        supabase_url="https://project.supabase.co",
+        supabase_anon_key="anon-key",
+        supabase_service_key="service-key",
+        redis_url="redis://redis.internal:6379/0",
+        turnstile_secret="turnstile-secret",
+        allowed_origins="http://himyro.com",
+        openrouter_api_key="provider-key",
+        razorpay_key_id="rzp_live_public",
+        razorpay_key_secret="razorpay-secret",
+        razorpay_webhook_secret="webhook-secret",
+    )
+
+    with pytest.raises(ValueError, match="ALLOWED_ORIGINS.*HTTPS"):
+        config.validate_runtime_configuration()
+
+
 def test_production_configuration_rejects_debug_mode() -> None:
     config = Settings(
         _env_file=None,
