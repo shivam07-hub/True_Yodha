@@ -3,6 +3,7 @@ import { Suspense } from "react"
 import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
 import { IntelSurface } from "@/components/market/intel-surface"
+import { IntelSkeleton } from "@/components/loading/page-skeletons"
 
 const BASE = "https://www.himyro.com"
 
@@ -29,7 +30,7 @@ export default function IntelPage() {
     <div style={{ height: "100dvh", width: "100vw", maxWidth: "100vw", display: "flex", flexDirection: "column", background: "var(--tm-bg)", position: "relative", overflow: "hidden" }}>
       <PublicTopNav active="intel" showSignIn />
       <div style={{ flex: 1, width: "100%", minWidth: 0, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 2 }}>
-        <Suspense fallback={null}>
+        <Suspense fallback={<IntelSkeleton />}>
           <IntelSurface />
         </Suspense>
         <PublicFooter commons />
