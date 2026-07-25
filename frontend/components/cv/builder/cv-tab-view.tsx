@@ -113,77 +113,69 @@ export function CvTabView({
     ? matchedTerms(selectedBulletText ?? "", tailoredApp.matched_skills ?? tailoredApp.skills)
     : []
 
-  return (
-    <>
-      <FinishTailoringLane applications={applications} onOpenJob={pickTailored} />
+  // The rail holds the tailoring context (other jobs to finish + the story
+  // behind the selected line) so the CV sheet leads the main column — the
+  // same rail-beside-artifact shell as Jobs / Collections. Story only shows
+  // when there's a rendered CV to trace a bullet from.
+  const showStory = !!activeStructured
+  const tailoredForRail = tailorJobId
+    ? { company: tailoredVersion?.company_name ?? tailoredApp?.company ?? "this job" }
+    : null
 
-      <div className="tm-lib-cv-interactive">
+  return (
+    <div className="tm-lib-workspace">
+      <aside className="tm-lib-rail" aria-label="Tailoring context">
+        <FinishTailoringLane applications={applications} onOpenJob={pickTailored} />
+        {showStory && (
+          <ProvenanceRail
+            bulletText={selectedBulletText ?? ""}
+            story={matched?.story ?? null}
+            role={matched?.role ?? null}
+            tailoredFor={tailoredForRail}
+            matchedTerms={terms}
+          />
+        )}
+      </aside>
+
+      <div className="tm-lib-workmain tm-lib-cv-interactive">
         {tailorJobId ? (
           tailoredStructured ? (
-            <div className="tm-lib-cvdoc-row">
-              <div className="tm-lib-cvdoc-col">
-                <TailoredCVPanel
-                  token={token}
-                  structured={tailoredStructured}
-                  hidden={new Set(tailoredVersion?.hidden_items ?? [])}
-                  contact={contactFrom(tailoredStructured, profile)}
-                  profile={profile}
-                  versionId={tailoredVersion?.id ?? null}
-                  footerMarkHidden={tailoredVersion?.footer_mark_hidden ?? false}
-                  company={tailoredVersion?.company_name ?? tailoredApp?.company ?? ""}
-                  jobTitle={tailoredVersion?.job_title ?? tailoredApp?.title ?? ""}
-                  jobId={tailorJobId}
-                  matchScore={tailoredApp?.match_score ?? 0}
-                  appliedAt={tailoredApp?.applied_at ?? null}
-                  onBulletClick={handleBulletClick}
-                  selectedBulletId={selectedBulletId}
-                  onEditInPlayground={onOpenJob}
-                  onSwitchToMain={switchToMain}
-                />
-              </div>
-              <div className="tm-lib-cvdoc-rail-slot">
-                <ProvenanceRail
-                  bulletText={selectedBulletText ?? ""}
-                  story={matched?.story ?? null}
-                  role={matched?.role ?? null}
-                  tailoredFor={{ company: tailoredVersion?.company_name ?? tailoredApp?.company ?? "this job" }}
-                  matchedTerms={terms}
-                />
-              </div>
-            </div>
+            <TailoredCVPanel
+              token={token}
+              structured={tailoredStructured}
+              hidden={new Set(tailoredVersion?.hidden_items ?? [])}
+              contact={contactFrom(tailoredStructured, profile)}
+              profile={profile}
+              versionId={tailoredVersion?.id ?? null}
+              footerMarkHidden={tailoredVersion?.footer_mark_hidden ?? false}
+              company={tailoredVersion?.company_name ?? tailoredApp?.company ?? ""}
+              jobTitle={tailoredVersion?.job_title ?? tailoredApp?.title ?? ""}
+              jobId={tailorJobId}
+              matchScore={tailoredApp?.match_score ?? 0}
+              appliedAt={tailoredApp?.applied_at ?? null}
+              onBulletClick={handleBulletClick}
+              selectedBulletId={selectedBulletId}
+              onEditInPlayground={onOpenJob}
+              onSwitchToMain={switchToMain}
+            />
           ) : (
             <p className="tm-lib-empty-sub" style={{ padding: "24px 4px" }}>
               {tailoredVersionsQuery.isLoading ? "Loading the tailored copy…" : "Couldn't find a tailored copy for this job yet."}
             </p>
           )
         ) : (
-          <div className="tm-lib-cvdoc-row">
-            <div className="tm-lib-cvdoc-col">
-              <MasterCVPanel
-                token={token}
-                baseline={currentBaseline}
-                cv={cv}
-                profile={profile}
-                onReplace={onReplaceCV}
-                onEditMaster={onEditMaster}
-                onBulletClick={handleBulletClick}
-                selectedBulletId={selectedBulletId}
-              />
-            </div>
-            {cv && (
-              <div className="tm-lib-cvdoc-rail-slot">
-                <ProvenanceRail
-                  bulletText={selectedBulletText ?? ""}
-                  story={matched?.story ?? null}
-                  role={matched?.role ?? null}
-                  tailoredFor={null}
-                  matchedTerms={[]}
-                />
-              </div>
-            )}
-          </div>
+          <MasterCVPanel
+            token={token}
+            baseline={currentBaseline}
+            cv={cv}
+            profile={profile}
+            onReplace={onReplaceCV}
+            onEditMaster={onEditMaster}
+            onBulletClick={handleBulletClick}
+            selectedBulletId={selectedBulletId}
+          />
         )}
       </div>
-    </>
+    </div>
   )
 }

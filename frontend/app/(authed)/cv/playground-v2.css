@@ -124,7 +124,10 @@
   font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--tm-text-muted);
 }
-.cvb-v2-editorbody { padding: 24px; max-width: 780px; margin: 0 auto; }
+/* Edit surface — NOT the A4 Preview sheet (that renders width-locked on its own
+   tab), so it's free to fill the workspace instead of floating in empty paper on
+   wide screens. Bullets are short lines, readable well past A4 width. */
+.cvb-v2-editorbody { padding: 24px 40px; max-width: min(100%, 1080px); margin: 0 auto; }
 
 /* segmented tab buttons — active = ink inversion (prototype #29241e/#fffdfa) */
 .cvb-v2-tabbtn {

@@ -22,9 +22,8 @@ from app.services import mentor_grounding
 from app.services.cv_rewrite import (
     MAX_TOKENS,
     clean_bullet_output,
+    dropped_specifics,
     gains_foreign_numbers,
-    loses_metrics,
-    loses_substance,
 )
 from app.services.llm_provider import LLMProvider, LLMProviderError, get_writer_provider
 
@@ -44,7 +43,9 @@ _GUARDRAILS = (
     "Output ONLY the merged bullet: no quotes, no preamble, no explanation."
 )
 
-_KEPT_ORIGINALS_RATIONALE = "Mentor couldn't combine these without losing real substance — kept both originals."
+_INVENTED_NUMBER_RATIONALE = (
+    "Mentor couldn't combine these without inventing a detail — kept both originals."
+)
 
 
 async def suggest_merge(
@@ -56,8 +57,15 @@ async def suggest_merge(
 ) -> dict:
     """Blocking merge proposal. `provider` is a TEST-ONLY override — production
     resolves the writer floor internally (same strong-only lane as rewrite).
+
+    Substance loss is the USER'S call, not a refusal (Q1/Q6, grill 2026-07-25):
+    dropping the user's own facts (a named client, their own number) is offered
+    as an eyes-open choice with the cost named; only INVENTING a number neither
+    line stated is a hard refusal (fabrication is never a preference, ADR-0016).
+
     Returns one of:
       {"mode": "merge", "merged_text": str, "citations": [...]}
+      {"mode": "lossy", "merged_text": str, "drops": [str], "citations": [...]}
       {"mode": "error", "rationale": str}
     """
     a = (bullet_a or "").strip()
@@ -78,28 +86,33 @@ async def suggest_merge(
     ]
 
     provider = provider or get_writer_provider()
-    try:
-        raw = await provider.complete(messages, max_tokens=MAX_TOKENS)
-    except LLMProviderError:
-        logger.info("cv_merge: all providers failed (bullet lens=%d/%d)", len(a), len(b))
+    source = f"{a} {b}"
+
+    async def _attempt() -> str | None:
+        try:
+            raw = await provider.complete(messages, max_tokens=MAX_TOKENS)
+        except LLMProviderError:
+            logger.info("cv_merge: all providers failed (bullet lens=%d/%d)", len(a), len(b))
+            return None
+        return clean_bullet_output(raw)
+
+    text = await _attempt()
+    if text is None:
         return {"mode": "error", "rationale": "Merge is unavailable right now."}
 
-    text = clean_bullet_output(raw)
-    if text is None:
-        return {"mode": "error", "rationale": "No merge produced."}
-
-    source = f"{a} {b}"
-    if loses_metrics(source, text):
-        return {
-            "mode": "error",
-            "rationale": "The merge dropped a real number from one of your lines — kept both originals.",
-        }
-    if loses_substance(source, text):
-        return {"mode": "error", "rationale": _KEPT_ORIGINALS_RATIONALE}
+    # (c) Invented number — never the user's to approve. Retry once (a fresh draw
+    # often stops fabricating), then refuse honestly rather than offer a lie.
     if gains_foreign_numbers(source, text, ""):
-        return {
-            "mode": "error",
-            "rationale": "The merge added a number neither line stated — kept both originals.",
-        }
+        retry = await _attempt()
+        if retry is None or gains_foreign_numbers(source, retry, ""):
+            return {"mode": "error", "rationale": _INVENTED_NUMBER_RATIONALE}
+        text = retry
 
-    return {"mode": "merge", "merged_text": text, "citations": grounding.citations() if grounding else []}
+    citations = grounding.citations() if grounding else []
+
+    # (a)/(b) Dropping the user's OWN facts — an eyes-open choice, cost named.
+    drops = dropped_specifics(source, text)
+    if drops:
+        return {"mode": "lossy", "merged_text": text, "drops": drops, "citations": citations}
+
+    return {"mode": "merge", "merged_text": text, "citations": citations}

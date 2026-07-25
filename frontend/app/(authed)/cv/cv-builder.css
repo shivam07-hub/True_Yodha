@@ -2692,6 +2692,128 @@ mark.cvb-kw {
 .cvb-merge-bar { margin: 6px 0 2px 26px; }
 .cvb-merge-bar .cvb-rw-original + .cvb-rw-original { margin-top: 4px; }
 
+/* ── MentorProposalDrawer — the focused space a fix pops into ─────────────
+   Right-side drawer on desktop, bottom-sheet on mobile. Resume-Worded pattern:
+   one fix, one surface, one accept/reject decision (grill 2026-07-25 Q3). */
+.cvb-mpd-scrim {
+  position: fixed; inset: 0; z-index: 120;
+  background: color-mix(in srgb, var(--tm-bg-page) 55%, transparent);
+  backdrop-filter: blur(2px);
+  display: flex; justify-content: flex-end;
+  animation: cvb-mpd-fade 160ms ease;
+}
+.cvb-mpd-panel {
+  width: min(480px, 100%); height: 100%;
+  background: var(--tm-bg-surface); border-left: 1px solid var(--tm-border-faint);
+  box-shadow: -18px 0 48px -24px rgba(0, 0, 0, 0.5);
+  display: flex; flex-direction: column;
+  animation: cvb-mpd-slide-x 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.cvb-mpd-grab { display: none; }
+.cvb-mpd-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 16px 18px 12px; border-bottom: 1px solid var(--tm-border-faint);
+}
+.cvb-mpd-title {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 13px; font-weight: 600; letter-spacing: -0.01em; color: var(--tm-text);
+}
+.cvb-mpd-title svg { color: var(--tm-accent-text); }
+.cvb-mpd-close {
+  display: inline-grid; place-items: center; width: 30px; height: 30px;
+  border-radius: var(--tm-radius-sm); color: var(--tm-text-muted);
+  background: transparent; border: none; cursor: pointer;
+}
+.cvb-mpd-close:hover { background: var(--tm-bg-inset); color: var(--tm-text); }
+.cvb-mpd-body { padding: 16px 18px 22px; overflow-y: auto; flex: 1; }
+/* Inside the drawer the panels are the whole surface — drop their inline chrome. */
+.cvb-mpd-body .cvb-rw-panel,
+.cvb-mpd-body .cvb-merge-bar { margin: 0; border: none; padding: 0; }
+
+@keyframes cvb-mpd-fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes cvb-mpd-slide-x { from { transform: translateX(24px); opacity: 0.4 } to { transform: none; opacity: 1 } }
+@keyframes cvb-mpd-slide-y { from { transform: translateY(28px); opacity: 0.4 } to { transform: none; opacity: 1 } }
+
+@media (max-width: 640px) {
+  .cvb-mpd-scrim { align-items: flex-end; justify-content: center; }
+  .cvb-mpd-panel {
+    width: 100%; height: auto; max-height: 88vh;
+    border-left: none; border-top: 1px solid var(--tm-border-faint);
+    border-radius: var(--tm-radius-lg) var(--tm-radius-lg) 0 0;
+    box-shadow: 0 -18px 48px -24px rgba(0, 0, 0, 0.5);
+    animation: cvb-mpd-slide-y 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .cvb-mpd-grab {
+    display: block; width: 36px; height: 4px; border-radius: 999px;
+    background: var(--tm-border-soft); margin: 8px auto 2px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cvb-mpd-scrim, .cvb-mpd-panel { animation: none; }
+}
+
+/* Eyes-open merge cost — names the user's OWN facts a lossy merge would drop, so
+   "Merge anyway" is an informed choice, not a blind one (grill 2026-07-25 Q5). */
+.cvb-merge-cost {
+  font-size: 12.5px; line-height: 1.5; color: var(--tm-text-muted);
+  margin: 8px 0 2px; padding-left: 10px;
+  border-left: 2px solid var(--tm-border-soft);
+}
+.cvb-merge-cost strong { color: var(--tm-text); font-weight: 600; }
+
+/* ── Mentor loom (shared "Mentor is working" indicator) ────────────────────
+   The breathing glyph + narrated work-lines from <WeaveLoom>. Lives here (not
+   in tailor-weave.css) because BulletRewrite/BulletMerge use it across every CV
+   surface — authed playground, mobile, and the anon preview — all of which
+   import cv-builder.css. */
+.tw-loom {
+  min-height: 180px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 22px; text-align: left;
+}
+.tw-think { display: inline-grid; place-items: center; color: var(--tm-accent-text); }
+.tw-think svg { overflow: visible; }
+.tw-think-core { animation: tw-breathe 1.6s ease-in-out infinite; transform-origin: center; }
+.tw-think-arc { transform-origin: center; }
+.tw-think-arc-a { animation: tw-spin 1.9s linear infinite; }
+.tw-think-arc-b { animation: tw-spin-r 2.8s linear infinite; }
+@keyframes tw-spin   { to { transform: rotate(360deg) } }
+@keyframes tw-spin-r { to { transform: rotate(-360deg) } }
+@keyframes tw-breathe { 0%, 100% { opacity: 0.55; transform: scale(0.85) } 50% { opacity: 1; transform: scale(1.15) } }
+
+.tw-loom-lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.tw-loom-line {
+  display: grid; grid-template-columns: 18px 1fr; gap: 8px; align-items: baseline;
+  font-family: var(--tm-font-sans); font-size: 13px; line-height: 1.4;
+  color: var(--tm-text-faint);
+  transition: color 300ms ease;
+}
+.tw-loom-line[data-state="active"] { color: var(--tm-text); }
+.tw-loom-line[data-state="done"]   { color: var(--tm-text-muted); }
+.tw-loom-tick {
+  font-size: 10px; font-weight: 700; color: var(--tm-success-text);
+  display: inline-grid; place-items: center; width: 15px; height: 15px;
+}
+.tw-loom-line[data-state="active"] .tw-loom-tick::after {
+  content: ""; width: 6px; height: 6px; border-radius: 999px;
+  background: var(--tm-accent-text);
+  animation: tw-breathe 1.1s ease-in-out infinite;
+}
+.tw-loom-line[data-state="active"] .tw-loom-text {
+  background: linear-gradient(90deg, var(--tm-text) 0%, var(--tm-text) 55%, var(--tm-text-faint) 75%, var(--tm-text) 95%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: tw-shimmer 1.6s linear infinite;
+}
+@keyframes tw-shimmer { to { background-position: -200% 0 } }
+@media (prefers-reduced-motion: reduce) {
+  .tw-think-core, .tw-think-arc-a, .tw-think-arc-b,
+  .tw-loom-line[data-state="active"] .tw-loom-tick::after,
+  .tw-loom-line[data-state="active"] .tw-loom-text { animation: none; }
+  .tw-loom-line[data-state="active"] .tw-loom-text {
+    background: none; -webkit-background-clip: initial; background-clip: initial; color: var(--tm-text);
+  }
+}
+
 @media (max-width: 900px) {
   .cvb-pgc-rw-select, .cvb-pgc-newpoint, .cvb-pgc-addpoint { min-height: 40px; }
   .cvb-pgc-grid { grid-template-columns: 1fr; margin: 18px 16px 32px; gap: 18px; }

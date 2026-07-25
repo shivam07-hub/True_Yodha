@@ -38,6 +38,7 @@ import { Button } from "@/components/ui/button"
 import { PdfPage, type PdfPageContact } from "@/components/cv/builder/pdf-page"
 import { BulletRow } from "@/components/cv/builder/bullet-row"
 import { Icon } from "@/components/cv/builder/icons"
+import { WeaveLoom } from "@/components/cv/builder/mentor-thinking"
 import { PlaygroundHeader } from "@/components/cv/builder/playground-header"
 import { buildV2Fixes, type V2Fix } from "@/components/cv/builder/fix-model"
 import { RestructureLoading } from "@/components/cv/builder/restructure-loading"
@@ -589,7 +590,9 @@ function RewriteModal({
         <div className="cvp-rw-body">
           <div className="cvp-rw-original"><span className="cvp-rw-label">Original</span><p>{target.text}</p></div>
 
-          {phase === "loading" && <div className="cvp-rw-status" role="status">✦ Mentor is writing a stronger line…</div>}
+          {phase === "loading" && (
+            <WeaveLoom lines={["Reading your line", "Finding what's strong", "Sharpening the wording", "Checking every fact survives"]} settled={false} />
+          )}
 
           {phase === "error" && (
             <>

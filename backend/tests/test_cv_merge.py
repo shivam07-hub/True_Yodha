@@ -75,15 +75,20 @@ def test_dead_provider_yields_graceful_error(monkeypatch):
     assert out["mode"] == "error"
 
 
-def test_merge_dropping_a_number_is_rejected(monkeypatch):
+def test_merge_dropping_a_number_is_offered_as_a_lossy_choice(monkeypatch):
+    """Dropping the user's OWN number is their eyes-open call (Q1/Q6), not a
+    refusal — the merge is offered with the dropped figure named."""
     _patch_grounding(monkeypatch, _grounding())
     weak = _FakeProvider(text="Sold cloud platforms to enterprise clients")  # dropped $500K
     out = asyncio.run(cv_merge.suggest_merge(_BULLET_A, _BULLET_B, None, provider=weak))
-    assert out["mode"] == "error"
-    assert "kept both originals" in out["rationale"]
+    assert out["mode"] == "lossy"
+    assert out["merged_text"]
+    assert any("500" in d for d in out["drops"])
 
 
-def test_merge_dropping_substance_is_rejected(monkeypatch):
+def test_merge_dropping_substance_is_offered_as_a_lossy_choice(monkeypatch):
+    """The Capgemini case: two distinct wins can't fully combine. Mentor offers
+    the merge and NAMES what it would cost, rather than dead-ending."""
     _patch_grounding(monkeypatch, _grounding())
     src_a = (
         "Delivered €500K+ revenue last year by shaping India Cloud B2B GTM strategy "
@@ -92,17 +97,46 @@ def test_merge_dropping_substance_is_rejected(monkeypatch):
     src_b = "Delivered a cross-BU pitch for Life Sciences, Energy, and Aerospace clients."
     thin = _FakeProvider(text="Generated €500K+ revenue by shaping India Cloud B2B GTM strategy")
     out = asyncio.run(cv_merge.suggest_merge(src_a, src_b, None, provider=thin))
-    assert out["mode"] == "error"
+    assert out["mode"] == "lossy"
+    assert out["merged_text"]
+    dropped = " ".join(out["drops"])
+    assert "Aerospace" in dropped and "Sciences" in dropped  # named specifics surfaced
 
 
-def test_merge_inventing_a_number_is_rejected(monkeypatch):
+def test_merge_inventing_a_number_is_a_hard_refusal(monkeypatch):
+    """Inventing a figure neither line stated is fabrication — never the user's
+    to approve (ADR-0016). A stubborn provider that re-mints on retry is refused."""
     _patch_grounding(monkeypatch, _grounding())
     a = "Improved client onboarding for GCC accounts"
     b = "Streamlined the onboarding paperwork process"
     minted = _FakeProvider(text="Improved onboarding 40% for GCC accounts")
     out = asyncio.run(cv_merge.suggest_merge(a, b, None, provider=minted))
     assert out["mode"] == "error"
-    assert "never stated" in out["rationale"] or "kept both" in out["rationale"]
+    assert "invent" in out["rationale"].lower()
+
+
+class _RetryProvider:
+    """First draw invents a number; the second draw is clean. Verifies the (c)
+    retry recovers a fabrication-free merge instead of failing on the first miss."""
+
+    def __init__(self, first: str, second: str):
+        self._draws = [first, second]
+
+    async def complete(self, messages, max_tokens=0, temperature=None):
+        return self._draws.pop(0) if self._draws else self._draws[-1]
+
+
+def test_merge_retries_once_past_an_invented_number(monkeypatch):
+    _patch_grounding(monkeypatch, _grounding())
+    a = "Improved client onboarding for GCC accounts"
+    b = "Streamlined the onboarding paperwork process"
+    provider = _RetryProvider(
+        first="Improved onboarding 40% for GCC accounts",           # invents 40%
+        second="Streamlined and improved onboarding for GCC accounts",  # clean
+    )
+    out = asyncio.run(cv_merge.suggest_merge(a, b, None, provider=provider))
+    assert out["mode"] == "merge"
+    assert "40%" not in out["merged_text"]
 
 
 def test_grounded_merge_surfaces_citations(monkeypatch):

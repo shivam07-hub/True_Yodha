@@ -4,6 +4,7 @@ import { useState } from "react"
 import type { UserSkillsByDomain } from "@/lib/api"
 import { extractedSkillsForCvPoint } from "@/lib/skill-intelligence"
 import { BulletRewrite } from "./bullet-rewrite"
+import { MentorProposalDrawer } from "./mentor-proposal-drawer"
 import { CVPointSkillChips } from "./cv-point-skill-chips"
 import { Icon } from "./icons"
 import { bulletKeywordHits, type KeywordTarget } from "./keyword-utils"
@@ -190,53 +191,51 @@ export function CVPointRow({
             {showDetails && <CVPointSkillChips text={text} skills={userSkills} />}
           </>
         )}
-        {rewriteOpen && !editing && (
-          <div className="cvb-pgc-rwwrap">
-            {meta && (
-              <div className="cvb-pgc-rw-target">
-                <span className="mono cvb-pgc-rw-label">Rewrite</span>
-                <select
-                  className="cvb-pgc-rw-select"
-                  value={iid}
-                  onChange={(event) => onRetarget(event.target.value)}
-                  aria-label="Choose which bullet to rewrite"
-                >
-                  {expGroups.map((group, index) => (
-                    <optgroup key={`g-${index}`} label={group.label}>
-                      {group.opts.map((option) => (
-                        <option key={option.iid} value={option.iid}>{option.label}</option>
-                      ))}
-                    </optgroup>
-                  ))}
-                  {projOpts.length > 0 && (
-                    <optgroup label="Projects">
-                      {projOpts.map((option) => (
-                        <option key={option.iid} value={option.iid}>{option.label}</option>
-                      ))}
-                    </optgroup>
-                  )}
-                </select>
-                {meta.kind === "exp" && (
-                  <button
-                    type="button"
-                    className="cvb-pgc-newpoint"
-                    onClick={() => onOpenComposer(meta.roleIndex)}
-                  >＋ New point</button>
+        <MentorProposalDrawer open={rewriteOpen && !editing} title="Rewrite a line" onClose={onCloseRewrite}>
+          {meta && (
+            <div className="cvb-pgc-rw-target">
+              <span className="mono cvb-pgc-rw-label">Rewrite</span>
+              <select
+                className="cvb-pgc-rw-select"
+                value={iid}
+                onChange={(event) => onRetarget(event.target.value)}
+                aria-label="Choose which bullet to rewrite"
+              >
+                {expGroups.map((group, index) => (
+                  <optgroup key={`g-${index}`} label={group.label}>
+                    {group.opts.map((option) => (
+                      <option key={option.iid} value={option.iid}>{option.label}</option>
+                    ))}
+                  </optgroup>
+                ))}
+                {projOpts.length > 0 && (
+                  <optgroup label="Projects">
+                    {projOpts.map((option) => (
+                      <option key={option.iid} value={option.iid}>{option.label}</option>
+                    ))}
+                  </optgroup>
                 )}
-              </div>
-            )}
-            <BulletRewrite
-              token={token}
-              bullet={text}
-              missingKeywords={missingKeywords}
-              seedKeywords={rewriteKeywords}
-              auto
-              applying={applying}
-              onApply={onApply}
-              onClose={onCloseRewrite}
-            />
-          </div>
-        )}
+              </select>
+              {meta.kind === "exp" && (
+                <button
+                  type="button"
+                  className="cvb-pgc-newpoint"
+                  onClick={() => onOpenComposer(meta.roleIndex)}
+                >＋ New point</button>
+              )}
+            </div>
+          )}
+          <BulletRewrite
+            token={token}
+            bullet={text}
+            missingKeywords={missingKeywords}
+            seedKeywords={rewriteKeywords}
+            auto
+            applying={applying}
+            onApply={onApply}
+            onClose={onCloseRewrite}
+          />
+        </MentorProposalDrawer>
       </div>
       <div className="cvb-pgc-acts">
         {editing ? (

@@ -19,6 +19,14 @@ import { useEffect, useState } from "react"
 import { cv as cvApi, type RewriteVariant } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Icon } from "./icons"
+import { WeaveLoom } from "./mentor-thinking"
+
+const REWRITE_LOOM = [
+  "Reading your line",
+  "Finding what's strong",
+  "Sharpening the wording",
+  "Checking every fact survives",
+]
 
 type Phase = "idle" | "loading" | "variants" | "question" | "suggest_metric" | "error"
 
@@ -105,7 +113,7 @@ export function BulletRewrite({ token, bullet, role, missingKeywords, applying, 
       <div className="cvb-rw-original" title="Your current line">{bullet}</div>
 
       {phase === "loading" && (
-        <div className="cvb-rw-status" role="status">✦ Mentor is writing a stronger line…</div>
+        <WeaveLoom lines={REWRITE_LOOM} settled={false} />
       )}
 
       {/* A real number from the user's own history — offered, never assumed (Q5). */}

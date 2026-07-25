@@ -988,14 +988,15 @@
 /* ── Finish-tailoring lane — resume tailored-not-applied copies ──────
    Relocated from Collections (2026-07-23). Horizontal scroll strip above
    the Main CV. Accent = --tm-interactive; card lift on hover. */
-.tm-lib-continue { margin: 0 0 22px; }
-.tm-lib-continue-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+/* Vertical rail list (was a horizontal carousel above the sheet). */
+.tm-lib-continue { margin: 0; }
+.tm-lib-continue-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
 .tm-lib-continue-title { font-size: 13px; font-weight: 700; color: var(--tm-text); letter-spacing: 0.01em; }
 .tm-lib-continue-sub { font-family: var(--tm-font-mono); font-size: 11px; color: var(--tm-text-faint); }
-.tm-lib-continue-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.tm-lib-continue-row { display: flex; flex-direction: column; gap: 8px; }
 .tm-lib-continue-card {
-  flex: 0 0 auto; min-width: 220px; max-width: 300px; text-align: left; cursor: pointer;
-  display: flex; flex-direction: column; gap: 3px; padding: 12px 14px;
+  width: 100%; text-align: left; cursor: pointer;
+  display: flex; flex-direction: column; gap: 3px; padding: 11px 13px;
   border: 1px solid var(--tm-accent-ring); border-radius: 12px;
   background: var(--tm-accent-wash); font-family: inherit; transition: all 120ms var(--tm-ease);
 }
@@ -1003,6 +1004,12 @@
 .tm-lib-continue-co { font-size: 12px; font-weight: 600; color: var(--tm-interactive); }
 .tm-lib-continue-role { font-size: 13.5px; font-weight: 600; color: var(--tm-text); line-height: 1.3; }
 .tm-lib-continue-cta { margin-top: 4px; font-family: var(--tm-font-mono); font-size: 11px; color: var(--tm-interactive); }
+.tm-lib-continue-more {
+  display: inline-block; margin-top: 10px;
+  font-family: var(--tm-font-mono); font-size: 11px;
+  color: var(--tm-text-muted); text-decoration: none;
+}
+.tm-lib-continue-more:hover { color: var(--tm-interactive); }
 
 /* ── Flow ribbon — the workspace nav (replaces the CV/Stories/Memory pill).
    1 Dump your past -> 2 Myro understands you -> 3 Tailor per job. The active
@@ -1010,9 +1017,9 @@
 .tm-flow-ribbon {
   display: flex;
   align-items: stretch;
-  gap: 14px;
+  gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: 22px;
+  margin-bottom: 16px;
 }
 .tm-flow-steps {
   flex: 1 1 520px;
@@ -1030,9 +1037,9 @@
   flex: 1 1 210px;
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 11px 14px;
-  border-radius: 10px;
+  gap: 9px;
+  padding: 7px 12px;
+  border-radius: 9px;
   min-width: 0;
   text-decoration: none;
   color: inherit;
@@ -1061,8 +1068,9 @@
 }
 .tm-flow-step-text {
   display: flex;
-  flex-direction: column;
-  gap: 1px;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;
   min-width: 0;
   text-align: left;
 }
@@ -1079,6 +1087,11 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.tm-flow-step-sub::before {
+  content: "·";
+  margin-right: 5px;
+  color: var(--tm-text-faint);
 }
 .tm-flow-add {
   flex: 0 0 auto;
@@ -1105,7 +1118,47 @@
   .tm-flow-step, .tm-flow-add { transition: none; }
 }
 
-/* ── CV document + provenance rail row ── */
+/* ── CV workspace: context rail beside the sheet ──
+   Same rail-beside-artifact shell as Jobs / Collections (.mc-workspace): the
+   tailoring context (other jobs to finish + the story behind the selected
+   line) lives in a sticky left rail so the CV sheet leads the main column
+   instead of being pushed down by full-width strips. */
+.tm-lib-workspace {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.tm-lib-rail {
+  position: sticky;
+  top: 76px;
+  align-self: start;
+  min-width: 0;
+  max-height: calc(100vh - 76px - 20px);
+  overflow-y: auto;
+  padding-right: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+/* The rail itself is sticky — neutralise the panel's own sticky so it doesn't
+   double-pin against the rail's scroll. */
+.tm-lib-rail .tm-prov-rail { position: static; top: auto; }
+.tm-lib-workmain { min-width: 0; }
+@media (max-width: 980px) {
+  .tm-lib-workspace { grid-template-columns: 1fr; gap: 18px; }
+  /* Sheet leads; context drops below it (never push the sheet down again). */
+  .tm-lib-workmain { order: 1; }
+  .tm-lib-rail {
+    order: 2;
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+    padding-right: 0;
+  }
+}
+
+/* ── Legacy CV document + provenance rail row (superseded by .tm-lib-workspace) ── */
 .tm-lib-cvdoc-row {
   display: flex;
   gap: 20px;

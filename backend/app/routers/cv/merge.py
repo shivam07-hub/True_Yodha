@@ -32,8 +32,9 @@ class MergeBulletRequest(BaseModel):
 
 
 class MergeBulletResponse(BaseModel):
-    mode:        str            # "merge" | "error"
+    mode:        str            # "merge" | "lossy" | "error"
     merged_text: str | None = None
+    drops:       list[str] = Field(default_factory=list)  # named facts a lossy merge would drop
     rationale:   str | None = None
     citations:   list[str] = Field(default_factory=list)
 

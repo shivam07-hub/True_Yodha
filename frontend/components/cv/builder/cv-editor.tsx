@@ -17,6 +17,7 @@ import { itemId } from "@/lib/cv-compose"
 import { dataKeys } from "@/lib/domain-data"
 import { CVPointRow, type CVPointMeta } from "./cv-point-row"
 import { BulletMerge, type MergePayload } from "./bullet-merge"
+import { MentorProposalDrawer } from "./mentor-proposal-drawer"
 import type { KeywordTarget } from "./keyword-utils"
 import { runContentChecks, type ContentFinding } from "./content-checks"
 import type { AppliedFix, V2Fix } from "./fix-model"
@@ -398,19 +399,25 @@ export function CVEditor({
             {exp.bullets.map((b, bi) => row(itemId("exp_bullet", ei * 100 + bi, b), b, {
               merge: { section: "exp_bullet", itemIndex: ei, bulletIndex: bi },
             }))}
-            {mergeSel?.section === "exp_bullet" && mergeSel.itemIndex === ei && mergeSel.entries.length === 2 && (
-              <BulletMerge
-                token={token}
-                bulletA={mergeSel.entries[0]}
-                bulletB={mergeSel.entries[1]}
-                section="exp_bullet"
-                itemIndex={ei}
-                role={exp.role}
-                applying={mergeApplying}
-                onApply={applyMerge}
-                onDiscard={discardMerge}
-              />
-            )}
+            <MentorProposalDrawer
+              open={mergeSel?.section === "exp_bullet" && mergeSel.itemIndex === ei && mergeSel.entries.length === 2}
+              title="Combine two lines"
+              onClose={discardMerge}
+            >
+              {mergeSel?.section === "exp_bullet" && mergeSel.itemIndex === ei && mergeSel.entries.length === 2 && (
+                <BulletMerge
+                  token={token}
+                  bulletA={mergeSel.entries[0]}
+                  bulletB={mergeSel.entries[1]}
+                  section="exp_bullet"
+                  itemIndex={ei}
+                  role={exp.role}
+                  applying={mergeApplying}
+                  onApply={applyMerge}
+                  onDiscard={discardMerge}
+                />
+              )}
+            </MentorProposalDrawer>
             {composerRole === ei ? (
               <div className="cvb-pgc-composer">
                 <textarea
@@ -445,19 +452,25 @@ export function CVEditor({
             {p.bullets.map((b, bi) => row(itemId("proj_bullet", pi * 100 + bi, b), b, {
               merge: { section: "proj_bullet", itemIndex: pi, bulletIndex: bi },
             }))}
-            {mergeSel?.section === "proj_bullet" && mergeSel.itemIndex === pi && mergeSel.entries.length === 2 && (
-              <BulletMerge
-                token={token}
-                bulletA={mergeSel.entries[0]}
-                bulletB={mergeSel.entries[1]}
-                section="proj_bullet"
-                itemIndex={pi}
-                role={p.name}
-                applying={mergeApplying}
-                onApply={applyMerge}
-                onDiscard={discardMerge}
-              />
-            )}
+            <MentorProposalDrawer
+              open={mergeSel?.section === "proj_bullet" && mergeSel.itemIndex === pi && mergeSel.entries.length === 2}
+              title="Combine two lines"
+              onClose={discardMerge}
+            >
+              {mergeSel?.section === "proj_bullet" && mergeSel.itemIndex === pi && mergeSel.entries.length === 2 && (
+                <BulletMerge
+                  token={token}
+                  bulletA={mergeSel.entries[0]}
+                  bulletB={mergeSel.entries[1]}
+                  section="proj_bullet"
+                  itemIndex={pi}
+                  role={p.name}
+                  applying={mergeApplying}
+                  onApply={applyMerge}
+                  onDiscard={discardMerge}
+                />
+              )}
+            </MentorProposalDrawer>
           </div>
         ))}
 
