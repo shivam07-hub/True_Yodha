@@ -1,11 +1,12 @@
 import assert from "node:assert/strict"
 import { createHash } from "node:crypto"
-import { readFileSync, readdirSync } from "node:fs"
+import { existsSync, readFileSync, readdirSync } from "node:fs"
 import test from "node:test"
 import { join } from "node:path"
 
 import {
   buildContentSecurityPolicy,
+  buildNewsletterChartPolicy,
   CHART_INLINE_SCRIPT_HASHES,
   STATIC_SECURITY_HEADERS,
 } from "../lib/security-policy"
@@ -38,8 +39,10 @@ test("static security headers include the complete prelaunch baseline", () => {
 
 test("newsletter chart inline scripts remain locked to reviewed hashes", () => {
   const chartsDirectory = join(process.cwd(), "public/newsletter/charts")
-  const actualHashes = readdirSync(chartsDirectory)
-    .filter((name) => name.endsWith(".html"))
+  const chartFiles = readdirSync(chartsDirectory).filter((name) =>
+    name.endsWith(".html"),
+  )
+  const actualHashes = chartFiles
     .flatMap((name) => {
       const source = readFileSync(join(chartsDirectory, name), "utf8")
       return Array.from(
@@ -51,4 +54,11 @@ test("newsletter chart inline scripts remain locked to reviewed hashes", () => {
     .sort()
 
   assert.deepEqual(actualHashes, [...CHART_INLINE_SCRIPT_HASHES].sort())
+  for (const name of chartFiles) {
+    assert.equal(
+      existsSync(join(chartsDirectory, name.replace(/\.html$/, ".png"))),
+      true,
+    )
+  }
+  assert.match(buildNewsletterChartPolicy(true), /frame-ancestors 'none'/)
 })

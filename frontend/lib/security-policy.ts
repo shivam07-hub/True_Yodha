@@ -95,7 +95,7 @@ export function buildNewsletterChartPolicy(production: boolean): string {
     "object-src 'none'",
     "base-uri 'none'",
     "form-action 'none'",
-    "frame-ancestors 'self'",
+    "frame-ancestors 'none'",
     ...(production ? ["upgrade-insecure-requests"] : []),
   ].join("; ")
 }

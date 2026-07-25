@@ -34,11 +34,6 @@ export function middleware(request: NextRequest) {
   for (const [name, value] of Object.entries(STATIC_SECURITY_HEADERS)) {
     response.headers.set(name, value)
   }
-  // These five owned chart documents are intentionally embedded by the
-  // newsletter. Their hash-locked CSP allows framing only from this origin.
-  if (isNewsletterChart) {
-    response.headers.set("X-Frame-Options", "SAMEORIGIN")
-  }
   return response
 }
 
