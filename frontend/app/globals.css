@@ -859,6 +859,12 @@
   .tm-main-scroll {
     padding-top: calc(var(--tm-mobile-topbar-h) + env(safe-area-inset-top)) !important;
     padding-bottom: calc(var(--tm-mobile-bottomnav-h) + 24px + env(safe-area-inset-bottom)) !important;
+    /* Mobile chrome (.mm-root) is a fixed dark palette, theme-independent. The
+       scroll container's own top-padding strip (offset clearing the fixed dark
+       topbar) + overscroll must NOT flash the light-theme body paper behind it —
+       paint the canvas the same dark as the mobile chrome. --mm-bg is scoped to
+       .mm-root and out of scope here, so the literal fallback is what applies. */
+    background: var(--mm-bg, #191918);
   }
 
   /* Home page job detail: 2-col → 1-col */
