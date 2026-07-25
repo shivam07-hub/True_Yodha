@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 
 from app.security import redact_sensitive_text
+from app.schemas import AuthResponse, ExtensionSessionResponse, PostSigninResponse, UserProfileResponse
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -18,6 +19,29 @@ def test_error_redaction_removes_credentials_and_connection_passwords() -> None:
     assert db_password not in safe
     assert bearer not in safe
     assert "REDACTED" in safe
+
+
+def test_error_redaction_removes_personal_identifiers() -> None:
+    raw = (
+        "user=7f3b8f35-1e25-4e3e-a17f-41f67289a2b7 "
+        "email=student@example.com phone=+91 98765 43210 "
+        "client=203.0.113.42"
+    )
+
+    safe = redact_sensitive_text(raw)
+
+    assert "7f3b8f35-1e25-4e3e-a17f-41f67289a2b7" not in safe
+    assert "student@example.com" not in safe
+    assert "98765 43210" not in safe
+    assert "203.0.113.42" not in safe
+    assert safe.count("[REDACTED]") >= 4
+
+
+def test_client_identity_responses_exclude_internal_user_ids() -> None:
+    forbidden = {"id", "user_id", "referred_by_user_id"}
+
+    for schema in (AuthResponse, ExtensionSessionResponse, PostSigninResponse, UserProfileResponse):
+        assert forbidden.isdisjoint(schema.model_fields)
 
 
 def test_access_log_record_survives_redaction_filter() -> None:
@@ -43,6 +67,7 @@ def test_access_log_record_survives_redaction_filter() -> None:
     assert _SensitiveLogFilter().filter(record) is True
     rendered = AccessFormatter('%(client_addr)s - "%(request_line)s" %(status_code)s').format(record)
     assert '"GET /jobs/analytics HTTP/1.1" 200' in rendered
+    assert "100.64.0.20" not in rendered
 
 
 def test_redaction_filter_still_redacts_secrets_inside_args() -> None:
@@ -135,6 +160,18 @@ def test_optional_rls_migration_guards_absent_legacy_tables() -> None:
         "skill_clusters",
     ):
         assert f"IF to_regclass('public.{table}') IS NOT NULL THEN" in migration
+
+
+def test_account_deletion_migration_is_self_scoped_and_not_public() -> None:
+    migration = (ROOT / "database/migrations/20260725101706_account_data_deletion.sql").read_text(
+        encoding="utf-8"
+    ).lower()
+
+    assert "auth.uid()" in migration
+    assert "security definer" in migration
+    assert "revoke all on function public.delete_my_account_data()" in migration
+    assert "grant execute on function public.delete_my_account_data() to authenticated" in migration
+    assert "delete from public.user_profiles where id = v_user_id" in migration
 
 
 def test_frontend_does_not_reference_server_only_env_values() -> None:

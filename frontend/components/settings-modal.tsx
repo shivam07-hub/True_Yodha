@@ -15,6 +15,8 @@ import { billing, jobs, users } from "@/lib/api"
 import type { ProfileUpdate, UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
+import { loadRazorpay } from "@/lib/razorpay"
+import { AccountDeletionPanel } from "@/components/settings/account-deletion-panel"
 import { useXPStore } from "@/store/xpStore"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { MyrologyOptInPrompt, useMyrologyInterest } from "@/components/myrology-optin-prompt"
@@ -69,11 +71,7 @@ type RazorpayCheckout = {
   on: (event: "payment.failed", handler: (response: RazorpayFailureResponse) => void) => void
 }
 
-declare global {
-  interface Window {
-    Razorpay?: new (options: RazorpayCheckoutOptions) => RazorpayCheckout
-  }
-}
+type RazorpayConstructor = new (options: RazorpayCheckoutOptions) => RazorpayCheckout
 
 const AUTOSAVE_MS = 800
 const SAVED_DISPLAY_MS = 2000
@@ -356,29 +354,25 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
       return
     }
 
-    if (typeof window === "undefined" || !window.Razorpay) {
-      setBillingStatus("error")
-      setBillingMessage("Razorpay checkout is still loading. Try again in a moment.")
-      return
-    }
-
     setBillingStatus("creating")
     setBillingMessage("Opening Razorpay checkout…")
 
     try {
+      const Razorpay = await loadRazorpay<RazorpayConstructor>()
+      if (!Razorpay) {
+        setBillingStatus("error")
+        setBillingMessage("Checkout is unavailable. Try again in a moment.")
+        return
+      }
       const order = await billing.createOrder(token)
       let completed = false
-      const checkout = new window.Razorpay({
+      const checkout = new Razorpay({
         key,
         amount: order.amount,
         currency: order.currency,
         name: "Myro",
         description: `${XP_PACK_AMOUNT} Myro Coins launch pack`,
         order_id: order.order_id,
-        prefill: {
-          name: name || undefined,
-          email: profile?.email || undefined,
-        },
         theme: {
           color: "var(--tm-interactive)",
           backdrop_color: "#050A18",
@@ -678,6 +672,9 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                     )}
                   </div>
                 )}
+
+                <div style={SECTION_HEADER}>Account deletion</div>
+                <AccountDeletionPanel token={token} />
               </>
             )}
 

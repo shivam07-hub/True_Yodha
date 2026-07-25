@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, SecretStr
 
 
 class AcquisitionTouchRequest(BaseModel):
@@ -20,7 +20,7 @@ class AcquisitionAttributionRequest(BaseModel):
 
 class SignupRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: SecretStr
     full_name: str | None = None
     # Optional referrer slug. Cross-origin CORS prevents cookies from
     # auto-attaching, so the frontend echoes the captured ?ref= here.
@@ -30,21 +30,19 @@ class SignupRequest(BaseModel):
 
 class LoginRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: SecretStr
 
 
 class AuthResponse(BaseModel):
     access_token: str | None = None
     refresh_token: str | None = None
     token_type: str = "bearer"
-    user_id: str
-    email: EmailStr | None = None
     requires_email_confirmation: bool = False
     message: str | None = None
 
 
 class RefreshRequest(BaseModel):
-    refresh_token: str
+    refresh_token: SecretStr
 
 
 class RefreshResponse(BaseModel):
@@ -61,8 +59,6 @@ class ExtensionSessionResponse(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
     expires_at: int | None = None
-    user_id: str
-    email: EmailStr | None = None
 
 
 # ── ADR-0006 ─────────────────────────────────────────────────────────────
@@ -101,7 +97,6 @@ class PostSigninRequest(BaseModel):
 
 
 class PostSigninResponse(BaseModel):
-    user_id: str
     provider: str | None = None
     referral_attributed: bool = False
     attribution_recorded: bool = False

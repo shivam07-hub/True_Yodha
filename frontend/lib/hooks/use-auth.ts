@@ -3,7 +3,15 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 
-import { clearSessionTokens, getAccessToken, getRefreshToken, setSessionTokens } from "@/lib/session"
+import {
+  clearSessionTokens,
+  getAccessToken,
+  getRefreshToken,
+  setSessionTokens,
+  subscribeToSessionChanges,
+} from "@/lib/session"
+import { queryClient } from "@/lib/query-client"
+import { createClient } from "@/lib/supabase"
 
 const BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ??
@@ -28,7 +36,7 @@ function loginRedirectTarget(): string {
 }
 
 /**
- * Cold-start session bootstrap. If localStorage has no access token but does
+ * Cold-start session bootstrap. If tab storage has no access token but does
  * have a refresh token, exchange it for a new access token before deciding
  * whether to bounce to /login. Without this hop, a user whose access token
  * expired between visits gets logged out even though their long-lived refresh
@@ -75,7 +83,7 @@ async function bootstrapSession(): Promise<string | null> {
 
 /**
  * Passive session reader. Bootstraps the refresh-token cold start and tracks the
- * access token across tabs, but NEVER redirects. Use this on surfaces that must
+ * access-token changes in this tab, but NEVER redirects. Use this on surfaces that must
  * work for logged-OUT visitors (the public nav, marketing pages) where the only
  * question is "is there a session?", not "require one". `useAuth` is the gate
  * built on top — it adds the bounce-to-login effect. Splitting the two keeps the
@@ -99,14 +107,10 @@ export function useSession(): { token: string | null; ready: boolean } {
       }
     })()
 
-    const onStorage = (e: StorageEvent) => {
-      if (e.key !== "mirror_token") return
-      setToken(e.newValue || null)
-    }
-    window.addEventListener("storage", onStorage)
+    const unsubscribe = subscribeToSessionChanges(setToken)
     return () => {
       cancelled = true
-      window.removeEventListener("storage", onStorage)
+      unsubscribe()
     }
   }, [])
 
@@ -119,12 +123,14 @@ export function useAuth() {
 
   // The gate: once the cold-start bootstrap has resolved (ready) with no token,
   // bounce to /login preserving where the user was headed. Driven by useSession's
-  // state so a cross-tab logout (token cleared elsewhere) redirects here too.
+  // state so a logout or refresh in this tab updates every mounted consumer.
   useEffect(() => {
     if (ready && !token) router.replace(loginRedirectTarget())
   }, [ready, token, router])
 
   function signOut() {
+    queryClient.clear()
+    void createClient().auth.signOut({ scope: "local" })
     clearSessionTokens()
     router.push("/login")
   }

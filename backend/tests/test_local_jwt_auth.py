@@ -91,6 +91,20 @@ def test_missing_metadata_is_tolerated():
     assert identity.id == "user-123"
 
 
+def test_deleted_auth_user_cannot_recreate_profile(monkeypatch):
+    deps._provisioned_users.discard("deleted-user")
+    monkeypatch.setattr(deps, "_profile_exists", lambda _user_id: False)
+    monkeypatch.setattr(deps, "_auth_user_exists", lambda _user_id: False)
+    provisioned = []
+    monkeypatch.setattr(deps, "ensure_user_provisioned", lambda *args, **kwargs: provisioned.append(args))
+
+    with pytest.raises(HTTPException) as exc:
+        deps._ensure_profile_provisioned("deleted-user", "gone@example.com", None)
+
+    assert exc.value.status_code == 401
+    assert provisioned == []
+
+
 # ── Asymmetric (ES256 / JWKS) verification ──────────────────────────────────
 #
 # Projects on JWT signing keys (ECC P-256) sign with a private key; deps verifies

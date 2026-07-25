@@ -33,5 +33,5 @@ Open task list. Add new items at the top of the relevant section. Move to "Done"
 ## ✅ Done
 
 - [x] **Bug 1 — Profile auto-provisioning** — `_ensure_profile_provisioned` in deps.py, `update_profile` UPSERTs, `ensure_profile_exists` added. _2026-05-05._
-- [x] **GA4 wiring** — `NEXT_PUBLIC_GA_ID=G-W4JXC52DKW` live in Vercel; trackEvent active in production. _2026-05-03._
+- [x] **GA4 removal** — client script/config removed in the 2026-07-25 personal-data audit; `trackEvent` is now inert unless a future consented sink is added.
 - [x] **ARCH SPRINT A1–A6** — DB indexes, DB-side skill filter, analytics cache, scoped match fetch, dedup `_group_job_skills`, pagination + combined-filter tests. 209 tests passing. _2026-05-05._

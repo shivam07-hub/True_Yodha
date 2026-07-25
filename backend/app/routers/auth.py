@@ -82,7 +82,7 @@ def signup(
     try:
         response = get_supabase().auth.sign_up({
             "email": body.email,
-            "password": body.password,
+            "password": body.password.get_secret_value(),
             "options": {"data": {"full_name": body.full_name}},
         })
     except Exception as exc:
@@ -100,8 +100,6 @@ def signup(
 
     if not response.session:
         return AuthResponse(
-            user_id=response.user.id,
-            email=response.user.email,
             requires_email_confirmation=True,
             message="Check your email for a confirmation link, then sign in.",
         )
@@ -129,13 +127,11 @@ def signup(
                 attribution=body.attribution,
             )
         except Exception as exc:
-            _log.warning("signup attribution failed for %s: %s", response.user.id, exc)
+            _log.warning("signup attribution failed reason=%s", type(exc).__name__)
 
     return AuthResponse(
         access_token=response.session.access_token,
         refresh_token=response.session.refresh_token,
-        user_id=response.user.id,
-        email=response.user.email,
     )
 
 
@@ -148,7 +144,7 @@ def login(
     try:
         response = get_supabase().auth.sign_in_with_password({
             "email": body.email,
-            "password": body.password,
+            "password": body.password.get_secret_value(),
         })
     except Exception as exc:
         _log.warning("login failed reason=%s", type(exc).__name__)
@@ -172,15 +168,13 @@ def login(
     return AuthResponse(
         access_token=response.session.access_token,
         refresh_token=response.session.refresh_token,
-        user_id=response.user.id,
-        email=response.user.email,
     )
 
 
 @router.post("/refresh", response_model=RefreshResponse)
 def refresh_token(body: RefreshRequest) -> RefreshResponse:
     try:
-        response = get_supabase().auth.refresh_session(body.refresh_token)
+        response = get_supabase().auth.refresh_session(body.refresh_token.get_secret_value())
     except Exception as exc:
         _log.warning("token refresh failed reason=%s", type(exc).__name__)
         raise HTTPException(
@@ -247,8 +241,6 @@ def extension_session(
         access_token=session.access_token,
         refresh_token=session.refresh_token,
         expires_at=getattr(session, "expires_at", None),
-        user_id=principal.id,
-        email=principal.email,
     )
 
 
@@ -316,7 +308,6 @@ async def post_signin(
             _log.warning("LinkedIn identity write failed for %s: %s", principal.id, exc)
 
     return PostSigninResponse(
-        user_id=principal.id,
         provider=body.provider,
         referral_attributed=bool(referral_attributed),
         attribution_recorded=attribution_recorded,

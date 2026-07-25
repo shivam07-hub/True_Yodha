@@ -87,14 +87,14 @@ export function useApplyCapture({
 
   const flushFeedback = React.useCallback(() => {
     if (typeof window === "undefined") return Promise.resolve()
-    return flushFeedbackOutbox(window.localStorage, feedbackKey, input =>
+    return flushFeedbackOutbox(window.sessionStorage, feedbackKey, input =>
       jobs.submitFeedback(token, input),
     )
   }, [feedbackKey, token])
 
   const flushIntents = React.useCallback(() => {
     if (typeof window === "undefined") return Promise.resolve()
-    return flushApplyIntentOutbox(window.localStorage, intentKey, event =>
+    return flushApplyIntentOutbox(window.sessionStorage, intentKey, event =>
       jobs.recordApplyIntent(token, event.job_id, {
         client_event_id: event.client_event_id,
         surface: event.surface,
@@ -144,7 +144,7 @@ export function useApplyCapture({
 
   const enqueueQuality = React.useCallback((reason: QualityReasonCode) => {
     if (typeof window === "undefined" || !job.job_id) return
-    enqueueFeedback(window.localStorage, feedbackKey, {
+    enqueueFeedback(window.sessionStorage, feedbackKey, {
       client_event_id: crypto.randomUUID(),
       job_id: job.job_id,
       feedback_kind: "quality",
@@ -188,7 +188,7 @@ export function useApplyCapture({
       surface: intentSurface,
       destination_type: target.destinationType,
     }
-    enqueueApplyIntent(window.localStorage, intentKey, intentEvent)
+    enqueueApplyIntent(window.sessionStorage, intentKey, intentEvent)
     void flushIntents()
     if (returnTimer.current != null) window.clearTimeout(returnTimer.current)
     returnTimer.current = window.setTimeout(showReturnPrompt, 1_200)

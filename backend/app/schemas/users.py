@@ -13,7 +13,6 @@ CareerBand = Literal[
 
 
 class UserProfileResponse(BaseModel):
-    id: str
     email: EmailStr
     full_name: str | None
     linkedin_url: str | None
@@ -30,10 +29,7 @@ class UserProfileResponse(BaseModel):
     superpower: str | None = None
     cv_url: str | None
     onboarding_complete: bool
-    created_at: datetime
-    last_active_at: datetime
     ninja_name: str | None = None
-    referred_by_user_id: str | None = None
     has_cv: bool = False
     cv_readiness: str = "missing"  # ready | missing | processing | failed
     cv_upload_job_id: str | None = None
@@ -46,6 +42,10 @@ class UserProfileResponse(BaseModel):
 class UpdateProfileResponse(UserProfileResponse):
     coins_earned: int = 0
     new_coin_balance: int | None = None
+
+
+class AccountDeletionResponse(BaseModel):
+    deleted: bool
 
 
 class UpdateProfileRequest(BaseModel):

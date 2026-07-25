@@ -1,12 +1,10 @@
 const ACCESS_TOKEN_KEY = "mirror_token"
 const REFRESH_TOKEN_KEY = "mirror_refresh_token"
 const REFRESH_LOCK_KEY = "mirror_refresh_lock"
-// Keep in sync with RQ_CACHE_KEY in lib/query-persist.ts. Inlined (not imported)
-// to keep the persister package out of this low-level, widely-imported module.
-const RQ_CACHE_KEY = "myro_rq_cache"
 // Persisted XP balance (zustand persist name in store/xpStore.ts). Wiped on
-// logout so the next user on a shared browser never inherits a balance.
+// logout so the next user in this tab never inherits a balance.
 const XP_STORE_KEY = "myro_xp"
+const SESSION_CHANGE_EVENT = "myro-session-change"
 
 export interface SessionTokens {
   accessToken: string
@@ -14,13 +12,13 @@ export interface SessionTokens {
 }
 
 function hasStorage(): boolean {
-  return typeof window !== "undefined" && typeof window.localStorage !== "undefined"
+  return typeof window !== "undefined" && typeof window.sessionStorage !== "undefined"
 }
 
 function readStorage(key: string): string | null {
   if (!hasStorage()) return null
   try {
-    return window.localStorage.getItem(key)
+    return window.sessionStorage.getItem(key)
   } catch {
     return null
   }
@@ -29,7 +27,7 @@ function readStorage(key: string): string | null {
 function writeStorage(key: string, value: string): void {
   if (!hasStorage()) return
   try {
-    window.localStorage.setItem(key, value)
+    window.sessionStorage.setItem(key, value)
   } catch {
     // Ignore storage failures in restricted browser contexts.
   }
@@ -38,7 +36,7 @@ function writeStorage(key: string, value: string): void {
 function removeStorage(key: string): void {
   if (!hasStorage()) return
   try {
-    window.localStorage.removeItem(key)
+    window.sessionStorage.removeItem(key)
   } catch {
     // Ignore storage failures in restricted browser contexts.
   }
@@ -56,15 +54,31 @@ export function setSessionTokens({ accessToken, refreshToken }: SessionTokens): 
   writeStorage(ACCESS_TOKEN_KEY, accessToken)
   if (refreshToken) writeStorage(REFRESH_TOKEN_KEY, refreshToken)
   else removeStorage(REFRESH_TOKEN_KEY)
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(SESSION_CHANGE_EVENT, { detail: accessToken }))
+  }
 }
 
 export function clearSessionTokens(): void {
   removeStorage(ACCESS_TOKEN_KEY)
   removeStorage(REFRESH_TOKEN_KEY)
-  // Drop the persisted query cache too — it holds this user's dashboard data,
-  // and the next person on a shared browser must not inherit it.
-  removeStorage(RQ_CACHE_KEY)
   removeStorage(XP_STORE_KEY)
+  if (typeof window !== "undefined") {
+    for (let index = window.sessionStorage.length - 1; index >= 0; index -= 1) {
+      const key = window.sessionStorage.key(index)
+      if (key?.startsWith("sb-") && key.endsWith("-auth-token")) removeStorage(key)
+    }
+    window.dispatchEvent(new CustomEvent(SESSION_CHANGE_EVENT, { detail: null }))
+  }
+}
+
+export function subscribeToSessionChanges(handler: (token: string | null) => void): () => void {
+  if (typeof window === "undefined") return () => undefined
+  const listener = (event: Event) => {
+    handler((event as CustomEvent<string | null>).detail ?? null)
+  }
+  window.addEventListener(SESSION_CHANGE_EVENT, listener)
+  return () => window.removeEventListener(SESSION_CHANGE_EVENT, listener)
 }
 
 export function acquireRefreshLock(ttlMs: number): boolean {
@@ -84,18 +98,19 @@ export function releaseRefreshLock(): void {
 
 export function waitForAccessTokenChange(ttlMs: number): Promise<string | null> {
   if (!hasStorage()) return Promise.resolve(null)
+  const original = getAccessToken()
   return new Promise((resolve) => {
-    const handler = (e: StorageEvent) => {
-      if (e.key === ACCESS_TOKEN_KEY && e.newValue) {
-        window.removeEventListener("storage", handler)
-        clearTimeout(timer)
-        resolve(e.newValue)
-      }
+    const poll = window.setInterval(() => {
+      const current = getAccessToken()
+      if (current && current !== original) finish(current)
+    }, 50)
+    const finish = (value: string | null) => {
+      window.clearInterval(poll)
+      window.clearTimeout(timer)
+      resolve(value)
     }
     const timer = setTimeout(() => {
-      window.removeEventListener("storage", handler)
-      resolve(null)
+      finish(null)
     }, ttlMs)
-    window.addEventListener("storage", handler)
   })
 }

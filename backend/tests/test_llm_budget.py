@@ -26,9 +26,11 @@ class _Completions:
     def __init__(self, behaviour):
         self._behaviour = behaviour
         self.calls = 0
+        self.last_kwargs = None
 
     async def create(self, **kwargs):
         self.calls += 1
+        self.last_kwargs = kwargs
         result = self._behaviour(self.calls)
         if isinstance(result, BaseException):
             raise result
@@ -178,6 +180,20 @@ def test_complete_with_metadata_reports_actual_response_model():
     assert result.content == "ok"
     assert result.model == "provider/actual-model"
     assert result.elapsed_ms >= 0
+
+
+def test_complete_redacts_direct_personal_data_before_provider_call():
+    client = _Client(lambda _call_n: _msg("ok"))
+    provider = LLMProvider([(client, "model-a", None)])
+    raw = "Email student@example.com, phone +91 98765 43210, IP 203.0.113.42"
+
+    asyncio.run(provider.complete([{"role": "user", "content": raw}]))
+
+    sent = client.chat.completions.last_kwargs["messages"][0]["content"]
+    assert "student@example.com" not in sent
+    assert "98765 43210" not in sent
+    assert "203.0.113.42" not in sent
+    assert "REDACTED" in sent
 
 
 def test_complete_retries_transient_then_succeeds(monkeypatch):

@@ -160,8 +160,7 @@ def _repair_metrics(repo: Any, user_id: str, stories: list[dict[str, Any]],
             out.append({"value": anchored, "what": m.get("what") or ""})
         if out != (story.get("metrics") or []):
             fixed += 1
-            print(f"  metrics {story.get('title', '')[:50]!r}: "
-                  f"{[m.get('value') for m in story.get('metrics') or []]} -> {[m['value'] for m in out]}")
+            print("  metrics [REDACTED]")
             if apply:
                 repo.update_story(user_id, str(story["id"]), {"metrics": out})
     return fixed
@@ -180,16 +179,14 @@ async def main() -> None:
     user_id = _resolve_user(db, args.email, args.user_id)
     repo = CareerReservoirRepository(db)
     mode = "APPLY" if args.apply else "DRY-RUN"
-    print(f"[{mode}] reservoir repair for user {user_id}")
+    print(f"[{mode}] reservoir repair for user [REDACTED]")
 
     # 1. roles
     roles = [r for r in repo.list_roles(user_id) if (r.get("status") or "active") == "active"]
     role_merges = _plan_role_merges(roles)
-    by_id = {str(r["id"]): r for r in roles}
     print(f"\nroles: {len(roles)} active, {len(role_merges)} merges")
     for dup_id, keep_id in role_merges:
-        d, k = by_id[dup_id], by_id[keep_id]
-        print(f"  merge {d.get('company')!r} · {d.get('title')!r} -> {k.get('company')!r} · {k.get('title')!r}")
+        print("  merge [REDACTED] -> [REDACTED]")
         if args.apply:
             _apply_role_merge(repo, db, user_id, dup_id, keep_id)
 
@@ -198,11 +195,9 @@ async def main() -> None:
 
     stories = repo.list_stories(user_id)
     folds = await _plan_story_folds(stories, get_paid_jobs_provider())
-    story_by_id = {str(s["id"]): s for s in stories}
     print(f"\nstories: {len(stories)} active, {len(folds)} folds")
     for dup_id, keep_id in folds:
-        print(f"  fold {story_by_id[dup_id].get('title', '')[:60]!r} -> "
-              f"{story_by_id[keep_id].get('title', '')[:60]!r}")
+        print("  fold [REDACTED] -> [REDACTED]")
         if args.apply:
             _apply_story_fold(repo, db, user_id, dup_id, keep_id)
 

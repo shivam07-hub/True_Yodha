@@ -1,5 +1,5 @@
 /* Cosmetic quiz speed stat (DEC-S2/S4). Personal-best fastest *passing* clear,
-   keyed per (skillId, level), in a single localStorage map. Client-only — the
+   keyed per (skillId, level), in a tab-scoped map. Client-only — the
    durable/server version is deferred. Coins never depend on any of this. */
 
 const KEY = "myro_quiz_best_v1"
@@ -13,7 +13,7 @@ function mapKey(skillId: number, level: number): string {
 function read(): BestMap {
   if (typeof window === "undefined") return {}
   try {
-    const raw = window.localStorage.getItem(KEY)
+    const raw = window.sessionStorage.getItem(KEY)
     return raw ? (JSON.parse(raw) as BestMap) : {}
   } catch {
     return {}
@@ -38,7 +38,7 @@ export function recordBestSeconds(skillId: number, level: number, seconds: numbe
   if (typeof prev === "number" && prev <= seconds) return false
   all[k] = seconds
   try {
-    window.localStorage.setItem(KEY, JSON.stringify(all))
+    window.sessionStorage.setItem(KEY, JSON.stringify(all))
   } catch {
     /* private mode / quota — cosmetic stat, ignore */
   }

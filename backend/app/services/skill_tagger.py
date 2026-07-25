@@ -411,7 +411,7 @@ def tag_jobs_with_llm(
 
                     else:
                         if verbose:
-                            print(f"ERROR [{active[attempt]['name']}]: {exc}")
+                            print(f"ERROR [{active[attempt]['name']}]: {exc.__class__.__name__}")
                         if attempt >= len(active) - 1:
                             remaining = len(uncached) - batch_start
                             if verbose:

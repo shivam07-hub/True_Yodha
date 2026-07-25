@@ -137,6 +137,6 @@ async def build_reach_pack(
     try:
         raw = await provider.complete(messages, max_tokens=_MAX_TOKENS)
     except LLMProviderError:
-        logger.info("reach_pack: all providers failed (company=%s)", company)
+        logger.info("reach_pack: all providers failed")
         return None
     return _parse_pack(raw or "")

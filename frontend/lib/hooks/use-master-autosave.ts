@@ -2,7 +2,7 @@
  * useMasterAutosave — living-master autosave for the Main CV (PR-3).
  *
  * Contract (grill Q5: save ≠ score):
- *   - Edits update a local draft instantly + persist to localStorage (refresh
+ *   - Edits update a local draft instantly + persist to sessionStorage (refresh
  *     recovery) + schedule a debounced PUT /cv/master (cheap mutate, no XP/LLM).
  *   - status: idle → saving → saved (or error, draft retained for retry).
  *   - On save the server async re-tags; recomputePending drives the score-ring
@@ -68,7 +68,7 @@ export function useMasterAutosave({ token, enabled, userKey }: Args): MasterAuto
   useEffect(() => {
     if (draft != null || !structuredQuery.data) return
     const persisted = typeof window !== "undefined"
-      ? parsePersistedDraft(window.localStorage.getItem(draftKey))
+      ? parsePersistedDraft(window.sessionStorage.getItem(draftKey))
       : null
     const initial = pickInitialDraft(structuredQuery.data, persisted)
     serverRef.current = structuredQuery.data
@@ -117,11 +117,11 @@ export function useMasterAutosave({ token, enabled, userKey }: Args): MasterAuto
     try {
       const res = await cv.saveMaster(token, next)
       serverRef.current = next
-      try { window.localStorage.removeItem(draftKey) } catch { /* private mode */ }
+      try { window.sessionStorage.removeItem(draftKey) } catch { /* private mode */ }
       setStatus("saved")
       pollRecompute(res.baseline_id)
     } catch {
-      setStatus("error") // draft + localStorage retained → recoverable retry
+      setStatus("error") // tab-scoped draft retained → recoverable retry
     }
   }, [token, draftKey, pollRecompute])
 
@@ -132,7 +132,7 @@ export function useMasterAutosave({ token, enabled, userKey }: Args): MasterAuto
     // them in lockstep with the local draft instead of showing stale content
     // until the async re-tag finishes.
     queryClient.setQueryData(dataKeys.cvStructured(), next)
-    try { window.localStorage.setItem(draftKey, JSON.stringify(next)) } catch { /* private mode */ }
+    try { window.sessionStorage.setItem(draftKey, JSON.stringify(next)) } catch { /* private mode */ }
     setStatus("saving")
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => { void flush() }, DEBOUNCE_MS)
@@ -143,13 +143,13 @@ export function useMasterAutosave({ token, enabled, userKey }: Args): MasterAuto
     void flush()
   }, [flush])
 
-  // Persist on tab close so a debounce in-flight isn't lost (localStorage only —
-  // the draft is already mirrored there; this just guarantees the latest write).
+  // Persist during a refresh so a debounce in-flight isn't lost. Tab-scoped
+  // storage is cleared when the browsing session ends.
   useEffect(() => {
     const onHide = () => {
       const next = latestRef.current
       if (next) {
-        try { window.localStorage.setItem(draftKey, JSON.stringify(next)) } catch { /* ignore */ }
+        try { window.sessionStorage.setItem(draftKey, JSON.stringify(next)) } catch { /* ignore */ }
       }
     }
     window.addEventListener("beforeunload", onHide)

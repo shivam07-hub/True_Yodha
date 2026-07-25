@@ -6,6 +6,7 @@ import Link from "next/link"
 import { Compass, ArrowRight, CheckCircle2 } from "lucide-react"
 import { billing, jobSwitchPlan, type JobSwitchPlan } from "@/lib/api"
 import { getAccessToken } from "@/lib/session"
+import { loadRazorpay } from "@/lib/razorpay"
 import { formatDate } from "@/lib/format"
 import "./job-switch-plan.css"
 
@@ -13,7 +14,7 @@ import "./job-switch-plan.css"
    no plan → the ₹99 offer + Razorpay checkout; has plan → the living plan meta,
    the two-review lifecycle (B6), and the on-demand second-review request. The
    living SKILL content lives on Practice (/forge) — this page links there rather
-   than duplicating the gap engine. Razorpay's script is loaded in the root layout. */
+   than duplicating the gap engine. Razorpay loads only after checkout starts. */
 
 const POINTS = [
   "A personalised plan built from the exact gaps between your CV and the role you want",
@@ -78,14 +79,19 @@ export default function JobSwitchPlanPage() {
       return
     }
     const key = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID
-    const Razorpay = (window as unknown as { Razorpay?: RazorpayCtor }).Razorpay
-    if (!key || !Razorpay) {
+    if (!key) {
       setError("Checkout isn't available right now. Please try again shortly.")
       return
     }
     setPayStatus("starting")
     void (async () => {
       try {
+        const Razorpay = await loadRazorpay<RazorpayCtor>()
+        if (!Razorpay) {
+          setPayStatus("idle")
+          setError("Checkout isn't available right now. Please try again shortly.")
+          return
+        }
         const order = await billing.createOrder(token, "job_switch_plan")
         let completed = false
         const checkout = new Razorpay({

@@ -358,11 +358,11 @@ async def weave(
     try:
         raw = await provider.complete(messages, max_tokens=_MAX_TOKENS)
     except LLMProviderError:
-        logger.info("cv_weave: all providers failed (company=%s)", company)
+        logger.info("cv_weave: all providers failed")
         return None
     parsed = parse_weave_response(raw or "", blocks)
     if parsed is None:
-        logger.info("cv_weave: unparseable proposal (company=%s)", company)
+        logger.info("cv_weave: unparseable proposal")
         return None
     return build_proposal(cv_structured, parsed, stories, answers, coverage_items)
 

@@ -330,7 +330,7 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
       .then(() => queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jid) }))
       // Degradation: the user already left this surface — nothing to render an
       // error into. The projection stays at its last saved state; log for triage.
-      .catch((err) => console.warn("metric cv.hidden_flush_unmount_failed", err))
+      .catch(() => console.warn("metric cv.hidden_flush_unmount_failed"))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

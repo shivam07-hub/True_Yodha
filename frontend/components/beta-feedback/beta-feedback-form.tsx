@@ -46,17 +46,17 @@ export function BetaFeedbackForm() {
     queryFn: () => feedback.betaAssignmentStatus(token!),
     enabled: Boolean(token),
   })
-  const userId = profileQuery.data?.id ?? null
+  const userId = profileQuery.data?.ninja_name ?? null
 
   useEffect(() => {
     if (!userId || hydratedUserId === userId) return
-    setDraft(loadBetaFeedbackDraft(userId, window.localStorage))
+    setDraft(loadBetaFeedbackDraft(userId, window.sessionStorage))
     setHydratedUserId(userId)
   }, [hydratedUserId, userId])
 
   useEffect(() => {
     if (!userId || hydratedUserId !== userId || receipt || statusQuery.data?.submitted) return
-    saveBetaFeedbackDraft(userId, draft, window.localStorage)
+    saveBetaFeedbackDraft(userId, draft, window.sessionStorage)
   }, [draft, hydratedUserId, receipt, statusQuery.data?.submitted, userId])
 
   useEffect(() => {
@@ -66,7 +66,7 @@ export function BetaFeedbackForm() {
   const mutation = useMutation({
     mutationFn: () => feedback.submitBetaAssignment(token!, draft),
     onSuccess: (nextReceipt) => {
-      if (userId) clearBetaFeedbackDraft(userId, window.localStorage)
+      if (userId) clearBetaFeedbackDraft(userId, window.sessionStorage)
       setReceipt(nextReceipt)
     },
     onError: async (error) => {

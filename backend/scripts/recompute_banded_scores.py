@@ -122,7 +122,7 @@ def main() -> None:
             })
         except Exception as exc:  # noqa: BLE001 — one-time script, keep going + report
             errors += 1
-            print(f"  [{i}/{len(user_ids)}] {user_id} FAILED: {exc.__class__.__name__}: {exc}")
+            print(f"  [{i}/{len(user_ids)}] [REDACTED] FAILED: {exc.__class__.__name__}")
 
     if not results:
         print("No results computed.")

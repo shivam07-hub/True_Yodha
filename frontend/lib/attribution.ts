@@ -26,7 +26,7 @@ export interface AcquisitionAttribution {
 function browserStorage(): StorageLike | null {
   if (typeof window === "undefined") return null
   try {
-    return window.localStorage
+    return window.sessionStorage
   } catch {
     return null
   }

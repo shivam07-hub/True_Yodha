@@ -35,6 +35,7 @@ from difflib import get_close_matches
 from functools import lru_cache
 
 from app.services.cv_explicit_skills import extract_explicit_skills, reconcile_skill_signals
+from app.security.personal_data import sanitize_cv_text_for_ai
 from app.services.llm_provider import LLMProvider, LLMProviderError, get_llm_provider
 from app.services.taxonomy_loader import _name_index, lookup_by_name
 
@@ -165,7 +166,7 @@ async def _llm_extract_skills(
         {"role": "system", "content": _SKILLS_SYSTEM_PROMPT},
         {
             "role": "user",
-            "content": f"CV text:\n---\n{cv_text[:_CV_TEXT_CHAR_LIMIT]}\n---\nReturn the JSON array only.",
+            "content": f"CV text:\n---\n{sanitize_cv_text_for_ai(cv_text)[:_CV_TEXT_CHAR_LIMIT]}\n---\nReturn the JSON array only.",
         },
     ]
     selected = provider or get_llm_provider()
@@ -205,7 +206,7 @@ async def _llm_extract(
         (list[dict], None)  — skills parsed but structured payload missing/invalid (degraded but usable)
         (None, None)        — every provider failed or returned unparseable output
     """
-    truncated = cv_text[:_CV_TEXT_CHAR_LIMIT]
+    truncated = sanitize_cv_text_for_ai(cv_text)[:_CV_TEXT_CHAR_LIMIT]
     messages = [
         {"role": "system", "content": _SYSTEM_PROMPT},
         {"role": "user", "content": (
@@ -393,7 +394,7 @@ def _validate_and_normalize(raw_skills: list[dict]) -> list[dict]:
         lc = lookup_by_name(name)
         canonical = lc.name if lc else _fuzzy_match(name)
         if canonical is None:
-            logger.info("Dropped non-Lightcast skill from CV extraction: %r", name)
+            logger.info("Dropped one non-Lightcast skill from CV extraction")
             continue
 
         new_xp = _SIGNAL_XP[signal]
@@ -572,7 +573,7 @@ async def reparse_structured_only(raw_text: str) -> dict | None:
     if not raw_text or len(raw_text.strip()) < _MIN_RAW_TEXT_LEN:
         return None
 
-    truncated = raw_text[:_CV_TEXT_CHAR_LIMIT]
+    truncated = sanitize_cv_text_for_ai(raw_text)[:_CV_TEXT_CHAR_LIMIT]
     messages = [
         {"role": "system", "content": _STRUCTURED_ONLY_PROMPT},
         {"role": "user", "content": (

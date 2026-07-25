@@ -364,6 +364,41 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-07-25 - Personal data flow and erasure audit)
+
+Completed the pre-deploy personal-data audit across frontend, backend, scripts,
+live Supabase schema metadata, browser storage, response models, logs, and
+third-party integrations.
+
+- Added the canonical data-flow map at
+  `docs/security/2026-07-25-personal-data-flow-audit.md`.
+- Removed durable profile/query/token/CV/feedback/application state from
+  `localStorage`; auth and recovery state is tab-scoped, while only non-personal
+  preferences and opaque upload handles remain durable.
+- Removed GA delivery and global Razorpay loading. Razorpay now loads only after
+  checkout starts and no longer receives profile prefill, user IDs, product
+  notes, XP amounts, or user-supplied receipt text.
+- Added one outbound AI privacy boundary for email, phone, IP, UUID, URL, and CV
+  header redaction; Turnstile no longer receives `remoteip`; email diagnostics
+  no longer print subjects, recipients, response bodies, or raw exceptions.
+- Expanded central log filtering to direct personal identifiers and removed raw
+  CV/career values from frontend, backend, and maintenance-script diagnostics.
+- Filtered internal identity/referral/timestamp fields from profile and auth
+  responses; password and refresh-token request fields now use `SecretStr`.
+- Added `DELETE /users/me`, private CV Storage cleanup, dynamic transactional
+  deletion of every canonical UUID `user_id` row, shared-record authorship
+  anonymization, permanent Supabase Auth deletion, and a Settings confirmation
+  flow. The self-scoped database function was applied to live Supabase; `anon`
+  execution is denied and no live user was deleted.
+- Prevented expired/deleted Auth identities from recreating profiles through a
+  still-valid locally verified access token.
+
+Validation: 1,592 backend tests passed; TypeScript, Next lint, privacy/session
+contract tests, Python compileall, and `git diff --check` passed. Live Supabase
+verified `SECURITY DEFINER`, empty `search_path`, authenticated-only execute.
+
+---
+
 ## LAST SESSION SUMMARY (2026-07-22 - Career Ops verifier parity)
 
 Closed backlog #14 without changing the frontend, Apply semantics, database

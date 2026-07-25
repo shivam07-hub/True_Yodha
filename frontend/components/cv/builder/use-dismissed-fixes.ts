@@ -25,7 +25,7 @@ function storageKey(scope: string): string {
 function readStore(scope: string): Set<string> {
   if (typeof window === "undefined") return new Set()
   try {
-    const raw = window.localStorage.getItem(storageKey(scope))
+    const raw = window.sessionStorage.getItem(storageKey(scope))
     const ids = raw ? (JSON.parse(raw) as unknown) : []
     return new Set(Array.isArray(ids) ? ids.filter((x): x is string => typeof x === "string") : [])
   } catch {
@@ -35,8 +35,8 @@ function readStore(scope: string): Set<string> {
 
 function writeStore(scope: string, ids: Set<string>): void {
   try {
-    if (ids.size === 0) window.localStorage.removeItem(storageKey(scope))
-    else window.localStorage.setItem(storageKey(scope), JSON.stringify(Array.from(ids)))
+    if (ids.size === 0) window.sessionStorage.removeItem(storageKey(scope))
+    else window.sessionStorage.setItem(storageKey(scope), JSON.stringify(Array.from(ids)))
   } catch {
     // storage unavailable (private mode / quota) — dismissal still holds for the session
   }

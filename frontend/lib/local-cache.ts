@@ -23,7 +23,7 @@ export async function withLocalCache<T>(
   fn: () => Promise<T>,
 ): Promise<T> {
   try {
-    const raw = localStorage.getItem(key)
+    const raw = sessionStorage.getItem(key)
     if (raw) {
       const { ts, data } = JSON.parse(raw) as { ts: number; data: T }
       if (Date.now() - ts < ttlMs) return data
@@ -31,13 +31,13 @@ export async function withLocalCache<T>(
   } catch {}
   const result = await fn()
   try {
-    localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data: result }))
+    sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), data: result }))
   } catch {}
   return result
 }
 
 export function clearLocalCache(key: string): void {
   try {
-    localStorage.removeItem(key)
+    sessionStorage.removeItem(key)
   } catch {}
 }
