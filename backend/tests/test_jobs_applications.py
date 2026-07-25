@@ -103,9 +103,8 @@ def test_submitted_application_cannot_be_removed_from_collections() -> None:
         app.dependency_overrides.clear()
 
     assert response.status_code == 409
-    assert response.json() == {
-        "detail": "Only saved jobs can be removed from Collections."
-    }
+    assert response.json()["detail"] == "Only saved jobs can be removed from Collections."
+    assert response.json()["correlation_id"]
 
 
 def test_undo_restores_saved_job_and_clears_not_interested() -> None:
