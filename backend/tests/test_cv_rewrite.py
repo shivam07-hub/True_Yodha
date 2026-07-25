@@ -287,6 +287,27 @@ def test_loses_substance_catches_the_azure_kpi_drop():
     assert cv_rewrite.loses_substance(_AZURE, bad) is True
 
 
+def test_dropped_specifics_names_the_lost_entities():
+    # Powers the eyes-open merge card: what a lossy merge would cost, by name.
+    bad = "Generated €500K+ revenue by shaping India Cloud B2B GTM strategy"
+    drops = cv_rewrite.dropped_specifics(_CAPGEMINI, bad)
+    assert "GCC" in drops and "MNCs" in drops  # display-cased, source order
+
+
+def test_dropped_specifics_reports_a_missing_number():
+    drops = cv_rewrite.dropped_specifics("Sold $500K of GCP to clients", "Sold GCP to clients")
+    assert any("500" in d for d in drops)
+
+
+def test_dropped_specifics_empty_when_nothing_lost():
+    good = (
+        "Delivered €500K+ revenue in a year by shaping India Cloud B2B GTM strategy "
+        "for GCC clients — aligning India insights with global MNCs and pitching "
+        "cross-BU wins across Life Sciences, Energy, and Aerospace."
+    )
+    assert cv_rewrite.dropped_specifics(_CAPGEMINI, good) == []
+
+
 def test_gains_foreign_numbers_blocks_minted_figures():
     src = "Improved client onboarding for GCC accounts"
     assert cv_rewrite.gains_foreign_numbers(src, "Improved onboarding 40% for GCC accounts") is True

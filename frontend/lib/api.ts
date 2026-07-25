@@ -939,8 +939,10 @@ export type SkillEditConflict = SkillEditConflictDetail & { conflict: true }
 // Combine two near-duplicate bullets into one — Myro Mentor (same no-DELETION
 // guard as rewrite, applied to the concatenated pair).
 export interface MergeBulletResponse {
-  mode: "merge" | "error"
+  mode: "merge" | "lossy" | "error"
   merged_text?: string | null
+  /** Named facts a "lossy" merge would drop — the receipts for the eyes-open choice. */
+  drops?: string[]
   rationale?: string | null
   citations?: string[]
 }

@@ -149,6 +149,33 @@ def loses_substance(source: str, rewrite: str) -> bool:
     return any(ent not in hay for ent in _entities_in(source))
 
 
+def dropped_specifics(source: str, rewrite: str) -> list[str]:
+    """The receipts for an eyes-open substance-loss card: display-cased named
+    entities and raw number tokens present in `source` but missing from `rewrite`,
+    in source order, de-duplicated. Mirrors loses_substance / loses_metrics, but
+    returns WHAT was lost — so Mentor can name the cost ("I'd drop the Capgemini
+    detail") instead of a vague warning the user can't verify."""
+    hay = (rewrite or "").lower()
+    missing_ents = {ent for ent in _entities_in(source) if ent not in hay}
+    out: list[str] = []
+    seen: set[str] = set()
+    for tok in _TOKEN_RE.findall(source):
+        norm = tok.lower()
+        if len(norm) > 3:
+            norm = norm.rstrip("s")
+        if norm in missing_ents and norm not in seen:
+            seen.add(norm)
+            out.append(tok)
+    missing_nums = _numbers_in(source) - _numbers_in(rewrite)
+    if missing_nums:
+        for m in _NUM_RE.finditer(source):
+            raw = m.group(0).strip()
+            if raw and _numbers_in(raw) <= missing_nums and raw not in seen:
+                seen.add(raw)
+                out.append(raw)
+    return out
+
+
 # Invariant guardrails — true regardless of which playbook rules are retrieved.
 # Structural + the no-fabrication law + the no-substance-loss law (Q9). Never
 # style-overridable. NO hard word cap: a cap the original already exceeds makes the
