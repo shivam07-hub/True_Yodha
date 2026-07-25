@@ -9,6 +9,7 @@
  */
 "use client"
 
+import Link from "next/link"
 import type { ApplicationResponse } from "@/lib/api"
 import { buildContinueLane, collectionsTriageCtx } from "@/lib/collections/model"
 
@@ -17,12 +18,20 @@ interface Props {
   onOpenJob: (jobId: string) => void
 }
 
+// Vertical rail list — cap the visible cards so a long tail of started copies
+// doesn't turn the rail into an endless scroll. The overflow is real work, so
+// it's a link into Collections (their home) rather than a silent truncation.
+const MAX_VISIBLE = 6
+
 export function FinishTailoringLane({ applications, onOpenJob }: Props) {
   // No fit/followed/target signals needed here — the lane is "resume your
   // tailored copies", ranked by the model's own next-best order.
   const ctx = collectionsTriageCtx(applications, [], [])
   const items = buildContinueLane(applications, ctx, new Map())
   if (items.length === 0) return null
+
+  const shown = items.slice(0, MAX_VISIBLE)
+  const overflow = items.length - shown.length
 
   return (
     <section className="tm-lib-continue" aria-label="Finish tailoring">
@@ -31,7 +40,7 @@ export function FinishTailoringLane({ applications, onOpenJob }: Props) {
         <span className="tm-lib-continue-sub">{items.length} started · one step from applying</span>
       </div>
       <div className="tm-lib-continue-row">
-        {items.map((it) => (
+        {shown.map((it) => (
           <button
             key={it.jobId}
             type="button"
@@ -44,6 +53,11 @@ export function FinishTailoringLane({ applications, onOpenJob }: Props) {
           </button>
         ))}
       </div>
+      {overflow > 0 && (
+        <Link href="/collections" className="tm-lib-continue-more">
+          +{overflow} more in Collections →
+        </Link>
+      )}
     </section>
   )
 }
