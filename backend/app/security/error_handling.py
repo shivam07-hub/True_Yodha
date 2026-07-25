@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from .headers import SECURITY_HEADERS
 from .redaction import redact_sensitive_text
 
 _log = logging.getLogger(__name__)
@@ -116,7 +117,7 @@ def _response(
     headers: Mapping[str, str] | None = None,
 ) -> JSONResponse:
     correlation_id = _correlation_id(request)
-    response_headers = dict(headers or {})
+    response_headers = {**dict(headers or {}), **SECURITY_HEADERS}
     response_headers[CORRELATION_HEADER] = correlation_id
     return JSONResponse(
         status_code=status_code,
@@ -165,7 +166,7 @@ async def _unhandled_exception_handler(
             "detail": GENERIC_SERVER_ERROR,
             "correlation_id": correlation_id,
         },
-        headers={CORRELATION_HEADER: correlation_id},
+        headers={**SECURITY_HEADERS, CORRELATION_HEADER: correlation_id},
     )
 
 

@@ -37,7 +37,11 @@ from app.routers import (
     users,
     xp,
 )
-from app.security import install_error_handling, install_sensitive_log_filter
+from app.security import (
+    install_error_handling,
+    install_security_headers,
+    install_sensitive_log_filter,
+)
 from app.services.job_feed.taxonomy import JobFeedTaxonomyMismatchError, verify_taxonomy_integrity
 
 _TAXONOMY_PATH = Path(__file__).resolve().parent.parent / "lightcast_skills_taxonomy.json"
@@ -51,6 +55,7 @@ app = FastAPI(
     debug=settings.debug,
 )
 install_error_handling(app)
+install_security_headers(app)
 
 app.add_middleware(
     CORSMiddleware,

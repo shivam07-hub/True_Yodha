@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next"
 import { Inter, Space_Grotesk, Newsreader } from "next/font/google"
+import { headers } from "next/headers"
 import Script from "next/script"
 import { Providers } from "@/components/providers"
 import "./globals.css"
@@ -105,6 +106,8 @@ const SURFACE_INIT = `(function(){try{var s=localStorage.getItem('myro-surface')
 const ACCENT_INIT = `(function(){try{var a=localStorage.getItem('myro-accent');document.documentElement.dataset.accent=(a==='forge')?'forge':'signal';}catch(e){document.documentElement.dataset.accent='signal';}})();`
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const nonce = headers().get("x-nonce") ?? undefined
+
   return (
     <html
       lang="en"
@@ -114,10 +117,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <body className="font-sans antialiased">
-        <Script id="myro-surface-init" strategy="beforeInteractive">
+        <Script id="myro-surface-init" strategy="beforeInteractive" nonce={nonce}>
           {SURFACE_INIT}
         </Script>
-        <Script id="myro-accent-init" strategy="beforeInteractive">
+        <Script id="myro-accent-init" strategy="beforeInteractive" nonce={nonce}>
           {ACCENT_INIT}
         </Script>
         <Providers>{children}</Providers>
