@@ -218,6 +218,29 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
    - **Regression contract:** `/jobs/analytics` remains off the login path, a company-browsing burst must not stall unrelated identity/score/feed reads, and saturation must page through a real alert destination.
    - **Not a route-by-route patch:** solve the shared read-capacity seam and publish an operational runbook/SLO. Do not add isolated endpoint workarounds that hide queueing.
 
+17. **End-of-beta feedback closure program (shared Codex + Claude backlog, started 2026-07-26):** The canonical machine-readable registry is `docs/beta-testing/closure-ledger/beta-feedback-closure-ledger.jsonl`; the working runbook is `docs/beta-testing/closure-ledger/README.md`. The current evidence state is **113 unverified, 1 open, 0 fixed**. Completed foundations are not equivalent to verified user-facing closure.
+   - **Status contract:** `FOUNDATION CLOSED` means reusable audit/test/backend machinery exists; `BUILT NOT LIVE` means implementation exists locally but is not deployed; `PARTIAL` means some flow exists but the reported journey is not proven end to end; `OPEN` means the concern still needs implementation; `VERIFIED CLOSED` requires merged code, passing regression tests, deployed-version evidence, production validation, relevant metrics, affected-user validation where practical, and a closure date in the ledger.
+   - **FOUNDATION CLOSED — feedback inventory:** all 113 Supabase beta records plus Usha Bhatiya's separately attributed PDF feedback are registered without merging identities. Direct email/phone identifiers are redacted. Exact stored feedback remains separate from product interpretation.
+   - **FOUNDATION CLOSED — evidence gate:** `backend/scripts/export_beta_feedback_ledger.py` preserves human closure decisions and rejects `fixed` without code, deployment, test, metric, user-validation, and closure-date evidence.
+   - **FOUNDATION CLOSED — performance measurement:** `backend/scripts/run_read_load_probe.py` and `docs/runbooks/read-capacity-performance.md` cover login, Jobs, CV, company browsing, and isolated analytics with client/server latency, p50/p95/p99, bounded request counts, and explicit production opt-in.
+   - **BUILT NOT LIVE — durable feedback delivery:** commit `b78e7bf7` adds UUID `Idempotency-Key`, payload fingerprinting, replay receipts, changed-payload conflict detection, and concurrent duplicate collapse. Migration `20260726182212_feedback_submission_idempotency.sql` is committed but not applied to shared Supabase; the backend commit is not deployed.
+   - **OPEN P0 — production loading speed:** establish current baselines, inspect Supabase pooler/database waits plus AnyIO and HTTP connection pools, remove login-path fan-out and hot synchronous reads, keep `/jobs/analytics` isolated, rerun the probe, and satisfy the published SLO under concurrent browsing. Loading skeletons alone do not close this item.
+   - **OPEN P0 — feedback submission recovery:** review the backend contract, push/apply/deploy it, then build a persistent IndexedDB outbox that stores the exact payload and UUID before sending, exposes `Saved / Sending / Sent / Needs attention`, safely replays after reload or reconnect, and handles `409` without silently dropping or duplicating feedback.
+   - **PARTIAL P0 — CV upload reliability:** resumable upload, deterministic failure codes, fallback tickets, and phase telemetry exist. Closure still requires onboarding/CV-route resume parity, byte-level progress, weak/mobile-network validation, production phase metrics, retry/fallback verification, and affected-user confirmation.
+   - **PARTIAL P1 — mobile navigation and next action:** responsive navigation exists, but Jobs, CV, Tracker, Skills, and Learning still need one state-derived next action that survives route changes and does not overwhelm a first-time mobile user.
+   - **OPEN P1 — first-time onboarding:** add a skippable, contextual walkthrough for CV upload, score meaning, job recommendations, saved-job tracking, and learning. Instrument completion, skip, abandonment, and time-to-first-useful-action; do not use a long generic product tour.
+   - **OPEN/PARTIAL P1 — plain language and progressive disclosure:** audit corporate/technical terms such as baseline, Intel, Forge, level notation, score methodology, and CV version concepts. Prefer familiar student language, disclose necessary constraints in context, and keep advanced detail behind progressive disclosure.
+   - **PARTIAL P1 — clear errors, recovery, and tooltips:** standardize actionable errors with retry/resume paths and correlation IDs while keeping sensitive details server-side. Add tooltips only for non-visible constraints, methodology, or unfamiliar concepts; visual state should communicate ordinary loading, disabled, success, and failure conditions.
+   - **PARTIAL P1 — CV parsing, tailoring, and score trust:** make parsing state and evidence visible, explain score basis without overstating recruiter/ATS certainty, show before/after tailoring proof, preserve immutable CV versions, and provide deterministic recovery when extraction or recomputation fails.
+   - **PARTIAL P1 — Jobs relevance, filters, and Apply handoff:** persist user filters, explain match reasons from stored evidence, distinguish inventory gaps from ranking defects, preserve explicit listing-liveness boundaries, and validate the external application handoff without claiming Myro submitted an application.
+   - **OPEN P1/P2 — Learning and Forge relevance:** complete the reviewed Learning Ladder publication gate and trusted curriculum coverage before presenting assignments as comprehensive. Learning progress remains separate from CV-derived matching truth. Make the next learning action understandable without gamification pressure.
+   - **PARTIAL P2 — Tracker discoverability and post-application guidance:** provide a useful first-run/demo state, make saved/applied status semantics clear, and route outcomes into follow-up, referral, interview preparation, or no-response recovery without fabricating employer activity.
+   - **OPEN — deployment and acceptance:** push the currently local backend/docs commits, review the additive migration, apply it only when backend/frontend contracts are compatible, deploy backend and frontend, run authenticated desktop/mobile smoke tests, run bounded load tests, and record exact deployed versions.
+   - **OPEN — user validation and ledger closure:** recontact affected users where practical, record whether the original task now succeeds, attach production evidence, and update individual ledger rows. Theme-level confidence never substitutes for row-level closure.
+   - **Execution order:** (1) Claude contract review; (2) push local commits; (3) apply migration and deploy backend; (4) build/deploy feedback outbox; (5) measure and repair shared read capacity; (6) close CV/mobile/onboarding/language/error/trust journeys one vertical slice at a time; (7) validate with users and update the ledger after each slice.
+   - **Shared-agent protocol:** Claude and Codex may work on any item in this program. Frontend UX defaults to Claude; backend, migrations, performance, and test scaffolding default to Codex. This is coordination guidance, not an exclusive lock. Before editing, each agent must inspect current Git state and recent commits, announce owned files/scope, preserve unrelated work, avoid duplicate implementations, and leave a commit plus verification notes for review.
+   - **Handoff rule:** every handoff must state concern/ledger IDs, files and commits, migrations/deployment state, tests and measurements run, residual risks, and the exact evidence still missing for `VERIFIED CLOSED`. Neither agent may mark an item closed based only on local tests, screenshots, copy changes, or another agent's summary.
+
 ---
 
 ## CLOSED — BACKLOG #14 CAREER OPS × LISTING-VERIFIER PARITY (2026-07-22)
@@ -416,7 +439,28 @@ lint passed with no warnings; `git diff --check` passed. Railway CLI/MCP access
 remained blocked by the expired OAuth session, so no deployed variable values
 were read or changed.
 
-## LAST SESSION SUMMARY (2026-07-26 - Beta reliability foundations)
+## LAST SESSION SUMMARY (2026-07-26 - Shared beta closure backlog)
+
+Consolidated all end-of-beta reliability and UX concerns into Open Backlog #17
+so Codex and Claude can close them one vertical slice at a time.
+
+- Recorded the current evidence state: 113 `unverified`, 1 `open`, 0 `fixed`.
+- Distinguished completed foundations, local-but-not-live implementation, partial
+  journeys, open implementation, and evidence-backed verified closure.
+- Captured loading speed, feedback delivery, CV upload, mobile navigation,
+  onboarding, language, errors/tooltips, CV trust, Jobs/Apply, Learning/Forge,
+  Tracker, deployment, and user-validation work in one canonical program.
+- Explicitly allowed both agents to work on every item while assigning frontend
+  UX to Claude by default and backend/migrations/performance/test scaffolding to
+  Codex by default.
+- Added pre-edit coordination, handoff, and closure-evidence rules to prevent
+  duplicate work or premature closure in the shared dirty repository.
+
+No application code, database state, or deployment was changed in this
+documentation-only task. Existing unrelated `docs/free-llm-api-resources` state
+was left untouched.
+
+## OLDER SESSION SUMMARY (2026-07-26 - Beta reliability foundations)
 
 Started the non-frontend execution of the end-of-beta closure plan in three
 isolated commits:
