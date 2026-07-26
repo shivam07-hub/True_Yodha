@@ -195,6 +195,8 @@ def _enforce_anon_rate(action: str, ip: str) -> None:
 
 async def _verify_turnstile(token: str | None, ip: str) -> None:
     """Verify Turnstile or disable the protected feature in production."""
+    if not settings.turnstile_enabled:
+        return
     secret = settings.turnstile_secret
     if not secret:
         if settings.is_production:

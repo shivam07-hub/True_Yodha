@@ -25,7 +25,7 @@ test("production frontend configuration rejects missing critical values", () => 
   )
 })
 
-test("Vercel preview accepts the Turnstile test-key fallback", () => {
+test("Vercel preview accepts omitted optional anti-bot configuration", () => {
   validateProductionEnv({
     NODE_ENV: "production",
     VERCEL_ENV: "preview",
@@ -33,6 +33,42 @@ test("Vercel preview accepts the Turnstile test-key fallback", () => {
     NEXT_PUBLIC_SUPABASE_ANON_KEY: "publishable-key",
     NEXT_PUBLIC_API_URL: "https://truemirror.up.railway.app",
     NEXT_PUBLIC_RAZORPAY_KEY_ID: "rzp_test_public",
+  })
+})
+
+test("production accepts omitted optional Turnstile and site URL configuration", () => {
+  validateProductionEnv({
+    NODE_ENV: "production",
+    VERCEL_ENV: "production",
+    NEXT_PUBLIC_SUPABASE_URL: "https://project.supabase.co",
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: "publishable-key",
+    NEXT_PUBLIC_API_URL: "https://api.himyro.com",
+    NEXT_PUBLIC_RAZORPAY_KEY_ID: "rzp_live_public",
+  })
+})
+
+test("production availability does not depend on an optional Turnstile key", () => {
+  validateProductionEnv({
+    NODE_ENV: "production",
+    VERCEL_ENV: "production",
+    NEXT_PUBLIC_SUPABASE_URL: "https://project.supabase.co",
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: "publishable-key",
+    NEXT_PUBLIC_API_URL: "https://api.himyro.com",
+    NEXT_PUBLIC_RAZORPAY_KEY_ID: "rzp_live_public",
+    NEXT_PUBLIC_TURNSTILE_ENABLED: "true",
+  })
+})
+
+test("disabled Turnstile cannot break a build through a dormant key", () => {
+  validateProductionEnv({
+    NODE_ENV: "production",
+    VERCEL_ENV: "production",
+    NEXT_PUBLIC_SUPABASE_URL: "https://project.supabase.co",
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: "publishable-key",
+    NEXT_PUBLIC_API_URL: "https://api.himyro.com",
+    NEXT_PUBLIC_RAZORPAY_KEY_ID: "rzp_live_public",
+    NEXT_PUBLIC_TURNSTILE_ENABLED: "false",
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: "your-turnstile-site-key",
   })
 })
 

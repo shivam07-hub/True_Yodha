@@ -46,13 +46,10 @@ class Settings(BaseSettings):
     # fail-soft convention as every other notify email in this file).
     ops_alert_email: str = ""
 
-    # Cloudflare Turnstile secret for the public, no-auth CV-score preview
-    # endpoint (POST /public/score-cv). When set, the endpoint verifies the
-    # client's Turnstile token server-side before spending any LLM budget.
-    # Empty = verification SKIPPED (graceful: dev + pre-provision still work,
-    # protected only by the per-IP rate limit). Set in prod to harden the
-    # endpoint against bots farming the scoring chain. Cloudflare dashboard →
-    # Turnstile → site → Secret Key.
+    # Turnstile is an optional hardening layer for public, no-auth endpoints.
+    # Keep disabled until both deployment keys are intentionally provisioned.
+    # Per-IP limits remain active either way.
+    turnstile_enabled: bool = False
     turnstile_secret: str = ""
 
     # Local LLM via LM Studio (priority 0 — no rate limits)
