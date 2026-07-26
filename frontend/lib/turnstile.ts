@@ -1,8 +1,8 @@
 /**
- * Cloudflare Turnstile gate for the pre-login anon endpoints (score-cv,
- * rewrite-bullet, restructure). The backend (`_verify_turnstile`) is
- * fail-closed once `TURNSTILE_SECRET` is set: a tokenless request 403s. So
- * every anon call must carry a fresh token.
+ * Optional Cloudflare Turnstile gate for pre-login anonymous endpoints.
+ * It is disabled by default while Myro is early-stage; the existing per-IP
+ * limits remain active. Enabling it requires both the frontend flag/site key
+ * and the backend flag/secret.
  *
  * This is a framework-agnostic singleton, called from inside the `publicCv`
  * API methods themselves (one choke point, where `cf_turnstile_token` is
@@ -12,20 +12,15 @@
  * "interaction-only"` → invisible unless Cloudflare flags the request), and
  * resolves a token on demand.
  *
- * Key pairing (CLAUDE.md #30 / #17 Razorpay note): the site key here and the
- * backend secret must be flipped together on prod. The default below is
- * Cloudflare's always-pass TEST key, which only validates against the test
- * SECRET — so on dev (no secret → backend skips) it's a no-op, and on prod the
- * real `NEXT_PUBLIC_TURNSTILE_SITE_KEY` must be set in lockstep with the real
- * backend secret, or every anon request fails verification.
- *
- * Degrades to `null` on any failure (script blocked, timeout, SSR). Callers
- * pass that straight through; the backend only rejects null once a secret
- * exists, so dev and pre-provision prod stay rate-limit-only.
+ * Degrades to `null` when disabled, incompletely configured, blocked, timed
+ * out, or rendered server-side. Optional anti-bot configuration must never
+ * block a build or take down the rest of the application.
  */
 
-// Cloudflare's documented always-pass test site key (dev default).
-const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "1x00000000000000000000AA"
+const TURNSTILE_ENABLED =
+  process.env.NEXT_PUBLIC_TURNSTILE_ENABLED === "true"
+const TURNSTILE_SITE_KEY =
+  process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ?? ""
 const SCRIPT_SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js"
 const TOKEN_TIMEOUT_MS = 8000
 
@@ -102,6 +97,7 @@ function ensureWidget(): Promise<string | null> {
  * can't run. Safe to call repeatedly; each call resets + re-executes the widget.
  */
 export async function getTurnstileToken(): Promise<string | null> {
+  if (!TURNSTILE_ENABLED || !TURNSTILE_SITE_KEY) return null
   if (typeof window === "undefined") return null
   const id = await ensureWidget()
   if (!id || !window.turnstile) return null

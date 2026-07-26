@@ -167,7 +167,7 @@ def test_valid_production_configuration_passes() -> None:
     config.validate_runtime_configuration()
 
 
-def test_production_startup_allows_missing_feature_scoped_turnstile_secret() -> None:
+def test_production_startup_never_requires_feature_scoped_turnstile_secret() -> None:
     config = Settings(
         _env_file=None,
         railway_environment="production",
@@ -175,6 +175,7 @@ def test_production_startup_allows_missing_feature_scoped_turnstile_secret() -> 
         supabase_anon_key="anon-key",
         supabase_service_key="service-key",
         redis_url="redis://redis.internal:6379/0",
+        turnstile_enabled=True,
         turnstile_secret="",
         allowed_origins="https://himyro.com,https://www.himyro.com",
         openrouter_api_key="provider-key",

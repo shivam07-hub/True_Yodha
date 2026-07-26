@@ -364,6 +364,32 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-07-26 - Turnstile made optional)
+
+Removed Turnstile and the canonical site URL from deployment-critical
+configuration after both Railway and Vercel repeatedly failed on missing
+Turnstile values.
+
+- Added explicit off-by-default flags: `TURNSTILE_ENABLED=false` on the backend
+  and `NEXT_PUBLIC_TURNSTILE_ENABLED=false` on the frontend.
+- With Turnstile disabled, public anonymous routes continue to use their
+  existing per-IP limits and do not load Cloudflare's browser script.
+- Turning the backend flag on without a secret fails closed only at the
+  protected anonymous routes with a generic correlated `503`; API startup
+  remains available.
+- Vercel production builds no longer require
+  `NEXT_PUBLIC_TURNSTILE_SITE_KEY` or `NEXT_PUBLIC_SITE_URL`. Dormant,
+  incomplete Turnstile configuration cannot fail the build. Public-profile
+  links already fall back to `VERCEL_URL` and then `https://himyro.com`.
+- Retained the Turnstile implementation behind the flags so it can be
+  deliberately re-enabled later by provisioning both key pairs together.
+
+Validation: red-first backend/frontend regressions; focused backend `34
+passed`; frontend runtime-environment contract `10 passed`; full backend
+`1,659 passed`; Ruff passed; TypeScript `npx tsc --noEmit` passed; Next lint
+passed with no warnings; and a production-shaped `next build` passed with both
+reported Vercel variables explicitly blank.
+
 ## LAST SESSION SUMMARY (2026-07-26 - Production Turnstile startup isolation)
 
 Diagnosed the `mirror-backend-prod` crash from the attached Railway logs and
