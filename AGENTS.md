@@ -204,12 +204,12 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
    - **Matching engine** — replace demo shortlist math with backend CV↔JD scoring, evidence extraction, and top-3/top-4 recruiter handoff logic.
    - **Go-live rule** — do not pick this up again as “frontend polish.” Next pickup should be a full-stack B2B PRD / plan with DB, API, auth, and ranking scope agreed first.
 
-15. **Learning Ladder content foundation (important product backlog, order TBD 2026-07-22):** Expand the ladder before Myro assigns users skills to learn. The live bank snapshot is 450 active questions across 9 skills; the useful coverage target is roughly 50–60 skills × five levels × 10–12 questions per level.
-   - **Coverage gate:** do not present personalized skill assignments as comprehensive until the agreed 50–60-skill curriculum has servable L1–L5 coverage. Pick the curriculum from the canonical taxonomy plus verified market demand, then publish coverage explicitly.
-   - **Trusted sourcing:** maintain a per-skill source allowlist (official vendor documentation, standards bodies, authoritative textbooks/open course material, and other reviewed primary references). Preserve source URL, provenance, license posture, reviewer, and verification date; never serve unreviewed generated questions.
-   - **Explanation contract:** the existing backend/UI `explanation` plumbing is present, but content must explain why the correct choice is correct, why each distractor is wrong, and which trusted source supports the reasoning. A generic one-line answer is not sufficient.
-   - **Publication workflow:** ingest candidates → normalize/dedupe → assign L1–L5 → generate answer/distractor rationales → human review → publish an immutable content edition. Retire or correct a question without rewriting prior attempt history.
-   - **Learning loop after coverage:** durable Learning Tracks, daily assignments, spaced repetition, and progress explanations come after the publication gate. Fold the earlier skill-truth concern into this work: ladder progress stays an assessed-learning signal and must not silently change CV-based matching before that product contract is agreed.
+15. **Learning Ladder content foundation (important product backlog, policy revised 2026-07-27):** Myro's comprehensive learning product follows live job-market demand. After scrape/verifier refreshes, the demand snapshot ranks which missing L1–L5 ladders should be built next. Expand toward roughly 50–60 useful skills × five levels × 10–12 questions per level.
+   - **Comprehensive ladder contract:** an available skill is comprehensive when L1–L5 each have at least 10 servable questions. The 50–60 skill figure is a catalog-growth target, not a gate that hides complete ladders or requires “partial”/“beta” user-facing labels.
+   - **Source-grounded serving:** an active question may serve without human review when it has a legitimate non-empty source URL, valid four-option answer structure, and a useful explanation. Source-less, malformed, unexplained, retired, or verifier-failed content remains unavailable.
+   - **Quality metadata:** preserve source provenance, licensing posture, reviewer, verification date, per-option rationales, and immutable editions when available. Human review and counsel guidance improve quality later; they are not pre-10k serving dependencies.
+   - **Publication workflow:** market demand → source ingest → normalize/dedupe → assign L1–L5 → explain → independent verification → activate. Corrections and retirement must not rewrite prior attempt history.
+   - **Learning truth boundary:** ladder progress stays in `skill_assessed_level` and must not silently change CV-derived `user_skills`, Myro Score, or job matching. Personalized ladder routing follows once a relevant complete ladder exists.
 
 16. **Production read capacity and speed (important performance backlog, order TBD 2026-07-22):** Preserve speed as a first-class product requirement after the perceived-speed frontend work. The remaining problem is backend queueing under concurrent reads, not cosmetic loading states.
    - **Known evidence:** a real browsing burst made many otherwise-successful endpoints complete together after roughly 5–6 seconds, while `/jobs/analytics` reached 22–25 seconds. CPU stayed nearly idle, pointing to blocked AnyIO/Supabase connection capacity rather than compute saturation.
@@ -233,7 +233,7 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
    - **PARTIAL P1 — clear errors, recovery, and tooltips:** standardize actionable errors with retry/resume paths and correlation IDs while keeping sensitive details server-side. Add tooltips only for non-visible constraints, methodology, or unfamiliar concepts; visual state should communicate ordinary loading, disabled, success, and failure conditions.
    - **PARTIAL P1 — CV parsing, tailoring, and score trust:** make parsing state and evidence visible, explain score basis without overstating recruiter/ATS certainty, show before/after tailoring proof, preserve immutable CV versions, and provide deterministic recovery when extraction or recomputation fails.
    - **PARTIAL P1 — Jobs relevance, filters, and Apply handoff:** persist user filters, explain match reasons from stored evidence, distinguish inventory gaps from ranking defects, preserve explicit listing-liveness boundaries, and validate the external application handoff without claiming Myro submitted an application.
-   - **OPEN P1/P2 — Learning and Forge relevance:** complete the reviewed Learning Ladder publication gate and trusted curriculum coverage before presenting assignments as comprehensive. Learning progress remains separate from CV-derived matching truth. Make the next learning action understandable without gamification pressure.
+   - **OPEN P1/P2 — Learning and Forge relevance:** expose complete source-grounded L1–L5 ladders now, expand the catalog from verified market demand, and later personalize the best available ladder for each user. Learning progress remains separate from CV-derived matching truth. Make the next learning action understandable without gamification pressure.
    - **PARTIAL P2 — Tracker discoverability and post-application guidance:** provide a useful first-run/demo state, make saved/applied status semantics clear, and route outcomes into follow-up, referral, interview preparation, or no-response recovery without fabricating employer activity.
    - **OPEN — deployment and acceptance:** push the currently local backend/docs commits, review the additive migration, apply it only when backend/frontend contracts are compatible, deploy backend and frontend, run authenticated desktop/mobile smoke tests, run bounded load tests, and record exact deployed versions.
    - **OPEN — user validation and ledger closure:** recontact affected users where practical, record whether the original task now succeeds, attach production evidence, and update individual ledger rows. Theme-level confidence never substitutes for row-level closure.
@@ -386,6 +386,36 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 10. **Extract `useCVPlayground(jobId)` hook for CV Builder state.** `app/cv/page.tsx` owns scattered `useState` + derivations for the playground state machine: `playgroundDirty`, `selectedVersionId`, `hiddenItems`, edit/polish targets, sync detection. Currently all complexity is local to one page, so the locality gain is moderate. Solve when: a second consumer needs to ask "does the user have unsaved CV changes?" (nav-away warning, mobile preview surface, share-token preview, etc). Today's recommendation: wait for the second consumer before deepening.
 
 ---
+
+## LAST SESSION SUMMARY (2026-07-27 - Source-grounded Learning Ladders)
+
+Completed the revised backlog #15 serving/content-foundation slice without
+reopening backlog #14 or touching backlog #16.
+
+- Replaced the human-review publication dependency with an objective runtime
+  gate: questions must be active, not retired, source-grounded, explained, and
+  structurally valid. Human-review, licensing, provenance, rationale, and
+  immutable-edition metadata remain available for later quality operations.
+- Complete L1-L5 skill ladders are now comprehensive and servable before the
+  50-skill catalog target is reached. The 50-60 skill figure remains the
+  market-driven expansion target rather than a user-facing availability gate.
+- A read-only live Supabase audit found 300 immediately servable questions
+  across six complete L1-L5 skills. The other 1,245 rows have no source URL and
+  remain unavailable.
+- Missing ladder targets now rank from the live 30-day
+  `skill_demand_snapshot` produced after scrape/verifier refreshes, rather than
+  from users' CV skills. The source-less local generator still writes drafts;
+  the source-grounded publisher remains the activation path.
+- Learning clears remain isolated in `skill_assessed_level`; this work does not
+  mutate CV-derived `user_skills`, Myro Score, or job matching. The empty-state
+  copy now states that clears record learning progress.
+- No migration or live database write was required. Existing immutable attempt
+  snapshots continue to preserve historical grading through corrections and
+  retirement.
+
+Validation: focused Learning Ladder backend `44 passed`; full backend `1,675
+passed`; frontend upskilling contract `4 passed`; Ruff clean; TypeScript
+`npx tsc --noEmit` clean; Next lint clean; `git diff --check` clean.
 
 ## LAST SESSION SUMMARY (2026-07-26 - Turnstile made optional)
 

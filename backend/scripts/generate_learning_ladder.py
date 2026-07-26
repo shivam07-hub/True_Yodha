@@ -9,9 +9,9 @@ Two passes, in order:
      in the bank at all, generates a full 5-level x 10-question ladder.
 
 Both use get_judgment_provider() (no cheap models) and an independent verify
-pass that re-checks every correct_index. Generated rows are candidates only:
-they ship 'review' / 'needs_review', never 'active'. Publishing requires the
-separate human review + source metadata workflow.
+pass that re-checks every correct_index. This command does not ingest source
+material, so it writes draft `review` rows. The source-grounded publisher is
+the path that may activate verified questions with a legitimate `source_url`.
 
 Usage (from backend/, with SUPABASE_* + OPENROUTER_API_KEY/GROQ_API_KEY in env):
     python -m scripts.generate_learning_ladder --dry-run        # show plan only
@@ -69,17 +69,17 @@ async def run(limit: int, dry_run: bool, skip_complete: bool) -> int:
         written, publishable = await _generate_and_write(skill, levels=missing)
         total_publishable += publishable
         total_written += written
-        print(f"  wrote {written} review rows ({publishable} published)")
+        print(f"  wrote {written} draft rows ({publishable} active)")
 
     for skill in targets:
         print(f"\ngenerating: {skill.display_name} ...")
         written, publishable = await _generate_and_write(skill)
         total_publishable += publishable
         total_written += written
-        print(f"  wrote {written} review rows ({publishable} published)")
+        print(f"  wrote {written} draft rows ({publishable} active)")
 
     print(
-        f"\ndone. {total_written} review rows, {total_publishable} published "
+        f"\ndone. {total_written} draft rows, {total_publishable} active "
         f"across {len(incomplete) + len(targets)} skill(s)."
     )
     return 0

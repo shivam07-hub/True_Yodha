@@ -27,6 +27,8 @@ test("upskilling distinguishes an API failure from an empty question bank", () =
   assert.match(source, /onClick=\{\(\) => void refetch\(\)\}/)
   assert.match(source, />\s*Retry\s*</)
   assert.match(source, /Your upskilling ladder is on the way/)
+  assert.match(source, /records your learning progress/)
+  assert.doesNotMatch(source, /raises your real skill level/)
 })
 
 test("the Forge climb path opens banked rungs and the next focus rung, keeps the rest locked", () => {
@@ -44,7 +46,7 @@ test("learning progress stays separate from score-map invalidation", () => {
   assert.doesNotMatch(source, /invalidateScoreMapData/)
 })
 
-test("graded review renders source-backed correct and distractor rationales", () => {
+test("graded results render source-backed correct and distractor rationales", () => {
   assert.match(source, /rationales: r\?\.rationales/)
   assert.match(resultsSource, /it\.rationales\.correct/)
   assert.match(resultsSource, /it\.rationales\?\.distractors/)

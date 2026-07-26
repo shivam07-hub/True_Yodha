@@ -20,14 +20,14 @@ def _complete_skill_rows(skill_count: int) -> list[dict]:
     ]
 
 
-def test_coverage_gate_reports_partial_until_fifty_complete_skills():
+def test_complete_ladders_are_comprehensive_before_catalog_target_is_met():
     store = {"skill_questions": _complete_skill_rows(49)}
 
     with patch("app.services.upskilling_service.get_supabase_admin", return_value=_FakeAdmin(store)):
         summary = upskilling_service.coverage_summary()
 
     assert summary["coverage_gate_met"] is False
-    assert summary["publication_scope"] == "partial"
+    assert summary["publication_scope"] == "comprehensive"
     assert summary["complete_skill_count"] == 49
     assert summary["target_skill_min"] == 50
 

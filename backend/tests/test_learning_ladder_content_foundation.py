@@ -127,7 +127,7 @@ def test_gap_calibration_records_assessment_without_creating_cv_skill():
     assert store["user_skills"] == []
 
 
-def test_unreviewed_questions_do_not_make_skill_servable():
+def test_unsourced_questions_do_not_make_skill_servable():
     bank = [
         {
             "id": qid,
@@ -149,7 +149,35 @@ def test_unreviewed_questions_do_not_make_skill_servable():
         assert upskilling_service.list_skills("u1") == []
 
 
-def test_start_set_excludes_unreviewed_generated_questions():
+def test_source_grounded_questions_make_skill_servable_without_human_review():
+    bank = [
+        {
+            "id": qid,
+            "skill_id": SKILL_ID,
+            "skill_key": "sql",
+            "level": LEVEL,
+            "status": "active",
+            "review_status": "generated",
+            "question_text": f"Q{qid}",
+            "options": ["a", "b", "c", "d"],
+            "correct_index": 1,
+            "explanation": f"because {qid}",
+            "source_url": "https://www.postgresql.org/docs/current/tutorial-select.html",
+        }
+        for qid in range(1, 11)
+    ]
+    store = {
+        "skill_questions": bank,
+        "skills": [{"id": SKILL_ID, "taxonomy_key": "sql", "display_name": "SQL"}],
+        "skill_assessed_level": [],
+        "user_skills": [],
+    }
+
+    with patch("app.services.upskilling_service.get_supabase_admin", return_value=_FakeAdmin(store)):
+        assert upskilling_service.list_skills("u1")[0]["max_bank_level"] == LEVEL
+
+
+def test_start_set_excludes_unsourced_generated_questions():
     store = _seed_store()
 
     with patch("app.services.upskilling_service.get_supabase_admin", return_value=_FakeAdmin(store)):
@@ -159,9 +187,13 @@ def test_start_set_excludes_unreviewed_generated_questions():
     assert exc.value.status_code == 409
 
 
-def test_start_set_snapshots_reviewed_questions():
+def test_start_set_snapshots_source_grounded_questions():
+    bank = [_reviewed_question(qid) for qid in range(1, 11)]
+    for question in bank:
+        for key in ("reviewer", "reviewed_at", "review_status", "content_edition_id"):
+            question.pop(key)
     store = {
-        "skill_questions": [_reviewed_question(qid) for qid in range(1, 11)],
+        "skill_questions": bank,
         "quiz_attempts": [],
         "quiz_attempt_question_snapshots": [],
     }
@@ -176,7 +208,7 @@ def test_start_set_snapshots_reviewed_questions():
     assert first_snapshot["question_text"]
     assert first_snapshot["correct_index"] == 1
     assert first_snapshot["source_url"].startswith("https://www.postgresql.org/")
-    assert first_snapshot["content_edition_id"] == "edition-1"
+    assert first_snapshot["content_edition_id"] is None
     assert first_snapshot["rationales"]["distractors"]
 
 

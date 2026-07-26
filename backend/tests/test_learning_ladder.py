@@ -1,9 +1,6 @@
-"""Learning Ladder — pure-logic tests (no live LLM/DB calls).
-
-CLAUDE.md backlog #15: bank growth is technical-only, real-taxonomy-only, and
-generated rows never publish without human review metadata.
-"""
+"""Learning Ladder — pure-logic tests (no live LLM/DB calls)."""
 import json
+from unittest.mock import patch
 
 from app.services.learning_ladder_prompts import (
     GeneratedQuestion,
@@ -14,7 +11,7 @@ from app.services.learning_ladder_prompts import (
     dedupe_hash,
     parse_generated_questions,
 )
-from app.services.learning_ladder import rows_for_insert, LadderResult
+from app.services.learning_ladder import LadderResult, pick_target_skills, rows_for_insert
 
 SKILL = TargetSkill(id=67, display_name="Python (Programming Language)",
                      l1_domain="Information Technology", l2_cluster="Scripting Languages")
@@ -133,7 +130,7 @@ def test_apply_verify_verdicts_missing_index_leaves_question_unverified():
     assert out[0].verified is False
 
 
-def test_rows_for_insert_model_verified_still_needs_human_review():
+def test_rows_for_insert_without_source_stays_review():
     verified_q = _q()
     verified_q.verified = True
     unverified_q = _q(text="different question")
@@ -156,3 +153,37 @@ def test_rows_for_insert_dedupe_hash_matches_pure_fn():
     result = LadderResult(skill=SKILL, by_level={1: [q]})
     rows = rows_for_insert(result)
     assert rows[0]["dedupe_hash"] == dedupe_hash(q.question_text)
+
+
+def test_pick_target_skills_ranks_from_live_market_demand():
+    eligible_skills = [
+        {
+            "id": 67,
+            "display_name": "Python (Programming Language)",
+            "l1_domain": "Information Technology",
+            "l2_cluster": "Scripting Languages",
+            "lightcast_id": "python",
+        },
+        {
+            "id": 66,
+            "display_name": "SQL (Programming Language)",
+            "l1_domain": "Information Technology",
+            "l2_cluster": "Database Languages",
+            "lightcast_id": "sql",
+        },
+    ]
+    market_demand = [
+        {"skill_id": 67, "window_key": "30d", "roles": 100, "companies": 8},
+        {"skill_id": 66, "window_key": "30d", "roles": 240, "companies": 15},
+    ]
+
+    with (
+        patch("app.services.learning_ladder.get_supabase_admin", return_value=object()),
+        patch(
+            "app.services.learning_ladder.fetch_all_rows",
+            side_effect=[[], eligible_skills, market_demand],
+        ),
+    ):
+        targets = pick_target_skills(limit=2)
+
+    assert [target.id for target in targets] == [66, 67]

@@ -1,9 +1,8 @@
 """Learning Ladder content generation — CLAUDE.md backlog #15.
 
 Grows the `skill_questions` bank onto REAL taxonomy skills only (real Lightcast
-skill_id, technical l1_domain), ranked by actual user demand — never the raw
-`job_skills` count, which carries Lightcast taxonomy noise (e.g. "WHO Drug
-Dictionary", "Fiber To The X") that would otherwise rank above real skills.
+skill_id, technical l1_domain), ranked by the post-scrape market-demand snapshot
+instead of raw `job_skills` counts or users' existing CV skills.
 
 Technical-only by design (Shivam, 2026-07-23 session): soft/experiential
 skills (l1_domain='Physical and Inherent Abilities' etc.) never enter this
@@ -12,9 +11,9 @@ quiz-testable ladder.
 
 Two-pass quality gate, no cheap models (feedback_no_cheap_models_judgment):
 generate on get_judgment_provider(), then an independent verify pass on the
-same lane re-checks every correct_index. Generated rows never ship `active`;
-they enter `status='review'` / `review_status='needs_review'` until a human
-reviewer adds trusted source/rationale metadata and publishes an edition.
+same lane re-checks every correct_index. This generator does not ingest source
+material, so its rows remain `review`. The source-grounded publisher may
+activate verified rows once it binds a legitimate `source_url`.
 
 Prompt-building + parsing is pure and lives in learning_ladder_prompts.py
 (unit tested without live calls); this module owns the DB reads/writes and
@@ -76,14 +75,12 @@ class LadderResult:
 
 
 def pick_target_skills(limit: int = 10) -> list[TargetSkill]:
-    """Top-N technical skills by real user demand, not yet in the bank.
+    """Top-N technical skills by current live-market demand, not yet in the bank.
 
-    Demand = user_skills count (what CVs actually show), not job_skills count
-    (Lightcast taxonomy junk ranks above real skills there — see module
-    docstring). Restricted to real taxonomy rows (lightcast_id NOT NULL) so a
-    synthetic bucket can never get picked again (the pre-existing 5 synthetic
-    "Frontend Engineering"/"Python Programming"/etc rows are a separate defect,
-    not one this function repeats).
+    Demand comes from `skill_demand_snapshot`, which is refreshed after
+    scrape/verifier activity and already applies listing-liveness, employer
+    spread, employer-dominance, and taxonomy guards. Restricted to real taxonomy
+    rows (lightcast_id NOT NULL) so synthetic buckets cannot be selected.
     """
     admin = get_supabase_admin()
 
@@ -115,15 +112,31 @@ def pick_target_skills(limit: int = 10) -> list[TargetSkill]:
     if not eligible:
         return []
 
-    demand_rows = fetch_all_rows(admin, table="user_skills", columns="skill_id")
-    counts: dict[int, int] = {}
+    demand_rows = fetch_all_rows(
+        admin,
+        table="skill_demand_snapshot",
+        columns="skill_id,window_key,roles,companies",
+        query_builder=lambda q: q.eq("window_key", "30d"),
+    )
+    roles: dict[int, int] = {}
+    companies: dict[int, int] = {}
     for r in demand_rows:
         sid = int(r["skill_id"])
-        if sid in eligible:
-            counts[sid] = counts.get(sid, 0) + 1
+        if sid not in eligible or r.get("window_key") != "30d":
+            continue
+        roles[sid] = roles.get(sid, 0) + int(r.get("roles") or 0)
+        companies[sid] = companies.get(sid, 0) + int(r.get("companies") or 0)
 
-    ranked = sorted(eligible.values(), key=lambda s: counts.get(s.id, 0), reverse=True)
-    return [s for s in ranked if counts.get(s.id, 0) > 0][:limit]
+    ranked = sorted(
+        eligible.values(),
+        key=lambda skill: (
+            roles.get(skill.id, 0),
+            companies.get(skill.id, 0),
+            skill.display_name,
+        ),
+        reverse=True,
+    )
+    return [skill for skill in ranked if roles.get(skill.id, 0) > 0][:limit]
 
 
 def find_incomplete_skills() -> list[tuple[TargetSkill, list[int]]]:
@@ -218,7 +231,7 @@ async def generate_ladder_for_skill(
 
 
 def rows_for_insert(result: LadderResult) -> list[dict]:
-    """LadderResult -> candidate skill_questions rows, ready for admin insert."""
+    """LadderResult -> unsourced draft rows, ready for admin insert."""
     rows: list[dict] = []
     for level, questions in result.by_level.items():
         for q in questions:
