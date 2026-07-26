@@ -117,6 +117,8 @@ class Settings(BaseSettings):
 
     # Environment
     railway_environment: str = "development"
+    railway_service_name: str = ""
+    debug: bool = False
 
     # Redis (durable async jobs)
     redis_url: str = ""
@@ -143,7 +145,7 @@ class Settings(BaseSettings):
 
     # CORS — comma-separated string, e.g.:
     # ALLOWED_ORIGINS=https://truemirror.vercel.app,http://localhost:3000
-    allowed_origins: str = "*"
+    allowed_origins: str = "http://localhost:3000"
 
     # CV upload fallback + observability
     cv_upload_support_email: str = "support@himyro.com"
@@ -157,6 +159,80 @@ class Settings(BaseSettings):
     verifier_dead_man_hours: int = 2
     verifier_health_interval_minutes: int = 5
     verifier_priority_stale_hours: int = 24
+
+    @property
+    def is_production(self) -> bool:
+        # Railway exposes the platform environment name here. Myro deliberately
+        # runs both backend services inside one Railway environment named
+        # "production", so the service identity is the release-tier boundary.
+        service_name = self.railway_service_name.strip()
+        if service_name == "mirror-backend-prod":
+            return True
+        if service_name == "mirror-backend-dev":
+            return False
+        return self.railway_environment.strip().lower() == "production"
+
+    def validate_runtime_configuration(self) -> None:
+        """Reject unsafe production configuration before the API serves traffic."""
+        if not self.is_production:
+            return
+
+        required_values = {
+            "SUPABASE_URL": self.supabase_url,
+            "SUPABASE_ANON_KEY": self.supabase_anon_key,
+            "SUPABASE_SERVICE_KEY": self.supabase_service_key,
+            "REDIS_URL": self.redis_url,
+            "TURNSTILE_SECRET": self.turnstile_secret,
+            "ALLOWED_ORIGINS": self.allowed_origins,
+            "RAZORPAY_KEY_ID": self.razorpay_key_id,
+            "RAZORPAY_KEY_SECRET": self.razorpay_key_secret,
+            "RAZORPAY_WEBHOOK_SECRET": self.razorpay_webhook_secret,
+        }
+        missing = sorted(
+            name for name, value in required_values.items() if not value.strip()
+        )
+        placeholders = sorted(
+            name
+            for name, value in required_values.items()
+            if value.strip()
+            and (
+                "your-" in value.lower()
+                or "replace_with" in value.lower()
+                or "[your-" in value.lower()
+            )
+        )
+        provider_keys = (
+            self.openrouter_api_key,
+            self.groq_api_key,
+            self.google_api_key,
+        )
+        usable_provider_keys = [
+            key
+            for key in provider_keys
+            if key.strip() and "your-" not in key.lower()
+        ]
+        if not usable_provider_keys:
+            if any(key.strip() for key in provider_keys):
+                missing.append("LLM provider key (placeholder value is forbidden)")
+            else:
+                missing.append("OPENROUTER_API_KEY or GROQ_API_KEY or GOOGLE_API_KEY")
+        if self.allowed_origins.strip() == "*":
+            missing.append("ALLOWED_ORIGINS (wildcard is forbidden in production)")
+        if any(
+            not origin.strip().startswith("https://")
+            for origin in self.allowed_origins.split(",")
+            if origin.strip()
+        ):
+            missing.append("ALLOWED_ORIGINS (must use HTTPS in production)")
+        if self.debug:
+            missing.append("DEBUG (must be false in production)")
+        if self.supabase_url and not self.supabase_url.startswith("https://"):
+            missing.append("SUPABASE_URL (must use HTTPS in production)")
+        missing.extend(f"{name} (placeholder value is forbidden)" for name in placeholders)
+
+        if missing:
+            names = ", ".join(missing)
+            raise ValueError(f"Invalid production configuration: {names}")
 
     @property
     def cors_origins(self) -> list[str]:

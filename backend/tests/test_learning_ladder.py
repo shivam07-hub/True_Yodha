@@ -1,7 +1,7 @@
 """Learning Ladder — pure-logic tests (no live LLM/DB calls).
 
 CLAUDE.md backlog #15: bank growth is technical-only, real-taxonomy-only, and
-never ships an unverified answer key as 'active'.
+generated rows never publish without human review metadata.
 """
 import json
 
@@ -133,16 +133,19 @@ def test_apply_verify_verdicts_missing_index_leaves_question_unverified():
     assert out[0].verified is False
 
 
-def test_rows_for_insert_verified_ships_active_unverified_ships_review():
+def test_rows_for_insert_model_verified_still_needs_human_review():
     verified_q = _q()
     verified_q.verified = True
     unverified_q = _q(text="different question")
     result = LadderResult(skill=SKILL, by_level={1: [verified_q, unverified_q]})
     rows = rows_for_insert(result)
     assert len(rows) == 2
-    by_status = {r["question_text"]: r["status"] for r in rows}
-    assert by_status[verified_q.question_text] == "active"
-    assert by_status[unverified_q.question_text] == "review"
+    assert {r["status"] for r in rows} == {"review"}
+    assert {r["review_status"] for r in rows} == {"needs_review"}
+    assert {r["generation_provenance"] for r in rows} == {
+        "llm_generated_model_verified",
+        "llm_generated_unverified",
+    }
     assert all(r["skill_id"] == 67 for r in rows)
     assert all(r["level"] == 1 for r in rows)
 

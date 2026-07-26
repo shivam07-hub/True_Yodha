@@ -114,6 +114,20 @@ export function Results({
               )}
             </div>
             <div className="up-rev-expl">{it.expl}</div>
+            {it.rationales ? (
+              <div className="up-rev-expl">
+                {it.rationales.correct ? (
+                  <div>Correct: {it.rationales.correct}</div>
+                ) : null}
+                {it.rationales.distractors ? (
+                  it.options.map((option, idx) => (
+                    idx === it.correct ? null : (
+                      <div key={idx}>Not {option}: {it.rationales?.distractors?.[String(idx)]}</div>
+                    )
+                  ))
+                ) : null}
+              </div>
+            ) : null}
           </div>
         ))}
       </div>

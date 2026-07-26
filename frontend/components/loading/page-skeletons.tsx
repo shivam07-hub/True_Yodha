@@ -250,6 +250,46 @@ export function MarketSkeleton() {
   )
 }
 
+export function IntelSkeleton() {
+  // Mirrors the /intel surface: cockpit header (title + standfirst) over the
+  // heatmap board — a skill-column header row then several company rows, each a
+  // labelled strip of demand cells. Public route with no app-shell skeleton, so
+  // this is the surface's only first-paint shape (not a blank + floating footer).
+  const cols = 6
+  return (
+    <div className="tm-page-enter" aria-hidden="true" style={{ ...PAGE, maxWidth: 1280, margin: "0 auto" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
+        <Bar w={140} h={11} r={4} />
+        <Bar w={300} h={30} r={8} />
+        <Bar w={"min(460px, 80%)"} h={14} r={4} />
+      </div>
+      <Card>
+        {/* column header row: a spacer for the row-label gutter + skill columns */}
+        <div style={{ display: "grid", gridTemplateColumns: `160px repeat(${cols}, 1fr)`, gap: 10, marginBottom: 14 }}>
+          <span />
+          {Array.from({ length: cols }).map((_, i) => (
+            <Skeleton key={i} style={{ height: 12, borderRadius: 4, width: `${80 - (i % 3) * 12}%` }} />
+          ))}
+        </div>
+        {/* company rows */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {Array.from({ length: 6 }).map((_, r) => (
+            <div key={r} style={{ display: "grid", gridTemplateColumns: `160px repeat(${cols}, 1fr)`, gap: 10, alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Skeleton style={{ width: 26, height: 26, borderRadius: 8, flexShrink: 0 }} />
+                <Skeleton style={{ flex: 1, height: 13, borderRadius: 4, maxWidth: `${76 - r * 6}%` }} />
+              </div>
+              {Array.from({ length: cols }).map((_, c) => (
+                <Skeleton key={c} style={{ height: 34, borderRadius: 8 }} />
+              ))}
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  )
+}
+
 export function GenericPageSkeleton() {
   return (
     <div className="tm-page-enter" aria-hidden="true" style={PAGE}>
@@ -272,6 +312,7 @@ export function GenericPageSkeleton() {
 export function skeletonForPath(pathname: string): React.ReactNode {
   if (pathname.startsWith("/home") || pathname.startsWith("/collections")) return <DashboardSkeleton />
   if (pathname.startsWith("/market")) return <MarketSkeleton />
+  if (pathname.startsWith("/intel")) return <IntelSkeleton />
   if (pathname.startsWith("/skills")) return <SkillsSkeleton />
   if (pathname.startsWith("/cv")) return <CvSkeleton />
   if (pathname.startsWith("/forge")) return <ForgeSkeleton />

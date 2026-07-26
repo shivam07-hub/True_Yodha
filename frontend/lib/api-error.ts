@@ -6,7 +6,7 @@
  * backend sent a detail body, and a network hang/timeout produced no error at
  * all (the request awaited forever → frozen skeleton). `ApiError` carries the
  * structured signal the failure UI needs: status, kind, and the server's
- * `trace_id` for support lookups.
+ * correlation ID for support lookups.
  */
 
 import { FAILURE_COPY, type FailureKind } from "./failure-copy"
@@ -45,9 +45,14 @@ function defaultRetryable(kind: ApiErrorKind, status: number | null): boolean {
 
 /** Pull a server trace id from the response, tolerant of where it lands. */
 export function readTraceId(res: Response, body: unknown): string | null {
-  const header = res.headers.get("x-trace-id") ?? res.headers.get("x-request-id")
+  const header =
+    res.headers.get("x-correlation-id") ??
+    res.headers.get("x-trace-id") ??
+    res.headers.get("x-request-id")
   if (header) return header
   if (body && typeof body === "object") {
+    const correlationId = (body as Record<string, unknown>).correlation_id
+    if (typeof correlationId === "string") return correlationId
     const top = (body as Record<string, unknown>).trace_id
     if (typeof top === "string") return top
     const detail = (body as Record<string, unknown>).detail

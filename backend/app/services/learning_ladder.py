@@ -12,9 +12,9 @@ quiz-testable ladder.
 
 Two-pass quality gate, no cheap models (feedback_no_cheap_models_judgment):
 generate on get_judgment_provider(), then an independent verify pass on the
-same lane re-checks every correct_index before anything ships `active`. A
-question the verifier can't confirm ships `status='review'` instead of
-silently going live wrong.
+same lane re-checks every correct_index. Generated rows never ship `active`;
+they enter `status='review'` / `review_status='needs_review'` until a human
+reviewer adds trusted source/rationale metadata and publishes an edition.
 
 Prompt-building + parsing is pure and lives in learning_ladder_prompts.py
 (unit tested without live calls); this module owns the DB reads/writes and
@@ -87,13 +87,12 @@ def pick_target_skills(limit: int = 10) -> list[TargetSkill]:
     """
     admin = get_supabase_admin()
 
-    covered_rows = fetch_all_rows(
-        admin,
-        table="skill_questions",
-        columns="skill_id",
-        query_builder=lambda q: q.eq("status", "active"),
-    )
-    covered_ids = {int(r["skill_id"]) for r in covered_rows}
+    covered_rows = fetch_all_rows(admin, table="skill_questions", columns="skill_id,status")
+    covered_ids = {
+        int(r["skill_id"])
+        for r in covered_rows
+        if r.get("status") in {"active", "review"}
+    }
 
     skill_rows = fetch_all_rows(
         admin,
@@ -139,14 +138,11 @@ def find_incomplete_skills() -> list[tuple[TargetSkill, list[int]]]:
     topped up."""
     admin = get_supabase_admin()
 
-    active_rows = fetch_all_rows(
-        admin,
-        table="skill_questions",
-        columns="skill_id,level",
-        query_builder=lambda q: q.eq("status", "active"),
-    )
+    active_rows = fetch_all_rows(admin, table="skill_questions", columns="skill_id,level,status")
     levels_by_skill: dict[int, set[int]] = {}
     for r in active_rows:
+        if r.get("status") not in {"active", "review"}:
+            continue
         levels_by_skill.setdefault(int(r["skill_id"]), set()).add(int(r["level"]))
     partial_ids = {sid for sid, levels in levels_by_skill.items() if 0 < len(levels) < len(LEVELS)}
     if not partial_ids:
@@ -222,7 +218,7 @@ async def generate_ladder_for_skill(
 
 
 def rows_for_insert(result: LadderResult) -> list[dict]:
-    """LadderResult -> skill_questions row dicts, ready for admin insert."""
+    """LadderResult -> candidate skill_questions rows, ready for admin insert."""
     rows: list[dict] = []
     for level, questions in result.by_level.items():
         for q in questions:
@@ -235,7 +231,11 @@ def rows_for_insert(result: LadderResult) -> list[dict]:
                 "correct_index": q.correct_index,
                 "explanation": q.explanation,
                 "dedupe_hash": dedupe_hash(q.question_text),
-                "status": "active" if q.verified else "review",
+                "status": "review",
+                "review_status": "needs_review",
+                "generation_provenance": (
+                    "llm_generated_model_verified" if q.verified else "llm_generated_unverified"
+                ),
             })
     return rows
 

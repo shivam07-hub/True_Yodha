@@ -13,6 +13,7 @@ from app.deps import Principal, get_principal
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.schemas.upskilling import (
     ActivityDatesResponse,
+    LearningCoverageResponse,
     StartGapResponse,
     StartSetRequest,
     StartSetResponse,
@@ -41,6 +42,14 @@ def activity_dates(
 ) -> ActivityDatesResponse:
     """Recent upskilling-set submission dates — powers the home practice streak."""
     return ActivityDatesResponse(dates=upskilling_service.list_activity_dates(principal.id))
+
+
+@router.get("/coverage", response_model=LearningCoverageResponse)
+def coverage(
+    principal: Principal = Depends(get_principal),
+) -> LearningCoverageResponse:
+    _ = principal
+    return LearningCoverageResponse(**upskilling_service.coverage_summary())
 
 
 @router.post("/sets", response_model=StartSetResponse)

@@ -69,6 +69,7 @@ class QuestionResult(BaseModel):
     correct_index: int
     is_correct: bool
     explanation: str
+    rationales: dict = Field(default_factory=dict)
 
 
 class SubmitSetResponse(BaseModel):
@@ -130,3 +131,15 @@ class SubmitGapResponse(BaseModel):
 
 class ActivityDatesResponse(BaseModel):
     dates: list[str]
+
+
+class LearningCoverageResponse(BaseModel):
+    coverage_gate_met: bool
+    publication_scope: Literal["partial", "comprehensive"]
+    complete_skill_count: int
+    target_skill_min: int
+    target_skill_max: int
+    questions_per_level_min: int
+    questions_per_level_max: int
+    active_reviewed_question_count: int
+    active_reviewed_skill_count: int

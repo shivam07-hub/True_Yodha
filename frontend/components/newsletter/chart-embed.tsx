@@ -1,12 +1,13 @@
-"use client"
+import Image from "next/image"
 
 interface ChartEmbedProps {
   src: string
   title: string
-  height?: number
 }
 
-export function ChartEmbed({ src, title, height = 480 }: ChartEmbedProps) {
+export function ChartEmbed({ src, title }: ChartEmbedProps) {
+  const previewSrc = src.replace(/\.html$/, ".png")
+
   return (
     <figure
       className="nl-fig nl-data"
@@ -15,14 +16,23 @@ export function ChartEmbed({ src, title, height = 480 }: ChartEmbedProps) {
       <figcaption className="nl-eyebrow" style={{ padding: "10px 16px", borderBottom: "1px solid var(--tm-border)" }}>
         {title}
       </figcaption>
-      <iframe
-        src={src}
-        title={title}
-        width="100%"
-        height={height}
-        style={{ display: "block", border: "none" }}
-        loading="lazy"
-      />
+      <a
+        href={src}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={`${title} — open interactive chart`}
+        style={{ display: "block" }}
+      >
+        <Image
+          src={previewSrc}
+          alt={title}
+          width={1200}
+          height={480}
+          unoptimized
+          loading="lazy"
+          style={{ display: "block", width: "100%", height: "auto" }}
+        />
+      </a>
     </figure>
   )
 }

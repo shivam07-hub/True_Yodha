@@ -5,9 +5,8 @@ The server holds the answer key. `start_set` serves questions WITHOUT
 strictly on a clear and only the first clear of each (skill, level), via the
 existing idempotent `reward_xp` RPC (xp_service.reward) — no new ledger.
 
-DEC-1a: a clear writes `skill_assessed_level` and bumps
-`user_skills.matched_level = max(legacy, assessed)` so the demonstrated level
-drives the headline number without ever regressing a user.
+A clear writes only `skill_assessed_level`. Learning progress is deliberately
+kept out of `user_skills`, because CV-derived skills feed scoring and matching.
 
 Surface B (gap calibration) lands in Slice 5 alongside its entry points.
 """
@@ -29,6 +28,10 @@ from app.services.xp_policy import (
 # Surface B — gap calibration sizing (PRD §5). Diagnostic, never awards tokens.
 GAP_MAX_SKILLS = 6
 GAP_QUESTIONS_PER_SKILL = 3
+COVERAGE_TARGET_SKILLS_MIN = 50
+COVERAGE_TARGET_SKILLS_MAX = 60
+COVERAGE_TARGET_QUESTIONS_PER_LEVEL_MIN = 10
+COVERAGE_TARGET_QUESTIONS_PER_LEVEL_MAX = 12
 
 CLEAR_ACTION = "upskilling_clear"
 # Idempotency key for the first-clear reward. Keyed per user by (skill, level),
@@ -37,6 +40,57 @@ CLEAR_ACTION = "upskilling_clear"
 # text predates this refinement; attempt ids only dedupe one attempt's retries.
 CLEAR_REF_TABLE = "skill_level_clear"
 SKILL_DISPLAY_COLUMNS = "id, taxonomy_key, display_name"
+SNAPSHOT_TABLE = "quiz_attempt_question_snapshots"
+
+
+def _has_text(value: object) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _rationales_complete(row: dict) -> bool:
+    options = row.get("options")
+    if not isinstance(options, list) or len(options) != 4:
+        return False
+    try:
+        correct_index = int(row.get("correct_index"))
+    except (TypeError, ValueError):
+        return False
+    if correct_index < 0 or correct_index >= len(options):
+        return False
+
+    rationales = row.get("rationales")
+    if not isinstance(rationales, dict):
+        return False
+    if not _has_text(rationales.get("correct")):
+        return False
+    distractors = rationales.get("distractors")
+    if not isinstance(distractors, dict):
+        return False
+    expected_wrong = {str(idx) for idx in range(len(options)) if idx != correct_index}
+    return expected_wrong.issubset(
+        {str(idx) for idx, text in distractors.items() if _has_text(text)}
+    )
+
+
+def _is_publishable_question(row: dict) -> bool:
+    """Reviewed-only gate for anything served as Learning Ladder content."""
+    return (
+        row.get("status") == "active"
+        and row.get("review_status") == "published"
+        and _has_text(row.get("content_edition_id"))
+        and _has_text(row.get("source_url"))
+        and _has_text(row.get("source_provenance"))
+        and _has_text(row.get("license_posture"))
+        and _has_text(row.get("reviewer"))
+        and _has_text(row.get("reviewed_at"))
+        and _has_text(row.get("verified_at"))
+        and _has_text(row.get("explanation"))
+        and _rationales_complete(row)
+    )
+
+
+def _publishable_questions(rows: list[dict]) -> list[dict]:
+    return [row for row in rows if _is_publishable_question(row)]
 
 
 def _clear_ref_id(skill_id: int, level: int) -> str:
@@ -65,6 +119,52 @@ def list_activity_dates(user_id: str, limit: int = 180) -> list[str]:
     return [str(row["submitted_at"]) for row in (result.data or []) if row.get("submitted_at")]
 
 
+def coverage_summary() -> dict:
+    """Reviewed publication coverage gate for Learning Ladder scope.
+
+    The gate is intentionally conservative: a skill counts as comprehensive only
+    when every L1-L5 level has at least the reviewed minimum question count.
+    """
+    admin = get_supabase_admin()
+    rows = _publishable_questions(
+        (
+            admin.table("skill_questions")
+            .select("*")
+            .eq("status", "active")
+            .execute()
+        ).data or []
+    )
+    by_skill: dict[int, dict[int, int]] = {}
+    for row in rows:
+        sid = int(row["skill_id"])
+        level = int(row["level"])
+        levels = by_skill.setdefault(sid, {})
+        levels[level] = levels.get(level, 0) + 1
+
+    complete_skill_ids = [
+        sid
+        for sid, levels in by_skill.items()
+        if all(
+            levels.get(level, 0) >= COVERAGE_TARGET_QUESTIONS_PER_LEVEL_MIN
+            for level in range(1, 6)
+        )
+    ]
+    complete_skill_count = len(complete_skill_ids)
+    coverage_gate_met = complete_skill_count >= COVERAGE_TARGET_SKILLS_MIN
+
+    return {
+        "coverage_gate_met": coverage_gate_met,
+        "publication_scope": "comprehensive" if coverage_gate_met else "partial",
+        "complete_skill_count": complete_skill_count,
+        "target_skill_min": COVERAGE_TARGET_SKILLS_MIN,
+        "target_skill_max": COVERAGE_TARGET_SKILLS_MAX,
+        "questions_per_level_min": COVERAGE_TARGET_QUESTIONS_PER_LEVEL_MIN,
+        "questions_per_level_max": COVERAGE_TARGET_QUESTIONS_PER_LEVEL_MAX,
+        "active_reviewed_question_count": len(rows),
+        "active_reviewed_skill_count": len(by_skill),
+    }
+
+
 def list_skills(user_id: str) -> list[dict]:
     """Practiceable skills + per-level progress.
 
@@ -78,12 +178,14 @@ def list_skills(user_id: str) -> list[dict]:
     admin = get_supabase_admin()
 
     # Skills with a servable bank: count active questions per (skill, level).
-    bank_rows = (
-        admin.table("skill_questions")
-        .select("skill_id, skill_key, level")
-        .eq("status", "active")
-        .execute()
-    ).data or []
+    bank_rows = _publishable_questions(
+        (
+            admin.table("skill_questions")
+            .select("*")
+            .eq("status", "active")
+            .execute()
+        ).data or []
+    )
     # skill_id -> { level -> count }, plus skill_key memo
     bank: dict[int, dict[int, int]] = {}
     keys: dict[int, str] = {}
@@ -157,14 +259,16 @@ def list_skills(user_id: str) -> list[dict]:
 def start_set(user_id: str, skill_id: int, level: int) -> dict:
     admin = get_supabase_admin()
 
-    pool = (
-        admin.table("skill_questions")
-        .select("id, skill_key, question_text, options")
-        .eq("skill_id", skill_id)
-        .eq("level", level)
-        .eq("status", "active")
-        .execute()
-    ).data or []
+    pool = _publishable_questions(
+        (
+            admin.table("skill_questions")
+            .select("*")
+            .eq("skill_id", skill_id)
+            .eq("level", level)
+            .eq("status", "active")
+            .execute()
+        ).data or []
+    )
 
     if len(pool) < UPSKILLING_SET_SIZE:
         raise HTTPException(
@@ -190,6 +294,7 @@ def start_set(user_id: str, skill_id: int, level: int) -> dict:
         )
         .execute()
     ).data[0]
+    _snapshot_attempt_questions(admin, str(attempt["id"]), drawn)
 
     return {
         "set_id": str(attempt["id"]),
@@ -237,14 +342,10 @@ async def submit_set(
     if attempt.get("submitted_at"):
         return await _replay_result(admin, attempt, question_ids)
 
-    # Load the served questions WITH keys (server-side only).
-    q_rows = (
-        admin.table("skill_questions")
-        .select("id, correct_index, explanation")
-        .in_("id", question_ids)
-        .execute()
-    ).data or []
-    keyed = {int(r["id"]): r for r in q_rows}
+    # Load the served questions WITH keys (server-side only). New attempts use
+    # immutable snapshots; legacy attempts fall back to the original bank rows.
+    q_rows = _answer_key_rows(admin, str(attempt["id"]), question_ids)
+    keyed = {int(r.get("id") or r["question_id"]): r for r in q_rows}
     selected = {int(a["question_id"]): int(a["selected_index"]) for a in answers}
 
     results = []
@@ -264,6 +365,7 @@ async def submit_set(
                 "correct_index": correct_index,
                 "is_correct": is_correct,
                 "explanation": kq["explanation"],
+                "rationales": kq.get("rationales") or {},
             }
         )
 
@@ -300,7 +402,7 @@ async def submit_set(
         on_conflict="attempt_id,question_id",
     ).execute()
 
-    # On a pass: advance the assessed level + grandfather the headline level.
+    # On a pass: advance only the assessed learning level.
     if passed:
         _bump_assessed_level(admin, user_id, skill_id, level)
 
@@ -372,31 +474,59 @@ def _bump_assessed_level(admin, user_id: str, skill_id: int, level: int) -> None
         on_conflict="user_id,skill_id",
     ).execute()
 
-    # DEC-1a: the headline level follows the assessed level, never regressing.
-    us = (
-        admin.table("user_skills")
-        .select("matched_level")
-        .eq("user_id", user_id)
-        .eq("skill_id", skill_id)
-        .maybe_single()
-        .execute()
-    )
-    if us and us.data:
-        legacy = int(us.data.get("matched_level") or 0)
-        if new_level > legacy:
-            admin.table("user_skills").update({"matched_level": new_level}).eq(
-                "user_id", user_id
-            ).eq("skill_id", skill_id).execute()
-    else:
-        admin.table("user_skills").insert(
+
+def _snapshot_attempt_questions(admin, attempt_id: str, questions: list[dict]) -> None:
+    if not questions:
+        return
+    admin.table(SNAPSHOT_TABLE).insert(
+        [
             {
-                "user_id": user_id,
-                "skill_id": skill_id,
-                "matched_level": new_level,
-                "forge_sessions_count": 0,
-                "total_forge_minutes": 0,
+                "attempt_id": attempt_id,
+                "question_id": int(q["id"]),
+                "position": idx,
+                "skill_id": int(q["skill_id"]),
+                "skill_key": q.get("skill_key") or "",
+                "level": int(q.get("level") or 0),
+                "question_text": q["question_text"],
+                "options": list(q["options"]),
+                "correct_index": int(q["correct_index"]),
+                "explanation": q["explanation"],
+                "rationales": q.get("rationales") or {},
+                "source_url": q.get("source_url"),
+                "source_provenance": q.get("source_provenance"),
+                "license_posture": q.get("license_posture"),
+                "reviewer": q.get("reviewer"),
+                "verified_at": q.get("verified_at"),
+                "content_edition_id": q.get("content_edition_id"),
             }
-        ).execute()
+            for idx, q in enumerate(questions)
+        ]
+    ).execute()
+
+
+def _answer_key_rows(admin, attempt_id: str, question_ids: list[int]) -> list[dict]:
+    snapshots = (
+        admin.table(SNAPSHOT_TABLE)
+        .select("*")
+        .eq("attempt_id", attempt_id)
+        .execute()
+    ).data or []
+    if snapshots:
+        order = {qid: idx for idx, qid in enumerate(question_ids)}
+        return sorted(
+            snapshots,
+            key=lambda row: (
+                int(row.get("position") or order.get(int(row["question_id"]), 0)),
+                order.get(int(row["question_id"]), 0),
+            ),
+        )
+
+    return (
+        admin.table("skill_questions")
+        .select("*")
+        .in_("id", question_ids)
+        .execute()
+    ).data or []
 
 
 # ── Surface B — job-anchored gap calibration (PRD §5) ────────────────────────
@@ -441,13 +571,15 @@ def start_gap(
     if not keys:
         return _empty("no_gaps")
 
-    bank_rows = (
-        admin.table("skill_questions")
-        .select("id, skill_id, skill_key, question_text, options")
-        .eq("status", "active")
-        .in_("skill_key", keys)
-        .execute()
-    ).data or []
+    bank_rows = _publishable_questions(
+        (
+            admin.table("skill_questions")
+            .select("*")
+            .eq("status", "active")
+            .in_("skill_key", keys)
+            .execute()
+        ).data or []
+    )
     by_key: dict[str, list[dict]] = {}
     for q in bank_rows:
         by_key.setdefault(q["skill_key"], []).append(q)
@@ -465,12 +597,14 @@ def start_gap(
 
     served: list[dict] = []
     all_qids: list[int] = []
+    drawn_questions: list[dict] = []
     for r in gaps:
         pool = by_key.get(r["skill_key"], [])
         if not pool:
             continue
         n = min(GAP_QUESTIONS_PER_SKILL, len(pool))
         drawn = random.sample(pool, n)
+        drawn_questions.extend(drawn)
         served.append(
             {
                 "skill_id": int(drawn[0]["skill_id"]),
@@ -501,6 +635,7 @@ def start_gap(
         )
         .execute()
     ).data[0]
+    _snapshot_attempt_questions(admin, str(attempt["id"]), drawn_questions)
 
     return {
         "assessment_id": str(attempt["id"]),
@@ -535,12 +670,7 @@ def submit_gap(
         )
 
     question_ids = [int(x) for x in (attempt.get("question_ids") or [])]
-    q_rows = (
-        admin.table("skill_questions")
-        .select("id, skill_id, skill_key, correct_index")
-        .in_("id", question_ids)
-        .execute()
-    ).data or []
+    q_rows = _answer_key_rows(admin, str(attempt["id"]), question_ids)
     selected = {int(a["question_id"]): int(a["selected_index"]) for a in answers}
 
     # Group correctness by skill.
@@ -551,7 +681,7 @@ def submit_gap(
             sid, {"skill_key": q["skill_key"], "correct": 0, "total": 0}
         )
         rec["total"] += 1
-        if selected.get(int(q["id"]), -1) == int(q["correct_index"]):
+        if selected.get(int(q.get("id") or q["question_id"]), -1) == int(q["correct_index"]):
             rec["correct"] += 1
 
     names = {
@@ -572,7 +702,7 @@ def submit_gap(
         missed = rec["total"] - rec["correct"]
         assessed = max(0, min(5, target - missed))
         band = "ready" if assessed >= target else "close" if assessed >= target - 1 else "gap"
-        # Diagnostic write — max-semantics, never regresses, no tokens (DEC-1a).
+        # Diagnostic write — max-semantics, never regresses, no tokens.
         _bump_assessed_level(admin, user_id, sid, assessed)
         ratios.append(min(1.0, assessed / target) if target > 0 else 1.0)
         readiness.append(
@@ -603,13 +733,8 @@ def submit_gap(
 
 async def _replay_result(admin, attempt: dict, question_ids: list[int]) -> dict:
     """Reconstruct a graded set's response without re-awarding (idempotent)."""
-    q_rows = (
-        admin.table("skill_questions")
-        .select("id, correct_index, explanation")
-        .in_("id", question_ids)
-        .execute()
-    ).data or []
-    keyed = {int(r["id"]): r for r in q_rows}
+    q_rows = _answer_key_rows(admin, str(attempt["id"]), question_ids)
+    keyed = {int(r.get("id") or r["question_id"]): r for r in q_rows}
     ans_rows = (
         admin.table("quiz_answers")
         .select("question_id, is_correct")
@@ -624,6 +749,7 @@ async def _replay_result(admin, attempt: dict, question_ids: list[int]) -> dict:
             "correct_index": int(keyed[qid]["correct_index"]),
             "is_correct": correctness.get(qid, False),
             "explanation": keyed[qid]["explanation"],
+            "rationales": keyed[qid].get("rationales") or {},
         }
         for qid in question_ids
         if qid in keyed

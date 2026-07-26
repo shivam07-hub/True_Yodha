@@ -4,6 +4,11 @@
 
 import type { DemandBand } from "@/lib/api"
 
+export interface AnswerRationales {
+  correct?: string
+  distractors?: Record<string, string>
+}
+
 export interface LadderSkill {
   skillId: number
   key: string
@@ -38,6 +43,7 @@ export interface ReviewItem {
   selected: number | null
   isCorrect: boolean
   expl: string
+  rationales?: AnswerRationales
 }
 
 export interface ResultModel {

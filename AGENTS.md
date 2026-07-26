@@ -175,7 +175,7 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
 - **Request chain (prod):** `himyro.com` → `api.himyro.com` (mirror-backend-prod, `main`) → Supabase + Redis; heavy LLM jobs → Redis → `True_Yodha` worker.
 - **Shared-infra couplings (known, accepted at this scale):** (a) dev + prod jobs share ONE Redis queue + ONE `llm:budget:slots` bucket — a dev test upload competes with prod traffic. (b) Worker tracks `Develop` while prod API tracks `main` → prod jobs are processed by slightly-ahead worker code. Full per-env isolation (separate Redis + `api-dev.himyro.com`) is documented but NOT built — see `docs/runbooks/railway-dev-main-env-split.md`.
 - **Supabase: `gipvxuugajkugntwkeiz` — ONE DB, shared by both dev+prod backends + worker.** A dev-env test upload writes to prod Supabase. Single by design (see policy above).
-- **CORS gotcha:** `ALLOWED_ORIGINS` env var is **DEAD CONFIG** — not read anywhere. CORS hardcoded `allow_origins=["*"], allow_credentials=False` in `backend/app/main.py:41` (safe: bearer-token auth, no cookies). To lock origins, wire `main.py` (code change → Develop + tests).
+- **CORS:** `ALLOWED_ORIGINS` is live exact-origin configuration. Production startup rejects missing, wildcard, malformed, or non-HTTPS values; configure only the frontend domains assigned to that backend service.
 - **DNS:** himyro.com on **GoDaddy**. `api` = CNAME → `rm336p0v.up.railway.app`; `_railway-verify.api` = TXT `railway-verify=<token>` (**single** prefix — a doubled `railway-verify=railway-verify=…` blocks cert issuance; cost real time 2026-06-03). Railway custom-domain cert needs BOTH records verified or it serves wildcard `*.up.railway.app` → TLS name mismatch → curl 000.
 - **Railway mgmt = MCP** (`mcp__railway__*`). Pass **snake_case `service_id`** or reads default to the linked service. `remove_service` confirm-boolean is broken via MCP → final service deletion needs a dashboard click.
 - **Cutover runbook:** fix DNS → wait cert green (`curl api.himyro.com/health` = 200, not 000) → THEN flip Vercel env + redeploy → verify → only then touch the old service. Flipping Vercel before cert live = outage.
@@ -361,6 +361,129 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 ### Architecture (deferred deepenings)
 
 10. **Extract `useCVPlayground(jobId)` hook for CV Builder state.** `app/cv/page.tsx` owns scattered `useState` + derivations for the playground state machine: `playgroundDirty`, `selectedVersionId`, `hiddenItems`, edit/polish targets, sync detection. Currently all complexity is local to one page, so the locality gain is moderate. Solve when: a second consumer needs to ask "does the user have unsaved CV changes?" (nav-away warning, mobile preview surface, share-token preview, etc). Today's recommendation: wait for the second consumer before deepening.
+
+---
+
+## LAST SESSION SUMMARY (2026-07-26 - Learning Ladder content foundation)
+
+Closed the backend/content-foundation slice of backlog #15 without touching
+backlog #16 or reopening #14.
+
+- Learning clears and job-gap calibrations now write only
+  `skill_assessed_level`; they no longer create or raise `user_skills`, and the
+  frontend no longer invalidates score-map data after learning-only writes.
+- New reviewed-publication gate: `skill_questions` are servable only when
+  `status='active'`, `review_status='published'`, edition/source/provenance/
+  license/reviewer/verification metadata exists, and correct+distractor
+  rationales are complete.
+- Added immutable `quiz_attempt_question_snapshots` so corrections and
+  retirement do not rewrite prior attempt review history.
+- Added additive Supabase migration
+  `20260726180000_learning_ladder_content_foundation.sql`: content editions,
+  source allowlists, review/provenance/rationale columns, replacement/
+  retirement fields, and RLS-protected attempt snapshots.
+- Applied the migration to live Supabase `gipvxuugajkugntwkeiz` and verified
+  the new tables are RLS-enabled. Live gate snapshot after migration:
+  1,545 total questions, 1,179 active legacy rows, 0 reviewed-published
+  questions, 0 publishable skill-levels, 0 complete skills.
+- Existing generator now produces review candidates only
+  (`status='review'`, `review_status='needs_review'`); model verification is
+  not publication. The PRD now documents ingest → normalize/dedupe → level →
+  rationales → human review → immutable edition.
+- Added `/upskilling/coverage` and typed frontend API support. The gate reports
+  `partial` until at least 50 complete skills have L1-L5 coverage with 10+
+  reviewed published questions per level.
+
+Validation: focused Learning Ladder backend tests `42 passed`; full backend
+suite `1,636 passed`; frontend upskilling source contract `4 passed`;
+TypeScript `npx tsc --noEmit` passed; Next lint passed; `git diff --check`
+passed. Supabase CLI advisor/migration-stub commands hung locally without
+output, so live Supabase verification used MCP SQL plus `apply_migration`.
+
+Unrelated workspace state left untouched: `docs/free-llm-api-resources`, nested
+untracked `True_Yodha/`, and untracked beta-feedback ledger files.
+
+## LAST SESSION SUMMARY (2026-07-26 - Develop deployment recovery)
+
+Diagnosed the first deployment after pre-launch environment hardening. Both
+failures were release-tier classification bugs, not missing production
+credentials:
+
+- Railway exposes `RAILWAY_ENVIRONMENT=production` to both API services because
+  Myro deliberately shares one Railway environment object. Runtime validation
+  now treats `RAILWAY_SERVICE_NAME` as authoritative for
+  `mirror-backend-dev` versus `mirror-backend-prod`; the production service
+  remains fail-closed.
+- Vercel Preview builds use `NODE_ENV=production`. Frontend validation now uses
+  `VERCEL_ENV=preview` to permit the existing Turnstile test-key path while
+  retaining real Turnstile and canonical-site requirements for Production.
+- `API_INTERNAL_URL` is no longer treated as independently critical because
+  server rendering already falls back to the required public API URL.
+- Added regression tests for both Railway service identities, Vercel Preview,
+  Vercel Production, and the internal API fallback. Updated all environment
+  examples without adding secret values.
+
+Validation: backend `1622 passed`; focused runtime configuration tests
+`14 passed`; Vercel Preview-shaped `next build` passed with the three reported
+missing values intentionally absent; TypeScript and Next lint passed. Before
+the recovery push, `truemirror.up.railway.app/health` timed out while
+`api.himyro.com/health` remained `200` and `himyro.com/login` remained reachable.
+Direct Railway access was still blocked by expired OAuth, and the connected
+Vercel account exposed no teams, so deployment verification used public
+endpoints and Git-triggered deployments without reading or copying secrets.
+
+---
+
+## LAST SESSION SUMMARY (2026-07-26 - Pre-launch security hardening)
+
+Completed the requested pre-launch security checklist across application code,
+tests, local production builds, live Supabase metadata, and observable deployed
+headers. Canonical evidence:
+`docs/security/2026-07-26-prelaunch-security-checklist.md`.
+
+- Added fail-closed production environment validation for backend and frontend,
+  with source-to-example coverage gates and debug mode off by default.
+- Added a permanent regression gate for runtime debug consoles, test-only
+  endpoints, hardcoded test credentials, commented-out executable blocks, and
+  incomplete security markers.
+- Added a centralized API error boundary: generic validation/5xx responses,
+  internal-detail suppression, correlation IDs on all responses, and frontend
+  correlation-ID support.
+- Added API and Next.js security headers. Frontend CSP uses per-request nonces
+  with strict script policy; every response denies framing. Newsletter chart
+  iframes became reviewed static previews linked to standalone hash-locked
+  interactive charts so no framing exception remains.
+- Added Redis-backed, atomic per-IP limits: login/signup 5 per minute;
+  magic-link OTP/recovery 3 per hour; production fails closed if Redis is down.
+- Replaced wildcard CORS with exact configured origins, explicit
+  method/header lists, HTTPS-only production validation, and exposed
+  correlation/retry headers.
+- Live Supabase verification: project healthy, current DB session TLS 1.3 /
+  256-bit, 91/91 public tables have RLS, 0 API-granted tables lack RLS, and only
+  password-configured native roles can log in. Broader advisor findings were
+  recorded but not mutated without a dedicated privilege/view review.
+
+Commits:
+
+- `843698d1 fix: fail closed on invalid production config`
+- `9cb58cb5 test: block prelaunch debug artifacts`
+- `2e446147 fix: sanitize API error responses`
+- `93b71717 fix: enforce response security headers`
+- `9a8d5d45 fix: deny framing on newsletter charts`
+- `3d9c67b2 fix: rate limit authentication attempts`
+- `9116777f fix: restrict API CORS origins`
+
+Validation: backend `1621 passed`; focused security suites pass; TypeScript and
+Next lint pass; production frontend build passes; runtime CSP nonce/header
+inspection passes for app, chart HTML, and chart preview responses.
+
+Deployment gate remains: after this summary/report commit, local `Develop` is
+eight commits ahead of
+`origin/Develop`; live frontend/APIs still show the old headers/wildcard CORS.
+Railway variable verification is blocked until `railway login` is restored;
+Vercel connector surfaced no team/project. No changes were pushed or deployed.
+Unrelated workspace state remains untouched:
+`docs/free-llm-api-resources` and nested untracked `True_Yodha/`.
 
 ---
 

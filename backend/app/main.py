@@ -1,8 +1,8 @@
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
+from app.config import settings
 from app.request_timing import RequestTimingMiddleware
 from app.routers import (
     auth,
@@ -36,7 +36,13 @@ from app.routers import (
     users,
     xp,
 )
-from app.security import install_sensitive_log_filter
+from app.security import (
+    install_auth_rate_limits,
+    install_cors,
+    install_error_handling,
+    install_security_headers,
+    install_sensitive_log_filter,
+)
 from app.services.job_feed.taxonomy import JobFeedTaxonomyMismatchError, verify_taxonomy_integrity
 
 _TAXONOMY_PATH = Path(__file__).resolve().parent.parent / "lightcast_skills_taxonomy.json"
@@ -47,15 +53,13 @@ app = FastAPI(
     title="Mirror API",
     description="Mirror — The Job Seeker's Reality Check",
     version="0.1.0",
+    debug=settings.debug,
 )
+install_auth_rate_limits(app)
+install_error_handling(app)
+install_security_headers(app)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+install_cors(app, settings.cors_origins)
 
 # Server-side per-request timing → X-Process-Time header + slow-request log.
 # Added after CORS so timing wraps the inner app (CORS preflight stays instant).
@@ -94,6 +98,11 @@ app.include_router(internal.router)
 
 
 @app.on_event("startup")
+async def _validate_runtime_configuration() -> None:
+    settings.validate_runtime_configuration()
+
+
+@app.on_event("startup")
 async def _raise_sync_threadpool_limit() -> None:
     """Backlog #16 (prod read-capacity). Sync routes block a thread for the
     duration of each Supabase call; the AnyIO default of 40 threads queues a
@@ -105,8 +114,6 @@ async def _raise_sync_threadpool_limit() -> None:
     app.config.Settings.sync_threadpool_tokens for the full rationale.
     """
     import anyio.to_thread
-
-    from app.config import settings
 
     anyio.to_thread.current_default_thread_limiter().total_tokens = (
         settings.sync_threadpool_tokens

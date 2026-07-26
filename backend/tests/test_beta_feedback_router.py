@@ -206,4 +206,6 @@ def test_submit_validates_contract(backend, overrides: dict, field: str) -> None
             headers={"Authorization": "Bearer t"},
         )
     assert response.status_code == 422
-    assert field in response.text
+    assert response.json()["detail"] == "Request validation failed."
+    assert response.json()["correlation_id"]
+    assert field not in response.text
