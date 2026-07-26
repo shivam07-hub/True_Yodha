@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { auth } from "@/lib/api"
+import { errorCode } from "@/lib/api-error"
 import { setSessionTokens } from "@/lib/session"
 import { createClient } from "@/lib/supabase"
 import { capturePendingReferral } from "@/lib/referral"
@@ -23,6 +24,12 @@ interface Props {
   surface: "page" | "modal"
   next?: string | null
   showSignupLink?: boolean
+  /**
+   * Address carried in from a signup that hit an existing account (or from
+   * /login?email=). Opens straight on the password form — a prefilled email
+   * with the password field hidden behind a toggle reads as a dead end.
+   */
+  initialEmail?: string | null
 }
 
 /**
@@ -31,16 +38,16 @@ interface Props {
  * Four login paths: Google + LinkedIn + magic-link + password (legacy).
  * Magic-link is the canonical forgot-password recovery path.
  */
-export function LoginForm({ surface, next, showSignupLink = true }: Props) {
+export function LoginForm({ surface, next, showSignupLink = true, initialEmail }: Props) {
   const router = useRouter()
-  const [email, setEmail] = useState("")
+  const [email, setEmail] = useState(initialEmail ?? "")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [pendingEmail, setPendingEmail] = useState<string | null>(null)
   const [agent, setAgent] = useState<string | null>(null)
-  const [mode, setMode] = useState<"primary" | "password">("primary")
+  const [mode, setMode] = useState<"primary" | "password">(initialEmail ? "password" : "primary")
 
   useEffect(() => {
     capturePendingReferral()
@@ -88,8 +95,19 @@ export function LoginForm({ surface, next, showSignupLink = true }: Props) {
         hasPendingJobSave: hasPendingJobSaveClaim(),
       }))
     } catch (err) {
+      const code = errorCode(err)
+      signupEvents.failed({ method: "password", stage: "login", error_code: code ?? "auth_failed" })
+
+      // An unconfirmed email cannot be fixed by retyping the password — this
+      // used to come back as "Invalid email or password", which sends the user
+      // to reset a password that was never wrong. Put them on the magic link.
+      if (code === "email_not_confirmed") {
+        setMode("primary")
+        setError(err instanceof Error ? err.message : "Confirm your email to sign in.")
+        return
+      }
+
       setError(err instanceof Error ? err.message : "Login failed.")
-      signupEvents.failed({ method: "password", stage: "login", error_code: "auth_failed" })
     } finally {
       setLoading(false)
     }
@@ -123,7 +141,12 @@ export function LoginForm({ surface, next, showSignupLink = true }: Props) {
 
       {mode === "primary" && (
         <>
-          <MagicLinkInput surface={surface} redirectTo={redirectTo} onSent={(e) => setPendingEmail(e)} />
+          <MagicLinkInput
+            surface={surface}
+            redirectTo={redirectTo}
+            onSent={(e) => setPendingEmail(e)}
+            initialEmail={email || initialEmail}
+          />
 
           <button
             type="button"

@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { auth } from "@/lib/api"
+import { errorCode } from "@/lib/api-error"
 import { setSessionTokens } from "@/lib/session"
 import { getStoredReferral } from "@/lib/referral"
 import { clearStoredAttribution, readStoredAttribution } from "@/lib/attribution"
@@ -16,6 +17,8 @@ interface Props {
   next?: string | null
   onPendingEmail: (email: string) => void
   onUseMagicLink: () => void
+  /** Owner of a sign-in view takes over when the email already has an account. */
+  onEmailTaken?: (email: string) => void
 }
 
 export function SignupPasswordForm({
@@ -23,6 +26,7 @@ export function SignupPasswordForm({
   next,
   onPendingEmail,
   onUseMagicLink,
+  onEmailTaken,
 }: Props) {
   const router = useRouter()
   const [email, setEmail] = useState("")
@@ -73,8 +77,24 @@ export function SignupPasswordForm({
         hasPendingJobSave: hasPendingJobSaveClaim(),
       }))
     } catch (err) {
+      const code = errorCode(err)
+      signupEvents.failed({ method: "password", stage: "signup", error_code: code ?? "auth_failed" })
+
+      // The account already exists. "Try again" is the one instruction that
+      // cannot work here — hand them to sign-in with the email carried over.
+      if (code === "email_taken") {
+        if (onEmailTaken) {
+          onEmailTaken(normalizedEmail)
+        } else {
+          router.push(
+            `/login?email=${encodeURIComponent(normalizedEmail)}` +
+              (next ? `&next=${encodeURIComponent(next)}` : ""),
+          )
+        }
+        return
+      }
+
       setError(err instanceof Error ? err.message : "Signup failed.")
-      signupEvents.failed({ method: "password", stage: "signup", error_code: "auth_failed" })
     } finally {
       setLoading(false)
     }

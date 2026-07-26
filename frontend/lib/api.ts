@@ -22,7 +22,7 @@ import {
 } from "./cv-upload-state"
 import { preflightCVUploadFile } from "./cv-file-detect"
 import { queryClient } from "./query-client"
-import { ApiError, classifyError, readTraceId } from "./api-error"
+import { ApiError, classifyError, readErrorCode, readTraceId } from "./api-error"
 import { getTurnstileToken } from "./turnstile"
 import type { AcquisitionAttribution } from "./attribution"
 import type {
@@ -194,6 +194,7 @@ async function request<T>(path: string, init?: ApiRequestInit, _isRetry = false)
       status: res.status,
       kind: "http",
       traceId: readTraceId(res, body),
+      code: readErrorCode(body),
     })
   }
   if (res.status === 204) return undefined as T
@@ -235,6 +236,7 @@ async function requestConditional(
       status: res.status,
       kind: "http",
       traceId: readTraceId(res, body),
+      code: readErrorCode(body),
     })
   }
   return { status: res.status, etag: res.headers.get("ETag"), json: await res.json() }

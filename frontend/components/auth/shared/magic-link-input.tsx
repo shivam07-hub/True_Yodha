@@ -11,12 +11,21 @@ interface Props {
   onSent?: (email: string) => void
   disabled?: boolean
   label?: string
+  /** Seed the field when the caller already knows the address. */
+  initialEmail?: string | null
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-export function MagicLinkInput({ surface, redirectTo, onSent, disabled, label = "Email me a link" }: Props) {
-  const [email, setEmail] = useState("")
+export function MagicLinkInput({
+  surface,
+  redirectTo,
+  onSent,
+  disabled,
+  label = "Email me a link",
+  initialEmail,
+}: Props) {
+  const [email, setEmail] = useState(initialEmail ?? "")
   const [error, setError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
 
