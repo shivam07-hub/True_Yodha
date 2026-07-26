@@ -1,0 +1,34 @@
+[
+  {
+    "source_id": "attachment:usha-bhatiya-pdf",
+    "source_ref": "Document from Usha Bhatiya.pdf",
+    "attribution": "Document attribution only; no exact Supabase identity match was found.",
+    "submitted_at": "2026-07-08",
+    "assessment": {
+      "product_understanding": "Overall, my experience with Myro was good. I liked the idea behind the platform, especially the way it organizes CVs and provides career-related insights.",
+      "most_useful_moment": "I really liked the astrology-inspired career visualization. It was unique, engaging, and made the platform feel different from other job portals. The written explanation of the CV process was clear and informative. It helped me understand how Myro works with uploaded resumes.",
+      "biggest_problem_area": "CV upload",
+      "biggest_problem": "I was unable to upload my CV despite trying multiple times. There was no clear error message or explanation about why the upload was failing.\n\nI also faced an issue while submitting feedback. The feedback could not be submitted, and I received a \"Network request failed\" message without any guidance on how to resolve it.\n\nThe interface and language felt a bit complex. Some terms and concepts may be difficult for users who are not very familiar with technology or who are applying for entry-level or blue-collar jobs.",
+      "priority_improvement": "Provide clearer error messages and troubleshooting steps when uploads or submissions fail.\n\nUse simpler language and a more user-friendly interface so that people with different educational backgrounds can navigate the platform easily.\n\nConsider adding tooltips or short explanations for advanced features to improve accessibility."
+    },
+    "closure": {
+      "status": "open",
+      "priority": "P0",
+      "themes": [
+        "cv_upload",
+        "feedback_delivery",
+        "plain_language",
+        "onboarding"
+      ],
+      "root_cause": null,
+      "owner": null,
+      "code_evidence": [],
+      "deployment_evidence": [],
+      "test_evidence": [],
+      "metric_evidence": [],
+      "user_validation": null,
+      "closed_at": null,
+      "notes": "Keep this separate from Supabase feedback until an exact identity match exists."
+    }
+  }
+]
