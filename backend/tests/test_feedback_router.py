@@ -7,88 +7,11 @@ Covers the unified Feedback Hub backend surface (Backlog #17):
 
 from __future__ import annotations
 
-from typing import Any
-
 import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.routers import feedback as feedback_router
-
-
-class _Chain:
-    """PostgREST-style call recorder. Build chains, capture inserts/filters."""
-
-    def __init__(self, routes: dict[str, Any]) -> None:
-        self._routes = routes
-        self._table: str | None = None
-        self._filters: list[tuple[str, Any]] = []
-        self._inserted: dict | None = None
-
-    def table(self, name: str) -> "_Chain":
-        self._table = name
-        self._filters = []
-        self._inserted = None
-        return self
-
-    def insert(self, payload: dict) -> "_Chain":
-        self._inserted = payload
-        return self
-
-    def select(self, *_a: Any, **_kw: Any) -> "_Chain":
-        return self
-
-    def eq(self, col: str, val: Any) -> "_Chain":
-        self._filters.append((col, val))
-        return self
-
-    def order(self, *_a: Any, **_kw: Any) -> "_Chain":
-        return self
-
-    def limit(self, _n: int) -> "_Chain":
-        return self
-
-    def execute(self) -> Any:
-        spec = self._routes.get(self._table) or {}
-        if self._inserted is not None:
-            if spec.get("insert_error") is not None:
-                raise spec["insert_error"]
-            # mimic Supabase: insert returns the inserted row
-            row = {**self._inserted}
-            row.setdefault("id", spec.get("inserted_id", 1))
-            row.setdefault("created_at", spec.get("created_at", "2026-06-14T12:00:00Z"))
-            return _Result([row])
-        rows_sequence = spec.get("rows_sequence")
-        if rows_sequence:
-            return _Result(rows_sequence.pop(0))
-        return _Result(spec.get("rows", []))
-
-
-class _Result:
-    def __init__(self, data: Any) -> None:
-        self.data = data
-
-
-@pytest.fixture
-def patch_admin(monkeypatch: pytest.MonkeyPatch):
-    """Patch the admin-client dependency used by the feedback router."""
-
-    def _apply(routes: dict[str, Any]) -> _Chain:
-        chain = _Chain(routes)
-        monkeypatch.setattr(feedback_router, "get_supabase_admin", lambda: chain)
-        return chain
-
-    return _apply
-
-
-@pytest.fixture
-def patch_user(monkeypatch: pytest.MonkeyPatch):
-    """Patch token → user_id resolution."""
-
-    def _apply(user_id: str | None) -> None:
-        monkeypatch.setattr(feedback_router, "_resolve_user_id", lambda _c: user_id)
-
-    return _apply
+from tests.feedback_test_support import patch_admin, patch_user  # noqa: F401
 
 
 # ── POST /feedback ────────────────────────────────────────────────────────
@@ -106,7 +29,7 @@ def test_submit_feedback_accepts_new_categories(patch_admin, patch_user) -> None
         )
 
     assert response.status_code == 201, response.text
-    assert response.json() == {"ok": True, "id": 99}
+    assert response.json() == {"ok": True, "id": 99, "replayed": False}
     assert chain._inserted is not None
     assert chain._inserted["type"] == "idea"
     assert chain._inserted["user_id"] == "user-uuid-1"

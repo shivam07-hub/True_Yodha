@@ -194,11 +194,17 @@ def _enforce_anon_rate(action: str, ip: str) -> None:
 
 
 async def _verify_turnstile(token: str | None, ip: str) -> None:
-    """Verify the Turnstile token when a secret is configured. When it isn't
-    (dev / pre-provision), skip — the per-IP limit still applies. Fail-closed
-    only once a secret exists: then a missing/invalid token is a hard 403."""
+    """Verify Turnstile or disable the protected feature in production."""
     secret = settings.turnstile_secret
     if not secret:
+        if settings.is_production:
+            _log.error(
+                "TURNSTILE_SECRET is missing; anonymous CV endpoints are disabled"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Verification is temporarily unavailable.",
+            )
         return
     if not token:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Verification required.")

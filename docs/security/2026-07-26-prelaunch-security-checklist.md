@@ -31,7 +31,8 @@ Do not promote this release to `main` until:
 | Check | Before | Result | Fix/evidence |
 |---|---|---|---|
 | Every application env read is documented | Not enforced | **FAIL → FIXED** | Backend and frontend contract tests scan runtime source and fail when an env read is absent from the relevant `.env.example`. |
-| Critical backend values stop production startup | Missing values could reach runtime paths | **FAIL → FIXED** | Startup now rejects missing/placeholder Supabase URL and keys, Redis URL, Turnstile secret, Razorpay key/secret/webhook secret, exact CORS origins, and the absence of every LLM provider key. |
+| Critical backend values stop production startup | Missing values could reach runtime paths | **FAIL → FIXED** | Startup rejects missing/placeholder Supabase URL and keys, Redis URL, Razorpay key/secret/webhook secret, exact CORS origins, and the absence of every LLM provider key. |
+| Feature-scoped Turnstile secret | Missing secret originally bypassed verification; making it globally critical later crashed the entire production API | **FAIL → FIXED** | Production keeps every Turnstile-protected anonymous route fail-closed with a generic correlated `503`, but the authenticated/core API can start. |
 | Critical frontend values stop production build/start | Not enforced centrally | **FAIL → FIXED** | `prebuild` and `prestart` validate Supabase URL/key, API URL, site URL, internal API URL, Razorpay public key, and Turnstile site key. Service URLs must use HTTPS. |
 | Debug mode defaults off | Previously implicit | **PASS / HARDENED** | Backend default is `False`; production startup rejects `DEBUG=true`. |
 | Live Railway variable inventory | Connector session expired | **BLOCKED** | Both Railway MCP and CLI return `Unauthorized. Please run railway login again.` No values were requested or exposed. |

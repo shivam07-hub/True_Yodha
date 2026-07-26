@@ -167,6 +167,25 @@ def test_valid_production_configuration_passes() -> None:
     config.validate_runtime_configuration()
 
 
+def test_production_startup_allows_missing_feature_scoped_turnstile_secret() -> None:
+    config = Settings(
+        _env_file=None,
+        railway_environment="production",
+        supabase_url="https://project.supabase.co",
+        supabase_anon_key="anon-key",
+        supabase_service_key="service-key",
+        redis_url="redis://redis.internal:6379/0",
+        turnstile_secret="",
+        allowed_origins="https://himyro.com,https://www.himyro.com",
+        openrouter_api_key="provider-key",
+        razorpay_key_id="rzp_live_public",
+        razorpay_key_secret="razorpay-secret",
+        razorpay_webhook_secret="webhook-secret",
+    )
+
+    config.validate_runtime_configuration()
+
+
 def test_api_refuses_to_start_with_invalid_production_configuration(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

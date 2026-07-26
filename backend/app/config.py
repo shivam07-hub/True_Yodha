@@ -182,7 +182,6 @@ class Settings(BaseSettings):
             "SUPABASE_ANON_KEY": self.supabase_anon_key,
             "SUPABASE_SERVICE_KEY": self.supabase_service_key,
             "REDIS_URL": self.redis_url,
-            "TURNSTILE_SECRET": self.turnstile_secret,
             "ALLOWED_ORIGINS": self.allowed_origins,
             "RAZORPAY_KEY_ID": self.razorpay_key_id,
             "RAZORPAY_KEY_SECRET": self.razorpay_key_secret,
