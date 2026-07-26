@@ -39,6 +39,14 @@ class Settings(BaseSettings):
     # max_connections=60 on the DB itself, shared by dev+prod+worker+MCP).
     sync_threadpool_tokens: int = 100
 
+    # A process-local bulkhead for synchronous Supabase Data API reads.  This
+    # stays intentionally below the shared database's 60-connection ceiling:
+    # dev, production, and the worker use one Supabase project.  It is not a
+    # replacement for query tuning; it prevents one browsing burst from making
+    # every other user wait for Postgres' statement timeout.
+    supabase_read_max_inflight: int = 12
+    supabase_read_queue_timeout_seconds: float = 0.25
+
     # Backlog #16 regression contract: "saturation must page a real alert
     # destination." When `_ALERT_THRESHOLD` slow requests land inside
     # `_ALERT_WINDOW_SECONDS` (request_timing.py), one email fires here via

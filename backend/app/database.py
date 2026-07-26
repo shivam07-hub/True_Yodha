@@ -25,12 +25,17 @@ from supabase import Client, create_client
 from supabase.lib.client_options import ClientOptions
 
 from app.config import settings
+from app.services.read_capacity import ReadCapacityLimiter
 
 # Hard ceiling on any single PostgREST round-trip. A hung Supabase call must
 # not occupy a request thread indefinitely — it fails fast instead of holding
 # a threadpool slot for the full client timeout (the 14s 499s we saw). Kept
 # generous enough for legitimately heavy reads, tight enough to bound the tail.
 _POSTGREST_TIMEOUT_SECONDS = 8
+_read_capacity = ReadCapacityLimiter(
+    max_inflight=settings.supabase_read_max_inflight,
+    queue_timeout_seconds=settings.supabase_read_queue_timeout_seconds,
+)
 
 
 def _client_options() -> ClientOptions:
@@ -61,6 +66,16 @@ class _RetryingHTTPTransport(httpx.HTTPTransport):
     _RETRYABLE = (httpx.ReadError, httpx.RemoteProtocolError, httpx.ConnectError)
 
     def handle_request(self, request: httpx.Request) -> httpx.Response:
+        # PostgREST represents table reads as GET requests.  Bound those at the
+        # application boundary, before they claim a scarce database worker.  We
+        # leave writes outside this short queue so a retrying reader can never
+        # delay a user mutation; write idempotency has its own contracts.
+        if request.method in ("GET", "HEAD"):
+            with _read_capacity.claim():
+                return self._handle_with_retry(request)
+        return self._handle_with_retry(request)
+
+    def _handle_with_retry(self, request: httpx.Request) -> httpx.Response:
         try:
             return super().handle_request(request)
         except self._RETRYABLE:
