@@ -364,6 +364,37 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-07-26 - Beta reliability foundations)
+
+Started the non-frontend execution of the end-of-beta closure plan in three
+isolated commits:
+
+- `d60c7371` adds a privacy-safe closure ledger exporter and the generated
+  registry for all 113 Supabase beta rows plus Usha Bhatiya's separately
+  attributed PDF feedback. Direct email/phone identifiers are redacted, human
+  closure decisions survive refreshes, and `fixed` is rejected without code,
+  deployment, test, metric, user-validation, and closure-date evidence.
+- `daa39cef` adds a read-only concurrent load probe for login, Jobs, CV,
+  company, and isolated analytics journeys. It separates client latency from
+  `X-Process-Time`, emits p50/p95/p99, applies an SLO gate, caps runs at 500
+  requests, and requires explicit production opt-in.
+- `b78e7bf7` adds the backend contract for a durable feedback outbox:
+  UUID `Idempotency-Key`, canonical payload fingerprint, replay receipts,
+  changed-payload conflict detection, and concurrent duplicate collapse. The
+  additive migration is
+  `20260726182212_feedback_submission_idempotency.sql`.
+
+No frontend files were changed. Claude still owns the IndexedDB feedback
+outbox/UI states, CV progress/resume parity, mobile Next Action, onboarding,
+plain-language, and tooltip work. The feedback idempotency migration is
+committed but deliberately not applied to the shared Supabase database before
+Claude's contract review and frontend readiness.
+
+Validation: full backend suite `1,656 passed`; frontend Next lint passed with no
+warnings; `npx tsc --noEmit` passed; focused feedback/load/ledger suites passed;
+`git diff --check` passed. Unrelated `docs/free-llm-api-resources` state was
+left untouched.
+
 ## LAST SESSION SUMMARY (2026-07-26 - Learning Ladder content foundation)
 
 Closed the backend/content-foundation slice of backlog #15 without touching
