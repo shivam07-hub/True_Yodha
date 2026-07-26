@@ -2,11 +2,15 @@
 
 import { Suspense } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { AuthPageShell, useNextPath } from "@/components/auth/auth-page-shell"
 import { LoginForm } from "@/components/auth/login-form"
 
 function LoginRoute() {
   const next = useNextPath()
+  // Set when a signup bounced off an existing account — never make the user
+  // retype an address the product already knows.
+  const prefillEmail = useSearchParams().get("email")
   return (
     <AuthPageShell
       title="Welcome back"
@@ -22,7 +26,7 @@ function LoginRoute() {
         </>
       }
     >
-      <LoginForm surface="page" next={next} showSignupLink={false} />
+      <LoginForm surface="page" next={next} showSignupLink={false} initialEmail={prefillEmail} />
     </AuthPageShell>
   )
 }

@@ -33,6 +33,7 @@ from app.schemas import (
     RefreshResponse,
     SignupRequest,
 )
+from app.security.auth_errors import auth_error_code, login_http_error, signup_http_error
 from app.security.auth_rate_limit import client_ip_from_scope
 from app.services import auth_links, email_service
 from app.services.growth_attribution import record_if_new_signup, record_signup_attribution
@@ -77,16 +78,17 @@ def signup(
             "options": {"data": {"full_name": body.full_name}},
         })
     except Exception as exc:
-        _log.warning("signup failed reason=%s", type(exc).__name__)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Could not create the account. Please try again.",
-        ) from exc
+        _log.warning(
+            "signup failed reason=%s code=%s",
+            type(exc).__name__,
+            auth_error_code(exc) or "unknown",
+        )
+        raise signup_http_error(exc) from exc
 
     if not response.user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Signup failed. Please try again.",
+            detail={"code": "signup_failed", "message": "Could not create the account. Please try again."},
         )
 
     if not response.session:
@@ -107,7 +109,10 @@ def signup(
         _log.warning("signup provisioning failed reason=%s", type(exc).__name__)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Could not finish account setup. Please try again.",
+            detail={
+                "code": "provisioning_failed",
+                "message": "Could not finish account setup. Please try again.",
+            },
         ) from exc
 
     if body.attribution:
@@ -138,16 +143,17 @@ def login(
             "password": body.password.get_secret_value(),
         })
     except Exception as exc:
-        _log.warning("login failed reason=%s", type(exc).__name__)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password.",
-        ) from exc
+        _log.warning(
+            "login failed reason=%s code=%s",
+            type(exc).__name__,
+            auth_error_code(exc) or "unknown",
+        )
+        raise login_http_error(exc) from exc
 
     if not response.user or not response.session:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password.",
+            detail={"code": "invalid_credentials", "message": "Invalid email or password."},
         )
 
     ensure_user_provisioned(

@@ -47,50 +47,40 @@ def _has_text(value: object) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
 
-def _rationales_complete(row: dict) -> bool:
+def _question_structure_complete(row: dict) -> bool:
     options = row.get("options")
-    if not isinstance(options, list) or len(options) != 4:
+    if (
+        not isinstance(options, list)
+        or len(options) != 4
+        or not all(_has_text(option) for option in options)
+    ):
         return False
     try:
         correct_index = int(row.get("correct_index"))
     except (TypeError, ValueError):
         return False
-    if correct_index < 0 or correct_index >= len(options):
-        return False
-
-    rationales = row.get("rationales")
-    if not isinstance(rationales, dict):
-        return False
-    if not _has_text(rationales.get("correct")):
-        return False
-    distractors = rationales.get("distractors")
-    if not isinstance(distractors, dict):
-        return False
-    expected_wrong = {str(idx) for idx in range(len(options)) if idx != correct_index}
-    return expected_wrong.issubset(
-        {str(idx) for idx, text in distractors.items() if _has_text(text)}
-    )
+    return 0 <= correct_index < len(options)
 
 
-def _is_publishable_question(row: dict) -> bool:
-    """Reviewed-only gate for anything served as Learning Ladder content."""
+def _is_servable_question(row: dict) -> bool:
+    """Source-grounded gate for anything served as Learning Ladder content.
+
+    Human review metadata remains available for later quality operations, but
+    it is not a pre-10k serving dependency. The runtime requires the objective
+    content contract that can be checked without editorial staffing.
+    """
     return (
         row.get("status") == "active"
-        and row.get("review_status") == "published"
-        and _has_text(row.get("content_edition_id"))
+        and row.get("retired_at") is None
+        and _has_text(row.get("question_text"))
         and _has_text(row.get("source_url"))
-        and _has_text(row.get("source_provenance"))
-        and _has_text(row.get("license_posture"))
-        and _has_text(row.get("reviewer"))
-        and _has_text(row.get("reviewed_at"))
-        and _has_text(row.get("verified_at"))
         and _has_text(row.get("explanation"))
-        and _rationales_complete(row)
+        and _question_structure_complete(row)
     )
 
 
-def _publishable_questions(rows: list[dict]) -> list[dict]:
-    return [row for row in rows if _is_publishable_question(row)]
+def _servable_questions(rows: list[dict]) -> list[dict]:
+    return [row for row in rows if _is_servable_question(row)]
 
 
 def _clear_ref_id(skill_id: int, level: int) -> str:
@@ -120,13 +110,14 @@ def list_activity_dates(user_id: str, limit: int = 180) -> list[str]:
 
 
 def coverage_summary() -> dict:
-    """Reviewed publication coverage gate for Learning Ladder scope.
+    """Learning Ladder coverage and market-catalog expansion target.
 
-    The gate is intentionally conservative: a skill counts as comprehensive only
-    when every L1-L5 level has at least the reviewed minimum question count.
+    A skill is comprehensive when every L1-L5 level has the minimum question
+    count. The 50-skill target measures catalog breadth; it does not prevent
+    complete ladders from being served or described as comprehensive.
     """
     admin = get_supabase_admin()
-    rows = _publishable_questions(
+    rows = _servable_questions(
         (
             admin.table("skill_questions")
             .select("*")
@@ -151,10 +142,13 @@ def coverage_summary() -> dict:
     ]
     complete_skill_count = len(complete_skill_ids)
     coverage_gate_met = complete_skill_count >= COVERAGE_TARGET_SKILLS_MIN
+    all_servable_skills_complete = bool(by_skill) and complete_skill_count == len(by_skill)
 
     return {
         "coverage_gate_met": coverage_gate_met,
-        "publication_scope": "comprehensive" if coverage_gate_met else "partial",
+        "publication_scope": (
+            "comprehensive" if all_servable_skills_complete else "partial"
+        ),
         "complete_skill_count": complete_skill_count,
         "target_skill_min": COVERAGE_TARGET_SKILLS_MIN,
         "target_skill_max": COVERAGE_TARGET_SKILLS_MAX,
@@ -178,7 +172,7 @@ def list_skills(user_id: str) -> list[dict]:
     admin = get_supabase_admin()
 
     # Skills with a servable bank: count active questions per (skill, level).
-    bank_rows = _publishable_questions(
+    bank_rows = _servable_questions(
         (
             admin.table("skill_questions")
             .select("*")
@@ -259,7 +253,7 @@ def list_skills(user_id: str) -> list[dict]:
 def start_set(user_id: str, skill_id: int, level: int) -> dict:
     admin = get_supabase_admin()
 
-    pool = _publishable_questions(
+    pool = _servable_questions(
         (
             admin.table("skill_questions")
             .select("*")
@@ -571,7 +565,7 @@ def start_gap(
     if not keys:
         return _empty("no_gaps")
 
-    bank_rows = _publishable_questions(
+    bank_rows = _servable_questions(
         (
             admin.table("skill_questions")
             .select("*")

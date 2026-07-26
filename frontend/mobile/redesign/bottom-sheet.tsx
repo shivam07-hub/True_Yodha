@@ -68,7 +68,7 @@ export function BottomSheet({
           position: "absolute", left: 0, right: 0, bottom: 0,
           maxHeight: maxHeight ?? undefined,
           display: "flex", flexDirection: "column",
-          background: "#232322", borderRadius: "22px 22px 0 0", borderTop: "1px solid rgba(255,255,255,0.08)",
+          background: "var(--mm-card-2)", borderRadius: "22px 22px 0 0", borderTop: "1px solid var(--mm-border)",
           animation: `${closing ? "mm-sheetDown" : "mm-sheetUp"} 320ms cubic-bezier(0.32,0.72,0,1) forwards`,
           transform: dy > 0 ? `translateY(${dy}px)` : undefined,
           paddingBottom: "env(safe-area-inset-bottom)",

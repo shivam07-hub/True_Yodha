@@ -83,14 +83,14 @@ export function JobDetailSheet({
               {row.hasGrade && <span style={{ fontSize: 10, fontWeight: 700, color: row.gradeFg, border: `1px solid ${row.gradeBd}`, borderRadius: 5, padding: "0.5px 4px" }}>{row.grade}</span>}
             </div>
             <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1.25, marginTop: 2 }}>{row.role}</div>
-            <div style={{ fontSize: 12, color: "#8b8b84", marginTop: 3 }}>{[row.metaLine, row.verified].filter(Boolean).join(" · ")}</div>
+            <div style={{ fontSize: 12, color: "var(--mm-faint)", marginTop: 3 }}>{[row.metaLine, row.verified].filter(Boolean).join(" · ")}</div>
           </div>
           <div style={{ position: "relative", width: 46, height: 46, flex: "none" }}>
             <svg width={46} height={46} viewBox="0 0 46 46" aria-hidden="true">
-              <circle cx="23" cy="23" r="19" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="3.4" />
+              <circle cx="23" cy="23" r="19" fill="none" stroke="var(--mm-border)" strokeWidth="3.4" />
               <circle cx="23" cy="23" r="19" fill="none" stroke={row.ringColor} strokeWidth="3.4" strokeLinecap="round" strokeDasharray={CIRC} strokeDashoffset={CIRC * (1 - row.fit / 100)} transform="rotate(-90 23 23)" />
             </svg>
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "#f2f2ee" }}>{row.fit}</div>
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "var(--mm-text)" }}>{row.fit}</div>
           </div>
         </div>
 
@@ -100,7 +100,7 @@ export function JobDetailSheet({
         </div>
 
         {row.checkDetails && (
-          <div style={{ marginTop: 10, fontSize: 11.5, color: "#f59e0b", background: "rgba(245,158,11,0.09)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 10, padding: "8px 11px" }}>
+          <div style={{ marginTop: 10, fontSize: 11.5, color: "var(--mm-warn)", background: "rgba(245,158,11,0.09)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 10, padding: "8px 11px" }}>
             ⚠ Check details before applying — some listing fields looked off when Myro verified it.
           </div>
         )}
@@ -108,7 +108,7 @@ export function JobDetailSheet({
         {sections.includes("why") && (
           <div style={{ marginTop: 14 }}>
             <div style={sectionLabel}>Why you fit</div>
-            <p style={{ margin: "6px 0 0", fontSize: 13.5, lineHeight: 1.55, color: "#d6d6cf" }}>{whyFit}</p>
+            <p style={{ margin: "6px 0 0", fontSize: 13.5, lineHeight: 1.55, color: "var(--mm-text-2)" }}>{whyFit}</p>
           </div>
         )}
 
@@ -117,8 +117,8 @@ export function JobDetailSheet({
             <div style={sectionLabel}>You already match · {matched.length}</div>
             <div style={{ display: "flex", flexDirection: "column", marginTop: 4 }}>
               {matched.map((name, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.045)" }}>
-                  <span style={{ color: "#4ade80", fontSize: 11 }}>✓</span>
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid var(--mm-hair)" }}>
+                  <span style={{ color: "var(--mm-good)", fontSize: 11 }}>✓</span>
                   <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>{name}</span>
                 </div>
               ))}
@@ -136,7 +136,7 @@ export function JobDetailSheet({
                 const on = upvotes.upvotedFor(name, row.id)
                 const count = upvotes.countFor(name)
                 return (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.045)" }}>
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid var(--mm-hair)" }}>
                     <span style={{ fontSize: 13, fontWeight: 600, flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</span>
                     <button
                       onClick={() => upvotes.toggle({ skill_key: name }, row.id)}
@@ -147,7 +147,7 @@ export function JobDetailSheet({
                         height: 24, minWidth: 40, padding: "0 10px", borderRadius: 99,
                         border: `1px solid ${on ? "var(--mm-accent)" : "rgba(255,255,255,0.09)"}`,
                         background: on ? "rgba(0,245,212,0.08)" : "transparent",
-                        color: on ? "var(--mm-accent)" : "#c9c9c2",
+                        color: on ? "var(--mm-accent)" : "var(--mm-text-3)",
                         fontSize: 10.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flex: "none",
                       }}
                     >
@@ -161,22 +161,22 @@ export function JobDetailSheet({
         )}
       </div>
 
-      {captureSlot ? <div style={{ flex: "none", padding: "0 16px", background: "#232322" }}>{captureSlot}</div> : null}
+      {captureSlot ? <div style={{ flex: "none", padding: "0 16px", background: "var(--mm-card-2)" }}>{captureSlot}</div> : null}
 
-      <div style={{ flex: "none", display: "flex", gap: 8, padding: "11px 16px 16px", borderTop: "1px solid rgba(255,255,255,0.055)", background: "#232322" }}>
+      <div style={{ flex: "none", display: "flex", gap: 8, padding: "11px 16px 16px", borderTop: "1px solid var(--mm-hair)", background: "var(--mm-card-2)" }}>
         {canDismiss ? (
           <>
             <button onClick={onHeart} aria-label={saved ? "Remove from saved" : "Save"} className="mm-press-sm" style={footBtn}>
-              <svg width={17} height={17} viewBox="0 0 24 24" fill={saved ? "currentColor" : "none"} stroke={saved ? "var(--mm-accent)" : "#a6a69e"} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.5-1.5 2-3.2 2-4.6C21 6.4 18.6 4 15.6 4 14.2 4 12.9 4.6 12 5.6 11.1 4.6 9.8 4 8.4 4 5.4 4 3 6.4 3 9.4c0 1.4.5 3.1 2 4.6l7 6.6 7-6.6Z" /></svg>
+              <svg width={17} height={17} viewBox="0 0 24 24" fill={saved ? "currentColor" : "none"} stroke={saved ? "var(--mm-accent)" : "var(--mm-muted)"} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.5-1.5 2-3.2 2-4.6C21 6.4 18.6 4 15.6 4 14.2 4 12.9 4.6 12 5.6 11.1 4.6 9.8 4 8.4 4 5.4 4 3 6.4 3 9.4c0 1.4.5 3.1 2 4.6l7 6.6 7-6.6Z" /></svg>
             </button>
             <button onClick={onSkip} aria-label="Not interested" className="mm-press-sm" style={footBtn}>
-              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#a6a69e" strokeWidth={2.2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="var(--mm-muted)" strokeWidth={2.2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
             </button>
           </>
         ) : null}
         <button onClick={onTailor} className="mm-press" style={{ flex: 1, height: 42, borderRadius: 13, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-0.01em" }}>Tailor CV</button>
         {hasApply && (
-          <button onClick={onApply} className="mm-press-sm" style={{ height: 42, padding: "0 14px", borderRadius: 13, border: "1px solid rgba(255,255,255,0.09)", background: "transparent", color: "#f2f2ee", fontSize: 13, fontWeight: 650, cursor: "pointer", fontFamily: "inherit", flex: "none" }}>{applyLabel} ↗</button>
+          <button onClick={onApply} className="mm-press-sm" style={{ height: 42, padding: "0 14px", borderRadius: 13, border: "1px solid rgba(255,255,255,0.09)", background: "transparent", color: "var(--mm-text)", fontSize: 13, fontWeight: 650, cursor: "pointer", fontFamily: "inherit", flex: "none" }}>{applyLabel} ↗</button>
         )}
       </div>
     </BottomSheet>
@@ -184,7 +184,7 @@ export function JobDetailSheet({
 }
 
 const sectionLabel: React.CSSProperties = {
-  fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", color: "#8b8b84", textTransform: "uppercase",
+  fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", color: "var(--mm-faint)", textTransform: "uppercase",
 }
 const footBtn: React.CSSProperties = {
   width: 42, height: 42, borderRadius: 13, border: "1px solid rgba(255,255,255,0.09)", background: "transparent",

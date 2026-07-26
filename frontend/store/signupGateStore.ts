@@ -34,10 +34,12 @@ interface SignupGateState {
   source: string | null
   openedAt: number | null
   methodSeenCount: number
+  /** Email carried across a signup→login flip so the user never retypes it. */
+  prefillEmail: string | null
   openGate: (params: SignupGateOpenParams) => void
   closeGate: () => void
   /** In-modal signup⇄login toggle — flips the view, keeps telemetry/openedAt. */
-  setMode: (mode: SignupGateMode) => void
+  setMode: (mode: SignupGateMode, prefillEmail?: string | null) => void
   noteMethodSeen: () => void
 }
 
@@ -57,6 +59,7 @@ export const useSignupGateStore = create<SignupGateState>((set) => ({
   source: null,
   openedAt: null,
   methodSeenCount: 0,
+  prefillEmail: null,
   openGate: ({ surface, mode, next, source }) =>
     set({
       open: true,
@@ -66,9 +69,10 @@ export const useSignupGateStore = create<SignupGateState>((set) => ({
       source: source ?? null,
       openedAt: Date.now(),
       methodSeenCount: 0,
+      prefillEmail: null,
     }),
-  closeGate: () => set({ open: false }),
-  setMode: (mode) => set({ mode }),
+  closeGate: () => set({ open: false, prefillEmail: null }),
+  setMode: (mode, prefillEmail) => set({ mode, prefillEmail: prefillEmail ?? null }),
   noteMethodSeen: () =>
     set((s) => ({ methodSeenCount: s.methodSeenCount + 1 })),
 }))

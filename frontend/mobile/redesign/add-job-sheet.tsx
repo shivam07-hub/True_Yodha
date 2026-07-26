@@ -80,7 +80,7 @@ export function AddJobSheet({ open, onClose, token, onAdded, snack, closeSnack, 
     <BottomSheet open={open} onClose={onClose} label="Add job">
       <div style={{ padding: "0 18px 18px" }}>
         <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.02em", marginTop: 4 }}>Add a job</div>
-        <div style={{ fontSize: 12, color: "#8b8b84", marginTop: 2 }}>Anything you add lands in Collections, ready to tailor.</div>
+        <div style={{ fontSize: 12, color: "var(--mm-faint)", marginTop: 2 }}>Anything you add lands in Collections, ready to tailor.</div>
 
         <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
           <input value={url} onChange={e => setUrl(e.target.value)} placeholder="Paste a job link…" style={inputStyle} />
@@ -107,16 +107,16 @@ export function AddJobSheet({ open, onClose, token, onAdded, snack, closeSnack, 
             </button>
           </div>
         ) : (
-          <button onClick={() => setPasteMode(true)} style={{ marginTop: 10, background: "none", border: "none", padding: 0, color: "#a6a69e", fontSize: 12, fontWeight: 650, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textUnderlineOffset: 3 }}>
+          <button onClick={() => setPasteMode(true)} style={{ marginTop: 10, background: "none", border: "none", padding: 0, color: "var(--mm-muted)", fontSize: 12, fontWeight: 650, cursor: "pointer", fontFamily: "inherit", textDecoration: "underline", textUnderlineOffset: 3 }}>
             No link? Paste the description instead
           </button>
         )}
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", marginTop: 12, padding: "12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.07)" }}>
-          <span style={{ width: 32, height: 32, borderRadius: 9, background: "#2a2a28", display: "flex", alignItems: "center", justifyContent: "center", color: "#c9c9c2" }}><svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3.4" /></svg></span>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", marginTop: 12, padding: "12px", borderRadius: 12, border: "1px solid var(--mm-border)" }}>
+          <span style={{ width: 32, height: 32, borderRadius: 9, background: "var(--mm-raise-1)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--mm-text-3)" }}><svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3.4" /></svg></span>
           <span style={{ flex: 1 }}>
-            <span style={{ display: "block", fontSize: 13.5, fontWeight: 650, color: "#f2f2ee" }}>Chrome extension</span>
-            <span style={{ display: "block", fontSize: 11.5, color: "#8b8b84", marginTop: 1 }}>Save from any job board in one tap</span>
+            <span style={{ display: "block", fontSize: 13.5, fontWeight: 650, color: "var(--mm-text)" }}>Chrome extension</span>
+            <span style={{ display: "block", fontSize: 11.5, color: "var(--mm-faint)", marginTop: 1 }}>Save from any job board in one tap</span>
           </span>
         </div>
       </div>
@@ -125,8 +125,8 @@ export function AddJobSheet({ open, onClose, token, onAdded, snack, closeSnack, 
 }
 
 const inputStyle: React.CSSProperties = {
-  flex: 1, height: 40, borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", background: "#1b1b1a",
-  color: "#f2f2ee", padding: "0 12px", fontSize: 13.5, outline: "none", fontFamily: "inherit",
+  flex: 1, height: 40, borderRadius: 12, border: "1px solid var(--mm-border)", background: "var(--mm-inset)",
+  color: "var(--mm-text)", padding: "0 12px", fontSize: 13.5, outline: "none", fontFamily: "inherit",
 }
 const btnStyle: React.CSSProperties = {
   height: 40, padding: "0 16px", borderRadius: 12, border: "none", background: "var(--mm-accent)",

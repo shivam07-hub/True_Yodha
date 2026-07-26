@@ -70,18 +70,18 @@ export function PracticeSheet() {
     <BottomSheet open={practiceOpen} onClose={closePractice} label="Practice">
       <div style={{ padding: "0 18px 18px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-          <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.02em", color: "#f2f2ee" }}>Practice</span>
-          {metaBits && <span style={{ fontSize: 11.5, color: "#8b8b84" }}>{metaBits}</span>}
+          <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.02em", color: "var(--mm-text)" }}>Practice</span>
+          {metaBits && <span style={{ fontSize: 11.5, color: "var(--mm-faint)" }}>{metaBits}</span>}
         </div>
 
-        <div style={{ marginTop: 12, background: "#1b1b1a", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: 14 }}>
+        <div style={{ marginTop: 12, background: "var(--mm-inset)", border: "1px solid var(--mm-hair)", borderRadius: 14, padding: 14 }}>
           <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", color: "var(--mm-accent)", textTransform: "uppercase" }}>
             Your next set
           </div>
-          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.01em", marginTop: 4, color: "#f2f2ee" }}>
+          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.01em", marginTop: 4, color: "var(--mm-text)" }}>
             {next ? `${next.display_name} · L${nextLevel}` : "You're all caught up"}
           </div>
-          <div style={{ fontSize: 12.5, color: "#a6a69e", marginTop: 3, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12.5, color: "var(--mm-muted)", marginTop: 3, lineHeight: 1.5 }}>
             {next
               ? "10 questions · untimed · pass 8/10 to bank +50 coins and record the level."
               : "No open levels right now — upload a fresh CV or check back after new roles land."}
@@ -97,8 +97,8 @@ export function PracticeSheet() {
                       flex: 1, height: 26, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center",
                       fontSize: 11, fontWeight: 700,
                       background: on ? "var(--mm-accent-wash)" : "transparent",
-                      color: on ? "var(--mm-accent)" : "#71716a",
-                      border: `1px solid ${on ? "rgba(0,245,212,0.3)" : "rgba(255,255,255,0.08)"}`,
+                      color: on ? "var(--mm-accent)" : "var(--mm-dim)",
+                      border: `1px solid ${on ? "rgba(0,245,212,0.3)" : "var(--mm-border)"}`,
                     }}
                   >
                     {l}
@@ -120,7 +120,7 @@ export function PracticeSheet() {
           </button>
         </div>
 
-        <div style={{ fontSize: 11.5, color: "#71716a", marginTop: 10, textAlign: "center" }}>
+        <div style={{ fontSize: 11.5, color: "var(--mm-dim)", marginTop: 10, textAlign: "center" }}>
           Closing gaps here raises your fit on real roles.
         </div>
       </div>

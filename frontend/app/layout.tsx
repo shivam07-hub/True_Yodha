@@ -85,7 +85,7 @@ export const viewport: Viewport = {
   // Match the mobile browser chrome to the resolved surface (follow-OS default).
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#F9F9F9" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0c" },
+    { media: "(prefers-color-scheme: dark)", color: "#191918" },
   ],
   viewportFit: "cover",
 }

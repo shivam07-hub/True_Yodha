@@ -15,8 +15,11 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { attentionCount } from "@/components/preparations/prep-model"
 import { useMobileUI } from "./redesign/mobile-ui"
 
+// Canonical tokens, NOT --mm-*: AppShellSkeleton renders OUTSIDE any .mm-root
+// scope, so an --mm-* var here would resolve to nothing and blank the shimmer.
+// (This is the same scope trap the rest of this commit exists to remove.)
 const SKELETON_BASE = "var(--tm-surface-2)"
-const SKELETON_HIGHLIGHT = "rgba(255,255,255,0.06)"
+const SKELETON_HIGHLIGHT = "var(--tm-border-faint)"
 
 export function AppShellSkeleton() {
   return (
@@ -104,7 +107,7 @@ function TabBadge({ n }: { n: number }) {
     <span
       style={{
         position: "absolute", top: -3, right: -9, minWidth: 15, height: 15, borderRadius: 99,
-        background: "var(--mm-accent, #00f5d4)", color: "var(--mm-accent-fg, #04211b)",
+        background: "var(--mm-accent)", color: "var(--mm-accent-fg)",
         fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center",
         padding: "0 4px", fontVariantNumeric: "tabular-nums",
       }}
@@ -153,7 +156,7 @@ export function MobileTopBar() {
   }, [])
 
   return (
-    <header className="tm-mobile-topbar mm-root" style={{ alignItems: "center", background: "var(--mm-bg)", borderBottom: "1px solid rgba(255,255,255,0.045)" }}>
+    <header className="tm-mobile-topbar mm-root" style={{ alignItems: "center", background: "var(--mm-bg)", borderBottom: "1px solid var(--tm-border-faint)" }}>
       <Link href="/market" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", minWidth: 0 }}>
         <MyroLogo size={24} decorative />
         <span style={{ fontSize: 17.5, fontWeight: 700, letterSpacing: "-0.02em", color: "var(--mm-text)" }}>Myro</span>
@@ -167,7 +170,7 @@ export function MobileTopBar() {
           className="mm-press-sm"
           style={{
             position: "relative", width: 34, height: 34, borderRadius: 10,
-            border: "1px solid rgba(255,255,255,0.07)", background: "#212120", color: "#c9c9c2",
+            border: "1px solid var(--mm-border)", background: "var(--mm-card)", color: "var(--mm-text-3)",
             display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
           }}
         >
@@ -183,7 +186,7 @@ export function MobileTopBar() {
           className="mm-press-sm"
           style={{
             width: 34, height: 34, borderRadius: 99,
-            border: "1px solid rgba(255,255,255,0.07)", background: "#212120", color: "#c9c9c2",
+            border: "1px solid var(--mm-border)", background: "var(--mm-card)", color: "var(--mm-text-3)",
             display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none",
           }}
         >
@@ -208,11 +211,17 @@ export function MobileBottomNav() {
   return (
     <nav
       className="tm-mobile-bottomnav mm-root"
-      style={{ background: "rgba(23,23,22,0.94)", borderTop: "1px solid rgba(255,255,255,0.05)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", gap: 0 }}
+      style={{
+        // Translucent so the blur reads, but derived from the surface token so
+        // the bar tracks [data-surface] instead of pinning dark on a light app.
+        background: "color-mix(in oklab, var(--tm-bg) 94%, transparent)",
+        borderTop: "1px solid var(--tm-border-faint)",
+        backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", gap: 0,
+      }}
     >
       {TABS.map(tab => {
         const active = tab.match(pathname)
-        const color = active ? "var(--mm-accent)" : "#71716a"
+        const color = active ? "var(--mm-accent)" : "var(--mm-dim)"
         return (
           <Link
             key={tab.key}

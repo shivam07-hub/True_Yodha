@@ -117,7 +117,7 @@ export function SwipeCard({
   const anim = hint && first ? "mm-peekHint 1.7s cubic-bezier(0.32,0.72,0,1) 0.7s 1" : "mm-screenIn 260ms cubic-bezier(0.16,1,0.3,1) both"
 
   const shareIcon = shared ? (
-    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 12.5l5 5L20 7" /></svg>
+    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="var(--mm-good)" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 12.5l5 5L20 7" /></svg>
   ) : (
     <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round"><path d="M12 15V4m0 0 4 4m-4-4L8 8" /><path d="M4 13v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5" /></svg>
   )
@@ -126,7 +126,7 @@ export function SwipeCard({
     <div style={{ position: "relative" }}>
       {/* rails — opacity written imperatively during drag; the fly-out keeps the committed rail lit */}
       <div ref={saveRailRef} style={{ position: "absolute", inset: 0, borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "flex-start", padding: "0 18px", background: "var(--mm-accent-wash)", color: "var(--mm-accent)", fontSize: 13, fontWeight: 700, opacity: leaving === "right" ? 1 : 0 }}>★ Save</div>
-      <div ref={hideRailRef} style={{ position: "absolute", inset: 0, borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "0 18px", background: "rgba(251,113,133,0.09)", color: "#fb7185", fontSize: 13, fontWeight: 700, opacity: leaving === "left" ? 1 : 0 }}>Hide ✕</div>
+      <div ref={hideRailRef} style={{ position: "absolute", inset: 0, borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "0 18px", background: "rgba(251,113,133,0.09)", color: "var(--mm-bad)", fontSize: 13, fontWeight: 700, opacity: leaving === "left" ? 1 : 0 }}>Hide ✕</div>
 
       <div
         ref={cardRef}
@@ -136,7 +136,7 @@ export function SwipeCard({
         onPointerCancel={onUp}
         onClick={() => { if (!suppressClick.current) onOpen() }}
         style={{
-          position: "relative", background: "#212120", border: "1px solid rgba(255,255,255,0.055)", borderRadius: 16,
+          position: "relative", background: "var(--mm-card)", border: "1px solid var(--mm-hair)", borderRadius: 16,
           padding: "13px 14px 11px", cursor: "pointer", touchAction: "pan-y", userSelect: "none", WebkitUserSelect: "none",
           transform: leaving ? `translateX(${leaving === "right" ? 560 : -560}px) rotate(${leaving === "right" ? "6.72" : "-6.72"}deg)` : "translateX(0) rotate(0deg)",
           transition: leaving ? SETTLE : undefined,
@@ -148,21 +148,21 @@ export function SwipeCard({
           <div style={{ width: 38, height: 38, borderRadius: 11, background: row.logoBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, color: "#fff", flex: "none" }}>{row.coInitial}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-              <span style={{ fontSize: 12.5, fontWeight: 600, color: "#c9c9c2", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{row.co}</span>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--mm-text-3)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{row.co}</span>
               {row.hasGrade && <span style={{ fontSize: 10, fontWeight: 700, color: row.gradeFg, border: `1px solid ${row.gradeBd}`, borderRadius: 5, padding: "0.5px 4px", flex: "none" }}>{row.grade}</span>}
-              {row.checkDetails && <span style={{ fontSize: 10.5, fontWeight: 600, color: "#f59e0b", flex: "none" }}>⚠ Check details</span>}
-              <span style={{ fontSize: 11, color: "#71716a", flex: "none", marginLeft: "auto" }}>{row.ago}</span>
+              {row.checkDetails && <span style={{ fontSize: 10.5, fontWeight: 600, color: "var(--mm-warn)", flex: "none" }}>⚠ Check details</span>}
+              <span style={{ fontSize: 11, color: "var(--mm-dim)", flex: "none", marginLeft: "auto" }}>{row.ago}</span>
             </div>
             <div style={{ fontSize: 15, fontWeight: 650, letterSpacing: "-0.01em", lineHeight: 1.28, marginTop: 2, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{row.role}</div>
-            <div style={{ fontSize: 11.5, color: "#8b8b84", marginTop: 3 }}>{row.metaLine}</div>
+            <div style={{ fontSize: 11.5, color: "var(--mm-faint)", marginTop: 3 }}>{row.metaLine}</div>
           </div>
           <div style={{ flex: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, width: 44 }}>
             <div style={{ position: "relative", width: 40, height: 40 }}>
               <svg width={40} height={40} viewBox="0 0 40 40" aria-hidden="true">
-                <circle cx="20" cy="20" r="16.5" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="3" />
+                <circle cx="20" cy="20" r="16.5" fill="none" stroke="var(--mm-border)" strokeWidth="3" />
                 <circle cx="20" cy="20" r="16.5" fill="none" stroke={row.ringColor} strokeWidth="3" strokeLinecap="round" strokeDasharray={CIRC} strokeDashoffset={CIRC * (1 - row.fit / 100)} transform="rotate(-90 20 20)" />
               </svg>
-              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12.5, fontWeight: 700, color: "#f2f2ee" }}>{row.fit}</div>
+              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12.5, fontWeight: 700, color: "var(--mm-text)" }}>{row.fit}</div>
             </div>
             <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.07em", color: row.ringColor, textTransform: "uppercase", whiteSpace: "nowrap" }}>{row.verdict}</span>
           </div>
@@ -175,13 +175,13 @@ export function SwipeCard({
                 <span style={{ fontSize: 9 }}>{c.sym}</span>{c.name}
               </span>
             ))}
-            {row.hasExtra && <span style={{ display: "inline-flex", alignItems: "center", height: 22, padding: "0 8px", borderRadius: 7, fontSize: 11, fontWeight: 600, background: "rgba(255,255,255,0.05)", color: "#8b8b84" }}>{row.extra}</span>}
+            {row.hasExtra && <span style={{ display: "inline-flex", alignItems: "center", height: 22, padding: "0 8px", borderRadius: 7, fontSize: 11, fontWeight: 600, background: "var(--mm-hair)", color: "var(--mm-faint)" }}>{row.extra}</span>}
           </div>
         )}
 
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10 }}>
           {row.move && <span style={{ fontSize: 12, fontWeight: 600, color: row.moveFg }}>{row.move}</span>}
-          {row.verified && <span style={{ fontSize: 10.5, color: "#71716a", marginLeft: 4 }}>· {row.verified}</span>}
+          {row.verified && <span style={{ fontSize: 10.5, color: "var(--mm-dim)", marginLeft: 4 }}>· {row.verified}</span>}
           <div style={{ flex: 1 }} />
           <button onClick={(e) => { e.stopPropagation(); commit("left") }} aria-label="Not interested" className="mm-press-sm" style={iconBtn}><svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
           <button onClick={(e) => { e.stopPropagation(); onShare() }} aria-label="Share" className="mm-press-sm" style={iconBtn}>{shareIcon}</button>
@@ -193,6 +193,6 @@ export function SwipeCard({
 }
 
 const iconBtn: React.CSSProperties = {
-  width: 32, height: 32, borderRadius: 99, border: "1px solid rgba(255,255,255,0.08)", background: "transparent",
-  color: "#a6a69e", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+  width: 32, height: 32, borderRadius: 99, border: "1px solid var(--mm-border)", background: "transparent",
+  color: "var(--mm-muted)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
 }

@@ -42,20 +42,20 @@ function CardShell({
 }) {
   const trust = pulseLine(pulse)
   return (
-    <div onClick={onOpen} style={{ background: "#212120", border: "1px solid rgba(255,255,255,0.055)", borderRadius: 16, padding: "13px 14px 11px", cursor: "pointer", animation: "mm-screenIn 260ms cubic-bezier(0.16,1,0.3,1) both", opacity: trust?.warn ? 0.92 : 1 }}>
+    <div onClick={onOpen} style={{ background: "var(--mm-card)", border: "1px solid var(--mm-hair)", borderRadius: 16, padding: "13px 14px 11px", cursor: "pointer", animation: "mm-screenIn 260ms cubic-bezier(0.16,1,0.3,1) both", opacity: trust?.warn ? 0.92 : 1 }}>
       <div style={{ display: "flex", gap: 11 }}>
         <div style={{ width: 38, height: 38, borderRadius: 11, background: row.logoBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, color: "#fff", flex: "none" }}>{row.coInitial}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-            <span style={{ fontSize: 12.5, fontWeight: 600, color: "#c9c9c2", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{row.co}</span>
-            {statusChip && <span style={{ fontSize: 10, fontWeight: 700, color: statusChip === "Applied" ? "var(--mm-accent)" : "#a6a69e", background: statusChip === "Applied" ? "var(--mm-accent-wash)" : "rgba(255,255,255,0.06)", borderRadius: 5, padding: "1.5px 6px", flex: "none" }}>{statusChip}</span>}
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--mm-text-3)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{row.co}</span>
+            {statusChip && <span style={{ fontSize: 10, fontWeight: 700, color: statusChip === "Applied" ? "var(--mm-accent)" : "var(--mm-muted)", background: statusChip === "Applied" ? "var(--mm-accent-wash)" : "var(--mm-hair)", borderRadius: 5, padding: "1.5px 6px", flex: "none" }}>{statusChip}</span>}
             {row.hasGrade && <span style={{ fontSize: 10, fontWeight: 700, color: row.gradeFg, border: `1px solid ${row.gradeBd}`, borderRadius: 5, padding: "0.5px 4px", flex: "none" }}>{row.grade}</span>}
-            {row.ago && <span style={{ fontSize: 11, color: "#71716a", flex: "none", marginLeft: "auto" }}>{row.ago}</span>}
+            {row.ago && <span style={{ fontSize: 11, color: "var(--mm-dim)", flex: "none", marginLeft: "auto" }}>{row.ago}</span>}
           </div>
           <div style={{ fontSize: 15, fontWeight: 650, letterSpacing: "-0.01em", lineHeight: 1.28, marginTop: 2, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{row.role}</div>
-          <div style={{ fontSize: 11.5, color: "#8b8b84", marginTop: 3 }}>{row.metaLine}</div>
+          <div style={{ fontSize: 11.5, color: "var(--mm-faint)", marginTop: 3 }}>{row.metaLine}</div>
           {trust && (
-            <div style={{ fontSize: 10.5, marginTop: 3, color: trust.warn ? "#f59e0b" : "#71716a", fontWeight: trust.warn ? 650 : 400 }}>
+            <div style={{ fontSize: 10.5, marginTop: 3, color: trust.warn ? "var(--mm-warn)" : "var(--mm-dim)", fontWeight: trust.warn ? 650 : 400 }}>
               {trust.warn ? "⚠ " : ""}{trust.text}
             </div>
           )}
@@ -63,10 +63,10 @@ function CardShell({
         <div style={{ flex: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, width: 44 }}>
           <div style={{ position: "relative", width: 40, height: 40 }}>
             <svg width={40} height={40} viewBox="0 0 40 40" aria-hidden="true">
-              <circle cx="20" cy="20" r="16.5" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="3" />
+              <circle cx="20" cy="20" r="16.5" fill="none" stroke="var(--mm-border)" strokeWidth="3" />
               {fitKnown && <circle cx="20" cy="20" r="16.5" fill="none" stroke={row.ringColor} strokeWidth="3" strokeLinecap="round" strokeDasharray={CIRC} strokeDashoffset={CIRC * (1 - row.fit / 100)} transform="rotate(-90 20 20)" />}
             </svg>
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12.5, fontWeight: 700, color: fitKnown ? "#f2f2ee" : "#71716a" }}>{fitKnown ? row.fit : "—"}</div>
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12.5, fontWeight: 700, color: fitKnown ? "var(--mm-text)" : "var(--mm-dim)" }}>{fitKnown ? row.fit : "—"}</div>
           </div>
           {fitKnown && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.07em", color: row.ringColor, textTransform: "uppercase", whiteSpace: "nowrap" }}>{row.verdict}</span>}
         </div>
@@ -124,7 +124,7 @@ export function MyroFoundCard({ row, fitKnown, pulse, onOpen, onDismiss, onTailo
   return (
     <CardShell row={row} fitKnown={fitKnown} pulse={pulse} onOpen={onOpen}>
       <button onClick={(e) => { e.stopPropagation(); onDismiss() }} aria-label="Not interested" className="mm-press-sm" style={iconBtn}>
-        <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="#a6a69e" strokeWidth={2.2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="var(--mm-muted)" strokeWidth={2.2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
       </button>
       <div style={{ flex: 1 }} />
       <button onClick={(e) => { e.stopPropagation(); onTailor() }} className="mm-press" style={{ height: 32, padding: "0 14px", borderRadius: 99, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Tailor CV</button>
@@ -133,6 +133,6 @@ export function MyroFoundCard({ row, fitKnown, pulse, onOpen, onDismiss, onTailo
 }
 
 const iconBtn: React.CSSProperties = {
-  width: 32, height: 32, borderRadius: 99, border: "1px solid rgba(255,255,255,0.08)", background: "transparent",
+  width: 32, height: 32, borderRadius: 99, border: "1px solid var(--mm-border)", background: "transparent",
   display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
 }

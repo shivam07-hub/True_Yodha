@@ -24,6 +24,12 @@ interface Props {
   next?: string | null
   /** Whether to render an alt "Sign in" link below the form (page only). */
   showLoginLink?: boolean
+  /**
+   * The email already has an account. Callers that own a sign-in view (the
+   * modal) hand the user straight to it; without a handler the form routes to
+   * /login with the address prefilled.
+   */
+  onEmailTaken?: (email: string) => void
 }
 
 /**
@@ -33,7 +39,7 @@ interface Props {
  * Auth-before-file: file pickers are routed via ?upload=1 on the post-auth
  * destination (set by callers via `next`), no anon state to preserve.
  */
-export function SignupForm({ surface, next, showLoginLink = true }: Props) {
+export function SignupForm({ surface, next, showLoginLink = true, onEmailTaken }: Props) {
   const [pendingEmail, setPendingEmail] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [agent, setAgent] = useState<string | null>(null)
@@ -121,6 +127,7 @@ export function SignupForm({ surface, next, showLoginLink = true }: Props) {
           next={next}
           onPendingEmail={(email) => setPendingEmail(email)}
           onUseMagicLink={() => { setError(null); setMode("magic") }}
+          onEmailTaken={onEmailTaken}
         />
       )}
 

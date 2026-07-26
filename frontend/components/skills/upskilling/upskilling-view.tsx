@@ -431,7 +431,7 @@ export function UpskillingView({
             ) : (
               <div className="up-card up-empty-card">
                 <h3>Your upskilling ladder is on the way</h3>
-                <p>Question banks for your skills are still filling. Check back soon — clearing a level set earns Myro Coins and raises your real skill level.</p>
+                <p>Question banks for your skills are still filling. Clearing a level set earns Myro Coins and records your learning progress.</p>
               </div>
             )}
           </div>

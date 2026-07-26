@@ -21,18 +21,45 @@ export class ApiError extends Error {
   readonly traceId: string | null
   /** Whether a retry could plausibly succeed (false for 401/403/404). */
   readonly retryable: boolean
+  /**
+   * Machine-readable failure code from `detail.code`, when the endpoint sends
+   * one (e.g. "email_taken", "rate_limited"). Recovery UI branches on this —
+   * matching on `message` couples the UI to copy that will be reworded.
+   */
+  readonly code: string | null
 
   constructor(
     message: string,
-    opts: { status?: number | null; kind: ApiErrorKind; traceId?: string | null; retryable?: boolean },
+    opts: {
+      status?: number | null
+      kind: ApiErrorKind
+      traceId?: string | null
+      retryable?: boolean
+      code?: string | null
+    },
   ) {
     super(message)
     this.name = "ApiError"
     this.status = opts.status ?? null
     this.kind = opts.kind
     this.traceId = opts.traceId ?? null
+    this.code = opts.code ?? null
     this.retryable = opts.retryable ?? defaultRetryable(opts.kind, opts.status ?? null)
   }
+}
+
+/** Pull the backend's machine code out of a `detail: {code, message}` body. */
+export function readErrorCode(body: unknown): string | null {
+  if (!body || typeof body !== "object") return null
+  const detail = (body as Record<string, unknown>).detail
+  if (!detail || typeof detail !== "object") return null
+  const code = (detail as Record<string, unknown>).code
+  return typeof code === "string" && code ? code : null
+}
+
+/** The backend code on a failure, or null when it wasn't an ApiError. */
+export function errorCode(err: unknown): string | null {
+  return err instanceof ApiError ? err.code : null
 }
 
 function defaultRetryable(kind: ApiErrorKind, status: number | null): boolean {

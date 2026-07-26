@@ -196,7 +196,7 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
 
 > Audit method: every claim below was checked against `git`/live state, NOT copied from memory or the backlog prose. Re-audit the same way before trusting it — entries rot ([[feedback_verify_backlog_stale]]).
 
-> **2026-07-22 correction:** Career Ops × verifier parity is now CLOSED in `AGENTS.md` backlog #14; Learning Ladder #15 and production read capacity #16 remain open. Search/filter work from the beta reconciliation is CLOSED by the shared desktop/mobile FilterSpec work (`2bf49177` and companions); do not recreate a separate search-observability epic. The earlier standalone “skill truth” proposal is folded into Learning Ladder #15, after the bank expands to meaningful coverage.
+> **2026-07-27 Learning Ladder policy correction:** Career Ops × verifier parity remains CLOSED in `AGENTS.md` backlog #14 and production read capacity #16 remains untouched. Backlog #15 now serves active source-grounded, explained, structurally valid questions without a human-review gate. Each complete L1–L5 skill ladder is the comprehensive product; 50–60 skills is the market-driven catalog target. Human review/counsel work is deferred quality improvement. Learning progress remains isolated from CV-derived score and matching truth.
 
 ### Scope rule (locked 2026-07-20)
 

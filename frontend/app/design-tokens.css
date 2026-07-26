@@ -23,12 +23,20 @@
      +100% off the old cool Engine palette — the cold blue is gone. The
      two deliberate cold-console EXCEPTIONS (landing engine pipeline,
      in-app score reveal) pin their own hardcoded #13141a, so they are
-     unaffected by this warming and stay intentionally cool. */
-  --tm-bg:            #100c09;
-  --tm-surface:       #1b1611;
-  --tm-surface-2:     #241d17;
-  --tm-surface-3:     #2e251d;
-  --tm-border:        #2c2620;
+     unaffected by this warming and stay intentionally cool.
+
+     2026-07-27 — ONE DARK (Shivam): the mobile redesign (`mm-*`, Jobs +
+     Collections) had forked its own dark and was judged the standard, so
+     its ramp is adopted here wholesale rather than kept as a fork. This
+     replaces the browner #100c09/#1b1611 ramp with mm's neutral-warm one.
+     Taken as a SET, not mixed: mm's text ramp is tuned to mm's surfaces
+     (see Text block below), and pairing a neutral page with the old warm
+     cream text is what produced the mismatch in the first place. */
+  --tm-bg:            #191918;
+  --tm-surface:       #212120;
+  --tm-surface-2:     #232322;
+  --tm-surface-3:     #2b2b29;
+  --tm-border:        #2e2e2b;
   --tm-border-soft:   rgba(255, 255, 255, 0.10);
   --tm-border-faint:  rgba(255, 255, 255, 0.06);
   --tm-scrim:         rgba(0, 0, 0, 0.72);
@@ -41,28 +49,30 @@
      The base must read as a *real shape* against the ink page —
      a near-invisible blob communicates "empty", not "loading".
      `sheen` is the directional teal shimmer band that sweeps across. */
-  --tm-skeleton:       #221c16;
+  --tm-skeleton:       #232322;
   --tm-skeleton-sheen: rgba(0, 245, 212, 0.16);
 
   /* ── Text (Ghost) ──────────────────────────────────────────
-     WCAG AA targets on #0a0a0c page:
-       primary  ≥ 7:1 (AAA)
-       muted    ≥ 4.5:1 (AA body)
-       faint    ≥ 4.5:1 (AA body) — never used for primary content
-       disabled ≥ 3:1 (AA Large or decorative only — does NOT convey meaning)
-     Numbers measured; see docs/DESIGN_SYSTEM.md §Color. */
-  --tm-text:          #ece6dd;
-  --tm-text-muted:    #b6ab9b;
-  --tm-text-faint:    #8a7e6e;
-  --tm-text-disabled: #5b544c;
+     WCAG AA targets, measured on the CURRENT #191918 page (the old note
+     here still quoted #0a0a0c, a background retired in the 2026-06-16
+     warming — stale reference numbers are how a palette drifts unnoticed):
+       primary  #f2f2ee ≈ 15.7:1 (AAA)
+       muted    #a6a69e ≈  7.1:1 (AAA body)
+       faint    #8b8b84 ≈  5.1:1 (AA body) — never used for primary content
+       disabled #71716a ≈  3.5:1 (AA Large / decorative only — conveys nothing)
+     See docs/DESIGN_SYSTEM.md §Color. */
+  --tm-text:          #f2f2ee;
+  --tm-text-muted:    #a6a69e;
+  --tm-text-faint:    #8b8b84;
+  --tm-text-disabled: #71716a;
   --tm-accent-text:   #00f5d4;
 
   /* ── Reading surface (long-form prose) ──────────────────────
      Dark: lift the read onto a warm sheet so it stops being a pure-black
      void (halation). Ink is a hair softer than --tm-text to calm shimmer
      of serif body on the dark sheet. Light override mirrors below. */
-  --tm-reading-surface: #16120d;
-  --tm-reading-ink:     #e6e0d6;
+  --tm-reading-surface: #1b1b1a;
+  --tm-reading-ink:     #e8e8e2;
   /* Canonical alias — consumed across CV builder, auth, intel panes. Previously
      defined only inside the <=768px block in globals.css (dumping accident), so
      it resolved to cyan on phones and was undefined on desktop. Aliased here so
@@ -114,6 +124,14 @@
      load. Flip this ONE line to change the whole site's family (public + app). */
   --tm-font-sans:     var(--font-grotesk), var(--font-sans), Inter, ui-sans-serif, system-ui, sans-serif;
   --tm-font-display:  var(--tm-font-sans);
+  /* PHONE FAMILY (Shivam, 2026-07-27) — the platform stack, applied only at
+     phone widths by the @media block below. Chosen for small-size hinting in
+     dense rows; the mobile redesign (Jobs/Collections) already shipped on it
+     and was judged the standard. KNOWN, ACCEPTED COST: the app and himyro.com
+     read as different products in type. Do not "unify" this back to Grotesk
+     without asking — it is a decision, not drift. */
+  --tm-font-sans-phone: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+                        "SF Pro Display", system-ui, "Segoe UI", Roboto, sans-serif;
   --tm-font-mono:     "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
   /* Editorial serif — long-form READING only (newsletter prose/headline). The
      reading primitives below are deliberately reusable so the planned
@@ -278,7 +296,7 @@
   --tm-accent-grid:        var(--tm-interactive-grid);
   --tm-accent-fg:          var(--tm-interactive-fg);
   --tm-bg-page:         var(--tm-bg);
-  --tm-bg-inset:        #14100c;
+  --tm-bg-inset:        #1b1b1a;
   --tm-bg-surface-hover: var(--tm-surface-2);
   --tm-border-subtle:   var(--tm-border-soft);
   --tm-text-primary:    var(--tm-text);

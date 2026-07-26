@@ -767,6 +767,12 @@
      on phones. (Pre-fix this block re-pinned dark values onto data-surface=light
      at <=768px, breaking light mode on mobile.) */
   :root {
+    /* Phone family swap (Shivam 2026-07-27). Everything reads --tm-font-sans,
+       so this one line moves the whole app to the platform stack at phone
+       widths while himyro.com keeps Space Grotesk. Deliberate — see
+       --tm-font-sans-phone in design-tokens.css for the accepted trade-off. */
+    --tm-font-sans: var(--tm-font-sans-phone);
+
     --tm-fs-hero: 2.25rem;
     --tm-lh-hero: 2.625rem;
     --tm-fs-display: 1.75rem;
@@ -859,12 +865,22 @@
   .tm-main-scroll {
     padding-top: calc(var(--tm-mobile-topbar-h) + env(safe-area-inset-top)) !important;
     padding-bottom: calc(var(--tm-mobile-bottomnav-h) + 24px + env(safe-area-inset-bottom)) !important;
-    /* Mobile chrome (.mm-root) is a fixed dark palette, theme-independent. The
-       scroll container's own top-padding strip (offset clearing the fixed dark
-       topbar) + overscroll must NOT flash the light-theme body paper behind it —
-       paint the canvas the same dark as the mobile chrome. --mm-bg is scoped to
-       .mm-root and out of scope here, so the literal fallback is what applies. */
-    background: var(--mm-bg, #191918);
+    /* Was `var(--mm-bg, #191918)` — a workaround for the chrome/content split,
+       and the single line that caused it to be VISIBLE on every non-mm surface.
+       The mobile chrome used to be theme-independent dark, so this painted the
+       whole scroll canvas dark to stop light body paper flashing behind the
+       fixed bars. Consequence: CV, Preparations, Score and the Coin guide got a
+       dark canvas while their content kept rendering light-mode text tokens —
+       near-black headings on a near-black page, with their own subheadings
+       still readable. That is the bug in Shivam's 2026-07-26 screenshots.
+
+       The chrome now follows [data-surface], so the canvas can simply BE the
+       page. One owner for the page colour, in both themes.
+
+       (The old comment also noted --mm-bg is out of scope here so "the literal
+       fallback is what applies" — a var silently resolving to its fallback is
+       the same scope trap three times over. Canonical tokens are global.) */
+    background: var(--tm-bg);
   }
 
   /* Home page job detail: 2-col → 1-col */

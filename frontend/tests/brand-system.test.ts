@@ -6,19 +6,113 @@ import { join } from "node:path"
 const frontendRoot = process.cwd()
 const read = (path: string) => readFileSync(join(frontendRoot, path), "utf8")
 
-test("brand tokens implement the canonical Myro Engine light + dark palettes", () => {
-  const tokens = read("app/design-tokens.css")
+/**
+ * Offset of the light-surface RULE (not the prose mention of it in the header
+ * comment — matching that silently truncated the dark block to the file header
+ * and made every dark assertion vacuous).
+ */
+function lightSurfaceIndex(tokens: string): number {
+  const m = tokens.match(/^:root\[data-surface="light"\]/m)
+  assert.ok(m?.index !== undefined, "design-tokens.css must declare a :root[data-surface=\"light\"] rule")
+  return m!.index!
+}
 
-  // Dark = quiet Myro Engine (teal #00f5d4 on #0a0a0c).
-  assert.match(tokens, /--tm-bg:\s*#0a0a0c/)
-  assert.match(tokens, /--tm-surface:\s*#13141a/)
-  assert.match(tokens, /--tm-text:\s*#e8e8ea/)
-  assert.match(tokens, /--tm-interactive:\s*#00f5d4/)
-  // Light = "Firecrawl paper" — warm paper + orange #FF4C00 (confirmed
-  // dashboard handoff). Light is its OWN brand, not a teal inverse.
-  assert.match(tokens, /:root\[data-surface="light"\]\s*{[\s\S]*--tm-bg:\s*#F9F9F9/)
-  assert.match(tokens, /:root\[data-surface="light"\]\s*{[\s\S]*--tm-text:\s*#262626/)
-  assert.match(tokens, /:root\[data-surface="light"\]\s*{[\s\S]*--tm-interactive:\s*#FF4C00/)
+/**
+ * ⚠️ MAINTENANCE CONTRACT — read before "fixing" a failure here.
+ *
+ * These hexes are a deliberate brand LOCK. If you changed the palette on
+ * purpose, update this test IN THE SAME COMMIT. Never leave it red.
+ *
+ * History (the reason this warning exists): the palette was warmed on
+ * 2026-06-16 and this test kept asserting the retired cool Engine values
+ * (#0a0a0c / #13141a). It stayed red for over a month, got logged in session
+ * notes as "1 PRE-EXISTING warm-token hex fail", and became background noise —
+ * so the one automated check on brand colour was blind while THREE different
+ * dark palettes shipped side by side. A red check with no owner is not a
+ * check. See CLAUDE.md #28.
+ */
+test("brand tokens implement the canonical Myro light + dark palettes", () => {
+  const tokens = read("app/design-tokens.css")
+  const darkBlock = tokens.slice(0, lightSurfaceIndex(tokens))
+  const lightBlock = tokens.slice(lightSurfaceIndex(tokens))
+
+  // DARK = one dark, site-wide (2026-07-27). Adopted wholesale from the mobile
+  // redesign ramp after Jobs/Collections were judged the standard; supersedes
+  // both the retired cool Engine (#0a0a0c) and the warm-brown (#100c09) ramps.
+  assert.match(darkBlock, /--tm-bg:\s*#191918/)
+  assert.match(darkBlock, /--tm-surface:\s*#212120/)
+  assert.match(darkBlock, /--tm-text:\s*#f2f2ee/)
+  assert.match(darkBlock, /--tm-interactive:\s*#00f5d4/)
+
+  // LIGHT = "Firecrawl paper" — warm paper + orange. Its OWN brand, not a
+  // teal inverse.
+  assert.match(lightBlock, /--tm-bg:\s*#faf6f0/)
+  assert.match(lightBlock, /--tm-surface:\s*#fffdfa/)
+  assert.match(lightBlock, /--tm-text:\s*#29241e/)
+  assert.match(lightBlock, /--tm-interactive:\s*#FF4C00/)
+})
+
+/**
+ * Rot-resistant companion to the hex lock above. Hex assertions go stale the
+ * moment design moves; these invariants hold across ANY palette, so they keep
+ * catching the actual bug class even if someone updates hexes carelessly.
+ *
+ * The bug they catch is the one that shipped: text tuned for one surface
+ * rendered on the other, which is how "My CV" / "Preparations" / "How Myro
+ * Coins work" ended up as near-black headings on a near-black page while
+ * their own subheadings stayed readable — hierarchy inverted by accident.
+ *
+ * House rule encoded here: in BOTH themes the card lifts TOWARD white off the
+ * page (dark #212120 over #191918; light #fffdfa over #faf6f0). A card that
+ * sinks below its page reads as a hole, not a surface.
+ */
+test("each surface keeps card above page, and text legible against its own page", () => {
+  const tokens = read("app/design-tokens.css")
+  const lightIdx = lightSurfaceIndex(tokens)
+
+  const hexOf = (block: string, name: string) => {
+    const m = block.match(new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{6})`))
+    assert.ok(m, `--${name} must be defined as a 6-digit hex in this surface block`)
+    return m![1]
+  }
+  // WCAG relative luminance.
+  const lum = (hex: string) => {
+    const ch = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+    const lin = ch.map(c => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4))
+    return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+  }
+  const contrast = (a: string, b: string) => {
+    const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x)
+    return (hi + 0.05) / (lo + 0.05)
+  }
+
+  for (const [label, block] of [
+    ["dark", tokens.slice(0, lightIdx)],
+    ["light", tokens.slice(lightIdx)],
+  ] as const) {
+    const bg = hexOf(block, "tm-bg")
+    const surface = hexOf(block, "tm-surface")
+    const text = hexOf(block, "tm-text")
+    const muted = hexOf(block, "tm-text-muted")
+
+    assert.ok(
+      lum(surface) > lum(bg),
+      `${label}: --tm-surface (${surface}) must lift ABOVE --tm-bg (${bg}) — a card darker than its page reads as a hole`,
+    )
+    // Lift must also be *perceptible*, not just numerically positive.
+    assert.ok(
+      contrast(surface, bg) >= 1.04,
+      `${label}: --tm-surface vs --tm-bg is only ${contrast(surface, bg).toFixed(3)}:1 — the card is invisible against the page`,
+    )
+    assert.ok(
+      contrast(text, bg) >= 7,
+      `${label}: --tm-text on --tm-bg is ${contrast(text, bg).toFixed(1)}:1, below the 7:1 AAA target`,
+    )
+    assert.ok(
+      contrast(muted, bg) >= 4.5,
+      `${label}: --tm-text-muted on --tm-bg is ${contrast(muted, bg).toFixed(1)}:1, below the 4.5:1 AA body target`,
+    )
+  }
 })
 
 test("layout follows the OS surface by default and uses Space Grotesk (Inter fallback)", () => {

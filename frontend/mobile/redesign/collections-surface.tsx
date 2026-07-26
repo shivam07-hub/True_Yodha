@@ -316,24 +316,24 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
           <h1 style={{ margin: 0, fontSize: 25, fontWeight: 700, letterSpacing: "-0.03em" }}>Collections</h1>
           <div style={{ flex: 1 }} />
           {chip !== "found" && (
-            <button onClick={() => setSortOpen(true)} aria-label="Sort" style={{ width: 32, height: 32, borderRadius: 99, border: "none", background: "transparent", color: "#a6a69e", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+            <button onClick={() => setSortOpen(true)} aria-label="Sort" style={{ width: 32, height: 32, borderRadius: 99, border: "none", background: "transparent", color: "var(--mm-muted)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
               <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M7 4v16m0 0-3-3m3 3 3-3M17 20V4m0 0-3 3m3-3 3 3" /></svg>
             </button>
           )}
-          <button onClick={() => setAddOpen(true)} className="mm-press" style={{ height: 32, display: "flex", alignItems: "center", gap: 5, padding: "0 11px", borderRadius: 99, border: "1px solid rgba(255,255,255,0.09)", background: "#212120", color: "#f2f2ee", fontSize: 12.5, fontWeight: 650, cursor: "pointer", fontFamily: "inherit" }}>
+          <button onClick={() => setAddOpen(true)} className="mm-press" style={{ height: 32, display: "flex", alignItems: "center", gap: 5, padding: "0 11px", borderRadius: 99, border: "1px solid rgba(255,255,255,0.09)", background: "var(--mm-card)", color: "var(--mm-text)", fontSize: 12.5, fontWeight: 650, cursor: "pointer", fontFamily: "inherit" }}>
             <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>Add
           </button>
         </div>
 
         {/* journey strip */}
         {!journeyHidden && (
-          <div style={{ display: "flex", alignItems: "stretch", gap: 0, marginTop: 10, background: "#212120", border: "1px solid rgba(255,255,255,0.055)", borderRadius: 13, padding: "9px 6px" }}>
+          <div style={{ display: "flex", alignItems: "stretch", gap: 0, marginTop: 10, background: "var(--mm-card)", border: "1px solid var(--mm-hair)", borderRadius: 13, padding: "9px 6px" }}>
             <JourneyStep label="Browse" sub={`${matchesQ.data?.total ?? "—"} live`} onClick={() => router.push("/market")} done />
-            <span style={{ alignSelf: "center", color: "#4a4a45", fontSize: 11 }}>›</span>
+            <span style={{ alignSelf: "center", color: "var(--mm-stroke)", fontSize: 11 }}>›</span>
             <JourneyStep label="Collect" sub={`${counts.all} saved`} done />
-            <span style={{ alignSelf: "center", color: "#4a4a45", fontSize: 11 }}>›</span>
+            <span style={{ alignSelf: "center", color: "var(--mm-stroke)", fontSize: 11 }}>›</span>
             <JourneyStep label="Tailor" sub="the goal" onClick={() => router.push("/cv")} accent={tailoredN} />
-            <button onClick={dismissJourney} aria-label="Dismiss" style={{ alignSelf: "flex-start", width: 22, height: 22, marginLeft: 2, flexShrink: 0, borderRadius: 99, border: "none", background: "transparent", color: "#6a6a63", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+            <button onClick={dismissJourney} aria-label="Dismiss" style={{ alignSelf: "flex-start", width: 22, height: 22, marginLeft: 2, flexShrink: 0, borderRadius: 99, border: "none", background: "transparent", color: "var(--mm-dim)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
               <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
             </button>
           </div>
@@ -344,7 +344,7 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
           {FOLDER_CHIPS.map(({ key, label }) => {
             const on = chip === key
             return (
-              <button key={key} onClick={() => setChip(key)} style={{ flex: "none", height: 28, display: "flex", alignItems: "center", gap: 5, padding: "0 12px", borderRadius: 99, border: `1px solid ${on ? "transparent" : "rgba(255,255,255,0.08)"}`, background: on ? "#3a3a36" : "transparent", color: on ? "#f2f2ee" : "#a6a69e", fontSize: 12, fontWeight: 650, cursor: "pointer", fontFamily: "inherit", transition: "background 160ms" }}>
+              <button key={key} onClick={() => setChip(key)} style={{ flex: "none", height: 28, display: "flex", alignItems: "center", gap: 5, padding: "0 12px", borderRadius: 99, border: `1px solid ${on ? "transparent" : "var(--mm-border)"}`, background: on ? "var(--mm-raise-2)" : "transparent", color: on ? "var(--mm-text)" : "var(--mm-muted)", fontSize: 12, fontWeight: 650, cursor: "pointer", fontFamily: "inherit", transition: "background 160ms" }}>
                 {label}<span style={{ fontVariantNumeric: "tabular-nums", opacity: 0.65, fontWeight: 600 }}>{counts[key]}</span>
               </button>
             )
@@ -361,17 +361,17 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
             <MobileAgentPicks token={token} context="collections" />
             {isRefreshing ? (
               <>
-                <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "12px 14px", borderRadius: 13, border: "1px solid rgba(0,245,212,0.2)", background: "var(--mm-accent-wash)", fontSize: 12.5, color: "#d6d6cf" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "12px 14px", borderRadius: 13, border: "1px solid rgba(0,245,212,0.2)", background: "var(--mm-accent-wash)", fontSize: 12.5, color: "var(--mm-text-2)" }}>
                   <span style={{ width: 8, height: 8, borderRadius: 99, background: "var(--mm-accent)", animation: "mm-dotBlink 1.1s infinite", flex: "none" }} />
                   {refreshVm.progressLabel ?? "Myro Ops · reading the market"}
                   {refreshVm.progressTotal != null && refreshVm.progressDone != null ? ` · ${refreshVm.progressDone}/${refreshVm.progressTotal}` : ""}
                 </div>
-                {[0, 1, 2].map(i => <div key={i} style={{ height: 86, borderRadius: 16, background: "#212120", border: "1px solid rgba(255,255,255,0.04)", opacity: 0.55 }} />)}
+                {[0, 1, 2].map(i => <div key={i} style={{ height: 86, borderRadius: 16, background: "var(--mm-card)", border: "1px solid var(--mm-hair)", opacity: 0.55 }} />)}
               </>
             ) : myroFound.found.length > 0 ? (
               <>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", color: "#8b8b84", textTransform: "uppercase" }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", color: "var(--mm-faint)", textTransform: "uppercase" }}>
                     Cleared the bar · {myroFound.found.length}
                   </div>
                   <button onClick={runMyroSearch} disabled={isRefreshing} className="mm-press" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4, padding: "0 4px", border: "none", background: "transparent", color: "var(--mm-accent)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", opacity: isRefreshing ? 0.6 : 1 }}>
@@ -400,12 +400,12 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
             ) : trulyEmpty ? (
               <div style={{ textAlign: "center", padding: "40px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, border: "1px dashed rgba(255,255,255,0.1)", borderRadius: 16 }}>
                 <div style={{ fontSize: 15.5, fontWeight: 700 }}>Run your first Myro Search</div>
-                <div style={{ fontSize: 12.5, color: "#8b8b84", lineHeight: 1.5, maxWidth: "34ch" }}>Myro reads the live market against your CV and fills this folder with the roles that clear its quality bar.</div>
+                <div style={{ fontSize: 12.5, color: "var(--mm-faint)", lineHeight: 1.5, maxWidth: "34ch" }}>Myro reads the live market against your CV and fills this folder with the roles that clear its quality bar.</div>
                 <button onClick={runMyroSearch} className="mm-press" style={ctaBtn}>Myro Search</button>
               </div>
             ) : (
               <div style={{ padding: "8px 2px", display: "flex", flexDirection: "column", gap: 10 }}>
-                <div style={{ fontSize: 13, color: "#c9c9c2" }}>Nothing cleared the bar in your last search.</div>
+                <div style={{ fontSize: 13, color: "var(--mm-text-3)" }}>Nothing cleared the bar in your last search.</div>
                 <SplitFooter belowBarCount={myroFound.belowBarCount} rejectedCount={myroFound.rejectedCount} onBrowseJobs={() => router.push("/market")} />
               </div>
             )}
@@ -414,7 +414,7 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
           closedView.length === 0 ? (
             <div style={{ textAlign: "center", padding: "44px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
               <div style={{ fontSize: 15, fontWeight: 650 }}>Nothing closed</div>
-              <div style={{ fontSize: 12.5, color: "#8b8b84", lineHeight: 1.5 }}>{emptyCopy("closed")}</div>
+              <div style={{ fontSize: 12.5, color: "var(--mm-faint)", lineHeight: 1.5 }}>{emptyCopy("closed")}</div>
             </div>
           ) : (
             closedView.map(renderClosedItem)
@@ -422,7 +422,7 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
         ) : queueApps.length === 0 && !appsQ.isLoading ? (
           <div style={{ textAlign: "center", padding: "44px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
             <div style={{ fontSize: 15, fontWeight: 650 }}>Nothing here yet</div>
-            <div style={{ fontSize: 12.5, color: "#8b8b84", lineHeight: 1.5 }}>{emptyCopy(chip)}</div>
+            <div style={{ fontSize: 12.5, color: "var(--mm-faint)", lineHeight: 1.5 }}>{emptyCopy(chip)}</div>
             <button onClick={() => router.push("/market")} className="mm-press" style={ctaBtn}>Browse jobs</button>
           </div>
         ) : (
@@ -453,7 +453,7 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
           <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: "-0.02em", marginTop: 4 }}>Sort by</div>
           <div style={{ display: "flex", flexDirection: "column", marginTop: 8 }}>
             {SORTS.map(s => (
-              <button key={s.key} onClick={() => { setSort(s.key); setSortOpen(false) }} className="mm-press-sm" style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 2px", background: "none", border: "none", borderBottom: "1px solid rgba(255,255,255,0.05)", color: sort === s.key ? "var(--mm-accent)" : "#f2f2ee", fontSize: 14, fontWeight: 650, cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
+              <button key={s.key} onClick={() => { setSort(s.key); setSortOpen(false) }} className="mm-press-sm" style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 2px", background: "none", border: "none", borderBottom: "1px solid var(--mm-hair)", color: sort === s.key ? "var(--mm-accent)" : "var(--mm-text)", fontSize: 14, fontWeight: 650, cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
                 <span style={{ flex: 1 }}>{s.label}</span>
                 {sort === s.key && <span aria-hidden>✓</span>}
               </button>
@@ -485,15 +485,15 @@ function synthFromApp(a: ApplicationResponse): JobMatch {
 function SplitFooter({ belowBarCount, rejectedCount, onBrowseJobs }: { belowBarCount: number; rejectedCount: number; onBrowseJobs: () => void }) {
   if (belowBarCount === 0 && rejectedCount === 0) return null
   return (
-    <div style={{ marginTop: 4, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: 7 }}>
+    <div style={{ marginTop: 4, paddingTop: 12, borderTop: "1px solid var(--mm-hair)", display: "flex", flexDirection: "column", gap: 7 }}>
       {belowBarCount > 0 ? (
-        <div style={{ fontSize: 12, color: "#8b8b84", lineHeight: 1.5 }}>
+        <div style={{ fontSize: 12, color: "var(--mm-faint)", lineHeight: 1.5 }}>
           {belowBarCount} more ranked below the bar —{" "}
           <button onClick={onBrowseJobs} style={{ background: "none", border: "none", padding: 0, color: "var(--mm-accent)", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", fontSize: 12 }}>see them in Jobs →</button>
         </div>
       ) : null}
       {rejectedCount > 0 ? (
-        <div style={{ fontSize: 12, color: "#71716a", lineHeight: 1.5 }}>{rejectedCount} rejected — dead listing, wrong level, or off your deal-breakers.</div>
+        <div style={{ fontSize: 12, color: "var(--mm-dim)", lineHeight: 1.5 }}>{rejectedCount} rejected — dead listing, wrong level, or off your deal-breakers.</div>
       ) : null}
     </div>
   )
@@ -502,11 +502,11 @@ function SplitFooter({ belowBarCount, rejectedCount, onBrowseJobs }: { belowBarC
 function JourneyStep({ label, sub, onClick, done, accent }: { label: string; sub: string; onClick?: () => void; done?: boolean; accent?: number }) {
   const inner = (
     <>
-      <span style={{ fontSize: 11, fontWeight: 700, color: accent != null ? "var(--mm-accent)" : done ? "#c9c9c2" : "#8b8b84", display: "flex", alignItems: "center", gap: 4 }}>
-        <span style={{ width: 14, height: 14, borderRadius: 99, background: accent != null ? "var(--mm-accent-wash)" : "rgba(255,255,255,0.08)", color: accent != null ? "var(--mm-accent)" : "#c9c9c2", fontSize: 9, display: "inline-flex", alignItems: "center", justifyContent: "center", animation: accent != null ? "mm-dotBlink 2.4s infinite" : "none" }}>{accent != null ? accent : "✓"}</span>
+      <span style={{ fontSize: 11, fontWeight: 700, color: accent != null ? "var(--mm-accent)" : done ? "var(--mm-text-3)" : "var(--mm-faint)", display: "flex", alignItems: "center", gap: 4 }}>
+        <span style={{ width: 14, height: 14, borderRadius: 99, background: accent != null ? "var(--mm-accent-wash)" : "var(--mm-border)", color: accent != null ? "var(--mm-accent)" : "var(--mm-text-3)", fontSize: 9, display: "inline-flex", alignItems: "center", justifyContent: "center", animation: accent != null ? "mm-dotBlink 2.4s infinite" : "none" }}>{accent != null ? accent : "✓"}</span>
         {label}
       </span>
-      <span style={{ fontSize: 10.5, color: "#71716a", fontVariantNumeric: "tabular-nums" }}>{sub}</span>
+      <span style={{ fontSize: 10.5, color: "var(--mm-dim)", fontVariantNumeric: "tabular-nums" }}>{sub}</span>
     </>
   )
   const style: React.CSSProperties = { flex: 1, border: "none", background: "transparent", cursor: onClick ? "pointer" : "default", fontFamily: "inherit", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, padding: 0 }

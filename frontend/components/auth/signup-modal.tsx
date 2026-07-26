@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import { useSignupGateStore } from "@/store/signupGateStore"
 import { signupEvents } from "@/lib/analytics"
+import { subscribeToSessionChanges } from "@/lib/session"
 import { getStoredReferral } from "@/lib/referral"
 import { SignupForm } from "./signup-form"
 import { LoginForm } from "./login-form"
@@ -26,10 +27,28 @@ const CONCEPTS: Array<{ title: string; body: string }> = [
 ]
 
 export function SignupModal() {
-  const { open, mode, surface, next, closeGate, setMode, openedAt, methodSeenCount } =
+  const { open, mode, surface, next, prefillEmail, closeGate, setMode, openedAt, methodSeenCount } =
     useSignupGateStore()
   const isLogin = mode === "login"
   const dialogRef = useRef<HTMLDivElement | null>(null)
+
+  /**
+   * A session appearing while the gate is open means auth SUCCEEDED — by any
+   * path (password signup, password login, or whatever we add next).
+   *
+   * This lives here, not in each form's success branch, because the modal is a
+   * portal over the whole app with body scroll locked: a form that forgets to
+   * close it does `router.push` underneath itself and the user lands on their
+   * new dashboard behind a frozen scrim — signup worked, product looks broken.
+   * That was the 2026-07-26 bug. Closing on the session event makes it
+   * impossible for a future auth path to reintroduce.
+   */
+  useEffect(() => {
+    if (!open) return
+    return subscribeToSessionChanges((token) => {
+      if (token) closeGate()
+    })
+  }, [open, closeGate])
 
   // Esc closes; click-outside intentionally does NOT (mobile misclick).
   useEffect(() => {
@@ -124,9 +143,22 @@ export function SignupModal() {
           )}
 
           {isLogin ? (
-            <LoginForm surface="modal" next={next} showSignupLink={false} />
+            <LoginForm
+              surface="modal"
+              next={next}
+              showSignupLink={false}
+              initialEmail={prefillEmail}
+            />
           ) : (
-            <SignupForm surface="modal" next={next} showLoginLink={false} />
+            <SignupForm
+              surface="modal"
+              next={next}
+              showLoginLink={false}
+              // Existing account → flip to sign-in in place, email carried
+              // over. Sending them to /login would drop the modal's `next`
+              // and the surface they came from.
+              onEmailTaken={(email) => setMode("login", email)}
+            />
           )}
 
           <p className="tm-signup-modal__toggle">

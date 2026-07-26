@@ -27,11 +27,14 @@ export default function OfflinePage() {
       }}
     >
       <style>{`
-        .myro-offline-wrap{background:#F9F9F9;color:#262626}
-        .myro-offline-sub{color:#6E6E6E}
+        /* Inline + hardcoded by design: this shell must paint with zero
+           network, so it cannot import design-tokens.css. Values mirror the
+           canonical :root ramp by hand — update both together. */
+        .myro-offline-wrap{background:#faf6f0;color:#29241e}
+        .myro-offline-sub{color:#6e655a}
         @media (prefers-color-scheme: dark){
-          .myro-offline-wrap{background:#0a0a0c;color:#e8e8ea}
-          .myro-offline-sub{color:#9aa4bf}
+          .myro-offline-wrap{background:#191918;color:#f2f2ee}
+          .myro-offline-sub{color:#a6a69e}
         }
       `}</style>
       {/* eslint-disable-next-line @next/next/no-img-element */}

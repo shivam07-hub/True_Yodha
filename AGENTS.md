@@ -204,12 +204,12 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
    - **Matching engine** — replace demo shortlist math with backend CV↔JD scoring, evidence extraction, and top-3/top-4 recruiter handoff logic.
    - **Go-live rule** — do not pick this up again as “frontend polish.” Next pickup should be a full-stack B2B PRD / plan with DB, API, auth, and ranking scope agreed first.
 
-15. **Learning Ladder content foundation (important product backlog, order TBD 2026-07-22):** Expand the ladder before Myro assigns users skills to learn. The live bank snapshot is 450 active questions across 9 skills; the useful coverage target is roughly 50–60 skills × five levels × 10–12 questions per level.
-   - **Coverage gate:** do not present personalized skill assignments as comprehensive until the agreed 50–60-skill curriculum has servable L1–L5 coverage. Pick the curriculum from the canonical taxonomy plus verified market demand, then publish coverage explicitly.
-   - **Trusted sourcing:** maintain a per-skill source allowlist (official vendor documentation, standards bodies, authoritative textbooks/open course material, and other reviewed primary references). Preserve source URL, provenance, license posture, reviewer, and verification date; never serve unreviewed generated questions.
-   - **Explanation contract:** the existing backend/UI `explanation` plumbing is present, but content must explain why the correct choice is correct, why each distractor is wrong, and which trusted source supports the reasoning. A generic one-line answer is not sufficient.
-   - **Publication workflow:** ingest candidates → normalize/dedupe → assign L1–L5 → generate answer/distractor rationales → human review → publish an immutable content edition. Retire or correct a question without rewriting prior attempt history.
-   - **Learning loop after coverage:** durable Learning Tracks, daily assignments, spaced repetition, and progress explanations come after the publication gate. Fold the earlier skill-truth concern into this work: ladder progress stays an assessed-learning signal and must not silently change CV-based matching before that product contract is agreed.
+15. **Learning Ladder content foundation (important product backlog, policy revised 2026-07-27):** Myro's comprehensive learning product follows live job-market demand. After scrape/verifier refreshes, the demand snapshot ranks which missing L1–L5 ladders should be built next. Expand toward roughly 50–60 useful skills × five levels × 10–12 questions per level.
+   - **Comprehensive ladder contract:** an available skill is comprehensive when L1–L5 each have at least 10 servable questions. The 50–60 skill figure is a catalog-growth target, not a gate that hides complete ladders or requires “partial”/“beta” user-facing labels.
+   - **Source-grounded serving:** an active question may serve without human review when it has a legitimate non-empty source URL, valid four-option answer structure, and a useful explanation. Source-less, malformed, unexplained, retired, or verifier-failed content remains unavailable.
+   - **Quality metadata:** preserve source provenance, licensing posture, reviewer, verification date, per-option rationales, and immutable editions when available. Human review and counsel guidance improve quality later; they are not pre-10k serving dependencies.
+   - **Publication workflow:** market demand → source ingest → normalize/dedupe → assign L1–L5 → explain → independent verification → activate. Corrections and retirement must not rewrite prior attempt history.
+   - **Learning truth boundary:** ladder progress stays in `skill_assessed_level` and must not silently change CV-derived `user_skills`, Myro Score, or job matching. Personalized ladder routing follows once a relevant complete ladder exists.
 
 16. **Production read capacity and speed (important performance backlog, order TBD 2026-07-22):** Preserve speed as a first-class product requirement after the perceived-speed frontend work. The remaining problem is backend queueing under concurrent reads, not cosmetic loading states.
    - **Known evidence:** a real browsing burst made many otherwise-successful endpoints complete together after roughly 5–6 seconds, while `/jobs/analytics` reached 22–25 seconds. CPU stayed nearly idle, pointing to blocked AnyIO/Supabase connection capacity rather than compute saturation.
@@ -217,6 +217,29 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
    - **Fix order:** verify the Supabase pooler ceiling before raising application pools; then remove hot synchronous reads from the AnyIO threadpool and tune bounded pools. Add a replica only if measurements show capacity still requires it.
    - **Regression contract:** `/jobs/analytics` remains off the login path, a company-browsing burst must not stall unrelated identity/score/feed reads, and saturation must page through a real alert destination.
    - **Not a route-by-route patch:** solve the shared read-capacity seam and publish an operational runbook/SLO. Do not add isolated endpoint workarounds that hide queueing.
+
+17. **End-of-beta feedback closure program (shared Codex + Claude backlog, started 2026-07-26):** The canonical machine-readable registry is `docs/beta-testing/closure-ledger/beta-feedback-closure-ledger.jsonl`; the working runbook is `docs/beta-testing/closure-ledger/README.md`. The current evidence state is **113 unverified, 1 open, 0 fixed**. Completed foundations are not equivalent to verified user-facing closure.
+   - **Status contract:** `FOUNDATION CLOSED` means reusable audit/test/backend machinery exists; `BUILT NOT LIVE` means implementation exists locally but is not deployed; `PARTIAL` means some flow exists but the reported journey is not proven end to end; `OPEN` means the concern still needs implementation; `VERIFIED CLOSED` requires merged code, passing regression tests, deployed-version evidence, production validation, relevant metrics, affected-user validation where practical, and a closure date in the ledger.
+   - **FOUNDATION CLOSED — feedback inventory:** all 113 Supabase beta records plus Usha Bhatiya's separately attributed PDF feedback are registered without merging identities. Direct email/phone identifiers are redacted. Exact stored feedback remains separate from product interpretation.
+   - **FOUNDATION CLOSED — evidence gate:** `backend/scripts/export_beta_feedback_ledger.py` preserves human closure decisions and rejects `fixed` without code, deployment, test, metric, user-validation, and closure-date evidence.
+   - **FOUNDATION CLOSED — performance measurement:** `backend/scripts/run_read_load_probe.py` and `docs/runbooks/read-capacity-performance.md` cover login, Jobs, CV, company browsing, and isolated analytics with client/server latency, p50/p95/p99, bounded request counts, and explicit production opt-in.
+   - **BUILT NOT LIVE — durable feedback delivery:** commit `b78e7bf7` adds UUID `Idempotency-Key`, payload fingerprinting, replay receipts, changed-payload conflict detection, and concurrent duplicate collapse. Migration `20260726182212_feedback_submission_idempotency.sql` is committed but not applied to shared Supabase; the backend commit is not deployed.
+   - **OPEN P0 — production loading speed:** establish current baselines, inspect Supabase pooler/database waits plus AnyIO and HTTP connection pools, remove login-path fan-out and hot synchronous reads, keep `/jobs/analytics` isolated, rerun the probe, and satisfy the published SLO under concurrent browsing. Loading skeletons alone do not close this item.
+   - **OPEN P0 — feedback submission recovery:** review the backend contract, push/apply/deploy it, then build a persistent IndexedDB outbox that stores the exact payload and UUID before sending, exposes `Saved / Sending / Sent / Needs attention`, safely replays after reload or reconnect, and handles `409` without silently dropping or duplicating feedback.
+   - **PARTIAL P0 — CV upload reliability:** resumable upload, deterministic failure codes, fallback tickets, and phase telemetry exist. Closure still requires onboarding/CV-route resume parity, byte-level progress, weak/mobile-network validation, production phase metrics, retry/fallback verification, and affected-user confirmation.
+   - **PARTIAL P1 — mobile navigation and next action:** responsive navigation exists, but Jobs, CV, Tracker, Skills, and Learning still need one state-derived next action that survives route changes and does not overwhelm a first-time mobile user.
+   - **OPEN P1 — first-time onboarding:** add a skippable, contextual walkthrough for CV upload, score meaning, job recommendations, saved-job tracking, and learning. Instrument completion, skip, abandonment, and time-to-first-useful-action; do not use a long generic product tour.
+   - **OPEN/PARTIAL P1 — plain language and progressive disclosure:** audit corporate/technical terms such as baseline, Intel, Forge, level notation, score methodology, and CV version concepts. Prefer familiar student language, disclose necessary constraints in context, and keep advanced detail behind progressive disclosure.
+   - **PARTIAL P1 — clear errors, recovery, and tooltips:** standardize actionable errors with retry/resume paths and correlation IDs while keeping sensitive details server-side. Add tooltips only for non-visible constraints, methodology, or unfamiliar concepts; visual state should communicate ordinary loading, disabled, success, and failure conditions.
+   - **PARTIAL P1 — CV parsing, tailoring, and score trust:** make parsing state and evidence visible, explain score basis without overstating recruiter/ATS certainty, show before/after tailoring proof, preserve immutable CV versions, and provide deterministic recovery when extraction or recomputation fails.
+   - **PARTIAL P1 — Jobs relevance, filters, and Apply handoff:** persist user filters, explain match reasons from stored evidence, distinguish inventory gaps from ranking defects, preserve explicit listing-liveness boundaries, and validate the external application handoff without claiming Myro submitted an application.
+   - **OPEN P1/P2 — Learning and Forge relevance:** expose complete source-grounded L1–L5 ladders now, expand the catalog from verified market demand, and later personalize the best available ladder for each user. Learning progress remains separate from CV-derived matching truth. Make the next learning action understandable without gamification pressure.
+   - **PARTIAL P2 — Tracker discoverability and post-application guidance:** provide a useful first-run/demo state, make saved/applied status semantics clear, and route outcomes into follow-up, referral, interview preparation, or no-response recovery without fabricating employer activity.
+   - **OPEN — deployment and acceptance:** push the currently local backend/docs commits, review the additive migration, apply it only when backend/frontend contracts are compatible, deploy backend and frontend, run authenticated desktop/mobile smoke tests, run bounded load tests, and record exact deployed versions.
+   - **OPEN — user validation and ledger closure:** recontact affected users where practical, record whether the original task now succeeds, attach production evidence, and update individual ledger rows. Theme-level confidence never substitutes for row-level closure.
+   - **Execution order:** (1) Claude contract review; (2) push local commits; (3) apply migration and deploy backend; (4) build/deploy feedback outbox; (5) measure and repair shared read capacity; (6) close CV/mobile/onboarding/language/error/trust journeys one vertical slice at a time; (7) validate with users and update the ledger after each slice.
+   - **Shared-agent protocol:** Claude and Codex may work on any item in this program. Frontend UX defaults to Claude; backend, migrations, performance, and test scaffolding default to Codex. This is coordination guidance, not an exclusive lock. Before editing, each agent must inspect current Git state and recent commits, announce owned files/scope, preserve unrelated work, avoid duplicate implementations, and leave a commit plus verification notes for review.
+   - **Handoff rule:** every handoff must state concern/ledger IDs, files and commits, migrations/deployment state, tests and measurements run, residual risks, and the exact evidence still missing for `VERIFIED CLOSED`. Neither agent may mark an item closed based only on local tests, screenshots, copy changes, or another agent's summary.
 
 ---
 
@@ -364,6 +387,36 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-07-27 - Source-grounded Learning Ladders)
+
+Completed the revised backlog #15 serving/content-foundation slice without
+reopening backlog #14 or touching backlog #16.
+
+- Replaced the human-review publication dependency with an objective runtime
+  gate: questions must be active, not retired, source-grounded, explained, and
+  structurally valid. Human-review, licensing, provenance, rationale, and
+  immutable-edition metadata remain available for later quality operations.
+- Complete L1-L5 skill ladders are now comprehensive and servable before the
+  50-skill catalog target is reached. The 50-60 skill figure remains the
+  market-driven expansion target rather than a user-facing availability gate.
+- A read-only live Supabase audit found 300 immediately servable questions
+  across six complete L1-L5 skills. The other 1,245 rows have no source URL and
+  remain unavailable.
+- Missing ladder targets now rank from the live 30-day
+  `skill_demand_snapshot` produced after scrape/verifier refreshes, rather than
+  from users' CV skills. The source-less local generator still writes drafts;
+  the source-grounded publisher remains the activation path.
+- Learning clears remain isolated in `skill_assessed_level`; this work does not
+  mutate CV-derived `user_skills`, Myro Score, or job matching. The empty-state
+  copy now states that clears record learning progress.
+- No migration or live database write was required. Existing immutable attempt
+  snapshots continue to preserve historical grading through corrections and
+  retirement.
+
+Validation: focused Learning Ladder backend `44 passed`; full backend `1,675
+passed`; frontend upskilling contract `4 passed`; Ruff clean; TypeScript
+`npx tsc --noEmit` clean; Next lint clean; `git diff --check` clean.
+
 ## LAST SESSION SUMMARY (2026-07-26 - Turnstile made optional)
 
 Removed Turnstile and the canonical site URL from deployment-critical
@@ -416,7 +469,28 @@ lint passed with no warnings; `git diff --check` passed. Railway CLI/MCP access
 remained blocked by the expired OAuth session, so no deployed variable values
 were read or changed.
 
-## LAST SESSION SUMMARY (2026-07-26 - Beta reliability foundations)
+## LAST SESSION SUMMARY (2026-07-26 - Shared beta closure backlog)
+
+Consolidated all end-of-beta reliability and UX concerns into Open Backlog #17
+so Codex and Claude can close them one vertical slice at a time.
+
+- Recorded the current evidence state: 113 `unverified`, 1 `open`, 0 `fixed`.
+- Distinguished completed foundations, local-but-not-live implementation, partial
+  journeys, open implementation, and evidence-backed verified closure.
+- Captured loading speed, feedback delivery, CV upload, mobile navigation,
+  onboarding, language, errors/tooltips, CV trust, Jobs/Apply, Learning/Forge,
+  Tracker, deployment, and user-validation work in one canonical program.
+- Explicitly allowed both agents to work on every item while assigning frontend
+  UX to Claude by default and backend/migrations/performance/test scaffolding to
+  Codex by default.
+- Added pre-edit coordination, handoff, and closure-evidence rules to prevent
+  duplicate work or premature closure in the shared dirty repository.
+
+No application code, database state, or deployment was changed in this
+documentation-only task. Existing unrelated `docs/free-llm-api-resources` state
+was left untouched.
+
+## OLDER SESSION SUMMARY (2026-07-26 - Beta reliability foundations)
 
 Started the non-frontend execution of the end-of-beta closure plan in three
 isolated commits:
