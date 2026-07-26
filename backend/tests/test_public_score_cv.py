@@ -61,6 +61,24 @@ def _pdf_upload(content: bytes = b"x" * 500, content_type: str = "application/pd
     return {"file": ("cv.pdf", content, content_type)}
 
 
+def test_score_cv_is_unavailable_in_production_without_turnstile_secret(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        public_router.settings,
+        "railway_service_name",
+        "mirror-backend-prod",
+    )
+
+    res = TestClient(app).post("/public/score-cv")
+
+    assert res.status_code == 503
+    assert res.json() == {
+        "detail": "Something went wrong. Please try again.",
+        "correlation_id": res.headers["x-correlation-id"],
+    }
+
+
 def test_score_cv_happy_path(monkeypatch: pytest.MonkeyPatch) -> None:
     _wire_engine(monkeypatch, raw_text="A" * 400, skills=[{"display_name": "Python"}, {"display_name": "SQL"}])
 

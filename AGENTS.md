@@ -364,6 +364,32 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-07-26 - Production Turnstile startup isolation)
+
+Diagnosed the `mirror-backend-prod` crash from the attached Railway logs and
+confirmed `https://api.himyro.com/health` was returning Railway's fallback
+`502`. The process repeatedly reached Uvicorn startup, then
+`validate_runtime_configuration()` raised
+`Invalid production configuration: TURNSTILE_SECRET`.
+
+- `TURNSTILE_SECRET` is now feature-scoped instead of a whole-API startup
+  dependency. Production can start its authenticated/core API without it.
+- Every anonymous CV scoring, fit-preview, and rewrite route that calls the
+  shared Turnstile verifier remains fail-closed: when the production secret is
+  absent, the route returns a generic correlated `503` and logs the
+  configuration failure server-side.
+- Development still permits a missing secret so local tests and
+  pre-provisioning do not require Cloudflare.
+- Updated environment examples and the canonical pre-launch audit to document
+  the actual availability/security boundary.
+
+Validation: regression tests were written red-first for both startup and
+protected-route behavior; focused backend suites `33 passed`; full backend
+suite `1,658 passed`; Ruff passed; TypeScript `npx tsc --noEmit` passed; Next
+lint passed with no warnings; `git diff --check` passed. Railway CLI/MCP access
+remained blocked by the expired OAuth session, so no deployed variable values
+were read or changed.
+
 ## LAST SESSION SUMMARY (2026-07-26 - Beta reliability foundations)
 
 Started the non-frontend execution of the end-of-beta closure plan in three
