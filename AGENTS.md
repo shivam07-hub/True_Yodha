@@ -364,6 +364,45 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-07-26 - Learning Ladder content foundation)
+
+Closed the backend/content-foundation slice of backlog #15 without touching
+backlog #16 or reopening #14.
+
+- Learning clears and job-gap calibrations now write only
+  `skill_assessed_level`; they no longer create or raise `user_skills`, and the
+  frontend no longer invalidates score-map data after learning-only writes.
+- New reviewed-publication gate: `skill_questions` are servable only when
+  `status='active'`, `review_status='published'`, edition/source/provenance/
+  license/reviewer/verification metadata exists, and correct+distractor
+  rationales are complete.
+- Added immutable `quiz_attempt_question_snapshots` so corrections and
+  retirement do not rewrite prior attempt review history.
+- Added additive Supabase migration
+  `20260726180000_learning_ladder_content_foundation.sql`: content editions,
+  source allowlists, review/provenance/rationale columns, replacement/
+  retirement fields, and RLS-protected attempt snapshots.
+- Applied the migration to live Supabase `gipvxuugajkugntwkeiz` and verified
+  the new tables are RLS-enabled. Live gate snapshot after migration:
+  1,545 total questions, 1,179 active legacy rows, 0 reviewed-published
+  questions, 0 publishable skill-levels, 0 complete skills.
+- Existing generator now produces review candidates only
+  (`status='review'`, `review_status='needs_review'`); model verification is
+  not publication. The PRD now documents ingest → normalize/dedupe → level →
+  rationales → human review → immutable edition.
+- Added `/upskilling/coverage` and typed frontend API support. The gate reports
+  `partial` until at least 50 complete skills have L1-L5 coverage with 10+
+  reviewed published questions per level.
+
+Validation: focused Learning Ladder backend tests `42 passed`; full backend
+suite `1,636 passed`; frontend upskilling source contract `4 passed`;
+TypeScript `npx tsc --noEmit` passed; Next lint passed; `git diff --check`
+passed. Supabase CLI advisor/migration-stub commands hung locally without
+output, so live Supabase verification used MCP SQL plus `apply_migration`.
+
+Unrelated workspace state left untouched: `docs/free-llm-api-resources`, nested
+untracked `True_Yodha/`, and untracked beta-feedback ledger files.
+
 ## LAST SESSION SUMMARY (2026-07-26 - Develop deployment recovery)
 
 Diagnosed the first deployment after pre-launch environment hardening. Both

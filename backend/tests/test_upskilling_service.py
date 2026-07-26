@@ -209,6 +209,31 @@ def _answers(correct: int):
     ]
 
 
+def _reviewed_fields(qid: int, *, correct_index: int = 1):
+    return {
+        "review_status": "published",
+        "content_edition_id": "edition-1",
+        "source_url": "https://www.postgresql.org/docs/current/tutorial-select.html",
+        "source_provenance": "Official PostgreSQL documentation",
+        "license_posture": "official_documentation_reference",
+        "reviewer": "content-reviewer",
+        "reviewed_at": "2026-07-26T00:00:00+00:00",
+        "verified_at": "2026-07-26",
+        "question_text": f"Q{qid}",
+        "options": ["a", "b", "c", "d"],
+        "correct_index": correct_index,
+        "explanation": f"because {qid}",
+        "rationales": {
+            "correct": f"option {correct_index} follows the source",
+            "distractors": {
+                str(idx): f"option {idx} conflicts with the source"
+                for idx in range(4)
+                if idx != correct_index
+            },
+        },
+    }
+
+
 async def _run(store, answers):
     fake = _FakeAdmin(store)
     with patch("app.services.upskilling_service.get_supabase_admin", return_value=fake), \
@@ -291,6 +316,7 @@ def test_ladder_uses_taxonomy_display_name_and_exposes_all_servable_banks():
             "skill_key": "machine-learning",
             "level": level,
             "status": "active",
+            **_reviewed_fields(level * 100 + offset),
         }
         for level in range(1, 6)
         for offset in range(10)
@@ -301,6 +327,7 @@ def test_ladder_uses_taxonomy_display_name_and_exposes_all_servable_banks():
             "skill_key": "product-strategy",
             "level": 1,
             "status": "active",
+            **_reviewed_fields(900 + offset),
         }
         for offset in range(10)
     ]
@@ -422,15 +449,15 @@ def test_start_gap_served_carries_no_reason():
                 "id": qid,
                 "skill_id": SKILL_ID,
                 "skill_key": "sql",
-                "status": "active",
-                "question_text": f"Q{qid}",
-                "options": ["a", "b", "c", "d"],
-            }
-            for qid in range(1, 4)
-        ],
-        "skills": [{"id": SKILL_ID, "taxonomy_key": "sql", "display_name": "SQL"}],
-        "quiz_attempts": [],
-    }
+                    "status": "active",
+                    **_reviewed_fields(qid),
+                }
+                for qid in range(1, 4)
+            ],
+            "quiz_attempt_question_snapshots": [],
+            "skills": [{"id": SKILL_ID, "taxonomy_key": "sql", "display_name": "SQL"}],
+            "quiz_attempts": [],
+        }
     result = _start_gap(
         store,
         required=[{"skill_key": "sql", "target_level": 3, "user_level": 1, "is_primary": True}],

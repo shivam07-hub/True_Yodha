@@ -9,8 +9,9 @@ Two passes, in order:
      in the bank at all, generates a full 5-level x 10-question ladder.
 
 Both use get_judgment_provider() (no cheap models) and an independent verify
-pass that re-checks every correct_index before shipping 'active'; anything
-the verifier can't confirm ships 'review' instead (never silently unverified).
+pass that re-checks every correct_index. Generated rows are candidates only:
+they ship 'review' / 'needs_review', never 'active'. Publishing requires the
+separate human review + source metadata workflow.
 
 Usage (from backend/, with SUPABASE_* + OPENROUTER_API_KEY/GROQ_API_KEY in env):
     python -m scripts.generate_learning_ladder --dry-run        # show plan only
@@ -37,8 +38,8 @@ async def _generate_and_write(skill, levels=None) -> tuple[int, int]:
     result = await generate_ladder_for_skill(skill, **kwargs)
     rows = rows_for_insert(result)
     written = insert_rows(rows)
-    active = sum(1 for r in rows if r["status"] == "active")
-    return written, active
+    publishable = sum(1 for r in rows if r.get("review_status") == "published")
+    return written, publishable
 
 
 async def run(limit: int, dry_run: bool, skip_complete: bool) -> int:
@@ -62,23 +63,23 @@ async def run(limit: int, dry_run: bool, skip_complete: bool) -> int:
         print("\nDRY RUN — no generation, nothing written.")
         return 0
 
-    total_active, total_written = 0, 0
+    total_publishable, total_written = 0, 0
     for skill, missing in incomplete:
         print(f"\ncompleting: {skill.display_name} (levels {missing}) ...")
-        written, active = await _generate_and_write(skill, levels=missing)
-        total_active += active
+        written, publishable = await _generate_and_write(skill, levels=missing)
+        total_publishable += publishable
         total_written += written
-        print(f"  wrote {written} rows ({active} active, {written - active} review)")
+        print(f"  wrote {written} review rows ({publishable} published)")
 
     for skill in targets:
         print(f"\ngenerating: {skill.display_name} ...")
-        written, active = await _generate_and_write(skill)
-        total_active += active
+        written, publishable = await _generate_and_write(skill)
+        total_publishable += publishable
         total_written += written
-        print(f"  wrote {written} rows ({active} active, {written - active} review)")
+        print(f"  wrote {written} review rows ({publishable} published)")
 
     print(
-        f"\ndone. {total_active} active, {total_written - total_active} review "
+        f"\ndone. {total_written} review rows, {total_publishable} published "
         f"across {len(incomplete) + len(targets)} skill(s)."
     )
     return 0

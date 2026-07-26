@@ -10,7 +10,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { upskilling, users, type DemandBand, type ReadinessRow, type SkillUpvote, type StartGapResponse, type UpskillingSkill } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import type { PracticeSkills } from "@/lib/practice-skills"
-import { dataKeys, invalidateScoreMapData } from "@/lib/domain-data"
+import { dataKeys } from "@/lib/domain-data"
 import { mentorRewriteHref } from "@/lib/practice-mentor-handoff"
 import { useParticleMoment } from "@/components/particle"
 import type { SkillIntelStats } from "@/lib/skill-domains"
@@ -244,6 +244,7 @@ export function UpskillingView({
           selected: answers[i],
           isCorrect: r ? r.is_correct : false,
           expl: r ? r.explanation : "",
+          rationales: r?.rationales,
         }
       })
       // Cosmetic speed stat (DEC-S4): record only a passing clear; read prior
@@ -281,9 +282,8 @@ export function UpskillingView({
         window.setTimeout(() => fireMoment({ intensity: 1.5 }), 240)
       }
       if (res.passed) {
-        // DEC-1a: a clear bumps the headline level + token balance server-side.
+        // A clear records assessed-learning progress + token balance server-side.
         queryClient.invalidateQueries({ queryKey: UPSKILLING_SKILLS_KEY(token) })
-        invalidateScoreMapData(queryClient)
       }
     } catch {
       flashToast("Couldn’t grade this set — check your connection and try again.")
@@ -355,7 +355,6 @@ export function UpskillingView({
       setScreen("gap-result")
       // Diagnostic writes assessed levels server-side — refresh the ladder.
       queryClient.invalidateQueries({ queryKey: UPSKILLING_SKILLS_KEY(token) })
-      invalidateScoreMapData(queryClient)
     } catch {
       flashToast("Couldn’t score the readiness check — try again in a moment.")
     }

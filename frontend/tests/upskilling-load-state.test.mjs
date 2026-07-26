@@ -39,3 +39,13 @@ test("the Forge climb path opens banked rungs and the next focus rung, keeps the
   assert.doesNotMatch(resultsSource, /stays locked until/)
   assert.match(resultsSource, /Levels stay available for practice/)
 })
+
+test("learning progress stays separate from score-map invalidation", () => {
+  assert.doesNotMatch(source, /invalidateScoreMapData/)
+})
+
+test("graded review renders source-backed correct and distractor rationales", () => {
+  assert.match(source, /rationales: r\?\.rationales/)
+  assert.match(resultsSource, /it\.rationales\.correct/)
+  assert.match(resultsSource, /it\.rationales\?\.distractors/)
+})

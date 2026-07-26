@@ -4981,6 +4981,10 @@ export interface QuestionResult {
   correct_index: number
   is_correct: boolean
   explanation: string
+  rationales?: {
+    correct?: string
+    distractors?: Record<string, string>
+  }
 }
 
 export interface SubmitSetResponse {
@@ -4992,6 +4996,18 @@ export interface SubmitSetResponse {
   new_coin_balance: number
   next_level_unlocked: number | null
   results: QuestionResult[]
+}
+
+export interface LearningCoverageResponse {
+  coverage_gate_met: boolean
+  publication_scope: "partial" | "comprehensive"
+  complete_skill_count: number
+  target_skill_min: number
+  target_skill_max: number
+  questions_per_level_min: number
+  questions_per_level_max: number
+  active_reviewed_question_count: number
+  active_reviewed_skill_count: number
 }
 
 // ── Surface B — job-anchored gap calibration ────────────────────────────────
@@ -5076,6 +5092,11 @@ export const upskilling = {
   /** Recent upskilling-set submission dates — powers the home practice streak. */
   activityDates: (token: string) =>
     request<{ dates: string[] }>("/upskilling/activity", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  coverage: (token: string) =>
+    request<LearningCoverageResponse>("/upskilling/coverage", {
       headers: { Authorization: `Bearer ${token}` },
     }),
 }
