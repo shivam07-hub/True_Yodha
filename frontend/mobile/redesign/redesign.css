@@ -6,29 +6,47 @@
    canonical Engine teal #00F5D4).
    ══════════════════════════════════════════════════════════════════════════ */
 
-.mm-root {
-  --mm-accent: #00f5d4;
-  --mm-accent-fg: #04211b;
-  --mm-accent-wash: rgba(0, 245, 212, 0.1);
-  --mm-bg: #191918;
-  --mm-card: #212120;
-  --mm-card-2: #232322;
-  --mm-inset: #1b1b1a;
-  --mm-hair: rgba(255, 255, 255, 0.055);
-  --mm-hair-soft: rgba(255, 255, 255, 0.045);
-  --mm-border: rgba(255, 255, 255, 0.08);
-  --mm-text: #f2f2ee;
-  --mm-text-2: #d6d6cf;
-  --mm-text-3: #c9c9c2;
-  --mm-muted: #a6a69e;
-  --mm-faint: #8b8b84;
-  --mm-dim: #71716a;
-  --mm-warn: #f59e0b;
-  --mm-good: #4ade80;
-  --mm-bad: #fb7185;
+/* ── 2026-07-27: `--mm-*` is now an ALIAS LAYER, not a palette ──────────────
+   These used to be hardcoded dark hexes, which is what split the app in two:
+   the chrome and three surfaces painted themselves dark unconditionally while
+   every other page followed [data-surface]. On a light phone that put
+   light-mode text tokens on a dark background — "My CV", "Preparations" and
+   "How Myro Coins work" rendered as near-black headings on a near-black page
+   while their own subheadings stayed readable.
 
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
-    system-ui, "Segoe UI", Roboto, sans-serif;
+   The values didn't disappear: mm's ramp was adopted as the CANONICAL dark in
+   design-tokens.css, so on dark these aliases resolve to exactly the hexes
+   they used to hardcode — zero visual change to Jobs/Collections/Profile —
+   and light mode now works for free.
+
+   `--mm-*` is kept (rather than sed-ed away) so the ~13 redesign components
+   don't churn in this pass. Treat it as deprecated: new code reads `--tm-*`.
+   ────────────────────────────────────────────────────────────────────────── */
+.mm-root {
+  --mm-accent: var(--tm-interactive);
+  --mm-accent-fg: var(--tm-interactive-fg);
+  --mm-accent-wash: var(--tm-interactive-wash);
+  --mm-bg: var(--tm-bg);
+  --mm-card: var(--tm-surface);
+  --mm-card-2: var(--tm-surface-2);
+  --mm-inset: var(--tm-bg-inset);
+  --mm-hair: var(--tm-border-faint);
+  --mm-hair-soft: var(--tm-border-faint);
+  --mm-border: var(--tm-border-soft);
+  --mm-text: var(--tm-text);
+  /* Two intermediate steps the canonical ramp has no name for. Mixed rather
+     than pinned so the mm density survives BOTH surfaces. */
+  --mm-text-2: color-mix(in oklab, var(--tm-text) 70%, var(--tm-text-muted));
+  --mm-text-3: color-mix(in oklab, var(--tm-text) 45%, var(--tm-text-muted));
+  --mm-muted: var(--tm-text-muted);
+  --mm-faint: var(--tm-text-faint);
+  --mm-dim: var(--tm-text-disabled);
+  --mm-warn: var(--tm-warning);
+  --mm-good: var(--tm-success);
+  --mm-bad: var(--tm-danger);
+
+  /* Phone family now resolves globally from --tm-font-sans (SF Pro <=768px). */
+  font-family: var(--tm-font-sans);
   -webkit-font-smoothing: antialiased;
   color: var(--mm-text);
 }

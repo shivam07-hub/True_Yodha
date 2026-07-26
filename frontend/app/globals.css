@@ -767,6 +767,12 @@
      on phones. (Pre-fix this block re-pinned dark values onto data-surface=light
      at <=768px, breaking light mode on mobile.) */
   :root {
+    /* Phone family swap (Shivam 2026-07-27). Everything reads --tm-font-sans,
+       so this one line moves the whole app to the platform stack at phone
+       widths while himyro.com keeps Space Grotesk. Deliberate — see
+       --tm-font-sans-phone in design-tokens.css for the accepted trade-off. */
+    --tm-font-sans: var(--tm-font-sans-phone);
+
     --tm-fs-hero: 2.25rem;
     --tm-lh-hero: 2.625rem;
     --tm-fs-display: 1.75rem;
