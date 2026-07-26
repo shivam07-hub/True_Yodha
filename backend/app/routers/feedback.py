@@ -1,110 +1,29 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from postgrest.exceptions import APIError
-from pydantic import BaseModel, Field
-from typing import Literal
+from uuid import UUID
 
 from app.database import get_supabase, get_supabase_admin
+from app.schemas.feedback import (
+    BetaAssignmentReceipt,
+    BetaAssignmentRequest,
+    BetaAssignmentStatus,
+    FeedbackReceipt,
+    FeedbackReport,
+    FeedbackRequest,
+)
+from app.services.feedback_delivery import (
+    FeedbackIdempotencyConflict,
+    ensure_matching_fingerprint,
+    feedback_fingerprint,
+    find_feedback_receipt,
+)
 
 router = APIRouter(prefix="/feedback", tags=["feedback"])
 
 _bearer = HTTPBearer(auto_error=False)
 
-# Legacy types (feedback/company/bug) stay for backwards compat with any older
-# clients still in the wild. New types power the Feedback Hub.
-FeedbackType = Literal[
-    "bug",
-    "idea",
-    "question",
-    "praise",
-    "feedback",
-    "company",
-]
-
-FeedbackStatus = Literal["received", "triaged", "in_progress", "shipped", "closed"]
-
 BETA_ASSIGNMENT_PROGRAM = "intern_beta_assignment_v1"
-
-RoleStream = Literal["Product", "Design", "Marketing", "Operations", "Other"]
-DeviceType = Literal["Mobile", "Laptop", "Desktop", "Tablet"]
-OperatingSystem = Literal["Android", "iOS", "Windows", "macOS", "Linux", "Other"]
-Browser = Literal["Chrome", "Safari", "Edge", "Firefox", "Other"]
-ConnectionType = Literal["Wi-Fi", "Mobile data", "Mixed", "Unknown"]
-SessionOutcome = Literal["Completed", "Partial", "Blocked before a result"]
-TimeToValue = Literal[
-    "Under 5 minutes",
-    "5-10 minutes",
-    "11-20 minutes",
-    "21-30 minutes",
-    "No useful result",
-]
-ProductArea = Literal[
-    "Landing and signup",
-    "CV upload",
-    "CV analysis or Myro Score",
-    "CV Hub or tailoring",
-    "Skills or Forge",
-    "Jobs or matches",
-    "Intel",
-    "Tracker",
-    "Diary",
-    "Settings or feedback",
-    "Other",
-]
-
-
-class FeedbackRequest(BaseModel):
-    type: FeedbackType
-    payload: dict
-
-
-class FeedbackReport(BaseModel):
-    id: int
-    type: FeedbackType
-    status: FeedbackStatus
-    payload: dict
-    created_at: str
-
-
-class BetaAssignmentRequest(BaseModel):
-    role_stream: RoleStream
-    device_type: DeviceType
-    operating_system: OperatingSystem
-    browser: Browser
-    connection_type: ConnectionType
-    session_outcome: SessionOutcome
-    time_to_value: TimeToValue
-    areas_explored: list[ProductArea] = Field(min_length=1, max_length=11)
-    product_understanding: str = Field(min_length=10, max_length=2000)
-    most_useful_moment: str = Field(min_length=10, max_length=2000)
-    biggest_problem_area: ProductArea
-    biggest_problem: str = Field(min_length=10, max_length=2000)
-    attempted_action: str = Field(min_length=10, max_length=2000)
-    expected_result: str = Field(min_length=10, max_length=2000)
-    actual_result: str = Field(min_length=10, max_length=2000)
-    reproduction_steps: str | None = Field(default=None, max_length=2000)
-    priority_improvement: str = Field(min_length=10, max_length=2000)
-    priority_reason: str = Field(min_length=10, max_length=2000)
-    preserve: str = Field(min_length=10, max_length=2000)
-    return_trigger: str = Field(min_length=10, max_length=2000)
-    rating_next_step: int = Field(ge=1, le=5)
-    rating_trust: int = Field(ge=1, le=5)
-    rating_relevance: int = Field(ge=1, le=5)
-    rating_return: int = Field(ge=1, le=5)
-    rating_recommend: int = Field(ge=1, le=5)
-    privacy_confirmation: Literal[True]
-    independent_work_confirmation: Literal[True]
-    final_submission_confirmation: Literal[True]
-
-
-class BetaAssignmentReceipt(BaseModel):
-    id: int
-    submitted_at: str
-
-
-class BetaAssignmentStatus(BaseModel):
-    submitted: bool
-    receipt: BetaAssignmentReceipt | None
 
 
 def _resolve_user_id(credentials: HTTPAuthorizationCredentials | None) -> str | None:
@@ -145,27 +64,79 @@ def _find_beta_assignment_receipt(user_id: str) -> BetaAssignmentReceipt | None:
     )
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    status_code=status.HTTP_201_CREATED,
+    response_model=FeedbackReceipt,
+    responses={status.HTTP_200_OK: {"model": FeedbackReceipt}},
+)
 def submit_feedback(
     body: FeedbackRequest,
+    response: Response,
+    idempotency_key: UUID | None = Header(default=None, alias="Idempotency-Key"),
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
-) -> dict:
+) -> FeedbackReceipt:
     if body.payload.get("program") == BETA_ASSIGNMENT_PROGRAM:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="This feedback program is reserved for its validated submission endpoint",
         )
     user_id = _resolve_user_id(credentials)
+    db = get_supabase_admin()
+    key = str(idempotency_key) if idempotency_key else None
+    fingerprint = (
+        feedback_fingerprint(body.type, body.payload) if key else None
+    )
+    if key and fingerprint:
+        existing = find_feedback_receipt(
+            db,
+            idempotency_key=key,
+            user_id=user_id,
+        )
+        if existing:
+            try:
+                ensure_matching_fingerprint(existing, fingerprint)
+            except FeedbackIdempotencyConflict as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Idempotency key was already used for different feedback",
+                ) from exc
+            response.status_code = status.HTTP_200_OK
+            return FeedbackReceipt(id=existing["id"], replayed=True)
 
     row: dict = {"type": body.type, "payload": body.payload}
     if user_id:
         row["user_id"] = user_id
+    if key and fingerprint:
+        row["idempotency_key"] = key
+        row["idempotency_fingerprint"] = fingerprint
 
-    result = get_supabase_admin().table("user_feedback").insert(row).execute()
+    try:
+        result = db.table("user_feedback").insert(row).execute()
+    except APIError as exc:
+        if key and fingerprint and getattr(exc, "code", None) == "23505":
+            existing = find_feedback_receipt(
+                db,
+                idempotency_key=key,
+                user_id=user_id,
+            )
+            if existing:
+                try:
+                    ensure_matching_fingerprint(existing, fingerprint)
+                except FeedbackIdempotencyConflict:
+                    pass
+                else:
+                    response.status_code = status.HTTP_200_OK
+                    return FeedbackReceipt(id=existing["id"], replayed=True)
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Idempotency key was already used for different feedback",
+            ) from exc
+        raise
     if not result.data:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to save feedback")
 
-    return {"ok": True, "id": result.data[0]["id"]}
+    return FeedbackReceipt(id=result.data[0]["id"], replayed=False)
 
 
 @router.get("/beta-assignment", response_model=BetaAssignmentStatus)
