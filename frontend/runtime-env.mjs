@@ -1,16 +1,27 @@
-const CRITICAL_PRODUCTION_ENV = [
+const CRITICAL_BUILD_ENV = [
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
   "NEXT_PUBLIC_RAZORPAY_KEY_ID",
+]
+
+const CRITICAL_PRODUCTION_DEPLOYMENT_ENV = [
   "NEXT_PUBLIC_TURNSTILE_SITE_KEY",
   "NEXT_PUBLIC_SITE_URL",
+]
+
+const OPTIONAL_FALLBACK_ENV = [
   "API_INTERNAL_URL",
 ]
 
 export function validateProductionEnv(env) {
   if (env.NODE_ENV !== "production") return
 
-  const missing = CRITICAL_PRODUCTION_ENV.filter(
+  const isVercelPreview = env.VERCEL_ENV === "preview"
+  const requiredNames = [
+    ...CRITICAL_BUILD_ENV,
+    ...(isVercelPreview ? [] : CRITICAL_PRODUCTION_DEPLOYMENT_ENV),
+  ]
+  const missing = requiredNames.filter(
     (name) => !String(env[name] ?? "").trim(),
   )
   if (
@@ -28,7 +39,9 @@ export function validateProductionEnv(env) {
   }
 
   const configuredNames = [
-    ...CRITICAL_PRODUCTION_ENV,
+    ...CRITICAL_BUILD_ENV,
+    ...CRITICAL_PRODUCTION_DEPLOYMENT_ENV,
+    ...OPTIONAL_FALLBACK_ENV,
     "NEXT_PUBLIC_API_BASE_URL",
     "NEXT_PUBLIC_API_URL",
   ]

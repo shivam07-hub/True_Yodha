@@ -364,6 +364,37 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-07-26 - Develop deployment recovery)
+
+Diagnosed the first deployment after pre-launch environment hardening. Both
+failures were release-tier classification bugs, not missing production
+credentials:
+
+- Railway exposes `RAILWAY_ENVIRONMENT=production` to both API services because
+  Myro deliberately shares one Railway environment object. Runtime validation
+  now treats `RAILWAY_SERVICE_NAME` as authoritative for
+  `mirror-backend-dev` versus `mirror-backend-prod`; the production service
+  remains fail-closed.
+- Vercel Preview builds use `NODE_ENV=production`. Frontend validation now uses
+  `VERCEL_ENV=preview` to permit the existing Turnstile test-key path while
+  retaining real Turnstile and canonical-site requirements for Production.
+- `API_INTERNAL_URL` is no longer treated as independently critical because
+  server rendering already falls back to the required public API URL.
+- Added regression tests for both Railway service identities, Vercel Preview,
+  Vercel Production, and the internal API fallback. Updated all environment
+  examples without adding secret values.
+
+Validation: backend `1622 passed`; focused runtime configuration tests
+`14 passed`; Vercel Preview-shaped `next build` passed with the three reported
+missing values intentionally absent; TypeScript and Next lint passed. Before
+the recovery push, `truemirror.up.railway.app/health` timed out while
+`api.himyro.com/health` remained `200` and `himyro.com/login` remained reachable.
+Direct Railway access was still blocked by expired OAuth, and the connected
+Vercel account exposed no teams, so deployment verification used public
+endpoints and Git-triggered deployments without reading or copying secrets.
+
+---
+
 ## LAST SESSION SUMMARY (2026-07-26 - Pre-launch security hardening)
 
 Completed the requested pre-launch security checklist across application code,

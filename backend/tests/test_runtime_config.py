@@ -187,6 +187,29 @@ def test_development_defaults_are_safe() -> None:
     assert config.cors_origins == ["http://localhost:3000"]
 
 
+def test_develop_backend_service_is_not_classified_as_production() -> None:
+    config = Settings(
+        _env_file=None,
+        railway_environment="production",
+        railway_service_name="mirror-backend-dev",
+    )
+
+    assert config.is_production is False
+    config.validate_runtime_configuration()
+
+
+def test_production_backend_service_always_enforces_production_rules() -> None:
+    config = Settings(
+        _env_file=None,
+        railway_environment="development",
+        railway_service_name="mirror-backend-prod",
+    )
+
+    assert config.is_production is True
+    with pytest.raises(ValueError, match="SUPABASE_URL"):
+        config.validate_runtime_configuration()
+
+
 def test_backend_env_example_documents_every_setting() -> None:
     example_path = Path(__file__).resolve().parents[1] / ".env.example"
     documented = {

@@ -117,6 +117,7 @@ class Settings(BaseSettings):
 
     # Environment
     railway_environment: str = "development"
+    railway_service_name: str = ""
     debug: bool = False
 
     # Redis (durable async jobs)
@@ -161,6 +162,14 @@ class Settings(BaseSettings):
 
     @property
     def is_production(self) -> bool:
+        # Railway exposes the platform environment name here. Myro deliberately
+        # runs both backend services inside one Railway environment named
+        # "production", so the service identity is the release-tier boundary.
+        service_name = self.railway_service_name.strip()
+        if service_name == "mirror-backend-prod":
+            return True
+        if service_name == "mirror-backend-dev":
+            return False
         return self.railway_environment.strip().lower() == "production"
 
     def validate_runtime_configuration(self) -> None:
