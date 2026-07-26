@@ -38,6 +38,13 @@
      than pinned so the mm density survives BOTH surfaces. */
   --mm-text-2: color-mix(in oklab, var(--tm-text) 70%, var(--tm-text-muted));
   --mm-text-3: color-mix(in oklab, var(--tm-text) 45%, var(--tm-text-muted));
+  /* Surface-relative steps for the prototype's decoration greys (chip fills,
+     dividers, icon strokes). Mixing the surface TOWARD the text colour means
+     one definition inverts correctly on both themes: on dark it lifts toward
+     #f2f2ee, on light it deepens toward #29241e. Pinned hexes could not. */
+  --mm-raise-1: color-mix(in oklab, var(--tm-surface) 94%, var(--tm-text));
+  --mm-raise-2: color-mix(in oklab, var(--tm-surface) 86%, var(--tm-text));
+  --mm-stroke:  color-mix(in oklab, var(--tm-surface) 74%, var(--tm-text));
   --mm-muted: var(--tm-text-muted);
   --mm-faint: var(--tm-text-faint);
   --mm-dim: var(--tm-text-disabled);

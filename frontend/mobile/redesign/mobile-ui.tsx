@@ -81,13 +81,13 @@ export function MobileUIProvider({ children }: { children: React.ReactNode }) {
           style={{
             position: "fixed", left: 14, right: 14,
             bottom: "calc(var(--tm-mobile-bottomnav-h, 62px) + 12px + env(safe-area-inset-bottom))",
-            zIndex: 260, background: "#2e2e2b", border: "1px solid rgba(255,255,255,0.09)",
+            zIndex: 260, background: "var(--tm-border)", border: "1px solid rgba(255,255,255,0.09)",
             borderRadius: 14, boxShadow: "0 10px 30px rgba(0,0,0,0.45)", overflow: "hidden",
             animation: "mm-snackIn 180ms ease-out",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px" }}>
-            <span style={{ flex: 1, fontSize: 13, fontWeight: 550, color: "#f2f2ee" }}>{snackState.msg}</span>
+            <span style={{ flex: 1, fontSize: 13, fontWeight: 550, color: "var(--mm-text)" }}>{snackState.msg}</span>
             {snackState.action && (
               <button
                 onClick={() => snackState.onAction?.()}

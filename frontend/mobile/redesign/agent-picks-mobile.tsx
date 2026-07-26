@@ -86,9 +86,9 @@ export function MobileAgentPicks({
     <div className="mm-root">
       <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "2px 2px 2px" }}>
         <span aria-hidden style={{ color: "var(--mm-accent)", fontSize: 14 }}>✦</span>
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em", color: "#f2f2ee" }}>Myro Agent Picks</h2>
+        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em", color: "var(--mm-text)" }}>Myro Agent Picks</h2>
       </div>
-      <p style={{ margin: "3px 2px 12px", fontSize: 11.5, color: "#8b8b84", lineHeight: 1.45 }}>
+      <p style={{ margin: "3px 2px 12px", fontSize: 11.5, color: "var(--mm-faint)", lineHeight: 1.45 }}>
         Hand-vetted by Myro’s career brain for your level, goals and city. Start here.
       </p>
 
@@ -105,31 +105,31 @@ export function MobileAgentPicks({
               onClick={() => setOpenId(pick.job_id)}
               onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpenId(pick.job_id) } }}
               className="mm-press"
-              style={{ textAlign: "left", cursor: "pointer", background: "#212120", border: "1px solid rgba(255,255,255,0.06)", borderLeft: `2px solid ${tier === "bullseye" ? "var(--mm-accent)" : "rgba(255,255,255,0.14)"}`, borderRadius: 16, padding: 13 }}
+              style={{ textAlign: "left", cursor: "pointer", background: "var(--mm-card)", border: "1px solid var(--mm-hair)", borderLeft: `2px solid ${tier === "bullseye" ? "var(--mm-accent)" : "rgba(255,255,255,0.14)"}`, borderRadius: 16, padding: 13 }}
             >
               <div style={{ display: "flex", alignItems: "flex-start", gap: 11 }}>
                 <span style={{ width: 34, height: 34, borderRadius: 10, background: logoBg(co), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "#fff", flex: "none" }}>{co.slice(0, 1).toUpperCase()}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 650, color: "#f2f2ee", lineHeight: 1.25 }}>{pick.job_title}</div>
-                  <div style={{ fontSize: 11.5, color: "#8b8b84", marginTop: 1 }}>{co}</div>
+                  <div style={{ fontSize: 14, fontWeight: 650, color: "var(--mm-text)", lineHeight: 1.25 }}>{pick.job_title}</div>
+                  <div style={{ fontSize: 11.5, color: "var(--mm-faint)", marginTop: 1 }}>{co}</div>
                 </div>
-                <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 20, height: 20, borderRadius: 99, fontSize: 10.5, fontWeight: 700, fontFamily: "var(--mm-mono, ui-monospace, monospace)", color: tier === "bullseye" ? "var(--mm-accent-fg)" : "#c9c9c2", background: tier === "bullseye" ? "var(--mm-accent)" : "#2a2a28", flex: "none" }}>{pick.agent_rank}</span>
+                <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 20, height: 20, borderRadius: 99, fontSize: 10.5, fontWeight: 700, fontFamily: "var(--mm-mono, ui-monospace, monospace)", color: tier === "bullseye" ? "var(--mm-accent-fg)" : "var(--mm-text-3)", background: tier === "bullseye" ? "var(--mm-accent)" : "var(--mm-raise-1)", flex: "none" }}>{pick.agent_rank}</span>
               </div>
-              <p style={{ margin: "9px 0 0", fontSize: 12.5, color: "#c9c9c2", lineHeight: 1.45 }}>{pick.agent_comment}</p>
+              <p style={{ margin: "9px 0 0", fontSize: 12.5, color: "var(--mm-text-3)", lineHeight: 1.45 }}>{pick.agent_comment}</p>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 11 }}>
                 <button
                   onClick={e => { e.stopPropagation(); if (!isSaved) doSave(pick) }}
                   aria-label={isSaved ? "Saved" : "Save to Collections"}
                   className="mm-press-sm"
-                  style={{ height: 30, display: "inline-flex", alignItems: "center", gap: 6, padding: "0 13px", borderRadius: 99, border: isSaved ? "none" : "1px solid rgba(255,255,255,0.1)", background: isSaved ? "rgba(74,222,128,0.14)" : "transparent", color: isSaved ? "#4ade80" : "#f2f2ee", fontSize: 12, fontWeight: 600, cursor: isSaved ? "default" : "pointer", fontFamily: "inherit" }}
+                  style={{ height: 30, display: "inline-flex", alignItems: "center", gap: 6, padding: "0 13px", borderRadius: 99, border: isSaved ? "none" : "1px solid rgba(255,255,255,0.1)", background: isSaved ? "rgba(74,222,128,0.14)" : "transparent", color: isSaved ? "var(--mm-good)" : "var(--mm-text)", fontSize: 12, fontWeight: 600, cursor: isSaved ? "default" : "pointer", fontFamily: "inherit" }}
                 >
                   {isSaved ? "✓ In Collections" : "♥ Save"}
                 </button>
                 {TIER_LABEL[tier] ? (
-                  <span style={{ fontSize: 9.5, letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "var(--mm-mono, ui-monospace, monospace)", color: tier === "bullseye" ? "var(--mm-accent)" : "#71716a" }}>{TIER_LABEL[tier]}</span>
+                  <span style={{ fontSize: 9.5, letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "var(--mm-mono, ui-monospace, monospace)", color: tier === "bullseye" ? "var(--mm-accent)" : "var(--mm-dim)" }}>{TIER_LABEL[tier]}</span>
                 ) : null}
                 <div style={{ flex: 1 }} />
-                <span style={{ fontSize: 11.5, color: "#8b8b84" }}>View →</span>
+                <span style={{ fontSize: 11.5, color: "var(--mm-faint)" }}>View →</span>
               </div>
             </div>
           )
@@ -137,11 +137,11 @@ export function MobileAgentPicks({
       </div>
 
       <div style={{ margin: "16px 0 4px", paddingTop: 14, borderTop: "1px dashed rgba(255,255,255,0.12)" }}>
-        <p style={{ margin: 0, fontSize: 11.5, color: "#71716a", lineHeight: 1.5 }}>
+        <p style={{ margin: 0, fontSize: 11.5, color: "var(--mm-dim)", lineHeight: 1.5 }}>
           {context === "collections" ? (
-            <><strong style={{ color: "#a6a69e", fontWeight: 700 }}>Those are Myro’s picks for you.</strong> Your saved jobs are below.</>
+            <><strong style={{ color: "var(--mm-muted)", fontWeight: 700 }}>Those are Myro’s picks for you.</strong> Your saved jobs are below.</>
           ) : (
-            <><strong style={{ color: "#a6a69e", fontWeight: 700 }}>Agent picks end here.</strong> More roles below are algorithm-matched on skill overlap, not hand-checked — save what fits.</>
+            <><strong style={{ color: "var(--mm-muted)", fontWeight: 700 }}>Agent picks end here.</strong> More roles below are algorithm-matched on skill overlap, not hand-checked — save what fits.</>
           )}
         </p>
       </div>
