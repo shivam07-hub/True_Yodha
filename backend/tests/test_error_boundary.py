@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
 from app.security.error_handling import install_error_handling
+from app.services.read_capacity import ReadCapacityExceeded
 
 
 def test_unhandled_error_is_generic_and_has_a_correlation_id() -> None:
@@ -119,6 +120,23 @@ def test_success_response_has_correlation_header() -> None:
         response = client.get("/ok")
 
     assert response.status_code == 200
+    assert response.headers["x-correlation-id"]
+
+
+def test_read_capacity_returns_a_retryable_safe_error() -> None:
+    test_app = FastAPI()
+    install_error_handling(test_app)
+
+    @test_app.get("/busy")
+    def busy() -> None:
+        raise ReadCapacityExceeded()
+
+    with TestClient(test_app, raise_server_exceptions=False) as client:
+        response = client.get("/busy")
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "We are refreshing your latest data. Please try again in a moment."
+    assert response.headers["retry-after"] == "1"
     assert response.headers["x-correlation-id"]
 
 

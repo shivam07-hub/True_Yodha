@@ -16,6 +16,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from .headers import SECURITY_HEADERS
 from .redaction import redact_sensitive_text
+from app.services.read_capacity import ReadCapacityExceeded
 
 _log = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ CORRELATION_HEADER = "x-correlation-id"
 GENERIC_SERVER_ERROR = "Something went wrong. Please try again."
 GENERIC_VALIDATION_ERROR = "Request validation failed."
 GENERIC_CLIENT_ERROR = "The request could not be completed."
+READ_CAPACITY_DETAIL = "We are refreshing your latest data. Please try again in a moment."
 
 _INTERNAL_DETAIL_PATTERNS = tuple(
     re.compile(pattern, re.IGNORECASE)
@@ -149,6 +151,23 @@ async def _validation_exception_handler(
     )
 
 
+async def _read_capacity_exceeded_handler(
+    request: Request,
+    exc: ReadCapacityExceeded,
+) -> JSONResponse:
+    _log.warning(
+        "metric read_capacity.rejected method=%s path=%s",
+        request.method,
+        request.url.path,
+    )
+    return _response(
+        request=request,
+        status_code=503,
+        detail=READ_CAPACITY_DETAIL,
+        headers={"Retry-After": str(exc.retry_after_seconds)},
+    )
+
+
 async def _unhandled_exception_handler(
     request: Request,
     _exc: Exception,
@@ -176,4 +195,5 @@ def install_error_handling(app: FastAPI) -> None:
     app.add_middleware(CorrelationIdMiddleware)
     app.add_exception_handler(StarletteHTTPException, _http_exception_handler)
     app.add_exception_handler(RequestValidationError, _validation_exception_handler)
+    app.add_exception_handler(ReadCapacityExceeded, _read_capacity_exceeded_handler)
     app.add_exception_handler(Exception, _unhandled_exception_handler)

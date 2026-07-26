@@ -387,6 +387,45 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-07-27 - Supabase read-capacity and frontend demand control)
+
+Diagnosed the Railway API 500 burst against the Supabase Postgres log and
+shipped the first durable capacity controls. The database did not crash: at
+01:24 IST it cancelled seven statements with `57014` statement timeouts while
+the API was issuing concurrent Home, Jobs, and analytics reads. Normal
+checkpoints were not the cause.
+
+- Added a process-wide Supabase Data API read bulkhead: twelve in-flight
+  GET/HEAD reads with a 250ms waiting room. Excess reads now return a safe 503
+  plus `Retry-After: 1` before they can occupy a Postgres worker until timeout.
+  Writes remain outside this short read queue, preserving their idempotency
+  contracts.
+- Added regression coverage for capacity rejection/release, transport-level
+  pre-send rejection, and the leak-safe 503/correlation-ID error response.
+  Backend commit: `523b0639 fix: bound Supabase read capacity`.
+- Retained authenticated TanStack Query state in tab memory for 30 minutes and
+  disabled focus/reconnect refetch storms. This is deliberately in-memory only;
+  sign-out still clears it and no personal query cache is persisted to browser
+  storage.
+- Removed two full-dashboard fetches where only small shared facts were needed:
+  mobile Market no longer fetches `/home/bootstrap`, and public Intel now
+  reuses canonical profile/score cache entries rather than the eight-read Home
+  bundle. Frontend commit: `263ec46e fix: retain frontend query memory`.
+- The remaining proof work is operational: authenticate Railway/Supabase
+  observability access, run the bounded read probe with a dedicated test
+  account, inspect `pg_stat_statements`/pooler waits, then tune the twelve-read
+  budget from measured p95/p99 rather than raising database limits blindly.
+
+Validation: targeted backend capacity/error suite `11 passed`; frontend
+read-memory contract `2 passed`; `npx tsc --noEmit` clean; `npm run lint`
+clean; `git diff --check` clean. The new capacity settings are documented in
+`backend/.env.example`; the full backend suite is being rerun. No database
+migration, deployment, or live configuration mutation was performed. Unrelated
+local state remains:
+`docs/free-llm-api-resources/` untracked.
+
+---
+
 ## LAST SESSION SUMMARY (2026-07-27 - Source-grounded Learning Ladders)
 
 Completed the revised backlog #15 serving/content-foundation slice without

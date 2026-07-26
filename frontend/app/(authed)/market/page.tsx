@@ -16,7 +16,6 @@ import { JobsSurface } from "@/mobile/redesign/jobs-surface"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useFeedState } from "@/lib/hooks/use-feed-state"
 import { useFollowCompany } from "@/lib/hooks/use-follow-company"
-import { useHomeBootstrap } from "@/lib/hooks/use-home-bootstrap"
 import { useIdleWave, useIntentWave } from "@/lib/hooks/use-load-waves"
 import { useXPStore } from "@/store/xpStore"
 import { parseLocationMode, pickDefaultSort, type FeedFilters } from "@/components/market/feed-types"
@@ -36,13 +35,14 @@ function IntelPageInner() {
   // batch publishes (handoff client-refresh contract).
   useFeedState()
 
-  // Three-wave login loading (#41 L3). Wave 1 = identity + score + feed +
-  // Agent Picks (the BFF bootstrap + the feed below). Wave 2 = idle cascade,
-  // armed once wave 1 has settled and the browser is idle. Wave 3 = on-intent,
+  // Three-wave loading (#41 L3). Wave 1 = identity + score + feed. Wave 2 =
+  // idle cascade; Wave 3 = on-intent,
   // armed only on the user's first interaction — this keeps the 22–25s
   // `/jobs/analytics` (movers rail + per-role chip counts) OFF the login path.
-  const bootstrap = useHomeBootstrap(token)
-  const wave2 = useIdleWave(bootstrap.settled)
+  // Do not call /home/bootstrap here. On mobile this route never renders the
+  // Home rail, so that eight-read BFF call was pure duplicate demand. On
+  // desktop MissionHeroRail owns its own one shared bootstrap query.
+  const wave2 = useIdleWave(!!token)
   const intent = useIntentWave()
 
   const { balance: xpBalance, setBalance: setXPBalance } = useXPStore()
