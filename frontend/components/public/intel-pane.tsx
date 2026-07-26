@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
-import { home, jobs, type CompanyOpenRoleItem, type JobFitItem, type JobLocationFilters } from "@/lib/api"
+import { jobs, scores, users, type CompanyOpenRoleItem, type JobFitItem, type JobLocationFilters } from "@/lib/api"
 import { getAccessToken } from "@/lib/session"
 import { dataKeys } from "@/lib/domain-data"
 import { cacheKey, withLocalCache } from "@/lib/local-cache"
@@ -83,16 +83,24 @@ export function IntelPane() {
   }
   const tailorJob = (jobId: string) => router.push(`/cv?jobId=${encodeURIComponent(jobId)}`)
 
-  // Personal header data (grill Q4=B/Q5=A). One cheap BFF call already used by
-  // the dashboard; reused here for score + CV presence. Anon never fetches it.
-  const { data: bootstrap } = useQuery({
-    queryKey: ["intel_personal", token],
-    queryFn: () => home.bootstrap(token as string),
+  // The public Intel header needs only the score and CV-presence facts. Reuse
+  // their canonical in-memory keys rather than fetching the eight-read Home
+  // dashboard bundle on an otherwise public route.
+  const { data: profile } = useQuery({
+    queryKey: dataKeys.profile(),
+    queryFn: () => users.me(token as string),
+    enabled: authed,
+    staleTime: 10 * 60 * 1000,
+  })
+  const { data: score } = useQuery({
+    queryKey: dataKeys.scores(),
+    queryFn: () => scores.me(token as string),
     enabled: authed,
     staleTime: 5 * 60 * 1000,
+    retry: false,
   })
-  const personalScore = bootstrap?.score?.total_score ?? null
-  const hasCv = (bootstrap?.cv_versions?.versions?.length ?? 0) > 0
+  const personalScore = score?.total_score ?? null
+  const hasCv = !!profile?.has_cv
 
   // Active chips → backend analytics filter. Country chips are mutually exclusive
   // (backend takes one location_country); "remote" is an independent mode toggle.
