@@ -11,7 +11,7 @@ import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
 import { jobs as jobsApi, type ApplicationResponse } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
-import { cleanJobTitle } from "@/lib/text/strip-markdown"
+import { displayJobTitle } from "@/lib/jobs/clean-title"
 import { CompanyAvatar, STAGE_META } from "@/components/cv/builder/library-shared"
 import {
   daysInStage, followUpLine, groupForList, liveRoomCount, needsStageCheck,
@@ -26,7 +26,7 @@ function Row({ app, now }: { app: ApplicationResponse; now: Date }) {
     <Link href={`/preparations/${encodeURIComponent(app.job_id)}`} className="prp-row">
       <CompanyAvatar name={app.company ?? "?"} size={34} />
       <div className="prp-row-main">
-        <div className="prp-row-role">{cleanJobTitle(app.title)}</div>
+        <div className="prp-row-role">{displayJobTitle(app.title, app.company)}</div>
         <div className="prp-row-meta">
           <span>{app.company ?? "Unknown company"}</span>
           <span className="sep">·</span>
