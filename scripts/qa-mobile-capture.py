@@ -49,6 +49,7 @@ SURFACES = [
     ("skills", "/skills"),
     ("me", "/me"),
     ("intel", "/intel"),
+    ("tokens", "/tokens"),
 ]
 
 # WCAG AA. Large text (>=24px, or >=18.66px bold) may sit at 3:1; everything
@@ -178,6 +179,42 @@ CONTRAST_PROBE = r"""
 """
 
 
+# A column starved to a few characters wraps multi-word text one word per line.
+# Detect it structurally: line count approaching word count. Catches the whole
+# family (any nowrap/auto sibling starving a minmax(0,1fr) column), not just the
+# coin-guide instance that prompted it.
+SQUEEZE_PROBE = r"""
+() => {
+  const out = []
+  for (const el of document.querySelectorAll('div, p, span, li, h1, h2, h3, a')) {
+    // Leaf text nodes only — a wrapper's height is its children's, not its text.
+    if (el.children.length > 0) continue
+    const text = (el.innerText || '').trim()
+    const words = text.split(/\s+/).filter(Boolean)
+    if (words.length < 4) continue
+    const cs = getComputedStyle(el)
+    if (cs.visibility === 'hidden' || cs.display === 'none') continue
+    const rect = el.getBoundingClientRect()
+    if (rect.width < 1 || rect.height < 1) continue
+    let lh = parseFloat(cs.lineHeight)
+    if (!isFinite(lh)) lh = parseFloat(cs.fontSize) * 1.2
+    if (!isFinite(lh) || lh <= 0) continue
+    const lines = Math.round(rect.height / lh)
+    if (lines < 3) continue
+    // >=80% as many lines as words means roughly one word per line.
+    if (lines >= words.length * 0.8) {
+      out.push({
+        text: text.slice(0, 48).replace(/\s+/g, ' '),
+        lines, words: words.length,
+        width: Math.round(rect.width),
+      })
+    }
+  }
+  return out
+}
+"""
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--base-url", default="http://localhost:3000")
@@ -244,6 +281,12 @@ def main() -> int:
                                 f"{h['ratio']}:1 (needs {need}:1) "
                                 f"color={h['color']} on {h['bg']}"
                             )
+                    for s in page.evaluate(SQUEEZE_PROBE):
+                        failures.append(
+                            f"{theme}/{name}: squeezed column — \"{s['text']}\" "
+                            f"wraps to {s['lines']} lines for {s['words']} words "
+                            f"in {s['width']}px"
+                        )
                 except Exception as e:
                     failures.append(f"{theme}/{name}: {type(e).__name__} {str(e)[:90]}")
             ctx.close()

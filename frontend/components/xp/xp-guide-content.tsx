@@ -35,14 +35,19 @@ function XpActionRow({
   const iconBox = compact ? 28 : 34
 
   return (
+    /* The amount column is `auto` + nowrap, so it cannot shrink. Beside a
+       minmax(0,1fr) text column at 375px it claimed ~200px and starved the
+       text to a ~4-character ribbon — "Clear / a / skill / level" one word per
+       line, with the amount interleaved into the title. `.tm-xp-row` drops the
+       third column on phones and re-flows the amount under the text instead
+       (see globals.css). Keeping the grid in CSS is what lets it be
+       width-aware at all; inline styles cannot carry a media query. */
     <div
+      className="tm-xp-row"
       style={{
-        display: "grid",
         gridTemplateColumns: `${iconBox}px minmax(0,1fr) auto`,
         gap: compact ? 10 : 12,
-        alignItems: "start",
         padding: compact ? "10px 0" : "14px 0",
-        borderBottom: "1px solid var(--tm-border-soft)",
       }}
     >
       <div
@@ -77,16 +82,14 @@ function XpActionRow({
         </div>
       </div>
       <div
+        className="tm-xp-row-amount"
         style={{
           fontFamily: "var(--tm-font-mono)",
           fontVariantNumeric: "tabular-nums",
           fontSize: compact ? 12 : 13,
           fontWeight: 800,
           color: item.amount.startsWith("+") ? "var(--tm-success)" : "var(--tm-interactive)",
-          whiteSpace: "nowrap",
           paddingTop: 2,
-          textAlign: "right",
-          minWidth: 64,
         }}
       >
         {item.amount}

@@ -235,6 +235,37 @@
   }
 }
 
+/* ── Coin-guide earn/spend row ─────────────────────────────────
+   Three columns: icon | text | amount. The amount is mono + nowrap so it
+   cannot shrink; beside a minmax(0,1fr) text column on a 375px phone it took
+   ~200px and squeezed the text to a ~4-character ribbon, wrapping "Clear a
+   skill level" one word per line for fourteen lines. Below 520px the third
+   column is dropped and the amount re-flows under the text, left-aligned.
+   The grid lives here (not inline) precisely so it can be width-aware. */
+.tm-xp-row {
+  display: grid;
+  align-items: start;
+  border-bottom: 1px solid var(--tm-border-soft);
+}
+.tm-xp-row-amount {
+  white-space: nowrap;
+  text-align: right;
+  min-width: 64px;
+}
+@media (max-width: 520px) {
+  .tm-xp-row {
+    /* Override the inline 3-col template — inline styles win on specificity,
+       so the custom property is re-declared rather than the shorthand. */
+    grid-template-columns: auto minmax(0, 1fr) !important;
+  }
+  .tm-xp-row-amount {
+    grid-column: 2;
+    text-align: left;
+    min-width: 0;
+    padding-top: 6px !important;
+  }
+}
+
 /* ── MDX article prose ────────────────────────────────────────── */
 .mdx-prose {
   color: var(--tm-text);
