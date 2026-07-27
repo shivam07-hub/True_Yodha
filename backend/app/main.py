@@ -46,7 +46,12 @@ from app.security import (
 )
 from app.services.job_feed.taxonomy import JobFeedTaxonomyMismatchError, verify_taxonomy_integrity
 
-logger = logging.getLogger(__name__)
+# Server-lifecycle channel. The app namespace has no handler of its own, so
+# anything logged there falls to logging.lastResort, which drops everything below
+# WARNING — an INFO boot line would vanish. uvicorn.error is the logger uvicorn
+# itself uses for "Application startup complete", it is configured at INFO, and
+# install_sensitive_log_filter has already attached redaction to its handlers.
+logger = logging.getLogger("uvicorn.error")
 
 _TAXONOMY_PATH = Path(__file__).resolve().parent.parent / "lightcast_skills_taxonomy.json"
 
