@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from dataclasses import dataclass, field
 
 import httpx
@@ -27,7 +28,11 @@ import httpx
 # whose deployment hash changes on every push — the exact value is unknowable
 # here on purpose, which is the whole reason the dev tier matches a pattern.
 _PREFLIGHT_PATH = "/users/me"
-_TIMEOUT = 20.0
+# Generous: the dev container is small and cold connects there measured 5-8s
+# right after a redeploy, which is exactly when CI runs this.
+_TIMEOUT = 30.0
+_TRANSPORT_ATTEMPTS = 3
+_RETRY_SECONDS = 5.0
 
 
 @dataclass(frozen=True)
@@ -71,15 +76,32 @@ CONTRACTS = {
 
 
 def _preflight(client: httpx.Client, api: str, origin: str) -> int:
-    response = client.options(
-        f"{api}{_PREFLIGHT_PATH}",
-        headers={
-            "Origin": origin,
-            "Access-Control-Request-Method": "GET",
-            "Access-Control-Request-Headers": "authorization",
-        },
-    )
-    return response.status_code
+    """Preflight `origin` against `api`, retrying transport failures.
+
+    This runs moments after a deploy, so the first request can land on a
+    container that is still warming and time out. A cold start is not a broken
+    contract — only a transport failure that survives every attempt is, and that
+    is reported as 0 so it fails loudly rather than passing by omission.
+    """
+    last_error: Exception | None = None
+    for attempt in range(_TRANSPORT_ATTEMPTS):
+        try:
+            response = client.options(
+                f"{api}{_PREFLIGHT_PATH}",
+                headers={
+                    "Origin": origin,
+                    "Access-Control-Request-Method": "GET",
+                    "Access-Control-Request-Headers": "authorization",
+                },
+            )
+        except httpx.TransportError as exc:
+            last_error = exc
+            if attempt < _TRANSPORT_ATTEMPTS - 1:
+                time.sleep(_RETRY_SECONDS * (attempt + 1))
+            continue
+        return response.status_code
+    print(f"  [warn] {origin}: transport failed {_TRANSPORT_ATTEMPTS}x ({last_error})")
+    return 0
 
 
 def check(contract: TierContract) -> list[str]:
