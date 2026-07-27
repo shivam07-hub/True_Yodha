@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -45,6 +46,8 @@ from app.security import (
 )
 from app.services.job_feed.taxonomy import JobFeedTaxonomyMismatchError, verify_taxonomy_integrity
 
+logger = logging.getLogger(__name__)
+
 _TAXONOMY_PATH = Path(__file__).resolve().parent.parent / "lightcast_skills_taxonomy.json"
 
 install_sensitive_log_filter()
@@ -59,7 +62,7 @@ install_auth_rate_limits(app)
 install_error_handling(app)
 install_security_headers(app)
 
-install_cors(app, settings.cors_origins)
+install_cors(app, settings.cors_origins, settings.cors_origin_regex)
 
 # Server-side per-request timing → X-Process-Time header + slow-request log.
 # Added after CORS so timing wraps the inner app (CORS preflight stays instant).
@@ -100,6 +103,18 @@ app.include_router(internal.router)
 @app.on_event("startup")
 async def _validate_runtime_configuration() -> None:
     settings.validate_runtime_configuration()
+    # Print the resolved environment contract on every boot. A CORS allowlist
+    # that names no frontend is invisible from the outside — it just answers 400
+    # to preflights and the app renders an empty shell (2026-07-27). One line in
+    # the deploy log makes "which tier am I, and who may call me" checkable
+    # without shelling into the service.
+    logger.info(
+        "boot tier=%s service=%s origins=%s preview_regex=%s",
+        settings.release_tier,
+        settings.railway_service_name or "local",
+        ",".join(settings.cors_origins) or "none",
+        settings.cors_origin_regex or "none",
+    )
 
 
 @app.on_event("startup")

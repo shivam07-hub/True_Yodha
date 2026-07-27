@@ -212,10 +212,97 @@ def test_develop_backend_service_is_not_classified_as_production() -> None:
         _env_file=None,
         railway_environment="production",
         railway_service_name="mirror-backend-dev",
+        supabase_url="https://project.supabase.co",
+        supabase_anon_key="anon-key",
+        supabase_service_key="service-key",
     )
 
+    assert config.release_tier == "dev"
     assert config.is_production is False
     config.validate_runtime_configuration()
+
+
+def test_declared_environment_wins_over_railway_inference() -> None:
+    # MYRO_ENV is the boundary; renaming a Railway service must not flip a tier.
+    config = Settings(
+        _env_file=None,
+        myro_env="dev",
+        railway_environment="production",
+        railway_service_name="mirror-backend-prod",
+    )
+
+    assert config.release_tier == "dev"
+    assert config.is_production is False
+
+
+def test_unlabelled_railway_service_falls_back_to_production() -> None:
+    # The worker and the verifier carry no MYRO_ENV yet and touch production
+    # data, so the fail-safe direction is the strictest tier.
+    config = Settings(
+        _env_file=None,
+        railway_environment="production",
+        railway_service_name="True_Yodha",
+    )
+
+    assert config.release_tier == "prod"
+
+
+def test_local_process_is_sandbox_and_skips_validation() -> None:
+    config = Settings(_env_file=None)
+
+    assert config.release_tier == "sandbox"
+    # A laptop boots on a partial .env — nothing to page anybody about.
+    config.validate_runtime_configuration()
+
+
+def test_deployed_dev_refuses_to_boot_without_supabase() -> None:
+    config = Settings(
+        _env_file=None,
+        railway_service_name="mirror-backend-dev",
+        railway_environment="production",
+        supabase_url="",
+        supabase_anon_key="anon-key",
+        supabase_service_key="service-key",
+    )
+
+    with pytest.raises(ValueError, match="dev configuration.*SUPABASE_URL"):
+        config.validate_runtime_configuration()
+
+
+def test_deployed_dev_refuses_to_boot_with_no_reachable_frontend_origin() -> None:
+    # The 2026-07-27 outage in test form: dev booted "healthy" while answering
+    # 400 to every preflight, because nothing asserted it could serve a browser.
+    config = Settings(
+        _env_file=None,
+        railway_service_name="mirror-backend-dev",
+        railway_environment="production",
+        supabase_url="https://project.supabase.co",
+        supabase_anon_key="anon-key",
+        supabase_service_key="service-key",
+        allowed_origins="",
+        preview_origin_regex="",
+    )
+
+    with pytest.raises(ValueError, match="ALLOWED_ORIGINS or PREVIEW_ORIGIN_REGEX"):
+        config.validate_runtime_configuration()
+
+
+def test_dev_serves_preview_origins_and_production_never_does() -> None:
+    dev = Settings(
+        _env_file=None,
+        railway_service_name="mirror-backend-dev",
+        railway_environment="production",
+    )
+    prod = Settings(
+        _env_file=None,
+        railway_service_name="mirror-backend-prod",
+        railway_environment="production",
+    )
+
+    assert dev.cors_origin_regex
+    # Structural, not a config convention: production cannot pattern-match an
+    # origin even if the variable is set on the service.
+    assert prod.cors_origin_regex == ""
 
 
 def test_production_backend_service_always_enforces_production_rules() -> None:
