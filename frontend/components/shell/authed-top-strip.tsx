@@ -44,13 +44,12 @@ const FEEDBACK_QUICK_ACTIONS: {
 ]
 
 // The old /myro "Welcome to Myro" hub is retired as the logo target (logo now
-// drops the user in their feed). Its two homeless resource cards live here, in
-// the account menu's Learn group; the workspace cards were tab duplicates and
-// were dropped. Newsletter keeps its first-class home (a tab desktop / Profile
-// mobile), so it is not re-listed here.
+// drops the user in their feed). Its "About us" card lives here now, pointed at
+// /tokens — the single page carrying everything about Myro (product + coins).
+// Newsletter keeps its first-class home (a tab desktop / Profile mobile), so
+// it is not re-listed here.
 const LEARN_LINKS = [
-  { href: "/",       label: "About us" },
-  { href: "/tokens", label: "Myro Coins guide" },
+  { href: "/tokens", label: "About us" },
 ] as const
 
 interface AuthedTopStripProps {

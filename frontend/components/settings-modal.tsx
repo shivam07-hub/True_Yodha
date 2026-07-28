@@ -538,14 +538,6 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
             ))}
           </nav>
 
-          {/* Autosave indicator — transient only; lives inline next to each
-              section's content (see SaveBadge), so the corner no longer carries
-              a permanent "Auto-saved" label. */}
-          {statusNode && (
-            <div className="tm-settings-autosave" style={{ padding: "14px 20px", borderTop: "1px solid var(--tm-border-soft)", minHeight: 44, display: "flex", alignItems: "center" }}>
-              {statusNode}
-            </div>
-          )}
         </div>
 
         {/* ── Right content ── */}
@@ -555,9 +547,14 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
             padding: "20px 28px 16px", borderBottom: "1px solid var(--tm-border-soft)",
             display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0,
           }}>
-            <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--tm-text)", margin: 0 }}>
-              {activeTab}
-            </h2>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--tm-text)", margin: 0 }}>
+                {activeTab}
+              </h2>
+              {/* Sits right beside the tab title — the same level as the section
+                  the edit just happened in, not a disconnected sidebar corner. */}
+              {statusNode}
+            </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {/* One Save for the whole modal: flushes any pending edit and closes,
                 so the tap itself is the acknowledgement (no waiting on a round-trip). */}
