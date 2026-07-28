@@ -7,11 +7,10 @@ import { useMyroSearch } from "@/lib/hooks/use-myro-search"
 import { useParticleMoment } from "@/components/particle"
 import { jobs, type MatchHealth } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
-import { formatCount } from "@/lib/format"
 import { withLocalCache, userCacheKey } from "@/lib/local-cache"
 import { JOB_MATCHES_CACHE_PARTS } from "@/lib/job-matches-cache"
 import { openRefreshGate } from "@/store/refreshGateStore"
-import "./new-inventory-strip.css"
+import { NewInventoryStrip } from "./new-inventory-strip"
 
 const MATCHES_TTL = 7 * 24 * 60 * 60 * 1000
 
@@ -58,7 +57,6 @@ export function MatchesRefreshBanner({ token }: { token: string | null }) {
   }, [refreshVm.state, refreshVm.matchesWritten, fireMoment])
 
   const isRefreshing = refreshVm.state === "charging" || refreshVm.state === "computing"
-  const newJobs = matchesData?.new_jobs_count ?? 0
 
   // Deep-link handoff: the bell (and any off-market prompt) sends the user here
   // with ?search=1 because the gate only mounts on this page. Fires once, then
@@ -80,24 +78,7 @@ export function MatchesRefreshBanner({ token }: { token: string | null }) {
           <span>{refreshVm.progressLabel}</span>
         </div>
       ) : null}
-      {/* Persistent while it's true — not a once-a-day toast. Myro holding roles
-          this user has never searched is a standing fact about their feed, and
-          the previous surfacing (a 24h-debounced popover + rank 6 in the Next
-          chip) meant a user could land on Jobs the morning 30k roles arrived and
-          see nothing at all. Disappears the moment they run the search. */}
-      {!isRefreshing && newJobs > 0 ? (
-        <button
-          type="button"
-          className="tm-newinv-strip"
-          onClick={() => openRefreshGate()}
-        >
-          <span className="tm-newinv-count">{formatCount(newJobs)}</span>
-          <span className="tm-newinv-copy">
-            new role{newJobs === 1 ? "" : "s"} landed since your last search
-          </span>
-          <span className="tm-newinv-cta">Run Myro Search · Free →</span>
-        </button>
-      ) : null}
+      {!isRefreshing ? <NewInventoryStrip token={token} /> : null}
       <MatchVettingBanner token={token} health={matchesData?.match_health} />
       {gate}
     </>
