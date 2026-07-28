@@ -12,6 +12,7 @@
 import Link from "next/link"
 import type { ApplicationResponse } from "@/lib/api"
 import { buildContinueLane, collectionsTriageCtx } from "@/lib/collections/model"
+import { displayJobTitle } from "@/lib/jobs/clean-title"
 
 interface Props {
   applications: ApplicationResponse[]
@@ -40,15 +41,20 @@ export function FinishTailoringLane({ applications, onOpenJob }: Props) {
         <span className="tm-lib-continue-sub">{items.length} started · one step from applying</span>
       </div>
       <div className="tm-lib-continue-row">
-        {shown.map((it) => (
+        {/* Only the FIRST card wears the accent. This lane is a best-next
+            queue, so exactly one row is the recommendation; when all five wore
+            an accent border + wash + accent company name + accent CTA, roughly
+            twenty accent elements competed and none of them led. The rest are
+            neutral rows the user can still reach. */}
+        {shown.map((it, i) => (
           <button
             key={it.jobId}
             type="button"
-            className="tm-lib-continue-card tm-control-focus"
+            className={`tm-lib-continue-card tm-control-focus${i === 0 ? " tm-lib-continue-card--lead" : ""}`}
             onClick={() => onOpenJob(it.jobId)}
           >
             <span className="tm-lib-continue-co">{it.company ?? "Untitled company"}</span>
-            <span className="tm-lib-continue-role">{it.role}</span>
+            <span className="tm-lib-continue-role">{displayJobTitle(it.role, it.company)}</span>
             <span className="tm-lib-continue-cta">Finish &amp; apply →</span>
           </button>
         ))}

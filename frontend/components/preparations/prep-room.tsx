@@ -16,7 +16,7 @@ import { useQuery } from "@tanstack/react-query"
 import { cv as cvApi, type ApplicationResponse, type ApplicationStatus } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { formatDate } from "@/lib/format"
-import { cleanJobTitle } from "@/lib/text/strip-markdown"
+import { displayJobTitle } from "@/lib/jobs/clean-title"
 import "@/components/dashboard/dashboard.css"
 import { latestCVVersionForJob } from "@/lib/cv/workspace"
 import { CompanyAvatar, STAGE_META } from "@/components/cv/builder/library-shared"
@@ -78,7 +78,7 @@ export function PrepRoom({ token, app }: { token: string; app: ApplicationRespon
       <div className="prp-room-head" style={{ marginTop: 10 }}>
         <CompanyAvatar name={app.company ?? "?"} size={40} />
         <div className="prp-room-title">
-          <h1 className="prp-room-role">{cleanJobTitle(app.title)}</h1>
+          <h1 className="prp-room-role">{displayJobTitle(app.title, app.company)}</h1>
           <p className="prp-room-company">{app.company ?? "Unknown company"}</p>
         </div>
         <div style={{ position: "relative" }}>

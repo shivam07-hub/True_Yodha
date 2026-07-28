@@ -3,6 +3,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _ENV_FILE = Path(__file__).parent.parent / ".env"
 
+# The three environments Myro maintains, loosest to strictest.
+_RELEASE_TIERS = ("sandbox", "dev", "prod")
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=str(_ENV_FILE), extra="ignore")
@@ -120,7 +123,20 @@ class Settings(BaseSettings):
     # endpoint returns 503 (safe before the scraper is wired).
     scrape_webhook_token: str = ""
 
-    # Environment
+    # Environment / release tier.
+    #
+    # MYRO_ENV is the EXPLICIT release-tier boundary and the only value that
+    # should be trusted going forward: "sandbox" (a laptop), "dev" (the Develop
+    # backend + Vercel preview frontends), "prod" (himyro.com). Everything else
+    # here is inference, and inference is what let the dev API boot for days with
+    # a CORS allowlist that named no dev frontend (2026-07-27). Set MYRO_ENV on
+    # every Railway service; leave it empty locally.
+    #
+    # Railway-specific note: Myro deliberately runs BOTH backend services inside
+    # one Railway environment object named "production", so RAILWAY_ENVIRONMENT
+    # says "production" on the dev service too and can never be the tier by
+    # itself. The service name is the fallback boundary.
+    myro_env: str = ""
     railway_environment: str = "development"
     railway_service_name: str = ""
     debug: bool = False
@@ -148,9 +164,24 @@ class Settings(BaseSettings):
     # and falls through. SDK-level retries are disabled so the app loop owns them.
     llm_request_timeout_seconds: float = 45.0
 
-    # CORS — comma-separated string, e.g.:
-    # ALLOWED_ORIGINS=https://truemirror.vercel.app,http://localhost:3000
+    # CORS — comma-separated string of EXACT origins, e.g.:
+    # ALLOWED_ORIGINS=https://himyro.com,https://www.himyro.com
     allowed_origins: str = "http://localhost:3000"
+
+    # Non-production preview origins, as an anchored regex.
+    #
+    # Vercel mints a NEW origin for every preview deployment
+    # (truemirror-<deploy-hash>-<team>.vercel.app) alongside the stable branch
+    # alias, so the dev tier CANNOT be served by an exact allowlist — it would
+    # break on every push to Develop. That is exactly what happened on
+    # 2026-07-27: the dev API's allowlist named only the prod alias and
+    # localhost, so every preflight from a preview build answered 400 and the
+    # app rendered an empty shell.
+    #
+    # Applied ONLY when release_tier != "prod" (see cors_origin_regex).
+    # Production stays exact-match and validate_runtime_configuration refuses to
+    # boot a prod service that carries a regex.
+    preview_origin_regex: str = r"^https://truemirror-[a-z0-9-]+\.vercel\.app$"
 
     # CV upload fallback + observability
     cv_upload_support_email: str = "support@himyro.com"
@@ -166,19 +197,45 @@ class Settings(BaseSettings):
     verifier_priority_stale_hours: int = 24
 
     @property
-    def is_production(self) -> bool:
-        # Railway exposes the platform environment name here. Myro deliberately
-        # runs both backend services inside one Railway environment named
-        # "production", so the service identity is the release-tier boundary.
+    def release_tier(self) -> str:
+        """Which of the three environments this process is: sandbox | dev | prod.
+
+        Resolution order, most explicit first. Anything below MYRO_ENV is
+        inference kept for services that have not been given the variable yet.
+        """
+        declared = self.myro_env.strip().lower()
+        if declared in _RELEASE_TIERS:
+            return declared
+
         service_name = self.railway_service_name.strip()
         if service_name == "mirror-backend-prod":
-            return True
+            return "prod"
         if service_name == "mirror-backend-dev":
-            return False
-        return self.railway_environment.strip().lower() == "production"
+            return "dev"
+        # Any other Railway service (worker, verifier) reads the platform
+        # environment. It says "production" for every Myro service, which is the
+        # fail-safe direction: an unlabelled service gets the strictest tier.
+        if self.railway_environment.strip().lower() == "production":
+            return "prod"
+        return "sandbox"
+
+    @property
+    def is_production(self) -> bool:
+        return self.release_tier == "prod"
 
     def validate_runtime_configuration(self) -> None:
-        """Reject unsafe production configuration before the API serves traffic."""
+        """Reject configuration a tier cannot actually serve, before it takes traffic.
+
+        Runs on EVERY deployed tier, not just production. A dev API with no
+        usable CORS origin, or no Supabase, is just as broken as a misconfigured
+        prod one — it simply fails in a way nobody is paged about. Sandbox is
+        exempt so a laptop can boot on a partial .env.
+        """
+        tier = self.release_tier
+        if tier == "sandbox":
+            return
+
+        self._validate_deployed_baseline()
         if not self.is_production:
             return
 
@@ -237,6 +294,35 @@ class Settings(BaseSettings):
         if missing:
             names = ", ".join(missing)
             raise ValueError(f"Invalid production configuration: {names}")
+
+    def _validate_deployed_baseline(self) -> None:
+        """What any deployed tier needs to serve a browser at all."""
+        missing = sorted(
+            name
+            for name, value in {
+                "SUPABASE_URL": self.supabase_url,
+                "SUPABASE_ANON_KEY": self.supabase_anon_key,
+                "SUPABASE_SERVICE_KEY": self.supabase_service_key,
+            }.items()
+            if not value.strip()
+        )
+        # A deployed API must be reachable by its OWN frontend. Exact origins
+        # alone are enough for prod; the dev tier may instead (or also) carry the
+        # preview regex, because its frontend origin changes every deploy.
+        if not self.cors_origins and not self.cors_origin_regex:
+            missing.append("ALLOWED_ORIGINS or PREVIEW_ORIGIN_REGEX")
+        if missing:
+            names = ", ".join(missing)
+            raise ValueError(
+                f"Invalid {self.release_tier} configuration: {names}"
+            )
+
+    @property
+    def cors_origin_regex(self) -> str:
+        """Preview-origin regex, honoured only outside production."""
+        if self.is_production:
+            return ""
+        return self.preview_origin_regex.strip()
 
     @property
     def cors_origins(self) -> list[str]:

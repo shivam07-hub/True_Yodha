@@ -212,11 +212,13 @@ export function MobileBottomNav() {
     <nav
       className="tm-mobile-bottomnav mm-root"
       style={{
-        // Translucent so the blur reads, but derived from the surface token so
-        // the bar tracks [data-surface] instead of pinning dark on a light app.
-        background: "color-mix(in oklab, var(--tm-bg) 94%, transparent)",
+        // OPAQUE, not translucent. The bar only renders <=768px, and globals.css
+        // force-disables backdrop-filter there ("expensive on mobile GPUs") — so
+        // a 94%-alpha bar had no blur behind it and simply let page text ghost
+        // through as a smudge. Tracks [data-surface] via the token.
+        background: "var(--tm-bg)",
         borderTop: "1px solid var(--tm-border-faint)",
-        backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", gap: 0,
+        gap: 0,
       }}
     >
       {TABS.map(tab => {

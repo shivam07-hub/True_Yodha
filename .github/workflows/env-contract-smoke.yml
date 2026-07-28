@@ -1,0 +1,52 @@
+name: Environment Contract Smoke
+
+# Can each tier's frontend actually reach its own backend?
+#
+# Nothing asked this until the dev API spent days answering 400 to every
+# preflight while reporting "Online" with a clean boot log (2026-07-27). A green
+# deploy is not evidence that a browser can use the thing.
+#
+# Runs after a deploy lands on either branch, and on a schedule so a config
+# change made directly in the Railway or Vercel dashboard — which ships no
+# commit and triggers no workflow — cannot rot undetected.
+
+on:
+  push:
+    branches:
+      - Develop
+      - main
+    paths:
+      - "backend/app/config.py"
+      - "backend/app/main.py"
+      - "backend/app/security/cors.py"
+      - "backend/scripts/smoke_env_contract.py"
+      - ".github/workflows/env-contract-smoke.yml"
+  schedule:
+    # 07:00 IST daily — before the working day, after any overnight deploy.
+    - cron: "30 1 * * *"
+  workflow_dispatch:
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install smoke dependency
+        run: python -m pip install httpx==0.27.0
+
+      # Railway redeploys on push; give the new container time to come up
+      # before asking it questions.
+      - name: Wait for the deploy to settle
+        if: github.event_name == 'push'
+        run: sleep 90
+
+      - name: Verify both tiers serve their own frontend
+        working-directory: backend
+        run: python -m scripts.smoke_env_contract
