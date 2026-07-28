@@ -2704,10 +2704,28 @@ class JobsRepository:
     def count_new_jobs_since(self, since: datetime) -> int:
         return count_jobs_ingested_after(self._db, since)
 
-    def last_match_computed_at(self, user_id: str) -> datetime | None:
-        """When this user last had matches computed. None = never matched (no
-        baseline → nothing can be "new" to them yet)."""
-        rows = (
+    def last_match_run_at(self, user_id: str) -> datetime | None:
+        """When this user last RAN a match — the baseline for "new since your last
+        search". None = never ran one (no baseline → nothing is "new" yet).
+
+        Read from `user_profiles.last_match_run_at`, which only `match_run` writes.
+        NOT from `MAX(user_job_matches.computed_at)`: that table is also written by
+        `on_demand.ensure_job_eval` and the feed warmer, so browsing the feed used
+        to silently reset the baseline and retire the announcement (QA: 7,112 → 0
+        on a page load). Falls back to the old MAX for rows the backfill missed —
+        wrong in the same old way, but never "everything is new", and it self-heals
+        on the user's first run.
+        """
+        rows = safe_read(
+            self._db.table("user_profiles").select("last_match_run_at").eq("id", user_id).limit(1),
+            default=[],
+            context="last_match_run_at",
+        )
+        marker = _parse_iso_dt(rows[0].get("last_match_run_at")) if rows else None
+        if marker is not None:
+            return marker
+
+        legacy = (
             self._db.table("user_job_matches")
             .select("computed_at")
             .eq("user_id", user_id)
@@ -2715,7 +2733,13 @@ class JobsRepository:
             .limit(1)
             .execute()
         ).data or []
-        return _parse_iso_dt(rows[0].get("computed_at")) if rows else None
+        return _parse_iso_dt(legacy[0].get("computed_at")) if legacy else None
+
+    def mark_match_run(self, user_id: str, when: datetime | None = None) -> None:
+        """Stamp the run marker. One writer (`match_run.run_match`) — that is the
+        whole point of the column; widen this and the baseline rots again."""
+        ts = (when or datetime.now(timezone.utc)).isoformat()
+        self._db.table("user_profiles").update({"last_match_run_at": ts}).eq("id", user_id).execute()
 
     def has_computed_matches(self, user_id: str) -> bool:
         """Cheap existence check — has this user EVER had a match computed?
@@ -2741,10 +2765,10 @@ class JobsRepository:
         login notification, and the charge waiver. 0 for never-matched users (no
         baseline → nothing is "new"). Never trust a client-supplied "free" flag.
         """
-        computed_at = self.last_match_computed_at(user_id)
-        if computed_at is None:
+        ran_at = self.last_match_run_at(user_id)
+        if ran_at is None:
             return 0
-        return self.count_new_jobs_since(computed_at)
+        return self.count_new_jobs_since(ran_at)
 
     def get_new_job_ids_since(self, since: datetime) -> list[str]:
         """Job ids that landed after `since` — the deterministic candidate set for

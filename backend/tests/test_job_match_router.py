@@ -39,14 +39,14 @@ class _FakeJobsRepo:
         self.count_markers.append(since)
         return self._new_jobs
 
-    def last_match_computed_at(self, _user_id: str):
-        from datetime import datetime, timezone
+    def last_match_run_at(self, _user_id: str):
+        from datetime import datetime
 
         raw = self._stack[0].get("computed_at") if self._stack else None
         return datetime.fromisoformat(str(raw)) if raw else None
 
     def count_new_jobs_for_user(self, user_id: str) -> int:
-        computed_at = self.last_match_computed_at(user_id)
+        computed_at = self.last_match_run_at(user_id)
         if computed_at is None:
             return 0
         return self.count_new_jobs_since(computed_at)

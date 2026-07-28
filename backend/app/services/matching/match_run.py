@@ -63,6 +63,14 @@ async def run_match(
         on_progress=on_progress,
     )
 
+    # The run happened — stamp the baseline for "new since your last search".
+    # Only here: `user_job_matches.computed_at` is also written by on-demand evals
+    # and the feed warmer, so inferring the baseline from it let browsing reset it.
+    try:
+        repo.mark_match_run(user_id)
+    except Exception as exc:  # noqa: BLE001 — a missed stamp costs a stale prompt, not the run
+        logger.warning("match_run: run marker not stamped user=%s: %s", user_id, exc)
+
     if regenerate_picks:
         try:
             agent_picks.regenerate_for_user(repo, user_id, scrape_batch=scrape_batch)

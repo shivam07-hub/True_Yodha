@@ -18,6 +18,10 @@ class _FakeRepo:
     def __init__(self, before: list[str], after: list[dict[str, Any]]) -> None:
         self._before = before
         self._after = after
+        self.marked = 0
+
+    def mark_match_run(self, _user_id: str) -> None:
+        self.marked += 1
 
     def get_existing_match_job_ids(self, _user_id: str) -> list[str]:
         return self._before
@@ -49,6 +53,11 @@ def _wire(monkeypatch, *, picks_raises: bool = False) -> dict[str, Any]:
     monkeypatch.setattr(match_run.jobs_workflow, "compute_job_matches", _fake_compute)
     monkeypatch.setattr(match_run.agent_picks, "regenerate_for_user", _fake_regen)
     monkeypatch.setattr(match_run, "NotificationsRepository", _FakeNotifs)
+
+    def _fake_resolve(user_id: str) -> None:
+        calls["resolved"] = calls.get("resolved", 0) + 1
+
+    monkeypatch.setattr(match_run.new_inventory, "resolve_for_user", _fake_resolve)
     return calls
 
 
@@ -100,3 +109,28 @@ def test_run_match_regenerate_picks_false_skips_band(monkeypatch) -> None:
     repo = _FakeRepo(before=[], after=[])
     asyncio.run(match_run.run_match(repo, "u1", date(2026, 7, 13), regenerate_picks=False))
     assert calls["picks"] == 0
+
+
+def test_run_match_stamps_the_run_marker_and_retires_the_prompt(monkeypatch) -> None:
+    """The baseline for "new since your last search" moves ONLY here. Inferring it
+    from user_job_matches.computed_at let a passive feed-warm eval reset it, so the
+    announcement retired itself without the user searching."""
+    calls = _wire(monkeypatch)
+    repo = _FakeRepo(before=[], after=[])
+
+    asyncio.run(match_run.run_match(repo, "u1", date(2026, 7, 28)))
+
+    assert repo.marked == 1
+    assert calls["resolved"] == 1
+
+
+def test_run_marker_failure_never_breaks_the_run(monkeypatch) -> None:
+    calls = _wire(monkeypatch)
+
+    class _BadRepo(_FakeRepo):
+        def mark_match_run(self, _user_id: str) -> None:
+            raise RuntimeError("profiles write failed")
+
+    out = asyncio.run(match_run.run_match(_BadRepo(before=[], after=[]), "u1", date(2026, 7, 28)))
+    assert out == "OUTCOME"
+    assert calls["compute"] == 1
