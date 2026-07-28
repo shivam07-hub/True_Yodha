@@ -8,6 +8,7 @@ import { formatCount } from "@/lib/format"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ThemeControl } from "@/components/ui/theme-control"
+import { Skeleton } from "@/components/ui/skeleton"
 import { AccentControl } from "@/components/ui/accent-control"
 import { TargetRolesChips } from "@/components/target-role/target-roles-chips"
 import { CompanyLink } from "@/components/companies/company-link"
@@ -167,8 +168,8 @@ const ROW_DESC: React.CSSProperties = {
   fontSize: 12, color: "var(--tm-text-faint)", marginTop: 1,
 }
 
-export function SettingsModal({ open, onClose, profile, initialTab = "Account" }: {
-  open: boolean; onClose: () => void; profile: SidebarProfile | null; initialTab?: Tab
+export function SettingsModal({ open, onClose, profile, profileLoading = false, initialTab = "Account" }: {
+  open: boolean; onClose: () => void; profile: SidebarProfile | null; profileLoading?: boolean; initialTab?: Tab
 }) {
   const { token } = useAuth()
   const queryClient = useQueryClient()
@@ -484,13 +485,23 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
         }}>
           {/* Profile card */}
           <div className="tm-settings-profile" style={{ padding: "28px 20px 20px", borderBottom: "1px solid var(--tm-border-soft)" }}>
-            <InitialsAvatar name={name || "?"} size={52} />
-            <div style={{ marginTop: 12, fontSize: 14, fontWeight: 700, color: "var(--tm-text)", lineHeight: 1.3 }}>
-              {name || "Set your name"}
-            </div>
-            <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 4, wordBreak: "break-all" }}>
-              {profile?.email ?? ""}
-            </div>
+            {profileLoading ? (
+              <>
+                <Skeleton style={{ width: 52, height: 52, borderRadius: "50%" }} />
+                <Skeleton style={{ width: "70%", height: 14, marginTop: 12 }} />
+                <Skeleton style={{ width: "90%", height: 11, marginTop: 6 }} />
+              </>
+            ) : (
+              <>
+                <InitialsAvatar name={name || "?"} size={52} />
+                <div style={{ marginTop: 12, fontSize: 14, fontWeight: 700, color: "var(--tm-text)", lineHeight: 1.3 }}>
+                  {name || "Set your name"}
+                </div>
+                <div style={{ fontSize: 11, color: "var(--tm-text-faint)", marginTop: 4, wordBreak: "break-all" }}>
+                  {profile?.email ?? ""}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Nav tabs */}
@@ -581,23 +592,27 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
 
                 <div style={ROW_STYLE}>
                   <div style={ROW_LABEL}>Email</div>
-                  <input
-                    id="sm-email" type="email" value={profile?.email ?? ""} readOnly disabled
-                    aria-readonly="true"
-                    style={{ ...INPUT_STYLE, opacity: 0.55, cursor: "not-allowed" }}
-                  />
+                  {profileLoading ? <Skeleton style={{ width: "100%", height: 36 }} /> : (
+                    <input
+                      id="sm-email" type="email" value={profile?.email ?? ""} readOnly disabled
+                      aria-readonly="true"
+                      style={{ ...INPUT_STYLE, opacity: 0.55, cursor: "not-allowed" }}
+                    />
+                  )}
                 </div>
 
                 <div style={ROW_STYLE}>
                   <div style={ROW_LABEL}>Public Name</div>
-                  <input
-                    id="sm-ninja-name" type="text" value={name}
-                    onChange={(e) => { setName(e.target.value); schedule({ full_name: normalize(e.target.value) }) }}
-                    placeholder="Your display name"
-                    style={INPUT_STYLE}
-                    onFocus={(e) => Object.assign(e.currentTarget.style, INPUT_FOCUS_STYLE)}
-                    onBlur={(e) => Object.assign(e.currentTarget.style, INPUT_BLUR_STYLE)}
-                  />
+                  {profileLoading ? <Skeleton style={{ width: "100%", height: 36 }} /> : (
+                    <input
+                      id="sm-ninja-name" type="text" value={name}
+                      onChange={(e) => { setName(e.target.value); schedule({ full_name: normalize(e.target.value) }) }}
+                      placeholder="Your display name"
+                      style={INPUT_STYLE}
+                      onFocus={(e) => Object.assign(e.currentTarget.style, INPUT_FOCUS_STYLE)}
+                      onBlur={(e) => Object.assign(e.currentTarget.style, INPUT_BLUR_STYLE)}
+                    />
+                  )}
                 </div>
 
                 <div className="tm-settings-linkedin-row" style={{ ...ROW_STYLE, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
@@ -605,17 +620,19 @@ export function SettingsModal({ open, onClose, profile, initialTab = "Account" }
                     <div style={ROW_LABEL}>LinkedIn</div>
                     <div style={ROW_DESC}>Add once to earn +{MYRO_COINS_POLICY.linkedInProfile} Myro Coins</div>
                   </div>
-                  <div className="tm-settings-linkedin-field" style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, maxWidth: "55%" }}>
-                    <LinkedInIcon size={14} aria-hidden style={{ color: "var(--tm-text-faint)", flexShrink: 0 }} />
-                    <input
-                      id="sm-linkedin" type="url" value={linkedin}
-                      onChange={(e) => { setLinkedin(e.target.value); schedule({ linkedin_url: normalizeLinkedIn(e.target.value) }) }}
-                      placeholder="linkedin.com/in/you"
-                      style={{ ...INPUT_STYLE, fontSize: 12 }}
-                      onFocus={(e) => Object.assign(e.currentTarget.style, INPUT_FOCUS_STYLE)}
-                      onBlur={(e) => Object.assign(e.currentTarget.style, INPUT_BLUR_STYLE)}
-                    />
-                  </div>
+                  {profileLoading ? <Skeleton style={{ width: "55%", height: 36 }} /> : (
+                    <div className="tm-settings-linkedin-field" style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, maxWidth: "55%" }}>
+                      <LinkedInIcon size={14} aria-hidden style={{ color: "var(--tm-text-faint)", flexShrink: 0 }} />
+                      <input
+                        id="sm-linkedin" type="url" value={linkedin}
+                        onChange={(e) => { setLinkedin(e.target.value); schedule({ linkedin_url: normalizeLinkedIn(e.target.value) }) }}
+                        placeholder="linkedin.com/in/you"
+                        style={{ ...INPUT_STYLE, fontSize: 12 }}
+                        onFocus={(e) => Object.assign(e.currentTarget.style, INPUT_FOCUS_STYLE)}
+                        onBlur={(e) => Object.assign(e.currentTarget.style, INPUT_BLUR_STYLE)}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* Myrology — free interest opt-in (separate from the paid unlock). */}

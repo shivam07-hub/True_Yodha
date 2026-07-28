@@ -83,7 +83,7 @@ export function useShellModel() {
     () => readIdentitySnapshot<UserProfile>("profile", token),
     [token],
   )
-  const { data: profileData } = useQuery({
+  const { data: profileData, isLoading: profileLoading } = useQuery({
     queryKey: dataKeys.profile(),
     queryFn: () => users.me(token!),
     enabled: !!token,
@@ -119,6 +119,7 @@ export function useShellModel() {
     signOut,
     xpBalance,
     profile,
+    profileLoading,
     xpModalOpen,
     setXPModalOpen,
     mobileSheetOpen,

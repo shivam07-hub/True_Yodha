@@ -1423,6 +1423,7 @@ mark.cvb-kw {
   gap: 12px;
   flex-wrap: wrap;
 }
+.cvb-export-inline-bar.solo { justify-content: flex-end; }
 .cvb-export-inline-stage {
   display: flex;
   justify-content: center;

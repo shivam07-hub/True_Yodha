@@ -1,20 +1,24 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { DownloadCVButton } from "@/components/cv/download-cv-button"
 import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
-import { CVExportView } from "./cv-export-view"
+import { CVExportView, TemplatePicker } from "./cv-export-view"
 import { AppliedVersionsPanel } from "./applied-versions"
-import { I, LIcon } from "./library-icons"
+import { DEFAULT_TEMPLATE, isCVTemplate, type CVTemplate } from "@/lib/cv/templates"
+
+const TEMPLATE_STORAGE_KEY = "myro-cv-template-v1"
 
 interface MasterCVPanelProps {
   token: string
   baseline: CVVersion | null
   cv: CVStructured | null
   profile: UserProfile | null
-  onReplace: () => void
   /** Enter the full-bleed master editor (a page-level view, not a nested card). */
   onEditMaster: () => void
+  /** Version-history toggle lives on the flow ribbon, above this panel — owned
+   *  by the parent so it can sit next to Edit/Replace in one action row. */
+  showHistory: boolean
   /** CV workspace provenance rail (see PdfPage). */
   onBulletClick?: (id: string, text: string) => void
   selectedBulletId?: string | null
@@ -37,12 +41,25 @@ function masterContact(cv: CVStructured | null, profile: UserProfile | null) {
 }
 
 export function MasterCVPanel({
-  token, baseline, cv, profile, onReplace, onEditMaster,
+  token, baseline, cv, profile, onEditMaster, showHistory,
   onBulletClick, selectedBulletId = null,
 }: MasterCVPanelProps) {
-  const [showHistory, setShowHistory] = useState(false)
   const fallbackText = baseline?.body_text?.trim() ?? ""
-  const canEdit = !!baseline && !!cv
+
+  // Template pick is owned here (not inside CVExportView) so the picker can
+  // render in this panel's head instead of a separate row lower down — same
+  // persisted choice, same key, every export surface still agrees.
+  const [activeTemplate, setActiveTemplate] = useState<CVTemplate>(DEFAULT_TEMPLATE)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(TEMPLATE_STORAGE_KEY)
+      if (isCVTemplate(saved)) setActiveTemplate(saved)
+    } catch { /* storage blocked */ }
+  }, [])
+  function pickTemplate(t: CVTemplate) {
+    setActiveTemplate(t)
+    try { localStorage.setItem(TEMPLATE_STORAGE_KEY, t) } catch { /* storage blocked */ }
+  }
   // The master's shape = the CV the user last applied with (Delta-4 living
   // master, project_living_cv_delta4). Render + download honor its hidden_items
   // so the promoted projection is exactly what the user sees and exports.
@@ -62,20 +79,9 @@ export function MasterCVPanel({
           </div>
         </div>
         <div className="tm-lib-master-panel-actions">
-          <button type="button" className="tm-lib-btn sm" onClick={onEditMaster} disabled={!canEdit}>
-            <LIcon d={I.edit ?? I.file} size={12}/> Edit
-          </button>
-          <button
-            type="button"
-            className={`tm-lib-btn sm${showHistory ? " primary" : ""}`}
-            onClick={() => setShowHistory(v => !v)}
-            aria-expanded={showHistory}
-          >
-            <LIcon d={I.pulse} size={12}/> Version history
-          </button>
           {/* When a structured CV exists, CVExportView (below) owns download
-              — WYSIWYG PDF + DOCX + template picker. Only the text-only
-              fallback keeps a head-level download button. */}
+              — WYSIWYG PDF + DOCX. Only the text-only fallback keeps a
+              head-level download button. */}
           {!cv && (
             <DownloadCVButton
               token={token}
@@ -86,9 +92,7 @@ export function MasterCVPanel({
               label="Download Main CV"
             />
           )}
-          <button type="button" className="tm-lib-btn sm" onClick={onReplace}>
-            <LIcon d={I.upload} size={12}/> Replace
-          </button>
+          {cv && <TemplatePicker value={activeTemplate} onChange={pickTemplate} />}
         </div>
       </div>
 
@@ -115,6 +119,9 @@ export function MasterCVPanel({
             onAtsFix={handleFix}
             onBulletClick={onBulletClick}
             selectedBulletId={selectedBulletId}
+            template={activeTemplate}
+            onTemplateChange={pickTemplate}
+            hidePicker
           />
         ) : (
           <pre className="tm-lib-master-panel-text">

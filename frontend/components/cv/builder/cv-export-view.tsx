@@ -81,6 +81,11 @@ interface CVExportViewProps {
    *  fullpage skin assumes it owns the whole viewport (sticky toolbar,
    *  ApplyRow) and breaks at that width, so it asks for "inline" instead. */
   skin?: "inline" | "fullpage"
+  /** Caller owns the template pick (e.g. renders its own TemplatePicker in a
+   *  panel head) — `template` becomes controlled and the built-in picker
+   *  is suppressed. */
+  onTemplateChange?: (t: CVTemplate) => void
+  hidePicker?: boolean
 }
 
 function slug(s: string | null | undefined): string {
@@ -97,6 +102,7 @@ export function CVExportView({
   company, jobTitle, jobId, matchScore = 0, appliedAt = null,
   onBack, backLabel = "Back", mobile = false, onFixContact, onAtsFix,
   onBulletClick, selectedBulletId = null, skin: skinOverride,
+  onTemplateChange, hidePicker = false,
 }: CVExportViewProps) {
   const isTailored = context === "tailored"
   const skin: "fullpage" | "inline" = skinOverride ?? (isTailored ? "fullpage" : "inline")
@@ -123,7 +129,13 @@ export function CVExportView({
     } catch { /* storage blocked */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+  // Controlled mode (onTemplateChange given): the `template` prop is the
+  // source of truth going forward, not just the initial seed.
+  useEffect(() => {
+    if (onTemplateChange && template) setActiveTemplate(template)
+  }, [onTemplateChange, template])
   function pickTemplate(t: CVTemplate) {
+    if (onTemplateChange) { onTemplateChange(t); return }
     setActiveTemplate(t)
     try { localStorage.setItem(TEMPLATE_STORAGE_KEY, t) } catch { /* storage blocked */ }
   }
@@ -348,8 +360,8 @@ export function CVExportView({
     // sticky full-bleed toolbar; the host surface owns the surround.
     return (
       <div className="cvb-export-inline">
-        <div className="cvb-export-inline-bar">
-          {templatePicker}
+        <div className={`cvb-export-inline-bar${hidePicker ? " solo" : ""}`}>
+          {!hidePicker && templatePicker}
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span className="cvb-pill success">
               <Icon name="check" size={11} /> ATS · {passedCount}/{totalChecks}
@@ -482,7 +494,7 @@ export function CVExportView({
   )
 }
 
-function TemplatePicker({ value, onChange }: { value: CVTemplate; onChange: (t: CVTemplate) => void }) {
+export function TemplatePicker({ value, onChange }: { value: CVTemplate; onChange: (t: CVTemplate) => void }) {
   return (
     <div className="cvb-tpl-picker" role="radiogroup" aria-label="CV template">
       {CV_TEMPLATES.map(t => (

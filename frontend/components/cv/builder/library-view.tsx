@@ -40,6 +40,8 @@ export function LibraryView({
 }: LibraryViewProps) {
   const searchParams = useSearchParams()
   const { isDesktop } = useViewport()
+  const [showHistory, setShowHistory] = useState(false)
+  const canEditMaster = !!currentBaseline && !!cv
 
   // `?master=1` (dashboard "Door 2") lands on the CV view; ?view=active and the
   // old ?filter=closed are redirected to /preparations by the page before this
@@ -87,7 +89,27 @@ export function LibraryView({
     <div className="tm-lib-scope">
       <div className="tm-lib-root">
         <div className="tm-lib-main">
-          <FlowRibbon view={view} />
+          <FlowRibbon
+            view={view}
+            actions={view === "cv" ? (
+              <>
+                <button type="button" className="tm-lib-btn sm" onClick={onEditMaster} disabled={!canEditMaster}>
+                  <LIcon d={I.edit ?? I.file} size={12}/> Edit
+                </button>
+                <button
+                  type="button"
+                  className={`tm-lib-btn sm${showHistory ? " primary" : ""}`}
+                  onClick={() => setShowHistory(v => !v)}
+                  aria-expanded={showHistory}
+                >
+                  <LIcon d={I.pulse} size={12}/> Version history
+                </button>
+                <button type="button" className="tm-lib-btn sm" onClick={onReplaceCV}>
+                  <LIcon d={I.upload} size={12}/> Replace
+                </button>
+              </>
+            ) : undefined}
+          />
 
           {/* ── CV view: the Main CV, or a per-job tailored copy ────────── */}
           {view === "cv" && (
@@ -99,9 +121,9 @@ export function LibraryView({
                 currentBaseline={currentBaseline}
                 applications={applications}
                 profile={profile}
-                onReplaceCV={onReplaceCV}
                 onEditMaster={onEditMaster}
                 onOpenJob={onOpenJob}
+                showHistory={showHistory}
               />
             </div>
           )}

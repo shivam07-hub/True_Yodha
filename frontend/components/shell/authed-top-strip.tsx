@@ -63,7 +63,7 @@ interface AuthedTopStripProps {
 export function AuthedTopStrip({ model, mountFeedbackHub = false }: AuthedTopStripProps) {
   const router = useRouter()
   const nav = useNavUnlocks()
-  const { profile, signOut } = model
+  const { profile, profileLoading, signOut } = model
   const [menuOpen, setMenuOpen] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("Account")
@@ -203,7 +203,7 @@ export function AuthedTopStrip({ model, mountFeedbackHub = false }: AuthedTopStr
         </div>
       </header>
 
-      {showSettings && <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} profile={profile} initialTab={settingsTab} />}
+      {showSettings && <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} profile={profile} profileLoading={profileLoading} initialTab={settingsTab} />}
       <MyrologyOptInPrompt
         open={myroPromptOpen}
         onClose={() => setMyroPromptOpen(false)}

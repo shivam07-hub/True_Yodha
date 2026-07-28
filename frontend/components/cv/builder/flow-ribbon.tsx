@@ -2,11 +2,16 @@
  * FlowRibbon — the CV workspace nav. Replaces the old CV/Stories/Memory pill:
  * the three tabs ARE the product story (dump your past -> Myro understands
  * you -> tailor per job), so the nav says that instead of naming components.
+ *
+ * Trailing slot is caller-owned (`actions`) — the CV tab puts the Main-CV
+ * actions (Edit / Version history / Replace) there. No default: step 1
+ * ("Dump your past") already is the add-your-past CTA, so a duplicate link
+ * here would just repeat it.
  */
 "use client"
 
+import type { ReactNode } from "react"
 import Link from "next/link"
-import { I, LIcon } from "./library-icons"
 
 type View = "cv" | "stories" | "memory"
 
@@ -16,7 +21,7 @@ const STEPS: { n: string; title: string; sub: string; view: View }[] = [
   { n: "3", title: "Tailor per job", sub: "CV", view: "cv" },
 ]
 
-export function FlowRibbon({ view }: { view: View }) {
+export function FlowRibbon({ view, actions }: { view: View; actions?: ReactNode }) {
   return (
     <div className="tm-flow-ribbon">
       <div className="tm-flow-steps" role="tablist" aria-label="CV workspace steps">
@@ -40,9 +45,7 @@ export function FlowRibbon({ view }: { view: View }) {
           )
         })}
       </div>
-      <Link href="/cv?view=stories&dump=1" className="tm-flow-add">
-        <LIcon d={I.plus} size={15}/> Add your past
-      </Link>
+      {actions && <div className="tm-flow-actions">{actions}</div>}
     </div>
   )
 }
