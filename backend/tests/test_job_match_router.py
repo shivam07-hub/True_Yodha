@@ -35,9 +35,21 @@ class _FakeJobsRepo:
     def get_dismissed_job_card_ids(self, user_id: str) -> list[str]:
         return []
 
-    def count_new_jobs_since(self, marker: int) -> int:
-        self.count_markers.append(marker)
+    def count_new_jobs_since(self, since) -> int:
+        self.count_markers.append(since)
         return self._new_jobs
+
+    def last_match_run_at(self, _user_id: str):
+        from datetime import datetime
+
+        raw = self._stack[0].get("computed_at") if self._stack else None
+        return datetime.fromisoformat(str(raw)) if raw else None
+
+    def count_new_jobs_for_user(self, user_id: str) -> int:
+        computed_at = self.last_match_run_at(user_id)
+        if computed_at is None:
+            return 0
+        return self.count_new_jobs_since(computed_at)
 
     def record_recommendation_exposures(
         self, user_id: str, rows: list[dict], *, surface: str
@@ -73,7 +85,11 @@ def test_matches_new_jobs_count_skipped_when_never_matched() -> None:
     assert repo.count_markers == []
 
 
-def test_matches_new_jobs_count_uses_first_seen_marker() -> None:
+def test_matches_new_jobs_count_uses_landing_timestamp() -> None:
+    """The count is "landed after MY last match", to the second. It used to round
+    the user's match time down to a YYYYMMDD int and compare against the scraper's
+    own date marker — which made a batch imported the day after its scrape run
+    permanently invisible to everyone who had matched since."""
     repo = _FakeJobsRepo(
         stack=[{"id": 1, "job_id": "j1", "computed_at": "2026-06-04T09:00:00+00:00"}],
         new_jobs=7,
@@ -88,8 +104,8 @@ def test_matches_new_jobs_count_uses_first_seen_marker() -> None:
 
     assert response.status_code == 200
     assert response.json()["new_jobs_count"] == 7
-    # Match date 2026-06-04 → YYYYMMDD int marker; count is "strictly after".
-    assert repo.count_markers == [20260604]
+    # The exact compute instant, not a date bucket.
+    assert [dt.isoformat() for dt in repo.count_markers] == ["2026-06-04T09:00:00+00:00"]
     assert repo.exposures == [("u1", "dashboard", ["j1"])]
 
 

@@ -19,7 +19,7 @@ from datetime import date
 from typing import Any, Callable
 
 from app.repositories.notifications import NotificationsRepository
-from app.services import jobs_workflow
+from app.services import jobs_workflow, new_inventory
 from app.services.jobs_workflow import MatchComputeOutcome
 from app.services.matching import agent_picks
 from app.services.xp_policy import MATCH_RUN_COST  # noqa: F401 — re-exported: the run's one price
@@ -63,11 +63,25 @@ async def run_match(
         on_progress=on_progress,
     )
 
+    # The run happened — stamp the baseline for "new since your last search".
+    # Only here: `user_job_matches.computed_at` is also written by on-demand evals
+    # and the feed warmer, so inferring the baseline from it let browsing reset it.
+    try:
+        repo.mark_match_run(user_id)
+    except Exception as exc:  # noqa: BLE001 — a missed stamp costs a stale prompt, not the run
+        logger.warning("match_run: run marker not stamped user=%s: %s", user_id, exc)
+
     if regenerate_picks:
         try:
             agent_picks.regenerate_for_user(repo, user_id, scrape_batch=scrape_batch)
         except Exception as exc:  # noqa: BLE001 — picks are a side-effect, never fatal
             logger.warning("match_run: agent_picks regen failed user=%s: %s", user_id, exc)
+
+    # The user has now searched the inventory we announced — retire the prompt
+    # whether or not it produced matches, on EVERY path (paid refresh included,
+    # where `notify` is off because they watched the reveal live). A bell row that
+    # survives the search it asked for is a lie the next login repeats.
+    new_inventory.resolve_for_user(user_id)
 
     if notify:
         try:

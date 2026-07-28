@@ -2786,6 +2786,11 @@ export interface RefreshPreflightResponse {
   /** field name → "memory" for every field gap-filled from user_memory */
   prefilled: Record<string, string>
   memory_count: number
+  /** Coins this run will cost, decided server-side — 0 when Myro landed roles
+   *  this user has never been matched against. Never price from a constant. */
+  run_cost: number
+  /** Roles that landed since their last search — the reason it's free. */
+  new_jobs_count: number
 }
 
 export interface RefreshStateResponse {

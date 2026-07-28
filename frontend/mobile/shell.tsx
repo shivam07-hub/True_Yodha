@@ -12,8 +12,10 @@ import { NotificationBell } from "@/components/nav/notification-bell"
 import { jobs as jobsApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { useShellModel } from "@/lib/shell/use-shell-model"
 import { attentionCount } from "@/components/preparations/prep-model"
 import { useMobileUI } from "./redesign/mobile-ui"
+import { useViewport } from "./provider"
 
 // Canonical tokens, NOT --mm-*: AppShellSkeleton renders OUTSIDE any .mm-root
 // scope, so an --mm-* var here would resolve to nothing and blank the shimmer.
@@ -141,11 +143,23 @@ function useTabBadges() {
  */
 export function MobileTopBar() {
   const { openPractice } = useMobileUI()
+  // This bar is mounted unconditionally (visibility is CSS-driven — see the
+  // AppShell comment) so it stays in the DOM even on desktop, hidden by
+  // @media. That's harmless for the visual chrome, but a document-level event
+  // listener + a body-portaled modal aren't CSS-scoped: on desktop this bar
+  // and <AuthedTopStrip> BOTH used to catch `tm:open-settings` and BOTH opened
+  // their own <SettingsModal> (this one with a hardcoded null profile), so two
+  // dialogs stacked and closing the top one revealed a second one underneath.
+  // Gate the side effect on real mobile viewport so only one instance is ever
+  // live at a time.
+  const { isDesktop } = useViewport()
+  const { profile, profileLoading } = useShellModel()
 
   // Canonical "open settings" trigger — any surface dispatches `tm:open-settings`.
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("Account")
   useEffect(() => {
+    if (isDesktop) return
     const h = (e: Event) => {
       const tab = (e as CustomEvent<{ tab?: string }>).detail?.tab
       if (tab) setSettingsTab(tab as SettingsTab)
@@ -153,7 +167,7 @@ export function MobileTopBar() {
     }
     document.addEventListener("tm:open-settings", h)
     return () => document.removeEventListener("tm:open-settings", h)
-  }, [])
+  }, [isDesktop])
 
   return (
     <header className="tm-mobile-topbar mm-root" style={{ alignItems: "center", background: "var(--mm-bg)", borderBottom: "1px solid var(--tm-border-faint)" }}>
@@ -195,7 +209,15 @@ export function MobileTopBar() {
           </svg>
         </Link>
       </div>
-      {settingsOpen && <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} profile={null} initialTab={settingsTab} />}
+      {!isDesktop && settingsOpen && (
+        <SettingsModal
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          profile={profile}
+          profileLoading={profileLoading}
+          initialTab={settingsTab}
+        />
+      )}
     </header>
   )
 }

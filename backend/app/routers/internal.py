@@ -2,14 +2,15 @@
 
 Not a user surface — guarded by a shared secret header, called by our own
 infrastructure. Today: the scrape-landed webhook the scraper fires after it
-writes a batch of new jobs, so the app sweeps + notifies affected users
-immediately (compute-then-notify) instead of polling on a timer.
+writes a batch of new jobs. It acknowledges the landing; it does not match
+anyone. Matching is pulled by the user on their next visit (see
+`services/new_inventory.py`) so compute follows intent.
 """
 from __future__ import annotations
 
 import hmac
 import logging
-from datetime import date, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel
@@ -40,24 +41,19 @@ def require_scrape_webhook(x_scrape_token: str | None = Header(default=None)) ->
 
 
 class ScrapeLandedRequest(BaseModel):
-    # Optional YYYYMMDD floor — sweep jobs whose first_seen is strictly after it.
-    # Omit and the app defaults to "today's jobs" (yesterday's marker). first_seen
-    # is date-granular, so a same-day 2nd batch is covered by the default window;
-    # the per-user cache gate dedups users already caught up today.
-    since_marker: int | None = None
+    # How far back counts as "this landing" (default 24h). Timestamps, not the
+    # scraper's YYYYMMDD marker: that marker is the run-date FOLDER, so a batch
+    # imported the morning after its run arrives already dated yesterday.
+    since_hours: int = 24
+    # Opt-in eager fan-out (admin only). OFF by design — see the docstring.
+    sweep: bool = False
 
 
 class ScrapeLandedResponse(BaseModel):
     new_jobs: int
     affected_users: int
     enqueued: int
-    since_marker: int
-
-
-def _default_marker() -> int:
-    """Yesterday as YYYYMMDD → get_new_job_ids_since returns first_seen > it =
-    everything inserted today (the batch that just landed)."""
-    return int((date.today() - timedelta(days=1)).strftime("%Y%m%d"))
+    since: str
 
 
 @router.post(
@@ -66,15 +62,28 @@ def _default_marker() -> int:
     dependencies=[Depends(require_scrape_webhook)],
 )
 def scrape_landed(body: ScrapeLandedRequest) -> ScrapeLandedResponse:
-    """The scraper finished writing a batch → sweep affected users NOW.
+    """The scraper finished writing a batch → acknowledge the landing.
 
-    Runs inline: run_sweep is cheap (deterministic pre-filter SQL + enqueue) — the
-    per-user brain recompute + notify + Agent Picks regen run async on the RQ bulk
-    lane. Returns the sweep counts so the scraper can log/verify the fan-out.
+    Deliberately does NOT match anyone (Shivam, 2026-07-28). The rows themselves,
+    stamped `ingested_at` by the DB, ARE the record; each user's next visit turns
+    that into a visible prompt and the user pulls their own match. Matching every
+    affected user on landing spends the shared LLM budget on people who may never
+    return, and it is the users who DO come back that we want to serve.
+
+    `sweep=true` still exists for a deliberate admin fan-out (`run_sweep` +
+    `scrape_sweep_cli`), never for the routine path.
     """
-    marker = body.since_marker if body.since_marker is not None else _default_marker()
+    since = datetime.now(timezone.utc) - timedelta(hours=max(1, body.since_hours))
     admin_db = get_supabase_admin()
     repo = JobsRepository(admin_db, admin_db)
-    result = scrape_sweep.run_sweep(repo, since_marker=marker)
-    logger.info("metric scrape_webhook.landed marker=%d result=%s", marker, result)
-    return ScrapeLandedResponse(since_marker=marker, **result)
+
+    if body.sweep:
+        result = scrape_sweep.run_sweep(repo, since=since)
+        logger.info("metric scrape_webhook.landed sweep=1 since=%s result=%s", since, result)
+        return ScrapeLandedResponse(since=since.isoformat(), **result)
+
+    new_jobs = repo.count_new_jobs_since(since)
+    logger.info("metric scrape_webhook.landed sweep=0 since=%s new_jobs=%d", since, new_jobs)
+    return ScrapeLandedResponse(
+        new_jobs=new_jobs, affected_users=0, enqueued=0, since=since.isoformat()
+    )

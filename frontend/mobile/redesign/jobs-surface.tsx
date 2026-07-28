@@ -11,6 +11,7 @@ import { FiltersSheet } from "@/components/market/filters-sheet"
 import { useJobFeed } from "@/components/market/use-job-feed"
 import { useMyroSearch } from "@/lib/hooks/use-myro-search"
 import { IntentChat } from "@/components/jobs/intent-chat"
+import { NewInventoryStrip } from "@/components/jobs/new-inventory-strip"
 import { useApplyCapture } from "@/components/jobs/use-apply-capture"
 import { JobDetailSheet, type JobDetailData } from "./job-detail-sheet"
 import { ApplyCapturePromptMobile } from "./apply-capture-prompt"
@@ -183,6 +184,11 @@ export function JobsSurface({
 
       {/* body */}
       <div style={{ padding: "2px 16px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+        {/* Same new-inventory signal the desktop workspace shows — one component,
+            so the two skins can never disagree about whether the user was told
+            that Myro is holding roles they've never searched. Renders nothing at
+            zero. */}
+        {!isRefreshing ? <NewInventoryStrip token={token} /> : null}
         {/* Curated Agent Picks — default view only (hidden while searching, filtering
             or viewing hidden jobs). Renders nothing when the user has no picks. */}
         {!eyeOn && !searchQ && filterCount === 0 ? (

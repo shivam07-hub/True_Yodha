@@ -3,30 +3,32 @@
 import { useEffect, useRef, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import "@/components/dashboard/dashboard.css"
-import { SmartSearchPrompt } from "@/components/jobs/smart-search-prompt"
 import { useMyroSearch } from "@/lib/hooks/use-myro-search"
 import { useParticleMoment } from "@/components/particle"
 import { jobs, type MatchHealth } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { withLocalCache, userCacheKey } from "@/lib/local-cache"
 import { JOB_MATCHES_CACHE_PARTS } from "@/lib/job-matches-cache"
+import { openRefreshGate } from "@/store/refreshGateStore"
+import { NewInventoryStrip } from "./new-inventory-strip"
 
 const MATCHES_TTL = 7 * 24 * 60 * 60 * 1000
 
 /**
- * Refresh host on Jobs (/market). The "N new jobs" signal + the Refresh trigger
- * now live in the Loop Bar's Capture step (one glanceable place in the nav), so
- * this component owns the rest of the flow:
- *   - keeps the shared matches cache (dataKeys.jobs()) warm — the Loop Bar reads
+ * Myro Search host on Jobs (/market). Owns the whole new-inventory → search flow:
+ *   - keeps the shared matches cache (dataKeys.jobs()) warm — the Next chip reads
  *     new_jobs_count + fit from it passively; this is that cache's only populator
  *     on /market;
- *   - hosts the consent gate (opened from the Loop Bar badge via openRefreshGate);
+ *   - renders the new-inventory strip (the visible half of the pull model: Myro
+ *     ingests, the user is told, the user runs the search);
+ *   - hosts the consent gate, including the ?search=1 deep-link handoff from the
+ *     notification bell;
  *   - shows in-progress status and fires the every-successful-refresh celebration.
  */
 export function MatchesRefreshBanner({ token }: { token: string | null }) {
-  // Shared Myro Search wiring (VM + profile + gate). This banner layers the
-  // /market-only extras on top: progress line, celebration, smart-search prompt.
-  const { refreshVm, profile, gate } = useMyroSearch(token)
+  // Shared Myro Search wiring (VM + gate). This banner layers the /market-only
+  // extras on top: the new-inventory strip, progress line, celebration.
+  const { refreshVm, gate } = useMyroSearch(token)
   const fireMoment = useParticleMoment()
 
   // Warms dataKeys.jobs(); the Loop Bar's Capture "N new" badge + "next" fit read
@@ -56,6 +58,19 @@ export function MatchesRefreshBanner({ token }: { token: string | null }) {
 
   const isRefreshing = refreshVm.state === "charging" || refreshVm.state === "computing"
 
+  // Deep-link handoff: the bell (and any off-market prompt) sends the user here
+  // with ?search=1 because the gate only mounts on this page. Fires once, then
+  // scrubs the param so a refresh or a back-nav doesn't reopen the modal.
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get("search") !== "1") return
+    params.delete("search")
+    const qs = params.toString()
+    window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""))
+    openRefreshGate()
+  }, [])
+
   return (
     <>
       {isRefreshing && refreshVm.progressLabel ? (
@@ -63,12 +78,8 @@ export function MatchesRefreshBanner({ token }: { token: string | null }) {
           <span>{refreshVm.progressLabel}</span>
         </div>
       ) : null}
+      {!isRefreshing ? <NewInventoryStrip token={token} /> : null}
       <MatchVettingBanner token={token} health={matchesData?.match_health} />
-      <SmartSearchPrompt
-        onboardingComplete={profile?.onboarding_complete ?? false}
-        hasCv={profile?.has_cv ?? false}
-        newJobsCount={matchesData?.new_jobs_count ?? 0}
-      />
       {gate}
     </>
   )

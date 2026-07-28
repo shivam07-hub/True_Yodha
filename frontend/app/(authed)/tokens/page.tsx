@@ -3,9 +3,16 @@ import Link from "next/link"
 import { XpFairnessNote, XpGuideLists } from "@/components/xp/xp-guide-content"
 
 export const metadata: Metadata = {
-  title: "How Myro Coins Work | Myro",
-  description: "Learn how Myro Coins are earned, where they are spent, and the fairness rules behind coin-gated work.",
+  title: "About Myro | Myro",
+  description: "What Myro is, what it does, and how Myro Coins keep the career intelligence engine fair.",
 }
+
+const whatMyroDoes = [
+  { href: "/cv", label: "Reads your CV", detail: "Extracts real skills and levels — no self-rating." },
+  { href: "/market", label: "Matches live jobs", detail: "Ranks openings against your CV, not keywords." },
+  { href: "/forge", label: "Grows your Myro Score", detail: "Practice sessions close real skill gaps." },
+  { href: "/collections", label: "Tracks every application", detail: "One tailored CV per job, every attempt kept." },
+]
 
 const quickActions = [
   { href: "/forge", label: "Practice a skill", detail: "Myro Coins accrue quietly while Practice runs in the background." },
@@ -34,7 +41,7 @@ export default function TokensPage() {
               marginBottom: 6,
             }}
           >
-MYRO COIN GUIDE
+            MYRO · CAREER INTELLIGENCE
           </div>
           <h1
             style={{
@@ -46,13 +53,66 @@ MYRO COIN GUIDE
               lineHeight: 1.15,
             }}
           >
-            How Myro Coins work
+            About Myro
           </h1>
           <p style={{ margin: "10px 0 0", maxWidth: 650, fontSize: 15, lineHeight: 1.65, color: "var(--tm-text-muted)" }}>
-            Myro Coins keep expensive career intelligence fair. Earn them by improving your profile, practicing skills,
-            and writing diary evidence.
+            Myro reads your CV, matches it against live hiring demand, and tells you exactly what to fix to get hired —
+            backed by a fair coin economy so the heavy analysis stays sustainable.
           </p>
         </header>
+
+        <section
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: 12,
+            marginBottom: 32,
+          }}
+          aria-label="What Myro does"
+        >
+          {whatMyroDoes.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              style={{
+                display: "block",
+                minHeight: 108,
+                padding: "14px 16px",
+                borderRadius: "var(--tm-radius)",
+                border: "1px solid var(--tm-border-soft)",
+                background: "var(--tm-surface)",
+                color: "var(--tm-text)",
+                textDecoration: "none",
+              }}
+            >
+              <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 6 }}>{item.label}</div>
+              <div style={{ fontSize: 12.5, lineHeight: 1.5, color: "var(--tm-text-faint)" }}>{item.detail}</div>
+            </Link>
+          ))}
+        </section>
+
+        <div
+          style={{
+            fontFamily: "var(--tm-font-mono)",
+            fontSize: 10,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            color: "var(--tm-text-faint)",
+            marginBottom: 6,
+          }}
+        >
+          MYRO COIN GUIDE
+        </div>
+        <h2
+          style={{
+            margin: "0 0 10px",
+            fontSize: 20,
+            fontWeight: 800,
+            color: "var(--tm-text)",
+          }}
+        >
+          How Myro Coins work
+        </h2>
 
         <section
           style={{

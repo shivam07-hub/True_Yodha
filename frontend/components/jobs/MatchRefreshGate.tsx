@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { jobs, users, type RefreshPreflightResponse, type UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { formatCount } from "@/lib/format"
 import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
 import { useCoinsGate } from "@/lib/hooks/use-xp-gate"
 import { useXPStore } from "@/store/xpStore"
@@ -23,9 +24,13 @@ import { useRefreshGateStore } from "@/store/refreshGateStore"
  *    are human TITLES — the backend derives the matcher's cluster union.
  *  - The 6 Myro Ops agent inputs are VISIBLE by default as a compact
  *    manifest; 5 are inline-editable, the CV is a read-only chip → new tab.
- *  - Flat charge: "100 Myro Coins per search" — every run, no free-if-new tier
- *    (mirrors the backend MATCH_RUN_COST=100; refund only on system failure).
- *  - Three exits: Run · 100 (save+spend) / Save targeting only / Discard.
+ *  - Price is SERVER-decided (`preflight.run_cost`, 2026-07-28): free when Myro
+ *    landed roles this user has never been matched against — they didn't ask for
+ *    that inventory, so they don't pay to look at it — and the flat
+ *    MATCH_RUN_COST when they're asking for another pass. The client constant is
+ *    a pre-load placeholder only; quoting it as truth is how a "free" promise and
+ *    a 100-coin debit end up on the same screen.
+ *  - Three exits: Run (save+spend) / Save targeting only / Discard.
  *  - Broke: gate opens, edits stay free, Run disabled + shortfall + /xp link
  *    (reuses the canonical "See how tokens works →" route, not a new earn path).
  *  - Reuses useCoinsGate (policy/telemetry) + the JobMatchDetail dialog pattern.
@@ -112,9 +117,11 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
   const balance = useXPStore((s) => s.balance)
   const queryClient = useQueryClient()
 
-  // Flat charge, every run — no free-if-new tier (the backend charges a flat
-  // MATCH_RUN_COST=100 on confirm; refund only on system failure).
-  const { canAfford, attempt } = useCoinsGate({ cost: COST, action: "match_refresh" })
+  // Price comes from the server (see below) — the client constant is only the
+  // pre-load placeholder, so the modal can never quote a number the wallet
+  // disagrees with. Wired after `preflight` loads.
+  const [cost, setCost] = useState<number>(COST)
+  const { canAfford, attempt } = useCoinsGate({ cost, action: "match_refresh" })
 
   const [draft, setDraft] = useState<Draft>(() => seed(profile))
   const [confirming, setConfirming] = useState(false)
@@ -131,6 +138,16 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
     enabled: open && !!token,
     staleTime: 0,
   })
+
+  // Server decides the price: free when Myro landed roles this user has never
+  // been matched against (they didn't ask for the inventory — they shouldn't pay
+  // to look at it), flat MATCH_RUN_COST when they're asking for another pass.
+  const serverCost = preflight?.run_cost
+  const newJobs = preflight?.new_jobs_count ?? 0
+  useEffect(() => {
+    if (typeof serverCost === "number") setCost(serverCost)
+  }, [serverCost])
+  const free = cost === 0
 
   const base = useMemo(() => seed(profile), [profile])
   const briefSeed = useMemo(
@@ -258,7 +275,7 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
 
   const cv = cvLabel(profile)
   const cvHref = profile?.cv_url || "/cv"
-  const shortfall = COST - balance
+  const shortfall = cost - balance
 
   return createPortal(
     <div
@@ -407,15 +424,25 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
             border: `1px solid ${canAfford ? "var(--tm-int-border)" : "rgba(251,113,133,0.3)"}`,
           }}>
             <XPCoin />
-            {canAfford ? (
+            {free ? (
               <div style={{ fontSize: 12.5, color: "var(--tm-text)", lineHeight: 1.5 }}>
-                <strong style={{ fontFamily: "var(--tm-font-mono)", fontWeight: 600 }}>{COST} Myro Coins</strong>
+                <strong style={{ fontFamily: "var(--tm-font-mono)", fontWeight: 600 }}>Free</strong>
+                {" · "}
+                <span style={{ color: "var(--tm-text-muted)" }}>
+                  {newJobs > 0
+                    ? `Myro found ${formatCount(newJobs)} roles since your last search`
+                    : "this search is on us"}
+                </span>
+              </div>
+            ) : canAfford ? (
+              <div style={{ fontSize: 12.5, color: "var(--tm-text)", lineHeight: 1.5 }}>
+                <strong style={{ fontFamily: "var(--tm-font-mono)", fontWeight: 600 }}>{cost} Myro Coins</strong>
                 {" · "}<span style={{ color: "var(--tm-text-muted)" }}>per search</span>
               </div>
             ) : (
               <div style={{ fontSize: 12.5, lineHeight: 1.5 }}>
                 <strong style={{ fontFamily: "var(--tm-font-mono)", fontWeight: 600, color: "var(--tm-danger)" }}>
-                  Need {COST} · you have {balance}
+                  Need {cost} · you have {balance}
                 </strong>
                 <span style={{ color: "var(--tm-text-muted)" }}>{` (${shortfall} short)`}</span>{" — "}
                 <Link href="/tokens" onClick={() => close()} style={{ color: "var(--tm-interactive)", textDecoration: "none" }}>
@@ -459,7 +486,7 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
                   disabled={!canAfford || busy}
                   loading={busy}
                 >
-                  ▸ Run · {COST}
+                  {free ? "▸ Run · Free" : `▸ Run · ${cost}`}
                 </Button>
               </div>
             </div>
