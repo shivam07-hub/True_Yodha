@@ -122,6 +122,8 @@ def to_application(
         last_stage_changed_at=row.get("last_stage_changed_at"),
         collection_snoozed_until=row.get("collection_snoozed_until"),
         collection_attention_level=row.get("collection_attention_level"),
+        is_priority=bool(row.get("is_priority", False)),
+        priority_marked_at=row.get("priority_marked_at"),
         match_score=match_score,
         cv_badge=cv_badge,
         skills=skills,

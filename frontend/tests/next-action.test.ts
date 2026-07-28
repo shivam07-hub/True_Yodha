@@ -88,6 +88,20 @@ test("tailor selects the highest durable saved-match score before a matches cach
   assert.match(next.label, /Tailor High · 91%/)
 })
 
+test("a priority save leads the next preparation action over a higher-fit ordinary save", () => {
+  const next = deriveNextAction(
+    [
+      scoredApp({ job_id: "ordinary", company: "Ordinary", match_score: 91 }),
+      scoredApp({ job_id: "priority", company: "Priority", match_score: 48, is_priority: true }),
+    ],
+    undefined,
+    { hasCv: true, now: NOW },
+  )
+
+  assert.equal(next.href, "/cv?jobId=priority")
+  assert.match(next.label, /Tailor Priority · 48%/)
+})
+
 test("empty pipeline with fresh matches points at the new-jobs run", () => {
   const next = deriveNextAction([], undefined, { hasCv: true, newJobs: 12, now: NOW })
   assert.equal(next.href, "/collections?search=1")

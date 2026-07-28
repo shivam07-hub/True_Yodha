@@ -289,6 +289,12 @@ class ApplicationStatusUpdate(BaseModel):
     followed_up: bool | None = None
 
 
+class ApplicationPriorityUpdate(BaseModel):
+    """The user's explicit signal that a role should lead their apply work."""
+
+    prioritized: bool
+
+
 class CollectionSnoozeRequest(BaseModel):
     days: int
 
@@ -443,6 +449,8 @@ class ApplicationResponse(BaseModel):
     last_stage_changed_at: datetime | None = None  # Q7 — stale-clock signal
     collection_snoozed_until: datetime | None = None
     collection_attention_level: str | None = None
+    is_priority: bool = False
+    priority_marked_at: datetime | None = None
     # Persisted Career Ops fit for this tracked role. The global Next action uses
     # this durable value to choose the best saved role even before a feed cache warms.
     match_score: int | None = None
