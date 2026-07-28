@@ -1,9 +1,11 @@
-"""Backlog #36 — the scrape-landed webhook that replaces the poll: scraper fires
-it after writing a batch → run_sweep runs inline → per-user recompute enqueued."""
+"""Backlog #36 — the scrape-landed webhook. Since 2026-07-28 it ACKNOWLEDGES a
+landing and matches nobody: the rows carry `ingested_at`, the user's next visit
+turns that into a prompt, and the user pulls their own match. Eager fan-out is
+opt-in (`sweep=true`) for a deliberate admin backfill only."""
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import pytest
@@ -17,6 +19,15 @@ TOKEN = "test-scrape-token"
 HEADERS = {"x-scrape-token": TOKEN}
 
 
+class _CountingRepo:
+    def __init__(self, calls: dict[str, Any]) -> None:
+        self._calls = calls
+
+    def count_new_jobs_since(self, since: datetime) -> int:
+        self._calls["counted_since"] = since
+        return 30_043
+
+
 @pytest.fixture
 def wired(monkeypatch: pytest.MonkeyPatch):
     old = settings.scrape_webhook_token
@@ -24,10 +35,10 @@ def wired(monkeypatch: pytest.MonkeyPatch):
     calls: dict[str, Any] = {}
 
     monkeypatch.setattr(internal, "get_supabase_admin", lambda: object())
-    monkeypatch.setattr(internal, "JobsRepository", lambda *_a, **_k: object())
+    monkeypatch.setattr(internal, "JobsRepository", lambda *_a, **_k: _CountingRepo(calls))
 
-    def _fake_sweep(_repo: Any, *, since_marker: int) -> dict[str, int]:
-        calls["since_marker"] = since_marker
+    def _fake_sweep(_repo: Any, *, since: datetime) -> dict[str, int]:
+        calls["swept_since"] = since
         return {"new_jobs": 3, "affected_users": 2, "enqueued": 2}
 
     monkeypatch.setattr(internal.scrape_sweep, "run_sweep", _fake_sweep)
@@ -47,22 +58,35 @@ def test_disabled_without_configured_token(wired: dict[str, Any]) -> None:
     assert r.status_code == 503
 
 
-def test_default_marker_is_todays_jobs(wired: dict[str, Any]) -> None:
+def test_landing_acknowledges_without_matching_anyone(wired: dict[str, Any]) -> None:
+    """The whole point of the pull model: a landing costs zero LLM budget. If this
+    ever enqueues again, every scrape bills us for users who never came back."""
     with TestClient(app) as client:
         r = client.post("/internal/scrape/landed", json={}, headers=HEADERS)
+
     assert r.status_code == 200
-    expected = int((date.today() - timedelta(days=1)).strftime("%Y%m%d"))
-    assert wired["since_marker"] == expected
+    assert "swept_since" not in wired          # nobody was matched
     body = r.json()
-    assert body == {
-        "new_jobs": 3, "affected_users": 2, "enqueued": 2, "since_marker": expected,
-    }
+    assert body["new_jobs"] == 30_043
+    assert body["affected_users"] == 0 and body["enqueued"] == 0
+
+    # Default window is 24h of LANDINGS, not "jobs whose scrape marker is today" —
+    # a batch imported the morning after its run arrives already dated yesterday.
+    since = wired["counted_since"]
+    assert timedelta(hours=23) < datetime.now(timezone.utc) - since < timedelta(hours=25)
 
 
-def test_explicit_marker_passed_through(wired: dict[str, Any]) -> None:
+def test_since_hours_widens_the_window(wired: dict[str, Any]) -> None:
     with TestClient(app) as client:
-        r = client.post(
-            "/internal/scrape/landed", json={"since_marker": 20260101}, headers=HEADERS
-        )
+        r = client.post("/internal/scrape/landed", json={"since_hours": 72}, headers=HEADERS)
     assert r.status_code == 200
-    assert wired["since_marker"] == 20260101
+    since = wired["counted_since"]
+    assert timedelta(hours=71) < datetime.now(timezone.utc) - since < timedelta(hours=73)
+
+
+def test_sweep_flag_is_the_only_path_that_fans_out(wired: dict[str, Any]) -> None:
+    with TestClient(app) as client:
+        r = client.post("/internal/scrape/landed", json={"sweep": True}, headers=HEADERS)
+    assert r.status_code == 200
+    assert "swept_since" in wired
+    assert r.json()["enqueued"] == 2

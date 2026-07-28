@@ -99,15 +99,15 @@ def test_refresh_excludes_all_prior_match_jobs_for_novelty(monkeypatch: pytest.M
     assert captured["xp_charged"] == 100  # MATCH_RUN_COST — flat, every run
 
 
-def test_refresh_charges_flat_even_when_new_jobs_exist(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Standardized matcher: EVERY run costs the flat MATCH_RUN_COST — the old
-    'free when new jobs' waiver (#36 N2) is gone. New jobs present → still charged.
-    The fairness backstop (refund a no-op run) stays at _dispatch, not here."""
+def test_refresh_is_free_when_myro_landed_new_inventory(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Value first (2026-07-28): Myro ingested roles this user has never been
+    matched against and told them so — they don't pay to look at inventory they
+    didn't ask for. The wallet is not touched at all on this path."""
     repo = _RefreshRepo(new_jobs=12)
     captured: dict[str, Any] = {}
 
     async def fake_charge(*_args: Any, **_kwargs: Any) -> int:
-        return 450
+        raise AssertionError("a Myro-initiated run must never touch the wallet")
 
     async def fake_dispatch(**kwargs: Any):
         captured.update(kwargs)
@@ -118,9 +118,10 @@ def test_refresh_charges_flat_even_when_new_jobs_exist(monkeypatch: pytest.Monke
 
     ticket = asyncio.run(JobRefresh.start("user-1", repo, date(2026, 6, 1)))  # type: ignore[arg-type]
 
-    assert ticket.xp_charged == 100
-    assert captured["xp_charged"] == 100  # charged despite new inventory
-    assert captured["new_coin_balance"] == 450
+    assert ticket.xp_charged == 0
+    assert captured["xp_charged"] == 0
+    # None = "wallet untouched"; the client only reconciles a non-null balance.
+    assert captured["new_coin_balance"] is None
 
 
 def test_rq_connection_is_binary_state_connection_is_decoded(monkeypatch) -> None:

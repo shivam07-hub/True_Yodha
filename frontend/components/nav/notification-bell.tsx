@@ -7,6 +7,7 @@ import { jobs as jobsApi, notifications as notificationsApi, type NotificationIt
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { formatRelativeAge } from "@/lib/format"
+import { openRefreshGate } from "@/store/refreshGateStore"
 import "./notification-bell.css"
 
 /* One inbox for durable product events: fresh matches, CV analysis, and the
@@ -55,7 +56,28 @@ export function NotificationBell() {
       ),
     [items, resolvedIds],
   )
-  const others = useMemo(() => items.filter((n) => n.kind !== "collection_attention"), [items])
+  // New inventory Myro ingested that this user has never searched. Pinned above
+  // everything and carrying its own action, because it is the one row where the
+  // next step is a single click and the payoff is the whole product.
+  const newInventory = useMemo(
+    () => items.find((n) => n.kind === "new_jobs" && n.read_at === null) ?? null,
+    [items],
+  )
+  const others = useMemo(
+    () => items.filter((n) => n.kind !== "collection_attention" && n.id !== newInventory?.id),
+    [items, newInventory],
+  )
+
+  /** Run the search the announcement is about. The gate lives on /market, so
+   *  off-market we hand off through the URL and /market opens it on arrival. */
+  const runSearch = () => {
+    setOpen(false)
+    if (newInventory && newInventory.read_at === null) {
+      void notificationsApi.markRead(token!, [newInventory.id]).then(invalidateInbox)
+    }
+    if (window.location.pathname === "/market") openRefreshGate()
+    else router.push("/market?search=1")
+  }
 
   const invalidateInbox = () => {
     void qc.invalidateQueries({ queryKey: dataKeys.notificationsUnread() })
@@ -113,6 +135,8 @@ export function NotificationBell() {
       router.push(n.job_id ? `/collections?jobId=${encodeURIComponent(n.job_id)}` : "/market")
     } else if (n.kind === "cv_analysis") {
       router.push("/cv")
+    } else if (n.kind === "new_jobs") {
+      router.push("/market?search=1")
     }
   }
 
@@ -150,6 +174,17 @@ export function NotificationBell() {
               </div>
             ) : (
               <ul className="tm-bell-list">
+                {newInventory && (
+                  <li className="tm-bell-newjobs">
+                    <span className="tm-bell-newjobs-title">{newInventory.title}</span>
+                    {newInventory.body && (
+                      <span className="tm-bell-newjobs-body">{newInventory.body}</span>
+                    )}
+                    <button type="button" className="tm-bell-act is-primary" onClick={runSearch}>
+                      Run Myro Search · Free
+                    </button>
+                  </li>
+                )}
                 {attention.length > 0 && (
                   <li className="tm-bell-attn">
                     <button

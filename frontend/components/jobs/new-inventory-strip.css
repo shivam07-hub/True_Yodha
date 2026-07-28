@@ -1,0 +1,57 @@
+/* New-inventory strip — "N new roles landed since your last search".
+   Shown on Jobs whenever Myro is holding roles this user has never searched, and
+   only then; it is a statement of fact about their feed, so it earns the accent
+   (one per surface — the strip replaces nothing else that wears it here). */
+
+.tm-newinv-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin: 14px 0 4px;
+  padding: 11px 14px;
+  border-radius: var(--tm-radius-md, 12px);
+  border: 1px solid var(--tm-int-border);
+  background: var(--tm-int-bg-wash);
+  color: var(--tm-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms var(--tm-ease, ease), background 160ms var(--tm-ease, ease);
+}
+
+.tm-newinv-strip:hover {
+  border-color: var(--tm-interactive);
+}
+
+.tm-newinv-count {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-body);
+  font-weight: 700;
+  color: var(--tm-accent-text);
+  line-height: 1;
+}
+
+.tm-newinv-copy {
+  font-size: var(--tm-fs-meta);
+  color: var(--tm-text);
+}
+
+.tm-newinv-cta {
+  margin-left: auto;
+  font-size: var(--tm-fs-caption);
+  font-weight: 600;
+  color: var(--tm-interactive);
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .tm-newinv-strip {
+    flex-wrap: wrap;
+    gap: 6px 8px;
+  }
+  .tm-newinv-cta {
+    margin-left: 0;
+    width: 100%;
+  }
+}

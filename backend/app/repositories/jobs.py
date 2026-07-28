@@ -449,16 +449,20 @@ def get_feed_updated_at(db: Client) -> str | None:
     return value
 
 
-def count_jobs_first_seen_after(db: Client, marker: int) -> int:
-    """Count live jobs whose first_seen (YYYYMMDD insert marker) is strictly after
-    ``marker``. This is the genuine "new jobs since X" signal — first_seen is the
-    insert date, unlike last_seen (re-crawl) or feed publications (re-publish the
-    same rows). Date-granular by design: the feed is date-batched."""
+def count_jobs_ingested_after(db: Client, since: datetime) -> int:
+    """Count live jobs that LANDED in our DB after ``since``.
+
+    `ingested_at` (DB-owned, DEFAULT now()) is the only honest "new to us" signal.
+    The old `first_seen` YYYYMMDD marker is stamped by the scraper from its run-date
+    folder, so a batch imported the day after its run carries a marker already in the
+    past — invisible to a `first_seen > <last-match date>` compare forever, not just
+    late. Timestamps also keep intra-day order, which a date int cannot.
+    """
     result = (
         db.table("jobs")
         .select("job_id", count="exact")
         .eq("is_active", True)
-        .gt("first_seen", marker)
+        .gt("ingested_at", since.isoformat())
         .limit(1)
         .execute()
     )
@@ -2697,8 +2701,21 @@ class JobsRepository:
     def get_feed_updated_at(self) -> str | None:
         return get_feed_updated_at(self._db)
 
-    def count_new_jobs_since(self, marker: int) -> int:
-        return count_jobs_first_seen_after(self._db, marker)
+    def count_new_jobs_since(self, since: datetime) -> int:
+        return count_jobs_ingested_after(self._db, since)
+
+    def last_match_computed_at(self, user_id: str) -> datetime | None:
+        """When this user last had matches computed. None = never matched (no
+        baseline → nothing can be "new" to them yet)."""
+        rows = (
+            self._db.table("user_job_matches")
+            .select("computed_at")
+            .eq("user_id", user_id)
+            .order("computed_at", desc=True)
+            .limit(1)
+            .execute()
+        ).data or []
+        return _parse_iso_dt(rows[0].get("computed_at")) if rows else None
 
     def has_computed_matches(self, user_id: str) -> bool:
         """Cheap existence check — has this user EVER had a match computed?
@@ -2718,37 +2735,25 @@ class JobsRepository:
         return bool(rows)
 
     def count_new_jobs_for_user(self, user_id: str) -> int:
-        """New live jobs (first_seen) inserted since this user's last match compute.
+        """Live jobs that landed since this user's last match compute.
 
-        Server-authoritative twin of the /matches banner signal — used to WAIVE the
-        refresh charge when there is genuinely new inventory to see (we added it, so
-        the user shouldn't pay to check whether it fits). 0 for never-matched users
-        (no baseline → nothing is "new"). Never trust a client-supplied "free" flag.
+        Server-authoritative — the one definition behind the /matches signal, the
+        login notification, and the charge waiver. 0 for never-matched users (no
+        baseline → nothing is "new"). Never trust a client-supplied "free" flag.
         """
-        rows = (
-            self._db.table("user_job_matches")
-            .select("computed_at")
-            .eq("user_id", user_id)
-            .order("computed_at", desc=True)
-            .limit(1)
-            .execute()
-        ).data or []
-        computed_at = _parse_iso_dt(rows[0].get("computed_at")) if rows else None
+        computed_at = self.last_match_computed_at(user_id)
         if computed_at is None:
             return 0
-        return self.count_new_jobs_since(int(computed_at.strftime("%Y%m%d")))
+        return self.count_new_jobs_since(computed_at)
 
-    def get_new_job_ids_since(self, marker: int) -> list[str]:
-        """Job ids inserted (first_seen, YYYYMMDD) strictly after `marker`.
-
-        Backlog #36 (event-driven scrape): the deterministic candidate set for a
-        sweep — jobs a fresh scrape actually added, not a re-crawl/re-publish of
-        the same rows (see `count_jobs_first_seen_after`)."""
+    def get_new_job_ids_since(self, since: datetime) -> list[str]:
+        """Job ids that landed after `since` — the deterministic candidate set for
+        an admin sweep (Backlog #36). Same `ingested_at` truth as the counts."""
         rows = fetch_all_rows(
             self._db,
             table="jobs",
             columns="job_id",
-            query_builder=lambda q: q.eq("is_active", True).gt("first_seen", marker),
+            query_builder=lambda q: q.eq("is_active", True).gt("ingested_at", since.isoformat()),
         )
         return [r["job_id"] for r in rows if r.get("job_id")]
 
@@ -2761,17 +2766,33 @@ class JobsRepository:
         This is the cheap SQL gate that turns "every user" into "the few
         genuinely affected", before any LLM eval is queued. Bounded by `limit`
         so a hot-company scrape can't blow the shared LLM budget in one sweep.
+
+        Reads the WHOLE batch in `_SWEEP_IN_CHUNK_SIZE` chunks — the chunk is a
+        URL-length limit on one `in_()` call, never a sample of the batch. It used
+        to slice `job_ids[:200]`, so a 30k-row landing resolved its audience (and
+        its follow-priority) from an arbitrary 0.7% of itself, silently.
         """
         if not job_ids or limit <= 0:
             return []
 
-        js_rows = fetch_all_rows(
-            self._db,
-            table="job_skills",
-            columns="skill_id",
-            query_builder=lambda q: q.in_("job_id", job_ids[:_SWEEP_IN_CHUNK_SIZE]),
-        )
-        skill_ids = list({r["skill_id"] for r in js_rows if r.get("skill_id")})
+        chunks = [
+            job_ids[i : i + _SWEEP_IN_CHUNK_SIZE]
+            for i in range(0, len(job_ids), _SWEEP_IN_CHUNK_SIZE)
+        ]
+
+        skill_ids: list[int] = []
+        seen_skills: set[int] = set()
+        for chunk in chunks:
+            for row in fetch_all_rows(
+                self._db,
+                table="job_skills",
+                columns="skill_id",
+                query_builder=lambda q, c=chunk: q.in_("job_id", c),
+            ):
+                sid = row.get("skill_id")
+                if sid is not None and sid not in seen_skills:
+                    seen_skills.add(sid)
+                    skill_ids.append(sid)
         if not skill_ids:
             return []
 
@@ -2785,13 +2806,16 @@ class JobsRepository:
         if not affected:
             return []
 
-        company_rows = (
-            self._db.table("jobs")
-            .select("company_name")
-            .in_("job_id", job_ids[:_SWEEP_IN_CHUNK_SIZE])
-            .execute()
-        ).data or []
-        companies = list({r["company_name"] for r in company_rows if r.get("company_name")})
+        companies_seen: set[str] = set()
+        for chunk in chunks:
+            company_rows = (
+                self._db.table("jobs")
+                .select("company_name")
+                .in_("job_id", chunk)
+                .execute()
+            ).data or []
+            companies_seen.update(r["company_name"] for r in company_rows if r.get("company_name"))
+        companies = list(companies_seen)
         power_ids: set[str] = set()
         if companies:
             follow_rows = (

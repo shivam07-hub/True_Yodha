@@ -19,7 +19,7 @@ from datetime import date
 from typing import Any, Callable
 
 from app.repositories.notifications import NotificationsRepository
-from app.services import jobs_workflow
+from app.services import jobs_workflow, new_inventory
 from app.services.jobs_workflow import MatchComputeOutcome
 from app.services.matching import agent_picks
 from app.services.xp_policy import MATCH_RUN_COST  # noqa: F401 — re-exported: the run's one price
@@ -68,6 +68,12 @@ async def run_match(
             agent_picks.regenerate_for_user(repo, user_id, scrape_batch=scrape_batch)
         except Exception as exc:  # noqa: BLE001 — picks are a side-effect, never fatal
             logger.warning("match_run: agent_picks regen failed user=%s: %s", user_id, exc)
+
+    # The user has now searched the inventory we announced — retire the prompt
+    # whether or not it produced matches, on EVERY path (paid refresh included,
+    # where `notify` is off because they watched the reveal live). A bell row that
+    # survives the search it asked for is a lie the next login repeats.
+    new_inventory.resolve_for_user(user_id)
 
     if notify:
         try:

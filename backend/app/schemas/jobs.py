@@ -391,6 +391,12 @@ class RefreshPreflightResponse(BaseModel):
     superpower: str | None = None
     prefilled: dict[str, str]
     memory_count: int
+    # What this run will actually cost, decided server-side (0 when Myro has landed
+    # inventory this user has never been matched against). The modal must never
+    # quote a price from a client constant — that is how a "free" promise and a
+    # 100-coin debit end up on the same screen.
+    run_cost: int = 0
+    new_jobs_count: int = 0
 
 
 class RefreshStateResponse(BaseModel):

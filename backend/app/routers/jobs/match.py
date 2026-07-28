@@ -2,7 +2,7 @@ import asyncio
 import time
 from collections.abc import AsyncIterator
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 
 from supabase import Client
@@ -19,10 +19,11 @@ from app.schemas import (
     UserSkillDemandResponse,
 )
 from app.schemas.jobs import MatchBrainResult, MatchRetryResponse
-from app.services import background, jobs_workflow, progress_stream
+from app.services import background, jobs_workflow, new_inventory, progress_stream
 from app.services.job_refresh import JobRefresh
 from app.services.llm_provider import LLMProvider, get_interactive_provider
 from app.services.matching import on_demand, targeting
+from app.services.xp_policy import MATCH_RUN_COST
 
 from ._shared import last_monday, to_job_match
 
@@ -46,6 +47,7 @@ def get_my_skill_demand(
 
 @router.get("/matches", response_model=JobMatchesResponse)
 def get_job_matches(
+    background_tasks: BackgroundTasks,
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> JobMatchesResponse:
@@ -70,15 +72,18 @@ def get_job_matches(
         except (ValueError, TypeError):
             pass
 
-    # Genuine "new jobs since your last match" — count live rows whose first_seen
-    # (insert marker) post-dates this user's match compute. first_seen is the only
-    # honest signal: last_seen bumps on re-crawl and feed publications re-publish
-    # the same rows, both of which make the dashboard banner cry wolf. Skip for
-    # never-matched users (no baseline → nothing is "new").
-    new_jobs_count = 0
-    if matches_computed_at is not None:
-        marker = int(matches_computed_at.strftime("%Y%m%d"))
-        new_jobs_count = repo.count_new_jobs_since(marker)
+    # Genuine "new jobs since your last match" — live rows whose DB landing time
+    # (`ingested_at`) post-dates this user's match compute. Not `last_seen` (bumps
+    # on re-crawl), not `first_seen` (a scraper-stamped date that can already be in
+    # the past on arrival). Skip for never-matched users — no baseline, nothing new.
+    # This same count is the login announcement and the charge waiver: one number,
+    # one module, so the bell can never promise what the run then bills for.
+    new_jobs_count = new_inventory.count_for_user(repo, principal.id)
+
+    # The prompt the user actually sees. Projected off the read path so the feed
+    # never waits on the inbox write, debounced inside the repo.
+    if new_jobs_count > 0:
+        background_tasks.add_task(new_inventory.announce_for_user, principal.id, new_jobs_count)
 
     match_health = jobs_workflow.compute_match_health(repo, principal.id, rows)
     vetted_count = sum(1 for r in rows if r.get("overall_score") is not None)
@@ -192,12 +197,21 @@ async def start_job_refresh(
 def get_refresh_preflight(
     principal: Principal = Depends(get_principal),
     db: Client = Depends(get_user_db),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> RefreshPreflightResponse:
     """Targeting Brief manifest for the pre-flight modal — profile columns
     gap-filled from user_memory. Declared BEFORE /refresh/{ticket_id} so
-    "preflight" is never captured as a ticket id."""
+    "preflight" is never captured as a ticket id.
+
+    Also carries the price, from the same waiver the charge itself uses
+    (`JobRefresh.start`), so the modal and the wallet can't disagree."""
     brief = targeting.for_preflight(db, principal.id)
-    return RefreshPreflightResponse(**brief.preflight())
+    new_jobs = new_inventory.count_for_user(repo, principal.id)
+    return RefreshPreflightResponse(
+        **brief.preflight(),
+        run_cost=0 if new_jobs > 0 else MATCH_RUN_COST,
+        new_jobs_count=new_jobs,
+    )
 
 
 @router.get("/refresh/{ticket_id}", response_model=RefreshStateResponse)

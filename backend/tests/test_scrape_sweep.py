@@ -4,11 +4,14 @@ methods + the scrape_sweep orchestration + its RQ handler."""
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from typing import Any
 
 from app.repositories.jobs import JobsRepository
 from app.services.matching import scrape_sweep
+
+_SINCE = datetime(2026, 7, 5, tzinfo=timezone.utc)
 
 
 # ── repo-level: deterministic pre-filter ────────────────────────────────────
@@ -59,17 +62,18 @@ class _FakeMatchingClient:
         return _FakeMatchingQuery(list(self._tables.get(name, [])))
 
 
-def test_get_new_job_ids_since_filters_active_and_first_seen() -> None:
+def test_get_new_job_ids_since_filters_active_and_landing_time() -> None:
     db = _FakeMatchingClient({
         "jobs": [
-            {"job_id": "j1", "is_active": True, "first_seen": 20260710},
-            {"job_id": "j2", "is_active": True, "first_seen": 20260701},  # not new
-            {"job_id": "j3", "is_active": False, "first_seen": 20260710},  # inactive
+            {"job_id": "j1", "is_active": True, "ingested_at": "2026-07-10T04:00:00+00:00"},
+            {"job_id": "j2", "is_active": True, "ingested_at": "2026-07-01T04:00:00+00:00"},  # not new
+            {"job_id": "j3", "is_active": False, "ingested_at": "2026-07-10T04:00:00+00:00"},  # inactive
         ]
     })
     repo = JobsRepository(db, db)  # type: ignore[arg-type]
 
-    assert repo.get_new_job_ids_since(20260705) == ["j1"]
+    since = datetime(2026, 7, 5, tzinfo=timezone.utc)
+    assert repo.get_new_job_ids_since(since) == ["j1"]
 
 
 def test_get_affected_user_ids_prioritizes_followers_and_caps() -> None:
@@ -116,7 +120,7 @@ class _FakeSweepRepo:
         self._affected = affected
         self.affected_call: dict[str, Any] = {}
 
-    def get_new_job_ids_since(self, marker: int) -> list[str]:
+    def get_new_job_ids_since(self, since: datetime) -> list[str]:
         return self._new_job_ids
 
     def get_affected_user_ids(self, job_ids: list[str], *, limit: int) -> list[str]:
@@ -132,7 +136,7 @@ def test_run_sweep_no_new_jobs_short_circuits(monkeypatch: Any) -> None:
 
     monkeypatch.setattr(scrape_sweep.background, "enqueue", _boom)
 
-    result = scrape_sweep.run_sweep(repo, since_marker=20260705)  # type: ignore[arg-type]
+    result = scrape_sweep.run_sweep(repo, since=_SINCE)  # type: ignore[arg-type]
 
     assert result == {"new_jobs": 0, "affected_users": 0, "enqueued": 0}
 
@@ -146,7 +150,7 @@ def test_run_sweep_enqueues_one_job_per_affected_user_capped(monkeypatch: Any) -
 
     monkeypatch.setattr(scrape_sweep.background, "enqueue", _fake_enqueue)
 
-    result = scrape_sweep.run_sweep(repo, since_marker=20260705, cap=5)  # type: ignore[arg-type]
+    result = scrape_sweep.run_sweep(repo, since=_SINCE, cap=5)  # type: ignore[arg-type]
 
     assert repo.affected_call == {"job_ids": ["j1", "j2"], "limit": 5}
     assert result == {"new_jobs": 2, "affected_users": 2, "enqueued": 2}
@@ -154,7 +158,7 @@ def test_run_sweep_enqueues_one_job_per_affected_user_capped(monkeypatch: Any) -
     assert all(e["job_type"] == "scrape_match_recompute" for e in enqueued)
     assert all(e["lane"] == scrape_sweep.background.LANE_BULK for e in enqueued)
     # Correlation id is per (user, marker) — idempotent re-run of the same sweep.
-    assert enqueued[0]["cid"] == "scrape_recompute:u1:20260705"
+    assert enqueued[0]["cid"] == "scrape_recompute:u1:202607050000"
 
 
 class _HandlerRepo:

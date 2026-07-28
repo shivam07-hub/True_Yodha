@@ -1,12 +1,12 @@
-"""Manual/scheduled trigger for the scrape-triggered match sweep (Backlog #36).
+"""Manual admin trigger for a scrape-triggered match sweep (Backlog #36).
 
-    python -m app.workers.scrape_sweep_cli --since 20260709 [--cap 200]
+    python -m app.workers.scrape_sweep_cli --hours 24 [--cap 200]
 
-Cadence/automation is intentionally NOT wired here — call this from a Railway
-one-off command, a manually-configured cron, or an admin action, on whatever
-schedule is decided (poll interval is a cost/product call, see CLAUDE.md
-backlog #36). `--since` defaults to yesterday if omitted — a safe one-off
-manual-run default, not an assumed auto-loop cadence.
+⚠️ NOT the routine path. Since 2026-07-28 a landing matches nobody: the rows carry
+`ingested_at`, each user's next visit turns that into a bell prompt, and the user
+pulls their own match (`services/new_inventory.py`) — compute follows intent. Use
+this only for a deliberate fan-out (backfill after an outage, force-match a window)
+and know it spends LLM budget for every user it enqueues.
 """
 from __future__ import annotations
 
@@ -18,15 +18,11 @@ from app.repositories.jobs import JobsRepository
 from app.services.matching.scrape_sweep import DEFAULT_SWEEP_CAP, run_sweep
 
 
-def _yesterday_marker() -> int:
-    return int((datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y%m%d"))
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--since", type=int, default=None,
-        help="YYYYMMDD marker — jobs with first_seen after this count as new. Default: yesterday.",
+        "--hours", type=int, default=24,
+        help="Look back this many hours of landings (jobs.ingested_at). Default: 24.",
     )
     parser.add_argument(
         "--cap", type=int, default=DEFAULT_SWEEP_CAP,
@@ -34,11 +30,11 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    since_marker = args.since if args.since is not None else _yesterday_marker()
+    since = datetime.now(timezone.utc) - timedelta(hours=max(1, args.hours))
     admin_db = get_supabase_admin()
     repo = JobsRepository(admin_db, admin_db)
-    result = run_sweep(repo, since_marker=since_marker, cap=args.cap)
-    print(f"scrape_sweep: since={since_marker} cap={args.cap} -> {result}")
+    result = run_sweep(repo, since=since, cap=args.cap)
+    print(f"scrape_sweep: since={since.isoformat()} cap={args.cap} -> {result}")
 
 
 if __name__ == "__main__":

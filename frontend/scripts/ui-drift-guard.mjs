@@ -112,7 +112,14 @@ const METRICS = [
     // px/rem/clamp() value (BRAND_IDENTITY.md §6 — disciplined scale, enforced
     // via tokens, not by hoping nobody free-types a size).
     exclude: ["design-tokens.css"],
-    pattern: /font-size:\s*(?!var\(--tm-fs-)[^;{}]+;/g,
+    // The lookahead sits IMMEDIATELY after the colon and eats the whitespace
+    // itself. Written as `\s*(?!var\(--tm-fs-)` it silently matched everything:
+    // `\s*` backtracks to zero characters, the lookahead then tests " var(…" —
+    // which isn't "var(" — and passes. So every CORRECT token usage counted as a
+    // violation, the baseline (1642) was mostly compliant code, and adding a
+    // properly-tokenized rule still failed the build. Guards that measure the
+    // wrong thing train you to raise the baseline.
+    pattern: /font-size:(?!\s*var\(--tm-fs-)[^;{}]+;/g,
     mode: "max",
     hint: "Use a canonical --tm-fs-* scale token (see design-tokens.css) instead of a literal font-size value.",
   },

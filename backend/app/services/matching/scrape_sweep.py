@@ -20,6 +20,7 @@ an engineering default; see CLAUDE.md backlog #36.
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import Any
 
 from app.database import get_supabase_admin
@@ -35,32 +36,40 @@ DEFAULT_SWEEP_CAP = 200
 
 
 def run_sweep(
-    repo: JobsRepository, *, since_marker: int, cap: int = DEFAULT_SWEEP_CAP
+    repo: JobsRepository, *, since: datetime, cap: int = DEFAULT_SWEEP_CAP
 ) -> dict[str, int]:
-    """Resolve users affected by jobs new since `since_marker`, enqueue a free
+    """Resolve users affected by jobs that landed after `since`, enqueue a free
     recompute for each (capped, priority-ordered). Returns counts for logging.
 
-    Compute-then-notify (N4): this only ENQUEUES the recompute — Slice 2 wires
-    the notification to fire after the enqueued job actually writes a fresh
-    match, never on the sweep call itself (never notify on speculation).
+    ⚠️ NOT the routine path since 2026-07-28 — the scrape webhook no longer calls
+    this. Eagerly matching everyone a landing touches spends the shared LLM budget
+    on users who may never return; the product model is user-pulled (see
+    `services/new_inventory.py`). Kept for a deliberate admin fan-out (backfill
+    after an outage, a hand-run for a specific batch).
+
+    Compute-then-notify (N4): this only ENQUEUES the recompute — the fresh-match
+    notification fires after a run actually writes a match, never on speculation.
     """
-    new_job_ids = repo.get_new_job_ids_since(since_marker)
+    new_job_ids = repo.get_new_job_ids_since(since)
     if not new_job_ids:
         return {"new_jobs": 0, "affected_users": 0, "enqueued": 0}
 
+    marker = since.strftime("%Y%m%d%H%M")
     user_ids = repo.get_affected_user_ids(new_job_ids, limit=cap)
+    if len(user_ids) >= cap:
+        logger.warning("metric scrape_sweep.capped cap=%d — users beyond the cap were dropped", cap)
     for user_id in user_ids:
         background.enqueue(
             background.LANE_BULK,
             "scrape_match_recompute",
-            payload={"user_id": user_id, "since_marker": since_marker},
+            payload={"user_id": user_id, "since_marker": marker},
             # Idempotent per (user, marker) — a re-run of the same sweep (e.g.
             # retry) can't double-enqueue the same user's recompute.
-            correlation_id=f"scrape_recompute:{user_id}:{since_marker}",
+            correlation_id=f"scrape_recompute:{user_id}:{marker}",
         )
     logger.info(
-        "metric scrape_sweep.enqueued new_jobs=%d affected=%d enqueued=%d marker=%d",
-        len(new_job_ids), len(user_ids), len(user_ids), since_marker,
+        "metric scrape_sweep.enqueued new_jobs=%d affected=%d enqueued=%d since=%s",
+        len(new_job_ids), len(user_ids), len(user_ids), since.isoformat(),
     )
     return {
         "new_jobs": len(new_job_ids),
@@ -78,7 +87,10 @@ async def _scrape_match_recompute_handler(payload: dict[str, Any], allow_retry: 
     from app.routers.jobs._shared import last_monday  # local: avoid router→service load cycle
 
     user_id = payload["user_id"]
-    since_marker = payload.get("since_marker")
+    raw_marker = str(payload.get("since_marker") or "")
+    # The picks band stores the batch as an int stamp; a non-numeric/absent marker
+    # means "no batch attribution", never a fabricated one.
+    since_marker = int(raw_marker) if raw_marker.isdigit() else None
     admin_db = get_supabase_admin()
     repo = JobsRepository(admin_db, admin_db)
     try:
