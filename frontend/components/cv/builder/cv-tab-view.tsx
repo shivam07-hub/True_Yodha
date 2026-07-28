@@ -28,9 +28,10 @@ interface CvTabViewProps {
   currentBaseline: CVVersion | null
   applications: ApplicationResponse[]
   profile: UserProfile | null
-  onReplaceCV: () => void
   onEditMaster: () => void
   onOpenJob: (jobId: string) => void
+  /** Version-history toggle owned by the flow ribbon above (library-view). */
+  showHistory: boolean
 }
 
 function contactFrom(cv: CVStructured | null, profile: UserProfile | null) {
@@ -54,7 +55,7 @@ function firstBulletOf(structured: CVStructured | null): string | null {
 }
 
 export function CvTabView({
-  token, cv, currentBaseline, applications, profile, onReplaceCV, onEditMaster, onOpenJob,
+  token, cv, currentBaseline, applications, profile, onEditMaster, onOpenJob, showHistory,
 }: CvTabViewProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -169,8 +170,8 @@ export function CvTabView({
             baseline={currentBaseline}
             cv={cv}
             profile={profile}
-            onReplace={onReplaceCV}
             onEditMaster={onEditMaster}
+            showHistory={showHistory}
             onBulletClick={handleBulletClick}
             selectedBulletId={selectedBulletId}
           />

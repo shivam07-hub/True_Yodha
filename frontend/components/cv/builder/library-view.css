@@ -1105,29 +1105,18 @@
   margin-right: 5px;
   color: var(--tm-text-faint);
 }
-.tm-flow-add {
+.tm-flow-actions {
   flex: 0 0 auto;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  justify-content: center;
   gap: 8px;
-  padding: 0 18px;
-  border-radius: 14px;
-  background: var(--tm-interactive);
-  color: var(--tm-interactive-fg);
-  border: 1px solid var(--tm-interactive);
-  font-size: 13px;
-  font-weight: 600;
-  text-decoration: none;
-  box-shadow: 0 3px 12px var(--tm-accent-glow);
-  transition: background 120ms var(--tm-ease);
+  flex-wrap: wrap;
 }
-.tm-flow-add:hover { background: var(--tm-interactive-hover); border-color: var(--tm-interactive-hover); }
 @media (max-width: 640px) {
-  .tm-flow-add { flex: 1 1 100%; }
+  .tm-flow-actions { flex: 1 1 100%; justify-content: flex-start; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .tm-flow-step, .tm-flow-add { transition: none; }
+  .tm-flow-step { transition: none; }
 }
 
 /* ── CV workspace: context rail beside the sheet ──
