@@ -233,7 +233,6 @@ export function CollectionsDesktop({
       void qc.invalidateQueries({ queryKey: dataKeys.applications() })
     })
   }
-
   // Deep-linked from the Loop Bar "N new" signal (Slice 5) → open the gate once.
   const searchOpened = React.useRef(false)
   React.useEffect(() => {
@@ -243,7 +242,7 @@ export function CollectionsDesktop({
     }
   }, [openSearch, runMyroSearch])
 
-  // ── Myro Found match actions — dismiss (hide) / save (track)
+  // ── Myro Found match actions — dismiss (hide) / priority (durable intent)
   const dismissMut = useMutation({
     mutationFn: (jobId: string) => jobsApi.dismissMatchCard(token, jobId),
     onSettled: () => qc.invalidateQueries({ queryKey: dataKeys.jobs() }),
@@ -253,9 +252,33 @@ export function CollectionsDesktop({
     setOpenId((cur) => (cur === jobId ? null : cur))
     dismissMut.mutate(jobId)
   }
-  const saveMatch = (jobId: string) => {
-    void jobsApi.saveJob(token, jobId).then(() => qc.invalidateQueries({ queryKey: dataKeys.applications() }))
-  }
+  const priorityMutation = useMutation({
+    mutationFn: ({ jobId, prioritized }: { jobId: string; prioritized: boolean }) =>
+      jobsApi.setJobPriority(token, jobId, prioritized),
+    onMutate: async ({ jobId, prioritized }) => {
+      const key = dataKeys.applications()
+      await qc.cancelQueries({ queryKey: key })
+      const previous = qc.getQueryData<ApplicationResponse[]>(key)
+      qc.setQueryData<ApplicationResponse[]>(key, (current) =>
+        current?.map((application) =>
+          application.job_id === jobId ? { ...application, is_priority: prioritized } : application,
+        ) ?? current,
+      )
+      return { previous }
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) qc.setQueryData(dataKeys.applications(), context.previous)
+    },
+    onSuccess: (updated) => {
+      qc.setQueryData<ApplicationResponse[]>(dataKeys.applications(), (current) => {
+        const applications = current ?? []
+        return applications.some((application) => application.job_id === updated.job_id)
+          ? applications.map((application) => application.job_id === updated.job_id ? updated : application)
+          : [...applications, updated]
+      })
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: dataKeys.applications() }),
+  })
 
   // Celebration on a successful run — only when matches were actually written.
   const firedRef = React.useRef(false)
@@ -359,8 +382,9 @@ export function CollectionsDesktop({
                 onSearch={runMyroSearch}
                 onBrowseJobs={() => router.push("/market")}
                 onOpen={(id) => setOpenId(openId === id ? null : id)}
-                onTailor={(id) => router.push(`/cv?jobId=${encodeURIComponent(id)}`)}
                 onDismiss={dismissMatch}
+                applicationsByJobId={appByJobId}
+                onPriority={(jobId, prioritized) => priorityMutation.mutate({ jobId, prioritized })}
               />
             ) : chip === "closed" ? (
               closedView.length === 0 ? (
@@ -411,6 +435,7 @@ export function CollectionsDesktop({
                         onOpenCv={() => router.push("/cv")}
                         onSnooze={() => snooze(it.jobId)}
                         onSaveNote={(notes) => saveNote(it.jobId, notes)}
+                        onPriorityToggle={(prioritized) => priorityMutation.mutate({ jobId: it.jobId, prioritized })}
                       />
                     )}
                   />
@@ -424,11 +449,10 @@ export function CollectionsDesktop({
                 allItems={openable}
                 token={token}
                 cartSkillNames={cartSkillNames}
-                liked={openIsSavedApp}
+                prioritized={openApplication?.is_priority ?? false}
                 canDismiss={openCanDismiss}
-                applyIntentSurface="collections"
                 onClose={() => setOpenId(null)}
-                onLike={() => (openIsSavedApp ? unsave(openItem.jobId) : saveMatch(openItem.jobId))}
+                onPriorityToggle={(prioritized) => priorityMutation.mutate({ jobId: openItem.jobId, prioritized })}
                 onSkip={() => (openIsSavedApp ? unsave(openItem.jobId) : dismissMatch(openItem.jobId))}
                 onSkillToggle={handleSkillToggle}
                 onJump={(jobId) => setOpenId(jobId)}
@@ -483,8 +507,9 @@ function MyroFoundBody({
   onSearch,
   onBrowseJobs,
   onOpen,
-  onTailor,
   onDismiss,
+  applicationsByJobId,
+  onPriority,
 }: {
   token: string
   found: FeedItem[]
@@ -500,8 +525,9 @@ function MyroFoundBody({
   onSearch: () => void
   onBrowseJobs: () => void
   onOpen: (id: string) => void
-  onTailor: (id: string) => void
   onDismiss: (id: string) => void
+  applicationsByJobId: ReadonlyMap<string, ApplicationResponse>
+  onPriority: (jobId: string, prioritized: boolean) => void
 }) {
   return (
     <>
@@ -534,8 +560,9 @@ function MyroFoundBody({
                 open={openId === it.jobId}
                 pulse={pulses.get(it.jobId)}
                 onOpen={() => onOpen(it.jobId)}
-                onTailor={() => onTailor(it.jobId)}
                 onDismiss={() => onDismiss(it.jobId)}
+                prioritized={applicationsByJobId.get(it.jobId)?.is_priority ?? false}
+                onPriorityToggle={(prioritized) => onPriority(it.jobId, prioritized)}
               />
             )}
           />

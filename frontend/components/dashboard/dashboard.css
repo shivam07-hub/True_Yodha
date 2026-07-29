@@ -438,13 +438,17 @@
 
 .db-mfeed-end { text-align: center; color: var(--db-faint); font-size: 13px; padding: 28px 16px 36px; }
 
-/* Shared-drawer footer (build stage) — Like · Skip · Tailor CV, plus the
-   Apply ↗ cross-link. The drawer shell + header live in detail-drawer.css. */
-.db-drawer-foot { display: flex; flex-direction: column; gap: 10px; padding: 14px 24px calc(14px + env(safe-area-inset-bottom)); }
-.db-drawer-foot-row { display: flex; align-items: center; gap: 8px; }
-.db-drawer-foot-row .db-btn { flex: 1; justify-content: center; }
-.db-drawer-apply { align-self: flex-start; font-size: 12.5px; font-weight: 600; color: var(--db-accent-text); text-decoration: none; }
-.db-drawer-apply:hover { text-decoration: underline; }
+/* Shared card/drawer priority row. The same four actions stay on one line so
+   the heart means the same thing wherever a user decides a role matters. */
+.db-drawer-foot { padding: 14px 24px calc(14px + env(safe-area-inset-bottom)); }
+.db-job-intent-group { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.db-job-intent-actions { display: flex; align-items: center; flex-wrap: nowrap; gap: 8px; min-width: 0; }
+.db-job-intent-actions .db-btn { flex: 1 1 0; min-width: 0; justify-content: center; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 480px) {
+  .db-job-intent-actions { gap: 4px; }
+  .db-job-intent-actions .db-btn { padding: 0 8px; font-size: 12px; }
+  .db-job-intent-actions .db-icon-btn { flex: 0 0 32px; width: 32px; height: 32px; }
+}
 
 @keyframes db-fadein { from { opacity: 0; } to { opacity: 1; } }
 

@@ -387,6 +387,36 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
+## LAST SESSION SUMMARY (2026-07-29 - Priority job intent in Collections)
+
+Implemented a durable priority-job workflow for Collections. A heart now means
+the user intends to apply and prepare for that role; it is not an ambiguous
+save/remove toggle.
+
+- Added `job_applications.is_priority` and `priority_marked_at` via additive
+  migration `20260729113000_job_application_priority.sql`, including a
+  user-scoped partial queue index. The migration is committed locally only and
+  has not been applied to shared Supabase.
+- Added authenticated `PUT /jobs/applications/{job_id}/priority`. Hearting an
+  unseen role creates the canonical saved intent; removing priority preserves
+  the saved job. The response projects the state back to every client.
+- Collections ranks priority roles ahead of ordinary roles, including its
+  finish-tailoring lane. The CV workspace and global Next action also choose a
+  priority role before a higher-fit ordinary saved role, while interview and
+  follow-up obligations remain higher-priority lifecycle states.
+- The Myro-found card and its slide-in drawer now share one non-wrapping action
+  row: priority heart, remove, Tailor CV, and Apply/official-opening handoff.
+  Existing note and snooze controls remain on saved-worklist cards.
+
+Validation: full backend suite `1705 passed`; focused priority API/migration
+tests `11 passed`; priority frontend contracts `20 passed`; TypeScript, Next
+lint, Ruff, and `git diff --check` clean. `/collections` compiled and returned
+200 locally. Full authenticated visual automation was unavailable because the
+workspace has no `agent-browser` executable. Unrelated local state remains:
+`docs/free-llm-api-resources/` untracked.
+
+---
+
 ## LAST SESSION SUMMARY (2026-07-27 - Supabase read-capacity and frontend demand control)
 
 Diagnosed the Railway API 500 burst against the Supabase Postgres log and

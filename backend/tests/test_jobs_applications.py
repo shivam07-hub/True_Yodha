@@ -20,6 +20,8 @@ class _FakeJobsRepository:
         self.applications_rows: list[dict[str, Any]] = []
         self.skill_keys: set[str] = set()
         self.match_evals: dict[str, dict[str, Any]] = {}
+        self.application_rows_by_job: dict[str, dict[str, Any]] = {}
+        self.application_upserts: list[tuple[str, str, dict[str, Any]]] = []
 
     def dismiss_saved_job(self, user_id: str, job_id: str) -> bool:
         self.dismissed_saved_jobs.append((user_id, job_id))
@@ -51,6 +53,21 @@ class _FakeJobsRepository:
         assert user_id == "user-123"
         assert full is False
         return {job_id: self.match_evals[job_id] for job_id in job_ids if job_id in self.match_evals}
+
+    def get_application_with_job(self, user_id: str, job_id: str) -> dict[str, Any] | None:
+        assert user_id == "user-123"
+        return self.application_rows_by_job.get(job_id)
+
+    def upsert_application(self, user_id: str, job_id: str, updates: dict[str, Any]) -> None:
+        assert user_id == "user-123"
+        self.application_upserts.append((user_id, job_id, updates))
+        row = self.application_rows_by_job.get(job_id, _make_application_row(
+            app_id=1,
+            job_id=job_id,
+            company="Acme",
+        ))
+        row.update(updates)
+        self.application_rows_by_job[job_id] = row
 
 
 class _FakeCVRepository:
@@ -154,6 +171,52 @@ def test_apply_click_records_an_attempt_without_marking_application_applied() ->
             },
         )
     ]
+
+
+def test_priority_heart_creates_saved_intent_and_returns_durable_priority() -> None:
+    repo = _FakeJobsRepository()
+
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="user-123", email=None, token="token-123")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+
+    try:
+        with TestClient(app) as client:
+            response = client.put("/jobs/applications/job-456/priority", json={"prioritized": True})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["is_priority"] is True
+    assert repo.application_upserts[0][0:2] == ("user-123", "job-456")
+    updates = repo.application_upserts[0][2]
+    assert updates["status"] == "saved"
+    assert updates["source"] == "user_discovery"
+    assert updates["is_priority"] is True
+    assert updates["priority_marked_at"]
+
+
+def test_removing_priority_keeps_the_saved_job_in_collections() -> None:
+    repo = _FakeJobsRepository()
+    repo.application_rows_by_job["job-456"] = _make_application_row(
+        app_id=1,
+        job_id="job-456",
+        company="Acme",
+    )
+    repo.application_rows_by_job["job-456"].update({"is_priority": True, "priority_marked_at": "2026-07-29T10:00:00Z"})
+
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="user-123", email=None, token="token-123")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+
+    try:
+        with TestClient(app) as client:
+            response = client.put("/jobs/applications/job-456/priority", json={"prioritized": False})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["is_priority"] is False
+    assert repo.application_rows_by_job["job-456"]["status"] == "saved"
+    assert repo.application_upserts[0][2] == {"is_priority": False, "priority_marked_at": None}
 
 
 def _make_application_row(

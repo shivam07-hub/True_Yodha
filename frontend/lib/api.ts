@@ -2928,6 +2928,9 @@ export interface ApplicationResponse {
   last_stage_changed_at?: string | null
   collection_snoozed_until?: string | null
   collection_attention_level?: "review" | "decide" | "urgent" | null
+  /** Deliberate apply/preparation intent. Priority jobs lead Collections. */
+  is_priority?: boolean
+  priority_marked_at?: string | null
   /** Persisted Career Ops fit for this saved role, when it has been ranked. */
   match_score?: number | null
   is_first_offer?: boolean
@@ -3764,6 +3767,12 @@ export const jobs = {
     request<ApplicationResponse>(`/jobs/save/${encodeURIComponent(jobId)}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
+    }),
+  setJobPriority: (token: string, jobId: string, prioritized: boolean) =>
+    request<ApplicationResponse>(`/jobs/applications/${encodeURIComponent(jobId)}/priority`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ prioritized }),
     }),
   /** A company's live openings (public read) — powers the drawer's one-tap
    *  "collect more roles here" list. */

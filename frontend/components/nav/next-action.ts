@@ -49,7 +49,9 @@ export function deriveNextAction(
   }
 
   const inPlay = apps.filter((a) => !isApplied(a))
-  const ready = inPlay.find((a) => a.cv_badge)
+  const priorityFirst = (a: ApplicationResponse, b: ApplicationResponse) =>
+    Number(Boolean(b.is_priority)) - Number(Boolean(a.is_priority))
+  const ready = inPlay.filter((a) => a.cv_badge).sort(priorityFirst)[0]
   if (ready) {
     return { label: `Apply to ${name(ready)}`, href: `/collections?jobId=${encodeURIComponent(ready.job_id)}` }
   }
@@ -60,7 +62,7 @@ export function deriveNextAction(
   const toTailor = inPlay
     .filter((a) => !a.cv_badge)
     .map((a) => ({ a, fit: a.match_score ?? byId.get(a.job_id)?.match_score ?? null }))
-    .sort((x, y) => (y.fit ?? -1) - (x.fit ?? -1))[0]
+    .sort((x, y) => priorityFirst(x.a, y.a) || (y.fit ?? -1) - (x.fit ?? -1))[0]
   if (toTailor) {
     return {
       label: `Tailor ${name(toTailor.a)}${toTailor.fit !== null ? ` · ${toTailor.fit}%` : ""}`,

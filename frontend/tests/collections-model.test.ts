@@ -3,9 +3,11 @@ import assert from "node:assert/strict"
 
 import type { ApplicationResponse, JobMatch, JobPulse } from "../lib/api"
 import {
+  buildCollectionsView,
   buildClosedView,
   buildMyroFound,
   chipCounts,
+  collectionsTriageCtx,
   isPulseClosed,
   splitClosedApps,
 } from "../lib/collections/model"
@@ -81,6 +83,25 @@ test("isPulseClosed reads the verifier's closed + likely_closed calls only", () 
   assert.equal(isPulseClosed(pulse({ listing_confidence: "active" })), false)
   assert.equal(isPulseClosed(pulse({ listing_confidence: "uncertain" })), false)
   assert.equal(isPulseClosed(undefined), false)
+})
+
+test("a priority job leads the Collections apply queue", () => {
+  const ordinary = application({ job_id: "ordinary", created_at: "2026-06-02T08:00:00Z" })
+  const priority = {
+    ...application({ job_id: "priority", created_at: "2026-06-01T08:00:00Z" }),
+    is_priority: true,
+  }
+  const apps = [ordinary, priority]
+
+  const view = buildCollectionsView(
+    apps,
+    "added",
+    "prize",
+    collectionsTriageCtx(apps, [], []),
+    new Map(),
+  )
+
+  assert.deepEqual(view.queueItems.map((item) => item.jobId), ["priority", "ordinary"])
 })
 
 test("splitClosedApps routes a dead-listing saved job to closed, live ones stay open", () => {

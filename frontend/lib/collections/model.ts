@@ -259,6 +259,9 @@ export function buildCollectionsView(
 ): CollectionsView {
   const shown = filterChip(apps, chip)
   const items = shown.map((a) => appToFeedItem(a, byId.get(a.job_id)))
+  const priorityJobIds = new Set(shown.filter((a) => a.is_priority).map((a) => a.job_id))
+  const priorityFirst = (a: FeedItem, b: FeedItem) =>
+    Number(priorityJobIds.has(b.jobId)) - Number(priorityJobIds.has(a.jobId))
 
   const continueItems: FeedItem[] = []
   const rest: FeedItem[] = []
@@ -271,7 +274,7 @@ export function buildCollectionsView(
   }
 
   const rank = (it: FeedItem) => scoreItem(it, ctx).rank
-  continueItems.sort((a, b) => rank(b) - rank(a))
+  continueItems.sort((a, b) => priorityFirst(a, b) || rank(b) - rank(a))
 
   let queueItems: FeedItem[]
   if (sort === "prize") {
@@ -279,10 +282,10 @@ export function buildCollectionsView(
       const aDone = ctx.committedJobIds.has(a.jobId) ? 1 : 0
       const bDone = ctx.committedJobIds.has(b.jobId) ? 1 : 0
       if (aDone !== bDone) return aDone - bDone // applied sinks
-      return rank(b) - rank(a)
+      return priorityFirst(a, b) || rank(b) - rank(a)
     })
   } else {
-    queueItems = sortItems(rest, sort)
+    queueItems = sortItems(rest, sort).sort(priorityFirst)
   }
   return { continueItems, queueItems }
 }
@@ -295,10 +298,11 @@ export function buildContinueLane(
   byId: Map<string, JobMatch>,
 ): FeedItem[] {
   const rank = (it: FeedItem) => scoreItem(it, ctx).rank
+  const priorityJobIds = new Set(apps.filter((a) => a.is_priority).map((a) => a.job_id))
   return apps
     .filter((a) => a.cv_badge && !isApplied(a))
     .map((a) => appToFeedItem(a, byId.get(a.job_id)))
-    .sort((a, b) => rank(b) - rank(a))
+    .sort((a, b) => Number(priorityJobIds.has(b.jobId)) - Number(priorityJobIds.has(a.jobId)) || rank(b) - rank(a))
 }
 
 /** Build the triage context from the same signals the dashboard used. */

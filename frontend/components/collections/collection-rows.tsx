@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { X } from "lucide-react"
 import { FeedCard, feedCardConfidenceClass } from "@/components/jobs/feed-card"
 import { CardDetailRail } from "@/components/jobs/card-detail-rail"
 import { feedDataFromMatch } from "@/lib/jobs/card-view"
@@ -12,6 +11,7 @@ import { companyHref } from "@/components/companies/company-link"
 import { isExtSource, isMyroSource } from "@/lib/collections/model"
 import type { ApplicationResponse, JobPulse } from "@/lib/api"
 import type { FeedItem } from "@/lib/dashboard/feed-model"
+import { PriorityJobActions } from "./priority-job-actions"
 
 /* Row skins for the Myro Ops folder. Both wrap the shared FeedCard; the actions
    differ by spine: an above-bar brain match (Tailor / Dismiss, no save —
@@ -33,16 +33,18 @@ export function MyroFoundRow({
   open,
   pulse,
   onOpen,
-  onTailor,
   onDismiss,
+  prioritized,
+  onPriorityToggle,
 }: {
   it: FeedItem
   token: string
   open: boolean
   pulse?: JobPulse
   onOpen: () => void
-  onTailor: () => void
   onDismiss: () => void
+  prioritized: boolean
+  onPriorityToggle: (prioritized: boolean) => void
 }) {
   const [leaving, leaveThen] = useLeave()
   const job = it.job
@@ -63,20 +65,16 @@ export function MyroFoundRow({
       pulse={<PulseRow pulse={pulse} />}
       rail={<CardDetailRail token={token} jobId={it.jobId} job={job} />}
       actions={
-        <div className="db-card-actions" onClick={(e) => e.stopPropagation()}>
-          <button
-            type="button"
-            className="db-icon-btn"
-            aria-label="Not interested"
-            title="Not interested"
-            onClick={() => leaveThen(onDismiss)}
-          >
-            <X size={16} aria-hidden />
-          </button>
-          <button type="button" className="db-btn db-btn-primary tm-control-focus" onClick={onTailor}>
-            Tailor CV
-          </button>
-        </div>
+        <PriorityJobActions
+          token={token}
+          jobId={it.jobId}
+          job={job}
+          prioritized={prioritized}
+          onPriorityToggle={onPriorityToggle}
+          onSkip={() => leaveThen(onDismiss)}
+          onFindSimilar={() => leaveThen(onDismiss)}
+          tailorHref={`/cv?jobId=${encodeURIComponent(it.jobId)}`}
+        />
       }
     />
   )
@@ -95,6 +93,7 @@ export function CollectionRow({
   onOpenCv,
   onSnooze,
   onSaveNote,
+  onPriorityToggle,
 }: {
   it: FeedItem
   token: string
@@ -107,6 +106,7 @@ export function CollectionRow({
   onOpenCv: () => void
   onSnooze: () => void
   onSaveNote: (note: string) => void
+  onPriorityToggle: (prioritized: boolean) => void
 }) {
   const applied = app ? app.status !== "saved" : false
   const tailored = !!app?.cv_badge
@@ -134,38 +134,45 @@ export function CollectionRow({
       pulse={<PulseRow pulse={pulse} />}
       rail={<CardDetailRail token={token} jobId={it.jobId} job={it.job} />}
       actions={
-        <div className="db-card-actions" onClick={(e) => e.stopPropagation()}>
-          {!applied ? (
+        !applied ? (
+          <div className="db-card-actions" onClick={(event) => event.stopPropagation()}>
             <button
               type="button"
-              className="db-icon-btn liked"
+              className={`db-icon-btn${app?.is_priority ? " liked" : ""}`}
+              aria-label={app?.is_priority ? "Remove job priority" : "Prioritize this job"}
+              aria-pressed={app?.is_priority ?? false}
+              title={app?.is_priority ? "Priority to apply" : "Prioritize to apply"}
+              onClick={() => onPriorityToggle(!(app?.is_priority ?? false))}
+            >
+              <HeartGlyph />
+            </button>
+            <button
+              type="button"
+              className="db-icon-btn"
               aria-label="Remove from Collections"
               title="Remove from Collections"
               onClick={onUnsave}
             >
-              <HeartGlyph />
+              <span aria-hidden>×</span>
             </button>
-          ) : null}
-          {!applied ? (
-            <>
-              <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={() => setNoteOpen((open) => !open)}>
-                Note
+            <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={() => setNoteOpen((open) => !open)}>
+              Note
+            </button>
+            <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={onSnooze}>
+              Snooze 3d
+            </button>
+            {tailored ? (
+              <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={onOpenCv}>
+                Tailored ✓
               </button>
-              <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={onSnooze}>
-                Snooze 3d
+            ) : (
+              <button type="button" className="db-btn db-btn-primary tm-control-focus" onClick={onTailor}>
+                Tailor CV
               </button>
-            </>
-          ) : null}
-          {tailored ? (
-            <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={onOpenCv}>
-              Tailored ✓
-            </button>
-          ) : !applied ? (
-            <button type="button" className="db-btn db-btn-primary tm-control-focus" onClick={onTailor}>
-              Tailor CV
-            </button>
-          ) : null}
-          {applied ? (
+            )}
+          </div>
+        ) : (
+          <div className="db-card-actions" onClick={(event) => event.stopPropagation()}>
             <Link
               href={`/preparations/${encodeURIComponent(it.jobId)}`}
               className="db-btn db-btn-primary tm-control-focus"
@@ -173,8 +180,8 @@ export function CollectionRow({
             >
               Prep room →
             </Link>
-          ) : null}
-        </div>
+          </div>
+        )
       }
     />
     {noteOpen ? (
@@ -189,6 +196,14 @@ export function CollectionRow({
       />
     ) : null}
     </div>
+  )
+}
+
+function HeartGlyph() {
+  return (
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M19 14c1.5-1.5 2-3.2 2-4.6C21 6.4 18.6 4 15.6 4 14.2 4 12.9 4.6 12 5.6 11.1 4.6 9.8 4 8.4 4 5.4 4 3 6.4 3 9.4c0 1.4.5 3.1 2 4.6l7 6.6 7-6.6Z" />
+    </svg>
   )
 }
 
@@ -238,13 +253,5 @@ export function ClosedRow({
         ) : null
       }
     />
-  )
-}
-
-function HeartGlyph() {
-  return (
-    <svg width={16} height={16} viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M19 14c1.5-1.5 2-3.2 2-4.6C21 6.4 18.6 4 15.6 4 14.2 4 12.9 4.6 12 5.6 11.1 4.6 9.8 4 8.4 4 5.4 4 3 6.4 3 9.4c0 1.4.5 3.1 2 4.6l7 6.6 7-6.6Z" />
-    </svg>
   )
 }

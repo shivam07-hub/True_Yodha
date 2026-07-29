@@ -96,3 +96,12 @@ test("new CV action prefers a company role without a tailored CV", () => {
 
   assert.equal(pickNewCvJobId(apps, versions), "job-without-cv")
 })
+
+test("new CV action prepares a priority job before another untailored save", () => {
+  const apps = [
+    application({ id: 1, job_id: "ordinary" }),
+    application({ id: 2, job_id: "priority", is_priority: true }),
+  ]
+
+  assert.equal(pickNewCvJobId(apps, []), "priority")
+})
