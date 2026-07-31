@@ -24,6 +24,7 @@ from app.services.scoring.formulas import (
     _PROFICIENCY_TITLES,
     DEFAULT_TARGET_LEVEL,
     _build_cluster_maps,
+    best_evidence_by_key,
     build_skill_level_map,
     compute_cluster_scores,
     compute_domain_scores,
@@ -41,6 +42,7 @@ logger = logging.getLogger(__name__)
 class ScoreProjection:
     total_score: float
     domain_scores: dict[str, float]
+    domain_skill_counts: dict[str, int]
     gap_skills: list[dict]
     rank_tier: str
     skills_assessed: int
@@ -175,6 +177,12 @@ def _score_math(
         for cluster in cluster_scores
     }
     domain_scores = compute_domain_scores(cluster_scores, cluster_to_domain, cluster_skill_counts)
+    domain_skill_counts: dict[str, int] = {}
+    for skill in skill_level_map:
+        cluster = skill_to_cluster.get(skill)
+        if cluster:
+            domain = cluster_to_domain.get(cluster, "General")
+            domain_skill_counts[domain] = domain_skill_counts.get(domain, 0) + 1
     total_score = compute_mirror_score(domain_scores)
     gap_skills = compute_gap_skills(
         skill_level_map, skill_demand, aspiration_skills, skill_to_cluster,
@@ -199,6 +207,7 @@ def _score_math(
     return ScoreProjection(
         total_score=total_score,
         domain_scores=domain_scores,
+        domain_skill_counts=domain_skill_counts,
         gap_skills=gap_skills,
         rank_tier=rank_tier,
         skills_assessed=skills_assessed,
@@ -248,6 +257,7 @@ def _persist_score(
     payload = {
         "total_score":     projection.total_score,
         "domain_scores":   projection.domain_scores,
+        "domain_skill_counts": projection.domain_skill_counts,
         "skill_scores":    {},
         "gap_skills":      projection.gap_skills,
         "rank_tier":       projection.rank_tier,
@@ -269,7 +279,9 @@ def _build_user_skill_rows(
 ) -> list[dict]:
     from app.services.taxonomy_loader import ensure_skill_in_db
 
-    evidence_map: dict[str, str] = {s["taxonomy_key"]: s["evidence"] for s in signals}
+    # Strongest receipt per skill, not whichever signal happened to be last in
+    # the list — a bullet beats a skills-line mention as the reason we scored it.
+    evidence_map = best_evidence_by_key(signals)
     now = datetime.now(timezone.utc).isoformat()
     rows: list[dict[str, Any]] = []
     for key, level in skill_level_map.items():

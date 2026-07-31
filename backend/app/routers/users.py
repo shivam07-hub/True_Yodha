@@ -12,6 +12,8 @@ from app.schemas import (
     FollowedCompaniesResponse,
     PracticeSavesResponse,
     SavePracticeSkillRequest,
+    SkillCorrectionRequest,
+    SkillCorrectionResponse,
     SkillUpvoteItem,
     SkillUpvotesResponse,
     SkillUpvoteToggleRequest,
@@ -22,7 +24,7 @@ from app.schemas import (
     UserSkillsByDomainResponse,
 )
 from app.services.xp_policy import FOLLOWED_COMPANY_LIMIT
-from app.services import onboarding_service
+from app.services import onboarding_service, skill_correction
 from app.services.job_eligibility import (
     career_band_for_profile,
     explored_bands_for_profile,
@@ -112,6 +114,40 @@ def get_my_skills(
             group[key].sort(key=lambda x: x["level"], reverse=True)
 
     return UserSkillsByDomainResponse(by_domain=by_domain, by_cluster=by_cluster)
+
+
+@router.post("/me/skills/correction", response_model=SkillCorrectionResponse)
+async def correct_my_skill(
+    payload: SkillCorrectionRequest,
+    principal: Principal = Depends(get_principal),
+    db: Client = Depends(get_user_db),
+) -> SkillCorrectionResponse:
+    """Drop a wrongly-extracted skill, or restore one previously dropped.
+
+    The same control the first-run confirmation offers, kept available forever —
+    a bad extraction spotted in month three should not need a CV re-upload
+    (backlog #6). Recomputes the score in-band so the caller can show the new
+    number rather than promising it will update later.
+    """
+    key = payload.skill_key.strip()
+    if not key:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="A skill is required.",
+        )
+    score = await run_in_threadpool(
+        skill_correction.set_skill_included,
+        db,
+        principal.id,
+        key,
+        payload.included,
+    )
+    return SkillCorrectionResponse(
+        skill_key=key,
+        included=payload.included,
+        total_score=float(score["total_score"]),
+        skills_assessed=int(score.get("skills_assessed") or 0),
+    )
 
 
 def _linkedin_reward_is_due(before: dict | None, updates: dict) -> bool:

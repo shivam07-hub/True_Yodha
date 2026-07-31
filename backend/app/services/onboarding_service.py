@@ -11,6 +11,7 @@ from app.database import get_supabase_admin
 from app.repositories.cv import CVVersionsRepository
 from app.repositories.jobs import JobsRepository
 from app.repositories.onboarding import OnboardingRepository
+from app.repositories.role_families import RoleFamiliesRepository
 from app.repositories.scores import ScoresRepository
 from app.repositories.users import UsersRepository
 from app.services import background, scoring
@@ -20,29 +21,8 @@ from app.services.job_eligibility import (
     seniority_for_job,
     target_seniority_for_profile,
 )
+from app.services.experience_years import seniority_for_experience_years, total_experience_years
 from app.services.scoring.percentile import top_percent
-
-
-_ROLE_CLUSTERS: tuple[tuple[tuple[str, ...], str], ...] = (
-    (("product manager", "product owner"), "Product Management"),
-    (("program manager",), "Program Management"),
-    (("project manager",), "Project Management"),
-    (("data scientist",), "Data Science"),
-    (("data analyst", "business analyst"), "Data Analysis"),
-    (("machine learning", "ai engineer"), "Artificial Intelligence and Machine Learning (AI/ML)"),
-    (("software", "developer", "engineer"), "Software Development"),
-    (("designer", "ux", "ui"), "User Interface and User Experience (UI/UX) Design"),
-    (("marketing", "growth"), "Marketing Strategy and Techniques"),
-    (("sales", "account executive"), "General Sales Practices"),
-    (("finance", "financial"), "Financial Analysis"),
-    (("operations",), "Business Operations"),
-    (("human resources", "recruiter", "talent"), "Human Resources Management and Planning"),
-)
-
-
-def derive_role_clusters(role_title: str) -> list[str]:
-    title = role_title.casefold()
-    return [cluster for needles, cluster in _ROLE_CLUSTERS if any(n in title for n in needles)][:2]
 
 
 def target_context_hash(
@@ -59,7 +39,6 @@ def target_context_hash(
 
 
 MAX_TARGET_ROLES = 5
-_MAX_ROLE_CLUSTERS = 8
 
 
 def _normalize_role_titles(
@@ -83,30 +62,13 @@ def _normalize_role_titles(
     return titles[:MAX_TARGET_ROLES]
 
 
-def _clusters_for_titles(titles: list[str]) -> list[str]:
-    """Union of taxonomy clusters across all target titles = matcher read model.
-
-    A title with no cluster match contributes itself (keeps the aspiration
-    ILIKE broad, mirroring the single-role fallback). De-duped, capped.
-    """
-    seen: set[str] = set()
-    clusters: list[str] = []
-    for title in titles:
-        for cluster in derive_role_clusters(title) or [title]:
-            if cluster not in seen:
-                seen.add(cluster)
-                clusters.append(cluster)
-    return clusters[:_MAX_ROLE_CLUSTERS]
-
-
-def role_title_updates(role_titles: list[str]) -> dict[str, Any]:
+def role_title_updates(role_titles: list[str], *, role_family: str | None = None) -> dict[str, Any]:
     """Derived column set for a target-titles edit — the write-anywhere half of
     `save_target` (no onboarding state patch, no location rewrite, no enqueue).
 
-    Titles are the source-of-record (`target_role_titles`); `target_role_title`
-    stays the primary = titles[0]; `target_roles` (taxonomy clusters, the matcher
-    read model) is ALWAYS derived here — a surface writing titles through this
-    helper cannot desync the cluster union. Empty input clears all three.
+    Titles are the source-of-record and the selected role family is the scoring
+    read model. The family is supplied only by corpus-backed role discovery; we
+    never recreate the old substring-to-cluster table from a free-form title.
     """
     titles = _normalize_role_titles(None, role_titles)
     if not titles:
@@ -114,7 +76,7 @@ def role_title_updates(role_titles: list[str]) -> dict[str, Any]:
     return {
         "target_role_title": titles[0],
         "target_role_titles": titles,
-        "target_roles": _clusters_for_titles(titles),
+        "target_roles": [role_family.strip()] if role_family and role_family.strip() else [],
     }
 
 
@@ -124,6 +86,7 @@ def save_target(
     *,
     role_title: str | None = None,
     role_titles: list[str] | None = None,
+    role_family: str | None = None,
     seniority: str | None = None,
     location: str | None = None,
 ) -> None:
@@ -151,7 +114,11 @@ def save_target(
             location = (existing_locations[0] if existing_locations else None) or (
                 profile.get("target_location") or ""
             )
-    updates = role_title_updates(titles)
+    updates = role_title_updates(titles, role_family=role_family)
+    if not updates["target_roles"]:
+        # Point-of-use role edits predate corpus families. Preserve their current
+        # feed read model rather than inventing a family from the edited title.
+        updates["target_roles"] = list(profile.get("target_roles") or [])
     derived_band = career_band_for_profile(updates)
     updates["target_career_band"] = derived_band or None
     updates["explored_career_bands"] = explored_bands_for_profile(
@@ -196,8 +163,7 @@ def compute_role_readiness(db: Client, user_id: str) -> list[dict[str, Any]]:
     skill_level_map = scores_repo.get_user_skill_level_map(user_id)
     out: list[dict[str, Any]] = []
     for title in titles:
-        search_roles = [title, *derive_role_clusters(title)]
-        readiness = scoring.role_readiness(scores_repo, skill_level_map, search_roles)
+        readiness = scoring.role_readiness(scores_repo, skill_level_map, profile.get("target_roles") or [])
         out.append({"role": title, "readiness": readiness})
     return out
 
@@ -243,23 +209,48 @@ def _proof_skills(users_repo: UsersRepository, user_id: str) -> list[dict[str, A
     ]
 
 
-def _candidate_skills(baseline: dict[str, Any]) -> list[dict[str, Any]]:
-    """Baseline-scoped candidates shown before any user-skill publication."""
-    return [
-        {
-            "taxonomy_key": str(item.get("taxonomy_key") or ""),
-            "name": str(item.get("taxonomy_key") or ""),
-            "level": {
-                "mention": 1,
-                "project": 2,
-                "impact": 3,
-                "leadership": 4,
-            }.get(str(item.get("signal_type") or "mention"), 1),
-            "evidence": str(item.get("evidence") or ""),
-        }
-        for item in (baseline.get("skills_detected") or [])
-        if item.get("taxonomy_key")
+def _candidate_skills(
+    scores_repo: ScoresRepository,
+    baseline: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Baseline-scoped candidates shown before any user-skill publication.
+
+    Built from the *same* functions the publish path runs
+    (``build_skill_level_map`` for the level, ``best_evidence_by_key`` for the
+    receipt), so the level a user is shown while deciding is the level they get.
+    The previous version carried a private signal_type→level table that skipped
+    the depth boost in ``infer_level_from_signals``. No prod row has ever
+    tripped that boost, so the two never actually disagreed — but a second
+    definition of the same number is a divergence waiting to happen, and the
+    level is the one thing this screen exists to be honest about.
+
+    Shape mirrors ``UserSkillItem`` so a single component can render skills
+    before and after they are published.
+    """
+    signals = [
+        signal
+        for signal in (baseline.get("skills_detected") or [])
+        if signal.get("taxonomy_key")
     ]
+    if not signals:
+        return []
+
+    level_map = scoring.build_skill_level_map(signals)
+    evidence_map = scoring.best_evidence_by_key(signals)
+    display_names = scores_repo.get_display_names_for_keys(list(level_map))
+
+    candidates = [
+        {
+            "taxonomy_key": key,
+            "name": display_names.get(key, key),
+            "level": level,
+            "proficiency_title": scoring._PROFICIENCY_TITLES.get(level, "Scout"),
+            "evidence": evidence_map.get(key, ""),
+        }
+        for key, level in level_map.items()
+    ]
+    candidates.sort(key=lambda item: (-item["level"], item["name"].casefold()))
+    return candidates
 
 
 def _score_factors(score: dict[str, Any]) -> list[dict[str, Any]]:
@@ -284,25 +275,20 @@ def _score_factors(score: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-def _infer_target_suggestion(baseline: dict[str, Any] | None) -> dict[str, str]:
-    """Deterministic target pre-fill for the score-first confirm card (Slice 4).
-
-    Role  = parsed contact.title → fallback experience[0].role → "".
-    Location = parsed contact.location → "".
-    Seniority = derived from the role title (title regex); unknown → entry.
-    No LLM — the CV parser already extracted contact + experience. An empty role
-    (weak/scanned CV) leaves the card asking fresh, so matching never runs on junk.
-    """
+def _seniority_suggestion(baseline: dict[str, Any] | None) -> dict[str, Any]:
+    """Return only seniority evidence that can be read from the parsed CV."""
     structured = (baseline or {}).get("cv_structured") or {}
     contact = structured.get("contact") or {}
-    role = (contact.get("title") or "").strip()
-    if not role:
-        experience = structured.get("experience") or []
-        if experience and isinstance(experience[0], dict):
-            role = (experience[0].get("role") or "").strip()
-    location = (contact.get("location") or "").strip()
-    seniority = seniority_for_job({"job_title": role}) if role else ""
-    return {"role": role, "location": location, "seniority": seniority or "entry"}
+    experience = [row for row in (structured.get("experience") or []) if isinstance(row, dict)]
+    years = total_experience_years([str(row.get("dates") or "") for row in experience])
+    if years is not None:
+        level = seniority_for_experience_years(years)
+        return {"value": level, "years": round(years), "source": "experience_years", "needs_choice": False}
+    role = (contact.get("title") or "").strip() or (str(experience[0].get("role") or "").strip() if experience else "")
+    level = seniority_for_job({"job_title": role}) if role else ""
+    if level:
+        return {"value": level, "title": role, "source": "title", "needs_choice": False}
+    return {"value": None, "source": "unknown", "needs_choice": True}
 
 
 def get_result(db: Client, user_id: str) -> dict[str, Any]:
@@ -351,7 +337,15 @@ def get_result(db: Client, user_id: str) -> dict[str, Any]:
         return {
             "kind": "awaiting_skill_confirmation",
             "baseline_version_id": int(baseline["id"]),
-            "skills": _candidate_skills(baseline),
+            "skills": _candidate_skills(ScoresRepository(db), baseline),
+        }
+
+    if not has_target:
+        return {
+            "kind": "awaiting_target",
+            "baseline_version_id": int(baseline["id"]),
+            "families": RoleFamiliesRepository(db).list_families(user_id),
+            "seniority": _seniority_suggestion(baseline),
         }
 
     score = ScoresRepository(db).get_mirror_score(user_id)
@@ -360,29 +354,6 @@ def get_result(db: Client, user_id: str) -> dict[str, Any]:
             "kind": "full_result_processing",
             "target": target,
             "phase": "scoring",
-        }
-
-    # Score-first onboarding (Slice 4): the CV is parsed + scored, but the user
-    # hasn't confirmed a target yet. Show the score now + a pre-filled confirm
-    # card; matching runs only after they tap Confirm (save_target), so a weak/
-    # empty role never produces junk matches.
-    if not has_target:
-        band = target_seniority_for_profile({"target_seniority": profile.get("target_seniority")})
-        return {
-            "kind": "awaiting_target",
-            "baseline_version_id": int(baseline["id"]),
-            "suggestion": _infer_target_suggestion(baseline),
-            "skills": _proof_skills(users_repo, user_id),
-            "score": {
-                "total_score": float(score["total_score"]),
-                "domain_scores": score.get("domain_scores") or {},
-                "gap_skills": score.get("gap_skills") or [],
-                "skills_assessed": int(score.get("skills_assessed") or 0),
-                "band": band,
-                "band_percentile": score.get("percentile"),
-                "top_percent": top_percent(score.get("percentile")),
-            },
-            "score_factors": _score_factors(score),
         }
 
     context_hash = target_context_hash(
@@ -416,6 +387,7 @@ def get_result(db: Client, user_id: str) -> dict[str, Any]:
         "score": {
             "total_score": float(score["total_score"]),
             "domain_scores": score.get("domain_scores") or {},
+            "domain_skill_counts": score.get("domain_skill_counts") or {},
             "gap_skills": score.get("gap_skills") or [],
             "skills_assessed": int(score.get("skills_assessed") or 0),
             # Band-relative confidence line for the reveal ("top X% for {band}").

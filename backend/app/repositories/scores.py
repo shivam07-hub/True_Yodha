@@ -113,6 +113,63 @@ class ScoresRepository:
                 }
         return None
 
+    def get_skill_id_for_key(self, taxonomy_key: str) -> int | None:
+        """skills.id for one taxonomy_key, or None when it is not in the catalog."""
+        result = (
+            self._db.table("skills")
+            .select("id")
+            .eq("taxonomy_key", taxonomy_key)
+            .limit(1)
+            .execute()
+        )
+        rows = result.data or []
+        return int(rows[0]["id"]) if rows else None
+
+    def get_user_skill_row(self, user_id: str, skill_id: int) -> dict[str, Any] | None:
+        """One raw user_skills row, including the forge counters.
+
+        Skill correction has to read the counters before it removes a row, so a
+        user who takes a skill off their CV and later puts it back does not
+        silently lose their practice history.
+        """
+        result = (
+            self._db.table("user_skills")
+            .select("matched_level, proficiency_title, source, evidence_text, "
+                    "forge_sessions_count, total_forge_minutes")
+            .eq("user_id", user_id)
+            .eq("skill_id", skill_id)
+            .limit(1)
+            .execute()
+        )
+        rows = result.data or []
+        return rows[0] if rows else None
+
+    def delete_user_skill(self, user_id: str, skill_id: int) -> None:
+        self._db.table("user_skills").delete().eq("user_id", user_id).eq(
+            "skill_id", skill_id
+        ).execute()
+
+    def get_display_names_for_keys(self, taxonomy_keys: list[str]) -> dict[str, str]:
+        """{taxonomy_key: display_name} for keys already in the catalog.
+
+        One batched read, so a candidate list can be labelled without a
+        per-skill round trip. Keys absent from the catalog are simply missing
+        from the result — callers fall back to the key, which is also what
+        ``ensure_skill_in_db`` would store for them on publish.
+        """
+        if not taxonomy_keys:
+            return {}
+        result = (
+            self._db.table("skills")
+            .select("taxonomy_key, display_name")
+            .in_("taxonomy_key", taxonomy_keys)
+            .execute()
+        )
+        return {
+            row["taxonomy_key"]: row.get("display_name") or row["taxonomy_key"]
+            for row in result.data or []
+        }
+
     def get_user_skill_level_map(self, user_id: str) -> dict[str, int]:
         result = (
             self._db.table("user_skills")
@@ -188,6 +245,26 @@ class ScoresRepository:
             .execute()
         ).data or [])
         return group_job_skill_rows(rows)
+
+    def get_role_family_aspiration_skills(self, families: list[str]) -> dict[str, int]:
+        """Return proficiency demand from verified jobs in selected role families."""
+        if not families:
+            return {}
+        rows = self._db.rpc(
+            "role_family_aspiration_skills", {"p_families": families}
+        ).execute().data or []
+        aspiration: dict[str, int] = {}
+        for row in rows:
+            key = str(row.get("taxonomy_key") or "").strip()
+            total = int(row.get("job_count") or 0)
+            primary_count = int(row.get("primary_job_count") or 0)
+            if not key or not total:
+                continue
+            if primary_count:
+                aspiration[key] = 4 if primary_count / total > 0.5 else 3
+            elif row.get("has_side_skill"):
+                aspiration[key] = 2
+        return aspiration
 
     def list_market_skill_rows(self) -> list[dict[str, Any]]:
         """Returns job skills from the FK-enforced job_skills join table."""

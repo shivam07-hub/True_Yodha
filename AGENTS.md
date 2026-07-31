@@ -12,6 +12,38 @@
 
 ---
 
+## LAST SESSION SUMMARY
+
+### 2026-07-31 — Role-family targeting handover (in progress)
+
+- Applied `20260731_job_role_family.sql` to shared Supabase. It adds
+  `jobs.role_family`, corpus role/location/aspiration RPCs, and a `job_skills`
+  trigger so future ingestion recomputes only from non-generic L2 evidence.
+- Backfilled 55,856 jobs; 6,368 remain correctly unassigned because they have
+  no non-generic L2 evidence. Generic families have zero winners.
+- The post-skill-confirmation target step now uses real corpus titles, exact
+  confirmed-skill overlap, role-scoped live locations, and CV-date seniority
+  evidence; score rendering follows target confirmation.
+- Local focused backend tests (44) pass, TypeScript and UI-drift pass. Full
+  frontend lint remains blocked by pre-existing unrelated unused import in
+  `frontend/components/auth/auth-page-shell.tsx`.
+
+### 2026-07-31 — Supabase migration ledger repair
+
+- Applied and recorded `20260726182212_feedback_submission_idempotency.sql` in
+  the shared Supabase project; the idempotency columns, constraint, and unique
+  index are live.
+- Recorded `20260729113000_job_application_priority.sql` after independently
+  confirming its manually applied priority columns and index were already live.
+- `backend/tests/test_feedback_idempotency.py`,
+  `backend/tests/test_feedback_idempotency_migration.py`, and
+  `backend/tests/test_job_application_priority_migration.py` passed (8 tests).
+- `database/migrations/` has 143 historical SQL artifacts, many with filenames
+  not accepted as Supabase CLI migration versions. They must not be
+  mass-recorded or re-run without a separately verified baseline/mapping.
+
+---
+
 ## ABSOLUTE RULES
 
 - Never merge to `main` directly — only to `Develop`. `main` = Vercel production.

@@ -19,20 +19,18 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import Link from "next/link"
-import { useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
-import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
-import { scores, users, cv as cvApi } from "@/lib/api"
+import type { CVStructured, CVVersion, OnboardingResult, UserProfile } from "@/lib/api"
+import { onboarding, scores, users, cv as cvApi } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { dataKeys } from "@/lib/domain-data"
 import { useMasterAutosave } from "@/lib/hooks/use-master-autosave"
 import { mentorRewriteTarget } from "@/lib/cv/mentor-rewrite-target"
-import { buildScoreMapHref } from "@/lib/score-map"
 import { CVEditor, type RewriteTarget } from "./cv-editor"
 import type { MergePayload } from "./bullet-merge"
 import { FixesRail } from "./fixes-rail"
-import { SkillProvenance } from "./skill-provenance"
+import { SkillsRail, type SkillsRailConfirm } from "./skills-rail"
 import { V2Sheet } from "./preview-rail"
 import { PlaygroundBottomNav } from "./playground-bottomnav"
 import { PlaygroundHeader } from "./playground-header"
@@ -41,6 +39,8 @@ import { useDismissedFixes } from "./use-dismissed-fixes"
 import type { AppliedFix, V2Fix } from "./fix-model"
 
 type MasterTab = "edit" | "fixes" | "skills" | "preview"
+
+type AwaitingSkillConfirmation = Extract<OnboardingResult, { kind: "awaiting_skill_confirmation" }>
 
 // Master CV has no per-job projection — every line renders.
 const NO_HIDDEN: Set<string> = new Set()
@@ -57,6 +57,7 @@ interface MasterWorkspaceProps {
 export function MasterWorkspace({ token, baseline, cv, profile, onDone }: MasterWorkspaceProps) {
   const userKey = profile?.ninja_name?.trim() || profile?.email?.trim() || "anon"
   const autosave = useMasterAutosave({ token, enabled: true, userKey })
+  const router = useRouter()
   const searchParams = useSearchParams()
   // Deep-link: ?tab=skills opens straight on the Skills rail (the skill-audit home).
   const initialTab: MasterTab = searchParams.get("tab") === "skills" ? "skills" : "edit"
@@ -90,6 +91,39 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
     () => Object.values(skillsQuery.data?.by_domain ?? {}).flat(),
     [skillsQuery.data],
   )
+
+  // First run arrives here as ?confirm=1 instead of a separate onboarding
+  // screen, so the extraction is reviewed against the CV it came from. The
+  // query is gated on that flag — every other visit to /cv must not pay for an
+  // onboarding read it will never use.
+  const confirmRequested = searchParams.get("confirm") === "1"
+  const onboardingQuery = useQuery({
+    queryKey: dataKeys.onboardingResult(),
+    queryFn: () => onboarding.result(token),
+    enabled: confirmRequested,
+  })
+  const onboardingResult = onboardingQuery.data
+  const pendingConfirmation: AwaitingSkillConfirmation | null =
+    onboardingResult && onboardingResult.kind === "awaiting_skill_confirmation"
+      ? (onboardingResult as AwaitingSkillConfirmation)
+      : null
+
+  const confirmMode: SkillsRailConfirm | null = useMemo(() => {
+    if (!pendingConfirmation) return null
+    return {
+      baselineVersionId: pendingConfirmation.baseline_version_id,
+      candidates: pendingConfirmation.skills.map(skill => ({
+        key: skill.taxonomy_key,
+        display_name: skill.name,
+        level: skill.level ?? 1,
+        proficiency_title: skill.proficiency_title ?? "",
+        evidence_text: skill.evidence || null,
+        forge_sessions_count: 0,
+        forged_level_up_available: false,
+      })),
+      onConfirmed: () => router.push("/onboarding/result"),
+    }
+  }, [pendingConfirmation, router])
 
   const draft = autosave.draft ?? cv
   const m = usePlaygroundModel(token, "", draft, profile, NO_HIDDEN, {
@@ -217,7 +251,14 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
         variant="master"
         masterMeta={baseline ? `v${baseline.user_version_number} · autosaves` : "autosaves"}
         jobTitle="" company="Untitled company" reqCount={0}
-        ready={m.ready} delta={0}
+        // Nothing is scored until the extraction is confirmed, so during first
+        // run the meter has no number to show. Rendering the default 0 would
+        // hand the user a Myro Score of zero on the screen whose whole job is
+        // to be honest about what we can back.
+        ready={m.ready}
+        hideScore={Boolean(confirmMode)}
+        scoreCaption={confirmMode ? "score after you confirm" : undefined}
+        delta={0}
         canApply
         primaryLabel="Done"
         applyHint="Back to your CV library"
@@ -321,40 +362,23 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
                 onOpenIntake={() => setTab("skills")}
               />
             ) : (
-              <div className="cvb-v2-railpane">
-                {fromScoreMap && (
-                  <Link
-                    className="cvb-score-context tm-control-focus"
-                    href={buildScoreMapHref({ domain: scoreDomain, skill: scoreSkill })}
-                  >
-                    <span>Score &amp; skills</span>
-                    {scoreDomain && <strong>{scoreDomain}</strong>}
-                    {scoreSkill && <em>{scoreSkill}</em>}
-                  </Link>
-                )}
-                <p className="cvb-v2-rail-lede">
-                  Your skills line — comma-separated, most relevant first. It shows on the CV
-                  and helps ATS keyword matching.
-                </p>
-                <textarea
-                  className="cvb-pgc-edit"
-                  rows={5}
-                  value={draft.skills_line ?? ""}
-                  placeholder="Comma-separated skills."
-                  onChange={e => onPatch(d => ({ ...d, skills_line: e.target.value }))}
-                />
-                <button
-                  type="button"
-                  className="cvb-v2-intakebtn"
-                  onClick={addProvenToLine}
-                  disabled={addingProven}
-                >
-                  ✦ {addingProven ? "Reading your proven skills…" : "Add proven skills"}
-                </button>
-                {provenStatus && <p className="cvb-prov-status" role="status">{provenStatus}</p>}
-
-                <SkillProvenance allSkills={allSkills} focusSkill={scoreSkill} />
-              </div>
+              <SkillsRail
+                token={token}
+                skillsLine={draft.skills_line}
+                onSkillsLineChange={value => onPatch(d => ({ ...d, skills_line: value }))}
+                onAddProven={addProvenToLine}
+                addingProven={addingProven}
+                provenStatus={provenStatus}
+                allSkills={allSkills}
+                focusSkill={scoreSkill}
+                scoreDomain={scoreDomain}
+                fromScoreMap={fromScoreMap}
+                confirm={confirmMode}
+                onSkillsChanged={() => {
+                  void skillsQuery.refetch()
+                  void scoreQuery.refetch()
+                }}
+              />
             )}
           </div>
         </aside>

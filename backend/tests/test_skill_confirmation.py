@@ -89,8 +89,8 @@ def test_confirmation_publishes_reviewed_skills_before_scoring(monkeypatch) -> N
 
     result = skill_confirmation.confirm_baseline_skills(object(), "u1", 17, [])
 
-    assert result["total_score"] == 62.0
-    assert calls[:2] == ["confirm", "score"]
+    assert result == {}
+    assert calls == ["confirm", "state"]
 
 
 def test_target_refresh_stops_before_score_and_match_when_skills_pending(monkeypatch) -> None:

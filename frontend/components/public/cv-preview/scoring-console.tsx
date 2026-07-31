@@ -4,9 +4,11 @@
  * The scoring state on /cv-preview (navigate-then-load). A logged-out user just
  * dropped a CV and jumped here; this is the few seconds while the real engine
  * scores it. Not a generic spinner — the product's signature moment is "the
- * Engine reads YOUR CV", so it renders as the dark Engine console (reusing the
- * .lp-readout-standalone token scope) shaped like the readout it becomes: a
+ * Engine reads YOUR CV", so it renders shaped like the readout it becomes: a
  * scan sweep over a CV-skeleton + the three real compute stages ticking.
+ * Accent follows the two-brand rule (orange on light, teal on dark) via
+ * .sc-scope — this is NOT one of the approved dark-console islands
+ * (landing engine pipeline / sample readout / intel pane), so it themes.
  */
 
 import { useEffect, useState } from "react"
@@ -43,7 +45,7 @@ export function ScoringConsole() {
   }, [])
 
   return (
-    <div className="lp-readout-standalone sc-wrap">
+    <div className="sc-scope sc-wrap">
       <div className="sr-head">
         <span className="sr-eyebrow">Scoring</span>
         <h2 className="sr-title">The Engine is reading your CV.</h2>

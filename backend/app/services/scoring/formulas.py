@@ -121,6 +121,33 @@ def build_skill_level_map(skills_detected: list[dict]) -> dict[str, int]:
     return {key: infer_level_from_signals(sigs) for key, sigs in grouped.items()}
 
 
+def best_evidence_by_key(skills_detected: list[dict]) -> dict[str, str]:
+    """Groups signals by taxonomy_key → the strongest receipt we hold for each.
+
+    A skill is routinely detected twice: once in an achievement bullet and once
+    in the CV's skills paragraph. Both are stored, but only one is shown, so the
+    choice decides whether the user sees "Edited 20+ advertisement videos" or
+    "Video Editing" as the reason we scored them. Rank by signal strength — the
+    same ordering that sets the level — then prefer the longer phrase, since a
+    fuller quote is a better receipt.
+
+    Evidence is display-only and never scored, so this changes what we can
+    honestly show, not what anyone is worth.
+    """
+    best: dict[str, tuple[int, int, str]] = {}
+    for signal in skills_detected:
+        key = signal["taxonomy_key"]
+        evidence = str(signal.get("evidence") or "").strip()
+        rank = (
+            _SIGNAL_LEVEL_MAP.get(signal.get("signal_type", ""), 0),
+            len(evidence),
+        )
+        current = best.get(key)
+        if current is None or rank > (current[0], current[1]):
+            best[key] = (rank[0], rank[1], evidence)
+    return {key: value[2] for key, value in best.items()}
+
+
 # ── Score formulas ────────────────────────────────────────────────────────────
 
 def compute_cluster_scores(

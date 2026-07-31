@@ -488,6 +488,17 @@ export const users = {
     request<UserSkillsByDomain>("/users/me/skills", {
       headers: { Authorization: `Bearer ${token}` },
     }),
+  // Drop a wrongly-extracted skill, or restore one. Recomputes the score, so the
+  // response carries the new number rather than promising a later refresh.
+  correctSkill: (token: string, skillKey: string, included: boolean) =>
+    request<{ skill_key: string; included: boolean; total_score: number; skills_assessed: number }>(
+      "/users/me/skills/correction",
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ skill_key: skillKey, included }),
+      },
+    ),
   updateProfile: (token: string, data: ProfileUpdate) =>
     request<ProfileUpdateResponse>("/users/me/profile", {
       method: "PUT",
@@ -615,6 +626,8 @@ export interface OnboardingTarget {
   // Provide one of the two; role_titles wins when present.
   role_title?: string
   role_titles?: string[]
+  /** Canonical corpus family chosen with the rendered title. */
+  role_family?: string
   // Optional for point-of-use "edit role" (issue #145): omit to keep the user's
   // existing seniority/location; the backend preserves them via save_target.
   seniority?: TargetSeniority
@@ -624,6 +637,19 @@ export interface OnboardingTarget {
 export interface RoleReadiness {
   role: string
   readiness: number | null
+}
+
+export interface RoleFamily {
+  family: string
+  label: string
+  open_count: number
+  matched_skill_count: number
+}
+
+export interface RoleFamilyLocation {
+  location: string
+  open_count: number
+  is_remote: boolean
 }
 
 export interface FirstSuccessChecklist {
@@ -636,6 +662,8 @@ export interface OnboardingProofSkill {
   taxonomy_key: string
   name: string
   level?: number
+  /** Present on candidates awaiting confirmation — same ladder as UserSkillItem. */
+  proficiency_title?: string
   evidence: string
 }
 
@@ -655,15 +683,11 @@ export type OnboardingResult =
       skills: OnboardingProofSkill[]
     }
   | {
-      // Score-first onboarding (Slice 4): CV parsed + scored, target not yet
-      // confirmed. Show the score + a pre-filled confirm card; matching runs
-      // only after the user taps Confirm (saveTarget).
+      // A target must exist before Myro renders a score cohort.
       kind: "awaiting_target"
       baseline_version_id: number
-      suggestion: { role: string; location: string; seniority: string }
-      skills: OnboardingProofSkill[]
-      score: { total_score: number; domain_scores: Record<string, number>; gap_skills: GapSkill[]; skills_assessed: number; band?: string; band_percentile?: number | null; top_percent?: number | null }
-      score_factors: Array<{ kind: "gap" | "strength"; label: string; detail: string }>
+      families: RoleFamily[]
+      seniority: { value: TargetSeniority | null; years?: number; title?: string; source: "experience_years" | "title" | "unknown"; needs_choice: boolean }
     }
   | {
       kind: "full_result_ready"
@@ -671,7 +695,7 @@ export type OnboardingResult =
       target_context_hash: string
       target: OnboardingTarget
       skills: OnboardingProofSkill[]
-      score: { total_score: number; domain_scores: Record<string, number>; gap_skills: GapSkill[]; skills_assessed: number; band?: string; band_percentile?: number | null; top_percent?: number | null }
+      score: { total_score: number; domain_scores: Record<string, number>; domain_skill_counts?: Record<string, number>; gap_skills: GapSkill[]; skills_assessed: number; band?: string; band_percentile?: number | null; top_percent?: number | null }
       score_factors: Array<{ kind: "gap" | "strength"; label: string; detail: string }>
       credible_match: (JobMatch & { jobs?: { job_title?: string; company_name?: string } }) | null
       primary_action: { kind: string; label: string; href: string }
@@ -701,6 +725,12 @@ export const onboarding = {
   roleReadiness: (token: string) => request<RoleReadiness[]>("/onboarding/role-readiness", {
     headers: { Authorization: `Bearer ${token}` },
   }),
+  roleFamilies: (token: string, query?: string) => request<RoleFamily[]>(`/roles/families${query ? `?query=${encodeURIComponent(query)}` : ""}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }),
+  roleFamilyLocations: (token: string, family: string, query?: string) => request<RoleFamilyLocation[]>(`/roles/families/${encodeURIComponent(family)}/locations${query ? `?query=${encodeURIComponent(query)}` : ""}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }),
   result: (token: string) => request<OnboardingResult>("/onboarding/result", {
     headers: { Authorization: `Bearer ${token}` },
   }),
@@ -724,8 +754,11 @@ export const onboarding = {
   }>) => request<{ status: "done"; total_score: number }>(`/onboarding/baseline/${baselineId}/skill-overrides`, {
     method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ overrides }),
   }),
+  // Identify a skill by taxonomy_key (what every skill payload already carries)
+  // or by skill_id. The key form means no caller has to pull the skill catalog.
   confirmSkills: (token: string, baselineId: number, overrides: Array<{
-    skill_id: number; action: "include" | "exclude"; evidence_text: string; source_location?: Record<string, unknown>
+    skill_id?: number; taxonomy_key?: string
+    action: "include" | "exclude"; evidence_text?: string; source_location?: Record<string, unknown>
   }>) => request<{ status: "done"; total_score: number }>(`/onboarding/baseline/${baselineId}/confirm-skills`, {
     method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ overrides }),
   }),

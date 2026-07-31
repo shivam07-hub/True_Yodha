@@ -534,6 +534,12 @@ function CVPage() {
   const bootstrapping = !ready || profileQuery.isLoading || playground.versionsLoading
   if (bootstrapping) return <CvSkeleton />
 
+  // A CV is in the pipe: either transferring right now, or landed and parsing on
+  // the server (job id persisted, modal closable). The empty state below must not
+  // assert "No CV yet" or re-offer Upload in that window — the user just handed
+  // one over, and the anon-claim landing (/cv?upload=1) hits this every time.
+  const uploadBusy = uploading || !!activeUploadJobId
+
   const displayedUploadError = uploadError ? tokenizedUserMessage(uploadError) : null
   const surfacedError = playground.error ? tokenizedUserMessage(playground.error) : displayedUploadError
 
@@ -549,14 +555,22 @@ function CVPage() {
             <>
               <div className="cvb-page-head">
                 <div>
-                  <h1 className="cvb-page-title">Add your Main CV</h1>
+                  <h1 className="cvb-page-title">
+                    {uploadBusy ? "Reading your CV" : "Upload your Main CV"}
+                  </h1>
                   <p className="cvb-page-sub">
-                    Keep the CV you already use, then let Myro organize tailored copies for each job.
+                    {uploadBusy
+                      ? "This takes about a minute. You can keep using Myro while it runs."
+                      : "This is the CV Myro reads. Every tailored copy starts from it."}
                   </p>
                 </div>
-                <Button onClick={openFilePicker}>
-                  <Icon name="download" size={14} style={{ transform: "rotate(180deg)" }}/> Upload Main CV
-                </Button>
+                {/* No second upload door while one CV is already in the pipe —
+                    offering the action the user just took reads as a lost file. */}
+                {!uploadBusy && (
+                  <Button onClick={openFilePicker}>
+                    <Icon name="download" size={14} style={{ transform: "rotate(180deg)" }}/> Upload Main CV
+                  </Button>
+                )}
               </div>
               <div style={{
                 padding: 48, textAlign: "center",
@@ -566,9 +580,13 @@ function CVPage() {
                 background: "var(--tm-surface)",
               }}>
                 <Icon name="file" size={28} style={{ color: "var(--tm-interactive)", marginBottom: 12 }}/>
-                <div style={{ fontSize: 16, color: "var(--tm-text)", marginBottom: 6 }}>No CV uploaded yet</div>
+                <div style={{ fontSize: 16, color: "var(--tm-text)", marginBottom: 6 }}>
+                  {uploadBusy ? "Your CV is with Myro" : "No CV yet"}
+                </div>
                 <div style={{ fontSize: 12, color: "var(--tm-text-muted)" }}>
-                  Upload to extract skills, see your Myro Score, and start tailoring per job.
+                  {uploadBusy
+                    ? "Your score lands here the moment it is ready."
+                    : "Myro reads it, scores it, and tailors a copy for each job you save."}
                 </div>
               </div>
             </>
@@ -653,7 +671,7 @@ function CVPage() {
             <DialogDescription>
               {hasBaseline
                 ? "This becomes your new Main CV. Existing tailored CVs stay in your library."
-                : "We extract skills and split your CV into editable sections."}
+                : "Myro pulls out your skills and splits the CV into sections you can edit."}
             </DialogDescription>
           </DialogHeader>
           {uploading || activeUploadJobId || uploadResult ? (

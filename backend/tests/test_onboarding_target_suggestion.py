@@ -1,32 +1,30 @@
-"""Deterministic target pre-fill for the score-first confirm card (Slice 4)."""
+"""Evidence-only seniority selection for the post-skill targeting step."""
 
-from app.services.onboarding_service import _infer_target_suggestion
+from app.services.onboarding_service import _seniority_suggestion
 
 
 def _baseline(structured: dict) -> dict:
     return {"id": 1, "cv_structured": structured}
 
 
-def test_role_from_contact_title() -> None:
-    s = _infer_target_suggestion(_baseline({"contact": {"title": "Data Analyst", "location": "Bengaluru"}}))
-    assert s["role"] == "Data Analyst"
-    assert s["location"] == "Bengaluru"
-    assert s["seniority"] == "entry"  # plain title → no seniority marker → entry
+def test_unknown_title_asks_instead_of_defaulting_to_entry() -> None:
+    s = _seniority_suggestion(_baseline({"contact": {"title": "Data Analyst"}}))
+    assert s["needs_choice"] is True
+    assert s["value"] is None
 
 
-def test_role_falls_back_to_first_experience() -> None:
-    s = _infer_target_suggestion(_baseline({
-        "contact": {"title": "", "location": ""},
+def test_title_fallback_is_evidence_labelled() -> None:
+    s = _seniority_suggestion(_baseline({
+        "contact": {"title": ""},
         "experience": [{"role": "Senior Software Engineer"}, {"role": "Intern"}],
     }))
-    assert s["role"] == "Senior Software Engineer"
-    assert s["seniority"] == "senior"  # derived from the title marker
+    assert s["title"] == "Senior Software Engineer"
+    assert s["value"] == "senior"
 
 
 def test_empty_when_no_signal() -> None:
-    s = _infer_target_suggestion(_baseline({"contact": {}, "experience": []}))
-    assert s == {"role": "", "location": "", "seniority": "entry"}
+    assert _seniority_suggestion(_baseline({"contact": {}, "experience": []}))["needs_choice"] is True
 
 
 def test_handles_missing_baseline() -> None:
-    assert _infer_target_suggestion(None) == {"role": "", "location": "", "seniority": "entry"}
+    assert _seniority_suggestion(None)["needs_choice"] is True

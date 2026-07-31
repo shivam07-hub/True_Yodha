@@ -32,6 +32,13 @@ test("no CV beats everything", () => {
   assert.equal(next.href, "/cv")
 })
 
+test("the upload pointer is generic so the chip hides on /cv itself", () => {
+  // has_cv stays false for the whole analysis, so without this the chip tells a
+  // user watching their own CV parse to go upload a CV.
+  const next = deriveNextAction([], undefined, { hasCv: false, now: NOW })
+  assert.equal(next.generic, true)
+})
+
 test("interviewing room outranks everything with a CV", () => {
   const next = deriveNextAction(
     [app({ job_id: "a", cv_badge: badge }), app({ job_id: "b", status: "interviewing", company: "Sanofi" })],

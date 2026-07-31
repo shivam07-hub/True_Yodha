@@ -45,7 +45,6 @@ components/
 │   └── action-plan-panel.tsx   7-day plan panel
 ├── onboarding/
 │   ├── step-cv.tsx             CV upload step
-│   ├── step-role.tsx           Target role selection step
 │   ├── step-score.tsx          Score reveal step
 │   └── score-gauge.tsx         Animated semicircle gauge (0–100)
 ├── auth/

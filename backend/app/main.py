@@ -27,6 +27,7 @@ from app.routers import (
     onboarding,
     payments,
     profile,
+    roles,
     public,
     scores,
     skills,
@@ -98,6 +99,7 @@ app.include_router(newsletter.router)
 app.include_router(notifications.router)
 app.include_router(newsletter_distribution.router)
 app.include_router(onboarding.router)
+app.include_router(roles.router)
 app.include_router(public.router)
 app.include_router(status.router)
 app.include_router(telemetry.router)

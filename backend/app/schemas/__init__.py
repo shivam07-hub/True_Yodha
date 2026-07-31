@@ -111,6 +111,8 @@ from app.schemas.users import (
     PracticeSave,
     PracticeSavesResponse,
     SavePracticeSkillRequest,
+    SkillCorrectionRequest,
+    SkillCorrectionResponse,
     SkillUpvoteItem,
     SkillUpvotesResponse,
     SkillUpvoteToggleRequest,
@@ -165,6 +167,7 @@ __all__ = [
     "SavePracticeSkillRequest", "PracticeSave", "PracticeSavesResponse",
     "SkillUpvoteToggleRequest", "SkillUpvoteItem", "SkillUpvotesResponse",
     "SkillUpvoteToggleResponse",
+    "SkillCorrectionRequest", "SkillCorrectionResponse",
     "PublicProfile", "JobOverlapRow", "JobOverlapResponse",
     "UpdateNinjaNameRequest", "UpdateNinjaNameResponse", "SuggestNinjaNameResponse",
 ]

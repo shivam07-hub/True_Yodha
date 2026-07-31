@@ -45,6 +45,13 @@ def compute_gap_skills(
     """
     max_demand = max(skill_demand.values(), default=1) or 1
 
+    # With no aspiration the targets below come from open-market demand, not
+    # from any role this user chose. The copy has to say so — a pre-target user
+    # was being told a skill was "required for your target role" when they had
+    # not named one, which is how a YouTube Channel Manager's CV came back
+    # demanding Python, ML and SQL.
+    role_backed = bool(aspiration_skills)
+
     target_map: dict[str, int] = dict(aspiration_skills)
     if not target_map:
         # Fallback: close one step for every skill with market demand
@@ -77,6 +84,8 @@ def compute_gap_skills(
             "why_it_matters":      (
                 f"Required at {_PROFICIENCY_TITLES.get(target_level, 'Expert')} level "
                 "for your target role."
+                if role_backed
+                else f"In demand right now — {demand} open roles ask for it."
             ),
             "_priority": weight * (target_level - current_level),
         })
