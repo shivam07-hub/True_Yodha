@@ -19,6 +19,11 @@ import { deriveNextAction } from "@/components/nav/next-action"
  * pointing at the page you're on is noise, not orientation.
  */
 
+/** Segment-boundary match — "/cv" must not claim "/cv-preview". */
+function onSurface(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(`${href}/`)
+}
+
 export function NextChip({ hasCv }: { hasCv: boolean }) {
   const { token } = useAuth()
   const pathname = usePathname()
@@ -40,7 +45,7 @@ export function NextChip({ hasCv }: { hasCv: boolean }) {
     hasCv,
     newJobs: matches?.new_jobs_count ?? 0,
   })
-  if (next.generic && pathname.startsWith(next.href)) return null
+  if (next.generic && onSurface(pathname, next.href)) return null
 
   return (
     <Link href={next.href} className="tm-next-chip" title="Your single best next move">

@@ -33,7 +33,10 @@ export function deriveNextAction(
 ): NextAction {
   const now = opts.now ?? new Date()
 
-  if (!opts.hasCv) return { label: "Upload your CV", href: "/cv" }
+  // `generic` so the chip hides on /cv itself: pointing a user at the page they
+  // are already on — while their CV is mid-analysis, `has_cv` still false — reads
+  // as the app not knowing what it just asked for.
+  if (!opts.hasCv) return { label: "Upload your CV", href: "/cv", generic: true }
 
   const interviewing = apps.find((a) => a.status === "interviewing")
   if (interviewing) {
