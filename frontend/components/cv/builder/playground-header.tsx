@@ -80,6 +80,10 @@ interface PlaygroundHeaderProps {
   brandLabel?: string
   /** Score caption override (default per variant). */
   scoreCaption?: string
+  /** Suppress the meter entirely when no score exists yet (first-run skill
+   *  confirmation). A zeroed meter is not a neutral placeholder — it reads as
+   *  a score of 0. `scoreCaption` still renders, so the header can say why. */
+  hideScore?: boolean
   /** When set (imported jobs only), the job line becomes editable — the parser
    *  occasionally reads a page tagline as the role. Resolves once persisted. */
   onSaveJobMeta?: (v: { title: string; company: string }) => Promise<void>
@@ -89,7 +93,7 @@ export function PlaygroundHeader({
   jobTitle, company, reqCount, ready, delta, canApply, applyHint, saveState,
   onBack, onReqPill, onApply, onDownload,
   variant = "job", masterMeta, onMeta, primaryLabel = "Apply with this CV", hideOverflow,
-  brandLabel, scoreCaption, onSaveJobMeta,
+  brandLabel, scoreCaption, hideScore, onSaveJobMeta,
 }: PlaygroundHeaderProps) {
   const shown = useCountUp(ready)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -161,16 +165,20 @@ export function PlaygroundHeader({
 
       {saveState && <span className="cvb-v2-savestate mono" role="status" aria-live="polite">{saveState}</span>}
 
-      <div className="cvb-v2-score" data-band={scoreBand(shown)}>
-        <div className="cvb-v2-score-nums">
-          <span className="cvb-v2-score-num mono tabnum">{shown}</span>
-          <span className="cvb-v2-score-cap mono">{scoreCaption ?? (isMaster ? "/100 · Myro Score" : "/100 · Match")}</span>
+      {hideScore ? (
+        scoreCaption && <span className="cvb-v2-score-cap mono">{scoreCaption}</span>
+      ) : (
+        <div className="cvb-v2-score" data-band={scoreBand(shown)}>
+          <div className="cvb-v2-score-nums">
+            <span className="cvb-v2-score-num mono tabnum">{shown}</span>
+            <span className="cvb-v2-score-cap mono">{scoreCaption ?? (isMaster ? "/100 · Myro Score" : "/100 · Match")}</span>
+          </div>
+          <div className="cvb-v2-score-bar" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={ready}
+            aria-label={isMaster ? "Myro Score" : "Match to this job"}>
+            <div className="cvb-v2-score-fill" style={{ width: `${Math.max(0, Math.min(100, shown))}%` }} />
+          </div>
         </div>
-        <div className="cvb-v2-score-bar" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={ready}
-          aria-label={isMaster ? "Myro Score" : "Match to this job"}>
-          <div className="cvb-v2-score-fill" style={{ width: `${Math.max(0, Math.min(100, shown))}%` }} />
-        </div>
-      </div>
+      )}
 
       {!isMaster && delta > 0 && <span className="cvb-v2-deltachip mono">▲ +{delta} raised</span>}
 

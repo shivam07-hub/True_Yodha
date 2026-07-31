@@ -64,10 +64,31 @@ class DraftRequest(BaseModel):
 
 
 class SkillOverrideItem(BaseModel):
-    skill_id: int = Field(gt=0)
+    """One ruling on one extracted skill.
+
+    Identify the skill by ``taxonomy_key`` (what every skill-bearing payload
+    already carries) or by ``skill_id``. The key form exists so a caller does not
+    have to pull the whole skill catalog client-side just to translate a name it
+    was already given.
+
+    ``evidence_text`` is optional for an exclusion — a user removing a skill owes
+    no justification, and requiring one used to reject short receipts like "SQL"
+    outright.
+    """
+
+    skill_id: int | None = Field(default=None, gt=0)
+    taxonomy_key: str | None = Field(default=None, min_length=1, max_length=200)
     action: Literal["include", "exclude"]
-    evidence_text: str = Field(min_length=5, max_length=2_000)
+    evidence_text: str = Field(default="", max_length=2_000)
     source_location: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _one_identifier(self) -> "SkillOverrideItem":
+        if (self.skill_id is None) == (self.taxonomy_key is None):
+            raise ValueError("Provide exactly one of skill_id or taxonomy_key.")
+        if self.action == "include" and len(self.evidence_text.strip()) < 5:
+            raise ValueError("Adding a skill needs the CV evidence for it.")
+        return self
 
 
 class SkillOverridesRequest(BaseModel):

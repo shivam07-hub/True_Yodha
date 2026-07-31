@@ -14,14 +14,36 @@ from app.repositories.users import UsersRepository
 from app.services import background, scoring
 
 
-def _normalized_overrides(overrides: list[dict[str, Any]]) -> list[dict[str, Any]]:
+_REMOVED_BY_USER = "User removed this extracted CV skill."
+
+
+def _normalized_overrides(
+    scores_repo: ScoresRepository,
+    overrides: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Collapse to one ruling per skill, resolving key-identified items to ids.
+
+    Callers may name a skill by ``taxonomy_key`` instead of ``skill_id``; keys
+    that are not in the catalog are dropped rather than raising, because they
+    would also be dropped by the publish path — an unresolvable skill cannot be
+    included, and excluding one is already the outcome.
+    """
     by_skill: dict[int, dict[str, Any]] = {}
     for item in overrides:
-        skill_id = int(item["skill_id"])
+        raw_id = item.get("skill_id")
+        if raw_id is None:
+            key = str(item.get("taxonomy_key") or "").strip()
+            resolved = scores_repo.get_skill_id_for_key(key) if key else None
+            if resolved is None:
+                continue
+            skill_id = resolved
+        else:
+            skill_id = int(raw_id)
+        evidence = str(item.get("evidence_text") or "").strip()
         by_skill[skill_id] = {
             "skill_id": skill_id,
             "action": item["action"],
-            "evidence_text": str(item["evidence_text"]).strip(),
+            "evidence_text": evidence or _REMOVED_BY_USER,
             "source_location": item.get("source_location") or {},
         }
     return list(by_skill.values())
@@ -80,7 +102,7 @@ def confirm_baseline_skills(
     signals = baseline.get("skills_detected") or []
     scores_repo = ScoresRepository(db)
     base_rows = scoring.build_cv_skill_rows(scores_repo, user_id, signals)
-    normalized = _normalized_overrides(overrides)
+    normalized = _normalized_overrides(scores_repo, overrides)
     reviewed = _reviewed_rows(base_rows, normalized)
     if not reviewed:
         raise HTTPException(

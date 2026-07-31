@@ -113,6 +113,63 @@ class ScoresRepository:
                 }
         return None
 
+    def get_skill_id_for_key(self, taxonomy_key: str) -> int | None:
+        """skills.id for one taxonomy_key, or None when it is not in the catalog."""
+        result = (
+            self._db.table("skills")
+            .select("id")
+            .eq("taxonomy_key", taxonomy_key)
+            .limit(1)
+            .execute()
+        )
+        rows = result.data or []
+        return int(rows[0]["id"]) if rows else None
+
+    def get_user_skill_row(self, user_id: str, skill_id: int) -> dict[str, Any] | None:
+        """One raw user_skills row, including the forge counters.
+
+        Skill correction has to read the counters before it removes a row, so a
+        user who takes a skill off their CV and later puts it back does not
+        silently lose their practice history.
+        """
+        result = (
+            self._db.table("user_skills")
+            .select("matched_level, proficiency_title, source, evidence_text, "
+                    "forge_sessions_count, total_forge_minutes")
+            .eq("user_id", user_id)
+            .eq("skill_id", skill_id)
+            .limit(1)
+            .execute()
+        )
+        rows = result.data or []
+        return rows[0] if rows else None
+
+    def delete_user_skill(self, user_id: str, skill_id: int) -> None:
+        self._db.table("user_skills").delete().eq("user_id", user_id).eq(
+            "skill_id", skill_id
+        ).execute()
+
+    def get_display_names_for_keys(self, taxonomy_keys: list[str]) -> dict[str, str]:
+        """{taxonomy_key: display_name} for keys already in the catalog.
+
+        One batched read, so a candidate list can be labelled without a
+        per-skill round trip. Keys absent from the catalog are simply missing
+        from the result — callers fall back to the key, which is also what
+        ``ensure_skill_in_db`` would store for them on publish.
+        """
+        if not taxonomy_keys:
+            return {}
+        result = (
+            self._db.table("skills")
+            .select("taxonomy_key, display_name")
+            .in_("taxonomy_key", taxonomy_keys)
+            .execute()
+        )
+        return {
+            row["taxonomy_key"]: row.get("display_name") or row["taxonomy_key"]
+            for row in result.data or []
+        }
+
     def get_user_skill_level_map(self, user_id: str) -> dict[str, int]:
         result = (
             self._db.table("user_skills")

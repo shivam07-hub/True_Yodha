@@ -243,23 +243,48 @@ def _proof_skills(users_repo: UsersRepository, user_id: str) -> list[dict[str, A
     ]
 
 
-def _candidate_skills(baseline: dict[str, Any]) -> list[dict[str, Any]]:
-    """Baseline-scoped candidates shown before any user-skill publication."""
-    return [
-        {
-            "taxonomy_key": str(item.get("taxonomy_key") or ""),
-            "name": str(item.get("taxonomy_key") or ""),
-            "level": {
-                "mention": 1,
-                "project": 2,
-                "impact": 3,
-                "leadership": 4,
-            }.get(str(item.get("signal_type") or "mention"), 1),
-            "evidence": str(item.get("evidence") or ""),
-        }
-        for item in (baseline.get("skills_detected") or [])
-        if item.get("taxonomy_key")
+def _candidate_skills(
+    scores_repo: ScoresRepository,
+    baseline: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Baseline-scoped candidates shown before any user-skill publication.
+
+    Built from the *same* functions the publish path runs
+    (``build_skill_level_map`` for the level, ``best_evidence_by_key`` for the
+    receipt), so the level a user is shown while deciding is the level they get.
+    The previous version carried a private signal_type→level table that skipped
+    the depth boost in ``infer_level_from_signals``. No prod row has ever
+    tripped that boost, so the two never actually disagreed — but a second
+    definition of the same number is a divergence waiting to happen, and the
+    level is the one thing this screen exists to be honest about.
+
+    Shape mirrors ``UserSkillItem`` so a single component can render skills
+    before and after they are published.
+    """
+    signals = [
+        signal
+        for signal in (baseline.get("skills_detected") or [])
+        if signal.get("taxonomy_key")
     ]
+    if not signals:
+        return []
+
+    level_map = scoring.build_skill_level_map(signals)
+    evidence_map = scoring.best_evidence_by_key(signals)
+    display_names = scores_repo.get_display_names_for_keys(list(level_map))
+
+    candidates = [
+        {
+            "taxonomy_key": key,
+            "name": display_names.get(key, key),
+            "level": level,
+            "proficiency_title": scoring._PROFICIENCY_TITLES.get(level, "Scout"),
+            "evidence": evidence_map.get(key, ""),
+        }
+        for key, level in level_map.items()
+    ]
+    candidates.sort(key=lambda item: (-item["level"], item["name"].casefold()))
+    return candidates
 
 
 def _score_factors(score: dict[str, Any]) -> list[dict[str, Any]]:
@@ -351,7 +376,7 @@ def get_result(db: Client, user_id: str) -> dict[str, Any]:
         return {
             "kind": "awaiting_skill_confirmation",
             "baseline_version_id": int(baseline["id"]),
-            "skills": _candidate_skills(baseline),
+            "skills": _candidate_skills(ScoresRepository(db), baseline),
         }
 
     score = ScoresRepository(db).get_mirror_score(user_id)
@@ -368,6 +393,14 @@ def get_result(db: Client, user_id: str) -> dict[str, Any]:
     # empty role never produces junk matches.
     if not has_target:
         band = target_seniority_for_profile({"target_seniority": profile.get("target_seniority")})
+        # The score was computed against the *saved* seniority, which nobody has
+        # set yet — so it defaulted to entry while the confirm card below shows
+        # the seniority inferred from the CV. Publishing a cohort comparison
+        # here put "ahead of 34% of entry-level candidates" beside a Mid-level
+        # selector. Withhold the ranking until the user has told us the band it
+        # would be measured against; the score itself stands on its own.
+        band_confirmed = bool(str(profile.get("target_seniority") or "").strip())
+        percentile = score.get("percentile") if band_confirmed else None
         return {
             "kind": "awaiting_target",
             "baseline_version_id": int(baseline["id"]),
@@ -379,8 +412,8 @@ def get_result(db: Client, user_id: str) -> dict[str, Any]:
                 "gap_skills": score.get("gap_skills") or [],
                 "skills_assessed": int(score.get("skills_assessed") or 0),
                 "band": band,
-                "band_percentile": score.get("percentile"),
-                "top_percent": top_percent(score.get("percentile")),
+                "band_percentile": percentile,
+                "top_percent": top_percent(percentile) if band_confirmed else None,
             },
             "score_factors": _score_factors(score),
         }

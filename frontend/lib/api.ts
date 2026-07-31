@@ -488,6 +488,17 @@ export const users = {
     request<UserSkillsByDomain>("/users/me/skills", {
       headers: { Authorization: `Bearer ${token}` },
     }),
+  // Drop a wrongly-extracted skill, or restore one. Recomputes the score, so the
+  // response carries the new number rather than promising a later refresh.
+  correctSkill: (token: string, skillKey: string, included: boolean) =>
+    request<{ skill_key: string; included: boolean; total_score: number; skills_assessed: number }>(
+      "/users/me/skills/correction",
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ skill_key: skillKey, included }),
+      },
+    ),
   updateProfile: (token: string, data: ProfileUpdate) =>
     request<ProfileUpdateResponse>("/users/me/profile", {
       method: "PUT",
@@ -636,6 +647,8 @@ export interface OnboardingProofSkill {
   taxonomy_key: string
   name: string
   level?: number
+  /** Present on candidates awaiting confirmation — same ladder as UserSkillItem. */
+  proficiency_title?: string
   evidence: string
 }
 
@@ -724,8 +737,11 @@ export const onboarding = {
   }>) => request<{ status: "done"; total_score: number }>(`/onboarding/baseline/${baselineId}/skill-overrides`, {
     method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ overrides }),
   }),
+  // Identify a skill by taxonomy_key (what every skill payload already carries)
+  // or by skill_id. The key form means no caller has to pull the skill catalog.
   confirmSkills: (token: string, baselineId: number, overrides: Array<{
-    skill_id: number; action: "include" | "exclude"; evidence_text: string; source_location?: Record<string, unknown>
+    skill_id?: number; taxonomy_key?: string
+    action: "include" | "exclude"; evidence_text?: string; source_location?: Record<string, unknown>
   }>) => request<{ status: "done"; total_score: number }>(`/onboarding/baseline/${baselineId}/confirm-skills`, {
     method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ overrides }),
   }),

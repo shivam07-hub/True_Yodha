@@ -401,6 +401,56 @@ class CVVersionsRepository:
             )
         return str(result.data)
 
+    def get_skill_override(
+        self, user_id: str, baseline_version_id: int, skill_id: int
+    ) -> dict[str, Any] | None:
+        result = (
+            self._db.table("cv_skill_overrides")
+            .select("action, evidence_text, source_location")
+            .eq("user_id", user_id)
+            .eq("baseline_version_id", baseline_version_id)
+            .eq("skill_id", skill_id)
+            .limit(1)
+            .execute()
+        )
+        rows = result.data or []
+        return rows[0] if rows else None
+
+    def upsert_skill_override(
+        self,
+        user_id: str,
+        baseline_version_id: int,
+        skill_id: int,
+        action: str,
+        evidence_text: str,
+        source_location: dict[str, Any] | None = None,
+    ) -> None:
+        """Record one standing skill correction against a baseline.
+
+        Kept as its own row rather than folded into ``confirm_skills`` because a
+        correction made months later must not replay the whole publication — that
+        path DELETEs and reinserts every cv-sourced skill, which would reset
+        forge counters across the board.
+        """
+        self._db.table("cv_skill_overrides").upsert(
+            {
+                "user_id": user_id,
+                "baseline_version_id": baseline_version_id,
+                "skill_id": skill_id,
+                "action": action,
+                "evidence_text": evidence_text,
+                "source_location": source_location or {},
+            },
+            on_conflict="user_id,baseline_version_id,skill_id",
+        ).execute()
+
+    def delete_skill_override(
+        self, user_id: str, baseline_version_id: int, skill_id: int
+    ) -> None:
+        self._db.table("cv_skill_overrides").delete().eq("user_id", user_id).eq(
+            "baseline_version_id", baseline_version_id
+        ).eq("skill_id", skill_id).execute()
+
     def update_hidden_items(
         self, version_id: int, user_id: str, hidden_items: list[str], body_text: str
     ) -> dict[str, Any]:

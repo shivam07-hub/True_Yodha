@@ -9,7 +9,6 @@ import { AnalysisProgress } from "@/components/onboarding/analysis-progress"
 import { BaselineGenerator } from "@/components/onboarding/baseline-generator"
 import { FullResult } from "@/components/onboarding/full-result"
 import { ProfilePreview } from "@/components/onboarding/profile-preview"
-import { SkillConfirmation } from "@/components/onboarding/skill-confirmation"
 import { TargetConfirm } from "@/components/onboarding/target-confirm"
 import { Button } from "@/components/ui/button"
 import { onboarding } from "@/lib/api"
@@ -39,6 +38,15 @@ export default function OnboardingResultPage() {
     void onboarding.complete(token).then(refresh).catch(() => setCompleted(false))
   }, [completed, refresh, result.data, token])
 
+  // Send first-run users to the CV playground to review the extraction against
+  // their actual CV. Replace, not push, so Back does not land on a screen whose
+  // only job was to bounce them here.
+  useEffect(() => {
+    if (result.data?.kind === "awaiting_skill_confirmation") {
+      router.replace("/cv?edit=1&tab=skills&confirm=1")
+    }
+  }, [result.data, router])
+
   async function resetToUpload() {
     if (!token) return
     await onboarding.startOver(token)
@@ -63,7 +71,10 @@ export default function OnboardingResultPage() {
     if (result.isError) return <AnalysisProgress phase="reconnecting" />
     if (!result.data || result.data.kind === "full_result_processing") return <AnalysisProgress phase={result.data?.phase ?? "queued"} />
     if (result.data.kind === "profile_preview") return <ProfilePreview result={result.data} onBuild={() => setGeneratorOpen(true)} onUpload={() => void resetToUpload()} onBrowse={() => router.push("/market")} />
-    if (result.data.kind === "awaiting_skill_confirmation") return <SkillConfirmation token={token} result={result.data} onConfirmed={() => void result.refetch()} />
+    // Skill confirmation lives in the CV playground, not on its own screen —
+    // the extraction is only reviewable next to the CV it was read from, and
+    // the same rail stays the permanent home for correcting it later.
+    if (result.data.kind === "awaiting_skill_confirmation") return <AnalysisProgress phase="scoring" />
     if (result.data.kind === "awaiting_target") return <TargetConfirm token={token} result={result.data} onConfirmed={() => void result.refetch()} />
     if (result.data.kind === "terminal_failure") return (
       <section className="w-full max-w-lg text-center">

@@ -24,6 +24,7 @@ from app.services.scoring.formulas import (
     _PROFICIENCY_TITLES,
     DEFAULT_TARGET_LEVEL,
     _build_cluster_maps,
+    best_evidence_by_key,
     build_skill_level_map,
     compute_cluster_scores,
     compute_domain_scores,
@@ -269,7 +270,9 @@ def _build_user_skill_rows(
 ) -> list[dict]:
     from app.services.taxonomy_loader import ensure_skill_in_db
 
-    evidence_map: dict[str, str] = {s["taxonomy_key"]: s["evidence"] for s in signals}
+    # Strongest receipt per skill, not whichever signal happened to be last in
+    # the list — a bullet beats a skills-line mention as the reason we scored it.
+    evidence_map = best_evidence_by_key(signals)
     now = datetime.now(timezone.utc).isoformat()
     rows: list[dict[str, Any]] = []
     for key, level in skill_level_map.items():

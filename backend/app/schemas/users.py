@@ -135,3 +135,16 @@ class SkillUpvoteToggleResponse(BaseModel):
     skill_key: str
     upvoted: bool
     count: int
+
+
+class SkillCorrectionRequest(BaseModel):
+    skill_key: str
+    """False removes the skill from the scored set; True puts it back."""
+    included: bool
+
+
+class SkillCorrectionResponse(BaseModel):
+    skill_key: str
+    included: bool
+    total_score: float
+    skills_assessed: int

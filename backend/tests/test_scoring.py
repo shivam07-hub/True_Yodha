@@ -12,6 +12,7 @@ from app.services.scoring import (
     _RANK_TIERS,
     _SIGNAL_LEVEL_MAP,
     DEFAULT_TARGET_LEVEL,
+    best_evidence_by_key,
     build_skill_level_map,
     compute_cluster_scores,
     compute_domain_scores,
@@ -442,3 +443,68 @@ class TestProficiencyTitles:
         steps = [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5)]
         days = [_DAYS_PER_STEP[s] for s in steps]
         assert days == sorted(days)
+
+
+# ── Evidence selection ────────────────────────────────────────────────────────
+
+
+def test_best_evidence_prefers_the_stronger_signal():
+    """A bullet outranks a skills-line mention as the receipt we display.
+
+    Today's extractor already collapses a skill to one signal, so this is a
+    guard rather than a repair: if it ever emits both, the user must be shown
+    the achievement, not the keyword.
+    """
+    signals = [
+        {"taxonomy_key": "Video Editing", "signal_type": "mention", "evidence": "Video Editing"},
+        {
+            "taxonomy_key": "Video Editing",
+            "signal_type": "impact",
+            "evidence": "Edited 20+ advertisement and brand promotion videos",
+        },
+    ]
+    assert best_evidence_by_key(signals) == {
+        "Video Editing": "Edited 20+ advertisement and brand promotion videos"
+    }
+    # Order must not decide the outcome.
+    assert best_evidence_by_key(list(reversed(signals))) == {
+        "Video Editing": "Edited 20+ advertisement and brand promotion videos"
+    }
+
+
+def test_best_evidence_breaks_ties_on_the_fuller_quote():
+    signals = [
+        {"taxonomy_key": "Python", "signal_type": "project", "evidence": "Used Python"},
+        {
+            "taxonomy_key": "Python",
+            "signal_type": "project",
+            "evidence": "Built ingestion pipelines in Python for 3 business units",
+        },
+    ]
+    assert best_evidence_by_key(signals)["Python"].startswith("Built ingestion")
+
+
+def test_best_evidence_covers_every_key_and_tolerates_missing_evidence():
+    signals = [
+        {"taxonomy_key": "SQL", "signal_type": "mention"},
+        {"taxonomy_key": "Excel", "signal_type": "mention", "evidence": "  "},
+    ]
+    assert best_evidence_by_key(signals) == {"SQL": "", "Excel": ""}
+
+
+def test_candidate_levels_match_published_levels():
+    """The level shown while confirming must be the level that gets published.
+
+    Both surfaces read build_skill_level_map, so the XP depth boost in
+    infer_level_from_signals applies to both. The old onboarding payload used a
+    private signal_type→level table that skipped it. No prod CV has tripped the
+    boost yet, so this pins the shared definition before it can drift.
+    """
+    signals = [
+        {"taxonomy_key": "Django", "signal_type": "impact", "evidence": "Cut latency 40%", "xp_awarded": 900},
+        {"taxonomy_key": "Django", "signal_type": "project", "evidence": "Built the API", "xp_awarded": 200},
+    ]
+    level_map = build_skill_level_map(signals)
+    # impact = 3, and 1100 XP clears the depth boost → 4.
+    assert level_map["Django"] == 4
+    assert _PROFICIENCY_TITLES[level_map["Django"]] == "Cartographer"

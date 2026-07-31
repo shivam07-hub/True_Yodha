@@ -213,23 +213,68 @@
   padding: 3px 8px; border-radius: 999px; white-space: nowrap;
 }
 .cvb-prov-lvl { font: 600 9.5px var(--tm-font-mono); color: var(--tm-text-faint); font-style: normal; }
-.cvb-prov-chip.weak {
-  background: var(--tm-warning-wash); border-color: var(--tm-warning-border);
-  color: var(--tm-warning-text, var(--tm-warning));
-}
 .cvb-prov-chip.is-focus {
   border-color: var(--tm-interactive); box-shadow: 0 0 0 2px var(--tm-int-bg);
 }
-.cvb-prov-gap {
-  display: flex; flex-direction: column; gap: 7px;
-  background: var(--tm-warning-wash); border: 1px solid var(--tm-warning-border);
-  border-radius: 10px; padding: 10px 11px;
+
+/* Proof tiers. Only the unproven ones are tinted — a proven skill is the
+   resting state and needs no decoration, so the eye lands on what needs work. */
+.cvb-prov-chip.is-listed {
+  background: var(--tm-surface-2, var(--tm-bg)); border-style: dashed;
 }
-.cvb-prov-gap-label {
-  font: 600 10px var(--tm-font-mono); letter-spacing: 0.06em; text-transform: uppercase;
+.cvb-prov-chip.is-none {
+  background: var(--tm-warning-wash); border-color: var(--tm-warning-border);
   color: var(--tm-warning-text, var(--tm-warning));
 }
-.cvb-prov-gap-note { margin: 0; font-size: 11px; line-height: 1.5; color: var(--tm-text-muted); }
+.cvb-prov-chip.is-none .cvb-prov-lvl { color: inherit; opacity: 0.7; }
+.cvb-prov-chip.is-removed {
+  opacity: 0.45; text-decoration: line-through;
+  text-decoration-color: var(--tm-text-faint);
+}
+.cvb-prov-drop {
+  border: none; background: none; padding: 0 0 0 1px; margin-left: 1px;
+  color: var(--tm-text-faint); font: 600 12px var(--tm-font-sans);
+  line-height: 1; cursor: pointer; border-radius: 4px;
+}
+.cvb-prov-drop:hover:not(:disabled) { color: var(--tm-danger); }
+.cvb-prov-drop:disabled { opacity: 0.4; cursor: progress; }
+.cvb-prov-chip.is-removed .cvb-prov-drop { color: var(--tm-interactive); text-decoration: none; }
+
+.cvb-prov-tally {
+  margin: 0; padding: 0 2px; font: 600 11px var(--tm-font-mono);
+  color: var(--tm-text-faint);
+}
+.cvb-prov-tally-part.is-proven b { color: var(--tm-success); }
+.cvb-prov-tally-part.is-none b { color: var(--tm-warning-text, var(--tm-warning)); }
+.cvb-prov-tally b { color: var(--tm-text); }
+
+.cvb-prov-tier { display: flex; flex-direction: column; gap: 7px; }
+.cvb-prov-tier-head { display: flex; align-items: baseline; gap: 6px; padding: 0 2px; }
+.cvb-prov-tier-label {
+  font: 600 10px var(--tm-font-mono); letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--tm-text-muted);
+}
+.cvb-prov-tier.is-none .cvb-prov-tier-label { color: var(--tm-warning-text, var(--tm-warning)); }
+.cvb-prov-tier-count { font: 600 10px var(--tm-font-mono); color: var(--tm-text-faint); }
+.cvb-prov-tier-note { margin: 0; padding: 0 2px; font-size: 11px; line-height: 1.5; color: var(--tm-text-muted); }
+.cvb-prov-tier.is-none .cvb-prov-point {
+  background: var(--tm-warning-wash); border-color: var(--tm-warning-border);
+}
+
+.cvb-prov-error {
+  margin: 0; padding: 0 2px; font-size: 11.5px; line-height: 1.5;
+  color: var(--tm-danger);
+}
+/* First-run confirmation lives in this rail, so its commit button is the one
+   accent element here — the skills line and its Add button stay quiet. */
+.cvb-prov-confirm {
+  margin-top: 4px; padding: 11px 14px; width: 100%;
+  background: var(--tm-accent-fill); color: var(--tm-accent-ink);
+  border: none; border-radius: 10px;
+  font: 600 13px var(--tm-font-sans); cursor: pointer;
+}
+.cvb-prov-confirm:hover:not(:disabled) { filter: brightness(1.05); }
+.cvb-prov-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ── editor paper → contact + role cards (prototype card-per-role) ── */
 .cvb-v2 .cvb-pgc-paper { background: transparent; border: none; padding: 0; box-shadow: none; }
