@@ -5,6 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { EdgeGlow } from "@/components/loading/edge-glow"
 import { getAccessToken } from "@/lib/session"
 import { auth } from "@/lib/api"
+import {
+  EXTENSION_REDIRECT_RE,
+  clearPendingExtensionConnect,
+  stashPendingExtensionConnect,
+} from "@/lib/extension-connect-stash"
 
 /**
  * Browser-extension connect handshake (project_extension_connect_auth).
@@ -20,10 +25,6 @@ import { auth } from "@/lib/api"
  * BEFORE any token is placed in it. Without this gate, a crafted link with
  * redirect_uri=https://evil.example would exfiltrate the visitor's session.
  */
-
-// Chrome extension IDs are exactly 32 chars from a–p. getRedirectURL() returns
-// `https://<id>.chromiumapp.org/`.
-const REDIRECT_RE = /^https:\/\/[a-p]{32}\.chromiumapp\.org\/?$/
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ??
@@ -41,22 +42,25 @@ function ConnectInner() {
     ran.current = true
 
     const redirectUri = searchParams.get("redirect_uri") ?? ""
-    if (!REDIRECT_RE.test(redirectUri)) {
+    if (!EXTENSION_REDIRECT_RE.test(redirectUri)) {
+      clearPendingExtensionConnect()
       setError("This connect link is invalid. Open the Myro extension and click “Connect with Myro” again.")
       return
     }
 
     const token = getAccessToken()
     if (!token) {
-      // KNOWN GAP: this used to bounce with ?next=/extension/connect, but
-      // postAuthDestination has always ignored ?next=, so the user has never
-      // come back to finish the handshake — they land on /market and must
-      // re-open the extension link. Fixing it properly means stashing the
-      // redirect_uri and giving postAuthDestination a carried-intent branch,
-      // the same shape as the anon-CV and pending-job-save exceptions.
+      // Hold the handshake target so postAuthDestination can bring them back
+      // here (Exception 0) — the redirect_uri came from launchWebAuthFlow and
+      // cannot be recovered by navigating once this tab moves on.
+      stashPendingExtensionConnect(redirectUri)
       router.replace("/login")
       return
     }
+
+    // Signed in and the link is valid: the intent is being served right now, so
+    // it must not survive to re-route an unrelated login later in this tab.
+    clearPendingExtensionConnect()
 
     auth
       .extensionSession(token)

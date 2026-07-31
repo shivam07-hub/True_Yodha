@@ -10,6 +10,7 @@ import { AuthedTopStrip } from "@/components/shell/authed-top-strip"
 import { FeedbackHub } from "@/components/feedback"
 import { skeletonForPath } from "@/components/loading/page-skeletons"
 import { useShellModel } from "@/lib/shell/use-shell-model"
+import { usePendingJobSaveClaim } from "@/lib/hooks/use-pending-job-save-claim"
 import {
   MobileBottomNav,
   MobileTopBar,
@@ -37,6 +38,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const { isDesktop } = useViewport()
   const m = useShellModel()
+
+  // Replay a job saved while logged out (Exception 2). Mounted on the shell, not
+  // on /collections, because postAuthDestination only lands there when the job
+  // save is the TOP intent — an anon CV outranks it, so a user who dropped a CV
+  // and saved a role in the same session lands on /cv and would otherwise never
+  // consume the stash. The replay is idempotent and clears its own stash.
+  usePendingJobSaveClaim(m.token)
 
   // Auth bootstrap window — before chrome/profile can render. Show the
   // destination page's own skeleton shape rather than a centered logo splash,

@@ -3,6 +3,12 @@ interface PostAuthDestinationInput {
   hasPendingAnonCv: boolean
   /** The anon user clicked Save on a job card before auth (Exception 2). */
   hasPendingJobSave: boolean
+  /**
+   * The Chrome extension opened the connect handshake while logged out
+   * (Exception 0). Already validated against EXTENSION_REDIRECT_RE by the
+   * stash; null when absent.
+   */
+  pendingExtensionConnect: string | null
 }
 
 /**
@@ -21,7 +27,15 @@ export function postAuthDestination({
   firstSignup,
   hasPendingAnonCv,
   hasPendingJobSave,
+  pendingExtensionConnect,
 }: PostAuthDestinationInput): string {
+  // Exception 0: the extension is mid-handshake and blocked on a session. It
+  // outranks the others because it is the only intent the user cannot resume by
+  // navigating — the redirect_uri came from launchWebAuthFlow and is gone once
+  // this tab moves on. A stashed CV or job save is still there afterwards.
+  if (pendingExtensionConnect) {
+    return `/extension/connect?redirect_uri=${encodeURIComponent(pendingExtensionConnect)}`
+  }
   // Exception 1: a CV dropped on the marketing page before login → claim + score it.
   if (hasPendingAnonCv) return "/cv?upload=1"
   // Exception 2: a job saved from a job card → the replay saves it; land on the

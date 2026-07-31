@@ -9,6 +9,7 @@ import { getStoredReferral } from "@/lib/referral"
 import { clearStoredAttribution, readStoredAttribution } from "@/lib/attribution"
 import { signupEvents } from "@/lib/analytics"
 import { hasPendingAnonCvClaim } from "@/lib/anon-cv-claim"
+import { readPendingExtensionConnect } from "@/lib/extension-connect-stash"
 import { hasPendingJobSaveClaim } from "@/lib/anon-job-stash"
 import { postAuthDestination } from "@/lib/auth/post-auth-destination"
 
@@ -72,6 +73,7 @@ export function SignupPasswordForm({
         firstSignup: true,
         hasPendingAnonCv: hasPendingAnonCvClaim(),
         hasPendingJobSave: hasPendingJobSaveClaim(),
+        pendingExtensionConnect: readPendingExtensionConnect(),
       }))
     } catch (err) {
       const code = errorCode(err)

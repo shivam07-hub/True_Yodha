@@ -12,6 +12,7 @@ import { appendAttributionToUrl, capturePendingAttribution } from "@/lib/attribu
 import { detectInAppBrowser } from "@/lib/is-in-app-browser"
 import { signupEvents } from "@/lib/analytics"
 import { hasPendingAnonCvClaim } from "@/lib/anon-cv-claim"
+import { readPendingExtensionConnect } from "@/lib/extension-connect-stash"
 import { hasPendingJobSaveClaim } from "@/lib/anon-job-stash"
 import { postAuthDestination } from "@/lib/auth/post-auth-destination"
 import { GoogleAuthButton } from "@/components/auth/shared/google-button"
@@ -90,6 +91,7 @@ export function LoginForm({ surface, showSignupLink = true, initialEmail }: Prop
         firstSignup: false,
         hasPendingAnonCv: hasPendingAnonCvClaim(),
         hasPendingJobSave: hasPendingJobSaveClaim(),
+        pendingExtensionConnect: readPendingExtensionConnect(),
       }))
     } catch (err) {
       const code = errorCode(err)
