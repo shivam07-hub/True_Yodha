@@ -12,6 +12,24 @@
 
 ---
 
+## LAST SESSION SUMMARY
+
+### 2026-07-31 — Supabase migration ledger repair
+
+- Applied and recorded `20260726182212_feedback_submission_idempotency.sql` in
+  the shared Supabase project; the idempotency columns, constraint, and unique
+  index are live.
+- Recorded `20260729113000_job_application_priority.sql` after independently
+  confirming its manually applied priority columns and index were already live.
+- `backend/tests/test_feedback_idempotency.py`,
+  `backend/tests/test_feedback_idempotency_migration.py`, and
+  `backend/tests/test_job_application_priority_migration.py` passed (8 tests).
+- `database/migrations/` has 143 historical SQL artifacts, many with filenames
+  not accepted as Supabase CLI migration versions. They must not be
+  mass-recorded or re-run without a separately verified baseline/mapping.
+
+---
+
 ## ABSOLUTE RULES
 
 - Never merge to `main` directly — only to `Develop`. `main` = Vercel production.
