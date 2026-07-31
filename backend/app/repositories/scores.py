@@ -246,6 +246,26 @@ class ScoresRepository:
         ).data or [])
         return group_job_skill_rows(rows)
 
+    def get_role_family_aspiration_skills(self, families: list[str]) -> dict[str, int]:
+        """Return proficiency demand from verified jobs in selected role families."""
+        if not families:
+            return {}
+        rows = self._db.rpc(
+            "role_family_aspiration_skills", {"p_families": families}
+        ).execute().data or []
+        aspiration: dict[str, int] = {}
+        for row in rows:
+            key = str(row.get("taxonomy_key") or "").strip()
+            total = int(row.get("job_count") or 0)
+            primary_count = int(row.get("primary_job_count") or 0)
+            if not key or not total:
+                continue
+            if primary_count:
+                aspiration[key] = 4 if primary_count / total > 0.5 else 3
+            elif row.get("has_side_skill"):
+                aspiration[key] = 2
+        return aspiration
+
     def list_market_skill_rows(self) -> list[dict[str, Any]]:
         """Returns job skills from the FK-enforced job_skills join table."""
         return group_job_skill_rows(fetch_job_skill_rows(self._db))

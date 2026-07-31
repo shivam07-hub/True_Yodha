@@ -111,7 +111,6 @@ def confirm_baseline_skills(
         )
 
     cv_repo.confirm_skills(user_id, baseline_version_id, reviewed, normalized)
-    score = scoring.recompute_score(scores_repo, user_id)
 
     profile = UsersRepository(db).get_profile(user_id) or {}
     has_target = bool(
@@ -122,10 +121,12 @@ def confirm_baseline_skills(
         {"status": "analyzing" if has_target else "result_ready", "current_stage": "result"},
     )
     if has_target:
+        score = scoring.recompute_score(scores_repo, user_id)
         background.enqueue(
             background.LANE_FAST,
             "onboarding_target_refresh",
             payload={"user_id": user_id, "score_fresh": True},
             correlation_id=f"confirmed-skills:{user_id}:{baseline_version_id}",
         )
-    return score
+        return score
+    return {}

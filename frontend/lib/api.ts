@@ -626,6 +626,8 @@ export interface OnboardingTarget {
   // Provide one of the two; role_titles wins when present.
   role_title?: string
   role_titles?: string[]
+  /** Canonical corpus family chosen with the rendered title. */
+  role_family?: string
   // Optional for point-of-use "edit role" (issue #145): omit to keep the user's
   // existing seniority/location; the backend preserves them via save_target.
   seniority?: TargetSeniority
@@ -635,6 +637,19 @@ export interface OnboardingTarget {
 export interface RoleReadiness {
   role: string
   readiness: number | null
+}
+
+export interface RoleFamily {
+  family: string
+  label: string
+  open_count: number
+  matched_skill_count: number
+}
+
+export interface RoleFamilyLocation {
+  location: string
+  open_count: number
+  is_remote: boolean
 }
 
 export interface FirstSuccessChecklist {
@@ -668,15 +683,11 @@ export type OnboardingResult =
       skills: OnboardingProofSkill[]
     }
   | {
-      // Score-first onboarding (Slice 4): CV parsed + scored, target not yet
-      // confirmed. Show the score + a pre-filled confirm card; matching runs
-      // only after the user taps Confirm (saveTarget).
+      // A target must exist before Myro renders a score cohort.
       kind: "awaiting_target"
       baseline_version_id: number
-      suggestion: { role: string; location: string; seniority: string }
-      skills: OnboardingProofSkill[]
-      score: { total_score: number; domain_scores: Record<string, number>; gap_skills: GapSkill[]; skills_assessed: number; band?: string; band_percentile?: number | null; top_percent?: number | null }
-      score_factors: Array<{ kind: "gap" | "strength"; label: string; detail: string }>
+      families: RoleFamily[]
+      seniority: { value: TargetSeniority | null; years?: number; title?: string; source: "experience_years" | "title" | "unknown"; needs_choice: boolean }
     }
   | {
       kind: "full_result_ready"
@@ -684,7 +695,7 @@ export type OnboardingResult =
       target_context_hash: string
       target: OnboardingTarget
       skills: OnboardingProofSkill[]
-      score: { total_score: number; domain_scores: Record<string, number>; gap_skills: GapSkill[]; skills_assessed: number; band?: string; band_percentile?: number | null; top_percent?: number | null }
+      score: { total_score: number; domain_scores: Record<string, number>; domain_skill_counts?: Record<string, number>; gap_skills: GapSkill[]; skills_assessed: number; band?: string; band_percentile?: number | null; top_percent?: number | null }
       score_factors: Array<{ kind: "gap" | "strength"; label: string; detail: string }>
       credible_match: (JobMatch & { jobs?: { job_title?: string; company_name?: string } }) | null
       primary_action: { kind: string; label: string; href: string }
@@ -712,6 +723,12 @@ export const onboarding = {
     method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(body),
   }),
   roleReadiness: (token: string) => request<RoleReadiness[]>("/onboarding/role-readiness", {
+    headers: { Authorization: `Bearer ${token}` },
+  }),
+  roleFamilies: (token: string, query?: string) => request<RoleFamily[]>(`/roles/families${query ? `?query=${encodeURIComponent(query)}` : ""}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }),
+  roleFamilyLocations: (token: string, family: string, query?: string) => request<RoleFamilyLocation[]>(`/roles/families/${encodeURIComponent(family)}/locations${query ? `?query=${encodeURIComponent(query)}` : ""}`, {
     headers: { Authorization: `Bearer ${token}` },
   }),
   result: (token: string) => request<OnboardingResult>("/onboarding/result", {

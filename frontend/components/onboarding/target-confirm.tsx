@@ -1,126 +1,71 @@
 "use client"
 
 import { useState } from "react"
-import { ArrowRight } from "lucide-react"
+import { Check, Search } from "lucide-react"
+import { useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
-import { BandPercentileLine } from "@/components/skills/band-percentile-line"
-import { ScoreExplanation } from "@/components/onboarding/score-explanation"
-import { ScoreMapPreview } from "@/components/onboarding/score-map-preview"
-import { onboarding, type OnboardingResult, type TargetSeniority } from "@/lib/api"
+import { formatCount } from "@/lib/format"
+import { onboarding, type OnboardingResult, type RoleFamily, type TargetSeniority } from "@/lib/api"
 
 type AwaitingTarget = Extract<OnboardingResult, { kind: "awaiting_target" }>
+type Props = { token: string; result: AwaitingTarget; onConfirmed: () => void }
 
-interface Props {
-  token: string
-  result: AwaitingTarget
-  /** Called after saveTarget lands — parent refetches the result (→ reveal). */
-  onConfirmed: () => void
+const SENIORITY_LABEL: Record<Exclude<TargetSeniority, "any">, string> = {
+  intern: "Internship", entry: "Entry-level", mid: "Mid-level", senior: "Senior", lead: "Lead", executive: "Executive",
 }
 
-const SENIORITIES: { value: TargetSeniority; label: string }[] = [
-  { value: "intern", label: "Internship" },
-  { value: "entry", label: "Entry-level" },
-  { value: "mid", label: "Mid-level" },
-  { value: "senior", label: "Senior" },
-  { value: "lead", label: "Lead" },
-  { value: "executive", label: "Executive" },
-]
+function SeniorityChoice({ result, value, onChange }: {
+  result: AwaitingTarget["seniority"]
+  value: TargetSeniority | null
+  onChange: (value: TargetSeniority) => void
+}) {
+  const [editing, setEditing] = useState(result.needs_choice)
+  const label = value && value !== "any" ? SENIORITY_LABEL[value] : null
+  const evidence = result.source === "experience_years"
+    ? `${label} · ${result.years} yrs of experience read from your CV`
+    : result.source === "title" ? `${label} · read from “${result.title}”` : "What level are you targeting? We couldn’t tell from your CV."
+  return <section className="mt-7" aria-labelledby="target-level">
+    <div className="flex items-center gap-3"><p id="target-level" className="text-sm font-medium text-[var(--tm-text)]">{evidence}</p>{!editing && <button type="button" onClick={() => setEditing(true)} className="tm-control-focus rounded text-sm text-[var(--tm-text-muted)] underline underline-offset-4">change</button>}</div>
+    {editing && <div className="mt-3 flex flex-wrap gap-2">{Object.entries(SENIORITY_LABEL).map(([key, name]) => <button key={key} type="button" onClick={() => { onChange(key as TargetSeniority); setEditing(false) }} className={`tm-control-focus min-h-10 rounded-md border px-3 text-sm ${value === key ? "border-[var(--tm-interactive)] bg-[var(--tm-interactive)] text-[var(--tm-interactive-fg)]" : "border-[var(--tm-border)] bg-[var(--tm-surface)] text-[var(--tm-text-muted)]"}`}>{name}</button>)}</div>}
+  </section>
+}
 
-/**
- * Score-first onboarding reveal (Slice 4): the CV is scored the moment it's
- * parsed, so the number lands first. The target is pre-filled from the parsed
- * CV and confirmed in ONE tap — no separate blocking form. Matching runs only
- * on Confirm, so a weak/empty role never yields junk matches.
- */
+function FamilyRow({ family, selected, onChoose }: { family: RoleFamily; selected: boolean; onChoose: () => void }) {
+  return <button type="button" onClick={onChoose} aria-pressed={selected} className={`tm-control-focus flex w-full items-start justify-between gap-3 rounded-md border px-4 py-3 text-left ${selected ? "border-[var(--tm-interactive)] bg-[var(--tm-int-bg-wash)]" : "border-[var(--tm-border-soft)] bg-[var(--tm-surface)]"}`}><span className="min-w-0"><span className="block text-base font-medium text-[var(--tm-text)]">{family.label}</span><span className="mt-1 block text-sm text-[var(--tm-text-muted)]">{formatCount(family.open_count)} open · {family.matched_skill_count} of your skills</span></span>{selected && <Check className="mt-1 size-4 shrink-0 text-[var(--tm-interactive)]" />}</button>
+}
+
+/** The targeting step is deliberately score-free: its selected cohort creates the score. */
 export function TargetConfirm({ token, result, onConfirmed }: Props) {
-  const suggested = result.suggestion
-  const [role, setRole] = useState(suggested.role)
-  const [seniority, setSeniority] = useState<TargetSeniority>(
-    (SENIORITIES.some((s) => s.value === suggested.seniority) ? suggested.seniority : "entry") as TargetSeniority,
-  )
-  const [location, setLocation] = useState(suggested.location)
+  const [selected, setSelected] = useState<RoleFamily | null>(null)
+  const [roleSearch, setRoleSearch] = useState("")
+  const [showSearch, setShowSearch] = useState(false)
+  const [location, setLocation] = useState("")
+  const [seniority, setSeniority] = useState<TargetSeniority | null>(result.seniority.value)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const searchedFamilies = useQuery({ queryKey: ["role-families", roleSearch], queryFn: () => onboarding.roleFamilies(token, roleSearch), enabled: showSearch && roleSearch.trim().length >= 2 })
+  const locations = useQuery({ queryKey: ["role-family-locations", selected?.family], queryFn: () => onboarding.roleFamilyLocations(token, selected!.family), enabled: Boolean(selected) })
+  const families = showSearch && roleSearch.trim().length >= 2 ? (searchedFamilies.data ?? []) : result.families
 
-  const roleReady = role.trim().length >= 2
-
-  async function confirm() {
-    if (!roleReady || busy) return
-    setBusy(true)
-    setError(null)
+  async function submit() {
+    if (!selected || !seniority || busy) return
+    setBusy(true); setError(null)
     try {
-      await onboarding.saveTarget(token, {
-        role_title: role.trim(),
-        seniority,
-        location: location.trim() || undefined,
-      })
+      await onboarding.saveTarget(token, { role_title: selected.label, role_family: selected.family, seniority, location: location || undefined })
       onConfirmed()
     } catch (reason) {
-      setBusy(false)
-      setError(reason instanceof Error ? reason.message : "Could not save your target.")
+      setBusy(false); setError(reason instanceof Error ? reason.message : "Could not save your target.")
     }
   }
 
-  return (
-    <section className="w-full max-w-lg" aria-labelledby="score-title">
-      <p className="text-sm font-semibold text-[var(--tm-interactive)]">Your Myro Score</p>
-      <div className="mt-2 flex items-baseline gap-3">
-        <span id="score-title" className="text-6xl font-semibold tabular-nums leading-none text-[var(--tm-text)]">
-          {Math.round(result.score.total_score)}
-        </span>
-        <BandPercentileLine band={result.score.band} topPercent={result.score.top_percent} />
-      </div>
-
-      <ScoreMapPreview score={result.score} />
-      <div className="mt-6"><ScoreExplanation factors={result.score_factors} /></div>
-
-      <div className="mt-6 rounded-md border border-[var(--tm-border)] bg-[var(--tm-surface)] p-5">
-        <p className="text-base font-medium text-[var(--tm-text)]">
-          Confirm your target to see matches
-        </p>
-        <p className="mt-1 text-sm text-[var(--tm-text-muted)]">
-          Pulled from your CV — edit anything that&apos;s off.
-        </p>
-
-        <label htmlFor="tc-role" className="mt-4 block text-xs font-medium uppercase tracking-wide text-[var(--tm-text-muted)]">Target role</label>
-        <input
-          id="tc-role"
-          value={role}
-          onChange={(e) => setRole(e.target.value)}
-          placeholder="e.g. Data Analyst"
-          className="tm-control-focus mt-1 min-h-11 w-full rounded-md border border-[var(--tm-border)] bg-[var(--tm-bg)] px-3 text-base text-[var(--tm-text)] placeholder:text-[var(--tm-text-faint)]"
-        />
-
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <div>
-            <label htmlFor="tc-seniority" className="block text-xs font-medium uppercase tracking-wide text-[var(--tm-text-muted)]">Seniority</label>
-            <select
-              id="tc-seniority"
-              value={seniority}
-              onChange={(e) => setSeniority(e.target.value as TargetSeniority)}
-              className="tm-control-focus mt-1 min-h-11 w-full rounded-md border border-[var(--tm-border)] bg-[var(--tm-bg)] px-3 text-base text-[var(--tm-text)]"
-            >
-              {SENIORITIES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="tc-location" className="block text-xs font-medium uppercase tracking-wide text-[var(--tm-text-muted)]">Location</label>
-            <input
-              id="tc-location"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="Optional"
-              className="tm-control-focus mt-1 min-h-11 w-full rounded-md border border-[var(--tm-border)] bg-[var(--tm-bg)] px-3 text-base text-[var(--tm-text)] placeholder:text-[var(--tm-text-faint)]"
-            />
-          </div>
-        </div>
-
-        {error && <p role="alert" className="mt-3 text-sm text-[var(--tm-danger)]">{error}</p>}
-
-        <Button size="lg" className="mt-4 min-h-12 w-full" disabled={!roleReady || busy} onClick={() => void confirm()}>
-          {busy ? "Finding your matches…" : <>Confirm &amp; see matches <ArrowRight className="size-5" /></>}
-        </Button>
-      </div>
-    </section>
-  )
+  return <section className="w-full max-w-lg" aria-labelledby="target-title">
+    <p className="text-sm font-medium text-[var(--tm-text-muted)]">After your skill review</p><h1 id="target-title" className="mt-2 text-balance text-3xl font-semibold tracking-normal text-[var(--tm-text)]">What you qualify for</h1>
+    <div className="mt-6 space-y-2">{families.map(family => <FamilyRow key={family.family} family={family} selected={selected?.family === family.family} onChoose={() => { setSelected(family); setLocation("") }} />)}{!showSearch && result.families.length === 0 && <p className="text-sm text-[var(--tm-text-muted)]">Search the roles Myro is currently tracking.</p>}</div>
+    <button type="button" onClick={() => setShowSearch(value => !value)} className="tm-control-focus mt-4 inline-flex min-h-10 items-center gap-2 rounded text-sm text-[var(--tm-text-muted)] underline underline-offset-4"><Search className="size-4" />Search another role</button>
+    {showSearch && <input value={roleSearch} onChange={event => setRoleSearch(event.target.value)} autoFocus placeholder="Search a role" aria-label="Search another role" className="tm-control-focus mt-2 min-h-11 w-full rounded-md border border-[var(--tm-border)] bg-[var(--tm-surface)] px-3 text-[var(--tm-text)] placeholder:text-[var(--tm-text-faint)]" />}
+    <SeniorityChoice result={result.seniority} value={seniority} onChange={setSeniority} />
+    {selected && <section className="mt-7" aria-labelledby="target-location"><p id="target-location" className="text-sm font-medium text-[var(--tm-text)]">Where?</p><div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => setLocation("")} className={`tm-control-focus min-h-10 rounded-md border px-3 text-sm ${!location ? "border-[var(--tm-interactive)] bg-[var(--tm-interactive)] text-[var(--tm-interactive-fg)]" : "border-[var(--tm-border)] bg-[var(--tm-surface)] text-[var(--tm-text-muted)]"}`}>Anywhere · {formatCount(selected.open_count)}</button>{(locations.data ?? []).map(option => <button key={`${option.is_remote}-${option.location}`} type="button" onClick={() => setLocation(option.location)} className={`tm-control-focus min-h-10 rounded-md border px-3 text-sm ${location === option.location ? "border-[var(--tm-interactive)] bg-[var(--tm-interactive)] text-[var(--tm-interactive-fg)]" : "border-[var(--tm-border)] bg-[var(--tm-surface)] text-[var(--tm-text-muted)]"}`}>{option.location} · {formatCount(option.open_count)}{option.open_count < 10 ? " · thin" : ""}</button>)}</div></section>}
+    {error && <p role="alert" className="mt-4 text-sm text-[var(--tm-danger)]">{error}</p>}
+    <Button size="lg" className="mt-8 min-h-12 w-full" disabled={!selected || !seniority || busy} onClick={() => void submit()}>{busy ? "Building your score…" : "See my score →"}</Button>
+  </section>
 }

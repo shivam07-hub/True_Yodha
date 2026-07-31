@@ -43,6 +43,7 @@ class TargetRequest(BaseModel):
     # `role_titles` wins when present; otherwise `role_title` folds into a list.
     role_title: str | None = Field(default=None, min_length=2, max_length=120)
     role_titles: list[str] | None = Field(default=None, max_length=5)
+    role_family: str | None = Field(default=None, min_length=2, max_length=200)
     # Optional so a point-of-use "edit role" (issue #145) can change only the
     # role(s); save_target preserves the user's existing seniority/location.
     seniority: Seniority | None = None
@@ -152,6 +153,7 @@ def save_target(
         principal.id,
         role_title=body.role_title,
         role_titles=body.role_titles,
+        role_family=body.role_family,
         seniority=body.seniority,
         location=body.location,
     )

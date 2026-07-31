@@ -83,7 +83,7 @@ export function FullResult({ token, result, onAction, onCorrected }: Props) {
         </aside>
       </div>
       <ScoreMapPreview score={result.score} link />
-      <div className="mt-6"><ScoreExplanation factors={result.score_factors} /></div>
+      <div className="mt-6"><ScoreExplanation domainScores={result.score.domain_scores} domainSkillCounts={result.score.domain_skill_counts ?? {}} factors={result.score_factors} /></div>
       {/*
         The ending. A user who has saved something has already picked their
         target — hand them the CV for it. A user who has not still needs to

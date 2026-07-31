@@ -9,7 +9,7 @@ from app.main import app
 from app.routers import onboarding
 from app.services import onboarding_preview
 from app.services.onboarding_preview import build_preview_payload
-from app.services.onboarding_service import derive_role_clusters, target_context_hash
+from app.services.onboarding_service import target_context_hash
 
 
 class _StateRepo:
@@ -84,6 +84,7 @@ def test_target_saves_literal_role_seniority_and_location(monkeypatch) -> None:
         "user_id": "u1",
         "role_title": "Senior Product Manager",
         "role_titles": None,
+        "role_family": None,
         "seniority": "senior",
         "location": "Bengaluru, India",
     }
@@ -215,10 +216,6 @@ def test_preview_completion_does_not_bypass_target(monkeypatch) -> None:
 
     assert repo.patches[-1]["status"] == "result_ready"
     assert "current_stage" not in repo.patches[-1]
-
-
-def test_role_mapping_preserves_product_semantics() -> None:
-    assert derive_role_clusters("Senior Product Manager") == ["Product Management"]
 
 
 def test_target_context_changes_with_seniority() -> None:
