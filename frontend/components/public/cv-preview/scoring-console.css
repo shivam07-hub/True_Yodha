@@ -1,7 +1,24 @@
-/* Scoring console — the /cv-preview loading state. Lives inside the
-   .lp-readout-standalone dark-console scope (tokens from sample-readout.css),
-   so it reads as the Engine regardless of light/dark theme. Compositor-only
-   animation (transform + opacity); reduced-motion freezes everything. */
+/* Scoring console — the /cv-preview loading state. Themes with the page via
+   .sc-scope (--lp-* aliased to --tm-*, same pattern as .tm-landing) — this
+   is NOT one of the approved dark-console islands (landing engine pipeline /
+   sample readout / intel pane), so accent follows the two-brand rule: orange
+   on light, teal on dark. Compositor-only animation (transform + opacity);
+   reduced-motion freezes everything. */
+
+.sc-scope {
+  --lp-surface:       var(--tm-surface);
+  --lp-surface-2:     var(--tm-surface-2);
+  --lp-border:        var(--tm-border-soft);
+  --lp-border-strong: var(--tm-border);
+  --lp-text:          var(--tm-text);
+  --lp-muted:         var(--tm-text-muted);
+  --lp-faint:         var(--tm-text-faint);
+  --lp-accent:        var(--tm-accent);
+  --lp-accent-text:   var(--tm-accent-text);
+  --lp-accent-fg:     var(--tm-accent-fg);
+  --lp-mono:          var(--font-jbmono), "JetBrains Mono", "Geist Mono", ui-monospace, monospace;
+  --lp-ease:          cubic-bezier(0.16, 1, 0.3, 1);
+}
 
 .sc-wrap {
   max-width: 640px;
@@ -15,7 +32,7 @@
   gap: 22px;
 }
 
-/* CV skeleton with a teal scan line sweeping it — "reading the document". */
+/* CV skeleton with an accent scan line sweeping it — "reading the document". */
 .sc-doc {
   position: relative;
   overflow: hidden;
@@ -58,7 +75,7 @@
   to { transform: translateX(360%); }
 }
 
-/* Compute stages — done (teal check), active (pulsing dot), pending (faint). */
+/* Compute stages — done (accent check), active (pulsing dot), pending (faint). */
 .sc-stages {
   list-style: none;
   margin: 0;
@@ -102,7 +119,7 @@
   top: 1.5px;
   width: 4px;
   height: 8px;
-  border: solid #04211c;
+  border: solid var(--lp-accent-fg);
   border-width: 0 1.6px 1.6px 0;
   transform: rotate(45deg);
 }
