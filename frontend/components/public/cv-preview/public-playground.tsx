@@ -20,8 +20,11 @@
  * logged-in perk.
  *
  * Gate (grill Q8 / Shivam): everything is free; login is an OPTIONAL "save"
- * upsell. Download offers "Save & download" (→ signup, claim-replays the
- * composed CV as the new Main CV) vs "Just download" (no login).
+ * upsell, never a gate on the download itself — parity with the authed
+ * surface, where Download is always one direct tap off the live WYSIWYG
+ * sheet, no confirm modal in between. "Log in to save this CV for next
+ * time" is a non-blocking secondary link (stashes the composed text, opens
+ * signup, claim-replays it as the new Main CV on `/cv?upload=1`).
  */
 "use client"
 
@@ -79,7 +82,6 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
   // re-parses it on signup). The on-screen sheet stays the structured PdfPage
   // (parity), exactly like the authed surface where the export is structured.
   const [restructuredText, setRestructuredText] = useState<string | null>(null)
-  const [downloadOpen, setDownloadOpen] = useState(false)
   const [downloading, setDownloading] = useState(false)
   // The visible preview wrapper — the SAME `.cvb-pdf-page` sheet gets serialized
   // and rendered server-side (ADR-0020 WYSIWYG), so the PDF === the preview.
@@ -198,20 +200,11 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
       await downloadSheet()
     } finally {
       setDownloading(false)
-      setDownloadOpen(false)
     }
   }
-  async function doSaveAndDownload() {
-    if (downloading) return
+  function doLogInToSave() {
     recordDownload(true)
     stashComposedCvText(composedText)
-    setDownloading(true)
-    try {
-      await downloadSheet()
-    } finally {
-      setDownloading(false)
-      setDownloadOpen(false)
-    }
     signup.open({ surface: "manual", source: "cv_preview_save_download" })
   }
 
@@ -231,8 +224,8 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
         hideOverflow
         onBack={() => router.push("/")}
         onReqPill={() => {}}
-        onApply={() => setDownloadOpen(true)}
-        onDownload={() => setDownloadOpen(true)}
+        onApply={doDownload}
+        onDownload={doDownload}
       />
 
       <div className="cvb-v2-main">
@@ -261,9 +254,14 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
                 <span className="mono">
                   {pageFill.fits ? `Fits one page · ${pageFill.pct}% full` : `Spills onto ${pageFill.pages} pages`}
                 </span>
-                <button type="button" className="cvb-v2-ghostbtn" onClick={() => setDownloadOpen(true)}>
-                  <Icon name="download" size={13} /> Download CV
-                </button>
+                <span className="cvp-anon-previewfoot-actions">
+                  <button type="button" className="cvp-login-save" onClick={doLogInToSave}>
+                    Log in to save this CV for next time →
+                  </button>
+                  <button type="button" className="cvb-v2-ghostbtn" onClick={doDownload} disabled={downloading} aria-busy={downloading}>
+                    <Icon name="download" size={13} /> {downloading ? "Preparing…" : "Download CV"}
+                  </button>
+                </span>
               </div>
             ) : (
               <>
@@ -357,26 +355,6 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
             setRestructureOpen(false)
           }}
         />
-      )}
-
-      {downloadOpen && (
-        <div className="cvb-modal-backdrop" role="dialog" aria-modal="true" aria-label="Download your CV" onClick={() => setDownloadOpen(false)}>
-          <div className="cvb-modal cvp-dl-modal" onClick={e => e.stopPropagation()}>
-            <div className="cvb-modal-head"><Icon name="download" size={14} /> Download your CV</div>
-            <div className="cvp-dl-body">
-              <p className="cvp-dl-copy">Log in to save this CV and your edits for next time.</p>
-              <div className="cvp-dl-actions">
-                <Button onClick={doSaveAndDownload} disabled={downloading} aria-busy={downloading}>
-                  <Icon name="save" size={14} /> {downloading ? "Preparing…" : "Save & download"}
-                </Button>
-                <Button variant="ghost" onClick={doDownload} disabled={downloading} aria-busy={downloading}>
-                  <Icon name="download" size={14} /> {downloading ? "Preparing…" : "Just download"}
-                </Button>
-              </div>
-              <p className="cvp-dl-note">PDF is selectable, ATS-safe text — what you see is what downloads.</p>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   )
@@ -585,7 +563,10 @@ function RewriteModal({
   return (
     <div className="cvb-modal-backdrop" role="dialog" aria-modal="true" aria-label="Polish with Mentor" onClick={onClose}>
       <div className="cvb-modal cvp-rw-modal" onClick={e => e.stopPropagation()}>
-        <div className="cvb-modal-head"><Icon name="sparkle" size={14} /> Polish with Mentor</div>
+        <div className="cvb-modal-head">
+          <span><Icon name="sparkle" size={14} /> Polish with Mentor</span>
+          <button type="button" className="cvb-intake-x" onClick={onClose} aria-label="Close">✕</button>
+        </div>
         <div className="cvp-rw-body">
           <div className="cvp-rw-original"><span className="cvp-rw-label">Original</span><p>{target.text}</p></div>
 
@@ -718,7 +699,10 @@ function RestructureModal({
   return (
     <div className="cvb-modal-backdrop" role="dialog" aria-modal="true" aria-label="Restructure with Mentor" onClick={onClose}>
       <div className="cvb-modal cvb-rs-modal" onClick={e => e.stopPropagation()}>
-        <div className="cvb-modal-head"><Icon name="sparkle" size={14} /> Restructure with Mentor</div>
+        <div className="cvb-modal-head">
+          <span><Icon name="sparkle" size={14} /> Restructure with Mentor</span>
+          <button type="button" className="cvb-intake-x" onClick={onClose} aria-label="Close">✕</button>
+        </div>
 
         {phase === "loading" && (
           <div className="cvb-rs-body">

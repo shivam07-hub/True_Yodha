@@ -195,13 +195,12 @@
   color: var(--tm-text-muted);
 }
 
-/* Small confirm modals (rewrite, download) size to their content — the shared
-   <720px rule forces .cvb-modal to height:100vh, which strands these short
-   dialogs in a half-empty full-screen sheet. Keep them as centered cards. */
+/* Small confirm modals (rewrite) size to their content — the shared <720px
+   rule forces .cvb-modal to height:100vh, which strands these short dialogs
+   in a half-empty full-screen sheet. Keep them as centered cards. */
 @media (max-width: 720px) {
-  .cvb-modal-backdrop:has(.cvp-rw-modal),
-  .cvb-modal-backdrop:has(.cvp-dl-modal) { padding: 20px; }
-  .cvp-rw-modal, .cvp-dl-modal {
+  .cvb-modal-backdrop:has(.cvp-rw-modal) { padding: 20px; }
+  .cvp-rw-modal {
     height: auto;
     max-height: calc(100dvh - 40px);
     border-radius: var(--tm-radius-lg);
@@ -209,13 +208,15 @@
   }
 }
 
-/* Download modal */
-.cvp-dl-modal { max-width: 440px; }
-.cvp-dl-body { padding: 16px; }
-.cvp-dl-copy { margin: 0 0 14px; font-size: 14px; color: var(--tm-text); }
-.cvp-dl-actions { display: flex; flex-direction: column; gap: 10px; }
-.cvp-dl-actions button { justify-content: center; }
-.cvp-dl-note { margin: 12px 0 0; font-size: 11.5px; color: var(--tm-text-faint); }
+/* Preview-tab footer: login-to-save is a quiet secondary link — download
+   itself is never gated (parity with the authed one-tap download). */
+.cvp-anon-previewfoot-actions { display: flex; align-items: center; gap: 14px; }
+.cvp-login-save {
+  border: none; background: none; cursor: pointer; padding: 0;
+  font-size: 11.5px; color: var(--tm-text-faint); text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.cvp-login-save:hover { color: var(--tm-text-muted); }
 
 /* ── v2-shell fold (unified with the authed CV Playground) ──────────────────
    The anon surface now renders the SAME cvb-v2 shell (playground-v2.css). These
@@ -226,7 +227,11 @@
 .cvp-anon .cvp-anon-sheet.show { display: block; }
 .cvp-anon .cvp-anon-previewfoot {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  margin-top: 14px; font-size: 11.5px; color: var(--tm-text-faint);
+  margin-top: 14px; font-size: 11.5px; color: var(--tm-text-faint); flex-wrap: wrap;
+}
+@media (max-width: 480px) {
+  .cvp-anon .cvp-anon-previewfoot { flex-direction: column; align-items: stretch; gap: 10px; }
+  .cvp-anon-previewfoot-actions { justify-content: space-between; }
 }
 /* ATS grid inside the rail pane — one column, reads as a checklist. */
 .cvp-anon .cvb-v2-railbody .cvp-ats-grid { display: flex; flex-direction: column; gap: 2px; }
