@@ -17,8 +17,6 @@ export interface SignupGateOpenParams {
   surface: SignupGateSurface
   /** Which view to open in. Defaults to "signup" (conversion-first). */
   mode?: SignupGateMode
-  /** Same-origin path to send the user to after the auth round-trip. */
-  next?: string | null
   /** Free-text reason for analytics — e.g. "score-comparison". */
   source?: string | null
   /** A job the anon user tried to save. Stashed on open, replayed post-login →
@@ -30,7 +28,6 @@ interface SignupGateState {
   open: boolean
   mode: SignupGateMode
   surface: SignupGateSurface | null
-  next: string | null
   source: string | null
   openedAt: number | null
   methodSeenCount: number
@@ -55,17 +52,15 @@ export const useSignupGateStore = create<SignupGateState>((set) => ({
   open: false,
   mode: "signup",
   surface: null,
-  next: null,
   source: null,
   openedAt: null,
   methodSeenCount: 0,
   prefillEmail: null,
-  openGate: ({ surface, mode, next, source }) =>
+  openGate: ({ surface, mode, source }) =>
     set({
       open: true,
       mode: mode ?? "signup",
       surface,
-      next: next ?? null,
       source: source ?? null,
       openedAt: Date.now(),
       methodSeenCount: 0,

@@ -22,7 +22,6 @@ import { InAppBrowserWarning } from "@/components/auth/shared/in-app-browser-war
 
 interface Props {
   surface: "page" | "modal"
-  next?: string | null
   showSignupLink?: boolean
   /**
    * Address carried in from a signup that hit an existing account (or from
@@ -38,7 +37,7 @@ interface Props {
  * Four login paths: Google + LinkedIn + magic-link + password (legacy).
  * Magic-link is the canonical forgot-password recovery path.
  */
-export function LoginForm({ surface, next, showSignupLink = true, initialEmail }: Props) {
+export function LoginForm({ surface, showSignupLink = true, initialEmail }: Props) {
   const router = useRouter()
   const [email, setEmail] = useState(initialEmail ?? "")
   const [password, setPassword] = useState("")
@@ -58,9 +57,8 @@ export function LoginForm({ surface, next, showSignupLink = true, initialEmail }
 
   const redirectTo = useMemo(() => {
     if (typeof window === "undefined") return null
-    const base = `${window.location.origin}/auth/callback`
-    return appendAttributionToUrl(next ? `${base}?next=${encodeURIComponent(next)}` : base)
-  }, [next])
+    return appendAttributionToUrl(`${window.location.origin}/auth/callback`)
+  }, [])
 
   function openOAuth(provider: "google" | "linkedin_oidc") {
     if (agent && provider === "google") return
@@ -89,7 +87,6 @@ export function LoginForm({ surface, next, showSignupLink = true, initialEmail }
       }
       setSessionTokens({ accessToken: res.access_token, refreshToken: res.refresh_token })
       router.push(postAuthDestination({
-        next: next ?? null,
         firstSignup: false,
         hasPendingAnonCv: hasPendingAnonCvClaim(),
         hasPendingJobSave: hasPendingJobSaveClaim(),
@@ -246,7 +243,7 @@ export function LoginForm({ surface, next, showSignupLink = true, initialEmail }
         }}>
           New here?{" "}
           <Link
-            href={next ? `/signup?next=${encodeURIComponent(next)}` : "/signup"}
+            href="/signup"
             style={{ color: "var(--tm-interactive)", textDecoration: "none" }}
           >
             Create an account

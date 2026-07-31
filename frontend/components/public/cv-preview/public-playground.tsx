@@ -61,7 +61,6 @@ import "@/app/(authed)/cv/cv-builder.css"
 import "@/app/(authed)/cv/playground-v2.css"
 import "./public-playground.css"
 
-const NEXT = "/cv?upload=1"
 
 interface PublicPlaygroundProps {
   cv: CVStructured
@@ -213,7 +212,7 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
       setDownloading(false)
       setDownloadOpen(false)
     }
-    signup.open({ surface: "manual", next: NEXT, source: "cv_preview_save_download" })
+    signup.open({ surface: "manual", source: "cv_preview_save_download" })
   }
 
   return (
@@ -222,7 +221,7 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
         variant="master"
         brandLabel="CV Playground"
         masterMeta="Match this CV to jobs →"
-        onMeta={() => signup.open({ surface: "manual", next: NEXT, source: "cv_preview_match" })}
+        onMeta={() => signup.open({ surface: "manual", source: "cv_preview_match" })}
         scoreCaption="/100 · your CV score"
         jobTitle="" company="Untitled company" reqCount={0}
         ready={result.score} delta={0}

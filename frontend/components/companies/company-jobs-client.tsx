@@ -136,7 +136,6 @@ export function CompanyJobsClient({
   function openSignup(jobId?: string) {
     signup.open({
       surface: "company_jobs_save",
-      next: `/companies/${encodeURIComponent(companyName)}`,
       pendingJobId: jobId ?? null,
     })
   }
@@ -286,14 +285,14 @@ export function CompanyJobsClient({
             <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>Upload your CV. Get a Myro Score + skill gap for every role.</div>
           </div>
           <Button
-            render={<Link href="/signup?next=/cv?upload=1" />}
+            render={<Link href="/signup" />}
             variant="solid"
             size="md"
             style={{ flexShrink: 0, position: "relative" }}
             onClick={(e) => {
               if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return
               e.preventDefault()
-              signup.open({ surface: "company_jobs_cta", next: "/cv?upload=1" })
+              signup.open({ surface: "company_jobs_cta" })
             }}
           >
             Get my Myro Score →

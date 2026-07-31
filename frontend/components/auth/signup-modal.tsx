@@ -27,7 +27,7 @@ const CONCEPTS: Array<{ title: string; body: string }> = [
 ]
 
 export function SignupModal() {
-  const { open, mode, surface, next, prefillEmail, closeGate, setMode, openedAt, methodSeenCount } =
+  const { open, mode, surface, prefillEmail, closeGate, setMode, openedAt, methodSeenCount } =
     useSignupGateStore()
   const isLogin = mode === "login"
   const dialogRef = useRef<HTMLDivElement | null>(null)
@@ -145,18 +145,16 @@ export function SignupModal() {
           {isLogin ? (
             <LoginForm
               surface="modal"
-              next={next}
               showSignupLink={false}
               initialEmail={prefillEmail}
             />
           ) : (
             <SignupForm
               surface="modal"
-              next={next}
               showLoginLink={false}
               // Existing account → flip to sign-in in place, email carried
-              // over. Sending them to /login would drop the modal's `next`
-              // and the surface they came from.
+              // over. Sending them to /login would drop the surface they came
+              // from.
               onEmailTaken={(email) => setMode("login", email)}
             />
           )}

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { AuthPageShell, useNextPath } from "@/components/auth/auth-page-shell"
+import { AuthPageShell } from "@/components/auth/auth-page-shell"
 import { SignupForm } from "@/components/auth/signup-form"
 import { SampleReadout } from "@/components/public/landing/sample-readout"
 import { readStashedResult } from "@/lib/anon-cv-stash"
@@ -9,8 +9,6 @@ import type { AnonScoreResponse } from "@/lib/api"
 import Link from "next/link"
 
 export function SignupRoute() {
-  const next = useNextPath()
-
   // A user routed here from /cv-preview after scoring a CV whose structure we
   // couldn't rebuild (degraded parse) — show their REAL score beside the form
   // instead of the sample. Read after mount (sessionStorage is client-only).
@@ -55,7 +53,7 @@ export function SignupRoute() {
         <>
           Already have an account?{" "}
           <Link
-            href={next ? `/login?next=${encodeURIComponent(next)}` : "/login"}
+            href="/login"
             style={{ color: "var(--tm-interactive)", textDecoration: "none" }}
           >
             Sign in
@@ -63,7 +61,7 @@ export function SignupRoute() {
         </>
       }
     >
-      <SignupForm surface="page" next={next} showLoginLink={false} />
+      <SignupForm surface="page" showLoginLink={false} />
     </AuthPageShell>
   )
 }

@@ -372,12 +372,12 @@ function LockedCta() {
         <div className="tm-intel-locked-s">Create your profile to match, track, and export.</div>
       </div>
       <Link
-        href="/signup?next=/cv?upload=1"
+        href="/signup"
         className="tm-intel-locked-btn"
         onClick={(e) => {
           if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return
           e.preventDefault()
-          signup.open({ surface: "manual", next: "/cv?upload=1", source: "intel_locked_cta" })
+          signup.open({ surface: "manual", source: "intel_locked_cta" })
         }}
       >
         Create your profile →

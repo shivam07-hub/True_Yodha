@@ -48,9 +48,13 @@ function ConnectInner() {
 
     const token = getAccessToken()
     if (!token) {
-      // Bounce through login, then come straight back to finish the handshake.
-      const next = `/extension/connect?redirect_uri=${encodeURIComponent(redirectUri)}`
-      router.replace(`/login?next=${encodeURIComponent(next)}`)
+      // KNOWN GAP: this used to bounce with ?next=/extension/connect, but
+      // postAuthDestination has always ignored ?next=, so the user has never
+      // come back to finish the handshake — they land on /market and must
+      // re-open the extension link. Fixing it properly means stashing the
+      // redirect_uri and giving postAuthDestination a carried-intent branch,
+      // the same shape as the anon-CV and pending-job-save exceptions.
+      router.replace("/login")
       return
     }
 

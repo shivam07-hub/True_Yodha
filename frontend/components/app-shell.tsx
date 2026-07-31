@@ -44,7 +44,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // skeleton → real content, all in the same layout.
   //
   // Gate on token too: when bootstrap finished with no session (ready && !token)
-  // useAuth has fired router.replace(/login?next=…). Holding the skeleton during
+  // useAuth has fired router.replace(/login). Holding the skeleton during
   // that redirect-in-flight window stops authed children rendering token-less
   // (Backlog #16 — logged-out visitor landed on a blank /tracker).
   if (!m.ready || !m.token) return <>{skeletonForPath(pathname)}</>

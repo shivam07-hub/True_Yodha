@@ -7,9 +7,10 @@ import { billing, myrology, users, type MyrologyBooking, type MyrologyIntake, ty
 import { getAccessToken } from "@/lib/session"
 import { loadRazorpay } from "@/lib/razorpay"
 
-// Logged-out visitors must keep this public page; bounce them to signup with a
-// return hop instead of mounting useAuth (which auto-redirects to /login).
-const SIGNUP_HREF = "/signup?next=/myrology"
+// Logged-out visitors must keep this public page; bounce them to signup
+// instead of mounting useAuth (which auto-redirects to /login). Post-auth
+// landing is decided by carried intent, so they return here by navigating.
+const SIGNUP_HREF = "/signup"
 
 // Flow: locked (marketing) → intake (birth details, FREE) → pay (₹299) → booking
 // (confirm + session requests). Intake now precedes payment.

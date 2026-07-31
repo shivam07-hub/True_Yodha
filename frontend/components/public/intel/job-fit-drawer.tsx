@@ -128,7 +128,7 @@ export function JobFitDrawer({
 
   async function saveAndTailor() {
     if (!job) return
-    const next = jobFitNextPath({ jobId: job.id, hasReplayableCv: false })
+
     if (!token) {
       trackEvent("public_fit_signup_started", {
         job_id: job.id,
@@ -137,7 +137,12 @@ export function JobFitDrawer({
         authed: "0",
         has_cv: preview ? "1" : "0",
       })
-      signup.open({ surface: "manual", next, source: "public_fit_preview" })
+      // KNOWN GAP: the job context (jobFitNextPath → /cv?upload=1&jobId=…) used
+      // to ride along as `next` and was discarded by postAuthDestination, so an
+      // anon user has always lost this job through auth and lands on the plain
+      // CV claim. Carrying it needs a stashed intent + a postAuthDestination
+      // branch, the shape the anon-CV and pending-job-save exceptions use.
+      signup.open({ surface: "manual", source: "public_fit_preview" })
       return
     }
 

@@ -25,17 +25,12 @@ import {
  *   - persist LinkedIn metadata + grant the one-time +50 XP
  *   - run the welcome XP grant via the BEFORE INSERT trigger
  *
- * Then we route to ?next= (whitelisted same-origin) or /market, except for
- * brand-new users who land on /onboarding (Day 1 first-run stepper:
+ * Then postAuthDestination picks the landing from carried intent (there is no
+ * deep-link return): /market, except for brand-new users who land on
+ * /onboarding (Day 1 first-run stepper:
  * cv → role → lens → companies → ninja → score). /welcome was merged into
  * the public landing (/), so first-run users go straight to the stepper.
  */
-
-function safeNext(raw: string | null): string | null {
-  if (!raw || !raw.startsWith("/")) return null
-  if (raw.startsWith("//") || raw.startsWith("/\\")) return null
-  return raw
-}
 
 function CallbackInner() {
   const router = useRouter()
@@ -49,7 +44,6 @@ function CallbackInner() {
     type SbSession = NonNullable<
       Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"]
     >
-    const next = safeNext(searchParams.get("next"))
     const arrivedAt = Date.now()
     const isMagicLink = typeof window !== "undefined" && window.location.hash.includes("access_token")
 
@@ -143,7 +137,6 @@ function CallbackInner() {
       // Returning users land on /market (Live = the primary daily surface);
       // brand-new signups still run the first-run onboarding stepper.
       routeOnce(postAuthDestination({
-        next,
         firstSignup: firstSignup === "1",
         hasPendingAnonCv: hasPendingAnonCvClaim(),
         hasPendingJobSave: hasPendingJobSaveClaim(),

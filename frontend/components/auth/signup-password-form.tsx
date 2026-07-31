@@ -14,7 +14,6 @@ import { postAuthDestination } from "@/lib/auth/post-auth-destination"
 
 interface Props {
   surface: "page" | "modal"
-  next?: string | null
   onPendingEmail: (email: string) => void
   onUseMagicLink: () => void
   /** Owner of a sign-in view takes over when the email already has an account. */
@@ -23,7 +22,6 @@ interface Props {
 
 export function SignupPasswordForm({
   surface,
-  next,
   onPendingEmail,
   onUseMagicLink,
   onEmailTaken,
@@ -71,7 +69,6 @@ export function SignupPasswordForm({
         surface,
       })
       router.push(postAuthDestination({
-        next: next ?? null,
         firstSignup: true,
         hasPendingAnonCv: hasPendingAnonCvClaim(),
         hasPendingJobSave: hasPendingJobSaveClaim(),
@@ -86,10 +83,7 @@ export function SignupPasswordForm({
         if (onEmailTaken) {
           onEmailTaken(normalizedEmail)
         } else {
-          router.push(
-            `/login?email=${encodeURIComponent(normalizedEmail)}` +
-              (next ? `&next=${encodeURIComponent(next)}` : ""),
-          )
+          router.push(`/login?email=${encodeURIComponent(normalizedEmail)}`)
         }
         return
       }

@@ -3,11 +3,10 @@
 import { Suspense } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import { AuthPageShell, useNextPath } from "@/components/auth/auth-page-shell"
+import { AuthPageShell } from "@/components/auth/auth-page-shell"
 import { LoginForm } from "@/components/auth/login-form"
 
 function LoginRoute() {
-  const next = useNextPath()
   // Set when a signup bounced off an existing account — never make the user
   // retype an address the product already knows.
   const prefillEmail = useSearchParams().get("email")
@@ -18,7 +17,7 @@ function LoginRoute() {
         <>
           New here?{" "}
           <Link
-            href={next ? `/signup?next=${encodeURIComponent(next)}` : "/signup"}
+            href="/signup"
             style={{ color: "var(--tm-interactive)", textDecoration: "none" }}
           >
             Create an account
@@ -26,7 +25,7 @@ function LoginRoute() {
         </>
       }
     >
-      <LoginForm surface="page" next={next} showSignupLink={false} initialEmail={prefillEmail} />
+      <LoginForm surface="page" showSignupLink={false} initialEmail={prefillEmail} />
     </AuthPageShell>
   )
 }

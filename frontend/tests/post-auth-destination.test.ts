@@ -3,7 +3,7 @@ import assert from "node:assert/strict"
 
 import { postAuthDestination } from "../lib/auth/post-auth-destination"
 
-const base = { next: null, firstSignup: false, hasPendingAnonCv: false, hasPendingJobSave: false }
+const base = { firstSignup: false, hasPendingAnonCv: false, hasPendingJobSave: false }
 
 test("pending anonymous CV sends the user to CV Playground before default auth destinations", () => {
   assert.equal(postAuthDestination({ ...base, firstSignup: true, hasPendingAnonCv: true }), "/cv?upload=1")
@@ -22,11 +22,21 @@ test("anon CV wins over a pending job save when both are set", () => {
   )
 })
 
-test("returning user always lands on /market — `next` is ignored (no deep-link surprise)", () => {
-  assert.equal(postAuthDestination({ ...base, next: "/cv" }), "/market")
-  assert.equal(postAuthDestination({ ...base, next: "/cv/tailor?jobId=abc" }), "/market")
+test("returning user always lands on /market (no deep-link return)", () => {
+  assert.equal(postAuthDestination({ ...base }), "/market")
 })
 
-test("brand-new signup runs onboarding, and `next` never overrides it", () => {
-  assert.equal(postAuthDestination({ ...base, next: "/market", firstSignup: true }), "/onboarding")
+test("brand-new signup runs onboarding", () => {
+  assert.equal(postAuthDestination({ ...base, firstSignup: true }), "/onboarding")
+})
+
+test("the destination is decided by carried intent alone", () => {
+  // Guard against re-growing a caller-supplied route. `next` was threaded through
+  // the gate store, the modal and both auth forms while this function ignored it,
+  // which taught every reader that deep-link return worked (deleted 2026-07-31).
+  // Any new input here must be READ below, not merely accepted.
+  const accepted = Object.keys(base).sort()
+  assert.deepEqual(accepted, ["firstSignup", "hasPendingAnonCv", "hasPendingJobSave"])
+  const src = postAuthDestination.toString()
+  for (const key of accepted) assert.ok(src.includes(key), `${key} is accepted but never read`)
 })

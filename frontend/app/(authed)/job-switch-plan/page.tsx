@@ -56,7 +56,7 @@ export default function JobSwitchPlanPage() {
   const load = useCallback(async () => {
     const token = getAccessToken()
     if (!token) {
-      router.push("/login?next=/job-switch-plan")
+      router.push("/login")
       return
     }
     try {
@@ -75,7 +75,7 @@ export default function JobSwitchPlanPage() {
     setError(null)
     const token = getAccessToken()
     if (!token) {
-      router.push("/login?next=/job-switch-plan")
+      router.push("/login")
       return
     }
     const key = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID

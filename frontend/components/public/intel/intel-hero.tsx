@@ -153,12 +153,12 @@ function HeroCtas() {
   return (
     <div className="tm-intel-ctas">
       <Link
-        href="/signup?next=/cv?upload=1"
+        href="/signup"
         className="tm-intel-btn-primary"
         onClick={(e) => {
           if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return
           e.preventDefault()
-          signup.open({ surface: "manual", next: "/cv?upload=1", source: "intel_hero_signup" })
+          signup.open({ surface: "manual", source: "intel_hero_signup" })
         }}
       >
         Sign up to track your CV
