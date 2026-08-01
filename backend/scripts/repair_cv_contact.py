@@ -32,10 +32,13 @@ _PAGE = 500
 
 
 def _needs_repair(row: dict) -> bool:
+    """A row needs repair when it carries a redaction marker, or simply has no
+    identity. `{"name": "", "email": ""}` is a non-empty dict but an empty
+    contact — testing dict truthiness alone left those CVs nameless."""
     contact = (row.get("cv_structured") or {}).get("contact") or {}
-    if not contact:
+    if contains_redaction_token(contact):
         return True
-    return contains_redaction_token(contact)
+    return not (contact.get("name") or contact.get("email"))
 
 
 def main() -> int:
@@ -99,12 +102,53 @@ def main() -> int:
         if args.limit and repaired >= args.limit:
             break
 
+    inherited = _inherit_pass(db, apply=args.apply)
+
     logger.info(
-        "\nscanned=%d repaired=%d unchanged=%d unrecoverable=%d  (%s)",
-        scanned, repaired, unchanged, skipped_no_text,
+        "\nscanned=%d repaired=%d inherited=%d unchanged=%d unrecoverable=%d  (%s)",
+        scanned, repaired, inherited, unchanged, max(0, skipped_no_text - inherited),
         "APPLIED" if args.apply else "DRY RUN — re-run with --apply",
     )
     return 0
+
+
+def _has_identity(row: dict) -> bool:
+    contact = (row.get("cv_structured") or {}).get("contact") or {}
+    return bool(contact.get("name") or contact.get("email"))
+
+
+def _inherit_pass(db, *, apply: bool) -> int:
+    """Fill rows whose own text has no header from the same user's other CV.
+
+    Myro-composed versions (`cv_compose`) start at `EXPERIENCE`, because they were
+    written while the contact block was empty — the defect propagating itself.
+    There is nothing to parse out of them. Carrying the owner's own baseline
+    contact forward is not invention: `career_projection` already does exactly
+    that for every projection it builds.
+    """
+    rows = (
+        db.table("cv_versions").select("id, user_id, cv_structured").order("id").limit(10_000).execute()
+    ).data or []
+
+    best: dict[str, dict] = {}
+    for row in rows:
+        if _has_identity(row) and row["user_id"] not in best:
+            best[row["user_id"]] = (row.get("cv_structured") or {})["contact"]
+
+    filled = 0
+    for row in rows:
+        if _has_identity(row):
+            continue
+        source = best.get(row["user_id"])
+        if not source:
+            continue
+        structured = dict(row.get("cv_structured") or {})
+        structured["contact"] = dict(source)
+        logger.info("row %-7s %s inherit -> name=%r", row["id"], "APPLY" if apply else "dry ", source.get("name"))
+        if apply:
+            db.table("cv_versions").update({"cv_structured": structured}).eq("id", row["id"]).execute()
+        filled += 1
+    return filled
 
 
 if __name__ == "__main__":
