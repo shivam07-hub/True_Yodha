@@ -14,6 +14,17 @@
 
 ## LAST SESSION SUMMARY
 
+### 2026-08-02 — Candidate seniority evidence fix
+
+- Onboarding no longer reuses job-listing title heuristics to infer a person's
+  seniority. CV dates remain primary; only explicit title markers are accepted,
+  and ambiguous role nouns now ask the user instead of inventing a level.
+- A generic contact headline no longer hides explicit seniority evidence in the
+  first experience role. Regression coverage also protects `Data Entry
+  Operator` and `Staff Nurse` from false entry/lead classifications.
+- Full backend suite passes (1,758), as do frontend TypeScript, lint, and the
+  heatmap display-label regression test.
+
 ### 2026-07-31 — Role-family targeting handover (in progress)
 
 - Applied `20260731_job_role_family.sql` to shared Supabase. It adds

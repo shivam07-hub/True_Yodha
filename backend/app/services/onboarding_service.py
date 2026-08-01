@@ -18,10 +18,13 @@ from app.services import background, scoring
 from app.services.job_eligibility import (
     career_band_for_profile,
     explored_bands_for_profile,
-    seniority_for_job,
     target_seniority_for_profile,
 )
-from app.services.experience_years import seniority_for_experience_years, total_experience_years
+from app.services.experience_years import (
+    seniority_for_candidate_title,
+    seniority_for_experience_years,
+    total_experience_years,
+)
 from app.services.scoring.percentile import top_percent
 
 
@@ -284,10 +287,13 @@ def _seniority_suggestion(baseline: dict[str, Any] | None) -> dict[str, Any]:
     if years is not None:
         level = seniority_for_experience_years(years)
         return {"value": level, "years": round(years), "source": "experience_years", "needs_choice": False}
-    role = (contact.get("title") or "").strip() or (str(experience[0].get("role") or "").strip() if experience else "")
-    level = seniority_for_job({"job_title": role}) if role else ""
-    if level:
-        return {"value": level, "title": role, "source": "title", "needs_choice": False}
+    titles = [(contact.get("title") or "").strip()]
+    if experience:
+        titles.append(str(experience[0].get("role") or "").strip())
+    for title in titles:
+        level = seniority_for_candidate_title(title)
+        if level:
+            return {"value": level, "title": title, "source": "title", "needs_choice": False}
     return {"value": None, "source": "unknown", "needs_choice": True}
 
 

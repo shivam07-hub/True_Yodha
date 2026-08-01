@@ -1,4 +1,4 @@
-"""Evidence-preserving work-duration parsing for onboarding seniority."""
+"""Evidence-preserving CV experience parsing for onboarding seniority."""
 
 from __future__ import annotations
 
@@ -17,6 +17,22 @@ _MONTHS = {
 _DATE_TOKEN = re.compile(
     r"\b(?:present|current)\b|\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)[\s']*\d{2,4}\b|\b\d{1,2}/\d{4}\b|\b\d{4}\b",
     re.IGNORECASE,
+)
+_SENIORITY_RANK = {
+    "intern": 0,
+    "entry": 1,
+    "mid": 2,
+    "senior": 3,
+    "lead": 4,
+    "executive": 5,
+}
+_CANDIDATE_TITLE_PATTERNS = (
+    ("executive", re.compile(r"\b(?:chief|vice[\s-]+president|vp|director)\b", re.IGNORECASE)),
+    ("lead", re.compile(r"\b(?:head|principal|lead)\b", re.IGNORECASE)),
+    ("senior", re.compile(r"\b(?:senior|sr)\b\.?", re.IGNORECASE)),
+    ("mid", re.compile(r"\bmid(?:[\s-]+level)?\b", re.IGNORECASE)),
+    ("entry", re.compile(r"\b(?:junior|jr|graduate|entry[\s-]+level)\b\.?", re.IGNORECASE)),
+    ("intern", re.compile(r"\b(?:intern|internship|apprentice|trainee)\b", re.IGNORECASE)),
 )
 
 
@@ -93,3 +109,18 @@ def seniority_for_experience_years(years: float) -> str:
     if whole_years <= 10:
         return "lead"
     return "executive"
+
+
+def seniority_for_candidate_title(title: str) -> str:
+    """Infer only from words that explicitly describe candidate seniority.
+
+    Role nouns such as ``analyst``, ``consultant``, and ``manager`` are useful
+    job-listing heuristics but do not prove the level of the person holding the
+    title. Unknown evidence deliberately stays unknown so onboarding can ask.
+    """
+    known = [
+        level
+        for level, pattern in _CANDIDATE_TITLE_PATTERNS
+        if pattern.search(title or "")
+    ]
+    return max(known, key=_SENIORITY_RANK.__getitem__) if known else ""
