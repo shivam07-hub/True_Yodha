@@ -28,6 +28,13 @@
   frontend lint remains blocked by pre-existing unrelated unused import in
   `frontend/components/auth/auth-page-shell.tsx`.
 
+### 2026-08-02 — Heatmap display-label regression
+
+- `/market` now passes the canonical `shortHeatmapSkillLabel` formatter into
+  its retained heatmap path; the matrix renders the concise label while its
+  accessible name and tooltip retain the full skill name. The deprecated
+  `max-width: 12ch` label-truncation rule is not present in the market path.
+
 ### 2026-07-31 — Supabase migration ledger repair
 
 - Applied and recorded `20260726182212_feedback_submission_idempotency.sql` in

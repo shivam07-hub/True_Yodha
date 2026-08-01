@@ -21,6 +21,7 @@ interface SkillIntelligenceHeatmapProps {
   companies: FollowedCompany[]
   rowDataMap: Record<string, Record<string, number> | null>
   skills: string[]
+  formatSkillLabel: (skill: string) => string
   allSkills: UserSkillDemandItem[]
   selectedSkillNames: Set<string>
   selectedCell: HeatmapCell
@@ -73,6 +74,7 @@ export function SkillIntelligenceHeatmap({
   companies,
   rowDataMap,
   skills,
+  formatSkillLabel,
   allSkills,
   selectedSkillNames,
   selectedCell,
@@ -258,7 +260,7 @@ export function SkillIntelligenceHeatmap({
                     return (
                       <th key={skill}>
                         <button type="button" className={isSelected ? "is-selected" : ""} onClick={() => setSelectedSkillName(skill)} title={skill}>
-                          <span>{skill}</span>
+                          <span aria-label={skill}>{formatSkillLabel(skill)}</span>
                           <b className={`si-level is-${status.toLowerCase()}`}>L{level} / {status}</b>
                         </button>
                       </th>
