@@ -225,3 +225,74 @@ def test_wysiwyg_pdf_preserves_rupee_and_skills_line():
     lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
     joined = next((ln for ln in lines if "Growth & Lifecycle Marketing," in ln and "Digital GTM Strategy" in ln), None)
     assert joined is not None, f"skills line exploded vertically: {lines[-12:]}"
+
+
+# ── Extraction fidelity (what an ATS actually reads) ─────────────────────────
+
+_FIDELITY_HTML = (
+    '<div class="cvb-pdf-page" data-cv-template="classic">'
+    '<h1 class="pdf-name">Ashwini Maurya</h1>'
+    '<div class="pdf-contact"><span>user@example.com</span></div>'
+    "<h2>Experience</h2>"
+    '<div class="pdf-role-head"><div><span class="pdf-role">Multimedia Head</span>'
+    '<span class="pdf-co"> · Wayanad House, IIT Madras</span></div>'
+    '<span class="pdf-dates">07/2025 – Present · Chennai, India</span></div>'
+    "<ul>"
+    '<li><span class="pdf-li-mark">•</span><span class="pdf-li-text">Edited 15+ videos, designed 30+ '
+    "posters and thumbnails, and recorded live academic sessions for promotional initiatives.</span></li>"
+    '<li><span class="pdf-li-mark">•</span><span class="pdf-li-text">Ran the promotional calendar end '
+    "to end.</span></li>"
+    "</ul>"
+    "<h2>Education</h2>"
+    '<div class="pdf-edu"><div class="pdf-role-head">'
+    '<div><span class="pdf-role">Indian Institute of Technology, Madras</span></div>'
+    '<span class="pdf-dates">2025 – 2029 · E-learning</span></div>'
+    '<div class="pdf-edu-sub">Bachelor of Science - BS, Data Science and Application</div></div>'
+    "</div>"
+)
+
+
+def _extracted_text(html: str) -> str:
+    import fitz
+
+    from app.services.cv_pdf_html import render_html_to_pdf
+
+    with fitz.open(stream=render_html_to_pdf(html), filetype="pdf") as doc:
+        return "\n".join(page.get_text("text", sort=True) for page in doc)
+
+
+@pytest.mark.skipif(not _chromium_available(), reason="Chromium not installed (playwright install)")
+def test_section_headings_are_not_letter_spaced_into_gibberish():
+    """`letter-spacing: 0.16em` made extraction read "E X P E R I E N C E". An ATS
+    hunting for a section heading finds nothing, and re-uploading the CV tripped
+    Myro's own letter-spaced-name handling."""
+    text = _extracted_text(_FIDELITY_HTML)
+    # Assert each heading is CONTIGUOUS rather than that one exact spacing is
+    # absent: reverting the fix actually yields "E X P E R IE N C E" and
+    # "E D U CAT I ON", so a fixed-string check would have sailed straight past
+    # the bug it was written for.
+    assert "EXPERIENCE" in text, f"heading split by letter-spacing: {text[:300]}"
+    assert "EDUCATION" in text, f"heading split by letter-spacing: {text[:300]}"
+
+
+@pytest.mark.skipif(not _chromium_available(), reason="Chromium not installed (playwright install)")
+def test_bullets_carry_a_marker_in_the_text_layer():
+    """A `list-style` marker is painted, not typeset, so extraction cannot tell a
+    new bullet from a wrapped continuation line."""
+    assert _extracted_text(_FIDELITY_HTML).count("•") == 2
+
+
+@pytest.mark.skipif(not _chromium_available(), reason="Chromium not installed (playwright install)")
+def test_a_long_degree_is_never_spliced_by_its_date_column():
+    """The `2025 – 2029Application` failure: a flex row let the degree wrap AROUND
+    the right-aligned date, so the reading order interleaved them."""
+    text = " ".join(_extracted_text(_FIDELITY_HTML).split())
+    assert "Bachelor of Science - BS, Data Science and Application" in text, text[-300:]
+    assert "2029Application" not in text
+
+
+@pytest.mark.skipif(not _chromium_available(), reason="Chromium not installed (playwright install)")
+def test_role_and_education_locations_reach_the_page():
+    text = " ".join(_extracted_text(_FIDELITY_HTML).split())
+    assert "Chennai, India" in text
+    assert "E-learning" in text

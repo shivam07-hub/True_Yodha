@@ -1332,8 +1332,10 @@
    downloaded/printed CV, even if a bullet happens to be selected at the time. */
 @media screen {
   .tm-lib-cv-interactive .cvb-pdf-page .pdf-bullet-btn {
-    display: block;
-    width: 100%;
+    /* The <li> is now a flex row (real bullet glyph + text), so the button is a
+       flex item rather than a block child. */
+    flex: 1 1 auto;
+    min-width: 0;
     text-align: left;
     font: inherit;
     color: inherit;
