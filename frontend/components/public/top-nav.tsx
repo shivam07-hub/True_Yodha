@@ -120,7 +120,7 @@ export function PublicTopNav({ active, showSignIn, authSlot }: PublicTopNavProps
             onClick={(e) => {
               if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return
               e.preventDefault()
-              signup.open({ surface: "manual", next: "/cv?upload=1", source: "public_nav_signup_pill" })
+              signup.open({ surface: "manual", source: "public_nav_signup_pill" })
             }}
           >
             Sign up

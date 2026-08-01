@@ -1,7 +1,6 @@
 "use client"
 
 import { Suspense, type ReactNode } from "react"
-import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { MyroLogo } from "@/components/myro-logo"
 import { PublicFooter } from "@/components/public/public-footer"
@@ -25,12 +24,6 @@ interface Props {
   children: ReactNode
   footerCopy?: ReactNode
   aside?: ReactNode
-}
-
-function nextFromQuery(raw: string | null): string | null {
-  if (!raw || !raw.startsWith("/")) return null
-  if (raw.startsWith("//") || raw.startsWith("/\\")) return null
-  return raw
 }
 
 export function AuthPageShell({ title, subtitle, children, footerCopy, aside }: Props) {
@@ -121,11 +114,6 @@ export function AuthPageShell({ title, subtitle, children, footerCopy, aside }: 
       <PublicFooter />
     </main>
   )
-}
-
-export function useNextPath(): string | null {
-  const params = useSearchParams()
-  return nextFromQuery(params.get("next"))
 }
 
 export function SuspenseWrap({ children }: { children: ReactNode }) {

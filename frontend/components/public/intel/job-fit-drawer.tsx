@@ -128,7 +128,7 @@ export function JobFitDrawer({
 
   async function saveAndTailor() {
     if (!job) return
-    const next = jobFitNextPath({ jobId: job.id, hasReplayableCv: false })
+
     if (!token) {
       trackEvent("public_fit_signup_started", {
         job_id: job.id,
@@ -137,7 +137,13 @@ export function JobFitDrawer({
         authed: "0",
         has_cv: preview ? "1" : "0",
       })
-      signup.open({ surface: "manual", next, source: "public_fit_preview" })
+      // The job rides through auth on the pending-job-save lane (Exception 2) —
+      // the same one the intel pane and company pages use — so the anon user
+      // finds this role saved on the other side. It used to be handed over as
+      // `next`, which postAuthDestination discarded, so the job was lost every
+      // time. A CV dropped in this drawer still wins the LANDING (anon-CV claim
+      // outranks it); the save replays wherever they land.
+      signup.open({ surface: "manual", source: "public_fit_preview", pendingJobId: job.id })
       return
     }
 

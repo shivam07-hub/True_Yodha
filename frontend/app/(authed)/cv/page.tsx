@@ -455,10 +455,10 @@ function CVPage() {
   }
 
   // Auto-open the upload picker when arriving with ?upload=1. This is the
-  // FIRST-upload flow (anonymous visitor → signup → /cv?upload=1). The ?next=
-  // param is carried by every signup CTA and survives a login redirect, so a
-  // returning user who already has a Main CV can land here too — they must NOT
-  // be auto-prompted to replace it. Replacing the Main CV is a deliberate act
+  // FIRST-upload flow (anonymous visitor → signup → /cv?upload=1). A returning
+  // user who already has a Main CV can land here too (postAuthDestination sends
+  // anyone carrying a stashed anon CV) — they must NOT be auto-prompted to
+  // replace it. Replacing the Main CV is a deliberate act
   // via the top-right "Update Main CV" button, never automatic.
   // Once-only — the URL is normalised after firing so a refresh doesn't re-trigger.
   const autoUploadFiredRef = useRef(false)

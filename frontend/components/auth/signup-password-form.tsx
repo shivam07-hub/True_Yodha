@@ -9,12 +9,12 @@ import { getStoredReferral } from "@/lib/referral"
 import { clearStoredAttribution, readStoredAttribution } from "@/lib/attribution"
 import { signupEvents } from "@/lib/analytics"
 import { hasPendingAnonCvClaim } from "@/lib/anon-cv-claim"
+import { readPendingExtensionConnect } from "@/lib/extension-connect-stash"
 import { hasPendingJobSaveClaim } from "@/lib/anon-job-stash"
 import { postAuthDestination } from "@/lib/auth/post-auth-destination"
 
 interface Props {
   surface: "page" | "modal"
-  next?: string | null
   onPendingEmail: (email: string) => void
   onUseMagicLink: () => void
   /** Owner of a sign-in view takes over when the email already has an account. */
@@ -23,7 +23,6 @@ interface Props {
 
 export function SignupPasswordForm({
   surface,
-  next,
   onPendingEmail,
   onUseMagicLink,
   onEmailTaken,
@@ -71,10 +70,10 @@ export function SignupPasswordForm({
         surface,
       })
       router.push(postAuthDestination({
-        next: next ?? null,
         firstSignup: true,
         hasPendingAnonCv: hasPendingAnonCvClaim(),
         hasPendingJobSave: hasPendingJobSaveClaim(),
+        pendingExtensionConnect: readPendingExtensionConnect(),
       }))
     } catch (err) {
       const code = errorCode(err)
@@ -86,10 +85,7 @@ export function SignupPasswordForm({
         if (onEmailTaken) {
           onEmailTaken(normalizedEmail)
         } else {
-          router.push(
-            `/login?email=${encodeURIComponent(normalizedEmail)}` +
-              (next ? `&next=${encodeURIComponent(next)}` : ""),
-          )
+          router.push(`/login?email=${encodeURIComponent(normalizedEmail)}`)
         }
         return
       }

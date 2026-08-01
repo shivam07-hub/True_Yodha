@@ -19,20 +19,12 @@ const BASE =
   ""
 
 /**
- * Build the /login target preserving where the user was headed as ?next=,
- * so post-login bounces them back instead of dumping them on /home.
- * Same-origin guard (reject //, /\) mirrors nextFromQuery in auth-page-shell;
- * auth pages + root are skipped to avoid a redirect loop.
+ * A session-expiry bounce lands on /login, full stop. The old `?next=` hop was
+ * discarded by postAuthDestination for its whole life — see that module. Post-auth
+ * landing is decided by carried intent only.
  */
-export function loginRedirectTargetFor(path: string): string {
-  if (!path.startsWith("/") || path.startsWith("//") || path.startsWith("/\\")) return "/login"
-  if (path === "/" || path.startsWith("/login") || path.startsWith("/signup")) return "/login"
-  return `/login?next=${encodeURIComponent(path)}`
-}
-
 function loginRedirectTarget(): string {
-  if (typeof window === "undefined") return "/login"
-  return loginRedirectTargetFor(window.location.pathname + window.location.search)
+  return "/login"
 }
 
 /**

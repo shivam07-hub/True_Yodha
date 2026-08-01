@@ -20,8 +20,6 @@ import { SignupPasswordForm } from "@/components/auth/signup-password-form"
 interface Props {
   /** Where the form is mounted — used for telemetry + post-auth routing. */
   surface: "page" | "modal"
-  /** Same-origin path to land on after auth completes. */
-  next?: string | null
   /** Whether to render an alt "Sign in" link below the form (page only). */
   showLoginLink?: boolean
   /**
@@ -37,9 +35,9 @@ interface Props {
  *
  * Four signup paths in locked order: Google → LinkedIn → password → magic-link.
  * Auth-before-file: file pickers are routed via ?upload=1 on the post-auth
- * destination (set by callers via `next`), no anon state to preserve.
+ * destination, derived from carried intent, no anon state to preserve.
  */
-export function SignupForm({ surface, next, showLoginLink = true, onEmailTaken }: Props) {
+export function SignupForm({ surface, showLoginLink = true, onEmailTaken }: Props) {
   const [pendingEmail, setPendingEmail] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [agent, setAgent] = useState<string | null>(null)
@@ -54,9 +52,8 @@ export function SignupForm({ surface, next, showLoginLink = true, onEmailTaken }
 
   const redirectTo = useMemo(() => {
     if (typeof window === "undefined") return null
-    const base = `${window.location.origin}/auth/callback`
-    return appendAttributionToUrl(next ? `${base}?next=${encodeURIComponent(next)}` : base)
-  }, [next])
+    return appendAttributionToUrl(`${window.location.origin}/auth/callback`)
+  }, [])
 
   function openOAuth(provider: "google" | "linkedin_oidc") {
     if (agent && provider === "google") return // shouldn't render
@@ -124,7 +121,6 @@ export function SignupForm({ surface, next, showLoginLink = true, onEmailTaken }
       {mode === "password" && (
         <SignupPasswordForm
           surface={surface}
-          next={next}
           onPendingEmail={(email) => setPendingEmail(email)}
           onUseMagicLink={() => { setError(null); setMode("magic") }}
           onEmailTaken={onEmailTaken}
@@ -195,7 +191,7 @@ export function SignupForm({ surface, next, showLoginLink = true, onEmailTaken }
         }}>
           Already have an account?{" "}
           <Link
-            href={next ? `/login?next=${encodeURIComponent(next)}` : "/login"}
+            href="/login"
             style={{ color: "var(--tm-interactive)", textDecoration: "none" }}
           >
             Sign in

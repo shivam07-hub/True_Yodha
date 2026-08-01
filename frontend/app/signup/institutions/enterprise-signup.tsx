@@ -1,7 +1,6 @@
 "use client"
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
-import { useNextPath } from "@/components/auth/auth-page-shell"
 import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
 import { OperatorPane } from "./operator-pane"
@@ -14,7 +13,6 @@ export function EnterpriseSignup({
   initialMode = "operators",
   lockMode = false,
 }: { initialMode?: Mode; lockMode?: boolean } = {}) {
-  const next = useNextPath()
   const [mode, setMode] = useState<Mode>(initialMode)
   const opTabRef = useRef<HTMLButtonElement | null>(null)
   const instTabRef = useRef<HTMLButtonElement | null>(null)
@@ -98,7 +96,7 @@ export function EnterpriseSignup({
 
       <main className="es-main">
         {mode === "operators"
-          ? <OperatorPane active next={next} />
+          ? <OperatorPane active />
           : <InstitutionPane />}
       </main>
 

@@ -75,7 +75,7 @@ export function IntelPane() {
   const signup = useSignupGate()
   const [savedJobIds, setSavedJobIds] = useState<Set<string>>(new Set())
   const openSignup = (jobId?: string) =>
-    signup.open({ surface: "intel_save", next: "/collections", pendingJobId: jobId ?? null })
+    signup.open({ surface: "intel_save", pendingJobId: jobId ?? null })
   const saveJobRow = (jobId: string) => {
     if (!token) return openSignup(jobId)
     setSavedJobIds((prev) => new Set(prev).add(jobId))

@@ -36,7 +36,7 @@ function useCountUp(active: boolean) {
   return rootRef
 }
 
-export function OperatorPane({ active, next }: { active: boolean; next: string | null }) {
+export function OperatorPane({ active }: { active: boolean }) {
   const statsRef = useCountUp(active)
   return (
     <>
@@ -144,11 +144,11 @@ export function OperatorPane({ active, next }: { active: boolean; next: string |
             everything from upload to apply.
           </p>
           <div className="es-operator-form">
-            <SignupForm surface="page" next={next} showLoginLink={false} />
+            <SignupForm surface="page" showLoginLink={false} />
           </div>
         </div>
         <p className="es-alt-cta">
-          Already have an account? <Link href={next ? `/login?next=${encodeURIComponent(next)}` : "/login"}>Sign in →</Link>
+          Already have an account? <Link href="/login">Sign in →</Link>
         </p>
       </aside>
     </>
