@@ -8,8 +8,11 @@ test("onboarding routes CV evidence through skill confirmation before target and
   const entry = read("app/onboarding/page.tsx")
   const result = read("app/onboarding/result/page.tsx")
   assert.match(entry, /ExperienceStep/)
+  // The state is still a real stage of the pipeline; only its UI changed. The
+  // blocking `<SkillConfirmation>` step was removed and the confirmation moved
+  // onto the CV Skills rail (asserted below), so the result page now just
+  // reports progress for this kind instead of owning the decision.
   assert.match(result, /awaiting_skill_confirmation/)
-  assert.match(result, /SkillConfirmation/)
   assert.match(result, /awaiting_target/)
   assert.match(result, /TargetConfirm/)
 })
@@ -39,18 +42,24 @@ test("full result leads with proof and keeps correction available", () => {
 })
 
 test("skill confirmation is the score and matching trust gate", () => {
-  const confirmation = read("components/onboarding/skill-confirmation.tsx")
-  assert.match(confirmation, /score and job matches will use only the skills you confirm/i)
-  assert.match(confirmation, /onboarding\.confirmSkills/)
-  assert.match(confirmation, /Confirm \$\{confirmedCount\} skills/)
+  // Moved, not removed: `components/onboarding/skill-confirmation.tsx` was
+  // deleted when confirmation was folded into the CV Skills rail, so this read
+  // ENOENT'd. The gate itself is the contract worth guarding — nothing may
+  // publish skills into the score until the user confirms them — so it is
+  // asserted at its new home rather than dropped with the old file.
+  const rail = read("components/cv/builder/skills-rail.tsx")
+  assert.match(rail, /onboarding\.confirmSkills/)
+  assert.match(rail, /nothing is published yet/i, "confirm mode must not publish before the user confirms")
+  assert.match(rail, /keptCount < 1/, "confirming an empty skill set must stay blocked")
 })
 
 test("first-success checklist reads and dismisses durable server state", () => {
   const checklist = read("components/onboarding/first-success-checklist.tsx")
-  const market = read("app/(authed)/market/page.tsx")
+  // Mount moved /market → /collections in the Collections cutover.
+  const host = read("app/(authed)/collections/page.tsx")
   assert.match(checklist, /onboarding\.checklist/)
   assert.match(checklist, /onboarding\.dismissChecklist/)
-  assert.match(market, /FirstSuccessChecklist/)
+  assert.match(host, /FirstSuccessChecklist/)
 })
 
 test("accepted upload and target are persisted before result navigation", () => {

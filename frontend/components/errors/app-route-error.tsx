@@ -64,7 +64,10 @@ function ErrorPanel({
         <h1 id="route-error-title" style={{ margin: 0, color: "var(--tm-text)", fontSize: "var(--tm-fs-title)", lineHeight: "var(--tm-lh-title)", fontWeight: 700 }}>
           {title}
         </h1>
-        <p style={{ margin: "8px 0 0", color: "var(--tm-text-faint)", fontSize: 14, lineHeight: 1.5 }}>
+        {/* --tm-text-muted, not --tm-text-faint: faint is ~3:1 at 14px on the
+            light paper, and this sentence is the only thing telling the user
+            the failure is temporary and retryable. */}
+        <p style={{ margin: "8px 0 0", color: "var(--tm-text-muted)", fontSize: 14, lineHeight: 1.5 }}>
           The page hit a temporary failure. Retry the route or return home.
         </p>
       </div>

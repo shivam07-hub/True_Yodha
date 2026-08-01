@@ -80,7 +80,7 @@ export default function OnboardingResultPage() {
       <section className="w-full max-w-lg text-center">
         <h1 className="text-2xl font-semibold tracking-normal text-[var(--tm-text)]">Analysis stopped</h1>
         <p className="mt-3 text-sm leading-6 text-[var(--tm-text-muted)]">{result.data.message || "Myro could not complete this analysis."}</p>
-        {result.data.xp_refunded && <p className="mt-2 text-sm font-medium text-[var(--tm-text)]">Any charged XP was returned.</p>}
+        {result.data.xp_refunded && <p className="mt-2 text-sm font-medium text-[var(--tm-text)]">Any charged Myro Coins were returned.</p>}
         <Button size="lg" className="mt-6" onClick={() => void resetToUpload()}><RotateCcw className="size-5" />Start again</Button>
       </section>
     )

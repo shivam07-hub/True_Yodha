@@ -427,7 +427,7 @@ a.lp-surface-card:hover .lp-surface-arrow { color: var(--lp-accent-text); transf
 .lp-faq-q:hover { color: var(--lp-accent-text); }
 .lp-faq-q:focus-visible { outline: 2px solid var(--lp-accent-ring); outline-offset: 2px; }
 
-.lp-faq-chevron { flex-shrink: 0; color: var(--lp-faint); transition: transform var(--lp-dur-slow) var(--lp-ease); }
+.lp-faq-chevron { flex-shrink: 0; color: var(--lp-faint); transition: transform var(--lp-dur-slow) var(--lp-ease), color var(--lp-dur-slow) var(--lp-ease); }
 .lp-faq-item.open .lp-faq-chevron { transform: rotate(180deg); color: var(--lp-accent-text); }
 
 .lp-faq-a {

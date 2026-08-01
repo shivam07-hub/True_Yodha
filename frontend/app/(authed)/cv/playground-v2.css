@@ -92,7 +92,7 @@
   width: 150px; height: 4px; margin: 4px 0 0 auto; border-radius: 2px;
   background: var(--tm-surface-2); overflow: hidden;
 }
-.cvb-v2-score-fill { height: 100%; border-radius: 2px; transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+.cvb-v2-score-fill { height: 100%; border-radius: 2px; transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.4s linear; }
 .cvb-v2-score[data-band="high"] .cvb-v2-score-fill { background: var(--tm-success); }
 .cvb-v2-score[data-band="mid"]  .cvb-v2-score-fill { background: var(--tm-warning); }
 .cvb-v2-score[data-band="low"]  .cvb-v2-score-fill { background: var(--tm-interactive); }

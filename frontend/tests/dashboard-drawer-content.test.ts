@@ -4,16 +4,16 @@ import test from "node:test"
 
 const detailBody = readFileSync(new URL("../components/dashboard/detail-body.tsx", import.meta.url), "utf8")
 
-test("dashboard job drawer keeps the job description directly after skill match context", () => {
-  const matchIndex = detailBody.indexOf("You already match")
-  const descriptionIndex = detailBody.indexOf("Job description")
-  const companyIndex = detailBody.indexOf(">Company<")
-
-  assert.ok(matchIndex >= 0, "drawer should show matched skills")
-  assert.ok(descriptionIndex >= 0, "drawer should show the job description")
-  assert.ok(companyIndex >= 0, "drawer should keep company intel available")
-  assert.ok(matchIndex < descriptionIndex, "job description should sit below matched skills")
-  assert.ok(descriptionIndex < companyIndex, "company intel should not push the job description down")
+// Section ORDER is deliberately not asserted here any more. It moved into
+// `lib/jobs/detail-model.ts`, which both the desktop drawer and the mobile
+// sheet render from, and `detail-model.test.ts` already covers it for both
+// skins ("full-data desktop render follows the funnel order", "mobile subset —
+// order preserved"). Re-deriving order from the character offsets of literal
+// strings in ONE skin's JSX asserted less, broke on the refactor that made the
+// contract shared, and would have gone on passing if the mobile skin drifted.
+test("dashboard job drawer still mounts the skill match and company slots", () => {
+  assert.match(detailBody, /You already match/, "drawer should show matched skills")
+  assert.match(detailBody, /Company report/, "drawer should keep company intel available")
 })
 
 test("dashboard job drawer uses short company report copy", () => {

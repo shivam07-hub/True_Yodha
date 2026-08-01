@@ -35,8 +35,18 @@ test("user-facing source copy says tokens instead of XP", () => {
 })
 
 test("desktop chrome does not expose the background practice timer or balance pill", () => {
-  const source = readFileSync(join(frontendRoot, "components/shell/web-chrome.tsx"), "utf8")
+  // `components/shell/web-chrome.tsx` was split in the nav-delegation refactor,
+  // so this read ENOENT'd. Scanning the whole chrome directory keeps the
+  // assertion true through the next split too — the claim is that NO chrome
+  // component mounts these, which a single hardcoded path could never check.
+  const chrome = sourceFiles(join(frontendRoot, "components/shell"))
+    .concat(sourceFiles(join(frontendRoot, "components/nav")))
 
-  assert.doesNotMatch(source, /tm-topbar-forge-chip/)
-  assert.doesNotMatch(source, /tm-topbar-xp/)
+  assert.ok(chrome.length > 0, "chrome components should exist to be checked")
+  for (const path of chrome) {
+    const source = readFileSync(path, "utf8")
+    const where = relative(frontendRoot, path)
+    assert.doesNotMatch(source, /tm-topbar-forge-chip/, `${where} should not mount the practice timer`)
+    assert.doesNotMatch(source, /tm-topbar-xp/, `${where} should not mount the balance pill`)
+  }
 })

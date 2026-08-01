@@ -66,7 +66,7 @@
   height: 100%;
   border-radius: 999px;
   background: var(--tm-text-muted);
-  transition: width 700ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 700ms cubic-bezier(0.4, 0, 0.2, 1), background-color 700ms linear;
 }
 
 /* Band colour — strongest reads as the edge, weakest as the opportunity. */

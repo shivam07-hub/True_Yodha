@@ -13,7 +13,10 @@ function read(relativePath) {
 
 test("intel section wrapper uses growable height to avoid overlap", () => {
   const source = read("app/intel/page.tsx")
-  const intelBlockMatch = source.match(/<div style=\{\{ flex: 1,[\s\S]*?<IntelPane \/>/)
+  // `<IntelPane />` became `<IntelSurface />` when /intel was session-branched
+  // (anon SEO pane vs authed workspace). The overlap contract this guards —
+  // the scroll container grows instead of being pinned to 100dvh — is unchanged.
+  const intelBlockMatch = source.match(/<div style=\{\{ flex: 1,[\s\S]*?<IntelSurface \/>/)
 
   assert.ok(intelBlockMatch, "intel wrapper block should exist in app/intel/page.tsx")
 

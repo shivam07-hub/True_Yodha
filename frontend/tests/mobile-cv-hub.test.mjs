@@ -11,18 +11,26 @@ const nav = readFileSync(new URL("../mobile/shell.tsx", import.meta.url), "utf8"
 const versionFormat = readFileSync(new URL("../lib/cv/version-format.ts", import.meta.url), "utf8")
 const autosave = readFileSync(new URL("../lib/hooks/use-master-autosave.ts", import.meta.url), "utf8")
 
-test("mobile navigation exposes direct CV and Applications destinations", () => {
-  assert.match(nav, /href: "\/cv\?view=cv"/)
-  assert.match(nav, /href: "\/cv\?view=active"/)
-  assert.match(nav, /label: "Applications"/)
+// Mobile nav became the fixed 4-tab bar in the Apple-standards redesign, and
+// "Applications" became "Prep" at /preparations in the Delta-4 nav pass. This
+// asserted the pre-redesign `/cv?view=…` hrefs. The contract that survives both
+// reworks is the one worth pinning: CV and post-apply prep each have their own
+// top-level destination, rather than hiding behind a sub-view of another tab.
+test("mobile navigation exposes direct CV and prep destinations", () => {
+  assert.match(nav, /label: "CV", href: "\/cv"/)
+  assert.match(nav, /label: "Prep", href: "\/preparations"/)
 })
 
-test("CV Hub is document-first and keeps every tailored version reachable", () => {
+test("CV Hub is document-first", () => {
   assert.match(hub, /<MobileDocumentPreview/)
   assert.match(hub, /> Edit CV</)
   assert.match(hub, /> Export</)
-  assert.match(hub, /Your CVs/)
-  assert.match(hub, /groupVersions\(versions, applications\)/)
+  // NOT asserted any more: `Your CVs` / `groupVersions(versions, applications)`.
+  // `groupVersions` no longer exists anywhere in the codebase except, until
+  // now, this line — the version library moved off the hub onto the CV ·
+  // Stories · Memory surface. An assertion whose subject has been deleted
+  // tests nothing; version reachability belongs to whichever test covers that
+  // surface, not to a grep for a dead symbol.
 })
 
 test("focused editor exposes all structured sections and explicit bullet actions", () => {

@@ -25,7 +25,7 @@ export function ReferralDashboard() {
   const metrics: WorkspaceMetric[] = [
     { label: "Warm paths live", value: `${queue.length}`, hint: "filtered to candidates a referrer can credibly back" },
     { label: "Intros in motion", value: `${queue.filter((entry) => entry.status !== "Ready to intro").length}`, hint: "the loop stays visible after the intro is sent" },
-    { label: "Rewardable impact", value: `${queue.reduce((sum, entry) => sum + entry.reward, 0)} XP`, hint: "reward logic tracks outcomes instead of raw messages sent" },
+    { label: "Rewardable impact", value: `${queue.reduce((sum, entry) => sum + entry.reward, 0)} coins`, hint: "reward logic tracks outcomes instead of raw messages sent" },
   ]
 
   return (
@@ -145,7 +145,7 @@ export function ReferralDashboard() {
                     <h3>{leader.connector}</h3>
                     <p>{leader.intros} active introductions</p>
                   </div>
-                  <span className="b2bws-score"><HandCoins size={16} />{leader.rewards} XP</span>
+                  <span className="b2bws-score"><HandCoins size={16} />{leader.rewards} coins</span>
                 </div>
               ))}
             </div>

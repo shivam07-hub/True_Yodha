@@ -58,7 +58,10 @@ test("company signal card renders rows inside a scrollable list", () => {
   const source = read("components/market/market-rail.tsx")
   const styles = read("components/market/market-intel.css")
 
-  assert.match(source, /className="mi-company-list"/)
+  // Match the class inside the attribute rather than the whole attribute value:
+  // the element gained a second class (`cs-row-list`) in the CompanySignal
+  // unification and this went red on a change that broke nothing.
+  assert.match(source, /className="[^"]*\bmi-company-list\b/)
   assert.match(styles, /\.mi-company-list\s*\{[\s\S]*max-height:/)
   assert.match(styles, /\.mi-company-list\s*\{[\s\S]*overflow-y:\s*auto/)
   assert.match(styles, /\.mi-company-list\s*\{[\s\S]*-webkit-overflow-scrolling:\s*touch/)

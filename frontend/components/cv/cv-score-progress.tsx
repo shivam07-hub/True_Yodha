@@ -5,6 +5,16 @@ import Link from "next/link"
 import "./cv-score-progress.css"
 import { tierForScore } from "@/lib/score-tiers"
 import type { CVUploadPhase } from "@/lib/cv-upload-state"
+import {
+  PARSE_STEPS,
+  SUBSTEP_MS,
+  activeStepIndex,
+  elapsedSeconds,
+  formatElapsed,
+  isSlow,
+  revealVerdict,
+  stepStateAt,
+} from "@/lib/cv/upload-progress"
 
 /**
  * #6 — deploy-style CV-upload progress (GitHub/Vercel deploy log analog).
@@ -36,15 +46,6 @@ interface DoneData {
   }
 }
 
-/** Band verdict for the reveal beat — leads with the path forward, never a
- *  judgement (ND1). Derived from the engine score alone. */
-function revealVerdict(score: number): string {
-  if (score >= 80) return "Strong CV. A few sharpens and it’s recruiter-ready."
-  if (score >= 60) return "Solid base — a handful of fixes will make it land harder."
-  if (score >= 40) return "Good raw material. The fixes below are where the points are."
-  return "Early draft — let’s turn what you’ve done into what a recruiter reads."
-}
-
 interface FailData {
   errorCode: string | null
   detail: string
@@ -62,24 +63,9 @@ interface CvScoreProgressProps {
   onRetry?: () => void
 }
 
-// Truthful parse substeps (#34 S4, Q8-B) — the pipeline genuinely reads → finds
-// experience → matches skills → scores. Narrating them (vs one coarse "Scoring")
-// makes the wait read as "it's reading MY CV", the RW trust cue. The first four
-// advance on a timed cadence (the blessed restructure-loading pattern); the list
-// snaps to the last step the instant the real `ready` phase lands, so the timer
-// never outruns or lags the truth.
-const PARSE_STEPS: readonly string[] = [
-  "Reading your CV",
-  "Finding your experience",
-  "Matching your skills",
-  "Scoring your domains",
-]
-const SUBSTEP_MS = 2600
-/** Seconds, matching `useElapsed`'s unit. This was `SLOW_AFTER_MS = 75_000`
- *  compared against a seconds value, so the slow notice needed ~21 hours to
- *  fire and never once appeared. */
-const SLOW_AFTER_S = 75
-
+// Thresholds, units and state live in `lib/cv/upload-progress` so they can be
+// tested; this file only renders them. The hooks below are the React shell
+// around that model — they own timers, nothing else.
 function useParseStep(active: boolean, atReady: boolean): number {
   const [i, setI] = React.useState(0)
   React.useEffect(() => {
@@ -87,7 +73,7 @@ function useParseStep(active: boolean, atReady: boolean): number {
     const id = setInterval(() => setI((p) => Math.min(p + 1, PARSE_STEPS.length - 1)), SUBSTEP_MS)
     return () => clearInterval(id)
   }, [active, atReady])
-  return atReady ? PARSE_STEPS.length - 1 : i
+  return activeStepIndex(i, atReady)
 }
 
 function useElapsed(startedAt: string | null, active: boolean): number {
@@ -97,22 +83,13 @@ function useElapsed(startedAt: string | null, active: boolean): number {
     const id = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(id)
   }, [active])
-  if (!startedAt) return 0
-  const start = new Date(startedAt).getTime()
-  if (Number.isNaN(start)) return 0
-  return Math.max(0, Math.floor((now - start) / 1000))
-}
-
-function fmt(s: number): string {
-  const m = Math.floor(s / 60)
-  const r = s % 60
-  return m > 0 ? `${m}m ${r}s` : `${r}s`
+  return elapsedSeconds(startedAt, now)
 }
 
 export function CvScoreProgress({ status, phase, startedAt, done, fail, onRetry }: CvScoreProgressProps) {
   const processing = status === "processing"
   const elapsed = useElapsed(startedAt, processing)
-  const slow = processing && elapsed >= SLOW_AFTER_S
+  const slow = processing && isSlow(elapsed)
   const parseStep = useParseStep(processing, phase === "ready")
 
   if (status === "failed" && fail) {
@@ -202,7 +179,7 @@ export function CvScoreProgress({ status, phase, startedAt, done, fail, onRetry 
     <div className="csp csp--running" aria-busy="true">
       <ol className="csp-steps" aria-live="polite">
         {PARSE_STEPS.map((label, i) => {
-          const state = i < parseStep ? "done" : i === parseStep ? "active" : "pending"
+          const state = stepStateAt(i, parseStep)
           return (
             <li key={label} className={`csp-step is-${state}`}>
               <span className="csp-step-dot" aria-hidden />
@@ -210,7 +187,7 @@ export function CvScoreProgress({ status, phase, startedAt, done, fail, onRetry 
               {/* aria-hidden: a per-second announcement is hostile to screen
                   readers, and elapsed time is not needed to follow the state. */}
               {state === "active" ? (
-                <span className="csp-step-time" aria-hidden>{fmt(elapsed)}</span>
+                <span className="csp-step-time" aria-hidden>{formatElapsed(elapsed)}</span>
               ) : null}
               {state === "active" && slow ? (
                 <span className="csp-step-note">Still scoring — busier than usual.</span>
