@@ -75,7 +75,10 @@ const PARSE_STEPS: readonly string[] = [
   "Scoring your domains",
 ]
 const SUBSTEP_MS = 2600
-const SLOW_AFTER_MS = 75_000
+/** Seconds, matching `useElapsed`'s unit. This was `SLOW_AFTER_MS = 75_000`
+ *  compared against a seconds value, so the slow notice needed ~21 hours to
+ *  fire and never once appeared. */
+const SLOW_AFTER_S = 75
 
 function useParseStep(active: boolean, atReady: boolean): number {
   const [i, setI] = React.useState(0)
@@ -109,7 +112,7 @@ function fmt(s: number): string {
 export function CvScoreProgress({ status, phase, startedAt, done, fail, onRetry }: CvScoreProgressProps) {
   const processing = status === "processing"
   const elapsed = useElapsed(startedAt, processing)
-  const slow = processing && elapsed >= SLOW_AFTER_MS
+  const slow = processing && elapsed >= SLOW_AFTER_S
   const parseStep = useParseStep(processing, phase === "ready")
 
   if (status === "failed" && fail) {
@@ -188,37 +191,45 @@ export function CvScoreProgress({ status, phase, startedAt, done, fail, onRetry 
     )
   }
 
-  // Processing — narrated parse substeps (#34 S4) + real-shape skeleton. The
-  // active step advances on a timed cadence and snaps to the last step when the
-  // real `ready` phase lands, so the list never shows an inert set of circles.
+  // Processing — narrated parse substeps (#34 S4) descending a single rail that
+  // terminates in the real-shape skeleton of the score card. The elapsed counter
+  // and the slow notice ride the ACTIVE row, not a detached footer: the number
+  // measures the step it sits on, and it travels down the rail as work advances
+  // (Constitution rule 1 — cause and its readout render adjacent). One live
+  // element on screen; the old indeterminate spinner is gone, since a ticking
+  // real number proves liveness better than a spin that proves nothing.
   return (
-    <div className="csp csp--running" aria-live="polite" aria-busy="true">
-      <ol className="csp-steps">
+    <div className="csp csp--running" aria-busy="true">
+      <ol className="csp-steps" aria-live="polite">
         {PARSE_STEPS.map((label, i) => {
           const state = i < parseStep ? "done" : i === parseStep ? "active" : "pending"
           return (
             <li key={label} className={`csp-step is-${state}`}>
               <span className="csp-step-dot" aria-hidden />
               <span className="csp-step-label">{label}</span>
-              {state === "active" ? <span className="csp-step-spin" aria-hidden /> : null}
+              {/* aria-hidden: a per-second announcement is hostile to screen
+                  readers, and elapsed time is not needed to follow the state. */}
+              {state === "active" ? (
+                <span className="csp-step-time" aria-hidden>{fmt(elapsed)}</span>
+              ) : null}
+              {state === "active" && slow ? (
+                <span className="csp-step-note">Still scoring — busier than usual.</span>
+              ) : null}
             </li>
           )
         })}
       </ol>
 
-      {/* Real-shape skeleton of the score card that's coming. */}
+      {/* Real-shape skeleton of the score card that's coming — the terminus of
+          the rail, not an appended card (rule 4). Canonical `.tm-skeleton`
+          sweep (ADR-0011 §B) instead of a hand-rolled per-element pulse. */}
       <div className="csp-skeleton" aria-hidden>
         <div className="csp-sk-ring" />
         <div className="csp-sk-lines">
-          <span /><span /><span />
+          <span className="tm-skeleton" />
+          <span className="tm-skeleton" />
+          <span className="tm-skeleton" />
         </div>
-      </div>
-
-      <div className="csp-foot">
-        <span className="csp-elapsed">{fmt(elapsed)}</span>
-        {slow ? (
-          <span className="csp-slow">Still ranking — busy moment on our side.</span>
-        ) : null}
       </div>
     </div>
   )
