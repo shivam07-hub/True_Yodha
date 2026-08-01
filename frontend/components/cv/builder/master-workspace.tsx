@@ -261,6 +261,7 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
         delta={0}
         canApply
         primaryLabel="Done"
+        primaryBanner={Boolean(confirmMode)}
         applyHint="Back to your CV library"
         saveState={saveState}
         hideOverflow
