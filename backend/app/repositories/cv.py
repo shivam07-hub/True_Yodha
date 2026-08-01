@@ -8,6 +8,7 @@ only place that writes to cv_versions.
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -15,7 +16,10 @@ from fastapi import Depends, HTTPException, status
 from supabase import Client
 
 from app.deps import get_user_db
+from app.security.personal_data import contains_redaction_token
 from app.services.job_history import attach_jobs
+
+logger = logging.getLogger("myro.cv_repo")
 
 
 CVKind = Literal["baseline_upload", "deterministic", "polished", "edited"]
@@ -373,6 +377,7 @@ class CVVersionsRepository:
         """Lazy backfill — fills cv_structured on a baseline row that was migrated
         from legacy data without one. Repository-level setter, not a general update.
         """
+        self._reject_redaction_tokens(cv_structured)
         self._db.table("cv_versions").update(
             {"cv_structured": cv_structured}
         ).eq("id", version_id).execute()
@@ -622,6 +627,7 @@ class CVVersionsRepository:
         and enforces every invariant defined on CVVersionWriteSpec.
         """
         self._validate_kind_job_id(spec)
+        self._reject_redaction_tokens(spec.cv_structured, spec.body_text, spec.polished_text)
 
         parent_row: dict[str, Any] | None = None
         baseline_version_id: int | None = None
@@ -683,6 +689,21 @@ class CVVersionsRepository:
                 detail="Could not persist CV version.",
             )
         return result.data[0]
+
+    @staticmethod
+    def _reject_redaction_tokens(*values: Any) -> None:
+        """A `[REDACTED_*]` marker is what an AI provider sees, never what Myro
+        stores. One reaching this seam means a prompt's output was written back
+        as if it were the user's own content — the defect that printed
+        `[REDACTED_CV_HEADER]` where a user's name belongs, on a CV they sent to
+        employers. Fail loudly here rather than ship the artifact.
+        """
+        if any(contains_redaction_token(value) for value in values):
+            logger.error("metric cv.redaction_token_blocked seam=cv_versions.create")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Could not save your CV.",
+            )
 
     @staticmethod
     def _validate_kind_job_id(spec: CVVersionWriteSpec) -> None:
