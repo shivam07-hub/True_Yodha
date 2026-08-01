@@ -60,6 +60,18 @@ test("the app-surface error branch is actually reachable", () => {
   assert.ok(mounts.length > 0, 'no error.tsx renders AppRouteError with surface="app"')
 })
 
+test("the authed error branch does not paint chrome its layout already renders", () => {
+  // Caught in a real authed session: the boundary rendered correctly but the
+  // top nav appeared TWICE, because `surface="app"` wrapped itself in AppShell
+  // while `app/(authed)/layout.tsx` was already rendering one around it. Any
+  // boundary that sits inside that layout must contribute only the panel.
+  const source = readFileSync(join(frontendRoot, "components/errors/app-route-error.tsx"), "utf8")
+  const appBranch = source.slice(source.indexOf('if (surface === "public")'))
+  const afterPublic = appBranch.slice(appBranch.indexOf("\n  }\n"))
+  assert.doesNotMatch(afterPublic, /<AppShell/, "the app branch must not mount AppShell")
+  assert.doesNotMatch(afterPublic, /<PublicTopNav|<PublicFooter/, "nor the public chrome")
+})
+
 test("public intel route has a public-shell error boundary", () => {
   const relative = "app/intel/error.tsx"
   const full = join(frontendRoot, relative)
