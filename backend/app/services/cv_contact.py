@@ -165,7 +165,23 @@ def _name_candidate(segment: str) -> str:
         return ""
     if not _NAME_ALLOWED.match(seg) or _NAME_BAD_CHARS.search(seg):
         return ""
-    return seg if 1 <= len(seg.split()) <= 5 else ""
+    words = seg.split()
+    # Collapse the runs of whitespace PDF extraction leaves between words.
+    return " ".join(words) if 1 <= len(words) <= 5 else ""
+
+
+def despace_letters(line: str) -> str:
+    """Rejoin a letter-spaced heading: `S H R U T I  P A T H A K` → `SHRUTI PATHAK`.
+
+    PDF extraction reproduces tracked-out display type one character per token.
+    Real prod data: a CV whose name was set this way parsed as 12 "words", was
+    rejected as a name, and the scan fell through to a tagline fragment.
+    """
+    tokens = line.split()
+    if len(tokens) < 4 or not all(len(t) == 1 for t in tokens):
+        return line
+    # Two or more spaces separate words; single spaces separate letters.
+    return " ".join("".join(word.split()) for word in re.split(r"\s{2,}", line.strip()))
 
 
 def _looks_like_location(segment: str) -> bool:
@@ -193,11 +209,20 @@ def parse_contact(raw_text: str) -> dict[str, str]:
     linkedin = linkedin_match.group(0) if linkedin_match else ""
     phone = find_phone(window)
 
+    # The name sits on the first header line, alone or ahead of the contact
+    # details. Splitting *every* header line on delimiters and taking the first
+    # name-shaped fragment found a tagline word ("Growth", from
+    # "Market Development & Strategy | Growth · Partnerships") on real CVs. Past
+    # the first line, only a whole line counts — a fragment does not.
     name = ""
     name_line_index = -1
     for index, line in enumerate(lines):
-        for segment in _segments(line):
-            candidate = _name_candidate(segment)
+        # On line 0 the name is written before the contact details, so only the
+        # leading segment can be it — scanning later segments turned a CV with no
+        # name at all into one called "Growth".
+        candidates = _segments(line)[:1] if index == 0 else [line]
+        for segment in candidates:
+            candidate = _name_candidate(despace_letters(segment))
             if candidate:
                 name, name_line_index = candidate, index
                 break

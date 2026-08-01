@@ -109,6 +109,26 @@ def test_unicode_names_are_read_not_dropped():
     assert parse_contact(cv)["name"] == "José Álvarez"
 
 
+def test_letter_spaced_name_is_rejoined():
+    """PDF extraction reproduces tracked-out display type one char per token.
+    Found in production: this parsed as 12 words, was rejected as a name, and the
+    scan fell through to a tagline fragment."""
+    cv = (
+        "S H R U T I  P A T H A K\n"
+        "Market Development & Strategy | Growth · Partnerships\n"
+        "New Delhi, India · +91 7337439589 · shruti@x.com\n\n"
+        "EXPERIENCE\nAnalyst, Acme"
+    )
+    assert parse_contact(cv)["name"] == "SHRUTI PATHAK"
+
+
+def test_a_tagline_is_never_mistaken_for_a_name():
+    """A header whose first line is a positioning statement has no name. Empty is
+    the correct answer; "Growth" — a fragment of that tagline — is not."""
+    cv = "Market Development & Strategy | Growth · Partnerships\nd@x.com\n\nEXPERIENCE\nAnalyst, Acme"
+    assert parse_contact(cv)["name"] == ""
+
+
 def test_missing_name_returns_empty_not_a_guess():
     """Empty is what lets the caller fall back to the profile name. A truthy
     placeholder defeats every fallback in the chain (ADR-0016: no fabrication)."""
