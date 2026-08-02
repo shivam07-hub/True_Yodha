@@ -184,6 +184,9 @@ def _parse_utc_datetime(value: Any) -> datetime | None:
 def _is_stale_processing_job(row: dict[str, Any]) -> bool:
     if row.get("status") != "processing":
         return False
+    lease_expires_at = _parse_utc_datetime(row.get("lease_expires_at"))
+    if lease_expires_at is not None:
+        return _now_utc() >= lease_expires_at
     created_at = _parse_utc_datetime(row.get("created_at"))
     if created_at is None:
         return False

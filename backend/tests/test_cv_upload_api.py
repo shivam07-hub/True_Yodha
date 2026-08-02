@@ -655,3 +655,45 @@ def test_upload_status_sweeps_stale_queued_job_before_returning(monkeypatch) -> 
     assert payload["current_phase"] == "failed"
     assert payload["error_code"] == "orphaned"
     assert payload["xp_refunded"] is True
+
+
+def test_upload_status_does_not_sweep_an_active_job_with_a_live_lease(monkeypatch) -> None:
+    from app.repositories import cv_upload_jobs
+
+    row = {
+        "id": "job-active",
+        "status": "processing",
+        "current_phase": "structuring_cv",
+        "skills_detected": None,
+        "score": None,
+        "error_code": None,
+        "error_detail": None,
+        "xp_charged": 200,
+        "xp_refunded": False,
+        "created_at": "2026-05-30T10:00:00+00:00",
+        "lease_expires_at": "2026-05-30T10:20:00+00:00",
+        "finished_at": None,
+    }
+    swept: list[int] = []
+    monkeypatch.setattr(cv_upload_jobs, "fetch_status_for_owner", lambda *_a, **_k: row)
+    monkeypatch.setattr(
+        cv_upload_jobs,
+        "sweep_stale_processing_jobs",
+        lambda minutes=5: swept.append(minutes) or [],
+    )
+
+    async def _bal(_user):
+        return 2800
+
+    monkeypatch.setattr(cv_workflow, "get_xp_balance", _bal)
+    monkeypatch.setattr(
+        cv_workflow,
+        "_now_utc",
+        lambda: cv_workflow._parse_utc_datetime("2026-05-30T10:07:00+00:00"),
+    )
+
+    payload = asyncio.run(cv_workflow.get_cv_upload_status("job-active", "u1"))
+
+    assert swept == []
+    assert payload["status"] == "processing"
+    assert payload["current_phase"] == "structuring_cv"
