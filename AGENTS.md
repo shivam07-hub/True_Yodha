@@ -14,6 +14,18 @@
 
 ## LAST SESSION SUMMARY
 
+### 2026-08-03 — Canonical CV upload entry surface
+
+- The direct pre-signup CV Hub (`/cv-preview`) and post-signup onboarding now
+  render the same `CVUploadStep`: the three-step path, file affordance, size
+  contract, preflight validation, and error placement cannot drift apart.
+- The anonymous entry retains its safe differences below the shared surface:
+  paste-CV fallback, open-in-new-tab job browsing, and disclosure that a CV is
+  saved only if the visitor creates an account.
+- Frontend tests (540), TypeScript, lint, and UI-drift checks pass. The local
+  `agent-browser` executable is unavailable, so no browser screenshot check
+  was claimed.
+
 ### 2026-08-02 — Durable CV intake and finite loading recovery
 
 - CV upload now has one canonical `cv_upload_analysis` workflow: extraction and
