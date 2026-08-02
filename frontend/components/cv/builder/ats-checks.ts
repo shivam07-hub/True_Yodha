@@ -15,6 +15,17 @@ export interface AtsCheck {
   optional?: boolean
 }
 
+/** A `[REDACTED_*]` marker is an AI-egress artifact. If one is rendering as the
+ *  user's name it is not a filled field — it is a broken one. These checks used
+ *  a presence test, so a CV whose header read `[REDACTED_CV_HEADER]` scored 8/8
+ *  and told the user it was recruiter-ready. Presence is not validity. */
+const REDACTION_TOKEN = /\[REDACTED(?:_[A-Z_]+)?\]/
+
+function realValue(value: string | undefined | null): string {
+  const text = (value ?? "").trim()
+  return REDACTION_TOKEN.test(text) ? "" : text
+}
+
 function hasConsistentDates(dates: (string | undefined | null)[]): boolean {
   const filled = dates.filter(Boolean) as string[]
   if (filled.length === 0) return true
@@ -26,13 +37,15 @@ export function runAtsChecks(
   profile: UserProfile | null,
   filename: string,
 ): AtsCheck[] {
-  const hasName = Boolean(cv.contact?.name?.trim() || profile?.full_name?.trim())
-  const hasEmail = Boolean(cv.contact?.email?.trim() || profile?.email?.trim())
-  const hasPhone = Boolean(cv.contact?.phone?.trim())
+  const hasName = Boolean(realValue(cv.contact?.name) || realValue(profile?.full_name))
+  const hasEmail = Boolean(realValue(cv.contact?.email) || realValue(profile?.email))
+  const hasPhone = Boolean(realValue(cv.contact?.phone))
   const hasContent = cv.experience.length > 0 || Boolean(cv.skills_line?.trim())
   const datesOk = hasConsistentDates(cv.experience.map(e => e.dates))
   const contactOk = hasName && hasEmail
-  const filenameOk = /^[a-z0-9_]+\.pdf$/i.test(filename)
+  // The slug strips the token's brackets, so match the bare word too — a
+  // `REDACTED_CV_HEADER_CV.pdf` passed the character-class test cleanly.
+  const filenameOk = /^[a-z0-9_]+\.pdf$/i.test(filename) && !/REDACTED/i.test(filename)
   const typos = spellCheckCv(cv)
   const spellingOk = typos.length === 0
   const typoSummary = typos.slice(0, 4).map(t => t.wrong).join(", ") + (typos.length > 4 ? "…" : "")

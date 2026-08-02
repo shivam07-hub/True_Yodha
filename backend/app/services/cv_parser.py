@@ -34,6 +34,7 @@ import re
 from difflib import get_close_matches
 from functools import lru_cache
 
+from app.services.cv_contact import parse_contact
 from app.services.cv_explicit_skills import extract_explicit_skills, reconcile_skill_signals
 from app.security.personal_data import sanitize_cv_text_for_ai
 from app.services.llm_provider import LLMProvider, LLMProviderError, get_llm_provider
@@ -104,11 +105,13 @@ def _extract_text_docx(file_bytes: bytes) -> str:
 
 _SYSTEM_PROMPT = """You are an expert CV analyst. Given a candidate's CV text, return BOTH a comprehensive Lightcast-skill list AND a structured breakdown of the CV's sections.
 
+The candidate's contact header has been removed before you see this text — it is
+read locally. Do not ask for it, infer it, or invent one.
+
 Return JSON only — no prose, no markdown fences. Top-level shape:
 {
   "skills":     [{"taxonomy_key": "...", "signal_type": "...", "evidence": "..."}],
   "structured": {
-    "contact":     {"name":"...","title":"...","email":"...","phone":"...","location":"...","linkedin":"..."},
     "summary":     "string | null",
     "education":   [{"institution":"...","degree":"...","dates":"...","grade":"...","location":"..."}],
     "experience":  [{"company":"...","role":"...","dates":"...","location":"...","bullets":["...", "..."]}],
@@ -135,7 +138,6 @@ Skill rules:
   - Use proper Lightcast capitalisation (e.g. "Apache Spark", "Amazon Web Services (AWS)")
 
 Structured-section rules:
-  - "contact": the candidate's header block. "name" = full name as printed; "title" = the headline/current role under the name if present; "email"/"phone"/"location"/"linkedin" verbatim from the CV. Use empty string "" for any field not present — never invent a name, email, or phone.
   - "summary": the opening paragraph / objective if present, else null
   - "education": every degree row. Use empty string for missing fields, not omission. dates as printed (e.g. "March 2024", "Jun 2020")
   - "experience": every role. Preserve role order top→bottom of CV. "bullets" = each "•" / "-" / numbered line under that role, verbatim, ≤300 chars each. No bullet-merging. If a role has no bullets, return [].
@@ -225,7 +227,20 @@ async def _llm_extract(
         logger.warning("CV extraction: provider responded but returned unparseable JSON")
     elif structured is None:
         logger.info("CV extraction: skills parsed but 'structured' payload missing")
-    return skills, structured
+    return skills, attach_contact(structured, cv_text)
+
+
+def attach_contact(structured: dict | None, raw_text: str) -> dict | None:
+    """Fill `structured["contact"]` from the raw CV text, deterministically.
+
+    The single place a parsed CV gets its identity. Every path that produces a
+    `cv_structured` payload must run through here, because the model is never
+    shown the header and therefore can never supply one.
+    """
+    if structured is None:
+        return None
+    structured["contact"] = parse_contact(raw_text)
+    return structured
 
 
 def _parse_llm_json(text: str) -> tuple[list[dict] | None, dict | None]:
@@ -321,15 +336,11 @@ def _validate_structured(raw: dict) -> dict | None:
             "bullets": [b[:300] for b in bullets],
         })
 
-    contact_raw = raw.get("contact") if isinstance(raw.get("contact"), dict) else {}
-    contact = {
-        "name":     str(contact_raw.get("name") or "").strip(),
-        "title":    str(contact_raw.get("title") or "").strip(),
-        "email":    str(contact_raw.get("email") or "").strip(),
-        "phone":    str(contact_raw.get("phone") or "").strip(),
-        "location": str(contact_raw.get("location") or "").strip(),
-        "linkedin": str(contact_raw.get("linkedin") or "").strip(),
-    }
+    # `contact` is NOT taken from the model. The header is stripped before the
+    # prompt is built, so anything the model returns here is a hallucination or —
+    # as shipped for two weeks — the redaction placeholder itself. Callers with
+    # the raw text overwrite this via `attach_contact`.
+    contact = {"name": "", "title": "", "email": "", "phone": "", "location": "", "linkedin": ""}
 
     summary = raw.get("summary")
     summary = str(summary).strip() if isinstance(summary, str) and summary.strip() else None
@@ -606,4 +617,4 @@ async def reparse_structured_only(raw_text: str) -> dict | None:
 
     if not isinstance(parsed, dict):
         return None
-    return _validate_structured(parsed)
+    return attach_contact(_validate_structured(parsed), raw_text)

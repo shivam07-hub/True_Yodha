@@ -1,0 +1,7 @@
+{
+  "// why": "Next compiles JSX itself, so tsconfig.json keeps jsx=preserve. Node's test runner via tsx has no such compiler, so component tests need the automatic runtime. Same options otherwise — this only changes how JSX is emitted for tests.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react-jsx"
+  }
+}

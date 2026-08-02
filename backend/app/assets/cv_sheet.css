@@ -60,7 +60,11 @@
   font-size: 9.5pt;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.16em;
+  /* 0.16em at 9.5pt opened gaps wide enough that PDF text extraction read
+     "E X P E R I E N C E" — an ATS looking for a section heading finds nothing,
+     and re-uploading our own CV tripped Myro's letter-spaced-name handling.
+     0.06em keeps the editorial look below the space-insertion threshold. */
+  letter-spacing: 0.06em;
   color: #0A0A0A;
   margin: 18px 0 8px;
   padding-bottom: 4px;
@@ -70,9 +74,20 @@
 .cvb-pdf-page .pdf-role { font-weight: 600; font-size: 11pt; color: #0A0A0A; }
 .cvb-pdf-page .pdf-co { color: #333; font-size: 10pt; }
 .cvb-pdf-page .pdf-dates { font-family: "Geist Mono", monospace; font-size: 9pt; color: #555; }
-.cvb-pdf-page ul { margin: 5px 0 9px; padding-left: 18px; list-style: disc outside; }
-.cvb-pdf-page li { font-size: 10pt; line-height: 1.5; margin-bottom: 3px; color: #1A1A1A; padding-left: 3px; }
-.cvb-pdf-page li::marker { color: #9A9A9A; }
+/* Hanging indent with a REAL bullet character (see PdfPage.PdfBullet). A
+   `list-style` marker is painted, not typeset, so it never reaches the PDF text
+   layer — leaving an ATS unable to separate a new bullet from a wrapped line. */
+.cvb-pdf-page ul { margin: 5px 0 9px; padding-left: 0; list-style: none; }
+.cvb-pdf-page li {
+  display: flex; gap: 6px;
+  font-size: 10pt; line-height: 1.5; margin-bottom: 3px; color: #1A1A1A;
+}
+.cvb-pdf-page .pdf-li-mark { flex: 0 0 auto; color: #9A9A9A; }
+.cvb-pdf-page .pdf-li-text { flex: 1 1 auto; min-width: 0; }
+.cvb-pdf-page .pdf-edu { margin-bottom: 6px; }
+/* No font-size: the degree line inherits the sheet size, exactly as the
+   previous inline-styled span did. */
+.cvb-pdf-page .pdf-edu-sub { color: #333; line-height: 1.45; }
 .cvb-pdf-page .pdf-summary { font-size: 10.5pt; color: #1A1A1A; line-height: 1.55; }
 .cvb-pdf-page .pdf-skills-line { font-family: "Geist Mono", monospace; font-size: 9.5pt; color: #1A1A1A; line-height: 1.7; }
 .cvb-pdf-page .pdf-foot {
@@ -107,7 +122,8 @@
 .cvb-pdf-page[data-cv-template="modern"] .pdf-contact { border-top-width: 0.75px; }
 .cvb-pdf-page[data-cv-template="modern"] h2 {
   border-bottom: none;
-  letter-spacing: 0.10em;
+  /* Same extraction ceiling as the classic heading — see above. */
+  letter-spacing: 0.06em;
   color: #222;
 }
 
@@ -119,6 +135,6 @@
 .cvb-pdf-page[data-cv-template="compact"] h2 { margin: 11px 0 5px; font-size: 9pt; }
 .cvb-pdf-page[data-cv-template="compact"] .pdf-role-head { margin-top: 6px; }
 .cvb-pdf-page[data-cv-template="compact"] .pdf-role { font-size: 10pt; }
-.cvb-pdf-page[data-cv-template="compact"] ul { margin: 3px 0 5px; padding-left: 16px; }
+.cvb-pdf-page[data-cv-template="compact"] ul { margin: 3px 0 5px; }
 .cvb-pdf-page[data-cv-template="compact"] li { font-size: 9pt; line-height: 1.34; margin-bottom: 1px; }
 .cvb-pdf-page[data-cv-template="compact"] .pdf-summary { font-size: 9.5pt; line-height: 1.4; }

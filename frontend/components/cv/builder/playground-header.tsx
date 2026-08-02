@@ -74,6 +74,8 @@ interface PlaygroundHeaderProps {
   onMeta?: () => void
   /** Primary button label (default "Apply with this CV"; master → "Done"). */
   primaryLabel?: string
+  /** First-run confirmation gives the primary action its own full-width row. */
+  primaryBanner?: boolean
   /** Hide the ⋯ overflow (master keeps download in the view-mode surface). */
   hideOverflow?: boolean
   /** Brand override (default per variant: "CV Playground" / "Main CV"). */
@@ -93,7 +95,7 @@ export function PlaygroundHeader({
   jobTitle, company, reqCount, ready, delta, canApply, applyHint, saveState,
   onBack, onReqPill, onApply, onDownload,
   variant = "job", masterMeta, onMeta, primaryLabel = "Apply with this CV", hideOverflow,
-  brandLabel, scoreCaption, hideScore, onSaveJobMeta,
+  brandLabel, scoreCaption, hideScore, primaryBanner, onSaveJobMeta,
 }: PlaygroundHeaderProps) {
   const shown = useCountUp(ready)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -114,7 +116,7 @@ export function PlaygroundHeader({
   }
 
   return (
-    <header className="cvb-v2-head">
+    <header className={`cvb-v2-head${primaryBanner ? " cvb-v2-head--banner" : ""}`}>
       <button type="button" className="cvb-v2-crumb" onClick={onBack} aria-label="Back to CV library">
         <Icon name="chevron-right" size={12} style={{ transform: "rotate(180deg)" }} />
       </button>
@@ -182,7 +184,13 @@ export function PlaygroundHeader({
 
       {!isMaster && delta > 0 && <span className="cvb-v2-deltachip mono">▲ +{delta} raised</span>}
 
-      <button type="button" className="cvb-v2-applybtn" onClick={onApply} disabled={!canApply} title={applyHint}>
+      <button
+        type="button"
+        className={`cvb-v2-applybtn${primaryBanner ? " cvb-v2-applybtn--banner" : ""}`}
+        onClick={onApply}
+        disabled={!canApply}
+        title={applyHint}
+      >
         {primaryLabel}
       </button>
 

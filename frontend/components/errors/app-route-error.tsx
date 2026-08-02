@@ -3,7 +3,6 @@
 import Link from "next/link"
 import type { CSSProperties } from "react"
 import { Home, RefreshCw } from "lucide-react"
-import { AppShell } from "@/components/app-shell"
 import { PublicFooter } from "@/components/public/public-footer"
 import { PublicTopNav } from "@/components/public/top-nav"
 
@@ -64,7 +63,10 @@ function ErrorPanel({
         <h1 id="route-error-title" style={{ margin: 0, color: "var(--tm-text)", fontSize: "var(--tm-fs-title)", lineHeight: "var(--tm-lh-title)", fontWeight: 700 }}>
           {title}
         </h1>
-        <p style={{ margin: "8px 0 0", color: "var(--tm-text-faint)", fontSize: 14, lineHeight: 1.5 }}>
+        {/* --tm-text-muted, not --tm-text-faint: faint is ~3:1 at 14px on the
+            light paper, and this sentence is the only thing telling the user
+            the failure is temporary and retryable. */}
+        <p style={{ margin: "8px 0 0", color: "var(--tm-text-muted)", fontSize: 14, lineHeight: 1.5 }}>
           The page hit a temporary failure. Retry the route or return home.
         </p>
       </div>
@@ -95,11 +97,16 @@ export function AppRouteError({ surface, title, reset }: AppRouteErrorProps) {
     )
   }
 
+  // NO AppShell here. The authed boundary lives at `app/(authed)/error.tsx`,
+  // inside a layout that already renders AppShell, so wrapping again painted
+  // the entire top nav twice — verified in a real authed session. The old
+  // per-route boundaries this branch was written for (`app/jobs/error.tsx`,
+  // `app/skills/error.tsx`) sat OUTSIDE the group and needed their own shell;
+  // they no longer exist. A boundary that renders its own chrome can only be
+  // correct outside the layout, and there is no such boundary any more.
   return (
-    <AppShell>
-      <main style={{ minHeight: "100%", display: "grid", placeItems: "center", padding: "var(--tm-page-py) var(--tm-page-px)" }}>
-        <ErrorPanel title={title} reset={reset} homeHref="/market" />
-      </main>
-    </AppShell>
+    <main style={{ minHeight: "100%", display: "grid", placeItems: "center", padding: "var(--tm-page-py) var(--tm-page-px)" }}>
+      <ErrorPanel title={title} reset={reset} homeHref="/market" />
+    </main>
   )
 }

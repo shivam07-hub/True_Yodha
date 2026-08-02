@@ -60,9 +60,15 @@ function FooterMark() {
 function PdfBullet({ id, text, onClick, selected }: {
   id: string; text: string; onClick?: (id: string, text: string) => void; selected: boolean
 }) {
-  if (!onClick) return <li>{text}</li>
+  // The marker is a real character in the DOM, not `list-style`. A CSS-painted
+  // marker never enters the PDF text layer, so an extractor — and therefore an
+  // ATS — cannot tell a new bullet from a wrapped continuation line. Aria-hidden
+  // because the <li> already announces itself to a screen reader.
+  const mark = <span className="pdf-li-mark" aria-hidden>•</span>
+  if (!onClick) return <li>{mark}<span className="pdf-li-text">{text}</span></li>
   return (
     <li className={`pdf-bullet-interactive${selected ? " is-selected" : ""}`}>
+      {mark}
       <button type="button" className="pdf-bullet-btn" onClick={() => onClick(id, text)}>{text}</button>
     </li>
   )
@@ -124,7 +130,11 @@ export function PdfPage({
                   <span className="pdf-role">{e.role}</span>
                   {e.company && <span className="pdf-co"> · {e.company}</span>}
                 </div>
-                {e.dates && <span className="pdf-dates">{e.dates}</span>}
+                {/* Location rides with the dates: the parser captures it, and
+                    recruiters filter on it, but the sheet used to drop it. */}
+                {(e.dates || e.location) && (
+                  <span className="pdf-dates">{[e.dates, e.location].filter(Boolean).join(" · ")}</span>
+                )}
               </div>
               <ul>{e.keptBullets.map((b) => (
                 <PdfBullet key={b.id} id={b.id} text={b.text} onClick={onBulletClick} selected={b.id === selectedBulletId}/>
@@ -154,14 +164,23 @@ export function PdfPage({
       {visibleEdu.length > 0 && (
         <>
           <h2>Education</h2>
+          {/* Two lines, mirroring a role: a short institution beside the date,
+              then everything long underneath. The previous single flex row let
+              a long degree wrap AROUND the right-aligned date, so extraction
+              read "Data Science and" → "2025 – 2029" → "Application" and a real
+              user's PDF said `2025 – 2029Application`. A field must never be
+              spliced into the middle of another. */}
           {visibleEdu.map((ed, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-              <div>
-                <span style={{ fontWeight: 600 }}>{ed.institution}</span>
-                {ed.degree && <span style={{ color: "#333" }}> · {ed.degree}</span>}
-                {ed.grade && <span style={{ color: "#333" }}> · {ed.grade}</span>}
+            <div key={i} className="pdf-edu">
+              <div className="pdf-role-head">
+                <div><span className="pdf-role">{ed.institution}</span></div>
+                {(ed.dates || ed.location) && (
+                  <span className="pdf-dates">{[ed.dates, ed.location].filter(Boolean).join(" · ")}</span>
+                )}
               </div>
-              {ed.dates && <span className="pdf-dates">{ed.dates}</span>}
+              {(ed.degree || ed.grade) && (
+                <div className="pdf-edu-sub">{[ed.degree, ed.grade].filter(Boolean).join(" · ")}</div>
+              )}
             </div>
           ))}
         </>

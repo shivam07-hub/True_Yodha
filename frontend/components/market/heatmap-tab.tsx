@@ -20,6 +20,7 @@ interface HeatmapTabProps {
   targetLocations: string[]
   locFilters: JobLocationFilters
   paramSkill: string | null
+  formatSkillLabel: (skill: string) => string
   onBackToJobs?: () => void
   onPersonalise: () => void
   onViewSkillJobs: (skillName: string) => void
@@ -36,6 +37,7 @@ export function HeatmapTab({
   targetLocations,
   locFilters,
   paramSkill,
+  formatSkillLabel,
   onBackToJobs,
   onPersonalise,
   onViewSkillJobs,
@@ -169,6 +171,7 @@ export function HeatmapTab({
           companies={followedCompanies}
           rowDataMap={rowDataMap}
           skills={heatmapSkills}
+          formatSkillLabel={formatSkillLabel}
           selectedCell={selectedCell}
           onCellSelect={handleCellSelect}
           allSkills={skillDemandData?.skills ?? []}

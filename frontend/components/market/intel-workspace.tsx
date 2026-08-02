@@ -4,6 +4,7 @@ import { useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { users } from "@/lib/api"
+import { shortHeatmapSkillLabel } from "@/lib/heatmap-labels"
 import { HeatmapTab } from "@/components/market/heatmap-tab"
 import { GapAlertStrip } from "@/components/market/gap-alert-strip"
 import { useFollowCompany } from "@/lib/hooks/use-follow-company"
@@ -71,6 +72,7 @@ export function IntelWorkspace({ token }: { token: string }) {
         targetLocations={profile?.target_locations ?? []}
         locFilters={{}}
         paramSkill={paramSkill}
+        formatSkillLabel={shortHeatmapSkillLabel}
         onPersonalise={() => router.push("/companies")}
         onViewSkillJobs={(skill) => router.push(`/market?skill=${encodeURIComponent(skill)}`)}
       />

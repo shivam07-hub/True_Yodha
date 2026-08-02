@@ -45,34 +45,39 @@ _SYSTEM = (
     "that is not in the original. Keep every named entity (company, client, product, "
     "tool) that the original names.\n"
     "Return ONE reworded line per input bullet, SAME order, SAME count per role.\n"
-    'Return ONLY compact JSON: {"roles": [{"key": str, "bullets": [str]}]}. '
+    'Return ONLY compact JSON: {"roles": [{"index": int, "bullets": [str]}]}. '
     "No prose outside the JSON."
 )
 
 
-def _parse(raw: str) -> dict[str, list[str]]:
-    """key -> reworded bullet list. {} on any malformed response."""
+def _parse(raw: str) -> dict[int, list[str]]:
+    """role index -> reworded bullet list. {} on any malformed response."""
     try:
         obj = json.loads(raw[raw.index("{"): raw.rindex("}") + 1])
     except (ValueError, json.JSONDecodeError):
         return {}
-    out: dict[str, list[str]] = {}
+    out: dict[int, list[str]] = {}
     for entry in (obj.get("roles") or []):
         if not isinstance(entry, dict):
             continue
-        key = str(entry.get("key") or "")
+        index = entry.get("index")
         bullets = entry.get("bullets")
-        if key and isinstance(bullets, list):
-            out[key] = [str(b or "").strip() for b in bullets]
+        if isinstance(index, int) and isinstance(bullets, list):
+            out[index] = [str(b or "").strip() for b in bullets]
     return out
 
 
 def _messages(job_title: str, company: str, requirements: list[str], roles: list[RoleItems]) -> list[dict[str, str]]:
     reqs = "\n".join(f"- {r}" for r in requirements[:14]) or "- (no parsed requirements; keep bullets faithful)"
     blocks = []
-    for r in roles:
+    for index, r in enumerate(roles):
         lines = "\n".join(f"  {i + 1}. {it['text']}" for i, it in enumerate(r.items))
-        blocks.append(f'ROLE key="{r.key}": {r.role} · {r.company}\n{lines}')
+        # Positional index, never `r.key`. `r.key` is a role UUID, and the
+        # outbound identifier filter rewrites every UUID to `[REDACTED_ID]` — so
+        # the model echoed a placeholder back, no role ever matched, and every
+        # bullet silently kept its original. Correlation keys must be opaque to
+        # that filter (`cv_weave` and `story_dedup` already index positionally).
+        blocks.append(f"ROLE {index}: {r.role} · {r.company}\n{lines}")
     user = (
         f"Target job: {job_title or 'the role'} at {company or 'the company'}\n\n"
         f"What this job requires:\n{reqs}\n\n"
@@ -104,10 +109,10 @@ async def reword_bullets(
         logger.info("project_rewrite: reword failed (%s) — keeping originals", exc.__class__.__name__)
         return result
 
-    by_key = _parse(raw)
+    by_index = _parse(raw)
     kept = swapped = 0
-    for r in roles:
-        reworded = by_key.get(r.key)
+    for index, r in enumerate(roles):
+        reworded = by_index.get(index)
         # A length mismatch means the model dropped/merged bullets — don't guess the
         # mapping; keep this whole role's originals.
         if not reworded or len(reworded) != len(r.items):

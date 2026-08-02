@@ -10,13 +10,23 @@
 import type { CVStructured, CVVersion } from "@/lib/api"
 import type { PdfPageContact } from "@/components/cv/builder/pdf-page"
 
+/** An AI-egress redaction marker is not a value. Treating one as a filled field
+ *  is what defeated every fallback below: `name || fullName || "Your name"`
+ *  never reached the profile name, because `[REDACTED_CV_HEADER]` is truthy. */
+const REDACTION_TOKEN = /\[REDACTED(?:_[A-Z_]+)?\]|REDACTED_CV_HEADER/
+
+/** Trimmed value, or "" when it is a redaction marker rather than content. */
+export function realValue(value: string | null | undefined): string {
+  const text = (value ?? "").trim()
+  return REDACTION_TOKEN.test(text) ? "" : text
+}
+
 /**
  * `{First}_{Last}_CV.pdf` slug from the user's full name.
  * Falls back to `My_CV.pdf` when no usable name is present.
  */
 export function masterFilename(fullName: string | null | undefined): string {
-  const slug = (fullName ?? "")
-    .trim()
+  const slug = realValue(fullName)
     .replace(/[^\w\s-]/g, "")
     .split(/\s+/)
     .filter(Boolean)
@@ -63,11 +73,11 @@ export function masterContactFromCV(
 ): PdfPageContact {
   const c = cv.contact
   return {
-    name: c?.name?.trim() || fullName?.trim() || "Your name",
-    title: c?.title?.trim() || cv.experience[0]?.role || "",
-    location: c?.location?.trim() || "",
-    email: c?.email?.trim() || "",
-    phone: c?.phone?.trim() || "",
-    linkedin: c?.linkedin?.trim() || "",
+    name: realValue(c?.name) || realValue(fullName) || "Your name",
+    title: realValue(c?.title) || cv.experience[0]?.role || "",
+    location: realValue(c?.location),
+    email: realValue(c?.email),
+    phone: realValue(c?.phone),
+    linkedin: realValue(c?.linkedin),
   }
 }

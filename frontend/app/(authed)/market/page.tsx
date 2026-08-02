@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query"
 import { jobs, users, xp } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { shortHeatmapSkillLabel } from "@/lib/heatmap-labels"
 import type { CareerBand, JobLocationFilters } from "@/lib/api"
 import { HeatmapTab } from "@/components/market/heatmap-tab"
 import { MarketJobsTab } from "@/components/market/jobs-tab"
@@ -266,6 +267,7 @@ function IntelPageInner() {
             onViewSkillJobs={(skill) => {
               updateBrowse({ tab: "jobs", skill })
             }}
+            formatSkillLabel={shortHeatmapSkillLabel}
           />
         )}
         </div>

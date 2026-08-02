@@ -18,6 +18,11 @@ test("newsletter score CTAs send users to the free CV preview before signup", ()
   assert.doesNotMatch(issuePage, /href=\{`\/signup\?utm_source=newsletter/)
 
   assert.match(issueCta, /Get my free Myro Score/)
-  assert.match(issueCta, /const href = `\/cv-preview\?role=\$\{encodeURIComponent\(role\)\}&utm_source=newsletter&utm_campaign=\$\{encodeURIComponent\(issueSlug\)\}`/)
+  // The CTA became auth-aware (authed readers already have a CV + score, so
+  // they go to /skills rather than the anon scorer). The tracked anon URL is
+  // still the contract — it just moved into the ternary's else branch, which
+  // is what pinned this assertion to `const href = \`/cv-preview...\``.
+  assert.match(issueCta, /`\/cv-preview\?role=\$\{encodeURIComponent\(role\)\}&utm_source=newsletter&utm_campaign=\$\{encodeURIComponent\(issueSlug\)\}`/)
+  assert.match(issueCta, /isAuthed\s*\n?\s*\?\s*"\/skills"/, "authed readers should skip the anon scorer")
   assert.doesNotMatch(issueCta, /const href = `\/signup\?role=/)
 })

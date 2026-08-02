@@ -133,7 +133,7 @@ def test_reword_swaps_clean_rewrites_and_keeps_guard_failures():
         {"story_id": "s2", "text": "Cut client costs by 20%."},
     ])]
     # s1: clean reword (keeps 30% + EMEA). s2: drops the 20% → loses_metrics → keep original.
-    payload = '{"roles":[{"key":"A","bullets":["Drove 30% revenue growth across EMEA accounts.","Reduced client spend materially."]}]}'
+    payload = '{"roles":[{"index":0,"bullets":["Drove 30% revenue growth across EMEA accounts.","Reduced client spend materially."]}]}'
     out = _run(project_rewrite.reword_bullets(
         job_title="Sales Manager", company="Huvo", requirements=["own the sales cycle"],
         roles=roles, provider=_FakeProvider(payload),
@@ -156,7 +156,7 @@ def test_reword_length_mismatch_keeps_role_verbatim():
     roles = [project_rewrite.RoleItems(key="A", role="BDM", company="Cap", items=[
         {"story_id": "s1", "text": "One."}, {"story_id": "s2", "text": "Two."},
     ])]
-    payload = '{"roles":[{"key":"A","bullets":["Only one line back."]}]}'
+    payload = '{"roles":[{"index":0,"bullets":["Only one line back."]}]}'
     out = _run(project_rewrite.reword_bullets(
         job_title="X", company="Y", requirements=[], roles=roles, provider=_FakeProvider(payload),
     ))

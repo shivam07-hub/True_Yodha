@@ -7,97 +7,164 @@
   padding: 8px 0;
 }
 
-/* ── Running: phase log ───────────────────────────────────────────────────── */
+/* ── Running: the reading rail ─────────────────────────────────────────────
+   One continuous rail carries the four parse steps and terminates in the
+   skeleton of the score card. The rail behind travelled steps is accent-tinted,
+   the rail ahead is plain border: the structure itself encodes how far the read
+   has got, so no separate progress bar is needed.
+
+   ONE hue, three weights: a quiet accent disc for done, a full accent ring +
+   halo for the single active step, a hollow border ring for pending. (The old
+   filled-green ✓ put the heaviest mark on the rows that no longer matter, and
+   fought the orange accent for attention.) */
+.csp--running { gap: 4px; }
+
 .csp-steps {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
 }
 .csp-step {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  position: relative;
+  display: grid;
+  grid-template-columns: 16px 1fr auto;
+  column-gap: 12px;
+  align-items: start;
+  padding-bottom: 18px;
   font-size: 14px;
+  line-height: 1.45;
 }
+/* Rail segment: from this marker down through the row's own padding, so the
+   line is unbroken and the last one runs on into the skeleton below. */
+.csp-step::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 19px;
+  bottom: 0;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--tm-border);
+  transition: background 300ms var(--tm-ease, cubic-bezier(0.2, 0.8, 0.2, 1));
+}
+.csp-step.is-done::before { background: var(--tm-int-border); }
+
+/* The three states differ in COLOUR and SCALE only — border-width is held at
+   2.5px for all of them. border-width is not interpolable, so varying it made
+   the stroke snap while the colour eased, and a step advance flashed a grey
+   half-formed ring for 260ms. That happens three times in the first eight
+   seconds, i.e. every user sees it. Transform + colour animate cleanly. */
 .csp-step-dot {
   width: 16px;
   height: 16px;
+  margin-top: 2px;              /* optical centre against the 14px label */
   border-radius: 50%;
-  border: 2px solid var(--tm-border);
-  flex-shrink: 0;
+  border: 2.5px solid transparent;
   position: relative;
+  transition:
+    transform 260ms var(--tm-ease, cubic-bezier(0.2, 0.8, 0.2, 1)),
+    background-color 260ms linear,
+    border-color 260ms linear;
 }
+.csp-step.is-pending .csp-step-dot {
+  border-color: var(--tm-border);
+  transform: scale(0.55);
+}
+/* Background paints under the border box, so a transparent stroke leaves a
+   solid disc — the marker shrinks and fills rather than changing shape. */
 .csp-step.is-done .csp-step-dot {
-  border-color: var(--tm-success, #22d3a8);
-  background: var(--tm-success, #22d3a8);
-}
-.csp-step.is-done .csp-step-dot::after {
-  content: "✓";
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  font-size: 10px;
-  color: var(--tm-bg);
-  font-weight: 700;
+  /* Alpha mixed into the colour, not an `opacity` on the box: opacity is not in
+     the transition list above, so it snapped to 0.55 while the fill was still
+     easing in. As a colour it interpolates with everything else. */
+  background-color: color-mix(in srgb, var(--tm-interactive, var(--tm-accent)) 55%, transparent);
+  transform: scale(0.55);
 }
 .csp-step.is-active .csp-step-dot {
   border-color: var(--tm-interactive, var(--tm-accent));
+  background-color: var(--tm-surface, var(--tm-bg));
 }
-.csp-step-label {
-  color: var(--tm-text-faint);
-  transition: color 200ms;
-}
-.csp-step.is-done .csp-step-label { color: var(--tm-text-muted); }
-.csp-step.is-active .csp-step-label { color: var(--tm-text); font-weight: 600; }
-.csp-step-spin {
-  width: 13px;
-  height: 13px;
+/* The one animated element on screen. Transform + opacity only — compositor
+   work, never layout or paint. */
+.csp-step.is-active .csp-step-dot::after {
+  content: "";
+  position: absolute;
+  inset: -2.5px;
   border-radius: 50%;
-  border: 2px solid var(--tm-int-border);
-  border-top-color: var(--tm-interactive, var(--tm-accent));
-  animation: csp-spin 0.7s linear infinite;
-  margin-left: auto;
+  border: 2px solid var(--tm-interactive, var(--tm-accent));
+  animation: csp-halo 1900ms cubic-bezier(0.25, 0.6, 0.3, 1) infinite;
 }
-@keyframes csp-spin { to { transform: rotate(360deg); } }
+@keyframes csp-halo {
+  0%        { transform: scale(1);   opacity: 0.5; }
+  70%, 100% { transform: scale(2.1); opacity: 0; }
+}
 
-/* ── Real-shape skeleton ──────────────────────────────────────────────────── */
+/* Two ink levels, not three: one hot row and the rest quiet. Done and pending
+   are told apart by their marker and the rail behind them — structure, not a
+   contrast cliff. (Pending sat in --tm-text-faint, ~3:1 at 14px on the light
+   paper: legibility spent on a distinction the rail already makes.) */
+.csp-step-label {
+  color: var(--tm-text-muted);
+  transition: color 260ms linear;
+}
+.csp-step.is-active .csp-step-label { color: var(--tm-text); font-weight: 600; }
+
+/* The counter rides the active row — it measures the step it sits beside, and
+   travels down the rail with it. Tabular figures so the width never jitters. */
+.csp-step-time {
+  align-self: start;
+  padding-top: 1px;
+  font-family: var(--tm-font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  /* Not --tm-interactive: at 12px the raw fill fails AA on the light paper.
+     --tm-accent-text is the AA-safe accent-as-text token, and on dark it is the
+     exact hue of the ring beside it. */
+  color: var(--tm-accent-text, var(--tm-interactive));
+}
+.csp-step-note {
+  grid-column: 2 / -1;
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--tm-text-muted);
+}
+
+/* ── The score card, empty ────────────────────────────────────────────────
+   The rail's terminus, and a genuine real-shape skeleton (ADR-0011 §B): it
+   mirrors `.csp--done` exactly — centred column, same 96px ring, same 5px
+   stroke, same accent — so the result does not replace this, it FILLS it. The
+   ring is already in position when the score lands; only its weight and its
+   number change. (The old placeholder was a 52px disc beside three lines in a
+   bordered box — a shape the done state never takes, so the morph read as one
+   card being swapped for another.) */
 .csp-skeleton {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 16px;
-  padding: 14px;
-  border: 1px solid var(--tm-border-soft, var(--tm-border));
-  border-radius: var(--tm-radius);
+  gap: 12px;
+  padding: 12px 0 2px;
 }
+/* Deliberately NOT the accent: the whole reward of this wait is the ring
+   turning accent with a number in it. An accent placeholder spends that payoff
+   before the score arrives, and outshouts the live row while it does. A neutral
+   ghost at the exact final size and stroke — colour is what changes. The tint
+   is mixed from the ink so it lifts off the surface in BOTH themes; the fixed
+   greys in this range are invisible on the dark card. */
 .csp-sk-ring {
-  width: 56px; height: 56px; border-radius: 50%;
-  border: 4px solid var(--tm-surface-2, var(--tm-bg-inset));
+  width: 96px; height: 96px; border-radius: 50%;
+  border: 5px solid color-mix(in srgb, var(--tm-text) 14%, transparent);
   flex-shrink: 0;
-  animation: csp-pulse 1.6s ease-in-out infinite;
 }
-.csp-sk-lines { flex: 1; display: flex; flex-direction: column; gap: 8px; }
-.csp-sk-lines span {
-  height: 10px; border-radius: 4px;
-  background: var(--tm-surface-2, var(--tm-bg-inset));
-  animation: csp-pulse 1.6s ease-in-out infinite;
+.csp-sk-lines {
+  display: flex; flex-direction: column; align-items: center; gap: 9px;
+  width: 100%;
 }
-.csp-sk-lines span:nth-child(1) { width: 70%; }
-.csp-sk-lines span:nth-child(2) { width: 90%; }
-.csp-sk-lines span:nth-child(3) { width: 50%; }
-@keyframes csp-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
-
-.csp-foot {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 12px;
-}
-.csp-elapsed { font-family: var(--tm-font-mono); color: var(--tm-text-faint); }
-.csp-slow { color: var(--tm-warning); }
+.csp-sk-lines span { height: 11px; border-radius: 4px; }
+.csp-sk-lines span:nth-child(1) { width: 34%; }  /* tier label */
+.csp-sk-lines span:nth-child(2) { width: 74%; }  /* verdict line 1 */
+.csp-sk-lines span:nth-child(3) { width: 52%; }  /* verdict line 2 */
 
 /* ── Done morph ───────────────────────────────────────────────────────────── */
 .csp--done { align-items: center; text-align: center; gap: 10px; }
@@ -184,5 +251,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .csp-step-spin, .csp-sk-ring, .csp-sk-lines span, .csp-ring { animation: none; }
+  /* Kill the halo and the state transitions; the rail fill, the marker weights
+     and the live counter still carry every bit of the state. */
+  .csp-step.is-active .csp-step-dot::after,
+  .csp-ring { animation: none; }
+  .csp-step::before,
+  .csp-step-dot,
+  .csp-step-label { transition: none; }
 }

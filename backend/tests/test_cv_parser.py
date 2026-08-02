@@ -108,15 +108,15 @@ class TestParseLlmJson:
 
 
 class TestValidateStructured:
-    def test_preserves_cv_contact_identity(self) -> None:
+    def test_ignores_any_model_supplied_contact(self) -> None:
+        """The header is stripped before the prompt is built, so the model is
+        never shown a contact block. Anything it returns here is invention — or,
+        as shipped, the redaction placeholder itself, which was persisted and
+        printed as a user's name on a downloaded CV."""
         structured = _validate_structured({
             "contact": {
-                "name": " Ada Lovelace ",
-                "title": "Engineer",
-                "email": "ada@example.com",
-                "phone": "+44 20 0000 0000",
-                "location": "London",
-                "linkedin": "linkedin.com/in/ada",
+                "name": "[REDACTED_CV_HEADER]",
+                "email": "[REDACTED_EMAIL]",
             },
             "summary": None,
             "education": [],
@@ -128,13 +128,17 @@ class TestValidateStructured:
 
         assert structured is not None
         assert structured["contact"] == {
-            "name": "Ada Lovelace",
-            "title": "Engineer",
-            "email": "ada@example.com",
-            "phone": "+44 20 0000 0000",
-            "location": "London",
-            "linkedin": "linkedin.com/in/ada",
+            "name": "", "title": "", "email": "", "phone": "", "location": "", "linkedin": "",
         }
+
+    def test_attach_contact_reads_identity_from_the_raw_cv(self) -> None:
+        raw = "Ada Lovelace\nEngineer\nada@example.com | +44 20 7946 0958\n\nEXPERIENCE\nAnalyst, Analytical Engine"
+        structured = cv_parser.attach_contact(_validate_structured({"experience": []}), raw)
+
+        assert structured is not None
+        assert structured["contact"]["name"] == "Ada Lovelace"
+        assert structured["contact"]["title"] == "Engineer"
+        assert structured["contact"]["email"] == "ada@example.com"
 
 
 # ── _validate_and_normalize ────────────────────────────────────────────────────

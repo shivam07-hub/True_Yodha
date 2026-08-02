@@ -1,9 +1,20 @@
 name: Frontend CI
 
+# Runs on PUSH as well as pull_request. The repo's standing workflow is to push
+# verified work straight to Develop, so a pull_request-only trigger meant this
+# job almost never fired: 96 test files existed, CI ran one of them, and the
+# workflow that ran it was dormant on the branch everything lands on. Tests that
+# do not run are not tests.
 on:
+  push:
+    branches: [Develop, main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
   pull_request:
     paths:
       - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
 
 jobs:
   build:
@@ -24,11 +35,18 @@ jobs:
       - name: Lint
         run: cd frontend && npm run lint
 
+      # `next build` type-checks pages, but not files it does not pull into a
+      # route graph. A standalone pass covers the whole project and fails fast.
+      - name: Typecheck
+        run: cd frontend && npm run typecheck
+
       - name: UI drift guard
         run: cd frontend && npm run check:ui-drift
 
-      - name: Upskilling contract
-        run: cd frontend && npm run test:upskilling
+      # The whole suite, not one hand-picked contract. Includes the CSS
+      # state-transition guard and the CV upload-progress model tests.
+      - name: Tests
+        run: cd frontend && npm test
 
       - name: Build
         run: cd frontend && npm run build
