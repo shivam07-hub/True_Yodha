@@ -11,6 +11,7 @@
 import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import type { ApplicationResponse, CVStructured, CVVersion, UserProfile } from "@/lib/api"
+import { CvDocumentSkeleton } from "@/components/loading/page-skeletons"
 import { CvTabView } from "./cv-tab-view"
 import { MemoryPanel } from "./memory-panel"
 import { ReservoirProfile } from "./reservoir-profile"
@@ -71,7 +72,9 @@ export function LibraryView({
         </div>
       )
     }
-    if (!cv) return null
+    // Same window the desktop surfaces guard: baseline known, cv_structured not
+    // back yet. Returning null here blanked the whole phone screen.
+    if (!cv) return <div className="tm-mcv-stories"><CvDocumentSkeleton /></div>
     return (
       <MobileCVHub
         token={token}

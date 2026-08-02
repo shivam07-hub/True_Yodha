@@ -659,8 +659,15 @@ async def _run_cv_upload_job(
         },
     )
     if baseline_version_id is not None:
+        # FAST lane, not bulk: somebody IS watching. mark_done() above flips the
+        # onboarding result to `awaiting_skill_confirmation`, and the frontend
+        # replaces straight into /cv?edit=1 — a screen that cannot render until
+        # this job has written cv_structured. Left on the bulk lane it queued
+        # behind unwatched work, the reader paid a duplicate synchronous re-parse
+        # via get_or_backfill_cv_structured (21.7s measured in prod), and the
+        # brand-new user watched a blank page for the whole window.
         background.enqueue(
-            background.LANE_BULK,
+            background.LANE_FAST,
             "cv_structured_enrich",
             payload={
                 "baseline_version_id": baseline_version_id,

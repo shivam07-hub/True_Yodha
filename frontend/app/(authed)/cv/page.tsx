@@ -9,7 +9,7 @@ import { CvScoreProgress } from "@/components/cv/cv-score-progress"
 import { DownloadCVButton } from "@/components/cv/download-cv-button"
 import { tokenizedUserMessage, type CVUploadPhase } from "@/lib/cv-upload-state"
 import { claimPendingAnonCv, hasPendingAnonCvClaim } from "@/lib/anon-cv-claim"
-import { CvSkeleton } from "@/components/loading/page-skeletons"
+import { CvDocumentSkeleton, CvSkeleton } from "@/components/loading/page-skeletons"
 import { PlaygroundView } from "@/components/cv/builder/playground-view"
 import { MasterWorkspace } from "@/components/cv/builder/master-workspace"
 import { LibraryView } from "@/components/cv/builder/library-view"
@@ -631,10 +631,12 @@ function CVPage() {
             />
           )}
 
-          {hasBaseline && view === "playground" && jobId && !cvData && (
-            <div style={{ padding: 32, textAlign: "center", color: "var(--tm-text-faint)", fontSize: 12 }}>
-              Loading your CV…
-            </div>
+          {/* Baseline exists, `cv_structured` has not landed yet. Both document
+              surfaces must render SOMETHING here: onboarding replaces straight
+              into ?edit=1 the moment the upload job is done, which is before the
+              layout parse has run, so master-edit hits this on every new signup. */}
+          {hasBaseline && (view === "master-edit" || (view === "playground" && jobId)) && !cvData && (
+            <CvDocumentSkeleton />
           )}
         </div>
       </div>
