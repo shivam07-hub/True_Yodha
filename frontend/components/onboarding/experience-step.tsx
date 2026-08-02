@@ -13,6 +13,17 @@ interface Props {
   onBrowse: () => void
 }
 
+/* Same three steps the landing page promises (components/public/landing/
+   how-it-works.tsx) — repeated verbatim here so the first authed screen
+   continues the story the visitor was sold, instead of restating it in prose.
+   Deliberately NOT accent-coloured: the accent budget on this screen belongs
+   to the dropzone and the two secondary CTAs. */
+const STEPS = [
+  { n: "01", label: "Upload your CV" },
+  { n: "02", label: "Get your Myro Score" },
+  { n: "03", label: "Tailor and apply" },
+] as const
+
 export function ExperienceStep({ busy, error, onUpload, onDescribe, onBrowse }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [describing, setDescribing] = useState(false)
@@ -41,9 +52,23 @@ export function ExperienceStep({ busy, error, onUpload, onDescribe, onBrowse }: 
       <h1 id="experience-title" className="text-balance text-3xl font-semibold tracking-normal text-[var(--tm-text)]">
         Upload your CV
       </h1>
-      <p className="mt-2 text-pretty text-base leading-6 text-[var(--tm-text-muted)]">
-        See your Myro Score and matched jobs in under a minute.
-      </p>
+      <ol className="mt-4 grid grid-cols-3 gap-2" aria-label="What happens next">
+        {STEPS.map((step, index) => {
+          const current = index === 0
+          return (
+            <li
+              key={step.n}
+              aria-current={current ? "step" : undefined}
+              className={`rounded-md border px-3 py-2 ${current ? "border-[var(--tm-border)] bg-[var(--tm-surface)]" : "border-transparent"}`}
+            >
+              <span className="block font-mono text-xs uppercase tracking-wide text-[var(--tm-text-muted)]">Step {step.n}</span>
+              <span className={`mt-0.5 block text-sm leading-5 ${current ? "font-medium text-[var(--tm-text)]" : "text-[var(--tm-text-muted)]"}`}>
+                {step.label}
+              </span>
+            </li>
+          )
+        })}
+      </ol>
 
       {/* The dropzone is the one hero action — everything else is a small link. */}
       <div
@@ -78,16 +103,17 @@ export function ExperienceStep({ busy, error, onUpload, onDescribe, onBrowse }: 
         </div>
       )}
 
-      {/* Secondary paths — deliberately small; the dropzone is the intended action. */}
-      <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm text-[var(--tm-text-muted)]">
+      {/* Secondary paths — real CTAs now (Shivam, Aug 2026), outline so they read
+          as accent without out-shouting the dropzone, which stays the hero. */}
+      <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
         {!describing && (
-          <button type="button" onClick={() => setDescribing(true)} className="tm-control-focus rounded px-2 py-1 underline-offset-4 hover:underline">
+          <Button type="button" variant="outline" onClick={() => setDescribing(true)}>
             No CV? Describe your experience
-          </button>
+          </Button>
         )}
-        <button type="button" onClick={onBrowse} className="tm-control-focus rounded px-2 py-1 underline-offset-4 hover:underline">
+        <Button type="button" variant="outline" onClick={onBrowse}>
           Browse jobs instead
-        </button>
+        </Button>
       </div>
     </section>
   )

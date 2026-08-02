@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.database import get_supabase_admin
@@ -16,7 +18,13 @@ from app.schemas import (
 )
 from app.services.concurrent_reads import run_concurrently
 
+_log = logging.getLogger(__name__)
+
 _POSTING_NOTES_LIMIT = 20
+# How many of a company's most recent postings the notes roll-up may join over.
+# Bounds both the PostgREST URL (one id per entry in a `comments.in_(...)`
+# filter) and the row count behind the company-page existence check.
+_NOTE_JOB_WINDOW = 200
 
 router = APIRouter(prefix="/companies", tags=["companies"])
 
@@ -128,15 +136,42 @@ def get_company_page(company_name: str) -> CompanyPageResponse:
 
 
 def _fetch_company_jobs_for_notes(db, company_name: str) -> list[dict]:
-    """This company's job rows (job_id, job_title only) — feeds both the
-    posting-notes join below and the company-page existence check (a company
-    with live listings and zero reviews/comments still exists)."""
-    return (
+    """This company's most recent job rows (job_id, job_title only) — feeds both
+    the posting-notes join below and the company-page existence check (a company
+    with live listings and zero reviews/comments still exists).
+
+    BOUNDED, deliberately. This read used to have no ``limit``: it pulled every
+    row a company had ever posted (Accenture ~2.7k) and handed all of those ids
+    to a single ``comments.in_(...)`` filter — a multi-kilobyte PostgREST URL
+    over an unindexed id list. On a big company the pair blew the 8s PostgREST
+    ceiling, which surfaced as ``httpx.ReadTimeout`` out of
+    ``_receive_response_headers`` and a **500 on the public company page**
+    (Google, CRED, Elastic, Aon, L.E.K. Consulting, Fermi AI all confirmed in
+    prod logs, the L.E.K. one timing out at exactly 8.0s). The same fetch-all
+    disease was already fixed once in ``fetch_company_jobs_page``; this was its
+    surviving twin.
+
+    Trade-off, stated rather than hidden: notes on a posting older than the
+    newest ``_NOTE_JOB_WINDOW`` roles for that company will not roll up onto the
+    company page. The companies that lose anything here are exactly the ones
+    that returned 500 before, so a bounded page beats an absent one — and the
+    truncation is logged, never silent.
+    """
+    rows = (
         db.table("jobs")
         .select("job_id, job_title")
         .ilike("company_name", company_name)
+        .order("first_seen", desc=True)
+        .limit(_NOTE_JOB_WINDOW)
         .execute()
     ).data or []
+    if len(rows) >= _NOTE_JOB_WINDOW:
+        _log.info(
+            "metric company_notes.window_truncated company=%s window=%s",
+            company_name,
+            _NOTE_JOB_WINDOW,
+        )
+    return rows
 
 
 def _notes_from_jobs(db, jobs: list[dict]) -> list[PostingNoteItem]:

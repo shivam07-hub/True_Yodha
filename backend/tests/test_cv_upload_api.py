@@ -300,7 +300,10 @@ def test_background_run_marks_done_on_success(monkeypatch) -> None:
     assert repo.created and repo.created[0].kind == "baseline_upload"
     assert repo.created[0].cv_structured == {}
     assert repo.created[0].skills_detected[0]["taxonomy_key"] == "Python"
-    assert enqueued == [(cv_workflow.background.LANE_BULK, "cv_structured_enrich")]
+    # FAST, not bulk: onboarding sends the user straight to /cv?edit=1 once this
+    # upload job is done, and that screen blocks on cv_structured. Flipping this
+    # back to the bulk lane puts a blank page in front of every new signup.
+    assert enqueued == [(cv_workflow.background.LANE_FAST, "cv_structured_enrich")]
 
 
 def test_background_run_refunds_and_fails_on_provider_outage(monkeypatch) -> None:

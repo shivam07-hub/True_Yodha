@@ -104,6 +104,45 @@ export function CvSkeleton() {
   )
 }
 
+/**
+ * The CV document surfaces (master workspace, playground) once the baseline is
+ * known but `cv_structured` has not arrived yet. That window is real and can be
+ * long: a freshly-uploaded CV has its layout parsed by a background job, and
+ * the first reader either waits for it or triggers the lazy re-parse. Rendering
+ * nothing there is what left a brand-new user on a blank page for ~22 seconds
+ * immediately after upload — the sheet-plus-rail shape below at least says the
+ * document is coming, and lands the real content in the same place.
+ */
+export function CvDocumentSkeleton() {
+  return (
+    <div aria-hidden="true" style={{ display: "flex", gap: 20, alignItems: "flex-start", flexWrap: "wrap" }}>
+      <div style={{ flex: "1 1 420px", minWidth: 0 }}>
+        <Card>
+          <Bar w="42%" h={22} r={6} />
+          <Bar w="28%" h={12} r={4} mt={10} />
+          <Bar w="100%" h={1} r={0} mt={20} />
+          {[0, 1, 2].map((block) => (
+            <div key={block} style={{ marginTop: 22 }}>
+              <Bar w={110} h={11} r={4} />
+              <Bar w="88%" h={13} r={4} mt={12} />
+              <Bar w="94%" h={13} r={4} mt={8} />
+              <Bar w="61%" h={13} r={4} mt={8} />
+            </div>
+          ))}
+        </Card>
+      </div>
+      <div style={{ flex: "0 1 300px", minWidth: 220 }}>
+        <Card>
+          <Bar w={140} h={13} r={4} />
+          {[0, 1, 2, 3].map((row) => (
+            <Bar key={row} w="100%" h={34} r={8} mt={10} />
+          ))}
+        </Card>
+      </div>
+    </div>
+  )
+}
+
 export function ForgeSkeleton() {
   return (
     <div className="tm-page-enter" aria-hidden="true" style={{ minHeight: "100%", padding: "var(--tm-page-py, 28px) var(--tm-page-px, 32px)", display: "flex", flexDirection: "column", gap: 18 }}>
