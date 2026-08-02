@@ -4,7 +4,6 @@ import "@/mobile/redesign/redesign.css"
 import { usePathname } from "next/navigation"
 
 import { XPGateModal } from "@/components/xp/XPGateModal"
-import { CVUploadLifecycleObserver } from "@/components/cv/cv-upload-lifecycle-observer"
 import { XpExplainerModal } from "@/components/xp/xp-explainer-modal"
 import { AuthedTopStrip } from "@/components/shell/authed-top-strip"
 import { FeedbackHub } from "@/components/feedback"
@@ -61,8 +60,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <MobileUIProvider>
     <div className="tm-shell-enter" style={{ display: "flex", flexDirection: "column", height: "100dvh", width: "100vw", overflow: "hidden", position: "relative" }}>
       <XPGateModal />
-      <CVUploadLifecycleObserver token={m.token} />
-
       {isDesktop && (
         <>
           {/* The ONE logged-in strip — the SAME component the public bar's

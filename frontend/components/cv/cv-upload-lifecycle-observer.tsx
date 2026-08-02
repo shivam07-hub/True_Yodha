@@ -16,6 +16,7 @@ import {
   type CVUploadJobEventDetail,
 } from "@/lib/cv-upload-events"
 import { dataKeys, invalidateCvData } from "@/lib/domain-data"
+import { useSession } from "@/lib/hooks/use-auth"
 
 const RETRY_AFTER_MS = 5_000
 
@@ -100,4 +101,13 @@ export function CVUploadLifecycleObserver({ token }: { token: string }) {
   }, [queryClient, token])
 
   return null
+}
+
+/**
+ * Root lifecycle owner. It is deliberately outside AppShell so onboarding,
+ * authenticated routes, and reloads all reconcile the same persisted job.
+ */
+export function CVUploadLifecycleRoot() {
+  const { token } = useSession()
+  return token ? <CVUploadLifecycleObserver token={token} /> : null
 }

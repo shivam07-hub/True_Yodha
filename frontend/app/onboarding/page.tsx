@@ -7,9 +7,7 @@ import { ExperienceStep } from "@/components/onboarding/experience-step"
 import { Button } from "@/components/ui/button"
 import {
   beginCVUpload,
-  clearPersistedCVUploadState,
   onboarding,
-  pollCVUploadStatus,
 } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useOnboardingState } from "@/lib/hooks/use-onboarding-state"
@@ -18,7 +16,6 @@ export default function OnboardingPage() {
   const router = useRouter()
   const { token, ready } = useAuth()
   const { state, profile, refresh } = useOnboardingState(token)
-  const pollingJob = useRef<string | null>(null)
   const resolved = useRef(false)
   const [entryMode, setEntryMode] = useState<"flow" | "completed">("flow")
   const [busy, setBusy] = useState(false)
@@ -38,18 +35,6 @@ export default function OnboardingPage() {
       router.replace("/onboarding/result")
     }
   }, [router, state.data, state.isFetchedAfterMount])
-
-  // Keep the CV-upload localStorage resume record tidy on completion. Narration
-  // + reveal live on /onboarding/result (driven by GET /onboarding/result), so
-  // this page only needs to reconcile the persisted job, not render phases.
-  useEffect(() => {
-    const jobId = state.data?.upload_job_id
-    if (!token || !jobId || pollingJob.current === jobId || state.data?.entry_mode !== "uploaded_cv") return
-    pollingJob.current = jobId
-    void pollCVUploadStatus(token, jobId, { timeoutMs: 10 * 60_000 })
-      .then(() => { clearPersistedCVUploadState(); refresh() })
-      .catch(() => { pollingJob.current = null })
-  }, [refresh, state.data, token])
 
   async function handleUpload(file: File) {
     if (!token) return
