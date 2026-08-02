@@ -105,9 +105,10 @@ def _persist_baseline_cv(
 # ── ADR-0004 two-phase upload ─────────────────────────────────────────────────
 # Phase 1 — synchronous, fast (~500ms): validate, extract raw text, hash-check
 #   cache, charge XP, persist a processing row, return job_id.
-# Phase 2 — async: deterministic recall + skills-only LLM, score, persist, done.
-# Phase 3 — bulk lane: structured CV enrichment after the trusted result is ready.
-#   Refund XP on provider failure or empty extraction.
+# Phase 2 — async: deterministic recall + skills-only LLM, structured document
+#   extraction, persist one reviewable baseline, then mark the intake done.
+#   Refund XP on provider failure or empty extraction. Skill confirmation owns
+#   scoring and matching after the user reviews the evidence.
 
 _MIN_CV_TEXT_LEN = 80  # below this the LLM has nothing useful to extract
 _STALE_PROCESSING_MINUTES = 5
@@ -241,6 +242,14 @@ def _assert_cv_text_extractable(raw_text: str, *, source: str) -> None:
         )
 
 
+def _is_reviewable_baseline(row: dict[str, Any] | None) -> bool:
+    """Hash reuse is terminal only when its destination can render immediately."""
+    if not row:
+        return False
+    structured = row.get("cv_structured")
+    return isinstance(structured, dict) and bool(structured)
+
+
 async def start_cv_upload_job(
     cv_repo: CVVersionsRepository,
     user_id: str,
@@ -268,7 +277,7 @@ async def start_cv_upload_job(
     content_hash = hashlib.sha256(raw_text.encode()).hexdigest()
 
     cached = cv_repo.find_by_content_hash(user_id, content_hash)
-    if cached:
+    if _is_reviewable_baseline(cached):
         _log.info("CV hash match for user=%s — free synchronous return", user_id)
         confirmed = bool(cached.get("skills_confirmed_at"))
         return {
@@ -282,6 +291,7 @@ async def start_cv_upload_job(
     return await _start_async_upload_job(
         user_id, raw_text=raw_text, content_hash=content_hash, action="cv_upload",
         idempotency_key=idempotency_key, source=source,
+        xp_cost=0 if cached else CV_UPLOAD_XP_COST,
     )
 
 
@@ -404,7 +414,7 @@ async def start_cv_upload_job_from_text(
 
     content_hash = hashlib.sha256(raw_text.encode()).hexdigest()
     cached = cv_repo.find_by_content_hash(user_id, content_hash)
-    if cached:
+    if _is_reviewable_baseline(cached):
         _log.info("CV text hash match for user=%s — free synchronous return", user_id)
         confirmed = bool(cached.get("skills_confirmed_at"))
         return {
@@ -418,6 +428,7 @@ async def start_cv_upload_job_from_text(
     return await _start_async_upload_job(
         user_id, raw_text=raw_text, content_hash=content_hash, action="cv_upload_text",
         idempotency_key=idempotency_key, source=source,
+        xp_cost=0 if cached else CV_UPLOAD_XP_COST,
     )
 
 
@@ -429,6 +440,7 @@ async def _start_async_upload_job(
     action: str,
     idempotency_key: str | None = None,
     source: str = "pdf_upload",
+    xp_cost: int = CV_UPLOAD_XP_COST,
 ) -> dict[str, Any]:
     """Shared job-creation path for both upload + typed-text flows.
 
@@ -447,36 +459,37 @@ async def _start_async_upload_job(
         idempotency_key=idempotency_key,
     )
 
-    try:
-        await charge_or_raise(
-            user_id, CV_UPLOAD_XP_COST, action,
-            floor=CV_UPLOAD_XP_FLOOR,
-            ref_table="cv_upload_jobs",
-            ref_id=job_id,
-        )
-    except InsufficientXPError as exc:
-        upload_jobs_repo.mark_failed(
-            job_id,
-            error_code="insufficient_xp",
-            error_detail="Not enough tokens to start this upload.",
-            refunded=False,
-        )
-        # Re-raise with the CV-specific recovery CTA appended. Other call
-        # sites attach their own CTA (e.g. follow-company → "unfollow another
-        # company first") — that's why xp_service stays CTA-free.
-        raise HTTPException(
-            status_code=exc.status_code,
-            detail={
-                "code": "insufficient_xp",
-                "message": (
-                    f"{exc.detail} Earn 30 tokens in 5 minutes via a diary entry, or "
-                    "complete a practice session for +50 tokens."
-                ),
-            },
-            headers={"X-Myro-Error-Code": "insufficient_xp"},
-        ) from exc
+    if xp_cost > 0:
+        try:
+            await charge_or_raise(
+                user_id, xp_cost, action,
+                floor=CV_UPLOAD_XP_FLOOR,
+                ref_table="cv_upload_jobs",
+                ref_id=job_id,
+            )
+        except InsufficientXPError as exc:
+            upload_jobs_repo.mark_failed(
+                job_id,
+                error_code="insufficient_xp",
+                error_detail="Not enough tokens to start this upload.",
+                refunded=False,
+            )
+            # Re-raise with the CV-specific recovery CTA appended. Other call
+            # sites attach their own CTA (e.g. follow-company → "unfollow another
+            # company first") — that's why xp_service stays CTA-free.
+            raise HTTPException(
+                status_code=exc.status_code,
+                detail={
+                    "code": "insufficient_xp",
+                    "message": (
+                        f"{exc.detail} Earn 30 tokens in 5 minutes via a diary entry, or "
+                        "complete a practice session for +50 tokens."
+                    ),
+                },
+                headers={"X-Myro-Error-Code": "insufficient_xp"},
+            ) from exc
 
-    upload_jobs_repo.mark_charged(job_id, CV_UPLOAD_XP_COST)
+    upload_jobs_repo.mark_charged(job_id, xp_cost)
     upload_jobs_repo.record_notification_started(job_id, user_id)
 
     # ADR-0008 — fast Work Lane. Durable via RQ when REDIS_URL is set; in-process
@@ -484,7 +497,7 @@ async def _start_async_upload_job(
     # makes the enqueue idempotent under retry.
     background.enqueue(
         background.LANE_FAST,
-        "cv_parse_score",
+        "cv_intake",
         payload={
             "job_id": job_id,
             "user_id": user_id,
@@ -498,8 +511,9 @@ async def _start_async_upload_job(
     return {"status": "processing", "job_id": job_id}
 
 
-@background.handler("cv_parse_score")
-async def _cv_parse_score_handler(payload: dict[str, Any], allow_retry: bool) -> None:
+@background.handler("cv_parse_score")  # deploy-safe adapter for already queued jobs
+@background.handler("cv_intake")
+async def _cv_intake_handler(payload: dict[str, Any], allow_retry: bool) -> None:
     await _run_cv_upload_job(
         job_id=payload["job_id"],
         user_id=payload["user_id"],
@@ -510,9 +524,10 @@ async def _cv_parse_score_handler(payload: dict[str, Any], allow_retry: bool) ->
     )
 
 
-@background.failure_handler("cv_parse_score")
-async def _cv_parse_score_failure(payload: dict[str, Any]) -> None:
-    """RQ retries exhausted for a CV parse — refund + mark failed NOW (ADR-0008
+@background.failure_handler("cv_parse_score")  # deploy-safe adapter for queued jobs
+@background.failure_handler("cv_intake")
+async def _cv_intake_failure(payload: dict[str, Any]) -> None:
+    """RQ retries exhausted for CV intake — refund + mark failed NOW (ADR-0008
     Upload Guarantee) instead of waiting for the orphan-sweep. Idempotent."""
     await _fail_and_refund(
         payload["job_id"],
@@ -640,11 +655,32 @@ async def _run_cv_upload_job(
         )
         return
 
+    upload_jobs_repo.set_phase(job_id, "structuring_cv")
+    try:
+        structured = await cv_parser.reparse_structured_only(raw_text)
+    except Exception:  # provider library/network failure — transient
+        _log.exception("CV structure parse crashed for job=%s user=%s", job_id, user_id)
+        await _handle_job_failure(
+            job_id, user_id,
+            error_code="internal",
+            detail="Unexpected error while preparing your CV review. Your tokens have been refunded.",
+            transient=True, allow_retry=allow_retry,
+        )
+        return
+    if structured is None:
+        await _handle_job_failure(
+            job_id, user_id,
+            error_code="provider_unavailable",
+            detail="Our CV analysis service could not prepare your CV review. Your tokens have been refunded — please try again in a few minutes.",
+            transient=True, allow_retry=allow_retry,
+        )
+        return
+
     baseline_version_id = _persist_baseline_cv(
         cv_repo, user_id,
         raw_text=raw_text,
         content_hash=content_hash,
-        cv_structured=None,
+        cv_structured=structured,
         skills_detected=skills_detected,
         source=source,
     )
@@ -658,23 +694,6 @@ async def _run_cv_upload_job(
             "llm_enrichment_failed": bool(parsed.get("llm_enrichment_failed", False)),
         },
     )
-    if baseline_version_id is not None:
-        # FAST lane, not bulk: somebody IS watching. mark_done() above flips the
-        # onboarding result to `awaiting_skill_confirmation`, and the frontend
-        # replaces straight into /cv?edit=1 — a screen that cannot render until
-        # this job has written cv_structured. Left on the bulk lane it queued
-        # behind unwatched work, the reader paid a duplicate synchronous re-parse
-        # via get_or_backfill_cv_structured (21.7s measured in prod), and the
-        # brand-new user watched a blank page for the whole window.
-        background.enqueue(
-            background.LANE_FAST,
-            "cv_structured_enrich",
-            payload={
-                "baseline_version_id": baseline_version_id,
-                "raw_text": raw_text,
-            },
-            correlation_id=f"cv-structured:{baseline_version_id}",
-        )
 
 
 async def _fail_and_refund(

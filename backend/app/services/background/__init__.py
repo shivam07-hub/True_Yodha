@@ -3,7 +3,7 @@
 One way to defer LLM-bearing work off the request path:
 
     from app.services import background
-    background.enqueue(background.LANE_FAST, "cv_parse_score", payload={...})
+    background.enqueue(background.LANE_FAST, "cv_intake", payload={...})
 
 Routing is decided by `settings.redis_url`:
   - set   → RQ durable queue on the named Work Lane, consumed by a Job Runner.
