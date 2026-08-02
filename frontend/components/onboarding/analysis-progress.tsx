@@ -1,10 +1,12 @@
-import { LoaderCircle, Wifi } from "lucide-react"
+import { ExternalLink, LoaderCircle, Wifi } from "lucide-react"
 
 const PHASES: Record<string, string> = {
   queued: "Preparing your analysis",
   reading: "Reading your CV",
   finding_skills: "Extracting your skills",
-  scoring: "Scoring your 10 domains",
+  structuring_cv: "Preparing your CV review",
+  scoring: "Calculating your Myro Score",
+  opening_review: "Opening your CV review",
   reconnecting: "Reconnecting to your analysis",
 }
 
@@ -20,8 +22,17 @@ export function AnalysisProgress({ phase }: { phase: string }) {
         {PHASES[phase] ?? "Building your result"}
       </h1>
       <p className="mt-2 max-w-sm text-pretty text-sm leading-6 text-[var(--tm-text-muted)]">
-        You can leave this page. Myro will continue from the saved analysis when you return.
+        Myro will keep working if you browse jobs.
       </p>
+      <a
+        href="/market"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="tm-control-focus mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--tm-border)] bg-[var(--tm-surface)] px-5 text-sm font-semibold text-[var(--tm-interactive-rest)] transition-colors hover:bg-[var(--tm-surface-hover)]"
+      >
+        Browse jobs while Myro works
+        <ExternalLink className="size-4" aria-hidden="true" />
+      </a>
     </section>
   )
 }

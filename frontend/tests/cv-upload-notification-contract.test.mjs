@@ -5,9 +5,11 @@ import test from "node:test"
 const root = new URL("..", import.meta.url)
 const read = (path) => readFileSync(new URL(path, root), "utf8")
 
-test("AppShell owns CV upload lifecycle reconciliation across navigation", () => {
+test("root providers own CV upload lifecycle reconciliation across every route", () => {
+  const providers = read("components/providers.tsx")
   const shell = read("components/app-shell.tsx")
-  assert.match(shell, /CVUploadLifecycleObserver/)
+  assert.match(providers, /CVUploadLifecycleRoot/)
+  assert.doesNotMatch(shell, /CVUploadLifecycleObserver/)
 })
 
 test("CV page stops awaiting terminal analysis before releasing navigation", () => {

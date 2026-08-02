@@ -25,6 +25,28 @@ test("description result remains an explicitly incomplete preview", () => {
   assert.doesNotMatch(preview, /Your Myro Score|Download/)
 })
 
+test("browsing jobs during onboarding opens the unpersonalized market in a new tab", () => {
+  for (const path of [
+    "components/onboarding/experience-step.tsx",
+    "components/onboarding/profile-preview.tsx",
+    "components/onboarding/analysis-progress.tsx",
+  ]) {
+    const source = read(path)
+    assert.match(source, /href="\/market"/)
+    assert.match(source, /target="_blank"/)
+    assert.match(source, /rel="noopener noreferrer"/)
+    assert.match(source, /ExternalLink/)
+  }
+})
+
+test("skill confirmation transition never pretends to be scoring", () => {
+  const result = read("app/onboarding/result/page.tsx")
+  assert.doesNotMatch(
+    result,
+    /awaiting_skill_confirmation"\) return <AnalysisProgress phase="scoring"/,
+  )
+})
+
 test("baseline generator fixes the five-question expectation", () => {
   const generator = read("components/onboarding/baseline-generator.tsx")
   assert.match(generator, /5 questions · about 2 minutes/)
@@ -68,7 +90,7 @@ test("accepted upload and target are persisted before result navigation", () => 
   assert.match(page, /onboarding\.saveExperience/)
   assert.match(target, /onboarding\.saveTarget/)
   assert.match(page, /router\.push\("\/onboarding\/result"\)/)
-  assert.match(page, /pollCVUploadStatus/)
+  assert.doesNotMatch(page, /pollCVUploadStatus/)
   assert.match(page, /state\.isFetchedAfterMount/)
 })
 

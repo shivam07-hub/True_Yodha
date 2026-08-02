@@ -14,6 +14,36 @@
 
 ## LAST SESSION SUMMARY
 
+### 2026-08-02 — Durable CV intake and finite loading recovery
+
+- CV upload now has one canonical `cv_upload_analysis` workflow: extraction and
+  structured-CV persistence complete before the job becomes `done`. New
+  uploads no longer dispatch the duplicate structured-enrichment module, and
+  cached rows without structured data re-enter intake without a second charge.
+- The authenticated root now owns upload reconciliation across route changes.
+  Progress follows persisted worker phases, the waiting screen opens `/market`
+  in a new tab, and the CV document skeleton ends in a one-retry recovery state
+  instead of remaining indefinitely.
+- Redis-backed deployments always use the durable RQ worker. Renewable
+  20-minute leases and conditional terminal transitions prevent a stale or late
+  worker from overwriting swept jobs or reopening lifecycle notifications.
+- Applied and verified shared-Supabase migrations
+  `20260802173451_cv_upload_job_leases.sql` and
+  `20260802173715_cv_upload_job_policy_hardening.sql`. Full backend tests pass
+  (1,770); frontend tests (554), TypeScript, lint, and UI drift all pass.
+  Commits: `c46d90fc`, `2c85616b`, `389dc866`, `db89a3f4`, `cd0bf0f0`.
+
+### 2026-08-02 — No-CV market browse recovery
+
+- “Browse jobs instead” now opens `/market` in a new tab with an external-link
+  icon, on both the upload and experience-preview onboarding paths.
+- The empty market was a real backend eligibility defect: a no-CV candidate had
+  the safe `entry` seniority default but no career band, so every role was
+  rejected. Browse now spans families at intern/entry level until a target is
+  known; matching remains role-family strict and executive roles remain hidden.
+- Full backend suite passes (1,763), as do frontend onboarding contracts,
+  TypeScript, and lint. Commit: `aafa3844`.
+
 ### 2026-08-02 — Candidate seniority evidence fix
 
 - Onboarding no longer reuses job-listing title heuristics to infer a person's

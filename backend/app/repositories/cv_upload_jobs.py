@@ -8,7 +8,7 @@ See ADR-0004 for the contract.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from supabase import Client
@@ -19,6 +19,11 @@ from app.repositories.notifications import NotificationsRepository
 _log = logging.getLogger(__name__)
 
 _TABLE = "cv_upload_jobs"
+_LEASE_MINUTES = 20  # exceeds the RQ 15-minute hard timeout
+
+
+def _lease_deadline() -> str:
+    return (datetime.now(timezone.utc) + timedelta(minutes=_LEASE_MINUTES)).isoformat()
 
 
 def create_processing_job(
@@ -38,6 +43,7 @@ def create_processing_job(
         "xp_charged": 0,
         "content_hash": content_hash,
         "current_phase": "queued",
+        "lease_expires_at": _lease_deadline(),
         "analysis_kind": analysis_kind,
     }
     if idempotency_key:
@@ -100,9 +106,17 @@ def set_phase(job_id: str, phase: str) -> None:
     a write failure must never abort the parse/score the user is waiting on."""
     try:
         admin = get_supabase_admin()
-        admin.table(_TABLE).update({"current_phase": phase}).eq("id", job_id).execute()
+        result = (
+            admin.table(_TABLE)
+            .update({"current_phase": phase, "lease_expires_at": _lease_deadline()})
+            .eq("id", job_id)
+            .eq("status", "processing")
+            .execute()
+        )
     except Exception as exc:  # pragma: no cover — telemetry only, never fatal
         _log.warning("set_phase(%s, %s) failed: %s", job_id, phase, exc)
+        return
+    if not (result.data or []):
         return
     try:
         NotificationsRepository(admin, admin).update_cv_analysis_phase(job_id, phase)
@@ -117,7 +131,7 @@ def mark_done(
     score: float | None,
     result_payload: dict[str, Any] | None = None,
     baseline_version_id: int | None = None,
-) -> None:
+) -> bool:
     admin = get_supabase_admin()
     payload: dict[str, Any] = {
         "status": "done",
@@ -125,18 +139,28 @@ def mark_done(
         "skills_detected": skills_detected,
         "score": score,
         "finished_at": datetime.now(timezone.utc).isoformat(),
+        "lease_expires_at": None,
     }
     if result_payload is not None:
         payload["result_payload"] = result_payload
     if baseline_version_id is not None:
         payload["baseline_version_id"] = baseline_version_id
-    admin.table(_TABLE).update(payload).eq("id", job_id).execute()
+    result = (
+        admin.table(_TABLE)
+        .update(payload)
+        .eq("id", job_id)
+        .eq("status", "processing")
+        .execute()
+    )
+    if not (result.data or []):
+        return False
     try:
         NotificationsRepository(admin, admin).record_cv_analysis_done(
             job_id, skills_detected=skills_detected, score=score
         )
     except Exception as exc:  # notification projection must not change job truth
         _log.warning("CV job %s ready notification failed: %s", job_id, exc)
+    return True
 
 
 def mark_failed(
@@ -145,22 +169,26 @@ def mark_failed(
     error_code: str,
     error_detail: str,
     refunded: bool,
-) -> None:
+) -> bool:
     admin = get_supabase_admin()
-    admin.table(_TABLE).update({
+    result = admin.table(_TABLE).update({
         "status": "failed",
         "current_phase": "failed",
         "error_code": error_code,
         "error_detail": error_detail,
         "xp_refunded": refunded,
         "finished_at": datetime.now(timezone.utc).isoformat(),
-    }).eq("id", job_id).execute()
+        "lease_expires_at": None,
+    }).eq("id", job_id).eq("status", "processing").execute()
+    if not (result.data or []):
+        return False
     try:
         NotificationsRepository(admin, admin).record_cv_analysis_failed(
             job_id, refunded=refunded
         )
     except Exception as exc:  # notification projection must not change job truth
         _log.warning("CV job %s failure notification failed: %s", job_id, exc)
+    return True
 
 
 def fetch_status_for_owner(job_id: str, user_id: str, db: Client | None = None) -> dict[str, Any] | None:
@@ -175,7 +203,7 @@ def fetch_status_for_owner(job_id: str, user_id: str, db: Client | None = None) 
         .select(
             "id, status, current_phase, analysis_kind, result_payload, "
             "baseline_version_id, skills_detected, score, error_code, "
-            "error_detail, xp_charged, xp_refunded, created_at, finished_at"
+            "error_detail, xp_charged, xp_refunded, created_at, lease_expires_at, finished_at"
         )
         .eq("id", job_id)
         .eq("user_id", user_id)

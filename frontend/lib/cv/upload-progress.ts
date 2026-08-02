@@ -12,23 +12,24 @@
  * unit is on the identifier. The component renders; it does not decide.
  */
 
-/** Truthful parse substeps — the pipeline genuinely reads → finds experience →
- *  matches skills → scores. Narrating them (vs one coarse "Scoring") makes the
- *  wait read as "it's reading MY CV", the trust cue. */
-export const PARSE_STEPS: readonly string[] = [
-  "Reading your CV",
-  "Finding your experience",
-  "Matching your skills",
-  "Scoring your domains",
-]
+import type { CVUploadPhase } from "@/lib/cv-upload-state"
 
-/** Cadence of the timed advance through the first steps. */
-export const SUBSTEP_MS = 2600
+const PHASE_LABELS: Record<CVUploadPhase, string> = {
+  queued: "Preparing your analysis",
+  reading: "Reading your CV",
+  finding_skills: "Extracting your skills",
+  structuring_cv: "Preparing your CV review",
+  ready: "Opening your CV review",
+  failed: "Analysis stopped",
+}
+
+/** The persisted worker phase is the only narration source. */
+export function currentPhaseLabel(phase: CVUploadPhase | null): string {
+  return PHASE_LABELS[phase ?? "queued"]
+}
 
 /** SECONDS. The unit is in the name deliberately — see the module note. */
 export const SLOW_AFTER_S = 75
-
-export type StepState = "done" | "active" | "pending"
 
 /** Whole seconds since `startedAt`. Never negative, never NaN: a clock skew or
  *  an unparseable timestamp reads as 0, not as a wild number on screen. */
@@ -50,21 +51,6 @@ export function formatElapsed(totalSeconds: number): string {
   const m = Math.floor(safe / 60)
   const r = safe % 60
   return m > 0 ? `${m}m ${r}s` : `${r}s`
-}
-
-/** Which step the narration sits on. Once the real `ready` phase lands the list
- *  snaps to the last step, so the timed cadence can never outrun or lag the
- *  truth, and can never run off the end of the list. */
-export function activeStepIndex(tickedIndex: number, atReady: boolean): number {
-  const last = PARSE_STEPS.length - 1
-  if (atReady) return last
-  return Math.min(Math.max(0, tickedIndex), last)
-}
-
-export function stepStateAt(index: number, activeIndex: number): StepState {
-  if (index < activeIndex) return "done"
-  if (index === activeIndex) return "active"
-  return "pending"
 }
 
 /** Band verdict for the reveal beat — leads with the path forward, never a

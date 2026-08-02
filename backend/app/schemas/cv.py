@@ -43,8 +43,8 @@ class CVUploadResponse(BaseModel):
     skills_detected: int | None = None
     score: float | None = None
     current_phase: Literal[
-        "queued", "reading", "finding_skills", "awaiting_target",
-        "scoring", "ready", "failed",
+        "queued", "reading", "finding_skills", "structuring_cv",
+        "ready", "failed",
     ] | None = None
     error_code: str | None = None
     error_detail: str | None = None
@@ -58,8 +58,8 @@ class CVUploadStatusResponse(BaseModel):
     """Polled job status. `status="processing"` means client should poll again."""
     status: Literal["processing", "done", "failed"]
     current_phase: Literal[
-        "queued", "reading", "finding_skills", "awaiting_target",
-        "scoring", "ready", "failed",
+        "queued", "reading", "finding_skills", "structuring_cv",
+        "ready", "failed",
     ] | None = None
     analysis_kind: Literal["baseline", "profile_preview", "generated_baseline"] = "baseline"
     result_payload: dict | None = None

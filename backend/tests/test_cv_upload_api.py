@@ -40,7 +40,11 @@ class _CachedCVRepository:
         self.client = object()
 
     def find_by_content_hash(self, _user_id: str, _content_hash: str) -> dict:
-        return {"id": 42, "skills_confirmed_at": "2026-07-20T00:00:00+00:00"}
+        return {
+            "id": 42,
+            "skills_confirmed_at": "2026-07-20T00:00:00+00:00",
+            "cv_structured": {"basics": {"name": "Candidate"}},
+        }
 
     def count_user_skills(self, _user_id: str) -> int:
         return 7
@@ -109,7 +113,12 @@ def test_upload_returns_202_with_job_id_on_fresh_content(monkeypatch) -> None:
     state = _patch_xp(monkeypatch, balance=3000)
     monkeypatch.setattr(cv_workflow.cv_parser, "extract_raw_text", lambda *_a, **_k: "Python engineer with five years of backend experience building production APIs, data pipelines, and shipping reliable systems.")
     _patch_jobs_create(monkeypatch, job_id="job-abc")
-    _patch_async_workflow(monkeypatch)
+    enqueued: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        cv_workflow.background,
+        "enqueue",
+        lambda lane, name, **_kwargs: enqueued.append((lane, name)),
+    )
 
     try:
         with TestClient(app) as client:
@@ -128,6 +137,7 @@ def test_upload_returns_202_with_job_id_on_fresh_content(monkeypatch) -> None:
     assert state["balance"] == 2800
     # Charge MUST be tied to the job_id so the ledger row + refund idempotency work.
     assert state["last_ref"] == ("cv_upload_jobs", "job-abc")
+    assert enqueued == [(cv_workflow.background.LANE_FAST, "cv_upload_analysis")]
 
 
 def test_upload_returns_hash_cache_hit_without_charging(monkeypatch) -> None:
@@ -151,6 +161,52 @@ def test_upload_returns_hash_cache_hit_without_charging(monkeypatch) -> None:
     assert body["skills_detected"] == 7
     assert body["score"] == 72.5
     assert state["charged"] == 0  # hash-cache hits never charge
+
+
+def test_upload_does_not_reuse_unreviewable_hash_cache_hit(monkeypatch) -> None:
+    class _IncompleteCachedRepository(_CachedCVRepository):
+        def find_by_content_hash(self, _user_id: str, _content_hash: str) -> dict:
+            return {
+                "id": 42,
+                "skills_confirmed_at": None,
+                "skills_detected": [{"taxonomy_key": "Python"}],
+                "cv_structured": {},
+            }
+
+    _override_principal_and_repo(_IncompleteCachedRepository())
+    state = _patch_xp(monkeypatch, balance=3000)
+    monkeypatch.setattr(
+        cv_workflow.cv_parser,
+        "extract_raw_text",
+        lambda *_a, **_k: "Same CV uploaded again, but its historical baseline has no reviewable document structure yet.",
+    )
+    _patch_jobs_create(monkeypatch, job_id="job-repair")
+    _patch_async_workflow(monkeypatch)
+
+    try:
+        with TestClient(app) as client:
+            res = client.post(
+                "/cv/upload",
+                files={"file": ("cv.pdf", b"%PDF", "application/pdf")},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert res.status_code == 202
+    assert res.json() == {
+        "status": "processing",
+        "job_id": "job-repair",
+        "skills_detected": None,
+        "score": None,
+        "current_phase": None,
+        "error_code": None,
+        "error_detail": None,
+        "redirect_to": None,
+        "xp_charged": None,
+        "xp_refunded": None,
+        "new_coin_balance": None,
+    }
+    assert state["charged"] == 0
 
 
 def test_upload_blocks_with_400_when_xp_insufficient(monkeypatch) -> None:
@@ -267,6 +323,11 @@ def test_background_run_marks_done_on_success(monkeypatch) -> None:
             "provenance": {"llm_model": "provider/strong", "llm_elapsed_ms": 91},
         }
     monkeypatch.setattr(cv_workflow.cv_parser, "parse_cv_skills", _parse)
+
+    async def _structure(_text):
+        return {"basics": {"name": "Candidate"}, "experience": []}
+
+    monkeypatch.setattr(cv_workflow.cv_parser, "reparse_structured_only", _structure)
     enqueued: list[tuple[str, str]] = []
     monkeypatch.setattr(
         cv_workflow.background,
@@ -298,12 +359,12 @@ def test_background_run_marks_done_on_success(monkeypatch) -> None:
     ]
     assert repo.profile_updates == []
     assert repo.created and repo.created[0].kind == "baseline_upload"
-    assert repo.created[0].cv_structured == {}
+    assert repo.created[0].cv_structured == {
+        "basics": {"name": "Candidate"},
+        "experience": [],
+    }
     assert repo.created[0].skills_detected[0]["taxonomy_key"] == "Python"
-    # FAST, not bulk: onboarding sends the user straight to /cv?edit=1 once this
-    # upload job is done, and that screen blocks on cv_structured. Flipping this
-    # back to the bulk lane puts a blank page in front of every new signup.
-    assert enqueued == [(cv_workflow.background.LANE_FAST, "cv_structured_enrich")]
+    assert enqueued == []
 
 
 def test_background_run_refunds_and_fails_on_provider_outage(monkeypatch) -> None:
@@ -332,6 +393,50 @@ def test_background_run_refunds_and_fails_on_provider_outage(monkeypatch) -> Non
     assert failed_calls[0]["error_code"] == "provider_unavailable"
     assert failed_calls[0]["refunded"] is True
     assert repo.created == []  # nothing persisted on failure
+
+
+def test_background_run_never_marks_done_without_reviewable_structure(monkeypatch) -> None:
+    repo = _AdminFakeRepo()
+    _patch_admin_repo(monkeypatch, repo)
+
+    async def _parse(_text, provider=None):
+        return {
+            "skills_detected": [
+                {"taxonomy_key": "Python", "signal_type": "project", "xp_awarded": 150, "evidence": "X"}
+            ],
+        }
+
+    async def _structure_unavailable(_text):
+        return None
+
+    monkeypatch.setattr(cv_workflow.cv_parser, "parse_cv_skills", _parse)
+    monkeypatch.setattr(cv_workflow.cv_parser, "reparse_structured_only", _structure_unavailable)
+
+    async def _refund(*_args, **_kwargs):
+        return 3000
+
+    monkeypatch.setattr(cv_workflow, "refund", _refund)
+    failed_calls: list[dict] = []
+    monkeypatch.setattr(
+        cv_workflow.upload_jobs_repo,
+        "mark_failed",
+        lambda job_id, **kw: failed_calls.append({"job_id": job_id, **kw}),
+    )
+    monkeypatch.setattr(
+        cv_workflow.upload_jobs_repo,
+        "mark_done",
+        lambda *_a, **_k: pytest.fail("an unreviewable intake must not be terminal success"),
+    )
+
+    asyncio.run(
+        cv_workflow._run_cv_upload_job(
+            job_id="job-structure", user_id="u1", raw_text="text", content_hash="h"
+        )
+    )
+
+    assert repo.created == []
+    assert failed_calls[0]["error_code"] == "provider_unavailable"
+    assert failed_calls[0]["refunded"] is True
 
 
 def test_background_run_refunds_when_no_skills_extracted(monkeypatch) -> None:
@@ -490,7 +595,7 @@ def test_upload_status_surfaces_current_phase(monkeypatch) -> None:
     monkeypatch.setattr(
         cv_upload_jobs, "fetch_status_for_owner",
         lambda _job, _user: {
-            "id": "job-1", "status": "processing", "current_phase": "scoring",
+            "id": "job-1", "status": "processing", "current_phase": "structuring_cv",
             "skills_detected": None, "score": None, "error_code": None,
             "error_detail": None, "xp_charged": 50, "xp_refunded": False,
             "created_at": "2026-05-30T10:00:00+00:00", "finished_at": None,
@@ -501,7 +606,7 @@ def test_upload_status_surfaces_current_phase(monkeypatch) -> None:
     monkeypatch.setattr(cv_workflow, "get_xp_balance", _bal)
 
     payload = asyncio.run(cv_workflow.get_cv_upload_status("job-1", "u1"))
-    assert payload["current_phase"] == "scoring"
+    assert payload["current_phase"] == "structuring_cv"
     assert payload["status"] == "processing"
     assert payload["started_at"] == "2026-05-30T10:00:00+00:00"
 
@@ -550,3 +655,45 @@ def test_upload_status_sweeps_stale_queued_job_before_returning(monkeypatch) -> 
     assert payload["current_phase"] == "failed"
     assert payload["error_code"] == "orphaned"
     assert payload["xp_refunded"] is True
+
+
+def test_upload_status_does_not_sweep_an_active_job_with_a_live_lease(monkeypatch) -> None:
+    from app.repositories import cv_upload_jobs
+
+    row = {
+        "id": "job-active",
+        "status": "processing",
+        "current_phase": "structuring_cv",
+        "skills_detected": None,
+        "score": None,
+        "error_code": None,
+        "error_detail": None,
+        "xp_charged": 200,
+        "xp_refunded": False,
+        "created_at": "2026-05-30T10:00:00+00:00",
+        "lease_expires_at": "2026-05-30T10:20:00+00:00",
+        "finished_at": None,
+    }
+    swept: list[int] = []
+    monkeypatch.setattr(cv_upload_jobs, "fetch_status_for_owner", lambda *_a, **_k: row)
+    monkeypatch.setattr(
+        cv_upload_jobs,
+        "sweep_stale_processing_jobs",
+        lambda minutes=5: swept.append(minutes) or [],
+    )
+
+    async def _bal(_user):
+        return 2800
+
+    monkeypatch.setattr(cv_workflow, "get_xp_balance", _bal)
+    monkeypatch.setattr(
+        cv_workflow,
+        "_now_utc",
+        lambda: cv_workflow._parse_utc_datetime("2026-05-30T10:07:00+00:00"),
+    )
+
+    payload = asyncio.run(cv_workflow.get_cv_upload_status("job-active", "u1"))
+
+    assert swept == []
+    assert payload["status"] == "processing"
+    assert payload["current_phase"] == "structuring_cv"

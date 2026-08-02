@@ -144,7 +144,7 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
     queryKey: dataKeys.cvStructured(),
     queryFn: () => cv.structured(token!),
     enabled: enabled && !!token && hasBaseline,
-    retry: false,
+    retry: 1,
     staleTime: 10 * 60 * 1000,
   })
 

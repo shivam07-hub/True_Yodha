@@ -238,10 +238,10 @@ def test_cv_analysis_notification_projects_processing_and_ready_states() -> None
     }
     assert cap.inserted[0]["read_at"] is not None
 
-    repo.update_cv_analysis_phase("upload-1", "scoring")
+    repo.update_cv_analysis_phase("upload-1", "structuring_cv")
     _, phase = cap.updated[-1]
     assert phase["state"] == "processing"
-    assert phase["body"] == "Scoring your domains"
+    assert phase["body"] == "Preparing your CV review"
 
     repo.record_cv_analysis_done("upload-1", skills_detected=6, score=42.4)
     _, done = cap.updated[-1]
@@ -274,19 +274,21 @@ def test_cv_analysis_failure_becomes_unread_actionable_notification() -> None:
 class _JobQuery:
     def __init__(self) -> None:
         self._inserted = False
+        self._updated = False
 
     def insert(self, _row: dict[str, Any]) -> "_JobQuery":
         self._inserted = True
         return self
 
     def update(self, _patch: dict[str, Any]) -> "_JobQuery":
+        self._updated = True
         return self
 
     def eq(self, *_args: Any) -> "_JobQuery":
         return self
 
     def execute(self) -> Any:
-        data = [{"id": "upload-1"}] if self._inserted else []
+        data = [{"id": "upload-1"}] if self._inserted or self._updated else []
         return type("R", (), {"data": data})()
 
 
@@ -319,16 +321,88 @@ def test_cv_upload_job_projects_every_lifecycle_transition(monkeypatch: Any) -> 
 
     job_id = cv_upload_jobs.create_processing_job(user_id="u1", content_hash="hash")
     cv_upload_jobs.record_notification_started(job_id, "u1")
-    cv_upload_jobs.set_phase(job_id, "scoring")
+    cv_upload_jobs.set_phase(job_id, "structuring_cv")
     cv_upload_jobs.mark_done(job_id, skills_detected=6, score=42.4)
     cv_upload_jobs.mark_failed(job_id, error_code="provider", error_detail="down", refunded=True)
 
     assert calls == [
         ("started", "u1", "upload-1"),
-        ("phase", "upload-1", "scoring"),
+        ("phase", "upload-1", "structuring_cv"),
         ("done", "upload-1", {"skills_detected": 6, "score": 42.4}),
         ("failed", "upload-1", True),
     ]
+
+
+def test_cv_upload_terminal_success_cannot_overwrite_a_swept_failure(monkeypatch: Any) -> None:
+    filters: list[tuple[str, Any]] = []
+    projected: list[str] = []
+
+    class _Query:
+        def update(self, _patch: dict[str, Any]) -> "_Query":
+            return self
+
+        def eq(self, column: str, value: Any) -> "_Query":
+            filters.append((column, value))
+            return self
+
+        def select(self, _columns: str) -> "_Query":
+            return self
+
+        def execute(self) -> Any:
+            # The row was already swept to failed, so status=processing matches nothing.
+            return type("R", (), {"data": []})()
+
+    class _DB:
+        def table(self, _name: str) -> _Query:
+            return _Query()
+
+    class _Projection:
+        def __init__(self, *_args: Any) -> None:
+            pass
+
+        def record_cv_analysis_done(self, *_args: Any, **_kwargs: Any) -> None:
+            projected.append("done")
+
+    monkeypatch.setattr(cv_upload_jobs, "get_supabase_admin", lambda: _DB())
+    monkeypatch.setattr(cv_upload_jobs, "NotificationsRepository", _Projection)
+
+    transitioned = cv_upload_jobs.mark_done("upload-1", skills_detected=6, score=None)
+
+    assert transitioned is False
+    assert ("status", "processing") in filters
+    assert projected == []
+
+
+def test_cv_upload_late_phase_cannot_reopen_a_terminal_notification(monkeypatch: Any) -> None:
+    projected: list[str] = []
+
+    class _Query:
+        def update(self, _patch: dict[str, Any]) -> "_Query":
+            return self
+
+        def eq(self, *_args: Any) -> "_Query":
+            return self
+
+        def execute(self) -> Any:
+            return type("R", (), {"data": []})()
+
+    class _DB:
+        def table(self, _name: str) -> _Query:
+            return _Query()
+
+    class _Projection:
+        def __init__(self, *_args: Any) -> None:
+            pass
+
+        def update_cv_analysis_phase(self, *_args: Any) -> None:
+            projected.append("phase")
+
+    monkeypatch.setattr(cv_upload_jobs, "get_supabase_admin", lambda: _DB())
+    monkeypatch.setattr(cv_upload_jobs, "NotificationsRepository", _Projection)
+
+    cv_upload_jobs.set_phase("upload-1", "structuring_cv")
+
+    assert projected == []
 
 
 # ── sweep write path: compute-then-notify ───────────────────────────────────

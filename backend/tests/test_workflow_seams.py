@@ -116,12 +116,11 @@ class _FakeCVRepository:
         return 68.4
 
 
-def test_cv_workflow_background_run_persists_candidates_without_scoring(monkeypatch: Any) -> None:
-    """The background upload stops at baseline-scoped candidates; confirmation
-    owns the later user-skill publication and scoring seam."""
+def test_cv_intake_terminal_success_is_reviewable_without_scoring(monkeypatch: Any) -> None:
+    """A terminal intake persists both review candidates and the document shape;
+    confirmation still owns the later user-skill publication and scoring seam."""
     repo = _FakeCVRepository()
     done: dict[str, Any] = {}
-    enqueued: list[str] = []
 
     monkeypatch.setattr(cv_workflow, "get_supabase_admin", lambda: object())
     monkeypatch.setattr(cv_workflow, "CVVersionsRepository", lambda _c: repo)
@@ -133,17 +132,20 @@ def test_cv_workflow_background_run_persists_candidates_without_scoring(monkeypa
         }
 
     monkeypatch.setattr(cv_workflow.cv_parser, "parse_cv_skills", _fake_parse_cv_skills)
+
+    async def _fake_parse_structure(_raw_text: str) -> dict[str, Any]:
+        return {
+            "basics": {"name": "Candidate"},
+            "experience": [{"company": "Acme", "role": "Engineer", "bullets": ["Shipped APIs"]}],
+        }
+
+    monkeypatch.setattr(cv_workflow.cv_parser, "reparse_structured_only", _fake_parse_structure)
     monkeypatch.setattr(
         cv_workflow.upload_jobs_repo,
         "mark_done",
         lambda *_a, **kwargs: done.update(kwargs),
     )
     monkeypatch.setattr(cv_workflow.upload_jobs_repo, "mark_failed", lambda *_a, **_k: None)
-    monkeypatch.setattr(
-        cv_workflow.background,
-        "enqueue",
-        lambda _lane, name, **_kwargs: enqueued.append(name),
-    )
 
     asyncio.run(
         cv_workflow._run_cv_upload_job(
@@ -158,7 +160,8 @@ def test_cv_workflow_background_run_persists_candidates_without_scoring(monkeypa
     assert repo.created_spec is not None
     assert repo.created_spec.kind == "baseline_upload"
     assert repo.created_spec.skills_detected[0]["taxonomy_key"] == "Python"
-    assert enqueued == ["cv_structured_enrich"]
+    assert repo.created_spec.cv_structured["basics"]["name"] == "Candidate"
+    assert repo.created_spec.cv_structured["experience"][0]["role"] == "Engineer"
 
 
 class _FakeComputeJobsRepository:

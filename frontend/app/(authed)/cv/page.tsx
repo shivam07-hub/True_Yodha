@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CvScoreProgress } from "@/components/cv/cv-score-progress"
+import { CvStructuredRecovery } from "@/components/cv/cv-structured-recovery"
 import { DownloadCVButton } from "@/components/cv/download-cv-button"
 import { tokenizedUserMessage, type CVUploadPhase } from "@/lib/cv-upload-state"
 import { claimPendingAnonCv, hasPendingAnonCvClaim } from "@/lib/anon-cv-claim"
@@ -592,7 +593,7 @@ function CVPage() {
             </>
           )}
 
-          {hasBaseline && view === "baseline" && (
+          {hasBaseline && view === "baseline" && cvData && (
             <LibraryView
               token={token!}
               cv={cvData}
@@ -631,12 +632,17 @@ function CVPage() {
             />
           )}
 
-          {/* Baseline exists, `cv_structured` has not landed yet. Both document
-              surfaces must render SOMETHING here: onboarding replaces straight
-              into ?edit=1 the moment the upload job is done, which is before the
-              layout parse has run, so master-edit hits this on every new signup. */}
-          {hasBaseline && (view === "master-edit" || (view === "playground" && jobId)) && !cvData && (
+          {hasBaseline && !cvData && !playground.structuredQuery.isError && (
+            playground.structuredQuery.isLoading || playground.structuredQuery.isFetching
+          ) && (
             <CvDocumentSkeleton />
+          )}
+
+          {hasBaseline && !cvData && playground.structuredQuery.isError && (
+            <CvStructuredRecovery
+              isRetrying={playground.structuredQuery.isFetching}
+              onRetry={() => { void playground.structuredQuery.refetch() }}
+            />
           )}
         </div>
       </div>

@@ -86,20 +86,10 @@ def enqueue(
         raise ValueError(f"no handler registered for job_type {job_type!r}")
 
     if _is_durable():
-        if _has_active_worker_for_lane(lane):
-            _enqueue_rq(lane, job_type, payload, correlation_id)
-        else:
-            # REDIS_URL is set but no Job Runner is draining this lane — the
-            # durable rail is effectively off. Run inline so the user is never
-            # dropped (Upload Guarantee), but emit a structured alarm: in prod a
-            # missing worker must page, not silently degrade to in-process work.
-            _log.critical(
-                "metric worker.absent lane=%s job_type=%s env=%s action=ran_inline",
-                lane,
-                job_type,
-                settings.railway_environment,
-            )
-            _invoke_inline(job_type, payload)
+        # Queue availability and worker availability are deliberately separate.
+        # Redis is the durable intake seam: a worker outage must accumulate work
+        # for later delivery, never demote it to a web-process create_task.
+        _enqueue_rq(lane, job_type, payload, correlation_id)
     else:
         # In-process fallback — preserves pre-ADR-0008 behaviour where no Redis
         # exists. No retry available here, so handlers refund-and-return on fail.
@@ -113,29 +103,6 @@ def _invoke_inline(job_type: str, payload: dict[str, Any]) -> None:
         asyncio.run(_invoke(job_type, payload, allow_retry=False))
         return
     loop.create_task(_invoke(job_type, payload, allow_retry=False))
-
-
-def _has_active_worker_for_lane(lane: str) -> bool:
-    try:
-        from redis import Redis
-        from rq import Worker
-
-        # RQ needs a binary connection (pickled payloads); a decoded one crashes
-        # the worker on dequeue. See job_refresh._redis_state._rq_connection.
-        conn = Redis.from_url(settings.redis_url.strip())
-        workers = Worker.all(connection=conn)
-        for worker in workers:
-            queue_names = worker.queue_names()
-            if lane in queue_names:
-                return True
-        return False
-    except Exception as exc:
-        _log.error(
-            "Background worker liveness check failed for lane=%s: %s",
-            lane,
-            exc,
-        )
-        return False
 
 
 def _enqueue_rq(

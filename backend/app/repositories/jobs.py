@@ -23,6 +23,7 @@ from app.services.job_intelligence_policy import is_recommendable_listing
 from app.services.job_eligibility import (
     career_band_for_job,
     career_band_for_profile,
+    job_is_browse_eligible,
     job_is_eligible,
     seniority_for_job,
     target_seniority_for_profile,
@@ -2042,7 +2043,7 @@ class JobsRepository:
             if eligibility_active:
                 shaped = [
                     row for row in shaped
-                    if job_is_eligible(eligibility_profile, row, include_stretch=include_stretch)
+                    if job_is_browse_eligible(eligibility_profile, row, include_stretch=include_stretch)
                 ]
             if exclude:
                 shaped = [r for r in shaped if r["job_id"] not in exclude]

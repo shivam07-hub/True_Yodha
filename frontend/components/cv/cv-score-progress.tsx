@@ -6,14 +6,11 @@ import "./cv-score-progress.css"
 import { tierForScore } from "@/lib/score-tiers"
 import type { CVUploadPhase } from "@/lib/cv-upload-state"
 import {
-  PARSE_STEPS,
-  SUBSTEP_MS,
-  activeStepIndex,
+  currentPhaseLabel,
   elapsedSeconds,
   formatElapsed,
   isSlow,
   revealVerdict,
-  stepStateAt,
 } from "@/lib/cv/upload-progress"
 
 /**
@@ -63,19 +60,6 @@ interface CvScoreProgressProps {
   onRetry?: () => void
 }
 
-// Thresholds, units and state live in `lib/cv/upload-progress` so they can be
-// tested; this file only renders them. The hooks below are the React shell
-// around that model — they own timers, nothing else.
-function useParseStep(active: boolean, atReady: boolean): number {
-  const [i, setI] = React.useState(0)
-  React.useEffect(() => {
-    if (!active || atReady) return
-    const id = setInterval(() => setI((p) => Math.min(p + 1, PARSE_STEPS.length - 1)), SUBSTEP_MS)
-    return () => clearInterval(id)
-  }, [active, atReady])
-  return activeStepIndex(i, atReady)
-}
-
 function useElapsed(startedAt: string | null, active: boolean): number {
   const [now, setNow] = React.useState(() => Date.now())
   React.useEffect(() => {
@@ -90,7 +74,6 @@ export function CvScoreProgress({ status, phase, startedAt, done, fail, onRetry 
   const processing = status === "processing"
   const elapsed = useElapsed(startedAt, processing)
   const slow = processing && isSlow(elapsed)
-  const parseStep = useParseStep(processing, phase === "ready")
 
   if (status === "failed" && fail) {
     return (
@@ -168,33 +151,20 @@ export function CvScoreProgress({ status, phase, startedAt, done, fail, onRetry 
     )
   }
 
-  // Processing — narrated parse substeps (#34 S4) descending a single rail that
-  // terminates in the real-shape skeleton of the score card. The elapsed counter
-  // and the slow notice ride the ACTIVE row, not a detached footer: the number
-  // measures the step it sits on, and it travels down the rail as work advances
-  // (Constitution rule 1 — cause and its readout render adjacent). One live
-  // element on screen; the old indeterminate spinner is gone, since a ticking
-  // real number proves liveness better than a spin that proves nothing.
+  // Processing — one persisted server phase, never a timed story about work that
+  // may not be happening. Elapsed time proves liveness without estimating an end.
   return (
     <div className="csp csp--running" aria-busy="true">
       <ol className="csp-steps" aria-live="polite">
-        {PARSE_STEPS.map((label, i) => {
-          const state = stepStateAt(i, parseStep)
-          return (
-            <li key={label} className={`csp-step is-${state}`}>
-              <span className="csp-step-dot" aria-hidden />
-              <span className="csp-step-label">{label}</span>
-              {/* aria-hidden: a per-second announcement is hostile to screen
-                  readers, and elapsed time is not needed to follow the state. */}
-              {state === "active" ? (
-                <span className="csp-step-time" aria-hidden>{formatElapsed(elapsed)}</span>
-              ) : null}
-              {state === "active" && slow ? (
-                <span className="csp-step-note">Still scoring — busier than usual.</span>
-              ) : null}
-            </li>
-          )
-        })}
+        <li className="csp-step is-active">
+          <span className="csp-step-dot" aria-hidden />
+          <span className="csp-step-label">{currentPhaseLabel(phase)}</span>
+          {/* aria-hidden: a per-second announcement is hostile to screen readers. */}
+          <span className="csp-step-time" aria-hidden>{formatElapsed(elapsed)}</span>
+          {slow ? (
+            <span className="csp-step-note">Still working — this is taking longer than usual.</span>
+          ) : null}
+        </li>
       </ol>
 
       {/* Real-shape skeleton of the score card that's coming — the terminus of

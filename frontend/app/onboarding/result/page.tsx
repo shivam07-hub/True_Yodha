@@ -70,11 +70,11 @@ export default function OnboardingResultPage() {
     }
     if (result.isError) return <AnalysisProgress phase="reconnecting" />
     if (!result.data || result.data.kind === "full_result_processing") return <AnalysisProgress phase={result.data?.phase ?? "queued"} />
-    if (result.data.kind === "profile_preview") return <ProfilePreview result={result.data} onBuild={() => setGeneratorOpen(true)} onUpload={() => void resetToUpload()} onBrowse={() => router.push("/market")} />
+    if (result.data.kind === "profile_preview") return <ProfilePreview result={result.data} onBuild={() => setGeneratorOpen(true)} onUpload={() => void resetToUpload()} />
     // Skill confirmation lives in the CV playground, not on its own screen —
     // the extraction is only reviewable next to the CV it was read from, and
     // the same rail stays the permanent home for correcting it later.
-    if (result.data.kind === "awaiting_skill_confirmation") return <AnalysisProgress phase="scoring" />
+    if (result.data.kind === "awaiting_skill_confirmation") return <AnalysisProgress phase="opening_review" />
     if (result.data.kind === "awaiting_target") return <TargetConfirm token={token} result={result.data} onConfirmed={() => void result.refetch()} />
     if (result.data.kind === "terminal_failure") return (
       <section className="w-full max-w-lg text-center">

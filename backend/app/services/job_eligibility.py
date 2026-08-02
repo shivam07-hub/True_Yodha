@@ -172,6 +172,28 @@ def job_is_eligible(
     )
 
 
+def job_is_browse_eligible(
+    profile: dict[str, Any],
+    job: dict[str, Any],
+    *,
+    include_stretch: bool = False,
+) -> bool:
+    """Apply safe browse eligibility before a candidate has chosen a role family.
+
+    An incomplete profile has no evidence for a role-family filter, but it still
+    must not be shown senior or executive work. The market browse surface may
+    therefore span families at the candidate's safe seniority level until they
+    give Myro a target; matching remains stricter through ``job_is_eligible``.
+    """
+    if career_band_for_profile(profile):
+        return job_is_eligible(profile, job, include_stretch=include_stretch)
+    return seniority_is_eligible(
+        target_seniority_for_profile(profile),
+        seniority_for_job(job),
+        include_stretch=include_stretch,
+    )
+
+
 def seniority_is_eligible(target: str, actual: str, *, include_stretch: bool = False) -> bool:
     """Apply the strict default and explicit one-level stretch policy."""
     target = _seniority(target)
