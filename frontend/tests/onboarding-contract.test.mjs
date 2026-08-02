@@ -25,6 +25,16 @@ test("description result remains an explicitly incomplete preview", () => {
   assert.doesNotMatch(preview, /Your Myro Score|Download/)
 })
 
+test("browsing jobs during onboarding opens the unpersonalized market in a new tab", () => {
+  for (const path of ["components/onboarding/experience-step.tsx", "components/onboarding/profile-preview.tsx"]) {
+    const source = read(path)
+    assert.match(source, /href="\/market"/)
+    assert.match(source, /target="_blank"/)
+    assert.match(source, /rel="noopener noreferrer"/)
+    assert.match(source, /ExternalLink/)
+  }
+})
+
 test("baseline generator fixes the five-question expectation", () => {
   const generator = read("components/onboarding/baseline-generator.tsx")
   assert.match(generator, /5 questions · about 2 minutes/)

@@ -126,7 +126,7 @@ export default function OnboardingPage() {
         </div>
       </header>
       <div className="mx-auto flex min-h-[calc(100dvh-80px)] max-w-5xl items-center justify-center px-5 py-8 sm:px-8">
-        <ExperienceStep busy={busy} error={error} onUpload={(file) => void handleUpload(file)} onDescribe={(description) => void handleDescription(description)} onBrowse={() => router.push("/market")} />
+        <ExperienceStep busy={busy} error={error} onUpload={(file) => void handleUpload(file)} onDescribe={(description) => void handleDescription(description)} />
       </div>
     </main>
   )

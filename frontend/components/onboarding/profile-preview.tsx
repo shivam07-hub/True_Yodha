@@ -1,14 +1,15 @@
 "use client"
 
-import { ChevronDown, FilePlus2, Upload } from "lucide-react"
+import Link from "next/link"
+import { ChevronDown, ExternalLink, FilePlus2, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { OnboardingResult } from "@/lib/api"
 
 type Preview = Extract<OnboardingResult, { kind: "profile_preview" }>
 
-interface Props { result: Preview; onBuild: () => void; onUpload: () => void; onBrowse: () => void }
+interface Props { result: Preview; onBuild: () => void; onUpload: () => void }
 
-export function ProfilePreview({ result, onBuild, onUpload, onBrowse }: Props) {
+export function ProfilePreview({ result, onBuild, onUpload }: Props) {
   const { target, preview } = result
   return (
     <section className="w-full max-w-3xl" aria-labelledby="preview-title">
@@ -43,7 +44,9 @@ export function ProfilePreview({ result, onBuild, onUpload, onBrowse }: Props) {
         <Button size="lg" onClick={onBuild}><FilePlus2 className="size-5" />Build my starter CV</Button>
         <Button size="lg" variant="outline" onClick={onUpload}><Upload className="size-5" />Upload an existing CV</Button>
       </div>
-      <button type="button" onClick={onBrowse} className="tm-control-focus mx-auto mt-5 block rounded px-3 py-2 text-sm text-[var(--tm-text-muted)] underline-offset-4 hover:underline">Browse jobs instead</button>
+      <Link href="/market" target="_blank" rel="noopener noreferrer" className="tm-control-focus mx-auto mt-5 flex w-fit items-center gap-1 rounded px-3 py-2 text-sm text-[var(--tm-text-muted)] underline-offset-4 hover:underline">
+        Browse jobs instead <ExternalLink className="size-3.5" aria-hidden="true" />
+      </Link>
     </section>
   )
 }

@@ -442,6 +442,28 @@ def test_career_band_and_seniority_gate_feed_before_sorting() -> None:
     assert [row["job_id"] for row in result["rows"]] == ["policy-entry"]
 
 
+def test_no_cv_browse_spans_role_families_but_keeps_safe_seniority() -> None:
+    repo, _ = _repo([
+        _job(
+            "engineering-entry", title="Graduate Software Engineer",
+            role_domain="Software Engineering", seniority_level="entry",
+        ),
+        _job(
+            "policy-intern", title="Policy Research Intern",
+            role_domain="Research & Science", seniority_level="intern",
+        ),
+        _job(
+            "business-vp", title="Vice President of Operations",
+            role_domain="Operations", seniority_level="executive",
+            min_years_experience=10,
+        ),
+    ])
+
+    result = repo.feed_jobs(target_seniority="entry", page_size=10)
+
+    assert {row["job_id"] for row in result["rows"]} == {"engineering-entry", "policy-intern"}
+
+
 def test_entry_stretch_admits_only_adjacent_mid_level() -> None:
     repo, _ = _repo([
         _job(

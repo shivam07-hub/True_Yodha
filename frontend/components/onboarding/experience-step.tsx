@@ -1,7 +1,8 @@
 "use client"
 
 import { useRef, useState } from "react"
-import { FileText, Upload } from "lucide-react"
+import Link from "next/link"
+import { ExternalLink, FileText, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { preflightCVUploadFile } from "@/lib/cv-file-detect"
 
@@ -10,7 +11,6 @@ interface Props {
   error: string | null
   onUpload: (file: File) => void
   onDescribe: (description: string) => void
-  onBrowse: () => void
 }
 
 /* Same three steps the landing page promises (components/public/landing/
@@ -24,7 +24,7 @@ const STEPS = [
   { n: "03", label: "Tailor and apply" },
 ] as const
 
-export function ExperienceStep({ busy, error, onUpload, onDescribe, onBrowse }: Props) {
+export function ExperienceStep({ busy, error, onUpload, onDescribe }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [describing, setDescribing] = useState(false)
   const [description, setDescription] = useState("")
@@ -111,8 +111,11 @@ export function ExperienceStep({ busy, error, onUpload, onDescribe, onBrowse }: 
             No CV? Describe your experience
           </Button>
         )}
-        <Button type="button" variant="outline" onClick={onBrowse}>
-          Browse jobs instead
+        <Button
+          variant="outline"
+          render={<Link href="/market" target="_blank" rel="noopener noreferrer" />}
+        >
+          Browse jobs instead <ExternalLink className="size-4" aria-hidden="true" />
         </Button>
       </div>
     </section>
