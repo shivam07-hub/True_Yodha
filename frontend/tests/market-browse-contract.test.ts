@@ -32,3 +32,24 @@ test("Not interested is persistent and recoverable", () => {
   assert.match(hidden, /Hidden jobs/)
   assert.match(hidden, /jobs\.unskipJob/)
 })
+
+test("new-tab job browsing retains the same-origin session", () => {
+  const browseControls = [
+    "components/onboarding/analysis-progress.tsx",
+    "components/onboarding/experience-step.tsx",
+    "components/onboarding/profile-preview.tsx",
+    "components/cv/cv-structured-recovery.tsx",
+  ].map((path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8"))
+
+  for (const control of browseControls) {
+    assert.match(control, /href=\"\/market\"/)
+    assert.match(control, /target=\"_blank\"/)
+    assert.match(control, /rel=\"opener\"/)
+    assert.doesNotMatch(control, /rel=\"noopener noreferrer\"/)
+  }
+
+  const session = readFileSync(new URL("../lib/session.ts", import.meta.url), "utf8")
+  const auth = readFileSync(new URL("../lib/hooks/use-auth.ts", import.meta.url), "utf8")
+  assert.match(session, /window\.opener = null/)
+  assert.match(auth, /detachSameOriginOpener\(\)/)
+})

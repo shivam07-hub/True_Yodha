@@ -11,6 +11,22 @@ export interface SessionTokens {
   refreshToken?: string | null
 }
 
+/**
+ * A same-origin tab opened from an in-app "browse while working" control gets
+ * an initial, tab-scoped sessionStorage copy from its opener. Once that copy is
+ * available, it no longer needs an opener relationship. Detach it before the
+ * app becomes interactive so a later navigation cannot control the source tab.
+ */
+export function detachSameOriginOpener(): void {
+  if (typeof window === "undefined" || !window.opener) return
+  try {
+    window.opener = null
+  } catch {
+    // A browser may make opener read-only. It is still only enabled for
+    // first-party /market links, never an external destination.
+  }
+}
+
 function hasStorage(): boolean {
   return typeof window !== "undefined" && typeof window.sessionStorage !== "undefined"
 }

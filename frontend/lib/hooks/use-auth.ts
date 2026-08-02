@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 
 import {
   clearSessionTokens,
+  detachSameOriginOpener,
   getAccessToken,
   getRefreshToken,
   setSessionTokens,
@@ -88,6 +89,10 @@ export function useSession(): { token: string | null; ready: boolean } {
 
   useEffect(() => {
     let cancelled = false
+    // /market can be explicitly opened from the CV intake journey. The browser
+    // has already copied this same-origin tab's session storage; drop the
+    // opener immediately so the relationship cannot outlive that handoff.
+    detachSameOriginOpener()
     void (async () => {
       try {
         const t = await bootstrapSession()

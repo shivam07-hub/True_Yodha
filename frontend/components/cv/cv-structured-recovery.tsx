@@ -31,7 +31,7 @@ export function CvStructuredRecovery({ isRetrying, onRetry }: CvStructuredRecove
       <a
         href="/market"
         target="_blank"
-        rel="noopener noreferrer"
+        rel="opener"
         className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-[var(--tm-interactive)] underline decoration-1 underline-offset-4 hover:decoration-2 focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tm-int-border)]"
       >
         Browse jobs while Myro works

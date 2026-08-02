@@ -25,7 +25,7 @@ test("description result remains an explicitly incomplete preview", () => {
   assert.doesNotMatch(preview, /Your Myro Score|Download/)
 })
 
-test("browsing jobs during onboarding opens the unpersonalized market in a new tab", () => {
+test("browsing jobs during onboarding opens a first-party market tab with the current session", () => {
   for (const path of [
     "components/onboarding/experience-step.tsx",
     "components/onboarding/profile-preview.tsx",
@@ -34,7 +34,11 @@ test("browsing jobs during onboarding opens the unpersonalized market in a new t
     const source = read(path)
     assert.match(source, /href="\/market"/)
     assert.match(source, /target="_blank"/)
-    assert.match(source, /rel="noopener noreferrer"/)
+    // `noopener` prevents the sessionStorage clone that lets the new, same-origin
+    // Myro tab continue the authenticated journey. This relationship is limited
+    // to the relative /market destination and detached on destination boot.
+    assert.match(source, /rel="opener"/)
+    assert.doesNotMatch(source, /rel="noopener noreferrer"/)
     assert.match(source, /ExternalLink/)
   }
 })

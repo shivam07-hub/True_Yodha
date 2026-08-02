@@ -14,6 +14,16 @@
 
 ## LAST SESSION SUMMARY
 
+### 2026-08-03 — First-party browse tab keeps the active session
+
+- The new-tab “Browse jobs while Myro works” controls no longer apply
+  `noopener`, which had deliberately removed the opener and therefore the
+  browser's initial tab-scoped session copy. Each first-party `/market` tab
+  now starts authenticated while the upload continues in its original tab.
+- The destination immediately clears `window.opener` after that one-time
+  handoff; external links retain their `noopener noreferrer` protection.
+- Frontend tests (541), TypeScript, lint, and UI-drift checks pass.
+
 ### 2026-08-03 — Canonical CV upload entry surface
 
 - The direct pre-signup CV Hub (`/cv-preview`) and post-signup onboarding now

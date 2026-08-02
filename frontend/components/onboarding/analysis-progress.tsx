@@ -27,7 +27,11 @@ export function AnalysisProgress({ phase }: { phase: string }) {
       <a
         href="/market"
         target="_blank"
-        rel="noopener noreferrer"
+        // The destination is this same Myro origin. `opener` deliberately keeps
+        // the browser's initial sessionStorage clone, so an in-progress CV
+        // upload can be browsed in a new tab without making the user sign in
+        // again. Do not use this relationship for an external link.
+        rel="opener"
         className="tm-control-focus mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--tm-border)] bg-[var(--tm-surface)] px-5 text-sm font-semibold text-[var(--tm-interactive-rest)] transition-colors hover:bg-[var(--tm-surface-hover)]"
       >
         Browse jobs while Myro works
