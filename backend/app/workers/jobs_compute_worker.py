@@ -18,7 +18,7 @@ from rq import Connection, Worker
 # would receive a job_type it has no handler for.
 import app.services.career_reservoir  # noqa: F401  (story_ingest)
 import app.services.cv_skill_edit  # noqa: F401  (skill_retag)
-import app.services.cv_workflow  # noqa: F401  (cv_intake, initial_match)
+import app.services.cv_workflow  # noqa: F401  (cv_upload_analysis, initial_match)
 import app.services.matching.scrape_sweep  # noqa: F401  (scrape_match_recompute)
 from app.services.background.dispatch import LANE_BULK, LANE_FAST
 from app.services.job_refresh._redis_state import get_redis_connection, queue_name

@@ -16,7 +16,7 @@
 
 ### 2026-08-02 — Durable CV intake and finite loading recovery
 
-- CV upload now has one canonical `cv_intake` workflow: extraction and
+- CV upload now has one canonical `cv_upload_analysis` workflow: extraction and
   structured-CV persistence complete before the job becomes `done`. New
   uploads no longer dispatch the duplicate structured-enrichment module, and
   cached rows without structured data re-enter intake without a second charge.

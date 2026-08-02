@@ -137,7 +137,7 @@ def test_upload_returns_202_with_job_id_on_fresh_content(monkeypatch) -> None:
     assert state["balance"] == 2800
     # Charge MUST be tied to the job_id so the ledger row + refund idempotency work.
     assert state["last_ref"] == ("cv_upload_jobs", "job-abc")
-    assert enqueued == [(cv_workflow.background.LANE_FAST, "cv_intake")]
+    assert enqueued == [(cv_workflow.background.LANE_FAST, "cv_upload_analysis")]
 
 
 def test_upload_returns_hash_cache_hit_without_charging(monkeypatch) -> None:

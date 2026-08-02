@@ -500,7 +500,7 @@ async def _start_async_upload_job(
     # makes the enqueue idempotent under retry.
     background.enqueue(
         background.LANE_FAST,
-        "cv_intake",
+        "cv_upload_analysis",
         payload={
             "job_id": job_id,
             "user_id": user_id,
@@ -515,8 +515,9 @@ async def _start_async_upload_job(
 
 
 @background.handler("cv_parse_score")  # deploy-safe adapter for already queued jobs
-@background.handler("cv_intake")
-async def _cv_intake_handler(payload: dict[str, Any], allow_retry: bool) -> None:
+@background.handler("cv_intake")  # deploy-safe adapter for the first canonical rollout
+@background.handler("cv_upload_analysis")
+async def _cv_upload_analysis_handler(payload: dict[str, Any], allow_retry: bool) -> None:
     await _run_cv_upload_job(
         job_id=payload["job_id"],
         user_id=payload["user_id"],
@@ -528,8 +529,9 @@ async def _cv_intake_handler(payload: dict[str, Any], allow_retry: bool) -> None
 
 
 @background.failure_handler("cv_parse_score")  # deploy-safe adapter for queued jobs
-@background.failure_handler("cv_intake")
-async def _cv_intake_failure(payload: dict[str, Any]) -> None:
+@background.failure_handler("cv_intake")  # deploy-safe adapter for the first canonical rollout
+@background.failure_handler("cv_upload_analysis")
+async def _cv_upload_analysis_failure(payload: dict[str, Any]) -> None:
     """RQ retries exhausted for CV intake — refund + mark failed NOW (ADR-0008
     Upload Guarantee) instead of waiting for the orphan-sweep. Idempotent."""
     await _fail_and_refund(
