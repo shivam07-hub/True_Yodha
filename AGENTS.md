@@ -14,6 +14,17 @@
 
 ## LAST SESSION SUMMARY
 
+### 2026-08-02 — No-CV market browse recovery
+
+- “Browse jobs instead” now opens `/market` in a new tab with an external-link
+  icon, on both the upload and experience-preview onboarding paths.
+- The empty market was a real backend eligibility defect: a no-CV candidate had
+  the safe `entry` seniority default but no career band, so every role was
+  rejected. Browse now spans families at intern/entry level until a target is
+  known; matching remains role-family strict and executive roles remain hidden.
+- Full backend suite passes (1,763), as do frontend onboarding contracts,
+  TypeScript, and lint. Commit: `aafa3844`.
+
 ### 2026-08-02 — Candidate seniority evidence fix
 
 - Onboarding no longer reuses job-listing title heuristics to infer a person's
