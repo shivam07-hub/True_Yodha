@@ -105,13 +105,9 @@ export function CvSkeleton() {
 }
 
 /**
- * The CV document surfaces (master workspace, playground) once the baseline is
- * known but `cv_structured` has not arrived yet. That window is real and can be
- * long: a freshly-uploaded CV has its layout parsed by a background job, and
- * the first reader either waits for it or triggers the lazy re-parse. Rendering
- * nothing there is what left a brand-new user on a blank page for ~22 seconds
- * immediately after upload — the sheet-plus-rail shape below at least says the
- * document is coming, and lands the real content in the same place.
+ * The document-shaped initial loading state for `cv_structured`. Intake now
+ * persists this data before completing; the remaining request window is brief,
+ * and terminal fetch failures are rendered by CvStructuredRecovery.
  */
 export function CvDocumentSkeleton() {
   return (

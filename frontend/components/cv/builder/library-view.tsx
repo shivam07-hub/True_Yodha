@@ -72,8 +72,8 @@ export function LibraryView({
         </div>
       )
     }
-    // Same window the desktop surfaces guard: baseline known, cv_structured not
-    // back yet. Returning null here blanked the whole phone screen.
+    // Defensive fallback for any future caller that does not gate structured
+    // loading at the page boundary.
     if (!cv) return <div className="tm-mcv-stories"><CvDocumentSkeleton /></div>
     return (
       <MobileCVHub
