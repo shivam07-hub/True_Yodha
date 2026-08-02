@@ -14,6 +14,22 @@
 
 ## LAST SESSION SUMMARY
 
+### 2026-08-03 — Focused first-run onboarding journey
+
+- First-time candidates now stay in one server-driven three-step journey:
+  confirm CV evidence, choose a target direction, then select one of up to
+  three live roles. The CV editor no longer owns onboarding confirmation, and
+  the competing Done, score, and global tailoring actions are gone.
+- Skill confirmation no longer crashes when a target-dependent score does not
+  exist. It advances to direction selection; onboarding completes only after
+  the selected live role is durably saved, with an idempotent receipt that
+  survives reload before tailoring becomes available.
+- Removed the superseded five-step signup strip, onboarding score reveal, and
+  other zero-reference onboarding components. Full backend tests pass (1,777),
+  as do frontend tests (557), TypeScript, lint, and UI-drift checks. The local
+  `agent-browser` executable remains unavailable, so no authenticated browser
+  screenshot check was claimed.
+
 ### 2026-08-03 — First-party browse tab keeps the active session
 
 - The new-tab “Browse jobs while Myro works” controls no longer apply

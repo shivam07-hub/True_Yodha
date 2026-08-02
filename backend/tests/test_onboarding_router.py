@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from app.deps import Principal, get_principal
 from app.main import app
 from app.routers import onboarding
+from app.repositories.jobs import get_token_jobs_repository
 from app.services import onboarding_preview
 from app.services.onboarding_preview import build_preview_payload
 from app.services.onboarding_service import target_context_hash
@@ -42,6 +43,7 @@ class _StateRepo:
 
 def _client(monkeypatch, repo: _StateRepo) -> TestClient:
     app.dependency_overrides[get_principal] = lambda: Principal(id="u1")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: object()
     monkeypatch.setattr(onboarding, "get_supabase_admin", lambda: object())
     monkeypatch.setattr(onboarding, "OnboardingRepository", lambda _db: repo)
     return TestClient(app)
@@ -114,6 +116,68 @@ def test_target_accepts_role_only_edit(monkeypatch) -> None:
     assert captured["location"] is None
 
 
+def test_target_can_return_to_direction_selection(monkeypatch) -> None:
+    captured: list[str] = []
+    monkeypatch.setattr(
+        onboarding.onboarding_service,
+        "reset_target",
+        lambda _db, user_id: captured.append(user_id),
+        raising=False,
+    )
+    try:
+        with _client(monkeypatch, _StateRepo()) as client:
+            response = client.delete("/onboarding/target")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 204
+    assert captured == ["u1"]
+
+
+def test_skill_confirmation_without_target_advances_to_direction(monkeypatch) -> None:
+    monkeypatch.setattr(
+        onboarding,
+        "confirm_baseline_skills",
+        lambda *_args, **_kwargs: {},
+    )
+    try:
+        with _client(monkeypatch, _StateRepo()) as client:
+            response = client.post(
+                "/onboarding/baseline/17/confirm-skills",
+                json={"overrides": []},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "confirmed", "next": "target"}
+
+
+def test_first_role_returns_durable_tailoring_receipt(monkeypatch) -> None:
+    monkeypatch.setattr(
+        onboarding.onboarding_first_role,
+        "commit_first_role",
+        lambda _db, _jobs_repo, user_id, job_id: {
+            "status": "saved",
+            "job_id": job_id,
+            "tailor_href": f"/cv?jobId={job_id}",
+        },
+        raising=False,
+    )
+    try:
+        with _client(monkeypatch, _StateRepo()) as client:
+            response = client.post("/onboarding/first-role", json={"job_id": "job-7"})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "saved",
+        "job_id": "job-7",
+        "tailor_href": "/cv?jobId=job-7",
+    }
+
+
 def test_profile_preview_starts_durable_preview_job(monkeypatch) -> None:
     monkeypatch.setattr(onboarding, "start_profile_preview", lambda *_a, **_k: "job-1")
     try:
@@ -143,21 +207,6 @@ def test_generator_answers_are_normalized_before_save(monkeypatch) -> None:
 
     assert response.status_code == 204
     assert repo.answers == [(3, {"achievements": ["Shipped search"]})]
-
-
-def test_complete_requires_full_result(monkeypatch) -> None:
-    monkeypatch.setattr(
-        onboarding.onboarding_service,
-        "get_result",
-        lambda *_a: {"kind": "full_result_processing"},
-    )
-    try:
-        with _client(monkeypatch, _StateRepo()) as client:
-            response = client.post("/onboarding/complete")
-    finally:
-        app.dependency_overrides.clear()
-
-    assert response.status_code == 409
 
 
 def test_checklist_progress_is_durable(monkeypatch) -> None:

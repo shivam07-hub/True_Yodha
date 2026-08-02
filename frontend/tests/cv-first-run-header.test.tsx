@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 
 import { PlaygroundHeader } from "../components/cv/builder/playground-header"
 
-function render(primaryBanner: boolean): string {
+function render(): string {
   return renderToStaticMarkup(
     <PlaygroundHeader
       variant="master"
@@ -18,7 +18,6 @@ function render(primaryBanner: boolean): string {
       applyHint="Back to your CV library"
       saveState=""
       primaryLabel="Done"
-      primaryBanner={primaryBanner}
       onBack={() => {}}
       onReqPill={() => {}}
       onApply={() => {}}
@@ -27,17 +26,10 @@ function render(primaryBanner: boolean): string {
   )
 }
 
-test("first-run CV completion action renders as a full-width banner", () => {
-  const markup = render(true)
-
-  assert.match(markup, /cvb-v2-head--banner/)
-  assert.match(markup, /cvb-v2-applybtn--banner/)
-  assert.match(markup, />Done<\/button>/)
-})
-
-test("ordinary CV header keeps its compact action", () => {
-  const markup = render(false)
+test("main CV keeps its completion action in the compact header", () => {
+  const markup = render()
 
   assert.doesNotMatch(markup, /cvb-v2-head--banner/)
   assert.doesNotMatch(markup, /cvb-v2-applybtn--banner/)
+  assert.match(markup, />Done<\/button>/)
 })

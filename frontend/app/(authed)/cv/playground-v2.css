@@ -20,7 +20,6 @@
   padding: 10px 20px; min-height: 64px;
   background: var(--tm-surface); border-bottom: 1px solid var(--tm-border-soft);
 }
-.cvb-v2-head--banner { flex-wrap: wrap; }
 .cvb-v2-crumb {
   display: grid; place-items: center; width: 30px; height: 30px; flex: none;
   border: 1px solid var(--tm-border); background: transparent; border-radius: 8px;
@@ -110,9 +109,6 @@
 }
 .cvb-v2-applybtn:hover { background: var(--tm-interactive-hover); }
 .cvb-v2-applybtn:disabled { opacity: 0.4; cursor: not-allowed; }
-.cvb-v2-applybtn--banner {
-  order: 10; flex-basis: 100%; min-height: 48px;
-}
 
 /* ── main split ── */
 .cvb-v2-main {
@@ -269,17 +265,6 @@
   margin: 0; padding: 0 2px; font-size: 11.5px; line-height: 1.5;
   color: var(--tm-danger);
 }
-/* First-run confirmation lives in this rail, so its commit button is the one
-   accent element here — the skills line and its Add button stay quiet. */
-.cvb-prov-confirm {
-  margin-top: 4px; padding: 11px 14px; width: 100%;
-  background: var(--tm-accent-fill); color: var(--tm-accent-ink);
-  border: none; border-radius: 10px;
-  font: 600 13px var(--tm-font-sans); cursor: pointer;
-}
-.cvb-prov-confirm:hover:not(:disabled) { filter: brightness(1.05); }
-.cvb-prov-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
-
 /* ── editor paper → contact + role cards (prototype card-per-role) ── */
 .cvb-v2 .cvb-pgc-paper { background: transparent; border: none; padding: 0; box-shadow: none; }
 .cvb-v2 .cvb-pgc-contact-card,
@@ -532,7 +517,6 @@
   .cvb-v2-score { order: 3; }
   .cvb-v2-score-bar { width: 110px; }
   .cvb-v2-applybtn { order: 4; padding: 9px 13px; }
-  .cvb-v2-applybtn--banner { order: 10; padding: 10px 16px; }
   .cvb-v2-head .cvb-pgc-overflow { order: 6; }
 
   .cvb-v2-main { grid-template-columns: 1fr; }

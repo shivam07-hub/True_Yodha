@@ -148,6 +148,24 @@ def save_target(
     )
 
 
+def reset_target(db: Client, user_id: str) -> None:
+    """Return a confirmed-skill user to direction selection without data loss."""
+    UsersRepository(db).update_profile(
+        user_id,
+        {
+            "target_role_title": None,
+            "target_role_titles": [],
+            "target_roles": [],
+            "target_career_band": None,
+            "explored_career_bands": [],
+        },
+    )
+    OnboardingRepository(db).patch_state(
+        user_id,
+        {"current_stage": "result", "status": "result_ready"},
+    )
+
+
 def compute_role_readiness(db: Client, user_id: str) -> list[dict[str, Any]]:
     """Per-target-title readiness — the role-specific signal beside the stable
     Myro Score. Each human title is searched by itself PLUS its taxonomy clusters
@@ -303,6 +321,13 @@ def get_result(db: Client, user_id: str) -> dict[str, Any]:
     state = onboarding_repo.get_state(user_id) or {}
     profile = users_repo.get_profile(user_id) or {}
     baseline = CVVersionsRepository(db).latest_baseline(user_id)
+
+    if state.get("completed_at") and state.get("credible_job_saved_at"):
+        from app.services.onboarding_first_role import saved_first_role
+
+        saved = saved_first_role(JobsRepository(db), user_id)
+        if saved:
+            return {"kind": "first_role_saved", **saved}
 
     target = {
         "role_title": profile.get("target_role_title") or "",

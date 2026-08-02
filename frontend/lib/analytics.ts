@@ -56,9 +56,6 @@ export const signupEvents = {
   inAppBrowserWarningShown(props: { agent: string }) {
     trackEvent("signup_in_app_browser_warning_shown", props)
   },
-  linkedinDisclosureExpanded(props: { surface: string }) {
-    trackEvent("signup_linkedin_disclosure_expanded", props)
-  },
   cvInputSourceSelected(props: { source: CVInputSource }) {
     trackEvent("cv_input_source_selected", props)
   },

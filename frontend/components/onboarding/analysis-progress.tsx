@@ -6,7 +6,6 @@ const PHASES: Record<string, string> = {
   finding_skills: "Extracting your skills",
   structuring_cv: "Preparing your CV review",
   scoring: "Calculating your Myro Score",
-  opening_review: "Opening your CV review",
   reconnecting: "Reconnecting to your analysis",
 }
 
