@@ -26,13 +26,25 @@ test("description result remains an explicitly incomplete preview", () => {
 })
 
 test("browsing jobs during onboarding opens the unpersonalized market in a new tab", () => {
-  for (const path of ["components/onboarding/experience-step.tsx", "components/onboarding/profile-preview.tsx"]) {
+  for (const path of [
+    "components/onboarding/experience-step.tsx",
+    "components/onboarding/profile-preview.tsx",
+    "components/onboarding/analysis-progress.tsx",
+  ]) {
     const source = read(path)
     assert.match(source, /href="\/market"/)
     assert.match(source, /target="_blank"/)
     assert.match(source, /rel="noopener noreferrer"/)
     assert.match(source, /ExternalLink/)
   }
+})
+
+test("skill confirmation transition never pretends to be scoring", () => {
+  const result = read("app/onboarding/result/page.tsx")
+  assert.doesNotMatch(
+    result,
+    /awaiting_skill_confirmation"\) return <AnalysisProgress phase="scoring"/,
+  )
 })
 
 test("baseline generator fixes the five-question expectation", () => {

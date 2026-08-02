@@ -4,7 +4,7 @@
  * without spinning up Next, fetch, or the auth refresh stack.
  */
 
-export type CVUploadPhase = "queued" | "reading" | "finding_skills" | "scoring" | "ready" | "failed"
+export type CVUploadPhase = "queued" | "reading" | "finding_skills" | "structuring_cv" | "ready" | "failed"
 
 export type CVUploadInitial =
   | {
@@ -77,7 +77,7 @@ export interface ResolveUploadOptions {
   now?: () => number
   sleep?: (ms: number) => Promise<void>
   /** #6 — fired with every processing poll so the loading UI can show the
-   *  live phase (reading → scoring). Not called on the synchronous done path. */
+   *  live persisted worker phase. Not called on the synchronous done path. */
   onProgress?: (status: CVUploadPolledStatus) => void
 }
 

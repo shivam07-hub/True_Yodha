@@ -595,7 +595,7 @@ def test_upload_status_surfaces_current_phase(monkeypatch) -> None:
     monkeypatch.setattr(
         cv_upload_jobs, "fetch_status_for_owner",
         lambda _job, _user: {
-            "id": "job-1", "status": "processing", "current_phase": "scoring",
+            "id": "job-1", "status": "processing", "current_phase": "structuring_cv",
             "skills_detected": None, "score": None, "error_code": None,
             "error_detail": None, "xp_charged": 50, "xp_refunded": False,
             "created_at": "2026-05-30T10:00:00+00:00", "finished_at": None,
@@ -606,7 +606,7 @@ def test_upload_status_surfaces_current_phase(monkeypatch) -> None:
     monkeypatch.setattr(cv_workflow, "get_xp_balance", _bal)
 
     payload = asyncio.run(cv_workflow.get_cv_upload_status("job-1", "u1"))
-    assert payload["current_phase"] == "scoring"
+    assert payload["current_phase"] == "structuring_cv"
     assert payload["status"] == "processing"
     assert payload["started_at"] == "2026-05-30T10:00:00+00:00"
 

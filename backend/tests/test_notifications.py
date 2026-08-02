@@ -238,10 +238,10 @@ def test_cv_analysis_notification_projects_processing_and_ready_states() -> None
     }
     assert cap.inserted[0]["read_at"] is not None
 
-    repo.update_cv_analysis_phase("upload-1", "scoring")
+    repo.update_cv_analysis_phase("upload-1", "structuring_cv")
     _, phase = cap.updated[-1]
     assert phase["state"] == "processing"
-    assert phase["body"] == "Scoring your domains"
+    assert phase["body"] == "Preparing your CV review"
 
     repo.record_cv_analysis_done("upload-1", skills_detected=6, score=42.4)
     _, done = cap.updated[-1]
@@ -321,13 +321,13 @@ def test_cv_upload_job_projects_every_lifecycle_transition(monkeypatch: Any) -> 
 
     job_id = cv_upload_jobs.create_processing_job(user_id="u1", content_hash="hash")
     cv_upload_jobs.record_notification_started(job_id, "u1")
-    cv_upload_jobs.set_phase(job_id, "scoring")
+    cv_upload_jobs.set_phase(job_id, "structuring_cv")
     cv_upload_jobs.mark_done(job_id, skills_detected=6, score=42.4)
     cv_upload_jobs.mark_failed(job_id, error_code="provider", error_detail="down", refunded=True)
 
     assert calls == [
         ("started", "u1", "upload-1"),
-        ("phase", "upload-1", "scoring"),
+        ("phase", "upload-1", "structuring_cv"),
         ("done", "upload-1", {"skills_detected": 6, "score": 42.4}),
         ("failed", "upload-1", True),
     ]

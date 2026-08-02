@@ -162,7 +162,7 @@ class NotificationsRepository:
             "queued": "Waiting to start",
             "reading": "Reading your CV",
             "finding_skills": "Extracting your skills",
-            "scoring": "Scoring your domains",
+            "structuring_cv": "Preparing your CV review",
         }.get(phase, "Analyzing your CV")
         self._admin_db.table("user_notifications").update({
             "state": "processing",

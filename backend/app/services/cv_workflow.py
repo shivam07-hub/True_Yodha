@@ -620,9 +620,8 @@ async def _run_cv_upload_job(
         _log.info("CV job %s already terminal (%s) — skipping re-run", job_id, existing.get("status"))
         return
 
-    # #6 deploy-style phases — write before each real stage so the loading UI
-    # reflects truth (Reading → Finding skills → Ready), not a fabricated clock.
-    upload_jobs_repo.set_phase(job_id, "reading")
+    # Persist each real worker stage. Raw text was read synchronously before this
+    # job was accepted, so the async story starts with skill extraction.
     upload_jobs_repo.set_phase(job_id, "finding_skills")
     try:
         parsed = await cv_parser.parse_cv_skills(

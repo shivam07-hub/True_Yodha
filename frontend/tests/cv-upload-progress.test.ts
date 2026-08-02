@@ -3,14 +3,12 @@ import { readFileSync } from "node:fs"
 import test from "node:test"
 
 import {
-  PARSE_STEPS,
   SLOW_AFTER_S,
-  activeStepIndex,
+  currentPhaseLabel,
   elapsedSeconds,
   formatElapsed,
   isSlow,
   revealVerdict,
-  stepStateAt,
 } from "../lib/cv/upload-progress"
 
 /**
@@ -55,26 +53,12 @@ test("the counter is readable at every duration it can reach", () => {
   assert.equal(formatElapsed(-5), "0s", "a negative never reaches the screen")
 })
 
-test("the narration can never run off the end of the step list", () => {
-  const last = PARSE_STEPS.length - 1
-  assert.equal(activeStepIndex(0, false), 0)
-  assert.equal(activeStepIndex(2, false), 2)
-  assert.equal(activeStepIndex(99, false), last, "a long wait pins to the final step")
-  assert.equal(activeStepIndex(-1, false), 0)
-
-  // The real `ready` phase overrides the timed cadence in both directions, so
-  // the list cannot lag behind the truth or race ahead of it.
-  assert.equal(activeStepIndex(0, true), last)
-  assert.equal(activeStepIndex(99, true), last)
-})
-
-test("exactly one step is active at a time", () => {
-  for (let active = 0; active < PARSE_STEPS.length; active++) {
-    const states = PARSE_STEPS.map((_, i) => stepStateAt(i, active))
-    assert.equal(states.filter((s) => s === "active").length, 1, `active=${active}`)
-    assert.equal(states.slice(0, active).every((s) => s === "done"), true)
-    assert.equal(states.slice(active + 1).every((s) => s === "pending"), true)
-  }
+test("progress copy follows persisted worker phases instead of a timer", () => {
+  assert.equal(currentPhaseLabel("queued"), "Preparing your analysis")
+  assert.equal(currentPhaseLabel("reading"), "Reading your CV")
+  assert.equal(currentPhaseLabel("finding_skills"), "Extracting your skills")
+  assert.equal(currentPhaseLabel("structuring_cv"), "Preparing your CV review")
+  assert.equal(currentPhaseLabel(null), "Preparing your analysis")
 })
 
 test("every score band gets a verdict, and none of them is a judgement", () => {
@@ -95,5 +79,6 @@ test("the component renders the model and does not re-derive thresholds", () => 
   const component = readFileSync(new URL("../components/cv/cv-score-progress.tsx", import.meta.url), "utf8")
   assert.doesNotMatch(component, /SLOW_AFTER_MS|75_000/, "threshold belongs in lib/cv/upload-progress")
   assert.doesNotMatch(component, /\/ 1000\b/, "seconds conversion belongs in lib/cv/upload-progress")
+  assert.doesNotMatch(component, /setInterval\(\(\) => setI|SUBSTEP_MS|PARSE_STEPS/)
   assert.match(component, /from "@\/lib\/cv\/upload-progress"/)
 })
