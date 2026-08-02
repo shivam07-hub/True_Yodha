@@ -8,6 +8,8 @@ from collections.abc import Mapping
 from typing import Any
 from uuid import uuid4
 
+import httpx
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -25,6 +27,7 @@ GENERIC_SERVER_ERROR = "Something went wrong. Please try again."
 GENERIC_VALIDATION_ERROR = "Request validation failed."
 GENERIC_CLIENT_ERROR = "The request could not be completed."
 READ_CAPACITY_DETAIL = "We are refreshing your latest data. Please try again in a moment."
+UPSTREAM_TIMEOUT_DETAIL = "That took longer than expected. Please try again."
 
 _INTERNAL_DETAIL_PATTERNS = tuple(
     re.compile(pattern, re.IGNORECASE)
@@ -168,6 +171,34 @@ async def _read_capacity_exceeded_handler(
     )
 
 
+async def _upstream_timeout_handler(
+    request: Request,
+    _exc: httpx.TimeoutException,
+) -> JSONResponse:
+    """A Supabase read that outran the PostgREST ceiling is a known, bounded
+    failure — not a crash.
+
+    `_POSTGREST_TIMEOUT_SECONDS` exists precisely so one slow query cannot hold
+    a request thread forever, but nothing classified the exception it throws, so
+    every trip of that ceiling reached the unhandled handler: a 500 plus a full
+    httpcore traceback in the logs. That is how the `/companies/*` timeouts read
+    as a transport crash for weeks. Same shape as read-capacity rejection —
+    upstream is saturated or the query is too heavy — so it gets the same
+    honest 503 + Retry-After, and one greppable metric line instead of a stack.
+    """
+    _log.warning(
+        "metric upstream.read_timeout method=%s path=%s",
+        request.method,
+        request.url.path,
+    )
+    return _response(
+        request=request,
+        status_code=503,
+        detail=UPSTREAM_TIMEOUT_DETAIL,
+        headers={"Retry-After": "2"},
+    )
+
+
 async def _unhandled_exception_handler(
     request: Request,
     _exc: Exception,
@@ -196,4 +227,5 @@ def install_error_handling(app: FastAPI) -> None:
     app.add_exception_handler(StarletteHTTPException, _http_exception_handler)
     app.add_exception_handler(RequestValidationError, _validation_exception_handler)
     app.add_exception_handler(ReadCapacityExceeded, _read_capacity_exceeded_handler)
+    app.add_exception_handler(httpx.TimeoutException, _upstream_timeout_handler)
     app.add_exception_handler(Exception, _unhandled_exception_handler)

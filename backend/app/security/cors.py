@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.datastructures import Headers
+from starlette.responses import Response
+
+_log = logging.getLogger("uvicorn.error")
 
 # Origins a preview-origin pattern must never admit. A regex is only ever a
 # convenience for the dev tier; if one of these gets through, the pattern is too
@@ -82,6 +87,30 @@ def _validated_origin_regex(pattern: str) -> str:
     return pattern
 
 
+class _ObservableCORSMiddleware(CORSMiddleware):
+    """CORS, with refusals that leave a trace.
+
+    Starlette answers a preflight it does not like with a bare 400 and logs
+    nothing, so a refused browser is indistinguishable in the logs from a
+    healthy one — prod showed `OPTIONS /users/me 400` twice with no way to tell
+    whether that was an attacker, a stale bookmark, a Vercel preview pointed at
+    the prod API, or a shipped client we had just broken. The policy is correct
+    and stays exactly as strict; this only names what it turned away, so the
+    next unexplained 400 is one grep instead of a guess.
+    """
+
+    def preflight_response(self, request_headers: Headers) -> Response:
+        response = super().preflight_response(request_headers)
+        if response.status_code == 400:
+            _log.warning(
+                "metric cors.preflight_refused origin=%s method=%s headers=%s",
+                request_headers.get("origin", "<none>"),
+                request_headers.get("access-control-request-method", "<none>"),
+                request_headers.get("access-control-request-headers", "<none>"),
+            )
+        return response
+
+
 def install_cors(app: FastAPI, origins: list[str], origin_regex: str = "") -> None:
     """Install the browser-facing CORS policy.
 
@@ -95,7 +124,7 @@ def install_cors(app: FastAPI, origins: list[str], origin_regex: str = "") -> No
     if not validated_origins and not validated_regex:
         raise ValueError("At least one exact CORS origin or origin regex is required")
     app.add_middleware(
-        CORSMiddleware,
+        _ObservableCORSMiddleware,
         allow_origins=validated_origins,
         allow_origin_regex=validated_regex,
         allow_credentials=False,

@@ -131,3 +131,42 @@ def test_overly_broad_origin_regex_is_rejected() -> None:
 def test_policy_requires_an_origin_or_a_regex() -> None:
     with pytest.raises(ValueError, match="At least one"):
         install_cors(FastAPI(), [])
+
+
+def test_refused_preflight_names_the_origin_it_turned_away(caplog) -> None:
+    """A refusal must be attributable.
+
+    Prod showed `OPTIONS /users/me 400` with no way to tell whether that was an
+    attacker, a stale bookmark, a Vercel preview aimed at the prod API, or a
+    client we had just broken — Starlette answers a disallowed preflight with a
+    bare 400 and logs nothing. The policy stays exactly as strict; it just says
+    what it refused.
+    """
+    with caplog.at_level("WARNING", logger="uvicorn.error"):
+        with TestClient(_app()) as client:
+            response = client.options(
+                "/resource",
+                headers={
+                    "Origin": "https://truemirror-abc123.vercel.app",
+                    "Access-Control-Request-Method": "GET",
+                },
+            )
+
+    assert response.status_code == 400
+    assert "metric cors.preflight_refused" in caplog.text
+    assert "https://truemirror-abc123.vercel.app" in caplog.text
+
+
+def test_allowed_preflight_logs_nothing(caplog) -> None:
+    with caplog.at_level("WARNING", logger="uvicorn.error"):
+        with TestClient(_app()) as client:
+            response = client.options(
+                "/resource",
+                headers={
+                    "Origin": "https://himyro.com",
+                    "Access-Control-Request-Method": "GET",
+                },
+            )
+
+    assert response.status_code == 200
+    assert "cors.preflight_refused" not in caplog.text

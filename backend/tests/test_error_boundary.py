@@ -150,3 +150,29 @@ def test_framework_404_uses_the_same_error_envelope() -> None:
     assert response.status_code == 404
     assert response.json()["detail"] == "Not Found"
     assert response.headers["x-correlation-id"] == response.json()["correlation_id"]
+
+
+def test_upstream_read_timeout_is_a_503_not_a_500() -> None:
+    """A Supabase read that outruns the PostgREST ceiling is a known failure.
+
+    Before this handler existed, tripping `_POSTGREST_TIMEOUT_SECONDS` fell
+    through to the unhandled boundary: a 500 plus a full httpcore traceback,
+    which is why the `/companies/*` timeouts read as a transport crash in prod.
+    """
+    import httpx
+
+    test_app = FastAPI()
+    install_error_handling(test_app)
+
+    @test_app.get("/slow")
+    def slow() -> None:
+        raise httpx.ReadTimeout("timed out", request=httpx.Request("GET", "https://db.test"))
+
+    with TestClient(test_app, raise_server_exceptions=False) as client:
+        response = client.get("/slow")
+
+    assert response.status_code == 503
+    assert response.headers["retry-after"] == "2"
+    assert response.json()["detail"] == "That took longer than expected. Please try again."
+    assert "Traceback" not in response.text
+    assert "httpx" not in response.text

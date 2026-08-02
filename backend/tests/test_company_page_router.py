@@ -119,3 +119,55 @@ def test_company_with_jobs_and_comments_returns_posting_notes(monkeypatch) -> No
     body = response.json()
     assert body["posting_note_count"] == 1
     assert body["posting_notes"][0]["author_ninja_name"] == "silent-fox-9k2"
+
+
+class _RecordingQuery(_FakeQuery):
+    """Fake query that remembers whether the caller bounded the read."""
+
+    def __init__(self, data, calls: dict):
+        super().__init__(data)
+        self._calls = calls
+
+    def limit(self, n, *a, **k):
+        self._calls["limit"] = n
+        return self
+
+    def order(self, column, *a, **k):
+        self._calls.setdefault("order", column)
+        return self
+
+
+class _RecordingDB(_FakeDB):
+    def __init__(self, table_data: dict[str, list]):
+        super().__init__(table_data)
+        self.calls: dict[str, dict] = {}
+
+    def table(self, name: str):
+        calls = self.calls.setdefault(name, {})
+        return _RecordingQuery(self._table_data.get(name, []), calls)
+
+
+def test_company_job_read_is_bounded(monkeypatch) -> None:
+    """The notes/existence read must never pull a company's whole job history.
+
+    Unbounded, this read pulled every row a big company had ever posted and fed
+    all of those ids into one `comments.in_(...)` filter — the pair outran the
+    8s PostgREST ceiling and the public company page 500'd (Google, CRED,
+    Elastic, Aon, L.E.K. Consulting all confirmed in prod). Deleting the
+    `.limit()` reintroduces exactly that failure, so it is asserted here.
+    """
+    db = _RecordingDB(
+        {
+            "application_reviews": [],
+            "jobs": [{"job_id": "j1", "job_title": "Store Manager"}],
+            "comments": [],
+        }
+    )
+    monkeypatch.setattr(companies_router, "get_supabase_admin", lambda: db)
+    with TestClient(app) as client:
+        response = client.get("/companies/Accenture")
+
+    assert response.status_code == 200
+    jobs_calls = db.calls["jobs"]
+    assert jobs_calls.get("limit") == companies_router._NOTE_JOB_WINDOW
+    assert jobs_calls.get("order") == "first_seen"
