@@ -141,6 +141,9 @@ def test_cv_intake_terminal_success_is_reviewable_without_scoring(monkeypatch: A
 
     monkeypatch.setattr(cv_workflow.cv_parser, "reparse_structured_only", _fake_parse_structure)
     monkeypatch.setattr(
+        cv_workflow.upload_jobs_repo, "claim_for_completion", lambda _job_id: True
+    )
+    monkeypatch.setattr(
         cv_workflow.upload_jobs_repo,
         "mark_done",
         lambda *_a, **kwargs: done.update(kwargs),

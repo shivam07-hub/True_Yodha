@@ -158,7 +158,9 @@ def test_run_failure_sync_invokes_registered_failure_handler():
     try:
         job = _FakeJob(["t_fail", {"job_id": "j1", "user_id": "u1"}])
         dispatch.run_failure_sync(job, None, None, None, None)
-        assert refunded == [{"job_id": "j1", "user_id": "u1"}]
+        # `_abandoned` distinguishes "the worker vanished" from "the retry ladder
+        # ran out" — RQ routes both here and only the second is a provider fault.
+        assert refunded == [{"job_id": "j1", "user_id": "u1", "_abandoned": False}]
     finally:
         _clear_failure("t_fail")
 

@@ -112,6 +112,10 @@ def _persist_baseline_cv(
 
 _MIN_CV_TEXT_LEN = 80  # below this the LLM has nothing useful to extract
 _STALE_PROCESSING_MINUTES = 5
+# How many times a stalled upload may be put back on the lane before we stop and
+# refund. Deploy casualties recover on the first attempt; anything that stalls
+# three times is killing workers, not being killed by them.
+_MAX_STALL_REQUEUES = 2
 
 # ADR-0006 §11 — abuse cap on a single user spamming uploads. 5/hour matches
 # the worst-case legitimate iteration cycle (CV → review → re-upload) while
@@ -198,8 +202,25 @@ def _sweep_stale_processing_job_if_needed(
     user_id: str,
     row: dict[str, Any],
 ) -> dict[str, Any]:
+    """Recover a job whose worker went silent — by re-running it where possible.
+
+    A stranded upload is almost never a broken CV. It is a worker that was killed
+    mid-job, overwhelmingly by a deploy: the text was already extracted and is
+    still sitting in the RQ payload, so re-running costs nothing the user can see
+    and ends with the analysis they asked for. Failing and refunding is the right
+    answer only once re-running has stopped being possible.
+
+    Ordering matters. Requeue is attempted FIRST and the row is left `processing`
+    on success, so the loading screen keeps its meaning instead of flashing a
+    failure the system is about to recover from on its own.
+    """
     if not _is_stale_processing_job(row):
         return row
+
+    if _requeue_stalled_job_if_possible(job_id, user_id, row):
+        refreshed = upload_jobs_repo.fetch_status_for_owner(job_id, user_id)
+        return refreshed or row
+
     try:
         swept = upload_jobs_repo.sweep_stale_processing_jobs(minutes=_STALE_PROCESSING_MINUTES)
         if swept:
@@ -209,6 +230,48 @@ def _sweep_stale_processing_job_if_needed(
         return row
     refreshed = upload_jobs_repo.fetch_status_for_owner(job_id, user_id)
     return refreshed or row
+
+
+def _requeue_stalled_job_if_possible(
+    job_id: str,
+    user_id: str,
+    row: dict[str, Any],
+) -> bool:
+    """Put a stalled upload back on the fast lane. True when it is running again.
+
+    Bounded by `_MAX_STALL_REQUEUES`: a job that keeps stalling is not a deploy
+    casualty, it is a job that kills workers, and re-running it forever would
+    turn one bad CV into an infinite loop across every replica. After the budget
+    is spent the caller falls through to fail-and-refund.
+    """
+    if not background.can_requeue():
+        # No durable queue means no stored payload to re-run. Checked before the
+        # claim below so an environment that can never recover this way does not
+        # write a lease it will immediately have to release.
+        return False
+    if (row.get("stall_requeue_count") or 0) >= _MAX_STALL_REQUEUES:
+        _log.warning(
+            "metric cv_upload.requeue_budget_spent job=%s user=%s attempts=%s",
+            job_id, user_id, row.get("stall_requeue_count"),
+        )
+        return False
+    # Claim first: this both re-stamps the lease (so a second poller in the same
+    # second cannot requeue the same job twice) and confirms the row is still
+    # ours to act on.
+    if not upload_jobs_repo.claim_for_completion(job_id):
+        return False
+    if not background.requeue_abandoned(background.LANE_FAST, "cv_upload_analysis", job_id):
+        # Nothing to re-run — release the claim we just took so the fail-sweep,
+        # which keys on an expired lease, is not blocked by our own heartbeat.
+        upload_jobs_repo.expire_lease(job_id)
+        return False
+    upload_jobs_repo.record_stall_requeue(job_id)
+    _log.warning(
+        "metric cv_upload.stall_requeued job=%s user=%s phase=%s attempt=%s",
+        job_id, user_id, row.get("current_phase"),
+        (row.get("stall_requeue_count") or 0) + 1,
+    )
+    return True
 
 
 def _status_phase(row: dict[str, Any]) -> str | None:
@@ -533,12 +596,27 @@ async def _cv_upload_analysis_handler(payload: dict[str, Any], allow_retry: bool
 @background.failure_handler("cv_upload_analysis")
 async def _cv_upload_analysis_failure(payload: dict[str, Any]) -> None:
     """RQ retries exhausted for CV intake — refund + mark failed NOW (ADR-0008
-    Upload Guarantee) instead of waiting for the orphan-sweep. Idempotent."""
+    Upload Guarantee) instead of waiting for the orphan-sweep. Idempotent.
+
+    RQ routes two different things here. A job that genuinely exhausted its retry
+    ladder really did hit a struggling provider. A job RQ declared *abandoned* —
+    `AbandonedJobError`, raised when a worker vanished mid-job — did not: on
+    2026-08-03 a deploy killed a worker and the user was told "our CV analysis
+    service was busy", which was false and pointed them at the wrong remedy. Name
+    the cause we actually know.
+    """
+    abandoned = bool(payload.get("_abandoned"))
     await _fail_and_refund(
         payload["job_id"],
         payload["user_id"],
-        error_code="provider_unavailable",
-        detail="Our CV analysis service was busy and couldn’t finish. Your tokens have been refunded — please try again.",
+        error_code="worker_replaced" if abandoned else "provider_unavailable",
+        detail=(
+            "This analysis was interrupted while our servers restarted. Your tokens "
+            "have been refunded — uploading again will pick up where it left off."
+            if abandoned
+            else "Our CV analysis service was busy and couldn’t finish. Your tokens "
+            "have been refunded — please try again."
+        ),
     )
 
 
@@ -622,6 +700,57 @@ async def _run_cv_upload_job(
         _log.info("CV job %s already terminal (%s) — skipping re-run", job_id, existing.get("status"))
         return
 
+    _INFLIGHT_UPLOAD_JOBS.add(job_id)
+    try:
+        await _run_cv_upload_stages(
+            job_id=job_id, user_id=user_id, raw_text=raw_text,
+            content_hash=content_hash, source=source, allow_retry=allow_retry,
+            cv_repo=cv_repo,
+        )
+    finally:
+        _INFLIGHT_UPLOAD_JOBS.discard(job_id)
+
+
+# Jobs this process is actively running. A worker being shut down uses this to
+# say so (see `release_inflight_leases`) rather than leaving the rows to time out.
+_INFLIGHT_UPLOAD_JOBS: set[str] = set()
+
+
+def release_inflight_leases() -> int:
+    """Mark every job this process is running as abandoned, right now.
+
+    Called from the Job Runner's shutdown path. A deploy replaces the worker
+    while jobs are mid-flight; without this, those rows keep a valid lease that
+    nobody is renewing and the user waits it out for no reason. The worker is the
+    one participant that knows, at the moment it happens, exactly which jobs it
+    is dropping — so it should be the one to say it.
+
+    Best-effort by construction: the lease expiry remains the backstop for the
+    case this cannot cover (SIGKILL, power loss). Returns the number released,
+    for the shutdown log.
+    """
+    released = 0
+    for job_id in list(_INFLIGHT_UPLOAD_JOBS):
+        upload_jobs_repo.expire_lease(job_id)
+        released += 1
+    if released:
+        _log.warning("metric cv_upload.leases_released_on_shutdown count=%d", released)
+    return released
+
+
+async def _run_cv_upload_stages(
+    *,
+    job_id: str,
+    user_id: str,
+    raw_text: str,
+    content_hash: str,
+    source: str,
+    allow_retry: bool,
+    cv_repo: CVVersionsRepository,
+) -> None:
+    """The stages themselves. Split out so `_run_cv_upload_job` owns only the
+    idempotency guard and in-flight bookkeeping."""
+
     # Persist each real worker stage. Raw text was read synchronously before this
     # job was accepted, so the async story starts with skill extraction.
     upload_jobs_repo.set_phase(job_id, "finding_skills")
@@ -677,6 +806,19 @@ async def _run_cv_upload_job(
             error_code="provider_unavailable",
             detail="Our CV analysis service could not prepare your CV review. Your tokens have been refunded — please try again in a few minutes.",
             transient=True, allow_retry=allow_retry,
+        )
+        return
+
+    # Claim before writing. Everything above was read-only against the job row;
+    # this is the first irreversible write, and by now minutes of LLM work have
+    # passed during which the job may have been swept as abandoned. Persisting a
+    # baseline for a job someone else already failed-and-refunded leaves the user
+    # refunded AND holding the analysis.
+    if not upload_jobs_repo.claim_for_completion(job_id):
+        _log.warning(
+            "metric cv_upload.claim_lost job=%s user=%s — job left processing state "
+            "during analysis; discarding result",
+            job_id, user_id,
         )
         return
 
