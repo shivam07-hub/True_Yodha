@@ -671,7 +671,29 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-08-02 · New-signup funnel — onboarding copy, the blank CV page, and two 500s that were misdiagnosed twice; 3 commits Develop)
+## LAST SESSION SUMMARY (2026-08-03 · Onboarding: the column that never existed — ZERO scores site-wide for 3 days; 3 commits Develop + 2 migrations applied prod)
+
+Trigger: three onboarding screenshots (no CV pointer on the skill-review step; the score only starting at step 3; that spinner never resolving) + Railway logs. Full detail: memory `project_onboarding_score_outage`.
+
+**⚠️ THE HEADLINE — no Myro Score was persisted for ANY user between 2026-07-31 05:28 UTC and today.** `8a9741c2` added `domain_skill_counts` to the `mirror_scores` payload and shipped **no migration**, so every write returned `PGRST204: Could not find the 'domain_skill_counts' column`. Invisible from the product: the job raised, RQ retried 3×, exhausted, and `get_result` then answered `full_result_processing` **forever** — the app showed a spinner and reported progress while nothing was running.
+
+**The previous session's registry fix (`914d2cf4`) was correct and DID land.** It just delivered the job to this second wall. Second time this month a shipped "root fix" left the symptom untouched — see [[feedback_measure_before_theorising]]. New durable rule: [[feedback_schema_contract_on_write]].
+
+**Second bug, silent, hitting every targeted user.** The score asked two questions of two job sets: gap TARGETS from the user's role families, gap WEIGHTS over the whole corpus. And the weight fetch could not physically run — it sent every taxonomy key back as a URL filter (**1,642 keys / 33.5 KB** for two families) → non-JSON `Bad Request` → fail-soft `{}` → **every gap weighed 0**, so "what to fix first" was arbitrary ordering. [[feedback_query_scope_travels_as_scope]].
+
+**Shivam's call on the fix — merge with Career Ops.** Not through the LLM brain (counting is not judgment; a deterministic score must not become an LLM call per signup), but on the **scope**: new `role_family_market_skills(text[])` returns target AND weight from ONE pass over ONE family-scoped job set — the same scope `CandidatePool` selects on. Scope travels as families, never as keys, so the request cannot outgrow the URL.
+
+**`4e1fa094`** — migrations `20260803` (column; un-breaks prod with no deploy — running code already writes it) + `20260803b` (the merged market read), both **applied to prod**. `MIRROR_SCORE_COLUMNS` asserted at write time and checked against `schema.sql` + migrations by `test_score_persist_contract` (falsified: delete the migration, it names the column). `metric scoring.persist_failed`; never appends history for a score it didn't land. Residual corpus lookup chunked by **byte budget, not key count** — 200 long keys is still ~10 KB, and the test caught that.
+
+**`202916ab`** — the score no longer waits on step 2. `total_score` is a function of confirmed skills + seniority band ONLY (role family and cities move the gap list, never the number), so it now runs at **confirm-skills**, banded by `seniority_from_cv` — moved into `experience_years` and shared with the direction step's pre-filled answer, so the two can't read it differently. Only fills an EMPTY band; a CV that says nothing writes nothing. `confirm_baseline_skills` returns `{next, total_score}` (routing was being inferred from score-truthiness, which would now skip every first-run user past the direction step). Plus `_heal_missing_score` + new `background.claim` (Redis SETNX / per-process dict): a "not ready" read now **acts**, debounced 120s against a 2s poll — three stranded prod users had no path back at all.
+
+**`cbc73364`** — step 1 quotes the CV line each skill came from, once, whole, with its skills beneath it (the playground's `SkillProvenance` grouping, same `skill-proof` rule). `none` tier stays flat — its evidence is the skill's own name. **Found while looking:** the sticky action bar was `bg-[var(--tm-bg)]/95 backdrop-blur`, which computes to `rgba(0,0,0,0)` — Tailwind can't alpha an arbitrary CSS var, so rows scrolled visibly through it. Now opaque. [[feedback_tailwind_alpha_on_css_var]].
+
+**Green:** backend **1803 passed** · ruff · tsc 0 · eslint 0 · ui-drift clean · `next build` ✓. Step 1 eyeballed in a real browser at 375px, light + dark; quote text 7.18:1.
+
+**OWED (Shivam):** (1) **`main` merge** — himyro.com still has the broken write path; the column exists now, so prod recovers on merge. (2) **⚠️ NOT VERIFIED END-TO-END** — no score has been computed since the fix because nobody has signed up. Needs one real signup, or one of the 3 stranded test accounts (`asde@`/`fds@`/`asd@gmail.com`) opening `/onboarding/result`, which now self-heals. Do not call this closed until `mirror_scores` gains a fresh row. (3) `role_family_aspiration_skills` + the corpus-wide demand path are superseded but left in place; drop once deployed.
+
+## OLDER SESSION SUMMARY (2026-08-02 · New-signup funnel — onboarding copy, the blank CV page, and two 500s that were misdiagnosed twice; 3 commits Develop)
 
 Started as a copy request on the post-signup upload screen, became a prod-log investigation off Shivam's own stuck session.
 
