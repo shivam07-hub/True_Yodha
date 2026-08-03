@@ -44,6 +44,11 @@ _IPV6 = re.compile(
 _PHONE = re.compile(r"(?<!\w)(?:\+\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?){2,5}\d{3,4}(?!\w)")
 
 
+# Tracebacks get their own, larger budget: the ASGI middleware stack alone eats
+# well past the 1200-char default before reaching a single app frame.
+_TRACEBACK_CHARS = 6000
+
+
 def redact_sensitive_text(value: Any, *, max_length: int | None = 1200) -> str:
     """Return bounded text with common credential formats redacted."""
 
@@ -71,8 +76,15 @@ class _SensitiveLogFilter(logging.Filter):
             # Stash the redacted traceback in exc_text — the stdlib Formatter
             # appends exc_text to the rendered line even when exc_info is
             # cleared, so the trace still reaches the log sink redacted.
+            #
+            # Keep the TAIL, not the head. A traceback's answer — the exception
+            # type, its message, and the app frames that raised it — is at the
+            # bottom; the top is ASGI middleware boilerplate. The old head-first
+            # 1200-char cut spent the whole budget on starlette frames and
+            # severed every prod 500 mid-word ("File .../python3.11/sit"), which
+            # is why /home/bootstrap failures could not be diagnosed from logs.
             trace = "".join(traceback.format_exception(*record.exc_info))
-            record.exc_text = redact_sensitive_text(trace)
+            record.exc_text = redact_sensitive_text(trace, max_length=None)[-_TRACEBACK_CHARS:]
             record.exc_info = None
         if record.args:
             # Preserve the msg/args contract: some formatters (uvicorn's
