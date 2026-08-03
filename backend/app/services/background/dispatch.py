@@ -65,6 +65,23 @@ def failure_handler(job_type: str) -> Callable[[FailureHandler], FailureHandler]
     return _register
 
 
+class UnregisteredJobTypeError(Exception):
+    """The consuming process has no handler for a job it was handed.
+
+    Always a deployment/import defect, never user data: the enqueuing process
+    accepted the job (its own registry had the handler), so a drop here means
+    the two processes disagree. Raising sends it to RQ's failed registry and
+    fires the terminal-failure handler (refund), instead of the old behaviour —
+    log-and-return, which RQ reported as "Job OK" and left the user waiting on
+    work nothing would ever do.
+    """
+
+
+def registered_job_types() -> frozenset[str]:
+    """Job types this process can actually run. Used by the Runner's boot log."""
+    return frozenset(_HANDLERS)
+
+
 def _is_durable() -> bool:
     return bool(settings.redis_url.strip())
 
@@ -129,8 +146,12 @@ def _enqueue_rq(
 async def _invoke(job_type: str, payload: dict[str, Any], *, allow_retry: bool) -> None:
     fn = _HANDLERS.get(job_type)
     if fn is None:
-        _log.error("Background job %s has no handler — dropping", job_type)
-        return
+        _log.error(
+            "metric background.unregistered_job_type job_type=%s known=%s",
+            job_type,
+            ",".join(sorted(_HANDLERS)) or "none",
+        )
+        raise UnregisteredJobTypeError(job_type)
     try:
         await fn(payload, allow_retry)
     except TransientJobError:
