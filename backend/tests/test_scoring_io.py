@@ -108,6 +108,73 @@ class TestFetchSkillDemand:
         assert fetch_skill_demand(ScoresRepository(db)) == {}
 
 
+# ── get_skill_demand_for_keys — request size must not track input size ────────
+
+
+class TestDemandKeyLookupIsChunked:
+    """The 2026-08-03 outage in miniature.
+
+    Demand was fetched by sending every taxonomy key back as a `taxonomy_key=in.(…)`
+    URL filter. A user targeting two role families expands to 1,642 keys / 33.5 KB
+    of raw key text; the resulting GET exceeded the edge's URI limit and returned a
+    non-JSON body, which postgrest surfaced as
+
+        {'code': 400, 'message': 'JSON could not be generated', 'details': b'Bad Request'}
+
+    `fetch_skill_demand` catches that and returns {}, so every gap silently weighed
+    0 and the "fix this first" ordering was arbitrary with nothing on fire.
+
+    Falsified: delete the chunk loop in `get_skill_demand_for_keys` and
+    `test_no_single_request_carries_the_whole_key_set` fails with one 1,642-key
+    request — i.e. it reproduces the URL that broke.
+    """
+
+    def _repo_recording_in_filters(self, calls: list[list[str]]) -> ScoresRepository:
+        db = MagicMock()
+        q = _q([])
+
+        def _record(_column: str, values: list[str]) -> MagicMock:
+            calls.append(list(values))
+            return q
+
+        q.in_.side_effect = _record
+        db.table.return_value = q
+        db.rpc.return_value = _q([])
+        return ScoresRepository(db)
+
+    def test_no_single_request_carries_the_whole_key_set(self) -> None:
+        calls: list[list[str]] = []
+        repo = self._repo_recording_in_filters(calls)
+        keys = {f"Taxonomy Key Number {index} (Long Enough To Matter)" for index in range(1_642)}
+
+        repo.get_skill_demand_for_keys(keys)
+
+        assert calls, "the key lookup must actually query"
+        assert len(calls) > 1, "1,642 keys must not ride in one filter"
+        # And every key is still asked about — chunking must not silently truncate.
+        assert {key for chunk in calls for key in chunk} == keys
+
+    def test_url_stays_small_regardless_of_input(self) -> None:
+        calls: list[list[str]] = []
+        repo = self._repo_recording_in_filters(calls)
+        keys = {f"Taxonomy Key Number {index} (Long Enough To Matter)" for index in range(1_642)}
+
+        repo.get_skill_demand_for_keys(keys)
+
+        # The real failure was byte size, not item count. ~8 KB is the smallest
+        # URI limit in the path (edge proxy); stay an order of magnitude under it.
+        worst = max(sum(len(key) + 3 for key in chunk) for chunk in calls)
+        assert worst < 8_000, f"largest chunk would build a ~{worst}B filter"
+
+    def test_small_set_is_a_single_request(self) -> None:
+        calls: list[list[str]] = []
+        repo = self._repo_recording_in_filters(calls)
+
+        repo.get_skill_demand_for_keys({"Python (Programming Language)", "Data Science"})
+
+        assert len(calls) == 1
+
+
 # ── fetch_aspiration_skills ───────────────────────────────────────────────────
 
 
@@ -116,6 +183,7 @@ class TestFetchAspirationSkills:
         q = _q([])
         q.execute.side_effect = RuntimeError("upstream returned html")
         db = MagicMock()
+        db.rpc.side_effect = RuntimeError("upstream returned html")
         db.table.return_value = q
         assert fetch_aspiration_skills(ScoresRepository(db), ["Data Analyst"]) == {}
 

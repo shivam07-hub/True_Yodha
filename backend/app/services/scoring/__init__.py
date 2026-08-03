@@ -11,7 +11,11 @@ The orchestrator is the only public entry point for callers that need to
 compute or persist a score. See docs/adr/0002-scoring-facade-split.md.
 """
 
-from app.services.scoring.aspirations import fetch_aspiration_skills, role_readiness
+from app.services.scoring.aspirations import (
+    fetch_aspiration_skills,
+    fetch_role_family_market,
+    role_readiness,
+)
 from app.services.scoring.formulas import (
     _DAYS_PER_STEP,
     _PROFICIENCY_TITLES,
@@ -59,6 +63,7 @@ __all__ = [
     "compute_mirror_score",
     "compute_rank_tier",
     "fetch_aspiration_skills",
+    "fetch_role_family_market",
     "role_readiness",
     "fetch_skill_demand",
     "infer_level_from_signals",

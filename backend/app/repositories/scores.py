@@ -22,6 +22,39 @@ T = TypeVar("T")
 # retry from masking real logic errors.
 _RETRYABLE_HTTP_PREFIXES = ("5", "PGRST5")
 
+# Budget for one `in.(…)` filter, in bytes of key text.
+#
+# Deliberately a BYTE budget and not a key count: what broke was URL length, and
+# taxonomy keys vary from "SQL" to "Certified Information Systems Security
+# Professional (CISSP)". A flat count of 200 is ~4 KB of short keys but ~10 KB of
+# long ones — still over the limit for exactly the vocabulary that overflows first.
+# 6 KB leaves headroom under the smallest URI limit in the path (~8 KB at the edge)
+# for the base URL, the select list and percent-encoding.
+_KEY_FILTER_BYTE_BUDGET = 6_000
+
+
+def _key_chunks(keys: list[str]) -> list[list[str]]:
+    """Split keys into `in.(…)`-sized groups by byte cost, never by count.
+
+    Cost per key is its length plus 3 — the comma and the pair of quotes PostgREST
+    adds around any value containing a space, comma or paren, which is most of the
+    taxonomy. A single key over budget still ships alone; dropping it would be a
+    silent hole in the demand map.
+    """
+    chunks: list[list[str]] = []
+    current: list[str] = []
+    used = 0
+    for key in keys:
+        cost = len(key) + 3
+        if current and used + cost > _KEY_FILTER_BYTE_BUDGET:
+            chunks.append(current)
+            current, used = [], 0
+        current.append(key)
+        used += cost
+    if current:
+        chunks.append(current)
+    return chunks
+
 
 def _is_transient(exc: BaseException) -> bool:
     """True iff the exception looks like a transient upstream blip worth retrying.
@@ -69,6 +102,29 @@ class ScoreRecomputeInputs:
     skill_level_map: dict[str, int]
     target_roles: list[str]
     target_seniority: str = ""
+
+
+@dataclass(frozen=True)
+class RoleFamilyMarket:
+    """What the user's chosen families demand — target level AND ranking weight.
+
+    Both halves come from one pass over one job set, so a gap can never be
+    targeted by one market and weighted by another (which is what happened while
+    the target came from the family scope and the weight came from the whole
+    corpus). Empty on either an unset target or a read failure; callers treat
+    empty as "no role-backed market" and say so in the copy.
+    """
+
+    aspiration: dict[str, int]
+    demand: dict[str, int]
+
+    @property
+    def is_empty(self) -> bool:
+        return not self.aspiration and not self.demand
+
+    @classmethod
+    def empty(cls) -> "RoleFamilyMarket":
+        return cls(aspiration={}, demand={})
 
 
 class ScoresRepository:
@@ -246,47 +302,77 @@ class ScoresRepository:
         ).data or [])
         return group_job_skill_rows(rows)
 
-    def get_role_family_aspiration_skills(self, families: list[str]) -> dict[str, int]:
-        """Return proficiency demand from verified jobs in selected role families."""
+    def get_role_family_market(self, families: list[str]) -> RoleFamilyMarket:
+        """Target proficiency AND weighted demand for the user's chosen families.
+
+        One RPC over one job set — the same family scope Career Ops selects on —
+        so the level a gap is measured against and the weight it is ranked by can
+        never come from two different markets.
+
+        The scope travels as the family array, never as the answer keys. The
+        previous shape asked for demand by sending every taxonomy key back as a
+        `in.(…)` filter; two families expand to 1,642 keys / 33.5 KB, which
+        exceeded the edge's URI limit and returned a non-JSON `Bad Request` —
+        caught, fail-soft, and therefore invisible while every gap silently
+        weighed 0. A short array of family names cannot grow that way.
+        """
         if not families:
-            return {}
+            return RoleFamilyMarket.empty()
         rows = self._db.rpc(
-            "role_family_aspiration_skills", {"p_families": families}
+            "role_family_market_skills", {"p_families": families}
         ).execute().data or []
         aspiration: dict[str, int] = {}
+        demand: dict[str, int] = {}
         for row in rows:
             key = str(row.get("taxonomy_key") or "").strip()
             total = int(row.get("job_count") or 0)
             primary_count = int(row.get("primary_job_count") or 0)
             if not key or not total:
                 continue
+            demand[key] = int(row.get("weighted_demand") or 0)
             if primary_count:
                 aspiration[key] = 4 if primary_count / total > 0.5 else 3
             elif row.get("has_side_skill"):
                 aspiration[key] = 2
-        return aspiration
+        return RoleFamilyMarket(aspiration=aspiration, demand=demand)
 
     def list_market_skill_rows(self) -> list[dict[str, Any]]:
         """Returns job skills from the FK-enforced job_skills join table."""
         return group_job_skill_rows(fetch_job_skill_rows(self._db))
 
     def get_skill_demand_for_keys(self, taxonomy_keys: set[str]) -> dict[str, int]:
-        """Weighted market demand for a bounded set of taxonomy keys.
+        """Weighted market demand, corpus-wide, for a bounded set of taxonomy keys.
 
-        Score recompute only needs demand for skills that can become displayed
-        gap candidates. Keep that path bounded instead of scanning the entire
-        job_skills read model for every user.
+        The pre-target path: a user who has confirmed skills but not yet chosen a
+        direction has no family scope to measure against, so demand here is the
+        open market. Once a direction exists, `get_role_family_market` supersedes
+        this — same weighting, scoped to the families the user picked.
+
+        Keys travel in the URL, so the request size grows with the key count. That
+        is why this is chunked and not simply handed the whole set: a caller that
+        passed a family's worth of keys (1,642 of them, 33.5 KB) produced a URL
+        past the edge's limit and got back a non-JSON `Bad Request`, which the
+        caller swallowed — every gap then weighed 0 with nothing on fire. Chunking
+        makes the request size a function of the chunk, never of the input.
         """
         wanted = {key.strip() for key in taxonomy_keys if key and key.strip()}
         if not wanted:
             return {}
 
-        skill_rows = _retry_supabase(lambda: (
-            self._db.table("skills")
-            .select("id, taxonomy_key")
-            .in_("taxonomy_key", sorted(wanted))
-            .execute()
-        ).data or [])
+        chunks = _key_chunks(sorted(wanted))
+        if len(chunks) > 1:
+            logger.info(
+                "metric scoring.demand_key_lookup_chunked keys=%d chunks=%d",
+                len(wanted), len(chunks),
+            )
+        skill_rows: list[dict[str, Any]] = []
+        for chunk in chunks:
+            skill_rows.extend(_retry_supabase(lambda _chunk=chunk: (
+                self._db.table("skills")
+                .select("id, taxonomy_key")
+                .in_("taxonomy_key", _chunk)
+                .execute()
+            ).data or []))
 
         id_to_key: dict[int, str] = {}
         for row in skill_rows:

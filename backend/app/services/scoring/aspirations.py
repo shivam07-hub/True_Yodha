@@ -8,34 +8,47 @@ orchestrator and the jobs gap analysis workflow.
 
 import logging
 
-from app.repositories.scores import ScoresRepository
+from app.repositories.scores import RoleFamilyMarket, ScoresRepository
 
 logger = logging.getLogger(__name__)
 
 
-def fetch_aspiration_skills(
+def fetch_role_family_market(
     scores_repo: ScoresRepository, target_roles: list[str]
-) -> dict[str, int]:
-    """{skill_name: target_proficiency} from selected job role families.
+) -> RoleFamilyMarket:
+    """What the user's chosen families demand: target proficiency AND weight.
 
     Proficiency targets derived from skill frequency across matching jobs:
       - main_skill appearing in >50% of role jobs → target L4
       - main_skill appearing in >25%              → target L3
       - side_skill (any frequency)                → target L2
 
-    Returns empty dict if no matching jobs found (caller falls back to market demand).
+    Weight is the same primary×2 + side×1 count the corpus-wide lookup uses, but
+    counted over THIS user's families — so the level a gap is measured against and
+    the weight it is ranked by come from one market, not two.
+
+    Empty when the user has no direction yet or the read fails; callers fall back
+    to open-market demand and say so in the copy.
     """
     if not target_roles:
-        return {}
+        return RoleFamilyMarket.empty()
 
     try:
-        return scores_repo.get_role_family_aspiration_skills(target_roles)
+        return scores_repo.get_role_family_market(target_roles)
     except Exception as exc:
         logger.error(
             "metric aspiration.role_family_failed families=%r reason=%s fallback_used=true",
             target_roles, exc.__class__.__name__,
         )
-        return {}
+        return RoleFamilyMarket.empty()
+
+
+def fetch_aspiration_skills(
+    scores_repo: ScoresRepository, target_roles: list[str]
+) -> dict[str, int]:
+    """Target-proficiency half of `fetch_role_family_market`, for callers that
+    genuinely only need the targets (role readiness)."""
+    return fetch_role_family_market(scores_repo, target_roles).aspiration
 
 
 def role_readiness(
