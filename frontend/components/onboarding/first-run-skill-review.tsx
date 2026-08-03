@@ -12,15 +12,49 @@ type Props = { token: string; result: SkillResult; onConfirmed: () => void }
 
 const ORDER: ProofTier[] = ["proven", "listed", "none"]
 
+type Skill = SkillResult["skills"][number]
+
+/**
+ * Skills that came out of the SAME line of the CV, grouped under that line.
+ *
+ * The pointer is the point. A first-run user is being asked to rule on a list of
+ * skills they never wrote down, and the only thing that makes that answerable is
+ * seeing the sentence Myro read them out of. This surface used to print the
+ * evidence as a truncated fragment beside each name, which at 375px clipped to a
+ * few words and repeated the same line once per skill it produced.
+ *
+ * Same shape as the CV playground's Skills rail (`SkillProvenance`), on purpose:
+ * the thing learned here on day one is the thing that keeps working on day one
+ * hundred. Both read tiers from the one `skill-proof` rule, so they cannot
+ * disagree about what a skill is worth.
+ *
+ * The `none` tier has nothing to point at — its evidence is the skill's own name
+ * echoed back — so those stay a flat list rather than being given a quote card
+ * that would imply proof we do not hold.
+ */
+function groupByCVLine(skills: Skill[], keepEvidence: boolean): { line: string; skills: Skill[] }[] {
+  if (!keepEvidence) return skills.length ? [{ line: "", skills }] : []
+  const byLine = new Map<string, Skill[]>()
+  for (const skill of skills) {
+    const line = (skill.evidence ?? "").trim()
+    const bucket = byLine.get(line)
+    if (bucket) bucket.push(skill)
+    else byLine.set(line, [skill])
+  }
+  return Array.from(byLine.entries())
+    .map(([line, group]) => ({ line, skills: group }))
+    .sort((a, b) => b.skills.length - a.skills.length)
+}
+
 export function FirstRunSkillReview({ token, result, onConfirmed }: Props) {
   const [removed, setRemoved] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const keptCount = result.skills.length - removed.size
-  const groups = useMemo(() => ORDER.map((tier) => ({
-    tier,
-    skills: result.skills.filter((skill) => proofTier(skill.evidence, skill.name) === tier),
-  })).filter((group) => group.skills.length > 0), [result.skills])
+  const groups = useMemo(() => ORDER.map((tier) => {
+    const skills = result.skills.filter((skill) => proofTier(skill.evidence, skill.name) === tier)
+    return { tier, skills, points: groupByCVLine(skills, tier !== "none") }
+  }).filter((group) => group.skills.length > 0), [result.skills])
 
   function mutate(fn: (next: Set<string>) => void) {
     setError(null)
@@ -61,8 +95,8 @@ export function FirstRunSkillReview({ token, result, onConfirmed }: Props) {
         Untick anything that isn&apos;t yours.
       </p>
 
-      <div className="mt-7 space-y-7">
-        {groups.map(({ tier, skills }) => {
+      <div className="mt-7 space-y-8">
+        {groups.map(({ tier, skills, points }) => {
           const keys = skills.map((skill) => skill.taxonomy_key)
           const allRemoved = keys.every((key) => removed.has(key))
           return (
@@ -82,36 +116,48 @@ export function FirstRunSkillReview({ token, result, onConfirmed }: Props) {
                 </button>
               </div>
 
-              <div className="mt-1 divide-y divide-[var(--tm-border-soft)]">
-                {skills.map((skill) => {
-                  const excluded = removed.has(skill.taxonomy_key)
-                  // Tier `none` evidence is the skill's own name repeated back
-                  // (see lib/cv/skill-proof.ts). Printing it under the name is
-                  // noise dressed as a receipt.
-                  const receipt = tier === "none" ? null : skill.evidence
-                  return (
-                    <label
-                      key={skill.taxonomy_key}
-                      className={cn(
-                        "flex min-h-11 cursor-pointer items-center gap-3 py-2.5",
-                        excluded && "opacity-45",
-                      )}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={!excluded}
-                        onChange={() => mutate((next) => (excluded ? next.delete(skill.taxonomy_key) : next.add(skill.taxonomy_key)))}
-                        className="tm-control-focus size-4 shrink-0 accent-[var(--tm-interactive)]"
-                      />
-                      <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3 gap-y-0.5">
-                        <span className={cn("text-sm font-medium text-[var(--tm-text)]", excluded && "line-through")}>{skill.name}</span>
-                        {receipt && (
-                          <span className="min-w-0 truncate text-xs leading-5 text-[var(--tm-text-muted)]">{receipt}</span>
-                        )}
-                      </span>
-                    </label>
-                  )
-                })}
+              {/* Only the tiers with a real receipt get one. `none` says so instead. */}
+              {tier === "none" && (
+                <p className="mt-2 text-sm leading-6 text-[var(--tm-text-muted)]">{PROOF_TIER_COPY.none.note}</p>
+              )}
+
+              <div className="mt-3 space-y-5">
+                {points.map(({ line, skills: lineSkills }) => (
+                  <div key={line || tier}>
+                    {line && (
+                      // The CV's own words, quoted whole and never truncated —
+                      // this line IS the answer to "why does Myro think I have
+                      // this?", and a clipped one answers nothing.
+                      <p className="border-l-2 border-[var(--tm-border)] pl-3 text-sm leading-6 text-[var(--tm-text-muted)]">
+                        {line}
+                      </p>
+                    )}
+                    <div className={cn("divide-y divide-[var(--tm-border-soft)]", line && "mt-1")}>
+                      {lineSkills.map((skill) => {
+                        const excluded = removed.has(skill.taxonomy_key)
+                        return (
+                          <label
+                            key={skill.taxonomy_key}
+                            className={cn(
+                              "flex min-h-11 cursor-pointer items-center gap-3 py-2.5",
+                              excluded && "opacity-45",
+                            )}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={!excluded}
+                              onChange={() => mutate((next) => (excluded ? next.delete(skill.taxonomy_key) : next.add(skill.taxonomy_key)))}
+                              className="tm-control-focus size-4 shrink-0 accent-[var(--tm-interactive)]"
+                            />
+                            <span className={cn("min-w-0 text-sm font-medium text-[var(--tm-text)]", excluded && "line-through")}>
+                              {skill.name}
+                            </span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             </fieldset>
           )
@@ -120,7 +166,12 @@ export function FirstRunSkillReview({ token, result, onConfirmed }: Props) {
 
       {/* The count and the action belong together: the number IS the thing being
           confirmed, so it stopped being a separate card in the margin. */}
-      <div className="fixed inset-x-0 bottom-0 z-10 border-t border-[var(--tm-border-soft)] bg-[var(--tm-bg)]/95 backdrop-blur">
+      {/* Opaque, deliberately. This was `bg-[var(--tm-bg)]/95 backdrop-blur`, which
+          computed to `rgba(0,0,0,0)` — Tailwind cannot apply an alpha modifier to
+          an arbitrary CSS variable, so it dropped the background entirely and the
+          skill rows scrolled visibly through the bar behind "N kept". A count that
+          is the thing being confirmed cannot be rendered over moving text. */}
+      <div className="fixed inset-x-0 bottom-0 z-10 border-t border-[var(--tm-border-soft)] bg-[var(--tm-bg)]">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-5 py-3 sm:px-8">
           <p className="text-sm text-[var(--tm-text-muted)]">
             <span className="font-semibold tabular-nums text-[var(--tm-text)]">{keptCount}</span> kept
