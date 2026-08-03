@@ -18,7 +18,7 @@ from typing import Any
 
 from app.repositories.scores import ScoresRepository
 from app.services.job_eligibility import target_seniority_for_profile
-from app.services.scoring.aspirations import fetch_aspiration_skills
+from app.services.scoring.aspirations import fetch_role_family_market
 from app.services.scoring.percentile import percentile_rank
 from app.services.scoring.formulas import (
     _PROFICIENCY_TITLES,
@@ -117,11 +117,12 @@ def recompute_score(scores_repo: ScoresRepository, user_id: str) -> dict:
     Used by skill correction, manual recompute, diary submit, tracker outcome.
     """
     inputs = scores_repo.get_recompute_inputs(user_id)
-    aspiration = fetch_aspiration_skills(scores_repo, inputs.target_roles)
+    market = fetch_role_family_market(scores_repo, inputs.target_roles)
     projection = _score_math(
         scores_repo,
         inputs.skill_level_map,
-        aspiration_skills=aspiration,
+        aspiration_skills=market.aspiration,
+        scoped_demand=market.demand,
         include_market_signals=True,
         target_level=_band_target_level(inputs.target_seniority),
     )
@@ -159,15 +160,21 @@ def _score_math(
     skill_level_map: dict[str, int],
     *,
     aspiration_skills: dict[str, int],
+    scoped_demand: dict[str, int] | None = None,
     include_market_signals: bool,
     target_level: int = DEFAULT_TARGET_LEVEL,
     skills_assessed_override: int | None = None,
 ) -> ScoreProjection:
     cluster_children, skill_to_cluster, cluster_to_domain = _build_cluster_maps()
-    demand_scope = set(skill_level_map) | set(aspiration_skills)
-    skill_demand = (
-        fetch_skill_demand(scores_repo, demand_scope) if include_market_signals else {}
-    )
+    # Demand the user's own families already answered, from the same pass that set
+    # the aspiration targets. Anything left is a skill the user holds that their
+    # chosen market never mentions — priced against the open market instead, and a
+    # short list by construction (their CV, not the family's 1,600-key vocabulary).
+    skill_demand: dict[str, int] = dict(scoped_demand or {})
+    if include_market_signals:
+        residual = (set(skill_level_map) | set(aspiration_skills)) - set(skill_demand)
+        if residual:
+            skill_demand.update(fetch_skill_demand(scores_repo, residual))
 
     cluster_scores = compute_cluster_scores(
         skill_level_map, cluster_children, skill_to_cluster, target_level
@@ -249,6 +256,30 @@ def _persist_band_percentile(
         )
 
 
+# Every column `_persist_score` writes. Declared here, beside the write, and
+# asserted by `test_score_persist_contract` against the migrations — because the
+# alternative is what happened on 2026-07-31: `domain_skill_counts` was added to
+# the payload with no migration, PostgREST answered every write with
+#
+#   PGRST204: Could not find the 'domain_skill_counts' column of 'mirror_scores'
+#
+# and NOT ONE score was persisted for ANY user for three days. Nothing failed
+# loudly: the job raised, RQ retried three times, exhausted, and the user sat on
+# "Calculating your Myro Score" forever with the app reporting progress.
+#
+# Add a field to ScoreProjection → add it here → the test tells you the migration
+# is missing, before prod does.
+MIRROR_SCORE_COLUMNS = frozenset({
+    "total_score",
+    "domain_scores",
+    "domain_skill_counts",
+    "skill_scores",
+    "gap_skills",
+    "rank_tier",
+    "skills_assessed",
+})
+
+
 def _persist_score(
     scores_repo: ScoresRepository,
     user_id: str,
@@ -263,10 +294,25 @@ def _persist_score(
         "rank_tier":       projection.rank_tier,
         "skills_assessed": projection.skills_assessed,
     }
-    if scores_repo.mirror_score_exists(user_id):
-        scores_repo.update_mirror_score(user_id, payload)
-    else:
-        scores_repo.insert_mirror_score(user_id, payload)
+    assert set(payload) == MIRROR_SCORE_COLUMNS, (
+        "mirror_scores payload drifted from its declared columns: "
+        f"{set(payload) ^ MIRROR_SCORE_COLUMNS}"
+    )
+    try:
+        if scores_repo.mirror_score_exists(user_id):
+            scores_repo.update_mirror_score(user_id, payload)
+        else:
+            scores_repo.insert_mirror_score(user_id, payload)
+    except Exception as exc:
+        # The score write is the one step whose failure the user cannot see: the
+        # result screen reads "no score row yet" as "still computing". Name it,
+        # then re-raise so RQ retries and, on exhaustion, the job is FAILED rather
+        # than reported OK.
+        logger.error(
+            "metric scoring.persist_failed user=%s exc=%s detail=%s",
+            user_id, exc.__class__.__name__, exc,
+        )
+        raise
     scores_repo.append_score_history(user_id, projection.total_score)
     return scores_repo.require_mirror_score(user_id)
 

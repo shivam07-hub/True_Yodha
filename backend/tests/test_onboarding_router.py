@@ -139,10 +139,16 @@ def test_target_can_return_to_direction_selection(monkeypatch) -> None:
 
 
 def test_skill_confirmation_without_target_advances_to_direction(monkeypatch) -> None:
+    """Routing is decided by the service's `next`, not by whether a score exists.
+
+    The score now lands at this step, before any direction is chosen. When the
+    router inferred the step from score-truthiness, that alone would have skipped
+    every first-run user past the direction step.
+    """
     monkeypatch.setattr(
         onboarding,
         "confirm_baseline_skills",
-        lambda *_args, **_kwargs: {},
+        lambda *_args, **_kwargs: {"next": "target", "total_score": 46.0},
     )
     try:
         with _client(monkeypatch, _StateRepo()) as client:
@@ -154,7 +160,7 @@ def test_skill_confirmation_without_target_advances_to_direction(monkeypatch) ->
         app.dependency_overrides.clear()
 
     assert response.status_code == 200
-    assert response.json() == {"status": "confirmed", "next": "target"}
+    assert response.json() == {"status": "confirmed", "next": "target", "total_score": 46.0}
 
 
 def test_first_role_returns_durable_tailoring_receipt(monkeypatch) -> None:

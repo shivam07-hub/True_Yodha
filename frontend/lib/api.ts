@@ -782,8 +782,10 @@ export const onboarding = {
     skill_id?: number; taxonomy_key?: string
     action: "include" | "exclude"; evidence_text?: string; source_location?: Record<string, unknown>
   }>) => request<
-    | { status: "confirmed"; next: "target" }
-    | { status: "confirmed"; next: "shortlist_processing"; total_score: number }
+    // The score lands at THIS step now — it needs the confirmed skills and the
+    // band, not a chosen direction — so `total_score` comes back either way and
+    // `next` is the only thing that decides where the user goes.
+    { status: "confirmed"; next: "target" | "shortlist_processing"; total_score: number }
   >(`/onboarding/baseline/${baselineId}/confirm-skills`, {
     method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ overrides }),
   }),

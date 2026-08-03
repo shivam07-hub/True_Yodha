@@ -14,6 +14,7 @@ Routing is decided by `settings.redis_url`:
 See CONTEXT.md → Background Job / Work Lane / Job Runner.
 """
 
+from app.services.background.debounce import claim
 from app.services.background.dispatch import (
     LANE_BULK,
     LANE_FAST,
@@ -29,6 +30,7 @@ __all__ = [
     "LANE_FAST",
     "LANE_BULK",
     "TransientJobError",
+    "claim",
     "enqueue",
     "failure_handler",
     "handler",

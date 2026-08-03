@@ -12,6 +12,7 @@ from app.repositories.onboarding import OnboardingRepository
 from app.repositories.scores import ScoresRepository
 from app.repositories.users import UsersRepository
 from app.services import background, scoring
+from app.services.experience_years import seniority_from_cv
 
 
 _REMOVED_BY_USER = "User removed this extracted CV skill."
@@ -84,7 +85,14 @@ def confirm_baseline_skills(
     baseline_version_id: int,
     overrides: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    """Atomically publish reviewed skills before computing any derived result."""
+    """Publish reviewed skills, then score them. Returns `{next, total_score}`.
+
+    `next` is the step the user goes to, decided by whether they have a direction
+    yet — NOT by whether a score came back. Those two were the same question while
+    a score only existed after a direction was chosen; now that the score is
+    computed here, conflating them would route every first-run user past the
+    direction step.
+    """
     cv_repo = CVVersionsRepository(db)
     baseline = cv_repo.find(baseline_version_id, user_id)
     latest = cv_repo.latest_baseline(user_id)
@@ -112,7 +120,8 @@ def confirm_baseline_skills(
 
     cv_repo.confirm_skills(user_id, baseline_version_id, reviewed, normalized)
 
-    profile = UsersRepository(db).get_profile(user_id) or {}
+    users_repo = UsersRepository(db)
+    profile = users_repo.get_profile(user_id) or {}
     has_target = bool(
         profile.get("target_role_title") or profile.get("target_role_titles")
     )
@@ -128,5 +137,40 @@ def confirm_baseline_skills(
             payload={"user_id": user_id, "score_fresh": True},
             correlation_id=f"confirmed-skills:{user_id}:{baseline_version_id}",
         )
-        return score
-    return {}
+        return {"next": "shortlist_processing", "total_score": float(score["total_score"])}
+
+    # No direction yet — but the score does not need one. `total_score` is a
+    # function of the confirmed skills and the seniority band alone; the chosen
+    # role family and cities move the GAP list, never the number. Waiting for the
+    # direction step meant the score started computing when the user arrived at
+    # step 3 and then made them watch it, which is the whole of the reported
+    # "Calculating your Myro Score" wait.
+    #
+    # The band comes from the CV, via the same reader that pre-fills the answer on
+    # the direction step — so for a user who accepts what Myro read (the common
+    # case) this score is already final, not a placeholder that will shift under
+    # them. If they change the level, `onboarding_target_refresh` recomputes; the
+    # row exists by then either way, so step 3 no longer blocks on it.
+    _persist_cv_seniority(users_repo, user_id, profile, baseline)
+    score = scoring.recompute_score(scores_repo, user_id)
+    return {"next": "target", "total_score": float(score["total_score"])}
+
+
+def _persist_cv_seniority(
+    users_repo: UsersRepository,
+    user_id: str,
+    profile: dict[str, Any],
+    baseline: dict[str, Any],
+) -> None:
+    """Write the band read from the CV, so the pre-target score is banded honestly.
+
+    Only fills an EMPTY value — a user who already chose a level owns it, and this
+    must never overwrite that. When the CV says nothing, nothing is written and
+    scoring falls back to its entry-band default rather than a guess.
+    """
+    if profile.get("target_seniority"):
+        return
+    suggestion = seniority_from_cv(baseline)
+    if not suggestion.get("value"):
+        return
+    users_repo.update_profile(user_id, {"target_seniority": suggestion["value"]})

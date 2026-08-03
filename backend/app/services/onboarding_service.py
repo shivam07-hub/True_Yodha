@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from typing import Any
 
 from supabase import Client
@@ -20,12 +21,10 @@ from app.services.job_eligibility import (
     explored_bands_for_profile,
     target_seniority_for_profile,
 )
-from app.services.experience_years import (
-    seniority_for_candidate_title,
-    seniority_for_experience_years,
-    total_experience_years,
-)
+from app.services.experience_years import seniority_from_cv
 from app.services.scoring.percentile import top_percent
+
+logger = logging.getLogger(__name__)
 
 
 def target_context_hash(
@@ -343,22 +342,50 @@ def _score_factors(score: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _seniority_suggestion(baseline: dict[str, Any] | None) -> dict[str, Any]:
-    """Return only seniority evidence that can be read from the parsed CV."""
-    structured = (baseline or {}).get("cv_structured") or {}
-    contact = structured.get("contact") or {}
-    experience = [row for row in (structured.get("experience") or []) if isinstance(row, dict)]
-    years = total_experience_years([str(row.get("dates") or "") for row in experience])
-    if years is not None:
-        level = seniority_for_experience_years(years)
-        return {"value": level, "years": round(years), "source": "experience_years", "needs_choice": False}
-    titles = [(contact.get("title") or "").strip()]
-    if experience:
-        titles.append(str(experience[0].get("role") or "").strip())
-    for title in titles:
-        level = seniority_for_candidate_title(title)
-        if level:
-            return {"value": level, "title": title, "source": "title", "needs_choice": False}
-    return {"value": None, "source": "unknown", "needs_choice": True}
+    """Seniority evidence readable from the parsed CV.
+
+    Thin alias over `experience_years.seniority_from_cv`, which the confirm-skills
+    step also reads so the band the score is computed against is the same one this
+    screen offers.
+    """
+    return seniority_from_cv(baseline)
+
+
+# One score re-enqueue per user per window. Long enough that a 2s poll cannot turn
+# a stalled user into a job storm; short enough that a user who waits through one
+# "this is taking longer" prompt gets a genuine second attempt.
+_SCORE_HEAL_WINDOW_SECONDS = 120
+
+
+def _heal_missing_score(user_id: str) -> None:
+    """Re-enqueue the score job for a user whose skills and direction are both in,
+    but whose score never landed.
+
+    This branch used to be a pure read, which made a lost job permanent: RQ
+    retried three times, exhausted, and `get_result` then answered
+    `full_result_processing` forever. Three prod users sat there after the
+    2026-07-31 `domain_skill_counts` outage with no path back except a support
+    ticket — the poll that was supposed to reveal the score was the only thing
+    still running, and it asked for nothing.
+
+    Debounced, so the repair cannot become the next incident, and fail-soft: a
+    heal that cannot be enqueued must not take down the result screen with it.
+    """
+    if not background.claim(f"score-heal:{user_id}", _SCORE_HEAL_WINDOW_SECONDS):
+        return
+    try:
+        background.enqueue(
+            background.LANE_FAST,
+            "onboarding_target_refresh",
+            payload={"user_id": user_id},
+            correlation_id=f"score-heal:{user_id}",
+        )
+        logger.info("metric onboarding.score_heal_enqueued user=%s", user_id)
+    except Exception as exc:  # noqa: BLE001 — never fail the result read
+        logger.warning(
+            "metric onboarding.score_heal_failed user=%s exc=%s",
+            user_id, exc.__class__.__name__,
+        )
 
 
 def get_result(db: Client, user_id: str) -> dict[str, Any]:
@@ -434,6 +461,7 @@ def get_result(db: Client, user_id: str) -> dict[str, Any]:
 
     score = ScoresRepository(db).get_mirror_score(user_id)
     if not score:
+        _heal_missing_score(user_id)
         return {
             # Step 3: skills checked, direction chosen — only the score is left.
             "kind": "full_result_processing",
