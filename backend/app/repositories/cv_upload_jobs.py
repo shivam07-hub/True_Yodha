@@ -19,11 +19,26 @@ from app.repositories.notifications import NotificationsRepository
 _log = logging.getLogger(__name__)
 
 _TABLE = "cv_upload_jobs"
-_LEASE_MINUTES = 20  # exceeds the RQ 15-minute hard timeout
+
+# How long a worker may go silent before we treat its job as abandoned.
+#
+# This is a HEARTBEAT, not a deadline: `set_phase` re-stamps it on every phase
+# transition, so it only has to outlast the longest SINGLE step, never the whole
+# job. It was 20 minutes, sized to "exceed the RQ 15-minute hard timeout" — i.e.
+# reasoned about as a one-shot deadline. The cost of that was measured on
+# 2026-08-03: a deploy killed a worker 5 seconds into a 45-second job, and the
+# user sat on "preparing your cv review" while both recovery clocks (RQ's 15-min
+# abandonment TTL and this lease) waited out a worst case that had already
+# happened.
+#
+# Sized instead to the real work: the two LLM steps have run 7.4s / 12.8s / 21.7s
+# in production. 180s is ~8× the worst observed single phase, and a genuinely
+# slower live job keeps itself alive by advancing a phase.
+_LEASE_SECONDS = 180
 
 
 def _lease_deadline() -> str:
-    return (datetime.now(timezone.utc) + timedelta(minutes=_LEASE_MINUTES)).isoformat()
+    return (datetime.now(timezone.utc) + timedelta(seconds=_LEASE_SECONDS)).isoformat()
 
 
 def create_processing_job(
@@ -94,6 +109,64 @@ def sweep_stale_processing_jobs(minutes: int = 5) -> list[dict[str, Any]]:
     admin = get_supabase_admin()
     result = admin.rpc("sweep_stale_cv_upload_jobs", {"p_minutes": minutes}).execute()
     return result.data or []
+
+
+def claim_for_completion(job_id: str) -> bool:
+    """Re-take ownership of a job right before writing its result.
+
+    Returns False when the row is no longer `processing` — it was swept as
+    abandoned, or another delivery finished it. The caller must then discard its
+    work instead of persisting.
+
+    Why this exists: the result write is not one statement. `_persist_baseline_cv`
+    inserts into `cv_versions` and only afterwards does `mark_done` flip the job.
+    `mark_done` is correctly guarded on `status='processing'`, so it refuses to
+    resurrect a swept job — but nothing rolls back the baseline it just wrote.
+    A worker that is slow rather than dead could therefore leave the user
+    refunded, the job marked failed, AND holding a perfectly usable baseline that
+    `get_result` would happily serve.
+
+    That was near-impossible under the old 20-minute lease and becomes reachable
+    at 180s, so the shrink and this guard belong to the same change.
+
+    Also re-stamps the lease: claiming is a heartbeat, and the write that follows
+    is the one step whose interruption is most expensive.
+    """
+    admin = get_supabase_admin()
+    result = (
+        admin.table(_TABLE)
+        .update({"lease_expires_at": _lease_deadline()})
+        .eq("id", job_id)
+        .eq("status", "processing")
+        .execute()
+    )
+    return bool(result.data or [])
+
+
+def expire_lease(job_id: str) -> None:
+    """Declare a job abandoned NOW instead of waiting out its lease.
+
+    Used by a worker that knows it is being shut down, and by a failed requeue
+    releasing a claim it can no longer honour. Backdated by a second so the
+    `< now()` comparison in `sweep_stale_cv_upload_jobs` is unambiguous rather
+    than resting on clock equality.
+    """
+    stamp = (datetime.now(timezone.utc) - timedelta(seconds=1)).isoformat()
+    try:
+        get_supabase_admin().table(_TABLE).update({"lease_expires_at": stamp}).eq(
+            "id", job_id
+        ).eq("status", "processing").execute()
+    except Exception as exc:  # pragma: no cover — best-effort, lease expiry backstops
+        _log.warning("expire_lease(%s) failed: %s", job_id, exc)
+
+
+def record_stall_requeue(job_id: str) -> None:
+    """Count one recovery attempt, so the budget in cv_workflow can be enforced."""
+    admin = get_supabase_admin()
+    try:
+        admin.rpc("increment_cv_upload_stall_requeue", {"p_job_id": job_id}).execute()
+    except Exception as exc:  # pragma: no cover — the counter is a guard, not truth
+        _log.warning("record_stall_requeue(%s) failed: %s", job_id, exc)
 
 
 def mark_charged(job_id: str, amount: int) -> None:
@@ -203,7 +276,8 @@ def fetch_status_for_owner(job_id: str, user_id: str, db: Client | None = None) 
         .select(
             "id, status, current_phase, analysis_kind, result_payload, "
             "baseline_version_id, skills_detected, score, error_code, "
-            "error_detail, xp_charged, xp_refunded, created_at, lease_expires_at, finished_at"
+            "error_detail, xp_charged, xp_refunded, created_at, lease_expires_at, "
+            "finished_at, stall_requeue_count"
         )
         .eq("id", job_id)
         .eq("user_id", user_id)

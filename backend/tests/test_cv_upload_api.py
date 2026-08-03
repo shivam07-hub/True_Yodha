@@ -7,6 +7,7 @@ GET /cv/upload/status/{job_id} for terminal state.
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import pytest
@@ -336,6 +337,7 @@ def test_background_run_marks_done_on_success(monkeypatch) -> None:
     )
 
     done_calls: list[dict] = []
+    monkeypatch.setattr(cv_workflow.upload_jobs_repo, "claim_for_completion", lambda _job_id: True)
     monkeypatch.setattr(cv_workflow.upload_jobs_repo, "mark_done", lambda job_id, **kw: done_calls.append({"job_id": job_id, **kw}))
     monkeypatch.setattr(cv_workflow.upload_jobs_repo, "mark_failed", lambda *a, **k: pytest.fail("should not fail"))
     async def _no_initial(_user_id): return None
@@ -383,6 +385,7 @@ def test_background_run_refunds_and_fails_on_provider_outage(monkeypatch) -> Non
 
     failed_calls: list[dict] = []
     monkeypatch.setattr(cv_workflow.upload_jobs_repo, "mark_failed", lambda job_id, **kw: failed_calls.append({"job_id": job_id, **kw}))
+    monkeypatch.setattr(cv_workflow.upload_jobs_repo, "claim_for_completion", lambda _job_id: True)
     monkeypatch.setattr(cv_workflow.upload_jobs_repo, "mark_done", lambda *a, **k: pytest.fail("should not mark done"))
 
     asyncio.run(cv_workflow._run_cv_upload_job(
@@ -455,6 +458,7 @@ def test_background_run_refunds_when_no_skills_extracted(monkeypatch) -> None:
 
     failed_calls: list[dict] = []
     monkeypatch.setattr(cv_workflow.upload_jobs_repo, "mark_failed", lambda job_id, **kw: failed_calls.append(kw))
+    monkeypatch.setattr(cv_workflow.upload_jobs_repo, "claim_for_completion", lambda _job_id: True)
     monkeypatch.setattr(cv_workflow.upload_jobs_repo, "mark_done", lambda *a, **k: pytest.fail("should not mark done"))
 
     asyncio.run(cv_workflow._run_cv_upload_job(
@@ -599,6 +603,12 @@ def test_upload_status_surfaces_current_phase(monkeypatch) -> None:
             "skills_detected": None, "score": None, "error_code": None,
             "error_detail": None, "xp_charged": 50, "xp_refunded": False,
             "created_at": "2026-05-30T10:00:00+00:00", "finished_at": None,
+            # A live lease. Without one this fixture's 2026-05-30 `created_at` is
+            # years stale against a real clock, so the test was silently driving
+            # the orphan-recovery path instead of the phase passthrough it names.
+            "lease_expires_at": (
+                datetime.now(timezone.utc) + timedelta(seconds=120)
+            ).isoformat(),
         },
     )
 

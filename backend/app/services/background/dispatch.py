@@ -86,6 +86,16 @@ def _is_durable() -> bool:
     return bool(settings.redis_url.strip())
 
 
+def can_requeue() -> bool:
+    """True when abandoned work can be re-run from the queue's own payload.
+
+    Only the durable path keeps enqueued args; the in-process fallback runs the
+    handler and forgets it. Callers check this BEFORE taking any claim, so an
+    environment that can never requeue does not pay for pretending it might.
+    """
+    return _is_durable()
+
+
 def enqueue(
     lane: str,
     job_type: str,
@@ -111,6 +121,57 @@ def enqueue(
         # In-process fallback — preserves pre-ADR-0008 behaviour where no Redis
         # exists. No retry available here, so handlers refund-and-return on fail.
         _invoke_inline(job_type, payload)
+
+
+def requeue_abandoned(lane: str, job_type: str, correlation_id: str) -> bool:
+    """Put an abandoned job back on its lane, reusing the payload RQ still holds.
+
+    A worker killed mid-job (a deploy, an OOM) leaves its work undone but NOT
+    lost: RQ keeps the enqueued args in Redis under the job id, so the expensive
+    inputs — for a CV upload, the extracted text — can be re-run without asking
+    the user for anything again.
+
+    RQ's own abandonment path does this, but only after `job_timeout` (15 min)
+    has elapsed, because that is what makes a started job "expired". Callers who
+    can tell sooner — a lease that stopped being renewed — use this to recover in
+    seconds instead.
+
+    Returns False when there is nothing to requeue: no Redis, no surviving job
+    record (its TTL passed), or the job already reached a terminal state. Callers
+    fall back to failing the job, so a False here must never be read as "handled".
+    """
+    if not _is_durable():
+        return False
+    try:
+        from redis import Redis
+        from rq import Queue
+        from rq.exceptions import NoSuchJobError
+        from rq.job import Job
+
+        conn = Redis.from_url(settings.redis_url.strip())
+        job_id = f"{job_type}:{correlation_id}"
+        try:
+            job = Job.fetch(job_id, connection=conn)
+        except NoSuchJobError:
+            _log.warning(
+                "metric background.requeue_no_record job_type=%s id=%s",
+                job_type, correlation_id,
+            )
+            return False
+        if job.is_finished or job.is_canceled:
+            return False
+        Queue(lane, connection=conn).enqueue_job(job)
+        _log.warning(
+            "metric background.requeued_abandoned job_type=%s id=%s lane=%s",
+            job_type, correlation_id, lane,
+        )
+        return True
+    except Exception as exc:  # noqa: BLE001 — caller falls back to failing the job
+        _log.warning(
+            "metric background.requeue_failed job_type=%s id=%s exc=%s",
+            job_type, correlation_id, exc.__class__.__name__,
+        )
+        return False
 
 
 def _invoke_inline(job_type: str, payload: dict[str, Any]) -> None:
@@ -190,6 +251,15 @@ def run_failure_sync(job: Any, connection: Any, exc_type: Any, exc_value: Any, t
         fn = _FAILURE_HANDLERS.get(job_type)
         if fn is None:
             return
+        # RQ calls this for two distinct causes: a retry ladder that ran out, and
+        # a job it declared abandoned because the worker running it disappeared
+        # (`AbandonedJobError`, raised by StartedJobRegistry.cleanup). Only the
+        # first says anything about the provider. Pass the distinction through so
+        # handlers can tell the user which one happened.
+        payload = {
+            **payload,
+            "_abandoned": getattr(exc_type, "__name__", "") == "AbandonedJobError",
+        }
         asyncio.run(fn(payload))
     except Exception:  # pragma: no cover — backstop must never crash the worker
         _log.exception("on_failure handler crashed for job=%s", getattr(job, "id", "?"))
