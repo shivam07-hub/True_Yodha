@@ -59,6 +59,10 @@ _VALID_SIGNALS: set[str] = set(_SIGNAL_XP.keys())
 _MAX_SKILLS = 50
 _FUZZY_THRESHOLD = 0.88
 _CV_TEXT_CHAR_LIMIT = 15_000  # truncate very long CVs before sending to LLM
+# Output budget for the structured re-parse. 15k chars in is roughly 4k tokens,
+# and the JSON restating them with keys and escaping is strictly larger — so the
+# ceiling has to sit comfortably above the input, not at it.
+_STRUCTURED_MAX_OUTPUT_TOKENS = 12_000
 _MIN_RAW_TEXT_LEN = 80        # below this we assume scanned / empty CV
 _MIN_VOWEL_RATIO = 0.15       # real text ≥ 35%; keyboard-smash is typically < 5%
 
@@ -593,7 +597,15 @@ async def reparse_structured_only(raw_text: str) -> dict | None:
         )},
     ]
     try:
-        raw = await get_llm_provider().complete(messages, max_tokens=4096, temperature=0)
+        # 4096 was too tight for the job it is given. The prompt asks for every
+        # bullet of every role VERBATIM from up to _CV_TEXT_CHAR_LIMIT (15k) chars
+        # of input, so a dense CV's JSON does not fit in 4k output tokens and
+        # arrives truncated — which reads downstream as "unparseable JSON", i.e.
+        # as a provider fault rather than a budget we set. Output must be able to
+        # exceed the input it is restructuring.
+        raw = await get_llm_provider().complete(
+            messages, max_tokens=_STRUCTURED_MAX_OUTPUT_TOKENS, temperature=0
+        )
     except LLMProviderError:
         logger.error("Structured re-parse: all providers failed")
         return None
@@ -608,11 +620,24 @@ async def reparse_structured_only(raw_text: str) -> dict | None:
 
     start = raw.find("{")
     if start < 0:
+        logger.warning(
+            "Structured re-parse: no JSON object in %d-char response; head=%r",
+            len(raw), raw[:200],
+        )
         return None
     try:
         parsed, _ = json.JSONDecoder().raw_decode(raw, start)
     except json.JSONDecodeError:
-        logger.warning("Structured re-parse: unparseable JSON")
+        # Log enough to tell the two causes apart without a second incident.
+        # A response that simply STOPS mid-structure is the output budget running
+        # out; one that ends with prose or a stray fence is the model ignoring the
+        # format. "unparseable JSON" alone forced that call to be guesswork.
+        logger.warning(
+            "Structured re-parse: unparseable JSON (%d chars, looks_truncated=%s) tail=%r",
+            len(raw),
+            not raw.rstrip().endswith("}"),
+            raw[-200:],
+        )
         return None
 
     if not isinstance(parsed, dict):

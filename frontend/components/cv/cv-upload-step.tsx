@@ -19,6 +19,13 @@ interface CVUploadStepProps {
   inputSource?: string
   /** Bytes-sent percentage of the in-flight transfer, when the caller has one. */
   progressPct?: number | null
+  /**
+   * Show the product-arc rail (Upload → Score → Tailor). True for the standalone
+   * CV Hub, where this IS the whole context. False inside onboarding, which has
+   * its own rail — rendering both put two different three-step models on two
+   * consecutive screens and made progress look like it reset.
+   */
+  showSteps?: boolean
   onUpload: (file: File) => void
   children?: ReactNode
 }
@@ -28,7 +35,7 @@ interface CVUploadStepProps {
  * flow and the direct CV Hub use this visual contract; their alternate paths
  * (description vs. anonymous paste) are supplied as children.
  */
-export function CVUploadStep({ busy, error = null, inputSource, progressPct = null, onUpload, children }: CVUploadStepProps) {
+export function CVUploadStep({ busy, error = null, inputSource, progressPct = null, showSteps = true, onUpload, children }: CVUploadStepProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [fileError, setFileError] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
@@ -56,7 +63,7 @@ export function CVUploadStep({ busy, error = null, inputSource, progressPct = nu
       <h1 id="cv-upload-title" className="text-balance text-3xl font-semibold tracking-normal text-[var(--tm-text)]">
         Upload your CV
       </h1>
-      <ol className="mt-4 grid grid-cols-3 gap-2" aria-label="What happens next">
+      {showSteps && <ol className="mt-4 grid grid-cols-3 gap-2" aria-label="What happens next">
         {STEPS.map((step, index) => {
           const current = index === 0
           return (
@@ -72,7 +79,7 @@ export function CVUploadStep({ busy, error = null, inputSource, progressPct = nu
             </li>
           )
         })}
-      </ol>
+      </ol>}
 
       <div
         className="mt-6"

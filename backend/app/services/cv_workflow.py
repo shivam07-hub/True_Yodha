@@ -788,26 +788,30 @@ async def _run_cv_upload_stages(
         )
         return
 
+    # The CV's visual LAYOUT (`cv_structured`). Deliberately not allowed to fail
+    # the upload: the skills are already extracted above, and skills are what the
+    # score, the review step and the whole of onboarding are built on. Layout is
+    # needed later, by the CV playground.
+    #
+    # `cv_structured = NULL` is a supported state — `get_or_backfill_cv_structured`
+    # exists precisely to rebuild it on first read. Failing the whole job here
+    # threw away a good analysis, refunded the user and sent them back to the
+    # upload screen because a *second* LLM call returned malformed JSON. That is
+    # what happened to a real signup twice in three minutes on 2026-08-03, on the
+    # same CV both times — a deterministic parse failure, retried as if transient.
     upload_jobs_repo.set_phase(job_id, "structuring_cv")
+    structured: dict | None
     try:
         structured = await cv_parser.reparse_structured_only(raw_text)
-    except Exception:  # provider library/network failure — transient
+    except Exception:  # provider library/network failure
         _log.exception("CV structure parse crashed for job=%s user=%s", job_id, user_id)
-        await _handle_job_failure(
-            job_id, user_id,
-            error_code="internal",
-            detail="Unexpected error while preparing your CV review. Your tokens have been refunded.",
-            transient=True, allow_retry=allow_retry,
-        )
-        return
+        structured = None
     if structured is None:
-        await _handle_job_failure(
+        _log.warning(
+            "metric cv_upload.layout_deferred job=%s user=%s — skills kept, layout "
+            "rebuilt in the background",
             job_id, user_id,
-            error_code="provider_unavailable",
-            detail="Our CV analysis service could not prepare your CV review. Your tokens have been refunded — please try again in a few minutes.",
-            transient=True, allow_retry=allow_retry,
         )
-        return
 
     # Claim before writing. Everything above was read-only against the job row;
     # this is the first irreversible write, and by now minutes of LLM work have
@@ -840,6 +844,19 @@ async def _run_cv_upload_stages(
             "llm_enrichment_failed": bool(parsed.get("llm_enrichment_failed", False)),
         },
     )
+
+    if structured is None:
+        # Finish the layout off the critical path. `cv_structured_enrich` was
+        # written for this and then never enqueued from anywhere — a deferred
+        # path that existed only as a handler, which is why a failed layout parse
+        # had nowhere to go but "fail the whole upload". BULK lane: the user is
+        # already through to their skills and is not waiting on this.
+        background.enqueue(
+            background.LANE_BULK,
+            "cv_structured_enrich",
+            payload={"raw_text": raw_text, "baseline_version_id": baseline_version_id},
+            correlation_id=f"structured:{baseline_version_id}",
+        )
 
 
 async def _fail_and_refund(

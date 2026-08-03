@@ -1,7 +1,20 @@
 import { Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-const STEPS = ["Check what we found", "Choose your direction", "See live roles"] as const
+/**
+ * One rail for the whole onboarding, including the upload screen it starts on.
+ *
+ * There used to be two. `/onboarding` showed "01 Upload your CV · 02 Get your
+ * Myro Score · 03 Tailor and apply" (the product arc, borrowed from the landing
+ * page) and `/onboarding/result` showed this one. So a user finished "Step 01",
+ * moved to the next screen, and found themselves on step 1 again — unfinished,
+ * differently numbered, differently worded. Progress appeared to reset.
+ *
+ * Labels are nouns, not verbs, because each has to stay true across the whole of
+ * its step: step 1 covers uploading the CV AND reviewing what was found in it,
+ * and "Check what we found" was a lie while the file was still uploading.
+ */
+const STEPS = ["Your CV", "Your direction", "Live roles"] as const
 
 export function JourneyProgress({ current }: { current: 1 | 2 | 3 }) {
   return (

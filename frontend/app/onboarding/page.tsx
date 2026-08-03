@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { MyroLogo } from "@/components/myro-logo"
 import { ExperienceStep } from "@/components/onboarding/experience-step"
+import { JourneyProgress } from "@/components/onboarding/journey-progress"
 import { Button } from "@/components/ui/button"
 import {
   beginCVUpload,
@@ -113,8 +114,12 @@ export default function OnboardingPage() {
           <MyroLogo size={25} /><span className="ml-2 text-base font-semibold">Myro</span>
         </div>
       </header>
-      <div className="mx-auto flex min-h-[calc(100dvh-80px)] max-w-5xl items-center justify-center px-5 py-8 sm:px-8">
-        <ExperienceStep busy={busy} error={error} progressPct={transferPct} onUpload={(file) => void handleUpload(file)} onDescribe={(description) => void handleDescription(description)} />
+      <div className="mx-auto flex min-h-[calc(100dvh-80px)] max-w-5xl flex-col px-5 py-6 sm:px-8 sm:py-8">
+        {/* Same rail, same component, same labels as /onboarding/result. */}
+        <JourneyProgress current={1} />
+        <div className="flex flex-1 items-center justify-center py-8">
+          <ExperienceStep busy={busy} error={error} progressPct={transferPct} onUpload={(file) => void handleUpload(file)} onDescribe={(description) => void handleDescription(description)} />
+        </div>
       </div>
     </main>
   )
