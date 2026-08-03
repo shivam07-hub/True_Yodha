@@ -398,7 +398,26 @@ def test_background_run_refunds_and_fails_on_provider_outage(monkeypatch) -> Non
     assert repo.created == []  # nothing persisted on failure
 
 
-def test_background_run_never_marks_done_without_reviewable_structure(monkeypatch) -> None:
+def test_background_run_completes_when_only_the_layout_is_unavailable(monkeypatch) -> None:
+    """SUPERSEDES `..._never_marks_done_without_reviewable_structure` (2026-08-03).
+
+    That test held the opposite line — a missing `cv_structured` failed the whole
+    intake — on the premise that an intake without layout is "unreviewable". That
+    premise no longer holds, in three places:
+
+      * the CV surfaces render `CvDocumentSkeleton` while layout is pending
+        (`app/(authed)/cv/page.tsx`, `library-view.tsx`), added by the
+        2026-08-02 blank-page fix;
+      * `get_or_backfill_cv_structured` rebuilds it on first read;
+      * `cv_structured_enrich` now actually gets enqueued to fill it in.
+
+    Meanwhile the cost of the old line was measured: a real signup lost a good
+    analysis twice in three minutes because the SECOND LLM call returned
+    malformed JSON. Onboarding needs skills, not layout.
+
+    The invariant is narrowed, not dropped: no skills still fails (see
+    `test_background_run_refunds_when_no_skills_extracted`).
+    """
     repo = _AdminFakeRepo()
     _patch_admin_repo(monkeypatch, repo)
 
@@ -414,22 +433,29 @@ def test_background_run_never_marks_done_without_reviewable_structure(monkeypatc
 
     monkeypatch.setattr(cv_workflow.cv_parser, "parse_cv_skills", _parse)
     monkeypatch.setattr(cv_workflow.cv_parser, "reparse_structured_only", _structure_unavailable)
+    monkeypatch.setattr(cv_workflow.upload_jobs_repo, "claim_for_completion", lambda _job_id: True)
 
-    async def _refund(*_args, **_kwargs):
-        return 3000
-
-    monkeypatch.setattr(cv_workflow, "refund", _refund)
-    failed_calls: list[dict] = []
+    done_calls: list[dict] = []
+    enqueued: list[str] = []
     monkeypatch.setattr(
         cv_workflow.upload_jobs_repo,
         "mark_failed",
-        lambda job_id, **kw: failed_calls.append({"job_id": job_id, **kw}),
+        lambda *_a, **_k: pytest.fail("a missing layout must not refund a good analysis"),
     )
     monkeypatch.setattr(
         cv_workflow.upload_jobs_repo,
         "mark_done",
-        lambda *_a, **_k: pytest.fail("an unreviewable intake must not be terminal success"),
+        lambda job_id, **kw: done_calls.append({"job_id": job_id, **kw}),
     )
+    monkeypatch.setattr(
+        cv_workflow.background, "enqueue",
+        lambda _lane, job_type, **_kw: enqueued.append(job_type),
+    )
+
+    async def _no_initial(_user_id, **_kw):
+        return None
+
+    monkeypatch.setattr(cv_workflow, "_trigger_initial_match_compute", _no_initial)
 
     asyncio.run(
         cv_workflow._run_cv_upload_job(
@@ -437,9 +463,13 @@ def test_background_run_never_marks_done_without_reviewable_structure(monkeypatc
         )
     )
 
-    assert repo.created == []
-    assert failed_calls[0]["error_code"] == "provider_unavailable"
-    assert failed_calls[0]["refunded"] is True
+    assert repo.created, "the baseline must still be written, with layout pending"
+    # The write spec normalizes a missing layout to `{}`; `get_or_backfill_cv_structured`
+    # treats an empty dict as "not parsed yet" and rebuilds it, so empty IS the
+    # pending state. Assert emptiness rather than `is None` to match that contract.
+    assert not repo.created[0].cv_structured
+    assert done_calls, "the user must reach skill review"
+    assert "cv_structured_enrich" in enqueued, "the layout gap must be queued to close"
 
 
 def test_background_run_refunds_when_no_skills_extracted(monkeypatch) -> None:
