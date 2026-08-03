@@ -124,3 +124,42 @@ def seniority_for_candidate_title(title: str) -> str:
         if pattern.search(title or "")
     ]
     return max(known, key=_SENIORITY_RANK.__getitem__) if known else ""
+
+
+def seniority_from_cv(baseline: dict | None) -> dict:
+    """The seniority band this CV implies, with the evidence for it.
+
+    ``{"value": band|None, "source": "experience_years"|"title"|"unknown",
+       "needs_choice": bool, ...evidence}``
+
+    One reader, two consumers, deliberately: the confirm-skills step scores the
+    CV against this band, and the direction step shows it as the pre-filled
+    answer. If they read it separately they would eventually disagree, and the
+    disagreement would surface as a Myro Score that changes for no visible
+    reason the moment the user accepts the level Myro suggested.
+
+    Never guesses. Unknown stays unknown (``needs_choice``) so the direction step
+    asks instead of inventing a band the CV does not support.
+    """
+    structured = (baseline or {}).get("cv_structured") or {}
+    contact = structured.get("contact") or {}
+    experience = [row for row in (structured.get("experience") or []) if isinstance(row, dict)]
+
+    years = total_experience_years([str(row.get("dates") or "") for row in experience])
+    if years is not None:
+        return {
+            "value": seniority_for_experience_years(years),
+            "years": round(years),
+            "source": "experience_years",
+            "needs_choice": False,
+        }
+
+    titles = [(contact.get("title") or "").strip()]
+    if experience:
+        titles.append(str(experience[0].get("role") or "").strip())
+    for title in titles:
+        level = seniority_for_candidate_title(title)
+        if level:
+            return {"value": level, "title": title, "source": "title", "needs_choice": False}
+
+    return {"value": None, "source": "unknown", "needs_choice": True}

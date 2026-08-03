@@ -282,19 +282,13 @@ def confirm_skills(
     body: SkillOverridesRequest,
     principal: Principal = Depends(get_principal),
 ) -> dict[str, Any]:
-    score = confirm_baseline_skills(
+    outcome = confirm_baseline_skills(
         get_supabase_admin(),
         principal.id,
         baseline_id,
         [item.model_dump() for item in body.overrides],
     )
-    if not score:
-        return {"status": "confirmed", "next": "target"}
-    return {
-        "status": "confirmed",
-        "next": "shortlist_processing",
-        "total_score": float(score["total_score"]),
-    }
+    return {"status": "confirmed", **outcome}
 
 
 @router.post("/first-role")
