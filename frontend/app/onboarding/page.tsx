@@ -19,6 +19,7 @@ export default function OnboardingPage() {
   const resolved = useRef(false)
   const [entryMode, setEntryMode] = useState<"flow" | "completed">("flow")
   const [busy, setBusy] = useState(false)
+  const [transferPct, setTransferPct] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   // Resolve the entry destination ONCE from the first fetch (Slice 1 fix — do
@@ -40,8 +41,9 @@ export default function OnboardingPage() {
     if (!token) return
     setBusy(true)
     setError(null)
+    setTransferPct(0)
     try {
-      const { initial } = await beginCVUpload(token, file)
+      const { initial } = await beginCVUpload(token, file, "pdf_upload", setTransferPct)
       const jobId = initial.status === "processing" ? initial.job_id : null
       await onboarding.saveExperience(token, {
         entry_mode: "uploaded_cv",
@@ -53,6 +55,7 @@ export default function OnboardingPage() {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "The CV could not be accepted.")
       setBusy(false)
+      setTransferPct(null)
     }
   }
 
@@ -111,7 +114,7 @@ export default function OnboardingPage() {
         </div>
       </header>
       <div className="mx-auto flex min-h-[calc(100dvh-80px)] max-w-5xl items-center justify-center px-5 py-8 sm:px-8">
-        <ExperienceStep busy={busy} error={error} onUpload={(file) => void handleUpload(file)} onDescribe={(description) => void handleDescription(description)} />
+        <ExperienceStep busy={busy} error={error} progressPct={transferPct} onUpload={(file) => void handleUpload(file)} onDescribe={(description) => void handleDescription(description)} />
       </div>
     </main>
   )

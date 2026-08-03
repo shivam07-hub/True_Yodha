@@ -44,6 +44,7 @@ from app.security import (
     install_security_headers,
     install_sensitive_log_filter,
 )
+from app.services.background import registry as background_registry  # noqa: F401
 from app.services.job_feed.taxonomy import JobFeedTaxonomyMismatchError, verify_taxonomy_integrity
 
 # Server-lifecycle channel. The app namespace has no handler of its own, so

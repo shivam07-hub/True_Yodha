@@ -11,15 +11,14 @@ backoff ladder) actually fire.
 
 from __future__ import annotations
 
+import logging
+
 from rq import Connection, Worker
 
-# Importing the handler modules registers their @background.handler functions in
-# the dispatch registry inside THIS process — without these imports the Runner
-# would receive a job_type it has no handler for.
-import app.services.career_reservoir  # noqa: F401  (story_ingest)
-import app.services.cv_skill_edit  # noqa: F401  (skill_retag)
-import app.services.cv_workflow  # noqa: F401  (cv_upload_analysis, initial_match)
-import app.services.matching.scrape_sweep  # noqa: F401  (scrape_match_recompute)
+# Registers every @background.handler in THIS process. The list lives in the
+# registry module, shared with the web process, because this entrypoint used to
+# keep its own copy and silently fell behind it (see registry's docstring).
+from app.services.background import registry
 from app.services.background.dispatch import LANE_BULK, LANE_FAST
 from app.services.job_refresh._redis_state import get_redis_connection, queue_name
 from app.security import install_sensitive_log_filter
@@ -27,6 +26,12 @@ from app.security import install_sensitive_log_filter
 
 def run() -> None:
     install_sensitive_log_filter()
+    # Boot receipt: the Runner states what it can actually run. A job type
+    # missing from this line is a job the queue will hand over and this process
+    # will reject — cheaper to read here than to infer from a stalled user.
+    logging.getLogger("uvicorn.error").info(
+        "worker boot handlers=%s", ",".join(sorted(registry.registered_job_types()))
+    )
     connection = get_redis_connection()
     # Priority order: fast lane (a user is waiting) → bulk → legacy refresh queue
     # (until Job Refresh is ported onto the generalized seam).

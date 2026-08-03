@@ -45,10 +45,14 @@ class TargetRequest(BaseModel):
     role_title: str | None = Field(default=None, min_length=2, max_length=120)
     role_titles: list[str] | None = Field(default=None, max_length=5)
     role_family: str | None = Field(default=None, min_length=2, max_length=200)
+    role_families: list[str] | None = Field(default=None, max_length=5)
     # Optional so a point-of-use "edit role" (issue #145) can change only the
     # role(s); save_target preserves the user's existing seniority/location.
     seniority: Seniority | None = None
     location: str | None = Field(default=None, min_length=2, max_length=160)
+    # Plural form. `[]` is a real answer ("Anywhere"), distinct from omitting the
+    # field, which means "leave my saved locations alone".
+    locations: list[str] | None = Field(default=None, max_length=5)
 
     @model_validator(mode="after")
     def _require_a_role(self) -> "TargetRequest":
@@ -159,8 +163,10 @@ def save_target(
         role_title=body.role_title,
         role_titles=body.role_titles,
         role_family=body.role_family,
+        role_families=body.role_families,
         seniority=body.seniority,
         location=body.location,
+        locations=body.locations,
     )
 
 

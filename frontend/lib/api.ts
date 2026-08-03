@@ -628,10 +628,14 @@ export interface OnboardingTarget {
   role_titles?: string[]
   /** Canonical corpus family chosen with the rendered title. */
   role_family?: string
+  role_families?: string[]
   // Optional for point-of-use "edit role" (issue #145): omit to keep the user's
   // existing seniority/location; the backend preserves them via save_target.
   seniority?: TargetSeniority
   location?: string
+  // Plural form. `[]` is a real answer ("Anywhere"); omitting the field
+  // means "leave my saved locations alone".
+  locations?: string[]
 }
 
 export interface RoleReadiness {
@@ -681,13 +685,17 @@ export type OnboardingResult =
       primary_action: { kind: "build_baseline"; label: string }
       secondary_action: { kind: "upload_cv"; label: string }
     }
-  | { kind: "full_result_processing"; target: OnboardingTarget; phase: string }
+  // journey_step is authored by the backend: `full_result_processing` covers BOTH
+  // the first CV read (step 1) and the post-target score wait (step 3), so the
+  // kind alone cannot place the progress rail.
+  | { kind: "full_result_processing"; target: OnboardingTarget; phase: string; journey_step?: 1 | 2 | 3 }
   | { kind: "first_role_saved"; job_id: string; title: string; company: string; tailor_href: string }
   | { kind: "terminal_failure"; target: OnboardingTarget; error_code?: string; message?: string; xp_refunded: boolean }
   | {
       kind: "awaiting_skill_confirmation"
       baseline_version_id: number
       skills: OnboardingProofSkill[]
+      journey_step?: 1 | 2 | 3
     }
   | {
       // A target must exist before Myro renders a score cohort.
@@ -695,6 +703,7 @@ export type OnboardingResult =
       baseline_version_id: number
       families: RoleFamily[]
       seniority: { value: TargetSeniority | null; years?: number; title?: string; source: "experience_years" | "title" | "unknown"; needs_choice: boolean }
+      journey_step?: 1 | 2 | 3
     }
   | {
       kind: "full_result_ready"
@@ -738,7 +747,10 @@ export const onboarding = {
   roleFamilies: (token: string, query?: string) => request<RoleFamily[]>(`/roles/families${query ? `?query=${encodeURIComponent(query)}` : ""}`, {
     headers: { Authorization: `Bearer ${token}` },
   }),
-  roleFamilyLocations: (token: string, family: string, query?: string) => request<RoleFamilyLocation[]>(`/roles/families/${encodeURIComponent(family)}/locations${query ? `?query=${encodeURIComponent(query)}` : ""}`, {
+  // family goes in the QUERY, never a path segment: real family names contain
+  // slashes ("… (AI/ML)") and uvicorn unquotes %2F before routing, which split
+  // the path and 404'd. See backend app/routers/roles.py.
+  roleFamilyLocations: (token: string, family: string, query?: string) => request<RoleFamilyLocation[]>(`/roles/family-locations?family=${encodeURIComponent(family)}${query ? `&query=${encodeURIComponent(query)}` : ""}`, {
     headers: { Authorization: `Bearer ${token}` },
   }),
   result: (token: string) => request<OnboardingResult>("/onboarding/result", {
@@ -1978,6 +1990,11 @@ export async function beginCVUpload(
   token: string,
   file: File,
   source: CVUploadSource = "pdf_upload",
+  // Real bytes-sent percentage from the resumable transfer. The upload screen
+  // shows it because the transfer is the multi-second part the user actually
+  // waits through, and a static "Reading your CV…" over it reads as a hang.
+  // Absent on the multipart fallback, which has no progress to report.
+  onTransferProgress?: (pct: number) => void,
 ): Promise<{ initial: CVUploadResponse; file: File }> {
   const idempotencyKey = readCVUploadIdempotencyKey() ?? createCVUploadIdempotencyKey()
   persistCVUploadIdempotencyKey(idempotencyKey)
@@ -1989,7 +2006,7 @@ export async function beginCVUpload(
   await stashPendingCVUpload({ file: safeFile, source, idempotencyKey, ownerSub: jwtSub(token) })
   let initial: CVUploadResponse
   try {
-    initial = await _transferCV(token, safeFile, idempotencyKey, source)
+    initial = await _transferCV(token, safeFile, idempotencyKey, source, onTransferProgress)
   } catch (err) {
     const retryable = err instanceof CVUploadFailureBase ? err.retryable : false
     if (!retryable) await clearPendingCVUpload()
@@ -2203,6 +2220,7 @@ async function _transferCV(
   file: File,
   idempotencyKey: string,
   source: CVUploadSource = "pdf_upload",
+  onTransferProgress?: (pct: number) => void,
 ): Promise<CVUploadResponse> {
   const sub = jwtSub(token)
   if (resumableUploadSupported() && sub) {
@@ -2213,7 +2231,7 @@ async function _transferCV(
     _emitCVUploadTelemetry(token, { phase: "put", outcome: "started", attempt: 1, ...meta })
     let stored = false
     try {
-      await uploadCVToStorage({ token, file, objectPath })
+      await uploadCVToStorage({ token, file, objectPath, onProgress: onTransferProgress })
       stored = true
       _emitCVUploadTelemetry(token, { phase: "put", outcome: "succeeded", attempt: 1, ...meta })
     } catch (err) {

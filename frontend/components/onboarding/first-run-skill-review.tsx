@@ -1,7 +1,6 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Check, FileCheck2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { trackEvent } from "@/lib/analytics"
 import { proofTier, PROOF_TIER_COPY, type ProofTier } from "@/lib/cv/skill-proof"
@@ -23,12 +22,11 @@ export function FirstRunSkillReview({ token, result, onConfirmed }: Props) {
     skills: result.skills.filter((skill) => proofTier(skill.evidence, skill.name) === tier),
   })).filter((group) => group.skills.length > 0), [result.skills])
 
-  function toggle(key: string) {
+  function mutate(fn: (next: Set<string>) => void) {
     setError(null)
     setRemoved((current) => {
       const next = new Set(current)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
+      fn(next)
       return next
     })
   }
@@ -52,72 +50,87 @@ export function FirstRunSkillReview({ token, result, onConfirmed }: Props) {
   }
 
   return (
-    <section className="w-full" aria-labelledby="skill-review-title">
-      <div className="max-w-2xl">
-        <p className="text-sm font-semibold text-[var(--tm-interactive)]">Step 1 of 3</p>
-        <h1 id="skill-review-title" className="mt-2 text-balance text-3xl font-semibold text-[var(--tm-text)] sm:text-4xl">
-          Check what Myro found
-        </h1>
-        <p className="mt-3 max-w-xl text-pretty text-sm leading-6 text-[var(--tm-text-muted)] sm:text-base">
-          Keep only skills that are truly yours. Each one stays connected to the CV evidence Myro read.
-        </p>
-      </div>
+    <section className="w-full max-w-2xl pb-28" aria-labelledby="skill-review-title">
+      <p className="text-sm font-semibold text-[var(--tm-interactive)]">Step 1 of 3</p>
+      <h1 id="skill-review-title" className="mt-2 text-balance text-3xl font-semibold text-[var(--tm-text)]">
+        Check what Myro found
+      </h1>
+      {/* One line at body size. The old two-clause subtitle at sm:text-base
+          competed with the h1 and restated what the checkboxes already show. */}
+      <p className="mt-2 text-sm leading-6 text-[var(--tm-text-muted)]">
+        Untick anything that isn&apos;t yours.
+      </p>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
-        <div className="space-y-6">
-          {groups.map(({ tier, skills }) => (
+      <div className="mt-7 space-y-7">
+        {groups.map(({ tier, skills }) => {
+          const keys = skills.map((skill) => skill.taxonomy_key)
+          const allRemoved = keys.every((key) => removed.has(key))
+          return (
             <fieldset key={tier}>
-              <legend className="mb-2 flex items-baseline gap-2 text-sm font-semibold text-[var(--tm-text)]">
-                {PROOF_TIER_COPY[tier].label}
-                <span className="font-normal tabular-nums text-[var(--tm-text-faint)]">{skills.length}</span>
-              </legend>
-              <div className="space-y-2">
+              <div className="flex items-baseline justify-between gap-4 border-b border-[var(--tm-border-soft)] pb-2">
+                <legend className="flex items-baseline gap-2">
+                  <span className="text-sm font-semibold text-[var(--tm-text)]">{PROOF_TIER_COPY[tier].label}</span>
+                  <span className="font-mono text-xs tabular-nums text-[var(--tm-text-faint)]">{skills.length}</span>
+                </legend>
+                {/* 14 keyword-inferred skills is a bulk decision, not 14 decisions. */}
+                <button
+                  type="button"
+                  onClick={() => mutate((next) => keys.forEach((key) => (allRemoved ? next.delete(key) : next.add(key))))}
+                  className="tm-control-focus shrink-0 rounded text-xs text-[var(--tm-text-muted)] underline underline-offset-4"
+                >
+                  {allRemoved ? "Keep all" : "Remove all"}
+                </button>
+              </div>
+
+              <div className="mt-1 divide-y divide-[var(--tm-border-soft)]">
                 {skills.map((skill) => {
                   const excluded = removed.has(skill.taxonomy_key)
+                  // Tier `none` evidence is the skill's own name repeated back
+                  // (see lib/cv/skill-proof.ts). Printing it under the name is
+                  // noise dressed as a receipt.
+                  const receipt = tier === "none" ? null : skill.evidence
                   return (
                     <label
                       key={skill.taxonomy_key}
                       className={cn(
-                        "flex min-h-14 cursor-pointer items-start gap-3 rounded-lg border bg-[var(--tm-surface)] p-4",
-                        excluded ? "border-[var(--tm-border-soft)] opacity-60" : "border-[var(--tm-border)]",
+                        "flex min-h-11 cursor-pointer items-center gap-3 py-2.5",
+                        excluded && "opacity-45",
                       )}
                     >
                       <input
                         type="checkbox"
                         checked={!excluded}
-                        onChange={() => toggle(skill.taxonomy_key)}
-                        className="tm-control-focus mt-0.5 size-5 shrink-0 accent-[var(--tm-interactive)]"
+                        onChange={() => mutate((next) => (excluded ? next.delete(skill.taxonomy_key) : next.add(skill.taxonomy_key)))}
+                        className="tm-control-focus size-4 shrink-0 accent-[var(--tm-interactive)]"
                       />
-                      <span className="min-w-0">
-                        <span className={cn("block font-medium text-[var(--tm-text)]", excluded && "line-through")}>{skill.name}</span>
-                        {skill.evidence && <span className="mt-1 block text-pretty text-sm leading-5 text-[var(--tm-text-muted)]">“{skill.evidence}”</span>}
+                      <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                        <span className={cn("text-sm font-medium text-[var(--tm-text)]", excluded && "line-through")}>{skill.name}</span>
+                        {receipt && (
+                          <span className="min-w-0 truncate text-xs leading-5 text-[var(--tm-text-muted)]">{receipt}</span>
+                        )}
                       </span>
                     </label>
                   )
                 })}
               </div>
             </fieldset>
-          ))}
-        </div>
-
-        <aside className="h-fit rounded-lg border border-[var(--tm-border-soft)] bg-[var(--tm-surface)] p-5 lg:sticky lg:top-8">
-          <FileCheck2 className="size-5 text-[var(--tm-interactive)]" aria-hidden="true" />
-          <p className="mt-3 text-sm font-semibold text-[var(--tm-text)]">Your evidence stays editable</p>
-          <p className="mt-2 text-pretty text-sm leading-6 text-[var(--tm-text-muted)]">
-            You can correct these skills later from your Main CV.
-          </p>
-          <p className="mt-4 flex items-center gap-2 text-sm font-medium text-[var(--tm-text)]">
-            <Check className="size-4 text-[var(--tm-success)]" aria-hidden="true" />
-            <span className="tabular-nums">{keptCount} kept</span>
-          </p>
-        </aside>
+          )
+        })}
       </div>
 
-      <div className="mt-8 border-t border-[var(--tm-border-soft)] pt-5">
-        {error && <p role="alert" className="mb-3 text-sm text-[var(--tm-danger)]">{error}</p>}
-        <Button size="lg" className="min-h-12 w-full sm:w-auto" disabled={busy || keptCount < 1} onClick={() => void confirm()}>
-          {busy ? "Saving your skills…" : keptCount < 1 ? "Keep at least one skill" : `These ${keptCount} skills look right → Choose my direction`}
-        </Button>
+      {/* The count and the action belong together: the number IS the thing being
+          confirmed, so it stopped being a separate card in the margin. */}
+      <div className="fixed inset-x-0 bottom-0 z-10 border-t border-[var(--tm-border-soft)] bg-[var(--tm-bg)]/95 backdrop-blur">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-5 py-3 sm:px-8">
+          <p className="text-sm text-[var(--tm-text-muted)]">
+            <span className="font-semibold tabular-nums text-[var(--tm-text)]">{keptCount}</span> kept
+            {removed.size > 0 && <span className="tabular-nums"> · {removed.size} removed</span>}
+          </p>
+          <Button size="lg" className="min-h-12 flex-1 sm:flex-none" disabled={busy || keptCount < 1} onClick={() => void confirm()}>
+            {busy ? "Saving…" : keptCount < 1 ? "Keep at least one" : "Looks right →"}
+          </Button>
+        </div>
+        {error && <p role="alert" className="mx-auto max-w-5xl px-5 pb-3 text-sm text-[var(--tm-danger)] sm:px-8">{error}</p>}
       </div>
     </section>
   )

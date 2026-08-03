@@ -53,7 +53,7 @@ export default function OnboardingResultPage() {
         <Button size="lg" className="mt-6" onClick={() => void result.refetch()}>Try again</Button>
       </section>
     )
-    if (!result.data || result.data.kind === "full_result_processing") return <AnalysisProgress phase={result.data?.phase ?? "queued"} />
+    if (!result.data || result.data.kind === "full_result_processing") return <AnalysisProgress phase={result.data?.phase ?? "queued"} onRetry={() => void result.refetch()} />
     if (result.data.kind === "profile_preview") return <ProfilePreview result={result.data} onBuild={() => setGeneratorOpen(true)} onUpload={() => void resetToUpload()} />
     if (result.data.kind === "first_role_saved") return <FirstRoleSuccess title={result.data.title} company={result.data.company} tailorHref={result.data.tailor_href} />
     if (result.data.kind === "awaiting_skill_confirmation") return <FirstRunSkillReview token={token} result={result.data} onConfirmed={() => void result.refetch()} />
@@ -69,13 +69,15 @@ export default function OnboardingResultPage() {
     return <FullResult token={token} result={result.data} onAdjust={async () => { await onboarding.resetTarget(token); await result.refetch() }} />
   })()
 
-  const journeyStep = result.data?.kind === "awaiting_skill_confirmation"
-    ? 1
-    : result.data?.kind === "awaiting_target"
-      ? 2
-      : result.data?.kind === "full_result_processing" || result.data?.kind === "full_result_ready" || result.data?.kind === "first_role_saved"
-        ? 3
-        : null
+  // The backend authors the step. It has to: `full_result_processing` is both
+  // the first CV read (nothing checked, nothing chosen) and the post-target
+  // score wait, and mapping that one kind to 3 ticked off two steps the user
+  // had never reached. Fall back only for kinds that are unambiguously the end.
+  const journeyStep = result.data && "journey_step" in result.data && result.data.journey_step
+    ? result.data.journey_step
+    : result.data?.kind === "full_result_ready" || result.data?.kind === "first_role_saved"
+      ? 3
+      : null
 
   return (
     <main className="min-h-dvh bg-[var(--tm-bg)] text-[var(--tm-text)]">

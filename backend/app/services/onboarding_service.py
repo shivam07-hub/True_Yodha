@@ -65,7 +65,42 @@ def _normalize_role_titles(
     return titles[:MAX_TARGET_ROLES]
 
 
-def role_title_updates(role_titles: list[str], *, role_family: str | None = None) -> dict[str, Any]:
+def _normalize_locations(
+    location: str | None, locations: list[str] | None
+) -> list[str]:
+    """De-duplicated, order-preserving city list from the singular-or-plural input.
+
+    An empty list is meaningful — it is "Anywhere", the user's explicit choice to
+    drop every city filter — so it is never conflated with "not supplied".
+    """
+    raw = locations if locations is not None else ([location] if location else [])
+    seen: list[str] = []
+    for value in raw:
+        cleaned = (value or "").strip()
+        if cleaned and cleaned not in seen:
+            seen.append(cleaned)
+    return seen[:5]
+
+
+def _normalize_families(
+    role_family: str | None, role_families: list[str] | None
+) -> list[str]:
+    """De-duplicated, order-preserving family list from the singular-or-plural input."""
+    raw = role_families if role_families is not None else ([role_family] if role_family else [])
+    seen: list[str] = []
+    for value in raw:
+        cleaned = (value or "").strip()
+        if cleaned and cleaned not in seen:
+            seen.append(cleaned)
+    return seen[:5]
+
+
+def role_title_updates(
+    role_titles: list[str],
+    *,
+    role_family: str | None = None,
+    role_families: list[str] | None = None,
+) -> dict[str, Any]:
     """Derived column set for a target-titles edit — the write-anywhere half of
     `save_target` (no onboarding state patch, no location rewrite, no enqueue).
 
@@ -79,7 +114,7 @@ def role_title_updates(role_titles: list[str], *, role_family: str | None = None
     return {
         "target_role_title": titles[0],
         "target_role_titles": titles,
-        "target_roles": [role_family.strip()] if role_family and role_family.strip() else [],
+        "target_roles": _normalize_families(role_family, role_families),
     }
 
 
@@ -90,8 +125,10 @@ def save_target(
     role_title: str | None = None,
     role_titles: list[str] | None = None,
     role_family: str | None = None,
+    role_families: list[str] | None = None,
     seniority: str | None = None,
     location: str | None = None,
+    locations: list[str] | None = None,
 ) -> None:
     """Canonical target-role write (issue #145 · multi-role, User Memory Phase 0).
 
@@ -102,6 +139,11 @@ def save_target(
     label. A point-of-use edit may supply either `role_title` or `role_titles`.
     Omitted `seniority`/`location` are preserved so a role-only edit never wipes
     them. Requires the `target_role_titles` column (migration 20260706).
+
+    Locations are plural for the same reason roles are: `target_locations` is
+    already an array end-to-end (`user_target_locations` → `build_location_scope`
+    ORs across cities), so the singular `location` was a narrowing that lived
+    only in this write path and the picker above it.
     """
     titles = _normalize_role_titles(role_title, role_titles)
     if not titles:
@@ -109,15 +151,15 @@ def save_target(
 
     users_repo = UsersRepository(db)
     profile = users_repo.get_profile(user_id) or {}
-    if seniority is None or location is None:
-        if seniority is None:
-            seniority = profile.get("target_seniority") or "any"
-        if location is None:
-            existing_locations = profile.get("target_locations") or []
-            location = (existing_locations[0] if existing_locations else None) or (
-                profile.get("target_location") or ""
-            )
-    updates = role_title_updates(titles, role_family=role_family)
+    if seniority is None:
+        seniority = profile.get("target_seniority") or "any"
+    chosen_locations = _normalize_locations(location, locations)
+    if location is None and locations is None:
+        # Neither form supplied → a role-only edit. Keep what they already chose.
+        chosen_locations = [
+            str(value).strip() for value in (profile.get("target_locations") or []) if str(value).strip()
+        ] or ([profile["target_location"]] if profile.get("target_location") else [])
+    updates = role_title_updates(titles, role_family=role_family, role_families=role_families)
     if not updates["target_roles"]:
         # Point-of-use role edits predate corpus families. Preserve their current
         # feed read model rather than inventing a family from the edited title.
@@ -133,7 +175,7 @@ def save_target(
         {
             **updates,
             "target_seniority": target_seniority_for_profile({"target_seniority": seniority}),
-            "target_locations": [location.strip()] if location else [],
+            "target_locations": chosen_locations,
         },
     )
     OnboardingRepository(db).patch_state(
@@ -144,7 +186,11 @@ def save_target(
         background.LANE_FAST,
         "onboarding_target_refresh",
         payload={"user_id": user_id},
-        correlation_id=f"target:{user_id}:{'|'.join(titles)}:{seniority}:{location}",
+        # Idempotency key must reflect the choice actually written, or a user who
+        # only changes cities re-uses the previous job id and their edit is a no-op.
+        correlation_id=(
+            f"target:{user_id}:{'|'.join(titles)}:{seniority}:{','.join(chosen_locations)}"
+        ),
     )
 
 
@@ -358,10 +404,15 @@ def get_result(db: Client, user_id: str) -> dict[str, Any]:
                 "message": job.get("error_detail"),
                 "xp_refunded": bool(job.get("xp_refunded")),
             }
+        # Step 1. The CV is still being read, so nothing has been checked and no
+        # direction chosen — the progress rail must not tick those off. It did,
+        # because the frontend mapped every `full_result_processing` to step 3,
+        # and this branch and the post-target one share the kind.
         return {
             "kind": "full_result_processing",
             "target": target,
             "phase": (job or {}).get("current_phase") or "queued",
+            "journey_step": 1,
         }
 
     if not baseline.get("skills_confirmed_at"):
@@ -369,6 +420,7 @@ def get_result(db: Client, user_id: str) -> dict[str, Any]:
             "kind": "awaiting_skill_confirmation",
             "baseline_version_id": int(baseline["id"]),
             "skills": _candidate_skills(ScoresRepository(db), baseline),
+            "journey_step": 1,
         }
 
     if not has_target:
@@ -377,14 +429,17 @@ def get_result(db: Client, user_id: str) -> dict[str, Any]:
             "baseline_version_id": int(baseline["id"]),
             "families": RoleFamiliesRepository(db).list_families(user_id),
             "seniority": _seniority_suggestion(baseline),
+            "journey_step": 2,
         }
 
     score = ScoresRepository(db).get_mirror_score(user_id)
     if not score:
         return {
+            # Step 3: skills checked, direction chosen — only the score is left.
             "kind": "full_result_processing",
             "target": target,
             "phase": "scoring",
+            "journey_step": 3,
         }
 
     context_hash = target_context_hash(
