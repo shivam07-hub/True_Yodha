@@ -9,17 +9,18 @@ import { Button } from "@/components/ui/button"
 interface Props {
   busy: boolean
   error: string | null
+  progressPct?: number | null
   onUpload: (file: File) => void
   onDescribe: (description: string) => void
 }
 
-export function ExperienceStep({ busy, error, onUpload, onDescribe }: Props) {
+export function ExperienceStep({ busy, error, progressPct = null, onUpload, onDescribe }: Props) {
   const [describing, setDescribing] = useState(false)
   const [description, setDescription] = useState("")
   const words = description.trim().split(/\s+/).filter(Boolean).length
 
   return (
-    <CVUploadStep busy={busy} error={error} inputSource="onboarding_upload" onUpload={onUpload}>
+    <CVUploadStep busy={busy} error={error} progressPct={progressPct} inputSource="onboarding_upload" onUpload={onUpload}>
       {describing && (
         <div className="mt-5">
           <label htmlFor="experience-description" className="text-sm font-medium text-[var(--tm-text)]">Describe your experience instead</label>
