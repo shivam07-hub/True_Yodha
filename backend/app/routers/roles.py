@@ -36,12 +36,18 @@ def list_families(
     )
 
 
-@router.get("/families/{family}/locations", response_model=list[RoleLocation])
+@router.get("/family-locations", response_model=list[RoleLocation])
 def list_locations(
-    family: str,
+    family: str = Query(min_length=1, max_length=200),
     query: str | None = Query(default=None, min_length=2, max_length=120),
     principal: Principal = Depends(get_principal),
 ) -> list[dict[str, object]]:
+    # `family` is a QUERY parameter, not a path segment, because corpus family
+    # names contain slashes — "Artificial Intelligence and Machine Learning
+    # (AI/ML)" is a real one. A client encodes that to %2F, but uvicorn unquotes
+    # the path before Starlette routes it, so the segment split back into
+    # .../(AI/ML)/locations and matched nothing: every AI/ML user got a 404 and
+    # an empty location picker. A query value survives the same round-trip.
     # Authentication makes corpus search attributable; the data remains sourced
     # solely from verifier-active jobs, never user input.
     del principal
