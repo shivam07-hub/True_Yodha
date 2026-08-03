@@ -8,7 +8,6 @@ import { subscribeToSessionChanges } from "@/lib/session"
 import { getStoredReferral } from "@/lib/referral"
 import { SignupForm } from "./signup-form"
 import { LoginForm } from "./login-form"
-import { OnboardingJourneyStrip, isJourneyDone } from "@/components/onboarding/journey-strip"
 import "./signup-modal.css"
 
 const CONCEPTS: Array<{ title: string; body: string }> = [
@@ -116,9 +115,6 @@ export function SignupModal() {
         </button>
 
         <div className="tm-signup-modal__main">
-          {!isLogin && !isJourneyDone() && (
-            <OnboardingJourneyStrip currentStep={1} compact />
-          )}
           <span className="tm-signup-modal__crumb">
             <span className="tm-signup-modal__crumb-dot" />
             {isLogin ? "Sign in" : "Sign up · 30 seconds"}

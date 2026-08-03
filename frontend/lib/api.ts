@@ -658,6 +658,12 @@ export interface FirstSuccessChecklist {
   items: Array<{ id: string; label: string; href: string; done: boolean }>
 }
 
+export interface FirstRoleReceipt {
+  status: "saved"
+  job_id: string
+  tailor_href: string
+}
+
 export interface OnboardingProofSkill {
   taxonomy_key: string
   name: string
@@ -676,6 +682,7 @@ export type OnboardingResult =
       secondary_action: { kind: "upload_cv"; label: string }
     }
   | { kind: "full_result_processing"; target: OnboardingTarget; phase: string }
+  | { kind: "first_role_saved"; job_id: string; title: string; company: string; tailor_href: string }
   | { kind: "terminal_failure"; target: OnboardingTarget; error_code?: string; message?: string; xp_refunded: boolean }
   | {
       kind: "awaiting_skill_confirmation"
@@ -722,6 +729,9 @@ export const onboarding = {
   saveTarget: (token: string, body: OnboardingTarget) => request<void>("/onboarding/target", {
     method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(body),
   }),
+  resetTarget: (token: string) => request<void>("/onboarding/target", {
+    method: "DELETE", headers: { Authorization: `Bearer ${token}` },
+  }),
   roleReadiness: (token: string) => request<RoleReadiness[]>("/onboarding/role-readiness", {
     headers: { Authorization: `Bearer ${token}` },
   }),
@@ -759,11 +769,14 @@ export const onboarding = {
   confirmSkills: (token: string, baselineId: number, overrides: Array<{
     skill_id?: number; taxonomy_key?: string
     action: "include" | "exclude"; evidence_text?: string; source_location?: Record<string, unknown>
-  }>) => request<{ status: "done"; total_score: number }>(`/onboarding/baseline/${baselineId}/confirm-skills`, {
+  }>) => request<
+    | { status: "confirmed"; next: "target" }
+    | { status: "confirmed"; next: "shortlist_processing"; total_score: number }
+  >(`/onboarding/baseline/${baselineId}/confirm-skills`, {
     method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ overrides }),
   }),
-  complete: (token: string) => request<void>("/onboarding/complete", {
-    method: "POST", headers: { Authorization: `Bearer ${token}` },
+  commitFirstRole: (token: string, jobId: string) => request<FirstRoleReceipt>("/onboarding/first-role", {
+    method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ job_id: jobId }),
   }),
   activate: (token: string, activationKind: "tailor_credible_job" | "review_score_gap" | "save_credible_job") =>
     request<void>("/onboarding/activate", {

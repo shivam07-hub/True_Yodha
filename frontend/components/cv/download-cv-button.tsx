@@ -5,7 +5,7 @@
  * structured CV in a hidden mount and exports its outerHTML through the same
  * /cv/export-pdf Chromium path as the playground export — one renderer, every
  * surface. Self-contained (inline SVG) so it mounts on both the authed /cv
- * surface and the onboarding StepScore surface. Honors the 10-min North Star:
+ * surface and any future onboarding download surface. Honors the 10-min North Star:
  * a parsed master CV is downloadable immediately, no tailoring.
  */
 "use client"

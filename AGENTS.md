@@ -14,6 +14,44 @@
 
 ## LAST SESSION SUMMARY
 
+### 2026-08-03 — Focused first-run onboarding journey
+
+- First-time candidates now stay in one server-driven three-step journey:
+  confirm CV evidence, choose a target direction, then select one of up to
+  three live roles. The CV editor no longer owns onboarding confirmation, and
+  the competing Done, score, and global tailoring actions are gone.
+- Skill confirmation no longer crashes when a target-dependent score does not
+  exist. It advances to direction selection; onboarding completes only after
+  the selected live role is durably saved, with an idempotent receipt that
+  survives reload before tailoring becomes available.
+- Removed the superseded five-step signup strip, onboarding score reveal, and
+  other zero-reference onboarding components. Full backend tests pass (1,777),
+  as do frontend tests (557), TypeScript, lint, and UI-drift checks. The local
+  `agent-browser` executable remains unavailable, so no authenticated browser
+  screenshot check was claimed.
+
+### 2026-08-03 — First-party browse tab keeps the active session
+
+- The new-tab “Browse jobs while Myro works” controls no longer apply
+  `noopener`, which had deliberately removed the opener and therefore the
+  browser's initial tab-scoped session copy. Each first-party `/market` tab
+  now starts authenticated while the upload continues in its original tab.
+- The destination immediately clears `window.opener` after that one-time
+  handoff; external links retain their `noopener noreferrer` protection.
+- Frontend tests (541), TypeScript, lint, and UI-drift checks pass.
+
+### 2026-08-03 — Canonical CV upload entry surface
+
+- The direct pre-signup CV Hub (`/cv-preview`) and post-signup onboarding now
+  render the same `CVUploadStep`: the three-step path, file affordance, size
+  contract, preflight validation, and error placement cannot drift apart.
+- The anonymous entry retains its safe differences below the shared surface:
+  paste-CV fallback, open-in-new-tab job browsing, and disclosure that a CV is
+  saved only if the visitor creates an account.
+- Frontend tests (540), TypeScript, lint, and UI-drift checks pass. The local
+  `agent-browser` executable is unavailable, so no browser screenshot check
+  was claimed.
+
 ### 2026-08-02 — Durable CV intake and finite loading recovery
 
 - CV upload now has one canonical `cv_upload_analysis` workflow: extraction and

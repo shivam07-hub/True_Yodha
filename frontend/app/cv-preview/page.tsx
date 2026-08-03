@@ -19,9 +19,11 @@ import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
-import { LandingDropzone } from "@/components/public/landing/dropzone"
+import { CVUploadStep } from "@/components/cv/cv-upload-step"
 import { ScoringConsole } from "@/components/public/cv-preview/scoring-console"
 import { PublicPlayground } from "@/components/public/cv-preview/public-playground"
+import { Button } from "@/components/ui/button"
+import { ExternalLink } from "lucide-react"
 import { publicCv, type AnonScoreResponse } from "@/lib/api"
 import { readStashedResult, stashAnonCv, stashAnonCvResult, stashComposedCvText, takeStashedFile, takeStashedText } from "@/lib/anon-cv-stash"
 import type { PdfPageContact } from "@/components/cv/builder/pdf-page"
@@ -44,6 +46,8 @@ export default function CvPreviewPage() {
   const [slow, setSlow] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hydrated, setHydrated] = useState(false)
+  const [pasteOpen, setPasteOpen] = useState(false)
+  const [text, setText] = useState("")
 
   const score = useCallback(
     async (file: File) => {
@@ -137,7 +141,7 @@ export default function CvPreviewPage() {
                 <button
                   type="button"
                   className="lp-paste-score"
-                  onClick={() => { setScoring(false); setError("Paste your CV text below — it scores without an upload."); }}
+                  onClick={() => { setScoring(false); setPasteOpen(true); setError(null) }}
                 >
                   Paste text instead
                 </button>
@@ -147,19 +151,27 @@ export default function CvPreviewPage() {
         ) : canBuild && result ? (
           <PublicPlayground cv={result.cv!} contact={toContact(result)} result={result} />
         ) : (
-          <div style={{ maxWidth: 640, margin: "0 auto", padding: "72px 20px 96px" }}>
-            <div style={{ textAlign: "center", marginBottom: 24 }}>
-              <h1 style={{ fontSize: "clamp(24px, 4vw, 34px)", fontWeight: 600, letterSpacing: "-0.02em", color: "var(--tm-text)", margin: 0 }}>
-                Drop your CV to start building
-              </h1>
-              <p style={{ marginTop: 10, fontSize: 15, color: "var(--tm-text-muted)" }}>
-                Get your Myro Score, then improve and download a clean CV.
-              </p>
-            </div>
-            <LandingDropzone source="cv_preview_dropzone" busy={scoring} onFile={score} onText={scoreText} />
-            {error && (
-              <p style={{ marginTop: 14, textAlign: "center", fontSize: 13, color: "var(--tm-danger, #ef4444)" }}>{error}</p>
-            )}
+          <div className="mx-auto flex min-h-[calc(100dvh-160px)] max-w-5xl items-center justify-center px-5 py-8 sm:px-8">
+            <CVUploadStep busy={scoring} error={error} inputSource="cv_preview_dropzone" onUpload={score}>
+              {pasteOpen ? (
+                <div className="mt-5">
+                  <label htmlFor="cv-preview-text" className="text-sm font-medium text-[var(--tm-text)]">Paste your CV text instead</label>
+                  <textarea id="cv-preview-text" value={text} onChange={(event) => setText(event.target.value)} rows={6} placeholder="Experience, skills, education…" className="tm-control-focus mt-2 w-full resize-y rounded-md border border-[var(--tm-border)] bg-[var(--tm-surface)] p-3 text-base leading-6 text-[var(--tm-text)] placeholder:text-[var(--tm-text-faint)]" disabled={scoring} autoFocus />
+                  <div className="mt-3 flex justify-center gap-3">
+                    <Button type="button" disabled={scoring || text.trim().length < 40} onClick={() => scoreText(text.trim())}>Score my text</Button>
+                    <Button type="button" variant="outline" disabled={scoring} onClick={() => setPasteOpen(false)}>Cancel</Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+                  <Button type="button" variant="outline" onClick={() => setPasteOpen(true)}>No CV? Paste your CV text</Button>
+                  <Button variant="outline" render={<a href="/market" target="_blank" rel="noopener noreferrer" />}>
+                    Browse jobs instead <ExternalLink className="size-4" aria-hidden="true" />
+                  </Button>
+                </div>
+              )}
+              <p className="mt-4 text-center text-xs text-[var(--tm-text-faint)]">Your CV is saved only if you choose to create an account.</p>
+            </CVUploadStep>
             {result && !canBuild && (
               <p style={{ marginTop: 14, textAlign: "center", fontSize: 13, color: "var(--tm-text-muted)" }}>
                 We scored your CV ({result.score}/100) but couldn&rsquo;t read its structure cleanly enough to rebuild it.

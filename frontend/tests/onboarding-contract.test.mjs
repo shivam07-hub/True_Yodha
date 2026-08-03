@@ -8,13 +8,13 @@ test("onboarding routes CV evidence through skill confirmation before target and
   const entry = read("app/onboarding/page.tsx")
   const result = read("app/onboarding/result/page.tsx")
   assert.match(entry, /ExperienceStep/)
-  // The state is still a real stage of the pipeline; only its UI changed. The
-  // blocking `<SkillConfirmation>` step was removed and the confirmation moved
-  // onto the CV Skills rail (asserted below), so the result page now just
-  // reports progress for this kind instead of owning the decision.
   assert.match(result, /awaiting_skill_confirmation/)
+  assert.match(result, /FirstRunSkillReview/)
   assert.match(result, /awaiting_target/)
   assert.match(result, /TargetConfirm/)
+  assert.match(result, /first_role_saved/)
+  assert.match(result, /FirstRoleSuccess/)
+  assert.doesNotMatch(result, /router\.replace\("\/cv\?edit=1&tab=skills&confirm=1"\)/)
 })
 
 test("description result remains an explicitly incomplete preview", () => {
@@ -25,7 +25,7 @@ test("description result remains an explicitly incomplete preview", () => {
   assert.doesNotMatch(preview, /Your Myro Score|Download/)
 })
 
-test("browsing jobs during onboarding opens the unpersonalized market in a new tab", () => {
+test("browsing jobs during onboarding opens a first-party market tab with the current session", () => {
   for (const path of [
     "components/onboarding/experience-step.tsx",
     "components/onboarding/profile-preview.tsx",
@@ -34,7 +34,11 @@ test("browsing jobs during onboarding opens the unpersonalized market in a new t
     const source = read(path)
     assert.match(source, /href="\/market"/)
     assert.match(source, /target="_blank"/)
-    assert.match(source, /rel="noopener noreferrer"/)
+    // `noopener` prevents the sessionStorage clone that lets the new, same-origin
+    // Myro tab continue the authenticated journey. This relationship is limited
+    // to the relative /market destination and detached on destination boot.
+    assert.match(source, /rel="opener"/)
+    assert.doesNotMatch(source, /rel="noopener noreferrer"/)
     assert.match(source, /ExternalLink/)
   }
 })
@@ -55,24 +59,19 @@ test("baseline generator fixes the five-question expectation", () => {
   assert.match(generator, /Approve baseline/)
 })
 
-test("full result leads with proof and keeps correction available", () => {
+test("full result is a focused live-role decision, not a score dashboard", () => {
   const result = read("components/onboarding/full-result.tsx")
-  assert.match(result, /What Myro understood/)
-  assert.match(result, /Your Myro Score/)
-  assert.match(result, /SkillCorrectionSheet/)
-  assert.doesNotMatch(result, /Download/)
+  assert.match(result, /Your first live shortlist/)
+  assert.match(result, /ResultMatches/)
+  assert.doesNotMatch(result, /Your Myro Score|ScoreMapPreview|SkillCorrectionSheet|Download/)
 })
 
 test("skill confirmation is the score and matching trust gate", () => {
-  // Moved, not removed: `components/onboarding/skill-confirmation.tsx` was
-  // deleted when confirmation was folded into the CV Skills rail, so this read
-  // ENOENT'd. The gate itself is the contract worth guarding — nothing may
-  // publish skills into the score until the user confirms them — so it is
-  // asserted at its new home rather than dropped with the old file.
-  const rail = read("components/cv/builder/skills-rail.tsx")
-  assert.match(rail, /onboarding\.confirmSkills/)
-  assert.match(rail, /nothing is published yet/i, "confirm mode must not publish before the user confirms")
-  assert.match(rail, /keptCount < 1/, "confirming an empty skill set must stay blocked")
+  const review = read("components/onboarding/first-run-skill-review.tsx")
+  assert.match(review, /onboarding\.confirmSkills/)
+  assert.match(review, /keptCount < 1/, "confirming an empty skill set must stay blocked")
+  assert.match(review, /These \$\{keptCount\} skills look right/)
+  assert.doesNotMatch(review, /score/i, "step one must not promise a score before direction exists")
 })
 
 test("first-success checklist reads and dismisses durable server state", () => {
@@ -89,6 +88,9 @@ test("accepted upload and target are persisted before result navigation", () => 
   const target = read("components/onboarding/target-confirm.tsx")
   assert.match(page, /onboarding\.saveExperience/)
   assert.match(target, /onboarding\.saveTarget/)
+  assert.match(target, /Choose your direction/)
+  assert.match(target, /Show my first shortlist/)
+  assert.doesNotMatch(target, /What you qualify for|See my score|Building your score/)
   assert.match(page, /router\.push\("\/onboarding\/result"\)/)
   assert.doesNotMatch(page, /pollCVUploadStatus/)
   assert.match(page, /state\.isFetchedAfterMount/)

@@ -44,9 +44,10 @@ components/
 │   ├── drill-down-dialog.tsx   Skill demand drill-down modal
 │   └── action-plan-panel.tsx   7-day plan panel
 ├── onboarding/
-│   ├── step-cv.tsx             CV upload step
-│   ├── step-score.tsx          Score reveal step
-│   └── score-gauge.tsx         Animated semicircle gauge (0–100)
+│   ├── experience-step.tsx     Canonical CV intake step
+│   ├── first-run-skill-review.tsx  Evidence confirmation
+│   ├── target-confirm.tsx      Direction selection
+│   └── full-result.tsx         First live shortlist
 ├── auth/
 │   └── auth-form.tsx           Login + signup form
 └── ui/                         shadcn primitives: badge, button, card, dialog, progress, skeleton, tabs

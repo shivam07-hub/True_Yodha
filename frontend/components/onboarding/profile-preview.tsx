@@ -44,7 +44,7 @@ export function ProfilePreview({ result, onBuild, onUpload }: Props) {
         <Button size="lg" onClick={onBuild}><FilePlus2 className="size-5" />Build my starter CV</Button>
         <Button size="lg" variant="outline" onClick={onUpload}><Upload className="size-5" />Upload an existing CV</Button>
       </div>
-      <Link href="/market" target="_blank" rel="noopener noreferrer" className="tm-control-focus mx-auto mt-5 flex w-fit items-center gap-1 rounded px-3 py-2 text-sm text-[var(--tm-text-muted)] underline-offset-4 hover:underline">
+      <Link href="/market" target="_blank" rel="opener" className="tm-control-focus mx-auto mt-5 flex w-fit items-center gap-1 rounded px-3 py-2 text-sm text-[var(--tm-text-muted)] underline-offset-4 hover:underline">
         Browse jobs instead <ExternalLink className="size-3.5" aria-hidden="true" />
       </Link>
     </section>

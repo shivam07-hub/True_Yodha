@@ -2,12 +2,13 @@
 
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Loader2, Plus, X } from "lucide-react"
+import { Loader2, Search } from "lucide-react"
 
-import { users } from "@/lib/api"
+import { onboarding, type RoleFamily, users } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { formatCount } from "@/lib/format"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { useEditTargetRoles, useRoleReadiness } from "@/lib/hooks/use-edit-target-role"
+import { useEditTargetRole, useRoleReadiness } from "@/lib/hooks/use-edit-target-role"
 
 interface Props {
   /**
@@ -16,17 +17,12 @@ interface Props {
    * be mounted identically anywhere with zero prop-drilling.
    */
   roles?: string[]
-  /** Show the add-a-role input + per-chip remove. Read-only display when false. */
+  /** Show the corpus-backed role picker. Read-only display when false. */
   editable?: boolean
   /** Append per-role Readiness % to each chip (the "matching is active" signal). */
   showReadiness?: boolean
-  /** Cap on targeted roles (server enforces 5). */
-  max?: number
   onSaved?: (roles: string[]) => void
 }
-
-const MAX_ROLES = 5
-const MIN_LEN = 2
 
 const CHIP: React.CSSProperties = {
   display: "inline-flex",
@@ -39,20 +35,6 @@ const CHIP: React.CSSProperties = {
   fontSize: 12,
   color: "var(--tm-interactive)",
   maxWidth: "100%",
-}
-
-const REMOVE_BTN: React.CSSProperties = {
-  width: 16,
-  height: 16,
-  borderRadius: "50%",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  background: "var(--tm-int-border-soft)",
-  border: "none",
-  padding: 0,
-  cursor: "pointer",
-  color: "var(--tm-interactive)",
 }
 
 const ADD_BTN: React.CSSProperties = {
@@ -69,20 +51,16 @@ const ADD_BTN: React.CSSProperties = {
 }
 
 /**
- * Canonical multi-role target control (User Memory Phase 0).
+ * Canonical target-role control.
  *
- * The user targets up to 5 human role titles, rendered as selected chips in the
- * SAME visual language as Target Companies / Locations — one control across the
- * jobs filter, Settings, and the score header, so "my roles" reads consistently
- * everywhere. That the chips render selected IS the confirmation that matching
- * is active (design-over-words). Writing the whole list routes through the
- * recompute-wired save_target; the server derives the matcher clusters.
+ * The role picker is shared by Settings, the Jobs filter, and the score header.
+ * Its choices come from the verified job corpus, so every chosen title is saved
+ * with its role family and can drive the same matching and aspiration reads.
  */
 export function TargetRolesChips({
   roles: rolesProp,
   editable = false,
   showReadiness = false,
-  max = MAX_ROLES,
   onSaved,
 }: Props) {
   const { token } = useAuth()
@@ -100,44 +78,33 @@ export function TargetRolesChips({
         ? [profile.target_role_title]
         : (profile?.target_roles ?? []))
 
-  const edit = useEditTargetRoles()
+  const edit = useEditTargetRole()
   const readinessQ = useRoleReadiness(showReadiness && roles.length > 0)
-  const [adding, setAdding] = useState(false)
-  const [value, setValue] = useState("")
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [query, setQuery] = useState("")
+  const familiesQ = useQuery({
+    queryKey: ["role-families", "target-role-picker", query],
+    queryFn: () => onboarding.roleFamilies(token!, query.trim() || undefined),
+    enabled: pickerOpen && !!token,
+  })
 
   const readinessFor = (role: string): number | null | undefined =>
     readinessQ.data?.find((r) => r.role.toLowerCase() === role.toLowerCase())?.readiness
 
-  function commit(next: string[]) {
-    edit.mutate(next, { onSuccess: () => onSaved?.(next) })
+  function chooseRole(role: RoleFamily) {
+    edit.mutate(role, {
+      onSuccess: () => onSaved?.([role.label]),
+    })
+    setPickerOpen(false)
+    setQuery("")
   }
 
-  function addRole() {
-    const t = value.trim()
-    const dupe = roles.some((r) => r.toLowerCase() === t.toLowerCase())
-    if (t.length < MIN_LEN || dupe || roles.length >= max) {
-      setValue("")
-      setAdding(false)
-      return
-    }
-    commit([...roles, t])
-    setValue("")
-    setAdding(false)
-  }
-
-  function removeRole(index: number) {
-    if (roles.length <= 1) return // the score + matcher always need one role
-    commit(roles.filter((_, i) => i !== index))
-  }
-
-  const atCap = roles.length >= max
   const busy = edit.isPending
 
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", opacity: busy ? 0.6 : 1 }}>
-      {roles.map((role, i) => {
+      {roles.map((role) => {
         const pct = showReadiness ? readinessFor(role) : undefined
-        const canRemove = editable && roles.length > 1
         return (
           <span key={role} style={CHIP}>
             <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -148,18 +115,6 @@ export function TargetRolesChips({
                 {pct}%
               </span>
             )}
-            {canRemove && (
-              <button
-                type="button"
-                onClick={() => removeRole(i)}
-                disabled={busy}
-                aria-label={`Remove ${role}`}
-                title={`Remove ${role}`}
-                style={REMOVE_BTN}
-              >
-                <X size={11} strokeWidth={2.5} />
-              </button>
-            )}
           </span>
         )
       })}
@@ -168,41 +123,61 @@ export function TargetRolesChips({
         <Loader2 size={13} className="animate-spin" aria-hidden style={{ color: "var(--tm-text-faint)" }} />
       )}
 
-      {editable && !atCap && (
-        adding ? (
-          <input
-            autoFocus
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            onBlur={addRole}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") addRole()
-              if (e.key === "Escape") {
-                setValue("")
-                setAdding(false)
-              }
-            }}
-            placeholder="e.g. Product Manager"
-            aria-label="Add a target role"
+      {editable && (
+        <div style={{ position: "relative" }}>
+          <button
+            type="button"
+            onClick={() => setPickerOpen((open) => !open)}
             disabled={busy}
-            style={{
-              padding: "6px 12px",
-              borderRadius: "var(--tm-radius-pill)",
-              background: "var(--tm-int-bg-hover)",
-              border: "1px solid var(--tm-int-border)",
-              color: "var(--tm-text)",
-              fontSize: 12,
-              fontFamily: "inherit",
-              outline: "none",
-              minWidth: 140,
-            }}
-          />
-        ) : (
-          <button type="button" onClick={() => setAdding(true)} disabled={busy} style={ADD_BTN}>
-            <Plus size={13} strokeWidth={2.5} />
-            {roles.length === 0 ? "Set target role" : "Add role"}
+            aria-expanded={pickerOpen}
+            aria-controls="target-role-options"
+            style={ADD_BTN}
+          >
+            <Search size={13} strokeWidth={2.5} />
+            {roles.length === 0 ? "Choose target role" : "Change target role"}
           </button>
-        )
+          {pickerOpen && (
+            <div
+              id="target-role-options"
+              role="listbox"
+              aria-label="Target role options"
+              style={{
+                position: "absolute", zIndex: 50, top: "calc(100% + 6px)", left: 0,
+                width: "min(360px, calc(100vw - 4rem))", padding: 8,
+                background: "var(--tm-surface)", border: "1px solid var(--tm-int-border)",
+                borderRadius: "var(--tm-radius-sm)", boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+              }}
+            >
+              <input
+                autoFocus value={query} onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search roles in live jobs" aria-label="Search target roles"
+                role="combobox" aria-controls="target-role-options" aria-expanded
+                style={{
+                  width: "100%", padding: "8px 10px", borderRadius: "var(--tm-radius-sm)",
+                  background: "var(--tm-int-bg-hover)", border: "1px solid var(--tm-int-border)",
+                  color: "var(--tm-text)", fontSize: 13, fontFamily: "inherit", outline: "none",
+                }}
+                onKeyDown={(event) => { if (event.key === "Escape") setPickerOpen(false) }}
+              />
+              <div style={{ maxHeight: 224, overflowY: "auto", marginTop: 6 }}>
+                {familiesQ.isLoading && <Loader2 size={14} className="animate-spin" aria-label="Loading roles" />}
+                {!familiesQ.isLoading && (familiesQ.data ?? []).map((role) => (
+                  <button
+                    key={role.family} type="button" role="option" aria-selected={false}
+                    onClick={() => chooseRole(role)}
+                    style={{ display: "block", width: "100%", padding: "9px 10px", textAlign: "left", background: "transparent", border: "none", borderBottom: "1px solid var(--tm-border-soft)", color: "var(--tm-interactive-rest)", cursor: "pointer", fontFamily: "inherit" }}
+                  >
+                    <span style={{ display: "block", fontSize: 13, fontWeight: 600 }}>{role.label}</span>
+                    <span style={{ display: "block", marginTop: 2, fontSize: 11, color: "var(--tm-text-faint)" }}>{formatCount(role.open_count)} open · {role.matched_skill_count} matching skills</span>
+                  </button>
+                ))}
+                {!familiesQ.isLoading && query.trim().length >= 2 && familiesQ.data?.length === 0 && (
+                  <p style={{ margin: "8px 2px", fontSize: 12, color: "var(--tm-text-faint)" }}>No live role family matches that search.</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   )

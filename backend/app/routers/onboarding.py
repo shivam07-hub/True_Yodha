@@ -6,9 +6,10 @@ from pydantic import BaseModel, Field, model_validator
 from app.database import get_supabase_admin
 from app.deps import Principal, get_principal
 from app.repositories.cv import CVVersionsRepository
+from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.repositories.onboarding import OnboardingRepository
 from app.security import redact_sensitive_text
-from app.services import cv_workflow, onboarding_service
+from app.services import cv_workflow, onboarding_first_role, onboarding_service
 from app.services.baseline_generator import generate_baseline, validate_answer
 from app.services.onboarding_preview import start_profile_preview
 from app.services.skill_overrides import apply_skill_overrides
@@ -100,6 +101,10 @@ class ActivationRequest(BaseModel):
     activation_kind: ActivationKind
 
 
+class FirstRoleRequest(BaseModel):
+    job_id: str = Field(min_length=1, max_length=200)
+
+
 @router.get("/state")
 def get_state(principal: Principal = Depends(get_principal)) -> dict[str, Any]:
     state = OnboardingRepository(get_supabase_admin()).get_state(principal.id)
@@ -157,6 +162,11 @@ def save_target(
         seniority=body.seniority,
         location=body.location,
     )
+
+
+@router.delete("/target", status_code=status.HTTP_204_NO_CONTENT)
+def reset_target(principal: Principal = Depends(get_principal)) -> None:
+    onboarding_service.reset_target(get_supabase_admin(), principal.id)
 
 
 class RoleReadiness(BaseModel):
@@ -272,16 +282,24 @@ def confirm_skills(
         baseline_id,
         [item.model_dump() for item in body.overrides],
     )
-    return {"status": "done", "total_score": float(score["total_score"])}
+    if not score:
+        return {"status": "confirmed", "next": "target"}
+    return {
+        "status": "confirmed",
+        "next": "shortlist_processing",
+        "total_score": float(score["total_score"]),
+    }
 
 
-@router.post("/complete", status_code=status.HTTP_204_NO_CONTENT)
-def complete(principal: Principal = Depends(get_principal)) -> None:
-    db = get_supabase_admin()
-    result = onboarding_service.get_result(db, principal.id)
-    if result.get("kind") != "full_result_ready":
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Full result is not ready.")
-    onboarding_service.mark_completed(db, principal.id)
+@router.post("/first-role")
+def commit_first_role(
+    body: FirstRoleRequest,
+    principal: Principal = Depends(get_principal),
+    jobs_repo: JobsRepository = Depends(get_token_jobs_repository),
+) -> dict[str, str]:
+    return onboarding_first_role.commit_first_role(
+        get_supabase_admin(), jobs_repo, principal.id, body.job_id
+    )
 
 
 @router.post("/activate", status_code=status.HTTP_204_NO_CONTENT)
