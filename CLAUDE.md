@@ -107,13 +107,13 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 | S4 | Intel is ephemeral. Skill targets inferred from saved jobs only. No DB writes. |
 | NU1 | Profile auto-provisioned from JWT email + user_metadata.full_name on first authenticated request. Admin client (bypass RLS). |
 | NU2 | `update_profile` UPSERTs (defensive). |
-| XP1 | XP is permanent — never resets. Wallet the user owns forever. |
+| XP1 | **Myro Coins are permanent** — never reset. Wallet the user owns forever. (Renamed from "XP" end-to-end 2026-06-22, backlog #25/#31 — DB, RPCs, wire and UI all say coins. `XP*` row IDs kept only because other docs cite them.) |
 | XP7 | Cart is ephemeral Zustand state until diary submit → snapshot as `daily_logs.cart_skills JSONB`. |
 | XP9 | Company tab selection reconfigures the WHOLE Mission Control page. |
 | XP10 | XP pricing modal is deferred. Pick it up only after XP fairness fixes and the single "How XP Works" modal are shipped. |
 | PV1 | **Privacy-first identity.** Myro collects minimum data — only email + password. Any email works (throwaway, alias, anything). No real name required. No forced identity. The share token IS the user's public identity, not their name/email. |
 | IH1 | **Intel heatmap = followed companies only.** User builds their own heatmap by starring companies. Empty state on first visit. No global defaults in heatmap. |
-| IH2 | **Follow cost: 10 XP. Floor: -30 XP. Cap: 10 companies.** XP burned on follow, never refunded on unfollow (XP1). Star disabled if cap hit OR next deduction would breach -30. |
+| IH2 | ~~Follow cost: 10 XP. Floor: -30 XP.~~ **REVERSED 2026-07-19 (Signal Thread S1, verified in code 2026-08-04).** **Following is FREE.** Only limit = compare-slot cap `FOLLOWED_COMPANY_LIMIT` (10): `routers/users.py` charges nothing, `xp_policy.py` records `FOLLOW_COMPANY_XP_COST`/`FLOOR` as retired. Star disables on cap only. Grandfathered payers keep their spend (XP1). |
 | IH3 | ~~**Per-company row queries.** Each heatmap row is an independent `useQuery` keyed on `(company, skills)`. Adding a company appends a row without re-fetching others.~~ **REVERSED 2026-06-13 (Shivam-approved, backlog #21):** the per-company fan-out was a 10–15-request thundering herd. Now ONE batched `jobs.skillHeatmap(companies, skills)` (the batched endpoint already existed; `fetch_skill_heatmap_row` was already optimal). Traded incremental row-append for one matrix fetch — acceptable at the 10-company cap + 30-min cache. Do NOT reintroduce the fan-out. |
 | IH4 | **Heatmap columns = user's CV skills always.** No global top-8 fallback. Skill Lens toggles which CV skills appear. If no CV uploaded → nudge to upload. |
 | IH5 | **Row ordering = most recently starred first** (`created_at DESC` from `followed_companies`). |
@@ -156,10 +156,11 @@ Myro is an Intelligence-as-a-Service platform for job seekers. User uploads CV �
 
 ## DB SCHEMA (key tables)
 
-- `user_profiles`: `xp_balance INTEGER`, `welcome_xp_granted BOOLEAN`
+- `user_profiles`: `coin_balance INTEGER`, `welcome_coins_granted BOOLEAN`, `linkedin_coins_granted BOOLEAN` — **the `xp_*` columns are DROPPED** (contract migration `20260622_coins_rename_contract`, verified live 2026-08-04). Mutate only via `charge_coins` / `refund_coins` / `reward_coins`; ledger is `coin_ledger`. Never write `xp_balance`.
+- `user_profiles`: `target_locations TEXT[]`, `target_location_countries TEXT[]` (multi-location targeting, live) + legacy scalars `target_location` / `target_location_country`
 - `daily_logs`: `cart_skills JSONB NOT NULL DEFAULT '[]'`
-- `forge_sessions`: `(id, user_id, skill_name, skill_id, level_before, level_after, sessions_toward_next, duration_minutes, xp_earned, completed_at)`
-- `user_skills`: `forge_sessions_count INTEGER NOT NULL DEFAULT 0`
+- `forge_sessions`: legacy table, still readable, but **timed forge XP earning is retired** — nothing writes new earn rows.
+- `user_skills`: `forge_sessions_count INTEGER NOT NULL DEFAULT 0` — display counter only; real practice progression lives in `skill_assessed_level` (Upskilling quiz clears).
 - `job_skills (job_id FK→jobs, skill_id FK→skills, is_primary BOOLEAN)` — canonical skill source
 - `followed_companies (user_id, company_name, UNIQUE(user_id, company_name))` — RLS-protected
 - `jobs.location_country / location_city / location_mode / location_quality` — all backfilled
@@ -221,7 +222,7 @@ Memory carried "OWED: main merge" on ~25 entries. **Audit: 20 of 23 spot-checked
 
 ### TIER 2 — bounded, meaningful
 
-5. **Signal Thread S3** — gap-alert strip + "L{n} in ~N weeks" prediction. S1+S2 are on Develop; this closes the arc. ⚠️ **a concurrent agent has been active in this area** — check `git log` and isolate before starting.
+5. ~~**Signal Thread S3**~~ — ✅ **CLOSED, SHIPPED 2026-07-19 (verified in git 2026-08-04).** The concurrent agent this entry warned about was the same session that finished it: `d0597692` (gap-alert signal endpoint `GET /jobs/companies/gap-signals`) + `4962569b` (gap-alert strip + `sessionsToNextLevel` prediction). The whole S1→S2→S3 arc is on Develop; this tracker row was never updated. Residual = QA only (see #42/authed-QA lane), not a build.
 6. ~~**Match Verdict seam — Slice 4**~~ — ✅ CLOSED. Verified in memory `project_match_verdict_seam`: slice 4 built+shipped (`7643efc`), folded into the later standardization pass (`f3f1a2a`) which fixed the live dashboard fit bug + deleted the dead components slice 4 had decorated. Verdict word is live on `FeedFitRing`. Only remaining polish (tap-on-number→axes reveal panel) is deferred, not blocking.
 7. **#33 ₹99 Job-Switch Plan — the remaining build**: gap-personalised offer card (desktop rail + mobile feed inline), LLM review-draft → approve-queue → deliver, kill-switch env flag, L5 verbatim copy. Only revenue-bearing item in Tier 1–2.
 
@@ -229,7 +230,7 @@ Memory carried "OWED: main merge" on ~25 entries. **Audit: 20 of 23 spot-checked
 
 8. **#37 ranked job-skill importance** — `/grill-me` first (ordinal vs weight vs 3-tier; extension-only vs whole matcher; sister-repo scraper coordination).
 9. **#36 event-driven matching — Slices 2–5** (notifications inbox/bell → brain-everywhere read audit → Agent Picks auto-gen → "want more" coin expansion). Slice 1 shipped. **✅ Slice 2 VERIFIED ALREADY SHIPPED 2026-07-24** (stale backlog — [[feedback_verify_backlog_stale]]): `NotificationsRepository` + `record_fresh_matches` (debounced, wired into the standardized `run_match` pipeline) + `routers/notifications.py` + `<NotificationBell>` mounted in `authed-top-strip.tsx`, all live on **both Develop and main** (`f76e9e86`/`2115d864`/`519bc677`, none from this session). 11/11 backend tests green. **Remaining: Slices 3 (brain-everywhere read audit) → 4 (Agent Picks auto-gen) → 5 ("want more" coin expansion).** Next agent: confirm which slice to pick up before building — don't assume 3 is next without checking, this same backlog note was already wrong once today.
-10. **#20 leftovers** — ✅ **ALL DECISIONS CLOSED 2026-07-24.** PR-EMPTY (already shipped, see #20 body) · PR-COACHMARKS DROPPED · PR-SIGNUP-REDESIGN DROPPED (ND14) · PR-REFERRAL-V1 APPROVED-build (ND6) · PR-BRAND-TOKEN-AUDIT APPROVED-build · PR-LANDING-VISUAL-WARMTH APPROVED-build. **Next agent: build the 3 approved items** (referral wire, brand-token-audit, landing-warmth) + #32 kit-unification (also approved, see backlog #32). Re-verify each against code first — several siblings may already be shipped.
+10. **#20 leftovers** — ✅ ALL DECISIONS CLOSED 2026-07-24. PR-EMPTY shipped · PR-COACHMARKS DROPPED · PR-SIGNUP-REDESIGN DROPPED (ND14) · **PR-REFERRAL-V1 ✅ ALSO ALREADY SHIPPED** (verified in code 2026-08-04: `frontend/lib/referral.ts` + `user_provisioning.credit_referrer_for_signup` → `reward_coins`; the "build the 3 approved items" line below was itself stale) · PR-BRAND-TOKEN-AUDIT APPROVED-build · PR-LANDING-VISUAL-WARMTH APPROVED-build. **Remaining build = 2 items** (brand-token-audit, landing-warmth) + #32 kit-unification. Re-verify each against code first.
 
 ### TIER 4 — correctly deferred, DO NOT pick up
 
@@ -530,14 +531,9 @@ Memory carried "OWED: main merge" on ~25 entries. **Audit: 20 of 23 spot-checked
 
 10. **Skill Intelligence Page — Redesign (in progress)** — Full audit done 2026-05-16. Phased plan below.
 
-11. **Forge widget v2 (deferred, 2026-05-19 design pass):**
-   - **Cycle counter** — show "cycle N" badge on widget; track sessions completed in a single login window.
-   - **Long-press dismiss** — `×` requires 600ms press when mid-session w/ unclaimed XP; prevents accidental loss.
-   - **Haptic equivalent** — scale-pop + soft glow burst on successful claim; navigator.vibrate(10) on mobile PWA.
-   - **Streak multiplier** — N consecutive claimed cycles in a session = ×1.25/×1.5/×2 XP multiplier badge; resets on dismiss or 30min idle.
-   - Pick up when v1 forge widget has been validated by real usage signals (claim rate, dismiss rate, return-to-forge rate).
+11. ~~**Forge widget v2**~~ — ❌ **VOID 2026-08-04 (verified in code).** The whole 2026-05-19 spec (cycle counter, unclaimed-XP long-press dismiss, claim haptic, streak XP multiplier) rests on timed forge XP earning, which is **retired**: `backend/app/services/forge_service.py` says the time-based earn and `forge_sessions` reads were removed and it now holds only `LEVEL_THRESHOLDS`. No claim, no session XP, no widget to extend. Practice progression = Upskilling quiz clears (`skill_assessed_level`); `user_skills.forge_sessions_count` is a display counter. Do not resurrect — design fresh against the quiz model if retention needs a mechanic.
 
-12. **Multi-location targeting (parked 2026-05-21):** Allow up to 3 target locations in onboarding StepRole. Requires full-stack change — DB migration (`target_location TEXT` → `target_locations TEXT[]` + `target_location_countries TEXT[]`), RPC `get_candidate_job_ids_for_skills` to accept array + OR across countries, repository `_filter_job_ids_by_location` rewrite, backfill existing users. Mobile UI ready (chip multi-select pattern). Path A (UI lies, only first city filters) rejected on design-over-words rule. Pick up when single-location matching quality is validated and multi-loc backlog signal is real.
+12. ~~**Multi-location targeting**~~ — ✅ **CLOSED, SHIPPED (verified in code + live DB 2026-08-04).** `user_profiles.target_locations` + `target_location_countries` are live array columns beside the legacy scalars. `deps.py` back-fills the array from the scalar; `repositories/users.py` writes it with `clear_user_target_locations_cache` invalidation; `routers/jobs/list.py` reads `user_target_locations` / `user_target_location_countries` in the feed prelude. Entry sat "parked" ~14 months after the work landed. Memory: `project_location_prefs_multiloc`.
 
 15. **Job Card Lifecycle Loop (idea, parked 2026-05-27):** Netflix-style lifecycle model for every job card — track `posted_at`, `first_seen_on_platform_at`, `last_seen_on_platform_at`, `delisted_at`. Pair the job-side lifecycle with a user-side application-stage loop: once a user saves/applies, prompt + track stage transitions (saved → applied → screening → recruiter call → interview → final round → offer/reject) and the dwell time in each stage. Aggregate cross-user signal per company/role: median time-to-first-reply, median screening→interview gap, ghosting rate, offer rate, typical funnel shape. Surface back to users as "what to expect from this company" + sharpen our own match ranking + power a future newsletter/intel surface. Pick up when we redesign the job card to make the experience better — this loop is the data engine that justifies the new card layout. Touches: `jobs` schema (lifecycle timestamps), `job_applications` (already has `status` + `last_stage_changed_at` per Q7), new `application_stage_events` event log, a nudge/reminder cadence for stage updates, and an aggregation RPC for company funnel stats.
 
