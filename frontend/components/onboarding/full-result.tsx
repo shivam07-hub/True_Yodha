@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { FirstRoleSuccess } from "@/components/onboarding/first-role-success"
+import { OpsReceipt } from "@/components/onboarding/ops-receipt"
 import { ResultMatches } from "@/components/onboarding/result-matches"
 import { onboarding, type FirstRoleReceipt, type OnboardingResult } from "@/lib/api"
 import { trackEvent } from "@/lib/analytics"
@@ -108,6 +109,14 @@ export function FullResult({ token, result, onBack, onAdjust }: Props) {
           {error && <p role="alert" className="mt-3 text-sm text-[var(--tm-danger)]">{error}</p>}
           <Button size="sm" variant="outline" className="mt-4" disabled={adjustBusy} onClick={() => void adjustDirection()}>{adjustBusy ? "Reopening direction…" : "Adjust my direction"}</Button>
         </div>
+      )}
+
+      {topMatches.length > 0 && (
+        <OpsReceipt
+          target={result.target}
+          sharpeners={result.career_ops?.sharpeners ?? []}
+          cvReady={Boolean(result.baseline_version_id)}
+        />
       )}
 
       {selectedJob && (

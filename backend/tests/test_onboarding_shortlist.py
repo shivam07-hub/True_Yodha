@@ -137,3 +137,21 @@ def test_unparseable_timestamps_degrade_to_computing_not_a_crash(monkeypatch) ->
     _install(monkeypatch)
     profile = {"target_updated_at": "not-a-date", "last_match_run_at": "also-not"}
     assert _call(profile)[1] == "computing"
+
+
+def test_unused_ops_inputs_reports_only_what_is_genuinely_missing() -> None:
+    """The receipt names the Career-Ops inputs the run did NOT have.
+
+    Whitespace is not an answer, and an empty list is not a deal-breaker — a
+    field that looks set but carries nothing would tell the user the run used
+    something it never saw.
+    """
+    assert onboarding_service._unused_ops_inputs({}) == [
+        "deal_breakers", "career_goal", "superpower",
+    ]
+    assert onboarding_service._unused_ops_inputs(
+        {"deal_breakers": [], "career_goal": "   ", "superpower": "untangling legacy systems"}
+    ) == ["deal_breakers", "career_goal"]
+    assert onboarding_service._unused_ops_inputs(
+        {"deal_breakers": ["no relocation"], "career_goal": "platform work", "superpower": "x"}
+    ) == []

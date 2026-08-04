@@ -729,6 +729,10 @@ export type OnboardingResult = OnboardingReach & (
        *  direction change is not the shortlist the save will accept. */
       shortlist: JobMatch[]
       shortlist_status: "ready" | "computing" | "stalled" | "empty"
+      /** `sharpeners` = the optional Career-Ops inputs this user has not set.
+       *  Reported, never gap-filled — a receipt must not present a suggestion
+       *  as something the run used. */
+      career_ops: { sharpeners: string[] }
       credible_match: (JobMatch & { jobs?: { job_title?: string; company_name?: string } }) | null
       primary_action: { kind: string; label: string; href: string }
       secondary_action: { kind: string; label: string; href: string }

@@ -486,6 +486,28 @@ def _shortlist(
     return [], "stalled"
 
 
+# The optional Career-Ops inputs, by the names the pre-flight manifest gives
+# them. Onboarding already fixes target roles, location and the CV; these three
+# are what a user can add later to sharpen the same run.
+_OPS_OPTIONAL_INPUTS = ("deal_breakers", "career_goal", "superpower")
+
+
+def _unused_ops_inputs(profile: dict[str, Any]) -> list[str]:
+    """Which optional Career-Ops inputs this user has not supplied.
+
+    Reported, never invented: the pre-flight modal can gap-fill these from
+    memory, but a receipt of a run that already happened must not present a
+    suggestion as something the run used.
+    """
+    unused: list[str] = []
+    for key in _OPS_OPTIONAL_INPUTS:
+        value = profile.get(key)
+        filled = bool(value.strip()) if isinstance(value, str) else bool(value)
+        if not filled:
+            unused.append(key)
+    return unused
+
+
 def _reviewable_step(
     db: Client,
     user_id: str,
@@ -684,6 +706,11 @@ def _current_result(db: Client, user_id: str) -> dict[str, Any]:
         # be offered that the save will refuse.
         "shortlist": shortlist,
         "shortlist_status": shortlist_status,
+        # This shortlist IS a Career-Ops run — the same brain, on the house. The
+        # user was never told that, and met the vocabulary for the first time on
+        # a modal quoting 100 coins. Naming the run here, and naming the inputs
+        # it did NOT have, teaches the surface before it ever charges for it.
+        "career_ops": {"sharpeners": _unused_ops_inputs(profile)},
         "skills": _proof_skills(users_repo, user_id),
         "score": {
             "total_score": float(score["total_score"]),

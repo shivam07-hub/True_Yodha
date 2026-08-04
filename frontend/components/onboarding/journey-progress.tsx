@@ -74,13 +74,15 @@ export function JourneyProgress({ current, furthest = 0, onSelect }: Props) {
                 <button
                   type="button"
                   onClick={() => onSelect?.(step)}
-                  className="tm-control-focus flex min-h-9 w-full items-center gap-2 rounded text-left text-xs font-semibold text-[var(--tm-text-muted)] sm:text-sm"
+                  /* min-h-11: on the phone the label is hidden, so the marker is
+                     the whole target — it has to be thumb-sized, not text-sized. */
+                  className="tm-control-focus flex min-h-11 w-full cursor-pointer items-center gap-2 rounded text-left text-xs font-semibold text-[var(--tm-text-muted)] hover:text-[var(--tm-text)] sm:text-sm"
                 >
                   {marker}
                   {text}
                 </button>
               ) : (
-                <span className="flex min-h-9 items-center gap-2 text-xs font-semibold text-[var(--tm-text-muted)] sm:text-sm">
+                <span className="flex min-h-11 items-center gap-2 text-xs font-semibold text-[var(--tm-text-muted)] sm:text-sm">
                   {marker}
                   {text}
                 </span>
