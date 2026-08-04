@@ -50,7 +50,6 @@ def test_registry_includes_the_onboarding_handlers() -> None:
     """The two that were actually missing — named so a re-drop is unambiguous."""
     declared = registry.registered_job_types()
     assert "onboarding_target_refresh" in declared  # score after target confirm
-    assert "onboarding_profile_preview" in declared  # the "describe your experience" path
 
 
 @pytest.mark.asyncio

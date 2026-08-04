@@ -186,10 +186,6 @@ def save_target(
         # `force`, bypassing the cache gate — so re-running it would spend a
         # real LLM pass to arrive back where the user already is.
         return
-    OnboardingRepository(db).patch_state(
-        user_id,
-        {"current_stage": "result", "status": "analyzing"},
-    )
     background.enqueue(
         background.LANE_FAST,
         "onboarding_target_refresh",
@@ -213,10 +209,6 @@ def reset_target(db: Client, user_id: str) -> None:
             "target_career_band": None,
             "explored_career_bands": [],
         },
-    )
-    OnboardingRepository(db).patch_state(
-        user_id,
-        {"current_stage": "result", "status": "result_ready"},
     )
 
 
@@ -249,10 +241,6 @@ async def refresh_target_result(payload: dict[str, Any], allow_retry: bool) -> N
     db = get_supabase_admin()
     baseline = CVVersionsRepository(db).latest_baseline(user_id)
     if not baseline or not baseline.get("skills_confirmed_at"):
-        OnboardingRepository(db).patch_state(
-            user_id,
-            {"status": "analyzing", "current_stage": "result"},
-        )
         return
     scores_repo = ScoresRepository(db)
     if scores_repo.get_user_skill_level_map(user_id):
@@ -281,10 +269,6 @@ async def refresh_target_result(payload: dict[str, Any], allow_retry: bool) -> N
                 payload={"user_id": user_id, "force_context_refresh": True},
                 correlation_id=f"target-match:{user_id}",
             )
-    OnboardingRepository(db).patch_state(
-        user_id,
-        {"status": "result_ready", "current_stage": "result"},
-    )
 
 
 def _proof_skills(users_repo: UsersRepository, user_id: str) -> list[dict[str, Any]]:
@@ -647,6 +631,76 @@ def _parallel(db: Client, reads: dict[str, Any]) -> dict[str, Any]:
         return {name: future.result() for name, future in futures.items()}
 
 
+JourneyPosition = str  # "experience" | "result" | "completed"
+
+
+def journey_position(db: Client, user_id: str) -> dict[str, Any]:
+    """Where this user is in onboarding, and the durable facts a screen needs.
+
+    ONE answer, derived. There used to be two: `user_onboarding_state.status` and
+    `.current_stage` were a stored copy, written in THIRTEEN places and read for a
+    decision in TWO — while `_current_result` independently derived the same thing
+    from the facts, and it was the derivation that actually decided what rendered.
+    A `patch_state` forgotten at any of the thirteen desynced the entry redirect
+    from the screen it sent you to. `start_over` already did exactly that: it set
+    the stage back to `experience` without clearing the baseline, so the two models
+    disagreed and the stored one won for precisely one screen.
+
+    Three positions, because that is what the callers actually ask:
+      - ``experience`` — nothing started; show the upload door.
+      - ``result``     — work is in flight or done; the journey screen owns them.
+      - ``completed``  — finished; they belong in the product, not the funnel.
+    """
+    repo = OnboardingRepository(db)
+    facts = _parallel(db, {
+        "state": lambda: repo.get_state(user_id),
+        "baseline": lambda: CVVersionsRepository(db).latest_baseline(user_id),
+    })
+    state = facts["state"] or {}
+    started = bool(facts["baseline"] or state.get("upload_job_id"))
+    position = (
+        "completed" if state.get("completed_at")
+        else "result" if started
+        else "experience"
+    )
+    return {
+        "user_id": user_id,
+        "position": position,
+        "generator_step": state.get("generator_step") or 1,
+        "generator_answers": state.get("generator_answers") or {},
+        "generated_draft": state.get("generated_draft"),
+        "entry_mode": state.get("entry_mode"),
+        "upload_job_id": state.get("upload_job_id"),
+        "accepted_file_metadata": state.get("accepted_file_metadata") or {},
+        "checklist_dismissed_at": state.get("checklist_dismissed_at"),
+        "score_gap_reviewed_at": state.get("score_gap_reviewed_at"),
+        "credible_job_saved_at": state.get("credible_job_saved_at"),
+        "tailored_cv_created_at": state.get("tailored_cv_created_at"),
+        "activation_kind": state.get("activation_kind"),
+    }
+
+
+def _mark_result_seen(db: Client, user_id: str, state: dict[str, Any]) -> None:
+    """Stamp the moment the shortlist actually renders. Best-effort, once.
+
+    It used to be written by `mark_completed`, with the identical timestamp as
+    `completed_at` — so the first-success checklist row "Review your top roles"
+    could only tick when the whole journey ticked, which made it a decoration
+    rather than a step anyone could take next.
+    """
+    if state.get("result_seen_at"):
+        return
+    try:
+        OnboardingRepository(db).patch_state(
+            user_id, {"result_seen_at": datetime.now(timezone.utc).isoformat()}
+        )
+    except Exception as exc:  # noqa: BLE001 — never fail the screen over a stamp
+        logger.warning(
+            "metric onboarding.result_seen_stamp_failed user=%s exc=%s",
+            user_id, exc.__class__.__name__,
+        )
+
+
 def _current_result(db: Client, user_id: str) -> dict[str, Any]:
     users_repo = UsersRepository(db)
     facts = _parallel(db, {
@@ -672,14 +726,13 @@ def _current_result(db: Client, user_id: str) -> dict[str, Any]:
     }
     has_target = bool(profile.get("target_role_title") or profile.get("target_role_titles"))
     if not baseline:
-        if state.get("preview_payload"):
-            return {
-                "kind": "profile_preview",
-                "target": target,
-                "preview": state["preview_payload"],
-                "primary_action": {"kind": "build_baseline", "label": "Build my starter CV"},
-                "secondary_action": {"kind": "upload_cv", "label": "Upload an existing CV"},
-            }
+        # There is no `profile_preview` step any more. Describing your experience
+        # used to run a SECOND text→baseline pipeline that shadowed the Upload
+        # Guarantee without inheriting it, and ended on an estimate RANGE — a
+        # second scoring model beside the canonical one (OQ4). It now goes through
+        # `start_cv_upload_job_from_text`, the same call `/baseline/approve` already
+        # made, so a description produces a real baseline and a real Myro Score and
+        # lands on this same step-1 wait.
         upload_job_id = state.get("upload_job_id")
         job = None
         if upload_job_id:
@@ -768,6 +821,7 @@ def _current_result(db: Client, user_id: str) -> dict[str, Any]:
     else:
         primary_action = {"kind": "review_gaps", "label": "Review score gaps", "href": "/skills"}
         secondary_action = {"kind": "browse_jobs", "label": "Browse jobs", "href": "/market"}
+    _mark_result_seen(db, user_id, state)
     return {
         "kind": "full_result_ready",
         "baseline_version_id": int(baseline["id"]),

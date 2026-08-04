@@ -17,18 +17,21 @@ test("onboarding routes CV evidence through skill confirmation before target and
   assert.doesNotMatch(result, /router\.replace\("\/cv\?edit=1&tab=skills&confirm=1"\)/)
 })
 
-test("description result remains an explicitly incomplete preview", () => {
-  const preview = read("components/onboarding/profile-preview.tsx")
-  assert.match(preview, /Profile Preview/)
-  assert.match(preview, /Early estimate/)
-  assert.match(preview, /Incomplete until Myro reads a full CV/)
-  assert.doesNotMatch(preview, /Your Myro Score|Download/)
+test("a described profile takes the same path as an uploaded CV", () => {
+  // There used to be a second text→baseline pipeline ending on an "Early estimate"
+  // RANGE — a second scoring model beside the canonical Myro Score, on a screen
+  // nobody reached (0 of 80 onboarding rows in 90 days). A description now builds a
+  // real baseline through the same call /baseline/approve already used.
+  const page = read("app/onboarding/page.tsx")
+  assert.match(page, /onboarding\.approveBaseline/)
+  assert.doesNotMatch(page, /profilePreview/)
+  const step = read("components/onboarding/experience-step.tsx")
+  assert.doesNotMatch(step, /Create preview/)
 })
 
 test("browsing jobs during onboarding opens a first-party market tab with the current session", () => {
   for (const path of [
     "components/onboarding/experience-step.tsx",
-    "components/onboarding/profile-preview.tsx",
     "components/onboarding/analysis-progress.tsx",
   ]) {
     const source = read(path)

@@ -12,9 +12,11 @@ interface Props {
   progressPct?: number | null
   onUpload: (file: File) => void
   onDescribe: (description: string) => void
+  /** Guided questions, for someone who opened the box and had nothing to type. */
+  onGuideMe: () => void
 }
 
-export function ExperienceStep({ busy, error, progressPct = null, onUpload, onDescribe }: Props) {
+export function ExperienceStep({ busy, error, progressPct = null, onUpload, onDescribe, onGuideMe }: Props) {
   const [describing, setDescribing] = useState(false)
   const [description, setDescription] = useState("")
   const words = description.trim().split(/\s+/).filter(Boolean).length
@@ -29,9 +31,17 @@ export function ExperienceStep({ busy, error, progressPct = null, onUpload, onDe
           <label htmlFor="experience-description" className="text-sm font-medium text-[var(--tm-text)]">Describe your experience instead</label>
           <textarea id="experience-description" value={description} onChange={(event) => setDescription(event.target.value)} rows={6} placeholder="I work in product operations and have led..." className="tm-control-focus mt-2 w-full resize-y rounded-md border border-[var(--tm-border)] bg-[var(--tm-surface)] p-3 text-base leading-6 text-[var(--tm-text)] placeholder:text-[var(--tm-text-faint)]" />
           <p className="mt-2 text-right text-xs text-[var(--tm-text-faint)]">{words} / 30 words</p>
+          {/* No longer a "preview". What you type becomes a real CV, scored the
+              same way an uploaded one is — the estimate-range path is gone. */}
           <Button type="button" disabled={busy || words < 30} onClick={() => onDescribe(description.trim())} className="mt-3 min-h-12 w-full">
-            <FileText className="size-4" aria-hidden="true" /> Create preview
+            <FileText className="size-4" aria-hidden="true" /> Build my CV from this
           </Button>
+          {/* The guided questions live HERE, not as a third door on the first
+              screen — "I don't know what to write" is a feeling you have with the
+              box already open, not one you choose between before opening it. */}
+          <button type="button" onClick={onGuideMe} disabled={busy} className="tm-control-focus mx-auto mt-3 block rounded px-3 py-2 text-sm text-[var(--tm-text-muted)] underline-offset-4 hover:underline">
+            Not sure what to write? Answer a few questions instead
+          </button>
         </div>
       )}
 

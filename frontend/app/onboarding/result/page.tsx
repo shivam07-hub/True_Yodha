@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { RotateCcw } from "lucide-react"
 import { MyroLogo } from "@/components/myro-logo"
@@ -10,7 +11,6 @@ import { FullResult } from "@/components/onboarding/full-result"
 import { FirstRunSkillReview } from "@/components/onboarding/first-run-skill-review"
 import { FirstRoleSuccess } from "@/components/onboarding/first-role-success"
 import { JourneyProgress } from "@/components/onboarding/journey-progress"
-import { ProfilePreview } from "@/components/onboarding/profile-preview"
 import { TargetConfirm } from "@/components/onboarding/target-confirm"
 import { Button } from "@/components/ui/button"
 import { onboarding, type OnboardingResult } from "@/lib/api"
@@ -27,7 +27,10 @@ export default function OnboardingResultPage() {
   const queryClient = useQueryClient()
   const { token, ready } = useAuth()
   const { state, refresh } = useOnboardingState(token)
-  const [generatorOpen, setGeneratorOpen] = useState(false)
+  const searchParams = useSearchParams()
+  const [generatorOpen, setGeneratorOpen] = useState(
+    () => searchParams.get("guide") === "1",
+  )
   // Which step the user is LOOKING at. Null = wherever they actually are.
   // Deliberately not persisted: a reload should return you to your real
   // position, not to whatever you were reviewing when you closed the tab.
@@ -130,7 +133,10 @@ export default function OnboardingResultPage() {
   const furthest = result.data?.furthest_step ?? 0
 
   const body = (() => {
-    if (generatorOpen || state.data?.current_stage === "generator") {
+    // Open when the URL asked for it, or once there is real generator work in
+    // progress. No stored stage: "which screen" is client intent, and the answers
+    // themselves are the durable fact.
+    if (generatorOpen) {
       return state.data ? <BaselineGenerator token={token} state={state.data} onCancel={() => setGeneratorOpen(false)} onApproved={() => { setGeneratorOpen(false); refresh(); void result.refetch() }} /> : null
     }
     if (result.isError) return (
@@ -141,7 +147,6 @@ export default function OnboardingResultPage() {
       </section>
     )
     if (!result.data || result.data.kind === "full_result_processing") return <AnalysisProgress phase={streamedPhase ?? result.data?.phase ?? "queued"} onRetry={() => void result.refetch()} />
-    if (result.data.kind === "profile_preview") return <ProfilePreview result={result.data} onBuild={() => setGeneratorOpen(true)} onUpload={() => void resetToUpload()} />
     if (result.data.kind === "first_role_saved") return <FirstRoleSuccess title={result.data.title} company={result.data.company} tailorHref={result.data.tailor_href} />
     // Forward is offered only to someone reviewing ground they've already
     // covered — a first-time visitor has nothing ahead to return to.

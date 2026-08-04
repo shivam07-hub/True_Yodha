@@ -106,9 +106,6 @@ def test_confirmation_publishes_skills_then_hands_the_score_off(monkeypatch) -> 
         ],
     )
     monkeypatch.setattr(skill_confirmation, "UsersRepository", lambda _db: _UsersRepo(calls))
-    monkeypatch.setattr(
-        skill_confirmation, "OnboardingRepository", lambda _db: _OnboardingRepo(calls)
-    )
     _patch_handoff(monkeypatch, calls, next_step={"kind": "awaiting_target", "families": []})
 
     result = skill_confirmation.confirm_baseline_skills(object(), "u1", 17, [])
@@ -120,7 +117,9 @@ def test_confirmation_publishes_skills_then_hands_the_score_off(monkeypatch) -> 
     assert result["result"] == {"kind": "awaiting_target", "families": []}
     # No `cv_structured` on this baseline → the CV says nothing about seniority, so
     # nothing is written. Unknown stays unknown; the direction step asks.
-    assert calls == ["confirm", "state", "enqueue:skills_confirmed", "get_result"]
+    # No "state" patch: the journey position is derived from these very facts now,
+    # so confirming skills IS the state change — there is nothing to also record.
+    assert calls == ["confirm", "enqueue:skills_confirmed", "get_result"]
     # Publication still strictly precedes the score being asked for.
     assert calls.index("confirm") < calls.index("enqueue:skills_confirmed")
 
@@ -146,7 +145,6 @@ def test_confirmation_scores_against_the_band_read_from_the_cv(monkeypatch) -> N
         lambda *_args: [{"skill_id": 9, "matched_level": 2, "proficiency_title": "T", "evidence_text": "x"}],
     )
     monkeypatch.setattr(skill_confirmation, "UsersRepository", lambda _db: users)
-    monkeypatch.setattr(skill_confirmation, "OnboardingRepository", lambda _db: _OnboardingRepo(calls))
     _patch_handoff(monkeypatch, calls)
 
     skill_confirmation.confirm_baseline_skills(object(), "u1", 17, [])
@@ -176,7 +174,6 @@ def test_confirmation_never_overwrites_a_level_the_user_chose(monkeypatch) -> No
         lambda *_args: [{"skill_id": 9, "matched_level": 2, "proficiency_title": "T", "evidence_text": "x"}],
     )
     monkeypatch.setattr(skill_confirmation, "UsersRepository", lambda _db: users)
-    monkeypatch.setattr(skill_confirmation, "OnboardingRepository", lambda _db: _OnboardingRepo(calls))
     _patch_handoff(monkeypatch, calls)
 
     skill_confirmation.confirm_baseline_skills(object(), "u1", 17, [])
@@ -213,7 +210,9 @@ def test_target_refresh_stops_before_score_and_match_when_skills_pending(monkeyp
         onboarding_service.refresh_target_result({"user_id": "u1"}, allow_retry=False)
     )
 
-    assert calls == ["state"]
+    # Nothing written and nothing enqueued — pending skills mean there is no score
+    # to compute and no direction to match against.
+    assert calls == []
 
 
 def test_target_refresh_scores_but_does_not_match_before_a_direction_exists(

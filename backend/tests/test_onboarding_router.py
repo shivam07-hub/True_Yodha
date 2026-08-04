@@ -1,15 +1,12 @@
 from __future__ import annotations
 
-import asyncio
-
 from fastapi.testclient import TestClient
 
 from app.deps import Principal, get_principal
 from app.main import app
 from app.routers import onboarding
 from app.repositories.jobs import get_token_jobs_repository
-from app.services import onboarding_preview
-from app.services.onboarding_preview import build_preview_payload
+from app.services import onboarding_service
 from app.services.onboarding_service import target_context_hash
 
 
@@ -46,10 +43,19 @@ def _client(monkeypatch, repo: _StateRepo) -> TestClient:
     app.dependency_overrides[get_token_jobs_repository] = lambda: object()
     monkeypatch.setattr(onboarding, "get_supabase_admin", lambda: object())
     monkeypatch.setattr(onboarding, "OnboardingRepository", lambda _db: repo)
+    # The journey position is derived in the service, so the state read goes
+    # through its repositories, not the router's.
+    monkeypatch.setattr(onboarding_service, "OnboardingRepository", lambda _db: repo)
     return TestClient(app)
 
 
 def test_state_defaults_to_experience(monkeypatch) -> None:
+    """A user with no row at all falls out of the same derivation as everyone
+    else — there is no separate default shape to keep in sync."""
+    monkeypatch.setattr(
+        onboarding_service, "CVVersionsRepository",
+        lambda _db: type("R", (), {"latest_baseline": lambda _s, _u: None})(),
+    )
     try:
         with _client(monkeypatch, _StateRepo()) as client:
             response = client.get("/onboarding/state")
@@ -57,8 +63,7 @@ def test_state_defaults_to_experience(monkeypatch) -> None:
         app.dependency_overrides.clear()
 
     assert response.status_code == 200
-    assert response.json()["current_stage"] == "experience"
-    assert response.json()["status"] == "draft"
+    assert response.json()["position"] == "experience"
 
 
 def test_target_saves_literal_role_seniority_and_location(monkeypatch) -> None:
@@ -186,95 +191,6 @@ def test_first_role_returns_durable_tailoring_receipt(monkeypatch) -> None:
         "job_id": "job-7",
         "tailor_href": "/cv?jobId=job-7",
     }
-
-
-def test_profile_preview_starts_durable_preview_job(monkeypatch) -> None:
-    monkeypatch.setattr(onboarding, "start_profile_preview", lambda *_a, **_k: "job-1")
-    try:
-        with _client(monkeypatch, _StateRepo()) as client:
-            response = client.post(
-                "/onboarding/profile-preview",
-                json={"description": "I build product strategy and analytics systems with SQL for growing teams. " * 2},
-                headers={"Idempotency-Key": "idem-1"},
-            )
-    finally:
-        app.dependency_overrides.clear()
-
-    assert response.status_code == 202
-    assert response.json() == {"status": "processing", "job_id": "job-1"}
-
-
-def test_generator_answers_are_normalized_before_save(monkeypatch) -> None:
-    repo = _StateRepo()
-    try:
-        with _client(monkeypatch, repo) as client:
-            response = client.put(
-                "/onboarding/baseline/answers/3",
-                json={"answer": {"achievements": [" Shipped search ", ""]}},
-            )
-    finally:
-        app.dependency_overrides.clear()
-
-    assert response.status_code == 204
-    assert repo.answers == [(3, {"achievements": ["Shipped search"]})]
-
-
-def test_checklist_progress_is_durable(monkeypatch) -> None:
-    repo = _StateRepo()
-    try:
-        with _client(monkeypatch, repo) as client:
-            milestone = client.post("/onboarding/milestones/score_gap_reviewed")
-            dismissed = client.post("/onboarding/checklist/dismiss")
-    finally:
-        app.dependency_overrides.clear()
-
-    assert milestone.status_code == 204
-    assert dismissed.status_code == 204
-    assert repo.milestones == ["score_gap_reviewed"]
-    assert repo.checklist_dismissed is True
-
-
-def test_preview_payload_is_evidence_backed_and_inexact() -> None:
-    payload = build_preview_payload(
-        {
-            "skills_detected": [
-                {
-                    "taxonomy_key": "Product Management",
-                    "evidence": "Owned the product roadmap",
-                }
-            ]
-        }
-    )
-
-    assert payload["skills"] == [
-        {
-            "name": "Product Management",
-            "taxonomy_key": "Product Management",
-            "evidence": "Owned the product roadmap",
-        }
-    ]
-    assert payload["estimate_min"] < payload["estimate_max"]
-
-
-def test_preview_completion_does_not_bypass_target(monkeypatch) -> None:
-    repo = _StateRepo()
-
-    async def parse(*_args, **_kwargs):
-        return {"skills_detected": [{"taxonomy_key": "SQL", "evidence": "Used SQL"}]}
-
-    monkeypatch.setattr(onboarding_preview, "get_supabase_admin", lambda: object())
-    monkeypatch.setattr(onboarding_preview, "OnboardingRepository", lambda _db: repo)
-    monkeypatch.setattr(onboarding_preview.cv_parser, "parse_cv_text", parse)
-    monkeypatch.setattr(onboarding_preview, "get_cv_upload_provider", lambda: object())
-    monkeypatch.setattr(onboarding_preview.cv_upload_jobs, "set_phase", lambda *_a, **_k: None)
-    monkeypatch.setattr(onboarding_preview.cv_upload_jobs, "mark_done", lambda *_a, **_k: None)
-
-    asyncio.run(onboarding_preview.run_profile_preview({
-        "job_id": "job-1", "user_id": "u1", "raw_text": "Used SQL",
-    }, allow_retry=False))
-
-    assert repo.patches[-1]["status"] == "result_ready"
-    assert "current_stage" not in repo.patches[-1]
 
 
 def test_target_context_changes_with_seniority() -> None:

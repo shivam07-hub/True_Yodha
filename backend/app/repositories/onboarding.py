@@ -7,9 +7,11 @@ from typing import Any
 from supabase import Client
 
 
+# `status` and `current_stage` are NOT here, deliberately. They were a stored copy
+# of a position the journey already derives from its own facts — written in 13
+# places, read for a decision in 2 — and `patch_state` now REJECTS them, so the
+# copy cannot quietly come back. See `journey_position`.
 _STATE_FIELDS = {
-    "status",
-    "current_stage",
     "entry_mode",
     "upload_job_id",
     "accepted_file_metadata",
@@ -73,31 +75,22 @@ class OnboardingRepository:
         answers[str(step)] = answer
         self.patch_state(
             user_id,
-            {
-                "current_stage": "generator",
-                "generator_step": step,
-                "generator_answers": answers,
-            },
+            {"generator_step": step, "generator_answers": answers},
         )
 
     def save_generated_draft(self, user_id: str, draft: str) -> None:
-        self.patch_state(
-            user_id,
-            {
-                "current_stage": "generator",
-                "generated_draft": draft,
-            },
-        )
+        self.patch_state(user_id, {"generated_draft": draft})
 
     def mark_completed(self, user_id: str) -> None:
-        completed_at = _now()
+        # `result_seen_at` is NOT stamped here. It used to be, with the identical
+        # timestamp as `completed_at`, which made the first-success checklist row
+        # "Review your top roles" a tautology — it could only ever tick at the same
+        # instant as everything else. It is stamped when the result actually
+        # renders (`onboarding_service.get_result`).
         self.patch_state(
             user_id,
             {
-                "status": "completed",
-                "current_stage": "result",
-                "result_seen_at": completed_at,
-                "completed_at": completed_at,
+                "completed_at": _now(),
                 "description_text": None,
                 "preview_payload": None,
                 "accepted_file_metadata": {},
