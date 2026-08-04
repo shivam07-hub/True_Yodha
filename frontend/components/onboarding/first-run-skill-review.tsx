@@ -6,6 +6,7 @@ import { trackEvent } from "@/lib/analytics"
 import { proofTier, PROOF_TIER_COPY, type ProofTier } from "@/lib/cv/skill-proof"
 import { onboarding, type OnboardingResult } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { StickyOnboardingActionBar } from "@/components/onboarding/sticky-action-bar"
 
 type SkillResult = Extract<OnboardingResult, { kind: "awaiting_skill_confirmation" }>
 type Props = {
@@ -97,8 +98,7 @@ export function FirstRunSkillReview({ token, result, onConfirmed, onForward }: P
 
   return (
     <section className="w-full max-w-2xl pb-28" aria-labelledby="skill-review-title">
-      <p className="text-sm font-semibold text-[var(--tm-interactive)]">Step 1 of 3</p>
-      <h1 id="skill-review-title" className="mt-2 text-balance text-3xl font-semibold text-[var(--tm-text)]">
+      <h1 id="skill-review-title" className="text-balance text-3xl font-semibold text-[var(--tm-text)] sm:text-4xl">
         Check what Myro found
       </h1>
       {/* One line at body size. The old two-clause subtitle at sm:text-base
@@ -183,8 +183,8 @@ export function FirstRunSkillReview({ token, result, onConfirmed, onForward }: P
           an arbitrary CSS variable, so it dropped the background entirely and the
           skill rows scrolled visibly through the bar behind "N kept". A count that
           is the thing being confirmed cannot be rendered over moving text. */}
-      <div className="fixed inset-x-0 bottom-0 z-10 border-t border-[var(--tm-border-soft)] bg-[var(--tm-bg)]">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-5 py-3 sm:px-8">
+      <StickyOnboardingActionBar error={error} contentClassName="max-w-5xl">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-3 sm:px-8">
           <p className="text-sm text-[var(--tm-text-muted)]">
             <span className="font-semibold tabular-nums text-[var(--tm-text)]">{keptCount}</span> kept
             {removed.size > 0 && <span className="tabular-nums"> · {removed.size} removed</span>}
@@ -196,8 +196,7 @@ export function FirstRunSkillReview({ token, result, onConfirmed, onForward }: P
             </Button>
           </div>
         </div>
-        {error && <p role="alert" className="mx-auto max-w-5xl px-5 pb-3 text-sm text-[var(--tm-danger)] sm:px-8">{error}</p>}
-      </div>
+      </StickyOnboardingActionBar>
     </section>
   )
 }

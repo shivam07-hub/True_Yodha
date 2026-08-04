@@ -28,14 +28,27 @@ const scoredApp = (over: Partial<ApplicationResponse> & { match_score?: number |
 const match = (job_id: string, match_score: number): JobMatch => ({ job_id, match_score }) as JobMatch
 
 test("no CV beats everything", () => {
-  const next = deriveNextAction([app({ status: "interviewing" })], undefined, { hasCv: false, now: NOW })
+  const next = deriveNextAction(
+    [app({ status: "interviewing" })],
+    undefined,
+    { cvPresence: "absent", now: NOW },
+  )
   assert.equal(next.href, "/cv")
+})
+
+test("unresolved CV truth never manufactures an upload action", () => {
+  const next = deriveNextAction(
+    [app({ status: "interviewing" })],
+    undefined,
+    { cvPresence: "unknown", now: NOW },
+  )
+  assert.equal(next, null)
 })
 
 test("the upload pointer is generic so the chip hides on /cv itself", () => {
   // has_cv stays false for the whole analysis, so without this the chip tells a
   // user watching their own CV parse to go upload a CV.
-  const next = deriveNextAction([], undefined, { hasCv: false, now: NOW })
+  const next = deriveNextAction([], undefined, { cvPresence: "absent", now: NOW })
   assert.equal(next.generic, true)
 })
 
@@ -43,7 +56,7 @@ test("interviewing room outranks everything with a CV", () => {
   const next = deriveNextAction(
     [app({ job_id: "a", cv_badge: badge }), app({ job_id: "b", status: "interviewing", company: "Sanofi" })],
     undefined,
-    { hasCv: true, now: NOW },
+    { cvPresence: "present", now: NOW },
   )
   assert.equal(next.href, "/preparations/b")
   assert.match(next.label, /Sanofi/)
@@ -56,7 +69,7 @@ test("overdue applied room outranks apply-ready", () => {
       app({ job_id: "b", status: "applied", company: "3M", applied_at: "2026-07-01T00:00:00Z" }),
     ],
     undefined,
-    { hasCv: true, now: NOW },
+    { cvPresence: "present", now: NOW },
   )
   assert.equal(next.href, "/preparations/b")
   assert.match(next.label, /Check on 3M/)
@@ -66,7 +79,7 @@ test("tailored-but-unsent outranks tailoring another", () => {
   const next = deriveNextAction(
     [app({ job_id: "a", cv_badge: badge, company: "Ready Co" }), app({ job_id: "b" })],
     undefined,
-    { hasCv: true, now: NOW },
+    { cvPresence: "present", now: NOW },
   )
   assert.match(next.label, /Apply to Ready Co/)
   assert.equal(next.href, "/collections?jobId=a")
@@ -76,7 +89,7 @@ test("tailor targets the best-fit untailored save, fit from cached matches", () 
   const next = deriveNextAction(
     [app({ job_id: "lo", company: "Low" }), app({ job_id: "hi", company: "High" })],
     [match("lo", 48), match("hi", 91)],
-    { hasCv: true, now: NOW },
+    { cvPresence: "present", now: NOW },
   )
   assert.equal(next.href, "/cv?jobId=hi")
   assert.match(next.label, /Tailor High · 91%/)
@@ -89,7 +102,7 @@ test("tailor selects the highest durable saved-match score before a matches cach
       scoredApp({ job_id: "hi", company: "High", match_score: 91 }),
     ],
     undefined,
-    { hasCv: true, now: NOW },
+    { cvPresence: "present", now: NOW },
   )
   assert.equal(next.href, "/cv?jobId=hi")
   assert.match(next.label, /Tailor High · 91%/)
@@ -102,7 +115,7 @@ test("a priority save leads the next preparation action over a higher-fit ordina
       scoredApp({ job_id: "priority", company: "Priority", match_score: 48, is_priority: true }),
     ],
     undefined,
-    { hasCv: true, now: NOW },
+    { cvPresence: "present", now: NOW },
   )
 
   assert.equal(next.href, "/cv?jobId=priority")
@@ -119,7 +132,7 @@ test("the open job is dropped — the chip names what comes AFTER it, not the sc
       scoredApp({ job_id: "infosys", company: "Infosys", match_score: 40 }),
     ],
     undefined,
-    { hasCv: true, now: NOW, openJobId: "capgemini" },
+    { cvPresence: "present", now: NOW, openJobId: "capgemini" },
   )
   assert.equal(next.href, "/cv?jobId=infosys")
   assert.match(next.label, /Tailor Infosys · 40%/)
@@ -131,7 +144,7 @@ test("the open job is dropped from every rung, not just the tailor one", () => {
   const next = deriveNextAction(
     [app({ job_id: "open", company: "Open Co", cv_badge: badge }), app({ job_id: "other", company: "Other Co" })],
     undefined,
-    { hasCv: true, now: NOW, openJobId: "open" },
+    { cvPresence: "present", now: NOW, openJobId: "open" },
   )
   assert.equal(next.href, "/cv?jobId=other")
   assert.match(next.label, /Tailor Other Co/)
@@ -141,7 +154,7 @@ test("a prep room's own job is dropped so the room is never told to prep itself"
   const next = deriveNextAction(
     [app({ job_id: "here", status: "interviewing", company: "Here Co" })],
     undefined,
-    { hasCv: true, now: NOW, openJobId: "here" },
+    { cvPresence: "present", now: NOW, openJobId: "here" },
   )
   assert.equal(next.href, "/market")
   assert.equal(next.generic, true)
@@ -151,7 +164,7 @@ test("an open job that is the only saved role falls through to the generic point
   const next = deriveNextAction(
     [scoredApp({ job_id: "solo", company: "Solo Co", match_score: 33 })],
     undefined,
-    { hasCv: true, now: NOW, openJobId: "solo" },
+    { cvPresence: "present", now: NOW, openJobId: "solo" },
   )
   assert.equal(next.label, "Find a role to tailor")
   assert.equal(next.generic, true)
@@ -161,19 +174,19 @@ test("no openJobId leaves the ladder untouched", () => {
   const next = deriveNextAction(
     [scoredApp({ job_id: "capgemini", company: "Capgemini", match_score: 33 })],
     undefined,
-    { hasCv: true, now: NOW },
+    { cvPresence: "present", now: NOW },
   )
   assert.equal(next.href, "/cv?jobId=capgemini")
 })
 
 test("empty pipeline with fresh matches points at the new-jobs run", () => {
-  const next = deriveNextAction([], undefined, { hasCv: true, newJobs: 12, now: NOW })
+  const next = deriveNextAction([], undefined, { cvPresence: "present", newJobs: 12, now: NOW })
   assert.equal(next.href, "/collections?search=1")
   assert.match(next.label, /12 new/)
 })
 
 test("nothing saved → find a role to tailor, marked generic", () => {
-  const next = deriveNextAction([], undefined, { hasCv: true, now: NOW })
+  const next = deriveNextAction([], undefined, { cvPresence: "present", now: NOW })
   assert.equal(next.href, "/market")
   assert.equal(next.label, "Find a role to tailor")
   assert.equal(next.generic, true)

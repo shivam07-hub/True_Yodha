@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { jobs as jobsApi, type JobMatchesResponse } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import type { CvPresence } from "@/lib/cv-presence"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { deriveNextAction } from "@/components/nav/next-action"
 
@@ -35,7 +36,7 @@ function openJobId(pathname: string, params: URLSearchParams): string | null {
   return prep ? decodeURIComponent(prep[1]) : null
 }
 
-export function NextChip({ hasCv }: { hasCv: boolean }) {
+export function NextChip({ cvPresence }: { cvPresence: CvPresence }) {
   const { token } = useAuth()
   const pathname = usePathname()
   const params = useSearchParams()
@@ -52,12 +53,14 @@ export function NextChip({ hasCv }: { hasCv: boolean }) {
     enabled: false, // passive — never triggers a fetch itself
   })
 
-  if (!apps && hasCv) return null // cache warming — no flash of a wrong answer
+  if (cvPresence === "unknown") return null
+  if (!apps && cvPresence === "present") return null // cache warming — no flash of a wrong answer
   const next = deriveNextAction(apps ?? [], matches?.jobs, {
-    hasCv,
+    cvPresence,
     newJobs: matches?.new_jobs_count ?? 0,
     openJobId: openJobId(pathname, params),
   })
+  if (!next) return null
   if (next.generic && onSurface(pathname, next.href)) return null
 
   return (

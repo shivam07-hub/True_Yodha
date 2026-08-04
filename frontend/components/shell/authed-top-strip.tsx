@@ -104,7 +104,7 @@ export function AuthedTopStrip({ model, mountFeedbackHub = false }: AuthedTopStr
               it reads the query string (the open job) and this same strip renders
               on statically-generated public routes. */}
           <Suspense fallback={null}>
-            <NextChip hasCv={nav.hasCv} />
+            <NextChip cvPresence={nav.cvPresence} />
           </Suspense>
 
           {/* Myro Score — status carried through every stage (unified-structure lock #9) */}

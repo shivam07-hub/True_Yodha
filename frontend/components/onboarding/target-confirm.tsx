@@ -4,6 +4,7 @@ import { useState } from "react"
 import { ArrowLeft, Check, Search } from "lucide-react"
 import { useQueries, useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
+import { StickyOnboardingActionBar } from "@/components/onboarding/sticky-action-bar"
 import { formatCount } from "@/lib/format"
 import { onboarding, type OnboardingResult, type RoleFamily, type TargetSeniority } from "@/lib/api"
 import { trackEvent } from "@/lib/analytics"
@@ -33,14 +34,13 @@ function SeniorityChoice({ result, value, onChange }: {
   value: TargetSeniority | null
   onChange: (value: TargetSeniority) => void
 }) {
-  const [editing, setEditing] = useState(result.needs_choice)
-  const label = value && value !== "any" ? SENIORITY_LABEL[value] : null
   const evidence = result.source === "experience_years"
-    ? `${label} · ${result.years} yrs of experience read from your CV`
-    : result.source === "title" ? `${label} · read from “${result.title}”` : "What level are you targeting? We couldn’t tell from your CV."
+    ? `${result.years} yrs of experience read from your CV`
+    : result.source === "title" ? `Read from “${result.title}” in your CV` : "We couldn’t tell from your CV."
   return <section className="mt-7" aria-labelledby="target-level">
-    <div className="flex items-center gap-3"><p id="target-level" className="text-sm font-medium text-[var(--tm-text)]">{evidence}</p>{!editing && <button type="button" onClick={() => setEditing(true)} className="tm-control-focus rounded text-sm text-[var(--tm-text-muted)] underline underline-offset-4">change</button>}</div>
-    {editing && <div className="mt-3 flex flex-wrap gap-2">{Object.entries(SENIORITY_LABEL).map(([key, name]) => <button key={key} type="button" onClick={() => { onChange(key as TargetSeniority); setEditing(false) }} className={cn("tm-control-focus min-h-11 rounded-md border px-3 text-sm", value === key ? "border-[var(--tm-interactive)] bg-[var(--tm-interactive)] text-[var(--tm-interactive-fg)]" : "border-[var(--tm-border)] bg-[var(--tm-surface)] text-[var(--tm-text-muted)]")}>{name}</button>)}</div>}
+    <p id="target-level" className="text-sm font-medium text-[var(--tm-text)]">What level are you looking for?</p>
+    <p className="mt-1 text-pretty text-sm text-[var(--tm-text-muted)]">{evidence}</p>
+    <div className="mt-3 flex flex-wrap gap-2">{Object.entries(SENIORITY_LABEL).map(([key, name]) => <button key={key} type="button" onClick={() => onChange(key as TargetSeniority)} aria-pressed={value === key} className={cn("tm-control-focus min-h-11 rounded-md border px-3 text-sm", value === key ? "border-[var(--tm-interactive)] bg-[var(--tm-interactive)] text-[var(--tm-interactive-fg)]" : "border-[var(--tm-border)] bg-[var(--tm-surface)] text-[var(--tm-text-muted)]")}>{name}</button>)}</div>
   </section>
 }
 
@@ -146,10 +146,9 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
     }
   }
 
-  return <section className="w-full max-w-lg" aria-labelledby="target-title">
+  return <section className="w-full max-w-lg pb-28" aria-labelledby="target-title">
     {onBack && <button type="button" onClick={onBack} className="tm-control-focus -ml-1 mb-3 inline-flex min-h-9 items-center gap-1.5 rounded px-1 text-sm text-[var(--tm-text-muted)]"><ArrowLeft className="size-4" />Your CV</button>}
-    <p className="text-sm font-semibold text-[var(--tm-interactive)]">Step 2 of 3</p>
-    <h1 id="target-title" className="mt-2 text-balance text-3xl font-semibold text-[var(--tm-text)]">Choose your direction</h1>
+    <h1 id="target-title" className="text-balance text-3xl font-semibold text-[var(--tm-text)] sm:text-4xl">Choose your direction</h1>
     <p className="mt-2 text-sm leading-6 text-[var(--tm-text-muted)]">Pick up to {MAX_ROLES} kinds of work you want next.</p>
 
     <div className="mt-6 space-y-2">
@@ -202,12 +201,15 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
       </div>
     </section>}
 
-    {error && <p role="alert" className="mt-4 text-sm text-[var(--tm-danger)]">{error}</p>}
-    <Button size="lg" className="mt-8 min-h-12 w-full" disabled={!selected.length || !seniority || busy} onClick={() => void submit()}>
-      {busy ? "Building your shortlist…" : !selected.length ? "Choose a role to continue" : !seniority ? "Choose a level to continue" : "Show my first shortlist →"}
-    </Button>
-    {/* Only offered to someone who already HAS a shortlist — it returns them to
-        it untouched, which is the whole point of a review being free. */}
-    {onForward && <Button variant="ghost" size="lg" className="mt-2 min-h-12 w-full" onClick={onForward}>Back to my shortlist</Button>}
+    <StickyOnboardingActionBar error={error} contentClassName="max-w-lg px-5 pt-3 sm:px-8">
+      {/* Only offered to someone who already HAS a shortlist — it returns them to
+          it untouched, which is the whole point of a review being free. */}
+      <div className="flex flex-col gap-2 sm:flex-row-reverse">
+        <Button size="lg" className="min-h-12 w-full" disabled={!selected.length || !seniority || busy} onClick={() => void submit()}>
+          {busy ? "Building your shortlist…" : !selected.length ? "Choose a role to continue" : !seniority ? "Choose a level to continue" : "Show my first shortlist →"}
+        </Button>
+        {onForward && <Button variant="ghost" size="lg" className="min-h-12 w-full sm:w-auto" onClick={onForward}>Back to my shortlist</Button>}
+      </div>
+    </StickyOnboardingActionBar>
   </section>
 }

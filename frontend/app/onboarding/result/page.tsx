@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { RotateCcw } from "lucide-react"
 import { MyroLogo } from "@/components/myro-logo"
@@ -9,7 +9,6 @@ import { AnalysisProgress } from "@/components/onboarding/analysis-progress"
 import { BaselineGenerator } from "@/components/onboarding/baseline-generator"
 import { FullResult } from "@/components/onboarding/full-result"
 import { FirstRunSkillReview } from "@/components/onboarding/first-run-skill-review"
-import { FirstRoleSuccess } from "@/components/onboarding/first-role-success"
 import { JourneyProgress } from "@/components/onboarding/journey-progress"
 import { TargetConfirm } from "@/components/onboarding/target-confirm"
 import { Button } from "@/components/ui/button"
@@ -25,6 +24,7 @@ import { useOnboardingState } from "@/lib/hooks/use-onboarding-state"
 
 export default function OnboardingResultPage() {
   const queryClient = useQueryClient()
+  const router = useRouter()
   const { token, ready } = useAuth()
   const { state, refresh } = useOnboardingState(token)
   const searchParams = useSearchParams()
@@ -104,6 +104,13 @@ export default function OnboardingResultPage() {
     }
   }, [result])
 
+  // Saving is the durable completion event. A reload may receive the persisted
+  // receipt instead of the in-flight client transition; take that candidate to
+  // the same tailored-CV destination without reintroducing a success interstitial.
+  useEffect(() => {
+    if (result.data?.kind === "first_role_saved") router.replace(result.data.tailor_href)
+  }, [result.data, router])
+
   async function resetToUpload() {
     if (!token) return
     await onboarding.startOver(token)
@@ -147,7 +154,7 @@ export default function OnboardingResultPage() {
       </section>
     )
     if (!result.data || result.data.kind === "full_result_processing") return <AnalysisProgress phase={streamedPhase ?? result.data?.phase ?? "queued"} onRetry={() => void result.refetch()} />
-    if (result.data.kind === "first_role_saved") return <FirstRoleSuccess title={result.data.title} company={result.data.company} tailorHref={result.data.tailor_href} />
+    if (result.data.kind === "first_role_saved") return null
     // Forward is offered only to someone reviewing ground they've already
     // covered — a first-time visitor has nothing ahead to return to.
     if (result.data.kind === "awaiting_skill_confirmation") return <FirstRunSkillReview token={token} result={result.data} onConfirmed={advance} onForward={furthest > 1 ? forward : undefined} />

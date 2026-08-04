@@ -11,6 +11,7 @@
 import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { cv, users } from "@/lib/api"
+import { cvPresenceFromProfile, type CvPresence } from "@/lib/cv-presence"
 import { dataKeys } from "@/lib/domain-data"
 import { useSession } from "@/lib/hooks/use-auth"
 import {
@@ -25,8 +26,8 @@ import {
 
 export interface NavUnlocksVm {
   ctx: NavUnlockCtx
-  /** Baseline CV uploaded — enables the job-search loop. */
-  hasCv: boolean
+  /** Authoritative CV state; `unknown` must never be rendered as `absent`. */
+  cvPresence: CvPresence
   /** Loading flag for the two backing queries (drives data-shaped skeletons). */
   loading: boolean
   visibleDesktop: NavItem[]
@@ -54,6 +55,7 @@ export function useNavUnlocks(): NavUnlocksVm {
 
   const versions = versionsData?.versions
   const ctx = useMemo(() => deriveNavUnlockCtx(versions, profile), [versions, profile])
+  const cvPresence = cvPresenceFromProfile(profile)
 
   // Myrology renders in the left content cluster (beside Newsletter), not in the
   // primary workspace tabs — it is a side offering, not core workflow. It keeps
@@ -63,7 +65,7 @@ export function useNavUnlocks(): NavUnlocksVm {
 
   return {
     ctx,
-    hasCv: profile?.has_cv ?? false,
+    cvPresence,
     loading: versionsLoading || profileLoading,
     visibleDesktop: visibleNavItems("desktop", ctx).filter((i) => i.id !== "myrology"),
     content: myrologyVisible && myrologyItem ? [...CONTENT_NAV, myrologyItem] : CONTENT_NAV,

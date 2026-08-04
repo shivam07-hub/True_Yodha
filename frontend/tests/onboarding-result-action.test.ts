@@ -10,20 +10,19 @@ test("the first shortlist is a single-selection decision surface", () => {
   const matches = read("components/onboarding/result-matches.tsx")
 
   assert.match(matches, /role="radiogroup"/)
-  assert.match(matches, /type="radio"/)
+  assert.match(matches, /role: "radio"/)
+  assert.match(matches, /"aria-checked": selected/)
   assert.match(matches, /onSelect\(job\.job_id\)/)
   assert.doesNotMatch(matches, /saveJob|Tailor CV|See every match/)
 })
 
-test("the final step persists one role before offering tailoring", () => {
+test("the final step persists one role and opens tailoring directly", () => {
   const result = read("components/onboarding/full-result.tsx")
-  const success = read("components/onboarding/first-role-success.tsx")
 
   assert.match(result, /onboarding\.commitFirstRole/)
   assert.match(result, /Save \$\{selectedJob\.title\} at \$\{selectedJob\.company/)
-  assert.match(result, /receipt\.tailor_href/)
-  assert.match(success, /Tailor my CV for this role/)
-  assert.match(success, /tailorHref/)
+  assert.match(result, /router\.replace\(next\.tailor_href\)/)
+  assert.match(result, /StickyOnboardingActionBar/)
   assert.doesNotMatch(result, /savedCount|pickBestMatch|See all matches/)
 })
 
@@ -38,9 +37,8 @@ test("failed persistence keeps the selection and shows an adjacent retry", () =>
 test("match fit and reasons remain grounded in canonical match data", () => {
   const matches = read("components/onboarding/result-matches.tsx")
 
-  assert.match(matches, /matchFitScore\(job\)/)
-  assert.match(matches, /verdictLabel\(job\.verdict\)/)
-  assert.match(matches, /job\.matched_skills \?\? \[\]/)
+  assert.match(matches, /feedDataFromMatch/)
+  assert.match(matches, /match_score/)
 })
 
 test("an empty shortlist has exactly one recovery action", () => {

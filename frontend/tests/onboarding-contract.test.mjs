@@ -13,7 +13,7 @@ test("onboarding routes CV evidence through skill confirmation before target and
   assert.match(result, /awaiting_target/)
   assert.match(result, /TargetConfirm/)
   assert.match(result, /first_role_saved/)
-  assert.match(result, /FirstRoleSuccess/)
+  assert.match(result, /router\.replace\(result\.data\.tailor_href\)/)
   assert.doesNotMatch(result, /router\.replace\("\/cv\?edit=1&tab=skills&confirm=1"\)/)
 })
 
@@ -64,7 +64,7 @@ test("baseline generator fixes the five-question expectation", () => {
 
 test("full result is a focused live-role decision, not a score dashboard", () => {
   const result = read("components/onboarding/full-result.tsx")
-  assert.match(result, /Your first live shortlist/)
+  assert.match(result, /Pick your first role/)
   assert.match(result, /ResultMatches/)
   assert.doesNotMatch(result, /Your Myro Score|ScoreMapPreview|SkillCorrectionSheet|Download/)
 })
@@ -104,6 +104,16 @@ test("accepted upload and target are persisted before result navigation", () => 
   assert.match(page, /router\.push\("\/onboarding\/result"\)/)
   assert.doesNotMatch(page, /pollCVUploadStatus/)
   assert.match(page, /state\.isFetchedAfterMount/)
+})
+
+test("target choices stay editable and share the onboarding action lane", () => {
+  const target = read("components/onboarding/target-confirm.tsx")
+  const actionBar = read("components/onboarding/sticky-action-bar.tsx")
+  assert.match(target, /aria-pressed=\{value === key\}/)
+  assert.doesNotMatch(target, /setEditing|editing &&/)
+  assert.match(target, /StickyOnboardingActionBar/)
+  assert.match(actionBar, /fixed inset-x-0 bottom-0/)
+  assert.match(actionBar, /safe-area-inset-bottom/)
 })
 
 test("progressive personalization derives the post-score three-move triad", () => {

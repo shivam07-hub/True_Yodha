@@ -119,6 +119,9 @@ export interface FeedCardProps {
   pulse?: React.ReactNode
   /** Bottom action row — triage (market) or like/skip/tailor (dashboard). */
   actions?: React.ReactNode
+  /** A card used as a single-choice control keeps skill evidence visible but
+   * leaves the whole card as its only action. */
+  allowGapActions?: boolean
   /** Per-section disclosure rail (Why fit · Match · Reach · JD) — rendered
    *  between the trust row and the actions. Fills the card's dead space with
    *  CTAs, not filler; each opens only its own panel inline. Row variant only. */
@@ -140,7 +143,7 @@ export interface FeedCardProps {
 }
 
 export function FeedCard({
-  data, fit, fitSize, badges, pulse, actions, rail, confirm, variant = "row", open, leaving, extraClass = "", onOpen, articleProps,
+  data, fit, fitSize, badges, pulse, actions, rail, confirm, allowGapActions = true, variant = "row", open, leaving, extraClass = "", onOpen, articleProps,
 }: FeedCardProps) {
   const age = ageLabel(data.ageIso)
   const exp = experienceLabel(data.minYears, data.maxYears)
@@ -268,19 +271,26 @@ export function FeedCard({
                 {data.skillCount.matched}/{data.skillCount.total} skills
               </span>
               {gapChips.map((c) => (
-                // A gap → one tap to start closing it. The chip IS the Forge CTA
-                // (design-over-words), so the card reads as "here's the path".
-                <a
-                  key={c.name}
-                  href={`/forge?skill=${encodeURIComponent(c.name)}`}
-                  className="fc-chip is-gap"
-                  title={`Practice ${c.name} in Forge`}
-                  aria-label={`Missing: ${c.name}. Practice it in Forge`}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Cross8 />
-                  <span className="fc-chip-name">{c.name}</span>
-                </a>
+                allowGapActions ? (
+                  // A gap → one tap to start closing it. The chip IS the Forge CTA
+                  // (design-over-words), so the card reads as "here's the path".
+                  <a
+                    key={c.name}
+                    href={`/forge?skill=${encodeURIComponent(c.name)}`}
+                    className="fc-chip is-gap"
+                    title={`Practice ${c.name} in Forge`}
+                    aria-label={`Missing: ${c.name}. Practice it in Forge`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Cross8 />
+                    <span className="fc-chip-name">{c.name}</span>
+                  </a>
+                ) : (
+                  <span key={c.name} className="fc-chip is-gap">
+                    <Cross8 />
+                    <span className="fc-chip-name">{c.name}</span>
+                  </span>
+                )
               ))}
               {moreGaps > 0 ? (
                 <span className="fc-chip fc-chip-more">+{moreGaps} to close</span>
