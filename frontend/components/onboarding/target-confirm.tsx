@@ -148,8 +148,7 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
 
   return <section className="w-full max-w-lg pb-28" aria-labelledby="target-title">
     {onBack && <button type="button" onClick={onBack} className="tm-control-focus -ml-1 mb-3 inline-flex min-h-9 items-center gap-1.5 rounded px-1 text-sm text-[var(--tm-text-muted)]"><ArrowLeft className="size-4" />Your CV</button>}
-    <p className="text-sm font-semibold text-[var(--tm-interactive)]">Step 2 of 3</p>
-    <h1 id="target-title" className="mt-2 text-balance text-3xl font-semibold text-[var(--tm-text)]">Choose your direction</h1>
+    <h1 id="target-title" className="text-balance text-3xl font-semibold text-[var(--tm-text)] sm:text-4xl">Choose your direction</h1>
     <p className="mt-2 text-sm leading-6 text-[var(--tm-text-muted)]">Pick up to {MAX_ROLES} kinds of work you want next.</p>
 
     <div className="mt-6 space-y-2">

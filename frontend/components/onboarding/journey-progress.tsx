@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils"
  * its step: step 1 covers uploading the CV AND reviewing what was found in it,
  * and "Check what we found" was a lie while the file was still uploading.
  */
-const STEPS = ["Your CV", "Your direction", "Live roles"] as const
+const STEPS = ["Your CV", "Direction", "First role"] as const
 
 interface Props {
   /** The step being displayed. */
@@ -46,7 +46,7 @@ export function JourneyProgress({ current, furthest = 0, onSelect }: Props) {
               className={cn(
                 "grid size-6 shrink-0 place-items-center rounded-full border text-xs tabular-nums",
                 active && "border-[var(--tm-interactive)] bg-[var(--tm-interactive)] text-[var(--tm-interactive-fg)]",
-                complete && "border-[var(--tm-interactive)] text-[var(--tm-interactive)]",
+                complete && "border-[var(--tm-success-border)] text-[var(--tm-success)]",
                 step > current && !reviewable && "border-[var(--tm-border)] text-[var(--tm-text-faint)]",
                 step > current && reviewable && "border-[var(--tm-interactive)] text-[var(--tm-interactive)]",
               )}
@@ -67,7 +67,7 @@ export function JourneyProgress({ current, furthest = 0, onSelect }: Props) {
               aria-current={active ? "step" : undefined}
               className={cn(
                 "border-t-2 pt-3",
-                step <= Math.max(current, furthest) ? "border-[var(--tm-interactive)]" : "border-[var(--tm-border)]",
+                active ? "border-[var(--tm-interactive)]" : "border-[var(--tm-border-soft)]",
               )}
             >
               {reviewable ? (

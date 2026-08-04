@@ -98,8 +98,7 @@ export function FirstRunSkillReview({ token, result, onConfirmed, onForward }: P
 
   return (
     <section className="w-full max-w-2xl pb-28" aria-labelledby="skill-review-title">
-      <p className="text-sm font-semibold text-[var(--tm-interactive)]">Step 1 of 3</p>
-      <h1 id="skill-review-title" className="mt-2 text-balance text-3xl font-semibold text-[var(--tm-text)]">
+      <h1 id="skill-review-title" className="text-balance text-3xl font-semibold text-[var(--tm-text)] sm:text-4xl">
         Check what Myro found
       </h1>
       {/* One line at body size. The old two-clause subtitle at sm:text-base

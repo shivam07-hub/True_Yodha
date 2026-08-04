@@ -13,7 +13,7 @@ test("onboarding routes CV evidence through skill confirmation before target and
   assert.match(result, /awaiting_target/)
   assert.match(result, /TargetConfirm/)
   assert.match(result, /first_role_saved/)
-  assert.match(result, /FirstRoleSuccess/)
+  assert.match(result, /router\.replace\(result\.data\.tailor_href\)/)
   assert.doesNotMatch(result, /router\.replace\("\/cv\?edit=1&tab=skills&confirm=1"\)/)
 })
 
@@ -64,7 +64,7 @@ test("baseline generator fixes the five-question expectation", () => {
 
 test("full result is a focused live-role decision, not a score dashboard", () => {
   const result = read("components/onboarding/full-result.tsx")
-  assert.match(result, /Your first live shortlist/)
+  assert.match(result, /Pick your first role/)
   assert.match(result, /ResultMatches/)
   assert.doesNotMatch(result, /Your Myro Score|ScoreMapPreview|SkillCorrectionSheet|Download/)
 })
