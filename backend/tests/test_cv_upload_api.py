@@ -361,12 +361,11 @@ def test_background_run_marks_done_on_success(monkeypatch) -> None:
     ]
     assert repo.profile_updates == []
     assert repo.created and repo.created[0].kind == "baseline_upload"
-    assert repo.created[0].cv_structured == {
-        "basics": {"name": "Candidate"},
-        "experience": [],
-    }
+    # The layout is NOT written here — it is the larger LLM call and nothing on
+    # the screen behind this wait reads it. See test_cv_layout_never_blocks_upload.
+    assert not repo.created[0].cv_structured
     assert repo.created[0].skills_detected[0]["taxonomy_key"] == "Python"
-    assert enqueued == []
+    assert enqueued == [(cv_workflow.background.LANE_FAST, "cv_structured_enrich")]
 
 
 def test_background_run_refunds_and_fails_on_provider_outage(monkeypatch) -> None:

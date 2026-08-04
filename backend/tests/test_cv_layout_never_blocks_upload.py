@@ -1,16 +1,25 @@
-"""A failed CV *layout* parse must not cost the user their upload.
+"""The CV *layout* parse must never sit on the upload's critical path.
 
-2026-08-03, prod. Skill extraction succeeded; the second LLM call — the one that
-builds `cv_structured`, the visual layout for the CV playground — returned JSON
-that would not parse, and the whole job failed and refunded. The same CV did it
-twice in three minutes, which is not what a provider outage looks like.
+Two incidents, one cause. 2026-08-03: the layout call returned unparseable JSON
+and the whole job failed and refunded a good analysis. That was fixed by letting
+a failed layout degrade — but the call itself stayed inline, so every successful
+upload still paid for it.
 
-Nothing downstream of onboarding needs that layout. The score, the skill review
-and the direction step are built on `skills_detected`. And `cv_structured = NULL`
-is an explicitly supported state: `get_or_backfill_cv_structured` exists to
-rebuild it on first read, and `cv_structured_enrich` was written as its
-background path — then never enqueued from anywhere, which is why a failed parse
-had nowhere to go but "fail everything".
+Measured 2026-08-04 in prod: the whole job ran p50 48s / p90 109s over 30 days,
+and decomposing the 14 jobs that carry `llm_elapsed_ms` puts the layout leg at
+~5-8s for nine of them and 29-52s for the other five. Bimodal, because its prompt
+demands every bullet of every role VERBATIM and so asks for 12,000 output tokens
+against the skills call's 3,072 — dense CVs pay it, short ones do not. So this is
+a TAIL fix, not a median halving, and the tail is where users leave.
+
+And nothing on the screen behind that wait reads it: `FirstRunSkillReview` renders
+`skills` and `baseline_version_id`, and the score, the direction step and the
+shortlist are all built on `skills_detected`.
+
+So the invariant is now stronger than "a failed layout is survivable": the upload
+path does not call the layout parser at all, and always hands it to the background
+lane. `cv_structured = NULL` is a supported state — `get_or_backfill_cv_structured`
+rebuilds it on first read and the playground renders `CvDocumentSkeleton` meanwhile.
 """
 
 from __future__ import annotations
@@ -25,16 +34,24 @@ from app.services import cv_workflow
 
 @pytest.fixture
 def stages(monkeypatch: pytest.MonkeyPatch):
-    """Drive `_run_cv_upload_stages` with skills that parse and a layout that
-    does not — the exact prod shape."""
-    state: dict = {"persisted": [], "done": [], "failed": [], "enqueued": []}
+    """Drive `_run_cv_upload_stages` with skills that parse.
+
+    `reparse_structured_only` is replaced with a tripwire: the upload path calling
+    it at all is the regression this module exists to catch.
+    """
+    state: dict = {"persisted": [], "done": [], "failed": [], "enqueued": [], "layout_calls": 0}
 
     async def _skills(_text, **_kw):
         return {"skills_detected": [{"taxonomy_key": "Python (Programming Language)"}]}
 
+    async def _layout_tripwire(_text):
+        state["layout_calls"] += 1
+        return {"contact": {}, "experience": []}
+
     monkeypatch.setattr(upload_jobs_repo, "set_phase", lambda *_a, **_k: None)
     monkeypatch.setattr(upload_jobs_repo, "claim_for_completion", lambda _id: True)
     monkeypatch.setattr(cv_workflow.cv_parser, "parse_cv_skills", _skills)
+    monkeypatch.setattr(cv_workflow.cv_parser, "reparse_structured_only", _layout_tripwire)
     monkeypatch.setattr(
         cv_workflow, "_persist_baseline_cv",
         lambda *_a, **kw: state["persisted"].append(kw) or 42,
@@ -67,74 +84,48 @@ def _run() -> None:
     ))
 
 
-def test_unparseable_layout_still_delivers_the_skills(
-    monkeypatch: pytest.MonkeyPatch, stages: dict
-) -> None:
-    async def _no_layout(_text):
-        return None  # what "unparseable JSON" resolves to
-
-    monkeypatch.setattr(cv_workflow.cv_parser, "reparse_structured_only", _no_layout)
-
+def test_the_upload_never_waits_on_the_layout_parse(stages: dict) -> None:
+    """The whole point. Falsify by restoring the inline `await` — this fails."""
     _run()
 
-    assert not stages["failed"], "a missing layout must never refund a good analysis"
-    assert stages["persisted"], "the baseline must still be written"
-    assert not stages["persisted"][0]["cv_structured"]
-    assert stages["done"], "the job must reach `done` so onboarding can proceed"
+    assert stages["layout_calls"] == 0, (
+        "the upload path awaited the layout parse; that is the larger half of the "
+        "wait and nothing behind the wait reads it"
+    )
+    assert stages["done"], "the job must still reach `done` so onboarding can proceed"
 
 
-def test_a_crashing_layout_parse_is_also_survivable(
-    monkeypatch: pytest.MonkeyPatch, stages: dict
-) -> None:
-    async def _boom(_text):
-        raise RuntimeError("provider client exploded")
-
-    monkeypatch.setattr(cv_workflow.cv_parser, "reparse_structured_only", _boom)
-
+def test_the_baseline_is_written_without_a_layout(stages: dict) -> None:
     _run()
 
-    assert not stages["failed"]
-    assert stages["done"]
+    assert stages["persisted"], "the baseline must be written"
+    assert not stages["persisted"][0]["cv_structured"], (
+        "the layout is filled in by the background job, not by the upload"
+    )
 
 
-def test_the_missing_layout_is_queued_to_be_filled_in(
-    monkeypatch: pytest.MonkeyPatch, stages: dict
-) -> None:
-    """Degrading is only honest if the gap actually closes. `cv_structured_enrich`
-    existed as a handler with no caller — a deferred path that deferred forever."""
-    async def _no_layout(_text):
-        return None
-
-    monkeypatch.setattr(cv_workflow.cv_parser, "reparse_structured_only", _no_layout)
-
+def test_the_layout_is_always_queued_not_only_when_it_failed(stages: dict) -> None:
+    """Deferring is only honest if the gap actually closes — for every upload,
+    not just the ones whose inline parse happened to fail."""
     _run()
 
     enrich = [call for call in stages["enqueued"] if call[1] == "cv_structured_enrich"]
-    assert len(enrich) == 1, "the layout must be queued for a background retry"
+    assert len(enrich) == 1, "every upload must queue its layout exactly once"
     lane, _job_type, kwargs = enrich[0]
-    assert lane == cv_workflow.background.LANE_BULK, "the user is not waiting on this"
+    assert lane == cv_workflow.background.LANE_FAST, (
+        "the user is not blocked on this, but they are walking towards it — the CV "
+        "playground is where onboarding ends"
+    )
     assert kwargs["payload"]["baseline_version_id"] == 42
-
-
-def test_a_good_layout_is_not_queued_twice(
-    monkeypatch: pytest.MonkeyPatch, stages: dict
-) -> None:
-    async def _layout(_text):
-        return {"contact": {}, "experience": []}
-
-    monkeypatch.setattr(cv_workflow.cv_parser, "reparse_structured_only", _layout)
-
-    _run()
-
-    assert stages["persisted"][0]["cv_structured"] == {"contact": {}, "experience": []}
-    assert not [call for call in stages["enqueued"] if call[1] == "cv_structured_enrich"]
+    assert kwargs["payload"]["raw_text"] == "a cv"
 
 
 def test_no_skills_still_fails_because_that_is_the_essential_step(
     monkeypatch: pytest.MonkeyPatch, stages: dict
 ) -> None:
-    """The point is that the OPTIONAL step stopped being fatal — not that nothing
-    is. A CV with no extractable skills has nothing to onboard with."""
+    """The point is that the OPTIONAL step left the critical path — not that
+    nothing can fail it. A CV with no extractable skills has nothing to onboard
+    with, and must not leave a layout job queued for a baseline that never was."""
     async def _nothing(_text, **_kw):
         return {"skills_detected": []}
 
@@ -145,13 +136,18 @@ def test_no_skills_still_fails_because_that_is_the_essential_step(
     assert stages["failed"], "a CV with no skills must still fail and refund"
     assert stages["failed"][0]["error_code"] == "no_skills"
     assert not stages["persisted"]
+    assert not [call for call in stages["enqueued"] if call[1] == "cv_structured_enrich"]
 
 
 def test_the_structured_output_budget_exceeds_the_input_it_restructures() -> None:
     """The JSON restating a CV — keys, escaping, every bullet verbatim — is
     strictly larger than the CV. A 4096-token ceiling over a 15k-char input
     truncated dense CVs, and truncated JSON reads downstream as a provider
-    fault rather than as a budget we chose."""
+    fault rather than as a budget we chose.
+
+    This budget is also why the call belongs off the critical path: an output
+    ceiling several times the input is a call that takes tens of seconds by
+    construction."""
     from app.services import cv_parser
 
     # ~4 chars per token is the usual rough conversion.

@@ -788,30 +788,29 @@ async def _run_cv_upload_stages(
         )
         return
 
-    # The CV's visual LAYOUT (`cv_structured`). Deliberately not allowed to fail
-    # the upload: the skills are already extracted above, and skills are what the
-    # score, the review step and the whole of onboarding are built on. Layout is
-    # needed later, by the CV playground.
+    # The CV's visual LAYOUT (`cv_structured`) is NOT computed here. It used to be,
+    # as a second sequential LLM call after skill extraction.
     #
-    # `cv_structured = NULL` is a supported state — `get_or_backfill_cv_structured`
-    # exists precisely to rebuild it on first read. Failing the whole job here
-    # threw away a good analysis, refunded the user and sent them back to the
-    # upload screen because a *second* LLM call returned malformed JSON. That is
-    # what happened to a real signup twice in three minutes on 2026-08-03, on the
-    # same CV both times — a deterministic parse failure, retried as if transient.
-    upload_jobs_repo.set_phase(job_id, "structuring_cv")
-    structured: dict | None
-    try:
-        structured = await cv_parser.reparse_structured_only(raw_text)
-    except Exception:  # provider library/network failure
-        _log.exception("CV structure parse crashed for job=%s user=%s", job_id, user_id)
-        structured = None
-    if structured is None:
-        _log.warning(
-            "metric cv_upload.layout_deferred job=%s user=%s — skills kept, layout "
-            "rebuilt in the background",
-            job_id, user_id,
-        )
+    # Measured per job in prod on 2026-08-04 (14 jobs carrying `llm_elapsed_ms`,
+    # total job time minus the skills call): the layout leg is BIMODAL — ~5-8s for
+    # nine of them, and 29s / 37s / 37s / 38s / 52s for the other five. Median ~6s,
+    # tail up to ~52s. It is not "half the wait" at the median; it is most of the
+    # wait in the tail, and the tail is where users leave. That asymmetry is the
+    # 12,000-token output budget its prompt needs to restate every bullet of every
+    # role VERBATIM (the skills call asks for 3,072) — dense CVs pay it, short ones
+    # do not.
+    #
+    # Nothing on the screen behind that wait reads it. `FirstRunSkillReview` renders
+    # `skills` and `baseline_version_id` only; the score, the direction step and the
+    # shortlist are all built on skills. Layout is first needed by the CV playground,
+    # which the user reaches after reviewing skills, choosing a direction and picking
+    # a role — minutes later — and which already renders `CvDocumentSkeleton` while
+    # it waits.
+    #
+    # So it is always deferred, not only when it fails. `cv_structured = NULL` is a
+    # supported state (`get_or_backfill_cv_structured` rebuilds it on first read),
+    # and enqueueing unconditionally also removes the failure asymmetry that let a
+    # malformed-JSON layout response fail a good analysis.
 
     # Claim before writing. Everything above was read-only against the job row;
     # this is the first irreversible write, and by now minutes of LLM work have
@@ -830,7 +829,7 @@ async def _run_cv_upload_stages(
         cv_repo, user_id,
         raw_text=raw_text,
         content_hash=content_hash,
-        cv_structured=structured,
+        cv_structured=None,
         skills_detected=skills_detected,
         source=source,
     )
@@ -845,14 +844,13 @@ async def _run_cv_upload_stages(
         },
     )
 
-    if structured is None:
-        # Finish the layout off the critical path. `cv_structured_enrich` was
-        # written for this and then never enqueued from anywhere — a deferred
-        # path that existed only as a handler, which is why a failed layout parse
-        # had nowhere to go but "fail the whole upload". BULK lane: the user is
-        # already through to their skills and is not waiting on this.
+    # FAST, not BULK. The bulk lane is documented "nobody is watching", and while
+    # the user is not blocked on the layout, they are walking towards it: the CV
+    # playground is where onboarding ends. It has minutes of user-time cover, not
+    # unbounded time.
+    if baseline_version_id is not None:
         background.enqueue(
-            background.LANE_BULK,
+            background.LANE_FAST,
             "cv_structured_enrich",
             payload={"raw_text": raw_text, "baseline_version_id": baseline_version_id},
             correlation_id=f"structured:{baseline_version_id}",
