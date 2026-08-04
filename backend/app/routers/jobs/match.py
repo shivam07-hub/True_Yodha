@@ -120,8 +120,10 @@ def retry_match_vetting(
         # never shows the button here; this is the honest server-side guard.)
         return MatchRetryResponse(accepted=False, match_health=health)
 
+    # FAST: the user just pressed "retry" and is watching the banner. The bulk
+    # lane means "nobody is watching", which was never true of this path.
     background.enqueue(
-        background.LANE_BULK,
+        background.LANE_FAST,
         "initial_match",
         payload={"user_id": principal.id, "force_context_refresh": True},
         correlation_id=f"revet:{principal.id}",

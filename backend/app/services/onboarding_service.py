@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+from datetime import datetime, timezone
 from typing import Any
 
 from supabase import Client
@@ -249,8 +250,14 @@ async def refresh_target_result(payload: dict[str, Any], allow_retry: bool) -> N
     if scores_repo.get_user_skill_level_map(user_id):
         if not payload.get("score_fresh"):
             scoring.recompute_score(scores_repo, user_id)
+        # FAST, not BULK. The bulk lane is documented "nobody is watching" — and
+        # the onboarding shortlist is the most-watched job in the product: the
+        # result screen polls for it every 2.5s while the user waits on step 3.
+        # (Head-of-line risk against CV analysis is real but theoretical at this
+        # volume; if throughput ever bites, that is a lane-count decision, not a
+        # reason to file a watched job under "nobody is watching".)
         background.enqueue(
-            background.LANE_BULK,
+            background.LANE_FAST,
             "initial_match",
             payload={"user_id": user_id, "force_context_refresh": True},
             correlation_id=f"target-match:{user_id}",
@@ -388,6 +395,90 @@ def _heal_missing_score(user_id: str) -> None:
         )
 
 
+_MATCH_GRACE_SECONDS = 300
+_MATCH_HEAL_WINDOW_SECONDS = 300
+
+
+def _parse_ts(value: Any) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value))
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+def _heal_outstanding_matches(user_id: str) -> None:
+    """Re-run a match that was enqueued for this direction and never landed.
+
+    Same shape as `_heal_missing_score`, for the same reason: a read that can
+    only report leaves a lost job lost forever, and the poll asking about it is
+    the one thing still running. Debounced and fail-soft — a repair must not
+    become the next incident, and it must never take down the screen it repairs.
+    """
+    if not background.claim(f"match-heal:{user_id}", _MATCH_HEAL_WINDOW_SECONDS):
+        return
+    try:
+        background.enqueue(
+            background.LANE_FAST,
+            "initial_match",
+            payload={"user_id": user_id, "force_context_refresh": True},
+            correlation_id=f"match-heal:{user_id}",
+        )
+        logger.info("metric onboarding.match_heal_enqueued user=%s", user_id)
+    except Exception as exc:  # noqa: BLE001 — never fail the result read
+        logger.warning(
+            "metric onboarding.match_heal_failed user=%s exc=%s",
+            user_id, exc.__class__.__name__,
+        )
+
+
+def _shortlist(
+    db: Client,
+    user_id: str,
+    profile: dict[str, Any],
+    baseline_version_id: int,
+    context_hash: str,
+) -> tuple[list[dict[str, Any]], str]:
+    """The first shortlist, scoped to the direction that produced it.
+
+    Returns `(rows, status)` where status is one of:
+
+    - ``ready``    — matches exist for this exact (baseline, direction).
+    - ``computing``— a run for this direction is outstanding and still young.
+    - ``stalled``  — outstanding past the grace window; re-enqueued, and the
+      user is told rather than left watching a spinner forever.
+    - ``empty``    — the run for this direction finished and matched nothing.
+
+    The status is derived, not guessed: `last_match_run_at` is stamped only by
+    `match_run.run_match` on completion, and `target_updated_at` only by a
+    direction change, so `ran >= changed` is a fact about work that finished
+    for the direction currently on screen.
+    """
+    from app.routers.jobs._shared import last_monday, to_job_match
+
+    rows = JobsRepository(db).get_matches_for_context(
+        user_id, baseline_version_id, context_hash, limit=3
+    )
+    if rows:
+        batch_week = last_monday()
+        return [to_job_match(row, batch_week).model_dump(mode="json") for row in rows], "ready"
+
+    ran_at = _parse_ts(profile.get("last_match_run_at"))
+    changed_at = _parse_ts(profile.get("target_updated_at"))
+    if ran_at and changed_at and ran_at >= changed_at:
+        # A run covering this direction completed and produced nothing. Not a
+        # failure — the market genuinely has no overlap. Offer a new direction.
+        return [], "empty"
+
+    age = (datetime.now(timezone.utc) - changed_at).total_seconds() if changed_at else None
+    if age is None or age <= _MATCH_GRACE_SECONDS:
+        return [], "computing"
+    _heal_outstanding_matches(user_id)
+    return [], "stalled"
+
+
 def get_result(db: Client, user_id: str) -> dict[str, Any]:
     onboarding_repo = OnboardingRepository(db)
     users_repo = UsersRepository(db)
@@ -476,6 +567,9 @@ def get_result(db: Client, user_id: str) -> dict[str, Any]:
         target["seniority"],
         target["location"],
     )
+    shortlist, shortlist_status = _shortlist(
+        db, user_id, profile, int(baseline["id"]), context_hash
+    )
     credible_match = JobsRepository(db).get_current_credible_match(
         user_id,
         int(baseline["id"]),
@@ -497,6 +591,11 @@ def get_result(db: Client, user_id: str) -> dict[str, Any]:
         "baseline_version_id": int(baseline["id"]),
         "target_context_hash": context_hash,
         "target": target,
+        # Server-authored, direction-scoped. The screen and `commit_first_role`
+        # now read the same rows through the same function, so a card can never
+        # be offered that the save will refuse.
+        "shortlist": shortlist,
+        "shortlist_status": shortlist_status,
         "skills": _proof_skills(users_repo, user_id),
         "score": {
             "total_score": float(score["total_score"]),

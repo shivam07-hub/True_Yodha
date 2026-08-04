@@ -48,6 +48,36 @@ def test_update_profile_runs_partial_update_scoped_to_user_id() -> None:
     query.upsert.assert_not_called()
 
 
+def test_update_profile_stamps_target_updated_at_on_a_direction_change() -> None:
+    """A direction change records when it happened.
+
+    Compared against `last_match_run_at` (stamped only on match completion) this
+    is what tells an outstanding match run from a finished one. Without it the
+    onboarding shortlist cannot say "a run for this direction hasn't landed" and
+    falls back to the previous direction's cards. Stamped at this seam, not at
+    each caller, because onboarding, the point-of-use role edit and the Career
+    Ops preflight all change direction.
+    """
+    query = _q({})
+    db = MagicMock()
+    db.table.return_value = query
+
+    UsersRepository(db).update_profile("u1", {"target_role_titles": ["Staff Engineer"]})
+
+    written = query.update.call_args.args[0]
+    assert written["target_updated_at"]
+
+
+def test_update_profile_leaves_non_direction_writes_unstamped() -> None:
+    query = _q({})
+    db = MagicMock()
+    db.table.return_value = query
+
+    UsersRepository(db).update_profile("u1", {"full_name": "Ada"})
+
+    assert "target_updated_at" not in query.update.call_args.args[0]
+
+
 def test_list_user_skill_records_normalizes_skill_rows() -> None:
     db = MagicMock()
     db.table.return_value = _q(

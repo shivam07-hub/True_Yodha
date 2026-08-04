@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import Depends
@@ -93,6 +94,14 @@ class UsersRepository:
     def update_profile(self, user_id: str, updates: dict[str, Any]) -> None:
         payload = dict(updates)
         touches_location = "target_locations" in payload or "target_location" in payload
+        # Any direction change stamps its own time. Stamped HERE, at the single
+        # write seam, rather than at each caller: onboarding, the point-of-use
+        # role edit and the Career Ops preflight all change direction, and a
+        # caller that forgets leaves the system unable to tell an outstanding
+        # match run from a completed one — which is what let the onboarding
+        # shortlist serve cards from the previous direction.
+        if any(key.startswith("target_") for key in payload) and "target_updated_at" not in payload:
+            payload["target_updated_at"] = datetime.now(timezone.utc).isoformat()
         _sync_location_columns(payload)
         # Tolerant write: survives schema-cache lag so the profile still saves
         # if a derived location column hasn't been migrated yet (harden-first,

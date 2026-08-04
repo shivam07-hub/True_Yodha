@@ -713,6 +713,11 @@ export type OnboardingResult =
       skills: OnboardingProofSkill[]
       score: { total_score: number; domain_scores: Record<string, number>; domain_skill_counts?: Record<string, number>; gap_skills: GapSkill[]; skills_assessed: number; band?: string; band_percentile?: number | null; top_percent?: number | null }
       score_factors: Array<{ kind: "gap" | "strength"; label: string; detail: string }>
+      /** Scoped to THIS direction, server-authored. Never the durable match
+       *  stack — that answers "every job Myro matched you to", which after a
+       *  direction change is not the shortlist the save will accept. */
+      shortlist: JobMatch[]
+      shortlist_status: "ready" | "computing" | "stalled" | "empty"
       credible_match: (JobMatch & { jobs?: { job_title?: string; company_name?: string } }) | null
       primary_action: { kind: string; label: string; href: string }
       secondary_action: { kind: string; label: string; href: string }

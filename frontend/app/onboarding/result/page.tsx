@@ -28,7 +28,18 @@ export default function OnboardingResultPage() {
     queryKey: dataKeys.onboardingResult(),
     queryFn: () => onboarding.result(token!),
     enabled: Boolean(token),
-    refetchInterval: (query) => query.state.data?.kind === "full_result_processing" ? 2_000 : false,
+    // The result payload now carries the shortlist, so this poll is what shows
+    // the matches landing. `computing` = a run for this direction is in flight;
+    // `stalled` = it was re-enqueued, so keep watching, just less eagerly.
+    // (React Query pauses interval refetching on a blurred tab, so a walked-away
+    // user costs nothing.)
+    refetchInterval: (query) => {
+      const data = query.state.data
+      if (data?.kind === "full_result_processing") return 2_000
+      if (data?.kind !== "full_result_ready") return false
+      if (data.shortlist_status === "computing") return 2_500
+      return data.shortlist_status === "stalled" ? 8_000 : false
+    },
     retry: true,
   })
 
