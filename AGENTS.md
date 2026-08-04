@@ -14,6 +14,16 @@
 
 ## LAST SESSION SUMMARY
 
+### 2026-08-04 — Returning-user header loading truth
+
+- Shared desktop navigation now models CV presence as `unknown`, `present`, or
+  `absent`. Before the authenticated profile resolves, the global Next chip is
+  silent rather than incorrectly presenting “Upload your CV” to a returning
+  candidate. Resolved no-CV and established-pipeline behavior are unchanged.
+- Added regression coverage for unknown, absent, and present CV states. Full
+  backend tests (1,860), frontend tests (551), TypeScript, lint, and UI-drift
+  checks pass. Commit: `80d474b8`.
+
 ### 2026-08-03 — Focused first-run onboarding journey
 
 - First-time candidates now stay in one server-driven three-step journey:
