@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+from datetime import datetime, timezone
 from typing import Any
 
 from supabase import Client
@@ -169,7 +170,7 @@ def save_target(
         {**profile, **updates},
         primary=derived_band,
     ) if derived_band else []
-    users_repo.update_profile(
+    direction_changed = users_repo.update_profile(
         user_id,
         {
             **updates,
@@ -177,6 +178,13 @@ def save_target(
             "target_locations": chosen_locations,
         },
     )
+    if not direction_changed:
+        # Same direction re-submitted (a back-and-forward through the journey,
+        # or a double-tap). The existing matches already answer this exact
+        # question, and the refresh below runs the full Career-Ops brain with
+        # `force`, bypassing the cache gate — so re-running it would spend a
+        # real LLM pass to arrive back where the user already is.
+        return
     OnboardingRepository(db).patch_state(
         user_id,
         {"current_stage": "result", "status": "analyzing"},
@@ -249,8 +257,14 @@ async def refresh_target_result(payload: dict[str, Any], allow_retry: bool) -> N
     if scores_repo.get_user_skill_level_map(user_id):
         if not payload.get("score_fresh"):
             scoring.recompute_score(scores_repo, user_id)
+        # FAST, not BULK. The bulk lane is documented "nobody is watching" — and
+        # the onboarding shortlist is the most-watched job in the product: the
+        # result screen polls for it every 2.5s while the user waits on step 3.
+        # (Head-of-line risk against CV analysis is real but theoretical at this
+        # volume; if throughput ever bites, that is a lane-count decision, not a
+        # reason to file a watched job under "nobody is watching".)
         background.enqueue(
-            background.LANE_BULK,
+            background.LANE_FAST,
             "initial_match",
             payload={"user_id": user_id, "force_context_refresh": True},
             correlation_id=f"target-match:{user_id}",
@@ -388,7 +402,191 @@ def _heal_missing_score(user_id: str) -> None:
         )
 
 
-def get_result(db: Client, user_id: str) -> dict[str, Any]:
+_MATCH_GRACE_SECONDS = 300
+_MATCH_HEAL_WINDOW_SECONDS = 300
+
+
+def _parse_ts(value: Any) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value))
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+def _heal_outstanding_matches(user_id: str) -> None:
+    """Re-run a match that was enqueued for this direction and never landed.
+
+    Same shape as `_heal_missing_score`, for the same reason: a read that can
+    only report leaves a lost job lost forever, and the poll asking about it is
+    the one thing still running. Debounced and fail-soft — a repair must not
+    become the next incident, and it must never take down the screen it repairs.
+    """
+    if not background.claim(f"match-heal:{user_id}", _MATCH_HEAL_WINDOW_SECONDS):
+        return
+    try:
+        background.enqueue(
+            background.LANE_FAST,
+            "initial_match",
+            payload={"user_id": user_id, "force_context_refresh": True},
+            correlation_id=f"match-heal:{user_id}",
+        )
+        logger.info("metric onboarding.match_heal_enqueued user=%s", user_id)
+    except Exception as exc:  # noqa: BLE001 — never fail the result read
+        logger.warning(
+            "metric onboarding.match_heal_failed user=%s exc=%s",
+            user_id, exc.__class__.__name__,
+        )
+
+
+def _shortlist(
+    db: Client,
+    user_id: str,
+    profile: dict[str, Any],
+    baseline_version_id: int,
+    context_hash: str,
+) -> tuple[list[dict[str, Any]], str]:
+    """The first shortlist, scoped to the direction that produced it.
+
+    Returns `(rows, status)` where status is one of:
+
+    - ``ready``    — matches exist for this exact (baseline, direction).
+    - ``computing``— a run for this direction is outstanding and still young.
+    - ``stalled``  — outstanding past the grace window; re-enqueued, and the
+      user is told rather than left watching a spinner forever.
+    - ``empty``    — the run for this direction finished and matched nothing.
+
+    The status is derived, not guessed: `last_match_run_at` is stamped only by
+    `match_run.run_match` on completion, and `target_updated_at` only by a
+    direction change, so `ran >= changed` is a fact about work that finished
+    for the direction currently on screen.
+    """
+    from app.routers.jobs._shared import last_monday, to_job_match
+
+    rows = JobsRepository(db).get_matches_for_context(
+        user_id, baseline_version_id, context_hash, limit=3
+    )
+    if rows:
+        batch_week = last_monday()
+        return [to_job_match(row, batch_week).model_dump(mode="json") for row in rows], "ready"
+
+    ran_at = _parse_ts(profile.get("last_match_run_at"))
+    changed_at = _parse_ts(profile.get("target_updated_at"))
+    if ran_at and changed_at and ran_at >= changed_at:
+        # A run covering this direction completed and produced nothing. Not a
+        # failure — the market genuinely has no overlap. Offer a new direction.
+        return [], "empty"
+
+    age = (datetime.now(timezone.utc) - changed_at).total_seconds() if changed_at else None
+    if age is None or age <= _MATCH_GRACE_SECONDS:
+        return [], "computing"
+    _heal_outstanding_matches(user_id)
+    return [], "stalled"
+
+
+# The optional Career-Ops inputs, by the names the pre-flight manifest gives
+# them. Onboarding already fixes target roles, location and the CV; these three
+# are what a user can add later to sharpen the same run.
+_OPS_OPTIONAL_INPUTS = ("deal_breakers", "career_goal", "superpower")
+
+
+def _unused_ops_inputs(profile: dict[str, Any]) -> list[str]:
+    """Which optional Career-Ops inputs this user has not supplied.
+
+    Reported, never invented: the pre-flight modal can gap-fill these from
+    memory, but a receipt of a run that already happened must not present a
+    suggestion as something the run used.
+    """
+    unused: list[str] = []
+    for key in _OPS_OPTIONAL_INPUTS:
+        value = profile.get(key)
+        filled = bool(value.strip()) if isinstance(value, str) else bool(value)
+        if not filled:
+            unused.append(key)
+    return unused
+
+
+def _reviewable_step(
+    db: Client,
+    user_id: str,
+    profile: dict[str, Any],
+    baseline: dict[str, Any],
+    step: int,
+) -> dict[str, Any] | None:
+    """Re-render an already-completed step, with the user's answers restored.
+
+    Nothing here writes. The journey's step used to BE its facts — skills
+    confirmed, target set — so "where you are" and "what you decided" were the
+    same variable and the only way back was to erase a decision. That made going
+    back destructive (step 2 came back blank) and going forward impossible
+    without re-choosing, which also re-ran the matcher. A view cursor separates
+    the two: looking is free, only changing an answer costs anything.
+    """
+    if step == 1:
+        return {
+            "kind": "awaiting_skill_confirmation",
+            "baseline_version_id": int(baseline["id"]),
+            "skills": _candidate_skills(ScoresRepository(db), baseline),
+            "journey_step": 1,
+        }
+    if step == 2:
+        families_repo = RoleFamiliesRepository(db)
+        chosen_keys = [str(key) for key in (profile.get("target_roles") or []) if str(key).strip()]
+        selected = families_repo.resolve_families(user_id, chosen_keys)
+        suggested = families_repo.list_families(user_id)
+        chosen = {str(row.get("family")) for row in selected}
+        return {
+            "kind": "awaiting_target",
+            "baseline_version_id": int(baseline["id"]),
+            # Chosen first, then the suggestions they didn't take — so a pick made
+            # through search is still on screen when they come back to it.
+            "families": selected + [row for row in suggested if str(row.get("family")) not in chosen],
+            "seniority": _seniority_suggestion(baseline),
+            "selected": {
+                "families": selected,
+                "seniority": profile.get("target_seniority") or None,
+                "locations": [
+                    str(value).strip()
+                    for value in (profile.get("target_locations") or [])
+                    if str(value).strip()
+                ],
+            },
+            "journey_step": 2,
+        }
+    return None
+
+
+def get_result(db: Client, user_id: str, *, step: int | None = None) -> dict[str, Any]:
+    """The step the user should see.
+
+    `step` is a VIEW cursor, not progress: it may only look at ground already
+    covered. `furthest_step` rides on every payload so the client knows which
+    way it can move without asking.
+    """
+    result = _current_result(db, user_id)
+    furthest = int(result.get("journey_step") or 0) or (
+        3 if result.get("kind") in ("full_result_ready", "first_role_saved") else 0
+    )
+    result["furthest_step"] = furthest
+
+    if step is None or step >= furthest or furthest == 0:
+        return result
+
+    users_repo = UsersRepository(db)
+    profile = users_repo.get_profile(user_id) or {}
+    baseline = CVVersionsRepository(db).latest_baseline(user_id)
+    if not baseline:
+        return result
+    review = _reviewable_step(db, user_id, profile, baseline, step)
+    if review is None:
+        return result
+    review["furthest_step"] = furthest
+    return review
+
+
+def _current_result(db: Client, user_id: str) -> dict[str, Any]:
     onboarding_repo = OnboardingRepository(db)
     users_repo = UsersRepository(db)
     state = onboarding_repo.get_state(user_id) or {}
@@ -456,6 +654,9 @@ def get_result(db: Client, user_id: str) -> dict[str, Any]:
             "baseline_version_id": int(baseline["id"]),
             "families": RoleFamiliesRepository(db).list_families(user_id),
             "seniority": _seniority_suggestion(baseline),
+            # Same shape as the reviewed step, empty here. One payload shape means
+            # the client seeds its form the same way whichever way it arrived.
+            "selected": {"families": [], "seniority": None, "locations": []},
             "journey_step": 2,
         }
 
@@ -475,6 +676,9 @@ def get_result(db: Client, user_id: str) -> dict[str, Any]:
         target["role_title"],
         target["seniority"],
         target["location"],
+    )
+    shortlist, shortlist_status = _shortlist(
+        db, user_id, profile, int(baseline["id"]), context_hash
     )
     credible_match = JobsRepository(db).get_current_credible_match(
         user_id,
@@ -497,6 +701,16 @@ def get_result(db: Client, user_id: str) -> dict[str, Any]:
         "baseline_version_id": int(baseline["id"]),
         "target_context_hash": context_hash,
         "target": target,
+        # Server-authored, direction-scoped. The screen and `commit_first_role`
+        # now read the same rows through the same function, so a card can never
+        # be offered that the save will refuse.
+        "shortlist": shortlist,
+        "shortlist_status": shortlist_status,
+        # This shortlist IS a Career-Ops run — the same brain, on the house. The
+        # user was never told that, and met the vocabulary for the first time on
+        # a modal quoting 100 coins. Naming the run here, and naming the inputs
+        # it did NOT have, teaches the surface before it ever charges for it.
+        "career_ops": {"sharpeners": _unused_ops_inputs(profile)},
         "skills": _proof_skills(users_repo, user_id),
         "score": {
             "total_score": float(score["total_score"]),

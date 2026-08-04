@@ -3078,6 +3078,69 @@ class JobsRepository:
                 _hydrate_location_fields(row["jobs"])
         return rows
 
+    def get_matches_for_context(
+        self,
+        user_id: str,
+        baseline_version_id: int,
+        context_hash: str,
+        *,
+        limit: int = 3,
+    ) -> list[dict[str, Any]]:
+        """Matches computed for ONE exact direction, best-ranked first.
+
+        `get_user_match_stack` is deliberately context-blind — the dashboard
+        wants every job Myro has ever matched this user to. The onboarding
+        shortlist asks a different question: which roles came out of the
+        direction they just chose. Serving the first answer to the second
+        question is what put cards from a previous direction on screen while
+        `commit_first_role` — which has always checked (baseline, context) —
+        rejected them with "Choose a role from your current shortlist."
+
+        One function now answers both the read and the write, so the shortlist
+        a user is shown is by construction the shortlist they can save.
+        """
+        rows = (
+            self._db.table("user_job_matches")
+            .select(
+                "id, job_id, overlap_score, llm_rank, llm_explanation, "
+                "batch_week, computed_at, matched_skills, "
+                "is_recommended, baseline_version_id, target_context_hash, seniority_compatibility, "
+                "overall_score, grade, recommendation, application_angle, summary, "
+                "role_fit, comp_fit, growth_fit, culture_fit, risk_score, strengths, concerns, "
+                "archetype, legitimacy_tier, legitimacy_reason, "
+                "level_strategy, personalization, star_pointers, "
+                "jobs(job_title, company_name, industry, location, location_raw, location_city, "
+                "location_country, location_mode, location_quality, locations, apply_url, "
+                "job_summary, job_description, "
+                "date_posted, seniority_level, work_mode, min_years_experience, max_years_experience, "
+                "first_seen, last_seen, is_active, listing_confidence, last_verified_live_at)"
+            )
+            .eq("user_id", user_id)
+            .eq("baseline_version_id", baseline_version_id)
+            .eq("target_context_hash", context_hash)
+            .order("llm_rank")
+            .execute()
+        ).data or []
+
+        dismissed = set(self.get_dismissed_job_card_ids(user_id))
+        out: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for row in rows:
+            job_id = str(row.get("job_id") or "")
+            if not job_id or job_id in seen or job_id in dismissed:
+                continue
+            job = row.get("jobs") or {}
+            # Same recommendability gate as the durable stack — a delisted or
+            # junk listing must not become someone's first saved role.
+            if not is_recommendable_listing(job):
+                continue
+            seen.add(job_id)
+            _hydrate_location_fields(job)
+            out.append(row)
+            if len(out) >= limit:
+                break
+        return out
+
     def get_current_credible_match(
         self,
         user_id: str,

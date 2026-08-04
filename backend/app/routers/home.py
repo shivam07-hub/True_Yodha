@@ -107,7 +107,12 @@ def home_bootstrap(
     sections = {
         "profile": lambda: get_me(principal=principal, users_repo=users_repo),
         "score": _score,
-        "matches": lambda: get_job_matches(principal=principal, repo=jobs_repo),
+        # Composed handlers are called directly, so FastAPI's DI never fills
+        # their parameters — the kwargs here ARE the contract. `background_tasks`
+        # carries the new-inventory announcement off the read path.
+        "matches": lambda: get_job_matches(
+            background_tasks=background_tasks, principal=principal, repo=jobs_repo
+        ),
         "applications": lambda: get_applications(principal=principal, repo=jobs_repo, cv_repo=cv_repo),
         "evidence": lambda: get_cv_evidence(principal=principal, cv_repo=cv_repo),
         "cv_versions": lambda: list_cv_versions(principal=principal, cv_repo=cv_repo),

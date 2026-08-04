@@ -11,7 +11,23 @@ class RoleFamiliesRepository:
     def __init__(self, db: Client) -> None:
         self._db = db
 
-    def list_families(self, user_id: str, *, query: str | None = None, limit: int = 3) -> list[dict[str, Any]]:
+    def list_families(
+        self,
+        user_id: str,
+        *,
+        query: str | None = None,
+        limit: int = 3,
+        families: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Suggest families by skill overlap, search them by text, or resolve
+        specific ones by key.
+
+        `families` is the restore path: a direction the user already chose is
+        returned whatever its skill overlap, and whether or not it was found
+        through search. Without it, a family picked from the search box could
+        not be shown back to them when they stepped backwards through the
+        journey — the suggestion list is skill-ranked and would not contain it.
+        """
         skill_rows = (
             self._db.table("user_skills")
             .select("skill_id")
@@ -23,9 +39,26 @@ class RoleFamiliesRepository:
         skill_ids = [int(row["skill_id"]) for row in skill_rows if row.get("skill_id") is not None]
         response = self._db.rpc(
             "list_role_families",
-            {"p_skill_ids": skill_ids, "p_query": query, "p_limit": limit},
+            {
+                "p_skill_ids": skill_ids,
+                "p_query": query,
+                "p_limit": limit,
+                "p_families": families,
+            },
         ).execute()
         return response.data or []
+
+    def resolve_families(self, user_id: str, families: list[str]) -> list[dict[str, Any]]:
+        """The user's chosen families, in the order they chose them.
+
+        The RPC orders by market signal; a restored selection has to come back
+        in the user's own order, because the first title is the primary role.
+        """
+        if not families:
+            return []
+        rows = self.list_families(user_id, families=families, limit=len(families))
+        by_key = {str(row.get("family")): row for row in rows}
+        return [by_key[key] for key in families if key in by_key]
 
     def list_locations(self, family: str, *, query: str | None = None, limit: int = 8) -> list[dict[str, Any]]:
         response = self._db.rpc(

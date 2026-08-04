@@ -23,12 +23,27 @@ export default function OnboardingResultPage() {
   const { token, ready } = useAuth()
   const { state, refresh } = useOnboardingState(token)
   const [generatorOpen, setGeneratorOpen] = useState(false)
+  // Which step the user is LOOKING at. Null = wherever they actually are.
+  // Deliberately not persisted: a reload should return you to your real
+  // position, not to whatever you were reviewing when you closed the tab.
+  const [viewStep, setViewStep] = useState<number | null>(null)
 
   const result = useQuery({
-    queryKey: dataKeys.onboardingResult(),
-    queryFn: () => onboarding.result(token!),
+    queryKey: [...dataKeys.onboardingResult(), viewStep] as const,
+    queryFn: () => onboarding.result(token!, viewStep ?? undefined),
     enabled: Boolean(token),
-    refetchInterval: (query) => query.state.data?.kind === "full_result_processing" ? 2_000 : false,
+    // The result payload now carries the shortlist, so this poll is what shows
+    // the matches landing. `computing` = a run for this direction is in flight;
+    // `stalled` = it was re-enqueued, so keep watching, just less eagerly.
+    // (React Query pauses interval refetching on a blurred tab, so a walked-away
+    // user costs nothing.)
+    refetchInterval: (query) => {
+      const data = query.state.data
+      if (data?.kind === "full_result_processing") return 2_000
+      if (data?.kind !== "full_result_ready") return false
+      if (data.shortlist_status === "computing") return 2_500
+      return data.shortlist_status === "stalled" ? 8_000 : false
+    },
     retry: true,
   })
 
@@ -40,7 +55,18 @@ export default function OnboardingResultPage() {
     window.location.assign("/onboarding")
   }
 
+  // Confirming an answer moves the user forward, so drop the review cursor —
+  // otherwise they'd re-submit and land back on the step they just completed.
+  function advance() {
+    setViewStep(null)
+    void result.refetch()
+  }
+  // Return to wherever they actually are, without touching any answer.
+  const forward = () => setViewStep(null)
+
   if (!ready || state.isLoading || result.isLoading || !token) return null
+
+  const furthest = result.data?.furthest_step ?? 0
 
   const body = (() => {
     if (generatorOpen || state.data?.current_stage === "generator") {
@@ -56,8 +82,10 @@ export default function OnboardingResultPage() {
     if (!result.data || result.data.kind === "full_result_processing") return <AnalysisProgress phase={result.data?.phase ?? "queued"} onRetry={() => void result.refetch()} />
     if (result.data.kind === "profile_preview") return <ProfilePreview result={result.data} onBuild={() => setGeneratorOpen(true)} onUpload={() => void resetToUpload()} />
     if (result.data.kind === "first_role_saved") return <FirstRoleSuccess title={result.data.title} company={result.data.company} tailorHref={result.data.tailor_href} />
-    if (result.data.kind === "awaiting_skill_confirmation") return <FirstRunSkillReview token={token} result={result.data} onConfirmed={() => void result.refetch()} />
-    if (result.data.kind === "awaiting_target") return <TargetConfirm token={token} result={result.data} onConfirmed={() => void result.refetch()} />
+    // Forward is offered only to someone reviewing ground they've already
+    // covered — a first-time visitor has nothing ahead to return to.
+    if (result.data.kind === "awaiting_skill_confirmation") return <FirstRunSkillReview token={token} result={result.data} onConfirmed={advance} onForward={furthest > 1 ? forward : undefined} />
+    if (result.data.kind === "awaiting_target") return <TargetConfirm token={token} result={result.data} onConfirmed={advance} onBack={() => setViewStep(1)} onForward={furthest > 2 ? forward : undefined} />
     if (result.data.kind === "terminal_failure") return (
       <section className="w-full max-w-lg text-center">
         <h1 className="text-2xl font-semibold tracking-normal text-[var(--tm-text)]">Analysis stopped</h1>
@@ -66,7 +94,14 @@ export default function OnboardingResultPage() {
         <Button size="lg" className="mt-6" onClick={() => void resetToUpload()}><RotateCcw className="size-5" />Start again</Button>
       </section>
     )
-    return <FullResult token={token} result={result.data} onAdjust={async () => { await onboarding.resetTarget(token); await result.refetch() }} />
+    // `onBack` reviews the direction with the answers intact; `onAdjust` is the
+    // destructive one — it clears the target so the user starts that choice over.
+    return <FullResult
+      token={token}
+      result={result.data}
+      onBack={() => setViewStep(2)}
+      onAdjust={async () => { await onboarding.resetTarget(token); setViewStep(null); await result.refetch() }}
+    />
   })()
 
   // The backend authors the step. It has to: `full_result_processing` is both
@@ -83,7 +118,7 @@ export default function OnboardingResultPage() {
     <main className="min-h-dvh bg-[var(--tm-bg)] text-[var(--tm-text)]">
       <header className="border-b border-[var(--tm-border-soft)]"><div className="mx-auto flex h-16 max-w-5xl items-center px-5 sm:px-8"><MyroLogo size={25} /><span className="ml-2 text-base font-semibold">Myro</span></div></header>
       <div className="mx-auto flex min-h-[calc(100dvh-64px)] max-w-5xl flex-col px-5 py-6 sm:px-8 sm:py-8">
-        {journeyStep && <JourneyProgress current={journeyStep} />}
+        {journeyStep && <JourneyProgress current={journeyStep} furthest={furthest} onSelect={(step) => setViewStep(step === furthest ? null : step)} />}
         <div className="flex flex-1 items-center justify-center py-8">{body}</div>
       </div>
     </main>

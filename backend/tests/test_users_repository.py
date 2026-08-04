@@ -5,7 +5,7 @@ from app.repositories.users import UsersRepository
 
 def _q(data: list[dict] | dict | None = None) -> MagicMock:
     q = MagicMock()
-    for method in ("select", "eq", "update", "upsert"):
+    for method in ("select", "eq", "update", "upsert", "limit"):
         getattr(q, method).return_value = q
 
     list_result = MagicMock()
@@ -46,6 +46,54 @@ def test_update_profile_runs_partial_update_scoped_to_user_id() -> None:
     query.update.assert_called_once_with({"full_name": "Ada"})
     query.update.return_value.eq.assert_called_once_with("id", "u1")
     query.upsert.assert_not_called()
+
+
+def test_update_profile_stamps_target_updated_at_on_a_direction_change() -> None:
+    """A direction change records when it happened.
+
+    Compared against `last_match_run_at` (stamped only on match completion) this
+    is what tells an outstanding match run from a finished one. Without it the
+    onboarding shortlist cannot say "a run for this direction hasn't landed" and
+    falls back to the previous direction's cards. Stamped at this seam, not at
+    each caller, because onboarding, the point-of-use role edit and the Career
+    Ops preflight all change direction.
+    """
+    query = _q([{"target_role_titles": ["Data Analyst"]}])
+    db = MagicMock()
+    db.table.return_value = query
+
+    changed = UsersRepository(db).update_profile("u1", {"target_role_titles": ["Staff Engineer"]})
+
+    assert changed is True
+    assert query.update.call_args.args[0]["target_updated_at"]
+
+
+def test_update_profile_does_not_stamp_an_unchanged_direction() -> None:
+    """Re-submitting the same direction is not a change.
+
+    Moving the marker anyway would leave the onboarding shortlist reading
+    `computing` against a match run that already covers this exact direction,
+    and would tell `save_target` to force a full Career-Ops re-run for a
+    question the matches already answer.
+    """
+    query = _q([{"target_role_titles": ["Staff Engineer"]}])
+    db = MagicMock()
+    db.table.return_value = query
+
+    changed = UsersRepository(db).update_profile("u1", {"target_role_titles": ["Staff Engineer"]})
+
+    assert changed is False
+    assert "target_updated_at" not in query.update.call_args.args[0]
+
+
+def test_update_profile_leaves_non_direction_writes_unstamped() -> None:
+    query = _q({})
+    db = MagicMock()
+    db.table.return_value = query
+
+    UsersRepository(db).update_profile("u1", {"full_name": "Ada"})
+
+    assert "target_updated_at" not in query.update.call_args.args[0]
 
 
 def test_list_user_skill_records_normalizes_skill_rows() -> None:

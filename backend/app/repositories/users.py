@@ -1,17 +1,41 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import Depends
 from supabase import Client
 
 from app.database import get_supabase_admin
-from app.db_safe import safe_profile_update
+from app.db_safe import safe_profile_update, safe_read
 from app.deps import get_user_db
 from app.repositories.jobs import clear_user_target_locations_cache
 from app.services.location_normalizer import derive_location_columns
 from app.services.scoring import _PROFICIENCY_TITLES
+
+
+# The values that define "which jobs am I asking Myro for". Order matters inside
+# the lists — titles[0] is the primary role — so they compare as sequences.
+_DIRECTION_KEYS = (
+    "target_role_title",
+    "target_role_titles",
+    "target_roles",
+    "target_seniority",
+    "target_location",
+    "target_locations",
+)
+
+
+def _direction_value(value: Any) -> Any:
+    """Normalize for comparison: None and empty are the same absence, and a list
+    keeps its order but not its whitespace."""
+    if value is None:
+        return ()
+    if isinstance(value, (list, tuple)):
+        return tuple(str(item).strip() for item in value if str(item).strip())
+    text = str(value).strip()
+    return text or ()
 
 
 def _sync_location_columns(payload: dict[str, Any]) -> None:
@@ -90,10 +114,26 @@ class UsersRepository:
         rows = result.data or []
         return rows[0] if rows else None
 
-    def update_profile(self, user_id: str, updates: dict[str, Any]) -> None:
+    def update_profile(self, user_id: str, updates: dict[str, Any]) -> bool:
+        """Write a profile patch. Returns True iff it CHANGED the direction.
+
+        Stamped here, at the single write seam, rather than at each caller:
+        onboarding, the point-of-use role edit and the Career Ops preflight all
+        change direction, and a caller that forgets leaves the system unable to
+        tell an outstanding match run from a finished one — which is what let
+        the onboarding shortlist serve the previous direction's cards.
+
+        "Changed", not "written": re-submitting the same direction must not move
+        the marker (which would strand the shortlist reading `computing` against
+        a run that already covers it) and must not tell callers to force a full
+        Career-Ops re-run for an identical question.
+        """
         payload = dict(updates)
         touches_location = "target_locations" in payload or "target_location" in payload
         _sync_location_columns(payload)
+        changed = self._direction_changed(user_id, payload)
+        if changed and "target_updated_at" not in payload:
+            payload["target_updated_at"] = datetime.now(timezone.utc).isoformat()
         # Tolerant write: survives schema-cache lag so the profile still saves
         # if a derived location column hasn't been migrated yet (harden-first,
         # then migrate). Legacy scalar columns persist regardless.
@@ -106,6 +146,28 @@ class UsersRepository:
         )
         if touches_location:
             clear_user_target_locations_cache(user_id)
+        return changed
+
+    def _direction_changed(self, user_id: str, payload: dict[str, Any]) -> bool:
+        """Do the direction-defining values in `payload` differ from what's stored?
+
+        Only the keys the caller actually supplied are compared, so a patch that
+        never mentions direction costs one nothing — it returns before reading.
+        Derived columns (career band, location countries) are excluded: they move
+        as a consequence of these, so counting them would double-signal.
+        """
+        keys = [key for key in _DIRECTION_KEYS if key in payload]
+        if not keys:
+            return False
+        rows = safe_read(
+            self._db.table("user_profiles").select(",".join(keys)).eq("id", user_id).limit(1),
+            default=[],
+            context="direction_changed",
+        )
+        if not rows:
+            return True  # no row to compare against — treat the first write as a change
+        current = rows[0]
+        return any(_direction_value(payload[key]) != _direction_value(current.get(key)) for key in keys)
 
     def list_user_skill_records(self, user_id: str) -> list[UserSkillRecord]:
         result = (

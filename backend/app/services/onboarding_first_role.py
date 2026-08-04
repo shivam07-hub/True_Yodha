@@ -58,15 +58,17 @@ def commit_first_role(
 
     baseline_id = int(result["baseline_version_id"])
     context_hash = str(result["target_context_hash"])
-    presented_matches = jobs_repo.get_user_match_stack(user_id)[:3]
+    # The SAME read the result payload's shortlist is built from. It used to be
+    # `get_user_match_stack()[:3]` — the context-blind durable stack — filtered
+    # here by (baseline, context) but not there, so after a direction change the
+    # screen showed the previous direction's cards and this rejected them. Read
+    # and write must resolve "your current shortlist" identically or the phrase
+    # means two things.
+    presented_matches = jobs_repo.get_matches_for_context(
+        user_id, baseline_id, context_hash, limit=3
+    )
     current_match = next(
-        (
-            row
-            for row in presented_matches
-            if str(row.get("job_id") or "") == job_id
-            and int(row.get("baseline_version_id") or 0) == baseline_id
-            and str(row.get("target_context_hash") or "") == context_hash
-        ),
+        (row for row in presented_matches if str(row.get("job_id") or "") == job_id),
         None,
     )
     if current_match is None:

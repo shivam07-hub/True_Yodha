@@ -5,10 +5,18 @@ logic (each composed handler has its own test). So we stub the composed
 handlers and assert: (1) one call returns the full bundle, (2) a score 404
 degrades to null instead of failing the whole bundle, (3) a non-404 from a
 section still propagates.
+
+Every stub binds against the REAL handler signature first (`_stub` below). The
+BFF calls those handlers directly, so FastAPI's DI never fills their
+parameters — the kwargs in home.py ARE the contract, and a `lambda **_` stub
+accepts a call site that no longer works. That is exactly how `get_job_matches`
+gaining a required `background_tasks` shipped green and then 500'd
+/home/bootstrap for every authed user in prod (2026-08-04).
 """
 
 from __future__ import annotations
 
+import inspect
 from datetime import date, datetime, timezone
 
 import pytest
@@ -18,10 +26,7 @@ from fastapi.testclient import TestClient
 from app.deps import Principal, get_principal
 from app.main import app
 from app.routers import home as home_module
-from app.routers.home import (
-    CVVersionListResponse,
-    router as home_router,
-)
+from app.routers.home import CVVersionListResponse
 from app.repositories.cv import get_token_cv_repository
 from app.repositories.diary import get_token_diary_repository
 from app.repositories.jobs import get_token_jobs_repository
@@ -51,8 +56,26 @@ _PROFILE = {
 }
 
 
+def _stub(monkeypatch, name: str, answer) -> None:
+    """Replace a composed handler with a stub that checks the call site first.
+
+    `signature.bind(**kwargs)` raises TypeError when home.py stops satisfying
+    the handler's real parameters — a required param added upstream fails here,
+    where a green suite is supposed to mean the bundle still assembles, instead
+    of in prod on the first authed page load. Params carrying a `Depends(...)`
+    default bind fine when omitted; only genuinely required ones fail.
+    """
+    signature = inspect.signature(getattr(home_module, name))
+
+    def _stubbed(**kwargs):
+        signature.bind(**kwargs)
+        return answer(**kwargs) if callable(answer) else answer
+
+    monkeypatch.setattr(home_module, name, _stubbed)
+
+
 def _stub_all(monkeypatch, *, score_exc: HTTPException | None = None) -> None:
-    monkeypatch.setattr(home_module, "get_me", lambda **_: UserProfileResponse(**_PROFILE))
+    _stub(monkeypatch, "get_me", lambda **_: UserProfileResponse(**_PROFILE))
 
     def _score(**_):
         if score_exc is not None:
@@ -65,14 +88,14 @@ def _stub_all(monkeypatch, *, score_exc: HTTPException | None = None) -> None:
             computed_at=datetime.now(timezone.utc),
         )
 
-    monkeypatch.setattr(home_module, "get_my_score", _score)
-    monkeypatch.setattr(
-        home_module, "get_job_matches",
+    _stub(monkeypatch, "get_my_score", _score)
+    _stub(
+        monkeypatch, "get_job_matches",
         lambda **_: JobMatchesResponse(jobs=[], batch_week=date(2026, 6, 1), total=0, dismissed_job_ids=[]),
     )
-    monkeypatch.setattr(home_module, "get_applications", lambda **_: [])
-    monkeypatch.setattr(
-        home_module, "get_cv_evidence",
+    _stub(monkeypatch, "get_applications", lambda **_: [])
+    _stub(
+        monkeypatch, "get_cv_evidence",
         lambda **_: CVEvidenceSummaryResponse(
             evidence_count=0,
             diary_entries_count=0,
@@ -83,13 +106,9 @@ def _stub_all(monkeypatch, *, score_exc: HTTPException | None = None) -> None:
             next_version_number=1,
         ),
     )
-    monkeypatch.setattr(
-        home_module, "list_cv_versions", lambda **_: CVVersionListResponse(versions=[])
-    )
+    _stub(monkeypatch, "list_cv_versions", lambda **_: CVVersionListResponse(versions=[]))
     monkeypatch.setattr(home_module.upskilling_service, "list_activity_dates", lambda _: [])
-    monkeypatch.setattr(
-        home_module, "get_diary_history", lambda **_: DiaryHistoryResponse(entries=[], total=0)
-    )
+    _stub(monkeypatch, "get_diary_history", lambda **_: DiaryHistoryResponse(entries=[], total=0))
 
 
 @pytest.fixture

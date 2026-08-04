@@ -14,7 +14,26 @@ class _JobsRepo:
         self.writes: list[tuple[str, str, dict[str, Any]]] = []
 
     def get_user_match_stack(self, _user_id: str) -> list[dict[str, Any]]:
-        return self.rows
+        # The context-blind durable stack. Commit must NOT read this: it answers
+        # "every job Myro ever matched you to", which is not "your current
+        # shortlist", and serving one for the other is what let a previous
+        # direction's card be offered and then refused.
+        raise AssertionError("commit_first_role must resolve the shortlist by context")
+
+    def get_matches_for_context(
+        self,
+        _user_id: str,
+        baseline_version_id: int,
+        context_hash: str,
+        *,
+        limit: int = 3,
+    ) -> list[dict[str, Any]]:
+        return [
+            row
+            for row in self.rows
+            if int(row.get("baseline_version_id") or 0) == baseline_version_id
+            and str(row.get("target_context_hash") or "") == context_hash
+        ][:limit]
 
     def upsert_application(self, user_id: str, job_id: str, payload: dict[str, Any]) -> None:
         self.writes.append((user_id, job_id, payload))
@@ -146,4 +165,7 @@ def test_onboarding_result_recovers_saved_receipt_after_reload(monkeypatch) -> N
         "title": "Data Analyst",
         "company": "Acme",
         "tailor_href": "/cv?jobId=job-7",
+        # The journey is complete, so every step is behind the user and
+        # reviewable — the client needs the ceiling to know that.
+        "furthest_step": 3,
     }

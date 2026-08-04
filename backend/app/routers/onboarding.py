@@ -1,6 +1,6 @@
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from pydantic import BaseModel, Field, model_validator
 
 from app.database import get_supabase_admin
@@ -190,8 +190,13 @@ def get_role_readiness(
 
 
 @router.get("/result")
-def get_result(principal: Principal = Depends(get_principal)) -> dict[str, Any]:
-    return onboarding_service.get_result(get_supabase_admin(), principal.id)
+def get_result(
+    step: int | None = Query(default=None, ge=1, le=3),
+    principal: Principal = Depends(get_principal),
+) -> dict[str, Any]:
+    """The step to render. `step` looks BACK at completed ground only — a value
+    at or beyond the user's furthest is ignored, so it can never skip work."""
+    return onboarding_service.get_result(get_supabase_admin(), principal.id, step=step)
 
 
 @router.put("/baseline/answers/{step}", status_code=status.HTTP_204_NO_CONTENT)

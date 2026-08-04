@@ -104,8 +104,9 @@
   confirmed-skill overlap, role-scoped live locations, and CV-date seniority
   evidence; score rendering follows target confirmation.
 - Local focused backend tests (44) pass, TypeScript and UI-drift pass. Full
-  frontend lint remains blocked by pre-existing unrelated unused import in
-  `frontend/components/auth/auth-page-shell.tsx`.
+  frontend lint was blocked at the time by an unrelated unused import in
+  `frontend/components/auth/auth-page-shell.tsx` — **that file lints clean as of
+  2026-08-04; the blocker is resolved and must not be re-reported.**
 
 ### 2026-08-02 — Heatmap display-label regression
 
@@ -168,7 +169,7 @@ thresholds remain a shared legacy scale in
 
 **Tech stack:** FastAPI (backend) · Railway (backend hosting) · Next.js 14 (frontend), Tailwind CSS, Shadcn/ui · Supabase/PostgreSQL (DB) · Vercel (frontend hosting) · OpenRouter API (LLM ranking)
 
-**Architecture deep-dive:** `graphify-out/GRAPH_REPORT.md` (832 nodes, 1247 edges) + `graphify-out/graph.html`
+**Architecture deep-dive (CODE):** `graphify-out/GRAPH_REPORT_frontend.md` + `graphify-out/graph_frontend.html`. ⚠️ The **unsuffixed** `graphify-out/GRAPH_REPORT.md` / `graph.json` is a SEPARATE docs/feedback corpus graph (`reference/`, `User_feedback_docs`) — **NOT the codebase**. Reading it for architecture answers gives docs nodes, not modules.
 
 **Beta 1 report:** `docs/beta-testing/2026-05-24-first-beta-testing-report.md` is the canonical fellowship feedback synthesis for both Claude and Codex. It captures what users loved, what confused them, what has already shipped (`e2c7b00`, `4ceab03`), and the shared backlog: CV hub onboarding, mobile usability, trust/privacy/methodology, durable CV delivery, auth recovery, score explainability, and CV version management.
 
@@ -245,14 +246,14 @@ thresholds remain a shared legacy scale in
 | S4 | Intel is ephemeral. Skill targets inferred from saved jobs only. No DB writes. |
 | NU1 | Profile auto-provisioned from JWT email + user_metadata.full_name on first authenticated request. Admin client (bypass RLS). |
 | NU2 | `update_profile` UPSERTs (defensive). |
-| XP1 | XP is permanent — never resets. Wallet the user owns forever. |
+| XP1 | **Myro Coins are permanent** — never reset. Wallet the user owns forever. (Renamed from "XP" end-to-end 2026-06-22, backlog #25/#31: DB, RPCs, wire, and UI all say coins. The `XP*` row IDs here are kept only because other docs cite them.) |
 | XP7 | Cart is ephemeral Zustand state until diary submit → snapshot as `daily_logs.cart_skills JSONB`. |
 | XP9 | Company tab selection reconfigures the WHOLE Mission Control page. |
 | XP10 | XP pricing modal is deferred. Pick it up only after XP fairness fixes and the single "How XP Works" modal are shipped. |
 | PV1 | **Privacy-first identity.** Myro collects minimum data — only email + password. Any email works (throwaway, alias, anything). No real name required. No forced identity. The share token IS the user's public identity, not their name/email. |
 | IH1 | **Intel heatmap = followed companies only.** User builds their own heatmap by starring companies. Empty state on first visit. No global defaults in heatmap. |
-| IH2 | **Follow cost: 10 XP. Floor: -30 XP. Cap: 10 companies.** XP burned on follow, never refunded on unfollow (XP1). Star disabled if cap hit OR next deduction would breach -30. |
-| IH3 | **Per-company row queries.** Each heatmap row is an independent `useQuery` keyed on `(company, skills)`. Adding a company appends a row without re-fetching others. |
+| IH2 | ~~Follow cost: 10 XP. Floor: -30 XP.~~ **REVERSED 2026-07-19 (Signal Thread S1, verified in code).** **Following is FREE.** The only limit is the compare-slot cap `FOLLOWED_COMPANY_LIMIT` (10) — `routers/users.py` charges nothing and `xp_policy.py` records that `FOLLOW_COMPANY_XP_COST`/`FLOOR` were retired. Star disables on cap only. Grandfathered payers keep their spend. |
+| IH3 | ~~Per-company row queries.~~ **REVERSED 2026-06-13 (Shivam-approved, backlog #21).** The per-company fan-out was a 10–15-request thundering herd. Now ONE batched `jobs.skillHeatmap(companies, skills)` (`components/market/heatmap-tab.tsx`); the batched endpoint already existed and `fetch_skill_heatmap_row` was already optimal. Traded incremental row-append for one matrix fetch — fine at the 10-company cap + 30-min cache. **Do NOT reintroduce the fan-out.** |
 | IH4 | **Heatmap columns = user's CV skills always.** No global top-8 fallback. Skill Lens toggles which CV skills appear. If no CV uploaded → nudge to upload. |
 | IH5 | **Row ordering = most recently starred first** (`created_at DESC` from `followed_companies`). |
 | SH1 | **Ninja Name = vanity slug** as the public profile ID. `user_profiles.ninja_name TEXT UNIQUE NOT NULL`. Charset `^[a-z0-9-]{3,32}$`. The codename IS the share URL: `/profile/{ninja_name}`. Aligns with PV1 — user controls disclosure, no real-name leakage. |
@@ -285,9 +286,10 @@ thresholds remain a shared legacy scale in
 
 ## DB SCHEMA (key tables)
 
-- `user_profiles`: `xp_balance INTEGER`, `welcome_xp_granted BOOLEAN`
+- `user_profiles`: `coin_balance INTEGER`, `welcome_coins_granted BOOLEAN`, `linkedin_coins_granted BOOLEAN` — **the `xp_*` columns are DROPPED** (contract migration `20260622_coins_rename_contract`, verified live 2026-08-04). Charge/refund/reward go through `charge_coins` / `refund_coins` / `reward_coins`; the ledger is `coin_ledger`. Never write `xp_balance`.
+- `user_profiles`: `target_locations TEXT[]`, `target_location_countries TEXT[]` (multi-location targeting, live) + legacy scalars `target_location` / `target_location_country`
 - `daily_logs`: `cart_skills JSONB NOT NULL DEFAULT '[]'`
-- `forge_sessions`: `(id, user_id, skill_name, skill_id, level_before, level_after, sessions_toward_next, duration_minutes, xp_earned, completed_at)`
+- `forge_sessions`: legacy table, still readable, but **timed forge XP earning is retired** — nothing writes new earn rows. `user_skills.forge_sessions_count` is a display counter only; real practice progression lives in `skill_assessed_level`.
 - `user_skills`: `forge_sessions_count INTEGER NOT NULL DEFAULT 0`
 - `job_skills (job_id FK→jobs, skill_id FK→skills, is_primary BOOLEAN)` — canonical skill source
 - `followed_companies (user_id, company_name, UNIQUE(user_id, company_name))` — RLS-protected
@@ -313,7 +315,9 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
 - **Request chain (prod):** `himyro.com` → `api.himyro.com` (mirror-backend-prod, `main`) → Supabase + Redis; heavy LLM jobs → Redis → `True_Yodha` worker.
 - **Shared-infra couplings (known, accepted at this scale):** (a) dev + prod jobs share ONE Redis queue + ONE `llm:budget:slots` bucket — a dev test upload competes with prod traffic. (b) Worker tracks `Develop` while prod API tracks `main` → prod jobs are processed by slightly-ahead worker code. Full per-env isolation (separate Redis + `api-dev.himyro.com`) is documented but NOT built — see `docs/runbooks/railway-dev-main-env-split.md`.
 - **Supabase: `gipvxuugajkugntwkeiz` — ONE DB, shared by both dev+prod backends + worker.** A dev-env test upload writes to prod Supabase. Single by design (see policy above).
-- **CORS:** `ALLOWED_ORIGINS` is live exact-origin configuration. Production startup rejects missing, wildcard, malformed, or non-HTTPS values; configure only the frontend domains assigned to that backend service.
+- **Release tier = `MYRO_ENV`** (`sandbox` | `dev` | `prod`), set per Railway service. It is the environment boundary — `RAILWAY_ENVIRONMENT` reads `production` on ALL five services (dev+prod deliberately share one Railway environment object) so it can never be the tier. Service-name inference survives as fallback and resolves anything unlabelled to `prod` (fail-safe). `backend/app/config.py: release_tier`.
+- **CORS:** `ALLOWED_ORIGINS` is live exact-origin configuration; `install_cors` refuses `*`, `allow_credentials=False`. **Prod = exact origins only.** **Dev additionally matches `PREVIEW_ORIGIN_REGEX`** (`^https://truemirror-[a-z0-9-]+\.vercel\.app$`) because Vercel mints a NEW origin per preview deployment — an exact list goes stale on every push to Develop, which silently broke the dev app for days until 2026-07-27. Production ignores the regex *structurally* (`Settings.cors_origin_regex` returns `""` when tier is prod), so it cannot leak by config mistake. New stable domain → add it to that tier's `ALLOWED_ORIGINS`.
+- **Every deployed tier validates its own config at boot** (`validate_runtime_configuration`): Supabase present + at least one origin/pattern a browser can match. Sandbox exempt. Boot logs `boot tier=… origins=… preview_regex=…` on `uvicorn.error` — check that line first when an env "looks online but does nothing". Contract smoke: `python -m scripts.smoke_env_contract` (CI runs it on push to Develop/main and daily).
 - **DNS:** himyro.com on **GoDaddy**. `api` = CNAME → `rm336p0v.up.railway.app`; `_railway-verify.api` = TXT `railway-verify=<token>` (**single** prefix — a doubled `railway-verify=railway-verify=…` blocks cert issuance; cost real time 2026-06-03). Railway custom-domain cert needs BOTH records verified or it serves wildcard `*.up.railway.app` → TLS name mismatch → curl 000.
 - **Railway mgmt = MCP** (`mcp__railway__*`). Pass **snake_case `service_id`** or reads default to the linked service. `remove_service` confirm-boolean is broken via MCP → final service deletion needs a dashboard click.
 - **Cutover runbook:** fix DNS → wait cert green (`curl api.himyro.com/health` = 200, not 000) → THEN flip Vercel env + redeploy → verify → only then touch the old service. Flipping Vercel before cert live = outage.
@@ -325,14 +329,9 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
 
 10. **Skill Intelligence Page — Redesign (in progress)** — Full audit done 2026-05-16. Phased plan below.
 
-11. **Forge widget v2 (deferred, 2026-05-19 design pass):**
-   - **Cycle counter** — show "cycle N" badge on widget; track sessions completed in a single login window.
-   - **Long-press dismiss** — `×` requires 600ms press when mid-session w/ unclaimed XP; prevents accidental loss.
-   - **Haptic equivalent** — scale-pop + soft glow burst on successful claim; navigator.vibrate(10) on mobile PWA.
-   - **Streak multiplier** — N consecutive claimed cycles in a session = ×1.25/×1.5/×2 XP multiplier badge; resets on dismiss or 30min idle.
-   - Pick up when v1 forge widget has been validated by real usage signals (claim rate, dismiss rate, return-to-forge rate).
+11. ~~**Forge widget v2**~~ — ❌ **VOID 2026-08-04 (verified in code).** Every item in the 2026-05-19 spec (cycle counter, unclaimed-XP long-press dismiss, claim haptic, streak XP multiplier) was built on timed forge XP earning, which is **retired** — `backend/app/services/forge_service.py` states the time-based earn and `forge_sessions` reads were removed and now retains only `LEVEL_THRESHOLDS`. There is no claim, no session XP, and no widget to extend. Practice progression comes from Upskilling quiz clears (`skill_assessed_level`). `user_skills.forge_sessions_count` survives as a display counter only. Do not resurrect — design a new mechanic against the quiz model if retention needs one.
 
-12. **Multi-location targeting (parked 2026-05-21):** Allow up to 3 target locations in onboarding StepRole. Requires full-stack change — DB migration (`target_location TEXT` → `target_locations TEXT[]` + `target_location_countries TEXT[]`), RPC `get_candidate_job_ids_for_skills` to accept array + OR across countries, repository `_filter_job_ids_by_location` rewrite, backfill existing users. Mobile UI ready (chip multi-select pattern). Path A (UI lies, only first city filters) rejected on design-over-words rule. Pick up when single-location matching quality is validated and multi-loc backlog signal is real.
+12. ~~**Multi-location targeting**~~ — ✅ **CLOSED, SHIPPED (verified in code + live DB 2026-08-04).** `user_profiles.target_locations` and `target_location_countries` are live array columns in shared Supabase alongside the legacy scalars. `deps.py` back-fills the array from the scalar when unmigrated; `repositories/users.py` writes it (with `clear_user_target_locations_cache` invalidation) and `routers/jobs/list.py` reads `user_target_locations` / `user_target_location_countries` into the feed prelude. The "parked, needs full-stack change" note was stale by ~14 months. Memory: `project_location_prefs_multiloc`.
 
 13. **B2B recruiter + referral platform phase 2 (parked 2026-07-03):** The frontend slice is closed for now: public recruiter/referral doors + workspace previews + auth-ready app routes are shipped. Remaining work is the real productization layer, not session cleanup.
    - **Role / auth model** — define recruiter vs referral vs internal-ops access, nav visibility, and post-login routing. Today the workspaces are UI-ready, but not role-gated.
