@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from typing import Any
 
@@ -615,12 +616,36 @@ def get_result(db: Client, user_id: str, *, step: int | None = None) -> dict[str
     return review
 
 
+def _parallel(db: Client, reads: dict[str, Any]) -> dict[str, Any]:
+    """Run independent reads at once and return them by name.
+
+    This endpoint is POLLED — every 2.5s for the whole CV analysis and again for
+    the whole shortlist run, so a single onboarding costs 40-70 calls. Each one
+    was a chain of sequential Supabase round trips, which makes its wall time the
+    SUM of reads that have nothing to do with each other.
+
+    Same shape and same safety argument as `/home/bootstrap` and `/jobs/feed`: the
+    admin client is a process-wide singleton whose underlying `httpx.Client` is
+    threadsafe, each `.table()` builds its own request, and nothing here mutates
+    shared query state (there is not even a per-request auth header to race, which
+    is what bootstrap had to reason about). Each read is still bounded by the 8s
+    PostgREST timeout, so the slowest caps the tail.
+    """
+    with ThreadPoolExecutor(max_workers=max(1, len(reads))) as pool:
+        futures = {name: pool.submit(fn) for name, fn in reads.items()}
+        return {name: future.result() for name, future in futures.items()}
+
+
 def _current_result(db: Client, user_id: str) -> dict[str, Any]:
-    onboarding_repo = OnboardingRepository(db)
     users_repo = UsersRepository(db)
-    state = onboarding_repo.get_state(user_id) or {}
-    profile = users_repo.get_profile(user_id) or {}
-    baseline = CVVersionsRepository(db).latest_baseline(user_id)
+    facts = _parallel(db, {
+        "state": lambda: OnboardingRepository(db).get_state(user_id),
+        "profile": lambda: users_repo.get_profile(user_id),
+        "baseline": lambda: CVVersionsRepository(db).latest_baseline(user_id),
+    })
+    state = facts["state"] or {}
+    profile = facts["profile"] or {}
+    baseline = facts["baseline"]
 
     if state.get("completed_at") and state.get("credible_job_saved_at"):
         from app.services.onboarding_first_role import saved_first_role
@@ -706,14 +731,21 @@ def _current_result(db: Client, user_id: str) -> dict[str, Any]:
         target["seniority"],
         target["location"],
     )
-    shortlist, shortlist_status = _shortlist(
-        db, user_id, profile, int(baseline["id"]), context_hash
-    )
-    credible_match = JobsRepository(db).get_current_credible_match(
-        user_id,
-        int(baseline["id"]),
-        context_hash,
-    )
+    # The three reads behind the finished screen. They share only the context hash,
+    # which is already computed — none of them feeds another, so paying for them in
+    # sequence bought nothing. This is the branch the user polls for the whole
+    # shortlist run, so it is the one that repeats the cost ~24 times.
+    ready = _parallel(db, {
+        "shortlist": lambda: _shortlist(
+            db, user_id, profile, int(baseline["id"]), context_hash
+        ),
+        "credible_match": lambda: JobsRepository(db).get_current_credible_match(
+            user_id, int(baseline["id"]), context_hash,
+        ),
+        "proof_skills": lambda: _proof_skills(users_repo, user_id),
+    })
+    shortlist, shortlist_status = ready["shortlist"]
+    credible_match = ready["credible_match"]
     if credible_match:
         job = credible_match.get("jobs") or {}
         primary_action = {
@@ -740,7 +772,7 @@ def _current_result(db: Client, user_id: str) -> dict[str, Any]:
         # a modal quoting 100 coins. Naming the run here, and naming the inputs
         # it did NOT have, teaches the surface before it ever charges for it.
         "career_ops": {"sharpeners": _unused_ops_inputs(profile)},
-        "skills": _proof_skills(users_repo, user_id),
+        "skills": ready["proof_skills"],
         "score": {
             "total_score": float(score["total_score"]),
             "domain_scores": score.get("domain_scores") or {},

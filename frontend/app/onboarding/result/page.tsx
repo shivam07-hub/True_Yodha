@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { RotateCcw } from "lucide-react"
 import { MyroLogo } from "@/components/myro-logo"
@@ -14,6 +14,11 @@ import { ProfilePreview } from "@/components/onboarding/profile-preview"
 import { TargetConfirm } from "@/components/onboarding/target-confirm"
 import { Button } from "@/components/ui/button"
 import { onboarding, type OnboardingResult } from "@/lib/api"
+import {
+  CV_UPLOAD_PROGRESS_EVENT,
+  CV_UPLOAD_TERMINAL_EVENT,
+  type CVUploadProgressEventDetail,
+} from "@/lib/cv-upload-events"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useOnboardingState } from "@/lib/hooks/use-onboarding-state"
@@ -27,6 +32,9 @@ export default function OnboardingResultPage() {
   // Deliberately not persisted: a reload should return you to your real
   // position, not to whatever you were reviewing when you closed the tab.
   const [viewStep, setViewStep] = useState<number | null>(null)
+  // The live phase from the upload stream. Preferred over the polled copy because
+  // it arrives as the worker moves, not on the next fallback tick.
+  const [streamedPhase, setStreamedPhase] = useState<string | null>(null)
 
   const result = useQuery({
     queryKey: [...dataKeys.onboardingResult(), viewStep] as const,
@@ -39,7 +47,16 @@ export default function OnboardingResultPage() {
     // user costs nothing.)
     refetchInterval: (query) => {
       const data = query.state.data
-      if (data?.kind === "full_result_processing") return 2_000
+      if (data?.kind === "full_result_processing") {
+        // Step 1 is the CV analysis, and the app-shell upload observer is ALREADY
+        // polling that job and broadcasting every phase change. Polling it here too
+        // meant two requests asking one question for 48-109s, and this one costs a
+        // multi-read assembly. The stream drives the screen (see below); this stays
+        // only as a dead-man fallback in case the observer itself stalls.
+        //
+        // Step 3 is the score wait, which no observer covers — that keeps its poll.
+        return data.journey_step === 1 ? 15_000 : 2_000
+      }
       if (data?.kind !== "full_result_ready") return false
       if (data.shortlist_status === "computing") return 2_500
       return data.shortlist_status === "stalled" ? 8_000 : false
@@ -52,6 +69,33 @@ export default function OnboardingResultPage() {
     staleTime: 30_000,
     retry: true,
   })
+
+  // The CV analysis reaches this screen as a STREAM, not as a poll. The app-shell
+  // `CVUploadLifecycleObserver` owns the one poller (it has to — it survives route
+  // changes and resumes a persisted job after a reload) and broadcasts each phase.
+  // `/cv` already listens; this surface was re-polling the same job instead.
+  //
+  // Deliberately not extracted into a shared hook: `/cv` needs failure codes, the
+  // receipt and `started_at`, this needs a phase and a finish signal. One interface
+  // over both would be as complex as the two call sites it replaced.
+  useEffect(() => {
+    const onProgress = (event: Event) => {
+      const detail = (event as CustomEvent<CVUploadProgressEventDetail>).detail
+      if (detail?.status) setStreamedPhase(detail.status.current_phase ?? "queued")
+    }
+    const onTerminal = () => {
+      // Done or failed, the next step is a fact on the server — ask once, now,
+      // rather than waiting out the fallback interval.
+      setStreamedPhase(null)
+      void result.refetch()
+    }
+    window.addEventListener(CV_UPLOAD_PROGRESS_EVENT, onProgress)
+    window.addEventListener(CV_UPLOAD_TERMINAL_EVENT, onTerminal)
+    return () => {
+      window.removeEventListener(CV_UPLOAD_PROGRESS_EVENT, onProgress)
+      window.removeEventListener(CV_UPLOAD_TERMINAL_EVENT, onTerminal)
+    }
+  }, [result])
 
   async function resetToUpload() {
     if (!token) return
@@ -92,7 +136,7 @@ export default function OnboardingResultPage() {
         <Button size="lg" className="mt-6" onClick={() => void result.refetch()}>Try again</Button>
       </section>
     )
-    if (!result.data || result.data.kind === "full_result_processing") return <AnalysisProgress phase={result.data?.phase ?? "queued"} onRetry={() => void result.refetch()} />
+    if (!result.data || result.data.kind === "full_result_processing") return <AnalysisProgress phase={streamedPhase ?? result.data?.phase ?? "queued"} onRetry={() => void result.refetch()} />
     if (result.data.kind === "profile_preview") return <ProfilePreview result={result.data} onBuild={() => setGeneratorOpen(true)} onUpload={() => void resetToUpload()} />
     if (result.data.kind === "first_role_saved") return <FirstRoleSuccess title={result.data.title} company={result.data.company} tailorHref={result.data.tailor_href} />
     // Forward is offered only to someone reviewing ground they've already
