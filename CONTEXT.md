@@ -759,8 +759,10 @@ The product-level invariant the whole Background Job system serves: **once a use
 ## Work Lane
 
 A named RQ queue carrying Background Jobs at one urgency. Exactly two:
-- **fast** — a user is staring at a loading screen: CV upload parse+score, paid Job Refresh.
-- **bulk** — nobody is waiting: initial match-compute after upload, skill-edit re-tag.
+- **fast** — a user is staring at a loading screen: CV upload parse+score, paid Job Refresh, **the initial match-compute** (the onboarding result screen polls for its shortlist every 2.5s — the most-watched job in the product), **CV layout enrichment** (`cv_structured_enrich`: the user is not blocked on it, but the CV playground where onboarding ends is).
+- **bulk** — nobody is waiting: skill-edit re-tag.
+
+The lane is a claim about **whether someone is waiting**, not about how heavy the work is. Filing a watched job under bulk is how it ends up behind an unwatched queue — which is exactly what put the layout parse, and briefly the initial match, on the wrong side of a user's spinner.
 
 A Job Runner listens to lanes in priority order `[fast, bulk]` — RQ pops fast first, only touching bulk when fast is empty. A flood of bulk work can never delay a waiting user.
 
