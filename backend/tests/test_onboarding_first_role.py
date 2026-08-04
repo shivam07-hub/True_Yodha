@@ -165,4 +165,7 @@ def test_onboarding_result_recovers_saved_receipt_after_reload(monkeypatch) -> N
         "title": "Data Analyst",
         "company": "Acme",
         "tailor_href": "/cv?jobId=job-7",
+        # The journey is complete, so every step is behind the user and
+        # reviewable — the client needs the ceiling to know that.
+        "furthest_step": 3,
     }

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Check, Search } from "lucide-react"
+import { ArrowLeft, Check, Search } from "lucide-react"
 import { useQueries, useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { formatCount } from "@/lib/format"
@@ -10,7 +10,15 @@ import { trackEvent } from "@/lib/analytics"
 import { cn } from "@/lib/utils"
 
 type AwaitingTarget = Extract<OnboardingResult, { kind: "awaiting_target" }>
-type Props = { token: string; result: AwaitingTarget; onConfirmed: () => void }
+type Props = {
+  token: string
+  result: AwaitingTarget
+  onConfirmed: () => void
+  /** Review the previous step. Non-destructive — nothing here is cleared. */
+  onBack?: () => void
+  /** Return to where the user actually is, leaving this answer untouched. */
+  onForward?: () => void
+}
 
 /** Both axes are plural end-to-end (`target_role_titles`, `target_locations`). */
 const MAX_ROLES = 3
@@ -59,12 +67,16 @@ function FamilyRow({ family, selected, disabled, onChoose }: {
 }
 
 /** The targeting step is deliberately score-free: its selected cohort creates the score. */
-export function TargetConfirm({ token, result, onConfirmed }: Props) {
-  const [selected, setSelected] = useState<RoleFamily[]>([])
+export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }: Props) {
+  // Seeded from what the user already chose, so stepping back here shows their
+  // direction rather than an empty form they have to reconstruct.
+  const [selected, setSelected] = useState<RoleFamily[]>(result.selected?.families ?? [])
   const [roleSearch, setRoleSearch] = useState("")
   const [showSearch, setShowSearch] = useState(false)
-  const [locations, setLocations] = useState<string[]>([])
-  const [seniority, setSeniority] = useState<TargetSeniority | null>(result.seniority.value)
+  const [locations, setLocations] = useState<string[]>(result.selected?.locations ?? [])
+  const [seniority, setSeniority] = useState<TargetSeniority | null>(
+    result.selected?.seniority ?? result.seniority.value,
+  )
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -135,6 +147,7 @@ export function TargetConfirm({ token, result, onConfirmed }: Props) {
   }
 
   return <section className="w-full max-w-lg" aria-labelledby="target-title">
+    {onBack && <button type="button" onClick={onBack} className="tm-control-focus -ml-1 mb-3 inline-flex min-h-9 items-center gap-1.5 rounded px-1 text-sm text-[var(--tm-text-muted)]"><ArrowLeft className="size-4" />Your CV</button>}
     <p className="text-sm font-semibold text-[var(--tm-interactive)]">Step 2 of 3</p>
     <h1 id="target-title" className="mt-2 text-balance text-3xl font-semibold text-[var(--tm-text)]">Choose your direction</h1>
     <p className="mt-2 text-sm leading-6 text-[var(--tm-text-muted)]">Pick up to {MAX_ROLES} kinds of work you want next.</p>
@@ -193,5 +206,8 @@ export function TargetConfirm({ token, result, onConfirmed }: Props) {
     <Button size="lg" className="mt-8 min-h-12 w-full" disabled={!selected.length || !seniority || busy} onClick={() => void submit()}>
       {busy ? "Building your shortlist…" : !selected.length ? "Choose a role to continue" : !seniority ? "Choose a level to continue" : "Show my first shortlist →"}
     </Button>
+    {/* Only offered to someone who already HAS a shortlist — it returns them to
+        it untouched, which is the whole point of a review being free. */}
+    {onForward && <Button variant="ghost" size="lg" className="mt-2 min-h-12 w-full" onClick={onForward}>Back to my shortlist</Button>}
   </section>
 }

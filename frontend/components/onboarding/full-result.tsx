@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { ArrowLeft } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { FirstRoleSuccess } from "@/components/onboarding/first-role-success"
@@ -10,7 +11,14 @@ import { trackEvent } from "@/lib/analytics"
 import { invalidateJobData } from "@/lib/domain-data"
 
 type FullResultData = Extract<OnboardingResult, { kind: "full_result_ready" }>
-interface Props { token: string; result: FullResultData; onAdjust: () => Promise<void> }
+interface Props {
+  token: string
+  result: FullResultData
+  /** Review the direction with the answers intact. Nothing is cleared. */
+  onBack?: () => void
+  /** Clear the target and choose again — the destructive one. */
+  onAdjust: () => Promise<void>
+}
 
 /**
  * The shortlist comes from the result payload, NOT from `jobs.matches`.
@@ -25,7 +33,7 @@ interface Props { token: string; result: FullResultData; onAdjust: () => Promise
  * reports an honest status, so this component renders a state instead of
  * inferring one from an empty list.
  */
-export function FullResult({ token, result, onAdjust }: Props) {
+export function FullResult({ token, result, onBack, onAdjust }: Props) {
   const queryClient = useQueryClient()
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
   const [receipt, setReceipt] = useState<FirstRoleReceipt | null>(null)
@@ -71,6 +79,7 @@ export function FullResult({ token, result, onAdjust }: Props) {
 
   return (
     <section className="w-full max-w-3xl" aria-labelledby="shortlist-title">
+      {onBack && <button type="button" onClick={onBack} className="tm-control-focus -ml-1 mb-3 inline-flex min-h-9 items-center gap-1.5 rounded px-1 text-sm text-[var(--tm-text-muted)]"><ArrowLeft className="size-4" />Your direction</button>}
       <p className="text-sm font-semibold text-[var(--tm-interactive)]">Step 3 of 3</p>
       <h1 id="shortlist-title" className="mt-2 text-balance text-3xl font-semibold text-[var(--tm-text)] sm:text-4xl">Your first live shortlist</h1>
       <p className="mt-3 text-pretty text-sm leading-6 text-[var(--tm-text-muted)]">Choose one role worth pursuing. You can explore every match after this first decision.</p>

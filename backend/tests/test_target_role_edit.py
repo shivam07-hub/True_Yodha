@@ -20,8 +20,19 @@ class _FakeUsersRepo:
     def get_profile(self, _user_id: str) -> dict:
         return self._profile
 
-    def update_profile(self, _user_id: str, updates: dict) -> None:
+    def update_profile(self, _user_id: str, updates: dict) -> bool:
+        # Mirrors the real seam's contract: returns whether the DIRECTION moved.
+        # `save_target` reads it to decide whether a full Career-Ops re-run is
+        # warranted, so a fake that always says "yes" would hide a re-run the
+        # user never asked for.
+        changed = any(
+            updates.get(key) != self._profile.get(key)
+            for key in ("target_role_title", "target_roles", "target_seniority", "target_locations")
+            if key in updates
+        )
         self.updates = updates
+        self._profile.update(updates)
+        return changed
 
 
 class _FakeOnboardingRepo:
@@ -74,6 +85,27 @@ def test_role_only_edit_preserves_seniority_and_location(wired) -> None:
     assert users.updates["target_locations"] == ["Bengaluru, India"]
     # recompute + re-match is enqueued
     assert any(name == "onboarding_target_refresh" for _lane, name, _p, _c in bg.enqueued)
+
+
+def test_resubmitting_the_same_direction_does_not_rerun_the_brain(wired) -> None:
+    """Back-and-forward through the journey, or a double-tap, must be free.
+
+    The refresh below runs the full Career-Ops pass with `force`, which bypasses
+    the cache gate — so re-firing it for a direction the matches already answer
+    spends a real LLM pass to arrive exactly where the user already is.
+    """
+    users, onboarding, bg = wired
+
+    onboarding_service.save_target(
+        object(),
+        "u1",
+        role_title="Data Analyst",
+        seniority="senior",
+        locations=["Bengaluru, India"],
+    )
+
+    assert bg.enqueued == []
+    assert onboarding.patches == []
 
 
 def test_explicit_fields_still_override(wired) -> None:

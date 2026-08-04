@@ -5,7 +5,7 @@ from app.repositories.users import UsersRepository
 
 def _q(data: list[dict] | dict | None = None) -> MagicMock:
     q = MagicMock()
-    for method in ("select", "eq", "update", "upsert"):
+    for method in ("select", "eq", "update", "upsert", "limit"):
         getattr(q, method).return_value = q
 
     list_result = MagicMock()
@@ -58,14 +58,32 @@ def test_update_profile_stamps_target_updated_at_on_a_direction_change() -> None
     each caller, because onboarding, the point-of-use role edit and the Career
     Ops preflight all change direction.
     """
-    query = _q({})
+    query = _q([{"target_role_titles": ["Data Analyst"]}])
     db = MagicMock()
     db.table.return_value = query
 
-    UsersRepository(db).update_profile("u1", {"target_role_titles": ["Staff Engineer"]})
+    changed = UsersRepository(db).update_profile("u1", {"target_role_titles": ["Staff Engineer"]})
 
-    written = query.update.call_args.args[0]
-    assert written["target_updated_at"]
+    assert changed is True
+    assert query.update.call_args.args[0]["target_updated_at"]
+
+
+def test_update_profile_does_not_stamp_an_unchanged_direction() -> None:
+    """Re-submitting the same direction is not a change.
+
+    Moving the marker anyway would leave the onboarding shortlist reading
+    `computing` against a match run that already covers this exact direction,
+    and would tell `save_target` to force a full Career-Ops re-run for a
+    question the matches already answer.
+    """
+    query = _q([{"target_role_titles": ["Staff Engineer"]}])
+    db = MagicMock()
+    db.table.return_value = query
+
+    changed = UsersRepository(db).update_profile("u1", {"target_role_titles": ["Staff Engineer"]})
+
+    assert changed is False
+    assert "target_updated_at" not in query.update.call_args.args[0]
 
 
 def test_update_profile_leaves_non_direction_writes_unstamped() -> None:

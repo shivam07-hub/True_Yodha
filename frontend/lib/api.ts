@@ -677,7 +677,15 @@ export interface OnboardingProofSkill {
   evidence: string
 }
 
-export type OnboardingResult =
+/**
+ * How far the user has actually GOT, which is not the same as what they are
+ * looking at. The journey used to derive its step from its facts — skills
+ * confirmed, target set — so the only way back was to erase a decision. This is
+ * the ceiling a view cursor may move under; 0 means nothing is behind them yet.
+ */
+export type OnboardingReach = { furthest_step?: 0 | 1 | 2 | 3 }
+
+export type OnboardingResult = OnboardingReach & (
   | {
       kind: "profile_preview"
       target: OnboardingTarget
@@ -703,6 +711,9 @@ export type OnboardingResult =
       baseline_version_id: number
       families: RoleFamily[]
       seniority: { value: TargetSeniority | null; years?: number; title?: string; source: "experience_years" | "title" | "unknown"; needs_choice: boolean }
+      /** What they already chose, when arriving here from further along. Empty
+       *  on the first visit — one shape, seeded the same way either way. */
+      selected: { families: RoleFamily[]; seniority: TargetSeniority | null; locations: string[] }
       journey_step?: 1 | 2 | 3
     }
   | {
@@ -722,6 +733,7 @@ export type OnboardingResult =
       primary_action: { kind: string; label: string; href: string }
       secondary_action: { kind: string; label: string; href: string }
     }
+)
 
 export const onboarding = {
   state: (token: string) => request<OnboardingState>("/onboarding/state", {
@@ -758,9 +770,12 @@ export const onboarding = {
   roleFamilyLocations: (token: string, family: string, query?: string) => request<RoleFamilyLocation[]>(`/roles/family-locations?family=${encodeURIComponent(family)}${query ? `&query=${encodeURIComponent(query)}` : ""}`, {
     headers: { Authorization: `Bearer ${token}` },
   }),
-  result: (token: string) => request<OnboardingResult>("/onboarding/result", {
-    headers: { Authorization: `Bearer ${token}` },
-  }),
+  /** `step` LOOKS BACK at completed ground only; the server ignores a value at
+   *  or beyond the user's furthest, so it can never skip work. */
+  result: (token: string, step?: number) => request<OnboardingResult>(
+    step ? `/onboarding/result?step=${step}` : "/onboarding/result",
+    { headers: { Authorization: `Bearer ${token}` } },
+  ),
   saveAnswer: (token: string, step: number, answer: Record<string, unknown>) =>
     request<void>(`/onboarding/baseline/answers/${step}`, {
       method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ answer }),

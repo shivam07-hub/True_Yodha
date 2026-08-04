@@ -8,7 +8,14 @@ import { onboarding, type OnboardingResult } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
 type SkillResult = Extract<OnboardingResult, { kind: "awaiting_skill_confirmation" }>
-type Props = { token: string; result: SkillResult; onConfirmed: () => void }
+type Props = {
+  token: string
+  result: SkillResult
+  onConfirmed: () => void
+  /** Return to where the user actually is. Only present when they came back
+   *  here to review — a first-time visitor has nothing ahead of them. */
+  onForward?: () => void
+}
 
 const ORDER: ProofTier[] = ["proven", "listed", "none"]
 
@@ -46,7 +53,7 @@ function groupByCVLine(skills: Skill[], keepEvidence: boolean): { line: string; 
     .sort((a, b) => b.skills.length - a.skills.length)
 }
 
-export function FirstRunSkillReview({ token, result, onConfirmed }: Props) {
+export function FirstRunSkillReview({ token, result, onConfirmed, onForward }: Props) {
   const [removed, setRemoved] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -177,9 +184,12 @@ export function FirstRunSkillReview({ token, result, onConfirmed }: Props) {
             <span className="font-semibold tabular-nums text-[var(--tm-text)]">{keptCount}</span> kept
             {removed.size > 0 && <span className="tabular-nums"> · {removed.size} removed</span>}
           </p>
-          <Button size="lg" className="min-h-12 flex-1 sm:flex-none" disabled={busy || keptCount < 1} onClick={() => void confirm()}>
-            {busy ? "Saving…" : keptCount < 1 ? "Keep at least one" : "Looks right →"}
-          </Button>
+          <div className="flex flex-1 items-center gap-2 sm:flex-none">
+            {onForward && <Button variant="ghost" size="lg" className="min-h-12" onClick={onForward}>Back to my shortlist</Button>}
+            <Button size="lg" className="min-h-12 flex-1 sm:flex-none" disabled={busy || keptCount < 1} onClick={() => void confirm()}>
+              {busy ? "Saving…" : keptCount < 1 ? "Keep at least one" : "Looks right →"}
+            </Button>
+          </div>
         </div>
         {error && <p role="alert" className="mx-auto max-w-5xl px-5 pb-3 text-sm text-[var(--tm-danger)] sm:px-8">{error}</p>}
       </div>

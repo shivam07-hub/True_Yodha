@@ -26,6 +26,11 @@ class _ProfileQuery:
     def __init__(self, row: dict[str, Any]) -> None:
         self.row = row
         self.patch: dict[str, Any] | None = None
+        # PostgREST shapes its answer by the terminator: `.maybe_single()` gives
+        # one object, a plain select gives a list. The fake has to keep that
+        # distinction or a repository that reads a list looks broken here and
+        # fine in prod.
+        self.single = False
 
     def select(self, *_args: Any, **_kwargs: Any) -> "_ProfileQuery":
         return self
@@ -38,13 +43,17 @@ class _ProfileQuery:
         return self
 
     def maybe_single(self) -> "_ProfileQuery":
+        self.single = True
+        return self
+
+    def limit(self, *_args: Any, **_kwargs: Any) -> "_ProfileQuery":
         return self
 
     def execute(self) -> _Result:
         if self.patch is not None:
             self.row.update(self.patch)
             return _Result([self.row])
-        return _Result(dict(self.row))
+        return _Result(dict(self.row) if self.single else [dict(self.row)])
 
 
 class _ProfileDB:

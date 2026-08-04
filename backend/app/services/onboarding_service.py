@@ -170,7 +170,7 @@ def save_target(
         {**profile, **updates},
         primary=derived_band,
     ) if derived_band else []
-    users_repo.update_profile(
+    direction_changed = users_repo.update_profile(
         user_id,
         {
             **updates,
@@ -178,6 +178,13 @@ def save_target(
             "target_locations": chosen_locations,
         },
     )
+    if not direction_changed:
+        # Same direction re-submitted (a back-and-forward through the journey,
+        # or a double-tap). The existing matches already answer this exact
+        # question, and the refresh below runs the full Career-Ops brain with
+        # `force`, bypassing the cache gate — so re-running it would spend a
+        # real LLM pass to arrive back where the user already is.
+        return
     OnboardingRepository(db).patch_state(
         user_id,
         {"current_stage": "result", "status": "analyzing"},
@@ -479,7 +486,85 @@ def _shortlist(
     return [], "stalled"
 
 
-def get_result(db: Client, user_id: str) -> dict[str, Any]:
+def _reviewable_step(
+    db: Client,
+    user_id: str,
+    profile: dict[str, Any],
+    baseline: dict[str, Any],
+    step: int,
+) -> dict[str, Any] | None:
+    """Re-render an already-completed step, with the user's answers restored.
+
+    Nothing here writes. The journey's step used to BE its facts — skills
+    confirmed, target set — so "where you are" and "what you decided" were the
+    same variable and the only way back was to erase a decision. That made going
+    back destructive (step 2 came back blank) and going forward impossible
+    without re-choosing, which also re-ran the matcher. A view cursor separates
+    the two: looking is free, only changing an answer costs anything.
+    """
+    if step == 1:
+        return {
+            "kind": "awaiting_skill_confirmation",
+            "baseline_version_id": int(baseline["id"]),
+            "skills": _candidate_skills(ScoresRepository(db), baseline),
+            "journey_step": 1,
+        }
+    if step == 2:
+        families_repo = RoleFamiliesRepository(db)
+        chosen_keys = [str(key) for key in (profile.get("target_roles") or []) if str(key).strip()]
+        selected = families_repo.resolve_families(user_id, chosen_keys)
+        suggested = families_repo.list_families(user_id)
+        chosen = {str(row.get("family")) for row in selected}
+        return {
+            "kind": "awaiting_target",
+            "baseline_version_id": int(baseline["id"]),
+            # Chosen first, then the suggestions they didn't take — so a pick made
+            # through search is still on screen when they come back to it.
+            "families": selected + [row for row in suggested if str(row.get("family")) not in chosen],
+            "seniority": _seniority_suggestion(baseline),
+            "selected": {
+                "families": selected,
+                "seniority": profile.get("target_seniority") or None,
+                "locations": [
+                    str(value).strip()
+                    for value in (profile.get("target_locations") or [])
+                    if str(value).strip()
+                ],
+            },
+            "journey_step": 2,
+        }
+    return None
+
+
+def get_result(db: Client, user_id: str, *, step: int | None = None) -> dict[str, Any]:
+    """The step the user should see.
+
+    `step` is a VIEW cursor, not progress: it may only look at ground already
+    covered. `furthest_step` rides on every payload so the client knows which
+    way it can move without asking.
+    """
+    result = _current_result(db, user_id)
+    furthest = int(result.get("journey_step") or 0) or (
+        3 if result.get("kind") in ("full_result_ready", "first_role_saved") else 0
+    )
+    result["furthest_step"] = furthest
+
+    if step is None or step >= furthest or furthest == 0:
+        return result
+
+    users_repo = UsersRepository(db)
+    profile = users_repo.get_profile(user_id) or {}
+    baseline = CVVersionsRepository(db).latest_baseline(user_id)
+    if not baseline:
+        return result
+    review = _reviewable_step(db, user_id, profile, baseline, step)
+    if review is None:
+        return result
+    review["furthest_step"] = furthest
+    return review
+
+
+def _current_result(db: Client, user_id: str) -> dict[str, Any]:
     onboarding_repo = OnboardingRepository(db)
     users_repo = UsersRepository(db)
     state = onboarding_repo.get_state(user_id) or {}
@@ -547,6 +632,9 @@ def get_result(db: Client, user_id: str) -> dict[str, Any]:
             "baseline_version_id": int(baseline["id"]),
             "families": RoleFamiliesRepository(db).list_families(user_id),
             "seniority": _seniority_suggestion(baseline),
+            # Same shape as the reviewed step, empty here. One payload shape means
+            # the client seeds its form the same way whichever way it arrived.
+            "selected": {"families": [], "seniority": None, "locations": []},
             "journey_step": 2,
         }
 
