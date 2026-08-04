@@ -257,18 +257,29 @@ async def refresh_target_result(payload: dict[str, Any], allow_retry: bool) -> N
     if scores_repo.get_user_skill_level_map(user_id):
         if not payload.get("score_fresh"):
             scoring.recompute_score(scores_repo, user_id)
-        # FAST, not BULK. The bulk lane is documented "nobody is watching" — and
-        # the onboarding shortlist is the most-watched job in the product: the
-        # result screen polls for it every 2.5s while the user waits on step 3.
-        # (Head-of-line risk against CV analysis is real but theoretical at this
-        # volume; if throughput ever bites, that is a lane-count decision, not a
-        # reason to file a watched job under "nobody is watching".)
-        background.enqueue(
-            background.LANE_FAST,
-            "initial_match",
-            payload={"user_id": user_id, "force_context_refresh": True},
-            correlation_id=f"target-match:{user_id}",
+        # Match only when there is a direction to match against. This handler is
+        # now also the score path for a user who has just confirmed skills and has
+        # NOT chosen a direction yet — and the shortlist is direction-scoped, so
+        # running the Career-Ops brain here would spend a real LLM pass to answer
+        # a question the user has not asked.
+        profile = UsersRepository(db).get_profile(user_id) or {}
+        has_target = bool(
+            profile.get("target_role_title") or profile.get("target_role_titles")
         )
+        if has_target:
+            # FAST, not BULK. The bulk lane is documented "nobody is watching" —
+            # and the onboarding shortlist is the most-watched job in the product:
+            # the result screen polls for it every 2.5s while the user waits on
+            # step 3. (Head-of-line risk against CV analysis is real but
+            # theoretical at this volume; if throughput ever bites, that is a
+            # lane-count decision, not a reason to file a watched job under
+            # "nobody is watching".)
+            background.enqueue(
+                background.LANE_FAST,
+                "initial_match",
+                payload={"user_id": user_id, "force_context_refresh": True},
+                correlation_id=f"target-match:{user_id}",
+            )
     OnboardingRepository(db).patch_state(
         user_id,
         {"status": "result_ready", "current_stage": "result"},
@@ -371,6 +382,41 @@ def _seniority_suggestion(baseline: dict[str, Any] | None) -> dict[str, Any]:
 _SCORE_HEAL_WINDOW_SECONDS = 120
 
 
+def enqueue_score_refresh(user_id: str, *, reason: str) -> bool:
+    """Ask for this user's score to be (re)computed in the background.
+
+    ONE enqueue seam, deliberately shared by the two callers that want a score:
+    the skill-confirmation step, which now hands the computation off rather than
+    making the user watch it, and `_heal_missing_score`, which repairs a score
+    that never landed. They share the debounce claim as well as the code, so a
+    confirm immediately followed by a result read cannot enqueue the same work
+    twice — the read's heal sees the claim already taken and does nothing.
+
+    Debounced so the repair cannot become the next incident, and fail-soft: a
+    refresh that cannot be enqueued must not take down the screen that asked
+    for it. Returns whether the claim was taken, for the caller's log.
+    """
+    if not background.claim(f"score-heal:{user_id}", _SCORE_HEAL_WINDOW_SECONDS):
+        return False
+    try:
+        background.enqueue(
+            background.LANE_FAST,
+            "onboarding_target_refresh",
+            payload={"user_id": user_id},
+            correlation_id=f"score-heal:{user_id}",
+        )
+        logger.info(
+            "metric onboarding.score_refresh_enqueued user=%s reason=%s", user_id, reason
+        )
+        return True
+    except Exception as exc:  # noqa: BLE001 — never fail the read that asked
+        logger.warning(
+            "metric onboarding.score_refresh_failed user=%s reason=%s exc=%s",
+            user_id, reason, exc.__class__.__name__,
+        )
+        return False
+
+
 def _heal_missing_score(user_id: str) -> None:
     """Re-enqueue the score job for a user whose skills and direction are both in,
     but whose score never landed.
@@ -381,25 +427,8 @@ def _heal_missing_score(user_id: str) -> None:
     2026-07-31 `domain_skill_counts` outage with no path back except a support
     ticket — the poll that was supposed to reveal the score was the only thing
     still running, and it asked for nothing.
-
-    Debounced, so the repair cannot become the next incident, and fail-soft: a
-    heal that cannot be enqueued must not take down the result screen with it.
     """
-    if not background.claim(f"score-heal:{user_id}", _SCORE_HEAL_WINDOW_SECONDS):
-        return
-    try:
-        background.enqueue(
-            background.LANE_FAST,
-            "onboarding_target_refresh",
-            payload={"user_id": user_id},
-            correlation_id=f"score-heal:{user_id}",
-        )
-        logger.info("metric onboarding.score_heal_enqueued user=%s", user_id)
-    except Exception as exc:  # noqa: BLE001 — never fail the result read
-        logger.warning(
-            "metric onboarding.score_heal_failed user=%s exc=%s",
-            user_id, exc.__class__.__name__,
-        )
+    enqueue_score_refresh(user_id, reason="heal")
 
 
 _MATCH_GRACE_SECONDS = 300

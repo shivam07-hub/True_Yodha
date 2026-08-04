@@ -806,10 +806,12 @@ export const onboarding = {
     skill_id?: number; taxonomy_key?: string
     action: "include" | "exclude"; evidence_text?: string; source_location?: Record<string, unknown>
   }>) => request<
-    // The score lands at THIS step now — it needs the confirmed skills and the
-    // band, not a chosen direction — so `total_score` comes back either way and
-    // `next` is the only thing that decides where the user goes.
-    { status: "confirmed"; next: "target" | "shortlist_processing"; total_score: number }
+    // `result` is the next step, already assembled — produced by the same
+    // `get_result` the screen reads, so there is one definition of what comes
+    // next. Seed the cache with it instead of re-asking: measured on prod
+    // 2026-08-04, confirming took 8.4s and the refetch that discarded this
+    // answer took another 8.2s, for one button press.
+    { status: "confirmed"; next: "target" | "shortlist_processing"; result: OnboardingResult }
   >(`/onboarding/baseline/${baselineId}/confirm-skills`, {
     method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ overrides }),
   }),

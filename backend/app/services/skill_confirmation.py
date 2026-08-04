@@ -11,7 +11,7 @@ from app.repositories.cv import CVVersionsRepository
 from app.repositories.onboarding import OnboardingRepository
 from app.repositories.scores import ScoresRepository
 from app.repositories.users import UsersRepository
-from app.services import background, scoring
+from app.services import onboarding_service, scoring
 from app.services.experience_years import seniority_from_cv
 
 
@@ -85,13 +85,18 @@ def confirm_baseline_skills(
     baseline_version_id: int,
     overrides: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    """Publish reviewed skills, then score them. Returns `{next, total_score}`.
+    """Publish reviewed skills and hand the score off. Returns `{next, result}`.
 
     `next` is the step the user goes to, decided by whether they have a direction
     yet — NOT by whether a score came back. Those two were the same question while
-    a score only existed after a direction was chosen; now that the score is
-    computed here, conflating them would route every first-run user past the
-    direction step.
+    a score only existed after a direction was chosen; conflating them would route
+    every first-run user past the direction step.
+
+    `result` is that step's full payload, produced by `get_result` — the same
+    function the result screen reads, so there is exactly one definition of "what
+    comes next". It is here because the client used to discard this response and
+    immediately GET the same thing: measured on prod 2026-08-04, that was 8.4s of
+    confirm followed by 8.2s of re-asking, 16.6s of dead time on one button press.
     """
     cv_repo = CVVersionsRepository(db)
     baseline = cv_repo.find(baseline_version_id, user_id)
@@ -129,31 +134,27 @@ def confirm_baseline_skills(
         user_id,
         {"status": "analyzing" if has_target else "result_ready", "current_stage": "result"},
     )
-    if has_target:
-        score = scoring.recompute_score(scores_repo, user_id)
-        background.enqueue(
-            background.LANE_FAST,
-            "onboarding_target_refresh",
-            payload={"user_id": user_id, "score_fresh": True},
-            correlation_id=f"confirmed-skills:{user_id}:{baseline_version_id}",
-        )
-        return {"next": "shortlist_processing", "total_score": float(score["total_score"])}
 
-    # No direction yet — but the score does not need one. `total_score` is a
-    # function of the confirmed skills and the seniority band alone; the chosen
-    # role family and cities move the GAP list, never the number. Waiting for the
-    # direction step meant the score started computing when the user arrived at
-    # step 3 and then made them watch it, which is the whole of the reported
-    # "Calculating your Myro Score" wait.
-    #
-    # The band comes from the CV, via the same reader that pre-fills the answer on
-    # the direction step — so for a user who accepts what Myro read (the common
-    # case) this score is already final, not a placeholder that will shift under
-    # them. If they change the level, `onboarding_target_refresh` recomputes; the
-    # row exists by then either way, so step 3 no longer blocks on it.
-    _persist_cv_seniority(users_repo, user_id, profile, baseline)
-    score = scoring.recompute_score(scores_repo, user_id)
-    return {"next": "target", "total_score": float(score["total_score"])}
+    # The band is written BEFORE the score is asked for, because it is an input to
+    # it: `total_score` is a function of the confirmed skills and the seniority
+    # band alone (the chosen role family and cities move the GAP list, never the
+    # number). It comes from the CV via the same reader that pre-fills the answer
+    # on the direction step, so for a user who accepts what Myro read — the common
+    # case — the first score is already final, not a placeholder that shifts later.
+    if not has_target:
+        _persist_cv_seniority(users_repo, user_id, profile, baseline)
+
+    # Handed off, not awaited. The score used to be computed inline here, which
+    # cost 8.4s on prod — paid by a user whose very next screen is the direction
+    # step, and that step is deliberately score-free. The work now runs while they
+    # choose, so the row exists by the time step 3 needs it, and `_heal_missing_score`
+    # remains the net if the job is lost.
+    onboarding_service.enqueue_score_refresh(user_id, reason="skills_confirmed")
+
+    return {
+        "next": "shortlist_processing" if has_target else "target",
+        "result": onboarding_service.get_result(db, user_id),
+    }
 
 
 def _persist_cv_seniority(

@@ -667,7 +667,25 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-08-03 · Onboarding: the column that never existed — ZERO scores site-wide for 3 days; 3 commits Develop + 2 migrations applied prod)
+## LAST SESSION SUMMARY (2026-08-04 · Onboarding speed — measured the wait, cut it three ways; 3 commits Develop + 1 migration applied prod)
+
+Shivam: onboarding takes too long and the user has nothing to do; which screens are redundant? Measured before answering. Full detail + the two claims I got wrong: memory `project_onboarding_wait_decomposition`.
+
+**Where the 115s of machine time actually went** (one real signup + prod aggregates): CV job **74s** · `confirm-skills` **8.4s** · the `/onboarding/result` right after it **8.2s** · 3× `family-locations` 4.7s · shortlist ~13s · `first-role` 4.2s. Prod CV job 30d: **p50 48s · p90 109s · max 177s**. Funnel 21d: 20 started upload → 18 CV done → **8 confirmed skills** — the biggest leak sits exactly at the screen behind the wait.
+
+**`968a2380` — the CV layout parse left the critical path.** The upload ran two sequential LLM calls; the second builds `cv_structured`, which **nothing behind the wait reads** (`FirstRunSkillReview` renders `skills` + `baseline_version_id`; score/direction/shortlist are all built on `skills_detected`). `cv_structured_enrich` already existed and was already enqueued *on failure* — now always, LANE_FAST. The test module that covered the failure case now asserts the stronger invariant (upload never calls the layout parser), falsified by restoring the inline await.
+
+**`b31afb43` — 16.6s of dead time on one button press, three causes.** (1) The score was computed **inline** in `confirm-skills` (8.4s) for a user whose next screen is deliberately score-free → handed off; band still written first because it's an input; `refresh_target_result` gained a gate so a no-direction user can't trigger a paid Career-Ops pass. (2) The client **discarded** the confirm response and re-GET the same thing (8.2s) → `confirm-skills` now returns the next step assembled by the same `get_result` the screen reads, client seeds its cache, query gained `staleTime`. (3) **`list_role_families` was 9.67s IN THE DATABASE** — `live_jobs` read **6,911 heap blocks** of a wide table for 10,838 rows, then nested-loop probed `jobs_pkey` **9,700× at 0.783ms**. Migration `20260804_role_family_live_covering_index` (partial covering index) **applied prod + verified**: → **951ms** via the function, **203ms** inlined.
+
+**`efe082d1` — the "You're all set" interstitial is gone.** A redirect wearing a screen; completed users now go straight to `/market`. Re-upload lives at `/cv`, which already owns it.
+
+**⚠️ Two of my own claims, corrected by measurement — do not re-derive:** (a) the layout parse is **NOT** half the wait. Per-job decomposition of `result_payload.extraction.llm_elapsed_ms` shows it **bimodal** — ~5-8s for nine of fourteen jobs, 29-52s for five. Median ~6s (~25%), tail to 52s. It's a **TAIL fix**, and the tail is where users leave. (b) The step-3 score wait is **NOT** redundant — once a score exists the screen already renders `full_result_ready` + shortlist skeletons, so that full-screen state only fires when the score is genuinely missing. Deleting it would have removed the 2026-08-03 outage's safety net.
+
+**Green:** backend **1847 passed** · ruff clean (own files) · tsc 0 · eslint 0 · ui-drift clean · `next build` ✓ · npm test 21/21.
+
+**OWED (Shivam):** (1) **`main` merge** — dev rides Develop. (2) **The one thing not verifiable here: a real authed signup end-to-end** (fresh account, real PDF) — confirm the skill-review screen arrives noticeably sooner, that confirm→direction is now one fast hop, and that the score is present by step 3. (3) **Decide on the "describe your experience" branch**: `preview_payload` is non-null in **0** of 80 onboarding rows over 90 days against 63 uploads, while 7 of 27 recent signups uploaded nothing at all. Unfound, not unwanted — instrument the CTA or cut `ProfilePreview`/`BaselineGenerator`. (4) Not built, next time the direction step is touched: merge the seniority question into skill review (same confirm-what-we-read gesture, one screen earlier), and batch `list_role_family_locations` to an array param (one request per family today).
+
+## OLDER SESSION SUMMARY (2026-08-03 · Onboarding: the column that never existed — ZERO scores site-wide for 3 days; 3 commits Develop + 2 migrations applied prod)
 
 Trigger: three onboarding screenshots (no CV pointer on the skill-review step; the score only starting at step 3; that spinner never resolving) + Railway logs. Full detail: memory `project_onboarding_score_outage`.
 

@@ -117,8 +117,9 @@ class _FakeCVRepository:
 
 
 def test_cv_intake_terminal_success_is_reviewable_without_scoring(monkeypatch: Any) -> None:
-    """A terminal intake persists both review candidates and the document shape;
-    confirmation still owns the later user-skill publication and scoring seam."""
+    """A terminal intake persists the review candidates; confirmation still owns
+    the later user-skill publication and scoring seam. The document shape is not
+    part of this seam — it is deferred to `cv_structured_enrich`."""
     repo = _FakeCVRepository()
     done: dict[str, Any] = {}
 
@@ -140,6 +141,11 @@ def test_cv_intake_terminal_success_is_reviewable_without_scoring(monkeypatch: A
         }
 
     monkeypatch.setattr(cv_workflow.cv_parser, "reparse_structured_only", _fake_parse_structure)
+    enqueued: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        cv_workflow.background, "enqueue",
+        lambda lane, name, **_kwargs: enqueued.append((lane, name)),
+    )
     monkeypatch.setattr(
         cv_workflow.upload_jobs_repo, "claim_for_completion", lambda _job_id: True
     )
@@ -163,8 +169,12 @@ def test_cv_intake_terminal_success_is_reviewable_without_scoring(monkeypatch: A
     assert repo.created_spec is not None
     assert repo.created_spec.kind == "baseline_upload"
     assert repo.created_spec.skills_detected[0]["taxonomy_key"] == "Python"
-    assert repo.created_spec.cv_structured["basics"]["name"] == "Candidate"
-    assert repo.created_spec.cv_structured["experience"][0]["role"] == "Engineer"
+    # The document SHAPE is deliberately not part of the terminal intake: it is a
+    # second, larger LLM call, and the review candidates above are what onboarding
+    # reads. It lands via the `cv_structured_enrich` job — asserted, with its lane,
+    # in test_cv_layout_never_blocks_upload.
+    assert not repo.created_spec.cv_structured
+    assert ("cv_structured_enrich") in [name for _lane, name in enqueued]
 
 
 class _FakeComputeJobsRepository:

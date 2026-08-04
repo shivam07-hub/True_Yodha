@@ -11,7 +11,9 @@ type SkillResult = Extract<OnboardingResult, { kind: "awaiting_skill_confirmatio
 type Props = {
   token: string
   result: SkillResult
-  onConfirmed: () => void
+  /** Carries the next step the server already assembled, so the page can move
+   *  without asking for it a second time. */
+  onConfirmed: (next: OnboardingResult) => void
   /** Return to where the user actually is. Only present when they came back
    *  here to review — a first-time visitor has nothing ahead of them. */
   onForward?: () => void
@@ -77,13 +79,16 @@ export function FirstRunSkillReview({ token, result, onConfirmed, onForward }: P
     setBusy(true)
     setError(null)
     try {
-      await onboarding.confirmSkills(
+      const confirmed = await onboarding.confirmSkills(
         token,
         result.baseline_version_id,
         Array.from(removed).map((taxonomy_key) => ({ taxonomy_key, action: "exclude" as const })),
       )
       trackEvent("onboarding_skills_confirmed", { kept_count: keptCount })
-      onConfirmed()
+      // Hand the next step straight to the page. It used to be dropped, and the
+      // page asked the server for it again — a second multi-second round trip for
+      // an answer already in hand.
+      onConfirmed(confirmed.result)
     } catch (reason) {
       setBusy(false)
       setError(reason instanceof Error ? reason.message : "Your review could not be saved.")
