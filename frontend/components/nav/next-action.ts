@@ -1,4 +1,5 @@
 import type { ApplicationResponse, JobMatch } from "@/lib/api"
+import type { CvPresence } from "@/lib/cv-presence"
 import { isApplied, matchesById } from "@/lib/collections/model"
 import { followUpLine, needsStageCheck } from "@/components/preparations/prep-model"
 
@@ -34,11 +35,42 @@ export interface NextAction {
 
 const name = (a: ApplicationResponse) => a.company ?? a.title
 
+/**
+ * A false CV flag is meaningful only after profile truth arrives. Before that,
+ * the shell must remain silent rather than inventing a first-run action.
+ */
+type NextActionOptions = {
+  cvPresence: CvPresence
+  newJobs?: number
+  now?: Date
+  openJobId?: string | null
+}
+
+type KnownCvActionOptions = Omit<NextActionOptions, "cvPresence"> & {
+  cvPresence: Exclude<CvPresence, "unknown">
+}
+
+type UnknownCvActionOptions = Omit<NextActionOptions, "cvPresence"> & {
+  cvPresence: "unknown"
+}
+
 export function deriveNextAction(
   allApps: ApplicationResponse[],
   matches: JobMatch[] | undefined,
-  opts: { hasCv: boolean; newJobs?: number; now?: Date; openJobId?: string | null },
-): NextAction {
+  opts: UnknownCvActionOptions,
+): null
+export function deriveNextAction(
+  allApps: ApplicationResponse[],
+  matches: JobMatch[] | undefined,
+  opts: KnownCvActionOptions,
+): NextAction
+export function deriveNextAction(
+  allApps: ApplicationResponse[],
+  matches: JobMatch[] | undefined,
+  opts: NextActionOptions,
+): NextAction | null {
+  if (opts.cvPresence === "unknown") return null
+
   const now = opts.now ?? new Date()
 
   // The job open on this surface belongs to the surface, not to the chip.
@@ -47,7 +79,7 @@ export function deriveNextAction(
   // `generic` so the chip hides on /cv itself: pointing a user at the page they
   // are already on — while their CV is mid-analysis, `has_cv` still false — reads
   // as the app not knowing what it just asked for.
-  if (!opts.hasCv) return { label: "Upload your CV", href: "/cv", generic: true }
+  if (opts.cvPresence === "absent") return { label: "Upload your CV", href: "/cv", generic: true }
 
   const interviewing = apps.find((a) => a.status === "interviewing")
   if (interviewing) {
