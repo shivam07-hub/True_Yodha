@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation"
 import { MyroLogo } from "@/components/myro-logo"
 import { ExperienceStep } from "@/components/onboarding/experience-step"
 import { JourneyProgress } from "@/components/onboarding/journey-progress"
-import { Button } from "@/components/ui/button"
 import {
   beginCVUpload,
   onboarding,
@@ -18,7 +17,6 @@ export default function OnboardingPage() {
   const { token, ready } = useAuth()
   const { state, profile, refresh } = useOnboardingState(token)
   const resolved = useRef(false)
-  const [entryMode, setEntryMode] = useState<"flow" | "completed">("flow")
   const [busy, setBusy] = useState(false)
   const [transferPct, setTransferPct] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -32,7 +30,12 @@ export default function OnboardingPage() {
     if (resolved.current || !state.isFetchedAfterMount) return
     resolved.current = true
     const data = state.data
-    if (data?.status === "completed") { setEntryMode("completed"); return }
+    // A finished user is sent where they were going. This used to be an
+    // interstitial whose only real action was a "Go to dashboard" button — a
+    // redirect wearing a screen, and one more click between a returning user and
+    // their jobs. Re-running the analysis lives with the CV, not on a door they
+    // were only passing through.
+    if (data?.status === "completed") { router.replace("/market"); return }
     if (["target", "result", "generator"].includes(data?.current_stage ?? "")) {
       router.replace("/onboarding/result")
     }
@@ -74,38 +77,9 @@ export default function OnboardingPage() {
     }
   }
 
-  async function handleReRun() {
-    if (!token) return
-    setBusy(true)
-    await onboarding.startOver(token).catch(() => undefined)
-    refresh()
-    setEntryMode("flow")
-    setBusy(false)
-  }
-
-  if (!ready || state.isLoading || profile.isLoading) return null
-
-  if (entryMode === "completed") {
-    return (
-      <main className="min-h-dvh bg-[var(--tm-bg)] text-[var(--tm-text)]">
-        <header className="border-b border-[var(--tm-border-soft)]">
-          <div className="mx-auto flex h-16 max-w-5xl items-center px-5 sm:px-8">
-            <MyroLogo size={25} /><span className="ml-2 text-base font-semibold">Myro</span>
-          </div>
-        </header>
-        <div className="mx-auto flex min-h-[calc(100dvh-64px)] max-w-5xl items-center justify-center px-5 py-8 sm:px-8">
-          <section className="w-full max-w-md text-center">
-            <h1 className="text-balance text-3xl font-semibold tracking-normal text-[var(--tm-text)]">You&apos;re all set</h1>
-            <p className="mt-2 text-base leading-6 text-[var(--tm-text-muted)]">Your Myro profile is ready. Head to your dashboard, or re-run the analysis with a fresh CV.</p>
-            <Button size="lg" className="mt-6 w-full" onClick={() => router.push("/market")}>Go to dashboard</Button>
-            <button type="button" onClick={() => void handleReRun()} disabled={busy} className="tm-control-focus mx-auto mt-3 block rounded px-3 py-2 text-sm text-[var(--tm-text-muted)] underline-offset-4 hover:underline">
-              {busy ? "Starting over..." : "Re-run analysis"}
-            </button>
-          </section>
-        </div>
-      </main>
-    )
-  }
+  // A completed user is redirected above and never renders this page, so there is
+  // no "already done" branch to hold here.
+  if (!ready || state.isLoading || profile.isLoading || state.data?.status === "completed") return null
 
   return (
     <main className="min-h-dvh bg-[var(--tm-bg)] text-[var(--tm-text)]">
