@@ -109,6 +109,63 @@ test("a priority save leads the next preparation action over a higher-fit ordina
   assert.match(next.label, /Tailor Priority · 48%/)
 })
 
+test("the open job is dropped — the chip names what comes AFTER it, not the screen itself", () => {
+  // On /cv?jobId=capgemini the playground already carries this job's own primary
+  // CTA. Echoing it in the chip pointed at the page the user was standing on.
+  // The open job outranks the other on fit, so it is what the ladder WOULD name.
+  const next = deriveNextAction(
+    [
+      scoredApp({ job_id: "capgemini", company: "Capgemini", match_score: 55 }),
+      scoredApp({ job_id: "infosys", company: "Infosys", match_score: 40 }),
+    ],
+    undefined,
+    { hasCv: true, now: NOW, openJobId: "capgemini" },
+  )
+  assert.equal(next.href, "/cv?jobId=infosys")
+  assert.match(next.label, /Tailor Infosys · 40%/)
+})
+
+test("the open job is dropped from every rung, not just the tailor one", () => {
+  // The apply rung's href is /collections?jobId= — sending a user away from the
+  // playground whose Apply button is the very action being named.
+  const next = deriveNextAction(
+    [app({ job_id: "open", company: "Open Co", cv_badge: badge }), app({ job_id: "other", company: "Other Co" })],
+    undefined,
+    { hasCv: true, now: NOW, openJobId: "open" },
+  )
+  assert.equal(next.href, "/cv?jobId=other")
+  assert.match(next.label, /Tailor Other Co/)
+})
+
+test("a prep room's own job is dropped so the room is never told to prep itself", () => {
+  const next = deriveNextAction(
+    [app({ job_id: "here", status: "interviewing", company: "Here Co" })],
+    undefined,
+    { hasCv: true, now: NOW, openJobId: "here" },
+  )
+  assert.equal(next.href, "/market")
+  assert.equal(next.generic, true)
+})
+
+test("an open job that is the only saved role falls through to the generic pointer", () => {
+  const next = deriveNextAction(
+    [scoredApp({ job_id: "solo", company: "Solo Co", match_score: 33 })],
+    undefined,
+    { hasCv: true, now: NOW, openJobId: "solo" },
+  )
+  assert.equal(next.label, "Find a role to tailor")
+  assert.equal(next.generic, true)
+})
+
+test("no openJobId leaves the ladder untouched", () => {
+  const next = deriveNextAction(
+    [scoredApp({ job_id: "capgemini", company: "Capgemini", match_score: 33 })],
+    undefined,
+    { hasCv: true, now: NOW },
+  )
+  assert.equal(next.href, "/cv?jobId=capgemini")
+})
+
 test("empty pipeline with fresh matches points at the new-jobs run", () => {
   const next = deriveNextAction([], undefined, { hasCv: true, newJobs: 12, now: NOW })
   assert.equal(next.href, "/collections?search=1")

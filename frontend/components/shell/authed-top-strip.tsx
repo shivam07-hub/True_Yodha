@@ -1,6 +1,6 @@
 "use client"
 
-import { Fragment, useEffect, useState } from "react"
+import { Fragment, Suspense, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 
@@ -100,8 +100,12 @@ export function AuthedTopStrip({ model, mountFeedbackHub = false }: AuthedTopStr
         <div className="tm-topbar-right">
           {/* The one durable answer to "what now". It reads the same saved-job
               and application state as Collections and the reminder bell, so a
-              finished Main CV never masquerades as unfinished. */}
-          <NextChip hasCv={nav.hasCv} />
+              finished Main CV never masquerades as unfinished. Suspense because
+              it reads the query string (the open job) and this same strip renders
+              on statically-generated public routes. */}
+          <Suspense fallback={null}>
+            <NextChip hasCv={nav.hasCv} />
+          </Suspense>
 
           {/* Myro Score — status carried through every stage (unified-structure lock #9) */}
           <ScoreChip />

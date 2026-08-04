@@ -15,6 +15,14 @@ import { followUpLine, needsStageCheck } from "@/components/preparations/prep-mo
  *   5. saved, untailored→ tailor the best-fit one (the core loop)
  *   6. fresh matches    → review them (Myro searched while you were away)
  *   7. otherwise        → find a role to tailor
+ *
+ * The chip EXTENDS the surface, it never echoes it. A surface opened on one job
+ * (the playground, a prep room) already owns that job's commit as its own primary
+ * CTA — the playground's "Apply with this CV" is a projection-bound action over
+ * live editor state, which a cached nav link could never be. So `openJobId` drops
+ * that job from the ladder and the chip answers the question the screen cannot:
+ * what comes after this one. Finish here (page CTA) → next one (chip) is the loop,
+ * rendered as two steps instead of one repeated twice.
  */
 
 export interface NextAction {
@@ -27,11 +35,14 @@ export interface NextAction {
 const name = (a: ApplicationResponse) => a.company ?? a.title
 
 export function deriveNextAction(
-  apps: ApplicationResponse[],
+  allApps: ApplicationResponse[],
   matches: JobMatch[] | undefined,
-  opts: { hasCv: boolean; newJobs?: number; now?: Date },
+  opts: { hasCv: boolean; newJobs?: number; now?: Date; openJobId?: string | null },
 ): NextAction {
   const now = opts.now ?? new Date()
+
+  // The job open on this surface belongs to the surface, not to the chip.
+  const apps = opts.openJobId ? allApps.filter((a) => a.job_id !== opts.openJobId) : allApps
 
   // `generic` so the chip hides on /cv itself: pointing a user at the page they
   // are already on — while their CV is mid-analysis, `has_cv` still false — reads
