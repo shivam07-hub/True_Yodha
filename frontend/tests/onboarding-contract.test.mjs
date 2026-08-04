@@ -106,6 +106,16 @@ test("accepted upload and target are persisted before result navigation", () => 
   assert.match(page, /state\.isFetchedAfterMount/)
 })
 
+test("target choices stay editable and share the onboarding action lane", () => {
+  const target = read("components/onboarding/target-confirm.tsx")
+  const actionBar = read("components/onboarding/sticky-action-bar.tsx")
+  assert.match(target, /aria-pressed=\{value === key\}/)
+  assert.doesNotMatch(target, /setEditing|editing &&/)
+  assert.match(target, /StickyOnboardingActionBar/)
+  assert.match(actionBar, /fixed inset-x-0 bottom-0/)
+  assert.match(actionBar, /safe-area-inset-bottom/)
+})
+
 test("progressive personalization derives the post-score three-move triad", () => {
   // The old /home three-action checklist retired with the dashboard
   // (Collections cutover 2026-07-07). Its successor is the #146 triad —
