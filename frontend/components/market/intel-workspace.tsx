@@ -4,12 +4,31 @@ import { useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { users } from "@/lib/api"
+import { Skeleton } from "@/components/ui/skeleton"
 import { shortHeatmapSkillLabel } from "@/lib/heatmap-labels"
 import { HeatmapTab } from "@/components/market/heatmap-tab"
 import { GapAlertStrip } from "@/components/market/gap-alert-strip"
 import { useFollowCompany } from "@/lib/hooks/use-follow-company"
 import { useGapAlert, type GapSkill } from "@/lib/hooks/use-gap-alert"
 import { MAX_LEVEL } from "@/lib/level-thresholds"
+
+function IntelWorkspaceLoading() {
+  return (
+    <section className="si-workspace-loading" aria-label="Loading your Intel workspace" aria-busy="true">
+      <div className="si-workspace-loading-card">
+        <Skeleton style={{ width: 96, height: 12, borderRadius: 4 }} />
+        <Skeleton style={{ width: "min(440px, 82%)", height: 32, borderRadius: 6, marginTop: 16 }} />
+        <Skeleton style={{ width: "min(320px, 64%)", height: 14, borderRadius: 4, marginTop: 10 }} />
+      </div>
+      <div className="si-workspace-loading-card si-workspace-loading-board">
+        <Skeleton style={{ width: 132, height: 12, borderRadius: 4 }} />
+        <div className="si-workspace-loading-rows" aria-hidden="true">
+          {[88, 72, 80].map((width) => <Skeleton key={width} style={{ width: `${width}%`, height: 48, borderRadius: 6 }} />)}
+        </div>
+      </div>
+    </section>
+  )
+}
 
 /**
  * The authed /intel surface (Signal Thread 1a). Owns the data HeatmapTab needs —
@@ -26,7 +45,7 @@ export function IntelWorkspace({ token }: { token: string }) {
   const searchParams = useSearchParams()
   const paramSkill = searchParams.get("skill") || null
 
-  const { data: profile } = useQuery({
+  const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ["profile"],
     queryFn: () => users.me(token),
     enabled: !!token,
@@ -57,6 +76,8 @@ export function IntelWorkspace({ token }: { token: string }) {
     if (profile?.has_cv) return "ready"
     return profile?.cv_readiness ?? "missing"
   }, [profile?.cv_readiness, profile?.has_cv])
+
+  if (profileLoading || follow.isLoading) return <IntelWorkspaceLoading />
 
   return (
     <div className="intel-workspace">

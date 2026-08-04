@@ -201,11 +201,26 @@
   text-decoration: none;
   cursor: pointer;
 }
-.si-panel-actions .si-primary, .si-primary { border-color: var(--si-orange); background: var(--si-orange); color: var(--tm-interactive-fg); }
+.si-panel-actions .si-primary, .si-empty .si-primary {
+  border-color: var(--tm-interactive);
+  background: var(--tm-interactive);
+  color: var(--tm-interactive-fg);
+}
 
 .si-empty { margin-top: 14px; padding: 38px 24px; text-align: center; }
 .si-empty h2 { margin: 0; color: var(--tm-text); font-size: 20px; }
 .si-empty p { margin: 10px auto 18px; max-width: 440px; color: var(--tm-text-muted); font-size: 13px; line-height: 1.5; }
+
+.si-workspace-loading { display: flex; flex-direction: column; gap: 14px; }
+.si-workspace-loading-card {
+  padding: 26px 30px;
+  border: 1px solid var(--tm-border-soft);
+  border-radius: var(--tm-radius-lg);
+  background: var(--tm-surface);
+  box-shadow: var(--tm-shadow-1);
+}
+.si-workspace-loading-board { min-height: 224px; }
+.si-workspace-loading-rows { display: grid; gap: 12px; margin-top: 22px; }
 
 @media (max-width: 1180px) {
   .si-cockpit { grid-template-columns: minmax(0, 1fr) minmax(220px, 0.7fr); }

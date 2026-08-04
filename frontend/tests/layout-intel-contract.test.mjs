@@ -60,6 +60,19 @@ test("intel console is backed by tracked companies, not fake URL seeds", () => {
   assert.doesNotMatch(heroSource, /gpt-oss-120b/)
 })
 
+test("authenticated intel waits for profile and follows before deciding it is empty", () => {
+  const workspaceSource = read("components/market/intel-workspace.tsx")
+  const heatmapSource = read("components/market/skill-intelligence-heatmap.tsx")
+  const styles = read("components/market/skill-intelligence-heatmap.css")
+
+  assert.match(workspaceSource, /isLoading:\s*profileLoading/)
+  assert.match(workspaceSource, /if \(profileLoading \|\| follow\.isLoading\) return <IntelWorkspaceLoading \/>/)
+  assert.match(workspaceSource, /aria-label="Loading your Intel workspace"/)
+  assert.match(heatmapSource, /if \(!companies\.length\)/)
+  assert.match(styles, /\.si-empty \.si-primary \{[\s\S]*background:\s*var\(--tm-interactive\)/)
+  assert.doesNotMatch(styles, /\.si-empty \.si-primary \{[\s\S]*#[0-9a-f]{3,8}/i)
+})
+
 test("landing and intel search use the shared public search console", () => {
   const landingSource = read("components/public/landing/job-search.tsx")
   const paneSource = read("components/public/intel-pane.tsx")
