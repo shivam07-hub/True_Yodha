@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import PlainTextResponse
 
 from app.config import settings
 from app.request_timing import RequestTimingMiddleware
@@ -169,6 +170,19 @@ async def _sweep_orphaned_cv_upload_jobs() -> None:
     except Exception:  # pragma: no cover — sweep failure must not block boot
         import logging
         logging.getLogger(__name__).exception("Startup orphan-sweep failed")
+
+
+@app.get("/robots.txt", include_in_schema=False, response_class=PlainTextResponse)
+async def robots() -> str:
+    """Keep the API host out of search results.
+
+    `api.himyro.com` is an API, not a site: every path is either JSON for an
+    authed client or a 404, so anything a crawler indexes here is noise
+    competing with himyro.com's own pages. Prod logs show crawlers requesting
+    this file and getting a 404, which is not an answer — an absent robots.txt
+    means "crawl everything".
+    """
+    return "User-agent: *\nDisallow: /\n"
 
 
 @app.get("/health")

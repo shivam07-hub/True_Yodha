@@ -21,7 +21,7 @@ from app.schemas import (
 from app.schemas.jobs import MatchBrainResult, MatchRetryResponse
 from app.services import background, jobs_workflow, new_inventory, progress_stream
 from app.services.job_refresh import JobRefresh
-from app.services.llm_provider import LLMProvider, get_interactive_provider
+from app.services.llm_provider import LLMProvider, get_blocking_judgment_provider
 from app.services.matching import on_demand, targeting
 from app.services.xp_policy import MATCH_RUN_COST
 
@@ -161,12 +161,14 @@ async def ensure_job_brain(
     job_id: str,
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
-    provider: LLMProvider = Depends(get_interactive_provider),
+    provider: LLMProvider = Depends(get_blocking_judgment_provider),
 ) -> MatchBrainResult:
     """On-demand Matching-Brain for ONE job (Consolidation D: brain-everywhere).
 
     Called when a job is opened or saved anywhere. Idempotent + cached: the first
-    call runs the brain once (free interactive provider, no XP) and stores it into
+    call runs the brain once (blocking judgment lane — strong-only, paid-first; the
+    verdict and grade this returns ARE the judgment, and the user is waiting on
+    them) and stores it into
     `user_job_matches`; every later open/save returns it with no LLM call. Failure
     (provider down / job gone) returns `available=False` — the caller keeps showing
     deterministic overlap, never a hard error.

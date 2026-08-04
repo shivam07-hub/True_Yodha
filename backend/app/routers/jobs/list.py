@@ -14,7 +14,7 @@ from app.repositories.jobs import (
     get_token_jobs_repository,
 )
 from app.repositories.search_queries import SearchQueriesRepository
-from app.services.llm_provider import LLMProvider, get_interactive_provider
+from app.services.llm_provider import LLMProvider, get_blocking_judgment_provider
 from app.services.matching import feed_warm
 from app.services.matching.filter_spec import FilterSpec
 from app.services.matching.job_query import JobQuery
@@ -587,14 +587,20 @@ async def warm_feed(
     browse_scope: Literal["exact", "remote_country", "country"] = "exact",
     repo: JobsRepository = Depends(get_token_jobs_repository),
     principal: Principal = Depends(get_principal),
-    provider: LLMProvider = Depends(get_interactive_provider),
+    provider: LLMProvider = Depends(get_blocking_judgment_provider),
 ) -> FeedWarmResponse:
     """Rank the top of the /market feed with the career-ops brain (the "best jobs"
     rule). The frontend calls this while showing a skeleton, then re-reads GET /feed
     — the top cards now carry a verdict + move, ordered best-first.
 
-    ONE batched brain pass over the fit-top shortlist, free provider, cached into
-    `user_job_matches` for 30 min. Idempotent (a re-warm inside the window is free)
+    ONE batched brain pass over the fit-top shortlist on the BLOCKING JUDGMENT lane
+    (strong-only, paid-first), cached into `user_job_matches` for 30 min. It ran on
+    `get_interactive_provider` until 2026-08-04, whose lead tier is
+    `google/gemma-3-4b-it` — the model `_JUDGMENT_UNSAFE_MODELS` names for ranking
+    banker jobs to a senior SWE with zero errors. Deciding which ten cards a user
+    sees first is the definition of a judgment call, and the user is watching a
+    skeleton while it runs, so paid-strong leads. Idempotent (a re-warm inside the
+    window is free)
     and fail-soft (any brain failure returns ready=True/warmed=0 and the feed paints
     the deterministic order). Scoped to the SAME filters as the feed so the warmed
     cards are exactly the cards the user sees first."""

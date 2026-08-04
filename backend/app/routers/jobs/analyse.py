@@ -8,7 +8,11 @@ from pydantic import BaseModel, Field
 from app.deps import Principal, get_principal
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.services import text_stream, xp_service
-from app.services.llm_provider import LLMProvider, LLMProviderError, get_interactive_provider
+from app.services.llm_provider import (
+    LLMProvider,
+    LLMProviderError,
+    get_blocking_judgment_provider,
+)
 from app.routers.jobs._shared import last_monday
 
 router = APIRouter()
@@ -131,7 +135,7 @@ async def analyse_job(
     job_id: str,
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
-    llm_provider: LLMProvider = Depends(get_interactive_provider),
+    llm_provider: LLMProvider = Depends(get_blocking_judgment_provider),
 ) -> dict:
     user_id = principal.id
 
@@ -191,9 +195,15 @@ async def analyse_job_stream(
     job_id: str,
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
-    llm_provider: LLMProvider = Depends(get_interactive_provider),
+    llm_provider: LLMProvider = Depends(get_blocking_judgment_provider),
 ) -> StreamingResponse:
     """Stream the fit-rationale token-by-token (ADR-0009 PR1, direct stream).
+
+    Blocking judgment lane: the rationale IS a verdict on whether this job is
+    worth the user's time, they are watching it stream, and they are charged for
+    it. It ran on `get_interactive_provider` until 2026-08-04, whose lead tier is
+    `google/gemma-3-4b-it` — a model this codebase's own tier table excludes from
+    every ranking path.
 
     Charge-on-success: 10 XP is charged only after the full stream lands and
     the explanation persists — a provider failure (pre- or mid-stream) charges
