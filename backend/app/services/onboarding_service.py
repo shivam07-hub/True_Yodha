@@ -482,11 +482,13 @@ def _shortlist(
 
     Returns `(rows, status)` where status is one of:
 
-    - ``ready``    — matches exist for this exact (baseline, direction).
-    - ``computing``— a run for this direction is outstanding and still young.
-    - ``stalled``  — outstanding past the grace window; re-enqueued, and the
+    - ``ready``       — matches exist and carry the brain's verdict.
+    - ``provisional`` — matches exist and are usable, but the deep eval is still
+      running, so their scores will sharpen. Rows are triaged, not raw overlap.
+    - ``computing``   — a run for this direction is outstanding and still young.
+    - ``stalled``     — outstanding past the grace window; re-enqueued, and the
       user is told rather than left watching a spinner forever.
-    - ``empty``    — the run for this direction finished and matched nothing.
+    - ``empty``       — the run for this direction finished and matched nothing.
 
     The status is derived, not guessed: `last_match_run_at` is stamped only by
     `match_run.run_match` on completion, and `target_updated_at` only by a
@@ -498,13 +500,22 @@ def _shortlist(
     rows = JobsRepository(db).get_matches_for_context(
         user_id, baseline_version_id, context_hash, limit=3
     )
-    if rows:
-        batch_week = last_monday()
-        return [to_job_match(row, batch_week).model_dump(mode="json") for row in rows], "ready"
-
     ran_at = _parse_ts(profile.get("last_match_run_at"))
     changed_at = _parse_ts(profile.get("target_updated_at"))
-    if ran_at and changed_at and ran_at >= changed_at:
+    run_finished = bool(ran_at and changed_at and ran_at >= changed_at)
+    if rows:
+        batch_week = last_monday()
+        matches = [to_job_match(row, batch_week).model_dump(mode="json") for row in rows]
+        # A row with no verdict is a Provisional Match — the shortlist is triaged
+        # and worth choosing from, but the deep eval has not scored it yet. Saying
+        # so is what keeps the client watching for the upgrade; reporting `ready`
+        # here stopped its poll and froze the screen on numbers that were about to
+        # change. Once the run has finished, whatever a row still lacks is not
+        # coming, so it is honestly final.
+        unrated = any(match.get("verdict") == "checking" for match in matches)
+        return matches, "provisional" if unrated and not run_finished else "ready"
+
+    if run_finished:
         # A run covering this direction completed and produced nothing. Not a
         # failure — the market genuinely has no overlap. Offer a new direction.
         return [], "empty"

@@ -426,6 +426,35 @@ async def compute_job_matches(
     # cluster roles when titles aren't set.
     title_roles = profile.get("target_role_titles") or profile.get("target_roles") or []
     excluded_set = set(excluded_job_ids or [])
+
+    # Two-phase persist. The per-job reasoning below is the 166-220s a user watches
+    # on the onboarding shortlist (measured 2026-08-04) — but a match row does not
+    # need a verdict to be worth showing: `JobMatch.match_score` falls back to
+    # `overlap_score` and reads as `verdict == "checking"`, "and upgrades in place
+    # when the brain lands". The schema was built for progressive disclosure; there
+    # was simply no seam to emit it, because this function persisted once, at the end.
+    #
+    # So the triaged shortlist is written immediately, then upgraded in place. The
+    # order the user first sees is PINNED (`pinned_ranks`): the brain's ranking is
+    # better, but a list that reorders under someone mid-read is worse than a list
+    # that sharpens in place. Consequence, accepted deliberately: a job triage let
+    # through that the deep eval later rates poorly keeps its slot — showing a weak
+    # verdict honestly rather than making the row jump.
+    provisional_order: dict[str, int] = {}
+
+    def _persist_provisional(shortlist: list[dict[str, Any]]) -> None:
+        try:
+            llm_ranker.persist_matches(
+                repo.client, user_id, batch_week, shortlist, {}, profile
+            )
+            provisional_order.update(
+                {str(job["job_id"]): idx for idx, job in enumerate(shortlist, start=1)}
+            )
+        except Exception as exc:  # noqa: BLE001 — a head start is never worth the run
+            logger.warning(
+                "compute_job_matches: provisional persist failed user=%s: %s", user_id, exc
+            )
+
     ranked = await ranking.rank(
         profile,
         profile.get("cv_markdown") or "",
@@ -456,6 +485,7 @@ async def compute_job_matches(
         provider=provider,
         use_brain=True,
         on_progress=on_progress,
+        on_shortlist=_persist_provisional,
         debug=match_debug,
     )
     top_jobs = ranked.top_jobs
@@ -479,7 +509,8 @@ async def compute_job_matches(
         )
 
     written = llm_ranker.persist_matches(
-        repo.client, user_id, batch_week, top_jobs, ranked.evaluations, profile
+        repo.client, user_id, batch_week, top_jobs, ranked.evaluations, profile,
+        pinned_ranks=provisional_order,
     )
     return MatchComputeOutcome(
         kind="written",

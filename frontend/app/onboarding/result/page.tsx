@@ -59,6 +59,10 @@ export default function OnboardingResultPage() {
       }
       if (data?.kind !== "full_result_ready") return false
       if (data.shortlist_status === "computing") return 2_500
+      // The cards are already on screen and choosable — this poll is only waiting
+      // for their scores to sharpen, so it can be far lazier than the one that was
+      // waiting for the cards to exist at all.
+      if (data.shortlist_status === "provisional") return 6_000
       return data.shortlist_status === "stalled" ? 8_000 : false
     },
     // A step only changes when the user submits one (which seeds this cache

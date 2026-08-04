@@ -436,6 +436,7 @@ def persist_matches(
     top_jobs: list[dict],
     evaluations: dict[str, dict],
     profile: dict[str, Any] | None = None,
+    pinned_ranks: dict[str, int] | None = None,
 ) -> int:
     """Upsert the user's Job Matches to user_job_matches. Returns count written.
 
@@ -444,7 +445,16 @@ def persist_matches(
     NOT part of the identity (migration 20260710).
 
     `evaluations` maps job_id → parse_eval() output. Jobs without an evaluation
-    fall back to overlap-score-only rows (verdict fields null).
+    fall back to overlap-score-only rows (verdict fields null) — which is exactly
+    a Provisional Match: real overlap, no verdict yet, `verdict == "checking"` at
+    the read seam.
+
+    `pinned_ranks` holds a job at the position it was already SHOWN at. The
+    brain's ranking is the better one, but a user reading a shortlist should not
+    have it reorder underneath them mid-read; the provisional pass writes the
+    order, the brain pass corrects the numbers in place. Jobs outside the map rank
+    normally, below the pinned ones.
+
     llm_rank is derived from overall_score (eval'd jobs first), and
     llm_explanation mirrors `summary` for back-compat with older readers.
     """
@@ -458,10 +468,15 @@ def persist_matches(
         if prev is None or (job.get("overlap_score") or 0) > (prev.get("overlap_score") or 0):
             jobs_by_id[jid] = job
 
-    # Rank order: eval'd jobs by overall_score desc, then the rest by overlap_score.
+    # Rank order: pinned jobs first, in the order they were already shown; then
+    # eval'd jobs by overall_score desc; then the rest by overlap_score.
+    pinned = pinned_ranks or {}
     ordered = sorted(
         jobs_by_id.values(),
         key=lambda j: (
+            # Negated so the ascending `sort` puts pin 1 ahead of pin 2 while the
+            # whole tuple still sorts descending.
+            -pinned.get(str(j["job_id"]), len(pinned) + 1),
             evaluations.get(str(j["job_id"]), {}).get("overall_score") or -1.0,
             j.get("overlap_score") or 0.0,
         ),

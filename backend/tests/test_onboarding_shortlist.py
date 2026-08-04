@@ -22,8 +22,10 @@ _BASELINE = 17
 _CONTEXT = "context-1"
 
 
-def _row(job_id: str = "job-1") -> dict[str, Any]:
-    return {
+def _row(job_id: str = "job-1", *, rated: bool = True) -> dict[str, Any]:
+    """A match row. `rated=False` is a Provisional Match — real overlap, written
+    the moment triage picked it, with no verdict yet."""
+    row: dict[str, Any] = {
         "id": 1,
         "job_id": job_id,
         "baseline_version_id": _BASELINE,
@@ -33,6 +35,10 @@ def _row(job_id: str = "job-1") -> dict[str, Any]:
         "matched_skills": ["Python"],
         "jobs": {"job_title": "Staff Engineer", "company_name": "Acme"},
     }
+    if rated:
+        row["overall_score"] = 4.1
+        row["recommendation"] = "apply"
+    return row
 
 
 class _JobsRepo:
@@ -84,6 +90,24 @@ def test_rows_for_this_direction_are_ready_and_job_match_shaped(monkeypatch) -> 
     assert rows[0]["job_id"] == "job-1"
     assert rows[0]["title"] == "Staff Engineer"
     assert rows[0]["company"] == "Acme"
+
+
+def test_a_triaged_shortlist_without_verdicts_is_provisional(monkeypatch) -> None:
+    """The shortlist is persisted the moment triage picks it, minutes before the
+    deep eval scores it. Those rows are choosable — but reporting them `ready`
+    stopped the client's poll, so the upgrade never reached the screen."""
+    _install(monkeypatch, [_row(rated=False)])
+    rows, status = _call(_profile(changed_minutes_ago=1, ran_minutes_ago=None))
+    assert status == "provisional"
+    assert rows[0]["verdict"] == "checking"
+
+
+def test_a_finished_run_makes_an_unrated_row_final(monkeypatch) -> None:
+    """Whatever a row still lacks after the run completed is not coming. Holding
+    `provisional` on it would poll forever for an upgrade that already failed."""
+    _install(monkeypatch, [_row(rated=False)])
+    _rows, status = _call(_profile(changed_minutes_ago=30, ran_minutes_ago=20))
+    assert status == "ready"
 
 
 def test_run_that_finished_after_the_change_with_no_rows_is_empty(monkeypatch) -> None:

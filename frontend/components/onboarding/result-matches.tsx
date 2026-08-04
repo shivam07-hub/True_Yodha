@@ -43,7 +43,12 @@ export function ResultMatches({ matches, selectedJobId, onSelect }: Props) {
               </span>
               <span className="shrink-0 text-right">
                 <span className="block text-base font-semibold tabular-nums text-[var(--tm-interactive)]">{Math.round(matchFitScore(job))}%</span>
-                {job.verdict !== "checking" && <span className="block text-xs text-[var(--tm-text-muted)]">{verdictLabel(job.verdict)}</span>}
+                {/* "Checking fit…" is shown, not suppressed. The shortlist now
+                    lands as soon as it is triaged and the deep eval upgrades it in
+                    place minutes later, so this number IS going to move — saying
+                    so is cheaper than a number that silently changes under someone
+                    who has already decided which role to pick. */}
+                <span className="block text-xs text-[var(--tm-text-muted)]">{verdictLabel(job.verdict)}</span>
               </span>
               <span className={cn("grid size-6 shrink-0 place-items-center rounded-full border", selected ? "border-[var(--tm-interactive)] bg-[var(--tm-interactive)] text-[var(--tm-interactive-fg)]" : "border-[var(--tm-border)] text-transparent")} aria-hidden="true">
                 <Check className="size-3.5" />

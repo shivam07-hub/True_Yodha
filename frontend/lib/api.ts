@@ -728,7 +728,9 @@ export type OnboardingResult = OnboardingReach & (
        *  stack — that answers "every job Myro matched you to", which after a
        *  direction change is not the shortlist the save will accept. */
       shortlist: JobMatch[]
-      shortlist_status: "ready" | "computing" | "stalled" | "empty"
+      /** `provisional` = the shortlist is triaged and choosable, but the deep
+       *  eval is still running, so its scores will sharpen in place. */
+      shortlist_status: "ready" | "provisional" | "computing" | "stalled" | "empty"
       /** `sharpeners` = the optional Career-Ops inputs this user has not set.
        *  Reported, never gap-filled — a receipt must not present a suggestion
        *  as something the run used. */
