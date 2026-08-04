@@ -13,7 +13,7 @@ import { JourneyProgress } from "@/components/onboarding/journey-progress"
 import { ProfilePreview } from "@/components/onboarding/profile-preview"
 import { TargetConfirm } from "@/components/onboarding/target-confirm"
 import { Button } from "@/components/ui/button"
-import { onboarding } from "@/lib/api"
+import { onboarding, type OnboardingResult } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useOnboardingState } from "@/lib/hooks/use-onboarding-state"
@@ -44,6 +44,12 @@ export default function OnboardingResultPage() {
       if (data.shortlist_status === "computing") return 2_500
       return data.shortlist_status === "stalled" ? 8_000 : false
     },
+    // A step only changes when the user submits one (which seeds this cache
+    // directly, see `advance`) or when a background job lands (which the interval
+    // above watches — `refetchInterval` ignores `staleTime`). Without this, a
+    // just-seeded step is stale on arrival and immediately re-asks the server for
+    // the answer it was just given.
+    staleTime: 30_000,
     retry: true,
   })
 
@@ -57,9 +63,16 @@ export default function OnboardingResultPage() {
 
   // Confirming an answer moves the user forward, so drop the review cursor —
   // otherwise they'd re-submit and land back on the step they just completed.
-  function advance() {
+  //
+  // `next` is the step the server assembled as part of answering the submit. Seed
+  // it rather than refetching: the round trip this replaces was measured at 8.2s
+  // on prod, immediately after an 8.4s submit, to arrive at an answer the client
+  // was already holding. Callers without one (a step whose submit does not return
+  // the next payload) fall back to asking.
+  function advance(next?: OnboardingResult) {
     setViewStep(null)
-    void result.refetch()
+    if (next) queryClient.setQueryData([...dataKeys.onboardingResult(), null] as const, next)
+    else void result.refetch()
   }
   // Return to wherever they actually are, without touching any answer.
   const forward = () => setViewStep(null)
