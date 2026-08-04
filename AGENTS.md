@@ -14,6 +14,17 @@
 
 ## LAST SESSION SUMMARY
 
+### 2026-08-04 — Intel loading and empty-state recovery
+
+- Authenticated Intel now holds a theme-aware structural skeleton until both
+  the profile and followed-company queries resolve, so an in-flight query can
+  never be presented as an empty company set.
+- The zero-followed-company action now uses the global interactive foreground
+  and background tokens directly; it remains visible in both colour modes
+  without a hardcoded accent or a locally scoped custom-property leak.
+- Frontend tests (554), TypeScript, lint, and UI-drift checks pass. Commit:
+  `466dc222`.
+
 ### 2026-08-04 — Direction step retains choices and shares the action lane
 
 - Choosing a seniority no longer collapses all level choices into a one-line
