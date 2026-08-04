@@ -11,7 +11,6 @@ from app.repositories.onboarding import OnboardingRepository
 from app.security import redact_sensitive_text
 from app.services import cv_workflow, onboarding_first_role, onboarding_service
 from app.services.baseline_generator import generate_baseline, validate_answer
-from app.services.onboarding_preview import start_profile_preview
 from app.services.skill_overrides import apply_skill_overrides
 from app.services.skill_confirmation import confirm_baseline_skills
 
@@ -33,10 +32,6 @@ class ExperienceRequest(BaseModel):
     entry_mode: Literal["uploaded_cv"]
     upload_job_id: str | None = None
     file_metadata: FileMetadata
-
-
-class PreviewRequest(BaseModel):
-    description: str = Field(min_length=80, max_length=12_000)
 
 
 class TargetRequest(BaseModel):
@@ -111,14 +106,13 @@ class FirstRoleRequest(BaseModel):
 
 @router.get("/state")
 def get_state(principal: Principal = Depends(get_principal)) -> dict[str, Any]:
-    state = OnboardingRepository(get_supabase_admin()).get_state(principal.id)
-    return state or {
-        "user_id": principal.id,
-        "status": "draft",
-        "current_stage": "experience",
-        "generator_step": 1,
-        "generator_answers": {},
-    }
+    """The journey's position plus the facts a screen needs to resume.
+
+    `position` is DERIVED (see `journey_position`) — it is not a column. A user
+    with no row at all is simply at `experience`, which falls out of the same
+    derivation rather than needing a separate default shape here.
+    """
+    return onboarding_service.journey_position(get_supabase_admin(), principal.id)
 
 
 @router.put("/experience", status_code=status.HTTP_204_NO_CONTENT)
@@ -129,27 +123,11 @@ def save_experience(
     OnboardingRepository(get_supabase_admin()).patch_state(
         principal.id,
         {
-            "status": "analyzing",
-            "current_stage": "target",
             "entry_mode": body.entry_mode,
             "upload_job_id": body.upload_job_id,
             "accepted_file_metadata": body.file_metadata.model_dump(),
         },
     )
-
-
-@router.post("/profile-preview", status_code=status.HTTP_202_ACCEPTED)
-def create_profile_preview(
-    body: PreviewRequest,
-    principal: Principal = Depends(get_principal),
-    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-) -> dict[str, str]:
-    job_id = start_profile_preview(
-        principal.id,
-        body.description,
-        idempotency_key=idempotency_key,
-    )
-    return {"status": "processing", "job_id": job_id}
 
 
 @router.put("/target", status_code=status.HTTP_204_NO_CONTENT)
@@ -257,8 +235,6 @@ async def approve_baseline(
     repo.patch_state(
         principal.id,
         {
-            "status": "analyzing",
-            "current_stage": "result",
             "entry_mode": "description",
             "upload_job_id": result.get("job_id"),
         },
@@ -339,13 +315,11 @@ def get_checklist(principal: Principal = Depends(get_principal)) -> dict[str, An
 def start_over(principal: Principal = Depends(get_principal)) -> None:
     repo = OnboardingRepository(get_supabase_admin())
     state = repo.get_state(principal.id) or {}
-    if state.get("status") == "completed":
+    if state.get("completed_at"):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Onboarding is complete.")
     repo.patch_state(
         principal.id,
         {
-            "status": "draft",
-            "current_stage": "experience",
             "entry_mode": None,
             "upload_job_id": None,
             "accepted_file_metadata": {},

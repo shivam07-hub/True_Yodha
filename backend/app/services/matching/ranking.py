@@ -32,6 +32,9 @@ from app.services import job_matcher, llm_ranker
 from app.services.llm_provider import LLMProvider
 from app.services.llm_ranker import RankProgressCb
 
+# Called once with the triaged shortlist, before per-job reasoning. See `rank`.
+ShortlistCb = Callable[[list[dict[str, Any]]], None]
+
 logger = logging.getLogger(__name__)
 
 
@@ -86,9 +89,22 @@ async def rank(
     use_brain: bool = True,
     budget: int | None = None,
     on_progress: RankProgressCb | None = None,
+    on_shortlist: ShortlistCb | None = None,
     debug: dict[str, int] | None = None,
 ) -> RankResult:
     """Deterministic overlap → (optional) brain. Pure compute, no DB writes.
+
+    ``on_shortlist`` is called ONCE with the triaged shortlist, before the
+    expensive per-job reasoning starts. It exists so a caller that persists can
+    make those jobs visible while the slow half runs — the per-job eval is the
+    166-220s a user watches; triage is one cheap batched call.
+
+    Fired AFTER triage, not after the deterministic pool, deliberately: the raw
+    overlap head contains jobs the brain would reject outright (a banker role for
+    a backend engineer scores overlap on "Communication"), and surfacing those as
+    a first shortlist would spend the top slot on something we already know how to
+    reject. Triage is the cheap gate that removes them. This module still writes
+    nothing — the callback belongs to whoever owns the write.
 
     ``use_brain=False`` or ``provider is None`` → deterministic-only (overlap
     scores, no evals). ``budget`` caps how many of the shortlist reach the brain
@@ -129,6 +145,10 @@ async def rank(
         if debug is not None:
             debug["triage_pool"] = pool_size
             debug["triage_kept"] = len(top_jobs)
+
+    # The shortlist is decided. Everything after this is the slow half.
+    if on_shortlist is not None:
+        on_shortlist(top_jobs)
 
     brain_jobs = top_jobs if budget is None else top_jobs[: max(0, budget)]
 

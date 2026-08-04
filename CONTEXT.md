@@ -509,6 +509,46 @@ The single answer to "how good is this match for this user, and what should they
 
 ---
 
+## Provisional Match
+
+A persisted match row that carries real deterministic overlap but no brain verdict yet — the shortlist made VISIBLE before the expensive per-job reasoning finishes. Reads as `verdict == "checking"` at the Match Verdict seam, whose number falls back to `overlap_score` and upgrades in place when the eval lands.
+
+Exists because `compute_job_matches` persisted once, at the end, and the run is long: `target_updated_at → last_match_run_at` measured **166s** for a real signup and 190-220s for most recent ones on 2026-08-04. So the onboarding shortlist screen was a spinner for ~3 minutes while a perfectly choosable list already existed in memory.
+
+**Shape** — `ranking.rank(..., on_shortlist=…)` hands the triaged shortlist to its caller; `jobs_workflow.compute_job_matches` persists it through the ordinary `llm_ranker.persist_matches` with `evaluations={}` (that path already wrote verdict-less rows), then upserts the same rows again with the evals.
+
+**Invariants**
+- **Handed over AFTER triage, never from the raw overlap pool.** The overlap head contains jobs the brain rejects outright (a banker role scoring overlap on "Communication" for a backend engineer); surfacing those would spend the top slot on something already known to be wrong. Triage is one cheap batched call — the per-job reasoning is the three minutes.
+- **`ranking.rank` still writes nothing.** It is "pure compute, no DB writes"; the callback belongs to whoever owns the write. Same shape as the `on_progress` callback it already took.
+- **The order the user first saw is PINNED** (`persist_matches(pinned_ranks=…)`). The brain's ranking is better, but a list that reorders under someone mid-read is worse than one that sharpens in place. Accepted cost: a triage-approved job the deep eval later rates poorly keeps its slot and shows a weak verdict honestly. Callers with no shown order to protect (sweep, paid Refresh) pass no pin and rank freely.
+- **A provisional row can never be an Agent Pick** — the picks band gates on `STRONG_SCORE` over `overall_score`, so a verdict-less row is structurally ineligible. Asserted, not assumed.
+- **The read seam must say it is provisional.** `_shortlist` returns `provisional` (not `ready`) while any row lacks a verdict AND the run is still outstanding — reporting `ready` stopped the client's poll and froze the screen on numbers that were about to change. Once the run has finished, whatever a row still lacks is not coming, so it reads final.
+
+## Journey Position
+
+Where a user is in onboarding — **derived, never stored**. `experience` (nothing started) · `result` (work in flight or done) · `completed` (finished; they belong in the product, not the funnel). One read: `onboarding_service.journey_position`, surfaced by `GET /onboarding/state`.
+
+There used to be two answers. `user_onboarding_state.status` and `.current_stage` were a stored copy written in **thirteen** places and read for a decision in **two**, while `_current_result` derived the same position from the journey's own facts — baseline → `skills_confirmed_at` → target → score → shortlist — and it was the derivation that decided what actually rendered.
+
+**Invariants**
+- **`patch_state` REJECTS `status` and `current_stage`.** The copy is not merely unused; the write seam refuses it, so a future caller reaching for the old shape gets a loud error instead of a second answer.
+- The facts that are NOT derivable stay columns and earn their place: `upload_job_id` (a job with no baseline yet), generator working state, `entry_mode` (ADR-0006 L7 cohort), `completed_at`, activation + milestone stamps, `checklist_dismissed_at`.
+- **Client-only "which screen am I on" is client state**, not server state — the guided generator opens from a URL param. Persisting screen intent is how the second model grew.
+- A user with **no row at all** falls out of the same derivation; there is no separate default shape to keep in sync.
+- `result_seen_at` is stamped when the result RENDERS. It used to be written by `mark_completed` with the identical timestamp as `completed_at`, which made the first-success checklist row it drives a tautology.
+- ⚠️ The stored copy already lied before it was removed: `start_over` reset the stage to `experience` without clearing baseline/skills/target, and the stored answer won for exactly one screen — which is why nobody noticed.
+
+## Upload Progress Stream
+
+One poller, many screens. The app-shell `CVUploadLifecycleObserver` owns the single poll of a CV upload job — it has to, because it survives route changes and resumes a persisted job after a reload — and broadcasts `CV_UPLOAD_PROGRESS_EVENT` / `CV_UPLOAD_TERMINAL_EVENT`. Surfaces subscribe; they do not re-poll.
+
+**Invariants**
+- A screen watching a CV upload **subscribes**. `/onboarding/result` used to re-poll the same job, so two requests asked one question for the whole 48-109s analysis — and its own poll was a multi-read assembly. Consumers today: `/cv` (phase + failure code + receipt) and `/onboarding/result` (phase + finish signal).
+- Deliberately **not** wrapped in a shared hook: the two consumers want different things, and one interface over both would be as complex as the two call sites it replaced. Extract if a third arrives.
+- A subscriber keeps a **slow fallback poll** (15s). The stream is the fast path, not the only path — a stalled observer must not be able to freeze a screen.
+
+---
+
 ## Next Best Step
 
 The one state-derived action that moves a candidate through the active job-search loop without describing a completed Main CV as incomplete.
@@ -759,8 +799,10 @@ The product-level invariant the whole Background Job system serves: **once a use
 ## Work Lane
 
 A named RQ queue carrying Background Jobs at one urgency. Exactly two:
-- **fast** — a user is staring at a loading screen: CV upload parse+score, paid Job Refresh.
-- **bulk** — nobody is waiting: initial match-compute after upload, skill-edit re-tag.
+- **fast** — a user is staring at a loading screen: CV upload parse+score, paid Job Refresh, **the initial match-compute** (the onboarding result screen polls for its shortlist every 2.5s — the most-watched job in the product), **CV layout enrichment** (`cv_structured_enrich`: the user is not blocked on it, but the CV playground where onboarding ends is).
+- **bulk** — nobody is waiting: skill-edit re-tag.
+
+The lane is a claim about **whether someone is waiting**, not about how heavy the work is. Filing a watched job under bulk is how it ends up behind an unwatched queue — which is exactly what put the layout parse, and briefly the initial match, on the wrong side of a user's spinner.
 
 A Job Runner listens to lanes in priority order `[fast, bulk]` — RQ pops fast first, only touching bulk when fast is empty. A flood of bulk work can never delay a waiting user.
 

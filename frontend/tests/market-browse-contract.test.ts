@@ -37,7 +37,6 @@ test("new-tab job browsing retains the same-origin session", () => {
   const browseControls = [
     "components/onboarding/analysis-progress.tsx",
     "components/onboarding/experience-step.tsx",
-    "components/onboarding/profile-preview.tsx",
     "components/cv/cv-structured-recovery.tsx",
   ].map((path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8"))
 

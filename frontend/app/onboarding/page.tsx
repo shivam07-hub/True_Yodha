@@ -30,15 +30,15 @@ export default function OnboardingPage() {
     if (resolved.current || !state.isFetchedAfterMount) return
     resolved.current = true
     const data = state.data
-    // A finished user is sent where they were going. This used to be an
+    // One derived answer to "where should this user be". This used to read two
+    // stored columns that thirteen call sites kept in sync by hand.
+    //
+    // A finished user is sent where they were going. That used to be an
     // interstitial whose only real action was a "Go to dashboard" button — a
-    // redirect wearing a screen, and one more click between a returning user and
-    // their jobs. Re-running the analysis lives with the CV, not on a door they
-    // were only passing through.
-    if (data?.status === "completed") { router.replace("/market"); return }
-    if (["target", "result", "generator"].includes(data?.current_stage ?? "")) {
-      router.replace("/onboarding/result")
-    }
+    // redirect wearing a screen. Re-running the analysis lives with the CV, not
+    // on a door they were only passing through.
+    if (data?.position === "completed") { router.replace("/market"); return }
+    if (data?.position === "result") router.replace("/onboarding/result")
   }, [router, state.data, state.isFetchedAfterMount])
 
   async function handleUpload(file: File) {
@@ -63,12 +63,17 @@ export default function OnboardingPage() {
     }
   }
 
+  // A typed description takes the SAME path an uploaded CV takes — one
+  // text→baseline module, one scoring model. It used to run a parallel pipeline
+  // that ended on an estimate range and a "profile preview" screen; that shadowed
+  // the Upload Guarantee without inheriting it, and put a second definition of
+  // "how good is this person" beside the canonical Myro Score.
   async function handleDescription(description: string) {
     if (!token) return
     setBusy(true)
     setError(null)
     try {
-      await onboarding.profilePreview(token, description, crypto.randomUUID())
+      await onboarding.approveBaseline(token, description, crypto.randomUUID())
       refresh()
       router.push("/onboarding/result")
     } catch (reason) {
@@ -79,7 +84,7 @@ export default function OnboardingPage() {
 
   // A completed user is redirected above and never renders this page, so there is
   // no "already done" branch to hold here.
-  if (!ready || state.isLoading || profile.isLoading || state.data?.status === "completed") return null
+  if (!ready || state.isLoading || profile.isLoading || state.data?.position === "completed") return null
 
   return (
     <main className="min-h-dvh bg-[var(--tm-bg)] text-[var(--tm-text)]">
@@ -92,7 +97,17 @@ export default function OnboardingPage() {
         {/* Same rail, same component, same labels as /onboarding/result. */}
         <JourneyProgress current={1} />
         <div className="flex flex-1 items-center justify-center py-8">
-          <ExperienceStep busy={busy} error={error} progressPct={transferPct} onUpload={(file) => void handleUpload(file)} onDescribe={(description) => void handleDescription(description)} />
+          <ExperienceStep
+            busy={busy}
+            error={error}
+            progressPct={transferPct}
+            onUpload={(file) => void handleUpload(file)}
+            onDescribe={(description) => void handleDescription(description)}
+            // The generator opens from the URL, not from a stored stage. "Which
+            // screen am I on" is the client's own intent here — persisting it as
+            // server state is what grew a second answer to where the user is.
+            onGuideMe={() => router.push("/onboarding/result?guide=1")}
+          />
         </div>
       </div>
     </main>

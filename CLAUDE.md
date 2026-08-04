@@ -683,7 +683,31 @@ Shivam: onboarding takes too long and the user has nothing to do; which screens 
 
 **Green:** backend **1847 passed** · ruff clean (own files) · tsc 0 · eslint 0 · ui-drift clean · `next build` ✓ · npm test 21/21.
 
-**OWED (Shivam):** (1) **`main` merge** — dev rides Develop. (2) **The one thing not verifiable here: a real authed signup end-to-end** (fresh account, real PDF) — confirm the skill-review screen arrives noticeably sooner, that confirm→direction is now one fast hop, and that the score is present by step 3. (3) **Decide on the "describe your experience" branch**: `preview_payload` is non-null in **0** of 80 onboarding rows over 90 days against 63 uploads, while 7 of 27 recent signups uploaded nothing at all. Unfound, not unwanted — instrument the CTA or cut `ProfilePreview`/`BaselineGenerator`. (4) Not built, next time the direction step is touched: merge the seniority question into skill review (same confirm-what-we-read gesture, one screen earlier), and batch `list_role_family_locations` to an array param (one request per family today).
+**OWED (Shivam):** (1) **`main` merge** — dev rides Develop. (2) **The one thing not verifiable here: a real authed signup end-to-end** (fresh account, real PDF) — confirm the skill-review screen arrives noticeably sooner, that confirm→direction is now one fast hop, and that the score is present by step 3. (3) Not built, next time the direction step is touched: merge the seniority question into skill review (same confirm-what-we-read gesture, one screen earlier), and batch `list_role_family_locations` to an array param (one request per family today).
+
+### Same session, part 2 — `/improve-codebase-architecture` over onboarding (2 more commits + CONTEXT)
+
+Five candidates, walked one by one. Full rulings + the three designed-not-built: memory `project_onboarding_architecture_pass`.
+
+**`79f225b4` — the result poll stops asking a question already being answered.** It was the SECOND poller: the app-shell `CVUploadLifecycleObserver` already polls the upload job and broadcasts every phase, and `/cv` already subscribes — onboarding re-polled the same job for the whole 48-109s analysis. Now subscribes; its own poll drops to a 15s dead-man fallback. Plus `_current_result`'s **~7 serial Supabase round trips → 2 parallel waves** (the `/home/bootstrap` idiom). Parallelism asserted with a `threading.Barrier` — sequential code fails by TIMING OUT, not by being slow.
+
+**`f2c9d42e` — Provisional Match: the shortlist is visible before the brain has scored it.** `compute_job_matches` persisted once at the end, so the screen span for the whole 166-220s run. `ranking.rank` gained `on_shortlist`, fired **after triage** (the raw overlap head holds jobs the brain rejects outright), and the caller persists — `rank` stays "pure compute, no DB writes". `persist_matches` already wrote verdict-less rows, so no new write path. **Order FROZEN** once shown (`pinned_ranks`); **"Checking fit…" visible**, not suppressed.
+
+**⚠️ Two corrections I made mid-pass — don't re-derive.** (a) **`agent_picks` is NOT a second LLM pass** — zero `async`/`await`/LLM in the module, its docstring says "No second LLM call". I'd recommended `regenerate_picks=False` on that assumption and did **not** build it. (b) The describe-path "unfound" read used a window predating `f9cb00b8`; post-promotion it's **11 rows, 11 uploaded, 0 described**, and `neither = 0` — everyone reaching the screen uploads, the non-uploaders never create a row.
+
+**Also caught in my own work:** provisional rows made `_shortlist` report `ready`, which **stops the client poll** — the user would never have seen the upgrade. Added a `provisional` status.
+
+**CONTEXT.md:** `c43a9252` fixed a documented falsehood (Work Lane said *bulk* for the initial match-compute, which the result screen polls every 2.5s); `Provisional Match` + `Upload Progress Stream` minted after they landed.
+
+**`3a1571c5` + `bc7db4eb` — one journey position, one text→baseline path.** The remaining two candidates, landed together because the fold removes a reader the derivation needed gone.
+
+**#1 Journey Position.** `status`/`current_stage` were a stored copy written in **13 places**, read for a decision in **2**, while `_current_result` derived the same thing from facts — and the derivation was what rendered. They were **already out of sync**: `start_over` reset the stage to `experience` without clearing baseline/skills/target, and the stored copy won for exactly one screen, so it looked like it worked. `/onboarding/state` keeps its interface and now COMPUTES, returning one `position` (`experience | result | completed`). **`patch_state` REJECTS both fields**, so the copy cannot return quietly. Columns left in place, dead — dropping them is a separate destructive migration needing your go-ahead + a soak. `result_seen_at` survives as a real fact, stamped on result render (it used to share `completed_at`'s exact timestamp, making its checklist row a tautology).
+
+**#3 fold the describe path.** `onboarding_preview.py` was a parallel pipeline with its own job row, phases, failure codes and `patch_state` — shadowing the Upload Guarantee without inheriting it — ending on `estimate_min/max`, a second scoring model beside the canonical score (OQ4). Deleted; a description now goes through `start_cv_upload_job_from_text` (what `/baseline/approve` already used) and yields a real baseline + real score. `ProfilePreview` gone. The guided generator survives, moved INSIDE the describe box rather than becoming a third door on the first screen, opened by a URL param — which is what let #1 derive position with no stored flag at all.
+
+**Green (final):** backend **1860 passed** · ruff clean (own files) · tsc 0 · eslint 0 · **npm test 549 + 21, 0 fail** · ui-drift clean · `next build` ✓.
+
+**OWED from part 2 (Shivam):** (1) **`main` merge.** (2) **Authed QA, the one thing not verifiable here** — shortlist cards appear in ~15s not ~3min, "Checking fit…" shows then swaps to a real verdict, **the order does not move** when it does; a fresh signup lands on the right screen after the position change; the describe box builds a real CV; "Not sure what to write?" opens the generator. (3) Optional later: drop the two dead columns once soaked.
 
 ## OLDER SESSION SUMMARY (2026-08-03 · Onboarding: the column that never existed — ZERO scores site-wide for 3 days; 3 commits Develop + 2 migrations applied prod)
 

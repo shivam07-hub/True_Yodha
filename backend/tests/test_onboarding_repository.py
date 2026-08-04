@@ -49,12 +49,11 @@ def test_patch_state_upserts_only_approved_fields() -> None:
 
     OnboardingRepository(db).patch_state(
         "u1",
-        {"current_stage": "target", "entry_mode": "uploaded_cv"},
+        {"entry_mode": "uploaded_cv"},
     )
 
     payload = query.upsert.call_args.args[0]
     assert payload["user_id"] == "u1"
-    assert payload["current_stage"] == "target"
     assert payload["entry_mode"] == "uploaded_cv"
     assert "updated_at" in payload
     assert query.upsert.call_args.kwargs == {"on_conflict": "user_id"}
@@ -65,6 +64,23 @@ def test_patch_state_rejects_unknown_fields() -> None:
 
     with pytest.raises(ValueError, match="Unsupported onboarding state fields"):
         OnboardingRepository(db).patch_state("u1", {"user_id": "other"})
+
+
+def test_the_stored_journey_position_cannot_come_back() -> None:
+    """`status` and `current_stage` were a stored copy of a position the journey
+    already derives from its own facts — written in thirteen places, read for a
+    decision in two, and desynced by `start_over` in a way nobody noticed because
+    the stored copy won for exactly one screen.
+
+    Rejecting them at the write seam is what keeps the copy gone: a future caller
+    reaching for the old shape gets a loud error instead of a second answer to
+    where the user is. See `onboarding_service.journey_position`.
+    """
+    db = MagicMock()
+
+    for field in ("status", "current_stage"):
+        with pytest.raises(ValueError, match="Unsupported onboarding state fields"):
+            OnboardingRepository(db).patch_state("u1", {field: "result"})
 
 
 def test_save_generator_answer_merges_existing_answers() -> None:
@@ -99,11 +115,16 @@ def test_mark_completed_clears_redundant_working_content() -> None:
     OnboardingRepository(db).mark_completed("u1")
 
     payload = query.upsert.call_args.args[0]
-    assert payload["status"] == "completed"
+    assert payload["completed_at"]
     assert payload["description_text"] is None
     assert payload["generated_draft"] is None
     assert payload["generator_answers"] == {}
-    assert payload["completed_at"] == payload["result_seen_at"]
+    # `status` is derived now, not stored — writing it would raise.
+    assert "status" not in payload
+    # `result_seen_at` is stamped when the result RENDERS. Writing it here gave it
+    # the same timestamp as `completed_at`, so the checklist row it drives could
+    # only ever tick at the same instant as everything else.
+    assert "result_seen_at" not in payload
 
 
 def test_mark_activated_records_only_first_action() -> None:

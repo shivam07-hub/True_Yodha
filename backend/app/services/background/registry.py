@@ -23,7 +23,6 @@ import app.services.career_reservoir  # noqa: F401  role_dedup, story_ingest
 import app.services.cv_skill_edit  # noqa: F401  skill_retag
 import app.services.cv_workflow  # noqa: F401  cv_upload_analysis, initial_match, …
 import app.services.matching.scrape_sweep  # noqa: F401  scrape_match_recompute
-import app.services.onboarding_preview  # noqa: F401  onboarding_profile_preview
 import app.services.onboarding_service  # noqa: F401  onboarding_target_refresh
 from app.services.background.dispatch import registered_job_types
 

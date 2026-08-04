@@ -8,7 +8,6 @@ from fastapi import HTTPException, status
 from supabase import Client
 
 from app.repositories.cv import CVVersionsRepository
-from app.repositories.onboarding import OnboardingRepository
 from app.repositories.scores import ScoresRepository
 from app.repositories.users import UsersRepository
 from app.services import onboarding_service, scoring
@@ -130,11 +129,6 @@ def confirm_baseline_skills(
     has_target = bool(
         profile.get("target_role_title") or profile.get("target_role_titles")
     )
-    OnboardingRepository(db).patch_state(
-        user_id,
-        {"status": "analyzing" if has_target else "result_ready", "current_stage": "result"},
-    )
-
     # The band is written BEFORE the score is asked for, because it is an input to
     # it: `total_score` is a function of the confirmed skills and the seniority
     # band alone (the chosen role family and cities move the GAP list, never the

@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { jobs as jobsApi, type JobMatchesResponse } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
@@ -16,7 +16,11 @@ import { deriveNextAction } from "@/components/nav/next-action"
  * fresh-match volume once /market has populated the cache.
  *
  * A generic pointer ("Find a role to tailor") hides on its own surface —
- * pointing at the page you're on is noise, not orientation.
+ * pointing at the page you're on is noise, not orientation. Job-targeted rungs
+ * need the same rule at job granularity: the two surfaces that open ON a job
+ * carry that job's own primary CTA, so the chip skips it and names what follows.
+ * Must be mounted inside a Suspense boundary (useSearchParams) — the same strip
+ * renders on statically-generated public routes.
  */
 
 /** Segment-boundary match — "/cv" must not claim "/cv-preview". */
@@ -24,9 +28,17 @@ function onSurface(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 
+/** The job this surface is already dedicated to, if any. */
+function openJobId(pathname: string, params: URLSearchParams): string | null {
+  if (pathname === "/cv") return params.get("jobId")
+  const prep = /^\/preparations\/([^/]+)\/?$/.exec(pathname)
+  return prep ? decodeURIComponent(prep[1]) : null
+}
+
 export function NextChip({ hasCv }: { hasCv: boolean }) {
   const { token } = useAuth()
   const pathname = usePathname()
+  const params = useSearchParams()
 
   const { data: apps } = useQuery({
     queryKey: dataKeys.applications(),
@@ -44,6 +56,7 @@ export function NextChip({ hasCv }: { hasCv: boolean }) {
   const next = deriveNextAction(apps ?? [], matches?.jobs, {
     hasCv,
     newJobs: matches?.new_jobs_count ?? 0,
+    openJobId: openJobId(pathname, params),
   })
   if (next.generic && onSurface(pathname, next.href)) return null
 

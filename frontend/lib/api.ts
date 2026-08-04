@@ -601,13 +601,15 @@ export const notifications = {
 
 // ── Trustworthy onboarding ──────────────────────────────────────────────────
 
-export type OnboardingStage = "experience" | "target" | "result" | "generator"
+/** Where the user is, DERIVED server-side from the journey's own facts — never a
+ *  stored column. `experience` = nothing started · `result` = work in flight or
+ *  done · `completed` = finished, belongs in the product. */
+export type JourneyPosition = "experience" | "result" | "completed"
 export type TargetSeniority = "intern" | "entry" | "mid" | "senior" | "lead" | "executive" | "any"
 
 export interface OnboardingState {
   user_id: string
-  status: "draft" | "analyzing" | "result_ready" | "completed"
-  current_stage: OnboardingStage
+  position: JourneyPosition
   entry_mode?: "uploaded_cv" | "description" | null
   upload_job_id?: string | null
   accepted_file_metadata?: { name: string; mime: string; size_bytes: number }
@@ -686,13 +688,6 @@ export interface OnboardingProofSkill {
 export type OnboardingReach = { furthest_step?: 0 | 1 | 2 | 3 }
 
 export type OnboardingResult = OnboardingReach & (
-  | {
-      kind: "profile_preview"
-      target: OnboardingTarget
-      preview: { skills: OnboardingProofSkill[]; estimate_min: number; estimate_max: number }
-      primary_action: { kind: "build_baseline"; label: string }
-      secondary_action: { kind: "upload_cv"; label: string }
-    }
   // journey_step is authored by the backend: `full_result_processing` covers BOTH
   // the first CV read (step 1) and the post-target score wait (step 3), so the
   // kind alone cannot place the progress rail.
@@ -728,7 +723,9 @@ export type OnboardingResult = OnboardingReach & (
        *  stack — that answers "every job Myro matched you to", which after a
        *  direction change is not the shortlist the save will accept. */
       shortlist: JobMatch[]
-      shortlist_status: "ready" | "computing" | "stalled" | "empty"
+      /** `provisional` = the shortlist is triaged and choosable, but the deep
+       *  eval is still running, so its scores will sharpen in place. */
+      shortlist_status: "ready" | "provisional" | "computing" | "stalled" | "empty"
       /** `sharpeners` = the optional Career-Ops inputs this user has not set.
        *  Reported, never gap-filled — a receipt must not present a suggestion
        *  as something the run used. */
@@ -750,12 +747,6 @@ export const onboarding = {
   }) => request<void>("/onboarding/experience", {
     method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(body),
   }),
-  profilePreview: (token: string, description: string, idempotencyKey: string) =>
-    request<{ status: "processing"; job_id: string }>("/onboarding/profile-preview", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Idempotency-Key": idempotencyKey },
-      body: JSON.stringify({ description }),
-    }),
   saveTarget: (token: string, body: OnboardingTarget) => request<void>("/onboarding/target", {
     method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(body),
   }),
