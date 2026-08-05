@@ -29,7 +29,7 @@ export function InstitutionPane() {
   const [errors, setErrors] = useState<Set<keyof Form>>(new Set())
   const [emailMsg, setEmailMsg] = useState<{ text: string; tone: "hint" | "ok" | "err" } | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [done, setDone] = useState<{ inst: string; contact: string; sso?: string } | null>(null)
+  const [done, setDone] = useState<{ inst: string; contact: string } | null>(null)
   const [apiError, setApiError] = useState<string | null>(null)
 
   const set = (k: keyof Form, v: string) => {
@@ -74,19 +74,20 @@ export function InstitutionPane() {
   return (
     <>
       <section className="es-left es-mode-fade" aria-label="Why Myro for institutions">
-        <span className="es-eyebrow">For placement cells · beta cohort</span>
+        <span className="es-eyebrow">For placement cells · pilot cohort</span>
         <h1 className="es-headline">
-          Career intelligence for your <span className="es-glow">placement cell</span>.
+          Know your batch <span className="es-glow">before the recruiter does</span>.
         </h1>
         <p className="es-subhead">
-          T&amp;P officers, career services, and deans get cohort-level signal: what hiring
-          looks like in the markets your students target, where every CV stands, and where
-          prep effort moves the needle.
+          Every student uploads their CV once. Myro reads it, pulls out the skills that are
+          actually there, and scores them across ten career domains against what companies
+          are hiring for this month. You get the batch back: who&apos;s ready, who&apos;s two
+          skills short, and which two.
         </p>
 
         <div className="es-cohort-card">
           <div className="es-cohort-head">
-            <div className="es-cohort-title">Cohort fit distribution · CS &apos;26</div>
+            <div className="es-cohort-title">Sample batch report · CS &apos;26</div>
             <div className="es-cohort-meta">SAMPLE · 327 STUDENTS · TARGET FINTECH</div>
           </div>
           <div className="es-cohort-bar" role="img" aria-label="Cohort fit segments">
@@ -125,14 +126,16 @@ export function InstitutionPane() {
         </div>
 
         <div className="es-trust">
-          <div className="es-trust-label">Piloting with placement cells at</div>
+          <div className="es-trust-label">What the pilot costs you</div>
           <div className="es-logos">
-            <span className="es-logo">IIIT&nbsp;Hyderabad</span>
-            <span className="es-logo es-logo-mono">bits_pilani</span>
-            <span className="es-logo">Ashoka&nbsp;University</span>
-            <span className="es-logo es-logo-mono">srm_chennai</span>
-            <span className="es-logo">VIT&nbsp;Vellore</span>
+            <span className="es-logo">50&nbsp;students</span>
+            <span className="es-logo">One&nbsp;department</span>
+            <span className="es-logo">Free</span>
+            <span className="es-logo es-logo-mono">no_contract</span>
           </div>
+          <p className="es-trust-note">
+            You tell us if the readiness picture matches the students you already know.
+          </p>
         </div>
       </section>
 
@@ -143,12 +146,12 @@ export function InstitutionPane() {
               <div className="es-success-aperture" aria-hidden="true"><Aperture /></div>
               <h2 className="es-success-title">Application received, {done.contact.split(" ")[0]}.</h2>
               <p className="es-success-sub">
-                We&apos;ll review <strong>{done.inst}</strong> and reply within <strong>48 hours</strong> with next steps.
+                We&apos;ll read <strong>{done.inst}</strong> and reply in <strong>two working days</strong>.
               </p>
               <div className="es-success-next">
-                <div className="es-success-row"><span className="es-n">1</span><span><strong>Domain verification</strong> — a TXT record check to your placement office.</span></div>
-                <div className="es-success-row"><span className="es-n">2</span><span><strong>30-min discovery call</strong> — your cohort shape, target sectors, current pain.</span></div>
-                <div className="es-success-row"><span className="es-n">3</span><span><strong>Pilot setup</strong> — first cohort onboarded in &lt; 1 week. Branded portal optional.</span></div>
+                <div className="es-success-row"><span className="es-n">1</span><span><strong>A 30-minute call</strong> — your cohort, your target sectors, what keeps going wrong.</span></div>
+                <div className="es-success-row"><span className="es-n">2</span><span><strong>Pick one department</strong> — fifty students, CVs uploaded in a week.</span></div>
+                <div className="es-success-row"><span className="es-n">3</span><span><strong>Your batch report</strong> — and an honest verdict on whether this is worth your time.</span></div>
               </div>
             </div>
             <p className="es-alt-cta">Need to update your application? <a href="mailto:edu@himyro.com">Email our edu lead →</a></p>
@@ -156,11 +159,11 @@ export function InstitutionPane() {
         ) : (
           <>
             <div className="es-form-card">
-              <div className="es-form-eyebrow"><span>Beta access</span> <span className="es-badge">~3 min</span></div>
+              <div className="es-form-eyebrow"><span>Pilot cohort</span> <span className="es-badge">~3 min</span></div>
               <h2 className="es-form-title">Apply for your placement cell</h2>
               <p className="es-form-sub">
-                We&apos;re onboarding 25 institutes this term. Tell us about yours — we&apos;ll
-                reply with a guided pilot within 48 hours.
+                Tell us about your cohort. We&apos;ll come back in two working days with a
+                pilot plan for one department.
               </p>
 
               <form onSubmit={submit} noValidate>
@@ -215,19 +218,16 @@ export function InstitutionPane() {
                 {apiError && <p role="alert" className="es-field-hint" style={{ color: "var(--tm-danger)", marginTop: 10 }}>{apiError}</p>}
 
                 <button className="es-submit" type="submit" disabled={submitting}>
-                  <span>{submitting ? "Submitting application…" : "Apply for beta access"}</span>
+                  <span>{submitting ? "Sending…" : "Apply for a pilot"}</span>
                   {!submitting && <span aria-hidden="true">→</span>}
                 </button>
 
                 <p className="es-legal">
-                  By applying, you agree to share institute info with the Myro team. We will never
-                  email students without your written sign-off. <a href="/privacy">Privacy</a>.
+                  We&apos;ll never email your students without your written sign-off.{" "}
+                  <a href="/privacy">Privacy</a>.
                 </p>
               </form>
             </div>
-            <p className="es-alt-cta">
-              Already have a placement cell account? <a href="/login">Sign in →</a>
-            </p>
           </>
         )}
       </aside>
@@ -238,11 +238,15 @@ export function InstitutionPane() {
 const I = (d: string) => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} />
 )
+// Every card below must name something a student can open today. The six that
+// shipped here first (LMS sync, analytics dashboards, alumni tracking, SSO,
+// branded portal) described software that does not exist — the institutions
+// backend is one POST /apply. Do not add a card ahead of the build.
 const CAPS = [
-  { title: "Cohort import", body: "CSV or LMS sync. Roll up scores by branch, year, target sector.", icon: I('<path d="M16 19a4 4 0 00-8 0M12 11a4 4 0 100-8 4 4 0 000 8zM3 21h18"/>') },
-  { title: "Placement analytics", body: "Offers, CTC bands, conversion funnel. Live dashboards for T&P.", icon: I('<path d="M3 3v18h18M7 14l4-4 3 3 6-6"/>') },
-  { title: "Curriculum signals", body: "Skill demand maps to your syllabus. Spot the gap before recruiters do.", icon: I('<path d="M4 19V5l8 4 8-4v14"/>') },
-  { title: "Alumni outcomes", body: "Track 6-, 12-, 24-month placements. Feed real outcomes back into prep.", icon: I('<path d="M12 2v6m0 8v6M2 12h6m8 0h6"/><circle cx="12" cy="12" r="3"/>') },
-  { title: "Single sign-on", body: "Google Workspace for Education, Microsoft 365, or your own SAML IdP.", icon: I('<path d="M12 2L4 6v6c0 5 3.5 9.5 8 10 4.5-.5 8-5 8-10V6l-8-4z"/>') },
-  { title: "Branded student portal", body: "Your logo, your domain, your placement brand. Myro stays in the engine room.", icon: I('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h10M7 16h6"/>') },
+  { title: "CV scoring", body: "Reads the CV, finds the real skills, scores each student out of 100 across ten career domains.", icon: I('<path d="M16 19a4 4 0 00-8 0M12 11a4 4 0 100-8 4 4 0 000 8zM3 21h18"/>') },
+  { title: "Skill gaps, priced by the market", body: "Every gap traces back to a live job posting in India. Hiring moves, the gaps move with it.", icon: I('<path d="M3 3v18h18M7 14l4-4 3 3 6-6"/>') },
+  { title: "Live job matching", body: "Every student sees openings they can clear today, and the ones a skill away.", icon: I('<path d="M4 19V5l8 4 8-4v14"/>') },
+  { title: "CV tailoring", body: "One CV per company, rewritten against that company's posting. Exports to PDF.", icon: I('<path d="M12 2v6m0 8v6M2 12h6m8 0h6"/><circle cx="12" cy="12" r="3"/>') },
+  { title: "Interview prep", body: "A prep room per job, built from the posting the student is chasing.", icon: I('<path d="M12 2L4 6v6c0 5 3.5 9.5 8 10 4.5-.5 8-5 8-10V6l-8-4z"/>') },
+  { title: "The batch report", body: "We run it and hand it to you. Numbers you can put in front of the dean.", icon: I('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h10M7 16h6"/>') },
 ]

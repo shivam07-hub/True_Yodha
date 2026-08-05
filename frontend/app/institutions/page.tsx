@@ -7,13 +7,13 @@ const BASE = "https://www.himyro.com"
 export const metadata: Metadata = {
   title: "Myro for Colleges — Campus Placement Intelligence",
   description:
-    "Cohort-level CV scoring, skill-gap analysis against live hiring, and placement analytics for T&P cells, deans, and career services. Apply for the beta cohort.",
+    "Myro scores every student's CV across ten career domains and shows the skill gap against live job postings in India. Apply for a placement cell pilot.",
   robots: { index: true, follow: true },
   alternates: { canonical: `${BASE}/institutions` },
   openGraph: {
     title: "Myro for Colleges — Campus Placement Intelligence",
     description:
-      "Cohort-level CV scoring, skill-gap maps, and placement analytics for placement cells. Apply for the beta cohort.",
+      "Know your batch before the recruiter does. CV scoring and live skill-gap maps for placement cells. Apply for a pilot.",
     type: "website",
     url: `${BASE}/institutions`,
   },
