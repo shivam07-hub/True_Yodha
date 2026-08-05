@@ -276,7 +276,7 @@ export function FeedCard({
                   // (design-over-words), so the card reads as "here's the path".
                   <a
                     key={c.name}
-                    href={`/forge?skill=${encodeURIComponent(c.name)}`}
+                    href={`/practice?skill=${encodeURIComponent(c.name)}`}
                     className="fc-chip is-gap"
                     title={`Practice ${c.name}`}
                     aria-label={`Missing: ${c.name}. Practice it`}

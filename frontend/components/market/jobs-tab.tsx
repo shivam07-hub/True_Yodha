@@ -207,7 +207,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     onChangeFilters({ ...DEFAULT_FILTERS })
   }, [onSkillFacetChange, onQueryChange, onChangeFilters])
   const onStoryPrimary = useCallback((s: FeedStory) => {
-    if (s.kind === "skill") router.push(`/forge?skill=${encodeURIComponent(s.skill)}`)
+    if (s.kind === "skill") router.push(`/practice?skill=${encodeURIComponent(s.skill)}`)
     else onSeeRoles(s.company)
   }, [router, onSeeRoles])
   const onStorySecondary = useCallback((s: FeedStory) => {

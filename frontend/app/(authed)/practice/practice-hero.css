@@ -38,7 +38,7 @@
 .up-move-cta { height: 56px; padding: 0 30px; border-radius: var(--tm-radius-lg); font-size: 17px; white-space: nowrap; box-shadow: 0 0 28px var(--tm-accent-glow); }
 .up-move-tiers { display: flex; align-items: center; justify-content: center; gap: 7px; font-family: var(--tm-font-mono); font-size: 13px; color: var(--tm-warning); }
 
-/* ── shared rung path (hero variant) — row variant styled in forge-climb.css ── */
+/* ── shared rung path (hero variant) — row variant styled in practice-climb.css ── */
 .up-rung-path { position: relative; }
 .up-rung-path.is-hero { max-width: 440px; }
 .up-rung-track { position: absolute; top: 22px; left: 26px; right: 26px; height: 2px; background: var(--tm-border-soft); }

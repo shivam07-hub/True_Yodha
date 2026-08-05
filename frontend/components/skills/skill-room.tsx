@@ -156,7 +156,7 @@ export function SkillRoom({ room }: Props) {
           </p>
           <Link
             className="sr-primary tm-control-focus"
-            href={`/forge?skill=${encodeURIComponent(skill.display_name)}`}
+            href={`/practice?skill=${encodeURIComponent(skill.display_name)}`}
           >
             <Sparkles size={15} aria-hidden /> Practice this skill <ArrowRight size={14} aria-hidden />
           </Link>

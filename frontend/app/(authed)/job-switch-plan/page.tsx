@@ -238,7 +238,7 @@ export default function JobSwitchPlanPage() {
               >
                 {requesting ? "Requesting…" : "Request your second review"}
               </button>
-              <Link className="jsp-btn jsp-btn-ghost" href="/forge">
+              <Link className="jsp-btn jsp-btn-ghost" href="/practice">
                 <Compass size={16} strokeWidth={1.5} aria-hidden />
                 Work your plan in Practice
               </Link>

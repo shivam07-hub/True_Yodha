@@ -38,7 +38,7 @@ export interface NavItem {
   /** Native title attribute / tooltip. */
   desc: string
   stage: NavStage
-  /** Where the item renders as a nav link. Forge is desktop-only — on mobile it is the top XP pill, not a bottom slot. */
+  /** Where the item renders as a nav link. Practice is desktop-only — on mobile it is the top XP pill, not a bottom slot. */
   surfaces: NavSurface[]
   /** Bottom-bar icon name (mobile surface only). */
   mobileIcon?: "mission" | "intel" | "cv" | "tracker"
@@ -82,10 +82,11 @@ export const AUTHED_NAV: NavItem[] = [
     surfaces: ["desktop", "mobile"],
     mobileIcon: "mission",
   },
-  // Practice (forge) is hidden from the nav while the page is under
-  // development — the surface isn't ready to work yet. The /forge route still
-  // exists (next.config keeps it routable) and the "forge" id stays in the
-  // NavItem union so restoring is a one-object add, not a contract change.
+  // Practice is hidden from the nav while the page is under development — the
+  // surface isn't ready to work yet. The /practice route still exists and is
+  // linked from job cards and the CV gap flow; the "forge" id stays in the
+  // NavItem union (it is a localStorage/coachmark key, not copy) so restoring
+  // is a one-object add, not a contract change.
   // Re-add the item here when Practice is shippable.
   {
     // Tracker merged into CV (tracker→CV merge grill 2026-06-02); desktop splits

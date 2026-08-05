@@ -100,7 +100,7 @@ export function SkillIntelligencePanel({
       </div>
 
       <div className="si-panel-actions">
-        <Link className="si-primary" href={`/forge?skill=${encodedSkill}`}><BookOpen size={16} /> Practice</Link>
+        <Link className="si-primary" href={`/practice?skill=${encodedSkill}`}><BookOpen size={16} /> Practice</Link>
         <Link href={`/cv?skill=${encodedSkill}`}><Briefcase size={16} /> Improve CV proof</Link>
         <button type="button" onClick={() => skillName && onViewSkillJobs(skillName)}><Target size={16} /> View jobs</button>
       </div>

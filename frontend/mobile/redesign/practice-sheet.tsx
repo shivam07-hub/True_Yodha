@@ -63,7 +63,7 @@ export function PracticeSheet() {
 
   const start = () => {
     closePractice()
-    router.push(next ? `/forge?skill=${encodeURIComponent(next.skill_key)}` : "/forge")
+    router.push(next ? `/practice?skill=${encodeURIComponent(next.skill_key)}` : "/practice")
   }
 
   return (

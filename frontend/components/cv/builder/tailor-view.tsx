@@ -21,7 +21,7 @@ import "./tailor-view.css"
 const VERB: Record<FixKind, string> = { sharpen: "Sharpen", add: "Add", practice: "Practice" }
 
 function forgeHref(skill: string): string {
-  return `/forge?skill=${encodeURIComponent(skill)}`
+  return `/practice?skill=${encodeURIComponent(skill)}`
 }
 
 /** Count the number up to its target — the one orchestrated moment. Reduced-motion

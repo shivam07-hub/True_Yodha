@@ -302,7 +302,7 @@ export function CollectionsDesktop({
   const loggedToday = entries.length > 0 && entries[0].log_date === new Date().toISOString().slice(0, 10)
   const steps: LoopStep[] = [
     { label: "Find Job", done: (matchesQ.data?.jobs?.length ?? 0) > 0, icon: "target", href: "/market" },
-    { label: "Practice", done: entries.length > 0, icon: "forge", href: "/forge", reward: "+20–50" },
+    { label: "Practice", done: entries.length > 0, icon: "forge", href: "/practice", reward: "+20–50" },
     { label: "Log", done: loggedToday, icon: "diary" },
     { label: "Level Up", done: (evidenceData?.score_delta ?? 0) > 0, icon: "star", href: "/skills" },
     { label: "Apply", done: apps.some(isAppliedStatus), icon: "arrowRight", href: "/market" },

@@ -1,8 +1,8 @@
 /* ─────────────────────────────────────────────────────────────
-   Practice page (/forge) — page-scoped styles (ADR-0003)
+   Practice page (/practice) — page-scoped styles (ADR-0003)
    Core primitives (buttons/cards), quiz runner, results, gap
    readiness, confirm modal + toast. The adaptive bar, hero and
-   climb rows live in forge-bar.css / forge-hero.css / forge-climb.css
+   climb rows live in practice-bar.css / practice-hero.css / practice-climb.css
    (Myro Forge redesign — see reference/Myro Forge redesign.zip).
    ───────────────────────────────────────────────────────────── */
 

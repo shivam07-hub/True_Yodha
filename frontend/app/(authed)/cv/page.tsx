@@ -789,7 +789,7 @@ function CVPage() {
                   {displayedUploadError.toLowerCase().startsWith("out of tokens") && (
                     <button
                       type="button"
-                      onClick={() => router.push("/forge")}
+                      onClick={() => router.push("/practice")}
                       style={{
                         marginTop: 8, padding: 0, background: "none", border: "none",
                         color: "var(--tm-interactive)", fontSize: 12, cursor: "pointer",

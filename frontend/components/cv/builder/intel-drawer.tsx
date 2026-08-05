@@ -110,7 +110,7 @@ export function IntelDrawer({
             </div>
             {missing.length > 0 && (
               <div style={{ fontSize: 11.5, color: "var(--tm-text-faint)", lineHeight: 1.55 }}>
-                <Link href="/forge?view=map" style={{ color: "var(--tm-interactive-text)", textDecoration: "none" }}>
+                <Link href="/practice?view=map" style={{ color: "var(--tm-interactive-text)", textDecoration: "none" }}>
                   Practice these gaps →
                 </Link>{" "}
                 to earn Myro Coins and unlock new bullet drafts.

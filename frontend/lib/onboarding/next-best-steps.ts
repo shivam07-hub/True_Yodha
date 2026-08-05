@@ -98,7 +98,7 @@ export function deriveNextBestSteps(input: NextStepsInput): NextBestStep[] {
       eyebrow: "Top skill gap",
       title: `Practice ${gap.skill}`,
       detail: `${inDemand}level ${gap.current_level} → ${gap.target_level}, your highest-impact lift.`,
-      href: `/forge?skill=${encodeURIComponent(gap.skill)}`,
+      href: `/practice?skill=${encodeURIComponent(gap.skill)}`,
       cta: "Practice",
       short: `Practice ${gap.skill}`,
       metric: gain ? `+${gain}` : undefined,
@@ -111,7 +111,7 @@ export function deriveNextBestSteps(input: NextStepsInput): NextBestStep[] {
       eyebrow: "Build a skill",
       title: `Practice your ${domainLabel(lo.key)} skills`,
       detail: `${domainLabel(lo.key)} is your lowest area at ${Math.round(lo.val)}% — practice lifts it fastest.`,
-      href: "/forge",
+      href: "/practice",
       cta: "Practice",
       short: `Practice ${domainLabel(lo.key)}`,
     })

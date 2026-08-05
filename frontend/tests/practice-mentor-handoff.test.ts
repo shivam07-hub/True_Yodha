@@ -4,8 +4,8 @@ import assert from "node:assert/strict"
 import { mentorRewriteHref, practiceHref } from "../lib/practice-mentor-handoff"
 
 test("job-origin practice preserves the job for the return handoff", () => {
-  assert.equal(practiceHref("SQL", "job/42"), "/forge?skill=SQL&jobId=job%2F42")
-  assert.equal(practiceHref("SQL"), "/forge?skill=SQL")
+  assert.equal(practiceHref("SQL", "job/42"), "/practice?skill=SQL&jobId=job%2F42")
+  assert.equal(practiceHref("SQL"), "/practice?skill=SQL")
 })
 
 test("job-linked practice returns to that job's existing Mentor weave", () => {

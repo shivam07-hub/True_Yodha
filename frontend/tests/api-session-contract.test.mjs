@@ -70,7 +70,7 @@ test("core onboarding and recommendation surfaces share canonical data keys", ()
   // (2026-07-07 cutover) — it must read matches through the canonical key so
   // the fit rings share the cache with the /market rail.
   const collections = read("components/collections/collections-desktop.tsx")
-  const practice = read("app/(authed)/forge/page.tsx")
+  const practice = read("app/(authed)/practice/page.tsx")
   assert.match(onboardingHook, /dataKeys\.onboarding\(\)/)
   assert.match(result, /dataKeys\.onboardingResult\(\)/)
   assert.match(collections, /dataKeys\.jobs\(\)/)

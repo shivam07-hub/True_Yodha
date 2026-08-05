@@ -7,7 +7,7 @@ import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { PrepRoom } from "@/components/preparations/prep-room"
 import "@/components/preparations/preparations.css"
-import "@/app/(authed)/forge/practice.css"
+import "@/app/(authed)/practice/practice.css"
 
 /**
  * /preparations/[jobId] — one application's prep room. Deep-linkable by design

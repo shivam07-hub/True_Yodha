@@ -25,5 +25,5 @@ export function mentorRewriteHref({
 export function practiceHref(skill: string, jobId?: string | null): string {
   const params = new URLSearchParams({ skill: skill.trim() })
   if (jobId?.trim()) params.set("jobId", jobId.trim())
-  return `/forge?${params.toString()}`
+  return `/practice?${params.toString()}`
 }

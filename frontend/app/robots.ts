@@ -40,7 +40,7 @@ export default function robots(): MetadataRoute.Robots {
           "/cv",
           "/dashboard",
           "/diary",
-          "/forge",
+          "/practice",
           "/home",
           "/collections",
           "/me",

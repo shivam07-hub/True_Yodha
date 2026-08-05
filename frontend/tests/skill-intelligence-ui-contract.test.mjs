@@ -25,7 +25,7 @@ test("selected skill panel keeps learning and CV evidence actions visible", () =
   assert.match(panel, /Skill Intelligence/)
   assert.match(panel, /Your CV evidence/)
   assert.match(panel, /Company demand/)
-  assert.match(panel, /\/forge\?skill=/)
+  assert.match(panel, /\/practice\?skill=/)
   assert.match(panel, /\/cv\?skill=/)
   assert.match(panel, /Practice/)
   assert.match(panel, /Improve CV proof/)

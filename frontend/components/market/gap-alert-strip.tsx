@@ -26,7 +26,7 @@ export function GapAlertStrip({ alert }: { alert: GapAlert | null }) {
       </p>
       <div className="gap-alert-actions">
         <Link href={`/market?skill=${skillParam}`} className="gap-alert-link">See the roles</Link>
-        <Link href={`/forge?skill=${skillParam}`} className="gap-alert-cta">
+        <Link href={`/practice?skill=${skillParam}`} className="gap-alert-cta">
           Practice {alert.skill} <ArrowRight size={14} aria-hidden />
         </Link>
       </div>
