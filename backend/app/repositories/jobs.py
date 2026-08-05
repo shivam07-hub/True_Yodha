@@ -1335,8 +1335,12 @@ class JobsRepository:
         drops as "Crawled - currently not indexed" — omitting it protects crawl
         budget for the pages that earn indexing.
 
-        One paged scan of the ~10k live rows (single column), deduped to
-        distinct names with a role count, cached 1h (the page ISR window).
+        ONE grouped read (``indexable_companies`` RPC), cached 1h (the page ISR
+        window). It used to page every matching row out at 1,000 per request and
+        count them here — 11,208 rows in 12 OFFSET round trips to produce 185.
+        OFFSET re-scans what it skips, so the last page cost 1,343 ms on its own
+        and the endpoint spiked to 9-12s; the GROUP BY answers in ~350 ms.
+        Grouping/ordering live in the function and match what this loop did.
         APIError → last good result or [] (never 500 the sitemap).
         """
         global _indexable_companies_cache
@@ -1344,23 +1348,14 @@ class JobsRepository:
         if _indexable_companies_cache is not None and (now - _indexable_companies_cache[0]) < _INDEXABLE_TTL:
             return list(_indexable_companies_cache[1])
         try:
-            rows = fetch_all_rows(
-                self._admin_db,
-                table="jobs",
-                columns="company_name",
-                query_builder=lambda q: q.eq("is_active", True).eq("listing_confidence", "active"),
-            )
+            rows = self._admin_db.rpc("indexable_companies", {}).execute().data or []
         except APIError:
             return list(_indexable_companies_cache[1]) if _indexable_companies_cache else []
 
-        counts: dict[str, int] = {}
-        for r in rows:
-            name = (r.get("company_name") or "").strip()
-            if name:
-                counts[name] = counts.get(name, 0) + 1
         out = [
-            {"name": name, "active_count": count}
-            for name, count in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0].casefold()))
+            {"name": name, "active_count": int(r.get("active_count") or 0)}
+            for r in rows
+            if (name := (r.get("name") or "").strip())
         ]
         _indexable_companies_cache = (now, out)
         return out

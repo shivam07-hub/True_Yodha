@@ -129,31 +129,65 @@ def test_fetch_company_pulse_empty_input_short_circuits() -> None:
 # ── Indexable-companies allowlist (SEO sitemap gate, GSC 2026-07-23) ─────────
 
 
-def test_fetch_indexable_companies_dedupes_counts_and_sorts(monkeypatch) -> None:
-    # The repo scans jobs already filtered to live rows (is_active AND
-    # confidence=active) — the fake returns that filtered set. Method dedupes to
-    # distinct companies with a role count, sorted by count desc then name.
-    rows = [
+class _FakeIndexableRpc:
+    """Models the `indexable_companies` GROUP BY over a fake jobs table.
+
+    The dedupe/count/sort used to live in Python and was asserted directly.
+    It now lives in SQL, so this fake replicates the function's contract —
+    group on btrim(company_name), drop blank/NULL, order by count desc then
+    lower(name) — and the assertions below still fail if that contract moves.
+    """
+
+    def __init__(self, job_rows: list[dict[str, Any]]) -> None:
+        self._job_rows = job_rows
+        self.calls: list[tuple[str, dict[str, Any]]] = []
+
+    def rpc(self, name: str, params: dict[str, Any]) -> "_FakeIndexableRpc":
+        self.calls.append((name, params))
+        assert name == "indexable_companies"
+        return self
+
+    def execute(self) -> Any:
+        counts: dict[str, int] = {}
+        for row in self._job_rows:
+            grouped = (row.get("company_name") or "").strip()
+            if not grouped:
+                continue
+            counts[grouped] = counts.get(grouped, 0) + 1
+        ordered = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0].lower()))
+        return type(
+            "_Result",
+            (),
+            {"data": [{"name": n, "active_count": c} for n, c in ordered]},
+        )()
+
+
+def test_fetch_indexable_companies_dedupes_counts_and_sorts() -> None:
+    # The function scans jobs already filtered to live rows (is_active AND
+    # confidence=active) — the fake holds that filtered set. Distinct companies
+    # with a role count, sorted by count desc then name.
+    job_rows = [
         {"company_name": "Wipro"},
         {"company_name": "Wipro"},
         {"company_name": "Wipro"},
-        {"company_name": " Axis Bank "},  # trimmed
+        {"company_name": " Axis Bank "},  # trimmed, and groups with the next row
         {"company_name": "Axis Bank"},
         {"company_name": ""},  # blank dropped
         {"company_name": None},  # null dropped
     ]
-    monkeypatch.setattr(jobs_module, "fetch_all_rows", lambda *a, **k: rows)
     jobs_module._indexable_companies_cache = None
-    repo = JobsRepository(db=object(), admin_db=object())  # type: ignore[arg-type]
+    admin = _FakeIndexableRpc(job_rows)
+    repo = JobsRepository(db=object(), admin_db=admin)  # type: ignore[arg-type]
     out = repo.fetch_indexable_companies()
     assert out == [
         {"name": "Wipro", "active_count": 3},
         {"name": "Axis Bank", "active_count": 2},
     ]
+    # One round trip, not a page-scan — the whole point of the RPC.
+    assert admin.calls == [("indexable_companies", {})]
 
 
-def test_fetch_indexable_companies_empty_when_no_live_rows(monkeypatch) -> None:
-    monkeypatch.setattr(jobs_module, "fetch_all_rows", lambda *a, **k: [])
+def test_fetch_indexable_companies_empty_when_no_live_rows() -> None:
     jobs_module._indexable_companies_cache = None
-    repo = JobsRepository(db=object(), admin_db=object())  # type: ignore[arg-type]
+    repo = JobsRepository(db=object(), admin_db=_FakeIndexableRpc([]))  # type: ignore[arg-type]
     assert repo.fetch_indexable_companies() == []
