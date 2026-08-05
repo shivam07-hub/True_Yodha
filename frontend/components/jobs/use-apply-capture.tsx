@@ -247,11 +247,33 @@ export function useApplyCapture({
     }
   }, [enqueueQuality, onSubmitted, persistStatus, run, target.kind])
 
+  /**
+   * A report is the opposite of a save. Reporting a dead or wrong listing used
+   * to call `persistStatus("saved")` — the user said "this is gone" and Myro
+   * filed it into Collections and thanked them for it.
+   *
+   * The report now does what it says: the quality event goes to the corpus (the
+   * feedback trigger drops the listing's confidence for everyone), and the job
+   * leaves THIS user's feed via the dismissal every match/feed read already
+   * honours. A saved application row is left alone — a `likely_closed` listing
+   * lands in the Collections "Closed" chip on its own, which keeps the CV work
+   * reachable without pretending the role is still open.
+   *
+   * `technical` is excluded: a timeout on our side or theirs says nothing about
+   * the listing, so it reports without hiding the job.
+   */
   const reportIssue = React.useCallback((issue: ApplyIssue) => {
     enqueueQuality(issueFeedbackReason(issue))
     setState("reported")
-    run(() => persistStatus("saved"), "reported")
-  }, [enqueueQuality, persistStatus, run])
+    if (issue === "technical") return
+    run(async () => {
+      await jobs.dismissMatchCard(token, job.job_id)
+      // `["jobs"]` is the prefix over the feed, the match stack and the pulses
+      // the Closed chip reads; the liveness key carries this surface's own gate.
+      await queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
+      await queryClient.invalidateQueries({ queryKey: ["jobLiveness", job.job_id] })
+    }, "reported")
+  }, [enqueueQuality, job.job_id, queryClient, run, token])
 
   const retry = React.useCallback(() => {
     const retryable = retryAction.current

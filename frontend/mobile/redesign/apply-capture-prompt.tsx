@@ -49,7 +49,7 @@ export function ApplyCapturePromptMobile({ capture }: { capture: ApplyCapture })
     : capture.state === "submitted"
       ? "Marked applied"
       : capture.state === "reported"
-        ? "Thanks — kept in Collections"
+        ? "Thanks — flagged"
         : null
   if (message) {
     return (
