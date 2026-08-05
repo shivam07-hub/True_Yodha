@@ -93,6 +93,21 @@ def classify_listing_response(
         return _result(target, "redirected", "medium", provider, evidence)
     if has_title and has_apply:
         return _result(target, "seen_live", "medium", provider, evidence)
+    if has_title and provider != "generic":
+        # A named ATS serving a job-specific URL, with this role's title in the
+        # body, is a live posting — even with no apply marker and no JSON-LD.
+        # Workday and Ashby render the form client-side, so none of the three
+        # literal markers ("apply now", "apply for this job", "submit
+        # application") appear in the HTML we fetch, and the JSON-LD block is
+        # served inconsistently. Requiring a second signal they do not emit is
+        # why `page_loaded_without_role_evidence` was the last observation on
+        # 5,999 of the 11,204 listings the corpus called active — 54% of them.
+        #
+        # Safe because the branches above already claim the dead cases: a pulled
+        # listing on these hosts answers 404/410, or carries a closed marker.
+        # Medium strength — the title is one signal, not two.
+        evidence.update({"title_match": True, "ats_job_url": True})
+        return _result(target, "seen_live", "medium", provider, evidence)
     evidence["reason"] = "page_loaded_without_role_evidence"
     return _result(target, "error", "weak", provider, evidence)
 
