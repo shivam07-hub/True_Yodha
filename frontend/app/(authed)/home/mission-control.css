@@ -238,11 +238,6 @@
 }
 .mc-peek-link:hover { text-decoration: underline; }
 .mc-peek-empty { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--tm-text-muted); }
-/* Inline domain radar (the /skills map artifact) — scales to card width */
-.mc-peek-radar { display: flex; flex-direction: column; align-items: center; gap: 6px; text-decoration: none; }
-.mc-peek-radar svg { width: 100%; height: auto; max-width: 240px; display: block; }
-.mc-peek-radar-cap { font-size: 12px; line-height: 1.45; color: var(--tm-text-muted); text-align: center; }
-.mc-peek-radar-cap strong { color: var(--tm-text); font-weight: 600; }
 .mc-peek-gap { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
 .mc-peek-gap .lab { color: var(--tm-text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mc-peek-lvl { font-family: var(--tm-font-mono); font-size: 11px; color: var(--tm-accent-text); flex-shrink: 0; }

@@ -3,12 +3,9 @@
 import type { ReactNode } from "react"
 import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
-import { Target, TrendingUp, Building2, ArrowRight } from "lucide-react"
+import { Target, Building2, ArrowRight } from "lucide-react"
 import { jobs as jobsApi, users as usersApi, scores, diary, upskilling } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
-import { useScoreMapData } from "@/lib/hooks/use-score-map-data"
-import { buildScoreMap, buildScoreMapHref } from "@/lib/score-map"
-import { DomainRadar } from "@/components/skills/domain-radar"
 import { CompanySignalChip } from "@/components/companies/company-signal"
 import { computeStreakFromDates, type DiaryEntry } from "@/lib/forge-helpers"
 import { LoopRing, type LoopStep } from "./loop-ring"
@@ -96,35 +93,7 @@ function MissionsCard({ token, steps }: { token: string; steps: LoopStep[] }) {
   )
 }
 
-/* ── Skill map (live domain radar — the /skills artifact, inline) ───────
- * Relocated off the /home dashboard rail onto the Jobs (/market) rail — see
- * app/(authed)/market/page.tsx. Exported so /market mounts it under the
- * greeting hero; the shared React Query keys dedupe its reads. */
-export function SkillMapCard({ token }: { token: string }) {
-  const { score, skills } = useScoreMapData(token)
-  const hasRadar = !!score && Object.keys(score.domain_scores).length > 0
-  const model = score && skills ? buildScoreMap(score, skills) : null
-  const topGap = model?.topMove
-  const href = buildScoreMapHref({ domain: model?.selected?.domain, skill: topGap?.skill })
-  return (
-    <PeekCard icon={<TrendingUp size={15} />} title="Score map" href={href} hrefLabel="See why and what moves it">
-      {hasRadar ? (
-        <Link href={href} className="mc-peek-radar tm-control-focus" aria-label="Open your Score map">
-          <DomainRadar domainScores={score.domain_scores} />
-          <span className="mc-peek-radar-cap">
-            {topGap
-              ? <>Highest verified lift: <strong>{topGap.skill}</strong> · +{topGap.gain}</>
-              : "Your skills track the market — keep practising to climb."}
-          </span>
-        </Link>
-      ) : (
-        <p className="mc-peek-empty">Upload a CV to map the skill evidence behind your Myro Score.</p>
-      )}
-    </PeekCard>
-  )
-}
-
-/* ── 3 · Followed companies (absorbed the old "Live intel" card — both linked
+/* ── 2 · Followed companies (absorbed the old "Live intel" card — both linked
  * to the same heatmap from the same demand read, so they were one surface
  * wearing two frames; the top-demand line now lives here). ─────────────── */
 function FollowedCard({ token }: { token: string }) {

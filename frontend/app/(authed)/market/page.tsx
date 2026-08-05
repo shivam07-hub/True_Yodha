@@ -11,7 +11,6 @@ import { HeatmapTab } from "@/components/market/heatmap-tab"
 import { MarketJobsTab } from "@/components/market/jobs-tab"
 import { MissionHeroRail } from "@/components/mission-control/mission-hero-rail"
 import { MatchesRefreshBanner } from "@/components/jobs/matches-refresh-banner"
-import { SkillMapCard } from "@/components/mission-control/peek-surfaces"
 import { useViewport } from "@/mobile"
 import { JobsSurface } from "@/mobile/redesign/jobs-surface"
 import { useAuth } from "@/lib/hooks/use-auth"
@@ -31,7 +30,7 @@ type BrowsePatch = {
 function IntelPageInner() {
   const { token } = useAuth()
   const queryClient = useQueryClient()
-  const { isDesktop, mode } = useViewport()
+  const { mode } = useViewport()
   // Feed publication sensing - auto-invalidates the free market feed when a new
   // batch publishes (handoff client-refresh contract).
   useFeedState()
@@ -212,12 +211,6 @@ function IntelPageInner() {
        <div className="mc-workspace">
         <aside className="mc-ws-rail">
           <MissionHeroRail token={token ?? null} />
-          {isDesktop && token && wave2 ? (
-            <div className="mc-rail" style={{ marginTop: 16 }}>
-              {/* Wave 2: /scores/map warms on the idle cascade, not the login instant. */}
-              <SkillMapCard token={token} />
-            </div>
-          ) : null}
         </aside>
         <div className="mc-ws-main">
         {/* Match staleness + coin-charged recompute — relocated from the retired
