@@ -2,7 +2,7 @@ const FREE_FEATURES = [
   "Your Myro Score",
   "Full 10-domain analysis",
   "Live job matches",
-  "Forge skill practice",
+  "Skill practice",
   "Diary & CV versions",
 ]
 

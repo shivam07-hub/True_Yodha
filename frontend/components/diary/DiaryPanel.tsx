@@ -127,7 +127,7 @@ export function DiaryPanel({
           {/* Divider + Zone 2 — Skill cart */}
           <div style={{ margin: "0 18px", borderTop: "1px solid var(--tm-border-soft)", paddingTop: 14 }}>
             <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--tm-text-faint)", marginBottom: 10 }}>
-              Skill cart · Skills to forge this week
+              Skill cart · Skills to practice this week
             </div>
 
             {cartSkills.length === 0 ? (

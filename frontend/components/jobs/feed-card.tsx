@@ -278,8 +278,8 @@ export function FeedCard({
                     key={c.name}
                     href={`/forge?skill=${encodeURIComponent(c.name)}`}
                     className="fc-chip is-gap"
-                    title={`Practice ${c.name} in Forge`}
-                    aria-label={`Missing: ${c.name}. Practice it in Forge`}
+                    title={`Practice ${c.name}`}
+                    aria-label={`Missing: ${c.name}. Practice it`}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <Cross8 />

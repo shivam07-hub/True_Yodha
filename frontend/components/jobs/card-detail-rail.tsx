@@ -102,7 +102,7 @@ function MatchPanel({ matched, missing }: { matched: string[]; missing: string[]
           <span key={s} className="fc-chip fc-chip-count">{s}</span>
         ))}
         {missing.map((s) => (
-          <a key={s} href={`/forge?skill=${encodeURIComponent(s)}`} className="fc-chip is-gap" title={`Practice ${s} in Forge`}>
+          <a key={s} href={`/forge?skill=${encodeURIComponent(s)}`} className="fc-chip is-gap" title={`Practice ${s}`}>
             {s}
           </a>
         ))}
