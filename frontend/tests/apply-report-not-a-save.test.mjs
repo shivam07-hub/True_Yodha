@@ -52,3 +52,34 @@ test("neither surface thanks the user by claiming it kept the job", () => {
     assert.doesNotMatch(source, /reported[\s\S]{0,80}kept in Collections/)
   }
 })
+
+/* Lock #7 — the onward step lives in one place.
+ *
+ * The inline "Find similar roles" rendered on the reported state and called
+ * `capture.findSimilar`, which the CV surfaces never supplied — a button that
+ * did nothing on the surface where a dead listing costs the most. Terminal
+ * states now report and stop; the topbar Next chip carries the handoff.
+ */
+test("terminal states carry no inline onward button", () => {
+  for (const source of [webPrompt, mobilePrompt]) {
+    // The rendered text node, not the word — the note explaining the removal
+    // names the old button too.
+    assert.doesNotMatch(source, />\s*Find similar/)
+    // findSimilar must no longer hang off the reported branch at all.
+    assert.doesNotMatch(source, /state === "reported" \?[\s\S]{0,120}findSimilar/)
+  }
+})
+
+test("the closed-listing guard keeps its recovery link, and it is wired", () => {
+  // Distinct from a terminal state: the guard fires BEFORE the user leaves, so
+  // offering a live alternative there is the point of stopping them.
+  for (const source of [webPrompt, mobilePrompt]) {
+    assert.match(source, /capture\.findSimilar/)
+  }
+  for (const path of [
+    "../components/cv/builder/playground-view.tsx",
+    "../components/cv/builder/cv-export-view.tsx",
+  ]) {
+    assert.match(read(path), /onFindSimilar:/)
+  }
+})

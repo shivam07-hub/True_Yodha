@@ -139,6 +139,7 @@ def to_application(
         date_posted=job.get("date_posted"),
         seniority_level=job.get("seniority_level"),
         work_mode=job.get("work_mode"),
+        role_domain=job.get("role_domain"),
         min_years_experience=job.get("min_years_experience"),
         max_years_experience=job.get("max_years_experience"),
     )

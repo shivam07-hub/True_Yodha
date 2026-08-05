@@ -51,11 +51,12 @@ export function ApplyCapturePromptMobile({ capture }: { capture: ApplyCapture })
       : capture.state === "reported"
         ? "Thanks — flagged"
         : null
+  // See the web prompt: terminal states report and stop; the Next chip owns the
+  // onward step.
   if (message) {
     return (
-      <div style={{ ...row, justifyContent: "space-between" }}>
+      <div style={row}>
         <span style={{ color: "var(--mm-muted)" }}>{message}</span>
-        {capture.state === "reported" ? <button type="button" onClick={capture.findSimilar} style={link}>Find similar →</button> : null}
       </div>
     )
   }

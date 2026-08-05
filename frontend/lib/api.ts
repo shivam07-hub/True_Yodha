@@ -3035,6 +3035,8 @@ export interface ApplicationResponse {
   date_posted?: string | null
   seniority_level?: string | null
   work_mode?: string | null
+  /** Corpus role bucket — the "more roles like this one" scope. */
+  role_domain?: string | null
   min_years_experience?: number | null
   max_years_experience?: number | null
 }

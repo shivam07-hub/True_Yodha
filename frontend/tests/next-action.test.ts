@@ -191,3 +191,58 @@ test("nothing saved → find a role to tailor, marked generic", () => {
   assert.equal(next.label, "Find a role to tailor")
   assert.equal(next.generic, true)
 })
+
+/* The loop's exit — grill 2026-08-05, lock #7.
+ *
+ * Both endings of a job surface land on the last rung: "I applied to this" and
+ * "this listing is dead" each leave nothing better on the ladder. Both ask the
+ * same question — what else looks like this one — and the chip is the single
+ * answer. The inline "Find similar roles" that used to answer it was wired to
+ * nothing on the CV surfaces.
+ */
+
+test("finishing with a job points at more of its kind, not the whole board", () => {
+  const next = deriveNextAction(
+    [scoredApp({ job_id: "siemens", company: "Siemens", match_score: 33 })],
+    undefined,
+    {
+      cvPresence: "present",
+      now: NOW,
+      openJobId: "siemens",
+      openJobDomain: "Data & Analytics",
+    },
+  )
+  // `cluster` is /market's long-standing name for the role_domain filter.
+  assert.equal(next.href, "/market?cluster=Data%20%26%20Analytics")
+  assert.equal(next.label, "More Data & Analytics roles")
+  assert.equal(next.generic, true)
+})
+
+test("an unknown domain still gives a working destination", () => {
+  const next = deriveNextAction([], undefined, {
+    cvPresence: "present",
+    now: NOW,
+    openJobDomain: "   ",
+  })
+  assert.equal(next.href, "/market")
+  assert.equal(next.label, "Find a role to tailor")
+})
+
+test("the scoped rung never pre-empts a real next step", () => {
+  // A saved, untailored role outranks browsing — the domain scope is the last
+  // rung only, never a shortcut past unfinished work.
+  const next = deriveNextAction(
+    [
+      scoredApp({ job_id: "siemens", company: "Siemens", match_score: 33 }),
+      scoredApp({ job_id: "infosys", company: "Infosys", match_score: 71 }),
+    ],
+    undefined,
+    {
+      cvPresence: "present",
+      now: NOW,
+      openJobId: "siemens",
+      openJobDomain: "Data & Analytics",
+    },
+  )
+  assert.equal(next.href, "/cv?jobId=infosys")
+})

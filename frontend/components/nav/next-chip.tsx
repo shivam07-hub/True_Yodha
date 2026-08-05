@@ -24,9 +24,12 @@ import { deriveNextAction } from "@/components/nav/next-action"
  * renders on statically-generated public routes.
  */
 
-/** Segment-boundary match — "/cv" must not claim "/cv-preview". */
+/** Segment-boundary match — "/cv" must not claim "/cv-preview". A scoped rung
+ *  carries a query ("/market?cluster=…"); the surface test is about the route,
+ *  so compare paths only or the chip would fail to hide on its own page. */
 function onSurface(pathname: string, href: string): boolean {
-  return pathname === href || pathname.startsWith(`${href}/`)
+  const path = href.split("?")[0]
+  return pathname === path || pathname.startsWith(`${path}/`)
 }
 
 /** The job this surface is already dedicated to, if any. */
@@ -55,10 +58,16 @@ export function NextChip({ cvPresence }: { cvPresence: CvPresence }) {
 
   if (cvPresence === "unknown") return null
   if (!apps && cvPresence === "present") return null // cache warming — no flash of a wrong answer
+  const openId = openJobId(pathname, params)
   const next = deriveNextAction(apps ?? [], matches?.jobs, {
     cvPresence,
     newJobs: matches?.new_jobs_count ?? 0,
-    openJobId: openJobId(pathname, params),
+    openJobId: openId,
+    // Read before deriveNextAction drops this job from the ladder — the rung
+    // that needs the domain is the one that fires *because* nothing else is left.
+    openJobDomain: openId
+      ? (apps ?? []).find((a) => a.job_id === openId)?.role_domain ?? null
+      : null,
   })
   if (!next) return null
   if (next.generic && onSurface(pathname, next.href)) return null

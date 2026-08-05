@@ -19,6 +19,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import type { CVStructured, UserProfile } from "@/lib/api"
 import { cv as cvApi, jobs as jobsApi } from "@/lib/api"
@@ -46,6 +47,7 @@ import { DetailDrawer } from "@/components/jobs/detail-drawer"
 import { DetailHeader } from "@/components/jobs/detail-header"
 import { useApplyCapture } from "@/components/jobs/use-apply-capture"
 import { ApplyCapturePrompt } from "@/components/jobs/apply-capture-prompt"
+import { similarRolesHref } from "@/lib/jobs/similar-roles"
 import { Icon } from "./icons"
 
 type V2Tab = "edit" | "fixes" | "skills" | "preview"
@@ -79,6 +81,7 @@ export function PlaygroundView({
   onBackToBaseline, externalError, mentorRequested = false,
 }: PlaygroundViewProps) {
   const { selectedVersion, hiddenItems, toggleItem, autosaving, autosaved } = playground
+  const router = useRouter()
   const [tab, setTab] = useState<V2Tab>("edit")
   const [expandedFixId, setExpandedFixId] = useState<string | null>(null)
   const [appliedFixes, setAppliedFixes] = useState<AppliedFix[]>([])
@@ -147,6 +150,10 @@ export function PlaygroundView({
     surface: "other",
     intentSurface: "cv_playground",
     onSubmitted: recordSubmittedCv,
+    // The guard state ("this listing is closed") offers live alternatives, and
+    // on this surface that button used to call nothing — no onFindSimilar was
+    // ever passed. Terminal states hand off through the Next chip instead.
+    onFindSimilar: () => router.push(similarRolesHref(m.application?.role_domain)),
   })
   const applyHref = capture.href ?? ""
 
