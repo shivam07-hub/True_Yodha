@@ -736,3 +736,82 @@ def test_upload_status_does_not_sweep_an_active_job_with_a_live_lease(monkeypatc
     assert swept == []
     assert payload["status"] == "processing"
     assert payload["current_phase"] == "structuring_cv"
+
+
+def _live_job_row(**overrides: Any) -> dict[str, Any]:
+    """A processing job with a live lease, so tests exercise the path they name
+    rather than falling through to orphan recovery on a stale `created_at`."""
+    row: dict[str, Any] = {
+        "id": "job-1", "status": "processing", "current_phase": "finding_skills",
+        "skills_detected": None, "score": None, "error_code": None,
+        "error_detail": None, "xp_charged": 50, "xp_refunded": False,
+        "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
+        "lease_expires_at": (datetime.now(timezone.utc) + timedelta(seconds=120)).isoformat(),
+    }
+    row.update(overrides)
+    return row
+
+
+def test_processing_poll_does_not_read_the_coin_balance(monkeypatch) -> None:
+    """The balance is a terminal fact and the only consumers are the done/failed
+    branches of the client resolver — but it was fetched on EVERY poll.
+
+    The client polls every 2s across a p50 48s / p90 109s job, so this was 24-55
+    `user_profiles` round trips per upload, all discarded, during exactly the
+    window a signup burst competes for connection capacity.
+
+    Falsify by restoring the unconditional `await get_xp_balance(user_id)`:
+    `reads` becomes 1 and this fails.
+    """
+    from app.repositories import cv_upload_jobs
+
+    monkeypatch.setattr(
+        cv_upload_jobs, "fetch_status_for_owner", lambda _job, _user: _live_job_row(),
+    )
+    reads: list[str] = []
+
+    async def _bal(user):
+        reads.append(user)
+        return 2950
+
+    monkeypatch.setattr(cv_workflow, "get_xp_balance", _bal)
+
+    payload = asyncio.run(cv_workflow.get_cv_upload_status("job-1", "u1"))
+
+    assert reads == [], "a processing poll must not pay for a balance nobody reads"
+    assert payload["new_coin_balance"] is None
+    assert payload["status"] == "processing"
+
+
+@pytest.mark.parametrize("terminal_status", ["done", "failed"])
+def test_terminal_poll_still_carries_the_coin_balance(monkeypatch, terminal_status) -> None:
+    """The refund lands on the failure path and the charge on the success path,
+    so both terminal reads must still answer with a real balance."""
+    from app.repositories import cv_upload_jobs
+
+    monkeypatch.setattr(
+        cv_upload_jobs, "fetch_status_for_owner",
+        lambda _job, _user: _live_job_row(status=terminal_status, current_phase=None),
+    )
+
+    async def _bal(_user):
+        return 2800
+
+    monkeypatch.setattr(cv_workflow, "get_xp_balance", _bal)
+
+    payload = asyncio.run(cv_workflow.get_cv_upload_status("job-1", "u1"))
+
+    assert payload["new_coin_balance"] == 2800
+
+
+def test_legacy_phase_values_still_validate_on_the_way_out() -> None:
+    """`reading` and `structuring_cv` are no longer written by any code path, but
+    rows persisted before that stopped are still in the table. The response model
+    validates outbound, so narrowing the union would 500 those users' polls
+    instead of rendering them."""
+    from app.schemas.cv import CVUploadStatusResponse
+
+    for legacy in ("reading", "structuring_cv"):
+        assert CVUploadStatusResponse(
+            status="processing", current_phase=legacy, new_coin_balance=None,
+        ).current_phase == legacy
