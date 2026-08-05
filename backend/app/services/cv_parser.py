@@ -454,12 +454,25 @@ async def parse_cv_text(raw_text: str, provider: LLMProvider | None = None) -> d
         logger.info("CV text rejected as non-linguistic input (%d chars)", len(raw_text))
         return {"skills_detected": [], "cv_structured": None, "raw_text": raw_text, "provider_failed": False}
 
+    # Literal recall first, exactly as the persisted-CV path does.
+    #
+    # This path used to trust the model alone, so the SAME CV could yield fewer
+    # skills — or none at all — before signup than after it. A CV naming taxonomy
+    # skills outright would 422 with "we couldn't pull skills from this CV" on the
+    # free preview and then succeed once uploaded, because only `parse_cv_skills`
+    # reconciled the deterministic signal. That asymmetry sat on the widest step of
+    # the funnel, where most people who never come back are lost.
+    deterministic = extract_explicit_skills(raw_text)
     raw_skills, structured = await _llm_extract(raw_text, provider)
-    provider_failed = raw_skills is None
-    skills = _validate_and_normalize(raw_skills or [])
+    enriched = _validate_and_normalize(raw_skills or [])
+    skills = reconcile_skill_signals(deterministic, enriched)
+    # A model outage with real deterministic skills in hand is a degraded read,
+    # not a failure — callers fork on this to decide 503 vs. serve what we have.
+    provider_failed = raw_skills is None and not skills
     logger.info(
-        "Self-description parsed: %d chars → %d raw → %d validated Lightcast skills (structured=%s, provider_failed=%s)",
-        len(raw_text), len(raw_skills or []), len(skills), structured is not None, provider_failed,
+        "Self-description parsed: %d chars → %d deterministic + %d raw → %d validated Lightcast skills (structured=%s, provider_failed=%s)",
+        len(raw_text), len(deterministic), len(raw_skills or []), len(skills),
+        structured is not None, provider_failed,
     )
     return {
         "skills_detected": skills,
