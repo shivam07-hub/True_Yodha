@@ -25,6 +25,13 @@ _T = TypeVar("_T")
 # real bugs (bad column, RLS, malformed filter) still surface loudly.
 _TRANSIENT_STATUS = {"500", "502", "503", "504"}
 
+# Consecutive unreachable checks before a stored `active` degrades to
+# `uncertain`. One blocked fetch is noise — an ATS rate-limiting our verifier
+# says nothing about the job. A run of them means we have no current basis for
+# the claim, so we stop making it. `uncertain` is "we don't know", never "dead":
+# nothing is quarantined or retired, and one `seen_live` restores it.
+DEGRADE_AFTER_FAILURES = 2
+
 
 def _is_transient(err: Exception) -> bool:
     if isinstance(err, APIError):
@@ -128,7 +135,8 @@ class ListingVerificationRepository:
             lambda: self.db.table("jobs")
             .select(
                 "job_id,job_title,apply_url,listing_confidence,"
-                "last_verified_live_at,last_verification_attempt_at,retired_at"
+                "last_verified_live_at,last_verification_attempt_at,retired_at,"
+                "last_conclusive_verification_at"
             )
             .eq("job_id", job_id)
             .limit(1)
@@ -144,6 +152,28 @@ class ListingVerificationRepository:
             .eq("job_id", job_id)
             .execute()
         )
+
+    def _failure_state(self, job_id: str) -> tuple[int, str]:
+        """Current failure run and stored confidence for one listing.
+
+        Read only on the unreachable path — the common verdicts write a flat
+        reset and need no round trip.
+        """
+        rows = _with_retry(
+            lambda: self.db.table("jobs")
+            .select("consecutive_verify_failures,listing_confidence")
+            .eq("job_id", job_id)
+            .limit(1)
+            .execute()
+        ).data or []
+        if not rows:
+            return 0, "uncertain"
+        row = rows[0]
+        try:
+            failures = int(row.get("consecutive_verify_failures") or 0)
+        except (TypeError, ValueError):
+            failures = 0
+        return max(0, failures), str(row.get("listing_confidence") or "uncertain")
 
     def record(self, result: VerificationResult) -> None:
         now = self.now()
@@ -172,7 +202,16 @@ class ListingVerificationRepository:
             "last_verification_attempt_at": timestamp,
             "lifecycle_updated_at": timestamp,
         }
+        # Every branch below that reaches a verdict stamps the conclusive clock
+        # and clears the failure run. The two branches that do NOT — unreachable
+        # and unreadable — deliberately leave it alone, so a listing we cannot
+        # check stops passing as freshly checked.
+        conclusive = {
+            "last_conclusive_verification_at": timestamp,
+            "consecutive_verify_failures": 0,
+        }
         if result.result == "seen_live":
+            update.update(conclusive)
             update.update(
                 {
                     "is_active": True,
@@ -188,6 +227,7 @@ class ListingVerificationRepository:
                 }
             )
         elif result.result == "closed" and result.strength == "strong":
+            update.update(conclusive)
             eligible_at = (now + timedelta(days=30)).isoformat()
             update.update(
                 {
@@ -201,6 +241,7 @@ class ListingVerificationRepository:
                 }
             )
         elif result.result == "closed":
+            update.update(conclusive)
             update.update(
                 {
                     "listing_confidence": "likely_closed",
@@ -208,12 +249,34 @@ class ListingVerificationRepository:
                 }
             )
         elif result.result in {"redirected", "wrong_role"}:
+            update.update(conclusive)
             update.update(
                 {
                     "listing_confidence": "uncertain",
                     "confidence_reason": f"{result.provider}_verifier_{result.result}",
                 }
             )
+        elif result.result in {"blocked", "timeout"}:
+            # We could not reach the listing. That is not evidence it is gone —
+            # but it is also not permission to keep asserting the old verdict.
+            # Previously this branch did not exist: the row kept `active` AND
+            # re-stamped its attempt clock, which renewed the intent-gate cache
+            # for another 6h. Five of these in a row is how a listing last seen
+            # live in June was served as verified-active in August.
+            state = self._failure_state(result.job_id)
+            failures = state[0] + 1
+            update["consecutive_verify_failures"] = failures
+            if failures >= DEGRADE_AFTER_FAILURES and state[1] == "active":
+                update["listing_confidence"] = "uncertain"
+                update["confidence_reason"] = (
+                    f"{result.provider}_verifier_unreachable_x{failures}"
+                )
+        # `error` is the remaining case and is deliberately inert. In practice it
+        # is almost entirely `page_loaded_without_role_evidence`: an HTTP 200 on a
+        # client-rendered ATS whose HTML our fetch cannot read. That says nothing
+        # about the listing, so it must neither degrade it nor count as a check —
+        # leaving the conclusive clock untouched is what stops it renewing a
+        # stale claim.
         _with_retry(
             lambda: self.db.table("jobs")
             .update(update)
