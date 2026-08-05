@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next"
 import { JetBrains_Mono } from "next/font/google"
 import { LandingPage } from "@/components/public/landing-page"
-import { FAQ_ITEMS } from "@/components/public/landing/landing-copy"
 
 const BASE = "https://www.himyro.com"
 
@@ -47,29 +46,18 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 }
 
+// No FAQPage node here. The landing FAQ accordion was removed 2026-08-06 (its
+// questions were duplicates of /docs#faq), so /docs is the single surface that
+// emits FAQPage — one Q/A, one canonical URL.
 const JSON_LD = {
   "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "SoftwareApplication",
-      name: "Myro",
-      url: BASE,
-      applicationCategory: "BusinessApplication",
-      operatingSystem: "Web",
-      description: DESCRIPTION,
-      offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
-    },
-    // FAQPage emits ONLY landing-unique conversion Qs (schema: true). Product/
-    // reference Qs are owned by /docs#faq so no duplicate structured data exists.
-    {
-      "@type": "FAQPage",
-      mainEntity: FAQ_ITEMS.filter((item) => item.schema).map((item) => ({
-        "@type": "Question",
-        name: item.q,
-        acceptedAnswer: { "@type": "Answer", text: item.a },
-      })),
-    },
-  ],
+  "@type": "SoftwareApplication",
+  name: "Myro",
+  url: BASE,
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web",
+  description: DESCRIPTION,
+  offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
 }
 
 export default function HomePage() {

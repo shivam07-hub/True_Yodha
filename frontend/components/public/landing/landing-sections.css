@@ -127,57 +127,14 @@ a.lp-surface-card:hover .lp-surface-arrow { color: var(--lp-accent-text); transf
 }
 .lp-surface-card.myrology:hover .lp-myrology-link { color: var(--lp-text); }
 
-/* ── S6 — FAQ + closing CTA ─────────────────────────────────── */
-.lp-faq { padding: var(--lp-section-py) 0; border-top: 1px solid var(--lp-border); }
+/* ── S6 — closing CTA ───────────────────────────────────────── */
+/* The FAQ accordion that shared this band was removed 2026-08-06 — /docs#faq
+   owns the product FAQ. Only the closing dropzone lives here now, so the band
+   supplies its own top rule and the closing block no longer needs to clear an
+   accordion above it. */
+.lp-closing-band { padding: var(--lp-section-py) 0; border-top: 1px solid var(--lp-border); }
 
-.lp-faq .lp-section-head { margin-bottom: 40px; }
-
-.lp-faq-list { max-width: 760px; margin: 0 auto; }
-
-.lp-faq-item { border-bottom: 1px solid var(--lp-border); }
-.lp-faq-item:first-child { border-top: 1px solid var(--lp-border); }
-
-.lp-faq-q {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 22px 4px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  font-family: var(--lp-font);
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--lp-text);
-  transition: color var(--lp-dur) var(--lp-ease);
-}
-.lp-faq-q:hover { color: var(--lp-accent-text); }
-.lp-faq-q:focus-visible { outline: 2px solid var(--lp-accent-ring); outline-offset: 2px; }
-
-.lp-faq-chevron { flex-shrink: 0; color: var(--lp-faint); transition: transform var(--lp-dur-slow) var(--lp-ease), color var(--lp-dur-slow) var(--lp-ease); }
-.lp-faq-item.open .lp-faq-chevron { transform: rotate(180deg); color: var(--lp-accent-text); }
-
-.lp-faq-a {
-  overflow: hidden;
-  max-height: 0;
-  transition: max-height var(--lp-dur-slow) var(--lp-ease);
-}
-
-.lp-faq-a-inner {
-  padding: 0 4px 24px;
-  font-size: 15px;
-  line-height: 1.7;
-  color: var(--lp-muted);
-  max-width: 640px;
-  text-wrap: pretty;
-}
-
-/* closing CTA */
 .lp-closing {
-  margin-top: 88px;
   display: flex;
   flex-direction: column;
   align-items: center;
