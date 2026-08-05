@@ -124,10 +124,10 @@ still desktop layouts on a phone. The CV screen is one of them, so stage one is
 broken on mobile. Also: nobody has opened the rebuilt mobile app on a real phone
 while logged in.
 
-**5. Make it fast enough to feel trustworthy.** *Carried.*
-A real user reported a broken session. Every request returned 200 — they just
-took 5–6 seconds because reads queue. The machine is idle; it is connection
-capacity, not compute. Measure the database connection ceiling first.
+**5. Make it fast enough to feel trustworthy.** *Two fixed, verifier open.*
+Never connection capacity (24/60, 2 active) — `shared_buffers` 224MB < `jobs`
+522MB, so one seq scan evicted the cache and slowed everything. Fixed: a dead
+partial index + an 11,208-row paged count. **Open:** verifier shares the DB.
 
 ### Stage 2 — job matching through Myro Ops (next)
 
