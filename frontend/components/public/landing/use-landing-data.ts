@@ -21,12 +21,6 @@ function configuredSeekerCount(): number | null {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : null
 }
 
-export interface IntelTeaserRow {
-  company: string
-  count: number
-  topSkill: string | null
-}
-
 export interface LandingData {
   analytics: MarketAnalytics | null
   stats: PublicStatsResponse | null
@@ -40,8 +34,6 @@ export interface LandingData {
   seekers: number | null
   /** Real company names from the Engine's corpus, for the hero marquee. */
   marqueeNames: string[]
-  intelRows: IntelTeaserRow[]
-  asOf: Date | null
 }
 
 const HOUR = 60 * 60 * 1000
@@ -64,25 +56,6 @@ export function useLandingData(): LandingData {
   const analytics = analyticsQ.data ?? null
   const stats = statsQ.data ?? null
 
-  const topCompanies = (analytics?.by_company ?? []).slice(0, 3)
-  const topNames = topCompanies.map((c) => c.name)
-
-  const topSkillsQ = useQuery({
-    queryKey: ["landing", "top-skills", topNames.join("|")],
-    enabled: topNames.length > 0,
-    staleTime: HOUR,
-    retry: 0,
-    queryFn: () =>
-      Promise.all(
-        topNames.map((name) =>
-          jobs
-            .analyticsEntitySkills(name, "company")
-            .then((r) => r.skills[0]?.skill ?? null)
-            .catch(() => null),
-        ),
-      ),
-  })
-
   const jobsTracked = displayCount(
     stats?.jobs_tracked ?? analytics?.total_jobs,
     LANDING_FLOORS.jobs,
@@ -96,13 +69,6 @@ export function useLandingData(): LandingData {
   const skillsMapped = displayCount(stats?.skills_mapped, LANDING_FLOORS.skills, 1000)
   const seekers = configuredSeekerCount()
 
-  const asOfRaw = stats?.as_of ?? analytics?.latest_batch ?? null
-  let asOf: Date | null = null
-  if (asOfRaw) {
-    const parsed = new Date(asOfRaw)
-    if (!Number.isNaN(parsed.getTime())) asOf = parsed
-  }
-
   return {
     analytics,
     stats,
@@ -112,11 +78,5 @@ export function useLandingData(): LandingData {
     skillsMapped,
     seekers,
     marqueeNames: (analytics?.by_company ?? []).slice(0, 24).map((c) => c.name),
-    intelRows: topCompanies.map((c, i) => ({
-      company: c.name,
-      count: c.count,
-      topSkill: topSkillsQ.data?.[i] ?? null,
-    })),
-    asOf,
   }
 }

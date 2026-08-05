@@ -10,9 +10,9 @@ function read(path: string): string {
 }
 
 test("the public landing leaves newsletter subscription to the newsletter page", () => {
-  const landingProof = read("components/public/landing/proof.tsx")
+  const landingPage = read("components/public/landing-page.tsx")
   const newsletterPage = read("app/newsletter/page.tsx")
 
-  assert.doesNotMatch(landingProof, /newsletter\.subscribe|NewsletterStrip|lp-news-form/)
+  assert.doesNotMatch(landingPage, /newsletter\.subscribe|NewsletterStrip|lp-news-form/)
   assert.match(newsletterPage, /<EmailSubscribe compact \/>/)
 })
