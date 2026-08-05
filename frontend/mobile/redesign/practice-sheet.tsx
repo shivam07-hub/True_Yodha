@@ -11,7 +11,7 @@ import { useMobileUI } from "./mobile-ui"
 /* ══════════════════════════════════════════════════════════════════════════
    PracticeSheet — top-bar bolt → the handoff Practice sheet. A launcher: shows
    the next set (from real upskilling.skills) + the L1–L5 ladder, then routes to
-   the full practice yard (/forge) to run it. Streak from real activity dates,
+   the full practice yard (/practice) to run it. Streak from real activity dates,
    coins from the wallet store. Graceful-degrade when no data yet.
    ══════════════════════════════════════════════════════════════════════════ */
 

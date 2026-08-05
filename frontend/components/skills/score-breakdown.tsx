@@ -19,7 +19,7 @@ interface Props {
   gapSkills: GapSkill[]
   id?: string
   /**
-   * "default" — the standalone decomposition (/forge, /market): lede, per-domain
+   * "default" — the standalone decomposition (/practice, /market): lede, per-domain
    * levers, uncounted tier, method link. The only place that sentence appears.
    *
    * "selector" — the SAME bars acting as the domain picker on /skills, where the
