@@ -14,6 +14,12 @@
 
 ## LAST SESSION SUMMARY
 
+### 2026-08-05 — Landing-page declutter
+
+- Removed the “The weekly loop” panel from the public landing page, including
+  its component and dedicated styling. The live-job search remains unchanged.
+- Frontend tests (563), TypeScript, and lint pass.
+
 ### 2026-08-04 — Intel loading and empty-state recovery
 
 - Authenticated Intel now holds a theme-aware structural skeleton until both
