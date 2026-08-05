@@ -788,6 +788,20 @@ async def _run_cv_upload_stages(
         )
         return
 
+    # The long leg is over. Say so.
+    #
+    # Everything above this line is ONE LLM call, and it is p50 48s / p90 109s of
+    # the job. Before this phase existed the whole run wrote exactly two phases —
+    # `queued` at row creation and `finding_skills` here — so the screen changed
+    # once and then held the same sentence for a minute or more. A wait that never
+    # changes reads as a wait that has stopped, which is the complaint this fixes.
+    #
+    # It is a real boundary, not a decoration: extraction has returned and
+    # validated, and what follows is the claim + baseline write. Nothing here is
+    # on a timer. If the claim below is lost, `_status_phase` answers from the
+    # row's terminal `status`, so a stranded `saving` can never reach a user.
+    upload_jobs_repo.set_phase(job_id, "saving")
+
     # The CV's visual LAYOUT (`cv_structured`) is NOT computed here. It used to be,
     # as a second sequential LLM call after skill extraction.
     #
@@ -894,7 +908,19 @@ async def get_cv_upload_status(job_id: str, user_id: str) -> dict[str, Any]:
             headers={"X-Myro-Error-Code": "job_not_found"},
         )
     row = _sweep_stale_processing_job_if_needed(job_id, user_id, row)
-    balance = await get_xp_balance(user_id)
+    # The balance is a TERMINAL fact, so only a terminal read pays for it.
+    #
+    # This ran on every poll. The client polls every 2s across a p50 48s / p90
+    # 109s job, so a single upload spent 24-55 extra `user_profiles` round trips
+    # to answer a question nobody asked: the only consumers of this field are the
+    # done and failed branches of `resolveCVUploadResult`. Every processing poll
+    # fetched it and threw it away — during a signup burst, on the connection
+    # capacity that a concurrent-login burst is already competing for.
+    #
+    # A refund only happens on the failure path, and that path is terminal, so
+    # nothing observable is lost by not reading it mid-flight.
+    terminal = row["status"] in ("done", "failed")
+    balance = await get_xp_balance(user_id) if terminal else None
     return {
         "status": row["status"],
         "current_phase": _status_phase(row),

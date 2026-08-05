@@ -7,129 +7,17 @@
   padding: 8px 0;
 }
 
-/* ── Running: the reading rail ─────────────────────────────────────────────
-   One continuous rail carries the four parse steps and terminates in the
-   skeleton of the score card. The rail behind travelled steps is accent-tinted,
-   the rail ahead is plain border: the structure itself encodes how far the read
-   has got, so no separate progress bar is needed.
+/* ── Running ───────────────────────────────────────────────────────────────
+   The wait itself is `components/cv/analysis-stage.css`, shared with onboarding
+   and the logged-out preview. What remains here is the part that only exists on
+   this surface: the empty score card the wait terminates in.
 
-   ONE hue, three weights: a quiet accent disc for done, a full accent ring +
-   halo for the single active step, a hollow border ring for pending. (The old
-   filled-green ✓ put the heaviest mark on the rows that no longer matter, and
-   fought the orange accent for attention.) */
-.csp--running { gap: 4px; }
-
-.csp-steps {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.csp-step {
-  position: relative;
-  display: grid;
-  grid-template-columns: 16px 1fr auto;
-  column-gap: 12px;
-  align-items: start;
-  padding-bottom: 18px;
-  font-size: 14px;
-  line-height: 1.45;
-}
-/* Rail segment: from this marker down through the row's own padding, so the
-   line is unbroken and the last one runs on into the skeleton below. */
-.csp-step::before {
-  content: "";
-  position: absolute;
-  left: 7px;
-  top: 19px;
-  bottom: 0;
-  width: 2px;
-  border-radius: 1px;
-  background: var(--tm-border);
-  transition: background 300ms var(--tm-ease, cubic-bezier(0.2, 0.8, 0.2, 1));
-}
-.csp-step.is-done::before { background: var(--tm-int-border); }
-
-/* The three states differ in COLOUR and SCALE only — border-width is held at
-   2.5px for all of them. border-width is not interpolable, so varying it made
-   the stroke snap while the colour eased, and a step advance flashed a grey
-   half-formed ring for 260ms. That happens three times in the first eight
-   seconds, i.e. every user sees it. Transform + colour animate cleanly. */
-.csp-step-dot {
-  width: 16px;
-  height: 16px;
-  margin-top: 2px;              /* optical centre against the 14px label */
-  border-radius: 50%;
-  border: 2.5px solid transparent;
-  position: relative;
-  transition:
-    transform 260ms var(--tm-ease, cubic-bezier(0.2, 0.8, 0.2, 1)),
-    background-color 260ms linear,
-    border-color 260ms linear;
-}
-.csp-step.is-pending .csp-step-dot {
-  border-color: var(--tm-border);
-  transform: scale(0.55);
-}
-/* Background paints under the border box, so a transparent stroke leaves a
-   solid disc — the marker shrinks and fills rather than changing shape. */
-.csp-step.is-done .csp-step-dot {
-  /* Alpha mixed into the colour, not an `opacity` on the box: opacity is not in
-     the transition list above, so it snapped to 0.55 while the fill was still
-     easing in. As a colour it interpolates with everything else. */
-  background-color: color-mix(in srgb, var(--tm-interactive, var(--tm-accent)) 55%, transparent);
-  transform: scale(0.55);
-}
-.csp-step.is-active .csp-step-dot {
-  border-color: var(--tm-interactive, var(--tm-accent));
-  background-color: var(--tm-surface, var(--tm-bg));
-}
-/* The one animated element on screen. Transform + opacity only — compositor
-   work, never layout or paint. */
-.csp-step.is-active .csp-step-dot::after {
-  content: "";
-  position: absolute;
-  inset: -2.5px;
-  border-radius: 50%;
-  border: 2px solid var(--tm-interactive, var(--tm-accent));
-  animation: csp-halo 1900ms cubic-bezier(0.25, 0.6, 0.3, 1) infinite;
-}
-@keyframes csp-halo {
-  0%        { transform: scale(1);   opacity: 0.5; }
-  70%, 100% { transform: scale(2.1); opacity: 0; }
-}
-
-/* Two ink levels, not three: one hot row and the rest quiet. Done and pending
-   are told apart by their marker and the rail behind them — structure, not a
-   contrast cliff. (Pending sat in --tm-text-faint, ~3:1 at 14px on the light
-   paper: legibility spent on a distinction the rail already makes.) */
-.csp-step-label {
-  color: var(--tm-text-muted);
-  transition: color 260ms linear;
-}
-.csp-step.is-active .csp-step-label { color: var(--tm-text); font-weight: 600; }
-
-/* The counter rides the active row — it measures the step it sits beside, and
-   travels down the rail with it. Tabular figures so the width never jitters. */
-.csp-step-time {
-  align-self: start;
-  padding-top: 1px;
-  font-family: var(--tm-font-mono);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  font-variant-numeric: tabular-nums;
-  /* Not --tm-interactive: at 12px the raw fill fails AA on the light paper.
-     --tm-accent-text is the AA-safe accent-as-text token, and on dark it is the
-     exact hue of the ring beside it. */
-  color: var(--tm-accent-text, var(--tm-interactive));
-}
-.csp-step-note {
-  grid-column: 2 / -1;
-  margin-top: 5px;
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--tm-text-muted);
-}
+   The rail that used to live here (.csp-step / .csp-step-dot / .csp-step-label
+   and their is-done / is-pending states) went unused when db89a3f4 collapsed the
+   fabricated parse substeps to a single live phase — three states of styling for
+   a list that could only ever render one row. It is now the shared ladder's,
+   where all three states are reachable again. */
+.csp--running { gap: 18px; }
 
 /* ── The score card, empty ────────────────────────────────────────────────
    The rail's terminus, and a genuine real-shape skeleton (ADR-0011 §B): it

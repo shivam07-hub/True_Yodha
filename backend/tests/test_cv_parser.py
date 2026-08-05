@@ -458,3 +458,75 @@ class TestIsPlausibleProfessionalText:
 
     def test_all_consonants_fails(self) -> None:
         assert _is_plausible_professional_text("bcdfghjklmnpqrstvwxyz" * 3) is False
+
+
+class TestAnonAndAuthedParseAgreeOnLiteralSkills:
+    """The free preview must not be worse at reading a CV than the paid path.
+
+    `parse_cv_skills` (upload) reconciled deterministic literal recall with the
+    model's answer; `parse_cv_text` (anon /public/score-cv, and the skill-edit
+    recompute) trusted the model alone. So the SAME CV could yield fewer skills —
+    or trip the "we couldn't pull skills from this CV" 422 — before signup and
+    then succeed after it. That asymmetry sat on the widest step of the funnel.
+    """
+
+    CV = "Senior engineer with five years building distributed systems in Python and SQL at Acme."
+
+    @pytest.mark.asyncio
+    async def test_a_named_skill_survives_a_model_that_missed_it(self, monkeypatch) -> None:
+        """Falsify by dropping the deterministic reconcile: the CV says Python,
+        the model returns nothing, and the anon user is told we found no skills."""
+        async def _model_missed_it(cv_text: str, provider=None):  # noqa: ANN001
+            return [], None
+        monkeypatch.setattr(cv_parser, "_llm_extract", _model_missed_it)
+
+        out = await cv_parser.parse_cv_text(self.CV)
+
+        keys = {s["taxonomy_key"] for s in out["skills_detected"]}
+        assert "Python (Programming Language)" in keys
+        assert "SQL (Programming Language)" in keys
+
+    @pytest.mark.asyncio
+    async def test_both_entry_points_read_the_same_cv_the_same_way(self, monkeypatch) -> None:
+        """The invariant stated directly: whatever the model does, the literal
+        floor is identical on both paths."""
+        async def _nothing_text(cv_text: str, provider=None):  # noqa: ANN001
+            return [], None
+        async def _nothing_skills(cv_text: str, provider=None):  # noqa: ANN001
+            return [], {}
+        monkeypatch.setattr(cv_parser, "_llm_extract", _nothing_text)
+        monkeypatch.setattr(cv_parser, "_llm_extract_skills", _nothing_skills)
+
+        anon = await cv_parser.parse_cv_text(self.CV)
+        authed = await cv_parser.parse_cv_skills(self.CV)
+
+        assert {s["taxonomy_key"] for s in anon["skills_detected"]} == {
+            s["taxonomy_key"] for s in authed["skills_detected"]
+        }
+
+    @pytest.mark.asyncio
+    async def test_a_provider_outage_with_real_skills_in_hand_is_not_a_failure(self, monkeypatch) -> None:
+        """`provider_failed` drives a 503 in the anon router. With deterministic
+        skills recovered there IS an answer, so serving it beats an error page —
+        the same rule `parse_cv_skills` already applied."""
+        async def _outage(cv_text: str, provider=None):  # noqa: ANN001
+            return None, None
+        monkeypatch.setattr(cv_parser, "_llm_extract", _outage)
+
+        out = await cv_parser.parse_cv_text(self.CV)
+
+        assert out["skills_detected"], "literal recall should have caught Python and SQL"
+        assert out["provider_failed"] is False
+
+    @pytest.mark.asyncio
+    async def test_a_total_outage_with_nothing_to_recover_still_reports_failure(self, monkeypatch) -> None:
+        """The degraded path must not swallow a real outage into a silent empty
+        result — a CV naming no taxonomy skill has nothing to fall back on."""
+        async def _outage(cv_text: str, provider=None):  # noqa: ANN001
+            return None, None
+        monkeypatch.setattr(cv_parser, "_llm_extract", _outage)
+
+        out = await cv_parser.parse_cv_text("I have ten years of experience in " + "software " * 20)
+
+        assert out["skills_detected"] == []
+        assert out["provider_failed"] is True

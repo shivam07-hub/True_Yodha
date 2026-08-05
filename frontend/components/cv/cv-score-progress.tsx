@@ -3,22 +3,21 @@
 import * as React from "react"
 import Link from "next/link"
 import "./cv-score-progress.css"
+import { CvAnalysisStage } from "./analysis-stage"
 import { tierForScore } from "@/lib/score-tiers"
 import type { CVUploadPhase } from "@/lib/cv-upload-state"
-import {
-  currentPhaseLabel,
-  elapsedSeconds,
-  formatElapsed,
-  isSlow,
-  revealVerdict,
-} from "@/lib/cv/upload-progress"
+import { revealVerdict } from "@/lib/cv/upload-progress"
 
 /**
- * #6 — deploy-style CV-upload progress (GitHub/Vercel deploy log analog).
- * Shared by the Replace-Main-CV modal and onboarding. Truthful phases, a
- * live-elapsed counter (NO fabricated estimate), a real-shape skeleton, an
- * inline done-morph (no redirect), and a per-error failure state. No lying
- * "20-30 seconds" clock, no reassurance microcopy (the done-morph proves it).
+ * The CV-upload outcome on /cv: the score reveal and the failure state.
+ *
+ * The RUNNING state is no longer implemented here — it is `CvAnalysisStage`,
+ * the one wait surface shared with onboarding and the logged-out preview. What
+ * belongs to this file is what only happens here: the score ring morph, the
+ * reveal beat, and a per-error failure with its refund receipt.
+ *
+ * Truthful phases, a live elapsed counter (NO fabricated estimate), and no
+ * "20-30 seconds" clock — the done-morph is the proof, not reassurance copy.
  */
 
 type Phase = CVUploadPhase
@@ -60,21 +59,7 @@ interface CvScoreProgressProps {
   onRetry?: () => void
 }
 
-function useElapsed(startedAt: string | null, active: boolean): number {
-  const [now, setNow] = React.useState(() => Date.now())
-  React.useEffect(() => {
-    if (!active) return
-    const id = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(id)
-  }, [active])
-  return elapsedSeconds(startedAt, now)
-}
-
 export function CvScoreProgress({ status, phase, startedAt, done, fail, onRetry }: CvScoreProgressProps) {
-  const processing = status === "processing"
-  const elapsed = useElapsed(startedAt, processing)
-  const slow = processing && isSlow(elapsed)
-
   if (status === "failed" && fail) {
     return (
       <div className="csp csp--failed" role="alert">
@@ -151,25 +136,13 @@ export function CvScoreProgress({ status, phase, startedAt, done, fail, onRetry 
     )
   }
 
-  // Processing — one persisted server phase, never a timed story about work that
-  // may not be happening. Elapsed time proves liveness without estimating an end.
+  // Processing — the shared wait, then the real-shape skeleton of the score card
+  // this surface (and only this surface) is about to fill. The skeleton mirrors
+  // `.csp--done` exactly, so the result does not replace it: the ring is already
+  // in position when the score lands, and only its weight and number change.
   return (
-    <div className="csp csp--running" aria-busy="true">
-      <ol className="csp-steps" aria-live="polite">
-        <li className="csp-step is-active">
-          <span className="csp-step-dot" aria-hidden />
-          <span className="csp-step-label">{currentPhaseLabel(phase)}</span>
-          {/* aria-hidden: a per-second announcement is hostile to screen readers. */}
-          <span className="csp-step-time" aria-hidden>{formatElapsed(elapsed)}</span>
-          {slow ? (
-            <span className="csp-step-note">Still working — this is taking longer than usual.</span>
-          ) : null}
-        </li>
-      </ol>
-
-      {/* Real-shape skeleton of the score card that's coming — the terminus of
-          the rail, not an appended card (rule 4). Canonical `.tm-skeleton`
-          sweep (ADR-0011 §B) instead of a hand-rolled per-element pulse. */}
+    <div className="csp csp--running">
+      <CvAnalysisStage kind="job" phase={phase} startedAt={startedAt} onRetry={onRetry} />
       <div className="csp-skeleton" aria-hidden>
         <div className="csp-sk-ring" />
         <div className="csp-sk-lines">

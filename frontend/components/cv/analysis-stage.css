@@ -1,0 +1,233 @@
+/* The CV-analysis wait — one visual language for every surface that shows it.
+   Page-scoped per ADR-0003.
+
+   Tokens only, and `--tm-*` directly rather than a `--lp-*` alias layer: this
+   renders on the logged-out landing surface AND inside the authed app, and the
+   landing derives its `--lp-*` FROM these, so reaching for the source works on
+   both. Accent therefore follows the two-brand rule with no per-surface scope —
+   orange on the light paper, teal on the dark. This is NOT one of the approved
+   fixed-dark console islands (landing engine pipeline / sample readout / intel
+   pane), so it themes with the page.
+
+   One motion budget: the scan sweep. Everything else is a state transition. */
+
+.cva {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.cva-headline {
+  margin: 0;
+  font-size: clamp(20px, 2.4vw, 25px);
+  font-weight: 650;
+  line-height: 1.25;
+  text-wrap: balance;
+  color: var(--tm-text);
+}
+
+/* ── The document being read ───────────────────────────────────────────────── */
+
+.cva-doc {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 10px;
+  background: var(--tm-surface-2);
+}
+
+.cva-line {
+  height: 9px;
+  border-radius: 999px;
+  background: var(--tm-border);
+}
+.cva-line.w90 { width: 90%; }
+.cva-line.w80 { width: 80%; }
+.cva-line.w75 { width: 75%; }
+.cva-line.w70 { width: 70%; }
+.cva-line.w55 { width: 55%; }
+
+/* Compositor-only: transform, never layout or paint. Removed from the DOM
+   entirely once stalled — a sweep over a document nobody is reading is the
+   exact false-progress signal this whole surface exists to stop telling. */
+.cva-scan {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 38%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--tm-accent) 16%, transparent) 50%,
+    transparent 100%
+  );
+  transform: translateX(-120%);
+  animation: cva-sweep 1.7s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  will-change: transform;
+}
+@keyframes cva-sweep {
+  to { transform: translateX(360%); }
+}
+
+/* ── The ladder ────────────────────────────────────────────────────────────
+   One continuous rail: the rail behind travelled steps is accent-tinted, the
+   rail ahead is plain border, so the structure itself encodes how far the read
+   has got and no separate progress bar is needed.
+
+   ONE hue, three weights — a quiet accent disc for done, a full ring plus halo
+   for the single active step, a hollow border ring for pending. */
+
+.cva-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.cva-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 16px 1fr auto;
+  column-gap: 12px;
+  align-items: start;
+  padding-bottom: 18px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.cva-step:last-child { padding-bottom: 0; }
+
+/* Rail segment: from this marker down through the row's own padding, so the
+   line is unbroken. The last row has no padding, so it draws no tail. */
+.cva-step::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 19px;
+  bottom: 0;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--tm-border);
+  transition: background 300ms var(--tm-ease, cubic-bezier(0.2, 0.8, 0.2, 1));
+}
+.cva-step.is-done::before { background: var(--tm-int-border); }
+/* The last row has no padding to draw through, so `top: 19px; bottom: 0` leaves
+   a ~2px tail hanging off the final marker — a rail pointing at a step that
+   does not exist. Nothing follows the last step, so nothing should lead to it. */
+.cva-step:last-child::before { content: none; }
+
+/* The three states differ in COLOUR and SCALE only — border-width is held at
+   2.5px throughout. border-width is not interpolable, so varying it made the
+   stroke snap while the colour eased, flashing a grey half-formed ring on every
+   advance. Transform and colour animate cleanly. */
+.cva-dot {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;              /* optical centre against the 14px label */
+  border-radius: 50%;
+  border: 2.5px solid transparent;
+  position: relative;
+  transition:
+    transform 260ms var(--tm-ease, cubic-bezier(0.2, 0.8, 0.2, 1)),
+    background-color 260ms linear,
+    border-color 260ms linear;
+}
+.cva-step.is-pending .cva-dot {
+  border-color: var(--tm-border);
+  transform: scale(0.55);
+}
+/* Background paints under the border box, so a transparent stroke leaves a
+   solid disc — the marker shrinks and fills rather than changing shape. Alpha
+   is mixed into the colour, not applied as `opacity`: opacity is not in the
+   transition list above, so it snapped while the fill was still easing. */
+.cva-step.is-done .cva-dot {
+  background-color: color-mix(in srgb, var(--tm-interactive, var(--tm-accent)) 55%, transparent);
+  transform: scale(0.55);
+}
+.cva-step.is-active .cva-dot {
+  border-color: var(--tm-interactive, var(--tm-accent));
+  background-color: var(--tm-surface, var(--tm-bg));
+}
+.cva-step.is-active .cva-dot::after {
+  content: "";
+  position: absolute;
+  inset: -2.5px;
+  border-radius: 50%;
+  border: 2px solid var(--tm-interactive, var(--tm-accent));
+  animation: cva-halo 1900ms cubic-bezier(0.25, 0.6, 0.3, 1) infinite;
+}
+@keyframes cva-halo {
+  0%        { transform: scale(1);   opacity: 0.5; }
+  70%, 100% { transform: scale(2.1); opacity: 0; }
+}
+
+/* Two ink levels, not three: one hot row and the rest quiet. Done and pending
+   are told apart by their marker and the rail behind them — structure, not a
+   contrast cliff. (Pending in --tm-text-faint is ~3:1 at 14px on the light
+   paper: legibility spent on a distinction the rail already makes.) */
+.cva-label {
+  color: var(--tm-text-muted);
+  transition: color 260ms linear;
+}
+.cva-step.is-active .cva-label { color: var(--tm-text); font-weight: 600; }
+
+/* The counter rides the active row — it measures the wait the user is having,
+   beside the step they are having it on. Tabular figures so width never jitters. */
+.cva-time {
+  align-self: start;
+  padding-top: 1px;
+  font-family: var(--tm-font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  /* Not --tm-interactive: at 12px the raw fill fails AA on the light paper.
+     --tm-accent-text is the AA-safe accent-as-text token, and on dark it is the
+     exact hue of the ring beside it. */
+  color: var(--tm-accent-text, var(--tm-interactive));
+}
+
+.cva-note {
+  margin: -4px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--tm-text-muted);
+}
+
+.cva-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.cva-retry {
+  display: inline-flex;
+  align-items: center;
+  height: 44px;                 /* the tap-target floor, same as the escape link */
+  padding: 0 20px;
+  border-radius: var(--tm-radius);
+  border: 1px solid var(--tm-border);
+  background: transparent;
+  font: 600 14px/1 var(--tm-font-sans, inherit);
+  color: var(--tm-text);
+  cursor: pointer;
+  transition: background-color 150ms var(--tm-ease, cubic-bezier(0.2, 0.8, 0.2, 1));
+}
+.cva-retry:hover { background: var(--tm-surface-hover); }
+
+@media (prefers-reduced-motion: reduce) {
+  /* Kill the sweep and the halo; the rail fill, the marker weights and the live
+     counter still carry every bit of the state. */
+  .cva-scan,
+  .cva-step.is-active .cva-dot::after { animation: none; }
+  .cva-scan { opacity: 0; }
+  .cva-step::before,
+  .cva-dot,
+  .cva-label { transition: none; }
+}

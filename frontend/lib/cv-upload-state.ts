@@ -4,7 +4,17 @@
  * without spinning up Next, fetch, or the auth refresh stack.
  */
 
-export type CVUploadPhase = "queued" | "reading" | "finding_skills" | "structuring_cv" | "ready" | "failed"
+/**
+ * Mirrors `CVUploadPhase` in backend/app/schemas/cv.py — keep them in step.
+ *
+ * `reading` and `structuring_cv` are not written by any code path today (raw
+ * text is extracted before the job is accepted; the layout parse is deferred).
+ * They stay because rows persisted before that change still poll, and a client
+ * that cannot name a phase it receives is a client that cannot render it.
+ */
+export type CVUploadPhase =
+  | "queued" | "reading" | "finding_skills" | "saving" | "structuring_cv"
+  | "ready" | "failed"
 
 export type CVUploadInitial =
   | {
@@ -40,8 +50,10 @@ export interface CVUploadPolledStatus {
   error_code: string | null
   error_detail: string | null
   xp_charged: number
+  /** Terminal polls only. A processing poll answers null rather than paying a
+   *  `user_profiles` read per tick — see `get_cv_upload_status`. */
+  new_coin_balance: number | null
   xp_refunded: boolean
-  new_coin_balance: number
   /** Job-creation timestamp (ISO), retained for upload lifecycle observability. */
   started_at?: string | null
   redirect_to: string | null
