@@ -1,72 +1,15 @@
-"use client"
-
-import { useState, type FormEvent } from "react"
 import Link from "next/link"
-import { newsletter } from "@/lib/api"
 import { QUOTES } from "./landing-copy"
 import { SectionTitle } from "./section-title"
 import type { IntelTeaserRow } from "./use-landing-data"
 import { formatDate } from "@/lib/format"
 
-function NewsletterStrip({ companiesLabel }: { companiesLabel: string }) {
-  const [email, setEmail] = useState("")
-  const [status, setStatus] = useState<"idle" | "busy" | "ok" | "error">("idle")
-
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault()
-    const value = email.trim()
-    if (!value || value.indexOf("@") < 1) return
-    setStatus("busy")
-    try {
-      await newsletter.subscribe(value, "landing")
-      setStatus("ok")
-    } catch {
-      setStatus("error")
-    }
-  }
-
-  return (
-    <div className="lp-news-strip lp-reveal" id="newsletter">
-      <p className="lp-news-copy">
-        <strong>Myro Intelligence</strong> — what {companiesLabel} companies are hiring for,
-        weekly. Written from the Engine&rsquo;s data.
-      </p>
-      {status === "ok" ? (
-        <span className="lp-news-ok" role="status">
-          Subscribed — first issue arrives this week.
-        </span>
-      ) : (
-        <form className="lp-news-form" onSubmit={onSubmit}>
-          <input
-            className="lp-news-input"
-            type="email"
-            required
-            placeholder="you@example.com"
-            aria-label="Email address"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <button className="lp-news-btn" type="submit" disabled={status === "busy"}>
-            {status === "busy" ? "Subscribing…" : "Subscribe"}
-          </button>
-          {status === "error" && (
-            <span className="lp-news-err" role="alert">
-              Could not subscribe — try again.
-            </span>
-          )}
-        </form>
-      )}
-    </div>
-  )
-}
-
 interface LandingProofProps {
   rows: IntelTeaserRow[]
   asOf: Date | null
-  companiesLabel: string
 }
 
-export function LandingProof({ rows, asOf, companiesLabel }: LandingProofProps) {
+export function LandingProof({ rows, asOf }: LandingProofProps) {
   const asOfLabel = asOf
     ? formatDate(asOf, "medium")
     : null
@@ -131,8 +74,6 @@ export function LandingProof({ rows, asOf, companiesLabel }: LandingProofProps) 
             </figure>
           ))}
         </div>
-
-        <NewsletterStrip companiesLabel={companiesLabel} />
       </div>
     </section>
   )

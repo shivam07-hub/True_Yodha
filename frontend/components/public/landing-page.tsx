@@ -97,7 +97,7 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
 
         <LandingJobSwitchPlan />
 
-        <LandingProof rows={data.intelRows} asOf={data.asOf} companiesLabel={data.companiesLabel} />
+        <LandingProof rows={data.intelRows} asOf={data.asOf} />
 
         <LandingFaq />
       </main>

@@ -245,57 +245,6 @@ a.lp-surface-card:hover .lp-surface-arrow { color: var(--lp-accent-text); transf
 .lp-quote-who { margin-top: 16px; font-family: var(--lp-mono); font-size: 11.5px; letter-spacing: 0.06em; color: var(--lp-faint); }
 .lp-quote-who strong { color: var(--lp-text); font-weight: 600; }
 
-/* newsletter strip */
-.lp-news-strip {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 32px;
-  margin-top: 72px;
-  padding: 28px 32px;
-  border-radius: 12px;
-  border: 1px solid var(--lp-border-strong);
-  background: var(--lp-surface);
-}
-
-.lp-news-copy { margin: 0; font-size: 15px; line-height: 1.6; color: var(--lp-muted); max-width: 520px; text-wrap: pretty; }
-.lp-news-copy strong { color: var(--lp-text); font-weight: 600; }
-
-.lp-news-form { display: flex; gap: 10px; flex-shrink: 0; }
-
-.lp-news-input {
-  width: 240px;
-  padding: 11px 14px;
-  border-radius: 10px;
-  border: 1px solid var(--lp-border-strong);
-  background: var(--lp-bg);
-  color: var(--lp-text);
-  font-family: var(--lp-font);
-  font-size: 14px;
-  outline: none;
-  transition: border-color var(--lp-dur) var(--lp-ease);
-}
-.lp-news-input::placeholder { color: var(--lp-faint); }
-.lp-news-input:focus { border-color: var(--lp-accent-ring); }
-
-.lp-news-btn {
-  padding: 11px 20px;
-  border-radius: 10px;
-  border: none;
-  background: var(--lp-accent);
-  color: var(--lp-accent-fg);
-  font-family: var(--lp-font);
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: filter var(--lp-dur) var(--lp-ease);
-}
-.lp-news-btn:hover { filter: brightness(1.08); }
-.lp-news-btn:disabled { opacity: 0.6; cursor: default; }
-
-.lp-news-ok { font-family: var(--lp-mono); font-size: 13px; color: var(--lp-success); }
-.lp-news-err { font-family: var(--lp-mono); font-size: 12px; color: var(--lp-warning); }
-
 /* ── S6 — FAQ + closing CTA ─────────────────────────────────── */
 .lp-faq { padding: var(--lp-section-py) 0; border-top: 1px solid var(--lp-border); }
 
@@ -471,13 +420,10 @@ a.lp-surface-card:hover .lp-surface-arrow { color: var(--lp-accent-text); transf
 @media (max-width: 1060px) {
   .lp-surface-grid { grid-template-columns: 1fr; }
   .lp-quotes { grid-template-columns: 1fr; }
-  .lp-news-strip { flex-direction: column; align-items: flex-start; }
 }
 
 @media (max-width: 640px) {
   .lp-surface-title { white-space: normal; }
   .lp-intel-row { grid-template-columns: 1.2fr 0.8fr; }
   .lp-intel-row .lp-intel-skill { display: none; }
-  .lp-news-form { width: 100%; }
-  .lp-news-input { flex: 1; width: auto; }
 }

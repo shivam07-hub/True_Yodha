@@ -14,6 +14,15 @@
 
 ## LAST SESSION SUMMARY
 
+### 2026-08-05 — Newsletter has one subscription destination
+
+- Removed the post-testimonial newsletter form from the public landing page,
+  including its client-side state and dedicated responsive styling. The
+  dedicated `/newsletter` surface remains the only public subscription entry.
+- Added a regression check that keeps the landing free of newsletter submission
+  code while ensuring `/newsletter` retains its email form. Frontend tests,
+  TypeScript, lint, and UI-drift checks pass.
+
 ### 2026-08-05 — Landing-page declutter
 
 - Removed the “The weekly loop” panel from the public landing page, including
