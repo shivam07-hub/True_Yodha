@@ -8,8 +8,6 @@ import { LandingHero } from "@/components/public/landing/hero"
 import { LandingJobSearch } from "@/components/public/landing/job-search"
 import { LandingHowItWorks } from "@/components/public/landing/how-it-works"
 import { LandingDomains } from "@/components/public/landing/domains"
-import { LandingJobSwitchPlan } from "@/components/public/landing/job-switch-plan"
-import { LandingProof } from "@/components/public/landing/proof"
 import { LandingFaq } from "@/components/public/landing/faq"
 import { useLandingData } from "@/components/public/landing/use-landing-data"
 import { useReveal } from "@/components/public/landing/use-reveal"
@@ -24,8 +22,7 @@ import "@/components/public/landing/landing-depth.css"
  * Myro landing — single job-seeker funnel (backlog #33, grill-locked 2026-06-27).
  * One promise, one story: hero (CV → live score) → job-gen proof-search (type the
  * job you want → REAL openings) → how-it-works (the one-time way in) → 10-domain
- * chips → ₹99 Personalised Job-Switch Plan
- * teaser → proof/FAQ → footer. Dropping a CV in any
+ * chips → FAQ → footer. Dropping a CV in any
  * band navigates to /cv-preview, which scores it and either opens the playground
  * or routes to /signup with the readout (navigate-then-load; the dropzone owns
  * that jump, so the landing holds no scoring state).
@@ -94,10 +91,6 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
         <LandingHowItWorks />
 
         <LandingDomains />
-
-        <LandingJobSwitchPlan />
-
-        <LandingProof rows={data.intelRows} asOf={data.asOf} />
 
         <LandingFaq />
       </main>

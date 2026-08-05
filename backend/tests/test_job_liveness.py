@@ -56,6 +56,7 @@ async def test_fresh_verdict_is_served_from_cache(patch_repo):
         "listing_confidence": "active",
         "last_verification_attempt_at": _iso(timedelta(hours=-1)),
         "last_verified_live_at": _iso(timedelta(hours=-1)),
+        "last_conclusive_verification_at": _iso(timedelta(hours=-1)),
     })
 
     verdict = await check_liveness(object(), "j1")
@@ -64,6 +65,31 @@ async def test_fresh_verdict_is_served_from_cache(patch_repo):
     assert verdict.from_cache is True
     # No fetch, no write — a repeated open inside the window is free.
     assert repo.attempted == []
+
+
+@pytest.mark.asyncio
+async def test_a_failed_check_does_not_renew_the_previous_verdict(patch_repo):
+    """The 509906 bug, at the gate.
+
+    The row was attempted minutes ago and still reads `active` — but the attempt
+    never concluded, so the `active` is left over from a check 45 days old.
+    Serving it from cache is what let five consecutive blocked fetches keep a
+    dead listing looking verified. Freshness must require a verdict, not an
+    attempt.
+    """
+    repo = patch_repo({
+        "job_id": "j1",
+        "apply_url": "https://boards.greenhouse.io/x/jobs/1",
+        "job_title": "Data Engineer",
+        "listing_confidence": "active",
+        "last_verification_attempt_at": _iso(timedelta(minutes=-5)),
+        "last_verified_live_at": _iso(timedelta(days=-45)),
+        "last_conclusive_verification_at": _iso(timedelta(days=-45)),
+    })
+
+    await check_liveness(object(), "j1")
+
+    assert repo.attempted == ["j1"]
 
 
 @pytest.mark.asyncio

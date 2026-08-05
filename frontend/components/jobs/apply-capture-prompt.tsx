@@ -70,15 +70,17 @@ export function ApplyCapturePrompt({ capture }: { capture: ApplyCapture }) {
     : capture.state === "submitted"
       ? "Marked applied"
       : capture.state === "reported"
-        ? "Thanks — kept in Collections"
+        ? "Thanks — flagged"
         : null
+  // Terminal states say what happened and stop. "What next" is the topbar Next
+  // chip's one job — it knows the whole pipeline, where this band only knows one
+  // job, and it was the affordance already wired on every surface. The inline
+  // "Find similar roles" here answered nothing on the CV surfaces, which never
+  // passed an onFindSimilar at all.
   if (message) {
     return (
-      <div style={{ ...bandStyle, justifyContent: "space-between" }}>
+      <div style={bandStyle}>
         <span style={{ color: "var(--tm-text-muted)" }}>{message}</span>
-        {capture.state === "reported" ? (
-          <button type="button" onClick={capture.findSimilar} style={linkStyle}>Find similar roles →</button>
-        ) : null}
       </div>
     )
   }

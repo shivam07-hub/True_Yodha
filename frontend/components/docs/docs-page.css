@@ -25,6 +25,84 @@
   gap: 4px;
 }
 
+.docs-pricing {
+  margin: 0 0 28px;
+}
+
+.docs-pricing h3 {
+  margin: 0 0 14px;
+  color: var(--tm-text);
+  font-size: 18px;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.docs-pricing-card {
+  padding: 24px;
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 10px;
+  background: var(--tm-surface);
+}
+
+.docs-pricing-lede,
+.docs-pricing-footnote {
+  margin: 0;
+  color: var(--tm-text-muted);
+  font-size: 14px;
+  line-height: 1.7;
+  text-wrap: pretty;
+}
+
+.docs-pricing-lede {
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--tm-border-soft);
+}
+
+.docs-pricing-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  margin: 20px 0;
+}
+
+.docs-pricing-column + .docs-pricing-column {
+  padding-left: 28px;
+  border-left: 1px solid var(--tm-border-soft);
+}
+
+.docs-pricing-column h4 {
+  margin: 0 0 14px;
+  color: var(--tm-accent);
+  font-family: var(--tm-font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.docs-pricing-column.is-subdued h4 { color: var(--tm-text-faint); }
+
+.docs-pricing-column ul {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.docs-pricing-column li {
+  color: var(--tm-text);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.docs-pricing-column.is-subdued li { color: var(--tm-text-muted); }
+
+.docs-pricing-footnote {
+  padding-top: 20px;
+  border-top: 1px solid var(--tm-border-soft);
+}
+
 /* Below the two-column threshold: stack, drop the sticky in-page TOC
    (it was authored "desktop only"), reclaim the full content width. */
 @media (max-width: 768px) {
@@ -35,5 +113,12 @@
   }
   .docs-toc {
     display: none;
+  }
+  .docs-pricing-grid { grid-template-columns: 1fr; gap: 24px; }
+  .docs-pricing-column + .docs-pricing-column {
+    padding-top: 24px;
+    padding-left: 0;
+    border-top: 1px solid var(--tm-border-soft);
+    border-left: 0;
   }
 }

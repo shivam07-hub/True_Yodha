@@ -474,6 +474,10 @@ class ApplicationResponse(BaseModel):
     date_posted: str | None = None
     seniority_level: str | None = None
     work_mode: str | None = None
+    # The corpus role bucket this job sits in. Carried so a surface that has
+    # finished with one job can point at more of the same kind without a second
+    # fetch — the "find similar" scope.
+    role_domain: str | None = None
     min_years_experience: int | None = None
     max_years_experience: int | None = None
     coins_earned: int | None = None                    # +XP granted on this add (transient — only set by POST /import)

@@ -19,8 +19,9 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
-import { cv as cvApi, jobs as jobsApi, type CVStructured, type UserProfile } from "@/lib/api"
+import { cv as cvApi, jobs as jobsApi, type ApplicationResponse, type CVStructured, type UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { Button } from "@/components/ui/button"
 import { Icon } from "./icons"
@@ -36,6 +37,7 @@ import { selectVisibleCV } from "@/lib/cv/visible-cv"
 import { ApplyRow } from "@/components/jobs/apply-row"
 import { useApplyCapture } from "@/components/jobs/use-apply-capture"
 import { ApplyCapturePrompt } from "@/components/jobs/apply-capture-prompt"
+import { similarRolesHref } from "@/lib/jobs/similar-roles"
 import { CV_TEMPLATES, DEFAULT_TEMPLATE, isCVTemplate, type CVTemplate } from "@/lib/cv/templates"
 import { MobileCVExportLayout } from "@/components/cv/mobile/mobile-cv-export-layout"
 
@@ -106,6 +108,8 @@ export function CVExportView({
 }: CVExportViewProps) {
   const isTailored = context === "tailored"
   const skin: "fullpage" | "inline" = skinOverride ?? (isTailored ? "fullpage" : "inline")
+  const router = useRouter()
+  const queryClient = useQueryClient()
 
   // Apply Transport — the official-opening affordance is a leave-to-apply, so it
   // arms the liveness capture too (only when tied to a real job_id; a master
@@ -116,6 +120,14 @@ export function CVExportView({
     surface: "other",
     intentSurface: "cv_export",
     onSubmitted: recordSubmittedCv,
+    // Same dead button as the playground had: the closed-listing guard offered
+    // alternatives and nothing was wired to it. Scope from the saved row's
+    // role_domain when the shared cache has it; the whole board otherwise.
+    onFindSimilar: () => router.push(similarRolesHref(
+      queryClient
+        .getQueryData<ApplicationResponse[]>(dataKeys.applications())
+        ?.find((a) => a.job_id === jobId)?.role_domain,
+    )),
   })
 
   // Template: seed from prop → persisted choice → default. Persist on change so
@@ -175,7 +187,6 @@ export function CVExportView({
   // saved we nudge the user to record the application so the CV hub doubles as a
   // tracker ("applied to {company} on {date}").
   const [downloaded, setDownloaded] = useState(false)
-  const queryClient = useQueryClient()
 
   // Myro footer mark (per-version certified state). Optimistic toggle; the
   // backend is the source of truth, so we revert on failure.

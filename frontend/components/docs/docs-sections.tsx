@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { FAQPricing } from "./faq-pricing"
 
 // ── Primitives ────────────────────────────────────────────────────────────────
 
@@ -249,6 +250,7 @@ export const FAQ_ITEMS: [string, string][] = [
 export function FAQSection() {
   return (
     <Section id="faq" title="Frequently asked questions">
+      <FAQPricing />
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
         {FAQ_ITEMS.map(([q, a]) => (
           <details key={q} style={{ borderRadius: 8, border: "1px solid var(--tm-border-soft)", padding: "12px 14px", background: "var(--tm-surface)" }}>

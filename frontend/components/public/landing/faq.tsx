@@ -2,9 +2,8 @@
 
 import { useRef, useState } from "react"
 import { ChevronDown } from "lucide-react"
-import { FAQ_ITEMS, PRICING_FREE, PRICING_PAID, PRICING_LEAD, PRICING_FOOTNOTE } from "./landing-copy"
+import { FAQ_ITEMS } from "./landing-copy"
 import { LandingDropzone } from "./dropzone"
-import { SectionTitle } from "./section-title"
 
 export function LandingFaq() {
   const [openIdx, setOpenIdx] = useState<number | null>(null)
@@ -17,38 +16,6 @@ export function LandingFaq() {
   return (
     <section className="lp-faq" aria-label="Questions and closing call to action">
       <div className="lp-wrap">
-        <div className="lp-section-head center lp-reveal">
-          <SectionTitle center>Free to start. Private by default.</SectionTitle>
-        </div>
-
-        <div className="lp-pricing lp-reveal" aria-label="What's free and what spends Myro Coins">
-          <p className="lp-pricing-lead">{PRICING_LEAD}</p>
-          <div className="lp-pricing-grid">
-            <div className="lp-pricing-col">
-              <span className="lp-pricing-head">Free, always</span>
-              <ul className="lp-pricing-list">
-                {PRICING_FREE.map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
-            </div>
-            <div className="lp-pricing-col">
-              <span className="lp-pricing-head paid">Uses Myro Coins</span>
-              <ul className="lp-pricing-list">
-                {PRICING_PAID.map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          <div className="lp-pricing-foot">
-            <p className="lp-pricing-foot-line">{PRICING_FOOTNOTE}</p>
-            <a className="lp-pricing-link" href="/docs">
-              How the Myro Engine works <span aria-hidden>→</span>
-            </a>
-          </div>
-        </div>
-
         <div className="lp-faq-list lp-reveal">
           {FAQ_ITEMS.map((item, idx) => {
             const open = openIdx === idx

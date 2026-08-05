@@ -1,0 +1,134 @@
+.tm-intel-plan {
+  margin-top: var(--tm-section-gap);
+  padding-top: var(--tm-section-gap);
+  border-top: 1px solid var(--tm-border-soft);
+}
+
+.tm-intel-plan-card {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: clamp(24px, 4vw, 40px);
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-panel-radius-lg);
+}
+
+.tm-intel-plan-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.tm-intel-plan-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--tm-accent-wash);
+  color: var(--tm-accent);
+}
+
+.tm-intel-plan-kicker {
+  margin: 0 0 4px;
+  color: var(--tm-accent);
+  font-family: var(--tm-font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.tm-intel-plan h2 {
+  margin: 0;
+  color: var(--tm-text);
+  font-family: var(--tm-font-display, var(--tm-font-sans));
+  font-size: clamp(28px, 4vw, 42px);
+  line-height: 1.1;
+  text-wrap: balance;
+}
+
+.tm-intel-plan-summary {
+  max-width: 65ch;
+  margin: 18px 0 0;
+  color: var(--tm-text-muted);
+  font-size: 15px;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+.tm-intel-plan-points {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tm-intel-plan-points li {
+  position: relative;
+  padding-left: 22px;
+  color: var(--tm-text);
+  font-size: 14px;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.tm-intel-plan-points li::before {
+  position: absolute;
+  top: 8px;
+  left: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tm-accent);
+  content: "";
+}
+
+.tm-intel-plan-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid var(--tm-border-soft);
+}
+
+.tm-intel-plan-price {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  color: var(--tm-text);
+  font-size: 15px;
+}
+
+.tm-intel-plan-price strong { font-size: 24px; }
+.tm-intel-plan-price span { color: var(--tm-text-faint); font-size: 12px; }
+
+.tm-intel-plan-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: var(--tm-button-radius);
+  background: var(--tm-accent);
+  color: var(--tm-accent-fg);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.tm-intel-plan-cta:focus-visible {
+  outline: 2px solid var(--tm-accent);
+  outline-offset: 3px;
+}
+
+@media (max-width: 560px) {
+  .tm-intel-plan-foot { align-items: stretch; flex-direction: column; }
+  .tm-intel-plan-cta { justify-content: center; }
+}

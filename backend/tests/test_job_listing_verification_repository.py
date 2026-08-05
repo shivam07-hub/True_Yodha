@@ -9,6 +9,7 @@ class Query:
         self.db = db
         self.table = table
         self.payload = None
+        self.reading = False
 
     def insert(self, payload):
         self.payload = payload
@@ -18,17 +19,30 @@ class Query:
         self.payload = payload
         return self
 
+    def select(self, _columns):
+        self.reading = True
+        return self
+
+    def limit(self, _n):
+        return self
+
     def eq(self, _key, _value):
         return self
 
     def execute(self):
+        if self.reading:
+            return type("Response", (), {"data": list(self.db.rows)})()
         self.db.calls.append((self.table, self.payload))
         return type("Response", (), {"data": []})()
 
 
 class DB:
-    def __init__(self):
+    """``rows`` seeds the one read on the record() path: the current failure run
+    and stored confidence, which only the unreachable branch asks for."""
+
+    def __init__(self, rows=()):
         self.calls = []
+        self.rows = rows
 
     def table(self, name):
         return Query(self, name)
@@ -144,8 +158,16 @@ def test_live_verification_reactivates_and_resets_misses() -> None:
     assert update["deletion_eligible_at"] is None
 
 
-def test_blocked_verification_only_updates_attempt_clock() -> None:
-    db = DB()
+def test_unreachable_verification_never_counts_as_a_conclusive_check() -> None:
+    """The bug this file used to assert as correct.
+
+    A blocked fetch wrote ONLY the attempt clock, which the intent gate read as
+    "checked recently" — so the listing's old `active` verdict was renewed for
+    another six hours by the very failure that should have cast doubt on it.
+    Repeat indefinitely and a job last seen live in June is served as
+    verified-active in August, which is exactly what happened to job 509906.
+    """
+    db = DB(rows=[{"consecutive_verify_failures": 0, "listing_confidence": "active"}])
     repo = ListingVerificationRepository(
         db, now=lambda: datetime(2026, 7, 11, tzinfo=timezone.utc)
     )
@@ -153,7 +175,63 @@ def test_blocked_verification_only_updates_attempt_clock() -> None:
     repo.record(VerificationResult("job-1", "blocked", "weak", "workday", 403))
 
     update = next(payload for table, payload in db.calls if table == "jobs")
+    assert "last_conclusive_verification_at" not in update
+    assert update["consecutive_verify_failures"] == 1
+    # One failure is noise — an ATS rate-limiting us is not news about the job.
+    assert "listing_confidence" not in update
+
+
+def test_a_run_of_unreachable_checks_withdraws_the_active_claim() -> None:
+    db = DB(rows=[{"consecutive_verify_failures": 1, "listing_confidence": "active"}])
+    repo = ListingVerificationRepository(
+        db, now=lambda: datetime(2026, 7, 11, tzinfo=timezone.utc)
+    )
+
+    repo.record(VerificationResult("job-1", "timeout", "weak", "workday", None))
+
+    update = next(payload for table, payload in db.calls if table == "jobs")
+    assert update["consecutive_verify_failures"] == 2
+    # "We don't know" — never "dead". Nothing is quarantined or retired.
+    assert update["listing_confidence"] == "uncertain"
+    assert "retired_at" not in update
+    assert "is_active" not in update
+
+
+def test_unreadable_page_neither_degrades_nor_verifies() -> None:
+    """`page_loaded_without_role_evidence` is our parser, not their listing.
+
+    An HTTP 200 on a client-rendered ATS whose markup our fetch cannot read is
+    54% of all `active` listings' last observation. Degrading on it would demote
+    ~6,000 probably-live jobs for a bug of ours; treating it as a check would go
+    on renewing the stale claim. It must do neither.
+    """
+    db = DB()
+    repo = ListingVerificationRepository(
+        db, now=lambda: datetime(2026, 7, 11, tzinfo=timezone.utc)
+    )
+
+    repo.record(
+        VerificationResult(
+            "job-1", "error", "weak", "workday", 200,
+            evidence={"reason": "page_loaded_without_role_evidence"},
+        )
+    )
+
+    update = next(payload for table, payload in db.calls if table == "jobs")
     assert set(update) == {"last_verification_attempt_at", "lifecycle_updated_at"}
+
+
+def test_a_conclusive_verdict_clears_the_failure_run() -> None:
+    db = DB()
+    repo = ListingVerificationRepository(
+        db, now=lambda: datetime(2026, 7, 11, tzinfo=timezone.utc)
+    )
+
+    repo.record(VerificationResult("job-1", "seen_live", "strong", "greenhouse", 200))
+
+    update = next(payload for table, payload in db.calls if table == "jobs")
+    assert update["consecutive_verify_failures"] == 0
+    assert update["last_conclusive_verification_at"] is not None
 
 
 def test_with_retry_recovers_from_transient_edge_500(monkeypatch) -> None:

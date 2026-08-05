@@ -77,20 +77,25 @@ def _verdict_from_row(row: dict, *, from_cache: bool) -> LivenessVerdict:
 
 
 def _is_fresh(row: dict, *, now: datetime) -> bool:
-    """A prior check counts as fresh only if it actually produced a verdict.
+    """A prior check counts as fresh only if it actually reached a verdict.
 
-    ``last_verification_attempt_at`` alone is not enough — the sweep stamps it on
-    claim, so a claimed-but-crashed row would otherwise read as freshly checked.
-    A row is fresh when it was attempted recently AND carries a confidence the
-    verifier could have written.
+    Freshness used to key off ``last_verification_attempt_at``, which is stamped
+    on claim and on every attempt — including the ones that never concluded. So
+    a listing the verifier could not read renewed its own stale confidence every
+    six hours, indefinitely, and the failures were invisible because each one
+    made the row look freshly checked. That is how job 509906 was served as
+    verified-active through five consecutive `blocked` fetches, having last been
+    seen live 45 days earlier.
+
+    ``last_conclusive_verification_at`` is written only by the branches of
+    ``record()`` that reach a verdict, so an unreachable or unreadable listing
+    now falls through to a real re-check instead of a cached claim.
     """
-    attempted = row.get("last_verification_attempt_at")
-    if not attempted:
-        return False
-    if str(row.get("listing_confidence") or "uncertain") == "uncertain":
+    concluded = row.get("last_conclusive_verification_at")
+    if not concluded:
         return False
     try:
-        stamped = datetime.fromisoformat(str(attempted).replace("Z", "+00:00"))
+        stamped = datetime.fromisoformat(str(concluded).replace("Z", "+00:00"))
     except ValueError:
         return False
     if stamped.tzinfo is None:

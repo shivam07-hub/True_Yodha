@@ -2,6 +2,7 @@ import type { ApplicationResponse, JobMatch } from "@/lib/api"
 import type { CvPresence } from "@/lib/cv-presence"
 import { isApplied, matchesById } from "@/lib/collections/model"
 import { followUpLine, needsStageCheck } from "@/components/preparations/prep-model"
+import { similarRolesHref } from "@/lib/jobs/similar-roles"
 
 /**
  * The global Next action (unified-structure S2, lock #4) — ONE persistent answer
@@ -44,6 +45,13 @@ type NextActionOptions = {
   newJobs?: number
   now?: Date
   openJobId?: string | null
+  /**
+   * Corpus role bucket of the job this surface is open on. Used only by the
+   * final rung: when the ladder has nothing better left, someone standing on a
+   * job they have just finished with — applied, or reported dead — wants more
+   * of that kind, not the whole board. `/market` reads this as `cluster`.
+   */
+  openJobDomain?: string | null
 }
 
 type KnownCvActionOptions = Omit<NextActionOptions, "cvPresence"> & {
@@ -120,5 +128,14 @@ export function deriveNextAction(
     return { label: `See ${opts.newJobs} new matches`, href: "/collections?search=1" }
   }
 
+  // Last rung. The two endings of a job surface — "I applied" and "this listing
+  // is dead" — both land here, because neither leaves anything better on the
+  // ladder. Both are the same question: what else looks like this one. The
+  // surface's own inline "find similar" answered it on some screens and was
+  // wired to nothing on the CV surfaces; this chip is the one answer.
+  const domain = opts.openJobDomain?.trim()
+  if (domain) {
+    return { label: `More ${domain} roles`, href: similarRolesHref(domain), generic: true }
+  }
   return { label: "Find a role to tailor", href: "/market", generic: true }
 }

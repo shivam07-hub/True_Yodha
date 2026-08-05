@@ -3343,7 +3343,7 @@ class JobsRepository:
             "job_title, company_name, job_description, main_skills, "
             "job_summary, apply_url, location, location_raw, location_city, "
             "location_country, location_mode, location_quality, locations, "
-            "date_posted, seniority_level, work_mode, "
+            "date_posted, seniority_level, work_mode, role_domain, "
             "min_years_experience, max_years_experience",
         )
         for row in rows:
