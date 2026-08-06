@@ -93,7 +93,7 @@ function ForgeGapChip({ skill, jobId }: { skill: SkillGapItem; jobId: string }) 
     <Link
       href={practiceHref(skill.skill, jobId)}
       style={{ ...CHIP, color: "var(--tm-warning)", borderColor: "var(--tm-warning-border)", background: "var(--tm-warning-wash)", textDecoration: "none" }}
-      title={`Practice ${skill.skill} in Forge`}
+      title={`Practice ${skill.skill}`}
     >
       ✗ {skill.skill}{delta}
     </Link>

@@ -3,6 +3,7 @@
 import { useRef, useState } from "react"
 import { jobs, APPLICATION_STAGES } from "@/lib/api"
 import type { ApplicationResponse, ApplicationStatus } from "@/lib/api"
+import { EXTENSION_WEBSTORE_URL } from "@/lib/extension"
 import { useXPStore } from "@/store/xpStore"
 import { STAGE_LABEL } from "./useTrackerBoard"
 import type { StageKey } from "./useTrackerBoard"
@@ -169,7 +170,7 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
                quiet strip; aligned teal-budget (2026-07-23) keeps it a helper link,
                not a signal — muted body, the CTA phrase in interactive-rest. */}
             <a
-              href="https://chromewebstore.google.com/detail/paofacokffpipcpljelckndgghkddoph"
+              href={EXTENSION_WEBSTORE_URL}
               target="_blank"
               rel="noopener noreferrer"
               style={{

@@ -49,7 +49,7 @@ type DeckCard =
 type CardPhase = "intro" | "asking" | "proposing" | "diff" | "resolved" | "error"
 
 function forgeHref(skill: string): string {
-  return `/forge?skill=${encodeURIComponent(skill)}`
+  return `/practice?skill=${encodeURIComponent(skill)}`
 }
 
 // Cards walked in one sitting before the checkpoint offers to continue. Mirrors

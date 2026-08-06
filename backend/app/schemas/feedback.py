@@ -33,6 +33,11 @@ ProductArea = Literal[
     "CV upload",
     "CV analysis or Myro Score",
     "CV Hub or tailoring",
+    "Skills or Practice",
+    # Legacy alias, kept accepted-only. The frontend stopped sending it on
+    # 2026-08-06 (Forge→Practice rename), but Vercel and Railway deploy from
+    # Develop independently, so a browser holding the old bundle can still POST
+    # this string for a few minutes. Drop it once no rows carry it.
     "Skills or Forge",
     "Jobs or matches",
     "Intel",

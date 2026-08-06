@@ -1,11 +1,11 @@
 "use client"
 
 /**
- * AccentControl — the Signal/Forge accent switcher (backlog ND15).
+ * AccentControl — the Signal/Ember accent switcher (backlog ND15).
  *
  * Mirrors ThemeControl's shape exactly: one primitive, rides the same
  * `.tm-segment-toggle` chrome so idle segments inherit the interactive-rest
- * brightness contract for free. Icon-only — a signal-dot / forge-flame glyph
+ * brightness contract for free. Icon-only — a signal-dot / ember-flame glyph
  * carries the meaning, accessible names live in `aria-label` for assistive
  * tech. Unlike theme (client-only), the choice also persists to
  * `user_profiles.accent_pref` — the caller supplies `onPersist` so this stays
@@ -29,8 +29,12 @@ const OPTIONS: Option[] = [
     ),
   },
   {
+    // Stored value stays "forge" — it is the persisted `accent_pref` /
+    // `data-accent` key, not copy. The label is the amber colour's name; it was
+    // "Forge" until 2026-08-06, when Forge-the-surface became Practice and an
+    // accent sharing that name read as a link to it.
     value: "forge",
-    label: "Forge",
+    label: "Ember",
     icon: (
       // Flame — the warmer opt-in accent.
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

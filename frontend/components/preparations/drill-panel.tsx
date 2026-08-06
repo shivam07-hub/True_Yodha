@@ -127,7 +127,7 @@ export function DrillPanel({ token, jobId }: { token: string; jobId: string }) {
             </div>
           </div>
           {row.band !== "ready" ? (
-            <Link href={row.practice_href || "/forge"} className="prp-req-action" style={{ textDecoration: "none" }}>
+            <Link href={row.practice_href || "/practice"} className="prp-req-action" style={{ textDecoration: "none" }}>
               Level up <Icon name="bolt" size={10} />
             </Link>
           ) : null}

@@ -238,11 +238,6 @@
 }
 .mc-peek-link:hover { text-decoration: underline; }
 .mc-peek-empty { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--tm-text-muted); }
-/* Inline domain radar (the /skills map artifact) — scales to card width */
-.mc-peek-radar { display: flex; flex-direction: column; align-items: center; gap: 6px; text-decoration: none; }
-.mc-peek-radar svg { width: 100%; height: auto; max-width: 240px; display: block; }
-.mc-peek-radar-cap { font-size: 12px; line-height: 1.45; color: var(--tm-text-muted); text-align: center; }
-.mc-peek-radar-cap strong { color: var(--tm-text); font-weight: 600; }
 .mc-peek-gap { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
 .mc-peek-gap .lab { color: var(--tm-text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mc-peek-lvl { font-family: var(--tm-font-mono); font-size: 11px; color: var(--tm-accent-text); flex-shrink: 0; }
@@ -250,6 +245,43 @@
 .mc-peek-intel { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--tm-text-muted); }
 .mc-peek-intel strong { color: var(--tm-text); font-weight: 650; }
 .mc-peek-intel-meta { color: var(--tm-text-faint); }
+
+/* ─── Provenance card — where the jobs came from ───
+   Two bars over ONE denominator: how much of the pool we have personally seen
+   alive, and who put it there. The unfilled remainder is the point of the first
+   bar — an unchecked listing is shown as unchecked, not quietly counted as live.
+   Replaced the daily-loop ring in this slot (2026-08-06). */
+.mc-prov-hero { display: flex; flex-direction: column; gap: 2px; }
+.mc-prov-num {
+  font-size: 30px; font-weight: 700; line-height: 1.05; color: var(--tm-text);
+  font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
+}
+.mc-prov-cap {
+  font-family: var(--tm-font-mono); font-size: 10.5px; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--tm-text-faint);
+}
+.mc-prov-bar {
+  display: flex; height: 6px; border-radius: 999px; overflow: hidden;
+  background: var(--tm-border-soft, var(--tm-border));
+}
+.mc-prov-fill { background: var(--tm-interactive); }
+/* The community share is a rounding error against the crawl today (17 of 62k).
+   A floor keeps it visible instead of vanishing — honest because the exact
+   count is printed in the key directly below it, never inferred from width. */
+.mc-prov-seg-agent { background: var(--tm-text-faint); }
+.mc-prov-seg-community { background: var(--tm-interactive); min-width: 4px; }
+.mc-prov-sub { margin: 0; font-size: 11.5px; color: var(--tm-text-faint); }
+.mc-prov-key { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.mc-prov-key-item { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--tm-text-muted); }
+.mc-prov-dot { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
+.mc-prov-dot--agent { background: var(--tm-text-faint); }
+.mc-prov-dot--community { background: var(--tm-interactive); }
+.mc-prov-key-item b { color: var(--tm-text); font-weight: 650; font-variant-numeric: tabular-nums; }
+.mc-prov-mine {
+  margin: 0; font-family: var(--tm-font-mono); font-size: 11px; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--tm-accent-text);
+}
+.mc-prov-mine b { font-weight: 700; font-variant-numeric: tabular-nums; }
 
 /* Peek panel → job-detail swap (D5) */
 .mc-peek-detail { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
@@ -284,212 +316,6 @@
   max-width: 270px;
   flex: 0 0 auto;
   scroll-snap-align: start;
-}
-
-/* ─── Daily-loop completion ring (Apple-Activity metaphor) ───
-   Five segments close as the daily ritual steps are done; the open arc is the
-   nudge. Replaces the old checkpoint pill row + boxless stat strip. */
-.mc-loopring {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 248px;
-  max-width: 100%;
-}
-.mc-loopring-ring {
-  position: relative;
-  width: 168px;
-  height: 168px;
-}
-.mc-loopring-svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-.mc-loopring-track {
-  stroke: var(--tm-border-soft);
-}
-.mc-loopring-seg {
-  transition: stroke 0.4s ease;
-  transform-origin: 84px 84px;
-}
-.mc-loopring-seg.is-open {
-  stroke: var(--tm-border);
-  opacity: 0.55;
-}
-.mc-loopring-seg.is-done {
-  stroke: var(--tm-interactive);
-  animation: loopSegIn 0.55s cubic-bezier(0.34, 1.4, 0.64, 1) both;
-  animation-delay: calc(var(--i) * 0.09s);
-}
-.mc-loopring.is-complete .mc-loopring-svg {
-  filter: drop-shadow(0 0 10px var(--tm-interactive-glow));
-}
-@keyframes loopSegIn {
-  from { opacity: 0; stroke-width: 4; }
-  60%  { opacity: 1; stroke-width: 15; }
-  to   { opacity: 1; stroke-width: 12; }
-}
-
-/* center core */
-.mc-loopring-core {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  pointer-events: none;
-}
-.mc-loopring-score {
-  font-size: 42px;
-  font-weight: 700;
-  line-height: 1;
-  color: var(--tm-text);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-}
-.mc-loopring-score small {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--tm-text-faint);
-  margin-left: 2px;
-}
-.mc-loopring-delta {
-  font-family: var(--tm-font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--tm-success-text, var(--tm-success));
-  letter-spacing: 0.02em;
-}
-.mc-loopring-core-badge {
-  color: var(--tm-interactive);
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 999px;
-  background: var(--tm-interactive-wash);
-  animation: loopBadgePop 0.5s cubic-bezier(0.34, 1.5, 0.64, 1) both;
-}
-@keyframes loopBadgePop {
-  from { transform: scale(0.4); opacity: 0; }
-  to   { transform: scale(1); opacity: 1; }
-}
-.mc-loopring-count {
-  font-family: var(--tm-font-mono);
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--tm-text-faint);
-  font-weight: 500;
-  margin-top: 2px;
-}
-.mc-loopring-count .sep { margin: 0 1px; opacity: 0.6; }
-
-/* legend — five labelled steps */
-.mc-loopring-legend {
-  list-style: none;
-  margin: 16px 0 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
-}
-.mc-loopring-leg {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 9px 4px 5px;
-  border-radius: 999px;
-  font-family: var(--tm-font-mono);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  font-weight: 500;
-  border: 1px solid var(--tm-border-soft);
-}
-.mc-loopring-leg .dot {
-  width: 16px;
-  height: 16px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-}
-.mc-loopring-leg.is-open {
-  color: var(--tm-text-faint);
-}
-.mc-loopring-leg.is-open .dot {
-  color: var(--tm-text-faint);
-  background: var(--tm-surface-2, transparent);
-  border: 1px solid var(--tm-border);
-}
-.mc-loopring-leg.is-done {
-  color: var(--tm-text);
-  border-color: var(--tm-interactive-ring);
-}
-.mc-loopring-leg.is-done .dot {
-  color: var(--tm-interactive-fg);
-  background: var(--tm-interactive);
-}
-
-/* nudge — the call to close the next open step */
-.mc-loopring-nudge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin: 16px 0 0;
-  padding: 8px 14px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--tm-text-muted);
-  text-decoration: none;
-  background: var(--tm-interactive-wash);
-  border: 1px solid var(--tm-interactive-ring);
-  transition: background 0.18s ease, transform 0.18s ease;
-}
-a.mc-loopring-nudge:hover {
-  background: var(--tm-interactive);
-  color: var(--tm-interactive-fg);
-  transform: translateY(-1px);
-}
-a.mc-loopring-nudge:hover svg { color: var(--tm-interactive-fg); }
-.mc-loopring-nudge strong { color: var(--tm-text); font-weight: 700; }
-a.mc-loopring-nudge:hover strong { color: var(--tm-interactive-fg); }
-.mc-loopring-nudge svg { color: var(--tm-interactive); flex-shrink: 0; }
-.mc-loopring-nudge.is-complete {
-  background: transparent;
-  border-color: var(--tm-border-soft);
-  color: var(--tm-text-faint);
-  font-size: 12px;
-}
-
-/* quiet footnote — demoted streak + session totals */
-.mc-loopring-foot {
-  margin-top: 12px;
-  font-family: var(--tm-font-mono);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--tm-text-faint);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.mc-loopring-foot b {
-  color: var(--tm-text-muted);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-.mc-loopring-foot .sep { opacity: 0.5; }
-
-@media (prefers-reduced-motion: reduce) {
-  .mc-loopring-seg.is-done,
-  .mc-loopring-core-badge { animation: none; }
 }
 
 /* ─── Matches rows ─── */
@@ -1188,7 +1014,6 @@ a.mc-loopring-nudge:hover strong { color: var(--tm-interactive-fg); }
 @media (max-width: 900px) {
   .mc-hero { grid-template-columns: 1fr; justify-items: center; }
   .mc-hero > div:first-child { justify-self: stretch; }
-  .mc-loopring { margin-top: 8px; }
 }
 @media (max-width: 840px) {
   .mc-page { padding: var(--tm-page-py) var(--tm-page-px) 90px; }
@@ -1236,8 +1061,7 @@ a.mc-loopring-nudge:hover strong { color: var(--tm-interactive-fg); }
     color: var(--tm-interactive);
   }
   .mc-greeting,
-  .mc-hero-sub,
-  .mc-loopring {
+  .mc-hero-sub {
     display: none;
   }
   .mc-focus-title { font-size: 20px; }

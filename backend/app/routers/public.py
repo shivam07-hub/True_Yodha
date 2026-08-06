@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 from app.config import settings
 from app.database import get_supabase_admin
 from app.repositories.search_queries import SearchQueriesRepository
+from app.repositories.job_provenance import read_provenance
 from app.repositories.jobs import get_public_jobs_repository
 from app.repositories.scores import ScoresRepository
 from app.security import redact_sensitive_text
@@ -75,12 +76,17 @@ def get_public_stats() -> dict[str, Any]:
     # compile_market_analytics is snapshot-backed + in-process cached, so this
     # is cheap after the first call.
     analytics = get_public_jobs_repository().compile_market_analytics()
+    provenance = read_provenance(get_supabase_admin())
 
     data: dict[str, Any] = {
         "jobs_tracked": int(analytics.get("total_jobs") or 0),
         "companies_monitored": int(analytics.get("total_companies") or 0),
         "skills_mapped": SKILLS_MAPPED,
         "seekers": _count_seekers(),
+        # Where the corpus came from, and how much of it we have personally
+        # opened recently. Shares one read model with the authed rail card so
+        # the public and signed-in answers can never drift.
+        "provenance": provenance,
         "as_of": datetime.now(timezone.utc).isoformat(),
     }
     _cache_data = data

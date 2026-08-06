@@ -9,7 +9,7 @@ import "./compact-moves.css"
  * 1 CV) sized for the narrow first-drop rail on /market. Each row is a whole-row
  * link with a ≤3-word label + one metric chip (skill gain "+6" / job fit "21%").
  * Accent is rationed to move 1; 2–3 stay quiet. The verbose variant (eyebrow +
- * detail) lives on the /forge score screen — this is the glance, that's the detail.
+ * detail) lives on the /practice score screen — this is the glance, that's the detail.
  */
 export function CompactMoves({ steps }: { steps: NextBestStep[] }) {
   if (steps.length === 0) return null

@@ -1,8 +1,8 @@
 "use client"
 
 /**
- * /diary is now merged into /forge.
- * This file redirects to /forge, preserving any query params (?jobId=, ?milestoneId=, etc.)
+ * /diary is now merged into /practice.
+ * This file redirects to /practice, preserving any query params (?jobId=, ?milestoneId=, etc.)
  * so that deep-links from /tracker and pipeline cards continue to work.
  */
 
@@ -20,7 +20,7 @@ function DiaryRedirectInner() {
     const params = new URLSearchParams(searchParams.toString())
     params.delete("diary")
     const qs = params.toString()
-    router.replace(qs ? `/forge?${qs}` : "/forge")
+    router.replace(qs ? `/practice?${qs}` : "/practice")
   }, [router, searchParams])
 
   return null

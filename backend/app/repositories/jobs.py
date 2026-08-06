@@ -820,19 +820,93 @@ class JobsRepository:
 
     # ── imported-job write (mixed ownership) ────────────────────────────────────
 
+    _SKILL_KEY_CHUNK = 100  # taxonomy keys are ~40 chars; keeps the .in_() URL bounded
+
+    def _existing_first_seen(self, job_id: str) -> int | None:
+        rows = (
+            self._admin_db.table("jobs")
+            .select("first_seen")
+            .eq("job_id", job_id)
+            .limit(1)
+            .execute()
+        ).data or []
+        return (rows[0] or {}).get("first_seen") if rows else None
+
+    def _resolve_skill_ids(self, taxonomy_keys: list[str]) -> dict[str, int]:
+        """``taxonomy_key`` → ``skills.id`` for the keys the taxonomy table knows.
+
+        Unresolved keys are dropped rather than inserted: ``job_skills.skill_id``
+        is a FK, so a key with no row is not a partial write, it is a failed one.
+        """
+        resolved: dict[str, int] = {}
+        for i in range(0, len(taxonomy_keys), self._SKILL_KEY_CHUNK):
+            chunk = taxonomy_keys[i:i + self._SKILL_KEY_CHUNK]
+            rows = (
+                self._admin_db.table("skills")
+                .select("id, taxonomy_key")
+                .in_("taxonomy_key", chunk)
+                .execute()
+            ).data or []
+            for row in rows:
+                key = row.get("taxonomy_key")
+                skill_id = row.get("id")
+                if key and skill_id is not None:
+                    resolved[str(key)] = int(skill_id)
+        return resolved
+
+    def _write_imported_job_skills(self, job_id: str, skill_rows: list[dict[str, Any]]) -> int:
+        """Persist an imported job's canonical skills. Returns rows written.
+
+        Without these the job is invisible to the matcher: the candidate pool is
+        `job_skills`-derived, and `jobs.role_family` is set by a trigger on this
+        table — so an import with no rows here is also permanently family-less.
+        """
+        if not skill_rows:
+            return 0
+        skill_ids = self._resolve_skill_ids([row["taxonomy_key"] for row in skill_rows])
+        payload = [
+            {
+                "job_id": job_id,
+                "skill_id": skill_ids[row["taxonomy_key"]],
+                "is_primary": row["is_primary"],
+                "required_level": row["required_level"],
+            }
+            for row in skill_rows
+            if row["taxonomy_key"] in skill_ids
+        ]
+        if not payload:
+            return 0
+        self._admin_db.table("job_skills").upsert(
+            payload, on_conflict="job_id,skill_id"
+        ).execute()
+        return len(payload)
+
     def save_imported_job(self, user_id: str, body: Any) -> dict[str, Any]:
         """Persist an extension-imported job, routing each table to its RLS context.
 
-        ``jobs`` and ``job_skill_candidates`` are community/scraper-owned — written
-        with the service-role client (``_admin_db``), which bypasses RLS. The
-        ``job_applications`` row is user-owned, so it (and the read-back) go through
-        the user-token client (``_db``) where the "own applications" policy applies.
+        ``jobs``, ``job_skills`` and ``job_skill_candidates`` are
+        community/scraper-owned — written with the service-role client
+        (``_admin_db``), which bypasses RLS. The ``job_applications`` row is
+        user-owned, so it (and the read-back) go through the user-token client
+        (``_db``) where the "own applications" policy applies.
         """
         plan = job_importer.build_imported_job(user_id, body)
 
+        job_row = plan["job_row"]
+        prior_first_seen = self._existing_first_seen(plan["job_id"])
+        if prior_first_seen is not None:
+            # Re-importing a listing is a new SIGHTING, not a new discovery —
+            # `last_seen` moves, `first_seen` must not, or the upsert would keep
+            # resetting the corpus's own "when did this appear" answer.
+            job_row = {**job_row, "first_seen": prior_first_seen}
+
         self._admin_db.table("jobs").upsert(
-            plan["job_row"], on_conflict="job_id"
+            job_row, on_conflict="job_id"
         ).execute()
+
+        # Ordered after the `jobs` upsert on purpose: job_skills.job_id is a FK,
+        # and the role_family trigger fires off this write.
+        self._write_imported_job_skills(plan["job_id"], plan["skill_rows"])
 
         if plan["candidate_rows"]:
             self._admin_db.table("job_skill_candidates").upsert(
@@ -1335,8 +1409,12 @@ class JobsRepository:
         drops as "Crawled - currently not indexed" — omitting it protects crawl
         budget for the pages that earn indexing.
 
-        One paged scan of the ~10k live rows (single column), deduped to
-        distinct names with a role count, cached 1h (the page ISR window).
+        ONE grouped read (``indexable_companies`` RPC), cached 1h (the page ISR
+        window). It used to page every matching row out at 1,000 per request and
+        count them here — 11,208 rows in 12 OFFSET round trips to produce 185.
+        OFFSET re-scans what it skips, so the last page cost 1,343 ms on its own
+        and the endpoint spiked to 9-12s; the GROUP BY answers in ~350 ms.
+        Grouping/ordering live in the function and match what this loop did.
         APIError → last good result or [] (never 500 the sitemap).
         """
         global _indexable_companies_cache
@@ -1344,23 +1422,14 @@ class JobsRepository:
         if _indexable_companies_cache is not None and (now - _indexable_companies_cache[0]) < _INDEXABLE_TTL:
             return list(_indexable_companies_cache[1])
         try:
-            rows = fetch_all_rows(
-                self._admin_db,
-                table="jobs",
-                columns="company_name",
-                query_builder=lambda q: q.eq("is_active", True).eq("listing_confidence", "active"),
-            )
+            rows = self._admin_db.rpc("indexable_companies", {}).execute().data or []
         except APIError:
             return list(_indexable_companies_cache[1]) if _indexable_companies_cache else []
 
-        counts: dict[str, int] = {}
-        for r in rows:
-            name = (r.get("company_name") or "").strip()
-            if name:
-                counts[name] = counts.get(name, 0) + 1
         out = [
-            {"name": name, "active_count": count}
-            for name, count in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0].casefold()))
+            {"name": name, "active_count": int(r.get("active_count") or 0)}
+            for r in rows
+            if (name := (r.get("name") or "").strip())
         ]
         _indexable_companies_cache = (now, out)
         return out

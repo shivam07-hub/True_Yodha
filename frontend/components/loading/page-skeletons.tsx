@@ -139,7 +139,7 @@ export function CvDocumentSkeleton() {
   )
 }
 
-export function ForgeSkeleton() {
+export function PracticeSkeleton() {
   return (
     <div className="tm-page-enter" aria-hidden="true" style={{ minHeight: "100%", padding: "var(--tm-page-py, 28px) var(--tm-page-px, 32px)", display: "flex", flexDirection: "column", gap: 18 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
@@ -350,7 +350,7 @@ export function skeletonForPath(pathname: string): React.ReactNode {
   if (pathname.startsWith("/intel")) return <IntelSkeleton />
   if (pathname.startsWith("/skills")) return <SkillsSkeleton />
   if (pathname.startsWith("/cv")) return <CvSkeleton />
-  if (pathname.startsWith("/forge")) return <ForgeSkeleton />
+  if (pathname.startsWith("/practice")) return <PracticeSkeleton />
   // /tracker merged into /cv (2026-06-02) — it redirects to /cv → CvSkeleton.
   return <GenericPageSkeleton />
 }

@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowRight, FileText, Sparkles } from "lucide-react"
 
 import { RequiresCV } from "@/components/empty/RequiresCV"
-import { ForgeSkeleton } from "@/components/loading/page-skeletons"
+import { PracticeSkeleton } from "@/components/loading/page-skeletons"
 import { BandPercentileLine } from "@/components/skills/band-percentile-line"
 import { DomainRadar } from "@/components/skills/domain-radar"
 import { ScoreBreakdown } from "@/components/skills/score-breakdown"
@@ -60,7 +60,7 @@ function ScoreMapPageInner() {
     return () => cancelAnimationFrame(id)
   }, [panelParam, model, room])
 
-  if (!ready || isLoading) return <ForgeSkeleton />
+  if (!ready || isLoading) return <PracticeSkeleton />
 
   return (
     <RequiresCV surface="skills">
@@ -139,7 +139,7 @@ function ScoreMapPageInner() {
                         {model.topMove.jobs > 0 ? ` and appears in ${model.topMove.jobs} recent jobs.` : "."}
                       </p>
                       <div className="sm-actions">
-                        <Link className="sm-primary tm-control-focus" href={`/forge?skill=${encodeURIComponent(model.topMove.skill)}`}>
+                        <Link className="sm-primary tm-control-focus" href={`/practice?skill=${encodeURIComponent(model.topMove.skill)}`}>
                           <Sparkles size={15} aria-hidden /> Practice <ArrowRight size={14} aria-hidden />
                         </Link>
                         <Link className="sm-secondary tm-control-focus" href={buildCvEvidenceHref({ domain: model.selected.domain, skill: model.topMove.skill })}>
@@ -190,5 +190,5 @@ function ScoreMapPageInner() {
 }
 
 export default function ScoreMapPage() {
-  return <Suspense fallback={<ForgeSkeleton />}><ScoreMapPageInner /></Suspense>
+  return <Suspense fallback={<PracticeSkeleton />}><ScoreMapPageInner /></Suspense>
 }

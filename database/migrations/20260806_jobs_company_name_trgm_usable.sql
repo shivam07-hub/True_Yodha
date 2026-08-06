@@ -1,0 +1,42 @@
+-- jobs.company_name trigram index the planner can actually use.
+--
+-- `idx_jobs_company_name_trgm` has existed for months and has never once been
+-- chosen. It is partial:
+--
+--     WHERE company_name IS NOT NULL AND btrim(company_name) <> ''
+--
+-- A partial index is only usable when the planner can PROVE the index predicate
+-- is implied by the query's WHERE clause. `company_name ILIKE $1` implies
+-- NOT NULL, but nothing in it implies `btrim(company_name) <> ''`. So every
+-- company lookup fell back to a sequential scan of the whole 62k-row / 522 MB
+-- jobs table.
+--
+-- Measured on prod, same query, same rows, 2026-08-06:
+--
+--     ILIKE alone                      Seq Scan   14,821 ms   21,826 buffers
+--     ILIKE + the index's own predicate GIN scan      134 ms      151 buffers
+--     ILIKE, after this index           GIN scan       19.6 ms      74 buffers
+--
+-- pg_stat_statements ranked the two ILIKE shapes #1 and #2 by total database
+-- time — 4,367 + 3,249 calls, 1,594 ms and 2,008 ms mean, 3.74 HOURS of
+-- database time between them. They are the /companies/{slug} page reads
+-- (routers/companies.py:80, :163 and repositories/jobs.py:3702), which is why
+-- large company pages 500'd: they hit the authenticator role's 8s
+-- statement_timeout and got killed mid-scan.
+--
+-- The seq scans were also the reason unrelated endpoints went slow together.
+-- shared_buffers on this instance is 224 MB and the jobs table is 522 MB, so
+-- each scan evicted the entire buffer cache; the next /public/stats or
+-- /home/bootstrap then read from disk. That co-timing is what the saturation
+-- alert emails were reporting.
+--
+-- Additive: the old partial index is left in place. Dropping it is a separate,
+-- deliberate step — it is provably unusable for these queries, so it is pure
+-- write-amplification, but removing an index is not this migration's job.
+--
+-- Applied CONCURRENTLY on prod 2026-08-06 (no write lock; index is 2520 kB).
+-- Recorded here for the migration trail — CREATE INDEX CONCURRENTLY cannot run
+-- inside a transaction, so re-running this file needs it outside one.
+
+create index concurrently if not exists idx_jobs_company_name_trgm_all
+  on public.jobs using gin (company_name gin_trgm_ops);

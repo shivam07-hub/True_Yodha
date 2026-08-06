@@ -17,12 +17,11 @@ import { useParticleMoment } from "@/components/particle"
 import { SortMenu } from "@/components/dashboard/sort-menu"
 import { PeekSurfaces } from "@/components/mission-control/peek-surfaces"
 import { FirstSuccessChecklist } from "@/components/onboarding/first-success-checklist"
-import type { LoopStep } from "@/components/mission-control/loop-ring"
 import { useManualAdd, ADD_JOB_LABEL } from "@/components/cv/pipeline/useManualAdd"
 import { usePulses } from "@/lib/hooks/use-pulses"
 import { useSavedJobDismissal } from "@/lib/hooks/use-saved-job-dismissal"
 import { useCartStore } from "@/store/cartStore"
-import { cv, diary, jobs as jobsApi, users as usersApi } from "@/lib/api"
+import { jobs as jobsApi, users as usersApi } from "@/lib/api"
 import type { ApplicationResponse, SkillGapItem } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { withLocalCache, userCacheKey } from "@/lib/local-cache"
@@ -43,7 +42,6 @@ import {
   type CollectionChip,
 } from "@/lib/collections/model"
 import { ClosedRow, CollectionRow, MyroFoundRow } from "./collection-rows"
-import type { DiaryEntry } from "@/lib/forge-helpers"
 import { canDismissSavedApplication } from "@/lib/collections/saved-job-dismissal"
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -53,7 +51,6 @@ import { canDismissSavedApplication } from "@/lib/collections/saved-job-dismissa
    are the saved-job worklist. A Myro Search (the paid run) reveals in place.
    ══════════════════════════════════════════════════════════════════════════ */
 
-const isAppliedStatus = (a: ApplicationResponse) => a.status !== "saved"
 const MATCHES_TTL = 7 * 24 * 60 * 60 * 1000
 
 export function CollectionsDesktop({
@@ -95,17 +92,6 @@ export function CollectionsDesktop({
   const { data: followed } = useQuery({
     queryKey: ["followedCompanies", token],
     queryFn: () => usersApi.followedCompanies(token),
-    enabled: !!token,
-    staleTime: 5 * 60 * 1000,
-  })
-  const historyQ = useQuery({
-    queryKey: dataKeys.diary(),
-    queryFn: () => diary.history(token),
-    enabled: !!token,
-  })
-  const { data: evidenceData } = useQuery({
-    queryKey: dataKeys.cvEvidence(),
-    queryFn: () => cv.evidence(token),
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
   })
@@ -298,16 +284,6 @@ export function CollectionsDesktop({
     }
   }
 
-  const entries = (historyQ.data?.entries ?? []) as DiaryEntry[]
-  const loggedToday = entries.length > 0 && entries[0].log_date === new Date().toISOString().slice(0, 10)
-  const steps: LoopStep[] = [
-    { label: "Find Job", done: (matchesQ.data?.jobs?.length ?? 0) > 0, icon: "target", href: "/market" },
-    { label: "Practice", done: entries.length > 0, icon: "forge", href: "/forge", reward: "+20–50" },
-    { label: "Log", done: loggedToday, icon: "diary" },
-    { label: "Level Up", done: (evidenceData?.score_delta ?? 0) > 0, icon: "star", href: "/skills" },
-    { label: "Apply", done: apps.some(isAppliedStatus), icon: "arrowRight", href: "/market" },
-  ]
-
   const trulyEmpty =
     !appsQ.isLoading && !matchesQ.isLoading && apps.length === 0 && (matchesQ.data?.jobs?.length ?? 0) === 0
 
@@ -320,7 +296,7 @@ export function CollectionsDesktop({
               browsing. Renders nothing once dismissed/complete. */}
           <FirstSuccessChecklist token={token} />
           <div className="mc-rail">
-            <PeekSurfaces token={token} steps={steps} />
+            <PeekSurfaces token={token} />
           </div>
         </aside>
 

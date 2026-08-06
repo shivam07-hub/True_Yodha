@@ -236,10 +236,13 @@ export function DataSection() {
 
 // ── Section 7: FAQ ────────────────────────────────────────────────────────────
 
-// Canonical product-FAQ source. /docs#faq is the hub that owns FAQPage schema
-// (emitted in app/docs/page.tsx). Landing emits only its unique conversion Qs.
+// Canonical product-FAQ source. /docs#faq is the sole FAQ surface and owns the
+// FAQPage schema (emitted in app/docs/page.tsx). The landing carried a duplicate
+// 4-question accordion until 2026-08-06; three were already answered here and
+// were dropped, "What is Practice?" moved in. Landing emits no FAQ schema now.
 export const FAQ_ITEMS: [string, string][] = [
   ["Is Myro free?", "Yes — uploading your CV, getting your Myro Score, and seeing your 10-domain breakdown are free. You can start without a credit card."],
+  ["What is Practice?", "Your practice yard. Pick a skill the Engine says is in demand, clear levelled question sets, and move from Level 0 to Level 5. See the “Skill levels” section above."],
   ["What file formats can I upload?", "PDF or DOCX. Drop your CV on the homepage and Myro reads it in under a minute."],
   ["Do I need to use my real name or email?", "Any email works. Your public identity is your Myro handle."],
   ["Is my CV shared with employers or other users?", "Your CV is used only to generate your score and tailored versions for you."],

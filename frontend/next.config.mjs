@@ -52,6 +52,16 @@ const nextConfig = {
         permanent: false,
       },
       {
+        // Forge became Practice everywhere a user reads it (2026-05-25 vocab
+        // lock, applied 2026-08-06); the URL was the last surface still saying
+        // Forge. Query state carries over untouched — ?skill= and ?view= mean
+        // the same thing on the renamed route. permanent:true, the old path is
+        // retired.
+        source: "/forge",
+        destination: "/practice",
+        permanent: true,
+      },
+      {
         // /about was a redirect-only alias used as the "home" target + indexed in
         // the sitemap at priority 1. The alias is gone (logo/links now point at /
         // directly); this 301 preserves inbound/bookmarked /about links and passes

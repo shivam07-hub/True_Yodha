@@ -1,15 +1,15 @@
 "use client"
 
 import "./practice.css"
-import "./forge-bar.css"
-import "./forge-hero.css"
-import "./forge-climb.css"
+import "./practice-bar.css"
+import "./practice-hero.css"
+import "./practice-climb.css"
 
 import { Suspense, useCallback, useMemo } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useQueries, useQuery } from "@tanstack/react-query"
 import { RequiresCV } from "@/components/empty/RequiresCV"
-import { ForgeSkeleton } from "@/components/loading/page-skeletons"
+import { PracticeSkeleton } from "@/components/loading/page-skeletons"
 import { UpskillingView } from "@/components/skills/upskilling/upskilling-view"
 import { jobs, scores, users } from "@/lib/api"
 import type { SkillGapResponse, UserSkillsByDomain } from "@/lib/api"
@@ -21,7 +21,7 @@ import { strongMatches } from "@/lib/jobs/match-verdict"
 
 const EMPTY_SKILLS: UserSkillsByDomain = { by_domain: {}, by_cluster: {} }
 
-function ForgePageInner() {
+function PracticePageInner() {
   const { token, ready } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
@@ -31,7 +31,7 @@ function ForgePageInner() {
   const skillParam = searchParams.get("skill")
   const practiceJobId = searchParams.get("jobId")
 
-  // /forge is the Upskilling ladder only. The evidence audit moved to the CV
+  // /practice is the Upskilling ladder only. The evidence audit moved to the CV
   // Skills rail (its per-CV-point home); the Map radar lives in the home rail.
   const clearGap = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString())
@@ -108,7 +108,7 @@ function ForgePageInner() {
     return []
   }, [profile])
 
-  if (!ready || scoreLoading) return <ForgeSkeleton />
+  if (!ready || scoreLoading) return <PracticeSkeleton />
 
   return (
     <>
@@ -140,10 +140,10 @@ function ForgePageInner() {
   )
 }
 
-export default function ForgePage() {
+export default function PracticePage() {
   return (
-    <Suspense fallback={<ForgeSkeleton />}>
-      <ForgePageInner />
+    <Suspense fallback={<PracticeSkeleton />}>
+      <PracticePageInner />
     </Suspense>
   )
 }

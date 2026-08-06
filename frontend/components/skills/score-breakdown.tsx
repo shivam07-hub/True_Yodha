@@ -19,7 +19,7 @@ interface Props {
   gapSkills: GapSkill[]
   id?: string
   /**
-   * "default" — the standalone decomposition (/forge, /market): lede, per-domain
+   * "default" — the standalone decomposition (/practice, /market): lede, per-domain
    * levers, uncounted tier, method link. The only place that sentence appears.
    *
    * "selector" — the SAME bars acting as the domain picker on /skills, where the
@@ -93,7 +93,7 @@ export function ScoreBreakdown({
                 <>
                   {rowInner}
                   {d.lever && (
-                    <Link className="sb-lever" href={`/forge?skill=${encodeURIComponent(d.lever.skill)}`}>
+                    <Link className="sb-lever" href={`/practice?skill=${encodeURIComponent(d.lever.skill)}`}>
                       <span className="sb-lever-text">Level up {d.lever.skill}</span>
                       <span className="sb-gain">+{d.lever.gain} pts</span>
                     </Link>

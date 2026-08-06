@@ -123,12 +123,12 @@ export function CvScoreProgress({ status, phase, startedAt, done, fail, onRetry 
         ) : done.downloadSlot ? (
           <div className="csp-done-actions">
             {done.downloadSlot}
-            <Link href="/forge" className="csp-done-cta-secondary tm-control-focus">
+            <Link href="/practice" className="csp-done-cta-secondary tm-control-focus">
               See your next 3 steps →
             </Link>
           </div>
         ) : (
-          <Link href="/forge" className="csp-done-cta tm-control-focus">
+          <Link href="/practice" className="csp-done-cta tm-control-focus">
             See your next 3 steps →
           </Link>
         )}

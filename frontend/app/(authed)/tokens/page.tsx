@@ -10,12 +10,12 @@ export const metadata: Metadata = {
 const whatMyroDoes = [
   { href: "/cv", label: "Reads your CV", detail: "Extracts real skills and levels — no self-rating." },
   { href: "/market", label: "Matches live jobs", detail: "Ranks openings against your CV, not keywords." },
-  { href: "/forge", label: "Grows your Myro Score", detail: "Practice sessions close real skill gaps." },
+  { href: "/practice", label: "Grows your Myro Score", detail: "Practice sessions close real skill gaps." },
   { href: "/collections", label: "Tracks every application", detail: "One tailored CV per job, every attempt kept." },
 ]
 
 const quickActions = [
-  { href: "/forge", label: "Practice a skill", detail: "Myro Coins accrue quietly while Practice runs in the background." },
+  { href: "/practice", label: "Practice a skill", detail: "Myro Coins accrue quietly while Practice runs in the background." },
   { href: "/cv", label: "Build your CV", detail: "Keep your baseline evidence current." },
   { href: "/market", label: "Use Live Job Data", detail: "Spend Myro Coins only when heavier analysis completes." },
 ]

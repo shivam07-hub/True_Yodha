@@ -10,7 +10,7 @@ interface Step {
 const STEPS: Step[] = [
   { label: "Find job",  href: "/market" },
   { label: "See gap",   href: "/cv"     },
-  { label: "Graph",     href: "/forge?view=map" },
+  { label: "Graph",     href: "/practice?view=map" },
   { label: "Tailor CV", href: "/cv"     },
 ]
 

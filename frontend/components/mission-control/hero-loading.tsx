@@ -17,16 +17,16 @@ export function HeroLoading() {
         <div style={{ marginTop: 12 }}>{bar(200, 14, 4)}</div>
       </div>
 
-      {/* loop-ring shape: circle + legend + nudge + footnote */}
-      <div className="mc-loopring">
+      {/* Score dial + moves — the CommandRail shape this hero actually renders.
+          (Was a loop-ring skeleton long after the ring left this rail; the ring
+          is now deleted outright, so the stale shape goes with it.) */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 248, maxWidth: "100%" }}>
         <Skeleton style={{ width: 168, height: 168, borderRadius: 999 }} />
-        <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap", justifyContent: "center" }}>
-          {[58, 64, 44, 70, 52].map((w, i) => (
-            <Skeleton key={i} style={{ width: w, height: 22, borderRadius: 999 }} />
+        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8, width: "100%" }}>
+          {[100, 88, 72].map((w, i) => (
+            <Skeleton key={i} style={{ width: `${w}%`, height: 34, borderRadius: 8 }} />
           ))}
         </div>
-        <div style={{ marginTop: 14 }}>{bar(180, 16, 6)}</div>
-        <div style={{ marginTop: 12 }}>{bar(120, 12, 4)}</div>
       </div>
     </div>
   )

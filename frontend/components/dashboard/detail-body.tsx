@@ -33,7 +33,7 @@ export function useSkillGap(job: JobMatch, token: string, active: boolean) {
 
 /* ── One skill row: name · L0→L2 · 5 dots · upvote ────────────────
    The upvote is the row's ONE action — "I want to learn this" — counted
-   per job, so ▲3 literally means "3 of my jobs need this". Feeds Forge
+   per job, so ▲3 literally means "3 of my jobs need this". Feeds Practice
    ordering; the fill is optimistic (lands on tap, before the network). */
 function SkillRow({
   skill,

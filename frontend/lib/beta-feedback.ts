@@ -16,7 +16,7 @@ export const PRODUCT_AREAS = [
   "CV upload",
   "CV analysis or Myro Score",
   "CV Hub or tailoring",
-  "Skills or Forge",
+  "Skills or Practice",
   "Jobs or matches",
   "Intel",
   "Tracker",

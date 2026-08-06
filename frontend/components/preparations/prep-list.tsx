@@ -13,6 +13,7 @@ import { jobs as jobsApi, type ApplicationResponse } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { displayJobTitle } from "@/lib/jobs/clean-title"
 import { CompanyAvatar, STAGE_META } from "@/components/cv/builder/library-shared"
+import { ScoreMapCard } from "./score-map-card"
 import {
   daysInStage, followUpLine, groupForList, liveRoomCount, needsStageCheck,
 } from "./prep-model"
@@ -66,7 +67,7 @@ export function PrepList({ token }: { token: string }) {
 
   if (appsQ.isLoading) {
     return (
-      <div className="prp-page">
+      <div className="prp-page prp-page--wide">
         <h1 className="prp-title">Preparations</h1>
         <p className="prp-quiet" style={{ marginTop: 16 }}>Loading your rooms…</p>
       </div>
@@ -79,25 +80,32 @@ export function PrepList({ token }: { token: string }) {
   const live = liveRoomCount(apps)
 
   return (
-    <div className="prp-page">
+    <div className="prp-page prp-page--wide">
       <div className="prp-head">
         <h1 className="prp-title">Preparations</h1>
         {live > 0 && <span className="prp-count">{live} live</span>}
       </div>
       <p className="prp-sub">Prepare for every job</p>
 
-      {live === 0 && groups.closed.length === 0 ? (
-        <div className="prp-empty">
-          Nothing to prep yet.{" "}
-          <Link href="/collections">Apply to a job in Collections</Link> and its room opens here.
+      <div className="prp-shell">
+        <div className="prp-main">
+          {live === 0 && groups.closed.length === 0 ? (
+            <div className="prp-empty">
+              Nothing to prep yet.{" "}
+              <Link href="/collections">Apply to a job in Collections</Link> and its room opens here.
+            </div>
+          ) : (
+            <>
+              <Group label="Interviewing" items={groups.interviewing} now={now} />
+              <Group label="Applied" items={groups.applied} now={now} />
+              <Group label="Closed" items={groups.closed} now={now} />
+            </>
+          )}
         </div>
-      ) : (
-        <>
-          <Group label="Interviewing" items={groups.interviewing} now={now} />
-          <Group label="Applied" items={groups.applied} now={now} />
-          <Group label="Closed" items={groups.closed} now={now} />
-        </>
-      )}
+        <aside className="prp-rail">
+          <ScoreMapCard token={token} />
+        </aside>
+      </div>
     </div>
   )
 }

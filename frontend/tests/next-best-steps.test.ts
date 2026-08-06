@@ -39,7 +39,7 @@ test("step 1 picks the highest gap_score, breaking ties on job_count_30d", () =>
   const steps = deriveNextBestSteps(FULL)
   // SQL and Docker tie on gap_score 0.9; Docker wins on job_count_30d.
   assert.equal(steps[0].title, "Practice Docker")
-  assert.equal(steps[0].href, "/forge?skill=Docker")
+  assert.equal(steps[0].href, "/practice?skill=Docker")
 })
 
 test("step 2 routes to the best-fit job detail and names it", () => {
@@ -63,7 +63,7 @@ test("no score yet → empty (FirstRunHero owns that moment)", () => {
 test("no gaps falls back to weakest-domain practice", () => {
   const steps = deriveNextBestSteps({ ...FULL, gapSkills: [] })
   assert.equal(steps[0].kind, "skill")
-  assert.equal(steps[0].href, "/forge")
+  assert.equal(steps[0].href, "/practice")
   assert.match(steps[0].title, /Data Engineering/)
 })
 

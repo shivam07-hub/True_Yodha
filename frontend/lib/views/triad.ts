@@ -66,7 +66,7 @@ export type TriadPage = keyof typeof TRIAD_DEFAULTS
 /**
  * Per-page user-facing labels (ADR-0019). The triad KEY + SEMANTIC are
  * canonical/immutable; only the displayed string varies by surface, because the
- * same `intel` semantic reads as "Skills" on /forge and "Live Job Data" on
+ * same `intel` semantic reads as "Skills" on /practice and "Live Job Data" on
  * /market. A page lists only the views where it diverges from the default.
  */
 export const TRIAD_PAGE_LABELS: Partial<Record<TriadPage, Partial<Record<TriadView, string>>>> = {
@@ -90,7 +90,7 @@ export function triadLabel(page: TriadPage, view: TriadView): string {
  * win regardless. Default = sticky (ADR-0003 behavior preserved).
  */
 export const TRIAD_STICKY: Record<TriadPage, boolean> = {
-  skills: false, // URL-driven on /forge; primary job (Skills) leads every visit
+  skills: false, // URL-driven on /practice; primary job (Skills) leads every visit
   cv: true,
   tracker: true,
   home: true,

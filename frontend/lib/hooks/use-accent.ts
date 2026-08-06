@@ -1,5 +1,5 @@
 /**
- * Owns the Signal/Forge accent preference contract shared with the
+ * Owns the Signal/Ember accent preference contract shared with the
  * `beforeInteractive` init script in app/layout.tsx. Mirrors use-surface.ts's
  * shape exactly (backlog ND15) — `myro-accent` in localStorage is the
  * per-device instant-paint cache; `user_profiles.accent_pref` (synced via
@@ -7,7 +7,8 @@
  * loads) is the durable, cross-device source of truth.
  *
  * Default = Signal (teal) — zero visual change for every existing user until
- * they opt into Forge (amber) themselves.
+ * they opt into Ember (amber) themselves. The stored key stays `"forge"`: it
+ * predates the Forge→Practice rename and is an identifier, not copy.
  */
 "use client"
 

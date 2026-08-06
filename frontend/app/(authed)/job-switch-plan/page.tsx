@@ -13,7 +13,7 @@ import "./job-switch-plan.css"
 /* ₹99 Personalised Job-Switch Plan surface (#33). Two states:
    no plan → the ₹99 offer + Razorpay checkout; has plan → the living plan meta,
    the two-review lifecycle (B6), and the on-demand second-review request. The
-   living SKILL content lives on Practice (/forge) — this page links there rather
+   living SKILL content lives on Practice (/practice) — this page links there rather
    than duplicating the gap engine. Razorpay loads only after checkout starts. */
 
 const POINTS = [
@@ -238,7 +238,7 @@ export default function JobSwitchPlanPage() {
               >
                 {requesting ? "Requesting…" : "Request your second review"}
               </button>
-              <Link className="jsp-btn jsp-btn-ghost" href="/forge">
+              <Link className="jsp-btn jsp-btn-ghost" href="/practice">
                 <Compass size={16} strokeWidth={1.5} aria-hidden />
                 Work your plan in Practice
               </Link>
