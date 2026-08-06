@@ -167,6 +167,13 @@ class Settings(BaseSettings):
     # ALLOWED_ORIGINS=https://himyro.com,https://www.himyro.com
     allowed_origins: str = "http://localhost:3000"
 
+    # The app's own front door, used to BUILD urls we hand out (partner SSO
+    # sign-in links). Deliberately not derived from a request header — a partner
+    # supplies only a relative path, and the origin comes from here, so a bad
+    # `Host` or a partner-supplied absolute url can never redirect our sign-in
+    # links off-site. Empty = the first entry in ALLOWED_ORIGINS.
+    app_base_url: str = ""
+
     # Non-production preview origins, as an anchored regex.
     #
     # Vercel mints a NEW origin for every preview deployment
@@ -328,6 +335,19 @@ class Settings(BaseSettings):
         if self.allowed_origins.strip() == "*":
             return ["*"]
         return [o.strip() for o in self.allowed_origins.split(",") if o.strip()]
+
+    @property
+    def public_app_url(self) -> str:
+        """Origin for urls we mint and hand to third parties. Explicit override
+        wins; otherwise the first CORS origin, which is by definition an origin
+        this deployment already trusts to be its own frontend."""
+        explicit = self.app_base_url.strip().rstrip("/")
+        if explicit:
+            return explicit
+        for origin in self.cors_origins:
+            if origin != "*":
+                return origin.rstrip("/")
+        return ""
 
     @property
     def jwks_url(self) -> str:

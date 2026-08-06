@@ -42,15 +42,29 @@ def mint_login_link(admin: Any, *, email: str, redirect_to: str | None) -> str:
     return response.properties.action_link
 
 
-def _ensure_user(admin: Any, email: str) -> None:
-    """Create a confirmed passwordless user; a duplicate is the expected
-    returning-user case and is swallowed. Other errors propagate."""
+def create_user_if_absent(admin: Any, email: str) -> str | None:
+    """Create a confirmed passwordless user.
+
+    Returns the new user's id when THIS call created the account, and None when
+    the account already existed. That distinction is not cosmetic: partner SSO
+    uses it as the account-takeover gate — an account we just created can be
+    linked to the calling partner silently, an account that predates the call
+    cannot, because nothing has proved the partner speaks for its owner.
+    """
     try:
-        admin.auth.admin.create_user({"email": email, "email_confirm": True})
+        created = admin.auth.admin.create_user({"email": email, "email_confirm": True})
     except Exception as exc:  # noqa: BLE001 — classified below, genuine errors re-raised
         if _is_already_exists(exc):
-            return
+            return None
         raise
+    user = getattr(created, "user", None)
+    return str(user.id) if user and getattr(user, "id", None) else None
+
+
+def _ensure_user(admin: Any, email: str) -> None:
+    """Create the account if it does not exist; a duplicate is the expected
+    returning-user case."""
+    create_user_if_absent(admin, email)
 
 
 def _is_already_exists(exc: Exception) -> bool:

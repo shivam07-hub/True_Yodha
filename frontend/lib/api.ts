@@ -258,6 +258,7 @@ export interface PostSigninResponse {
   attribution_recorded: boolean
   linkedin_xp_granted: boolean
   linkedin_url_set: boolean
+  partner_linked: boolean
 }
 
 export interface PostSigninRequestBody {
@@ -268,6 +269,14 @@ export interface PostSigninRequestBody {
   linkedin_vanity?: string | null
   linkedin_headline?: string | null
   linkedin_verified?: boolean | null
+  /**
+   * Partner SSO completion. Present when the sign-in landed from a partner
+   * verification link. The backend re-checks that this account's email matches
+   * the seat the partner named, so forwarding them proves nothing on its own —
+   * signing in is the proof.
+   */
+  link_partner?: string | null
+  partner_external_id?: string | null
 }
 
 export interface MagicLinkResponse {

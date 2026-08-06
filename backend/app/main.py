@@ -25,6 +25,7 @@ from app.routers import (
     notifications,
     private_notes,
     onboarding,
+    partner,
     payments,
     profile,
     roles,
@@ -99,6 +100,7 @@ app.include_router(job_switch_plan.router)
 app.include_router(newsletter.router)
 app.include_router(notifications.router)
 app.include_router(onboarding.router)
+app.include_router(partner.router)
 app.include_router(roles.router)
 app.include_router(public.router)
 app.include_router(status.router)

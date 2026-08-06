@@ -84,6 +84,12 @@ function CallbackInner() {
       }
 
       const method = provider === "google" ? "google" : provider?.startsWith("linkedin") ? "linkedin" : "magic_link"
+      // Partner SSO completion — present only on the link a partner's user was
+      // emailed when their address already had a Myro account. Forwarding is all
+      // the frontend does: the backend re-checks the signed-in email against the
+      // seat, so a hand-typed param links nothing.
+      const linkPartner = searchParams.get("link_partner")
+      const partnerExternalId = searchParams.get("partner_external_id")
       auth
         .postSignin(session.access_token, {
           provider,
@@ -93,6 +99,8 @@ function CallbackInner() {
           linkedin_vanity: linkedinVanity,
           linkedin_headline: linkedinHeadline,
           linkedin_verified: linkedinVerified,
+          link_partner: linkPartner,
+          partner_external_id: partnerExternalId,
         })
         .then((result) => {
           clearStoredAttribution()

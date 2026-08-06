@@ -18,6 +18,9 @@ from pydantic import BaseModel
 from app.config import settings
 from app.database import get_supabase_admin
 from app.repositories.jobs import JobsRepository
+from app.repositories.partners import PartnersRepository
+from app.schemas.partner import BroadcastRequest, BroadcastResponse
+from app.services import partner_broadcast, partner_webhooks
 from app.services.matching import scrape_sweep
 
 logger = logging.getLogger(__name__)
@@ -47,6 +50,10 @@ class ScrapeLandedRequest(BaseModel):
     since_hours: int = 24
     # Opt-in eager fan-out (admin only). OFF by design — see the docstring.
     sweep: bool = False
+    # Partner fan-out. ON by design, and NOT the same trade-off as `sweep`: a
+    # partner's users are not on the site to pull anything, and the broadcast is
+    # deterministic SQL, not LLM ranking, so it costs no provider budget.
+    notify_partners: bool = True
 
 
 class ScrapeLandedResponse(BaseModel):
@@ -77,6 +84,9 @@ def scrape_landed(body: ScrapeLandedRequest) -> ScrapeLandedResponse:
     admin_db = get_supabase_admin()
     repo = JobsRepository(admin_db, admin_db)
 
+    if body.notify_partners:
+        partner_broadcast.enqueue_broadcast()
+
     if body.sweep:
         result = scrape_sweep.run_sweep(repo, since=since)
         logger.info("metric scrape_webhook.landed sweep=1 since=%s result=%s", since, result)
@@ -87,3 +97,51 @@ def scrape_landed(body: ScrapeLandedRequest) -> ScrapeLandedResponse:
     return ScrapeLandedResponse(
         new_jobs=new_jobs, affected_users=0, enqueued=0, since=since.isoformat()
     )
+
+
+# ── partner integrations ───────────────────────────────────────────────────
+
+
+@router.post(
+    "/partners/broadcast",
+    response_model=BroadcastResponse,
+    dependencies=[Depends(require_scrape_webhook)],
+)
+def partners_broadcast(body: BroadcastRequest) -> BroadcastResponse:
+    """Fan the current inventory out to partner seats.
+
+    `dry_run` runs the identical resolution and reports what WOULD be sent
+    without emitting or writing the ledger — run it before the first real
+    broadcast to a new partner, because the ledger cannot be un-written.
+    """
+    kwargs = {
+        "jobs_per_user": body.jobs_per_user,
+        "max_experience_years": body.max_experience_years,
+        "dry_run": body.dry_run,
+    }
+    if body.partner_slug:
+        admin_db = get_supabase_admin()
+        partner = PartnersRepository(admin_db).get_partner_by_slug(body.partner_slug)
+        if not partner:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Unknown partner slug."
+            )
+        result = partner_broadcast.broadcast_new_jobs(
+            partner_id=str(partner["id"]), slug=body.partner_slug, **kwargs
+        )
+        return BroadcastResponse(results={body.partner_slug: result})
+    return BroadcastResponse(results=partner_broadcast.broadcast_all(**kwargs))
+
+
+@router.post(
+    "/partners/webhook-sweep",
+    response_model=dict,
+    dependencies=[Depends(require_scrape_webhook)],
+)
+def partners_webhook_sweep(limit: int = 100) -> dict:
+    """Re-enqueue partner webhook deliveries whose next attempt is due.
+
+    This IS the retry engine — nothing else re-attempts a failed delivery. Run it
+    on a schedule; without it a partner outage means one attempt and silence.
+    """
+    return partner_webhooks.sweep_due(limit=max(1, min(limit, 500)))

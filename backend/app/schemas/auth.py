@@ -94,6 +94,11 @@ class PostSigninRequest(BaseModel):
     linkedin_vanity: str | None = Field(default=None, max_length=120)
     linkedin_headline: str | None = Field(default=None, max_length=240)
     linkedin_verified: bool | None = None
+    # Partner SSO completion. Set when the sign-in landed from a `link_partner`
+    # url — the ONLY way a pre-existing Myro account becomes linked to a partner,
+    # because it needs the account owner to have signed in themselves.
+    link_partner: str | None = Field(default=None, max_length=64)
+    partner_external_id: str | None = Field(default=None, max_length=128)
 
 
 class PostSigninResponse(BaseModel):
@@ -102,6 +107,7 @@ class PostSigninResponse(BaseModel):
     attribution_recorded: bool = False
     linkedin_xp_granted: bool = False
     linkedin_url_set: bool = False
+    partner_linked: bool = False
 
 
 class IntegrationRevokeResponse(BaseModel):
