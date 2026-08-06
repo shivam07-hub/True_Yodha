@@ -470,3 +470,156 @@ def test_get_user_profile_targeting_survives_postgrest_204() -> None:
 
     assert profile == {"cv_markdown": ""}
     assert profile.get("target_roles") is None  # degrades, does not raise
+
+
+# ── extension-imported job persistence ────────────────────────────────────────
+
+
+class _RecordingQuery:
+    """Minimal PostgREST builder that records writes and filters seeded rows."""
+
+    def __init__(self, table: str, rows: list[dict[str, Any]], writes: list[dict[str, Any]]) -> None:
+        self._table = table
+        self._rows = rows
+        self._writes = writes
+        self._single = False
+
+    def upsert(self, payload: Any, on_conflict: str | None = None) -> "_RecordingQuery":
+        self._writes.append({"table": self._table, "payload": payload, "on_conflict": on_conflict})
+        return self
+
+    def select(self, *_a: Any, **_k: Any) -> "_RecordingQuery":
+        return self
+
+    def eq(self, key: str, value: Any) -> "_RecordingQuery":
+        self._rows = [row for row in self._rows if row.get(key) == value]
+        return self
+
+    def in_(self, key: str, values: list[Any]) -> "_RecordingQuery":
+        wanted = set(values)
+        self._rows = [row for row in self._rows if row.get(key) in wanted]
+        return self
+
+    def limit(self, _n: int) -> "_RecordingQuery":
+        return self
+
+    def single(self) -> "_RecordingQuery":
+        self._single = True
+        return self
+
+    def execute(self) -> Any:
+        class _R:
+            pass
+
+        result = _R()
+        result.data = (self._rows[0] if self._rows else None) if self._single else self._rows
+        return result
+
+
+class _ImportDB:
+    def __init__(self, tables: dict[str, list[dict[str, Any]]]) -> None:
+        self._tables = tables
+        self.writes: list[dict[str, Any]] = []
+
+    def table(self, name: str) -> _RecordingQuery:
+        return _RecordingQuery(name, [dict(r) for r in self._tables.get(name, [])], self.writes)
+
+
+def _import_body(**overrides: Any) -> Any:
+    from types import SimpleNamespace
+
+    base = dict(
+        role_name="Data Engineer",
+        company_name="Acme",
+        location="Bengaluru",
+        job_description="Build pipelines.",
+        source_url="https://example.com/job/1",
+        source_platform="generic",
+        primary_skills=["Python (Programming Language)"],
+        secondary_skills=["SQL (Programming Language)"],
+        emerging_skills=[],
+        status="saved",
+    )
+    base.update(overrides)
+    return SimpleNamespace(**base)
+
+
+def _import_db(job_rows: list[dict[str, Any]] | None = None) -> _ImportDB:
+    return _ImportDB(
+        {
+            "jobs": job_rows or [],
+            "skills": [
+                {"id": 11, "taxonomy_key": "Python (Programming Language)"},
+                {"id": 22, "taxonomy_key": "SQL (Programming Language)"},
+            ],
+            "job_applications": [{"id": 5, "user_id": "u1", "status": "saved", "source": "user_discovery"}],
+        }
+    )
+
+
+def _writes_to(db: _ImportDB, table: str) -> list[dict[str, Any]]:
+    return [w for w in db.writes if w["table"] == table]
+
+
+def test_save_imported_job_writes_canonical_job_skills() -> None:
+    # Prod 2026-08-06: all 17 extension jobs had ZERO job_skills rows, so the
+    # matcher's candidate pool (job_skills-derived) could never see them — and
+    # role_family, set by a trigger on that table, stayed NULL forever.
+    db = _import_db()
+    repo = JobsRepository(db, db)  # type: ignore[arg-type]
+
+    repo.save_imported_job("u1", _import_body())
+
+    written = _writes_to(db, "job_skills")
+    assert len(written) == 1
+    assert written[0]["on_conflict"] == "job_id,skill_id"
+    assert [(r["skill_id"], r["is_primary"], r["required_level"]) for r in written[0]["payload"]] == [
+        (11, True, 4),
+        (22, False, 2),
+    ]
+    assert {r["job_id"] for r in written[0]["payload"]} == {
+        _writes_to(db, "jobs")[0]["payload"]["job_id"]
+    }
+
+
+def test_save_imported_job_stamps_feed_markers() -> None:
+    db = _import_db()
+    repo = JobsRepository(db, db)  # type: ignore[arg-type]
+
+    repo.save_imported_job("u1", _import_body())
+
+    job_row = _writes_to(db, "jobs")[0]["payload"]
+    today = int(date.today().strftime("%Y%m%d"))
+    assert job_row["first_seen"] == today
+    assert job_row["last_seen"] == today
+
+
+def test_save_imported_job_keeps_the_original_first_seen_on_reimport() -> None:
+    # Re-importing is a new sighting, not a new discovery: last_seen moves,
+    # first_seen must not, or the upsert keeps resetting "when did this appear".
+    body = _import_body()
+    from app.services.job_importer import build_extension_job_id
+
+    job_id = build_extension_job_id(body.source_url, body.role_name, body.company_name, body.location)
+    db = _import_db([{"job_id": job_id, "first_seen": 20260101}])
+    repo = JobsRepository(db, db)  # type: ignore[arg-type]
+
+    repo.save_imported_job("u1", body)
+
+    job_row = _writes_to(db, "jobs")[0]["payload"]
+    assert job_row["first_seen"] == 20260101
+    assert job_row["last_seen"] == int(date.today().strftime("%Y%m%d"))
+
+
+def test_save_imported_job_skips_skills_the_taxonomy_table_does_not_know() -> None:
+    # job_skills.skill_id is an FK — an unresolved key is a failed write, not a
+    # partial one, so it must never reach the payload.
+    db = _import_db()
+    repo = JobsRepository(db, db)  # type: ignore[arg-type]
+
+    repo.save_imported_job(
+        "u1", _import_body(primary_skills=["Python (Programming Language)"], secondary_skills=[])
+    )
+
+    written = _writes_to(db, "job_skills")
+    assert [r["skill_id"] for r in written[0]["payload"]] == [11]

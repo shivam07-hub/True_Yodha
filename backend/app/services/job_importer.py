@@ -83,6 +83,41 @@ def _valid_taxonomy_keys() -> set[str]:
     return {skill.name for skill in get_all_skills()}
 
 
+def _today_marker() -> int:
+    """Today as the YYYYMMDD int the `jobs` feed columns store.
+
+    `first_seen` / `last_seen` / `batch_date` are integer date markers, not
+    timestamps — see `_fresh_cutoff_marker` in the jobs repository, which
+    compares against exactly this shape.
+    """
+    return int(date.today().strftime("%Y%m%d"))
+
+
+def _canonical_skill_rows(primary: list[str], secondary: list[str]) -> list[dict[str, Any]]:
+    """Canonical job_skills rows for one imported job, primary first.
+
+    Required levels mirror the scraper's canonical rows (primary 4, secondary 2).
+    A key present in both lists is kept once, as primary — `job_skills` is UNIQUE
+    on (job_id, skill_id), and a duplicate inside one upsert batch is a Postgres
+    error ("cannot affect row a second time"), not a silent dedupe.
+    """
+    rows: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for is_primary, keys in ((True, primary), (False, secondary)):
+        for key in keys:
+            if key in seen:
+                continue
+            seen.add(key)
+            rows.append(
+                {
+                    "taxonomy_key": key,
+                    "is_primary": is_primary,
+                    "required_level": 4 if is_primary else 2,
+                }
+            )
+    return rows
+
+
 def _skill_terms(skill_name: str) -> list[str]:
     terms = [skill_name]
     if "(" in skill_name:
@@ -198,9 +233,12 @@ def _emerging_payloads(
 def build_imported_job(user_id: str, body: Any) -> dict[str, Any]:
     """Shape the rows for an extension-imported job. Pure — no DB access.
 
-    The repository owns which client writes each table: ``jobs`` and
-    ``job_skill_candidates`` are community/scraper-owned (service-role),
+    The repository owns which client writes each table: ``jobs``, ``job_skills``
+    and ``job_skill_candidates`` are community/scraper-owned (service-role),
     while ``job_applications`` is user-owned (user-token, RLS by user).
+
+    ``skill_rows`` carries taxonomy KEYS, not ``skills.id`` — resolving an id is
+    a DB read and this function stays pure. The repository resolves them.
     """
     valid_keys = _valid_taxonomy_keys()
     primary, primary_emerging = split_confirmed_skills(body.primary_skills, valid_keys, "primary")
@@ -222,7 +260,13 @@ def build_imported_job(user_id: str, body: Any) -> dict[str, Any]:
         "job_description": body.job_description.strip(),
         "main_skills": primary,
         "side_skills": secondary,
-        "batch_date": int(date.today().strftime("%Y%m%d")),
+        # A user importing from the listing page IS an observation of it. Leaving
+        # these NULL parked every imported job below every freshness floor and
+        # out of every "newest first" order — the scraper stamps the same three
+        # markers on ingest and nothing else backfills them.
+        "first_seen": _today_marker(),
+        "last_seen": _today_marker(),
+        "batch_date": _today_marker(),
         "ingestion_source": "extension",
         "quality_status": "user_confirmed",
         "created_by_user_id": user_id,
@@ -238,6 +282,11 @@ def build_imported_job(user_id: str, body: Any) -> dict[str, Any]:
     return {
         "job_id": job_id,
         "job_row": job_row,
+        # Canonical rows are what the matcher's candidate pool is built from
+        # (`get_candidate_job_ids_for_skills` → job_skills). `candidate_rows` is
+        # the OTHER half: labels the taxonomy does not know yet, which can never
+        # become a match until they are mapped.
+        "skill_rows": _canonical_skill_rows(primary, secondary),
         "candidate_rows": candidate_rows,
         # An extension/import is the user's OWN discovery — never a Myro match.
         # Labelling it user_discovery is what makes it surface in Liked/All

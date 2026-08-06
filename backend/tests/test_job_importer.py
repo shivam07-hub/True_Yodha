@@ -68,6 +68,53 @@ def test_split_confirmed_skills_keeps_canonical_and_returns_emerging() -> None:
     assert emerging == [{"label": "LangGraph", "skill_type": "primary", "source": "user_added"}]
 
 
+def test_imported_job_stamps_todays_feed_markers() -> None:
+    # first_seen/last_seen were NULL on every extension row in prod (2026-08-06),
+    # which parks the job below every freshness floor and out of every
+    # newest-first order. The columns are YYYYMMDD ints, not timestamps.
+    plan = build_imported_job("u1", _import_body())
+    today = int(date.today().strftime("%Y%m%d"))
+
+    assert plan["job_row"]["first_seen"] == today
+    assert plan["job_row"]["last_seen"] == today
+    assert plan["job_row"]["batch_date"] == today
+
+
+def test_imported_job_builds_canonical_skill_rows() -> None:
+    # The match candidate pool is job_skills-derived, so a job with no canonical
+    # rows can never be a candidate however good its main_skills array looks.
+    plan = build_imported_job(
+        "u1",
+        _import_body(
+            primary_skills=["Python (Programming Language)"],
+            secondary_skills=["SQL (Programming Language)", "LangGraph"],
+        ),
+    )
+
+    assert plan["skill_rows"] == [
+        {"taxonomy_key": "Python (Programming Language)", "is_primary": True, "required_level": 4},
+        {"taxonomy_key": "SQL (Programming Language)", "is_primary": False, "required_level": 2},
+    ]
+    # LangGraph is not in the taxonomy — it stays a candidate, never a job_skill.
+    assert [row["raw_label"] for row in plan["candidate_rows"]] == ["LangGraph"]
+
+
+def test_imported_job_skill_rows_keep_a_repeated_key_once_as_primary() -> None:
+    # job_skills is UNIQUE (job_id, skill_id); a duplicate inside one upsert
+    # batch is a Postgres error, not a silent dedupe.
+    plan = build_imported_job(
+        "u1",
+        _import_body(
+            primary_skills=["Python (Programming Language)"],
+            secondary_skills=["Python (Programming Language)"],
+        ),
+    )
+
+    assert plan["skill_rows"] == [
+        {"taxonomy_key": "Python (Programming Language)", "is_primary": True, "required_level": 4}
+    ]
+
+
 def test_split_confirmed_skills_dedupes_canonical_and_emerging() -> None:
     canonical, emerging = split_confirmed_skills(
         ["SQL", "SQL", "LangGraph", "lang graph", "  "],
