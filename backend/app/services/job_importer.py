@@ -1,30 +1,38 @@
 from __future__ import annotations
 
 import hashlib
-import re
 from datetime import date
 from typing import Any
 
 from supabase import Client
 
 from app.schemas.jobs import APPLICATION_STATUSES
+from app.services import skill_floor
 from app.services.job_extract_backstop import is_valid_company
+from app.services.skill_extraction import (
+    ExtractedSkill,
+    extract_skills,
+    merge_zones,
+    normalize_skill_label,
+    suggest_skills,
+)
 from app.services.taxonomy_loader import get_all_skills
+
+__all__ = [
+    "build_extension_job_id",
+    "build_imported_job",
+    "normalize_skill_label",
+    "preview_imported_job",
+    "shape_application_response",
+    "split_confirmed_skills",
+    "suggest_skills",
+]
 
 
 def _safe_company(value: Any) -> str:
     """A non-null, non-junk company for the NOT-NULL jobs.company_name column."""
     text = (str(value or "")).strip()
     return text if is_valid_company(text) else "Unknown company"
-
-_NON_WORD = re.compile(r"[^a-z0-9+#. ]+")
-_SPACE = re.compile(r"\s+")
-_REQUIRED_HINT = re.compile(r"\b(required|must have|mandatory|responsibilities|requirements)\b", re.IGNORECASE)
-
-
-def normalize_skill_label(label: str) -> str:
-    cleaned = _NON_WORD.sub(" ", label.strip().lower())
-    return _SPACE.sub(" ", cleaned).strip()
 
 
 def _dedupe_key(label: str) -> str:
@@ -93,89 +101,36 @@ def _today_marker() -> int:
     return int(date.today().strftime("%Y%m%d"))
 
 
-def _canonical_skill_rows(primary: list[str], secondary: list[str]) -> list[dict[str, Any]]:
-    """Canonical job_skills rows for one imported job, primary first.
+def _canonical_skill_rows(
+    primary: list[str], secondary: list[str], *, role_name: str, job_description: str
+) -> tuple[list[ExtractedSkill], str]:
+    """The skills to persist for one imported job, and where they came from.
 
-    Required levels mirror the scraper's canonical rows (primary 4, secondary 2).
-    A key present in both lists is kept once, as primary — `job_skills` is UNIQUE
-    on (job_id, skill_id), and a duplicate inside one upsert batch is a Postgres
-    error ("cannot affect row a second time"), not a silent dedupe.
+    A contributor's own confirmation outranks anything we could infer, so the
+    payload's lists win when it has them. `merge_zones` keeps a key that appears
+    in both lists once, at its stronger claim — `job_skills` is UNIQUE on
+    (job_id, skill_id) and Postgres errors on a duplicate inside one upsert
+    batch rather than deduping it.
+
+    When the payload confirms nothing, the job's own text is read instead. That
+    is the floor: an import arriving with empty skill lists must still be
+    matchable, because a job with no skills reaches nobody. Two prod extension
+    rows are in exactly that state and cannot be repaired from stored arrays —
+    they have none.
     """
-    rows: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    for is_primary, keys in ((True, primary), (False, secondary)):
-        for key in keys:
-            if key in seen:
-                continue
-            seen.add(key)
-            rows.append(
-                {
-                    "taxonomy_key": key,
-                    "is_primary": is_primary,
-                    "required_level": 4 if is_primary else 2,
-                }
-            )
-    return rows
-
-
-def _skill_terms(skill_name: str) -> list[str]:
-    terms = [skill_name]
-    if "(" in skill_name:
-        terms.append(skill_name.split("(", 1)[0].strip())
-    cleaned = []
-    for term in terms:
-        normalized = normalize_skill_label(term)
-        if len(normalized) >= 3 or normalized in {"c++", "c#", "go"}:
-            cleaned.append(normalized)
-    return list(dict.fromkeys(cleaned))
-
-
-def _contains_term(text: str, term: str) -> bool:
-    escaped = re.escape(term)
-    return re.search(rf"(?<![a-z0-9+#.]){escaped}(?![a-z0-9+#.])", text) is not None
-
-
-def _required_zone(job_description: str) -> str:
-    lines = [line.strip() for line in job_description.splitlines() if line.strip()]
-    selected = [line for line in lines if _REQUIRED_HINT.search(line)]
-    if not selected:
-        return "\n".join(lines[: max(1, len(lines) // 2)])
-    return "\n".join(selected)
-
-
-def suggest_skills(role_name: str, job_description: str, limit: int = 12) -> dict[str, list[dict[str, Any]]]:
-    text = normalize_skill_label(f"{role_name}\n{job_description}")
-    primary_text = normalize_skill_label(f"{role_name}\n{_required_zone(job_description)}")
-
-    primary: list[dict[str, Any]] = []
-    secondary: list[dict[str, Any]] = []
-    seen: set[str] = set()
-
-    for skill in sorted(get_all_skills(), key=lambda item: len(item.name), reverse=True):
-        terms = _skill_terms(skill.name)
-        if not terms:
-            continue
-        if not any(_contains_term(text, term) for term in terms):
-            continue
-        target = primary if any(_contains_term(primary_text, term) for term in terms) else secondary
-        if skill.name in seen:
-            continue
-        target.append(
-            {
-                "label": skill.name,
-                "taxonomy_key": skill.name,
-                "confidence": 0.82 if target is primary else 0.68,
-            }
+    confirmed = [
+        ExtractedSkill(
+            taxonomy_key=key,
+            zone="must_have" if is_must else "preferred",
+            required_level=4 if is_must else 2,
+            confidence=0.9,
         )
-        seen.add(skill.name)
-        if len(primary) >= limit and len(secondary) >= limit:
-            break
-
-    return {
-        "primary_skills": primary[:limit],
-        "secondary_skills": secondary[:limit],
-        "emerging_skills": [],
-    }
+        for is_must, keys in ((True, primary), (False, secondary))
+        for key in keys
+    ]
+    if confirmed:
+        return merge_zones(confirmed), skill_floor.USER_CONFIRMED
+    return extract_skills(role_name, job_description), skill_floor.STAGE_A
 
 
 def preview_imported_job(db: Client, body: Any) -> dict[str, Any]:
@@ -272,6 +227,10 @@ def build_imported_job(user_id: str, body: Any) -> dict[str, Any]:
         "created_by_user_id": user_id,
     }
 
+    skill_rows, skill_source = _canonical_skill_rows(
+        primary, secondary, role_name=body.role_name, job_description=body.job_description
+    )
+
     emerging_inputs = list(body.emerging_skills) + primary_emerging + secondary_emerging
     candidate_rows = _emerging_payloads(job_id, user_id, body.source_platform or "generic", emerging_inputs)
 
@@ -286,7 +245,8 @@ def build_imported_job(user_id: str, body: Any) -> dict[str, Any]:
         # (`get_candidate_job_ids_for_skills` → job_skills). `candidate_rows` is
         # the OTHER half: labels the taxonomy does not know yet, which can never
         # become a match until they are mapped.
-        "skill_rows": _canonical_skill_rows(primary, secondary),
+        "skill_rows": skill_rows,
+        "skill_source": skill_source,
         "candidate_rows": candidate_rows,
         # An extension/import is the user's OWN discovery — never a Myro match.
         # Labelling it user_discovery is what makes it surface in Liked/All

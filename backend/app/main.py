@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from pathlib import Path
 
@@ -172,6 +173,24 @@ async def _sweep_orphaned_cv_upload_jobs() -> None:
     except Exception:  # pragma: no cover — sweep failure must not block boot
         import logging
         logging.getLogger(__name__).exception("Startup orphan-sweep failed")
+
+
+@app.on_event("startup")
+async def _start_skill_floor_heartbeat() -> None:
+    """Watch for jobs that carry no skills — see skill_floor_heartbeat.
+
+    A job with no skills reaches no user, and nothing else notices: every gate
+    stays green and the API answers 200. 6,252 jobs sat that way for four
+    months. This has to run in the web process, because a metric emitted by the
+    enrichment worker cannot report the enrichment worker not running.
+    """
+    from app.config import settings
+
+    if not settings.supabase_url or not settings.supabase_service_key:
+        return
+    from app.services.skill_floor_heartbeat import run_forever
+
+    asyncio.create_task(run_forever())
 
 
 @app.get("/robots.txt", include_in_schema=False, response_class=PlainTextResponse)

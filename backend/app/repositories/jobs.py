@@ -15,7 +15,7 @@ from app.database import get_supabase_admin
 from app.db_safe import safe_read
 from app.deps import get_user_db
 from app.repositories.job_skills_read_model import fetch_all_rows, fetch_job_skill_rows, fetch_job_skill_rows_for_ids, group_job_skill_rows
-from app.services import job_importer
+from app.services import job_importer, skill_floor
 from app.services.company_pulse import SERIES_DAYS, build_series, compute_pulse
 from app.services.industry_grouping import normalize_industry_group
 from app.services.job_history import attach_jobs
@@ -820,8 +820,6 @@ class JobsRepository:
 
     # ── imported-job write (mixed ownership) ────────────────────────────────────
 
-    _SKILL_KEY_CHUNK = 100  # taxonomy keys are ~40 chars; keeps the .in_() URL bounded
-
     def _existing_first_seen(self, job_id: str) -> int | None:
         rows = (
             self._admin_db.table("jobs")
@@ -831,55 +829,6 @@ class JobsRepository:
             .execute()
         ).data or []
         return (rows[0] or {}).get("first_seen") if rows else None
-
-    def _resolve_skill_ids(self, taxonomy_keys: list[str]) -> dict[str, int]:
-        """``taxonomy_key`` → ``skills.id`` for the keys the taxonomy table knows.
-
-        Unresolved keys are dropped rather than inserted: ``job_skills.skill_id``
-        is a FK, so a key with no row is not a partial write, it is a failed one.
-        """
-        resolved: dict[str, int] = {}
-        for i in range(0, len(taxonomy_keys), self._SKILL_KEY_CHUNK):
-            chunk = taxonomy_keys[i:i + self._SKILL_KEY_CHUNK]
-            rows = (
-                self._admin_db.table("skills")
-                .select("id, taxonomy_key")
-                .in_("taxonomy_key", chunk)
-                .execute()
-            ).data or []
-            for row in rows:
-                key = row.get("taxonomy_key")
-                skill_id = row.get("id")
-                if key and skill_id is not None:
-                    resolved[str(key)] = int(skill_id)
-        return resolved
-
-    def _write_imported_job_skills(self, job_id: str, skill_rows: list[dict[str, Any]]) -> int:
-        """Persist an imported job's canonical skills. Returns rows written.
-
-        Without these the job is invisible to the matcher: the candidate pool is
-        `job_skills`-derived, and `jobs.role_family` is set by a trigger on this
-        table — so an import with no rows here is also permanently family-less.
-        """
-        if not skill_rows:
-            return 0
-        skill_ids = self._resolve_skill_ids([row["taxonomy_key"] for row in skill_rows])
-        payload = [
-            {
-                "job_id": job_id,
-                "skill_id": skill_ids[row["taxonomy_key"]],
-                "is_primary": row["is_primary"],
-                "required_level": row["required_level"],
-            }
-            for row in skill_rows
-            if row["taxonomy_key"] in skill_ids
-        ]
-        if not payload:
-            return 0
-        self._admin_db.table("job_skills").upsert(
-            payload, on_conflict="job_id,skill_id"
-        ).execute()
-        return len(payload)
 
     def save_imported_job(self, user_id: str, body: Any) -> dict[str, Any]:
         """Persist an extension-imported job, routing each table to its RLS context.
@@ -905,8 +854,15 @@ class JobsRepository:
         ).execute()
 
         # Ordered after the `jobs` upsert on purpose: job_skills.job_id is a FK,
-        # and the role_family trigger fires off this write.
-        self._write_imported_job_skills(plan["job_id"], plan["skill_rows"])
+        # and the role_family trigger fires off this write. Routed through
+        # `skill_floor` because it is the one writer of job_skills — the import
+        # path is simply its first caller.
+        skill_floor.write_skill_floor(
+            self._admin_db,
+            plan["job_id"],
+            plan["skill_rows"],
+            evidence_source=plan["skill_source"],
+        )
 
         if plan["candidate_rows"]:
             self._admin_db.table("job_skill_candidates").upsert(
