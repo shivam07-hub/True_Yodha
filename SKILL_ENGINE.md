@@ -122,9 +122,26 @@ exact invariant that caused this bug.
 
 ### Lock 3 — Hard vs soft is a separate axis, derived and never retyped
 
-Soft = Lightcast L1 `Physical and Inherent Abilities` (270 skills / 5 clusters)
-plus `Communication` and `Business Communications`. **Derived from the taxonomy,
-never a hand-typed list** — that is what broke `role_family_for_job`.
+**Corrected on build (S3).** This lock originally said soft = L1 `Physical and
+Inherent Abilities` **plus** `Communication` and `Business Communications`.
+Sampling the data before codifying it found "Post Office Protocol (POP3)",
+"Sendmail", "Rocket Chat" and "Amplitude Modulation Signaling Systems" inside
+those two clusters. Calling them soft would delete real technical requirements
+from every skill gap and from company demand — worse than leaving "Body
+Language" classified hard, because it removes signal rather than adding noise.
+
+So the one list splits into two, because they answer different questions:
+
+| question | answer |
+|---|---|
+| Is this **skill** soft? | `l1_domain = 'Physical and Inherent Abilities'` — 270 skills, all five clusters sampled and uniformly soft |
+| Is this **cluster** a career family? | the above, **plus** the two Communication clusters — "Communication" is not a job family the way "Software Development" is |
+
+**Derived from the taxonomy, never a hand-typed list.** `skills.skill_kind` is a
+STORED generated column; `non_family_clusters()` derives from it. The two
+literal names still needed are asserted at migration time, because the original
+bug was not that a list existed — it was that nobody checked its names
+resolved, and three of five named nothing.
 
 Hard skills rank the job and drive the gap. Soft skills are captured and shown
 but never compete for a slot in "skills you're missing" and never become a
@@ -188,7 +205,7 @@ are on.
 
 Each slice is shippable and independently verifiable.
 
-**S1 — the seam and the invariant.**
+**S1 — the seam and the invariant. DONE** (`73636fe9`, `599b69e0`).
 Lift `suggest_skills`/`_required_zone` into one `skill_extraction` module; make
 it the only writer of `job_skills`. Backfill the 6,252 and the 18,203
 dead-with-text. Dead-man metric — *count of jobs with zero skills*, emitted from
@@ -225,9 +242,12 @@ stamped without a row.
 > Two readers of one work set is fine. Two definitions of the work set, or two
 > writers of one lifecycle column, is the break.
 
-**S3 — hard/soft, derived.** `skills.skill_kind` from `l1_domain`. Fix
-`role_family_for_job` to derive its exclusion. Repair the 1,056 mis-filed
-families.
+**S3 — hard/soft, derived. DONE** (`a9fa56da`). `skills.skill_kind` is a STORED
+generated column (270 soft / 34,844 hard); `non_family_clusters()` derives the
+career-family exclusion and asserts its two literal names resolve. 1,233 jobs
+repaired to 0 mis-filed — 985 to a real family, 248 legitimately NULL. The count
+was 1,056 when this doc was written and 1,233 by the time it was fixed, because
+S1's backfill wrote 5,287 new families through the same broken function.
 
 **S4 — importance.** `job_skills.evidence_zone`; matcher reads zone + level;
 `is_primary` deleted.
