@@ -172,7 +172,27 @@ def test_a_barren_job_is_left_for_stage_b_not_terminated() -> None:
     assert set(db.rpc_calls) == {"claim_jobs_for_skill_floor"}
 
 
-def test_count_missing_floor_reads_the_rpc_shape() -> None:
-    db = _db(count_jobs_missing_skill_floor=[{"total": 6254, "recommendable": 524}])
+def test_count_missing_floor_separates_the_stall_from_the_backlog() -> None:
+    # A job Stage A has already tried and found no taxonomy skill in is waiting
+    # on Stage B — a known number that would fire the dead-man every six hours
+    # until S2 ships. Only never-attempted jobs mean the pipeline is stopped.
+    db = _db(
+        count_jobs_missing_skill_floor=[
+            {"total": 967, "recommendable": 213, "awaiting_stage_a": 0}
+        ]
+    )
 
-    assert skill_floor.count_missing_floor(db) == (6254, 524)
+    gap = skill_floor.count_missing_floor(db)
+
+    assert (gap.total, gap.recommendable, gap.awaiting_stage_a) == (967, 213, 0)
+
+
+def test_the_dead_man_alerts_on_unattempted_work_not_on_the_backlog() -> None:
+    from app.services import skill_floor_heartbeat
+
+    assert skill_floor_heartbeat.ALERT_ABOVE_AWAITING > 0
+    quiet = skill_floor.FloorGap(total=967, recommendable=213, awaiting_stage_a=0)
+    loud = skill_floor.FloorGap(total=967, recommendable=213, awaiting_stage_a=500)
+
+    assert quiet.awaiting_stage_a < skill_floor_heartbeat.ALERT_ABOVE_AWAITING
+    assert loud.awaiting_stage_a >= skill_floor_heartbeat.ALERT_ABOVE_AWAITING

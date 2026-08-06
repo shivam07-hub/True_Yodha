@@ -33,16 +33,21 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stdout)
     db = get_supabase_admin_batch()
 
-    total, recommendable = skill_floor.count_missing_floor(db)
-    logger.info("metric skill_floor.gap total=%d recommendable=%d", total, recommendable)
+    gap = skill_floor.count_missing_floor(db)
+    logger.info(
+        "metric skill_floor.gap total=%d recommendable=%d awaiting_stage_a=%d",
+        gap.total, gap.recommendable, gap.awaiting_stage_a,
+    )
     if not args.apply:
         return 0
 
     result = skill_floor.drain_skill_floor_queue(db, limit=args.limit)
-    after_total, after_recommendable = skill_floor.count_missing_floor(db)
+    after = skill_floor.count_missing_floor(db)
     logger.info(
-        "metric skill_floor.drain_done seen=%d written=%d empty=%d remaining=%d remaining_recommendable=%d",
-        result["jobs_seen"], result["jobs_written"], result["jobs_empty"], after_total, after_recommendable,
+        "metric skill_floor.drain_done seen=%d written=%d empty=%d remaining=%d "
+        "remaining_recommendable=%d awaiting_stage_a=%d",
+        result["jobs_seen"], result["jobs_written"], result["jobs_empty"],
+        after.total, after.recommendable, after.awaiting_stage_a,
     )
     return 0
 

@@ -109,10 +109,21 @@ AS $function$
     SELECT c.job_id, c.job_title, c.job_description FROM claimed AS c;
 $function$;
 
--- The dead-man's read. Recommendable is the number the alert is about: a closed
--- listing with no skills harms nobody.
-CREATE OR REPLACE FUNCTION public.count_jobs_missing_skill_floor()
-RETURNS TABLE (total INTEGER, recommendable INTEGER)
+-- The dead-man's read. It has to separate a STALL from a BACKLOG, or it cries
+-- wolf from the day it ships and gets muted — which destroys the only thing it
+-- is for.
+--
+--   awaiting_stage_a  no floor and never attempted. Rising means the pipeline
+--                     is not running. THIS is the absence-of-signal to alert on.
+--   total             includes jobs Stage A has already tried and legitimately
+--                     found no taxonomy skill in — short summary blurbs waiting
+--                     on Stage B's judgment pass. A known backlog, not an alarm.
+--   recommendable     of the total, the ones a user could actually be matched
+--                     to. A closed listing with no skills harms nobody.
+DROP FUNCTION IF EXISTS public.count_jobs_missing_skill_floor();
+
+CREATE FUNCTION public.count_jobs_missing_skill_floor()
+RETURNS TABLE (total INTEGER, recommendable INTEGER, awaiting_stage_a INTEGER)
 LANGUAGE sql
 STABLE
 SET search_path = public
@@ -120,7 +131,11 @@ AS $$
     SELECT COUNT(*)::INTEGER AS total,
            COUNT(*) FILTER (
                WHERE job.is_active IS TRUE AND job.listing_confidence = 'active'
-           )::INTEGER AS recommendable
+           )::INTEGER AS recommendable,
+           COUNT(*) FILTER (
+               WHERE job.skill_floor_attempted_at IS NULL
+                 AND NULLIF(btrim(COALESCE(job.job_description, '')), '') IS NOT NULL
+           )::INTEGER AS awaiting_stage_a
     FROM public.jobs AS job
     WHERE job.has_skill_floor IS FALSE;
 $$;

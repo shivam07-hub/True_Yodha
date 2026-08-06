@@ -9,16 +9,18 @@ the extension import path and the queue drain today, ingest and Stage B next.
 One writer means one answer to "what skills does this job need", and one place
 to change when that answer's shape changes.
 
-The matching rule on the read side: work is claimed from ``jobs.enrichment_status``,
-the same state machine the scraper's enrichment workers use. Stage A and Stage B
-are two READERS of one queue, which is fine; two definitions of the work set is
-not, and briefly having both is what this module was corrected for.
+On the read side: the work SET has one definition (``jobs.has_skill_floor``,
+trigger-maintained), the work LIFECYCLE has one owner (``enrichment_status``,
+the enrichment pipeline's — Stage A never writes it), and Stage A owns exactly
+one attempt column (``skill_floor_attempted_at``). Two readers of one work set
+is fine; two definitions of the set, or two writers of one lifecycle column, is
+what this module was corrected for.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, NamedTuple
 
 from supabase import Client
 
@@ -98,8 +100,22 @@ def write_skill_floor(
     return len(payload)
 
 
-def count_missing_floor(db: Client) -> tuple[int, int]:
-    """(jobs with no skills, of which recommendable).
+class FloorGap(NamedTuple):
+    """How much of the corpus is invisible to the matcher, and why.
+
+    ``awaiting_stage_a`` is the one to alarm on: no floor and never attempted
+    means the pipeline is not running. ``total`` also counts jobs Stage A has
+    tried and legitimately found no taxonomy skill in — a backlog for Stage B's
+    judgment pass, not a fault.
+    """
+
+    total: int
+    recommendable: int
+    awaiting_stage_a: int
+
+
+def count_missing_floor(db: Client) -> FloorGap:
+    """The floor gap, split into a stall signal and a known backlog.
 
     Reads the trigger-maintained `jobs.has_skill_floor` through a partial index
     — ~2ms. It used to be a live anti-join over 62k jobs x 376k skill rows,
@@ -109,7 +125,11 @@ def count_missing_floor(db: Client) -> tuple[int, int]:
     """
     rows = db.rpc("count_jobs_missing_skill_floor", {}).execute().data or []
     row = rows[0] if isinstance(rows, list) and rows else (rows if isinstance(rows, dict) else {})
-    return int(row.get("total") or 0), int(row.get("recommendable") or 0)
+    return FloorGap(
+        total=int(row.get("total") or 0),
+        recommendable=int(row.get("recommendable") or 0),
+        awaiting_stage_a=int(row.get("awaiting_stage_a") or 0),
+    )
 
 
 def claim_jobs_for_floor(db: Client, *, limit: int = _FLOOR_PAGE_SIZE) -> list[dict[str, Any]]:
