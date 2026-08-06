@@ -3822,6 +3822,10 @@ export const jobs = {
     request<ApplicationResponse[]>("/jobs/applications", {
       headers: { Authorization: `Bearer ${token}` },
     }),
+  contributions: (token: string) =>
+    request<JobProvenance>("/jobs/contributions", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
   recordApplyIntent: (token: string, jobId: string, input: ApplyIntentInput) =>
     request<void>(`/jobs/${encodeURIComponent(jobId)}/apply-intents`, {
       method: "POST",
@@ -4744,11 +4748,23 @@ export const growth = {
 // No-auth, 1h server cache. Display floors so the numbers never appear to go
 // down between visits (design handoff §PRIORITY DIRECTIVE).
 
+/** Where the pool came from + how much of it we have recently seen alive.
+ *  `mine` is 0 on the public counters — only the authed read fills it. */
+export interface JobProvenance {
+  total: number
+  agent: number
+  community: number
+  verified_live: number
+  verified_window_days: number
+  mine: number
+}
+
 export interface PublicStatsResponse {
   jobs_tracked: number
   companies_monitored: number
   skills_mapped: number
   seekers: number
+  provenance: JobProvenance
   as_of: string
 }
 

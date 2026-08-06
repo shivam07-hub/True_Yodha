@@ -44,6 +44,21 @@
   color: var(--lp-faint);
 }
 
+/* Each corpus count opens the surface it counts — the number is a door, not a
+   boast. Rest state stays identical to the static tile: a strip of four glowing
+   links would read as navigation and pull focus from the hero CTA. The label
+   carries the affordance on hover/focus. */
+.lp-stat-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 8px;
+  transition: color var(--lp-dur) var(--lp-ease);
+}
+.lp-stat-link:hover .lp-stat-lbl,
+.lp-stat-link:focus-visible .lp-stat-lbl { color: var(--lp-accent-text); }
+.lp-stat-link:focus-visible { outline: 2px solid var(--lp-accent-ring); outline-offset: 4px; }
+
 /* T3 — non-numeric social-proof tile (shown when no real seeker count is set).
    Matches the stat tiles' rhythm so the strip stays balanced at 4 across. */
 .lp-stat-proof-line {

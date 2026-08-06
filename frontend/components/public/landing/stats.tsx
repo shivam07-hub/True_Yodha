@@ -1,11 +1,16 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import Link from "next/link"
 
 import { formatCount } from "@/lib/format"
 
-/** Count-up once on scroll-into-view; static value for reduced motion / no JS. */
-function Counter({ target, label }: { target: number; label: string }) {
+/** Count-up once on scroll-into-view; static value for reduced motion / no JS.
+ *
+ *  `href` makes the tile a way in rather than a claim: a number this big is only
+ *  believable if the reader can go and look at what it counts. Rendered as a
+ *  real <Link> so it is crawlable and middle-clickable, not a click handler. */
+function Counter({ target, label, href }: { target: number; label: string; href: string }) {
   const ref = useRef<HTMLDivElement>(null)
   const [value, setValue] = useState(target)
 
@@ -47,11 +52,13 @@ function Counter({ target, label }: { target: number; label: string }) {
 
   return (
     <div className="lp-stat" ref={ref}>
-      <div className="lp-stat-num">
-        <span>{formatCount(value)}</span>
-        <span className="plus">+</span>
-      </div>
-      <div className="lp-stat-lbl">{label}</div>
+      <Link href={href} className="lp-stat-link tm-control-focus">
+        <div className="lp-stat-num">
+          <span>{formatCount(value)}</span>
+          <span className="plus">+</span>
+        </div>
+        <div className="lp-stat-lbl">{label}</div>
+      </Link>
     </div>
   )
 }
@@ -73,11 +80,20 @@ export function LandingStats({ jobsTracked, companiesMonitored, skillsMapped, se
   return (
     <div className="lp-stats" aria-label="Myro, by the numbers">
       <div className="lp-wrap lp-stats-row">
-        <Counter target={jobsTracked} label="Jobs tracked" />
-        <Counter target={companiesMonitored} label="Companies monitored" />
-        <Counter target={skillsMapped} label="Skills mapped" />
+        <Counter target={jobsTracked} label="Jobs tracked" href="/market" />
+        <Counter target={companiesMonitored} label="Companies monitored" href="/companies" />
+        <Counter target={skillsMapped} label="Skills mapped" href="/intel" />
         {seekers !== null ? (
-          <Counter target={seekers} label="Job seekers" />
+          /* No destination — a seeker count has no page to open, and a tile
+             that looks clickable but only reloads the landing page is worse
+             than one that plainly is not. */
+          <div className="lp-stat">
+            <div className="lp-stat-num">
+              <span>{formatCount(seekers)}</span>
+              <span className="plus">+</span>
+            </div>
+            <div className="lp-stat-lbl">Job seekers</div>
+          </div>
         ) : (
           <div className="lp-stat lp-stat-proof">
             <div className="lp-stat-proof-line">Built in India</div>

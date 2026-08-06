@@ -33,6 +33,13 @@ class _FakeCountResult:
 
 
 class _FakeAdmin:
+    """Chainable count stub.
+
+    Must model `.eq()`/`.gte()` as well as select/limit: the provenance counts
+    filter, and a double that silently lacks the method sends `_count`'s
+    except-branch a zero — which looks exactly like a real count of zero.
+    """
+
     def __init__(self, count: int | None) -> None:
         self._count = count
         self.calls = 0
@@ -44,6 +51,12 @@ class _FakeAdmin:
         return self
 
     def limit(self, *_a: Any, **_k: Any) -> "_FakeAdmin":
+        return self
+
+    def eq(self, *_a: Any, **_k: Any) -> "_FakeAdmin":
+        return self
+
+    def gte(self, *_a: Any, **_k: Any) -> "_FakeAdmin":
         return self
 
     def execute(self) -> _FakeCountResult:
@@ -78,6 +91,14 @@ def test_stats_happy_path(monkeypatch: pytest.MonkeyPatch) -> None:
     assert body["skills_mapped"] == public_router.SKILLS_MAPPED
     assert body["seekers"] == 1043
     assert body["as_of"]
+    # Provenance travels with the counters — the landing strip and the authed
+    # rail card read the same numbers from the same build.
+    prov = body["provenance"]
+    assert prov["total"] == 1043
+    assert prov["community"] == 1043
+    assert prov["agent"] == 0  # derived: total - community, floored at 0
+    assert prov["verified_live"] == 1043
+    assert prov["verified_window_days"] == 7
 
 
 def test_stats_cached_within_ttl(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -87,11 +108,16 @@ def test_stats_cached_within_ttl(monkeypatch: pytest.MonkeyPatch) -> None:
 
     client = TestClient(app)
     first = client.get("/public/stats").json()
+    after_first = admin.calls
     second = client.get("/public/stats").json()
 
     assert first == second
     assert repo.calls == 1
-    assert admin.calls == 1
+    # The cache is the assertion, not the call count: a served-from-cache
+    # response must do NO further DB work, however many reads one cold build
+    # costs (seekers + the provenance counts).
+    assert after_first > 0
+    assert admin.calls == after_first
 
 
 def test_stats_coerces_missing_values(monkeypatch: pytest.MonkeyPatch) -> None:

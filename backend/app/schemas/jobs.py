@@ -886,3 +886,19 @@ class EntitySkillsResponse(BaseModel):
 
 class SkillHeatmapResponse(BaseModel):
     matrix: dict[str, dict[str, int]]  # company_name -> skill_display_name -> job_count
+
+
+class JobProvenanceResponse(BaseModel):
+    """Who put the jobs here, and how many we have recently seen alive.
+
+    ``verified_live`` is the honest headline — listings our verifier has opened
+    within ``verified_window_days``. ``total`` is the denominator, not a boast:
+    the two together show the unchecked remainder instead of hiding it.
+    """
+    total: int
+    agent: int
+    community: int
+    verified_live: int
+    verified_window_days: int
+    # This caller's own contributions; 0 on the public counters.
+    mine: int = 0

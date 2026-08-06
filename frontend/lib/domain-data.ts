@@ -16,6 +16,7 @@ export const dataKeys = {
   hiddenJobs: () => ["jobs", "hidden"] as const,
   feedState: () => ["jobs", "feed-state"] as const,
   jobPulses: (jobIds: string[]) => ["jobs", "pulses", jobIds] as const,
+  jobContributions: () => ["jobs", "contributions"] as const,
   applications: () => ["applications"] as const,
   staleApplications: () => ["stale-applications"] as const,
   notificationsUnread: () => ["notifications", "unread"] as const,
