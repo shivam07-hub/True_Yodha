@@ -99,6 +99,10 @@ export function TopbarNav({ nav }: { nav: NavUnlocksVm }) {
               title={item.desc}
               className={`tm-topbar-link${item.special ? " tm-topbar-link-myrology" : ""}`}
               data-active={active}
+              // `data-active` styles the tab; it says nothing to a screen
+              // reader. Without aria-current the nav announces five identical
+              // links and never which one you are on.
+              aria-current={active ? "page" : undefined}
             >
               {item.id === "home" && <ApertureIcon active={active} />}
               {item.id === "market" && <span className="tm-nav-live-dot" aria-hidden />}
@@ -132,6 +136,7 @@ export function NavContentCluster({ nav }: { nav: NavUnlocksVm }) {
           title={item.desc}
           className={`tm-topbar-link ${item.special ? "tm-topbar-link-myrology" : "tm-topbar-link-content"}`}
           data-active={pathname.startsWith(item.href)}
+          aria-current={pathname.startsWith(item.href) ? "page" : undefined}
         >
           {item.special ? `✦ ${item.label}` : item.label}
         </Link>

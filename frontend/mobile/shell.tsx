@@ -251,6 +251,9 @@ export function MobileBottomNav() {
             key={tab.key}
             href={tab.href}
             className="mm-press"
+            // Colour alone carries the active tab, which is invisible to a
+            // screen reader and to anyone who cannot separate accent from dim.
+            aria-current={active ? "page" : undefined}
             style={{
               flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
               gap: 3, textDecoration: "none", color, position: "relative", minHeight: 44,
