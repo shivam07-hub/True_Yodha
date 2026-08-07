@@ -16,7 +16,36 @@ like a pure optimisation, and nothing else in the suite would catch it.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
+import pytest
+
 import app.database as database
+
+_TEST_ANON_KEY = "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiYW5vbiJ9.signature"
+_TEST_SERVICE_KEY = "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.signature"
+
+
+@pytest.fixture(autouse=True)
+def _client_factory_settings(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Keep factory-only tests independent of deployment credentials.
+
+    These tests never make a request; they inspect the clients and shared
+    transport created locally. A syntactically valid, test-only configuration
+    lets supabase-py build those clients without teaching production code to
+    accept blank credentials.
+    """
+    database.get_supabase_admin.cache_clear()
+    monkeypatch.setattr(database.settings, "supabase_url", "https://test.supabase.co")
+    # supabase-py validates the JWT shape at construction time. These are
+    # deliberately unsigned placeholders, valid only because no test sends a
+    # request.
+    monkeypatch.setattr(database.settings, "supabase_anon_key", _TEST_ANON_KEY)
+    monkeypatch.setattr(database.settings, "supabase_service_key", _TEST_SERVICE_KEY)
+
+    yield
+
+    database.get_supabase_admin.cache_clear()
 
 
 def test_each_token_client_is_a_distinct_object() -> None:
