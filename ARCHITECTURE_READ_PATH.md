@@ -384,6 +384,66 @@ already flagged for the sibling setting.
 compute before S0–S5 would mask the defects rather than fix them. Not done
 this pass — needs the S5 cap change to run under real traffic first.
 
+**S7 — `/jobs/matches`. ✅ Root-caused and fixed. Was the top open risk behind
+S5's cap increase; it is not scoring logic and never was.**
+
+S4 deferred this as "match-scoring business logic, needs its own pass". That
+framing was wrong, and the measurement says so plainly. Prod, QA account,
+15 match rows:
+
+  match-stack join (user_job_matches -> jobs)   29ms  index-backed nested loop
+  dismissed-cards read                          1.2ms
+  new-inventory count                           2.6ms
+  --------------------------------------------------
+  total database work                          ~35ms
+  measured endpoint floor                   1,242ms
+
+**`compute_match_health` is not a cost centre at all.** It returns on its
+first branch whenever `match_rows` is non-empty, doing zero extra reads. The
+suspicion recorded in S4 and S5 was simply wrong; corrected here rather than
+left to mislead the next reader.
+
+The ~1,200ms was five to six SEQUENTIAL round trips at this path's ~150-300ms
+fixed overhead each — the third instance of that shape after `_evidence_stats`
+(S4) and `/jobs/feed` (S1). One hop was pure waste:
+`get_dismissed_job_card_ids` ran TWICE per request, once inside
+`get_user_match_stack` to filter and again to build `dismissed_job_ids`.
+
+Fixed in two steps: read it once and fan out concurrently (890-1,156ms), then
+collapse the last dependent hop by fetching the stack unfiltered inside the
+same wave and applying the dismissed filter in Python — equivalent, because
+exclusion is set membership on `job_id` over an already-deduped stack.
+Measured after both: **663-1,017ms warm.** The remaining floor is
+`new_inventory.count_for_user`, itself two *dependent* round trips
+(`last_match_run_at` -> `count_new_jobs_since`), which now sets the wave's
+wall time. Collapsing that pair needs one RPC and is the next honest step, not
+done here.
+
+**Payload, a second and separate finding.** `job_description` was **59.8% of
+the /jobs/matches payload** — 56KB of 93KB for 15 matches, averaging 3,734
+chars. Every consumer but one already truncates it (card snippet 200 chars,
+every mobile surface `.slice(0, 260)`); the sole full-text consumer is
+desktop's `JdPanel`, which only mounts when the user opens the JD tab. List
+payloads now carry 600 chars plus `job_description_truncated`, and `JdPanel`
+fetches the remainder from `GET /jobs/{job_id}/description` only when the text
+was actually cut. Verified live on dev against the identical 15-job set:
+**93,543 -> 46,513 bytes, a 50.3% cut**, `job_description` down from 59.8% to
+18.3% of the payload; the on-demand endpoint returns the full 6,149-char JD in
+242ms.
+
+**Mobile needed no change, and that is a finding rather than an omission** —
+every mobile `job_description` use is already a 260-char slice, so a 600-char
+snippet is strictly more than it consumes. A guard test fails if the bound is
+ever lowered below 260.
+
+Verified in the browser on the real authed surface: `JdPanel` renders, and
+the fetch correctly does NOT fire for an untruncated description (confirmed
+via the network log). **Not verified in the browser: the truncated ->
+fetch-the-rest path**, because this QA account's Collections has no card with
+a long JD (all 15 matches are currently rejected as dead/wrong-level, and its
+one added job has a 16-char description). That path is verified at the API
+level only.
+
 Also queued, smaller: `run_concurrently` builds a fresh `ThreadPoolExecutor`
 per call (unbounded thread creation under load) → one shared bounded pool
 (the same defect named and deliberately avoided when `shared_cache.py`'s own
@@ -413,10 +473,14 @@ client whose connection pool starts empty.
 
 ## 7. Still open
 
-- **`get_user_match_stack` / `compute_match_health`** — `get_job_matches`'
-  remaining internal cost after S4's write-deferral fix. Match-scoring
-  business logic; needs its own dedicated EXPLAIN-driven pass, not a guess.
-  This is the biggest named residual risk behind S5's cap increase.
+- **`new_inventory.count_for_user`** — two *dependent* round trips
+  (`last_match_run_at` -> `count_new_jobs_since`) that now set the wall time of
+  `/jobs/matches`' single concurrent wave. Collapsing them into one RPC is the
+  next step on that endpoint's ~660ms floor. (Supersedes the old
+  `get_user_match_stack` / `compute_match_health` entry — see S7; that
+  suspicion was measured and disproven.)
+- **The truncated-JD fetch path is unverified in a browser** — API-level only.
+  Needs an authed account holding a collection card with a >600-char JD.
 - **The 12 → 40 cap is unverified under real concurrent load.** Reasoned from
   measurement, not load-tested. Prove it before trusting headroom beyond it.
 - Whether the 8s `statement_timeout` should move. It is currently a cliff that
