@@ -776,17 +776,41 @@ def refresh_analytics_snapshot(
     if force:
         summary = repo.persist_analytics_snapshot(refreshed_by="batch-finalize")
         _refresh_skill_demand("batch-finalize")
+        _refresh_job_search_index("batch-finalize")
         return AnalyticsSnapshotRefreshResponse(refreshed=True, **summary)
     summary = repo.refresh_analytics_snapshot_if_stale(refreshed_by="cron")
-    # Ride the same dirty guard: recompute the skill-demand panel only when the
-    # analytics snapshot actually recompiled, so idle days stay cheap.
+    # Ride the same dirty guard: recompute the skill-demand panel and the search
+    # index only when the analytics snapshot actually recompiled, so idle days
+    # stay cheap.
     if summary["refreshed"]:
         _refresh_skill_demand("cron")
+        _refresh_job_search_index("cron")
     return AnalyticsSnapshotRefreshResponse(
         refreshed=summary["refreshed"],
         total_jobs=summary["total_jobs"],
         total_companies=summary["total_companies"],
     )
+
+
+def _refresh_job_search_index(trigger: str) -> None:
+    """Rebuild the global-search index after the corpus changed.
+
+    Same best-effort contract as _refresh_skill_demand: search freshness must
+    follow ingest, but a failed rebuild must not fail the batch-finalisation
+    call the scraper depends on. The materialized view keeps serving its
+    previous contents until a refresh succeeds, so the failure mode is stale
+    search results, never broken search — and the log line says which.
+    """
+    from app.database import get_supabase_admin
+
+    try:
+        result = get_supabase_admin().rpc("refresh_job_search_index", {}).execute()
+        logger.info(
+            "metric job_search_index.refreshed trigger=%s rows=%s",
+            trigger, result.data,
+        )
+    except Exception:  # noqa: BLE001 — never fail the caller's snapshot refresh
+        logger.exception("metric job_search_index.refresh_failed trigger=%s", trigger)
 
 
 def _refresh_skill_demand(trigger: str) -> None:

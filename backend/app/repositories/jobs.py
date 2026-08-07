@@ -1630,25 +1630,19 @@ class JobsRepository:
         location_terms = _global_search_location_terms(term)
         location_term_set = set(location_terms)
         role_terms = [search_term for search_term in terms if search_term not in location_term_set]
-        fields = ("job_title", "company_name", "location_city", "location_country", "role_domain")
-        filters = ",".join(
-            f"{field}.ilike.%{search_term}%"
-            for search_term in terms
-            for field in fields
-        )
+        # Matching runs against `job_search_index` — the same five fields
+        # concatenated into one narrow row — then joins back to `jobs` by PK for
+        # only the surviving window. The previous shape was a five-column ILIKE
+        # OR over `jobs` itself, which had to fetch every match (16,364 rows /
+        # 10,840 heap blocks of a 563MB table for "engineer") purely to sort by
+        # first_seen and keep 96. Measured on prod: 4,284ms -> 177ms, and rare
+        # terms 12,415ms -> 22ms. The candidate window is unchanged — the newest
+        # N matches — and `_global_search_rank` below still does the ranking.
         try:
-            result = (
-                self._admin_db
-                .table("jobs")
-                .select(
-                    "job_id, job_title, company_name, location_city, location_country, "
-                    "location_mode, role_domain, first_seen"
-                )
-                .or_(filters)
-                .order("first_seen", desc=True)
-                .limit(max(scoped_limit * 8, 50))
-                .execute()
-            )
+            result = self._admin_db.rpc(
+                "search_jobs_global",
+                {"p_terms": terms, "p_limit": max(scoped_limit * 8, 50)},
+            ).execute()
         except APIError:
             return list(cached[1]["rows"]) if cached else []
         candidate_rows = [
