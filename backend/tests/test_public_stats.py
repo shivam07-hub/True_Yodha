@@ -15,6 +15,8 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.routers import public as public_router
+from app.services import shared_cache
+from app.services.background import debounce
 
 
 class _FakeRepo:
@@ -66,11 +68,15 @@ class _FakeAdmin:
 
 @pytest.fixture(autouse=True)
 def _reset_cache():
-    public_router._cache_data = None
-    public_router._cache_ts = 0.0
+    # /public/stats now caches through shared_cache (ARCHITECTURE_READ_PATH.md
+    # S3), not a router-local dict — reset its (test-env) local-dict fallback
+    # and single-flight claims so one test's cached value can't leak into the
+    # next.
+    shared_cache._LOCAL_CACHE.clear()
+    debounce._LOCAL_CLAIMS.clear()
     yield
-    public_router._cache_data = None
-    public_router._cache_ts = 0.0
+    shared_cache._LOCAL_CACHE.clear()
+    debounce._LOCAL_CLAIMS.clear()
 
 
 def _wire(monkeypatch: pytest.MonkeyPatch, repo: _FakeRepo, admin: _FakeAdmin) -> None:

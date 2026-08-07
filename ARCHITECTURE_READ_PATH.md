@@ -226,12 +226,56 @@ nudges, driven by the already-existing `onboarding_complete`. Cheap, and it is
 the difference between an app that asks for one thing and an app that asks for
 nothing in particular.
 
-**S3 — Shared cache.** Move the per-process dicts (`_indexable_companies_cache`,
-`_pulse_cache`, `_analytics_cache`, `_search_cache`, `/public/stats`) to Redis —
-already provisioned for RQ — with **single-flight** and
-**stale-while-revalidate**. No user ever waits for a cache fill. This is the
-prerequisite for horizontal scale: today each new replica is another cold cache
-and another stampede, so adding replicas first makes things worse.
+**S3 — Shared cache. ✅ Primitive built + three highest-measured-impact caches
+migrated; the rest named and left open.**
+
+Built `backend/app/services/shared_cache.py` — one reusable
+`get_or_compute(key, compute, ttl_seconds, stale_seconds)`. Redis-backed when
+Redis exists (all deployed tiers, ADR-0008 — same `settings.redis_url` +
+per-process-dict-fallback pattern already established by
+`app.services.background.debounce`, which it also reuses directly for its
+single-flight lock rather than inventing new lock logic). Contract:
+
+  fresh    -> return cached, no compute.
+  stale    -> return the STALE value immediately, kick a single-flight
+              background refresh (`debounce.claim` guards it: at most one
+              refresh per key across every replica, not one per request).
+  absent   -> compute inline (nothing else to serve), single-flight-guarded
+              so a cold-start burst doesn't all pay full cost.
+  Redis error -> fail open, compute() runs directly, uncached.
+
+A background refresh has no caller waiting on its `Future` — nothing ever
+calls `.result()` on it, so a naive version would let a failed refresh vanish
+silently. Fixed before it shipped: `_background_refresh` wraps only the
+pool-submitted call and logs `shared_cache.background_refresh_failed`; the
+synchronous (cold-miss) path stays exception-transparent, since that caller
+is the one thing seeing the error and needs it for its own fallback. Covered
+by `test_shared_cache.py` (5 tests: fresh short-circuits, stale serves-then-
+refreshes, concurrent stale hits refresh at most once, a failed background
+refresh is logged not silent, a broken Redis connection fails open to direct
+compute).
+
+Migrated: `/public/stats`, `fetch_indexable_companies`, `fetch_company_pulse`
+— the three named in the original saturation alerts (`/jobs/companies/pulse`
+hit 10,915ms cold on prod). `fetch_company_pulse`'s cache key is now
+order-normalized (`sorted({casefold})`); the OLD per-process cache keyed on
+`frozenset(names)` but returned whatever order the FIRST caller for that set
+had asked in — a second caller requesting the same companies in a different
+order got a cache hit in the wrong order. `shared_cache` fixed this as a
+byproduct of normalizing the key, not as a separate change.
+
+**Still on the old per-process-dict pattern, not yet migrated:**
+`_analytics_cache`, `_search_cache` (superseded in spirit by `job_search_index`
+from S0, but the repository method still has its own dict), `_heatmap_cache`,
+`_heatmap_row_cache`, `_gap_signal_cache`, `_entity_skills_cache`,
+`_company_search_cache`, `_feed_page_cache`, `_feed_personal_cache` (the two
+that back `/jobs/feed`, S1's remaining sequential-round-trip cost lives
+downstream of these), `_user_skill_keys_cache`, `_user_target_locations_cache`.
+Each is a mechanical migration onto the same primitive — swap the dict
+get/set for `shared_cache.get_or_compute`, pick a `stale_seconds` — not a new
+design decision. Left open rather than rushed across a dozen call sites in
+one pass; each is real but none was named in a measured incident the way the
+three migrated ones were.
 
 **S4 — Decompose `/home/bootstrap`** from 8 concurrent sections to ≤3, per the
 contract. Above-the-fold first; everything else lazily, after paint.

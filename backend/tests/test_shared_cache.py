@@ -1,0 +1,134 @@
+import time
+
+from app.services import shared_cache
+
+
+def setup_function() -> None:
+    # Tests exercise the local-dict fallback (no REDIS_URL in the test env) —
+    # start each test from a clean slate so entries/claims can't leak across.
+    shared_cache._LOCAL_CACHE.clear()
+    from app.services.background import debounce
+
+    debounce._LOCAL_CLAIMS.clear()
+
+
+def test_absent_computes_inline_and_caches() -> None:
+    calls = []
+
+    def compute():
+        calls.append(1)
+        return {"n": len(calls)}
+
+    out = shared_cache.get_or_compute("k1", compute, ttl_seconds=60)
+    assert out == {"n": 1}
+    assert len(calls) == 1
+
+    # Fresh — no recompute.
+    out2 = shared_cache.get_or_compute("k1", compute, ttl_seconds=60)
+    assert out2 == {"n": 1}
+    assert len(calls) == 1
+
+
+def test_stale_returns_old_value_and_refreshes_in_background() -> None:
+    calls = []
+
+    def compute():
+        calls.append(1)
+        return {"n": len(calls)}
+
+    # Populate, then age the entry past ttl but inside the stale window.
+    shared_cache.get_or_compute("k2", compute, ttl_seconds=60, stale_seconds=300)
+    assert len(calls) == 1
+    key, (computed_at, data) = "k2", shared_cache._LOCAL_CACHE["k2"]
+    shared_cache._LOCAL_CACHE[key] = (computed_at - 61, data)
+
+    out = shared_cache.get_or_compute("k2", compute, ttl_seconds=60, stale_seconds=300)
+    # The STALE value comes back immediately — never blocks on the refresh.
+    assert out == {"n": 1}
+
+    # The background refresh was submitted to the shared pool; wait for it.
+    shared_cache._REFRESH_POOL.shutdown(wait=True)
+    shared_cache._REFRESH_POOL = shared_cache.ThreadPoolExecutor(
+        max_workers=4, thread_name_prefix="shared-cache-refresh"
+    )
+    assert len(calls) == 2
+    refreshed_at, refreshed_data = shared_cache._LOCAL_CACHE["k2"]
+    assert refreshed_data == {"n": 2}
+
+
+def test_concurrent_stale_hits_refresh_at_most_once() -> None:
+    calls = []
+
+    def compute():
+        calls.append(1)
+        time.sleep(0.05)
+        return {"n": len(calls)}
+
+    shared_cache.get_or_compute("k3", compute, ttl_seconds=60, stale_seconds=300)
+    computed_at, data = shared_cache._LOCAL_CACHE["k3"]
+    shared_cache._LOCAL_CACHE["k3"] = (computed_at - 61, data)
+
+    # Three callers hit the same stale key "simultaneously" — only one may
+    # win the claim and submit a refresh; the others just get the stale value.
+    for _ in range(3):
+        out = shared_cache.get_or_compute("k3", compute, ttl_seconds=60, stale_seconds=300)
+        assert out == data
+
+    shared_cache._REFRESH_POOL.shutdown(wait=True)
+    shared_cache._REFRESH_POOL = shared_cache.ThreadPoolExecutor(
+        max_workers=4, thread_name_prefix="shared-cache-refresh"
+    )
+    # One initial compute + exactly one background refresh, not three.
+    assert len(calls) == 2
+
+
+def test_background_refresh_failure_is_logged_not_silent(monkeypatch, caplog) -> None:
+    # A background refresh has no caller waiting on its Future — nothing ever
+    # calls .result() on it, so an exception there would otherwise vanish.
+    # The stale value must still be served, but the failure must be visible.
+    shared_cache.get_or_compute("k5", lambda: {"n": 1}, ttl_seconds=60, stale_seconds=300)
+    computed_at, data = shared_cache._LOCAL_CACHE["k5"]
+    shared_cache._LOCAL_CACHE["k5"] = (computed_at - 61, data)
+
+    def failing_compute():
+        raise RuntimeError("boom")
+
+    import logging
+
+    with caplog.at_level(logging.WARNING, logger="app.services.shared_cache"):
+        out = shared_cache.get_or_compute("k5", failing_compute, ttl_seconds=60, stale_seconds=300)
+        assert out == data  # stale value, returned immediately, never raises
+
+        shared_cache._REFRESH_POOL.shutdown(wait=True)
+        shared_cache._REFRESH_POOL = shared_cache.ThreadPoolExecutor(
+            max_workers=4, thread_name_prefix="shared-cache-refresh"
+        )
+
+    assert "shared_cache.background_refresh_failed" in caplog.text
+    assert "key=k5" in caplog.text
+    # The stale entry is untouched — a failed refresh must not corrupt it.
+    assert shared_cache._LOCAL_CACHE["k5"] == (computed_at - 61, data)
+
+
+def test_redis_reachable_but_erroring_falls_back_to_direct_compute(monkeypatch) -> None:
+    # The realistic failure: Redis.from_url succeeds (a connection object
+    # exists) but the operation itself raises (connection refused, timeout).
+    # _read/_write catch around exactly this, not around _redis() itself —
+    # _redis() is specifically built to never raise to its callers.
+    class _BrokenConn:
+        def get(self, *_a, **_k):
+            raise ConnectionError("down")
+
+        def set(self, *_a, **_k):
+            raise ConnectionError("down")
+
+    monkeypatch.setattr(shared_cache, "_redis", lambda: _BrokenConn())
+    calls = []
+
+    def compute():
+        calls.append(1)
+        return "ok"
+
+    out = shared_cache.get_or_compute("k4", compute, ttl_seconds=60)
+    assert out == "ok"
+    assert len(calls) == 1

@@ -41,6 +41,7 @@ from app.services.matching.filter_spec import FilterSpec
 from app.services.matching.job_query import JobQuery
 from app.services.scoring.formulas import build_skill_level_map
 from app.services.scoring.orchestrator import project_score
+from app.services import shared_cache
 
 router = APIRouter(prefix="/public", tags=["public"])
 
@@ -50,9 +51,8 @@ _log = logging.getLogger("app.public")
 # a per-hour count query. Update alongside taxonomy upgrades.
 SKILLS_MAPPED = 32_000
 
-_CACHE_TTL_SECONDS = 3600.0
-_cache_data: dict[str, Any] | None = None
-_cache_ts: float = 0.0
+_CACHE_TTL_SECONDS = 3600
+_CACHE_STALE_SECONDS = 1800  # serve stale up to 30min past TTL while one replica refreshes
 
 
 def _count_seekers() -> int:
@@ -66,20 +66,13 @@ def _count_seekers() -> int:
     return int(result.count or 0)
 
 
-@router.get("/stats")
-def get_public_stats() -> dict[str, Any]:
-    global _cache_data, _cache_ts
-
-    now = time.monotonic()
-    if _cache_data is not None and now - _cache_ts < _CACHE_TTL_SECONDS:
-        return _cache_data
-
+def _compile_public_stats() -> dict[str, Any]:
     # compile_market_analytics is snapshot-backed + in-process cached, so this
     # is cheap after the first call.
     analytics = get_public_jobs_repository().compile_market_analytics()
     provenance = read_provenance(get_supabase_admin())
 
-    data: dict[str, Any] = {
+    return {
         "jobs_tracked": int(analytics.get("total_jobs") or 0),
         "companies_monitored": int(analytics.get("total_companies") or 0),
         "skills_mapped": SKILLS_MAPPED,
@@ -88,11 +81,22 @@ def get_public_stats() -> dict[str, Any]:
         # opened recently. Shares one read model with the authed rail card so
         # the public and signed-in answers can never drift.
         "provenance": provenance,
+        # Baked in at compute time, not request time — this IS the freshness
+        # stamp (ARCHITECTURE_READ_PATH.md S1/S3): it stays fixed across every
+        # cache-served response until the next background refresh actually runs,
+        # so it never claims freshness a stale-while-revalidate hit doesn't have.
         "as_of": datetime.now(timezone.utc).isoformat(),
     }
-    _cache_data = data
-    _cache_ts = now
-    return data
+
+
+@router.get("/stats")
+def get_public_stats() -> dict[str, Any]:
+    return shared_cache.get_or_compute(
+        "public_stats",
+        _compile_public_stats,
+        ttl_seconds=_CACHE_TTL_SECONDS,
+        stale_seconds=_CACHE_STALE_SECONDS,
+    )
 
 
 # ─── Public CV-score preview (no auth) ───────────────────────────────────────

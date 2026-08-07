@@ -15,7 +15,7 @@ from app.database import get_supabase_admin
 from app.db_safe import safe_read
 from app.deps import get_user_db
 from app.repositories.job_skills_read_model import fetch_all_rows, fetch_job_skill_rows, fetch_job_skill_rows_for_ids, group_job_skill_rows
-from app.services import job_importer, skill_floor
+from app.services import job_importer, shared_cache, skill_floor
 from app.services.company_pulse import SERIES_DAYS, build_series, compute_pulse
 from app.services.industry_grouping import normalize_industry_group
 from app.services.job_history import attach_jobs
@@ -64,10 +64,12 @@ _analytics_cache: dict[tuple[str | None, str | None, str | None, str | None], tu
 _entity_skills_cache: dict[tuple[str, str, str | None, str | None, str | None], tuple[float, list[dict[str, Any]]]] = {}
 _heatmap_cache: dict[tuple[frozenset[str], frozenset[str]], tuple[float, dict[str, dict[str, int]]]] = {}
 _heatmap_row_cache: dict[tuple[str, frozenset[str]], tuple[float, dict[str, int]]] = {}
-_pulse_cache: dict[frozenset[str], tuple[float, list[dict[str, Any]]]] = {}
 _gap_signal_cache: dict[tuple[frozenset[str], frozenset[str]], tuple[float, dict[str, dict[str, int]]]] = {}
+# fetch_company_pulse and fetch_indexable_companies moved to shared_cache
+# (ARCHITECTURE_READ_PATH.md S3) — cross-replica, not per-process — so these
+# TTLs are now the args to shared_cache.get_or_compute rather than keys into a
+# local dict.
 _PULSE_TTL = 30 * 60  # 30 min — pulse tracks daily scrape batches, not real-time
-_indexable_companies_cache: tuple[float, list[dict[str, Any]]] | None = None
 _INDEXABLE_TTL = 60 * 60  # 1 hour — matches the /companies page ISR window
 _skill_name_to_id_cache: dict[str, int] = {}  # display_name.lower() → skill_id; skills table is static
 _search_cache: dict[tuple[str, str, str | None, str | None, str | None, str | None, int, int], tuple[float, dict[str, Any]]] = {}
@@ -1281,79 +1283,87 @@ class JobsRepository:
         30-point trailing-inflow sparkline, and the 0-100 pulse from
         `company_pulse.compute_pulse`. Every number is real — a company with no
         live roles gets pulse=None (the em-dash state), never a fabricated 0.
-        Cached _PULSE_TTL, keyed on the company set. Mirrors fetch_skill_heatmap:
-        APIError → cached/[]. Order follows the input list (caller's ordering).
+
+        Shared across every replica via `shared_cache` (ARCHITECTURE_READ_PATH.md
+        S3), keyed on the exact company set: fresh for _PULSE_TTL, then served
+        stale immediately for another _PULSE_TTL while ONE replica refreshes in
+        the background — measured on prod at up to 10,915ms cold, the shape a
+        naive per-process TTL cache stampedes on every expiry.
+        Order follows the input list (caller's ordering) even on a cache hit.
         """
         names = [c.strip() for c in companies if c and c.strip()]
         if not names:
             return []
 
-        cache_key = frozenset(names)
-        now = time.monotonic()
-        cached = _pulse_cache.get(cache_key)
-        if cached is not None and (now - cached[0]) < _PULSE_TTL:
-            return list(cached[1])
+        cache_key = "pulse:" + ",".join(sorted({n.casefold() for n in names}))
 
-        try:
+        def _compute() -> list[dict[str, Any]]:
             rows = fetch_all_rows(
                 self._admin_db,
                 table="jobs",
                 columns="company_name, first_seen, last_seen",
                 query_builder=lambda q: q.in_("company_name", names),
             )
-        except APIError:
-            return list(cached[1]) if cached else []
 
-        fresh_marker = _fresh_cutoff_marker(STALE_AFTER_DAYS)  # live floor
-        week_marker = _fresh_cutoff_marker(7)  # new-this-week floor
-        now_dt = datetime.now(timezone.utc)
+            fresh_marker = _fresh_cutoff_marker(STALE_AFTER_DAYS)  # live floor
+            week_marker = _fresh_cutoff_marker(7)  # new-this-week floor
+            now_dt = datetime.now(timezone.utc)
 
-        open_roles: dict[str, int] = {name: 0 for name in names}
-        weekly_delta: dict[str, int] = {name: 0 for name in names}
-        last_seen: dict[str, datetime] = {}
-        offsets: dict[str, list[int]] = {name: [] for name in names}
-        # Resolve each row's company back to the exact requested-name casing so a
-        # scrape-side case variant still lands in the right bucket.
-        by_key = {" ".join(n.casefold().split()): n for n in names}
-        for r in rows:
-            raw = (r.get("company_name") or "").strip()
-            name = by_key.get(" ".join(raw.casefold().split()))
-            if name is None:
-                continue
-            last_m = _marker_int(r.get("last_seen"))
-            first_m = _marker_int(r.get("first_seen"))
-            if last_m is not None and last_m >= fresh_marker:
-                open_roles[name] += 1
-            if first_m is not None and first_m >= week_marker:
-                weekly_delta[name] += 1
-            seen_dt = _marker_to_dt(r.get("last_seen")) or _marker_to_dt(r.get("first_seen"))
-            if seen_dt is not None:
-                prev = last_seen.get(name)
-                if prev is None or seen_dt > prev:
-                    last_seen[name] = seen_dt
-            first_dt = _marker_to_dt(r.get("first_seen"))
-            if first_dt is not None:
-                days_ago = (now_dt - first_dt).days
-                if 0 <= days_ago < SERIES_DAYS:
-                    offsets[name].append((SERIES_DAYS - 1) - days_ago)
+            open_roles: dict[str, int] = {name: 0 for name in names}
+            weekly_delta: dict[str, int] = {name: 0 for name in names}
+            last_seen: dict[str, datetime] = {}
+            offsets: dict[str, list[int]] = {name: [] for name in names}
+            # Resolve each row's company back to the exact requested-name casing
+            # so a scrape-side case variant still lands in the right bucket.
+            by_key = {" ".join(n.casefold().split()): n for n in names}
+            for r in rows:
+                raw = (r.get("company_name") or "").strip()
+                name = by_key.get(" ".join(raw.casefold().split()))
+                if name is None:
+                    continue
+                last_m = _marker_int(r.get("last_seen"))
+                first_m = _marker_int(r.get("first_seen"))
+                if last_m is not None and last_m >= fresh_marker:
+                    open_roles[name] += 1
+                if first_m is not None and first_m >= week_marker:
+                    weekly_delta[name] += 1
+                seen_dt = _marker_to_dt(r.get("last_seen")) or _marker_to_dt(r.get("first_seen"))
+                if seen_dt is not None:
+                    prev = last_seen.get(name)
+                    if prev is None or seen_dt > prev:
+                        last_seen[name] = seen_dt
+                first_dt = _marker_to_dt(r.get("first_seen"))
+                if first_dt is not None:
+                    days_ago = (now_dt - first_dt).days
+                    if 0 <= days_ago < SERIES_DAYS:
+                        offsets[name].append((SERIES_DAYS - 1) - days_ago)
 
-        out: list[dict[str, Any]] = []
-        for name in names:  # preserve caller order
-            seen = last_seen.get(name)
-            days_since = (now_dt - seen).days if seen else None
-            out.append(
-                {
-                    "company_name": name,
-                    "open_roles": open_roles[name],
-                    "weekly_delta": weekly_delta[name],
-                    "pulse": compute_pulse(open_roles[name], weekly_delta[name], days_since),
-                    "series": build_series(offsets[name]),
-                    "last_seen_at": seen.isoformat() if seen else None,
-                }
+            computed: list[dict[str, Any]] = []
+            for name in names:  # preserve caller order
+                seen = last_seen.get(name)
+                days_since = (now_dt - seen).days if seen else None
+                computed.append(
+                    {
+                        "company_name": name,
+                        "open_roles": open_roles[name],
+                        "weekly_delta": weekly_delta[name],
+                        "pulse": compute_pulse(open_roles[name], weekly_delta[name], days_since),
+                        "series": build_series(offsets[name]),
+                        "last_seen_at": seen.isoformat() if seen else None,
+                    }
+                )
+            return computed
+
+        try:
+            out = shared_cache.get_or_compute(
+                cache_key, _compute, ttl_seconds=_PULSE_TTL, stale_seconds=_PULSE_TTL
             )
-
-        _pulse_cache[cache_key] = (time.monotonic(), out)
-        return out
+        except APIError:
+            # Cold cache, no stale value to fall back to — mirrors the pre-
+            # shared_cache contract (fetch_skill_heatmap does the same).
+            return []
+        by_name = {row["company_name"]: row for row in out}
+        return [by_name[name] for name in names if name in by_name]
 
     def fetch_indexable_companies(self) -> list[dict[str, Any]]:
         """Companies whose /companies/{name} page renders real content — i.e.
@@ -1365,30 +1375,40 @@ class JobsRepository:
         drops as "Crawled - currently not indexed" — omitting it protects crawl
         budget for the pages that earn indexing.
 
-        ONE grouped read (``indexable_companies`` RPC), cached 1h (the page ISR
-        window). It used to page every matching row out at 1,000 per request and
-        count them here — 11,208 rows in 12 OFFSET round trips to produce 185.
-        OFFSET re-scans what it skips, so the last page cost 1,343 ms on its own
-        and the endpoint spiked to 9-12s; the GROUP BY answers in ~350 ms.
-        Grouping/ordering live in the function and match what this loop did.
-        APIError → last good result or [] (never 500 the sitemap).
-        """
-        global _indexable_companies_cache
-        now = time.monotonic()
-        if _indexable_companies_cache is not None and (now - _indexable_companies_cache[0]) < _INDEXABLE_TTL:
-            return list(_indexable_companies_cache[1])
-        try:
-            rows = self._admin_db.rpc("indexable_companies", {}).execute().data or []
-        except APIError:
-            return list(_indexable_companies_cache[1]) if _indexable_companies_cache else []
+        ONE grouped read (``indexable_companies`` RPC). Shared across every
+        replica via `shared_cache` (ARCHITECTURE_READ_PATH.md S3) — fresh for
+        `_INDEXABLE_TTL`, then served stale immediately for another
+        `_INDEXABLE_TTL` while ONE replica refreshes in the background, so a
+        TTL expiry is never a stampede of every replica recomputing at once.
 
-        out = [
-            {"name": name, "active_count": int(r.get("active_count") or 0)}
-            for r in rows
-            if (name := (r.get("name") or "").strip())
-        ]
-        _indexable_companies_cache = (now, out)
-        return out
+        It used to page every matching row out at 1,000 per request and count
+        them here — 11,208 rows in 12 OFFSET round trips to produce 185. OFFSET
+        re-scans what it skips, so the last page cost 1,343 ms on its own and
+        the endpoint spiked to 9-12s; the GROUP BY answers in ~350 ms.
+        Grouping/ordering live in the function and match what this loop did.
+        A cold miss with no stale value to fall back on propagates APIError to
+        the caller, same as before this cache moved to shared_cache.
+        """
+
+        def _compute() -> list[dict[str, Any]]:
+            rows = self._admin_db.rpc("indexable_companies", {}).execute().data or []
+            return [
+                {"name": name, "active_count": int(r.get("active_count") or 0)}
+                for r in rows
+                if (name := (r.get("name") or "").strip())
+            ]
+
+        try:
+            return shared_cache.get_or_compute(
+                "indexable_companies",
+                _compute,
+                ttl_seconds=_INDEXABLE_TTL,
+                stale_seconds=_INDEXABLE_TTL,
+            )
+        except APIError:
+            # Only reachable on a genuinely cold cache (nothing stale to serve
+            # instead) — never the sitemap's steady-state path.
+            return []
 
     def fetch_skill_heatmap_row(
         self,
