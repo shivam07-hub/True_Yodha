@@ -16,14 +16,15 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.routers import public as public_router
+from app.security import anon_rate_limit
 
 
 @pytest.fixture(autouse=True)
 def _reset_rate_limit_and_turnstile(monkeypatch: pytest.MonkeyPatch):
-    public_router._anon_hits.clear()
+    anon_rate_limit.reset()
     monkeypatch.setattr(public_router.settings, "turnstile_secret", "", raising=False)
     yield
-    public_router._anon_hits.clear()
+    anon_rate_limit.reset()
 
 
 class _FakeRepo:
@@ -120,7 +121,7 @@ def test_job_search_rate_limited(monkeypatch: pytest.MonkeyPatch):
         result={"rows": [], "total": 0, "relaxed": []},
     )
     client = TestClient(app)
-    limit = public_router._ANON_RATE_MAX["job_search"]
+    limit = anon_rate_limit.MAX_PER_WINDOW["job_search"]
     for _ in range(limit):
         assert client.post("/public/job-search", json={"query": "software engineer"}).status_code == 200
     # (N+1)th call in the window → 429

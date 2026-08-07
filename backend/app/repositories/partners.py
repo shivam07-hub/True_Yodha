@@ -184,10 +184,12 @@ class PartnersRepository:
         email: str,
         user_id: str | None,
         link_state: str,
+        connect_token_hash: str | None = None,
+        connect_token_expires_at: str | None = None,
     ) -> dict[str, Any]:
         """Create or update the seat. `link_state` is the takeover gate — a caller
         that cannot prove the email belongs to this partner's user writes
-        'pending_verification' and the user completes it by signing in."""
+        'pending_connect', and the OWNER completes it on the consent screen."""
         now = datetime.now(timezone.utc).isoformat()
         payload: dict[str, Any] = {
             "partner_id": partner_id,
@@ -195,6 +197,11 @@ class PartnersRepository:
             "email": email.lower().strip(),
             "user_id": user_id,
             "link_state": link_state,
+            # Cleared on every write: a seat that just became linked must not keep
+            # a live consent token, and a re-issued token replaces its predecessor
+            # rather than leaving two valid ways into the same screen.
+            "connect_token_hash": connect_token_hash,
+            "connect_token_expires_at": connect_token_expires_at,
         }
         if link_state == "linked" and user_id:
             payload["linked_at"] = now
@@ -205,12 +212,29 @@ class PartnersRepository:
         )
         return (resp.data or [{}])[0]
 
+    def get_link_by_connect_token(self, token_hash: str) -> dict[str, Any] | None:
+        """Resolve a consent-screen token. Expiry is enforced by the caller so an
+        expired token and an unknown one can be told apart in the response."""
+        resp = (
+            self._db.table("partner_users")
+            .select("*, partners(slug, name, status)")
+            .eq("connect_token_hash", token_hash)
+            .limit(1)
+            .execute()
+        )
+        rows = resp.data or []
+        return rows[0] if rows else None
+
     def mark_linked(self, link_id: str, *, user_id: str) -> None:
+        """Consent given. The token dies with the same write that grants the link,
+        so a consent screen cannot be replayed after it has been used."""
         now = datetime.now(timezone.utc).isoformat()
         self._db.table("partner_users").update({
             "user_id": user_id,
             "link_state": "linked",
             "linked_at": now,
+            "connect_token_hash": None,
+            "connect_token_expires_at": None,
         }).eq("id", link_id).execute()
 
     def touch_sso(self, link_id: str) -> None:

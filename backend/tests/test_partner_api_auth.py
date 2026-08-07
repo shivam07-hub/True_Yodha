@@ -157,3 +157,35 @@ def test_every_partner_route_requires_a_scope():
             for dep in route.dependant.dependencies
             for sub in [dep]
         ), f"{route.path} has no scope dependency"
+
+
+# ── the consent screen's own boundary ──────────────────────────────────────
+
+
+def test_approve_requires_a_signed_in_user(client):
+    """The consent token names a seat; it must never BE the credential."""
+    response = client.post("/partner-connect/approve", json={"token": "a" * 32})
+    assert response.status_code == 401
+
+
+def test_context_refuses_an_unknown_token(client):
+    response = client.get("/partner-connect/context", params={"t": "b" * 32})
+    assert response.status_code in (404, 429)
+
+
+def test_partner_keys_cannot_reach_the_consent_endpoints(client, monkeypatch):
+    """A partner key authenticates a SERVER, not the account owner. If it worked
+    here, the whole consent step would be bypassable by its holder."""
+    monkeypatch.setattr(partner_auth, "_enforce_rate_limit", lambda _key_id: None)
+    app.dependency_overrides[get_partner_credential] = lambda: PartnerCredential(
+        key_id="k1", partner_id="p1", slug="acme", name="Acme",
+        scopes=frozenset({"sso", "jobs.read", "webhooks.manage"}),
+    )
+
+    response = client.post(
+        "/partner-connect/approve",
+        json={"token": "c" * 32},
+        headers={"Authorization": "Bearer myro_live_abc_def"},
+    )
+
+    assert response.status_code == 401

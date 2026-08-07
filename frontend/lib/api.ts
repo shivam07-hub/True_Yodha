@@ -285,6 +285,45 @@ export interface MagicLinkResponse {
   retry_after_seconds?: number | null
 }
 
+/**
+ * The partner consent screen. A partner's user whose email already has a Myro
+ * account is sent here instead of being signed straight in — the account owner
+ * approves the connection themselves. The token in the url names the seat; it
+ * grants nothing on its own.
+ */
+export interface PartnerConnectContext {
+  partner_name: string
+  partner_slug: string
+  external_id: string
+  email_masked: string
+}
+
+export interface PartnerConnectApproveResponse {
+  linked: boolean
+  message: string
+}
+
+export interface PartnerConnectEmailResponse {
+  sent: boolean
+  message: string
+}
+
+export const partnerConnect = {
+  context: (token: string) =>
+    request<PartnerConnectContext>(`/partner-connect/context?t=${encodeURIComponent(token)}`),
+  approve: (accessToken: string, token: string) =>
+    request<PartnerConnectApproveResponse>("/partner-connect/approve", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ token }),
+    }),
+  emailLink: (token: string) =>
+    request<PartnerConnectEmailResponse>("/partner-connect/email", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    }),
+}
+
 export interface IntegrationRevokeResponse {
   provider: string
   revoked: boolean

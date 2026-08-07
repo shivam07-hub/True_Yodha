@@ -19,12 +19,43 @@ class SsoSessionRequest(BaseModel):
 
 
 class SsoSessionResponse(BaseModel):
-    mode: Literal["direct", "verification_required"]
+    mode: Literal["direct", "connect_required"]
     login_url: str | None = Field(
         default=None,
-        description="One-time sign-in url. Redirect the user's BROWSER here. Null when verification is required.",
+        description="One-time sign-in url. Redirect the user's BROWSER here. Null when mode is connect_required.",
+    )
+    connect_url: str | None = Field(
+        default=None,
+        description=(
+            "Consent screen url, when this email already has a Myro account. Redirect the "
+            "browser here exactly the same way — the user approves in one click. "
+            "Null when mode is direct."
+        ),
     )
     user_ref: str = Field(description="Myro's handle for this seat. Stable across calls.")
+    message: str
+
+
+class ConnectContextResponse(BaseModel):
+    """What the consent screen renders before anyone has signed in."""
+
+    partner_name: str
+    partner_slug: str
+    external_id: str
+    email_masked: str
+
+
+class ConnectApproveRequest(BaseModel):
+    token: str = Field(min_length=8, max_length=128)
+
+
+class ConnectApproveResponse(BaseModel):
+    linked: bool
+    message: str
+
+
+class ConnectEmailResponse(BaseModel):
+    sent: bool
     message: str
 
 

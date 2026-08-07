@@ -39,8 +39,14 @@ key failure — unknown, wrong, revoked, suspended — on purpose.
 ## 2. Direct portal access (SSO)
 
 Your server calls this when one of your signed-in users clicks "Open Myro". You
-send us the identity you already verified; we return a **one-time sign-in url**
-for that user's browser.
+send us the identity you already verified; we return a **url for that user's
+browser**. Always redirect to whichever url came back — there are two shapes and
+one behaviour:
+
+```python
+r = myro_sso_session(user)
+return redirect(r["login_url"] or r["connect_url"])
+```
 
 ```http
 POST /partner/v1/sso/session
@@ -73,28 +79,35 @@ Redirect the user's **browser** to `login_url`. It works once, expires shortly,
 and lands them in Myro signed in. Do not fetch it server-side, log it, or email
 it — consuming it burns it.
 
-### Response — verification required
+Generate it fresh on every click. Never cache one.
+
+### Response — the account already exists
 
 ```json
 {
-  "mode": "verification_required",
+  "mode": "connect_required",
   "login_url": null,
+  "connect_url": "https://himyro.com/connect/finlatics?t=…",
   "user_ref": "b2c1…",
-  "message": "This email already has a Myro account. We've emailed the owner a sign-in link to connect it — no action needed from you."
+  "message": "This email already has a Myro account. Send the user to connect_url to approve the connection."
 }
 ```
 
-This is not an error. It means the address already belongs to a Myro account
-that predates your integration, so we cannot take your word that you speak for
-it. We email that person a sign-in link; when they use it, the accounts connect
-and every later `sso/session` call for that `external_id` returns `mode:
-"direct"`.
+**Redirect the browser exactly the same way** — to `connect_url` instead. Your
+code is one line: `redirect(r["login_url"] or r["connect_url"])`.
 
-Show your user something like *"Check your email to finish connecting Myro."*
+The user lands on a Myro page: *"Finlatics wants to connect your Myro account."*
+If they already have a Myro session on that device it is one click. If not, they
+sign in with Google right there. Either way they end up inside Myro, connected,
+without leaving the flow. No email, no waiting.
 
-**Why it works this way:** without this gate, anyone holding your API key could
-mint a session for any Myro account whose email they could guess. The gate is
-the difference between an integration and a master key.
+After that, every later call for this `external_id` returns `mode: "direct"`.
+
+**Why we don't just sign them in:** that address already belongs to a Myro
+account, and nothing so far has proved your user is the person who owns it. You
+verified *your* user — a different claim. Skipping this step would mean anyone
+holding your API key could type any Myro user's email and get a live session as
+them. The consent screen closes that gap in one click instead of on trust.
 
 ### Where the user lands
 
@@ -217,8 +230,8 @@ GET /partner/v1/users/user_84213/jobs?limit=10&max_experience_years=2
 | `max_experience_years` | keep only roles asking for at most this many years |
 | `include_delivered` | `true` to also return openings already pushed to you |
 
-`409` means the user's account is not linked yet — they were emailed a sign-in
-link (see §2).
+`409` means the user's account is not linked yet — send them through
+`connect_url` from §2 first.
 
 **Reading does not consume.** The "already sent" ledger only advances when we
 actually push an event, so polling this endpoint never eats a user's alerts.
@@ -242,6 +255,8 @@ Openings we believe are no longer live are never sent.
 4. Consent from your users to share their email with Myro, and a signed DPA —
    under India's DPDP Act you are the data fiduciary for the identities you send
    us.
+5. One `external_id` per person. Two ids for one human leaves one of them
+   unlinked.
 
 Nothing else. No CV, no phone number, no resume file.
 

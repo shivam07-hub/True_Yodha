@@ -8,8 +8,6 @@ so public numbers only ever grow.
 """
 
 import logging
-import time
-from collections import deque
 from datetime import datetime, timezone
 from typing import Any
 
@@ -25,6 +23,7 @@ from app.repositories.job_provenance import read_provenance
 from app.repositories.jobs import get_public_jobs_repository
 from app.repositories.scores import ScoresRepository
 from app.security import redact_sensitive_text
+from app.security.anon_rate_limit import enforce_anon_rate
 from app.services import cv_parser, cv_restructure, cv_rewrite, job_query_parser
 from app.services.cv_pdf_html import (
     CVPdfError,
@@ -125,16 +124,6 @@ _ALLOWED_CONTENT_TYPES = {
 # whole-CV restructure each have their own ceiling because they cost different
 # amounts of LLM budget. Unlimited actions (page-fill, hide/show bullets) never
 # touch the server, so there's nothing to cap there.
-_ANON_RATE_WINDOW_SECONDS = 3600.0
-_ANON_RATE_MAX = {"score": 5, "rewrite": 6, "restructure": 2, "job_search": 12, "download_event": 10, "export": 10}
-_ANON_RATE_MSG = {
-    "score": "You've previewed a few CVs already. Sign up to keep scoring.",
-    "rewrite": "You've polished a lot of bullets. Sign up to keep improving your CV.",
-    "restructure": "You've restructured this CV a couple of times. Sign up to keep going.",
-    "job_search": "You've run a lot of searches. Sign up to save jobs and see your fit.",
-    "export": "You've downloaded a few CVs already. Sign up to save and keep working.",
-}
-_anon_hits: dict[tuple[str, str], deque[float]] = {}
 
 _TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
 
@@ -190,18 +179,6 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-def _enforce_anon_rate(action: str, ip: str) -> None:
-    now = time.monotonic()
-    limit = _ANON_RATE_MAX.get(action, 5)
-    hits = _anon_hits.setdefault((action, ip), deque())
-    while hits and now - hits[0] > _ANON_RATE_WINDOW_SECONDS:
-        hits.popleft()
-    if len(hits) >= limit:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=_ANON_RATE_MSG.get(action, "Too many requests. Sign up to keep going."),
-        )
-    hits.append(now)
 
 
 async def _verify_turnstile(token: str | None, ip: str) -> None:
@@ -252,7 +229,7 @@ async def _score_anon_cv(
     text: str | None = None,
 ) -> tuple[dict[str, Any], dict[str, int], AnonScoreResponse]:
     ip = _client_ip(request)
-    _enforce_anon_rate("score", ip)
+    enforce_anon_rate("score", ip)
     await _verify_turnstile(cf_turnstile_token, ip)
 
     # Paste-text path (#4, Vaibhav email): the pasted text IS the raw CV text, so
@@ -508,7 +485,7 @@ async def rewrite_bullet_preview(
     request: Request,
 ) -> AnonRewriteResponse:
     ip = _client_ip(request)
-    _enforce_anon_rate("rewrite", ip)
+    enforce_anon_rate("rewrite", ip)
     await _verify_turnstile(body.cf_turnstile_token, ip)
 
     result = await cv_rewrite.suggest_rewrite(
@@ -529,7 +506,7 @@ async def rewrite_bullet_variants_preview(
     """3-angle rewrite (metric/impact/scope) for the pick-a-version flow. Shares
     the same IP bucket + no-fabrication question branch as the single rewrite."""
     ip = _client_ip(request)
-    _enforce_anon_rate("rewrite", ip)
+    enforce_anon_rate("rewrite", ip)
     await _verify_turnstile(body.cf_turnstile_token, ip)
 
     result = await cv_rewrite.suggest_rewrite_variants(
@@ -553,7 +530,7 @@ async def restructure_preview(
     request: Request,
 ) -> AnonRestructureResponse:
     ip = _client_ip(request)
-    _enforce_anon_rate("restructure", ip)
+    enforce_anon_rate("restructure", ip)
     await _verify_turnstile(body.cf_turnstile_token, ip)
 
     result = await cv_restructure.suggest_restructure(
@@ -598,7 +575,7 @@ async def export_cv_pdf_public(
     request: Request,
 ) -> Response:
     ip = _client_ip(request)
-    _enforce_anon_rate("export", ip)
+    enforce_anon_rate("export", ip)
     await _verify_turnstile(body.cf_turnstile_token, ip)
 
     try:
@@ -671,7 +648,7 @@ async def public_job_search(
     request: Request,
 ) -> JobSearchResponse:
     ip = _client_ip(request)
-    _enforce_anon_rate("job_search", ip)
+    enforce_anon_rate("job_search", ip)
     await _verify_turnstile(body.cf_turnstile_token, ip)
 
     query = " ".join((body.query or "").split())[:_JOB_SEARCH_MAX_QUERY]
@@ -736,7 +713,7 @@ async def record_cv_download_event(request: Request, body: AnonDownloadEvent) ->
     the download already happened client-side, so a slow/failed insert never
     blocks it. Metadata only; the CV body is not captured here (consent-gated,
     #17)."""
-    _enforce_anon_rate("download_event", _client_ip(request))
+    enforce_anon_rate("download_event", _client_ip(request))
     try:
         get_supabase_admin().table("anon_cv_download_events").insert({
             "anon_session_id": (body.anon_session_id or "")[:64] or None,
