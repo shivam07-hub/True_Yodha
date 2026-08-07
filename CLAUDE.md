@@ -82,6 +82,7 @@ worker. A test upload on dev writes to production data. Full map: [INFRA.md](INF
 | Locked decisions + data model | [DECISIONS.md](DECISIONS.md) |
 | Servers, domains, env, DNS, deploy order | [INFRA.md](INFRA.md) |
 | Open work, in full | [BACKLOG.md](BACKLOG.md) |
+| How a read is allowed to cost | [ARCHITECTURE_READ_PATH.md](ARCHITECTURE_READ_PATH.md) |
 | Closed work, past sessions, history | [ARCHIVE.md](ARCHIVE.md) |
 | Domain language and code seams | [CONTEXT.md](CONTEXT.md) |
 | Architecture map of the code | `graphify-out/GRAPH_REPORT_frontend.md` |
@@ -124,10 +125,10 @@ still desktop layouts on a phone. The CV screen is one of them, so stage one is
 broken on mobile. Also: nobody has opened the rebuilt mobile app on a real phone
 while logged in.
 
-**5. Make it fast enough to feel trustworthy.** *Two fixed, verifier open.*
-Never connection capacity (24/60, 2 active) — `shared_buffers` 224MB < `jobs`
-522MB, so one seq scan evicted the cache and slowed everything. Fixed: a dead
-partial index + an 11,208-row paged count. **Open:** verifier shares the DB.
+**5. Make it fast enough to feel trustworthy.** *Contract locked; S1-S5 open.*
+Never connection capacity (24/60, 2 active). The read budget and the sequence
+now live in [ARCHITECTURE_READ_PATH.md](ARCHITECTURE_READ_PATH.md) — read it
+before touching any read path.
 
 ### Stage 2 — job matching through Myro Ops (next)
 
