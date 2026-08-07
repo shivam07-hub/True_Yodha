@@ -108,3 +108,34 @@ def test_role_family_asks_the_taxonomy_instead_of_a_literal_list() -> None:
 
     assert "public.non_family_clusters()" in fn
     assert "excluded_role_families CONSTANT TEXT[]" not in fn
+
+
+JUDGMENT = MIGRATIONS / "20260806i_stage_b_judgment_queue.sql"
+
+
+def test_stage_b_claim_never_filters_on_the_description_column() -> None:
+    """TOAST-reading job_description across 61,280 rows cost 94.6s and a 57014.
+
+    20260806e had already removed this exact predicate from
+    job_ids_missing_skill_floor, and it came back three hours later. Whether a
+    job has usable text is decided in Python, after the claimed rows are
+    fetched by primary key.
+    """
+    sql = JUDGMENT.read_text()
+    claim = sql.split("CREATE OR REPLACE FUNCTION public.claim_jobs_for_skill_judgment")[1]
+    candidates = claim.split("WITH candidates AS MATERIALIZED")[1].split("), claimed AS")[0]
+
+    assert "job_description" not in candidates
+    assert "FOR UPDATE SKIP LOCKED" in candidates
+
+
+def test_stage_b_owns_only_its_own_attempt_column() -> None:
+    sql = JUDGMENT.read_text()
+    claim = sql.split("CREATE OR REPLACE FUNCTION public.claim_jobs_for_skill_judgment")[1]
+    body = claim.split("$function$")[1]
+
+    assert "SET skill_judged_at = now()" in body
+    assert "enrichment_status" not in body
+    # The work set is "standing on a deterministic floor", which
+    # evidence_source already records — not a second definition of it.
+    assert "evidence_source = 'stage_a'" in body
