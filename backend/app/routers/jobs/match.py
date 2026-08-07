@@ -80,11 +80,18 @@ def get_job_matches(
             "dismissed": lambda: set(repo.get_dismissed_job_card_ids(uid)),
             "raw_stack": lambda: repo.get_user_match_stack(uid, dismissed=set()),
             "feed_ts": lambda: repo.get_feed_updated_at(),
-            # count_for_user is itself two DEPENDENT round trips
-            # (last_match_run_at -> count_new_jobs_since), so it is the slowest
-            # member of this wave and therefore sets its wall time.
+            # Two DEPENDENT round trips (last_match_run_at ->
+            # count_new_jobs_since), and a third when the profile marker is
+            # null and it falls back to MAX(user_job_matches.computed_at) —
+            # which is 289 of 479 profiles. More hops than any other member
+            # here, but each returns a tiny payload, and on this path cost
+            # tracks payload size rather than hop count (a 2-hop /scores/me is
+            # 216ms; a 1-hop /cv/versions is 281ms). Whether this or the 46KB
+            # raw_stack read actually sets the wave's wall time is what the
+            # fanout.slow breakdown is here to answer — do not assume.
             "new_jobs_count": lambda: new_inventory.count_for_user(repo, uid),
-        }
+        },
+        label="jobs.matches",
     )
     dismissed: set[str] = reads["dismissed"]
     rows = [r for r in reads["raw_stack"] if str(r.get("job_id") or "") not in dismissed]

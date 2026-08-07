@@ -74,7 +74,7 @@ def get_score_map(
         "score": lambda: get_my_score(principal=principal, scores_repo=scores_repo),
         "skills": lambda: get_my_skills(principal=principal, users_repo=users_repo),
     }
-    return ScoreMapResponse(**run_concurrently(sections))
+    return ScoreMapResponse(**run_concurrently(sections, label="scores.map"))
 
 
 @router.post("/compute", response_model=ComputeScoreResponse)

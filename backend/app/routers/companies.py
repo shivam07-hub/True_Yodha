@@ -83,7 +83,8 @@ def get_company_page(company_name: str) -> CompanyPageResponse:
             ).data
             or [],
             "jobs": lambda: _fetch_company_jobs_for_notes(db, company_name),
-        }
+        },
+        label="companies.detail",
     )
     rows = reads["reviews"]
     company_jobs = reads["jobs"]

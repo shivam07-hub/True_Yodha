@@ -78,7 +78,8 @@ def _evidence_stats(cv_repo: CVVersionsRepository, user_id: str) -> CVEvidenceSu
             "skill_sources": lambda: cv_repo.list_user_skill_sources(user_id),
             "current_score": lambda: cv_repo.get_current_score(user_id),
             "next_version_number": lambda: cv_repo.next_user_version_number(user_id),
-        }
+        },
+        label="cv.evidence",
     )
     baseline = fetched["baseline"]
     since_dt = _parse_datetime((baseline or {}).get("created_at"))
