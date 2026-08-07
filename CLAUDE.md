@@ -126,9 +126,8 @@ broken on mobile. Also: nobody has opened the rebuilt mobile app on a real phone
 while logged in.
 
 **5. Make it fast enough to feel trustworthy.** *Contract locked; S1-S5 open.*
-Never connection capacity (24/60, 2 active). The read budget and the sequence
-now live in [ARCHITECTURE_READ_PATH.md](ARCHITECTURE_READ_PATH.md) — read it
-before touching any read path.
+Never connection capacity (24/60, 2 active). Budget, tiers and sequence live in
+[ARCHITECTURE_READ_PATH.md](ARCHITECTURE_READ_PATH.md) — read before any read path.
 
 ### Stage 2 — job matching through Myro Ops (next)
 
