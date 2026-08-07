@@ -33,7 +33,13 @@ logger = logging.getLogger("skill_judgment")
 
 _LOCAL_ENDPOINT = os.getenv("LOCAL_INFERENCE_BASE_URL", "http://localhost:1234/v1")
 
-JUDGMENT_SOURCE = "enrichment"
+# Stage B's rows carry their own name. They used to be written as 'enrichment',
+# which is what the scraper's LM Studio pass stamps on 361,165 legacy rows, and
+# `job_skills` has no timestamp — so a verdict and a 2026-04 scraper row became
+# indistinguishable the moment they were written. The lease guards in
+# `claim_jobs_for_skill_judgment` / `release_skill_judgment_claim` ask whether
+# Stage B ruled; they must not be answerable by a row Stage B never wrote.
+JUDGMENT_SOURCE = "judgment"
 
 
 def _count(db) -> tuple[int, int]:

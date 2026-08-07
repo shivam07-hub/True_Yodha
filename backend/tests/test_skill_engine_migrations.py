@@ -10,6 +10,12 @@ MIGRATIONS = Path(__file__).parents[2] / "database/migrations"
 ENRICHMENT = MIGRATIONS / "20260806b_enrichment_may_not_claim_complete_without_skills.sql"
 FLOOR_QUEUE = MIGRATIONS / "20260806e_skill_floor_queue.sql"
 HARD_SOFT = MIGRATIONS / "20260806h_hard_soft_derived.sql"
+# The judgment queue's guards were re-cut here; this file, not 20260806i, holds
+# the live definition of the claim and the release.
+JUDGMENT_EVIDENCE = MIGRATIONS / "20260807_stage_b_judgment_evidence.sql"
+# Likewise for apply_job_enrichment and refresh_job_role_family: this file holds
+# the live definitions, 20260806b and 20260806e hold their history.
+FORWARD_FLOW = MIGRATIONS / "20260807b_enrichment_stops_owning_skills.sql"
 
 
 def test_enrichment_never_deletes_skills_for_an_empty_result() -> None:
@@ -166,10 +172,89 @@ def test_the_judgment_claim_is_a_lease_that_can_be_released() -> None:
     """Stamped at claim and never released, it marked 50 prod jobs judged with
     zero verdicts and made them permanently ineligible. "We could not reach the
     model" is not an answer about the job."""
-    sql = JUDGMENT.read_text()
+    sql = JUDGMENT_EVIDENCE.read_text()
 
     assert "release_skill_judgment_claim" in sql
     assert "interval '30 minutes'" in sql
     # A release must never discard a verdict that actually landed.
     release = sql.split("CREATE OR REPLACE FUNCTION public.release_skill_judgment_claim")[1]
-    assert "evidence_source = 'enrichment'" in release
+    assert "evidence_source = 'judgment'" in release
+
+
+def test_stage_b_verdicts_are_distinguishable_from_scraper_rows() -> None:
+    """Stage B wrote its verdicts as 'enrichment', the scraper's own value.
+
+    `job_skills` has no timestamp, so the two were indistinguishable once
+    written. Both lease guards ask "did Stage B rule on this job"; answered from
+    'enrichment', a 2026-04 scraper row answers yes on Stage B's behalf. Today
+    only 5 jobs carry both, so it is right by accident — and stops being the
+    moment ingest writes a scraper row onto a job that also has a floor.
+    """
+    sql = JUDGMENT_EVIDENCE.read_text()
+
+    assert "'judgment'" in sql
+    claim = sql.split("CREATE OR REPLACE FUNCTION public.claim_jobs_for_skill_judgment")[1]
+    reclaim = claim.split("interval '30 minutes'")[1].split("AND EXISTS")[0]
+    assert "evidence_source = 'judgment'" in reclaim
+    assert "evidence_source = 'enrichment'" not in reclaim
+
+
+def test_enrichment_no_longer_writes_job_skills() -> None:
+    """It deleted Stage A's floor and replaced it with a constant.
+
+        DELETE FROM public.job_skills WHERE job_id = p_job_id;
+        INSERT ... SELECT p_job_id, skill_id, TRUE, required_level
+
+    Enrichment runs after Stage A on a newly scraped job, so those two lines
+    destroyed the JD-position read AND every Stage B verdict, then wrote
+    `is_primary = TRUE` over the top. `has_skill_floor` stays true throughout,
+    so Stage A never gets the job back — the 94.2%-constant corpus, rebuilt
+    every scrape. 20260806b's `IF v_incoming > 0` guard only covered the EMPTY
+    case; a normal enrichment still wiped a judged floor.
+    """
+    sql = FORWARD_FLOW.read_text()
+    apply = sql.split("CREATE OR REPLACE FUNCTION public.apply_job_enrichment")[1]
+    body = apply.split("$function$")[1]
+
+    assert "DELETE FROM public.job_skills" not in body
+    assert "INSERT INTO public.job_skills" not in body
+    assert "main_skills" not in body, "main_skills is the trigger's, derived from job_skills"
+
+
+def test_enrichment_status_does_not_report_on_another_stage() -> None:
+    """`complete` must assert what ENRICHMENT produced, nothing else.
+
+    20260806b made it assert a skill row, correctly, while enrichment was the
+    skills writer. Kept after the split it inverts into the fault the ownership
+    contract names: a job would be stamped `not_applicable` for the sole reason
+    that Stage A had not run yet, releasing it on another stage's timing. The
+    floor gap has its own owner — the dead-man heartbeat.
+    """
+    sql = FORWARD_FLOW.read_text()
+    apply = sql.split("CREATE OR REPLACE FUNCTION public.apply_job_enrichment")[1]
+    body = apply.split("$function$")[1]
+
+    assert "v_final_skill_count" not in body
+    assert "enrichment_status = 'complete'" in body
+    # The summary/role_domain guard is what makes that `complete` a fact.
+    assert "RETURN FALSE" in body
+
+
+def test_main_skills_is_derived_from_job_skills() -> None:
+    """Two answers to "what skills does this job need" is the coupling.
+
+    Enrichment wrote `main_skills` (the chips, the skill facet, the gap) from
+    its own list while `job_skills` (the matcher) came from somewhere else. It
+    now derives in the trigger that already maintains role_family, so the chips
+    a user sees and the rows the matcher ranks cannot disagree.
+    """
+    sql = FORWARD_FLOW.read_text()
+    trigger = sql.split("CREATE OR REPLACE FUNCTION public.refresh_job_role_family")[1]
+
+    assert "main_skills = resolved_main_skills" in trigger
+    assert "job_skill.is_primary DESC" in trigger, "the zone leads the chip row"
+    # A bare LIMIT over an unordered subquery takes 12 ARBITRARY rows and only
+    # then ranks them, dropping must-haves at random.
+    ordered_at = trigger.index("ORDER BY job_skill.is_primary DESC,\n                 job_skill.required_level")
+    limit_at = trigger.index("LIMIT 12")
+    assert ordered_at < limit_at
