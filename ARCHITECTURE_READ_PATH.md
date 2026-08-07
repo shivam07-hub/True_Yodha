@@ -157,13 +157,54 @@ precondition for the product being better enough to be worth switching to.
 
 ## 5. Sequence — the order is load-bearing
 
-**S0 — Global search. ✅ DONE (`cd777acb`), on `Develop`.**
-`job_search_index` + `search_jobs_global`. `engineer` 4,284ms → 177ms,
-`quantum` 12,415ms → 22ms, live endpoint 210–1,204ms across every term shape,
-no 503s. ⚠️ Prod still runs the old path until `main` merges.
+**S0 — Global search. ✅ DONE, live on prod** (PR #285). `job_search_index` +
+`search_jobs_global`. `engineer` 4,284ms → 177ms, `quantum` 12,415ms → 22ms.
+Verified on prod: correct hit counts (12/12/0), no 503s across every term shape.
 
-**S1 — The arrival surface.** Make the no-CV job-browse view Tier 0 end to end,
-with the freshness stamp. This is what every partner user sees first.
+**S1 — The arrival surface. ✅ DB fix live on prod (no deploy needed); one
+sequential round trip named and deliberately left open.**
+
+`MarketJobsTab` renders unconditionally regardless of `hasCv` — `/jobs/feed`
+IS the no-CV browse surface, confirmed by reading `app/(authed)/market/page.tsx`
+(only the heatmap tab gates on `hasCv`). `pickDefaultSort(hasCv, hasTargetRoles)`
+returns `"fresh"` for exactly the no-CV cohort, so `sort=fresh, page=1, no
+filters` is the literal request a Finlatics arrival sends.
+
+Measured on prod before any change: **8,607ms → 503**, then 2,316ms, 880ms.
+Root cause was the fourth instance of the same trap in two days:
+`is_active AND listing_confidence='active' ORDER BY first_seen DESC LIMIT 20`
+could not be served as an ordered index scan — `first_seen` is a date
+marker with only **17 distinct values** across 11,207 live rows, so even a
+single-column `(first_seen DESC)` partial index left a 937ms Incremental Sort
+inside each ~660-row day-bucket. The composite index
+`idx_jobs_live_first_seen_job_id (first_seen DESC, job_id DESC) WHERE
+is_active IS TRUE AND listing_confidence = 'active'` matches the query's
+`ORDER BY` exactly:
+
+  DB-paginated fresh browse:  3,080ms → **3.2ms**
+  in-Python CAP-500 fetch (users with any saved/dismissed job): → **26ms**
+
+Migration `20260807b_jobs_live_feed_index.sql`, applied `CONCURRENTLY`,
+already live on prod (DB-side, same as S0's search fix, needs no deploy).
+Re-measured end-to-end on prod after: 1,569 / 895 / 603 / 574ms, zero 503s —
+correct, but still above the 500ms p95 budget.
+
+**What's left is structural, not a query:** `job_feed` makes three
+*sequential* round trips — the personalization prelude, then `feed_jobs`
+(now ~3–26ms), then `get_cached_match_evals` for the brain-ranked badges.
+Each round trip to Supabase appears to carry roughly 150–300ms of fixed
+overhead in this path (the same floor `/companies/{slug}` settled at after
+its own index fix). Three sequential calls floors this endpoint near
+450–900ms regardless of query speed.
+
+The obvious-looking fix — skip `get_cached_match_evals` when the user has no
+CV skills, since `_rank_feed_rows(rows, {})` is behaviourally identical to
+never calling it — is **not safe as stated**: `canRankByFit` returns true off
+`hasCv OR hasTargetRoles`, so a user with target roles set but no CV can still
+default to `sort=fit` and have warmed evals. Skipping the read on "no CV
+skills" alone would silently drop real badges for that cohort. Left open,
+named precisely rather than shipped on an unproven assumption — this is a
+business-ranking read path, not a snapshot to overwrite on a hunch.
 
 **S2 — One behaviour.** Surface the onboarding CTA next to the CV CTA in both
 nudges, driven by the already-existing `onboarding_complete`. Cheap, and it is
