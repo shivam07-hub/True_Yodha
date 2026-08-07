@@ -120,18 +120,33 @@ role", which requires a CV. That gap — the exact distance between you and a
 specific job — is the thing Naukri and LinkedIn cannot show. It is the reason the
 CV gets uploaded.
 
-### The single behaviour
+### The single behaviour — ✅ DONE
 
-Today the no-CV surfaces (`CVRequiredNudge`, `CVPrerequisiteCard`) push only
-`/cv`. Meanwhile `onboarding_complete` is returned by the API
-(`backend/app/schemas/users.py:31`, `frontend/lib/api.ts:373`) and has **zero
-consumers in the frontend** — the backend tracks the state and the UI ignores it
-entirely.
+The nudge on the real browse surface (`jobs-tab.tsx` — `MarketJobsTab` renders
+unconditionally, confirmed the actual no-CV landing view in S1) pointed only at
+`/cv` and was gated on `hasCv` alone. `onboarding_complete` was returned by the
+API and had zero frontend consumers, so a user with a CV who never picked a
+target role and saved a first shortlist — `onboarding_complete` only flips on
+`credible_job_saved`, per `onboarding_first_role.py` — saw no nudge at all.
 
-So a browsing user is nudged toward a CV upload but never toward finishing
-onboarding, and the app points at two things or none. Both nudges should surface
-the onboarding CTA alongside the CV CTA, driven by `onboarding_complete`, so the
-whole app points at one behaviour. That consistency is itself a trust signal.
+Fixed: the nudge now gates on `!onboardingComplete`, not `!hasCv`, and always
+links to `/onboarding` — which already self-resolves to wherever the user
+actually is (upload → result → target/shortlist → `/market` once done; read in
+`app/onboarding/page.tsx`). Copy is state-aware (`hasCv` picks between "Upload
+your CV" and "Finish setting up your profile") but the destination and the
+underlying behaviour are the same for both. One nudge, one destination, correct
+for every state without new UI. Verified live with the QA account
+(`has_cv=true, onboarding_complete=false`): nudge reads "Finish setting up your
+profile" → `/onboarding` → lands exactly on that account's real next step
+(confirm-CV-skills), not a generic re-upload prompt.
+
+Confirmed pre-existing and NOT touched: `CVRequiredNudge`
+(`components/common/cv-required-nudge.tsx`) is fully built but has zero import
+sites anywhere in the app — dead code, flagged separately rather than folded
+into this change. Mobile's `JobsSurface` has no equivalent nudge at all today;
+also flagged rather than silently left unmentioned, not built in this pass —
+new mobile UI needs its own verification pass, not a rushed addition inside a
+backend-latency-focused sequence.
 
 ---
 

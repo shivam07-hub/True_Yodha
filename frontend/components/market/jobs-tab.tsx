@@ -32,6 +32,11 @@ export interface MarketJobsTabProps {
   token: string
   hasCv: boolean
   cvResolved?: boolean
+  /** Onboarding finishes past CV upload — target role picked, first shortlist
+   *  saved. A user can have a CV and still not be onboardingComplete; the
+   *  browse nudge below is driven by this, not by hasCv alone, so a user who
+   *  uploaded a CV outside the onboarding flow still gets steered to finish. */
+  onboardingComplete?: boolean
   targetRoles: string[]
   chipCountMap: Record<string, number>
   selectedCluster: string | null         // shared with the page's analytics/heatmap
@@ -62,7 +67,7 @@ export interface MarketJobsTabProps {
 
 export function MarketJobsTab(props: MarketJobsTabProps) {
   const {
-    token, hasCv, cvResolved = false, targetRoles, chipCountMap, selectedCluster, onSelectCluster,
+    token, hasCv, cvResolved = false, onboardingComplete = false, targetRoles, chipCountMap, selectedCluster, onSelectCluster,
     initialFilters, initialQuery = "", onFiltersChange, onQueryChange,
     targetLocations, followedNames, onToggleFollow, initialSkillFacet, onSkillFacetChange,
     primaryCareerBand, exploredCareerBands, onExploredCareerBandsChange,
@@ -215,7 +220,12 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     else if (s.company) onToggleFollow(s.company)
   }, [onFilterSkill, onToggleFollow])
 
-  const showCvNudge = cvResolved && !hasCv
+  // One nudge, one destination (/onboarding — resumes wherever the user left
+  // off), regardless of which step they're stuck on. Gated on onboardingComplete
+  // rather than hasCv alone: a user can have a CV and still not have picked a
+  // target role or saved a first shortlist, and hasCv-only gating hid the nudge
+  // for that cohort entirely.
+  const showOnboardingNudge = cvResolved && !onboardingComplete
 
   const onSave = (j: JobFeedItem) => triage(j, "saved")
   const onSkip = (j: JobFeedItem) => triage(j, "skipped")
@@ -272,14 +282,21 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
           )}
         </div>
 
-        {showCvNudge ? (
+        {showOnboardingNudge ? (
           <div className="mi-nudge" style={{ marginTop: 14 }}>
             <span aria-hidden style={{ fontSize: 13, fontWeight: 800 }}>CV</span>
-            <div className="mi-nudge-t">
-              <b>Upload your CV to personalize</b>
-              <span>See your fit, matched skills, and the roles that want you.</span>
-            </div>
-            <a href="/cv" className="mi-nudge-go">Upload CV</a>
+            {hasCv ? (
+              <div className="mi-nudge-t">
+                <b>Finish setting up your profile</b>
+                <span>Pick a target role and Myro shows your best-fit jobs first.</span>
+              </div>
+            ) : (
+              <div className="mi-nudge-t">
+                <b>Upload your CV to personalize</b>
+                <span>See your fit, matched skills, and the roles that want you.</span>
+              </div>
+            )}
+            <a href="/onboarding" className="mi-nudge-go">{hasCv ? "Continue setup" : "Upload CV"}</a>
           </div>
         ) : null}
 
