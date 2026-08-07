@@ -139,3 +139,24 @@ def test_stage_b_owns_only_its_own_attempt_column() -> None:
     # The work set is "standing on a deterministic floor", which
     # evidence_source already records — not a second definition of it.
     assert "evidence_source = 'stage_a'" in body
+
+
+def test_the_judgment_backlog_counts_what_the_claim_serves() -> None:
+    """It reported 61,280 against a claimable 5,309.
+
+    Omitting the claim's own `evidence_source` predicate made the backlog count
+    every job with any floor rather than every job standing on a DETERMINISTIC
+    one — 56k of work that would never be dequeued, on a number that never
+    moves however long the worker runs.
+    """
+    sql = JUDGMENT.read_text()
+    counter = sql.split("CREATE OR REPLACE FUNCTION public.count_jobs_awaiting_judgment")[1]
+
+    assert "evidence_source = 'stage_a'" in counter
+
+
+def test_the_judgment_index_covers_the_columns_the_count_reads() -> None:
+    """Without INCLUDE, the backlog count did 61,280 heap fetches — 29.5s."""
+    sql = JUDGMENT.read_text()
+
+    assert "INCLUDE (is_active, listing_confidence)" in sql

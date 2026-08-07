@@ -27,8 +27,12 @@
 ALTER TABLE public.jobs
     ADD COLUMN IF NOT EXISTS skill_judged_at TIMESTAMPTZ;
 
-CREATE INDEX IF NOT EXISTS idx_jobs_awaiting_judgment
+-- INCLUDE is load-bearing: without it the backlog count did 61,280 heap
+-- fetches for is_active/listing_confidence and took 29.5s.
+DROP INDEX IF EXISTS idx_jobs_awaiting_judgment;
+CREATE INDEX idx_jobs_awaiting_judgment
     ON public.jobs (job_id)
+    INCLUDE (is_active, listing_confidence)
     WHERE skill_judged_at IS NULL AND has_skill_floor IS TRUE;
 
 CREATE OR REPLACE FUNCTION public.claim_jobs_for_skill_judgment(p_limit INTEGER DEFAULT 25)
@@ -58,6 +62,12 @@ AS $function$
     SELECT c.job_id, c.job_title, c.job_description FROM claimed AS c;
 $function$;
 
+-- The backlog must count exactly what the claim will serve, and cheaply.
+-- Two faults, both measured: without the evidence_source predicate it reported
+-- 61,280 against a claimable 5,309 — 56k of work that would never be dequeued,
+-- on a number that never moves however long the worker runs. Adding it as an
+-- EXISTS over 61,280 jobs then cost 29.5s and timed out. Driven from
+-- job_skills (5,309 distinct) with a covering index it is 872ms, Heap Fetches 0.
 CREATE OR REPLACE FUNCTION public.count_jobs_awaiting_judgment()
 RETURNS TABLE (total INTEGER, recommendable INTEGER)
 LANGUAGE sql
@@ -68,7 +78,12 @@ AS $$
            COUNT(*) FILTER (
                WHERE job.is_active IS TRUE AND job.listing_confidence = 'active'
            )::INTEGER
-    FROM public.jobs AS job
+    FROM (
+        SELECT DISTINCT skill.job_id
+        FROM public.job_skills AS skill
+        WHERE skill.evidence_source = 'stage_a'
+    ) AS floored
+    JOIN public.jobs AS job ON job.job_id = floored.job_id
     WHERE job.skill_judged_at IS NULL AND job.has_skill_floor IS TRUE;
 $$;
 
