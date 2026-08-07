@@ -179,11 +179,11 @@ cd frontend && npm run dev
 
 ## SKILLS
 
-`/grill-me` settle an unclear plan · `/tdd` · `/frontend-design` · `/review` ·
-`/security-review` · `/triage-issue` · `/to-issues` · `/to-prd` · `/qa` ·
-`/graphify` · `/schedule` · `/improve-codebase-architecture` ·
-`/fixing-accessibility` · `/fixing-motion-performance` · `/fixing-metadata` ·
-`/baseline-ui` · `/caveman`
+`/grill-me` settle an unclear plan · `/read-path-perf` **before touching any
+read path** · `/tdd` · `/frontend-design` · `/review` · `/security-review` ·
+`/triage-issue` · `/to-issues` · `/to-prd` · `/qa` · `/graphify` · `/schedule` ·
+`/improve-codebase-architecture` · `/fixing-accessibility` ·
+`/fixing-motion-performance` · `/fixing-metadata` · `/baseline-ui` · `/caveman`
 
 ---
 

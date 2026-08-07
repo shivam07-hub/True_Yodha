@@ -17,6 +17,31 @@ _logger = logging.getLogger("app.concurrent_reads")
 # Below this, one line per request would be noise on every warm cache hit.
 SLOW_FANOUT_MS = 250.0
 
+# The read contract's structural half: at most 3 concurrent DB reads per
+# user-facing request. Width is what silently grows — a section is one line to
+# add and its cost is invisible, because the wave's wall time is max(section)
+# and the newcomer usually isn't the max. It still spends a slot of the
+# process-wide read budget for the whole wave's duration, which is what turns
+# "one more section" into a concurrency ceiling under load.
+READ_CONTRACT_MAX_SECTIONS = 3
+
+# Fan-outs that exceed the contract today, with the reason. Anything NOT listed
+# here is held to READ_CONTRACT_MAX_SECTIONS. This is a debt register, not a
+# permission slip: entries should shrink, and a new one needs a real argument.
+FANOUT_BUDGET_EXCEPTIONS: dict[str, int] = {
+    # ARCHITECTURE_READ_PATH.md S4: both real consumers need six of these eight,
+    # and the seventh (cv_versions) seeds a cache every authed page reads, so
+    # cutting it would ADD round trips. Decomposing it needs a frontend change.
+    "home.bootstrap": 8,
+    # S4: six independent reads, all needed for one response. Parallelised
+    # rather than trimmed because each feeds a different field.
+    "cv.evidence": 6,
+}
+
+
+def section_budget(label: str) -> int:
+    return FANOUT_BUDGET_EXCEPTIONS.get(label, READ_CONTRACT_MAX_SECTIONS)
+
 
 def run_concurrently(
     sections: Mapping[str, Callable[[], Any]], *, label: str = ""
@@ -37,6 +62,19 @@ def run_concurrently(
     """
     if not sections:
         return {}
+
+    # Never raises: a contract violation is a design problem to fix in review,
+    # not a reason to fail a user's request at runtime. The CI guard
+    # (test_read_contract.py) is what actually blocks it from landing.
+    budget = section_budget(label)
+    if len(sections) > budget:
+        _logger.warning(
+            "metric fanout.over_budget label=%s sections=%d budget=%d | %s",
+            label or "unlabelled",
+            len(sections),
+            budget,
+            ",".join(sections),
+        )
 
     timings: dict[str, float] = {}
 
