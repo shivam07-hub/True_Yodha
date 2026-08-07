@@ -11,10 +11,12 @@ import { jobs as jobsApi, type JobMatch } from "@/lib/api"
  * at a time (never the whole drawer, never all sections). Fills the card's dead
  * space with CTAs, not filler.
  *
- * Three panels render from the cached brain fields already on the JobMatch (no
+ * Why and Match render from the cached brain fields already on the JobMatch (no
  * fetch); Reach lazy-loads the free deterministic search (ADR-0018) on first
- * open. Every panel handles missing data honestly — a card the brain hasn't
- * ranked shows a "run a search" nudge, never an empty shell.
+ * open; JD paints its 600-char snippet instantly and fetches the remainder only
+ * when the text was actually truncated. Every panel handles missing data
+ * honestly — a card the brain hasn't ranked shows a "run a search" nudge, never
+ * an empty shell.
  */
 
 type Tab = "why" | "match" | "reach" | "jd"
@@ -57,7 +59,7 @@ export function CardDetailRail({ token, jobId, job }: { token: string; jobId: st
           {tab === "why" ? <WhyPanel job={job} /> : null}
           {tab === "match" ? <MatchPanel matched={matched} missing={missing} /> : null}
           {tab === "reach" ? <ReachPanel token={token} jobId={jobId} job={job} /> : null}
-          {tab === "jd" ? <JdPanel job={job} /> : null}
+          {tab === "jd" ? <JdPanel token={token} jobId={jobId} job={job} /> : null}
         </div>
       ) : null}
     </div>
@@ -141,13 +143,38 @@ function ReachPanel({ token, jobId, job }: { token: string; jobId: string; job: 
   )
 }
 
-function JdPanel({ job }: { job: JobMatch }) {
-  const text = (job.job_summary?.trim() || job.job_description?.trim()) ?? ""
+function JdPanel({ token, jobId, job }: { token: string; jobId: string; job: JobMatch }) {
+  // List payloads carry a 600-char JD snippet, not the full text (it averaged
+  // 3,734 chars and was ~60% of the /jobs/matches payload). This panel is the
+  // ONLY consumer that wants the whole thing, and it only mounts when the user
+  // opens the JD tab — so the full fetch happens exactly then, never on load.
+  // A present job_summary is preferred and already complete, so it needs no fetch.
+  const summary = job.job_summary?.trim() ?? ""
+  const needsFull = !summary && !!job.job_description_truncated
+  const full = useQuery({
+    queryKey: ["jobDescription", jobId],
+    queryFn: () => jobsApi.jobDescription(token, jobId),
+    enabled: !!token && needsFull,
+    staleTime: 60 * 60 * 1000,
+  })
+
+  // Show the snippet immediately while the rest loads — never a blank panel or
+  // a spinner replacing text the user can already read.
+  const snippet = job.job_description?.trim() ?? ""
+  const text = summary || full.data?.job_description?.trim() || snippet
   if (!text) return <p style={{ color: "var(--tm-text-muted)" }}>No description on file for this role.</p>
   return (
     <>
       <h4>Job description</h4>
       <div className="fc-rail-jd">{text}</div>
+      {needsFull && full.isLoading ? (
+        <p style={{ color: "var(--tm-text-faint)", fontSize: 12, marginTop: 6 }}>Loading the rest…</p>
+      ) : null}
+      {needsFull && full.isError ? (
+        <p style={{ color: "var(--tm-text-faint)", fontSize: 12, marginTop: 6 }}>
+          Showing the opening section — the full description didn’t load.
+        </p>
+      ) : null}
     </>
   )
 }

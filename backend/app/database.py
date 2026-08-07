@@ -84,6 +84,42 @@ class _RetryingHTTPTransport(httpx.HTTPTransport):
             return super().handle_request(request)
 
 
+# ONE transport, shared by every client this module builds.
+#
+# The transport owns the httpcore connection pool; the httpx client owns the
+# headers. That split is the whole reason this is safe, and it is the ONLY safe
+# way to get connection reuse here:
+#
+#   `get_supabase_for_token` MUTATES a client — `client.postgrest.auth(token)`
+#   writes `Authorization` into that client's own headers. Caching the CLIENT
+#   (an `@lru_cache` on `get_supabase`, the obvious-looking "make it faster"
+#   change) would therefore share one Authorization header across every
+#   concurrent authed request: user A's query could execute under user B's
+#   token, and RLS would hand back B's rows. A cross-user data leak, from a
+#   one-line performance change. Do not do it.
+#
+# Sharing the TRANSPORT leaks nothing — no token ever touches it — while giving
+# the reuse that actually mattered: previously every authed request built a
+# client with an empty pool, so a 6-way fan-out opened six fresh TLS connections
+# to Supabase. That is the most likely cause of the `fanout.slow` outliers where
+# trivial reads (`get_current_score`, `next_version_number`) cost ~430ms against
+# this path's ~165ms one-round-trip floor.
+#
+# httpcore's sync pool is threadsafe, which the fan-outs require — they call
+# through this from several threads at once.
+#
+# Keepalive is sized to `supabase_read_max_inflight` (40): the app will not hold
+# more concurrent reads than that, so a warm connection per in-flight read is
+# the useful ceiling. Below it, the surplus reads pay a handshake anyway.
+_SHARED_TRANSPORT = _RetryingHTTPTransport(
+    http2=False,
+    limits=httpx.Limits(
+        max_connections=100,
+        max_keepalive_connections=max(20, settings.supabase_read_max_inflight),
+    ),
+)
+
+
 def _force_postgrest_http1(client: Client) -> Client:
     """postgrest 0.16.x hardcodes ``http2=True`` on its httpx session. A
     long-lived (lru_cached) client plus an HTTP/2 keepalive pool throws
@@ -96,6 +132,10 @@ def _force_postgrest_http1(client: Client) -> Client:
     doesn't eliminate stale-connection reuse, only the H2-specific crash mode.
     Mirrors the exact factory params (base_url / headers / timeout /
     follow_redirects) so behaviour is otherwise unchanged.
+
+    The transport (and therefore the connection pool) is shared; the session,
+    and with it the Authorization header, stays per-client. See
+    ``_SHARED_TRANSPORT``.
     """
     old = client.postgrest.session
     client.postgrest.session = _PostgrestSyncClient(
@@ -103,7 +143,7 @@ def _force_postgrest_http1(client: Client) -> Client:
         headers=old.headers,
         timeout=old.timeout,
         follow_redirects=True,
-        transport=_RetryingHTTPTransport(http2=False),
+        transport=_SHARED_TRANSPORT,
     )
     return client
 

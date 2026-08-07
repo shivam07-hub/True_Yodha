@@ -222,6 +222,7 @@ function IntelPageInner() {
             token={token ?? ""}
             hasCv={!!profileData?.has_cv}
             cvResolved={profileData !== undefined}
+            onboardingComplete={!!profileData?.onboarding_complete}
             targetRoles={targetRoles}
             chipCountMap={chipCountMap}
             selectedCluster={selectedCluster}

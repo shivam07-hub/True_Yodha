@@ -19,6 +19,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.routers import public as public_router
+from app.security import anon_rate_limit
 
 
 @dataclass
@@ -29,11 +30,11 @@ class _FakeProjection:
 
 @pytest.fixture(autouse=True)
 def _reset_rate_limit_and_turnstile(monkeypatch: pytest.MonkeyPatch):
-    public_router._anon_hits.clear()
+    anon_rate_limit.reset()
     monkeypatch.setattr(public_router.settings, "turnstile_enabled", False)
     monkeypatch.setattr(public_router.settings, "turnstile_secret", "", raising=False)
     yield
-    public_router._anon_hits.clear()
+    anon_rate_limit.reset()
 
 
 def _wire_engine(
@@ -200,7 +201,7 @@ def test_score_cv_paste_too_short(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_score_cv_rate_limited(monkeypatch: pytest.MonkeyPatch) -> None:
     _wire_engine(monkeypatch, raw_text="A" * 400, skills=[{"display_name": "Python"}])
     client = TestClient(app)
-    for _ in range(public_router._ANON_RATE_MAX["score"]):
+    for _ in range(anon_rate_limit.MAX_PER_WINDOW["score"]):
         assert client.post("/public/score-cv", files=_pdf_upload()).status_code == 200
     # one past the cap, same client IP
     assert client.post("/public/score-cv", files=_pdf_upload()).status_code == 429
@@ -355,6 +356,6 @@ def test_rewrite_rate_limited(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(public_router.cv_rewrite, "suggest_rewrite", _fake)
     client = TestClient(app)
-    for _ in range(public_router._ANON_RATE_MAX["rewrite"]):
+    for _ in range(anon_rate_limit.MAX_PER_WINDOW["rewrite"]):
         assert client.post("/public/rewrite-bullet", json={"bullet": "b"}).status_code == 200
     assert client.post("/public/rewrite-bullet", json={"bullet": "b"}).status_code == 429

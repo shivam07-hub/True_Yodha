@@ -53,9 +53,10 @@
   --lp-dur:      200ms;
   --lp-dur-slow: 380ms;
 
-  /* Faint measurement grid — theme-aware (faint white on dark, faint ink on
-     light). The console islands re-pin this to fixed white-alpha. */
-  --lp-grid-line: var(--tm-border-faint);
+  /* Faint measurement grid — deliberately softer than the shared border
+     token so the full-bleed tile pattern stays atmospheric, not structural.
+     The console islands re-pin this to fixed white-alpha. */
+  --lp-grid-line: rgba(255, 255, 255, 0.028);
 
   /* NOTE: the old reverse remap (--tm-*: var(--lp-*)) is deliberately gone.
      It forced the reused chrome dark AND is now circular (since --lp-* alias
@@ -150,9 +151,8 @@
 
 /* Light grid faintness — its own value, NOT the border token. --tm-border-faint
    (8% ink) is tuned for a 1px hairline border; tiled full-bleed across the hero
-   it reads as a loud blueprint, not a whisper. Drop to ~3.5% so it matches the
-   dark engine grid's perceived faintness (which already pins its own 2.8% white).
-   Dark keeps the .tm-landing default → engine override; only light is corrected. */
+   it reads as a loud blueprint, not a whisper. Match the dark grid's quiet
+   visual weight with ~3.5% ink. */
 :root[data-surface="light"] .tm-landing {
   --lp-grid-line: rgba(38, 38, 38, 0.035);
   /* The global light faint/muted tokens (#9D9D9D ≈ 2.5:1, #6E6E6E) are too pale

@@ -9,11 +9,17 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.routers import partner_connect
 from app.repositories import partners as partners_module
-from app.repositories.partners import PartnerCredential, PartnersRepository
+from app.repositories.partners import (
+    PartnerCredential,
+    PartnersRepository,
+    get_partners_repository,
+)
 from app.security import partner_auth
 from app.security.partner_auth import get_partner_credential
 
@@ -157,3 +163,57 @@ def test_every_partner_route_requires_a_scope():
             for dep in route.dependant.dependencies
             for sub in [dep]
         ), f"{route.path} has no scope dependency"
+
+
+# ── the consent screen's own boundary ──────────────────────────────────────
+
+
+def test_approve_requires_a_signed_in_user(client):
+    """The consent token names a seat; it must never BE the credential."""
+    response = client.post("/partner-connect/approve", json={"token": "a" * 32})
+    assert response.status_code == 401
+
+
+def test_context_refuses_an_unknown_token(client):
+    # The consent boundary must reject an unknown token without requiring a
+    # configured external database. The repository itself remains the real
+    # production dependency, and the service still hashes before looking up.
+    app.dependency_overrides[get_partners_repository] = lambda: PartnersRepository(_Chain([]))
+
+    response = client.get("/partner-connect/context", params={"t": "b" * 32})
+
+    assert response.status_code in (404, 429)
+
+
+def test_context_rate_limit_precedes_the_token_lookup(client, monkeypatch):
+    """An anonymous caller must be throttled before it can consume a DB read."""
+    monkeypatch.setattr(
+        partner_connect,
+        "enforce_anon_rate",
+        lambda *_args: (_ for _ in ()).throw(HTTPException(status_code=429)),
+    )
+    app.dependency_overrides[get_partners_repository] = lambda: pytest.fail(
+        "token lookup ran before anonymous rate enforcement"
+    )
+
+    response = client.get("/partner-connect/context", params={"t": "b" * 32})
+
+    assert response.status_code == 429
+
+
+def test_partner_keys_cannot_reach_the_consent_endpoints(client, monkeypatch):
+    """A partner key authenticates a SERVER, not the account owner. If it worked
+    here, the whole consent step would be bypassable by its holder."""
+    monkeypatch.setattr(partner_auth, "_enforce_rate_limit", lambda _key_id: None)
+    app.dependency_overrides[get_partner_credential] = lambda: PartnerCredential(
+        key_id="k1", partner_id="p1", slug="acme", name="Acme",
+        scopes=frozenset({"sso", "jobs.read", "webhooks.manage"}),
+    )
+
+    response = client.post(
+        "/partner-connect/approve",
+        json={"token": "c" * 32},
+        headers={"Authorization": "Bearer myro_live_abc_def"},
+    )
+
+    assert response.status_code == 401

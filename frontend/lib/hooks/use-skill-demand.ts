@@ -1,7 +1,13 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { jobs, type SkillDemandWindow } from "@/lib/api"
+import { jobs, type SkillDemandCityItem, type SkillDemandItem, type SkillDemandWindow } from "@/lib/api"
+
+// Stable refs: `query.data` is undefined until the first fetch resolves, so a
+// fallback literal here would mint a new array every render — looping any
+// effect that lists the returned value in its dependency array.
+const EMPTY_SKILLS: SkillDemandItem[] = []
+const EMPTY_CITIES: SkillDemandCityItem[] = []
 
 /**
  * Skills a city is actually hiring for, from the precomputed snapshot.
@@ -27,7 +33,7 @@ export function useSkillDemand(
     staleTime: 30 * 60 * 1000,
   })
   return {
-    skills: query.data?.skills ?? [],
+    skills: query.data?.skills ?? EMPTY_SKILLS,
     computedAt: query.data?.computed_at ?? null,
     // False when there is nothing to fetch, so a city we don't cover renders an
     // empty state rather than a skeleton that never resolves.
@@ -43,5 +49,5 @@ export function useSkillDemandCities(enabled = true) {
     enabled,
     staleTime: 6 * 60 * 60 * 1000,
   })
-  return { cities: query.data?.cities ?? [], loading: query.isLoading && enabled }
+  return { cities: query.data?.cities ?? EMPTY_CITIES, loading: query.isLoading && enabled }
 }

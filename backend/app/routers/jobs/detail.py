@@ -1,10 +1,39 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 
 from app.deps import Principal, get_principal
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.schemas import SkillGapItem, SkillGapResponse
 
 router = APIRouter()
+
+
+class JobDescriptionResponse(BaseModel):
+    job_id: str
+    job_description: str
+
+
+@router.get("/{job_id}/description", response_model=JobDescriptionResponse)
+def get_job_description(
+    job_id: str,
+    principal: Principal = Depends(get_principal),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+) -> JobDescriptionResponse:
+    """The full job description, on demand.
+
+    List payloads (`/jobs/matches`, and any surface using `to_job_match`) carry
+    only `MATCH_JD_SNIPPET_CHARS` of this text, because the full version
+    averages 3,734 chars and accounted for 59.8% of the /jobs/matches payload
+    while every consumer but the desktop JD panel truncates it anyway. That one
+    panel calls this when `job_description_truncated` is set.
+
+    Reads one column of one row by primary key — the cheapest possible shape,
+    and only when a user has actually opened the panel.
+    """
+    description = repo.get_job_description(job_id)
+    if description is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+    return JobDescriptionResponse(job_id=job_id, job_description=description)
 
 
 @router.get("/{job_id}/skill-gap", response_model=SkillGapResponse)

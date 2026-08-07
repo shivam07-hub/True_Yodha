@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 from pydantic import ValidationError
 
-from app.routers.jobs._shared import to_job_match
+from app.routers.jobs._shared import MATCH_JD_SNIPPET_CHARS, to_job_match
 from app.schemas import MatchEval
 
 
@@ -156,3 +156,59 @@ def test_verdict_reaches_the_response_through_the_single_reader() -> None:
     assert match.match_score == 84
     assert match.verdict == "strong"
     assert match.is_strong is True
+
+
+# ── JD snippet bound (payload weight, ARCHITECTURE_READ_PATH.md S4-followup) ──
+#
+# job_description averaged 3,734 chars and was 59.8% of the /jobs/matches
+# payload (56KB of 93KB for 15 matches), while every consumer but desktop's
+# JdPanel truncates it anyway — card snippets to 200 chars, mobile to 260.
+# List payloads now carry a bounded snippet + a flag; the full text is fetched
+# on demand from GET /jobs/{job_id}/description.
+
+
+def _match_with_description(description: str | None):
+    return to_job_match(
+        {
+            "id": 1,
+            "job_id": "job-1",
+            "batch_week": "2026-06-01",
+            "overlap_score": 50,
+            "matched_skills": [],
+            "is_recommended": True,
+            "baseline_version_id": 1,
+            "target_context_hash": "ctx",
+            "jobs": {"job_title": "Engineer", "job_description": description},
+        },
+        date(2026, 6, 1),
+    )
+
+
+def test_long_job_description_is_bounded_and_flagged() -> None:
+    match = _match_with_description("x" * 5000)
+    assert match.job_description is not None
+    assert len(match.job_description) == MATCH_JD_SNIPPET_CHARS
+    # The flag is what tells the JD panel to go fetch the rest.
+    assert match.job_description_truncated is True
+
+
+def test_short_job_description_is_untouched_and_not_flagged() -> None:
+    # Comfortably above the 200/260 the card and mobile truncate to, so a
+    # description this size must survive whole and cost no extra fetch.
+    body = "y" * 400
+    match = _match_with_description(body)
+    assert match.job_description == body
+    assert match.job_description_truncated is False
+
+
+def test_missing_job_description_is_not_flagged_as_truncated() -> None:
+    match = _match_with_description(None)
+    assert match.job_description is None
+    assert match.job_description_truncated is False
+
+
+def test_snippet_bound_exceeds_every_client_side_truncation() -> None:
+    # Guards the bound against being lowered below what consumers already slice
+    # to — card snippetOf() default is 200, mobile slices at 260. If this ever
+    # fails, the snippet stopped being self-sufficient for those surfaces.
+    assert MATCH_JD_SNIPPET_CHARS >= 260

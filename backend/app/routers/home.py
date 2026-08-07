@@ -121,4 +121,4 @@ def home_bootstrap(
         ),
         "diary": lambda: get_diary_history(principal=principal, diary_repo=diary_repo, limit=30),
     }
-    return HomeBootstrapResponse(**run_concurrently(sections))
+    return HomeBootstrapResponse(**run_concurrently(sections, label="home.bootstrap"))

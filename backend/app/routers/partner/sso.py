@@ -1,12 +1,14 @@
 """POST /partner/v1/sso/session — a partner hands us one of their signed-in users.
 
-The partner's server calls this with their user's email; we return a one-time
-sign-in url for that user's BROWSER. No password, no second signup, no shared
-session between partners.
+The partner's server calls this with their user's email; we return a url for
+that user's BROWSER. No password, no second signup, no shared session between
+partners.
 
-The account-takeover gate lives in `services/partner_sso`, not here — read that
-docstring before changing this route. A `verification_required` response is the
-gate doing its job, not an error, so it is a 200 with `login_url: null`.
+Two shapes, one behaviour for the caller: redirect to whichever url came back.
+`login_url` lands the user inside Myro; `connect_url` lands them on the consent
+screen because the address already has a Myro account. The gate that decides
+which lives in `services/partner_sso` — read that docstring before changing
+anything here.
 """
 from __future__ import annotations
 
@@ -38,6 +40,7 @@ def create_sso_session(
     return SsoSessionResponse(
         mode=outcome.mode,
         login_url=outcome.login_url,
+        connect_url=outcome.connect_url,
         user_ref=outcome.user_ref,
         message=outcome.message,
     )

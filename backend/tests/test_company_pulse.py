@@ -3,11 +3,23 @@ from typing import Any
 
 from app.repositories import jobs as jobs_module
 from app.repositories.jobs import JobsRepository
+from app.services import shared_cache
+from app.services.background import debounce
 from app.services.company_pulse import (
     SERIES_DAYS,
     build_series,
     compute_pulse,
 )
+
+
+def setup_function() -> None:
+    # fetch_company_pulse / fetch_indexable_companies now route through the
+    # shared, cross-replica cache (ARCHITECTURE_READ_PATH.md S3) instead of a
+    # per-process dict — clear its (test-env) local-dict fallback and the
+    # single-flight claims between tests so one test's cache entry can't
+    # leak into the next.
+    shared_cache._LOCAL_CACHE.clear()
+    debounce._LOCAL_CLAIMS.clear()
 
 
 def _marker(days_ago: int) -> int:
@@ -79,7 +91,6 @@ def test_series_ignores_out_of_window_offsets() -> None:
 
 def _pulse_rows(monkeypatch, rows: list[dict[str, Any]]):
     monkeypatch.setattr(jobs_module, "fetch_all_rows", lambda *a, **k: rows)
-    jobs_module._pulse_cache.clear()
     repo = JobsRepository(db=object(), admin_db=object())  # type: ignore[arg-type]
     return repo.fetch_company_pulse(["Acme", "Stale Co", "Ghost"])
 
@@ -175,7 +186,6 @@ def test_fetch_indexable_companies_dedupes_counts_and_sorts() -> None:
         {"company_name": ""},  # blank dropped
         {"company_name": None},  # null dropped
     ]
-    jobs_module._indexable_companies_cache = None
     admin = _FakeIndexableRpc(job_rows)
     repo = JobsRepository(db=object(), admin_db=admin)  # type: ignore[arg-type]
     out = repo.fetch_indexable_companies()
@@ -188,6 +198,5 @@ def test_fetch_indexable_companies_dedupes_counts_and_sorts() -> None:
 
 
 def test_fetch_indexable_companies_empty_when_no_live_rows() -> None:
-    jobs_module._indexable_companies_cache = None
     repo = JobsRepository(db=object(), admin_db=_FakeIndexableRpc([]))  # type: ignore[arg-type]
     assert repo.fetch_indexable_companies() == []
