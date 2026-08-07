@@ -55,8 +55,14 @@ def get_job_matches(
     batch_week = last_monday()
     rows = repo.get_user_match_stack(principal.id)
     jobs = [to_job_match(row, batch_week) for row in rows]
-    repo.record_recommendation_exposures(
-        principal.id, rows, surface="dashboard"
+    # Best-effort ledger write (its own docstring says so) — nothing below
+    # reads its result. Deferred off the read path, same as new_jobs_count's
+    # announce_for_user a few lines down: this is one of eight sections
+    # /home/bootstrap fans out concurrently (ARCHITECTURE_READ_PATH.md S4),
+    # so a write blocking here holds one of the process's 12 shared
+    # concurrent-read slots for no reason a user-facing response needs.
+    background_tasks.add_task(
+        repo.record_recommendation_exposures, principal.id, rows, surface="dashboard"
     )
 
     feed_ts_raw = repo.get_feed_updated_at()

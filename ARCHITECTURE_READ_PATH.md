@@ -277,8 +277,76 @@ design decision. Left open rather than rushed across a dozen call sites in
 one pass; each is real but none was named in a measured incident the way the
 three migrated ones were.
 
-**S4 — Decompose `/home/bootstrap`** from 8 concurrent sections to ≤3, per the
-contract. Above-the-fold first; everything else lazily, after paint.
+**S4 — `/home/bootstrap`. ✅ Re-scoped after tracing real consumers; two
+sections fixed, the "≤3 sections" framing was wrong and is corrected here.**
+
+The original plan — decompose 8 concurrent sections to ≤3, defer the rest —
+assumed `/home/bootstrap` was still the primary dashboard entry. It is not.
+Tracing every frontend caller (`grep` for `home.bootstrap`) found exactly two:
+`MissionHeroRail` (the desktop rail that mounts unconditionally alongside
+`/market`'s feed — so a no-CV/partner arrival pays for both concurrently) and
+mobile's `profile-surface.tsx`. Between them they read profile, score,
+matches, applications, evidence, and diary — six of the eight sections,
+nearly the whole bundle.
+
+The seventh, `cv_versions`, looked like the obvious cut — neither of the two
+direct consumers reads it. It is NOT dead: `use-nav-unlocks.ts` (gates nav on
+every authed page) and `prep-room.tsx` each run their own
+`useQuery({queryKey: dataKeys.cvVersions(null)})` and rely on this bundle
+having already seeded that cache entry. Cutting it would not reduce a single
+Postgres read — nav-unlocks needs the data regardless — it would just move
+the read to its own uncached round trip on every authed page load. Checked
+in code before cutting; not cut.
+
+**The real defect, found by measuring each section standalone (prod,
+QA account) against the whole bundle:**
+
+  /home/bootstrap (all 8, concurrent)         1,333–2,011ms
+  jobs/matches (standalone)                   1,618ms  <- slowest section
+  cv/evidence (standalone)                    1,249ms
+  users/me                                      537ms
+  jobs/applications                             711ms
+  diary/history                                 273ms
+  cv/versions                                   211ms
+  scores/me                                     234ms
+
+`run_concurrently` is doing its job — 1,333–2,011ms is roughly max(sections),
+not sum(sections) (~4,800ms) — so the fan-out design itself is correct, not
+the problem. But because all 8 sections' underlying Postgres reads run
+**concurrently**, one call to this endpoint can occupy up to 8 of the
+process's 12-slot global read-capacity budget at once, for as long as the
+slowest section takes. That is the actual contract violation — not the
+JSON payload's field count.
+
+Two fixes, evidence-based, both verified safe by reading every line after
+the change:
+
+  - `get_job_matches` ran `repo.record_recommendation_exposures(...)` — its
+    own docstring calls it "best-effort" — synchronously on the read path.
+    Nothing after that call reads its result. Deferred to `background_tasks`,
+    the exact mechanism the same function already uses two lines below for
+    `new_inventory.announce_for_user`. `TestClient` runs background tasks
+    before returning (confirmed empirically — the test asserting
+    `repo.exposures == [...]` still passes), so test coverage was
+    undisturbed, not weakened.
+  - `_evidence_stats` (the `cv/evidence` section) ran SIX repo calls
+    sequentially — `latest_baseline`, `list_milestones`,
+    `list_diary_log_dates`, `list_user_skill_sources`, `get_current_score`,
+    `next_user_version_number`. 1,249ms / 6 ≈ 208ms — matching the ~150–300ms
+    fixed round-trip overhead this Railway↔Supabase path carries even for
+    trivial queries (the same floor `/companies/{slug}` settled at after its
+    own index fix in S1). Only the *filtering* below needs `baseline`'s
+    result; every fetch is independent of every other. Parallelized with
+    `run_concurrently` — the same primitive `_resolve_feed_scope` already
+    uses for an identical shape — filtering logic is unchanged, just fed
+    from pre-fetched rows instead of fetching inline.
+
+**Left open, not attempted:** `get_user_match_stack` and
+`compute_match_health` (inside `get_job_matches`, the slowest section) are
+match-scoring business logic, not a query-shape problem like today's four
+index fixes — EXPLAIN-driven root-causing there risks correctness bugs in
+scoring, which is worse than a slow read. Needs its own dedicated pass, not a
+guess under this pass's time budget.
 
 **S5 — Then, and only then, raise or delete the 12-slot cap and add replicas.**
 Removing the bulkhead before S1–S4 lets slow queries hit Postgres unthrottled,
