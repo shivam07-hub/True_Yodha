@@ -348,17 +348,46 @@ index fixes — EXPLAIN-driven root-causing there risks correctness bugs in
 scoring, which is worse than a slow read. Needs its own dedicated pass, not a
 guess under this pass's time budget.
 
-**S5 — Then, and only then, raise or delete the 12-slot cap and add replicas.**
-Removing the bulkhead before S1–S4 lets slow queries hit Postgres unthrottled,
-which is the failure the bulkhead was built to prevent — it was aimed at the
-wrong cause, not at nothing.
+**S5 — ✅ Cap raised 12 → 40; replica count checked; NOT a load-tested number.**
+
+Verified via Railway rather than assumed: `mirror-backend-prod` runs **one
+replica** today. So "adding replicas multiplies stampedes" (S3's original
+worry) hasn't started happening yet — it's a real risk for whenever a second
+replica is added, not a live one now. That single replica's `12` was the
+entire prod service's concurrent-PostgREST-read budget, and it was provably
+too tight for the stated target on its own terms: S4 measured that one call
+to `/home/bootstrap` can occupy up to 8 of those 12 slots by itself, so two
+concurrent dashboard loads already exceeded it before any partner traffic.
+
+Also found while reading `config.py` to make this change: `sync_threadpool_tokens`
+(the AnyIO thread limiter under every sync route) was **already** raised
+40 → 100 for this exact reason, and its own comment already establishes that
+PostgREST pools its own Postgres connections independent of how many
+concurrent HTTP requests reach it — so this Python-side semaphore was never a
+literal Postgres-connection count, only a self-imposed throttle on top of it.
+That significantly de-risks raising it. `supabase_read_max_inflight` raised
+`12 → 40`, same file, same reasoning, cited explicitly in the comment so the
+two settings tell one coherent story instead of two.
+
+**Named, not hidden: this is a reasoned estimate, not a load-tested
+guarantee.** `get_user_match_stack` / `compute_match_health` (inside
+`get_job_matches`, S4's slowest section) are still slow and were deliberately
+left un-root-caused this pass — scoring business logic, not a query-shape bug
+like S0/S1's index fixes, and guessing there risks a correctness bug in
+scoring, worse than a slow read. Raising the cap gives more of those
+still-slow requests room to run concurrently, which is real residual risk.
+Verify under genuine concurrent load before trusting headroom beyond this
+number, and revisit alongside the Supabase compute-tier decision `config.py`
+already flagged for the sibling setting.
 
 **S6 — Re-measure instance sizing** once `jobs` has left the hot path. Buying
-compute before S1–S5 would mask the defects rather than fix them.
+compute before S0–S5 would mask the defects rather than fix them. Not done
+this pass — needs the S5 cap change to run under real traffic first.
 
-Also queued, smaller: `/jobs/companies/pulse` (6,680ms) → Tier 0;
-`run_concurrently` builds a fresh `ThreadPoolExecutor` per call (unbounded thread
-creation under load) → one shared bounded pool; `get_supabase()` is not
+Also queued, smaller: `run_concurrently` builds a fresh `ThreadPoolExecutor`
+per call (unbounded thread creation under load) → one shared bounded pool
+(the same defect named and deliberately avoided when `shared_cache.py`'s own
+background-refresh pool was built in S3); `get_supabase()` is not
 `lru_cache`d while both admin clients are, so every authed request builds a
 client whose connection pool starts empty.
 
@@ -384,8 +413,22 @@ client whose connection pool starts empty.
 
 ## 7. Still open
 
-- Prod replica count for `mirror-backend-prod` — unverified; feeds S5.
+- **`get_user_match_stack` / `compute_match_health`** — `get_job_matches`'
+  remaining internal cost after S4's write-deferral fix. Match-scoring
+  business logic; needs its own dedicated EXPLAIN-driven pass, not a guess.
+  This is the biggest named residual risk behind S5's cap increase.
+- **The 12 → 40 cap is unverified under real concurrent load.** Reasoned from
+  measurement, not load-tested. Prove it before trusting headroom beyond it.
 - Whether the 8s `statement_timeout` should move. It is currently a cliff that
-  throws away completed work. Do not touch before S1–S4.
+  throws away completed work.
 - `job-listing-verifier` shares this database: `claim_verify_targets` mean
   4,680ms, `count_verify_due` mean 1,809ms, 2.2h of DB time. Not yet EXPLAINed.
+- Every per-process cache not yet migrated to `shared_cache` — see S3's list.
+- Mobile's `JobsSurface` has no onboarding/CV nudge at all — see S2.
+- `CVRequiredNudge` is dead code (zero import sites) — see S2.
+- `SkillDemandPanel` throws a "Maximum update depth exceeded" React warning on
+  every `/market` load — found while verifying S2, confirmed pre-existing and
+  unrelated by reproducing it with S2's changes stashed out. A fix already
+  exists as an uncommitted local diff (`use-skill-demand.ts`, stable
+  `EMPTY_SKILLS`/`EMPTY_CITIES` refs) — not authored this pass, not committed
+  here; not this document's to claim done.

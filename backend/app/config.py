@@ -42,12 +42,28 @@ class Settings(BaseSettings):
     # max_connections=60 on the DB itself, shared by dev+prod+worker+MCP).
     sync_threadpool_tokens: int = 100
 
-    # A process-local bulkhead for synchronous Supabase Data API reads.  This
-    # stays intentionally below the shared database's 60-connection ceiling:
-    # dev, production, and the worker use one Supabase project.  It is not a
-    # replacement for query tuning; it prevents one browsing burst from making
-    # every other user wait for Postgres' statement timeout.
-    supabase_read_max_inflight: int = 12
+    # A process-local bulkhead for synchronous Supabase Data API reads. It is
+    # not a replacement for query tuning; it prevents one browsing burst from
+    # making every other user wait for Postgres' statement timeout.
+    #
+    # Raised 12 -> 40 (ARCHITECTURE_READ_PATH.md S5), same reasoning already
+    # applied to sync_threadpool_tokens above: PostgREST enforces its own
+    # connection pool independent of how many concurrent HTTP requests hit
+    # it, so this number does not map 1:1 to Postgres connections — it only
+    # bounds how many concurrent PostgREST calls THIS process will issue.
+    # 12 was provably too tight for the stated 100s-of-concurrent-users
+    # target: /home/bootstrap alone can occupy up to 8 of it from ONE
+    # request (S4), so two concurrent dashboard loads already exceeded the
+    # old cap. Raised to 40, not deleted: prod runs ONE replica today
+    # (verified via Railway), max_connections=60 is shared by dev+prod+
+    # worker+verifier+MCP, and several read paths are fixed (S0-S1) but not
+    # all — get_user_match_stack/compute_match_health (jobs/matches' own
+    # internals) are still slow and were deliberately left un-root-caused
+    # this pass (scoring logic, not a query-shape bug). This number is a
+    # reasoned estimate against that evidence, not a load-tested guarantee —
+    # verify under real concurrent traffic before assuming headroom beyond
+    # this, and revisit alongside the actual Supabase compute-tier decision.
+    supabase_read_max_inflight: int = 40
     supabase_read_queue_timeout_seconds: float = 0.25
 
     # Backlog #16 regression contract: "saturation must page a real alert
