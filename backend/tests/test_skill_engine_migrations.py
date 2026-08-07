@@ -160,3 +160,16 @@ def test_the_judgment_index_covers_the_columns_the_count_reads() -> None:
     sql = JUDGMENT.read_text()
 
     assert "INCLUDE (is_active, listing_confidence)" in sql
+
+
+def test_the_judgment_claim_is_a_lease_that_can_be_released() -> None:
+    """Stamped at claim and never released, it marked 50 prod jobs judged with
+    zero verdicts and made them permanently ineligible. "We could not reach the
+    model" is not an answer about the job."""
+    sql = JUDGMENT.read_text()
+
+    assert "release_skill_judgment_claim" in sql
+    assert "interval '30 minutes'" in sql
+    # A release must never discard a verdict that actually landed.
+    release = sql.split("CREATE OR REPLACE FUNCTION public.release_skill_judgment_claim")[1]
+    assert "evidence_source = 'enrichment'" in release

@@ -36,6 +36,7 @@ from app.services.llm_provider import (
     get_cv_upload_provider,
     get_llm_provider,
 )
+from app.services.job_matcher import DEFAULT_REQUIRED_LEVEL, MAX_LEVEL
 from app.services.matching.filter_spec import FilterSpec
 from app.services.matching.job_query import JobQuery
 from app.services.scoring.formulas import build_skill_level_map
@@ -370,19 +371,29 @@ def _compute_public_fit(
     score = 0.0
     seen: set[str] = set()
 
+    # Same formula as the authed matcher (S4): weight by the DEPTH the job asks
+    # for, with partial credit for holding a skill below that. It used to weight
+    # `is_primary`, which is TRUE on 94.2% of prod rows — so the pre-login fit
+    # and the authed fit answered the same question two different ways, and one
+    # of them was sorting by a constant.
     for row in skill_rows:
         key = (row.get("taxonomy_key") or "").strip()
         lower = key.lower()
         if not key or lower in seen:
             continue
         seen.add(lower)
-        weight = 2.0 if row.get("is_primary") else 1.0
+        try:
+            weight = float(int(row.get("required_level") or DEFAULT_REQUIRED_LEVEL))
+        except (TypeError, ValueError):
+            weight = float(DEFAULT_REQUIRED_LEVEL)
+        weight = min(max(weight, 1.0), float(MAX_LEVEL))
         max_possible += weight
-        if lower in user_lower:
-            score += weight
-            matched.append(key)
-        else:
+        held = user_lower.get(lower)
+        if held is None:
             missing.append(key)
+            continue
+        score += weight * min(held / weight, 1.0)
+        matched.append(key)
 
     pct = round(score / max_possible * 100, 1) if max_possible else 0.0
     return pct, matched, missing, len(seen)

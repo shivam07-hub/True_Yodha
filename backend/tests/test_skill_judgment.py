@@ -97,7 +97,8 @@ def test_the_token_budget_scales_with_the_candidate_count() -> None:
 
 def test_a_provider_failure_leaves_the_floor_standing() -> None:
     # Stage A's rows are already persisted. A failed judgment must never leave
-    # a job worse off than deterministic extraction did.
+    # a job worse off than deterministic extraction did — and must be
+    # distinguishable from a verdict, so the caller releases its claim.
     class _Boom:
         async def complete(self, *a, **k):
             raise RuntimeError("model down")
@@ -106,8 +107,8 @@ def test_a_provider_failure_leaves_the_floor_standing() -> None:
         skill_judgment.judge_skills("Data Engineer", "JD", CANDIDATES, provider=_Boom())
     )
 
-    assert verdicts == []
-    assert skill_judgment.to_skill_rows(verdicts) == []
+    assert verdicts is None
+    assert skill_judgment.to_skill_rows([]) == []
 
 
 def test_no_candidates_means_no_model_call() -> None:
@@ -155,3 +156,72 @@ def test_an_explicit_provider_still_wins_over_the_local_flag() -> None:
 
     assert provider.calls == 1
     assert [v.taxonomy_key for v in verdicts] == ["Python (Programming Language)"]
+
+
+def test_unreachable_returns_none_not_an_empty_verdict() -> None:
+    # `[]` means the model ruled and nothing survived — an answer, so the
+    # attempt is spent. `None` means we never reached it, which is not an
+    # answer. Conflating them stamped 50 prod jobs as judged with zero verdicts
+    # and made them permanently ineligible.
+    class _Down:
+        async def complete(self, *a, **k):
+            raise RuntimeError("connection refused")
+
+    assert asyncio.run(
+        skill_judgment.judge_skills("Role", "JD", CANDIDATES, provider=_Down())
+    ) is None
+
+
+def test_a_model_that_rules_everything_absent_returns_empty_not_none() -> None:
+    verdicts, _ = _judge("1|absent|0\n2|absent|0\n3|absent|0")
+
+    assert verdicts is not None
+    assert len(verdicts) == 3
+    assert skill_judgment.to_skill_rows(verdicts) == []
+
+
+def test_jobs_claimed_but_never_looked_at_are_released(monkeypatch) -> None:
+    # The default batch is 25, so `--limit 20` claims 25 and judges 20. Without
+    # a release the other five are stranded as judged on every single run.
+    from app.workers import skill_judgment_cli as cli
+
+    released: list[list[str]] = []
+
+    class _Q:
+        def __init__(self, name, rows, sink):
+            self.name, self.rows, self.sink = name, rows, sink
+
+        def execute(self):
+            class _R:
+                pass
+            r = _R()
+            r.data = self.rows
+            return r
+
+    class _DB:
+        def __init__(self):
+            self.batches = [[{"job_id": f"j{i}", "job_title": "Engineer",
+                              "job_description": "Requirements:\nStrong Python."}
+                             for i in range(5)]]
+
+        def rpc(self, name, params):
+            if name == "claim_jobs_for_skill_judgment":
+                return _Q(name, self.batches.pop(0) if self.batches else [], released)
+            if name == "release_skill_judgment_claim":
+                released.append(list(params["p_job_ids"]))
+                return _Q(name, 0, released)
+            return _Q(name, [], released)
+
+        def table(self, *_a, **_k):
+            raise AssertionError("no writes expected when nothing is judged")
+
+    async def _never_reached(*_a, **_k):
+        return None
+
+    monkeypatch.setattr(skill_judgment, "judge_skills", _never_reached)
+    result = asyncio.run(cli._drain(_DB(), limit=2, batch=5, local=False))
+
+    assert result["jobs_seen"] == 2
+    assert result["jobs_unreachable"] == 2
+    # 2 unreachable + 3 never looked at = all five handed back.
+    assert sorted(released[0]) == ["j0", "j1", "j2", "j3", "j4"]

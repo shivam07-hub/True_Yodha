@@ -217,8 +217,8 @@ def test_job_fit_preview_computes_role_specific_fit(monkeypatch: pytest.MonkeyPa
                 "job_title": "Data Analyst",
                 "company_name": "Acme",
                 "skills": [
-                    {"taxonomy_key": "python", "is_primary": True, "required_level": 2},
-                    {"taxonomy_key": "rust", "is_primary": True, "required_level": 2},
+                    {"taxonomy_key": "python", "is_primary": True, "required_level": 4},
+                    {"taxonomy_key": "rust", "is_primary": True, "required_level": 4},
                     {"taxonomy_key": "sql", "is_primary": False, "required_level": 2},
                 ],
             }
@@ -233,7 +233,14 @@ def test_job_fit_preview_computes_role_specific_fit(monkeypatch: pytest.MonkeyPa
     assert body["job_id"] == "j1"
     assert body["title"] == "Data Analyst"
     assert body["company"] == "Acme"
-    assert body["fit_pct"] == 60.0
+    # S4: weighted by the depth the job asks for, with partial credit.
+    #   python  L4 asked, held 3  ->  4 * 3/4 = 3.0
+    #   rust    L4 asked, missing ->  0
+    #   sql     L2 asked, held 1  ->  2 * 1/2 = 1.0
+    #   4.0 / (4+4+2) = 40.0
+    # It used to be 60.0 from `is_primary` weights (2/2/1), which is TRUE on
+    # 94.2% of prod rows and so ranked by a constant.
+    assert body["fit_pct"] == 40.0
     assert body["matched_count"] == 2
     assert body["total_skills"] == 3
     assert body["matched_skills"] == ["python", "sql"]

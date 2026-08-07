@@ -42,28 +42,40 @@ def _count(db) -> tuple[int, int]:
     return int(row.get("total") or 0), int(row.get("recommendable") or 0)
 
 
-async def _judge_one(db, job: dict, *, local: bool = False) -> tuple[bool, float, int]:
-    """Judge one job. Returns (upgraded, elapsed_seconds, candidates_offered)."""
+async def _judge_one(db, job: dict, *, local: bool = False) -> tuple[str, float, int]:
+    """Judge one job. Returns (outcome, elapsed_seconds, candidates_offered).
+
+    outcome is "upgraded" | "ruled_empty" | "no_candidates" | "unreachable".
+    Only "unreachable" releases the claim — the others are answers about the
+    job, and an answer spends the attempt.
+    """
     title = str(job.get("job_title") or "")
     description = str(job.get("job_description") or "")
     candidates = extract_skills(title, description)[: skill_judgment.MAX_CANDIDATES]
     if not candidates:
-        return False, 0.0, 0
+        return "no_candidates", 0.0, 0
 
     started = perf_counter()
     verdicts = await skill_judgment.judge_skills(title, description, candidates, local=local)
     elapsed = perf_counter() - started
+
+    if verdicts is None:
+        logger.warning(
+            "metric skill_judgment.job job_id=%s offered=%d outcome=unreachable seconds=%.1f",
+            job.get("job_id"), len(candidates), elapsed,
+        )
+        return "unreachable", elapsed, len(candidates)
 
     rows = skill_judgment.to_skill_rows(verdicts)
     if not rows:
         # No verdict survived. The floor stands untouched — a failed judgment
         # must never leave a job worse off than deterministic extraction did.
         logger.info(
-            "metric skill_judgment.job job_id=%s offered=%d ruled=0 seconds=%.1f budget=%d",
+            "metric skill_judgment.job job_id=%s offered=%d outcome=ruled_empty seconds=%.1f budget=%d",
             job.get("job_id"), len(candidates), elapsed,
             skill_judgment.budget_tokens(len(candidates)),
         )
-        return False, elapsed, len(candidates)
+        return "ruled_empty", elapsed, len(candidates)
 
     skill_floor.write_skill_floor(
         db, str(job["job_id"]), rows, evidence_source=JUDGMENT_SOURCE
@@ -73,11 +85,20 @@ async def _judge_one(db, job: dict, *, local: bool = False) -> tuple[bool, float
         job.get("job_id"), len(candidates), len(verdicts), len(rows), elapsed,
         skill_judgment.budget_tokens(len(candidates)),
     )
-    return True, elapsed, len(candidates)
+    return "upgraded", elapsed, len(candidates)
 
 
 async def _drain(db, *, limit: int | None, batch: int, local: bool) -> dict[str, float]:
-    seen = upgraded = 0
+    """Claim, judge, and hand back everything that did not get a verdict.
+
+    A claim is a LEASE. Two ways to end a round holding jobs that were never
+    judged, and both must release or the jobs are stranded as "judged" forever:
+    the provider was unreachable, or `--limit` stopped the loop mid-batch. The
+    latter is not hypothetical — the default batch is 25, so `--limit 20`
+    strands five every single run, which is part of how the first live run
+    stamped 50 jobs with zero verdicts.
+    """
+    seen = upgraded = unreachable = 0
     total_seconds = 0.0
     while True:
         claimed = (
@@ -85,22 +106,44 @@ async def _drain(db, *, limit: int | None, batch: int, local: bool) -> dict[str,
         )
         if not claimed:
             break
+
+        unjudged: list[str] = []
+        processed = 0
         for job in claimed:
-            seen += 1
-            ok, elapsed, _ = await _judge_one(db, job, local=local)
-            total_seconds += elapsed
-            upgraded += int(ok)
             if limit is not None and seen >= limit:
                 break
+            seen += 1
+            processed += 1
+            outcome, elapsed, _ = await _judge_one(db, job, local=local)
+            total_seconds += elapsed
+            upgraded += int(outcome == "upgraded")
+            if outcome == "unreachable":
+                unreachable += 1
+                unjudged.append(str(job["job_id"]))
+        # Everything after `processed` was claimed and never looked at.
+        unjudged.extend(str(job["job_id"]) for job in claimed[processed:])
+
+        if unjudged:
+            db.rpc("release_skill_judgment_claim", {"p_job_ids": unjudged}).execute()
+            logger.info("metric skill_judgment.released count=%d", len(unjudged))
+
         logger.info(
-            "metric skill_judgment.progress seen=%d upgraded=%d mean_seconds=%.1f",
-            seen, upgraded, total_seconds / max(seen, 1),
+            "metric skill_judgment.progress seen=%d upgraded=%d unreachable=%d mean_seconds=%.1f",
+            seen, upgraded, unreachable, total_seconds / max(seen, 1),
         )
+        # A whole batch failing to reach the model is an outage, not a run.
+        # Grinding through 5,000 more jobs to fail identically helps nobody.
+        if processed and unreachable == processed:
+            logger.error(
+                "metric skill_judgment.aborted reason=provider_unreachable seen=%d", seen
+            )
+            break
         if limit is not None and seen >= limit:
             break
     return {
         "jobs_seen": seen,
         "jobs_upgraded": upgraded,
+        "jobs_unreachable": unreachable,
         "mean_seconds": total_seconds / max(seen, 1),
     }
 
@@ -129,14 +172,29 @@ def main(argv: list[str] | None = None) -> int:
 
     local = args.provider == "local"
     if local:
-        logger.info("metric skill_judgment.provider mode=local endpoint=%s", _LOCAL_ENDPOINT)
+        from app.services.llm_provider import local_inference_ready
+
+        ready, detail = asyncio.run(local_inference_ready())
+        logger.info(
+            "metric skill_judgment.provider mode=local endpoint=%s ready=%s detail=%s",
+            _LOCAL_ENDPOINT, ready, detail,
+        )
+        if not ready:
+            logger.error(
+                "Local inference endpoint is not serving a model.\n"
+                "  Start LM Studio, load a model, and enable the local server "
+                "(Developer tab -> Start Server), then re-run.\n"
+                "  Override the endpoint with LOCAL_INFERENCE_BASE_URL if it is "
+                "not on %s.", _LOCAL_ENDPOINT,
+            )
+            return 1
     result = asyncio.run(_drain(db, limit=args.limit, batch=args.batch, local=local))
     after_total, after_recommendable = _count(db)
     logger.info(
-        "metric skill_judgment.done seen=%d upgraded=%d mean_seconds=%.1f "
+        "metric skill_judgment.done seen=%d upgraded=%d unreachable=%d mean_seconds=%.1f "
         "remaining=%d remaining_recommendable=%d",
-        result["jobs_seen"], result["jobs_upgraded"], result["mean_seconds"],
-        after_total, after_recommendable,
+        result["jobs_seen"], result["jobs_upgraded"], result["jobs_unreachable"],
+        result["mean_seconds"], after_total, after_recommendable,
     )
     return 0
 

@@ -51,12 +51,22 @@ def fetch_all_rows(
 
 
 def _adapt_rpc_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Translate flat RPC rows {job_id, is_primary, taxonomy_key} → {job_id, is_primary, skills:{taxonomy_key}}."""
+    """Flat RPC rows → the embedded shape the readers expect.
+
+    `required_level` and `skill_kind` ride along because the matcher ranks on
+    them (S4): `is_primary` is TRUE on 94.2% of rows and carries no signal,
+    while `required_level` is genuinely graded, and `skill_kind` lets the gap
+    drop soft skills without a second round trip.
+    """
     return [
         {
             "job_id": r["job_id"],
             "is_primary": r["is_primary"],
-            "skills": {"taxonomy_key": r["taxonomy_key"]},
+            "required_level": r.get("required_level"),
+            "skills": {
+                "taxonomy_key": r["taxonomy_key"],
+                "skill_kind": r.get("skill_kind"),
+            },
         }
         for r in rows
     ]
@@ -78,7 +88,7 @@ def fetch_job_skill_rows_for_ids(
     job_ids: list[str],
     *,
     only_primary: bool | None = None,
-    columns: str = "job_id, is_primary, skills(taxonomy_key)",
+    columns: str = "job_id, is_primary, required_level, skills(taxonomy_key, skill_kind)",
     page_size: int = SUPABASE_PAGE_SIZE,
     chunk_size: int = _IN_CHUNK_SIZE,
 ) -> list[dict[str, Any]]:
@@ -106,7 +116,7 @@ def fetch_job_skill_rows_for_ids(
 def fetch_job_skill_rows(
     db: Client,
     *,
-    columns: str = "job_id, is_primary, skills(taxonomy_key)",
+    columns: str = "job_id, is_primary, required_level, skills(taxonomy_key, skill_kind)",
     only_primary: bool | None = None,
     job_ids: list[str] | None = None,
     page_size: int = SUPABASE_PAGE_SIZE,

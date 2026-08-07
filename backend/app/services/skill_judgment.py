@@ -194,13 +194,19 @@ async def judge_skills(
     *,
     provider: Any = None,
     local: bool = False,
-) -> list[SkillVerdict]:
-    """Ask the model to mark Stage A's candidates. Returns [] on any failure.
+) -> list[SkillVerdict] | None:
+    """Mark Stage A's candidates. `None` means the model was never reached.
 
-    Returning empty is deliberate: Stage A's floor is already persisted, so a
-    failed judgment leaves the job matchable on deterministic skills rather than
-    degrading it. A stage may not verdict outside its own scope
-    ([[feedback_a_stage_may_not_verdict_outside_its_scope]]).
+    The distinction is load-bearing and cost 50 jobs to learn. `[]` means the
+    model ruled and nothing survived — an answer about the job, so the attempt
+    is spent. `None` means OUR side failed (endpoint down, request timeout),
+    which is not an answer, so the caller must release its claim and let the job
+    be judged later. Stamping those as judged marked 50 jobs done that had
+    received no judgment and could never become eligible again — the same shape
+    as a failed check refreshing its own verdict.
+
+    Either way Stage A's floor stays persisted, so a job is never left worse off
+    than deterministic extraction made it.
     """
     trimmed = candidates[:MAX_CANDIDATES]
     if not trimmed:
@@ -229,8 +235,8 @@ async def judge_skills(
             temperature=0.0,
         )
     except Exception as exc:  # noqa: BLE001 — the floor already stands; never degrade it
-        logger.warning("metric skill_judgment.failed candidates=%d: %s", len(trimmed), exc)
-        return []
+        logger.warning("metric skill_judgment.unreachable candidates=%d: %s", len(trimmed), exc)
+        return None
     verdicts = parse_judgment(text, trimmed)
     logger.info(
         "metric skill_judgment.judged offered=%d ruled=%d required=%d",

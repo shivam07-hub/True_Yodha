@@ -35,6 +35,19 @@ CREATE INDEX idx_jobs_awaiting_judgment
     INCLUDE (is_active, listing_confidence)
     WHERE skill_judged_at IS NULL AND has_skill_floor IS TRUE;
 
+-- The claim is a LEASE, not a verdict. `skill_judged_at` was stamped at claim
+-- time and never released, so a job whose judgment failed for OUR reasons —
+-- endpoint down, request timeout — was marked judged forever having received
+-- no judgment. First live run: 50 jobs stamped, 0 carrying a verdict, none of
+-- them ever eligible again.
+--
+-- Stage A's equivalent stamp is correct because "the text names no taxonomy
+-- skill" is an answer ABOUT THE JOB. "We could not reach the model" is not.
+--
+-- Two ways out of the lease: the worker releases explicitly when the provider
+-- failed, and anything still unjudged after 30 minutes is reclaimable, which
+-- also covers a worker that died mid-batch. Same window the enrichment worker
+-- uses for its own stale claims.
 CREATE OR REPLACE FUNCTION public.claim_jobs_for_skill_judgment(p_limit INTEGER DEFAULT 25)
 RETURNS TABLE (job_id TEXT, job_title TEXT, job_description TEXT)
 LANGUAGE sql
@@ -43,8 +56,15 @@ AS $function$
     WITH candidates AS MATERIALIZED (
         SELECT j.job_id
         FROM public.jobs AS j
-        WHERE j.skill_judged_at IS NULL
-          AND j.has_skill_floor IS TRUE
+        WHERE j.has_skill_floor IS TRUE
+          AND (
+              j.skill_judged_at IS NULL
+              OR (j.skill_judged_at < now() - interval '30 minutes'
+                  AND NOT EXISTS (
+                      SELECT 1 FROM public.job_skills AS done
+                      WHERE done.job_id = j.job_id AND done.evidence_source = 'enrichment'
+                  ))
+          )
           AND EXISTS (
               SELECT 1 FROM public.job_skills AS s
               WHERE s.job_id = j.job_id AND s.evidence_source = 'stage_a'
@@ -60,6 +80,27 @@ AS $function$
         RETURNING j.job_id, j.job_title, j.job_description
     )
     SELECT c.job_id, c.job_title, c.job_description FROM claimed AS c;
+$function$;
+
+-- Explicit release for what the worker KNOWS is infrastructure. Guarded on the
+-- absence of judgment so a release can never discard a verdict that did land.
+CREATE OR REPLACE FUNCTION public.release_skill_judgment_claim(p_job_ids TEXT[])
+RETURNS INTEGER
+LANGUAGE sql
+SET search_path TO ''
+AS $function$
+    WITH released AS (
+        UPDATE public.jobs AS j
+        SET skill_judged_at = NULL
+        WHERE j.job_id = ANY(COALESCE(p_job_ids, ARRAY[]::TEXT[]))
+          AND j.skill_judged_at IS NOT NULL
+          AND NOT EXISTS (
+              SELECT 1 FROM public.job_skills AS done
+              WHERE done.job_id = j.job_id AND done.evidence_source = 'enrichment'
+          )
+        RETURNING 1
+    )
+    SELECT COUNT(*)::INTEGER FROM released;
 $function$;
 
 -- The backlog must count exactly what the claim will serve, and cheaply.
@@ -90,4 +131,6 @@ $$;
 REVOKE ALL ON FUNCTION public.claim_jobs_for_skill_judgment(INTEGER) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.count_jobs_awaiting_judgment() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.claim_jobs_for_skill_judgment(INTEGER) TO service_role;
+REVOKE ALL ON FUNCTION public.release_skill_judgment_claim(TEXT[]) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.release_skill_judgment_claim(TEXT[]) TO service_role;
 GRANT EXECUTE ON FUNCTION public.count_jobs_awaiting_judgment() TO service_role;

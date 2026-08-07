@@ -7,8 +7,19 @@ and a callable for job metadata. DB queries are owned by JobsRepository
 (repositories/jobs.py), keeping schema knowledge in one place.
 
 Overlap formula (0–100):
-  weighted_matches / max_possible * 100
-  where main_skill match = weight 2, side_skill match = weight 1.
+  sum(required_level * credit) / sum(required_level) * 100
+
+  A job's skill is weighted by the DEPTH it asks for, and each match earns
+  partial credit for how close the candidate's level is. `is_primary` used to
+  carry this and cannot: it is TRUE on 94.2% of prod rows, so the old
+  main/side split was a constant dressed as a signal. `required_level` is
+  genuinely graded (1: 12.7% · 2: 41.5% · 3: 33.8% · 4: 12.0%) and
+  `user_skills.matched_level` is the same 1-4 scale, which is what makes
+  "Python at L4 required, you are at L2" expressible end to end.
+
+  Soft skills are excluded from both sides. They are captured and shown, but
+  we cannot teach Resilience — scoring it would move a fit percentage on
+  something the user can never act on.
 
 Aspiration reranking:
   +30% when any target_role token appears in job_title (case-insensitive)
@@ -18,11 +29,62 @@ Anti-bias cap:
 """
 from typing import Callable
 
-PRIMARY_WEIGHT = 2.0
-SECONDARY_WEIGHT = 1.0
+# Retained only for the level fallback below. The main/side split itself is
+# gone: `is_primary` was TRUE on 94.2% of rows.
+DEFAULT_REQUIRED_LEVEL = 2
+MAX_LEVEL = 4
 ROLE_BOOST = 1.3
 COMPANY_CAP_RATIO = 0.30
 MAX_MISSING_SKILLS = 8  # cap the persisted gap list; the card shows far fewer
+
+
+def wanted_skills(job_skill_rows: list[dict]) -> dict[str, int]:
+    """{taxonomy_key: required_level} for ONE job's rows, hard skills only.
+
+    Deepest ask wins a duplicate key. Soft skills are dropped here rather than
+    at every call site: they are shown elsewhere, but we cannot teach
+    Resilience, so letting one move a fit percentage prices something the user
+    can never act on.
+    """
+    wanted: dict[str, int] = {}
+    for row in job_skill_rows:
+        skill = row.get("skills") or {}
+        key = (skill.get("taxonomy_key") or "").strip()
+        if not key or skill.get("skill_kind") == "soft":
+            continue
+        try:
+            level = int(row.get("required_level") or DEFAULT_REQUIRED_LEVEL)
+        except (TypeError, ValueError):
+            level = DEFAULT_REQUIRED_LEVEL
+        wanted[key] = max(wanted.get(key, 0), min(max(level, 1), MAX_LEVEL))
+    return wanted
+
+
+def score_wanted(
+    wanted: dict[str, int], user_lower: dict[str, int]
+) -> tuple[float, list[str], list[str]]:
+    """(score 0-100, matched, missing-deepest-first) for one job.
+
+    THE overlap formula — not a copy of it. on_demand and feed_warm used to
+    mirror this with the same weight constants and a comment hoping the numbers
+    would not drift; a shared function is what actually guarantees that.
+    """
+    if not wanted:
+        return 0.0, [], []
+    max_possible = sum(wanted.values())
+    earned = 0.0
+    matched: list[str] = []
+    ranked_missing: list[tuple[int, str]] = []
+    for key, level in wanted.items():
+        held = user_lower.get(key.lower())
+        if held is None:
+            ranked_missing.append((level, key))
+            continue
+        matched.append(key)
+        earned += level * min(held / level, 1.0)
+    ranked_missing.sort(key=lambda item: (-item[0], item[1]))
+    score = round(earned / max_possible * 100, 1) if max_possible else 0.0
+    return score, matched, [key for _level, key in ranked_missing]
 
 
 def get_top_matches(
@@ -48,55 +110,28 @@ def get_top_matches(
 
     user_lower = {k.lower(): v for k, v in user_skill_map.items()}
 
-    job_skill_map: dict[str, dict[str, list[str]]] = {}
+    by_job: dict[str, list[dict]] = {}
     for row in job_skill_rows:
-        key = ((row.get("skills") or {}).get("taxonomy_key") or "").strip()
-        if not key:
-            continue
-        jid = row["job_id"]
-        if jid not in job_skill_map:
-            job_skill_map[jid] = {"main": [], "side": []}
-        if row.get("is_primary"):
-            job_skill_map[jid]["main"].append(key)
-        else:
-            job_skill_map[jid]["side"].append(key)
+        jid = row.get("job_id")
+        if jid:
+            by_job.setdefault(str(jid), []).append(row)
 
+    job_skill_map = {jid: wanted_skills(rows) for jid, rows in by_job.items()}
     if not job_skill_map:
         return []
 
     scored: list[dict] = []
-    for jid, skills in job_skill_map.items():
-        main = skills["main"]
-        side = skills["side"]
-        if not main and not side:
+    for jid, wanted in job_skill_map.items():
+        if not wanted:
             continue
-
-        main_hits = [s for s in main if s.lower() in user_lower]
-        side_hits = [s for s in side if s.lower() in user_lower]
-        match_count = len(main_hits) + len(side_hits)
-        if match_count == 0:
+        score, matched, missing = score_wanted(wanted, user_lower)
+        if not matched:
             continue
-
-        max_possible = PRIMARY_WEIGHT * len(main) + SECONDARY_WEIGHT * len(side)
-        raw = (PRIMARY_WEIGHT * len(main_hits) + SECONDARY_WEIGHT * len(side_hits)) / max_possible
-        score = round(raw * 100, 1)
-
-        # The required skills the user does NOT yet have — primary first (they
-        # weigh more in the score), de-duped, capped. This is the "why your fit
-        # isn't higher" signal the card turns into Forge CTAs (T3-1).
-        hit_lower = {s.lower() for s in main_hits + side_hits}
-        seen_missing: set[str] = set()
-        missing: list[str] = []
-        for s in main + side:
-            low = s.lower()
-            if low not in hit_lower and low not in seen_missing:
-                seen_missing.add(low)
-                missing.append(s)
-
+        match_count = len(matched)
         scored.append({
             "job_id": jid,
             "overlap_score": score,
-            "matched_skills": list({s for s in main_hits + side_hits}),
+            "matched_skills": matched,
             "missing_skills": missing[:MAX_MISSING_SKILLS],
             "_match_count": match_count,
         })
