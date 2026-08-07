@@ -2935,7 +2935,9 @@ class JobsRepository:
             ids.extend(self.get_dismissed_job_card_ids(user_id))
         return list(dict.fromkeys(ids))
 
-    def get_user_match_stack(self, user_id: str) -> list[dict[str, Any]]:
+    def get_user_match_stack(
+        self, user_id: str, *, dismissed: set[str] | None = None
+    ) -> list[dict[str, Any]]:
         """Return the user's durable match stack, newest refresh rows first.
 
         Matches are permanent per-(user,job) evals (Backlog #36 de-weekly;
@@ -2944,6 +2946,13 @@ class JobsRepository:
         latest per job. (The de-dupe here is belt-and-suspenders now the unique
         index is (user_id, job_id); it also absorbs any legacy multi-week rows
         that predate the migration.)
+
+        ``dismissed`` lets a caller that ALREADY holds the dismissed-card set
+        pass it in instead of paying a second round trip for it here. Omitted,
+        this reads it itself — every existing caller keeps its current
+        behaviour. `/jobs/matches` passes it because it needs the same set for
+        its own response field, and was reading it twice
+        (ARCHITECTURE_READ_PATH.md S4-followup).
         """
         result = (
             self._db.table("user_job_matches")
@@ -2964,7 +2973,8 @@ class JobsRepository:
             .eq("user_id", user_id)
             .execute()
         )
-        dismissed = set(self.get_dismissed_job_card_ids(user_id))
+        if dismissed is None:
+            dismissed = set(self.get_dismissed_job_card_ids(user_id))
         rows = list(result.data or [])
         rows.sort(key=_match_stack_sort_key, reverse=True)
 

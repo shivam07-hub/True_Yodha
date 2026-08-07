@@ -19,6 +19,7 @@ class _FakeJobsRepo:
         self._agent_picks = agent_picks or []
         self.count_markers: list[int] = []
         self.exposures: list[tuple[str, str, list[str]]] = []
+        self.dismissed_reads = 0
 
     def get_agent_picks(self, user_id: str) -> list[dict]:
         return self._agent_picks
@@ -26,13 +27,16 @@ class _FakeJobsRepo:
     def dismiss_dashboard_job_card(self, user_id: str, job_id: str) -> None:
         self.dismissed.append((user_id, job_id))
 
-    def get_user_match_stack(self, user_id: str) -> list[dict]:
+    def get_user_match_stack(
+        self, user_id: str, *, dismissed: set[str] | None = None
+    ) -> list[dict]:
         return self._stack
 
     def get_feed_updated_at(self) -> str | None:
         return None
 
     def get_dismissed_job_card_ids(self, user_id: str) -> list[str]:
+        self.dismissed_reads += 1
         return []
 
     def count_new_jobs_since(self, since) -> int:
@@ -107,6 +111,11 @@ def test_matches_new_jobs_count_uses_landing_timestamp() -> None:
     # The exact compute instant, not a date bucket.
     assert [dt.isoformat() for dt in repo.count_markers] == ["2026-06-04T09:00:00+00:00"]
     assert repo.exposures == [("u1", "dashboard", ["j1"])]
+    # The dismissed-card set is read ONCE per request. It used to be read twice
+    # — inside get_user_match_stack to filter, and again to build the response's
+    # dismissed_job_ids — which on this Railway<->Supabase path costs a whole
+    # extra ~150-300ms round trip for a set already in memory.
+    assert repo.dismissed_reads == 1
 
 
 def test_retry_accepted_when_overlap_only(monkeypatch) -> None:

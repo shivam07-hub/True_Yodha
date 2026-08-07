@@ -22,6 +22,7 @@ from app.schemas.jobs import MatchBrainResult, MatchRetryResponse
 from app.services import background, jobs_workflow, new_inventory, progress_stream
 from app.services.job_refresh import JobRefresh
 from app.services.llm_provider import LLMProvider, get_blocking_judgment_provider
+from app.services.concurrent_reads import run_concurrently
 from app.services.matching import on_demand, targeting
 from app.services.xp_policy import MATCH_RUN_COST
 
@@ -53,19 +54,46 @@ def get_job_matches(
 ) -> JobMatchesResponse:
     from datetime import datetime, timezone
     batch_week = last_monday()
-    rows = repo.get_user_match_stack(principal.id)
+
+    # Root cause of this endpoint's ~1,240ms floor was NEVER query cost
+    # (ARCHITECTURE_READ_PATH.md S4-followup). Measured on prod: the match-stack
+    # join is 29ms, the dismissed-cards read 1.2ms, the new-inventory count
+    # 2.6ms — ~35ms of total database work. The rest was five to six SEQUENTIAL
+    # round trips, each paying this Railway<->Supabase path's ~150-300ms fixed
+    # overhead. One of them was pure waste: `get_dismissed_job_card_ids` ran
+    # TWICE, once inside get_user_match_stack and again to build the response
+    # field below.
+    #
+    # Now: read it once, and fan the independent reads out concurrently, so
+    # wall time is max(read) instead of sum(reads). Same primitive
+    # `_resolve_feed_scope` and `_evidence_stats` already use.
+    uid = principal.id
+    reads = run_concurrently(
+        {
+            "dismissed": lambda: set(repo.get_dismissed_job_card_ids(uid)),
+            "feed_ts": lambda: repo.get_feed_updated_at(),
+            # count_for_user is itself two dependent round trips
+            # (last_match_run_at -> count_new_jobs_since); it stays sequential
+            # internally but no longer blocks the reads above.
+            "new_jobs_count": lambda: new_inventory.count_for_user(repo, uid),
+        }
+    )
+    dismissed: set[str] = reads["dismissed"]
+    # Needs `dismissed` to filter, so it runs after that wave — but it is now
+    # the only read left on the critical path, not the first of six.
+    rows = repo.get_user_match_stack(uid, dismissed=dismissed)
     jobs = [to_job_match(row, batch_week) for row in rows]
     # Best-effort ledger write (its own docstring says so) — nothing below
     # reads its result. Deferred off the read path, same as new_jobs_count's
     # announce_for_user a few lines down: this is one of eight sections
     # /home/bootstrap fans out concurrently (ARCHITECTURE_READ_PATH.md S4),
-    # so a write blocking here holds one of the process's 12 shared
+    # so a write blocking here holds one of the process's shared
     # concurrent-read slots for no reason a user-facing response needs.
     background_tasks.add_task(
         repo.record_recommendation_exposures, principal.id, rows, surface="dashboard"
     )
 
-    feed_ts_raw = repo.get_feed_updated_at()
+    feed_ts_raw = reads["feed_ts"]
     feed_updated_at = datetime.fromisoformat(feed_ts_raw) if feed_ts_raw else None
 
     raw_computed = rows[0].get("computed_at") if rows else None
@@ -84,7 +112,8 @@ def get_job_matches(
     # the past on arrival). Skip for never-matched users — no baseline, nothing new.
     # This same count is the login announcement and the charge waiver: one number,
     # one module, so the bell can never promise what the run then bills for.
-    new_jobs_count = new_inventory.count_for_user(repo, principal.id)
+    # Read in the concurrent wave above.
+    new_jobs_count = reads["new_jobs_count"]
 
     # The prompt the user actually sees. Projected off the read path so the feed
     # never waits on the inbox write, debounced inside the repo.
@@ -101,7 +130,8 @@ def get_job_matches(
         feed_updated_at=feed_updated_at,
         matches_computed_at=matches_computed_at,
         new_jobs_count=new_jobs_count,
-        dismissed_job_ids=repo.get_dismissed_job_card_ids(principal.id),
+        # Same set the stack was filtered by — read once, above.
+        dismissed_job_ids=sorted(dismissed),
         match_health=match_health,
         match_vetted_count=vetted_count,
     )
