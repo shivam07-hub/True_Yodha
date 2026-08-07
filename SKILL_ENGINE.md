@@ -214,8 +214,14 @@ detect the enrichment worker not running
 (`feedback_absence_of_signal_alerting`). Assert on write: `complete` may not be
 stamped without a row.
 
-**S2 — reframe Stage B.** Classification prompt over Stage A candidates. Target:
-1–2 min → seconds. This is what stops future queue-death.
+**S2 — reframe Stage B. BUILT** (`9887e46c`), **throughput UNVERIFIED**.
+⚠️ The lock's premise was half wrong: the scraper's prompt already constrains
+skills to a retrieved vocabulary — the free-generation part is a 35-word
+`job_summary` in the same call. The 1–2 min has TWO candidate causes in the code
+and needs a live run to separate them: `_max_tokens = 2048 if MODEL_SPEED ==
+"quality"` (a reasoning model spending ~1,900 thinking tokens on a ~120-token
+answer) versus the configured default `gemma-3-4b` under a flat 512.
+`metric skill_judgment.job` logs seconds and budget per job to settle it.
 
 > **Ownership contract, settled in S1 after getting it wrong twice.**
 >
@@ -249,8 +255,14 @@ repaired to 0 mis-filed — 985 to a real family, 248 legitimately NULL. The cou
 was 1,056 when this doc was written and 1,233 by the time it was fixed, because
 S1's backfill wrote 5,287 new families through the same broken function.
 
-**S4 — importance.** `job_skills.evidence_zone`; matcher reads zone + level;
-`is_primary` deleted.
+**S4 — importance. DONE** (`7fc2417e`). Score is
+`sum(required_level * min(user_level/required_level, 1)) / sum(required_level)`.
+One formula in `job_matcher.score_wanted`, called by the batch matcher,
+`on_demand`, feed_warm and the pre-login preview — they previously held three
+copies. Soft skills excluded from both sides.
+⚠️ **`is_primary` is NOT deleted.** Six consumers outside matching still read it
+(gap_plan, skills_refresh, analyse, detail, upskilling, a demand rollup), each
+with its own ordering semantics. That removal is its own slice.
 
 **S5 — company demand rollup.** Gating skills per (company, role_family) over
 all observed JDs. Surfaces on /companies.
