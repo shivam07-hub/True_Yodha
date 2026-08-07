@@ -35,7 +35,8 @@ from app.schemas import (
 )
 from app.security.auth_errors import auth_error_code, login_http_error, signup_http_error
 from app.security.auth_rate_limit import client_ip_from_scope
-from app.services import auth_links, email_service
+from app.repositories.partners import PartnersRepository
+from app.services import auth_links, email_service, partner_sso
 from app.services.growth_attribution import record_if_new_signup, record_signup_attribution
 from app.services.user_provisioning import ensure_user_provisioned, set_linkedin_identity
 
@@ -304,12 +305,30 @@ async def post_signin(
         except Exception as exc:
             _log.warning("LinkedIn identity write failed for %s: %s", principal.id, exc)
 
+    # Partner SSO completion. The signed-in user IS the proof — partner_sso
+    # re-checks that this account's email matches the seat the partner named, so
+    # a forged `link_partner` param links nothing.
+    partner_linked = False
+    if body.link_partner and body.partner_external_id:
+        try:
+            admin = get_supabase_admin()
+            partner_linked = partner_sso.complete_link(
+                PartnersRepository(admin),
+                partner_slug=body.link_partner.strip(),
+                external_id=body.partner_external_id.strip(),
+                user_id=principal.id,
+                user_email=principal.email,
+            )
+        except Exception as exc:
+            _log.warning("partner link completion failed for %s: %s", principal.id, exc)
+
     return PostSigninResponse(
         provider=body.provider,
         referral_attributed=bool(referral_attributed),
         attribution_recorded=attribution_recorded,
         linkedin_xp_granted=linkedin_xp_granted,
         linkedin_url_set=linkedin_url_set,
+        partner_linked=partner_linked,
     )
 
 

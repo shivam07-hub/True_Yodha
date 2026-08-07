@@ -91,9 +91,9 @@ def test_imported_job_builds_canonical_skill_rows() -> None:
         ),
     )
 
-    assert plan["skill_rows"] == [
-        {"taxonomy_key": "Python (Programming Language)", "is_primary": True, "required_level": 4},
-        {"taxonomy_key": "SQL (Programming Language)", "is_primary": False, "required_level": 2},
+    assert [(s.taxonomy_key, s.is_must_have, s.required_level) for s in plan["skill_rows"]] == [
+        ("Python (Programming Language)", True, 4),
+        ("SQL (Programming Language)", False, 2),
     ]
     # LangGraph is not in the taxonomy — it stays a candidate, never a job_skill.
     assert [row["raw_label"] for row in plan["candidate_rows"]] == ["LangGraph"]
@@ -110,8 +110,8 @@ def test_imported_job_skill_rows_keep_a_repeated_key_once_as_primary() -> None:
         ),
     )
 
-    assert plan["skill_rows"] == [
-        {"taxonomy_key": "Python (Programming Language)", "is_primary": True, "required_level": 4}
+    assert [(s.taxonomy_key, s.is_must_have, s.required_level) for s in plan["skill_rows"]] == [
+        ("Python (Programming Language)", True, 4)
     ]
 
 

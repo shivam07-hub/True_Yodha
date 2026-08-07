@@ -120,6 +120,26 @@ def get_supabase_admin() -> Client:
     )
 
 
+@lru_cache(maxsize=1)
+def get_supabase_admin_batch() -> Client:
+    """Service role client for BATCH work, with a batch-sized read timeout.
+
+    ``_POSTGREST_TIMEOUT_SECONDS`` is 8s because a web request that has not
+    answered in 8s has already failed its user. A corpus sweep is not a web
+    request: a corpus-wide anti-join legitimately runs for tens of seconds, and
+    inheriting the web tier's deadline made a healthy 2s query look like an
+    outage. Offline callers only — never wire this into a route, or a slow query
+    holds a request thread for a minute instead of failing fast.
+    """
+    return _force_postgrest_http1(
+        create_client(
+            settings.supabase_url,
+            settings.supabase_service_key,
+            options=ClientOptions(postgrest_client_timeout=120),
+        )
+    )
+
+
 def get_supabase() -> Client:
     """Anon client — respects RLS. Use in user-facing FastAPI routes."""
     return _force_postgrest_http1(
