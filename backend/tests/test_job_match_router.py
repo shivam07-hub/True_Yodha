@@ -12,11 +12,13 @@ class _FakeJobsRepo:
         stack: list[dict] | None = None,
         new_jobs: int = 0,
         agent_picks: list[dict] | None = None,
+        dismissed_ids: list[str] | None = None,
     ) -> None:
         self.dismissed: list[tuple[str, str]] = []
         self._stack = stack or []
         self._new_jobs = new_jobs
         self._agent_picks = agent_picks or []
+        self._dismissed_ids = dismissed_ids or []
         self.count_markers: list[int] = []
         self.exposures: list[tuple[str, str, list[str]]] = []
         self.dismissed_reads = 0
@@ -37,7 +39,7 @@ class _FakeJobsRepo:
 
     def get_dismissed_job_card_ids(self, user_id: str) -> list[str]:
         self.dismissed_reads += 1
-        return []
+        return list(self._dismissed_ids)
 
     def count_new_jobs_since(self, since) -> int:
         self.count_markers.append(since)
@@ -222,3 +224,38 @@ def test_dismiss_match_card_marks_card_removed_for_current_user() -> None:
 
     assert response.status_code == 204
     assert repo.dismissed == [("user-123", "job-456")]
+
+
+def test_matches_excludes_dismissed_cards_after_concurrent_fetch() -> None:
+    """The dismissed filter moved OUT of get_user_match_stack and into the
+    router, so the stack read no longer has to wait for the dismissed read
+    (ARCHITECTURE_READ_PATH.md S4-followup: both now run in one concurrent
+    wave). This guards the relocated behaviour — a dismissed job must still
+    never reach the response, and must not be counted in `total`.
+    """
+    repo = _FakeJobsRepo(
+        stack=[
+            {"id": 1, "job_id": "keep-1", "overall_score": 80},
+            {"id": 2, "job_id": "dropped", "overall_score": 90},
+            {"id": 3, "job_id": "keep-2", "overall_score": 70},
+        ],
+        dismissed_ids=["dropped"],
+    )
+    app.dependency_overrides[get_principal] = lambda: Principal(id="u1")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    try:
+        with TestClient(app) as client:
+            response = client.get("/jobs/matches")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    body = response.json()
+    returned = [j["job_id"] for j in body["jobs"]]
+    assert returned == ["keep-1", "keep-2"]
+    assert body["total"] == 2
+    # Still surfaced to the client, and still read exactly once.
+    assert body["dismissed_job_ids"] == ["dropped"]
+    assert repo.dismissed_reads == 1
+    # The exposure ledger records what the user actually saw, not the dropped card.
+    assert repo.exposures == [("u1", "dashboard", ["keep-1", "keep-2"])]

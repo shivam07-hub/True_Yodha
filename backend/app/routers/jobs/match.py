@@ -64,24 +64,30 @@ def get_job_matches(
     # TWICE, once inside get_user_match_stack and again to build the response
     # field below.
     #
-    # Now: read it once, and fan the independent reads out concurrently, so
-    # wall time is max(read) instead of sum(reads). Same primitive
-    # `_resolve_feed_scope` and `_evidence_stats` already use.
+    # Now: read the dismissed set once, and fan EVERY read out in ONE
+    # concurrent wave, so wall time is max(read) instead of sum(reads). Same
+    # primitive `_resolve_feed_scope` and `_evidence_stats` already use.
+    #
+    # The match stack is fetched with `dismissed=set()` — i.e. unfiltered by
+    # dismissal — specifically so it does NOT have to wait for the dismissed
+    # read to finish. Excluding dismissed job_ids is pure set membership on
+    # job_id, and the stack is already deduped to one row per job_id, so
+    # applying it after the wave is equivalent to applying it inside. Doing
+    # this first cost a second sequential hop (~250ms) for no reason.
     uid = principal.id
     reads = run_concurrently(
         {
             "dismissed": lambda: set(repo.get_dismissed_job_card_ids(uid)),
+            "raw_stack": lambda: repo.get_user_match_stack(uid, dismissed=set()),
             "feed_ts": lambda: repo.get_feed_updated_at(),
-            # count_for_user is itself two dependent round trips
-            # (last_match_run_at -> count_new_jobs_since); it stays sequential
-            # internally but no longer blocks the reads above.
+            # count_for_user is itself two DEPENDENT round trips
+            # (last_match_run_at -> count_new_jobs_since), so it is the slowest
+            # member of this wave and therefore sets its wall time.
             "new_jobs_count": lambda: new_inventory.count_for_user(repo, uid),
         }
     )
     dismissed: set[str] = reads["dismissed"]
-    # Needs `dismissed` to filter, so it runs after that wave — but it is now
-    # the only read left on the critical path, not the first of six.
-    rows = repo.get_user_match_stack(uid, dismissed=dismissed)
+    rows = [r for r in reads["raw_stack"] if str(r.get("job_id") or "") not in dismissed]
     jobs = [to_job_match(row, batch_week) for row in rows]
     # Best-effort ledger write (its own docstring says so) — nothing below
     # reads its result. Deferred off the read path, same as new_jobs_count's
