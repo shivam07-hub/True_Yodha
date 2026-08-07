@@ -9,11 +9,17 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.routers import partner_connect
 from app.repositories import partners as partners_module
-from app.repositories.partners import PartnerCredential, PartnersRepository
+from app.repositories.partners import (
+    PartnerCredential,
+    PartnersRepository,
+    get_partners_repository,
+)
 from app.security import partner_auth
 from app.security.partner_auth import get_partner_credential
 
@@ -169,8 +175,30 @@ def test_approve_requires_a_signed_in_user(client):
 
 
 def test_context_refuses_an_unknown_token(client):
+    # The consent boundary must reject an unknown token without requiring a
+    # configured external database. The repository itself remains the real
+    # production dependency, and the service still hashes before looking up.
+    app.dependency_overrides[get_partners_repository] = lambda: PartnersRepository(_Chain([]))
+
     response = client.get("/partner-connect/context", params={"t": "b" * 32})
+
     assert response.status_code in (404, 429)
+
+
+def test_context_rate_limit_precedes_the_token_lookup(client, monkeypatch):
+    """An anonymous caller must be throttled before it can consume a DB read."""
+    monkeypatch.setattr(
+        partner_connect,
+        "enforce_anon_rate",
+        lambda *_args: (_ for _ in ()).throw(HTTPException(status_code=429)),
+    )
+    app.dependency_overrides[get_partners_repository] = lambda: pytest.fail(
+        "token lookup ran before anonymous rate enforcement"
+    )
+
+    response = client.get("/partner-connect/context", params={"t": "b" * 32})
+
+    assert response.status_code == 429
 
 
 def test_partner_keys_cannot_reach_the_consent_endpoints(client, monkeypatch):

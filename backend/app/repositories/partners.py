@@ -23,7 +23,10 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
+from fastapi import Depends
 from supabase import Client
+
+from app.database import get_supabase_admin
 
 logger = logging.getLogger(__name__)
 
@@ -257,3 +260,10 @@ class PartnersRepository:
             .execute()
         )
         return resp.data or []
+
+
+def get_partners_repository(
+    admin_db: Client = Depends(get_supabase_admin),
+) -> PartnersRepository:
+    """Admin-only repository factory for partner identity boundaries."""
+    return PartnersRepository(admin_db)

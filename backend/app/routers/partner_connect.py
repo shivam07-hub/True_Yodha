@@ -19,10 +19,11 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from supabase import Client
 
 from app.database import get_supabase_admin
 from app.deps import Principal, get_principal
-from app.repositories.partners import PartnersRepository
+from app.repositories.partners import PartnersRepository, get_partners_repository
 from app.schemas.partner import (
     ConnectApproveRequest,
     ConnectApproveResponse,
@@ -40,13 +41,24 @@ router = APIRouter(prefix="/partner-connect", tags=["partner"])
 _INVALID = "This connection link has expired or was already used. Ask your partner to send you back to Myro."
 
 
-@router.get("/context", response_model=ConnectContextResponse)
-def connect_context(
-    request: Request,
-    t: str = Query(min_length=8, max_length=128, description="Consent token from connect_url."),
-) -> ConnectContextResponse:
+def _enforce_connect_context_rate(request: Request) -> None:
     enforce_anon_rate("partner_connect_context", client_ip_from_scope(request.scope))
-    context = partner_sso.resolve_connect_token(PartnersRepository(get_supabase_admin()), t)
+
+
+def _enforce_connect_email_rate(request: Request) -> None:
+    enforce_anon_rate("partner_connect_email", client_ip_from_scope(request.scope))
+
+
+@router.get(
+    "/context",
+    response_model=ConnectContextResponse,
+    dependencies=[Depends(_enforce_connect_context_rate)],
+)
+def connect_context(
+    t: str = Query(min_length=8, max_length=128, description="Consent token from connect_url."),
+    repo: PartnersRepository = Depends(get_partners_repository),
+) -> ConnectContextResponse:
+    context = partner_sso.resolve_connect_token(repo, t)
     if context is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_INVALID)
     return ConnectContextResponse(
@@ -61,6 +73,7 @@ def connect_context(
 def approve(
     body: ConnectApproveRequest,
     principal: Principal = Depends(get_principal),
+    repo: PartnersRepository = Depends(get_partners_repository),
 ) -> ConnectApproveResponse:
     """The signed-in owner says yes. One click, no inbox.
 
@@ -69,7 +82,7 @@ def approve(
     who the caller is, not that they are the person the partner named.
     """
     linked = partner_sso.approve_connect(
-        PartnersRepository(get_supabase_admin()),
+        repo,
         token=body.token,
         user_id=principal.id,
         user_email=principal.email,
@@ -85,19 +98,22 @@ def approve(
     return ConnectApproveResponse(linked=True, message="Connected.")
 
 
-@router.post("/email", response_model=ConnectEmailResponse)
+@router.post(
+    "/email",
+    response_model=ConnectEmailResponse,
+    dependencies=[Depends(_enforce_connect_email_rate)],
+)
 def email_link(
-    request: Request,
     body: ConnectApproveRequest,
+    repo: PartnersRepository = Depends(get_partners_repository),
+    admin: Client = Depends(get_supabase_admin),
 ) -> ConnectEmailResponse:
     """Fallback the USER chooses when they can't sign in here and now.
 
     Response shape never varies with whether the token was good — a bad token
     must not become a way to probe which seats exist.
     """
-    enforce_anon_rate("partner_connect_email", client_ip_from_scope(request.scope))
-    admin = get_supabase_admin()
-    partner_sso.send_connect_email(PartnersRepository(admin), admin, token=body.token)
+    partner_sso.send_connect_email(repo, admin, token=body.token)
     return ConnectEmailResponse(
         sent=True,
         message="If that connection is still open, a sign-in link is on its way.",
