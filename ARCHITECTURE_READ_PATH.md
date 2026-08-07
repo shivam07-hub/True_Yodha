@@ -473,12 +473,39 @@ client whose connection pool starts empty.
 
 ## 7. Still open
 
-- **`new_inventory.count_for_user`** — two *dependent* round trips
-  (`last_match_run_at` -> `count_new_jobs_since`) that now set the wall time of
-  `/jobs/matches`' single concurrent wave. Collapsing them into one RPC is the
-  next step on that endpoint's ~660ms floor. (Supersedes the old
-  `get_user_match_stack` / `compute_match_health` entry — see S7; that
-  suspicion was measured and disproven.)
+- **`new_inventory.count_for_user` — MEASURED, and it is the fix worth doing.**
+  `run_concurrently` now reports per-section timing (`metric fanout.slow`).
+  12 samples of `jobs.matches` on dev:
+
+      new_jobs_count   median 710ms   (min 443, max 1000)
+      raw_stack        median 345ms   (min 306, max  661)
+      dismissed        median 168ms   (min 163, max  463)
+      feed_ts          median   0ms   (in-process cached)
+
+  Slowest member in **11 of 12** samples: `new_jobs_count`. Collapsing its
+  2-3 dependent hops into one RPC should take the wave to `raw_stack`-bound,
+  ~710ms -> ~345ms. `dismissed` (median 168ms, one tiny read) is this path's
+  one-round-trip floor, so a single-hop `new_jobs_count` lands near it.
+  **Cheaper partial fix first:** 289 of 479 profiles have a null
+  `last_match_run_at`, so most users hit the legacy
+  `MAX(user_job_matches.computed_at)` fallback — a third hop. Backfilling that
+  column removes one hop for ~60% of users with no code change.
+  *(I twice guessed at this before measuring — first asserting it set the wall
+  time, then reasoning from payload size that it probably did not. The
+  instrumentation settled it; the first guess was right and the second was
+  wrong. Neither guess was worth acting on.)*
+- **`cv.evidence` shows contention, not a slow query.** Across samples, whichever
+  section is slowest changes every time — `baseline`, `skill_sources`,
+  `next_version_number`, `current_score`, `milestones` all take turns at
+  ~420-480ms while the other five sit at ~160-175ms. Trivial queries
+  (`get_current_score`, `next_version_number`) cannot cost 430ms of query time.
+  ~165ms is this path's per-round-trip floor; the ~430ms outlier is most likely
+  connection establishment, since `get_supabase()` is **not** `lru_cache`d while
+  both admin clients are — every authed request builds a client whose httpx pool
+  starts empty, so a 6-way fan-out opens 6 fresh TLS connections to Supabase.
+  Unproven but cheap to test: add the cache, re-read `fanout.slow`, see whether
+  the outliers collapse toward the floor. This affects EVERY authed fan-out, not
+  one endpoint.
 - **The truncated-JD fetch path is unverified in a browser** — API-level only.
   Needs an authed account holding a collection card with a >600-char JD.
 - **The 12 → 40 cap is unverified under real concurrent load.** Reasoned from
