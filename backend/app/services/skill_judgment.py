@@ -193,6 +193,7 @@ async def judge_skills(
     candidates: list[ExtractedSkill],
     *,
     provider: Any = None,
+    local: bool = False,
 ) -> list[SkillVerdict]:
     """Ask the model to mark Stage A's candidates. Returns [] on any failure.
 
@@ -205,9 +206,14 @@ async def judge_skills(
     if not trimmed:
         return []
     if provider is None:
-        from app.services.llm_provider import get_llm_provider
+        if local:
+            from app.services.llm_provider import get_local_provider
 
-        provider = get_llm_provider()
+            provider = get_local_provider()
+        else:
+            from app.services.llm_provider import get_llm_provider
+
+            provider = get_llm_provider()
 
     prompt = build_judgment_prompt(title, job_description, trimmed)
     try:

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from time import perf_counter
@@ -502,3 +503,29 @@ def get_vision_provider() -> LLMProvider:
             {"models": _VISION_OR_MODELS},
         ))
     return LLMProvider(providers)
+
+
+# Local OpenAI-compatible endpoint (LM Studio, Ollama, llama.cpp). Same default
+# LM Studio ships with, and the same one the scraper's enricher points at.
+_LOCAL_BASE = "http://localhost:1234/v1"
+_LOCAL_DEFAULT_MODEL = "google/gemma-3-4b"
+
+
+def get_local_provider(model: str | None = None, base_url: str | None = None) -> LLMProvider:
+    """A single local model, no fallback ladder. OFFLINE CALLERS ONLY.
+
+    This is deliberately not part of any user-facing lane and has no backstop:
+    if the local endpoint is down the call fails, which is the honest outcome
+    for a batch run and an unacceptable one for a request.
+    [[feedback_no_cheap_models_judgment]] still stands everywhere else — a small
+    model is admissible here only because `skill_judgment` hands it a CLOSED
+    list to mark and drops anything that is not on it, so it cannot invent a
+    skill. Point this at an open-ended prompt and that protection is gone.
+    """
+    resolved = model or os.getenv("LOCAL_INFERENCE_MODEL") or _LOCAL_DEFAULT_MODEL
+    endpoint = base_url or os.getenv("LOCAL_INFERENCE_BASE_URL") or _LOCAL_BASE
+    return LLMProvider([(
+        _make_client(os.getenv("LOCAL_INFERENCE_API_KEY", "lm-studio"), endpoint),
+        resolved,
+        None,
+    )])

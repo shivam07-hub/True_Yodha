@@ -118,3 +118,40 @@ def test_no_candidates_means_no_model_call() -> None:
 
     assert verdicts == []
     assert provider.calls == 0
+
+
+def test_local_flag_selects_the_local_endpoint_with_no_fallback() -> None:
+    # A batch run against a dead local endpoint must fail honestly rather than
+    # silently escaping to a paid cloud ladder and billing for 5,309 jobs.
+    from app.services.llm_provider import get_local_provider
+
+    provider = get_local_provider()
+
+    assert len(provider._providers) == 1
+    client, model, _extra = provider._providers[0]
+    assert "localhost:1234" in str(client.base_url)
+    assert model
+
+
+def test_local_provider_honours_env_overrides(monkeypatch) -> None:
+    from app.services.llm_provider import get_local_provider
+
+    monkeypatch.setenv("LOCAL_INFERENCE_MODEL", "qwen/qwen3-8b")
+    monkeypatch.setenv("LOCAL_INFERENCE_BASE_URL", "http://127.0.0.1:8080/v1")
+    provider = get_local_provider()
+
+    client, model, _extra = provider._providers[0]
+    assert model == "qwen/qwen3-8b"
+    assert "127.0.0.1:8080" in str(client.base_url)
+
+
+def test_an_explicit_provider_still_wins_over_the_local_flag() -> None:
+    provider = _Provider("1|required|4")
+    verdicts = asyncio.run(
+        skill_judgment.judge_skills(
+            "Data Engineer", "JD", CANDIDATES, provider=provider, local=True
+        )
+    )
+
+    assert provider.calls == 1
+    assert [v.taxonomy_key for v in verdicts] == ["Python (Programming Language)"]

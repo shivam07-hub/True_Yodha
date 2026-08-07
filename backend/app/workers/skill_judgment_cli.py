@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
+import os
 import sys
 from time import perf_counter
 
@@ -29,6 +30,8 @@ from app.services import skill_floor, skill_judgment
 from app.services.skill_extraction import extract_skills
 
 logger = logging.getLogger("skill_judgment")
+
+_LOCAL_ENDPOINT = os.getenv("LOCAL_INFERENCE_BASE_URL", "http://localhost:1234/v1")
 
 JUDGMENT_SOURCE = "enrichment"
 
@@ -39,7 +42,7 @@ def _count(db) -> tuple[int, int]:
     return int(row.get("total") or 0), int(row.get("recommendable") or 0)
 
 
-async def _judge_one(db, job: dict) -> tuple[bool, float, int]:
+async def _judge_one(db, job: dict, *, local: bool = False) -> tuple[bool, float, int]:
     """Judge one job. Returns (upgraded, elapsed_seconds, candidates_offered)."""
     title = str(job.get("job_title") or "")
     description = str(job.get("job_description") or "")
@@ -48,7 +51,7 @@ async def _judge_one(db, job: dict) -> tuple[bool, float, int]:
         return False, 0.0, 0
 
     started = perf_counter()
-    verdicts = await skill_judgment.judge_skills(title, description, candidates)
+    verdicts = await skill_judgment.judge_skills(title, description, candidates, local=local)
     elapsed = perf_counter() - started
 
     rows = skill_judgment.to_skill_rows(verdicts)
@@ -73,7 +76,7 @@ async def _judge_one(db, job: dict) -> tuple[bool, float, int]:
     return True, elapsed, len(candidates)
 
 
-async def _drain(db, *, limit: int | None, batch: int) -> dict[str, float]:
+async def _drain(db, *, limit: int | None, batch: int, local: bool) -> dict[str, float]:
     seen = upgraded = 0
     total_seconds = 0.0
     while True:
@@ -84,7 +87,7 @@ async def _drain(db, *, limit: int | None, batch: int) -> dict[str, float]:
             break
         for job in claimed:
             seen += 1
-            ok, elapsed, _ = await _judge_one(db, job)
+            ok, elapsed, _ = await _judge_one(db, job, local=local)
             total_seconds += elapsed
             upgraded += int(ok)
             if limit is not None and seen >= limit:
@@ -107,6 +110,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--apply", action="store_true", help="write judgments (default: count only)")
     parser.add_argument("--limit", type=int, default=None, help="stop after N jobs")
     parser.add_argument("--batch", type=int, default=25, help="jobs claimed per round")
+    parser.add_argument(
+        "--provider",
+        choices=("auto", "local"),
+        default="auto",
+        help="auto = the standard fallback ladder; local = a single local "
+             "OpenAI-compatible endpoint (LM Studio), no fallback",
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stdout)
@@ -117,7 +127,10 @@ def main(argv: list[str] | None = None) -> int:
     if not args.apply:
         return 0
 
-    result = asyncio.run(_drain(db, limit=args.limit, batch=args.batch))
+    local = args.provider == "local"
+    if local:
+        logger.info("metric skill_judgment.provider mode=local endpoint=%s", _LOCAL_ENDPOINT)
+    result = asyncio.run(_drain(db, limit=args.limit, batch=args.batch, local=local))
     after_total, after_recommendable = _count(db)
     logger.info(
         "metric skill_judgment.done seen=%d upgraded=%d mean_seconds=%.1f "
