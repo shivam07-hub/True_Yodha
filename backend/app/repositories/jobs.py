@@ -2683,6 +2683,24 @@ class JobsRepository:
         """Raw job_skills JOIN skills rows for the matcher. No grouping."""
         return fetch_job_skill_rows(self._db, job_ids=job_ids)
 
+    def get_job_description(self, job_id: str) -> str | None:
+        """The full job_description for ONE job, and nothing else.
+
+        Deliberately narrow: list payloads carry only a bounded snippet
+        (`_shared.MATCH_JD_SNIPPET_CHARS`) because the full text averages 3,734
+        chars and was 59.8% of the /jobs/matches payload. This is the on-demand
+        other half, read only when a user actually opens the JD panel. Returns
+        None for a missing job so the caller can 404 rather than render "".
+        """
+        rows = safe_read(
+            self._db.table("jobs").select("job_description").eq("job_id", job_id).limit(1),
+            default=[],
+            context="get_job_description",
+        )
+        if not rows:
+            return None
+        return rows[0].get("job_description") or ""
+
     def get_jobs_by_ids(self, job_ids: list[str]) -> list[dict[str, Any]]:
         """Fetch job metadata for a specific list of job_ids."""
         if not job_ids:

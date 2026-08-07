@@ -190,7 +190,14 @@ class JobMatchResponse(BaseModel):
     matched_skills: list[str] = []
     missing_skills: list[str] = []    # required skills the user lacks (T3-1 gap chips)
     job_summary: str | None = None    # LLM-enriched ≤100-word clean prose (card body)
+    # Bounded to MATCH_JD_SNIPPET_CHARS, NOT the full JD. Averaged 3,734 chars
+    # and was 59.8% of this endpoint's entire payload (56KB of 93KB for 15
+    # matches), while every consumer but one truncates it anyway — the card
+    # snippet to 200 chars, mobile to 260. `job_description_truncated` tells the
+    # one full-text consumer (desktop's JdPanel) to fetch the rest from
+    # GET /jobs/{job_id}/description.
     job_description: str | None = None
+    job_description_truncated: bool = False
     # Scraper structured chip columns (backlog #22) — NULL when a provider omits them
     date_posted: str | None = None
     seniority_level: str | None = None

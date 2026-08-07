@@ -2698,7 +2698,12 @@ export interface JobMatch {
   matched_skills: string[]
   missing_skills?: string[] // required skills the user lacks — powers ✗ gap chips (T3-1)
   job_summary?: string | null // LLM-enriched ≤100-word clean prose — card body, preferred over job_description
+  /** Bounded snippet (600 chars), NOT the full JD — it averaged 3,734 chars and
+   *  was ~60% of the /jobs/matches payload. Card snippets (200) and mobile (260)
+   *  truncate below this anyway. When `job_description_truncated` is true, fetch
+   *  the rest with `jobs.jobDescription(token, jobId)`. */
   job_description?: string | null
+  job_description_truncated?: boolean
   // Scraper structured chip columns (backlog #22) — null when a provider omits them
   date_posted?: string | null
   seniority_level?: string | null
@@ -3989,6 +3994,12 @@ export const jobs = {
     }),
   skillGap: (token: string, jobId: string) =>
     request<SkillGapResponse>(`/jobs/${jobId}/skill-gap`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  /** Full JD, on demand. List payloads carry only a 600-char snippet; call this
+   *  when `job_description_truncated` is set and the user opened the JD panel. */
+  jobDescription: (token: string, jobId: string) =>
+    request<{ job_id: string; job_description: string }>(`/jobs/${jobId}/description`, {
       headers: { Authorization: `Bearer ${token}` },
     }),
   /** Free reach search (ADR-0018): roles to search for + URLs the user opens

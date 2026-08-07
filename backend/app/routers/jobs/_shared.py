@@ -5,6 +5,25 @@ from app.repositories.jobs import _is_marker_stale, _job_feed_marker_to_iso
 from app.schemas import ApplicationResponse, CVBadge, JobMatchResponse, MatchEval
 
 
+# How much job_description a LIST payload carries. Every consumer but desktop's
+# JdPanel truncates it further anyway (card snippet 200 chars, mobile 260), so
+# this is generous headroom for all of them while cutting what was 59.8% of the
+# /jobs/matches payload. JdPanel fetches the rest from
+# GET /jobs/{job_id}/description when `job_description_truncated` is set.
+MATCH_JD_SNIPPET_CHARS = 600
+
+
+def _jd_snippet(text: str | None) -> tuple[str | None, bool]:
+    """(bounded_text, was_truncated). Bounds on characters, not words — the
+    callers that re-truncate do so on characters too, so a word-boundary trim
+    here would just be a second, differently-wrong cut."""
+    if not text:
+        return text, False
+    if len(text) <= MATCH_JD_SNIPPET_CHARS:
+        return text, False
+    return text[:MATCH_JD_SNIPPET_CHARS], True
+
+
 def last_monday() -> date:
     today = date.today()
     return today - timedelta(days=today.weekday())
@@ -27,6 +46,7 @@ def to_job_match(row: dict, batch_week: date) -> JobMatchResponse:
     # the single read seam, instead of each field being re-guessed via .get().
     # MatchEval is tolerant (extra ignored), so it never narrows the read.
     ev = MatchEval.model_validate(row)
+    jd_snippet, jd_truncated = _jd_snippet(job.get("job_description"))
     return JobMatchResponse(
         id=row["id"],
         job_id=row["job_id"],
@@ -51,7 +71,8 @@ def to_job_match(row: dict, batch_week: date) -> JobMatchResponse:
         matched_skills=ev.matched_skills,
         missing_skills=ev.missing_skills,
         job_summary=job.get("job_summary"),
-        job_description=job.get("job_description"),
+        job_description=jd_snippet,
+        job_description_truncated=jd_truncated,
         date_posted=job.get("date_posted"),
         seniority_level=job.get("seniority_level"),
         work_mode=job.get("work_mode"),
