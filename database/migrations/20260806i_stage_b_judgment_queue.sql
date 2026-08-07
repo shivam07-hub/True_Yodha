@@ -1,0 +1,136 @@
+-- S2: Stage B's work set and its own attempt column.
+--
+-- Same ownership contract as Stage A (20260806e), for the same reasons. The
+-- work SET is "jobs standing on a deterministic floor", which
+-- `job_skills.evidence_source = 'stage_a'` already records exactly. Stage B
+-- writes ONLY `skill_judged_at`; `enrichment_status` stays the enrichment
+-- pipeline's alone.
+--
+-- COST NOTE, and this is a repeat offence worth reading before editing the
+-- claim. The first version of this function filtered on
+-- `NULLIF(btrim(job_description),'') IS NOT NULL`, which TOAST-reads a
+-- ~3,600-char column for all 61,280 candidate rows: 94.6 seconds and ~285,000
+-- shared buffers, cancelled by statement_timeout (57014). 93.7s of that was the
+-- predicate alone. 20260806e had already removed exactly this predicate from
+-- `job_ids_missing_skill_floor` for exactly this reason, and it came straight
+-- back three hours later.
+--
+-- Whether a job has usable text is decided in Python, after the claimed rows
+-- are fetched by primary key. Returning the column for 25 rows is free;
+-- filtering on it across the corpus is not. Measured after the fix: 193ms,
+-- Heap Fetches 0.
+--
+-- A claimed job whose text yields nothing is stamped and not retried. That is
+-- correct — Stage B looked, and there was nothing to judge. It does not touch
+-- the floor, so the job stays exactly as matchable as Stage A left it.
+
+ALTER TABLE public.jobs
+    ADD COLUMN IF NOT EXISTS skill_judged_at TIMESTAMPTZ;
+
+-- INCLUDE is load-bearing: without it the backlog count did 61,280 heap
+-- fetches for is_active/listing_confidence and took 29.5s.
+DROP INDEX IF EXISTS idx_jobs_awaiting_judgment;
+CREATE INDEX idx_jobs_awaiting_judgment
+    ON public.jobs (job_id)
+    INCLUDE (is_active, listing_confidence)
+    WHERE skill_judged_at IS NULL AND has_skill_floor IS TRUE;
+
+-- The claim is a LEASE, not a verdict. `skill_judged_at` was stamped at claim
+-- time and never released, so a job whose judgment failed for OUR reasons —
+-- endpoint down, request timeout — was marked judged forever having received
+-- no judgment. First live run: 50 jobs stamped, 0 carrying a verdict, none of
+-- them ever eligible again.
+--
+-- Stage A's equivalent stamp is correct because "the text names no taxonomy
+-- skill" is an answer ABOUT THE JOB. "We could not reach the model" is not.
+--
+-- Two ways out of the lease: the worker releases explicitly when the provider
+-- failed, and anything still unjudged after 30 minutes is reclaimable, which
+-- also covers a worker that died mid-batch. Same window the enrichment worker
+-- uses for its own stale claims.
+CREATE OR REPLACE FUNCTION public.claim_jobs_for_skill_judgment(p_limit INTEGER DEFAULT 25)
+RETURNS TABLE (job_id TEXT, job_title TEXT, job_description TEXT)
+LANGUAGE sql
+SET search_path TO ''
+AS $function$
+    WITH candidates AS MATERIALIZED (
+        SELECT j.job_id
+        FROM public.jobs AS j
+        WHERE j.has_skill_floor IS TRUE
+          AND (
+              j.skill_judged_at IS NULL
+              OR (j.skill_judged_at < now() - interval '30 minutes'
+                  AND NOT EXISTS (
+                      SELECT 1 FROM public.job_skills AS done
+                      WHERE done.job_id = j.job_id AND done.evidence_source = 'enrichment'
+                  ))
+          )
+          AND EXISTS (
+              SELECT 1 FROM public.job_skills AS s
+              WHERE s.job_id = j.job_id AND s.evidence_source = 'stage_a'
+          )
+        ORDER BY j.job_id
+        FOR UPDATE SKIP LOCKED
+        LIMIT greatest(1, least(p_limit, 200))
+    ), claimed AS (
+        UPDATE public.jobs AS j
+        SET skill_judged_at = now()
+        FROM candidates AS c
+        WHERE j.job_id = c.job_id
+        RETURNING j.job_id, j.job_title, j.job_description
+    )
+    SELECT c.job_id, c.job_title, c.job_description FROM claimed AS c;
+$function$;
+
+-- Explicit release for what the worker KNOWS is infrastructure. Guarded on the
+-- absence of judgment so a release can never discard a verdict that did land.
+CREATE OR REPLACE FUNCTION public.release_skill_judgment_claim(p_job_ids TEXT[])
+RETURNS INTEGER
+LANGUAGE sql
+SET search_path TO ''
+AS $function$
+    WITH released AS (
+        UPDATE public.jobs AS j
+        SET skill_judged_at = NULL
+        WHERE j.job_id = ANY(COALESCE(p_job_ids, ARRAY[]::TEXT[]))
+          AND j.skill_judged_at IS NOT NULL
+          AND NOT EXISTS (
+              SELECT 1 FROM public.job_skills AS done
+              WHERE done.job_id = j.job_id AND done.evidence_source = 'enrichment'
+          )
+        RETURNING 1
+    )
+    SELECT COUNT(*)::INTEGER FROM released;
+$function$;
+
+-- The backlog must count exactly what the claim will serve, and cheaply.
+-- Two faults, both measured: without the evidence_source predicate it reported
+-- 61,280 against a claimable 5,309 — 56k of work that would never be dequeued,
+-- on a number that never moves however long the worker runs. Adding it as an
+-- EXISTS over 61,280 jobs then cost 29.5s and timed out. Driven from
+-- job_skills (5,309 distinct) with a covering index it is 872ms, Heap Fetches 0.
+CREATE OR REPLACE FUNCTION public.count_jobs_awaiting_judgment()
+RETURNS TABLE (total INTEGER, recommendable INTEGER)
+LANGUAGE sql
+STABLE
+SET search_path = public
+AS $$
+    SELECT COUNT(*)::INTEGER,
+           COUNT(*) FILTER (
+               WHERE job.is_active IS TRUE AND job.listing_confidence = 'active'
+           )::INTEGER
+    FROM (
+        SELECT DISTINCT skill.job_id
+        FROM public.job_skills AS skill
+        WHERE skill.evidence_source = 'stage_a'
+    ) AS floored
+    JOIN public.jobs AS job ON job.job_id = floored.job_id
+    WHERE job.skill_judged_at IS NULL AND job.has_skill_floor IS TRUE;
+$$;
+
+REVOKE ALL ON FUNCTION public.claim_jobs_for_skill_judgment(INTEGER) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.count_jobs_awaiting_judgment() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.claim_jobs_for_skill_judgment(INTEGER) TO service_role;
+REVOKE ALL ON FUNCTION public.release_skill_judgment_claim(TEXT[]) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.release_skill_judgment_claim(TEXT[]) TO service_role;
+GRANT EXECUTE ON FUNCTION public.count_jobs_awaiting_judgment() TO service_role;

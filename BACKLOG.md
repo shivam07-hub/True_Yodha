@@ -86,6 +86,23 @@ Memory carried "OWED: main merge" on ~25 entries. **Audit: 20 of 23 spot-checked
    **STILL OPEN — the biggest single remaining consumer.** `job-listing-verifier` runs against the SAME Postgres as himyro.com: `claim_verify_targets` (1,286 calls, **mean 4,680ms**, regularly killed at the 8s ceiling) and `count_verify_due` (1,032 calls, mean 1,809ms — a `count(*)` over 62k rows for a progress number). 2.2 hours of DB time between them. Not yet EXPLAINed; do that before proposing a fix.
 
    **Two reading rules this cost:** rank `pg_stat_statements` by `total_exec_time`, not by what looks slow in the logs. And `max_ms ≈ 7,9xx` does not mean "took 8s" — it means the `authenticator` role's 8s `statement_timeout` killed the query mid-scan. That is what the `/companies` 500s were.
+
+3b. **Concurrency architecture — the reason point fixes keep not being enough (2026-08-07).** Two app-layer defects cap the platform regardless of query speed. Both were built on the disproven "connection capacity" theory.
+
+   - **`ReadCapacityLimiter` caps the whole process at 12 concurrent PostgREST GETs** (`backend/app/services/read_capacity.py`, `supabase_read_max_inflight=12`, 250ms queue → 503). When queries take seconds those 12 slots stay occupied and everyone else gets a 503. This is why `/public/stats` returned at **exactly 1004, 1004, 1004, 1004, 1003ms** — five requests released from one queue together — and it is the source of the `/home/bootstrap` and `/scores/map` 503s in the alert mails. **100s of concurrent users is arithmetically impossible against a 12-slot semaphore.**
+   - **Every shared cache is a per-process dict with no single-flight** (`_indexable_companies_cache`, `_pulse_cache`, `_analytics_cache`, `_search_cache`, `/public/stats`). On TTL expiry every concurrent request misses at once and all recompute. It also means **adding replicas makes things worse** — each new process is another cold cache and another stampede.
+   - `run_concurrently` builds a **fresh `ThreadPoolExecutor` per call** — unbounded thread creation under load.
+
+   **Governing principle: public read paths must not touch the `jobs` table on the request path.** `/public/stats` already proves it (snapshot-backed, 1.2ms). Ordered plan — the order is load-bearing:
+   1. ✅ **DONE** — real search index for `/jobs/search/global` (see item 3c).
+   2. `/jobs/companies/pulse` → precomputed table (6,680ms measured on prod).
+   3. Shared caches → Redis (already provisioned for RQ) with single-flight + stale-while-revalidate. No user ever waits for a cache fill.
+   4. THEN raise/remove the 12-slot limiter, THEN add replicas. Removing the bulkhead before step 1–2 lets slow queries hit Postgres unthrottled; adding replicas before step 3 multiplies stampedes.
+   5. Re-measure instance sizing only after `jobs` leaves the hot path. Buying compute now would mask 1–4.
+
+3c. **✅ Global search fixed on `Develop` — ⚠️ PROD STILL 503s UNTIL `main` MERGE.** `/jobs/search/global` returned 503 for ordinary words (`engineer`, `manager`) because a five-column `ILIKE` OR seq-scanned 62,225 rows and hit the 8s timeout. Cost tracked how *rare* the user's word was. Replaced with `job_search_index` (materialized view of the five search fields concatenated; the same concatenation `_global_search_rank` already ranks against) + the `search_jobs_global` RPC. Measured: `engineer` 4,284ms → 177ms, `quantum` 12,415ms → 22ms; live dev endpoint 210–1,204ms across every term shape, no 503s. Migrations `20260807_job_search_index.sql` + `20260807a_*_interim.sql`; code `cd777acb`.
+   **OWED once merged:** drop the four interim per-column trigram indexes (`idx_jobs_job_title_trgm_all`, `_location_city_`, `_location_country_`, `_role_domain_`) — they only serve the old deployed query and become pure write-amplification. Do NOT drop before the merge.
+   **Also unused and droppable:** `idx_jobs_company_name_trgm` (partial predicate the planner can't prove) and `idx_jobs_job_title_trgm` (built on `coalesce(...)`, not the column).
 4. **✅ CLOSED 2026-07-22 — Career Ops matcher findings F2/F3.** Disposition is recorded in closed `AGENTS.md` #14: Career Ops remains the one ranking brain, Supabase remains the one liveness authority, and no duplicate verifier was created.
 
 ### TIER 2 — bounded, meaningful

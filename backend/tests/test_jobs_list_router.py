@@ -21,7 +21,7 @@ class _Result:
 
 
 class _FakeQuery:
-    def __init__(self, rows: list[dict[str, Any]], *, table: str, db: "_FakeDB") -> None:
+    def __init__(self, rows: list[dict[str, Any]], *, table: str, db: "_SearchFakeDB") -> None:
         self._rows = rows
         self._table = table
         self._db = db
@@ -87,12 +87,48 @@ class _FakeQuery:
 
 
 class _SearchFakeDB:
+    # Blob separator must match database/migrations/20260807_job_search_index.sql.
+    _BLOB_SEP = " | "
+
     def __init__(self, tables: dict[str, list[dict[str, Any]]]) -> None:
         self._tables = tables
         self.or_expressions: list[str] = []
+        self.search_terms: list[list[str]] = []
 
     def table(self, name: str) -> _FakeQuery:
         return _FakeQuery(self._tables.get(name, []), table=name, db=self)
+
+    def rpc(self, name: str, params: dict[str, Any]) -> _FakeRpcQuery:
+        """Model `search_jobs_global`: match the five search fields concatenated
+        into one blob, newest first, capped at p_limit.
+
+        Matching moved from a five-column PostgREST ILIKE OR into the
+        `job_search_index` materialized view, so the fake models the view's
+        contract — same fields, same separator, same candidate window — and the
+        assertions below still fail if that contract moves.
+        """
+        assert name == "search_jobs_global", name
+        terms = [t for t in (params.get("p_terms") or []) if t]
+        self.search_terms.append(list(terms))
+        limit = int(params.get("p_limit") or 96)
+
+        matched = []
+        for row in self._tables.get("jobs", []):
+            blob = self._BLOB_SEP.join(
+                str(row.get(field) or "")
+                for field in (
+                    "job_title",
+                    "company_name",
+                    "location_city",
+                    "location_country",
+                    "role_domain",
+                )
+            ).casefold()
+            if any(term.casefold() in blob for term in terms):
+                matched.append(row)
+
+        matched.sort(key=lambda r: r.get("first_seen") or 0, reverse=True)
+        return _FakeRpcQuery(matched[:limit])
 
 
 class _FakeRpcQuery:
@@ -663,5 +699,8 @@ def test_global_job_search_expands_post_mba_gurugram_intent() -> None:
 
     assert set(ids) == {"j-consulting", "j-product"}
     assert "j-location-only" not in ids
-    assert any("consultant" in expr.casefold() for expr in db.or_expressions)
-    assert any("gurugram" in expr.casefold() for expr in db.or_expressions)
+    # Intent expansion still reaches the database — the terms are what the
+    # search index is queried with, rather than PostgREST `or` expressions.
+    sent = [term.casefold() for call in db.search_terms for term in call]
+    assert "consultant" in sent
+    assert "gurugram" in sent

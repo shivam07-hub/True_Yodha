@@ -593,9 +593,13 @@ def test_fetch_job_skill_rows_via_rpc_adapts_flat_rows() -> None:
         {"job_id": "j1", "is_primary": False, "taxonomy_key": "sql"},
     ])
     result = fetch_job_skill_rows_via_rpc(mock_db, ["j1"])
+    # required_level and skill_kind ride along for the matcher (S4): is_primary
+    # is TRUE on 94.2% of prod rows and carries no signal.
     assert result == [
-        {"job_id": "j1", "is_primary": True, "skills": {"taxonomy_key": "python"}},
-        {"job_id": "j1", "is_primary": False, "skills": {"taxonomy_key": "sql"}},
+        {"job_id": "j1", "is_primary": True, "required_level": None,
+         "skills": {"taxonomy_key": "python", "skill_kind": None}},
+        {"job_id": "j1", "is_primary": False, "required_level": None,
+         "skills": {"taxonomy_key": "sql", "skill_kind": None}},
     ]
     mock_db.rpc.assert_called_once_with("fetch_job_skills_by_job_ids", {"job_ids": ["j1"]})
 
@@ -607,7 +611,7 @@ def test_fetch_job_skill_rows_routes_through_rpc_when_job_ids_provided() -> None
     ])
     result = fetch_job_skill_rows(mock_db, job_ids=["j1"])
     assert len(result) == 1
-    assert result[0]["skills"] == {"taxonomy_key": "python"}
+    assert result[0]["skills"]["taxonomy_key"] == "python"
     mock_db.rpc.assert_called_once()
     mock_db.table.assert_not_called()
 

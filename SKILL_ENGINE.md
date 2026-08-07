@@ -214,8 +214,25 @@ detect the enrichment worker not running
 (`feedback_absence_of_signal_alerting`). Assert on write: `complete` may not be
 stamped without a row.
 
-**S2 — reframe Stage B.** Classification prompt over Stage A candidates. Target:
-1–2 min → seconds. This is what stops future queue-death.
+**S2 — reframe Stage B. DONE, throughput VERIFIED 2026-08-07.**
+25 jobs, `--provider local`, LM Studio `google/gemma-3-4b`:
+`seen=25 upgraded=25 unreachable=0 mean_seconds=12.5` (range 5.3–16.6).
+**1–2 min → 12.5 s/job.** `ruled` equals `offered` on nearly every job (11–12 of
+12) and `required` ranges 1–8, so it discriminates rather than stamping.
+
+Neither candidate cause was the model. The old cost was the OUTPUT SHAPE: same
+4B model, closed list, derived budget (118–168 tokens) → 12.5s. The lock's
+premise was half wrong in the other direction too — the scraper's prompt already
+constrained skills to a retrieved vocabulary; the free-generation part was the
+35-word `job_summary` sharing the call.
+
+⚠️ **The `auto` provider is unusable on this path.** The first live run returned
+`ruled=0` on all 20 jobs. The ladder picked
+`nvidia/nemotron-3-super-120b-a12b:free`, which writes its reasoning into
+`content`; the derived budget truncates it mid-thought, so not one `|` line is
+ever emitted, `parse_judgment` correctly drops everything, and 20 jobs spend an
+attempt for nothing. A budget sized for the answer assumes a model that emits
+only the answer. Use `--provider local`.
 
 > **Ownership contract, settled in S1 after getting it wrong twice.**
 >
@@ -249,11 +266,82 @@ repaired to 0 mis-filed — 985 to a real family, 248 legitimately NULL. The cou
 was 1,056 when this doc was written and 1,233 by the time it was fixed, because
 S1's backfill wrote 5,287 new families through the same broken function.
 
-**S4 — importance.** `job_skills.evidence_zone`; matcher reads zone + level;
-`is_primary` deleted.
+**S4 — importance. DONE** (`7fc2417e`). Score is
+`sum(required_level * min(user_level/required_level, 1)) / sum(required_level)`.
+One formula in `job_matcher.score_wanted`, called by the batch matcher,
+`on_demand`, feed_warm and the pre-login preview — they previously held three
+copies. Soft skills excluded from both sides.
+⚠️ **`is_primary` is NOT deleted.** Six consumers outside matching still read it
+(gap_plan, skills_refresh, analyse, detail, upskilling, a demand rollup), each
+with its own ordering semantics. That removal is its own slice.
+
+**S4.5 — the forward flow. DONE 2026-08-07.** Not planned; found while scoping
+S5, and S5 cannot be honest without it.
+
+Lock 6's bar reads the must-have zone out of `job_skills.is_primary`. Measured:
+55,958 of 61,280 skilled jobs (**91.3%**) carry only `evidence_source =
+'enrichment'` rows, and `is_primary` is true on **94.2%** of them. It is a
+constant. Read through the bar, Accenture × Banking Services returns every skill
+at 100% must-have — "Ingenuity" and "Global Perspective" included.
+`role_family_market_skills` and `role_family_aspiration_skills` already count
+that constant as demand today.
+
+The constant is written by `apply_job_enrichment`, and would be written again on
+every future scrape:
+
+```sql
+DELETE FROM public.job_skills WHERE job_id = p_job_id;
+INSERT INTO public.job_skills (job_id, skill_id, is_primary, required_level)
+SELECT p_job_id, skill_id, TRUE, required_level FROM _incoming_job_skills
+```
+
+The hard-coded `TRUE` is the constant. The `DELETE` is worse: enrichment runs
+*after* Stage A on a new job, so it destroys the floor's position read and every
+Stage B verdict, then writes the constant over the top — and `has_skill_floor`
+stays true, so Stage A never gets the job back. 20260806b's `IF v_incoming > 0`
+guard only ever covered the empty case.
+
+Shipped (`20260807b_enrichment_stops_owning_skills.sql`):
+
+- **Enrichment keeps only what it alone produces** — `job_summary`,
+  `role_domain`. `job_skills` belongs to Stage A (position) and Stage B (depth).
+  `p_skills` is still accepted and ignored so the deployed worker's signature
+  does not change mid-run.
+- **The terminal condition moved with the ownership.** Asserting a skill row was
+  right while enrichment wrote skills; kept after the split it inverts into the
+  contract's own fault — stamping `not_applicable` because *Stage A* had not run
+  yet. `complete` now asserts what enrichment produced. The floor gap keeps its
+  own owner, the dead-man heartbeat.
+- **`main_skills` derives from `job_skills`** in the trigger that already
+  maintains `role_family`/`has_skill_floor`, zone first, capped at 12. It was
+  enrichment's own list while the matcher read somewhere else — two answers to
+  one question.
+- **`csv_importer._resolve_and_upsert_skills` writes nothing** (drift counting
+  stays). That was the other writer of the constant.
+- **Stage B's rows are named** (`20260807_stage_b_judgment_evidence.sql`):
+  `evidence_source = 'judgment'`, and both lease guards ask for it. They asked
+  for `'enrichment'` — the scraper's own value on 361,165 rows, with no
+  timestamp to separate them. Right by accident at 5 overlapping jobs; wrong the
+  moment ingest writes a scraper row onto a floored job.
+
+**Deliberately NOT done: no backfill.** The 58,181 jobs Stage A has never seen
+keep their constant. Forward-only, by decision.
 
 **S5 — company demand rollup.** Gating skills per (company, role_family) over
 all observed JDs. Surfaces on /companies.
+
+Scope, measured: **1,061 (company, role_family) pairs clear ≥10 observed JDs** —
+146 companies, 42,918 JDs; 808 pairs clear 10 *live*. Lock 6's own numbers (230
+companies at ≥10 observed) counted companies, not company×family pairs.
+
+⚠️ **Read the denominator before trusting a percentage.** Until a job's skills
+carry a zone, its `is_primary` is a constant and its contribution to the bar is
+noise that always votes yes. S5 must compute the share over rows that actually
+carry a document read — `stage_a` and `judgment` — and report the JD count
+behind every number. Sampled on 200 legacy JDs, Stage A grades 43.3% must_have /
+42.1% preferred / 14.5% mentioned, so the zone is real signal where it has run;
+it is bimodal per job (many postings carry no requirements heading at all),
+which is exactly why the ≥10-JD floor exists.
 
 **S6 — seniority validator.** Disagreement flag, no new vote.
 

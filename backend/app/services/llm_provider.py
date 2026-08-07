@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from time import perf_counter
@@ -502,3 +503,68 @@ def get_vision_provider() -> LLMProvider:
             {"models": _VISION_OR_MODELS},
         ))
     return LLMProvider(providers)
+
+
+# Local OpenAI-compatible endpoint (LM Studio, Ollama, llama.cpp). Same default
+# LM Studio ships with, and the same one the scraper's enricher points at.
+_LOCAL_BASE = "http://localhost:1234/v1"
+_LOCAL_DEFAULT_MODEL = "google/gemma-3-4b"
+
+
+LOCAL_BATCH_TIMEOUT_SECONDS = 300.0
+
+
+def get_local_provider(
+    model: str | None = None,
+    base_url: str | None = None,
+    timeout: float | None = None,
+) -> LLMProvider:
+    """A single local model, no fallback ladder. OFFLINE CALLERS ONLY.
+
+    This is deliberately not part of any user-facing lane and has no backstop:
+    if the local endpoint is down the call fails, which is the honest outcome
+    for a batch run and an unacceptable one for a request.
+    [[feedback_no_cheap_models_judgment]] still stands everywhere else — a small
+    model is admissible here only because `skill_judgment` hands it a CLOSED
+    list to mark and drops anything that is not on it, so it cannot invent a
+    skill. Point this at an open-ended prompt and that protection is gone.
+    """
+    resolved = model or os.getenv("LOCAL_INFERENCE_MODEL") or _LOCAL_DEFAULT_MODEL
+    endpoint = base_url or os.getenv("LOCAL_INFERENCE_BASE_URL") or _LOCAL_BASE
+    # `llm_request_timeout_seconds` is 45s because a WEB request that has not
+    # answered in 45s has already failed its user. A local model doing a batch
+    # job is not a web request — at the 1-2 min/job this lane exists to measure,
+    # 45s times out every single call, and the app loop then retries the same
+    # dead deadline twice more. Same web-deadline-on-batch-work fault as
+    # get_supabase_admin_batch.
+    client = AsyncOpenAI(
+        api_key=os.getenv("LOCAL_INFERENCE_API_KEY", "lm-studio"),
+        base_url=endpoint,
+        timeout=timeout or float(os.getenv("LOCAL_INFERENCE_TIMEOUT_SECONDS", LOCAL_BATCH_TIMEOUT_SECONDS)),
+        max_retries=0,
+    )
+    return LLMProvider([(client, resolved, None)])
+
+
+async def local_inference_ready(base_url: str | None = None) -> tuple[bool, str]:
+    """(reachable, detail) for the local endpoint. Never raises.
+
+    Preflight exists so a stopped LM Studio costs two seconds and a sentence,
+    not one timeout per job in silence. The first live run produced no output
+    for minutes because every call was waiting out a 45s deadline three times.
+    """
+    endpoint = base_url or os.getenv("LOCAL_INFERENCE_BASE_URL") or _LOCAL_BASE
+    probe = AsyncOpenAI(
+        api_key=os.getenv("LOCAL_INFERENCE_API_KEY", "lm-studio"),
+        base_url=endpoint,
+        timeout=5.0,
+        max_retries=0,
+    )
+    try:
+        listed = await probe.models.list()
+    except Exception as exc:  # noqa: BLE001 — a probe reports, it does not raise
+        return False, f"{type(exc).__name__}: {exc}"
+    names = [m.id for m in getattr(listed, "data", []) or []]
+    if not names:
+        return False, f"{endpoint} answered but has no model loaded"
+    return True, ", ".join(names[:4])

@@ -47,25 +47,15 @@ def _shape_single_job(
 ) -> dict[str, Any]:
     """Build the get_top_matches-shaped dict for ONE job, bypassing the overlap
     floor (a user may open a job that shares zero CV skills — still brain it).
-    Mirrors job_matcher's weighting via its shared constants so the number can't
-    drift from the batch path."""
-    user_lower = {k.lower() for k in user_skill_map}
-    main: list[str] = []
-    side: list[str] = []
-    for row in job_skill_rows:
-        key = ((row.get("skills") or {}).get("taxonomy_key") or "").strip()
-        if not key:
-            continue
-        (main if row.get("is_primary") else side).append(key)
 
-    matched = [s for s in main + side if s.lower() in user_lower]
-    missing = [s for s in main + side if s.lower() not in user_lower][: job_matcher.MAX_MISSING_SKILLS]
-    max_possible = job_matcher.PRIMARY_WEIGHT * len(main) + job_matcher.SECONDARY_WEIGHT * len(side)
-    hit = (
-        job_matcher.PRIMARY_WEIGHT * len([s for s in main if s.lower() in user_lower])
-        + job_matcher.SECONDARY_WEIGHT * len([s for s in side if s.lower() in user_lower])
-    )
-    overlap = round(hit / max_possible * 100, 1) if max_possible else 0.0
+    Calls job_matcher's scoring rather than reimplementing it. This used to
+    mirror the weight constants with a comment hoping the number would not
+    drift from the batch path; a shared function is what makes that true.
+    """
+    user_lower = {k.lower(): v for k, v in user_skill_map.items()}
+    wanted = job_matcher.wanted_skills(job_skill_rows)
+    overlap, matched, missing = job_matcher.score_wanted(wanted, user_lower)
+    missing = missing[: job_matcher.MAX_MISSING_SKILLS]
     return {
         "job_id": str(meta["job_id"]),
         "title": meta.get("job_title") or "",
