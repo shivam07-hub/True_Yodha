@@ -450,6 +450,24 @@ Endpoints never write to `cv_versions` directly. If a new flow needs to create a
 
 ---
 
+## CV Structured Contract
+
+`cv_versions.cv_structured` has exactly seven keys — `contact`, `summary`, `education`, `experience`, `projects`, `skills_line`, `certs` — defined once in `app/services/cv_structured_shape.py` and shared by the response model, the parser and the repository. A payload is **absent or complete. Never half.**
+
+Three rules, in the order a payload meets them:
+
+- **Read — normalize.** `CVVersionsRepository` normalizes `cv_structured` on the way out (`latest_baseline`, `find`, `find_by_content_hash`, `find_master_revision`), so no reader can fail on the shape of what an earlier writer left behind. Structural only: fill missing sections, coerce types, **never alter content** — trimming and the 300-char bullet cap are ingest hygiene (`coerce_sections(ingest=True)`), and applying them on read would silently shorten a bullet the user typed.
+- **"Do we have a CV?" — `has_content`, not truthiness.** Everything is truthy after normalization, and a payload holding only `contact` is an identity header, not a CV. `has_content` is what the 409 gates in weave / merge / skill-edit / gap-plan / reservoir ask.
+- **Write — reject a partial.** `create`, `update_structured` and `update_master` refuse a payload missing any contract key. `{}` / NULL stays legal: it means "not parsed yet", and `get_or_backfill_cv_structured` rebuilds it from `body_text` on first read.
+
+Why normalization lives on read and not only on write: the incident that produced this contract came from an **offline repair script writing to the table directly**. A guarantee that binds only callers who went through the repository is not a guarantee. Migrations, admin updates and scripts are all upstream of the write seam and downstream of the read one.
+
+`body_text` is the recovery source of truth — never sanitized, always rebuildable-from. A failed rebuild returns 503 rather than an empty CV, because an empty editor is one autosave away from overwriting `body_text` with a rendering of that emptiness.
+
+Pinned by `tests/test_cv_structured_read_never_fails.py` and `tests/test_cv_structured_contract.py`.
+
+---
+
 ## Career Story Reservoir
 
 The consolidation spine of the CV knowledge/inflow layer (migration `20260711h`): the user gives a DUMP — old CVs, pointer docs, a LinkedIn export zip, pasted notes — and Myro builds a comprehensive career profile from it. Three entities:

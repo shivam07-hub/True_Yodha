@@ -108,13 +108,28 @@ def test_compose_projection_shapes_cv():
     text = {"s1": "Did the big thing, measured by 30%.", "s2": "Won the case comp.", "s3": "Ranked 3/1500."}
     cv = cp.compose_projection(baseline, roles, included, text)
     assert cv["experience"] == [{
-        "role": "Sales Manager", "company": "Capgemini", "dates": "2025–",
+        "role": "Sales Manager", "company": "Capgemini", "dates": "2025–", "location": "",
         "bullets": ["Did the big thing, measured by 30%."],
     }]
     names = [p["name"] for p in cv["projects"]]
     assert "MBA — IIM Lucknow" in names and "Story s3" in names
     assert cv["summary"] == "Summary text" and cv["certs"] == ["Cert A"]
     assert "old bullet" not in str(cv["experience"])
+
+
+def test_projection_emits_the_whole_contract_even_when_sections_are_empty():
+    """A projection is a storable CV, so it carries every section — empty ones
+    included. Dropping empty keys made a payload that reads as present and fails
+    every reader that validates the full shape."""
+    baseline = {"contact": {"name": "Shivam"}}
+    roles = [{"id": "A", "kind": "work", "title": "BDM", "company": "Cap"}]
+    cv = cp.compose_projection(baseline, roles, [_story("s1", role_id="A")], {"s1": "Shipped it."})
+
+    assert set(cv) == {
+        "contact", "summary", "education", "experience", "projects", "skills_line", "certs",
+    }
+    assert cv["education"] == [] and cv["certs"] == [] and cv["summary"] is None
+    assert cv["contact"]["name"] == "Shivam"
 
 
 # ── guarded reword ──────────────────────────────────────────────────────────────

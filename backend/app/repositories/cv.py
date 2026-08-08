@@ -17,6 +17,7 @@ from supabase import Client
 
 from app.deps import get_user_db
 from app.security.personal_data import contains_redaction_token
+from app.services.cv_structured_shape import CONTRACT_KEYS, normalize_structured
 from app.services.job_history import attach_jobs
 
 logger = logging.getLogger("myro.cv_repo")
@@ -88,7 +89,8 @@ class CVVersionsRepository:
             .order("user_version_number", desc=True)
             .execute()
         )
-        return attach_jobs(result.data or [], self._db, "job_title, company_name")
+        rows = [self._normalized(r) for r in (result.data or [])]
+        return attach_jobs(rows, self._db, "job_title, company_name")
 
     def list_thread_for_job(self, user_id: str, job_id: str) -> list[dict[str, Any]]:
         """Baselines + the Company CV Thread for `job_id`'s company.
@@ -129,7 +131,10 @@ class CVVersionsRepository:
             .in_("job_id", scoped_job_ids)
             .execute()
         ).data or []
-        rows = attach_jobs([*baselines, *variants], self._db, "job_title, company_name")
+        rows = attach_jobs(
+            [self._normalized(r) for r in (*baselines, *variants)],
+            self._db, "job_title, company_name",
+        )
         return sorted(
             rows,
             key=lambda row: int(row.get("user_version_number") or 0),
@@ -164,6 +169,7 @@ class CVVersionsRepository:
         row = (result.data or [None])[0]
         if not row:
             return None
+        row = self._normalized(row)
         attach_jobs([row], self._db, "job_title, company_name")
         return row
 
@@ -190,6 +196,7 @@ class CVVersionsRepository:
             .order("user_version_number", desc=True)
             .execute()
         ).data or []
+        rows = [self._normalized(r) for r in rows]
         attach_jobs(rows, self._db, "job_title, company_name")
 
         latest_per_company: dict[str, dict[str, Any]] = {}
@@ -247,7 +254,38 @@ class CVVersionsRepository:
             .limit(1)
             .execute()
         )
-        return result.data[0] if result.data else None
+        return self._normalized(result.data[0]) if result.data else None
+
+    @staticmethod
+    def _normalized(row: dict[str, Any]) -> dict[str, Any]:
+        """Hand out `cv_structured` in the full contract shape, always.
+
+        The write seams below refuse a partial payload, but they are not the only
+        way a row is written: the incident that motivated this was an offline
+        repair script talking to the table directly, and migrations and admin
+        updates can do the same. A guarantee that only holds for callers who went
+        through the repository is not a guarantee — so the shape is settled here,
+        on the way out, where every reader is downstream of it.
+
+        `{}` stays `{}`. Absent is a real state (the read path rebuilds it from
+        `body_text`); inventing a hollow CV would hide that. Readers asking "does
+        this user have a usable CV?" want `cv_structured_shape.has_content`, not
+        truthiness — normalization makes every present payload truthy.
+        """
+        if not row:
+            return row
+        stored = row.get("cv_structured")
+        if not stored:
+            return row
+        normalized = normalize_structured(stored)
+        if normalized is None or normalized == stored:
+            return row
+        if stored.keys() != CONTRACT_KEYS:
+            logger.warning(
+                "metric cv.structured_shape_normalized version_id=%s stored_keys=%d",
+                row.get("id"), len(stored),
+            )
+        return {**row, "cv_structured": normalized}
 
     # ── Experience Reservoir (v2) — cv_points ─────────────────────────────────
 
@@ -320,7 +358,7 @@ class CVVersionsRepository:
             .limit(1)
             .execute()
         )
-        return result.data[0] if result.data else None
+        return self._normalized(result.data[0]) if result.data else None
 
     def find_by_content_hash(
         self, user_id: str, content_hash: str
@@ -336,7 +374,7 @@ class CVVersionsRepository:
             .limit(1)
             .execute()
         )
-        return result.data[0] if result.data else None
+        return self._normalized(result.data[0]) if result.data else None
 
     def next_user_version_number(self, user_id: str) -> int:
         result = (
@@ -378,6 +416,7 @@ class CVVersionsRepository:
         from legacy data without one. Repository-level setter, not a general update.
         """
         self._reject_redaction_tokens(cv_structured)
+        self._reject_partial_structured(cv_structured, seam="cv_versions.update_structured")
         self._db.table("cv_versions").update(
             {"cv_structured": cv_structured}
         ).eq("id", version_id).execute()
@@ -555,7 +594,7 @@ class CVVersionsRepository:
             .limit(1)
             .execute()
         )
-        return result.data[0] if result.data else None
+        return self._normalized(result.data[0]) if result.data else None
 
     def update_master(
         self,
@@ -574,6 +613,9 @@ class CVVersionsRepository:
 
         Returns the updated master row. Raises 404 if no baseline exists yet.
         """
+        self._reject_redaction_tokens(cv_structured, body_text)
+        self._reject_partial_structured(cv_structured, seam="cv_versions.update_master")
+
         master = self.latest_baseline(user_id)
         if master is None:
             raise HTTPException(
@@ -628,6 +670,7 @@ class CVVersionsRepository:
         """
         self._validate_kind_job_id(spec)
         self._reject_redaction_tokens(spec.cv_structured, spec.body_text, spec.polished_text)
+        self._reject_partial_structured(spec.cv_structured, seam="cv_versions.create")
 
         parent_row: dict[str, Any] | None = None
         baseline_version_id: int | None = None
@@ -700,6 +743,33 @@ class CVVersionsRepository:
         """
         if any(contains_redaction_token(value) for value in values):
             logger.error("metric cv.redaction_token_blocked seam=cv_versions.create")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Could not save your CV.",
+            )
+
+    @staticmethod
+    def _reject_partial_structured(cv_structured: Any, *, seam: str) -> None:
+        """A stored `cv_structured` is either absent or complete. Never half.
+
+        `{}` / NULL is a supported state: the read path rebuilds it from
+        `body_text` on first access. A payload holding SOME of the contract is
+        not — it is truthy enough to satisfy every "do we have one?" check and
+        short of what every reader needs, so it reads as present and behaves as
+        broken. That is exactly how `{"contact": {...}}` rows reached production:
+        a repair script filled one key on rows whose payload was NULL, converting
+        a self-healing state into a permanent 500 on the CV page and the download.
+
+        Cheap assertion, whole class of defect. The read side of the same rule is
+        pinned in `tests/test_cv_structured_read_never_fails.py`.
+        """
+        if not isinstance(cv_structured, dict) or not cv_structured:
+            return
+        missing = sorted(CONTRACT_KEYS - cv_structured.keys())
+        if missing:
+            logger.error(
+                "metric cv.partial_structured_blocked seam=%s missing=%s", seam, ",".join(missing)
+            )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Could not save your CV.",

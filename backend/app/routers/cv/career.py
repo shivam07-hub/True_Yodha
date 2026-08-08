@@ -30,6 +30,7 @@ from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.services import career_projection, career_reservoir, cv_compose, jd_coverage, role_dedup
 from app.services.llm_provider import get_blocking_judgment_provider
 from app.services.connections_import import looks_like_connections_csv, parse_connections_csv
+from app.services.cv_structured_shape import has_content
 from app.services.reservoir_intake import (
     MAX_FILE_BYTES,
     extract_file_text,
@@ -331,7 +332,7 @@ async def project_reservoir(
     jobs_repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> ProjectResponse:
     baseline = cv_repo.latest_baseline(user.id)
-    if not baseline or not (baseline.get("cv_structured") or {}):
+    if not baseline or not has_content(baseline.get("cv_structured")):
         raise HTTPException(status.HTTP_409_CONFLICT, "Upload a CV first.")
 
     rows = jobs_repo.get_jobs_by_ids([body.job_id])

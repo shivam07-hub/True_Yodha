@@ -26,7 +26,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from app.services import embeddings, project_rewrite
+from app.services import cv_parser, embeddings, project_rewrite
 from app.services.career_reservoir import cosine
 
 logger = logging.getLogger("myro.career_projection")
@@ -192,7 +192,11 @@ def compose_projection(
         if text:
             projects.append({"name": s.get("title") or "", "bullets": [text]})
 
-    cv = {
+    # Every section is emitted, empty ones included. Dropping empty keys here
+    # produced a partial payload that any reader validating the full contract
+    # 500s on — the same shape that killed six users' CV page. Absent and empty
+    # are not the same fact, and only one of them is storable.
+    return cv_parser.normalize_structured({
         "contact": baseline_cv.get("contact") or {},
         "summary": baseline_cv.get("summary"),
         "experience": experience,
@@ -200,8 +204,7 @@ def compose_projection(
         "education": baseline_cv.get("education") or [],
         "skills_line": baseline_cv.get("skills_line"),
         "certs": baseline_cv.get("certs") or [],
-    }
-    return {k: v for k, v in cv.items() if v not in (None, "", [])}
+    })
 
 
 # ── orchestration ────────────────────────────────────────────────────────────

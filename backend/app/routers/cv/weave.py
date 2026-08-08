@@ -34,6 +34,7 @@ from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.security import redact_sensitive_text
 from app.services import career_reservoir, cv_compose, cv_weave, cv_weave_interview, jd_coverage, xp_policy, xp_service
 from app.services.llm_provider import get_blocking_judgment_provider
+from app.services.cv_structured_shape import has_content
 
 router = APIRouter()
 
@@ -152,7 +153,7 @@ def _job_or_404(jobs_repo: JobsRepository, job_id: str) -> dict:
 
 def _baseline_or_409(cv_repo: CVVersionsRepository, user_id: str) -> dict:
     baseline = cv_repo.latest_baseline(user_id)
-    if not baseline or not (baseline.get("cv_structured") or {}):
+    if not baseline or not has_content(baseline.get("cv_structured")):
         raise HTTPException(status.HTTP_409_CONFLICT, "Upload a CV first.")
     return baseline
 

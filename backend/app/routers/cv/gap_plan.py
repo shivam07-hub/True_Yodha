@@ -18,6 +18,7 @@ from app.repositories.cv import CVVersionsRepository, get_token_cv_repository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.services import cv_skill_edit, gap_planner
 from app.services.llm_provider import LLMProviderError, get_interactive_provider
+from app.services.cv_structured_shape import has_content
 
 router = APIRouter()
 
@@ -100,7 +101,7 @@ async def gap_plan(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Job not found")
 
     baseline = cv_repo.latest_baseline(user_id)
-    if baseline is None or not (baseline.get("cv_structured") or {}):
+    if baseline is None or not has_content(baseline.get("cv_structured")):
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             "Upload a CV with structured content first to plan gap fixes.",

@@ -35,6 +35,16 @@ from difflib import get_close_matches
 from functools import lru_cache
 
 from app.services.cv_contact import parse_contact
+# Re-exported: `cv_parser.normalize_structured` / `.has_content` are the names the
+# rest of the codebase already reaches for. The definitions live in a leaf module
+# so the repository layer can import the contract without importing the parser.
+from app.services.cv_structured_shape import (  # noqa: F401
+    BLANK_CONTACT,
+    CONTRACT_KEYS,
+    coerce_sections,
+    has_content,
+    normalize_structured,
+)
 from app.services.cv_explicit_skills import extract_explicit_skills, reconcile_skill_signals
 from app.security.personal_data import sanitize_cv_text_for_ai
 from app.services.llm_provider import LLMProvider, LLMProviderError, get_llm_provider
@@ -300,67 +310,18 @@ def _parse_llm_json(text: str) -> tuple[list[dict] | None, dict | None]:
 
 
 def _validate_structured(raw: dict) -> dict | None:
-    """Coerce LLM structured payload into a stable shape. Drops keys that don't fit."""
+    """Coerce an LLM structured payload into the contract, with a blank contact.
+
+    `contact` is NOT taken from the model. The header is stripped before the
+    prompt is built, so anything the model returns there is a hallucination or —
+    as shipped for two weeks — the redaction placeholder itself. Callers holding
+    the raw text fill it via `attach_contact`.
+    """
     if not isinstance(raw, dict):
         return None
-
-    def _list_of_dicts(v) -> list[dict]:
-        return [x for x in v if isinstance(x, dict)] if isinstance(v, list) else []
-
-    def _list_of_strs(v) -> list[str]:
-        return [str(x).strip() for x in v if isinstance(x, (str, int, float)) and str(x).strip()] if isinstance(v, list) else []
-
-    education = []
-    for row in _list_of_dicts(raw.get("education")):
-        education.append({
-            "institution": str(row.get("institution") or "").strip(),
-            "degree":      str(row.get("degree") or "").strip(),
-            "dates":       str(row.get("dates") or "").strip(),
-            "grade":       str(row.get("grade") or "").strip(),
-            "location":    str(row.get("location") or "").strip(),
-        })
-
-    experience = []
-    for row in _list_of_dicts(raw.get("experience")):
-        bullets = _list_of_strs(row.get("bullets"))
-        experience.append({
-            "company":  str(row.get("company") or "").strip(),
-            "role":     str(row.get("role") or "").strip(),
-            "dates":    str(row.get("dates") or "").strip(),
-            "location": str(row.get("location") or "").strip(),
-            "bullets":  [b[:300] for b in bullets],
-        })
-
-    projects = []
-    for row in _list_of_dicts(raw.get("projects")):
-        bullets = _list_of_strs(row.get("bullets"))
-        projects.append({
-            "name":    str(row.get("name") or "").strip(),
-            "dates":   str(row.get("dates") or "").strip(),
-            "bullets": [b[:300] for b in bullets],
-        })
-
-    # `contact` is NOT taken from the model. The header is stripped before the
-    # prompt is built, so anything the model returns here is a hallucination or —
-    # as shipped for two weeks — the redaction placeholder itself. Callers with
-    # the raw text overwrite this via `attach_contact`.
-    contact = {"name": "", "title": "", "email": "", "phone": "", "location": "", "linkedin": ""}
-
-    summary = raw.get("summary")
-    summary = str(summary).strip() if isinstance(summary, str) and summary.strip() else None
-
-    skills_line = raw.get("skills_line")
-    skills_line = str(skills_line).strip() if isinstance(skills_line, str) and skills_line.strip() else None
-
-    return {
-        "contact":     contact,
-        "summary":     summary,
-        "education":   education,
-        "experience":  experience,
-        "projects":    projects,
-        "skills_line": skills_line,
-        "certs":       _list_of_strs(raw.get("certs")),
-    }
+    out = coerce_sections(raw, ingest=True)
+    out["contact"] = dict(BLANK_CONTACT)
+    return out
 
 
 # ── Validation / Lightcast mapping ────────────────────────────────────────────

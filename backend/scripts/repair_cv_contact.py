@@ -79,6 +79,16 @@ def main() -> int:
                 skipped_no_text += 1
 
             structured = dict(row.get("cv_structured") or {})
+            if not structured:
+                # A row with NO structured payload is not missing a contact — it is
+                # waiting to be rebuilt from body_text on first read, and that
+                # rebuild derives the contact itself. Writing `contact` alone here
+                # turns a self-healing NULL into `{"contact": {...}}`: truthy, so
+                # the rebuild is skipped, and short of the contract, so every read
+                # 500s. That is exactly what this script did to six rows.
+                logger.info("row %-7s skip — no structured payload; the read path rebuilds it", row["id"])
+                unchanged += 1
+                continue
             structured["contact"] = contact
 
             if contains_redaction_token(structured):
@@ -143,6 +153,8 @@ def _inherit_pass(db, *, apply: bool) -> int:
         if not source:
             continue
         structured = dict(row.get("cv_structured") or {})
+        if not structured:
+            continue  # same rule as the parse pass — never create a contact-only row
         structured["contact"] = dict(source)
         logger.info("row %-7s %s inherit -> name=%r", row["id"], "APPLY" if apply else "dry ", source.get("name"))
         if apply:
