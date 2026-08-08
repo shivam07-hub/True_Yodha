@@ -494,18 +494,62 @@ client whose connection pool starts empty.
   time, then reasoning from payload size that it probably did not. The
   instrumentation settled it; the first guess was right and the second was
   wrong. Neither guess was worth acting on.)*
-- **`cv.evidence` shows contention, not a slow query.** Across samples, whichever
-  section is slowest changes every time — `baseline`, `skill_sources`,
-  `next_version_number`, `current_score`, `milestones` all take turns at
-  ~420-480ms while the other five sit at ~160-175ms. Trivial queries
-  (`get_current_score`, `next_version_number`) cannot cost 430ms of query time.
-  ~165ms is this path's per-round-trip floor; the ~430ms outlier is most likely
-  connection establishment, since `get_supabase()` is **not** `lru_cache`d while
-  both admin clients are — every authed request builds a client whose httpx pool
-  starts empty, so a 6-way fan-out opens 6 fresh TLS connections to Supabase.
-  Unproven but cheap to test: add the cache, re-read `fanout.slow`, see whether
-  the outliers collapse toward the floor. This affects EVERY authed fan-out, not
-  one endpoint.
+- **`cv.evidence` contention — ✅ FIXED (shared transport), ⚠️ effect not yet
+  re-measured.** Whichever section was slowest changed every sample —
+  `baseline`, `skill_sources`, `next_version_number`, `current_score`,
+  `milestones` all taking turns at ~420-480ms while the other five sat at
+  ~160-175ms. Trivial reads cannot cost 430ms of query time; ~165ms is this
+  path's one-round-trip floor. Cause: every authed request built a client whose
+  httpx pool started empty, so a 6-way fan-out opened six fresh TLS connections.
+  Fixed by sharing ONE `_RetryingHTTPTransport` (the pool) across clients.
+  **The obvious version of this fix — `@lru_cache` on `get_supabase()` — is a
+  cross-user data leak** and was nearly shipped: `get_supabase_for_token`
+  mutates the client via `.auth(token)`, so a shared client shares one
+  Authorization header and RLS returns another user's rows. Verified
+  empirically, then fenced by `test_database_client_isolation.py`.
+  **Owed:** re-read `metric fanout.slow` after this deploys and confirm the
+  ~430ms outliers collapse toward ~165ms. If they do not, the diagnosis was
+  wrong and the transport change is not the fix — say so rather than assuming.
+- **Three DB-side items are specified but NOT applied.** The Supabase MCP
+  connection dropped mid-session, so these could not be run or verified. Each is
+  written out so the next session executes rather than re-derives — but **none
+  is safe to apply blind.** Run the check first, in order:
+
+  1. **Backfill `last_match_run_at`** (289 of 479 profiles are null, forcing the
+     legacy `MAX(user_job_matches.computed_at)` fallback — a third hop inside
+     `count_for_user` for ~60% of users). Removes one hop with no code change:
+     ```sql
+     update user_profiles p set last_match_run_at = m.latest
+     from (select user_id, max(computed_at) as latest
+             from user_job_matches group by user_id) m
+     where m.user_id = p.id and p.last_match_run_at is null;
+     ```
+     Additive, reversible (the column is only read as a baseline marker).
+
+  2. **`count_for_user` → one RPC.** Measured the slowest wave member in 11 of
+     12 samples (median 710ms vs `raw_stack` 345ms). Collapsing its 2-3
+     dependent hops should make the wave `raw_stack`-bound. **Two-step, and the
+     order matters:** apply the migration FIRST, verify the function exists,
+     THEN ship the code that calls it. Shipping the caller against a missing
+     RPC 500s every dashboard load on merge to `main`.
+
+  3. **Dropping the interim search indexes — DO NOT do this blind.** The four
+     per-column trigram indexes (`idx_jobs_job_title_trgm_all`,
+     `_location_city_`, `_location_country_`, `_role_domain_`) were interim for
+     the old `.or_()` search, and prod is now confirmed on the RPC/matview path
+     (`q=engineer` 645ms, no 503s). *But* `repositories/scores.py:290` also runs
+     `job_title ILIKE`, so `idx_jobs_job_title_trgm_all` may still be
+     load-bearing for a different caller. Check usage before dropping anything:
+     ```sql
+     select indexrelname, idx_scan, pg_size_pretty(pg_relation_size(indexrelid))
+       from pg_stat_user_indexes where relname = 'jobs'
+        and indexrelname like '%trgm%' order by idx_scan;
+     ```
+     Only `idx_scan = 0` indexes are safe. The two long-dead ones
+     (`idx_jobs_company_name_trgm` partial-predicate, `idx_jobs_job_title_trgm`
+     on `coalesce(...)`) the planner has never been able to use are the safest
+     candidates.
+
 - **The truncated-JD fetch path is unverified in a browser** — API-level only.
   Needs an authed account holding a collection card with a >600-char JD.
 - **The 12 → 40 cap is unverified under real concurrent load.** Reasoned from
