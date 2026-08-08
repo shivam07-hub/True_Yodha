@@ -82,7 +82,7 @@ worker. A test upload on dev writes to production data. Full map: [INFRA.md](INF
 | Locked decisions + data model | [DECISIONS.md](DECISIONS.md) |
 | Servers, domains, env, DNS, deploy order | [INFRA.md](INFRA.md) |
 | Open work, in full | [BACKLOG.md](BACKLOG.md) |
-| How a read is allowed to cost | [ARCHITECTURE_READ_PATH.md](ARCHITECTURE_READ_PATH.md) |
+| A read's cost budget · how to diagnose one | [ARCHITECTURE_READ_PATH.md](ARCHITECTURE_READ_PATH.md) · [READ_PATH_PLAYBOOK.md](READ_PATH_PLAYBOOK.md) |
 | Closed work, past sessions, history | [ARCHIVE.md](ARCHIVE.md) |
 | Domain language and code seams | [CONTEXT.md](CONTEXT.md) |
 | Architecture map of the code | `graphify-out/GRAPH_REPORT_frontend.md` |
@@ -92,9 +92,10 @@ worker. A test upload on dev writes to production data. Full map: [INFRA.md](INF
 suffix is the codebase. The unsuffixed `GRAPH_REPORT.md` is a separate docs and
 feedback corpus — reading it to understand the code will mislead you.
 
-⚠️ **`/docs` is in `.gitignore`.** Files already tracked there survive, but a NEW
-file under `docs/` is invisible to every other machine and agent. Put new docs at
-the repo root. This has already lost work once.
+⚠️ **`/docs` AND `.claude/` are in `.gitignore`** — a NEW file under either is
+invisible to every other machine and agent. Put new docs at the repo root.
+**Zero skills are tracked:** a skill is a local shortcut, never a place to keep
+knowledge. Method goes in the repo; the skill points at it.
 
 ---
 
