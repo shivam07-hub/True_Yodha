@@ -71,6 +71,20 @@ class _FakeDB:
         return _Query(name, self._sink)
 
 
+def _structured(summary: str) -> dict:
+    """A full contract payload. `update_master` rejects a partial one — a half-written
+    `cv_structured` is what left six users' CV page 500ing on every load."""
+    return {
+        "contact": {"name": "", "title": "", "email": "", "phone": "", "location": "", "linkedin": ""},
+        "summary": summary,
+        "education": [],
+        "experience": [],
+        "projects": [],
+        "skills_line": None,
+        "certs": [],
+    }
+
+
 def test_update_master_snapshots_then_mutates() -> None:
     sink = {
         "master": {
@@ -79,7 +93,7 @@ def test_update_master_snapshots_then_mutates() -> None:
             "kind": "baseline_upload",
             "user_version_number": 7,
             "body_text": "old body",
-            "cv_structured": {"summary": "old"},
+            "cv_structured": _structured("old"),
             "snapshot_hash": "oldhash",
         },
         "revisions": [{"revision_number": 2}],  # → next is 3
@@ -89,7 +103,7 @@ def test_update_master_snapshots_then_mutates() -> None:
     updated = repo.update_master(
         "u1",
         body_text="new body",
-        cv_structured={"summary": "new"},
+        cv_structured=_structured("new"),
         snapshot_hash="newhash",
     )
 
@@ -98,12 +112,12 @@ def test_update_master_snapshots_then_mutates() -> None:
     assert snap["master_version_id"] == 42
     assert snap["revision_number"] == 3
     assert snap["body_text"] == "old body"
-    assert snap["cv_structured"] == {"summary": "old"}
+    assert snap["cv_structured"] == _structured("old")
 
     # 2. Master mutated in place + recompute reset for the shimmer.
     upd = sink["update_payload"]
     assert upd["body_text"] == "new body"
-    assert upd["cv_structured"] == {"summary": "new"}
+    assert upd["cv_structured"] == _structured("new")
     assert upd["recompute_finished_at"] is None
     assert upd["confidence_label"] == "user-edited"
     assert updated["id"] == 42

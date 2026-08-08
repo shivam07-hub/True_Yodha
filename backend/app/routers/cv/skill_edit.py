@@ -33,6 +33,7 @@ from app.repositories.cv import (
 from app.repositories.scores import ScoresRepository, get_token_scores_repository
 from app.services import background, cv_compose, cv_rewrite, cv_skill_edit, progress_stream, text_stream
 from app.services.llm_provider import get_writer_provider
+from app.services.cv_structured_shape import has_content
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +153,7 @@ def skill_edit(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Upload a baseline CV first.")
 
     structured: dict = baseline.get("cv_structured") or {}
-    if not structured:
+    if not has_content(structured):
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             "Baseline CV has no structured payload — re-upload the CV to enable inline edits.",
@@ -392,7 +393,7 @@ def rewrite_bullet_apply(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Upload a baseline CV first.")
 
     structured: dict = baseline.get("cv_structured") or {}
-    if not structured:
+    if not has_content(structured):
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             "Baseline CV has no structured payload — re-upload the CV to enable edits.",

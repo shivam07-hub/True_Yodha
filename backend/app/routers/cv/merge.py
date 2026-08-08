@@ -18,6 +18,7 @@ from app.repositories.cv import CVVersionWriteSpec, CVVersionsRepository, get_to
 from app.repositories.scores import ScoresRepository, get_token_scores_repository
 from app.services import background, cv_compose, cv_merge, cv_skill_edit
 from app.routers.cv.skill_edit import SkillEditCandidate, SkillEditConflictDetail, SkillEditResponse
+from app.services.cv_structured_shape import has_content
 
 router = APIRouter()
 
@@ -96,7 +97,7 @@ def merge_bullet_apply(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Upload a baseline CV first.")
 
     structured: dict = baseline.get("cv_structured") or {}
-    if not structured:
+    if not has_content(structured):
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             "Baseline CV has no structured payload — re-upload the CV to enable edits.",
