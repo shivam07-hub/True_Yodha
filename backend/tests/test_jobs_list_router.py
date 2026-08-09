@@ -6,6 +6,8 @@ from fastapi import HTTPException
 
 from app.repositories import jobs as jobs_module
 from app.repositories.jobs import CompanySearchUnavailable, JobsRepository, MarketAnalyticsCompiler
+from app.services import shared_cache
+from app.services.background import debounce
 from app.routers.jobs.list import (
     get_market_analytics,
     list_top_companies_at,
@@ -359,8 +361,15 @@ def test_search_companies_returns_503_when_repository_unavailable() -> None:
         raise AssertionError("expected HTTPException")
 
 
+def _clear_feed_ts_cache() -> None:
+    """The feed marker lives in shared_cache now (one answer per platform, not
+    one per process). No Redis in tests → the local fallback dict is the store."""
+    shared_cache._LOCAL_CACHE.pop("jobs.feed_updated_at", None)
+    debounce._LOCAL_CLAIMS.clear()
+
+
 def test_get_feed_updated_at_uses_last_seen_date() -> None:
-    jobs_module._feed_ts_cache = (0.0, None)
+    _clear_feed_ts_cache()
     db = _SearchFakeDB({
         "jobs": [
             {"last_seen": 20260519},
@@ -371,17 +380,16 @@ def test_get_feed_updated_at_uses_last_seen_date() -> None:
     assert JobsRepository(db).get_feed_updated_at() == "2026-05-20"
 
 
-def test_get_feed_updated_at_refreshes_when_cache_timestamp_is_zero(monkeypatch) -> None:
-    jobs_module._feed_ts_cache = (0.0, None)
-    monkeypatch.setattr(jobs_module.time, "monotonic", lambda: 10.0)
-    db = _SearchFakeDB({
-        "jobs": [
-            {"last_seen": 20260519},
-            {"last_seen": 20260520},
-        ]
-    })
+def test_get_feed_updated_at_survives_a_failing_read() -> None:
+    """A missing feed stamp costs a "last updated" line, never the response —
+    the property the old per-process version had, kept through the migration."""
+    _clear_feed_ts_cache()
 
-    assert JobsRepository(db).get_feed_updated_at() == "2026-05-20"
+    class _Boom:
+        def table(self, *_args, **_kwargs):
+            raise RuntimeError("postgrest down")
+
+    assert JobsRepository(_Boom()).get_feed_updated_at() is None
 
 
 def _make_search_db(num_acme_jobs: int = 3) -> "_SearchFakeDB":

@@ -19,11 +19,16 @@ PROGRESS_LABELS: dict[RefreshLifecycle, str] = {
 
 @dataclass(frozen=True)
 class RefreshTicket:
-    """Result of `JobRefresh.start`. XP already charged at this point."""
+    """Result of `JobRefresh.start`.
+
+    `new_coin_balance` is None when the run was free — a Myro-initiated run
+    charges nothing, so there is no new balance to report and the client keeps
+    the number it already has. Same contract as `RefreshState` below.
+    """
     id: str
     state: Literal["queued", "computing", "done"]
     xp_charged: int
-    new_coin_balance: int
+    new_coin_balance: int | None
     batch_week: date
     progress_label: str
     matches_written: int | None = None

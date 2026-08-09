@@ -31,7 +31,6 @@ from app.schemas.diary import (
 )
 from app.schemas.xp import (
     XPBalanceResponse,
-    XPSpendRequest,
 )
 from app.schemas.jobs import (
     APPLICATION_STAGES,
@@ -140,7 +139,7 @@ __all__ = [
     "CVUploadStatusResponse", "CVEvidenceSummaryResponse",
     "CartSkillSnapshot", "DiaryEntryRequest", "DiaryEntryResponse", "DiaryHistoryResponse",
     "MilestoneRequest", "MilestoneResponse", "MilestoneListResponse", "SkillDeltaItem",
-    "XPBalanceResponse", "XPSpendRequest",
+    "XPBalanceResponse",
     "APPLICATION_STAGES", "APPLICATION_OUTCOMES", "APPLICATION_STATUSES",
     "JobMatchResponse", "JobMatchesResponse", "MatchEval",
     "AgentPickItem", "AgentPicksResponse",

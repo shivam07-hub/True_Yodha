@@ -558,7 +558,7 @@ export const users = {
       headers: { Authorization: `Bearer ${token}` },
     }),
   followCompany: (token: string, companyName: string) =>
-    request<{ company_name: string; new_coin_balance: number | null }>("/users/me/following/companies", {
+    request<{ company_name: string }>("/users/me/following/companies", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({ company_name: companyName }),
@@ -2909,7 +2909,8 @@ export interface RefreshTicketResponse {
   progress_label: string
   batch_week: string
   xp_charged: number
-  new_coin_balance: number
+  /** null when the run was free — no charge, so no new balance. Keep yours. */
+  new_coin_balance: number | null
   matches_written: number | null
 }
 
@@ -4097,11 +4098,6 @@ export const jobs = {
     }
     return res.json()
   },
-  analyseJob: (token: string, jobId: string) =>
-    request<{ job_id: string; overlap_score: number; matched_count: number; total_skills: number; new_coin_balance: number }>(
-      `/jobs/analyse/${jobId}`,
-      { method: "POST", headers: { Authorization: `Bearer ${token}` } },
-    ),
   /** SSE stream path for the streamed why-fit. Fed to useStreamingText.start(). */
   analyseStreamPath: (jobId: string) => `/jobs/analyse/${jobId}/stream`,
   /** SSE stream path for an XP-gated deepener (Q8). prompt_key ∈ DEEPEN_KEYS. */
@@ -4479,17 +4475,12 @@ export interface XPBalanceResponse {
   balance: number
 }
 
+/** Read-only. Coins are charged by the surface that did the paid work, after it
+ *  landed — there is no client-driven spend. See CONTEXT.md "Coin balance". */
 export const xp = {
   balance: (token: string) =>
     request<XPBalanceResponse>("/users/me/xp", {
       headers: { Authorization: `Bearer ${token}` },
-    }),
-
-  spend: (token: string, amount: number, action: string) =>
-    request<XPBalanceResponse>("/users/me/xp/spend", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ amount, action }),
     }),
 }
 
@@ -5169,7 +5160,6 @@ export interface SubmitSetResponse {
   passed: boolean
   first_clear: boolean
   tokens_awarded: number
-  new_coin_balance: number
   next_level_unlocked: number | null
   results: QuestionResult[]
 }

@@ -10,7 +10,6 @@ from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.services import text_stream, xp_service
 from app.services.llm_provider import (
     LLMProvider,
-    LLMProviderError,
     get_blocking_judgment_provider,
 )
 from app.routers.jobs._shared import last_monday
@@ -128,66 +127,6 @@ async def fit_batch(
             total_skills=total_skills,
         ))
     return FitBatchResponse(fits=fits)
-
-
-@router.post("/analyse/{job_id}", status_code=status.HTTP_201_CREATED)
-async def analyse_job(
-    job_id: str,
-    principal: Principal = Depends(get_principal),
-    repo: JobsRepository = Depends(get_token_jobs_repository),
-    llm_provider: LLMProvider = Depends(get_blocking_judgment_provider),
-) -> dict:
-    user_id = principal.id
-
-    skill_rows = repo.get_all_job_skill_rows(job_ids=[job_id])
-    if not skill_rows:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found or has no skills")
-
-    jobs_meta = repo.get_jobs_by_ids([job_id])
-    if not jobs_meta:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
-    meta = jobs_meta[0]
-
-    user_skill_map = repo.get_user_skill_map(user_id)
-    user_lower = {k.lower(): v for k, v in user_skill_map.items()}
-
-    overlap_score, matched_skills = _compute_overlap(skill_rows, user_lower)
-
-    llm_explanation: str | None = None
-    try:
-        prompt = _build_prompt(
-            user_skill_map,
-            title=meta.get("job_title", ""),
-            company=meta.get("company_name"),
-            overlap_score=overlap_score,
-            matched_skills=matched_skills,
-            description=meta.get("job_description") or "",
-        )
-        messages = [
-            {"role": "system", "content": _SYSTEM_PROMPT},
-            {"role": "user", "content": prompt},
-        ]
-        llm_explanation = (await llm_provider.complete(messages, max_tokens=300)).strip() or None
-    except LLMProviderError:
-        pass
-
-    new_balance = await xp_service.spend_xp(user_id, ANALYSE_XP_COST, "analyse_job")
-
-    repo.upsert_job_match(user_id, job_id, {
-        "batch_week": str(last_monday()),
-        "overlap_score": overlap_score,
-        "matched_skills": matched_skills,
-        "llm_explanation": llm_explanation,
-        "llm_rank": None,
-        "computed_at": datetime.now(timezone.utc).isoformat(),
-    })
-
-    return {
-        "job_id": job_id,
-        "overlap_score": overlap_score,
-        "matched_count": len(matched_skills),
-        "new_coin_balance": new_balance,
-    }
 
 
 @router.post("/analyse/{job_id}/stream")

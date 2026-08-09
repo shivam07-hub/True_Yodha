@@ -76,7 +76,7 @@ _search_cache: dict[tuple[str, str, str | None, str | None, str | None, str | No
 _company_search_cache: dict[tuple[str, int], tuple[float, list[str]]] = {}
 
 _FEED_TS_TTL = 5 * 60  # 5 minutes — cheap guard against repeated MAX() queries
-_feed_ts_cache: tuple[float, str | None] = (0.0, None)
+_FEED_TS_STALE = 60 * 60  # serve the last known marker for an hour rather than nothing
 
 # /market browse feed — latency is the feature, so cache the DB round-trip on a
 # short TTL. Cached values are RAW DB rows; shaping (matched_skill_count) runs
@@ -436,20 +436,36 @@ def _fresh_cutoff_marker(days: int = STALE_AFTER_DAYS) -> int:
 
 
 def get_feed_updated_at(db: Client) -> str | None:
-    """Returns an ISO date for the latest job feed marker. Cached 5 min."""
-    global _feed_ts_cache
-    cached_at, cached_value = _feed_ts_cache
-    cache_initialized = cached_at > 0.0 or cached_value is not None
-    if cache_initialized and (time.monotonic() - cached_at) < _FEED_TS_TTL:
-        return cached_value
-    try:
+    """ISO date of the newest job feed marker. Corpus-wide, cached 5 min.
+
+    There is exactly ONE answer to this for the whole platform — it describes
+    the corpus, not the caller — so it is Tier 0 by the read contract
+    (ARCHITECTURE_READ_PATH.md §2) and belongs in the shared cache, not in a
+    per-process dict that every replica fills separately. Kept here rather than
+    in a snapshot table because the value already IS a single indexed read; what
+    it needed was one cached answer across replicas, which S3's primitive gives.
+
+    Never raises: a missing feed stamp costs a "last updated" line, never the
+    response. `stale_seconds` means a DB blip during a refresh serves the last
+    known marker for an hour instead of dropping it — strictly better than the
+    per-process version, which lost the value entirely on a cold replica.
+    """
+    def _compute() -> str | None:
         result = db.table("jobs").select("last_seen").order("last_seen", desc=True).limit(1).execute()
-        value = _job_feed_marker_to_iso(((result.data or [{}])[0].get("last_seen")) if result.data else None)
-    except Exception:
-        _feed_ts_cache = (time.monotonic(), cached_value)
-        return cached_value
-    _feed_ts_cache = (time.monotonic(), value)
-    return value
+        return _job_feed_marker_to_iso(
+            ((result.data or [{}])[0].get("last_seen")) if result.data else None
+        )
+
+    try:
+        return shared_cache.get_or_compute(
+            "jobs.feed_updated_at",
+            _compute,
+            ttl_seconds=_FEED_TS_TTL,
+            stale_seconds=_FEED_TS_STALE,
+        )
+    except Exception as exc:  # noqa: BLE001 — see docstring
+        _log.warning("metric feed_updated_at.read_failed exc=%s", exc.__class__.__name__)
+        return None
 
 
 def count_jobs_ingested_after(db: Client, since: datetime) -> int:

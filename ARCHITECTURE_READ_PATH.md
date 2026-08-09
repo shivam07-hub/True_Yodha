@@ -451,6 +451,86 @@ background-refresh pool was built in S3); `get_supabase()` is not
 `lru_cache`d while both admin clients are, so every authed request builds a
 client whose connection pool starts empty.
 
+**S8 — `new_jobs_count`. ✅ Root-caused and fixed. It was never a slow query;
+it was an Index Only Scan that heap-fetched 40% of its rows.**
+
+The 2026-08-08 incident: a real user signs in, and `jobs.matches` reports
+`total=8350ms slowest=new_jobs_count:8348ms` — 99.9% of the wave in one
+section — while `/jobs/feed` read-timed-out at 12,317ms and `/public/stats`
+took 6,942ms in the same seconds.
+
+Measured before theorising, and the section's three hops are NOT equal:
+
+    last_match_run_at (user_profiles)   mean   0ms   max    13ms
+    legacy MAX fallback (user_job_matches) mean 1ms   max    15ms
+    count live jobs since marker        mean 217ms   max 7,399ms
+
+Two of the three are free. The third is the whole section — and its own
+28-day distribution was **min 0ms, mean 217ms, stddev 930ms, max 7,399ms**.
+Same query, same plan, 460× apart. A spread like that is never query cost.
+
+`EXPLAIN (ANALYZE, BUFFERS)` on the real shape, median-staleness marker
+(2026-06-21, 53,982 matching rows), named it exactly:
+
+    Index Only Scan using idx_jobs_ingested_at_active
+      Heap Fetches: 21,438        <- 40% of rows fell through to the heap
+      Buffers: shared hit=10,087  <- 79 MB touched to return one integer
+
+The index is right and the plan is right. The **visibility map** was stale, so
+"Index Only" was a label rather than a fact. And it stales continuously, not
+once: heap fetches on this query grew **19,675 → 21,438 in fifteen minutes** of
+ordinary verifier + skill-engine write traffic, watched live.
+
+`shared_buffers` on this instance is **224 MB**; `jobs` is 171 MB of heap plus
+248 MB of indexes. A user-facing read that touches 79 MB evicts a third of the
+cache every time it runs — which is why unrelated endpoints degraded in the
+same seconds, and why this statement's own *min* is 0ms.
+
+One `VACUUM (ANALYZE) public.jobs`, applied to prod:
+
+    Heap Fetches   21,438 -> 705    (30×)
+    Buffers        10,087 -> 472    (21×, 79 MB -> 3.7 MB)
+
+Made durable by migration `20260809_jobs_autovacuum_visibility_map.sql`:
+per-table autovacuum scale factors 0.2 → 0.05 on `jobs`. Default 0.2 waited for
+~18,000 dead tuples on this table, leaving hours-long windows where the map was
+badly stale. Additive, reversible (`RESET`), no rewrite.
+
+**Re-measured on prod, same QA account, after** — 5 samples, first cold:
+
+    new_jobs_count   8,348ms (2026-08-08)  ->  2,637 / 525 / 536 / 537 / 503ms
+    /jobs/matches                          ->  3.57 / 1.53 / 1.38 / 1.38 / 1.25s
+
+~520ms warm, a 16× move. `new_jobs_count` is still the slowest member, but it
+is now **round-trip-bound, not query-bound**: 3 sequential hops × this path's
+~165ms floor ≈ 510ms. That makes the `count_for_user` → one-RPC collapse in §7
+the next honest step, and for the first time the measurement predicts what it
+will buy (~520ms → ~320ms, `raw_stack`-bound) instead of guessing.
+
+**The over-budget line was a real finding, not noise.** `jobs.matches` fanned
+out 4 sections against a budget of 3 and logged `fanout.over_budget` on *every*
+load. The fourth member was `feed_ts` — `get_feed_updated_at`, a **corpus-wide**
+value identical for every user, measured at `feed_ts=0ms` in 4 of 5 samples
+because a per-process dict already had it. It was spending a thread and a slot
+of the process-wide read budget on every request to return a cached constant.
+Migrated to `shared_cache` (S3's primitive — it was already on S3's
+not-yet-migrated list) and lifted out of the wave: 4 sections → 3, on budget,
+no behaviour change. Guarded by `test_jobs_matches_fanout_is_within_its_budget`,
+which counts wave *width* — the existing contract test counted the read *set*,
+which never changed while this was wrong for weeks.
+
+**What this did NOT fix, stated plainly.** The count still scans every live job
+ingested since the user's marker — 53,982 index entries for a median-staleness
+user, growing with the corpus. Post-vacuum that is 472 buffers, but the VM
+stales again between vacuums. Bounding it (`LIMIT` at a cap, exact below it) is
+a ~19× further cut to 30 buffers, and is **not done** because three surfaces
+render the raw integer (`NewInventoryStrip`, `next-action.ts`,
+`MatchRefreshGate`) — capping changes user-visible copy to "500+", which is
+Shivam's call, not a latency fix to slip in.
+
+**And the load that made a 16ms query take 7.4s is still there**, named with
+numbers in §7 — it is background traffic, not users.
+
 ---
 
 ## 6. What this design is NOT for
@@ -473,7 +553,38 @@ client whose connection pool starts empty.
 
 ## 7. Still open
 
+- **The background workers, not users, are what saturate this database.**
+  Measured 2026-08-09 over a 28-day `pg_stat_statements` window. Ranked by
+  *total* time, the top consumers are not on any user's request path:
+
+      claim_verify_targets RPC   1,353 calls  mean 4,714ms   1.77h DB time
+      count_verify_due RPC       1,079 calls  mean 1,867ms   0.56h
+      jobs.company_name ILIKE    3,249 calls  mean 2,008ms   1.81h  (486 disk blocks/call)
+      jobs, no WHERE, LIMIT/OFFSET 3,323 calls mean 406ms    1.35h  (473 disk blocks/call)
+      count_jobs_missing_skill_floor() 8,359+709 calls       0.28h  (841 disk blocks/call)
+
+  `EXPLAIN (ANALYZE, BUFFERS)` on `claim_verify_targets(p_limit := 25)`:
+  **3,210ms, 14,645 buffers (114 MB) touched, 927 read from disk, 171 dirtied
+  — to claim 25 rows.** It rebuilds three `DISTINCT` scans
+  (`job_applications`, `job_recommendation_exposures`, `user_job_matches`) as
+  `MATERIALIZED` CTEs on every call. Against a 224 MB `shared_buffers` that is
+  the cache-eviction engine, and the verifier is currently *timing out and
+  retrying* it (`httpx.ReadTimeout` in `job-listing-verifier` logs,
+  2026-08-09 06:31), which multiplies the load.
+
+  The `/companies/{name}` fan-out fires **every ~70 seconds around the clock**
+  (continuous `fanout.slow label=companies.detail` in Railway, 2026-08-08
+  16:12→2026-08-09 06:34, 500–2,900ms each). That is crawler traffic on a
+  public page, sharing one buffer cache with every authed read.
+
+  This is the standing answer to "why did a 16ms query take 7,399ms". Not yet
+  fixed — each needs its own pass, and `claim_verify_targets` in particular is
+  a background job that should not be competing with a signed-in user at all.
 - **`new_inventory.count_for_user` — MEASURED, and it is the fix worth doing.**
+  *(Updated 2026-08-09 by S8: the visibility-map fix took this section from
+  8,348ms to ~520ms warm on prod, so the numbers below are the pre-vacuum
+  picture. The RPC collapse is still the right next step — it is now the
+  round-trip cost, ~520ms → ~320ms, and nothing else.)*
   `run_concurrently` now reports per-section timing (`metric fanout.slow`).
   12 samples of `jobs.matches` on dev:
 
@@ -515,16 +626,15 @@ client whose connection pool starts empty.
   written out so the next session executes rather than re-derives — but **none
   is safe to apply blind.** Run the check first, in order:
 
-  1. **Backfill `last_match_run_at`** (289 of 479 profiles are null, forcing the
-     legacy `MAX(user_job_matches.computed_at)` fallback — a third hop inside
-     `count_for_user` for ~60% of users). Removes one hop with no code change:
-     ```sql
-     update user_profiles p set last_match_run_at = m.latest
-     from (select user_id, max(computed_at) as latest
-             from user_job_matches group by user_id) m
-     where m.user_id = p.id and p.last_match_run_at is null;
-     ```
-     Additive, reversible (the column is only read as a baseline marker).
+  1. ~~**Backfill `last_match_run_at`**~~ — **DONE, and the reasoning behind it
+     was wrong.** Checked 2026-08-09: the backfill UPDATE has already run
+     (visible in `pg_stat_statements`), and 289 of 479 profiles are *still*
+     null. That is not a missed backfill — those users have **zero
+     `user_job_matches` rows**, so there is nothing to backfill from. For them
+     the legacy fallback returns `None` and `count_new_jobs_for_user` returns 0
+     **without ever running the count**: 2 cheap hops (0ms + 1ms), never the
+     expensive one. The "third hop for ~60% of users" framing had it backwards
+     — the null-marker cohort is the *cheap* cohort. Nothing left to do here.
 
   2. **`count_for_user` → one RPC.** Measured the slowest wave member in 11 of
      12 samples (median 710ms vs `raw_stack` 345ms). Collapsing its 2-3

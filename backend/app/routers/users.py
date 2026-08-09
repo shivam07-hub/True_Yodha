@@ -229,8 +229,7 @@ def follow_company(
     users_repo: UsersRepository = Depends(get_token_users_repository),
 ) -> dict:
     # Following is FREE — the compare-slot cap (FOLLOWED_COMPANY_LIMIT) is the
-    # only constraint. `new_coin_balance` stays in the response (always None now)
-    # so the client contract is unchanged; the number just never moves.
+    # only constraint. No wallet field: this can never move the balance.
     name = body.company_name.strip()
     if not name:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="company_name required.")
@@ -240,7 +239,7 @@ def follow_company(
     already_following = existing_by_key.get(_company_key(name))
 
     if already_following:
-        return {"company_name": already_following["company_name"], "new_coin_balance": None}
+        return {"company_name": already_following["company_name"]}
 
     if len(existing) >= _MAX_FOLLOWED:
         raise HTTPException(
@@ -249,7 +248,7 @@ def follow_company(
         )
 
     users_repo.follow_company(principal.id, name)
-    return {"company_name": name, "new_coin_balance": None}
+    return {"company_name": name}
 
 
 @router.delete("/me/following/companies/{company_name}", status_code=status.HTTP_204_NO_CONTENT)
