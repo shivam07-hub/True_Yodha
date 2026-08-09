@@ -75,11 +75,18 @@ def get_job_matches(
     # applying it after the wave is equivalent to applying it inside. Doing
     # this first cost a second sequential hop (~250ms) for no reason.
     uid = principal.id
+    # NOT in the wave, and not because it is fast: `get_feed_updated_at` answers
+    # a question about the CORPUS, identical for every user, and is served from
+    # the shared cache (Tier 0). A wave section costs a thread and a slot of the
+    # process-wide read budget for the whole wave's duration — real cost, paid on
+    # every load, for a value that is a Redis hit. This is why the wave was 4
+    # sections against a budget of 3 and logged `fanout.over_budget` on every
+    # single request: the fourth member was never a user read.
+    feed_ts_raw = repo.get_feed_updated_at()
     reads = run_concurrently(
         {
             "dismissed": lambda: set(repo.get_dismissed_job_card_ids(uid)),
             "raw_stack": lambda: repo.get_user_match_stack(uid, dismissed=set()),
-            "feed_ts": lambda: repo.get_feed_updated_at(),
             # Two DEPENDENT round trips (last_match_run_at ->
             # count_new_jobs_since), and a third when the profile marker is
             # null and it falls back to MAX(user_job_matches.computed_at) —
@@ -106,7 +113,6 @@ def get_job_matches(
         repo.record_recommendation_exposures, principal.id, rows, surface="dashboard"
     )
 
-    feed_ts_raw = reads["feed_ts"]
     feed_updated_at = datetime.fromisoformat(feed_ts_raw) if feed_ts_raw else None
 
     raw_computed = rows[0].get("computed_at") if rows else None

@@ -130,6 +130,45 @@ def test_jobs_matches_read_shape_has_not_grown() -> None:
     )
 
 
+def test_jobs_matches_fanout_is_within_its_budget(monkeypatch) -> None:
+    """The read set above counts reads; this counts CONCURRENT ones.
+
+    They are different failures. /jobs/matches fanned out 4 sections against a
+    budget of 3 and logged `fanout.over_budget` on every single load for weeks —
+    the read set was unchanged the whole time, because the fourth member
+    (`get_feed_updated_at`) was a corpus-wide cached value that never needed a
+    slot of the process-wide read budget. Width is what silently grows.
+    """
+    from app.routers.jobs import match as match_router
+
+    widths: list[int] = []
+    real = match_router.run_concurrently
+
+    def _spy(sections, *, label=""):
+        if label == "jobs.matches":
+            widths.append(len(sections))
+        return real(sections, label=label)
+
+    monkeypatch.setattr(match_router, "run_concurrently", _spy)
+
+    repo = _CountingJobsRepo()
+    app.dependency_overrides[get_principal] = lambda: Principal(id="u1")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    try:
+        with TestClient(app) as client:
+            assert client.get("/jobs/matches").status_code == 200
+    finally:
+        app.dependency_overrides.clear()
+
+    assert widths, "/jobs/matches no longer fans out under the label 'jobs.matches'"
+    assert max(widths) <= section_budget("jobs.matches"), (
+        f"/jobs/matches fans out {max(widths)} concurrent sections against a "
+        f"budget of {section_budget('jobs.matches')}. Do not add an exception — "
+        "a section that answers a question about the corpus rather than the "
+        "user belongs in the shared cache, not in a per-user wave."
+    )
+
+
 def test_every_fanout_budget_exception_is_deliberate() -> None:
     # The exceptions map is a debt register. An entry that drifts upward, or a
     # new one added silently, is how "at most 3" quietly becomes "however many".
