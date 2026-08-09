@@ -276,13 +276,13 @@ def test_follow_company_case_insensitive_duplicate_is_a_noop() -> None:
         app.dependency_overrides.clear()
 
     assert response.status_code == 201
-    assert response.json() == {"company_name": "Google", "new_coin_balance": None}
+    assert response.json() == {"company_name": "Google"}
     assert repo.followed_writes == []
 
 
 def test_follow_company_is_free() -> None:
     # Following spends no coins (2026-07-19): a fresh follow writes the row and
-    # returns a null balance — the number never moves.
+    # carries no wallet field at all — this can never move the balance.
     repo = _FakeUsersRepository()
 
     app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")
@@ -295,7 +295,7 @@ def test_follow_company_is_free() -> None:
         app.dependency_overrides.clear()
 
     assert response.status_code == 201
-    assert response.json() == {"company_name": "Acme", "new_coin_balance": None}
+    assert response.json() == {"company_name": "Acme"}
     assert repo.followed_writes == [("u1", "Acme")]
 
 

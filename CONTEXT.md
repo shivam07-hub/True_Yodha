@@ -266,7 +266,7 @@ Internals (private):
 
 **Status surface**
 
-- `POST /jobs/refresh` → returns `RefreshTicket{id, state: "queued", xp_charged, new_xp_balance}`.
+- `POST /jobs/refresh` → returns `RefreshTicket{id, state: "queued", xp_charged, new_coin_balance}`. `new_coin_balance` is null on a free run — see "Coin balance".
 - `GET  /jobs/refresh/{ticket_id}` → returns `RefreshState`.
 - Frontend polls GET every 1s, max 30s. No SSE. Polling beat SSE on the simplicity axis after 10–15s compute windows + proxy-drop bugs.
 
@@ -606,6 +606,33 @@ async def rank_one(profile, cv_markdown, job, provider) -> eval | None
 - `compute_job_matches` (the batch compute — CV upload, paid Refresh, or scrape-triggered sweep) routes through `rank`; the exhausted/refund gates and candidate-id fetching stay in `jobs_workflow` (DB-coupled), unchanged. Its skip gate is **event-driven** (has-ever-matched + nothing-new-since), not calendar-driven.
 - **The model floor (F1) is owned inside `compute_job_matches`, not passed by callers.** Every judgment call (triage + eval) runs on `get_judgment_provider()` — the strong-only lane (see **Judgment provider** below). The `llm_provider` arg is a test-only override; no caller can put a small model on a ranking path.
 - **`RankCandidates.pool_augmenter`** (standardized matcher) unions the CandidatePool title_filter selector onto the overlap pool *before* triage, keeping `rank` DB-agnostic (the caller supplies the callback). None → overlap-only pool.
+
+## Coin balance
+
+`new_coin_balance` — the ONE rule for every endpoint that can touch the wallet:
+
+> **Present when this operation moved the balance. `null` when it didn't — the
+> client keeps the number it already has. An operation that can *never* move the
+> balance carries no field at all.**
+
+So every declaration is `int | None` except the ones that always charge or always
+credit (`/payments/verify`, `/jobs/analyse/{id}`). Two corollaries, both learned
+the hard way:
+
+- **Never default to 0.** Zero paints a wallet the user does not have. Null is
+  "unchanged", which is what a free run actually means.
+- **Never read the balance back just to fill the field.** A read that reports "the
+  same number" is a round trip bought for nothing; it also disguises a no-op as a
+  transaction. `POST /upskilling/sets/{id}/submit` did exactly this on every
+  submit, for a field the client never read.
+
+`POST /jobs/refresh` is the canonical case: a Myro-initiated run (new inventory
+this user has never been matched against) prices at 0, so no charge happens and
+the balance is null. Declaring it `int` 500'd every free run in prod
+(2026-08-08) — and because the ticket is created and compute dispatched *before*
+the response serializes, the run proceeded while the client never learned the
+ticket id. Guarded by `test_refresh_free_run_reports_a_null_balance`, which
+asserts through the response model, not the dispatch layer underneath it.
 
 ## Judgment provider
 

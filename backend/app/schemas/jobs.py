@@ -382,13 +382,16 @@ class CompanyJobsResponse(BaseModel):
 
 
 class RefreshTicketResponse(BaseModel):
-    """POST /jobs/refresh — XP already charged at this point."""
+    """POST /jobs/refresh — coins already charged at this point.
+
+    `new_coin_balance` is null when the run was free (`xp_charged == 0`): no
+    charge means no new balance, and the client keeps the number it has."""
     id: str
     state: Literal["queued", "computing", "done"]
     progress_label: str
     batch_week: date
     xp_charged: int
-    new_coin_balance: int
+    new_coin_balance: int | None = None
     matches_written: int | None = None
 
 

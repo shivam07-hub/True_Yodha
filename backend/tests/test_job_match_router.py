@@ -73,6 +73,9 @@ class _FakeJobsRepo:
     def get_user_skill_rows(self, user_id: str) -> list[dict]:
         return []
 
+    def get_existing_match_job_ids(self, user_id: str) -> list[str]:
+        return [str(row["job_id"]) for row in self._stack]
+
 
 def test_matches_new_jobs_count_skipped_when_never_matched() -> None:
     # No persisted matches → no baseline → "new since last match" is meaningless,
@@ -259,3 +262,87 @@ def test_matches_excludes_dismissed_cards_after_concurrent_fetch() -> None:
     assert repo.dismissed_reads == 1
     # The exposure ledger records what the user actually saw, not the dropped card.
     assert repo.exposures == [("u1", "dashboard", ["keep-1", "keep-2"])]
+
+
+def _stub_dispatch(monkeypatch, seen: list) -> None:
+    """Stand in for compute so these tests exercise pricing + serialization only."""
+    from app.services.job_refresh import _dispatch
+    from app.services.job_refresh.types import RefreshTicket
+
+    async def _fake(*, user_id, batch_week, excluded_job_ids, xp_charged, new_coin_balance):
+        seen.append({"xp_charged": xp_charged, "new_coin_balance": new_coin_balance})
+        return RefreshTicket(
+            id="ticket-1",
+            state="queued",
+            xp_charged=xp_charged,
+            new_coin_balance=new_coin_balance,
+            batch_week=batch_week,
+            progress_label="Queued",
+        )
+
+    monkeypatch.setattr(_dispatch, "dispatch", _fake)
+
+
+def test_refresh_free_run_reports_a_null_balance(monkeypatch) -> None:
+    """A Myro-initiated run is free, so no charge happens and there is no new
+    balance to report — the client keeps the number it has.
+
+    This 500'd in prod (2026-08-08 08:09:36) because `RefreshTicketResponse`
+    demanded an int. The dispatch-layer test already asserted None; nothing
+    exercised the response model, which is where it actually raised.
+    """
+    repo = _FakeJobsRepo(
+        stack=[{"job_id": "j1", "computed_at": "2026-06-04T09:00:00+00:00"}],
+        new_jobs=7,
+    )
+    seen: list = []
+    _stub_dispatch(monkeypatch, seen)
+    app.dependency_overrides[get_principal] = lambda: Principal(id="u1")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    try:
+        with TestClient(app) as client:
+            response = client.post("/jobs/refresh")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 202
+    body = response.json()
+    assert body["xp_charged"] == 0
+    assert body["new_coin_balance"] is None
+    assert body["id"] == "ticket-1"
+    # The wallet was never touched — free means free, not "charged 0 then read".
+    assert seen == [{"xp_charged": 0, "new_coin_balance": None}]
+
+
+def test_refresh_paid_run_reports_the_balance_it_charged(monkeypatch) -> None:
+    # No new inventory → the user asked for another pass → flat MATCH_RUN_COST,
+    # and the balance the charge returned is what the client reconciles against.
+    from app.services.job_refresh import _xp_charge
+    from app.services.xp_policy import MATCH_RUN_COST
+
+    repo = _FakeJobsRepo(
+        stack=[{"job_id": "j1", "computed_at": "2026-06-04T09:00:00+00:00"}],
+        new_jobs=0,
+    )
+    charges: list = []
+
+    async def _fake_charge(user_id: str, amount: int) -> int:
+        charges.append((user_id, amount))
+        return 900
+
+    monkeypatch.setattr(_xp_charge, "charge", _fake_charge)
+    seen: list = []
+    _stub_dispatch(monkeypatch, seen)
+    app.dependency_overrides[get_principal] = lambda: Principal(id="u1")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    try:
+        with TestClient(app) as client:
+            response = client.post("/jobs/refresh")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 202
+    body = response.json()
+    assert body["xp_charged"] == MATCH_RUN_COST
+    assert body["new_coin_balance"] == 900
+    assert charges == [("u1", MATCH_RUN_COST)]

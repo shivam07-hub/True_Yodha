@@ -401,9 +401,8 @@ async def submit_set(
         _bump_assessed_level(admin, user_id, skill_id, level)
 
     # Award only the first clear of this (skill, level).
-    new_balance = await xp_service.get_xp_balance(user_id)
     if first_clear and tokens_awarded > 0:
-        new_balance = await xp_service.reward(
+        await xp_service.reward(
             user_id=user_id,
             amount=tokens_awarded,
             action=CLEAR_ACTION,
@@ -419,7 +418,6 @@ async def submit_set(
         "passed": passed,
         "first_clear": first_clear,
         "tokens_awarded": tokens_awarded,
-        "new_coin_balance": new_balance,
         "next_level_unlocked": next_level_unlocked,
         "results": results,
     }
@@ -758,7 +756,6 @@ async def _replay_result(admin, attempt: dict, question_ids: list[int]) -> dict:
         "passed": passed,
         "first_clear": tokens > 0,
         "tokens_awarded": tokens,
-        "new_coin_balance": await xp_service.get_xp_balance(str(attempt["user_id"])),
         "next_level_unlocked": level + 1 if passed and level < 5 else None,
         "results": results,
     }

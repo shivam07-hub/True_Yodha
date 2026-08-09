@@ -169,7 +169,9 @@ export function useJobRefresh(
     setProgressLabel("Charging tokens")
     try {
       const ticket = await jobs.refresh(token)
-      applyXpChange({ newBalance: ticket.new_coin_balance, action: "match_refresh" })
+      if (ticket.new_coin_balance != null) {
+        applyXpChange({ newBalance: ticket.new_coin_balance, action: "match_refresh" })
+      }
       setState("computing")
       setProgressLabel(ticket.progress_label)
       startStream(ticket.id)

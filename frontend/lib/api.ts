@@ -558,7 +558,7 @@ export const users = {
       headers: { Authorization: `Bearer ${token}` },
     }),
   followCompany: (token: string, companyName: string) =>
-    request<{ company_name: string; new_coin_balance: number | null }>("/users/me/following/companies", {
+    request<{ company_name: string }>("/users/me/following/companies", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({ company_name: companyName }),
@@ -2909,7 +2909,8 @@ export interface RefreshTicketResponse {
   progress_label: string
   batch_week: string
   xp_charged: number
-  new_coin_balance: number
+  /** null when the run was free — no charge, so no new balance. Keep yours. */
+  new_coin_balance: number | null
   matches_written: number | null
 }
 
@@ -5169,7 +5170,6 @@ export interface SubmitSetResponse {
   passed: boolean
   first_clear: boolean
   tokens_awarded: number
-  new_coin_balance: number
   next_level_unlocked: number | null
   results: QuestionResult[]
 }

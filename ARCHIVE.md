@@ -38,7 +38,17 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-08-04 · Onboarding speed — measured the wait, cut it three ways; 3 commits Develop + 1 migration applied prod)
+## LAST SESSION SUMMARY (2026-08-09 · `new_coin_balance` — one rule for the wallet field, and the free run that 500'd on it)
+
+Prod traceback 2026-08-08 08:09:36: `POST /jobs/refresh` → `ValidationError … new_coin_balance Input should be a valid integer, input_value=None`.
+
+**The incident note had it backwards — the user was NOT charged.** A Myro-initiated run (new inventory they've never been matched against) prices at **0**, so `facade.py` never calls the wallet and there is no new balance to report. `RefreshState` and `_dispatch`'s own docstring already said null is correct; only `RefreshTicket` and `RefreshTicketResponse` demanded an `int`. So it 500'd on **exactly the free runs** the 2026-07-28 pricing change was built to encourage — and since the ticket is created and compute dispatched *before* the response serializes, the run proceeded while the client never learned the ticket id. `GET /users/me` at 1697ms that session was unrelated; nothing timed out.
+
+**Why every gate was green.** `test_job_refresh_dispatch.py` *already asserted* `new_coin_balance is None` on the free path — at the dispatch layer, below the response model that actually raises. Nothing exercised `POST /jobs/refresh` end-to-end. The new `test_refresh_free_run_reports_a_null_balance` goes through the router; falsified by restoring `int`, which reproduces the prod traceback byte-for-byte at the same `match.py:238`.
+
+**The rule, now written down once** (CONTEXT.md "Coin balance"): *present when the operation moved the balance, `null` when it didn't, absent entirely when it never can.* Never default to 0 (paints a wallet the user doesn't have); never read the balance back to fill the field (a round trip that reports "unchanged", and disguises a no-op as a transaction). Two decoys deleted under it — `POST /users/me/following/companies` returned a permanently-null field whose comment admitted it, and `POST /upskilling/sets/{id}/submit` ran a `get_xp_balance` on **every** submit for a field with zero consumers on either side.
+
+## OLDER SESSION SUMMARY (2026-08-04 · Onboarding speed — measured the wait, cut it three ways; 3 commits Develop + 1 migration applied prod)
 
 Shivam: onboarding takes too long and the user has nothing to do; which screens are redundant? Measured before answering. Full detail + the two claims I got wrong: memory `project_onboarding_wait_decomposition`.
 
