@@ -38,7 +38,9 @@ Park-and-solve list. Pick up when working in the related area. Source = `graphif
 
 ---
 
-## LAST SESSION SUMMARY (2026-08-09 · `new_coin_balance` — one rule for the wallet field, and the free run that 500'd on it)
+## LAST SESSION SUMMARY (2026-08-09 · Myro Coins — two rules, and the free run that 500'd on one of them)
+
+**Also corrected: CONTEXT.md's Job Refresh status surface.** It still said *"Frontend polls GET every 1s, max 30s. No SSE"* — untrue since ADR-0009 PR2, which made `GET /jobs/refresh/{id}/stream` the live path (typed `progress`/`phase`/`done`/`error` frames, per-job reveal as each role ranks). The poll endpoint survives as a deploy-window fallback and is now labelled as one.
 
 Prod traceback 2026-08-08 08:09:36: `POST /jobs/refresh` → `ValidationError … new_coin_balance Input should be a valid integer, input_value=None`.
 
@@ -46,7 +48,9 @@ Prod traceback 2026-08-08 08:09:36: `POST /jobs/refresh` → `ValidationError �
 
 **Why every gate was green.** `test_job_refresh_dispatch.py` *already asserted* `new_coin_balance is None` on the free path — at the dispatch layer, below the response model that actually raises. Nothing exercised `POST /jobs/refresh` end-to-end. The new `test_refresh_free_run_reports_a_null_balance` goes through the router; falsified by restoring `int`, which reproduces the prod traceback byte-for-byte at the same `match.py:238`.
 
-**The rule, now written down once** (CONTEXT.md "Coin balance"): *present when the operation moved the balance, `null` when it didn't, absent entirely when it never can.* Never default to 0 (paints a wallet the user doesn't have); never read the balance back to fill the field (a round trip that reports "unchanged", and disguises a no-op as a transaction). Two decoys deleted under it — `POST /users/me/following/companies` returned a permanently-null field whose comment admitted it, and `POST /upskilling/sets/{id}/submit` ran a `get_xp_balance` on **every** submit for a field with zero consumers on either side.
+**The charge rule, stated by Shivam and now spec** (CONTEXT.md "Coin balance" rule 1): *coins are charged only if the LLM was charged.* Audited every charge site against it. Prep, reach, deepen and the analyse **stream** already charge after the deliverable exists, so they comply. Two paths could not, and both turned out to have **zero clients anywhere in the monorepo** (frontend, `Chrome_extension`, `android-twa`, `ops-agent`) — deleted rather than repaired: `POST /jobs/analyse/{id}` (the pre-ADR-0009 non-stream twin) swallowed `LLMProviderError` with a bare `pass` and charged 10 coins anyway, so a provider outage billed the user for a row with `llm_explanation: None`; `POST /users/me/xp/spend` took a client-supplied amount with no model call behind it at all, and cannot satisfy the rule by construction. `POST /jobs/{id}/reach/pack` was the only paid route with no router test — it now asserts 503-and-never-charges, non-vacuously (the provider really is reached).
+
+**The reporting rule, written down once** (CONTEXT.md "Coin balance" rule 2): *present when the operation moved the balance, `null` when it didn't, absent entirely when it never can.* Never default to 0 (paints a wallet the user doesn't have); never read the balance back to fill the field (a round trip that reports "unchanged", and disguises a no-op as a transaction). Two decoys deleted under it — `POST /users/me/following/companies` returned a permanently-null field whose comment admitted it, and `POST /upskilling/sets/{id}/submit` ran a `get_xp_balance` on **every** submit for a field with zero consumers on either side.
 
 ## OLDER SESSION SUMMARY (2026-08-04 · Onboarding speed — measured the wait, cut it three ways; 3 commits Develop + 1 migration applied prod)
 

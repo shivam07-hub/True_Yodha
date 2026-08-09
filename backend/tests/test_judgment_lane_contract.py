@@ -7,7 +7,7 @@ missing was anything checking that the ranking ROUTES actually use it.
 
 They did not. Until 2026-08-04, `POST /jobs/feed/warm` (which decides the ten
 cards a user sees first), `POST /jobs/{id}/brain` (the verdict and grade) and
-`POST /jobs/analyse/{id}` (the fit rationale, charged at 10 XP) all depended on
+`POST /jobs/analyse/{id}/stream` (the fit rationale, charged at 10 XP) all depended on
 `get_interactive_provider`, whose lead tier is `google/gemma-3-4b-it` — the model
 the tier table itself names for ranking banker jobs to a senior SWE with zero
 errors. A confidently-wrong shortlist is invisible to fallback logic: nothing
@@ -29,7 +29,6 @@ from app.services import llm_provider as lp
 JUDGMENT_ROUTES = {
     ("POST", "/jobs/feed/warm"),
     ("POST", "/jobs/{job_id}/brain"),
-    ("POST", "/jobs/analyse/{job_id}"),
     ("POST", "/jobs/analyse/{job_id}/stream"),
 }
 

@@ -4098,11 +4098,6 @@ export const jobs = {
     }
     return res.json()
   },
-  analyseJob: (token: string, jobId: string) =>
-    request<{ job_id: string; overlap_score: number; matched_count: number; total_skills: number; new_coin_balance: number }>(
-      `/jobs/analyse/${jobId}`,
-      { method: "POST", headers: { Authorization: `Bearer ${token}` } },
-    ),
   /** SSE stream path for the streamed why-fit. Fed to useStreamingText.start(). */
   analyseStreamPath: (jobId: string) => `/jobs/analyse/${jobId}/stream`,
   /** SSE stream path for an XP-gated deepener (Q8). prompt_key ∈ DEEPEN_KEYS. */
@@ -4480,17 +4475,12 @@ export interface XPBalanceResponse {
   balance: number
 }
 
+/** Read-only. Coins are charged by the surface that did the paid work, after it
+ *  landed — there is no client-driven spend. See CONTEXT.md "Coin balance". */
 export const xp = {
   balance: (token: string) =>
     request<XPBalanceResponse>("/users/me/xp", {
       headers: { Authorization: `Bearer ${token}` },
-    }),
-
-  spend: (token: string, amount: number, action: string) =>
-    request<XPBalanceResponse>("/users/me/xp/spend", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ amount, action }),
     }),
 }
 

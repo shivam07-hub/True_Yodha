@@ -267,8 +267,8 @@ Internals (private):
 **Status surface**
 
 - `POST /jobs/refresh` → returns `RefreshTicket{id, state: "queued", xp_charged, new_coin_balance}`. `new_coin_balance` is null on a free run — see "Coin balance".
-- `GET  /jobs/refresh/{ticket_id}` → returns `RefreshState`.
-- Frontend polls GET every 1s, max 30s. No SSE. Polling beat SSE on the simplicity axis after 10–15s compute windows + proxy-drop bugs.
+- `GET  /jobs/refresh/{ticket_id}/stream` → **SSE, the live path** (ADR-0009 PR2). A snapshot-watch relay: it tails the same state key the poll read and emits typed `progress` / `phase` / `done` / `error` frames, so per-job reveal lands as each role is ranked instead of at the end. A terminal frame closes the stream; a hard timeout guarantees the connection never hangs. `useJobRefresh` consumes this.
+- `GET  /jobs/refresh/{ticket_id}` → returns `RefreshState`. Legacy poll, superseded by the stream — kept for deploy-window compatibility and as a manual fallback. (The old note here said "polls every 1s, max 30s, no SSE"; that stopped being true at ADR-0009 PR2.)
 
 **LLM fast-lane**
 
@@ -609,22 +609,45 @@ async def rank_one(profile, cv_markdown, job, provider) -> eval | None
 
 ## Coin balance
 
-`new_coin_balance` — the ONE rule for every endpoint that can touch the wallet:
+Two rules govern the wallet. Both are spec, not preference.
+
+**1 — When to charge.** *Coins are charged only if the LLM was charged.*
+
+> The user pays for model work we actually spent. No model call, no charge. The
+> charge is owned by the surface that did the work and happens **after** the
+> deliverable exists, never before.
+
+So: a cached replay is free (`/jobs/analyse/*/stream`, `/jobs/prep`, `/jobs/reach`,
+CV weave). A provider failure charges nothing — `prep_brief` 503s before the
+charge line; the streamed surfaces charge inside `finalize`, which only runs on a
+complete stream. There is deliberately **no generic "spend N coins" endpoint**: a
+client-driven debit has no LLM call behind it to justify itself, so it cannot
+satisfy this rule by construction.
+
+The one legitimate debit-first path is Job Refresh, because the work is
+dispatched to a worker the request can't await: `_xp_charge` debits at start and
+`_dispatch` refunds on enqueue failure, compute failure, and any run that
+produces nothing chargeable. Debit-then-refund is the *exception the async lane
+forces*, not a second pattern to copy.
+
+**2 — What to report.** `new_coin_balance`, on every endpoint that can touch the
+wallet:
 
 > **Present when this operation moved the balance. `null` when it didn't — the
 > client keeps the number it already has. An operation that can *never* move the
 > balance carries no field at all.**
 
 So every declaration is `int | None` except the ones that always charge or always
-credit (`/payments/verify`, `/jobs/analyse/{id}`). Two corollaries, both learned
-the hard way:
+credit (`/payments/verify`). Two corollaries, both learned the hard way:
 
 - **Never default to 0.** Zero paints a wallet the user does not have. Null is
   "unchanged", which is what a free run actually means.
-- **Never read the balance back just to fill the field.** A read that reports "the
-  same number" is a round trip bought for nothing; it also disguises a no-op as a
-  transaction. `POST /upskilling/sets/{id}/submit` did exactly this on every
-  submit, for a field the client never read.
+- **Never read the balance back to fill a field nobody reads.**
+  `POST /upskilling/sets/{id}/submit` ran a `get_xp_balance` on every submit and
+  every replay to populate a field with zero consumers on either side — a round
+  trip bought for nothing. A read-back that a client *does* consume is a
+  different thing and is fine: the free-replay paths (analyse stream, deepen,
+  prep, reach, weave) deliberately resync the wallet chip after a cache hit.
 
 `POST /jobs/refresh` is the canonical case: a Myro-initiated run (new inventory
 this user has never been matched against) prices at 0, so no charge happens and
