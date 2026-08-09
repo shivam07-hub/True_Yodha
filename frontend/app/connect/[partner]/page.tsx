@@ -88,9 +88,9 @@ function ConnectInner() {
 
   if (phase === "invalid") {
     return (
-      <Shell title="This connection link has expired">
+      <Shell title="This link has expired">
         <p className="text-[0.9375rem] leading-relaxed text-[var(--tm-text-secondary)]">
-          Head back to your partner’s site and open Myro again — they’ll send you a fresh one.
+          Open Myro again from your partner’s site.
         </p>
       </Shell>
     )
@@ -100,7 +100,7 @@ function ConnectInner() {
     return (
       <Shell title="Check your inbox">
         <p className="text-[0.9375rem] leading-relaxed text-[var(--tm-text-secondary)]">
-          We’ve sent a sign-in link to {context?.email_masked}. Open it and your account connects.
+          Link sent to {context?.email_masked}.
         </p>
       </Shell>
     )
@@ -112,10 +112,7 @@ function ConnectInner() {
 
   return (
     <Shell title={`${partnerName} wants to connect your Myro account`}>
-      <p className="text-[0.9375rem] leading-relaxed text-[var(--tm-text-secondary)]">
-        You already have a Myro account for {context?.email_masked}. Connect it and your CV,
-        score and saved jobs come with you — nothing is duplicated.
-      </p>
+      <p className="text-[0.9375rem] text-[var(--tm-text-secondary)]">{context?.email_masked}</p>
 
       {error ? (
         <p className="text-[0.875rem] leading-relaxed text-[var(--tm-danger,#d5493f)]">{error}</p>
@@ -124,7 +121,7 @@ function ConnectInner() {
       <div className="flex flex-col gap-3 pt-2">
         {signedIn ? (
           <Button size="lg" onClick={approve} disabled={phase === "linking"}>
-            {phase === "linking" ? "Connecting…" : "Connect my account"}
+            {phase === "linking" ? "Connecting…" : "Connect"}
           </Button>
         ) : (
           <Button size="lg" onClick={continueWithGoogle}>

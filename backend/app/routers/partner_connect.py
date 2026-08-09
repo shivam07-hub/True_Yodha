@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/partner-connect", tags=["partner"])
 
-_INVALID = "This connection link has expired or was already used. Ask your partner to send you back to Myro."
+_INVALID = "This link has expired. Open Myro again from your partner's site."
 
 
 def _enforce_connect_context_rate(request: Request) -> None:
@@ -90,10 +90,7 @@ def approve(
     if not linked:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                "This connection is for a different Myro account. Sign in with the "
-                "email your partner has on file, then try again."
-            ),
+            detail="Wrong account. Sign in with the email your partner has for you.",
         )
     return ConnectApproveResponse(linked=True, message="Connected.")
 
