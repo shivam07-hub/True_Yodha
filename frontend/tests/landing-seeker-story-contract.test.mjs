@@ -20,6 +20,10 @@ test("the public landing tells the seeker-first MNC story without product-manual
   assert.match(hero, /Jobs matched to your CV/)
   assert.match(match, /Tailor &amp; apply/)
   assert.match(plan, /Applied\. Now prepare for this role/)
+  assert.ok(
+    hero.indexOf("<LandingStats") < hero.indexOf("lp-hero-inner"),
+    "the credibility metrics should sit above the hero content",
+  )
 
   assert.match(landing, /LandingApplicationPlan/)
   assert.doesNotMatch(landing, /LandingJobSearch|LandingDomains/)

@@ -8,9 +8,9 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(420px, 0.9fr);
   gap: clamp(48px, 7vw, 96px);
-  align-items: center;
+  align-items: start;
   min-height: calc(100dvh - 64px - 96px);
-  padding-top: clamp(56px, 8vw, 104px);
+  padding-top: 24px;
   padding-bottom: clamp(56px, 8vw, 104px);
 }
 
@@ -241,7 +241,7 @@
 }
 
 .lp-stats {
-  border-top: 1px solid var(--lp-border);
+  border-bottom: 1px solid var(--lp-border);
 }
 
 .lp-stats-row {
@@ -304,7 +304,7 @@
 @media (max-width: 640px) {
   .lp-hero-inner {
     gap: 40px;
-    padding-top: 44px;
+    padding-top: 24px;
     padding-bottom: 52px;
   }
 

@@ -29,6 +29,13 @@ export function LandingHero({
 
   return (
     <section className="lp-hero" aria-labelledby="landing-heading">
+      <LandingStats
+        jobsTracked={jobsTracked}
+        companiesMonitored={companiesMonitored}
+        skillsMapped={skillsMapped}
+        seekers={seekers}
+      />
+
       <div className="lp-wrap lp-hero-inner">
         <div className="lp-hero-left">
           <p className="lp-hero-kicker">MNC careers · India</p>
@@ -97,13 +104,6 @@ export function LandingHero({
           </div>
         </div>
       </div>
-
-      <LandingStats
-        jobsTracked={jobsTracked}
-        companiesMonitored={companiesMonitored}
-        skillsMapped={skillsMapped}
-        seekers={seekers}
-      />
     </section>
   )
 }
