@@ -58,14 +58,16 @@ export function LandingHero({
 
         <div className="lp-market-proof" aria-label="How Myro finds relevant MNC jobs">
           <div className="lp-market-proof-head">
-            <span className="lp-market-proof-icon" aria-hidden="true">
-              <Building2 className="size-5" />
-            </span>
+            <Link className="lp-market-proof-icon lp-icon-link" href="/intel" aria-label="Open Live Job Data">
+              <Building2 className="size-5" aria-hidden="true" />
+            </Link>
             <span>
               <strong>MNC hiring, read at the source</strong>
               <small>Career pages tracked live</small>
             </span>
-            <span className="lp-live-pill">Live</span>
+            <Link className="lp-live-pill" href="/intel" aria-label="Open Live Job Data">
+              Live
+            </Link>
           </div>
 
           <div className="lp-source-list" aria-label="Career-page sources">
@@ -80,25 +82,33 @@ export function LandingHero({
             ))}
           </div>
 
-          <div className="lp-proof-connector" aria-hidden="true">
-            <span />
-            <ArrowRight className="size-4" />
-            <span />
+          <div className="lp-proof-connector">
+            <span aria-hidden="true" />
+            <Link className="lp-proof-link" href="/intel" aria-label="Open Live Job Data">
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </Link>
+            <span aria-hidden="true" />
           </div>
 
           <div className="lp-shortlist-card">
             <div className="lp-shortlist-label">After onboarding</div>
             <div className="lp-shortlist-title">Jobs matched to your CV</div>
             <div className="lp-shortlist-row">
-              <BriefcaseBusiness className="size-4" aria-hidden="true" />
+              <Link className="lp-shortlist-icon-link" href="/market" aria-label="Browse relevant current openings">
+                <BriefcaseBusiness className="size-4" aria-hidden="true" />
+              </Link>
               <span>Relevant current openings</span>
             </div>
             <div className="lp-shortlist-row">
-              <FileText className="size-4" aria-hidden="true" />
+              <Link className="lp-shortlist-icon-link" href="/skills" aria-label="Open your skills">
+                <FileText className="size-4" aria-hidden="true" />
+              </Link>
               <span>Skills already in your CV</span>
             </div>
             <div className="lp-shortlist-row">
-              <MapPin className="size-4" aria-hidden="true" />
+              <Link className="lp-shortlist-icon-link" href="/market" aria-label="Browse roles hiring in India">
+                <MapPin className="size-4" aria-hidden="true" />
+              </Link>
               <span>Roles hiring in India</span>
             </div>
           </div>

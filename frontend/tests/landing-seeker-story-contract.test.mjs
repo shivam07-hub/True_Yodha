@@ -18,6 +18,11 @@ test("the public landing tells the seeker-first MNC story without product-manual
   assert.match(hero, /Prepare for MNC jobs hiring in India/)
   assert.match(hero, /MNC hiring, read at the source/)
   assert.match(hero, /Jobs matched to your CV/)
+  assert.match(hero, /className="lp-live-pill" href="\/intel"/)
+  assert.match(hero, /className="lp-proof-link" href="\/intel"/)
+  assert.match(hero, /aria-label="Browse relevant current openings"/)
+  assert.match(hero, /aria-label="Open your skills"/)
+  assert.match(hero, /aria-label="Browse roles hiring in India"/)
   assert.match(match, /Tailor &amp; apply/)
   assert.match(plan, /Applied\. Now prepare for this role/)
   assert.ok(
