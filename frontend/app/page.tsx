@@ -14,22 +14,22 @@ const jbMono = JetBrains_Mono({
 })
 
 const DESCRIPTION =
-  "One engine reads 150+ company career pages live, scores your CV against real hiring demand, and tailors a version for every job — the first in 10 minutes. Free to start."
+  "Upload your CV. Myro tracks MNC career pages in India, matches you to current openings, and helps you tailor your CV for the job."
 
 export const metadata: Metadata = {
-  title: "Myro — The Career Intelligence Platform",
+  title: "Myro — Prepare for MNC Jobs Hiring in India",
   description: DESCRIPTION,
   robots: { index: true, follow: true },
   alternates: { canonical: BASE },
   openGraph: {
-    title: "Myro — The Career Intelligence Platform",
+    title: "Myro — Prepare for MNC Jobs Hiring in India",
     description: DESCRIPTION,
     type: "website",
     url: BASE,
   },
   twitter: {
     card: "summary_large_image",
-    title: "Myro — The Career Intelligence Platform",
+    title: "Myro — Prepare for MNC Jobs Hiring in India",
     description: DESCRIPTION,
   },
 }

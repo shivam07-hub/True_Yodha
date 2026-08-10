@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og"
 
 export const runtime = "edge"
-export const alt = "Myro — The Career Intelligence Platform"
+export const alt = "Myro — Prepare for MNC jobs hiring in India"
 export const size = { width: 1200, height: 630 }
 export const contentType = "image/png"
 
@@ -116,7 +116,7 @@ export default function OpenGraphImage(): ImageResponse {
               maxWidth: 1000,
             }}
           >
-            The Career Intelligence Platform.
+            Prepare for MNC jobs hiring in India.
           </div>
           <div
             style={{
@@ -126,18 +126,18 @@ export default function OpenGraphImage(): ImageResponse {
               maxWidth: 900,
             }}
           >
-            Drop a CV. Get scored across 10 domains, matched to real jobs, and
-            shown exactly what to build next.
+            Upload your CV. Find relevant current openings, see what each job
+            needs, and tailor your CV before you apply.
           </div>
         </div>
 
         {/* Engine pipeline diagram */}
         <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-          <StageNode label="CV" />
+          <StageNode label="Your CV" />
           <FlowLine />
-          <StageNode label="Skills" />
+          <StageNode label="MNC jobs" />
           <FlowLine />
-          <StageNode label="Jobs" />
+          <StageNode label="Your match" />
           <FlowLine />
           {/* Myro Score badge — pipeline output */}
           <div

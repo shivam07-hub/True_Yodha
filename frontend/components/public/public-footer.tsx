@@ -45,7 +45,7 @@ export function PublicFooter({ commons = false }: { commons?: boolean } = {}) {
           </Link>
           <p className="pub-footer-tagline">career intelligence</p>
           <p className="pub-footer-sub">
-            Myro — the Career Intelligence Platform. One engine: live job data in, scored and tailored CVs out.
+            Myro matches your CV to current openings and helps you tailor it for the job you choose.
           </p>
           <div className="pub-footer-social">
             {SOCIALS.map((s) => (
