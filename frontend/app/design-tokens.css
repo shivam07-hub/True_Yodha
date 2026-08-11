@@ -548,6 +548,15 @@ html, body {
 body {
   background: transparent;
 }
+
+/* Generic route/layout wrappers never own the page paint. `html` owns the
+   solid overscroll-safe base; `body::before` owns dark-mode depth. Keeping
+   layout shells transparent makes those two layers visible without copying
+   the cosmic field into every route. Purpose-built islands (Myrology, B2B,
+   editors, offline/admin surfaces) intentionally do not use this class. */
+.tm-page-canvas {
+  background: transparent;
+}
 html, body {
   font-family: var(--tm-font-sans);
   font-size:   var(--tm-fs-body);

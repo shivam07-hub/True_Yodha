@@ -13,7 +13,7 @@ import { PublicFooter } from "@/components/public/public-footer"
  */
 export default function CompaniesLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", background: "var(--tm-bg)" }}>
+    <div className="tm-page-canvas" style={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
       <PublicTopNav showSignIn />
       <main style={{ flex: 1 }}>{children}</main>
       <PublicFooter />

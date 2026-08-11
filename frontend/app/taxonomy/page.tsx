@@ -77,11 +77,11 @@ const jsonLd = {
 export default function TaxonomyPage() {
   return (
     <div
+      className="tm-page-canvas"
       style={{
         minHeight: "100dvh",
         display: "flex",
         flexDirection: "column",
-        background: "var(--tm-bg)",
       }}
     >
       <script

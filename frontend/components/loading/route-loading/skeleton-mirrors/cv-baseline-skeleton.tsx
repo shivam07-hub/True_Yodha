@@ -2,9 +2,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 export function CVBaselineSkeleton() {
   return (
-    <div style={{
+    <div className="tm-page-canvas" style={{
       minHeight: "100dvh",
-      background: "var(--tm-bg)",
       padding: "24px 32px 48px",
     }}>
       {/* Page head */}

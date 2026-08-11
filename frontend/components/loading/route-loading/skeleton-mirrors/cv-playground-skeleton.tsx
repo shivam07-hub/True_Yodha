@@ -2,9 +2,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 export function CVPlaygroundSkeleton() {
   return (
-    <div style={{
+    <div className="tm-page-canvas" style={{
       minHeight: "100dvh",
-      background: "var(--tm-bg)",
       display: "flex",
       flexDirection: "column",
     }}>

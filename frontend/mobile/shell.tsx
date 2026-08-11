@@ -27,8 +27,8 @@ export function AppShellSkeleton() {
   return (
     <SkeletonTheme baseColor={SKELETON_BASE} highlightColor={SKELETON_HIGHLIGHT} duration={1.6} borderRadius={6}>
       <div
-        className="tm-shell-skeleton"
-        style={{ display: "flex", flexDirection: "column", height: "100dvh", width: "100vw", overflow: "hidden", background: "var(--tm-bg)" }}
+        className="tm-page-canvas tm-shell-skeleton"
+        style={{ display: "flex", flexDirection: "column", height: "100dvh", width: "100vw", overflow: "hidden" }}
       >
         {/* Desktop: top bar skeleton */}
         <div className="tm-app-topbar" style={{ gap: 16 }}>

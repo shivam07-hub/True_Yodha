@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 
 export default function IntelPage() {
   return (
-    <div style={{ height: "100dvh", width: "100vw", maxWidth: "100vw", display: "flex", flexDirection: "column", background: "var(--tm-bg)", position: "relative", overflow: "hidden" }}>
+    <div className="tm-page-canvas" style={{ height: "100dvh", width: "100vw", maxWidth: "100vw", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
       <PublicTopNav active="intel" showSignIn />
       <div style={{ flex: 1, width: "100%", minWidth: 0, overflowY: "auto", overflowX: "hidden", position: "relative", zIndex: 2 }}>
         <Suspense fallback={<IntelSkeleton />}>

@@ -4,10 +4,10 @@ export function AppShellSkeleton() {
   return (
     <main
       aria-hidden="true"
+      className="tm-page-canvas"
       style={{
         minHeight: "100dvh",
         width: "100vw",
-        background: "var(--tm-bg)",
         display: "grid",
         placeItems: "center",
         padding: "32px 20px",

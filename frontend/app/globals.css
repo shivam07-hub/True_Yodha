@@ -905,13 +905,13 @@
        near-black headings on a near-black page, with their own subheadings
        still readable. That is the bug in Shivam's 2026-07-26 screenshots.
 
-       The chrome now follows [data-surface], so the canvas can simply BE the
-       page. One owner for the page colour, in both themes.
+       The chrome now follows [data-surface], and the canonical html/body
+       canvas owns both the light paper and dark deep-field behind content.
 
        (The old comment also noted --mm-bg is out of scope here so "the literal
        fallback is what applies" — a var silently resolving to its fallback is
        the same scope trap three times over. Canonical tokens are global.) */
-    background: var(--tm-bg);
+    background: transparent;
   }
 
   /* Home page job detail: 2-col → 1-col */

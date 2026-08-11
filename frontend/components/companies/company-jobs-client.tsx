@@ -174,7 +174,7 @@ export function CompanyJobsClient({
   // crawlers already have the server-rendered title/canonical/JSON-LD above.
   if (isLoading && !data) {
     return (
-      <div style={{ minHeight: "60vh", background: "var(--tm-bg)" }}>
+      <div className="tm-page-canvas" style={{ minHeight: "60vh" }}>
         <ParticleLoading message="Loading company jobs…" height={600} />
       </div>
     )
@@ -185,7 +185,7 @@ export function CompanyJobsClient({
   const hasNext = data?.has_next ?? false
 
   return (
-    <div style={{ background: "var(--tm-bg)", color: "var(--tm-text)" }}>
+    <div className="tm-page-canvas" style={{ color: "var(--tm-text)" }}>
 
       {/* Hero */}
       <div style={{ borderBottom: "1px solid var(--tm-border-soft)", padding: "32px 32px 28px", position: "relative", overflow: "hidden" }}>
