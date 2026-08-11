@@ -1,9 +1,18 @@
 "use client"
 
+import Link from "next/link"
 import { ArrowRight, Check, FileText, Hammer, SearchCheck } from "lucide-react"
 import { SectionTitle } from "@/components/public/landing/section-title"
 
-export function LandingHowItWorks() {
+export function LandingHowItWorks({
+  companyNames,
+  companiesMonitored,
+}: {
+  companyNames: string[]
+  companiesMonitored: number
+}) {
+  const sources = companyNames.slice(0, 3)
+
   return (
     <section className="lp-match-story" id="how-it-works" aria-label="Match and tailor your CV">
       <div className="lp-wrap">
@@ -16,6 +25,19 @@ export function LandingHowItWorks() {
         </div>
 
         <div className="lp-match-frame">
+          <div className="lp-match-sources">
+            <div>
+              <span className="lp-card-eyebrow">Live source</span>
+              <strong>{companiesMonitored}+ company career pages</strong>
+            </div>
+            <div className="lp-match-source-chips" aria-label="Example tracked companies">
+              {sources.map((name) => (
+                <span key={name}><b aria-hidden="true">{name.charAt(0).toUpperCase()}</b>{name}</span>
+              ))}
+            </div>
+            <Link href="/intel">Explore live data <ArrowRight className="size-4" aria-hidden="true" /></Link>
+          </div>
+
           <article className="lp-opening-card">
             <div className="lp-card-eyebrow">Current opening · India</div>
             <div className="lp-opening-source">

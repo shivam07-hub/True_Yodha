@@ -92,7 +92,11 @@ def test_skips_compile_when_marker_unchanged() -> None:
         snapshot_row={
             "source_job_count": 100,
             "source_last_seen": 20260610,
-            "payload": {"total_jobs": 5000, "total_companies": 30},
+            "payload": {
+                "total_jobs": 5000,
+                "total_companies": 30,
+                "industry_roles": {"Technology": [["Engineering", 120]]},
+            },
         },
     )
     out = _repo(admin).refresh_analytics_snapshot_if_stale()
@@ -119,6 +123,23 @@ def test_recompiles_when_job_count_changes() -> None:
     written = admin.upserts[0]
     assert written["source_job_count"] == 150
     assert written["source_last_seen"] == 20260610
+
+
+def test_recompiles_when_snapshot_predates_industry_role_payload() -> None:
+    admin = _FakeAdmin(
+        job_count=100,
+        last_seen=20260610,
+        snapshot_row={
+            "source_job_count": 100,
+            "source_last_seen": 20260610,
+            "payload": {"total_jobs": 5000, "total_companies": 30},
+        },
+    )
+
+    out = _repo(admin).refresh_analytics_snapshot_if_stale()
+
+    assert out["refreshed"] is True
+    assert len(admin.upserts) == 1
 
 
 def test_recompiles_on_first_run_without_stored_marker() -> None:

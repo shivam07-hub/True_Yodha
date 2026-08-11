@@ -533,6 +533,27 @@ numbers in §7 — it is background traffic, not users.
 
 ---
 
+**S9 — Public Intel industry role families. ✅ Code complete; deployed payload
+refresh still unverified.** The requested “jobs by industry” view could have
+added another public endpoint over `jobs`, but that would violate the Tier-0
+contract. Instead, `MarketAnalyticsCompiler` now counts `role_domain` within
+each normalized industry while it already builds `market_analytics_snapshot`.
+`/jobs/analytics` exposes the bounded `industry_roles` map from that same
+payload, and `/intel` renders it without another request. Selecting an industry
+also stops calling the older `/jobs/companies-at?industry=...` read; the city
+drill remains on that endpoint.
+
+Snapshot schema evolution is explicit: the dirty guard treats a payload without
+`industry_roles` as stale even when job count and `last_seen` are unchanged, so
+the next refresh rebuilds it instead of preserving an old-but-marker-current
+JSON shape. Covered by compiler, router, and dirty-guard tests. Desktop and
+375px browser layouts were verified locally with no overflow or framework error
+overlay. The local frontend still read the currently deployed API, which does
+not emit `industry_roles` yet, so populated role rows remain unverified until
+the backend deploys and the snapshot refresh runs.
+
+---
+
 ## 6. What this design is NOT for
 
 > "Constraints are friends. Ask what the design is NOT for." — Brooks

@@ -12,17 +12,19 @@ function read(path) {
 test("the public landing tells the seeker-first MNC story without product-manual sections", () => {
   const landing = read("components/public/landing-page.tsx")
   const hero = read("components/public/landing/hero.tsx")
+  const heroEngine = read("components/public/landing/hero-engine.tsx")
+  const companyRail = read("components/public/landing/company-rail.tsx")
   const match = read("components/public/landing/how-it-works.tsx")
   const plan = read("components/public/landing/application-plan.tsx")
 
   assert.match(hero, /Prepare for MNC jobs hiring in India/)
-  assert.match(hero, /MNC hiring, read at the source/)
-  assert.match(hero, /Jobs matched to your CV/)
-  assert.match(hero, /className="lp-live-pill" href="\/intel"/)
-  assert.match(hero, /className="lp-proof-link" href="\/intel"/)
-  assert.match(hero, /aria-label="Browse relevant current openings"/)
-  assert.match(hero, /aria-label="Open your skills"/)
-  assert.match(hero, /aria-label="Browse roles hiring in India"/)
+  assert.match(hero, /LandingHeroEngine/)
+  assert.match(heroEngine, /The Myro Engine/)
+  assert.match(heroEngine, /Scores shown are examples/)
+  assert.match(companyRail, /Read live from/)
+  assert.match(companyRail, /company career pages/)
+  assert.match(match, /Live source/)
+  assert.match(match, /company career pages/)
   assert.match(match, /Tailor &amp; apply/)
   assert.match(plan, /Applied\. Now prepare for this role/)
   assert.ok(
@@ -31,6 +33,14 @@ test("the public landing tells the seeker-first MNC story without product-manual
   )
 
   assert.match(landing, /LandingApplicationPlan/)
+  assert.ok(
+    landing.indexOf("<LandingCompanyRail") > landing.indexOf("<LandingHero"),
+    "the live company rail should sit immediately after the hero",
+  )
+  assert.ok(
+    landing.indexOf("<LandingCompanyRail") < landing.indexOf("<LandingHowItWorks"),
+    "the company rail should precede the merged source and tailoring story",
+  )
   assert.doesNotMatch(landing, /LandingJobSearch|LandingDomains/)
   assert.doesNotMatch(hero, /Career Intelligence Platform|10 minutes|See the Engine/)
 })

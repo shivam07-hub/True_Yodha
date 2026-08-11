@@ -16,6 +16,8 @@
 
 .lp-hero-left {
   display: flex;
+  width: 100%;
+  min-width: 0;
   flex-direction: column;
   align-items: flex-start;
 }
@@ -69,23 +71,6 @@
   outline-offset: 3px;
 }
 
-.lp-market-proof {
-  padding: 20px;
-  border: 1px solid var(--lp-border-strong);
-  border-radius: 16px;
-  background: var(--lp-surface);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
-}
-
-.lp-market-proof-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding-bottom: 18px;
-  border-bottom: 1px solid var(--lp-border);
-}
-
-.lp-market-proof-icon,
 .lp-plan-job-icon {
   display: grid;
   flex: 0 0 auto;
@@ -98,7 +83,6 @@
   color: var(--lp-accent-text);
 }
 
-.lp-market-proof-head > span:nth-child(2),
 .lp-opening-source > span:last-child,
 .lp-fit-card-head > span,
 .lp-plan-job > span:nth-child(2),
@@ -109,7 +93,6 @@
   flex-direction: column;
 }
 
-.lp-market-proof-head strong,
 .lp-opening-source strong,
 .lp-fit-card-head strong,
 .lp-plan-job strong,
@@ -119,7 +102,6 @@
   line-height: 1.35;
 }
 
-.lp-market-proof-head small,
 .lp-opening-source small,
 .lp-fit-card-head small,
 .lp-plan-job small,
@@ -130,7 +112,6 @@
   line-height: 1.4;
 }
 
-.lp-live-pill,
 .lp-applied-pill {
   flex: 0 0 auto;
   padding: 5px 9px;
@@ -141,71 +122,6 @@
   font-family: var(--lp-mono);
   font-size: 11px;
   font-weight: 700;
-}
-
-.lp-live-pill {
-  display: inline-flex;
-  min-height: 44px;
-  align-items: center;
-  padding-right: 12px;
-  padding-left: 12px;
-  text-decoration: none;
-}
-
-.lp-icon-link,
-.lp-proof-link,
-.lp-shortlist-icon-link {
-  text-decoration: none;
-  transition:
-    border-color var(--lp-dur) var(--lp-ease),
-    background-color var(--lp-dur) var(--lp-ease),
-    color var(--lp-dur) var(--lp-ease);
-}
-
-.lp-live-pill:hover,
-.lp-icon-link:hover,
-.lp-proof-link:hover,
-.lp-shortlist-icon-link:hover {
-  border-color: var(--lp-accent);
-  background: var(--lp-accent-wash);
-  color: var(--lp-accent-text);
-}
-
-.lp-live-pill:focus-visible,
-.lp-icon-link:focus-visible,
-.lp-proof-link:focus-visible,
-.lp-shortlist-icon-link:focus-visible {
-  outline: 2px solid var(--lp-accent-ring);
-  outline-offset: 3px;
-}
-
-.lp-source-list {
-  display: grid;
-  gap: 8px;
-  padding: 18px 0;
-}
-
-.lp-source-row {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: center;
-  min-height: 44px;
-  padding: 7px 10px;
-  border: 1px solid var(--lp-border);
-  border-radius: 10px;
-  color: var(--lp-muted);
-  font-size: 13px;
-}
-
-.lp-source-row > span:nth-child(2) {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.lp-source-row > svg {
-  color: var(--lp-success);
 }
 
 .lp-source-mark {
@@ -222,70 +138,11 @@
   font-weight: 700;
 }
 
-.lp-proof-connector {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap: 10px;
-  align-items: center;
-  color: var(--lp-accent-text);
-}
-
-.lp-proof-connector span {
-  height: 1px;
-  background: var(--lp-border-strong);
-}
-
-.lp-icon-link,
-.lp-proof-link,
-.lp-shortlist-icon-link {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  color: var(--lp-accent-text);
-}
-
-.lp-shortlist-card {
-  margin-top: 18px;
-  padding: 18px;
-  border: 1px solid var(--lp-accent-ring);
-  border-radius: 12px;
-  background: var(--lp-bg);
-}
-
-.lp-shortlist-label,
 .lp-card-eyebrow {
   color: var(--lp-accent-text);
   font-family: var(--lp-mono);
   font-size: 11px;
   font-weight: 700;
-}
-
-.lp-shortlist-title {
-  margin: 4px 0 14px;
-  color: var(--lp-text);
-  font-size: 18px;
-  font-weight: 700;
-}
-
-.lp-shortlist-row {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 8px 0;
-  color: var(--lp-muted);
-  font-size: 13px;
-}
-
-.lp-shortlist-row + .lp-shortlist-row {
-  border-top: 1px solid var(--lp-border);
-}
-
-.lp-shortlist-icon-link {
-  flex: 0 0 auto;
-  color: var(--lp-accent-text);
 }
 
 .lp-stats {
@@ -342,11 +199,6 @@
     grid-template-columns: 1fr;
     min-height: 0;
   }
-
-  .lp-market-proof {
-    width: 100%;
-    max-width: 640px;
-  }
 }
 
 @media (max-width: 640px) {
@@ -363,10 +215,6 @@
   .lp-hero-support {
     margin-top: 20px;
     font-size: 17px;
-  }
-
-  .lp-market-proof {
-    padding: 14px;
   }
 
   .lp-stats-row {

@@ -19,6 +19,7 @@ import {
   normalizeJobSearchQuery,
 } from "@/components/public/job-search-console-model"
 import { IntelHero, IntelAuthedHeader } from "./intel/intel-hero"
+import { IntelIndustryExplorer } from "./intel/intel-industry-explorer"
 import { IntelJobSwitchPlan } from "./intel/intel-job-switch-plan"
 import type { JobRowFit } from "./intel/intel-rows"
 import { IntelResults, ResultsTab, ResultCompany, ResultGroup, ResultJob } from "./intel/intel-results"
@@ -223,6 +224,8 @@ export function IntelPane() {
     }))
   }, [analytics])
 
+  const industryRoles = analytics?.industry_roles ?? {}
+
   const citiesView: ResultGroup[] = useMemo(() => {
     if (!analytics) return []
     return analytics.by_location_city
@@ -234,7 +237,8 @@ export function IntelPane() {
       }))
   }, [analytics])
 
-  // Industries/Cities drill-down → top companies hiring in the selected group.
+  // Industry drill-down uses Tier-0 role-family counts; city drill-down keeps
+  // the existing top-companies read.
   const groupKind: "industry" | "city" | null =
     tab === "industries" ? "industry" : tab === "cities" ? "city" : null
 
@@ -254,7 +258,9 @@ export function IntelPane() {
     queryFn: () => jobs.topCompaniesAt(
       { kind: groupKind as "industry" | "city", name: activeGroup as string }, 8,
     ),
-    enabled: !!groupKind && !!activeGroup,
+    // Industry roles are already in the Tier-0 analytics snapshot. Only the
+    // city drill still needs the existing companies-at read.
+    enabled: groupKind === "city" && !!activeGroup,
     staleTime: OPEN_ROLES_STALE_MS,
   })
   const groupCompanies = groupCompaniesData?.companies ?? []
@@ -333,6 +339,14 @@ export function IntelPane() {
     router.replace(buildIntelSearchHref(next), { scroll: false })
   }
 
+  function selectIndustry(industry: string) {
+    urlSearchRef.current = ""
+    setQuery("")
+    router.replace("/intel", { scroll: false })
+    setTab("industries")
+    setActiveGroup(industry)
+  }
+
   // Safe defaults during cold-start hydration (avoids flash of 0s). Replaced
   // inline when analytics arrives — tabular-nums in CSS prevents layout shift.
   const safeJobsTotal = jobsTotal || 28047
@@ -376,12 +390,20 @@ export function IntelPane() {
         enableShortcut
       />
 
+      <IntelIndustryExplorer
+        industries={analytics?.by_industry ?? []}
+        activeIndustry={tab === "industries" ? activeGroup : null}
+        isLoading={analyticsLoading}
+        onSelect={selectIndustry}
+      />
+
       <IntelResults
         tab={tab}
         onTab={setTab}
         counts={counts}
         companies={filteredCompanies}
         industries={industriesView}
+        industryRoles={industryRoles}
         cities={citiesView}
         activeCo={activeCoId}
         onActiveCo={setActiveCoId}

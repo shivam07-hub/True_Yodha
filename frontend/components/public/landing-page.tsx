@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
 import { LandingHero } from "@/components/public/landing/hero"
+import { LandingCompanyRail } from "@/components/public/landing/company-rail"
 import { LandingHowItWorks } from "@/components/public/landing/how-it-works"
 import { LandingApplicationPlan } from "@/components/public/landing/application-plan"
 import { LandingClosing } from "@/components/public/landing/closing"
@@ -12,7 +13,10 @@ import { useLandingData } from "@/components/public/landing/use-landing-data"
 import { getAccessToken, getRefreshToken } from "@/lib/session"
 import "@/components/public/landing/landing-base.css"
 import "@/components/public/landing/landing-hero.css"
+import "@/components/public/landing/landing-hero-engine.css"
 import "@/components/public/landing/landing-depth.css"
+import "@/components/public/landing/landing-match-sources.css"
+import "@/components/public/landing/landing-company-rail.css"
 
 /**
  * Myro landing — seeker-only funnel, product-story pass locked 2026-08-10.
@@ -72,7 +76,15 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
           seekers={data.seekers}
         />
 
-        <LandingHowItWorks />
+        <LandingCompanyRail
+          companyNames={data.marqueeNames}
+          companiesMonitored={data.companiesMonitored}
+        />
+
+        <LandingHowItWorks
+          companyNames={data.marqueeNames}
+          companiesMonitored={data.companiesMonitored}
+        />
 
         <LandingApplicationPlan />
 

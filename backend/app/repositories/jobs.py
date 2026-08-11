@@ -696,6 +696,7 @@ class MarketAnalyticsCompiler:
         skill_counts: Counter[str] = Counter()
         company_skill_counters: dict[str, Counter[str]] = {}
         industry_skill_counters: dict[str, Counter[str]] = {}
+        industry_role_counters: dict[str, Counter[str]] = {}
         batch_dates: list[int] = []
         company_last_seen: dict[str, datetime] = {}
         company_first_created: dict[str, datetime] = {}
@@ -759,6 +760,8 @@ class MarketAnalyticsCompiler:
             if industry:
                 industry_counts[industry] += 1
                 industry_skill_counters.setdefault(industry, Counter()).update(skills)
+                if role:
+                    industry_role_counters.setdefault(industry, Counter())[role] += 1
             if role:
                 role_counts[role] += 1
             if location_city:
@@ -778,6 +781,10 @@ class MarketAnalyticsCompiler:
         industry_skill_counts = {
             industry: _sorted_counter_items(counter)[:ENTITY_SKILL_LIMIT]
             for industry, counter in industry_skill_counters.items()
+        }
+        industry_roles = {
+            industry: _sorted_counter_items(counter)[:10]
+            for industry, counter in industry_role_counters.items()
         }
         company_skills = {
             company: [skill for skill, _ in items]
@@ -822,6 +829,10 @@ class MarketAnalyticsCompiler:
             "industry_skills": industry_skills,
             "company_skill_counts": company_skill_counts,
             "industry_skill_counts": industry_skill_counts,
+            # Tier-0 role-family view for /intel. Each count comes from the same
+            # current job rows as by_industry, so the UI never guesses which
+            # kinds of roles an industry is hiring for.
+            "industry_roles": industry_roles,
         }
 
 
@@ -1055,7 +1066,7 @@ class JobsRepository:
         try:
             result = (
                 self._admin_db.table("market_analytics_snapshot")
-                .select("source_job_count, source_last_seen")
+                .select("source_job_count, source_last_seen, payload")
                 .eq("id", 1)
                 .limit(1)
                 .execute()
@@ -1065,7 +1076,13 @@ class JobsRepository:
         rows = result.data or []
         if not rows:
             return None
-        return {"job_count": rows[0].get("source_job_count"), "last_seen": rows[0].get("source_last_seen")}
+        payload = rows[0].get("payload")
+        return {
+            "job_count": rows[0].get("source_job_count"),
+            "last_seen": rows[0].get("source_last_seen"),
+            "has_industry_roles": isinstance(payload, dict)
+            and isinstance(payload.get("industry_roles"), dict),
+        }
 
     def refresh_analytics_snapshot_if_stale(self, *, refreshed_by: str = "cron") -> dict[str, Any]:
         """Recompile the snapshot ONLY when the jobs table changed since the last
@@ -1076,7 +1093,12 @@ class JobsRepository:
         """
         current = self._jobs_source_marker()
         stored = self._read_snapshot_marker()
-        if stored is not None and stored == current:
+        if (
+            stored is not None
+            and stored.get("job_count") == current["job_count"]
+            and stored.get("last_seen") == current["last_seen"]
+            and stored.get("has_industry_roles") is True
+        ):
             existing = self._read_snapshot_payload() or {}
             return {
                 "refreshed": False,

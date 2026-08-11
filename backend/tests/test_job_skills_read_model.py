@@ -237,6 +237,28 @@ def test_compile_market_analytics_enriches_company_with_dominant_country_and_ind
     assert enrichment["Globex"]["country"] == "IN"
 
 
+def test_compile_market_analytics_groups_live_role_families_by_industry() -> None:
+    jobs_module._analytics_cache.clear()
+    jobs = [
+        {"job_id": "a0", "company_name": "Acme", "industry": "Tech",
+         "role_domain": "Software Engineering", "batch_date": 20260504},
+        {"job_id": "a1", "company_name": "Acme", "industry": "Tech",
+         "role_domain": "Software Engineering", "batch_date": 20260504},
+        {"job_id": "a2", "company_name": "Acme", "industry": "Tech",
+         "role_domain": "Product", "batch_date": 20260504},
+        {"job_id": "b0", "company_name": "BankCo", "industry": "Banking",
+         "role_domain": "Finance", "batch_date": 20260504},
+    ]
+
+    result = JobsRepository(_FakeDB({"jobs": jobs})).compile_market_analytics()
+
+    assert result["industry_roles"]["Technology"] == [
+        ("Software Engineering", 2),
+        ("Product", 1),
+    ]
+    assert result["industry_roles"]["BFSI"] == [("Finance", 1)]
+
+
 def test_compile_market_analytics_caches_within_ttl() -> None:
     jobs_module._analytics_cache.clear()
     db = _make_analytics_db()
