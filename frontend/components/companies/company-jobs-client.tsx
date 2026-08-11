@@ -13,7 +13,7 @@ import "@/components/jobs/feed-card.css"
 import type { CommentListResponse, CompanyJobCard, CompanyJobsResponse, CompanySkillIntelligence } from "@/lib/api"
 import { ParticleLoading } from "@/components/loading/particle-loading"
 import { CommentThread } from "@/components/comments/comment-thread"
-import { useAuth } from "@/lib/hooks/use-auth"
+import { useSession } from "@/lib/hooks/use-auth"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import { CompanySkillIntelligenceCard } from "./company-skill-intelligence"
 
@@ -44,6 +44,16 @@ async function fetchPostingNotes(name: string): Promise<PostingNote[]> {
   if (!res.ok) throw new Error("fetch failed")
   const data = await res.json()
   return (data.posting_notes ?? []) as PostingNote[]
+}
+
+async function fetchCompanySkillIntelligence(name: string): Promise<CompanySkillIntelligence | null> {
+  const base = process.env.NEXT_PUBLIC_API_URL ?? ""
+  const res = await fetch(
+    `${base}/companies/${encodeURIComponent(name)}/skill-intelligence?limit=20`,
+  )
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error("fetch failed")
+  return res.json()
 }
 
 async function saveJobReq(token: string, jobId: string): Promise<void> {
@@ -100,22 +110,19 @@ export function CompanyJobsClient({
   companyName,
   initialData,
   initialComments,
-  initialPostingNotes,
-  initialSkillIntelligence,
 }: {
   companyName: string
   initialData: CompanyJobsResponse | null
   /** Server-fetched company-level notes — seeds the CommentThread into crawlable HTML. */
   initialComments?: CommentListResponse | null
-  /** Server-fetched job-posting notes rollup — seeds the rollup into crawlable HTML. */
-  initialPostingNotes?: PostingNote[] | null
-  initialSkillIntelligence?: CompanySkillIntelligence | null
 }) {
-  const { token } = useAuth()
+  const { token } = useSession()
   const signup = useSignupGate()
   const router = useRouter()
   const [page, setPage] = useState(1)
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
+  const [showSkillIntelligence, setShowSkillIntelligence] = useState(false)
+  const [showPostingNotes, setShowPostingNotes] = useState(false)
 
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ["company-jobs", companyName, page],
@@ -125,12 +132,28 @@ export function CompanyJobsClient({
     initialData: page === 1 ? (initialData ?? undefined) : undefined,
   })
 
-  const { data: postingNotes } = useQuery({
+  const {
+    data: skillIntelligence,
+    isFetching: isFetchingSkillIntelligence,
+    isError: isSkillIntelligenceError,
+    refetch: refetchSkillIntelligence,
+  } = useQuery({
+    queryKey: ["company-skill-intelligence", companyName],
+    queryFn: () => fetchCompanySkillIntelligence(companyName),
+    enabled: showSkillIntelligence,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const {
+    data: postingNotes,
+    isFetching: isFetchingPostingNotes,
+    isError: isPostingNotesError,
+    refetch: refetchPostingNotes,
+  } = useQuery({
     queryKey: ["company-posting-notes", companyName],
     queryFn: () => fetchPostingNotes(companyName),
+    enabled: showPostingNotes,
     staleTime: 5 * 60 * 1000,
-    // Seed from the server fetch → the rollup is in the crawlable HTML too.
-    initialData: initialPostingNotes ?? undefined,
   })
 
   function openSignup(jobId?: string) {
@@ -195,10 +218,40 @@ export function CompanyJobsClient({
       {/* Body */}
       <div style={{ maxWidth: 860, margin: "0 auto", padding: "32px 32px 80px" }}>
 
-        <CompanySkillIntelligenceCard
-          companyName={companyName}
-          data={initialSkillIntelligence ?? null}
-        />
+        {showSkillIntelligence ? (
+          isFetchingSkillIntelligence ? (
+            <div role="status" className="mb-8 rounded-xl border border-[var(--tm-border-soft)] bg-[var(--tm-surface)] p-5 text-sm text-[var(--tm-text-faint)]">
+              Loading skill demand…
+            </div>
+          ) : skillIntelligence ? (
+            <CompanySkillIntelligenceCard companyName={companyName} data={skillIntelligence} />
+          ) : isSkillIntelligenceError ? (
+            <div role="alert" className="mb-8 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[var(--tm-border-soft)] bg-[var(--tm-surface)] p-5 text-sm text-[var(--tm-text-faint)]">
+              <span>Skill demand could not be loaded.</span>
+              <Button type="button" variant="neutral" size="sm" onClick={() => void refetchSkillIntelligence()}>
+                Try again
+              </Button>
+            </div>
+          ) : (
+            <div className="mb-8 rounded-xl border border-[var(--tm-border-soft)] bg-[var(--tm-surface)] p-5 text-sm text-[var(--tm-text-faint)]">
+              No skill-demand snapshot is available yet.
+            </div>
+          )
+        ) : (
+          <div className="mb-8 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[var(--tm-border-soft)] bg-[var(--tm-surface)] p-5 sm:p-6">
+            <div>
+              <h2 className="text-balance text-sm font-semibold text-[var(--tm-text)]">
+                What skills is {companyName} hiring for?
+              </h2>
+              <p className="mt-1 text-pretty text-xs text-[var(--tm-text-faint)]">
+                Open the latest skill-demand snapshot when you need it.
+              </p>
+            </div>
+            <Button type="button" variant="neutral" size="sm" onClick={() => setShowSkillIntelligence(true)}>
+              Show skill demand
+            </Button>
+          </div>
+        )}
 
         {/* Question-style H2 — structural clarity for crawlers + AI answer engines. */}
         <h2 style={{ margin: "0 0 18px", fontSize: 18, fontWeight: 600, color: "var(--tm-text)" }}>
@@ -212,7 +265,7 @@ export function CompanyJobsClient({
             <div style={{ fontSize: 13, color: "var(--tm-text-faint)", maxWidth: 300, lineHeight: 1.6 }}>
               Our scrapers check regularly. Roles appear here as they&apos;re indexed.
             </div>
-            <Button render={<Link href="/companies" />} variant="solid" size="md" style={{ marginTop: 8 }}>
+            <Button nativeButton={false} render={<Link href="/companies" />} variant="solid" size="md" style={{ marginTop: 8 }}>
               Explore other companies →
             </Button>
           </div>
@@ -250,8 +303,18 @@ export function CompanyJobsClient({
           <CommentThread token={token ?? null} entityType="company" entityId={companyName} placeholder={`Share what you know about applying to ${companyName}…`} initialData={initialComments ?? undefined} />
         </div>
 
-        {/* Rollup: notes left on this company's individual job postings. */}
-        {postingNotes && postingNotes.length > 0 && (
+        {/* J2 rollup: fetch only after the user asks for role-specific notes. */}
+        {!showPostingNotes ? (
+          <div style={{ marginTop: 24 }}>
+            <Button type="button" variant="neutral" size="sm" onClick={() => setShowPostingNotes(true)}>
+              Show notes from individual roles
+            </Button>
+          </div>
+        ) : isFetchingPostingNotes ? (
+          <div role="status" style={{ marginTop: 24, color: "var(--tm-text-faint)", fontSize: 13 }}>
+            Loading role notes…
+          </div>
+        ) : postingNotes && postingNotes.length > 0 ? (
           <div style={{ marginTop: 24, padding: "24px 28px", background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)", borderRadius: 14 }}>
             <div className="tm-label-caps" style={{ color: "var(--tm-text-faint)", marginBottom: 12 }}>
               From applicants on open roles
@@ -272,6 +335,17 @@ export function CompanyJobsClient({
               ))}
             </ul>
           </div>
+        ) : isPostingNotesError ? (
+          <div role="alert" style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 12, color: "var(--tm-text-faint)", fontSize: 13 }}>
+            <span>Role notes could not be loaded.</span>
+            <Button type="button" variant="neutral" size="sm" onClick={() => void refetchPostingNotes()}>
+              Try again
+            </Button>
+          </div>
+        ) : (
+          <div style={{ marginTop: 24, color: "var(--tm-text-faint)", fontSize: 13 }}>
+            No notes have been shared on individual roles yet.
+          </div>
         )}
 
         {/* Score CTA — anonymous acquisition only. A logged-in user is already
@@ -285,6 +359,7 @@ export function CompanyJobsClient({
             <div style={{ fontSize: 13, color: "var(--tm-text-faint)" }}>Upload your CV. Get a Myro Score + skill gap for every role.</div>
           </div>
           <Button
+            nativeButton={false}
             render={<Link href="/signup" />}
             variant="solid"
             size="md"

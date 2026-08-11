@@ -126,11 +126,9 @@ Verified open violations, 2026-08-12:
 - authenticated navigation mounts reads for applications, profile, and CV
   versions on every page even though the primary tabs are always visible;
 - `/market`'s Wave 3 treats any scroll, pointerdown, or keydown as intent for
-  several analytics consumers rather than the specific consumer entered;
-- a public company page server-fetches jobs, company/posting notes, company
-  detail, and skill intelligence together before first paint. The alert pattern
-  (`/companies/{name}`, `/jobs`, `/skill-intelligence`, `/comments` slow in one
-  burst) is the exact request graph in code.
+  several analytics consumers rather than the specific consumer entered.
+
+The former public company-page fan-out is addressed in S11 below.
 
 These are named for the next demand-reduction pass. They are not silently
 declared fixed by the database work below.
@@ -591,8 +589,8 @@ the backend deploys and the snapshot refresh runs.
 
 ---
 
-**S10 — Verifier health stopped counting the corpus. ✅ DB live; worker code
-complete, deployment pending verification.**
+**S10 — Verifier health stopped counting the corpus. ✅ DB live; Develop API
+deployed; worker deployment unverified.**
 
 The 2026-08-11/12 incident mails included `/health` at 8,020ms. Reproduced on
 the live services before changing anything:
@@ -631,6 +629,44 @@ explicit operational investigation, not on a scheduled/user-facing path.
 The cached live calls still took roughly 0.4-0.7s end-to-end while the app spent
 under 1ms. That remainder is Railway edge/network time, not Postgres, and stays
 open for the runtime/region lane. The DB fix must not be credited for it.
+
+---
+
+**S11 — Company-page secondary compute follows user intent. ✅ Develop.**
+
+The alert mail repeatedly showed the same four-route burst for one company
+visit:
+
+    /companies/{name}/jobs
+    /comments?entity_type=company&entity_id={name}
+    /companies/{name}
+    /companies/{name}/skill-intelligence
+
+This was the server render graph, not four independent user decisions. The
+company page now spends its J0 budget on the crawlable facts needed to answer
+the route: live roles and company-level community notes. These still feed the
+title/indexability decision, server-rendered role list, ItemList JSON-LD, and
+truthful DiscussionForumPosting JSON-LD.
+
+Skill demand and the roll-up of notes from individual job postings are J2.
+Their React Query reads use `enabled` flags controlled by their own disclosure
+buttons; mount, browser idle, scroll, and generic pointer activity do not earn
+the request. The initial backend route graph therefore falls from **four calls
+to two**. An anonymous comment thread also reuses the server seed instead of
+immediately repeating `/comments`; an authenticated reader alone refreshes the
+seed to resolve edit/delete ownership.
+
+The browser pass also found that this public route mounted `useAuth()`, whose
+contract is to redirect a resolved anonymous session to `/login`. The component
+only needs session presence for Save and note ownership, so it now uses the
+passive `useSession()` reader. Anonymous company exploration therefore remains
+on the public route instead of paying for a render and then being ejected.
+
+The deliberate SEO trade-off is bounded: company-level notes remain crawlable;
+per-job notes are no longer duplicated into the company page's initial HTML or
+used alone to make an otherwise-empty company indexable. They remain available
+unchanged after the explicit user action. This is demand removal, not an empty
+placeholder presented as data.
 
 ---
 
