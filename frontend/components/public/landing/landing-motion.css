@@ -1,0 +1,112 @@
+/* Continuous landing motion. All loops are compositor-only and are paused by
+   useAllowLoopingMotion when their host leaves the viewport. */
+
+@media (prefers-reduced-motion: no-preference) {
+  .lp-mini-engine[data-motion="running"] .lp-me-core img,
+  .lp-mini-engine[data-motion="running"] .lp-me-match,
+  .lp-mini-engine[data-motion="running"] .lp-me-evidence,
+  .lp-mini-engine[data-motion="running"] .lp-me-score,
+  .lp-company-rail[data-motion="running"] .lp-company-rail-track {
+    will-change: transform;
+  }
+
+  .lp-mini-flow {
+    animation: lp-engine-line-signal 2.8s ease-out infinite;
+  }
+
+  .lp-mini-flow:nth-child(2) { animation-delay: 350ms; }
+  .lp-mini-flow:nth-child(3) { animation-delay: 700ms; }
+  .lp-mini-flow:nth-child(4) { animation-delay: 1050ms; }
+  .lp-mini-flow:nth-child(5) { animation-delay: 1400ms; }
+  .lp-mini-flow:nth-child(6) { animation-delay: 1750ms; }
+
+  .lp-me-chip {
+    animation: lp-engine-source-in 2.8s ease-out infinite;
+  }
+
+  .lp-me-chip:nth-child(2) { animation-delay: 350ms; }
+  .lp-me-chip:nth-child(3) { animation-delay: 700ms; }
+  .lp-me-chip:nth-child(4) { animation-delay: 1050ms; }
+
+  .lp-me-core img {
+    animation: lp-engine-core-turn 8s linear infinite;
+  }
+
+  .lp-me-match {
+    animation: lp-engine-card-float 4s ease-in-out infinite;
+  }
+
+  .lp-me-match > div span {
+    transform-origin: left center;
+    animation: lp-engine-meter 2.8s ease-out infinite;
+  }
+
+  .lp-me-evidence {
+    animation: lp-engine-evidence 3.2s ease-in-out infinite;
+  }
+
+  .lp-me-score {
+    animation: lp-engine-score 3.6s ease-in-out 500ms infinite;
+  }
+
+  .lp-company-rail-track {
+    animation: lp-company-rail-run 48s linear infinite;
+  }
+
+  .lp-company-rail:hover .lp-company-rail-track {
+    animation-play-state: paused;
+  }
+
+  .lp-mini-engine[data-motion="paused"] .lp-mini-flow,
+  .lp-mini-engine[data-motion="paused"] .lp-me-chip,
+  .lp-mini-engine[data-motion="paused"] .lp-me-core img,
+  .lp-mini-engine[data-motion="paused"] .lp-me-match,
+  .lp-mini-engine[data-motion="paused"] .lp-me-match > div span,
+  .lp-mini-engine[data-motion="paused"] .lp-me-evidence,
+  .lp-mini-engine[data-motion="paused"] .lp-me-score,
+  .lp-company-rail[data-motion="paused"] .lp-company-rail-track {
+    animation-play-state: paused;
+  }
+
+  @keyframes lp-engine-line-signal {
+    0%, 100% { opacity: 0.2; }
+    25% { opacity: 0.78; }
+    55% { opacity: 0.28; }
+  }
+
+  @keyframes lp-engine-source-in {
+    0%, 100% { transform: translateX(0); }
+    22% { transform: translateX(7px); }
+    42% { transform: translateX(0); }
+  }
+
+  @keyframes lp-engine-core-turn {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  @keyframes lp-engine-card-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+
+  @keyframes lp-engine-meter {
+    0%, 20% { transform: scaleX(0.24); opacity: 0.55; }
+    55%, 100% { transform: scaleX(1); opacity: 1; }
+  }
+
+  @keyframes lp-engine-evidence {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(6px); }
+  }
+
+  @keyframes lp-engine-score {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(5px); }
+  }
+
+  @keyframes lp-company-rail-run {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+}

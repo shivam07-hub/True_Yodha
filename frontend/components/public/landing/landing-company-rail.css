@@ -21,11 +21,27 @@
 
 .lp-company-rail-scroll {
   display: flex;
-  gap: 10px;
   max-width: 100%;
-  padding: 0 var(--lp-page-px) 4px;
-  overflow-x: auto;
-  scrollbar-width: thin;
+  padding: 0 0 4px;
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, black 5%, black 95%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 5%, black 95%, transparent);
+}
+
+.lp-company-rail-track,
+.lp-company-rail-loop {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 10px;
+  width: max-content;
+}
+
+.lp-company-rail-loop {
+  padding-right: 10px;
+}
+
+.lp-company-rail-track {
+  gap: 0;
 }
 
 .lp-company-chip {
@@ -64,8 +80,17 @@
   background: var(--lp-surface-2);
 }
 
-@media (min-width: 900px) {
+@media (prefers-reduced-motion: reduce) {
   .lp-company-rail-scroll {
-    justify-content: center;
+    gap: 10px;
+    padding-inline: var(--lp-page-px);
+    overflow-x: auto;
+    mask-image: none;
+    -webkit-mask-image: none;
+    scrollbar-width: thin;
+  }
+
+  .lp-company-rail-loop:nth-child(2) {
+    display: none;
   }
 }
