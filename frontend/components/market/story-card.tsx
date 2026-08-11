@@ -1,6 +1,8 @@
 "use client"
 
 import { CompanyLink } from "@/components/companies/company-link"
+import { FollowCompanyControl } from "@/components/companies/follow-company-control"
+import type { FollowCompanyAction } from "@/lib/hooks/use-follow-company"
 import "./market-intel.css"
 
 /**
@@ -18,11 +20,12 @@ export type FeedStory =
   | { kind: "company"; company: string; openCount: number; location: string | null; followed: boolean }
 
 export function StoryCard({
-  story, onPrimary, onSecondary,
+  story, onPrimary, onSecondary, companyAction,
 }: {
   story: FeedStory
   onPrimary: () => void
   onSecondary: () => void
+  companyAction?: FollowCompanyAction
 }) {
   if (story.kind === "skill") {
     return (
@@ -53,9 +56,13 @@ export function StoryCard({
         <button type="button" className="mi-go" onClick={onPrimary}>
           See {story.openCount} role{story.openCount === 1 ? "" : "s"} →
         </button>
-        <button type="button" className="mi-quiet" onClick={onSecondary}>
-          {story.followed ? "following ✓" : "follow"}
-        </button>
+        {companyAction ? (
+          <FollowCompanyControl company={story.company} action={companyAction} showLabel className="mi-follow" />
+        ) : (
+          <button type="button" className="mi-quiet" onClick={onSecondary}>
+            {story.followed ? "following ✓" : "follow"}
+          </button>
+        )}
       </div>
     </article>
   )

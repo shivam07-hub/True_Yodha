@@ -829,8 +829,8 @@ A candidate's explicit, reversible choice to star one canonical Company so Myro 
 - **Follow = user; save = job; track = engine.** Only a direct user action may create or remove a Followed Company. Saving a job, a listing closing, matching, collection attention, or any background process may suggest a follow but must never write one or consume a compare slot (IH6).
 - Following is free, capped at 10, and ordered most-recently-starred first (IH2, IH5). Reaching the cap is a visible policy state, not a silent no-op.
 - Every adapter exposes the same lifecycle: loading, available, following, followed, unfollowing, cap-blocked, and error. The star is the canonical control; page-specific callers do not reimplement mutation or cache state.
-- The current durable row is `followed_companies(user_id, company_name, created_at)`. The Followed Companies deepening must resolve and persist canonical Company identity while preserving the name only as transitional display/audit data.
-- The legacy Collections auto-follow implementation violates this boundary and is explicitly superseded. Remove it when the shared backend module lands; do not preserve it behind an adapter.
+- The durable row is `followed_companies(user_id, company_id, company_name, created_at)`. `company_id` is the canonical Company identity; `company_name` remains display/audit data. The database mutation seam resolves aliases, canonicalises the display name, and atomically enforces the cap.
+- Collections never auto-follows. It may surface a company suggestion after a role closes, but the shared backend module only writes a Followed Company after the user stars it.
 
 **Relationships**
 - A User has 0–10 Followed Companies; a Company may be followed by many Users.

@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { AccentControl } from "@/components/ui/accent-control"
 import { TargetRolesChips } from "@/components/target-role/target-roles-chips"
 import { CompanyLink } from "@/components/companies/company-link"
+import { FollowCompanyControl } from "@/components/companies/follow-company-control"
 import { billing, jobs, users } from "@/lib/api"
 import type { ProfileUpdate, UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
@@ -853,13 +854,7 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
                       <div key={company.company_name} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 8px 5px 12px", borderRadius: "var(--tm-radius-pill)", background: "var(--tm-int-bg-wash)", border: "1px solid var(--tm-int-border)", fontSize: 12, color: "var(--tm-interactive)" }}>
                         <CompanyLink company={company.company_name} stopPropagation={false} />
 
-                        <button
-                          type="button"
-                          onClick={() => following.unfollow(company.company_name)}
-                          disabled={following.isPending(company.company_name)}
-                          aria-label={`Unfollow ${company.company_name}`}
-                          style={{ width: 16, height: 16, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--tm-int-border-soft)", border: "none", padding: 0, cursor: "pointer", color: "var(--tm-interactive)", fontSize: 12, lineHeight: 1 }}
-                        >×</button>
+                        <FollowCompanyControl company={company.company_name} action={following.action(company.company_name)} />
                       </div>
                     ))}
                   </div>

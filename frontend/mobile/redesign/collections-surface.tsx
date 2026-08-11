@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { jobs as jobsApi, users as usersApi, type ApplicationResponse, type JobMatch } from "@/lib/api"
+import { jobs as jobsApi, type ApplicationResponse, type JobMatch } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { SORTS, type FeedItem, type SortKey } from "@/lib/dashboard/feed-model"
 import {
@@ -35,6 +35,7 @@ import { CollectionCard, MyroFoundCard, pulseLine } from "./collection-card"
 import { MobileAgentPicks } from "./agent-picks-mobile"
 import { matchToRow } from "./job-model"
 import { useMobileUI } from "./mobile-ui"
+import { useFollowCompany } from "@/lib/hooks/use-follow-company"
 
 /* ══════════════════════════════════════════════════════════════════════════
    CollectionsSurface — the mobile Myro Ops folder. "Myro found" reads the brain
@@ -63,7 +64,7 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
   const appsQ = useQuery({ queryKey: dataKeys.applications(), queryFn: () => jobsApi.applications(token), enabled: !!token, staleTime: 60 * 1000 })
   const matchesQ = useQuery({ queryKey: dataKeys.jobs(), queryFn: () => jobsApi.matches(token), enabled: !!token, staleTime: 5 * 60 * 1000 })
   const picksQ = useQuery({ queryKey: ["agentPicks", token], queryFn: () => jobsApi.agentPicks(token), enabled: !!token, staleTime: 30 * 60 * 1000 })
-  const { data: followed } = useQuery({ queryKey: ["followedCompanies", token], queryFn: () => usersApi.followedCompanies(token), enabled: !!token, staleTime: 5 * 60 * 1000 })
+  const following = useFollowCompany(token)
 
   const [chip, setChip] = useState<CollectionChip>("found")
   const [sort, setSort] = useState<SortKey>("prize")
@@ -105,8 +106,8 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
   const { open: openApps, closed: closedApps } = useMemo(() => splitClosedApps(apps, pulses), [apps, pulses])
 
   const ctx = useMemo(
-    () => collectionsTriageCtx(openApps, (followed?.companies ?? []).map(c => c.company_name), profile?.target_roles ?? []),
-    [openApps, followed, profile],
+    () => collectionsTriageCtx(openApps, following.followedNames, profile?.target_roles ?? []),
+    [openApps, following.followedNames, profile],
   )
   const continueItems = useMemo(() => buildContinueLane(openApps, ctx, byId), [openApps, ctx, byId])
   const dismissedIds = useMemo(() => {
@@ -281,8 +282,7 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
   }
 
   // A dead listing — found, saved, or applied. Nothing left to unsave/tailor
-  // toward on the listing itself; the company is already auto-followed
-  // (backend sweep), so Share just copies the dead link for reference.
+  // toward on the listing itself; Share just copies the dead link for reference.
   const renderClosedItem = (it: FeedItem) => {
     const app = appBy.get(it.jobId)
     const row = matchToRow(it.job)

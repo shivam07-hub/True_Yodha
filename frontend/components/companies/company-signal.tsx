@@ -20,6 +20,8 @@
 import Link from "next/link"
 import type { CSSProperties, ReactNode } from "react"
 import { companyInitials } from "@/lib/companies/company-initials"
+import type { FollowCompanyAction } from "@/lib/hooks/use-follow-company"
+import { FollowCompanyControl } from "./follow-company-control"
 import "./company-signal.css"
 
 export { companyInitials }
@@ -77,6 +79,7 @@ interface RowProps {
   followed?: boolean
   href?: string
   onClick?: () => void
+  followAction?: FollowCompanyAction
   size?: Extract<CompanySignalSize, "s">
 }
 
@@ -85,7 +88,7 @@ interface RowProps {
  * a button (onClick), or a plain div. Used in the market rail, heatmap company
  * strip, and ranked panel lists.
  */
-export function CompanySignalRow({ name, meta, followed, href, onClick, size = "s" }: RowProps) {
+export function CompanySignalRow({ name, meta, followed, href, onClick, followAction, size = "s" }: RowProps) {
   const inner = (
     <>
       <CompanyTile name={name} size={size} />
@@ -96,13 +99,13 @@ export function CompanySignalRow({ name, meta, followed, href, onClick, size = "
       {meta != null ? <span className="cs-row-meta">{meta}</span> : null}
     </>
   )
-  if (href) {
-    return <Link href={href} className="cs-row">{inner}</Link>
-  }
-  if (onClick) {
-    return <button type="button" className="cs-row" onClick={onClick}>{inner}</button>
-  }
-  return <div className="cs-row">{inner}</div>
+  const primary = href
+    ? <Link href={href} className="cs-row">{inner}</Link>
+    : onClick
+      ? <button type="button" className="cs-row" onClick={onClick}>{inner}</button>
+      : <div className="cs-row">{inner}</div>
+  if (!followAction) return primary
+  return <div className="cs-row-wrap">{primary}<FollowCompanyControl company={name} action={followAction} /></div>
 }
 
 /**
@@ -145,7 +148,7 @@ interface CardProps {
   /** Highest-pulse card in a set → accent-ring border. */
   highlight?: boolean
   href?: string
-  onToggleFollow?: () => void
+  followAction?: FollowCompanyAction
 }
 
 /**
@@ -154,37 +157,24 @@ interface CardProps {
  * delta. Honest states: no data yet → "…"; live but pulse===null (no open
  * roles) → em-dash "no live roles"; a real pulse → the number. Never fabricates.
  */
-export function CompanySignalCard({ name, pulse, topSkill, followed, highlight, href, onToggleFollow }: CardProps) {
+export function CompanySignalCard({ name, pulse, topSkill, followed, highlight, href, followAction }: CardProps) {
   const loading = pulse === undefined
   const noSignal = !loading && pulse.pulse === null
   const subParts: string[] = []
   if (!loading) subParts.push(`${pulse.open_roles} open role${pulse.open_roles === 1 ? "" : "s"}`)
   if (topSkill) subParts.push(`top: ${topSkill}`)
 
-  const body = (
+  const header = (
     <>
-      <div className="cs-card-head">
-        <CompanyTile name={name} size="l" />
-        <div className="cs-card-id">
-          <span className="cs-card-name">{name}</span>
-          {subParts.length ? <span className="cs-card-sub">{subParts.join(" · ")}</span> : null}
-        </div>
-        {onToggleFollow ? (
-          <button
-            type="button"
-            className={`cs-card-star${followed ? " is-on" : ""}`}
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleFollow() }}
-            aria-label={followed ? `Unfollow ${name}` : `Follow ${name}`}
-            aria-pressed={followed}
-          >
-            {followed ? "★" : "☆"}
-          </button>
-        ) : followed ? (
-          <span className="cs-card-star is-on" aria-label="Following">★</span>
-        ) : null}
+      <CompanyTile name={name} size="l" />
+      <div className="cs-card-id">
+        <span className="cs-card-name">{name}</span>
+        {subParts.length ? <span className="cs-card-sub">{subParts.join(" · ")}</span> : null}
       </div>
-
-      <div className="cs-card-metric">
+    </>
+  )
+  const metric = (
+    <div className="cs-card-metric">
         <div className="cs-card-pulse">
           <span className="cs-card-pulse-num">{loading ? "…" : noSignal ? "—" : pulse.pulse}</span>
           <span className="cs-card-pulse-label">Demand pulse</span>
@@ -201,13 +191,22 @@ export function CompanySignalCard({ name, pulse, topSkill, followed, highlight, 
         ) : noSignal ? (
           <span className="cs-card-quiet">no live roles</span>
         ) : null}
-      </div>
-    </>
+    </div>
   )
 
   const className = `cs-card${highlight ? " is-top" : ""}`
-  if (href) return <Link href={href} className={className}>{body}</Link>
-  return <div className={className}>{body}</div>
+  const follow = followAction
+    ? <FollowCompanyControl company={name} action={followAction} />
+    : followed ? <span className="cs-card-star is-on" aria-label="Following">★</span> : null
+  if (href) {
+    return (
+      <article className={className}>
+        <div className="cs-card-head"><Link href={href} className="cs-card-link">{header}</Link>{follow}</div>
+        <Link href={href} className="cs-card-metric-link">{metric}</Link>
+      </article>
+    )
+  }
+  return <div className={className}><div className="cs-card-head">{header}{follow}</div>{metric}</div>
 }
 
 interface ChipProps {

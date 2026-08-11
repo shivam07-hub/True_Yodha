@@ -4,11 +4,12 @@ import type { ReactNode } from "react"
 import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
 import { Radar, Building2, ArrowRight } from "lucide-react"
-import { jobs as jobsApi, users as usersApi } from "@/lib/api"
+import { jobs as jobsApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { formatCount } from "@/lib/format"
 import { EXTENSION_WEBSTORE_URL } from "@/lib/extension"
 import { CompanySignalChip } from "@/components/companies/company-signal"
+import { useFollowCompany } from "@/lib/hooks/use-follow-company"
 
 /**
  * The four glanceable surfaces that fill the desktop workspace's right zone and
@@ -139,19 +140,14 @@ function ProvenanceCard({ token }: { token: string }) {
  * to the same heatmap from the same demand read, so they were one surface
  * wearing two frames; the top-demand line now lives here). ─────────────── */
 function FollowedCard({ token }: { token: string }) {
-  const { data } = useQuery({
-    queryKey: ["followedCompanies", token],
-    queryFn: () => usersApi.followedCompanies(token),
-    enabled: !!token,
-    staleTime: 10 * 60 * 1000,
-  })
+  const following = useFollowCompany(token)
   const { data: demand } = useQuery({
     queryKey: dataKeys.userSkillDemand(),
     queryFn: () => jobsApi.mySkillDemand(token),
     enabled: !!token,
     staleTime: 10 * 60 * 1000,
   })
-  const companies = data?.companies ?? []
+  const companies = following.companies
   const top = [...(demand?.skills ?? [])].sort((a, b) => b.weighted_demand - a.weighted_demand)[0]
   return (
     <PeekCard icon={<Building2 size={15} />} title="Followed companies" href="/intel" hrefLabel={companies.length ? "Open Intel" : "Browse companies"}>

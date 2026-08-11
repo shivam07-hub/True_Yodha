@@ -2,18 +2,17 @@
 
 import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { jobs as jobsApi, users } from "@/lib/api"
+import { useQuery } from "@tanstack/react-query"
+import { jobs as jobsApi } from "@/lib/api"
 import type { ApplicationResponse, CompanyPage } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { pickRelatedCompanies } from "@/lib/companies/related"
 import { formatCount } from "@/lib/format"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useViewport } from "@/mobile"
-import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
 import { CompanyTile, SignalLabel } from "@/components/companies/company-signal"
-
-const MAX_FOLLOWED = MYRO_COINS_POLICY.followedCompanyLimit
+import { FollowCompanyControl } from "@/components/companies/follow-company-control"
+import { useFollowCompany } from "@/lib/hooks/use-follow-company"
 
 const LIVE_STAGES = ["saved", "applied", "interviewing"] as const
 
@@ -33,21 +32,12 @@ async function fetchCompanyPage(name: string): Promise<CompanyPage | null> {
 
 export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
   const { token } = useAuth()
-  const queryClient = useQueryClient()
   const { isDesktop } = useViewport()
   const [dragOffset, setDragOffset] = useState(0)
   const dragStart = useRef<number | null>(null)
 
-  const followingQuery = useQuery({
-    queryKey: ["followedCompanies"],
-    queryFn: () => users.followedCompanies(token!),
-    enabled: !!token && open,
-    staleTime: 60_000,
-  })
-
-  const isFollowed = (followingQuery.data?.companies ?? []).some(c => c.company_name.toLowerCase() === company.toLowerCase())
-  const followedCount = followingQuery.data?.total ?? 0
-  const atCap = !isFollowed && followedCount >= MAX_FOLLOWED
+  const follow = useFollowCompany(token, { enabled: open })
+  const companyFollow = follow.action(company)
 
   const applicationsQuery = useQuery({
     queryKey: dataKeys.applications(),
@@ -83,16 +73,6 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
     company,
     8,
   )
-
-  const followMutation = useMutation({
-    mutationFn: () => users.followCompany(token!, company),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["followedCompanies"] }),
-  })
-
-  const unfollowMutation = useMutation({
-    mutationFn: () => users.unfollowCompany(token!, company),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["followedCompanies"] }),
-  })
 
   useEffect(() => {
     if (!open) return
@@ -203,23 +183,7 @@ export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {
         {/* Body */}
         <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "16px 20px" }}>
           {/* Follow toggle — following is free; the slot cap is the only limit */}
-          <button
-            type="button"
-            onClick={() => isFollowed ? unfollowMutation.mutate() : followMutation.mutate()}
-            disabled={atCap || followMutation.isPending || unfollowMutation.isPending}
-            style={{
-              width: "100%", padding: "12px 16px", borderRadius: "var(--tm-radius-sm)",
-              border: `1px solid ${isFollowed ? "var(--tm-warning-border)" : "var(--tm-int-border)"}`,
-              background: isFollowed ? "var(--tm-warning-wash)" : "var(--tm-int-bg-wash)",
-              color: isFollowed ? "var(--tm-warning)" : "var(--tm-interactive)",
-              fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-              opacity: atCap ? 0.55 : 1,
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-            }}
-            title={atCap ? `All ${MAX_FOLLOWED} compare slots in use` : ""}
-          >
-            {isFollowed ? "★ Following" : "☆ Follow"}
-          </button>
+          <FollowCompanyControl company={company} action={companyFollow} showLabel />
 
           {/* Saved jobs section */}
           <div style={{ marginTop: 22 }}>

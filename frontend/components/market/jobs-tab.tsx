@@ -25,6 +25,7 @@ import { interleaveStories } from "./feed-rows"
 import { HiddenJobsDialog } from "./hidden-jobs-dialog"
 import { DEFAULT_FILTERS, applyViewFilters, localFilters, pickDefaultSort, type FeedFilters } from "./feed-types"
 import { Search, X } from "lucide-react"
+import type { UseFollowCompany } from "@/lib/hooks/use-follow-company"
 import "./market.css"
 import "./market-intel.css"
 
@@ -51,10 +52,7 @@ export interface MarketJobsTabProps {
   exploredCareerBands?: CareerBand[]
   onExploredCareerBandsChange?: (bands: CareerBand[]) => void
   targetLocations: string[]
-  followedNames: string[]
-  onToggleFollow: (name: string) => void
-  canFollow: (name: string) => boolean
-  disabledReason: (name: string) => string | undefined
+  followCompany: Pick<UseFollowCompany, "followedNames" | "action">
   /** Wave-3 intent gate (#41 L3): when false, the `/jobs/analytics`-backed
    *  market-intel rail (movers/company-signal trending) + interleaved story
    *  cards stay unfetched (the 22–25s scan never fires on login). */
@@ -69,7 +67,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   const {
     token, hasCv, cvResolved = false, onboardingComplete = false, targetRoles, chipCountMap, selectedCluster, onSelectCluster,
     initialFilters, initialQuery = "", onFiltersChange, onQueryChange,
-    targetLocations, followedNames, onToggleFollow, initialSkillFacet, onSkillFacetChange,
+    targetLocations, followCompany, initialSkillFacet, onSkillFacetChange,
     primaryCareerBand, exploredCareerBands, onExploredCareerBandsChange,
     analyticsEnabled = true, demandEnabled = true,
   } = props
@@ -179,10 +177,10 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     }
     const topCo = intel.trending[0]
     if (topCo) {
-      out.push({ kind: "company", company: topCo.name, openCount: topCo.openCount, location: targetLocations.find(l => l && l.trim())?.trim() ?? null, followed: followedNames.includes(topCo.name) })
+      out.push({ kind: "company", company: topCo.name, openCount: topCo.openCount, location: targetLocations.find(l => l && l.trim())?.trim() ?? null, followed: followCompany.followedNames.includes(topCo.name) })
     }
     return out
-  }, [demandSkills, intel.trending, hasCv, followedNames, targetLocations, storyCity])
+  }, [demandSkills, intel.trending, hasCv, followCompany.followedNames, targetLocations, storyCity])
 
   const rows = useMemo(
     () => interleaveStories(visibleJobs, stories, [...picksDivider, ...expansionDividers]),
@@ -217,8 +215,8 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   }, [router, onSeeRoles])
   const onStorySecondary = useCallback((s: FeedStory) => {
     if (s.kind === "skill") onFilterSkill(s.skill)
-    else if (s.company) onToggleFollow(s.company)
-  }, [onFilterSkill, onToggleFollow])
+    else if (s.company) followCompany.action(s.company).toggle()
+  }, [followCompany, onFilterSkill])
 
   // One nudge, one destination (/onboarding — resumes wherever the user left
   // off), regardless of which step they're stuck on. Gated on onboardingComplete
@@ -232,7 +230,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
 
   const railProps = {
     token, targetLocations, feed: allJobs, pulses, cvReady: hasCv,
-    onSeeRoles, onFilterSkill, onOpenJob: setOpenJob, analyticsEnabled, demandEnabled,
+    onSeeRoles, onFilterSkill, onOpenJob: setOpenJob, analyticsEnabled, demandEnabled, followCompany,
   }
 
   return (
@@ -390,14 +388,29 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
                     row.t === "divider" ? (
                       <div className="tm-feed-expansion-divider">{row.label}</div>
                     ) : row.t === "story" ? (
-                      <StoryCard story={row.story} onPrimary={() => onStoryPrimary(row.story)} onSecondary={() => onStorySecondary(row.story)} />
+                      <StoryCard
+                        story={row.story}
+                        onPrimary={() => onStoryPrimary(row.story)}
+                        onSecondary={() => onStorySecondary(row.story)}
+                        companyAction={row.story.kind === "company" ? followCompany.action(row.story.company) : undefined}
+                      />
                     ) : (
                       <JobCard job={row.job} pulse={pulses.get(row.job.job_id)} hasCv={hasCv} onOpen={() => setOpenJob(row.job)} onSave={() => onSave(row.job)} onSkip={() => onSkip(row.job)} />
                     )
                   }
                 />
               ) : (
-                <MobileFeed rows={rows} pulses={pulses} hasCv={hasCv} onOpen={setOpenJob} onSave={onSave} onSkip={onSkip} onStoryPrimary={onStoryPrimary} onStorySecondary={onStorySecondary} />
+                <MobileFeed
+                  rows={rows}
+                  pulses={pulses}
+                  hasCv={hasCv}
+                  onOpen={setOpenJob}
+                  onSave={onSave}
+                  onSkip={onSkip}
+                  onStoryPrimary={onStoryPrimary}
+                  onStorySecondary={onStorySecondary}
+                  companyAction={followCompany.action}
+                />
               )}
               <div ref={sentinelRef} style={{ height: 1 }} />
               {feed.isFetchingNextPage ? <FeedSkeleton rows={2} /> : null}

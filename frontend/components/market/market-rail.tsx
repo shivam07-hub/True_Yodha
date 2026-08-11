@@ -7,6 +7,7 @@ import { useMarketIntel, uncertainListings } from "@/lib/hooks/use-market-intel"
 import { useSkillDemand } from "@/lib/hooks/use-skill-demand"
 import { SkillDemandPanel } from "./skill-demand-panel"
 import { CompanySignalRow, CompanyTile } from "@/components/companies/company-signal"
+import type { UseFollowCompany } from "@/lib/hooks/use-follow-company"
 import {
   companySignalHeading,
   companySignalMeta,
@@ -37,12 +38,13 @@ export interface MarketRailProps {
   /** Wave-2 idle gate (#41 L3): the cheap skill-demand snapshot warms on the
    *  idle cascade, independent of the expensive wave-3 trending above. */
   demandEnabled?: boolean
+  followCompany: Pick<UseFollowCompany, "action">
 }
 
 /** Desktop right rail — market dashboard + community listing-status. CV-coach
  *  intel lives on /dashboard; this surface stays about the market. */
 export function MarketRail(props: MarketRailProps) {
-  const { targetLocations, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob, analyticsEnabled = true, demandEnabled = true } = props
+  const { targetLocations, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob, analyticsEnabled = true, demandEnabled = true, followCompany } = props
   const [companyMode, setCompanyMode] = useState<CompanySignalMode>("roles")
   const { trending, loading: intelLoading } = useMarketIntel(targetLocations, companySignalSortParam(companyMode), analyticsEnabled)
   const homeCity = targetLocations.find((l) => l && l.trim())?.trim() ?? null
@@ -96,6 +98,7 @@ export function MarketRail(props: MarketRailProps) {
                 name={c.name}
                 meta={companySignalMeta(c, companyMode)}
                 onClick={() => onSeeRoles(c.name)}
+                followAction={followCompany.action(c.name)}
               />
             ))}
           </div>

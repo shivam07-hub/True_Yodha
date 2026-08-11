@@ -94,6 +94,6 @@ disagree, code wins and this line gets fixed in the same commit.
 - `forge_sessions`: legacy table, still readable, but **timed forge XP earning is retired** — nothing writes new earn rows.
 - `user_skills`: `forge_sessions_count INTEGER NOT NULL DEFAULT 0` — display counter only; real practice progression lives in `skill_assessed_level` (Upskilling quiz clears).
 - `job_skills (job_id FK→jobs, skill_id FK→skills, is_primary BOOLEAN)` — canonical skill source
-- `followed_companies (user_id, company_name, UNIQUE(user_id, company_name))` — RLS-protected
+- `followed_companies (user_id, company_id, company_name, UNIQUE(user_id, company_id))` — RLS-protected canonical Followed Company identity; `company_name` is display/audit data
 - `jobs.location_country / location_city / location_mode / location_quality` — all backfilled
 - `cv_history.content_hash TEXT` — SHA-256 of raw extracted text for re-upload short-circuit

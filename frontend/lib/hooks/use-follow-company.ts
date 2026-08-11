@@ -11,6 +11,10 @@ const LIMIT = MYRO_COINS_POLICY.followedCompanyLimit
 // The compare-slot cap is the only follow constraint (following is free).
 const REASON_LIMIT = `All ${LIMIT} compare slots in use`
 
+export function followedCompanyKey(name: string): string {
+  return name.trim().toLocaleLowerCase().replace(/\s+/g, " ")
+}
+
 /**
  * Pure follow gate: can this company be *added* right now?
  * Returns the blocking reason, or null when the follow is allowed.
@@ -25,7 +29,7 @@ export function followGateReason(args: {
   count: number
 }): string | null {
   const { name, followedNames, count } = args
-  if (followedNames.includes(name)) return null
+  if (followedNames.some((followed) => followedCompanyKey(followed) === followedCompanyKey(name))) return null
   if (count >= LIMIT) return REASON_LIMIT
   return null
 }
@@ -35,6 +39,16 @@ export interface FollowError {
   name: string
   /** Human-facing message — backend detail string, or a local IH2 reason. */
   message: string
+}
+
+export interface FollowCompanyAction {
+  following: boolean
+  pending: boolean
+  loading: boolean
+  disabled: boolean
+  disabledReason?: string
+  error?: string
+  toggle: () => void
 }
 
 export interface UseFollowCompany {
@@ -54,6 +68,8 @@ export interface UseFollowCompany {
   unfollow: (name: string) => void
   /** Follow if absent, unfollow if present. */
   toggle: (name: string) => void
+  /** Complete per-company lifecycle for the shared visual control. */
+  action: (name: string) => FollowCompanyAction
   /** Last failed action, for callers that want to surface it inline. */
   error: FollowError | null
   clearError: () => void
@@ -98,12 +114,17 @@ export function useFollowCompany(
   const companies = useMemo(() => data?.companies ?? [], [data])
   const followedNames = useMemo(() => companies.map((c) => c.company_name), [companies])
   const count = companies.length
+  const isFollowing = useCallback(
+    (name: string) => followedNames.some((followed) => followedCompanyKey(followed) === followedCompanyKey(name)),
+    [followedNames],
+  )
 
   const markPending = useCallback((name: string, on: boolean) => {
+    const key = followedCompanyKey(name)
     setPending((prev) => {
       const next = new Set(prev)
-      if (on) next.add(name)
-      else next.delete(name)
+      if (on) next.add(key)
+      else next.delete(key)
       return next
     })
   }, [])
@@ -123,7 +144,7 @@ export function useFollowCompany(
         if (!old) return old
         const next = follow
           ? [{ company_name: name, created_at: new Date().toISOString() }, ...old.companies]
-          : old.companies.filter((c) => c.company_name !== name)
+          : old.companies.filter((c) => followedCompanyKey(c.company_name) !== followedCompanyKey(name))
         return { companies: next, total: next.length }
       })
       return { previous }
@@ -139,14 +160,14 @@ export function useFollowCompany(
     },
   })
 
-  const isPending = useCallback((name: string) => pending.has(name), [pending])
+  const isPending = useCallback((name: string) => pending.has(followedCompanyKey(name)), [pending])
   const anyPending = pending.size > 0
 
   const canFollow = useCallback(
     (name: string) =>
-      !followedNames.includes(name) &&
+      !isFollowing(name) &&
       followGateReason({ name, followedNames, count }) === null,
-    [followedNames, count],
+    [followedNames, count, isFollowing],
   )
 
   const disabledReason = useCallback(
@@ -158,7 +179,7 @@ export function useFollowCompany(
   const follow = useCallback(
     (name: string) => {
       if (!token) return
-      if (followedNames.includes(name)) return
+      if (isFollowing(name)) return
       const blocked = followGateReason({ name, followedNames, count })
       if (blocked) {
         setError({ name, message: blocked })
@@ -166,25 +187,40 @@ export function useFollowCompany(
       }
       mutation.mutate({ name, follow: true })
     },
-    [token, followedNames, count, mutation],
+    [token, followedNames, count, isFollowing, mutation],
   )
 
   const unfollow = useCallback(
     (name: string) => {
       if (!token) return
-      if (!followedNames.includes(name)) return
+      if (!isFollowing(name)) return
       mutation.mutate({ name, follow: false })
     },
-    [token, followedNames, mutation],
+    [token, isFollowing, mutation],
   )
 
   const toggle = useCallback(
     (name: string) => {
-      if (followedNames.includes(name)) unfollow(name)
+      if (isFollowing(name)) unfollow(name)
       else follow(name)
     },
-    [followedNames, follow, unfollow],
+    [isFollowing, follow, unfollow],
   )
+
+  const action = useCallback((name: string): FollowCompanyAction => {
+    const following = isFollowing(name)
+    const pendingForCompany = isPending(name)
+    const reason = following ? undefined : disabledReason(name)
+    return {
+      following,
+      pending: pendingForCompany,
+      loading: isLoading,
+      disabled: isLoading || pendingForCompany || (!following && !!reason),
+      disabledReason: reason,
+      error: error?.name && followedCompanyKey(error.name) === followedCompanyKey(name) ? error.message : undefined,
+      toggle: () => toggle(name),
+    }
+  }, [disabledReason, error, isFollowing, isLoading, isPending, toggle])
 
   const clearError = useCallback(() => setError(null), [])
 
@@ -200,6 +236,7 @@ export function useFollowCompany(
     follow,
     unfollow,
     toggle,
+    action,
     error,
     clearError,
   }

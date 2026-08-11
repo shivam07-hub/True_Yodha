@@ -83,12 +83,12 @@ export function CompaniesDirectory({ companies, pool, pulses, totalCount, sector
     return companies.filter((c) => c.name.toLowerCase().includes(q))
   }, [query, companies])
 
-  const onToggleFollow = (name: string) => {
+  const followAction = (name: string) => {
     if (!token) {
       window.location.href = "/signup?ref=companies"
-      return
+      return undefined
     }
-    follow.toggle(name)
+    return follow.action(name)
   }
 
   return (
@@ -140,7 +140,7 @@ export function CompaniesDirectory({ companies, pool, pulses, totalCount, sector
               followed={follow.followedNames.includes(c.name)}
               highlight={topPulseName === c.name}
               href={`/companies/${encodeURIComponent(c.name)}`}
-              onToggleFollow={() => onToggleFollow(c.name)}
+              followAction={followAction(c.name)}
             />
           ))}
         </div>
@@ -167,6 +167,7 @@ export function CompaniesDirectory({ companies, pool, pulses, totalCount, sector
                 meta={`${formatCount(c.count)} open`}
                 followed={follow.followedNames.includes(c.name)}
                 href={`/companies/${encodeURIComponent(c.name)}`}
+                followAction={followAction(c.name)}
               />
             ))}
           </div>

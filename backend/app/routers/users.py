@@ -23,7 +23,7 @@ from app.schemas import (
     UserProfileResponse,
     UserSkillsByDomainResponse,
 )
-from app.services.xp_policy import FOLLOWED_COMPANY_LIMIT
+from app.services import followed_companies
 from app.services import onboarding_service, skill_correction
 from app.services.job_eligibility import (
     career_band_for_profile,
@@ -211,15 +211,8 @@ def get_followed_companies(
     principal: Principal = Depends(get_principal),
     users_repo: UsersRepository = Depends(get_token_users_repository),
 ) -> FollowedCompaniesResponse:
-    rows = users_repo.get_followed_companies(principal.id)
+    rows = followed_companies.list_followed_companies(users_repo, principal.id)
     return FollowedCompaniesResponse(companies=rows, total=len(rows))
-
-
-_MAX_FOLLOWED = FOLLOWED_COMPANY_LIMIT
-
-
-def _company_key(name: str) -> str:
-    return " ".join(name.casefold().split())
 
 
 @router.post("/me/following/companies", status_code=status.HTTP_201_CREATED)
@@ -228,27 +221,7 @@ def follow_company(
     principal: Principal = Depends(get_principal),
     users_repo: UsersRepository = Depends(get_token_users_repository),
 ) -> dict:
-    # Following is FREE — the compare-slot cap (FOLLOWED_COMPANY_LIMIT) is the
-    # only constraint. No wallet field: this can never move the balance.
-    name = body.company_name.strip()
-    if not name:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="company_name required.")
-
-    existing = users_repo.get_followed_companies(principal.id)
-    existing_by_key = {_company_key(r["company_name"]): r for r in existing}
-    already_following = existing_by_key.get(_company_key(name))
-
-    if already_following:
-        return {"company_name": already_following["company_name"]}
-
-    if len(existing) >= _MAX_FOLLOWED:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Slot limit reached — max {_MAX_FOLLOWED} companies.",
-        )
-
-    users_repo.follow_company(principal.id, name)
-    return {"company_name": name}
+    return followed_companies.follow_company(users_repo, principal.id, body.company_name)
 
 
 @router.delete("/me/following/companies/{company_name}", status_code=status.HTTP_204_NO_CONTENT)
@@ -257,7 +230,7 @@ def unfollow_company(
     principal: Principal = Depends(get_principal),
     users_repo: UsersRepository = Depends(get_token_users_repository),
 ) -> None:
-    users_repo.unfollow_company(principal.id, company_name)
+    followed_companies.unfollow_company(users_repo, principal.id, company_name)
 
 
 # ── Practice saves: a user-curated queue of skills to practice in Forge ───────

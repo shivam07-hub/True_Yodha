@@ -88,6 +88,7 @@ export function IntelWorkspace({ token }: { token: string }) {
         cvReadiness={cvReadiness}
         cvUploadErrorCode={profile?.cv_upload_error_code ?? null}
         followedCompanies={follow.companies}
+        followCompany={follow}
         selectedCluster={null}
         targetRoles={targetRoles}
         targetLocations={profile?.target_locations ?? []}
