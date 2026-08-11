@@ -34,3 +34,10 @@ test("already-followed is not a block (returns null, treated as no-op/unfollow)"
     null,
   )
 })
+
+test("already-followed matches case and whitespace so an alias cannot consume a second slot", () => {
+  assert.equal(
+    followGateReason({ name: "  google ", followedNames: ["Google"], count: 1 }),
+    null,
+  )
+})

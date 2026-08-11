@@ -266,6 +266,8 @@ def test_get_market_analytics_groups_industries_and_exposes_roles() -> None:
         "Finance",
         "Research & Science",
     }
+    assert result.industry_roles["Technology"][0].name == "Software Engineering"
+    assert result.industry_roles["Technology"][0].count == 1
 
 
 def test_get_market_analytics_passes_role_filter_to_repository() -> None:

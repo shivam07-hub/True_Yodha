@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import { RESULTS_SORT, RESULTS_SORT_OPTIONS, type ResultsSortKey } from "@/lib/hooks/use-results-sort"
 import { formatCount } from "@/lib/format"
-import { CompanyHiringRow, CompanyRow, Empty, GroupRow, JobRow, type JobRowFit } from "./intel-rows"
+import { CompanyHiringRow, CompanyRow, Empty, GroupRow, IndustryRoleRow, JobRow, type JobRowFit } from "./intel-rows"
 import { IntelRowSkeletonList } from "./intel-row-skeleton"
 import { fmtBatch } from "./intel-data"
 
@@ -66,6 +66,7 @@ interface ResultsProps {
   counts: { companies: number; industries: number; cities: number }
   companies: ResultCompany[]
   industries: ResultGroup[]
+  industryRoles: Record<string, { name: string; count: number }[]>
   cities: ResultGroup[]
   activeCo: string | null
   onActiveCo: (id: string) => void
@@ -164,7 +165,7 @@ function Tabs({
           <span className="tm-intel-tab-badge">{formatCount(t.n)}</span>
         </button>
       ))}
-      <div className="tm-intel-spacer" />
+      {tab === "companies" ? <><div className="tm-intel-spacer" />
       <span className="tm-intel-sort-lbl">Sort by</span>
       <div className="tm-intel-sort-pill-wrap" ref={wrapRef}>
         <button
@@ -195,7 +196,7 @@ function Tabs({
             ))}
           </div>
         ) : null}
-      </div>
+      </div></> : null}
     </div>
   )
 }
@@ -206,8 +207,9 @@ function Split(props: ResultsProps) {
     jobsForActive, jobsForActiveTotal, activeCompanyName,
     isAnalyticsLoading, isFiltering, isOpenRolesLoading, globalSearch } = props
   const showLeftSkeleton = (isAnalyticsLoading || isFiltering) && !companies.length
-  // Industries/Cities tabs drill into "top companies hiring here" (Q1=B).
-  const groupMode = !globalSearch.isActive && tab !== "companies"
+  const industryMode = !globalSearch.isActive && tab === "industries"
+  const cityMode = !globalSearch.isActive && tab === "cities"
+  const rolesForIndustry = activeGroup ? props.industryRoles[activeGroup] ?? [] : []
   return (
     <div className="tm-intel-split">
       <div className="tm-intel-panel">
@@ -267,7 +269,9 @@ function Split(props: ResultsProps) {
           <span className="tm-intel-panel-e">
             {globalSearch.isActive
               ? <>Search hits <b>· {globalSearch.hits.length}</b></>
-              : groupMode
+              : industryMode
+                ? (activeGroup ? <>Roles available · <b>{activeGroup}</b></> : <>Roles available</>)
+              : cityMode
                 ? (activeGroup ? <>Companies hiring · <b>{activeGroup}</b></> : <>Companies hiring</>)
               : activeCompanyName
                 ? <>Open roles · <b>{activeCompanyName}</b></>
@@ -277,13 +281,19 @@ function Split(props: ResultsProps) {
           <span className="tm-intel-panel-meta">
             {globalSearch.isActive
               ? (globalSearch.isLoading ? "searching…" : `${globalSearch.hits.length} hits`)
-              : groupMode
+              : industryMode
+                ? `${rolesForIndustry.length} role families`
+              : cityMode
                 ? (isGroupCompaniesLoading ? "loading…" : `${groupCompanies.length} hiring`)
               : `${jobsForActive.length} of ${jobsForActiveTotal}`}
           </span>
         </div>
 
-        {groupMode ? (
+        {industryMode ? (
+          rolesForIndustry.length
+            ? rolesForIndustry.map((role) => <IndustryRoleRow role={role} key={role.name} />)
+            : <Empty />
+        ) : cityMode ? (
           isGroupCompaniesLoading && !groupCompanies.length
             ? <IntelRowSkeletonList count={6} variant="company" />
             : groupCompanies.length

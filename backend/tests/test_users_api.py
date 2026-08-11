@@ -8,6 +8,7 @@ from app.deps import CurrentUser, get_current_user
 from app.main import app
 from app.repositories.users import UserSkillRecord
 from app.routers import users
+from app.services.xp_policy import FOLLOWED_COMPANY_LIMIT
 
 
 def _profile_row(**overrides: Any) -> dict[str, Any]:
@@ -68,8 +69,16 @@ class _FakeUsersRepository:
     def get_followed_companies(self, _user_id: str) -> list[dict[str, Any]]:
         return self.followed_companies
 
-    def follow_company(self, user_id: str, company_name: str) -> None:
+    def follow_company(self, user_id: str, company_name: str) -> dict[str, Any]:
+        normalized = " ".join(company_name.split()).casefold()
+        for row in self.followed_companies:
+            if " ".join(str(row["company_name"]).split()).casefold() == normalized:
+                return {"outcome": "already_following", "company_name": row["company_name"]}
+        if len(self.followed_companies) >= FOLLOWED_COMPANY_LIMIT:
+            return {"outcome": "limit_reached"}
         self.followed_writes.append((user_id, company_name))
+        self.followed_companies.append({"company_name": company_name, "created_at": datetime.now(timezone.utc)})
+        return {"outcome": "followed", "company_name": company_name}
 
     def unfollow_company(self, _user_id: str, _company_name: str) -> None:
         pass
@@ -303,7 +312,7 @@ def test_follow_company_blocks_at_slot_cap() -> None:
     repo = _FakeUsersRepository()
     repo.followed_companies = [
         {"company_name": f"Co{i}", "created_at": datetime.now(timezone.utc)}
-        for i in range(users.FOLLOWED_COMPANY_LIMIT)
+        for i in range(FOLLOWED_COMPANY_LIMIT)
     ]
 
     app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="u1", email=None, token="t1")

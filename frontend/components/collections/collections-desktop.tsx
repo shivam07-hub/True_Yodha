@@ -21,7 +21,7 @@ import { useManualAdd, ADD_JOB_LABEL } from "@/components/cv/pipeline/useManualA
 import { usePulses } from "@/lib/hooks/use-pulses"
 import { useSavedJobDismissal } from "@/lib/hooks/use-saved-job-dismissal"
 import { useCartStore } from "@/store/cartStore"
-import { jobs as jobsApi, users as usersApi } from "@/lib/api"
+import { jobs as jobsApi } from "@/lib/api"
 import type { ApplicationResponse, SkillGapItem } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { withLocalCache, userCacheKey } from "@/lib/local-cache"
@@ -43,6 +43,7 @@ import {
 } from "@/lib/collections/model"
 import { ClosedRow, CollectionRow, MyroFoundRow } from "./collection-rows"
 import { canDismissSavedApplication } from "@/lib/collections/saved-job-dismissal"
+import { useFollowCompany } from "@/lib/hooks/use-follow-company"
 
 /* ══════════════════════════════════════════════════════════════════════════
    The Myro Ops folder (desktop). "Myro found" reads the brain match stack —
@@ -89,12 +90,7 @@ export function CollectionsDesktop({
     enabled: !!token,
     staleTime: 30 * 60 * 1000,
   })
-  const { data: followed } = useQuery({
-    queryKey: ["followedCompanies", token],
-    queryFn: () => usersApi.followedCompanies(token),
-    enabled: !!token,
-    staleTime: 5 * 60 * 1000,
-  })
+  const following = useFollowCompany(token)
 
   const [chip, setChip] = React.useState<CollectionChip>("found")
   const [sort, setSort] = React.useState<SortKey>("prize")
@@ -140,10 +136,10 @@ export function CollectionsDesktop({
     () =>
       collectionsTriageCtx(
         openApps,
-        (followed?.companies ?? []).map((c) => c.company_name),
+        following.followedNames,
         profile?.target_roles ?? [],
       ),
-    [openApps, followed, profile],
+    [openApps, following.followedNames, profile],
   )
 
   const continueItems = React.useMemo(() => buildContinueLane(openApps, ctx, byId), [openApps, ctx, byId])

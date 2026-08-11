@@ -86,6 +86,22 @@ test("landing and intel search use the shared public search console", () => {
   assert.ok(paneSource.includes("initialJobSearchValue(searchParams)"))
 })
 
+test("intel combines live search with industry role discovery from analytics", () => {
+  const paneSource = read("components/public/intel-pane.tsx")
+  const explorerSource = read("components/public/intel/intel-industry-explorer.tsx")
+  const resultsSource = read("components/public/intel/intel-results.tsx")
+  const apiSource = read("lib/api.ts")
+
+  assert.match(paneSource, /<IntelIndustryExplorer/)
+  assert.match(paneSource, /analytics\?\.industry_roles/)
+  assert.match(paneSource, /enabled: groupKind === "city"/)
+  assert.match(explorerSource, /Explore jobs by industry/)
+  assert.match(explorerSource, /live role families hiring inside it/)
+  assert.match(resultsSource, /Roles available/)
+  assert.match(resultsSource, /IndustryRoleRow/)
+  assert.match(apiSource, /industry_roles: Record<string, NameCountItem\[\]>/)
+})
+
 test("supporting explanations live with their destination surfaces", () => {
   const landingSource = read("components/public/landing-page.tsx")
   const intelPaneSource = read("components/public/intel-pane.tsx")

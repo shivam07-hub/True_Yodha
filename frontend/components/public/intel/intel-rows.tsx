@@ -163,6 +163,15 @@ export function CompanyHiringRow({
   )
 }
 
+export function IndustryRoleRow({ role }: { role: { name: string; count: number } }) {
+  return (
+    <div className="tm-industry-role-row">
+      <strong>{role.name}</strong>
+      <span>{formatCount(role.count)} openings</span>
+    </div>
+  )
+}
+
 export interface JobRowFit {
   overlap_score: number
   matched_skills: string[]

@@ -11,6 +11,7 @@ import { sessionsToNextLevel } from "@/lib/level-thresholds"
 import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
 import { CompanySignalCard, SignalLabel } from "@/components/companies/company-signal"
 import { useCompanyPulse } from "@/lib/hooks/use-company-pulse"
+import type { UseFollowCompany } from "@/lib/hooks/use-follow-company"
 import { SkillColumnPicker } from "./skill-column-picker"
 import { SkillIntelligencePanel } from "./skill-intelligence-panel"
 
@@ -19,6 +20,7 @@ type HeatStyle = CSSProperties & { "--si-heat": string }
 
 interface SkillIntelligenceHeatmapProps {
   companies: FollowedCompany[]
+  followCompany?: Pick<UseFollowCompany, "action">
   rowDataMap: Record<string, Record<string, number> | null>
   skills: string[]
   formatSkillLabel: (skill: string) => string
@@ -72,6 +74,7 @@ function PersonalizationSignal({ icon, label }: { icon: ReactNode; label: string
 
 export function SkillIntelligenceHeatmap({
   companies,
+  followCompany,
   rowDataMap,
   skills,
   formatSkillLabel,
@@ -215,6 +218,7 @@ export function SkillIntelligenceHeatmap({
               followed
               highlight={topPulseCompany === company.company_name}
               href={`/companies/${encodeURIComponent(company.company_name)}`}
+              followAction={followCompany?.action(company.company_name)}
             />
           ))}
         </div>

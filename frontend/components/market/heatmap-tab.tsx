@@ -8,6 +8,7 @@ import { buildSkillEvidenceIndex } from "@/lib/skill-intelligence"
 import { CVPrerequisiteCard } from "./cv-prerequisite-card"
 import { JobDrillPanel } from "./job-drill-panel"
 import { SkillIntelligenceHeatmap } from "./skill-intelligence-heatmap"
+import type { UseFollowCompany } from "@/lib/hooks/use-follow-company"
 
 interface HeatmapTabProps {
   token: string | null
@@ -15,6 +16,7 @@ interface HeatmapTabProps {
   cvReadiness: "ready" | "missing" | "processing" | "failed"
   cvUploadErrorCode?: string | null
   followedCompanies: FollowedCompany[]
+  followCompany?: Pick<UseFollowCompany, "action">
   selectedCluster: string | null
   targetRoles: string[]
   targetLocations: string[]
@@ -32,6 +34,7 @@ export function HeatmapTab({
   cvReadiness,
   cvUploadErrorCode,
   followedCompanies,
+  followCompany,
   selectedCluster,
   targetRoles,
   targetLocations,
@@ -169,6 +172,7 @@ export function HeatmapTab({
       ) : (
         <SkillIntelligenceHeatmap
           companies={followedCompanies}
+          followCompany={followCompany}
           rowDataMap={rowDataMap}
           skills={heatmapSkills}
           formatSkillLabel={formatSkillLabel}

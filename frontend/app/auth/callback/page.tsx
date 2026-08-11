@@ -1,9 +1,11 @@
 "use client"
 
-import { Suspense, useEffect, useRef } from "react"
+import { Suspense, useEffect, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { EdgeGlow } from "@/components/loading/edge-glow"
+import { AuthPageShell } from "@/components/auth/auth-page-shell"
 import { createClient } from "@/lib/supabase"
+import { authCallbackFailure, type AuthCallbackFailure } from "@/lib/auth/callback-flow"
 import { setSessionTokens } from "@/lib/session"
 import { auth } from "@/lib/api"
 import { signupEvents } from "@/lib/analytics"
@@ -38,6 +40,7 @@ function CallbackInner() {
   const searchParams = useSearchParams()
   const handled = useRef(false)
   const routed = useRef(false)
+  const [failure, setFailure] = useState<AuthCallbackFailure | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -52,6 +55,12 @@ function CallbackInner() {
       if (routed.current) return
       routed.current = true
       router.replace(dest)
+    }
+
+    function failOnce(kind: AuthCallbackFailure) {
+      if (handled.current || routed.current) return
+      routed.current = true
+      setFailure(kind)
     }
 
     /**
@@ -159,15 +168,28 @@ function CallbackInner() {
       if (event === "SIGNED_IN" && session) finish(session)
     })
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) finish(session)
-    })
+    // The constructor initializes automatically, but calling initialize again
+    // returns the same promise and exposes callback errors that were previously
+    // swallowed. That keeps an expired or invalid link from masquerading as a
+    // request to sign in again.
+    supabase.auth.initialize()
+      .then(({ error }) => {
+        if (error) failOnce(authCallbackFailure(error))
+      })
+      .catch(() => failOnce("failed"))
 
-    // Safety net: no SIGNED_IN event AND getSession had no session → bounce to
-    // /login. (The old "handled but not routed" net is gone — finish() now
-    // routes synchronously the moment it flips `handled`, so the two can't drift.)
+    supabase.auth.getSession()
+      .then(({ data: { session }, error }) => {
+        if (session) finish(session)
+        else if (error) failOnce(authCallbackFailure(error))
+      })
+      .catch(() => failOnce("failed"))
+
+    // Safety net: a callback that produced neither a session nor a classified
+    // auth error is still a failed handoff. Keep it on the callback surface so
+    // it cannot look as if Myro deliberately asked the partner user to log in.
     const noSignInTimeout = setTimeout(() => {
-      if (!handled.current && !routed.current) routeOnce("/login")
+      failOnce("failed")
     }, 6000)
 
     return () => {
@@ -175,6 +197,17 @@ function CallbackInner() {
       clearTimeout(noSignInTimeout)
     }
   }, [router, searchParams])
+
+  if (failure) {
+    const expired = failure === "expired"
+    return (
+      <AuthPageShell title={expired ? "This link has expired" : "Sign-in didn’t finish"}>
+        <p style={{ fontSize: 15, lineHeight: 1.55, color: "var(--tm-text-muted)" }}>
+          {expired ? "Open Myro again from where you started." : "Go back and try again."}
+        </p>
+      </AuthPageShell>
+    )
+  }
 
   // Silent ambient field — no "Signing you in…" text. The redirect is now a
   // single round-trip, and the destination's own skeleton (app-shell →

@@ -123,6 +123,7 @@ Memory carried "OWED: main merge" on ~25 entries. **Audit: 20 of 23 spot-checked
 - **#32 publish portability** — deferred to 5k users; RAG works, only reproducible re-publish is blocked.
 - **#18 PR2 teal-field loading** — vetoed: it decorates a wait that no longer exists (~1.5s post-login).
 - **Semantic retrieval Slices 2–3** — **externally blocked** on `firecrawl_Supabase` embed-on-ingest + backfill; Slice 1 is inert until then. Not actionable in this repo.
+- **Paid partner plans in Upskilling + Preparations** — deferred to a separate grill/session. Reuse the existing job-gap, assessed-level, project/evidence and preparation architecture; this is a weights-and-connections pass, not a new learning system. Keep free project routes available. The later pass must lock partner catalogue fields, paid disclosure, relevance/ranking, attribution and conversion tracking before implementation. Do not pull this into the landing/Application Plan work.
 
 ### SHIVAM-ONLY (no agent action possible)
 

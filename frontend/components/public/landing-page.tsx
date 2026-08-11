@@ -1,39 +1,33 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
 import { LandingHero } from "@/components/public/landing/hero"
-import { LandingJobSearch } from "@/components/public/landing/job-search"
+import { LandingCompanyRail } from "@/components/public/landing/company-rail"
 import { LandingHowItWorks } from "@/components/public/landing/how-it-works"
-import { LandingDomains } from "@/components/public/landing/domains"
+import { LandingApplicationPlan } from "@/components/public/landing/application-plan"
 import { LandingClosing } from "@/components/public/landing/closing"
 import { useLandingData } from "@/components/public/landing/use-landing-data"
-import { useReveal } from "@/components/public/landing/use-reveal"
 import { getAccessToken, getRefreshToken } from "@/lib/session"
 import "@/components/public/landing/landing-base.css"
 import "@/components/public/landing/landing-hero.css"
-import "@/components/public/landing/landing-sections.css"
-import "@/components/public/landing/job-gen.css"
+import "@/components/public/landing/landing-hero-engine.css"
 import "@/components/public/landing/landing-depth.css"
+import "@/components/public/landing/landing-match-sources.css"
+import "@/components/public/landing/landing-company-rail.css"
 
 /**
- * Myro landing — single job-seeker funnel (backlog #33, grill-locked 2026-06-27).
- * One promise, one story: hero (CV → live score) → job-gen proof-search (type the
- * job you want → REAL openings) → how-it-works (the one-time way in) → 10-domain
- * chips → closing CTA → footer. Dropping a CV in any
- * band navigates to /cv-preview, which scores it and either opens the playground
- * or routes to /signup with the readout (navigate-then-load; the dropzone owns
- * that jump, so the landing holds no scoring state).
- * Demoted off the landing per #33 Q7: Myrology (footer only), the multi-product
- * "Surfaces" breadth section, coins as a cold-visitor concept. Removed 2026-07-23:
- * the animated Engine band — it repeated the journey already told by HowItWorks.
- * Design source: reference/building landing page.zip (confirmed).
+ * Myro landing — seeker-only funnel, product-story pass locked 2026-08-10.
+ * The page earns one action: upload a CV. Three visual chapters preview the
+ * actual first-run journey without trying to document the whole platform:
+ * MNC career pages + CV → relevant current opening → truthful tailoring → a
+ * compact post-application plan. The dropzone still owns the existing
+ * /cv-preview → signup → onboarding handoff; this page does not fork that flow.
  */
 export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) {
   const router = useRouter()
-  const rootRef = useRef<HTMLDivElement>(null)
 
   // Already-signed-in users shouldn't land on the public marketing page.
   // Tokens live in localStorage (not a cookie), so the server can't gate this —
@@ -62,15 +56,12 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
     return () => window.removeEventListener("scroll", onScroll)
   }, [])
 
-  useReveal(rootRef)
-
   const data = useLandingData()
 
   if (redirecting) return null
 
   return (
     <div
-      ref={rootRef}
       className={`tm-landing ${fontClassName}`.trim()}
       data-scrolled={scrolled ? "true" : "false"}
     >
@@ -78,7 +69,6 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
 
       <main>
         <LandingHero
-          companiesLabel={data.companiesLabel}
           companyNames={data.marqueeNames}
           jobsTracked={data.jobsTracked}
           companiesMonitored={data.companiesMonitored}
@@ -86,11 +76,17 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
           seekers={data.seekers}
         />
 
-        <LandingJobSearch />
+        <LandingCompanyRail
+          companyNames={data.marqueeNames}
+          companiesMonitored={data.companiesMonitored}
+        />
 
-        <LandingHowItWorks />
+        <LandingHowItWorks
+          companyNames={data.marqueeNames}
+          companiesMonitored={data.companiesMonitored}
+        />
 
-        <LandingDomains />
+        <LandingApplicationPlan />
 
         <LandingClosing />
       </main>

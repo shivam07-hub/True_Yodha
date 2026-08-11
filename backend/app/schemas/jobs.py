@@ -864,6 +864,7 @@ class MarketAnalyticsResponse(BaseModel):
     industry_skills: dict[str, list[str]] = {}
     company_skill_counts: dict[str, list[SkillCountItem]] = {}
     industry_skill_counts: dict[str, list[SkillCountItem]] = {}
+    industry_roles: dict[str, list[NameCountItem]] = {}
 
 
 class MarketAnalyticsSummaryResponse(BaseModel):
@@ -881,6 +882,7 @@ class MarketAnalyticsSummaryResponse(BaseModel):
     by_location_city: list[NameCountItem] = []
     by_location_country: list[NameCountItem] = []
     by_location_mode: list[NameCountItem] = []
+    industry_roles: dict[str, list[NameCountItem]] = {}
     # Market-wide top skills by active-job count (universal, same for every user
     # — powers the /market rail's "Skill-demand movers"). Location-filterable via
     # the same query params as the rest of this summary.

@@ -11,6 +11,7 @@ import { CardBrainBadges } from "./job-card"
 import { StoryCard, type FeedStory } from "./story-card"
 import { ShareJobButton } from "./share-job-button"
 import type { FeedRow } from "./feed-rows"
+import type { FollowCompanyAction } from "@/lib/hooks/use-follow-company"
 
 const SWIPE_COMMIT = 96   // px past which a release triggers triage
 const PEEK_KEY = "myro_feed_swipe_hinted_v1"
@@ -101,7 +102,7 @@ function MobileJobCard({
 }
 
 export function MobileFeed({
-  rows, pulses, hasCv, onOpen, onSave, onSkip, onStoryPrimary, onStorySecondary,
+  rows, pulses, hasCv, onOpen, onSave, onSkip, onStoryPrimary, onStorySecondary, companyAction,
 }: {
   rows: FeedRow[]
   pulses: Map<string, JobPulse>
@@ -111,6 +112,7 @@ export function MobileFeed({
   onSkip: (j: JobFeedItem) => void
   onStoryPrimary: (s: FeedStory) => void
   onStorySecondary: (s: FeedStory) => void
+  companyAction: (company: string) => FollowCompanyAction
 }) {
   const [showHint, setShowHint] = useState(false)
   useEffect(() => {
@@ -133,7 +135,12 @@ export function MobileFeed({
         row.t === "divider" ? (
           <div className="tm-feed-expansion-divider">{row.label}</div>
         ) : row.t === "story" ? (
-          <StoryCard story={row.story} onPrimary={() => onStoryPrimary(row.story)} onSecondary={() => onStorySecondary(row.story)} />
+          <StoryCard
+            story={row.story}
+            onPrimary={() => onStoryPrimary(row.story)}
+            onSecondary={() => onStorySecondary(row.story)}
+            companyAction={row.story.kind === "company" ? companyAction(row.story.company) : undefined}
+          />
         ) : (
           <MobileJobCard
             job={row.job}

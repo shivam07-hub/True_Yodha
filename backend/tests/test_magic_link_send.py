@@ -58,6 +58,22 @@ def test_mint_swallows_duplicate_and_still_links() -> None:
     assert api.linked[0]["options"] == {}  # no redirect_to passed through
 
 
+def test_mint_for_existing_user_skips_the_create_probe() -> None:
+    api = _AdminApi(link="https://link")
+
+    link = auth_links.mint_login_link_for_existing_user(
+        _Admin(api), email="existing@x.com", redirect_to="https://himyro.com/cb"
+    )
+
+    assert link == "https://link"
+    assert api.created == []
+    assert api.linked == [{
+        "type": "magiclink",
+        "email": "existing@x.com",
+        "options": {"redirect_to": "https://himyro.com/cb"},
+    }]
+
+
 def test_mint_reraises_genuine_create_error() -> None:
     api = _AdminApi(create_exc=_FakeAuthError("boom", status=500, code="unexpected_failure"))
     try:

@@ -104,12 +104,9 @@ export function LandingDropzone({ source, onFile, onText, busy }: LandingDropzon
         </span>
         <span className="lp-dropzone-body">
           <span className="lp-dropzone-title">
-            {pending ? "Reading your CV…" : "Drop your CV — PDF or DOCX"}
+            {pending ? "Reading your CV…" : "Upload CV — PDF or DOCX"}
           </span>
-          <span className="lp-dropzone-trust">
-            <span>Private</span>
-            <span className="note">scored instantly — saved only when you sign up</span>
-          </span>
+          <span className="lp-dropzone-trust">Private · saved only if you create an account</span>
         </span>
         <span className="lp-dropzone-btn" aria-hidden>
           {pending ? "Scoring…" : "Choose file"}

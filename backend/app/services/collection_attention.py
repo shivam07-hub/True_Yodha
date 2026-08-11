@@ -13,8 +13,6 @@ from typing import Any
 from supabase import Client
 
 from app.repositories.notifications import NotificationsRepository
-from app.repositories.users import UsersRepository
-from app.services.xp_policy import FOLLOWED_COMPANY_LIMIT
 
 _LEVELS: tuple[tuple[str, timedelta], ...] = (
     ("review", timedelta(days=1)),
@@ -49,25 +47,6 @@ def _copy(level: str, title: str, company: str | None) -> tuple[str, str]:
     return "Decide on this saved role today", f"{role} is still live. Open Collections to tailor, apply, or pass."
 
 
-def _autofollow_company(users_repo: UsersRepository, user_id: str, company_name: str | None) -> None:
-    """A saved role's company gets auto-followed the moment its listing dies —
-    free, silent, skipped at the cap. This is the whole point of the closed
-    lifecycle: the interest signal (the user liked THIS company enough to save
-    a role there) survives the dead listing and feeds the existing pulse /
-    gap-alert / heatmap machinery, so future roles at that company surface
-    without the user lifting a finger. Never bumps a company the user chose by
-    hitting the cap — silently does nothing instead."""
-    if not company_name or not company_name.strip():
-        return
-    existing = users_repo.get_followed_companies(user_id)
-    key = company_name.strip().casefold()
-    if any(str(r.get("company_name") or "").strip().casefold() == key for r in existing):
-        return
-    if len(existing) >= FOLLOWED_COMPANY_LIMIT:
-        return
-    users_repo.follow_company(user_id, company_name)
-
-
 def sweep_collection_attention(admin_db: Client, *, limit: int = 500, now: datetime | None = None) -> int:
     """Advance due, live saved applications into one inbox lifecycle row each.
 
@@ -99,7 +78,6 @@ def sweep_collection_attention(admin_db: Client, *, limit: int = 500, now: datet
     ).data or []
     by_job = {str(job["job_id"]): job for job in jobs}
     inbox = NotificationsRepository(admin_db, admin_db)
-    users_repo = UsersRepository(admin_db)
     advanced = 0
 
     for row in rows:
@@ -111,7 +89,6 @@ def sweep_collection_attention(admin_db: Client, *, limit: int = 500, now: datet
             # review/decide/urgent nudges above) — it doubles as the idempotency
             # guard so a role that dies isn't re-followed every 15-min sweep.
             if row.get("collection_attention_level") != "closed":
-                _autofollow_company(users_repo, user_id, job.get("company_name") if job else None)
                 admin_db.table("job_applications").update({
                     "collection_attention_level": "closed",
                 }).eq("id", row["id"]).execute()

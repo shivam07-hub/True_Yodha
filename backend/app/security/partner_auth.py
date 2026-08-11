@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import BackgroundTasks, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.config import settings
@@ -93,6 +93,7 @@ def _enforce_rate_limit(key_id: str) -> None:
 
 def get_partner_credential(
     request: Request,
+    background_tasks: BackgroundTasks,
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ) -> PartnerCredential:
     """Resolve `Authorization: Bearer <api key>` to a live partner credential.
@@ -116,7 +117,7 @@ def get_partner_credential(
             headers={"WWW-Authenticate": "Bearer"},
         )
     _enforce_rate_limit(credential.key_id)
-    repo.touch_key(credential.key_id)
+    background_tasks.add_task(repo.touch_key, credential.key_id)
     request.state.partner_slug = credential.slug
     return credential
 

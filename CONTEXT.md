@@ -821,6 +821,24 @@ The resolver that runs a `FilterSpec` against a jobs repository (`app/services/m
 
 ---
 
+## Followed Company
+
+A candidate's explicit, reversible choice to star one canonical Company so Myro can personalise Intel and company-priority reads. Use **Followed Company** for this relationship; do not call it a saved, tracked, or target company. Those words describe different intent: a user saves a job, while the engine may track or suggest a company.
+
+**Invariants**
+- **Follow = user; save = job; track = engine.** Only a direct user action may create or remove a Followed Company. Saving a job, a listing closing, matching, collection attention, or any background process may suggest a follow but must never write one or consume a compare slot (IH6).
+- Following is free, capped at 10, and ordered most-recently-starred first (IH2, IH5). Reaching the cap is a visible policy state, not a silent no-op.
+- Every adapter exposes the same lifecycle: loading, available, following, followed, unfollowing, cap-blocked, and error. The star is the canonical control; page-specific callers do not reimplement mutation or cache state.
+- The durable row is `followed_companies(user_id, company_id, company_name, created_at)`. `company_id` is the canonical Company identity; `company_name` remains display/audit data. The database mutation seam resolves aliases, canonicalises the display name, and atomically enforces the cap.
+- Collections never auto-follows. It may surface a company suggestion after a role closes, but the shared backend module only writes a Followed Company after the user stars it.
+
+**Relationships**
+- A User has 0–10 Followed Companies; a Company may be followed by many Users.
+- A Followed Company scopes the Intel heatmap and company-priority reads. A Saved Job does not imply a Followed Company.
+- Company suggestions are inputs to the user's decision, never substitutes for it.
+
+---
+
 ## Company Recommendation
 
 The single rule for "which other companies to suggest from a company surface" — `pickRelatedCompanies(all, current, limit)` in `frontend/lib/companies/related.ts`. Pure and deterministic: same-industry peers first (ranked by open-role count desc), then a fixed alphabetical-ring backbone.

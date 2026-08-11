@@ -236,22 +236,28 @@ class UsersRepository:
     def get_followed_companies(self, user_id: str) -> list[dict]:
         result = (
             self._db.table("followed_companies")
-            .select("company_name, created_at")
+            .select("company_id, company_name, created_at")
             .eq("user_id", user_id)
             .order("created_at", desc=True)
             .execute()
         )
         return result.data or []
 
-    def follow_company(self, user_id: str, company_name: str) -> None:
-        self._db.table("followed_companies").upsert(
-            {"user_id": user_id, "company_name": company_name.strip()},
-            on_conflict="user_id,company_name",
-            ignore_duplicates=True,
-        ).execute()
+    def follow_company(self, user_id: str, company_name: str) -> dict[str, Any]:
+        result = self._db.rpc("follow_company", {
+            "p_user_id": user_id,
+            "p_company_name": company_name,
+        }).execute()
+        rows = result.data or []
+        if not rows:
+            raise RuntimeError("Followed Company mutation returned no outcome.")
+        return rows[0]
 
     def unfollow_company(self, user_id: str, company_name: str) -> None:
-        self._db.table("followed_companies").delete().eq("user_id", user_id).eq("company_name", company_name).execute()
+        self._db.rpc("unfollow_company", {
+            "p_user_id": user_id,
+            "p_company_name": company_name,
+        }).execute()
 
     def list_practice_saves(self, user_id: str) -> list[dict]:
         result = (

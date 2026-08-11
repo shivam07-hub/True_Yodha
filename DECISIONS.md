@@ -48,6 +48,7 @@ disagree, code wins and this line gets fixed in the same commit.
 | IH3 | ~~**Per-company row queries.** Each heatmap row is an independent `useQuery` keyed on `(company, skills)`. Adding a company appends a row without re-fetching others.~~ **REVERSED 2026-06-13 (Shivam-approved, backlog #21):** the per-company fan-out was a 10–15-request thundering herd. Now ONE batched `jobs.skillHeatmap(companies, skills)` (the batched endpoint already existed; `fetch_skill_heatmap_row` was already optimal). Traded incremental row-append for one matrix fetch — acceptable at the 10-company cap + 30-min cache. Do NOT reintroduce the fan-out. |
 | IH4 | **Heatmap columns = user's CV skills always.** No global top-8 fallback. Skill Lens toggles which CV skills appear. If no CV uploaded → nudge to upload. |
 | IH5 | **Row ordering = most recently starred first** (`created_at DESC` from `followed_companies`). |
+| IH6 | **Following a company is explicit user intent.** Saving a job, a listing closing, matching, or any background engine action may suggest a company, but MUST NOT create a Followed Company or consume a compare slot. The legacy Collections auto-follow rule is superseded as of 2026-08-11 and must be removed by the Followed Companies deepening. |
 | SH1 | **Ninja Name = vanity slug** as the public profile ID. `user_profiles.ninja_name TEXT UNIQUE NOT NULL`. Charset `^[a-z0-9-]{3,32}$`. The codename IS the share URL: `/profile/{ninja_name}`. Aligns with PV1 — user controls disclosure, no real-name leakage. |
 | SH2 | **Onboarding step is skippable with auto-generated default.** `silent-fox-9k2` pattern (adjective + noun + 4-char suffix). User can accept, retype, or skip → keep default. Zero abandonment risk. Editable later via Settings. |
 | SH3 | **Domain Map is the share artifact — fully public, never blurred.** The 12-domain radar from `/skills`, the Myro Score number, the tier label, and aggregate activity counters (forge/diary/tracker counts) are public. Skill names, skill levels, CV, tracker rows, and email NEVER leak through the public surface. |
@@ -93,6 +94,6 @@ disagree, code wins and this line gets fixed in the same commit.
 - `forge_sessions`: legacy table, still readable, but **timed forge XP earning is retired** — nothing writes new earn rows.
 - `user_skills`: `forge_sessions_count INTEGER NOT NULL DEFAULT 0` — display counter only; real practice progression lives in `skill_assessed_level` (Upskilling quiz clears).
 - `job_skills (job_id FK→jobs, skill_id FK→skills, is_primary BOOLEAN)` — canonical skill source
-- `followed_companies (user_id, company_name, UNIQUE(user_id, company_name))` — RLS-protected
+- `followed_companies (user_id, company_id, company_name, UNIQUE(user_id, company_id))` — RLS-protected canonical Followed Company identity; `company_name` is display/audit data
 - `jobs.location_country / location_city / location_mode / location_quality` — all backfilled
 - `cv_history.content_hash TEXT` — SHA-256 of raw extracted text for re-upload short-circuit

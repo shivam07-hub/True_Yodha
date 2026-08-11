@@ -169,7 +169,6 @@ function IntelPageInner() {
   // on the idle cascade rather than competing during the login instant.
   const following = useFollowCompany(token, { enabled: wave2 })
   const followedCompanies = following.companies
-  const followedNames = following.followedNames
 
   // Explored career bands persist on the profile — shared by both surfaces so
   // the filters sheet behaves identically wherever it is opened.
@@ -237,10 +236,7 @@ function IntelPageInner() {
             exploredCareerBands={profileData?.explored_career_bands ?? []}
             onExploredCareerBandsChange={onExploredCareerBandsChange}
             targetLocations={profileData?.target_locations ?? []}
-            followedNames={followedNames}
-            onToggleFollow={following.toggle}
-            canFollow={following.canFollow}
-            disabledReason={following.disabledReason}
+            followCompany={following}
             analyticsEnabled={intent}
             demandEnabled={wave2}
           />
@@ -251,6 +247,7 @@ function IntelPageInner() {
             cvReadiness={cvReadiness}
             cvUploadErrorCode={profileData?.cv_upload_error_code ?? null}
             followedCompanies={followedCompanies}
+            followCompany={following}
             selectedCluster={selectedCluster}
             targetRoles={targetRoles}
             targetLocations={profileData?.target_locations ?? []}

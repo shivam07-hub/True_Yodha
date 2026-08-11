@@ -209,9 +209,9 @@ function HeartGlyph() {
 
 /** A dead listing — found, saved, or applied, doesn't matter which. Nothing
  *  actionable left on the listing itself (no unsave/tailor/apply), so the row
- *  trades those for the one thing worth doing next: the company that posted it
- *  is already auto-followed (backend sweep), so this is just a direct path to
- *  its live openings — the "similar roles from this company" ask. */
+ *  trades those for the one thing worth doing next: a direct path to that
+ *  company's live openings, where the candidate may explicitly choose to
+ *  follow it — the "similar roles from this company" ask. */
 export function ClosedRow({
   it,
   app,

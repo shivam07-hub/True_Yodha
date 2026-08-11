@@ -112,10 +112,11 @@ def start_session(
         and existing.get("user_id")
         and str(existing.get("email") or "").lower() == email
     ):
-        repo.touch_sso(str(existing["id"]))
         return SsoOutcome(
             mode="direct",
-            login_url=auth_links.mint_login_link(admin, email=email, redirect_to=redirect_to),
+            login_url=auth_links.mint_login_link_for_existing_user(
+                admin, email=email, redirect_to=redirect_to
+            ),
             connect_url=None,
             user_ref=str(existing["id"]),
             message="Sign-in link minted.",
@@ -137,7 +138,9 @@ def start_session(
         logger.info("metric partner_sso.linked partner=%s mode=new_account", partner.slug)
         return SsoOutcome(
             mode="direct",
-            login_url=auth_links.mint_login_link(admin, email=email, redirect_to=redirect_to),
+            login_url=auth_links.mint_login_link_for_existing_user(
+                admin, email=email, redirect_to=redirect_to
+            ),
             connect_url=None,
             user_ref=str(link.get("id") or ""),
             message="Account created and linked.",
