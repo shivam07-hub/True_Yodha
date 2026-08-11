@@ -130,6 +130,33 @@
 }
 .cd-all-list > .cs-row { break-inside: avoid; }
 .cd-empty { margin: 20px 0; font-size: 14px; color: var(--tm-text-faint); }
+.cd-empty p { margin: 0 0 10px; }
+.cd-empty a { color: var(--tm-accent-text); font-weight: 600; }
+.cd-retry {
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius-sm);
+  background: var(--tm-surface);
+  color: var(--tm-accent-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 12px;
+}
+.cd-retry:focus-visible { outline: 2px solid var(--tm-accent-ring); outline-offset: 2px; }
+
+/* Structural placeholders hold the directory's layout without pretending that
+ * unavailable data is zero. They intentionally do not shimmer or animate. */
+.cd-skeleton { background: var(--tm-border-soft); border-radius: var(--tm-radius-sm); }
+.cd-skeleton-title { width: min(420px, 76vw); height: 43px; margin: 12px 0; }
+.cd-skeleton-copy { width: min(520px, 90vw); height: 22px; }
+.cd-skeleton-slots { width: 180px; height: 54px; }
+.cd-skeleton-search { flex: 1 1 240px; min-width: 200px; height: 38px; }
+.cd-skeleton-sort { width: 150px; height: 28px; }
+.cd-skeleton-card { min-height: 148px; border: 1px solid var(--tm-border-soft); }
+.cd-skeleton-label { width: 136px; height: 18px; }
+.cd-skeleton-rows { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 40px; }
+.cd-skeleton-row { height: 44px; }
 
 @media (max-width: 720px) {
   .cd-root { padding: 28px 16px 64px; }
@@ -137,4 +164,5 @@
   .cd-slots-cap { text-align: left; }
   .cd-sort { margin-left: 0; }
   .cd-all-list { columns: 1; }
+  .cd-skeleton-rows { grid-template-columns: 1fr; }
 }
