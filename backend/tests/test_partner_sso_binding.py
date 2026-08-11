@@ -57,7 +57,9 @@ def test_new_account_is_linked_and_gets_a_url(monkeypatch):
     """Nobody has ever used this address — there is nothing to take over."""
     monkeypatch.setattr(partner_sso.auth_links, "create_user_if_absent", lambda admin, email: "new-user")
     monkeypatch.setattr(
-        partner_sso.auth_links, "mint_login_link", lambda admin, **kw: "https://app/magic"
+        partner_sso.auth_links,
+        "mint_login_link_for_existing_user",
+        lambda admin, **kw: "https://app/magic",
     )
     repo = _FakeRepo(link=None)
 
@@ -78,7 +80,9 @@ def test_pre_existing_account_gets_a_consent_url_not_a_session(monkeypatch):
     monkeypatch.setattr(partner_sso.settings, "app_base_url", "https://app.myro.test")
     monkeypatch.setattr(partner_sso.auth_links, "create_user_if_absent", lambda admin, email: None)
     monkeypatch.setattr(
-        partner_sso.auth_links, "mint_login_link", lambda admin, **kw: "https://app/magic"
+        partner_sso.auth_links,
+        "mint_login_link_for_existing_user",
+        lambda admin, **kw: "https://app/magic",
     )
     sent: list[dict] = []
     monkeypatch.setattr(
@@ -128,7 +132,9 @@ def test_already_linked_seat_skips_the_gate(monkeypatch):
         lambda admin, email: probed.append(email) or None,
     )
     monkeypatch.setattr(
-        partner_sso.auth_links, "mint_login_link", lambda admin, **kw: "https://app/magic"
+        partner_sso.auth_links,
+        "mint_login_link_for_existing_user",
+        lambda admin, **kw: "https://app/magic",
     )
     repo = _FakeRepo(link={
         "id": "seat1", "link_state": "linked", "user_id": "u1", "email": "known@example.com",

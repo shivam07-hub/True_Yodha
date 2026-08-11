@@ -6,14 +6,18 @@ style problem and becomes a cross-tenant read.
 """
 from __future__ import annotations
 
+import asyncio
 from typing import Any
+from types import SimpleNamespace
 
 import pytest
-from fastapi import HTTPException
+from fastapi import BackgroundTasks, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.testclient import TestClient
 
 from app.main import app
 from app.routers import partner_connect
+from app.routers.partner import sso as partner_sso_router
 from app.repositories import partners as partners_module
 from app.repositories.partners import (
     PartnerCredential,
@@ -22,6 +26,8 @@ from app.repositories.partners import (
 )
 from app.security import partner_auth
 from app.security.partner_auth import get_partner_credential
+from app.schemas.partner import SsoSessionRequest
+from app.services.partner_sso import SsoOutcome
 
 
 class _Result:
@@ -115,6 +121,31 @@ def test_unknown_prefix_is_rejected():
     assert repo.resolve_credential(raw) is None
 
 
+def test_key_usage_stamp_is_queued_after_auth(monkeypatch):
+    raw, prefix, _ = partners_module.generate_key()
+    touched: list[str] = []
+    background_tasks = BackgroundTasks()
+
+    monkeypatch.setattr(partner_auth, "get_supabase_admin", lambda: _Chain([_key_row(raw, prefix)]))
+    monkeypatch.setattr(partner_auth, "_enforce_rate_limit", lambda _key_id: None)
+    monkeypatch.setattr(
+        PartnersRepository,
+        "touch_key",
+        lambda _self, key_id: touched.append(key_id),
+    )
+
+    credential = get_partner_credential(
+        SimpleNamespace(state=SimpleNamespace()),
+        background_tasks,
+        HTTPAuthorizationCredentials(scheme="Bearer", credentials=raw),
+    )
+
+    assert credential.key_id == "k1"
+    assert touched == []
+    asyncio.run(background_tasks())
+    assert touched == ["k1"]
+
+
 # ── route-level ────────────────────────────────────────────────────────────
 
 
@@ -145,6 +176,41 @@ def test_key_without_the_scope_is_403(client, monkeypatch):
 
     assert response.status_code == 403
     assert "sso" in response.json()["detail"]
+
+
+def test_direct_sso_usage_stamp_is_queued_after_the_response(monkeypatch):
+    touched: list[str] = []
+    background_tasks = BackgroundTasks()
+    repo = SimpleNamespace(touch_sso=lambda link_id: touched.append(link_id))
+    credential = PartnerCredential(
+        key_id="k1", partner_id="p1", slug="acme", name="Acme",
+        scopes=frozenset({"sso"}),
+    )
+
+    monkeypatch.setattr(partner_sso_router, "get_supabase_admin", lambda: SimpleNamespace())
+    monkeypatch.setattr(partner_sso_router, "PartnersRepository", lambda _admin: repo)
+    monkeypatch.setattr(
+        partner_sso_router.partner_sso,
+        "start_session",
+        lambda *_args, **_kwargs: SsoOutcome(
+            mode="direct",
+            login_url="https://auth.example/verify",
+            connect_url=None,
+            user_ref="seat1",
+            message="Sign-in link minted.",
+        ),
+    )
+
+    response = partner_sso_router.create_sso_session(
+        SsoSessionRequest(external_id="ext-1", email="user@example.com"),
+        background_tasks,
+        credential,
+    )
+
+    assert response.login_url == "https://auth.example/verify"
+    assert touched == []
+    asyncio.run(background_tasks())
+    assert touched == ["seat1"]
 
 
 def test_every_partner_route_requires_a_scope():

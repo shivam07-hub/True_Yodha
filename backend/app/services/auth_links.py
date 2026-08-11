@@ -31,6 +31,19 @@ def mint_login_link(admin: Any, *, email: str, redirect_to: str | None) -> str:
     failure (the caller treats a raise as "could not send").
     """
     _ensure_user(admin, email)
+    return mint_login_link_for_existing_user(admin, email=email, redirect_to=redirect_to)
+
+
+def mint_login_link_for_existing_user(
+    admin: Any, *, email: str, redirect_to: str | None
+) -> str:
+    """Mint a link when the caller has already established that the user exists.
+
+    Partner SSO reaches this function only after either creating the auth user
+    itself or loading a linked seat whose foreign key still points at auth.users.
+    Avoiding a second create-user probe removes one remote round trip without
+    weakening the account-takeover gate.
+    """
 
     options: dict[str, Any] = {}
     if redirect_to:

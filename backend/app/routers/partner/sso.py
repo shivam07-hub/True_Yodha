@@ -12,7 +12,7 @@ anything here.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 
 from app.database import get_supabase_admin
 from app.repositories.partners import PartnerCredential, PartnersRepository
@@ -26,17 +26,21 @@ router = APIRouter()
 @router.post("/sso/session", response_model=SsoSessionResponse)
 def create_sso_session(
     body: SsoSessionRequest,
+    background_tasks: BackgroundTasks,
     partner: PartnerCredential = Depends(require_scope(SCOPE_SSO)),
 ) -> SsoSessionResponse:
     admin = get_supabase_admin()
+    repo = PartnersRepository(admin)
     outcome = partner_sso.start_session(
-        PartnersRepository(admin),
+        repo,
         admin,
         partner=partner,
         external_id=body.external_id.strip(),
         email=str(body.email),
         full_name=body.full_name,
     )
+    if outcome.mode == "direct":
+        background_tasks.add_task(repo.touch_sso, outcome.user_ref)
     return SsoSessionResponse(
         mode=outcome.mode,
         login_url=outcome.login_url,

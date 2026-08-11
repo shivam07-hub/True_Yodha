@@ -1,4 +1,5 @@
 import { createClient as createSupabaseClient, type SupabaseClient } from "@supabase/supabase-js"
+import { authFlowTypeForUrl } from "@/lib/auth/callback-flow"
 
 let browserClient: SupabaseClient | null = null
 
@@ -16,7 +17,7 @@ export function createClient() {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
-        flowType: "pkce",
+        flowType: authFlowTypeForUrl(window.location.href),
       },
     },
   )

@@ -40,6 +40,16 @@ test("auth entry points write tokens through session adapter", () => {
   assert.equal(callbackPage.includes("localStorage."), false)
 })
 
+test("auth callback selects the Supabase flow from the callback URL and surfaces failures", () => {
+  const browserClient = read("lib/supabase.ts")
+  const callbackPage = read("app/auth/callback/page.tsx")
+
+  assert.match(browserClient, /flowType: authFlowTypeForUrl\(window\.location\.href\)/)
+  assert.match(callbackPage, /supabase\.auth\.initialize\(\)/)
+  assert.match(callbackPage, /setFailure\(kind\)/)
+  assert.equal(callbackPage.includes('routeOnce("/login")'), false)
+})
+
 test("auth entry points route pending anonymous CVs through the CV Playground claim path", () => {
   const loginForm = read("components/auth/login-form.tsx")
   const callbackPage = read("app/auth/callback/page.tsx")
