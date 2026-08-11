@@ -17,6 +17,7 @@ import "@/components/public/landing/landing-hero-engine.css"
 import "@/components/public/landing/landing-depth.css"
 import "@/components/public/landing/landing-match-sources.css"
 import "@/components/public/landing/landing-company-rail.css"
+import "@/components/public/landing/landing-motion.css"
 
 /**
  * Myro landing — seeker-only funnel, product-story pass locked 2026-08-10.

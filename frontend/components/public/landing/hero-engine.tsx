@@ -1,4 +1,8 @@
+"use client"
+
 import Image from "next/image"
+import { useRef } from "react"
+import { useAllowLoopingMotion } from "@/lib/hooks/use-allow-looping-motion"
 
 const FLOW_PATHS = [
   "M58,82 C150,82 162,232 224,232",
@@ -20,11 +24,15 @@ export function LandingHeroEngine({
   companyNames,
   companiesMonitored,
 }: LandingHeroEngineProps) {
+  const hostRef = useRef<HTMLDivElement | null>(null)
+  const allowLoopingMotion = useAllowLoopingMotion(hostRef)
   const initials = companyNames.slice(0, 4).map((name) => name.charAt(0).toUpperCase())
 
   return (
     <div
+      ref={hostRef}
       className="lp-mini-engine"
+      data-motion={allowLoopingMotion ? "running" : "paused"}
       role="img"
       aria-label="Illustration of company career pages flowing through the Myro Engine into a CV score and job fit. Scores shown are examples."
     >
