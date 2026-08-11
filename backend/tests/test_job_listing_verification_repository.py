@@ -75,13 +75,6 @@ class RpcDB:
         raise AssertionError("verification queue must go through the RPC, not PostgREST filters")
 
 
-def test_pending_count_reads_the_due_rpc() -> None:
-    db = RpcDB(42)
-
-    assert ListingVerificationRepository(db).pending_count(stale_days=7) == 42
-    assert db.calls == [("count_verify_due", {"p_stale": "7 days"})]
-
-
 def test_claim_targets_caps_limit_and_passes_staleness() -> None:
     db = RpcDB([])
 
@@ -96,13 +89,6 @@ def test_claim_targets_caps_limit_and_passes_staleness() -> None:
             "p_priority_stale": "24 hours",
         },
     )]
-
-
-def test_priority_pending_count_reads_priority_rpc() -> None:
-    db = RpcDB(17)
-
-    assert ListingVerificationRepository(db).priority_pending_count(stale_hours=12) == 17
-    assert db.calls == [("count_priority_verify_due", {"p_stale": "12 hours"})]
 
 
 def test_claim_targets_skips_rows_without_a_usable_apply_url() -> None:

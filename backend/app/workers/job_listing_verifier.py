@@ -86,20 +86,20 @@ async def _sweep() -> None:
         counts[result.result] = counts.get(result.result, 0) + 1
     retired = repo.retire_eligible(limit=500)
     attention = sweep_collection_attention(get_supabase_admin())
-    # backlog + rate + duration are the health signals: a draining belt trends
-    # backlog down; a stalled one is visible before users hit a ghost listing.
+    # Claim throughput + productive verdicts + duration are the inline health
+    # signals. Exact backlog counts used to run two corpus-wide aggregates after
+    # every sweep; they are operational reporting and must never compete with a
+    # user's read path. The API dead-man reads the two indexed heartbeat clocks.
     duration = round(time.monotonic() - started, 1)
-    backlog = repo.pending_count(stale_days=stale_days)
-    priority_backlog = repo.priority_pending_count(stale_hours=priority_stale_hours)
     priority_targets = sum(
         target.verification_priority != "corpus" for target in targets
     )
     log.info(
         "metric job_verifier.sweep targets=%d priority_targets=%d results=%s "
-        "retired=%d attention=%d backlog=%d priority_backlog=%d stale_days=%d "
-        "priority_stale_hours=%d duration_s=%s",
-        len(targets), priority_targets, counts, retired, attention, backlog,
-        priority_backlog, stale_days, priority_stale_hours, duration,
+        "retired=%d attention=%d stale_days=%d priority_stale_hours=%d "
+        "duration_s=%s",
+        len(targets), priority_targets, counts, retired, attention, stale_days,
+        priority_stale_hours, duration,
     )
     _alert_on_unproductive_sweep(targets, counts)
     _refresh_skill_demand_if_changed(counts, retired)

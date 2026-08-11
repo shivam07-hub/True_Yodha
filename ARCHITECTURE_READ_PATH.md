@@ -98,6 +98,43 @@ This replaces today's behaviour, where `ReadCapacityLimiter` sheds real users �
 the `/home/bootstrap` and `/scores/map` 503s in the alert mails are Myro
 rejecting Myro's own traffic.
 
+### Journey-compute contract
+
+The database tier answers **where** data comes from. Journey priority answers
+**when the user has earned the cost**. A visible component or navigation link is
+not permission to fetch its data.
+
+| Priority | User meaning | Loading rule |
+|---|---|---|
+| **J0 — Now** | Required for the decision the user is making on this route | Start immediately; return the smallest useful payload |
+| **J1 — Next** | High-probability next action | Reuse cached state or run a cancellable low-priority prefetch only after J0 settles |
+| **J2 — Intent** | Optional detail or secondary surface | Fetch on specific intent: open, search, tab selection, or near-viewport intersection |
+| **J3 — Offline** | Corpus computation, maintenance, and operational reporting | Worker/precompute path; never compete with J0 |
+
+Priority is contextual, not a permanent label on a route. Intel is J2 while a
+user is working in Jobs; its core result becomes J0 when the user explicitly
+navigates to `/intel`. Optional drills inside Intel remain J2. Route changes
+cancel or abandon lower-priority work from the previous surface.
+
+**Review rule:** every new request must name both its data tier and its journey
+priority. "The component mounted" and "the browser is idle" are not user
+decisions. Broad page-level pointer/scroll gates are insufficient for J2; the
+trigger must belong to the component whose data is being requested.
+
+Verified open violations, 2026-08-12:
+
+- authenticated navigation mounts reads for applications, profile, and CV
+  versions on every page even though the primary tabs are always visible;
+- `/market`'s Wave 3 treats any scroll, pointerdown, or keydown as intent for
+  several analytics consumers rather than the specific consumer entered;
+- a public company page server-fetches jobs, company/posting notes, company
+  detail, and skill intelligence together before first paint. The alert pattern
+  (`/companies/{name}`, `/jobs`, `/skill-intelligence`, `/comments` slow in one
+  burst) is the exact request graph in code.
+
+These are named for the next demand-reduction pass. They are not silently
+declared fixed by the database work below.
+
 ---
 
 ## 3. One surface, not a partner fork (LOCKED)
@@ -551,6 +588,49 @@ JSON shape. Covered by compiler, router, and dirty-guard tests. Desktop and
 overlay. The local frontend still read the currently deployed API, which does
 not emit `industry_roles` yet, so populated role rows remain unverified until
 the backend deploys and the snapshot refresh runs.
+
+---
+
+**S10 — Verifier health stopped counting the corpus. ✅ DB live; worker code
+complete, deployment pending verification.**
+
+The 2026-08-11/12 incident mails included `/health` at 8,020ms. Reproduced on
+the live services before changing anything:
+
+    prod /health app time     8,016.6ms -> verifier=unknown
+    dev  /health app time     4,398.7ms -> verifier=ok
+
+`/health` called `verifier_health_snapshot`, which called
+`count_priority_verify_due`. That exact operational progress number rebuilds
+the tracked/shown/matched priority set across three tables. It has no bearing on
+whether the verifier is alive, yet it ran from the API health probe and again
+after every verifier sweep. Over the current `pg_stat_statements` window:
+
+    count_verify_due          1,147 calls  mean 1,934.9ms  total 2,219,314.8ms
+    count_priority_verify_due 1,100 calls  mean   344.8ms  total   379,301.6ms
+
+The old health snapshot itself measured **192.7ms and 26,416 shared buffers**
+in a warm standalone EXPLAIN. Its replacement asks only the two dead-man
+questions — latest claim attempt and latest productive verdict — with ordered
+`LIMIT 1` reads matching the existing partial indexes. The candidate plan was
+**4.5ms / 9 buffers**. Post-migration standalone execution under concurrent
+traffic was **25.5ms / 1,239 buffers**, still a 7.6x time and 21x buffer move
+against the old snapshot; the live endpoint is the deciding evidence:
+
+    prod cold app time      8,016.6ms -> 647.3ms
+    dev  cold app time      4,398.7ms -> 184.7ms
+    prod/dev cached app time             0.7-1.0ms
+
+Migration `20260811190435_verifier_health_heartbeat_fast_path.sql` is applied
+and PostgREST reloaded. The JSON keeps `verifier_priority_backlog: null` for
+wire compatibility. The worker no longer runs either exact backlog count after
+every sweep; claim throughput, productive verdicts, and duration remain its
+inline J3 health signals. The old count RPCs remain service-role-only for an
+explicit operational investigation, not on a scheduled/user-facing path.
+
+The cached live calls still took roughly 0.4-0.7s end-to-end while the app spent
+under 1ms. That remainder is Railway edge/network time, not Postgres, and stays
+open for the runtime/region lane. The DB fix must not be credited for it.
 
 ---
 

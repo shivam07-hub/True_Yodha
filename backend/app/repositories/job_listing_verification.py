@@ -284,30 +284,6 @@ class ListingVerificationRepository:
             .execute()
         )
 
-    def pending_count(self, *, stale_days: int = 7) -> int:
-        """Count of listings past their staleness horizon — the drain-belt signal.
-
-        Served by idx_jobs_verify_due. Goes through the RPC rather than a
-        PostgREST filter chain because ``apply_url=like.http%`` puts a bare ``%``
-        in the query string, which the Supabase edge rejects with an HTML 500.
-        """
-        res = _with_retry(
-            lambda: self.db.rpc(
-                "count_verify_due", {"p_stale": f"{max(0, stale_days)} days"}
-            ).execute()
-        )
-        return int(res.data or 0)
-
-    def priority_pending_count(self, *, stale_hours: int = 24) -> int:
-        """User-relevant listings past their tighter freshness horizon."""
-        res = _with_retry(
-            lambda: self.db.rpc(
-                "count_priority_verify_due",
-                {"p_stale": f"{max(1, stale_hours)} hours"},
-            ).execute()
-        )
-        return int(res.data or 0)
-
     def retire_eligible(self, *, limit: int = 500) -> int:
         capped = max(1, min(limit, 5000))
         result = _with_retry(
