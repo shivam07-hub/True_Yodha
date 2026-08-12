@@ -3,7 +3,7 @@
 import "./comment-thread.css"
 
 import Link from "next/link"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { comments as commentsApi } from "@/lib/api"
 import type { Comment, CommentEntityType, CommentListResponse } from "@/lib/api"
@@ -48,8 +48,8 @@ interface CommentThreadProps {
   placeholder?: string
   /** Server-fetched notes seed. When present the thread renders into the initial
    *  (crawlable) HTML instead of a client-only spinner — the UGC becomes the
-   *  page's SEO/AEO content. Signed-in users still get a live refetch on mount
-   *  (initialDataUpdatedAt: 0) so `is_own` edit controls appear. */
+   *  page's SEO/AEO content. Only signed-in users refetch the public seed to
+   *  resolve `is_own`; anonymous readers do not repeat the server request. */
   initialData?: CommentListResponse | null
 }
 
@@ -63,18 +63,26 @@ export function CommentThread({ token, entityType, entityId, placeholder, initia
   const [draft, setDraft] = useState("")
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState("")
+  const ownershipToken = useRef<string | null>(null)
   const signedIn = !!token
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch } = useQuery({
     queryKey: key,
     queryFn: () => commentsApi.list(token, entityType, entityId),
     enabled: !!entityId,
     staleTime: 60 * 1000,
-    // Seed from the server fetch → notes render in the crawlable HTML. Mark the
-    // seed stale (updatedAt 0) so a signed-in client still refetches on mount
-    // and resolves `is_own` (edit/delete controls) against the real token.
-    ...(initialData ? { initialData, initialDataUpdatedAt: 0 } : {}),
+    // Seed from the server fetch → notes render in the crawlable HTML. Do not
+    // repeat the same public read on mount; the token-specific effect below is
+    // the only reason to refresh a seeded thread.
+    ...(initialData ? { initialData, refetchOnMount: false as const } : {}),
   })
+
+  useEffect(() => {
+    if (!initialData || !token || ownershipToken.current === token) return
+    ownershipToken.current = token
+    void refetch()
+  }, [initialData, refetch, token])
+
   const notes = data?.comments ?? []
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: key })

@@ -3397,6 +3397,9 @@ export interface IndexableCompanyItem {
 }
 export interface IndexableCompaniesResponse {
   companies: IndexableCompanyItem[]
+  /** An upstream cold-cache failure is not a real empty result. Omitted by
+   * the pre-contract backend, where every response was completed data. */
+  status?: "ready" | "unavailable"
 }
 
 /** New-this-week (company × skill) role count — the gap-alert signal (S3). */

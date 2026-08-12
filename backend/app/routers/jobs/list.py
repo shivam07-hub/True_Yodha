@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from postgrest.exceptions import APIError
 
 from app.deps import Principal, get_principal
 from app.repositories.jobs import (
@@ -175,8 +176,12 @@ def get_indexable_companies(
     SEO-indexing allowlist the sitemap reads (Fix 1, 2026-07-23 GSC report). A
     company with only delisted/unverified rows is a thin page Google crawls then
     drops; emitting only these keeps the sitemap honest and protects crawl
-    budget. Public, cached 1h. Never 500s — degrades to the last good result."""
-    rows = repo.fetch_indexable_companies()
+    budget. Public, cached 1h. A cold cache failure is explicitly unavailable,
+    never silently represented as an empty directory."""
+    try:
+        rows = repo.fetch_indexable_companies()
+    except APIError:
+        return IndexableCompaniesResponse(companies=[], status="unavailable")
     return IndexableCompaniesResponse(
         companies=[IndexableCompanyItem(**r) for r in rows]
     )

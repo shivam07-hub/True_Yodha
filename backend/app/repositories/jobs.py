@@ -1436,17 +1436,16 @@ class JobsRepository:
                 if (name := (r.get("name") or "").strip())
             ]
 
-        try:
-            return shared_cache.get_or_compute(
-                "indexable_companies",
-                _compute,
-                ttl_seconds=_INDEXABLE_TTL,
-                stale_seconds=_INDEXABLE_TTL,
-            )
-        except APIError:
-            # Only reachable on a genuinely cold cache (nothing stale to serve
-            # instead) — never the sitemap's steady-state path.
-            return []
+        # A stale entry is returned by shared_cache before this can raise. With
+        # no last-known-good value, propagate the cold-cache failure so the
+        # public route can identify it as unavailable rather than inventing an
+        # empty directory.
+        return shared_cache.get_or_compute(
+            "indexable_companies",
+            _compute,
+            ttl_seconds=_INDEXABLE_TTL,
+            stale_seconds=_INDEXABLE_TTL,
+        )
 
     def fetch_skill_heatmap_row(
         self,

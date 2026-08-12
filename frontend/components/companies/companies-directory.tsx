@@ -1,12 +1,22 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import Link from "next/link"
+import { useQuery } from "@tanstack/react-query"
 import { Search } from "lucide-react"
 import type { CompanyPulseItem } from "@/lib/api"
 import { useSession } from "@/lib/hooks/use-auth"
-import { useFollowCompany } from "@/lib/hooks/use-follow-company"
+import {
+  useFollowCompany,
+  type FollowCompanyAction,
+} from "@/lib/hooks/use-follow-company"
 import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
 import { formatCount } from "@/lib/format"
+import {
+  resolveCompaniesDirectoryState,
+  type DirectoryAvailability,
+  type DirectoryCompany,
+} from "@/lib/companies/directory-state"
 import {
   CompanySignalCard,
   CompanySignalRow,
@@ -15,12 +25,7 @@ import {
 import "./companies-directory.css"
 
 const SLOT_CAP = MYRO_COINS_POLICY.followedCompanyLimit
-
-export interface DirectoryCompany {
-  name: string
-  count: number
-  industry: string | null
-}
+const EMPTY_DIRECTORY_COMPANIES: DirectoryCompany[] = []
 
 interface Props {
   /** Every tracked company — the crawlable, searchable full list. */
@@ -32,16 +37,38 @@ interface Props {
   totalCount: number
   /** Distinct sectors for the filter pills (already trimmed to the top few). */
   sectors: string[]
+  /** A failed public read is not a completed empty company directory. */
+  availability: DirectoryAvailability
 }
 
 type SortMode = "pulse" | "open"
 
-export function CompaniesDirectory({ companies, pool, pulses, totalCount, sectors }: Props) {
+export function CompaniesDirectory({ companies, pool, pulses, totalCount, sectors, availability }: Props) {
   const { token } = useSession()
   const follow = useFollowCompany(token)
+  const recovery = useQuery({
+    queryKey: ["companies-directory-recovery"],
+    queryFn: async () => (await import("@/lib/api")).jobs.indexableCompanies(),
+    enabled: availability === "unavailable",
+    retry: 2,
+    retryDelay: (attempt) => 1_000 * (attempt + 1),
+    staleTime: 60_000,
+  })
   const [query, setQuery] = useState("")
   const [sector, setSector] = useState<string | null>(null)
   const [sort, setSort] = useState<SortMode>("pulse")
+  const directoryState = resolveCompaniesDirectoryState({
+    initialStatus: availability,
+    initialCompanies: companies,
+    recovery: recovery.data,
+    isRecovering: recovery.isLoading || recovery.isFetching,
+    recoveryFailed: recovery.isError,
+  })
+  const directoryCompanies = directoryState.kind === "ready"
+    ? directoryState.companies
+    : EMPTY_DIRECTORY_COMPANIES
+  const hasCompletedDirectory = directoryState.kind === "ready" || directoryState.kind === "empty"
+  const visibleTotalCount = directoryState.kind === "ready" ? directoryCompanies.length : totalCount
 
   const pulseByName = useMemo(() => {
     const map = new Map<string, CompanyPulseItem>()
@@ -79,16 +106,21 @@ export function CompaniesDirectory({ companies, pool, pulses, totalCount, sector
   // so the un-searched list is fully crawlable).
   const filteredAll = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return companies
-    return companies.filter((c) => c.name.toLowerCase().includes(q))
-  }, [query, companies])
+    if (!q) return directoryCompanies
+    return directoryCompanies.filter((c) => c.name.toLowerCase().includes(q))
+  }, [query, directoryCompanies])
 
-  const followAction = (name: string) => {
-    if (!token) {
-      window.location.href = "/signup?ref=companies"
-      return undefined
+  const followAction = (name: string): FollowCompanyAction => {
+    if (token) return follow.action(name)
+    return {
+      following: false,
+      pending: false,
+      loading: false,
+      disabled: false,
+      toggle: () => {
+        window.location.href = "/signup?ref=companies"
+      },
     }
-    return follow.action(name)
   }
 
   return (
@@ -96,7 +128,11 @@ export function CompaniesDirectory({ companies, pool, pulses, totalCount, sector
       <div className="cd-masthead">
         <div className="cd-masthead-copy">
           <SignalLabel>Companies</SignalLabel>
-          <h1 className="cd-h1">{formatCount(totalCount)} MNCs, tracked live.</h1>
+          <h1 className="cd-h1">
+            {hasCompletedDirectory
+              ? `${formatCount(visibleTotalCount)} MNCs, tracked live.`
+              : "Companies, tracked live."}
+          </h1>
           <p className="cd-sub">Every careers feed Myro watches, ranked by how hard it&rsquo;s hiring right now.</p>
         </div>
         <SlotsMeter used={follow.count} error={follow.error?.message ?? null} />
@@ -109,8 +145,9 @@ export function CompaniesDirectory({ companies, pool, pulses, totalCount, sector
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={`Search ${formatCount(totalCount)} companies…`}
+            placeholder={hasCompletedDirectory ? `Search ${formatCount(visibleTotalCount)} companies…` : "Search companies…"}
             aria-label="Search companies"
+            disabled={!hasCompletedDirectory}
           />
         </label>
         {sectors.length > 0 ? (
@@ -129,7 +166,7 @@ export function CompaniesDirectory({ companies, pool, pulses, totalCount, sector
       </div>
 
       {/* Featured pulse grid — the curated top, real pulse only. */}
-      {!query && featured.length > 0 ? (
+      {hasCompletedDirectory && !query && featured.length > 0 ? (
         <div className="cd-grid">
           {featured.map((c) => (
             <CompanySignalCard
@@ -150,14 +187,23 @@ export function CompaniesDirectory({ companies, pool, pulses, totalCount, sector
       <div className="cd-all">
         <div className="cd-all-head">
           <SignalLabel live={false}>{query ? "Search results" : "All companies"}</SignalLabel>
-          <span className="cd-all-count">{formatCount(filteredAll.length)}</span>
+          <span className="cd-all-count">{hasCompletedDirectory ? formatCount(filteredAll.length) : "—"}</span>
         </div>
-        {filteredAll.length === 0 ? (
+        {directoryState.kind === "loading" ? (
+          <CompaniesDirectoryRowsSkeleton />
+        ) : directoryState.kind === "unavailable" ? (
+          <div className="cd-empty" role="status">
+            <p>Live company data is temporarily unavailable.</p>
+            <button type="button" className="cd-retry" onClick={() => recovery.refetch()}>
+              Try again
+            </button>
+          </div>
+        ) : directoryState.kind === "empty" ? (
           <p className="cd-empty">
-            {query
-              ? <>No company matches &ldquo;{query}&rdquo;.</>
-              : "The company list is loading — check back in a moment."}
+            No companies with live roles right now. <Link href="/intel">Browse live job data.</Link>
           </p>
+        ) : filteredAll.length === 0 ? (
+          <p className="cd-empty">No company matches &ldquo;{query}&rdquo;.</p>
         ) : (
           <div className="cd-all-list cs-row-list">
             {filteredAll.map((c) => (
@@ -173,6 +219,42 @@ export function CompaniesDirectory({ companies, pool, pulses, totalCount, sector
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+export function CompaniesDirectoryLoading() {
+  return (
+    <div className="cd-root" aria-busy="true" aria-label="Loading companies">
+      <div className="cd-masthead">
+        <div className="cd-masthead-copy">
+          <SignalLabel>Companies</SignalLabel>
+          <div className="cd-skeleton cd-skeleton-title" />
+          <div className="cd-skeleton cd-skeleton-copy" />
+        </div>
+        <div className="cd-skeleton cd-skeleton-slots" />
+      </div>
+      <div className="cd-toolbar">
+        <div className="cd-skeleton cd-skeleton-search" />
+        <div className="cd-skeleton cd-skeleton-sort" />
+      </div>
+      <div className="cd-grid" aria-hidden>
+        {Array.from({ length: 8 }, (_, index) => <div className="cd-skeleton cd-skeleton-card" key={index} />)}
+      </div>
+      <div className="cd-all">
+        <div className="cd-all-head">
+          <div className="cd-skeleton cd-skeleton-label" />
+        </div>
+        <CompaniesDirectoryRowsSkeleton />
+      </div>
+    </div>
+  )
+}
+
+function CompaniesDirectoryRowsSkeleton() {
+  return (
+    <div className="cd-all-list cd-skeleton-rows" aria-hidden>
+      {Array.from({ length: 16 }, (_, index) => <div className="cd-skeleton cd-skeleton-row" key={index} />)}
     </div>
   )
 }

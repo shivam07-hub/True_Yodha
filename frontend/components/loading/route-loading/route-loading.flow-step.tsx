@@ -23,11 +23,11 @@ export function FlowStepLoading({
 }: FlowStepLoadingProps) {
   return (
     <main
+      className="tm-page-canvas"
       style={{
         minHeight: "100dvh",
         width: "100vw",
         overflow: "hidden",
-        background: "var(--tm-bg)",
         color: "var(--tm-text)",
         display: "grid",
         placeItems: "center",

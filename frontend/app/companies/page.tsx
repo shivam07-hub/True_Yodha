@@ -1,6 +1,14 @@
 import type { Metadata } from "next"
+import { Suspense } from "react"
 import { jobs, type CompanyPulseItem } from "@/lib/api"
-import { CompaniesDirectory, type DirectoryCompany } from "@/components/companies/companies-directory"
+import {
+  CompaniesDirectory,
+  CompaniesDirectoryLoading,
+} from "@/components/companies/companies-directory"
+import type {
+  DirectoryAvailability,
+  DirectoryCompany,
+} from "@/lib/companies/directory-state"
 
 /**
  * The companies directory (Signal Thread 1d) — a dual-audience surface.
@@ -46,7 +54,15 @@ function topSectors(companies: DirectoryCompany[], max = 5): string[] {
     .map(([s]) => s)
 }
 
-export default async function CompaniesDirectoryPage() {
+export default function CompaniesDirectoryPage() {
+  return (
+    <Suspense fallback={<CompaniesDirectoryLoading />}>
+      <CompaniesDirectoryData />
+    </Suspense>
+  )
+}
+
+async function CompaniesDirectoryData() {
   // The crawlable list = only companies with an indexable detail page (>=1 live
   // listing). Two reasons: (1) the directory's internal links must not pass
   // link-equity to /companies pages that noindex themselves — a link farm
@@ -56,24 +72,30 @@ export default async function CompaniesDirectoryPage() {
   // but zero live roles (which rendered a misleading em-dash at the top).
   // Industry is enriched from analytics (all-time is fine for a sector label).
   let companies: DirectoryCompany[] = []
+  let availability: DirectoryAvailability = "ready"
   try {
     const [indexable, analytics] = await Promise.all([
       jobs.indexableCompanies(),
       jobs.analytics().catch(() => null),
     ])
-    const industryOf = new Map(
-      (analytics?.by_company ?? []).map((c) => [c.name, c.industry ?? null]),
-    )
-    companies = indexable.companies
-      .filter((c) => c.name)
-      .map((c) => ({
-        name: c.name,
-        count: c.active_count,
-        industry: industryOf.get(c.name) ?? null,
-      }))
+    if (indexable.status === "unavailable") {
+      availability = "unavailable"
+    } else {
+      const industryOf = new Map(
+        (analytics?.by_company ?? []).map((c) => [c.name, c.industry ?? null]),
+      )
+      companies = indexable.companies
+        .filter((c) => c.name)
+        .map((c) => ({
+          name: c.name,
+          count: c.active_count,
+          industry: industryOf.get(c.name) ?? null,
+        }))
+    }
   } catch {
-    // Backend unreachable → render the masthead shell; ISR retries next request.
-    // Never 500 a crawlable page over a transient fetch.
+    // A network failure is distinct from a completed empty directory. The client
+    // island receives this state and retries without making the user reload.
+    availability = "unavailable"
   }
 
   const alphabetical = [...companies].sort((a, b) => a.name.localeCompare(b.name))
@@ -102,6 +124,7 @@ export default async function CompaniesDirectoryPage() {
       pulses={pulses}
       totalCount={companies.length}
       sectors={topSectors(companies)}
+      availability={availability}
     />
   )
 }

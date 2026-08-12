@@ -63,7 +63,10 @@
      --tm-*). The nav/footer/signup chrome follow the canonical surface
      directly, which is the whole point of pre = post parity. */
 
-  background: var(--lp-bg);
+  /* The page shell exposes the canonical html/body canvas. Product-artifact
+     sections can still own an explicit surface when that difference carries
+     meaning (for example the Engine console band). */
+  background: transparent;
   color: var(--lp-text);
   font-family: var(--lp-font);
   font-size: var(--lp-fs-body);
@@ -153,7 +156,6 @@
 .tm-landing .tm-public-nav {
   height: 64px;
   min-height: 64px;
-  background: var(--tm-bg);
   border-bottom: 1px solid transparent;
   transition: border-color var(--lp-dur) var(--lp-ease);
 }

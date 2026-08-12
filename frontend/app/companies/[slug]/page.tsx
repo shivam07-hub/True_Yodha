@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { cache } from "react"
-import type { CommentListResponse, CompanyJobsResponse, CompanySkillIntelligence } from "@/lib/api"
-import { CompanyJobsClient, type PostingNote } from "@/components/companies/company-jobs-client"
+import type { CommentListResponse, CompanyJobsResponse } from "@/lib/api"
+import { CompanyJobsClient } from "@/components/companies/company-jobs-client"
 import { RelatedCompanies } from "@/components/companies/related-companies"
 
 /**
@@ -60,49 +60,14 @@ const getCompanyNotes = cache(async (companyName: string): Promise<CommentListRe
   }
 })
 
-const getCompanySkillIntelligence = cache(
-  async (companyName: string): Promise<CompanySkillIntelligence | null> => {
-    const base = process.env.NEXT_PUBLIC_API_URL ?? ""
-    if (!base) return null
-    try {
-      const res = await fetch(
-        `${base}/companies/${encodeURIComponent(companyName)}/skill-intelligence?limit=20`,
-        { next: { revalidate: 3600 } },
-      )
-      if (!res.ok) return null
-      return (await res.json()) as CompanySkillIntelligence
-    } catch {
-      return null
-    }
-  },
-)
-
-// Notes left on this company's individual job postings, rolled up. The endpoint
-// 404s when the company has neither reviews nor notes → treat as an empty rollup.
-const getPostingNotes = cache(async (companyName: string): Promise<PostingNote[]> => {
-  const base = process.env.NEXT_PUBLIC_API_URL ?? ""
-  if (!base) return []
-  try {
-    const res = await fetch(`${base}/companies/${encodeURIComponent(companyName)}`, {
-      next: { revalidate: 3600 },
-    })
-    if (res.status === 404 || !res.ok) return []
-    const data = (await res.json()) as { posting_notes?: PostingNote[] }
-    return data.posting_notes ?? []
-  } catch {
-    return []
-  }
-})
-
 export async function generateMetadata(
   { params }: { params: { slug: string } },
 ): Promise<Metadata> {
   const companyName = decodeURIComponent(params.slug)
   // Same cached reads the page makes → no extra round-trips (React.cache dedupes).
-  const [data, notes, postingNotes] = await Promise.all([
+  const [data, notes] = await Promise.all([
     getCompanyJobs(companyName),
     getCompanyNotes(companyName),
-    getPostingNotes(companyName),
   ])
   const total = data?.total ?? 0
   const canonical = `${BASE}/companies/${encodeURIComponent(companyName)}`
@@ -115,7 +80,7 @@ export async function generateMetadata(
   // request honest. follow:true so Googlebot still walks the links. When the
   // scraper re-lists roles (or a note lands), ISR flips the page back to
   // index automatically — no manual step.
-  const hasNotes = (notes?.comments?.length ?? 0) > 0 || postingNotes.length > 0
+  const hasNotes = (notes?.comments?.length ?? 0) > 0
   const indexable = total > 0 || hasNotes
 
   const title = `${companyName} jobs and hiring signals | Myro`
@@ -142,13 +107,13 @@ export default async function CompanyJobsPage(
   { params }: { params: { slug: string } },
 ) {
   const companyName = decodeURIComponent(params.slug)
-  // Parallel — the three reads are independent (React.cache dedupes the two
+  // Parallel — the two J0 reads are independent (React.cache dedupes the
   // getCompanyJobs/notes calls this page + generateMetadata each make).
-  const [data, notes, postingNotes, skillIntelligence] = await Promise.all([
+  // Skill demand and per-job applicant notes are J2: the client loads them only
+  // after their specific disclosure control is opened.
+  const [data, notes] = await Promise.all([
     getCompanyJobs(companyName),
     getCompanyNotes(companyName),
-    getPostingNotes(companyName),
-    getCompanySkillIntelligence(companyName),
   ])
   const canonical = `${BASE}/companies/${encodeURIComponent(companyName)}`
 
@@ -172,20 +137,14 @@ export default async function CompanyJobsPage(
   // DiscussionForumPosting per first-hand community note — the forum-content
   // rich type Google surfaces and AI answer engines cite heavily for
   // experiential "what's it like to apply at X" queries. Emitted ONLY for notes
-  // actually rendered in the HTML (company-level notes + posting-note rollup);
+  // actually rendered in the HTML (company-level notes);
   // never invented, no ratings. Author = public ninja-name only (PV1).
-  const forumPosts = [
-    ...(notes?.comments ?? []).map((c) => ({
+  const forumPosts = (notes?.comments ?? [])
+    .map((c) => ({
       text: c.body,
       author: c.author_ninja_name,
       datePublished: c.created_at,
-    })),
-    ...postingNotes.map((n) => ({
-      text: n.role ? `${n.role}: ${n.body}` : n.body,
-      author: n.author_ninja_name,
-      datePublished: n.created_at,
-    })),
-  ]
+    }))
     .filter((p) => p.text?.trim())
     .slice(0, 25)
 
@@ -220,8 +179,6 @@ export default async function CompanyJobsPage(
         companyName={companyName}
         initialData={data}
         initialComments={notes}
-        initialPostingNotes={postingNotes}
-        initialSkillIntelligence={skillIntelligence}
       />
       <RelatedCompanies current={companyName} />
     </>

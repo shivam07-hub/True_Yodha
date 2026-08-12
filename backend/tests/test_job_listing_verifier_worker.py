@@ -1,6 +1,8 @@
 import asyncio
+import inspect
 
 from app.services.job_listing_verifier import VerificationResult, VerificationTarget
+from app.workers import job_listing_verifier
 from app.workers.job_listing_verifier import _gather_throttled, _host_of
 
 
@@ -38,3 +40,12 @@ def test_gather_throttled_caps_per_host_concurrency() -> None:
     # No single ATS host is ever hit by more than the per-host ceiling at once.
     assert peak["boards.greenhouse.io"] <= 2
     assert peak["jobs.lever.co"] <= 2
+
+
+def test_sweep_never_counts_exact_backlogs_inline() -> None:
+    """Operational progress aggregates must not compete with user reads."""
+
+    source = inspect.getsource(job_listing_verifier._sweep)
+
+    assert ".pending_count(" not in source
+    assert ".priority_pending_count(" not in source

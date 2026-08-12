@@ -37,9 +37,9 @@ export const metadata: Metadata = {
 export default function SecurityPage() {
   return (
     <div
+      className="tm-page-canvas"
       style={{
         minHeight: "100vh",
-        background: "var(--tm-bg)",
         fontFamily: "var(--tm-font-sans)",
         display: "flex",
         flexDirection: "column",

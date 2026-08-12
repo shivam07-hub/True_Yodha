@@ -1,7 +1,7 @@
 .lp-company-rail {
   padding: 24px 0 30px;
   border-bottom: 1px solid var(--lp-border);
-  background: var(--lp-bg);
+  background: transparent;
 }
 
 .lp-company-rail > p {

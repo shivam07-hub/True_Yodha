@@ -38,7 +38,7 @@ export function DocsPage() {
   useEffect(() => { setIsAuthed(!!getAccessToken()) }, [])
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--tm-bg)", color: "var(--tm-text)", display: "flex", flexDirection: "column" }}>
+    <div className="tm-page-canvas" style={{ minHeight: "100vh", color: "var(--tm-text)", display: "flex", flexDirection: "column" }}>
       <PublicTopNav active="docs" />
 
       {/* Hero */}

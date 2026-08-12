@@ -1,8 +1,12 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+import pytest
+from postgrest.exceptions import APIError
+
 from app.repositories import jobs as jobs_module
 from app.repositories.jobs import JobsRepository
+from app.routers.jobs.list import get_indexable_companies
 from app.services import shared_cache
 from app.services.background import debounce
 from app.services.company_pulse import (
@@ -200,3 +204,28 @@ def test_fetch_indexable_companies_dedupes_counts_and_sorts() -> None:
 def test_fetch_indexable_companies_empty_when_no_live_rows() -> None:
     repo = JobsRepository(db=object(), admin_db=_FakeIndexableRpc([]))  # type: ignore[arg-type]
     assert repo.fetch_indexable_companies() == []
+
+
+def test_fetch_indexable_companies_propagates_a_cold_cache_failure(monkeypatch) -> None:
+    repo = JobsRepository(db=object(), admin_db=_FakeIndexableRpc([]))  # type: ignore[arg-type]
+
+    def _unavailable(*args: Any, **kwargs: Any) -> list[dict[str, Any]]:
+        raise APIError({"message": "Supabase unavailable", "code": "500"})
+
+    monkeypatch.setattr(shared_cache, "get_or_compute", _unavailable)
+
+    with pytest.raises(APIError):
+        repo.fetch_indexable_companies()
+
+
+def test_indexable_companies_marks_a_cold_cache_failure_unavailable() -> None:
+    """An upstream miss is not evidence that there are zero live companies."""
+
+    class _UnavailableRepository:
+        def fetch_indexable_companies(self) -> list[dict[str, Any]]:
+            raise APIError({"message": "Supabase unavailable", "code": "500"})
+
+    response = get_indexable_companies(repo=_UnavailableRepository())  # type: ignore[arg-type]
+
+    assert response.status == "unavailable"
+    assert response.companies == []

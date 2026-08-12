@@ -16,6 +16,14 @@
   flex-shrink: 0;
 }
 
+/* Match the authenticated strip: dark chrome frosts over the shared field;
+   light mode keeps the opaque paper surface. */
+:root:not([data-surface="light"]) .tm-public-nav {
+  background: color-mix(in srgb, var(--tm-bg) 76%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(1.15);
+  backdrop-filter: blur(14px) saturate(1.15);
+}
+
 .tm-public-nav-brand {
   display: inline-flex;
   align-items: center;

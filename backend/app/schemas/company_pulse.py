@@ -5,6 +5,8 @@ own contract."""
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel
 
 
@@ -36,3 +38,7 @@ class IndexableCompanyItem(BaseModel):
 
 class IndexableCompaniesResponse(BaseModel):
     companies: list[IndexableCompanyItem]
+    # ``companies=[]`` is meaningful only when the read completed. A cold
+    # cache/RPC failure must stay visible to clients so they can retry instead
+    # of rendering a fabricated empty directory.
+    status: Literal["ready", "unavailable"] = "ready"
