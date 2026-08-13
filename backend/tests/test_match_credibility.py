@@ -84,3 +84,56 @@ def test_seniority_from_ambiguous_numbered_title_is_unknown() -> None:
     # The exact titles from the case study that tripped the old gate.
     assert seniority_compatibility("senior", "Software Engineer II") == "unknown"
     assert seniority_compatibility("senior", "SDE N 4A") == "unknown"
+
+
+# ── F5: absence of a scoping key is not a verdict ───────────────────────────────
+#
+# The third silent-bar bug, same family as F3/F4. `target_context_hash` answers
+# "which direction was this computed for", not "is this a good recommendation" —
+# but it sat inside the `credible` conjunction, and it was only written when BOTH
+# a baseline and a role title were present. Two consequences, both measured in
+# prod on 2026-08-13:
+#   - the writer produced NULL while `onboarding_service.get_result` hashed
+#     unconditionally, so `get_matches_for_context` matched nothing and the
+#     onboarding screen said "the market genuinely has no overlap" over a full
+#     stack — 162 of 196 users, 1,289 real match rows;
+#   - nothing could ever be promoted, so 153 users had brain-rated matches and
+#     exactly ONE had an `is_recommended` row.
+
+def test_f5_missing_role_title_still_scopes_and_still_promotes() -> None:
+    profile = {**_PROFILE, "target_role_title": ""}
+    cred = evaluate_credibility(profile, _job(), 4.2, "Apply")
+    assert cred.context_hash is not None, "a blank direction is still a direction"
+    assert cred.credible is True
+
+
+def test_f5_hash_is_stable_for_the_same_blank_direction() -> None:
+    """Writer and reader must derive the SAME key, or the lookup finds nothing."""
+    profile = {**_PROFILE, "target_role_title": ""}
+    a = evaluate_credibility(profile, _job(), 4.2, "Apply").context_hash
+    b = evaluate_credibility(profile, _job(job_id="j2"), 3.9, "Negotiate").context_hash
+    assert a == b
+
+
+def test_f5_direction_change_still_moves_the_key() -> None:
+    base = evaluate_credibility(_PROFILE, _job(), 4.2, "Apply").context_hash
+    moved = evaluate_credibility(
+        {**_PROFILE, "target_role_title": "Data Scientist"}, _job(), 4.2, "Apply"
+    ).context_hash
+    assert base != moved
+
+
+def test_f5_absent_baseline_leaves_the_key_unscopeable_but_judges_on_merit() -> None:
+    """No baseline → nothing to scope to (a separate defect). The recommendation
+    is still judged on its own merits rather than vetoed by the bookkeeping."""
+    profile = {**_PROFILE, "baseline_version_id": None}
+    cred = evaluate_credibility(profile, _job(), 4.2, "Apply")
+    assert cred.context_hash is None
+    assert cred.credible is True
+
+
+def test_f5_a_weak_match_is_still_barred() -> None:
+    """Loosening the scoping key must not loosen the actual gate."""
+    assert evaluate_credibility(_PROFILE, _job(), 2.9, "Apply").credible is False
+    assert evaluate_credibility(_PROFILE, _job(), 4.5, "Skip").credible is False
+    assert evaluate_credibility(_PROFILE, _job(title="Intern"), 4.5, "Apply").credible is False
