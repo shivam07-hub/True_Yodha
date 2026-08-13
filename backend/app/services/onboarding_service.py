@@ -70,6 +70,65 @@ def context_key(profile: dict[str, Any]) -> str | None:
     )
 
 
+def eval_context_key(profile: dict[str, Any]) -> str:
+    """What the BRAIN saw when it judged a job — the staleness key for an eval.
+
+    Distinct from `context_key`, and deliberately a second field rather than a
+    widened first one, because they answer different questions:
+
+    - `context_key` (`user_job_matches.target_context_hash`) — WHICH DIRECTION a
+      verdict belongs to. A scoping key. The onboarding shortlist filters on it, so
+      it must move only when the user changes direction; folding memory into it
+      would make a distiller write invalidate a shortlist mid-read.
+    - `eval_context_key` (`user_job_matches.eval_context_hash`) — WHAT THE BRAIN
+      WAS TOLD. Direction *plus* the `known_facts` block the Career Ops prompt
+      renders. Only the skip gates read it, to answer "is this cached verdict still
+      the answer, or was it computed against something we no longer believe?"
+
+    Two keys, two names, two questions. One key doing both would either re-rate on
+    every memory edit or never re-rate at all.
+
+    Always returns a key — unlike `context_key`, which is None without a baseline
+    because the queries that use it filter on `baseline_version_id` anyway. A None
+    here would compare equal to another None and silently disable re-rating for
+    exactly the users least likely to be noticed.
+
+    Hashes the facts in the order the prompt lists them (post-cap), not a sorted
+    set: the prompt's order is part of what the brain was told, and
+    `UserMemoryRepository.list_active` now orders totally, so the order moves only
+    when the facts do.
+    """
+    raw = json.dumps(
+        [
+            profile.get("baseline_version_id"),
+            str(profile.get("target_role_title") or "").strip().casefold(),
+            str(profile.get("target_seniority") or "any").strip().lower(),
+            str(profile.get("target_location") or "").strip().casefold(),
+            [str(f) for f in (profile.get("known_facts") or [])],
+        ],
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def eval_matches_context(row: dict[str, Any] | None, eval_ctx: str) -> bool:
+    """Was this cached verdict reasoned from `eval_ctx`?
+
+    The one rule every skip gate asks — `jobs_workflow`'s cache fetcher (the Myro
+    Ops Search), `on_demand.ensure_job_eval` (brain-on-open), and
+    `feed_warm.warm_feed_shortlist` (the /market top-10). Three copies of a
+    staleness test is how they drift apart; the gates still differ in what ELSE
+    they require of a row (on-open also insists on a real score, so a Provisional
+    Match recomputes), and that difference stays visible at each call site instead
+    of being smuggled in here.
+
+    A NULL key is not "still valid" — it is "we cannot tell", which is a re-rate.
+    Every row written before the column existed reads that way, which is exactly
+    what makes the next Search correct without a backfill.
+    """
+    return bool(row) and (row or {}).get("eval_context_hash") == eval_ctx
+
+
 MAX_TARGET_ROLES = 5
 
 

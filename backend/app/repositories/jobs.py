@@ -3122,7 +3122,11 @@ class JobsRepository:
     _MATCH_EVAL_BADGE_COLS = (
         "job_id, batch_week, computed_at, llm_rank, overlap_score, "
         "overall_score, grade, recommendation, "
-        "archetype, legitimacy_tier, legitimacy_reason, seniority_compatibility"
+        "archetype, legitimacy_tier, legitimacy_reason, seniority_compatibility, "
+        # The skip gates compare this to decide whether a cached verdict is still
+        # the answer. Carried on the badge subset (not just `full`) because the
+        # feed warmer reads the light one.
+        "eval_context_hash"
     )
     _MATCH_EVAL_FULL_COLS = (
         _MATCH_EVAL_BADGE_COLS

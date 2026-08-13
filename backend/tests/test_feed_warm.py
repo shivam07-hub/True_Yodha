@@ -12,15 +12,26 @@ import asyncio
 from typing import Any
 
 from app.services.matching import feed_warm
+from app.services.onboarding_service import eval_context_key
+
+# The key the code derives for _FakeRepo's profile (baseline 7, no memory — the
+# fake has no `_db`, so the Targeting Brief carries no facts).
+_CTX = eval_context_key({"baseline_version_id": 7})
 
 
 class _FakeRepo:
-    def __init__(self, *, cached: set[str] | None = None) -> None:
+    def __init__(self, *, cached: set[str] | None = None, cached_ctx: str | None = _CTX) -> None:
         self._cached = cached or set()
+        self._cached_ctx = cached_ctx
         self.persisted: list[dict[str, Any]] = []
 
     def get_cached_match_evals(self, _uid: str, job_ids: list[str], *, full: bool = False) -> dict[str, Any]:
-        return {j: {"overall_score": 4.0} for j in job_ids if j in self._cached}
+        # A cached row records WHICH targeting context produced it; without that the
+        # skip gate cannot tell a live verdict from a superseded one.
+        return {
+            j: {"overall_score": 4.0, "eval_context_hash": self._cached_ctx}
+            for j in job_ids if j in self._cached
+        }
 
     def get_jobs_by_ids(self, job_ids: list[str]) -> list[dict[str, Any]]:
         return [
@@ -153,3 +164,25 @@ def test_warm_sees_memory_facts_via_targeting_brief(monkeypatch: Any) -> None:
 
     assert seen["known_facts"] == ["aspiration: move into platform work"]
     assert seen["cv_markdown"] == "CV"  # _eval_profile still resolves the CV
+
+
+# ── the warm re-rates across a context change, and stays free within one ────────
+
+def test_a_shortlist_cached_under_a_superseded_context_is_re_warmed(monkeypatch: Any) -> None:
+    repo = _FakeRepo(cached={"a", "b", "c"}, cached_ctx="a-context-we-have-moved-past")
+    _fake_evaluate_all(monkeypatch)
+    warmed = asyncio.run(feed_warm.warm_feed_shortlist(repo, object(), "u1", ["a", "b", "c"]))  # type: ignore[arg-type]
+    assert warmed == 3
+    assert all(row["eval_context_hash"] == _CTX for row in repo.persisted)
+
+
+def test_a_shortlist_cached_under_the_current_context_still_costs_nothing(monkeypatch: Any) -> None:
+    repo = _FakeRepo(cached={"a", "b", "c"})
+
+    async def _boom(*_a: Any, **_k: Any) -> Any:
+        raise AssertionError("a current-context shortlist must not call the brain")
+
+    monkeypatch.setattr(feed_warm.llm_ranker, "evaluate_all", _boom)
+    warmed = asyncio.run(feed_warm.warm_feed_shortlist(repo, object(), "u1", ["a", "b", "c"]))  # type: ignore[arg-type]
+    assert warmed == 0
+    assert repo.persisted == []

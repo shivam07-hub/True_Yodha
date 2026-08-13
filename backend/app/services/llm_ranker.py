@@ -485,8 +485,16 @@ def persist_matches(
 
     from app.services.match_credibility import evaluate_credibility
 
+    from app.services.onboarding_service import eval_context_key
+
     profile = profile or {}
     baseline_version_id = profile.get("baseline_version_id")
+    # What the brain was told for THIS run — identical for every row it writes, so
+    # compute once. The skip gates compare it to decide whether a cached verdict is
+    # still the answer or was reasoned from a targeting context we have since moved
+    # past. See onboarding_service.eval_context_key for why it is a second key and
+    # not a widened target_context_hash.
+    eval_ctx = eval_context_key(profile)
     rows: list[dict] = []
     recommended_count = 0
     for rank_idx, job in enumerate(ordered, start=1):
@@ -528,6 +536,7 @@ def persist_matches(
             "is_recommended": is_recommended,
             "baseline_version_id": baseline_version_id,
             "target_context_hash": credibility.context_hash,
+            "eval_context_hash": eval_ctx,
             "seniority_compatibility": credibility.seniority_compatibility,
             "computed_at": now,
         })

@@ -27,6 +27,13 @@ class UserMemoryRepository:
             .eq("user_id", user_id)
             .eq("status", "active")
             .order("created_at", desc=True)
+            # Deterministic tiebreaker. `created_at` alone is not a total order —
+            # the distiller batch-writes, and 7 of 83 active facts in prod share a
+            # timestamp with a sibling. Postgres may return tied rows in any order,
+            # which reshuffles both the prompt's fact block and the 8-fact cap
+            # `TargetingBrief.ranking_profile` applies. That churn would move
+            # `eval_context_key` and re-rate jobs nothing had actually changed for.
+            .order("id")
         )
         if kinds:
             query = query.in_("kind", kinds)
