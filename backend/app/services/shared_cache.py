@@ -24,13 +24,11 @@ never returns nothing because a refresh is in flight.
                       self-heal window) guards it, so at most one refresh runs
                       per key across every replica — every other caller in
                       that window gets the stale value with zero extra cost.
-  nothing cached   -> compute happens inline (there's nothing else to serve),
-                      but still single-flight-guarded, so a cold-start burst
-                      of first callers does not all pay full compute cost —
-                      only the winner does; the rest fall through to computing
-                      too (never block waiting on another process), but that
-                      redundancy is a one-time cost at population, not a
-                      steady-state one.
+  nothing cached   -> one caller computes inline. Peers wait for a short,
+                      bounded fill window and reuse the winner's value. If the
+                      winner stalls or fails they compute directly, preserving
+                      the cache's fail-open availability contract without
+                      turning a cold burst into N identical database scans.
 
 Redis errors fail open: compute() runs directly, uncached. A read path that
 degrades to "as slow as before this module existed" beats one that raises
@@ -70,6 +68,8 @@ _REFRESH_POOL = ThreadPoolExecutor(max_workers=4, thread_name_prefix="shared-cac
 _LOCAL_CACHE: dict[str, tuple[float, Any]] = {}
 
 _CLAIM_TTL_SECONDS = 20  # generous headroom over any read this module fronts
+_COLD_FILL_WAIT_SECONDS = 1.5
+_COLD_FILL_POLL_SECONDS = 0.02
 
 
 class SharedTTLMapping:
@@ -111,6 +111,19 @@ class SharedTTLMapping:
         if age >= self.ttl_seconds:
             return default
         return (time.monotonic() - age, data)
+
+    def get_or_compute(self, identity: Any, compute: Callable[[], T]) -> T:
+        """Populate one legacy namespace through the shared single-flight path.
+
+        This is intentionally data-only (unlike ``get()``, which preserves the
+        historical ``(monotonic_timestamp, data)`` shape). New callers should
+        not need to reason about cache age themselves.
+        """
+        return get_or_compute(
+            self._key(identity),
+            compute,
+            ttl_seconds=self.ttl_seconds,
+        )
 
     def __setitem__(self, identity: Any, value: Any) -> None:
         data = value[1] if isinstance(value, tuple) and len(value) == 2 else value
@@ -285,7 +298,15 @@ def get_or_compute(
 
     if debounce.claim(f"shared_cache_fill:{key}", ttl_seconds=_CLAIM_TTL_SECONDS):
         return _refresh_now(key, compute, ttl_seconds=ttl_seconds, stale_seconds=stale_seconds)
-    # Someone else is already filling this key. Computing again here is
-    # redundant but correct — a read path never blocks waiting on another
-    # process, and this only happens during the first population of a key.
+    # Someone else is filling this key. Poll only for a bounded interval: the
+    # common path reuses the winner's result, while a dead/stalled winner cannot
+    # hold this request indefinitely. This wait is deliberately shorter than
+    # the PostgREST request timeout and the claim TTL.
+    deadline = time.monotonic() + _COLD_FILL_WAIT_SECONDS
+    while time.monotonic() < deadline:
+        time.sleep(_COLD_FILL_POLL_SECONDS)
+        filled = _read(key)
+        if filled is not None:
+            return filled[1]
+    logger.warning("metric shared_cache.cold_fill_wait_expired key=%s", key)
     return compute()

@@ -2109,18 +2109,22 @@ class JobsRepository:
             # data → shared across users on the same filter set). Per-user
             # shaping, exclusion and computed filters run below the cache.
             pkey = (domain, city, country, loc_mode, scope_sig, follow_sig, effective_term, skill_facet)
-            cached = _feed_personal_cache.get(pkey)
-            if cached is not None and (now - cached[0]) < _FEED_TTL:
-                rows = cached[1]
-            else:
+            def _load_feed_candidates() -> list[dict[str, Any]]:
                 try:
                     result = _apply_filters(
                         self._admin_db.table("jobs").select(self._FEED_COLUMNS)
                     ).order("first_seen", desc=True).limit(self._FEED_PERSONAL_CAP).execute()
                 except APIError:
                     result = None
-                rows = (result.data if result else None) or []
-                _feed_personal_cache[pkey] = (now, rows)
+                return (result.data if result else None) or []
+
+            # Cold bursts used to let every caller that lost the shared-cache
+            # claim repeat this same 500-row query. One user arrival therefore
+            # became ten identical scans and queued unrelated J0 reads behind
+            # PostgREST's finite session pool. The shared mapping now waits for
+            # one bounded winner and all peers reuse its raw (user-independent)
+            # candidate rows.
+            rows = _feed_personal_cache.get_or_compute(pkey, _load_feed_candidates)
 
             shaped = [self._feed_shape_row(r, user_skill_keys, role_token_sets) for r in rows]
             if eligibility_active:

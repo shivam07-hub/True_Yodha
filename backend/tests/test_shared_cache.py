@@ -1,4 +1,6 @@
 import time
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier, Lock
 
 from app.services import shared_cache
 
@@ -28,6 +30,39 @@ def test_absent_computes_inline_and_caches() -> None:
     assert out2 == {"n": 1}
     assert len(calls) == 1
 
+
+def test_concurrent_cold_hits_wait_for_one_fill() -> None:
+    callers = 8
+    barrier = Barrier(callers)
+    calls = 0
+    lock = Lock()
+
+    def compute():
+        nonlocal calls
+        with lock:
+            calls += 1
+        time.sleep(0.08)
+        return {"ready": True}
+
+    def hit():
+        barrier.wait()
+        return shared_cache.get_or_compute("cold", compute, ttl_seconds=60)
+
+    with ThreadPoolExecutor(max_workers=callers) as pool:
+        results = list(pool.map(lambda _n: hit(), range(callers)))
+
+    assert results == [{"ready": True}] * callers
+    assert calls == 1
+
+
+def test_cold_fill_wait_is_bounded_when_winner_never_publishes(monkeypatch) -> None:
+    monkeypatch.setattr(shared_cache, "_COLD_FILL_WAIT_SECONDS", 0.03)
+    monkeypatch.setattr(shared_cache, "_COLD_FILL_POLL_SECONDS", 0.005)
+    monkeypatch.setattr(shared_cache.debounce, "claim", lambda *_a, **_k: False)
+
+    started = time.monotonic()
+    assert shared_cache.get_or_compute("stalled", lambda: "fallback", ttl_seconds=60) == "fallback"
+    assert time.monotonic() - started < 0.2
 
 def test_stale_returns_old_value_and_refreshes_in_background() -> None:
     calls = []
@@ -145,6 +180,15 @@ def test_shared_ttl_mapping_preserves_legacy_value_shapes() -> None:
     assert mapping["plain"] == 7
     mapping.pop("plain")
     assert "plain" not in mapping
+
+
+def test_shared_ttl_mapping_get_or_compute_uses_namespaced_singleflight() -> None:
+    mapping = shared_cache.SharedTTLMapping("test.mapping", ttl_seconds=60)
+    calls: list[int] = []
+
+    assert mapping.get_or_compute("one", lambda: calls.append(1) or {"n": 1}) == {"n": 1}
+    assert mapping.get_or_compute("one", lambda: calls.append(2) or {"n": 2}) == {"n": 1}
+    assert calls == [1]
 
 
 def test_shared_ttl_mapping_key_is_stable_for_unordered_sets() -> None:
