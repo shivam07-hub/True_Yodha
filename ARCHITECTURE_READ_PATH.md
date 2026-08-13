@@ -855,6 +855,7 @@ Applied migrations:
 - `20260813094100_feed_active_index_predicate.sql`
 - `20260813095000_feed_context_read_model.sql`
 - `20260813114500_trusted_new_inventory_count.sql`
+- `20260813115000_rederive_unread_new_inventory.sql`
 
 The 4,095-role notification that prompted the new-inventory audit was not a
 torn 12,108-row publish. The larger number counted every `is_active` row,

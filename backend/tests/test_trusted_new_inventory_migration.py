@@ -25,3 +25,13 @@ def test_new_inventory_count_is_owner_scoped_without_security_definer() -> None:
     assert "security definer" not in sql
     assert "from public, anon, authenticated" in sql
     assert "to authenticated, service_role" in sql
+
+
+def test_unread_projection_repair_rederives_and_invalidates_zero() -> None:
+    path = next(MIGRATIONS.glob("*rederive_unread_new_inventory.sql"))
+    sql = path.read_text(encoding="utf-8").lower()
+
+    assert "count_new_jobs_for_user(n.user_id)" in sql
+    assert "when live.live_count <= 0 then now()" in sql
+    assert "n.id = live.id" in sql
+    assert "n.user_id = live.user_id" in sql
