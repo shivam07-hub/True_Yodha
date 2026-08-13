@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import type { SidebarProfile as ShellSidebarProfile } from "@/lib/shell/contract"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useFollowCompany } from "@/lib/hooks/use-follow-company"
 import { formatCount } from "@/lib/format"
@@ -14,7 +15,7 @@ import { TargetRolesChips } from "@/components/target-role/target-roles-chips"
 import { CompanyLink } from "@/components/companies/company-link"
 import { FollowCompanyControl } from "@/components/companies/follow-company-control"
 import { billing, jobs, users } from "@/lib/api"
-import type { ProfileUpdate, UserProfile } from "@/lib/api"
+import type { ProfileUpdate } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
 import { loadRazorpay } from "@/lib/razorpay"
@@ -34,7 +35,10 @@ import {
 import "./settings-modal.css"
 
 export type Tab = "Account" | "Following" | "Feedback" | "Billing"
-type SidebarProfile = Pick<UserProfile, "full_name" | "email" | "target_role_title" | "target_role_titles" | "target_roles" | "target_location" | "target_locations" | "linkedin_url">
+// The shell already owns this shape. A second copy here drifted from it once
+// already — the modal is a chrome surface like any other, so it reads the same
+// contract rather than restating it.
+type SidebarProfile = ShellSidebarProfile
 type SaveStatus = "idle" | "saving" | "saved" | "error"
 type BillingStatus = "idle" | "creating" | "verifying" | "success" | "error"
 
@@ -81,6 +85,8 @@ const XP_PACK_AMOUNT = 1000
 const XP_PACK_PRICE_RUPEES = 99
 
 const normalize = (v: string): string | null => v.trim() || null
+/** Mirrors `ninja_name.is_valid` on the backend — same charset, same bounds. */
+const NINJA_NAME_RE = /^[a-z0-9-]{3,32}$/
 const messageFromError = (error: unknown, fallback: string): string => (
   error instanceof Error && error.message ? error.message : fallback
 )
@@ -181,6 +187,12 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
 
   // Account tab state
   const [name, setName] = useState("")
+  // The ninja name is NOT part of the debounced profile autosave: it has its own
+  // endpoint, it can be rejected as taken, and autosaving it mid-keystroke would
+  // claim every prefix the user types on the way to the name they wanted.
+  const [ninjaName, setNinjaName] = useState("")
+  const [ninjaError, setNinjaError] = useState<string | null>(null)
+  const [ninjaSaving, setNinjaSaving] = useState(false)
   const [locations, setLocations] = useState<string[]>([])
   const [locationInput, setLocationInput] = useState("")
   const [linkedin, setLinkedin] = useState("")
@@ -209,6 +221,7 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
   useEffect(() => {
     if (!open) return
     setName(profile?.full_name ?? "")
+    setNinjaName(profile?.ninja_name ?? ""); setNinjaError(null); setNinjaSaving(false)
     setLocations(
       profile?.target_locations?.filter((l) => l.trim())
       ?? (profile?.target_location ? [profile.target_location] : [])
@@ -219,7 +232,32 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
     setBillingStatus("idle"); setBillingMessage(null); pending.current = {}
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current)
     if (savedTimer.current) clearTimeout(savedTimer.current)
-  }, [open, profile?.full_name, profile?.target_location, profile?.target_locations, profile?.linkedin_url])
+  }, [open, profile?.full_name, profile?.ninja_name, profile?.target_location, profile?.target_locations, profile?.linkedin_url])
+
+  /** Claim on blur, not on keystroke. Only fires when the name actually changed,
+   *  so opening settings and closing it never re-claims what is already theirs. */
+  async function commitNinjaName() {
+    const chosen = ninjaName.trim().toLowerCase()
+    if (!token || ninjaSaving) return
+    if (chosen === (profile?.ninja_name ?? "")) { setNinjaError(null); return }
+    if (!NINJA_NAME_RE.test(chosen)) {
+      setNinjaError("3 to 32 characters. Lowercase letters, numbers and dashes.")
+      return
+    }
+    setNinjaSaving(true)
+    setNinjaError(null)
+    try {
+      await users.updateNinjaName(token, chosen)
+      setNinjaName(chosen)
+      await queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : "That name would not stick."
+      setNinjaError(message.includes("taken") ? "Taken. Someone got there first." : message)
+      setNinjaName(profile?.ninja_name ?? "")
+    } finally {
+      setNinjaSaving(false)
+    }
+  }
 
   useEffect(() => () => {
     if (locationCloseTimer.current) clearTimeout(locationCloseTimer.current)
@@ -599,18 +637,41 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
                   )}
                 </div>
 
+                {/* This row was labelled "Public Name" while writing `full_name`,
+                    so editing it changed the name on the CV and left the public
+                    profile — which renders `ninja_name` — untouched. Two fields,
+                    each labelled as what it actually is. */}
                 <div style={ROW_STYLE}>
-                  <div style={ROW_LABEL}>Public Name</div>
+                  <div style={ROW_LABEL}>Name</div>
+                  <div style={ROW_DESC}>The one on your CV</div>
                   {profileLoading ? <Skeleton style={{ width: "100%", height: 36 }} /> : (
                     <input
-                      id="sm-ninja-name" type="text" value={name}
+                      id="sm-full-name" type="text" value={name}
                       onChange={(e) => { setName(e.target.value); schedule({ full_name: normalize(e.target.value) }) }}
-                      placeholder="Your display name"
+                      placeholder="Your full name"
                       style={INPUT_STYLE}
                       onFocus={(e) => Object.assign(e.currentTarget.style, INPUT_FOCUS_STYLE)}
                       onBlur={(e) => Object.assign(e.currentTarget.style, INPUT_BLUR_STYLE)}
                     />
                   )}
+                </div>
+
+                <div style={ROW_STYLE}>
+                  <div style={ROW_LABEL}>Ninja name</div>
+                  <div style={ROW_DESC}>himyro.com/profile/{ninjaName.trim().toLowerCase() || "…"}</div>
+                  {profileLoading ? <Skeleton style={{ width: "100%", height: 36 }} /> : (
+                    <input
+                      id="sm-ninja-name" type="text" value={ninjaName}
+                      autoComplete="off" spellCheck={false}
+                      disabled={ninjaSaving}
+                      onChange={(e) => { setNinjaName(e.target.value.toLowerCase()); setNinjaError(null) }}
+                      placeholder="chai-fuelled-panda"
+                      style={{ ...INPUT_STYLE, fontFamily: "var(--tm-font-mono)" }}
+                      onFocus={(e) => Object.assign(e.currentTarget.style, INPUT_FOCUS_STYLE)}
+                      onBlur={(e) => { Object.assign(e.currentTarget.style, INPUT_BLUR_STYLE); void commitNinjaName() }}
+                    />
+                  )}
+                  {ninjaError && <div role="alert" style={{ ...ROW_DESC, color: "var(--tm-danger)" }}>{ninjaError}</div>}
                 </div>
 
                 <div className="tm-settings-linkedin-row" style={{ ...ROW_STYLE, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>

@@ -17,4 +17,5 @@ export type SidebarProfile = Pick<
   | "target_locations"
   | "linkedin_url"
   | "email"
+  | "ninja_name"
 >
