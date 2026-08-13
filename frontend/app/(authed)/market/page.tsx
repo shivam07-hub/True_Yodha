@@ -11,6 +11,7 @@ import { HeatmapTab } from "@/components/market/heatmap-tab"
 import { MarketJobsTab } from "@/components/market/jobs-tab"
 import { MissionHeroRail } from "@/components/mission-control/mission-hero-rail"
 import { MatchesRefreshBanner } from "@/components/jobs/matches-refresh-banner"
+import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
 import { useViewport } from "@/mobile"
 import { JobsSurface } from "@/mobile/redesign/jobs-surface"
 import { useAuth } from "@/lib/hooks/use-auth"
@@ -185,18 +186,26 @@ function IntelPageInner() {
   // touch-tablet would desync content from chrome. Desktop keeps the workspace.
   if (mode === "mobile") {
     return (
-      <JobsSurface
-        token={token ?? ""}
-        targetLocations={profileData?.target_locations ?? []}
-        filters={browseFilters}
-        onFiltersChange={(filters) => updateBrowse({ filters })}
-        targetRoles={targetRoles}
-        chipCountMap={chipCountMap}
-        hasCv={!!profileData?.has_cv}
-        primaryCareerBand={profileData?.target_career_band}
-        exploredCareerBands={profileData?.explored_career_bands ?? []}
-        onExploredCareerBandsChange={onExploredCareerBandsChange}
-      />
+      <>
+        <div style={{ padding: "10px 16px 0" }}>
+          <CVRequiredNudge
+            hasCv={profileData === undefined || !!profileData.has_cv}
+            feature="best-fit ranking"
+          />
+        </div>
+        <JobsSurface
+          token={token ?? ""}
+          targetLocations={profileData?.target_locations ?? []}
+          filters={browseFilters}
+          onFiltersChange={(filters) => updateBrowse({ filters })}
+          targetRoles={targetRoles}
+          chipCountMap={chipCountMap}
+          hasCv={!!profileData?.has_cv}
+          primaryCareerBand={profileData?.target_career_band}
+          exploredCareerBands={profileData?.explored_career_bands ?? []}
+          onExploredCareerBandsChange={onExploredCareerBandsChange}
+        />
+      </>
     )
   }
 

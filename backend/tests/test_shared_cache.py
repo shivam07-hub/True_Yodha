@@ -132,3 +132,39 @@ def test_redis_reachable_but_erroring_falls_back_to_direct_compute(monkeypatch) 
     out = shared_cache.get_or_compute("k4", compute, ttl_seconds=60)
     assert out == "ok"
     assert len(calls) == 1
+
+
+def test_shared_ttl_mapping_preserves_legacy_value_shapes() -> None:
+    mapping = shared_cache.SharedTTLMapping("test.mapping", ttl_seconds=60)
+
+    mapping["timed"] = (time.monotonic(), {"n": 1})
+    mapping["plain"] = 7
+
+    assert mapping.get("timed")[1] == {"n": 1}
+    assert "plain" in mapping
+    assert mapping["plain"] == 7
+    mapping.pop("plain")
+    assert "plain" not in mapping
+
+
+def test_shared_ttl_mapping_key_is_stable_for_unordered_sets() -> None:
+    mapping = shared_cache.SharedTTLMapping("test.mapping", ttl_seconds=60)
+
+    assert mapping._key((frozenset({"b", "a"}),)) == mapping._key(
+        (frozenset({"a", "b"}),)
+    )
+
+
+def test_invalidate_prefix_clears_local_entries() -> None:
+    shared_cache._LOCAL_CACHE.update(
+        {
+            "jobs.analytics:a": (1.0, {"a": 1}),
+            "jobs.analytics:b": (1.0, {"b": 2}),
+            "jobs.feed:c": (1.0, {"c": 3}),
+        }
+    )
+
+    shared_cache.invalidate_prefix("jobs.analytics:")
+
+    assert "jobs.feed:c" in shared_cache._LOCAL_CACHE
+    assert not any(key.startswith("jobs.analytics:") for key in shared_cache._LOCAL_CACHE)

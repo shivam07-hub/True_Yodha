@@ -3,7 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, status
 from postgrest.exceptions import APIError
 
 from app.deps import Principal, get_principal
@@ -493,6 +493,7 @@ def _rank_feed_rows(rows: list[dict], brain_evals: dict[str, dict]) -> int:
 
 @router.get("/feed", response_model=JobFeedResponse)
 def job_feed(
+    background_tasks: BackgroundTasks,
     cluster: str | None = None,
     role_domain: str | None = None,
     q: str | None = None,
@@ -564,7 +565,11 @@ def job_feed(
     feed_job_ids = [str(r.get("job_id")) for r in rows if r.get("job_id")]
     brain_evals = repo.get_cached_match_evals(uid, feed_job_ids) if feed_job_ids else {}
     ranked_count = _rank_feed_rows(rows, brain_evals)
-    repo.record_recommendation_exposures(uid, rows, surface="market")
+    # Analytics/audit write: never make the J0 feed wait for it. Starlette runs
+    # this after the response is sent, matching /jobs/matches' existing seam.
+    background_tasks.add_task(
+        repo.record_recommendation_exposures, uid, rows, surface="market"
+    )
     items = [JobFeedItem(**row) for row in rows]
     return JobFeedResponse(
         jobs=items,

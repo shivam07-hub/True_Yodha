@@ -44,6 +44,7 @@ a key by hand during an incident.
 from __future__ import annotations
 
 import json
+import hashlib
 import logging
 import time
 from collections.abc import Callable
@@ -69,6 +70,76 @@ _REFRESH_POOL = ThreadPoolExecutor(max_workers=4, thread_name_prefix="shared-cac
 _LOCAL_CACHE: dict[str, tuple[float, Any]] = {}
 
 _CLAIM_TTL_SECONDS = 20  # generous headroom over any read this module fronts
+
+
+class SharedTTLMapping:
+    """Compatibility bridge for legacy module-level TTL dictionaries.
+
+    Values live in the same Redis namespace as ``get_or_compute``. Callers keep
+    their existing ``(monotonic_timestamp, value)`` contract while age is
+    derived from the shared wall clock, so replicas agree on freshness.
+    New or expensive reads should use ``get_or_compute`` directly for SWR and
+    single-flight; this class exists to remove replica-local state safely.
+    """
+
+    def __init__(self, namespace: str, *, ttl_seconds: int) -> None:
+        self.namespace = namespace
+        self.ttl_seconds = ttl_seconds
+
+    def _key(self, identity: Any) -> str:
+        def canonical(value: Any) -> Any:
+            if isinstance(value, dict):
+                return {str(key): canonical(item) for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))}
+            if isinstance(value, (set, frozenset)):
+                return sorted((canonical(item) for item in value), key=lambda item: json.dumps(item, sort_keys=True, default=str))
+            if isinstance(value, (list, tuple)):
+                return [canonical(item) for item in value]
+            return value
+
+        encoded = json.dumps(
+            canonical(identity), sort_keys=True, default=str, separators=(",", ":")
+        ).encode()
+        digest = hashlib.sha256(encoded).hexdigest()[:24]
+        return f"{self.namespace}:{digest}"
+
+    def get(self, identity: Any, default: Any = None) -> Any:
+        entry = _read(self._key(identity))
+        if entry is None:
+            return default
+        computed_at, data = entry
+        age = time.time() - computed_at
+        if age >= self.ttl_seconds:
+            return default
+        return (time.monotonic() - age, data)
+
+    def __setitem__(self, identity: Any, value: Any) -> None:
+        data = value[1] if isinstance(value, tuple) and len(value) == 2 else value
+        _write(self._key(identity), data, ttl_seconds=self.ttl_seconds, stale_seconds=0)
+
+    def __contains__(self, identity: Any) -> bool:
+        return self._fresh_data(identity) is not None
+
+    def __getitem__(self, identity: Any) -> Any:
+        data = self._fresh_data(identity)
+        if data is None:
+            raise KeyError(identity)
+        return data
+
+    def _fresh_data(self, identity: Any) -> Any | None:
+        entry = _read(self._key(identity))
+        if entry is None:
+            return None
+        computed_at, data = entry
+        return data if time.time() - computed_at < self.ttl_seconds else None
+
+    def pop(self, identity: Any, default: Any = None) -> Any:
+        key = self._key(identity)
+        entry = _read(key)
+        invalidate(key)
+        return default if entry is None else entry[1]
+
+    def clear(self) -> None:
+        invalidate_prefix(f"{self.namespace}:")
 
 
 def _redis() -> Any | None:
@@ -119,6 +190,37 @@ def _write(key: str, data: Any, *, ttl_seconds: int, stale_seconds: int) -> floa
         logger.warning("metric shared_cache.write_failed key=%s exc=%s", key, exc.__class__.__name__)
         _LOCAL_CACHE[key] = (computed_at, data)  # at least serve this process
     return computed_at
+
+
+def invalidate(key: str) -> None:
+    """Remove one shared entry after its underlying truth is explicitly written."""
+    _LOCAL_CACHE.pop(key, None)
+    conn = _redis()
+    if conn is None:
+        return
+    try:
+        conn.delete(f"sc:{key}")
+    except Exception as exc:  # noqa: BLE001 — invalidation must not break the writer
+        logger.warning("metric shared_cache.invalidate_failed key=%s exc=%s", key, exc.__class__.__name__)
+
+
+def invalidate_prefix(prefix: str) -> None:
+    """Invalidate a bounded cache namespace after a corpus snapshot write."""
+    for key in [candidate for candidate in _LOCAL_CACHE if candidate.startswith(prefix)]:
+        _LOCAL_CACHE.pop(key, None)
+    conn = _redis()
+    if conn is None:
+        return
+    try:
+        redis_keys = list(conn.scan_iter(match=f"sc:{prefix}*", count=100))
+        if redis_keys:
+            conn.delete(*redis_keys)
+    except Exception as exc:  # noqa: BLE001 — invalidation must not break the writer
+        logger.warning(
+            "metric shared_cache.invalidate_prefix_failed prefix=%s exc=%s",
+            prefix,
+            exc.__class__.__name__,
+        )
 
 
 def _refresh_now(
