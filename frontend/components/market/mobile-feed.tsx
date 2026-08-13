@@ -91,7 +91,7 @@ function MobileJobCard({
         pulse={<PulseRow pulse={pulse} bare />}
         actions={
           <>
-            <button type="button" aria-label="Not interested" className="tm-triage-btn tm-triage-skip" onClick={e => { e.stopPropagation(); commit("left") }}><span aria-hidden>✕</span> Skip</button>
+            <button type="button" aria-label="Not interested" className="tm-triage-btn tm-triage-skip tm-dismiss-action" onClick={e => { e.stopPropagation(); commit("left") }}><span aria-hidden>✕</span> Skip</button>
             <CapturePill status="rest" onSave={() => commit("right")} label={job.job_title ?? undefined} />
             <ShareJobButton job={job} />
           </>

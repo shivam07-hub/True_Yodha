@@ -232,7 +232,7 @@ export function NotificationBell() {
                                 </button>
                                 <button
                                   type="button"
-                                  className="tm-bell-act is-quiet"
+                                  className="tm-bell-act is-quiet tm-dismiss-action"
                                   disabled={busy}
                                   onClick={() => skip(jobId)}
                                 >

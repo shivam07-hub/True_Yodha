@@ -642,7 +642,7 @@ function RewriteModal({
                 </div>
               )}
               <div className="cvp-rw-foot">
-                <Button variant="neutral" size="sm" onClick={onClose}>Discard</Button>
+                <Button variant="dismiss" size="sm" onClick={onClose}>Discard</Button>
                 <Button size="sm" onClick={() => onAccept(variants[sel]?.text ?? "")}>
                   <Icon name="check" size={12} /> Use this line
                 </Button>
@@ -741,7 +741,7 @@ function RestructureModal({
             )}
             <p className="cvp-rs-note">Keeping it sets this as the CV you&rsquo;ll save when you sign up.</p>
             <div className="cvb-rs-foot">
-              <Button variant="neutral" size="sm" onClick={onClose}>Discard</Button>
+              <Button variant="dismiss" size="sm" onClick={onClose}>Discard</Button>
               <Button size="sm" onClick={() => onKeep(proposed)}>
                 <Icon name="check" size={12} /> {kept ? "Replace kept draft" : "Keep this"}
               </Button>

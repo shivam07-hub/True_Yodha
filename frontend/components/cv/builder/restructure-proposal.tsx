@@ -174,7 +174,7 @@ export function RestructureProposal({ token, versionId, targetLabel, onKept, onC
             {errMsg && <p className="cvb-rs-error" role="alert">{errMsg}</p>}
 
             <div className="cvb-rs-foot">
-              <Button variant="neutral" size="sm" onClick={onClose} disabled={busy}>Discard</Button>
+              <Button variant="dismiss" size="sm" onClick={onClose} disabled={busy}>Discard</Button>
               <Button size="sm" onClick={keep} disabled={busy}>
                 <Icon name="check" size={12}/> {busy ? "Keeping…" : `Keep · ${cost} Myro Coins`}
               </Button>

@@ -100,7 +100,7 @@ export function BulletMerge({
         <>
           <div className="cvb-rw-diff-new">{mergedText}</div>
           <div className="cvb-rw-actions">
-            <Button variant="neutral" size="sm" onClick={onDiscard} disabled={applying}>Discard</Button>
+            <Button variant="dismiss" size="sm" onClick={onDiscard} disabled={applying}>Discard</Button>
             <Button
               size="sm"
               disabled={applying || !mergedText.trim()}
@@ -141,7 +141,7 @@ export function BulletMerge({
         <div className="cvb-rw-error" role="alert">
           <span>{errMsg}</span>
           <button type="button" className="cvb-rw-skip" onClick={() => void run()}>Try again</button>
-          <button type="button" className="cvb-rw-skip" onClick={onDiscard}>Dismiss</button>
+          <button type="button" className="cvb-rw-skip tm-dismiss-action" onClick={onDiscard}>Dismiss</button>
         </div>
       )}
     </div>

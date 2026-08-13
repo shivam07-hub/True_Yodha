@@ -148,7 +148,7 @@ export function CollectionRow({
             </button>
             <button
               type="button"
-              className="db-icon-btn"
+              className="db-icon-btn tm-dismiss-action"
               aria-label="Remove from Collections"
               title="Remove from Collections"
               onClick={onUnsave}

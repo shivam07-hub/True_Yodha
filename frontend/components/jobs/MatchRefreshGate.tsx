@@ -460,17 +460,14 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
               <span style={{ fontSize: 12.5, color: "var(--tm-text-muted)" }}>Discard your targeting edits?</span>
               <div style={{ display: "flex", gap: 8 }}>
                 <Button variant="ghost" size="sm" onClick={() => setConfirming(false)}>Keep editing</Button>
-                <Button
-                  variant="outline" size="sm" onClick={() => close()}
-                  className="!text-[var(--tm-danger)] !border-[rgba(251,113,133,0.4)] hover:!bg-[var(--tm-danger-wash)]"
-                >
+                <Button variant="dismiss" size="sm" onClick={() => close()}>
                   Discard
                 </Button>
               </div>
             </div>
           ) : (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-              <Button variant="ghost" size="md" onClick={requestClose} disabled={busy}>
+              <Button variant="dismiss" size="md" onClick={requestClose} disabled={busy}>
                 Discard
               </Button>
               <div style={{ display: "flex", gap: 8 }}>

@@ -604,7 +604,7 @@ function RewriteBody({ phase, proposed, onProposedChange, rationale, citations, 
         </div>
 
         <div className="cvb-rw-actions">
-          <Button variant="neutral" size="sm" onClick={onDiscard} disabled={busy}>Discard</Button>
+          <Button variant="dismiss" size="sm" onClick={onDiscard} disabled={busy}>Discard</Button>
           <Button size="sm" disabled={busy || !proposed.trim()} onClick={onAccept}>
             <Icon name="check" size={12}/> {applying ? "Saving…" : "Accept"}
           </Button>

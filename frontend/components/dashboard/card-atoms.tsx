@@ -102,7 +102,7 @@ export function CardActions({
       </button>
       <button
         type="button"
-        className="db-icon-btn"
+        className="db-icon-btn tm-dismiss-action"
         aria-label="Mark this job as not interested"
         title="Not interested"
         onClick={(e) => {

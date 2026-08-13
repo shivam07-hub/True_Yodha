@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Check, ChevronRight, X } from "lucide-react"
 
+import { Button } from "@/components/ui/button"
 import { onboarding } from "@/lib/api"
 
 const CHECKLIST_KEY = ["first-success-checklist"] as const
@@ -35,9 +36,9 @@ export function FirstSuccessChecklist({ token }: { token: string }) {
           <h2 id="first-setup-title" className="text-sm font-semibold text-[var(--tm-text)]">Get set up</h2>
           <p className="mt-1 text-xs tabular-nums text-[var(--tm-text-muted)]">{completed} of {data.items.length} complete</p>
         </div>
-        <button type="button" onClick={() => dismiss.mutate()} disabled={dismiss.isPending} className="tm-control-focus flex size-10 items-center justify-center rounded text-[var(--tm-text-muted)] hover:text-[var(--tm-text)] disabled:opacity-50" aria-label="Dismiss setup checklist">
+        <Button type="button" variant="dismiss" size="icon-md" onClick={() => dismiss.mutate()} disabled={dismiss.isPending} aria-label="Dismiss setup checklist">
           <X className="size-4" aria-hidden="true" />
-        </button>
+        </Button>
       </div>
       <ol className="mt-3 divide-y divide-[var(--tm-border-soft)]" role="list">
         {data.items.map((item) => (

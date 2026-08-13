@@ -1,49 +1,30 @@
 "use client"
 
-import { useState } from "react"
+import { Button } from "@/components/ui/button"
 
 interface CloseButtonProps {
   onClick: () => void
-  /** Icon edge length in px. Hit area is size + 12. */
+  /** Icon edge length in px. The accessible hit area remains 32px. */
   size?: number
   ariaLabel?: string
   className?: string
 }
 
 /**
- * Universal close (X). Neutral (muted) at rest, red on hover/focus — the
- * app-wide dismissal convention. Self-contained (inline SVG + state-driven
- * color) so it drops into any surface without a CSS dependency.
- *
- * Rest is neutral rather than always-red on purpose: a solid-red control at
- * rest reads as "delete". Red on intent (hover/focus) signals dismissal
- * without implying destruction.
+ * Universal close (X). Closing a surface is navigation, not rejection, so it
+ * uses the neutral utility treatment. Content rejection uses `dismiss`; an
+ * irreversible operation uses `danger`.
  */
 export function CloseButton({ onClick, size = 16, ariaLabel = "Close", className }: CloseButtonProps) {
-  const [hot, setHot] = useState(false)
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="icon-sm"
       onClick={onClick}
-      onMouseEnter={() => setHot(true)}
-      onMouseLeave={() => setHot(false)}
-      onFocus={() => setHot(true)}
-      onBlur={() => setHot(false)}
       aria-label={ariaLabel}
       title={ariaLabel}
       className={className}
-      style={{
-        display: "inline-grid",
-        placeItems: "center",
-        width: size + 12,
-        height: size + 12,
-        border: "none",
-        borderRadius: 6,
-        cursor: "pointer",
-        color: hot ? "var(--tm-danger, #ef4444)" : "var(--tm-text-muted, #9ca3af)",
-        background: hot ? "var(--tm-danger-wash, rgba(239,68,68,0.10))" : "transparent",
-        transition: "color 120ms ease, background 120ms ease",
-      }}
     >
       <svg
         width={size}
@@ -58,6 +39,6 @@ export function CloseButton({ onClick, size = 16, ariaLabel = "Close", className
       >
         <path d="M18 6 6 18M6 6l12 12" />
       </svg>
-    </button>
+    </Button>
   )
 }

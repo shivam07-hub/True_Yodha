@@ -182,7 +182,7 @@ function WorkspaceIntroCard() {
     <section className="tm-lib-intro tm-lib-fade-in" aria-label="How the CV workspace works">
       <div className="tm-lib-intro-head">
         <h2 className="tm-lib-intro-title">Welcome to your CV workspace</h2>
-        <button type="button" className="tm-lib-intro-close" onClick={dismiss} aria-label="Dismiss intro">
+        <button type="button" className="tm-lib-intro-close tm-dismiss-action" onClick={dismiss} aria-label="Dismiss intro">
           <LIcon d={I.close} size={15}/>
         </button>
       </div>

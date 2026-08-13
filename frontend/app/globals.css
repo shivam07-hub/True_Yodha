@@ -29,6 +29,32 @@
   outline-offset: 3px;
 }
 
+/* Reversible negative intent: Skip, Hide, Not interested, Remove, Dismiss.
+   Neutral at rest so it cannot be mistaken for destructive Delete; rose on
+   hover/focus so it is the semantic counterweight to a positive Save action.
+   The doubled class deliberately outranks legacy surface selectors while they
+   migrate to the canonical <Button variant="dismiss"> primitive. */
+.tm-dismiss-action {
+  transition-property: color, background-color, border-color;
+  transition-duration: var(--tm-dur-fast);
+  transition-timing-function: var(--tm-ease);
+}
+.tm-dismiss-action.tm-dismiss-action:hover:not(:disabled),
+.tm-dismiss-action.tm-dismiss-action:focus-visible {
+  color: var(--tm-danger);
+  background-color: var(--tm-danger-wash);
+  border-color: var(--tm-danger);
+}
+.tm-dismiss-action.tm-dismiss-action:focus-visible {
+  outline: 2px solid var(--tm-danger);
+  outline-offset: 2px;
+}
+.tm-dismiss-action.tm-dismiss-action:hover:not(:disabled) svg,
+.tm-dismiss-action.tm-dismiss-action:focus-visible svg {
+  color: inherit;
+  stroke: currentColor;
+}
+
 /* ── Company link — a company name is always a portal to /companies/{name}
    (grill-locked 2026-06-21). Inherits the call site's colour/size (the accent
    is the link signal); adds the cursor + hover-underline so it reads as a link.

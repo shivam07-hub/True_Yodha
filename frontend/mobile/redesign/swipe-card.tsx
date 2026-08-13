@@ -183,7 +183,7 @@ export function SwipeCard({
           {row.move && <span style={{ fontSize: 12, fontWeight: 600, color: row.moveFg }}>{row.move}</span>}
           {row.verified && <span style={{ fontSize: 10.5, color: "var(--mm-dim)", marginLeft: 4 }}>· {row.verified}</span>}
           <div style={{ flex: 1 }} />
-          <button onClick={(e) => { e.stopPropagation(); commit("left") }} aria-label="Not interested" className="mm-press-sm" style={iconBtn}><svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
+          <button onClick={(e) => { e.stopPropagation(); commit("left") }} aria-label="Not interested" className="mm-press-sm tm-dismiss-action" style={iconBtn}><svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
           <button onClick={(e) => { e.stopPropagation(); onShare() }} aria-label="Share" className="mm-press-sm" style={iconBtn}>{shareIcon}</button>
           <button onClick={(e) => { e.stopPropagation(); commit("right") }} className="mm-press" style={{ height: 32, display: "flex", alignItems: "center", gap: 5, padding: "0 13px", borderRadius: 99, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>★ Save</button>
         </div>

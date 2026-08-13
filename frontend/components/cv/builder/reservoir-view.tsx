@@ -157,7 +157,7 @@ function RoleBlock({ role, defaultOpen, firstHint, onDismissHint, onMakeCanonica
             {firstHint && (
               <div className="cvb-rv-hint" role="note">
                 Capture wins as they happen — they sharpen every future CV.
-                <button type="button" className="cvb-rv-hint-x" aria-label="Dismiss" onClick={onDismissHint}>
+                <button type="button" className="cvb-rv-hint-x tm-dismiss-action" aria-label="Dismiss" onClick={onDismissHint}>
                   <Icon name="x" size={12} />
                 </button>
               </div>

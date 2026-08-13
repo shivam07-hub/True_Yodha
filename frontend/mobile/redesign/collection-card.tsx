@@ -84,7 +84,7 @@ export function CollectionCard({ row, fitKnown, statusChip, tailored, pulse, onO
   return (
     <CardShell row={row} fitKnown={fitKnown} statusChip={statusChip} pulse={pulse} onOpen={onOpen}>
       {onHeart ? (
-        <button onClick={(e) => { e.stopPropagation(); onHeart() }} aria-label="Remove from saved" className="mm-press-sm" style={iconBtn}>
+        <button onClick={(e) => { e.stopPropagation(); onHeart() }} aria-label="Remove from saved" className="mm-press-sm tm-dismiss-action" style={iconBtn}>
           <svg width={15} height={15} viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" color="var(--mm-accent)"><path d="M19 14c1.5-1.5 2-3.2 2-4.6C21 6.4 18.6 4 15.6 4 14.2 4 12.9 4.6 12 5.6 11.1 4.6 9.8 4 8.4 4 5.4 4 3 6.4 3 9.4c0 1.4.5 3.1 2 4.6l7 6.6 7-6.6Z" /></svg>
         </button>
       ) : null}
@@ -123,8 +123,8 @@ export function MyroFoundCard({ row, fitKnown, pulse, onOpen, onDismiss, onTailo
 }) {
   return (
     <CardShell row={row} fitKnown={fitKnown} pulse={pulse} onOpen={onOpen}>
-      <button onClick={(e) => { e.stopPropagation(); onDismiss() }} aria-label="Not interested" className="mm-press-sm" style={iconBtn}>
-        <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="var(--mm-muted)" strokeWidth={2.2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+      <button onClick={(e) => { e.stopPropagation(); onDismiss() }} aria-label="Not interested" className="mm-press-sm tm-dismiss-action" style={iconBtn}>
+        <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
       </button>
       <div style={{ flex: 1 }} />
       <button onClick={(e) => { e.stopPropagation(); onTailor() }} className="mm-press" style={{ height: 32, padding: "0 14px", borderRadius: 99, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Tailor CV</button>
