@@ -127,3 +127,29 @@ def test_no_candidates_is_a_noop() -> None:
     repo = _FakeRepo()
     warmed = asyncio.run(feed_warm.warm_feed_shortlist(repo, object(), "u1", []))  # type: ignore[arg-type]
     assert warmed == 0
+
+
+# ── the Targeting Brief reaches the warmer ───────────────────────────────────
+#
+# Same contract as on_demand: these evals persist permanently per (user, job),
+# so a memory-blind one here is a memory-blind verdict forever.
+
+def test_warm_sees_memory_facts_via_targeting_brief(monkeypatch: Any) -> None:
+    repo = _FakeRepo(cached=set())
+    monkeypatch.setattr(
+        feed_warm.targeting,
+        "_facts",
+        lambda _db, _uid: [feed_warm.targeting.MemoryFact(kind="aspiration", text="move into platform work")],
+    )
+    seen: dict[str, Any] = {}
+
+    async def _capture(profile: dict[str, Any], jobs: list[dict[str, Any]], _prov: Any, _cb: Any = None) -> dict[str, Any]:
+        seen.update(profile)
+        return {j["job_id"]: {"overall_score": 4.0, "grade": "A", "recommendation": "Apply",
+                             "summary": "s", "strengths": [], "concerns": []} for j in jobs}
+
+    monkeypatch.setattr(feed_warm.llm_ranker, "evaluate_all", _capture)
+    asyncio.run(feed_warm.warm_feed_shortlist(repo, object(), "u1", ["a"]))  # type: ignore[arg-type]
+
+    assert seen["known_facts"] == ["aspiration: move into platform work"]
+    assert seen["cv_markdown"] == "CV"  # _eval_profile still resolves the CV

@@ -115,3 +115,48 @@ def test_overlap_only_cache_recomputes(monkeypatch: Any) -> None:
     out = asyncio.run(on_demand.ensure_job_eval(repo, object(), "u1", "j1"))  # type: ignore[arg-type]
     assert out["cached"] is False
     assert repo.persisted is not None
+
+
+# ── the Targeting Brief reaches the on-open brain ────────────────────────────
+#
+# A verdict written here is cached permanently per (user, job) — migration
+# 20260710 — so reading raw `user_profiles` columns would make every fact the
+# user has told Myro invisible to it forever. 70% of the brain verdicts in prod
+# (1,175 rows) were written memory-blind through this path and the feed warmer
+# before the brief was wired in.
+
+def test_brain_sees_memory_facts_via_targeting_brief(monkeypatch: Any) -> None:
+    repo = _FakeRepo(cached=None)
+    monkeypatch.setattr(
+        on_demand.targeting,
+        "_facts",
+        lambda _db, _uid: [on_demand.targeting.MemoryFact(kind="constraint", text="no night shifts")],
+    )
+    seen: dict[str, Any] = {}
+
+    async def _capture(profile: dict[str, Any], _cv: str, _job: dict[str, Any], _prov: Any) -> dict[str, Any]:
+        seen.update(profile)
+        return {"overall_score": 3.8, "grade": "B+", "recommendation": "Apply",
+                "summary": "s", "strengths": [], "concerns": []}
+
+    monkeypatch.setattr(on_demand.ranking, "rank_one", _capture)
+    asyncio.run(on_demand.ensure_job_eval(repo, object(), "u1", "j1"))  # type: ignore[arg-type]
+
+    assert seen["known_facts"] == ["constraint: no night shifts"]
+    assert seen["target_roles"] == ["MLE"]  # columns still pass through untouched
+
+
+def test_no_memory_is_not_an_error(monkeypatch: Any) -> None:
+    """A user with zero facts must rank exactly as before — memory is additive."""
+    repo = _FakeRepo(cached=None)
+    seen: dict[str, Any] = {}
+
+    async def _capture(profile: dict[str, Any], _cv: str, _job: dict[str, Any], _prov: Any) -> dict[str, Any]:
+        seen.update(profile)
+        return {"overall_score": 3.0, "grade": "B", "recommendation": "Apply",
+                "summary": "s", "strengths": [], "concerns": []}
+
+    monkeypatch.setattr(on_demand.ranking, "rank_one", _capture)
+    asyncio.run(on_demand.ensure_job_eval(repo, object(), "u1", "j1"))  # type: ignore[arg-type]
+
+    assert "known_facts" not in seen

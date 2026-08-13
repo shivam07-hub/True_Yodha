@@ -20,7 +20,7 @@ from typing import Any
 from app.services import job_matcher
 from app.services.llm_provider import LLMProvider
 from app.services.match_credibility import evaluate_credibility
-from app.services.matching import ranking
+from app.services.matching import ranking, targeting
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +99,12 @@ async def ensure_job_eval(
     job_skill_rows = repo.get_all_job_skill_rows(job_ids=[jid])
     shaped = _shape_single_job(meta_rows[0], job_skill_rows, user_skill_map)
 
-    profile = repo.get_user_profile_targeting(user_id)
+    # The Targeting Brief, not the raw profile columns: a verdict computed here is
+    # cached permanently per (user, job), so reading only `user_profiles` would make
+    # every fact the user has told Myro invisible to it forever. Reached only on the
+    # cold path — the cache check above already returned — so the extra user_memory
+    # read is paid once, alongside an LLM call that dwarfs it.
+    profile = targeting.for_ranking(repo, user_id).ranking_profile()
     if hasattr(repo, "get_latest_baseline_id"):
         profile["baseline_version_id"] = repo.get_latest_baseline_id(user_id)
 

@@ -709,7 +709,7 @@ The single read for "what Myro knows about what this user wants" — one module 
 
 **Two constructors, two halves**
 
-- `for_ranking(jobs_repo, user_id)` → `ranking_profile()`: the dict the matcher + Career Ops prompt consume — columns passed through untouched, memory riding as `known_facts` (the key intent-chat established). `llm_ranker.build_system_prompt` renders it as the "What Myro remembers about this candidate" block.
+- `for_ranking(jobs_repo, user_id)` → `ranking_profile()`: the dict the matcher + Career Ops prompt consume — columns passed through untouched, memory riding as `known_facts` (the key intent-chat established). `llm_ranker.build_system_prompt` renders it as the "What Myro remembers about this candidate" block. **Every path that computes a brain verdict goes through it**: `jobs_workflow.compute_job_matches` (the Myro Ops Search), `on_demand.ensure_job_eval` (brain-on-open, every surface), `feed_warm.warm_feed_shortlist` (the `/market` top-10).
 - `for_preflight(db, user_id)` → `preflight()`: the "Refresh your matches" pre-flight manifest (`GET /jobs/refresh/preflight`) — empty fields gap-filled from memory facts (`deal_breakers` ← constraint/work_mode, `career_goal` ← aspiration), with a `prefilled` provenance map and `memory_count`.
 
 **Invariants**
@@ -718,6 +718,8 @@ The single read for "what Myro knows about what this user wants" — one module 
 - **Prefill is draft-only.** Silent prefill lands in the modal's staging buffer; persistence happens only through the user's Run/Save action, so the distiller's propose-only lock on profile columns holds.
 - **Role titles are the one write vocabulary.** The modal edits human titles; `onboarding_service.role_title_updates(titles)` is the single derivation of the `target_roles` cluster union (shared by `save_target`, intent-chat, and `PUT /users/me/profile` when `target_role_titles` is sent). A surface can no longer desync titles from the matcher read model.
 - **Memory is fail-soft.** `list_active` degrades to `[]` (safe_read); a repo without a client (test fakes) carries no facts. Matching never breaks on the memory layer.
+- **`jobs_repo.get_user_profile_targeting` is this module's private input.** A ranking path that calls it directly is memory-blind, and since a verdict is cached permanently per `(user, job)` (migration 20260710) that blindness is permanent — nothing re-rates it. `on_demand` and `feed_warm` did exactly that until 2026-08-13: **1,175 of 1,686 brain verdicts in prod (70%) were written without seeing a single fact the user had told Myro**. 308 (3 users, ~52 active notes each) were materially wrong; the rest belonged to users with no ranking-relevant facts, where blind and informed agree.
+- **The guarantee is forward, not retroactive.** The 308 are not backfilled — history stands. The contract is that the next Myro Ops Search returns a standardised, memory-aware verdict. That makes the Search the invalidation event; memory edits between runs are passive and never reshuffle a list under the user.
 - The module is the test surface (`test_targeting_brief.py`): fact→field mapping, the prompt block, and title derivation are tested once, not through each router.
 
 ---

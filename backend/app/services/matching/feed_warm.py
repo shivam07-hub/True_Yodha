@@ -24,7 +24,7 @@ from typing import Any
 
 from app.services import llm_ranker
 from app.services.llm_provider import LLMProvider
-from app.services.matching import on_demand, ranking
+from app.services.matching import on_demand, ranking, targeting
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +90,11 @@ async def warm_feed_shortlist(
     if not shaped:
         return 0
 
-    profile = repo.get_user_profile_targeting(user_id)
+    # The Targeting Brief, not the raw profile columns — same reason as on_demand:
+    # these evals persist permanently per (user, job), so a memory-blind one here is
+    # a memory-blind verdict forever. Reached only when there is something new to
+    # rate (the cached/`shaped` gates above already returned).
+    profile = targeting.for_ranking(repo, user_id).ranking_profile()
     if hasattr(repo, "get_latest_baseline_id"):
         profile["baseline_version_id"] = repo.get_latest_baseline_id(user_id)
     eval_profile = ranking._eval_profile(profile, profile.get("cv_markdown") or "")
