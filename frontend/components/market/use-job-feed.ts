@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useInfiniteQuery, useQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query"
+import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query"
 import { jobs, type JobFeedItem, type JobFeedResponse } from "@/lib/api"
 import type { FeedScope } from "@/lib/feed-scope"
 import { applyViewFilters, type FeedFilters } from "./feed-types"
@@ -76,41 +76,18 @@ export function useJobFeed({
     [token, q, skill, filters, scope],
   )
 
-  // The "best jobs" rule: on Best fit, the career-ops brain ranks the top shortlist
-  // BEFORE the feed paints (wait-then-paint) so the first cards are always the final
-  // brain-ranked order — no reshuffle flicker. Scoped to the same filters as the feed
-  // (sort-independent — the warm always ranks the fit-top). Soft-resolves on any
-  // failure/timeout so the feed still paints deterministic order (degradation).
-  const gateOnBrain = filters.sort === "fit"
-  const warmKey = useMemo(
-    () => [
-      "jobFeedWarm", token, scope.signature, q, skill ?? "",
-      filters.roleDomain ?? "", filters.followingOnly, filters.includeStretch,
-      filters.locationMode ?? "",
-    ] as const,
-    [token, scope, q, skill, filters.roleDomain, filters.followingOnly, filters.includeStretch, filters.locationMode],
-  )
-  const warm = useQuery({
-    queryKey: warmKey,
-    queryFn: () =>
-      jobs.warmFeed(token, {
-        cluster: filters.roleDomain,
-        q: q || null,
-        skill: skill || null,
-        locationMode: filters.locationMode,
-        followingOnly: filters.followingOnly,
-        includeStretch: filters.includeStretch,
-      }),
-    enabled: !!token && gateOnBrain,
-    staleTime: 30 * 60 * 1000, // matches the server-side eval cache window
-    gcTime: 24 * 60 * 60 * 1000,
-    retry: false,
-  })
-  // Hold the feed until the brain has warmed (or errored/timed out). On "Newest"
-  // there's no ranking to wait for, so it paints immediately.
-  const brainReady = !gateOnBrain || warm.isSuccess || warm.isError
-  const warming = gateOnBrain && !brainReady
-
+  // NO brain warm on this path. 3799e114 took the feed-warm call out of this
+  // hook — it was wait-then-paint, blocking the J0 feed on a paid blocking-
+  // judgment LLM call — and locked that in with the "Jobs paints its J0 feed
+  // before secondary compute" contract test. c73aa23a reintroduced it while
+  // consolidating location derivation (its subject and body are entirely about
+  // feedScope; the warm is not mentioned), which put the LLM back on the arrival
+  // path and left Develop failing that test.
+  //
+  // A card still ranks whenever the brain has already warmed it — GET /feed
+  // reads the cached evals and floats those cards above the divider. What is
+  // gone is a client trigger that warms ON ARRIVAL. Restoring one belongs on a
+  // deferred wave with the feed invalidating when it resolves, never here.
   const feed = useInfiniteQuery({
     queryKey,
     queryFn: ({ pageParam }) =>
@@ -135,7 +112,7 @@ export function useJobFeed({
       const scope = NEXT_SCOPE[last.expansion_tier]
       return scope ? { page: 1, scope } : undefined
     },
-    enabled: !!token && brainReady,
+    enabled: !!token,
     staleTime: 30 * 60 * 1000,
     gcTime: 24 * 60 * 60 * 1000,
   })
@@ -152,14 +129,12 @@ export function useJobFeed({
   // that filtered locally is how desktop and mobile drifted apart).
   const visibleJobs = useMemo(() => applyViewFilters(allJobs, filters), [allJobs, filters])
   const total = Math.max(0, ...(feed.data?.pages.map((page) => page.available_total) ?? [0]))
-  // Loading = the brain is still warming OR the feed query is enabled but has
-  // not produced a first result yet. `warming` alone misses the enable-transition
-  // window: the tick where warm has resolved (warming→false) but the infinite
-  // query, only just enabled, hasn't started fetching — the gap that flashed the
-  // "Feed clear" empty state before the first cards arrived. On "Newest" there is
-  // no warm phase, so this is the ONLY thing that keeps the skeleton up.
+  // Loading = the feed query is enabled but has not produced a first result yet.
+  // Keeping the skeleton up until the query SETTLES (rather than until some
+  // pre-phase resolves) is what stops the "Feed clear" empty state flashing in
+  // the tick before the first cards arrive.
   const feedSettled = feed.isSuccess || feed.isError
-  const loading = warming || (!!token && brainReady && !feedSettled)
+  const loading = !!token && !feedSettled
   // How many leading cards the brain ranked (page 1 only — the shortlist lives at
   // the top of the feed). The feed draws its "more roles" divider after this many.
   const rankedCount = feed.data?.pages[0]?.ranked_count ?? 0
@@ -225,5 +200,7 @@ export function useJobFeed({
 
   useEffect(() => clearUndoTimer, [clearUndoTimer])
 
-  return { feed, allJobs, visibleJobs, total, rankedCount, warming, loading, expansionDividers, triage, undo, pending, commitPending, savedCount }
+  // `warming` stays in the shape, always false: no warm runs here, and consumers
+  // still branch on it. Drop the key only when the last reader is gone.
+  return { feed, allJobs, visibleJobs, total, rankedCount, warming: false, loading, expansionDividers, triage, undo, pending, commitPending, savedCount }
 }
