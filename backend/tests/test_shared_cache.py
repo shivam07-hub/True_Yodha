@@ -212,3 +212,56 @@ def test_invalidate_prefix_clears_local_entries() -> None:
 
     assert "jobs.feed:c" in shared_cache._LOCAL_CACHE
     assert not any(key.startswith("jobs.analytics:") for key in shared_cache._LOCAL_CACHE)
+
+
+# ── an invalidation must not orphan its fill-claim ───────────────────────────
+# `claim()` is a debounce window with no release: it stays held for its full
+# TTL whether the fill took 5ms or never finished. Used as a single-flight lock
+# that is fine, RIGHT UP UNTIL the entry it guards is invalidated early. Then
+# the claim outlives its cache entry and every caller finds no cache AND cannot
+# win the fill — so each one waits out the cold-fill poll and computes anyway:
+# a synchronised stall followed by the exact stampede the claim exists to stop.
+# Surfaced as an order-dependent failure in test_job_feed_router (the autouse
+# fixture clears the feed caches, which is an invalidation).
+
+def _fill_claim_held(key: str) -> bool:
+    from app.services.background import debounce
+
+    return not debounce.claim(f"shared_cache_fill:{key}", ttl_seconds=1)
+
+
+def test_invalidate_drops_the_fill_claim_with_the_entry() -> None:
+    shared_cache.get_or_compute("k9", lambda: {"n": 1}, ttl_seconds=60)
+    assert "k9" in shared_cache._LOCAL_CACHE
+
+    shared_cache.invalidate("k9")
+    assert "k9" not in shared_cache._LOCAL_CACHE
+    assert not _fill_claim_held("k9"), "claim outlived the entry it guards"
+
+
+def test_invalidate_prefix_drops_fill_claims_across_the_namespace() -> None:
+    for key in ("ns.a", "ns.b"):
+        shared_cache.get_or_compute(key, lambda: {"v": key}, ttl_seconds=60)
+
+    shared_cache.invalidate_prefix("ns.")
+    assert not any(k.startswith("ns.") for k in shared_cache._LOCAL_CACHE)
+    for key in ("ns.a", "ns.b"):
+        assert not _fill_claim_held(key), f"claim for {key} outlived its entry"
+
+
+def test_a_cleared_cache_refills_in_one_compute_not_one_per_caller() -> None:
+    """The behaviour the feed test was really asserting: after an invalidation
+    the next read recomputes ONCE, rather than every caller stalling and then
+    computing its own."""
+    calls: list[int] = []
+
+    def compute():
+        calls.append(1)
+        return {"n": len(calls)}
+
+    shared_cache.get_or_compute("k10", compute, ttl_seconds=60)
+    shared_cache.invalidate("k10")
+
+    shared_cache.get_or_compute("k10", compute, ttl_seconds=60)
+    shared_cache.get_or_compute("k10", compute, ttl_seconds=60)
+    assert len(calls) == 2, "refill after invalidate must be single-flight, not per-caller"

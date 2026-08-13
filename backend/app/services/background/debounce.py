@@ -60,3 +60,33 @@ def claim(key: str, ttl_seconds: int) -> bool:
             key, exc.__class__.__name__,
         )
         return False
+
+
+def release(key: str) -> None:
+    """Drop a claim before its TTL runs out.
+
+    ONLY for a claim held as a single-flight lock, where the TTL is a deadlock
+    guard rather than the point. A debounce window must never be released —
+    its whole purpose is to stay held for the full interval so the work does
+    not repeat.
+
+    Without this, a claim and the thing it guards can disagree: the guarded
+    cache entry gets invalidated while the claim still has seconds to run, so
+    every caller finds no cache AND cannot claim the fill, waits out the
+    cold-fill poll, and then computes anyway — one coordinated stall followed
+    by the exact stampede the claim exists to prevent.
+    """
+    url = settings.redis_url.strip()
+    if not url:
+        _LOCAL_CLAIMS.pop(key, None)
+        return
+
+    try:
+        from redis import Redis
+
+        Redis.from_url(url, decode_responses=True).delete(f"claim:{key}")
+    except Exception as exc:  # noqa: BLE001 — a release must never break its caller
+        logger.warning(
+            "metric background.release_unavailable key=%s exc=%s",
+            key, exc.__class__.__name__,
+        )

@@ -206,8 +206,14 @@ def _write(key: str, data: Any, *, ttl_seconds: int, stale_seconds: int) -> floa
 
 
 def invalidate(key: str) -> None:
-    """Remove one shared entry after its underlying truth is explicitly written."""
+    """Remove one shared entry after its underlying truth is explicitly written.
+
+    The fill-claim goes with it. A claim outliving the entry it guards is the
+    worst of both worlds: no cache to serve and no claim to win, so every
+    caller waits out the cold-fill poll and then computes anyway.
+    """
     _LOCAL_CACHE.pop(key, None)
+    debounce.release(f"shared_cache_fill:{key}")
     conn = _redis()
     if conn is None:
         return
@@ -221,6 +227,7 @@ def invalidate_prefix(prefix: str) -> None:
     """Invalidate a bounded cache namespace after a corpus snapshot write."""
     for key in [candidate for candidate in _LOCAL_CACHE if candidate.startswith(prefix)]:
         _LOCAL_CACHE.pop(key, None)
+        debounce.release(f"shared_cache_fill:{key}")
     conn = _redis()
     if conn is None:
         return
