@@ -281,11 +281,17 @@ def test_compile_market_analytics_invalidates_after_ttl() -> None:
     db = _make_analytics_db()
     repo = JobsRepository(db)
 
-    with patch("app.repositories.jobs.time.monotonic", return_value=0.0):
+    with (
+        patch("app.repositories.jobs.time.monotonic", return_value=0.0),
+        patch("app.services.shared_cache.time.time", return_value=0.0),
+    ):
         result1 = repo.compile_market_analytics()
 
     ranges_after_first = list(db.ranges)
-    with patch("app.repositories.jobs.time.monotonic", return_value=604801.0):  # just over 7 days
+    with (
+        patch("app.repositories.jobs.time.monotonic", return_value=604801.0),
+        patch("app.services.shared_cache.time.time", return_value=604801.0),
+    ):  # just over 7 days on every replica's wall clock
         result2 = repo.compile_market_analytics()
 
     assert result1 is not result2

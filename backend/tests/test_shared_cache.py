@@ -1,4 +1,6 @@
 import time
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier, Lock
 
 from app.services import shared_cache
 
@@ -28,6 +30,39 @@ def test_absent_computes_inline_and_caches() -> None:
     assert out2 == {"n": 1}
     assert len(calls) == 1
 
+
+def test_concurrent_cold_hits_wait_for_one_fill() -> None:
+    callers = 8
+    barrier = Barrier(callers)
+    calls = 0
+    lock = Lock()
+
+    def compute():
+        nonlocal calls
+        with lock:
+            calls += 1
+        time.sleep(0.08)
+        return {"ready": True}
+
+    def hit():
+        barrier.wait()
+        return shared_cache.get_or_compute("cold", compute, ttl_seconds=60)
+
+    with ThreadPoolExecutor(max_workers=callers) as pool:
+        results = list(pool.map(lambda _n: hit(), range(callers)))
+
+    assert results == [{"ready": True}] * callers
+    assert calls == 1
+
+
+def test_cold_fill_wait_is_bounded_when_winner_never_publishes(monkeypatch) -> None:
+    monkeypatch.setattr(shared_cache, "_COLD_FILL_WAIT_SECONDS", 0.03)
+    monkeypatch.setattr(shared_cache, "_COLD_FILL_POLL_SECONDS", 0.005)
+    monkeypatch.setattr(shared_cache.debounce, "claim", lambda *_a, **_k: False)
+
+    started = time.monotonic()
+    assert shared_cache.get_or_compute("stalled", lambda: "fallback", ttl_seconds=60) == "fallback"
+    assert time.monotonic() - started < 0.2
 
 def test_stale_returns_old_value_and_refreshes_in_background() -> None:
     calls = []
@@ -132,3 +167,101 @@ def test_redis_reachable_but_erroring_falls_back_to_direct_compute(monkeypatch) 
     out = shared_cache.get_or_compute("k4", compute, ttl_seconds=60)
     assert out == "ok"
     assert len(calls) == 1
+
+
+def test_shared_ttl_mapping_preserves_legacy_value_shapes() -> None:
+    mapping = shared_cache.SharedTTLMapping("test.mapping", ttl_seconds=60)
+
+    mapping["timed"] = (time.monotonic(), {"n": 1})
+    mapping["plain"] = 7
+
+    assert mapping.get("timed")[1] == {"n": 1}
+    assert "plain" in mapping
+    assert mapping["plain"] == 7
+    mapping.pop("plain")
+    assert "plain" not in mapping
+
+
+def test_shared_ttl_mapping_get_or_compute_uses_namespaced_singleflight() -> None:
+    mapping = shared_cache.SharedTTLMapping("test.mapping", ttl_seconds=60)
+    calls: list[int] = []
+
+    assert mapping.get_or_compute("one", lambda: calls.append(1) or {"n": 1}) == {"n": 1}
+    assert mapping.get_or_compute("one", lambda: calls.append(2) or {"n": 2}) == {"n": 1}
+    assert calls == [1]
+
+
+def test_shared_ttl_mapping_key_is_stable_for_unordered_sets() -> None:
+    mapping = shared_cache.SharedTTLMapping("test.mapping", ttl_seconds=60)
+
+    assert mapping._key((frozenset({"b", "a"}),)) == mapping._key(
+        (frozenset({"a", "b"}),)
+    )
+
+
+def test_invalidate_prefix_clears_local_entries() -> None:
+    shared_cache._LOCAL_CACHE.update(
+        {
+            "jobs.analytics:a": (1.0, {"a": 1}),
+            "jobs.analytics:b": (1.0, {"b": 2}),
+            "jobs.feed:c": (1.0, {"c": 3}),
+        }
+    )
+
+    shared_cache.invalidate_prefix("jobs.analytics:")
+
+    assert "jobs.feed:c" in shared_cache._LOCAL_CACHE
+    assert not any(key.startswith("jobs.analytics:") for key in shared_cache._LOCAL_CACHE)
+
+
+# ── an invalidation must not orphan its fill-claim ───────────────────────────
+# `claim()` is a debounce window with no release: it stays held for its full
+# TTL whether the fill took 5ms or never finished. Used as a single-flight lock
+# that is fine, RIGHT UP UNTIL the entry it guards is invalidated early. Then
+# the claim outlives its cache entry and every caller finds no cache AND cannot
+# win the fill — so each one waits out the cold-fill poll and computes anyway:
+# a synchronised stall followed by the exact stampede the claim exists to stop.
+# Surfaced as an order-dependent failure in test_job_feed_router (the autouse
+# fixture clears the feed caches, which is an invalidation).
+
+def _fill_claim_held(key: str) -> bool:
+    from app.services.background import debounce
+
+    return not debounce.claim(f"shared_cache_fill:{key}", ttl_seconds=1)
+
+
+def test_invalidate_drops_the_fill_claim_with_the_entry() -> None:
+    shared_cache.get_or_compute("k9", lambda: {"n": 1}, ttl_seconds=60)
+    assert "k9" in shared_cache._LOCAL_CACHE
+
+    shared_cache.invalidate("k9")
+    assert "k9" not in shared_cache._LOCAL_CACHE
+    assert not _fill_claim_held("k9"), "claim outlived the entry it guards"
+
+
+def test_invalidate_prefix_drops_fill_claims_across_the_namespace() -> None:
+    for key in ("ns.a", "ns.b"):
+        shared_cache.get_or_compute(key, lambda: {"v": key}, ttl_seconds=60)
+
+    shared_cache.invalidate_prefix("ns.")
+    assert not any(k.startswith("ns.") for k in shared_cache._LOCAL_CACHE)
+    for key in ("ns.a", "ns.b"):
+        assert not _fill_claim_held(key), f"claim for {key} outlived its entry"
+
+
+def test_a_cleared_cache_refills_in_one_compute_not_one_per_caller() -> None:
+    """The behaviour the feed test was really asserting: after an invalidation
+    the next read recomputes ONCE, rather than every caller stalling and then
+    computing its own."""
+    calls: list[int] = []
+
+    def compute():
+        calls.append(1)
+        return {"n": len(calls)}
+
+    shared_cache.get_or_compute("k10", compute, ttl_seconds=60)
+    shared_cache.invalidate("k10")
+
+    shared_cache.get_or_compute("k10", compute, ttl_seconds=60)
+    shared_cache.get_or_compute("k10", compute, ttl_seconds=60)
+    assert len(calls) == 2, "refill after invalidate must be single-flight, not per-caller"

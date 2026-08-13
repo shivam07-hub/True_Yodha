@@ -95,9 +95,10 @@ class ListingVerificationRepository:
     ) -> list[VerificationTarget]:
         """Atomically claim due listings, prioritising durable user relevance.
 
-        The claim RPC stamps ``last_verification_attempt_at`` in the same
+        The claim RPC stamps the narrow verification schedule in the same
         statement that selects (FOR UPDATE SKIP LOCKED), so a row is served to
         exactly one worker and a crashed sweep cannot re-serve the same batch.
+        The wide jobs row is updated once, when the verifier has evidence.
         Up to 80% of a claim is reserved for tracked, recently shown, or matched
         jobs. The rest preserves oldest-first corpus progress. Confidence remains
         irrelevant: a row previously marked ``active`` re-enters once stale.

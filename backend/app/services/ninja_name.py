@@ -200,8 +200,60 @@ def generate_unique(admin: Client, max_attempts: int = 25) -> str:
 
 
 def claim(user_id: str, name: str, admin: Client) -> None:
-    """Persist a chosen name on user_profiles. Caller validated + checked availability."""
-    admin.table("user_profiles").update({"ninja_name": name}).eq("id", user_id).execute()
+    """Persist a CHOSEN name. Caller validated + checked availability.
+
+    Stamps `ninja_name_claimed_at` — the only thing separating a name the user
+    picked from the slug we generated for them at signup. Signup provisioning
+    must never call this; it writes `ninja_name` directly and leaves the stamp
+    NULL so the naming moment still has something to offer.
+    """
+    from datetime import datetime, timezone
+
+    admin.table("user_profiles").update(
+        {"ninja_name": name, "ninja_name_claimed_at": datetime.now(timezone.utc).isoformat()}
+    ).eq("id", user_id).execute()
+
+
+def suggestion_for(user_id: str, admin: Client) -> dict:
+    """→ {"ninja_name": str, "claimed": bool} — the whole naming decision.
+
+    Callers (the suggest endpoint, the onboarding moment) need to know two
+    things and should compute neither themselves: what to put in the box, and
+    whether to ask at all.
+
+    - Already claimed → hand back their name and say so. Never re-ask, never
+      suggest something different: "I already gave a name, why is it different?"
+      was a real mobile-QA complaint.
+    - Never claimed → the persisted value is a random slug WE invented, so
+      echoing it back asks the user to confirm noise. Suggest one built from
+      their real name instead ("shivam-pathak-9k2v"), which reads as a starting
+      point worth editing rather than a chore worth skipping. 476 of 481 users
+      skipped when the suggestion was the random one.
+
+    Fail-soft: a read problem yields a fresh random name rather than raising —
+    the naming moment is a nice-to-have and must never break the screen it sits
+    on.
+    """
+    try:
+        result = (
+            admin.table("user_profiles")
+            .select("ninja_name, full_name, ninja_name_claimed_at")
+            .eq("id", user_id)
+            .maybe_single()
+            .execute()
+        )
+        row = (result.data if result else None) or {}
+    except Exception:  # noqa: BLE001 — see fail-soft note above
+        row = {}
+
+    existing = row.get("ninja_name")
+    if row.get("ninja_name_claimed_at") and existing and is_valid(existing):
+        return {"ninja_name": existing, "claimed": True}
+
+    return {
+        "ninja_name": generate_from_full_name(row.get("full_name"), admin=admin),
+        "claimed": False,
+    }
 
 
 def resolve_user_id_by_name(name: str, admin: Client) -> Optional[str]:

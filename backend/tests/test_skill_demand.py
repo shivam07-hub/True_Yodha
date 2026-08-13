@@ -6,12 +6,17 @@ read layer never invents a number, never falls back to a live scan, and that the
 verifier only pays for a refresh when listings actually left the set.
 """
 
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
 import pytest
 from postgrest.exceptions import APIError
 
 from app.repositories.skill_demand import SkillDemandRepository
+
+
+def _fresh_timestamp() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 class _Query:
@@ -48,9 +53,9 @@ def _repo(rows, raises=False):
 def test_demand_maps_rows_in_rank_order():
     repo = _repo([
         {"display_name": "CI/CD", "roles": 284, "companies": 54,
-         "rank": 1, "computed_at": "2026-07-21T10:00:00Z"},
+         "rank": 1, "computed_at": _fresh_timestamp()},
         {"display_name": "Scalability", "roles": 241, "companies": 59,
-         "rank": 2, "computed_at": "2026-07-21T10:00:00Z"},
+         "rank": 2, "computed_at": _fresh_timestamp()},
     ])
     out = repo.get_demand("Bengaluru", "30d")
     assert [s.skill for s in out.skills] == ["CI/CD", "Scalability"]
@@ -63,7 +68,12 @@ def test_demand_maps_rows_in_rank_order():
 def test_demand_always_carries_company_count():
     """`roles` without `companies` is the number that misled users before. The
     field is non-optional, so a row missing it reads 0, never absent."""
-    repo = _repo([{"display_name": "Supply Chain", "roles": 29, "rank": 1}])
+    repo = _repo([{
+        "display_name": "Supply Chain",
+        "roles": 29,
+        "rank": 1,
+        "computed_at": _fresh_timestamp(),
+    }])
     out = repo.get_demand("Gurugram", "all")
     assert out.skills[0].companies == 0
 
@@ -82,10 +92,22 @@ def test_read_failure_degrades_to_empty(caplog):
     assert "skill_demand.read_failed" in caplog.text
 
 
+def test_overdue_demand_is_suppressed_instead_of_rendered_as_current(caplog):
+    overdue = (datetime.now(timezone.utc) - timedelta(hours=49)).isoformat()
+    out = _repo([
+        {"display_name": "Communication", "roles": 117, "companies": 30,
+         "rank": 1, "computed_at": overdue},
+    ]).get_demand("Gurugram", "30d")
+
+    assert out.skills == []
+    assert out.computed_at == datetime.fromisoformat(overdue)
+    assert "skill_demand.snapshot_stale" in caplog.text
+
+
 def test_cities_are_ordered_by_live_roles():
     repo = _repo([
-        {"location_city": "Bengaluru", "live_roles": 13002, "computed_at": "2026-07-21T10:00:00Z"},
-        {"location_city": "Kochi", "live_roles": 212, "computed_at": "2026-07-21T10:00:00Z"},
+        {"location_city": "Bengaluru", "live_roles": 13002, "computed_at": _fresh_timestamp()},
+        {"location_city": "Kochi", "live_roles": 212, "computed_at": _fresh_timestamp()},
     ])
     out = repo.list_cities()
     assert [c.city for c in out.cities] == ["Bengaluru", "Kochi"]

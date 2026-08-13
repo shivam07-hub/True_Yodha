@@ -40,7 +40,7 @@ export function useJourneyCounts(): JourneyCounts | null {
   const { data } = useQuery({
     queryKey: dataKeys.applications(),
     queryFn: () => jobsApi.applications(token!),
-    enabled: !!token,
+    enabled: false, // passive: Collections/Prep own and seed this read
     staleTime: 60 * 1000,
   })
   return data ? deriveJourneyCounts(data) : null

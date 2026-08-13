@@ -328,6 +328,15 @@ def test_record_recommendation_exposures_captures_confidence_at_show() -> None:
     assert payload[0]["metadata"] == {"position": 1}
 
 
+def test_record_recommendation_exposures_debounces_identical_reload() -> None:
+    admin_db = _FakeDB()
+    repo = JobsRepository(_FakeDB(), admin_db)  # type: ignore[arg-type]
+    rows = [{"job_id": "job-1", "is_active": True, "listing_confidence": "active"}]
+
+    assert repo.record_recommendation_exposures("user-reload", rows, surface="market") == 1
+    assert repo.record_recommendation_exposures("user-reload", rows, surface="market") == 0
+
+
 def test_dismiss_dashboard_job_card_upserts_dismissal() -> None:
     user_db = _FakeDB()
     repo = JobsRepository(user_db, _FakeDB())  # type: ignore[arg-type]

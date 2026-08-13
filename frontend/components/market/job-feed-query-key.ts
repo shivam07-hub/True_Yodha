@@ -1,25 +1,18 @@
+import type { FeedScope } from "@/lib/feed-scope"
 import type { FeedFilters } from "./feed-types"
-
-export function targetLocationSignature(targetLocations: string[]): string {
-  return targetLocations
-    .map((location) => location.trim().toLowerCase())
-    .filter(Boolean)
-    .sort()
-    .join("|")
-}
 
 export function jobFeedQueryKey({
   token,
   filters,
   q,
   skill,
-  targetLocations,
+  scope,
 }: {
   token: string
   filters: FeedFilters
   q: string
   skill: string | null
-  targetLocations: string[]
+  scope: FeedScope
 }) {
   // Only SERVER filters key the query. `hideLowConfidence` is view-scope
   // (applied to the fetched page in `applyViewFilters`), so toggling it must
@@ -27,7 +20,7 @@ export function jobFeedQueryKey({
   return [
     "jobFeed",
     token,
-    targetLocationSignature(targetLocations),
+    scope.signature,
     q,
     skill ?? "",
     filters.sort,

@@ -111,6 +111,7 @@ export function useShellModel() {
     target_location: profileData?.target_location ?? null,
     target_locations: profileData?.target_locations ?? [],
     linkedin_url: profileData?.linkedin_url ?? null,
+    ninja_name: profileData?.ninja_name ?? null,
   }
 
   return {

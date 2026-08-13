@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query"
-import { jobs, users, xp } from "@/lib/api"
+import { jobs, users } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { shortHeatmapSkillLabel } from "@/lib/heatmap-labels"
 import type { CareerBand, JobLocationFilters } from "@/lib/api"
@@ -11,13 +11,13 @@ import { HeatmapTab } from "@/components/market/heatmap-tab"
 import { MarketJobsTab } from "@/components/market/jobs-tab"
 import { MissionHeroRail } from "@/components/mission-control/mission-hero-rail"
 import { MatchesRefreshBanner } from "@/components/jobs/matches-refresh-banner"
+import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
 import { useViewport } from "@/mobile"
 import { JobsSurface } from "@/mobile/redesign/jobs-surface"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useFeedState } from "@/lib/hooks/use-feed-state"
 import { useFollowCompany } from "@/lib/hooks/use-follow-company"
 import { useIdleWave, useIntentWave } from "@/lib/hooks/use-load-waves"
-import { useXPStore } from "@/store/xpStore"
 import { parseLocationMode, pickDefaultSort, type FeedFilters } from "@/components/market/feed-types"
 
 type BrowsePatch = {
@@ -31,10 +31,6 @@ function IntelPageInner() {
   const { token } = useAuth()
   const queryClient = useQueryClient()
   const { mode } = useViewport()
-  // Feed publication sensing - auto-invalidates the free market feed when a new
-  // batch publishes (handoff client-refresh contract).
-  useFeedState()
-
   // Three-wave loading (#41 L3). Wave 1 = identity + score + feed. Wave 2 =
   // idle cascade; Wave 3 = on-intent,
   // armed only on the user's first interaction — this keeps the 22–25s
@@ -44,8 +40,9 @@ function IntelPageInner() {
   // desktop MissionHeroRail owns its own one shared bootstrap query.
   const wave2 = useIdleWave(!!token)
   const intent = useIntentWave()
+  // Feed publication sensing is J1: never competes with the initial feed.
+  useFeedState(wave2)
 
-  const { balance: xpBalance, setBalance: setXPBalance } = useXPStore()
   const router = useRouter()
   const searchParams = useSearchParams()
   const selectedCluster = searchParams.get("cluster") || null
@@ -65,18 +62,6 @@ function IntelPageInner() {
       router.replace(jobSkillFacet ? `/intel?skill=${encodeURIComponent(jobSkillFacet)}` : "/intel")
     }
   }, [activeTab, jobSkillFacet, router])
-
-  // Sync tokens balance if not yet set from another page visit
-  useQuery({
-    queryKey: ["xpBalance", token],
-    queryFn: async () => {
-      const r = await xp.balance(token!)
-      setXPBalance(r.balance)
-      return r
-    },
-    enabled: !!token && xpBalance === 0,
-    staleTime: 60 * 1000,
-  })
 
   // Profile — needed for target_roles.
   // Uses the CANONICAL dataKeys.profile() key so this shares one cache entry
@@ -185,18 +170,26 @@ function IntelPageInner() {
   // touch-tablet would desync content from chrome. Desktop keeps the workspace.
   if (mode === "mobile") {
     return (
-      <JobsSurface
-        token={token ?? ""}
-        targetLocations={profileData?.target_locations ?? []}
-        filters={browseFilters}
-        onFiltersChange={(filters) => updateBrowse({ filters })}
-        targetRoles={targetRoles}
-        chipCountMap={chipCountMap}
-        hasCv={!!profileData?.has_cv}
-        primaryCareerBand={profileData?.target_career_band}
-        exploredCareerBands={profileData?.explored_career_bands ?? []}
-        onExploredCareerBandsChange={onExploredCareerBandsChange}
-      />
+      <>
+        <div style={{ padding: "10px 16px 0" }}>
+          <CVRequiredNudge
+            hasCv={profileData === undefined || !!profileData.has_cv}
+            feature="best-fit ranking"
+          />
+        </div>
+        <JobsSurface
+          token={token ?? ""}
+          targetLocations={profileData?.target_locations ?? []}
+          filters={browseFilters}
+          onFiltersChange={(filters) => updateBrowse({ filters })}
+          targetRoles={targetRoles}
+          chipCountMap={chipCountMap}
+          hasCv={!!profileData?.has_cv}
+          primaryCareerBand={profileData?.target_career_band}
+          exploredCareerBands={profileData?.explored_career_bands ?? []}
+          onExploredCareerBandsChange={onExploredCareerBandsChange}
+        />
+      </>
     )
   }
 
@@ -209,13 +202,13 @@ function IntelPageInner() {
       <div className="tm-intel-page" style={{ padding: "32px 36px 64px", maxWidth: 1480, margin: "0 auto" }}>
        <div className="mc-workspace">
         <aside className="mc-ws-rail">
-          <MissionHeroRail token={token ?? null} />
+          {wave2 && intent ? <MissionHeroRail token={token ?? null} /> : null}
         </aside>
         <div className="mc-ws-main">
         {/* Match staleness + coin-charged recompute — relocated from the retired
             /home dashboard; Jobs is the browse surface, so discovery mechanics
             live here. Renders nothing while matches are fresh. */}
-        {token ? <MatchesRefreshBanner token={token} /> : null}
+        {token && wave2 ? <MatchesRefreshBanner token={token} /> : null}
         {activeTab === "jobs" ? (
           <MarketJobsTab
             token={token ?? ""}

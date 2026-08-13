@@ -19,6 +19,7 @@ import { useJobFeed } from "./use-job-feed"
 import { usePulses } from "@/lib/hooks/use-pulses"
 import { useMarketIntel } from "@/lib/hooks/use-market-intel"
 import { useSkillDemand } from "@/lib/hooks/use-skill-demand"
+import { useFeedScope } from "@/lib/hooks/use-feed-scope"
 import { MarketRail } from "./market-rail"
 import { StoryCard, type FeedStory } from "./story-card"
 import { interleaveStories } from "./feed-rows"
@@ -74,6 +75,9 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   const router = useRouter()
   const { isDesktop } = useViewport()
   const hasTargetRoles = targetRoles.length > 0
+  // Where this feed is looking. Every place-naming surface below reads it —
+  // the pill, the divider, the rail, the story card, the filters sheet.
+  const scope = useFeedScope(targetLocations)
 
   const [searchInput, setSearchInput] = useState(initialQuery)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -124,7 +128,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   }, [selectedCluster, onSelectCluster, onFiltersChange])
 
   const { feed, allJobs, visibleJobs, total, rankedCount, loading, expansionDividers, triage, undo, pending, savedCount } =
-    useJobFeed({ token, filters, q, skill: skillFacet, targetLocations })
+    useJobFeed({ token, filters, q, skill: skillFacet, scope })
 
   // The brain's picks sit at the top; a quiet divider marks where the ranked
   // shortlist ends and the deterministic browse feed begins (so the verdicts
@@ -135,9 +139,11 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     if (rankedCount <= 0) return []
     const visibleRanked = applyViewFilters(allJobs.slice(0, rankedCount), filters).length
     if (visibleJobs.length <= visibleRanked) return []
-    const loc = targetLocations.find(l => l && l.trim())?.trim()
-    return [{ beforeJobId: visibleJobs[visibleRanked].job_id, label: loc ? `More roles in ${loc}` : "More roles" }]
-  }, [rankedCount, allJobs, visibleJobs, filters, targetLocations])
+    return [{
+      beforeJobId: visibleJobs[visibleRanked].job_id,
+      label: scope.city ? `More roles in ${scope.city}` : "More roles",
+    }]
+  }, [rankedCount, allJobs, visibleJobs, filters, scope])
 
   // Honest weak-shortlist header (Q7): when the engineer's picks are all stretches,
   // say so and point at the path — never fake a strong.
@@ -160,9 +166,8 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     return () => obs.disconnect()
   }, [feed])
 
-  const intel = useMarketIntel(targetLocations, "roles", analyticsEnabled)
-  const storyCity = targetLocations.find(l => l && l.trim())?.trim() ?? null
-  const { skills: demandSkills } = useSkillDemand(storyCity, "30d", demandEnabled, 1)
+  const intel = useMarketIntel(scope.city, "roles", analyticsEnabled)
+  const { skills: demandSkills } = useSkillDemand(scope.city, "30d", demandEnabled, 1)
   const stories = useMemo<FeedStory[]>(() => {
     const out: FeedStory[] = []
     const topSkill = demandSkills[0]
@@ -172,15 +177,15 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
         skill: topSkill.skill,
         roles: topSkill.roles,
         companies: topSkill.companies,
-        city: storyCity,
+        city: scope.city,
       })
     }
     const topCo = intel.trending[0]
     if (topCo) {
-      out.push({ kind: "company", company: topCo.name, openCount: topCo.openCount, location: targetLocations.find(l => l && l.trim())?.trim() ?? null, followed: followCompany.followedNames.includes(topCo.name) })
+      out.push({ kind: "company", company: topCo.name, openCount: topCo.openCount, location: scope.city, followed: followCompany.followedNames.includes(topCo.name) })
     }
     return out
-  }, [demandSkills, intel.trending, hasCv, followCompany.followedNames, targetLocations, storyCity])
+  }, [demandSkills, intel.trending, hasCv, followCompany.followedNames, scope])
 
   const rows = useMemo(
     () => interleaveStories(visibleJobs, stories, [...picksDivider, ...expansionDividers]),
@@ -229,7 +234,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   const onSkip = (j: JobFeedItem) => triage(j, "skipped")
 
   const railProps = {
-    token, targetLocations, feed: allJobs, pulses, cvReady: hasCv,
+    token, scope, feed: allJobs, pulses, cvReady: hasCv,
     onSeeRoles, onFilterSkill, onOpenJob: setOpenJob, analyticsEnabled, demandEnabled, followCompany,
   }
 
@@ -314,7 +319,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
             <>
               <div className="tm-feed-summary">
                 <span className="tm-feed-summary-count">{formatCount(total)} role{total === 1 ? "" : "s"}</span>
-                <LocationScopePill locations={targetLocations} onOpen={() => setFiltersOpen(true)} />
+                <LocationScopePill scope={scope} onOpen={() => setFiltersOpen(true)} />
                 {skillFacet ? (
                   <button
                     type="button"
@@ -440,7 +445,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
           targetRoles={targetRoles}
           chipCountMap={chipCountMap}
           hasCv={hasCv}
-          targetLocations={targetLocations}
+          scope={scope}
           onEditLocations={() => document.dispatchEvent(new CustomEvent("tm:open-settings", { detail: { tab: "Following" } }))}
           primaryCareerBand={primaryCareerBand}
           exploredCareerBands={exploredCareerBands}

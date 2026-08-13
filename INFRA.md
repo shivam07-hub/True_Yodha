@@ -27,6 +27,18 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
 - **Request chain (prod):** `himyro.com` → `api.himyro.com` (mirror-backend-prod, `main`) → Supabase + Redis; heavy LLM jobs → Redis → `True_Yodha` worker.
 - **Shared-infra couplings (known, accepted at this scale):** (a) dev + prod jobs share ONE Redis queue + ONE `llm:budget:slots` bucket — a dev test upload competes with prod traffic. (b) Worker tracks `Develop` while prod API tracks `main` → prod jobs are processed by slightly-ahead worker code. Full per-env isolation (separate Redis + `api-dev.himyro.com`) is documented but NOT built — see `docs/runbooks/railway-dev-main-env-split.md`.
 - **Supabase: `gipvxuugajkugntwkeiz` — ONE DB, shared by both dev+prod backends + worker.** A dev-env test upload writes to prod Supabase. Single by design (see policy above).
+- **#16 launch-capacity gate (measured 2026-08-13): BLOCKED.** The organization
+  is on **Free** and the database is **Nano**: 1,118MB database size, 224MB
+  `shared_buffers`, 60 `max_connections`, and 11 PostgREST authenticator
+  sessions. Nano's recommended maximum DB size is 500MB. After all known read
+  query, hop, payload, cache and journey fixes, one warm feed meets the 500ms
+  backend target (477ms p95), but 10 simultaneous Market arrivals (20 reads)
+  measure 2,161ms backend p95. Before launch: move the organization to a paid
+  plan, select **Small compute or larger** (Micro keeps the 60-connection class),
+  then rerun `backend/scripts/run_read_load_probe.py --scenario market_arrival`
+  at 10 and 20 users. Acceptance is backend p95 <500ms and zero failures at
+  both levels. This is a paid control-plane action; code agents must not claim
+  it happened from a `Develop` push.
 - **Release tier = `MYRO_ENV` (`sandbox` | `dev` | `prod`), set per Railway service.** It is the environment boundary; `RAILWAY_ENVIRONMENT` reads `production` on ALL five services (dev+prod deliberately share one Railway environment object) so it can never be the tier. Service-name inference survives as fallback only, and resolves anything unlabelled to `prod` (fail-safe). `backend/app/config.py: release_tier`.
 - **CORS is a real exact allowlist (since `9116777f`), NOT a wildcard** — `ALLOWED_ORIGINS` is live config, `allow_credentials=False`, `install_cors` refuses `*`. **Prod = exact origins only.** **Dev additionally matches `PREVIEW_ORIGIN_REGEX`** (`^https://truemirror-[a-z0-9-]+\.vercel\.app$`) because Vercel mints a NEW origin per preview deployment — an exact list goes stale on every push to Develop, which is what silently broke the dev app for days until 2026-07-27. Production ignores the regex *structurally* (`Settings.cors_origin_regex` returns `""` when tier is prod), so it cannot leak by config mistake. Attach a new stable domain (e.g. `dev.himyro.com`) → add it to that tier's `ALLOWED_ORIGINS`.
 - **Every deployed tier validates its own config at boot** (`validate_runtime_configuration`): Supabase present + at least one origin/pattern a browser can match. Sandbox exempt. Boot logs `boot tier=… origins=… preview_regex=…` on `uvicorn.error` — check that line first when an env "looks online but does nothing". **Contract smoke:** `python -m scripts.smoke_env_contract` (backend/) asks from outside whether each tier's frontend can reach its own backend + that foreign origins are still refused; CI runs it on push to Develop/main and daily.

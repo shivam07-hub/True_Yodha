@@ -41,7 +41,9 @@ export function useIdleWave(ready: boolean): boolean {
       cancelIdleCallback?: (id: number) => void
     }
     const useRic = typeof w.requestIdleCallback === "function"
-    const id = useRic ? w.requestIdleCallback!(run, { timeout: 2000 }) : window.setTimeout(run, 200)
+    // A 200ms fallback re-synchronised secondary reads while J0 was still in
+    // flight on browsers without requestIdleCallback (Safari/WebViews).
+    const id = useRic ? w.requestIdleCallback!(run, { timeout: 3000 }) : window.setTimeout(run, 1500)
 
     return () => {
       cancelled = true

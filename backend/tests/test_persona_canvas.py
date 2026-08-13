@@ -14,9 +14,9 @@ from app.services import persona_signals as ps
 from app.services import persona_synthesis as syn
 
 LINES = [
-    {"id": "S1", "text": "14 jobs saved on Myro — examples: Strategy Manager @ Razorpay"},
-    {"id": "S2", "text": "11 job cards dismissed without a second look — examples: Delivery Lead @ TCS"},
-    {"id": "S3", "text": "3 CVs tailored for specific jobs — for: Partner Manager @ Google"},
+    {"id": "S1", "text": "14 jobs you saved on Myro — examples: Strategy Manager @ Razorpay"},
+    {"id": "S2", "text": "11 job cards you dismissed on sight — examples: Delivery Lead @ TCS"},
+    {"id": "S3", "text": "3 CVs you tailored for a specific job — for: Partner Manager @ Google"},
 ]
 
 
@@ -33,7 +33,51 @@ def test_allowed_numbers_unions_lines_and_extras() -> None:
 
 def test_render_block_prefixes_ids() -> None:
     block = ps.render_block(LINES)
-    assert block.splitlines()[0].startswith("S1: 14 jobs saved")
+    assert block.splitlines()[0].startswith("S1: 14 jobs you saved")
+
+
+def test_signal_lines_address_the_reader_directly() -> None:
+    """Signal lines are shown to the reader verbatim as ground chips AND are the
+    writer's evidence block. Third person here made the canvas read as a case
+    file about the user, and the writer echoed the distance into the prose."""
+    from app.services import reader_voice
+
+    class _Db:
+        """Every source returns one row's worth of shape, so every line builds."""
+
+        def table(self, name: str):
+            self._name = name
+            return self
+
+        def select(self, *a, **k): return self
+        def eq(self, *a, **k): return self
+        def in_(self, *a, **k): return self
+        def not_(self, *a, **k): return self
+        def is_(self, *a, **k): return self
+        def order(self, *a, **k): return self
+        def limit(self, *a, **k): return self
+        def maybe_single(self): return self
+
+        def execute(self):
+            rows: list[dict] = {
+                "job_applications": [{"job_id": "j1", "created_at": "2026-01-01"}],
+                "user_dismissed_job_cards": [{"job_id": "j2", "dismissed_at": "2026-01-01"}],
+                "cv_versions": [{"id": "c1", "job_id": "j1"}],
+                "search_queries": [{"query": "product manager bengaluru"}],
+                "forge_sessions": [{"skill_name": "SQL"}],
+                "skill_upvotes": [{"display_name": "Network Science", "skill_key": "net"}],
+                "career_roles": [{"company": "Acme", "title": "Analyst", "date_label": "2024",
+                                  "started_on": "2024-01-01", "kind": "work"}],
+                "career_stories": [{"id": "s1"}],
+                "user_profiles": {"target_role_titles": ["Forward Deployed Engineer"],
+                                  "target_location": "Bengaluru"},
+            }.get(self._name, [])
+            return type("R", (), {"data": rows})()
+
+    collected = ps.collect(_Db(), "u1")
+    assert collected["lines"], "fixture produced no signal lines — test proves nothing"
+    for line in collected["lines"]:
+        assert reader_voice.violations(line["text"]) == [], f"third person in signal: {line['text']}"
 
 
 # ── parse_canvas ─────────────────────────────────────────────────────────────
@@ -63,6 +107,18 @@ def test_sanitize_drops_fabricated_numbers() -> None:
     out = syn.sanitize(canvas, LINES, ps.allowed_numbers(LINES))
     assert [p["movement"] for p in out] == ["past"]
     assert out[0]["grounds"] == [LINES[0]["text"]]  # id resolved to display line
+
+
+def test_sanitize_drops_third_person_paragraphs() -> None:
+    """The number guard's twin: a paragraph that talks ABOUT the reader never
+    ships, because it turns their own document into someone else's file."""
+    canvas = {
+        "past": [{"text": "You built things nobody asked for.", "grounds": ["S1"]}],
+        "present": [{"text": "Companies they keep coming back to: Razorpay.", "grounds": ["S1"]}],
+        "future": [{"text": "You need to bridge the gap to get there.", "grounds": []}],
+        }
+    out = syn.sanitize(canvas, LINES, ps.allowed_numbers(LINES))
+    assert [p["movement"] for p in out] == ["past"]
 
 
 def test_sanitize_skips_unknown_ground_ids() -> None:
@@ -116,7 +172,7 @@ def test_build_messages_carries_signals_facts_and_pinned() -> None:
     msgs = syn.build_messages(ps.render_block(LINES), ["preference: prefers international work"],
                               [{"movement": "past", "text": "I make things to understand them."}])
     user = msgs[1]["content"]
-    assert "S2: 11 job cards dismissed" in user
+    assert "S2: 11 job cards you dismissed on sight" in user
     assert "prefers international work" in user
     assert "[past] I make things to understand them." in user
     assert "PINNED" in user

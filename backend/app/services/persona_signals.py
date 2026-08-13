@@ -6,6 +6,13 @@ synthesis prompt receives numbered signal lines built here — real counts and
 patterns from what the user saves, dismisses, tailors, searches and practises —
 and the writer may only cite numbers that appear verbatim in these lines.
 
+SECOND PERSON IS A CONTRACT, not a style choice. Every line here is shown to
+the user verbatim as a ground chip under the paragraph it supports, AND is the
+evidence block the writer reads. A line phrased "companies they keep coming
+back to" makes the reader a case file being discussed by someone else — and the
+writer inherits that distance and echoes it in the prose. Address the reader:
+"you", "your", never "they/their/the user". Guarded in test_persona_canvas.
+
 Everything in this module is deterministic (no LLM): aggregates are computed in
 Python from capped reads, each source fail-soft so one dead table never sinks
 the canvas. The number set extracted from the lines powers the no-fabrication
@@ -86,17 +93,17 @@ def collect(db: Any, user_id: str) -> dict[str, Any]:
     if saved:
         companies = _top([(r.get("jobs") or {}).get("company_name") or "" for r in saved])
         examples = "; ".join(_titles(saved)[:_EXAMPLE_CAP])
-        text = f"{len(saved)} jobs saved on Myro"
+        text = f"{len(saved)} jobs you saved on Myro"
         if examples:
             text += f" — examples: {examples}"
         if companies:
-            text += f". Companies they keep coming back to: {', '.join(companies)}"
+            text += f". Companies you keep coming back to: {', '.join(companies)}"
         _line(lines, text)
 
     dismissed = _job_rows(db, user_id, "user_dismissed_job_cards", "dismissed_at")
     if dismissed:
         examples = "; ".join(_titles(dismissed)[:_EXAMPLE_CAP])
-        text = f"{len(dismissed)} job cards dismissed without a second look"
+        text = f"{len(dismissed)} job cards you dismissed on sight"
         if examples:
             text += f" — examples: {examples}"
         _line(lines, text)
@@ -104,25 +111,25 @@ def collect(db: Any, user_id: str) -> dict[str, Any]:
     tailored = _tailored_rows(db, user_id)
     if tailored:
         examples = "; ".join(_titles(tailored)[:_EXAMPLE_CAP])
-        text = f"{len(tailored)} CVs tailored for specific jobs"
+        text = f"{len(tailored)} CVs you tailored for a specific job"
         if examples:
             text += f" — for: {examples}"
         _line(lines, text)
 
     searches = _searches(db, user_id)
     if searches:
-        _line(lines, "Recent searches, in their own words: " + "; ".join(searches))
+        _line(lines, "What you searched, in your words: " + "; ".join(searches))
 
     practice = _practice(db, user_id)
     if practice["count"]:
-        text = f"{practice['count']} practice sessions completed"
+        text = f"{practice['count']} practice sessions you finished"
         if practice["skills"]:
             text += f" — most practised: {', '.join(practice['skills'])}"
         _line(lines, text)
 
     upvoted = _upvoted_skills(db, user_id)
     if upvoted:
-        _line(lines, "Skills they upvoted across job cards (want to build): " + ", ".join(upvoted))
+        _line(lines, "Skills you upvoted on job cards (want to build): " + ", ".join(upvoted))
 
     timeline = collect_timeline(db, user_id)
     stories = _story_count(db, user_id)
@@ -131,13 +138,13 @@ def collect(db: Any, user_id: str) -> dict[str, Any]:
             f"{r['title']} at {r['company']}" + (f" ({r['date_label']})" if r.get("date_label") else "")
             for r in timeline
         )
-        _line(lines, f"Career timeline from their own documents: {arc}")
+        _line(lines, f"Your timeline, from your own documents: {arc}")
     if stories:
-        _line(lines, f"{stories} career stories on file across {len(timeline)} roles")
+        _line(lines, f"{stories} career stories on file across {len(timeline)} of your roles")
 
     targets = _targets(db, user_id)
     if targets:
-        _line(lines, "Targets they set themselves: " + targets)
+        _line(lines, "Targets you set yourself: " + targets)
 
     behavioural_total = len(lines)
     facts = _facts(db, user_id)

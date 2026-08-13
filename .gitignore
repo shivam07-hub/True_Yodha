@@ -110,3 +110,8 @@ docs/free-llm-api-resources
 Myro-Content-Kit/
 Myro-Content-Kit.zip
 docs/free-llm-api-resources
+
+# Scratch outputs — benchmark JSON per commit, rendered CV PDFs/PNGs. Generated,
+# and tmp/pdfs holds real user names, so this must never be committed. Untracked
+# with no rule is what makes `git add -A` tempting; the rule is the fix.
+tmp/

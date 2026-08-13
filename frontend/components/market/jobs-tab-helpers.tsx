@@ -1,19 +1,18 @@
 import { FeedCardSkeleton } from "@/components/jobs/feed-card"
 import { Skeleton } from "@/components/ui/skeleton"
+import type { FeedScope } from "@/lib/feed-scope"
 
-export function LocationScopePill({ locations, onOpen }: { locations: string[]; onOpen: () => void }) {
-  const clean = locations.filter((location) => location && location.trim())
-  const label = clean.length === 0 ? "All locations" : clean.length === 1 ? clean[0] : `${clean[0]} +${clean.length - 1}`
+export function LocationScopePill({ scope, onOpen }: { scope: FeedScope; onOpen: () => void }) {
   return (
     <button
       type="button"
       onClick={onOpen}
       aria-haspopup="dialog"
-      aria-label={clean.length === 0 ? "Set your target locations. Open filters" : `Target locations: ${clean.join(", ")}. Open filters`}
-      title={clean.length > 1 ? clean.join(", ") : undefined}
+      aria-label={scope.isEmpty ? "Set your target locations. Open filters" : `Target locations: ${scope.cities.join(", ")}. Open filters`}
+      title={scope.cities.length > 1 ? scope.cities.join(", ") : undefined}
       className="tm-feed-summary-loc"
     >
-      <span aria-hidden>Location</span> {label}
+      <span aria-hidden>Location</span> {scope.label}
     </button>
   )
 }

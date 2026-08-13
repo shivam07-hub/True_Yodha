@@ -599,8 +599,10 @@ export const users = {
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({ ninja_name: ninjaName }),
     }),
+  /** `claimed` false means the name is still the slug we generated at signup,
+   *  so the naming moment has something to offer. True means never ask again. */
   suggestNinjaName: (token: string) =>
-    request<{ ninja_name: string }>("/profile/ninja-name/suggest", {
+    request<{ ninja_name: string; claimed: boolean }>("/profile/ninja-name/suggest", {
       headers: { Authorization: `Bearer ${token}` },
     }),
 }

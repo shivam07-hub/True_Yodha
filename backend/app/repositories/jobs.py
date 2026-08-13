@@ -16,6 +16,7 @@ from app.db_safe import safe_read
 from app.deps import get_user_db
 from app.repositories.job_skills_read_model import fetch_all_rows, fetch_job_skill_rows, fetch_job_skill_rows_for_ids, group_job_skill_rows
 from app.services import job_importer, shared_cache, skill_floor
+from app.services.background import debounce
 from app.services.company_pulse import SERIES_DAYS, build_series, compute_pulse
 from app.services.industry_grouping import normalize_industry_group
 from app.services.job_history import attach_jobs
@@ -60,20 +61,24 @@ _SWEEP_IN_CHUNK_SIZE = 200
 _ANALYTICS_TTL = 7 * 24 * 3600  # 7 days — market analytics change slowly
 _SEARCH_TTL = 24 * 3600          # 1 day — job listings stale tolerance
 _COMPANY_SEARCH_TTL = 24 * 3600  # 1 day — scraped companies change with the job feed
-_analytics_cache: dict[tuple[str | None, str | None, str | None, str | None], tuple[float, dict[str, Any]]] = {}
-_entity_skills_cache: dict[tuple[str, str, str | None, str | None, str | None], tuple[float, list[dict[str, Any]]]] = {}
-_heatmap_cache: dict[tuple[frozenset[str], frozenset[str]], tuple[float, dict[str, dict[str, int]]]] = {}
-_heatmap_row_cache: dict[tuple[str, frozenset[str]], tuple[float, dict[str, int]]] = {}
-_gap_signal_cache: dict[tuple[frozenset[str], frozenset[str]], tuple[float, dict[str, dict[str, int]]]] = {}
+_analytics_cache = shared_cache.SharedTTLMapping("jobs.analytics", ttl_seconds=_ANALYTICS_TTL)
+_entity_skills_cache = shared_cache.SharedTTLMapping("jobs.entity_skills", ttl_seconds=_ANALYTICS_TTL)
+_heatmap_cache = shared_cache.SharedTTLMapping("jobs.heatmap", ttl_seconds=_ANALYTICS_TTL)
+_heatmap_row_cache = shared_cache.SharedTTLMapping("jobs.heatmap_row", ttl_seconds=_ANALYTICS_TTL)
+_gap_signal_cache = shared_cache.SharedTTLMapping("jobs.gap_signal", ttl_seconds=30 * 60)
 # fetch_company_pulse and fetch_indexable_companies moved to shared_cache
 # (ARCHITECTURE_READ_PATH.md S3) — cross-replica, not per-process — so these
 # TTLs are now the args to shared_cache.get_or_compute rather than keys into a
 # local dict.
 _PULSE_TTL = 30 * 60  # 30 min — pulse tracks daily scrape batches, not real-time
 _INDEXABLE_TTL = 60 * 60  # 1 hour — matches the /companies page ISR window
-_skill_name_to_id_cache: dict[str, int] = {}  # display_name.lower() → skill_id; skills table is static
-_search_cache: dict[tuple[str, str, str | None, str | None, str | None, str | None, int, int], tuple[float, dict[str, Any]]] = {}
-_company_search_cache: dict[tuple[str, int], tuple[float, list[str]]] = {}
+_skill_name_to_id_cache = shared_cache.SharedTTLMapping(
+    "jobs.skill_name_to_id", ttl_seconds=7 * 24 * 3600
+)
+_search_cache = shared_cache.SharedTTLMapping("jobs.search", ttl_seconds=_SEARCH_TTL)
+_company_search_cache = shared_cache.SharedTTLMapping(
+    "jobs.company_search", ttl_seconds=_COMPANY_SEARCH_TTL
+)
 
 _FEED_TS_TTL = 5 * 60  # 5 minutes — cheap guard against repeated MAX() queries
 _FEED_TS_STALE = 60 * 60  # serve the last known marker for an hour rather than nothing
@@ -85,19 +90,17 @@ _FEED_TS_STALE = 60 * 60  # serve the last known marker for an hour rather than 
 # sort + role_domain + location + free-text + page bounds (DB paths) — the
 # personal path paginates in Python, so its candidate set is page-independent.
 _FEED_TTL = 5 * 60  # 5 minutes — bound browse staleness against continuous scrapes
-_feed_page_cache: dict[
-    tuple[str, str | None, str | None, str | None, str | None, str, int, int],
-    tuple[float, tuple[list[dict[str, Any]], int]],
-] = {}
-_feed_personal_cache: dict[
-    tuple[str | None, str | None, str | None, str | None, str],
-    tuple[float, list[dict[str, Any]]],
-] = {}
+_feed_page_cache = shared_cache.SharedTTLMapping("jobs.feed_page", ttl_seconds=_FEED_TTL)
+_feed_personal_cache = shared_cache.SharedTTLMapping("jobs.feed_personal.v2", ttl_seconds=_FEED_TTL)
 # Per-user CV skill keys — recomputed on every feed call before this cache.
 _USER_SKILL_KEYS_TTL = 5 * 60  # 5 minutes — CV skills change only on edit/re-upload
-_user_skill_keys_cache: dict[str, tuple[float, set[str]]] = {}
+_user_skill_keys_cache = shared_cache.SharedTTLMapping(
+    "jobs.user_skill_keys", ttl_seconds=_USER_SKILL_KEYS_TTL
+)
 _USER_TARGET_LOCATIONS_TTL = 5 * 60  # 5 minutes — prefs change only via Settings
-_user_target_locations_cache: dict[str, tuple[float, list[str]]] = {}
+_user_target_locations_cache = shared_cache.SharedTTLMapping(
+    "jobs.user_target_locations", ttl_seconds=_USER_TARGET_LOCATIONS_TTL
+)
 
 _COMPANY_SEARCH_RPC = "search_job_companies"
 
@@ -1917,7 +1920,11 @@ class JobsRepository:
     # ── authed /market browse feed ──────────────────────────────────────────────
 
     _FEED_COLUMNS = (
-        "job_id, job_title, company_name, job_description, "
+        # J0 card truth only. The full JD averages several KB and is fetched by
+        # the detail endpoint after explicit user intent; pulling it for the
+        # 500-row personal candidate pool dominated feed transfer and JSON
+        # decoding, then saturated every other read during a browsing burst.
+        "job_id, job_title, company_name, "
         "location, location_raw, location_city, location_country, location_mode, location_quality, locations, "
         "role_domain, career_band, industry, industry_group, apply_url, first_seen, last_seen, "
         "seniority_level, min_years_experience, max_years_experience, "
@@ -2102,18 +2109,22 @@ class JobsRepository:
             # data → shared across users on the same filter set). Per-user
             # shaping, exclusion and computed filters run below the cache.
             pkey = (domain, city, country, loc_mode, scope_sig, follow_sig, effective_term, skill_facet)
-            cached = _feed_personal_cache.get(pkey)
-            if cached is not None and (now - cached[0]) < _FEED_TTL:
-                rows = cached[1]
-            else:
+            def _load_feed_candidates() -> list[dict[str, Any]]:
                 try:
                     result = _apply_filters(
                         self._admin_db.table("jobs").select(self._FEED_COLUMNS)
                     ).order("first_seen", desc=True).limit(self._FEED_PERSONAL_CAP).execute()
                 except APIError:
                     result = None
-                rows = (result.data if result else None) or []
-                _feed_personal_cache[pkey] = (now, rows)
+                return (result.data if result else None) or []
+
+            # Cold bursts used to let every caller that lost the shared-cache
+            # claim repeat this same 500-row query. One user arrival therefore
+            # became ten identical scans and queued unrelated J0 reads behind
+            # PostgREST's finite session pool. The shared mapping now waits for
+            # one bounded winner and all peers reuse its raw (user-independent)
+            # candidate rows.
+            rows = _feed_personal_cache.get_or_compute(pkey, _load_feed_candidates)
 
             shaped = [self._feed_shape_row(r, user_skill_keys, role_token_sets) for r in rows]
             if eligibility_active:
@@ -2195,7 +2206,7 @@ class JobsRepository:
         now = time.monotonic()
         cached = _user_skill_keys_cache.get(user_id)
         if cached is not None and (now - cached[0]) < _USER_SKILL_KEYS_TTL:
-            return cached[1]
+            return set(cached[1])
         keys: set[str] = set()
         for row in self.get_user_skills_with_taxonomy(user_id):
             sk = row.get("skills") or {}
@@ -2203,8 +2214,31 @@ class JobsRepository:
                 val = (sk.get(field) or "").strip().lower()
                 if val:
                     keys.add(val)
-        _user_skill_keys_cache[user_id] = (now, keys)
+        _user_skill_keys_cache[user_id] = (now, sorted(keys))
         return keys
+
+    def get_feed_context(self) -> dict[str, Any]:
+        """All current-user state required before the J0 feed query, in one RPC."""
+        result = self._db.rpc("current_user_feed_context", {}).execute()
+        data = result.data or {}
+        if isinstance(data, list):
+            data = data[0] if data else {}
+        profile = data.get("eligibility_profile") or {}
+        return {
+            "skill_keys": {
+                str(value) for value in (data.get("skill_keys") or []) if value
+            },
+            "target_roles": data.get("target_roles") or [],
+            "dismissed": data.get("dismissed_job_ids") or [],
+            "saved": data.get("saved_job_ids") or [],
+            "location_prefs": data.get("target_locations") or [],
+            "location_countries": data.get("target_location_countries") or [],
+            "eligibility": {
+                "target_career_band": career_band_for_profile(profile) or None,
+                "explored_career_bands": profile.get("explored_career_bands") or [],
+                "target_seniority": target_seniority_for_profile(profile),
+            },
+        }
 
     _AGENT_PICK_JOB_COLUMNS = (
         "job_id, job_title, company_name, job_description, industry, industry_group, "
@@ -2293,6 +2327,17 @@ class JobsRepository:
                 }
             )
         if not payload:
+            return 0
+        # A reload or a multi-replica cache miss can return the same page many
+        # times together. One exposure window is enough to preserve "shown"
+        # truth and verifier priority; duplicate inserts only multiply writes
+        # and trigger work after the response. Sort ids so page-order jitter
+        # does not defeat the claim.
+        exposure_key = ":".join(
+            ["job_exposure", user_id, surface]
+            + sorted(row["job_id"] for row in payload)
+        )
+        if not debounce.claim(exposure_key, ttl_seconds=60):
             return 0
         try:
             self._admin_db.table("job_recommendation_exposures").insert(
@@ -2859,11 +2904,22 @@ class JobsRepository:
         Server-authoritative — the one definition behind the /matches signal, the
         login notification, and the charge waiver. 0 for never-matched users (no
         baseline → nothing is "new"). Never trust a client-supplied "free" flag.
+
+        One RPC deliberately owns marker fallback and counting. The previous
+        implementation made two dependent network round trips (three for a
+        profile without a marker), so it could not be hidden inside the
+        /jobs/matches read wave even when the other sections were fast.
         """
-        ran_at = self.last_match_run_at(user_id)
-        if ran_at is None:
-            return 0
-        return self.count_new_jobs_since(ran_at)
+        result = self._db.rpc(
+            "count_new_jobs_for_user",
+            {"p_user_id": user_id},
+        ).execute()
+        value = result.data
+        if isinstance(value, list):
+            value = value[0] if value else 0
+            if isinstance(value, dict):
+                value = next(iter(value.values()), 0)
+        return int(value or 0)
 
     def get_new_job_ids_since(self, since: datetime) -> list[str]:
         """Job ids that landed after `since` — the deterministic candidate set for

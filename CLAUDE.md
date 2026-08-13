@@ -126,9 +126,15 @@ still desktop layouts on a phone. The CV screen is one of them, so stage one is
 broken on mobile. Also: nobody has opened the rebuilt mobile app on a real phone
 while logged in.
 
-**5. Make it fast enough to feel trustworthy.** *Contract locked; S1-S5 open.*
-Never connection capacity (24/60, 2 active). Budget, tiers and sequence live in
-[ARCHITECTURE_READ_PATH.md](ARCHITECTURE_READ_PATH.md) — read before any read path.
+**5. Make it fast enough to feel trustworthy.** *#16 software slices closed;
+capacity acceptance blocked on paid DB compute.* The 2026-08-13 pass removed
+secondary Market reads from J0, collapsed feed context, single-flighted cold
+fills, repaired the verifier's cache-evicting claim query, and moved full job
+descriptions off feed reads. A warm feed is 477ms backend p95, but a 10-user
+Market-arrival burst is 2,161ms p95 on the shared Supabase Free/Nano project.
+That project holds 1,118MB against the tier's 500MB recommended DB size and has
+224MB `shared_buffers`; do not call launch capacity green until the paid compute
+gate in [ARCHITECTURE_READ_PATH.md](ARCHITECTURE_READ_PATH.md) passes.
 
 ### Stage 2 — job matching through Myro Ops (next)
 

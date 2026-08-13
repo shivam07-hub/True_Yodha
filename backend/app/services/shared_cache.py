@@ -24,13 +24,11 @@ never returns nothing because a refresh is in flight.
                       self-heal window) guards it, so at most one refresh runs
                       per key across every replica — every other caller in
                       that window gets the stale value with zero extra cost.
-  nothing cached   -> compute happens inline (there's nothing else to serve),
-                      but still single-flight-guarded, so a cold-start burst
-                      of first callers does not all pay full compute cost —
-                      only the winner does; the rest fall through to computing
-                      too (never block waiting on another process), but that
-                      redundancy is a one-time cost at population, not a
-                      steady-state one.
+  nothing cached   -> one caller computes inline. Peers wait for a short,
+                      bounded fill window and reuse the winner's value. If the
+                      winner stalls or fails they compute directly, preserving
+                      the cache's fail-open availability contract without
+                      turning a cold burst into N identical database scans.
 
 Redis errors fail open: compute() runs directly, uncached. A read path that
 degrades to "as slow as before this module existed" beats one that raises
@@ -44,6 +42,7 @@ a key by hand during an incident.
 from __future__ import annotations
 
 import json
+import hashlib
 import logging
 import time
 from collections.abc import Callable
@@ -69,6 +68,91 @@ _REFRESH_POOL = ThreadPoolExecutor(max_workers=4, thread_name_prefix="shared-cac
 _LOCAL_CACHE: dict[str, tuple[float, Any]] = {}
 
 _CLAIM_TTL_SECONDS = 20  # generous headroom over any read this module fronts
+_COLD_FILL_WAIT_SECONDS = 1.5
+_COLD_FILL_POLL_SECONDS = 0.02
+
+
+class SharedTTLMapping:
+    """Compatibility bridge for legacy module-level TTL dictionaries.
+
+    Values live in the same Redis namespace as ``get_or_compute``. Callers keep
+    their existing ``(monotonic_timestamp, value)`` contract while age is
+    derived from the shared wall clock, so replicas agree on freshness.
+    New or expensive reads should use ``get_or_compute`` directly for SWR and
+    single-flight; this class exists to remove replica-local state safely.
+    """
+
+    def __init__(self, namespace: str, *, ttl_seconds: int) -> None:
+        self.namespace = namespace
+        self.ttl_seconds = ttl_seconds
+
+    def _key(self, identity: Any) -> str:
+        def canonical(value: Any) -> Any:
+            if isinstance(value, dict):
+                return {str(key): canonical(item) for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))}
+            if isinstance(value, (set, frozenset)):
+                return sorted((canonical(item) for item in value), key=lambda item: json.dumps(item, sort_keys=True, default=str))
+            if isinstance(value, (list, tuple)):
+                return [canonical(item) for item in value]
+            return value
+
+        encoded = json.dumps(
+            canonical(identity), sort_keys=True, default=str, separators=(",", ":")
+        ).encode()
+        digest = hashlib.sha256(encoded).hexdigest()[:24]
+        return f"{self.namespace}:{digest}"
+
+    def get(self, identity: Any, default: Any = None) -> Any:
+        entry = _read(self._key(identity))
+        if entry is None:
+            return default
+        computed_at, data = entry
+        age = time.time() - computed_at
+        if age >= self.ttl_seconds:
+            return default
+        return (time.monotonic() - age, data)
+
+    def get_or_compute(self, identity: Any, compute: Callable[[], T]) -> T:
+        """Populate one legacy namespace through the shared single-flight path.
+
+        This is intentionally data-only (unlike ``get()``, which preserves the
+        historical ``(monotonic_timestamp, data)`` shape). New callers should
+        not need to reason about cache age themselves.
+        """
+        return get_or_compute(
+            self._key(identity),
+            compute,
+            ttl_seconds=self.ttl_seconds,
+        )
+
+    def __setitem__(self, identity: Any, value: Any) -> None:
+        data = value[1] if isinstance(value, tuple) and len(value) == 2 else value
+        _write(self._key(identity), data, ttl_seconds=self.ttl_seconds, stale_seconds=0)
+
+    def __contains__(self, identity: Any) -> bool:
+        return self._fresh_data(identity) is not None
+
+    def __getitem__(self, identity: Any) -> Any:
+        data = self._fresh_data(identity)
+        if data is None:
+            raise KeyError(identity)
+        return data
+
+    def _fresh_data(self, identity: Any) -> Any | None:
+        entry = _read(self._key(identity))
+        if entry is None:
+            return None
+        computed_at, data = entry
+        return data if time.time() - computed_at < self.ttl_seconds else None
+
+    def pop(self, identity: Any, default: Any = None) -> Any:
+        key = self._key(identity)
+        entry = _read(key)
+        invalidate(key)
+        return default if entry is None else entry[1]
+
+    def clear(self) -> None:
+        invalidate_prefix(f"{self.namespace}:")
 
 
 def _redis() -> Any | None:
@@ -119,6 +203,44 @@ def _write(key: str, data: Any, *, ttl_seconds: int, stale_seconds: int) -> floa
         logger.warning("metric shared_cache.write_failed key=%s exc=%s", key, exc.__class__.__name__)
         _LOCAL_CACHE[key] = (computed_at, data)  # at least serve this process
     return computed_at
+
+
+def invalidate(key: str) -> None:
+    """Remove one shared entry after its underlying truth is explicitly written.
+
+    The fill-claim goes with it. A claim outliving the entry it guards is the
+    worst of both worlds: no cache to serve and no claim to win, so every
+    caller waits out the cold-fill poll and then computes anyway.
+    """
+    _LOCAL_CACHE.pop(key, None)
+    debounce.release(f"shared_cache_fill:{key}")
+    conn = _redis()
+    if conn is None:
+        return
+    try:
+        conn.delete(f"sc:{key}")
+    except Exception as exc:  # noqa: BLE001 — invalidation must not break the writer
+        logger.warning("metric shared_cache.invalidate_failed key=%s exc=%s", key, exc.__class__.__name__)
+
+
+def invalidate_prefix(prefix: str) -> None:
+    """Invalidate a bounded cache namespace after a corpus snapshot write."""
+    for key in [candidate for candidate in _LOCAL_CACHE if candidate.startswith(prefix)]:
+        _LOCAL_CACHE.pop(key, None)
+        debounce.release(f"shared_cache_fill:{key}")
+    conn = _redis()
+    if conn is None:
+        return
+    try:
+        redis_keys = list(conn.scan_iter(match=f"sc:{prefix}*", count=100))
+        if redis_keys:
+            conn.delete(*redis_keys)
+    except Exception as exc:  # noqa: BLE001 — invalidation must not break the writer
+        logger.warning(
+            "metric shared_cache.invalidate_prefix_failed prefix=%s exc=%s",
+            prefix,
+            exc.__class__.__name__,
+        )
 
 
 def _refresh_now(
@@ -183,7 +305,15 @@ def get_or_compute(
 
     if debounce.claim(f"shared_cache_fill:{key}", ttl_seconds=_CLAIM_TTL_SECONDS):
         return _refresh_now(key, compute, ttl_seconds=ttl_seconds, stale_seconds=stale_seconds)
-    # Someone else is already filling this key. Computing again here is
-    # redundant but correct — a read path never blocks waiting on another
-    # process, and this only happens during the first population of a key.
+    # Someone else is filling this key. Poll only for a bounded interval: the
+    # common path reuses the winner's result, while a dead/stalled winner cannot
+    # hold this request indefinitely. This wait is deliberately shorter than
+    # the PostgREST request timeout and the claim TTL.
+    deadline = time.monotonic() + _COLD_FILL_WAIT_SECONDS
+    while time.monotonic() < deadline:
+        time.sleep(_COLD_FILL_POLL_SECONDS)
+        filled = _read(key)
+        if filled is not None:
+            return filled[1]
+    logger.warning("metric shared_cache.cold_fill_wait_expired key=%s", key)
     return compute()

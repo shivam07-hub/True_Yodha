@@ -27,6 +27,13 @@ class Scenario:
 
 
 SCENARIOS = {
+    "market_arrival": Scenario(
+        name="market_arrival",
+        routes=(
+            "/users/me",
+            "/jobs/feed?page=1&page_size=20",
+        ),
+    ),
     "login_bootstrap": Scenario(
         name="login_bootstrap",
         routes=(

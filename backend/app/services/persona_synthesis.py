@@ -25,6 +25,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from app.services import reader_voice
 from app.services.llm_provider import LLMProvider, LLMProviderError
 from app.services.persona_signals import allowed_numbers, numbers_in, render_block
 
@@ -39,18 +40,23 @@ _MAX_PER_MOVEMENT = 4      # pinned always kept; Myro prose trimmed to fit
 _MAX_TOKENS = 1400
 
 _SYSTEM = (
-    "You write \"What Myro knows about you\" — the living career document a "
-    "career-intelligence platform keeps about one job seeker. Voice: second "
-    "person, warm but precise, dignified, never flattering. The reader should "
-    "feel the document knows their career better than their CV does.\n"
+    "You write \"What Myro knows about you\" — a living career document, "
+    "addressed to the one person who is reading it. You are writing TO them, "
+    "never ABOUT them. They are the only reader; there is no third party.\n"
+    "Voice: second person throughout. Dry, specific, unimpressed by titles. "
+    "You sound like the friend who already got the job and is reading their CV "
+    "over chai — warm, a little blunt, never flattering, never a hype-man. "
+    "The reader should finish a paragraph thinking 'that is exactly what I do' "
+    "— not 'someone has been watching me'.\n"
     "Structure — exactly three movements:\n"
-    "- past: where they've been. The through-line across their roles and stories.\n"
-    "- present: where they stand. Their leverage NOW — and what their behaviour "
-    "on the platform reveals: what they save, what they dismiss without a second "
-    "look, what they tailor CVs for, what they search, what they practise. Name "
-    "these patterns plainly; the behavioural signals are the strongest material.\n"
-    "- future: where they're headed. The target they set + the specific, "
-    "nameable gap between here and there.\n"
+    "- past: where you've been. The through-line across your roles and stories.\n"
+    "- present: where you stand. What you can trade on NOW — and what your "
+    "behaviour on the platform gives away: what you save, what you kill on "
+    "sight, what you bother tailoring a CV for, what you search at 1am, what "
+    "you practise. Say these plainly; behaviour is the strongest material here.\n"
+    "- future: where you're headed. The target you set + the one specific, "
+    "nameable thing standing between you and it.\n"
+    + reader_voice.prompt_rules() + "\n"
     "HARD RULES:\n"
     "- Ground every claim in the numbered SIGNALS. Never invent an employer, "
     "date, metric or preference.\n"
@@ -59,8 +65,8 @@ _SYSTEM = (
     "- 1-3 paragraphs per movement, each under 75 words. Plain prose — no "
     "headings, no bullets, no markdown.\n"
     "- Each paragraph lists the ids of the signal lines it draws on (grounds).\n"
-    "- PINNED passages are the user's own words and are law: never contradict "
-    "them, never rewrite them, never repeat them.\n"
+    "- PINNED passages are your reader's own words and are law: never "
+    "contradict them, never rewrite them, never repeat them.\n"
     "- Thin signals → write less. An honest short document beats a padded one.\n"
     'Return ONLY JSON: {"past": [{"text": "...", "grounds": ["S1"]}], '
     '"present": [...], "future": [...]}. No prose outside the JSON.'
@@ -123,11 +129,17 @@ def sanitize(
     lines: list[dict[str, str]],
     allowed: set[str],
 ) -> list[dict[str, Any]]:
-    """Ground-id → display line resolution + the no-fabricated-numbers guard.
+    """Ground-id → display line resolution + the two shipping guards.
 
-    A paragraph whose text carries a digit token absent from `allowed` is
-    dropped (metric-logged) — silently shipping an invented number is the one
-    unforgivable failure on a trust surface.
+    A paragraph is dropped, never repaired, when it either
+    - carries a digit token absent from `allowed` — silently shipping an
+      invented number is the one unforgivable failure on a trust surface; or
+    - breaks the reader-voice contract (third person about the reader, machine
+      filler) — see reader_voice. Rewriting prose to fix voice would be
+      guessing at meaning; dropping costs one paragraph until the next window.
+
+    Both are metric-logged. Pinned passages never reach here: the reader's own
+    words are law and are merged in afterwards.
     """
     by_id = {line["id"]: line["text"] for line in lines}
     out: list[dict[str, Any]] = []
@@ -139,6 +151,14 @@ def sanitize(
                     "metric persona.fabricated_number_dropped movement=%s tokens=%s",
                     movement,
                     sorted(fabricated),
+                )
+                continue
+            voice = reader_voice.violations(item["text"])
+            if voice:
+                logger.warning(
+                    "metric persona.voice_violation_dropped movement=%s reasons=%s",
+                    movement,
+                    voice,
                 )
                 continue
             out.append(

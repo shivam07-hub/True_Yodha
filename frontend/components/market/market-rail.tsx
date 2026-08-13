@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import type { JobFeedItem, JobPulse } from "@/lib/api"
+import type { FeedScope } from "@/lib/feed-scope"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useMarketIntel, uncertainListings } from "@/lib/hooks/use-market-intel"
 import { useSkillDemand } from "@/lib/hooks/use-skill-demand"
@@ -18,7 +19,9 @@ import "./market-intel.css"
 
 export interface MarketRailProps {
   token: string
-  targetLocations: string[]
+  /** Where the feed is looking — the same object the feed itself is keyed on, so
+   *  the rail can never name a different place than the cards below it. */
+  scope: FeedScope
   feed: JobFeedItem[]
   pulses: Map<string, JobPulse>
   /** Filter the feed to a company (sets the free-text search box). */
@@ -44,10 +47,9 @@ export interface MarketRailProps {
 /** Desktop right rail — market dashboard + community listing-status. CV-coach
  *  intel lives on /dashboard; this surface stays about the market. */
 export function MarketRail(props: MarketRailProps) {
-  const { targetLocations, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob, analyticsEnabled = true, demandEnabled = true, followCompany } = props
+  const { scope, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob, analyticsEnabled = true, demandEnabled = true, followCompany } = props
   const [companyMode, setCompanyMode] = useState<CompanySignalMode>("roles")
-  const { trending, loading: intelLoading } = useMarketIntel(targetLocations, companySignalSortParam(companyMode), analyticsEnabled)
-  const homeCity = targetLocations.find((l) => l && l.trim())?.trim() ?? null
+  const { trending, loading: intelLoading } = useMarketIntel(scope.city, companySignalSortParam(companyMode), analyticsEnabled)
   const uncertain = uncertainListings(feed, pulses)
 
   // NOTE: no count/scope strip here. The feed summary line ("N roles" + the
@@ -62,7 +64,7 @@ export function MarketRail(props: MarketRailProps) {
           reads the skill-demand snapshot, not the /jobs/analytics scan the
           trending widget below still uses. */}
       <SkillDemandPanel
-        homeCity={homeCity}
+        homeCity={scope.city}
         onFilterSkill={onFilterSkill}
         enabled={demandEnabled}
       />
@@ -127,15 +129,14 @@ export function MarketRail(props: MarketRailProps) {
 /** Mobile: the rail collapses to a sticky horizontal chip strip. Tap a chip →
  *  the same action its rail widget would route to. */
 export function MarketChipStrip(props: MarketRailProps) {
-  const { targetLocations, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob, analyticsEnabled = true, demandEnabled = true } = props
-  const { trending } = useMarketIntel(targetLocations, "roles", analyticsEnabled)
+  const { scope, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob, analyticsEnabled = true, demandEnabled = true } = props
+  const { trending } = useMarketIntel(scope.city, "roles", analyticsEnabled)
   const uncertain = uncertainListings(feed, pulses)
   const co = trending[0]
   // Mobile takes the 30d window in the viewer's own city — no picker in a chip
   // strip. A city we hold no snapshot for yields no chips rather than a chip
   // built from a number we cannot stand behind.
-  const city = targetLocations.find((l) => l && l.trim())?.trim() ?? null
-  const { skills } = useSkillDemand(city, "30d", demandEnabled, 2)
+  const { skills } = useSkillDemand(scope.city, "30d", demandEnabled, 2)
 
   // Lead count chip dropped for the same reason as the rail strip — the feed
   // summary line above it already carries the count. Every chip here is a tap.

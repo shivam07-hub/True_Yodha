@@ -4,7 +4,6 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from typing import Any
 
@@ -18,6 +17,7 @@ from app.repositories.role_families import RoleFamiliesRepository
 from app.repositories.scores import ScoresRepository
 from app.repositories.users import UsersRepository
 from app.services import background, scoring
+from app.services.concurrent_reads import run_concurrently
 from app.services.job_eligibility import (
     career_band_for_profile,
     explored_bands_for_profile,
@@ -626,9 +626,7 @@ def _parallel(db: Client, reads: dict[str, Any]) -> dict[str, Any]:
     is what bootstrap had to reason about). Each read is still bounded by the 8s
     PostgREST timeout, so the slowest caps the tail.
     """
-    with ThreadPoolExecutor(max_workers=max(1, len(reads))) as pool:
-        futures = {name: pool.submit(fn) for name, fn in reads.items()}
-        return {name: future.result() for name, future in futures.items()}
+    return run_concurrently(reads, label="onboarding.result")
 
 
 JourneyPosition = str  # "experience" | "result" | "completed"

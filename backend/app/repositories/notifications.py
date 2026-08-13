@@ -19,14 +19,16 @@ from supabase import Client
 from app.database import get_supabase_admin
 from app.db_safe import safe_read
 from app.deps import get_user_db
+from app.services.new_inventory_projection import (
+    NEW_INVENTORY_DEBOUNCE_HOURS as NEW_INVENTORY_DEBOUNCE_HOURS,
+    reconcile_new_inventory,
+    record_new_inventory,
+    resolve_new_inventory,
+)
 
 # One unread 'fresh_matches' digest per user within this window — a re-scrape
 # inside it bumps the existing row instead of stacking a new ping.
 FRESH_MATCHES_DEBOUNCE_HOURS = 12
-# Once a user has SEEN a new-inventory announcement, don't raise another inside
-# this window — landings are continuous, so an un-debounced projection would
-# re-nag on every page load.
-NEW_INVENTORY_DEBOUNCE_HOURS = 24
 _INBOX_LIMIT = 30
 
 
@@ -40,7 +42,7 @@ class NotificationsRepository:
     def list_for_user(self, user_id: str, *, limit: int = _INBOX_LIMIT) -> list[dict[str, Any]]:
         # safe_read: the migration (20260710b) is manual-apply; until it lands
         # PostgREST returns PGRST205 — degrade to an empty inbox, never 500 the bell.
-        return safe_read(
+        rows = safe_read(
             self._db.table("user_notifications")
             .select(
                 "id, kind, title, body, job_id, source_id, action_url, state, "
@@ -52,6 +54,7 @@ class NotificationsRepository:
             default=[],
             context="notifications_list",
         )
+        return reconcile_new_inventory(self._db, self._admin_db, user_id, list(rows))
 
     def unread_count(self, user_id: str) -> int:
         rows = safe_read(
@@ -260,52 +263,12 @@ class NotificationsRepository:
         lands (never stacked), and a read one is not re-raised inside the debounce
         window. Returns True when the inbox actually changed.
         """
-        if count <= 0:
-            return False
-
-        title = f"{count:,} new role{'s' if count != 1 else ''} to search"
-        body = "Myro found these since your last search. Run a search to see which ones fit you."
-        now = datetime.now(timezone.utc)
-        rows = (
-            self._admin_db.table("user_notifications")
-            .select("id, read_at, match_count")
-            .eq("user_id", user_id)
-            .eq("kind", "new_jobs")
-            .order("created_at", desc=True)
-            .limit(1)
-            .execute()
-        ).data or []
-        latest = rows[0] if rows else None
-
-        if latest and latest.get("read_at") is None:
-            if int(latest.get("match_count") or 0) == count:
-                return False
-            self._admin_db.table("user_notifications").update({
-                "title": title, "body": body, "match_count": count,
-            }).eq("id", latest["id"]).execute()
-            return True
-
-        if latest is not None:
-            seen_at = datetime.fromisoformat(str(latest["read_at"]).replace("Z", "+00:00"))
-            if now - seen_at < timedelta(hours=NEW_INVENTORY_DEBOUNCE_HOURS):
-                return False
-
-        self._admin_db.table("user_notifications").insert({
-            "user_id": user_id,
-            "kind": "new_jobs",
-            "title": title,
-            "body": body,
-            "action_url": "/market?search=1",
-            "match_count": count,
-        }).execute()
-        return True
+        return record_new_inventory(self._admin_db, user_id, count=count)
 
     def resolve_new_inventory(self, user_id: str) -> None:
         """The user ran the search — the announcement is spent. Admin client: the
         caller is a background match run, not the owner's request."""
-        self._admin_db.table("user_notifications").update({
-            "read_at": datetime.now(timezone.utc).isoformat(),
-        }).eq("user_id", user_id).eq("kind", "new_jobs").is_("read_at", "null").execute()
+        resolve_new_inventory(self._admin_db, user_id)
 
 
 def _fresh_title(count: int) -> str:

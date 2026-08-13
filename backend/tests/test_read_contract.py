@@ -41,9 +41,8 @@ from app.services.concurrent_reads import (
 class _CountingJobsRepo:
     """Fake jobs repo that tallies every read the router performs.
 
-    Deliberately counts CALLS, not queries: one repo method may be several
-    round trips (`count_new_jobs_for_user` is two, or three when the profile
-    marker is null), and this guard is about the router's read *shape*, which
+    Deliberately counts CALLS, not queries. The repository contract makes each
+    method one round trip; this guard is about the router's read *shape*, which
     is what a code change alters.
     """
 

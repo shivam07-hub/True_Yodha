@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
+import { NinjaNameCard } from "@/components/onboarding/ninja-name-card"
 import { ResultMatches } from "@/components/onboarding/result-matches"
 import { StickyOnboardingActionBar } from "@/components/onboarding/sticky-action-bar"
 import { FeedCardSkeleton } from "@/components/jobs/feed-card"
@@ -103,6 +104,11 @@ export function FullResult({ token, result, onBack, onAdjust }: Props) {
           <Button size="sm" variant="outline" className="mt-4" disabled={adjustBusy} onClick={() => void adjustDirection()}>{adjustBusy ? "Reopening direction…" : "Adjust my direction"}</Button>
         </div>
       )}
+
+      {/* Below the shortlist on purpose: the roles are what the user came for,
+          and the naming moment lands after Myro has earned it, not before. It
+          gates nothing and disappears once claimed. */}
+      {!finding && <NinjaNameCard token={token} />}
 
       {selectedJob && (
         <StickyOnboardingActionBar error={error} contentClassName="max-w-3xl px-5 pt-3 sm:px-8">

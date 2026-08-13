@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import type { CareerBand } from "@/lib/api"
+import type { FeedScope } from "@/lib/feed-scope"
 import { TargetRolesChips } from "@/components/target-role/target-roles-chips"
 import {
   type FeedFilters, WORK_MODES, activeFilterCount, resetFilters,
@@ -30,7 +31,7 @@ const CAREER_BANDS: ReadonlyArray<readonly [CareerBand, string]> = [
 ] as const
 
 export function FiltersSheet({
-  filters, onChange, onClose, targetRoles, chipCountMap, hasCv, targetLocations, onEditLocations,
+  filters, onChange, onClose, targetRoles, chipCountMap, hasCv, scope, onEditLocations,
   primaryCareerBand, exploredCareerBands, onExploredCareerBandsChange, applyLabel,
 }: {
   filters: FeedFilters
@@ -39,7 +40,7 @@ export function FiltersSheet({
   targetRoles: string[]
   chipCountMap: Record<string, number>
   hasCv: boolean
-  targetLocations: string[]
+  scope: FeedScope
   onEditLocations: () => void
   primaryCareerBand?: CareerBand | null
   exploredCareerBands?: CareerBand[]
@@ -48,7 +49,6 @@ export function FiltersSheet({
    *  count, because the loaded page is not the corpus. */
   applyLabel?: string
 }) {
-  const cleanLocations = targetLocations.filter(l => l && l.trim())
   const [mounted, setMounted] = useState(false)
   const [draft, setDraft] = useState<FeedFilters>(filters)
   const [draftCareerBands, setDraftCareerBands] = useState<CareerBand[]>(exploredCareerBands ?? [])
@@ -84,9 +84,9 @@ export function FiltersSheet({
               it's actually editable. Mirrors the summary row's 📍-first order. */}
           <Section title="Location">
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {cleanLocations.length === 0
+              {scope.isEmpty
                 ? <span className="tm-sheet-empty">All locations — set targets in settings to scope your feed.</span>
-                : cleanLocations.map(loc => (
+                : scope.cities.map(loc => (
                     <span key={loc} className="tm-sheet-chip is-static">📍 {loc}</span>
                   ))}
             </div>

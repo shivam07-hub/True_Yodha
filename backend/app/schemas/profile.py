@@ -51,6 +51,11 @@ class UpdateNinjaNameResponse(BaseModel):
 
 
 class SuggestNinjaNameResponse(BaseModel):
-    """Used during onboarding to seed the input with an available default."""
+    """Seeds the naming moment with an available default.
+
+    `claimed` is what tells the caller whether to ask at all: True means the
+    user already picked this name and must never be asked again.
+    """
 
     ninja_name: str
+    claimed: bool = False
