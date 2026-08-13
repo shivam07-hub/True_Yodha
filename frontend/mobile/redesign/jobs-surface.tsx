@@ -9,6 +9,7 @@ import type { CareerBand } from "@/lib/api"
 import { activeFilterCount, type FeedFilters } from "@/components/market/feed-types"
 import { FiltersSheet } from "@/components/market/filters-sheet"
 import { useJobFeed } from "@/components/market/use-job-feed"
+import { useFeedScope } from "@/lib/hooks/use-feed-scope"
 import { useMyroSearch } from "@/lib/hooks/use-myro-search"
 import { IntentChat } from "@/components/jobs/intent-chat"
 import { NewInventoryStrip } from "@/components/jobs/new-inventory-strip"
@@ -75,8 +76,9 @@ export function JobsSurface({
     setShowSwipeHint(true)
   }, [])
 
+  const scope = useFeedScope(targetLocations)
   const { allJobs, visibleJobs, total, loading, triage, undo } =
-    useJobFeed({ token, filters, q: searchQ, skill: null, targetLocations })
+    useJobFeed({ token, filters, q: searchQ, skill: null, scope })
   const filterCount = activeFilterCount(filters)
 
   const rows = useMemo(() => visibleJobs.map(feedItemToRow), [visibleJobs])
@@ -96,7 +98,9 @@ export function JobsSurface({
     onFindSimilar: () => setDetailId(null),
   })
 
-  const locationLabel = targetLocations.find(l => l && l.trim())?.trim() ?? ""
+  // The city, not the "+N" label: this line is already the tightest thing on the
+  // header row and truncates from the tail.
+  const locationLabel = scope.city ?? ""
   // While loading the counts are 0 — don't paint a false "0 of 0 live" that the
   // arriving feed immediately contradicts. Show the location alone until settled.
   const countLine = loading
@@ -188,10 +192,10 @@ export function JobsSurface({
             so the two skins can never disagree about whether the user was told
             that Myro is holding roles they've never searched. Renders nothing at
             zero. */}
-        {!isRefreshing ? <NewInventoryStrip token={token} /> : null}
+        {!loading && !isRefreshing ? <NewInventoryStrip token={token} /> : null}
         {/* Curated Agent Picks — default view only (hidden while searching, filtering
             or viewing hidden jobs). Renders nothing when the user has no picks. */}
-        {!eyeOn && !searchQ && filterCount === 0 ? (
+        {!loading && !eyeOn && !searchQ && filterCount === 0 ? (
           <MobileAgentPicks token={token} context="feed" />
         ) : null}
         {eyeOn ? (
@@ -256,7 +260,7 @@ export function JobsSurface({
           targetRoles={targetRoles}
           chipCountMap={chipCountMap}
           hasCv={hasCv}
-          targetLocations={targetLocations}
+          scope={scope}
           onEditLocations={() => document.dispatchEvent(new CustomEvent("tm:open-settings", { detail: { tab: "Following" } }))}
           primaryCareerBand={primaryCareerBand}
           exploredCareerBands={exploredCareerBands}

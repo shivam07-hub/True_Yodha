@@ -29,15 +29,15 @@ export interface UncertainListing {
  * employer-spread and taxonomy guards — see `useSkillDemand`.
  */
 export function useMarketIntel(
-  targetLocations: string[],
+  /** From `useFeedScope().city` — this hook does not derive geo, it is handed
+   *  the one answer every surface shares. */
+  city: string | null,
   companySort: TopCompaniesSort = "roles",
   // Wave-3 gate (#41 L3): must never fire on login. Until the flag is true the
   // query stays disabled and `loading` is false (no eternal skeleton — the
   // widget simply doesn't render yet).
   enabled = true,
 ) {
-  const city = targetLocations.find((l) => l && l.trim())?.trim() ?? null
-
   const companies = useQuery({
     queryKey: ["topCompaniesAt", "city", city ?? "", companySort],
     queryFn: () => jobs.topCompaniesAt({ kind: "city", name: city! }, COMPANY_SIGNAL_FETCH_LIMIT, companySort),

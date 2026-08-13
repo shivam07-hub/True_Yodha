@@ -11,6 +11,7 @@ import { sessionsToNextLevel } from "@/lib/level-thresholds"
 import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
 import { CompanySignalCard, SignalLabel } from "@/components/companies/company-signal"
 import { useCompanyPulse } from "@/lib/hooks/use-company-pulse"
+import { useFeedScope } from "@/lib/hooks/use-feed-scope"
 import type { UseFollowCompany } from "@/lib/hooks/use-follow-company"
 import { SkillColumnPicker } from "./skill-column-picker"
 import { SkillIntelligencePanel } from "./skill-intelligence-panel"
@@ -161,9 +162,10 @@ export function SkillIntelligenceHeatmap({
       .slice(0, 4)
   }, [companies, rowDataMap, selectedSkillName])
 
+  const scope = useFeedScope(targetLocations)
   const selectedCount = selectedSkillNames.size
   const roleLabel = targetRoles[0] ?? "Role signals"
-  const locationLabel = targetLocations[0] ?? "Location signals"
+  const locationLabel = scope.city ?? "Location signals"
   const followedCap = MYRO_COINS_POLICY.followedCompanyLimit
 
   if (!companies.length) {
