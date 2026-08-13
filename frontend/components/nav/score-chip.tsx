@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { useEffect, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { scores, type ScoreResponse } from "@/lib/api"
@@ -23,6 +24,7 @@ const CIRC = 2 * Math.PI * R
 
 export function ScoreChip() {
   const { token } = useAuth()
+  const pathname = usePathname()
   // SWR-persist (#41 L2): paint last session's score instantly; refetch in the
   // background (old timestamp keeps it stale). The ring breathes while
   // revalidating so a shifting number is explained, never a silent surprise.
@@ -33,7 +35,9 @@ export function ScoreChip() {
   const { data, isFetching } = useQuery({
     queryKey: dataKeys.scores(),
     queryFn: () => scores.me(token!),
-    enabled: !!token,
+    // Jobs owns the first-arrival feed. The persisted score can paint there,
+    // but refreshing it is J1 and must not compete with the feed.
+    enabled: !!token && pathname !== "/market",
     staleTime: 5 * 60 * 1000,
     retry: false, // 404 = no CV scored yet — chip simply absent
     initialData: snapshot?.data,

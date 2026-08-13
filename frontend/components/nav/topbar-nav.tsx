@@ -28,7 +28,7 @@ function AttentionBadge() {
   const { data } = useQuery({
     queryKey: dataKeys.applications(),
     queryFn: () => jobsApi.applications(token!),
-    enabled: !!token,
+    enabled: false, // passive: Prep/Collections own and seed this read
     staleTime: 60 * 1000,
   })
   const n = attentionCount(data ?? [], new Date())

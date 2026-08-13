@@ -9,6 +9,7 @@
  * already shares — because the global Next action and the Myrology reveal read it.
  */
 import { useMemo } from "react"
+import { usePathname } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { cv, users } from "@/lib/api"
 import { cvPresenceFromProfile, type CvPresence } from "@/lib/cv-presence"
@@ -39,11 +40,14 @@ export function useNavUnlocks(): NavUnlocksVm {
   // Passive read: the public nav consumes this hook, so it must NEVER gate an
   // anonymous visitor. Token only decides whether the two backing queries run.
   const { token } = useSession()
+  const pathname = usePathname()
 
   const { data: versionsData, isLoading: versionsLoading } = useQuery({
     queryKey: dataKeys.cvVersions(null),
     queryFn: () => cv.versions.list(token!),
-    enabled: !!token,
+    // Every journey stage is always visible. CV versions only affect the
+    // side-offering context, so Jobs must not pay for them before its feed.
+    enabled: !!token && pathname !== "/market",
     staleTime: 60 * 1000,
   })
   const { data: profile, isLoading: profileLoading } = useQuery({

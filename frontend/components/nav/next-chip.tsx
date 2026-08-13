@@ -47,7 +47,7 @@ export function NextChip({ cvPresence }: { cvPresence: CvPresence }) {
   const { data: apps } = useQuery({
     queryKey: dataKeys.applications(),
     queryFn: () => jobsApi.applications(token!),
-    enabled: !!token,
+    enabled: false, // passive: the current journey surface owns this read
     staleTime: 60 * 1000,
   })
   const { data: matches } = useQuery<JobMatchesResponse>({
