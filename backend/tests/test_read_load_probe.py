@@ -89,6 +89,13 @@ def test_company_scenario_requires_and_escapes_company_name() -> None:
     )
 
 
+def test_market_arrival_scenario_matches_the_j0_route_budget() -> None:
+    assert render_routes(SCENARIOS["market_arrival"], {}) == (
+        "/users/me",
+        "/jobs/feed?page=1&page_size=20",
+    )
+
+
 def test_run_probe_executes_each_read_for_every_virtual_user() -> None:
     seen: list[tuple[str, str | None]] = []
 

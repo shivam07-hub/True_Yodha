@@ -688,7 +688,11 @@ placeholder presented as data.
 
 ---
 
-## 7. Still open
+## 7. Historical open-item audit (superseded by section 8)
+
+The bullets below preserve the measurements that led to the closeout. Their
+"open" language is point-in-time evidence, not current status; section 8 is the
+authoritative #16 state.
 
 - **The background workers, not users, are what saturate this database.**
   Measured 2026-08-09 over a 28-day `pg_stat_statements` window. Ranked by
@@ -814,3 +818,74 @@ placeholder presented as data.
   exists as an uncommitted local diff (`use-skill-demand.ts`, stable
   `EMPTY_SKILLS`/`EMPTY_CITIES` refs) — not authored this pass, not committed
   here; not this document's to claim done.
+
+## 8. #16 closeout and launch-capacity gate (2026-08-13)
+
+This section supersedes the stale open bullets in section 7 for #16. Every
+application/database slice discovered by the latency-email audit is complete on
+`Develop`, and every forward-only migration below is applied to the one shared
+database. The platform is **not yet capacity-cleared for launch** because the
+paid compute gate at the end of this section fails.
+
+### Closed software slices
+
+| Slice | Shipped result | Verified evidence |
+|---|---|---|
+| Verifier contention | Constant-time interest bookkeeping and schedule read models | `claim_verify_targets(25)` 3,210ms / 14,645 buffers → 28.6ms; `count_verify_due` 5.6ms |
+| Feed query | Exact active-row index plus active-first plan | SQL plan 8,550ms / 13,670 buffers → 224ms / 499 buffers |
+| Feed payload | List reads omit full job descriptions; detail is fetched only when opened | live feed about 14.9KB; route contracts green |
+| Current-user hops | Seven feed-context reads collapsed into one RPC | feed-context route/migration tests: 73 passed |
+| Cache stampedes | Shared cache cold fills single-flight with bounded loser wait and stale fallback | shared-cache/repository tests: 30 passed |
+| Write amplification | Recommendation-exposure batches are debounced | exposure suite: 71 passed |
+| Company journey | First render uses company summary + jobs; skill intelligence waits for intent | company journey contract green |
+| Market journey | J0 is `/users/me` + `/jobs/feed`; feed-state, matches, applications, notifications and analytics wait for intent/idle | isolated TypeScript check + 5 Market contracts green |
+| Read bulkhead | In-flight cap and HTTP keepalive pool agree at 40 | config and database contracts green |
+| Fan-out threads | Request-local executors replaced by one process-wide pool bounded to the 40-read bulkhead | concurrent-read contracts green |
+
+Applied migrations:
+
+- `20260813090000_read_path_closeout.sql`
+- `20260813091000_verifier_schedule_read_model.sql`
+- `20260813092000_verifier_diagnostics_schedule.sql`
+- `20260813092500_verifier_schedule_payload.sql`
+- `20260813092700_verifier_interest_index_cleanup.sql`
+- `20260813092900_verifier_interest_constant_time_triggers.sql`
+- `20260813094000_feed_active_first_seen_index.sql`
+- `20260813094100_feed_active_index_predicate.sql`
+- `20260813095000_feed_context_read_model.sql`
+
+### Measured acceptance result
+
+The locked acceptance target is zero failures and backend p95 below 500ms for
+the current-decision reads. On the deployed dev API:
+
+- warm `/jobs/feed`, five samples: **477ms backend p95 — pass**;
+- warm `/users/me`, five samples: **934ms backend p95 — fail**;
+- 10 simultaneous Market arrivals, 20 J0 requests: **2,161ms backend p95,
+  2,635ms client p95, zero failures — fail**;
+- the API's `/v1/status` remains about 1ms backend under a 40-request burst,
+  isolating the bottleneck away from FastAPI/Railway request scheduling.
+
+### The remaining launch gate is paid infrastructure
+
+Live control-plane and SQL evidence: Supabase organization plan **Free**,
+database compute **Nano**, database size **1,118MB**, `shared_buffers` **224MB**,
+`max_connections` **60**, and **11** PostgREST authenticator sessions. Supabase
+recommends at most 500MB database size for Nano. This database is already over
+twice that recommendation and the concurrent-arrival measurement fails after
+the query, payload, hop, cache, and journey work is complete.
+
+Required launch sequence:
+
+1. Move the Supabase organization to a paid plan and choose **Small compute or
+   larger**. Micro retains the 60-connection class and is not an adequate
+   launch experiment for this workload.
+2. Run the read-only probe against dev with `market_arrival` at 10 users, then
+   20 users. Require backend p95 <500ms and zero failures in both runs.
+3. If Small fails, inspect database CPU/cache-hit/PostgREST wait evidence during
+   the probe before choosing Medium; do not guess from endpoint wall time.
+4. Only after the gate passes should the current `Develop` release be promoted
+   to production by the repository owner.
+
+Do not relabel this as an unfinished cache, index, or hop slice. Conversely, do
+not mark launch capacity green merely because the software slices are closed.

@@ -19,7 +19,7 @@ Item numbers are historical and carry no priority meaning.
 | Prove the score persists end-to-end | needs one real signup | fix shipped, never run |
 | Upload + download reliability on weak networks | #42, beta ledger | open |
 | Seven orphan mobile surfaces + real-device authed QA | #42 slice 3 | verified open · APK blocker |
-| Read capacity under concurrent load | Tier 1 #3 | measure pooler ceiling first |
+| Read capacity under concurrent load | #16 | software closed; paid DB capacity gate blocks launch |
 
 ### Stage 2 — job matching through Myro Ops (NEXT)
 
@@ -55,7 +55,12 @@ per-skill percentile (#39) · publish portability (#32) · teal-field loading (#
 
 > Audit method: every claim below was checked against `git`/live state, NOT copied from memory or the backlog prose. Re-audit the same way before trusting it — entries rot ([[feedback_verify_backlog_stale]]).
 
-> **2026-07-27 Learning Ladder policy correction:** Career Ops × verifier parity remains CLOSED in `AGENTS.md` backlog #14 and production read capacity #16 remains untouched. Backlog #15 now serves active source-grounded, explained, structurally valid questions without a human-review gate. Each complete L1–L5 skill ladder is the comprehensive product; 50–60 skills is the market-driven catalog target. Human review/counsel work is deferred quality improvement. Learning progress remains isolated from CV-derived score and matching truth.
+> **2026-08-13 status correction:** Career Ops × verifier parity remains CLOSED
+> in backlog #14. Production read capacity #16's software slices are also
+> CLOSED on `Develop`; its paid-infrastructure load gate remains the launch
+> blocker. Backlog #15 serves active source-grounded, explained, structurally
+> valid questions without a human-review gate. Learning progress remains
+> isolated from CV-derived score and matching truth.
 
 ### Scope rule (locked 2026-07-20)
 
@@ -73,7 +78,22 @@ Memory carried "OWED: main merge" on ~25 entries. **Audit: 20 of 23 spot-checked
 
 1. **✅ CLOSED 2026-07-22 — the superseded `last_seen` freshness gate was removed from Career Ops candidate selection.** Scraper re-observation is absent, so `last_seen` is ingest time rather than liveness evidence. Candidate eligibility now consumes the existing Supabase verifier state, and Agent Picks blocks Career Ops' `suspicious` legitimacy verdict. See closed `AGENTS.md` #14.
 2. **✅ CLOSED 2026-07-23 — #40 `keyStats` backfill.** All 16 issues in `Myro Newsletter/issues/` now carry 3–4 `keyStats` entries, lifted verbatim from each issue's own TL;DR/dataset (author-verified, never derived — e.g. "9,446 / postings analyzed", "124 / BFSI + banking + fintech AI roles"). Synced to `frontend/content/newsletter/issues/` via `scripts/sync-newsletter.ts`, pushed Develop `375d0c29`. tsc 0 · eslint 0. L4 now pays on every issue page. OWED (Shivam): none beyond the standing `main` merge for #40's core layout fix.
-3. **Prod read-latency under concurrent load — ROOT-CAUSED 2026-08-06, two of three fixed.** Original report: Rishabh Guha (`6b624e2e-…`), "credentials not shown after login", 20 Jul ~18:41 IST. Not auth, not data — every authed call returned 200, they just took ~5,200–5,900ms together. **The old diagnosis on this line ("blocked AnyIO/Supabase connection capacity, not compute… measure the pooler ceiling") was wrong and cost follow-up sessions. Measured: 24 of 60 connections, 2 active. There is no connection ceiling.**
+3. **#16 production read latency — SOFTWARE CLOSED 2026-08-13; PAID CAPACITY GATE BLOCKS LAUNCH.** Original report: Rishabh Guha (`6b624e2e-…`), "credentials not shown after login", 20 Jul ~18:41 IST. Not auth, not data — every authed call returned 200, they just took ~5,200–5,900ms together. **The old diagnosis on this line ("blocked AnyIO/Supabase connection capacity, not compute… measure the pooler ceiling") was wrong and cost follow-up sessions.**
+
+   The code/DB closeout is now complete: verifier claims 3,210ms → 28.6ms;
+   the feed plan 8,550ms → 224ms; full descriptions no longer ride the feed;
+   the seven current-user context reads are one RPC; shared caches single-flight;
+   and `/market` J0 is `/users/me` + `/jobs/feed`, with feed-state, matches,
+   applications, notifications and analytics deferred until intent/idle. The
+   canonical evidence and exact acceptance gate are in
+   `ARCHITECTURE_READ_PATH.md`.
+
+   **External gate:** the shared Supabase organization is Free/Nano. The DB is
+   1,118MB (over Nano's 500MB recommended size), `shared_buffers` is 224MB and
+   PostgREST exposes 11 sessions. Warm `/jobs/feed` meets the locked backend
+   target at 477ms p95, but 10 simultaneous Market arrivals (20 reads) measure
+   2,161ms backend p95 with zero errors. Upgrade to paid compute (Small minimum),
+   rerun `market_arrival`, and require backend p95 <500ms with zero failures.
 
    The actual mechanism, and it explains the "**concurrent company-browsing burst**" detail exactly: `shared_buffers` is 224MB, the `jobs` table is 522MB. Every company page ran `company_name ILIKE` → **sequential scan of all 62,225 rows** → the whole buffer cache evicted → the ~20 other in-flight endpoints then read from disk and finished slow *together*. That co-timing was the symptom, never the cause.
 
@@ -83,11 +103,16 @@ Memory carried "OWED: main merge" on ~25 entries. **Audit: 20 of 23 spot-checked
    - non-partial trigram index — `14,821ms → 19.6ms` on the identical query; live `/companies/{slug}` `5,552ms` + an `8,017ms` 503 → **310–410ms steady**. `database/migrations/20260806_jobs_company_name_trgm_usable.sql`
    - `/jobs/companies/indexable` paged 11,208 rows in 12 OFFSET round trips to count 185 — measured `7,081ms` on prod; now one GROUP BY RPC. `database/migrations/20260806b_indexable_companies_rpc.sql` (code on `Develop`, reaches prod on the next `main` merge)
 
-   **STILL OPEN — the biggest single remaining consumer.** `job-listing-verifier` runs against the SAME Postgres as himyro.com: `claim_verify_targets` (1,286 calls, **mean 4,680ms**, regularly killed at the 8s ceiling) and `count_verify_due` (1,032 calls, mean 1,809ms — a `count(*)` over 62k rows for a progress number). 2.2 hours of DB time between them. Not yet EXPLAINed; do that before proposing a fix.
+   **Closed:** `job-listing-verifier` was the biggest shared-DB consumer.
+   Constant-time interest bookkeeping plus schedule read models reduced
+   `claim_verify_targets(25)` from 3,210ms/14,645 buffers to 28.6ms, and
+   `count_verify_due` to 5.6ms.
 
    **Two reading rules this cost:** rank `pg_stat_statements` by `total_exec_time`, not by what looks slow in the logs. And `max_ms ≈ 7,9xx` does not mean "took 8s" — it means the `authenticator` role's 8s `statement_timeout` killed the query mid-scan. That is what the `/companies` 500s were.
 
-3b. **Concurrency architecture — the reason point fixes keep not being enough (2026-08-07).** Two app-layer defects cap the platform regardless of query speed. Both were built on the disproven "connection capacity" theory.
+3b. **✅ CLOSED 2026-08-13 — concurrency architecture.** The app-layer defects
+that amplified database pressure are fixed; the remaining failed gate is the
+measured Free/Nano database ceiling, not unfinished application work.
 
    - **`ReadCapacityLimiter` caps the whole process at 12 concurrent PostgREST GETs** (`backend/app/services/read_capacity.py`, `supabase_read_max_inflight=12`, 250ms queue → 503). When queries take seconds those 12 slots stay occupied and everyone else gets a 503. This is why `/public/stats` returned at **exactly 1004, 1004, 1004, 1004, 1003ms** — five requests released from one queue together — and it is the source of the `/home/bootstrap` and `/scores/map` 503s in the alert mails. **100s of concurrent users is arithmetically impossible against a 12-slot semaphore.**
    - **Every shared cache is a per-process dict with no single-flight** (`_indexable_companies_cache`, `_pulse_cache`, `_analytics_cache`, `_search_cache`, `/public/stats`). On TTL expiry every concurrent request misses at once and all recompute. It also means **adding replicas makes things worse** — each new process is another cold cache and another stampede.
@@ -95,10 +120,12 @@ Memory carried "OWED: main merge" on ~25 entries. **Audit: 20 of 23 spot-checked
 
    **Governing principle: public read paths must not touch the `jobs` table on the request path.** `/public/stats` already proves it (snapshot-backed, 1.2ms). Ordered plan — the order is load-bearing:
    1. ✅ **DONE** — real search index for `/jobs/search/global` (see item 3c).
-   2. `/jobs/companies/pulse` → precomputed table (6,680ms measured on prod).
-   3. Shared caches → Redis (already provisioned for RQ) with single-flight + stale-while-revalidate. No user ever waits for a cache fill.
-   4. THEN raise/remove the 12-slot limiter, THEN add replicas. Removing the bulkhead before step 1–2 lets slow queries hit Postgres unthrottled; adding replicas before step 3 multiplies stampedes.
-   5. Re-measure instance sizing only after `jobs` leaves the hot path. Buying compute now would mask 1–4.
+   2. ✅ `/jobs/companies/pulse` uses the shared stale-capable cache.
+   3. ✅ Shared caches have single-flight cold fills and stale fallback.
+   4. ✅ The read limiter is 40 and the shared HTTP transport is bounded to it.
+   5. ✅ Re-measured after query and journey fixes. Nano still fails the
+      concurrent-arrival acceptance gate, so compute is now the correct next
+      lever rather than a mask for unfinished software.
 
 3c. **✅ Global search fixed on `Develop` — ⚠️ PROD STILL 503s UNTIL `main` MERGE.** `/jobs/search/global` returned 503 for ordinary words (`engineer`, `manager`) because a five-column `ILIKE` OR seq-scanned 62,225 rows and hit the 8s timeout. Cost tracked how *rare* the user's word was. Replaced with `job_search_index` (materialized view of the five search fields concatenated; the same concatenation `_global_search_rank` already ranks against) + the `search_jobs_global` RPC. Measured: `engineer` 4,284ms → 177ms, `quantum` 12,415ms → 22ms; live dev endpoint 210–1,204ms across every term shape, no 503s. Migrations `20260807_job_search_index.sql` + `20260807a_*_interim.sql`; code `cd777acb`.
    **OWED once merged:** drop the four interim per-column trigram indexes (`idx_jobs_job_title_trgm_all`, `_location_city_`, `_location_country_`, `_role_domain_`) — they only serve the old deployed query and become pure write-amplification. Do NOT drop before the merge.

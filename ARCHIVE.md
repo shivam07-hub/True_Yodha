@@ -6,6 +6,23 @@
 
 ---
 
+## CLOSED 2026-08-13 — #16 production read-path software slices
+
+The application and database slices are finished on `Develop`. Verifier claims
+fell from 3,210ms to 28.6ms; the live feed query plan from 8,550ms to 224ms;
+feed reads stopped carrying full descriptions; seven user-context reads became
+one RPC; shared cache cold fills single-flight; duplicate exposure writes are
+debounced; company secondary reads wait for user intent; and Market arrival is
+now only `/users/me` + `/jobs/feed` at J0. Per-request fan-out thread pools were
+also replaced by one bounded process-wide pool. Nine forward-only migrations were
+applied to the shared database. The warm feed measured 477ms backend p95.
+
+This closes build slices, not the launch-capacity acceptance gate. The shared
+Supabase project is Free/Nano with a 1,118MB database against the tier's 500MB
+recommended size. Ten simultaneous Market arrivals still measure 2,161ms
+backend p95. `CLAUDE.md`, `INFRA.md` and `ARCHITECTURE_READ_PATH.md` retain that
+paid-compute gate as current work; it must not disappear into this archive.
+
 ## CLOSED — DEFERRED v2 NOTES
 
 - **Shareability v2** — XP-for-referral trigger on `welcome_xp_granted = TRUE AND referred_by_user_id IS NOT NULL`. `referrals_log` analytics table. Mentor/mentee surfacing. Public profile theming. (v1 closed 2026-05-19; archive in `docs/session-history/2026-05.md`.)

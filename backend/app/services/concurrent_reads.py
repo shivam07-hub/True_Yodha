@@ -25,6 +25,16 @@ SLOW_FANOUT_MS = 250.0
 # "one more section" into a concurrency ceiling under load.
 READ_CONTRACT_MAX_SECTIONS = 3
 
+# One process-wide, bounded pool. The old implementation constructed and tore
+# down a ThreadPoolExecutor for every fan-out. Under a concurrent arrival burst
+# that multiplied threads by requests x sections even though every submitted
+# task was competing for the same 40-read Supabase bulkhead. Keep scheduling
+# capacity aligned with that bulkhead and reuse workers across requests.
+_READ_POOL = ThreadPoolExecutor(
+    max_workers=40,
+    thread_name_prefix="read-fanout",
+)
+
 # Fan-outs that exceed the contract today, with the reason. Anything NOT listed
 # here is held to READ_CONTRACT_MAX_SECTIONS. This is a debt register, not a
 # permission slip: entries should shrink, and a new one needs a real argument.
@@ -89,11 +99,11 @@ def run_concurrently(
 
     started = time.perf_counter()
     try:
-        with ThreadPoolExecutor(max_workers=len(sections)) as pool:
-            futures = {
-                key: pool.submit(_timed, key, read) for key, read in sections.items()
-            }
-            return {key: future.result() for key, future in futures.items()}
+        futures = {
+            key: _READ_POOL.submit(_timed, key, read)
+            for key, read in sections.items()
+        }
+        return {key: future.result() for key, future in futures.items()}
     finally:
         total_ms = (time.perf_counter() - started) * 1000.0
         if total_ms >= SLOW_FANOUT_MS and timings:

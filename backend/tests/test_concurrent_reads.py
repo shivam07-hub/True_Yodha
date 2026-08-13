@@ -9,6 +9,7 @@ instrumentation never changes what it measures.
 import logging
 import time
 
+from app.services import concurrent_reads
 from app.services.concurrent_reads import SLOW_FANOUT_MS, run_concurrently
 
 
@@ -97,3 +98,13 @@ def test_sections_run_concurrently_not_sequentially() -> None:
     run_concurrently({f"s{i}": nap for i in range(4)})
     elapsed = time.perf_counter() - started
     assert elapsed < 0.45, f"4x150ms ran in {elapsed:.2f}s — looks sequential"
+
+
+def test_fanouts_reuse_one_bounded_process_pool() -> None:
+    pool = concurrent_reads._READ_POOL
+
+    assert pool._max_workers == 40
+    run_concurrently({"a": lambda: 1})
+    run_concurrently({"b": lambda: 2})
+
+    assert concurrent_reads._READ_POOL is pool
