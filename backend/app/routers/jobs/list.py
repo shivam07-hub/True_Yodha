@@ -372,23 +372,31 @@ def _resolve_feed_scope(
     # resolution). Run them concurrently instead of serially — wall time collapses
     # from sum() (the prod `route.slow` on /jobs/feed) to max(). Same per-request
     # RLS client (Depends-cached, httpx threadsafe) as the parallel home bootstrap.
-    prelude = {
-        "skill_keys": lambda: repo.user_skill_keys(uid),
-        "target_roles": lambda: repo.get_user_target_roles(uid),
-        "dismissed": lambda: repo.get_dismissed_job_card_ids(uid),
-        "saved": lambda: repo.get_saved_job_ids(uid),
-        "location_prefs": lambda: repo.user_target_locations(uid),
-        "location_countries": lambda: repo.user_target_location_countries(uid),
-    }
-    if hasattr(repo, "get_user_eligibility_preferences"):
-        prelude["eligibility"] = lambda: repo.get_user_eligibility_preferences(uid)
+    got: dict[str, object] = {}
+    if hasattr(repo, "get_feed_context"):
+        got = repo.get_feed_context()
+        extra_reads = {}
+    else:
+        # Compatibility seam for lightweight repository fakes. Production uses
+        # current_user_feed_context(), collapsing these seven hops into one.
+        extra_reads = {
+            "skill_keys": lambda: repo.user_skill_keys(uid),
+            "target_roles": lambda: repo.get_user_target_roles(uid),
+            "dismissed": lambda: repo.get_dismissed_job_card_ids(uid),
+            "saved": lambda: repo.get_saved_job_ids(uid),
+            "location_prefs": lambda: repo.user_target_locations(uid),
+            "location_countries": lambda: repo.user_target_location_countries(uid),
+        }
+        if hasattr(repo, "get_user_eligibility_preferences"):
+            extra_reads["eligibility"] = lambda: repo.get_user_eligibility_preferences(uid)
     if following_only:
-        prelude["followed"] = lambda: repo.get_followed_company_names(uid)
+        extra_reads["followed"] = lambda: repo.get_followed_company_names(uid)
     if not role_domain and cluster:
-        prelude["resolved_domain"] = lambda: repo.resolve_role_domain_for_clusters([cluster])
-    with ThreadPoolExecutor(max_workers=len(prelude)) as pool:
-        futures = {key: pool.submit(fn) for key, fn in prelude.items()}
-        got = {key: future.result() for key, future in futures.items()}
+        extra_reads["resolved_domain"] = lambda: repo.resolve_role_domain_for_clusters([cluster])
+    if extra_reads:
+        with ThreadPoolExecutor(max_workers=len(extra_reads)) as pool:
+            futures = {key: pool.submit(fn) for key, fn in extra_reads.items()}
+            got.update({key: future.result() for key, future in futures.items()})
 
     resolved_domain = role_domain or got.get("resolved_domain")
     # Draining queue: hide what the user has decided on. Skipped = the canonical

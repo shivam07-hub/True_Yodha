@@ -90,7 +90,7 @@ _FEED_TS_STALE = 60 * 60  # serve the last known marker for an hour rather than 
 # personal path paginates in Python, so its candidate set is page-independent.
 _FEED_TTL = 5 * 60  # 5 minutes — bound browse staleness against continuous scrapes
 _feed_page_cache = shared_cache.SharedTTLMapping("jobs.feed_page", ttl_seconds=_FEED_TTL)
-_feed_personal_cache = shared_cache.SharedTTLMapping("jobs.feed_personal", ttl_seconds=_FEED_TTL)
+_feed_personal_cache = shared_cache.SharedTTLMapping("jobs.feed_personal.v2", ttl_seconds=_FEED_TTL)
 # Per-user CV skill keys — recomputed on every feed call before this cache.
 _USER_SKILL_KEYS_TTL = 5 * 60  # 5 minutes — CV skills change only on edit/re-upload
 _user_skill_keys_cache = shared_cache.SharedTTLMapping(
@@ -2211,6 +2211,29 @@ class JobsRepository:
                     keys.add(val)
         _user_skill_keys_cache[user_id] = (now, sorted(keys))
         return keys
+
+    def get_feed_context(self) -> dict[str, Any]:
+        """All current-user state required before the J0 feed query, in one RPC."""
+        result = self._db.rpc("current_user_feed_context", {}).execute()
+        data = result.data or {}
+        if isinstance(data, list):
+            data = data[0] if data else {}
+        profile = data.get("eligibility_profile") or {}
+        return {
+            "skill_keys": {
+                str(value) for value in (data.get("skill_keys") or []) if value
+            },
+            "target_roles": data.get("target_roles") or [],
+            "dismissed": data.get("dismissed_job_ids") or [],
+            "saved": data.get("saved_job_ids") or [],
+            "location_prefs": data.get("target_locations") or [],
+            "location_countries": data.get("target_location_countries") or [],
+            "eligibility": {
+                "target_career_band": career_band_for_profile(profile) or None,
+                "explored_career_bands": profile.get("explored_career_bands") or [],
+                "target_seniority": target_seniority_for_profile(profile),
+            },
+        }
 
     _AGENT_PICK_JOB_COLUMNS = (
         "job_id, job_title, company_name, job_description, industry, industry_group, "

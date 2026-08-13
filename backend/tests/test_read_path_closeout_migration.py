@@ -25,6 +25,14 @@ TRIGGER_MIGRATION = (
     Path(__file__).parents[2]
     / "database/migrations/20260813092900_verifier_interest_constant_time_triggers.sql"
 )
+FEED_INDEX_MIGRATION = (
+    Path(__file__).parents[2]
+    / "database/migrations/20260813094100_feed_active_index_predicate.sql"
+)
+FEED_CONTEXT_MIGRATION = (
+    Path(__file__).parents[2]
+    / "database/migrations/20260813095000_feed_context_read_model.sql"
+)
 
 
 def test_verifier_priority_is_an_incremental_read_model() -> None:
@@ -111,3 +119,15 @@ def test_hot_priority_writes_are_constant_time_upserts() -> None:
     assert "refresh_job_verification_interest(NEW.job_id)" not in exposure
     assert "sync_job_verification_interest_application" in sql
     assert "sync_job_verification_interest_match" in sql
+
+
+def test_feed_read_model_collapses_context_hops_and_indexes_j0_order() -> None:
+    context_sql = FEED_CONTEXT_MIGRATION.read_text()
+    index_sql = FEED_INDEX_MIGRATION.read_text()
+
+    assert "current_user_feed_context" in context_sql
+    assert "auth.uid()" in context_sql
+    assert "security invoker" in context_sql
+    assert "grant execute" in context_sql
+    assert "idx_jobs_feed_active_first_seen" in index_sql
+    assert "where is_active = true and listing_confidence = 'active'" in index_sql
