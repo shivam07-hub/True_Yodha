@@ -3,7 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from postgrest.exceptions import APIError
 
 from app.deps import Principal, get_principal
@@ -20,7 +20,6 @@ from app.services.matching import feed_warm
 from app.services.matching.filter_spec import FilterSpec
 from app.services.matching.job_query import JobQuery
 from app.schemas import (
-    AnalyticsSnapshotRefreshResponse,
     CompanyOpenRoleItem,
     CompanyOpenRolesResponse,
     CompanyHiringItem,
@@ -772,89 +771,3 @@ def global_search_jobs(
             for r in rows
         ],
     )
-
-
-@router.post("/analytics/refresh-snapshot", response_model=AnalyticsSnapshotRefreshResponse)
-def refresh_analytics_snapshot(
-    x_myro_refresh_secret: Annotated[str, Header(min_length=10)],
-    force: bool = False,
-    repo: JobsRepository = Depends(get_public_jobs_repository),
-) -> AnalyticsSnapshotRefreshResponse:
-    """Refresh the landing-page analytics snapshot.
-
-    Two callers, two cadences:
-      • Daily pg_cron (default, ``force=false``) — runs the cheap dirty-guard
-        first and only recompiles when the jobs table changed since last refresh,
-        so idle days cost two index-backed marker queries, not a full scan.
-      • Scraper finalisation hook (``force=true``) — unconditional recompile
-        right after a batch lands, for immediate freshness.
-
-    Auth: shared secret via the X-Myro-Refresh-Secret header
-    (env: MYRO_ANALYTICS_REFRESH_SECRET). Header, not query param, so the
-    secret does not leak into HTTP access / reverse-proxy logs.
-    Returns the totals; ``refreshed=false`` means the guard skipped the compile.
-    """
-    import os
-    import secrets as _secrets
-    expected = os.environ.get("MYRO_ANALYTICS_REFRESH_SECRET", "").strip()
-    if not expected or not _secrets.compare_digest(x_myro_refresh_secret, expected):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="invalid refresh secret")
-    if force:
-        summary = repo.persist_analytics_snapshot(refreshed_by="batch-finalize")
-        _refresh_skill_demand("batch-finalize")
-        _refresh_job_search_index("batch-finalize")
-        return AnalyticsSnapshotRefreshResponse(refreshed=True, **summary)
-    summary = repo.refresh_analytics_snapshot_if_stale(refreshed_by="cron")
-    # Ride the same dirty guard: recompute the skill-demand panel and the search
-    # index only when the analytics snapshot actually recompiled, so idle days
-    # stay cheap.
-    if summary["refreshed"]:
-        _refresh_skill_demand("cron")
-        _refresh_job_search_index("cron")
-    return AnalyticsSnapshotRefreshResponse(
-        refreshed=summary["refreshed"],
-        total_jobs=summary["total_jobs"],
-        total_companies=summary["total_companies"],
-    )
-
-
-def _refresh_job_search_index(trigger: str) -> None:
-    """Rebuild the global-search index after the corpus changed.
-
-    Same best-effort contract as _refresh_skill_demand: search freshness must
-    follow ingest, but a failed rebuild must not fail the batch-finalisation
-    call the scraper depends on. The materialized view keeps serving its
-    previous contents until a refresh succeeds, so the failure mode is stale
-    search results, never broken search — and the log line says which.
-    """
-    from app.database import get_supabase_admin
-
-    try:
-        result = get_supabase_admin().rpc("refresh_job_search_index", {}).execute()
-        logger.info(
-            "metric job_search_index.refreshed trigger=%s rows=%s",
-            trigger, result.data,
-        )
-    except Exception:  # noqa: BLE001 — never fail the caller's snapshot refresh
-        logger.exception("metric job_search_index.refresh_failed trigger=%s", trigger)
-
-
-def _refresh_skill_demand(trigger: str) -> None:
-    """Recompute the skill-demand panel after the corpus changed.
-
-    Best-effort by design: this endpoint's contract is the analytics snapshot,
-    and a panel refresh failing must not fail the batch-finalisation call the
-    scraper depends on. Logged either way — a silently stale panel is the exact
-    failure this feature replaced.
-    """
-    from app.database import get_supabase_admin
-    from app.repositories.skill_demand import SkillDemandRepository
-
-    try:
-        summary = SkillDemandRepository(get_supabase_admin()).refresh()
-        logger.info(
-            "metric skill_demand.refreshed trigger=%s cities=%d rows=%d",
-            trigger, summary["cities"], summary["rows_written"],
-        )
-    except Exception:  # noqa: BLE001 — never fail the caller's snapshot refresh
-        logger.exception("metric skill_demand.refresh_failed trigger=%s", trigger)

@@ -838,10 +838,28 @@ class GlobalJobSearchResponse(BaseModel):
     hits: list[GlobalJobHit]
 
 
-class AnalyticsSnapshotRefreshResponse(BaseModel):
-    refreshed: bool
-    total_jobs: int
-    total_companies: int
+class SnapshotRefreshAcceptedResponse(BaseModel):
+    accepted: bool = True
+    tasks: list[str]
+
+
+class SnapshotRefreshStatusItem(BaseModel):
+    task: str
+    status: str
+    requested_at: datetime
+    requested_by: str
+    started_at: datetime | None = None
+    last_success_at: datetime | None = None
+    last_error_at: datetime | None = None
+    last_error: str | None = None
+    attempts: int
+    result: dict[str, Any]
+    updated_at: datetime
+    stale: bool
+
+
+class SnapshotRefreshStatusResponse(BaseModel):
+    tasks: list[SnapshotRefreshStatusItem]
 
 
 class MarketAnalyticsResponse(BaseModel):

@@ -889,3 +889,25 @@ Required launch sequence:
 
 Do not relabel this as an unfinished cache, index, or hop slice. Conversely, do
 not mark launch capacity green merely because the software slices are closed.
+
+## 9. Tier-0 refresh durability (2026-08-13)
+
+Analytics, skill demand, and global search are J3 products. Their refreshes no
+longer share one synchronous HTTP deadline or one analytics dirty flag.
+
+- `POST /jobs/analytics/refresh-snapshot` persists refresh intent in one RPC,
+  answers `202`, and runs the claimed work after the response.
+- `snapshot_refresh_state` records each product's request, lease, attempts,
+  last success, and last error. Claims use `SKIP LOCKED`; maintenance work
+  cannot make the acknowledgement wait on a long-running refresh.
+- Skill demand and global search have separate staggered hourly repair crons.
+  The existing daily analytics cron remains unchanged until the asynchronous
+  endpoint reaches production.
+- The skill-demand read suppresses rows after 48 hours while retaining the
+  computed-at stamp for operational truth. Silently stale demand is therefore
+  no longer a valid degradation state.
+
+The state table and orchestration functions are service-role-only. The live
+ACL smoke test confirms `anon=false`, `authenticated=false`, and
+`service_role=true` for all four internal functions; post-migration Supabase
+advisors report no finding for this subsystem.

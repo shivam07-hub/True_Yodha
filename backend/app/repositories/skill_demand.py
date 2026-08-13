@@ -15,6 +15,7 @@ missing snapshot is an empty panel plus a metric, not a slow one.
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from postgrest.exceptions import APIError
@@ -31,6 +32,7 @@ from app.schemas.skill_demand import (
 logger = logging.getLogger(__name__)
 
 DEFAULT_SKILL_LIMIT = 8
+MAX_SNAPSHOT_AGE = timedelta(hours=48)
 
 
 class SkillDemandRepository:
@@ -51,6 +53,14 @@ class SkillDemandRepository:
             .order("rank")
             .limit(max(1, min(limit, 12)))
         )
+        computed_at = rows[0].get("computed_at") if rows else None
+        fresh_rows = rows if _snapshot_is_fresh(computed_at) else []
+        if rows and not fresh_rows:
+            logger.warning(
+                "metric skill_demand.snapshot_stale city=%s computed_at=%s",
+                city,
+                computed_at,
+            )
         return SkillDemandResponse(
             city=city,
             window=window,
@@ -60,9 +70,9 @@ class SkillDemandRepository:
                     roles=int(row.get("roles") or 0),
                     companies=int(row.get("companies") or 0),
                 )
-                for row in rows
+                for row in fresh_rows
             ],
-            computed_at=rows[0].get("computed_at") if rows else None,
+            computed_at=computed_at,
         )
 
     def list_cities(self) -> SkillDemandCitiesResponse:
@@ -71,15 +81,22 @@ class SkillDemandRepository:
             .select("location_city, live_roles, computed_at")
             .order("live_roles", desc=True)
         )
+        computed_at = rows[0].get("computed_at") if rows else None
+        fresh_rows = rows if _snapshot_is_fresh(computed_at) else []
+        if rows and not fresh_rows:
+            logger.warning(
+                "metric skill_demand.snapshot_stale city=all computed_at=%s",
+                computed_at,
+            )
         return SkillDemandCitiesResponse(
             cities=[
                 SkillDemandCity(
                     city=row["location_city"],
                     live_roles=int(row.get("live_roles") or 0),
                 )
-                for row in rows
+                for row in fresh_rows
             ],
-            computed_at=rows[0].get("computed_at") if rows else None,
+            computed_at=computed_at,
         )
 
     def refresh(self) -> dict[str, int]:
@@ -107,3 +124,15 @@ class SkillDemandRepository:
         except APIError as exc:
             logger.warning("metric skill_demand.read_failed error=%s", exc)
             return []
+
+
+def _snapshot_is_fresh(computed_at: Any) -> bool:
+    if not computed_at:
+        return False
+    try:
+        parsed = datetime.fromisoformat(str(computed_at).replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return datetime.now(timezone.utc) - parsed.astimezone(timezone.utc) <= MAX_SNAPSHOT_AGE
