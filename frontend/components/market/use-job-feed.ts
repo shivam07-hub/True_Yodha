@@ -200,7 +200,9 @@ export function useJobFeed({
 
   useEffect(() => clearUndoTimer, [clearUndoTimer])
 
-  // `warming` stays in the shape, always false: no warm runs here, and consumers
-  // still branch on it. Drop the key only when the last reader is gone.
-  return { feed, allJobs, visibleJobs, total, rankedCount, warming: false, loading, expansionDividers, triage, undo, pending, commitPending, savedCount }
+  // `warming` is gone: it sat here hardcoded false for consumers that no longer
+  // existed. The real flag comes from `useFeedWarm`, which owns the deferred warm.
+  // `settled` is J0's paint signal — that hook gates on it, and reading it from the
+  // query is what keeps "after J0" a fact rather than a timer.
+  return { feed, allJobs, visibleJobs, total, rankedCount, loading, settled: feedSettled, expansionDividers, triage, undo, pending, commitPending, savedCount }
 }

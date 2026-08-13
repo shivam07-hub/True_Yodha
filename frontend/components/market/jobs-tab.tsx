@@ -16,6 +16,7 @@ import { VirtualFeed } from "@/components/jobs/virtual-feed"
 import { FeedControls, FilterChips, FiltersSheet } from "./feed-filters"
 import { EmptyHandoff, FeedSkeleton, LocationScopePill } from "./jobs-tab-helpers"
 import { useJobFeed } from "./use-job-feed"
+import { useFeedWarm } from "./use-feed-warm"
 import { usePulses } from "@/lib/hooks/use-pulses"
 import { useMarketIntel } from "@/lib/hooks/use-market-intel"
 import { useSkillDemand } from "@/lib/hooks/use-skill-demand"
@@ -127,8 +128,12 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     onFiltersChange?.(f)
   }, [selectedCluster, onSelectCluster, onFiltersChange])
 
-  const { feed, allJobs, visibleJobs, total, rankedCount, loading, expansionDividers, triage, undo, pending, savedCount } =
+  const { feed, allJobs, visibleJobs, total, rankedCount, loading, settled, expansionDividers, triage, undo, pending, savedCount } =
     useJobFeed({ token, filters, q, skill: skillFacet, scope })
+  // J1: the brain warms the fit-top shortlist AFTER J0 has painted, then the feed
+  // re-reads and the leading cards arrive ranked. Never on the arrival path — see
+  // the "Jobs paints its J0 feed before secondary compute" contract test.
+  useFeedWarm({ token, filters, q, skill: skillFacet, scope, settled })
 
   // The brain's picks sit at the top; a quiet divider marks where the ranked
   // shortlist ends and the deterministic browse feed begins (so the verdicts

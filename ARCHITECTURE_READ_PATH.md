@@ -927,3 +927,74 @@ The state table and orchestration functions are service-role-only. The live
 ACL smoke test confirms `anon=false`, `authenticated=false`, and
 `service_role=true` for all four internal functions; post-migration Supabase
 advisors report no finding for this subsystem.
+
+---
+
+## 10. Best-fit warm restored as J1 (2026-08-13)
+
+The `/market` feed had **no brain warm at all**. 3799e114 correctly took it off
+the arrival path (it was wait-then-paint on a blocking-judgment LLM call) and
+locked that with the "Jobs paints its J0 feed before secondary compute" contract
+test; c73aa23a reintroduced it while consolidating something unrelated and left
+`Develop` failing that test. What neither restored was a *deferred* warm, so a
+first arrival under "Best fit" got pure deterministic overlap under a label
+promising the brain's ranking, with `ranked_count = 0` and no path to ever
+becoming ranked except opening cards one at a time.
+
+**Restored as J1, not J0.** `components/market/use-feed-warm.ts` is its own
+module so the contract test's guard on `use-job-feed.ts` stays meaningful rather
+than a string the next refactor trips over. It gates on **J0 having settled** —
+the feed query's own success/error — not on browser idle: this document's
+journey-compute contract is explicit that "the browser is idle" is not a user
+decision, and `useIdleWave`'s own comment records idle firing while J0 was still
+in flight on Safari/WebViews. Fires at most once per (filters, scope, query)
+key, cancellable, and invalidates that exact feed key only when `warmed > 0` —
+a re-read that cannot change the answer is pure cost. Desktop and mobile call
+the same hook.
+
+**Second defect, found while reading it:** `_rank_feed_rows` floated
+brain-warmed cards to the front **regardless of `sort`**. A user who chose
+"Newest" got warmed-cards-first, so the two-way toggle was wrong on both of its
+settings. Reordering is now gated on the resolved sort being `fit`; badges still
+attach under `fresh` (a verdict is information — the order is the user's
+instruction, and the two are not the same decision), and `ranked_count` returns
+0 there because there is no leading ranked block to draw a divider after.
+
+Also deleted: `useJobFeed`'s `warming: false`, hardcoded for consumers that no
+longer existed.
+
+### Measured — live prod, before the change
+
+`GET /jobs/feed`, QA account, first sample discarded as cold (3,686ms):
+
+| Sort | Warm samples (ms) | p95 |
+|---|---|---|
+| `fit` | 643.5, 548.8, 547.7, 561.3, 546.6 | ~643 |
+| `fresh` | 643.9, 551.0, 952.6, 522.1, 523.3 | ~953 |
+
+**This is a baseline, not a win.** The change touches no query — the reorder
+gate is in-memory and the warm is a separate request after paint. J0 is expected
+to be unchanged; these numbers exist so a regression is visible. Both sorts sit
+**above the 500ms contract already**, consistent with section 8's finding that
+the remaining gap is the paid compute gate, not application code.
+
+### The cost this adds, stated plainly
+
+The warm runs on `get_blocking_judgment_provider` (paid-strong lane) and ranks
+up to `SHORTLIST_SIZE = 10` candidates. So a first `/market` arrival under "Best
+fit" now costs up to 10 brain evals where it previously cost none. Bounded by
+the eval context key (section: CONTEXT.md "Targeting Brief"): a repeat visit with
+unchanged targeting is a full cache hit and costs nothing. The spend lands once
+per targeting change per user, which is the behaviour "Best fit should be
+brain-ranked on arrival" actually asks for — but it is new spend, not free.
+
+### Open, not silently closed
+
+- Nobody has watched the reorder land in a browser. The feed re-sorts a few
+  seconds after paint; CONTEXT.md's Provisional Match reasoning ("a list that
+  reorders under someone mid-read is worse than one that sharpens in place")
+  argues for an affordance marking it. Deliberately not invented here — it is a
+  design call.
+- The two verified journey-compute violations named in section 2 (nav-mounted
+  reads on every page; `/market` Wave 3 treating any scroll/pointerdown as
+  intent) are untouched by this pass.

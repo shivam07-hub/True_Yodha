@@ -462,11 +462,20 @@ def _resolve_feed_scope(
     )
 
 
-def _rank_feed_rows(rows: list[dict], brain_evals: dict[str, dict]) -> int:
-    """Attach cached Matching-Brain badges + the Match Verdict to each card, then
-    float the brain-ranked cards to the front ordered by verdict (best first). The
-    long tail keeps its deterministic fit order. Returns how many leading cards now
-    carry a verdict — the feed draws its "more roles" divider after this many.
+def _rank_feed_rows(rows: list[dict], brain_evals: dict[str, dict], *, reorder: bool) -> int:
+    """Attach cached Matching-Brain badges + the Match Verdict to each card, and —
+    when the user asked to be ranked by fit — float the brain-ranked cards to the
+    front ordered by verdict (best first). The long tail keeps its deterministic fit
+    order. Returns how many leading cards now carry a verdict — the feed draws its
+    "more roles" divider after this many.
+
+    `reorder=False` attaches the same badges and changes NOTHING about the order.
+    This used to reorder unconditionally, so a user who picked "Newest" got
+    warmed-cards-first instead of newest-first: the toggle was wrong on both of its
+    two settings. Verdicts still show on every card either way — the badge is
+    information, the order is the user's instruction, and the two are not the same
+    decision. Returns 0 when not reordering: there is no leading ranked block, so
+    there is no divider to draw.
 
     No LLM here: a card only ranks if the brain already warmed it for this user.
     """
@@ -490,6 +499,8 @@ def _rank_feed_rows(rows: list[dict], brain_evals: dict[str, dict]) -> int:
         r["verdict"] = me.verdict
         r["is_strong"] = me.is_strong
         ranked.append((me.match_score, r))
+    if not reorder:
+        return 0
     # Best verdict first; ties keep the incoming fit order (stable sort on a
     # pre-fit-ordered list). Rank down, never hide — a "stretch"/"skip" card still
     # appears, just below the strong ones.
@@ -571,7 +582,10 @@ def job_feed(
     # the rest stay deterministic-overlap browse rows below the divider.
     feed_job_ids = [str(r.get("job_id")) for r in rows if r.get("job_id")]
     brain_evals = repo.get_cached_match_evals(uid, feed_job_ids) if feed_job_ids else {}
-    ranked_count = _rank_feed_rows(rows, brain_evals)
+    # Reorder only when the user asked to be ranked by fit. `page_result["sort"]` is
+    # the resolved mode (the server may fall back when a user has no fit signal), not
+    # the raw query param — the order must follow what was actually applied.
+    ranked_count = _rank_feed_rows(rows, brain_evals, reorder=page_result["sort"] == "fit")
     # Analytics/audit write: never make the J0 feed wait for it. Starlette runs
     # this after the response is sent, matching /jobs/matches' existing seam.
     background_tasks.add_task(
