@@ -96,7 +96,7 @@ export function ReviewModal({ company, defaultStage, onClose, onSubmit }: Review
         {error && <div style={{ fontSize: 12, color: "var(--tm-danger)" }}>{error}</div>}
 
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <Button variant="neutral" size="sm" onClick={onClose}>Skip</Button>
+          <Button variant="dismiss" size="sm" onClick={onClose}>Skip</Button>
           <Button variant="solid" size="sm" onClick={handleSubmit} disabled={submitting || stars === 0}>
             {submitting ? "Submitting…" : "Submit review"}
           </Button>

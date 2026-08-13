@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.schemas.jobs import SeniorityCompat
-from app.services.onboarding_service import target_context_hash
+from app.services.onboarding_service import context_key
 
 
 @dataclass(frozen=True)
@@ -81,15 +81,16 @@ def evaluate_credibility(
 ) -> Credibility:
     if overall_score is not None and overall_score < 3.5:
         recommendation = "Skip"
-    baseline_id = profile.get("baseline_version_id")
-    role_title = str(profile.get("target_role_title") or "").strip()
     seniority = str(profile.get("target_seniority") or "any").strip().lower()
-    target_location = str(profile.get("target_location") or "").strip()
-    context_hash = None
-    if baseline_id and role_title:
-        context_hash = target_context_hash(
-            int(baseline_id), role_title, seniority, target_location,
-        )
+    # F5: the hash is a SCOPING key — "which direction was this verdict computed
+    # for" — derived by `onboarding_service.context_key`, the ONE producer, so this
+    # writer and the `get_result` reader cannot disagree about the same direction.
+    # They used to: this side required a role title and normalised, that side did
+    # neither, so a user with no recorded title got NULL rows against a non-NULL
+    # lookup — `get_matches_for_context` matched nothing and `_shortlist` reported
+    # "the market genuinely has no overlap" over a full stack. 162 of 196 users,
+    # 1,289 real match rows.
+    context_hash = context_key(profile)
     seniority_fit = seniority_compatibility(seniority, str(job.get("title") or ""))
     if seniority_fit == "unknown":
         # F3: the title's seniority is unreadable ("Software Engineer II", "SDE N 4A").
@@ -103,9 +104,17 @@ def evaluate_credibility(
             and overall_score >= 3.5
         ):
             seniority_fit = "compatible"
+    # Every gate here answers "is this a good, safe recommendation". The scoping
+    # hash answered "which direction was this computed for" — a different question,
+    # and the only one of the three absence-checks that had not been hardened (F3
+    # defers an unreadable seniority to the brain, F4 reads absent location meta as
+    # compatible). Requiring it made a bookkeeping field veto the recommendation:
+    # 153 users had brain-rated matches and exactly ONE had an `is_recommended` row,
+    # so `get_current_credible_match` returned None and the onboarding screen
+    # offered "Review score gaps" instead of "Tailor for {role} at {company}" —
+    # the 10-minute-CV core loop, withheld from 152 of 153 users by a null column.
     credible = bool(
-        context_hash
-        and overall_score is not None
+        overall_score is not None
         and overall_score >= 3.5
         and recommendation in {"Apply", "Negotiate"}
         and seniority_fit == "compatible"

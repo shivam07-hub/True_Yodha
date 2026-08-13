@@ -65,7 +65,15 @@ def _install(monkeypatch, rows: list[dict[str, Any]] | None = None) -> list[str]
     return enqueued
 
 
-def _profile(*, changed_minutes_ago: float | None, ran_minutes_ago: float | None) -> dict[str, Any]:
+def _profile(
+    *,
+    changed_minutes_ago: float | None,
+    ran_minutes_ago: float | None,
+    ran_context: str | None = _CONTEXT,
+) -> dict[str, Any]:
+    """`ran_context` is WHICH direction the finished run covered. Defaults to the
+    one under test, because "a run finished" and "a run finished for this
+    direction" are different facts and only the second licenses `empty`."""
     now = datetime.now(timezone.utc)
 
     def _at(minutes: float | None) -> str | None:
@@ -74,6 +82,7 @@ def _profile(*, changed_minutes_ago: float | None, ran_minutes_ago: float | None
     return {
         "target_updated_at": _at(changed_minutes_ago),
         "last_match_run_at": _at(ran_minutes_ago),
+        "last_match_context_hash": ran_context,
     }
 
 
@@ -110,13 +119,57 @@ def test_a_finished_run_makes_an_unrated_row_final(monkeypatch) -> None:
     assert status == "ready"
 
 
-def test_run_that_finished_after_the_change_with_no_rows_is_empty(monkeypatch) -> None:
+def test_run_that_finished_for_THIS_direction_with_no_rows_is_empty(monkeypatch) -> None:
     enqueued = _install(monkeypatch)
     rows, status = _call(_profile(changed_minutes_ago=30, ran_minutes_ago=20))
     assert (rows, status) == ([], "empty")
     # A completed run that matched nothing is an answer, not a fault — never
     # re-run it behind the user's back.
     assert enqueued == []
+
+
+# ── "a run finished" is not "this direction was searched" ──────────────────────
+#
+# `last_match_run_at` alone was read as an answer to a question it cannot answer.
+# Every context with no rows fell to `empty` — "the market genuinely has no
+# overlap" — over stacks of real matches. 162 of 196 users on 2026-08-13, holding
+# 1,289 match rows between them.
+
+def test_a_run_for_a_DIFFERENT_direction_is_not_an_empty_market(monkeypatch) -> None:
+    enqueued = _install(monkeypatch)
+    rows, status = _call(
+        _profile(changed_minutes_ago=30, ran_minutes_ago=20, ran_context="some-other-direction")
+    )
+    assert (rows, status) == ([], "stale_direction")
+    # The user pulls the run. Never auto-enqueue one behind them.
+    assert enqueued == []
+
+
+def test_a_run_that_never_recorded_its_direction_is_not_an_empty_market(monkeypatch) -> None:
+    """Every row written before the run stamped its context — the whole existing
+    population at the time of this change."""
+    _install(monkeypatch)
+    rows, status = _call(_profile(changed_minutes_ago=30, ran_minutes_ago=20, ran_context=None))
+    assert (rows, status) == ([], "stale_direction")
+
+
+def test_stale_direction_never_masks_a_run_still_owed(monkeypatch) -> None:
+    """A direction changed after the last run is still `computing`/`stalled` — the
+    context split must not swallow the outstanding-run states."""
+    _install(monkeypatch)
+    _rows, fresh = _call(
+        _profile(changed_minutes_ago=1, ran_minutes_ago=30, ran_context="other")
+    )
+    assert fresh == "computing"
+
+
+def test_rows_for_this_direction_win_regardless_of_the_stamp(monkeypatch) -> None:
+    """The stamp only arbitrates the EMPTY case. Rows on screen are rows on screen."""
+    _install(monkeypatch, [_row()])
+    _rows, status = _call(
+        _profile(changed_minutes_ago=30, ran_minutes_ago=20, ran_context="other")
+    )
+    assert status == "ready"
 
 
 def test_outstanding_run_inside_the_grace_window_is_computing(monkeypatch) -> None:

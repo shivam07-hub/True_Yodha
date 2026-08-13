@@ -50,6 +50,45 @@ def test_unread_count_endpoint() -> None:
     assert r.json() == {"count": 4}
 
 
+def test_unread_count_uses_exact_count_without_loading_all_ids() -> None:
+    class _Result:
+        count = 47
+        data = [{"id": 1}]
+
+    class _Query:
+        def __init__(self) -> None:
+            self.count_mode: str | None = None
+            self.limit_value: int | None = None
+
+        def select(self, _columns: str, *, count: str | None = None) -> "_Query":
+            self.count_mode = count
+            return self
+
+        def eq(self, *_args: Any) -> "_Query":
+            return self
+
+        def is_(self, *_args: Any) -> "_Query":
+            return self
+
+        def limit(self, value: int) -> "_Query":
+            self.limit_value = value
+            return self
+
+        def execute(self) -> _Result:
+            return _Result()
+
+    query = _Query()
+
+    class _DB:
+        def table(self, _name: str) -> _Query:
+            return query
+
+    repo = NotificationsRepository(_DB())  # type: ignore[arg-type]
+    assert repo.unread_count("u1") == 47
+    assert query.count_mode == "exact"
+    assert query.limit_value == 1
+
+
 def test_list_returns_items_and_derived_unread() -> None:
     repo = _FakeNotifRepo(items=[
         {"id": 2, "kind": "cv_analysis", "title": "Your Myro Score is ready", "body": "6 skills mapped · Myro Score 42",

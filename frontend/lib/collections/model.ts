@@ -1,6 +1,5 @@
 import type { ApplicationResponse, JobMatch, JobPulse } from "@/lib/api"
 import {
-  scoreItem,
   synthMatch,
   sortItems,
   type FeedItem,
@@ -153,35 +152,24 @@ export function appToFeedItem(a: ApplicationResponse, match: JobMatch | undefine
 
 export type MatchBucket = "above" | "below" | "rejected"
 
-// Quality bar = grade B- and up. Tunable — the one place the cut lives.
-const GRADE_RANK: Record<string, number> = {
-  "A+": 12, A: 11, "A-": 10,
-  "B+": 9, B: 8, "B-": 7,
-  "C+": 6, C: 5, "C-": 4,
-  D: 2, F: 0,
-}
-const BAR_GRADE_RANK = GRADE_RANK["B-"]
-
-function gradeRank(grade?: string | null): number | null {
-  if (!grade) return null
-  // Providers sometimes emit "B- / B" — take the first valid token (learning #11).
-  const token = grade.trim().split(/[\s/,|]+/)[0]?.toUpperCase() ?? ""
-  return token in GRADE_RANK ? GRADE_RANK[token] : null
-}
-
-/** Which bucket a brain match falls into. The rejected judgment is the anti-junk
- *  call the deterministic sieve can't make (Rishabh's 7/10 honest Skips). */
+/** Which bucket a brain match falls into.
+ *
+ *  REJECTED is a for-cause judgment the deterministic sieve cannot make — a scam
+ *  tier or an honest Skip (Rishabh's 7/10). That is a different question from
+ *  "how good is this for me", so it stays here.
+ *
+ *  ABOVE/BELOW is NOT a different question — it is the fit bar, and the server
+ *  already answered it. This used to cut on the brain GRADE (B- and up) and only
+ *  fall back to `verdict` when a row had no grade, so a row could arrive
+ *  `verdict: "strong", is_strong: true` and still be counted below the bar on a
+ *  C+ grade. That is `credibleRecommendation` — deleted from the frontend when
+ *  Match Verdict shipped — grown back one file over. `is_strong` is the one
+ *  boolean a surface reads to ask "is this headline-worthy"; a second local bar
+ *  is a second answer to a question that already has one. */
 export function classifyMatch(m: JobMatch): MatchBucket {
   if ((m.legitimacy_tier ?? "").toLowerCase() === "suspicious") return "rejected"
   if ((m.recommendation ?? "").toLowerCase() === "skip") return "rejected"
-
-  // Brain grade cut (B- and up) when the job was evaluated.
-  const rank = gradeRank(m.grade)
-  if (rank != null) return rank >= BAR_GRADE_RANK ? "above" : "below"
-
-  // No brain grade yet (overlap-only rows) — fall back to the Match Verdict spine.
-  if (m.is_strong || m.verdict === "strong" || m.verdict === "worth_it") return "above"
-  return "below"
+  return m.is_strong || m.verdict === "strong" || m.verdict === "worth_it" ? "above" : "below"
 }
 
 /** A brain match as a FeedItem for the card body — real fit, never faked. */
@@ -245,10 +233,12 @@ export interface CollectionsView {
 }
 
 /**
- * Order the current chip's rows. Default "prize" = the dashboard triage rank
- * (prize×winnability, ⭐ followed / 🎯 target-role boosted) with applied rows
- * sunk to the bottom — they're done, not next. The continue lane is extracted
- * only outside the Applied chip (an applied job has nothing left to finish).
+ * Order the current chip's rows. One ordering: the Match Verdict (`sortItems`),
+ * with applied rows sunk to the bottom — they're done, not next — and priority
+ * rows first. The default used to be `prize × winnability`, a client-side fit
+ * score that could disagree with the number printed on the card it was ordering.
+ * The continue lane is extracted only outside the Applied chip (an applied job
+ * has nothing left to finish).
  */
 export function buildCollectionsView(
   apps: ApplicationResponse[],
@@ -273,56 +263,46 @@ export function buildCollectionsView(
     }
   }
 
-  const rank = (it: FeedItem) => scoreItem(it, ctx).rank
-  continueItems.sort((a, b) => priorityFirst(a, b) || rank(b) - rank(a))
+  const byVerdict = sortItems(continueItems, "fit")
+  continueItems.length = 0
+  continueItems.push(...byVerdict.sort(priorityFirst))
 
-  let queueItems: FeedItem[]
-  if (sort === "prize") {
-    queueItems = rest.sort((a, b) => {
-      const aDone = ctx.committedJobIds.has(a.jobId) ? 1 : 0
-      const bDone = ctx.committedJobIds.has(b.jobId) ? 1 : 0
-      if (aDone !== bDone) return aDone - bDone // applied sinks
-      return priorityFirst(a, b) || rank(b) - rank(a)
-    })
-  } else {
-    queueItems = sortItems(rest, sort).sort(priorityFirst)
-  }
+  // Applied sinks on every axis — it is done, not next — then priority, then the
+  // user's chosen ordering. Applied-sinks used to apply only under "prize"; the
+  // other three axes let a finished application outrank live work.
+  const appliedSinks = (a: FeedItem, b: FeedItem) =>
+    Number(ctx.committedJobIds.has(a.jobId)) - Number(ctx.committedJobIds.has(b.jobId))
+  const queueItems = sortItems(rest, sort).sort((a, b) => appliedSinks(a, b) || priorityFirst(a, b))
   return { continueItems, queueItems }
 }
 
 /** The chip-independent "Finish tailoring" lane — every tailored, not-yet-
- *  applied saved job, best-next first. Pinned above the folder on every chip. */
+ *  applied saved job, best fit first. Pinned above the folder on every chip. */
 export function buildContinueLane(
   apps: ApplicationResponse[],
-  ctx: TriageContext,
   byId: Map<string, JobMatch>,
 ): FeedItem[] {
-  const rank = (it: FeedItem) => scoreItem(it, ctx).rank
   const priorityJobIds = new Set(apps.filter((a) => a.is_priority).map((a) => a.job_id))
-  return apps
+  const items = apps
     .filter((a) => a.cv_badge && !isApplied(a))
     .map((a) => appToFeedItem(a, byId.get(a.job_id)))
-    .sort((a, b) => Number(priorityJobIds.has(b.jobId)) - Number(priorityJobIds.has(a.jobId)) || rank(b) - rank(a))
+  return sortItems(items, "fit").sort(
+    (a, b) => Number(priorityJobIds.has(b.jobId)) - Number(priorityJobIds.has(a.jobId)),
+  )
 }
 
-/** Build the triage context from the same signals the dashboard used. */
-export function collectionsTriageCtx(
-  apps: ApplicationResponse[],
-  followedCompanies: string[],
-  targetRoles: string[],
-): TriageContext {
+/** The folder's commitment split — which rows are tailored, which are done.
+ *  It used to also take followedCompanies + targetRoles to feed the deleted
+ *  `prize × winnability` ranker; those are targeting facts and belong in the
+ *  Targeting Brief, read by the brain into the verdict, not re-applied here. */
+export function collectionsTriageCtx(apps: ApplicationResponse[]): TriageContext {
   const tailoredJobIds = new Set<string>()
   const committedJobIds = new Set<string>()
   for (const a of apps) {
     if (a.cv_badge) tailoredJobIds.add(a.job_id)
     if (isApplied(a)) committedJobIds.add(a.job_id)
   }
-  return {
-    followedCompanies: new Set(followedCompanies.map((c) => c.toLowerCase().trim())),
-    targetRoles,
-    tailoredJobIds,
-    committedJobIds,
-  }
+  return { tailoredJobIds, committedJobIds }
 }
 
 /** Chip-scoped empty copy — never a blanket "nothing here" when the emptiness

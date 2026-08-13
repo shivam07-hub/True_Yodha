@@ -12,6 +12,7 @@ def setup_function() -> None:
     from app.services.background import debounce
 
     debounce._LOCAL_CLAIMS.clear()
+    debounce._LOCAL_LEASES.clear()
 
 
 def test_absent_computes_inline_and_caches() -> None:
@@ -58,7 +59,7 @@ def test_concurrent_cold_hits_wait_for_one_fill() -> None:
 def test_cold_fill_wait_is_bounded_when_winner_never_publishes(monkeypatch) -> None:
     monkeypatch.setattr(shared_cache, "_COLD_FILL_WAIT_SECONDS", 0.03)
     monkeypatch.setattr(shared_cache, "_COLD_FILL_POLL_SECONDS", 0.005)
-    monkeypatch.setattr(shared_cache.debounce, "claim", lambda *_a, **_k: False)
+    monkeypatch.setattr(shared_cache.debounce, "acquire_lease", lambda *_a, **_k: None)
 
     started = time.monotonic()
     assert shared_cache.get_or_compute("stalled", lambda: "fallback", ttl_seconds=60) == "fallback"
@@ -214,39 +215,33 @@ def test_invalidate_prefix_clears_local_entries() -> None:
     assert not any(key.startswith("jobs.analytics:") for key in shared_cache._LOCAL_CACHE)
 
 
-# ── an invalidation must not orphan its fill-claim ───────────────────────────
-# `claim()` is a debounce window with no release: it stays held for its full
-# TTL whether the fill took 5ms or never finished. Used as a single-flight lock
-# that is fine, RIGHT UP UNTIL the entry it guards is invalidated early. Then
-# the claim outlives its cache entry and every caller finds no cache AND cannot
-# win the fill — so each one waits out the cold-fill poll and computes anyway:
-# a synchronised stall followed by the exact stampede the claim exists to stop.
-# Surfaced as an order-dependent failure in test_job_feed_router (the autouse
-# fixture clears the feed caches, which is an invalidation).
+# ── a completed fill must not orphan its single-flight lease ───────────────
+# The original order-dependent feed failure came from a debounce claim living
+# for 20 seconds after a millisecond-scale fill. The lease now ends when the
+# result is published, and ownership prevents a late filler from deleting a
+# successor's lock after TTL expiry.
 
-def _fill_claim_held(key: str) -> bool:
+def test_completed_fill_releases_its_lease_before_invalidation() -> None:
     from app.services.background import debounce
 
-    return not debounce.claim(f"shared_cache_fill:{key}", ttl_seconds=1)
-
-
-def test_invalidate_drops_the_fill_claim_with_the_entry() -> None:
     shared_cache.get_or_compute("k9", lambda: {"n": 1}, ttl_seconds=60)
     assert "k9" in shared_cache._LOCAL_CACHE
+    assert "shared_cache_fill:k9" not in debounce._LOCAL_LEASES
 
     shared_cache.invalidate("k9")
     assert "k9" not in shared_cache._LOCAL_CACHE
-    assert not _fill_claim_held("k9"), "claim outlived the entry it guards"
 
 
-def test_invalidate_prefix_drops_fill_claims_across_the_namespace() -> None:
-    for key in ("ns.a", "ns.b"):
-        shared_cache.get_or_compute(key, lambda: {"v": key}, ttl_seconds=60)
+def test_old_lease_owner_cannot_release_its_successor() -> None:
+    from app.services.background import debounce
 
-    shared_cache.invalidate_prefix("ns.")
-    assert not any(k.startswith("ns.") for k in shared_cache._LOCAL_CACHE)
-    for key in ("ns.a", "ns.b"):
-        assert not _fill_claim_held(key), f"claim for {key} outlived its entry"
+    old_token = debounce.acquire_lease("replaceable", ttl_seconds=60)
+    assert old_token is not None
+    # Model TTL expiry plus a successor acquisition without sleeping.
+    debounce._LOCAL_LEASES["replaceable"] = (time.monotonic() + 60, "new-owner")
+
+    debounce.release_lease("replaceable", old_token)
+    assert debounce._LOCAL_LEASES["replaceable"][1] == "new-owner"
 
 
 def test_a_cleared_cache_refills_in_one_compute_not_one_per_caller() -> None:

@@ -8,7 +8,7 @@ from typing import Any, Literal
 
 from app.repositories.jobs import JobsRepository
 from app.repositories.scores import ScoresRepository
-from app.services import job_importer, llm_ranker
+from app.services import job_importer, llm_ranker, onboarding_service
 from app.services.llm_provider import LLMProvider, get_judgment_provider
 from app.services.matching import candidate_pool, ranking, targeting
 from app.services.scoring.aspirations import fetch_aspiration_skills
@@ -143,6 +143,12 @@ class MatchComputeOutcome:
     matches_written: int
     batch_week: date
     debug: dict[str, Any] = field(default_factory=dict)
+    # The direction key this run actually ran against (`onboarding_service.context_key`
+    # over the same profile the ranking used). Reported rather than re-derived by the
+    # caller: a direction change between the compute and the stamp would otherwise
+    # record a key no row was written under. None on the paths that return before a
+    # profile exists (cache_hit, needs_onboarding) — nothing ran, so nothing to stamp.
+    context_key: str | None = None
 
     @property
     def should_charge_xp(self) -> bool:
@@ -370,6 +376,9 @@ async def compute_job_matches(
     profile = targeting.for_ranking(repo, user_id).ranking_profile()
     if hasattr(repo, "get_latest_baseline_id"):
         profile["baseline_version_id"] = repo.get_latest_baseline_id(user_id)
+    # What this run tells the brain. Computed once from the same profile the
+    # ranking uses, so the skip gate and the rows it writes agree by construction.
+    run_eval_ctx = onboarding_service.eval_context_key(profile)
     target_roles_count = len(profile.get("target_roles") or [])
     target_countries = profile.get("target_location_countries") or []
     if not target_countries and profile.get("target_location_country"):
@@ -405,6 +414,7 @@ async def compute_job_matches(
             kind="exhausted",
             matches_written=0,
             batch_week=batch_week,
+            context_key=onboarding_service.context_key(profile),
             debug={
                 "user_skills_count": len(user_skill_map),
                 "candidate_jobs_count": 0,
@@ -470,7 +480,17 @@ async def compute_job_matches(
             triage_keep=MATCH_TRIAGE_KEEP,
             # Backlog #36: reuse any prior eval for this user/job — never re-pay
             # the LLM for a job already rated (permanent identity, mgr 20260710).
-            eval_cache_fetcher=lambda ids: repo.get_cached_match_evals(user_id, ids, full=True),
+            # Scoped to the current targeting context: "rated once, ever" made a
+            # verdict permanent even when it was reasoned from a direction the user
+            # has since changed, or from before Myro read their memory at all. This
+            # is what makes "the next Search is correct" true without a backfill —
+            # a Search re-rates exactly the jobs whose inputs moved, and a repeat
+            # Search with nothing changed still pays nothing.
+            eval_cache_fetcher=lambda ids: {
+                jid: row
+                for jid, row in repo.get_cached_match_evals(user_id, ids, full=True).items()
+                if onboarding_service.eval_matches_context(row, run_eval_ctx)
+            },
             # CandidatePool: union the title_filter selector onto the overlap pool.
             pool_augmenter=lambda overlap_jobs: candidate_pool.assemble(
                 repo,
@@ -498,6 +518,7 @@ async def compute_job_matches(
             kind="exhausted",
             matches_written=0,
             batch_week=batch_week,
+            context_key=onboarding_service.context_key(profile),
             debug={
                 "user_skills_count": len(user_skill_map),
                 "candidate_jobs_count": len(candidate_job_ids),
@@ -516,6 +537,7 @@ async def compute_job_matches(
         kind="written",
         matches_written=written,
         batch_week=batch_week,
+        context_key=onboarding_service.context_key(profile),
         debug={
             "user_skills_count": len(user_skill_map),
             "candidate_jobs_count": len(candidate_job_ids),

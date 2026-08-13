@@ -81,7 +81,7 @@ export function FixesRail({
               {onDismiss && (
                 <button
                   type="button"
-                  className={`cvb-v2-fixdismiss${hideGain ? " solo" : ""}`}
+                  className={`cvb-v2-fixdismiss tm-dismiss-action${hideGain ? " solo" : ""}`}
                   aria-label="Dismiss this fix"
                   title="Not for this line — dismiss"
                   onClick={e => { e.stopPropagation(); if (open) onExpand(null); onDismiss(f) }}

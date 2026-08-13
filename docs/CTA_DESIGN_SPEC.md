@@ -53,6 +53,22 @@ without a single change to the component code.
 > weakens the meaning of `solid`. Four is the maximum that survives a
 > one-paragraph explanation.
 
+### Semantic tone (orthogonal to emphasis)
+
+Action meaning does not create another emphasis tier. It selects one of three
+consistent tone treatments:
+
+| Tone | Use | Interaction |
+|---|---|---|
+| **neutral** | Cancel, Back, ordinary Close, navigation utilities | Neutral at rest and on hover |
+| **dismiss** | Reversible rejection: Skip, Hide, Not interested, Remove, Discard | Neutral at rest; danger wash, border, text, and focus ring on intent |
+| **danger** | Destructive or irreversible actions such as Delete | Danger at rest; solid danger on hover, with confirmation where required |
+
+The distinction is deliberate: closing a surface is navigation, while rejecting
+its content is a negative decision. A reversible dismissal must not look as
+severe as permanent deletion. Legacy native buttons opt into the same contract
+with `tm-dismiss-action`; new controls use `<Button variant="dismiss">`.
+
 ---
 
 ## 2 · Variant specs

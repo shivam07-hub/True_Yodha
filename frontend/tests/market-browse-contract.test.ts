@@ -29,11 +29,17 @@ test("Jobs paints its J0 feed before secondary compute", () => {
   const hook = readFileSync(new URL("../components/market/use-job-feed.ts", import.meta.url), "utf8")
   const page = readFileSync(new URL("../app/(authed)/market/page.tsx", import.meta.url), "utf8")
   const bell = readFileSync(new URL("../components/nav/notification-bell.tsx", import.meta.url), "utf8")
+  const mobileShell = readFileSync(new URL("../mobile/shell.tsx", import.meta.url), "utf8")
+  const navUnlocks = readFileSync(new URL("../lib/hooks/use-nav-unlocks.ts", import.meta.url), "utf8")
   assert.doesNotMatch(hook, /jobs\.warmFeed/)
   assert.match(page, /useFeedState\(wave2\)/)
   assert.match(page, /token && wave2 \? <MatchesRefreshBanner/)
   assert.match(page, /wave2 && intent \? <MissionHeroRail/)
   assert.match(bell, /enabled: !!token && open/)
+  assert.doesNotMatch(bell, /notificationsApi\.unreadCount/)
+  assert.match(bell, /inbox\.data\?\.unread_count/)
+  assert.match(mobileShell, /queryKey: dataKeys\.applications\(\)[\s\S]*?enabled: false/)
+  assert.doesNotMatch(navUnlocks, /cv\.versions\.list/)
 })
 
 test("Not interested is persistent and recoverable", () => {
@@ -62,4 +68,33 @@ test("new-tab job browsing retains the same-origin session", () => {
   const auth = readFileSync(new URL("../lib/hooks/use-auth.ts", import.meta.url), "utf8")
   assert.match(session, /window\.opener = null/)
   assert.match(auth, /detachSameOriginOpener\(\)/)
+})
+
+test("the brain warm is deferred to J1 and lives outside the feed hook", () => {
+  const hook = readFileSync(new URL("../components/market/use-job-feed.ts", import.meta.url), "utf8")
+  const warm = readFileSync(new URL("../components/market/use-feed-warm.ts", import.meta.url), "utf8")
+  const desktop = readFileSync(new URL("../components/market/jobs-tab.tsx", import.meta.url), "utf8")
+  const mobile = readFileSync(new URL("../mobile/redesign/jobs-surface.tsx", import.meta.url), "utf8")
+
+  // The J0 guard still holds: no warm on the arrival path.
+  assert.doesNotMatch(hook, /jobs\.warmFeed/)
+  // ...and the dead `warming: false` key it left behind is gone.
+  assert.doesNotMatch(hook, /warming: false/)
+
+  // The warm gates on J0 having SETTLED, not on a timer or browser idle —
+  // ARCHITECTURE_READ_PATH: "the browser is idle" is not a user decision.
+  assert.match(warm, /settled/)
+  // Calls, not prose — the comment above legitimately names useIdleWave to explain
+  // why it is the wrong gate here.
+  assert.doesNotMatch(warm, /useIdleWave\(|setTimeout\(/)
+  // Only under "Best fit". Warming under "Newest" spends a judgment-lane call on
+  // an order the user did not ask for and that no longer reorders anyway.
+  assert.match(warm, /filters\.sort !== "fit"/)
+  // Warming nothing must not trigger a re-read.
+  assert.match(warm, /res\.warmed > 0/)
+
+  // BOTH skins warm through the same hook — a surface that warmed its own way is
+  // how desktop and mobile drifted apart before.
+  assert.match(desktop, /useFeedWarm\(/)
+  assert.match(mobile, /useFeedWarm\(/)
 })

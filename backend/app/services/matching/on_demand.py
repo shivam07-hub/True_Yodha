@@ -17,10 +17,10 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from app.services import job_matcher
+from app.services import job_matcher, onboarding_service
 from app.services.llm_provider import LLMProvider
 from app.services.match_credibility import evaluate_credibility
-from app.services.matching import ranking
+from app.services.matching import ranking, targeting
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +83,28 @@ async def ensure_job_eval(
     deterministic overlap — degradation, not an error)."""
     jid = str(job_id)
     cached = repo.get_cached_match_evals(user_id, [jid], full=True).get(jid)
-    if cached and cached.get("overall_score") is not None:
+
+    # The Targeting Brief, not the raw profile columns: a verdict computed here is
+    # cached permanently per (user, job), so reading only `user_profiles` would make
+    # every fact the user has told Myro invisible to it forever. Read BEFORE the
+    # cache decision because the decision needs the key — one small indexed
+    # user_memory read per open, against an LLM call when it misses.
+    profile = targeting.for_ranking(repo, user_id).ranking_profile()
+    if hasattr(repo, "get_latest_baseline_id"):
+        profile["baseline_version_id"] = repo.get_latest_baseline_id(user_id)
+    eval_ctx = onboarding_service.eval_context_key(profile)
+
+    # A cached verdict counts only if it carries a real score AND was reasoned from
+    # what we believe NOW. "Rated once, ever" was the rule; it meant a verdict
+    # computed before the user told Myro anything could never be revisited. Same
+    # key, still free; different key, re-rate — the cost lands only where the
+    # inputs actually moved. A score-less row is a Provisional Match, not a
+    # verdict, and always computes.
+    if (
+        cached
+        and cached.get("overall_score") is not None
+        and onboarding_service.eval_matches_context(cached, eval_ctx)
+    ):
         return _brain_result(cached, cached=True)
 
     meta_rows = repo.get_jobs_by_ids([jid])
@@ -98,10 +119,6 @@ async def ensure_job_eval(
     }
     job_skill_rows = repo.get_all_job_skill_rows(job_ids=[jid])
     shaped = _shape_single_job(meta_rows[0], job_skill_rows, user_skill_map)
-
-    profile = repo.get_user_profile_targeting(user_id)
-    if hasattr(repo, "get_latest_baseline_id"):
-        profile["baseline_version_id"] = repo.get_latest_baseline_id(user_id)
 
     ev = await ranking.rank_one(profile, profile.get("cv_markdown") or "", shaped, provider)
     if ev is None:
@@ -148,6 +165,7 @@ def _persist(
         "is_recommended": False,
         "baseline_version_id": profile.get("baseline_version_id"),
         "target_context_hash": credibility.context_hash,
+        "eval_context_hash": onboarding_service.eval_context_key(profile),
         "seniority_compatibility": credibility.seniority_compatibility,
         "computed_at": datetime.now(timezone.utc).isoformat(),
     }

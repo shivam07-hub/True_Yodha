@@ -1,3 +1,5 @@
+import { useEffect, useMemo, useState } from "react"
+
 // Public mirror "uptime" anchor. Fallback used only until the real earliest
 // scrape timestamp (analytics.scraper_started) loads; live data overrides it.
 const UPTIME_ANCHOR = new Date("2026-04-11T00:00:00Z").getTime()
@@ -12,6 +14,26 @@ export function formatUptime(now: number, anchorMs: number = UPTIME_ANCHOR): str
   const s = totalSec % 60
   const pad = (n: number) => n.toString().padStart(2, "0")
   return `${d}d ${pad(h)}:${pad(m)}:${pad(s)}`
+}
+
+/** Ticking uptime string anchored on the real scraper start (analytics.scraper_started).
+ *  Shared by every surface that mounts the live-mirror hero (/intel, landing). */
+export function useScraperUptime(scraperStartedIso?: string | null): string {
+  const [uptime, setUptime] = useState("syncing now")
+  const anchorMs = useMemo(() => {
+    if (!scraperStartedIso) return undefined
+    const t = Date.parse(scraperStartedIso)
+    return Number.isFinite(t) ? t : undefined
+  }, [scraperStartedIso])
+
+  useEffect(() => {
+    const tick = () => setUptime(formatUptime(Date.now(), anchorMs))
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [anchorMs])
+
+  return uptime
 }
 
 // Real velocity: week-over-week delta from a 14-day daily-bin histogram.

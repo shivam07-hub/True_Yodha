@@ -121,10 +121,11 @@ priority. "The component mounted" and "the browser is idle" are not user
 decisions. Broad page-level pointer/scroll gates are insufficient for J2; the
 trigger must belong to the component whose data is being requested.
 
-Verified open violations, 2026-08-12:
+Verified open violation, updated 2026-08-13:
 
-- authenticated navigation mounts reads for applications, profile, and CV
-  versions on every page even though the primary tabs are always visible;
+- authenticated navigation no longer earns CV-version or applications reads;
+  those caches are seeded by their owning journey. The shell's one profile read
+  remains J0 because identity and CV presence change the chrome itself;
 - `/market`'s Wave 3 treats any scroll, pointerdown, or keydown as intent for
   several analytics consumers rather than the specific consumer entered.
 
@@ -835,10 +836,10 @@ paid compute gate at the end of this section fails.
 | Feed query | Exact active-row index plus active-first plan | SQL plan 8,550ms / 13,670 buffers → 224ms / 499 buffers |
 | Feed payload | List reads omit full job descriptions; detail is fetched only when opened | live feed about 14.9KB; route contracts green |
 | Current-user hops | Seven feed-context reads collapsed into one RPC | feed-context route/migration tests: 73 passed |
-| Cache stampedes | Shared cache cold fills single-flight with bounded loser wait and stale fallback | shared-cache/repository tests: 30 passed |
+| Cache stampedes | Shared cache cold fills use owner-token leases, bounded loser wait, and stale fallback; a late filler cannot release its successor | shared-cache/repository contracts green |
 | Write amplification | Recommendation-exposure batches are debounced | exposure suite: 71 passed |
 | Company journey | First render uses company summary + jobs; skill intelligence waits for intent | company journey contract green |
-| Market journey | J0 is `/users/me` + `/jobs/feed`; feed-state, matches, applications, notifications and analytics wait for intent/idle | isolated TypeScript check + 5 Market contracts green |
+| Market journey | J0 is `/users/me` + `/jobs/feed`; desktop and mobile applications badges are passive, and notifications load one inbox request only after bell intent | Market journey contracts green |
 | Read bulkhead | In-flight cap and HTTP keepalive pool agree at 40 | config and database contracts green |
 | Fan-out threads | Request-local executors replaced by one process-wide pool bounded to the 40-read bulkhead | concurrent-read contracts green |
 | New-inventory truth | Inbox-open re-derives the notification from trusted, browseable jobs; stale or unavailable counts are never rendered | direct count 7,295ms / 13,369 buffers -> 0.84ms / 91 buffers; auth-own 4,094, auth-other 0, anon denied |
@@ -927,3 +928,246 @@ The state table and orchestration functions are service-role-only. The live
 ACL smoke test confirms `anon=false`, `authenticated=false`, and
 `service_role=true` for all four internal functions; post-migration Supabase
 advisors report no finding for this subsystem.
+
+---
+
+## 10. Best-fit warm restored as J1 (2026-08-13)
+
+The `/market` feed had **no brain warm at all**. 3799e114 correctly took it off
+the arrival path (it was wait-then-paint on a blocking-judgment LLM call) and
+locked that with the "Jobs paints its J0 feed before secondary compute" contract
+test; c73aa23a reintroduced it while consolidating something unrelated and left
+`Develop` failing that test. What neither restored was a *deferred* warm, so a
+first arrival under "Best fit" got pure deterministic overlap under a label
+promising the brain's ranking, with `ranked_count = 0` and no path to ever
+becoming ranked except opening cards one at a time.
+
+**Restored as J1, not J0.** `components/market/use-feed-warm.ts` is its own
+module so the contract test's guard on `use-job-feed.ts` stays meaningful rather
+than a string the next refactor trips over. It gates on **J0 having settled** —
+the feed query's own success/error — not on browser idle: this document's
+journey-compute contract is explicit that "the browser is idle" is not a user
+decision, and `useIdleWave`'s own comment records idle firing while J0 was still
+in flight on Safari/WebViews. Fires at most once per (filters, scope, query)
+key, cancellable, and invalidates that exact feed key only when `warmed > 0` —
+a re-read that cannot change the answer is pure cost. Desktop and mobile call
+the same hook.
+
+**Second defect, found while reading it:** `_rank_feed_rows` floated
+brain-warmed cards to the front **regardless of `sort`**. A user who chose
+"Newest" got warmed-cards-first, so the two-way toggle was wrong on both of its
+settings. Reordering is now gated on the resolved sort being `fit`; badges still
+attach under `fresh` (a verdict is information — the order is the user's
+instruction, and the two are not the same decision), and `ranked_count` returns
+0 there because there is no leading ranked block to draw a divider after.
+
+Also deleted: `useJobFeed`'s `warming: false`, hardcoded for consumers that no
+longer existed.
+
+### Measured — live prod, before the change
+
+`GET /jobs/feed`, QA account, first sample discarded as cold (3,686ms):
+
+| Sort | Warm samples (ms) | p95 |
+|---|---|---|
+| `fit` | 643.5, 548.8, 547.7, 561.3, 546.6 | ~643 |
+| `fresh` | 643.9, 551.0, 952.6, 522.1, 523.3 | ~953 |
+
+**This is a baseline, not a win.** The change touches no query — the reorder
+gate is in-memory and the warm is a separate request after paint. J0 is expected
+to be unchanged; these numbers exist so a regression is visible. Both sorts sit
+**above the 500ms contract already**, consistent with section 8's finding that
+the remaining gap is the paid compute gate, not application code.
+
+### The cost this adds, stated plainly
+
+The warm runs on `get_blocking_judgment_provider` (paid-strong lane) and ranks
+up to `SHORTLIST_SIZE = 10` candidates. So a first `/market` arrival under "Best
+fit" now costs up to 10 brain evals where it previously cost none. Bounded by
+the eval context key (section: CONTEXT.md "Targeting Brief"): a repeat visit with
+unchanged targeting is a full cache hit and costs nothing. The spend lands once
+per targeting change per user, which is the behaviour "Best fit should be
+brain-ranked on arrival" actually asks for — but it is new spend, not free.
+
+### Open, not silently closed
+
+- Nobody has watched the reorder land in a browser. The feed re-sorts a few
+  seconds after paint; CONTEXT.md's Provisional Match reasoning ("a list that
+  reorders under someone mid-read is worse than one that sharpens in place")
+  argues for an affordance marking it. Deliberately not invented here — it is a
+  design call.
+- The remaining journey-compute violation named in section 2 (`/market` Wave 3
+  treating any scroll/pointerdown as intent) is untouched by this pass.
+
+---
+
+## 11. Follow-up latency-mail audit (2026-08-13)
+
+The follow-up mails did not carry a timestamp or deployed commit SHA, so an
+endpoint name alone cannot prove that an old alert describes the current code.
+Live six-sample probes separated current route cost from historic/systemic
+contention:
+
+- `/public/stats` and `/jobs/companies/indexable` now spend roughly **25–40ms
+  in the backend**. Their 2–9 second mail entries are not current query costs;
+  they are consistent with an older build or the Nano queue draining under a
+  concurrent corpus scan.
+- `/jobs/companies/pulse` had one real **5,059ms cold fill**, then **28–37ms**
+  warm. This is why the shared stale cache and single-flight lease are
+  correctness requirements, not optional acceleration.
+- `/companies/Wipro/skill-intelligence` remained roughly **0.8–0.9s**. It is a
+  legitimate J2 latency, but it is no longer paid by the initial company-page
+  journey; the disclosure action earns it.
+- `user_notifications` unread SQL averages **4.11ms** over 1,749 calls in
+  `pg_stat_statements`. The 3–5 second route wall times therefore came from
+  queue/network contention, not a slow notification predicate. The client was
+  nevertheless issuing unread-count and inbox together after bell intent. It
+  now makes one inbox request, derives the badge from that response, and the
+  compatibility count endpoint uses an exact count with a one-row payload.
+- Mobile global chrome was still fetching `/jobs/applications` on every page to
+  paint tab badges, and desktop chrome fetched CV versions for gates that no
+  longer exist. Both are now passive/removed: Collections, Prep, or CV earns
+  and seeds its own data.
+
+This distinction is the operating rule for future mails: repeated multi-second
+wall times do not make every named SQL query slow. Correlate the alert with a
+build SHA, `Server-Timing`, and `pg_stat_statements`; remove unjustified journey
+work, but treat co-timed fast SQL as a capacity/queue signal.
+
+---
+
+## 11. Company lookup — the #1 and #3 database consumers (2026-08-13)
+
+Found by following the playbook's Rule 1 (rank by *total* time) while scoping a
+feed precompute. **The feed was not the fire.** `pg_stat_statements`, ordered by
+`total_exec_time`:
+
+| # | calls | mean | total | query |
+|---|---|---|---|---|
+| 1 | 5,694 | 1,268ms | **7,222s** | `jobs WHERE company_name ILIKE $1 AND is_active AND listing_confidence='active' ORDER BY job_id LIMIT/OFFSET` |
+| 3 | 3,249 | 2,008ms | **6,524s** | `jobs WHERE company_name ILIKE $1 ORDER BY first_seen DESC LIMIT` |
+
+3.8 hours of database time between them, and `max_exec_time` on both pinned at
+**7,9xx** — the `authenticator` role's `statement_timeout=8s` killing them
+mid-scan. Per playbook step 2 that is a ceiling, not a cost.
+
+### Cause
+
+`.ilike("company_name", name)` is case-insensitive **exact** match here — no
+call site has ever passed a wildcard. But `~~*` cannot use the btree on
+`company_name`, so with `ORDER BY job_id LIMIT 50` the planner walked
+`jobs_pkey` expecting to fill the limit early. It estimated 1,620 matches and
+found 4, filtering 76,545 rows on the way:
+
+```
+Limit  (actual time=43884.624..44505.736 rows=4)
+  Buffers: shared hit=68925 read=6421
+  ->  Index Scan using jobs_pkey on jobs  (rows=4)
+        Filter: (is_active AND (company_name ~~* 'Accenture') AND …)
+        Rows Removed by Filter: 76545
+Execution Time: 44517.826 ms
+```
+
+This is the family the playbook already names — an index exists, the plan does
+not use it — but a *third* variant: not a partial predicate the planner can't
+prove, and not an expression index queried on the bare column, but an operator
+(`~~*`) that no available index serves, next to an `ORDER BY` that makes the
+wrong index look cheap.
+
+### Fix
+
+Two expression indexes, `CONCURRENTLY`, no lock, additive:
+
+```sql
+idx_jobs_lower_company_active_jobid  (lower(company_name), job_id)
+    WHERE is_active AND listing_confidence = 'active'
+idx_jobs_lower_company_first_seen    (lower(company_name), first_seen DESC)
+```
+
+The partial predicate is simple column equality, so the planner can prove it —
+unlike `btrim(x) <> ''`, which is what made `idx_jobs_company_name_trgm` dead.
+
+An index only helps if the query names the expression, and **PostgREST cannot
+express `lower(company_name) =` in a filter**. So both reads moved behind SQL
+functions — `company_open_roles_page`, `company_jobs_for_notes` — both
+`SECURITY INVOKER`, so RLS on `jobs` applies exactly as before. This is a plan
+fix, not an access change.
+
+### Measured
+
+| | before | after |
+|---|---|---|
+| #1 shape (SQL) | 44,517ms / 75,346 buffers | **2.07ms / 5 buffers** |
+| #1 through the RPC | — | **4.46ms / 5 buffers** |
+| #3 shape (SQL) | mean 2,008ms | **27.4ms** |
+
+**The endpoint has not moved yet, and this is why:** migrations reach the one
+shared production database immediately, but code does not. `GET
+/companies/Accenture` still measures 817/822/848/436ms warm (4,421ms cold)
+because the deployed code still calls `.ilike()`, and an index cannot serve a
+query that does not name its expression. The endpoint number is expected to fall
+when `Develop` deploys; it is not claimed here.
+
+### What this says about the feed precompute (R2)
+
+R2 was scoped on the assumption that the feed's ~550ms was dominated by
+recomputing `_fit_scores` per request. The ranking above does not support that —
+no feed query appears near the top by total time, and the feed's DB work is far
+below its endpoint time, which is playbook trap 3 (sequential round trips), not
+query cost. **R2 is not cancelled, but it is no longer justified by this
+measurement.** Section 12 adds the instrumentation it needs.
+
+---
+
+## 12. The feed was unmeasurable, and that is why R2 was guesswork (2026-08-13)
+
+`/jobs/feed` fell through every existing instrument:
+
+- `request_timing` fires `metric route.slow` only above **1000ms**. The feed
+  measures ~550ms warm, so it never logged.
+- `concurrent_reads` emits `metric fanout.slow` above 250ms — but the feed
+  prelude never went through `run_concurrently`. It used a raw per-request
+  `ThreadPoolExecutor`, so there was no fan-out line to grep, no section count
+  against the read contract, and it sat outside the one process-wide pool that
+  exists so a burst cannot multiply threads by requests × sections against the
+  40-read bulkhead.
+
+So the endpoint that R2 was designed to speed up had **no per-stage number
+anywhere**, and R2's premise was never checked against one.
+
+### The missing primitive
+
+`app/services/phase_timing.py`. The two existing primitives cover the ends and
+miss the middle: one number per request, or a breakdown of a CONCURRENT wave
+where wall time is `max(section)` and every non-max section is free. An endpoint
+running stages IN SEQUENCE has wall time `sum(phase)`, so every phase is worth
+its own number — the opposite shape.
+
+Emits one `metric phases.slow label=… total=… slowest=…` line at the same 250ms
+threshold, sorted slowest-first, and reports **`unattributed`**: time inside the
+block that no phase claimed. That line is the point. Four phases summing to
+200ms of a 550ms request means the answer is in the 350ms nobody measured, and a
+breakdown without it reads as complete — which is precisely how R2 got scoped.
+
+`/jobs/feed` is timed across `prelude`, `query`, `search_log`, `evals`, `rank`,
+`serialize`. The prelude also moved onto `run_concurrently` (label
+`jobs.feed.prelude`). In production that is 0-2 sections — `get_feed_context()`
+collapses the six-read compat path into one RPC — so the move is about
+visibility and the shared pool, not width.
+
+### R2 is blocked on data, deliberately
+
+No conclusion is drawn here. Before any precompute is built, `metric phases.slow
+label=jobs.feed` needs **10+ samples from prod** (playbook step 5: which member
+is slowest varies between samples, and one sample is an anecdote). Two outcomes
+are worth naming in advance:
+
+- If `unattributed` dominates, the cost is not in any stage listed — it is
+  serialization, middleware, or connection setup, and a precomputed ranking
+  would not move it at all.
+- If a slowest-phase that **changes every sample** appears, that is contention,
+  not a slow query (playbook step 5) — and the answer is the paid compute gate
+  in section 8, not application code.
+
+Either outcome would make R2 the wrong build. That is the entire reason for
+measuring first.

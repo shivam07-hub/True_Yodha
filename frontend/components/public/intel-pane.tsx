@@ -25,7 +25,7 @@ import type { JobRowFit } from "./intel/intel-rows"
 import { IntelResults, ResultsTab, ResultCompany, ResultGroup, ResultJob } from "./intel/intel-results"
 import { JobFitDrawer } from "./intel/job-fit-drawer"
 import { CHIP_FILTER, COUNTRY_CHIP_IDS, QUICK_FILTERS, sparkFor, velocityFor } from "./intel/intel-data"
-import { formatUptime, weekDeltaFromBins } from "./intel/intel-filters"
+import { useScraperUptime, weekDeltaFromBins } from "./intel/intel-filters"
 import "./intel-pane.css"
 
 const ANALYTICS_TTL = 7 * 24 * 60 * 60 * 1000
@@ -52,7 +52,6 @@ export function IntelPane() {
   const [activeCoId, setActiveCoId] = useState<string | null>(null)
   const [activeGroup, setActiveGroup] = useState<string | null>(null)
   const [nowMs, setNowMs] = useState(0)
-  const [uptime, setUptime] = useState("syncing now")
   const [fitDrawer, setFitDrawer] = useState<{ job: ResultJob; companyName: string | null } | null>(null)
   const { sort, setSort } = useResultsSort("intel", "velocity")
 
@@ -175,21 +174,7 @@ export function IntelPane() {
     const id = setInterval(tick, 30_000)
     return () => clearInterval(id)
   }, [])
-  // Real scraper start = earliest first_seen across the indexed corpus. Falls
-  // back to the formatUptime default anchor until analytics loads.
-  const scraperStartedMs = useMemo(() => {
-    const iso = analytics?.scraper_started
-    if (!iso) return undefined
-    const t = Date.parse(iso)
-    return Number.isFinite(t) ? t : undefined
-  }, [analytics?.scraper_started])
-
-  useEffect(() => {
-    const tick = () => setUptime(formatUptime(Date.now(), scraperStartedMs))
-    tick()
-    const id = setInterval(tick, 1000)
-    return () => clearInterval(id)
-  }, [scraperStartedMs])
+  const uptime = useScraperUptime(analytics?.scraper_started)
 
   const filteredCompanies: ResultCompany[] = useMemo(() => {
     // Global ⌘K search active: surface every company that has at least one hit.

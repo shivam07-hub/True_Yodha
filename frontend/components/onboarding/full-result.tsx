@@ -12,6 +12,7 @@ import { FeedCardSkeleton } from "@/components/jobs/feed-card"
 import { onboarding, type OnboardingResult } from "@/lib/api"
 import { trackEvent } from "@/lib/analytics"
 import { invalidateJobData } from "@/lib/domain-data"
+import { useMyroSearch } from "@/lib/hooks/use-myro-search"
 
 type FullResultData = Extract<OnboardingResult, { kind: "full_result_ready" }>
 interface Props {
@@ -47,6 +48,12 @@ export function FullResult({ token, result, onBack, onAdjust }: Props) {
   const selectedJob = topMatches.find((job) => job.job_id === selectedJobId) ?? null
   const finding = result.shortlist_status === "computing"
   const stalled = result.shortlist_status === "stalled"
+  // A run finished, but for a different direction than this one. The stack is not
+  // empty — it has never been searched for THIS target. The user pulls the run, so
+  // the surface offers it through the same hook every other surface uses rather
+  // than growing its own trigger.
+  const staleDirection = result.shortlist_status === "stale_direction"
+  const myroSearch = useMyroSearch(token)
 
   async function saveFirstRole() {
     if (!selectedJob || busy) return
@@ -95,6 +102,18 @@ export function FullResult({ token, result, onBack, onAdjust }: Props) {
             <Button size="sm" disabled={adjustBusy} onClick={() => void onAdjust()}>Choose a different direction</Button>
           </div>
         </div>
+      ) : staleDirection ? (
+        <div className="mt-6 rounded-lg border border-[var(--tm-border-soft)] bg-[var(--tm-surface)] p-5">
+          <p className="font-medium text-[var(--tm-text)]">Not searched for this direction yet</p>
+          <p className="mt-2 text-pretty text-sm text-[var(--tm-text-muted)]">Your roles were matched to an earlier target. Run a search to match this one.</p>
+          {error && <p role="alert" className="mt-3 text-sm text-[var(--tm-danger)]">{error}</p>}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button size="sm" disabled={myroSearch.isRefreshing} onClick={() => { trackEvent("onboarding_stale_direction_search"); myroSearch.run() }}>
+              {myroSearch.isRefreshing ? "Searching…" : "Run Myro Search"}
+            </Button>
+            <Button size="sm" variant="outline" disabled={adjustBusy} onClick={() => void adjustDirection()}>{adjustBusy ? "Reopening direction…" : "Adjust my direction"}</Button>
+          </div>
+        </div>
       ) : topMatches.length > 0 ? (
         <ResultMatches matches={topMatches} selectedJobId={selectedJobId} onSelect={(jobId) => { setSelectedJobId(jobId); setError(null); trackEvent("onboarding_shortlist_role_selected", { shortlist_position: topMatches.findIndex((job) => job.job_id === jobId) + 1 }) }} />
       ) : (
@@ -109,6 +128,7 @@ export function FullResult({ token, result, onBack, onAdjust }: Props) {
           and the naming moment lands after Myro has earned it, not before. It
           gates nothing and disappears once claimed. */}
       {!finding && <NinjaNameCard token={token} />}
+      {myroSearch.gate}
 
       {selectedJob && (
         <StickyOnboardingActionBar error={error} contentClassName="max-w-3xl px-5 pt-3 sm:px-8">

@@ -17,7 +17,7 @@ from fastapi import Depends
 from supabase import Client
 
 from app.database import get_supabase_admin
-from app.db_safe import safe_read
+from app.db_safe import safe_count, safe_read
 from app.deps import get_user_db
 from app.services.new_inventory_projection import (
     NEW_INVENTORY_DEBOUNCE_HOURS as NEW_INVENTORY_DEBOUNCE_HOURS,
@@ -57,15 +57,15 @@ class NotificationsRepository:
         return reconcile_new_inventory(self._db, self._admin_db, user_id, list(rows))
 
     def unread_count(self, user_id: str) -> int:
-        rows = safe_read(
+        return safe_count(
             self._db.table("user_notifications")
-            .select("id")
+            .select("id", count="exact")
             .eq("user_id", user_id)
-            .is_("read_at", "null"),
-            default=[],
+            .is_("read_at", "null")
+            .limit(1),
+            default=0,
             context="notifications_unread_count",
         )
-        return len(rows)
 
     # ── owner writes (token client — mark read only) ────────────────────────
 

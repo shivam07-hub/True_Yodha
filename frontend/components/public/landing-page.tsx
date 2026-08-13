@@ -7,6 +7,7 @@ import { PublicFooter } from "@/components/public/public-footer"
 import { LandingHero } from "@/components/public/landing/hero"
 import { LandingCompanyRail } from "@/components/public/landing/company-rail"
 import { LandingHowItWorks } from "@/components/public/landing/how-it-works"
+import { LandingLiveMirror } from "@/components/public/landing/live-mirror"
 import { LandingApplicationPlan } from "@/components/public/landing/application-plan"
 import { LandingClosing } from "@/components/public/landing/closing"
 import { useLandingData } from "@/components/public/landing/use-landing-data"
@@ -80,6 +81,12 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
         <LandingCompanyRail
           companyNames={data.marqueeNames}
           companiesMonitored={data.companiesMonitored}
+        />
+
+        <LandingLiveMirror
+          analytics={data.analytics}
+          jobsCount={data.jobsTracked}
+          companiesCount={data.companiesMonitored}
         />
 
         <LandingHowItWorks

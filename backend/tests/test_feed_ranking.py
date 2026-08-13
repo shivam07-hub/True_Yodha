@@ -4,6 +4,10 @@ The "best jobs" rule at read time: brain-warmed cards float to the front ordered
 by verdict (best first), carry the Match Verdict (score + word + is_strong), and
 the un-warmed tail keeps its deterministic fit order below them. Rank down, never
 hide. ranked_count tells the feed where to draw its "more roles" divider.
+
+Reordering is the user's instruction, not ours: it happens only under the "Best
+fit" rank. Under "Newest" the badges still attach — a verdict is information — but
+the order stays newest-first.
 """
 from __future__ import annotations
 
@@ -24,7 +28,7 @@ def test_ranked_cards_float_to_front_best_first() -> None:
     # Feed arrives fit-sorted: b, a, c. Brain says a > c > b.
     rows = [_row("b"), _row("a"), _row("c")]
     evals = {"a": _ev(4.5), "c": _ev(3.6), "b": _ev(3.1)}
-    ranked = _rank_feed_rows(rows, evals)
+    ranked = _rank_feed_rows(rows, evals, reorder=True)
     assert ranked == 3
     assert [r["job_id"] for r in rows] == ["a", "c", "b"]  # by match_score desc
     assert rows[0]["verdict"] == "strong"
@@ -36,7 +40,7 @@ def test_unwarmed_tail_keeps_fit_order_below_ranked() -> None:
     # Only 'a' and 'c' are warmed; 'b' and 'd' stay deterministic browse rows.
     rows = [_row("a"), _row("b"), _row("c"), _row("d")]
     evals = {"a": _ev(3.2), "c": _ev(4.0)}
-    ranked = _rank_feed_rows(rows, evals)
+    ranked = _rank_feed_rows(rows, evals, reorder=True)
     assert ranked == 2
     assert [r["job_id"] for r in rows] == ["c", "a", "b", "d"]  # ranked (best first), then fit tail
     # Un-warmed rows carry no verdict key — JobFeedItem fills it None on serialize.
@@ -49,7 +53,7 @@ def test_weak_shortlist_still_shows_never_hidden() -> None:
     # Rank down, never hide: a "stretch" card ranks below stronger ones but stays.
     rows = [_row("a"), _row("b")]
     evals = {"a": _ev(2.4), "b": _ev(3.9)}  # a is weak, b is decent
-    ranked = _rank_feed_rows(rows, evals)
+    ranked = _rank_feed_rows(rows, evals, reorder=True)
     assert ranked == 2
     assert [r["job_id"] for r in rows] == ["b", "a"]
     assert rows[1]["verdict"] == "stretch"  # weak, but present
@@ -57,7 +61,30 @@ def test_weak_shortlist_still_shows_never_hidden() -> None:
 
 def test_no_evals_leaves_feed_untouched() -> None:
     rows = [_row("a"), _row("b")]
-    ranked = _rank_feed_rows(rows, {})
+    ranked = _rank_feed_rows(rows, {}, reorder=True)
     assert ranked == 0
     assert [r["job_id"] for r in rows] == ["a", "b"]
     assert rows[0].get("verdict") is None
+
+
+# ── "Newest" means newest ─────────────────────────────────────────────────────
+#
+# This reordered on EVERY sort. A user who picked "Newest" got warmed-cards-first,
+# so the two-way toggle was wrong on both of its settings.
+
+def test_newest_keeps_its_order_and_still_shows_verdicts() -> None:
+    rows = [_row("b"), _row("a"), _row("c")]
+    evals = {"a": _ev(4.5), "c": _ev(3.6), "b": _ev(3.1)}
+    ranked = _rank_feed_rows(rows, evals, reorder=False)
+    assert [r["job_id"] for r in rows] == ["b", "a", "c"], "the user asked for newest"
+    # The badge is information; withholding it would be a second wrong answer.
+    assert rows[1]["verdict"] == "strong"
+    assert rows[1]["match_score"] == 90
+    # No leading ranked block → no divider to draw.
+    assert ranked == 0
+
+
+def test_newest_with_no_evals_is_untouched() -> None:
+    rows = [_row("a"), _row("b")]
+    assert _rank_feed_rows(rows, {}, reorder=False) == 0
+    assert [r["job_id"] for r in rows] == ["a", "b"]

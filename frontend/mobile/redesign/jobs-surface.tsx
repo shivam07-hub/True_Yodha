@@ -9,6 +9,7 @@ import type { CareerBand } from "@/lib/api"
 import { activeFilterCount, type FeedFilters } from "@/components/market/feed-types"
 import { FiltersSheet } from "@/components/market/filters-sheet"
 import { useJobFeed } from "@/components/market/use-job-feed"
+import { useFeedWarm } from "@/components/market/use-feed-warm"
 import { useFeedScope } from "@/lib/hooks/use-feed-scope"
 import { useMyroSearch } from "@/lib/hooks/use-myro-search"
 import { IntentChat } from "@/components/jobs/intent-chat"
@@ -77,8 +78,11 @@ export function JobsSurface({
   }, [])
 
   const scope = useFeedScope(targetLocations)
-  const { allJobs, visibleJobs, total, loading, triage, undo } =
+  const { allJobs, visibleJobs, total, loading, settled, triage, undo } =
     useJobFeed({ token, filters, q: searchQ, skill: null, scope })
+  // Same J1 warm as desktop, through the same hook — a surface that warmed its own
+  // way is how desktop and mobile drifted apart before.
+  useFeedWarm({ token, filters, q: searchQ, skill: null, scope, settled })
   const filterCount = activeFilterCount(filters)
 
   const rows = useMemo(() => visibleJobs.map(feedItemToRow), [visibleJobs])

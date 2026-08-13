@@ -4,10 +4,21 @@ One module assembles the user's targeting from BOTH stores — the confirmed
 `user_profiles` columns and the `user_memory` fact store (authored + distilled)
 — so every consumer asks once instead of re-assembling its own subset:
 
-- `for_ranking(jobs_repo, user_id)` → the Job Refresh pipeline. `ranking_profile()`
-  is the dict `llm_ranker.build_system_prompt` + `job_matcher` already read, plus
-  `known_facts` (the same key intent-chat uses), so the Career Ops evaluator sees
-  the full brief, not just the 5 stale columns.
+- `for_ranking(jobs_repo, user_id)` → EVERY path that computes a brain verdict.
+  `ranking_profile()` is the dict `llm_ranker.build_system_prompt` + `job_matcher`
+  already read, plus `known_facts` (the same key intent-chat uses), so the Career
+  Ops evaluator sees the full brief, not just the 5 stale columns. Three callers:
+  `jobs_workflow.compute_job_matches` (the Search), `on_demand.ensure_job_eval`
+  (brain-on-open, every surface), `feed_warm.warm_feed_shortlist` (the /market
+  top-10). **`jobs_repo.get_user_profile_targeting` is this module's private
+  input — a ranking path that calls it directly is memory-blind**, and because a
+  verdict is cached permanently per (user, job) (migration 20260710) that blindness
+  is permanent too. The two on-demand paths did exactly that until 2026-08-13:
+  1,175 of the 1,686 brain verdicts in prod — 70% — were written without ever
+  seeing a fact the user had told Myro. 308 of them (3 users, ~52 active notes
+  each) were materially wrong; the rest belonged to users with no ranking-relevant
+  facts, where blind and informed agree. Not backfilled, by decision: the guarantee
+  is forward — the next Myro Ops Search returns a standardised verdict.
 - `for_preflight(db, user_id)` → the "Refresh your matches" pre-flight modal.
   `preflight()` gap-fills empty fields from memory facts (silent prefill into the
   DRAFT — persistence still happens only on the user's Run/Save action, so the

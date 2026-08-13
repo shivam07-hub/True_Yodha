@@ -136,7 +136,7 @@ export function NinjaNameCard({ token }: { token: string }) {
             trackEvent("ninja_name_skipped")
             setDismissed(true)
           }}
-          className="tm-control-focus rounded text-sm text-[var(--tm-text-muted)] underline underline-offset-4"
+          className="tm-control-focus tm-dismiss-action rounded text-sm text-[var(--tm-text-muted)] underline underline-offset-4"
         >
           Later
         </button>

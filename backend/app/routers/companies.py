@@ -158,13 +158,16 @@ def _fetch_company_jobs_for_notes(db, company_name: str) -> list[dict]:
     that returned 500 before, so a bounded page beats an absent one — and the
     truncation is logged, never silent.
     """
+    # Through the RPC for the same reason as `fetch_company_jobs_page`: the fast
+    # plan needs `lower(company_name) =`, which PostgREST cannot express. This
+    # `.ilike()` was the platform's #3 database consumer — 3,249 calls, mean
+    # 2,008ms, 6,524 seconds total, also pinned at the 8s statement_timeout.
+    # Through `idx_jobs_lower_company_first_seen`: 27ms.
     rows = (
-        db.table("jobs")
-        .select("job_id, job_title")
-        .ilike("company_name", company_name)
-        .order("first_seen", desc=True)
-        .limit(_NOTE_JOB_WINDOW)
-        .execute()
+        db.rpc(
+            "company_jobs_for_notes",
+            {"p_company": company_name, "p_limit": _NOTE_JOB_WINDOW},
+        ).execute()
     ).data or []
     if len(rows) >= _NOTE_JOB_WINDOW:
         _log.info(

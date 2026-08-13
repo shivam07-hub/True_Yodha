@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils"
  * All colors reference --tm-* tokens so the component themes correctly across
  * the light-orange and dark-teal brand palettes.
  *
- * Variants: solid · outline · ghost · inline
+ * Variants: solid · outline · neutral · dismiss · danger · ghost · inline
  * Sizes:    sm · md (default) · lg · icon-sm · icon-md
  *
  * Use `render={<Link href="..." />}` (Base UI pattern) to project the button
@@ -57,6 +57,11 @@ const buttonVariants = cva(
           "hover:bg-[var(--tm-hover)] hover:border-[var(--tm-border)]",
           "active:bg-[var(--tm-hover)]",
           "focus-visible:outline-2 focus-visible:outline-[var(--tm-int-border)] focus-visible:outline-offset-2",
+        ),
+        // ── dismiss · reversible negative intent (neutral until interaction) ─
+        dismiss: cn(
+          "tm-dismiss-action bg-transparent text-[var(--tm-interactive-rest)] border-[var(--tm-border)]",
+          "active:bg-[var(--tm-danger-wash)] active:text-[var(--tm-danger)] active:border-[var(--tm-danger)]",
         ),
         // ── danger · the destructive button (soft at rest, solid-red on hover) ─
         danger: cn(

@@ -22,9 +22,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from app.services import llm_ranker
+from app.services import llm_ranker, onboarding_service
 from app.services.llm_provider import LLMProvider
-from app.services.matching import on_demand, ranking
+from app.services.matching import on_demand, ranking, targeting
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +70,19 @@ async def warm_feed_shortlist(
     if not ids:
         return 0
 
+    # The Targeting Brief, not the raw profile columns — same reason as on_demand:
+    # these evals persist permanently per (user, job), so a memory-blind one here is
+    # a memory-blind verdict forever.
+    profile = targeting.for_ranking(repo, user_id).ranking_profile()
+    if hasattr(repo, "get_latest_baseline_id"):
+        profile["baseline_version_id"] = repo.get_latest_baseline_id(user_id)
+    eval_ctx = onboarding_service.eval_context_key(profile)
+
+    # Cached counts only if it was reasoned from what we believe NOW. A warm is
+    # idempotent within a context and re-rates across one: the cost lands where the
+    # targeting actually moved, not on every visit.
     cached = repo.get_cached_match_evals(user_id, ids)
-    to_eval = [j for j in ids if j not in cached]
+    to_eval = [j for j in ids if not onboarding_service.eval_matches_context(cached.get(j), eval_ctx)]
     if not to_eval:
         return 0
 
@@ -90,9 +101,6 @@ async def warm_feed_shortlist(
     if not shaped:
         return 0
 
-    profile = repo.get_user_profile_targeting(user_id)
-    if hasattr(repo, "get_latest_baseline_id"):
-        profile["baseline_version_id"] = repo.get_latest_baseline_id(user_id)
     eval_profile = ranking._eval_profile(profile, profile.get("cv_markdown") or "")
 
     evaluations = await llm_ranker.evaluate_all(eval_profile, shaped, provider)

@@ -1,5 +1,4 @@
 import logging
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Annotated, Literal
 
@@ -15,10 +14,12 @@ from app.repositories.jobs import (
     get_token_jobs_repository,
 )
 from app.repositories.search_queries import SearchQueriesRepository
+from app.services.concurrent_reads import run_concurrently
 from app.services.llm_provider import LLMProvider, get_blocking_judgment_provider
 from app.services.matching import feed_warm
 from app.services.matching.filter_spec import FilterSpec
 from app.services.matching.job_query import JobQuery
+from app.services.phase_timing import phase_timer
 from app.schemas import (
     CompanyOpenRoleItem,
     CompanyOpenRolesResponse,
@@ -393,9 +394,15 @@ def _resolve_feed_scope(
     if not role_domain and cluster:
         extra_reads["resolved_domain"] = lambda: repo.resolve_role_domain_for_clusters([cluster])
     if extra_reads:
-        with ThreadPoolExecutor(max_workers=len(extra_reads)) as pool:
-            futures = {key: pool.submit(fn) for key, fn in extra_reads.items()}
-            got.update({key: future.result() for key, future in futures.items()})
+        # Through `run_concurrently`, not a per-request ThreadPoolExecutor. The raw
+        # pool here was invisible (no `fanout.slow` line), uncounted against the
+        # read contract's 3-section budget, and outside the one process-wide pool
+        # that exists precisely so a burst cannot multiply threads by
+        # requests × sections against the 40-read bulkhead. In production this is
+        # 0-2 sections — `get_feed_context()` collapses the six-read compat path
+        # into one RPC — so this is about visibility and the shared pool, not
+        # width. The six-section branch below is the lightweight-fake path.
+        got.update(run_concurrently(extra_reads, label="jobs.feed.prelude"))
 
     resolved_domain = role_domain or got.get("resolved_domain")
     # Draining queue: hide what the user has decided on. Skipped = the canonical
@@ -462,11 +469,20 @@ def _resolve_feed_scope(
     )
 
 
-def _rank_feed_rows(rows: list[dict], brain_evals: dict[str, dict]) -> int:
-    """Attach cached Matching-Brain badges + the Match Verdict to each card, then
-    float the brain-ranked cards to the front ordered by verdict (best first). The
-    long tail keeps its deterministic fit order. Returns how many leading cards now
-    carry a verdict — the feed draws its "more roles" divider after this many.
+def _rank_feed_rows(rows: list[dict], brain_evals: dict[str, dict], *, reorder: bool) -> int:
+    """Attach cached Matching-Brain badges + the Match Verdict to each card, and —
+    when the user asked to be ranked by fit — float the brain-ranked cards to the
+    front ordered by verdict (best first). The long tail keeps its deterministic fit
+    order. Returns how many leading cards now carry a verdict — the feed draws its
+    "more roles" divider after this many.
+
+    `reorder=False` attaches the same badges and changes NOTHING about the order.
+    This used to reorder unconditionally, so a user who picked "Newest" got
+    warmed-cards-first instead of newest-first: the toggle was wrong on both of its
+    two settings. Verdicts still show on every card either way — the badge is
+    information, the order is the user's instruction, and the two are not the same
+    decision. Returns 0 when not reordering: there is no leading ranked block, so
+    there is no divider to draw.
 
     No LLM here: a card only ranks if the brain already warmed it for this user.
     """
@@ -490,6 +506,8 @@ def _rank_feed_rows(rows: list[dict], brain_evals: dict[str, dict]) -> int:
         r["verdict"] = me.verdict
         r["is_strong"] = me.is_strong
         ranked.append((me.match_score, r))
+    if not reorder:
+        return 0
     # Best verdict first; ties keep the incoming fit order (stable sort on a
     # pre-fit-ordered list). Rank down, never hide — a "stretch"/"skip" card still
     # appears, just below the strong ones.
@@ -533,51 +551,80 @@ def job_feed(
     # from sum() (the prod `route.slow` on /jobs/feed) to max(). Same per-request
     # RLS client (Depends-cached, httpx threadsafe) as the parallel home bootstrap.
     uid = principal.id
-    scope = _resolve_feed_scope(
-        repo, uid,
-        cluster=cluster, role_domain=role_domain, q=q, skill=skill,
-        location_city=location_city, location_country=location_country, location_mode=location_mode,
-        sort=sort, min_skill_matches=min_skill_matches, following_only=following_only, include_stretch=include_stretch,
-        browse_scope=browse_scope, page=page, page_size=page_size,
-    )
-    location_countries = scope.location_countries
-    page_result = JobQuery.feed(
-        repo,
-        scope.spec,
-        user_skill_keys=scope.skill_keys,
-        user_target_roles=scope.target_roles,
-        primary_career_band=scope.primary_career_band,
-        explored_career_bands=scope.explored_career_bands,
-        target_seniority=scope.target_seniority,
-        exclude_job_ids=scope.exclude_ids,
-        followed_companies=scope.followed,
-    )
-    # Log a deliberate text search once (page 1) — the authed intent signal.
-    # Best-effort: SearchQueriesRepository swallows any failure. Pagination and
-    # filter-only loads (no q) are skipped to keep the signal clean.
-    if q and q.strip() and page == 1:
-        SearchQueriesRepository.record(
-            surface="market",
-            query=q.strip(),
-            user_id=uid,
-            parsed={"skill": skill, "role_domain": scope.resolved_domain, "sort": sort},
-            result_count=page_result["available_total"],
+    # Sequential phases, so wall time is sum(phase) and every one is worth a
+    # number. Instrumented because this endpoint was invisible: ~550ms sits under
+    # `route.slow`'s 1000ms, and the prelude used a raw ThreadPoolExecutor so no
+    # `fanout.slow` line existed either. A feed precompute (R2) was scoped on an
+    # assumption about where that time goes; grep `metric phases.slow
+    # label=jobs.feed` for the answer before building one.
+    with phase_timer("jobs.feed") as timed:
+        with timed("prelude"):
+            scope = _resolve_feed_scope(
+                repo, uid,
+                cluster=cluster, role_domain=role_domain, q=q, skill=skill,
+                location_city=location_city, location_country=location_country, location_mode=location_mode,
+                sort=sort, min_skill_matches=min_skill_matches, following_only=following_only, include_stretch=include_stretch,
+                browse_scope=browse_scope, page=page, page_size=page_size,
+            )
+        location_countries = scope.location_countries
+        with timed("query"):
+            page_result = JobQuery.feed(
+                repo,
+                scope.spec,
+                user_skill_keys=scope.skill_keys,
+                user_target_roles=scope.target_roles,
+                primary_career_band=scope.primary_career_band,
+                explored_career_bands=scope.explored_career_bands,
+                target_seniority=scope.target_seniority,
+                exclude_job_ids=scope.exclude_ids,
+                followed_companies=scope.followed,
+            )
+        # Log a deliberate text search once (page 1) — the authed intent signal.
+        # Best-effort: SearchQueriesRepository swallows any failure. Pagination and
+        # filter-only loads (no q) are skipped to keep the signal clean.
+        if q and q.strip() and page == 1:
+            with timed("search_log"):
+                SearchQueriesRepository.record(
+                    surface="market",
+                    query=q.strip(),
+                    user_id=uid,
+                    parsed={"skill": skill, "role_domain": scope.resolved_domain, "sort": sort},
+                    result_count=page_result["available_total"],
+                )
+        rows = page_result["rows"]
+        # Brain-everywhere (Consolidation D): attach the cached Matching-Brain badges +
+        # the Match Verdict from ONE batched read, and float the ranked cards to the
+        # front (the "best jobs" rule). No LLM at feed time — a card only ranks if the
+        # brain already warmed it for this user (POST /feed/warm, a refresh, or an open);
+        # the rest stay deterministic-overlap browse rows below the divider.
+        feed_job_ids = [str(r.get("job_id")) for r in rows if r.get("job_id")]
+        with timed("evals"):
+            brain_evals = repo.get_cached_match_evals(uid, feed_job_ids) if feed_job_ids else {}
+        # Reorder only when the user asked to be ranked by fit. `page_result["sort"]` is
+        # the resolved mode (the server may fall back when a user has no fit signal), not
+        # the raw query param — the order must follow what was actually applied.
+        with timed("rank"):
+            ranked_count = _rank_feed_rows(rows, brain_evals, reorder=page_result["sort"] == "fit")
+        # The promise breaking, observed in the request that broke it. A user asked
+        # to be ranked by fit and got a deck with no verdict on any card — the tab
+        # says "Best fit" and the order is the deterministic browse composite.
+        # Expected transiently on a cold arrival (the J1 warm has not landed yet);
+        # a SUSTAINED rate means the warm is failing or never firing, which is the
+        # state this endpoint sat in undetected until 2026-08-13. Every defect found
+        # that day was found by hand-querying prod, which is not how the next one
+        # should be found.
+        if page_result["sort"] == "fit" and ranked_count == 0 and rows:
+            logger.warning(
+                "metric feed.unranked user=%s rows=%d page=%d scope=%s",
+                uid, len(rows), page, browse_scope,
+            )
+        # Analytics/audit write: never make the J0 feed wait for it. Starlette runs
+        # this after the response is sent, matching /jobs/matches' existing seam.
+        background_tasks.add_task(
+            repo.record_recommendation_exposures, uid, rows, surface="market"
         )
-    rows = page_result["rows"]
-    # Brain-everywhere (Consolidation D): attach the cached Matching-Brain badges +
-    # the Match Verdict from ONE batched read, and float the ranked cards to the
-    # front (the "best jobs" rule). No LLM at feed time — a card only ranks if the
-    # brain already warmed it for this user (POST /feed/warm, a refresh, or an open);
-    # the rest stay deterministic-overlap browse rows below the divider.
-    feed_job_ids = [str(r.get("job_id")) for r in rows if r.get("job_id")]
-    brain_evals = repo.get_cached_match_evals(uid, feed_job_ids) if feed_job_ids else {}
-    ranked_count = _rank_feed_rows(rows, brain_evals)
-    # Analytics/audit write: never make the J0 feed wait for it. Starlette runs
-    # this after the response is sent, matching /jobs/matches' existing seam.
-    background_tasks.add_task(
-        repo.record_recommendation_exposures, uid, rows, surface="market"
-    )
-    items = [JobFeedItem(**row) for row in rows]
+        with timed("serialize"):
+            items = [JobFeedItem(**row) for row in rows]
     return JobFeedResponse(
         jobs=items,
         available_total=page_result["available_total"],

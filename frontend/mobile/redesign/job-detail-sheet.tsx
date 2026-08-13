@@ -166,11 +166,11 @@ export function JobDetailSheet({
       <div style={{ flex: "none", display: "flex", gap: 8, padding: "11px 16px 16px", borderTop: "1px solid var(--mm-hair)", background: "var(--mm-card-2)" }}>
         {canDismiss ? (
           <>
-            <button onClick={onHeart} aria-label={saved ? "Remove from saved" : "Save"} className="mm-press-sm" style={footBtn}>
+            <button onClick={onHeart} aria-label={saved ? "Remove from saved" : "Save"} className={`mm-press-sm${saved ? " tm-dismiss-action" : ""}`} style={footBtn}>
               <svg width={17} height={17} viewBox="0 0 24 24" fill={saved ? "currentColor" : "none"} stroke={saved ? "var(--mm-accent)" : "var(--mm-muted)"} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.5-1.5 2-3.2 2-4.6C21 6.4 18.6 4 15.6 4 14.2 4 12.9 4.6 12 5.6 11.1 4.6 9.8 4 8.4 4 5.4 4 3 6.4 3 9.4c0 1.4.5 3.1 2 4.6l7 6.6 7-6.6Z" /></svg>
             </button>
-            <button onClick={onSkip} aria-label="Not interested" className="mm-press-sm" style={footBtn}>
-              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="var(--mm-muted)" strokeWidth={2.2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            <button onClick={onSkip} aria-label="Not interested" className="mm-press-sm tm-dismiss-action" style={footBtn}>
+              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
             </button>
           </>
         ) : null}

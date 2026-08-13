@@ -2,6 +2,8 @@
 reviews/comments must render (trust is a page OUTPUT, not an existence gate),
 and only a company with none of jobs/reviews/notes should 404."""
 
+from types import SimpleNamespace
+
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -39,12 +41,33 @@ class _FakeQuery:
         return _FakeResult(self._data)
 
 
+class _FakeRpc:
+    """One RPC call, resolved from the same table_data the .table() fake serves."""
+
+    def __init__(self, rows: list, calls: dict | None = None, params: dict | None = None):
+        self._rows = rows
+        if calls is not None:
+            calls["rpc_params"] = params
+
+    def execute(self):
+        return SimpleNamespace(data=self._rows, count=len(self._rows))
+
+
 class _FakeDB:
     def __init__(self, table_data: dict[str, list]):
         self._table_data = table_data
 
     def table(self, name: str):
         return _FakeQuery(self._table_data.get(name, []))
+
+    def rpc(self, name: str, params: dict):
+        # The company reads go through RPCs so the query can say
+        # `lower(company_name) =` — the expression the fast index needs and the
+        # one PostgREST cannot express. Both read `jobs`.
+        rows = self._table_data.get("jobs", [])
+        if name == "company_jobs_for_notes":
+            rows = rows[: params.get("p_limit") or len(rows)]
+        return _FakeRpc(rows)
 
 
 def _get_company(monkeypatch, table_data: dict[str, list]):
@@ -146,6 +169,13 @@ class _RecordingDB(_FakeDB):
         calls = self.calls.setdefault(name, {})
         return _RecordingQuery(self._table_data.get(name, []), calls)
 
+    def rpc(self, name: str, params: dict):
+        calls = self.calls.setdefault(name, {})
+        rows = self._table_data.get("jobs", [])
+        if name == "company_jobs_for_notes":
+            rows = rows[: params.get("p_limit") or len(rows)]
+        return _FakeRpc(rows, calls, params)
+
 
 def test_company_job_read_is_bounded(monkeypatch) -> None:
     """The notes/existence read must never pull a company's whole job history.
@@ -168,6 +198,10 @@ def test_company_job_read_is_bounded(monkeypatch) -> None:
         response = client.get("/companies/Accenture")
 
     assert response.status_code == 200
-    jobs_calls = db.calls["jobs"]
-    assert jobs_calls.get("limit") == companies_router._NOTE_JOB_WINDOW
-    assert jobs_calls.get("order") == "first_seen"
+    # The bound moved from `.limit()` to the RPC's p_limit when this read became
+    # `company_jobs_for_notes` (the .ilike() it replaced was the platform's #3
+    # database consumer). The GUARANTEE is unchanged and still asserted: this read
+    # never pulls a company's whole job history.
+    params = db.calls["company_jobs_for_notes"]["rpc_params"]
+    assert params["p_limit"] == companies_router._NOTE_JOB_WINDOW
+    assert params["p_company"] == "Accenture"

@@ -42,6 +42,93 @@ def target_context_hash(
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
+def context_key(profile: dict[str, Any]) -> str | None:
+    """THE derivation of a targeting profile's direction key. One function, so the
+    writer and the reader cannot produce different keys for the same direction.
+
+    They did. `evaluate_credibility` normalised (`.strip().lower()` on seniority)
+    and required a role title; `get_result` built its own `target` dict with
+    neither. The missing-title half was live — 162 users, see CONTEXT.md "Targeting
+    Brief" — and the normalisation half was latent only because no profile in prod
+    happened to carry an untrimmed or capitalised value. A key with two producers
+    is a bug waiting for the first row that tells them apart.
+
+    Returns None only when there is no baseline to scope to — the queries that use
+    this key (`get_matches_for_context`, `get_current_credible_match`) filter on
+    `baseline_version_id` too, so a keyless row is unreadable by them either way.
+    A blank direction still gets a key: absence of a title is a direction we can
+    name, not a reason to withhold the name.
+    """
+    baseline_id = profile.get("baseline_version_id")
+    if not baseline_id:
+        return None
+    return target_context_hash(
+        int(baseline_id),
+        str(profile.get("target_role_title") or "").strip(),
+        str(profile.get("target_seniority") or "any").strip().lower(),
+        str(profile.get("target_location") or "").strip(),
+    )
+
+
+def eval_context_key(profile: dict[str, Any]) -> str:
+    """What the BRAIN saw when it judged a job — the staleness key for an eval.
+
+    Distinct from `context_key`, and deliberately a second field rather than a
+    widened first one, because they answer different questions:
+
+    - `context_key` (`user_job_matches.target_context_hash`) — WHICH DIRECTION a
+      verdict belongs to. A scoping key. The onboarding shortlist filters on it, so
+      it must move only when the user changes direction; folding memory into it
+      would make a distiller write invalidate a shortlist mid-read.
+    - `eval_context_key` (`user_job_matches.eval_context_hash`) — WHAT THE BRAIN
+      WAS TOLD. Direction *plus* the `known_facts` block the Career Ops prompt
+      renders. Only the skip gates read it, to answer "is this cached verdict still
+      the answer, or was it computed against something we no longer believe?"
+
+    Two keys, two names, two questions. One key doing both would either re-rate on
+    every memory edit or never re-rate at all.
+
+    Always returns a key — unlike `context_key`, which is None without a baseline
+    because the queries that use it filter on `baseline_version_id` anyway. A None
+    here would compare equal to another None and silently disable re-rating for
+    exactly the users least likely to be noticed.
+
+    Hashes the facts in the order the prompt lists them (post-cap), not a sorted
+    set: the prompt's order is part of what the brain was told, and
+    `UserMemoryRepository.list_active` now orders totally, so the order moves only
+    when the facts do.
+    """
+    raw = json.dumps(
+        [
+            profile.get("baseline_version_id"),
+            str(profile.get("target_role_title") or "").strip().casefold(),
+            str(profile.get("target_seniority") or "any").strip().lower(),
+            str(profile.get("target_location") or "").strip().casefold(),
+            [str(f) for f in (profile.get("known_facts") or [])],
+        ],
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def eval_matches_context(row: dict[str, Any] | None, eval_ctx: str) -> bool:
+    """Was this cached verdict reasoned from `eval_ctx`?
+
+    The one rule every skip gate asks — `jobs_workflow`'s cache fetcher (the Myro
+    Ops Search), `on_demand.ensure_job_eval` (brain-on-open), and
+    `feed_warm.warm_feed_shortlist` (the /market top-10). Three copies of a
+    staleness test is how they drift apart; the gates still differ in what ELSE
+    they require of a row (on-open also insists on a real score, so a Provisional
+    Match recomputes), and that difference stays visible at each call site instead
+    of being smuggled in here.
+
+    A NULL key is not "still valid" — it is "we cannot tell", which is a re-rate.
+    Every row written before the column existed reads that way, which is exactly
+    what makes the next Search correct without a backfill.
+    """
+    return bool(row) and (row or {}).get("eval_context_hash") == eval_ctx
+
+
 MAX_TARGET_ROLES = 5
 
 
@@ -473,6 +560,10 @@ def _shortlist(
     - ``stalled``     — outstanding past the grace window; re-enqueued, and the
       user is told rather than left watching a spinner forever.
     - ``empty``       — the run for this direction finished and matched nothing.
+    - ``stale_direction`` — a run finished, but for a different direction than the
+      one on screen. The user has matches; none were computed for this target. The
+      surface asks for a Myro Ops Search rather than auto-enqueueing one — the user
+      pulls the run (same contract as new-inventory).
 
     The status is derived, not guessed: `last_match_run_at` is stamped only by
     `match_run.run_match` on completion, and `target_updated_at` only by a
@@ -500,9 +591,28 @@ def _shortlist(
         return matches, "provisional" if unrated and not run_finished else "ready"
 
     if run_finished:
-        # A run covering this direction completed and produced nothing. Not a
-        # failure — the market genuinely has no overlap. Offer a new direction.
-        return [], "empty"
+        # Which direction did that finished run actually cover? `last_match_run_at`
+        # only says a run happened; `last_match_context_hash` says what it ran
+        # against. Reading the first as an answer to the second is what made every
+        # unmatched context report "the market genuinely has no overlap" — 162 of
+        # 196 users, over 1,289 real match rows they could not see.
+        if (profile.get("last_match_context_hash") or "") == context_hash:
+            # This direction WAS searched and produced nothing. Honest empty.
+            return [], "empty"
+        # A run finished, but for a different direction than the one on screen (or
+        # before the run recorded its direction at all). The stack is not empty and
+        # nothing is in flight — it simply has not been searched for THIS target.
+        # Not auto-enqueued: the user pulls the run, so the surface asks for it.
+        #
+        # Emitted because this state is invisible otherwise: it renders as a normal
+        # screen, nothing errors, and the population sitting in it was only ever
+        # found by querying production by hand (162 of 196 users, holding 1,289 real
+        # match rows, each told the market had nothing for them). A rate that does
+        # not fall as users run searches means the stamp is not landing.
+        logger.warning(
+            "metric shortlist.stale_direction user=%s baseline=%s", user_id, baseline_version_id
+        )
+        return [], "stale_direction"
 
     age = (datetime.now(timezone.utc) - changed_at).total_seconds() if changed_at else None
     if age is None or age <= _MATCH_GRACE_SECONDS:
@@ -787,12 +897,9 @@ def _current_result(db: Client, user_id: str) -> dict[str, Any]:
             "journey_step": 3,
         }
 
-    context_hash = target_context_hash(
-        int(baseline["id"]),
-        target["role_title"],
-        target["seniority"],
-        target["location"],
-    )
+    # The SAME producer the writer uses (`match_credibility.evaluate_credibility`).
+    # Building the key inline from the `target` dict is what let the two sides drift.
+    context_hash = context_key({**profile, "baseline_version_id": int(baseline["id"])})
     # The three reads behind the finished screen. They share only the context hash,
     # which is already computed — none of them feeds another, so paying for them in
     # sequence bought nothing. This is the branch the user polls for the whole

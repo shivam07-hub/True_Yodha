@@ -10,11 +10,24 @@ import asyncio
 from typing import Any
 
 from app.services.matching import on_demand
+from app.services.onboarding_service import eval_context_key
+
+# The key the code will derive for _FakeRepo's profile (baseline 7, no memory —
+# the fake has no `_db`, so the Targeting Brief carries no facts).
+_CTX = eval_context_key({"baseline_version_id": 7})
 
 
 class _FakeRepo:
-    def __init__(self, *, cached: dict[str, Any] | None = None, job_exists: bool = True) -> None:
-        self._cached = cached
+    def __init__(
+        self,
+        *,
+        cached: dict[str, Any] | None = None,
+        job_exists: bool = True,
+        cached_ctx: str | None = _CTX,
+    ) -> None:
+        # A cached row must record WHICH targeting context produced it, or the skip
+        # gate cannot tell a still-valid verdict from a superseded one.
+        self._cached = {**cached, "eval_context_hash": cached_ctx} if cached else cached
         self._job_exists = job_exists
         self.persisted: dict[str, Any] | None = None
 
@@ -115,3 +128,101 @@ def test_overlap_only_cache_recomputes(monkeypatch: Any) -> None:
     out = asyncio.run(on_demand.ensure_job_eval(repo, object(), "u1", "j1"))  # type: ignore[arg-type]
     assert out["cached"] is False
     assert repo.persisted is not None
+
+
+# ── the Targeting Brief reaches the on-open brain ────────────────────────────
+#
+# A verdict written here is cached permanently per (user, job) — migration
+# 20260710 — so reading raw `user_profiles` columns would make every fact the
+# user has told Myro invisible to it forever. 70% of the brain verdicts in prod
+# (1,175 rows) were written memory-blind through this path and the feed warmer
+# before the brief was wired in.
+
+def test_brain_sees_memory_facts_via_targeting_brief(monkeypatch: Any) -> None:
+    repo = _FakeRepo(cached=None)
+    monkeypatch.setattr(
+        on_demand.targeting,
+        "_facts",
+        lambda _db, _uid: [on_demand.targeting.MemoryFact(kind="constraint", text="no night shifts")],
+    )
+    seen: dict[str, Any] = {}
+
+    async def _capture(profile: dict[str, Any], _cv: str, _job: dict[str, Any], _prov: Any) -> dict[str, Any]:
+        seen.update(profile)
+        return {"overall_score": 3.8, "grade": "B+", "recommendation": "Apply",
+                "summary": "s", "strengths": [], "concerns": []}
+
+    monkeypatch.setattr(on_demand.ranking, "rank_one", _capture)
+    asyncio.run(on_demand.ensure_job_eval(repo, object(), "u1", "j1"))  # type: ignore[arg-type]
+
+    assert seen["known_facts"] == ["constraint: no night shifts"]
+    assert seen["target_roles"] == ["MLE"]  # columns still pass through untouched
+
+
+def test_no_memory_is_not_an_error(monkeypatch: Any) -> None:
+    """A user with zero facts must rank exactly as before — memory is additive."""
+    repo = _FakeRepo(cached=None)
+    seen: dict[str, Any] = {}
+
+    async def _capture(profile: dict[str, Any], _cv: str, _job: dict[str, Any], _prov: Any) -> dict[str, Any]:
+        seen.update(profile)
+        return {"overall_score": 3.0, "grade": "B", "recommendation": "Apply",
+                "summary": "s", "strengths": [], "concerns": []}
+
+    monkeypatch.setattr(on_demand.ranking, "rank_one", _capture)
+    asyncio.run(on_demand.ensure_job_eval(repo, object(), "u1", "j1"))  # type: ignore[arg-type]
+
+    assert "known_facts" not in seen
+
+
+# ── a cached verdict counts only if it was reasoned from what we believe now ────
+#
+# "Brain-rated once per (user, job), ever" (migration 20260710) made every verdict
+# permanent — including ones computed before Myro had read anything the user told
+# it. The eval context key is what lets a run tell those apart without a backfill.
+
+def test_a_verdict_from_a_superseded_context_is_re_rated(monkeypatch: Any) -> None:
+    repo = _FakeRepo(
+        cached={"overall_score": 4.1, "grade": "A", "summary": "stale"},
+        cached_ctx="a-context-we-have-moved-past",
+    )
+    called: list[str] = []
+
+    async def _fake_rank_one(_p: dict[str, Any], _cv: str, job: dict[str, Any], _prov: Any) -> dict[str, Any]:
+        called.append(job["job_id"])
+        return {"overall_score": 2.4, "grade": "C", "recommendation": "Skip",
+                "summary": "fresh", "strengths": [], "concerns": []}
+
+    monkeypatch.setattr(on_demand.ranking, "rank_one", _fake_rank_one)
+    out = asyncio.run(on_demand.ensure_job_eval(repo, object(), "u1", "j1"))  # type: ignore[arg-type]
+
+    assert called == ["j1"], "a superseded verdict must not be served as cached"
+    assert out["cached"] is False
+    assert out["summary"] == "fresh"
+    assert repo.persisted["eval_context_hash"] == _CTX
+
+
+def test_a_verdict_from_the_current_context_is_still_free(monkeypatch: Any) -> None:
+    """The cost lands only where the inputs moved — a matching key stays a hit."""
+    repo = _FakeRepo(cached={"overall_score": 4.1, "grade": "A", "summary": "good"})
+
+    async def _boom(*_a: Any, **_k: Any) -> Any:
+        raise AssertionError("a current-context verdict must not call the brain")
+
+    monkeypatch.setattr(on_demand.ranking, "rank_one", _boom)
+    out = asyncio.run(on_demand.ensure_job_eval(repo, object(), "u1", "j1"))  # type: ignore[arg-type]
+    assert out["cached"] is True
+
+
+def test_a_pre_key_verdict_re_rates(monkeypatch: Any) -> None:
+    """Every row written before the column existed — the whole population at the
+    time of this change. NULL is not "still valid", it is "we cannot tell"."""
+    repo = _FakeRepo(cached={"overall_score": 4.1, "grade": "A", "summary": "old"}, cached_ctx=None)
+
+    async def _fake_rank_one(*_a: Any, **_k: Any) -> dict[str, Any]:
+        return {"overall_score": 3.0, "grade": "B", "recommendation": "Apply",
+                "summary": "fresh", "strengths": [], "concerns": []}
+
+    monkeypatch.setattr(on_demand.ranking, "rank_one", _fake_rank_one)
+    out = asyncio.run(on_demand.ensure_job_eval(repo, object(), "u1", "j1"))  # type: ignore[arg-type]
+    assert out["cached"] is False

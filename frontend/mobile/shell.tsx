@@ -119,14 +119,14 @@ function TabBadge({ n }: { n: number }) {
   )
 }
 
-/** Journey badges on the mobile tabs — same reads as the desktop nav: saved
- *  count on Collections, rooms-needing-you on Prep. One shared cache. */
+/** Journey badges on the mobile tabs — passive like desktop. Collections or
+ *  Prep earns and seeds this cache; global chrome never creates a DB read. */
 function useTabBadges() {
   const { token } = useAuth()
   const { data } = useQuery({
     queryKey: dataKeys.applications(),
     queryFn: () => jobsApi.applications(token!),
-    enabled: !!token,
+    enabled: false,
     staleTime: 60 * 1000,
   })
   const apps = data ?? []

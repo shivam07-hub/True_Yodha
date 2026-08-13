@@ -196,7 +196,7 @@ export function BulletRewrite({ token, bullet, role, missingKeywords, applying, 
           )}
 
           <div className="cvb-rw-actions">
-            <Button variant="neutral" size="sm" onClick={reset} disabled={applying}>Discard</Button>
+            <Button variant="dismiss" size="sm" onClick={reset} disabled={applying}>Discard</Button>
             <Button
               size="sm"
               disabled={applying || !recommended.text.trim()}
@@ -212,7 +212,7 @@ export function BulletRewrite({ token, bullet, role, missingKeywords, applying, 
         <div className="cvb-rw-error" role="alert">
           <span>{errMsg}</span>
           <button type="button" className="cvb-rw-skip" onClick={() => void run()}>Try again</button>
-          <button type="button" className="cvb-rw-skip" onClick={reset}>Dismiss</button>
+          <button type="button" className="cvb-rw-skip tm-dismiss-action" onClick={reset}>Dismiss</button>
         </div>
       )}
     </div>

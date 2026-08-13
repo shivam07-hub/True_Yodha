@@ -11,7 +11,7 @@
 
 import Link from "next/link"
 import type { ApplicationResponse } from "@/lib/api"
-import { buildContinueLane, collectionsTriageCtx } from "@/lib/collections/model"
+import { buildContinueLane } from "@/lib/collections/model"
 import { displayJobTitle } from "@/lib/jobs/clean-title"
 
 interface Props {
@@ -25,10 +25,9 @@ interface Props {
 const MAX_VISIBLE = 6
 
 export function FinishTailoringLane({ applications, onOpenJob }: Props) {
-  // No fit/followed/target signals needed here — the lane is "resume your
-  // tailored copies", ranked by the model's own next-best order.
-  const ctx = collectionsTriageCtx(applications, [], [])
-  const items = buildContinueLane(applications, ctx, new Map())
+  // "Resume your tailored copies", best fit first — the same Match Verdict order
+  // every other surface uses. No local ranking here and none needed.
+  const items = buildContinueLane(applications, new Map())
   if (items.length === 0) return null
 
   const shown = items.slice(0, MAX_VISIBLE)
