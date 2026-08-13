@@ -33,9 +33,7 @@ export function MobileAgentPicks({
   const q = useQuery({
     queryKey: ["agentPicks", token],
     queryFn: () => jobsApi.agentPicks(token),
-    // The primary feed already carries cached brain rankings. This secondary
-    // band reuses cache on Jobs and only owns a fetch on Collections.
-    enabled: !!token && context === "collections",
+    enabled: !!token,
     staleTime: 30 * 60 * 1000,
     gcTime: 24 * 60 * 60 * 1000,
     retry: false,

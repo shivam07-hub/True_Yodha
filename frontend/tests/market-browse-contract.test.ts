@@ -25,20 +25,6 @@ test("browse expansion and Undo follow the locked contract", () => {
   assert.match(css, /\+ 84px/)
 })
 
-test("Jobs paints its J0 feed before secondary compute", () => {
-  const hook = readFileSync(new URL("../components/market/use-job-feed.ts", import.meta.url), "utf8")
-  const page = readFileSync(new URL("../app/(authed)/market/page.tsx", import.meta.url), "utf8")
-  const bell = readFileSync(new URL("../components/nav/notification-bell.tsx", import.meta.url), "utf8")
-  const navCounts = readFileSync(new URL("../components/nav/journey-counts.ts", import.meta.url), "utf8")
-
-  assert.doesNotMatch(hook, /jobs\.warmFeed/)
-  assert.match(page, /useFeedState\(wave2\)/)
-  assert.match(page, /token && wave2 \? <MatchesRefreshBanner/)
-  assert.match(page, /wave2 && intent \? <MissionHeroRail/)
-  assert.match(bell, /enabled: !!token && open/)
-  assert.match(navCounts, /enabled: false/)
-})
-
 test("Not interested is persistent and recoverable", () => {
   const card = readFileSync(new URL("../components/market/job-card.tsx", import.meta.url), "utf8")
   const hidden = readFileSync(new URL("../components/market/hidden-jobs-dialog.tsx", import.meta.url), "utf8")

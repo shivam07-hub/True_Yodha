@@ -24,7 +24,7 @@ export function NewInventoryStrip({ token }: { token: string | null }) {
   const { data } = useQuery({
     queryKey: dataKeys.jobs(),
     queryFn: () => jobs.matches(token!),
-    enabled: false, // passive: MatchesRefreshBanner owns this read after J0
+    enabled: !!token,
   })
 
   const count = data?.new_jobs_count ?? 0

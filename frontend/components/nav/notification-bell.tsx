@@ -32,11 +32,8 @@ export function NotificationBell() {
   const unread = useQuery({
     queryKey: dataKeys.notificationsUnread(),
     queryFn: () => notificationsApi.unreadCount(token!),
-    // A badge is J2 on every workspace: opening the bell is the intent that
-    // earns this read. Mount-time polling previously competed with each page's
-    // actual J0 answer and multiplied synchronized login bursts.
-    enabled: !!token && open,
-    refetchInterval: open ? UNREAD_POLL_MS : false,
+    enabled: !!token,
+    refetchInterval: UNREAD_POLL_MS,
     staleTime: UNREAD_POLL_MS,
   })
   const unreadCount = unread.data?.count ?? 0

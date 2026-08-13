@@ -25,14 +25,14 @@ let _feedState: FeedState | null = null
 
 const FIVE_MIN = 5 * 60 * 1000
 
-export function useFeedState(enabled = true) {
+export function useFeedState() {
   const { token } = useAuth()
   const queryClient = useQueryClient()
   const lastVersion = useRef<string | null>(null)
 
   const query = useQuery({
     queryKey: dataKeys.feedState(),
-    enabled: !!token && enabled,
+    enabled: !!token,
     queryFn: async () => {
       const res = await jobs.feedState(token!, _feedEtag)
       if (res.status === "fresh") {
