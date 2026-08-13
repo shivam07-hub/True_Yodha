@@ -16,6 +16,7 @@ from app.db_safe import safe_read
 from app.deps import get_user_db
 from app.repositories.job_skills_read_model import fetch_all_rows, fetch_job_skill_rows, fetch_job_skill_rows_for_ids, group_job_skill_rows
 from app.services import job_importer, shared_cache, skill_floor
+from app.services.background import debounce
 from app.services.company_pulse import SERIES_DAYS, build_series, compute_pulse
 from app.services.industry_grouping import normalize_industry_group
 from app.services.job_history import attach_jobs
@@ -2322,6 +2323,17 @@ class JobsRepository:
                 }
             )
         if not payload:
+            return 0
+        # A reload or a multi-replica cache miss can return the same page many
+        # times together. One exposure window is enough to preserve "shown"
+        # truth and verifier priority; duplicate inserts only multiply writes
+        # and trigger work after the response. Sort ids so page-order jitter
+        # does not defeat the claim.
+        exposure_key = ":".join(
+            ["job_exposure", user_id, surface]
+            + sorted(row["job_id"] for row in payload)
+        )
+        if not debounce.claim(exposure_key, ttl_seconds=60):
             return 0
         try:
             self._admin_db.table("job_recommendation_exposures").insert(
