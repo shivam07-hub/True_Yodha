@@ -841,6 +841,7 @@ paid compute gate at the end of this section fails.
 | Market journey | J0 is `/users/me` + `/jobs/feed`; feed-state, matches, applications, notifications and analytics wait for intent/idle | isolated TypeScript check + 5 Market contracts green |
 | Read bulkhead | In-flight cap and HTTP keepalive pool agree at 40 | config and database contracts green |
 | Fan-out threads | Request-local executors replaced by one process-wide pool bounded to the 40-read bulkhead | concurrent-read contracts green |
+| New-inventory truth | Inbox-open re-derives the notification from trusted, browseable jobs; stale or unavailable counts are never rendered | direct count 7,295ms / 13,369 buffers -> 0.84ms / 91 buffers; auth-own 4,094, auth-other 0, anon denied |
 
 Applied migrations:
 
@@ -853,6 +854,20 @@ Applied migrations:
 - `20260813094000_feed_active_first_seen_index.sql`
 - `20260813094100_feed_active_index_predicate.sql`
 - `20260813095000_feed_context_read_model.sql`
+- `20260813114500_trusted_new_inventory_count.sql`
+
+The 4,095-role notification that prompted the new-inventory audit was not a
+torn 12,108-row publish. The larger number counted every `is_active` row,
+including listings whose confidence was `uncertain`, `likely_closed`, or
+`closed`; jobs RLS correctly exposed only `is_active AND
+listing_confidence='active'`. New importer rows default to `uncertain`, so an
+in-progress source publish is not part of the promise to a student. The actual
+faults were semantic and temporal: the later service-role RPC lost the trust
+predicate, and the notification stored a point-in-time count indefinitely.
+The corrected invoker RPC names the trust predicate explicitly for both caller
+roles, and opening the J2 inbox re-derives the count before rendering it. A
+partial trusted-inventory index keeps that explicit-intent read comfortably
+inside the 500ms contract.
 
 ### Measured acceptance result
 

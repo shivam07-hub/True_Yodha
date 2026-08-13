@@ -20,6 +20,16 @@ class _Capture:
         self.updated: list[dict[str, Any]] = []
 
 
+class _RPC:
+    def __init__(self, db: "_DB") -> None:
+        self._db = db
+
+    def execute(self) -> Any:
+        if self._db.count_error is not None:
+            raise self._db.count_error
+        return type("R", (), {"data": self._db.live_count})()
+
+
 class _Query:
     """Minimal PostgREST chain: select→…→execute, insert, update."""
 
@@ -60,12 +70,26 @@ class _Query:
 
 
 class _DB:
-    def __init__(self, existing: list[dict[str, Any]], cap: _Capture) -> None:
+    def __init__(
+        self,
+        existing: list[dict[str, Any]],
+        cap: _Capture,
+        *,
+        live_count: int = 0,
+        count_error: Exception | None = None,
+    ) -> None:
         self._existing = existing
         self._cap = cap
+        self.live_count = live_count
+        self.count_error = count_error
+        self.rpc_calls: list[tuple[str, dict[str, Any]]] = []
 
     def table(self, _name: str) -> _Query:
         return _Query(self._existing, self._cap)
+
+    def rpc(self, name: str, params: dict[str, Any]) -> _RPC:
+        self.rpc_calls.append((name, params))
+        return _RPC(self)
 
 
 def _repo(existing: list[dict[str, Any]], cap: _Capture) -> NotificationsRepository:
@@ -121,6 +145,64 @@ def test_announcement_returns_after_the_debounce_window() -> None:
     existing = [{"id": 5, "read_at": seen.isoformat(), "match_count": 900}]
     assert _repo(existing, cap).record_new_inventory("u1", count=1_000) is True
     assert cap.inserted[0]["match_count"] == 1_000
+
+
+def test_inbox_rederives_unread_new_inventory_before_returning_it() -> None:
+    cap = _Capture()
+    writer_cap = _Capture()
+    existing = [{
+        "id": 5,
+        "kind": "new_jobs",
+        "read_at": None,
+        "match_count": 900,
+        "title": "900 new roles to search",
+        "body": "old",
+    }]
+    db = _DB(existing, cap, live_count=1_400)
+    writer_db = _DB([], writer_cap)
+
+    rows = NotificationsRepository(db, writer_db).list_for_user("u1")  # type: ignore[arg-type]
+
+    assert rows[0]["match_count"] == 1_400
+    assert rows[0]["title"] == "1,400 new roles to search"
+    assert cap.updated == []
+    assert writer_cap.updated[0]["match_count"] == 1_400
+    assert db.rpc_calls == [("count_new_jobs_for_user", {"p_user_id": "u1"})]
+
+
+def test_inbox_resolves_new_inventory_when_live_count_is_zero() -> None:
+    cap = _Capture()
+    existing = [{
+        "id": 5,
+        "kind": "new_jobs",
+        "read_at": None,
+        "match_count": 900,
+        "title": "900 new roles to search",
+    }]
+    db = _DB(existing, cap, live_count=0)
+
+    rows = NotificationsRepository(db, db).list_for_user("u1")  # type: ignore[arg-type]
+
+    assert rows == []
+    assert cap.updated[0]["read_at"]
+
+
+def test_inbox_hides_persisted_count_when_live_rederivation_fails(caplog: Any) -> None:
+    cap = _Capture()
+    existing = [{
+        "id": 5,
+        "kind": "new_jobs",
+        "read_at": None,
+        "match_count": 900,
+        "title": "900 new roles to search",
+    }]
+    db = _DB(existing, cap, count_error=RuntimeError("count unavailable"))
+
+    rows = NotificationsRepository(db, db).list_for_user("u1")  # type: ignore[arg-type]
+
+    assert rows == []
+    assert cap.updated == []
+    assert "new_inventory.reconcile_failed" in caplog.text
 
 
 # ── count + failure posture ─────────────────────────────────────────────────
