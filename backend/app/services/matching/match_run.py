@@ -66,8 +66,15 @@ async def run_match(
     # The run happened — stamp the baseline for "new since your last search".
     # Only here: `user_job_matches.computed_at` is also written by on-demand evals
     # and the feed warmer, so inferring the baseline from it let browsing reset it.
+    # Read the key OUTSIDE the guard below: that except exists for a failing
+    # profiles write, and must not also swallow a wrong-shaped outcome.
+    run_context = outcome.context_key
     try:
-        repo.mark_match_run(user_id)
+        # Stamp WHICH direction the run covered, not just that one happened. The
+        # key comes off the outcome (the profile the ranking actually used) rather
+        # than a re-read here, so a direction change mid-run can't record a key no
+        # row was written under.
+        repo.mark_match_run(user_id, context_key=run_context)
     except Exception as exc:  # noqa: BLE001 — a missed stamp costs a stale prompt, not the run
         logger.warning("match_run: run marker not stamped user=%s: %s", user_id, exc)
 

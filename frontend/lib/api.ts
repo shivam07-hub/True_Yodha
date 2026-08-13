@@ -775,7 +775,10 @@ export type OnboardingResult = OnboardingReach & (
       shortlist: JobMatch[]
       /** `provisional` = the shortlist is triaged and choosable, but the deep
        *  eval is still running, so its scores will sharpen in place. */
-      shortlist_status: "ready" | "provisional" | "computing" | "stalled" | "empty"
+      /** `stale_direction`: a run finished, but for a different direction than the
+       *  one on screen — the user has matches, none computed for this target. Not
+       *  auto-enqueued; the surface asks for a Myro Ops Search. */
+      shortlist_status: "ready" | "provisional" | "computing" | "stalled" | "empty" | "stale_direction"
       /** `sharpeners` = the optional Career-Ops inputs this user has not set.
        *  Reported, never gap-filled — a receipt must not present a suggestion
        *  as something the run used. */

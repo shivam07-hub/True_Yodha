@@ -8,7 +8,7 @@ from typing import Any, Literal
 
 from app.repositories.jobs import JobsRepository
 from app.repositories.scores import ScoresRepository
-from app.services import job_importer, llm_ranker
+from app.services import job_importer, llm_ranker, onboarding_service
 from app.services.llm_provider import LLMProvider, get_judgment_provider
 from app.services.matching import candidate_pool, ranking, targeting
 from app.services.scoring.aspirations import fetch_aspiration_skills
@@ -143,6 +143,12 @@ class MatchComputeOutcome:
     matches_written: int
     batch_week: date
     debug: dict[str, Any] = field(default_factory=dict)
+    # The direction key this run actually ran against (`onboarding_service.context_key`
+    # over the same profile the ranking used). Reported rather than re-derived by the
+    # caller: a direction change between the compute and the stamp would otherwise
+    # record a key no row was written under. None on the paths that return before a
+    # profile exists (cache_hit, needs_onboarding) — nothing ran, so nothing to stamp.
+    context_key: str | None = None
 
     @property
     def should_charge_xp(self) -> bool:
@@ -405,6 +411,7 @@ async def compute_job_matches(
             kind="exhausted",
             matches_written=0,
             batch_week=batch_week,
+            context_key=onboarding_service.context_key(profile),
             debug={
                 "user_skills_count": len(user_skill_map),
                 "candidate_jobs_count": 0,
@@ -498,6 +505,7 @@ async def compute_job_matches(
             kind="exhausted",
             matches_written=0,
             batch_week=batch_week,
+            context_key=onboarding_service.context_key(profile),
             debug={
                 "user_skills_count": len(user_skill_map),
                 "candidate_jobs_count": len(candidate_job_ids),
@@ -516,6 +524,7 @@ async def compute_job_matches(
         kind="written",
         matches_written=written,
         batch_week=batch_week,
+        context_key=onboarding_service.context_key(profile),
         debug={
             "user_skills_count": len(user_skill_map),
             "candidate_jobs_count": len(candidate_job_ids),

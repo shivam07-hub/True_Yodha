@@ -9,7 +9,15 @@ import asyncio
 from datetime import date
 from typing import Any
 
+from app.services.jobs_workflow import MatchComputeOutcome
 from app.services.matching import match_run
+
+# A realistic outcome, not a bare sentinel: `run_match` reads `context_key` off it
+# to stamp WHICH direction the run covered, and a fake that cannot answer that
+# would hide the read behind the marker's own try/except.
+_OUTCOME = MatchComputeOutcome(
+    kind="written", matches_written=1, batch_week=date(2026, 7, 28), context_key="ctx-abc",
+)
 
 
 class _FakeRepo:
@@ -20,8 +28,9 @@ class _FakeRepo:
         self._after = after
         self.marked = 0
 
-    def mark_match_run(self, _user_id: str) -> None:
+    def mark_match_run(self, _user_id: str, *, context_key: str | None = None) -> None:
         self.marked += 1
+        self.marked_context = context_key
 
     def get_existing_match_job_ids(self, _user_id: str) -> list[str]:
         return self._before
@@ -36,7 +45,7 @@ def _wire(monkeypatch, *, picks_raises: bool = False) -> dict[str, Any]:
     async def _fake_compute(**kwargs: Any):
         calls["compute"] += 1
         calls["compute_kwargs"] = kwargs
-        return "OUTCOME"
+        return _OUTCOME
 
     def _fake_regen(_repo, _user_id, *, scrape_batch=None):
         calls["picks"] += 1
@@ -67,7 +76,7 @@ def test_run_match_computes_regenerates_picks_and_notifies(monkeypatch) -> None:
 
     out = asyncio.run(match_run.run_match(repo, "u1", date(2026, 7, 13), scrape_batch=20260713))
 
-    assert out == "OUTCOME"
+    assert out is _OUTCOME
     assert calls["compute"] == 1
     assert calls["picks"] == 1
     assert calls["scrape_batch"] == 20260713
@@ -100,7 +109,7 @@ def test_run_match_picks_failure_never_breaks_the_run(monkeypatch) -> None:
 
     out = asyncio.run(match_run.run_match(repo, "u1", date(2026, 7, 13)))
 
-    assert out == "OUTCOME"  # compute outcome still returned
+    assert out is _OUTCOME  # compute outcome still returned
     assert calls["notify"] == 1  # notify still fires despite the picks failure
 
 
@@ -128,9 +137,39 @@ def test_run_marker_failure_never_breaks_the_run(monkeypatch) -> None:
     calls = _wire(monkeypatch)
 
     class _BadRepo(_FakeRepo):
-        def mark_match_run(self, _user_id: str) -> None:
+        def mark_match_run(self, _user_id: str, *, context_key: str | None = None) -> None:
             raise RuntimeError("profiles write failed")
 
     out = asyncio.run(match_run.run_match(_BadRepo(before=[], after=[]), "u1", date(2026, 7, 28)))
-    assert out == "OUTCOME"
+    assert out is _OUTCOME
     assert calls["compute"] == 1
+
+
+def test_the_run_stamps_which_direction_it_covered(monkeypatch) -> None:
+    """`last_match_run_at` says a run happened; it cannot say what it ran against.
+    Reading the first as an answer to the second is what told 162 users holding
+    1,289 real match rows that "the market genuinely has no overlap"."""
+    _wire(monkeypatch)
+    repo = _FakeRepo(before=[], after=[])
+    asyncio.run(match_run.run_match(repo, "u1", date(2026, 7, 28)))
+    assert repo.marked == 1
+    assert repo.marked_context == "ctx-abc"
+
+
+def test_a_run_that_computed_nothing_claims_no_direction(monkeypatch) -> None:
+    """cache_hit / needs_onboarding return before a profile exists. Stamping a key
+    there would claim coverage the run never gave."""
+    calls: dict[str, Any] = {}
+
+    async def _no_profile_compute(**kwargs: Any):
+        calls["compute"] = kwargs
+        return MatchComputeOutcome(kind="cache_hit", matches_written=0, batch_week=date(2026, 7, 28))
+
+    monkeypatch.setattr(match_run.jobs_workflow, "compute_job_matches", _no_profile_compute)
+    monkeypatch.setattr(match_run.agent_picks, "regenerate_for_user", lambda *a, **k: None)
+    monkeypatch.setattr(match_run.new_inventory, "resolve_for_user", lambda *a, **k: None)
+
+    repo = _FakeRepo(before=[], after=[])
+    asyncio.run(match_run.run_match(repo, "u1", date(2026, 7, 28), notify=False))
+    assert repo.marked == 1              # the run still happened
+    assert repo.marked_context is None   # but it covered no direction

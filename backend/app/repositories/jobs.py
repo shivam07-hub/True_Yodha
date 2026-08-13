@@ -2875,11 +2875,26 @@ class JobsRepository:
         ).data or []
         return _parse_iso_dt(legacy[0].get("computed_at")) if legacy else None
 
-    def mark_match_run(self, user_id: str, when: datetime | None = None) -> None:
+    def mark_match_run(
+        self,
+        user_id: str,
+        when: datetime | None = None,
+        *,
+        context_key: str | None = None,
+    ) -> None:
         """Stamp the run marker. One writer (`match_run.run_match`) — that is the
-        whole point of the column; widen this and the baseline rots again."""
-        ts = (when or datetime.now(timezone.utc)).isoformat()
-        self._db.table("user_profiles").update({"last_match_run_at": ts}).eq("id", user_id).execute()
+        whole point of the column; widen this and the baseline rots again.
+
+        `context_key` records WHICH direction the run covered. Without it the only
+        available question was "did any run finish since the direction last
+        changed", and a yes was read as "this direction was searched and the market
+        had nothing" — the false-empty that told 162 users their stack of real
+        matches was an empty market. Omitted (None) leaves the stored key untouched:
+        a path that computed nothing must not claim to have covered anything."""
+        patch: dict[str, Any] = {"last_match_run_at": (when or datetime.now(timezone.utc)).isoformat()}
+        if context_key is not None:
+            patch["last_match_context_hash"] = context_key
+        self._db.table("user_profiles").update(patch).eq("id", user_id).execute()
 
     def has_computed_matches(self, user_id: str) -> bool:
         """Cheap existence check — has this user EVER had a match computed?
