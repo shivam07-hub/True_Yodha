@@ -33,7 +33,9 @@ export function MobileAgentPicks({
   const q = useQuery({
     queryKey: ["agentPicks", token],
     queryFn: () => jobsApi.agentPicks(token),
-    enabled: !!token,
+    // Jobs already carries cached brain rankings in the feed. Collections is
+    // the only context where this secondary band owns a fetch.
+    enabled: !!token && context === "collections",
     staleTime: 30 * 60 * 1000,
     gcTime: 24 * 60 * 60 * 1000,
     retry: false,
