@@ -605,6 +605,19 @@ def job_feed(
         # the raw query param — the order must follow what was actually applied.
         with timed("rank"):
             ranked_count = _rank_feed_rows(rows, brain_evals, reorder=page_result["sort"] == "fit")
+        # The promise breaking, observed in the request that broke it. A user asked
+        # to be ranked by fit and got a deck with no verdict on any card — the tab
+        # says "Best fit" and the order is the deterministic browse composite.
+        # Expected transiently on a cold arrival (the J1 warm has not landed yet);
+        # a SUSTAINED rate means the warm is failing or never firing, which is the
+        # state this endpoint sat in undetected until 2026-08-13. Every defect found
+        # that day was found by hand-querying prod, which is not how the next one
+        # should be found.
+        if page_result["sort"] == "fit" and ranked_count == 0 and rows:
+            logger.warning(
+                "metric feed.unranked user=%s rows=%d page=%d scope=%s",
+                uid, len(rows), page, browse_scope,
+            )
         # Analytics/audit write: never make the J0 feed wait for it. Starlette runs
         # this after the response is sent, matching /jobs/matches' existing seam.
         background_tasks.add_task(

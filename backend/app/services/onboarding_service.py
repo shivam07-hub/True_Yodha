@@ -603,6 +603,15 @@ def _shortlist(
         # before the run recorded its direction at all). The stack is not empty and
         # nothing is in flight — it simply has not been searched for THIS target.
         # Not auto-enqueued: the user pulls the run, so the surface asks for it.
+        #
+        # Emitted because this state is invisible otherwise: it renders as a normal
+        # screen, nothing errors, and the population sitting in it was only ever
+        # found by querying production by hand (162 of 196 users, holding 1,289 real
+        # match rows, each told the market had nothing for them). A rate that does
+        # not fall as users run searches means the stamp is not landing.
+        logger.warning(
+            "metric shortlist.stale_direction user=%s baseline=%s", user_id, baseline_version_id
+        )
         return [], "stale_direction"
 
     age = (datetime.now(timezone.utc) - changed_at).total_seconds() if changed_at else None
