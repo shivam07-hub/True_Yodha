@@ -1115,5 +1115,59 @@ recomputing `_fit_scores` per request. The ranking above does not support that �
 no feed query appears near the top by total time, and the feed's DB work is far
 below its endpoint time, which is playbook trap 3 (sequential round trips), not
 query cost. **R2 is not cancelled, but it is no longer justified by this
-measurement** and must be re-scoped against an instrumented fan-out
-(playbook step 5, 10+ samples) before any precompute is built.
+measurement.** Section 12 adds the instrumentation it needs.
+
+---
+
+## 12. The feed was unmeasurable, and that is why R2 was guesswork (2026-08-13)
+
+`/jobs/feed` fell through every existing instrument:
+
+- `request_timing` fires `metric route.slow` only above **1000ms**. The feed
+  measures ~550ms warm, so it never logged.
+- `concurrent_reads` emits `metric fanout.slow` above 250ms — but the feed
+  prelude never went through `run_concurrently`. It used a raw per-request
+  `ThreadPoolExecutor`, so there was no fan-out line to grep, no section count
+  against the read contract, and it sat outside the one process-wide pool that
+  exists so a burst cannot multiply threads by requests × sections against the
+  40-read bulkhead.
+
+So the endpoint that R2 was designed to speed up had **no per-stage number
+anywhere**, and R2's premise was never checked against one.
+
+### The missing primitive
+
+`app/services/phase_timing.py`. The two existing primitives cover the ends and
+miss the middle: one number per request, or a breakdown of a CONCURRENT wave
+where wall time is `max(section)` and every non-max section is free. An endpoint
+running stages IN SEQUENCE has wall time `sum(phase)`, so every phase is worth
+its own number — the opposite shape.
+
+Emits one `metric phases.slow label=… total=… slowest=…` line at the same 250ms
+threshold, sorted slowest-first, and reports **`unattributed`**: time inside the
+block that no phase claimed. That line is the point. Four phases summing to
+200ms of a 550ms request means the answer is in the 350ms nobody measured, and a
+breakdown without it reads as complete — which is precisely how R2 got scoped.
+
+`/jobs/feed` is timed across `prelude`, `query`, `search_log`, `evals`, `rank`,
+`serialize`. The prelude also moved onto `run_concurrently` (label
+`jobs.feed.prelude`). In production that is 0-2 sections — `get_feed_context()`
+collapses the six-read compat path into one RPC — so the move is about
+visibility and the shared pool, not width.
+
+### R2 is blocked on data, deliberately
+
+No conclusion is drawn here. Before any precompute is built, `metric phases.slow
+label=jobs.feed` needs **10+ samples from prod** (playbook step 5: which member
+is slowest varies between samples, and one sample is an anecdote). Two outcomes
+are worth naming in advance:
+
+- If `unattributed` dominates, the cost is not in any stage listed — it is
+  serialization, middleware, or connection setup, and a precomputed ranking
+  would not move it at all.
+- If a slowest-phase that **changes every sample** appears, that is contention,
+  not a slow query (playbook step 5) — and the answer is the paid compute gate
+  in section 8, not application code.
+
+Either outcome would make R2 the wrong build. That is the entire reason for
+measuring first.
