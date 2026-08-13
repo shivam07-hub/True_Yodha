@@ -1919,7 +1919,11 @@ class JobsRepository:
     # ── authed /market browse feed ──────────────────────────────────────────────
 
     _FEED_COLUMNS = (
-        "job_id, job_title, company_name, job_description, "
+        # J0 card truth only. The full JD averages several KB and is fetched by
+        # the detail endpoint after explicit user intent; pulling it for the
+        # 500-row personal candidate pool dominated feed transfer and JSON
+        # decoding, then saturated every other read during a browsing burst.
+        "job_id, job_title, company_name, "
         "location, location_raw, location_city, location_country, location_mode, location_quality, locations, "
         "role_domain, career_band, industry, industry_group, apply_url, first_seen, last_seen, "
         "seniority_level, min_years_experience, max_years_experience, "

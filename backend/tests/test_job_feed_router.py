@@ -609,6 +609,11 @@ def test_warm_cache_avoids_db_roundtrip_for_fit_sort() -> None:
     assert db.call_count("jobs") == 1
 
 
+def test_feed_projection_does_not_load_full_job_descriptions() -> None:
+    """The J0 candidate pool can be 500 rows; JD is a J2 detail read."""
+    assert "job_description" not in JobsRepository._FEED_COLUMNS
+
+
 def test_user_skill_keys_cached_per_user() -> None:
     repo, db = _repo([], [_user_skill("python", "Python")])
     first = repo.user_skill_keys("u1")
