@@ -96,8 +96,8 @@ test("a priority job leads the Collections apply queue", () => {
   const view = buildCollectionsView(
     apps,
     "added",
-    "prize",
-    collectionsTriageCtx(apps, [], []),
+    "fit",
+    collectionsTriageCtx(apps),
     new Map(),
   )
 

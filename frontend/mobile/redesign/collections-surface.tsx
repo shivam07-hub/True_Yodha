@@ -67,7 +67,7 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
   const following = useFollowCompany(token)
 
   const [chip, setChip] = useState<CollectionChip>("found")
-  const [sort, setSort] = useState<SortKey>("prize")
+  const [sort, setSort] = useState<SortKey>("fit")
   const [sortOpen, setSortOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(initialJobId ?? null)
@@ -106,10 +106,10 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
   const { open: openApps, closed: closedApps } = useMemo(() => splitClosedApps(apps, pulses), [apps, pulses])
 
   const ctx = useMemo(
-    () => collectionsTriageCtx(openApps, following.followedNames, profile?.target_roles ?? []),
+    () => collectionsTriageCtx(openApps),
     [openApps, following.followedNames, profile],
   )
-  const continueItems = useMemo(() => buildContinueLane(openApps, ctx, byId), [openApps, ctx, byId])
+  const continueItems = useMemo(() => buildContinueLane(openApps, byId), [openApps, byId])
   const dismissedIds = useMemo(() => {
     const s = new Set(matchesQ.data?.dismissed_job_ids ?? [])
     dismissed.forEach(id => s.add(id))
@@ -333,7 +333,7 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
             <JourneyStep label="Collect" sub={`${counts.all} saved`} done />
             <span style={{ alignSelf: "center", color: "var(--mm-stroke)", fontSize: 11 }}>›</span>
             <JourneyStep label="Tailor" sub="the goal" onClick={() => router.push("/cv")} accent={tailoredN} />
-            <button onClick={dismissJourney} aria-label="Dismiss" style={{ alignSelf: "flex-start", width: 22, height: 22, marginLeft: 2, flexShrink: 0, borderRadius: 99, border: "none", background: "transparent", color: "var(--mm-dim)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+            <button onClick={dismissJourney} aria-label="Dismiss" className="tm-dismiss-action" style={{ alignSelf: "flex-start", width: 22, height: 22, marginLeft: 2, flexShrink: 0, borderRadius: 99, border: "none", background: "transparent", color: "var(--mm-dim)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
               <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
             </button>
           </div>

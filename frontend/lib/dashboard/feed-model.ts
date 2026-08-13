@@ -61,88 +61,19 @@ const LIKED_STATUSES: ReadonlySet<ApplicationStatus> = new Set<ApplicationStatus
   "interviewing",
 ])
 
-// ── Triage: "which CV do I tailor next?" ────────────────────────────────────
-// The dashboard is a worklist, not a discovery feed. Rank by PRIZE × WINNABILITY
-// (a dream job you can actually land), pin tailored-but-unfinished work to the
-// top (Continue Watching), and drop already-applied jobs (they're pipeline now).
+// ── Triage context ──────────────────────────────────────────────────────────
+// What the folder needs to know about a row's COMMITMENT state. It used to also
+// carry followedCompanies + targetRoles to feed a `prize × winnability` ranker —
+// a second fit score computed in the client, competing with the server's Match
+// Verdict for the same question. Deleted 2026-08-13: one number orders every
+// surface. Those two signals are TARGETING facts and belong in the Targeting
+// Brief, where the brain reads them into the verdict itself — not in a
+// multiplier applied after the ranking is already done.
 
-/** Everything the triage ranker needs — all derived from signals we already hold. */
+/** Everything the folder's commitment split needs — all derived from signals we already hold. */
 export interface TriageContext {
-  followedCompanies: ReadonlySet<string>   // lowercased company names the user follows
-  targetRoles: string[]                     // the roles the user set in Settings
   tailoredJobIds: ReadonlySet<string>       // jobs with a tailored CV (cv_badge present)
   committedJobIds: ReadonlySet<string>      // jobs the user has applied to / beyond
-}
-
-export interface ItemScore {
-  prize: number
-  winnability: number
-  rank: number
-  prizeTags: string[]   // e.g. ["⭐ Followed", "🎯 Target role"] — legible "why it's here"
-}
-
-function clamp01(n: number): number {
-  return n < 0 ? 0 : n > 1 ? 1 : n
-}
-
-function matchesTargetRole(role: string, targetRoles: string[]): boolean {
-  const r = role.toLowerCase()
-  return targetRoles.some((t) => {
-    const tt = t.toLowerCase().trim()
-    return tt.length > 0 && (r.includes(tt) || tt.includes(r))
-  })
-}
-
-/** Winnability = how likely this user lands it. Fit when it's a real match;
- *  skill-overlap ratio for a self-saved job with no match score. */
-function winnabilityOf(item: FeedItem): number {
-  if (item.fit != null && item.fit > 0) return clamp01(item.fit / 100)
-  const m = item.job.matched_skills?.length ?? 0
-  const miss = item.job.missing_skills?.length ?? 0
-  if (m + miss === 0) return 0.3 // unknown → neutral-low, not zero
-  return clamp01(m / (m + miss))
-}
-
-/** Prize = opportunity value from what the user already told Myro. Base 1.0;
- *  a followed company is the strongest prize signal, a target-role match next. */
-export function scoreItem(item: FeedItem, ctx: TriageContext): ItemScore {
-  const prizeTags: string[] = []
-  let prize = 1.0
-  const co = (item.company ?? "").toLowerCase().trim()
-  if (co && ctx.followedCompanies.has(co)) {
-    prize += 1.0
-    prizeTags.push("⭐ Followed")
-  }
-  if (matchesTargetRole(item.role, ctx.targetRoles)) {
-    prize += 0.6
-    prizeTags.push("🎯 Target role")
-  }
-  const winnability = winnabilityOf(item)
-  return { prize, winnability, rank: prize * winnability, prizeTags }
-}
-
-export interface TriageResult {
-  continueItems: FeedItem[]   // tailored, not yet applied — pinned "Finish these"
-  queueItems: FeedItem[]      // untouched candidates, prize × winnability ranked
-  appliedCount: number        // committed jobs dropped from the queue (momentum counter)
-}
-
-/** Partition the feed by commitment state, rank the open queue by prize×winnability. */
-export function triageFeed(items: FeedItem[], ctx: TriageContext): TriageResult {
-  const continueItems: FeedItem[] = []
-  const queueItems: FeedItem[] = []
-  let appliedCount = 0
-
-  for (const item of items) {
-    if (ctx.committedJobIds.has(item.jobId)) { appliedCount += 1; continue }  // applied → pipeline, drop
-    if (ctx.tailoredJobIds.has(item.jobId)) { continueItems.push(item); continue }  // started, unfinished → pin
-    queueItems.push(item)
-  }
-
-  const byRank = (a: FeedItem, b: FeedItem) => scoreItem(b, ctx).rank - scoreItem(a, ctx).rank
-  continueItems.sort(byRank)
-  queueItems.sort(byRank)
-  return { continueItems, queueItems, appliedCount }
 }
 
 /** Build the single continuous stack: every Myro match, then any liked job not
@@ -209,10 +140,14 @@ export function filterSegment(items: FeedItem[], segment: Segment): FeedItem[] {
 /** Sort axis — orthogonal to the source Segment. "Best fit" sorts by the
  *  overlap score the fit ring renders (desc), so the visible order always
  *  matches the visible scores. The API's incoming order is NOT assumed sorted. */
-export type SortKey = "prize" | "fit" | "recent" | "company"
+export type SortKey = "fit" | "recent" | "company"
 
+/** "Best fit" is the Match Verdict — the ONE fit answer, computed server-side.
+ *  The others are not competing claims about fit; they are different questions
+ *  (when, who) with honest labels. "Best next" used to sit here as a fourth
+ *  option ranking by `prize × winnability`, a client-side fit score that could
+ *  disagree with the number printed on the very card it was ordering. */
 export const SORTS: ReadonlyArray<{ key: SortKey; label: string }> = [
-  { key: "prize", label: "Best next" },
   { key: "fit", label: "Best fit" },
   { key: "recent", label: "Most recent" },
   { key: "company", label: "Company A–Z" },
@@ -220,9 +155,6 @@ export const SORTS: ReadonlyArray<{ key: SortKey; label: string }> = [
 
 export function sortItems(items: FeedItem[], sort: SortKey): FeedItem[] {
   const arr = [...items]
-  // "prize" (prize × winnability) is computed upstream with the TriageContext
-  // and arrives already ranked — preserve that order here (identity).
-  if (sort === "prize") return arr
   if (sort === "fit") {
     // Sort by the same overlap score the ring renders, desc. Liked-only rows
     // (fit === null) have no score → sink last. Stable sort keeps build order

@@ -43,7 +43,6 @@ import {
 } from "@/lib/collections/model"
 import { ClosedRow, CollectionRow, MyroFoundRow } from "./collection-rows"
 import { canDismissSavedApplication } from "@/lib/collections/saved-job-dismissal"
-import { useFollowCompany } from "@/lib/hooks/use-follow-company"
 
 /* ══════════════════════════════════════════════════════════════════════════
    The Myro Ops folder (desktop). "Myro found" reads the brain match stack —
@@ -67,7 +66,7 @@ export function CollectionsDesktop({
   const qc = useQueryClient()
   const { skills: cartSkills, addSkill, removeSkill } = useCartStore()
   // Shared Myro Search wiring (VM + profile + gate) — one source across surfaces.
-  const { refreshVm, profile, gate: myroSearchGate, run: runMyroSearch, isRefreshing } = useMyroSearch(token)
+  const { refreshVm, gate: myroSearchGate, run: runMyroSearch, isRefreshing } = useMyroSearch(token)
   const savedJobDismissal = useSavedJobDismissal(token)
   const fireMoment = useParticleMoment()
 
@@ -90,10 +89,9 @@ export function CollectionsDesktop({
     enabled: !!token,
     staleTime: 30 * 60 * 1000,
   })
-  const following = useFollowCompany(token)
 
   const [chip, setChip] = React.useState<CollectionChip>("found")
-  const [sort, setSort] = React.useState<SortKey>("prize")
+  const [sort, setSort] = React.useState<SortKey>("fit")
   const [openId, setOpenId] = React.useState<string | null>(initialJobId ?? null)
   const [dismissed, setDismissed] = React.useState<Set<string>>(new Set())
 
@@ -132,17 +130,9 @@ export function CollectionsDesktop({
     [apps, pulses],
   )
 
-  const ctx = React.useMemo(
-    () =>
-      collectionsTriageCtx(
-        openApps,
-        following.followedNames,
-        profile?.target_roles ?? [],
-      ),
-    [openApps, following.followedNames, profile],
-  )
+  const ctx = React.useMemo(() => collectionsTriageCtx(openApps), [openApps])
 
-  const continueItems = React.useMemo(() => buildContinueLane(openApps, ctx, byId), [openApps, ctx, byId])
+  const continueItems = React.useMemo(() => buildContinueLane(openApps, byId), [openApps, byId])
   const dismissedIds = React.useMemo(() => {
     const s = new Set(matchesQ.data?.dismissed_job_ids ?? [])
     dismissed.forEach((id) => s.add(id))
