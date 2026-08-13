@@ -3863,30 +3863,40 @@ class JobsRepository:
     ) -> dict[str, Any]:
         """All jobs for a company, paginated, with primary skills per job.
 
-        Pagination lives at the DB seam: ``.order().range()`` returns only the
-        requested window and ``count="exact"`` returns the company total in the
-        same round-trip (the feed idiom). A big company (Accenture ~2.7k rows)
-        costs one 50-row fetch, not a full-table pull sorted+sliced in Python —
-        the last read-path latency residual of backlog #21.
+        Pagination lives at the DB seam: the page window and the company total
+        come back in one round-trip (the feed idiom). A big company (Accenture
+        ~2.7k rows) costs one 50-row fetch, not a full-table pull sorted+sliced
+        in Python — the last read-path latency residual of backlog #21.
+
+        Goes through the `company_open_roles_page` RPC rather than PostgREST
+        because the fast plan needs `lower(company_name) =` in the query and
+        PostgREST cannot express it. The `.ilike()` this replaced was the
+        platform's **#1 database consumer** — 5,694 calls, mean 1,268ms, 7,222
+        seconds total, `max_exec_time` pinned at the 8s statement_timeout, i.e.
+        being killed mid-scan. `~~*` cannot use the btree on `company_name`, so
+        with `ORDER BY job_id LIMIT 50` the planner walked `jobs_pkey` expecting
+        to fill the limit early (estimated 1,620 matches, actual 4) and filtered
+        76,545 rows: 44,517ms over 75,346 buffers. Through the RPC and
+        `idx_jobs_lower_company_active_jobid`: **4.5ms over 5 buffers**.
+
+        No call site ever passed a wildcard — `.ilike()` here was case-insensitive
+        EXACT match, which `lower(x) = lower(y)` reproduces exactly. The function
+        is SECURITY INVOKER, so RLS on `jobs` applies as before; this is a plan
+        fix, not an access change.
         """
         start = max(0, (page - 1)) * page_size
-        end = start + page_size - 1
-        result = (
-            self._db.table("jobs")
-            .select(
-                "job_id, job_title, location, location_raw, "
-                "location_city, location_country, location_mode, location_quality",
-                count="exact",
-            )
-            .ilike("company_name", company_name)
-            .eq("is_active", True)
-            .eq("listing_confidence", "active")
-            .order("job_id")
-            .range(start, end)
-            .execute()
-        )
-        page_rows = [r for r in (result.data or []) if r.get("job_id")]
-        total = result.count if result.count is not None else len(page_rows)
+        rows = (
+            self._db.rpc(
+                "company_open_roles_page",
+                {"p_company": company_name, "p_limit": page_size, "p_offset": start},
+            ).execute()
+        ).data or []
+        page_rows = [dict(r) for r in rows if r.get("job_id")]
+        # `count(*) over ()` rides on every row; identical on all of them. Absent
+        # only when the page is empty, where the total is 0 by construction.
+        total = int(page_rows[0].pop("total_count", 0) or 0) if page_rows else 0
+        for row in page_rows:
+            row.pop("total_count", None)
         for row in page_rows:
             _hydrate_location_fields(row)
 

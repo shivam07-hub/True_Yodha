@@ -92,6 +92,23 @@ def safe_read(builder: Any, *, default: Any, context: str) -> Any:
     return default if data is None else data
 
 
+def safe_count(builder: Any, *, default: int, context: str) -> int:
+    """Execute an exact-count read without materializing every matching row.
+
+    It has the same benign schema-lag/empty-response contract as ``safe_read``
+    while preserving PostgREST's response metadata instead of only ``data``.
+    """
+    try:
+        result = builder.execute()
+    except APIError as exc:
+        if _is_benign_for_read(exc):
+            logger.warning("safe_count fell back to default [%s]: %s", context, exc)
+            return default
+        raise
+    count = result.count if result is not None else None
+    return default if count is None else int(count)
+
+
 def safe_profile_update(
     table: Any,
     payload: dict[str, Any],

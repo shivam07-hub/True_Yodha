@@ -21,6 +21,7 @@ place in this module where that is true.
 from __future__ import annotations
 
 import logging
+import secrets
 import time
 
 from app.config import settings
@@ -29,12 +30,18 @@ logger = logging.getLogger(__name__)
 
 # key → unix time the local window expires. Only used when Redis is absent.
 _LOCAL_CLAIMS: dict[str, float] = {}
+_LOCAL_LEASES: dict[str, tuple[float, str]] = {}
 
 
 def _sweep_local(now: float) -> None:
     """Drop expired local claims so a long-lived process cannot grow this dict."""
     for key in [key for key, expiry in _LOCAL_CLAIMS.items() if expiry <= now]:
         _LOCAL_CLAIMS.pop(key, None)
+
+
+def _sweep_local_leases(now: float) -> None:
+    for key in [key for key, (expiry, _token) in _LOCAL_LEASES.items() if expiry <= now]:
+        _LOCAL_LEASES.pop(key, None)
 
 
 def claim(key: str, ttl_seconds: int) -> bool:
@@ -62,31 +69,53 @@ def claim(key: str, ttl_seconds: int) -> bool:
         return False
 
 
-def release(key: str) -> None:
-    """Drop a claim before its TTL runs out.
-
-    ONLY for a claim held as a single-flight lock, where the TTL is a deadlock
-    guard rather than the point. A debounce window must never be released —
-    its whole purpose is to stay held for the full interval so the work does
-    not repeat.
-
-    Without this, a claim and the thing it guards can disagree: the guarded
-    cache entry gets invalidated while the claim still has seconds to run, so
-    every caller finds no cache AND cannot claim the fill, waits out the
-    cold-fill poll, and then computes anyway — one coordinated stall followed
-    by the exact stampede the claim exists to prevent.
-    """
+def acquire_lease(key: str, ttl_seconds: int) -> str | None:
+    """Acquire a releasable, owner-safe lease and return its opaque token."""
+    token = secrets.token_urlsafe(24)
     url = settings.redis_url.strip()
     if not url:
-        _LOCAL_CLAIMS.pop(key, None)
+        now = time.monotonic()
+        _sweep_local_leases(now)
+        current = _LOCAL_LEASES.get(key)
+        if current is not None and current[0] > now:
+            return None
+        _LOCAL_LEASES[key] = (now + ttl_seconds, token)
+        return token
+
+    try:
+        from redis import Redis
+
+        conn = Redis.from_url(url, decode_responses=True)
+        return token if conn.set(f"claim:{key}", token, nx=True, ex=ttl_seconds) else None
+    except Exception as exc:  # noqa: BLE001 — a lease must never break its caller
+        logger.warning(
+            "metric background.lease_unavailable key=%s exc=%s",
+            key, exc.__class__.__name__,
+        )
+        return None
+
+
+def release_lease(key: str, token: str) -> None:
+    """Release ``key`` only when ``token`` still owns it."""
+    url = settings.redis_url.strip()
+    if not url:
+        current = _LOCAL_LEASES.get(key)
+        if current is not None and secrets.compare_digest(current[1], token):
+            _LOCAL_LEASES.pop(key, None)
         return
 
     try:
         from redis import Redis
 
-        Redis.from_url(url, decode_responses=True).delete(f"claim:{key}")
+        Redis.from_url(url, decode_responses=True).eval(
+            "if redis.call('get', KEYS[1]) == ARGV[1] then "
+            "return redis.call('del', KEYS[1]) else return 0 end",
+            1,
+            f"claim:{key}",
+            token,
+        )
     except Exception as exc:  # noqa: BLE001 — a release must never break its caller
         logger.warning(
-            "metric background.release_unavailable key=%s exc=%s",
+            "metric background.lease_release_unavailable key=%s exc=%s",
             key, exc.__class__.__name__,
         )

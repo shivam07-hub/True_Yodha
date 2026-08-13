@@ -29,23 +29,16 @@ export function NotificationBell() {
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set())
   const panelRef = useRef<HTMLDivElement | null>(null)
 
-  const unread = useQuery({
-    queryKey: dataKeys.notificationsUnread(),
-    queryFn: () => notificationsApi.unreadCount(token!),
-    // A badge is J2 on every workspace: opening the bell is the intent that
-    // earns this read. Mount-time polling multiplied synchronized logins.
-    enabled: !!token && open,
-    refetchInterval: open ? UNREAD_POLL_MS : false,
-    staleTime: UNREAD_POLL_MS,
-  })
-  const unreadCount = unread.data?.count ?? 0
-
   const inbox = useQuery({
     queryKey: dataKeys.notifications(),
     queryFn: () => notificationsApi.list(token!),
     enabled: !!token && open,
+    refetchInterval: open ? UNREAD_POLL_MS : false,
     staleTime: 30_000,
   })
+  // The inbox contract already carries unread_count. A second request for the
+  // same badge on every open doubled the J2 work and amplified DB contention.
+  const unreadCount = inbox.data?.unread_count ?? 0
 
   const items = useMemo(() => inbox.data?.items ?? [], [inbox.data])
 

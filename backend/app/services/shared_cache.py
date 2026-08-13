@@ -24,7 +24,8 @@ never returns nothing because a refresh is in flight.
                       self-heal window) guards it, so at most one refresh runs
                       per key across every replica — every other caller in
                       that window gets the stale value with zero extra cost.
-  nothing cached   -> one caller computes inline. Peers wait for a short,
+  nothing cached   -> one caller acquires an owner-token lease and computes
+                      inline. Peers wait for a short,
                       bounded fill window and reuse the winner's value. If the
                       winner stalls or fails they compute directly, preserving
                       the cache's fail-open availability contract without
@@ -206,14 +207,8 @@ def _write(key: str, data: Any, *, ttl_seconds: int, stale_seconds: int) -> floa
 
 
 def invalidate(key: str) -> None:
-    """Remove one shared entry after its underlying truth is explicitly written.
-
-    The fill-claim goes with it. A claim outliving the entry it guards is the
-    worst of both worlds: no cache to serve and no claim to win, so every
-    caller waits out the cold-fill poll and then computes anyway.
-    """
+    """Remove one shared entry after its underlying truth is explicitly written."""
     _LOCAL_CACHE.pop(key, None)
-    debounce.release(f"shared_cache_fill:{key}")
     conn = _redis()
     if conn is None:
         return
@@ -227,7 +222,6 @@ def invalidate_prefix(prefix: str) -> None:
     """Invalidate a bounded cache namespace after a corpus snapshot write."""
     for key in [candidate for candidate in _LOCAL_CACHE if candidate.startswith(prefix)]:
         _LOCAL_CACHE.pop(key, None)
-        debounce.release(f"shared_cache_fill:{key}")
     conn = _redis()
     if conn is None:
         return
@@ -303,8 +297,17 @@ def get_or_compute(
         # itself, but a local-dict fallback (no TTL enforcement) can still
         # hold a genuinely dead entry — fall through to a real compute.
 
-    if debounce.claim(f"shared_cache_fill:{key}", ttl_seconds=_CLAIM_TTL_SECONDS):
-        return _refresh_now(key, compute, ttl_seconds=ttl_seconds, stale_seconds=stale_seconds)
+    lease_key = f"shared_cache_fill:{key}"
+    lease_token = debounce.acquire_lease(lease_key, ttl_seconds=_CLAIM_TTL_SECONDS)
+    if lease_token is not None:
+        try:
+            return _refresh_now(
+                key, compute, ttl_seconds=ttl_seconds, stale_seconds=stale_seconds
+            )
+        finally:
+            # Invalidation never deletes a lock it does not own. The token also
+            # prevents a stalled filler from erasing a successor's lease.
+            debounce.release_lease(lease_key, lease_token)
     # Someone else is filling this key. Poll only for a bounded interval: the
     # common path reuses the winner's result, while a dead/stalled winner cannot
     # hold this request indefinitely. This wait is deliberately shorter than
