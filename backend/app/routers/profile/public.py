@@ -226,30 +226,5 @@ def update_ninja_name(
 def suggest_ninja_name(
     principal: Principal = Depends(get_principal),
 ) -> SuggestNinjaNameResponse:
-    """Onboarding seed.
-
-    Order of preference:
-      1. Existing persisted ninja_name on the user's profile (auto-provisioned at signup).
-         Returning the same value here prevents the "I already gave a name, why is it
-         different?" complaint reported during mobile QA.
-      2. Slug derived from the user's full_name (e.g. "shivam-pathak-9k2v").
-      3. Random adjective-noun fallback.
-    """
-    admin = _admin()
-    user_id = principal.id
-
-    profile = (
-        admin.table("user_profiles")
-        .select("ninja_name, full_name")
-        .eq("id", user_id)
-        .maybe_single()
-        .execute()
-    )
-    row = (profile.data if profile else {}) or {}
-    existing = row.get("ninja_name")
-    if existing and nn.is_valid(existing):
-        return SuggestNinjaNameResponse(ninja_name=existing)
-
-    return SuggestNinjaNameResponse(
-        ninja_name=nn.generate_from_full_name(row.get("full_name"), admin=admin)
-    )
+    """Seed for the naming moment. The decision lives in ninja_name.suggestion_for."""
+    return SuggestNinjaNameResponse(**nn.suggestion_for(principal.id, admin=_admin()))
