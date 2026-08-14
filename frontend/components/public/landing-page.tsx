@@ -8,6 +8,8 @@ import { LandingHero } from "@/components/public/landing/hero"
 import { LandingCompanyRail } from "@/components/public/landing/company-rail"
 import { LandingHowItWorks } from "@/components/public/landing/how-it-works"
 import { LandingLiveMirror } from "@/components/public/landing/live-mirror"
+import { LandingJobSearch } from "@/components/public/landing/job-search"
+import "@/components/public/landing/job-gen.css"
 import { LandingApplicationPlan } from "@/components/public/landing/application-plan"
 import { LandingClosing } from "@/components/public/landing/closing"
 import { useLandingData } from "@/components/public/landing/use-landing-data"
@@ -21,12 +23,14 @@ import "@/components/public/landing/landing-company-rail.css"
 import "@/components/public/landing/landing-motion.css"
 
 /**
- * Myro landing — seeker-only funnel, product-story pass locked 2026-08-10.
- * The page earns one action: upload a CV. Three visual chapters preview the
- * actual first-run journey without trying to document the whole platform:
- * MNC career pages + CV → relevant current opening → truthful tailoring → a
- * compact post-application plan. The dropzone still owns the existing
- * /cv-preview → signup → onboarding handoff; this page does not fork that flow.
+ * Myro landing — seeker-first MNC story, product-story pass locked 2026-08-10,
+ * revised 2026-08-14 to add the live-mirror proof + search/industry handoff.
+ * Upload CV is still the primary action. Four visual chapters preview the
+ * actual first-run journey: MNC career pages + CV → live scrape proof (with a
+ * search/industry shortcut into /intel, which owns the results grid) →
+ * relevant current opening → truthful tailoring → a compact post-application
+ * plan. The dropzone still owns the existing /cv-preview → signup →
+ * onboarding handoff; this page does not fork that flow.
  */
 export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) {
   const router = useRouter()
@@ -87,6 +91,11 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
           analytics={data.analytics}
           jobsCount={data.jobsTracked}
           companiesCount={data.companiesMonitored}
+        />
+
+        <LandingJobSearch
+          industries={data.analytics?.by_industry ?? []}
+          industriesLoading={!data.analytics}
         />
 
         <LandingHowItWorks

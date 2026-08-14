@@ -1,0 +1,13 @@
+/* Frames the /intel IntelHero mirror to match every other landing section's
+   rhythm — it has no .tm-intel-page ancestor here to inherit width/padding
+   from, so this replaces that with the landing's own .lp-wrap + section-py. */
+.lp-live-mirror {
+  padding: var(--lp-section-py) 0;
+  border-top: 1px solid var(--lp-border);
+}
+
+/* .tm-intel-mc carries its own bottom margin for the /intel page's own
+   section rhythm — redundant here since .lp-live-mirror already sets it. */
+.lp-live-mirror .tm-intel-mc {
+  margin-bottom: 0;
+}

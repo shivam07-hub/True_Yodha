@@ -7,3 +7,7 @@
   padding: var(--lp-section-py) 0;
   border-top: 1px solid var(--lp-border);
 }
+
+.lp-jobgen .tm-industry-explorer {
+  margin-top: var(--tm-cluster-gap);
+}

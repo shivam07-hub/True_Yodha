@@ -49,12 +49,14 @@ test("cv upload claim keeps job id after auth handoff", () => {
 
 test("intel console is backed by tracked companies, not fake URL seeds", () => {
   const heroSource = read("components/public/intel/intel-hero.tsx")
-  const paneSource = read("components/public/intel-pane.tsx")
+  // The IntelHero console moved from the /intel page to the landing page's
+  // live-mirror (2026-08-14) — this is now its only mount.
+  const mirrorSource = read("components/public/landing/live-mirror.tsx")
   const dataSource = read("components/public/intel/intel-data.ts")
 
   assert.ok(heroSource.includes("buildConsoleSeeds"))
   assert.ok(heroSource.includes("RUNNER_MODEL_LABELS"))
-  assert.ok(paneSource.includes("consoleCompanies={analytics?.by_company ?? []}"))
+  assert.ok(mirrorSource.includes("consoleCompanies={analytics?.by_company ?? []}"))
   assert.doesNotMatch(dataSource, /LOG_SEEDS/)
   assert.doesNotMatch(heroSource, /Last commit/)
   assert.doesNotMatch(heroSource, /gpt-oss-120b/)

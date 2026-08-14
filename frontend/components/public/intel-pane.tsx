@@ -18,14 +18,14 @@ import {
   initialJobSearchValue,
   normalizeJobSearchQuery,
 } from "@/components/public/job-search-console-model"
-import { IntelHero, IntelAuthedHeader } from "./intel/intel-hero"
+import { IntelAuthedHeader } from "./intel/intel-hero"
 import { IntelIndustryExplorer } from "./intel/intel-industry-explorer"
 import { IntelJobSwitchPlan } from "./intel/intel-job-switch-plan"
 import type { JobRowFit } from "./intel/intel-rows"
 import { IntelResults, ResultsTab, ResultCompany, ResultGroup, ResultJob } from "./intel/intel-results"
 import { JobFitDrawer } from "./intel/job-fit-drawer"
 import { CHIP_FILTER, COUNTRY_CHIP_IDS, QUICK_FILTERS, sparkFor, velocityFor } from "./intel/intel-data"
-import { useScraperUptime, weekDeltaFromBins } from "./intel/intel-filters"
+import { weekDeltaFromBins } from "./intel/intel-filters"
 import "./intel-pane.css"
 
 const ANALYTICS_TTL = 7 * 24 * 60 * 60 * 1000
@@ -48,9 +48,15 @@ export function IntelPane() {
   const urlSearchRef = useRef(urlSearchValue)
   const [query, setQuery] = useState(urlSearchValue)
   const [activeChips, setActiveChips] = useState<string[]>([])
-  const [tab, setTab] = useState<ResultsTab>("companies")
+  // Landing's industry explorer links here as ?industry=<name> instead of
+  // rendering its own results (grill 2026-08-14: landing pitches, /intel
+  // keeps the one results grid). Seeded into initial state, not an effect —
+  // an effect racing the "clear group on leaving" effect below nulled it
+  // back out one render later.
+  const initialIndustry = searchParams.get("industry")
+  const [tab, setTab] = useState<ResultsTab>(initialIndustry ? "industries" : "companies")
   const [activeCoId, setActiveCoId] = useState<string | null>(null)
-  const [activeGroup, setActiveGroup] = useState<string | null>(null)
+  const [activeGroup, setActiveGroup] = useState<string | null>(initialIndustry)
   const [nowMs, setNowMs] = useState(0)
   const [fitDrawer, setFitDrawer] = useState<{ job: ResultJob; companyName: string | null } | null>(null)
   const { sort, setSort } = useResultsSort("intel", "velocity")
@@ -174,7 +180,6 @@ export function IntelPane() {
     const id = setInterval(tick, 30_000)
     return () => clearInterval(id)
   }, [])
-  const uptime = useScraperUptime(analytics?.scraper_started)
 
   const filteredCompanies: ResultCompany[] = useMemo(() => {
     // Global ⌘K search active: surface every company that has at least one hit.
@@ -263,7 +268,6 @@ export function IntelPane() {
     cities: citiesView.length,
   }
 
-  const jobsTotal = analytics?.total_jobs ?? 0
   const activeCompanyName = useMemo(() => {
     const co = filteredCompanies.find((c) => c.id === activeCoId) ?? allCompanies.find((c) => c.id === activeCoId)
     return co?.name ?? null
@@ -332,11 +336,15 @@ export function IntelPane() {
     setActiveGroup(industry)
   }
 
-  // Safe defaults during cold-start hydration (avoids flash of 0s). Replaced
-  // inline when analytics arrives — tabular-nums in CSS prevents layout shift.
-  const safeJobsTotal = jobsTotal || 28047
-  const safeCompanies = analytics?.total_companies || 148
-  const safeIndustries = analytics?.total_industries || 10
+  // ?industry= is only consumed as initial state (above) — strip it from the
+  // URL once mounted so a refresh doesn't re-seed a group the user may have
+  // already changed.
+  const industryHandoffRef = useRef(false)
+  useEffect(() => {
+    if (industryHandoffRef.current) return
+    industryHandoffRef.current = true
+    if (initialIndustry) router.replace("/intel", { scroll: false })
+  }, [initialIndustry, router])
 
   return (
     <div className="tm-intel-page tm-page-enter">
@@ -346,19 +354,9 @@ export function IntelPane() {
           hasCv={hasCv}
         />
       ) : (
-        <IntelHero
-          jobsCount={safeJobsTotal}
-          jobsTick={false}
-          companiesCount={safeCompanies}
-          industriesCount={safeIndustries}
-          industriesMapped={safeIndustries}
-          parsedToday={analytics?.total_jobs_today ?? 0}
-          jobsAdded1h={analytics?.jobs_added_1h ?? 0}
-          companiesAdded7d={analytics?.companies_added_7d ?? 0}
-          latestBatchIso={analytics?.latest_batch ?? null}
-          consoleCompanies={analytics?.by_company ?? []}
-          uptime={uptime}
-        />
+        // The LLM Runner live-mirror hero moved to the landing page
+        // (2026-08-14) — kept only here as the page's one <h1> for a11y/SEO.
+        <h1 className="sr-only">Live public job-market mirror</h1>
       )}
 
       <JobSearchConsole
