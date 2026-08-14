@@ -111,15 +111,23 @@ Derived from the goal above. Detail for each: [BACKLOG.md](BACKLOG.md).
 large company pages 500. Fixes for both are on `Develop`, tested, waiting. Every
 other stage-one item is measured on a site that is currently broken.
 
-**2. Prove the score works end-to-end.** *Not verified.*
-No score was saved for ANY user for three days (2026-07-31 → 08-03). The cause
-is fixed, but nobody has signed up since, so the fix has never actually run.
-One real signup closes this. Until then it is a hope, not a fix.
+**2. Prove the score works end-to-end.** *Closed 2026-08-14 — it runs.*
+50 signups in the 14 days to 2026-08-14, and 11 of the 39 who joined after the
+fix hold a `mirror_scores` row. The three-day outage (2026-07-31 → 08-03) is
+over. Note `cv_upload_jobs.score` is null on every job since `a6425b46`
+(2026-07-20) by design — score waits for skill confirmation — so read the score
+from `mirror_scores`, never from the job row. The job row's `score`, and the
+three places that still read it, are dead and want deleting.
 
-**3. Make upload and download reliable.** *Open.*
-Upload is the front door and it still fails on weak networks. What is left:
-resume parity between the onboarding and CV routes, real progress, weak-network
-testing, and confirmation from the users who hit it.
+**3. Make upload and download reliable.** *Open — two silent failures closed.*
+Upload is the front door. `033c9403` fixed the two that left no trace: a
+rejected `/cv/upload/finalize` threw without emitting a phase event (and writes
+no job row, so the trail ended at "put succeeded"), and the preflight accepted
+the 76-byte cloud-placeholder stub that Drive/OneDrive hand the file picker.
+Still left: resume parity between the onboarding and CV routes, real progress,
+weak-network testing, and confirmation from the users who hit it.
+**Four users have a CV in storage and nothing else** — `8459faec`, `f39204cb`,
+`8b27e6e6`, `477051ff` (2026-08-14). They are reachable and worth an email.
 
 **4. Fix the phone.** *Verified open — blocks the app store build.*
 Seven screens — CV, Prep, Skills, Coin guide, Intel, Settings, footer — are
