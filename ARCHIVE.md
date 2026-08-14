@@ -6,6 +6,21 @@
 
 ---
 
+## CLOSED 2026-08-14 — the score works end-to-end
+
+Stage-one item 2 said no score had been saved since the 2026-07-31 → 08-03
+outage and that nobody had signed up to prove the fix. Both were stale: 50
+signups in the 14 days to 2026-08-14, and 11 of the 39 who joined after the fix
+hold a `mirror_scores` row. The `domain_skill_counts` fix has run 11 times.
+
+The claim survived because `cv_upload_jobs.score` is null on every completed job
+since `a6425b46` (2026-07-20) — scoring waits for skill confirmation, so the job
+row legitimately has no score to carry. Reading the job row instead of
+`mirror_scores` shows a site-wide outage that is not happening. Cockpit now says
+where the score lives; the dead column is flagged for deletion.
+
+---
+
 ## CLOSED 2026-08-13 — #16 production read-path software slices
 
 The application and database slices are finished on `Develop`. Verifier claims
