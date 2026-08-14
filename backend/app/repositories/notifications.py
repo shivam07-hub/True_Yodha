@@ -178,21 +178,16 @@ class NotificationsRepository:
         source_id: str,
         *,
         skills_detected: int,
-        score: float | None,
     ) -> None:
-        if score is None:
-            title = "Review the skills Myro found"
-            body = f"{skills_detected} skills mapped · confirm them before scoring"
-            action_url = "/onboarding/result"
-        else:
-            title = "Your Myro Score is ready"
-            body = f"{skills_detected} skills mapped · Myro Score {round(score)}"
-            action_url = "/cv"
+        # A finished analysis has no score to announce — scoring waits for skill
+        # confirmation (a6425b46), and this notification is what sends the user to
+        # do it. The "Your Myro Score is ready" variant used to live here and had
+        # been unreachable since that change.
         self._admin_db.table("user_notifications").update({
             "state": "ready",
-            "title": title,
-            "body": body,
-            "action_url": action_url,
+            "title": "Review the skills Myro found",
+            "body": f"{skills_detected} skills mapped · confirm them before scoring",
+            "action_url": "/onboarding/result",
             "read_at": None,
             "created_at": datetime.now(timezone.utc).isoformat(),
         }).eq("kind", "cv_analysis").eq("source_id", source_id).execute()

@@ -282,18 +282,15 @@ def test_cv_analysis_notification_projects_processing_and_ready_states() -> None
     assert phase["state"] == "processing"
     assert phase["body"] == "Preparing your CV review"
 
-    repo.record_cv_analysis_done("upload-1", skills_detected=6, score=42.4)
+    # A finished analysis always sends the user to confirm skills — scoring happens
+    # there, so there is no score to announce here and no "Score is ready" variant.
+    repo.record_cv_analysis_done("upload-1", skills_detected=6)
     _, done = cap.updated[-1]
     assert done["state"] == "ready"
-    assert done["title"] == "Your Myro Score is ready"
-    assert done["body"] == "6 skills mapped · Myro Score 42"
+    assert done["title"] == "Review the skills Myro found"
+    assert done["body"] == "6 skills mapped · confirm them before scoring"
+    assert done["action_url"] == "/onboarding/result"
     assert done["read_at"] is None
-
-    repo.record_cv_analysis_done("upload-1", skills_detected=6, score=None)
-    _, pending = cap.updated[-1]
-    assert pending["state"] == "ready"
-    assert pending["title"] == "Review the skills Myro found"
-    assert pending["action_url"] == "/onboarding/result"
 
 
 def test_cv_analysis_failure_becomes_unread_actionable_notification() -> None:
@@ -361,13 +358,13 @@ def test_cv_upload_job_projects_every_lifecycle_transition(monkeypatch: Any) -> 
     job_id = cv_upload_jobs.create_processing_job(user_id="u1", content_hash="hash")
     cv_upload_jobs.record_notification_started(job_id, "u1")
     cv_upload_jobs.set_phase(job_id, "structuring_cv")
-    cv_upload_jobs.mark_done(job_id, skills_detected=6, score=42.4)
+    cv_upload_jobs.mark_done(job_id, skills_detected=6)
     cv_upload_jobs.mark_failed(job_id, error_code="provider", error_detail="down", refunded=True)
 
     assert calls == [
         ("started", "u1", "upload-1"),
         ("phase", "upload-1", "structuring_cv"),
-        ("done", "upload-1", {"skills_detected": 6, "score": 42.4}),
+        ("done", "upload-1", {"skills_detected": 6}),
         ("failed", "upload-1", True),
     ]
 
@@ -405,7 +402,7 @@ def test_cv_upload_terminal_success_cannot_overwrite_a_swept_failure(monkeypatch
     monkeypatch.setattr(cv_upload_jobs, "get_supabase_admin", lambda: _DB())
     monkeypatch.setattr(cv_upload_jobs, "NotificationsRepository", _Projection)
 
-    transitioned = cv_upload_jobs.mark_done("upload-1", skills_detected=6, score=None)
+    transitioned = cv_upload_jobs.mark_done("upload-1", skills_detected=6)
 
     assert transitioned is False
     assert ("status", "processing") in filters

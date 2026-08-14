@@ -89,7 +89,7 @@ def find_by_idempotency_key(user_id: str, idempotency_key: str) -> dict[str, Any
         admin.table(_TABLE)
         .select(
             "id, status, current_phase, analysis_kind, result_payload, "
-            "baseline_version_id, skills_detected, score, xp_charged, "
+            "baseline_version_id, skills_detected, xp_charged, "
             "xp_refunded, error_code, error_detail"
         )
         .eq("user_id", user_id)
@@ -201,7 +201,6 @@ def mark_done(
     job_id: str,
     *,
     skills_detected: int,
-    score: float | None,
     result_payload: dict[str, Any] | None = None,
     baseline_version_id: int | None = None,
 ) -> bool:
@@ -210,7 +209,6 @@ def mark_done(
         "status": "done",
         "current_phase": "ready",
         "skills_detected": skills_detected,
-        "score": score,
         "finished_at": datetime.now(timezone.utc).isoformat(),
         "lease_expires_at": None,
     }
@@ -229,7 +227,7 @@ def mark_done(
         return False
     try:
         NotificationsRepository(admin, admin).record_cv_analysis_done(
-            job_id, skills_detected=skills_detected, score=score
+            job_id, skills_detected=skills_detected
         )
     except Exception as exc:  # notification projection must not change job truth
         _log.warning("CV job %s ready notification failed: %s", job_id, exc)
@@ -275,7 +273,7 @@ def fetch_status_for_owner(job_id: str, user_id: str, db: Client | None = None) 
         client.table(_TABLE)
         .select(
             "id, status, current_phase, analysis_kind, result_payload, "
-            "baseline_version_id, skills_detected, score, error_code, "
+            "baseline_version_id, skills_detected, error_code, "
             "error_detail, xp_charged, xp_refunded, created_at, lease_expires_at, "
             "finished_at, stall_requeue_count"
         )
