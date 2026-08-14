@@ -18,15 +18,17 @@ interface Props {
   homeCity?: string | null
   /** Filters the feed to this skill — the row's whole reason to be tappable. */
   onFilterSkill: (skill: string) => void
-  /** Wave-3 gate: the panel is on-intent, like the rail's other market reads. */
+  /** Opens when the preceding item in the automatic rail cascade settles. */
   enabled?: boolean
+  /** Reports the initial panel read settling so the next rail item can start. */
+  onSettled?: () => void
 }
 
-export function SkillDemandPanel({ homeCity, onFilterSkill, enabled = true }: Props) {
+export function SkillDemandPanel({ homeCity, onFilterSkill, enabled = true, onSettled }: Props) {
   const [range, setRange] = useState<SkillDemandWindow>("30d")
   const [city, setCity] = useState<string | null>(null)
 
-  const { cities: covered, loading: citiesLoading } = useSkillDemandCities(enabled)
+  const { cities: covered, loading: citiesLoading, settled: citiesSettled } = useSkillDemandCities(enabled)
 
   // Preselect the viewer's city when it is covered, else the largest market —
   // never an empty picker, never a city we cannot say anything true about.
@@ -36,7 +38,7 @@ export function SkillDemandPanel({ homeCity, onFilterSkill, enabled = true }: Pr
     return home?.city ?? covered[0]?.city ?? null
   }, [city, covered, homeCity])
 
-  const { skills, computedAt, loading: demandLoading } = useSkillDemand(active, range, enabled, ROW_LIMIT)
+  const { skills, computedAt, loading: demandLoading, settled: demandSettled } = useSkillDemand(active, range, enabled, ROW_LIMIT)
 
   // Keep the previous city's rows on screen while the next city loads: the
   // panel changing height under the cursor is worse than one stale beat.
@@ -46,8 +48,13 @@ export function SkillDemandPanel({ homeCity, onFilterSkill, enabled = true }: Pr
   }, [skills, demandLoading])
 
   const loading = citiesLoading || (demandLoading && rows.length === 0)
+  const initialSettled = enabled && citiesSettled && (!active || demandSettled)
 
-  if (!enabled) return null
+  useEffect(() => {
+    if (initialSettled) onSettled?.()
+  }, [initialSettled, onSettled])
+
+  if (!enabled) return <SkillDemandLoading />
   if (loading) return <SkillDemandLoading />
   if (!active) return null
 

@@ -55,14 +55,13 @@ export interface MarketJobsTabProps {
   onExploredCareerBandsChange?: (bands: CareerBand[]) => void
   targetLocations: string[]
   followCompany: Pick<UseFollowCompany, "followedNames" | "action">
-  /** Wave-3 intent gate (#41 L3): when false, the `/jobs/analytics`-backed
-   *  market-intel rail (movers/company-signal trending) + interleaved story
-   *  cards stay unfetched (the 22–25s scan never fires on login). */
+  /** Opens company signals after the preceding rail item settles. */
   analyticsEnabled?: boolean
-  /** Wave-2 idle gate (#41 L3): cheap skill-demand snapshot (`/jobs/my-skills/
-   *  demand`) — warms on the idle cascade so the rail is ready before the user
-   *  scrolls, NOT lumped behind the expensive wave-3 intent gate above. */
+  /** Opens skill demand after the preceding rail item settles. */
   demandEnabled?: boolean
+  onFeedSettled?: () => void
+  onDemandSettled?: () => void
+  onAnalyticsSettled?: () => void
 }
 
 export function MarketJobsTab(props: MarketJobsTabProps) {
@@ -72,6 +71,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     targetLocations, followCompany, initialSkillFacet, onSkillFacetChange,
     primaryCareerBand, exploredCareerBands, onExploredCareerBandsChange,
     analyticsEnabled = true, demandEnabled = true,
+    onFeedSettled, onDemandSettled, onAnalyticsSettled,
   } = props
   const router = useRouter()
   const { isDesktop } = useViewport()
@@ -130,6 +130,9 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
 
   const { feed, allJobs, visibleJobs, total, rankedCount, loading, settled, expansionDividers, triage, undo, pending, savedCount } =
     useJobFeed({ token, filters, q, skill: skillFacet, scope })
+  useEffect(() => {
+    if (settled) onFeedSettled?.()
+  }, [settled, onFeedSettled])
   // J1: the brain warms the fit-top shortlist AFTER J0 has painted, then the feed
   // re-reads and the leading cards arrive ranked. Never on the arrival path — see
   // the "Jobs paints its J0 feed before secondary compute" contract test.
@@ -241,6 +244,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   const railProps = {
     token, scope, feed: allJobs, pulses, cvReady: hasCv,
     onSeeRoles, onFilterSkill, onOpenJob: setOpenJob, analyticsEnabled, demandEnabled, followCompany,
+    onDemandSettled, onAnalyticsSettled,
   }
 
   return (

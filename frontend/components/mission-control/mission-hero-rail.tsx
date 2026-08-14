@@ -9,7 +9,7 @@
 
 import "@/app/(authed)/home/mission-control.css"
 
-import { useMemo } from "react"
+import { useEffect, useMemo } from "react"
 import { formatDate } from "@/lib/format"
 import { useQuery } from "@tanstack/react-query"
 import { CommandRail } from "@/components/mission-control/command-rail"
@@ -33,7 +33,7 @@ import { useViewport } from "@/mobile"
 const MATCHES_TTL = 7 * 24 * 60 * 60 * 1000
 
 /** The greeting hero — desktop = pinned rail, mobile = thin banner. */
-export function MissionHeroRail({ token }: { token: string | null }) {
+export function MissionHeroRail({ token, onSettled }: { token: string | null; onSettled?: () => void }) {
   const { isDesktop } = useViewport()
 
   // One BFF round-trip seeds the leaves; each leaf falls back to its own fetch
@@ -41,25 +41,25 @@ export function MissionHeroRail({ token }: { token: string | null }) {
   const bootstrap = useHomeBootstrap(token)
   const settled = bootstrap.settled
 
-  const { data: scoreData, isLoading: scoreLoading } = useQuery({
+  const scoreQuery = useQuery({
     queryKey: dataKeys.scores(),
     queryFn: () => scores.me(token!),
     enabled: !!token && settled,
     staleTime: 5 * 60 * 1000,
   })
-  const { data: profile, isLoading: profileLoading } = useQuery({
+  const profileQuery = useQuery({
     queryKey: dataKeys.profile(),
     queryFn: () => users.me(token!),
     enabled: !!token && settled,
     staleTime: 10 * 60 * 1000,
   })
-  const { data: jobsData } = useQuery({
+  const jobsQuery = useQuery({
     queryKey: dataKeys.jobs(),
     queryFn: () => withLocalCache(userCacheKey(token!, JOB_MATCHES_CACHE_PARTS), MATCHES_TTL, () => jobs.matches(token!)),
     enabled: !!token && settled,
     staleTime: MATCHES_TTL,
   })
-  const { data: applications } = useQuery({
+  const applicationsQuery = useQuery({
     queryKey: dataKeys.applications(),
     queryFn: () => jobs.applications(token!),
     enabled: !!token && settled,
@@ -70,7 +70,7 @@ export function MissionHeroRail({ token }: { token: string | null }) {
     queryFn: () => diary.history(token!),
     enabled: !!token && settled,
   })
-  const { data: evidenceData } = useQuery({
+  const evidenceQuery = useQuery({
     queryKey: dataKeys.cvEvidence(),
     queryFn: () => cv.evidence(token!),
     enabled: !!token && settled,
@@ -82,6 +82,25 @@ export function MissionHeroRail({ token }: { token: string | null }) {
     enabled: !!token && settled,
     staleTime: 5 * 60 * 1000,
   })
+
+  const scoreData = scoreQuery.data
+  const profile = profileQuery.data
+  const jobsData = jobsQuery.data
+  const applications = applicationsQuery.data
+  const evidenceData = evidenceQuery.data
+  const initialLoadSettled = settled && [
+    scoreQuery,
+    profileQuery,
+    jobsQuery,
+    applicationsQuery,
+    historyQuery,
+    evidenceQuery,
+    practiceActivityQuery,
+  ].every((query) => query.isSuccess || query.isError)
+
+  useEffect(() => {
+    if (initialLoadSettled) onSettled?.()
+  }, [initialLoadSettled, onSettled])
 
   // ── Derivations (faithful to the former /home hero)
   const apps = useMemo(() => applications ?? [], [applications])
@@ -124,7 +143,7 @@ export function MissionHeroRail({ token }: { token: string | null }) {
     })
   }, [scoreData, jobsData, score])
 
-  const coreLoading = !settled || scoreLoading || profileLoading
+  const coreLoading = !settled || scoreQuery.isLoading || profileQuery.isLoading
 
   return (
     <SectionGate

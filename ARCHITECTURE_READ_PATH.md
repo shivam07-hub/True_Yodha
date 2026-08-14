@@ -121,18 +121,21 @@ priority. "The component mounted" and "the browser is idle" are not user
 decisions. Broad page-level pointer/scroll gates are insufficient for J2; the
 trigger must belong to the component whose data is being requested.
 
-Verified open violation, updated 2026-08-13:
+Verified journey notes, updated 2026-08-14:
 
 - authenticated navigation no longer earns CV-version or applications reads;
   those caches are seeded by their owning journey. The shell's one profile read
   remains J0 because identity and CV presence change the chrome itself;
-- `/market`'s Wave 3 treats any scroll, pointerdown, or keydown as intent for
-  several analytics consumers rather than the specific consumer entered.
+- `/market` no longer treats scroll, pointerdown, keydown, browser idle, or a
+  button click as permission to finish loading visible rails. The Jobs rails
+  are mandatory J1 content: they start automatically in a completion-driven
+  cascade after identity + first feed settle. Optional drills inside those
+  rails remain specific-intent J2.
 
-The former public company-page fan-out is addressed in S11 below.
+The former public company-page fan-out is addressed in S11 below. The Market
+rail correction is recorded in section 13.
 
-These are named for the next demand-reduction pass. They are not silently
-declared fixed by the database work below.
+The authenticated-navigation statement remains a standing constraint.
 
 ---
 
@@ -947,8 +950,8 @@ module so the contract test's guard on `use-job-feed.ts` stays meaningful rather
 than a string the next refactor trips over. It gates on **J0 having settled** —
 the feed query's own success/error — not on browser idle: this document's
 journey-compute contract is explicit that "the browser is idle" is not a user
-decision, and `useIdleWave`'s own comment records idle firing while J0 was still
-in flight on Safari/WebViews. Fires at most once per (filters, scope, query)
+decision. The feed query's own settled state opens the gate, so a timer cannot
+fire while J0 is still in flight. Fires at most once per (filters, scope, query)
 key, cancellable, and invalidates that exact feed key only when `warmed > 0` —
 a re-read that cannot change the answer is pure cost. Desktop and mobile call
 the same hook.
@@ -996,8 +999,7 @@ brain-ranked on arrival" actually asks for — but it is new spend, not free.
   reorders under someone mid-read is worse than one that sharpens in place")
   argues for an affordance marking it. Deliberately not invented here — it is a
   design call.
-- The remaining journey-compute violation named in section 2 (`/market` Wave 3
-  treating any scroll/pointerdown as intent) is untouched by this pass.
+- The journey-compute violation formerly named here is closed by section 13.
 
 ---
 
@@ -1171,3 +1173,40 @@ are worth naming in advance:
 
 Either outcome would make R2 the wrong build. That is the entire reason for
 measuring first.
+
+---
+
+## 13. Visible Market rails finish automatically (2026-08-14)
+
+The locked product behaviour is now explicit: prioritised loading means
+**ordered automatic completion**, not optional loading. Every item visibly
+present on Jobs must either hold its real data or show its real-shape loading
+state while waiting for its turn. No click, scroll, pointer event, keypress, or
+browser-idle callback is allowed to start a required visible item.
+
+The regression came from `3799e114`: the left `MissionHeroRail`, company
+signals, and target-role counts shared `useIntentWave()`. That hook listened to
+page-wide scroll/pointer/key events, so clicking an unrelated control started
+the reads. Before the event the left rail was not mounted at all and disabled
+right-rail queries reported `loading=false`; priority had become omission.
+
+Jobs now advances from real query completion in this order:
+
+1. J0 profile + first `/jobs/feed` result (success or degraded error state).
+2. Left personalised rail through its existing `/home/bootstrap` BFF and leaf
+   fallback contract.
+3. Tier-0 Skill Demand snapshot and its covered-city index.
+4. Tier-0 Company Signals (`/jobs/companies-at`).
+5. Per-target-role chip counts (`/jobs/analytics/me`); mobile, which has no
+   desktop rails, starts these after profile resolution.
+
+Each stage latches for the current auth token and opens the next only when its
+queries succeed or fail, so one degraded item cannot strand the rest of the
+page. Waiting left and right rail items stay mounted as `HeroLoading`,
+`SkillDemandLoading`, and `MarketRailLoading`. The obsolete idle/interaction
+wave hook was deleted. `market-browse-contract.test.ts` locks the order, the
+absence of page-wide interaction gates, and the waiting skeletons.
+
+This changes scheduling, not database work, payloads, or endpoints. The code
+contract is verified; no live authenticated waterfall or latency movement is
+claimed until the Develop deployment is exercised in a browser.

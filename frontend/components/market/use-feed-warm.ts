@@ -25,8 +25,8 @@ import { jobFeedQueryKey } from "./job-feed-query-key"
  *
  * The gate is **J0 having settled**, not browser idle. ARCHITECTURE_READ_PATH's
  * journey-compute contract is explicit that "the browser is idle" is not a user
- * decision, and `useIdleWave`'s own comment records idle firing while J0 was still
- * in flight on Safari/WebViews. `settled` comes from the feed query itself.
+ * decision. `settled` comes from the feed query itself, so later work cannot race
+ * J0 because a timer happened to expire first.
  *
  * Fires at most once per (filters, scope, query) key. On resolve with new evals it
  * invalidates exactly that feed key, so the feed re-reads and the top cards arrive

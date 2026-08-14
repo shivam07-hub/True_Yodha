@@ -21,7 +21,7 @@ const EMPTY_CITIES: SkillDemandCityItem[] = []
 export function useSkillDemand(
   city: string | null,
   window: SkillDemandWindow = "30d",
-  // Wave-3 intent gate (#41 L3), matching the rail's other market reads.
+  // The Jobs page enables this at its turn in the automatic rail cascade.
   enabled = true,
   limit = 8,
 ) {
@@ -38,6 +38,7 @@ export function useSkillDemand(
     // False when there is nothing to fetch, so a city we don't cover renders an
     // empty state rather than a skeleton that never resolves.
     loading: query.isLoading && enabled && !!key,
+    settled: enabled && (!key || query.isSuccess || query.isError),
   }
 }
 
@@ -49,5 +50,9 @@ export function useSkillDemandCities(enabled = true) {
     enabled,
     staleTime: 6 * 60 * 60 * 1000,
   })
-  return { cities: query.data?.cities ?? EMPTY_CITIES, loading: query.isLoading && enabled }
+  return {
+    cities: query.data?.cities ?? EMPTY_CITIES,
+    loading: query.isLoading && enabled,
+    settled: enabled && (query.isSuccess || query.isError),
+  }
 }
