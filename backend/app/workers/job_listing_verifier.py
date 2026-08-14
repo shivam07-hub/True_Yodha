@@ -28,6 +28,69 @@ def _host_of(url: str) -> str:
     return (urlparse(url).hostname or "").lower() or "unknown"
 
 
+# A verdict that carries information about one listing. `blocked`/`timeout`/
+# `error`/`unroutable` claim rows and stamp them without learning anything, so
+# they must not sit in the denominator of the closure-share guard below.
+_CONCLUSIVE = {"seen_live", "closed", "redirected", "wrong_role"}
+
+
+def _withhold_source_failures(
+    targets: list[VerificationTarget],
+    results: list[VerificationResult],
+    *,
+    min_closed: int,
+    share: float,
+) -> tuple[list[VerificationResult], dict[str, int]]:
+    """Demote mass per-job closures that are really one source breaking.
+
+    Listings die one at a time; a source dies all at once. When nearly every
+    conclusive verdict against a single apply-host in one run says `closed`, the
+    likelier reading is that the host stopped serving listings we can address —
+    a changed URL pattern, a migrated tenant, a bot wall answering 404 — and the
+    per-job verdicts are an artefact of that, not 1,832 roles filled overnight.
+
+    The guard keys on apply-host rather than company because the host is the unit
+    that actually breaks: one ATS tenant, one URL contract. Withheld results
+    become `source_failure`, which is inert in ``record()`` — the attempt is
+    stamped, the observation is kept for forensics, and stored confidence is left
+    exactly as it stood. Not-knowing is recoverable; a wrongly retired live job
+    is not.
+    """
+    by_host: dict[str, list[str]] = {}
+    for target, result in zip(targets, results):
+        by_host.setdefault(_host_of(target.apply_url), []).append(result.result)
+
+    failed_sources: dict[str, int] = {}
+    for host, verdicts in by_host.items():
+        closed = sum(verdict == "closed" for verdict in verdicts)
+        conclusive = sum(verdict in _CONCLUSIVE for verdict in verdicts)
+        if closed >= min_closed and closed >= share * conclusive:
+            failed_sources[host] = closed
+    if not failed_sources:
+        return results, {}
+
+    withheld = [
+        VerificationResult(
+            result.job_id,
+            "source_failure",
+            "weak",
+            result.provider,
+            result.status_code,
+            result.final_url,
+            {
+                **result.evidence,
+                "withheld_verdict": result.result,
+                "source_host": _host_of(target.apply_url),
+                "reason": "source_wide_closure_share",
+            },
+        )
+        if result.result == "closed" and _host_of(target.apply_url) in failed_sources
+        else result
+        for target, result in zip(targets, results)
+    ]
+    return withheld, failed_sources
+
+
 async def _gather_throttled(
     targets: list[VerificationTarget],
     verify: Callable[[VerificationTarget], Awaitable[VerificationResult]],
@@ -61,6 +124,10 @@ async def _sweep() -> None:
     priority_stale_hours = max(
         1, int(os.getenv("JOB_VERIFY_PRIORITY_STALE_HOURS", "24"))
     )
+    # Ten closures is small enough to catch a broken tenant on its first sweep,
+    # large enough that a genuinely tiny employer winding down does not trip it.
+    guard_min = max(1, int(os.getenv("JOB_VERIFY_CLOSE_GUARD_MIN", "10")))
+    guard_share = min(1.0, max(0.5, float(os.getenv("JOB_VERIFY_CLOSE_GUARD_SHARE", "0.9"))))
     repo = ListingVerificationRepository(get_supabase_admin())
     targets = repo.claim_targets(
         limit=limit,
@@ -78,6 +145,15 @@ async def _sweep() -> None:
             lambda target: verify_listing(target, client),
             concurrency=concurrency,
             per_host=per_host,
+        )
+
+    results, failed_sources = _withhold_source_failures(
+        targets, results, min_closed=guard_min, share=guard_share
+    )
+    if failed_sources:
+        log.warning(
+            "metric job_verifier.alert reason=source_wide_closure sources=%s withheld=%d",
+            sorted(failed_sources), sum(failed_sources.values()),
         )
 
     counts: dict[str, int] = {}
@@ -103,12 +179,6 @@ async def _sweep() -> None:
     )
     _alert_on_unproductive_sweep(targets, counts)
     _refresh_skill_demand_if_changed(counts, retired)
-
-
-# A verdict that moves a listing's confidence. `blocked`/`timeout`/`error` claim
-# rows and stamp them without learning anything — a belt producing only those is
-# running, draining the queue, and teaching us nothing.
-_PRODUCTIVE = {"seen_live", "closed", "redirected", "wrong_role"}
 
 
 def _refresh_skill_demand_if_changed(counts: dict[str, int], retired: int) -> None:
@@ -138,11 +208,12 @@ def _refresh_skill_demand_if_changed(counts: dict[str, int], retired: int) -> No
 def _alert_on_unproductive_sweep(targets: list, counts: dict[str, int]) -> None:
     if not targets:
         return
-    productive = sum(count for result, count in counts.items() if result in _PRODUCTIVE)
+    productive = sum(count for result, count in counts.items() if result in _CONCLUSIVE)
     if productive:
         return
-    # Every claimed row burned its attempt stamp on a blocked/errored fetch. Left
-    # unsaid, this looks identical to a healthy sweep in the backlog trend.
+    # Every claimed row burned its attempt stamp on a fetch that reached no
+    # verdict — blocked, errored, unroutable, or withheld by the closure guard.
+    # Left unsaid, this looks identical to a healthy sweep in the backlog trend.
     log.warning(
         "metric job_verifier.alert reason=no_productive_verdicts targets=%d results=%s",
         len(targets), counts,
