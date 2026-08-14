@@ -17,9 +17,9 @@ Overlap formula (0–100):
   `user_skills.matched_level` is the same 1-4 scale, which is what makes
   "Python at L4 required, you are at L2" expressible end to end.
 
-  Soft skills are excluded from both sides. They are captured and shown, but
-  we cannot teach Resilience — scoring it would move a fit percentage on
-  something the user can never act on.
+  Only levelled skills enter the score. Scenario/observed skills are captured
+  and tracked separately, but cannot move a fit percentage or create an L1-L5
+  gap the product cannot currently help the user close.
 
 Aspiration reranking:
   +30% when any target_role token appears in job_title (case-insensitive)
@@ -38,19 +38,26 @@ COMPANY_CAP_RATIO = 0.30
 MAX_MISSING_SKILLS = 8  # cap the persisted gap list; the card shows far fewer
 
 
-def wanted_skills(job_skill_rows: list[dict]) -> dict[str, int]:
-    """{taxonomy_key: required_level} for ONE job's rows, hard skills only.
+def is_levelled_skill(skill: dict) -> bool:
+    """Deploy-safe predicate for a direct canonical Skill projection."""
+    return (
+        skill.get("practice_mode") not in {"scenario", "observed"}
+        and skill.get("skill_kind") != "soft"
+    )
 
-    Deepest ask wins a duplicate key. Soft skills are dropped here rather than
-    at every call site: they are shown elsewhere, but we cannot teach
-    Resilience, so letting one move a fit percentage prices something the user
-    can never act on.
+
+def wanted_skills(job_skill_rows: list[dict]) -> dict[str, int]:
+    """{taxonomy_key: required_level} for ONE job's levelled rows.
+
+    Deepest ask wins a duplicate key. Non-levelled skills are dropped here
+    rather than at every call site. ``skill_kind`` remains a deploy-safe
+    fallback while older projections cut over to the L3 ``practice_mode``.
     """
     wanted: dict[str, int] = {}
     for row in job_skill_rows:
         skill = row.get("skills") or {}
         key = (skill.get("taxonomy_key") or "").strip()
-        if not key or skill.get("skill_kind") == "soft":
+        if not key or not is_levelled_skill(skill):
             continue
         try:
             level = int(row.get("required_level") or DEFAULT_REQUIRED_LEVEL)

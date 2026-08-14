@@ -193,6 +193,12 @@ def test_start_set_snapshots_source_grounded_questions():
         for key in ("reviewer", "reviewed_at", "review_status", "content_edition_id"):
             question.pop(key)
     store = {
+        "skills": [{
+            "id": SKILL_ID,
+            "taxonomy_key": "sql",
+            "display_name": "SQL",
+            "practice_mode": "levelled",
+        }],
         "skill_questions": bank,
         "quiz_attempts": [],
         "quiz_attempt_question_snapshots": [],

@@ -24,6 +24,7 @@ from app.schemas.upskilling import (
     UpskillingSkill,
 )
 from app.services import upskilling_service
+from app.services.job_matcher import is_levelled_skill
 
 router = APIRouter(prefix="/upskilling", tags=["upskilling"])
 
@@ -80,8 +81,11 @@ async def submit_set(
 
 
 def _required_skills(repo: JobsRepository, job_id: str, user_id: str) -> tuple[dict, list[dict]]:
-    """Reuse the existing skill-gap inputs: job's required skills + the user's
-    levels. Returns (job, required[]) where required carries target + user level."""
+    """Return the job's objectively levelled gaps and the user's current level.
+
+    ``skill_kind`` is retained as a deploy-safe fallback while the generated
+    L3 ``practice_mode`` projection rolls out.
+    """
     job = repo.get_job_skills(job_id)
     if not job:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
@@ -94,6 +98,7 @@ def _required_skills(repo: JobsRepository, job_id: str, user_id: str) -> tuple[d
             "is_primary": s["is_primary"],
         }
         for s in (job.get("skills") or [])
+        if is_levelled_skill(s)
     ]
     return job, required
 

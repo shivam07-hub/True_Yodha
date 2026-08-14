@@ -30,6 +30,7 @@ from app.services.job_eligibility import (
     target_seniority_for_profile,
 )
 from app.services.location_normalizer import normalize_location
+from app.services.scoring import _PROFICIENCY_TITLES
 
 _log = logging.getLogger("app.repositories.jobs")
 
@@ -2432,7 +2433,13 @@ class JobsRepository:
 
     def get_user_skill_demand_snapshot(self, user_id: str) -> list[dict[str, Any]]:
         """
-        Returns per-user Skill demand stats without scanning the full Job Skill read model.
+        Return levelled CV + assessed skills with their market demand.
+
+        A quiz clear writes ``skill_assessed_level``; it deliberately does not
+        mutate ``user_skills`` or the Main CV. Including that independently
+        proven level here makes the existing Skills Refresh proposal able to
+        offer an explicit, reviewable CV update after a clear. Scenario and
+        observed skills remain outside the numeric demand/ladder rail.
 
         Shape:
           [
@@ -2448,7 +2455,20 @@ class JobsRepository:
         """
         rows = (
             self._db.table("user_skills")
-            .select("matched_level, proficiency_title, skills(id, taxonomy_key, display_name)")
+            .select(
+                "matched_level, proficiency_title, "
+                "skills(id, taxonomy_key, display_name, practice_mode)"
+            )
+            .eq("user_id", user_id)
+            .execute()
+        ).data or []
+
+        assessed_rows = (
+            self._db.table("skill_assessed_level")
+            .select(
+                "assessed_level, "
+                "skills(id, taxonomy_key, display_name, practice_mode)"
+            )
             .eq("user_id", user_id)
             .execute()
         ).data or []
@@ -2456,6 +2476,8 @@ class JobsRepository:
         user_skills_by_id: dict[int, dict[str, Any]] = {}
         for row in rows:
             skill = row.get("skills") or {}
+            if (skill.get("practice_mode") or "levelled") != "levelled":
+                continue
             raw_skill_id = skill.get("id")
             if raw_skill_id is None:
                 continue
@@ -2472,6 +2494,29 @@ class JobsRepository:
                 "display_name": display_name,
                 "current_level": int(row.get("matched_level") or 0),
                 "proficiency_title": row.get("proficiency_title") or "Scout",
+            }
+
+        for row in assessed_rows:
+            skill = row.get("skills") or {}
+            if (skill.get("practice_mode") or "levelled") != "levelled":
+                continue
+            try:
+                skill_id = int(skill.get("id"))
+                assessed_level = int(row.get("assessed_level") or 0)
+            except (TypeError, ValueError):
+                continue
+            taxonomy_key = (skill.get("taxonomy_key") or "").strip()
+            if not taxonomy_key or assessed_level < 1:
+                continue
+            display_name = (skill.get("display_name") or taxonomy_key).strip() or taxonomy_key
+            current = user_skills_by_id.get(skill_id)
+            if current and int(current["current_level"]) >= assessed_level:
+                continue
+            user_skills_by_id[skill_id] = {
+                "skill": taxonomy_key,
+                "display_name": display_name,
+                "current_level": assessed_level,
+                "proficiency_title": _PROFICIENCY_TITLES.get(assessed_level, "Scout"),
             }
 
         if not user_skills_by_id:
@@ -3701,25 +3746,53 @@ class JobsRepository:
 
         rows = (
             self._admin_db.table("job_skills")
-            .select("is_primary, required_level, skills(taxonomy_key)")
+            .select(
+                "is_primary, required_level, "
+                "skills(taxonomy_key, practice_mode, skill_kind)"
+            )
             .eq("job_id", job_id)
             .execute()
         ).data or []
 
         skills: list[dict[str, Any]] = []
         for row in rows:
-            key = ((row.get("skills") or {}).get("taxonomy_key") or "").strip()
+            skill = row.get("skills") or {}
+            key = (skill.get("taxonomy_key") or "").strip()
             if not key:
                 continue
             is_primary = bool(row.get("is_primary"))
             required_level = row.get("required_level") or (4 if is_primary else 2)
-            skills.append({"taxonomy_key": key, "is_primary": is_primary, "required_level": required_level})
+            skills.append({
+                "taxonomy_key": key,
+                "is_primary": is_primary,
+                "required_level": required_level,
+                "practice_mode": skill.get("practice_mode"),
+                "skill_kind": skill.get("skill_kind"),
+            })
 
         # Extension-added jobs never get canonical job_skills rows (the scraper
         # pipeline writes those). Fall back to the taxonomy-validated main/side
         # skills the extension stored, so the Tailor match isn't a phantom 0%.
         if not skills:
             skills = self._synth_skills_from_text(meta)
+            keys = [skill["taxonomy_key"] for skill in skills]
+            if keys:
+                mode_result = (
+                    self._admin_db.table("skills")
+                    .select("taxonomy_key, practice_mode, skill_kind")
+                    .in_("taxonomy_key", keys)
+                    .execute()
+                )
+                mode_data = getattr(mode_result, "data", None)
+                mode_rows = mode_data if isinstance(mode_data, list) else []
+                modes = {
+                    str(row.get("taxonomy_key") or "").lower(): row
+                    for row in mode_rows
+                }
+                for skill in skills:
+                    mode = modes.get(skill["taxonomy_key"].lower()) or {}
+                    skill["practice_mode"] = mode.get("practice_mode")
+                    skill["skill_kind"] = mode.get("skill_kind")
 
         return {**meta, "skills": skills}
 

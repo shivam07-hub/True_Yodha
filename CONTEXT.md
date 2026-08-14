@@ -388,6 +388,31 @@ A headless engine (`createTaxonomy({ fetch })`, the `field-motion.ts` precedent)
 - The demand `band` reuses market-wide demand (`weighted_demand` from `build_user_skill_demand`) — the same unscoped signal the Skills page reads — never a fresh per-page `jobCount`. The build-time generator is a thin adapter that exports that already-computed signal into `priority.json`.
 - Artifacts are forward-only: regenerated on a scraper batch refresh, committed, **not** wired into `prebuild` (no build-time DB coupling).
 
+## Skill Practice Mode and Main-CV Level-Up
+
+Taxonomy answers where a Skill lives: Domain (Tax-L1) → Cluster (Tax-L2) →
+Skill (Tax-L3). `skills.practice_mode` separately answers what Myro may do with
+that L3 Skill:
+
+- `levelled` — objective L1-L5 assessment; eligible for the current demand rail,
+  Learning Ladder, numeric job gaps and matching.
+- `scenario` — behavioral evidence tracked in
+  `skill_scenario_demand_snapshot` for future case-study practice; excluded from
+  the numeric ladder and fit score.
+- `observed` — real hiring evidence with no current practice contract.
+
+`skill_kind` remains a career-family/backward-compatibility projection; it is
+not the practice authority. This matters in mixed Communication clusters and
+for objectively assessable professional Skills outside the old technical-domain
+allowlist.
+
+**Level-up boundary:** a passing quiz writes `skill_assessed_level`, not
+CV-derived `user_skills`. The result offers an explicit **Update Main CV** action.
+If the Main CV already has an evidence pointer, Mentor can propose an
+evidence-backed rewrite. Otherwise the existing Skills Refresh proposal adds
+only the selected assessed Skill to `skills_line`; it cannot create a bullet.
+Keeping that change uses the normal Main-CV autosave, re-tag and re-score path.
+
 ## Job Intelligence
 
 The deep backend module that owns Feed State, Job Feedback, and Job Pulse.

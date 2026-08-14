@@ -45,6 +45,19 @@ def test_build_gap_items_sorts_missing_primary_first():
     assert items[0]["user_level"] == 0 and items[0]["missing"] is True
 
 
+def test_build_gap_items_excludes_scenario_skills():
+    job_skills = [
+        {"taxonomy_key": "sql", "is_primary": True, "required_level": 3,
+         "practice_mode": "levelled"},
+        {"taxonomy_key": "communication", "is_primary": True, "required_level": 4,
+         "practice_mode": "scenario"},
+    ]
+
+    items = gap_planner.build_gap_items(job_skills, {})
+
+    assert [g["skill"] for g in items] == ["sql"]
+
+
 # ── classify prompt ──────────────────────────────────────────────────────────
 
 def test_build_classify_messages_lists_skills_and_indexed_bullets_with_honesty_framing():

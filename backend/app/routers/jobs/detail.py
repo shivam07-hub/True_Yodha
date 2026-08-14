@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from app.deps import Principal, get_principal
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.schemas import SkillGapItem, SkillGapResponse
+from app.services.job_matcher import is_levelled_skill
 
 router = APIRouter()
 
@@ -50,6 +51,8 @@ def get_skill_gap(
 
     gap_items: list[SkillGapItem] = []
     for skill in job.get("skills") or []:
+        if not is_levelled_skill(skill):
+            continue
         key = skill["taxonomy_key"]
         is_primary = skill["is_primary"]
         user_level = user_skill_map.get(key.lower()) or 0

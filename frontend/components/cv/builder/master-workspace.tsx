@@ -18,7 +18,7 @@
  */
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
@@ -59,6 +59,7 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
   // Deep-link: ?tab=skills opens straight on the Skills rail (the skill-audit home).
   const initialTab: MasterTab = searchParams.get("tab") === "skills" ? "skills" : "edit"
   const requestedMentorSkill = searchParams.get("mentor") === "1" ? searchParams.get("skill") : null
+  const requestedProvenSkill = searchParams.get("addProven") === "1" ? searchParams.get("skill") : null
   const fromScoreMap = searchParams.get("from") === "score-map"
   const scoreDomain = fromScoreMap ? searchParams.get("domain") : null
   const scoreSkill = fromScoreMap ? searchParams.get("skill") : null
@@ -71,6 +72,7 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
   const [rewriteTarget, setRewriteTarget] = useState<RewriteTarget | null>(null)
   const [mentorResolved, setMentorResolved] = useState(false)
   const [mentorMiss, setMentorMiss] = useState(false)
+  const provenHandoffHandled = useRef(false)
 
   const scoreQuery = useQuery({
     queryKey: dataKeys.scores(),
@@ -122,17 +124,20 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
   )
   const fixCountLabel = visibleFixes.length > 0 ? String(visibleFixes.length) : "✓"
 
-  const onPatch = (mut: (d: CVStructured) => CVStructured) =>
-    autosave.update(mut(structuredClone(draft)))
+  const onPatch = useCallback(
+    (mut: (d: CVStructured) => CVStructured) =>
+      autosave.update(mut(structuredClone(draft))),
+    [autosave, draft],
+  )
 
   // Add proven-but-missing skills to the line, inline — no modal. The proposal
   // keeps every existing skill and only reorders + appends proven ones, so the
   // live textarea update above IS the review (retype to undo; autosave persists).
-  async function addProvenToLine() {
+  const addProvenToLine = useCallback(async (focusSkill?: string | null) => {
     if (addingProven) return
     setAddingProven(true); setProvenStatus(null)
     try {
-      const res = await cvApi.skillsRefresh(token)
+      const res = await cvApi.skillsRefresh(token, null, focusSkill)
       if (res.changed) {
         onPatch(d => ({ ...d, skills_line: res.proposed_skills_line }))
         setProvenStatus(`Added ${res.added.length} proven skill${res.added.length === 1 ? "" : "s"}`)
@@ -144,7 +149,14 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
     } finally {
       setAddingProven(false)
     }
-  }
+  }, [addingProven, onPatch, token])
+
+  useEffect(() => {
+    if (!requestedProvenSkill || !autosave.ready || provenHandoffHandled.current) return
+    provenHandoffHandled.current = true
+    setTab("skills")
+    void addProvenToLine(requestedProvenSkill)
+  }, [addProvenToLine, autosave.ready, requestedProvenSkill])
 
   // A bullet rewrite / inline edit targets one line by its exact text (the same
   // text-identity the playground uses). First occurrence wins.
@@ -328,11 +340,11 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
                 token={token}
                 skillsLine={draft.skills_line}
                 onSkillsLineChange={value => onPatch(d => ({ ...d, skills_line: value }))}
-                onAddProven={addProvenToLine}
+                onAddProven={() => addProvenToLine()}
                 addingProven={addingProven}
                 provenStatus={provenStatus}
                 allSkills={allSkills}
-                focusSkill={scoreSkill}
+                focusSkill={scoreSkill ?? requestedProvenSkill}
                 scoreDomain={scoreDomain}
                 fromScoreMap={fromScoreMap}
                 onSkillsChanged={() => {

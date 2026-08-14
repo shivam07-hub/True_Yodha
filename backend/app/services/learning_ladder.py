@@ -1,13 +1,13 @@
 """Learning Ladder content generation — CLAUDE.md backlog #15.
 
 Grows the `skill_questions` bank onto REAL taxonomy skills only (real Lightcast
-skill_id, technical l1_domain), ranked by the post-scrape market-demand snapshot
-instead of raw `job_skills` counts or users' existing CV skills.
+skill_id, L3 practice_mode='levelled'), ranked by the post-scrape market-demand
+snapshot instead of raw `job_skills` counts or users' existing CV skills.
 
-Technical-only by design (Shivam, 2026-07-23 session): soft/experiential
-skills (l1_domain='Physical and Inherent Abilities' etc.) never enter this
-bank — those belong in interview-prep (Preparations surface), not a
-quiz-testable ladder.
+Levelled-only by design: objectively teachable professional skills such as
+Financial Accounting and Product Strategy are eligible even outside the old
+five-domain allowlist. Behavioral/scenario skills remain demand evidence for
+later case-study practice, never a numeric quiz ladder.
 
 Two-pass quality gate, no cheap models (feedback_no_cheap_models_judgment):
 generate on get_judgment_provider(), then an independent verify pass on the
@@ -39,13 +39,7 @@ from app.services.learning_ladder_prompts import (
 
 logger = logging.getLogger(__name__)
 
-TECHNICAL_DOMAINS = (
-    "Information Technology",
-    "Analysis",
-    "Design",
-    "Engineering",
-    "Science and Research",
-)
+LEVELLED_PRACTICE_MODE = "levelled"
 
 LEVELS = (1, 2, 3, 4, 5)
 QUESTIONS_PER_LEVEL = 10
@@ -56,7 +50,7 @@ QUESTIONS_PER_LEVEL = 10
 GEN_BATCH_SIZE = 5
 
 __all__ = [
-    "TECHNICAL_DOMAINS",
+    "LEVELLED_PRACTICE_MODE",
     "TargetSkill",
     "GeneratedQuestion",
     "LadderResult",
@@ -75,7 +69,7 @@ class LadderResult:
 
 
 def pick_target_skills(limit: int = 10) -> list[TargetSkill]:
-    """Top-N technical skills by current live-market demand, not yet in the bank.
+    """Top-N levelled skills by current live-market demand, not yet in the bank.
 
     Demand comes from `skill_demand_snapshot`, which is refreshed after
     scrape/verifier activity and already applies listing-liveness, employer
@@ -95,7 +89,7 @@ def pick_target_skills(limit: int = 10) -> list[TargetSkill]:
         admin,
         table="skills",
         columns="id,display_name,l1_domain,l2_cluster,lightcast_id",
-        query_builder=lambda q: q.in_("l1_domain", list(TECHNICAL_DOMAINS)).not_.is_(
+        query_builder=lambda q: q.eq("practice_mode", LEVELLED_PRACTICE_MODE).not_.is_(
             "lightcast_id", "null"
         ),
     )
@@ -140,15 +134,13 @@ def pick_target_skills(limit: int = 10) -> list[TargetSkill]:
 
 
 def find_incomplete_skills() -> list[tuple[TargetSkill, list[int]]]:
-    """Technical-domain skills that already have SOME active content but not
+    """Levelled skills that already have SOME active content but not
     all 5 levels — a transient generation failure (truncation, dead provider)
     leaves a skill practiceable at only 1-4 of its 5 levels, which is worse
     than not started (a user hits a wall mid-ladder). Returns (skill, missing
     levels) so the caller can top these up before spending budget on new
-    skills. Scoped to TECHNICAL_DOMAINS only — the 3 pre-existing non-technical
-    bank entries (Product Strategy / Management Consulting / Financial
-    Accounting) are out of this function's scope by design, not silently
-    topped up."""
+    skills. Eligibility is the L3 practice contract, not a hard-coded domain
+    list, so objectively assessable professional skills are included."""
     admin = get_supabase_admin()
 
     active_rows = fetch_all_rows(admin, table="skill_questions", columns="skill_id,level,status")
@@ -165,8 +157,8 @@ def find_incomplete_skills() -> list[tuple[TargetSkill, list[int]]]:
         admin,
         table="skills",
         columns="id,display_name,l1_domain,l2_cluster",
-        query_builder=lambda q: q.in_("id", list(partial_ids)).in_(
-            "l1_domain", list(TECHNICAL_DOMAINS)
+        query_builder=lambda q: q.in_("id", list(partial_ids)).eq(
+            "practice_mode", LEVELLED_PRACTICE_MODE
         ),
     )
     out: list[tuple[TargetSkill, list[int]]] = []

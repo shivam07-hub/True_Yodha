@@ -60,7 +60,9 @@ per-skill percentile (#39) · publish portability (#32) · teal-field loading (#
 > CLOSED on `Develop`; its paid-infrastructure load gate remains the launch
 > blocker. Backlog #15 serves active source-grounded, explained, structurally
 > valid questions without a human-review gate. Learning progress remains
-> isolated from CV-derived score and matching truth.
+> isolated from CV-derived score and matching truth. A cleared level can enter
+> the Main CV only through the user's explicit, reviewable Skills Refresh or
+> evidence-backed Mentor action; no assessment silently rewrites CV truth.
 
 ### Scope rule (locked 2026-07-20)
 

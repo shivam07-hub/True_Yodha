@@ -1574,11 +1574,11 @@ export const cv = {
     }),
   // Propose a current, primary-first SKILLS section from the living skill graph.
   // FREE + read-only; pass jobId to lead with that job's required skills.
-  skillsRefresh: (token: string, jobId?: string | null) =>
+  skillsRefresh: (token: string, jobId?: string | null, skillKey?: string | null) =>
     request<SkillsRefreshResponse>("/cv/skills-refresh", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ job_id: jobId ?? null }),
+      body: JSON.stringify({ job_id: jobId ?? null, skill_key: skillKey ?? null }),
     }),
   masterRevisions: (token: string) =>
     request<{ revisions: MasterRevision[] }>("/cv/master/revisions", {

@@ -16,14 +16,14 @@ _IN_CHUNK_SIZE = 200
 
 logger = logging.getLogger(__name__)
 
-_RPC_NAME = "fetch_job_skills_by_job_ids"
+_RPC_NAME = "fetch_job_skills_by_job_ids_v2"
 _rpc_disabled_for_process = False
 _rpc_missing_logged = False
 
 
 def _is_missing_rpc_signature_error(exc: Exception) -> bool:
     message = str(exc)
-    return "PGRST202" in message or "Could not find the function public.fetch_job_skills_by_job_ids" in message
+    return "PGRST202" in message or f"Could not find the function public.{_RPC_NAME}" in message
 
 
 def fetch_all_rows(
@@ -53,10 +53,9 @@ def fetch_all_rows(
 def _adapt_rpc_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Flat RPC rows → the embedded shape the readers expect.
 
-    `required_level` and `skill_kind` ride along because the matcher ranks on
-    them (S4): `is_primary` is TRUE on 94.2% of rows and carries no signal,
-    while `required_level` is genuinely graded, and `skill_kind` lets the gap
-    drop soft skills without a second round trip.
+    `required_level` and L3 `practice_mode` ride along because the matcher ranks
+    on them: `is_primary` is nearly constant, while the other two decide depth
+    and whether Myro can offer an objective ladder for the gap.
     """
     return [
         {
@@ -65,6 +64,7 @@ def _adapt_rpc_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "required_level": r.get("required_level"),
             "skills": {
                 "taxonomy_key": r["taxonomy_key"],
+                "practice_mode": r.get("practice_mode"),
                 "skill_kind": r.get("skill_kind"),
             },
         }
@@ -88,7 +88,7 @@ def fetch_job_skill_rows_for_ids(
     job_ids: list[str],
     *,
     only_primary: bool | None = None,
-    columns: str = "job_id, is_primary, required_level, skills(taxonomy_key, skill_kind)",
+    columns: str = "job_id, is_primary, required_level, skills(taxonomy_key, practice_mode, skill_kind)",
     page_size: int = SUPABASE_PAGE_SIZE,
     chunk_size: int = _IN_CHUNK_SIZE,
 ) -> list[dict[str, Any]]:
@@ -116,7 +116,7 @@ def fetch_job_skill_rows_for_ids(
 def fetch_job_skill_rows(
     db: Client,
     *,
-    columns: str = "job_id, is_primary, required_level, skills(taxonomy_key, skill_kind)",
+    columns: str = "job_id, is_primary, required_level, skills(taxonomy_key, practice_mode, skill_kind)",
     only_primary: bool | None = None,
     job_ids: list[str] | None = None,
     page_size: int = SUPABASE_PAGE_SIZE,

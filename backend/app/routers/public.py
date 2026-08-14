@@ -35,7 +35,7 @@ from app.services.llm_provider import (
     get_cv_upload_provider,
     get_llm_provider,
 )
-from app.services.job_matcher import DEFAULT_REQUIRED_LEVEL, MAX_LEVEL
+from app.services.job_matcher import DEFAULT_REQUIRED_LEVEL, MAX_LEVEL, is_levelled_skill
 from app.services.matching.filter_spec import FilterSpec
 from app.services.matching.job_query import JobQuery
 from app.services.scoring.formulas import build_skill_level_map
@@ -358,6 +358,8 @@ def _compute_public_fit(
     # and the authed fit answered the same question two different ways, and one
     # of them was sorting by a constant.
     for row in skill_rows:
+        if not is_levelled_skill(row):
+            continue
         key = (row.get("taxonomy_key") or "").strip()
         lower = key.lower()
         if not key or lower in seen:

@@ -106,6 +106,7 @@ def build_proposal(
     inventory: list[dict[str, Any]],
     jd_primary_keys: set[str] | None = None,
     jd_keys: set[str] | None = None,
+    focus_skill: str | None = None,
 ) -> dict[str, Any]:
     """Produce the reviewable skills-section proposal.
 
@@ -119,6 +120,7 @@ def build_proposal(
     jd_primary_keys = {k.lower() for k in (jd_primary_keys or set())}
     jd_keys = {k.lower() for k in (jd_keys or set())} | jd_primary_keys
     jd_present = bool(jd_keys)
+    focus_canon = _canon(focus_skill or "")
 
     existing = parse_skills_line(skills_line)
     existing_canons = [_canon(t) for t in existing]
@@ -152,8 +154,17 @@ def build_proposal(
     # Surface proven-but-missing skills, most relevant first. Honesty bar:
     # current_level >= 1 only (Myro has real CV/practice signal).
     added: list[dict[str, str]] = []
+    addition_inventory = inventory
+    if focus_canon:
+        addition_inventory = [
+            inv for inv in inventory
+            if focus_canon in {
+                _canon(inv.get("skill") or ""),
+                _canon(inv.get("display_name") or ""),
+            }
+        ]
     ranked_inv = sorted(
-        inventory,
+        addition_inventory,
         key=lambda inv: (
             1 if (inv.get("skill") or "").lower() in jd_primary_keys else 0,
             1 if (inv.get("skill") or "").lower() in jd_keys else 0,
