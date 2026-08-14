@@ -272,12 +272,16 @@ class ListingVerificationRepository:
                 update["confidence_reason"] = (
                     f"{result.provider}_verifier_unreachable_x{failures}"
                 )
-        # `error` is the remaining case and is deliberately inert. In practice it
-        # is almost entirely `page_loaded_without_role_evidence`: an HTTP 200 on a
-        # client-rendered ATS whose HTML our fetch cannot read. That says nothing
-        # about the listing, so it must neither degrade it nor count as a check —
-        # leaving the conclusive clock untouched is what stops it renewing a
-        # stale claim.
+        # `error`, `unroutable` and `source_failure` are the remaining cases and
+        # are deliberately inert. `error` is almost entirely
+        # `page_loaded_without_role_evidence`: an HTTP 200 on a client-rendered
+        # ATS whose HTML our fetch cannot read. `unroutable` is an apply URL that
+        # could never have addressed the listing, so its status code describes our
+        # data defect, not the job. `source_failure` is a closure the sweep's
+        # closure-share guard withheld because one host closed nearly everything
+        # at once. None of the three says anything about this listing, so none may
+        # degrade it or count as a check — leaving the conclusive clock untouched
+        # is what stops them renewing a stale claim.
         _with_retry(
             lambda: self.db.table("jobs")
             .update(update)
