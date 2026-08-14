@@ -16,8 +16,19 @@ export const DOCX_MIME =
 export type CVFileMime = typeof PDF_MIME | typeof DOCX_MIME
 export const CV_UPLOAD_MAX_BYTES = 10 * 1024 * 1024
 
+/** Below this a file cannot be a document, only a pointer to one. A PDF needs a header,
+ *  catalog, page tree, xref and trailer before it holds a single word; a DOCX is a ZIP
+ *  that must carry [Content_Types].xml, _rels and document.xml. Neither reaches 1KB.
+ *  What does arrive at that size is a cloud placeholder — Drive and OneDrive hand the
+ *  file picker a 76-byte stub for anything not downloaded locally, correct magic bytes
+ *  and all. Two users uploaded the identical 76-byte stub; one retried six times, never
+ *  scored, and never came back. Catch it at the pick, where the user still has the real
+ *  file in front of them. */
+export const CV_UPLOAD_MIN_BYTES = 1024
+
 export type CVUploadPreflightErrorCode =
   | "empty_file"
+  | "placeholder_file"
   | "file_too_large"
   | "unsupported_format"
 
@@ -202,6 +213,18 @@ export async function preflightCVUploadFile(
       fileBytes: file.size,
       maxBytes,
       unsupportedKind,
+    }
+  }
+  // Size is judged only once the file claims to be a CV format. A 512-byte CSV is a
+  // spreadsheet and should be told so; a 76-byte PDF passed every format check it has —
+  // correct magic bytes, correct extension — and is still not a document.
+  if (file.size < CV_UPLOAD_MIN_BYTES) {
+    return {
+      ok: false,
+      code: "placeholder_file",
+      message: "This file is a cloud shortcut, not your CV. Open it once so it downloads, then pick it again.",
+      fileBytes: file.size,
+      maxBytes,
     }
   }
   return {
