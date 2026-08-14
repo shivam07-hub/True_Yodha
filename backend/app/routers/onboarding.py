@@ -48,6 +48,13 @@ class TargetRequest(BaseModel):
     # Plural form. `[]` is a real answer ("Anywhere"), distinct from omitting the
     # field, which means "leave my saved locations alone".
     locations: list[str] | None = Field(default=None, max_length=5)
+    # The direction axis this step never asked for. Same omitted-vs-empty rule as
+    # locations: `[]` clears, absent preserves. `avoid` is what the matcher must
+    # rank away from; `lean` is what it should rank toward. Sentences, not chips —
+    # the user is answering "what are you actually after", so the caps are wide
+    # enough to hold an answer and short enough to stay one clause.
+    avoid: list[str] | None = Field(default=None, max_length=6)
+    lean: list[str] | None = Field(default=None, max_length=6)
 
     @model_validator(mode="after")
     def _require_a_role(self) -> "TargetRequest":
@@ -145,6 +152,8 @@ def save_target(
         seniority=body.seniority,
         location=body.location,
         locations=body.locations,
+        avoid=body.avoid,
+        lean=body.lean,
     )
 
 

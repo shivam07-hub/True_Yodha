@@ -153,6 +153,113 @@ def _normalize_role_titles(
     return titles[:MAX_TARGET_ROLES]
 
 
+_DIRECTION_PHRASE_CAP = 6
+_DIRECTION_PHRASE_MAX_CHARS = 120
+_LEAN_KIND = "preference"
+
+
+def _normalize_direction_phrases(values: list[str]) -> list[str]:
+    """De-duplicated, order-preserving clauses for `avoid` / `lean`.
+
+    These are sentences, not tags — "avoids large corporations", not "no-bigco" —
+    because they are rendered into a paragraph the user reads back and because the
+    ranker reads them as language. Case-insensitive de-dup, since the same answer
+    typed twice at different steps should not appear twice in one sentence.
+    """
+    seen: list[str] = []
+    lowered: set[str] = set()
+    for value in values:
+        cleaned = " ".join((value or "").split())[:_DIRECTION_PHRASE_MAX_CHARS]
+        key = cleaned.lower()
+        if cleaned and key not in lowered:
+            lowered.add(key)
+            seen.append(cleaned)
+    return seen[:_DIRECTION_PHRASE_CAP]
+
+
+def _replace_authored_leans(db: Client, user_id: str, leans: list[str]) -> bool:
+    """Make the user's authored `preference` facts exactly `leans`. Returns whether
+    anything moved.
+
+    Only AUTHORED facts are touched. A distilled preference is Myro's own reading
+    and is left alone — it gets proposed back at the next confirm rather than
+    deleted behind the user's back. Fail-soft: the direction write above has
+    already landed, and losing a lean must not fail the step the user is standing
+    on.
+    """
+    from app.repositories.user_memory import UserMemoryRepository
+
+    repo = UserMemoryRepository(db)
+    try:
+        existing = [
+            row for row in repo.list_active(user_id, kinds=[_LEAN_KIND])
+            if (row.get("source") or "authored") == "authored"
+        ]
+        current = [(row.get("text") or "").strip() for row in existing]
+        if current == leans:
+            return False
+        for row in existing:
+            repo.delete(user_id, str(row.get("id")))
+        for text in leans:
+            repo.add(user_id, kind=_LEAN_KIND, text=text, source="authored")
+        return True
+    except Exception as exc:  # noqa: BLE001 — the direction itself is already saved
+        logger.warning(
+            "metric onboarding.lean_write_failed user=%s reason=%s",
+            user_id, exc.__class__.__name__,
+        )
+        return False
+
+
+def _direction_answer(db: Client, user_id: str, profile: dict[str, Any]) -> dict[str, Any]:
+    """What Myro currently believes the user is drawn to and away from, plus where
+    each half came from.
+
+    Confirmed answers win: the `deal_breakers` column and authored `preference`
+    facts are the user's own words and are returned as-is. Only when a half is
+    empty is it gap-filled from Myro's own reading — the same fill-empty-only rule
+    the pre-flight already uses — and `proposed` names that half so the step can
+    say "read from your CV" instead of presenting a guess as a decision.
+    """
+    from app.repositories.user_memory import UserMemoryRepository
+    from app.services.matching.targeting import _DEAL_BREAKER_KINDS
+
+    proposed: list[str] = []
+    avoid = [str(v).strip() for v in (profile.get("deal_breakers") or []) if str(v).strip()]
+    lean: list[str] = []
+    try:
+        rows = UserMemoryRepository(db).list_active(
+            user_id, kinds=[_LEAN_KIND, *_DEAL_BREAKER_KINDS]
+        )
+    except Exception:  # noqa: BLE001 — a memory outage must not block the step
+        rows = []
+
+    authored_leans = [
+        (r.get("text") or "").strip() for r in rows
+        if r.get("kind") == _LEAN_KIND and (r.get("source") or "authored") == "authored"
+    ]
+    lean = [text for text in authored_leans if text]
+    if not lean:
+        lean = [
+            text for text in (
+                (r.get("text") or "").strip() for r in rows
+                if r.get("kind") == _LEAN_KIND
+            ) if text
+        ][:_DIRECTION_PHRASE_CAP]
+        if lean:
+            proposed.append("lean")
+    if not avoid:
+        avoid = [
+            text for text in (
+                (r.get("text") or "").strip() for r in rows
+                if r.get("kind") in _DEAL_BREAKER_KINDS
+            ) if text
+        ][:_DIRECTION_PHRASE_CAP]
+        if avoid:
+            proposed.append("avoid")
+    return {"avoid": avoid, "lean": lean, "proposed": proposed}
+
+
 def _normalize_locations(
     location: str | None, locations: list[str] | None
 ) -> list[str]:
@@ -217,6 +324,8 @@ def save_target(
     seniority: str | None = None,
     location: str | None = None,
     locations: list[str] | None = None,
+    avoid: list[str] | None = None,
+    lean: list[str] | None = None,
 ) -> None:
     """Canonical target-role write (issue #145 · multi-role, User Memory Phase 0).
 
@@ -258,15 +367,30 @@ def save_target(
         {**profile, **updates},
         primary=derived_band,
     ) if derived_band else []
-    direction_changed = users_repo.update_profile(
-        user_id,
-        {
-            **updates,
-            "target_seniority": target_seniority_for_profile({"target_seniority": seniority}),
-            "target_locations": chosen_locations,
-        },
+    profile_updates: dict[str, Any] = {
+        **updates,
+        "target_seniority": target_seniority_for_profile({"target_seniority": seniority}),
+        "target_locations": chosen_locations,
+    }
+    # Two halves of the same answer, stored where each is already canonical rather
+    # than in a new column beside them. `avoid` is what the matcher ranks away
+    # from and `deal_breakers` is the column it already reads. `lean` has no
+    # column and does not need one — `preference` is the fact store's largest
+    # kind and rides to the brain as `known_facts` through the Targeting Brief.
+    # Both are confirmed answers, so they persist here: this IS the user's accept.
+    if avoid is not None:
+        profile_updates["deal_breakers"] = _normalize_direction_phrases(avoid)
+    normalized_leans = _normalize_direction_phrases(lean) if lean is not None else None
+    direction_changed = users_repo.update_profile(user_id, profile_updates)
+    # A lean lands in the fact store, not the profile, so `update_profile` cannot
+    # see it — and leans reach the brain as `known_facts`. Without this, changing
+    # only what you're drawn to would leave every cached verdict as it was.
+    leans_changed = (
+        _replace_authored_leans(db, user_id, normalized_leans)
+        if normalized_leans is not None
+        else False
     )
-    if not direction_changed:
+    if not direction_changed and not leans_changed:
         # Same direction re-submitted (a back-and-forward through the journey,
         # or a double-tap). The existing matches already answer this exact
         # question, and the refresh below runs the full Career-Ops brain with
@@ -281,6 +405,8 @@ def save_target(
         # only changes cities re-uses the previous job id and their edit is a no-op.
         correlation_id=(
             f"target:{user_id}:{'|'.join(titles)}:{seniority}:{','.join(chosen_locations)}"
+            f":{','.join(profile_updates.get('deal_breakers') or [])}"
+            f":{','.join(normalized_leans or [])}"
         ),
     )
 
@@ -688,6 +814,7 @@ def _reviewable_step(
                     if str(value).strip()
                 ],
             },
+            "direction": _direction_answer(db, user_id, profile),
             "journey_step": 2,
         }
     return None
@@ -883,6 +1010,9 @@ def _current_result(db: Client, user_id: str) -> dict[str, Any]:
             # Same shape as the reviewed step, empty here. One payload shape means
             # the client seeds its form the same way whichever way it arrived.
             "selected": {"families": [], "seniority": None, "locations": []},
+            # Direction is NOT empty here even on a first arrival: this is where
+            # Myro's reading of the CV gets proposed back for correction.
+            "direction": _direction_answer(db, user_id, profile),
             "journey_step": 2,
         }
 

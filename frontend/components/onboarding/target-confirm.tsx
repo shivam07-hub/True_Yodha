@@ -5,6 +5,7 @@ import { ArrowLeft, Check, Search } from "lucide-react"
 import { useQueries, useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { StickyOnboardingActionBar } from "@/components/onboarding/sticky-action-bar"
+import { DirectionChoice } from "@/components/onboarding/direction-choice"
 import { formatCount } from "@/lib/format"
 import { onboarding, type OnboardingResult, type RoleFamily, type TargetSeniority } from "@/lib/api"
 import { trackEvent } from "@/lib/analytics"
@@ -74,6 +75,10 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
   const [roleSearch, setRoleSearch] = useState("")
   const [showSearch, setShowSearch] = useState(false)
   const [locations, setLocations] = useState<string[]>(result.selected?.locations ?? [])
+  // Seeded from Myro's reading when the user has not answered this yet, so the
+  // first act here is a correction rather than composing from nothing.
+  const [lean, setLean] = useState<string[]>(result.direction?.lean ?? [])
+  const [avoid, setAvoid] = useState<string[]>(result.direction?.avoid ?? [])
   const [seniority, setSeniority] = useState<TargetSeniority | null>(
     result.selected?.seniority ?? result.seniority.value,
   )
@@ -138,8 +143,17 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
         seniority,
         // Always sent, including `[]` — that is "Anywhere", a real choice.
         locations,
+        // Also always sent: pressing confirm with a proposed phrase still on
+        // screen is the user accepting it, and clearing one is a real answer.
+        lean,
+        avoid,
       })
-      trackEvent("onboarding_direction_confirmed", { role_count: selected.length, location_count: locations.length })
+      trackEvent("onboarding_direction_confirmed", {
+        role_count: selected.length,
+        location_count: locations.length,
+        lean_count: lean.length,
+        avoid_count: avoid.length,
+      })
       onConfirmed()
     } catch (reason) {
       setBusy(false); setError(reason instanceof Error ? reason.message : "Could not save your target.")
@@ -200,6 +214,13 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
         })}
       </div>
     </section>}
+
+    {selected.length > 0 && <DirectionChoice
+      lean={lean}
+      avoid={avoid}
+      proposed={result.direction?.proposed ?? []}
+      onChange={(next) => { setLean(next.lean); setAvoid(next.avoid) }}
+    />}
 
     <StickyOnboardingActionBar error={error} contentClassName="max-w-lg px-5 pt-3 sm:px-8">
       {/* Only offered to someone who already HAS a shortlist — it returns them to

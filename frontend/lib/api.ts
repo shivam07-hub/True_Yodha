@@ -688,6 +688,18 @@ export interface OnboardingTarget {
   // Plural form. `[]` is a real answer ("Anywhere"); omitting the field
   // means "leave my saved locations alone".
   locations?: string[]
+  // The direction axis: what to rank away from and what to rank toward. Same
+  // omitted-vs-empty rule as locations — `[]` clears, absent preserves.
+  avoid?: string[]
+  lean?: string[]
+}
+
+/** Myro's current reading of what you want, and which halves are still a guess. */
+export interface OnboardingDirection {
+  avoid: string[]
+  lean: string[]
+  /** Halves gap-filled from Myro's reading rather than confirmed by the user. */
+  proposed: Array<"avoid" | "lean">
 }
 
 export interface RoleReadiness {
@@ -759,6 +771,10 @@ export type OnboardingResult = OnboardingReach & (
       /** What they already chose, when arriving here from further along. Empty
        *  on the first visit — one shape, seeded the same way either way. */
       selected: { families: RoleFamily[]; seniority: TargetSeniority | null; locations: string[] }
+      /** What Myro believes you're drawn to and away from. `proposed` names the
+       *  halves that are Myro's reading of your CV rather than your own answer —
+       *  the step says so, so a guess is never shown as a decision. */
+      direction: OnboardingDirection
       journey_step?: 1 | 2 | 3
     }
   | {

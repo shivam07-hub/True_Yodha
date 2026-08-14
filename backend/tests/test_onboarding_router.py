@@ -98,6 +98,10 @@ def test_target_saves_literal_role_seniority_and_location(monkeypatch) -> None:
         # Omitted plural stays None — "leave my saved locations alone", which is
         # what a singular-only legacy caller means.
         "locations": None,
+        # Same rule for the direction axis: a caller that never mentions it must
+        # not wipe what the user already told Myro.
+        "avoid": None,
+        "lean": None,
     }
 
 
