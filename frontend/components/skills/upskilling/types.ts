@@ -62,6 +62,6 @@ export interface ResultModel {
   elapsedSeconds: number
   prevBestSeconds: number | null
   newBest: boolean
-  /** Existing Mentor destination, or null when no real CV evidence exists. */
-  mentorHref: string | null
+  /** Explicit Main-CV upgrade destination after a passing assessment. */
+  cvHref: string | null
 }

@@ -2,9 +2,80 @@ import pytest
 
 from app.services.job_listing_verifier import (
     VerificationTarget,
+    ats_url_is_addressable,
     classify_listing_response,
     provider_for_url,
 )
+
+# The exact URL shape that produced 1,832 strong-closed Accenture verdicts in the
+# 2026-08-08 batch: a Workday path starting at /job/, with no tenant site segment.
+_SITELESS = (
+    "https://accenture.wd103.myworkdayjobs.com"
+    "/job/Chennai/Custom-Software-Engineer_ATCI-5436291-S1978254-1"
+)
+_ADDRESSED = (
+    "https://accenture.wd103.myworkdayjobs.com"
+    "/AccentureCareers/job/Chennai/Custom-Software-Engineer_ATCI-5436291-S1978254-1"
+)
+
+
+@pytest.mark.parametrize(
+    ("url", "addressable"),
+    [
+        (_SITELESS, False),
+        (_ADDRESSED, True),
+        ("https://acme.wd5.myworkdayjobs.com/en-US/jobs/job/123", True),
+        ("https://acme.wd5.myworkdayjobs.com/en-US/job/Pune/Role", False),
+        ("https://acme.wd5.myworkdayjobs.com/job", False),
+        # Only Workday has a registered shape; nothing else may be pre-judged.
+        ("https://jobs.lever.co/job/123", True),
+        ("https://careers.acme.com/job/123", True),
+    ],
+)
+def test_workday_urls_need_a_tenant_site_segment_to_address_a_listing(
+    url: str, addressable: bool
+) -> None:
+    assert ats_url_is_addressable(url) is addressable
+
+
+def test_a_url_that_cannot_reach_the_listing_never_closes_it() -> None:
+    """A blanket 404 from a tenant router is a data defect, not a dead role."""
+    result = classify_listing_response(
+        VerificationTarget("job-1", _SITELESS, "Custom Software Engineer"),
+        status_code=404,
+        final_url=_SITELESS,
+        body="Not found",
+    )
+
+    assert result.result == "unroutable"
+    assert result.strength == "weak"
+    assert result.evidence["reason"] == "ats_site_segment_missing"
+
+
+def test_the_same_workday_url_with_its_site_segment_still_closes_on_404() -> None:
+    """The gate narrows the closed verdict; it must not remove it."""
+    result = classify_listing_response(
+        VerificationTarget("job-1", _ADDRESSED, "Custom Software Engineer"),
+        status_code=404,
+        final_url=_ADDRESSED,
+        body="Not found",
+    )
+
+    assert result.result == "closed"
+    assert result.strength == "strong"
+
+
+def test_an_unaddressable_url_reaches_no_verdict_at_any_status() -> None:
+    """Not just 404 — nothing this URL returns describes the listing."""
+    for status in (200, 403, 500):
+        result = classify_listing_response(
+            VerificationTarget("job-1", _SITELESS, "Custom Software Engineer"),
+            status_code=status,
+            final_url=_SITELESS,
+            body='{"@type":"JobPosting","title":"Custom Software Engineer"} Apply now',
+        )
+
+        assert result.result == "unroutable"
 
 
 @pytest.mark.parametrize(

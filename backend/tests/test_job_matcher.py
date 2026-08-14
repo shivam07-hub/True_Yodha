@@ -249,6 +249,22 @@ class TestDepthWeighting:
         assert "Resilience" not in result[0]["missing_skills"]
         assert "Resilience" not in result[0]["matched_skills"]
 
+    def test_scenario_skill_is_excluded_even_when_legacy_kind_says_hard(self) -> None:
+        rows = [
+            {"job_id": "j1", "is_primary": True, "required_level": 4,
+             "skills": {"taxonomy_key": "Python", "practice_mode": "levelled", "skill_kind": "hard"}},
+            {"job_id": "j1", "is_primary": True, "required_level": 4,
+             "skills": {"taxonomy_key": "Communication", "practice_mode": "scenario", "skill_kind": "hard"}},
+        ]
+        meta = [_job("j1", "Job", "Acme", [], [])]
+
+        result = get_top_matches(
+            rows, {"Python": 4}, _meta_fetcher(meta), top_n=1, min_skill_overlap=1
+        )
+
+        assert result[0]["overlap_score"] == 100.0
+        assert "Communication" not in result[0]["missing_skills"]
+
     def test_a_missing_required_level_falls_back_rather_than_crashing(self) -> None:
         rows = [{"job_id": "j1", "is_primary": True,
                  "skills": {"taxonomy_key": "Python", "skill_kind": "hard"}}]

@@ -3,6 +3,7 @@ import assert from "node:assert/strict"
 
 import {
   CV_UPLOAD_MAX_BYTES,
+  CV_UPLOAD_MIN_BYTES,
   DOCX_MIME,
   PDF_MIME,
   detectCVFile,
@@ -96,6 +97,38 @@ test("preflightCVUploadFile rejects empty files before network upload", async ()
   const result = await preflightCVUploadFile(file as unknown as File)
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.code, "empty_file")
+})
+
+// The 76-byte stub Drive/OneDrive hand the picker for a file that is not downloaded
+// locally. It carries a real .pdf name, a real PDF mime and real %PDF magic bytes, so
+// every format check passes it. Two users uploaded the identical stub; one retried six
+// times and never scored.
+test("preflightCVUploadFile rejects a cloud-placeholder PDF that passes every format check", async () => {
+  const file = fakeFile({ name: "resume.pdf", type: PDF_MIME, bytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]) })
+  ;(file as unknown as { size: number }).size = 76
+  const result = await preflightCVUploadFile(file as unknown as File)
+  assert.equal(result.ok, false)
+  if (!result.ok) {
+    assert.equal(result.code, "placeholder_file")
+    assert.match(result.message, /cloud shortcut/)
+  }
+})
+
+// The floor may only judge things that claim to be a CV. A tiny spreadsheet is still a
+// spreadsheet, and telling its owner to "download it again" would send them nowhere.
+test("preflightCVUploadFile still names the format when a non-CV file is under the floor", async () => {
+  const file = fakeFile({ name: "Positions.csv", type: "text/csv" })
+  ;(file as unknown as { size: number }).size = 512
+  const result = await preflightCVUploadFile(file as unknown as File)
+  assert.equal(result.ok, false)
+  if (!result.ok) assert.equal(result.code, "unsupported_format")
+})
+
+test("preflightCVUploadFile accepts a real CV just above the floor", async () => {
+  const file = fakeFile({ name: "resume.pdf", type: PDF_MIME, bytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]) })
+  ;(file as unknown as { size: number }).size = CV_UPLOAD_MIN_BYTES
+  const result = await preflightCVUploadFile(file as unknown as File)
+  assert.equal(result.ok, true)
 })
 
 test("preflightCVUploadFile rejects files above max bytes", async () => {

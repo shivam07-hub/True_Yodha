@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, Suspense } from "react"
+import { useCallback, useEffect, useMemo, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query"
 import { jobs, users } from "@/lib/api"
@@ -17,7 +17,6 @@ import { JobsSurface } from "@/mobile/redesign/jobs-surface"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useFeedState } from "@/lib/hooks/use-feed-state"
 import { useFollowCompany } from "@/lib/hooks/use-follow-company"
-import { useIdleWave, useIntentWave } from "@/lib/hooks/use-load-waves"
 import { parseLocationMode, pickDefaultSort, type FeedFilters } from "@/components/market/feed-types"
 
 type BrowsePatch = {
@@ -31,17 +30,15 @@ function IntelPageInner() {
   const { token } = useAuth()
   const queryClient = useQueryClient()
   const { mode } = useViewport()
-  // Three-wave loading (#41 L3). Wave 1 = identity + score + feed. Wave 2 =
-  // idle cascade; Wave 3 = on-intent,
-  // armed only on the user's first interaction — this keeps the 22–25s
-  // `/jobs/analytics` (movers rail + per-role chip counts) OFF the login path.
-  // Do not call /home/bootstrap here. On mobile this route never renders the
-  // Home rail, so that eight-read BFF call was pure duplicate demand. On
-  // desktop MissionHeroRail owns its own one shared bootstrap query.
-  const wave2 = useIdleWave(!!token)
-  const intent = useIntentWave()
-  // Feed publication sensing is J1: never competes with the initial feed.
-  useFeedState(wave2)
+  const [feedSettledToken, setFeedSettledToken] = useState<string | null>(null)
+  const [heroSettledToken, setHeroSettledToken] = useState<string | null>(null)
+  const [demandSettledToken, setDemandSettledToken] = useState<string | null>(null)
+  const [marketIntelSettledToken, setMarketIntelSettledToken] = useState<string | null>(null)
+
+  const onFeedSettled = useCallback(() => setFeedSettledToken(token ?? null), [token])
+  const onHeroSettled = useCallback(() => setHeroSettledToken(token ?? null), [token])
+  const onDemandSettled = useCallback(() => setDemandSettledToken(token ?? null), [token])
+  const onAnalyticsSettled = useCallback(() => setMarketIntelSettledToken(token ?? null), [token])
 
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -68,12 +65,28 @@ function IntelPageInner() {
   // with the app shell and with the /home/bootstrap seed. It previously used a
   // bare ["profile"] key, which is a different entry: the bootstrap seed never
   // reached it and every login paid for a third redundant GET /users/me.
-  const { data: profileData } = useQuery({
+  const { data: profileData, isFetched: profileSettled } = useQuery({
     queryKey: dataKeys.profile(),
     queryFn: () => users.me(token!),
     enabled: !!token,
     staleTime: 5 * 60 * 1000,
   })
+  // Product-locked cascade: every visible Jobs item is mandatory, but later
+  // rails do not compete with the decision-critical identity + first feed.
+  // Each gate opens from the preceding query's real settled state — never from
+  // a timer, browser idle, or an unrelated click.
+  const feedSettled = !!token && feedSettledToken === token
+  const heroSettled = !!token && heroSettledToken === token
+  const demandSettled = !!token && demandSettledToken === token
+  const marketIntelSettled = !!token && marketIntelSettledToken === token
+  const j0Settled = !!token && profileSettled && feedSettled
+  const heroEnabled = j0Settled
+  const demandEnabled = heroSettled
+  const analyticsEnabled = demandSettled
+  const chipCountsEnabled = mode === "mobile" ? profileSettled : marketIntelSettled
+
+  // Feed publication sensing is J1: it starts automatically after J0 settles.
+  useFeedState(j0Settled)
   const targetRoles: string[] = useMemo(
     () => profileData?.target_roles ?? [],
     [profileData?.target_roles]
@@ -134,8 +147,9 @@ function IntelPageInner() {
     queries: targetRoles.map(role => ({
       queryKey: ["intel-chip-count", token ?? "", role, locationCity, locationCountry, locationMode],
       queryFn: () => jobs.analyticsForMe(token!, role, locFilters),
-      // Wave 3: `/jobs/analytics/me` is a per-role aggregate — never on login.
-      enabled: !!token && targetRoles.length > 0 && intent,
+      // Last automatic stage on desktop; mobile has no rails, so it follows
+      // the profile read directly. No interaction is required on either skin.
+      enabled: !!token && targetRoles.length > 0 && chipCountsEnabled,
       staleTime: 30 * 60 * 1000,
     })),
   })
@@ -150,9 +164,9 @@ function IntelPageInner() {
   }, [targetRoles, chipCountQueries])
 
   // Optimistic follow/unfollow + IH2 gating, shared with Settings.
-  // Wave 2: `/users/me/following/companies` is cheap + likely used, so it warms
-  // on the idle cascade rather than competing during the login instant.
-  const following = useFollowCompany(token, { enabled: wave2 })
+  // Needed by company-signal controls; starts with the demand stage so it is
+  // warm before company signals render.
+  const following = useFollowCompany(token, { enabled: demandEnabled })
   const followedCompanies = following.companies
 
   // Explored career bands persist on the profile — shared by both surfaces so
@@ -202,13 +216,16 @@ function IntelPageInner() {
       <div className="tm-intel-page" style={{ padding: "32px 36px 64px", maxWidth: 1480, margin: "0 auto" }}>
        <div className="mc-workspace">
         <aside className="mc-ws-rail">
-          {wave2 && intent ? <MissionHeroRail token={token ?? null} /> : null}
+          <MissionHeroRail
+            token={heroEnabled ? token : null}
+            onSettled={onHeroSettled}
+          />
         </aside>
         <div className="mc-ws-main">
         {/* Match staleness + coin-charged recompute — relocated from the retired
             /home dashboard; Jobs is the browse surface, so discovery mechanics
             live here. Renders nothing while matches are fresh. */}
-        {token && wave2 ? <MatchesRefreshBanner token={token} /> : null}
+        {token && j0Settled ? <MatchesRefreshBanner token={token} /> : null}
         {activeTab === "jobs" ? (
           <MarketJobsTab
             token={token ?? ""}
@@ -230,8 +247,11 @@ function IntelPageInner() {
             onExploredCareerBandsChange={onExploredCareerBandsChange}
             targetLocations={profileData?.target_locations ?? []}
             followCompany={following}
-            analyticsEnabled={intent}
-            demandEnabled={wave2}
+            analyticsEnabled={analyticsEnabled}
+            demandEnabled={demandEnabled}
+            onFeedSettled={onFeedSettled}
+            onDemandSettled={onDemandSettled}
+            onAnalyticsSettled={onAnalyticsSettled}
           />
         ) : (
           <HeatmapTab

@@ -24,6 +24,7 @@ import {
   cv,
   jobs as jobsApi,
   getPersistedCVUploadJobId,
+  recordCVUploadPickRejected,
   resumePendingCVUpload,
   type CVUploadResult,
   users,
@@ -286,6 +287,7 @@ function CVPage() {
     if (!preflight.ok) {
       setUploadError(preflight.message)
       setShowUpload(true)
+      recordCVUploadPickRejected(token, file, preflight.code, preflight.message)
       return
     }
 

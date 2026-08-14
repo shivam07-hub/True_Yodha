@@ -32,7 +32,6 @@ export type CVUploadInitial =
       status: "failed"
       current_phase?: CVUploadPhase | null
       skills_detected?: number | null
-      score?: number | null
       error_code: string | null
       error_detail: string | null
       xp_charged?: number | null
@@ -46,7 +45,9 @@ export interface CVUploadPolledStatus {
   /** #6 deploy-style loading phase. */
   current_phase?: CVUploadPhase | null
   skills_detected: number | null
-  score: number | null
+  // No score on a polled job. Scoring waits for skill confirmation, which happens
+  // after the job finishes — a polled result always routes to redirect_to, where
+  // the user confirms and earns it. Only the synchronous cache-hit reply carries one.
   error_code: string | null
   error_detail: string | null
   xp_charged: number
@@ -161,7 +162,7 @@ export async function resolveCVUploadResult(
     if (status.status === "done") {
       return {
         skills_detected: status.skills_detected ?? 0,
-        score: status.score,
+        score: null,
         xp_charged: status.xp_charged,
         new_coin_balance: status.new_coin_balance,
         redirect_to: status.redirect_to ?? "/onboarding/result",

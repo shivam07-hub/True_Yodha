@@ -438,11 +438,11 @@ def _idem_response(existing: dict[str, Any]) -> dict[str, Any]:
     frontend's state machine doesn't have to special-case retries."""
     status = existing["status"]
     if status == "done":
-        raw_score = existing.get("score")
+        # No score: a replayed job row never held one, and the redirect below is
+        # exactly where the user confirms skills and earns it.
         return {
             "status": "done",
             "skills_detected": existing.get("skills_detected") or 0,
-            "score": float(raw_score) if raw_score is not None else None,
             "redirect_to": "/onboarding/result",
             "xp_charged": existing.get("xp_charged", 0),
         }
@@ -850,7 +850,6 @@ async def _run_cv_upload_stages(
     upload_jobs_repo.mark_done(
         job_id,
         skills_detected=len(skills_detected),
-        score=None,
         baseline_version_id=baseline_version_id,
         result_payload={
             "extraction": parsed.get("provenance", {}),
@@ -928,7 +927,6 @@ async def get_cv_upload_status(job_id: str, user_id: str) -> dict[str, Any]:
         "result_payload": row.get("result_payload"),
         "baseline_version_id": row.get("baseline_version_id"),
         "skills_detected": row.get("skills_detected"),
-        "score": float(row["score"]) if row.get("score") is not None else None,
         "error_code": row.get("error_code"),
         "error_detail": row.get("error_detail"),
         "xp_charged": row.get("xp_charged", 0),

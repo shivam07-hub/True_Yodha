@@ -26,6 +26,8 @@ import logging
 import re
 from typing import Any
 
+from app.services.job_matcher import is_levelled_skill
+
 logger = logging.getLogger(__name__)
 
 # Default count of actionable cards (host-bullet + below-level) the session walks
@@ -55,6 +57,8 @@ def build_gap_items(
     relies on this order for top-N selection."""
     items: list[dict[str, Any]] = []
     for skill in job_skills:
+        if not is_levelled_skill(skill):
+            continue
         key = skill["taxonomy_key"]
         user_level = user_skill_map.get(key.lower()) or 0
         required_level = skill["required_level"]

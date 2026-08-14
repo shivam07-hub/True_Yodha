@@ -1,24 +1,28 @@
 /**
- * Practice proves a level; it never proves a CV claim by itself. The Mentor
- * handoff is available only when Myro already has a CV evidence pointer.
+ * A passing assessment can update the Main CV only after the user asks.
+ * Existing CV evidence goes through Mentor's evidence-backed rewrite; without
+ * a bullet pointer, the existing Skills Refresh path adds only the proven skill
+ * to the skills section and never invents an achievement claim.
  */
-export function mentorRewriteHref({
+export function cvUpgradeHref({
   skill,
-  jobId,
   hasCvEvidence,
 }: {
   skill: string
-  jobId?: string | null
   hasCvEvidence: boolean
 }): string | null {
   const cleanSkill = skill.trim()
-  if (!cleanSkill || !hasCvEvidence) return null
+  if (!cleanSkill) return null
 
   const params = new URLSearchParams()
-  if (jobId?.trim()) params.set("jobId", jobId.trim())
-  else params.set("edit", "1")
+  params.set("edit", "1")
   params.set("skill", cleanSkill)
-  params.set("mentor", "1")
+  if (hasCvEvidence) {
+    params.set("mentor", "1")
+  } else {
+    params.set("tab", "skills")
+    params.set("addProven", "1")
+  }
   return `/cv?${params.toString()}`
 }
 

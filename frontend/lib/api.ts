@@ -1574,11 +1574,11 @@ export const cv = {
     }),
   // Propose a current, primary-first SKILLS section from the living skill graph.
   // FREE + read-only; pass jobId to lead with that job's required skills.
-  skillsRefresh: (token: string, jobId?: string | null) =>
+  skillsRefresh: (token: string, jobId?: string | null, skillKey?: string | null) =>
     request<SkillsRefreshResponse>("/cv/skills-refresh", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ job_id: jobId ?? null }),
+      body: JSON.stringify({ job_id: jobId ?? null, skill_key: skillKey ?? null }),
     }),
   masterRevisions: (token: string) =>
     request<{ revisions: MasterRevision[] }>("/cv/master/revisions", {
@@ -2056,6 +2056,28 @@ function _asUploadFailure(err: unknown, phase: CVUploadTelemetryPhase): CVUpload
   return new CVUploadFailureBase("Upload failed unexpectedly. Tap to try again.", "upload_unknown_error", false, null, true, phase)
 }
 
+/** Record a CV the app refused before any transfer began. The dropzones preflight for
+ *  instant feedback and return without ever calling beginCVUpload, so a refused pick is
+ *  the one upload outcome nothing writes down: no rate, no reason, no way to tell a gate
+ *  doing its job from a gate rejecting real CVs. Fire-and-forget, same as every other
+ *  phase event. Anonymous surfaces have no token and are out of scope. */
+export function recordCVUploadPickRejected(
+  token: string,
+  file: { name: string; type: string; size: number },
+  code: string,
+  message: string,
+): void {
+  _emitCVUploadTelemetry(token, {
+    phase: "pick",
+    outcome: "failed",
+    reasonCode: code,
+    errorDetail: message,
+    fileName: file.name,
+    fileMime: file.type,
+    fileBytes: file.size,
+  })
+}
+
 export type CVUploadSource = "pdf_upload" | "text_describe" | "linkedin_pdf" | "generated_baseline"
 
 export async function beginCVUpload(
@@ -2070,7 +2092,33 @@ export async function beginCVUpload(
 ): Promise<{ initial: CVUploadResponse; file: File }> {
   const idempotencyKey = readCVUploadIdempotencyKey() ?? createCVUploadIdempotencyKey()
   persistCVUploadIdempotencyKey(idempotencyKey)
-  const safeFile = await _normalizeUploadFile(file)
+  // Same pick contract uploadCV has. Both onboarding and /cv enter here, and without
+  // these the preflight is the one gate that rejects a user with nothing written down —
+  // no denominator for how often a pick is refused, and no name for what it refused.
+  const pickMeta = { idempotencyKey, fileName: file.name, fileMime: file.type, fileBytes: file.size }
+  _emitCVUploadTelemetry(token, { phase: "pick", outcome: "started", ...pickMeta })
+  let safeFile: File
+  try {
+    safeFile = await _normalizeUploadFile(file)
+  } catch (err) {
+    const failure = _asUploadFailure(err, "pick")
+    _emitCVUploadTelemetry(token, {
+      phase: "pick",
+      outcome: "failed",
+      reasonCode: failure.code,
+      errorDetail: failure.message,
+      ...pickMeta,
+    })
+    throw failure
+  }
+  _emitCVUploadTelemetry(token, {
+    phase: "pick",
+    outcome: "succeeded",
+    idempotencyKey,
+    fileName: safeFile.name,
+    fileMime: safeFile.type,
+    fileBytes: safeFile.size,
+  })
   // Durable "we've got it" hold (weak-radio resilience). A retryable interrupt
   // leaves the stash so the /cv resume effects can replay it on next visit with
   // the same Idempotency-Key (CVUP1 dedup). Cleared once the bytes land.
@@ -2085,6 +2133,22 @@ export async function beginCVUpload(
     throw err
   }
   if (initial.status === "processing" && initial.job_id) persistCVUploadJob(initial.job_id)
+  // A terminal rejection can also arrive as a 2xx body, not a throw. Callers turn it
+  // into their own error, so this is the last point that still knows it was an upload.
+  // Record it here — one writer for "the transfer concluded" — or the trail again ends
+  // at "put succeeded" for a user who was told no.
+  if (initial.status === "failed") {
+    _emitCVUploadTelemetry(token, {
+      phase: "parse",
+      outcome: "failed",
+      reasonCode: initial.error_code ?? "upload_rejected",
+      errorDetail: initial.error_detail ?? null,
+      idempotencyKey,
+      fileName: safeFile.name,
+      fileMime: safeFile.type,
+      fileBytes: safeFile.size,
+    })
+  }
   await clearPendingCVUpload()
   return { initial, file: safeFile }
 }
@@ -2255,6 +2319,27 @@ function _extractUploadError(body: unknown, status: number): {
   return { code, message, retryable }
 }
 
+/** A rejection from /cv/upload/finalize arrives as an ApiError carrying the pipeline's
+ *  own verdict — `upload_expired`, `unsupported_format`, `forbidden_path`. _asUploadFailure
+ *  flattens anything that isn't already a CVUploadFailure to `upload_unknown_error`, which
+ *  erases the one field that says why, both in what the user reads and in what we record.
+ *  Keep the server's code, message and retryability. */
+function _finalizeFailure(err: unknown): CVUploadFailureBase {
+  if (err instanceof CVUploadFailureBase) return err
+  if (err instanceof ApiError) {
+    const status = err.status ?? 0
+    return new CVUploadFailureBase(
+      err.message,
+      err.code ?? `upload_http_${status}`,
+      false,
+      null,
+      status >= 500 || status === 429,
+      "parse",
+    )
+  }
+  return _asUploadFailure(err, "parse")
+}
+
 function _wrapNetworkError(err: unknown): CVUploadFailureBase {
   const name = (err as Error)?.name
   if (name === "AbortError") {
@@ -2321,7 +2406,22 @@ async function _transferCV(
       } catch (err) {
         // Bytes are in storage; the pipeline rejected. Falling back to multipart would
         // only re-run the identical pipeline → surface the verdict instead.
-        throw _asUploadFailure(err, "parse")
+        //
+        // Record it before throwing. A rejected finalize writes NO job row, so this
+        // event is the only trace the attempt ever existed: an unrecorded throw here
+        // ends the trail at "put succeeded" and the upload reads as still in flight
+        // forever. It hid four users whose CV reached storage and who got nothing —
+        // one on 2026-08-14 with a real 637KB CV.docx we still cannot explain.
+        const failure = _finalizeFailure(err)
+        _emitCVUploadTelemetry(token, {
+          phase: "parse",
+          outcome: "failed",
+          reasonCode: failure.code,
+          errorDetail: failure.message,
+          httpStatus: err instanceof ApiError ? err.status : null,
+          ...meta,
+        })
+        throw failure
       }
     }
   }
@@ -3586,6 +3686,13 @@ export interface IntentFilterDiff {
   seniority: string | null
   work_mode: string | null
   salary: string | null
+  /** The three Career-Ops inputs the Myro Search pre-flight exposes. The
+   *  concierge proposes them so a conversation can fill every row the run
+   *  actually uses — the pre-flight applies them to its DRAFT and persists only
+   *  on Run/Save. */
+  deal_breakers: string[]
+  career_goal: string | null
+  superpower: string | null
 }
 
 export interface IntentChatResponse {

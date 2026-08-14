@@ -35,8 +35,9 @@ FRESH_FOR = timedelta(hours=6)
 
 _HTTP_TIMEOUT = httpx.Timeout(10.0)
 
-# Verification result -> user-facing liveness state. `blocked`/`timeout`/`error`
-# deliberately land on `unknown`: an ATS that rate-limits our verifier is not
+# Verification result -> user-facing liveness state. Everything that is not a
+# reached verdict lands on `unknown`: an ATS that rate-limits our verifier, or a
+# malformed apply URL that could never have addressed the listing, is not
 # evidence the job is gone, and claiming otherwise would be its own trust bug.
 _STATE_BY_RESULT = {
     "seen_live": "live",
@@ -46,6 +47,8 @@ _STATE_BY_RESULT = {
     "blocked": "unknown",
     "timeout": "unknown",
     "error": "unknown",
+    "unroutable": "unknown",
+    "source_failure": "unknown",
 }
 
 _STATE_BY_CONFIDENCE = {

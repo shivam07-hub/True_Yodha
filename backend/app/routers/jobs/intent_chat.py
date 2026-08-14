@@ -35,6 +35,13 @@ class FilterDiff(BaseModel):
     seniority: str | None = None
     work_mode: str | None = None
     salary: str | None = None
+    # The three Career-Ops inputs the pre-flight manifest exposes. Proposed here so
+    # a conversation can fill every row the run actually uses; the pre-flight
+    # applies them to its DRAFT and persists only on Run/Save, so the distiller's
+    # propose-only lock on profile columns still holds.
+    deal_breakers: list[str] = Field(default_factory=list)
+    career_goal: str | None = None
+    superpower: str | None = None
 
 
 class IntentChatResponse(BaseModel):

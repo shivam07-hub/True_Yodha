@@ -27,6 +27,11 @@ interface CVUploadStepProps {
    */
   showSteps?: boolean
   onUpload: (file: File) => void
+  /**
+   * A file this surface refused before any upload started. The owner records it —
+   * this component is presentational and holds no token. Anonymous surfaces omit it.
+   */
+  onReject?: (rejection: { file: File; code: string; message: string }) => void
   children?: ReactNode
 }
 
@@ -35,7 +40,7 @@ interface CVUploadStepProps {
  * flow and the direct CV Hub use this visual contract; their alternate paths
  * (description vs. anonymous paste) are supplied as children.
  */
-export function CVUploadStep({ busy, error = null, inputSource, progressPct = null, showSteps = true, onUpload, children }: CVUploadStepProps) {
+export function CVUploadStep({ busy, error = null, inputSource, progressPct = null, showSteps = true, onUpload, onReject, children }: CVUploadStepProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [fileError, setFileError] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
@@ -44,6 +49,7 @@ export function CVUploadStep({ busy, error = null, inputSource, progressPct = nu
     const check = await preflightCVUploadFile(file)
     if (!check.ok) {
       setFileError(check.message)
+      onReject?.({ file, code: check.code, message: check.message })
       return
     }
     const safeFile = file.name === check.safeName && file.type === check.mime

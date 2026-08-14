@@ -164,7 +164,8 @@ def test_cv_intake_terminal_success_is_reviewable_without_scoring(monkeypatch: A
         )
     )
 
-    assert done["score"] is None
+    # mark_done takes no score at all now — the terminal intake cannot produce one.
+    assert "score" not in done
     assert repo.updated_profile is None
     assert repo.created_spec is not None
     assert repo.created_spec.kind == "baseline_upload"

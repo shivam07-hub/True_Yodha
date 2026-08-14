@@ -22,6 +22,7 @@ from app.repositories.cv import CVVersionsRepository, get_token_cv_repository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.services import cv_skills_refresh
 from app.services.cv_structured_shape import has_content
+from app.services.job_matcher import is_levelled_skill
 
 router = APIRouter()
 
@@ -30,6 +31,9 @@ class SkillsRefreshRequest(BaseModel):
     # Optional: when present, the JD's required skills lead the primary band
     # (the per-job ATS win). Absent → primary = top in-demand proven skills.
     job_id: str | None = None
+    # Optional explicit post-assessment handoff. It limits newly-added skills
+    # to the one the user chose to place on the Main CV.
+    skill_key: str | None = None
 
 
 class AddedSkill(BaseModel):
@@ -74,6 +78,8 @@ def skills_refresh(
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Job not found.")
         job_title = job.get("job_title")
         for s in job.get("skills") or []:
+            if not is_levelled_skill(s):
+                continue
             key = (s.get("taxonomy_key") or "").lower()
             if not key:
                 continue
@@ -86,6 +92,7 @@ def skills_refresh(
         inventory=inventory,
         jd_primary_keys=jd_primary_keys,
         jd_keys=jd_keys,
+        focus_skill=body.skill_key,
     )
     return SkillsRefreshResponse(
         primary=proposal["primary"],

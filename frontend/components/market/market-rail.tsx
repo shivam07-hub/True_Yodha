@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import type { JobFeedItem, JobPulse } from "@/lib/api"
 import type { FeedScope } from "@/lib/feed-scope"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -34,23 +34,34 @@ export interface MarketRailProps {
    *  CV-personalized, so this no longer gates anything. Kept until callers drop
    *  it from the shared rail props. */
   cvReady?: boolean
-  /** Wave-3 intent gate (#41 L3): when false the `/jobs/analytics` trending
-   *  ("who's hiring") query stays unfetched (the 22–25s scan never fires on
-   *  login). */
+  /** Opens company signals after the preceding rail item settles. */
   analyticsEnabled?: boolean
-  /** Wave-2 idle gate (#41 L3): the cheap skill-demand snapshot warms on the
-   *  idle cascade, independent of the expensive wave-3 trending above. */
+  /** Opens skill demand after the preceding rail item settles. */
   demandEnabled?: boolean
+  onDemandSettled?: () => void
+  onAnalyticsSettled?: () => void
   followCompany: Pick<UseFollowCompany, "action">
 }
 
 /** Desktop right rail — market dashboard + community listing-status. CV-coach
  *  intel lives on /dashboard; this surface stays about the market. */
 export function MarketRail(props: MarketRailProps) {
-  const { scope, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob, analyticsEnabled = true, demandEnabled = true, followCompany } = props
+  const {
+    scope, feed, pulses, onSeeRoles, onFilterSkill, onOpenJob,
+    analyticsEnabled = true, demandEnabled = true,
+    onDemandSettled, onAnalyticsSettled, followCompany,
+  } = props
   const [companyMode, setCompanyMode] = useState<CompanySignalMode>("roles")
-  const { trending, loading: intelLoading } = useMarketIntel(scope.city, companySignalSortParam(companyMode), analyticsEnabled)
+  const {
+    trending,
+    loading: intelLoading,
+    settled: intelSettled,
+  } = useMarketIntel(scope.city, companySignalSortParam(companyMode), analyticsEnabled)
   const uncertain = uncertainListings(feed, pulses)
+
+  useEffect(() => {
+    if (intelSettled) onAnalyticsSettled?.()
+  }, [intelSettled, onAnalyticsSettled])
 
   // NOTE: no count/scope strip here. The feed summary line ("N roles" + the
   // Location chip) already states both facts one column left, and the chip is
@@ -67,12 +78,13 @@ export function MarketRail(props: MarketRailProps) {
         homeCity={scope.city}
         onFilterSkill={onFilterSkill}
         enabled={demandEnabled}
+        onSettled={onDemandSettled}
       />
 
       {/* trending resolves independently of the feed; while its query is in
           flight show the real-shape widget skeleton rather than blank (the
           missing-right-rail root cause). */}
-      {intelLoading ? <MarketRailLoading /> : null}
+      {!analyticsEnabled || intelLoading ? <MarketRailLoading /> : null}
 
       {/* who's hiring in scope */}
       {!intelLoading && trending.length > 0 ? (

@@ -48,7 +48,21 @@ test("the public landing tells the seeker-first MNC story without product-manual
     landing.indexOf("<LandingCompanyRail") < landing.indexOf("<LandingHowItWorks"),
     "the company rail should precede the merged source and tailoring story",
   )
-  assert.doesNotMatch(landing, /LandingJobSearch|LandingDomains/)
+  // 2026-08-14 revision: the 2026-08-10 lock forbade LandingJobSearch outright.
+  // Product call (grilled 2026-08-14) is that the live-mirror proof earns a
+  // search/industry shortcut straight into /intel — CV upload is still the
+  // page's one primary action, so the shortcut must sit between the live
+  // mirror and the tailoring story, never ahead of the upload dropzone.
+  assert.match(landing, /LandingJobSearch/)
+  assert.ok(
+    landing.indexOf("<LandingLiveMirror") < landing.indexOf("<LandingJobSearch"),
+    "the search/industry shortcut should follow the live-mirror proof",
+  )
+  assert.ok(
+    landing.indexOf("<LandingJobSearch") < landing.indexOf("<LandingHowItWorks"),
+    "the search/industry shortcut should precede the tailoring story",
+  )
+  assert.doesNotMatch(landing, /LandingDomains/)
   assert.doesNotMatch(hero, /Career Intelligence Platform|10 minutes|See the Engine/)
 })
 

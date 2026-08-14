@@ -13,7 +13,6 @@ function makeStatus(over: Partial<CVUploadPolledStatus> = {}): CVUploadPolledSta
   return {
     status: "processing",
     skills_detected: null,
-    score: null,
     error_code: null,
     error_detail: null,
     xp_charged: 200,
@@ -46,7 +45,6 @@ test("processing → done resolves with status payload", async () => {
     makeStatus({
       status: "done",
       skills_detected: 7,
-      score: 71.5,
       redirect_to: "/onboarding/score",
       new_coin_balance: 2800,
     }),
@@ -60,7 +58,8 @@ test("processing → done resolves with status payload", async () => {
 
   assert.equal(idx, 3)
   assert.equal(result.skills_detected, 7)
-  assert.equal(result.score, 71.5)
+  // A polled job never carries a score — scoring waits for skill confirmation.
+  assert.equal(result.score, null)
   assert.equal(result.new_coin_balance, 2800)
   assert.equal(result.redirect_to, "/onboarding/score")
 })
@@ -71,7 +70,6 @@ test("skill extraction completes without inventing a pre-confirmation score", as
     async () => makeStatus({
       status: "done",
       skills_detected: 11,
-      score: null,
       redirect_to: "/onboarding/result",
     }),
     { sleep, intervalMs: 1, timeoutMs: 1000, now: () => 0 },
@@ -196,12 +194,12 @@ test("transient poll failures are retried until a terminal status arrives", asyn
     async () => {
       call += 1
       if (call <= 2) throw new Error("network blip")
-      return makeStatus({ status: "done", skills_detected: 9, score: 67.8, redirect_to: "/onboarding/score" })
+      return makeStatus({ status: "done", skills_detected: 9, redirect_to: "/onboarding/score" })
     },
     { sleep, intervalMs: 1, timeoutMs: 1000, now: () => 0 },
   )
 
   assert.equal(call, 3)
   assert.equal(result.skills_detected, 9)
-  assert.equal(result.score, 67.8)
+  assert.equal(result.score, null)
 })

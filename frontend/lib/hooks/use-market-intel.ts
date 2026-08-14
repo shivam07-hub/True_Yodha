@@ -33,9 +33,8 @@ export function useMarketIntel(
    *  the one answer every surface shares. */
   city: string | null,
   companySort: TopCompaniesSort = "roles",
-  // Wave-3 gate (#41 L3): must never fire on login. Until the flag is true the
-  // query stays disabled and `loading` is false (no eternal skeleton — the
-  // widget simply doesn't render yet).
+  // The Jobs page enables this only after its earlier, higher-priority reads
+  // settle. Disabled means "waiting in the automatic cascade", not "optional".
   enabled = true,
 ) {
   const companies = useQuery({
@@ -50,9 +49,8 @@ export function useMarketIntel(
     [companies.data],
   )
 
-  // Disabled with no city (isLoading=false), so this is false when there is
-  // nothing left to fetch — no skeleton that never resolves.
-  return { trending, loading: companies.isLoading }
+  const settled = enabled && (!city || companies.isSuccess || companies.isError)
+  return { trending, loading: enabled && !!city && !settled, settled }
 }
 
 /** Listings in the visible feed the community flags as possibly gone. */

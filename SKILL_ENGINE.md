@@ -120,7 +120,7 @@ provisional shortlist. Accepted consequence: a slightly-wrong fit percentage is
 visible briefly. Rejected alternative: holding jobs until judgment, which is the
 exact invariant that caused this bug.
 
-### Lock 3 — Hard vs soft is a separate axis, derived and never retyped
+### Lock 3 — Taxonomy shape and practice mode are separate axes
 
 **Corrected on build (S3).** This lock originally said soft = L1 `Physical and
 Inherent Abilities` **plus** `Communication` and `Business Communications`.
@@ -130,22 +130,25 @@ those two clusters. Calling them soft would delete real technical requirements
 from every skill gap and from company demand — worse than leaving "Body
 Language" classified hard, because it removes signal rather than adding noise.
 
-So the one list splits into two, because they answer different questions:
+The original `skill_kind` fix still protects career-family derivation, but it
+cannot answer the product question at Domain or Cluster level. Communication
+clusters are mixed. Professional skills outside the old five technical domains
+can still be objectively assessed. The practice decision therefore lives on
+each Tax-L3 Skill as `practice_mode`:
 
-| question | answer |
+| mode | current product contract |
 |---|---|
-| Is this **skill** soft? | `l1_domain = 'Physical and Inherent Abilities'` — 270 skills, all five clusters sampled and uniformly soft |
-| Is this **cluster** a career family? | the above, **plus** the two Communication clusters — "Communication" is not a job family the way "Software Development" is |
+| `levelled` | Objective L1-L5 ladder; may drive demand, gaps and matching. Includes professional skills such as Financial Accounting and Product Strategy. |
+| `scenario` | Behavioral evidence retained in a separate demand projection for future case-study practice. Never a numeric gap today. |
+| `observed` | Real hiring evidence with no current Myro practice contract. Tracked, never presented as a ladder. |
 
-**Derived from the taxonomy, never a hand-typed list.** `skills.skill_kind` is a
-STORED generated column; `non_family_clusters()` derives from it. The two
-literal names still needed are asserted at migration time, because the original
-bug was not that a list existed — it was that nobody checked its names
-resolved, and three of five named nothing.
+`skills.practice_mode` is generated from an L3 override plus a conservative
+default. Reviewed mixed-area corrections are asserted at migration time. The
+existing `skill_kind` remains a compatibility and career-family axis; it is no
+longer the authority for what Myro can teach or assess.
 
-Hard skills rank the job and drive the gap. Soft skills are captured and shown
-but never compete for a slot in "skills you're missing" and never become a
-`role_family`. We cannot teach Ingenuity; ranking it wastes the one thing we sell.
+Only levelled skills rank a job or drive a numeric gap. Scenario demand remains
+measurable without competing with the skills a user can act on now.
 
 ### Lock 4 — Importance is position × level, and `is_primary` retires
 
@@ -191,13 +194,14 @@ The sentence this produces is the Delta-4:
 No job board can write that. The delta is not the taxonomy — everyone has a
 taxonomy. The delta is the ranked, levelled, company-scoped gap.
 
-### Lock 7 — The user side splits the same way
+### Lock 7 — Learning proof changes the Main CV only by explicit user action
 
-Myro Score and the CV gap both split hard/soft. Only hard skills generate
-"learn this next". Soft skills are shown as evidence found in the CV, never as a
-deficit. One consistent mental model across job and user — a user must be able
-to predict what "a skill" means without knowing which side of the product they
-are on.
+A quiz clear writes `skill_assessed_level`; it never silently mutates
+CV-derived `user_skills`, the Myro Score, matching, or a CV claim. After a clear,
+the user can explicitly update the Main CV. Existing evidence routes through
+Mentor's evidence-backed rewrite. With no evidence pointer, Skills Refresh may
+add only that proven Skill to the skills section; it never fabricates an
+achievement bullet. The normal Main-CV save then re-tags and re-scores.
 
 ---
 
@@ -259,18 +263,19 @@ only the answer. Use `--provider local`.
 > Two readers of one work set is fine. Two definitions of the work set, or two
 > writers of one lifecycle column, is the break.
 
-**S3 — hard/soft, derived. DONE** (`a9fa56da`). `skills.skill_kind` is a STORED
+**S3 — career-family hard/soft axis. DONE** (`a9fa56da`). `skills.skill_kind` is a STORED
 generated column (270 soft / 34,844 hard); `non_family_clusters()` derives the
 career-family exclusion and asserts its two literal names resolve. 1,233 jobs
 repaired to 0 mis-filed — 985 to a real family, 248 legitimately NULL. The count
 was 1,056 when this doc was written and 1,233 by the time it was fixed, because
-S1's backfill wrote 5,287 new families through the same broken function.
+S1's backfill wrote 5,287 new families through the same broken function. This
+axis is not the L3 practice contract; `practice_mode` owns ladder eligibility.
 
 **S4 — importance. DONE** (`7fc2417e`). Score is
 `sum(required_level * min(user_level/required_level, 1)) / sum(required_level)`.
 One formula in `job_matcher.score_wanted`, called by the batch matcher,
 `on_demand`, feed_warm and the pre-login preview — they previously held three
-copies. Soft skills excluded from both sides.
+copies. Non-levelled skills are excluded from both sides.
 ⚠️ **`is_primary` is NOT deleted.** Six consumers outside matching still read it
 (gap_plan, skills_refresh, analyse, detail, upskilling, a demand rollup), each
 with its own ordering semantics. That removal is its own slice.

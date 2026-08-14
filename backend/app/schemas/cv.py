@@ -74,7 +74,10 @@ class CVUploadStatusResponse(BaseModel):
     result_payload: dict | None = None
     baseline_version_id: int | None = None
     skills_detected: int | None = None
-    score: float | None = None
+    # No score here. Scoring waits for skill confirmation (a6425b46), which happens
+    # after the job is done, so a polled job never has one. The score lives in
+    # mirror_scores; the synchronous cache-hit response is the only upload reply
+    # that can carry one, and it reads it from there.
     error_code: str | None = None
     error_detail: str | None = None
     xp_charged: int = 0

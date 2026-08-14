@@ -10,8 +10,12 @@ Domain glossary for Mirror, the Intelligence-as-a-Service platform for job seeke
 | **Cluster** | A Tax-L2 grouping of related Skills. | sub-skill, l2_cluster |
 | **Domain** | A Tax-L1 grouping of related Clusters. | category, l1_domain |
 | **Taxonomy** | The Lightcast hierarchical skill graph: Domain to Cluster to Skill. | ontology, skill tree |
+| **Practice Mode** | L3 contract for how Myro may practise a Skill: `levelled`, `scenario`, or `observed`. Independent of Domain and Cluster. | technical flag, soft flag |
+| **Levelled Skill** | A Skill with an objective L1-L5 assessment contract; eligible for Learning, numeric gaps, demand ladders and matching. | hard skill, technical-only skill |
+| **Scenario Skill** | A behavioral Skill tracked as hiring evidence for future case-study practice, never as a current numeric gap. | soft-skill ladder |
 | **Signal** | One piece of CV evidence for a Skill: `mention`, `project`, `impact`, `leadership`, `certification`, or `years_experience`. | tag, hit, match |
 | **Proficiency Level** | Integer 0-5 inferred from Signals. Titles: 0 None, 1 Scout, 2 Trailblazer, 3 Excavator, 4 Cartographer, 5 Legend. | grade, rank |
+| **Assessed Level** | Integer 0-5 proven by a Learning assessment and stored in `skill_assessed_level`. It does not silently alter CV evidence, matching, or the Mirror Score. | CV level, matched level |
 | **Single-Step Rule** | A user can only target one Proficiency Level above their current level for any Skill. | level skip, jump-grade |
 | **Days-to-Close** | The fixed time budget to move a single Skill from level N to N+1. | level cost, upgrade time |
 | **Session** | One bounded deep-work block in the Diary's DeepFocusTimer. | pomodoro |
@@ -54,7 +58,8 @@ Domain glossary for Mirror, the Intelligence-as-a-Service platform for job seeke
 
 | Term | Definition | Aliases to avoid |
 |------|------------|------------------|
-| **Baseline CV** | The user's most recent uploaded CV text. | original CV, master CV |
+| **Baseline CV** | Immutable uploaded CV evidence used as an audit/reference snapshot. | Main CV, current CV |
+| **Main CV** | The user's living, editable CV source. Explicit accepted edits autosave, re-tag and re-score it. | Baseline CV, CV Variant |
 | **CV Variant** | A per-Job tailored CV. | tailored CV, job CV |
 | **Deterministic CV** | Programmatically built CV text on a CV Variant. | template CV |
 | **Polished CV** | LLM-rewritten Deterministic CV after passing the Quality Gate. | AI CV, generated CV |
@@ -108,6 +113,7 @@ Carve-outs that intentionally keep their old word:
 
 - A User uploads one or more Baseline CVs; only the latest is referenced for scoring and CV Variants.
 - A Baseline CV produces Signals; Signals aggregate by Skill into a Proficiency Level.
+- A Learning clear produces an Assessed Level. Only an explicit user action may promote that proof into the Main CV.
 - Proficiency Levels compute one Mirror Score with Domain Scores and Cluster Scores.
 - A User plus Job creates an Application.
 - An Application has Skill Targets and Milestones.
@@ -123,4 +129,3 @@ Carve-outs that intentionally keep their old word:
 4. **Confidence is overloaded.** Use CV Confidence Label or Milestone Confidence.
 5. **Impact is overloaded.** Use Signal type `impact` or Milestone Impact.
 6. **Skill Target vs Aspiration Skill.** Skill Target is user-chosen per Job; Aspiration Skill is system-derived.
-

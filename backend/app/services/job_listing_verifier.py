@@ -25,6 +25,7 @@ _ATS_HOSTS = {
     "oracle": ("oraclecloud.com",),
     "successfactors": ("successfactors.com",),
 }
+_LOCALE_SEGMENT = re.compile(r"^[a-z]{2}(-[a-zA-Z]{2})?$")
 
 
 @dataclass(frozen=True)
@@ -55,6 +56,41 @@ def provider_for_url(url: str) -> str:
     return "generic"
 
 
+def _workday_site_is_addressed(url: str) -> bool:
+    """True when a Workday URL names the tenant *site* that routes to a listing.
+
+    Canonical shape is ``<tenant>.<pod>.myworkdayjobs.com/[locale/]<site>/job/…``
+    — e.g. ``/AccentureCareers/job/Chennai/Custom-Software-Engineer_ATCI-…``.
+    Drop ``<site>`` and the path starts at ``/job/``, which no longer addresses a
+    listing on any site; the tenant router answers 404 for it unconditionally.
+    """
+    segments = [segment for segment in urlparse(url).path.split("/") if segment]
+    if segments and _LOCALE_SEGMENT.match(segments[0]):
+        segments = segments[1:]
+    return len(segments) >= 2 and segments[0] != "job"
+
+
+_ADDRESSABILITY_CHECKS = {"workday": _workday_site_is_addressed}
+
+
+def ats_url_is_addressable(url: str, provider: str | None = None) -> bool:
+    """False only when the URL provably cannot reach a listing on this ATS.
+
+    A response is evidence about a job only if the request could have reached
+    that job. A malformed apply URL fails identically for every row that carries
+    it, so the ATS's uniform 404 gets read as a per-job death certificate — the
+    company-shaped clustering is just the shape of the defect. That is how one
+    batch produced 3,222 strong-closed Workday verdicts across 41 companies,
+    1,832 of them Accenture, every one on a URL missing its site segment. Restore
+    the segment and the same URLs answer 200.
+
+    Providers with no registered check stay addressable: this gate fires on a
+    defect we can demonstrate, never on a shape we merely do not recognise.
+    """
+    check = _ADDRESSABILITY_CHECKS.get(provider or provider_for_url(url))
+    return check is None or check(url)
+
+
 def classify_listing_response(
     target: VerificationTarget,
     *,
@@ -64,6 +100,11 @@ def classify_listing_response(
 ) -> VerificationResult:
     provider = provider_for_url(target.apply_url)
     evidence = {"status_code": status_code, "final_url": final_url}
+    if not ats_url_is_addressable(target.apply_url, provider):
+        # Gate the whole classifier, not just the 404 branch: nothing this URL
+        # returns describes the listing, so no status code may reach a verdict.
+        evidence["reason"] = "ats_site_segment_missing"
+        return _result(target, "unroutable", "weak", provider, evidence)
     if status_code in {401, 403, 429}:
         return _result(target, "blocked", "weak", provider, evidence)
     if status_code in {404, 410}:

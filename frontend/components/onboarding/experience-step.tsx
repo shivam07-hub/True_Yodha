@@ -11,12 +11,13 @@ interface Props {
   error: string | null
   progressPct?: number | null
   onUpload: (file: File) => void
+  onReject?: (rejection: { file: File; code: string; message: string }) => void
   onDescribe: (description: string) => void
   /** Guided questions, for someone who opened the box and had nothing to type. */
   onGuideMe: () => void
 }
 
-export function ExperienceStep({ busy, error, progressPct = null, onUpload, onDescribe, onGuideMe }: Props) {
+export function ExperienceStep({ busy, error, progressPct = null, onUpload, onReject, onDescribe, onGuideMe }: Props) {
   const [describing, setDescribing] = useState(false)
   const [description, setDescription] = useState("")
   const words = description.trim().split(/\s+/).filter(Boolean).length
@@ -25,7 +26,7 @@ export function ExperienceStep({ busy, error, progressPct = null, onUpload, onDe
     // `showSteps={false}`: onboarding's rail is `JourneyProgress`, rendered by the
     // page above this. Two rails on consecutive screens made progress look like
     // it reset when the user moved from upload to review.
-    <CVUploadStep busy={busy} error={error} progressPct={progressPct} inputSource="onboarding_upload" showSteps={false} onUpload={onUpload}>
+    <CVUploadStep busy={busy} error={error} progressPct={progressPct} inputSource="onboarding_upload" showSteps={false} onUpload={onUpload} onReject={onReject}>
       {describing && (
         <div className="mt-5">
           <label htmlFor="experience-description" className="text-sm font-medium text-[var(--tm-text)]">Describe your experience instead</label>

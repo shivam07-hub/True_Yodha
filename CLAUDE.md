@@ -82,6 +82,7 @@ worker. A test upload on dev writes to production data. Full map: [INFRA.md](INF
 | Locked decisions + data model | [DECISIONS.md](DECISIONS.md) |
 | Servers, domains, env, DNS, deploy order | [INFRA.md](INFRA.md) |
 | Open work, in full | [BACKLOG.md](BACKLOG.md) |
+| One Myro voice + one memory writer · next session's brief | [MYRO_MENTOR.md](MYRO_MENTOR.md) |
 | A read's cost budget · how to diagnose one | [ARCHITECTURE_READ_PATH.md](ARCHITECTURE_READ_PATH.md) · [READ_PATH_PLAYBOOK.md](READ_PATH_PLAYBOOK.md) |
 | Closed work, past sessions, history | [ARCHIVE.md](ARCHIVE.md) |
 | Domain language and code seams | [CONTEXT.md](CONTEXT.md) |
@@ -110,23 +111,26 @@ Derived from the goal above. Detail for each: [BACKLOG.md](BACKLOG.md).
 large company pages 500. Fixes for both are on `Develop`, tested, waiting. Every
 other stage-one item is measured on a site that is currently broken.
 
-**2. Prove the score works end-to-end.** *Not verified.*
-No score was saved for ANY user for three days (2026-07-31 → 08-03). The cause
-is fixed, but nobody has signed up since, so the fix has never actually run.
-One real signup closes this. Until then it is a hope, not a fix.
+**2. Make upload and download reliable.** *Open — two silent failures closed.*
+`033c9403` closed the two that left no trace: a rejected `/cv/upload/finalize`
+threw without a phase event (and writes no job row, so the trail ended at "put
+succeeded"), and the preflight accepted the 76-byte cloud-placeholder stub
+Drive/OneDrive hand the picker. Left: resume parity between the onboarding and
+CV routes, real progress, weak-network testing, user confirmation. **Four users
+have a CV in storage and nothing else** — `8459faec`, `f39204cb`, `8b27e6e6`,
+`477051ff` (2026-08-14). Reachable, and worth an email.
 
-**3. Make upload and download reliable.** *Open.*
-Upload is the front door and it still fails on weak networks. What is left:
-resume parity between the onboarding and CV routes, real progress, weak-network
-testing, and confirmation from the users who hit it.
+⚠️ **Score lives in `mirror_scores`.** Scoring waits for skill confirmation
+(`a6425b46`), so a finished upload job has none — `cv_upload_jobs.score` and its
+readers were deleted in `e4ffc983`. A polled upload carries no score by design.
 
-**4. Fix the phone.** *Verified open — blocks the app store build.*
+**3. Fix the phone.** *Verified open — blocks the app store build.*
 Seven screens — CV, Prep, Skills, Coin guide, Intel, Settings, footer — are
 still desktop layouts on a phone. The CV screen is one of them, so stage one is
 broken on mobile. Also: nobody has opened the rebuilt mobile app on a real phone
 while logged in.
 
-**5. Make it fast enough to feel trustworthy.** *#16 software slices closed;
+**4. Make it fast enough to feel trustworthy.** *#16 software slices closed;
 capacity acceptance blocked on paid DB compute.* The 2026-08-13 pass removed
 secondary Market reads from J0, collapsed feed context, single-flighted cold
 fills, repaired the verifier's cache-evicting claim query, and moved full job

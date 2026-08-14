@@ -32,8 +32,10 @@ retrieval: default | on_demand
    aspirations, seniority, and supported locations. Job liveness is shown only
    from verifier evidence.
 3. **Upskilling** follows demand grounded in live jobs and the user's target.
-   Learning assessments write `skill_assessed_level`, never CV-derived
-   `user_skills`, job matching, or the Myro Score.
+   Learning assessments write `skill_assessed_level`; they never silently alter
+   CV-derived `user_skills`, job matching, or the Myro Score. A user may
+   explicitly promote a cleared level to the Main CV: Mentor rewrites existing
+   evidence, or Skills Refresh adds only the assessed Skill to `skills_line`.
 4. **Paths forward** are specific next actions: improve CV proof, prepare a
    saved job, or complete a source-grounded learning step.
 
@@ -53,7 +55,8 @@ retrieval: default | on_demand
   levels now advance from Upskilling quiz clears. Never reintroduce a timer
   from an old note without a new product decision.
 - **Learning content:** active questions require the source-grounded serving
-  contract. Learning truth remains separate from CV and matching truth.
+  contract. Learning truth remains separate from CV and matching truth until a
+  user explicitly accepts a Main-CV update through the existing review path.
 
 ## Historical material
 

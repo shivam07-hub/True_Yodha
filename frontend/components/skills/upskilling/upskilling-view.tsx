@@ -11,7 +11,7 @@ import { upskilling, users, type DemandBand, type ReadinessRow, type SkillUpvote
 import { Button } from "@/components/ui/button"
 import type { PracticeSkills } from "@/lib/practice-skills"
 import { dataKeys } from "@/lib/domain-data"
-import { mentorRewriteHref } from "@/lib/practice-mentor-handoff"
+import { cvUpgradeHref } from "@/lib/practice-mentor-handoff"
 import { useParticleMoment } from "@/components/particle"
 import type { SkillIntelStats } from "@/lib/skill-domains"
 import { ForgeContextBar } from "./forge-bar"
@@ -269,9 +269,8 @@ export function UpskillingView({
         elapsedSeconds,
         prevBestSeconds,
         newBest,
-        mentorHref: res.passed ? mentorRewriteHref({
+        cvHref: res.passed ? cvUpgradeHref({
           skill: quiz.skill.name,
-          jobId: quiz.originJobId,
           hasCvEvidence: quiz.skill.hasCvEvidence,
         }) : null,
       })

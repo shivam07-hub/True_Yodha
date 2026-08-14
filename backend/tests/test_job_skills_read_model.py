@@ -388,6 +388,71 @@ def test_get_user_skill_demand_snapshot_scopes_to_current_user_skills() -> None:
     assert by_skill["SQL"]["weighted_demand"] == 1
 
 
+def test_assessed_level_enters_reviewable_cv_inventory_without_scenario_skills() -> None:
+    db = _FakeDB({
+        "user_skills": [
+            {
+                "user_id": "u1",
+                "matched_level": 2,
+                "proficiency_title": "Trailblazer",
+                "skills": {
+                    "id": 1,
+                    "taxonomy_key": "SQL",
+                    "display_name": "SQL",
+                    "practice_mode": "levelled",
+                },
+            },
+        ],
+        "skill_assessed_level": [
+            {
+                "user_id": "u1",
+                "assessed_level": 4,
+                "skills": {
+                    "id": 1,
+                    "taxonomy_key": "SQL",
+                    "display_name": "SQL",
+                    "practice_mode": "levelled",
+                },
+            },
+            {
+                "user_id": "u1",
+                "assessed_level": 3,
+                "skills": {
+                    "id": 2,
+                    "taxonomy_key": "Product Strategy",
+                    "display_name": "Product Strategy",
+                    "practice_mode": "levelled",
+                },
+            },
+            {
+                "user_id": "u1",
+                "assessed_level": 5,
+                "skills": {
+                    "id": 3,
+                    "taxonomy_key": "Communication",
+                    "display_name": "Communication",
+                    "practice_mode": "scenario",
+                },
+            },
+        ],
+        "job_skills": [
+            {"skill_id": 1, "is_primary": True},
+            {"skill_id": 2, "is_primary": False},
+            {"skill_id": 3, "is_primary": True},
+        ],
+    })
+
+    by_skill = {
+        row["skill"]: row
+        for row in JobsRepository(db).get_user_skill_demand_snapshot("u1")
+    }
+
+    assert set(by_skill) == {"SQL", "Product Strategy"}
+    assert by_skill["SQL"]["current_level"] == 4
+    assert by_skill["SQL"]["proficiency_title"] == "Cartographer"
+    assert by_skill["Product Strategy"]["current_level"] == 3
+
+
 def test_get_user_skill_demand_snapshot_falls_back_when_rpc_unavailable() -> None:
     # Before the migration is applied the RPC 404s — the row-scan fallback must
     # produce identical counts so the backend is correct either way.
@@ -621,15 +686,14 @@ def test_fetch_job_skill_rows_via_rpc_adapts_flat_rows() -> None:
         {"job_id": "j1", "is_primary": False, "taxonomy_key": "sql"},
     ])
     result = fetch_job_skill_rows_via_rpc(mock_db, ["j1"])
-    # required_level and skill_kind ride along for the matcher (S4): is_primary
-    # is TRUE on 94.2% of prod rows and carries no signal.
+    # required_level and practice_mode ride along for matching and gaps.
     assert result == [
         {"job_id": "j1", "is_primary": True, "required_level": None,
-         "skills": {"taxonomy_key": "python", "skill_kind": None}},
+         "skills": {"taxonomy_key": "python", "practice_mode": None, "skill_kind": None}},
         {"job_id": "j1", "is_primary": False, "required_level": None,
-         "skills": {"taxonomy_key": "sql", "skill_kind": None}},
+         "skills": {"taxonomy_key": "sql", "practice_mode": None, "skill_kind": None}},
     ]
-    mock_db.rpc.assert_called_once_with("fetch_job_skills_by_job_ids", {"job_ids": ["j1"]})
+    mock_db.rpc.assert_called_once_with("fetch_job_skills_by_job_ids_v2", {"job_ids": ["j1"]})
 
 
 def test_fetch_job_skill_rows_routes_through_rpc_when_job_ids_provided() -> None:
@@ -651,7 +715,7 @@ def test_fetch_job_skill_rows_large_list_uses_rpc_not_in_filter() -> None:
     mock_db.rpc.return_value.execute.return_value = _Result([])
     result = fetch_job_skill_rows(mock_db, job_ids=job_ids)
     assert result == []
-    mock_db.rpc.assert_called_once_with("fetch_job_skills_by_job_ids", {"job_ids": job_ids})
+    mock_db.rpc.assert_called_once_with("fetch_job_skills_by_job_ids_v2", {"job_ids": job_ids})
     mock_db.table.assert_not_called()
 
 
@@ -672,7 +736,7 @@ def test_fetch_job_skill_rows_falls_back_to_chunked_on_rpc_failure() -> None:
 def test_fetch_job_skill_rows_disables_rpc_after_missing_signature_error() -> None:
     fake_db = _FakeDB({"job_skills": []})
     missing_exc = Exception(
-        "PGRST202: Could not find the function public.fetch_job_skills_by_job_ids(job_ids) in the schema cache"
+        "PGRST202: Could not find the function public.fetch_job_skills_by_job_ids_v2(job_ids) in the schema cache"
     )
 
     job_skills_module._rpc_disabled_for_process = False
@@ -703,8 +767,10 @@ def test_get_job_skills_returns_required_level_from_db() -> None:
     """required_level present in DB → returned as-is, no heuristic."""
     meta_result = _Result({"job_id": "j1", "job_title": "Engineer", "company_name": "Acme"})
     skill_result = _Result([
-        {"is_primary": True, "required_level": 3, "skills": {"taxonomy_key": "python"}},
-        {"is_primary": False, "required_level": 1, "skills": {"taxonomy_key": "excel"}},
+        {"is_primary": True, "required_level": 3,
+         "skills": {"taxonomy_key": "python", "practice_mode": "levelled"}},
+        {"is_primary": False, "required_level": 1,
+         "skills": {"taxonomy_key": "communication", "practice_mode": "scenario"}},
     ])
 
     mock_db = Mock()
@@ -718,8 +784,9 @@ def test_get_job_skills_returns_required_level_from_db() -> None:
     by_key = {s["taxonomy_key"]: s for s in result["skills"]}
     assert by_key["python"]["required_level"] == 3
     assert by_key["python"]["is_primary"] is True
-    assert by_key["excel"]["required_level"] == 1
-    assert by_key["excel"]["is_primary"] is False
+    assert by_key["communication"]["required_level"] == 1
+    assert by_key["communication"]["is_primary"] is False
+    assert by_key["communication"]["practice_mode"] == "scenario"
 
 
 def test_get_job_skills_required_level_fallback_when_null() -> None:

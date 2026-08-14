@@ -33,9 +33,11 @@ _MAX_TURNS = 12  # bound the conversation the model sees
 MAX_ROLES = onboarding_service.MAX_TARGET_ROLES
 
 _SYSTEM = (
-    "You are Myro's job-search concierge. The candidate isn't finding jobs they "
-    "like; your job is to understand what they actually want and adjust their "
-    "search filters.\n"
+    "You are Myro's job-search concierge. Your job is to understand what the "
+    "candidate actually wants and shape their search around it.\n"
+    "You are reached from two places and the job is the same in both: BEFORE a "
+    "Myro Search, where they are telling you what they want, and after a feed "
+    "that disappointed them, where they are telling you what was wrong.\n"
     "RULES:\n"
     "- Ask at most ONE focused question per reply. Never dump a list of questions "
     "or read like a form. Warm, short, human.\n"
@@ -53,8 +55,15 @@ _SYSTEM = (
     '     {"add_roles": [titles to add], "remove_roles": [titles to drop], '
     '"locations": [replacement target locations] or [], "seniority": one of '
     '"intern|entry|mid|senior|lead|executive" or null, "work_mode": '
-    '"remote|hybrid|onsite" or null, "salary": short text or null}\n'
-    "Leave arrays empty and scalars null when a field isn't changing."
+    '"remote|hybrid|onsite" or null, "salary": short text or null, '
+    '"deal_breakers": [things they will not accept] or [], "career_goal": '
+    'where they want to be, in their words, or null, "superpower": what they '
+    'are unusually good at, in their words, or null}\n'
+    "Leave arrays empty and scalars null when a field isn't changing.\n"
+    "- deal_breakers / career_goal / superpower are the three inputs the run uses "
+    "that a form asks for and most people cannot answer cold. Fill them from what "
+    "they SAY, in their own words — never from what you assume a person like them "
+    "would want."
 )
 
 
@@ -145,9 +154,16 @@ def _coerce_diff(diff: Any) -> dict[str, Any] | None:
         "seniority": (_scalar("seniority", {"intern", "entry", "mid", "senior", "lead", "executive"}) or "").lower() or None,
         "work_mode": (_scalar("work_mode", {"remote", "hybrid", "onsite"}) or "").lower() or None,
         "salary": _scalar("salary"),
+        # The three the pre-flight form asks for and most people cannot answer
+        # cold. Without them a conversation could fill only two of the modal's five
+        # editable rows, which is not "tell Myro what you want" — it is a filter
+        # tweak wearing that label.
+        "deal_breakers": _titles("deal_breakers"),
+        "career_goal": _scalar("career_goal"),
+        "superpower": _scalar("superpower"),
     }
     # A diff with nothing actionable is not a diff.
-    if not any(coerced[k] for k in ("add_roles", "remove_roles", "locations", "seniority", "work_mode", "salary")):
+    if not any(coerced.values()):
         return None
     return coerced
 
@@ -196,5 +212,25 @@ def apply_diff(db: Client, user_id: str, diff: dict[str, Any]) -> dict[str, Any]
     if diff.get("salary"):
         mem.add(user_id, kind="salary", text=diff["salary"], source="distilled")
         changed["salary"] = diff["salary"]
+
+    # The three pre-flight inputs. Applied HERE too, not just in the modal's draft:
+    # the concierge can now propose them on either surface, and a field that a
+    # reply proposes but an apply silently drops is the half-behaviour this
+    # codebase keeps paying for. `constraint` / `aspiration` are the kinds
+    # `matching/targeting.py` already maps back onto deal_breakers / career_goal,
+    # so this writes into the shape the Targeting Brief reads — it does not invent
+    # a fourth store.
+    for text in diff.get("deal_breakers") or []:
+        mem.add(user_id, kind="constraint", text=text, source="distilled")
+    if diff.get("deal_breakers"):
+        changed["deal_breakers"] = diff["deal_breakers"]
+    if diff.get("career_goal"):
+        mem.add(user_id, kind="aspiration", text=diff["career_goal"], source="distilled")
+        changed["career_goal"] = diff["career_goal"]
+    if diff.get("superpower"):
+        # No clean memory kind (targeting.py: "superpower — column-only, stays
+        # manual"), so it rides as a note rather than being dropped on the floor.
+        mem.add(user_id, kind="note", text=f"Superpower: {diff['superpower']}", source="distilled")
+        changed["superpower"] = diff["superpower"]
 
     return changed

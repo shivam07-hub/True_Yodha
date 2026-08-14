@@ -221,6 +221,8 @@ def test_job_fit_preview_computes_role_specific_fit(monkeypatch: pytest.MonkeyPa
                     {"taxonomy_key": "python", "is_primary": True, "required_level": 4},
                     {"taxonomy_key": "rust", "is_primary": True, "required_level": 4},
                     {"taxonomy_key": "sql", "is_primary": False, "required_level": 2},
+                    {"taxonomy_key": "communication", "is_primary": True,
+                     "required_level": 4, "practice_mode": "scenario"},
                 ],
             }
 

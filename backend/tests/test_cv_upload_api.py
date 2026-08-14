@@ -351,7 +351,6 @@ def test_background_run_marks_done_on_success(monkeypatch) -> None:
         {
             "job_id": "job-1",
             "skills_detected": 1,
-            "score": None,
             "baseline_version_id": 1,
             "result_payload": {
                 "extraction": {"llm_model": "provider/strong", "llm_elapsed_ms": 91},
@@ -509,7 +508,6 @@ def test_status_endpoint_returns_polled_row(monkeypatch) -> None:
             "id": job_id,
             "status": "done",
             "skills_detected": 5,
-            "score": 64.2,
             "error_code": None,
             "error_detail": None,
             "xp_charged": 200,
@@ -531,7 +529,9 @@ def test_status_endpoint_returns_polled_row(monkeypatch) -> None:
     assert res.status_code == 200
     body = res.json()
     assert body["status"] == "done"
-    assert body["score"] == 64.2
+    # A polled job carries no score — scoring waits for skill confirmation, which
+    # is where redirect_to sends the user.
+    assert "score" not in body
     assert body["new_coin_balance"] == 2800
     assert body["redirect_to"] == "/onboarding/result"
 

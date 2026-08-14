@@ -73,6 +73,18 @@ def test_caps_additions():
     assert len(out["added"]) == csr.MAX_ADDITIONS
 
 
+def test_focus_skill_adds_only_the_user_selected_assessment():
+    inventory = [
+        _inv("sql", "SQL", level=3, demand=20),
+        _inv("python", "Python", level=4, demand=50),
+    ]
+
+    out = csr.build_proposal("Excel", inventory, focus_skill="SQL")
+
+    assert [a["display_name"] for a in out["added"]] == ["SQL"]
+    assert "Python" not in out["proposed_skills_line"]
+
+
 # ── ordering: no-JD demand ranking ───────────────────────────────────────────────
 
 def test_no_jd_primary_band_is_top_demand():

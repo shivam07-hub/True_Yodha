@@ -39,7 +39,7 @@ CLEAR_ACTION = "upskilling_clear"
 # different user can earn their own first clear. The PRD's ref_id=attempt_id
 # text predates this refinement; attempt ids only dedupe one attempt's retries.
 CLEAR_REF_TABLE = "skill_level_clear"
-SKILL_DISPLAY_COLUMNS = "id, taxonomy_key, display_name"
+SKILL_DISPLAY_COLUMNS = "id, taxonomy_key, display_name, practice_mode"
 SNAPSHOT_TABLE = "quiz_attempt_question_snapshots"
 
 
@@ -81,6 +81,16 @@ def _is_servable_question(row: dict) -> bool:
 
 def _servable_questions(rows: list[dict]) -> list[dict]:
     return [row for row in rows if _is_servable_question(row)]
+
+
+def _is_levelled_skill(row: dict) -> bool:
+    """Deploy-safe L3 practice boundary.
+
+    Old test fixtures and a pre-migration deployment have no field, so absence
+    temporarily retains the former behavior. Once the migration lands every
+    real taxonomy row carries a generated, non-null practice_mode.
+    """
+    return (row.get("practice_mode") or "levelled") == "levelled"
 
 
 def _clear_ref_id(skill_id: int, level: int) -> str:
@@ -198,9 +208,15 @@ def list_skills(user_id: str) -> list[dict]:
     name_rows = (
         admin.table("skills").select(SKILL_DISPLAY_COLUMNS).in_("id", skill_ids).execute()
     ).data or []
+    levelled_rows = [row for row in name_rows if _is_levelled_skill(row)]
+    levelled_ids = {int(row["id"]) for row in levelled_rows}
+    bank = {skill_id: levels for skill_id, levels in bank.items() if skill_id in levelled_ids}
+    if not bank:
+        return []
+    skill_ids = list(bank.keys())
     names = {
         int(r["id"]): (r.get("display_name") or r.get("taxonomy_key") or "")
-        for r in name_rows
+        for r in levelled_rows
     }
 
     # Per-user assessed + legacy levels.
@@ -252,6 +268,19 @@ def list_skills(user_id: str) -> list[dict]:
 
 def start_set(user_id: str, skill_id: int, level: int) -> dict:
     admin = get_supabase_admin()
+
+    skill_result = (
+        admin.table("skills")
+        .select(SKILL_DISPLAY_COLUMNS)
+        .eq("id", skill_id)
+        .maybe_single()
+        .execute()
+    )
+    if not skill_result or not skill_result.data or not _is_levelled_skill(skill_result.data):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This skill does not use Myro's five-level practice ladder.",
+        )
 
     pool = _servable_questions(
         (
@@ -563,12 +592,26 @@ def start_gap(
     if not keys:
         return _empty("no_gaps")
 
+    name_rows = (
+        admin.table("skills")
+        .select(SKILL_DISPLAY_COLUMNS)
+        .in_("taxonomy_key", keys)
+        .execute()
+    ).data or []
+    levelled_keys = {
+        str(row["taxonomy_key"])
+        for row in name_rows
+        if row.get("taxonomy_key") and _is_levelled_skill(row)
+    }
+    if not levelled_keys:
+        return _empty("no_bank")
+
     bank_rows = _servable_questions(
         (
             admin.table("skill_questions")
             .select("*")
             .eq("status", "active")
-            .in_("skill_key", keys)
+            .in_("skill_key", list(levelled_keys))
             .execute()
         ).data or []
     )
@@ -576,21 +619,17 @@ def start_gap(
     for q in bank_rows:
         by_key.setdefault(q["skill_key"], []).append(q)
 
-    name_rows = (
-        admin.table("skills")
-        .select(SKILL_DISPLAY_COLUMNS)
-        .in_("taxonomy_key", keys)
-        .execute()
-    ).data or []
     names = {
         r["taxonomy_key"]: (r.get("display_name") or r["taxonomy_key"])
-        for r in name_rows
+        for r in name_rows if r.get("taxonomy_key") in levelled_keys
     }
 
     served: list[dict] = []
     all_qids: list[int] = []
     drawn_questions: list[dict] = []
     for r in gaps:
+        if r["skill_key"] not in levelled_keys:
+            continue
         pool = by_key.get(r["skill_key"], [])
         if not pool:
             continue

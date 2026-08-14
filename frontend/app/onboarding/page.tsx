@@ -8,6 +8,7 @@ import { JourneyProgress } from "@/components/onboarding/journey-progress"
 import {
   beginCVUpload,
   onboarding,
+  recordCVUploadPickRejected,
 } from "@/lib/api"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useOnboardingState } from "@/lib/hooks/use-onboarding-state"
@@ -102,6 +103,9 @@ export default function OnboardingPage() {
             error={error}
             progressPct={transferPct}
             onUpload={(file) => void handleUpload(file)}
+            onReject={({ file, code, message }) => {
+              if (token) recordCVUploadPickRejected(token, file, code, message)
+            }}
             onDescribe={(description) => void handleDescription(description)}
             // The generator opens from the URL, not from a stored stage. "Which
             // screen am I on" is the client's own intent here — persisting it as

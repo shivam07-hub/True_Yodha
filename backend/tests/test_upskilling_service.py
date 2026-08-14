@@ -17,6 +17,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from fastapi import HTTPException
 
 from app.services import upskilling_service
 from app.services.xp_policy import upskilling_award_for
@@ -309,6 +310,7 @@ async def test_resubmit_same_attempt_replays_without_reawarding():
 
 def test_ladder_uses_taxonomy_display_name_and_exposes_all_servable_banks():
     other_skill_id = SKILL_ID + 1
+    scenario_skill_id = SKILL_ID + 2
     bank = [
         {
             "id": level * 100 + offset,
@@ -330,6 +332,16 @@ def test_ladder_uses_taxonomy_display_name_and_exposes_all_servable_banks():
             **_reviewed_fields(900 + offset),
         }
         for offset in range(10)
+    ] + [
+        {
+            "id": 1000 + offset,
+            "skill_id": scenario_skill_id,
+            "skill_key": "communication",
+            "level": 1,
+            "status": "active",
+            **_reviewed_fields(1000 + offset),
+        }
+        for offset in range(10)
     ]
     store = {
         "skill_questions": bank,
@@ -343,7 +355,13 @@ def test_ladder_uses_taxonomy_display_name_and_exposes_all_servable_banks():
                 "id": other_skill_id,
                 "taxonomy_key": "product-strategy",
                 "display_name": "Product Strategy",
-            }
+            },
+            {
+                "id": scenario_skill_id,
+                "taxonomy_key": "communication",
+                "display_name": "Communication",
+                "practice_mode": "scenario",
+            },
         ],
         "skill_assessed_level": [
             {"user_id": "u1", "skill_id": SKILL_ID, "assessed_level": 1}
@@ -390,13 +408,35 @@ def test_ladder_uses_taxonomy_display_name_and_exposes_all_servable_banks():
 
 
 def test_skill_display_columns_match_checked_in_schema():
-    schema = (
-        Path(__file__).resolve().parents[2] / "database" / "schema.sql"
+    migration = (
+        Path(__file__).resolve().parents[2]
+        / "database/migrations/20260813180000_skill_practice_mode.sql"
     ).read_text()
     columns = getattr(upskilling_service, "SKILL_DISPLAY_COLUMNS", "")
 
-    assert columns == "id, taxonomy_key, display_name"
-    assert "display_name VARCHAR(200) NOT NULL" in schema
+    assert columns == "id, taxonomy_key, display_name, practice_mode"
+    assert "add column if not exists practice_mode text" in migration.lower()
+
+
+def test_start_set_rejects_scenario_skills_before_reading_a_question_bank():
+    store = {
+        "skills": [{
+            "id": SKILL_ID,
+            "taxonomy_key": "Communication",
+            "display_name": "Communication",
+            "practice_mode": "scenario",
+        }],
+        "skill_questions": [],
+    }
+
+    with patch(
+        "app.services.upskilling_service.get_supabase_admin",
+        return_value=_FakeAdmin(store),
+    ), pytest.raises(HTTPException) as exc:
+        upskilling_service.start_set("u1", SKILL_ID, 1)
+
+    assert exc.value.status_code == 409
+    assert "five-level" in str(exc.value.detail)
 
 
 # ── start_gap empty states (Preparations drill) ──────────────────────────────
