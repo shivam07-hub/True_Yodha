@@ -112,19 +112,17 @@ large company pages 500. Fixes for both are on `Develop`, tested, waiting. Every
 other stage-one item is measured on a site that is currently broken.
 
 **2. Make upload and download reliable.** *Open — two silent failures closed.*
-Upload is the front door. `033c9403` fixed the two that left no trace: a
-rejected `/cv/upload/finalize` threw without emitting a phase event (and writes
-no job row, so the trail ended at "put succeeded"), and the preflight accepted
-the 76-byte cloud-placeholder stub Drive/OneDrive hand the file picker. Left:
-resume parity between the onboarding and CV routes, real progress, weak-network
-testing, and confirmation from the users who hit it.
-**Four users have a CV in storage and nothing else** — `8459faec`, `f39204cb`,
-`8b27e6e6`, `477051ff` (2026-08-14). Reachable, and worth an email.
+`033c9403` closed the two that left no trace: a rejected `/cv/upload/finalize`
+threw without a phase event (and writes no job row, so the trail ended at "put
+succeeded"), and the preflight accepted the 76-byte cloud-placeholder stub
+Drive/OneDrive hand the picker. Left: resume parity between the onboarding and
+CV routes, real progress, weak-network testing, user confirmation. **Four users
+have a CV in storage and nothing else** — `8459faec`, `f39204cb`, `8b27e6e6`,
+`477051ff` (2026-08-14). Reachable, and worth an email.
 
-⚠️ **The score lives in `mirror_scores`, never on the job row.**
-`cv_upload_jobs.score` is null on every job since `a6425b46` (2026-07-20) —
-scoring waits for skill confirmation. It reads exactly like an outage. The
-column, and the three places still reading it, are dead and want deleting.
+⚠️ **Score lives in `mirror_scores`, never `cv_upload_jobs.score`** — null on
+every job since `a6425b46` made scoring wait for skill confirmation. Reads like
+a site-wide outage; it is a dead column, and its three readers want deleting.
 
 **3. Fix the phone.** *Verified open — blocks the app store build.*
 Seven screens — CV, Prep, Skills, Coin guide, Intel, Settings, footer — are
