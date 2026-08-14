@@ -120,9 +120,9 @@ CV routes, real progress, weak-network testing, user confirmation. **Four users
 have a CV in storage and nothing else** — `8459faec`, `f39204cb`, `8b27e6e6`,
 `477051ff` (2026-08-14). Reachable, and worth an email.
 
-⚠️ **Score lives in `mirror_scores`, never `cv_upload_jobs.score`** — null on
-every job since `a6425b46` made scoring wait for skill confirmation. Reads like
-a site-wide outage; it is a dead column, and its three readers want deleting.
+⚠️ **Score lives in `mirror_scores`.** Scoring waits for skill confirmation
+(`a6425b46`), so a finished upload job has none — `cv_upload_jobs.score` and its
+readers were deleted in `e4ffc983`. A polled upload carries no score by design.
 
 **3. Fix the phone.** *Verified open — blocks the app store build.*
 Seven screens — CV, Prep, Skills, Coin guide, Intel, Settings, footer — are
