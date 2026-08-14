@@ -1,17 +1,18 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import Link from "next/link"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
-import { jobs, users, type RefreshPreflightResponse, type UserProfile } from "@/lib/api"
+import { jobs, users, type IntentFilterDiff, type RefreshPreflightResponse, type UserProfile } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { formatCount } from "@/lib/format"
 import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
 import { useCoinsGate } from "@/lib/hooks/use-xp-gate"
 import { useXPStore } from "@/store/xpStore"
 import { useRefreshGateStore } from "@/store/refreshGateStore"
+import { PreflightChat } from "@/components/jobs/preflight-chat"
 
 /**
  * MatchRefreshGate — the consent + targeting-review gate for "Refresh matches".
@@ -127,6 +128,39 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const touched = useRef(false)
+
+  /** A concierge proposal → the DRAFT. Never a write: the modal's three exits
+   *  (Run / Save targeting only / Discard) stay the single commit point, so the
+   *  distiller's propose-only lock on profile columns holds and Discard still
+   *  means discard. `touched` is set so the preflight seed cannot overwrite what
+   *  the user just said out loud. */
+  const applyProposal = useCallback((diff: IntentFilterDiff) => {
+    touched.current = true
+    setDraft((d) => {
+      const dropped = new Set(diff.remove_roles.map((r) => r.toLowerCase()))
+      const kept = d.roles.filter((r) => !dropped.has(r.toLowerCase()))
+      const seen = new Set(kept.map((r) => r.toLowerCase()))
+      const roles = [...kept]
+      for (const r of diff.add_roles) {
+        if (!seen.has(r.toLowerCase())) { seen.add(r.toLowerCase()); roles.push(r) }
+      }
+      return {
+        ...d,
+        roles: roles.slice(0, MAX_CHIPS),
+        location: diff.locations[0] ?? d.location,
+        // Additive: a conversation that surfaces one new dealbreaker must not
+        // silently drop the ones already on screen.
+        dealBreakers: [
+          ...d.dealBreakers,
+          ...diff.deal_breakers.filter(
+            (b) => !d.dealBreakers.some((x) => x.toLowerCase() === b.toLowerCase()),
+          ),
+        ].slice(0, MAX_CHIPS),
+        careerGoal: diff.career_goal ?? d.careerGoal,
+        superpower: diff.superpower ?? d.superpower,
+      }
+    })
+  }, [])
 
   const dialogRef = useRef<HTMLDivElement>(null)
 
@@ -336,12 +370,21 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
             >×</button>
           </div>
           <p style={{ margin: "10px 0 0", fontSize: 12.5, color: "var(--tm-text-muted)", lineHeight: 1.55 }}>
-            Myro reads the inputs below, then scans the live market against your CV.
-            Edit anything here — it saves to your profile.
+            Tell Myro what you want, or edit it below. Then it scans the live
+            market against your CV.
           </p>
         </div>
 
-        {/* ── Manifest (refresh-specific) ──────────────────────────────── */}
+        {/* ── Conversation first, manifest as its receipt ───────────────
+            The 7 rows used to be the input. Someone who cannot phrase a
+            dealbreaker as a chip types junk, and that reaches the matcher as
+            truth. Myro asks; the rows below show what it heard and stay
+            editable. Nothing here writes — see PreflightChat. */}
+        <div style={{ padding: "16px 22px 0" }}>
+          <PreflightChat token={token} onPropose={applyProposal} />
+        </div>
+
+        {/* ── Manifest — what Myro heard, editable ──────────────────────── */}
         <div style={{ padding: "16px 22px 4px" }}>
           <ManifestRow n={1} label="Target roles">
             <ChipField

@@ -3586,6 +3586,13 @@ export interface IntentFilterDiff {
   seniority: string | null
   work_mode: string | null
   salary: string | null
+  /** The three Career-Ops inputs the Myro Search pre-flight exposes. The
+   *  concierge proposes them so a conversation can fill every row the run
+   *  actually uses — the pre-flight applies them to its DRAFT and persists only
+   *  on Run/Save. */
+  deal_breakers: string[]
+  career_goal: string | null
+  superpower: string | null
 }
 
 export interface IntentChatResponse {
