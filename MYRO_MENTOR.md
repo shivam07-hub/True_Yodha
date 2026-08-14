@@ -81,7 +81,8 @@ mentor.converse(user_id, surface, messages) -> MentorTurn
 ```
 
 - **`surface`** — `cv` | `skills` | `job_intent` | `prep`. Selects the task
-  framing and the tools available, **not** the personality. One voice, four jobs.
+  framing and the tools available, **not** the personality. One voice, four jobs
+  — and, per lock 6, one thread beneath all four.
 - **`proposals[]`** — typed, surface-specific, always propose-only. The
   pre-flight's `FilterDiff` is the existing example and the shape to follow.
 - **`learned[]`** — candidate memory facts extracted from THIS turn. This is the
@@ -110,24 +111,71 @@ That is the deletion test passing. Its interface is small (one call, three
 returns) and it hides the voice, the grounding retrieval, the proposal typing and
 the memory write behind it.
 
-### Do this first, before any code
+---
 
-`/grill-me` on the fork this creates: **does the mentor write memory on every
-turn, or only on turns the user confirms?** Every-turn is how it becomes a living
-document; confirmed-only is how it stays trustworthy. The 2026-08-13 session
-locked "propose, never persist" for the pre-flight specifically because the
-modal's Discard has to mean discard. Whether that generalises to the CV mentor —
-where there is no Discard and the conversation IS the product — is not decided
-and must not be decided by whoever writes the code first.
+## 2b. GRILL-LOCKED 2026-08-14 · seven decisions
+
+Settled with Shivam. Not open again without a reason.
+
+**First, the measurement that reframed it.** Of **520** users: **25** clear the
+canvas's signal gate, **4** hold any memory fact, **2** a career goal, **1** a
+deal-breaker, **1** a persona canvas (written 2026-07-25, never since). But
+**72** confirmed a direction at onboarding's `target-confirm`. Myro does not
+have a rendering problem for 516 of these people — it has never asked them
+anything. Reach, not layout, chooses where this starts.
+
+Second: **the paragraph already exists.** `PersonaCanvas` — "What Myro knows
+about you", three movements, judgment-tier, edits pinned through regeneration.
+It is not built from nothing; it is built from something almost nobody has.
+
+1. **One document, not two.** A fourth movement — **IV · What you're looking
+   for** — joins the canvas and holds wants, won't-takes and target companies.
+   Biography and targeting change at very different rates; they still share one
+   name, one voice and one writer, because a user has one Myro.
+
+2. **Onboarding asks.** `target-confirm` already proposes from the CV and takes
+   a correction — 72 users deep, 18× anything else. It grows to capture the
+   wants/won't-takes axis. The mentor refines from there, on every surface.
+
+3. **Structure is truth; prose is the view.** Typed values are stored and read;
+   the paragraph is rendered from them. **The matcher never parses prose** — a
+   verdict caches permanently per (user, job), so a mis-parse is unfixable, and
+   we have already paid for that once (70% memory-blind verdicts, 2026-08-13).
+
+4. **The sentence is the interface.** The pre-flight's six form sections are
+   replaced by movement IV with its nouns as controls — tap a role to drop it,
+   tap the city to change it. Anything larger goes through Myro, which proposes
+   typed edits back. One representation; no second place the same fact lives.
+
+5. **Remember freely, confirm what it searches on.** A turn that teaches Myro
+   something lands in memory immediately — that is what makes it a living
+   document. Anything that changes what the matcher ranks on moves only after
+   the user sees it in the paragraph and accepts it. Memory generous, targeting
+   deliberate; the modal's Discard stays honest.
+
+6. **One thread, all surfaces.** Not four conversations wearing one voice. Myro
+   on the search can say "you told me yesterday you led that migration". The
+   summarisation this forces is a known cost and is owned by the mentor module.
+
+7. **Slice 1 is movement IV, true for the 72.** Below.
 
 ---
 
 ## 3. Remaining work, in order
 
-### A. Myro Mentor (the above)
-Grill first. Then: shared voice preamble → `learned[]` extraction → wire `cv` and
-`skills` surfaces → retire per-module prompts one at a time, each with a test that
-the voice contract holds.
+### A. Myro Mentor — four slices
+
+1. **Movement IV, live.** `target-confirm` captures wants + won't-takes →
+   stored structured → rendered as the inline-editable sentence, replacing the
+   pre-flight form. No mentor rebuild, no new prompts. Ships the visible half
+   against the reach that already exists.
+2. **One voice.** Shared `MYRO_VOICE` preamble; the six user-facing prompts
+   (`cv_weave`, `gap_planner`, `intent_chat_service`, `prep_brief`,
+   `job_switch_plan_service`, `reach_pack`) collapse onto it, one at a time,
+   each with a test that the voice contract holds. The parsers
+   (`role_dedup`, `job_file_parser`, …) are mechanical and stay as they are.
+3. **`learned[]`.** The `cv` and `skills` surfaces start writing what they hear.
+4. **One thread** across all four surfaces, with summarisation.
 
 ### B. R2 — precompute the ranked feed · BLOCKED ON DATA
 Instrumentation shipped (`e203d2f5`). Needs **10+ prod samples** of
