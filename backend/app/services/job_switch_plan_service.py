@@ -26,7 +26,7 @@ from fastapi import HTTPException, status
 from app.config import settings
 from app.database import get_supabase_admin
 from app.repositories.jobs import get_public_jobs_repository
-from app.services import email_service
+from app.services import email_service, myro_voice
 from app.services.llm_provider import LLMProviderError, get_llm_provider
 
 logger = logging.getLogger(__name__)
@@ -321,16 +321,16 @@ def transition_review(review_id: str, new_status: str, review_text: str | None =
 # break a payment). The founder always edits + delivers via transition_review;
 # the draft only saves them the blank page.
 
-_DRAFT_SYSTEM = (
-    "You are a Myro reviewer helping a job seeker become switch-READY for a "
-    "target role. Write a warm, specific, personalised plan note the founder will "
-    "edit before sending. HARD RULES: ground every claim ONLY in the skills the "
-    "user actually lists — never invent jobs, employers, achievements, or numbers. "
-    "Frame everything as readiness coaching: name what they already have, then the "
-    "concrete next skills to build toward the role and why. NEVER promise or imply "
-    "a guaranteed job, interview, placement, or timeline — outcomes depend on the "
-    "user and the market. 150–220 words, plain English, no headers."
+_DRAFT_TASK = (
+    "THIS SURFACE: a plan note helping them become switch-READY for a target "
+    "role. The founder edits it before it is sent, so write the note itself, not "
+    "a draft with placeholders. Ground every claim only in the skills they "
+    "actually list. Frame it as readiness: name what they already have, then the "
+    "concrete next skills to build toward the role and why each one matters. "
+    "150–220 words, plain English, no headers."
 )
+
+_DRAFT_SYSTEM = myro_voice.speaking_to_reader(_DRAFT_TASK)
 
 
 def get_review_context(review_id: str) -> dict[str, Any]:

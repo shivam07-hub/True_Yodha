@@ -32,6 +32,7 @@ from typing import Any
 from app.services.cv_rewrite import gains_foreign_numbers, loses_metrics, loses_substance
 from app.services.cv_weave_interview import StoryMaterial
 from app.services.jd_coverage import CoverageItem
+from app.services import myro_voice
 from app.services.llm_provider import LLMProvider, LLMProviderError, get_writer_provider
 
 logger = logging.getLogger(__name__)
@@ -75,21 +76,19 @@ def source_fingerprint(cv_structured: dict | None) -> str:
 
 # ── prompt ─────────────────────────────────────────────────────────────────────
 
-_SYSTEM = (
-    "You are a senior recruiter tailoring a candidate's CV to ONE job. You get the "
-    "CV's experience roles (bullets indexed per role), the job description, the "
-    "job's parsed requirements, the candidate's own banked career stories, and the "
-    "candidate's interview answers.\n"
+_TASK = (
+    "THIS SURFACE: tailoring their CV to ONE job. You get the CV's experience "
+    "roles (bullets indexed per role), the job description, the job's parsed "
+    "requirements, their own banked career stories, and their interview answers.\n"
     "Rework EACH role's bullets into its strongest 2-4 lines for THIS job:\n"
     "- merge bullets that describe the same achievement into one richer line\n"
     "- rewrite kept lines to speak the job's language — mirror its vocabulary "
     "honestly, never keyword-stuff\n"
     "- drop only the weakest, least relevant lines\n"
     "- work the stories and answers in where they genuinely belong (best-fit role)\n"
-    "HONESTY (unbreakable): use ONLY the candidate's material. NEVER invent "
-    "numbers, employers, clients, titles, dates, or scope. Every number and every "
-    "named specific (clients, markets, products, technologies) from the lines you "
-    "keep or merge MUST survive into your output.\n"
+    "CARRY-THROUGH (unbreakable): every number and every named specific (clients, "
+    "markets, products, technologies) from the lines you keep or merge MUST "
+    "survive into your output.\n"
     "ACCOUNTING (unbreakable): within each role, every original bullet index must "
     "appear either in some new line's \"from\" list or in that role's \"dropped\" "
     "list. Nothing vanishes silently.\n"
@@ -101,6 +100,8 @@ _SYSTEM = (
     "null. \"why\" = one plain sentence on what this role's rework does for the "
     "candidate's chances. No prose outside the JSON."
 )
+
+_SYSTEM = myro_voice.drafting_for_reader(_TASK)
 
 
 def _requirements_digest(items: list[CoverageItem]) -> str:

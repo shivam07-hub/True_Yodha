@@ -25,7 +25,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from app.services import reader_voice
+from app.services import myro_voice, reader_voice
 from app.services.llm_provider import LLMProvider, LLMProviderError
 from app.services.persona_signals import allowed_numbers, numbers_in, render_block
 
@@ -39,15 +39,11 @@ _MIN_SIGNALS = 2           # below this there is nothing honest to write
 _MAX_PER_MOVEMENT = 4      # pinned always kept; Myro prose trimmed to fit
 _MAX_TOKENS = 1400
 
-_SYSTEM = (
-    "You write \"What Myro knows about you\" — a living career document, "
-    "addressed to the one person who is reading it. You are writing TO them, "
-    "never ABOUT them. They are the only reader; there is no third party.\n"
-    "Voice: second person throughout. Dry, specific, unimpressed by titles. "
-    "You sound like the friend who already got the job and is reading their CV "
-    "over chai — warm, a little blunt, never flattering, never a hype-man. "
-    "The reader should finish a paragraph thinking 'that is exactly what I do' "
-    "— not 'someone has been watching me'.\n"
+# The chai line that used to live here is now myro_voice.IDENTITY — it was the
+# best statement of Myro's character in the codebase and five other prompts had
+# never seen it. This one keeps only what is true of THIS document.
+_TASK = (
+    "THIS SURFACE: \"What Myro knows about you\" — a living career document.\n"
     "Structure — exactly three movements:\n"
     "- past: where you've been. The through-line across your roles and stories.\n"
     "- present: where you stand. What you can trade on NOW — and what your "
@@ -56,7 +52,6 @@ _SYSTEM = (
     "you practise. Say these plainly; behaviour is the strongest material here.\n"
     "- future: where you're headed. The target you set + the one specific, "
     "nameable thing standing between you and it.\n"
-    + reader_voice.prompt_rules() + "\n"
     "HARD RULES:\n"
     "- Ground every claim in the numbered SIGNALS. Never invent an employer, "
     "date, metric or preference.\n"
@@ -71,6 +66,8 @@ _SYSTEM = (
     'Return ONLY JSON: {"past": [{"text": "...", "grounds": ["S1"]}], '
     '"present": [...], "future": [...]}. No prose outside the JSON.'
 )
+
+_SYSTEM = myro_voice.speaking_to_reader(_TASK)
 
 
 # ── pure core (testable without DB/LLM) ──────────────────────────────────────

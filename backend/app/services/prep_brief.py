@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import logging
 
+from app.services import myro_voice
 from app.services.jd_coverage import CoverageItem
 from app.services.llm_provider import LLMProvider, LLMProviderError
 
@@ -22,20 +23,19 @@ logger = logging.getLogger(__name__)
 _MAX_TOKENS = 1100
 _MAX_JD_CHARS = 8_000
 
-_SYSTEM_PROMPT = (
-    "You are a career coach writing a short day-of interview brief for a "
-    "candidate. You are given the job description and the candidate's own "
-    "career stories matched against the job's requirements. Strict rules:\n"
+_TASK = (
+    "THIS SURFACE: a short day-of interview brief. You are given the job "
+    "description and their own career stories matched against the job's "
+    "requirements. Strict rules:\n"
     "- Use ONLY the job description and the provided stories. Never invent "
-    "facts about the company (culture, interviewers, process, news) or about "
-    "the candidate.\n"
+    "facts about the company either — culture, interviewers, process, news.\n"
     "- Where a requirement has a matched story, build on THAT story.\n"
-    "- Name the uncovered requirements honestly — the candidate should walk in "
-    "knowing their weak spots, not surprised by them.\n"
-    "- Plain, calm, specific language. No hype, no filler.\n"
+    "- Name the uncovered requirements honestly — they should walk in knowing "
+    "their weak spots, not surprised by them.\n"
+    "- Plain, calm, specific. No hype.\n"
     "Return ONLY minified JSON with keys: snapshot (string, 2-3 sentences on "
     "what this role is really about, from the JD), leads (array of at most 3 "
-    "objects {story: string, why: string} — the candidate's strongest stories "
+    "objects {story: string, why: string} — their strongest stories "
     "to lead with and why they land for THIS role), likely_questions (array of "
     "4-6 interview questions a hiring manager would ask, derived from the "
     "stated requirements), watch_out (string, one honest line on the biggest "
@@ -43,6 +43,8 @@ _SYSTEM_PROMPT = (
     "of exactly 3 short strings: before / during / after guidance). No prose "
     "outside the JSON."
 )
+
+_SYSTEM_PROMPT = myro_voice.speaking_to_reader(_TASK)
 
 
 def _coverage_digest(rows: list[CoverageItem]) -> str:

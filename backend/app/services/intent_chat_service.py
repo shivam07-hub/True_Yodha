@@ -23,7 +23,7 @@ from supabase import Client
 
 from app.repositories.user_memory import UserMemoryRepository
 from app.repositories.users import UsersRepository
-from app.services import onboarding_service
+from app.services import myro_voice, onboarding_service
 from app.services.llm_provider import LLMProvider, LLMProviderError
 
 logger = logging.getLogger("myro.intent_chat")
@@ -32,15 +32,14 @@ _MAX_TOKENS = 500
 _MAX_TURNS = 12  # bound the conversation the model sees
 MAX_ROLES = onboarding_service.MAX_TARGET_ROLES
 
-_SYSTEM = (
-    "You are Myro's job-search concierge. Your job is to understand what the "
-    "candidate actually wants and shape their search around it.\n"
-    "You are reached from two places and the job is the same in both: BEFORE a "
-    "Myro Search, where they are telling you what they want, and after a feed "
-    "that disappointed them, where they are telling you what was wrong.\n"
+_TASK = (
+    "THIS SURFACE: you are shaping their job search. You are reached from two "
+    "places and the job is the same in both — BEFORE a Myro Search, where they "
+    "are telling you what they want, and after a feed that disappointed them, "
+    "where they are telling you what was wrong.\n"
     "RULES:\n"
     "- Ask at most ONE focused question per reply. Never dump a list of questions "
-    "or read like a form. Warm, short, human.\n"
+    "or read like a form. Short.\n"
     "- Use what you already know (their current target roles / locations / "
     "seniority below) — don't re-ask what you already have.\n"
     "- When you understand enough to improve the search, STOP asking and propose a "
@@ -48,7 +47,7 @@ _SYSTEM = (
     "- Only propose REAL changes grounded in what they said. Never invent a "
     "location or role they didn't imply.\n"
     "Return ONLY a compact JSON object, no prose outside it:\n"
-    '  "reply": your next message to the candidate (a question, or a one-line '
+    '  "reply": your next message to them (a question, or a one-line '
     "summary of the change you\\'re proposing),\n"
     '  "proposed_diff": null while still clarifying, OR an object once you propose '
     "a change:\n"
@@ -65,6 +64,8 @@ _SYSTEM = (
     "they SAY, in their own words — never from what you assume a person like them "
     "would want."
 )
+
+_SYSTEM = myro_voice.speaking_to_reader(_TASK)
 
 
 def _profile_context(profile: dict[str, Any]) -> str:

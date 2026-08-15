@@ -16,22 +16,19 @@ from __future__ import annotations
 import json
 import logging
 
+from app.services import myro_voice
 from app.services.llm_provider import LLMProvider, LLMProviderError
 
 logger = logging.getLogger(__name__)
 
 _MAX_TOKENS = 900
 
-_SYSTEM_PROMPT = (
-    "You are a career coach helping a job seeker plan referral outreach for a "
-    "specific role. You draft the messages they will send AFTER they find the "
-    "right person themselves. Strict rules:\n"
-    "- Use ONLY facts present in the candidate's CV and the job posting. Never "
-    "invent employers, job titles, metrics, dates, or achievements.\n"
+_TASK = (
+    "THIS SURFACE: referral outreach for a specific role. These are the messages "
+    "they will send AFTER they find the right person themselves.\n"
+    "- Use only facts present in their CV and the job posting.\n"
     "- NEVER invent a specific person's name. Address messages to a placeholder "
-    "like \"Hi {first name}\" — the user fills it in.\n"
-    "- Write in the candidate's own voice: first person, grounded in their real "
-    "experience, warm and concise. No corporate filler, no fabricated flattery.\n"
+    "like \"Hi {first name}\" — they fill it in.\n"
     "- India-appropriate professional tone (this is an Indian job market).\n"
     "Return ONLY minified JSON with keys: outreach_message (string, a LinkedIn "
     "connection-request note under 300 chars), referral_ask (string, a short "
@@ -40,6 +37,8 @@ _SYSTEM_PROMPT = (
     "provided — then one line on how to use that relationship). No prose outside "
     "the JSON."
 )
+
+_SYSTEM_PROMPT = myro_voice.drafting_for_reader(_TASK)
 
 
 def _cv_digest(cv_structured: dict, body_text: str) -> str:
