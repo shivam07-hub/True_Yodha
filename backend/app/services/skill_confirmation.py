@@ -141,13 +141,22 @@ def confirm_baseline_skills(
     # Handed off, not awaited. The score used to be computed inline here, which
     # cost 8.4s on prod — paid by a user whose very next screen is the direction
     # step, and that step is deliberately score-free. The work now runs while they
-    # choose, so the row exists by the time step 3 needs it, and `_heal_missing_score`
+    # choose, so the row exists by the time Market needs it, and `_heal_missing_score`
     # remains the net if the job is lost.
     onboarding_service.enqueue_score_refresh(user_id, reason="skills_confirmed")
 
+    # Slim Direction payload: skip `list_role_families` on this request (measured
+    # multi-second on a loaded DB). The Direction screen loads families itself.
+    if has_target:
+        return {
+            "next": "shortlist_processing",
+            "result": onboarding_service.get_result(db, user_id),
+        }
     return {
-        "next": "shortlist_processing" if has_target else "target",
-        "result": onboarding_service.get_result(db, user_id),
+        "next": "target",
+        "result": onboarding_service._awaiting_target_payload(
+            db, user_id, profile, baseline, include_families=False,
+        ),
     }
 
 

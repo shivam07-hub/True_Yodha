@@ -142,19 +142,25 @@ def save_target(
     body: TargetRequest,
     principal: Principal = Depends(get_principal),
 ) -> None:
-    onboarding_service.save_target(
-        get_supabase_admin(),
-        principal.id,
-        role_title=body.role_title,
-        role_titles=body.role_titles,
-        role_family=body.role_family,
-        role_families=body.role_families,
-        seniority=body.seniority,
-        location=body.location,
-        locations=body.locations,
-        avoid=body.avoid,
-        lean=body.lean,
-    )
+    try:
+        onboarding_service.save_target(
+            get_supabase_admin(),
+            principal.id,
+            role_title=body.role_title,
+            role_titles=body.role_titles,
+            role_family=body.role_family,
+            role_families=body.role_families,
+            seniority=body.seniority,
+            location=body.location,
+            locations=body.locations,
+            avoid=body.avoid,
+            lean=body.lean,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
 
 
 @router.delete("/target", status_code=status.HTTP_204_NO_CONTENT)

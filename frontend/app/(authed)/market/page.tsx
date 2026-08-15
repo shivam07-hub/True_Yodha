@@ -11,6 +11,7 @@ import { HeatmapTab } from "@/components/market/heatmap-tab"
 import { MarketJobsTab } from "@/components/market/jobs-tab"
 import { MissionHeroRail } from "@/components/mission-control/mission-hero-rail"
 import { MatchesRefreshBanner } from "@/components/jobs/matches-refresh-banner"
+import { MarketTailorCoach } from "@/components/market/market-tailor-coach"
 import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
 import { useViewport } from "@/mobile"
 import { JobsSurface } from "@/mobile/redesign/jobs-surface"
@@ -227,7 +228,9 @@ function IntelPageInner() {
             live here. Renders nothing while matches are fresh. */}
         {token && j0Settled ? <MatchesRefreshBanner token={token} /> : null}
         {activeTab === "jobs" ? (
-          <MarketJobsTab
+          <>
+            <MarketTailorCoach enabled={!!profileData?.onboarding_complete} />
+            <MarketJobsTab
             token={token ?? ""}
             hasCv={!!profileData?.has_cv}
             cvResolved={profileData !== undefined}
@@ -253,6 +256,7 @@ function IntelPageInner() {
             onDemandSettled={onDemandSettled}
             onAnalyticsSettled={onAnalyticsSettled}
           />
+          </>
         ) : (
           <HeatmapTab
             token={token ?? null}

@@ -57,11 +57,20 @@ def _patch_handoff(monkeypatch, calls: list[str], next_step: dict[str, Any] | No
         calls.append(f"enqueue:{reason}")
         return True
 
+    def _awaiting(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+        calls.append("awaiting_target")
+        return next_step if next_step is not None else {
+            "kind": "awaiting_target",
+            "families": [],
+            "ninja": {"ninja_name": "quiet-fox-9k2v", "claimed": False},
+        }
+
     def _get_result(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
         calls.append("get_result")
         return next_step if next_step is not None else {"kind": "awaiting_target"}
 
     monkeypatch.setattr(skill_confirmation.onboarding_service, "enqueue_score_refresh", _enqueue)
+    monkeypatch.setattr(skill_confirmation.onboarding_service, "_awaiting_target_payload", _awaiting)
     monkeypatch.setattr(skill_confirmation.onboarding_service, "get_result", _get_result)
     monkeypatch.setattr(
         skill_confirmation.scoring,
@@ -114,12 +123,13 @@ def test_confirmation_publishes_skills_then_hands_the_score_off(monkeypatch) -> 
     # it away and immediately GET the same thing — 8.2s of re-asking on top of the
     # 8.4s above, for one button press.
     assert result["next"] == "target"
-    assert result["result"] == {"kind": "awaiting_target", "families": []}
+    assert result["result"]["kind"] == "awaiting_target"
+    assert result["result"]["families"] == []
     # No `cv_structured` on this baseline → the CV says nothing about seniority, so
     # nothing is written. Unknown stays unknown; the direction step asks.
     # No "state" patch: the journey position is derived from these very facts now,
     # so confirming skills IS the state change — there is nothing to also record.
-    assert calls == ["confirm", "enqueue:skills_confirmed", "get_result"]
+    assert calls == ["confirm", "enqueue:skills_confirmed", "awaiting_target"]
     # Publication still strictly precedes the score being asked for.
     assert calls.index("confirm") < calls.index("enqueue:skills_confirmed")
 

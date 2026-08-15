@@ -1,13 +1,15 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { ArrowLeft, Check, Search } from "lucide-react"
-import { useQueries, useQuery } from "@tanstack/react-query"
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { StickyOnboardingActionBar } from "@/components/onboarding/sticky-action-bar"
 import { DirectionChoice } from "@/components/onboarding/direction-choice"
 import { formatCount } from "@/lib/format"
-import { onboarding, type OnboardingResult, type RoleFamily, type TargetSeniority } from "@/lib/api"
+import { dataKeys } from "@/lib/domain-data"
+import { onboarding, users as usersApi, type OnboardingResult, type RoleFamily, type TargetSeniority } from "@/lib/api"
 import { trackEvent } from "@/lib/analytics"
 import { cn } from "@/lib/utils"
 
@@ -25,6 +27,7 @@ type Props = {
 /** Both axes are plural end-to-end (`target_role_titles`, `target_locations`). */
 const MAX_ROLES = 3
 const MAX_LOCATIONS = 3
+const NAME_RE = /^[a-z0-9-]{3,32}$/
 
 const SENIORITY_LABEL: Record<Exclude<TargetSeniority, "any">, string> = {
   intern: "Internship", entry: "Entry-level", mid: "Mid-level", senior: "Senior", lead: "Lead", executive: "Executive",
@@ -69,25 +72,33 @@ function FamilyRow({ family, selected, disabled, onChoose }: {
 
 /** The targeting step is deliberately score-free: its selected cohort creates the score. */
 export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }: Props) {
-  // Seeded from what the user already chose, so stepping back here shows their
-  // direction rather than an empty form they have to reconstruct.
+  const router = useRouter()
+  const queryClient = useQueryClient()
   const [selected, setSelected] = useState<RoleFamily[]>(result.selected?.families ?? [])
   const [roleSearch, setRoleSearch] = useState("")
   const [showSearch, setShowSearch] = useState(false)
   const [locations, setLocations] = useState<string[]>(result.selected?.locations ?? [])
-  // Seeded from Myro's reading when the user has not answered this yet, so the
-  // first act here is a correction rather than composing from nothing.
   const [lean, setLean] = useState<string[]>(result.direction?.lean ?? [])
   const [avoid, setAvoid] = useState<string[]>(result.direction?.avoid ?? [])
   const [seniority, setSeniority] = useState<TargetSeniority | null>(
     result.selected?.seniority ?? result.seniority.value,
   )
+  const [ninja, setNinja] = useState(() => (result.ninja?.ninja_name ?? "").toLowerCase())
+  const [ninjaClaimed, setNinjaClaimed] = useState(() => Boolean(result.ninja?.claimed))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const searchedFamilies = useQuery({ queryKey: ["role-families", roleSearch], queryFn: () => onboarding.roleFamilies(token, roleSearch), enabled: showSearch && roleSearch.trim().length >= 2 })
-  // One query per chosen family, then merged: a user targeting two families
-  // should see the cities that hire for either, not just the first one picked.
+  // Confirm-skills may return without families so the button stays fast; load them here.
+  const bootFamilies = useQuery({
+    queryKey: ["role-families", "suggested"],
+    queryFn: () => onboarding.roleFamilies(token),
+    enabled: result.families.length === 0,
+  })
+  const searchedFamilies = useQuery({
+    queryKey: ["role-families", roleSearch],
+    queryFn: () => onboarding.roleFamilies(token, roleSearch),
+    enabled: showSearch && roleSearch.trim().length >= 2,
+  })
   const locationQueries = useQueries({
     queries: selected.map((family) => ({
       queryKey: ["role-family-locations", family.family],
@@ -107,12 +118,13 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
   })()
 
   const searching = showSearch && roleSearch.trim().length >= 2
-  // Chosen families stay visible while searching, so a pick made from search
-  // results can't scroll out of existence and look un-selected.
-  const listed = searching ? (searchedFamilies.data ?? []) : result.families
+  const suggested = result.families.length > 0 ? result.families : (bootFamilies.data ?? [])
+  const listed = searching ? (searchedFamilies.data ?? []) : suggested
   const families = [...selected, ...listed.filter((row) => !selected.some((pick) => pick.family === row.family))]
   const totalOpen = selected.reduce((sum, family) => sum + family.open_count, 0)
   const rolesFull = selected.length >= MAX_ROLES
+  const ninjaOk = ninjaClaimed || NAME_RE.test(ninja.trim())
+  const canSubmit = selected.length > 0 && Boolean(seniority) && ninjaOk && !busy
 
   function toggleFamily(family: RoleFamily) {
     setError(null)
@@ -134,17 +146,29 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
   }
 
   async function submit() {
-    if (!selected.length || !seniority || busy) return
+    if (!canSubmit || !seniority) return
     setBusy(true); setError(null)
     try {
+      if (!ninjaClaimed) {
+        const chosen = ninja.trim().toLowerCase()
+        if (!NAME_RE.test(chosen)) {
+          setError("Myro name: 3–32 characters, lowercase letters, numbers, dashes.")
+          setBusy(false)
+          return
+        }
+        const res = await usersApi.updateNinjaName(token, chosen)
+        trackEvent("ninja_name_claimed", {
+          choice: res.ninja_name === (result.ninja?.ninja_name ?? "").toLowerCase() ? "kept" : "edited",
+          surface: "direction",
+        })
+        setNinjaClaimed(true)
+        setNinja(res.ninja_name)
+      }
       await onboarding.saveTarget(token, {
         role_titles: selected.map((family) => family.label),
         role_families: selected.map((family) => family.family),
         seniority,
-        // Always sent, including `[]` — that is "Anywhere", a real choice.
         locations,
-        // Also always sent: pressing confirm with a proposed phrase still on
-        // screen is the user accepting it, and clearing one is a real answer.
         lean,
         avoid,
       })
@@ -154,9 +178,11 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
         lean_count: lean.length,
         avoid_count: avoid.length,
       })
+      await queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
       onConfirmed()
+      router.replace("/market")
     } catch (reason) {
-      setBusy(false); setError(reason instanceof Error ? reason.message : "Could not save your target.")
+      setBusy(false); setError(reason instanceof Error ? reason.message : "Could not save your direction.")
     }
   }
 
@@ -176,7 +202,7 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
           onChoose={() => toggleFamily(family)}
         />
       })}
-      {!showSearch && result.families.length === 0 && <p className="text-sm text-[var(--tm-text-muted)]">Search the roles Myro is currently tracking.</p>}
+      {!showSearch && suggested.length === 0 && !bootFamilies.isLoading && <p className="text-sm text-[var(--tm-text-muted)]">Search the roles Myro is currently tracking.</p>}
     </div>
 
     <button type="button" onClick={() => setShowSearch(value => !value)} className="tm-control-focus mt-4 inline-flex min-h-10 items-center gap-2 rounded text-sm text-[var(--tm-text-muted)] underline underline-offset-4"><Search className="size-4" />Search another role</button>
@@ -222,14 +248,36 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
       onChange={(next) => { setLean(next.lean); setAvoid(next.avoid) }}
     />}
 
+    <section className="mt-7" aria-labelledby="ninja-name-title">
+      <p id="ninja-name-title" className="text-sm font-medium text-[var(--tm-text)]">Your Myro name</p>
+      <p className="mt-1 text-pretty text-sm text-[var(--tm-text-muted)]">
+        How you show up on public surfaces. Funny, weird, or straight — yours to claim.
+      </p>
+      {ninjaClaimed ? (
+        <p className="mt-3 font-mono text-sm text-[var(--tm-text)]">himyro.com/profile/{ninja}</p>
+      ) : (
+        <>
+          <label htmlFor="direction-ninja-name" className="mt-3 block text-xs text-[var(--tm-text-faint)]">himyro.com/profile/</label>
+          <input
+            id="direction-ninja-name"
+            type="text"
+            autoComplete="off"
+            spellCheck={false}
+            value={ninja}
+            onChange={(event) => { setNinja(event.target.value.toLowerCase()); setError(null) }}
+            maxLength={32}
+            className="tm-control-focus mt-1 min-h-11 w-full rounded-md border border-[var(--tm-border)] bg-[var(--tm-surface)] px-3 font-mono text-[var(--tm-text)]"
+          />
+        </>
+      )}
+    </section>
+
     <StickyOnboardingActionBar error={error} contentClassName="max-w-lg px-5 pt-3 sm:px-8">
-      {/* Only offered to someone who already HAS a shortlist — it returns them to
-          it untouched, which is the whole point of a review being free. */}
       <div className="flex flex-col gap-2 sm:flex-row-reverse">
-        <Button size="lg" className="min-h-12 w-full" disabled={!selected.length || !seniority || busy} onClick={() => void submit()}>
-          {busy ? "Building your shortlist…" : !selected.length ? "Choose a role to continue" : !seniority ? "Choose a level to continue" : "Show my first shortlist →"}
+        <Button size="lg" className="min-h-12 w-full" disabled={!canSubmit} onClick={() => void submit()}>
+          {busy ? "Taking you to Market…" : !selected.length ? "Choose a role to continue" : !seniority ? "Choose a level to continue" : !ninjaOk ? "Claim your Myro name" : "Go to Market →"}
         </Button>
-        {onForward && <Button variant="ghost" size="lg" className="min-h-12 w-full sm:w-auto" onClick={onForward}>Back to my shortlist</Button>}
+        {onForward && <Button variant="ghost" size="lg" className="min-h-12 w-full sm:w-auto" onClick={onForward}>Back</Button>}
       </div>
     </StickyOnboardingActionBar>
   </section>

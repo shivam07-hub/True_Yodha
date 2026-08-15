@@ -4,7 +4,7 @@ import test from "node:test"
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8")
 
-test("onboarding routes CV evidence through skill confirmation before target and result", () => {
+test("onboarding routes CV evidence through skill confirmation before target and Market", () => {
   const entry = read("app/onboarding/page.tsx")
   const result = read("app/onboarding/result/page.tsx")
   assert.match(entry, /ExperienceStep/)
@@ -12,8 +12,8 @@ test("onboarding routes CV evidence through skill confirmation before target and
   assert.match(result, /FirstRunSkillReview/)
   assert.match(result, /awaiting_target/)
   assert.match(result, /TargetConfirm/)
-  assert.match(result, /first_role_saved/)
-  assert.match(result, /router\.replace\(result\.data\.tailor_href\)/)
+  assert.match(result, /onboarding_complete/)
+  assert.match(result, /router\.replace\(result\.data\.redirect_to\)/)
   assert.doesNotMatch(result, /router\.replace\("\/cv\?edit=1&tab=skills&confirm=1"\)/)
 })
 
@@ -62,11 +62,15 @@ test("baseline generator fixes the five-question expectation", () => {
   assert.match(generator, /Approve baseline/)
 })
 
-test("full result is a focused live-role decision, not a score dashboard", () => {
-  const result = read("components/onboarding/full-result.tsx")
-  assert.match(result, /Pick your first role/)
-  assert.match(result, /ResultMatches/)
-  assert.doesNotMatch(result, /Your Myro Score|ScoreMapPreview|SkillCorrectionSheet|Download/)
+test("direction completes onboarding onto Market — no First role waiting room", () => {
+  const result = read("app/onboarding/result/page.tsx")
+  const journey = read("components/onboarding/journey-progress.tsx")
+  assert.doesNotMatch(result, /FullResult/)
+  assert.match(result, /onboarding_complete/)
+  assert.match(journey, /Your CV/)
+  assert.match(journey, /Direction/)
+  assert.match(journey, /const STEPS = \["Your CV", "Direction"\]/)
+  assert.doesNotMatch(journey, /const STEPS = \[[^\]]*First role/)
 })
 
 test("skill confirmation is the score and matching trust gate", () => {
@@ -93,14 +97,16 @@ test("first-success checklist reads and dismisses durable server state", () => {
   assert.match(host, /FirstSuccessChecklist/)
 })
 
-test("accepted upload and target are persisted before result navigation", () => {
+test("accepted upload and target are persisted before Market navigation", () => {
   const page = read("app/onboarding/page.tsx")
   const target = read("components/onboarding/target-confirm.tsx")
   assert.match(page, /onboarding\.saveExperience/)
   assert.match(target, /onboarding\.saveTarget/)
   assert.match(target, /Choose your direction/)
-  assert.match(target, /Show my first shortlist/)
-  assert.doesNotMatch(target, /What you qualify for|See my score|Building your score/)
+  assert.match(target, /Go to Market/)
+  assert.match(target, /Your Myro name/)
+  assert.match(target, /updateNinjaName/)
+  assert.doesNotMatch(target, /What you qualify for|See my score|Building your score|Show my first shortlist|free match|free search/i)
   assert.match(page, /router\.push\("\/onboarding\/result"\)/)
   assert.doesNotMatch(page, /pollCVUploadStatus/)
   assert.match(page, /state\.isFetchedAfterMount/)

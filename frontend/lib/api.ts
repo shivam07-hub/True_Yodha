@@ -770,20 +770,20 @@ export interface OnboardingProofSkill {
  * confirmed, target set — so the only way back was to erase a decision. This is
  * the ceiling a view cursor may move under; 0 means nothing is behind them yet.
  */
-export type OnboardingReach = { furthest_step?: 0 | 1 | 2 | 3 }
+export type OnboardingReach = { furthest_step?: 0 | 1 | 2 }
 
 export type OnboardingResult = OnboardingReach & (
-  // journey_step is authored by the backend: `full_result_processing` covers BOTH
-  // the first CV read (step 1) and the post-target score wait (step 3), so the
-  // kind alone cannot place the progress rail.
-  | { kind: "full_result_processing"; target: OnboardingTarget; phase: string; journey_step?: 1 | 2 | 3 }
+  // journey_step is authored by the backend: CV analysis is step 1; Direction
+  // (step 2) completes onboarding and lands on Market.
+  | { kind: "full_result_processing"; target: OnboardingTarget; phase: string; journey_step?: 1 | 2 }
   | { kind: "first_role_saved"; job_id: string; title: string; company: string; tailor_href: string }
+  | { kind: "onboarding_complete"; redirect_to: "/market"; journey_step?: 1 | 2 }
   | { kind: "terminal_failure"; target: OnboardingTarget; error_code?: string; message?: string; xp_refunded: boolean }
   | {
       kind: "awaiting_skill_confirmation"
       baseline_version_id: number
       skills: OnboardingProofSkill[]
-      journey_step?: 1 | 2 | 3
+      journey_step?: 1 | 2
     }
   | {
       // A target must exist before Myro renders a score cohort.
@@ -798,7 +798,9 @@ export type OnboardingResult = OnboardingReach & (
        *  halves that are Myro's reading of your CV rather than your own answer —
        *  the step says so, so a guess is never shown as a decision. */
       direction: OnboardingDirection
-      journey_step?: 1 | 2 | 3
+      /** Claimed public identity. Required before Direction can complete. */
+      ninja: { ninja_name: string; claimed: boolean }
+      journey_step?: 1 | 2
     }
   | {
       kind: "full_result_ready"
