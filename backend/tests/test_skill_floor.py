@@ -196,3 +196,50 @@ def test_the_dead_man_alerts_on_unattempted_work_not_on_the_backlog() -> None:
 
     assert quiet.awaiting_stage_a < skill_floor_heartbeat.ALERT_ABOVE_AWAITING
     assert loud.awaiting_stage_a >= skill_floor_heartbeat.ALERT_ABOVE_AWAITING
+
+
+def test_alert_incident_opens_once_reminds_then_recovers(monkeypatch) -> None:
+    from app.config import settings
+    from app.services import skill_floor_heartbeat
+
+    monkeypatch.setattr(settings, "redis_url", "")
+    monkeypatch.setattr(
+        skill_floor_heartbeat,
+        "_local_incident_state",
+        {"state": "closed", "last_alert_at": 0},
+    )
+
+    assert skill_floor_heartbeat._incident_transition(True, now=100) == "opened"
+    assert skill_floor_heartbeat._incident_transition(True, now=101) == "quiet"
+    assert (
+        skill_floor_heartbeat._incident_transition(
+            True,
+            now=100 + skill_floor_heartbeat.INCIDENT_REMINDER_SECONDS,
+        )
+        == "reminder"
+    )
+    assert skill_floor_heartbeat._incident_transition(False, now=200_000) == "recovered"
+    assert skill_floor_heartbeat._incident_transition(False, now=200_001) == "quiet"
+
+
+def test_only_production_owns_skill_floor_alerts(monkeypatch) -> None:
+    from app.config import settings
+    from app.services import skill_floor_heartbeat
+
+    monkeypatch.setattr(settings, "myro_env", "dev")
+    assert skill_floor_heartbeat._owns_alerts() is False
+    monkeypatch.setattr(settings, "myro_env", "prod")
+    assert skill_floor_heartbeat._owns_alerts() is True
+
+
+def test_cli_accepts_explicit_count_mode(monkeypatch) -> None:
+    from app.workers import skill_floor_cli
+
+    monkeypatch.setattr(skill_floor_cli, "get_supabase_admin_batch", object)
+    monkeypatch.setattr(
+        skill_floor_cli.skill_floor,
+        "count_missing_floor",
+        lambda _db: skill_floor.FloorGap(total=9, recommendable=2, awaiting_stage_a=0),
+    )
+
+    assert skill_floor_cli.main(["--count"]) == 0

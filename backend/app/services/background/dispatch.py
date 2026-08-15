@@ -102,6 +102,7 @@ def enqueue(
     *,
     payload: dict[str, Any],
     correlation_id: str | None = None,
+    job_timeout_seconds: int | None = None,
 ) -> None:
     """Defer a Background Job. Durable via RQ when REDIS_URL is set, else in-process.
 
@@ -116,7 +117,7 @@ def enqueue(
         # Queue availability and worker availability are deliberately separate.
         # Redis is the durable intake seam: a worker outage must accumulate work
         # for later delivery, never demote it to a web-process create_task.
-        _enqueue_rq(lane, job_type, payload, correlation_id)
+        _enqueue_rq(lane, job_type, payload, correlation_id, job_timeout_seconds)
     else:
         # In-process fallback — preserves pre-ADR-0008 behaviour where no Redis
         # exists. No retry available here, so handlers refund-and-return on fail.
@@ -184,7 +185,11 @@ def _invoke_inline(job_type: str, payload: dict[str, Any]) -> None:
 
 
 def _enqueue_rq(
-    lane: str, job_type: str, payload: dict[str, Any], correlation_id: str | None
+    lane: str,
+    job_type: str,
+    payload: dict[str, Any],
+    correlation_id: str | None,
+    job_timeout_seconds: int | None,
 ) -> None:
     from redis import Redis
     from rq import Queue, Retry
@@ -193,7 +198,7 @@ def _enqueue_rq(
     conn = Redis.from_url(settings.redis_url.strip())
     queue = Queue(lane, connection=conn)
     kwargs: dict[str, Any] = dict(
-        job_timeout=_JOB_TIMEOUT,
+        job_timeout=job_timeout_seconds or _JOB_TIMEOUT,
         result_ttl=3600,
         failure_ttl=24 * 3600,
         retry=Retry(max=_RETRY_MAX, interval=_RETRY_INTERVALS),

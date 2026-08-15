@@ -9,6 +9,7 @@ from pathlib import Path
 MIGRATIONS = Path(__file__).parents[2] / "database/migrations"
 ENRICHMENT = MIGRATIONS / "20260806b_enrichment_may_not_claim_complete_without_skills.sql"
 FLOOR_QUEUE = MIGRATIONS / "20260806e_skill_floor_queue.sql"
+FLOOR_CLAIM_PARITY = MIGRATIONS / "20260815150608_skill_floor_claim_matches_monitor.sql"
 HARD_SOFT = MIGRATIONS / "20260806h_hard_soft_derived.sql"
 # The judgment queue's guards were re-cut here; this file, not 20260806i, holds
 # the live definition of the claim and the release.
@@ -57,6 +58,21 @@ def test_stage_a_claims_atomically_and_owns_only_its_attempt_column() -> None:
     assert "FOR UPDATE SKIP LOCKED" in body
     assert "SET skill_floor_attempted_at = now()" in body
     assert "enrichment_status" not in body, "Stage A must not write the enrichment lifecycle"
+
+
+def test_live_stage_a_claim_uses_the_monitors_non_null_work_set() -> None:
+    """A counted row must never be impossible for Stage A to claim.
+
+    The optimized monitor counts non-NULL descriptions without detoasting them.
+    Keeping the old btrim guard in the claim stranded two empty-description jobs
+    forever: every heartbeat saw them, and no drain could move them.
+    """
+    sql = FLOOR_CLAIM_PARITY.read_text()
+    body = sql.split("$function$")[1]
+
+    assert "j.job_description IS NOT NULL" in body
+    assert "btrim" not in body
+    assert "FOR UPDATE SKIP LOCKED" in body
 
 
 def test_the_floor_monitor_reads_a_derived_column_not_an_anti_join() -> None:

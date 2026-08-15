@@ -6,6 +6,34 @@
 
 ---
 
+## CLOSED 2026-08-15 — every scraper publish now runs the skill floor
+
+The August 6 Stage A repair reached zero, but it was a one-off backfill rather
+than part of the source-publication contract. The August 8 and August 13 scraper
+runs therefore published 2,913 jobs without `job_skills`; two older rows brought
+the live unattempted queue to 2,915. Those jobs were invisible to the matcher,
+whose candidate pool is correctly derived from `job_skills`.
+
+The existing authenticated scrape-landed webhook now carries the immutable
+scraper `run_id` and enqueues an idempotent `skill_floor_drain` on the shared
+bulk Work Lane. The handler runs deterministic local-taxonomy Stage A, uses no
+LM Studio or hosted-model tokens, has a two-hour worker timeout for the database
+round trips, and retries unless the unattempted queue returns to zero. User
+matching remains pull-driven.
+
+The dead-man alert is now owned by production only and keeps one shared incident
+in Redis: one opening email, at most one reminder per 24 hours, and one recovery
+receipt. Dev still observes the shared database but cannot page it. The live
+repair attempted all 2,915 jobs: 2,852 received a Stage A floor and 63 produced
+no deterministic taxonomy hit, correctly leaving them for Stage B. The terminal
+count was `total=1791 recommendable=1257 awaiting_stage_a=0`.
+
+That terminal audit also found two legacy empty-description rows counted by the
+optimized monitor but excluded by the claim RPC. Migration
+`20260815150608_skill_floor_claim_matches_monitor.sql` put both on the same
+non-NULL-description work set; it was applied to the shared database and the
+live function definition was verified.
+
 ## CLOSED 2026-08-14 — the score works end-to-end
 
 Stage-one item 2 said no score had been saved since the 2026-07-31 → 08-03

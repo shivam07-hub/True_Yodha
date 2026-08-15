@@ -218,6 +218,27 @@ detect the enrichment worker not running
 (`feedback_absence_of_signal_alerting`). Assert on write: `complete` may not be
 stamped without a row.
 
+**Forward hand-off closed 2026-08-15.** The August 6 backfill reached zero, but
+the August 8 and August 13 source-only publishes added 2,913 new scraper jobs
+without calling Stage A; two older rows made the live unattempted gap 2,915.
+The authenticated `POST /internal/scrape/landed` hook now names the scraper run
+and enqueues one idempotent `skill_floor_drain` job on the shared bulk Work Lane.
+The handler uses the deterministic local taxonomy, drains the queue, and fails
+for retry unless `awaiting_stage_a = 0`. It never loads LM Studio or calls an
+LLM provider. The live repair is recorded in `ARCHIVE.md`.
+
+The dead-man is now prod-owned and Redis-stateful across replicas: one incident
+open, at most one reminder per 24 hours, and one recovery receipt. Dev observes
+the same shared database but cannot page it, so deploys and restarts no longer
+multiply founder email.
+
+The live drain attempted all 2,915 rows: 2,852 received a Stage A floor, 63
+produced no deterministic hit and remain for Stage B, and the terminal metric
+was `awaiting_stage_a=0`. Two legacy empty-description rows exposed a predicate
+mismatch between the monitor and claim RPC; migration
+`20260815150608_skill_floor_claim_matches_monitor.sql` made their work sets
+identical and was applied to the shared database.
+
 **S2 — reframe Stage B. DONE, throughput VERIFIED 2026-08-07.**
 25 jobs, `--provider local`, LM Studio `google/gemma-3-4b`:
 `seen=25 upgraded=25 unreachable=0 mean_seconds=12.5` (range 5.3–16.6).

@@ -36,6 +36,11 @@ def wired(monkeypatch: pytest.MonkeyPatch):
 
     monkeypatch.setattr(internal, "get_supabase_admin", lambda: object())
     monkeypatch.setattr(internal, "JobsRepository", lambda *_a, **_k: _CountingRepo(calls))
+    monkeypatch.setattr(
+        internal.skill_floor_pipeline,
+        "enqueue_drain",
+        lambda run_id: calls.setdefault("skill_floor_runs", []).append(run_id) or True,
+    )
 
     def _fake_sweep(_repo: Any, *, since: datetime) -> dict[str, int]:
         calls["swept_since"] = since
@@ -58,17 +63,23 @@ def test_disabled_without_configured_token(wired: dict[str, Any]) -> None:
     assert r.status_code == 503
 
 
-def test_landing_acknowledges_without_matching_anyone(wired: dict[str, Any]) -> None:
-    """The whole point of the pull model: a landing costs zero LLM budget. If this
-    ever enqueues again, every scrape bills us for users who never came back."""
+def test_landing_enqueues_skill_floor_without_matching_anyone(wired: dict[str, Any]) -> None:
+    """Stage A queues because it is free; user matching stays pull-driven so a
+    scrape never spends LLM budget on users who did not come back."""
     with TestClient(app) as client:
-        r = client.post("/internal/scrape/landed", json={}, headers=HEADERS)
+        r = client.post(
+            "/internal/scrape/landed",
+            json={"run_id": "20260815-feed-1"},
+            headers=HEADERS,
+        )
 
     assert r.status_code == 200
     assert "swept_since" not in wired          # nobody was matched
     body = r.json()
     assert body["new_jobs"] == 30_043
     assert body["affected_users"] == 0 and body["enqueued"] == 0
+    assert body["skill_floor_enqueued"] is True
+    assert wired["skill_floor_runs"] == ["20260815-feed-1"]
 
     # Default window is 24h of LANDINGS, not "jobs whose scrape marker is today" —
     # a batch imported the morning after its run arrives already dated yesterday.

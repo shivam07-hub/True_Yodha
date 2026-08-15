@@ -26,7 +26,9 @@ logger = logging.getLogger("skill_floor")
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--apply", action="store_true", help="write the floor (default: count only)")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--apply", action="store_true", help="write the floor (default: count only)")
+    mode.add_argument("--count", action="store_true", help="count only (the default; explicit for ops)")
     parser.add_argument("--limit", type=int, default=None, help="stop after N jobs")
     args = parser.parse_args(argv)
 

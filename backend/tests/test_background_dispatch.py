@@ -38,8 +38,14 @@ def test_enqueue_durable_routes_to_rq(monkeypatch):
     monkeypatch.setattr(dispatch.settings, "redis_url", "redis://fake:6379/0")
     captured: dict = {}
 
-    def _fake_rq(lane, job_type, payload, correlation_id):
-        captured.update(lane=lane, job_type=job_type, payload=payload, cid=correlation_id)
+    def _fake_rq(lane, job_type, payload, correlation_id, job_timeout_seconds):
+        captured.update(
+            lane=lane,
+            job_type=job_type,
+            payload=payload,
+            cid=correlation_id,
+            timeout=job_timeout_seconds,
+        )
 
     monkeypatch.setattr(dispatch, "_enqueue_rq", _fake_rq)
 
@@ -51,7 +57,13 @@ def test_enqueue_durable_routes_to_rq(monkeypatch):
         background.enqueue(
             background.LANE_BULK, "t_durable", payload={"y": 2}, correlation_id="abc"
         )
-        assert captured == {"lane": "bulk", "job_type": "t_durable", "payload": {"y": 2}, "cid": "abc"}
+        assert captured == {
+            "lane": "bulk",
+            "job_type": "t_durable",
+            "payload": {"y": 2},
+            "cid": "abc",
+            "timeout": None,
+        }
     finally:
         _clear_handler("t_durable")
 
@@ -62,8 +74,12 @@ def test_enqueue_durable_stays_queued_when_no_worker_is_active(monkeypatch):
     monkeypatch.setattr(
         dispatch,
         "_enqueue_rq",
-        lambda lane, job_type, payload, correlation_id: captured.update(
-            lane=lane, job_type=job_type, payload=payload, cid=correlation_id
+        lambda lane, job_type, payload, correlation_id, job_timeout_seconds: captured.update(
+            lane=lane,
+            job_type=job_type,
+            payload=payload,
+            cid=correlation_id,
+            timeout=job_timeout_seconds,
         ),
     )
 
@@ -83,6 +99,7 @@ def test_enqueue_durable_stays_queued_when_no_worker_is_active(monkeypatch):
             "job_type": "t_durable_no_worker",
             "payload": {"x": 3},
             "cid": "job-3",
+            "timeout": None,
         }
     finally:
         _clear_handler("t_durable_no_worker")

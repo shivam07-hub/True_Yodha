@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover — import kept out of the hot boot path
@@ -34,6 +35,94 @@ HEARTBEAT_SECONDS = 6 * 60 * 60
 # has never been ATTEMPTED means the pipeline is not running, which is the
 # absence-of-signal this exists to catch.
 ALERT_ABOVE_AWAITING = 100
+
+# One incident, shared by every production replica. A persistent stall earns at
+# most one reminder per day; clearing it earns one recovery receipt.
+INCIDENT_REMINDER_SECONDS = 24 * 60 * 60
+_INCIDENT_TTL_SECONDS = 35 * 24 * 60 * 60
+_INCIDENT_KEY = "ops:incident:skill_floor"
+_local_incident_state: dict[str, float | str] = {"state": "closed", "last_alert_at": 0}
+
+_TRANSITION_LUA = """
+local state = redis.call('HGET', KEYS[1], 'state')
+local last_alert = tonumber(redis.call('HGET', KEYS[1], 'last_alert_at') or '0')
+local active = ARGV[1] == '1'
+local now = tonumber(ARGV[2])
+local reminder = tonumber(ARGV[3])
+local ttl = tonumber(ARGV[4])
+if active then
+    if state ~= 'open' then
+        redis.call('HSET', KEYS[1], 'state', 'open', 'last_alert_at', now)
+        redis.call('EXPIRE', KEYS[1], ttl)
+        return 'opened'
+    end
+    if now - last_alert >= reminder then
+        redis.call('HSET', KEYS[1], 'last_alert_at', now)
+        redis.call('EXPIRE', KEYS[1], ttl)
+        return 'reminder'
+    end
+    return 'quiet'
+end
+if state == 'open' then
+    redis.call('HSET', KEYS[1], 'state', 'closed', 'recovered_at', now)
+    redis.call('EXPIRE', KEYS[1], ttl)
+    return 'recovered'
+end
+return 'quiet'
+"""
+
+
+def _owns_alerts() -> bool:
+    """Only prod pages; dev observes the same DB and must not page it twice."""
+    from app.config import settings
+
+    return settings.is_production
+
+
+def _local_transition(active: bool, now: int) -> str:
+    state = str(_local_incident_state.get("state") or "closed")
+    last_alert = int(_local_incident_state.get("last_alert_at") or 0)
+    if active:
+        if state != "open":
+            _local_incident_state.update(state="open", last_alert_at=now)
+            return "opened"
+        if now - last_alert >= INCIDENT_REMINDER_SECONDS:
+            _local_incident_state["last_alert_at"] = now
+            return "reminder"
+        return "quiet"
+    if state == "open":
+        _local_incident_state.update(state="closed", recovered_at=now)
+        return "recovered"
+    return "quiet"
+
+
+def _incident_transition(active: bool, *, now: float | None = None) -> str:
+    """Atomically move the shared incident and return the one action to take."""
+    from app.config import settings
+
+    timestamp = int(time.time() if now is None else now)
+    redis_url = settings.redis_url.strip()
+    if not redis_url:
+        return _local_transition(active, timestamp)
+    try:
+        from redis import Redis
+
+        action = Redis.from_url(redis_url, decode_responses=True).eval(
+            _TRANSITION_LUA,
+            1,
+            _INCIDENT_KEY,
+            "1" if active else "0",
+            timestamp,
+            INCIDENT_REMINDER_SECONDS,
+            _INCIDENT_TTL_SECONDS,
+        )
+        return str(action)
+    except Exception as exc:  # noqa: BLE001 — monitoring must not take down the API
+        logger.warning(
+            "metric skill_floor.incident_state_unavailable exc=%s",
+            exc.__class__.__name__,
+        )
+        return "unavailable"
 
 
 def _alert_body(gap: "FloorGap") -> str:
@@ -57,25 +146,48 @@ def check_once() -> "FloorGap":
         "metric skill_floor.gap total=%d recommendable=%d awaiting_stage_a=%d",
         gap.total, gap.recommendable, gap.awaiting_stage_a,
     )
-    if gap.awaiting_stage_a < ALERT_ABOVE_AWAITING:
-        return gap
-
-    recipient = (settings.ops_alert_email or "").strip()
-    if not recipient:
-        logger.warning(
-            "metric skill_floor.alert_skipped reason=no_recipient awaiting_stage_a=%d",
+    if not _owns_alerts():
+        logger.info(
+            "metric skill_floor.alert_skipped reason=non_prod awaiting_stage_a=%d",
             gap.awaiting_stage_a,
         )
         return gap
 
+    recipient = (settings.ops_alert_email or "").strip()
+    if not recipient:
+        if gap.awaiting_stage_a >= ALERT_ABOVE_AWAITING:
+            logger.warning(
+                "metric skill_floor.alert_skipped reason=no_recipient awaiting_stage_a=%d",
+                gap.awaiting_stage_a,
+            )
+        return gap
+
     from app.services.email_service import send_email
 
-    logger.warning("metric skill_floor.alert_fired awaiting_stage_a=%d", gap.awaiting_stage_a)
-    send_email(
-        to=recipient,
-        subject=f"Myro: {gap.awaiting_stage_a} jobs waiting for a skill floor",
-        text=_alert_body(gap),
-    )
+    active = gap.awaiting_stage_a >= ALERT_ABOVE_AWAITING
+    action = _incident_transition(active)
+    if active and action in {"opened", "reminder"}:
+        logger.warning(
+            "metric skill_floor.alert_fired action=%s awaiting_stage_a=%d",
+            action,
+            gap.awaiting_stage_a,
+        )
+        send_email(
+            to=recipient,
+            subject=f"Myro: {gap.awaiting_stage_a} jobs waiting for a skill floor",
+            text=_alert_body(gap),
+        )
+    elif not active and action == "recovered":
+        logger.info("metric skill_floor.alert_recovered total=%d", gap.total)
+        send_email(
+            to=recipient,
+            subject="Myro: skill floor recovered",
+            text=(
+                "Stage A is moving again: no jobs are waiting for their first skill-floor "
+                f"attempt. {gap.total} jobs still carry no skills, {gap.recommendable} of "
+                "them recommendable; those are the separate Stage B judgment backlog."
+            ),
+        )
     return gap
 
 

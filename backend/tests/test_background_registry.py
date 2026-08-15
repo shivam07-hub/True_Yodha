@@ -52,6 +52,10 @@ def test_registry_includes_the_onboarding_handlers() -> None:
     assert "onboarding_target_refresh" in declared  # score after target confirm
 
 
+def test_registry_includes_the_skill_floor_handler() -> None:
+    assert "skill_floor_drain" in registry.registered_job_types()
+
+
 @pytest.mark.asyncio
 async def test_unknown_job_type_fails_loudly() -> None:
     """A dropped job must reach RQ's failed registry, never report success."""

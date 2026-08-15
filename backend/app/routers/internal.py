@@ -1,10 +1,10 @@
-"""Internal service-to-service hooks (Backlog #36 event-driven matching).
+"""Internal service-to-service hooks after a scraper publication.
 
 Not a user surface — guarded by a shared secret header, called by our own
-infrastructure. Today: the scrape-landed webhook the scraper fires after it
-writes a batch of new jobs. It acknowledges the landing; it does not match
-anyone. Matching is pulled by the user on their next visit (see
-`services/new_inventory.py`) so compute follows intent.
+infrastructure. The scrape-landed webhook hands every published run to the
+deterministic Stage A skill-floor worker. It does not eagerly match users;
+matching is pulled on their next visit (see `services/new_inventory.py`) so
+LLM compute follows intent.
 """
 from __future__ import annotations
 
@@ -13,14 +13,14 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.database import get_supabase_admin
 from app.repositories.jobs import JobsRepository
 from app.repositories.partners import PartnersRepository
 from app.schemas.partner import BroadcastRequest, BroadcastResponse
-from app.services import partner_broadcast, partner_webhooks
+from app.services import partner_broadcast, partner_webhooks, skill_floor_pipeline
 from app.services.matching import scrape_sweep
 
 logger = logging.getLogger(__name__)
@@ -44,6 +44,12 @@ def require_scrape_webhook(x_scrape_token: str | None = Header(default=None)) ->
 
 
 class ScrapeLandedRequest(BaseModel):
+    run_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9._:-]+$",
+    )
     # How far back counts as "this landing" (default 24h). Timestamps, not the
     # scraper's YYYYMMDD marker: that marker is the run-date FOLDER, so a batch
     # imported the morning after its run arrives already dated yesterday.
@@ -60,6 +66,7 @@ class ScrapeLandedResponse(BaseModel):
     new_jobs: int
     affected_users: int
     enqueued: int
+    skill_floor_enqueued: bool
     since: str
 
 
@@ -69,7 +76,7 @@ class ScrapeLandedResponse(BaseModel):
     dependencies=[Depends(require_scrape_webhook)],
 )
 def scrape_landed(body: ScrapeLandedRequest) -> ScrapeLandedResponse:
-    """The scraper finished writing a batch → acknowledge the landing.
+    """The scraper finished a batch → floor its jobs and acknowledge it.
 
     Deliberately does NOT match anyone (Shivam, 2026-07-28). The rows themselves,
     stamped `ingested_at` by the DB, ARE the record; each user's next visit turns
@@ -83,6 +90,7 @@ def scrape_landed(body: ScrapeLandedRequest) -> ScrapeLandedResponse:
     since = datetime.now(timezone.utc) - timedelta(hours=max(1, body.since_hours))
     admin_db = get_supabase_admin()
     repo = JobsRepository(admin_db, admin_db)
+    floor_enqueued = skill_floor_pipeline.enqueue_drain(body.run_id)
 
     if body.notify_partners:
         partner_broadcast.enqueue_broadcast()
@@ -90,12 +98,20 @@ def scrape_landed(body: ScrapeLandedRequest) -> ScrapeLandedResponse:
     if body.sweep:
         result = scrape_sweep.run_sweep(repo, since=since)
         logger.info("metric scrape_webhook.landed sweep=1 since=%s result=%s", since, result)
-        return ScrapeLandedResponse(since=since.isoformat(), **result)
+        return ScrapeLandedResponse(
+            since=since.isoformat(),
+            skill_floor_enqueued=floor_enqueued,
+            **result,
+        )
 
     new_jobs = repo.count_new_jobs_since(since)
     logger.info("metric scrape_webhook.landed sweep=0 since=%s new_jobs=%d", since, new_jobs)
     return ScrapeLandedResponse(
-        new_jobs=new_jobs, affected_users=0, enqueued=0, since=since.isoformat()
+        new_jobs=new_jobs,
+        affected_users=0,
+        enqueued=0,
+        skill_floor_enqueued=floor_enqueued,
+        since=since.isoformat(),
     )
 
 
