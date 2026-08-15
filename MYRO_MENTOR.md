@@ -185,7 +185,29 @@ It is not built from nothing; it is built from something almost nobody has.
    tombstone rule. Lock 5 is enforced by an AST test, not a promise. **The
    `skills` surface has no free-text confession point and is deliberately not
    wired.**
-4. **One thread** across all four surfaces, with summarisation.
+4. **One thread** ✅ SHIPPED `43d896aa` — `mentor.py` + `POST /mentor/converse`
+   + `components/myro/myro-chat.tsx`. Grilled 2026-08-15, and the answer was
+   **not a transcript**: facts and stories already cross sessions through
+   semantic recall, so the thread is the CONTEXT, assembled once in
+   `mentor.context` and identical on every surface. No new table, no retention
+   or deletion burden, and no summarisation to get wrong. The trade to hold:
+   **Myro knows what you told it, not what it said back.**
+
+   Proposals stay typed per surface — only `job_intent` has an accept path, and
+   the server drops a diff aimed anywhere else (`mentor.proposal_dropped`).
+   `/jobs/intent-chat` is still live and delegates to the same seam; it is
+   deleted in its own commit once nothing calls it.
+
+### The four slices are done. What slice 4 did NOT do
+
+- **No Myro dock or `/myro` screen.** Considered and declined: a new product
+  surface needing its own design pass, and a dock over screens that do not need
+  it is noise. Entry points are the pre-flight, the market sheet and `/cv`.
+- **No transcript.** See above. Reopening this means re-deciding retention,
+  deletion and per-turn context growth on a DB already over its tier.
+- **The market sheet keeps its own presentation.** It applies and re-runs the
+  feed; the pre-flight panel only proposes. Same seam, same voice, two shells,
+  because they do two jobs.
 
 ### B. R2 — precompute the ranked feed · BLOCKED ON DATA
 Instrumentation shipped (`e203d2f5`). Needs **10+ prod samples** of
