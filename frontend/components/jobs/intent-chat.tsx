@@ -5,7 +5,7 @@ import { createPortal } from "react-dom"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Loader2, Send, Sparkles, X } from "lucide-react"
 
-import { cv, jobs, type IntentChatMessage, type IntentFilterDiff } from "@/lib/api"
+import { cv, jobs, mentor, type IntentChatMessage, type IntentFilterDiff } from "@/lib/api"
 import { invalidateTargetRoleData } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 
@@ -105,7 +105,10 @@ export function IntentChat({
   }, [messages, diff])
 
   const chat = useMutation({
-    mutationFn: (next: IntentChatMessage[]) => jobs.intentChat(token!, next),
+    // One endpoint, one context assembly, one voice — the bottom sheet stays its
+    // own presentation because it does a different job from the pre-flight panel
+    // (it APPLIES and re-runs the feed; that one only proposes into a draft).
+    mutationFn: (next: IntentChatMessage[]) => mentor.converse(token!, "job_intent", next),
     onSuccess: (res) => {
       setMessages((prev) => [...prev, { role: "assistant", content: res.reply }])
       setDiff(res.proposed_diff)

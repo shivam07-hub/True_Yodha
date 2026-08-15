@@ -16,6 +16,7 @@ import { formatCount } from "@/lib/format"
 import { Button } from "@/components/ui/button"
 import { CareerProfileCard } from "./career-profile-card"
 import { PersonaCanvas } from "./persona-canvas"
+import { MyroChat } from "@/components/myro/myro-chat"
 import "./memory-panel.css"
 
 const KIND_LABELS: Record<MemoryKind, string> = {
@@ -113,6 +114,21 @@ export function MemoryPanel({ token }: { token: string }) {
   return (
     <section className="tm-mem-scope" aria-label="What Myro knows about you">
       <PersonaCanvas token={token} />
+
+      {/* The CV surface's Myro. It talks and it listens — no proposal, because
+          the CV screen has no typed accept path and a change with no button is
+          worse than no change. What you say here becomes memory on the turn
+          (backend mentor_learn), which is what makes the canvas above grow from
+          a conversation instead of a form. */}
+      <div className="mt-5">
+        <MyroChat
+          token={token}
+          surface="cv"
+          heading="Tell Myro about your work"
+          seed="Tell me about something you've done that this CV doesn't capture — or what you actually want next. I'll remember it."
+          placeholder="Say it however you'd say it out loud"
+        />
+      </div>
 
       <CareerProfileCard token={token} title="What recruiters ask" />
 

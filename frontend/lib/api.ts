@@ -525,6 +525,26 @@ export interface CompanyJobsResponse {
   has_next: boolean
 }
 
+/** MYRO_MENTOR's seam. One endpoint, one voice, four surfaces — `surface`
+ *  selects the task framing and which proposals are possible, never the
+ *  personality. `proposed_diff` is null on every surface without an accept path,
+ *  so a caller never has to guess whether a proposal is actionable. */
+export type MentorSurface = "cv" | "skills" | "job_intent" | "prep"
+
+export interface MentorConverseResponse {
+  reply: string
+  proposed_diff: IntentFilterDiff | null
+}
+
+export const mentor = {
+  converse: (token: string, surface: MentorSurface, messages: IntentChatMessage[]) =>
+    request<MentorConverseResponse>("/mentor/converse", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ surface, messages }),
+    }),
+}
+
 export const users = {
   me: (token: string) =>
     request<UserProfile>("/users/me", {
@@ -4062,7 +4082,8 @@ export const jobs = {
     request<CompanyJobsResponse>(
       `/companies/${encodeURIComponent(company)}/jobs?page=1&page_size=50`,
     ),
-  // Delta-4 intent chat: talk to Myro when the feed disappoints → propose a diff.
+  /** @deprecated Use `mentor.converse` — one Myro, whichever screen you're on.
+   *  Still live and still correct; the server delegates it to the same seam. */
   intentChat: (token: string, messages: IntentChatMessage[]) =>
     request<IntentChatResponse>("/jobs/intent-chat", {
       method: "POST",

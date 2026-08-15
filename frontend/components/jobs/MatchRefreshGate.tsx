@@ -12,7 +12,7 @@ import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
 import { useCoinsGate } from "@/lib/hooks/use-xp-gate"
 import { useXPStore } from "@/store/xpStore"
 import { useRefreshGateStore } from "@/store/refreshGateStore"
-import { PreflightChat } from "@/components/jobs/preflight-chat"
+import { MyroChat } from "@/components/myro/myro-chat"
 import { TargetingSentence } from "@/components/jobs/targeting-sentence"
 import "@/components/jobs/targeting-sentence.css"
 
@@ -379,9 +379,14 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
             The 7 rows used to be the input. Someone who cannot phrase a
             dealbreaker as a chip types junk, and that reaches the matcher as
             truth. Myro asks; the rows below show what it heard and stay
-            editable. Nothing here writes — see PreflightChat. */}
+            editable. Nothing here writes — see MyroChat. */}
         <div style={{ padding: "16px 22px 0" }}>
-          <PreflightChat token={token} onPropose={applyProposal} />
+          <MyroChat
+            token={token}
+            surface="job_intent"
+            seed="Tell me what you're after — the kind of work, where, and anything you won't accept. I'll set the search up from that."
+            onPropose={applyProposal}
+          />
         </div>
 
         {/* ── The order, as prose ────────────────────────────────────────

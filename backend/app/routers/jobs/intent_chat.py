@@ -12,8 +12,7 @@ from pydantic import BaseModel, Field
 from app.database import get_supabase_admin
 from app.deps import Principal, get_principal
 from app.repositories.search_queries import SearchQueriesRepository
-from app.repositories.users import UsersRepository
-from app.services import intent_chat_service, memory_recall, memory_semantic
+from app.services import intent_chat_service, mentor
 from app.services.llm_provider import LLMProvider, get_interactive_provider
 
 router = APIRouter()
@@ -55,32 +54,20 @@ async def intent_chat(
     principal: Principal = Depends(get_principal),
     provider: LLMProvider = Depends(get_interactive_provider),
 ) -> IntentChatResponse:
+    # DEPRECATED SHAPE, LIVE PATH. The retrieval and the turn now live in
+    # `mentor`, so there is one assembly of "what Myro knows" instead of one per
+    # surface. This stays until no client calls it, then goes in its own commit —
+    # a route is deleted the same way a column is, after the callers have moved.
     db = get_supabase_admin()
-    profile = UsersRepository(db).get_profile(principal.id) or {}
     messages = [m.model_dump() for m in body.messages]
+    turn_text = mentor.last_user_turn(messages)
+    if turn_text:
+        SearchQueriesRepository(db).log(surface="intent_chat", query=turn_text, user_id=principal.id)
 
-    # Log the latest user turn as intent (best-effort) — feeds distillation.
-    last_user = next((m["content"] for m in reversed(messages) if m["role"] == "user"), None)
-    if last_user:
-        SearchQueriesRepository(db).log(surface="intent_chat", query=last_user, user_id=principal.id)
-        # Phase-4 "knows me": pull the memory facts most relevant to this turn so the
-        # concierge answers with what Myro already knows. Fail-soft → no facts.
-        hits = await memory_semantic.retrieve(principal.id, last_user, k=5)
-        if hits:
-            profile["known_facts"] = [h.text for h in hits]
-        # Career Memory: the user's own stories nearest this turn — lets the
-        # concierge reason from what they've actually done. Fail-soft → none.
-        story_hits = await memory_recall.recall_stories(principal.id, last_user, k=3)
-        if story_hits:
-            profile["known_stories"] = [
-                " — ".join(p for p in (h.title, h.result) if p) for h in story_hits
-            ]
-
-    result = await intent_chat_service.converse(profile, messages, provider)
-    diff = result.get("proposed_diff")
+    turn = await mentor.converse(db, principal.id, "job_intent", messages, provider)
     return IntentChatResponse(
-        reply=result["reply"],
-        proposed_diff=FilterDiff(**diff) if diff else None,
+        reply=turn.reply,
+        proposed_diff=FilterDiff(**turn.proposals) if turn.proposals else None,
     )
 
 

@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import test from "node:test"
 
-const chat = readFileSync(new URL("../components/jobs/preflight-chat.tsx", import.meta.url), "utf8")
+const chat = readFileSync(new URL("../components/myro/myro-chat.tsx", import.meta.url), "utf8")
 const gate = readFileSync(new URL("../components/jobs/MatchRefreshGate.tsx", import.meta.url), "utf8")
 const api = readFileSync(new URL("../lib/api.ts", import.meta.url), "utf8")
 
@@ -16,23 +16,24 @@ const api = readFileSync(new URL("../lib/api.ts", import.meta.url), "utf8")
  * and that reached the matcher as truth.
  */
 
-test("the pre-flight conversation never persists — the modal owns the commit", () => {
-  // The feed's copy of this concierge calls /jobs/intent-chat/apply. This one
-  // must not: the modal's three exits (Run / Save targeting only / Discard) are
-  // the single commit point, so the distiller's propose-only lock on profile
-  // columns holds and Discard still means discard.
-  // The call, not the prose — the comment above it legitimately names the
-  // endpoint in order to explain why this component refuses to call it.
-  assert.doesNotMatch(chat, /jobs\.applyIntentDiff\(/)
-  assert.match(chat, /jobs\.intentChat\(/)
-  // It hands the proposal upward instead.
+test("the shared conversation never persists — the surface owns the commit", () => {
+  // The invariant outlived the file. preflight-chat.tsx became MyroChat (one
+  // conversation, four surfaces), and the rule it existed to hold is unchanged
+  // and now covers every surface: the market sheet applies and re-runs the feed,
+  // this component never does. The modal's three exits (Run / Save targeting
+  // only / Discard) stay the single commit point, so the distiller's
+  // propose-only lock on profile columns holds and Discard still means discard.
+  assert.doesNotMatch(chat, /applyIntentDiff\(/)
+  assert.doesNotMatch(chat, /cv\.dump\.add\(/)
+  assert.match(chat, /mentor\.converse\(/)
+  // It hands the proposal upward instead — and only where one is possible.
   assert.match(chat, /onPropose\(res\.proposed_diff\)/)
 })
 
 test("a proposal lands in the DRAFT, not the profile", () => {
   assert.match(gate, /const applyProposal = useCallback/)
   assert.match(gate, /setDraft\(\(d\) => \{/)
-  assert.match(gate, /<PreflightChat token=\{token\} onPropose=\{applyProposal\}/)
+  assert.match(gate, /<MyroChat[\s\S]{0,300}onPropose=\{applyProposal\}/)
   // Marking the draft touched is what stops the preflight seed overwriting what
   // the user just said out loud.
   const fn = gate.slice(gate.indexOf("const applyProposal"), gate.indexOf("const applyProposal") + 400)

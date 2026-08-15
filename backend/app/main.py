@@ -21,6 +21,7 @@ from app.routers import (
     internal,
     job_switch_plan,
     jobs,
+    mentor,
     myrology,
     newsletter,
     notifications,
@@ -97,6 +98,7 @@ app.include_router(career_profile.router)
 app.include_router(xp.router)
 app.include_router(profile.router)
 app.include_router(payments.router)
+app.include_router(mentor.router)
 app.include_router(myrology.router)
 app.include_router(job_switch_plan.router)
 app.include_router(newsletter.router)

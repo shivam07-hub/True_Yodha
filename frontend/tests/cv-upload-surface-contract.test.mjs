@@ -64,3 +64,40 @@ test("a refused CV pick is recorded wherever the app refuses one", () => {
   assert.match(read("app/(authed)/cv/page.tsx"), /recordCVUploadPickRejected/)
   assert.match(read("app/onboarding/page.tsx"), /recordCVUploadPickRejected/)
 })
+
+// One Myro, whichever screen you're on.
+//
+// Two chat components existed against one job-intent endpoint. They were not
+// duplicates — the pre-flight panel proposes into a draft and never writes, the
+// market sheet applies and re-runs the feed — but everything up to the outcome
+// was the same twice, which is how one of them ends up warmer than the other and
+// the user meets two Myros.
+test("every Myro conversation goes through the one seam", () => {
+  const api = read("lib/api.ts")
+  assert.match(api, /export const mentor = \{/, "there is one client entry")
+  assert.match(api, /"\/mentor\/converse"/)
+
+  // Expand-contract: the old path is still live and still delegates server-side.
+  // Deleting a route before its callers move is the same mistake as dropping a
+  // column before the code that reads it has deployed.
+  assert.match(api, /@deprecated Use `mentor\.converse`/)
+
+  for (const [file, surface] of [
+    ["components/jobs/MatchRefreshGate.tsx", "job_intent"],
+    ["components/jobs/intent-chat.tsx", "job_intent"],
+    ["components/cv/builder/memory-panel.tsx", "cv"],
+  ]) {
+    const src = read(file)
+    assert.match(src, /mentor\.converse|MyroChat/, `${file} talks to Myro through the seam`)
+    assert.match(src, new RegExp(`"${surface}"`), `${file} declares its surface`)
+  }
+})
+
+test("the CV surface listens but never proposes", () => {
+  // A diff on the CV screen is a change with no accept path — and targeting that
+  // moves without the user meaning it re-ranks a market whose verdicts cache
+  // permanently. The server drops it; this keeps the client honest too.
+  const panel = read("components/cv/builder/memory-panel.tsx")
+  assert.match(panel, /surface="cv"/)
+  assert.doesNotMatch(panel, /onPropose/, "the CV surface must not wire a proposal handler")
+})
