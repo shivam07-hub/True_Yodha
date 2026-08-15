@@ -225,7 +225,11 @@ The authenticated `POST /internal/scrape/landed` hook now names the scraper run
 and enqueues one idempotent `skill_floor_drain` job on the shared bulk Work Lane.
 The handler uses the deterministic local taxonomy, drains the queue, and fails
 for retry unless `awaiting_stage_a = 0`. It never loads LM Studio or calls an
-LLM provider. The live repair is recorded in `ARCHIVE.md`.
+LLM provider. The scraper requires `skill_floor_enqueued=true`, retries
+transient hand-off failures, and fails the publish otherwise; the official
+daily poll cannot call a scrape complete while its Stage A hand-off is missing.
+The production canary `forward-contract-canary-20260815` was accepted after the
+main-branch promotion. The live repair is recorded in `ARCHIVE.md`.
 
 The dead-man is now prod-owned and Redis-stateful across replicas: one incident
 open, at most one reminder per 24 hours, and one recovery receipt. Dev observes

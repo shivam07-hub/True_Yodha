@@ -21,6 +21,15 @@ LM Studio or hosted-model tokens, has a two-hour worker timeout for the database
 round trips, and retries unless the unattempted queue returns to zero. User
 matching remains pull-driven.
 
+The source side is fail-closed too: publication requires an HTTP 200 carrying
+`skill_floor_enqueued=true`, retries transport/429/5xx failures, and exits
+non-zero on missing configuration or a rejected acknowledgement. The official
+`daily_poll` therefore cannot report `complete` without the Stage A hand-off;
+rerunning its failed publish is safe because source upserts and the immutable
+run-id correlation key are idempotent. Both production source branches were
+fast-forwarded, and the live production canary
+`forward-contract-canary-20260815` received the durable acknowledgement.
+
 The dead-man alert is now owned by production only and keeps one shared incident
 in Redis: one opening email, at most one reminder per 24 hours, and one recovery
 receipt. Dev still observes the shared database but cannot page it. The live
