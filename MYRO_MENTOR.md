@@ -177,7 +177,14 @@ It is not built from nothing; it is built from something almost nobody has.
    (`cv_weave`, `reach_pack`) does NOT — those write what the user sends under
    their own name, so Myro must be invisible. `gap_planner` gets neither and
    the test asserts that, since it only emits `latent|absent` JSON.
-3. **`learned[]`.** The `cv` and `skills` surfaces start writing what they hear.
+3. **`learned[]`.** ✅ SHIPPED `2a72c0a4` — `mentor_learn.py`. The two places a
+   user actually confides on the CV surface (the brain-dump notebook, intake's
+   `raw_text`) learn on the turn instead of waiting for a 12h-debounced batch
+   gated on behavioural signals that exclude facts. Reuses the distiller's
+   `_ALLOWED_KINDS` / `parse_facts` / `select_new` — one parser, one dedup, one
+   tombstone rule. Lock 5 is enforced by an AST test, not a promise. **The
+   `skills` surface has no free-text confession point and is deliberately not
+   wired.**
 4. **One thread** across all four surfaces, with summarisation.
 
 ### B. R2 — precompute the ranked feed · BLOCKED ON DATA
