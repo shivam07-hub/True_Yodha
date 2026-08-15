@@ -471,6 +471,79 @@ def compute_role_readiness(db: Client, user_id: str) -> list[dict[str, Any]]:
     return out
 
 
+def seed_provisional_baseline_score(
+    db: Client, user_id: str, baseline_version_id: int,
+) -> bool:
+    """Score from extraction while the user reviews skills — before confirm.
+
+    Confirm is still the publication gate for *canonical* skills. This writes a
+    best-effort ``user_skills`` + ``mirror_scores`` row from ``skills_detected``
+    so Direction → Market does not wait on a cold score heal. Confirm replaces
+    the skill rows; excludes force a recompute via ``enqueue_score_refresh``.
+    """
+    baseline = CVVersionsRepository(db).find(baseline_version_id, user_id)
+    if not baseline or baseline.get("skills_confirmed_at"):
+        return False
+    scores_repo = ScoresRepository(db)
+    if scores_repo.mirror_score_exists(user_id):
+        return False
+    signals = baseline.get("skills_detected") or []
+    if not signals:
+        return False
+    users_repo = UsersRepository(db)
+    profile = users_repo.get_profile(user_id) or {}
+    if not (profile.get("target_seniority") or "").strip():
+        suggestion = seniority_from_cv(baseline)
+        value = suggestion.get("value")
+        if value:
+            users_repo.update_profile(user_id, {"target_seniority": value})
+    try:
+        scoring.record_cv_score(scores_repo, user_id, signals)
+    except ValueError:
+        logger.info(
+            "metric onboarding.provisional_score_skipped user=%s baseline=%s reason=no_skills",
+            user_id, baseline_version_id,
+        )
+        return False
+    logger.info(
+        "metric onboarding.provisional_score_seeded user=%s baseline=%s",
+        user_id, baseline_version_id,
+    )
+    return True
+
+
+def enqueue_provisional_baseline_score(user_id: str, baseline_version_id: int) -> bool:
+    """Ask for a pre-confirm score while skill review is on screen."""
+    try:
+        background.enqueue(
+            background.LANE_FAST,
+            "provisional_baseline_score",
+            payload={
+                "user_id": user_id,
+                "baseline_version_id": baseline_version_id,
+            },
+            correlation_id=f"provisional-score:{user_id}:{baseline_version_id}",
+        )
+        logger.info(
+            "metric onboarding.provisional_score_enqueued user=%s baseline=%s",
+            user_id, baseline_version_id,
+        )
+        return True
+    except Exception as exc:  # noqa: BLE001 — never fail the upload that asked
+        logger.warning(
+            "metric onboarding.provisional_score_enqueue_failed user=%s baseline=%s exc=%s",
+            user_id, baseline_version_id, exc.__class__.__name__,
+        )
+        return False
+
+
+@background.handler("provisional_baseline_score")
+async def provisional_baseline_score_job(payload: dict[str, Any], allow_retry: bool) -> None:
+    user_id = str(payload["user_id"])
+    baseline_version_id = int(payload["baseline_version_id"])
+    seed_provisional_baseline_score(get_supabase_admin(), user_id, baseline_version_id)
+
+
 @background.handler("onboarding_target_refresh")
 async def refresh_target_result(payload: dict[str, Any], allow_retry: bool) -> None:
     user_id = str(payload["user_id"])
@@ -480,7 +553,11 @@ async def refresh_target_result(payload: dict[str, Any], allow_retry: bool) -> N
         return
     scores_repo = ScoresRepository(db)
     if scores_repo.get_user_skill_level_map(user_id):
-        if not payload.get("score_fresh"):
+        # Provisional score during skill review: skip recompute when confirm
+        # left the skill set unchanged and the row already exists.
+        if not (
+            payload.get("score_fresh") and scores_repo.mirror_score_exists(user_id)
+        ):
             scoring.recompute_score(scores_repo, user_id)
         # Match only when there is a direction to match against. This handler is
         # now also the score path for a user who has just confirmed skills and has
@@ -562,7 +639,13 @@ def _seniority_suggestion(baseline: dict[str, Any] | None) -> dict[str, Any]:
 _SCORE_HEAL_WINDOW_SECONDS = 120
 
 
-def enqueue_score_refresh(user_id: str, *, reason: str) -> bool:
+def enqueue_score_refresh(
+    user_id: str,
+    *,
+    reason: str,
+    force: bool = False,
+    score_fresh: bool = False,
+) -> bool:
     """Ask for this user's score to be (re)computed in the background.
 
     ONE enqueue seam, deliberately shared by the two callers that want a score:
@@ -572,21 +655,30 @@ def enqueue_score_refresh(user_id: str, *, reason: str) -> bool:
     confirm immediately followed by a result read cannot enqueue the same work
     twice — the read's heal sees the claim already taken and does nothing.
 
+    ``force`` bypasses the debounce when confirmed skills differ from the
+    provisional set (user excluded something). ``score_fresh`` tells the worker
+    to skip recompute when a provisional ``mirror_scores`` row already exists.
+
     Debounced so the repair cannot become the next incident, and fail-soft: a
     refresh that cannot be enqueued must not take down the screen that asked
-    for it. Returns whether the claim was taken, for the caller's log.
+    for it. Returns whether work was enqueued, for the caller's log.
     """
-    if not background.claim(f"score-heal:{user_id}", _SCORE_HEAL_WINDOW_SECONDS):
+    claimed = background.claim(f"score-heal:{user_id}", _SCORE_HEAL_WINDOW_SECONDS)
+    if not force and not claimed:
         return False
+    payload: dict[str, Any] = {"user_id": user_id}
+    if score_fresh:
+        payload["score_fresh"] = True
     try:
         background.enqueue(
             background.LANE_FAST,
             "onboarding_target_refresh",
-            payload={"user_id": user_id},
+            payload=payload,
             correlation_id=f"score-heal:{user_id}",
         )
         logger.info(
-            "metric onboarding.score_refresh_enqueued user=%s reason=%s", user_id, reason
+            "metric onboarding.score_refresh_enqueued user=%s reason=%s force=%s fresh=%s",
+            user_id, reason, force, score_fresh,
         )
         return True
     except Exception as exc:  # noqa: BLE001 — never fail the read that asked

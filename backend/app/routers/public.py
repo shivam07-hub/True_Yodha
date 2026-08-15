@@ -89,7 +89,11 @@ def _compile_public_stats() -> dict[str, Any]:
 
 
 @router.get("/stats")
-def get_public_stats() -> dict[str, Any]:
+def get_public_stats(response: Response) -> dict[str, Any]:
+    # Browser + CDN can reuse for a minute; shared_cache already owns the heavy
+    # build. Without this, every landing tab refetch hits the origin even when
+    # the payload is identical for an hour.
+    response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=3600"
     return shared_cache.get_or_compute(
         "public_stats",
         _compile_public_stats,

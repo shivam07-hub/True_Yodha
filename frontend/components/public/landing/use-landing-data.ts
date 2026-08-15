@@ -50,6 +50,11 @@ export function useLandingData(): LandingData {
     queryKey: ["landing", "public-stats"],
     queryFn: () => publicStats.get(),
     staleTime: HOUR,
+    // One hour of identity: do not re-hit /public/stats on every mount/focus.
+    // The endpoint is cached server-side, but a tab stampede still burns the
+    // shared Free/Nano connection budget before Cache-Control can help.
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     retry: 1,
   })
 

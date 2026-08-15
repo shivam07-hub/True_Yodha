@@ -37,12 +37,14 @@ export default function OnboardingResultPage() {
     queryKey: [...dataKeys.onboardingResult(), viewStep] as const,
     queryFn: () => onboarding.result(token!, viewStep ?? undefined),
     enabled: Boolean(token),
-    // Only poll while the CV is still being read. Direction completes onboarding
-    // and lands on Market — no shortlist wait on this screen.
+    // Dead-man only: CVUploadLifecycleObserver streams phase events. Polling
+    // /onboarding/result every few seconds was paying a heavy read for a status
+    // the stream already carries. Keep a long interval so a dropped SSE still
+    // recovers without a stampede.
     refetchInterval: (query) => {
       const data = query.state.data
       if (data?.kind === "full_result_processing" && data.journey_step === 1) {
-        return 15_000
+        return 45_000
       }
       return false
     },

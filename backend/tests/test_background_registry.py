@@ -50,6 +50,7 @@ def test_registry_includes_the_onboarding_handlers() -> None:
     """The two that were actually missing — named so a re-drop is unambiguous."""
     declared = registry.registered_job_types()
     assert "onboarding_target_refresh" in declared  # score after target confirm
+    assert "provisional_baseline_score" in declared  # score during skill-review idle
 
 
 def test_registry_includes_the_skill_floor_handler() -> None:

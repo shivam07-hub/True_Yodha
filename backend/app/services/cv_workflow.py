@@ -868,6 +868,11 @@ async def _run_cv_upload_stages(
             payload={"raw_text": raw_text, "baseline_version_id": baseline_version_id},
             correlation_id=f"structured:{baseline_version_id}",
         )
+        # Score while they review skills (P0.3). Confirm still publishes; excludes
+        # force a recompute. Fail-soft — upload success must not depend on this.
+        from app.services import onboarding_service
+
+        onboarding_service.enqueue_provisional_baseline_score(user_id, baseline_version_id)
 
 
 async def _fail_and_refund(

@@ -91,6 +91,7 @@ def test_stats_happy_path(monkeypatch: pytest.MonkeyPatch) -> None:
 
     res = TestClient(app).get("/public/stats")
     assert res.status_code == 200
+    assert res.headers.get("cache-control") == "public, max-age=60, stale-while-revalidate=3600"
     body = res.json()
     assert body["jobs_tracked"] == 4321
     assert body["companies_monitored"] == 157
