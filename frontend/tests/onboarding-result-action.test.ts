@@ -6,85 +6,38 @@ import { join } from "node:path"
 const frontendRoot = process.cwd()
 const read = (path: string) => readFileSync(join(frontendRoot, path), "utf8")
 
-test("the first shortlist is a single-selection decision surface", () => {
-  const matches = read("components/onboarding/result-matches.tsx")
+test("direction completes onto Market with a claimed Myro name", () => {
+  const target = read("components/onboarding/target-confirm.tsx")
+  const page = read("app/onboarding/result/page.tsx")
 
-  assert.match(matches, /role="radiogroup"/)
-  assert.match(matches, /role: "radio"/)
-  assert.match(matches, /"aria-checked": selected/)
-  assert.match(matches, /onSelect\(job\.job_id\)/)
-  assert.doesNotMatch(matches, /saveJob|Tailor CV|See every match/)
+  assert.match(target, /updateNinjaName/)
+  assert.match(target, /router\.replace\("\/market"\)/)
+  assert.match(target, /Go to Market/)
+  assert.match(page, /onboarding_complete/)
+  assert.doesNotMatch(page, /FullResult/)
 })
 
-test("the final step persists one role and opens tailoring directly", () => {
-  const result = read("components/onboarding/full-result.tsx")
+test("Market teaches tailor with a dismissible coach tip", () => {
+  const coach = read("components/market/market-tailor-coach.tsx")
+  const market = read("app/(authed)/market/page.tsx")
 
-  assert.match(result, /onboarding\.commitFirstRole/)
-  assert.match(result, /Save \$\{selectedJob\.title\} at \$\{selectedJob\.company/)
-  assert.match(result, /router\.replace\(next\.tailor_href\)/)
-  assert.match(result, /StickyOnboardingActionBar/)
-  assert.doesNotMatch(result, /savedCount|pickBestMatch|See all matches/)
-})
-
-test("failed persistence keeps the selection and shows an adjacent retry", () => {
-  const result = read("components/onboarding/full-result.tsx")
-
-  assert.match(result, /setError\(/)
-  assert.match(result, /role="alert"/)
-  assert.doesNotMatch(result, /setSelectedJobId\(null\)/)
-})
-
-test("match fit and reasons remain grounded in canonical match data", () => {
-  const matches = read("components/onboarding/result-matches.tsx")
-
-  assert.match(matches, /feedDataFromMatch/)
-  assert.match(matches, /match_score/)
-})
-
-test("an empty shortlist has exactly one recovery action", () => {
-  const result = read("components/onboarding/full-result.tsx")
-
-  assert.match(result, /No live roles match this direction yet/)
-  assert.match(result, /Adjust my direction/)
-  assert.match(result, /onAdjust\(\)/)
-  assert.doesNotMatch(result, /ready in the market/)
-})
-
-test("the shortlist is target-scoped by construction, not by cache key", () => {
-  const result = read("components/onboarding/full-result.tsx")
-
-  // This used to be a client fetch of `jobs.matches` keyed on the context hash.
-  // That key kept the CACHE honest but not the DATA: `jobs.matches` is the
-  // direction-blind durable stack, so after a direction change the previous
-  // direction's cards were still what came back, and `commit_first_role`
-  // rejected the click with "Choose a role from your current shortlist."
-  // The server now scopes the shortlist, so the component cannot show a card the
-  // save would refuse — provided it never reaches for the stack again.
-  // Asserted on the import and the call, not on prose: the docstring above
-  // names `jobs.matches` to explain the bug, and `useQueryClient` (still used,
-  // for cache invalidation after a save) contains "useQuery".
-  assert.match(result, /result\.shortlist\b/)
-  assert.doesNotMatch(result, /import \{[^}]*\bjobs\b[^}]*\} from "@\/lib\/api"/)
-  assert.doesNotMatch(result, /\buseQuery\(/)
-})
-
-test("every non-ready shortlist status renders its own state", () => {
-  const result = read("components/onboarding/full-result.tsx")
-
-  // An empty list is four different situations. Rendering one blank for all of
-  // them is how a lost match run looked identical to a market with no overlap.
-  assert.match(result, /shortlist_status === "computing"/)
-  assert.match(result, /shortlist_status === "stalled"/)
-  assert.match(result, /This is taking longer than it should/)
-  assert.match(result, /No live roles match this direction yet/)
+  assert.match(coach, /Open a role, then tailor your CV/)
+  assert.match(coach, /myro\.market\.tailor-coach\.dismissed/)
+  assert.match(market, /MarketTailorCoach/)
 })
 
 test("a failed result fetch stops loading and offers a retry", () => {
-  // The fetch moved up to the page, so its failure branch has to live there too
-  // — a status the component can no longer see must still reach the user.
   const page = read("app/onboarding/result/page.tsx")
 
   assert.match(page, /result\.isError/)
   assert.match(page, /Couldn&apos;t load your next step/)
   assert.match(page, /result\.refetch\(\)/)
+})
+
+test("result page does not poll for a shortlist wait", () => {
+  const page = read("app/onboarding/result/page.tsx")
+
+  assert.match(page, /journey_step === 1/)
+  assert.doesNotMatch(page, /shortlist_status === "computing"/)
+  assert.doesNotMatch(page, /2_500|2_000/)
 })

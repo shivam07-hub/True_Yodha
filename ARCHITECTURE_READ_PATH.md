@@ -1210,3 +1210,20 @@ absence of page-wide interaction gates, and the waiting skeletons.
 This changes scheduling, not database work, payloads, or endpoints. The code
 contract is verified; no live authenticated waterfall or latency movement is
 claimed until the Develop deployment is exercised in a browser.
+
+---
+
+## 14. Onboarding latency slices (2026-08-15)
+
+Software slices that remove wait from Direction → Market and reduce public
+saturation. **Paid Supabase compute remains the launch capacity gate** (section 8).
+
+| Slice | Shipped |
+|---|---|
+| P0.1 Slim confirm-skills | Confirm response skips role-family list; Direction loads families itself |
+| P0.2 End First-role wait | Onboarding completes on Direction; land `/market`; no shortlist poll |
+| P0.3 Score during skill-review idle | `provisional_baseline_score` after upload; confirm skips recompute when unchanged; excludes force recompute |
+| P1 Lighter analysis poll | Stream-first; `/onboarding/result` dead-man poll 45s only while analyzing |
+| P2 Public stampede / LLM burst | `Cache-Control` on `/public/stats`; landing `refetchOnMount/Focus=false`; anon score/rewrite burst ceilings |
+
+Do not mark platform capacity green until the paid compute gate in section 8 passes.

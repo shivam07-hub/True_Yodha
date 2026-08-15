@@ -138,16 +138,34 @@ def confirm_baseline_skills(
     if not has_target:
         _persist_cv_seniority(users_repo, user_id, profile, baseline)
 
-    # Handed off, not awaited. The score used to be computed inline here, which
-    # cost 8.4s on prod — paid by a user whose very next screen is the direction
-    # step, and that step is deliberately score-free. The work now runs while they
-    # choose, so the row exists by the time step 3 needs it, and `_heal_missing_score`
-    # remains the net if the job is lost.
-    onboarding_service.enqueue_score_refresh(user_id, reason="skills_confirmed")
+    # Handed off, not awaited. Prefer the provisional score seeded while the user
+    # reviewed skills: no excludes → skip recompute when that row already exists;
+    # excludes → force a fresh recompute past the heal debounce. Still enqueue
+    # when a target already exists so the match leg of the same worker can run.
+    had_excludes = any(item.get("action") == "exclude" for item in normalized)
+    if had_excludes:
+        onboarding_service.enqueue_score_refresh(
+            user_id, reason="skills_confirmed", force=True,
+        )
+    elif not scores_repo.mirror_score_exists(user_id):
+        onboarding_service.enqueue_score_refresh(user_id, reason="skills_confirmed")
+    elif has_target:
+        onboarding_service.enqueue_score_refresh(
+            user_id, reason="skills_confirmed", score_fresh=True,
+        )
 
+    # Slim Direction payload: skip `list_role_families` on this request (measured
+    # multi-second on a loaded DB). The Direction screen loads families itself.
+    if has_target:
+        return {
+            "next": "shortlist_processing",
+            "result": onboarding_service.get_result(db, user_id),
+        }
     return {
-        "next": "shortlist_processing" if has_target else "target",
-        "result": onboarding_service.get_result(db, user_id),
+        "next": "target",
+        "result": onboarding_service._awaiting_target_payload(
+            db, user_id, profile, baseline, include_families=False,
+        ),
     }
 
 

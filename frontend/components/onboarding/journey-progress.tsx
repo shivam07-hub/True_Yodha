@@ -4,24 +4,18 @@ import { cn } from "@/lib/utils"
 /**
  * One rail for the whole onboarding, including the upload screen it starts on.
  *
- * There used to be two. `/onboarding` showed "01 Upload your CV · 02 Get your
- * Myro Score · 03 Tailor and apply" (the product arc, borrowed from the landing
- * page) and `/onboarding/result` showed this one. So a user finished "Step 01",
- * moved to the next screen, and found themselves on step 1 again — unfinished,
- * differently numbered, differently worded. Progress appeared to reset.
- *
- * Labels are nouns, not verbs, because each has to stay true across the whole of
- * its step: step 1 covers uploading the CV AND reviewing what was found in it,
- * and "Check what we found" was a lie while the file was still uploading.
+ * Two steps: Your CV (upload + skill check) → Direction (roles, level, cities,
+ * lean/avoid, claimed ninja name). Market is home after Direction — there is no
+ * third "First role" waiting room.
  */
-const STEPS = ["Your CV", "Direction", "First role"] as const
+const STEPS = ["Your CV", "Direction"] as const
 
 interface Props {
   /** The step being displayed. */
-  current: 1 | 2 | 3
+  current: 1 | 2
   /** The furthest the user has actually reached. Steps up to it are reviewable. */
   furthest?: number
-  onSelect?: (step: 1 | 2 | 3) => void
+  onSelect?: (step: 1 | 2) => void
 }
 
 /**
@@ -35,9 +29,9 @@ interface Props {
 export function JourneyProgress({ current, furthest = 0, onSelect }: Props) {
   return (
     <nav aria-label="Onboarding progress" className="w-full">
-      <ol className="grid grid-cols-3 gap-2 sm:gap-4">
+      <ol className="grid grid-cols-2 gap-2 sm:gap-4">
         {STEPS.map((label, index) => {
-          const step = (index + 1) as 1 | 2 | 3
+          const step = (index + 1) as 1 | 2
           const complete = step < current
           const active = step === current
           const reviewable = Boolean(onSelect) && step <= furthest && !active
@@ -74,8 +68,6 @@ export function JourneyProgress({ current, furthest = 0, onSelect }: Props) {
                 <button
                   type="button"
                   onClick={() => onSelect?.(step)}
-                  /* min-h-11: on the phone the label is hidden, so the marker is
-                     the whole target — it has to be thumb-sized, not text-sized. */
                   className="tm-control-focus flex min-h-11 w-full cursor-pointer items-center gap-2 rounded text-left text-xs font-semibold text-[var(--tm-text-muted)] hover:text-[var(--tm-text)] sm:text-sm"
                 >
                   {marker}

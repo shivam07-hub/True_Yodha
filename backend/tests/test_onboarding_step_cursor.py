@@ -1,13 +1,10 @@
 """Looking back through the onboarding journey costs nothing.
 
 The step used to BE its facts — skills confirmed, target set — so "where you
-are" and "what you decided" were one variable. Back meant deleting a decision:
-step 2 returned blank, forward was impossible without re-choosing, and
-re-choosing re-ran the matcher. A user reviewing their direction three times in
-twenty seconds (prod, 2026-08-04) paid for three full match runs and re-typed
-everything each time.
+are" and "what you decided" were one variable. Back meant deleting a decision.
+A view cursor may only look at ground already covered, and it must never write.
 
-The cursor may only look at ground already covered, and it must never write.
+Direction is the last onboarding page (furthest 2). Market is home after that.
 """
 
 from __future__ import annotations
@@ -42,6 +39,7 @@ _PROFILE = {
     "target_locations": ["Bengaluru"],
     "target_updated_at": "2026-08-04T05:00:00+00:00",
     "last_match_run_at": "2026-08-04T05:02:00+00:00",
+    "ninja_name_claimed_at": "2026-08-15T00:00:00+00:00",
 }
 
 _FAMILY = {
@@ -51,14 +49,16 @@ _FAMILY = {
     "matched_skill_count": 5,
 }
 
+_NINJA = {"ninja_name": "quiet-architect-9k2v", "claimed": True}
+
 
 @pytest.fixture
-def at_step_three(monkeypatch):
-    """A user who has finished the journey and is sitting on the shortlist."""
+def at_furthest(monkeypatch):
+    """A user who finished Direction — Market is home; they can still review."""
     monkeypatch.setattr(
         onboarding_service,
         "_current_result",
-        lambda _db, _uid: {"kind": "full_result_ready", "journey_step": 3, "shortlist": []},
+        lambda _db, _uid: {"kind": "onboarding_complete", "redirect_to": "/market", "journey_step": 2},
     )
     monkeypatch.setattr(
         onboarding_service, "UsersRepository", lambda _db: _Repo(get_profile=_PROFILE)
@@ -78,51 +78,58 @@ def at_step_three(monkeypatch):
         "RoleFamiliesRepository",
         lambda _db: _Repo(resolve_families=[_FAMILY], list_families=[_FAMILY]),
     )
+    monkeypatch.setattr(
+        onboarding_service,
+        "_direction_answer",
+        lambda *_a, **_k: {"lean": [], "avoid": [], "proposed": []},
+    )
+
+    import app.services.ninja_name as nn
+
+    monkeypatch.setattr(nn, "suggestion_for", lambda *_a, **_k: _NINJA)
 
 
-def test_no_step_returns_where_the_user_actually_is(at_step_three) -> None:
+def test_no_step_returns_where_the_user_actually_is(at_furthest) -> None:
     result = onboarding_service.get_result(object(), "u1")
-    assert result["kind"] == "full_result_ready"
-    assert result["furthest_step"] == 3
+    assert result["kind"] == "onboarding_complete"
+    assert result["furthest_step"] == 2
 
 
-def test_stepping_back_to_two_restores_the_saved_direction(at_step_three) -> None:
+def test_stepping_back_to_two_restores_the_saved_direction(at_furthest) -> None:
     result = onboarding_service.get_result(object(), "u1", step=2)
 
     assert result["kind"] == "awaiting_target"
-    assert result["furthest_step"] == 3
+    assert result["furthest_step"] == 2
     assert result["selected"]["families"] == [_FAMILY]
     assert result["selected"]["seniority"] == "mid"
     assert result["selected"]["locations"] == ["Bengaluru"]
+    assert result["ninja"] == _NINJA
 
 
-def test_a_chosen_family_leads_the_list_and_is_never_duplicated(at_step_three) -> None:
-    # It is also the top suggestion here — the picked row must appear once, and
-    # first, so the form can show it selected without a phantom second card.
+def test_a_chosen_family_leads_the_list_and_is_never_duplicated(at_furthest) -> None:
     families = onboarding_service.get_result(object(), "u1", step=2)["families"]
     assert families == [_FAMILY]
 
 
-def test_stepping_back_to_one_reopens_the_skill_review(at_step_three) -> None:
+def test_stepping_back_to_one_reopens_the_skill_review(at_furthest) -> None:
     result = onboarding_service.get_result(object(), "u1", step=1)
     assert result["kind"] == "awaiting_skill_confirmation"
     assert result["skills"] == [{"name": "Python"}]
-    assert result["furthest_step"] == 3
+    assert result["furthest_step"] == 2
 
 
-def test_a_step_at_or_beyond_the_furthest_cannot_skip_work(at_step_three, monkeypatch) -> None:
+def test_a_step_at_or_beyond_the_furthest_cannot_skip_work(at_furthest, monkeypatch) -> None:
     monkeypatch.setattr(
         onboarding_service,
         "_current_result",
         lambda _db, _uid: {"kind": "awaiting_target", "journey_step": 2},
     )
-    # Asking for 3 while standing on 2 must not fabricate a shortlist.
     assert onboarding_service.get_result(object(), "u1", step=3)["kind"] == "awaiting_target"
     assert onboarding_service.get_result(object(), "u1", step=2)["kind"] == "awaiting_target"
 
 
-def test_review_degrades_to_the_current_step_without_a_baseline(at_step_three, monkeypatch) -> None:
+def test_review_degrades_to_the_current_step_without_a_baseline(at_furthest, monkeypatch) -> None:
     monkeypatch.setattr(
         onboarding_service, "CVVersionsRepository", lambda _db: _Repo(latest_baseline=None)
     )
-    assert onboarding_service.get_result(object(), "u1", step=1)["kind"] == "full_result_ready"
+    assert onboarding_service.get_result(object(), "u1", step=1)["kind"] == "onboarding_complete"

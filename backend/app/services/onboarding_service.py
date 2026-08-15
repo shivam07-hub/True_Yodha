@@ -24,7 +24,6 @@ from app.services.job_eligibility import (
     target_seniority_for_profile,
 )
 from app.services.experience_years import seniority_from_cv
-from app.services.scoring.percentile import top_percent
 
 logger = logging.getLogger(__name__)
 
@@ -412,6 +411,27 @@ def save_target(
     )
 
 
+def complete_onboarding_after_direction(db: Client, user_id: str) -> None:
+    """Direction is the last onboarding page — Market is home after this.
+
+    Requires a claimed ninja name (public identity). A signup placeholder slug
+    does not count. Raises ValueError when the claim is still missing so the
+    client can keep the user on Direction rather than landing them half-set-up.
+    """
+    state = OnboardingRepository(db).get_state(user_id) or {}
+    if state.get("completed_at"):
+        return
+    baseline = CVVersionsRepository(db).latest_baseline(user_id)
+    if not baseline or not baseline.get("skills_confirmed_at"):
+        return
+    profile = UsersRepository(db).get_profile(user_id) or {}
+    if not (profile.get("target_role_title") or profile.get("target_role_titles")):
+        return
+    if not profile.get("ninja_name_claimed_at"):
+        raise ValueError("Claim your Myro name before continuing.")
+    mark_completed(db, user_id)
+
+
 def reset_target(db: Client, user_id: str) -> None:
     """Return a confirmed-skill user to direction selection without data loss."""
     UsersRepository(db).update_profile(
@@ -449,6 +469,79 @@ def compute_role_readiness(db: Client, user_id: str) -> list[dict[str, Any]]:
     return out
 
 
+def seed_provisional_baseline_score(
+    db: Client, user_id: str, baseline_version_id: int,
+) -> bool:
+    """Score from extraction while the user reviews skills — before confirm.
+
+    Confirm is still the publication gate for *canonical* skills. This writes a
+    best-effort ``user_skills`` + ``mirror_scores`` row from ``skills_detected``
+    so Direction → Market does not wait on a cold score heal. Confirm replaces
+    the skill rows; excludes force a recompute via ``enqueue_score_refresh``.
+    """
+    baseline = CVVersionsRepository(db).find(baseline_version_id, user_id)
+    if not baseline or baseline.get("skills_confirmed_at"):
+        return False
+    scores_repo = ScoresRepository(db)
+    if scores_repo.mirror_score_exists(user_id):
+        return False
+    signals = baseline.get("skills_detected") or []
+    if not signals:
+        return False
+    users_repo = UsersRepository(db)
+    profile = users_repo.get_profile(user_id) or {}
+    if not (profile.get("target_seniority") or "").strip():
+        suggestion = seniority_from_cv(baseline)
+        value = suggestion.get("value")
+        if value:
+            users_repo.update_profile(user_id, {"target_seniority": value})
+    try:
+        scoring.record_cv_score(scores_repo, user_id, signals)
+    except ValueError:
+        logger.info(
+            "metric onboarding.provisional_score_skipped user=%s baseline=%s reason=no_skills",
+            user_id, baseline_version_id,
+        )
+        return False
+    logger.info(
+        "metric onboarding.provisional_score_seeded user=%s baseline=%s",
+        user_id, baseline_version_id,
+    )
+    return True
+
+
+def enqueue_provisional_baseline_score(user_id: str, baseline_version_id: int) -> bool:
+    """Ask for a pre-confirm score while skill review is on screen."""
+    try:
+        background.enqueue(
+            background.LANE_FAST,
+            "provisional_baseline_score",
+            payload={
+                "user_id": user_id,
+                "baseline_version_id": baseline_version_id,
+            },
+            correlation_id=f"provisional-score:{user_id}:{baseline_version_id}",
+        )
+        logger.info(
+            "metric onboarding.provisional_score_enqueued user=%s baseline=%s",
+            user_id, baseline_version_id,
+        )
+        return True
+    except Exception as exc:  # noqa: BLE001 — never fail the upload that asked
+        logger.warning(
+            "metric onboarding.provisional_score_enqueue_failed user=%s baseline=%s exc=%s",
+            user_id, baseline_version_id, exc.__class__.__name__,
+        )
+        return False
+
+
+@background.handler("provisional_baseline_score")
+async def provisional_baseline_score_job(payload: dict[str, Any], allow_retry: bool) -> None:
+    user_id = str(payload["user_id"])
+    baseline_version_id = int(payload["baseline_version_id"])
+    seed_provisional_baseline_score(get_supabase_admin(), user_id, baseline_version_id)
+
+
 @background.handler("onboarding_target_refresh")
 async def refresh_target_result(payload: dict[str, Any], allow_retry: bool) -> None:
     user_id = str(payload["user_id"])
@@ -458,7 +551,11 @@ async def refresh_target_result(payload: dict[str, Any], allow_retry: bool) -> N
         return
     scores_repo = ScoresRepository(db)
     if scores_repo.get_user_skill_level_map(user_id):
-        if not payload.get("score_fresh"):
+        # Provisional score during skill review: skip recompute when confirm
+        # left the skill set unchanged and the row already exists.
+        if not (
+            payload.get("score_fresh") and scores_repo.mirror_score_exists(user_id)
+        ):
             scoring.recompute_score(scores_repo, user_id)
         # Match only when there is a direction to match against. This handler is
         # now also the score path for a user who has just confirmed skills and has
@@ -470,33 +567,14 @@ async def refresh_target_result(payload: dict[str, Any], allow_retry: bool) -> N
             profile.get("target_role_title") or profile.get("target_role_titles")
         )
         if has_target:
-            # FAST, not BULK. The bulk lane is documented "nobody is watching" —
-            # and the onboarding shortlist is the most-watched job in the product:
-            # the result screen polls for it every 2.5s while the user waits on
-            # step 3. (Head-of-line risk against CV analysis is real but
-            # theoretical at this volume; if throughput ever bites, that is a
-            # lane-count decision, not a reason to file a watched job under
-            # "nobody is watching".)
+            # FAST lane: the user is already on Market after Direction. Match
+            # fills the feed in the background — do not invent a waiting room.
             background.enqueue(
                 background.LANE_FAST,
                 "initial_match",
                 payload={"user_id": user_id, "force_context_refresh": True},
                 correlation_id=f"target-match:{user_id}",
             )
-
-
-def _proof_skills(users_repo: UsersRepository, user_id: str) -> list[dict[str, Any]]:
-    records = users_repo.list_user_skill_records(user_id)
-    records.sort(key=lambda item: (-item.level, item.display_name.casefold()))
-    return [
-        {
-            "taxonomy_key": item.key,
-            "name": item.display_name,
-            "level": item.level,
-            "evidence": item.evidence_text or "",
-        }
-        for item in records[:5]
-    ]
 
 
 def _candidate_skills(
@@ -543,28 +621,6 @@ def _candidate_skills(
     return candidates
 
 
-def _score_factors(score: dict[str, Any]) -> list[dict[str, Any]]:
-    factors = [
-        {
-            "kind": "gap",
-            "label": gap.get("skill") or gap.get("taxonomy_key") or "Skill gap",
-            "detail": gap.get("why_it_matters") or "Current target-role demand",
-        }
-        for gap in (score.get("gap_skills") or [])[:3]
-    ]
-    if factors:
-        return factors
-    domains = sorted(
-        (score.get("domain_scores") or {}).items(),
-        key=lambda pair: float(pair[1]),
-        reverse=True,
-    )
-    return [
-        {"kind": "strength", "label": key, "detail": f"Domain score {value:.0f}"}
-        for key, value in domains[:3]
-    ]
-
-
 def _seniority_suggestion(baseline: dict[str, Any] | None) -> dict[str, Any]:
     """Seniority evidence readable from the parsed CV.
 
@@ -581,7 +637,13 @@ def _seniority_suggestion(baseline: dict[str, Any] | None) -> dict[str, Any]:
 _SCORE_HEAL_WINDOW_SECONDS = 120
 
 
-def enqueue_score_refresh(user_id: str, *, reason: str) -> bool:
+def enqueue_score_refresh(
+    user_id: str,
+    *,
+    reason: str,
+    force: bool = False,
+    score_fresh: bool = False,
+) -> bool:
     """Ask for this user's score to be (re)computed in the background.
 
     ONE enqueue seam, deliberately shared by the two callers that want a score:
@@ -591,21 +653,30 @@ def enqueue_score_refresh(user_id: str, *, reason: str) -> bool:
     confirm immediately followed by a result read cannot enqueue the same work
     twice — the read's heal sees the claim already taken and does nothing.
 
+    ``force`` bypasses the debounce when confirmed skills differ from the
+    provisional set (user excluded something). ``score_fresh`` tells the worker
+    to skip recompute when a provisional ``mirror_scores`` row already exists.
+
     Debounced so the repair cannot become the next incident, and fail-soft: a
     refresh that cannot be enqueued must not take down the screen that asked
-    for it. Returns whether the claim was taken, for the caller's log.
+    for it. Returns whether work was enqueued, for the caller's log.
     """
-    if not background.claim(f"score-heal:{user_id}", _SCORE_HEAL_WINDOW_SECONDS):
+    claimed = background.claim(f"score-heal:{user_id}", _SCORE_HEAL_WINDOW_SECONDS)
+    if not force and not claimed:
         return False
+    payload: dict[str, Any] = {"user_id": user_id}
+    if score_fresh:
+        payload["score_fresh"] = True
     try:
         background.enqueue(
             background.LANE_FAST,
             "onboarding_target_refresh",
-            payload={"user_id": user_id},
+            payload=payload,
             correlation_id=f"score-heal:{user_id}",
         )
         logger.info(
-            "metric onboarding.score_refresh_enqueued user=%s reason=%s", user_id, reason
+            "metric onboarding.score_refresh_enqueued user=%s reason=%s force=%s fresh=%s",
+            user_id, reason, force, score_fresh,
         )
         return True
     except Exception as exc:  # noqa: BLE001 — never fail the read that asked
@@ -750,17 +821,12 @@ def _shortlist(
 
 # The optional Career-Ops inputs, by the names the pre-flight manifest gives
 # them. Onboarding already fixes target roles, location and the CV; these three
-# are what a user can add later to sharpen the same run.
+# are what a user can add later to sharpen a Myro Search.
 _OPS_OPTIONAL_INPUTS = ("deal_breakers", "career_goal", "superpower")
 
 
 def _unused_ops_inputs(profile: dict[str, Any]) -> list[str]:
-    """Which optional Career-Ops inputs this user has not supplied.
-
-    Reported, never invented: the pre-flight modal can gap-fill these from
-    memory, but a receipt of a run that already happened must not present a
-    suggestion as something the run used.
-    """
+    """Which optional Career-Ops inputs this user has not supplied."""
     unused: list[str] = []
     for key in _OPS_OPTIONAL_INPUTS:
         value = profile.get(key)
@@ -794,6 +860,8 @@ def _reviewable_step(
             "journey_step": 1,
         }
     if step == 2:
+        from app.services import ninja_name as nn
+
         families_repo = RoleFamiliesRepository(db)
         chosen_keys = [str(key) for key in (profile.get("target_roles") or []) if str(key).strip()]
         selected = families_repo.resolve_families(user_id, chosen_keys)
@@ -816,6 +884,7 @@ def _reviewable_step(
                 ],
             },
             "direction": _direction_answer(db, user_id, profile),
+            "ninja": nn.suggestion_for(user_id, db),
             "journey_step": 2,
         }
     return None
@@ -830,11 +899,13 @@ def get_result(db: Client, user_id: str, *, step: int | None = None) -> dict[str
     """
     result = _current_result(db, user_id)
     furthest = int(result.get("journey_step") or 0) or (
-        3 if result.get("kind") in ("full_result_ready", "first_role_saved") else 0
+        2 if result.get("kind") in (
+            "onboarding_complete", "first_role_saved", "full_result_ready",
+        ) else 0
     )
     result["furthest_step"] = furthest
 
-    if step is None or step >= furthest or furthest == 0:
+    if step is None or step > furthest or furthest == 0:
         return result
 
     users_repo = UsersRepository(db)
@@ -852,10 +923,10 @@ def get_result(db: Client, user_id: str, *, step: int | None = None) -> dict[str
 def _parallel(db: Client, reads: dict[str, Any]) -> dict[str, Any]:
     """Run independent reads at once and return them by name.
 
-    This endpoint is POLLED — every 2.5s for the whole CV analysis and again for
-    the whole shortlist run, so a single onboarding costs 40-70 calls. Each one
-    was a chain of sequential Supabase round trips, which makes its wall time the
-    SUM of reads that have nothing to do with each other.
+    This endpoint is polled during CV analysis (step 1). Direction completes
+    onboarding and sends the user to Market, so it is no longer polled for a
+    shortlist wait. Keep the fan-out parallel: each call was a chain of
+    sequential Supabase round trips when these reads ran in series.
 
     Same shape and same safety argument as `/home/bootstrap` and `/jobs/feed`: the
     admin client is a process-wide singleton whose underlying `httpx.Client` is
@@ -916,25 +987,33 @@ def journey_position(db: Client, user_id: str) -> dict[str, Any]:
     }
 
 
-def _mark_result_seen(db: Client, user_id: str, state: dict[str, Any]) -> None:
-    """Stamp the moment the shortlist actually renders. Best-effort, once.
-
-    It used to be written by `mark_completed`, with the identical timestamp as
-    `completed_at` — so the first-success checklist row "Review your top roles"
-    could only tick when the whole journey ticked, which made it a decoration
-    rather than a step anyone could take next.
+def _awaiting_target_payload(
+    db: Client,
+    user_id: str,
+    profile: dict[str, Any],
+    baseline: dict[str, Any],
+    *,
+    include_families: bool = True,
+) -> dict[str, Any]:
+    """Direction step payload. Families are optional — confirm-skills returns
+    without them so the button is not blocked on `list_role_families`; the
+    Direction screen loads suggestions itself.
     """
-    if state.get("result_seen_at"):
-        return
-    try:
-        OnboardingRepository(db).patch_state(
-            user_id, {"result_seen_at": datetime.now(timezone.utc).isoformat()}
-        )
-    except Exception as exc:  # noqa: BLE001 — never fail the screen over a stamp
-        logger.warning(
-            "metric onboarding.result_seen_stamp_failed user=%s exc=%s",
-            user_id, exc.__class__.__name__,
-        )
+    from app.services import ninja_name as nn
+
+    families_repo = RoleFamiliesRepository(db)
+    families = families_repo.list_families(user_id) if include_families else []
+    return {
+        "kind": "awaiting_target",
+        "baseline_version_id": int(baseline["id"]),
+        "families": families,
+        "seniority": _seniority_suggestion(baseline),
+        "selected": {"families": [], "seniority": None, "locations": []},
+        "direction": _direction_answer(db, user_id, profile),
+        "ninja": nn.suggestion_for(user_id, db),
+        "journey_step": 2,
+        "furthest_step": 2,
+    }
 
 
 def _current_result(db: Client, user_id: str) -> dict[str, Any]:
@@ -948,12 +1027,20 @@ def _current_result(db: Client, user_id: str) -> dict[str, Any]:
     profile = facts["profile"] or {}
     baseline = facts["baseline"]
 
-    if state.get("completed_at") and state.get("credible_job_saved_at"):
-        from app.services.onboarding_first_role import saved_first_role
+    # Completed onboarding lands on Market. A legacy first-role save still has a
+    # tailor receipt; everyone else who finished Direction goes to /market.
+    if state.get("completed_at"):
+        if state.get("credible_job_saved_at"):
+            from app.services.onboarding_first_role import saved_first_role
 
-        saved = saved_first_role(JobsRepository(db), user_id)
-        if saved:
-            return {"kind": "first_role_saved", **saved}
+            saved = saved_first_role(JobsRepository(db), user_id)
+            if saved:
+                return {"kind": "first_role_saved", **saved}
+        return {
+            "kind": "onboarding_complete",
+            "redirect_to": "/market",
+            "journey_step": 2,
+        }
 
     target = {
         "role_title": profile.get("target_role_title") or "",
@@ -1002,93 +1089,39 @@ def _current_result(db: Client, user_id: str) -> dict[str, Any]:
             "journey_step": 1,
         }
 
-    if not has_target:
-        return {
-            "kind": "awaiting_target",
-            "baseline_version_id": int(baseline["id"]),
-            "families": RoleFamiliesRepository(db).list_families(user_id),
-            "seniority": _seniority_suggestion(baseline),
-            # Same shape as the reviewed step, empty here. One payload shape means
-            # the client seeds its form the same way whichever way it arrived.
-            "selected": {"families": [], "seniority": None, "locations": []},
-            # Direction is NOT empty here even on a first arrival: this is where
-            # Myro's reading of the CV gets proposed back for correction.
-            "direction": _direction_answer(db, user_id, profile),
-            "journey_step": 2,
-        }
+    if not has_target or not profile.get("ninja_name_claimed_at"):
+        # Direction is the last onboarding page. Target and claimed ninja name
+        # are both required before Market. If a target was saved without a claim
+        # (legacy / race), keep them on Direction until the name is claimed.
+        payload = _awaiting_target_payload(db, user_id, profile, baseline)
+        if has_target:
+            families_repo = RoleFamiliesRepository(db)
+            chosen_keys = [
+                str(key) for key in (profile.get("target_roles") or []) if str(key).strip()
+            ]
+            selected = families_repo.resolve_families(user_id, chosen_keys)
+            payload["selected"] = {
+                "families": selected,
+                "seniority": profile.get("target_seniority") or None,
+                "locations": [
+                    str(value).strip()
+                    for value in (profile.get("target_locations") or [])
+                    if str(value).strip()
+                ],
+            }
+            chosen = {str(row.get("family")) for row in selected}
+            payload["families"] = selected + [
+                row for row in payload["families"] if str(row.get("family")) not in chosen
+            ]
+        return payload
 
-    score = ScoresRepository(db).get_mirror_score(user_id)
-    if not score:
-        _heal_missing_score(user_id)
-        return {
-            # Step 3: skills checked, direction chosen — only the score is left.
-            "kind": "full_result_processing",
-            "target": target,
-            "phase": "scoring",
-            "journey_step": 3,
-        }
-
-    # The SAME producer the writer uses (`match_credibility.evaluate_credibility`).
-    # Building the key inline from the `target` dict is what let the two sides drift.
-    context_hash = context_key({**profile, "baseline_version_id": int(baseline["id"])})
-    # The three reads behind the finished screen. They share only the context hash,
-    # which is already computed — none of them feeds another, so paying for them in
-    # sequence bought nothing. This is the branch the user polls for the whole
-    # shortlist run, so it is the one that repeats the cost ~24 times.
-    ready = _parallel(db, {
-        "shortlist": lambda: _shortlist(
-            db, user_id, profile, int(baseline["id"]), context_hash
-        ),
-        "credible_match": lambda: JobsRepository(db).get_current_credible_match(
-            user_id, int(baseline["id"]), context_hash,
-        ),
-        "proof_skills": lambda: _proof_skills(users_repo, user_id),
-    })
-    shortlist, shortlist_status = ready["shortlist"]
-    credible_match = ready["credible_match"]
-    if credible_match:
-        job = credible_match.get("jobs") or {}
-        primary_action = {
-            "kind": "tailor_credible_job",
-            "label": f"Tailor for {job.get('job_title') or 'this role'} at {job.get('company_name') or 'this company'}",
-            "href": f"/cv?jobId={credible_match['job_id']}",
-        }
-        secondary_action = {"kind": "review_gaps", "label": "Review score gaps", "href": "/skills"}
-    else:
-        primary_action = {"kind": "review_gaps", "label": "Review score gaps", "href": "/skills"}
-        secondary_action = {"kind": "browse_jobs", "label": "Browse jobs", "href": "/market"}
-    _mark_result_seen(db, user_id, state)
+    # Target + claimed ninja, but completed_at missing — heal and send to Market.
+    # Do not wait on score or shortlist: that was the old step-3 poll storm.
+    mark_completed(db, user_id)
     return {
-        "kind": "full_result_ready",
-        "baseline_version_id": int(baseline["id"]),
-        "target_context_hash": context_hash,
-        "target": target,
-        # Server-authored, direction-scoped. The screen and `commit_first_role`
-        # now read the same rows through the same function, so a card can never
-        # be offered that the save will refuse.
-        "shortlist": shortlist,
-        "shortlist_status": shortlist_status,
-        # This shortlist IS a Career-Ops run — the same brain, on the house. The
-        # user was never told that, and met the vocabulary for the first time on
-        # a modal quoting 100 coins. Naming the run here, and naming the inputs
-        # it did NOT have, teaches the surface before it ever charges for it.
-        "career_ops": {"sharpeners": _unused_ops_inputs(profile)},
-        "skills": ready["proof_skills"],
-        "score": {
-            "total_score": float(score["total_score"]),
-            "domain_scores": score.get("domain_scores") or {},
-            "domain_skill_counts": score.get("domain_skill_counts") or {},
-            "gap_skills": score.get("gap_skills") or [],
-            "skills_assessed": int(score.get("skills_assessed") or 0),
-            # Band-relative confidence line for the reveal ("top X% for {band}").
-            "band": target_seniority_for_profile({"target_seniority": target.get("seniority")}),
-            "band_percentile": score.get("percentile"),
-            "top_percent": top_percent(score.get("percentile")),
-        },
-        "score_factors": _score_factors(score),
-        "credible_match": credible_match,
-        "primary_action": primary_action,
-        "secondary_action": secondary_action,
+        "kind": "onboarding_complete",
+        "redirect_to": "/market",
+        "journey_step": 2,
     }
 
 
@@ -1111,7 +1144,7 @@ def build_first_success_checklist(
     """Pure projection over persisted journey facts; no click-local completion."""
     items = [
         {"id": "confirm_skills", "label": "Confirm your CV skills", "href": "/onboarding/result", "done": skills_confirmed},
-        {"id": "review_roles", "label": "Review your top roles", "href": "/onboarding/result", "done": bool(state.get("result_seen_at"))},
+        {"id": "set_direction", "label": "Choose your direction", "href": "/onboarding/result", "done": bool(state.get("completed_at"))},
         {"id": "tailor_cv", "label": "Tailor one CV", "href": "/cv", "done": tailored_cv_exists},
         {"id": "track_application", "label": "Track one application", "href": "/tracker", "done": tracked_application_exists},
     ]

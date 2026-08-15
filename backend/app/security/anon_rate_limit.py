@@ -32,6 +32,15 @@ MAX_PER_WINDOW = {
     "partner_connect_email": 3,
 }
 
+# Short burst windows on top of the hourly ceiling. The hourly limit alone let a
+# single tab hammer rewrite/score for a minute (landing playground loops) and
+# saturate the shared LLM lane before the hour bucket filled.
+BURST_LIMITS: dict[str, tuple[float, int]] = {
+    "score": (60.0, 2),
+    "rewrite": (60.0, 3),
+    "restructure": (60.0, 1),
+}
+
 MESSAGES = {
     "score": "You've previewed a few CVs already. Sign up to keep scoring.",
     "rewrite": "You've polished a lot of bullets. Sign up to keep improving your CV.",
@@ -43,11 +52,25 @@ MESSAGES = {
 }
 
 _hits: dict[tuple[str, str], deque[float]] = {}
+_burst_hits: dict[tuple[str, str], deque[float]] = {}
 
 
 def enforce_anon_rate(action: str, ip: str) -> None:
-    """Raise 429 when `ip` has exceeded this action's hourly ceiling."""
+    """Raise 429 when `ip` has exceeded this action's hourly or burst ceiling."""
     now = time.monotonic()
+    burst = BURST_LIMITS.get(action)
+    if burst is not None:
+        window, limit = burst
+        burst_hits = _burst_hits.setdefault((action, ip), deque())
+        while burst_hits and now - burst_hits[0] > window:
+            burst_hits.popleft()
+        if len(burst_hits) >= limit:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=MESSAGES.get(action, "Too many requests. Sign up to keep going."),
+            )
+        burst_hits.append(now)
+
     limit = MAX_PER_WINDOW.get(action, 5)
     hits = _hits.setdefault((action, ip), deque())
     while hits and now - hits[0] > WINDOW_SECONDS:
@@ -64,3 +87,4 @@ def reset() -> None:
     """Drop every counter. For tests — the window is an hour, so a suite that
     shares a process would otherwise leak one test's hits into the next."""
     _hits.clear()
+    _burst_hits.clear()

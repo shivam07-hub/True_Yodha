@@ -201,9 +201,10 @@ def test_score_cv_paste_too_short(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_score_cv_rate_limited(monkeypatch: pytest.MonkeyPatch) -> None:
     _wire_engine(monkeypatch, raw_text="A" * 400, skills=[{"display_name": "Python"}])
     client = TestClient(app)
-    for _ in range(anon_rate_limit.MAX_PER_WINDOW["score"]):
+    burst = anon_rate_limit.BURST_LIMITS["score"][1]
+    for _ in range(burst):
         assert client.post("/public/score-cv", files=_pdf_upload()).status_code == 200
-    # one past the cap, same client IP
+    # one past the burst cap, same client IP (hourly ceiling is higher)
     assert client.post("/public/score-cv", files=_pdf_upload()).status_code == 429
 
 
@@ -358,6 +359,7 @@ def test_rewrite_rate_limited(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(public_router.cv_rewrite, "suggest_rewrite", _fake)
     client = TestClient(app)
-    for _ in range(anon_rate_limit.MAX_PER_WINDOW["rewrite"]):
+    burst = anon_rate_limit.BURST_LIMITS["rewrite"][1]
+    for _ in range(burst):
         assert client.post("/public/rewrite-bullet", json={"bullet": "b"}).status_code == 200
     assert client.post("/public/rewrite-bullet", json={"bullet": "b"}).status_code == 429
