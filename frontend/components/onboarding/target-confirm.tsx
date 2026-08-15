@@ -171,6 +171,7 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
         locations,
         lean,
         avoid,
+        finish_onboarding: true,
       })
       trackEvent("onboarding_direction_confirmed", {
         role_count: selected.length,

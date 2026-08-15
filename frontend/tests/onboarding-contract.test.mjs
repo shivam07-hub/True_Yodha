@@ -102,6 +102,7 @@ test("accepted upload and target are persisted before Market navigation", () => 
   const target = read("components/onboarding/target-confirm.tsx")
   assert.match(page, /onboarding\.saveExperience/)
   assert.match(target, /onboarding\.saveTarget/)
+  assert.match(target, /finish_onboarding:\s*true/)
   assert.match(target, /Choose your direction/)
   assert.match(target, /Go to Market/)
   assert.match(target, /Your Myro name/)

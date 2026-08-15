@@ -396,7 +396,6 @@ def save_target(
         # question, and the refresh below runs the full Career-Ops brain with
         # `force`, bypassing the cache gate — so re-running it would spend a
         # real LLM pass to arrive back where the user already is.
-        complete_onboarding_after_direction(db, user_id)
         return
     background.enqueue(
         background.LANE_FAST,
@@ -410,7 +409,6 @@ def save_target(
             f":{','.join(normalized_leans or [])}"
         ),
     )
-    complete_onboarding_after_direction(db, user_id)
 
 
 def complete_onboarding_after_direction(db: Client, user_id: str) -> None:

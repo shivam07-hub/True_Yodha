@@ -69,3 +69,37 @@ def test_already_complete_is_a_no_op(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(onboarding_service, "OnboardingRepository", lambda _db: _State())
     onboarding_service.complete_onboarding_after_direction(object(), "u1")
+
+
+def test_save_target_does_not_complete_onboarding(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Market role edits share save_target — completion is opt-in at the router."""
+
+    class _Users:
+        def __init__(self) -> None:
+            self.profile = {
+                "target_role_title": "Data Analyst",
+                "target_roles": ["Data Analysis"],
+                "target_seniority": "senior",
+                "target_locations": ["Bengaluru, India"],
+            }
+
+        def get_profile(self, _user_id: str) -> dict[str, Any]:
+            return self.profile
+
+        def update_profile(self, _user_id: str, updates: dict[str, Any]) -> bool:
+            self.profile.update(updates)
+            return True
+
+    monkeypatch.setattr(onboarding_service, "UsersRepository", lambda _db: _Users())
+    monkeypatch.setattr(
+        onboarding_service,
+        "complete_onboarding_after_direction",
+        lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("save_target must not complete")),
+    )
+    monkeypatch.setattr(
+        onboarding_service.background,
+        "enqueue",
+        lambda *_a, **_k: None,
+    )
+
+    onboarding_service.save_target(object(), "u1", role_title="Product Manager")

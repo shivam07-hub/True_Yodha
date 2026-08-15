@@ -364,7 +364,13 @@ def test_background_run_marks_done_on_success(monkeypatch) -> None:
     # the screen behind this wait reads it. See test_cv_layout_never_blocks_upload.
     assert not repo.created[0].cv_structured
     assert repo.created[0].skills_detected[0]["taxonomy_key"] == "Python"
-    assert enqueued == [(cv_workflow.background.LANE_FAST, "cv_structured_enrich")]
+    # Layout enrich + provisional score while the user reviews skills (P0.3).
+    # Confirm still publishes; excludes force a recompute. Upload success does
+    # not depend on the score job.
+    assert enqueued == [
+        (cv_workflow.background.LANE_FAST, "cv_structured_enrich"),
+        (cv_workflow.background.LANE_FAST, "provisional_baseline_score"),
+    ]
 
 
 def test_background_run_refunds_and_fails_on_provider_outage(monkeypatch) -> None:

@@ -55,6 +55,10 @@ class TargetRequest(BaseModel):
     # enough to hold an answer and short enough to stay one clause.
     avoid: list[str] | None = Field(default=None, max_length=6)
     lean: list[str] | None = Field(default=None, max_length=6)
+    # Direction's final CTA only. Point-of-use role edits (Market) share this
+    # endpoint and must NOT complete onboarding — that would couple every target
+    # write to journey state and raise when a ninja claim is still missing.
+    finish_onboarding: bool = False
 
     @model_validator(mode="after")
     def _require_a_role(self) -> "TargetRequest":
@@ -142,9 +146,10 @@ def save_target(
     body: TargetRequest,
     principal: Principal = Depends(get_principal),
 ) -> None:
+    db = get_supabase_admin()
     try:
         onboarding_service.save_target(
-            get_supabase_admin(),
+            db,
             principal.id,
             role_title=body.role_title,
             role_titles=body.role_titles,
@@ -156,6 +161,8 @@ def save_target(
             avoid=body.avoid,
             lean=body.lean,
         )
+        if body.finish_onboarding:
+            onboarding_service.complete_onboarding_after_direction(db, principal.id)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

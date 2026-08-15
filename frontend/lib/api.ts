@@ -715,6 +715,8 @@ export interface OnboardingTarget {
   // omitted-vs-empty rule as locations — `[]` clears, absent preserves.
   avoid?: string[]
   lean?: string[]
+  /** Direction final CTA only — Market role edits must omit this. */
+  finish_onboarding?: boolean
 }
 
 /** Myro's current reading of what you want, and which halves are still a guess. */
