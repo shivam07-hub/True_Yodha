@@ -169,11 +169,14 @@ It is not built from nothing; it is built from something almost nobody has.
    stored structured → rendered as the inline-editable sentence, replacing the
    pre-flight form. No mentor rebuild, no new prompts. Ships the visible half
    against the reach that already exists.
-2. **One voice.** Shared `MYRO_VOICE` preamble; the six user-facing prompts
-   (`cv_weave`, `gap_planner`, `intent_chat_service`, `prep_brief`,
-   `job_switch_plan_service`, `reach_pack`) collapse onto it, one at a time,
-   each with a test that the voice contract holds. The parsers
-   (`role_dedup`, `job_file_parser`, …) are mechanical and stay as they are.
+2. **One voice.** ✅ SHIPPED `06d0b512` — `myro_voice.py`. The brief said six
+   prompts, one voice; reading them says two registers, and collapsing all six
+   would have broken two. `speaking_to_reader` (search chat, interview brief,
+   switch plan, persona canvas) carries the `reader_voice` address contract,
+   which exactly ONE of those four carried before. `drafting_for_reader`
+   (`cv_weave`, `reach_pack`) does NOT — those write what the user sends under
+   their own name, so Myro must be invisible. `gap_planner` gets neither and
+   the test asserts that, since it only emits `latent|absent` JSON.
 3. **`learned[]`.** The `cv` and `skills` surfaces start writing what they hear.
 4. **One thread** across all four surfaces, with summarisation.
 
