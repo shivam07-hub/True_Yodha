@@ -438,6 +438,9 @@ export interface ProfileUpdate {
   target_location?: string | null
   target_locations?: string[] | null
   deal_breakers?: string[] | null
+  /** Routed server-side to the authored-preference writer — there is no
+   *  `lean` column to set. Sending `[]` clears; omitting preserves. */
+  lean?: string[] | null
   career_goal?: string | null
   superpower?: string | null
   myrology_interested?: boolean
@@ -3039,6 +3042,9 @@ export interface RefreshPreflightResponse {
   role_titles: string[]
   location: string | null
   deal_breakers: string[]
+  /** What the user is drawn TO — authored `preference` facts. No column, so it
+   *  is never in `prefilled`: the fact store IS the answer, not a gap-fill. */
+  lean: string[]
   career_goal: string | null
   superpower: string | null
   /** field name → "memory" for every field gap-filled from user_memory */

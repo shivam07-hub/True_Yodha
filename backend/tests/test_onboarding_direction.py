@@ -16,7 +16,7 @@ from typing import Any
 from app.services.onboarding_service import (
     _direction_answer,
     _normalize_direction_phrases,
-    _replace_authored_leans,
+    replace_authored_leans,
 )
 
 
@@ -119,7 +119,7 @@ def test_leans_replace_only_authored_facts() -> None:
         {"id": "keep", "kind": "preference", "text": "distilled", "source": "distilled"},
         {"id": "drop", "kind": "preference", "text": "old lean", "source": "authored"},
     ])
-    changed = _replace_authored_leans(db, "u1", ["new lean"])
+    changed = replace_authored_leans(db, "u1", ["new lean"])
     assert changed is True
     assert db.inserted == [{
         "user_id": "u1", "kind": "preference", "text": "new lean",
@@ -132,5 +132,5 @@ def test_resubmitting_the_same_leans_is_not_a_change() -> None:
     db = _MemoryDB([
         {"id": "1", "kind": "preference", "text": "same", "source": "authored"},
     ])
-    assert _replace_authored_leans(db, "u1", ["same"]) is False
+    assert replace_authored_leans(db, "u1", ["same"]) is False
     assert db.inserted == []

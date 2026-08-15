@@ -403,6 +403,7 @@ class RefreshPreflightResponse(BaseModel):
     role_titles: list[str]
     location: str | None = None
     deal_breakers: list[str]
+    lean: list[str]
     career_goal: str | None = None
     superpower: str | None = None
     prefilled: dict[str, str]

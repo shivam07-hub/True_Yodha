@@ -28,6 +28,7 @@ Field ↔ fact-kind mapping (fill-empty-only; a user-entered column value is nev
 overwritten, even a junk one — the user edits it in the modal):
 
 - deal_breakers  ← `constraint` / `work_mode` facts
+- lean           ← `preference` facts (no column; the fact store IS the answer)
 - career_goal    ← `aspiration` facts
 - superpower     ← no clean kind; column-only (stays manual)
 - role titles    ← `target_role_titles` (source of record), falling back to the
@@ -47,6 +48,7 @@ _PROMPT_FACTS_CAP = 8
 _PREFILL_DEAL_BREAKERS_CAP = 4
 _DEAL_BREAKER_KINDS = ("constraint", "work_mode")
 _GOAL_KINDS = ("aspiration",)
+_LEAN_KINDS = ("preference",)
 
 
 @dataclass(frozen=True)
@@ -100,6 +102,13 @@ class TargetingBrief:
                 deal_breakers = derived[:_PREFILL_DEAL_BREAKERS_CAP]
                 prefilled["deal_breakers"] = "memory"
 
+        # The other half of the direction axis. Unlike deal-breakers it has no
+        # column: a lean IS a `preference` fact, so there is nothing to gap-fill
+        # from — the store is the answer. It reaches the brain as `known_facts`
+        # either way; surfacing it here is what lets the manifest read as one
+        # sentence instead of listing only the half that happens to have a column.
+        lean = [f.text for f in self.facts if f.kind in _LEAN_KINDS][:_PREFILL_DEAL_BREAKERS_CAP]
+
         career_goal = (p.get("career_goal") or "").strip()
         if not career_goal:
             goal = next((f.text for f in self.facts if f.kind in _GOAL_KINDS), "")
@@ -116,6 +125,7 @@ class TargetingBrief:
             "role_titles": role_titles,
             "location": location or None,
             "deal_breakers": deal_breakers,
+            "lean": lean,
             "career_goal": career_goal or None,
             "superpower": (p.get("superpower") or "").strip() or None,
             "prefilled": prefilled,

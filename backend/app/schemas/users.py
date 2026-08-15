@@ -59,6 +59,10 @@ class UpdateProfileRequest(BaseModel):
     target_location: str | None = None
     target_locations: list[str] | None = None
     deal_breakers: list[str] | None = None
+    # The other half of the direction axis. It has no column — leans live as
+    # authored `preference` facts — so this is routed, not written, by the
+    # update_profile handler.
+    lean: list[str] | None = None
     career_goal: str | None = None
     superpower: str | None = None
     myrology_interested: bool | None = None

@@ -13,6 +13,8 @@ import { useCoinsGate } from "@/lib/hooks/use-xp-gate"
 import { useXPStore } from "@/store/xpStore"
 import { useRefreshGateStore } from "@/store/refreshGateStore"
 import { PreflightChat } from "@/components/jobs/preflight-chat"
+import { TargetingSentence } from "@/components/jobs/targeting-sentence"
+import "@/components/jobs/targeting-sentence.css"
 
 /**
  * MatchRefreshGate — the consent + targeting-review gate for "Refresh matches".
@@ -23,8 +25,10 @@ import { PreflightChat } from "@/components/jobs/preflight-chat"
  *    fields arrive silently prefilled from user_memory; prefill lives in the
  *    DRAFT and persists only through the user's Run/Save action. Role chips
  *    are human TITLES — the backend derives the matcher's cluster union.
- *  - The 6 Myro Ops agent inputs are VISIBLE by default as a compact
- *    manifest; 5 are inline-editable, the CV is a read-only chip → new tab.
+ *  - The order the agent will run is shown as ONE SENTENCE whose nouns are its
+ *    controls (see targeting-sentence.tsx). It replaced six numbered form rows,
+ *    which made the thing being confirmed the smallest text on the screen. The
+ *    CV and the memory count sit under it as sources, not settings.
  *  - Price is SERVER-decided (`preflight.run_cost`, 2026-07-28): free when Myro
  *    landed roles this user has never been matched against — they didn't ask for
  *    that inventory, so they don't pay to look at it — and the flat
@@ -60,6 +64,10 @@ interface Draft {
   roles: string[]
   location: string
   dealBreakers: string[]
+  /** What the user is drawn TO. No profile column — authored `preference`
+   *  facts — so it seeds from the preflight manifest and saves through the
+   *  same profile write, which routes it to the one lean writer. */
+  lean: string[]
   careerGoal: string
   superpower: string
 }
@@ -81,6 +89,9 @@ function seed(p?: GateProfile | null): Draft {
     roles: titles.length ? titles : (p?.target_roles ?? []).filter((r) => r.trim()),
     location: p?.target_location ?? "",
     dealBreakers: (p?.deal_breakers ?? []).filter((d) => d.trim()),
+    // No column to seed from — a lean IS a memory fact, so it arrives only
+    // through the preflight manifest below.
+    lean: [],
     careerGoal: p?.career_goal ?? "",
     superpower: p?.superpower ?? "",
   }
@@ -93,6 +104,7 @@ function seedFromPreflight(pf: RefreshPreflightResponse): Draft {
     roles: pf.role_titles,
     location: pf.location ?? "",
     dealBreakers: pf.deal_breakers,
+    lean: pf.lean,
     careerGoal: pf.career_goal ?? "",
     superpower: pf.superpower ?? "",
   }
@@ -158,6 +170,8 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
         ].slice(0, MAX_CHIPS),
         careerGoal: diff.career_goal ?? d.careerGoal,
         superpower: diff.superpower ?? d.superpower,
+        // Myro has no lean diff yet; the conversation proposes the other five.
+        lean: d.lean,
       }
     })
   }, [])
@@ -238,6 +252,8 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
         target_role_titles: draft.roles,
         target_location: draft.location.trim() || null,
         deal_breakers: draft.dealBreakers,
+        // Routed to the authored-preference writer server-side; it has no column.
+        lean: draft.lean,
         career_goal: draft.careerGoal.trim() || null,
         superpower: draft.superpower.trim() || null,
       })
@@ -289,22 +305,6 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
         setBusy(false)
       }
     })
-  }
-
-  /* ── Chip helpers ───────────────────────────────────────────────────── */
-  const addChip = (key: "roles" | "dealBreakers", value: string) => {
-    const v = value.trim()
-    if (!v) return
-    touched.current = true
-    setDraft((d) => {
-      const list = d[key]
-      if (list.length >= MAX_CHIPS || list.some((x) => x.toLowerCase() === v.toLowerCase())) return d
-      return { ...d, [key]: [...list, v] }
-    })
-  }
-  const removeChip = (key: "roles" | "dealBreakers", i: number) => {
-    touched.current = true
-    setDraft((d) => ({ ...d, [key]: d[key].filter((_, idx) => idx !== i) }))
   }
 
   const cv = cvLabel(profile)
@@ -384,77 +384,70 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
           <PreflightChat token={token} onPropose={applyProposal} />
         </div>
 
-        {/* ── Manifest — what Myro heard, editable ──────────────────────── */}
-        <div style={{ padding: "16px 22px 4px" }}>
-          <ManifestRow n={1} label="Target roles">
-            <ChipField
-              items={draft.roles} max={MAX_CHIPS} placeholder="Add a role — Enter"
-              onAdd={(v) => addChip("roles", v)} onRemove={(i) => removeChip("roles", i)}
-              tone="interactive"
-            />
-          </ManifestRow>
+        {/* ── The order, as prose ────────────────────────────────────────
+            Six labelled rows became one sentence whose nouns are the controls.
+            The rows made the thing being confirmed the smallest text on screen,
+            and they asked the user to phrase a dealbreaker as a chip — "e.g. no
+            relocation" — in the same control that was rendering a memory fact
+            reading "May prefer consultative or partnering work". One of those is
+            a tag and the other is a sentence; a chip could only ever hold one. */}
+        <div style={{ padding: "18px 22px 6px" }}>
+          <TargetingSentence
+            value={{
+              roles: draft.roles,
+              location: draft.location,
+              lean: draft.lean,
+              avoid: draft.dealBreakers,
+              goal: draft.careerGoal,
+              power: draft.superpower,
+            }}
+            maxPerGroup={MAX_CHIPS}
+            onChange={(next) => {
+              touched.current = true
+              setDraft({
+                roles: next.roles,
+                location: next.location,
+                lean: next.lean,
+                dealBreakers: next.avoid,
+                careerGoal: next.goal,
+                superpower: next.power,
+              })
+            }}
+          />
+        </div>
 
-          <ManifestRow n={2} label="Location">
-            <TextField
-              value={draft.location} placeholder="e.g. Bengaluru / Remote"
-              onChange={(v) => { touched.current = true; setDraft((d) => ({ ...d, location: v })) }}
-            />
-          </ManifestRow>
-
-          <ManifestRow n={3} label="Deal-breakers">
-            <ChipField
-              items={draft.dealBreakers} max={MAX_CHIPS} placeholder="e.g. no relocation — Enter"
-              onAdd={(v) => addChip("dealBreakers", v)} onRemove={(i) => removeChip("dealBreakers", i)}
-              tone="danger"
-            />
-          </ManifestRow>
-
-          <ManifestRow n={4} label="Career goal">
-            <TextField
-              value={draft.careerGoal} placeholder="e.g. move into platform work in 2 years"
-              onChange={(v) => { touched.current = true; setDraft((d) => ({ ...d, careerGoal: v })) }}
-            />
-          </ManifestRow>
-
-          <ManifestRow n={5} label="Superpower">
-            <TextField
-              value={draft.superpower} placeholder="e.g. untangling legacy systems"
-              onChange={(v) => { touched.current = true; setDraft((d) => ({ ...d, superpower: v })) }}
-            />
-          </ManifestRow>
-
-          {/* CV — read-only, opens new tab */}
-          <ManifestRow n={6} label="CV">
-            <a
-              href={cvHref} target="_blank" rel="noopener noreferrer"
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 8,
-                padding: "7px 12px", borderRadius: 999, textDecoration: "none",
-                background: "rgba(255,255,255,0.03)",
-                border: `1px solid ${cv.tone === "warn" ? "rgba(251,191,113,0.3)" : "var(--tm-border-soft)"}`,
-                fontSize: 12.5,
-                color: cv.tone === "ready" ? "var(--tm-text)" : cv.tone === "warn" ? "var(--tm-warning)" : "var(--tm-text-muted)",
-                fontFamily: "var(--tm-font-mono)", letterSpacing: "0.01em",
-              }}
-            >
-              <span aria-hidden>📄</span>
-              {cv.text}
-              <span aria-hidden style={{ opacity: 0.6 }}>↗</span>
-            </a>
-          </ManifestRow>
-
-          {/* Memory — honesty line for the full-brief prompt: the agent also
-              reads the user's memory facts, not just the rows above. */}
+        {/* What Myro brings to the search that the sentence does not name — the
+            CV it reads from, and the notes behind it. Sources, not settings, so
+            they sit under the order rather than in it. The numbered labels went
+            with the rows: 01–06 read as a sequence over fields that had no
+            order, and one sentence has no steps to number. */}
+        <div style={{
+          display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10,
+          padding: "14px 22px 4px",
+        }}>
+          <a
+            href={cvHref} target="_blank" rel="noopener noreferrer"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 8,
+              padding: "7px 12px", borderRadius: 999, textDecoration: "none",
+              background: "rgba(255,255,255,0.03)",
+              border: `1px solid ${cv.tone === "warn" ? "rgba(251,191,113,0.3)" : "var(--tm-border-soft)"}`,
+              fontSize: 12.5,
+              color: cv.tone === "ready" ? "var(--tm-text)" : cv.tone === "warn" ? "var(--tm-warning)" : "var(--tm-text-muted)",
+              fontFamily: "var(--tm-font-mono)", letterSpacing: "0.01em",
+            }}
+          >
+            <span aria-hidden>📄</span>
+            {cv.text}
+            <span aria-hidden style={{ opacity: 0.6 }}>↗</span>
+          </a>
           {(preflight?.memory_count ?? 0) > 0 && (
-            <ManifestRow n={7} label="Memory">
-              <span style={{
-                display: "inline-block", padding: "8px 0",
-                fontSize: 12.5, color: "var(--tm-text-muted)",
-                fontFamily: "var(--tm-font-mono)", letterSpacing: "0.01em",
-              }}>
-                {preflight!.memory_count} notes · read by the agent
-              </span>
-            </ManifestRow>
+            <span style={{
+              fontSize: 12.5, color: "var(--tm-text-muted)",
+              fontFamily: "var(--tm-font-mono)", letterSpacing: "0.01em",
+            }}>
+              + {preflight!.memory_count} notes Myro remembers
+            </span>
           )}
         </div>
 
@@ -545,109 +538,6 @@ export function MatchRefreshGate({ token, profile, onRun }: MatchRefreshGateProp
 }
 
 /* ─── Internal building blocks ─────────────────────────────────────────── */
-
-function ManifestRow({ n, label, children }: { n: number; label: string; children: React.ReactNode }) {
-  return (
-    <div style={{ display: "flex", gap: 12, padding: "10px 0", borderBottom: "1px solid var(--tm-border-soft)" }}>
-      <div style={{
-        flex: "0 0 auto", width: 92, paddingTop: 3,
-        display: "flex", alignItems: "baseline", gap: 7,
-      }}>
-        <span style={{ fontFamily: "var(--tm-font-mono)", fontSize: 10, color: "var(--tm-text-faint)", fontVariantNumeric: "tabular-nums" }}>
-          {String(n).padStart(2, "0")}
-        </span>
-        <span style={{
-          fontSize: 10.5, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase",
-          color: "var(--tm-text-muted)",
-        }}>
-          {label}
-        </span>
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
-    </div>
-  )
-}
-
-function TextField({ value, placeholder, onChange }: { value: string; placeholder: string; onChange: (v: string) => void }) {
-  const [focused, setFocused] = useState(false)
-  return (
-    <input
-      type="text" value={value} placeholder={placeholder} autoComplete="off"
-      onChange={(e) => onChange(e.target.value)}
-      onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
-      style={{
-        width: "100%", padding: "8px 11px", boxSizing: "border-box",
-        borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.03)",
-        border: `1px solid ${focused ? "var(--tm-int-border)" : "var(--tm-border-soft)"}`,
-        color: "var(--tm-text)", fontSize: 13, fontFamily: "inherit", outline: "none",
-        transition: "border-color var(--tm-dur) var(--tm-ease)",
-      }}
-    />
-  )
-}
-
-function ChipField({
-  items, max, placeholder, onAdd, onRemove, tone,
-}: {
-  items: string[]; max: number; placeholder: string
-  onAdd: (v: string) => void; onRemove: (i: number) => void
-  tone: "interactive" | "danger"
-}) {
-  const [input, setInput] = useState("")
-  const [focused, setFocused] = useState(false)
-  const ref = useRef<HTMLInputElement>(null)
-  const atMax = items.length >= max
-  const chipBg = tone === "danger" ? "var(--tm-danger-wash)" : "var(--tm-int-bg-wash)"
-  const chipBd = tone === "danger" ? "rgba(251,113,133,0.3)" : "var(--tm-int-border)"
-  const chipFg = tone === "danger" ? "var(--tm-danger)" : "var(--tm-interactive)"
-
-  const commit = () => { onAdd(input); setInput(""); ref.current?.focus() }
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-      <input
-        ref={ref} type="text" value={input} disabled={atMax} autoComplete="off"
-        placeholder={atMax ? "Max reached" : placeholder}
-        onChange={(e) => setInput(e.target.value)}
-        onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === ",") { e.preventDefault(); commit() }
-          else if (e.key === "Backspace" && !input && items.length) onRemove(items.length - 1)
-        }}
-        style={{
-          width: "100%", padding: "8px 11px", boxSizing: "border-box",
-          borderRadius: "var(--tm-radius-sm)", background: "rgba(255,255,255,0.03)",
-          border: `1px solid ${focused ? "var(--tm-int-border)" : "var(--tm-border-soft)"}`,
-          color: "var(--tm-text)", fontSize: 13, fontFamily: "inherit", outline: "none",
-          opacity: atMax ? 0.45 : 1,
-          transition: "border-color var(--tm-dur) var(--tm-ease)",
-        }}
-      />
-      {items.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {items.map((it, i) => (
-            <span key={`${it}-${i}`} style={{
-              display: "inline-flex", alignItems: "center", gap: 6,
-              padding: "4px 7px 4px 11px", borderRadius: 999,
-              background: chipBg, border: `1px solid ${chipBd}`, color: chipFg, fontSize: 12.5,
-            }}>
-              {it}
-              <button
-                type="button" onClick={() => onRemove(i)} aria-label={`Remove ${it}`}
-                style={{
-                  width: 15, height: 15, borderRadius: "50%", padding: 0, border: "none", cursor: "pointer",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  background: tone === "danger" ? "rgba(251,113,133,0.2)" : "rgba(255,255,255,0.08)",
-                  color: chipFg, fontSize: 11, lineHeight: 1,
-                }}
-              >×</button>
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
 
 function XPCoin() {
   return (

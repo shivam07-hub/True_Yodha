@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.concurrency import run_in_threadpool
 from supabase import Client
 
+from app.database import get_supabase_admin
 from app.deps import Principal, get_principal, get_user_db
 from app.repositories.users import UsersRepository, get_token_users_repository
 from app.schemas import (
@@ -189,6 +190,21 @@ async def update_profile(
         )
     if "target_seniority" in updates:
         updates["target_seniority"] = target_seniority_for_profile(updates)
+
+    # A lean has no column — it IS an authored `preference` fact — so it is routed
+    # to the one writer rather than handed to update_profile, which would try to
+    # set a field that does not exist. Same accept semantics as the rest of this
+    # payload: reaching here means the user pressed Save or Run.
+    lean = updates.pop("lean", None)
+    if lean is not None:
+        onboarding_service.replace_authored_leans(
+            get_supabase_admin(), user_id, [str(v).strip() for v in lean if str(v).strip()]
+        )
+    if not updates:
+        profile = users_repo.get_profile(user_id)
+        if not profile:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found.")
+        return UpdateProfileResponse(profile=profile)
 
     should_grant_linkedin_xp = _linkedin_reward_is_due(before, updates)
     users_repo.update_profile(user_id, updates)

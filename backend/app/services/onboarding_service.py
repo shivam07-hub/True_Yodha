@@ -177,7 +177,7 @@ def _normalize_direction_phrases(values: list[str]) -> list[str]:
     return seen[:_DIRECTION_PHRASE_CAP]
 
 
-def _replace_authored_leans(db: Client, user_id: str, leans: list[str]) -> bool:
+def replace_authored_leans(db: Client, user_id: str, leans: list[str]) -> bool:
     """Make the user's authored `preference` facts exactly `leans`. Returns whether
     anything moved.
 
@@ -190,6 +190,7 @@ def _replace_authored_leans(db: Client, user_id: str, leans: list[str]) -> bool:
     from app.repositories.user_memory import UserMemoryRepository
 
     repo = UserMemoryRepository(db)
+    leans = _normalize_direction_phrases(leans)
     try:
         existing = [
             row for row in repo.list_active(user_id, kinds=[_LEAN_KIND])
@@ -386,7 +387,7 @@ def save_target(
     # see it — and leans reach the brain as `known_facts`. Without this, changing
     # only what you're drawn to would leave every cached verdict as it was.
     leans_changed = (
-        _replace_authored_leans(db, user_id, normalized_leans)
+        replace_authored_leans(db, user_id, normalized_leans)
         if normalized_leans is not None
         else False
     )
