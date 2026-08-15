@@ -11,7 +11,7 @@ ADR-0016. Spec: memory/project_cv_endtoend_journey.md (brain-dump collecting mom
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 from pydantic import BaseModel, Field
 
 from app.deps import Principal, get_principal
@@ -43,8 +43,15 @@ class IntakeDraftResponse(BaseModel):
 @router.post("/intake-draft", response_model=IntakeDraftResponse)
 async def intake_draft(
     body: IntakeDraftRequest,
-    _principal: Principal = Depends(get_principal),
+    background_tasks: BackgroundTasks,
+    principal: Principal = Depends(get_principal),
 ) -> IntakeDraftResponse:
+    # `raw_text` is the user describing what they actually did, in their own
+    # words, to turn it into bullets. The bullets are the point; what they say
+    # about the person while writing them was being thrown away.
+    from app.services import mentor_learn
+
+    background_tasks.add_task(mentor_learn.learn_from_turn, principal.id, body.raw_text, "CV")
     result = await cv_intake.draft_from_intake(
         raw_text=body.raw_text,
         jd_text=body.jd_text,
