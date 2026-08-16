@@ -123,6 +123,34 @@ def test_refresh_stream_failed_emits_error(monkeypatch):
     assert errors[0]["result"]["new_coin_balance"] == 120
 
 
+def test_refresh_stream_abandons_a_stranded_queue(monkeypatch):
+    failed = _state(
+        "failed",
+        error="Search couldn't start — try again in a moment.",
+        refund=50,
+        new_coin_balance=400,
+    )
+
+    async def fake_status(user_id, ticket_id):
+        return _state("queued")
+
+    async def fake_abandon(user_id, ticket_id, queued_for):
+        return failed
+
+    monkeypatch.setattr(match_router.JobRefresh, "status", staticmethod(fake_status))
+    monkeypatch.setattr(match_router.JobRefresh, "abandon_stranded", staticmethod(fake_abandon))
+    app.dependency_overrides[get_principal] = lambda: Principal(id="u1")
+
+    with TestClient(app) as client:
+        r = client.get("/jobs/refresh/t1/stream")
+    app.dependency_overrides.clear()
+
+    frames = _frames(r.text)
+    errors = [f for f in frames if f["type"] == "error"]
+    assert errors and errors[0]["message"] == "Search couldn't start — try again in a moment."
+    assert errors[0]["result"]["new_coin_balance"] == 400
+
+
 def test_refresh_stream_unknown_ticket(monkeypatch):
     async def fake_status(user_id, ticket_id):
         raise HTTPException(status_code=404, detail="nope")

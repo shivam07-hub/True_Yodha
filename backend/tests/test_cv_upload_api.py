@@ -409,11 +409,8 @@ def test_background_run_completes_when_only_the_layout_is_unavailable(monkeypatc
     intake — on the premise that an intake without layout is "unreviewable". That
     premise no longer holds, in three places:
 
-      * the CV surfaces render `CvDocumentSkeleton` while layout is pending
-        (`app/(authed)/cv/page.tsx`, `library-view.tsx`), added by the
-        2026-08-02 blank-page fix;
-      * `get_or_backfill_cv_structured` rebuilds it on first read;
-      * `cv_structured_enrich` now actually gets enqueued to fill it in.
+      * display reads `body_text` until `cv_structured` has content;
+      * `cv_structured_enrich` is enqueued to fill the paper JSON in.
 
     Meanwhile the cost of the old line was measured: a real signup lost a good
     analysis twice in three minutes because the SECOND LLM call returned
@@ -468,9 +465,8 @@ def test_background_run_completes_when_only_the_layout_is_unavailable(monkeypatc
     )
 
     assert repo.created, "the baseline must still be written, with layout pending"
-    # The write spec normalizes a missing layout to `{}`; `get_or_backfill_cv_structured`
-    # treats an empty dict as "not parsed yet" and rebuilds it, so empty IS the
-    # pending state. Assert emptiness rather than `is None` to match that contract.
+    # The write spec normalizes a missing layout to `{}`; empty IS the pending
+    # state. Display reads `body_text` until enrich writes paper JSON.
     assert not repo.created[0].cv_structured
     assert done_calls, "the user must reach skill review"
     assert "cv_structured_enrich" in enqueued, "the layout gap must be queued to close"

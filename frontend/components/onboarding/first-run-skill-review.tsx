@@ -1,15 +1,13 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { Button } from "@/components/ui/button"
+import { useMemo, useState, type ReactNode } from "react"
 import { trackEvent } from "@/lib/analytics"
 import { proofTier, PROOF_TIER_COPY, type ProofTier } from "@/lib/cv/skill-proof"
 import { onboarding, type OnboardingResult } from "@/lib/api"
 import { cn } from "@/lib/utils"
-import { StickyOnboardingActionBar } from "@/components/onboarding/sticky-action-bar"
 
 type SkillResult = Extract<OnboardingResult, { kind: "awaiting_skill_confirmation" }>
-type Props = {
+export type FirstRunSkillReviewProps = {
   token: string
   result: SkillResult
   /** Carries the next step the server already assembled, so the page can move
@@ -18,6 +16,15 @@ type Props = {
   /** Return to where the user actually is. Only present when they came back
    *  here to review — a first-time visitor has nothing ahead of them. */
   onForward?: () => void
+  children?: (chrome: SkillReviewChrome, list: ReactNode) => ReactNode
+}
+
+export type SkillReviewChrome = {
+  keptCount: number
+  removedCount: number
+  busy: boolean
+  error: string | null
+  confirm: () => void
 }
 
 const ORDER: ProofTier[] = ["proven", "listed", "none"]
@@ -26,12 +33,6 @@ type Skill = SkillResult["skills"][number]
 
 /**
  * Skills that came out of the SAME line of the CV, grouped under that line.
- *
- * The pointer is the point. A first-run user is being asked to rule on a list of
- * skills they never wrote down, and the only thing that makes that answerable is
- * seeing the sentence Myro read them out of. This surface used to print the
- * evidence as a truncated fragment beside each name, which at 375px clipped to a
- * few words and repeated the same line once per skill it produced.
  *
  * Same shape as the CV playground's Skills rail (`SkillProvenance`), on purpose:
  * the thing learned here on day one is the thing that keeps working on day one
@@ -56,7 +57,7 @@ function groupByCVLine(skills: Skill[], keepEvidence: boolean): { line: string; 
     .sort((a, b) => b.skills.length - a.skills.length)
 }
 
-export function FirstRunSkillReview({ token, result, onConfirmed, onForward }: Props) {
+export function FirstRunSkillReview({ token, result, onConfirmed, children }: FirstRunSkillReviewProps) {
   const [removed, setRemoved] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -86,9 +87,6 @@ export function FirstRunSkillReview({ token, result, onConfirmed, onForward }: P
         Array.from(removed).map((taxonomy_key) => ({ taxonomy_key, action: "exclude" as const })),
       )
       trackEvent("onboarding_skills_confirmed", { kept_count: keptCount })
-      // Hand the next step straight to the page. It used to be dropped, and the
-      // page asked the server for it again — a second multi-second round trip for
-      // an answer already in hand.
       onConfirmed(confirmed.result)
     } catch (reason) {
       setBusy(false)
@@ -96,107 +94,89 @@ export function FirstRunSkillReview({ token, result, onConfirmed, onForward }: P
     }
   }
 
-  return (
-    <section className="w-full max-w-2xl pb-28" aria-labelledby="skill-review-title">
-      <h1 id="skill-review-title" className="text-balance text-3xl font-semibold text-[var(--tm-text)] sm:text-4xl">
-        Check what Myro found
-      </h1>
-      {/* One line at body size. The old two-clause subtitle at sm:text-base
-          competed with the h1 and restated what the checkboxes already show. */}
-      <p className="mt-2 text-sm leading-6 text-[var(--tm-text-muted)]">
-        Untick anything that isn&apos;t yours.
-      </p>
-
-      <div className="mt-7 space-y-8">
-        {groups.map(({ tier, skills, points }) => {
-          const keys = skills.map((skill) => skill.taxonomy_key)
-          const allRemoved = keys.every((key) => removed.has(key))
-          return (
-            <fieldset key={tier}>
-              <div className="flex items-baseline justify-between gap-4 border-b border-[var(--tm-border-soft)] pb-2">
-                <legend className="flex items-baseline gap-2">
-                  <span className="text-sm font-semibold text-[var(--tm-text)]">{PROOF_TIER_COPY[tier].label}</span>
-                  <span className="font-mono text-xs tabular-nums text-[var(--tm-text-faint)]">{skills.length}</span>
-                </legend>
-                {/* 14 keyword-inferred skills is a bulk decision, not 14 decisions. */}
-                <button
-                  type="button"
-                  onClick={() => mutate((next) => keys.forEach((key) => (allRemoved ? next.delete(key) : next.add(key))))}
-                  className="tm-control-focus shrink-0 rounded text-xs text-[var(--tm-text-muted)] underline underline-offset-4"
-                >
-                  {allRemoved ? "Keep all" : "Remove all"}
-                </button>
-              </div>
-
-              {/* Only the tiers with a real receipt get one. `none` says so instead. */}
-              {tier === "none" && (
-                <p className="mt-2 text-sm leading-6 text-[var(--tm-text-muted)]">{PROOF_TIER_COPY.none.note}</p>
-              )}
-
-              <div className="mt-3 space-y-5">
-                {points.map(({ line, skills: lineSkills }) => (
-                  <div key={line || tier}>
-                    {line && (
-                      // The CV's own words, quoted whole and never truncated —
-                      // this line IS the answer to "why does Myro think I have
-                      // this?", and a clipped one answers nothing.
-                      <p className="border-l-2 border-[var(--tm-border)] pl-3 text-sm leading-6 text-[var(--tm-text-muted)]">
-                        {line}
-                      </p>
-                    )}
-                    <div className={cn("divide-y divide-[var(--tm-border-soft)]", line && "mt-1")}>
-                      {lineSkills.map((skill) => {
-                        const excluded = removed.has(skill.taxonomy_key)
-                        return (
-                          <label
-                            key={skill.taxonomy_key}
-                            className={cn(
-                              "flex min-h-11 cursor-pointer items-center gap-3 py-2.5",
-                              excluded && "opacity-45",
-                            )}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={!excluded}
-                              onChange={() => mutate((next) => (excluded ? next.delete(skill.taxonomy_key) : next.add(skill.taxonomy_key)))}
-                              className="tm-control-focus size-4 shrink-0 accent-[var(--tm-interactive)]"
-                            />
-                            <span className={cn("min-w-0 text-sm font-medium text-[var(--tm-text)]", excluded && "line-through")}>
-                              {skill.name}
-                            </span>
-                          </label>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </fieldset>
-          )
-        })}
+  const list = (
+    <aside className="cvb-v2-rail" aria-label="Skills Myro found">
+      <div className="cvb-v2-railtabs">
+        <span className="cvb-v2-tabbtn active">Skills</span>
       </div>
+      <div className="cvb-v2-railbody">
+        <div className="cvb-v2-railpane">
+          <p className="cvb-v2-rail-lede">Untick anything that isn&apos;t yours.</p>
+          <div className="space-y-8">
+            {groups.map(({ tier, skills, points }) => {
+              const keys = skills.map((skill) => skill.taxonomy_key)
+              const allRemoved = keys.every((key) => removed.has(key))
+              return (
+                <fieldset key={tier}>
+                  <div className="flex items-baseline justify-between gap-4 border-b border-[var(--tm-border-soft)] pb-2">
+                    <legend className="flex items-baseline gap-2">
+                      <span className="text-sm font-semibold text-[var(--tm-text)]">{PROOF_TIER_COPY[tier].label}</span>
+                      <span className="font-mono text-xs tabular-nums text-[var(--tm-text-faint)]">{skills.length}</span>
+                    </legend>
+                    <button
+                      type="button"
+                      onClick={() => mutate((next) => keys.forEach((key) => (allRemoved ? next.delete(key) : next.add(key))))}
+                      className="tm-control-focus shrink-0 rounded text-xs text-[var(--tm-text-muted)] underline underline-offset-4"
+                    >
+                      {allRemoved ? "Keep all" : "Remove all"}
+                    </button>
+                  </div>
 
-      {/* The count and the action belong together: the number IS the thing being
-          confirmed, so it stopped being a separate card in the margin. */}
-      {/* Opaque, deliberately. This was `bg-[var(--tm-bg)]/95 backdrop-blur`, which
-          computed to `rgba(0,0,0,0)` — Tailwind cannot apply an alpha modifier to
-          an arbitrary CSS variable, so it dropped the background entirely and the
-          skill rows scrolled visibly through the bar behind "N kept". A count that
-          is the thing being confirmed cannot be rendered over moving text. */}
-      <StickyOnboardingActionBar error={error} contentClassName="max-w-5xl">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-3 sm:px-8">
-          <p className="text-sm text-[var(--tm-text-muted)]">
-            <span className="font-semibold tabular-nums text-[var(--tm-text)]">{keptCount}</span> kept
-            {removed.size > 0 && <span className="tabular-nums"> · {removed.size} removed</span>}
-          </p>
-          <div className="flex flex-1 items-center gap-2 sm:flex-none">
-            {onForward && <Button variant="ghost" size="lg" className="min-h-12" onClick={onForward}>Back to my shortlist</Button>}
-            <Button size="lg" className="min-h-12 flex-1 sm:flex-none" disabled={busy || keptCount < 1} onClick={() => void confirm()}>
-              {busy ? "Saving…" : keptCount < 1 ? "Keep at least one" : "Looks right →"}
-            </Button>
+                  {tier === "none" && (
+                    <p className="mt-2 text-sm leading-6 text-[var(--tm-text-muted)]">{PROOF_TIER_COPY.none.note}</p>
+                  )}
+
+                  <div className="mt-3 space-y-5">
+                    {points.map(({ line, skills: lineSkills }) => (
+                      <div key={line || tier}>
+                        {line && (
+                          <p className="border-l-2 border-[var(--tm-border)] pl-3 text-sm leading-6 text-[var(--tm-text-muted)]">
+                            {line}
+                          </p>
+                        )}
+                        <div className={cn("divide-y divide-[var(--tm-border-soft)]", line && "mt-1")}>
+                          {lineSkills.map((skill) => {
+                            const excluded = removed.has(skill.taxonomy_key)
+                            return (
+                              <label
+                                key={skill.taxonomy_key}
+                                className={cn(
+                                  "flex min-h-11 cursor-pointer items-center gap-3 py-2.5",
+                                  excluded && "opacity-45",
+                                )}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={!excluded}
+                                  onChange={() => mutate((next) => (excluded ? next.delete(skill.taxonomy_key) : next.add(skill.taxonomy_key)))}
+                                  className="tm-control-focus size-4 shrink-0 accent-[var(--tm-interactive)]"
+                                />
+                                <span className={cn("min-w-0 text-sm font-medium text-[var(--tm-text)]", excluded && "line-through")}>
+                                  {skill.name}
+                                </span>
+                              </label>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </fieldset>
+              )
+            })}
           </div>
         </div>
-      </StickyOnboardingActionBar>
-    </section>
+      </div>
+    </aside>
   )
+
+  const chrome: SkillReviewChrome = {
+    keptCount,
+    removedCount: removed.size,
+    busy,
+    error,
+    confirm: () => { void confirm() },
+  }
+
+  return children ? children(chrome, list) : list
 }

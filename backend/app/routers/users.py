@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.concurrency import run_in_threadpool
 from supabase import Client
 
-from app.database import get_supabase_admin
 from app.deps import Principal, get_principal, get_user_db
 from app.repositories.users import UsersRepository, get_token_users_repository
 from app.schemas import (
@@ -25,10 +24,9 @@ from app.schemas import (
     UserSkillsByDomainResponse,
 )
 from app.services import followed_companies
-from app.services import onboarding_service, skill_correction
+from app.services import skill_correction, targeting_write
 from app.services.job_eligibility import (
     career_band_for_profile,
-    explored_bands_for_profile,
     target_seniority_for_profile,
 )
 from app.services.xp_service import grant_linkedin_profile_xp
@@ -175,40 +173,12 @@ async def update_profile(
     user_id = principal.id
     before = users_repo.get_profile(user_id) or {}
 
-    # Target-role edits arrive as human TITLES; the taxonomy-cluster union
-    # (`target_roles`, the matcher read model) is always derived — one writer,
-    # no split-brain with intent-chat / onboarding (both ride save_target's
-    # same derivation). A raw `target_roles` sent alongside titles is ignored.
-    if "target_role_titles" in updates:
-        updates.pop("target_roles", None)
-        updates.pop("target_role_title", None)
-        updates.update(onboarding_service.role_title_updates(updates.pop("target_role_titles")))
-        updates["target_career_band"] = career_band_for_profile(updates) or None
-        updates["explored_career_bands"] = explored_bands_for_profile(
-            {**before, **updates},
-            primary=updates["target_career_band"] or "",
-        )
-    if "target_seniority" in updates:
-        updates["target_seniority"] = target_seniority_for_profile(updates)
-
-    # A lean has no column — it IS an authored `preference` fact — so it is routed
-    # to the one writer rather than handed to update_profile, which would try to
-    # set a field that does not exist. Same accept semantics as the rest of this
-    # payload: reaching here means the user pressed Save or Run.
-    lean = updates.pop("lean", None)
-    if lean is not None:
-        onboarding_service.replace_authored_leans(
-            get_supabase_admin(), user_id, [str(v).strip() for v in lean if str(v).strip()]
-        )
-    if not updates:
-        profile = users_repo.get_profile(user_id)
-        if not profile:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found.")
-        return UpdateProfileResponse(profile=profile)
-
+    # Derivation + the lean's routing live in targeting_write — the ONE way a
+    # targeting patch reaches storage, shared with the signed-off pre-flight
+    # order (POST /preflight/run). Two derivations of the same input would put
+    # two directions in the cache-forever brain verdicts for one user.
     should_grant_linkedin_xp = _linkedin_reward_is_due(before, updates)
-    users_repo.update_profile(user_id, updates)
-    profile = users_repo.get_profile(user_id)
+    profile = targeting_write.apply(users_repo, user_id, updates)
     if not profile:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found.")
     profile["target_career_band"] = profile.get("target_career_band") or career_band_for_profile(profile) or None

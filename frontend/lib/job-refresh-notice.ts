@@ -4,6 +4,7 @@ export type RefreshNoticeKind = "success" | "error" | "info"
 export type RefreshState =
   | "idle"
   | "charging"
+  | "queued"
   | "computing"
   | "done"
   | "error_insufficient_xp"
@@ -25,8 +26,8 @@ export function deriveRefreshNotice({
   errorMessage,
   outcomeKind,
 }: DeriveRefreshNoticeInput): { msg: string; kind: RefreshNoticeKind } | null {
-  if (state === "computing" || state === "charging") {
-    return { msg: progressLabel ?? "Refreshing...", kind: "info" }
+  if (state === "computing" || state === "charging" || state === "queued") {
+    return { msg: progressLabel ?? (state === "queued" ? "Waiting to start" : "Refreshing..."), kind: "info" }
   }
 
   if (state === "done") {

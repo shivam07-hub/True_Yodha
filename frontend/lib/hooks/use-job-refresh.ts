@@ -15,12 +15,24 @@ export const REFRESH_XP_COST = MYRO_COINS_POLICY.matchRefreshCost
 export type RefreshState =
   | "idle"
   | "charging"
+  | "queued"
   | "computing"
   | "done"
   | "error_insufficient_xp"
   | "error_failed"
 
 export type { RefreshOutcomeKind }
+
+/** A search the user is waiting on — not dismissible, not re-clicked. */
+export function refreshIsLive(state: RefreshState): boolean {
+  return state === "charging" || state === "queued" || state === "computing"
+}
+
+function lifecycleOf(ticketState: string | undefined): RefreshState {
+  if (ticketState === "computing") return "computing"
+  if (ticketState === "done") return "done"
+  return "queued"
+}
 
 function tokenizedErrorMessage(message: string): string {
   return message.replace(/\bxp\b/gi, "tokens")
@@ -44,7 +56,22 @@ export interface UseJobRefreshResult {
   progressTotal: number | null
   revealed: RevealedJob[]
   refresh: () => void
+  /** Stream a run that was ALREADY dispatched and charged elsewhere.
+   *
+   *  The pre-flight signs its order off through `POST /preflight/run`, which
+   *  projects the kept lines onto the profile and then starts the same
+   *  `JobRefresh`. Calling `refresh()` afterwards would charge a second time for
+   *  one search, so the gate hands the ticket here instead. One run path, one
+   *  charge, one progress stream. */
+  attach: (ticket: AttachedTicket) => void
   reset: () => void
+}
+
+export interface AttachedTicket {
+  ticket_id: string
+  state?: "queued" | "computing" | "done"
+  progress_label: string
+  new_coin_balance?: number | null
 }
 
 interface DoneResult {
@@ -127,7 +154,10 @@ export function useJobRefresh(
       const onEvent = (ev: SseEvent) => {
         if (ev.type === "phase") {
           setProgressLabel((ev.label as string) ?? null)
+          if (ev.phase === "queued") setState("queued")
+          else if (ev.phase === "computing") setState("computing")
         } else if (ev.type === "progress") {
+          setState("computing")
           setProgressDone((ev.done as number) ?? null)
           setProgressTotal((ev.total as number) ?? null)
           setRevealed(((ev.revealed as RevealedJob[]) ?? []).filter((r) => r && (r.title || r.company)))
@@ -151,7 +181,7 @@ export function useJobRefresh(
 
   const refresh = useCallback(async () => {
     if (!token) return
-    if (state === "charging" || state === "computing") return
+    if (refreshIsLive(state)) return
     if (balance < REFRESH_XP_COST) {
       setState("error_insufficient_xp")
       setErrorMessage(`Not enough tokens. Refresh costs ${REFRESH_XP_COST} tokens.`)
@@ -172,7 +202,7 @@ export function useJobRefresh(
       if (ticket.new_coin_balance != null) {
         applyXpChange({ newBalance: ticket.new_coin_balance, action: "match_refresh" })
       }
-      setState("computing")
+      setState(lifecycleOf(ticket.state))
       setProgressLabel(ticket.progress_label)
       startStream(ticket.id)
     } catch (err) {
@@ -189,6 +219,24 @@ export function useJobRefresh(
       setOutcomeKind(null)
     }
   }, [balance, applyXpChange, startStream, state, token])
+
+  const attach = useCallback(
+    (ticket: AttachedTicket) => {
+      if (ticket.new_coin_balance != null) {
+        applyXpChange({ newBalance: ticket.new_coin_balance, action: "match_refresh" })
+      }
+      setErrorMessage(null)
+      setMatchesWritten(null)
+      setOutcomeKind(null)
+      setProgressDone(null)
+      setProgressTotal(null)
+      setRevealed([])
+      setState(lifecycleOf(ticket.state))
+      setProgressLabel(ticket.progress_label)
+      startStream(ticket.ticket_id)
+    },
+    [applyXpChange, startStream],
+  )
 
   const reset = useCallback(() => {
     stopStream()
@@ -216,6 +264,7 @@ export function useJobRefresh(
     progressTotal,
     revealed,
     refresh,
+    attach,
     reset,
   }
 }

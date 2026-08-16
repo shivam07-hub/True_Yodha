@@ -5,32 +5,28 @@ import { useRouter } from "next/navigation"
 import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
 import { LandingHero } from "@/components/public/landing/hero"
+import { LandingUseCases } from "@/components/public/landing/cv-hub"
 import { LandingCompanyRail } from "@/components/public/landing/company-rail"
-import { LandingHowItWorks } from "@/components/public/landing/how-it-works"
 import { LandingLiveMirror } from "@/components/public/landing/live-mirror"
 import { LandingJobSearch } from "@/components/public/landing/job-search"
+import { LandingCommons } from "@/components/public/landing/landing-commons"
 import "@/components/public/landing/job-gen.css"
-import { LandingApplicationPlan } from "@/components/public/landing/application-plan"
-import { LandingClosing } from "@/components/public/landing/closing"
 import { useLandingData } from "@/components/public/landing/use-landing-data"
 import { getAccessToken, getRefreshToken } from "@/lib/session"
 import "@/components/public/landing/landing-base.css"
 import "@/components/public/landing/landing-hero.css"
-import "@/components/public/landing/landing-hero-engine.css"
+import "@/components/public/landing/landing-cv-hub.css"
+import "@/components/public/landing/landing-usecases.css"
+import "@/components/public/landing/landing-commons.css"
 import "@/components/public/landing/landing-depth.css"
 import "@/components/public/landing/landing-match-sources.css"
 import "@/components/public/landing/landing-company-rail.css"
 import "@/components/public/landing/landing-motion.css"
 
 /**
- * Myro landing — seeker-first MNC story, product-story pass locked 2026-08-10,
- * revised 2026-08-14 to add the live-mirror proof + search/industry handoff.
- * Upload CV is still the primary action. Four visual chapters preview the
- * actual first-run journey: MNC career pages + CV → live scrape proof (with a
- * search/industry shortcut into /intel, which owns the results grid) →
- * relevant current opening → truthful tailoring → a compact post-application
- * plan. The dropzone still owns the existing /cv-preview → signup →
- * onboarding handoff; this page does not fork that flow.
+ * Myro landing — "run your job hunt like an operation". The hero owns the
+ * dropzone plus two audience paths; the four-tab use-cases loop, live proof
+ * and the commons strip sit below. One dropzone, one handoff to /cv-preview.
  */
 export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) {
   const router = useRouter()
@@ -48,10 +44,6 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
       router.replace("/market")
     }
   }, [router])
-
-  // The landing now follows the canonical surface (it consumes --tm-* like the
-  // rest of the product — pre = post). No force-dark: it themes light/dark with
-  // the visitor's OS preference like the rest of the app.
 
   // Nav hairline fades in after 8px scroll (handoff §Interactions).
   const [scrolled, setScrolled] = useState(false)
@@ -75,11 +67,15 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
 
       <main>
         <LandingHero
-          companyNames={data.marqueeNames}
           jobsTracked={data.jobsTracked}
           companiesMonitored={data.companiesMonitored}
           skillsMapped={data.skillsMapped}
-          seekers={data.seekers}
+        />
+
+        <LandingUseCases
+          companyNames={data.marqueeNames}
+          companiesMonitored={data.companiesMonitored}
+          companies={data.analytics?.by_company ?? []}
         />
 
         <LandingCompanyRail
@@ -98,14 +94,7 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
           industriesLoading={!data.analytics}
         />
 
-        <LandingHowItWorks
-          companyNames={data.marqueeNames}
-          companiesMonitored={data.companiesMonitored}
-        />
-
-        <LandingApplicationPlan />
-
-        <LandingClosing />
+        <LandingCommons />
       </main>
 
       <PublicFooter />

@@ -17,8 +17,8 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from app.services import job_matcher, onboarding_service
-from app.services.llm_provider import LLMProvider
+from app.services import background, job_matcher, onboarding_service
+from app.services.llm_provider import LLMProvider, get_judgment_provider
 from app.services.match_credibility import evaluate_credibility
 from app.services.matching import ranking, targeting
 
@@ -69,18 +69,22 @@ def _shape_single_job(
     }
 
 
-async def ensure_job_eval(
-    repo: Any,
-    provider: LLMProvider,
-    user_id: str,
-    job_id: str,
-) -> dict[str, Any] | None:
-    """Return the brain eval for one job, computing + caching it once if absent.
+def _ranking_profile(repo: Any, user_id: str) -> dict[str, Any]:
+    profile = targeting.for_ranking(repo, user_id).ranking_profile()
+    if hasattr(repo, "get_latest_baseline_id"):
+        profile["baseline_version_id"] = repo.get_latest_baseline_id(user_id)
+    return profile
 
-    Idempotent: a job that already has a cached eval (from a prior refresh or a
-    prior open) returns it with ``cached=True`` and never calls the LLM. Returns
-    ``None`` if the job doesn't exist or the brain fails (the caller keeps showing
-    deterministic overlap — degradation, not an error)."""
+
+def stored_job_eval(repo: Any, user_id: str, job_id: str) -> dict[str, Any] | None:
+    """Durable Answer for one job. Never a model."""
+    result, _profile = _stored_job_eval(repo, user_id, job_id)
+    return result
+
+
+def _stored_job_eval(
+    repo: Any, user_id: str, job_id: str
+) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     jid = str(job_id)
     cached = repo.get_cached_match_evals(user_id, [jid], full=True).get(jid)
 
@@ -89,9 +93,7 @@ async def ensure_job_eval(
     # every fact the user has told Myro invisible to it forever. Read BEFORE the
     # cache decision because the decision needs the key — one small indexed
     # user_memory read per open, against an LLM call when it misses.
-    profile = targeting.for_ranking(repo, user_id).ranking_profile()
-    if hasattr(repo, "get_latest_baseline_id"):
-        profile["baseline_version_id"] = repo.get_latest_baseline_id(user_id)
+    profile = _ranking_profile(repo, user_id)
     eval_ctx = onboarding_service.eval_context_key(profile)
 
     # A cached verdict counts only if it carries a real score AND was reasoned from
@@ -105,8 +107,50 @@ async def ensure_job_eval(
         and cached.get("overall_score") is not None
         and onboarding_service.eval_matches_context(cached, eval_ctx)
     ):
-        return _brain_result(cached, cached=True)
+        return _brain_result(cached, cached=True), profile
+    return None, profile
 
+
+def enqueue_job_eval(user_id: str, job_id: str) -> None:
+    if not background.claim(f"brain:{user_id}:{job_id}", 120):
+        return
+    background.enqueue(
+        background.LANE_FAST,
+        "job_brain_eval",
+        payload={"user_id": user_id, "job_id": str(job_id)},
+        correlation_id=f"brain:{user_id}:{job_id}",
+    )
+
+
+def open_job_eval(repo: Any, user_id: str, job_id: str) -> dict[str, Any] | None:
+    """Return the stored verdict, or enqueue the write and return None.
+
+    Opening a job may start a named write. It must not wait on a model.
+    """
+    stored = stored_job_eval(repo, user_id, job_id)
+    if stored is not None:
+        return stored
+    enqueue_job_eval(user_id, job_id)
+    return None
+
+
+async def ensure_job_eval(
+    repo: Any,
+    provider: LLMProvider,
+    user_id: str,
+    job_id: str,
+) -> dict[str, Any] | None:
+    """Compute + cache the brain eval for one job if it is not already stored.
+
+    The HTTP open path uses ``open_job_eval``. This is the named write the
+    worker runs. Returns ``None`` if the job doesn't exist or the brain fails
+    (the caller keeps showing deterministic overlap — degradation, not an error).
+    """
+    stored, profile = _stored_job_eval(repo, user_id, job_id)
+    if stored is not None:
+        return stored
+
+    jid = str(job_id)
     meta_rows = repo.get_jobs_by_ids([jid])
     if not meta_rows:
         return None
@@ -127,6 +171,20 @@ async def ensure_job_eval(
 
     _persist(repo, user_id, shaped, profile, ev)
     return _brain_result(ev, cached=False)
+
+
+@background.handler("job_brain_eval")
+async def _job_brain_eval_handler(payload: dict[str, Any], allow_retry: bool) -> None:
+    from app.database import get_supabase_admin
+    from app.repositories.jobs import JobsRepository
+
+    user_id = payload["user_id"]
+    job_id = str(payload["job_id"])
+    db = get_supabase_admin()
+    repo = JobsRepository(db, db)
+    result = await ensure_job_eval(repo, get_judgment_provider(), user_id, job_id)
+    if result is None and allow_retry and repo.get_jobs_by_ids([job_id]):
+        raise background.TransientJobError("job_brain_eval_unavailable")
 
 
 def _persist(

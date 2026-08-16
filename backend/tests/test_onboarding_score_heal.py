@@ -45,7 +45,7 @@ def enqueued(monkeypatch: pytest.MonkeyPatch) -> list[dict]:
 
 
 def test_missing_score_re_enqueues_the_job(enqueued: list[dict]) -> None:
-    onboarding_service._heal_missing_score("user-1")
+    onboarding_service.enqueue_score_refresh("user-1", reason="heal")
 
     assert len(enqueued) == 1
     assert enqueued[0]["job_type"] == "onboarding_target_refresh"
@@ -56,14 +56,14 @@ def test_missing_score_re_enqueues_the_job(enqueued: list[dict]) -> None:
 def test_a_polling_client_does_not_become_a_job_storm(enqueued: list[dict]) -> None:
     # /onboarding/result polls every 2s; 60 polls is two minutes of one user waiting.
     for _ in range(60):
-        onboarding_service._heal_missing_score("user-1")
+        onboarding_service.enqueue_score_refresh("user-1", reason="heal")
 
     assert len(enqueued) == 1
 
 
 def test_each_user_gets_their_own_window(enqueued: list[dict]) -> None:
-    onboarding_service._heal_missing_score("user-1")
-    onboarding_service._heal_missing_score("user-2")
+    onboarding_service.enqueue_score_refresh("user-1", reason="heal")
+    onboarding_service.enqueue_score_refresh("user-2", reason="heal")
 
     assert [call["payload"]["user_id"] for call in enqueued] == ["user-1", "user-2"]
 
@@ -73,14 +73,14 @@ def test_heal_failure_never_breaks_the_result_read(monkeypatch: pytest.MonkeyPat
         raise RuntimeError("redis down")
 
     monkeypatch.setattr(background, "enqueue", _explode)
-    onboarding_service._heal_missing_score("user-1")  # must not raise
+    onboarding_service.enqueue_score_refresh("user-1", reason="heal")  # must not raise
 
 
 def test_score_heal_does_not_reuse_the_exhausted_job_id(enqueued: list[dict]) -> None:
     """The correlation id becomes the RQ job id. It must differ from the
     `target:{user}:{roles}:{band}:{cities}` id whose retries already exhausted, so
     the heal is a new job rather than a poke at a dead one."""
-    onboarding_service._heal_missing_score("user-1")
+    onboarding_service.enqueue_score_refresh("user-1", reason="heal")
 
     correlation_id = enqueued[0]["correlation_id"]
     assert correlation_id == "score-heal:user-1"

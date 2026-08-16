@@ -21,7 +21,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import type { CVStructured, UserProfile } from "@/lib/api"
+import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
 import { cv as cvApi, jobs as jobsApi } from "@/lib/api"
 import { CVEditor } from "./cv-editor"
 import type { MergePayload } from "./bullet-merge"
@@ -38,6 +38,7 @@ import { PdfPage, type PdfPageContact } from "./pdf-page"
 import { exportSheetPdf } from "@/lib/cv/sheet-pdf"
 import { printCvPage } from "@/lib/cv/print-cv"
 import { DEFAULT_TEMPLATE, isCVTemplate, type CVTemplate } from "@/lib/cv/templates"
+import { hasCvContent, latestBaseline } from "@/lib/cv/durable-answer"
 import { usePlaygroundModel } from "./use-playground-model"
 import { useDismissedFixes } from "./use-dismissed-fixes"
 import type { AppliedFix, V2Fix } from "./fix-model"
@@ -164,8 +165,8 @@ export function PlaygroundView({
   const sessionRaised = appliedShown.reduce((s, a) => s + a.gain, 0)
 
   function invalidateCV() {
-    queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
     queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
+    queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
     invalidateScoreMapData(queryClient)
     queryClient.invalidateQueries({ queryKey: ["cv-gap-plan", jobId] })
   }
@@ -190,7 +191,9 @@ export function PlaygroundView({
   // rapid adds don't stack on a stale base.
   const addBullet = useMutation({
     mutationFn: ({ roleIndex, text }: { roleIndex: number | null; text: string }) => {
-      const base = (queryClient.getQueryData(dataKeys.cvStructured()) as CVStructured | undefined) ?? cv
+      const cached = queryClient.getQueryData<{ versions: CVVersion[] }>(dataKeys.cvVersions(null))
+      const fromCache = latestBaseline(cached?.versions)?.cv_structured
+      const base = hasCvContent(fromCache) ? fromCache : cv
       const next: CVStructured = JSON.parse(JSON.stringify(base))
       const ri = roleIndex != null && next.experience[roleIndex] ? roleIndex : next.experience.length - 1
       if (ri < 0) return Promise.reject(new Error("Add a role to your CV first."))
@@ -249,7 +252,6 @@ export function PlaygroundView({
     cvApi.versions.promoteMaster(token, Array.from(hiddenItems))
       .then(() => {
         queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
-        queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
       })
       .catch(() => {})
   }

@@ -78,6 +78,35 @@ class UserMemoryRepository:
     def delete(self, user_id: str, memory_id: str) -> None:
         self._db.table("user_memory").delete().eq("user_id", user_id).eq("id", memory_id).execute()
 
+    def delete_many(self, user_id: str, memory_ids: list[str]) -> None:
+        """One round trip, not one per row. `replace_authored_leans` called
+        `delete()` in a loop; a user with 19 leans paid 19 sequential requests to
+        a shared Postgres inside the request that starts their search, and the
+        client timed out at 15s before the run was ever dispatched."""
+        ids = [str(mid) for mid in memory_ids if mid]
+        if not ids:
+            return
+        self._db.table("user_memory").delete().eq("user_id", user_id).in_("id", ids).execute()
+
+    def add_many(
+        self, user_id: str, rows: list[dict[str, Any]], *, source: str = "authored"
+    ) -> None:
+        """Bulk insert. Each row needs at least `kind` and `text`."""
+        if not rows:
+            return
+        payload = [
+            {
+                "user_id": user_id,
+                "kind": row["kind"],
+                "text": row["text"],
+                "resolved": row.get("resolved"),
+                "source": row.get("source", source),
+                "confidence": row.get("confidence"),
+            }
+            for row in rows
+        ]
+        self._db.table("user_memory").insert(payload).execute()
+
     def set_embedding(self, user_id: str, memory_id: str, vector_literal: str) -> None:
         """Store a fact's pgvector embedding (Phase 4). `vector_literal` is the
         '[a,b,c]' string form (embeddings.to_pgvector). Own-scoped."""

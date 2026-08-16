@@ -20,6 +20,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { cv } from "@/lib/api"
 import type { CVStructured, CVVersion } from "@/lib/api"
 import { renderDeterministic } from "@/lib/cv-compose"
+import { hasCvContent, latestBaseline } from "@/lib/cv/durable-answer"
 import { dataKeys } from "@/lib/domain-data"
 
 interface UseCVPlaygroundArgs {
@@ -30,8 +31,10 @@ interface UseCVPlaygroundArgs {
 
 export interface CVPlaygroundState {
   // Queries
-  structuredQuery: ReturnType<typeof useQuery<CVStructured>>
+  structured: CVStructured | null
   versionsLoading: boolean
+  versionsError: boolean
+  refetchVersions: () => void
 
   // Derived collections
   allVersions: CVVersion[]
@@ -111,6 +114,10 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
     queryFn: () => cv.versions.list(token!, jobId),
     enabled: enabled && !!token,
     staleTime: 30 * 1000,
+    refetchInterval: (query) => {
+      const baseline = latestBaseline(query.state.data?.versions)
+      return hasCvContent(baseline?.cv_structured) ? false : 2500
+    },
   })
 
   const allVersions = useMemo(
@@ -122,11 +129,8 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
     [allVersions],
   )
   const currentBaseline = useMemo<CVVersion | null>(
-    () => baselines.reduce<CVVersion | null>(
-      (best, v) => (best == null || v.user_version_number > best.user_version_number ? v : best),
-      null,
-    ),
-    [baselines],
+    () => latestBaseline(allVersions),
+    [allVersions],
   )
   // The backend already scopes derivatives to the Company CV Thread for this jobId
   // (CONTEXT.md → Company CV Thread). No per-job filter here — that filter was the bug.
@@ -138,15 +142,6 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
     () => currentBaseline ? [currentBaseline, ...companyVersions] : companyVersions,
     [companyVersions, currentBaseline],
   )
-
-  const hasBaseline = baselines.length > 0
-  const structuredQuery = useQuery({
-    queryKey: dataKeys.cvStructured(),
-    queryFn: () => cv.structured(token!),
-    enabled: enabled && !!token && hasBaseline,
-    retry: 1,
-    staleTime: 10 * 60 * 1000,
-  })
 
   // Hydration rule (see file header):
   //   - On initial arrival of data, pick a default and hydrate hiddenItems from it.
@@ -185,10 +180,18 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
     return threadVersions.find(v => v.id === selectedVersionId) ?? null
   }, [companyVersions, currentBaseline, selectedVersionId, threadVersions])
 
+  const structured = useMemo<CVStructured | null>(() => {
+    const fromSelected = selectedVersion?.cv_structured
+    if (hasCvContent(fromSelected)) return fromSelected
+    const fromBaseline = currentBaseline?.cv_structured
+    if (hasCvContent(fromBaseline)) return fromBaseline
+    return null
+  }, [currentBaseline, selectedVersion])
+
   const livePreviewText = useMemo(() => {
-    if (!structuredQuery.data) return ""
-    return renderDeterministic(structuredQuery.data, hiddenItems)
-  }, [structuredQuery.data, hiddenItems])
+    if (structured) return renderDeterministic(structured, hiddenItems)
+    return currentBaseline?.body_text?.trim() ?? ""
+  }, [currentBaseline, hiddenItems, structured])
 
   const isDirty = useMemo(() => {
     if (!selectedVersion) return companyVersions.length === 0
@@ -337,8 +340,10 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
   const clearLastWrite = useCallback(() => setLastWrite(null), [])
 
   return {
-    structuredQuery,
+    structured,
     versionsLoading: versionsQuery.isLoading,
+    versionsError: versionsQuery.isError,
+    refetchVersions: () => { void versionsQuery.refetch() },
     allVersions,
     baselines,
     currentBaseline,

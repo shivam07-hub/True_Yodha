@@ -10,6 +10,7 @@ import {
   type IntentFilterDiff,
   type MentorSurface,
 } from "@/lib/api"
+import { SayPad } from "@/components/myro/say-pad"
 
 /**
  * Talking to Myro. One component, whichever screen you are on.
@@ -111,19 +112,15 @@ export function MyroChat({
           </p>
         )}
       </div>
-      <div className="mt-3 flex items-center gap-2">
-        <input
+      <div className="mt-3 flex items-end gap-2">
+        <SayPad
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault()
-              submit()
-            }
-          }}
+          onChange={setInput}
+          onSubmit={submit}
+          maxLength={600}
           placeholder={placeholder}
           aria-label={heading}
-          className="tm-control-focus min-h-10 flex-1 rounded-md border border-[var(--tm-border-soft)] bg-transparent px-3 text-sm text-[var(--tm-text)]"
+          className="rounded-md border border-[var(--tm-border-soft)] bg-transparent text-sm text-[var(--tm-text)]"
         />
         <button
           type="button"

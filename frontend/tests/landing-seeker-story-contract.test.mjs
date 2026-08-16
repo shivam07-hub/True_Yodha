@@ -9,65 +9,82 @@ function read(path) {
   return readFileSync(join(frontendRoot, path), "utf8")
 }
 
-test("the public landing tells the seeker-first MNC story without product-manual sections", () => {
+test("the public landing runs the operation story: hero dropzone + four-tab loop", () => {
   const landing = read("components/public/landing-page.tsx")
   const hero = read("components/public/landing/hero.tsx")
-  const heroEngine = read("components/public/landing/hero-engine.tsx")
+  const hub = read("components/public/landing/cv-hub.tsx")
   const companyRail = read("components/public/landing/company-rail.tsx")
   const motion = read("components/public/landing/landing-motion.css")
   const match = read("components/public/landing/how-it-works.tsx")
-  const plan = read("components/public/landing/application-plan.tsx")
+  const score = read("components/public/landing/score-sample.tsx")
 
-  assert.match(hero, /Prepare for MNC jobs hiring in India/)
-  assert.match(hero, /LandingHeroEngine/)
-  assert.match(heroEngine, /The Myro Engine/)
-  assert.match(heroEngine, /Scores shown are examples/)
-  assert.match(companyRail, /Read live from/)
-  assert.match(companyRail, /company career pages/)
-  assert.match(heroEngine, /useAllowLoopingMotion/)
-  assert.match(companyRail, /useAllowLoopingMotion/)
-  assert.match(companyRail, /\[0, 1\]\.map/)
-  assert.match(motion, /lp-company-rail-run/)
-  assert.match(motion, /lp-engine-core-turn/)
-  assert.match(motion, /prefers-reduced-motion: no-preference/)
-  assert.match(match, /Live source/)
-  assert.match(match, /company career pages/)
-  assert.match(match, /Tailor &amp; apply/)
-  assert.match(plan, /Applied\. Now prepare for this role/)
+  // Hero owns the thesis + the dropzone + the two audience paths.
+  assert.match(hero, /Run your Job hunt like an Operation/)
+  assert.match(hero, /LandingDropzone/)
+  assert.match(hero, /landing_dropzone_hero/)
+  assert.match(hero, /landing_path_fresher/)
+  assert.match(hero, /landing_path_switcher/)
+  assert.match(hero, /Browse jobs instead/)
+  assert.doesNotMatch(hero, /LandingCvHub|seekers/)
   assert.ok(
     hero.indexOf("<LandingStats") < hero.indexOf("lp-hero-inner"),
     "the credibility metrics should sit above the hero content",
   )
 
-  assert.match(landing, /LandingApplicationPlan/)
+  // The four-tab loop is its own labelled section, tab 01 default.
+  assert.match(hub, /role="tablist"/)
+  assert.match(hub, /Four things, one loop\./)
+  assert.match(hub, /01 · tailor & apply/)
+  assert.match(hub, /02 · live job data/)
+  assert.match(hub, /03 · pipeline tracker/)
+  assert.match(hub, /04 · company intel/)
+  assert.match(hub, /id="use-cases"/)
+  assert.match(hub, /LandingScoreSample/)
+  assert.match(hub, /LandingMatchSample/)
+  assert.match(hub, /LandingLiveSample/)
+  assert.match(hub, /LandingPipelineSample/)
+  assert.match(hub, /LandingIntelSample/)
+  assert.doesNotMatch(hub, /LandingDropzone|lp-hub-drop/)
+
+  assert.match(score, /Example Myro Score/)
+  assert.match(match, /Live source/)
+  assert.match(match, /company career pages/)
+  assert.match(match, /Tailor &amp; apply/)
+
+  assert.match(companyRail, /Read live from/)
+  assert.match(companyRail, /company career pages/)
+  assert.match(companyRail, /useAllowLoopingMotion/)
+  assert.match(companyRail, /\[0, 1\]\.map/)
+  assert.match(motion, /lp-company-rail-run/)
+  assert.match(motion, /prefers-reduced-motion: no-preference/)
+
+  // Section order: hero → use-cases → rail → live-mirror → search → commons.
+  assert.doesNotMatch(landing, /LandingClosing|LandingHowItWorks|LandingApplicationPlan|LandingDomains/)
   assert.ok(
-    landing.indexOf("<LandingCompanyRail") > landing.indexOf("<LandingHero"),
-    "the live company rail should sit immediately after the hero",
+    landing.indexOf("<LandingUseCases") > landing.indexOf("<LandingHero"),
+    "the four-tab loop should follow the hero",
   )
   assert.ok(
-    landing.indexOf("<LandingCompanyRail") < landing.indexOf("<LandingHowItWorks"),
-    "the company rail should precede the merged source and tailoring story",
+    landing.indexOf("<LandingCompanyRail") > landing.indexOf("<LandingUseCases"),
+    "the live company rail should follow the use-cases loop",
   )
-  // 2026-08-14 revision: the 2026-08-10 lock forbade LandingJobSearch outright.
-  // Product call (grilled 2026-08-14) is that the live-mirror proof earns a
-  // search/industry shortcut straight into /intel — CV upload is still the
-  // page's one primary action, so the shortcut must sit between the live
-  // mirror and the tailoring story, never ahead of the upload dropzone.
-  assert.match(landing, /LandingJobSearch/)
   assert.ok(
     landing.indexOf("<LandingLiveMirror") < landing.indexOf("<LandingJobSearch"),
     "the search/industry shortcut should follow the live-mirror proof",
   )
   assert.ok(
-    landing.indexOf("<LandingJobSearch") < landing.indexOf("<LandingHowItWorks"),
-    "the search/industry shortcut should precede the tailoring story",
+    landing.indexOf("<LandingCommons") > landing.indexOf("<LandingJobSearch"),
+    "the commons strip should close the page",
   )
-  assert.doesNotMatch(landing, /LandingDomains/)
-  assert.doesNotMatch(hero, /Career Intelligence Platform|10 minutes|See the Engine/)
 })
 
 test("the landing upload keeps the canonical anonymous preview handoff", () => {
   const dropzone = read("components/public/landing/dropzone.tsx")
+  const landing = read("components/public/landing-page.tsx")
+  const hero = read("components/public/landing/hero.tsx")
 
   assert.match(dropzone, /router\.push\("\/cv-preview"\)/)
+  assert.match(dropzone, /No CV\? Paste your CV text/)
+  assert.match(hero, /Browse jobs instead/)
+  assert.doesNotMatch(landing, /landing_dropzone_closing/)
 })

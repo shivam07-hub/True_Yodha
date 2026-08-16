@@ -1,11 +1,4 @@
-/* Landing story: a product artifact carries each chapter; copy stays short. */
-
-.lp-match-story,
-.lp-plan-story,
-.lp-closing-band {
-  padding: var(--lp-section-py) 0;
-  border-bottom: 1px solid var(--lp-border);
-}
+/* Landing story: product samples inside CV Hub. */
 
 .lp-match-frame {
   display: grid;
@@ -165,17 +158,6 @@
   color: var(--lp-muted);
 }
 
-.lp-plan-layout {
-  display: grid;
-  grid-template-columns: minmax(260px, 0.7fr) minmax(480px, 1.3fr);
-  gap: clamp(40px, 7vw, 96px);
-  align-items: center;
-}
-
-.lp-plan-layout .lp-section-head {
-  margin-bottom: 0;
-}
-
 .lp-plan-frame {
   overflow: hidden;
 }
@@ -218,25 +200,6 @@
   font-size: 11px;
 }
 
-.lp-closing {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-}
-
-.lp-closing-line {
-  margin: 0 0 24px;
-  color: var(--lp-text);
-  font-size: clamp(30px, 4vw, 44px);
-  line-height: 1.1;
-  text-wrap: balance;
-}
-
-.lp-closing .lp-dz-wrap {
-  max-width: 620px;
-}
-
 @media (max-width: 900px) {
   .lp-match-frame {
     grid-template-columns: 1fr;
@@ -245,11 +208,6 @@
   .lp-match-arrow {
     transform: rotate(90deg);
     justify-self: center;
-  }
-
-  .lp-plan-layout {
-    grid-template-columns: 1fr;
-    gap: 32px;
   }
 }
 

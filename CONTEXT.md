@@ -244,7 +244,13 @@ done      → matches written, ticket terminal
 failed    → compute errored, XP refunded, ticket terminal
 ```
 
-Each transition writes a `progress_label` ("Reading skills", "Scanning jobs", "Ranking with Myro", "Done") for the UI to render without state-machine knowledge.
+Each transition writes a `progress_label` the UI renders as-is: `"Waiting to start"` / `"Ranking with Myro"` / `"Done"` / `"Failed"`. The gate does not invent extra phases. Per-job reveal (`progress_done` / `progress_total` / `revealed`) is the only finer progress, and only once ranking has started.
+
+**Invariants**
+
+- **Redis + no Job Runner → refuse, never inline.** Inlining the Match Run on the API event loop blocks the progress stream and every other request on that worker. `JobRefresh.start` 503s *before* the debit. A ticket that is still `queued` after 8s with no runner is abandoned, refunded, and its RQ job cancelled.
+- **A live runner is a wait, not a failure.** Busy is honest (`Waiting to start`); dead is an error.
+- **Local / tests (no Redis) still run inline.** That path is the no-Redis adapter, not a production fallback.
 
 **Job Refresh seam**
 
@@ -260,7 +266,7 @@ class JobRefresh:
 
 Internals (private):
 
-- `_dispatch.py` — picks inline (no Redis) vs async (Redis-backed RQ queue). Production always async on Railway; tests + local dev use inline. Router and frontend never branch on this.
+- `_dispatch.py` — Redis + live Job Runner → RQ; Redis + no runner → 503; no Redis → inline. Router and frontend never branch on this.
 - `_xp_charge.py` — debit-then-refund-on-failure semantics. Single SQL transaction owns balance mutation; preflight is no longer separate from spend.
 - `_pipeline.py` — calls `jobs_workflow.compute_job_matches`, maps the typed `MatchComputeOutcome` onto `RefreshState`.
 
@@ -280,17 +286,18 @@ The paid refresh path uses `get_paid_jobs_provider()` — Groq llama-3.3-70b onl
 
 ```ts
 {
-  state: 'idle' | 'charging' | 'computing' | 'done' | 'error_insufficient_xp' | 'error_failed'
+  state: 'idle' | 'charging' | 'queued' | 'computing' | 'done' | 'error_insufficient_xp' | 'error_failed'
   progressLabel: string | null
-  cost: number
-  canAfford: boolean
-  matchesWritten: number | null
+  progressDone: number | null
+  progressTotal: number | null
+  revealed: { title, company }[]
   refresh(): void
+  attach(ticket): void  // pre-flight already dispatched; do not charge again
   reset(): void
 }
 ```
 
-Mirrors the `useForgeSession` pattern. Two surfaces today consume the hook: `MissionHeader` (home) + `/jobs` page. Adding a third (mobile widget, scheduled refresh tile) is one adapter, no engine change.
+`queued` is a first-class wait. `attach` takes the ticket's own lifecycle — it does not mint a phase the Job Refresh never entered. Mirrors the `useForgeSession` pattern. Surfaces: the pre-flight gate, `/market`, Collections. Adding another is one adapter.
 
 ---
 
@@ -483,13 +490,23 @@ Three rules, in the order a payload meets them:
 
 - **Read — normalize.** `CVVersionsRepository` normalizes `cv_structured` on the way out (`latest_baseline`, `find`, `find_by_content_hash`, `find_master_revision`), so no reader can fail on the shape of what an earlier writer left behind. Structural only: fill missing sections, coerce types, **never alter content** — trimming and the 300-char bullet cap are ingest hygiene (`coerce_sections(ingest=True)`), and applying them on read would silently shorten a bullet the user typed.
 - **"Do we have a CV?" — `has_content`, not truthiness.** Everything is truthy after normalization, and a payload holding only `contact` is an identity header, not a CV. `has_content` is what the 409 gates in weave / merge / skill-edit / gap-plan / reservoir ask.
-- **Write — reject a partial.** `create`, `update_structured` and `update_master` refuse a payload missing any contract key. `{}` / NULL stays legal: it means "not parsed yet", and `get_or_backfill_cv_structured` rebuilds it from `body_text` on first read.
+- **Write — reject a partial.** `create`, `update_structured` and `update_master` refuse a payload missing any contract key. `{}` / NULL stays legal: it means "not parsed yet". Display reads `body_text` from `GET /cv/versions` and upgrades when `cv_structured` has content. `GET /cv/structured` returns stored JSON or 404 — never a model.
 
 Why normalization lives on read and not only on write: the incident that produced this contract came from an **offline repair script writing to the table directly**. A guarantee that binds only callers who went through the repository is not a guarantee. Migrations, admin updates and scripts are all upstream of the write seam and downstream of the read one.
 
-`body_text` is the recovery source of truth — never sanitized, always rebuildable-from. A failed rebuild returns 503 rather than an empty CV, because an empty editor is one autosave away from overwriting `body_text` with a rendering of that emptiness.
+`body_text` is the Durable Answer when layout JSON has no content. Display reads it. The editor does not open on an empty paper — autosave would overwrite `body_text` with a rendering of that emptiness.
 
 Pinned by `tests/test_cv_structured_read_never_fails.py` and `tests/test_cv_structured_contract.py`.
+
+---
+
+## Durable Answer
+
+What a user-facing read is allowed to return: rows already written. `body_text` / `cv_structured` when `has_content`, a Match Eval / Match Verdict, persona paragraphs and timeline, `mirror_scores`.
+
+A GET may enqueue a named write. It must never run or wait on a model. If the Durable Answer is missing, the surface stays truthful and the user acts (upload a CV, add points, drop stories) — never a sentence covering a silent LLM.
+
+_Avoid_: live LLM on GET, backfill-on-read, heal-on-poll, "still loading" copy in front of stored text.
 
 ---
 
@@ -546,7 +563,7 @@ The single answer to "how good is this match for this user, and what should they
 - Derived in `to_job_match` (the one match-row reader), never re-computed in the frontend. `frontend/lib/jobs/credible-recommendation.ts` is deleted — a surface asking "is this strong?" reads `is_strong`; "how good?" reads `match_score`; "what verdict?" reads `verdict`.
 - **One ordering, every surface** (2026-08-13, Shivam). `match_score` is the ONE fit order. Deleted rather than reconciled: `_fit_scores`’ client twin, `feed-model.scoreItem`/`winnabilityOf`/`triageFeed` (the `prize × winnability` "Best next" rank), and `classifyMatch`’s grade cut. That cut is why this matters — it bucketed a brain-rated row by GRADE and only fell back to `verdict` when a row had no grade, so a row could arrive `verdict: "strong", is_strong: true` and still be counted below the bar on a C+ grade. That is `credible-recommendation.ts`, deleted when Match Verdict shipped, grown back one file over. `SORTS` is now `fit | recent | company`: "Best fit" is the verdict, and the other two answer different questions (when, who) rather than making a second claim about the same one. **Followed company and target role are targeting facts** — they belong in the Targeting Brief, read by the brain into the verdict, never as a client multiplier applied after ranking. Deleting the ranker also orphaned `useFollowCompany` on Collections: one network read removed. `tests/dashboard-feed-model.test.ts` fails if any of it regrows.
 - **Frontend seam `frontend/lib/jobs/match-verdict.ts` owns every read of the verdict** (Backlog #36 Slice 3): `verdictLabel` (word), `matchFitScore` (the 0–100 number — `match_score ?? overlap_score`, **never** `overall_score`, a 0–5 scale), `verdictMove` (verdict→"what to do"), `strongMatches`/`pickBestMatch` (selection). Both the desktop card adapter (`card-view.ts`) and the mobile row adapter (`mobile/redesign/job-model.ts`) READ these — neither re-derives fit/verdict/move from score bands. The pre-#36 mobile `job-model.ts` was the divergence: it invented verdicts from the fit band (collapsing `strong` into "Worth it", inventing "Long shot") and mixed `overall_score` into the percent.
-- **On-open warming is one hook, every surface** (`frontend/lib/hooks/use-match-brain.ts` → `POST /jobs/{id}/brain` → `on_demand.ensure_job_eval`). Desktop `MyroTake` and the mobile `JobDetailSheet` both consume it, so opening a job ANYWHERE warms + caches its verdict — no surface can open a card without rating it.
+- **On-open warming is one hook, every surface** (`frontend/lib/hooks/use-match-brain.ts` → `POST /jobs/{id}/brain` → `on_demand.open_job_eval`). The POST is a Durable Answer: stored verdict or `available=False`, and it enqueues `job_brain_eval` (named write, FAST lane, `ensure_job_eval`). First paint is overlap / `checking`. `MyroTake` is absent until a scored eval exists — never a loading sentence, never waiting on a model.
 - **No strong match ≠ empty hand.** When a user has no `strong` verdict, the surface shows the closest real jobs labelled `stretch` plus the 1–2 highest-leverage moves (Practice / CV) that would lift them to `strong` — never fabricated jobs (ADR-0001), never a dead empty state. The honest answer to the fresher-shown-senior-roles relevance pain.
 - The primary post-match action is **Tailor & apply** (why-you-fit → tailor the CV to this exact job via the Mentor retriever loop → apply); direct `Apply` stays one tap (never-block, per the CV journey north star).
 - The seam is the test surface (`test_job_match_response.py`): thresholds, the overlap gate, and the `checking` provisional path are tested once against `MatchEval` fixtures, not re-tested through each router or re-implemented per frontend surface.
@@ -566,7 +583,7 @@ Exists because `compute_job_matches` persisted once, at the end, and the run is 
 - **`ranking.rank` still writes nothing.** It is "pure compute, no DB writes"; the callback belongs to whoever owns the write. Same shape as the `on_progress` callback it already took.
 - **The order the user first saw is PINNED** (`persist_matches(pinned_ranks=…)`). The brain's ranking is better, but a list that reorders under someone mid-read is worse than one that sharpens in place. Accepted cost: a triage-approved job the deep eval later rates poorly keeps its slot and shows a weak verdict honestly. Callers with no shown order to protect (sweep, paid Refresh) pass no pin and rank freely.
 - **A provisional row can never be an Agent Pick** — the picks band gates on `STRONG_SCORE` over `overall_score`, so a verdict-less row is structurally ineligible. Asserted, not assumed.
-- **The read seam must say it is provisional.** `_shortlist` returns `provisional` (not `ready`) while any row lacks a verdict AND the run is still outstanding — reporting `ready` stopped the client's poll and froze the screen on numbers that were about to change. Once the run has finished, whatever a row still lacks is not coming, so it reads final.
+- **The read seam must say it is provisional.** Match Verdict `checking` is that state. Once the run has finished, whatever a row still lacks is not coming, so it reads final.
 
 ## Journey Position
 
@@ -735,8 +752,8 @@ The single read for "what Myro knows about what this user wants" — one module 
 
 **Two constructors, two halves**
 
-- `for_ranking(jobs_repo, user_id)` → `ranking_profile()`: the dict the matcher + Career Ops prompt consume — columns passed through untouched, memory riding as `known_facts` (the key intent-chat established). `llm_ranker.build_system_prompt` renders it as the "What Myro remembers about this candidate" block. **Every path that computes a brain verdict goes through it**: `jobs_workflow.compute_job_matches` (the Myro Ops Search), `on_demand.ensure_job_eval` (brain-on-open, every surface), `feed_warm.warm_feed_shortlist` (the `/market` top-10).
-- `for_preflight(db, user_id)` → `preflight()`: the "Refresh your matches" pre-flight manifest (`GET /jobs/refresh/preflight`) — empty fields gap-filled from memory facts (`deal_breakers` ← constraint/work_mode, `career_goal` ← aspiration), with a `prefilled` provenance map and `memory_count`.
+- `for_ranking(jobs_repo, user_id)` → `ranking_profile()`: the dict the matcher + Career Ops prompt consume — columns passed through untouched, memory riding as `known_facts` (the key intent-chat established). `llm_ranker.build_system_prompt` renders it as the "What Myro remembers about this candidate" block. **Every path that computes a brain verdict goes through it**: `jobs_workflow.compute_job_matches` (the Myro Ops Search), `on_demand.ensure_job_eval` (the `job_brain_eval` named write), `feed_warm.warm_feed_shortlist` (the `/market` top-10). Opening a job reads `open_job_eval` and does not compute on the request.
+- `for_preflight(db, user_id)` → `preflight()`: the flat manifest (`GET /jobs/refresh/preflight`) — empty fields gap-filled from memory facts (`deal_breakers` ← constraint/work_mode, `career_goal` ← aspiration), with a `prefilled` provenance map and `memory_count`. **Superseded as the pre-flight's read by the Pre-flight Order below**, which consumes the same `TargetingBrief` but emits typed LINES with per-line provenance instead of gap-filled lists. The flat shape stays because `prefilled` is a field-level map with other readers; the modal no longer uses it.
 
 **Invariants**
 
@@ -750,6 +767,62 @@ The single read for "what Myro knows about what this user wants" — one module 
 - **The run records the direction it covered.** `user_profiles.last_match_context_hash`, stamped by `match_run.run_match` alone (same single-writer rule as `last_match_run_at`) from the key the compute actually ran under (`MatchComputeOutcome.context_key` — reported, never re-derived by the caller). Before it, `_shortlist` answered "was this direction searched?" with "did any run finish since the direction last changed?" — two different questions — so every unmatched context reported `empty`, *"the market genuinely has no overlap"*. The states are now split: `empty` (searched this direction, found nothing) vs `stale_direction` (a run finished, but for another direction — the user has matches, none for this target). `stale_direction` is **never auto-enqueued**; the surface asks for a Myro Ops Search, because the user pulls the run.
 - **The guarantee is forward, not retroactive.** The 308 are not backfilled — history stands. The contract is that the next Myro Ops Search returns a standardised, memory-aware verdict. That makes the Search the invalidation event; memory edits between runs are passive and never reshuffle a list under the user.
 - The module is the test surface (`test_targeting_brief.py`): fact→field mapping, the prompt block, and title derivation are tested once, not through each router.
+
+---
+
+## Pre-flight Order
+
+**One targeting record, two surfaces, per-line provenance.** `preflight_orders`
+(one row per user) + `app/services/preflight/*` + `frontend/lib/preflight/*`.
+
+The bug it exists to fix: the pre-flight rendered profile columns and
+`user_memory` strings into a single prose sentence, fusing two different kinds of
+truth — things the user said, and things Myro inferred from 66 notes. A memory
+string landed mid-clause with no attribution (*"You lean toward Prefers roles in
+corporate functions … You're heading for No."*), so the user could not tell which
+clause came from where, could not judge one, and could not fix one without
+rewriting all of it.
+
+**The vocabulary** (use these exact words in code and copy): an **Order** is the
+whole record; a **Line** is one atomic statement in it (a role, the location, a
+won't-take, a lean); a **Guess** is a line Myro proposed that the user has not
+answered; a line's **Source** is `you said this` / `Myro inferred` / `from your
+CV` / `your words, just now`; **Dropped** means said no to *or left unanswered*.
+
+**Invariants**
+
+- **The ops payload is `lines.filter(status == "kept")` and nothing else.**
+  `POST /preflight/run` calls `lines.drop_unanswered` server-side BEFORE
+  `payload.project`, so a client that forgets cannot widen the run. Asserted in
+  `test_preflight_order.py`.
+- **Never mark a line kept on the user's behalf.** Re-importing a memory note
+  produces an `unanswered` line; `merge_imports` keeps the user's answer over any
+  re-import, and stops asking about a note whose source fact was deleted.
+- **An imported line's id is derived from its source**, not a fresh uuid — a uuid
+  minted per read changes between the GET that renders a guess and the PATCH that
+  answers it, so every yes 404s.
+- **`unusable` lines are offered `reword` / `no` only.** A `career_goal` of `"No"`
+  is in prod; a yes on it would be a promise the matcher silently ignores.
+  Rewording clears the flag and stamps the line `user_reworded` forever.
+- **This is NOT the matcher's source.** Kept lines are projected onto
+  `user_profiles` + authored `preference` facts through `targeting_write.apply` —
+  the one writer, shared with `PUT /users/me/profile` — so `for_ranking` keeps
+  reading exactly what it reads today. The order holds the *conversation about*
+  the targeting; the profile holds the targeting.
+- **Prose is one module, on the frontend** (`lib/preflight/prose.ts`), because the
+  gate and the market sheet must render the *identical* order string. Its rules
+  are a spec, not a nicety: the place is stated once whichever clause carries it,
+  a fragment loses its capital mid-sentence unless it opens with an initialism or
+  a proper phrase, about-you lines get a lead-in. Unit-tested in
+  `preflight-prose.test.ts`.
+- **One query key** (`["preflight","order"]`) for both surfaces; every mutation
+  writes the server's response back into it. Two components each holding "the
+  order" is the same split one layer up.
+- The run is dispatched ONCE. `/preflight/run` charges and starts the ticket;
+  the client streams it via `useJobRefresh().attach` using the ticket's own
+  lifecycle and label — calling `refresh()` after would charge twice, and
+  minting a phase here is how "Reading your signed-off order" appeared for a
+  ticket that was still `queued`.
 
 ---
 
@@ -916,7 +989,7 @@ The product-level invariant the whole Background Job system serves: **once a use
 ## Work Lane
 
 A named RQ queue carrying Background Jobs at one urgency. Exactly two:
-- **fast** — a user is staring at a loading screen: CV upload parse+score, paid Job Refresh, **the initial match-compute** (the onboarding result screen polls for its shortlist every 2.5s — the most-watched job in the product), **CV layout enrichment** (`cv_structured_enrich`: the user is not blocked on it, but the CV playground where onboarding ends is).
+- **fast** — a user is staring at a loading screen: CV upload parse+score, paid Job Refresh, **the initial match-compute**, **CV layout enrichment** (`cv_structured_enrich`: a named write. Display is a Durable Answer and is not gated on this job).
 - **bulk** — nobody is waiting: skill-edit re-tag.
 
 The lane is a claim about **whether someone is waiting**, not about how heavy the work is. Filing a watched job under bulk is how it ends up behind an unwatched queue — which is exactly what put the layout parse, and briefly the initial match, on the wrong side of a user's spinner.

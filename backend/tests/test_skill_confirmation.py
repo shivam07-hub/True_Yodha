@@ -103,7 +103,7 @@ def test_confirmation_publishes_skills_then_hands_the_score_off(monkeypatch) -> 
     It used to be: 8.4s measured on prod, paid by a user whose next screen is the
     direction step — which is deliberately score-free. The score depends on the
     confirmed skills and the band alone, so it can run while the user chooses; the
-    row exists by the time step 3 reads it, and `_heal_missing_score` is the net.
+    row exists by the time Market needs it. `enqueue_score_refresh` is the write.
     """
     calls: list[str] = []
     baseline = {

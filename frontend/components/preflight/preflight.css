@@ -1,0 +1,450 @@
+/* Myro pre-flight — the gate (2a) and the market sheet (2b).
+ *
+ * One rule governs the look: **the thing being confirmed is the biggest text on
+ * the screen.** The surface this replaced put six 13px form fields under 10px
+ * uppercase labels, so the order the user was signing off was the smallest
+ * thing in the modal. Here the question, the guess and the brief are 15–21px and
+ * everything around them — eyebrows, sources, counters — is quiet mono.
+ *
+ * Colour comes from tokens, never the handoff's hex. The spec is written in the
+ * light palette (#FF4C00 on #fffdfa); those ARE the light values of
+ * --tm-interactive / --tm-surface, so tokens reproduce the design exactly and
+ * also survive the dark theme, which hardcoded hex would not.
+ */
+
+/* ── shell ────────────────────────────────────────────────────────────────── */
+
+.pf-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: var(--tm-scrim);
+  animation: pf-fade 160ms var(--tm-ease) both;
+}
+
+.pf-modal {
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(90vh, 780px);
+  display: flex;
+  flex-direction: column;
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border);
+  border-radius: 14px;
+  box-shadow: var(--tm-shadow-2, 0 4px 14px rgba(38, 38, 38, 0.06), 0 1px 2px rgba(38, 38, 38, 0.04));
+  outline: none;
+  overflow: hidden;
+  animation: pf-rise var(--tm-dur) var(--tm-ease) both;
+}
+
+@keyframes pf-fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes pf-rise {
+  from { opacity: 0; transform: translateY(8px) scale(0.985) }
+  to   { opacity: 1; transform: none }
+}
+
+/* ── header + progress ribbon ─────────────────────────────────────────────── */
+
+.pf-head {
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid var(--tm-border-soft);
+  flex-shrink: 0;
+}
+/* Screen 1's question is the heading. The modal name would outrank it. */
+.pf-head[data-compact] {
+  padding: 14px 22px 10px;
+}
+.pf-head[data-compact] .pf-title { display: none; }
+.pf-head[data-compact] .pf-eyebrow { margin-bottom: 0; }
+.pf-head[data-compact] .pf-ribbon { margin-top: 10px; }
+
+.pf-head-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pf-eyebrow {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+  margin-bottom: 6px;
+}
+
+.pf-title {
+  margin: 0;
+  font-size: var(--tm-fs-modal);
+  font-weight: 650;
+  line-height: 1.2;
+  color: var(--tm-text);
+}
+
+.pf-close {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 6px;
+  margin: -6px -6px 0 0;
+  display: inline-flex;
+  color: var(--tm-interactive-rest);
+  border-radius: var(--tm-radius-sm);
+  transition: color var(--tm-dur-fast) var(--tm-ease);
+}
+.pf-close:hover { color: var(--tm-interactive); }
+
+/* Three chapters, not three clicks. Confirm can take several turns — the
+   current label says which, so the bars do not pretend the work is equal. */
+.pf-ribbon {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.pf-ribbon-step { display: flex; flex-direction: column; gap: 5px; }
+
+.pf-ribbon-bar {
+  height: 3px;
+  border-radius: 99px;
+  background: var(--tm-border);
+  transition: background-color var(--tm-dur) var(--tm-ease);
+}
+.pf-ribbon-step[data-state="current"] .pf-ribbon-bar { background: var(--tm-text); }
+.pf-ribbon-step[data-state="done"] .pf-ribbon-bar { background: var(--tm-text-muted); }
+
+.pf-ribbon-label {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+.pf-ribbon-step[data-state="current"] .pf-ribbon-label { color: var(--tm-text); }
+.pf-ribbon-step[data-state="done"] .pf-ribbon-label { color: var(--tm-text-muted); }
+
+/* ── body + footer ────────────────────────────────────────────────────────── */
+
+.pf-body {
+  padding: 20px 22px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.pf-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 22px calc(14px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--tm-border-soft);
+  background: var(--tm-bg);
+  flex-shrink: 0;
+}
+.pf-foot[data-solo] { justify-content: flex-end; }
+
+.pf-foot-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+/* "N unanswered → dropped" is a consequence of pressing the button beside it,
+   not a caption. Muted, not faint, for the same reason as .pf-contract. */
+.pf-drop-note {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-note);
+  color: var(--tm-text-muted);
+}
+
+/* ── buttons ──────────────────────────────────────────────────────────────── */
+
+.pf-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: var(--tm-fs-ui);
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition:
+    background-color var(--tm-dur-fast) var(--tm-ease),
+    border-color var(--tm-dur-fast) var(--tm-ease),
+    color var(--tm-dur-fast) var(--tm-ease);
+}
+.pf-btn:disabled { cursor: not-allowed; opacity: 0.55; }
+
+.pf-btn-primary {
+  background: var(--tm-interactive);
+  color: var(--tm-interactive-fg);
+  box-shadow: 0 4px 12px var(--tm-interactive-glow);
+}
+.pf-btn-primary:not(:disabled):hover { background: var(--tm-interactive-hover); }
+
+.pf-btn-ghost {
+  background: transparent;
+  color: var(--tm-text-muted);
+  border-color: transparent;
+  padding: 0 6px;
+  font-weight: 500;
+}
+.pf-btn-ghost:hover { color: var(--tm-interactive); }
+
+.pf-btn-outline {
+  background: transparent;
+  color: var(--tm-text);
+  border-color: var(--tm-border);
+}
+.pf-btn-outline:hover { border-color: var(--tm-accent-ring); color: var(--tm-accent-text); }
+
+/* ── screen 1 · say it ────────────────────────────────────────────────────── */
+
+.pf-ask-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+
+.pf-question {
+  margin: 12px 0 0;
+  font-size: var(--tm-fs-ask);
+  line-height: 1.45;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--tm-text);
+  text-wrap: pretty;
+}
+
+.pf-sub {
+  margin: 10px 0 0;
+  font-size: var(--tm-fs-ui-sm);
+  line-height: 1.6;
+  color: var(--tm-text-muted);
+  text-wrap: pretty;
+}
+
+.pf-compose { display: flex; gap: 8px; margin-top: 18px; align-items: flex-end; }
+
+.pf-input {
+  border-radius: 8px;
+  border: 1px solid var(--tm-border);
+  background: var(--tm-surface);
+  color: var(--tm-text);
+  font-size: var(--tm-fs-ui);
+  transition: border-color var(--tm-dur-fast) var(--tm-ease);
+}
+.pf-input:focus { border-color: var(--tm-interactive); }
+
+/* Not `disabled`: the button stays focusable, it just reads as not-yet.
+   Idle is a ghost outline — a dead grey fill next to an empty pad looks broken. */
+.pf-send {
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--tm-interactive-fg);
+  background: var(--tm-interactive);
+  box-shadow: 0 4px 12px var(--tm-interactive-glow);
+  transition: background-color var(--tm-dur-fast) var(--tm-ease), border-color var(--tm-dur-fast) var(--tm-ease), color var(--tm-dur-fast) var(--tm-ease), box-shadow var(--tm-dur-fast) var(--tm-ease);
+}
+.pf-send[data-idle="true"] {
+  background: transparent;
+  color: var(--tm-text-muted);
+  border-color: var(--tm-border);
+  box-shadow: none;
+}
+
+.pf-starters {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--tm-border-soft);
+}
+
+.pf-starters-label {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+
+.pf-pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
+.pf-pill {
+  appearance: none;
+  min-height: 34px;
+  padding: 0 13px;
+  border-radius: 99px;
+  border: 1px solid var(--tm-border);
+  background: var(--tm-surface-2);
+  color: var(--tm-text);
+  font: inherit;
+  font-size: var(--tm-fs-ui-sm);
+  cursor: pointer;
+  transition: border-color var(--tm-dur-fast) var(--tm-ease), background-color var(--tm-dur-fast) var(--tm-ease);
+}
+.pf-pill:hover { border-color: var(--tm-text-muted); }
+.pf-pill[data-in="true"] { border-color: var(--tm-text); background: var(--tm-surface); }
+
+/* ── bubbles (screen 2 + the market trail) ────────────────────────────────── */
+
+.pf-trail { display: flex; flex-direction: column; gap: 10px; }
+
+.pf-bubble {
+  max-width: 84%;
+  padding: 10px 13px;
+  font-size: var(--tm-fs-ui);
+  line-height: 1.5;
+  border: 1px solid transparent;
+  text-wrap: pretty;
+}
+.pf-bubble[data-from="user"] {
+  align-self: flex-end;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  background: var(--tm-interactive);
+  color: var(--tm-interactive-fg);
+  border-radius: 14px 14px 4px 14px;
+}
+.pf-bubble-copy { min-width: 0; flex: 1 1 auto; }
+.pf-bubble-edit {
+  appearance: none;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  margin: -10px -12px -10px 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--tm-radius-sm);
+  background: transparent;
+  color: inherit;
+  opacity: 0.85;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity var(--tm-dur-fast) var(--tm-ease);
+}
+.pf-bubble-edit:hover { opacity: 1; }
+.pf-bubble[data-from="myro"] {
+  align-self: flex-start;
+  background: var(--tm-accent-wash);
+  color: var(--tm-text);
+  border-radius: 14px 14px 14px 4px;
+}
+/* The receipt — what actually changed. Its own colour because it is a fact
+   about the user's feed, not another thing Myro thinks. */
+.pf-bubble[data-from="receipt"] {
+  align-self: stretch;
+  max-width: 100%;
+  background: var(--tm-success-wash);
+  border-color: var(--tm-success-border);
+  color: var(--tm-text);
+  border-radius: 10px;
+}
+
+/* Myro is thinking — shown, not narrated.
+ *
+ * This was the sentence "Myro is reading that…", which is words doing a
+ * design job: the state is "a reply is coming", and the honest way to say that
+ * is to draw the reply's own container, empty and alive. So it IS a Myro
+ * bubble — same background, same corner, same left alignment — holding three
+ * dots instead of a sentence. When the reply lands it takes the same slot, so
+ * nothing moves.
+ *
+ * The words survive where they are still needed: `aria-label` carries "Myro is
+ * thinking" for screen readers, which cannot see a dot pulse. */
+.pf-typing {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 13px;
+  min-height: 40px;
+  background: var(--tm-accent-wash);
+  border-radius: 14px 14px 14px 4px;
+}
+
+.pf-typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 99px;
+  background: var(--tm-interactive);
+  animation: pf-think 1200ms var(--tm-ease) infinite;
+}
+.pf-typing-dot:nth-child(2) { animation-delay: 160ms; }
+.pf-typing-dot:nth-child(3) { animation-delay: 320ms; }
+
+@keyframes pf-think {
+  0%, 60%, 100% { opacity: 0.28; transform: translateY(0); }
+  30%           { opacity: 1;    transform: translateY(-3px); }
+}
+
+@media (max-width: 420px) {
+  .pf-scrim { padding: 0; align-items: flex-end; }
+  .pf-modal { width: 100%; max-height: 92vh; border-radius: 14px 14px 0 0; }
+  .pf-body { padding: 16px; }
+  .pf-head { padding: 16px 16px 12px; }
+  .pf-question { font-size: var(--tm-fs-modal); }
+
+  /* Declared, not left to wrap. `space-between` on a row too narrow to hold
+     three things drops the right group to its own line at an arbitrary point —
+     the back link ends up floating above a gap. Two named rows instead: what
+     this step costs, then the step. */
+  .pf-foot {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "back back" "note next";
+    gap: 10px 12px;
+    padding: 12px 16px calc(14px + env(safe-area-inset-bottom));
+  }
+  .pf-foot > .pf-btn-ghost { grid-area: back; justify-self: start; }
+  .pf-foot-right {
+    display: contents;
+  }
+  .pf-foot-right .pf-drop-note { grid-area: note; align-self: center; }
+  .pf-foot-right .pf-btn-primary { grid-area: next; }
+  .pf-head[data-compact] { padding: 14px 16px 10px; }
+  .pf-foot[data-solo] {
+    display: flex;
+    justify-content: flex-end;
+  }
+  .pf-foot[data-solo] > .pf-foot-right { display: flex; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-scrim, .pf-modal { animation: none; }
+  .pf-btn, .pf-pill, .pf-send, .pf-input, .pf-ribbon-bar, .pf-close, .pf-bubble-edit { transition: none; }
+  /* The dots hold at three fixed weights rather than freezing identical. Motion
+     is the wrong signal for this reader, but "something is in progress" is not —
+     an indicator that reads as three inert dots has stopped indicating. */
+  .pf-typing-dot { animation: none; opacity: 0.9; }
+  .pf-typing-dot:nth-child(2) { opacity: 0.6; }
+  .pf-typing-dot:nth-child(3) { opacity: 0.3; }
+}

@@ -766,8 +766,9 @@ class FeedWarmResponse(BaseModel):
 
 class MatchBrainResult(BaseModel):
     """On-demand single-job brain eval (Consolidation D). Returned by
-    POST /jobs/{job_id}/brain; the frontend patches these onto its local job.
-    `cached=True` means it was already computed (no LLM ran this call)."""
+    POST /jobs/{job_id}/brain. That POST is a Durable Answer: stored verdict
+    or `available=False`. A miss enqueues `job_brain_eval`; it does not wait
+    on a model. `cached=True` means the row was already written."""
 
     job_id: str
     cached: bool = False

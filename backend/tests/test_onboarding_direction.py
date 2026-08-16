@@ -38,8 +38,13 @@ class _MemoryDB:
     def eq(self, *_a: Any) -> "_MemoryDB":
         return self
 
-    def in_(self, _col: str, kinds: list[str]) -> "_MemoryDB":
-        self._kinds = kinds
+    def in_(self, col: str, values: list[str]) -> "_MemoryDB":
+        # Keyed by column: `list_active` filters kinds, `delete_many` filters ids.
+        # One shared attribute let a bulk delete poison the next read's filter.
+        if col == "kind":
+            self._kinds = values
+        else:
+            self._ids = values
         return self
 
     def order(self, *_a: Any, **_k: Any) -> "_MemoryDB":
@@ -48,8 +53,10 @@ class _MemoryDB:
     def limit(self, *_a: Any) -> "_MemoryDB":
         return self
 
-    def insert(self, row: dict[str, Any]) -> "_MemoryDB":
-        self.inserted.append(row)
+    def insert(self, rows: dict[str, Any] | list[dict[str, Any]]) -> "_MemoryDB":
+        # Bulk since 2026-08-16: one insert for N leans, not N inserts. Flattened
+        # here so the assertions stay about WHAT was written, not how many calls.
+        self.inserted.extend(rows if isinstance(rows, list) else [rows])
         return self
 
     def delete(self) -> "_MemoryDB":
@@ -57,6 +64,13 @@ class _MemoryDB:
         return self
 
     def execute(self) -> Any:
+        if getattr(self, "_deleting", False):
+            ids = getattr(self, "_ids", [])
+            self.deleted.extend(ids)
+            self.rows = [r for r in self.rows if r.get("id") not in ids]
+            self._deleting = False
+            self._ids = []
+            return type("R", (), {"data": []})()
         kinds = getattr(self, "_kinds", None)
         data = [r for r in self.rows if kinds is None or r.get("kind") in kinds]
         return type("R", (), {"data": data})()
@@ -125,6 +139,8 @@ def test_leans_replace_only_authored_facts() -> None:
         "user_id": "u1", "kind": "preference", "text": "new lean",
         "resolved": None, "source": "authored", "confidence": None,
     }]
+    # Only the authored one goes. Myro's own reading survives to be proposed again.
+    assert db.deleted == ["drop"]
 
 
 def test_resubmitting_the_same_leans_is_not_a_change() -> None:

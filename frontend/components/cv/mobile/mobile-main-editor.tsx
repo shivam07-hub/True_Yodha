@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react"
 import { createPortal } from "react-dom"
-import type { UserProfile } from "@/lib/api"
+import type { CVStructured, UserProfile } from "@/lib/api"
 import { Icon, type IconName } from "@/components/cv/builder/icons"
 import { Button } from "@/components/ui/button"
 import { useMasterAutosave } from "@/lib/hooks/use-master-autosave"
@@ -32,13 +32,15 @@ interface MobileMainEditorProps {
   profile: UserProfile | null
   onClose: () => void
   initialSection?: MobileCVSection | null
+  cv: CVStructured
 }
 
-export function MobileMainEditor({ token, profile, onClose, initialSection = null }: MobileMainEditorProps) {
-  const { draft, ready, status, recomputePending, update, saveNow } = useMasterAutosave({
+export function MobileMainEditor({ token, profile, onClose, initialSection = null, cv: seed }: MobileMainEditorProps) {
+  const { draft, status, recomputePending, update, saveNow } = useMasterAutosave({
     token,
     enabled: true,
     userKey: profile?.ninja_name?.trim() || profile?.email?.trim() || "anon",
+    seed,
   })
   const [section, setSection] = useState<MobileCVSection | null>(initialSection)
   const [preview, setPreview] = useState(false)
@@ -64,17 +66,10 @@ export function MobileMainEditor({ token, profile, onClose, initialSection = nul
     onClose()
   }
 
-  if (!ready || !draft) {
-    return (
-      <FocusPortal>
-        <div className="tm-mcv-focus" role="dialog" aria-modal="true" aria-label="Edit Main CV">
-          <div className="tm-mcv-loading" role="status">Loading your CV…</div>
-        </div>
-      </FocusPortal>
-    )
-  }
+  const paper = draft ?? seed
+  if (!paper) return null
 
-  const cv = withContact(draft)
+  const cv = withContact(paper)
   const activeLabel = SECTIONS.find(item => item.key === section)?.label ?? "Edit Main CV"
   const saveLabel = status === "error"
     ? "Couldn’t save"

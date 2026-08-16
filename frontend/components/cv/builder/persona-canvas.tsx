@@ -152,10 +152,7 @@ export function PersonaCanvas({ token }: { token: string }) {
 
   const data = persona.data
   const timeline = data?.timeline ?? []
-  // Building = first fetch in flight, OR the backend is synthesizing. Both
-  // paint the real-layout skeleton; pending just adds an honest "writing" line.
-  const building = persona.isLoading || data?.status === "pending"
-  // Only bail to the empty-nudge when there is genuinely nothing to write from.
+  const waitingOnRow = persona.isLoading && !data
   const nothingToWriteFrom = data?.status === "pending" && timeline.length === 0
 
   return (
@@ -194,24 +191,30 @@ export function PersonaCanvas({ token }: { token: string }) {
         <p className="tm-pc-state" role="alert">Couldn’t load your document — try again.</p>
       )}
 
+      {waitingOnRow && <SkeletonMovements />}
+
       {nothingToWriteFrom ? (
-        <div className="tm-pc-state">
-          <p className="tm-pc-hint">
-            Nothing to write from yet?{" "}
-            <Link href="/cv?view=stories">Drop your CV and stories</Link> — the document
-            builds itself from there.
-          </p>
+        <div className="tm-pc-state" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Button size="sm" render={<Link href="/cv" />}>Upload Main CV</Button>
+          <Button size="sm" variant="outline" render={<Link href="/cv?view=stories" />}>Add points</Button>
         </div>
-      ) : building && (
-        <>
-          {data?.status === "pending" && (
-            <p className="tm-pc-building" role="status">
-              <span className="tm-pc-building-dot" aria-hidden />
-              Myro is reading your evidence and writing this document…
-            </p>
-          )}
-          <SkeletonMovements />
-        </>
+      ) : null}
+
+      {data?.status === "pending" && timeline.length > 0 && (
+        <ol className="tm-pc-grid" style={{ listStyle: "none", padding: 0 }}>
+          {timeline.map((role) => (
+            <li
+              className="tm-pc-card"
+              key={`${role.company}-${role.title}-${role.started_on ?? role.date_label}`}
+            >
+              <p className="tm-pc-text">
+                {role.title}
+                {role.company ? ` · ${role.company}` : ""}
+                {role.date_label ? ` · ${role.date_label}` : ""}
+              </p>
+            </li>
+          ))}
+        </ol>
       )}
 
       {data?.status === "ready" &&

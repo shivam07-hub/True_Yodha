@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button"
 import { CareerProfileCard } from "./career-profile-card"
 import { PersonaCanvas } from "./persona-canvas"
 import { MyroChat } from "@/components/myro/myro-chat"
+import { SayPad } from "@/components/myro/say-pad"
 import "./memory-panel.css"
 
 const KIND_LABELS: Record<MemoryKind, string> = {
@@ -189,11 +190,15 @@ export function MemoryPanel({ token }: { token: string }) {
               <option key={value} value={value}>{label}</option>
             ))}
           </select>
-          <input
+          <SayPad
             className="tm-mem-composer-input"
+            size="compact"
             placeholder="Tell Myro something to remember…"
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            maxLength={600}
+            onChange={setText}
+            onSubmit={() => { if (text.trim()) add.mutate() }}
+            aria-label="Tell Myro something to remember"
           />
           <Button type="submit" size="sm" disabled={!text.trim() || add.isPending}>
             Remember

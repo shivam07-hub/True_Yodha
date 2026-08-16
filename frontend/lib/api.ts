@@ -21,6 +21,15 @@ import {
   resolveCVUploadResult,
 } from "./cv-upload-state"
 import { preflightCVUploadFile } from "./cv-file-detect"
+import type {
+  LineKind,
+  LineStatus,
+  Order,
+  OrderEffect,
+  OrderProposals,
+  OrderRunResult,
+  OrderState,
+} from "./preflight/types"
 import { queryClient } from "./query-client"
 import { ApiError, classifyError, readErrorCode, readTraceId } from "./api-error"
 import { getTurnstileToken } from "./turnstile"
@@ -542,6 +551,91 @@ export const mentor = {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({ surface, messages }),
+    }),
+}
+
+/** The pre-flight order. ONE record behind two surfaces — the gate and the
+ *  market bottom-sheet — so a change applied from the market is in the gate's
+ *  brief without a reload. Both callers use `preflightKeys.order()`.
+ *  See `lib/preflight/types.ts` and `backend/app/routers/preflight.py`. */
+export const preflight = {
+  order: (token: string) =>
+    request<Order>("/preflight/order", { headers: { Authorization: `Bearer ${token}` } }),
+
+  /** Screen 1's one question, stored verbatim. */
+  setSaid: (token: string, said: string) =>
+    request<OrderState>("/preflight/order/said", {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ said }),
+    }),
+
+  /** yes / no / undo. A reword goes through `rewordLine` — the server stamps it
+   *  `user_reworded` and counts it as yes. */
+  answerLine: (token: string, lineId: string, status: LineStatus) =>
+    request<OrderState>(`/preflight/order/lines/${encodeURIComponent(lineId)}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status }),
+    }),
+
+  rewordLine: (token: string, lineId: string, text: string) =>
+    request<OrderState>(`/preflight/order/lines/${encodeURIComponent(lineId)}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ text }),
+    }),
+
+  addLine: (token: string, input: { kind: LineKind; text: string; origin?: "preflight" | "market" }) =>
+    request<OrderState>("/preflight/order/lines", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(input),
+    }),
+
+  /** Reverse one logged change. Restores the line's prior state whole. */
+  undo: (token: string, entryId: string) =>
+    request<OrderState>("/preflight/order/undo", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ entry_id: entryId }),
+    }),
+
+  /** Accept a proposal. The effects sent back are the ones the user saw. */
+  apply: (token: string, effects: OrderEffect[], origin: "preflight" | "market" = "market") =>
+    request<OrderState>("/preflight/order/apply", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ effects, origin }),
+    }),
+
+  /** Propose only — nothing lands until `apply`. One of the three inputs. */
+  proposals: (
+    token: string,
+    input: { utterance?: string; topic?: string; free_text?: string },
+  ) =>
+    request<OrderProposals>("/preflight/proposals", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(input),
+      // The utterance goes through the mentor, so this is an LLM turn, not a
+      // read. The default timeout is tuned for reads and cuts it off mid-think.
+      timeoutMs: 45_000,
+    }),
+
+  /** Sign off and dispatch. The server drops unanswered lines before it
+   *  projects the payload, so a client that forgets cannot widen the run.
+   *
+   *  Not a read: this projects the order onto the profile, rewrites the lean
+   *  facts, charges, and dispatches. The 15s default is tuned for reads and cut
+   *  it off mid-write — the user saw "Request timed out", pressed Run again, and
+   *  was charged again. The server now refuses to charge twice inside its
+   *  dedupe window; this stops the client abandoning a request that is working. */
+  run: (token: string) =>
+    request<OrderRunResult>("/preflight/run", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      timeoutMs: 45_000,
     }),
 }
 
@@ -3741,11 +3835,6 @@ export interface IntentFilterDiff {
   superpower: string | null
 }
 
-export interface IntentChatResponse {
-  reply: string
-  proposed_diff: IntentFilterDiff | null
-}
-
 export const jobs = {
   companySkillIntelligence: (company: string, limit = 20) =>
     request<CompanySkillIntelligence>(
@@ -3993,8 +4082,9 @@ export const jobs = {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     }),
-  /** On-demand Matching-Brain for one job (Consolidation D). Idempotent + cached:
-   *  first open/save computes it, later reads are free. Fire on drawer open. */
+  /** On-demand Matching-Brain for one job. Durable Answer: stored verdict or
+   *  available=false, and a named write is enqueued if missing. Fire on drawer
+   *  open. Never waits on a model. */
   ensureBrain: (token: string, jobId: string) =>
     request<MatchBrainResult>(`/jobs/${encodeURIComponent(jobId)}/brain`, {
       method: "POST",
@@ -4086,20 +4176,6 @@ export const jobs = {
     request<CompanyJobsResponse>(
       `/companies/${encodeURIComponent(company)}/jobs?page=1&page_size=50`,
     ),
-  /** @deprecated Use `mentor.converse` — one Myro, whichever screen you're on.
-   *  Still live and still correct; the server delegates it to the same seam. */
-  intentChat: (token: string, messages: IntentChatMessage[]) =>
-    request<IntentChatResponse>("/jobs/intent-chat", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ messages }),
-    }),
-  applyIntentDiff: (token: string, diff: IntentFilterDiff) =>
-    request<{ applied: boolean; changed: Record<string, unknown> }>("/jobs/intent-chat/apply", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ diff }),
-    }),
   reportInactive: (token: string, jobId: string) =>
     request<{ report_count: number; already_reported: boolean; coins_earned: number }>(
       `/jobs/${encodeURIComponent(jobId)}/report`,

@@ -1,0 +1,272 @@
+/* The proposal card + the confirm rounds' furniture.
+ *
+ * Both live here because they are one visual family — a card of rows, each row
+ * a claim with a source and three answers. Splitting the styles by screen is
+ * how the two chat panels this replaced drifted into looking like two products.
+ */
+
+.pf-prop-card {
+  margin-top: 16px;
+  border: 1px solid var(--tm-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.pf-prop {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 13px 14px;
+  border-top: 1px solid var(--tm-border-soft);
+  transition: background-color var(--tm-dur) var(--tm-ease), opacity var(--tm-dur) var(--tm-ease);
+}
+.pf-prop:first-child { border-top: 0; }
+.pf-prop[data-status="kept"] { background: var(--tm-accent-wash); }
+.pf-prop[data-status="dropped"] { opacity: 0.45; }
+.pf-prop[data-status="dropped"] .pf-guess-text { text-decoration: line-through; }
+
+.pf-prop-copy { min-width: 0; }
+.pf-prop .pf-answers { align-self: flex-start; }
+.pf-reword .say-pad { flex: 1 1 220px; min-width: 0; }
+
+.pf-prop-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--tm-surface-2);
+  border-top: 1px solid var(--tm-border-soft);
+}
+
+/* ── the order block (confirm + review) ───────────────────────────────────── */
+
+/* The user's own words, held above every guess. Without this the confirm rounds
+   are eight questions with no subject, and the user loses what they came to
+   search for while judging Myro's reading of it. */
+.pf-order-block {
+  border: 1px solid var(--tm-accent-ring);
+  background: var(--tm-accent-wash);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.pf-order-eyebrow {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tm-accent-text);
+  margin-bottom: 6px;
+}
+
+.pf-order-said {
+  font-size: var(--tm-fs-ui-lg);
+  line-height: 1.5;
+  color: var(--tm-text);
+  text-wrap: pretty;
+}
+
+.pf-order-added {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--tm-accent-ring);
+}
+
+.pf-order-added-line {
+  display: flex;
+  gap: 8px;
+  font-size: var(--tm-fs-ui-sm);
+  line-height: 1.5;
+  color: var(--tm-text-muted);
+}
+.pf-order-added-line span[data-sign] { color: var(--tm-success); font-family: var(--tm-font-mono); }
+
+/* ── the tally row ────────────────────────────────────────────────────────── */
+
+/* Three buttons that make the whole set legible without scrolling it. The
+   alternative shipped twice and failed twice: eight guesses in one list is a
+   wall, eight separate screens is an interrogation. */
+.pf-tally {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 6px;
+  margin-top: 16px;
+}
+
+.pf-tally-btn {
+  appearance: none;
+  min-height: 44px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--tm-border-soft);
+  background: var(--tm-surface);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color var(--tm-dur-fast) var(--tm-ease),
+    background-color var(--tm-dur-fast) var(--tm-ease);
+}
+.pf-tally-btn[aria-current="true"] {
+  background: var(--tm-accent-wash);
+  border-color: var(--tm-accent-ring);
+}
+
+.pf-tally-label {
+  display: block;
+  font-size: var(--tm-fs-ui-sm);
+  font-weight: 500;
+  color: var(--tm-text-faint);
+}
+.pf-tally-btn[aria-current="true"] .pf-tally-label { color: var(--tm-accent-text); }
+
+.pf-tally-count {
+  display: block;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  color: var(--tm-text-faint);
+  margin-top: 2px;
+}
+
+.pf-round-head { margin-top: 18px; }
+
+.pf-round-eyebrow {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+
+/* One line, held by `.tm-clamp-1` on the element. The clamp is the guard; the
+   fix is that ROUND_LEAD is written to fit. A two-line question competes with
+   the answers under it and re-flows the whole round every time the copy moves. */
+.pf-round-lead {
+  margin: 8px 0 4px;
+  font-size: var(--tm-fs-prose);
+  line-height: 1.45;
+  font-weight: 500;
+  color: var(--tm-text);
+}
+
+/* ── review ───────────────────────────────────────────────────────────────── */
+
+.pf-signed {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tm-success);
+}
+
+/* The brief is the largest text in the modal, because it is the thing being
+   signed off. */
+.pf-brief {
+  margin: 12px 0 0;
+  font-size: var(--tm-fs-prose);
+  line-height: 1.7;
+  color: var(--tm-text);
+  letter-spacing: -0.005em;
+  text-wrap: pretty;
+}
+
+/* The handoff sets this in the faint tier. It is the one sentence the whole
+   surface's promise rests on — "Myro runs on the N lines above and nothing
+   else" — and faint is the tier this codebase reserves for text that conveys
+   nothing (≈2.6:1 on paper, ≈4.3:1 on ink; both fail AA). Muted, deliberately. */
+.pf-contract {
+  margin: 14px 0 0;
+  font-size: var(--tm-fs-note);
+  line-height: 1.55;
+  color: var(--tm-text-muted);
+}
+
+.pf-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+
+.pf-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border-radius: 99px;
+  border: 1px solid var(--tm-border-soft);
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-note);
+  color: var(--tm-text-muted);
+  text-decoration: none;
+}
+.pf-chip[data-tone="warn"] { border-color: var(--tm-warning-border); color: var(--tm-warning); }
+a.pf-chip:hover { border-color: var(--tm-accent-ring); color: var(--tm-accent-text); }
+
+.pf-cost {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 11px 13px;
+  border-radius: 4px;
+  background: var(--tm-accent-wash);
+  border: 1px solid var(--tm-accent-ring);
+  font-size: var(--tm-fs-ui-sm);
+  line-height: 1.5;
+  color: var(--tm-text);
+}
+.pf-cost[data-tone="short"] { background: var(--tm-danger-wash); border-color: var(--tm-danger-border); }
+.pf-cost strong { font-family: var(--tm-font-mono); font-weight: 600; }
+
+/* ── running + done ───────────────────────────────────────────────────────── */
+
+.pf-run { min-height: 230px; }
+
+.pf-run-track {
+  height: 3px;
+  border-radius: 99px;
+  background: var(--tm-border);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.pf-run-fill {
+  height: 100%;
+  background: var(--tm-interactive);
+  border-radius: 99px;
+  transition: width 600ms var(--tm-ease);
+}
+
+.pf-run-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  font-size: var(--tm-fs-ui);
+  color: var(--tm-text-faint);
+  transition: color var(--tm-dur) var(--tm-ease);
+}
+.pf-run-line[data-state="current"], .pf-run-line[data-state="done"] { color: var(--tm-text); }
+
+.pf-run-mark {
+  font-family: var(--tm-font-mono);
+  width: 14px;
+  text-align: center;
+  color: var(--tm-text-disabled);
+}
+.pf-run-line[data-state="current"] .pf-run-mark { color: var(--tm-interactive); }
+.pf-run-line[data-state="done"] .pf-run-mark { color: var(--tm-success); }
+
+.pf-numbers { display: flex; gap: 28px; margin: 16px 0 0; }
+.pf-numeral {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-numeral);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  color: var(--tm-text);
+}
+.pf-numeral-label { font-size: var(--tm-fs-note); color: var(--tm-text-muted); margin-top: 4px; }
+
+@media (max-width: 420px) {
+  .pf-tally-label { font-size: var(--tm-fs-note); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-prop, .pf-tally-btn, .pf-run-fill, .pf-run-line { transition: none; }
+}

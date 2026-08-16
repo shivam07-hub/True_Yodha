@@ -53,8 +53,8 @@ def test_registry_includes_the_onboarding_handlers() -> None:
     assert "provisional_baseline_score" in declared  # score during skill-review idle
 
 
-def test_registry_includes_the_skill_floor_handler() -> None:
-    assert "skill_floor_drain" in registry.registered_job_types()
+def test_registry_includes_the_job_brain_handler() -> None:
+    assert "job_brain_eval" in registry.registered_job_types()
 
 
 @pytest.mark.asyncio

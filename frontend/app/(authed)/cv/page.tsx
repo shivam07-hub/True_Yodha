@@ -106,7 +106,8 @@ function CVPage() {
   const playground = useCVPlayground({ token, jobId, enabled: !!ready && !!token })
   const baselines = playground.baselines
   const hasBaseline = baselines.length > 0
-  const cvData = playground.structuredQuery.data ?? null
+  const cvData = playground.structured
+  const bodyText = playground.currentBaseline?.body_text?.trim() ?? ""
 
   const profileQuery = useQuery({
     queryKey: dataKeys.profile(),
@@ -595,7 +596,11 @@ function CVPage() {
             </>
           )}
 
-          {hasBaseline && view === "baseline" && cvData && (
+          {hasBaseline && (
+            view === "baseline"
+            || (view === "master-edit" && !cvData)
+            || (view === "playground" && !!jobId && !cvData)
+          ) && (
             <LibraryView
               token={token!}
               cv={cvData}
@@ -634,17 +639,15 @@ function CVPage() {
             />
           )}
 
-          {hasBaseline && !cvData && !playground.structuredQuery.isError && (
-            playground.structuredQuery.isLoading || playground.structuredQuery.isFetching
-          ) && (
-            <CvDocumentSkeleton />
+          {playground.versionsError && !hasBaseline && !bodyText && (
+            <CvStructuredRecovery
+              isRetrying={playground.versionsLoading}
+              onRetry={() => { playground.refetchVersions() }}
+            />
           )}
 
-          {hasBaseline && !cvData && playground.structuredQuery.isError && (
-            <CvStructuredRecovery
-              isRetrying={playground.structuredQuery.isFetching}
-              onRetry={() => { void playground.structuredQuery.refetch() }}
-            />
+          {playground.versionsLoading && !hasBaseline && !playground.versionsError && (
+            <CvDocumentSkeleton />
           )}
         </div>
       </div>

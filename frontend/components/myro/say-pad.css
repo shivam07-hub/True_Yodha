@@ -1,0 +1,58 @@
+/* The pad Myro listens at. One component, six hosts.
+ *
+ * field-sizing: content grows with the words. max-height caps at ~7 lines
+ * (compose) / ~5 (compact), then it scrolls. The JS fallback is for browsers
+ * that do not know field-sizing yet — it never animates height. */
+
+.say-pad {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.say-pad-field {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  field-sizing: content;
+  resize: none;
+  overflow-y: auto;
+  min-height: calc(var(--say-line) + 2 * var(--say-pad-y));
+  max-height: calc(var(--say-line) * var(--say-lines) + 2 * var(--say-pad-y));
+  padding: var(--say-pad-y) 14px;
+  line-height: var(--say-line);
+  font: inherit;
+  color: inherit;
+  outline: none;
+}
+
+.say-pad-field[data-size="compose"] {
+  --say-line: 22px;
+  --say-pad-y: 12px;
+  --say-lines: 7;
+}
+
+.say-pad-field[data-size="compact"] {
+  --say-line: 20px;
+  --say-pad-y: 10px;
+  --say-lines: 5;
+}
+
+.say-pad[data-capped] .say-pad-field {
+  padding-right: 56px;
+}
+
+.say-pad-remain {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  pointer-events: none;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: var(--tm-text-faint);
+}
+
+.say-pad-field::placeholder { color: var(--tm-text-faint); }

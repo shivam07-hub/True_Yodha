@@ -102,5 +102,4 @@ test("every skill is still individually rulable", () => {
   const markup = render([proven("Video Editing Software"), proven("Content Creation")])
 
   assert.equal(markup.split('type="checkbox"').length - 1, 2)
-  assert.match(markup, /2<\/span> kept/)
 })

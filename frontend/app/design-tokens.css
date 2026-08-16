@@ -147,6 +147,30 @@
   --tm-fs-meta:       0.875rem;   /* 14px */
   --tm-fs-caption:    0.75rem;    /* 12px */
 
+  /* ── Dense UI scale (chrome, not prose) ────────────────────────
+     The seven rungs above are a PAGE scale — 56 → 12, jumping 25–40%
+     a step. Application chrome does not fit on it: a modal needs a
+     mono eyebrow, a source chip, a note, a pill, a button and the
+     sentence being confirmed, all legibly different, inside 10–21px.
+     Asked to hit that with `caption` and `meta` alone, every surface
+     free-typed instead — which is why the drift guard counts 1,500+
+     literal font-sizes across 88 files and the number only ever goes up.
+     A guard nobody can satisfy is a guard everyone raises the baseline on.
+
+     So: named rungs for the sizes the app actually uses, each with a job.
+     Use these for in-app chrome; keep the page scale for page type.
+     Adding a rung here is a design decision — free-typing 14.5px
+     because 14px "felt small" is not, and is what this replaces. */
+  --tm-fs-micro:      0.625rem;   /* 10px   — mono eyebrows, ribbon + tally counters, source chips */
+  --tm-fs-note:       0.719rem;   /* 11.5px — provenance notes, drop-notes, cost captions */
+  --tm-fs-ui-sm:      0.781rem;   /* 12.5px — pills, chips, secondary controls */
+  --tm-fs-ui:         0.844rem;   /* 13.5px — buttons, bubbles, inputs, dense body */
+  --tm-fs-ui-lg:      0.938rem;   /* 15px   — one claim being judged; bigger than the chrome around it */
+  --tm-fs-prose:      1.063rem;   /* 17px   — the thing being signed off. The largest text in a modal. */
+  --tm-fs-modal:      1.188rem;   /* 19px   — a modal's own name */
+  --tm-fs-ask:        1.313rem;   /* 21px   — one question, alone on a screen */
+  --tm-fs-numeral:    2.125rem;   /* 34px   — a result worth reading across the room */
+
   --tm-lh-hero:       3.875rem;   /* 62px */
   --tm-lh-display:    3rem;       /* 48px */
   --tm-lh-title:      2.25rem;    /* 36px */
@@ -658,6 +682,29 @@ body::after {
   font-weight: 600;
   color: var(--tm-text-muted);
 }
+
+/* ── Clamp (supporting copy holds its line count) ──────────────
+   Supporting copy — a lead question, a snippet, a rationale — occupies a
+   FIXED number of lines. It is the thing beside the thing; when it grows to
+   three lines it starts competing with what it supports, and the row it sits
+   in changes height depending on how wordy someone was that day.
+
+   One line is the default and the strictest case: if the sentence does not
+   fit on one line, the sentence is too long — the clamp is the guard, not the
+   fix. Rewrite it, then let this hold the line.
+
+   Hand-rolled as four properties in eight files before this. Use the class. */
+.tm-clamp-1,
+.tm-clamp-2,
+.tm-clamp-3 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-wrap: pretty;
+}
+.tm-clamp-1 { -webkit-line-clamp: 1; line-clamp: 1; }
+.tm-clamp-2 { -webkit-line-clamp: 2; line-clamp: 2; }
+.tm-clamp-3 { -webkit-line-clamp: 3; line-clamp: 3; }
 
 /* ── Interaction primitives ───────────────────────────────── */
 .tm-link {

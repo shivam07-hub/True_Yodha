@@ -25,6 +25,31 @@ test("anonymous CV Hub keeps its safe pre-signup alternatives", () => {
   assert.match(hub, /saved only if you choose to create an account/)
 })
 
+test("the dropzone owns the send, never the analysis", () => {
+  // The dropzone used to mutate into "Reading your CV…" after the bytes left,
+  // then /onboarding/result mounted the real wait and said the same thing again.
+  // Bytes leaving the device are this surface's only wait. Analysis is
+  // CvAnalysisStage. A bar that hid at 100% was the cue that swapped the copy.
+  const surface = read("components/cv/cv-upload-step.tsx")
+  assert.match(surface, /Sending your CV/)
+  assert.doesNotMatch(surface, /Reading your CV/)
+  assert.doesNotMatch(surface, /This takes a few seconds/)
+  assert.doesNotMatch(surface, /progressPct < 100/)
+
+  const landing = read("components/public/landing/dropzone.tsx")
+  assert.match(landing, /Sending your CV/)
+  assert.doesNotMatch(landing, /Reading your CV/)
+  assert.doesNotMatch(landing, /This takes a few seconds/)
+  assert.match(landing, /\{!pending && \(pasteOpen/, "alternate doors hide once the file is handed off")
+
+  const step = read("components/onboarding/experience-step.tsx")
+  assert.match(
+    step,
+    /\{!busy && \([\s\S]*No CV\? Describe your experience/,
+    "alternate doors hide the moment a file is committed",
+  )
+})
+
 // Every terminal upload outcome is written down before it is thrown.
 //
 // The resumable path used to `throw _asUploadFailure(err, "parse")` from the finalize
@@ -77,19 +102,24 @@ test("every Myro conversation goes through the one seam", () => {
   assert.match(api, /export const mentor = \{/, "there is one client entry")
   assert.match(api, /"\/mentor\/converse"/)
 
-  // Expand-contract: the old path is still live and still delegates server-side.
-  // Deleting a route before its callers move is the same mistake as dropping a
-  // column before the code that reads it has deployed.
-  assert.match(api, /@deprecated Use `mentor\.converse`/)
+  // Contract half of expand-contract: the pre-flight redesign moved both
+  // job_intent callers onto /preflight/proposals, which runs the same mentor
+  // server-side, so the deprecated client shim has no callers left and is gone.
+  assert.doesNotMatch(api, /intentChat:/, "the deprecated /jobs/intent-chat shim is deleted")
+  assert.doesNotMatch(api, /applyIntentDiff:/)
+  assert.match(api, /export const preflight = \{/, "job intent goes through the order")
 
-  for (const [file, surface] of [
-    ["components/jobs/MatchRefreshGate.tsx", "job_intent"],
-    ["components/jobs/intent-chat.tsx", "job_intent"],
-    ["components/cv/builder/memory-panel.tsx", "cv"],
+  const panel = read("components/cv/builder/memory-panel.tsx")
+  assert.match(panel, /mentor\.converse|MyroChat/, "the CV surface talks to Myro through the seam")
+  assert.match(panel, /"cv"/, "the CV surface declares its surface")
+
+  // The two job-intent surfaces reach the same mentor through the order's
+  // propose route — one seam, two surfaces, no second conversation.
+  for (const file of [
+    "components/preflight/preflight-gate.tsx",
+    "components/preflight/market-sheet.tsx",
   ]) {
-    const src = read(file)
-    assert.match(src, /mentor\.converse|MyroChat/, `${file} talks to Myro through the seam`)
-    assert.match(src, new RegExp(`"${surface}"`), `${file} declares its surface`)
+    assert.match(read(file), /preflight\.proposals\(/, `${file} proposes through the order`)
   }
 })
 

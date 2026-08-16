@@ -46,16 +46,18 @@ export function ExperienceStep({ busy, error, progressPct = null, onUpload, onRe
         </div>
       )}
 
-      <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-        {!describing && (
-          <Button type="button" variant="outline" onClick={() => setDescribing(true)}>
-            No CV? Describe your experience
+      {!busy && (
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+          {!describing && (
+            <Button type="button" variant="outline" onClick={() => setDescribing(true)}>
+              No CV? Describe your experience
+            </Button>
+          )}
+          <Button variant="outline" render={<Link href="/market" target="_blank" rel="opener" />}>
+            Browse jobs instead <ExternalLink className="size-4" aria-hidden="true" />
           </Button>
-        )}
-        <Button variant="outline" render={<Link href="/market" target="_blank" rel="opener" />}>
-          Browse jobs instead <ExternalLink className="size-4" aria-hidden="true" />
-        </Button>
-      </div>
+        </div>
+      )}
     </CVUploadStep>
   )
 }

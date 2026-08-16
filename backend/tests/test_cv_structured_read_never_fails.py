@@ -2,18 +2,14 @@
 
 Reading back your own CV is the product. A user who cannot open or download the
 CV they uploaded has nothing, and that is precisely what happened between
-2026-04-18 and 2026-08-08 for six users: `get_or_backfill_cv_structured` gated on
-`if structured:` — truthiness, not shape — so a row holding `{"contact": {...}}`
-skipped the rebuild and went straight into a 7-field response model. 500 on every
+2026-04-18 and 2026-08-08 for six users: the read gated on `if structured:` —
+truthiness, not shape — so a row holding `{"contact": {...}}` skipped past
+`has_content` and went straight into a 7-field response model. 500 on every
 load, with a parseable `body_text` sitting in the same row.
 
-These tests pin the four outcomes the seam is allowed to have. Partner-sourced
-onboarding (Finlatics) lands users on this path with no support channel, so a
-regression here is silent until someone complains.
+A GET must not invent the missing paper JSON. That is a named write
+(`cv_structured_enrich`). Display reads `body_text` until `has_content`.
 """
-
-import pytest
-from fastapi import HTTPException
 
 from app.repositories.cv import CVVersionsRepository
 from app.routers.cv.structured import CVStructuredResponse
@@ -22,7 +18,7 @@ from app.services.cv_structured_shape import CONTRACT_KEYS, has_content
 
 
 class _FakeRepo:
-    """Stands in for CVVersionsRepository — only the two methods the seam calls."""
+    """Stands in for CVVersionsRepository — only the methods the seam calls."""
 
     def __init__(self, baseline: dict | None) -> None:
         self._baseline = baseline
@@ -46,49 +42,30 @@ _FULL = {
 }
 
 
-@pytest.fixture
-def no_llm(monkeypatch):
-    """Default: the provider is never reached. Tests that need it opt in."""
-    async def _boom(_raw_text: str):
-        raise AssertionError("rebuild should not have run")
-
-    monkeypatch.setattr(cv_workflow.cv_parser, "reparse_structured_only", _boom)
-
-
-@pytest.mark.asyncio
-async def test_healthy_row_is_returned_untouched(no_llm) -> None:
+def test_healthy_row_is_returned_untouched() -> None:
     repo = _FakeRepo({"id": 1, "cv_structured": _FULL, "body_text": "irrelevant"})
 
-    payload = await cv_workflow.get_or_backfill_cv_structured(repo, "u1")
+    payload = cv_workflow.get_stored_cv_structured(repo, "u1")
 
     assert CVStructuredResponse(**payload).summary == "Engineer."
     assert repo.written is None  # a read stays a read
 
 
-@pytest.mark.asyncio
-async def test_contact_only_row_rebuilds_from_body_text(monkeypatch) -> None:
-    """The production failure, end to end: 500 becomes a repaired 200."""
+def test_contact_only_row_is_not_invented_on_read() -> None:
+    """body_text is the Durable Answer. GET must not run a layout LLM."""
     repo = _FakeRepo({
         "id": 5,
         "cv_structured": {"contact": {"name": "ANURAAG KUMAR", "location": ""}},
         "body_text": "ANURAAG KUMAR\nEXPERIENCE\n- Shipped a thing",
     })
 
-    async def _reparse(_raw_text: str) -> dict:
-        return {**_FULL, "contact": {**_FULL["contact"], "name": "ANURAAG KUMAR"}}
+    payload = cv_workflow.get_stored_cv_structured(repo, "u1")
 
-    monkeypatch.setattr(cv_workflow.cv_parser, "reparse_structured_only", _reparse)
-
-    payload = await cv_workflow.get_or_backfill_cv_structured(repo, "u1")
-
-    CVStructuredResponse(**payload)
-    assert payload["contact"]["name"] == "ANURAAG KUMAR"
-    assert payload["experience"], "the rebuilt CV must carry the user's roles"
-    assert repo.written is not None, "the repair must persist, not repeat per read"
+    assert payload is None
+    assert repo.written is None
 
 
-@pytest.mark.asyncio
-async def test_any_stored_shape_is_renderable_never_a_500(no_llm) -> None:
+def test_any_stored_shape_with_content_is_renderable_never_a_500() -> None:
     """Whatever a past writer left behind, a row WITH content must render."""
     for stored in (
         {"experience": [{"company": "A", "role": "R", "dates": "", "bullets": ["x"]}]},  # no contact key
@@ -96,41 +73,15 @@ async def test_any_stored_shape_is_renderable_never_a_500(no_llm) -> None:
         {"summary": "S", "education": "not a list"},                                      # wrong types
     ):
         repo = _FakeRepo({"id": 9, "cv_structured": stored, "body_text": "text"})
-        payload = await cv_workflow.get_or_backfill_cv_structured(repo, "u1")
+        payload = cv_workflow.get_stored_cv_structured(repo, "u1")
         CVStructuredResponse(**payload)
 
 
-@pytest.mark.asyncio
-async def test_no_baseline_and_nothing_to_rebuild_from_are_404_not_500(no_llm) -> None:
-    assert await cv_workflow.get_or_backfill_cv_structured(_FakeRepo(None), "u1") is None
+def test_no_baseline_and_empty_row_are_none_not_500() -> None:
+    assert cv_workflow.get_stored_cv_structured(_FakeRepo(None), "u1") is None
 
-    # cv_versions ids 3 and 7: contact-only AND body_text empty. Genuinely gone —
-    # the honest answer is "upload one", never a 500 and never a blank editor.
     empty = _FakeRepo({"id": 3, "cv_structured": {"contact": {"name": ""}}, "body_text": ""})
-    assert await cv_workflow.get_or_backfill_cv_structured(empty, "u1") is None
-
-
-@pytest.mark.asyncio
-async def test_failed_rebuild_is_503_and_never_hands_back_an_empty_cv(monkeypatch) -> None:
-    """503 is deliberate. Returning the contact-only payload would put an empty
-    editor in front of the user, and master autosave would then render that
-    emptiness over `body_text` — destroying the only copy the repair reads."""
-    repo = _FakeRepo({
-        "id": 5,
-        "cv_structured": {"contact": {"name": "ANURAAG KUMAR"}},
-        "body_text": "ANURAAG KUMAR\nEXPERIENCE\n- Shipped a thing",
-    })
-
-    async def _provider_down(_raw_text: str) -> None:
-        return None
-
-    monkeypatch.setattr(cv_workflow.cv_parser, "reparse_structured_only", _provider_down)
-
-    with pytest.raises(HTTPException) as exc:
-        await cv_workflow.get_or_backfill_cv_structured(repo, "u1")
-
-    assert exc.value.status_code == 503
-    assert repo.written is None, "a failed rebuild must not overwrite the row"
+    assert cv_workflow.get_stored_cv_structured(empty, "u1") is None
 
 
 # ── The repository read seam ─────────────────────────────────────────────────
@@ -189,8 +140,8 @@ def test_normalized_row_still_answers_do_we_have_a_cv_honestly() -> None:
 
 
 def test_absent_payload_is_left_absent() -> None:
-    """`{}` means "not parsed yet" and the read path rebuilds it. Filling it with
-    a hollow CV here would hide that state from the rebuild."""
+    """`{}` means "not parsed yet". Filling it with a hollow CV here would hide
+    that state from display, which reads `body_text` until `has_content`."""
     assert _repo({}).latest_baseline("u1")["cv_structured"] == {}
     assert _repo(None).latest_baseline("u1")["cv_structured"] is None
 

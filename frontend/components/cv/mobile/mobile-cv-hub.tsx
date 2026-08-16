@@ -56,6 +56,7 @@ export function MobileCVHub({
       <MobileMainEditor
         token={token}
         profile={profile}
+        cv={cv}
         initialSection={editorSection}
         onClose={() => setMode("hub")}
       />

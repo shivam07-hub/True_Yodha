@@ -80,7 +80,6 @@ export function AppliedVersionsPanel({ token }: { token: string }) {
     onSuccess: (_row, v) => {
       setRestoredId(v.id)
       setConfirmId(null)
-      qc.invalidateQueries({ queryKey: dataKeys.cvStructured() })
       qc.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
       invalidateScoreMapData(qc)
     },

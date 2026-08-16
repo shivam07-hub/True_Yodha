@@ -19,18 +19,7 @@ import { useMatchBrain } from "@/lib/hooks/use-match-brain"
  * than an apology.
  */
 export function MyroTake({ token, jobId }: { token: string; jobId: string }) {
-  const { loading, result } = useMatchBrain(token, jobId)
-
-  if (loading) {
-    return (
-      <div style={panelStyle}>
-        <Label />
-        <div style={{ fontSize: 12.5, color: "var(--tm-text-faint)", fontFamily: "var(--tm-font-mono)" }}>
-          <span className="tm-score-pulse">Reading this role…</span>
-        </div>
-      </div>
-    )
-  }
+  const { result } = useMatchBrain(token, jobId)
 
   const r = result
   if (!r || !r.available || r.overall_score == null) return null
