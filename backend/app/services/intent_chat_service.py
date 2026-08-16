@@ -101,6 +101,13 @@ EXTRACT_TASK = (
     "in their own words — never from what you assume a person like them would want."
 )
 
+# Both surfaces are Myro speaking TO the reader, so both are composed once here
+# and used verbatim by converse() below — the string the voice contract checks is
+# the string sent to the model. Recomposing at call time is what let this module
+# alone drift out from under the one-Myro contract (06d0b512).
+_SYSTEM = myro_voice.speaking_to_reader(_TASK)
+_EXTRACT_SYSTEM = myro_voice.speaking_to_reader(EXTRACT_TASK)
+
 _EXTRACT_ACK = "Got it. Say yes to the ones that are right."
 _INTERVIEW_FALLBACK = (
     "Tell me what kind of role you're really after — the title, the place, or "
@@ -167,8 +174,7 @@ async def converse(
     if provider is None or not messages:
         return fallback
 
-    task = EXTRACT_TASK if extract else _TASK
-    system = myro_voice.speaking_to_reader(task)
+    system = _EXTRACT_SYSTEM if extract else _SYSTEM
     convo = [{"role": "system", "content": system + "\n\n" + _profile_context(profile)}]
     for m in messages[-_MAX_TURNS:]:
         role = "assistant" if m.get("role") == "assistant" else "user"

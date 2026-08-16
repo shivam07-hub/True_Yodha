@@ -27,9 +27,12 @@ from app.services import (
     reach_pack,
 )
 
-# Myro addressing the person about themselves.
+# Myro addressing the person about themselves. intent_chat_service speaks on two
+# surfaces — the disappointed-feed interview and the pre-flight extract — and
+# both are held to the contract, because either could grow a second character.
 SPEAKING = {
     "intent_chat_service": intent_chat_service._SYSTEM,
+    "intent_chat_service.extract": intent_chat_service._EXTRACT_SYSTEM,
     "prep_brief": prep_brief._SYSTEM_PROMPT,
     "job_switch_plan_service": job_switch_plan_service._DRAFT_SYSTEM,
     "persona_synthesis": persona_synthesis._SYSTEM,
