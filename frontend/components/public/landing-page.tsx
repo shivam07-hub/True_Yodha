@@ -6,31 +6,23 @@ import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
 import { LandingHero } from "@/components/public/landing/hero"
 import { LandingCompanyRail } from "@/components/public/landing/company-rail"
-import { LandingHowItWorks } from "@/components/public/landing/how-it-works"
 import { LandingLiveMirror } from "@/components/public/landing/live-mirror"
 import { LandingJobSearch } from "@/components/public/landing/job-search"
 import "@/components/public/landing/job-gen.css"
-import { LandingApplicationPlan } from "@/components/public/landing/application-plan"
-import { LandingClosing } from "@/components/public/landing/closing"
 import { useLandingData } from "@/components/public/landing/use-landing-data"
 import { getAccessToken, getRefreshToken } from "@/lib/session"
 import "@/components/public/landing/landing-base.css"
 import "@/components/public/landing/landing-hero.css"
-import "@/components/public/landing/landing-hero-engine.css"
+import "@/components/public/landing/landing-cv-hub.css"
 import "@/components/public/landing/landing-depth.css"
 import "@/components/public/landing/landing-match-sources.css"
 import "@/components/public/landing/landing-company-rail.css"
 import "@/components/public/landing/landing-motion.css"
 
 /**
- * Myro landing — seeker-first MNC story, product-story pass locked 2026-08-10,
- * revised 2026-08-14 to add the live-mirror proof + search/industry handoff.
- * Upload CV is still the primary action. Four visual chapters preview the
- * actual first-run journey: MNC career pages + CV → live scrape proof (with a
- * search/industry shortcut into /intel, which owns the results grid) →
- * relevant current opening → truthful tailoring → a compact post-application
- * plan. The dropzone still owns the existing /cv-preview → signup →
- * onboarding handoff; this page does not fork that flow.
+ * Myro landing — seeker-first MNC story. The hero is the product: CV Hub
+ * with a three-step toggle (upload, sample score, tailor). Live job proof
+ * sits below. One dropzone, one handoff to /cv-preview → signup.
  */
 export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) {
   const router = useRouter()
@@ -48,10 +40,6 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
       router.replace("/market")
     }
   }, [router])
-
-  // The landing now follows the canonical surface (it consumes --tm-* like the
-  // rest of the product — pre = post). No force-dark: it themes light/dark with
-  // the visitor's OS preference like the rest of the app.
 
   // Nav hairline fades in after 8px scroll (handoff §Interactions).
   const [scrolled, setScrolled] = useState(false)
@@ -97,15 +85,6 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
           industries={data.analytics?.by_industry ?? []}
           industriesLoading={!data.analytics}
         />
-
-        <LandingHowItWorks
-          companyNames={data.marqueeNames}
-          companiesMonitored={data.companiesMonitored}
-        />
-
-        <LandingApplicationPlan />
-
-        <LandingClosing />
       </main>
 
       <PublicFooter />

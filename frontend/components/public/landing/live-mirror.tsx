@@ -7,12 +7,11 @@ import "@/components/public/intel-pane.css"
 import "./landing-live-mirror.css"
 
 /** Landing mirror of the /intel live-scrape hero — same component, same real
- *  analytics query the rest of the landing page already fetches. Sits above
- *  "Tailor for the job" (handoff 2026-08-13) as live proof before the pitch.
- *  IntelHero normally relies on its parent .tm-intel-page for max-width +
- *  page padding; landing has no such ancestor, so this frames it the same
- *  way every other landing section frames its content (.lp-wrap + section
- *  rhythm), matching the rest of the page instead of bleeding edge-to-edge. */
+ *  analytics query the rest of the landing page already fetches. Sits below
+ *  CV Hub as live proof. IntelHero normally relies on its parent
+ *  .tm-intel-page for max-width + page padding; landing has no such ancestor,
+ *  so this frames it the same way every other landing section frames its
+ *  content (.lp-wrap + section rhythm). */
 export function LandingLiveMirror({
   analytics,
   jobsCount,

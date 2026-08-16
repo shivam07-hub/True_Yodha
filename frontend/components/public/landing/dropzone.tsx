@@ -1,13 +1,13 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useRef, useState, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { stashAnonCvFile, stashAnonCvText } from "@/lib/anon-cv-stash"
 
 /**
- * The live CV dropzone (grill: pre-login real score). Appears in the hero (S1),
- * the engine band, and the closing FAQ — anywhere a logged-out user can drop a
- * CV to get their REAL Myro Score.
+ * The live CV dropzone (grill: pre-login real score). The landing CV Hub
+ * mounts the `stage` variant; `/cv-preview` can pass `onFile`/`onText` to
+ * score in place instead of navigating.
  *
  * Navigate-then-load (grill 2026-06-19): the dropzone does NOT score here. It
  * stashes the File and jumps to /cv-preview, which scores it and either opens
@@ -17,9 +17,6 @@ import { stashAnonCvFile, stashAnonCvText } from "@/lib/anon-cv-stash"
  * Paste-text (#4, Vaibhav email): a first-class alternative beside the drop —
  * a small text POST that dodges the multipart-upload failures some networks and
  * regions hit. Same navigate-then-load fork; text stash instead of a File.
- *
- * On /cv-preview itself the page passes `onFile`/`onText` to score in place
- * instead of navigating — same inputs, different owner.
  */
 const ACCEPT = ".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
@@ -30,9 +27,19 @@ interface LandingDropzoneProps {
   onFile?: (file: File) => void
   onText?: (text: string) => void
   busy?: boolean
+  /** `stage` is the CV Hub drop — tall, centered, same copy as /cv-preview. */
+  variant?: "bar" | "stage"
+  children?: ReactNode
 }
 
-export function LandingDropzone({ source, onFile, onText, busy }: LandingDropzoneProps) {
+export function LandingDropzone({
+  source,
+  onFile,
+  onText,
+  busy,
+  variant = "bar",
+  children,
+}: LandingDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
   const [navigating, setNavigating] = useState(false)
@@ -58,8 +65,20 @@ export function LandingDropzone({ source, onFile, onText, busy }: LandingDropzon
     router.push("/cv-preview")
   }
 
+  const stage = variant === "stage"
+  const title = pending
+    ? "Reading your CV…"
+    : stage
+      ? "Drop your CV here, or choose a file"
+      : "Upload CV — PDF or DOCX"
+  const hint = pending
+    ? "This takes a few seconds."
+    : stage
+      ? "PDF or DOCX, up to 10 MB"
+      : "Private · saved only if you create an account"
+
   return (
-    <div className="lp-dz-wrap">
+    <div className="lp-dz-wrap" data-variant={variant}>
       <input
         ref={inputRef}
         type="file"
@@ -103,14 +122,14 @@ export function LandingDropzone({ source, onFile, onText, busy }: LandingDropzon
           </svg>
         </span>
         <span className="lp-dropzone-body">
-          <span className="lp-dropzone-title">
-            {pending ? "Reading your CV…" : "Upload CV — PDF or DOCX"}
+          <span className="lp-dropzone-title">{title}</span>
+          <span className="lp-dropzone-trust">{hint}</span>
+        </span>
+        {!stage && (
+          <span className="lp-dropzone-btn" aria-hidden>
+            {pending ? "Scoring…" : "Choose file"}
           </span>
-          <span className="lp-dropzone-trust">Private · saved only if you create an account</span>
-        </span>
-        <span className="lp-dropzone-btn" aria-hidden>
-          {pending ? "Scoring…" : "Choose file"}
-        </span>
+        )}
       </button>
 
       {pasteOpen ? (
@@ -140,14 +159,20 @@ export function LandingDropzone({ source, onFile, onText, busy }: LandingDropzon
           </div>
         </div>
       ) : (
-        <button
-          type="button"
-          className="lp-dropzone-paste-toggle"
-          onClick={() => setPasteOpen(true)}
-          disabled={pending}
-        >
-          Upload not working? Paste your CV text instead
-        </button>
+        <div className={stage ? "lp-dz-alts" : undefined}>
+          <button
+            type="button"
+            className={stage ? "lp-dz-alt" : "lp-dropzone-paste-toggle"}
+            onClick={() => setPasteOpen(true)}
+            disabled={pending}
+          >
+            {stage ? "No CV? Paste your CV text" : "Upload not working? Paste your CV text instead"}
+          </button>
+          {children}
+        </div>
+      )}
+      {stage && (
+        <p className="lp-dropzone-note">Your CV is saved only if you choose to create an account.</p>
       )}
     </div>
   )

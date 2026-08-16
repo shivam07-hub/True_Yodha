@@ -1,13 +1,10 @@
 "use client"
 
-import Link from "next/link"
-import { ArrowRight } from "lucide-react"
-import { LandingDropzone } from "./dropzone"
-import { LandingHeroEngine } from "./hero-engine"
 import { LandingStats } from "./stats"
+import { LandingCvHub } from "./cv-hub"
 
 interface LandingHeroProps {
-  /** Real company names from the Engine corpus for the monogram chips. */
+  /** Real company names from the Engine corpus for the match sample. */
   companyNames: string[]
   /** Live Engine corpus counters — top-of-page credibility strip. */
   jobsTracked: number
@@ -34,26 +31,18 @@ export function LandingHero({
       />
 
       <div className="lp-wrap lp-hero-inner">
-        <div className="lp-hero-left">
-          <p className="lp-hero-kicker">MNC careers · India</p>
+        <p className="lp-hero-kicker">MNC careers · India</p>
 
-          <h1 className="lp-hero-h1" id="landing-heading">
-            Prepare for MNC jobs hiring in India.
-          </h1>
+        <h1 className="lp-hero-h1" id="landing-heading">
+          Prepare for MNC jobs hiring in India.
+        </h1>
 
-          <p className="lp-hero-support">
-            Upload your CV. Myro tracks MNC career pages, matches you to current openings,
-            and tailors your CV for the job.
-          </p>
+        <p className="lp-hero-support">
+          Upload your CV. Myro tracks MNC career pages, matches you to current openings,
+          and tailors your CV for the job.
+        </p>
 
-          <LandingDropzone source="landing_dropzone_hero" />
-
-          <Link className="lp-hero-secondary" href="/market">
-            Browse live jobs <ArrowRight className="size-4" aria-hidden="true" />
-          </Link>
-        </div>
-
-        <LandingHeroEngine
+        <LandingCvHub
           companyNames={companyNames}
           companiesMonitored={companiesMonitored}
         />
