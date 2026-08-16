@@ -3,75 +3,52 @@
 /**
  * Screens 5 and 6 — running, then done.
  *
- * The four log lines are driven by the REAL job, not a timer: the server streams
- * its phase label and the per-job reveal, and the step advances when the work
- * does. A fake progress bar that finishes before the run is how a surface trains
- * people to distrust every other number on it.
- *
- * The panel holds a minimum height so the modal doesn't jump between steps.
+ * Progress is the Job Refresh lifecycle plus the per-job reveal the server
+ * actually streams. A queued ticket is waiting; ranking counts are N of M.
  */
 
 import { formatCount } from "@/lib/format"
-
-const STEPS = [
-  "Reading your signed-off order",
-  "Scanning new roles",
-  "Scoring against your CV baseline",
-  "Ranking by fit",
-] as const
-
-/**
- * Which of the four lines the server's phase label lands on.
- *
- * Matched on words the backend actually emits rather than on an index it never
- * sends — a step counter the server doesn't own drifts the moment a phase is
- * renamed, and then the bar says "ranking" while the worker is still scanning.
- */
-export function stepFromLabel(label: string | null, done: number | null, total: number | null): number {
-  if (done != null && total != null && total > 0) return done >= total ? 3 : 2
-  const text = (label ?? "").toLowerCase()
-  if (/rank/.test(text)) return 3
-  if (/scor|rate|evaluat|brain/.test(text)) return 2
-  if (/scan|search|shortlist|fetch/.test(text)) return 1
-  return 0
-}
+import type { RevealedJob } from "@/lib/hooks/use-job-refresh"
 
 export function ScreenRunning({
+  lifecycle,
   label,
   done,
   total,
-  newJobs,
+  revealed,
 }: {
+  lifecycle: "queued" | "computing"
   label: string | null
   done: number | null
   total: number | null
-  newJobs: number
+  revealed: RevealedJob[]
 }) {
-  const step = stepFromLabel(label, done, total)
-  const pct =
-    done != null && total != null && total > 0
-      ? Math.min(100, Math.round((done / total) * 100))
-      : (step / STEPS.length) * 100
+  const ranking = done != null && total != null && total > 0
+  const pct = ranking ? Math.min(100, Math.round((done / total) * 100)) : 0
+  const latest = revealed.length > 0 ? revealed[revealed.length - 1] : null
+  const latestText = latest
+    ? [latest.company, latest.title].filter(Boolean).join(" · ")
+    : null
+  const status = ranking
+    ? `Ranking ${formatCount(done)} of ${formatCount(total)}`
+    : (label ?? (lifecycle === "queued" ? "Waiting to start" : "Ranking with Myro"))
 
   return (
     <div className="pf-run">
       <div className="pf-run-track">
-        <div className="pf-run-fill" style={{ width: `${Math.max(6, pct)}%` }} />
+        <div className="pf-run-fill" style={{ width: `${pct}%` }} />
       </div>
       <div role="status" aria-live="polite">
-        {STEPS.map((text, i) => {
-          const state = i < step ? "done" : i === step ? "current" : "pending"
-          return (
-            <div key={text} className="pf-run-line" data-state={state}>
-              <span className="pf-run-mark" aria-hidden>
-                {state === "done" ? "✓" : state === "current" ? "▸" : "·"}
-              </span>
-              <span>
-                {i === 1 && newJobs > 0 ? `Scanning ${formatCount(newJobs)} new roles` : text}
-              </span>
-            </div>
-          )
-        })}
+        <div className="pf-run-line" data-state="current">
+          <span className="pf-run-mark" aria-hidden>▸</span>
+          <span>{status}</span>
+        </div>
+        {latestText ? (
+          <div className="pf-run-line" data-state="done">
+            <span className="pf-run-mark" aria-hidden>·</span>
+            <span>{latestText}</span>
+          </div>
+        ) : null}
       </div>
     </div>
   )

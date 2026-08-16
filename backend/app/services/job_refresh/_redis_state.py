@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import date
 from typing import Any
 
@@ -30,8 +31,9 @@ def _rq_connection() -> Redis:
 
     RQ job payloads are pickled — a decoded (decode_responses=True) connection
     makes the worker raise UnicodeDecodeError on the first hgetall of a job
-    hash, which silently kills the worker and forces every refresh to fall back
-    to inline LLM compute on the API event loop. RQ MUST use a binary connection.
+    hash, which silently kills the worker. Dispatch then refuses the run
+    (503) rather than inlining LLM compute on the API event loop. RQ MUST
+    use a binary connection.
     """
     url = settings.redis_url.strip()
     if not url:
@@ -78,6 +80,25 @@ def enqueue_pipeline(
         failure_ttl=24 * 3600,
     )
     return job.get_id()
+
+
+def cancel_pipeline(user_id: str, ticket_id: str) -> None:
+    """Drop a queued RQ job so a late runner cannot complete a refunded ticket."""
+    from rq.exceptions import NoSuchJobError
+    from rq.job import Job
+
+    try:
+        job = Job.fetch(
+            f"job_refresh:{user_id}:{ticket_id}",
+            connection=_rq_connection(),
+        )
+        job.cancel()
+    except NoSuchJobError:
+        return
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "cancel_pipeline failed user=%s ticket=%s", user_id, ticket_id
+        )
 
 
 def queue_name() -> str:

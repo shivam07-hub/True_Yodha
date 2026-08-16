@@ -166,6 +166,9 @@ class RunOut(BaseModel):
     ticket_id: str
     cost: int
     progress_label: str
+    #: The ticket's own lifecycle. The gate streams this; it must not invent a
+    #: phase the Job Refresh never entered.
+    state: Literal["queued", "computing", "done"]
     #: null when the run was free — no charge, so no new balance. Keep yours.
     new_coin_balance: int | None = None
     kept: int
@@ -406,6 +409,7 @@ async def run_order(
                 ticket_id=existing,
                 cost=0,  # already charged by the call that started this ticket
                 progress_label=state.progress_label,
+                state=state.state,
                 new_coin_balance=None,
                 **counts,
             )
@@ -431,6 +435,7 @@ async def run_order(
         ticket_id=ticket.id,
         cost=ticket.xp_charged,
         progress_label=ticket.progress_label,
+        state=ticket.state,
         new_coin_balance=ticket.new_coin_balance,
         kept=summary["kept"],
         dropped=summary["dropped"],

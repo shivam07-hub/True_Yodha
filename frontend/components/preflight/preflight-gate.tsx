@@ -27,7 +27,7 @@ import { useOrder, useOrderMutations, invalidateOrder } from "@/lib/preflight/us
 import type { OrderProposal } from "@/lib/preflight/types"
 import { useRefreshGateStore } from "@/store/refreshGateStore"
 import { useXPStore } from "@/store/xpStore"
-import type { UseJobRefreshResult } from "@/lib/hooks/use-job-refresh"
+import { refreshIsLive, type UseJobRefreshResult } from "@/lib/hooks/use-job-refresh"
 
 import { PreflightHeader, type Stage } from "./preflight-header"
 import { ScreenSayIt } from "./screen-say-it"
@@ -95,10 +95,18 @@ export function PreflightGate({
 
   /* The run's own state drives the last two screens, so the modal cannot claim
      a run finished while the stream says otherwise. */
+  /* The run's own state drives the last two screens, so the modal cannot claim
+     a run finished while the stream says otherwise. A failed stream returns to
+     review so they can try again — sitting on a frozen log line was the trap. */
   useEffect(() => {
-    if (refreshVm.state === "computing") setScreen("running")
+    if (refreshVm.state === "queued" || refreshVm.state === "computing") setScreen("running")
     else if (refreshVm.state === "done") setScreen("done")
-  }, [refreshVm.state])
+    else if (refreshVm.state === "error_failed" || refreshVm.state === "error_insufficient_xp") {
+      setStarting(false)
+      setError(refreshVm.errorMessage)
+      setScreen("ready")
+    }
+  }, [refreshVm.state, refreshVm.errorMessage])
 
   const rounds = order?.rounds ?? []
   const lineById = useMemo(
@@ -112,7 +120,7 @@ export function PreflightGate({
   const unanswered = (order?.lines ?? []).filter((l) => l.status === "unanswered").length
 
   const requestClose = useCallback(() => {
-    if (refreshVm.state === "computing") return
+    if (refreshIsLive(refreshVm.state)) return
     close()
   }, [close, refreshVm.state])
 
@@ -257,7 +265,7 @@ export function PreflightGate({
               : undefined
           }
           onClose={requestClose}
-          closable={refreshVm.state !== "computing"}
+          closable={!refreshIsLive(refreshVm.state)}
         />
 
         <div className="pf-body">
@@ -326,10 +334,11 @@ export function PreflightGate({
 
           {screen === "running" ? (
             <ScreenRunning
+              lifecycle={refreshVm.state === "computing" ? "computing" : "queued"}
               label={refreshVm.progressLabel}
               done={refreshVm.progressDone}
               total={refreshVm.progressTotal}
-              newJobs={order?.new_jobs_count ?? 0}
+              revealed={refreshVm.revealed}
             />
           ) : null}
 

@@ -3,9 +3,8 @@
 import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { deriveRefreshNotice, type RefreshNoticeKind } from "@/lib/job-refresh-notice"
-import { type UseJobRefreshResult } from "@/lib/hooks/use-job-refresh"
+import { refreshIsLive, type RevealedJob, type UseJobRefreshResult } from "@/lib/hooks/use-job-refresh"
 import { openRefreshGate } from "@/store/refreshGateStore"
-import type { RevealedJob } from "@/lib/hooks/use-job-refresh"
 
 /* ─── Icons ──────────────────────────────────────────────────────── */
 
@@ -61,7 +60,7 @@ export function RefreshMatchesButton({
   disabled,
   variant = "header",
 }: RefreshMatchesButtonProps) {
-  const isWorking = vm.state === "charging" || vm.state === "computing"
+  const isWorking = refreshIsLive(vm.state)
   const workLabel =
     vm.progressTotal != null
       ? `Ranked ${vm.progressDone ?? 0}/${vm.progressTotal}`

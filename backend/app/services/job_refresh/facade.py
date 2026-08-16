@@ -9,7 +9,7 @@ from fastapi import HTTPException, status
 from app.repositories.jobs import JobsRepository
 from app.services import new_inventory
 from app.services.job_refresh import _dispatch, _xp_charge
-from app.services.job_refresh.types import RefreshState, RefreshTicket
+from app.services.job_refresh.types import SEARCH_UNAVAILABLE, RefreshState, RefreshTicket
 from app.services.xp_policy import MATCH_RUN_COST
 
 
@@ -39,7 +39,15 @@ class JobRefresh:
         Server decides — `count_new_jobs_for_user` — because a client-supplied
         "free" flag is a free-refresh exploit. Fairness backstop stays at
         `_dispatch`: a run producing nothing chargeable is refunded anyway.
+
+        If Redis is configured and no Job Runner is alive, refuse before the
+        debit — a search that cannot start must not touch the wallet.
         """
+        if _dispatch.cannot_run():
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=SEARCH_UNAVAILABLE,
+            )
         excluded_job_ids = repo.get_existing_match_job_ids(user_id)
         price = 0 if new_inventory.count_for_user(repo, user_id) > 0 else MATCH_RUN_COST
         new_balance = await _xp_charge.charge(user_id, price) if price else None
@@ -50,6 +58,11 @@ class JobRefresh:
             xp_charged=price,
             new_coin_balance=new_balance,
         )
+
+    @staticmethod
+    async def abandon_stranded(user_id: str, ticket_id: str, queued_for: float) -> RefreshState | None:
+        """Fail a queued ticket whose Job Runner disappeared. None = keep waiting."""
+        return await _dispatch.abandon_stranded(user_id, ticket_id, queued_for)
 
     @staticmethod
     async def status_or_none(user_id: str, ticket_id: str) -> RefreshState | None:

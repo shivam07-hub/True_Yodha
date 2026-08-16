@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { users } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { openRefreshGate } from "@/store/refreshGateStore"
-import { useJobRefresh } from "@/lib/hooks/use-job-refresh"
+import { useJobRefresh, refreshIsLive } from "@/lib/hooks/use-job-refresh"
 import { PreflightGate } from "@/components/preflight/preflight-gate"
 
 /**
@@ -37,7 +37,7 @@ export function useMyroSearch(token: string | null) {
     staleTime: 10 * 60 * 1000,
   })
 
-  const isRefreshing = refreshVm.state === "charging" || refreshVm.state === "computing"
+  const isRefreshing = refreshIsLive(refreshVm.state)
 
   const gate = (
     <PreflightGate

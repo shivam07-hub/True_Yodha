@@ -244,7 +244,13 @@ done      → matches written, ticket terminal
 failed    → compute errored, XP refunded, ticket terminal
 ```
 
-Each transition writes a `progress_label` ("Reading skills", "Scanning jobs", "Ranking with Myro", "Done") for the UI to render without state-machine knowledge.
+Each transition writes a `progress_label` the UI renders as-is: `"Waiting to start"` / `"Ranking with Myro"` / `"Done"` / `"Failed"`. The gate does not invent extra phases. Per-job reveal (`progress_done` / `progress_total` / `revealed`) is the only finer progress, and only once ranking has started.
+
+**Invariants**
+
+- **Redis + no Job Runner → refuse, never inline.** Inlining the Match Run on the API event loop blocks the progress stream and every other request on that worker. `JobRefresh.start` 503s *before* the debit. A ticket that is still `queued` after 8s with no runner is abandoned, refunded, and its RQ job cancelled.
+- **A live runner is a wait, not a failure.** Busy is honest (`Waiting to start`); dead is an error.
+- **Local / tests (no Redis) still run inline.** That path is the no-Redis adapter, not a production fallback.
 
 **Job Refresh seam**
 
@@ -260,7 +266,7 @@ class JobRefresh:
 
 Internals (private):
 
-- `_dispatch.py` — picks inline (no Redis) vs async (Redis-backed RQ queue). Production always async on Railway; tests + local dev use inline. Router and frontend never branch on this.
+- `_dispatch.py` — Redis + live Job Runner → RQ; Redis + no runner → 503; no Redis → inline. Router and frontend never branch on this.
 - `_xp_charge.py` — debit-then-refund-on-failure semantics. Single SQL transaction owns balance mutation; preflight is no longer separate from spend.
 - `_pipeline.py` — calls `jobs_workflow.compute_job_matches`, maps the typed `MatchComputeOutcome` onto `RefreshState`.
 
@@ -280,17 +286,18 @@ The paid refresh path uses `get_paid_jobs_provider()` — Groq llama-3.3-70b onl
 
 ```ts
 {
-  state: 'idle' | 'charging' | 'computing' | 'done' | 'error_insufficient_xp' | 'error_failed'
+  state: 'idle' | 'charging' | 'queued' | 'computing' | 'done' | 'error_insufficient_xp' | 'error_failed'
   progressLabel: string | null
-  cost: number
-  canAfford: boolean
-  matchesWritten: number | null
+  progressDone: number | null
+  progressTotal: number | null
+  revealed: { title, company }[]
   refresh(): void
+  attach(ticket): void  // pre-flight already dispatched; do not charge again
   reset(): void
 }
 ```
 
-Mirrors the `useForgeSession` pattern. Two surfaces today consume the hook: `MissionHeader` (home) + `/jobs` page. Adding a third (mobile widget, scheduled refresh tile) is one adapter, no engine change.
+`queued` is a first-class wait. `attach` takes the ticket's own lifecycle — it does not mint a phase the Job Refresh never entered. Mirrors the `useForgeSession` pattern. Surfaces: the pre-flight gate, `/market`, Collections. Adding another is one adapter.
 
 ---
 
@@ -802,8 +809,10 @@ CV` / `your words, just now`; **Dropped** means said no to *or left unanswered*.
   writes the server's response back into it. Two components each holding "the
   order" is the same split one layer up.
 - The run is dispatched ONCE. `/preflight/run` charges and starts the ticket;
-  the client streams it via `useJobRefresh().attach` — calling `refresh()` after
-  would charge twice for one search.
+  the client streams it via `useJobRefresh().attach` using the ticket's own
+  lifecycle and label — calling `refresh()` after would charge twice, and
+  minting a phase here is how "Reading your signed-off order" appeared for a
+  ticket that was still `queued`.
 
 ---
 

@@ -323,6 +323,13 @@ async def stream_job_refresh(
                 return
 
             life = state.state
+            if life == "queued":
+                stranded = await JobRefresh.abandon_stranded(
+                    user_id, ticket_id, time.monotonic() - started
+                )
+                if stranded is not None:
+                    state = stranded
+                    life = state.state
             if life in ("queued", "computing"):
                 if state.progress_done is not None and state.progress_done != last_done:
                     # Per-job reveal — one role ranked. Stream the running count

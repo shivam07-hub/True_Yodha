@@ -277,9 +277,10 @@ def _stub_dispatch(monkeypatch, seen: list) -> None:
             xp_charged=xp_charged,
             new_coin_balance=new_coin_balance,
             batch_week=batch_week,
-            progress_label="Queued",
+            progress_label="Waiting to start",
         )
 
+    monkeypatch.setattr(_dispatch, "cannot_run", lambda: False)
     monkeypatch.setattr(_dispatch, "dispatch", _fake)
 
 

@@ -98,6 +98,7 @@ export interface OrderRunResult {
   ticket_id: string
   cost: number
   progress_label: string
+  state: "queued" | "computing" | "done"
   /** null when the run was free — no charge, so no new balance. */
   new_coin_balance: number | null
   kept: number

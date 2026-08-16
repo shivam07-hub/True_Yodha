@@ -4,6 +4,9 @@ Both paths produce the same `RefreshState` shape via the same `_state` keys —
 the polling endpoint never needs to know which path ran.
 
 Production (Railway): REDIS_URL set → enqueue on RQ queue, worker runs pipeline.
+If Redis is set and no Job Runner is alive, refuse (503) — never inline the
+Match Run on the API event loop. That path blocked the progress stream and
+looked like a hung first step.
 Local / tests: REDIS_URL empty → execute pipeline inline on the event loop and
 seed the state synchronously.
 """
@@ -18,10 +21,14 @@ from dataclasses import asdict
 from datetime import date, datetime, timezone
 from typing import Any
 
+from fastapi import HTTPException, status
+
 from app.config import settings
 from app.services.job_refresh import _pipeline, _xp_charge
 from app.services.job_refresh.types import (
     PROGRESS_LABELS,
+    QUEUED_STRANDED_SECONDS,
+    SEARCH_UNAVAILABLE,
     RefreshLifecycle,
     RefreshOutcomeKind,
     RefreshState,
@@ -49,6 +56,15 @@ def _redis_key(user_id: str, ticket_id: str) -> str:
 
 def _is_async_mode() -> bool:
     return bool(settings.redis_url.strip())
+
+
+def cannot_run() -> bool:
+    """True when this process would have to inline a Redis-mode Match Run.
+
+    Redis configured + no Job Runner = the API loop would block on ranking,
+    and the user would stare at 'Waiting to start' with no stream. Refuse.
+    """
+    return _is_async_mode() and not _has_active_refresh_worker()
 
 
 def _has_active_refresh_worker() -> bool:
@@ -128,6 +144,7 @@ def read_state(user_id: str, ticket_id: str) -> RefreshState | None:
         progress_done=raw.get("progress_done"),
         progress_total=raw.get("progress_total"),
         revealed=raw.get("revealed") or [],
+        xp_charged=int(raw.get("xp_charged") or 0),
     )
 
 
@@ -145,6 +162,7 @@ def _state(
     progress_done: int | None = None,
     progress_total: int | None = None,
     revealed: list[dict[str, Any]] | None = None,
+    xp_charged: int = 0,
 ) -> RefreshState:
     return RefreshState(
         ticket_id=ticket_id,
@@ -160,6 +178,7 @@ def _state(
         progress_done=progress_done,
         progress_total=progress_total,
         revealed=revealed or [],
+        xp_charged=xp_charged,
     )
 
 
@@ -251,11 +270,14 @@ async def dispatch(
     `new_coin_balance` is None when the refresh was free (no charge) — the client
     only reconciles the wallet when it's non-null.
     """
+    if cannot_run():
+        await _refuse_without_runner(user_id, xp_charged)
+
     tid = _ticket_id()
-    queued = _state(tid, "queued", batch_week)
+    queued = _state(tid, "queued", batch_week, xp_charged=xp_charged)
     _write_state(user_id, queued)
 
-    if _is_async_mode() and _has_active_refresh_worker():
+    if _is_async_mode():
         try:
             _enqueue_refresh_rq(
                 user_id=user_id,
@@ -274,6 +296,7 @@ async def dispatch(
                 refund=xp_charged,
                 new_coin_balance=new_balance,
                 error="Failed to queue compute.",
+                xp_charged=xp_charged,
             )
             _write_state(user_id, failed)
             return RefreshTicket(
@@ -284,14 +307,6 @@ async def dispatch(
                 batch_week=batch_week,
                 progress_label=PROGRESS_LABELS["failed"],
             )
-    elif _is_async_mode():
-        _log.critical(
-            "No active job-refresh worker for queue; running ticket=%s inline",
-            tid,
-        )
-        asyncio.create_task(
-            _run_inline(user_id, tid, batch_week, excluded_job_ids, xp_charged)
-        )
     else:
         # Inline: schedule on event loop, don't block POST.
         asyncio.create_task(
@@ -306,6 +321,58 @@ async def dispatch(
         batch_week=batch_week,
         progress_label=PROGRESS_LABELS["queued"],
     )
+
+
+async def _refuse_without_runner(user_id: str, xp_charged: int) -> None:
+    """Refund (if charged) and raise. Does not write a ticket — nothing started."""
+    _log.critical("No active job-refresh worker; refusing rather than inlining")
+    await _xp_charge.refund(user_id, xp_charged)
+    raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=SEARCH_UNAVAILABLE)
+
+
+def _cancel_queued_job(user_id: str, ticket_id: str) -> None:
+    if not _is_async_mode():
+        return
+    from app.services.job_refresh._redis_state import cancel_pipeline
+
+    cancel_pipeline(user_id, ticket_id)
+
+
+async def abandon_stranded(
+    user_id: str,
+    ticket_id: str,
+    queued_for: float,
+) -> RefreshState | None:
+    """Fail a ticket that is still queued after the runner disappeared.
+
+    A live runner (even a busy one) is a wait, not a failure. A ticket the
+    runner already picked up is left alone — writing `failed` over `computing`
+    would refund a search that is about to land.
+    """
+    if not _is_async_mode() or queued_for < QUEUED_STRANDED_SECONDS:
+        return None
+    if _has_active_refresh_worker():
+        return None
+    _cancel_queued_job(user_id, ticket_id)
+    state = read_state(user_id, ticket_id)
+    if state is None or state.state != "queued":
+        return None
+    new_balance = await _xp_charge.refund(user_id, state.xp_charged)
+    failed = _state(
+        ticket_id,
+        "failed",
+        state.batch_week,
+        refund=state.xp_charged,
+        new_coin_balance=new_balance,
+        error=SEARCH_UNAVAILABLE,
+        xp_charged=state.xp_charged,
+    )
+    _write_state(user_id, failed)
+    _log.error(
+        "Abandoned stranded refresh user=%s ticket=%s queued_for=%.1fs",
+        user_id, ticket_id, queued_for,
+    )
+    return failed
 
 
 def run_pipeline_worker(

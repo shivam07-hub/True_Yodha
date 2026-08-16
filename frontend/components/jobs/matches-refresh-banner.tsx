@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import "@/components/dashboard/dashboard.css"
 import { useMyroSearch } from "@/lib/hooks/use-myro-search"
+import { refreshIsLive } from "@/lib/hooks/use-job-refresh"
 import { useParticleMoment } from "@/components/particle"
 import { jobs, type MatchHealth } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
@@ -56,7 +57,7 @@ export function MatchesRefreshBanner({ token }: { token: string | null }) {
     }
   }, [refreshVm.state, refreshVm.matchesWritten, fireMoment])
 
-  const isRefreshing = refreshVm.state === "charging" || refreshVm.state === "computing"
+  const isRefreshing = refreshIsLive(refreshVm.state)
 
   // Deep-link handoff: the bell (and any off-market prompt) sends the user here
   // with ?search=1 because the gate only mounts on this page. Fires once, then

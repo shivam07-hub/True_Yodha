@@ -218,6 +218,18 @@ test("the CV chip goes to the workspace, not a storage URL", () => {
   assert.doesNotMatch(gate.replace(/\/\*[\s\S]*?\*\//g, ""), /cvUrl/)
 })
 
+test("the RUN screen is the Job Refresh lifecycle, not a four-step play", () => {
+  const running = read("components/preflight/screen-running.tsx").replace(/\/\*[\s\S]*?\*\//g, "")
+  const hook = read("lib/hooks/use-job-refresh.ts").replace(/\/\*[\s\S]*?\*\//g, "")
+  assert.doesNotMatch(running, /Reading your signed-off order/)
+  assert.doesNotMatch(running, /stepFromLabel/)
+  assert.doesNotMatch(running, /Scoring against your CV baseline/)
+  assert.doesNotMatch(hook, /Reading your signed-off order/)
+  assert.match(hook, /refreshIsLive/)
+  assert.match(hook, /"queued"/)
+  assert.match(gate, /lifecycle=\{refreshVm\.state === "computing" \? "computing" : "queued"\}/)
+})
+
 test("signing off does not dispatch a second run", () => {
   // /preflight/run already charged and started the ticket. Calling refresh()
   // after it would charge twice for one search.

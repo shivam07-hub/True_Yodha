@@ -10,11 +10,16 @@ RefreshLifecycle = Literal["queued", "computing", "done", "failed"]
 RefreshOutcomeKind = Literal["written", "cache_hit", "exhausted", "needs_onboarding"]
 
 PROGRESS_LABELS: dict[RefreshLifecycle, str] = {
-    "queued": "Queued",
+    "queued": "Waiting to start",
     "computing": "Ranking with Myro",
     "done": "Done",
     "failed": "Failed",
 }
+
+# Shown when the Job Runner is missing — refuse at dispatch, or abandon a
+# ticket that is still queued after this many seconds of a dead runner.
+SEARCH_UNAVAILABLE = "Search couldn't start — try again in a moment."
+QUEUED_STRANDED_SECONDS = 8.0
 
 
 @dataclass(frozen=True)
@@ -55,3 +60,5 @@ class RefreshState:
     progress_done: int | None = None
     progress_total: int | None = None
     revealed: list[dict[str, Any]] = field(default_factory=list)
+    # Stamped on `queued` so a stranded ticket can refund without a second wallet read.
+    xp_charged: int = 0
