@@ -1700,6 +1700,7 @@ export const cv = {
   structured: (token: string) =>
     request<CVStructured>("/cv/structured", {
       headers: { Authorization: `Bearer ${token}` },
+      timeoutMs: LLM_REQUEST_TIMEOUT_MS,
     }),
   // PR-3 living-master autosave. Cheap mutate (no LLM, no XP). Server snapshots
   // prior content to history, then async re-tags → recompute_finished_at (SE17).

@@ -3,6 +3,8 @@
 import { useQuery } from "@tanstack/react-query"
 import { cv, type CVStructured } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { CvStructuredRecovery } from "@/components/cv/cv-structured-recovery"
+import { Skeleton } from "@/components/ui/skeleton"
 
 function hasCvContent(value: CVStructured | null | undefined): value is CVStructured {
   if (!value) return false
@@ -14,17 +16,6 @@ function hasCvContent(value: CVStructured | null | undefined): value is CVStruct
     || (value.education ?? []).length
     || (value.certs ?? []).length,
   )
-}
-
-function latestBaseline(versions: { kind: string; user_version_number: number; cv_structured?: CVStructured | null }[]) {
-  return versions
-    .filter((version) => version.kind === "baseline_upload")
-    .reduce<(typeof versions)[number] | null>(
-      (best, version) => (
-        best == null || version.user_version_number > best.user_version_number ? version : best
-      ),
-      null,
-    )
 }
 
 export function FirstRunCvPaper({ cv: raw }: { cv: CVStructured }) {
@@ -115,37 +106,50 @@ export function FirstRunCvPaper({ cv: raw }: { cv: CVStructured }) {
   )
 }
 
+function FirstRunCvPaperSkeleton() {
+  return (
+    <div className="cvb-pgc-paper" aria-hidden="true">
+      <div className="cvb-pgc-contact-card space-y-3">
+        <Skeleton className="h-7 w-48" />
+        <Skeleton className="h-4 w-36" />
+        <Skeleton className="h-3 w-56" />
+      </div>
+      {[0, 1, 2].map((block) => (
+        <div key={block} className="cvb-pgc-role-block">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="mt-3 h-4 w-full" />
+          <Skeleton className="mt-2 h-4 w-[92%]" />
+          <Skeleton className="mt-2 h-4 w-[70%]" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function FirstRunCvPane({ token }: { token: string }) {
-  const versions = useQuery({
-    queryKey: dataKeys.cvVersions(null),
-    queryFn: () => cv.versions.list(token),
-    staleTime: 30_000,
-    refetchInterval: (query) => {
-      const baseline = latestBaseline(query.state.data?.versions ?? [])
-      return hasCvContent(baseline?.cv_structured ?? null) ? false : 2_500
-    },
+  const structured = useQuery({
+    queryKey: dataKeys.cvStructured(),
+    queryFn: () => cv.structured(token),
+    staleTime: 10 * 60 * 1000,
+    retry: 0,
   })
-  const structured = latestBaseline(versions.data?.versions ?? [])?.cv_structured
-  const ready = hasCvContent(structured)
+  const ready = hasCvContent(structured.data)
 
   return (
-    <section className="cvb-v2-editor" aria-label="Your CV">
+    <section className="cvb-v2-editor" aria-label="Your CV" aria-busy={structured.isFetching && !ready}>
       <div className="cvb-v2-toolbar">
         <span className="cvb-v2-toolbar-label mono">Your Main CV</span>
       </div>
       <div className="cvb-v2-editorbody">
         {ready ? (
-          <FirstRunCvPaper cv={structured} />
+          <FirstRunCvPaper cv={structured.data} />
+        ) : structured.isError ? (
+          <CvStructuredRecovery
+            isRetrying={structured.isFetching}
+            onRetry={() => { void structured.refetch() }}
+          />
         ) : (
-          <div className="cvb-pgc-paper">
-            <div className="cvb-pgc-contact-card">
-              <p className="cvb-v2-rail-lede">
-                {versions.isError
-                  ? "The document view is still catching up. Confirm the skills on the right — your CV is saved."
-                  : "Laying out your CV… You can confirm skills now."}
-              </p>
-            </div>
-          </div>
+          <FirstRunCvPaperSkeleton />
         )}
       </div>
     </section>
