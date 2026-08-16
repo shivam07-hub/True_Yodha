@@ -86,6 +86,40 @@ test("nothing is offered to continue to while Myro is still reading", () => {
   assert.match(gate, /if \(screen === "proposals" && thinking\)/)
 })
 
+test("visible copy says 'inferred', never 'guessed'", () => {
+  // The rows below the header are chipped "Myro inferred". A header reading
+  // "Myro guessed these" is the screen contradicting itself, and two words for
+  // one thing is how a locked vocabulary stops being one.
+  // Checked against what renders, not the whole file: `GuessRow`, `guess-row`
+  // and `pf-guess` are code identifiers and stay.
+  const confirm = read("components/preflight/screen-confirm.tsx")
+  assert.match(confirm, /Round \{activeRound \+ 1\} of \{rounds\.length\} · Myro inferred this/)
+  assert.doesNotMatch(confirm, /Myro guessed/)
+  assert.doesNotMatch(sheet, /no guesses confirmed/)
+  // The contract line counts LINES — a rejected one may have been the user's
+  // own words, so calling it a guess would tell them Myro proposed it.
+  const prose = read("lib/preflight/prose.ts")
+  assert.match(prose, /plural\(dropped, "line", "lines"\)/)
+  assert.doesNotMatch(prose, /"guess", "guesses"/)
+})
+
+test("supporting copy holds one line", () => {
+  // The lead is the thing beside the thing. At two lines it competes with the
+  // answers under it and re-flows the round whenever the wording moves. The
+  // clamp is the guard; the fix is that the copy is written to fit.
+  assert.match(read("components/preflight/screen-confirm.tsx"), /pf-round-lead tm-clamp-1/)
+  assert.match(read("app/design-tokens.css"), /\.tm-clamp-1 \{ -webkit-line-clamp: 1/)
+
+  const leads = read("lib/preflight/types.ts").match(/ROUND_LEAD[\s\S]*?\n\}/)?.[0] ?? ""
+  const values = (leads.match(/: "[^"]+"/g) ?? []).map((m) => m.slice(3, -1))
+  assert.equal(values.length, 3, "three rounds, three leads")
+  for (const lead of values) {
+    // ~45 characters is one line at --tm-fs-prose in a 560px modal. A lead that
+    // needs more than that is a lead that will wrap on someone's screen.
+    assert.ok(lead.length <= 45, `lead too long for one line (${lead.length}): "${lead}"`)
+  }
+})
+
 test("the footer states what the next step costs before it is taken", () => {
   assert.match(gate, /Continue · drop \$\{proposalDrops\}/)
   assert.match(gate, /unanswered → dropped/)

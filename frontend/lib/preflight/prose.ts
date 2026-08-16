@@ -193,7 +193,10 @@ export function contractLine(order: OrderState): string {
   if (dropped + unanswered === 0) {
     return `Nothing dropped — Myro runs on all ${lines} above and nothing else.${market}`
   }
-  const said = dropped ? `${dropped} ${plural(dropped, "guess", "guesses")} you said no to` : ""
+  // "line", not "guess": a line the user said no to may well have been their
+  // own — the goal that read "No" is `you said this`. Naming everything a
+  // guess here would tell them Myro proposed something they typed.
+  const said = dropped ? `${dropped} ${plural(dropped, "line", "lines")} you said no to` : ""
   const left = unanswered ? `${unanswered} left unanswered` : ""
   const both = [said, left].filter(Boolean).join(", ")
   return `${both} — all dropped. Myro runs on the ${lines} above and nothing else.${market}`

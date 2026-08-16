@@ -168,7 +168,7 @@ export function MarketSheet({
               <span className="pf-saved-count">
                 {counts && counts.kept > 0
                   ? `${counts.kept} line${counts.kept === 1 ? "" : "s"}${counts.fromMarket ? ` · ${counts.fromMarket} from here` : ""}`
-                  : "no guesses confirmed yet"}
+                  : "nothing confirmed yet"}
               </span>
             </div>
             <div className="pf-saved-prose">{summary || "Nothing on your order yet."}</div>

@@ -184,7 +184,7 @@ test("nothing dropped says so, and counts every kept line", () => {
   assert.equal(contractLine(o), "Nothing dropped — Myro runs on all 2 lines above and nothing else.")
 })
 
-test("unanswered guesses are named as dropped, because they are", () => {
+test("unanswered lines are named as dropped, because they are", () => {
   const o = order({
     lines: [
       line({ kind: "wont_take", text: "A", status: "kept" }),
@@ -195,7 +195,8 @@ test("unanswered guesses are named as dropped, because they are", () => {
   })
   assert.equal(
     contractLine(o),
-    "1 guess you said no to, 2 left unanswered — all dropped. Myro runs on the 1 line above and nothing else.",
+    // "line", not "guess": a rejected line may have been the user's own words.
+    "1 line you said no to, 2 left unanswered — all dropped. Myro runs on the 1 line above and nothing else.",
   )
 })
 

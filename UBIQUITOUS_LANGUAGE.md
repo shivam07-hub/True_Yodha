@@ -95,7 +95,7 @@ words for one thing is how that stops being true.
 |------|------------|------------------|
 | **Order** | The whole targeting record Myro runs on. One per user, `preflight_orders`. | brief, manifest, draft, targeting |
 | **Line** | One atomic statement in the Order. Everything is a Line: a role, the location, a won't-take, a lean. | row, chip, field, filter |
-| **Guess** | A Line Myro proposed (from memory notes or the CV) that the user has not answered yet. | suggestion, prefill, inference |
+| **Guess** | A Line Myro proposed (from memory notes or the CV) that the user has not answered yet. **Code only** — in visible copy this is *Myro inferred*, matching the Source chip on every such row. A header reading "Myro guessed these" over rows chipped "Myro inferred" is the screen contradicting itself. | suggestion, prefill, inference; "guessed" in any user-facing string |
 | **Source** | Where a Line came from: `you said this` · `Myro inferred` · `from your CV` · `your words, just now`. Always rendered; never inferred by the reader. | provenance chip, origin (that is a separate field) |
 | **Answered** | The user said yes, said no, or reworded it. A reword counts as yes. | confirmed, accepted |
 | **Dropped** | Said no to, **or left unanswered at run time**. Never sent to ops. | ignored, skipped |
@@ -104,6 +104,14 @@ words for one thing is how that stops being true.
 Copy rules on these surfaces: sentence case, no exclamation marks, no emoji,
 second person; lowercase button labels for inline answers (`yes` / `no` /
 `reword`), Title-case for primary CTAs (`Run · Free`).
+
+**Supporting copy holds its line count.** A lead question, a rationale, a
+snippet — each occupies a fixed number of lines (`.tm-clamp-1` / `-2` / `-3` in
+`design-tokens.css`). One line is the default. The clamp is the guard, not the
+fix: if the sentence does not fit, the sentence is too long. The round lead can
+be four words because the screen already says the rest — the tally button names
+the round, the Source chip says where the Line came from, the note says how sure
+Myro is.
 
 ## Public Vocab Lock (PR2, 2026-05-26)
 

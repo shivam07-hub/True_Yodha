@@ -111,10 +111,20 @@ export const ROUND_LABEL: Record<RoundKey, string> = {
   about: "About you",
 }
 
+/**
+ * One line each. Not a length preference — the lead is supporting copy, and
+ * supporting copy holds its line count (`.tm-clamp-1`); a two-line question
+ * starts competing with the answers underneath it and moves the rows every
+ * time the wording changes.
+ *
+ * They can be this short because the screen already says the rest: the tally
+ * button names the round, the source chip says where each line came from, and
+ * the note under it says how sure Myro is. The lead only has to ask.
+ */
 export const ROUND_LEAD: Record<RoundKey, string> = {
-  wont: "Things your notes say you'd rather avoid. Which are actually true?",
-  drawn: "Leanings. These only tilt the ranking — they never exclude a role.",
-  about: "Lines in your own words. Say yes to the ones Myro should run on.",
+  wont: "Which of these are actually true?",
+  drawn: "These tilt ranking, never exclude.",
+  about: "Which should Myro run on?",
 }
 
 /** The chip under a guess. Never rendered from the raw source value — the whole

@@ -141,13 +141,15 @@
   color: var(--tm-text-faint);
 }
 
+/* One line, held by `.tm-clamp-1` on the element. The clamp is the guard; the
+   fix is that ROUND_LEAD is written to fit. A two-line question competes with
+   the answers under it and re-flows the whole round every time the copy moves. */
 .pf-round-lead {
   margin: 8px 0 4px;
   font-size: var(--tm-fs-prose);
   line-height: 1.45;
   font-weight: 500;
   color: var(--tm-text);
-  text-wrap: pretty;
 }
 
 /* ── review ───────────────────────────────────────────────────────────────── */

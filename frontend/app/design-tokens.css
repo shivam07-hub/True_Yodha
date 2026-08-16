@@ -683,6 +683,29 @@ body::after {
   color: var(--tm-text-muted);
 }
 
+/* ── Clamp (supporting copy holds its line count) ──────────────
+   Supporting copy — a lead question, a snippet, a rationale — occupies a
+   FIXED number of lines. It is the thing beside the thing; when it grows to
+   three lines it starts competing with what it supports, and the row it sits
+   in changes height depending on how wordy someone was that day.
+
+   One line is the default and the strictest case: if the sentence does not
+   fit on one line, the sentence is too long — the clamp is the guard, not the
+   fix. Rewrite it, then let this hold the line.
+
+   Hand-rolled as four properties in eight files before this. Use the class. */
+.tm-clamp-1,
+.tm-clamp-2,
+.tm-clamp-3 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-wrap: pretty;
+}
+.tm-clamp-1 { -webkit-line-clamp: 1; line-clamp: 1; }
+.tm-clamp-2 { -webkit-line-clamp: 2; line-clamp: 2; }
+.tm-clamp-3 { -webkit-line-clamp: 3; line-clamp: 3; }
+
 /* ── Interaction primitives ───────────────────────────────── */
 .tm-link {
   color: var(--tm-accent);

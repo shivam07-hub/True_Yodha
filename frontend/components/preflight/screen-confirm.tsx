@@ -87,10 +87,13 @@ export function ScreenConfirm({
       </div>
 
       <div className="pf-round-head">
+        {/* "Myro inferred" is the locked word — it is what every source chip in
+            the rows below says. Two words for one thing let the header
+            contradict the chip it was introducing. */}
         <div className="pf-round-eyebrow">
-          Round {activeRound + 1} of {rounds.length} · Myro guessed these
+          Round {activeRound + 1} of {rounds.length} · Myro inferred this
         </div>
-        <p className="pf-round-lead">{ROUND_LEAD[round.key as RoundKey]}</p>
+        <p className="pf-round-lead tm-clamp-1">{ROUND_LEAD[round.key as RoundKey]}</p>
       </div>
 
       <div>
