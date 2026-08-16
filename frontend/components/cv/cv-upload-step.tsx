@@ -60,9 +60,11 @@ export function CVUploadStep({ busy, error = null, inputSource, progressPct = nu
   }
 
   const message = fileError ?? error
-  // Only a real, moving percentage earns a bar. The multipart fallback reports
-  // none, and a fake bar over an unmeasured wait is worse than no bar.
-  const transferring = busy && progressPct !== null && progressPct < 100
+  // Only a real percentage earns a bar — including 100%, which is still the
+  // send until this surface unmounts. The multipart fallback reports none, and
+  // a fake bar over an unmeasured wait is worse than no bar. Analysis is a
+  // different screen; this one never claims it.
+  const measured = busy && progressPct !== null
 
   return (
     <section className="w-full max-w-xl" aria-labelledby="cv-upload-title">
@@ -102,29 +104,25 @@ export function CVUploadStep({ busy, error = null, inputSource, progressPct = nu
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={busy}
+          aria-busy={busy}
           className={cn("tm-control-focus flex min-h-52 w-full flex-col items-center justify-center gap-3 rounded-md border border-dashed px-6 text-center", dragOver ? "border-[var(--tm-interactive)] bg-[var(--tm-int-bg-wash)]" : "border-[var(--tm-border)] bg-[var(--tm-surface)] hover:border-[var(--tm-interactive)]")}
         >
           <span className="flex size-12 items-center justify-center rounded-full bg-[var(--tm-int-bg-wash)] text-[var(--tm-interactive)]">
             {busy ? <LoaderCircle className="size-6 animate-spin" aria-hidden="true" /> : <Upload className="size-6" aria-hidden="true" />}
           </span>
-          {/* Two distinct waits, named separately: the bytes leaving the device
-              (measurable, so it gets a bar) and the parse that follows (not).
-              One static "Reading your CV…" spanning both read as a hang. */}
           <span className="text-lg font-medium text-[var(--tm-text)]">
-            {!busy ? "Drop your CV here, or choose a file" : transferring ? "Sending your CV…" : "Reading your CV…"}
+            {busy ? "Sending your CV…" : "Drop your CV here, or choose a file"}
           </span>
-          {busy && transferring ? (
+          {measured ? (
             <span className="flex w-full max-w-64 flex-col gap-1.5" aria-hidden="true">
               <span className="h-1 w-full overflow-hidden rounded-full bg-[var(--tm-border)]">
                 <span className="block h-full rounded-full bg-[var(--tm-interactive)] transition-[width] duration-200 ease-out" style={{ width: `${progressPct}%` }} />
               </span>
               <span className="font-mono text-xs tabular-nums text-[var(--tm-text-muted)]">{progressPct}%</span>
             </span>
-          ) : (
-            <span className="text-sm text-[var(--tm-text-muted)]">
-              {busy ? "This takes a few seconds." : "PDF or DOCX, up to 10 MB"}
-            </span>
-          )}
+          ) : !busy ? (
+            <span className="text-sm text-[var(--tm-text-muted)]">PDF or DOCX, up to 10 MB</span>
+          ) : null}
         </button>
         <input
           ref={inputRef}

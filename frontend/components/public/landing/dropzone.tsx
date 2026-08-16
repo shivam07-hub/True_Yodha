@@ -67,12 +67,12 @@ export function LandingDropzone({
 
   const stage = variant === "stage"
   const title = pending
-    ? "Reading your CV…"
+    ? "Sending your CV…"
     : stage
       ? "Drop your CV here, or choose a file"
       : "Upload CV — PDF or DOCX"
   const hint = pending
-    ? "This takes a few seconds."
+    ? null
     : stage
       ? "PDF or DOCX, up to 10 MB"
       : "Private · saved only if you create an account"
@@ -93,7 +93,7 @@ export function LandingDropzone({
       />
       <button
         type="button"
-        className={`lp-dropzone${navigating ? " is-dragging" : ""}`}
+        className={`lp-dropzone${pending ? " is-dragging" : ""}`}
         aria-label="Drop your CV to see your Myro Score"
         aria-busy={pending}
         disabled={pending}
@@ -123,16 +123,16 @@ export function LandingDropzone({
         </span>
         <span className="lp-dropzone-body">
           <span className="lp-dropzone-title">{title}</span>
-          <span className="lp-dropzone-trust">{hint}</span>
+          {hint ? <span className="lp-dropzone-trust">{hint}</span> : null}
         </span>
-        {!stage && (
+        {!stage && !pending && (
           <span className="lp-dropzone-btn" aria-hidden>
-            {pending ? "Scoring…" : "Choose file"}
+            Choose file
           </span>
         )}
       </button>
 
-      {pasteOpen ? (
+      {!pending && (pasteOpen ? (
         <div className="lp-paste">
           <textarea
             className="lp-paste-area"
@@ -141,7 +141,6 @@ export function LandingDropzone({
             placeholder="Paste your CV text here — experience, skills, education…"
             rows={6}
             aria-label="Paste your CV text"
-            disabled={pending}
             autoFocus
           />
           <div className="lp-paste-actions">
@@ -149,11 +148,11 @@ export function LandingDropzone({
               type="button"
               className="lp-paste-score"
               onClick={handleText}
-              disabled={pending || text.trim().length < 40}
+              disabled={text.trim().length < 40}
             >
-              {pending ? "Scoring…" : "Score my text"}
+              Score my text
             </button>
-            <button type="button" className="lp-paste-cancel" onClick={() => setPasteOpen(false)} disabled={pending}>
+            <button type="button" className="lp-paste-cancel" onClick={() => setPasteOpen(false)}>
               Cancel
             </button>
           </div>
@@ -164,14 +163,13 @@ export function LandingDropzone({
             type="button"
             className={stage ? "lp-dz-alt" : "lp-dropzone-paste-toggle"}
             onClick={() => setPasteOpen(true)}
-            disabled={pending}
           >
             {stage ? "No CV? Paste your CV text" : "Upload not working? Paste your CV text instead"}
           </button>
           {children}
         </div>
-      )}
-      {stage && (
+      ))}
+      {stage && !pending && (
         <p className="lp-dropzone-note">Your CV is saved only if you choose to create an account.</p>
       )}
     </div>
