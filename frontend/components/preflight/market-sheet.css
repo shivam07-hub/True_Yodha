@@ -212,25 +212,18 @@
 .pf-sheet-foot {
   display: flex;
   gap: 8px;
-  align-items: center;
+  align-items: flex-end;
   padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--tm-border-soft);
   flex-shrink: 0;
 }
 
 .pf-sheet-input {
-  flex: 1 1 auto;
-  min-width: 0;
-  height: 44px;
-  padding: 0 13px;
-  box-sizing: border-box;
   border-radius: 10px;
   border: 1px solid var(--tm-border);
   background: var(--tm-bg);
   color: var(--tm-text);
-  font: inherit;
   font-size: var(--tm-fs-ui);
-  outline: none;
   transition: border-color var(--tm-dur-fast) var(--tm-ease);
 }
 .pf-sheet-input:focus { border-color: var(--tm-interactive); }

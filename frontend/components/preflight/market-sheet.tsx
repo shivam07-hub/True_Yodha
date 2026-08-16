@@ -20,6 +20,7 @@ import { createPortal } from "react-dom"
 import { useQueryClient } from "@tanstack/react-query"
 
 import { Icon } from "@/components/cv/builder/icons"
+import { SayPad } from "@/components/myro/say-pad"
 import { preflight } from "@/lib/api"
 import { invalidateTargetRoleData } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
@@ -248,18 +249,16 @@ export function MarketSheet({
         </div>
 
         <div className="pf-sheet-foot">
-          <input
+          <SayPad
             className="pf-sheet-input"
             value={input}
             maxLength={600}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && input.trim() && !thinking) {
-                e.preventDefault()
-                const text = input.trim()
-                setInput("")
-                void propose({ free_text: text }, text)
-              }
+            onChange={setInput}
+            onSubmit={() => {
+              const text = input.trim()
+              if (!text || thinking) return
+              setInput("")
+              void propose({ free_text: text }, text)
             }}
             placeholder="e.g. the pay is too low"
             aria-label="Tell Myro what's off"

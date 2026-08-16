@@ -257,6 +257,8 @@ test("no surface hardcodes the handoff's hex — tokens carry both themes", () =
     read("components/preflight/guess-row.css"),
     read("components/preflight/proposals.css"),
     read("components/preflight/market-sheet.css"),
+    read("components/preflight/screen-say-it.css"),
+    read("components/myro/say-pad.css"),
   ].join("\n")
   // The spec is written in the light palette; those values ARE the light tokens,
   // so hex would reproduce the design and break the dark theme.
@@ -274,5 +276,56 @@ test("reduced motion is honoured on every animated surface", () => {
   ]) {
     assert.match(read(file), /prefers-reduced-motion: reduce/, `${file} must honour reduced motion`)
   }
+})
+
+test("every Myro utterance pad is SayPad, not a one-line input", () => {
+  for (const [name, file] of [
+    ["say-it", "components/preflight/screen-say-it.tsx"],
+    ["sheet", "components/preflight/market-sheet.tsx"],
+    ["chat", "components/myro/myro-chat.tsx"],
+    ["memory", "components/cv/builder/memory-panel.tsx"],
+    ["proposals", "components/preflight/screen-proposals.tsx"],
+    ["guess", "components/preflight/guess-row.tsx"],
+  ] as const) {
+    assert.match(read(file), /<SayPad/, `${name} uses SayPad`)
+  }
+  const pad = read("components/myro/say-pad.tsx")
+  assert.match(pad, /<textarea/)
+  assert.match(pad, /e\.key === "Enter" && !e\.shiftKey/)
+})
+
+test("screen 1 states the reward and the price before the ask", () => {
+  const sayIt = read("components/preflight/screen-say-it.tsx")
+  assert.match(gate, /newJobs=\{order\?\.new_jobs_count/)
+  assert.match(gate, /runCost=\{runCost\}/)
+  assert.match(sayIt, /rolesWaitingCopy/)
+  assert.match(sayIt, /searchCostCopy/)
+  assert.match(sayIt, /Name the work/)
+  assert.doesNotMatch(sayIt, /What kind of work/)
+  assert.doesNotMatch(sayIt, /notes/)
+})
+
+test("CV chips are proof, not a dashed stub form", () => {
+  const css = read("components/preflight/preflight.css")
+  const sayIt = read("components/preflight/screen-say-it.tsx")
+  assert.doesNotMatch(css, /border: 1px dashed/)
+  assert.doesNotMatch(sayIt, /\+ \{word\}/)
+  assert.match(sayIt, /From your CV/)
+  assert.match(sayIt, /appendStarter/)
+})
+
+test("the pad rests on the border token, and idle send is a ghost", () => {
+  const css = read("components/preflight/preflight.css")
+  assert.match(css, /\.pf-input \{[\s\S]*?border: 1px solid var\(--tm-border\)/)
+  assert.match(css, /\.pf-send\[data-idle="true"\] \{[\s\S]*?background: transparent/)
+})
+
+test("the ribbon names chapters, not three equal clicks", () => {
+  const header = read("components/preflight/preflight-header.tsx")
+  assert.match(header, /label: "Name"/)
+  assert.match(header, /label: "Check"/)
+  assert.match(header, /label: "Search"/)
+  assert.match(header, /Check · \$\{confirmProgress\.current\} of \$\{confirmProgress\.total\}/)
+  assert.match(gate, /compact=\{screen === "start"\}/)
 })
 

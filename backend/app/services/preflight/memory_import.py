@@ -197,15 +197,43 @@ def confirmed_from(brief: TargetingBrief) -> list[OrderLine]:
 
 
 def starters_from(brief: TargetingBrief) -> list[str]:
-    """The dashed pills under screen 1's composer — "READ OFF YOUR CV — TAP TO
-    ADD". Tapping one appends to what the user is typing, so these are strings,
-    not lines: nothing is on the order until the user says it."""
+    """Phrases read off the CV for screen 1. Tapping one appends to the pad —
+    nothing is on the order until the user says it. Near-duplicate titles
+    ("tech sales" / "IT Sales") collapse so the first screen does not show
+    that Myro cannot tell them apart.
+    """
     profile: dict[str, Any] = brief.profile
     titles = [str(v).strip() for v in (profile.get("target_role_titles") or []) if str(v).strip()]
     if not titles:
         titles = [str(v).strip() for v in (profile.get("target_roles") or []) if str(v).strip()]
     location = (profile.get("target_location") or "").strip()
-    out = titles[:3]
+
+    seen: set[str] = set()
+    out: list[str] = []
+    for word in titles:
+        key = _starter_key(word)
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        out.append(word)
+        if len(out) == 3:
+            break
     if location:
-        out.append(location)
+        key = _starter_key(location)
+        if key and key not in seen:
+            out.append(location)
     return out
+
+
+_STARTER_ALIASES = (
+    (re.compile(r"\binformation technology\b"), "tech"),
+    (re.compile(r"\btechnical\b"), "tech"),
+    (re.compile(r"\bit\b"), "tech"),
+)
+
+
+def _starter_key(word: str) -> str:
+    text = re.sub(r"[^a-z0-9\s]+", " ", word.lower())
+    for pat, repl in _STARTER_ALIASES:
+        text = pat.sub(repl, text)
+    return " ".join(text.split())
