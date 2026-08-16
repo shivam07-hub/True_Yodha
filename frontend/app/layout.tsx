@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next"
-import { Inter, Space_Grotesk, Newsreader } from "next/font/google"
+import { Inter, Space_Grotesk } from "next/font/google"
+import localFont from "next/font/local"
 import { headers } from "next/headers"
 import Script from "next/script"
 import { Providers } from "@/components/providers"
@@ -28,14 +29,27 @@ const inter = Inter({
 
 // Editorial serif reserved for long-form READING surfaces only (newsletter
 // article prose + headline). Exposed as --font-newsreader → --tm-font-reading.
-// Grotesk stays the UI family; this never touches app chrome. Optical size +
-// italic give the article a publication voice instead of a terminal feel.
-const newsreader = Newsreader({
-  subsets: ["latin"],
+// Grotesk stays the UI family; this never touches app chrome.
+//
+// Self-hosted, NOT next/font/google. Newsreader is absent from Next's bundled
+// Capsize metrics DB (14.2.35), and next/font/google downloads the file list
+// Google's CSS returns at BUILD time — a response Google varies per
+// environment without changing the font name, so CI intermittently received a
+// file URL with no extension and crashed the loader. The two variable woff2
+// below (latin, opsz 6–72, wght 200–800, roman + italic — the whole surface the
+// reading CSS uses) are checked in, so the build is deterministic and never
+// touches Google. Regenerate with scripts/fetch-newsreader.js.
+const newsreader = localFont({
+  src: [
+    { path: "./fonts/newsreader-latin-normal.woff2", weight: "200 800", style: "normal" },
+    { path: "./fonts/newsreader-latin-italic.woff2", weight: "200 800", style: "italic" },
+  ],
   variable: "--font-newsreader",
-  weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
   display: "swap",
+  // Serif reference for the size-adjust fallback (the CSS stack falls back to
+  // Georgia / Times New Roman), computed locally by fontkit — no bundled-metrics
+  // lookup, so no "font override values" warning.
+  adjustFontFallback: "Times New Roman",
 })
 
 export const metadata: Metadata = {
