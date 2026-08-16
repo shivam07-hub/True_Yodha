@@ -35,6 +35,7 @@ import { ScreenProposals, type ProposalAnswer } from "./screen-proposals"
 import { ScreenConfirm } from "./screen-confirm"
 import { ScreenReview } from "./screen-review"
 import { ScreenDone, ScreenRunning } from "./screen-running"
+import { MyroTyping } from "./typing"
 
 import "./preflight.css"
 import "./proposals.css"
@@ -236,7 +237,7 @@ export function PreflightGate({
             thinking ? (
               <div className="pf-trail">
                 <div className="pf-bubble" data-from="user">{said}</div>
-                <div className="pf-thinking">Myro is reading that…</div>
+                <MyroTyping />
               </div>
             ) : (
               <ScreenProposals
@@ -307,6 +308,7 @@ export function PreflightGate({
 
         <GateFooter
           screen={screen}
+          thinking={thinking}
           rounds={rounds.length}
           round={round}
           unanswered={unanswered}
@@ -340,15 +342,30 @@ export function PreflightGate({
 /** The footer states the cost of the next step BEFORE it is taken — how many
  *  guesses get dropped, and what the run charges. */
 function GateFooter({
-  screen, rounds, round, unanswered, proposalDrops, acceptedNow,
+  screen, thinking, rounds, round, unanswered, proposalDrops, acceptedNow,
   free, runCost, short, busy, onBack, onNext,
 }: {
-  screen: Screen; rounds: number; round: number; unanswered: number
+  screen: Screen; thinking: boolean; rounds: number; round: number; unanswered: number
   proposalDrops: number; acceptedNow: number
   free: boolean; runCost: number; short: boolean; busy: boolean
   onBack: () => void; onNext: () => void
 }) {
   if (screen === "start" || screen === "running" || screen === "done") return null
+
+  // While Myro is still reading, there is nothing to continue TO. The button was
+  // offering "Continue · keep 0" over an empty card — a true count of a list
+  // that has not arrived, which reads as "Myro found nothing" and invites the
+  // one click that skips the proposals. Going back is still valid, so the bar
+  // stays (no height jump) and only the primary waits.
+  if (screen === "proposals" && thinking) {
+    return (
+      <div className="pf-foot">
+        <button type="button" className="pf-btn pf-btn-ghost tm-control-focus" onClick={onBack}>
+          ← say it differently
+        </button>
+      </div>
+    )
+  }
 
   const backLabel =
     screen === "proposals" ? "← say it differently"

@@ -356,14 +356,41 @@
   border-radius: 10px;
 }
 
-.pf-thinking {
+/* Myro is thinking — shown, not narrated.
+ *
+ * This was the sentence "Myro is reading that…", which is words doing a
+ * design job: the state is "a reply is coming", and the honest way to say that
+ * is to draw the reply's own container, empty and alive. So it IS a Myro
+ * bubble — same background, same corner, same left alignment — holding three
+ * dots instead of a sentence. When the reply lands it takes the same slot, so
+ * nothing moves.
+ *
+ * The words survive where they are still needed: `aria-label` carries "Myro is
+ * thinking" for screen readers, which cannot see a dot pulse. */
+.pf-typing {
   align-self: flex-start;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-note);
-  color: var(--tm-text-faint);
+  gap: 5px;
+  padding: 13px;
+  min-height: 40px;
+  background: var(--tm-accent-wash);
+  border-radius: 14px 14px 14px 4px;
+}
+
+.pf-typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 99px;
+  background: var(--tm-interactive);
+  animation: pf-think 1200ms var(--tm-ease) infinite;
+}
+.pf-typing-dot:nth-child(2) { animation-delay: 160ms; }
+.pf-typing-dot:nth-child(3) { animation-delay: 320ms; }
+
+@keyframes pf-think {
+  0%, 60%, 100% { opacity: 0.28; transform: translateY(0); }
+  30%           { opacity: 1;    transform: translateY(-3px); }
 }
 
 @media (max-width: 420px) {
@@ -395,4 +422,10 @@
 @media (prefers-reduced-motion: reduce) {
   .pf-scrim, .pf-modal { animation: none; }
   .pf-btn, .pf-pill, .pf-send, .pf-input, .pf-ribbon-bar, .pf-close { transition: none; }
+  /* The dots hold at three fixed weights rather than freezing identical. Motion
+     is the wrong signal for this reader, but "something is in progress" is not —
+     an indicator that reads as three inert dots has stopped indicating. */
+  .pf-typing-dot { animation: none; opacity: 0.9; }
+  .pf-typing-dot:nth-child(2) { opacity: 0.6; }
+  .pf-typing-dot:nth-child(3) { opacity: 0.3; }
 }

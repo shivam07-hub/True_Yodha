@@ -65,6 +65,27 @@ test("only accepted proposals are applied — unanswered ones are dropped", () =
   assert.match(gate, /effects: accepted\.flatMap/)
 })
 
+test("waiting is drawn, never narrated", () => {
+  // Design over words: if the UI already shows a state, don't add text saying
+  // it. Both surfaces showed a sentence ("Myro is reading that…", "thinking…")
+  // where the state IS the reply's own container, arriving empty.
+  const typing = read("components/preflight/typing.tsx")
+  for (const [name, src] of [["gate", gate], ["sheet", sheet]] as const) {
+    assert.match(src, /<MyroTyping/, `${name} draws the wait`)
+    assert.doesNotMatch(src, /is reading that|thinking…/, `${name} must not narrate the wait`)
+  }
+  // The words survive exactly where a reader still needs them.
+  assert.match(typing, /role="status"/)
+  assert.match(typing, /aria-label=\{label\}/)
+})
+
+test("nothing is offered to continue to while Myro is still reading", () => {
+  // "Continue · keep 0" over an empty card is a true count of a list that has
+  // not arrived — it reads as "Myro found nothing" and invites the one click
+  // that skips the proposals.
+  assert.match(gate, /if \(screen === "proposals" && thinking\)/)
+})
+
 test("the footer states what the next step costs before it is taken", () => {
   assert.match(gate, /Continue · drop \$\{proposalDrops\}/)
   assert.match(gate, /unanswered → dropped/)

@@ -18,7 +18,6 @@
 import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useQueryClient } from "@tanstack/react-query"
-import { Loader2 } from "lucide-react"
 
 import { Icon } from "@/components/cv/builder/icons"
 import { preflight } from "@/lib/api"
@@ -27,6 +26,7 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { countsFrom, orderSummaryFrom } from "@/lib/preflight/prose"
 import { useOrder, useOrderMutations } from "@/lib/preflight/use-order"
 import type { OrderProposal } from "@/lib/preflight/types"
+import { MyroTyping } from "./typing"
 
 import "./preflight.css"
 import "./market-sheet.css"
@@ -203,9 +203,7 @@ export function MarketSheet({
             {trail.map((b, i) => (
               <div key={i} className="pf-bubble" data-from={b.kind}>{b.text}</div>
             ))}
-            {thinking ? (
-              <div className="pf-thinking"><Loader2 size={13} className="animate-spin" /> thinking…</div>
-            ) : null}
+            {thinking ? <MyroTyping /> : null}
           </div>
 
           {pending ? (
