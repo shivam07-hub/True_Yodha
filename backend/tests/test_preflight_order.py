@@ -285,6 +285,15 @@ def test_a_lean_rewrite_is_two_round_trips_not_two_per_lean():
     assert "delete" not in calls and "add" not in calls
 
 
+def test_the_gate_extracts_it_does_not_interview():
+    # The interview prompt asks one question per reply. That question has no
+    # yes/no on this screen, so it cannot be closed. extract=True is the switch.
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parents[1] / "app/routers/preflight.py").read_text()
+    assert "extract=True" in src
+
+
 def test_an_utterance_yields_one_proposal_per_field():
     built = proposals.from_utterance(
         {"locations": ["Remote-first roles, anywhere in India"],
@@ -409,3 +418,18 @@ def test_a_recent_run_is_reported_instead_of_charged_again():
         datetime.now(timezone.utc) - timedelta(seconds=600)
     ).isoformat()
     assert repo.recent_run("u1", within_seconds=90) is None
+
+
+def test_starters_collapse_it_sales_and_tech_sales():
+    brief = TargetingBrief(
+        profile={
+            "target_role_titles": ["tech sales", "IT Sales", "Technical Account Manager"],
+            "target_location": "Bengaluru",
+        },
+        facts=[],
+    )
+    assert memory_import.starters_from(brief) == [
+        "tech sales",
+        "Technical Account Manager",
+        "Bengaluru",
+    ]

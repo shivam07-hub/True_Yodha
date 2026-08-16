@@ -9,7 +9,7 @@ export type IconName =
   | "aperture" | "file" | "target" | "skills" | "intel" | "tracker" | "forge"
   | "check" | "x" | "plus" | "chevron-right" | "chevron-down" | "arrow-right"
   | "edit" | "trash" | "download" | "external-link" | "history" | "folder" | "save"
-  | "diamond" | "settings" | "eye" | "eye-off" | "sparkle" | "upload" | "merge"
+  | "diamond" | "settings" | "eye" | "eye-off" | "sparkle" | "upload" | "merge" | "undo"
 
 interface IconProps extends Omit<SVGProps<SVGSVGElement>, "stroke"> {
   name: IconName
@@ -57,6 +57,7 @@ export function Icon({ name, size = 16, stroke = 1.6, ...rest }: IconProps) {
     case "eye-off":  return <svg {...common}><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61M2 2l20 20"/></svg>
     case "sparkle":  return <svg {...common}><path d="M12 3l1.8 4.8L18 9.5l-4.2 1.7L12 16l-1.8-4.8L6 9.5l4.2-1.7z"/><path d="M19 14l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg>
     case "merge":    return <svg {...common}><circle cx="6" cy="6" r="2.4"/><circle cx="6" cy="18" r="2.4"/><circle cx="18" cy="15" r="2.4"/><path d="M6 8.4V18"/><path d="M18 12.6a6 6 0 0 0-6-6H6"/></svg>
+    case "undo":     return <svg {...common}><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
     default: return null
   }
 }

@@ -53,6 +53,13 @@
   border-bottom: 1px solid var(--tm-border-soft);
   flex-shrink: 0;
 }
+/* Screen 1's question is the heading. The modal name would outrank it. */
+.pf-head[data-compact] {
+  padding: 14px 22px 10px;
+}
+.pf-head[data-compact] .pf-title { display: none; }
+.pf-head[data-compact] .pf-eyebrow { margin-bottom: 0; }
+.pf-head[data-compact] .pf-ribbon { margin-top: 10px; }
 
 .pf-head-row {
   display: flex;
@@ -66,7 +73,7 @@
   font-size: var(--tm-fs-micro);
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--tm-interactive);
+  color: var(--tm-text-faint);
   margin-bottom: 6px;
 }
 
@@ -92,8 +99,8 @@
 }
 .pf-close:hover { color: var(--tm-interactive); }
 
-/* Three segments, not a percentage: the user is somewhere in a named sequence,
-   and "62%" of a conversation means nothing. */
+/* Three chapters, not three clicks. Confirm can take several turns — the
+   current label says which, so the bars do not pretend the work is equal. */
 .pf-ribbon {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -109,8 +116,8 @@
   background: var(--tm-border);
   transition: background-color var(--tm-dur) var(--tm-ease);
 }
-.pf-ribbon-step[data-state="current"] .pf-ribbon-bar { background: var(--tm-accent-ring); }
-.pf-ribbon-step[data-state="done"] .pf-ribbon-bar { background: var(--tm-interactive); }
+.pf-ribbon-step[data-state="current"] .pf-ribbon-bar { background: var(--tm-text); }
+.pf-ribbon-step[data-state="done"] .pf-ribbon-bar { background: var(--tm-text-muted); }
 
 .pf-ribbon-label {
   font-family: var(--tm-font-mono);
@@ -119,8 +126,8 @@
   text-transform: uppercase;
   color: var(--tm-text-faint);
 }
-.pf-ribbon-step[data-state="current"] .pf-ribbon-label,
-.pf-ribbon-step[data-state="done"] .pf-ribbon-label { color: var(--tm-accent-text); }
+.pf-ribbon-step[data-state="current"] .pf-ribbon-label { color: var(--tm-text); }
+.pf-ribbon-step[data-state="done"] .pf-ribbon-label { color: var(--tm-text-muted); }
 
 /* ── body + footer ────────────────────────────────────────────────────────── */
 
@@ -142,6 +149,7 @@
   background: var(--tm-bg);
   flex-shrink: 0;
 }
+.pf-foot[data-solo] { justify-content: flex-end; }
 
 .pf-foot-right {
   display: flex;
@@ -216,13 +224,12 @@
   text-transform: uppercase;
   color: var(--tm-text-faint);
 }
-.pf-ask-row svg { color: var(--tm-interactive); }
 
 .pf-question {
   margin: 12px 0 0;
   font-size: var(--tm-fs-ask);
   line-height: 1.45;
-  font-weight: 500;
+  font-weight: 650;
   letter-spacing: -0.01em;
   color: var(--tm-text);
   text-wrap: pretty;
@@ -236,35 +243,26 @@
   text-wrap: pretty;
 }
 
-.pf-compose { display: flex; gap: 8px; margin-top: 18px; }
+.pf-compose { display: flex; gap: 8px; margin-top: 18px; align-items: flex-end; }
 
 .pf-input {
-  flex: 1 1 auto;
-  min-width: 0;
-  height: 46px;
-  padding: 0 14px;
-  box-sizing: border-box;
   border-radius: 8px;
-  border: 1px solid var(--tm-accent-ring);
+  border: 1px solid var(--tm-border);
   background: var(--tm-surface);
   color: var(--tm-text);
-  font: inherit;
   font-size: var(--tm-fs-ui);
-  outline: none;
   transition: border-color var(--tm-dur-fast) var(--tm-ease);
 }
-.pf-input::placeholder { color: var(--tm-text-faint); }
 .pf-input:focus { border-color: var(--tm-interactive); }
 
-/* Not `disabled`: the button stays focusable and keeps its tooltip, it just
-   reads as not-yet — a control that vanishes from the tab order while the user
-   is typing beside it is a control they cannot find afterwards. */
+/* Not `disabled`: the button stays focusable, it just reads as not-yet.
+   Idle is a ghost outline — a dead grey fill next to an empty pad looks broken. */
 .pf-send {
   flex-shrink: 0;
   width: 46px;
   height: 46px;
   border-radius: 8px;
-  border: 0;
+  border: 1px solid transparent;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -272,10 +270,12 @@
   color: var(--tm-interactive-fg);
   background: var(--tm-interactive);
   box-shadow: 0 4px 12px var(--tm-interactive-glow);
-  transition: background-color var(--tm-dur-fast) var(--tm-ease), box-shadow var(--tm-dur-fast) var(--tm-ease);
+  transition: background-color var(--tm-dur-fast) var(--tm-ease), border-color var(--tm-dur-fast) var(--tm-ease), color var(--tm-dur-fast) var(--tm-ease), box-shadow var(--tm-dur-fast) var(--tm-ease);
 }
 .pf-send[data-idle="true"] {
-  background: var(--tm-text-disabled);
+  background: transparent;
+  color: var(--tm-text-muted);
+  border-color: var(--tm-border);
   box-shadow: none;
 }
 
@@ -300,26 +300,16 @@
   min-height: 34px;
   padding: 0 13px;
   border-radius: 99px;
-  border: 1px dashed var(--tm-accent-ring);
-  background: var(--tm-accent-wash);
-  color: var(--tm-accent-text);
+  border: 1px solid var(--tm-border);
+  background: var(--tm-surface-2);
+  color: var(--tm-text);
   font: inherit;
   font-size: var(--tm-fs-ui-sm);
   cursor: pointer;
   transition: border-color var(--tm-dur-fast) var(--tm-ease), background-color var(--tm-dur-fast) var(--tm-ease);
 }
-.pf-pill:hover { border-style: solid; background: var(--tm-int-bg-hover); }
-
-.pf-source-strip {
-  margin-top: 18px;
-  padding: 10px 13px;
-  border-radius: 8px;
-  background: var(--tm-surface-2);
-  font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-note);
-  line-height: 1.5;
-  color: var(--tm-text-muted);
-}
+.pf-pill:hover { border-color: var(--tm-text-muted); }
+.pf-pill[data-in="true"] { border-color: var(--tm-text); background: var(--tm-surface); }
 
 /* ── bubbles (screen 2 + the market trail) ────────────────────────────────── */
 
@@ -335,10 +325,33 @@
 }
 .pf-bubble[data-from="user"] {
   align-self: flex-end;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
   background: var(--tm-interactive);
   color: var(--tm-interactive-fg);
   border-radius: 14px 14px 4px 14px;
 }
+.pf-bubble-copy { min-width: 0; flex: 1 1 auto; }
+.pf-bubble-edit {
+  appearance: none;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  margin: -10px -12px -10px 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--tm-radius-sm);
+  background: transparent;
+  color: inherit;
+  opacity: 0.85;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity var(--tm-dur-fast) var(--tm-ease);
+}
+.pf-bubble-edit:hover { opacity: 1; }
 .pf-bubble[data-from="myro"] {
   align-self: flex-start;
   background: var(--tm-accent-wash);
@@ -417,11 +430,17 @@
   }
   .pf-foot-right .pf-drop-note { grid-area: note; align-self: center; }
   .pf-foot-right .pf-btn-primary { grid-area: next; }
+  .pf-head[data-compact] { padding: 14px 16px 10px; }
+  .pf-foot[data-solo] {
+    display: flex;
+    justify-content: flex-end;
+  }
+  .pf-foot[data-solo] > .pf-foot-right { display: flex; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .pf-scrim, .pf-modal { animation: none; }
-  .pf-btn, .pf-pill, .pf-send, .pf-input, .pf-ribbon-bar, .pf-close { transition: none; }
+  .pf-btn, .pf-pill, .pf-send, .pf-input, .pf-ribbon-bar, .pf-close, .pf-bubble-edit { transition: none; }
   /* The dots hold at three fixed weights rather than freezing identical. Motion
      is the wrong signal for this reader, but "something is in progress" is not —
      an indicator that reads as three inert dots has stopped indicating. */

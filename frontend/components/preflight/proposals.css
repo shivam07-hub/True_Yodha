@@ -7,12 +7,15 @@
 
 .pf-prop-card {
   margin-top: 16px;
-  border: 1px solid var(--tm-accent-ring);
+  border: 1px solid var(--tm-border);
   border-radius: 10px;
   overflow: hidden;
 }
 
 .pf-prop {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   padding: 13px 14px;
   border-top: 1px solid var(--tm-border-soft);
   transition: background-color var(--tm-dur) var(--tm-ease), opacity var(--tm-dur) var(--tm-ease);
@@ -22,22 +25,17 @@
 .pf-prop[data-status="dropped"] { opacity: 0.45; }
 .pf-prop[data-status="dropped"] .pf-guess-text { text-decoration: line-through; }
 
-.pf-prop-main {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-  flex-wrap: wrap;
-}
-.pf-prop-copy { flex: 1 1 230px; min-width: 0; }
+.pf-prop-copy { min-width: 0; }
+.pf-prop .pf-answers { align-self: flex-start; }
+.pf-reword .say-pad { flex: 1 1 220px; min-width: 0; }
 
 .pf-prop-foot {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 12px;
   padding: 10px 14px;
-  background: var(--tm-accent-wash);
+  background: var(--tm-surface-2);
   border-top: 1px solid var(--tm-border-soft);
 }
 
@@ -259,6 +257,7 @@ a.pf-chip:hover { border-color: var(--tm-accent-ring); color: var(--tm-accent-te
 .pf-numeral {
   font-family: var(--tm-font-mono);
   font-size: var(--tm-fs-numeral);
+  font-variant-numeric: tabular-nums;
   line-height: 1.1;
   color: var(--tm-text);
 }
@@ -266,7 +265,6 @@ a.pf-chip:hover { border-color: var(--tm-accent-ring); color: var(--tm-accent-te
 
 @media (max-width: 420px) {
   .pf-tally-label { font-size: var(--tm-fs-note); }
-  .pf-prop-main > .pf-answers { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

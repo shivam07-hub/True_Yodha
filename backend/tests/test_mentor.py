@@ -51,7 +51,7 @@ def _patch(monkeypatch, *, facts=None, stories=None, converse_result=None, fact_
             raise story_exc
         return stories or []
 
-    async def _converse(_profile, _messages, _provider):
+    async def _converse(_profile, _messages, _provider, **_kw):
         return converse_result if converse_result is not None else {"reply": "ok"}
 
     monkeypatch.setattr(memory_semantic, "retrieve", _retrieve)
@@ -94,6 +94,33 @@ def test_job_intent_still_gets_its_diff(monkeypatch) -> None:
     })
     turn = asyncio.run(mentor.converse(object(), "u1", "job_intent", [{"role": "user", "content": "hi"}], _Provider()))
     assert turn.proposals == {"add_roles": ["Data Engineer"]}
+
+
+def test_extract_flag_selects_extract_mode(monkeypatch) -> None:
+    """Pre-flight already asked the one question. Passing extract=True is what
+    stops the interview prompt putting an unanswerable question in the bubble."""
+    from app.repositories import users as users_repo_mod
+    from app.services import intent_chat_service, memory_recall, memory_semantic
+
+    monkeypatch.setattr(users_repo_mod, "UsersRepository", lambda _db: _Users())
+    seen: dict[str, str] = {}
+
+    async def _empty(*_a, **_k):
+        return []
+
+    async def _converse(_profile, _messages, _provider, **kw):
+        seen["mode"] = kw.get("mode", "interview")
+        return {"reply": "Got it.", "proposed_diff": None}
+
+    monkeypatch.setattr(memory_semantic, "retrieve", _empty)
+    monkeypatch.setattr(memory_recall, "recall_stories", _empty)
+    monkeypatch.setattr(intent_chat_service, "converse", _converse)
+
+    asyncio.run(mentor.converse(
+        object(), "u1", "job_intent", [{"role": "user", "content": "hi"}], _Provider(),
+        extract=True,
+    ))
+    assert seen["mode"] == "extract"
 
 
 def test_context_carries_facts_and_stories_under_the_keys_the_prompt_reads(monkeypatch) -> None:

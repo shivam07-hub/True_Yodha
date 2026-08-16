@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from typing import Any, Literal
 
 from supabase import Client
 
@@ -33,10 +33,10 @@ _MAX_TURNS = 12  # bound the conversation the model sees
 MAX_ROLES = onboarding_service.MAX_TARGET_ROLES
 
 _TASK = (
-    "THIS SURFACE: you are shaping their job search. You are reached from two "
-    "places and the job is the same in both — BEFORE a Myro Search, where they "
-    "are telling you what they want, and after a feed that disappointed them, "
-    "where they are telling you what was wrong.\n"
+    "THIS SURFACE: the feed disappointed them. You are shaping the search after "
+    "they have already told you what they want — ask what was wrong, then propose "
+    "a concrete change. The pre-flight BEFORE a search is a different call "
+    "(extract mode): it already asked the one question.\n"
     "RULES:\n"
     "- Ask at most ONE focused question per reply. Never dump a list of questions "
     "or read like a form. Short.\n"
@@ -65,7 +65,55 @@ _TASK = (
     "would want."
 )
 
-_SYSTEM = myro_voice.speaking_to_reader(_TASK)
+# Pre-flight screen 1 already asked. A question in `reply` has no yes/no on that
+# screen, so it cannot be closed. Extract every named claim into proposed_diff;
+# a memory extra (another city they once mentioned) is also a field they can
+# settle — never a sentence they cannot answer.
+EXTRACT_TASK = (
+    "THIS SURFACE: they have just told you, in one utterance, what work they "
+    "want you to look for. Screen 1 already asked the one question. Your job "
+    "now is to EXTRACT what they named into proposed_diff so they can yes/no "
+    "each claim. You are not interviewing.\n"
+    "RULES:\n"
+    "- proposed_diff MUST include every role, location, and pay floor they named "
+    "in this utterance, in their words, tidied. Do not drop a named claim "
+    "because you also have something else to float.\n"
+    "- If memory holds an extra they did not say just now (another city, a "
+    "seniority), put it in proposed_diff as its own field so they can settle "
+    "it. Do not ask about it.\n"
+    "- reply is ONE short sentence acknowledging what you heard. Never a "
+    "question. No question mark.\n"
+    "- Only propose things grounded in this utterance or in the memory below. "
+    "Never invent a role or place that is in neither.\n"
+    "Return ONLY a compact JSON object, no prose outside it:\n"
+    '  "reply": one-line acknowledgement, never a question,\n'
+    '  "proposed_diff": an object with the fields they named (empty arrays / '
+    "nulls for the rest):\n"
+    '     {"add_roles": [titles to add], "remove_roles": [titles to drop], '
+    '"locations": [target locations] or [], "seniority": one of '
+    '"intern|entry|mid|senior|lead|executive" or null, "work_mode": '
+    '"remote|hybrid|onsite" or null, "salary": short text or null, '
+    '"deal_breakers": [things they will not accept] or [], "career_goal": '
+    "where they want to be, in their words, or null, \"superpower\": what they "
+    "are unusually good at, in their words, or null}\n"
+    "Leave arrays empty and scalars null when a field isn't changing.\n"
+    "- deal_breakers / career_goal / superpower are filled from what they SAY, "
+    "in their own words — never from what you assume a person like them would want."
+)
+
+_EXTRACT_ACK = "Got it. Say yes to the ones that are right."
+_INTERVIEW_FALLBACK = (
+    "Tell me what kind of role you're really after — the title, the place, or "
+    "what's been missing in what you've seen."
+)
+
+
+def reply_for_extract(reply: str) -> str:
+    """A question in the pre-flight bubble cannot be closed. Strip it."""
+    text = (reply or "").strip()
+    if not text or "?" in text:
+        return _EXTRACT_ACK
+    return text
 
 
 def _profile_context(profile: dict[str, Any]) -> str:
@@ -102,16 +150,26 @@ async def converse(
     profile: dict[str, Any],
     messages: list[dict[str, str]],
     provider: LLMProvider | None,
+    *,
+    mode: Literal["interview", "extract"] = "interview",
 ) -> dict[str, Any]:
-    """One turn: given the conversation so far, return the next reply + optional diff."""
+    """One turn: given the conversation so far, return the next reply + optional diff.
+
+    `extract` is the pre-flight after they have already said what they want —
+    every named claim becomes a proposal, the reply is never a question.
+    `interview` is the disappointed-feed chat, which still asks one thing at a time.
+    """
+    extract = mode == "extract"
     fallback = {
-        "reply": "Tell me what kind of role you're really after — the title, the place, or what's been missing in what you've seen.",
+        "reply": _EXTRACT_ACK if extract else _INTERVIEW_FALLBACK,
         "proposed_diff": None,
     }
     if provider is None or not messages:
         return fallback
 
-    convo = [{"role": "system", "content": _SYSTEM + "\n\n" + _profile_context(profile)}]
+    task = EXTRACT_TASK if extract else _TASK
+    system = myro_voice.speaking_to_reader(task)
+    convo = [{"role": "system", "content": system + "\n\n" + _profile_context(profile)}]
     for m in messages[-_MAX_TURNS:]:
         role = "assistant" if m.get("role") == "assistant" else "user"
         convo.append({"role": role, "content": str(m.get("content", ""))[:1500]})
@@ -130,7 +188,10 @@ async def converse(
     if not isinstance(parsed, dict) or not isinstance(parsed.get("reply"), str):
         return fallback
 
-    return {"reply": parsed["reply"].strip(), "proposed_diff": _coerce_diff(parsed.get("proposed_diff"))}
+    reply = parsed["reply"].strip()
+    if extract:
+        reply = reply_for_extract(reply)
+    return {"reply": reply, "proposed_diff": _coerce_diff(parsed.get("proposed_diff"))}
 
 
 def _coerce_diff(diff: Any) -> dict[str, Any] | None:

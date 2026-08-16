@@ -85,8 +85,37 @@ test("waiting is drawn, never narrated", () => {
 test("nothing is offered to continue to while Myro is still reading", () => {
   // "Continue · keep 0" over an empty card is a true count of a list that has
   // not arrived — it reads as "Myro found nothing" and invites the one click
-  // that skips the proposals.
-  assert.match(gate, /if \(screen === "proposals" && thinking\)/)
+  // that skips the proposals. The bar itself stays gone until there is a next
+  // step; a ghost back-caption was words doing the bubble's edit job.
+  const footer = read("components/preflight/gate-footer.tsx")
+  assert.match(footer, /if \(screen === "proposals" && thinking\) return null/)
+})
+
+test("the utterance is edited on the bubble, not captioned in the footer", () => {
+  const bubble = read("components/preflight/user-said-bubble.tsx")
+  const footer = read("components/preflight/gate-footer.tsx")
+  const sayIt = read("components/preflight/screen-say-it.tsx")
+  assert.match(bubble, /aria-label="Edit what you said"/)
+  assert.match(gate, /<UserSaidBubble/)
+  assert.match(sayIt, /draft/)
+  assert.doesNotMatch(gate, /say it differently/)
+  assert.doesNotMatch(footer, /say it differently/)
+})
+
+test("a Myro question is not rendered as an unanswerable bubble", () => {
+  // The reply slot is an acknowledgement. A question belongs as a proposal row
+  // with yes/no — showing it as prose is a dead end.
+  const reply = read("lib/preflight/reply.ts")
+  const proposals = read("components/preflight/screen-proposals.tsx")
+  assert.match(reply, /text\.includes\("\?"\)/)
+  assert.match(proposals, /ackFromReply/)
+})
+
+test("a settled claim is marked, not narrated as yes", () => {
+  const proposals = read("components/preflight/screen-proposals.tsx")
+  assert.doesNotMatch(proposals, /✓ yes/)
+  assert.doesNotMatch(proposals, /of \$\{proposals\.length\} accepted/)
+  assert.match(proposals, /aria-label="Undo"/)
 })
 
 test("visible copy says 'inferred', never 'guessed'", () => {
@@ -124,8 +153,9 @@ test("supporting copy holds one line", () => {
 })
 
 test("the footer states what the next step costs before it is taken", () => {
-  assert.match(gate, /Continue · drop \$\{proposalDrops\}/)
-  assert.match(gate, /unanswered → dropped/)
+  const footer = read("components/preflight/gate-footer.tsx")
+  assert.match(footer, /Continue · drop \$\{proposalDrops\}/)
+  assert.match(footer, /unanswered → dropped/)
   // The run price comes from the server, never a client constant.
   assert.match(gate, /order\?\.run_cost \?\? 0/)
   assert.doesNotMatch(gate, /MYRO_COINS_POLICY|matchRefreshCost/)
@@ -245,3 +275,4 @@ test("reduced motion is honoured on every animated surface", () => {
     assert.match(read(file), /prefers-reduced-motion: reduce/, `${file} must honour reduced motion`)
   }
 })
+

@@ -43,6 +43,54 @@ async def test_converse_fallback_on_bad_json() -> None:
     assert "role" in out["reply"].lower() or "missing" in out["reply"].lower()
 
 
+def test_extract_reply_is_never_a_question() -> None:
+    # The pre-flight's Myro bubble has no yes/no. A question that lands there
+    # cannot be closed — it is a dead end wearing a chat bubble.
+    assert "?" not in intent_chat_service.reply_for_extract(
+        "Are you willing to consider Bengaluru for these opportunities?"
+    )
+    assert intent_chat_service.reply_for_extract("Gurgaon, B2B growth, 30L+.") == "Gurgaon, B2B growth, 30L+."
+
+
+class _CapturingProvider(_FakeProvider):
+    def __init__(self, raw: str):
+        super().__init__(raw)
+        self.messages = None
+
+    async def complete(self, messages, max_tokens=0):
+        self.messages = messages
+        return self._raw
+
+
+@pytest.mark.asyncio
+async def test_extract_mode_uses_the_extract_task_and_strips_a_question() -> None:
+    provider = _CapturingProvider(
+        '{"reply": "Are you willing to consider Bengaluru?", '
+        '"proposed_diff": {"salary": "more than 30 lakhs", "locations": ["Gurgaon"]}}'
+    )
+    out = await intent_chat_service.converse(
+        {},
+        [{"role": "user", "content": "B2B growth in gurgaon, 30 lakhs"}],
+        provider,
+        mode="extract",
+    )
+    system = provider.messages[0]["content"]
+    assert "EXTRACT" in system
+    assert "Never a question" in system
+    assert "?" not in out["reply"]
+    assert out["proposed_diff"]["salary"] == "more than 30 lakhs"
+    assert out["proposed_diff"]["locations"] == ["Gurgaon"]
+
+
+@pytest.mark.asyncio
+async def test_extract_fallback_is_not_an_interview() -> None:
+    out = await intent_chat_service.converse(
+        {}, [{"role": "user", "content": "hi"}], _FakeProvider("not json"), mode="extract"
+    )
+    assert out["proposed_diff"] is None
+    assert "?" not in out["reply"]
+
+
 class _FakeUsersRepo:
     def __init__(self, profile):
         self.profile = profile

@@ -356,10 +356,12 @@ async def make_proposals(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Say something first.")
 
     # One voice, one seam — the mentor reads the free text; it never decides
-    # what happens to the order.
+    # what happens to the order. extract=True: this screen already asked the
+    # one question. Interviewing here puts a question in a bubble with no yes/no.
     turn = await mentor.converse(
         get_supabase_admin(), principal.id, "job_intent",
         [{"role": "user", "content": body.utterance}], provider,
+        extract=True,
     )
     # Best-effort, off the reply path: the turn is the user's own words about the
     # work they want, and the distiller feeds it back as memory next time.

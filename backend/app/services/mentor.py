@@ -106,18 +106,26 @@ async def converse(
     surface: str,
     messages: list[dict[str, str]],
     provider: LLMProvider,
+    *,
+    extract: bool = False,
 ) -> MentorTurn:
     """One turn, on any surface. Proposals only where the surface has a typed one.
 
     Does NOT write. Learning is scheduled by the caller off the response path —
     the user is waiting on this reply, and a fact is not worth a slower answer.
+
+    `extract=True` is the pre-flight after they have already said what they want:
+    named claims become proposal rows, the reply is never a question. The feed's
+    intent chat leaves this off — it still interviews.
     """
     from app.services import intent_chat_service
 
     turn_text = last_user_turn(messages)
     profile = await context(db, user_id, turn_text)
 
-    result = await intent_chat_service.converse(profile, messages, provider)
+    result = await intent_chat_service.converse(
+        profile, messages, provider, mode="extract" if extract else "interview",
+    )
     reply = result.get("reply") or ""
 
     # A model that proposes on a surface with no accept path would put a change

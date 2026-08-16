@@ -16,6 +16,7 @@
 import { useEffect, useRef, useState } from "react"
 
 import { Icon } from "@/components/cv/builder/icons"
+import { SayPad } from "@/components/myro/say-pad"
 import { SOURCE_LABEL, type OrderLine } from "@/lib/preflight/types"
 
 export function GuessRow({
@@ -34,7 +35,7 @@ export function GuessRow({
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(line.text)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     if (editing) {
@@ -67,14 +68,15 @@ export function GuessRow({
 
           {editing ? (
             <div className="pf-reword">
-              <input
+              <SayPad
                 ref={inputRef}
                 className="pf-reword-input"
+                size="compact"
                 value={draft}
                 maxLength={240}
-                onChange={(e) => setDraft(e.target.value)}
+                onChange={setDraft}
+                onSubmit={save}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") { e.preventDefault(); save() }
                   if (e.key === "Escape") { e.preventDefault(); setEditing(false); setDraft(line.text) }
                 }}
                 aria-label="Reword this line"
@@ -94,7 +96,23 @@ export function GuessRow({
             </div>
           ) : (
             <>
-              <div className="pf-guess-text">{line.text}</div>
+              <div className="pf-guess-text-row">
+                {line.status === "kept" ? (
+                  <Icon name="check" size={16} className="pf-guess-mark" />
+                ) : null}
+                <div className="pf-guess-text">{line.text}</div>
+                {answered ? (
+                  <button
+                    type="button"
+                    className="pf-undo pf-undo-icon tm-control-focus"
+                    aria-label="Undo"
+                    onClick={() => onAnswer("unanswered")}
+                    disabled={busy}
+                  >
+                    <Icon name="undo" size={15} />
+                  </button>
+                ) : null}
+              </div>
               <div className="pf-guess-meta">
                 <span className="pf-source">{SOURCE_LABEL[line.source]}</span>
                 {line.source_note ? (
@@ -105,20 +123,7 @@ export function GuessRow({
           )}
         </div>
 
-        {editing ? null : answered ? (
-          <div className="pf-answered" data-status={line.status}>
-            <span>{line.status === "kept" ? "✓ yes" : "✕ no"}</span>
-            <span aria-hidden>·</span>
-            <button
-              type="button"
-              className="pf-undo tm-control-focus"
-              onClick={() => onAnswer("unanswered")}
-              disabled={busy}
-            >
-              undo
-            </button>
-          </div>
-        ) : (
+        {editing || answered ? null : (
           <div className="pf-answers">
             {/* No `yes` on a line Myro cannot run. Reword it first — that is the
                 only path that turns it into something the matcher can use. */}

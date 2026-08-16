@@ -15,8 +15,11 @@
  */
 
 import { Icon } from "@/components/cv/builder/icons"
+import { SayPad } from "@/components/myro/say-pad"
+import { ackFromReply } from "@/lib/preflight/reply"
 import type { OrderProposal } from "@/lib/preflight/types"
 
+import { UserSaidBubble } from "./user-said-bubble"
 import "./proposals.css"
 
 export type ProposalAnswer = "kept" | "dropped"
@@ -33,6 +36,7 @@ export function ScreenProposals({
   onRewordClose,
   rewordDraft,
   onRewordDraft,
+  onEditSaid,
 }: {
   said: string
   reply: string
@@ -45,16 +49,16 @@ export function ScreenProposals({
   onRewordClose: () => void
   rewordDraft: string
   onRewordDraft: (text: string) => void
+  onEditSaid: () => void
 }) {
-  const answered = proposals.filter((p) => answers[p.id]).length
-  const acceptedCount = proposals.filter((p) => answers[p.id] === "kept").length
-  const unanswered = proposals.length - answered
+  const unanswered = proposals.filter((p) => !answers[p.id]).length
+  const ack = ackFromReply(reply)
 
   return (
     <>
       <div className="pf-trail">
-        <div className="pf-bubble" data-from="user">{said}</div>
-        <div className="pf-bubble" data-from="myro">{reply}</div>
+        <UserSaidBubble text={said} onEdit={onEditSaid} />
+        {ack ? <div className="pf-bubble" data-from="myro">{ack}</div> : null}
       </div>
 
       <div className="pf-prop-card">
@@ -63,89 +67,90 @@ export function ScreenProposals({
           const isRewording = rewording === p.id
           return (
             <div key={p.id} className="pf-prop" data-status={answer ?? "unanswered"}>
-              <div className="pf-prop-main">
-                <div className="pf-prop-copy">
-                  <div className="pf-guess-eyebrow">{p.eyebrow}</div>
-                  {isRewording ? (
-                    <div className="pf-reword">
-                      <input
-                        className="pf-reword-input"
-                        value={rewordDraft}
-                        maxLength={240}
-                        autoFocus
-                        onChange={(e) => onRewordDraft(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") { e.preventDefault(); onReword(p.id, rewordDraft.trim()) }
-                          if (e.key === "Escape") { e.preventDefault(); onRewordClose() }
-                        }}
-                        aria-label={`Reword ${p.eyebrow}`}
-                      />
-                      <div className="pf-reword-actions">
-                        <button
-                          type="button"
-                          className="pf-answer"
-                          data-kind="yes"
-                          onClick={() => onReword(p.id, rewordDraft.trim())}
-                        >
-                          save · enter
-                        </button>
-                        <button type="button" className="pf-undo" onClick={onRewordClose}>cancel</button>
-                      </div>
+              <div className="pf-prop-copy">
+                <div className="pf-guess-eyebrow">{p.eyebrow}</div>
+                {isRewording ? (
+                  <div className="pf-reword">
+                    <SayPad
+                      className="pf-reword-input"
+                      size="compact"
+                      value={rewordDraft}
+                      maxLength={240}
+                      autoFocus
+                      onChange={onRewordDraft}
+                      onSubmit={() => onReword(p.id, rewordDraft.trim())}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape") { e.preventDefault(); onRewordClose() }
+                      }}
+                      aria-label={`Reword ${p.eyebrow}`}
+                    />
+                    <div className="pf-reword-actions">
+                      <button
+                        type="button"
+                        className="pf-answer"
+                        data-kind="yes"
+                        onClick={() => onReword(p.id, rewordDraft.trim())}
+                      >
+                        save · enter
+                      </button>
+                      <button type="button" className="pf-undo" onClick={onRewordClose}>cancel</button>
                     </div>
-                  ) : (
-                    <>
-                      <div className="pf-guess-text">{p.value}</div>
-                      <div className="pf-guess-meta">
-                        <span className="pf-note" data-tone={p.why.startsWith("reworded") ? "reworded" : undefined}>
-                          {p.why}
-                        </span>
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {isRewording ? null : answer ? (
-                  <div className="pf-answered" data-status={answer}>
-                    <span>{answer === "kept" ? "✓ yes" : "✕ no"}</span>
-                    <span aria-hidden>·</span>
-                    <button type="button" className="pf-undo tm-control-focus" onClick={() => onAnswer(p.id, null)}>
-                      undo
-                    </button>
                   </div>
                 ) : (
-                  <div className="pf-answers">
-                    <button
-                      type="button" className="pf-answer tm-control-focus" data-kind="yes"
-                      onClick={() => onAnswer(p.id, "kept")}
-                    >
-                      <Icon name="check" size={13} /> yes
-                    </button>
-                    <button
-                      type="button" className="pf-answer tm-control-focus" data-kind="no"
-                      onClick={() => onAnswer(p.id, "dropped")}
-                    >
-                      no
-                    </button>
-                    <button
-                      type="button" className="pf-answer tm-control-focus" data-kind="reword"
-                      onClick={() => onRewordOpen(p.id, p.value)}
-                    >
-                      <Icon name="edit" size={13} /> reword
-                    </button>
-                  </div>
+                  <>
+                    <div className="pf-guess-text-row">
+                      {answer === "kept" ? (
+                        <Icon name="check" size={16} className="pf-guess-mark" />
+                      ) : null}
+                      <div className="pf-guess-text">{p.value}</div>
+                      {answer ? (
+                        <button
+                          type="button"
+                          className="pf-undo pf-undo-icon tm-control-focus"
+                          aria-label="Undo"
+                          onClick={() => onAnswer(p.id, null)}
+                        >
+                          <Icon name="undo" size={15} />
+                        </button>
+                      ) : null}
+                    </div>
+                    <div className="pf-guess-meta">
+                      <span className="pf-note" data-tone={p.why.startsWith("reworded") ? "reworded" : undefined}>
+                        {p.why}
+                      </span>
+                    </div>
+                  </>
                 )}
               </div>
+
+              {isRewording || answer ? null : (
+                <div className="pf-answers">
+                  <button
+                    type="button" className="pf-answer tm-control-focus" data-kind="yes"
+                    onClick={() => onAnswer(p.id, "kept")}
+                  >
+                    <Icon name="check" size={13} /> yes
+                  </button>
+                  <button
+                    type="button" className="pf-answer tm-control-focus" data-kind="no"
+                    onClick={() => onAnswer(p.id, "dropped")}
+                  >
+                    no
+                  </button>
+                  <button
+                    type="button" className="pf-answer tm-control-focus" data-kind="reword"
+                    onClick={() => onRewordOpen(p.id, p.value)}
+                  >
+                    <Icon name="edit" size={13} /> reword
+                  </button>
+                </div>
+              )}
             </div>
           )
         })}
 
-        <div className="pf-prop-foot">
-          <span className="pf-drop-note">
-            {unanswered > 0
-              ? `${unanswered} unanswered — those get dropped`
-              : `${acceptedCount} of ${proposals.length} accepted`}
-          </span>
-          {unanswered > 0 ? (
+        {unanswered > 0 ? (
+          <div className="pf-prop-foot">
             <button
               type="button"
               className="pf-undo tm-control-focus"
@@ -153,8 +158,8 @@ export function ScreenProposals({
             >
               yes to all
             </button>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </div>
     </>
   )

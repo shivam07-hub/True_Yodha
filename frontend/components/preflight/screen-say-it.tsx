@@ -1,70 +1,89 @@
 "use client"
 
 /**
- * Screen 1 — the whole screen is ONE question.
+ * Screen 1 — name the work.
  *
- * No fields, no rows, no brief. The surface this replaced opened on a chat box
- * sitting above six form rows, which asked the user to answer the same thing
- * twice in two registers and made the conversation look optional. Someone who
- * cannot phrase a dealbreaker as a chip types junk into the chip, and that junk
- * reaches the matcher as truth — a `career_goal` of "No" is in production right
- * now because of it.
- *
- * So: say it out loud, in your words. Myro asks about the rest afterwards, a few
- * at a time, with the source of every guess shown.
+ * Lead with what Myro already has (roles waiting, the CV, the things you've
+ * told it), then the question, then the pad. Typing is the last small thing,
+ * not the first big one. CV chips are proof, not a second form.
  */
 
 import { useState } from "react"
 
 import { Icon } from "@/components/cv/builder/icons"
+import { SayPad } from "@/components/myro/say-pad"
+import {
+  appendStarter,
+  cvReadCopy,
+  rolesWaitingCopy,
+  searchCostCopy,
+  uniqueStarters,
+} from "@/lib/preflight/say-it"
+
+import "./screen-say-it.css"
 
 export function ScreenSayIt({
+  draft = "",
   starters,
   memoryCount,
   cvReady,
+  newJobs,
+  runCost,
+  balance,
   busy,
   onSubmit,
 }: {
-  /** Titles read off the CV. Tapping one APPENDS to the input — nothing is on
-   *  the order until the user says it. */
+  /** Words already said — coming back from the bubble keeps them. */
+  draft?: string
   starters: string[]
   memoryCount: number
   cvReady: boolean
+  newJobs: number
+  runCost: number
+  balance: number
   busy?: boolean
   onSubmit: (said: string) => void
 }) {
-  const [value, setValue] = useState("")
+  const [value, setValue] = useState(draft)
   const idle = value.trim().length === 0
-
-  function append(word: string) {
-    setValue((v) => (v.trim() ? `${v.trim()}, ${word}` : word))
-  }
+  const chips = uniqueStarters(starters)
+  const waiting = rolesWaitingCopy(newJobs)
+  const know = cvReadCopy(cvReady, memoryCount)
+  const price = searchCostCopy(runCost, balance)
 
   return (
     <>
-      <div className="pf-ask-row">
-        <Icon name="sparkle" size={16} />
-        Myro · one question
+      {waiting ? (
+        <div className="pf-hero">
+          <div className="pf-say-count">{waiting.n}</div>
+          <p className="pf-hero-lede">{waiting.lede}</p>
+        </div>
+      ) : null}
+
+      {know ? <p className="pf-know">{know}</p> : null}
+
+      <div className="pf-price" data-short={price.short ? "true" : undefined}>
+        {price.text}
       </div>
 
-      <h4 className="pf-question">What kind of work do you want me to look for?</h4>
-      <p className="pf-sub">
-        Say it however you&apos;d say it out loud. The place, the pay floor, the
-        things you won&apos;t take — I&apos;ll ask after, a few at a time.
+      <div className="pf-ask-row">Myro · one question</div>
+      <h3 className="pf-question">Name the work. I&apos;ll go find it.</h3>
+      <p id="pf-say-help" className="pf-sub">
+        Say it the way you&apos;d say it to a friend. Place, pay floor, the stuff
+        you won&apos;t take. I&apos;ll ask about the rest after.
       </p>
 
       <div className="pf-compose">
-        <input
+        <SayPad
           className="pf-input"
           value={value}
           maxLength={600}
           autoFocus
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !idle && !busy) { e.preventDefault(); onSubmit(value.trim()) }
-          }}
-          placeholder="e.g. tech sales in Bengaluru, but not people management"
-          aria-label="What kind of work do you want Myro to look for?"
+          onChange={setValue}
+          onSubmit={() => { if (!idle && !busy) onSubmit(value.trim()) }}
+          placeholder="e.g. sales strategy in Gurgaon, B2B, nothing below 18L"
+          aria-label="Name the work. I'll go find it."
+          aria-describedby="pf-say-help"
         />
         <button
           type="button"
@@ -78,30 +97,28 @@ export function ScreenSayIt({
         </button>
       </div>
 
-      {starters.length > 0 ? (
+      {chips.length > 0 ? (
         <div className="pf-starters">
-          <div className="pf-starters-label">Read off your CV — tap to add</div>
+          <div className="pf-starters-label">From your CV</div>
           <div className="pf-pill-row">
-            {starters.map((word) => (
-              <button
-                key={word}
-                type="button"
-                className="pf-pill tm-control-focus"
-                onClick={() => append(word)}
-              >
-                + {word}
-              </button>
-            ))}
+            {chips.map((word) => {
+              const inPad = value.toLowerCase().includes(word.toLowerCase())
+              return (
+                <button
+                  key={word}
+                  type="button"
+                  className="pf-pill tm-control-focus"
+                  data-in={inPad ? "true" : undefined}
+                  aria-pressed={inPad}
+                  onClick={() => setValue((v) => appendStarter(v, word))}
+                >
+                  {word}
+                </button>
+              )
+            })}
           </div>
         </div>
       ) : null}
-
-      {/* What Myro brings that the question doesn't name. A source, not a
-          setting — and honest about the fact it hasn't read the notes yet. */}
-      <div className="pf-source-strip">
-        {cvReady ? "CV baseline · ready" : "No CV yet · add one to sharpen matches"}
-        {memoryCount > 0 ? ` — ${memoryCount} notes, unread until you name the work` : null}
-      </div>
     </>
   )
 }

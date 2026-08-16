@@ -36,6 +36,8 @@ import { ScreenConfirm } from "./screen-confirm"
 import { ScreenReview } from "./screen-review"
 import { ScreenDone, ScreenRunning } from "./screen-running"
 import { MyroTyping } from "./typing"
+import { UserSaidBubble } from "./user-said-bubble"
+import { GateFooter } from "./gate-footer"
 
 import "./preflight.css"
 import "./proposals.css"
@@ -77,6 +79,7 @@ export function PreflightGate({
   const [thinking, setThinking] = useState(false)
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const turnRef = useRef(0)
 
   /* Reopening starts at the question. An order the user already signed off is
      still on the server — it is the SUBJECT of the next conversation, not a
@@ -85,6 +88,7 @@ export function PreflightGate({
     if (!open) return
     setScreen("start"); setSaidLocal(""); setProposals([]); setAnswers({})
     setRewording(null); setRound(0); setError(null); setThinking(false); setStarting(false)
+    turnRef.current += 1
     const t = setTimeout(() => dialogRef.current?.focus(), 30)
     return () => clearTimeout(t)
   }, [open])
@@ -123,23 +127,37 @@ export function PreflightGate({
 
   async function submitSaid(text: string) {
     if (!token) return
+    const turn = ++turnRef.current
     setSaidLocal(text)
     setThinking(true)
     setError(null)
     setScreen("proposals")
     try {
       await setSaid.mutateAsync(text)
+      if (turn !== turnRef.current) return
       const res = await preflight.proposals(token, { utterance: text })
-      setReply(res.reply || "Got it. A few changes to your order from that — say yes to the ones that are right.")
+      if (turn !== turnRef.current) return
+      setReply(res.reply || "Got it. Say yes to the ones that are right.")
       setProposals(res.proposals)
       // Nothing to answer → the guesses are the only thing left to confirm.
       if (res.proposals.length === 0) setScreen(rounds.length ? "confirm" : "ready")
     } catch {
+      if (turn !== turnRef.current) return
       setError("Myro couldn't read that just then. Your words are saved — try again, or carry on.")
       setReply("I've saved that. Let's look at what I already had.")
     } finally {
-      setThinking(false)
+      if (turn === turnRef.current) setThinking(false)
     }
+  }
+
+  function editSaid() {
+    turnRef.current += 1
+    setThinking(false)
+    setError(null)
+    setProposals([])
+    setAnswers({})
+    setRewording(null)
+    setScreen("start")
   }
 
   /* ── screen 2 ────────────────────────────────────────────────────────────── */
@@ -230,14 +248,28 @@ export function PreflightGate({
         className="pf-modal"
         onClick={(e) => e.stopPropagation()}
       >
-        <PreflightHeader stage={STAGE_OF[screen]} onClose={requestClose} closable={refreshVm.state !== "computing"} />
+        <PreflightHeader
+          stage={STAGE_OF[screen]}
+          compact={screen === "start"}
+          confirmProgress={
+            screen === "confirm" && rounds.length > 0
+              ? { current: round + 1, total: rounds.length }
+              : undefined
+          }
+          onClose={requestClose}
+          closable={refreshVm.state !== "computing"}
+        />
 
         <div className="pf-body">
           {screen === "start" ? (
             <ScreenSayIt
+              draft={said}
               starters={order?.starters ?? []}
               memoryCount={order?.memory_count ?? 0}
               cvReady={(order?.cv_readiness ?? "") === "ready"}
+              newJobs={order?.new_jobs_count ?? 0}
+              runCost={runCost}
+              balance={balance}
               busy={setSaid.isPending}
               onSubmit={submitSaid}
             />
@@ -246,7 +278,7 @@ export function PreflightGate({
           {screen === "proposals" ? (
             thinking ? (
               <div className="pf-trail">
-                <div className="pf-bubble" data-from="user">{said}</div>
+                <UserSaidBubble text={said} onEdit={editSaid} />
                 <MyroTyping />
               </div>
             ) : (
@@ -262,6 +294,7 @@ export function PreflightGate({
                 onRewordClose={() => setRewording(null)}
                 rewordDraft={rewordDraft}
                 onRewordDraft={setRewordDraft}
+                onEditSaid={editSaid}
               />
             )
           ) : null}
@@ -344,67 +377,5 @@ export function PreflightGate({
       </div>
     </div>,
     document.body,
-  )
-}
-
-/** The footer states the cost of the next step BEFORE it is taken — how many
- *  guesses get dropped, and what the run charges. */
-function GateFooter({
-  screen, thinking, rounds, round, unanswered, proposalDrops, acceptedNow,
-  free, runCost, short, busy, onBack, onNext,
-}: {
-  screen: Screen; thinking: boolean; rounds: number; round: number; unanswered: number
-  proposalDrops: number; acceptedNow: number
-  free: boolean; runCost: number; short: boolean; busy: boolean
-  onBack: () => void; onNext: () => void
-}) {
-  if (screen === "start" || screen === "running" || screen === "done") return null
-
-  // While Myro is still reading, there is nothing to continue TO. The button was
-  // offering "Continue · keep 0" over an empty card — a true count of a list
-  // that has not arrived, which reads as "Myro found nothing" and invites the
-  // one click that skips the proposals. Going back is still valid, so the bar
-  // stays (no height jump) and only the primary waits.
-  if (screen === "proposals" && thinking) {
-    return (
-      <div className="pf-foot">
-        <button type="button" className="pf-btn pf-btn-ghost tm-control-focus" onClick={onBack}>
-          ← say it differently
-        </button>
-      </div>
-    )
-  }
-
-  const backLabel =
-    screen === "proposals" ? "← say it differently"
-      : screen === "confirm" ? (round > 0 ? "← previous round" : "← back to what Myro heard")
-        : "← change an answer"
-
-  const nextLabel =
-    screen === "proposals"
-      ? proposalDrops > 0 ? `Continue · drop ${proposalDrops}` : `Continue · keep ${acceptedNow}`
-      : screen === "confirm"
-        ? round < rounds - 1 ? "Next round" : "Review the order"
-        : free ? "▸ Run · Free" : `▸ Run · ${runCost}`
-
-  return (
-    <div className="pf-foot">
-      <button type="button" className="pf-btn pf-btn-ghost tm-control-focus" onClick={onBack}>
-        {backLabel}
-      </button>
-      <div className="pf-foot-right">
-        {screen === "confirm" && unanswered > 0 ? (
-          <span className="pf-drop-note">{unanswered} unanswered → dropped</span>
-        ) : null}
-        <button
-          type="button"
-          className="pf-btn pf-btn-primary tm-control-focus"
-          onClick={onNext}
-          disabled={busy || (screen === "ready" && short)}
-        >
-          {nextLabel}
-        </button>
-      </div>
-    </div>
   )
 }

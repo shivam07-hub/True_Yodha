@@ -51,6 +51,20 @@
   line-height: 1.45;
   color: var(--tm-text);
   text-wrap: pretty;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.pf-guess-text-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.pf-guess-mark {
+  flex-shrink: 0;
+  color: var(--tm-success);
+  margin-top: 3px;
 }
 
 .pf-guess-meta {
@@ -122,20 +136,6 @@
 .pf-answer[data-kind="reword"] { border: 1px dashed var(--tm-border); color: var(--tm-text-muted); }
 .pf-answer[data-kind="reword"]:hover { border-color: var(--tm-accent-ring); color: var(--tm-accent-text); }
 
-/* Answered: the buttons leave and the verdict takes their place, so the row
-   states what the user decided rather than offering the decision again. */
-.pf-answered {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-note);
-  flex-shrink: 0;
-}
-.pf-answered[data-status="kept"] { color: var(--tm-success); }
-.pf-answered[data-status="dropped"] { color: var(--tm-text-faint); }
-
 .pf-undo {
   appearance: none;
   border: 0;
@@ -153,30 +153,39 @@
 }
 .pf-undo:hover { color: var(--tm-interactive); }
 
+.pf-undo-icon {
+  text-decoration: none;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: -10px -8px -10px 0;
+  flex-shrink: 0;
+  color: var(--tm-interactive-rest);
+}
+.pf-undo-icon:hover { color: var(--tm-interactive); }
+
 /* ── reword ───────────────────────────────────────────────────────────────── */
 
-.pf-reword { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 2px; }
+.pf-reword { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; margin-top: 2px; }
+.pf-reword .say-pad { flex: 1 1 220px; min-width: 0; }
 
 .pf-reword-input {
-  flex: 1 1 220px;
   min-width: 0;
-  height: 40px;
-  padding: 0 12px;
-  box-sizing: border-box;
   border-radius: 8px;
   border: 1px solid var(--tm-interactive);
   background: var(--tm-surface);
   color: var(--tm-text);
-  font: inherit;
   font-size: var(--tm-fs-ui);
-  outline: none;
 }
 
 .pf-reword-actions { display: flex; gap: 6px; align-items: center; }
 
 @media (max-width: 420px) {
   .pf-guess[data-status="kept"] { box-shadow: -10px 0 0 var(--tm-accent-wash), 10px 0 0 var(--tm-accent-wash); }
-  .pf-answers, .pf-answered { width: 100%; }
+  .pf-answers { width: 100%; }
   .pf-answer { flex: 1 1 0; justify-content: center; }
 }
 
