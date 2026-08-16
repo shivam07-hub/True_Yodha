@@ -736,7 +736,7 @@ The single read for "what Myro knows about what this user wants" — one module 
 **Two constructors, two halves**
 
 - `for_ranking(jobs_repo, user_id)` → `ranking_profile()`: the dict the matcher + Career Ops prompt consume — columns passed through untouched, memory riding as `known_facts` (the key intent-chat established). `llm_ranker.build_system_prompt` renders it as the "What Myro remembers about this candidate" block. **Every path that computes a brain verdict goes through it**: `jobs_workflow.compute_job_matches` (the Myro Ops Search), `on_demand.ensure_job_eval` (brain-on-open, every surface), `feed_warm.warm_feed_shortlist` (the `/market` top-10).
-- `for_preflight(db, user_id)` → `preflight()`: the "Refresh your matches" pre-flight manifest (`GET /jobs/refresh/preflight`) — empty fields gap-filled from memory facts (`deal_breakers` ← constraint/work_mode, `career_goal` ← aspiration), with a `prefilled` provenance map and `memory_count`.
+- `for_preflight(db, user_id)` → `preflight()`: the flat manifest (`GET /jobs/refresh/preflight`) — empty fields gap-filled from memory facts (`deal_breakers` ← constraint/work_mode, `career_goal` ← aspiration), with a `prefilled` provenance map and `memory_count`. **Superseded as the pre-flight's read by the Pre-flight Order below**, which consumes the same `TargetingBrief` but emits typed LINES with per-line provenance instead of gap-filled lists. The flat shape stays because `prefilled` is a field-level map with other readers; the modal no longer uses it.
 
 **Invariants**
 
@@ -750,6 +750,60 @@ The single read for "what Myro knows about what this user wants" — one module 
 - **The run records the direction it covered.** `user_profiles.last_match_context_hash`, stamped by `match_run.run_match` alone (same single-writer rule as `last_match_run_at`) from the key the compute actually ran under (`MatchComputeOutcome.context_key` — reported, never re-derived by the caller). Before it, `_shortlist` answered "was this direction searched?" with "did any run finish since the direction last changed?" — two different questions — so every unmatched context reported `empty`, *"the market genuinely has no overlap"*. The states are now split: `empty` (searched this direction, found nothing) vs `stale_direction` (a run finished, but for another direction — the user has matches, none for this target). `stale_direction` is **never auto-enqueued**; the surface asks for a Myro Ops Search, because the user pulls the run.
 - **The guarantee is forward, not retroactive.** The 308 are not backfilled — history stands. The contract is that the next Myro Ops Search returns a standardised, memory-aware verdict. That makes the Search the invalidation event; memory edits between runs are passive and never reshuffle a list under the user.
 - The module is the test surface (`test_targeting_brief.py`): fact→field mapping, the prompt block, and title derivation are tested once, not through each router.
+
+---
+
+## Pre-flight Order
+
+**One targeting record, two surfaces, per-line provenance.** `preflight_orders`
+(one row per user) + `app/services/preflight/*` + `frontend/lib/preflight/*`.
+
+The bug it exists to fix: the pre-flight rendered profile columns and
+`user_memory` strings into a single prose sentence, fusing two different kinds of
+truth — things the user said, and things Myro inferred from 66 notes. A memory
+string landed mid-clause with no attribution (*"You lean toward Prefers roles in
+corporate functions … You're heading for No."*), so the user could not tell which
+clause came from where, could not judge one, and could not fix one without
+rewriting all of it.
+
+**The vocabulary** (use these exact words in code and copy): an **Order** is the
+whole record; a **Line** is one atomic statement in it (a role, the location, a
+won't-take, a lean); a **Guess** is a line Myro proposed that the user has not
+answered; a line's **Source** is `you said this` / `Myro inferred` / `from your
+CV` / `your words, just now`; **Dropped** means said no to *or left unanswered*.
+
+**Invariants**
+
+- **The ops payload is `lines.filter(status == "kept")` and nothing else.**
+  `POST /preflight/run` calls `lines.drop_unanswered` server-side BEFORE
+  `payload.project`, so a client that forgets cannot widen the run. Asserted in
+  `test_preflight_order.py`.
+- **Never mark a line kept on the user's behalf.** Re-importing a memory note
+  produces an `unanswered` line; `merge_imports` keeps the user's answer over any
+  re-import, and stops asking about a note whose source fact was deleted.
+- **An imported line's id is derived from its source**, not a fresh uuid — a uuid
+  minted per read changes between the GET that renders a guess and the PATCH that
+  answers it, so every yes 404s.
+- **`unusable` lines are offered `reword` / `no` only.** A `career_goal` of `"No"`
+  is in prod; a yes on it would be a promise the matcher silently ignores.
+  Rewording clears the flag and stamps the line `user_reworded` forever.
+- **This is NOT the matcher's source.** Kept lines are projected onto
+  `user_profiles` + authored `preference` facts through `targeting_write.apply` —
+  the one writer, shared with `PUT /users/me/profile` — so `for_ranking` keeps
+  reading exactly what it reads today. The order holds the *conversation about*
+  the targeting; the profile holds the targeting.
+- **Prose is one module, on the frontend** (`lib/preflight/prose.ts`), because the
+  gate and the market sheet must render the *identical* order string. Its rules
+  are a spec, not a nicety: the place is stated once whichever clause carries it,
+  a fragment loses its capital mid-sentence unless it opens with an initialism or
+  a proper phrase, about-you lines get a lead-in. Unit-tested in
+  `preflight-prose.test.ts`.
+- **One query key** (`["preflight","order"]`) for both surfaces; every mutation
+  writes the server's response back into it. Two components each holding "the
+  order" is the same split one layer up.
+- The run is dispatched ONCE. `/preflight/run` charges and starts the ticket;
+  the client streams it via `useJobRefresh().attach` — calling `refresh()` after
+  would charge twice for one search.
 
 ---
 

@@ -12,7 +12,7 @@ import { useJobFeed } from "@/components/market/use-job-feed"
 import { useFeedWarm } from "@/components/market/use-feed-warm"
 import { useFeedScope } from "@/lib/hooks/use-feed-scope"
 import { useMyroSearch } from "@/lib/hooks/use-myro-search"
-import { IntentChat } from "@/components/jobs/intent-chat"
+import { MarketSheet } from "@/components/preflight/market-sheet"
 import { NewInventoryStrip } from "@/components/jobs/new-inventory-strip"
 import { useApplyCapture } from "@/components/jobs/use-apply-capture"
 import { JobDetailSheet, type JobDetailData } from "./job-detail-sheet"
@@ -274,7 +274,12 @@ export function JobsSurface({
 
       {/* The real Delta-4 loop (same component the desktop app uses): the user
           tells Myro what's off → one-tap filter change → feed re-runs. */}
-      <IntentChat open={intentOpen} onClose={() => setIntentOpen(false)} onExpand={runMyroSearch} />
+      <MarketSheet
+        open={intentOpen}
+        onClose={() => setIntentOpen(false)}
+        visibleCount={rows.length}
+        onExpand={runMyroSearch}
+      />
       {myroSearchGate}
     </div>
   )

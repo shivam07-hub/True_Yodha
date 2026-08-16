@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useViewport } from "@/mobile"
 import type { CareerBand, JobFeedItem } from "@/lib/api"
 import { formatCount } from "@/lib/format"
-import { IntentChat } from "@/components/jobs/intent-chat"
+import { MarketSheet } from "@/components/preflight/market-sheet"
 import { AgentPicksBand } from "@/components/jobs/agent-picks-band"
 import { openRefreshGate } from "@/store/refreshGateStore"
 import { NotInterestedUndo } from "@/components/jobs/not-interested-undo"
@@ -464,12 +464,15 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
 
       {pending ? <NotInterestedUndo kind={pending.kind} jobId={pending.jobId} token={token} onUndo={undo} queuePosition={pending.kind === "saved" ? savedCount : undefined} /> : null}
 
-      {/* Backlog #36 N3: a widening intent-diff hands off to the coin-charged
-          expansion recompute — the gate lives in <MatchesRefreshBanner> on the
-          /market page (this component's parent), so openRefreshGate reaches it. */}
-      <IntentChat
+      {/* Surface B of the pre-flight. Reads and WRITES the same order the gate
+          does, so a change made here is in the gate's brief without a reload.
+          A widening change needs the newly in-scope roles rated, which the
+          cached re-run cannot do — that hands off to the gate's paid run, which
+          lives in <MatchesRefreshBanner> on this component's parent page. */}
+      <MarketSheet
         open={intentOpen}
         onClose={() => setIntentOpen(false)}
+        visibleCount={total}
         onExpand={() => openRefreshGate()}
       />
     </div>

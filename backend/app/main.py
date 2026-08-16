@@ -30,6 +30,7 @@ from app.routers import (
     partner,
     partner_connect,
     payments,
+    preflight,
     profile,
     roles,
     public,
@@ -98,6 +99,7 @@ app.include_router(career_profile.router)
 app.include_router(xp.router)
 app.include_router(profile.router)
 app.include_router(payments.router)
+app.include_router(preflight.router)
 app.include_router(mentor.router)
 app.include_router(myrology.router)
 app.include_router(job_switch_plan.router)

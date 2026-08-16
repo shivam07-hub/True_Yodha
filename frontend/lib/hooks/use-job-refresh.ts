@@ -44,7 +44,21 @@ export interface UseJobRefreshResult {
   progressTotal: number | null
   revealed: RevealedJob[]
   refresh: () => void
+  /** Stream a run that was ALREADY dispatched and charged elsewhere.
+   *
+   *  The pre-flight signs its order off through `POST /preflight/run`, which
+   *  projects the kept lines onto the profile and then starts the same
+   *  `JobRefresh`. Calling `refresh()` afterwards would charge a second time for
+   *  one search, so the gate hands the ticket here instead. One run path, one
+   *  charge, one progress stream. */
+  attach: (ticket: AttachedTicket) => void
   reset: () => void
+}
+
+export interface AttachedTicket {
+  ticket_id: string
+  progress_label?: string | null
+  new_coin_balance?: number | null
 }
 
 interface DoneResult {
@@ -190,6 +204,24 @@ export function useJobRefresh(
     }
   }, [balance, applyXpChange, startStream, state, token])
 
+  const attach = useCallback(
+    (ticket: AttachedTicket) => {
+      if (ticket.new_coin_balance != null) {
+        applyXpChange({ newBalance: ticket.new_coin_balance, action: "match_refresh" })
+      }
+      setErrorMessage(null)
+      setMatchesWritten(null)
+      setOutcomeKind(null)
+      setProgressDone(null)
+      setProgressTotal(null)
+      setRevealed([])
+      setState("computing")
+      setProgressLabel(ticket.progress_label ?? "Reading your signed-off order")
+      startStream(ticket.ticket_id)
+    },
+    [applyXpChange, startStream],
+  )
+
   const reset = useCallback(() => {
     stopStream()
     setState("idle")
@@ -216,6 +248,7 @@ export function useJobRefresh(
     progressTotal,
     revealed,
     refresh,
+    attach,
     reset,
   }
 }

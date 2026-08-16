@@ -84,6 +84,27 @@ Domain glossary for Mirror, the Intelligence-as-a-Service platform for job seeke
 | **Jobs Tracking Dashboard** | User-facing surface listing Applications with status, readiness, and last activity. | tracker |
 | **Chrome Extension** | Manifest V3 extension at `/Chrome_extension/` that captures a JobPosting page into Mirror. | scraper |
 
+## Pre-flight Order
+
+The vocabulary of the Myro Search pre-flight, shared by the gate and the market
+bottom-sheet. Use these exact words in code AND in copy — the surface's whole
+premise is that the user can tell one kind of statement from another, and two
+words for one thing is how that stops being true.
+
+| Term | Definition | Aliases to avoid |
+|------|------------|------------------|
+| **Order** | The whole targeting record Myro runs on. One per user, `preflight_orders`. | brief, manifest, draft, targeting |
+| **Line** | One atomic statement in the Order. Everything is a Line: a role, the location, a won't-take, a lean. | row, chip, field, filter |
+| **Guess** | A Line Myro proposed (from memory notes or the CV) that the user has not answered yet. | suggestion, prefill, inference |
+| **Source** | Where a Line came from: `you said this` · `Myro inferred` · `from your CV` · `your words, just now`. Always rendered; never inferred by the reader. | provenance chip, origin (that is a separate field) |
+| **Answered** | The user said yes, said no, or reworded it. A reword counts as yes. | confirmed, accepted |
+| **Dropped** | Said no to, **or left unanswered at run time**. Never sent to ops. | ignored, skipped |
+| **Brief** | The assembled prose on the review screen, built from kept Lines only. | summary, sentence, order (the Order is the record) |
+
+Copy rules on these surfaces: sentence case, no exclamation marks, no emoji,
+second person; lowercase button labels for inline answers (`yes` / `no` /
+`reword`), Title-case for primary CTAs (`Run · Free`).
+
 ## Public Vocab Lock (PR2, 2026-05-26)
 
 User-facing labels for four surfaces. Code identifiers (file names, components, hooks, CSS classes, DB columns, routes, GA4 event keys) are **frozen** at their old names — only visible copy moved. Backend service `forge_service.py`, table `forge_sessions`, column `user_profiles.ninja_name`, routes `/forge` / `/intel` (alias for `/market`) / `/home` / `/profile/{ninja_name}` are durable contracts and intentionally retain the old vocabulary.
