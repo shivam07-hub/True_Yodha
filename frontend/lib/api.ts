@@ -624,11 +624,18 @@ export const preflight = {
     }),
 
   /** Sign off and dispatch. The server drops unanswered lines before it
-   *  projects the payload, so a client that forgets cannot widen the run. */
+   *  projects the payload, so a client that forgets cannot widen the run.
+   *
+   *  Not a read: this projects the order onto the profile, rewrites the lean
+   *  facts, charges, and dispatches. The 15s default is tuned for reads and cut
+   *  it off mid-write — the user saw "Request timed out", pressed Run again, and
+   *  was charged again. The server now refuses to charge twice inside its
+   *  dedupe window; this stops the client abandoning a request that is working. */
   run: (token: string) =>
     request<OrderRunResult>("/preflight/run", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
+      timeoutMs: 45_000,
     }),
 }
 

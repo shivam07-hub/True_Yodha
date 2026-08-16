@@ -48,12 +48,10 @@ const STAGE_OF: Record<Screen, Stage> = {
 
 export function PreflightGate({
   token,
-  cvUrl,
   refreshVm,
   onSeeMatches,
 }: {
   token: string | null
-  cvUrl?: string | null
   /** The run VM. Shared with the surface's own button so `isRefreshing` always
    *  reflects the actual run — see `useMyroSearch`. */
   refreshVm: UseJobRefreshResult
@@ -66,7 +64,7 @@ export function PreflightGate({
   const dialogRef = useRef<HTMLDivElement>(null)
 
   const { data: order } = useOrder(token, open)
-  const { answer, reword, setSaid, apply } = useOrderMutations(token)
+  const { answerLine, rewordLine, setSaid, apply } = useOrderMutations(token)
 
   const [screen, setScreen] = useState<Screen>("start")
   const [said, setSaidLocal] = useState("")
@@ -77,6 +75,7 @@ export function PreflightGate({
   const [rewordDraft, setRewordDraft] = useState("")
   const [round, setRound] = useState(0)
   const [thinking, setThinking] = useState(false)
+  const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   /* Reopening starts at the question. An order the user already signed off is
@@ -85,7 +84,7 @@ export function PreflightGate({
   useEffect(() => {
     if (!open) return
     setScreen("start"); setSaidLocal(""); setProposals([]); setAnswers({})
-    setRewording(null); setRound(0); setError(null); setThinking(false)
+    setRewording(null); setRound(0); setError(null); setThinking(false); setStarting(false)
     const t = setTimeout(() => dialogRef.current?.focus(), 30)
     return () => clearTimeout(t)
   }, [open])
@@ -187,8 +186,15 @@ export function PreflightGate({
 
   /* ── run ─────────────────────────────────────────────────────────────────── */
 
+  /** Single-flight. The run CHARGES, and this button had no in-flight guard: a
+   *  sign-off that takes a few seconds looks like nothing happened, the user
+   *  presses again, and every call that reaches the server is another debit.
+   *  The server refuses to charge twice inside its dedupe window too — a client
+   *  guard does not survive two tabs or a reload — but the click must not queue
+   *  a second charge in the first place. */
   async function run() {
-    if (!token) return
+    if (!token || starting) return
+    setStarting(true)
     setError(null)
     try {
       const result = await preflight.run(token)
@@ -197,7 +203,11 @@ export function PreflightGate({
       void invalidateOrder(client)
       void client.invalidateQueries({ queryKey: dataKeys.profile() })
     } catch (err) {
-      setError((err as Error)?.message || "Couldn't start the search. Nothing was charged.")
+      // The server either charged and dispatched, or did neither — it stamps the
+      // ticket only after the charge succeeds. Never promise "nothing was
+      // charged" for a request whose outcome we did not see.
+      setError((err as Error)?.message || "Couldn't start the search. Try again in a moment.")
+      setStarting(false)
     }
   }
 
@@ -264,9 +274,8 @@ export function PreflightGate({
               lineById={lineById}
               activeRound={Math.min(round, Math.max(0, rounds.length - 1))}
               onPickRound={setRound}
-              onAnswer={(lineId, status) => answer.mutate({ lineId, status })}
-              onReword={(lineId, text) => reword.mutate({ lineId, text })}
-              busy={answer.isPending || reword.isPending}
+              onAnswer={answerLine}
+              onReword={rewordLine}
             />
           ) : null}
 
@@ -275,7 +284,6 @@ export function PreflightGate({
               order={order}
               memoryCount={order.memory_count}
               cvReady={order.cv_readiness === "ready"}
-              cvHref={cvUrl || "/cv"}
               runCost={runCost}
               newJobs={order.new_jobs_count}
               balance={balance}
@@ -317,7 +325,7 @@ export function PreflightGate({
           free={free}
           runCost={runCost}
           short={short}
-          busy={apply.isPending}
+          busy={apply.isPending || starting}
           onBack={() => {
             if (screen === "proposals") setScreen("start")
             else if (screen === "confirm") {

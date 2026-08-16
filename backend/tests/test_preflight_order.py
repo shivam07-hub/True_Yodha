@@ -247,6 +247,44 @@ def test_a_proposal_already_on_the_order_is_not_proposed_back():
     assert built == []
 
 
+def test_a_lean_rewrite_is_two_round_trips_not_two_per_lean():
+    """`replace_authored_leans` ran inside POST /preflight/run. Deleting and
+    inserting one row at a time meant a user with 19 confirmed leans paid 38
+    sequential requests inside the call that starts their search — the client
+    timed out at 15s, the user pressed Run again, and was charged again."""
+    from app.services import onboarding_service
+
+    calls: list[str] = []
+
+    class FakeRepo:
+        def list_active(self, user_id, kinds=None):
+            return [{"id": f"m{i}", "text": f"lean {i}", "source": "authored"} for i in range(19)]
+
+        def delete_many(self, user_id, ids):
+            calls.append(f"delete_many:{len(ids)}")
+
+        def add_many(self, user_id, rows, **kw):
+            calls.append(f"add_many:{len(rows)}")
+
+        def delete(self, *a, **kw):  # pragma: no cover — must not be reached
+            calls.append("delete")
+
+        def add(self, *a, **kw):  # pragma: no cover — must not be reached
+            calls.append("add")
+
+    import app.repositories.user_memory as memory_module
+
+    original = memory_module.UserMemoryRepository
+    memory_module.UserMemoryRepository = lambda db: FakeRepo()  # type: ignore[assignment]
+    try:
+        onboarding_service.replace_authored_leans(object(), "u1", ["a", "b", "c"])
+    finally:
+        memory_module.UserMemoryRepository = original  # type: ignore[assignment]
+
+    assert calls == ["delete_many:19", "add_many:3"]
+    assert "delete" not in calls and "add" not in calls
+
+
 def test_an_utterance_yields_one_proposal_per_field():
     built = proposals.from_utterance(
         {"locations": ["Remote-first roles, anywhere in India"],
@@ -257,3 +295,117 @@ def test_an_utterance_yields_one_proposal_per_field():
     assert [p.eyebrow for p in built] == ["LOCATION", "WON'T TAKE", "DRAWN TO"]
     # Stored bare — "Skip No people-management roles" is the bug this prevents.
     assert built[1].value == "people-management roles"
+
+
+# ── concurrent writes ────────────────────────────────────────────────────────
+
+
+class _FakeTable:
+    """Enough Postgrest to exercise the compare-and-set path."""
+
+    def __init__(self, store: dict):
+        self._store = store
+        self._filters: dict = {}
+        self._op = None
+        self._payload = None
+
+    def select(self, *a, **kw):
+        self._op = "select"
+        return self
+
+    def update(self, payload):
+        self._op = "update"
+        self._payload = payload
+        return self
+
+    def upsert(self, payload, **kw):
+        self._op = "upsert"
+        self._payload = payload
+        return self
+
+    def eq(self, col, val):
+        self._filters[col] = val
+        return self
+
+    def limit(self, *a, **kw):
+        return self
+
+    def execute(self):
+        row = self._store.get("row")
+        if self._op == "select":
+            return type("R", (), {"data": [row] if row else [], "count": 0})()
+        if self._op == "upsert":
+            self._store["row"] = dict(self._payload)
+            return type("R", (), {"data": [self._store["row"]]})()
+        # update — honours the updated_at guard
+        if row and row.get("updated_at") == self._filters.get("updated_at"):
+            row.update(self._payload)
+            return type("R", (), {"data": [row]})()
+        return type("R", (), {"data": []})()
+
+
+class _FakeDB:
+    def __init__(self):
+        self.store: dict = {}
+
+    def table(self, name):
+        return _FakeTable(self.store)
+
+
+def _repo_with_empty_brief():
+    """An OrderRepository whose imports and CV lookup are inert, so the test is
+    about the write path and nothing else."""
+    from app.services.preflight import repository as repo_module
+
+    db = _FakeDB()
+    repo = repo_module.OrderRepository(db)
+    repo.store = db.store  # type: ignore[attr-defined]
+    repo.load_bundle = lambda user_id: repo_module.OrderBundle(  # type: ignore[method-assign]
+        order=ops.Order.from_dict(repo._row(user_id)),
+        starters=[], memory_count=0, cv_readiness="ready",
+    )
+    return repo
+
+
+def test_a_concurrent_answer_is_replayed_not_clobbered():
+    """Two answers in flight both read the same `lines` array; without the
+    guard the second write erases the first. Silently — the response looks
+    right, the row is wrong, and the run dispatches from the row."""
+    repo = _repo_with_empty_brief()
+    a = line(id="a", text="A")
+    b = line(id="b", text="B")
+    repo.mutate("u1", lambda o: replace_lines(o, [a, b]))
+
+    # Simulate a stale writer: capture the order, let another write land, then
+    # try to write from the stale copy.
+    stale = repo.load("u1")
+    repo.mutate("u1", lambda o: ops.keep(o, "a", now=NOW)[0])
+    assert repo._write("u1", stale, expected=stale.updated_at) is None, "stale write must be refused"
+
+    # And the retrying path still lands, on top of the other answer.
+    repo.mutate("u1", lambda o: ops.drop(o, "b", now=NOW)[0])
+    final = repo.load("u1")
+    assert final.find("a").status == "kept", "the first answer survived"
+    assert final.find("b").status == "dropped", "the second answer landed"
+
+
+def replace_lines(order: ops.Order, lines: list) -> ops.Order:
+    import dataclasses
+    return dataclasses.replace(order, lines=lines)
+
+
+def test_a_recent_run_is_reported_instead_of_charged_again():
+    from datetime import datetime, timedelta, timezone
+
+    repo = _repo_with_empty_brief()
+    repo.mutate("u1", lambda o: o)
+    assert repo.recent_run("u1", within_seconds=90) is None, "no run yet"
+
+    repo.save("u1", repo.load("u1"), ticket_id="tick-1")
+    assert repo.recent_run("u1", within_seconds=90) == "tick-1"
+
+    # Outside the window it is a genuine second search, not a double click.
+    repo.store["row"]["last_run_at"] = (
+        datetime.now(timezone.utc) - timedelta(seconds=600)
+    ).isoformat()
+    assert repo.recent_run("u1", within_seconds=90) is None

@@ -37,9 +37,12 @@ test("both surfaces read and write ONE order through one query key", () => {
 
 test("every mutation writes the server's answer back into the cache", () => {
   // An optimistic patch that never reconciles is a client inventing the order.
-  const mutations = useOrder.match(/onSuccess: \(next\) => mergeState\(client, next\)/g) ?? []
-  assert.ok(mutations.length >= 5, `expected every mutation to merge; found ${mutations.length}`)
-  assert.match(useOrder, /onError: \(_e, _v, ctx\) => \{[\s\S]{0,120}setQueryData\(preflightKeys\.order\(\), ctx\.prev\)/)
+  const direct = (useOrder.match(/onSuccess: \(next\) => mergeState\(client, next\)/g) ?? []).length
+  const sequenced = (useOrder.match(/onSuccess: \(next, vars\) => mergeIfNewest\(vars\.seq, next\)/g) ?? []).length
+  // said / addLine / apply / undo merge directly; the two line mutations merge
+  // through the sequence guard so a stale reply cannot overwrite newer state.
+  assert.equal(direct, 4, `expected 4 direct merges; found ${direct}`)
+  assert.equal(sequenced, 2, `expected 2 sequenced merges; found ${sequenced}`)
 })
 
 test("a guess is never rendered without its source", () => {
@@ -126,6 +129,63 @@ test("the footer states what the next step costs before it is taken", () => {
   // The run price comes from the server, never a client constant.
   assert.match(gate, /order\?\.run_cost \?\? 0/)
   assert.doesNotMatch(gate, /MYRO_COINS_POLICY|matchRefreshCost/)
+})
+
+/* ── regressions from the 2026-08-16 authed session ─────────────────────── */
+
+test("Run is single-flight — the button cannot queue a second charge", () => {
+  // It had no in-flight guard at all. A sign-off that takes a few seconds looks
+  // like nothing happened, the user presses again, and every call that reaches
+  // the server is another MATCH_RUN_COST off their wallet.
+  assert.match(gate, /if \(!token \|\| starting\) return/)
+  assert.match(gate, /setStarting\(true\)/)
+  assert.match(gate, /busy=\{apply\.isPending \|\| starting\}/)
+})
+
+test("a failed run never claims nothing was charged", () => {
+  // The server stamps the ticket only after the charge succeeds, but a client
+  // that saw a timeout does not know which side of that line it landed on.
+  assert.doesNotMatch(gate, /Nothing was charged/)
+})
+
+test("the run is given a write's timeout, not a read's", () => {
+  // 15s (the default, tuned for reads) cut off a request that projects the
+  // order onto the profile, rewrites the lean facts, charges and dispatches.
+  const api = read("lib/api.ts")
+  const run = api.slice(api.indexOf('run: (token: string) =>'))
+  assert.match(run.slice(0, 400), /timeoutMs: 45_000/)
+})
+
+test("an answer paints immediately and is never rolled back to a stale snapshot", () => {
+  const hook = read("lib/preflight/use-order.ts")
+  // The patch happens on click, not in onMutate — with a scoped queue onMutate
+  // runs when the request finally starts, which is the "not accepting my
+  // clicks" symptom.
+  assert.match(hook, /const answerLine = \([\s\S]{0,120}patchLine\(client, lineId, \{ status \}\)/)
+  assert.match(hook, /scope: LINE_SCOPE/)
+  // Restoring a snapshot taken several clicks ago would erase the answers in
+  // between; only the server knows which landed.
+  assert.match(hook, /onError: \(\) => rereadTruth\(client\)/)
+  assert.doesNotMatch(hook, /setQueryData\(preflightKeys\.order\(\), ctx\.prev\)/)
+  // A stale reply must not overwrite newer optimistic state.
+  assert.match(hook, /if \(seq < landed\.current\) return/)
+})
+
+test("answering is never blocked on the previous answer's request", () => {
+  const confirm = read("components/preflight/screen-confirm.tsx")
+  assert.doesNotMatch(gate, /busy=\{answer\.isPending/)
+  assert.match(confirm, /busy\?: boolean/, "the prop may exist, but the gate must not gate on pending")
+})
+
+test("the CV chip goes to the workspace, not a storage URL", () => {
+  // `profile.cv_url` is a Supabase storage link: opening it leaves the session
+  // behind and greets the user with a login screen.
+  const review = read("components/preflight/screen-review.tsx")
+  assert.match(review, /href="\/cv"/)
+  // Comments stripped — `cv_url` is named in the note explaining why it is gone.
+  const code = review.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "")
+  assert.doesNotMatch(code, /cvHref|cv_url/)
+  assert.doesNotMatch(gate.replace(/\/\*[\s\S]*?\*\//g, ""), /cvUrl/)
 })
 
 test("signing off does not dispatch a second run", () => {

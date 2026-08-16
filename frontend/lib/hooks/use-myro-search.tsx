@@ -42,7 +42,6 @@ export function useMyroSearch(token: string | null) {
   const gate = (
     <PreflightGate
       token={token}
-      cvUrl={profile?.cv_url}
       refreshVm={refreshVm}
       onSeeMatches={() => router.push("/market")}
     />

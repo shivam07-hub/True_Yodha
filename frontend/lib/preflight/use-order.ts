@@ -15,6 +15,7 @@
  * response replaces the guess rather than confirming it.
  */
 
+import { useRef } from "react"
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query"
 
 import { preflight } from "@/lib/api"
@@ -34,14 +35,41 @@ function mergeState(client: QueryClient, next: OrderState) {
 }
 
 function patchLine(client: QueryClient, lineId: string, patch: Partial<Order["lines"][number]>) {
-  const prev = client.getQueryData<Order>(preflightKeys.order())
   client.setQueryData<Order>(preflightKeys.order(), (order) =>
     order
       ? { ...order, lines: order.lines.map((l) => (l.id === lineId ? { ...l, ...patch } : l)) }
       : undefined,
   )
-  return prev
 }
+
+/**
+ * A failed write re-reads the server, it does not roll back to a snapshot.
+ *
+ * Under a queue, the snapshot taken when a click was made is several clicks
+ * old by the time that click fails — restoring it would silently erase every
+ * answer the user gave in between. The server is the only thing that knows
+ * which of them landed, so ask it.
+ */
+function rereadTruth(client: QueryClient) {
+  void client.invalidateQueries({ queryKey: preflightKeys.order() })
+}
+
+/**
+ * Answers are serialised, and only the newest response is allowed to land.
+ *
+ * Tapping `yes` down a list of thirteen fires thirteen writes. Each one is a
+ * read-modify-write of the whole `lines` array, so unserialised they race and
+ * an answer disappears; and each intermediate response, merged as it arrives,
+ * describes an order that predates the clicks the user has made since — which
+ * is what made the UI look like it was ignoring taps.
+ *
+ * `scope` puts every line mutation in one queue (TanStack runs same-scope
+ * mutations one at a time). The sequence number then discards a stale reply, so
+ * the optimistic state the user is looking at is never rolled back to an older
+ * truth. The optimistic patch itself still applies on click — the queue delays
+ * the request, never the feedback.
+ */
+const LINE_SCOPE = { id: "preflight-order-line" }
 
 export function useOrder(token: string | null, enabled = true) {
   return useQuery({
@@ -58,36 +86,55 @@ export function useOrder(token: string | null, enabled = true) {
 
 export function useOrderMutations(token: string | null) {
   const client = useQueryClient()
+  // Monotonic across BOTH line mutations — they share one queue, so one counter
+  // decides which reply is the newest.
+  const issued = useRef(0)
+  const landed = useRef(0)
+
+  /** Merge only if nothing newer has been sent since this request left. */
+  const mergeIfNewest = (seq: number, next: OrderState) => {
+    if (seq < landed.current) return
+    landed.current = seq
+    mergeState(client, next)
+  }
 
   const answer = useMutation({
-    mutationFn: ({ lineId, status }: { lineId: string; status: LineStatus }) =>
+    scope: LINE_SCOPE,
+    mutationFn: ({ lineId, status }: { lineId: string; status: LineStatus; seq: number }) =>
       preflight.answerLine(token!, lineId, status),
-    onMutate: ({ lineId, status }) => ({ prev: patchLine(client, lineId, { status }) }),
-    onError: (_e, _v, ctx) => {
-      if (ctx?.prev) client.setQueryData(preflightKeys.order(), ctx.prev)
-    },
-    onSuccess: (next) => mergeState(client, next),
+    onError: () => rereadTruth(client),
+    onSuccess: (next, vars) => mergeIfNewest(vars.seq, next),
   })
 
   const reword = useMutation({
-    mutationFn: ({ lineId, text }: { lineId: string; text: string }) =>
+    scope: LINE_SCOPE,
+    mutationFn: ({ lineId, text }: { lineId: string; text: string; seq: number }) =>
       preflight.rewordLine(token!, lineId, text),
-    // A reword counts as yes and re-labels the row — the server owns that rule,
-    // so the optimistic copy states the same outcome rather than inventing one.
-    onMutate: ({ lineId, text }) => ({
-      prev: patchLine(client, lineId, {
-        text,
-        status: "kept",
-        source: "user_reworded",
-        source_note: "reworded by you — this is what Myro runs",
-        unusable: false,
-      }),
-    }),
-    onError: (_e, _v, ctx) => {
-      if (ctx?.prev) client.setQueryData(preflightKeys.order(), ctx.prev)
-    },
-    onSuccess: (next) => mergeState(client, next),
+    onError: () => rereadTruth(client),
+    onSuccess: (next, vars) => mergeIfNewest(vars.seq, next),
   })
+
+  /* The two callers below patch the cache SYNCHRONOUSLY, then queue the write.
+     `onMutate` would not do: with a scoped queue it runs when the request
+     finally starts, so the row would sit unchanged until every earlier click
+     had round-tripped — exactly the "not accepting my clicks" symptom. */
+  const answerLine = (lineId: string, status: LineStatus) => {
+    patchLine(client, lineId, { status })
+    answer.mutate({ lineId, status, seq: ++issued.current })
+  }
+
+  // A reword counts as yes and re-labels the row — the server owns that rule,
+  // so the optimistic copy states the same outcome rather than inventing one.
+  const rewordLine = (lineId: string, text: string) => {
+    patchLine(client, lineId, {
+      text,
+      status: "kept",
+      source: "user_reworded",
+      source_note: "reworded by you — this is what Myro runs",
+      unusable: false,
+    })
+    reword.mutate({ lineId, text, seq: ++issued.current })
+  }
 
   const setSaid = useMutation({
     mutationFn: (said: string) => preflight.setSaid(token!, said),
@@ -111,7 +158,7 @@ export function useOrderMutations(token: string | null) {
     onSuccess: (next) => mergeState(client, next),
   })
 
-  return { answer, reword, setSaid, addLine, apply, undo }
+  return { answerLine, rewordLine, setSaid, addLine, apply, undo, answer, reword }
 }
 
 /** After a run the order is stamped and the guesses are settled — both surfaces

@@ -12,9 +12,12 @@ forgets to drop them cannot widen the search.
 """
 from __future__ import annotations
 
+import logging
+from collections.abc import Callable
 from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
 from app.database import get_supabase_admin
@@ -33,6 +36,12 @@ from app.services.xp_policy import MATCH_RUN_COST
 from .jobs._shared import last_monday
 
 router = APIRouter(prefix="/preflight", tags=["preflight"])
+logger = logging.getLogger(__name__)
+
+#: How long a dispatched run keeps answering for repeat calls. Long enough to
+#: cover a client timeout and the user's retry, short enough that a genuine
+#: second search a minute later is a second search.
+_RUN_DEDUPE_SECONDS = 90
 
 
 # ── wire shapes ──────────────────────────────────────────────────────────────
@@ -183,11 +192,17 @@ def _state(order: line_ops.Order) -> dict:
     }
 
 
-def _mutated(orders: OrderRepository, user_id: str, order: line_ops.Order) -> OrderState:
-    """Persist and answer with the new truth. Deliberately does NOT re-read the
-    profile or the memory notes: none of that moves when a user says yes, and
-    re-importing 66 notes per click is a read path nobody asked for."""
-    return OrderState(**_state(orders.save(user_id, order)))
+def _mutated(
+    orders: OrderRepository, user_id: str, apply: Callable[[line_ops.Order], line_ops.Order]
+) -> OrderState:
+    """Apply one change under compare-and-set and answer with the new truth.
+
+    The change arrives as a FUNCTION of the current order, not as a finished
+    order: `lines` is one jsonb document, so a caller that loads, edits and
+    writes will silently erase a concurrent answer. Expressed this way the
+    repository can re-read and replay on a lost race. See `OrderRepository.mutate`.
+    """
+    return OrderState(**_state(orders.mutate(user_id, apply)))
 
 
 @router.get("/order", response_model=OrderOut)
@@ -223,8 +238,7 @@ def set_said(
 ) -> OrderState:
     """Screen 1's one question. The user's own words, stored verbatim — sentence
     one of the brief is built from this and never rewritten."""
-    order = orders.load(principal.id)
-    return _mutated(orders, principal.id, line_ops.replace_said(order, body.said))
+    return _mutated(orders, principal.id, lambda o: line_ops.replace_said(o, body.said))
 
 
 @router.patch("/order/lines/{line_id}", response_model=OrderState)
@@ -236,23 +250,25 @@ def patch_line(
 ) -> OrderState:
     """yes / no / undo / reword. A reword counts as yes and stamps the line
     `user_reworded` forever — `lines.reword` owns that rule, not this route."""
-    order = orders.load(principal.id)
-    if order.find(line_id) is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such line on your order.")
-
-    now = now_iso()
-    if body.text is not None:
-        order, _ = line_ops.reword(order, line_id, body.text, now=now)
-    elif body.status == "kept":
-        order, _ = line_ops.keep(order, line_id, now=now)
-    elif body.status == "dropped":
-        order, _ = line_ops.drop(order, line_id, now=now)
-    elif body.status == "unanswered":
-        order, _ = line_ops.unanswer(order, line_id)
-    else:
+    if body.text is None and body.status is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nothing to change.")
 
-    return _mutated(orders, principal.id, order)
+    now = now_iso()
+
+    def apply(order: line_ops.Order) -> line_ops.Order:
+        if order.find(line_id) is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="No such line on your order."
+            )
+        if body.text is not None:
+            return line_ops.reword(order, line_id, body.text, now=now)[0]
+        if body.status == "kept":
+            return line_ops.keep(order, line_id, now=now)[0]
+        if body.status == "dropped":
+            return line_ops.drop(order, line_id, now=now)[0]
+        return line_ops.unanswer(order, line_id)[0]
+
+    return _mutated(orders, principal.id, apply)
 
 
 @router.post("/order/lines", response_model=OrderState, status_code=status.HTTP_201_CREATED)
@@ -261,11 +277,13 @@ def add_line(
     principal: Principal = Depends(get_principal),
     orders: OrderRepository = Depends(get_order_repository),
 ) -> OrderState:
-    order = orders.load(principal.id)
-    order, _ = line_ops.add(
-        order, kind=body.kind, text=body.text, source="user_said", origin=body.origin, status="kept"
+    return _mutated(
+        orders,
+        principal.id,
+        lambda o: line_ops.add(
+            o, kind=body.kind, text=body.text, source="user_said", origin=body.origin, status="kept"
+        )[0],
     )
-    return _mutated(orders, principal.id, order)
 
 
 @router.post("/order/undo", response_model=OrderState)
@@ -276,8 +294,7 @@ def undo_entry(
 ) -> OrderState:
     """Reverse one logged change. Restores the line's PRIOR state whole — a line
     the user had merely not answered goes back to unanswered, not to dropped."""
-    order = line_ops.undo(orders.load(principal.id), body.entry_id)
-    return _mutated(orders, principal.id, order)
+    return _mutated(orders, principal.id, lambda o: line_ops.undo(o, body.entry_id))
 
 
 @router.post("/order/apply", response_model=OrderState)
@@ -288,22 +305,25 @@ def apply_effects(
 ) -> OrderState:
     """Accept a proposal. The effects the client sends back are the ones it
     showed the user, so what they saw is what lands."""
-    order = orders.load(principal.id)
     now = now_iso()
-    for effect in body.effects:
-        if effect.op == "drop" and effect.line_id:
-            order, _ = line_ops.drop(order, effect.line_id, now=now)
-        elif effect.op == "add" and effect.kind and effect.text:
-            order, _ = line_ops.add(
-                order,
-                kind=effect.kind,  # type: ignore[arg-type]
-                text=effect.text,
-                source="user_said",
-                source_note="your words, just now",
-                origin=body.origin,
-                status="kept",
-            )
-    return _mutated(orders, principal.id, order)
+
+    def apply(order: line_ops.Order) -> line_ops.Order:
+        for effect in body.effects:
+            if effect.op == "drop" and effect.line_id:
+                order, _ = line_ops.drop(order, effect.line_id, now=now)
+            elif effect.op == "add" and effect.kind and effect.text:
+                order, _ = line_ops.add(
+                    order,
+                    kind=effect.kind,  # type: ignore[arg-type]
+                    text=effect.text,
+                    source="user_said",
+                    source_note="your words, just now",
+                    origin=body.origin,
+                    status="kept",
+                )
+        return order
+
+    return _mutated(orders, principal.id, apply)
 
 
 # ── propose ──────────────────────────────────────────────────────────────────
@@ -364,8 +384,31 @@ async def run_order(
     Order of operations is load-bearing: drop the unanswered lines, project the
     kept ones onto the profile, THEN charge and dispatch. Saving before spending
     is why a charge can never land against stale targeting.
+
+    Every DB call below is the blocking Supabase client. Run inside `async def`
+    they would hold the event loop for the whole projection — every other
+    request on the worker waits behind one user's sign-off — so the sync half is
+    handed to a threadpool and only the dispatch is awaited.
     """
-    order = line_ops.drop_unanswered(orders.load(principal.id))
+    # Idempotency FIRST, before any work. A run that appears to do nothing gets
+    # clicked again, and each call that reaches here is another MATCH_RUN_COST
+    # off the wallet. The client's in-flight guard does not survive two tabs, a
+    # reload, or a retry after a timeout; this does.
+    existing = await run_in_threadpool(orders.recent_run, principal.id, within_seconds=_RUN_DEDUPE_SECONDS)
+    if existing:
+        state = await JobRefresh.status_or_none(principal.id, existing)
+        if state is not None and state.state in ("queued", "computing"):
+            logger.info("metric preflight.run_deduped user=%s ticket=%s", principal.id, existing)
+            counts = await run_in_threadpool(_settled_counts, orders, principal.id)
+            return RunOut(
+                ticket_id=existing,
+                cost=0,  # already charged by the call that started this ticket
+                progress_label=state.progress_label,
+                new_coin_balance=None,
+                **counts,
+            )
+
+    order = line_ops.drop_unanswered(await run_in_threadpool(orders.load, principal.id))
     summary = ops_payload.run_summary(order)
     if summary["kept"] == 0:
         raise HTTPException(
@@ -373,10 +416,15 @@ async def run_order(
             detail="Nothing to run — say what you're after first.",
         )
 
-    targeting_write.apply(users_repo, principal.id, ops_payload.project(order))
-    orders.save(principal.id, order, ran=True)
+    await run_in_threadpool(
+        targeting_write.apply, users_repo, principal.id, ops_payload.project(order)
+    )
 
     ticket = await JobRefresh.start(principal.id, repo, last_monday())
+    # Stamped AFTER dispatch with the ticket it produced: a run recorded before
+    # the charge succeeds would dedupe the retry of a run that never started.
+    await run_in_threadpool(orders.save, principal.id, order, ticket_id=ticket.id)
+
     return RunOut(
         ticket_id=ticket.id,
         cost=ticket.xp_charged,
@@ -386,3 +434,10 @@ async def run_order(
         dropped=summary["dropped"],
         unanswered=summary["unanswered"],
     )
+
+
+def _settled_counts(orders: OrderRepository, user_id: str) -> dict[str, int]:
+    """The counts a deduped run reports — read off the order that was dispatched,
+    so the second caller sees the same numbers as the first."""
+    summary = ops_payload.run_summary(line_ops.drop_unanswered(orders.load(user_id)))
+    return {"kept": summary["kept"], "dropped": summary["dropped"], "unanswered": summary["unanswered"]}

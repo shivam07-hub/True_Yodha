@@ -20,7 +20,6 @@ export function ScreenReview({
   order,
   memoryCount,
   cvReady,
-  cvHref,
   runCost,
   newJobs,
   balance,
@@ -29,7 +28,6 @@ export function ScreenReview({
   order: OrderState
   memoryCount: number
   cvReady: boolean
-  cvHref: string
   runCost: number
   newJobs: number
   balance: number
@@ -45,16 +43,14 @@ export function ScreenReview({
       <p className="pf-contract">{contractLine(order)}</p>
 
       <div className="pf-chips">
-        <a
-          className="pf-chip"
-          data-tone={cvReady ? undefined : "warn"}
-          href={cvHref}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        {/* The CV WORKSPACE, not `profile.cv_url`. That column holds a Supabase
+            storage URL: opening it in a new tab leaves the session behind and
+            greets the user with a login screen. The actionable place — read it,
+            replace it, upload one — is the route. */}
+        <Link className="pf-chip" data-tone={cvReady ? undefined : "warn"} href="/cv">
           {cvReady ? "CV baseline · ready" : "No CV yet · add one"}
-          <span aria-hidden>↗</span>
-        </a>
+          <span aria-hidden>→</span>
+        </Link>
         {memoryCount > 0 ? <span className="pf-chip">{memoryCount} notes · read</span> : null}
       </div>
 

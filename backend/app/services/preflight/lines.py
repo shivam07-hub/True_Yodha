@@ -122,6 +122,7 @@ class Order:
     log: list[LogEntry] = field(default_factory=list)
     updated_at: str | None = None
     last_run_at: str | None = None
+    last_ticket_id: str | None = None
 
     def find(self, line_id: str) -> OrderLine | None:
         return next((line for line in self.lines if line.id == line_id), None)
@@ -147,6 +148,7 @@ class Order:
             log=[LogEntry.from_dict(entry) for entry in (row.get("log") or [])],
             updated_at=row.get("updated_at"),
             last_run_at=row.get("last_run_at"),
+            last_ticket_id=row.get("last_ticket_id"),
         )
 
 

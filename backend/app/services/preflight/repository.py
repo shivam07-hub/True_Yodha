@@ -12,20 +12,25 @@ string" is literally true. Nothing here builds prose.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+import logging
+from collections.abc import Callable
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
 from supabase import Client
 
 from app.db_safe import safe_read
 from app.deps import get_user_db
+from app.repositories.users import UsersRepository
 from app.services.matching import targeting
 from app.services.preflight import memory_import
 from app.services.preflight.lines import Order, merge_imports
 
 _TABLE = "preflight_orders"
+
+logger = logging.getLogger(__name__)
 
 
 def now_iso() -> str:
@@ -74,10 +79,20 @@ class OrderRepository:
             order=merge_imports(order, candidates),
             starters=memory_import.starters_from(brief),
             memory_count=len(brief.facts),
-            cv_readiness=(brief.profile.get("cv_readiness") or "").strip() or None,
+            # `cv_readiness` is NOT a user_profiles column — GET /users/me derives
+            # it from `has_baseline_cv`. Reading it off the profile dict returned
+            # None for everyone, so the review screen told users with a CV on file
+            # "No CV yet · add one" and sent them to a storage URL that asks for a
+            # login. Ask the canonical question instead.
+            cv_readiness="ready" if UsersRepository(self._db).has_baseline_cv(user_id) else "missing",
         )
 
-    def save(self, user_id: str, order: Order, *, ran: bool = False) -> Order:
+    def save(self, user_id: str, order: Order, *, ticket_id: str | None = None) -> Order:
+        """Unconditional write. The ONE caller is the run stamp, and there
+        last-writer-wins is the correct rule rather than a compromise: the run
+        has already been dispatched from exactly this order, so the row has to
+        end up matching what actually ran. Every other write goes through
+        `mutate` and its compare-and-set."""
         payload: dict[str, Any] = {
             "user_id": user_id,
             "said": order.said,
@@ -85,8 +100,9 @@ class OrderRepository:
             "log": [entry.to_dict() for entry in order.log],
             "updated_at": now_iso(),
         }
-        if ran:
+        if ticket_id:
             payload["last_run_at"] = payload["updated_at"]
+            payload["last_ticket_id"] = ticket_id
         self._db.table(_TABLE).upsert(payload, on_conflict="user_id").execute()
         return Order(
             said=order.said,
@@ -94,7 +110,87 @@ class OrderRepository:
             log=order.log,
             updated_at=payload["updated_at"],
             last_run_at=payload.get("last_run_at", order.last_run_at),
+            last_ticket_id=ticket_id or order.last_ticket_id,
         )
+
+    def mutate(self, user_id: str, apply: "Callable[[Order], Order]", *, attempts: int = 4) -> Order:
+        """Read-modify-write the order under compare-and-set.
+
+        `lines` is one jsonb document, so every answer rewrites the whole array.
+        Two clicks in flight at once — which is what tapping `yes` down a list of
+        thirteen produces — both read the same array and the second write erases
+        the first user's answer. Silently: the response looks right, the row is
+        wrong, and the run is dispatched from the row.
+
+        So the update is conditional on the `updated_at` it read. A loser
+        re-reads and re-applies rather than clobbering, and the operation is
+        expressed as a function of the CURRENT order precisely so replaying it is
+        meaningful. Client-side serialisation makes this rare; it does not make
+        it impossible, and two tabs make it certain.
+        """
+        for attempt in range(attempts):
+            bundle_order = self.load(user_id)
+            expected = bundle_order.updated_at
+            next_order = apply(bundle_order)
+            written = self._write(user_id, next_order, expected=expected)
+            if written is not None:
+                return written
+            logger.info("metric preflight.order_write_retry user=%s attempt=%s", user_id, attempt + 1)
+        # Every attempt lost. Better to fail the click than to overwrite an
+        # answer the user cannot see was lost.
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Your order changed somewhere else. Reopen it and try that again.",
+        )
+
+    def _write(self, user_id: str, order: Order, *, expected: str | None) -> Order | None:
+        """Persist iff the row still carries `expected`. None means someone
+        else wrote first."""
+        stamp = now_iso()
+        payload: dict[str, Any] = {
+            "said": order.said,
+            "lines": [line.to_dict() for line in order.lines],
+            "log": [entry.to_dict() for entry in order.log],
+            "updated_at": stamp,
+        }
+        if expected is None:
+            # No row yet. Upsert: the only way to lose here is two concurrent
+            # FIRST-EVER writes for one user, where last-writer-wins is the
+            # same outcome either way.
+            self._db.table(_TABLE).upsert({**payload, "user_id": user_id}, on_conflict="user_id").execute()
+        else:
+            result = (
+                self._db.table(_TABLE)
+                .update(payload)
+                .eq("user_id", user_id)
+                .eq("updated_at", expected)
+                .execute()
+            )
+            if not (result.data or []):
+                return None
+        return replace(order, updated_at=stamp)
+
+    def recent_run(self, user_id: str, *, within_seconds: int) -> str | None:
+        """The ticket this order started moments ago, if it is still that recent.
+
+        The idempotency key for POST /preflight/run. A client-side in-flight
+        guard is necessary and not sufficient — it does not survive two tabs, a
+        reload, or a retry after a timeout, and every extra call that reaches the
+        server is another 100 coins off the user's wallet.
+        """
+        row = self._row(user_id) or {}
+        ticket = (row.get("last_ticket_id") or "").strip()
+        stamped = row.get("last_run_at")
+        if not ticket or not stamped:
+            return None
+        try:
+            started = datetime.fromisoformat(str(stamped).replace("Z", "+00:00"))
+        except ValueError:
+            return None
+        if started.tzinfo is None:
+            started = started.replace(tzinfo=timezone.utc)
+        age = (datetime.now(timezone.utc) - started).total_seconds()
+        return ticket if 0 <= age <= within_seconds else None
 
 
 def get_order_repository(db: Client = Depends(get_user_db)) -> OrderRepository:

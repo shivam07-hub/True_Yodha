@@ -52,6 +52,13 @@ class JobRefresh:
         )
 
     @staticmethod
+    async def status_or_none(user_id: str, ticket_id: str) -> RefreshState | None:
+        """`status` without the 404. For callers asking "is this run still
+        live?" — an expired ticket is an answer there, not an error, and
+        raising one to catch it makes absence look like a failure."""
+        return _dispatch.read_state(user_id, ticket_id)
+
+    @staticmethod
     async def status(user_id: str, ticket_id: str) -> RefreshState:
         """Read the latest state for the given ticket. 404 if unknown."""
         state = _dispatch.read_state(user_id, ticket_id)

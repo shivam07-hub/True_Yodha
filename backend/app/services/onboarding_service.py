@@ -198,10 +198,12 @@ def replace_authored_leans(db: Client, user_id: str, leans: list[str]) -> bool:
         current = [(row.get("text") or "").strip() for row in existing]
         if current == leans:
             return False
-        for row in existing:
-            repo.delete(user_id, str(row.get("id")))
-        for text in leans:
-            repo.add(user_id, kind=_LEAN_KIND, text=text, source="authored")
+        # Two round trips, not one per lean. This ran inside POST /preflight/run,
+        # which starts the user's search: a user with 19 confirmed leans paid
+        # 19 deletes + 19 inserts sequentially against a shared Postgres, and the
+        # client hit its 15s timeout before the run was ever dispatched.
+        repo.delete_many(user_id, [str(row.get("id")) for row in existing])
+        repo.add_many(user_id, [{"kind": _LEAN_KIND, "text": text} for text in leans])
         return True
     except Exception as exc:  # noqa: BLE001 — the direction itself is already saved
         logger.warning(
