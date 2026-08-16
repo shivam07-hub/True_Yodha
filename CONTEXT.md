@@ -483,7 +483,7 @@ Three rules, in the order a payload meets them:
 
 - **Read — normalize.** `CVVersionsRepository` normalizes `cv_structured` on the way out (`latest_baseline`, `find`, `find_by_content_hash`, `find_master_revision`), so no reader can fail on the shape of what an earlier writer left behind. Structural only: fill missing sections, coerce types, **never alter content** — trimming and the 300-char bullet cap are ingest hygiene (`coerce_sections(ingest=True)`), and applying them on read would silently shorten a bullet the user typed.
 - **"Do we have a CV?" — `has_content`, not truthiness.** Everything is truthy after normalization, and a payload holding only `contact` is an identity header, not a CV. `has_content` is what the 409 gates in weave / merge / skill-edit / gap-plan / reservoir ask.
-- **Write — reject a partial.** `create`, `update_structured` and `update_master` refuse a payload missing any contract key. `{}` / NULL stays legal: it means "not parsed yet", and `get_or_backfill_cv_structured` rebuilds it from `body_text` on first read.
+- **Write — reject a partial.** `create`, `update_structured` and `update_master` refuse a payload missing any contract key. `{}` / NULL stays legal: it means "not parsed yet". First-run display reads `body_text` from `GET /cv/versions` and upgrades when `cv_structured` has content. `get_or_backfill_cv_structured` (`GET /cv/structured`) is a repair for the editor, not the first-run load path.
 
 Why normalization lives on read and not only on write: the incident that produced this contract came from an **offline repair script writing to the table directly**. A guarantee that binds only callers who went through the repository is not a guarantee. Migrations, admin updates and scripts are all upstream of the write seam and downstream of the read one.
 
@@ -970,7 +970,7 @@ The product-level invariant the whole Background Job system serves: **once a use
 ## Work Lane
 
 A named RQ queue carrying Background Jobs at one urgency. Exactly two:
-- **fast** — a user is staring at a loading screen: CV upload parse+score, paid Job Refresh, **the initial match-compute** (the onboarding result screen polls for its shortlist every 2.5s — the most-watched job in the product), **CV layout enrichment** (`cv_structured_enrich`: the user is not blocked on it, but the CV playground where onboarding ends is).
+- **fast** — a user is staring at a loading screen: CV upload parse+score, paid Job Refresh, **the initial match-compute** (the onboarding result screen polls for its shortlist every 2.5s — the most-watched job in the product), **CV layout enrichment** (`cv_structured_enrich`: upgrades `cv_structured` in the background. First-run display reads `body_text` immediately and is not gated on this job).
 - **bulk** — nobody is waiting: skill-edit re-tag.
 
 The lane is a claim about **whether someone is waiting**, not about how heavy the work is. Filing a watched job under bulk is how it ends up behind an unwatched queue — which is exactly what put the layout parse, and briefly the initial match, on the wrong side of a user's spinner.

@@ -3,7 +3,7 @@ import test from "node:test"
 
 import { renderToStaticMarkup } from "react-dom/server"
 
-import { FirstRunCvPaper } from "../components/onboarding/first-run-cv-pane"
+import { FirstRunCvBody, FirstRunCvPaper } from "../components/onboarding/first-run-cv-pane"
 import type { CVStructured } from "../lib/api"
 
 const cv: CVStructured = {
@@ -37,4 +37,14 @@ test("the onboarding CV paper prints the parsed roles and bullets", () => {
   assert.match(markup, /Capgemini GCC Growth/)
   assert.match(markup, /Led a team of 20\+ campus SPOCS across India/)
   assert.match(markup, /Team Leadership, Business Development/)
+})
+
+test("the extracted CV text is the first-paint document when layout JSON is still empty", () => {
+  const markup = renderToStaticMarkup(
+    <FirstRunCvBody text={"ANURAAG KUMAR\nEXPERIENCE\n- Shipped a thing"} />,
+  )
+
+  assert.match(markup, /ANURAAG KUMAR/)
+  assert.match(markup, /Shipped a thing/)
+  assert.match(markup, /whitespace-pre-wrap/)
 })

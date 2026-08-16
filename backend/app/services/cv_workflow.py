@@ -814,17 +814,16 @@ async def _run_cv_upload_stages(
     # role VERBATIM (the skills call asks for 3,072) — dense CVs pay it, short ones
     # do not.
     #
-    # Nothing on the screen behind that wait reads it. `FirstRunSkillReview` renders
-    # `skills` and `baseline_version_id` only; the score, the direction step and the
-    # shortlist are all built on skills. Layout is first needed by the CV playground,
-    # which the user reaches after reviewing skills, choosing a direction and picking
-    # a role — minutes later — and which already renders `CvDocumentSkeleton` while
-    # it waits.
+    # First-run display must not wait on that JSON. Upload already persisted
+    # `body_text` (the extracted CV). The onboarding playground paints that text
+    # immediately and upgrades to the sectioned paper when this job writes
+    # `cv_structured`. `GET /cv/structured` can still rebuild from `body_text` as
+    # a repair for the editor — it is not the first-run load path.
     #
-    # So it is always deferred, not only when it fails. `cv_structured = NULL` is a
-    # supported state (`get_or_backfill_cv_structured` rebuilds it on first read),
-    # and enqueueing unconditionally also removes the failure asymmetry that let a
-    # malformed-JSON layout response fail a good analysis.
+    # So layout is always deferred, not only when it fails. `cv_structured = NULL`
+    # is a supported display state, and enqueueing unconditionally also removes
+    # the failure asymmetry that let a malformed-JSON layout response fail a
+    # good analysis.
 
     # Claim before writing. Everything above was read-only against the job row;
     # this is the first irreversible write, and by now minutes of LLM work have

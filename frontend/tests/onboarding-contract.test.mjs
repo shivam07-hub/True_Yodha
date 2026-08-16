@@ -77,7 +77,6 @@ test("skill confirmation is the score and matching trust gate", () => {
   const review = read("components/onboarding/first-run-skill-review.tsx")
   const playground = read("components/onboarding/first-run-playground.tsx")
   const pane = read("components/onboarding/first-run-cv-pane.tsx")
-  const api = read("lib/api.ts")
   assert.match(review, /onboarding\.confirmSkills/)
   assert.match(review, /keptCount < 1/, "confirming an empty skill set must stay blocked")
   assert.match(playground, /\{chrome\.keptCount\}/, "the kept count must be rendered, not just computed")
@@ -90,14 +89,12 @@ test("skill confirmation is the score and matching trust gate", () => {
   assert.match(playground, /data-tab/)
   assert.match(pane, /Your Main CV/)
   assert.match(pane, /cvb-pgc-paper/)
-  assert.match(pane, /cv\.structured/, "layout is the backfill read, not a versions poll")
+  assert.match(pane, /versions\.list/, "first paint is a versions read, not an LLM GET")
+  assert.match(pane, /body_text/, "the extracted CV is already on the row")
+  assert.match(pane, /FirstRunCvBody/)
   assert.match(pane, /FirstRunCvPaperSkeleton/)
+  assert.doesNotMatch(pane, /cv\.structured/)
   assert.doesNotMatch(pane, /Laying out|confirm skills now/)
-  assert.match(
-    api.slice(api.indexOf("structured: (token: string)"), api.indexOf("saveMaster:")),
-    /timeoutMs: LLM_REQUEST_TIMEOUT_MS/,
-    "the layout read is an LLM backfill and must not die at the 15s default",
-  )
   assert.doesNotMatch(review, /score/i, "step one must not promise a score before direction exists")
   assert.doesNotMatch(playground, /Myro Score/)
   assert.doesNotMatch(playground, /\/100/)
