@@ -79,9 +79,10 @@ test("skill confirmation is the score and matching trust gate", () => {
   const pane = read("components/onboarding/first-run-cv-pane.tsx")
   assert.match(review, /onboarding\.confirmSkills/)
   assert.match(review, /keptCount < 1/, "confirming an empty skill set must stay blocked")
-  assert.match(playground, /chrome\.keptCount/, "the kept count must be rendered, not just computed")
-  assert.match(playground, /canApply=\{chrome\.keptCount >= 1 && !chrome\.busy\}/, "confirm stays gated on the count")
+  assert.match(playground, /\{chrome\.keptCount\}/, "the kept count must be rendered, not just computed")
+  assert.match(playground, /disabled=\{chrome\.busy \|\| chrome\.keptCount < 1\}/, "confirm stays gated on the count")
   assert.match(playground, /Looks right/)
+  assert.match(playground, /StickyOnboardingActionBar/)
   assert.match(playground, /PlaygroundHeader/)
   assert.match(playground, /FirstRunCvPane/)
   assert.match(playground, /cvb-v2-bottomnav/)
@@ -91,7 +92,6 @@ test("skill confirmation is the score and matching trust gate", () => {
   assert.doesNotMatch(review, /score/i, "step one must not promise a score before direction exists")
   assert.doesNotMatch(playground, /Myro Score/)
   assert.doesNotMatch(playground, /\/100/)
-  assert.doesNotMatch(playground, /StickyOnboardingActionBar/)
 })
 
 test("first-success checklist reads and dismisses durable server state", () => {

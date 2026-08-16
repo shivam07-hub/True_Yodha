@@ -88,6 +88,8 @@ interface PlaygroundHeaderProps {
   statusValue?: number
   /** Hide the back crumb when this surface has nowhere behind it. */
   hideBack?: boolean
+  /** Hide the primary header button when the action lives elsewhere. */
+  hideApply?: boolean
   /** Crumb label. Default matches the library/playground back action. */
   backLabel?: string
   /** When set (imported jobs only), the job line becomes editable — the parser
@@ -99,7 +101,8 @@ export function PlaygroundHeader({
   jobTitle, company, reqCount, ready, delta, canApply, applyHint, saveState,
   onBack, onReqPill, onApply, onDownload,
   variant = "job", masterMeta, onMeta, primaryLabel = "Apply with this CV", hideOverflow,
-  brandLabel, scoreCaption, hideScore, statusValue, hideBack, backLabel = "Back to CV library",
+  brandLabel, scoreCaption, hideScore, statusValue, hideBack, hideApply,
+  backLabel = "Back to CV library",
   onSaveJobMeta,
 }: PlaygroundHeaderProps) {
   const shown = useCountUp(ready)
@@ -175,14 +178,16 @@ export function PlaygroundHeader({
       {saveState && <span className="cvb-v2-savestate mono" role="status" aria-live="polite">{saveState}</span>}
 
       {hideScore ? (
-        <div className="cvb-v2-score">
-          <div className="cvb-v2-score-nums">
-            {statusValue != null && (
-              <span className="cvb-v2-score-num mono tabnum">{statusValue}</span>
-            )}
-            {scoreCaption && <span className="cvb-v2-score-cap mono">{scoreCaption}</span>}
+        (statusValue != null || scoreCaption) ? (
+          <div className="cvb-v2-score">
+            <div className="cvb-v2-score-nums">
+              {statusValue != null && (
+                <span className="cvb-v2-score-num mono tabnum">{statusValue}</span>
+              )}
+              {scoreCaption && <span className="cvb-v2-score-cap mono">{scoreCaption}</span>}
+            </div>
           </div>
-        </div>
+        ) : null
       ) : (
         <div className="cvb-v2-score" data-band={scoreBand(shown)}>
           <div className="cvb-v2-score-nums">
@@ -198,15 +203,17 @@ export function PlaygroundHeader({
 
       {!isMaster && delta > 0 && <span className="cvb-v2-deltachip mono">▲ +{delta} raised</span>}
 
-      <button
-        type="button"
-        className="cvb-v2-applybtn"
-        onClick={onApply}
-        disabled={!canApply}
-        title={applyHint}
-      >
-        {primaryLabel}
-      </button>
+      {!hideApply && (
+        <button
+          type="button"
+          className="cvb-v2-applybtn"
+          onClick={onApply}
+          disabled={!canApply}
+          title={applyHint}
+        >
+          {primaryLabel}
+        </button>
+      )}
 
       {!hideOverflow && (
         <div className="cvb-pgc-overflow">

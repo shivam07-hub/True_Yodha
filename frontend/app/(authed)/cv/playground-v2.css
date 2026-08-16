@@ -548,6 +548,18 @@
   .cvb-v2-bulletpill { min-height: 28px; }
   .cvb-v2-applyfoot .cvb-v2-applywide.grow { flex: 1 1 100%; }
 }
+
+/* Onboarding skill confirm: the sticky action bar stays at the bottom. Mobile
+   pane tabs sit above it so CV / Skills never cover Looks right. */
+.cvb-v2--onboarding { padding-bottom: 7rem; }
+.cvb-v2--onboarding .cvb-v2-rail { height: calc(100dvh - 64px - 7rem); }
+@media (max-width: 900px) {
+  .cvb-v2.cvb-v2--onboarding { padding-bottom: calc(72px + 7rem); }
+  .cvb-v2--onboarding .cvb-v2-rail { height: auto; }
+  .cvb-v2--onboarding .cvb-v2-bottomnav {
+    bottom: calc(7rem + env(safe-area-inset-bottom));
+  }
+}
 .cvb-upload-continue {
   display: flex;
   align-items: center;

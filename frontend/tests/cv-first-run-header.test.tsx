@@ -34,7 +34,7 @@ test("main CV keeps its completion action in the compact header", () => {
   assert.match(markup, />Done<\/button>/)
 })
 
-test("first-run header shows kept count instead of a meter", () => {
+test("first-run header names the step and leaves the action to the sticky bar", () => {
   const markup = renderToStaticMarkup(
     <PlaygroundHeader
       variant="master"
@@ -45,15 +45,14 @@ test("first-run header shows kept count instead of a meter", () => {
       reqCount={0}
       ready={0}
       delta={0}
-      canApply
-      applyHint="Confirm these skills"
+      canApply={false}
+      applyHint=""
       saveState=""
-      primaryLabel="Looks right →"
+      primaryLabel=""
       hideScore
+      hideApply
       hideBack
       hideOverflow
-      statusValue={20}
-      scoreCaption="kept"
       onBack={() => {}}
       onReqPill={() => {}}
       onApply={() => {}}
@@ -62,10 +61,9 @@ test("first-run header shows kept count instead of a meter", () => {
   )
 
   assert.match(markup, /Your CV · 1 of 2/)
-  assert.match(markup, />20<\/span>/)
-  assert.match(markup, /kept/)
-  assert.match(markup, /Looks right →/)
+  assert.doesNotMatch(markup, /Looks right/)
   assert.doesNotMatch(markup, /\/100/)
   assert.doesNotMatch(markup, /cvb-v2-score-bar/)
+  assert.doesNotMatch(markup, /cvb-v2-applybtn/)
   assert.doesNotMatch(markup, /cvb-v2-crumb/)
 })
