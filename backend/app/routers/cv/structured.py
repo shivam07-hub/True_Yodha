@@ -71,16 +71,17 @@ class MasterRevisionListResponse(BaseModel):
 
 
 @router.get("/structured", response_model=CVStructuredResponse)
-async def get_cv_structured(
+def get_cv_structured(
     principal: Principal = Depends(get_principal),
     cv_repo: CVRepository = Depends(get_token_cv_repository),
 ) -> CVStructuredResponse:
-    """Return latest cv_structured for the user. Lazy backfill on first call if NULL."""
-    payload = await cv_workflow.get_or_backfill_cv_structured(cv_repo, principal.id)
+    """Return stored cv_structured. Durable Answer — never a model."""
+    payload = cv_workflow.get_stored_cv_structured(cv_repo, principal.id)
     if payload is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No baseline CV uploaded. Upload one first.",
+            detail="No structured CV stored.",
+            headers={"X-Myro-Error-Code": "cv_layout_pending"},
         )
     return CVStructuredResponse(**payload)
 

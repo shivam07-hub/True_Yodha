@@ -54,7 +54,7 @@ interface MasterWorkspaceProps {
 
 export function MasterWorkspace({ token, baseline, cv, profile, onDone }: MasterWorkspaceProps) {
   const userKey = profile?.ninja_name?.trim() || profile?.email?.trim() || "anon"
-  const autosave = useMasterAutosave({ token, enabled: true, userKey })
+  const autosave = useMasterAutosave({ token, enabled: true, userKey, seed: cv })
   const searchParams = useSearchParams()
   // Deep-link: ?tab=skills opens straight on the Skills rail (the skill-audit home).
   const initialTab: MasterTab = searchParams.get("tab") === "skills" ? "skills" : "edit"
@@ -98,7 +98,7 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
   })
 
   useEffect(() => {
-    if (!requestedMentorSkill || mentorResolved || !skillsQuery.isSuccess || !autosave.ready) return
+    if (!requestedMentorSkill || mentorResolved || !skillsQuery.isSuccess) return
     const target = mentorRewriteTarget(draft, allSkills, requestedMentorSkill)
     setMentorResolved(true)
     if (target) {
@@ -107,7 +107,7 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
     } else {
       setMentorMiss(true)
     }
-  }, [allSkills, autosave.ready, draft, mentorResolved, requestedMentorSkill, skillsQuery.isSuccess])
+  }, [allSkills, draft, mentorResolved, requestedMentorSkill, skillsQuery.isSuccess])
 
   const openFixIds = useMemo(() => new Set(m.openFixes.map(f => f.id)), [m.openFixes])
   const appliedShown = appliedFixes.filter(a => !openFixIds.has(a.id))
@@ -152,11 +152,11 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
   }, [addingProven, onPatch, token])
 
   useEffect(() => {
-    if (!requestedProvenSkill || !autosave.ready || provenHandoffHandled.current) return
+    if (!requestedProvenSkill || provenHandoffHandled.current) return
     provenHandoffHandled.current = true
     setTab("skills")
     void addProvenToLine(requestedProvenSkill)
-  }, [addProvenToLine, autosave.ready, requestedProvenSkill])
+  }, [addProvenToLine, requestedProvenSkill])
 
   // A bullet rewrite / inline edit targets one line by its exact text (the same
   // text-identity the playground uses). First occurrence wins.
@@ -216,10 +216,6 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
     : autosave.status === "error" ? "Couldn’t save"
     : autosave.recomputePending ? "Saved · re-scoring"
     : autosave.status === "saved" ? "Saved" : ""
-
-  if (!autosave.ready || !autosave.draft) {
-    return <div className="cvb-v2-loading">Loading your CV…</div>
-  }
 
   return (
     <div className="cvb-v2" data-tab={tab}>

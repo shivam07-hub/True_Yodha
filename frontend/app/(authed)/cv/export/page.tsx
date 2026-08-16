@@ -30,7 +30,8 @@ function CVExportPage() {
   const matchScore = Number(searchParams.get("score") ?? 0)
 
   const playground = useCVPlayground({ token, jobId, enabled: !!ready && !!token && !!jobId })
-  const cvData = playground.structuredQuery.data ?? null
+  const cvData = playground.structured
+  const bodyText = playground.currentBaseline?.body_text?.trim() ?? ""
   const hasBaseline = playground.baselines.length > 0
 
   const profileQuery = useQuery({
@@ -96,11 +97,9 @@ function CVExportPage() {
             onBack={() => router.push(`/cv?jobId=${encodeURIComponent(jobId)}`)}
             backLabel="Back to playground"
           />
-        ) : (
-          <div style={{ padding: 32, textAlign: "center", color: "var(--tm-text-faint)", fontSize: 12 }}>
-            Loading your CV…
-          </div>
-        )}
+        ) : bodyText ? (
+          <pre className="whitespace-pre-wrap p-8 text-sm leading-6 text-[var(--tm-text)]">{bodyText}</pre>
+        ) : null}
       </div>
     </div>
   )

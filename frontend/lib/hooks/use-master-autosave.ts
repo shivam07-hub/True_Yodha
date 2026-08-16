@@ -14,8 +14,9 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { cv } from "@/lib/api"
-import type { CVStructured } from "@/lib/api"
+import type { CVStructured, CVVersion } from "@/lib/api"
 import { dataKeys, invalidateScoreData, invalidateScoreMapData } from "@/lib/domain-data"
+import { hasCvContent, latestBaseline } from "@/lib/cv/durable-answer"
 import {
   cvStructuredEqual,
   masterDraftKey,
@@ -33,6 +34,8 @@ interface Args {
   enabled: boolean
   /** Stable per-user key for the recovery draft (e.g. ninja_name or user id). */
   userKey: string
+  /** Already-loaded paper JSON. Display owns this; the hook must not wait on a second GET. */
+  seed?: CVStructured | null
 }
 
 export interface MasterAutosaveState {
@@ -44,19 +47,22 @@ export interface MasterAutosaveState {
   saveNow: () => void
 }
 
-export function useMasterAutosave({ token, enabled, userKey }: Args): MasterAutosaveState {
+export function useMasterAutosave({ token, enabled, userKey, seed = null }: Args): MasterAutosaveState {
   const queryClient = useQueryClient()
   const [draft, setDraft] = useState<CVStructured | null>(null)
   const [status, setStatus] = useState<SaveStatus>("idle")
   const [recomputePending, setRecomputePending] = useState(false)
 
-  const structuredQuery = useQuery({
-    queryKey: dataKeys.cvStructured(),
-    queryFn: () => cv.structured(token!),
+  const versionsQuery = useQuery({
+    queryKey: dataKeys.cvVersions(null),
+    queryFn: () => cv.versions.list(token!, null),
     enabled: enabled && !!token,
     retry: false,
-    staleTime: 10 * 60 * 1000,
+    staleTime: 10 * 1000,
   })
+  const baseline = latestBaseline(versionsQuery.data?.versions)
+  const stored = baseline?.cv_structured
+  const serverStructured = hasCvContent(stored) ? stored : (hasCvContent(seed) ? seed : null)
 
   const draftKey = masterDraftKey(userKey)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -66,18 +72,18 @@ export function useMasterAutosave({ token, enabled, userKey }: Args): MasterAuto
   // Hydrate the draft once the server copy arrives, recovering a divergent
   // persisted draft (user reloaded mid-edit before the save landed).
   useEffect(() => {
-    if (draft != null || !structuredQuery.data) return
+    if (draft != null || !serverStructured) return
     const persisted = typeof window !== "undefined"
       ? parsePersistedDraft(window.sessionStorage.getItem(draftKey))
       : null
-    const initial = pickInitialDraft(structuredQuery.data, persisted)
-    serverRef.current = structuredQuery.data
+    const initial = pickInitialDraft(serverStructured, persisted)
+    serverRef.current = serverStructured
     latestRef.current = initial
     setDraft(initial)
-    if (persisted && initial && !cvStructuredEqual(structuredQuery.data, initial)) {
+    if (persisted && initial && !cvStructuredEqual(serverStructured, initial)) {
       setStatus("idle") // recovered unsaved edits — let the user re-trigger a save
     }
-  }, [structuredQuery.data, draft, draftKey])
+  }, [serverStructured, draft, draftKey])
 
   const pollRecompute = useCallback((baselineId: number) => {
     if (!token) return
@@ -89,7 +95,7 @@ export function useMasterAutosave({ token, enabled, userKey }: Args): MasterAuto
         if (res.recompute_finished_at) {
           setRecomputePending(false)
           invalidateScoreMapData(queryClient)
-          queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
+          queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
           return
         }
       } catch {
@@ -131,7 +137,16 @@ export function useMasterAutosave({ token, enabled, userKey }: Args): MasterAuto
     // The Hub and export preview subscribe to the same structured query. Keep
     // them in lockstep with the local draft instead of showing stale content
     // until the async re-tag finishes.
-    queryClient.setQueryData(dataKeys.cvStructured(), next)
+    queryClient.setQueryData<{ versions: CVVersion[] }>(dataKeys.cvVersions(null), (old) => {
+      if (!old) return old
+      const row = latestBaseline(old.versions)
+      if (!row) return old
+      return {
+        versions: old.versions.map((version) => (
+          version.id === row.id ? { ...version, cv_structured: next } : version
+        )),
+      }
+    })
     try { window.sessionStorage.setItem(draftKey, JSON.stringify(next)) } catch { /* private mode */ }
     setStatus("saving")
     if (debounceRef.current) clearTimeout(debounceRef.current)

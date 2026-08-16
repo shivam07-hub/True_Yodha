@@ -56,5 +56,5 @@ test("fresh and future timestamps cannot render negative relative time", () => {
 })
 
 test("autosave updates Hub and preview query state immediately", () => {
-  assert.match(autosave, /setQueryData\(dataKeys\.cvStructured\(\), next\)/)
+  assert.match(autosave, /setQueryData<{ versions: CVVersion\[\] }>\(dataKeys\.cvVersions\(null\)/)
 })

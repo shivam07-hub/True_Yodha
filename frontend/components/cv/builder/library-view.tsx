@@ -10,8 +10,8 @@
 
 import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
+import Link from "next/link"
 import type { ApplicationResponse, CVStructured, CVVersion, UserProfile } from "@/lib/api"
-import { CvDocumentSkeleton } from "@/components/loading/page-skeletons"
 import { CvTabView } from "./cv-tab-view"
 import { MemoryPanel } from "./memory-panel"
 import { ReservoirProfile } from "./reservoir-profile"
@@ -72,9 +72,27 @@ export function LibraryView({
         </div>
       )
     }
-    // Defensive fallback for any future caller that does not gate structured
-    // loading at the page boundary.
-    if (!cv) return <div className="tm-mcv-stories"><CvDocumentSkeleton /></div>
+    if (!cv) {
+      const text = currentBaseline?.body_text?.trim() ?? ""
+      return (
+        <div className="tm-mcv-stories">
+          <FlowRibbon
+            view={view}
+            actions={(
+              <>
+                <Link href="/cv?view=stories" className="tm-lib-btn sm">Add points</Link>
+                <button type="button" className="tm-lib-btn primary sm" onClick={onReplaceCV}>
+                  {text ? "Replace" : "Upload Main CV"}
+                </button>
+              </>
+            )}
+          />
+          {text ? (
+            <pre className="whitespace-pre-wrap p-4 text-sm leading-6 text-[var(--tm-text)]">{text}</pre>
+          ) : null}
+        </div>
+      )
+    }
     return (
       <MobileCVHub
         token={token}
@@ -96,6 +114,11 @@ export function LibraryView({
             view={view}
             actions={view === "cv" ? (
               <>
+                {!cv && (
+                  <Link href="/cv?view=stories" className="tm-lib-btn sm">
+                    <LIcon d={I.plus} size={12}/> Add points
+                  </Link>
+                )}
                 <button type="button" className="tm-lib-btn sm" onClick={onEditMaster} disabled={!canEditMaster}>
                   <LIcon d={I.edit ?? I.file} size={12}/> Edit
                 </button>

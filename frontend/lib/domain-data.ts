@@ -99,7 +99,6 @@ export function invalidateScoreMapData(queryClient: QueryClient): void {
 
 export function invalidateCvData(queryClient: QueryClient): void {
   queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
-  queryClient.invalidateQueries({ queryKey: dataKeys.cvStructured() })
   queryClient.invalidateQueries({ queryKey: dataKeys.cvEvidence() })
   invalidateScoreMapData(queryClient)
   // A new CV re-scores every job → the market feed + the brain's ranked shortlist

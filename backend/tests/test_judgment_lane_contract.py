@@ -6,7 +6,7 @@ to enforce it exists — `JUDGMENT_OR_TIERS` drops any tier containing a model i
 missing was anything checking that the ranking ROUTES actually use it.
 
 They did not. Until 2026-08-04, `POST /jobs/feed/warm` (which decides the ten
-cards a user sees first), `POST /jobs/{id}/brain` (the verdict and grade) and
+cards a user sees first), the on-open brain write, and
 `POST /jobs/analyse/{id}/stream` (the fit rationale, charged at 10 XP) all depended on
 `get_interactive_provider`, whose lead tier is `google/gemma-3-4b-it` — the model
 the tier table itself names for ranking banker jobs to a senior SWE with zero
@@ -14,7 +14,8 @@ errors. A confidently-wrong shortlist is invisible to fallback logic: nothing
 errors, nothing retries, and the user simply gets the wrong jobs.
 
 So the contract is asserted where it can be checked mechanically: at the route's
-dependency, and at the resolved model list.
+dependency, and at the resolved model list. `POST /jobs/{id}/brain` is a Durable
+Answer read that enqueues `job_brain_eval`; the worker is the judgment path.
 """
 
 from __future__ import annotations
@@ -28,7 +29,6 @@ from app.services import llm_provider as lp
 # Add a route here the day it starts asking a model "is this job good for them".
 JUDGMENT_ROUTES = {
     ("POST", "/jobs/feed/warm"),
-    ("POST", "/jobs/{job_id}/brain"),
     ("POST", "/jobs/analyse/{job_id}/stream"),
 }
 
@@ -77,6 +77,28 @@ def test_every_judgment_route_uses_a_judgment_safe_provider() -> None:
             )
     missing = JUDGMENT_ROUTES - seen
     assert not missing, f"judgment routes vanished from the app — renamed or deleted? {missing}"
+
+
+def test_opening_a_job_does_not_resolve_a_model_on_the_request() -> None:
+    for route in app.routes:
+        if not isinstance(route, APIRoute):
+            continue
+        if route.path != "/jobs/{job_id}/brain" or "POST" not in route.methods:
+            continue
+        assert not _provider_factories_for(route), (
+            "POST /jobs/{job_id}/brain is a Durable Answer — a provider "
+            "dependency means the request can wait on a model"
+        )
+        return
+    raise AssertionError("POST /jobs/{job_id}/brain vanished from the app")
+
+
+def test_job_brain_eval_worker_uses_the_judgment_provider() -> None:
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parents[1] / "app/services/matching/on_demand.py").read_text()
+    assert "get_judgment_provider" in src
+    assert '@background.handler("job_brain_eval")' in src
 
 
 def test_judgment_safe_factories_cannot_reach_a_small_model() -> None:

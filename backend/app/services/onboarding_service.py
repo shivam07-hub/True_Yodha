@@ -4,7 +4,6 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-from datetime import datetime, timezone
 from typing import Any
 
 from supabase import Client
@@ -648,12 +647,10 @@ def enqueue_score_refresh(
 ) -> bool:
     """Ask for this user's score to be (re)computed in the background.
 
-    ONE enqueue seam, deliberately shared by the two callers that want a score:
-    the skill-confirmation step, which now hands the computation off rather than
-    making the user watch it, and `_heal_missing_score`, which repairs a score
-    that never landed. They share the debounce claim as well as the code, so a
-    confirm immediately followed by a result read cannot enqueue the same work
-    twice — the read's heal sees the claim already taken and does nothing.
+    ONE enqueue seam for callers that want a score: skill confirmation hands
+    the computation off rather than making the user watch it. Debounced so a
+    confirm immediately followed by another refresh cannot enqueue the same
+    work twice.
 
     ``force`` bypasses the debounce when confirmed skills differ from the
     provisional set (user excluded something). ``score_fresh`` tells the worker
@@ -687,138 +684,6 @@ def enqueue_score_refresh(
             user_id, reason, exc.__class__.__name__,
         )
         return False
-
-
-def _heal_missing_score(user_id: str) -> None:
-    """Re-enqueue the score job for a user whose skills and direction are both in,
-    but whose score never landed.
-
-    This branch used to be a pure read, which made a lost job permanent: RQ
-    retried three times, exhausted, and `get_result` then answered
-    `full_result_processing` forever. Three prod users sat there after the
-    2026-07-31 `domain_skill_counts` outage with no path back except a support
-    ticket — the poll that was supposed to reveal the score was the only thing
-    still running, and it asked for nothing.
-    """
-    enqueue_score_refresh(user_id, reason="heal")
-
-
-_MATCH_GRACE_SECONDS = 300
-_MATCH_HEAL_WINDOW_SECONDS = 300
-
-
-def _parse_ts(value: Any) -> datetime | None:
-    if not value:
-        return None
-    try:
-        parsed = datetime.fromisoformat(str(value))
-    except (TypeError, ValueError):
-        return None
-    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
-
-
-def _heal_outstanding_matches(user_id: str) -> None:
-    """Re-run a match that was enqueued for this direction and never landed.
-
-    Same shape as `_heal_missing_score`, for the same reason: a read that can
-    only report leaves a lost job lost forever, and the poll asking about it is
-    the one thing still running. Debounced and fail-soft — a repair must not
-    become the next incident, and it must never take down the screen it repairs.
-    """
-    if not background.claim(f"match-heal:{user_id}", _MATCH_HEAL_WINDOW_SECONDS):
-        return
-    try:
-        background.enqueue(
-            background.LANE_FAST,
-            "initial_match",
-            payload={"user_id": user_id, "force_context_refresh": True},
-            correlation_id=f"match-heal:{user_id}",
-        )
-        logger.info("metric onboarding.match_heal_enqueued user=%s", user_id)
-    except Exception as exc:  # noqa: BLE001 — never fail the result read
-        logger.warning(
-            "metric onboarding.match_heal_failed user=%s exc=%s",
-            user_id, exc.__class__.__name__,
-        )
-
-
-def _shortlist(
-    db: Client,
-    user_id: str,
-    profile: dict[str, Any],
-    baseline_version_id: int,
-    context_hash: str,
-) -> tuple[list[dict[str, Any]], str]:
-    """The first shortlist, scoped to the direction that produced it.
-
-    Returns `(rows, status)` where status is one of:
-
-    - ``ready``       — matches exist and carry the brain's verdict.
-    - ``provisional`` — matches exist and are usable, but the deep eval is still
-      running, so their scores will sharpen. Rows are triaged, not raw overlap.
-    - ``computing``   — a run for this direction is outstanding and still young.
-    - ``stalled``     — outstanding past the grace window; re-enqueued, and the
-      user is told rather than left watching a spinner forever.
-    - ``empty``       — the run for this direction finished and matched nothing.
-    - ``stale_direction`` — a run finished, but for a different direction than the
-      one on screen. The user has matches; none were computed for this target. The
-      surface asks for a Myro Ops Search rather than auto-enqueueing one — the user
-      pulls the run (same contract as new-inventory).
-
-    The status is derived, not guessed: `last_match_run_at` is stamped only by
-    `match_run.run_match` on completion, and `target_updated_at` only by a
-    direction change, so `ran >= changed` is a fact about work that finished
-    for the direction currently on screen.
-    """
-    from app.routers.jobs._shared import last_monday, to_job_match
-
-    rows = JobsRepository(db).get_matches_for_context(
-        user_id, baseline_version_id, context_hash, limit=3
-    )
-    ran_at = _parse_ts(profile.get("last_match_run_at"))
-    changed_at = _parse_ts(profile.get("target_updated_at"))
-    run_finished = bool(ran_at and changed_at and ran_at >= changed_at)
-    if rows:
-        batch_week = last_monday()
-        matches = [to_job_match(row, batch_week).model_dump(mode="json") for row in rows]
-        # A row with no verdict is a Provisional Match — the shortlist is triaged
-        # and worth choosing from, but the deep eval has not scored it yet. Saying
-        # so is what keeps the client watching for the upgrade; reporting `ready`
-        # here stopped its poll and froze the screen on numbers that were about to
-        # change. Once the run has finished, whatever a row still lacks is not
-        # coming, so it is honestly final.
-        unrated = any(match.get("verdict") == "checking" for match in matches)
-        return matches, "provisional" if unrated and not run_finished else "ready"
-
-    if run_finished:
-        # Which direction did that finished run actually cover? `last_match_run_at`
-        # only says a run happened; `last_match_context_hash` says what it ran
-        # against. Reading the first as an answer to the second is what made every
-        # unmatched context report "the market genuinely has no overlap" — 162 of
-        # 196 users, over 1,289 real match rows they could not see.
-        if (profile.get("last_match_context_hash") or "") == context_hash:
-            # This direction WAS searched and produced nothing. Honest empty.
-            return [], "empty"
-        # A run finished, but for a different direction than the one on screen (or
-        # before the run recorded its direction at all). The stack is not empty and
-        # nothing is in flight — it simply has not been searched for THIS target.
-        # Not auto-enqueued: the user pulls the run, so the surface asks for it.
-        #
-        # Emitted because this state is invisible otherwise: it renders as a normal
-        # screen, nothing errors, and the population sitting in it was only ever
-        # found by querying production by hand (162 of 196 users, holding 1,289 real
-        # match rows, each told the market had nothing for them). A rate that does
-        # not fall as users run searches means the stamp is not landing.
-        logger.warning(
-            "metric shortlist.stale_direction user=%s baseline=%s", user_id, baseline_version_id
-        )
-        return [], "stale_direction"
-
-    age = (datetime.now(timezone.utc) - changed_at).total_seconds() if changed_at else None
-    if age is None or age <= _MATCH_GRACE_SECONDS:
-        return [], "computing"
-    _heal_outstanding_matches(user_id)
-    return [], "stalled"
 
 
 # The optional Career-Ops inputs, by the names the pre-flight manifest gives

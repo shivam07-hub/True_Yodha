@@ -123,11 +123,11 @@ export function MasterCVPanel({
             onTemplateChange={pickTemplate}
             hidePicker
           />
-        ) : (
+        ) : fallbackText ? (
           <pre className="tm-lib-master-panel-text">
-            {fallbackText || "Your structured CV is still loading — the download below still works."}
+            {fallbackText}
           </pre>
-        )}
+        ) : null}
       </div>
     </section>
   )

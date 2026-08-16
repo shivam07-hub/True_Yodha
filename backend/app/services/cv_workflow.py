@@ -942,26 +942,22 @@ async def get_cv_upload_status(job_id: str, user_id: str) -> dict[str, Any]:
     }
 
 
-# ── Lazy structured backfill (kept synchronous — small, single-call) ──────────
+# ── Structured CV read (Durable Answer — never a model) ───────────────────────
 
-async def get_or_backfill_cv_structured(
+def get_stored_cv_structured(
     cv_repo: CVVersionsRepository, user_id: str
 ) -> dict | None:
-    """Return latest cv_structured for the user, lazily backfilling from body_text.
+    """Return the stored paper JSON, or None. Never calls a model.
+
+    Display that needs the extracted CV reads `body_text` on the same row
+    (`GET /cv/versions`). Layout JSON is a later write (`cv_structured_enrich`).
+    A GET that rebuilt from `body_text` raced that job, held a request slot for
+    the layout tail (29–52s), and could 503 when the provider was down.
 
     Every stored payload is normalized before it is judged, so the shape of a row
-    can never fail this read. It used to: the gate here was `if structured:` —
-    truthiness, not shape — so a row holding `{"contact": {...}}` and nothing else
-    short-circuited the backfill and went straight into a 7-field response model.
-    Six users' CV page and download 500'd on every load for a week, with their
-    full `body_text` sitting in the same row, parseable, untouched.
-
-    Returns:
-        dict — payload matching the full structured contract
-        None — no baseline CV, or a baseline with nothing left to rebuild from
-               (caller 404s: "upload one")
-    Raises HTTP 503 only when a rebuild is genuinely needed and the provider chain
-    is down — never for a shape we could have coerced.
+    can never fail this read. A row holding only `contact` is not a CV
+    (`has_content`); this returns None and the caller shows `body_text` or asks
+    the user to upload / add points.
     """
     baseline = cv_repo.latest_baseline(user_id)
     if not baseline:
@@ -970,34 +966,4 @@ async def get_or_backfill_cv_structured(
     stored = cv_parser.normalize_structured(baseline.get("cv_structured"))
     if cv_parser.has_content(stored):
         return stored
-
-    # Nothing renderable in the row. body_text is the source of truth it was built
-    # from and is never sanitized, so a rebuild is a repair, not a guess.
-    raw_text = baseline.get("body_text") or ""
-    if not raw_text:
-        _log.warning(
-            "metric cv.structured_unrecoverable version_id=%s — no content and no body_text",
-            baseline.get("id"),
-        )
-        return None
-
-    reparsed = await cv_parser.reparse_structured_only(raw_text)
-    if reparsed is None or not cv_parser.has_content(reparsed):
-        # Deliberately NOT degrading to the contact-only payload. An empty CV in
-        # the editor is one autosave away from `body_text` being overwritten with
-        # a rendering of that emptiness — destroying the only copy this repair
-        # runs on. 503 is retryable; that write is not reversible.
-        _log.error(
-            "metric cv.structured_rebuild_failed version_id=%s chars=%d",
-            baseline.get("id"), len(raw_text),
-        )
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Could not parse CV structure right now. Please try again in a minute.",
-        )
-
-    _log.info(
-        "metric cv.structured_rebuilt version_id=%s chars=%d", baseline.get("id"), len(raw_text)
-    )
-    cv_repo.update_structured(int(baseline["id"]), reparsed)
-    return reparsed
+    return None

@@ -59,7 +59,40 @@ class _FakeRepo:
         self.persisted = row
 
 
-def test_cache_hit_returns_without_llm(monkeypatch: Any) -> None:
+def test_open_returns_stored_verdict_without_ranking(monkeypatch: Any) -> None:
+    repo = _FakeRepo(cached={"overall_score": 4.1, "grade": "A", "summary": "great", "strengths": None})
+    monkeypatch.setattr(on_demand.ranking, "rank_one", lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("open must not rank")))
+    enqueued: list[tuple[str, str]] = []
+    monkeypatch.setattr(on_demand, "enqueue_job_eval", lambda uid, jid: enqueued.append((uid, jid)))
+
+    out = on_demand.open_job_eval(repo, "u1", "j1")
+
+    assert out["cached"] is True
+    assert out["grade"] == "A"
+    assert enqueued == []
+
+
+def test_open_enqueues_and_does_not_wait_on_a_model(monkeypatch: Any) -> None:
+    repo = _FakeRepo(cached=None)
+    monkeypatch.setattr(on_demand.ranking, "rank_one", lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("open must not rank")))
+    enqueued: list[tuple[str, str]] = []
+    monkeypatch.setattr(on_demand, "enqueue_job_eval", lambda uid, jid: enqueued.append((uid, jid)))
+
+    out = on_demand.open_job_eval(repo, "u1", "j1")
+
+    assert out is None
+    assert enqueued == [("u1", "j1")]
+    assert repo.persisted is None
+
+
+def test_open_enqueues_once_per_claim_window(monkeypatch: Any) -> None:
+    repo = _FakeRepo(cached=None)
+    calls: list[object] = []
+    monkeypatch.setattr(on_demand.background, "enqueue", lambda *a, **k: calls.append(1))
+
+    assert on_demand.open_job_eval(repo, "u-claim", "j-claim") is None
+    assert on_demand.open_job_eval(repo, "u-claim", "j-claim") is None
+    assert len(calls) == 1
     repo = _FakeRepo(cached={"overall_score": 4.1, "grade": "A", "summary": "great", "strengths": None})
 
     async def _boom(*_a: Any, **_k: Any) -> Any:

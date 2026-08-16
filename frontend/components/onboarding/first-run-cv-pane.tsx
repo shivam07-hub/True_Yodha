@@ -1,30 +1,11 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { cv, type CVStructured, type CVVersion } from "@/lib/api"
+import { cv, type CVStructured } from "@/lib/api"
+import { hasCvContent, latestBaseline } from "@/lib/cv/durable-answer"
 import { dataKeys } from "@/lib/domain-data"
 import { CvStructuredRecovery } from "@/components/cv/cv-structured-recovery"
 import { Skeleton } from "@/components/ui/skeleton"
-
-function hasCvContent(value: CVStructured | null | undefined): value is CVStructured {
-  if (!value) return false
-  return Boolean(
-    value.summary?.trim()
-    || value.skills_line?.trim()
-    || (value.experience ?? []).length
-    || (value.projects ?? []).length
-    || (value.education ?? []).length
-    || (value.certs ?? []).length,
-  )
-}
-
-function latestBaseline(versions: CVVersion[] | undefined): CVVersion | null {
-  return (versions ?? []).reduce<CVVersion | null>((best, version) => {
-    if (version.kind !== "baseline_upload") return best
-    if (best == null || version.user_version_number > best.user_version_number) return version
-    return best
-  }, null)
-}
 
 export function FirstRunCvPaper({ cv: raw }: { cv: CVStructured }) {
   const experience = raw.experience ?? []
@@ -147,8 +128,8 @@ function FirstRunCvPaperSkeleton() {
 export function FirstRunCvPane({ token }: { token: string }) {
   // Display is a database read. Upload already stored body_text. Layout JSON
   // (`cv_structured`) is a later FAST-lane write — paint the extracted CV now,
-  // upgrade the paper when that row arrives. Never call GET /cv/structured here:
-  // that endpoint runs a second LLM when the JSON is still NULL.
+  // upgrade the paper when that row arrives. Never call GET /cv/structured:
+  // that endpoint returns stored JSON or 404. It does not run a model.
   const versions = useQuery({
     queryKey: dataKeys.cvVersions(null),
     queryFn: () => cv.versions.list(token, null),
@@ -173,13 +154,13 @@ export function FirstRunCvPane({ token }: { token: string }) {
           <FirstRunCvPaper cv={structured} />
         ) : bodyText ? (
           <FirstRunCvBody text={bodyText} />
-        ) : versions.isError ? (
+        ) : waitingOnRow ? (
+          <FirstRunCvPaperSkeleton />
+        ) : (
           <CvStructuredRecovery
             isRetrying={versions.isFetching}
             onRetry={() => { void versions.refetch() }}
           />
-        ) : (
-          <FirstRunCvPaperSkeleton />
         )}
       </div>
     </section>

@@ -18,8 +18,8 @@ shortlist are all built on `skills_detected`.
 
 So the invariant is now stronger than "a failed layout is survivable": the upload
 path does not call the layout parser at all, and always hands it to the background
-lane. `cv_structured = NULL` is a supported state — `get_or_backfill_cv_structured`
-rebuilds it on first read and the playground renders `CvDocumentSkeleton` meanwhile.
+lane. `cv_structured = NULL` is a supported state — display reads `body_text`
+until `cv_structured_enrich` writes the paper JSON.
 """
 
 from __future__ import annotations
