@@ -9,7 +9,7 @@ test("onboarding routes CV evidence through skill confirmation before target and
   const result = read("app/onboarding/result/page.tsx")
   assert.match(entry, /ExperienceStep/)
   assert.match(result, /awaiting_skill_confirmation/)
-  assert.match(result, /FirstRunSkillReview/)
+  assert.match(result, /FirstRunPlayground/)
   assert.match(result, /awaiting_target/)
   assert.match(result, /TargetConfirm/)
   assert.match(result, /onboarding_complete/)
@@ -75,17 +75,23 @@ test("direction completes onboarding onto Market — no First role waiting room"
 
 test("skill confirmation is the score and matching trust gate", () => {
   const review = read("components/onboarding/first-run-skill-review.tsx")
+  const playground = read("components/onboarding/first-run-playground.tsx")
+  const pane = read("components/onboarding/first-run-cv-pane.tsx")
   assert.match(review, /onboarding\.confirmSkills/)
   assert.match(review, /keptCount < 1/, "confirming an empty skill set must stay blocked")
-  // The invariant is that the user confirms a COUNT they can see, not a vague
-  // "OK" — it used to live inside the button label ("These ${keptCount} skills
-  // look right"). The 2026-08-03 redesign moved the number out of the label and
-  // into the sticky bar beside it, where it is larger and no longer competes
-  // with the action. Assert the number is rendered, not the sentence it once
-  // sat in; a copy edit should not fail this, deleting the count should.
-  assert.match(review, /\{keptCount\}/, "the kept count must be rendered, not just computed")
-  assert.match(review, /disabled=\{busy \|\| keptCount < 1\}/, "confirm stays gated on the count")
+  assert.match(playground, /chrome\.keptCount/, "the kept count must be rendered, not just computed")
+  assert.match(playground, /canApply=\{chrome\.keptCount >= 1 && !chrome\.busy\}/, "confirm stays gated on the count")
+  assert.match(playground, /Looks right/)
+  assert.match(playground, /PlaygroundHeader/)
+  assert.match(playground, /FirstRunCvPane/)
+  assert.match(playground, /cvb-v2-bottomnav/)
+  assert.match(playground, /data-tab/)
+  assert.match(pane, /Your Main CV/)
+  assert.match(pane, /cvb-pgc-paper/)
   assert.doesNotMatch(review, /score/i, "step one must not promise a score before direction exists")
+  assert.doesNotMatch(playground, /Myro Score/)
+  assert.doesNotMatch(playground, /\/100/)
+  assert.doesNotMatch(playground, /StickyOnboardingActionBar/)
 })
 
 test("first-success checklist reads and dismisses durable server state", () => {

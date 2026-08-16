@@ -7,7 +7,7 @@ import { RotateCcw } from "lucide-react"
 import { MyroLogo } from "@/components/myro-logo"
 import { AnalysisProgress } from "@/components/onboarding/analysis-progress"
 import { BaselineGenerator } from "@/components/onboarding/baseline-generator"
-import { FirstRunSkillReview } from "@/components/onboarding/first-run-skill-review"
+import { FirstRunPlayground } from "@/components/onboarding/first-run-playground"
 import { JourneyProgress } from "@/components/onboarding/journey-progress"
 import { TargetConfirm } from "@/components/onboarding/target-confirm"
 import { Button } from "@/components/ui/button"
@@ -119,7 +119,7 @@ export default function OnboardingResultPage() {
     }
     if (result.data.kind === "onboarding_complete" || result.data.kind === "first_role_saved") return null
     if (result.data.kind === "awaiting_skill_confirmation") {
-      return <FirstRunSkillReview token={token} result={result.data} onConfirmed={advance} onForward={furthest > 1 ? forward : undefined} />
+      return <FirstRunPlayground token={token} result={result.data} onConfirmed={advance} onForward={furthest > 1 ? forward : undefined} />
     }
     if (result.data.kind === "awaiting_target") {
       return (
@@ -149,19 +149,25 @@ export default function OnboardingResultPage() {
       ? 2
       : 1
 
+  const skillConfirm = !generatorOpen && result.data?.kind === "awaiting_skill_confirmation"
+
   return (
     <main className="min-h-dvh bg-[var(--tm-bg)] text-[var(--tm-text)]">
-      <header className="border-b border-[var(--tm-border-soft)]"><div className="mx-auto flex h-16 max-w-5xl items-center px-5 sm:px-8"><MyroLogo size={25} /><span className="ml-2 text-base font-semibold">Myro</span></div></header>
-      <div className="mx-auto flex min-h-[calc(100dvh-64px)] max-w-5xl flex-col px-5 py-6 sm:px-8 sm:py-8">
-        {journeyStep && (
-          <JourneyProgress
-            current={journeyStep === 2 ? 2 : 1}
-            furthest={Math.min(furthest, 2)}
-            onSelect={(step) => setViewStep(step === furthest ? null : step)}
-          />
-        )}
-        <div className="flex flex-1 items-center justify-center py-8">{body}</div>
-      </div>
+      {skillConfirm ? body : (
+        <>
+          <header className="border-b border-[var(--tm-border-soft)]"><div className="mx-auto flex h-16 max-w-5xl items-center px-5 sm:px-8"><MyroLogo size={25} /><span className="ml-2 text-base font-semibold">Myro</span></div></header>
+          <div className="mx-auto flex min-h-[calc(100dvh-64px)] max-w-5xl flex-col px-5 py-6 sm:px-8 sm:py-8">
+            {journeyStep && (
+              <JourneyProgress
+                current={journeyStep === 2 ? 2 : 1}
+                furthest={Math.min(furthest, 2)}
+                onSelect={(step) => setViewStep(step === furthest ? null : step)}
+              />
+            )}
+            <div className="flex flex-1 items-center justify-center py-8">{body}</div>
+          </div>
+        </>
+      )}
     </main>
   )
 }

@@ -84,6 +84,12 @@ interface PlaygroundHeaderProps {
    *  confirmation). A zeroed meter is not a neutral placeholder — it reads as
    *  a score of 0. `scoreCaption` still renders, so the header can say why. */
   hideScore?: boolean
+  /** Number shown in place of the meter when hideScore is set (e.g. skills kept). */
+  statusValue?: number
+  /** Hide the back crumb when this surface has nowhere behind it. */
+  hideBack?: boolean
+  /** Crumb label. Default matches the library/playground back action. */
+  backLabel?: string
   /** When set (imported jobs only), the job line becomes editable — the parser
    *  occasionally reads a page tagline as the role. Resolves once persisted. */
   onSaveJobMeta?: (v: { title: string; company: string }) => Promise<void>
@@ -93,7 +99,8 @@ export function PlaygroundHeader({
   jobTitle, company, reqCount, ready, delta, canApply, applyHint, saveState,
   onBack, onReqPill, onApply, onDownload,
   variant = "job", masterMeta, onMeta, primaryLabel = "Apply with this CV", hideOverflow,
-  brandLabel, scoreCaption, hideScore, onSaveJobMeta,
+  brandLabel, scoreCaption, hideScore, statusValue, hideBack, backLabel = "Back to CV library",
+  onSaveJobMeta,
 }: PlaygroundHeaderProps) {
   const shown = useCountUp(ready)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -115,9 +122,11 @@ export function PlaygroundHeader({
 
   return (
     <header className="cvb-v2-head">
-      <button type="button" className="cvb-v2-crumb" onClick={onBack} aria-label="Back to CV library">
-        <Icon name="chevron-right" size={12} style={{ transform: "rotate(180deg)" }} />
-      </button>
+      {!hideBack && (
+        <button type="button" className="cvb-v2-crumb" onClick={onBack} aria-label={backLabel}>
+          <Icon name="chevron-right" size={12} style={{ transform: "rotate(180deg)" }} />
+        </button>
+      )}
       <span className="cvb-v2-brand">{brandLabel ?? (isMaster ? "Main CV" : "CV Playground")}</span>
       <span className="cvb-v2-headrule" aria-hidden />
       {isMaster ? (
@@ -166,7 +175,14 @@ export function PlaygroundHeader({
       {saveState && <span className="cvb-v2-savestate mono" role="status" aria-live="polite">{saveState}</span>}
 
       {hideScore ? (
-        scoreCaption && <span className="cvb-v2-score-cap mono">{scoreCaption}</span>
+        <div className="cvb-v2-score">
+          <div className="cvb-v2-score-nums">
+            {statusValue != null && (
+              <span className="cvb-v2-score-num mono tabnum">{statusValue}</span>
+            )}
+            {scoreCaption && <span className="cvb-v2-score-cap mono">{scoreCaption}</span>}
+          </div>
+        </div>
       ) : (
         <div className="cvb-v2-score" data-band={scoreBand(shown)}>
           <div className="cvb-v2-score-nums">
