@@ -12,37 +12,126 @@
   padding-bottom: clamp(48px, 6vw, 88px);
 }
 
-.lp-hero-inner .lp-hub {
-  align-self: stretch;
-  width: 100%;
-  margin-top: 8px;
-}
-
 .lp-hero-kicker {
-  margin: 0 0 18px;
+  margin: 0 0 14px;
   font-family: var(--lp-mono);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--lp-accent-text);
 }
 
+/* One-line headings are the point of this pass — nowrap + a clamp whose min is
+   tuned to hold the copy at 375px. Overflow is clipped by the page's
+   overflow-x: hidden, never a scrollbar. */
 .lp-hero-h1 {
-  max-width: 700px;
+  max-width: none;
   margin: 0;
   color: var(--lp-text);
-  font-size: clamp(42px, 5.2vw, 68px);
+  white-space: nowrap;
+  font-size: clamp(18px, 3.55vw, 52px);
   font-weight: 700;
   line-height: 1.03;
-  text-wrap: balance;
 }
 
 .lp-hero-support {
-  max-width: 620px;
-  margin: 24px 0 30px;
+  max-width: none;
+  margin: 14px 0 0;
   color: var(--lp-muted);
-  font-size: clamp(17px, 1.5vw, 20px);
+  white-space: nowrap;
+  font-size: clamp(9px, 1.42vw, 19px);
   line-height: 1.55;
+}
+
+/* Hero row: dropzone frame beside the two audience path cards. auto-fit with a
+   min() floor collapses to one column below ~660px without overflowing tracks. */
+.lp-hero-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 20px;
+  width: 100%;
+  margin-top: 24px;
+}
+
+.lp-hero-start {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--lp-border-strong);
+  border-radius: 12px;
+  background: var(--lp-surface);
+}
+
+.lp-hero-start-eyebrow { margin: 0; }
+
+.lp-hero-start .lp-dz-wrap { max-width: none; }
+
+.lp-path-cards {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+.lp-path-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  border: 1px solid var(--lp-border-strong);
+  border-radius: 12px;
+  background: var(--lp-surface);
+  transition: border-color var(--lp-dur) var(--lp-ease);
+}
+
+.lp-path-card:hover { border-color: var(--lp-accent-ring); }
+
+.lp-path-eyebrow {
+  margin: 0;
+  font-family: var(--lp-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lp-accent-text);
+}
+
+.lp-path-title {
+  margin: 0;
+  color: var(--lp-text);
+  white-space: nowrap;
+  font-size: clamp(19px, 2vw, 24px);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.lp-path-body {
+  margin: 0;
+  color: var(--lp-muted);
+  font-size: 14px;
+  line-height: 1.5;
   text-wrap: pretty;
+}
+
+.lp-path-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-family: var(--lp-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lp-accent-text);
+  text-decoration: none;
+}
+
+.lp-path-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+.lp-path-link:focus-visible {
+  outline: 2px solid var(--lp-accent-ring);
+  outline-offset: 3px;
+  border-radius: 4px;
 }
 
 .lp-plan-job-icon {
@@ -131,8 +220,7 @@
   padding-bottom: 24px;
 }
 
-.lp-stat-num,
-.lp-stat-proof-line {
+.lp-stat-num {
   color: var(--lp-text);
   font-family: var(--lp-mono);
   font-size: 24px;
@@ -168,19 +256,28 @@
   outline-offset: 4px;
 }
 
+/* Fourth stat cell — the project itself. Teal mono line + label, same hover
+   affordance as the numeric cells. */
+.lp-stat-oss { display: block; text-decoration: none; }
+
+.lp-stat-oss-num {
+  color: var(--lp-accent-text);
+  font-family: var(--lp-mono);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.lp-stat-oss:hover .lp-stat-oss-num,
+.lp-stat-oss:focus-visible .lp-stat-oss-num {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 @media (max-width: 640px) {
   .lp-hero-inner {
     padding-top: 20px;
     padding-bottom: 44px;
-  }
-
-  .lp-hero-h1 {
-    font-size: 40px;
-  }
-
-  .lp-hero-support {
-    margin-top: 20px;
-    font-size: 17px;
   }
 
   .lp-stats-row {
@@ -189,7 +286,7 @@
   }
 
   .lp-stat-num,
-  .lp-stat-proof-line {
+  .lp-stat-oss-num {
     font-size: 21px;
   }
 }

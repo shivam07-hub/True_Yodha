@@ -9,14 +9,9 @@
   background: var(--lp-surface);
 }
 
-.lp-hub-drop {
-  padding: clamp(20px, 3vw, 36px);
-  border-bottom: 1px solid var(--lp-border);
-}
-
 .lp-hub-tabs {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
   border-bottom: 1px solid var(--lp-border);
   background: var(--lp-surface-2);
 }
@@ -63,10 +58,6 @@
 .lp-hub-tailor {
   display: grid;
   gap: 20px;
-}
-
-.lp-hub-panel .lp-dz-wrap {
-  max-width: none;
 }
 
 .lp-dz-wrap[data-variant="stage"] .lp-dropzone {

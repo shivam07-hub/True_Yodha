@@ -48,7 +48,7 @@
   /* One vertical rhythm token for every section band (density pass). Prose
      blocks stay capped by .lp-section-head (720px) so widening the wrap fills
      cards/grids without over-stretching paragraphs. */
-  --lp-section-py:  clamp(56px, 7vw, 88px);
+  --lp-section-py:  clamp(30px, 3.6vw, 46px);
   --lp-ease:     ease-out;
   --lp-dur:      200ms;
   --lp-dur-slow: 200ms;
@@ -120,22 +120,24 @@
 
 .lp-section-head.center { text-align: center; margin-left: auto; margin-right: auto; }
 
+/* One-line section headings (this pass). nowrap + clamp mins tuned for 375px;
+   any overflow is clipped by the page's overflow-x: hidden, never a scrollbar. */
 .lp-section-title {
   margin: 14px 0 12px;
-  font-size: var(--lp-fs-display);
+  white-space: nowrap;
+  font-size: clamp(16px, 2.6vw, 32px);
   line-height: 1.18;
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--lp-text);
-  text-wrap: balance;
 }
 
 .lp-section-sub {
   margin: 0;
-  font-size: var(--lp-fs-heading);
+  white-space: nowrap;
+  font-size: clamp(9px, 1.2vw, 16px);
   line-height: 1.6;
   color: var(--lp-muted);
-  text-wrap: pretty;
 }
 
 /* Light grid faintness — its own value, NOT the border token. --tm-border-faint
@@ -355,8 +357,6 @@
 
 @media (max-width: 640px) {
   .tm-landing { --lp-page-px: 20px; }
-  .lp-section-title { font-size: 28px; }
-  .lp-section-sub { font-size: 16px; }
   .lp-dropzone {
     grid-template-columns: auto minmax(0, 1fr);
     gap: 12px;

@@ -20,39 +20,27 @@ interface LandingStatsProps {
   jobsTracked: number
   companiesMonitored: number
   skillsMapped: number
-  /** Real seeker count, or null. Null → non-numeric proof tile, never a fake
-   *  number (T3 / PV1). The three corpus counts above are real engine scale. */
-  seekers: number | null
 }
 
 /** Credibility strip at the very top of the page — the live Engine corpus, made
- *  loud where the user actually starts reading (was buried mid-page in S2).
- *  The fourth tile is social proof: a real seeker count when one is configured,
- *  otherwise an honest non-numeric line (no fabricated user totals). */
-export function LandingStats({ jobsTracked, companiesMonitored, skillsMapped, seekers }: LandingStatsProps) {
+ *  loud where the user actually starts reading. The fourth tile is the project
+ *  itself: open source, MIT, forkable — proof over a fabricated user total. */
+export function LandingStats({ jobsTracked, companiesMonitored, skillsMapped }: LandingStatsProps) {
   return (
     <div className="lp-stats" aria-label="Myro, by the numbers">
       <div className="lp-wrap lp-stats-row">
         <Counter target={jobsTracked} label="Jobs tracked" href="/market" />
         <Counter target={companiesMonitored} label="Career pages monitored" href="/companies" />
         <Counter target={skillsMapped} label="Skills read from jobs" href="/intel" />
-        {seekers !== null ? (
-          /* No destination — a seeker count has no page to open, and a tile
-             that looks clickable but only reloads the landing page is worse
-             than one that plainly is not. */
-          <div className="lp-stat">
-            <div className="lp-stat-num">
-              <span>{formatCount(seekers)}</span>
-              <span className="plus">+</span>
-            </div>
-            <div className="lp-stat-lbl">Job seekers</div>
-          </div>
-        ) : (
-          <div className="lp-stat lp-stat-proof">
-            <div className="lp-stat-proof-line">Built in India</div>
-            <div className="lp-stat-lbl">for job seekers</div>
-          </div>
-        )}
+        <a
+          href="https://github.com/shivam07-hub/True_Yodha"
+          target="_blank"
+          rel="noreferrer"
+          className="lp-stat lp-stat-link lp-stat-oss tm-control-focus"
+        >
+          <div className="lp-stat-oss-num">open source</div>
+          <div className="lp-stat-lbl">MIT · fork freely</div>
+        </a>
       </div>
     </div>
   )
