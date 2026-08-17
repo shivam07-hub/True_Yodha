@@ -22,9 +22,10 @@
   color: var(--lp-accent-text);
 }
 
-/* One-line headings are the point of this pass — nowrap + a clamp whose min is
-   tuned to hold the copy at 375px. Overflow is clipped by the page's
-   overflow-x: hidden, never a scrollbar. */
+/* Wide viewports get one-line headings: nowrap plus a vw-scaled size so the
+   headline and the line under it end flush. That only holds while the vw term
+   stays above the clamp floor; below ~640px it doesn't, so the 640px block
+   drops nowrap rather than letting the copy run under overflow-x: hidden. */
 .lp-hero-h1 {
   max-width: none;
   margin: 0;
@@ -285,6 +286,21 @@
   .lp-hero-inner {
     padding-top: 20px;
     padding-bottom: 44px;
+  }
+
+  /* Both hero lines are vw-scaled and nowrap above this width. Here the vw term
+     is under their clamp floors, so they stop shrinking and the copy runs past
+     the viewport — 18px headline, 9px subhead, clipped. Wrapping is the only way
+     either reads on a phone. */
+  .lp-hero-h1 {
+    white-space: normal;
+    font-size: clamp(28px, 8.5vw, 34px);
+    line-height: 1.12;
+  }
+
+  .lp-hero-support {
+    white-space: normal;
+    font-size: var(--lp-fs-body);
   }
 
   .lp-stats-row {
