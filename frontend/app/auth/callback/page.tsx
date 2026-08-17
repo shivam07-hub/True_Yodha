@@ -14,6 +14,7 @@ import { hasPendingAnonCvClaim } from "@/lib/anon-cv-claim"
 import { readPendingExtensionConnect } from "@/lib/extension-connect-stash"
 import { hasPendingJobSaveClaim } from "@/lib/anon-job-stash"
 import { postAuthDestination } from "@/lib/auth/post-auth-destination"
+import { methodFromCallback, rememberAuth } from "@/lib/auth/last-auth"
 import {
   captureAttributionFromCallback,
   clearStoredAttribution,
@@ -143,6 +144,13 @@ function CallbackInner() {
         null
 
       setSessionTokens({ accessToken: session.access_token, refreshToken: session.refresh_token })
+      rememberAuth(
+        methodFromCallback({
+          provider,
+          via: searchParams.get("via"),
+        }),
+        session.user?.email ?? null,
+      )
 
       // Route the instant auth is in hand. `created_at` lives on the session
       // user already — no extra getUser() round-trip needed to tell a brand-new

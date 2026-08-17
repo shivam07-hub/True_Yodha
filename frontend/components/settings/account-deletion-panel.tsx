@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { users } from "@/lib/api"
+import { forgetDeviceAuth } from "@/lib/auth/last-auth"
 import { clearSessionTokens } from "@/lib/session"
 
 export function AccountDeletionPanel({ token }: { token: string | null }) {
@@ -17,6 +18,7 @@ export function AccountDeletionPanel({ token }: { token: string | null }) {
     try {
       await users.deleteAccount(token)
       clearSessionTokens()
+      forgetDeviceAuth()
       try {
         window.sessionStorage.clear()
       } catch {

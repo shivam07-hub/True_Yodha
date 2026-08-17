@@ -15,11 +15,16 @@ import { hasPendingAnonCvClaim } from "@/lib/anon-cv-claim"
 import { readPendingExtensionConnect } from "@/lib/extension-connect-stash"
 import { hasPendingJobSaveClaim } from "@/lib/anon-job-stash"
 import { postAuthDestination } from "@/lib/auth/post-auth-destination"
-import { GoogleAuthButton } from "@/components/auth/shared/google-button"
-import { LinkedInAuthButton } from "@/components/auth/shared/linkedin-button"
-import { MagicLinkInput } from "@/components/auth/shared/magic-link-input"
+import {
+  highlightableLastMethod,
+  readLastAuthMethod,
+  readLastEmail,
+  rememberAuth,
+  type HighlightableAuthMethod,
+} from "@/lib/auth/last-auth"
 import { CheckInboxPanel } from "@/components/auth/shared/check-inbox-panel"
 import { InAppBrowserWarning } from "@/components/auth/shared/in-app-browser-warning"
+import { LastUsedLabel, LoginPrimaryMethods } from "@/components/auth/shared/login-primary-methods"
 
 interface Props {
   surface: "page" | "modal"
@@ -48,13 +53,20 @@ export function LoginForm({ surface, showSignupLink = true, initialEmail }: Prop
   const [pendingEmail, setPendingEmail] = useState<string | null>(null)
   const [agent, setAgent] = useState<string | null>(null)
   const [mode, setMode] = useState<"primary" | "password">(initialEmail ? "password" : "primary")
+  const [lastMethod, setLastMethod] = useState<HighlightableAuthMethod | null>(null)
 
   useEffect(() => {
     capturePendingReferral()
     capturePendingAttribution()
     const det = detectInAppBrowser()
     if (det.inApp) setAgent(det.agent)
-  }, [])
+    const recorded = readLastAuthMethod()
+    setLastMethod(highlightableLastMethod(recorded, { inAppBrowser: det.inApp }))
+    if (initialEmail) return
+    const remembered = readLastEmail()
+    if (remembered) setEmail(remembered)
+    if (recorded === "password") setMode("password")
+  }, [initialEmail])
 
   const redirectTo = useMemo(() => {
     if (typeof window === "undefined") return null
@@ -86,6 +98,7 @@ export function LoginForm({ surface, showSignupLink = true, initialEmail }: Prop
         setError(res.message ?? "Login failed.")
         return
       }
+      rememberAuth("password", email)
       setSessionTokens({ accessToken: res.access_token, refreshToken: res.refresh_token })
       router.push(postAuthDestination({
         firstSignup: false,
@@ -126,43 +139,36 @@ export function LoginForm({ surface, showSignupLink = true, initialEmail }: Prop
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {agent && <InAppBrowserWarning agent={agent} />}
 
-      {/* OAuth is always shown on both sub-forms — best-in-class auth surfaces
-          never hide social login behind a mode toggle (user directive). */}
-      {!agent && <GoogleAuthButton surface={surface} onClick={() => openOAuth("google")} />}
-      <LinkedInAuthButton surface={surface} onClick={() => openOAuth("linkedin_oidc")} />
-      <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "2px 0" }}>
-        <div style={{ flex: 1, height: 1, background: "var(--tm-border-soft)" }} />
-        <span style={{ fontSize: 12, color: "var(--tm-text-faint)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
-          or
-        </span>
-        <div style={{ flex: 1, height: 1, background: "var(--tm-border-soft)" }} />
-      </div>
+      <LoginPrimaryMethods
+        agent={agent}
+        lastMethod={lastMethod}
+        surface={surface}
+        includeMagic={mode === "primary"}
+        email={email}
+        initialEmail={initialEmail}
+        redirectTo={redirectTo}
+        onGoogle={() => openOAuth("google")}
+        onLinkedIn={() => openOAuth("linkedin_oidc")}
+        onSent={(next) => setPendingEmail(next)}
+      />
 
       {mode === "primary" && (
-        <>
-          <MagicLinkInput
-            surface={surface}
-            redirectTo={redirectTo}
-            onSent={(e) => setPendingEmail(e)}
-            initialEmail={email || initialEmail}
-          />
-
-          <button
-            type="button"
-            onClick={() => setMode("password")}
-            style={{
-              background: "none", border: "none", color: "var(--tm-text-faint)",
-              fontSize: 13, cursor: "pointer", padding: 0, textAlign: "center", marginTop: 4,
-            }}
-          >
-            Prefer a password?{" "}
-            <span style={{ color: "var(--tm-interactive)" }}>Sign in</span>
-          </button>
-        </>
+        <button
+          type="button"
+          onClick={() => setMode("password")}
+          style={{
+            background: "none", border: "none", color: "var(--tm-text-faint)",
+            fontSize: 13, cursor: "pointer", padding: 0, textAlign: "center", marginTop: 4,
+          }}
+        >
+          Prefer a password?{" "}
+          <span style={{ color: "var(--tm-interactive)" }}>Sign in</span>
+        </button>
       )}
 
       {mode === "password" && (
         <form onSubmit={submitPassword} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {lastMethod === "password" ? <LastUsedLabel /> : null}
           <input
             type="email" required value={email}
             onChange={(e) => setEmail(e.target.value)}

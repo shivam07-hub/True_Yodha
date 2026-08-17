@@ -6,9 +6,24 @@ const REFRESH_LOCK_KEY = "mirror_refresh_lock"
 const XP_STORE_KEY = "myro_xp"
 const SESSION_CHANGE_EVENT = "myro-session-change"
 
+const DURABLE_KEYS = [
+  ACCESS_TOKEN_KEY,
+  REFRESH_TOKEN_KEY,
+  REFRESH_LOCK_KEY,
+  XP_STORE_KEY,
+] as const
+
 export interface SessionTokens {
   accessToken: string
   refreshToken?: string | null
+}
+
+export interface TokenStorage {
+  getItem(key: string): string | null
+  setItem(key: string, value: string): void
+  removeItem(key: string): void
+  key?: (index: number) => string | null
+  length?: number
 }
 
 /**
@@ -27,32 +42,115 @@ export function detachSameOriginOpener(): void {
   }
 }
 
-function hasStorage(): boolean {
-  return typeof window !== "undefined" && typeof window.sessionStorage !== "undefined"
+function durableStore(): TokenStorage | null {
+  if (typeof window === "undefined") return null
+  try {
+    return window.localStorage
+  } catch {
+    return null
+  }
+}
+
+function tabStore(): TokenStorage | null {
+  if (typeof window === "undefined") return null
+  try {
+    return window.sessionStorage
+  } catch {
+    return null
+  }
+}
+
+function supabaseAuthKeys(store: TokenStorage): string[] {
+  const length = store.length
+  if (typeof store.key !== "function" || typeof length !== "number") return []
+  const keys: string[] = []
+  for (let index = 0; index < length; index += 1) {
+    const key = store.key(index)
+    if (key?.startsWith("sb-") && key.endsWith("-auth-token")) keys.push(key)
+  }
+  return keys
+}
+
+/**
+ * Sessions used to live in sessionStorage, so closing the tab logged the user
+ * out. Copy any leftover tab tokens into localStorage once, then drop the tab
+ * copy so the two stores cannot disagree.
+ */
+export function migrateTabSessionToDurable(
+  durable: TokenStorage,
+  tab: TokenStorage,
+): void {
+  for (const key of DURABLE_KEYS) {
+    const incoming = tab.getItem(key)
+    if (!incoming) continue
+    if (!durable.getItem(key)) durable.setItem(key, incoming)
+    tab.removeItem(key)
+  }
+  for (const key of supabaseAuthKeys(tab)) {
+    const incoming = tab.getItem(key)
+    if (!incoming) continue
+    if (!durable.getItem(key)) durable.setItem(key, incoming)
+    tab.removeItem(key)
+  }
+}
+
+let migrated = false
+
+function ensureMigrated(): void {
+  if (migrated) return
+  const durable = durableStore()
+  const tab = tabStore()
+  if (!durable || !tab) return
+  migrated = true
+  try {
+    migrateTabSessionToDurable(durable, tab)
+  } catch {
+    migrated = false
+  }
 }
 
 function readStorage(key: string): string | null {
-  if (!hasStorage()) return null
+  ensureMigrated()
   try {
-    return window.sessionStorage.getItem(key)
+    const durable = durableStore()?.getItem(key) ?? null
+    if (durable) return durable
+  } catch {
+    // Durable store blocked (private mode). Fall through to the tab.
+  }
+  try {
+    return tabStore()?.getItem(key) ?? null
   } catch {
     return null
   }
 }
 
 function writeStorage(key: string, value: string): void {
-  if (!hasStorage()) return
+  ensureMigrated()
+  const durable = durableStore()
+  if (durable) {
+    try {
+      durable.setItem(key, value)
+      tabStore()?.removeItem(key)
+      return
+    } catch {
+      // Fall through to tab-scoped storage.
+    }
+  }
   try {
-    window.sessionStorage.setItem(key, value)
+    tabStore()?.setItem(key, value)
   } catch {
     // Ignore storage failures in restricted browser contexts.
   }
 }
 
 function removeStorage(key: string): void {
-  if (!hasStorage()) return
   try {
-    window.sessionStorage.removeItem(key)
+    durableStore()?.removeItem(key)
+  } catch {
+    // Ignore storage failures in restricted browser contexts.
+  }
+  try {
+    tabStore()?.removeItem(key)
   } catch {
     // Ignore storage failures in restricted browser contexts.
   }
@@ -80,9 +178,15 @@ export function clearSessionTokens(): void {
   removeStorage(REFRESH_TOKEN_KEY)
   removeStorage(XP_STORE_KEY)
   if (typeof window !== "undefined") {
-    for (let index = window.sessionStorage.length - 1; index >= 0; index -= 1) {
-      const key = window.sessionStorage.key(index)
-      if (key?.startsWith("sb-") && key.endsWith("-auth-token")) removeStorage(key)
+    for (const store of [durableStore(), tabStore()]) {
+      if (!store) continue
+      for (const key of supabaseAuthKeys(store)) {
+        try {
+          store.removeItem(key)
+        } catch {
+          // Best-effort wipe.
+        }
+      }
     }
     window.dispatchEvent(new CustomEvent(SESSION_CHANGE_EVENT, { detail: null }))
   }
@@ -113,7 +217,7 @@ export function releaseRefreshLock(): void {
 }
 
 export function waitForAccessTokenChange(ttlMs: number): Promise<string | null> {
-  if (!hasStorage()) return Promise.resolve(null)
+  if (typeof window === "undefined") return Promise.resolve(null)
   const original = getAccessToken()
   return new Promise((resolve) => {
     const poll = window.setInterval(() => {

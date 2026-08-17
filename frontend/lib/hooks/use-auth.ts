@@ -29,7 +29,7 @@ function loginRedirectTarget(): string {
 }
 
 /**
- * Cold-start session bootstrap. If tab storage has no access token but does
+ * Cold-start session bootstrap. If durable storage has no access token but does
  * have a refresh token, exchange it for a new access token before deciding
  * whether to bounce to /login. Without this hop, a user whose access token
  * expired between visits gets logged out even though their long-lived refresh

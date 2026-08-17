@@ -8,13 +8,15 @@ interface Props {
   disabled?: boolean
   surface: string
   label?: string
+  lastUsed?: boolean
 }
 
-export function LinkedInAuthButton({ onClick, disabled, surface, label = "Continue with LinkedIn" }: Props) {
+export function LinkedInAuthButton({ onClick, disabled, surface, label = "Continue with LinkedIn", lastUsed = false }: Props) {
   return (
     <button
       type="button"
-      className="tm-auth-provider-btn"
+      className={`tm-auth-provider-btn${lastUsed ? " tm-auth-provider-btn--last-used" : ""}`}
+      aria-describedby={lastUsed ? "tm-auth-last-used" : undefined}
       disabled={disabled}
       onClick={() => {
         signupEvents.methodTapped({ method: "linkedin", surface })
