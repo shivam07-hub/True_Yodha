@@ -38,11 +38,10 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   minimumScale: 1,
-  // Landing follows the canonical surface now — chrome tint matches per OS.
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#F9F9F9" },
-    { media: "(prefers-color-scheme: dark)", color: "#191918" },
-  ],
+  // The landing is the ink surface and dark-only, so both OS preferences get
+  // the same navy — a light-preference visitor whose browser chrome went paper
+  // would see it butt against a navy page.
+  themeColor: "#050a18",
   viewportFit: "cover",
 }
 
