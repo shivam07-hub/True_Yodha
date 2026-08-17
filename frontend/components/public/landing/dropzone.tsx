@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState, type ReactNode } from "react"
+import { forwardRef, useImperativeHandle, useRef, useState, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { stashAnonCvFile, stashAnonCvText } from "@/lib/anon-cv-stash"
 
@@ -32,20 +32,35 @@ interface LandingDropzoneProps {
   children?: ReactNode
 }
 
-export function LandingDropzone({
-  source,
-  onFile,
-  onText,
-  busy,
-  variant = "bar",
-  children,
-}: LandingDropzoneProps) {
+/** Imperative handle: a sibling CTA (the hero's "score my CV" path card) opens
+ *  the OS file picker on this ONE dropzone, so every upload verb on the landing
+ *  routes through the same stash → /cv-preview golden path — never a signup wall. */
+export interface LandingDropzoneHandle {
+  openFilePicker: () => void
+}
+
+export const LandingDropzone = forwardRef<LandingDropzoneHandle, LandingDropzoneProps>(
+  function LandingDropzone(
+    { source, onFile, onText, busy, variant = "bar", children },
+    ref,
+  ) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const [navigating, setNavigating] = useState(false)
   const [pasteOpen, setPasteOpen] = useState(false)
   const [text, setText] = useState("")
   const pending = busy || navigating
+
+  useImperativeHandle(ref, () => ({
+    openFilePicker() {
+      if (pending) return
+      // Bring the dropzone into view first so a cancelled pick lands the user on
+      // the drop surface, not a scrolled-past hero.
+      wrapRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+      inputRef.current?.click()
+    },
+  }), [pending])
 
   function handleFile(file: File) {
     if (pending) return
@@ -78,7 +93,7 @@ export function LandingDropzone({
       : "Private · saved only if you create an account"
 
   return (
-    <div className="lp-dz-wrap" data-variant={variant}>
+    <div ref={wrapRef} className="lp-dz-wrap" data-variant={variant}>
       <input
         ref={inputRef}
         type="file"
@@ -174,4 +189,4 @@ export function LandingDropzone({
       )}
     </div>
   )
-}
+})

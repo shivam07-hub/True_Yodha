@@ -124,6 +124,13 @@
   font-weight: 600;
   color: var(--lp-accent-text);
   text-decoration: none;
+  /* Renders identically whether an <a> (fresher → signup) or a <button>
+     (switcher → dropzone picker): reset the native button chrome. */
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
 }
 
 .lp-path-link:hover { text-decoration: underline; text-underline-offset: 3px; }
