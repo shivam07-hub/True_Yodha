@@ -55,6 +55,15 @@
   padding: clamp(20px, 3vw, 36px);
 }
 
+/* Any author `display` beats the user-agent's [hidden] { display: none }, so a
+   panel that sets one stops hiding — .lp-hub-tailor did exactly that, leaving
+   the score panel on screen under all four tabs with the selected panel stacked
+   beneath it. Stated once here, for every panel, so the next one to need a
+   display mode can't bring the bug back. */
+.lp-hub-panel[hidden] {
+  display: none;
+}
+
 .lp-hub-tailor {
   display: grid;
   gap: 20px;
