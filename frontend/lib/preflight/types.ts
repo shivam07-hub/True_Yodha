@@ -48,6 +48,16 @@ export interface OrderRound {
   line_ids: string[]
 }
 
+export type ConflictKind = "arity" | "contradiction"
+
+export interface OrderConflict {
+  slot: string
+  kind: ConflictKind
+  line_ids: string[]
+  texts: string[]
+  keep: number
+}
+
 /** What every mutation returns. */
 export interface OrderState {
   said: string
@@ -56,6 +66,10 @@ export interface OrderState {
   rounds: OrderRound[]
   updated_at?: string | null
   last_run_at?: string | null
+  /** Lines the resolver will actually run on. Contested slots are omitted. */
+  used?: number
+  duplicates_collapsed?: number
+  conflicts?: OrderConflict[]
 }
 
 /** The opening read — adds the parts that don't move when a line is answered. */

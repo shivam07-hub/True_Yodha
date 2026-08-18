@@ -89,6 +89,37 @@ def test_a_location_requirement_against_relocate_openness_is_a_contradiction() -
     assert set(conflict.line_ids) == {"loc", "lean"}
 
 
+def test_client_report_exposes_conflicts_and_the_slot_arity() -> None:
+    order = ops.Order(
+        lines=[
+            line(id="w", kind="wont_take", text="Prefers onsite work"),
+            line(id="l", kind="lean", text="Prefers onsite work"),
+        ]
+    )
+    report = payload.client_report(order)
+    assert report["used"] == 0
+    assert report["duplicates_collapsed"] == 0
+    assert len(report["conflicts"]) == 1
+    conflict = report["conflicts"][0]
+    assert conflict["kind"] == "contradiction"
+    assert conflict["keep"] == 6
+    assert set(conflict["line_ids"]) == {"w", "l"}
+    assert conflict["texts"] == ["Prefers onsite work", "Prefers onsite work"]
+
+
+def test_client_report_counts_silent_duplicates() -> None:
+    order = ops.Order(
+        lines=[
+            line(id="a", kind="wont_take", text="Large corporations"),
+            line(id="b", kind="wont_take", text="large  corporations."),
+        ]
+    )
+    report = payload.client_report(order)
+    assert report["duplicates_collapsed"] == 1
+    assert report["conflicts"] == []
+    assert report["used"] == 1
+
+
 def test_project_still_returns_the_spec_for_the_patch() -> None:
     order = ops.Order(
         lines=[

@@ -24,6 +24,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { preflight } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { openingScreen } from "@/lib/preflight/opening-screen"
+import { visibleConflicts } from "@/lib/preflight/conflicts"
 import { useOrder, useOrderMutations, invalidateOrder } from "@/lib/preflight/use-order"
 import type { OrderProposal } from "@/lib/preflight/types"
 import { useRefreshGateStore } from "@/store/refreshGateStore"
@@ -230,6 +231,7 @@ export function PreflightGate({
    *  a second charge in the first place. */
   async function run() {
     if (!token || starting) return
+    if (order && visibleConflicts(order).length > 0) return
     setStarting(true)
     setError(null)
     try {
@@ -386,6 +388,7 @@ export function PreflightGate({
           proposalDrops={proposalDrops}
           acceptedNow={acceptedNow}
           ranBefore={Boolean(order?.last_run_at) && !freshStart}
+          blocked={order ? visibleConflicts(order).length > 0 : false}
           free={free}
           runCost={runCost}
           short={short}

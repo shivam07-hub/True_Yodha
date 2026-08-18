@@ -73,6 +73,15 @@ class RoundOut(BaseModel):
     line_ids: list[str]
 
 
+class ConflictOut(BaseModel):
+    slot: str
+    kind: Literal["arity", "contradiction"]
+    line_ids: list[str]
+    texts: list[str]
+    #: How many this slot can keep. The card asks; it does not re-derive arity.
+    keep: int
+
+
 class OrderState(BaseModel):
     """The order itself — what every mutation returns.
 
@@ -85,6 +94,9 @@ class OrderState(BaseModel):
     rounds: list[RoundOut]
     updated_at: str | None = None
     last_run_at: str | None = None
+    used: int = 0
+    duplicates_collapsed: int = 0
+    conflicts: list[ConflictOut] = Field(default_factory=list)
 
 
 class OrderOut(OrderState):
@@ -192,6 +204,7 @@ def _state(order: line_ops.Order) -> dict:
         "rounds": [RoundOut(**r) for r in line_ops.rounds(order)],
         "updated_at": order.updated_at,
         "last_run_at": order.last_run_at,
+        **ops_payload.client_report(order),
     }
 
 

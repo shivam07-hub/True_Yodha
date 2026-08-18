@@ -354,7 +354,23 @@ test("review answers drift in place; Run stays one tap", () => {
   assert.match(footer, /Run again/)
   assert.match(footer, /Change something/)
   // Run is not gated on unanswered drift.
-  assert.match(footer, /disabled=\{busy \|\| \(screen === "ready" && short\)\}/)
+  assert.match(footer, /disabled=\{busy \|\| \(screen === "ready" && \(short \|\| blocked\)\)\}/)
+})
+
+test("review shows either/or for conflicts and a count for duplicates", () => {
+  const review = read("components/preflight/screen-review.tsx")
+  assert.match(review, /visibleConflicts\(order\)/)
+  assert.match(review, /<ConflictCard/)
+  assert.match(review, /duplicate/)
+  assert.match(review, /folded/)
+  const card = read("components/preflight/conflict-card.tsx")
+  assert.match(card, /SOURCE_LABEL/)
+  assert.match(card, /conflictAsk/)
+  const logic = read("lib/preflight/conflicts.ts")
+  assert.match(logic, /These can't both be true/)
+  assert.match(gate, /visibleConflicts\(order\)\.length > 0/)
+  const footer = read("components/preflight/gate-footer.tsx")
+  assert.match(footer, /blocked/)
 })
 
 test("the ribbon names chapters, not three equal clicks", () => {

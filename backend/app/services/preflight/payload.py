@@ -207,6 +207,29 @@ def project(order: Order) -> dict[str, Any]:
     return resolve(order).spec
 
 
+def client_report(order: Order) -> dict[str, Any]:
+    """The resolver's report, as the review screen consumes it.
+
+    Duplicates are a count. Each conflict carries the statements and how many
+    the slot can keep, so the client can ask without re-deriving arity.
+    """
+    result = resolve(order)
+    return {
+        "used": len(result.used_line_ids),
+        "duplicates_collapsed": result.duplicates_collapsed,
+        "conflicts": [
+            {
+                "slot": conflict.slot,
+                "kind": conflict.kind,
+                "line_ids": list(conflict.line_ids),
+                "texts": list(conflict.texts),
+                "keep": SLOT_ARITY[conflict.slot],
+            }
+            for conflict in result.conflicts
+        ],
+    }
+
+
 def run_summary(order: Order) -> dict[str, int]:
     """What the contract line on the review screen counts."""
     result = resolve(order)

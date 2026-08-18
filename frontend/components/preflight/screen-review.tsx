@@ -16,8 +16,10 @@
 import Link from "next/link"
 
 import { briefFrom, contractLine } from "@/lib/preflight/prose"
+import { dropIdsForPick, visibleConflicts } from "@/lib/preflight/conflicts"
 import { formatCount } from "@/lib/format"
 import { KIND_EYEBROW, type LineStatus, type OrderState } from "@/lib/preflight/types"
+import { ConflictCard } from "./conflict-card"
 import { GuessRow } from "./guess-row"
 
 import "./guess-row.css"
@@ -50,12 +52,17 @@ export function ScreenReview({
   const drift = order.last_run_at
     ? order.lines.filter((line) => line.status === "unanswered")
     : []
+  const disputes = visibleConflicts(order)
+  const folded = order.duplicates_collapsed ?? 0
 
   return (
     <>
       <div className="pf-signed">Signed off · this is what Myro runs</div>
       <p className="pf-brief">{briefFrom(order)}</p>
       <p className="pf-contract">{contractLine(order)}</p>
+      {folded > 0 ? (
+        <p className="pf-folded">{folded} duplicate {folded === 1 ? "line" : "lines"} folded</p>
+      ) : null}
 
       <div className="pf-chips">
         {/* The CV WORKSPACE, not `profile.cv_url`. That column holds a Supabase
@@ -68,6 +75,21 @@ export function ScreenReview({
         </Link>
         {memoryCount > 0 ? <span className="pf-chip">{memoryCount} notes · read</span> : null}
       </div>
+
+      {disputes.length > 0 ? (
+        <div className="pf-disputes">
+          {disputes.map((conflict) => (
+            <ConflictCard
+              key={`${conflict.slot}:${conflict.line_ids.join(",")}`}
+              conflict={conflict}
+              lines={order.lines}
+              onPick={(chosen) => {
+                for (const id of dropIdsForPick(conflict, chosen)) onAnswer(id, "dropped")
+              }}
+            />
+          ))}
+        </div>
+      ) : null}
 
       {drift.length > 0 ? (
         <div className="pf-drift">

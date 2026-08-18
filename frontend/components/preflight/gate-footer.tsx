@@ -11,12 +11,13 @@ type Screen = "start" | "proposals" | "confirm" | "ready" | "running" | "done"
 
 export function GateFooter({
   screen, thinking, rounds, round, unanswered, proposalDrops, acceptedNow,
-  free, runCost, short, busy, ranBefore, onBack, onNext,
+  free, runCost, short, busy, ranBefore, blocked, onBack, onNext,
 }: {
   screen: Screen; thinking: boolean; rounds: number; round: number; unanswered: number
   proposalDrops: number; acceptedNow: number
   free: boolean; runCost: number; short: boolean; busy: boolean
   ranBefore: boolean
+  blocked: boolean
   onBack: () => void; onNext: () => void
 }) {
   if (screen === "start" || screen === "running" || screen === "done") return null
@@ -56,7 +57,7 @@ export function GateFooter({
           type="button"
           className="pf-btn pf-btn-primary tm-control-focus"
           onClick={onNext}
-          disabled={busy || (screen === "ready" && short)}
+          disabled={busy || (screen === "ready" && (short || blocked))}
         >
           {nextLabel}
         </button>

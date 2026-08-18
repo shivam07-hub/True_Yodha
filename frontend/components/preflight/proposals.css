@@ -235,6 +235,50 @@ a.pf-chip:hover { border-color: var(--tm-accent-ring); color: var(--tm-accent-te
 }
 .pf-start-over:hover { color: var(--tm-text-muted); }
 
+.pf-folded {
+  margin: 8px 0 0;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-note);
+  color: var(--tm-text-muted);
+}
+
+.pf-disputes {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pf-either {
+  padding: 12px 13px;
+  border: 1px solid var(--tm-border);
+  border-radius: 8px;
+  background: var(--tm-surface);
+}
+
+.pf-either-or {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+  text-align: center;
+  margin: 8px 0;
+}
+
+.pf-either-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+}
+.pf-either-option:hover { background: var(--tm-accent-wash); }
+
 /* ── running + done ───────────────────────────────────────────────────────── */
 
 .pf-run { min-height: 230px; }
