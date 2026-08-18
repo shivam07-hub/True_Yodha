@@ -7,6 +7,7 @@ import { useViewport } from "@/mobile"
 import { CollectionsSurface } from "@/mobile/redesign/collections-surface"
 import { CollectionsDesktop } from "@/components/collections/collections-desktop"
 import { FirstSuccessChecklist } from "@/components/onboarding/first-success-checklist"
+import { DashboardSkeleton } from "@/components/loading/page-skeletons"
 
 /**
  * /collections — the saved-job worklist, successor of the retired /home
@@ -23,7 +24,7 @@ function CollectionsInner() {
   // Deep-link from the Loop Bar "N new" signal (Slice 5) — open the pre-flight gate.
   const openSearch = searchParams.get("search") === "1"
 
-  if (!ready) return null
+  if (!ready) return <DashboardSkeleton />
   if (mode === "mobile")
     return (
       <>
@@ -36,7 +37,7 @@ function CollectionsInner() {
 
 export default function CollectionsPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<DashboardSkeleton />}>
       <CollectionsInner />
     </Suspense>
   )

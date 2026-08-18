@@ -70,6 +70,15 @@ def _strip_lead(text: str) -> str:
     return re.sub(r"^no\s+", "", text.strip(), flags=re.I).rstrip(".")
 
 
+def _norm_key(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", text.strip().lower())
+
+
+def _kind_priority(kind: str) -> int:
+    """When the distiller files the same note twice, keep the earlier round's kind."""
+    return {"wont_take": 0, "lean": 1, "goal": 2, "strength": 3}.get(kind, 9)
+
+
 def guesses_from(brief: TargetingBrief) -> list[OrderLine]:
     """Everything Myro would like the user to confirm, as lines.
 
@@ -161,7 +170,15 @@ def guesses_from(brief: TargetingBrief) -> list[OrderLine]:
             )
         )
 
-    return out
+    # One surface per statement. The distiller sometimes files the same note as
+    # work_mode and preference — that asked twice across Won't take and Drawn to.
+    merged: dict[str, OrderLine] = {}
+    for line in out:
+        key = _norm_key(line.text)
+        prev = merged.get(key)
+        if prev is None or _kind_priority(line.kind) < _kind_priority(prev.kind):
+            merged[key] = line
+    return list(merged.values())
 
 
 def confirmed_from(brief: TargetingBrief) -> list[OrderLine]:

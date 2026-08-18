@@ -29,7 +29,7 @@ export function LandingStats({ jobsTracked, companiesMonitored, skillsMapped }: 
   return (
     <div className="lp-stats" aria-label="Myro, by the numbers">
       <div className="lp-wrap lp-stats-row">
-        <Counter target={jobsTracked} label="Jobs tracked" href="/market" />
+        <Counter target={jobsTracked} label="Jobs tracked" href="/intel" />
         <Counter target={companiesMonitored} label="Career pages monitored" href="/companies" />
         <Counter target={skillsMapped} label="Skills read from jobs" href="/intel" />
         <a

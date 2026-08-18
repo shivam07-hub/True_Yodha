@@ -1,6 +1,7 @@
 "use client"
 
 import { Suspense, type ReactNode } from "react"
+import { AuthRouteSkeleton } from "@/components/loading/auth-route-skeleton"
 import Link from "next/link"
 import { MyroLogo } from "@/components/myro-logo"
 import { PublicFooter } from "@/components/public/public-footer"
@@ -117,5 +118,5 @@ export function AuthPageShell({ title, subtitle, children, footerCopy, aside }: 
 }
 
 export function SuspenseWrap({ children }: { children: ReactNode }) {
-  return <Suspense fallback={null}>{children}</Suspense>
+  return <Suspense fallback={<AuthRouteSkeleton />}>{children}</Suspense>
 }

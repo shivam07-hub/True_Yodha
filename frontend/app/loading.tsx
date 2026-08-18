@@ -1,5 +1,5 @@
-import { RouteLoading } from "@/components/loading/route-loading"
+import { RouteMatchedSkeleton } from "@/components/loading/route-matched-skeleton"
 
 export default function Loading() {
-  return <RouteLoading kind="app-data" />
+  return <RouteMatchedSkeleton />
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
 import { SignupRoute } from "./signup-route"
+import { AuthRouteSkeleton } from "@/components/loading/auth-route-skeleton"
 
 export const metadata: Metadata = {
   title: "Sign Up — Myro",
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
 
 export default function SignupPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<AuthRouteSkeleton />}>
       <SignupRoute />
     </Suspense>
   )

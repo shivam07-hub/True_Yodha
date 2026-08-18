@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { type ReactNode } from "react"
+import { type ReactNode, useEffect, useState } from "react"
 import { Mail, GraduationCap } from "lucide-react"
 import { MyroLogo } from "@/components/myro-logo"
 import { ThemeControl } from "@/components/ui/theme-control"
@@ -9,6 +9,7 @@ import { useSession } from "@/lib/hooks/use-auth"
 import { useSignupGate } from "@/lib/hooks/use-signup-gate"
 import { AuthedTopStripStandalone } from "@/components/shell/authed-top-strip"
 import { navMarketingRoutes } from "@/lib/site-routes"
+import { isReturningDevice, publicAuthPrimary } from "@/lib/auth/last-auth"
 import "./public-nav.css"
 
 export type PublicNavPage = "intel" | "newsletter" | "home" | "privacy" | "signup" | "login" | "docs" | "institutions"
@@ -56,6 +57,11 @@ export function PublicTopNav({ active, showSignIn, authSlot }: PublicTopNavProps
   // the branch below can't change hook order.
   const { token } = useSession()
   const signup = useSignupGate()
+  const [returning, setReturning] = useState(false)
+  useEffect(() => {
+    setReturning(isReturningDevice())
+  }, [])
+  const primary = publicAuthPrimary(returning)
 
   // One app: a signed-in visitor on any public surface (newsletter / intel /
   // institutions) gets the EXACT app strip — the same <AuthedTopStrip> the app
@@ -63,6 +69,33 @@ export function PublicTopNav({ active, showSignIn, authSlot }: PublicTopNavProps
   // already in the app), no identity chrome vanishing. Logged-out visitors keep
   // the marketing bar below.
   if (token) return <AuthedTopStripStandalone />
+
+  const signIn = showSignIn ? (
+    <Link
+      href="/login"
+      className={primary === "signin" ? "tm-public-nav-signup" : "tm-public-nav-signin"}
+      onClick={(e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return
+        e.preventDefault()
+        signup.open({ surface: "manual", mode: "login", source: "public_nav_signin" })
+      }}
+    >
+      {primary === "signin" ? "Sign in" : "Sign in →"}
+    </Link>
+  ) : null
+  const signUp = authSlot ?? (
+    <Link
+      href="/signup"
+      className={primary === "signup" ? "tm-public-nav-signup" : "tm-public-nav-signin"}
+      onClick={(e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return
+        e.preventDefault()
+        signup.open({ surface: "manual", source: "public_nav_signup_pill" })
+      }}
+    >
+      Sign up
+    </Link>
+  )
 
   return (
     <nav aria-label="Public navigation" className="tm-public-nav">
@@ -100,32 +133,7 @@ export function PublicTopNav({ active, showSignIn, authSlot }: PublicTopNavProps
             "follow-OS only" rule so visitors read in their preferred brand.
             Authed visitors get the toggle inside the account menu instead. */}
         <ThemeControl className="tm-public-nav-theme" />
-        {showSignIn && (
-          <Link
-            href="/login"
-            className="tm-public-nav-signin"
-            onClick={(e) => {
-              if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return
-              e.preventDefault()
-              signup.open({ surface: "manual", mode: "login", source: "public_nav_signin" })
-            }}
-          >
-            Sign in →
-          </Link>
-        )}
-        {authSlot ?? (
-          <Link
-            href="/signup"
-            className="tm-public-nav-signup"
-            onClick={(e) => {
-              if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return
-              e.preventDefault()
-              signup.open({ surface: "manual", source: "public_nav_signup_pill" })
-            }}
-          >
-            Sign up
-          </Link>
-        )}
+        {primary === "signin" ? <>{signUp}{signIn}</> : <>{signIn}{signUp}</>}
       </div>
     </nav>
   )

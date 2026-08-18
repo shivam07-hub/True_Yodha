@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
 import { EnterpriseSignup } from "@/app/signup/institutions/enterprise-signup"
+import { AuthRouteSkeleton } from "@/components/loading/auth-route-skeleton"
 
 const BASE = "https://www.himyro.com"
 
@@ -24,7 +25,7 @@ export const metadata: Metadata = {
 // /institutions URL (cleaner than the /signup/institutions#institutions hash).
 export default function InstitutionsLandingPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<AuthRouteSkeleton />}>
       <EnterpriseSignup initialMode="institutions" lockMode />
     </Suspense>
   )

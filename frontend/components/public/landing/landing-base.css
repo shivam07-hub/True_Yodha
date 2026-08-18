@@ -6,12 +6,13 @@
    ───────────────────────────────────────────────────────────── */
 
 .tm-landing {
-  /* The landing no longer owns a palette — its --lp-* tokens now ALIAS the
-     canonical --tm-* system, so the whole marketing surface themes light/dark
-     with the product (one brand, pre = post). The dark-console islands
-     (.lp-engine / .lp-readout) re-pin fixed Engine-dark in landing-engine.css.
-     Accent follows the product: teal #00f5d4 (dark) / Firecrawl orange #FF4C00 (light), via the
-     token layer. */
+  /* The landing still owns no palette of its own — every --lp-* token ALIASES
+     the canonical --tm-* system. What changed (2026-08-17) is which ramp the
+     canonical system hands it: the wrapper carries `tm-ink`, so --tm-* resolves
+     to the navy marketing ink defined in app/design-tokens.css §Surface: INK
+     instead of the warm product dark. Aliasing is still the rule — put a navy
+     literal in a component here and the next palette move will miss it.
+     Accent is teal #00f5d4 on this surface in every case; ink is dark-only. */
   --lp-bg:            var(--tm-bg);
   --lp-surface:       var(--tm-surface);
   --lp-surface-2:     var(--tm-surface-2);
@@ -138,20 +139,6 @@
   font-size: clamp(9px, 1.2vw, 16px);
   line-height: 1.6;
   color: var(--lp-muted);
-}
-
-/* Light grid faintness — its own value, NOT the border token. --tm-border-faint
-   (8% ink) is tuned for a 1px hairline border; tiled full-bleed across the hero
-   it reads as a loud blueprint, not a whisper. Match the dark grid's quiet
-   visual weight with ~3.5% ink. */
-:root[data-surface="light"] .tm-landing {
-  --lp-grid-line: rgba(38, 38, 38, 0.035);
-  /* The global light faint/muted tokens (#9D9D9D ≈ 2.5:1, #6E6E6E) are too pale
-     for body + meta copy on the paper surface. Darken locally so surface bodies,
-     ENGINE meta lines and the Myrology strip clear WCAG AA — scoped to the
-     landing only, global --tm-* untouched. */
-  --lp-muted: #565656;
-  --lp-faint: #6b6b6b;
 }
 
 /* ── Reused PublicTopNav → fixed-feel dark terminal bar ─────── */

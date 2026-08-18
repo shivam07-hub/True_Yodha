@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { MarketSkeleton } from "@/components/loading/page-skeletons"
 
 /**
  * /home — RETIRED (2026-07-07 Collections cutover). The old dashboard fused
@@ -20,12 +21,12 @@ function HomeRedirect() {
     const jobId = searchParams.get("jobId")
     router.replace(jobId ? `/collections?jobId=${encodeURIComponent(jobId)}` : "/market")
   }, [router, searchParams])
-  return null
+  return <MarketSkeleton />
 }
 
 export default function HomePage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<MarketSkeleton />}>
       <HomeRedirect />
     </Suspense>
   )

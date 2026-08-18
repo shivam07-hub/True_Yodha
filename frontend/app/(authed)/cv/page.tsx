@@ -917,7 +917,7 @@ function CVPage() {
 
 export default function CVPageWithSuspense() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<CvSkeleton />}>
       <CVPage />
     </Suspense>
   )

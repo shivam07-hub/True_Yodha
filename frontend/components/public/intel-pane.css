@@ -369,6 +369,24 @@
   position: relative;
 }
 
+/* On the marketing ink surface the console stops being an exception. The whole
+   page is already cool and dark, so a pinned neutral near-black reads as a grey
+   hole punched in the navy rather than a terminal. Take the ink ramp's elevated
+   surfaces instead, and lift the faint rung to the ink value — #646e8c measures
+   ~3.5:1 here, which is under AA for the log rows it labels. */
+html:root:has(.tm-ink) .tm-intel-console {
+  --tm-text:        #e8f0ff;
+  --tm-text-muted:  #9aa8c6;
+  --tm-text-faint:  #7a88a8;
+  --tm-border:      rgba(232, 240, 255, 0.12);
+  --tm-border-soft: rgba(232, 240, 255, 0.06);
+  background: var(--tm-surface-2);
+}
+
+html:root:has(.tm-ink) .tm-intel-kpi {
+  background: var(--tm-bg-inset);
+}
+
 .tm-intel-console::before {
   content: "";
   position: absolute;

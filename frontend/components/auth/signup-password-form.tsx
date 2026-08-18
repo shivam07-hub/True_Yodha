@@ -12,6 +12,7 @@ import { hasPendingAnonCvClaim } from "@/lib/anon-cv-claim"
 import { readPendingExtensionConnect } from "@/lib/extension-connect-stash"
 import { hasPendingJobSaveClaim } from "@/lib/anon-job-stash"
 import { postAuthDestination } from "@/lib/auth/post-auth-destination"
+import { rememberAuth } from "@/lib/auth/last-auth"
 
 interface Props {
   surface: "page" | "modal"
@@ -61,6 +62,7 @@ export function SignupPasswordForm({
         return
       }
 
+      rememberAuth("password", normalizedEmail)
       setSessionTokens({ accessToken: res.access_token, refreshToken: res.refresh_token })
       clearStoredAttribution()
       signupEvents.completed({

@@ -22,9 +22,11 @@
   color: var(--lp-accent-text);
 }
 
-/* One-line headings are the point of this pass — nowrap + a clamp whose min is
-   tuned to hold the copy at 375px. Overflow is clipped by the page's
-   overflow-x: hidden, never a scrollbar. */
+/* Above 900px both hero lines are held to one line and scale with the viewport.
+   Below that the vw term is too small to read, so the 900px block wraps them
+   instead; the two curves meet at 32px/16px, making the switch invisible while
+   resizing. The subhead's floor is what keeps it legible — on 1.42vw alone it
+   is 9px on a phone and 12px on a tablet. */
 .lp-hero-h1 {
   max-width: none;
   margin: 0;
@@ -40,7 +42,7 @@
   margin: 14px 0 0;
   color: var(--lp-muted);
   white-space: nowrap;
-  font-size: clamp(9px, 1.42vw, 19px);
+  font-size: clamp(16px, 1.42vw, 19px);
   line-height: 1.55;
 }
 
@@ -124,6 +126,13 @@
   font-weight: 600;
   color: var(--lp-accent-text);
   text-decoration: none;
+  /* Renders identically whether an <a> (fresher → signup) or a <button>
+     (switcher → dropzone picker): reset the native button chrome. */
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
 }
 
 .lp-path-link:hover { text-decoration: underline; text-underline-offset: 3px; }
@@ -272,6 +281,21 @@
 .lp-stat-oss:focus-visible .lp-stat-oss-num {
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+/* Holding one line below 900px costs more than it buys: the vw scaling puts the
+   headline at 23px and the subhead at 9px, and the subhead stops fitting even
+   then. Wrapping both is what makes the range readable. */
+@media (max-width: 900px) {
+  .lp-hero-h1 {
+    white-space: normal;
+    font-size: clamp(28px, 8.5vw, 32px);
+    line-height: 1.12;
+  }
+
+  .lp-hero-support {
+    white-space: normal;
+  }
 }
 
 @media (max-width: 640px) {

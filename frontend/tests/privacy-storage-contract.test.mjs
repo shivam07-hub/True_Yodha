@@ -14,16 +14,16 @@ test("authenticated query data is not persisted to localStorage", () => {
   assert.equal(cache.includes("localStorage"), false)
 })
 
-test("tokens and CV drafts use tab-scoped storage", () => {
+test("auth sessions persist across tab close; CV drafts stay tab-scoped", () => {
   const session = read("lib/session.ts")
   const autosave = read("lib/hooks/use-master-autosave.ts")
   const supabase = read("lib/supabase.ts")
 
-  assert.equal(session.includes("localStorage"), false)
-  assert.equal(session.includes("sessionStorage"), true)
+  assert.equal(session.includes("window.localStorage"), true)
+  assert.equal(session.includes("migrateTabSessionToDurable"), true)
   assert.equal(autosave.includes("localStorage"), false)
   assert.equal(autosave.includes("sessionStorage"), true)
-  assert.equal(supabase.includes("sessionStorage"), true)
+  assert.match(supabase, /storage:\s*window\.localStorage/)
   assert.equal(supabase.includes("createBrowserClient"), false)
 })
 

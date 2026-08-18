@@ -165,7 +165,7 @@ export default function CvPreviewPage() {
               ) : (
                 <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
                   <Button type="button" variant="outline" onClick={() => setPasteOpen(true)}>No CV? Paste your CV text</Button>
-                  <Button variant="outline" render={<a href="/market" target="_blank" rel="noopener noreferrer" />}>
+                  <Button variant="outline" render={<a href="/intel" target="_blank" rel="noopener noreferrer" />}>
                     Browse jobs instead <ExternalLink className="size-4" aria-hidden="true" />
                   </Button>
                 </div>

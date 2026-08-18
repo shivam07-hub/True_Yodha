@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { auth } from "@/lib/api"
+import { rememberAuth } from "@/lib/auth/last-auth"
 import { hashEmailDomain, signupEvents } from "@/lib/analytics"
 import "./auth-shared.css"
 
@@ -29,6 +30,10 @@ export function MagicLinkInput({
   const [error, setError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
 
+  useEffect(() => {
+    if (initialEmail) setEmail(initialEmail)
+  }, [initialEmail])
+
   const valid = EMAIL_RE.test(email.trim())
 
   async function submit(e?: React.FormEvent) {
@@ -43,6 +48,7 @@ export function MagicLinkInput({
     try {
       signupEvents.methodTapped({ method: "magic_link", surface })
       await auth.magicLinkRequest(value, redirectTo)
+      rememberAuth("magic_link", value)
       signupEvents.magicLinkSent({ email_domain_hash: hashEmailDomain(value) })
       onSent?.(value)
     } catch (err) {
