@@ -22,10 +22,11 @@
   color: var(--lp-accent-text);
 }
 
-/* Wide viewports get one-line headings: nowrap plus a vw-scaled size so the
-   headline and the line under it end flush. That only holds while the vw term
-   stays above the clamp floor; below ~640px it doesn't, so the 640px block
-   drops nowrap rather than letting the copy run under overflow-x: hidden. */
+/* Above 900px both hero lines are held to one line and scale with the viewport.
+   Below that the vw term is too small to read, so the 900px block wraps them
+   instead; the two curves meet at 32px/16px, making the switch invisible while
+   resizing. The subhead's floor is what keeps it legible — on 1.42vw alone it
+   is 9px on a phone and 12px on a tablet. */
 .lp-hero-h1 {
   max-width: none;
   margin: 0;
@@ -41,7 +42,7 @@
   margin: 14px 0 0;
   color: var(--lp-muted);
   white-space: nowrap;
-  font-size: clamp(9px, 1.42vw, 19px);
+  font-size: clamp(16px, 1.42vw, 19px);
   line-height: 1.55;
 }
 
@@ -282,25 +283,25 @@
   text-underline-offset: 3px;
 }
 
-@media (max-width: 640px) {
-  .lp-hero-inner {
-    padding-top: 20px;
-    padding-bottom: 44px;
-  }
-
-  /* Both hero lines are vw-scaled and nowrap above this width. Here the vw term
-     is under their clamp floors, so they stop shrinking and the copy runs past
-     the viewport — 18px headline, 9px subhead, clipped. Wrapping is the only way
-     either reads on a phone. */
+/* Holding one line below 900px costs more than it buys: the vw scaling puts the
+   headline at 23px and the subhead at 9px, and the subhead stops fitting even
+   then. Wrapping both is what makes the range readable. */
+@media (max-width: 900px) {
   .lp-hero-h1 {
     white-space: normal;
-    font-size: clamp(28px, 8.5vw, 34px);
+    font-size: clamp(28px, 8.5vw, 32px);
     line-height: 1.12;
   }
 
   .lp-hero-support {
     white-space: normal;
-    font-size: var(--lp-fs-body);
+  }
+}
+
+@media (max-width: 640px) {
+  .lp-hero-inner {
+    padding-top: 20px;
+    padding-bottom: 44px;
   }
 
   .lp-stats-row {
