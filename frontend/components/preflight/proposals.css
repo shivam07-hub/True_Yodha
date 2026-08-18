@@ -279,43 +279,11 @@ a.pf-chip:hover { border-color: var(--tm-accent-ring); color: var(--tm-accent-te
 }
 .pf-either-option:hover { background: var(--tm-accent-wash); }
 
-/* ── running + done ───────────────────────────────────────────────────────── */
+/* ── done ─────────────────────────────────────────────────────────────────── */
 
-.pf-run { min-height: 230px; }
-
-.pf-run-track {
-  height: 3px;
-  border-radius: 99px;
-  background: var(--tm-border);
-  overflow: hidden;
-  margin-bottom: 20px;
-}
-.pf-run-fill {
-  height: 100%;
-  background: var(--tm-interactive);
-  border-radius: 99px;
-  transition: width 600ms var(--tm-ease);
-}
-
-.pf-run-line {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 7px 0;
-  font-size: var(--tm-fs-ui);
-  color: var(--tm-text-faint);
-  transition: color var(--tm-dur) var(--tm-ease);
-}
-.pf-run-line[data-state="current"], .pf-run-line[data-state="done"] { color: var(--tm-text); }
-
-.pf-run-mark {
-  font-family: var(--tm-font-mono);
-  width: 14px;
-  text-align: center;
-  color: var(--tm-text-disabled);
-}
-.pf-run-line[data-state="current"] .pf-run-mark { color: var(--tm-interactive); }
-.pf-run-line[data-state="done"] .pf-run-mark { color: var(--tm-success); }
+/* The `.pf-run*` running-screen styles live in `screen-running.css` — the
+   wait screen is a self-contained hero + stack + count + contract, not a
+   bar with statuses. */
 
 .pf-numbers { display: flex; gap: 28px; margin: 16px 0 0; }
 .pf-numeral {
@@ -332,5 +300,5 @@ a.pf-chip:hover { border-color: var(--tm-accent-ring); color: var(--tm-accent-te
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pf-prop, .pf-tally-btn, .pf-run-fill, .pf-run-line { transition: none; }
+  .pf-prop, .pf-tally-btn { transition: none; }
 }

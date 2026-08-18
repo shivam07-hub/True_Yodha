@@ -32,6 +32,7 @@ import { useRefreshGateStore } from "@/store/refreshGateStore"
 import { useXPStore } from "@/store/xpStore"
 import { refreshIsLive, type UseJobRefreshResult } from "@/lib/hooks/use-job-refresh"
 
+import { contractLine } from "@/lib/preflight/prose"
 import { PreflightHeader, type Stage } from "./preflight-header"
 import { ScreenSayIt } from "./screen-say-it"
 import { ScreenProposals, type ProposalAnswer } from "./screen-proposals"
@@ -44,6 +45,7 @@ import { GateFooter } from "./gate-footer"
 
 import "./preflight.css"
 import "./proposals.css"
+import "./screen-running.css"
 
 type Screen = "start" | "proposals" | "confirm" | "ready" | "running" | "done"
 
@@ -366,6 +368,7 @@ export function PreflightGate({
               done={refreshVm.progressDone}
               total={refreshVm.progressTotal}
               revealed={refreshVm.revealed}
+              contract={order ? contractLine(order) : null}
             />
           ) : null}
 
