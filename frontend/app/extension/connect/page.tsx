@@ -2,7 +2,8 @@
 
 import { Suspense, useEffect, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { EdgeGlow } from "@/components/loading/edge-glow"
+import { ExtensionConnectStatus } from "@/components/loading/extension-connect-status"
+import { AuthRouteSkeleton } from "@/components/loading/auth-route-skeleton"
 import { getAccessToken } from "@/lib/session"
 import { auth } from "@/lib/api"
 import {
@@ -91,12 +92,12 @@ function ConnectInner() {
     )
   }
 
-  return <EdgeGlow message="Connecting the Myro extension…" />
+  return <ExtensionConnectStatus message="Connecting the Myro extension…" />
 }
 
 export default function ExtensionConnectPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<AuthRouteSkeleton />}>
       <ConnectInner />
     </Suspense>
   )

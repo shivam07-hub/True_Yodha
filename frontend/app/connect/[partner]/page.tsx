@@ -3,7 +3,8 @@
 import { Suspense, useCallback, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { EdgeGlow } from "@/components/loading/edge-glow"
+import { PostAuthHandoffSkeleton } from "@/components/loading/post-auth-handoff-skeleton"
+import { AuthRouteSkeleton } from "@/components/loading/auth-route-skeleton"
 import { createClient } from "@/lib/supabase"
 import { getAccessToken } from "@/lib/session"
 import { partnerConnect, type PartnerConnectContext } from "@/lib/api"
@@ -84,7 +85,7 @@ function ConnectInner() {
     setPhase("emailed")
   }, [token])
 
-  if (phase === "loading") return <EdgeGlow message="" />
+  if (phase === "loading") return <PostAuthHandoffSkeleton />
 
   if (phase === "invalid") {
     return (
@@ -106,7 +107,7 @@ function ConnectInner() {
     )
   }
 
-  if (phase === "done") return <EdgeGlow message="" />
+  if (phase === "done") return <PostAuthHandoffSkeleton />
 
   const partnerName = context?.partner_name ?? "Your partner"
 
@@ -155,7 +156,7 @@ function Shell({ title, children }: { title: string; children: React.ReactNode }
 
 export default function PartnerConnectPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<AuthRouteSkeleton />}>
       <ConnectInner />
     </Suspense>
   )

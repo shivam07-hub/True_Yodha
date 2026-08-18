@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { AuthPageShell } from "@/components/auth/auth-page-shell"
 import { LoginForm } from "@/components/auth/login-form"
+import { AuthRouteSkeleton } from "@/components/loading/auth-route-skeleton"
 
 function LoginRoute() {
   // Set when a signup bounced off an existing account — never make the user
@@ -32,7 +33,7 @@ function LoginRoute() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<AuthRouteSkeleton />}>
       <LoginRoute />
     </Suspense>
   )

@@ -19,6 +19,7 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { useFeedState } from "@/lib/hooks/use-feed-state"
 import { useFollowCompany } from "@/lib/hooks/use-follow-company"
 import { parseLocationMode, pickDefaultSort, type FeedFilters } from "@/components/market/feed-types"
+import { MarketSkeleton } from "@/components/loading/page-skeletons"
 
 type BrowsePatch = {
   tab?: "jobs" | "heatmap"
@@ -287,7 +288,7 @@ function IntelPageInner() {
 
 export default function IntelPage() {
   return (
-    <Suspense>
+    <Suspense fallback={<MarketSkeleton />}>
       <IntelPageInner />
     </Suspense>
   )

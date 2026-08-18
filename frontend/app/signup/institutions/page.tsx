@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
 import { EnterpriseSignup } from "./enterprise-signup"
+import { AuthRouteSkeleton } from "@/components/loading/auth-route-skeleton"
 
 export const metadata: Metadata = {
   title: "Myro for Placement Cells — Career Intelligence for Institutions",
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
 
 export default function InstitutionsSignupPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<AuthRouteSkeleton />}>
       <EnterpriseSignup />
     </Suspense>
   )

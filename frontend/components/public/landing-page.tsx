@@ -13,6 +13,7 @@ import { LandingCommons } from "@/components/public/landing/landing-commons"
 import "@/components/public/landing/job-gen.css"
 import { useLandingData } from "@/components/public/landing/use-landing-data"
 import { getAccessToken, getRefreshToken } from "@/lib/session"
+import { MarketSkeleton } from "@/components/loading/page-skeletons"
 import "@/components/public/landing/landing-base.css"
 import "@/components/public/landing/landing-hero.css"
 import "@/components/public/landing/landing-cv-hub.css"
@@ -56,7 +57,7 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
 
   const data = useLandingData()
 
-  if (redirecting) return null
+  if (redirecting) return <MarketSkeleton />
 
   return (
     <div

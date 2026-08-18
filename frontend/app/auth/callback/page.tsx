@@ -2,7 +2,8 @@
 
 import { Suspense, useEffect, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { EdgeGlow } from "@/components/loading/edge-glow"
+import { PostAuthHandoffSkeleton } from "@/components/loading/post-auth-handoff-skeleton"
+import { AuthRouteSkeleton } from "@/components/loading/auth-route-skeleton"
 import { AuthPageShell } from "@/components/auth/auth-page-shell"
 import { createClient } from "@/lib/supabase"
 import { authCallbackFailure, type AuthCallbackFailure } from "@/lib/auth/callback-flow"
@@ -217,16 +218,14 @@ function CallbackInner() {
     )
   }
 
-  // Silent ambient field — no "Signing you in…" text. The redirect is now a
-  // single round-trip, and the destination's own skeleton (app-shell →
-  // DashboardSkeleton) is the real loading surface. A worded splash here would
-  // only make the sub-second gap feel countable.
-  return <EdgeGlow message="" />
+  // Destination-shaped skeleton — same visual language as /market (or carried
+  // intent) so OAuth never paints a full-screen teal field before the app shell.
+  return <PostAuthHandoffSkeleton />
 }
 
 export default function AuthCallbackPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<AuthRouteSkeleton />}>
       <CallbackInner />
     </Suspense>
   )
