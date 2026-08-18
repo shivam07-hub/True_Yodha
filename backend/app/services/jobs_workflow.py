@@ -383,13 +383,14 @@ async def compute_job_matches(
     target_countries = profile.get("target_location_countries") or []
     if not target_countries and profile.get("target_location_country"):
         target_countries = [profile["target_location_country"]]
-    candidate_job_ids = repo.get_candidate_job_ids_for_skills(
+    candidate_jobs = repo.candidate_jobs_for_skills(
         list(user_skill_map.keys()),
         target_location_countries=target_countries,
     )
     candidate_job_ids = repo.filter_job_ids_for_eligibility(
-        candidate_job_ids,
+        [str(row["job_id"]) for row in candidate_jobs if row.get("job_id")],
         profile=profile,
+        jobs=candidate_jobs,
     )
 
     # Self-healing exclusion (Backlog #14 / 2026-05-30 decision: refresh is

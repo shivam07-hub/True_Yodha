@@ -208,11 +208,25 @@ class _FakeComputeJobsRepository:
     def get_user_profile_targeting(self, _user_id: str) -> dict[str, Any]:
         return {"target_roles": ["Data Analyst"], "target_location": "Remote"}
 
+    def candidate_jobs_for_skills(
+        self,
+        _skill_keys: list[str],
+        *,
+        target_location_countries: list[str] | None = None,
+        require_fresh: bool = True,
+    ) -> list[dict[str, Any]]:
+        return [{"job_id": job_id} for job_id in self._candidate_job_ids]
+
     def get_candidate_job_ids_for_skills(self, _skill_keys: list[str], *, target_location_countries: list[str] | None = None) -> list[str]:
         return self._candidate_job_ids
 
     def filter_job_ids_for_eligibility(
-        self, job_ids: list[str], *, profile: dict[str, Any], include_stretch: bool = False
+        self,
+        job_ids: list[str],
+        *,
+        profile: dict[str, Any],
+        include_stretch: bool = False,
+        jobs: list[dict[str, Any]] | None = None,
     ) -> list[str]:
         return job_ids
 

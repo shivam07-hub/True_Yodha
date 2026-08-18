@@ -121,7 +121,66 @@ class _FakeDB:
                     for sid in job_count
                 ]
             )
+        if name == "candidate_jobs_for_user":
+            return _FakeRpcCall(_fake_candidate_jobs(self._tables, params))
         raise NotImplementedError(name)
+
+
+def _fake_candidate_jobs(
+    tables: dict[str, list[dict[str, Any]]],
+    params: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """SQL semantics of candidate_jobs_for_user, over the in-memory tables."""
+    skill_keys = set(params.get("p_skill_keys") or [])
+    countries = [c.strip().lower() for c in (params.get("p_countries") or []) if c and str(c).strip()]
+    require_fresh = params.get("p_require_fresh", True)
+    after = params.get("p_after_job_id")
+    limit = int(params.get("p_limit") or 1000)
+
+    skill_ids = {
+        row["id"]
+        for row in tables.get("skills", [])
+        if row.get("taxonomy_key") in skill_keys
+    }
+    job_ids = {
+        row["job_id"]
+        for row in tables.get("job_skills", [])
+        if row.get("skill_id") in skill_ids
+    }
+    jobs_by_id = {row["job_id"]: row for row in tables.get("jobs", [])}
+
+    out: list[dict[str, Any]] = []
+    for job_id in sorted(job_ids, key=str):
+        if after is not None and str(job_id) <= str(after):
+            continue
+        job = jobs_by_id.get(job_id)
+        if job is None:
+            continue
+        if require_fresh and not (
+            job.get("is_active") is True and job.get("listing_confidence") == "active"
+        ):
+            continue
+        if countries:
+            country = (job.get("location_country") or "").strip().lower()
+            mode = (job.get("location_mode") or "").strip().lower()
+            if country and country in countries:
+                pass
+            elif not country and mode in ("remote", "hybrid"):
+                pass
+            else:
+                continue
+        out.append({
+            "job_id": job_id,
+            "job_title": job.get("job_title"),
+            "role_domain": job.get("role_domain"),
+            "career_band": job.get("career_band"),
+            "seniority_level": job.get("seniority_level"),
+            "min_years_experience": job.get("min_years_experience"),
+            "max_years_experience": job.get("max_years_experience"),
+        })
+        if len(out) >= limit:
+            break
+    return out
 
 
 def test_fetch_all_rows_paginates_until_short_page() -> None:
@@ -587,6 +646,34 @@ def test_get_candidate_job_ids_for_skills_require_fresh_false_bypasses_trust_gat
     result = JobsRepository(db).get_candidate_job_ids_for_skills(["python"], require_fresh=False)
 
     assert result == ["j1"]
+
+
+def test_get_candidate_job_ids_for_skills_filters_by_location() -> None:
+    db = _FakeDB({
+        "skills": [{"id": "s1", "taxonomy_key": "python"}],
+        "job_skills": [
+            {"job_id": "india-onsite", "skill_id": "s1"},
+            {"job_id": "usa-onsite", "skill_id": "s1"},
+            {"job_id": "remote-blank", "skill_id": "s1"},
+            {"job_id": "onsite-blank", "skill_id": "s1"},
+        ],
+        "jobs": [
+            {"job_id": "india-onsite", "is_active": True, "listing_confidence": "active",
+             "location_country": "India", "location_mode": "onsite"},
+            {"job_id": "usa-onsite", "is_active": True, "listing_confidence": "active",
+             "location_country": "USA", "location_mode": "onsite"},
+            {"job_id": "remote-blank", "is_active": True, "listing_confidence": "active",
+             "location_country": None, "location_mode": "remote"},
+            {"job_id": "onsite-blank", "is_active": True, "listing_confidence": "active",
+             "location_country": "  ", "location_mode": "onsite"},
+        ],
+    })
+
+    result = JobsRepository(db).get_candidate_job_ids_for_skills(
+        ["python"], target_location_countries=["india"]
+    )
+
+    assert set(result) == {"india-onsite", "remote-blank"}
 
 
 # ---------------------------------------------------------------------------

@@ -14,6 +14,7 @@ from supabase import Client
 from app.database import get_supabase_admin
 from app.db_safe import safe_read
 from app.deps import get_user_db
+from app.repositories.candidate_jobs import fetch_candidate_jobs
 from app.repositories.job_skills_read_model import fetch_all_rows, fetch_job_skill_rows, fetch_job_skill_rows_for_ids, group_job_skill_rows
 from app.services import job_importer, shared_cache, skill_floor
 from app.services.background import debounce
@@ -2627,7 +2628,9 @@ class JobsRepository:
 
         Include if location_country is in the target set OR (location_country is
         NULL AND mode is remote/hybrid). Queries in chunks of 200 to stay within
-        PostgREST URL limits.
+        PostgREST URL limits. The skill-overlap selector no longer uses this —
+        `candidate_jobs_for_user` inlines the same rule. The title selector still
+        does, because it is capped and does not go through that RPC.
         """
         countries_lower = {c.strip().lower() for c in target_location_countries if c and c.strip()}
         if not countries_lower:
@@ -2650,30 +2653,25 @@ class JobsRepository:
                     result.append(row["job_id"])
         return result
 
-    def _filter_job_ids_by_recommendability(self, job_ids: list[str]) -> list[str]:
-        """Keep only listings the verifier has explicitly marked active.
+    def candidate_jobs_for_skills(
+        self,
+        skill_keys: list[str],
+        *,
+        target_location_countries: list[str] | None = None,
+        require_fresh: bool = True,
+    ) -> list[dict[str, Any]]:
+        """Eligibility-column rows for skill-overlapping jobs.
 
-        ``last_seen`` is scraper observation history, not listing liveness. A
-        source can stop being crawled while its listings remain live, so Career
-        Ops must consume the verifier-owned ``is_active`` and
-        ``listing_confidence`` fields instead. Queries stay chunked to keep
-        PostgREST URLs bounded.
+        One body-encoded RPC. Location and freshness are applied in SQL with
+        the same rules the deleted Python helpers used; `job_is_eligible` still
+        runs in Python over these rows.
         """
-        if not job_ids:
-            return []
-        result: list[str] = []
-        for i in range(0, len(job_ids), self._LOCATION_FILTER_CHUNK):
-            chunk = job_ids[i:i + self._LOCATION_FILTER_CHUNK]
-            rows = (
-                self._db.table("jobs")
-                .select("job_id")
-                .in_("job_id", chunk)
-                .eq("is_active", True)
-                .eq("listing_confidence", "active")
-                .execute()
-            ).data or []
-            result.extend(r["job_id"] for r in rows)
-        return result
+        return fetch_candidate_jobs(
+            self._db,
+            skill_keys,
+            countries=target_location_countries,
+            require_fresh=require_fresh,
+        )
 
     def get_candidate_job_ids_for_skills(
         self,
@@ -2694,50 +2692,15 @@ class JobsRepository:
         ``last_seen`` age is deliberately ignored. Set False only for callers
         that deliberately want the full history.
         """
-        if not skill_keys:
-            return []
-
-        # IMPORTANT: taxonomy_key in `skills` is canonical Lightcast case
-        # (e.g. "Python (Programming Language)"). `user_skill_map` keys are
-        # sourced from the same column, so we must preserve case here.
-        normalized_keys: list[str] = []
-        seen: set[str] = set()
-        for raw in skill_keys:
-            key = (raw or "").strip()
-            if not key or key in seen:
-                continue
-            seen.add(key)
-            normalized_keys.append(key)
-        if not normalized_keys:
-            return []
-
-        skill_id_rows = (
-            self._db.table("skills")
-            .select("id")
-            .in_("taxonomy_key", normalized_keys)
-            .execute()
-        ).data or []
-        skill_ids = [r["id"] for r in skill_id_rows]
-        if not skill_ids:
-            return []
-        js_rows = fetch_all_rows(
-            self._db,
-            table="job_skills",
-            columns="job_id",
-            query_builder=lambda q: q.in_("skill_id", skill_ids),
-        )
-        all_job_ids = list({r["job_id"] for r in js_rows})
-
-        located = (
-            self._filter_job_ids_by_location(all_job_ids, target_location_countries)
-            if target_location_countries
-            else all_job_ids
-        )
-        if not require_fresh:
-            return located
-
-        recommendable = self._filter_job_ids_by_recommendability(located)
-        return recommendable
+        return [
+            str(row["job_id"])
+            for row in self.candidate_jobs_for_skills(
+                skill_keys,
+                target_location_countries=target_location_countries,
+                require_fresh=require_fresh,
+            )
+            if row.get("job_id")
+        ]
 
     def get_candidate_job_ids_for_roles(
         self,
@@ -2795,13 +2758,19 @@ class JobsRepository:
         *,
         profile: dict[str, Any],
         include_stretch: bool = False,
+        jobs: list[dict[str, Any]],
     ) -> list[str]:
-        """Keep candidate IDs that pass the same gate as the browse feed."""
+        """Keep candidate IDs that pass the same gate as the browse feed.
+
+        `jobs` is the eligibility-column rows already loaded for this pool
+        (from `candidate_jobs_for_skills`). Passing ids into `get_jobs_by_ids`
+        is how a 6,000-job Match Run threw; this method never refetches.
+        """
         if not job_ids:
             return []
         allowed = {
             str(job["job_id"])
-            for job in self.get_jobs_by_ids(job_ids)
+            for job in jobs
             if job.get("job_id") and job_is_eligible(profile, job, include_stretch=include_stretch)
         }
         return [job_id for job_id in job_ids if job_id in allowed]
