@@ -14,10 +14,12 @@
  * while judging Myro's reading of it.
  */
 
-import { GuessRow } from "./guess-row"
+import { ShuffleGuessList } from "./shuffle-guess-list"
+import { answeredInRound, totalInRound, visibleRoundLineIds } from "@/lib/preflight/round-lines"
 import { ROUND_LABEL, ROUND_LEAD, type OrderLine, type OrderRound, type RoundKey } from "@/lib/preflight/types"
 
 import "./guess-row.css"
+import "./shuffle-guess-list.css"
 
 export function ScreenConfirm({
   said,
@@ -45,8 +47,10 @@ export function ScreenConfirm({
   const round = rounds[activeRound]
   if (!round) return null
 
-  const linesOf = (r: OrderRound) => r.line_ids.map((id) => lineById.get(id)).filter(Boolean) as OrderLine[]
-  const answeredIn = (r: OrderRound) => linesOf(r).filter((l) => l.status !== "unanswered").length
+  const visibleIds = visibleRoundLineIds(rounds, activeRound, lineById)
+  const roundLines = visibleIds
+    .map((id) => lineById.get(id))
+    .filter(Boolean) as OrderLine[]
 
   return (
     <>
@@ -75,12 +79,12 @@ export function ScreenConfirm({
             className="pf-tally-btn tm-control-focus"
             aria-current={i === activeRound ? "true" : undefined}
             aria-selected={i === activeRound}
-            aria-label={`${ROUND_LABEL[r.key as RoundKey]} — ${answeredIn(r)} of ${r.line_ids.length} answered`}
+            aria-label={`${ROUND_LABEL[r.key as RoundKey]} — ${answeredInRound(rounds, i, lineById)} of ${totalInRound(rounds, i, lineById)} answered`}
             onClick={() => onPickRound(i)}
           >
             <span className="pf-tally-label">{ROUND_LABEL[r.key as RoundKey]}</span>
             <span className="pf-tally-count">
-              {answeredIn(r)} / {r.line_ids.length}
+              {answeredInRound(rounds, i, lineById)} / {totalInRound(rounds, i, lineById)}
             </span>
           </button>
         ))}
@@ -96,17 +100,12 @@ export function ScreenConfirm({
         <p className="pf-round-lead tm-clamp-1">{ROUND_LEAD[round.key as RoundKey]}</p>
       </div>
 
-      <div>
-        {linesOf(round).map((line) => (
-          <GuessRow
-            key={line.id}
-            line={line}
-            busy={busy}
-            onAnswer={(status) => onAnswer(line.id, status)}
-            onReword={(text) => onReword(line.id, text)}
-          />
-        ))}
-      </div>
+      <ShuffleGuessList
+        lines={roundLines}
+        busy={busy}
+        onAnswer={onAnswer}
+        onReword={onReword}
+      />
     </>
   )
 }
