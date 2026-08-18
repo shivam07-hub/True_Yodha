@@ -24,6 +24,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { preflight } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { openingScreen } from "@/lib/preflight/opening-screen"
+import { applyErrorMessage } from "@/lib/preflight/apply-error"
 import { visibleConflicts } from "@/lib/preflight/conflicts"
 import { useOrder, useOrderMutations, invalidateOrder } from "@/lib/preflight/use-order"
 import type { OrderProposal } from "@/lib/preflight/types"
@@ -213,10 +214,16 @@ export function PreflightGate({
   async function commitProposals() {
     const accepted = proposals.filter((p) => answers[p.id] === "kept")
     if (accepted.length) {
-      await apply.mutateAsync({
-        effects: accepted.flatMap((p) => p.effects),
-        origin: "preflight",
-      }).catch(() => setError("Couldn't save those. Nothing was applied — try again."))
+      try {
+        await apply.mutateAsync({
+          effects: accepted.flatMap((p) => p.effects),
+          origin: "preflight",
+        })
+      } catch (err) {
+        setError(applyErrorMessage(err))
+        void invalidateOrder(client)
+        return
+      }
     }
     setScreen(rounds.length ? "confirm" : "ready")
   }

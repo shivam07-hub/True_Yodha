@@ -68,6 +68,18 @@ test("only accepted proposals are applied — unanswered ones are dropped", () =
   assert.match(gate, /effects: accepted\.flatMap/)
 })
 
+test("a failed apply stays on proposals and keeps the server's reason", () => {
+  // The catch used to set an error THEN advance to review anyway — a 409
+  // landed next to "Run · Free" with the reason swallowed.
+  const commit = gate.slice(gate.indexOf("async function commitProposals"))
+  const body = commit.slice(0, commit.indexOf("/* ── run"))
+  assert.match(body, /applyErrorMessage\(err\)/)
+  assert.match(body, /invalidateOrder\(client\)/)
+  const catchStart = body.indexOf("catch (err)")
+  const untilReturn = body.slice(catchStart, body.indexOf("return", catchStart) + 6)
+  assert.doesNotMatch(untilReturn, /setScreen/)
+})
+
 test("waiting is drawn, never narrated", () => {
   // Design over words: if the UI already shows a state, don't add text saying
   // it. Both surfaces showed a sentence ("Myro is reading that…", "thinking…")

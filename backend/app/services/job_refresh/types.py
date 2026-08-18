@@ -19,6 +19,10 @@ PROGRESS_LABELS: dict[RefreshLifecycle, str] = {
 # Shown when the Job Runner is missing — refuse at dispatch, or abandon a
 # ticket that is still queued after this many seconds of a dead runner.
 SEARCH_UNAVAILABLE = "Search couldn't start — try again in a moment."
+SEARCH_FAILED = "Search couldn't finish — try again in a moment."
+SEARCH_TIMED_OUT = "Search timed out — try again in a moment."
+# Same lifecycle as computing — a label change so the stream shows the retry.
+SEARCH_RETRYING = "Trying that again"
 QUEUED_STRANDED_SECONDS = 8.0
 
 

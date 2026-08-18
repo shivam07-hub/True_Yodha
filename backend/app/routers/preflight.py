@@ -166,7 +166,9 @@ class ProposalsRequest(BaseModel):
 
 
 class ApplyRequest(BaseModel):
-    effects: list[EffectOut] = Field(min_length=1, max_length=6)
+    # One yes per proposal, all accepted in one apply. The old cap of 6 was
+    # the slot-arity constant and 422'd a real screen (2026-08-18).
+    effects: list[EffectOut] = Field(min_length=1, max_length=32)
     origin: Literal["preflight", "market"] = "market"
 
 

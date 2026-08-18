@@ -463,3 +463,17 @@ def test_starters_collapse_it_sales_and_tech_sales():
         "Technical Account Manager",
         "Bengaluru",
     ]
+
+
+def test_apply_accepts_a_full_proposal_screen() -> None:
+    """The screen sends every accepted proposal's effects in one body. Cap 6
+    was the slot-arity constant and 422'd a real yes-to-all (2026-08-18)."""
+    from pydantic import ValidationError
+
+    from app.routers.preflight import ApplyRequest
+
+    effect = {"op": "add", "kind": "wont_take", "text": "x", "label": "new line · won't take"}
+    ApplyRequest(effects=[effect] * 7, origin="preflight")
+    ApplyRequest(effects=[effect] * 32, origin="preflight")
+    with pytest.raises(ValidationError):
+        ApplyRequest(effects=[effect] * 33, origin="preflight")
