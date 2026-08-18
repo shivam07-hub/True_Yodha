@@ -136,3 +136,14 @@ export const SOURCE_LABEL: Record<LineSource, string> = {
   from_cv: "from your CV",
   user_reworded: "your words, just now",
 }
+
+/** The field a line fills — same labels the proposals screen already uses. */
+export const KIND_EYEBROW: Record<LineKind, string> = {
+  location: "LOCATION",
+  wont_take: "WON'T TAKE",
+  lean: "DRAWN TO",
+  role: "THE WORK",
+  pay_floor: "PAY FLOOR",
+  goal: "WHERE YOU'RE HEADED",
+  strength: "BEST AT",
+}

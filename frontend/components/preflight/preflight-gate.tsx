@@ -23,6 +23,7 @@ import { useQueryClient } from "@tanstack/react-query"
 
 import { preflight } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { openingScreen } from "@/lib/preflight/opening-screen"
 import { useOrder, useOrderMutations, invalidateOrder } from "@/lib/preflight/use-order"
 import type { OrderProposal } from "@/lib/preflight/types"
 import { useRefreshGateStore } from "@/store/refreshGateStore"
@@ -79,22 +80,31 @@ export function PreflightGate({
   const [thinking, setThinking] = useState(false)
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [freshStart, setFreshStart] = useState(false)
+  const [seated, setSeated] = useState(false)
   const turnRef = useRef(0)
 
-  /* Reopening starts at the question. An order the user already signed off is
-     still on the server — it is the SUBJECT of the next conversation, not a
-     screen to resume mid-scroll. */
   useEffect(() => {
-    if (!open) return
-    setScreen("start"); setSaidLocal(""); setProposals([]); setAnswers({})
+    if (!open) {
+      setSeated(false)
+      setFreshStart(false)
+      return
+    }
+    setSaidLocal(""); setProposals([]); setAnswers({})
     setRewording(null); setRound(0); setError(null); setThinking(false); setStarting(false)
     turnRef.current += 1
     const t = setTimeout(() => dialogRef.current?.focus(), 30)
     return () => clearTimeout(t)
   }, [open])
 
-  /* The run's own state drives the last two screens, so the modal cannot claim
-     a run finished while the stream says otherwise. */
+  useEffect(() => {
+    if (!open || seated) return
+    const next = openingScreen(order, freshStart)
+    if (!next) return
+    setSeated(true)
+    setScreen(next)
+  }, [open, order, freshStart, seated])
+
   /* The run's own state drives the last two screens, so the modal cannot claim
      a run finished while the stream says otherwise. A failed stream returns to
      review so they can try again — sitting on a frozen log line was the trap. */
@@ -269,7 +279,9 @@ export function PreflightGate({
         />
 
         <div className="pf-body">
-          {screen === "start" ? (
+          {!(seated || screen === "running" || screen === "done") ? null : (
+            <>
+          {screen === "start" && seated ? (
             <ScreenSayIt
               draft={said}
               starters={order?.starters ?? []}
@@ -329,6 +341,12 @@ export function PreflightGate({
               newJobs={order.new_jobs_count}
               balance={balance}
               onOpenCoins={close}
+              onAnswer={answerLine}
+              onReword={rewordLine}
+              onStartOver={() => {
+                setFreshStart(true)
+                setScreen("start")
+              }}
             />
           ) : null}
 
@@ -347,15 +365,18 @@ export function PreflightGate({
               matches={refreshVm.matchesWritten ?? 0}
               scanned={refreshVm.progressTotal ?? 0}
               onSeeMatches={() => { close(); onSeeMatches() }}
-              onRunAgain={() => { refreshVm.reset(); setScreen("start"); void invalidateOrder(client) }}
+              onRunAgain={() => { refreshVm.reset(); setScreen("ready"); void invalidateOrder(client) }}
             />
           ) : null}
 
           {error ? (
             <p role="alert" className="pf-contract" style={{ color: "var(--tm-danger)" }}>{error}</p>
           ) : null}
+            </>
+          )}
         </div>
 
+        {(seated || screen === "running" || screen === "done") ? (
         <GateFooter
           screen={screen}
           thinking={thinking}
@@ -364,6 +385,7 @@ export function PreflightGate({
           unanswered={unanswered}
           proposalDrops={proposalDrops}
           acceptedNow={acceptedNow}
+          ranBefore={Boolean(order?.last_run_at) && !freshStart}
           free={free}
           runCost={runCost}
           short={short}
@@ -372,7 +394,7 @@ export function PreflightGate({
             if (screen === "proposals") setScreen("start")
             else if (screen === "confirm") {
               if (round > 0) setRound(round - 1)
-              else setScreen(proposals.length ? "proposals" : "start")
+              else setScreen(proposals.length ? "proposals" : (order?.last_run_at && !freshStart ? "ready" : "start"))
             } else if (screen === "ready") setScreen(rounds.length ? "confirm" : "start")
           }}
           onNext={() => {
@@ -383,6 +405,7 @@ export function PreflightGate({
             } else if (screen === "ready") void run()
           }}
         />
+        ) : null}
       </div>
     </div>,
     document.body,

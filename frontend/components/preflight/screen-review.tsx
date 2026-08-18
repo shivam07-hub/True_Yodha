@@ -8,13 +8,19 @@
  * line under it — *Myro runs on the N lines above and nothing else* — has to be
  * literally true, so it counts unanswered guesses as dropped, because that is
  * what the server does to them.
+ *
+ * Drift since the last search sits above the cost, answerable in place. Run
+ * stays one tap whether those rows are answered or not.
  */
 
 import Link from "next/link"
 
 import { briefFrom, contractLine } from "@/lib/preflight/prose"
 import { formatCount } from "@/lib/format"
-import type { OrderState } from "@/lib/preflight/types"
+import { KIND_EYEBROW, type LineStatus, type OrderState } from "@/lib/preflight/types"
+import { GuessRow } from "./guess-row"
+
+import "./guess-row.css"
 
 export function ScreenReview({
   order,
@@ -24,6 +30,9 @@ export function ScreenReview({
   newJobs,
   balance,
   onOpenCoins,
+  onAnswer,
+  onReword,
+  onStartOver,
 }: {
   order: OrderState
   memoryCount: number
@@ -32,9 +41,15 @@ export function ScreenReview({
   newJobs: number
   balance: number
   onOpenCoins: () => void
+  onAnswer: (lineId: string, status: LineStatus) => void
+  onReword: (lineId: string, text: string) => void
+  onStartOver: () => void
 }) {
   const free = runCost === 0
   const short = !free && balance < runCost
+  const drift = order.last_run_at
+    ? order.lines.filter((line) => line.status === "unanswered")
+    : []
 
   return (
     <>
@@ -53,6 +68,21 @@ export function ScreenReview({
         </Link>
         {memoryCount > 0 ? <span className="pf-chip">{memoryCount} notes · read</span> : null}
       </div>
+
+      {drift.length > 0 ? (
+        <div className="pf-drift">
+          <div className="pf-order-eyebrow">Since your last search</div>
+          {drift.map((line) => (
+            <GuessRow
+              key={line.id}
+              line={line}
+              eyebrow={KIND_EYEBROW[line.kind]}
+              onAnswer={(status) => onAnswer(line.id, status)}
+              onReword={(text) => onReword(line.id, text)}
+            />
+          ))}
+        </div>
+      ) : null}
 
       <div className="pf-cost" data-tone={short ? "short" : undefined}>
         <Coin />
@@ -77,6 +107,12 @@ export function ScreenReview({
           </div>
         )}
       </div>
+
+      {order.last_run_at ? (
+        <button type="button" className="pf-start-over tm-control-focus" onClick={onStartOver}>
+          Start over
+        </button>
+      ) : null}
     </>
   )
 }

@@ -215,6 +215,26 @@ a.pf-chip:hover { border-color: var(--tm-accent-ring); color: var(--tm-accent-te
 .pf-cost[data-tone="short"] { background: var(--tm-danger-wash); border-color: var(--tm-danger-border); }
 .pf-cost strong { font-family: var(--tm-font-mono); font-weight: 600; }
 
+.pf-drift {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pf-start-over {
+  display: block;
+  margin-top: 14px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-note);
+  color: var(--tm-text-faint);
+  cursor: pointer;
+}
+.pf-start-over:hover { color: var(--tm-text-muted); }
+
 /* ── running + done ───────────────────────────────────────────────────────── */
 
 .pf-run { min-height: 230px; }

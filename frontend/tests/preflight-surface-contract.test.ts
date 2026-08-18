@@ -332,6 +332,31 @@ test("the pad rests on the border token, and idle send is a ghost", () => {
   assert.match(css, /\.pf-send\[data-idle="true"\] \{[\s\S]*?background: transparent/)
 })
 
+test("a signed-off order reopens on review, not name-the-work", () => {
+  // The reopen effect used to setScreen("start") and wipe said — that is the
+  // re-answer loop. A stored last_run_at is the work; resume it.
+  assert.match(gate, /openingScreen\(order, freshStart\)/)
+  assert.doesNotMatch(gate, /Reopening starts at the question/)
+  const opening = read("lib/preflight/opening-screen.ts")
+  assert.match(opening, /order\.last_run_at \? "ready" : "start"/)
+  // Answering a drift row must not bounce the modal back to start.
+  assert.match(gate, /if \(!open \|\| seated\) return/)
+})
+
+test("review answers drift in place; Run stays one tap", () => {
+  const review = read("components/preflight/screen-review.tsx")
+  assert.match(review, /Since your last search/)
+  assert.match(review, /<GuessRow/)
+  assert.match(review, /Start over/)
+  // Source stays on the row — a memory string with no chip is the old bug.
+  assert.match(review, /KIND_EYEBROW\[line\.kind\]/)
+  const footer = read("components/preflight/gate-footer.tsx")
+  assert.match(footer, /Run again/)
+  assert.match(footer, /Change something/)
+  // Run is not gated on unanswered drift.
+  assert.match(footer, /disabled=\{busy \|\| \(screen === "ready" && short\)\}/)
+})
+
 test("the ribbon names chapters, not three equal clicks", () => {
   const header = read("components/preflight/preflight-header.tsx")
   assert.match(header, /label: "Name"/)
