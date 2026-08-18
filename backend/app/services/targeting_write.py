@@ -33,12 +33,44 @@ from app.services.job_eligibility import (
 
 
 def derive(updates: dict[str, Any], before: dict[str, Any]) -> dict[str, Any]:
-    """Expand a caller's patch into the columns storage actually holds."""
+    """Expand a caller's patch into the columns storage actually holds.
+
+    `target_roles` (the matcher's taxonomy cluster union — CONTEXT.md calls it
+    the matcher and aspiration ILIKE keys) is derived from the selected role
+    FAMILY, not the human titles. When the caller does not supply a family — the
+    pre-flight `POST /preflight/run` path never does; the payload projector emits
+    titles only — a naive `role_title_updates(titles)` returns an EMPTY
+    `target_roles`, and writing that empty list is the "market has nothing" bug
+    (invariant 5): the feed scopes on this column, and an empty scoping key
+    tells the user no roles exist.
+
+    So when the caller stays silent on family, we KEEP the stored families
+    rather than overwrite them. Only a caller that actually resolved a family
+    (settings/profile edit via the corpus-backed role picker) may change it, and
+    it does so by supplying `role_family`/`role_families` explicitly — not
+    implicitly by omission.
+    """
     updates = dict(updates)
     if "target_role_titles" in updates:
+        titles = updates.pop("target_role_titles")
+        family = updates.pop("role_family", None)
+        families = updates.pop("role_families", None)
+        supplied = family is not None or families is not None
         updates.pop("target_roles", None)
         updates.pop("target_role_title", None)
-        updates.update(onboarding_service.role_title_updates(updates.pop("target_role_titles")))
+        derived = onboarding_service.role_title_updates(
+            titles, role_family=family, role_families=families
+        )
+        if not supplied:
+            # Preserve the stored family — see docstring. `save_target` follows
+            # the same rule for point-of-use edits that predate corpus families.
+            stored = [
+                str(value).strip()
+                for value in (before.get("target_roles") or [])
+                if str(value).strip()
+            ]
+            derived["target_roles"] = stored
+        updates.update(derived)
         updates["target_career_band"] = career_band_for_profile(updates) or None
         updates["explored_career_bands"] = explored_bands_for_profile(
             {**before, **updates},
