@@ -254,6 +254,14 @@ export function PreflightGate({
       // ticket only after the charge succeeds. Never promise "nothing was
       // charged" for a request whose outcome we did not see.
       setError((err as Error)?.message || "Couldn't start the search. Try again in a moment.")
+    } finally {
+      // Once the dispatch call has returned — success OR failure — the run is
+      // no longer owned by this handler: on success the ticket drives the
+      // running screen via `refreshVm`, on failure the user is back on review
+      // and needs to be able to click again. Leaving `starting=true` after a
+      // successful attach was the "Run it again" trap: from the done screen,
+      // Run it again → ready, but the primary button stayed disabled because
+      // the busy flag never cleared.
       setStarting(false)
     }
   }
