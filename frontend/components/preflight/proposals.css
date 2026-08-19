@@ -215,43 +215,75 @@ a.pf-chip:hover { border-color: var(--tm-accent-ring); color: var(--tm-accent-te
 .pf-cost[data-tone="short"] { background: var(--tm-danger-wash); border-color: var(--tm-danger-border); }
 .pf-cost strong { font-family: var(--tm-font-mono); font-weight: 600; }
 
-/* ── running + done ───────────────────────────────────────────────────────── */
-
-.pf-run { min-height: 230px; }
-
-.pf-run-track {
-  height: 3px;
-  border-radius: 99px;
-  background: var(--tm-border);
-  overflow: hidden;
-  margin-bottom: 20px;
-}
-.pf-run-fill {
-  height: 100%;
-  background: var(--tm-interactive);
-  border-radius: 99px;
-  transition: width 600ms var(--tm-ease);
-}
-
-.pf-run-line {
+.pf-drift {
+  margin-top: 18px;
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 7px 0;
-  font-size: var(--tm-fs-ui);
-  color: var(--tm-text-faint);
-  transition: color var(--tm-dur) var(--tm-ease);
+  flex-direction: column;
+  gap: 8px;
 }
-.pf-run-line[data-state="current"], .pf-run-line[data-state="done"] { color: var(--tm-text); }
 
-.pf-run-mark {
+.pf-start-over {
+  display: block;
+  margin-top: 14px;
+  padding: 0;
+  border: 0;
+  background: none;
   font-family: var(--tm-font-mono);
-  width: 14px;
-  text-align: center;
-  color: var(--tm-text-disabled);
+  font-size: var(--tm-fs-note);
+  color: var(--tm-text-faint);
+  cursor: pointer;
 }
-.pf-run-line[data-state="current"] .pf-run-mark { color: var(--tm-interactive); }
-.pf-run-line[data-state="done"] .pf-run-mark { color: var(--tm-success); }
+.pf-start-over:hover { color: var(--tm-text-muted); }
+
+.pf-folded {
+  margin: 8px 0 0;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-note);
+  color: var(--tm-text-muted);
+}
+
+.pf-disputes {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pf-either {
+  padding: 12px 13px;
+  border: 1px solid var(--tm-border);
+  border-radius: 8px;
+  background: var(--tm-surface);
+}
+
+.pf-either-or {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+  text-align: center;
+  margin: 8px 0;
+}
+
+.pf-either-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+}
+.pf-either-option:hover { background: var(--tm-accent-wash); }
+
+/* ── done ─────────────────────────────────────────────────────────────────── */
+
+/* The `.pf-run*` running-screen styles live in `screen-running.css` — the
+   wait screen is a self-contained hero + stack + count + contract, not a
+   bar with statuses. */
 
 .pf-numbers { display: flex; gap: 28px; margin: 16px 0 0; }
 .pf-numeral {
@@ -268,5 +300,5 @@ a.pf-chip:hover { border-color: var(--tm-accent-ring); color: var(--tm-accent-te
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pf-prop, .pf-tally-btn, .pf-run-fill, .pf-run-line { transition: none; }
+  .pf-prop, .pf-tally-btn { transition: none; }
 }

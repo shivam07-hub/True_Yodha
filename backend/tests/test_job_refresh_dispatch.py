@@ -9,7 +9,15 @@ from fastapi import HTTPException
 
 from app.services.job_refresh import _dispatch
 from app.services.job_refresh.facade import JobRefresh
-from app.services.job_refresh.types import PROGRESS_LABELS, QUEUED_STRANDED_SECONDS, RefreshState, SEARCH_UNAVAILABLE
+from app.services.job_refresh.types import (
+    PROGRESS_LABELS,
+    QUEUED_STRANDED_SECONDS,
+    RefreshState,
+    SEARCH_FAILED,
+    SEARCH_RETRYING,
+    SEARCH_TIMED_OUT,
+    SEARCH_UNAVAILABLE,
+)
 from app.services.jobs_workflow import MatchComputeOutcome
 
 
@@ -255,6 +263,70 @@ def test_refresh_is_free_when_myro_landed_new_inventory(monkeypatch: pytest.Monk
     assert captured["xp_charged"] == 0
     # None = "wallet untouched"; the client only reconciles a non-null balance.
     assert captured["new_coin_balance"] is None
+
+
+def test_a_failed_run_does_not_surface_the_exception(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(_dispatch.settings, "redis_url", "   ")
+    states: list[Any] = []
+    monkeypatch.setattr(_dispatch, "_write_state", lambda _u, state: states.append(state))
+    refunds: list[int] = []
+
+    async def boom(*_a: Any, **_k: Any) -> MatchComputeOutcome:
+        raise RuntimeError("httpx.InvalidURL URL component 'query' too long")
+
+    async def fake_refund(_user_id: str, amount: int) -> int:
+        refunds.append(amount)
+        return 400
+
+    monkeypatch.setattr(_dispatch._pipeline, "run", boom)
+    monkeypatch.setattr(_dispatch._xp_charge, "refund", fake_refund)
+
+    final = asyncio.run(_dispatch._run_inline("u1", "t1", date(2026, 6, 1), [], 50))
+
+    assert final.state == "failed"
+    assert final.error == SEARCH_FAILED
+    assert "InvalidURL" not in (final.error or "")
+    assert "query too long" not in (final.error or "")
+    assert refunds == [50]
+    assert any(s.progress_label == SEARCH_RETRYING for s in states)
+
+
+def test_one_retry_inside_the_ticket_does_not_refund(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(_dispatch.settings, "redis_url", "   ")
+    states: list[Any] = []
+    monkeypatch.setattr(_dispatch, "_write_state", lambda _u, state: states.append(state))
+    refunds: list[int] = []
+    calls = {"n": 0}
+
+    async def flaky(*_a: Any, **_k: Any) -> MatchComputeOutcome:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("blip")
+        return MatchComputeOutcome(kind="written", matches_written=3, batch_week=date(2026, 6, 1))
+
+    async def fake_refund(_user_id: str, amount: int) -> int:
+        refunds.append(amount)
+        return 400
+
+    monkeypatch.setattr(_dispatch._pipeline, "run", flaky)
+    monkeypatch.setattr(_dispatch._xp_charge, "refund", fake_refund)
+
+    final = asyncio.run(_dispatch._run_inline("u1", "t1", date(2026, 6, 1), [], 50))
+
+    assert calls["n"] == 2
+    assert final.state == "done"
+    assert final.matches_written == 3
+    assert refunds == []
+    assert any(s.progress_label == SEARCH_RETRYING for s in states)
+
+
+def test_timeout_is_a_named_failure() -> None:
+    from app.services.job_refresh import _failure
+
+    kind, message = _failure.classify(TimeoutError("deadline"))
+    assert kind == "timeout"
+    assert message == SEARCH_TIMED_OUT
+    assert "deadline" not in message
 
 
 def test_rq_connection_is_binary_state_connection_is_decoded(monkeypatch) -> None:

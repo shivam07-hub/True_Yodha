@@ -210,6 +210,20 @@ test("market-sheet lines are declared as part of the same order", () => {
   assert.match(contractLine(o), /1 line came from the market sheet — it's part of the same order\./)
 })
 
+test("the contract counts what the resolver will use, not every kept line", () => {
+  const o = order({
+    lines: [
+      line({ kind: "goal", text: "Staff engineer" }),
+      line({ kind: "goal", text: "Founding PM" }),
+    ],
+    used: 0,
+  })
+  assert.equal(
+    contractLine(o),
+    "Nothing dropped — Myro runs on all 0 lines above and nothing else.",
+  )
+})
+
 test("counts are read off status, never inferred", () => {
   const o = order({
     lines: [

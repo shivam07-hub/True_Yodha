@@ -185,7 +185,8 @@ const plural = (n: number, one: string, many: string) => (n === 1 ? one : many)
  */
 export function contractLine(order: OrderState): string {
   const { kept: keptCount, dropped, unanswered, fromMarket } = countsFrom(order)
-  const lines = `${keptCount} ${plural(keptCount, "line", "lines")}`
+  const runCount = typeof order.used === "number" ? order.used : keptCount
+  const lines = `${runCount} ${plural(runCount, "line", "lines")}`
   const market = fromMarket
     ? ` ${fromMarket} ${plural(fromMarket, "line", "lines")} came from the market sheet — ${plural(fromMarket, "it's", "they're")} part of the same order.`
     : ""

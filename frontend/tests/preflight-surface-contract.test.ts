@@ -68,6 +68,18 @@ test("only accepted proposals are applied — unanswered ones are dropped", () =
   assert.match(gate, /effects: accepted\.flatMap/)
 })
 
+test("a failed apply stays on proposals and keeps the server's reason", () => {
+  // The catch used to set an error THEN advance to review anyway — a 409
+  // landed next to "Run · Free" with the reason swallowed.
+  const commit = gate.slice(gate.indexOf("async function commitProposals"))
+  const body = commit.slice(0, commit.indexOf("/* ── run"))
+  assert.match(body, /applyErrorMessage\(err\)/)
+  assert.match(body, /invalidateOrder\(client\)/)
+  const catchStart = body.indexOf("catch (err)")
+  const untilReturn = body.slice(catchStart, body.indexOf("return", catchStart) + 6)
+  assert.doesNotMatch(untilReturn, /setScreen/)
+})
+
 test("waiting is drawn, never narrated", () => {
   // Design over words: if the UI already shows a state, don't add text saying
   // it. Both surfaces showed a sentence ("Myro is reading that…", "thinking…")
@@ -330,6 +342,47 @@ test("the pad rests on the border token, and idle send is a ghost", () => {
   const css = read("components/preflight/preflight.css")
   assert.match(css, /\.pf-input \{[\s\S]*?border: 1px solid var\(--tm-border\)/)
   assert.match(css, /\.pf-send\[data-idle="true"\] \{[\s\S]*?background: transparent/)
+})
+
+test("a signed-off order reopens on review, not name-the-work", () => {
+  // The reopen effect used to setScreen("start") and wipe said — that is the
+  // re-answer loop. A stored last_run_at is the work; resume it.
+  assert.match(gate, /openingScreen\(order, freshStart\)/)
+  assert.doesNotMatch(gate, /Reopening starts at the question/)
+  const opening = read("lib/preflight/opening-screen.ts")
+  assert.match(opening, /order\.last_run_at \? "ready" : "start"/)
+  // Answering a drift row must not bounce the modal back to start.
+  assert.match(gate, /if \(!open \|\| seated\) return/)
+})
+
+test("review answers drift in place; Run stays one tap", () => {
+  const review = read("components/preflight/screen-review.tsx")
+  assert.match(review, /Since your last search/)
+  assert.match(review, /<GuessRow/)
+  assert.match(review, /Start over/)
+  // Source stays on the row — a memory string with no chip is the old bug.
+  assert.match(review, /KIND_EYEBROW\[line\.kind\]/)
+  const footer = read("components/preflight/gate-footer.tsx")
+  assert.match(footer, /Run again/)
+  assert.match(footer, /Change something/)
+  // Run is not gated on unanswered drift.
+  assert.match(footer, /disabled=\{busy \|\| \(screen === "ready" && \(short \|\| blocked\)\)\}/)
+})
+
+test("review shows either/or for conflicts and a count for duplicates", () => {
+  const review = read("components/preflight/screen-review.tsx")
+  assert.match(review, /visibleConflicts\(order\)/)
+  assert.match(review, /<ConflictCard/)
+  assert.match(review, /duplicate/)
+  assert.match(review, /folded/)
+  const card = read("components/preflight/conflict-card.tsx")
+  assert.match(card, /SOURCE_LABEL/)
+  assert.match(card, /conflictAsk/)
+  const logic = read("lib/preflight/conflicts.ts")
+  assert.match(logic, /These can't both be true/)
+  assert.match(gate, /visibleConflicts\(order\)\.length > 0/)
+  const footer = read("components/preflight/gate-footer.tsx")
+  assert.match(footer, /blocked/)
 })
 
 test("the ribbon names chapters, not three equal clicks", () => {

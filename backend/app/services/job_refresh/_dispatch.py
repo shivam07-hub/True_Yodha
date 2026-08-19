@@ -25,9 +25,11 @@ from fastapi import HTTPException, status
 
 from app.config import settings
 from app.services.job_refresh import _pipeline, _xp_charge
+from app.services.job_refresh import _failure
 from app.services.job_refresh.types import (
     PROGRESS_LABELS,
     QUEUED_STRANDED_SECONDS,
+    SEARCH_RETRYING,
     SEARCH_UNAVAILABLE,
     RefreshLifecycle,
     RefreshOutcomeKind,
@@ -163,11 +165,12 @@ def _state(
     progress_total: int | None = None,
     revealed: list[dict[str, Any]] | None = None,
     xp_charged: int = 0,
+    progress_label: str | None = None,
 ) -> RefreshState:
     return RefreshState(
         ticket_id=ticket_id,
         state=lifecycle,
-        progress_label=PROGRESS_LABELS[lifecycle],
+        progress_label=progress_label or PROGRESS_LABELS[lifecycle],
         batch_week=batch_week,
         matches_written=matches_written,
         refund=refund,
@@ -201,36 +204,57 @@ def _make_progress_cb(user_id: str, ticket_id: str, batch_week: date):
     return _cb
 
 
-# ── Inline pipeline ────────────────────────────────────────────────────
+# ── Pipeline ───────────────────────────────────────────────────────────
 
-async def _run_inline(
+async def _run_pipeline(
     user_id: str,
     ticket_id: str,
     batch_week: date,
     excluded_job_ids: list[str],
     xp_charged: int,
 ) -> RefreshState:
-    """Run pipeline synchronously, update state, settle XP."""
+    """One paid ticket, one retry. The exception never becomes the user message."""
     _write_state(user_id, _state(ticket_id, "computing", batch_week))
-    try:
-        outcome = await _pipeline.run(
-            user_id, batch_week, excluded_job_ids,
-            on_progress=_make_progress_cb(user_id, ticket_id, batch_week),
-        )
-    except Exception as exc:
-        _log.exception("Inline job refresh failed user=%s ticket=%s", user_id, ticket_id)
-        new_balance = await _xp_charge.refund(user_id, xp_charged)
-        final = _state(
-            ticket_id,
-            "failed",
-            batch_week,
-            refund=xp_charged,
-            new_coin_balance=new_balance,
-            error=str(exc),
-        )
-        _write_state(user_id, final)
-        return final
+    last_exc: BaseException | None = None
+    for attempt in (1, 2):
+        if attempt == 2:
+            _log.warning("metric job_refresh.retry user=%s ticket=%s", user_id, ticket_id)
+            _write_state(
+                user_id,
+                _state(ticket_id, "computing", batch_week, progress_label=SEARCH_RETRYING),
+            )
+        try:
+            outcome = await _pipeline.run(
+                user_id, batch_week, excluded_job_ids,
+                on_progress=_make_progress_cb(user_id, ticket_id, batch_week),
+            )
+            return await _finish_success(user_id, ticket_id, batch_week, xp_charged, outcome)
+        except Exception as exc:
+            last_exc = exc
+            _failure.record(exc, user_id=user_id, ticket_id=ticket_id, attempt=attempt)
+    assert last_exc is not None
+    _, message = _failure.classify(last_exc)
+    new_balance = await _xp_charge.refund(user_id, xp_charged)
+    final = _state(
+        ticket_id,
+        "failed",
+        batch_week,
+        refund=xp_charged,
+        new_coin_balance=new_balance,
+        error=message,
+        xp_charged=xp_charged,
+    )
+    _write_state(user_id, final)
+    return final
 
+
+async def _finish_success(
+    user_id: str,
+    ticket_id: str,
+    batch_week: date,
+    xp_charged: int,
+    outcome: Any,
+) -> RefreshState:
     if not outcome.should_charge_xp and xp_charged > 0:
         refunded_balance = await _xp_charge.refund(user_id, xp_charged)
         final = _state(
@@ -254,6 +278,17 @@ async def _run_inline(
         )
     _write_state(user_id, final)
     return final
+
+
+async def _run_inline(
+    user_id: str,
+    ticket_id: str,
+    batch_week: date,
+    excluded_job_ids: list[str],
+    xp_charged: int,
+) -> RefreshState:
+    """Run pipeline on the event loop (tests + local)."""
+    return await _run_pipeline(user_id, ticket_id, batch_week, excluded_job_ids, xp_charged)
 
 
 # ── Public dispatch ────────────────────────────────────────────────────
@@ -384,54 +419,12 @@ def run_pipeline_worker(
 ) -> dict[str, Any]:
     """Entry point invoked by the RQ worker process. Must be picklable + sync.
 
-    Mirrors `_run_inline` but lives in a separate process. State writes go
-    through the same Redis-backed `_write_state` path the API reads from.
+    Same ticket, same retry, same named failure as the inline path.
     """
     batch_week = date.fromisoformat(batch_week_iso)
-    _write_state(user_id, _state(ticket_id, "computing", batch_week))
-    try:
-        outcome = asyncio.run(
-            _pipeline.run(
-                user_id, batch_week, excluded_job_ids,
-                on_progress=_make_progress_cb(user_id, ticket_id, batch_week),
-            )
-        )
-    except Exception as exc:
-        _log.exception("Async job refresh failed user=%s ticket=%s", user_id, ticket_id)
-        new_balance = asyncio.run(_xp_charge.refund(user_id, xp_charged))
-        final = _state(
-            ticket_id,
-            "failed",
-            batch_week,
-            refund=xp_charged,
-            new_coin_balance=new_balance,
-            error=str(exc),
-        )
-        _write_state(user_id, final)
-        return _serialize(final)
-
-    if not outcome.should_charge_xp and xp_charged > 0:
-        refunded_balance = asyncio.run(_xp_charge.refund(user_id, xp_charged))
-        final = _state(
-            ticket_id,
-            "done",
-            batch_week,
-            matches_written=outcome.matches_written,
-            refund=xp_charged,
-            new_coin_balance=refunded_balance,
-            outcome_kind=outcome.kind,
-            debug=outcome.debug,
-        )
-    else:
-        final = _state(
-            ticket_id,
-            "done",
-            batch_week,
-            matches_written=outcome.matches_written,
-            outcome_kind=outcome.kind,
-            debug=outcome.debug,
-        )
-    _write_state(user_id, final)
+    final = asyncio.run(
+        _run_pipeline(user_id, ticket_id, batch_week, excluded_job_ids, xp_charged)
+    )
     return _serialize(final)
 
 

@@ -1,0 +1,143 @@
+/* Wait screen — shuffle-pinned hero, streaming stack, pinned contract line.
+   Myro tokens throughout; the visual dialect matches shuffle-guess-list so
+   the run screen reads as a continuation of the confirm rounds, not a modal
+   spinner from another surface. */
+
+.pf-run {
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* The server phase label — "Waiting to start", "Ranking with Myro", or the
+   exact string the queued/computing phase event carried. Never a fabricated
+   step name; ADR-0009's phase list is the authority. */
+.pf-run-status {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+
+.pf-run-status[data-lifecycle="queued"] {
+  color: var(--tm-text-muted);
+}
+
+/* Shuffle-pinned hero — the job Myro is reading right now. Same wash, ring
+   and pin as the confirm-round hero, so the two screens share a visual seam. */
+.pf-run-hero {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 999px;
+  background: var(--tm-accent-wash);
+  border: 1px solid var(--tm-accent-ring);
+  min-height: 56px;
+}
+
+.pf-run-hero-pin {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  color: var(--tm-interactive);
+}
+
+.pf-run-hero-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.pf-run-hero-title {
+  font-size: var(--tm-fs-ui-lg);
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--tm-text);
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+.pf-run-hero-company {
+  margin-top: 2px;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tm-text-muted);
+}
+
+/* Behind the hero: the last few, fading with age. `motion` sets per-item
+   opacity in the component; this keeps the base card look consistent. */
+.pf-run-stack {
+  list-style: none;
+  margin: 0;
+  padding: 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pf-run-stack-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: var(--tm-fs-ui-sm);
+  color: var(--tm-text);
+  line-height: 1.4;
+}
+
+.pf-run-stack-mark {
+  font-family: var(--tm-font-mono);
+  color: var(--tm-text-faint);
+  flex-shrink: 0;
+}
+
+.pf-run-stack-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Small tabular count — the numeric progress cue, not the primary signal.
+   The user reads the hero first; this is the confirmation that ranking is
+   actually moving. */
+.pf-run-count {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-note);
+  font-variant-numeric: tabular-nums;
+  color: var(--tm-text-muted);
+  letter-spacing: -0.005em;
+}
+
+.pf-run-count-num {
+  color: var(--tm-text);
+  font-weight: 600;
+}
+
+.pf-run-count-sep {
+  color: var(--tm-text-faint);
+}
+
+/* The contract line is styled by proposals.css `.pf-contract`. It is pinned
+   here by `margin-top: auto` so it always sits at the bottom of the min-height
+   run frame, even when reveals fill up more or less of the middle. */
+.pf-run > .pf-contract {
+  margin-top: auto;
+}
+
+@media (max-width: 420px) {
+  .pf-run-hero {
+    border-radius: 14px;
+    padding: 12px 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-run-hero,
+  .pf-run-hero-copy,
+  .pf-run-stack-item {
+    transition: none;
+  }
+}
