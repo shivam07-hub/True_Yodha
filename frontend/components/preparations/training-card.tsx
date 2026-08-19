@@ -1,8 +1,9 @@
 "use client"
 
 /**
- * TrainingCard — Finlatics programs on the /preparations rail, under Score map.
- * Outbound links only: their landing Apply URLs with src rewritten to myroref.
+ * TrainingCard — Finlatics programs on the preparations workspace rail.
+ * Same peek-card frame as Jobs / Collections. Outbound Apply URLs with src
+ * rewritten to myroref.
  */
 
 import { BookOpen, ExternalLink } from "lucide-react"
@@ -10,29 +11,26 @@ import { FINLATICS_PROGRAMS, finlaticsHref } from "@/lib/finlatics-programs"
 
 export function TrainingCard() {
   return (
-    <section className="prp-map prp-train" aria-labelledby="prp-train-title">
-      <div className="prp-map-head">
-        <span className="prp-map-ico" aria-hidden><BookOpen size={15} /></span>
-        <div>
-          <h2 id="prp-train-title" className="prp-map-title">Training</h2>
-          <p className="prp-train-by">Finlatics</p>
-        </div>
-      </div>
-      <ul className="prp-train-list">
+    <section className="mc-peek-card" aria-labelledby="prp-train-title">
+      <header className="mc-peek-head">
+        <span className="mc-peek-ico" aria-hidden><BookOpen size={15} /></span>
+        <h3 id="prp-train-title" className="mc-peek-title">Training</h3>
+      </header>
+      <p className="mc-peek-intel">Finlatics</p>
+      <div className="mc-peek-body">
         {FINLATICS_PROGRAMS.map((program) => (
-          <li key={program.id}>
-            <a
-              className="prp-train-row"
-              href={finlaticsHref(program)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <span className="prp-train-name">{program.title}</span>
-              <ExternalLink size={12} aria-hidden />
-            </a>
-          </li>
+          <a
+            key={program.id}
+            className="mc-peek-gap prp-train-row"
+            href={finlaticsHref(program)}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <span className="lab">{program.title}</span>
+            <ExternalLink size={12} aria-hidden />
+          </a>
         ))}
-      </ul>
+      </div>
     </section>
   )
 }

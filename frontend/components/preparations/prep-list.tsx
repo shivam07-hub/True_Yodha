@@ -5,8 +5,13 @@
  * interviewing first, then applied, closed compact at the bottom). One row =
  * one application; the room is one tap away. Saved jobs never appear —
  * Collections owns pre-apply.
+ *
+ * Desktop chrome matches Jobs / Collections: tm-intel-page (1480) + the
+ * workspace rail stylesheet (mc-workspace / mc-peek-card). The rail sits on
+ * the right so it fills the dead column those pages already occupy.
  */
 
+import type { ReactNode } from "react"
 import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
 import { jobs as jobsApi, type ApplicationResponse } from "@/lib/api"
@@ -18,6 +23,7 @@ import { TrainingCard } from "./training-card"
 import {
   daysInStage, followUpLine, groupForList, liveRoomCount, needsStageCheck,
 } from "./prep-model"
+import "@/app/(authed)/home/mission-control.css"
 
 function Row({ app, now }: { app: ApplicationResponse; now: Date }) {
   const meta = STAGE_META[app.status]
@@ -58,6 +64,33 @@ function Group({ label, items, now }: { label: string; items: ApplicationRespons
   )
 }
 
+function PrepFrame({
+  token, live, children,
+}: {
+  token: string
+  live?: number
+  children: ReactNode
+}) {
+  return (
+    <div className="tm-intel-page prp-workspace-page">
+      <div className="prp-head">
+        <h1 className="prp-title">Preparations</h1>
+        {live ? <span className="prp-count">{live} live</span> : null}
+      </div>
+      <p className="prp-sub">Prepare for every job</p>
+      <div className="mc-workspace prp-workspace">
+        <div className="mc-ws-main">{children}</div>
+        <aside className="mc-ws-rail" aria-label="Score map and training">
+          <div className="mc-rail">
+            <ScoreMapCard token={token} />
+            <TrainingCard />
+          </div>
+        </aside>
+      </div>
+    </div>
+  )
+}
+
 export function PrepList({ token }: { token: string }) {
   const appsQ = useQuery({
     queryKey: dataKeys.applications(),
@@ -68,10 +101,9 @@ export function PrepList({ token }: { token: string }) {
 
   if (appsQ.isLoading) {
     return (
-      <div className="prp-page prp-page--wide">
-        <h1 className="prp-title">Preparations</h1>
-        <p className="prp-quiet" style={{ marginTop: 16 }}>Loading your rooms…</p>
-      </div>
+      <PrepFrame token={token}>
+        <p className="prp-quiet">Loading your rooms…</p>
+      </PrepFrame>
     )
   }
 
@@ -81,33 +113,19 @@ export function PrepList({ token }: { token: string }) {
   const live = liveRoomCount(apps)
 
   return (
-    <div className="prp-page prp-page--wide">
-      <div className="prp-head">
-        <h1 className="prp-title">Preparations</h1>
-        {live > 0 && <span className="prp-count">{live} live</span>}
-      </div>
-      <p className="prp-sub">Prepare for every job</p>
-
-      <div className="prp-shell">
-        <div className="prp-main">
-          {live === 0 && groups.closed.length === 0 ? (
-            <div className="prp-empty">
-              Nothing to prep yet.{" "}
-              <Link href="/collections">Apply to a job in Collections</Link> and its room opens here.
-            </div>
-          ) : (
-            <>
-              <Group label="Interviewing" items={groups.interviewing} now={now} />
-              <Group label="Applied" items={groups.applied} now={now} />
-              <Group label="Closed" items={groups.closed} now={now} />
-            </>
-          )}
+    <PrepFrame token={token} live={live}>
+      {live === 0 && groups.closed.length === 0 ? (
+        <div className="prp-empty">
+          Nothing to prep yet.{" "}
+          <Link href="/collections">Apply to a job in Collections</Link> and its room opens here.
         </div>
-        <aside className="prp-rail">
-          <ScoreMapCard token={token} />
-          <TrainingCard />
-        </aside>
-      </div>
-    </div>
+      ) : (
+        <>
+          <Group label="Interviewing" items={groups.interviewing} now={now} />
+          <Group label="Applied" items={groups.applied} now={now} />
+          <Group label="Closed" items={groups.closed} now={now} />
+        </>
+      )}
+    </PrepFrame>
   )
 }
