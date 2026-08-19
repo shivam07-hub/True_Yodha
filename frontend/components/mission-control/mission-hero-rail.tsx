@@ -20,7 +20,6 @@ import { HeroLoading } from "@/components/mission-control/hero-loading"
 import { MobileBanner } from "@/components/home/mobile-banner"
 import { MobileBannerLoading } from "@/components/home/mobile-banner-loading"
 import { SectionGate } from "@/components/loading/section-gate"
-import { TealField } from "@/components/loading/teal-field"
 import { cv, diary, jobs, scores, upskilling, users } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import type { DiaryEntry } from "@/lib/forge-helpers"
@@ -148,11 +147,7 @@ export function MissionHeroRail({ token, onSettled }: { token: string | null; on
   return (
     <SectionGate
       loading={coreLoading}
-      fallback={
-        <TealField mode="masked" interactive={false}>
-          {isDesktop ? <HeroLoading /> : <MobileBannerLoading />}
-        </TealField>
-      }
+      fallback={isDesktop ? <HeroLoading /> : <MobileBannerLoading />}
       slowText="Still loading your dashboard…"
     >
       {isDesktop ? (

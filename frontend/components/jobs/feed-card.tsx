@@ -344,18 +344,28 @@ export function FeedCard({
 export function FeedCardSkeleton() {
   return (
     <article className="fc-card fc-row" aria-hidden="true">
-      <div className="fc-row" style={{ width: "100%" }}>
-        <Skeleton style={{ width: 42, height: 42, borderRadius: 12, flex: "0 0 auto" }} />
+      <div className="fc-row">
+        <Skeleton style={{ width: 34, height: 34, borderRadius: 10, flex: "0 0 auto" }} />
         <div className="fc-body">
           <Skeleton style={{ width: 110, height: 13, borderRadius: 4 }} />
           <Skeleton style={{ width: "72%", height: 17, borderRadius: 6 }} />
           <Skeleton style={{ width: 150, height: 12, borderRadius: 4 }} />
-          <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
-            <Skeleton style={{ width: 88, height: 22, borderRadius: 999 }} />
-            <Skeleton style={{ width: 116, height: 22, borderRadius: 999 }} />
-            <Skeleton style={{ width: 72, height: 22, borderRadius: 999 }} />
+          <div className="fc-chips" style={{ display: "flex", gap: 6, marginTop: 2 }}>
+            <Skeleton style={{ width: 88, height: 22, borderRadius: "var(--tm-radius-pill)" }} />
+            <Skeleton style={{ width: 116, height: 22, borderRadius: "var(--tm-radius-pill)" }} />
           </div>
         </div>
+        <div className="fc-fit">
+          <span className="fc-fit-score">
+            <Skeleton style={{ width: 40, height: 40, borderRadius: "50%" }} />
+            <Skeleton style={{ width: 44, height: 10, borderRadius: 4 }} />
+          </span>
+        </div>
+      </div>
+      <div className="fc-actions">
+        <Skeleton style={{ height: 32, borderRadius: 8, flex: 1 }} />
+        <Skeleton style={{ height: 32, borderRadius: 8, flex: 1 }} />
+        <Skeleton style={{ width: 36, height: 32, borderRadius: 8, flex: "0 0 auto" }} />
       </div>
     </article>
   )

@@ -211,8 +211,8 @@ export function DashboardSkeleton() {
 }
 
 /**
- * /market is the primary daily surface: a pinned hero rail · job feed · market
- * rail. Mirrors that three-region shape (mc-workspace 248px rail + the feed/rail
+ * /market is the primary daily surface: CommandRail · job feed · market rail.
+ * Mirrors that three-region shape (mc-workspace 248px rail + the feed/rail
  * split) with inline styles, since the page's own CSS modules aren't loaded yet
  * during the auth-bootstrap window. Keeps the bootstrap instant shaped like the
  * destination instead of a generic stat-tile page.
@@ -220,18 +220,26 @@ export function DashboardSkeleton() {
 export function MarketSkeleton() {
   const FeedRow = () => (
     <Card>
-      <div style={{ display: "flex", gap: 14 }}>
-        <Skeleton style={{ width: 42, height: 42, borderRadius: 12, flexShrink: 0 }} />
+      <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+        <Skeleton style={{ width: 34, height: 34, borderRadius: 10, flexShrink: 0 }} />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
           <Bar w={110} h={13} r={4} />
           <Bar w={"72%"} h={17} r={6} />
           <Bar w={150} h={12} r={4} />
           <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
-            <Bar w={88} h={22} r={999} />
-            <Bar w={116} h={22} r={999} />
-            <Bar w={72} h={22} r={999} />
+            <Bar w={88} h={22} r={11} />
+            <Bar w={116} h={22} r={11} />
           </div>
         </div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flexShrink: 0 }}>
+          <Skeleton style={{ width: 40, height: 40, borderRadius: "50%" }} />
+          <Bar w={44} h={10} r={4} />
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+        <Skeleton style={{ height: 32, borderRadius: 8, flex: 1 }} />
+        <Skeleton style={{ height: 32, borderRadius: 8, flex: 1 }} />
+        <Skeleton style={{ width: 36, height: 32, borderRadius: 8, flexShrink: 0 }} />
       </div>
     </Card>
   )
@@ -252,30 +260,43 @@ export function MarketSkeleton() {
   return (
     <div className="tm-page-enter" aria-hidden="true" style={{ ...PAGE, maxWidth: 1480, margin: "0 auto" }}>
       <div style={{ display: "grid", gridTemplateColumns: "248px minmax(0, 1fr)", gap: 28, alignItems: "start" }}>
-        {/* hero rail: greeting + loop ring */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-          <Bar w={"100%"} h={20} r={6} />
-          <Skeleton style={{ width: 168, height: 168, borderRadius: 999 }} />
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
-            {[58, 64, 44, 70, 52].map((w, i) => (
-              <Skeleton key={i} style={{ width: w, height: 22, borderRadius: 999 }} />
+        {/* CommandRail shape: greeting · 68px score row · chips · moves */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <Bar w={170} h={16} r={4} />
+          <Bar w={120} h={11} r={4} />
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <Skeleton style={{ width: 68, height: 68, borderRadius: "50%", flexShrink: 0 }} />
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <Bar w={72} h={10} r={4} />
+              <Bar w={88} h={14} r={4} />
+              <Bar w={110} h={11} r={4} />
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {[92, 78, 118].map((w) => (
+              <Skeleton key={w} style={{ width: w, height: 28, borderRadius: 14 }} />
             ))}
           </div>
+          {[100, 86, 70].map((w) => (
+            <Skeleton key={w} style={{ width: "100%", height: 40, borderRadius: 10 }} />
+          ))}
         </div>
-        {/* main: tab pills, then feed + market rail */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <Bar w={180} h={42} r={999} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <Bar w={88} h={32} r={16} />
+            <Bar w={72} h={32} r={16} />
+            <Bar w={80} h={32} r={8} />
+          </div>
           <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 320px", gap: 28, alignItems: "start" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div style={{ display: "flex", gap: 10 }}>
-                <Bar w={96} h={26} r={999} />
-                <Bar w={150} h={26} r={999} />
+                <Bar w={64} h={11} r={4} />
+                <Bar w={96} h={26} r={13} />
               </div>
-              {[0, 1, 2, 3].map((i) => <FeedRow key={i} />)}
+              {[0, 1, 2].map((i) => <FeedRow key={i} />)}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <Card><Bar w={104} h={22} r={6} /></Card>
-              <RailWidget rows={5} />
+              <RailWidget rows={6} />
               <RailWidget rows={4} logo />
             </div>
           </div>
