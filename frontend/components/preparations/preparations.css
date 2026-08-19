@@ -474,13 +474,13 @@
 .prp-map-body:hover .mc-peek-link { text-decoration: underline; }
 .prp-workspace .mc-peek-empty a { color: var(--tm-interactive-text); font-weight: 600; text-decoration: none; }
 
-a.prp-train-row {
+.prp-train-row {
   text-decoration: none;
   color: inherit;
   padding: 8px 0;
   border-bottom: 1px solid var(--tm-border-soft);
 }
-a.prp-train-row:last-child { border-bottom: none; }
+.prp-train-row:last-child { border-bottom: none; }
 a.prp-train-row svg { flex-shrink: 0; color: var(--tm-text-faint); }
 a.prp-train-row:hover .lab { color: var(--tm-interactive); }
 a.prp-train-row:hover svg { color: var(--tm-interactive); }

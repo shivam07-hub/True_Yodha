@@ -18,6 +18,7 @@ import { jobs as jobsApi, type ApplicationResponse } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { displayJobTitle } from "@/lib/jobs/clean-title"
 import { CompanyAvatar, STAGE_META } from "@/components/cv/builder/library-shared"
+import { PrepSkeleton } from "./prep-skeleton"
 import { ScoreMapCard } from "./score-map-card"
 import { TrainingCard } from "./training-card"
 import {
@@ -99,13 +100,7 @@ export function PrepList({ token }: { token: string }) {
     staleTime: 60 * 1000,
   })
 
-  if (appsQ.isLoading) {
-    return (
-      <PrepFrame token={token}>
-        <p className="prp-quiet">Loading your rooms…</p>
-      </PrepFrame>
-    )
-  }
+  if (appsQ.isLoading) return <PrepSkeleton />
 
   const now = new Date()
   const apps = appsQ.data ?? []

@@ -1,4 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton"
+import { PrepRoomSkeleton, PrepSkeleton } from "@/components/preparations/prep-skeleton"
 
 /**
  * Layout-matched skeletons for the authed tabs. Each mirrors the real page's
@@ -372,6 +373,8 @@ export function skeletonForPath(pathname: string): React.ReactNode {
   if (pathname.startsWith("/skills")) return <SkillsSkeleton />
   if (pathname.startsWith("/cv")) return <CvSkeleton />
   if (pathname.startsWith("/practice")) return <PracticeSkeleton />
+  if (pathname.startsWith("/preparations/")) return <PrepRoomSkeleton />
+  if (pathname.startsWith("/preparations")) return <PrepSkeleton />
   // /tracker merged into /cv (2026-06-02) — it redirects to /cv → CvSkeleton.
   return <GenericPageSkeleton />
 }
