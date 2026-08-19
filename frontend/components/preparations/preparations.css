@@ -450,6 +450,9 @@
   top: 84px;
   align-self: start;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 /* ── score map — the /skills radar, same rail card it was on Jobs so the two
@@ -518,12 +521,46 @@
 .prp-map-empty { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--tm-text-muted); }
 .prp-map-empty a { color: var(--tm-interactive-text); font-weight: 600; text-decoration: none; }
 
+.prp-train-by {
+  margin: 1px 0 0;
+  font-size: 11px;
+  color: var(--tm-text-faint);
+}
+.prp-train-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(320px, 46vh);
+  overflow-y: auto;
+}
+.prp-train-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--tm-border-soft);
+  text-decoration: none;
+  color: var(--tm-text);
+}
+.prp-train-list li:last-child .prp-train-row { border-bottom: none; }
+.prp-train-name {
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 550;
+  line-height: 1.35;
+}
+.prp-train-row svg { flex-shrink: 0; color: var(--tm-text-faint); }
+.prp-train-row:hover { color: var(--tm-interactive-text); }
+.prp-train-row:hover svg { color: var(--tm-interactive-text); }
+
 /* Below the rail breakpoint the map follows the list instead of flanking it —
    same order the Jobs workspace collapses to. */
 @media (max-width: 980px) {
   .prp-shell { grid-template-columns: 1fr; gap: 20px; }
   .prp-rail { position: static; }
   .prp-map-radar { max-width: 280px; }
+  .prp-train-list { max-height: none; overflow: visible; }
 }
 
 @media (max-width: 640px) {

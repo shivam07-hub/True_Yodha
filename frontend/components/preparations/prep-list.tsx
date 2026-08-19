@@ -14,6 +14,7 @@ import { dataKeys } from "@/lib/domain-data"
 import { displayJobTitle } from "@/lib/jobs/clean-title"
 import { CompanyAvatar, STAGE_META } from "@/components/cv/builder/library-shared"
 import { ScoreMapCard } from "./score-map-card"
+import { TrainingCard } from "./training-card"
 import {
   daysInStage, followUpLine, groupForList, liveRoomCount, needsStageCheck,
 } from "./prep-model"
@@ -104,6 +105,7 @@ export function PrepList({ token }: { token: string }) {
         </div>
         <aside className="prp-rail">
           <ScoreMapCard token={token} />
+          <TrainingCard />
         </aside>
       </div>
     </div>
