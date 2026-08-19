@@ -435,54 +435,19 @@
   color: var(--tm-text-muted);
 }
 
-/* ── list shell: pipeline + rail. The list page is the only prp surface that
-   widens — the room stays a single 860px reading column. ── */
-.prp-page--wide { max-width: 1180px; }
-.prp-shell {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 288px;
-  gap: 28px;
-  align-items: start;
+/* ── list workspace: same 1480 shell + 248px rail as Jobs / Collections.
+   Rail sits on the END (right) so it fills the dead column. The room page
+   stays a single 860px reading column (.prp-page). ── */
+.prp-workspace-page {
+  padding: 32px 36px 64px;
+  max-width: 1480px;
+  margin: 0 auto;
 }
-.prp-main { min-width: 0; }
-.prp-rail {
-  position: sticky;
-  top: 84px;
-  align-self: start;
-  min-width: 0;
+.mc-workspace.prp-workspace {
+  grid-template-columns: minmax(0, 1fr) 248px;
 }
 
-/* ── score map — the /skills radar, same rail card it was on Jobs so the two
-   surfaces keep one geometry: radar, then the lift line under it. ── */
-.prp-map {
-  padding: 14px 15px;
-  border: 1px solid var(--tm-border-soft);
-  border-radius: 12px;
-  background: var(--tm-surface);
-}
-.prp-map-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 11px;
-}
-.prp-map-ico {
-  display: inline-flex;
-  width: 26px;
-  height: 26px;
-  border-radius: 8px;
-  align-items: center;
-  justify-content: center;
-  background: var(--tm-interactive-wash);
-  color: var(--tm-accent-text);
-  flex-shrink: 0;
-}
-.prp-map-title {
-  margin: 0;
-  font-size: 13.5px;
-  font-weight: 650;
-  color: var(--tm-text);
-}
+/* Score map body — radar then lift line, inside the shared peek card. */
 .prp-map-body {
   display: flex;
   flex-direction: column;
@@ -506,28 +471,28 @@
   text-align: center;
 }
 .prp-map-cap strong { color: var(--tm-text); font-weight: 600; }
-.prp-map-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--tm-accent-text);
-}
-.prp-map-body:hover .prp-map-link { text-decoration: underline; }
-.prp-map-empty { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--tm-text-muted); }
-.prp-map-empty a { color: var(--tm-interactive-text); font-weight: 600; text-decoration: none; }
+.prp-map-body:hover .mc-peek-link { text-decoration: underline; }
+.prp-workspace .mc-peek-empty a { color: var(--tm-interactive-text); font-weight: 600; text-decoration: none; }
 
-/* Below the rail breakpoint the map follows the list instead of flanking it —
-   same order the Jobs workspace collapses to. */
+.prp-train-row {
+  text-decoration: none;
+  color: inherit;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--tm-border-soft);
+}
+.prp-train-row:last-child { border-bottom: none; }
+a.prp-train-row svg { flex-shrink: 0; color: var(--tm-text-faint); }
+a.prp-train-row:hover .lab { color: var(--tm-interactive); }
+a.prp-train-row:hover svg { color: var(--tm-interactive); }
+
 @media (max-width: 980px) {
-  .prp-shell { grid-template-columns: 1fr; gap: 20px; }
-  .prp-rail { position: static; }
+  .mc-workspace.prp-workspace { grid-template-columns: 1fr; }
   .prp-map-radar { max-width: 280px; }
 }
 
 @media (max-width: 640px) {
-  .prp-page { padding: 18px 14px 96px; }
+  .prp-page,
+  .prp-workspace-page { padding: 18px 14px 96px; }
   .prp-room-role { font-size: 17px; }
   .prp-row { padding: 12px 13px; }
 }

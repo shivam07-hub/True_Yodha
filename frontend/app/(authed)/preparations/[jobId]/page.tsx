@@ -6,6 +6,7 @@ import { jobs as jobsApi } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { PrepRoom } from "@/components/preparations/prep-room"
+import { PrepRoomSkeleton } from "@/components/preparations/prep-skeleton"
 import "@/components/preparations/preparations.css"
 import "@/app/(authed)/practice/practice.css"
 
@@ -26,7 +27,7 @@ export default function PreparationRoomPage({ params }: { params: { jobId: strin
     staleTime: 60 * 1000,
   })
 
-  if (!ready || appsQ.isLoading) return null
+  if (!ready || appsQ.isLoading) return <PrepRoomSkeleton />
 
   const app = (appsQ.data ?? []).find((a) => a.job_id === decodeURIComponent(jobId))
   if (!app) {

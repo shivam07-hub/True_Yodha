@@ -1,0 +1,580 @@
+
+/* ── canvas & plate ────────────────────────────────────────────────────────
+ *
+ * The one-canvas surface. Every settled line renders as a `.pf-plate`. The
+ * vermilion left rail (present when `data-said="user"`) is the entire
+ * attribution system — no chip, no eyebrow. Editing a Myro-guessed plate
+ * promotes it: the server flips `source` to `user_reworded` on the next
+ * order fetch, and the rail arrives with the truth.
+ *
+ * The plate uses backdrop-filter — a glass surface on the canvas ground. In
+ * every dark theme the ground is `--tm-bg` #191918 and the plate is a 4.5%
+ * white overlay; in light it is `--tm-hover` on a #faf6f0 ground. Both
+ * grounds work because the plate defines its own background AND its own
+ * border from tokens — not from the theme literals.
+ *
+ * The yes/no pair uses `--tm-interactive` for accept and `--tm-danger` for
+ * decline. Decisive fills BOTH sides — `feedback_never_label_button_with_
+ * shortcut` and the sibling design memory both come from this pattern.
+ */
+
+.pf-canvas-heading {
+  padding: 4px 0 2px;
+}
+.pf-canvas-heading h2 {
+  margin: 0;
+  font-size: clamp(20px, 4vw, 24px);
+  font-weight: 500;
+  line-height: 1.24;
+  letter-spacing: -0.017em;
+  color: var(--tm-text);
+  text-wrap: balance;
+}
+.pf-canvas-heading .pf-canvas-sub {
+  margin: 8px 0 0;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-note);
+  letter-spacing: 0.02em;
+  color: var(--tm-text-faint);
+}
+
+.pf-plate-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.pf-plate {
+  position: relative;
+  padding: 14px 16px 14px 22px;
+  background: var(--tm-hover-soft);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 14px;
+  cursor: text;
+  transition:
+    background-color var(--tm-dur-fast) var(--tm-ease),
+    border-color var(--tm-dur-fast) var(--tm-ease);
+}
+.pf-plate:hover { background: var(--tm-hover); }
+.pf-plate:hover .pf-plate-edit { opacity: 0.85; }
+.pf-plate[data-said="user"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 14px;
+  bottom: 14px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--tm-interactive);
+  box-shadow: 0 0 8px var(--tm-interactive-glow);
+}
+.pf-plate[data-editing="true"] {
+  border-color: var(--tm-interactive);
+  background: var(--tm-hover);
+  cursor: default;
+}
+
+.pf-plate-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.pf-plate-copy {
+  flex: 1;
+  min-width: 0;
+}
+.pf-plate-eyebrow {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+  margin-bottom: 4px;
+}
+.pf-plate-line {
+  font-size: var(--tm-fs-ui);
+  line-height: 1.45;
+  color: var(--tm-text);
+  font-weight: 450;
+  letter-spacing: -0.005em;
+  text-wrap: pretty;
+}
+.pf-plate[data-editing="true"] .pf-plate-line { display: none; }
+.pf-plate-meta {
+  margin-top: 5px;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-note);
+  color: var(--tm-text-faint);
+  letter-spacing: 0.02em;
+}
+
+/* trailing pencil — muted at rest, brightens on hover, always faintly
+ * visible on touch (a hover-only affordance vanishes on a phone).  */
+.pf-plate-edit {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 4px;
+  margin: -4px -4px 0 0;
+  color: var(--tm-text-faint);
+  opacity: 0.35;
+  cursor: pointer;
+  border-radius: var(--tm-radius-sm);
+  transition:
+    opacity var(--tm-dur-fast) var(--tm-ease),
+    color var(--tm-dur-fast) var(--tm-ease),
+    background-color var(--tm-dur-fast) var(--tm-ease);
+  flex-shrink: 0;
+}
+.pf-plate-edit:hover {
+  color: var(--tm-interactive);
+  background: var(--tm-hover);
+  opacity: 1;
+}
+@media (hover: none) { .pf-plate-edit { opacity: 0.55; } }
+
+.pf-plate-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-size: var(--tm-fs-ui);
+  line-height: 1.45;
+  color: var(--tm-text);
+  resize: none;
+  letter-spacing: -0.005em;
+}
+.pf-plate-input:focus { outline: none; }
+
+.pf-plate-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  justify-content: flex-end;
+}
+
+.pf-plate-action {
+  appearance: none;
+  padding: 7px 14px;
+  font: inherit;
+  font-size: var(--tm-fs-ui-sm);
+  letter-spacing: 0.005em;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid var(--tm-border);
+  background: transparent;
+  color: var(--tm-text-muted);
+  transition:
+    background-color var(--tm-dur-fast) var(--tm-ease),
+    color var(--tm-dur-fast) var(--tm-ease),
+    border-color var(--tm-dur-fast) var(--tm-ease);
+}
+.pf-plate-action[data-role="save"] {
+  background: var(--tm-interactive);
+  color: var(--tm-interactive-fg);
+  border-color: var(--tm-interactive);
+  font-weight: 600;
+}
+.pf-plate-action[data-role="save"]:hover { background: var(--tm-interactive-hover); }
+.pf-plate-action[data-role="drop"] {
+  color: var(--tm-danger);
+  border-color: transparent;
+  margin-right: auto;
+}
+.pf-plate-action[data-role="drop"]:hover {
+  border-color: var(--tm-danger);
+  background: var(--tm-danger-wash);
+}
+.pf-plate-action:disabled { cursor: not-allowed; opacity: 0.55; }
+
+/* the "+ add a line" chip — ghost outline, vermilion on hover */
+.pf-add-line {
+  appearance: none;
+  width: 100%;
+  padding: 13px 18px;
+  background: transparent;
+  color: var(--tm-text-faint);
+  border: 1px dashed var(--tm-border);
+  border-radius: 14px;
+  font: inherit;
+  font-size: var(--tm-fs-ui-sm);
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition:
+    color var(--tm-dur-fast) var(--tm-ease),
+    border-color var(--tm-dur-fast) var(--tm-ease),
+    background-color var(--tm-dur-fast) var(--tm-ease);
+}
+.pf-add-line::before {
+  content: "+";
+  font-size: 18px;
+  line-height: 1;
+}
+.pf-add-line:hover {
+  color: var(--tm-interactive);
+  border-color: var(--tm-interactive);
+  border-style: solid;
+  background: var(--tm-hover-soft);
+}
+
+/* heard row — a proposal still needing yes/no. Both sides fill in their own
+ * semantic colour when picked — decline is crimson, accept is vermilion. */
+.pf-heard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--tm-hover-soft);
+  border: 1px solid var(--tm-border-soft);
+  border-radius: 10px;
+}
+.pf-heard-copy { flex: 1; min-width: 0; }
+.pf-heard-line { font-size: var(--tm-fs-ui-sm); line-height: 1.4; color: var(--tm-text); }
+.pf-heard-why {
+  margin-top: 2px;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.02em;
+  color: var(--tm-text-faint);
+}
+.pf-heard-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.pf-heard-btn {
+  appearance: none;
+  padding: 7px 12px;
+  font: inherit;
+  font-size: var(--tm-fs-ui-sm);
+  border: 1px solid var(--tm-border);
+  background: transparent;
+  color: var(--tm-text-muted);
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    color var(--tm-dur-fast) var(--tm-ease),
+    background-color var(--tm-dur-fast) var(--tm-ease),
+    border-color var(--tm-dur-fast) var(--tm-ease);
+}
+.pf-heard-btn[data-kind="yes"]:hover { color: var(--tm-interactive); border-color: var(--tm-interactive); }
+.pf-heard-btn[data-kind="no"]:hover  { color: var(--tm-danger);      border-color: var(--tm-danger); }
+.pf-heard-btn[data-picked="yes"] {
+  background: var(--tm-interactive);
+  color: var(--tm-interactive-fg);
+  border-color: var(--tm-interactive);
+  box-shadow: 0 4px 12px var(--tm-interactive-glow);
+}
+.pf-heard-btn[data-picked="no"] {
+  background: var(--tm-danger);
+  color: #fff;
+  border-color: var(--tm-danger);
+  box-shadow: 0 4px 12px var(--tm-danger-wash);
+}
+
+/* ── conflict plate ────────────────────────────────────────────────────────
+ * Same plate shape, warmer stroke, both statements inside with an inline
+ * chooser. Uses --tm-danger for the border wash — a conflict is decisive,
+ * not a warning; give it the same colour as the crimson decline pair so the
+ * decision language reads as one system. */
+
+.pf-plate[data-kind="conflict"] {
+  border-color: color-mix(in oklab, var(--tm-danger) 45%, var(--tm-border));
+  background: var(--tm-danger-wash);
+  cursor: default;
+}
+.pf-plate[data-kind="conflict"]::before { display: none; }
+.pf-plate-conflict-title {
+  font-size: var(--tm-fs-ui);
+  line-height: 1.4;
+  color: var(--tm-text);
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+.pf-plate-conflict-choices {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pf-plate-choice {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 11px 14px;
+  text-align: left;
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border);
+  border-radius: 10px;
+  color: var(--tm-text);
+  cursor: pointer;
+  font: inherit;
+  transition:
+    border-color var(--tm-dur-fast) var(--tm-ease),
+    background-color var(--tm-dur-fast) var(--tm-ease);
+}
+.pf-plate-choice:hover { border-color: var(--tm-interactive); }
+.pf-plate-choice:disabled { cursor: not-allowed; opacity: 0.6; }
+.pf-plate-choice-text {
+  font-size: var(--tm-fs-ui);
+  line-height: 1.35;
+}
+.pf-plate-choice-meta {
+  display: inline-flex;
+  gap: 6px;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  color: var(--tm-text-faint);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.pf-plate-choice-meta > span:not(:first-child)::before {
+  content: "·";
+  margin-right: 6px;
+  opacity: 0.6;
+}
+
+/* ── canvas composition ────────────────────────────────────────────────────
+ * The canvas itself is layout-only — pure gaps between the pieces above.
+ * Its glass belongs to `.pf-plate`, its heading belongs to `.pf-canvas-heading`.
+ * The pieces this block owns: the opening pad, the heard fold, the run bar. */
+
+.pf-canvas {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.pf-canvas-error {
+  margin: 0;
+  padding: 10px 14px;
+  color: var(--tm-danger);
+  background: var(--tm-danger-wash);
+  border: 1px solid var(--tm-danger);
+  border-radius: 10px;
+  font-size: var(--tm-fs-ui-sm);
+}
+
+/* opening pad — shown when nothing has been said yet */
+.pf-canvas-open { display: flex; flex-direction: column; gap: 14px; }
+.pf-canvas-hero {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+.pf-canvas-hero span {
+  font-family: var(--tm-font-sans);
+  font-size: var(--tm-fs-modal);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--tm-interactive);
+  font-variant-numeric: tabular-nums;
+}
+.pf-canvas-hero p {
+  margin: 0;
+  color: var(--tm-text-muted);
+  font-size: var(--tm-fs-ui-sm);
+  line-height: 1.45;
+}
+.pf-canvas-know {
+  margin: 0;
+  color: var(--tm-text-muted);
+  font-size: var(--tm-fs-ui-sm);
+}
+.pf-canvas-price {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+.pf-canvas-price[data-short="true"] { color: var(--tm-danger); }
+.pf-canvas-ask {
+  margin: 0;
+  font-size: var(--tm-fs-ask);
+  line-height: 1.35;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--tm-text);
+  text-wrap: pretty;
+}
+.pf-canvas-help {
+  margin: 0;
+  font-size: var(--tm-fs-ui-sm);
+  line-height: 1.5;
+  color: var(--tm-text-muted);
+}
+.pf-canvas-compose {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+.pf-canvas-send {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--tm-interactive-fg);
+  background: var(--tm-interactive);
+  box-shadow: 0 4px 12px var(--tm-interactive-glow);
+  transition:
+    background-color var(--tm-dur-fast) var(--tm-ease),
+    color var(--tm-dur-fast) var(--tm-ease);
+}
+.pf-canvas-send[data-idle="true"] {
+  background: transparent;
+  color: var(--tm-text-muted);
+  border-color: var(--tm-border);
+  box-shadow: none;
+}
+.pf-canvas-send:hover:not([data-idle="true"]) { background: var(--tm-interactive-hover); }
+.pf-canvas-send:disabled { cursor: not-allowed; }
+
+/* + add another — expanded */
+.pf-add-line-open {
+  cursor: default;
+  border-style: solid;
+  border-color: var(--tm-interactive);
+  padding: 12px 14px;
+  gap: 10px;
+  flex-direction: column;
+  align-items: stretch;
+}
+.pf-add-line-open::before { content: none; }
+.pf-add-line-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* heard fold */
+.pf-heard-fold {
+  border-top: 1px dashed var(--tm-border);
+  padding-top: 8px;
+}
+.pf-heard-toggle {
+  appearance: none;
+  width: 100%;
+  padding: 10px 4px;
+  background: transparent;
+  color: var(--tm-text-muted);
+  border: 0;
+  font: inherit;
+  font-size: var(--tm-fs-ui-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: color var(--tm-dur-fast) var(--tm-ease);
+}
+.pf-heard-toggle:hover { color: var(--tm-text); }
+.pf-heard-arrow {
+  font-family: var(--tm-font-mono);
+  color: var(--tm-text-faint);
+}
+.pf-heard-list {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* run bar — the one bright object */
+.pf-canvas-runbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  border-top: 1px solid var(--tm-border-soft);
+  position: relative;
+}
+.pf-canvas-contract {
+  flex: 1 1 200px;
+  min-width: 0;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-note);
+  color: var(--tm-text-faint);
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+}
+.pf-canvas-cost {
+  flex: 1 1 100%;
+  font-size: var(--tm-fs-ui-sm);
+  color: var(--tm-text-muted);
+}
+.pf-canvas-cost[data-tone="short"] { color: var(--tm-danger); }
+.pf-canvas-cost strong { color: inherit; }
+.pf-canvas-run {
+  position: relative;
+  appearance: none;
+  padding: 12px 22px;
+  font: inherit;
+  font-size: var(--tm-fs-ui);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--tm-interactive-fg);
+  background: var(--tm-interactive);
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px var(--tm-interactive-glow);
+  transition:
+    transform var(--tm-dur-fast) var(--tm-ease),
+    box-shadow var(--tm-dur) var(--tm-ease);
+}
+.pf-canvas-run:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 32px -4px var(--tm-interactive-glow);
+}
+.pf-canvas-run:disabled { cursor: not-allowed; opacity: 0.55; box-shadow: none; }
+.pf-canvas-run-sep { opacity: 0.55; }
+.pf-canvas-run-cost {
+  font-weight: 400;
+  opacity: 0.9;
+  font-variant-numeric: tabular-nums;
+}
+/* underglow — the one signature moment */
+.pf-canvas-run::after {
+  content: "";
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: -18px;
+  height: 32px;
+  background: radial-gradient(closest-side, var(--tm-interactive-glow), transparent 80%);
+  filter: blur(12px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--tm-dur) var(--tm-ease);
+}
+.pf-canvas-run:hover:not(:disabled)::after,
+.pf-canvas-run:focus-visible:not(:disabled)::after { opacity: 1; }
+
+@media (max-width: 420px) {
+  .pf-canvas-runbar { flex-direction: column-reverse; align-items: stretch; }
+  .pf-canvas-run { justify-content: center; }
+  .pf-canvas-contract { text-align: left; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-plate, .pf-plate-edit, .pf-plate-action, .pf-add-line,
+  .pf-heard-btn, .pf-plate-choice, .pf-canvas-send,
+  .pf-heard-toggle, .pf-canvas-run { transition: none; }
+  .pf-canvas-run::after { transition: none; }
+}

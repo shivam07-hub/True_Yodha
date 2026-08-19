@@ -116,38 +116,6 @@
   white-space: nowrap;
 }
 
-/* ─── Hero ─── */
-.mc-hero {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 32px;
-  align-items: start;
-}
-.mc-greeting {
-  font-size: var(--tm-fs-display);
-  font-weight: 700;
-  line-height: var(--tm-lh-display);
-  letter-spacing: 0;
-  margin: 0;
-  color: var(--tm-text);
-}
-.mc-greeting .mc-name {
-  font-family: inherit;
-  font-weight: 700;
-  font-style: normal;
-  color: var(--tm-interactive);
-}
-.mc-hero-sub {
-  margin-top: 10px;
-  font-family: var(--tm-font-mono);
-  font-size: 11px;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--tm-text-faint);
-  font-weight: 500;
-}
-.mc-hero-sub .sep { color: var(--tm-text-faint); margin: 0 4px; }
-
 /* ─── Workspace (3-zone desktop: pinned rail · centre feed · peek panel) ───
    LinkedIn-style spatial model. The rail + panel are sticky so the score ring
    and the context surfaces stay on screen while the feed scrolls. Feed claims
@@ -1006,22 +974,15 @@
 /* ─── Responsive ─── */
 @media (max-width: 1100px) {
   .mc-page { padding: var(--tm-page-py) var(--tm-page-px) 80px; }
-  .mc-greeting { font-size: var(--tm-fs-display); line-height: var(--tm-lh-display); }
   .mc-focus-row { grid-template-columns: 1fr; }
   .mc-skill-match-grid { grid-template-columns: 1fr; }
   .mc-side-card { position: static; }
-}
-@media (max-width: 900px) {
-  .mc-hero { grid-template-columns: 1fr; justify-items: center; }
-  .mc-hero > div:first-child { justify-self: stretch; }
 }
 @media (max-width: 840px) {
   .mc-page { padding: var(--tm-page-py) var(--tm-page-px) 90px; }
   .mc-topbar { flex-direction: column; gap: 10px; align-items: stretch; margin-bottom: 18px; }
   .mc-topbar > * { width: 100%; justify-content: center; }
   .mc-btn .mc-badge { display: none; }
-  .mc-greeting { font-size: var(--tm-fs-title); line-height: var(--tm-lh-title); }
-  .mc-hero-sub { font-size: 12px; margin-top: 4px; }
   .mc-match-row { grid-template-columns: 1fr; gap: 10px; padding: 14px; }
   .mc-match-row .label { padding-top: 0; }
   .mc-chips { gap: 6px; }
@@ -1059,10 +1020,6 @@
 	  }
   .mc-mobile-mission-head h1 span {
     color: var(--tm-interactive);
-  }
-  .mc-greeting,
-  .mc-hero-sub {
-    display: none;
   }
   .mc-focus-title { font-size: 20px; }
   .mc-focus-fit .num { font-size: 26px; }

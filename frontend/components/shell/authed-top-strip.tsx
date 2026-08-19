@@ -17,6 +17,7 @@ import { ThemeControl } from "@/components/ui/theme-control"
 import { Button } from "@/components/ui/button"
 import { AccountLegalLinks } from "@/components/shell/account-legal-links"
 import { FeedbackHub, openFeedbackHub, type FeedbackCategory } from "@/components/feedback"
+import { Skeleton } from "@/components/ui/skeleton"
 
 /**
  * AuthedTopStrip — the ONE logged-in top strip (ADR-0010). The app shell AND the
@@ -122,7 +123,11 @@ export function AuthedTopStrip({ model, mountFeedbackHub = false }: AuthedTopStr
               aria-label="Account menu"
               aria-expanded={menuOpen}
             >
-              {fullName ? fullName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() : "HM"}
+              {fullName
+                ? fullName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
+                : profileLoading
+                  ? <Skeleton style={{ width: "100%", height: "100%", borderRadius: "50%" }} />
+                  : "?"}
             </button>
             {menuOpen && (
               <>

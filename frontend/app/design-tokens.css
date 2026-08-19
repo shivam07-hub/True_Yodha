@@ -51,10 +51,11 @@
   --tm-icon-muted:    rgba(247, 247, 247, 0.42);
 
   /* ── Skeleton (loading placeholder · ADR-0011 §B) ────────────
-     The base must read as a *real shape* against the ink page —
-     a near-invisible blob communicates "empty", not "loading".
+     The base must read as a *real shape* against the page AND the
+     card (#212120). Matching --tm-surface-2 (#232322) made bars
+     vanish and the load read as empty. One step above --tm-border.
      `sheen` is the directional teal shimmer band that sweeps across. */
-  --tm-skeleton:       #232322;
+  --tm-skeleton:       #3a3a36;
   --tm-skeleton-sheen: rgba(0, 245, 212, 0.16);
 
   /* ── Text (Ghost) ──────────────────────────────────────────
@@ -511,7 +512,7 @@ html:root:has(.tm-ink) {
   --tm-hover:         rgba(232, 240, 255, 0.07);
   --tm-icon-muted:    rgba(232, 240, 255, 0.42);
 
-  --tm-skeleton:       #0f1a2e;
+  --tm-skeleton:       #1c2a44;
   --tm-skeleton-sheen: rgba(0, 245, 212, 0.16);
 
   /* Measured on the ink page / card / elevated surfaces. Every rung that
