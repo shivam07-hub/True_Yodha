@@ -6,9 +6,8 @@
  * one application; the room is one tap away. Saved jobs never appear —
  * Collections owns pre-apply.
  *
- * Desktop chrome matches Jobs / Collections: tm-intel-page (1480) + the
- * workspace rail stylesheet (mc-workspace / mc-peek-card). The rail sits on
- * the right so it fills the dead column those pages already occupy.
+ * Desktop chrome matches Collections: tm-intel-page (1480) + mc-workspace
+ * with the peek rail first (Score map · Training), rooms in the main column.
  */
 
 import type { ReactNode } from "react"
@@ -79,14 +78,14 @@ function PrepFrame({
         {live ? <span className="prp-count">{live} live</span> : null}
       </div>
       <p className="prp-sub">Prepare for every job</p>
-      <div className="mc-workspace prp-workspace">
-        <div className="mc-ws-main">{children}</div>
+      <div className="mc-workspace">
         <aside className="mc-ws-rail" aria-label="Score map and training">
           <div className="mc-rail">
             <ScoreMapCard token={token} />
             <TrainingCard />
           </div>
         </aside>
+        <div className="mc-ws-main">{children}</div>
       </div>
     </div>
   )

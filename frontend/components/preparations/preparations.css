@@ -435,16 +435,13 @@
   color: var(--tm-text-muted);
 }
 
-/* ── list workspace: same 1480 shell + 248px rail as Jobs / Collections.
-   Rail sits on the END (right) so it fills the dead column. The room page
-   stays a single 860px reading column (.prp-page). ── */
+/* ── list workspace: same 1480 shell + 248px peek rail as Collections.
+   Default .mc-workspace puts the rail first. The room page stays a single
+   860px reading column (.prp-page). ── */
 .prp-workspace-page {
   padding: 32px 36px 64px;
   max-width: 1480px;
   margin: 0 auto;
-}
-.mc-workspace.prp-workspace {
-  grid-template-columns: minmax(0, 1fr) 248px;
 }
 
 /* Score map body — radar then lift line, inside the shared peek card. */
@@ -472,22 +469,62 @@
 }
 .prp-map-cap strong { color: var(--tm-text); font-weight: 600; }
 .prp-map-body:hover .mc-peek-link { text-decoration: underline; }
-.prp-workspace .mc-peek-empty a { color: var(--tm-interactive-text); font-weight: 600; text-decoration: none; }
+.prp-workspace-page .mc-peek-empty a { color: var(--tm-interactive-text); font-weight: 600; text-decoration: none; }
 
-.prp-train-row {
-  text-decoration: none;
-  color: inherit;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--tm-border-soft);
+/* Course chips — Followed-companies geometry, louder: teal wash, bigger type. */
+.prp-courses {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
-.prp-train-row:last-child { border-bottom: none; }
-a.prp-train-row svg { flex-shrink: 0; color: var(--tm-text-faint); }
-a.prp-train-row:hover .lab { color: var(--tm-interactive); }
-a.prp-train-row:hover svg { color: var(--tm-interactive); }
+.prp-course {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px 9px 8px;
+  border: 1px solid var(--tm-int-border);
+  border-radius: var(--tm-radius-pill);
+  background: var(--tm-interactive-wash);
+  color: var(--tm-accent-text);
+  text-decoration: none;
+}
+.prp-course:hover {
+  background: var(--tm-int-bg-hover);
+  border-color: var(--tm-interactive);
+}
+.prp-course-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: var(--tm-interactive);
+  color: var(--tm-interactive-fg);
+  font-family: var(--tm-font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+.prp-course-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14.5px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--tm-accent-text);
+}
+.prp-course svg { flex-shrink: 0; color: var(--tm-accent-text); }
 
 @media (max-width: 980px) {
-  .mc-workspace.prp-workspace { grid-template-columns: 1fr; }
   .prp-map-radar { max-width: 280px; }
+  /* DOM-first rail would stack above the rooms. Keep rooms first; training
+     follows, still visible — unlike Collections' --peek hide. */
+  .prp-workspace-page .mc-workspace { display: flex; flex-direction: column; }
+  .prp-workspace-page .mc-ws-main { order: 1; }
+  .prp-workspace-page .mc-ws-rail { order: 2; }
 }
 
 @media (max-width: 640px) {
