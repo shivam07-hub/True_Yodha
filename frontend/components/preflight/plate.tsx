@@ -24,14 +24,11 @@ const USER_SOURCES: readonly LineSource[] = ["user_said", "user_reworded"]
 
 export function Plate({
   line,
-  eyebrow,
   onReword,
   onDrop,
   busy,
 }: {
   line: OrderLine
-  /** WHERE · WON'T TAKE · LEANS — the slot the line answers. */
-  eyebrow?: string
   onReword: (text: string) => void
   onDrop: () => void
   busy?: boolean
@@ -75,7 +72,20 @@ export function Plate({
     setDraft(line.text)
   }
 
-  const meta = line.source_note || SOURCE_LABEL[line.source]
+  /**
+   * The meta line earns its place or it does not appear.
+   *
+   * The rail already says who authored the line, so "you set this" under a
+   * railed plate and "from your 66 notes" under an unrailed one are both the
+   * rail restated in words — twenty rows of it on the shipped surface. What
+   * the rail CANNOT say is that a line is soft (it tilts ranking, it does not
+   * exclude) or unusable (Myro can't run it). Those two, and nothing else.
+   */
+  const meta = line.unusable
+    ? "Myro can't run this — reword it"
+    : line.soft
+      ? "a preference, not a hard line"
+      : null
 
   return (
     <div
@@ -83,7 +93,10 @@ export function Plate({
       data-said={said}
       data-editing={editing ? "true" : undefined}
       role="group"
-      aria-labelledby={`${id}-line`}
+      /* The rail is a 2.5px colour bar — invisible to a screen reader. The
+         source it encodes travels in the accessible name instead, so the
+         attribution is never sighted-only. */
+      aria-label={`${line.text} — ${SOURCE_LABEL[line.source]}`}
       onClick={(e) => {
         if (editing) return
         if (busy) return
@@ -93,7 +106,9 @@ export function Plate({
     >
       <div className="pf-plate-body">
         <div className="pf-plate-copy">
-          {eyebrow ? <div className="pf-plate-eyebrow">{eyebrow}</div> : null}
+          {/* No kind eyebrow. The statement says what it is — "Avoids large
+              corporations" does not need a label reading WON'T TAKE above it,
+              and twenty of those labels is the noise this rebuild removed. */}
           <div className="pf-plate-line" id={`${id}-line`}>{line.text}</div>
           {editing ? (
             <textarea
@@ -111,7 +126,7 @@ export function Plate({
               onClick={(e) => e.stopPropagation()}
             />
           ) : null}
-          <div className="pf-plate-meta"><span>{meta}</span></div>
+          {meta ? <div className="pf-plate-meta"><span>{meta}</span></div> : null}
         </div>
         {editing ? null : (
           <button

@@ -27,12 +27,11 @@ import Link from "next/link"
 import { visibleConflicts } from "@/lib/preflight/conflicts"
 import { formatCount } from "@/lib/format"
 import {
-  KIND_EYEBROW,
   type LineStatus,
   type Order,
   type OrderProposal,
 } from "@/lib/preflight/types"
-import { contractLine } from "@/lib/preflight/prose"
+import { blockedLine, contractLine } from "@/lib/preflight/prose"
 
 import { AddMoreLine, OpeningPad } from "./canvas-pads"
 import { ConflictPlate } from "./conflict-plate"
@@ -74,14 +73,32 @@ export function ScreenCanvas({
   onOpenCoins: () => void
   onRun: () => void
 }) {
-  const kept = useMemo(() => order.lines.filter((l) => l.status === "kept"), [order.lines])
-  const unanswered = useMemo(() => order.lines.filter((l) => l.status === "unanswered"), [order.lines])
   const conflicts = visibleConflicts(order)
+
+  /**
+   * A line inside a live conflict is NOT also a settled plate.
+   *
+   * It is still `kept` server-side — the resolver reports the clash, it never
+   * resolves one — so rendering every kept line put "Avoids large corporations"
+   * on screen twice: once as signed-off, once as contested. Two states for one
+   * line, three inches apart. The conflict plate is the one that owns it until
+   * the user settles it.
+   */
+  const contested = useMemo(
+    () => new Set(conflicts.flatMap((c) => c.line_ids)),
+    [conflicts],
+  )
+  const kept = useMemo(
+    () => order.lines.filter((l) => l.status === "kept" && !contested.has(l.id)),
+    [order.lines, contested],
+  )
+  const unanswered = useMemo(() => order.lines.filter((l) => l.status === "unanswered"), [order.lines])
   const runCost = order.run_cost ?? 0
   const free = runCost === 0
   const short = !free && balance < runCost
   const cvReady = (order.cv_readiness ?? "") === "ready"
-  const hasWork = kept.length > 0 || (order.said ?? "").trim().length > 0
+  const hasWork =
+    kept.length > 0 || conflicts.length > 0 || (order.said ?? "").trim().length > 0
 
   return (
     <div className="pf-canvas">
@@ -103,7 +120,6 @@ export function ScreenCanvas({
             <Plate
               key={line.id}
               line={line}
-              eyebrow={KIND_EYEBROW[line.kind]}
               onReword={(text) => onRewordLine(line.id, text)}
               onDrop={() => onAnswerLine(line.id, "dropped")}
             />
@@ -136,7 +152,7 @@ export function ScreenCanvas({
 
       {hasWork ? (
         <RunBar
-          contract={contractLine(order)}
+          contract={conflicts.length > 0 ? blockedLine(conflicts.length) : contractLine(order)}
           runCost={runCost}
           balance={balance}
           free={free}

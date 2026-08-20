@@ -184,6 +184,12 @@ export function PreflightGate({
         />
 
         <div className="pf-body">
+          {/* `/preflight/order` runs ~8s on a cold read, and the shell used to
+              render its chrome over an empty box for all of it — a titled,
+              closable, entirely blank modal. Plates in outline say the same
+              thing the real ones will: this is a list, it is coming. */}
+          {mode === "canvas" && !order ? <CanvasSkeleton /> : null}
+
           {mode === "canvas" && order ? (
             <ScreenCanvas
               order={order}
@@ -231,5 +237,20 @@ export function PreflightGate({
       </div>
     </div>,
     document.body,
+  )
+}
+
+/** The canvas, in outline, while the order is still in flight. */
+function CanvasSkeleton() {
+  return (
+    <div className="pf-canvas" aria-hidden>
+      <div className="pf-skeleton-head" />
+      <div className="pf-plate-list">
+        <div className="pf-skeleton-plate" data-w="long" />
+        <div className="pf-skeleton-plate" data-w="short" />
+        <div className="pf-skeleton-plate" data-w="mid" />
+        <div className="pf-skeleton-plate" data-w="long" />
+      </div>
+    </div>
   )
 }

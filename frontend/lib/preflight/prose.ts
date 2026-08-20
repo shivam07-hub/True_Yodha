@@ -183,6 +183,25 @@ const plural = (n: number, one: string, many: string) => (n === 1 ? one : many)
  * unanswered guess is DROPPED at run time, and saying so is the difference
  * between a confirmation screen and a consent screen.
  */
+/**
+ * What the run bar says while a slot is still contested.
+ *
+ * `contractLine` cannot answer this. `order.used` counts only lines the
+ * resolver actually placed into the six-slot spec, and an over-arity slot
+ * contributes NOTHING — `payload.py` skips the whole group. A user with three
+ * contested slots therefore gets `used === 0`, and the contract sentence reads
+ * "Myro runs on the 0 lines above and nothing else" underneath twenty visible
+ * plates. That shipped on 2026-08-19. It is not a rounding error; it is the
+ * surface stating the opposite of what is on screen.
+ *
+ * So while anything is contested the bar states the block instead of the
+ * count. The count is only meaningful once the resolver can place every slot.
+ */
+export function blockedLine(contested: number): string {
+  const q = `${contested} ${plural(contested, "question", "questions")}`
+  return `${q} above still open — Myro runs once ${plural(contested, "it's", "they're")} settled.`
+}
+
 export function contractLine(order: OrderState): string {
   const { kept: keptCount, dropped, unanswered, fromMarket } = countsFrom(order)
   const runCount = typeof order.used === "number" ? order.used : keptCount

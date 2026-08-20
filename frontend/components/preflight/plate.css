@@ -1,79 +1,96 @@
 
 /* ── canvas & plate ────────────────────────────────────────────────────────
  *
- * The one-canvas surface. Every settled line renders as a `.pf-plate`. The
- * vermilion left rail (present when `data-said="user"`) is the entire
- * attribution system — no chip, no eyebrow. Editing a Myro-guessed plate
- * promotes it: the server flips `source` to `user_reworded` on the next
- * order fetch, and the rail arrives with the truth.
+ * The one-canvas surface. Every settled line renders as a `.pf-plate`, and
+ * the accent left rail (present when `data-said="user"`) is the ENTIRE
+ * attribution system — no chip, no eyebrow, no source line repeated on every
+ * row. Editing a Myro-guessed plate promotes it: the server flips `source` to
+ * `user_reworded` on the next fetch, and the rail arrives with the truth.
  *
- * The plate uses backdrop-filter — a glass surface on the canvas ground. In
- * every dark theme the ground is `--tm-bg` #191918 and the plate is a 4.5%
- * white overlay; in light it is `--tm-hover` on a #faf6f0 ground. Both
- * grounds work because the plate defines its own background AND its own
- * border from tokens — not from the theme literals.
+ * What shipped on 2026-08-19 and what this file now prevents: every plate
+ * carried an uppercase mono kind label (LOCATION · WON'T TAKE · DRAWN TO)
+ * ABOVE the statement, so the smallest, loudest, least useful text on each
+ * row was the first thing read — twenty rows of shouting at the reader about
+ * a category the sentence already states. "Avoids large corporations" does
+ * not need a label reading WON'T TAKE.
  *
- * The yes/no pair uses `--tm-interactive` for accept and `--tm-danger` for
- * decline. Decisive fills BOTH sides — `feedback_never_label_button_with_
- * shortcut` and the sibling design memory both come from this pattern.
+ * Glass is a MATERIAL RECIPE, not a blur: a translucent fill, a hairline
+ * stroke, a one-pixel inset highlight along the top edge, and a shallow drop.
+ * All four, or the plate reads as a flat grey card. The palette that carries
+ * them is declared once on `.pf-modal` in preflight.css.
+ *
+ * The yes/no pair uses `--pf-accent` for accept and `--pf-decline` for
+ * decline, both as FILLS — see `feedback_never_label_button_with_shortcut`
+ * and the design memory beside it.
  */
 
 .pf-canvas-heading {
-  padding: 4px 0 2px;
+  padding: 2px 0;
 }
 .pf-canvas-heading h2 {
   margin: 0;
-  font-size: clamp(20px, 4vw, 24px);
+  font-size: clamp(21px, 4.2vw, 26px);
   font-weight: 500;
-  line-height: 1.24;
-  letter-spacing: -0.017em;
+  line-height: 1.22;
+  letter-spacing: -0.019em;
   color: var(--tm-text);
   text-wrap: balance;
 }
 .pf-canvas-heading .pf-canvas-sub {
-  margin: 8px 0 0;
+  margin: 10px 0 0;
   font-family: var(--tm-font-mono);
   font-size: var(--tm-fs-note);
   letter-spacing: 0.02em;
   color: var(--tm-text-faint);
 }
+/* Declared, not inherited. An unstyled <a> here renders as browser-default
+   blue-and-underlined against a near-black plate — the one element on the
+   canvas that never got a colour, and the loudest thing on it. */
+.pf-canvas-heading .pf-canvas-sub a {
+  color: var(--tm-text-muted);
+  text-decoration: none;
+  transition: color var(--tm-dur-fast) var(--tm-ease);
+}
+.pf-canvas-heading .pf-canvas-sub a:hover { color: var(--pf-accent); }
 
 .pf-plate-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 18px;
+  gap: 8px;
 }
 
 .pf-plate {
   position: relative;
-  padding: 14px 16px 14px 22px;
-  background: var(--tm-hover-soft);
-  backdrop-filter: saturate(180%) blur(24px);
-  -webkit-backdrop-filter: saturate(180%) blur(24px);
-  border: 1px solid var(--tm-border-soft);
-  border-radius: 14px;
+  padding: 13px 15px 13px 20px;
+  background: var(--pf-plate);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid var(--pf-stroke);
+  border-radius: 13px;
+  box-shadow: var(--pf-inset), var(--pf-drop);
   cursor: text;
   transition:
     background-color var(--tm-dur-fast) var(--tm-ease),
     border-color var(--tm-dur-fast) var(--tm-ease);
 }
-.pf-plate:hover { background: var(--tm-hover); }
-.pf-plate:hover .pf-plate-edit { opacity: 0.85; }
+.pf-plate:hover {
+  background: var(--pf-plate-hover);
+  border-color: var(--pf-stroke-strong);
+}
+.pf-plate:hover .pf-plate-edit { opacity: 0.9; }
 .pf-plate[data-said="user"]::before {
   content: "";
   position: absolute;
   left: 0;
-  top: 14px;
-  bottom: 14px;
-  width: 3px;
+  top: 12px;
+  bottom: 12px;
+  width: 2.5px;
   border-radius: 0 3px 3px 0;
-  background: var(--tm-interactive);
-  box-shadow: 0 0 8px var(--tm-interactive-glow);
+  background: var(--pf-accent);
 }
 .pf-plate[data-editing="true"] {
-  border-color: var(--tm-interactive);
-  background: var(--tm-hover);
+  border-color: var(--pf-accent);
+  background: var(--pf-plate-hover);
   cursor: default;
 }
 
@@ -85,14 +102,6 @@
 .pf-plate-copy {
   flex: 1;
   min-width: 0;
-}
-.pf-plate-eyebrow {
-  font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-micro);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--tm-text-faint);
-  margin-bottom: 4px;
 }
 .pf-plate-line {
   font-size: var(--tm-fs-ui);
@@ -130,8 +139,8 @@
   flex-shrink: 0;
 }
 .pf-plate-edit:hover {
-  color: var(--tm-interactive);
-  background: var(--tm-hover);
+  color: var(--pf-accent);
+  background: var(--pf-plate-hover);
   opacity: 1;
 }
 @media (hover: none) { .pf-plate-edit { opacity: 0.55; } }
@@ -167,7 +176,7 @@
   letter-spacing: 0.005em;
   border-radius: 8px;
   cursor: pointer;
-  border: 1px solid var(--tm-border);
+  border: 1px solid var(--pf-stroke);
   background: transparent;
   color: var(--tm-text-muted);
   transition:
@@ -176,20 +185,20 @@
     border-color var(--tm-dur-fast) var(--tm-ease);
 }
 .pf-plate-action[data-role="save"] {
-  background: var(--tm-interactive);
-  color: var(--tm-interactive-fg);
-  border-color: var(--tm-interactive);
+  background: var(--pf-accent);
+  color: var(--pf-accent-fg);
+  border-color: var(--pf-accent);
   font-weight: 600;
 }
-.pf-plate-action[data-role="save"]:hover { background: var(--tm-interactive-hover); }
+.pf-plate-action[data-role="save"]:hover { background: color-mix(in oklab, var(--pf-accent) 88%, #000); }
 .pf-plate-action[data-role="drop"] {
-  color: var(--tm-danger);
+  color: var(--pf-decline);
   border-color: transparent;
   margin-right: auto;
 }
 .pf-plate-action[data-role="drop"]:hover {
-  border-color: var(--tm-danger);
-  background: var(--tm-danger-wash);
+  border-color: var(--pf-decline);
+  background: color-mix(in oklab, var(--pf-decline) 14%, transparent);
 }
 .pf-plate-action:disabled { cursor: not-allowed; opacity: 0.55; }
 
@@ -200,7 +209,7 @@
   padding: 13px 18px;
   background: transparent;
   color: var(--tm-text-faint);
-  border: 1px dashed var(--tm-border);
+  border: 1px dashed var(--pf-stroke);
   border-radius: 14px;
   font: inherit;
   font-size: var(--tm-fs-ui-sm);
@@ -220,10 +229,10 @@
   line-height: 1;
 }
 .pf-add-line:hover {
-  color: var(--tm-interactive);
-  border-color: var(--tm-interactive);
+  color: var(--pf-accent);
+  border-color: var(--pf-accent);
   border-style: solid;
-  background: var(--tm-hover-soft);
+  background: var(--pf-plate);
 }
 
 /* heard row — a proposal still needing yes/no. Both sides fill in their own
@@ -233,8 +242,8 @@
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  background: var(--tm-hover-soft);
-  border: 1px solid var(--tm-border-soft);
+  background: var(--pf-plate);
+  border: 1px solid var(--pf-stroke);
   border-radius: 10px;
 }
 .pf-heard-copy { flex: 1; min-width: 0; }
@@ -252,7 +261,7 @@
   padding: 7px 12px;
   font: inherit;
   font-size: var(--tm-fs-ui-sm);
-  border: 1px solid var(--tm-border);
+  border: 1px solid var(--pf-stroke);
   background: transparent;
   color: var(--tm-text-muted);
   border-radius: 8px;
@@ -262,33 +271,50 @@
     background-color var(--tm-dur-fast) var(--tm-ease),
     border-color var(--tm-dur-fast) var(--tm-ease);
 }
-.pf-heard-btn[data-kind="yes"]:hover { color: var(--tm-interactive); border-color: var(--tm-interactive); }
-.pf-heard-btn[data-kind="no"]:hover  { color: var(--tm-danger);      border-color: var(--tm-danger); }
+.pf-heard-btn[data-kind="yes"]:hover { color: var(--pf-accent); border-color: var(--pf-accent); }
+.pf-heard-btn[data-kind="no"]:hover  { color: var(--pf-decline);      border-color: var(--pf-decline); }
 .pf-heard-btn[data-picked="yes"] {
-  background: var(--tm-interactive);
-  color: var(--tm-interactive-fg);
-  border-color: var(--tm-interactive);
-  box-shadow: 0 4px 12px var(--tm-interactive-glow);
+  background: var(--pf-accent);
+  color: var(--pf-accent-fg);
+  border-color: var(--pf-accent);
+  box-shadow: 0 4px 12px var(--pf-accent-glow);
 }
 .pf-heard-btn[data-picked="no"] {
-  background: var(--tm-danger);
+  background: var(--pf-decline);
   color: #fff;
-  border-color: var(--tm-danger);
-  box-shadow: 0 4px 12px var(--tm-danger-wash);
+  border-color: var(--pf-decline);
+  box-shadow: 0 4px 12px color-mix(in oklab, var(--pf-decline) 14%, transparent);
 }
 
 /* ── conflict plate ────────────────────────────────────────────────────────
- * Same plate shape, warmer stroke, both statements inside with an inline
- * chooser. Uses --tm-danger for the border wash — a conflict is decisive,
- * not a warning; give it the same colour as the crimson decline pair so the
- * decision language reads as one system. */
+ *
+ * Same plate shape, decline-tinted stroke, the statements inside with an
+ * inline chooser. What this replaced: a nine-row wall where each option was a
+ * two-line stack carrying WON'T TAKE · MYRO INFERRED · 4 DAYS AGO — more
+ * chrome than the thing it was asking about, twice on one screen.
+ *
+ * A choice is now ONE line. Provenance is the same rail the settled plates
+ * use, not three uppercase fields. The counter above states the arithmetic
+ * ("keep 6 · drop 3 more") so the user knows when they are done, which is the
+ * one thing the old wall never said. */
 
+/* A tint, not an alarm. This is a question the resolver could not answer, and
+ * a plate washed in error-red tells the user something has gone wrong when
+ * nothing has. Enough decline to group it with the crimson decision language,
+ * not enough to read as a failure. */
 .pf-plate[data-kind="conflict"] {
-  border-color: color-mix(in oklab, var(--tm-danger) 45%, var(--tm-border));
-  background: var(--tm-danger-wash);
+  border-color: color-mix(in oklab, var(--pf-decline) 26%, var(--pf-stroke));
+  background: color-mix(in oklab, var(--pf-decline) 4%, var(--pf-plate));
   cursor: default;
+  padding: 14px 15px;
 }
 .pf-plate[data-kind="conflict"]::before { display: none; }
+.pf-plate-conflict-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
 .pf-plate-conflict-title {
   font-size: var(--tm-fs-ui);
   line-height: 1.4;
@@ -296,23 +322,32 @@
   font-weight: 500;
   letter-spacing: -0.005em;
 }
+.pf-plate-conflict-count {
+  flex-shrink: 0;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.06em;
+  color: var(--pf-decline);
+  font-variant-numeric: tabular-nums;
+}
 .pf-plate-conflict-choices {
-  margin-top: 12px;
+  margin-top: 10px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 .pf-plate-choice {
+  position: relative;
   appearance: none;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  padding: 11px 14px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px 10px 14px;
   text-align: left;
-  background: var(--tm-surface);
-  border: 1px solid var(--tm-border);
-  border-radius: 10px;
+  background: var(--pf-plate);
+  border: 1px solid var(--pf-stroke);
+  border-radius: 9px;
   color: var(--tm-text);
   cursor: pointer;
   font: inherit;
@@ -320,25 +355,64 @@
     border-color var(--tm-dur-fast) var(--tm-ease),
     background-color var(--tm-dur-fast) var(--tm-ease);
 }
-.pf-plate-choice:hover { border-color: var(--tm-interactive); }
+/* Same rail, same meaning, one third the chrome. */
+.pf-plate-choice[data-said="user"]::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 9px;
+  bottom: 9px;
+  width: 2.5px;
+  border-radius: 0 3px 3px 0;
+  background: var(--pf-accent);
+}
+.pf-plate-choice:hover {
+  background: var(--pf-plate-hover);
+  border-color: var(--pf-decline);
+}
 .pf-plate-choice:disabled { cursor: not-allowed; opacity: 0.6; }
 .pf-plate-choice-text {
-  font-size: var(--tm-fs-ui);
+  flex: 1;
+  min-width: 0;
+  font-size: var(--tm-fs-ui-sm);
   line-height: 1.35;
 }
-.pf-plate-choice-meta {
-  display: inline-flex;
-  gap: 6px;
-  font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-micro);
-  color: var(--tm-text-faint);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+/* No per-row verb.
+ *
+ * A first pass put a hover-revealed "drop" on every option, which on any
+ * touch device (`hover: none`) resolved to a permanent column of five red
+ * DROP labels — the nine-row wall this plate replaced, rebuilt smaller. The
+ * head already states the action and the arithmetic; the row states the line.
+ * Hover tints the row in the decline colour, which is the whole affordance. */
+
+/* ── skeleton ──────────────────────────────────────────────────────────────
+ * The plate outline, held empty. Same radius, same stroke, same rhythm as the
+ * real list — a skeleton whose shape does not match what lands is a second
+ * layout, and the swap reads as the modal flinching. */
+
+.pf-skeleton-head {
+  height: 26px;
+  width: 62%;
+  border-radius: 8px;
+  background: var(--pf-plate-hover);
+  animation: pf-skeleton 1400ms var(--tm-ease) infinite;
 }
-.pf-plate-choice-meta > span:not(:first-child)::before {
-  content: "·";
-  margin-right: 6px;
-  opacity: 0.6;
+.pf-skeleton-plate {
+  height: 52px;
+  border: 1px solid var(--pf-stroke);
+  border-radius: 13px;
+  background: var(--pf-plate);
+  animation: pf-skeleton 1400ms var(--tm-ease) infinite;
+}
+.pf-skeleton-plate[data-w="short"] { width: 58%; }
+.pf-skeleton-plate[data-w="mid"]   { width: 76%; }
+.pf-skeleton-plate:nth-child(2) { animation-delay: 120ms; }
+.pf-skeleton-plate:nth-child(3) { animation-delay: 240ms; }
+.pf-skeleton-plate:nth-child(4) { animation-delay: 360ms; }
+
+@keyframes pf-skeleton {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
 }
 
 /* ── canvas composition ────────────────────────────────────────────────────
@@ -354,9 +428,9 @@
 .pf-canvas-error {
   margin: 0;
   padding: 10px 14px;
-  color: var(--tm-danger);
-  background: var(--tm-danger-wash);
-  border: 1px solid var(--tm-danger);
+  color: var(--pf-decline);
+  background: color-mix(in oklab, var(--pf-decline) 14%, transparent);
+  border: 1px solid var(--pf-decline);
   border-radius: 10px;
   font-size: var(--tm-fs-ui-sm);
 }
@@ -373,7 +447,7 @@
   font-size: var(--tm-fs-modal);
   font-weight: 650;
   letter-spacing: -0.02em;
-  color: var(--tm-interactive);
+  color: var(--pf-accent);
   font-variant-numeric: tabular-nums;
 }
 .pf-canvas-hero p {
@@ -394,7 +468,7 @@
   text-transform: uppercase;
   color: var(--tm-text-faint);
 }
-.pf-canvas-price[data-short="true"] { color: var(--tm-danger); }
+.pf-canvas-price[data-short="true"] { color: var(--pf-decline); }
 .pf-canvas-ask {
   margin: 0;
   font-size: var(--tm-fs-ask);
@@ -425,9 +499,9 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: var(--tm-interactive-fg);
-  background: var(--tm-interactive);
-  box-shadow: 0 4px 12px var(--tm-interactive-glow);
+  color: var(--pf-accent-fg);
+  background: var(--pf-accent);
+  box-shadow: 0 4px 12px var(--pf-accent-glow);
   transition:
     background-color var(--tm-dur-fast) var(--tm-ease),
     color var(--tm-dur-fast) var(--tm-ease);
@@ -435,17 +509,17 @@
 .pf-canvas-send[data-idle="true"] {
   background: transparent;
   color: var(--tm-text-muted);
-  border-color: var(--tm-border);
+  border-color: var(--pf-stroke);
   box-shadow: none;
 }
-.pf-canvas-send:hover:not([data-idle="true"]) { background: var(--tm-interactive-hover); }
+.pf-canvas-send:hover:not([data-idle="true"]) { background: color-mix(in oklab, var(--pf-accent) 88%, #000); }
 .pf-canvas-send:disabled { cursor: not-allowed; }
 
 /* + add another — expanded */
 .pf-add-line-open {
   cursor: default;
   border-style: solid;
-  border-color: var(--tm-interactive);
+  border-color: var(--pf-accent);
   padding: 12px 14px;
   gap: 10px;
   flex-direction: column;
@@ -460,7 +534,7 @@
 
 /* heard fold */
 .pf-heard-fold {
-  border-top: 1px dashed var(--tm-border);
+  border-top: 1px dashed var(--pf-stroke);
   padding-top: 8px;
 }
 .pf-heard-toggle {
@@ -498,7 +572,7 @@
   gap: 14px;
   flex-wrap: wrap;
   padding-top: 8px;
-  border-top: 1px solid var(--tm-border-soft);
+  border-top: 1px solid var(--pf-stroke);
   position: relative;
 }
 .pf-canvas-contract {
@@ -515,8 +589,13 @@
   font-size: var(--tm-fs-ui-sm);
   color: var(--tm-text-muted);
 }
-.pf-canvas-cost[data-tone="short"] { color: var(--tm-danger); }
+.pf-canvas-cost[data-tone="short"] { color: var(--pf-decline); }
 .pf-canvas-cost strong { color: inherit; }
+.pf-canvas-cost a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .pf-canvas-run {
   position: relative;
   appearance: none;
@@ -525,22 +604,22 @@
   font-size: var(--tm-fs-ui);
   font-weight: 600;
   letter-spacing: -0.005em;
-  color: var(--tm-interactive-fg);
-  background: var(--tm-interactive);
+  color: var(--pf-accent-fg);
+  background: var(--pf-accent);
   border: 0;
   border-radius: 12px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  box-shadow: 0 4px 12px var(--tm-interactive-glow);
+  box-shadow: 0 4px 12px var(--pf-accent-glow);
   transition:
     transform var(--tm-dur-fast) var(--tm-ease),
     box-shadow var(--tm-dur) var(--tm-ease);
 }
 .pf-canvas-run:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 12px 32px -4px var(--tm-interactive-glow);
+  box-shadow: 0 12px 32px -4px var(--pf-accent-glow);
 }
 .pf-canvas-run:disabled { cursor: not-allowed; opacity: 0.55; box-shadow: none; }
 .pf-canvas-run-sep { opacity: 0.55; }
@@ -557,7 +636,7 @@
   right: 12%;
   bottom: -18px;
   height: 32px;
-  background: radial-gradient(closest-side, var(--tm-interactive-glow), transparent 80%);
+  background: radial-gradient(closest-side, var(--pf-accent-glow), transparent 80%);
   filter: blur(12px);
   opacity: 0;
   pointer-events: none;
@@ -574,7 +653,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .pf-plate, .pf-plate-edit, .pf-plate-action, .pf-add-line,
-  .pf-heard-btn, .pf-plate-choice, .pf-canvas-send,
+  .pf-heard-btn, .pf-plate-choice, .pf-plate-choice-drop, .pf-canvas-send,
   .pf-heard-toggle, .pf-canvas-run { transition: none; }
   .pf-canvas-run::after { transition: none; }
+  /* The skeleton holds at one weight rather than freezing mid-pulse. It still
+     reads as "not yet" — a static outline is the honest rest state. */
+  .pf-skeleton-head, .pf-skeleton-plate { animation: none; opacity: 0.7; }
 }
