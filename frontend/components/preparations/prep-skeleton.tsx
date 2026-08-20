@@ -63,12 +63,11 @@ function TrainingSkeleton() {
         <Skeleton style={{ width: 26, height: 26, borderRadius: 8, flexShrink: 0 }} />
         <Skeleton style={{ width: 72, height: 13, borderRadius: 4 }} />
       </header>
-      <Skeleton style={{ width: 64, height: 12, borderRadius: 4 }} />
-      <div className="mc-peek-body">
+      <div className="prp-courses">
         {FINLATICS_PROGRAMS.map((program) => (
-          <div key={program.id} className="mc-peek-gap prp-train-row">
-            <Skeleton style={{ flex: 1, minWidth: 0, height: 13, borderRadius: 4, maxWidth: "78%" }} />
-            <Skeleton style={{ width: 12, height: 12, borderRadius: 3, flexShrink: 0 }} />
+          <div key={program.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Skeleton style={{ width: 28, height: 28, borderRadius: 8, flexShrink: 0 }} />
+            <Skeleton style={{ flex: 1, minWidth: 0, height: 16, borderRadius: 4 }} />
           </div>
         ))}
       </div>
@@ -88,17 +87,17 @@ export function PrepSkeleton() {
         <h1 className="prp-title">Preparations</h1>
       </div>
       <p className="prp-sub">Prepare for every job</p>
-      <div className="mc-workspace prp-workspace">
-        <div className="mc-ws-main" aria-hidden="true">
-          <GroupSkeleton rows={3} />
-          <GroupSkeleton rows={2} />
-        </div>
+      <div className="mc-workspace">
         <aside className="mc-ws-rail">
           <div className="mc-rail" aria-hidden="true">
             <ScoreMapSkeleton />
             <TrainingSkeleton />
           </div>
         </aside>
+        <div className="mc-ws-main" aria-hidden="true">
+          <GroupSkeleton rows={3} />
+          <GroupSkeleton rows={2} />
+        </div>
       </div>
     </div>
   )

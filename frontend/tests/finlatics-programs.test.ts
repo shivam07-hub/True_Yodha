@@ -4,6 +4,7 @@ import assert from "node:assert/strict"
 import {
   FINLATICS_PROGRAMS,
   FINLATICS_SRC,
+  finlaticsHomeHref,
   finlaticsHref,
 } from "../lib/finlatics-programs"
 
@@ -22,6 +23,15 @@ test("the rail lists the eleven landing programs, Financial Analyst first", () =
     "Machine Learning",
   ])
   assert.equal(FINLATICS_SRC, "myroref")
+  assert.deepEqual(FINLATICS_PROGRAMS.map((program) => program.mark), [
+    "FA", "IB", "BA", "FS", "PM", "DM", "FM", "EX", "DS", "MR", "ML",
+  ])
+})
+
+test("the Finlatics home footer carries the same Myro attribution", () => {
+  const url = new URL(finlaticsHomeHref())
+  assert.equal(url.origin, "https://www.finlatics.com")
+  assert.equal(url.searchParams.get("utm_src"), "myroref")
 })
 
 test("every program opens Finlatics with the Myro attribution param", () => {
