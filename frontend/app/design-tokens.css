@@ -427,9 +427,16 @@
   --tm-reading-ink:     #221e18;
 
   /* Spirit status colors darken for WCAG AA on white (spec §02) */
-  --tm-info:          #7C3AED;
-  --tm-info-wash:     rgba(124, 58, 237, 0.08);
-  --tm-info-border:   rgba(124, 58, 237, 0.30);
+  /* Info is the SAME hue across all three surfaces (~227° blue) — a status
+     tier that changes hue between light and dark stops being a tier and
+     becomes decoration. This was #7C3AED violet until 2026-08-20: purple is
+     banned brand-wide (it's the old brand colour, and "purple and black" is a
+     vibecoded tell — ANTI_SLOP.md §20), and it had drifted off the dark
+     surface's #8BA3FF. #2F4FBF is that same blue darkened for paper: 6.5:1 on
+     --tm-bg, 6.9:1 on --tm-surface, both past AA for body text. */
+  --tm-info:          #2F4FBF;
+  --tm-info-wash:     rgba(47, 79, 191, 0.08);
+  --tm-info-border:   rgba(47, 79, 191, 0.30);
   --tm-success:       #138A45;
   --tm-warning:       #D97706;
   --tm-danger:        #E11D48;

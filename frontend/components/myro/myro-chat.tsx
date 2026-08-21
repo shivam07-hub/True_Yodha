@@ -2,7 +2,8 @@
 
 import { useRef, useState } from "react"
 import { useMutation } from "@tanstack/react-query"
-import { Loader2, Send, Sparkles } from "lucide-react"
+import { Loader2, Send } from "lucide-react"
+import { MyroMark } from "@/components/myro-mark"
 
 import {
   mentor,
@@ -90,7 +91,7 @@ export function MyroChat({
   return (
     <div className="rounded-lg border border-[var(--tm-border-soft)] bg-[var(--tm-surface)] p-4">
       <div className="mb-2 flex items-center gap-1.5 text-sm font-medium text-[var(--tm-text)]">
-        <Sparkles size={15} style={{ color: "var(--tm-interactive)" }} />
+        <MyroMark size={15} style={{ color: "var(--tm-interactive)" }} />
         {heading}
       </div>
       <div ref={listRef} className={`${maxHeightClass} space-y-2.5 overflow-y-auto pr-1`}>

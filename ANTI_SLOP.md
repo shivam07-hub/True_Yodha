@@ -41,17 +41,25 @@ the whole budget. Everything below has to come off.
 
 ---
 
-### Tells — present, unbudgeted, fix
+### Was drift — closed 2026-08-21
 
-| # | Tell | Where | Fix |
+All seven below were closed on **2026-08-21**. They stay on the page as the
+record of what the tell looked like here, because the next one will look like
+this too.
+
+| # | Tell | What it was | How it closed |
 |---|---|---|---|
-| 24 | Sparkle icons | 7 surfaces (`skills/page`, `skill-room`, `myro-chat`, `card-detail-rail`, `xp-explainer-modal`, `recruiter-dashboard`, `mission-content`) | `Sparkles` is the universal "an AI did this" glyph — and it **contradicts our own copy rule** ("No 'AI' — say what it does"). Replace with the icon of the actual action. |
-| 6 | 3 feature cards in a row | `landing-commons.tsx` — three cards, each closing on an `ArrowRight` link | Three parallel cards with identical shape is the template answer. These three things are not peers (source / colleges / newsletter). Give the strip a real structure. |
-| 20 | Purple | `--tm-info: #7C3AED` on the light surface; `--gc-purple` + `#8b5cf6` in `/admin/growth` | Purple is **already banned** in the design rules and shipped anyway. Light-surface info tier must leave violet. Admin is internal, so lower priority — but it is still drift. |
-| 22 | Radial orbs | `b2b-door-page.css`, `workspace-shell.css`, `myrology.css` — corner glow washes | Corner-glow orbs are pure atmosphere with no information in them. Delete, or make the glow encode something. |
-| 9 | Em dashes | 487 in non-comment lines; heaviest in `privacy`, `terms`, `docs-sections`, `settings-modal` | `write-like-human` already bans em-dash spam for **outbound copy**. UI copy never got the rule. Em dash as a *data placeholder* (`"—"` for a null cell) is legitimate notation — exempt. Prose em dashes in UI are the tell. |
-| — | Numbered markers that aren't a sequence | `hero.tsx` — "Path 01 · First job" / "Path 02 · Switching" | These are two **mutually exclusive audiences**, not steps. Numbering asserts an order the reader doesn't have. (`mission-content` 01–05 *is* a real sequence — keep.) |
-| — | Dead decoration | `.testimonials` + `.experts` grids in `myrology.css` with no consumer | Unreachable CSS from a removed fake-testimonial block. Delete on the way past. |
+| 24 | Sparkle icons | `Sparkles` on 7 surfaces — the universal "an AI did this" glyph, contradicting our own copy rule ("No 'AI' — say what it does") | Each swapped for the icon of the **actual action**: `Dumbbell` (Practice ×2), `Coins` (Myro Coins), `Crosshair` (fit ×2), `TrendingUp` (score rises). The seventh meant "Myro is speaking" — that one got [`MyroMark`](frontend/components/myro-mark.tsx). |
+| 6 | 3 feature cards in a row | `landing-commons.tsx` — three identical cards, each closing on an `ArrowRight` | Restructured. Two are **doors** (colleges, newsletter); the third is a **checkable claim** (MIT licensed), so it became a fact line on a rule. A verifiable thing doesn't need a box. |
+| 20 | Purple | `--tm-info: #7C3AED` on light — banned brand-wide and shipped anyway; plus `#A78BFA` as a hardcoded CSS fallback, and `--gc-purple` in `/admin/growth` | Light info → `#2F4FBF`, the **same 227° hue** as the other two surfaces, 6.5:1 on paper. Dead fallbacks deleted. Admin KPI `tone` typed to a union so a colour with no rule can't ship again. |
+| 22 | Radial orbs | Corner glows on `b2b-door-page.css` + `workspace-shell.css` — and they hardcoded **both** accent hexes at once, so the page broke the one-accent rule in either mode | Deleted; flat `--tm-bg`. **Myrology's drift stays** — on a star-chart page the sky *is* the subject, so that wash is content, not borrowed atmosphere. |
+| 9 | Em dashes | Claimed 487 | **Overstated — the count was wrong.** 487 included comments and `"—"` null-cell placeholders. Real figure: **375 across 150 files**, ~2.5 each, and the landing has **6**. That is ordinary punctuation, not spam. Two genuine AI tricolons in `mission-content` were rewritten; the rest stand. Term–definition dashes in `docs-sections` are correct typography. |
+| — | Numbered markers that aren't a sequence | `hero.tsx` — "Path 01 · First job" / "Path 02 · Switching" | Numbers dropped; the eyebrow now names the reader. Two exclusive audiences are doors, not steps. (`mission-content` 01–05 *is* a real sequence — kept.) |
+| — | Dead decoration | `.testimonials`, `.experts` and `.numbers` grids in `myrology.css`, no consumer — residue of a removed fake-testimonial block | 32 lines deleted. `.expert-cred` survived: it is live. |
+
+**What item 9 cost us to learn:** a grep that counts a character counts it in
+comments and in data cells too. Measure the thing you are actually claiming, or
+you will schedule a 487-edit sweep against a number that was never real.
 
 ---
 
@@ -102,13 +110,32 @@ work that structure and type should have been doing.
 
 ## DETECTION
 
+Each of these should return **nothing** on a clean tree.
+
 ```bash
 cd frontend
-grep -rn "Sparkles\|Wand2" app components --include='*.tsx'          # 24 AI-magic glyphs
-grep -rniE "purple|violet|indigo|#8b5cf6|#7C3AED" app --include='*.css'  # 20 banned hue
-grep -rn "radial-gradient(circle" app components --include='*.css'   # 22 corner orbs
-grep -rn "—" app components --include='*.tsx' | grep -vE ":[0-9]+: *(//|\*)" | wc -l  # 9 prose em dashes
-grep -rn "repeat(3, 1fr)" app components --include='*.css'           # 6 three-card rows
+grep -rn "Sparkles\|Wand2" app components --include='*.tsx'
+grep -rniE "purple|violet|indigo|#8b5cf6|#7c3aed|#a78bfa" app components --include='*.css'
+grep -rn "radial-gradient(circle at top" app components --include='*.css'
+```
+
+Em dashes need a real parser, not a `grep -c`. A raw character count includes
+comments and `"—"` null-value cells, which is how the first pass got 487 for
+what is actually 375 — see item 9 above.
+
+```bash
+cd frontend && python3 -c '
+import os,re,sys
+strip=lambda s:re.sub(r"^\s*//.*$","",re.sub(r"/\*.*?\*/","",s,flags=re.S),flags=re.M)
+tot=0
+for root,_,fs in os.walk("."):
+    if any(x in root for x in ("node_modules",".next",".git")): continue
+    if not (root.startswith("./app") or root.startswith("./components")): continue
+    for f in fs:
+        if f.endswith((".tsx",".ts")):
+            s=strip(open(os.path.join(root,f),encoding="utf8").read())
+            tot+=re.sub(r"[\"\x27\x60]\s*—\s*[\"\x27\x60]","",s).count("—")
+print("prose em dashes:",tot)'
 ```
 
 ---

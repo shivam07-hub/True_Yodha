@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Sparkles, CheckCheck, Users, FileText } from "lucide-react"
+import { Crosshair, CheckCheck, Users, FileText } from "lucide-react"
 import { jobs as jobsApi, type JobMatch } from "@/lib/api"
 
 /**
@@ -22,7 +22,7 @@ import { jobs as jobsApi, type JobMatch } from "@/lib/api"
 type Tab = "why" | "match" | "reach" | "jd"
 
 const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
-  { key: "why", label: "Why you fit", icon: <Sparkles size={15} aria-hidden /> },
+  { key: "why", label: "Why you fit", icon: <Crosshair size={15} aria-hidden /> },
   { key: "match", label: "Match", icon: <CheckCheck size={15} aria-hidden /> },
   { key: "reach", label: "Reach", icon: <Users size={15} aria-hidden /> },
   { key: "jd", label: "JD", icon: <FileText size={15} aria-hidden /> },

@@ -23,7 +23,12 @@ interface LandingHeroProps {
  * Nothing on the landing points at an `(authed)` route, because that ejects a
  * logged-out visitor to /login — the surprise we refuse to ship.
  *
- * So the two audience cards split by whether a CV exists to score:
+ * The two cards are audience doors, not steps — a visitor is one or the other,
+ * never both in sequence. They carried "Path 01 / Path 02" until 2026-08-20;
+ * the numbering asserted an order the reader doesn't have, which is the
+ * numbered-marker tell (ANTI_SLOP.md). The eyebrow now names the reader.
+ *
+ * They split by whether a CV exists to score:
  *   - Switcher ("score my CV") → UPLOAD: opens the one hero dropzone's picker,
  *     the same stash → /cv-preview flow as dropping a file. No signup wall.
  *   - Fresher ("start the fresher route") → SIGN UP: a fresher has no CV to
@@ -79,7 +84,7 @@ export function LandingHero({ jobsTracked, companiesMonitored, skillsMapped }: L
 
           <div className="lp-path-cards">
             <article className="lp-path-card">
-              <p className="lp-path-eyebrow">Path 01 · First job</p>
+              <p className="lp-path-eyebrow">First job</p>
               <h3 className="lp-path-title">No experience yet</h3>
               <p className="lp-path-body">
                 Myro maps the shortest route to your first offer, one skill at a time.
@@ -90,7 +95,7 @@ export function LandingHero({ jobsTracked, companiesMonitored, skillsMapped }: L
             </article>
 
             <article className="lp-path-card">
-              <p className="lp-path-eyebrow">Path 02 · Switching</p>
+              <p className="lp-path-eyebrow">Switching</p>
               <h3 className="lp-path-title">2–8 years in</h3>
               <p className="lp-path-body">
                 Score your CV against live openings, then tailor before you send.

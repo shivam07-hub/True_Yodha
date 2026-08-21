@@ -1,7 +1,7 @@
 "use client"
 
 import { useDeferredValue, useMemo, useState } from "react"
-import { ArrowRight, FileText, Filter, Sparkles } from "lucide-react"
+import { ArrowRight, Crosshair, FileText, Filter } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { B2BWorkspaceShell, type WorkspaceMetric } from "./workspace-shell"
 import {
@@ -124,7 +124,7 @@ export function RecruiterDashboard() {
             {topMatch ? (
               <>
                 <div className="b2bws-score">
-                  <Sparkles size={16} />
+                  <Crosshair size={16} aria-hidden />
                   <span>{topMatch.score}% best current fit</span>
                 </div>
                 <div className="b2bws-card-copy">

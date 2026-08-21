@@ -203,7 +203,7 @@ export function GrowthCommand() {
             <Kpi label="Draft" value={draftCount} detail="not yet out" tone="gray" />
             <Kpi label="Posted" value={postedCount} detail="live" tone="green" />
             <Kpi label="Paused" value={pausedCount} detail="held" tone="red" />
-            <Kpi label="Clicks logged" value={clicks} detail="sum of CTA clicks" tone="purple" />
+            <Kpi label="Clicks logged" value={clicks} detail="sum of CTA clicks" tone="blue" />
           </div>
           <GrowthCharts messages={filtered} />
           <GrowthTable
@@ -256,7 +256,9 @@ function Kpi({
   label: string
   value: number
   detail: string
-  tone?: string
+  /** Union, not `string`: every tone must have a matching `.gc-kpi--*` rule.
+   *  An untyped tone let `"purple"` ship against a colour the brand bans. */
+  tone?: "blue" | "gray" | "green" | "red"
 }) {
   return (
     <article className={`gc-kpi gc-kpi--${tone}`}>

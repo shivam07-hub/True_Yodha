@@ -1,10 +1,12 @@
+/* Flat --tm-bg. This carried two corner glows until 2026-08-20 — and they
+   hardcoded BOTH accent hexes at once (Signal teal + Forge amber), so the
+   page contradicted the one-swappable-accent rule no matter which mode was
+   set. Atmosphere that says nothing about the subject is the orb tell
+   (ANTI_SLOP.md §22); the page earns its depth from the cards, not the wash. */
 .tm-b2b-page {
   min-height: 100vh;
   color: var(--tm-text);
-  background:
-    radial-gradient(circle at top left, rgba(0, 245, 212, 0.08), transparent 32%),
-    radial-gradient(circle at top right, rgba(255, 139, 48, 0.12), transparent 28%),
-    var(--tm-bg);
+  background: var(--tm-bg);
 }
 .tm-b2b-main {
   width: min(var(--tm-public-content-max), calc(100% - (var(--tm-page-px) * 2)));

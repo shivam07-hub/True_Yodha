@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { ArrowRight, BookOpen, Brain, ChevronRight, Compass, Flame, Globe, ShieldCheck, Sparkles, Target } from "lucide-react"
+import { ArrowRight, BookOpen, Brain, ChevronRight, Compass, Flame, Globe, ShieldCheck, Target, TrendingUp } from "lucide-react"
 import { getAccessToken } from "@/lib/session"
 import { MyroLogo } from "@/components/myro-logo"
 import { SkillGraphPreview } from "@/components/skill-graph-preview"
@@ -17,9 +17,9 @@ interface MissionContentProps {
 const HOW_IT_WORKS = [
   { icon: BookOpen,    step: "01", title: "Upload your CV",       body: "We extract every skill you've built across your career." },
   { icon: Globe,       step: "02", title: "We scan the market",   body: "Thousands of live job postings, parsed daily for what companies actually need." },
-  { icon: Target,      step: "03", title: "See your skill intelligence", body: "Your skills vs market demand — mapped, scored, and honest." },
+  { icon: Target,      step: "03", title: "See your skill intelligence", body: "Where your skills sit against live market demand, scored out of 100." },
   { icon: Flame,       step: "04", title: "Log daily progress",   body: "The Career Diary captures what you learn each day and credits your skills." },
-  { icon: Sparkles,    step: "05", title: "Watch your score rise", body: "Your Myro Score grows as you close the gap. Every entry counts." },
+  { icon: TrendingUp,  step: "05", title: "Watch your score rise", body: "Your Myro Score grows as you close the gap. Every entry counts." },
 ]
 
 const VALUES = [
@@ -114,8 +114,8 @@ export function MissionContent({ showCta = false, compact = false }: MissionCont
           actually needs — built on real hiring data from thousands of companies, updated daily.
         </blockquote>
         <p className="mt-4 text-sm text-muted-foreground">
-          Every feature — the skill match, the diary, the score — exists to close one gap:
-          the distance between where you are and where the market needs you to be.
+          The skill match, the diary and the score all exist to close one gap: the distance
+          between where you are and where the market needs you to be.
         </p>
       </section>
 
