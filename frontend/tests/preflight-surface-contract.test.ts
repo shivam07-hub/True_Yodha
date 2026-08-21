@@ -180,13 +180,54 @@ test("waiting is drawn, never narrated", () => {
   assert.match(typing, /aria-label=\{label\}/)
 })
 
-test("conflicts land as an inline plate, not a modal-in-modal", () => {
-  assert.match(canvas, /<ConflictPlate/)
+test("conflicts land as an inline plate, inside the slot they are about", () => {
+  // A conflict IS a statement about one slot's arity, so it belongs beside
+  // that slot's plates. Floating every conflict at the bottom of one flat
+  // list — which shipped — separated the question from its subject.
+  const group = read("components/preflight/slot-group.tsx")
+  assert.match(group, /<ConflictPlate/)
+  assert.doesNotMatch(canvas, /<ConflictPlate/, "the canvas routes conflicts, it does not render them")
+  assert.match(canvas, /clashes\.get\(spec\.key\)/)
   assert.match(conflict, /className="pf-plate"/)
   assert.match(conflict, /data-kind="conflict"/)
   const logic = read("lib/preflight/conflicts.ts")
   assert.match(logic, /These can't both be true/)
   assert.match(gate, /visibleConflicts\(order\)\.length > 0/)
+})
+
+/* ── the six-slot spec, as the reader meets it ────────────────────────────── */
+
+test("the canvas is six slots, not one flat column", () => {
+  // THE ONE IDEA in MYRO_SEARCH_REBUILD.md: the Order fills a six-slot spec.
+  // A flat list of every kept line hides the only structure there is, and
+  // cannot answer "what does Myro still need from me?".
+  assert.match(canvas, /SLOTS\.map\(\(spec\) => \(/)
+  assert.match(canvas, /<SlotGroup/)
+  const group = read("components/preflight/slot-group.tsx")
+  assert.match(group, /<h3 className="pf-slot-label">\{spec\.label\}<\/h3>/)
+})
+
+test("an empty slot still renders, because the gap is the question", () => {
+  // Three headers holding nothing but an invitation say what is missing
+  // without a sentence of explanation. A group that vanishes when empty
+  // cannot.
+  const group = read("components/preflight/slot-group.tsx")
+  // No early return on an empty group, and the add chip is unconditional.
+  assert.doesNotMatch(group, /if \(!lines\.length\) return null/)
+  assert.match(group, /<SlotAdd spec=\{spec\} busy=\{busy\} onAdd=\{onAdd\} \/>/)
+})
+
+test("adding into a slot needs no inference and no LLM turn", () => {
+  // The user picked the slot by picking which "+" they pressed, so the kind
+  // is already known. Routing that through /preflight/proposals would spend
+  // an LLM turn re-deriving something the click already said.
+  const group = read("components/preflight/slot-group.tsx")
+  assert.match(group, /onAdd\(spec\.addKind, text\)/)
+  assert.match(gate, /addLine\.mutateAsync\(\{ kind, text, origin: "preflight" \}\)/)
+  assert.doesNotMatch(
+    gate.slice(gate.indexOf("const addToSlot"), gate.indexOf("// ── run")),
+    /preflight\.proposals/,
+  )
 })
 
 test("Run is single-flight — the button cannot queue a second charge", () => {

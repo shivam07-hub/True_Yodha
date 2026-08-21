@@ -25,7 +25,7 @@ import { dataKeys } from "@/lib/domain-data"
 import { applyErrorMessage } from "@/lib/preflight/apply-error"
 import { visibleConflicts } from "@/lib/preflight/conflicts"
 import { useOrder, useOrderMutations, invalidateOrder } from "@/lib/preflight/use-order"
-import type { OrderProposal } from "@/lib/preflight/types"
+import type { LineKind, OrderProposal } from "@/lib/preflight/types"
 import { useRefreshGateStore } from "@/store/refreshGateStore"
 import { useXPStore } from "@/store/xpStore"
 import { refreshIsLive, type UseJobRefreshResult } from "@/lib/hooks/use-job-refresh"
@@ -57,7 +57,7 @@ export function PreflightGate({
   const dialogRef = useRef<HTMLDivElement>(null)
 
   const { data: order } = useOrder(token, open)
-  const { answerLine, rewordLine, apply } = useOrderMutations(token)
+  const { answerLine, rewordLine, addLine, apply } = useOrderMutations(token)
 
   const [mode, setMode] = useState<Mode>("canvas")
   const [proposals, setProposals] = useState<OrderProposal[]>([])
@@ -144,6 +144,25 @@ export function PreflightGate({
     }
   }, [apply, client, proposals])
 
+  /**
+   * A line added straight into a slot.
+   *
+   * No proposals round trip and no LLM turn: the user picked the slot by
+   * picking which group's "+" to press, so the kind is already known. That
+   * makes the add deterministic, instant and free — the conversational path
+   * stays for the case where they have a sentence rather than a line.
+   */
+  const addToSlot = useCallback(async (kind: LineKind, text: string) => {
+    if (!token) return
+    setError(null)
+    try {
+      await addLine.mutateAsync({ kind, text, origin: "preflight" })
+    } catch (err) {
+      setError(applyErrorMessage(err))
+      await invalidateOrder(client)
+    }
+  }, [addLine, client, token])
+
   // ── run ────────────────────────────────────────────────────────────────────
   const run = useCallback(async () => {
     if (!token || starting) return
@@ -203,6 +222,7 @@ export function PreflightGate({
               onAnswerLine={answerLine}
               onRewordLine={rewordLine}
               onAnswerProposal={answerProposal}
+              onAddLine={addToSlot}
               onOpenCoins={close}
               onRun={run}
             />

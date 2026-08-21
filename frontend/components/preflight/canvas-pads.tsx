@@ -1,13 +1,15 @@
 "use client"
 
 /**
- * The two composers the canvas hosts: the opening pad shown when nothing
- * has been said, and the "+ add another line" chip once the canvas has
- * content. Both flow through the same `/preflight/proposals` fetch — the
- * canvas hands them one `onSubmit` and does not care which composer fired.
+ * The opening pad — the composer shown when nothing has been said yet.
+ *
+ * It is the one place a sentence becomes lines: it runs through
+ * `/preflight/proposals`, so Myro decides which slot each claim belongs to.
+ * Once the canvas has content the slots carry their own adds, which need no
+ * inference at all — the user picked the slot by picking which "+" to press.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useState } from "react"
 
 import { Icon } from "@/components/cv/builder/icons"
 import { SayPad } from "@/components/myro/say-pad"
@@ -68,73 +70,3 @@ export function OpeningPad({
   )
 }
 
-export function AddMoreLine({
-  onSubmit, pending,
-}: {
-  onSubmit: (text: string) => void
-  pending: boolean
-}) {
-  const [open, setOpen] = useState(false)
-  const [draft, setDraft] = useState("")
-  const ref = useRef<HTMLDivElement>(null)
-
-  const close = useCallback((commit: boolean) => {
-    if (commit) {
-      const text = draft.trim()
-      if (text) onSubmit(text)
-    }
-    setDraft("")
-    setOpen(false)
-  }, [draft, onSubmit])
-
-  useEffect(() => {
-    if (!open) return
-    function outside(e: MouseEvent) {
-      if (!ref.current?.contains(e.target as Node)) close(false)
-    }
-    document.addEventListener("mousedown", outside)
-    return () => document.removeEventListener("mousedown", outside)
-  }, [open, close])
-
-  if (!open) {
-    return (
-      <button type="button" className="pf-add-line tm-control-focus" onClick={() => setOpen(true)}>
-        add another line
-      </button>
-    )
-  }
-  return (
-    <div ref={ref} className="pf-add-line pf-add-line-open">
-      <SayPad
-        size="compact"
-        value={draft}
-        maxLength={240}
-        autoFocus
-        onChange={setDraft}
-        onSubmit={() => close(true)}
-        onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); close(false) } }}
-        aria-label="Add a line"
-        placeholder="something Myro should also know…"
-      />
-      <div className="pf-add-line-actions">
-        <button
-          type="button"
-          className="pf-plate-action"
-          data-role="cancel"
-          onClick={() => close(false)}
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          className="pf-plate-action"
-          data-role="save"
-          onClick={() => close(true)}
-          disabled={!draft.trim() || pending}
-        >
-          Add
-        </button>
-      </div>
-    </div>
-  )
-}
