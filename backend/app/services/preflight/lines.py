@@ -279,10 +279,20 @@ def merge_imports(order: Order, candidates: list[OrderLine]) -> Order:
     """Fold freshly-imported guesses into a stored order.
 
     Answers win: a line the user already answered keeps its status and its text,
-    whatever the store now says. Only genuinely new refs are appended, and an
-    UNANSWERED import whose source fact has since disappeared is removed —
+    whatever the store now says. Only genuinely new statements are appended, and
+    an UNANSWERED import whose source fact has since disappeared is removed —
     Myro should not keep asking about a note the user deleted. Answered lines
     stay regardless: once you have judged a line it is yours, not the store's.
+
+    Identity is the STATEMENT, not the ref. A ref addresses the store a line was
+    read out of; the same deal-breaker is `mem:wont_take:<hash>` while it is only
+    a distiller note and `profile:wont:<hash>` the moment a run projects it onto
+    the column. Deduping on ref alone therefore appended a twin on every read
+    after the first run, and the twins compounded: prod reached `Won't take
+    15 of 6`, every statement on screen twice — once as a settled plate, once
+    inside the conflict holding its twin — and the resolver silently collapsed
+    them again before dispatch, so the count the user was asked to fix was never
+    the count Myro ran.
     """
     by_ref = {line.ref: line for line in order.lines if line.ref}
     seen_refs = {c.ref for c in candidates if c.ref}
@@ -294,7 +304,16 @@ def merge_imports(order: Order, candidates: list[OrderLine]) -> Order:
                 continue  # the note behind this guess is gone; stop asking
         kept.append(line)
 
-    fresh = [c for c in candidates if not c.ref or c.ref not in by_ref]
+    said = {(line.kind, _norm_key(line.text)) for line in kept}
+    fresh: list[OrderLine] = []
+    for candidate in candidates:
+        if candidate.ref and candidate.ref in by_ref:
+            continue
+        stamp = (candidate.kind, _norm_key(candidate.text))
+        if not stamp[1] or stamp in said:
+            continue
+        said.add(stamp)
+        fresh.append(candidate)
     return replace(order, lines=[*kept, *fresh])
 
 

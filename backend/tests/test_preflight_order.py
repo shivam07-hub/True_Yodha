@@ -477,3 +477,76 @@ def test_apply_accepts_a_full_proposal_screen() -> None:
     ApplyRequest(effects=[effect] * 32, origin="preflight")
     with pytest.raises(ValidationError):
         ApplyRequest(effects=[effect] * 33, origin="preflight")
+
+
+# ── the twin ─────────────────────────────────────────────────────────────────
+
+
+def test_a_statement_already_on_the_order_is_not_re_imported_under_a_second_ref():
+    """The prod defect behind `Won't take · 15 of 6`.
+
+    A deal-breaker lives in `user_memory` as a distiller note AND, the moment a
+    run projects it, in `user_profiles.deal_breakers`. The two imports hash
+    different refs for one statement, so ref-only dedupe appended a twin on
+    every read after the first run. On screen the twin rendered as a settled
+    plate beside the conflict holding its original.
+    """
+    facts = [("constraint", "No large corporations")]
+    guess = memory_import.guesses_from(brief(facts=facts))[0]
+    answered, _ = ops.keep(ops.Order(lines=[guess]), guess.id, now=NOW)
+
+    # Next read: the run has written the answer to the profile column, so the
+    # same statement now arrives from BOTH stores under two different refs.
+    reread = brief(profile={"deal_breakers": ["No large corporations"]}, facts=facts)
+    candidates = memory_import.confirmed_from(reread) + memory_import.guesses_from(reread)
+    assert len({c.ref for c in candidates}) == 2, "two stores, two refs — that is the setup"
+
+    merged = ops.merge_imports(answered, candidates)
+    # Stored bare: both importers strip the leading "No ".
+    assert [x.text for x in merged.lines] == ["large corporations"]
+    assert merged.lines[0].status == "kept", "the user's answer survives the re-import"
+
+    # And it stays at one however many times the modal is opened.
+    assert len(ops.merge_imports(merged, candidates).lines) == 1
+
+
+def test_the_same_statement_in_two_slots_is_not_a_duplicate():
+    """Cross-slot repeats are contradictions for the resolver to report — the
+    importer must not silently swallow one half of the clash."""
+    order = ops.Order(lines=[line(kind="wont_take", text="Large corporations", status="kept")])
+    merged = ops.merge_imports(
+        order, [line(kind="lean", text="Large corporations", status="unanswered")]
+    )
+    assert len(merged.lines) == 2
+    assert payload.client_report(ops.keep(merged, merged.lines[1].id, now=NOW)[0])["conflicts"]
+
+
+# ── the work ─────────────────────────────────────────────────────────────────
+
+
+def test_stored_role_titles_arrive_as_kept_lines():
+    """The slot that defines the search is imported like the two that narrow it.
+
+    Without this every returning user opened the modal with "The work" empty —
+    and the run still dispatched, on titles the modal had just declined to show.
+    """
+    confirmed = memory_import.confirmed_from(
+        brief(profile={"target_role_titles": ["Enterprise Sales", "Account Executive"]})
+    )
+    roles = [c for c in confirmed if c.kind == "role"]
+    assert [r.text for r in roles] == ["Enterprise Sales", "Account Executive"]
+    assert all(r.status == "kept" and r.source == "user_said" for r in roles)
+    # Titles only. `target_roles` is the matcher's derived read model; feeding it
+    # back would put a cluster name on screen as a title the user never wrote.
+    derived = memory_import.confirmed_from(brief(profile={"target_roles": ["General Sales Practices"]}))
+    assert [c for c in derived if c.kind == "role"] == []
+
+
+def test_the_projected_spec_carries_the_roles_on_screen():
+    order = ops.Order(
+        lines=[
+            line(kind="role", text="Enterprise Sales", status="kept", origin="preflight", source="user_said"),
+            line(kind="wont_take", text="Large corporations", status="kept"),
+        ]
+    )
+    assert payload.project(order)["target_role_titles"] == ["Enterprise Sales"]
