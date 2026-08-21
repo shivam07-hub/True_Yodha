@@ -108,24 +108,33 @@ work that structure and type should have been doing.
 
 ---
 
-## DETECTION
+## ENFORCEMENT
 
-Each of these should return **nothing** on a clean tree.
+Three of these are no longer on the honour system. `ui-drift-guard.mjs` ratchets
+them at **zero**, so they fail the build the moment one comes back:
 
 ```bash
-cd frontend
-grep -rn "Sparkles\|Wand2" app components --include='*.tsx'
-grep -rniE "purple|violet|indigo|#8b5cf6|#7c3aed|#a78bfa" app components --include='*.css'
-grep -rn "radial-gradient(circle at top" app components --include='*.css'
+cd frontend && npm run check:ui-drift
 ```
 
-Em dashes need a real parser, not a `grep -c`. A raw character count includes
+| Metric | Catches | Deliberately does not catch |
+|---|---|---|
+| `sparkleGlyph` | `<Sparkles`, `icon: Sparkles`, `Wand2` | the word in prose — `myro-mark.tsx` documents why the glyph is banned, and a guard that flags its own rationale gets deleted |
+| `bannedPurpleHue` | a banned purple hex **in a declaration** | `--my-*` lines (amethyst *is* the Myrology sub-brand) and hexes inside comments |
+| `cornerOrbWash` | `radial-gradient(circle at top\|bottom` | Myrology's `radial-gradient(circle, …)` drifting field — there the sky is the subject |
+
+Both carve-outs live in the pattern, not in a file-path exclude, so they survive
+a rename. All three were tested by injecting each violation and confirming the
+gate fails — **a zero you have not tried to break is not a guard.**
+
+Em dashes are deliberately *not* ratcheted. A raw character count includes
 comments and `"—"` null-value cells, which is how the first pass got 487 for
-what is actually 375 — see item 9 above.
+what is actually 375 (item 9). Measure it with a parser when you want the
+number:
 
 ```bash
 cd frontend && python3 -c '
-import os,re,sys
+import os,re
 strip=lambda s:re.sub(r"^\s*//.*$","",re.sub(r"/\*.*?\*/","",s,flags=re.S),flags=re.M)
 tot=0
 for root,_,fs in os.walk("."):
@@ -137,6 +146,16 @@ for root,_,fs in os.walk("."):
             tot+=re.sub(r"[\"\x27\x60]\s*—\s*[\"\x27\x60]","",s).count("—")
 print("prose em dashes:",tot)'
 ```
+
+### One thing the guards cannot do
+
+A contract test that names a *mechanism* instead of a *rule* will fail the
+correct change. `deep-field-canvas-contract` asserted `.tm-b2b-page` contained
+a `radial-gradient` — but its three sibling assertions all check the real
+contract, "this island paints its own opaque background". Deleting the orbs
+kept the contract and broke the assertion. Fix the assertion, not the change —
+and be sure that is what happened before you touch a test.
+
 
 ---
 

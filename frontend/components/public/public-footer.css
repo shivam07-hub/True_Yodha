@@ -209,13 +209,13 @@
   width: 14px;
 }
 .pub-footer-link-accent {
-  color: #9b72e8;
+  color: var(--my-amethyst-rest);
 }
 .pub-footer-link-accent:hover {
-  color: #b084ff;
+  color: var(--my-amethyst);
 }
 .pub-footer-link-accent::before {
-  color: #9b72e8;
+  color: var(--my-amethyst-rest);
 }
 
 /* Bottom row */

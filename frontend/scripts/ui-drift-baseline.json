@@ -5,5 +5,8 @@
   "handRolledPill": 59,
   "readingTextInFaintToken": 36,
   "rawDateNumberFormat": 0,
-  "rawFontSizeLiteral": 1482
+  "rawFontSizeLiteral": 1482,
+  "sparkleGlyph": 0,
+  "bannedPurpleHue": 0,
+  "cornerOrbWash": 0
 }

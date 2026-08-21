@@ -345,6 +345,11 @@
      bridge card and the /myrology surface. Never leaks into the
      core teal product. ──────────────────────────────────────── */
   --my-amethyst:        #B084FF;
+  /* Rest tint for the Myrology wayfinding links in the core nav and footer —
+     they point AT the sub-brand, so they carry its colour dimmed. Was
+     hardcoded #9b72e8 in three files; a ramp step used more than once is a
+     token, not a literal. */
+  --my-amethyst-rest:   #9B72E8;
   --my-amethyst-hover:  #C9A8FF;
   --my-amethyst-wash:   rgba(176, 132, 255, 0.10);
   --my-amethyst-ring:   rgba(176, 132, 255, 0.28);

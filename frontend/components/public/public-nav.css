@@ -258,14 +258,14 @@ html:root:has(.tm-ink) .tm-public-nav-theme {
 }
 
 .tm-public-nav-link-accent {
-  color: #9b72e8;
+  color: var(--my-amethyst-rest);
 }
 .tm-public-nav-link-accent:hover {
-  color: #b084ff;
+  color: var(--my-amethyst);
   background: rgba(176, 132, 255, 0.08);
 }
 .tm-public-nav-link-accent[data-active="true"] {
-  color: #b084ff;
+  color: var(--my-amethyst);
   background: rgba(176, 132, 255, 0.12);
   border-color: rgba(176, 132, 255, 0.3);
 }

@@ -123,6 +123,61 @@ const METRICS = [
     mode: "max",
     hint: "Use a canonical --tm-fs-* scale token (see design-tokens.css) instead of a literal font-size value.",
   },
+
+  /* ── Anti-slop ratchets (ANTI_SLOP.md) ────────────────────────────────
+     Three tells that were live drift until 2026-08-21 and are now at zero.
+     They are here rather than in a lint rule because the failure mode is
+     RECURRENCE, not a first offence: each one got reintroduced by someone
+     reaching for the nearest available thing. A ratchet at 0 makes the
+     reintroduction the moment you find out, instead of the next sweep.
+     ──────────────────────────────────────────────────────────────────── */
+  {
+    name: "sparkleGlyph",
+    exts: [".tsx"],
+    // The universal "an AI did this" glyph, and a direct contradiction of our
+    // own copy rule (say what a thing does; never say "AI"). It shipped on 7
+    // surfaces because there was no right answer to reach for — MyroLogo is a
+    // raster <Image> for chrome and can't take currentColor at text size.
+    // <MyroMark> is now that answer, so this can hold at zero.
+    //
+    // Matches USE, not the word: `<Sparkles`, and the `icon: Sparkles` form
+    // the nav/step arrays use. Prose mentions (myro-mark.tsx documents why the
+    // glyph is banned) must not count — a guard that flags its own rationale
+    // is one people delete.
+    pattern: /(?:<|icon:\s*)(?:Sparkles?|Wand2|WandSparkles)\b/g,
+    mode: "max",
+    hint: "Don't say \"AI\" with a glyph. Use the icon of the actual action — or <MyroMark> from @/components/myro-mark when the thing you mean is \"Myro\".",
+  },
+  {
+    name: "bannedPurpleHue",
+    exts: [".css"],
+    // Purple is the old brand colour and half of the "purple and black" tell.
+    // It kept coming back as a raw hex: #7C3AED as the light-surface info
+    // tier, #A78BFA as a CV-graph status AND as a var() fallback that would
+    // have silently restored it, #8b5cf6 in the admin palette.
+    //
+    // Two deliberate carve-outs, both encoded in the pattern rather than in a
+    // file exclude, so they survive a file being renamed:
+    //   1. `--my-*` lines — amethyst IS the Myrology sub-brand's accent.
+    //   2. Comments — the hex has to sit in a declaration (after a `:`), so
+    //      design-tokens.css can name #7C3AED while explaining its removal.
+    pattern: /^(?!.*--my-).*:[^;{}]*#(?:7c3aed|8b5cf6|a78bfa|a855f7|9333ea|7e22ce|6366f1|b084ff|9b72e8)\b/gim,
+    mode: "max",
+    hint: "Purple is banned outside the Myrology sub-brand. Use a --tm-* status token (--tm-info is the neutral 'variant' tier); for amethyst use --my-amethyst / --my-amethyst-rest, never the hex.",
+  },
+  {
+    name: "cornerOrbWash",
+    exts: [".css"],
+    // Corner-glow orbs: atmosphere with no information in it. The two that
+    // shipped were worse than decorative — they hardcoded BOTH accent hexes
+    // at once, so the page broke the one-swappable-accent rule in either
+    // mode. Keyed to `circle at top|bottom` so it catches the corner-wash
+    // shape specifically and leaves Myrology's `radial-gradient(circle, …)`
+    // drifting field alone: on a star-chart page the sky is the subject.
+    pattern: /radial-gradient\(\s*circle at (?:top|bottom)/g,
+    mode: "max",
+    hint: "A background wash must carry information. Corner-glow orbs are atmosphere — drop it, or make the gradient encode something real.",
+  },
 ]
 
 function walk(dir, exts, acc) {

@@ -513,7 +513,10 @@
   z-index: 2;
 }
 .cvb-graph-node.master { border-color: var(--tm-interactive); box-shadow: 0 0 6px var(--tm-int-bg-hover); background: var(--tm-interactive); }
-.cvb-graph-node.polished { border-color: #A78BFA; background: #A78BFA; }
+/* Was a hardcoded #A78BFA — a status tier painted in the one hue the brand
+   bans, bypassing the --tm-* status set entirely. "Polished" is a variant of
+   the master, not a success/warning/danger, so it reads on the info tier. */
+.cvb-graph-node.polished { border-color: var(--tm-info); background: var(--tm-info); }
 .cvb-graph-node.edited { border-color: var(--tm-warning); background: var(--tm-warning); }
 .cvb-graph-node.det { border-color: var(--tm-text-muted); background: var(--tm-bg); }
 .cvb-graph-node.current { box-shadow: 0 0 0 3px var(--tm-int-border); }
