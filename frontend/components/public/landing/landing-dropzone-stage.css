@@ -1,0 +1,56 @@
+/* The hero dropzone's "stage" variant and its alternate paths. Lives beside the
+   landing because only the hero mounts it; the use-cases section that used to
+   share this file now owns landing-usecases*.css. */
+
+.lp-dz-wrap[data-variant="stage"] .lp-dropzone {
+  display: flex;
+  max-width: none;
+  min-height: 180px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 28px 24px;
+  text-align: center;
+}
+
+.lp-dz-wrap[data-variant="stage"] .lp-dropzone-body { align-items: center; }
+
+.lp-dz-wrap[data-variant="stage"] .lp-dropzone-title {
+  font-size: var(--tm-fs-modal);
+  white-space: normal;
+}
+
+.lp-dz-wrap[data-variant="stage"] .lp-dropzone-note {
+  margin: 4px 0 0;
+  text-align: center;
+}
+
+.lp-dz-alts { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+
+.lp-dz-alt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--tm-accent-ring);
+  border-radius: var(--tm-radius-card);
+  background: transparent;
+  color: var(--tm-accent-text);
+  font-family: inherit;
+  font-size: var(--tm-fs-meta);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.lp-dz-alt:hover { background: var(--tm-accent-wash); }
+
+.lp-dz-alt:focus-visible { outline: 2px solid var(--tm-accent-ring); outline-offset: 2px; }
+
+@media (max-width: 560px) {
+  .lp-dz-alts { flex-direction: column; }
+  .lp-dz-alt { width: 100%; }
+}

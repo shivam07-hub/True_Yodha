@@ -26,9 +26,10 @@ export function BandPercentileLine({ band, topPercent, className }: Props) {
   if (topPercent == null || topPercent >= 100) return null
   const aheadOf = Math.round(100 - topPercent)
   if (aheadOf <= 0) return null
+  const styled = !className
   return (
-    <p className={className} style={{ margin: 0, fontSize: 13, color: "var(--tm-text-muted)" }}>
-      ahead of <strong style={{ color: "var(--tm-accent-text)" }}>{aheadOf}%</strong>{" "}
+    <p className={className} style={styled ? { margin: 0, fontSize: 13, color: "var(--tm-text-muted)" } : undefined}>
+      ahead of <strong style={styled ? { color: "var(--tm-accent-text)" } : undefined}>{aheadOf}%</strong>{" "}
       of {bandLabel(band)} candidates
     </p>
   )

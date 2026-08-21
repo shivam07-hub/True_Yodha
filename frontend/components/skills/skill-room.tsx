@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowLeft, ArrowRight, FileText, Sparkles } from "lucide-react"
+import { ArrowLeft, ArrowRight, Dumbbell, FileText } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { demandBandDisplay } from "@/lib/demand-band"
@@ -158,7 +158,7 @@ export function SkillRoom({ room }: Props) {
             className="sr-primary tm-control-focus"
             href={`/practice?skill=${encodeURIComponent(skill.display_name)}`}
           >
-            <Sparkles size={15} aria-hidden /> Practice this skill <ArrowRight size={14} aria-hidden />
+            <Dumbbell size={15} aria-hidden /> Practice this skill <ArrowRight size={14} aria-hidden />
           </Link>
         </section>
       )}

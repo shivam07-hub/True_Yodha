@@ -2,7 +2,7 @@
 
 import { useRef, useState, type KeyboardEvent } from "react"
 import { cn } from "@/lib/utils"
-import type { NameCountItem } from "@/lib/api"
+import type { NameCountItem, SkillCountItem } from "@/lib/api"
 import { LandingScoreSample } from "./score-sample"
 import { LandingMatchSample } from "./how-it-works"
 import { LandingLiveSample } from "./live-sample"
@@ -21,11 +21,17 @@ type SampleId = (typeof SAMPLES)[number]["id"]
 export function LandingUseCases({
   companyNames,
   companiesMonitored,
+  skillsMapped,
   companies,
+  industries,
+  topSkills,
 }: {
   companyNames: string[]
   companiesMonitored: number
+  skillsMapped: number
   companies: NameCountItem[]
+  industries: NameCountItem[]
+  topSkills: SkillCountItem[]
 }) {
   const [sample, setSample] = useState<SampleId>("tailor")
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
@@ -69,15 +75,18 @@ export function LandingUseCases({
                   ref={(node) => { tabRefs.current[index] = node }}
                   type="button"
                   role="tab"
-                  id={`lp-hub-tab-${item.id}`}
+                  id={`tab-${item.id}`}
                   aria-selected={selected}
-                  aria-controls={`lp-hub-panel-${item.id}`}
+                  aria-controls={`panel-${item.id}`}
                   tabIndex={selected ? 0 : -1}
                   className={cn("lp-hub-tab", selected && "is-active")}
                   onClick={() => setSample(item.id)}
                   onKeyDown={(event) => onTabKeyDown(event, index)}
                 >
-                  {item.label}
+                  {/* The indicator is an element, not a border: it has to overlap
+                      the tablist hairline so the tab joins its panel. */}
+                  {selected ? <span className="lp-hub-tab-mark" aria-hidden="true" /> : null}
+                  <span className="lp-hub-tab-label">{item.label}</span>
                 </button>
               )
             })}
@@ -85,29 +94,34 @@ export function LandingUseCases({
 
           <div
             role="tabpanel"
-            id="lp-hub-panel-tailor"
-            aria-labelledby="lp-hub-tab-tailor"
+            id="panel-tailor"
+            aria-labelledby="tab-tailor"
             hidden={sample !== "tailor"}
-            className="lp-hub-panel lp-hub-tailor"
+            className="lp-hub-panel"
           >
             <LandingScoreSample />
-            <LandingMatchSample companyNames={companyNames} companiesMonitored={companiesMonitored} />
+            <LandingMatchSample />
           </div>
 
           <div
             role="tabpanel"
-            id="lp-hub-panel-live"
-            aria-labelledby="lp-hub-tab-live"
+            id="panel-live"
+            aria-labelledby="tab-live"
             hidden={sample !== "live"}
             className="lp-hub-panel"
           >
-            <LandingLiveSample companies={companies} companyNames={companyNames} />
+            <LandingLiveSample
+              companies={companies}
+              companyNames={companyNames}
+              companiesMonitored={companiesMonitored}
+              skillsMapped={skillsMapped}
+            />
           </div>
 
           <div
             role="tabpanel"
-            id="lp-hub-panel-pipeline"
-            aria-labelledby="lp-hub-tab-pipeline"
+            id="panel-pipeline"
+            aria-labelledby="tab-pipeline"
             hidden={sample !== "pipeline"}
             className="lp-hub-panel"
           >
@@ -116,12 +130,16 @@ export function LandingUseCases({
 
           <div
             role="tabpanel"
-            id="lp-hub-panel-intel"
-            aria-labelledby="lp-hub-tab-intel"
+            id="panel-intel"
+            aria-labelledby="tab-intel"
             hidden={sample !== "intel"}
             className="lp-hub-panel"
           >
-            <LandingIntelSample companies={companies} />
+            <LandingIntelSample
+              companies={companies}
+              industries={industries}
+              topSkills={topSkills}
+            />
           </div>
         </div>
       </div>

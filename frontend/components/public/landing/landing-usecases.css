@@ -1,280 +1,117 @@
-/* Landing "Four things, one loop." — the CV Hub tabs promoted to their own
-   labelled section, plus the three panels that live only here (02 live data,
-   03 pipeline, 04 company intel). Tab 01 reuses the score + match samples. */
+/* "Four things, one loop." — section frame, tablist, and the atoms every panel
+   is built from. Panel-specific styling lives in landing-usecase-panels.css.
+   Spec: reference/HANDOFF-use-cases-section.md.
+
+   THE DEPTH IS THE DESIGN (handoff §1). Three planes, and getting them the
+   wrong way round is what makes the section read as a flat row of grey boxes:
+
+     plane 0  page    --tm-bg         #050a18   section is TRANSPARENT over it
+     plane 2  card    --tm-surface-2  #0f1a2e   LIGHTER than the page
+     plane 1  inset   --tm-surface    #0b1424   DARKER than its own card
+
+   The card lifts, its contents recess. That inversion is the whole effect.
+   NOTE the token names: the handoff calls the card plane `--tm-surface-3`,
+   but in this system that name resolves to #152137 — the VALUE it specifies
+   (#0f1a2e) is `--tm-surface-2` here. Verify by value, per handoff §0.
+
+   No box-shadow on cards. No backdrop-filter. No per-card gradient. No second
+   accent hue. Exactly three things glow: the active tab, the score numeral,
+   the score bar fill. If three things glow, none do. */
 
 .lp-usecases {
-  padding: var(--lp-section-py) 0;
-  border-top: 1px solid var(--lp-border);
+  position: relative;
+  z-index: 2;
+  /* Required: the page's gradient field shows through. A background here, or
+     the section rule this used to carry, is what flattens it. */
+  background: none;
+  /* Top rhythm only. The section ends flush so the company rail below reads as
+     the same field continuing, not as a new band (handoff §2). */
+  padding: var(--lp-section-py) 0 0;
 }
 
 .lp-usecases-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  flex-wrap: wrap;
-  gap: 6px 14px;
-  margin-bottom: 18px;
-}
-
-.lp-usecases-note { color: var(--lp-faint); }
-
-/* The section already frames the tabs, so the shared hub loses its own margin. */
-.lp-usecases .lp-hub { margin-top: 0; }
-
-/* ── Tab 02 · live job data (sample fits, honest process) ───────── */
-.lp-live-sample { display: flex; flex-direction: column; gap: 18px; }
-
-.lp-live-steps {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 10px;
-  padding: 12px 14px;
-  border: 1px solid var(--lp-border);
-  border-radius: 10px;
-  background: var(--lp-surface-2);
-  font-family: var(--lp-mono);
-  font-size: 12px;
-  color: var(--lp-muted);
-}
-
-.lp-live-step { color: var(--lp-text); }
-.lp-live-arrow { color: var(--lp-accent-text); }
-
-.lp-live-rows { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
-
-.lp-live-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 16px;
-  padding: 14px 16px;
-  border: 1px solid var(--lp-border-strong);
-  border-radius: 10px;
-  background: var(--lp-surface);
 }
 
-.lp-live-role { display: flex; min-width: 0; flex-direction: column; }
-.lp-live-role strong { color: var(--lp-text); font-size: 14px; line-height: 1.35; }
-.lp-live-role small { margin-top: 2px; color: var(--lp-faint); font-size: 12px; }
+.lp-usecases .lp-section-title { margin: 0; letter-spacing: -0.03em; }
+.lp-usecases-note { margin: 0; color: var(--tm-text-muted); }
 
-.lp-live-fit {
-  flex: 0 0 auto;
-  padding: 5px 10px;
-  border: 1px solid var(--lp-accent-ring);
-  border-radius: 999px;
-  background: var(--lp-accent-wash);
-  color: var(--lp-accent-text);
-  font-family: var(--lp-mono);
-  font-size: 12px;
-  font-weight: 700;
-}
+/* ── Tablist (handoff §3) ───────────────────────────────────── */
+.lp-hub { width: 100%; }
 
-.lp-live-empty { margin: 0; color: var(--lp-muted); font-size: 14px; }
-
-/* ── Tab 03 · pipeline tracker (labelled sample) ───────────────── */
-.lp-pipeline { display: flex; flex-direction: column; gap: 18px; }
-
-.lp-pipeline-stages {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr));
-  gap: 12px;
-}
-
-.lp-pipeline-stage {
+.lp-hub-tabs {
   display: flex;
-  flex-direction: column;
   gap: 4px;
-  padding: 14px 16px;
-  border: 1px solid var(--lp-border-strong);
-  border-radius: 10px;
-  background: var(--lp-surface);
+  margin-top: 24px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--tm-border);
+  scrollbar-width: none;
 }
 
-.lp-pipeline-count {
-  color: var(--lp-text);
-  font-family: var(--lp-mono);
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1.1;
-}
+.lp-hub-tabs::-webkit-scrollbar { display: none; }
 
-.lp-pipeline-stage-lbl { color: var(--lp-faint); font-size: 12px; }
-
-.lp-pipeline-rows { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
-
-.lp-pipeline-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px 16px;
-  border: 1px solid var(--lp-border-strong);
-  border-radius: 10px;
-  background: var(--lp-surface);
-}
-
-.lp-pipeline-role { display: flex; min-width: 0; flex-direction: column; }
-.lp-pipeline-role strong { color: var(--lp-text); font-size: 14px; line-height: 1.35; }
-.lp-pipeline-role small { margin-top: 2px; color: var(--lp-faint); font-size: 12px; }
-
-.lp-pipeline-pill {
+.lp-hub-tab {
+  position: relative;
   flex: 0 0 auto;
-  padding: 5px 10px;
-  border: 1px solid var(--lp-border-strong);
-  border-radius: 999px;
-  background: var(--lp-surface-2);
-  color: var(--lp-muted);
-  font-family: var(--lp-mono);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.lp-pipeline-pill[data-stage="applied"],
-.lp-pipeline-pill[data-stage="interviewing"] {
-  border-color: var(--lp-accent-ring);
-  background: var(--lp-accent-wash);
-  color: var(--lp-accent-text);
-}
-
-.lp-pipeline-mentor {
-  margin: 0;
-  padding: 14px 16px;
-  border-left: 2px solid var(--lp-accent-ring);
-  border-radius: 0 8px 8px 0;
-  background: var(--lp-surface-2);
-}
-
-.lp-pipeline-mentor-who {
-  font-family: var(--lp-mono);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--lp-accent-text);
-}
-
-.lp-pipeline-mentor-line {
-  margin: 6px 0 0;
-  color: var(--lp-muted);
-  font-size: 14px;
-  font-style: italic;
-  line-height: 1.5;
-}
-
-/* ── Tab 04 · company intel (live, real open roles) ────────────── */
-.lp-cintel { display: flex; flex-direction: column; gap: 16px; }
-
-.lp-cintel-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
-  gap: 16px;
-}
-
-.lp-cintel-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; align-content: start; }
-
-.lp-cintel-co {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 14px;
-  border: 1px solid var(--lp-border-strong);
-  border-radius: 10px;
-  background: var(--lp-surface);
-  color: var(--lp-muted);
+  padding: 14px 18px;
+  border: 0;
+  background: none;
+  /* All four labels stay --tm-text. The active tab is marked by its indicator,
+     never by colour — dimming the idle three turns a table of contents into a
+     disabled state (handoff §6). */
+  color: var(--tm-text);
+  appearance: none;
   cursor: pointer;
-  font-family: inherit;
-  text-align: left;
-  transition: border-color var(--lp-dur) var(--lp-ease), color var(--lp-dur) var(--lp-ease);
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-caption);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: color 120ms var(--tm-ease);
 }
 
-.lp-cintel-co:hover { border-color: var(--lp-accent-ring); color: var(--lp-text); }
+.lp-hub-tab:hover { color: var(--tm-accent-text); }
 
-.lp-cintel-co.is-active {
-  border-color: var(--lp-accent-ring);
-  background: var(--lp-accent-wash);
-  color: var(--lp-text);
+.lp-hub-tab:focus-visible {
+  outline: 2px solid var(--tm-accent-ring);
+  outline-offset: -2px;
 }
 
-.lp-cintel-co:focus-visible { outline: 2px solid var(--lp-accent-ring); outline-offset: 2px; }
-
-.lp-cintel-co-name { min-width: 0; overflow: hidden; font-size: 14px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-
-.lp-cintel-co-count {
-  flex: 0 0 auto;
-  font-family: var(--lp-mono);
-  font-size: 12px;
-  color: var(--lp-accent-text);
+/* The indicator is its own element, not a border on the button: `bottom: -1px`
+   covers the tablist hairline so the tab reads as joined to its panel. */
+.lp-hub-tab-mark {
+  position: absolute;
+  inset: 0 0 -1px;
+  border-bottom: 2px solid var(--tm-accent);
+  border-radius: var(--tm-radius-card) var(--tm-radius-card) 0 0;
+  background: var(--tm-accent-wash);
 }
 
-.lp-cintel-roles {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 16px;
-  border: 1px solid var(--lp-border-strong);
-  border-radius: 12px;
-  background: var(--lp-surface);
+.lp-hub-tab-label { position: relative; }
+
+/* ── Panel (handoff §4) ─────────────────────────────────────── */
+.lp-hub-panel {
+  display: grid;
+  /* min(100%, 340px) is required — plain 340px overflows below ~390px. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 20px;
+  margin-top: 20px;
+  animation: tmRise 0.3s var(--tm-ease) both;
 }
 
-.lp-cintel-roles-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
+/* Any author `display` beats the UA's [hidden] { display: none }, so the rule
+   that hides a panel has to out-specify the grid above. Stated once, for every
+   panel, so the next one to need a display mode can't bring the bug back. */
+.lp-hub-panel[hidden] { display: none; }
 
-.lp-cintel-roles-head strong { min-width: 0; overflow: hidden; color: var(--lp-text); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
-.lp-cintel-roles-n { flex: 0 0 auto; font-family: var(--lp-mono); font-size: 12px; color: var(--lp-faint); }
-
-.lp-cintel-role-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
-
-.lp-cintel-role {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 10px 12px;
-  border: 1px solid var(--lp-border);
-  border-radius: 8px;
-  background: var(--lp-surface-2);
-}
-
-.lp-cintel-role strong { color: var(--lp-text); font-size: 13px; line-height: 1.35; }
-.lp-cintel-role small { color: var(--lp-faint); font-family: var(--lp-mono); font-size: 11px; }
-
-.lp-cintel-empty { margin: 0; color: var(--lp-muted); font-size: 14px; }
-
-.lp-cintel-skeleton { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
-
-.lp-cintel-shimmer {
-  height: 44px;
-  border-radius: 8px;
-  background: linear-gradient(90deg, var(--lp-surface-2) 0%, var(--lp-surface) 50%, var(--lp-surface-2) 100%);
-  background-size: 200% 100%;
-  animation: lp-cintel-shimmer 1.4s ease-in-out infinite;
-}
-
-@keyframes lp-cintel-shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+@keyframes tmRise {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lp-cintel-shimmer { animation: none; }
+  .lp-hub-panel { animation: none; }
 }
-
-.lp-cintel-more {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 2px;
-  font-family: var(--lp-mono);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--lp-accent-text);
-  text-decoration: none;
-}
-
-.lp-cintel-more:hover { text-decoration: underline; text-underline-offset: 3px; }
-.lp-cintel-more:focus-visible { outline: 2px solid var(--lp-accent-ring); outline-offset: 3px; border-radius: 4px; }

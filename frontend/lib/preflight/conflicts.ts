@@ -31,5 +31,18 @@ export function dropIdsForPick(conflict: OrderConflict, chosen: string): string[
 export function conflictAsk(conflict: OrderConflict): string {
   if (conflict.kind === "contradiction") return "These can't both be true"
   if (conflict.keep === 1) return "Pick the one Myro should run"
-  return `This takes ${conflict.keep} — tap one to drop`
+  return `Too many for one search — this slot takes ${conflict.keep}`
+}
+
+/**
+ * How many more lines must go before a slot fits.
+ *
+ * A contradiction and an arity-1 slot both settle on one pick, so they have no
+ * countdown — the question IS the choice. A wider slot does, and saying it is
+ * the difference between tapping until something stops complaining and knowing
+ * when you are done.
+ */
+export function overflowCount(conflict: OrderConflict, live: number): number {
+  if (conflict.kind === "contradiction" || conflict.keep === 1) return 0
+  return Math.max(0, live - conflict.keep)
 }

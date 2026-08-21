@@ -59,7 +59,15 @@ test("purpose-built visual islands retain their own canvases", () => {
 
   assert.match(myrology, /\.myrology-root\s*\{[\s\S]*?background:\s*var\(--tm-bg\);/)
   assert.match(enterprise, /\.es-page\s*\{[\s\S]*?background:\s*var\(--tm-bg\);/)
-  assert.match(b2b, /\.tm-b2b-page\s*\{[\s\S]*?radial-gradient/)
+  // Asserts the RULE its three siblings assert — this island paints its own
+  // opaque background instead of letting body::before's deep field through.
+  // It used to assert `radial-gradient`, which pinned one implementation: the
+  // two corner glows. Those were deleted 2026-08-21 (they hardcoded both
+  // accent hexes at once, so the page broke the one-accent rule in either
+  // mode — ANTI_SLOP.md §22) and the page still owns its canvas, exactly the
+  // way myrology and enterprise do. A test that names the mechanism instead
+  // of the contract fails the correct change.
+  assert.match(b2b, /\.tm-b2b-page\s*\{[\s\S]*?background:\s*var\(--tm-bg\);/)
   assert.match(engine, /\.lp-engine,[\s\S]*?\.lp-readout\s*\{[\s\S]*?background:\s*var\(--lp-bg\);/)
 })
 

@@ -12,6 +12,46 @@
  * also survive the dark theme, which hardcoded hex would not.
  */
 
+/* ── the surface palette ───────────────────────────────────────────────────
+ *
+ * ONE declared block of literals, scoped to this modal, and the only place in
+ * the surface where a hex may appear. Everything else consumes these.
+ *
+ * Why a scoped palette instead of the global tokens: glass needs CONTRAST, and
+ * the global set does not provide it here. `--tm-surface` (#212120) with a
+ * `--tm-hover-soft` (4.5% white) plate is two shades apart — the plates read
+ * as flat cards, which is exactly what shipped on 2026-08-19 and what this
+ * block exists to fix. The ground drops below the app's page colour so a
+ * translucent plate has something to lift off; the stroke and the inset
+ * highlight do the rest. Material, not decoration.
+ *
+ * The ACCENT is deliberately not redefined. `--tm-interactive` is teal in the
+ * product dark theme and vermilion in light, and this modal is not a place to
+ * fork the brand — an orange island inside a mint app reads as a bug. Flip
+ * `--pf-accent` here if that call changes; nothing else needs to move. */
+.pf-modal {
+  --pf-ground:        #0f0f10;
+  --pf-plate:         rgba(255, 255, 255, 0.055);
+  --pf-plate-hover:   rgba(255, 255, 255, 0.085);
+  --pf-stroke:        rgba(255, 255, 255, 0.11);
+  --pf-stroke-strong: rgba(255, 255, 255, 0.20);
+  --pf-inset:         inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --pf-drop:          0 1px 2px rgba(0, 0, 0, 0.45);
+  --pf-accent:        var(--tm-interactive);
+  --pf-accent-fg:     var(--tm-interactive-fg);
+  --pf-accent-glow:   var(--tm-interactive-glow);
+  --pf-decline:       var(--tm-danger);
+}
+:root[data-surface="light"] .pf-modal {
+  --pf-ground:        #fbf9f5;
+  --pf-plate:         rgba(20, 20, 22, 0.035);
+  --pf-plate-hover:   rgba(20, 20, 22, 0.062);
+  --pf-stroke:        rgba(20, 20, 22, 0.10);
+  --pf-stroke-strong: rgba(20, 20, 22, 0.20);
+  --pf-inset:         inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  --pf-drop:          0 1px 2px rgba(20, 20, 22, 0.06);
+}
+
 /* ── shell ────────────────────────────────────────────────────────────────── */
 
 .pf-scrim {
@@ -31,9 +71,9 @@
   max-height: min(90vh, 780px);
   display: flex;
   flex-direction: column;
-  background: var(--tm-surface);
-  border: 1px solid var(--tm-border);
-  border-radius: 14px;
+  background: var(--pf-ground);
+  border: 1px solid var(--pf-stroke);
+  border-radius: 18px;
   box-shadow: var(--tm-shadow-2, 0 4px 14px rgba(38, 38, 38, 0.06), 0 1px 2px rgba(38, 38, 38, 0.04));
   outline: none;
   overflow: hidden;
@@ -50,7 +90,7 @@
 
 .pf-head {
   padding: 18px 22px 14px;
-  border-bottom: 1px solid var(--tm-border-soft);
+  border-bottom: 1px solid var(--pf-stroke);
   flex-shrink: 0;
 }
 /* Screen 1's question is the heading. The modal name would outrank it. */

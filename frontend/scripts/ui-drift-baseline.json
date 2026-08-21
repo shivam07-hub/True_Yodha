@@ -2,8 +2,11 @@
   "publicNavDelegatesAuthedStrip": 2,
   "jsHoverStyleMutation": 54,
   "handRolledModalScrim": 20,
-  "handRolledPill": 63,
+  "handRolledPill": 59,
   "readingTextInFaintToken": 36,
   "rawDateNumberFormat": 0,
-  "rawFontSizeLiteral": 1545
+  "rawFontSizeLiteral": 1482,
+  "sparkleGlyph": 0,
+  "bannedPurpleHue": 0,
+  "cornerOrbWash": 0
 }

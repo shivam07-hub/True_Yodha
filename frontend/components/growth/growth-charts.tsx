@@ -18,7 +18,9 @@ const CHANNEL_COLORS: Record<string, string> = {
   linkedin: "#2563eb",
   x: "#475569",
   reddit: "#f59e0b",
-  telegram_discord: "#8b5cf6",
+  // Discord's own blurple — a channel's series colour is its identity, not a
+  // palette pick, so this one stays off the brand ramp on purpose.
+  telegram_discord: "#5865f2",
   whatsapp: "#10b981",
   hacker_news: "#ef4444",
 }

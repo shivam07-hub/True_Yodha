@@ -44,14 +44,87 @@ test("every mutation writes the server's answer back into the cache", () => {
 })
 
 test("the rail is the attribution — no chip fabricates it, no plate omits it", () => {
-  // The vermilion left rail on `.pf-plate[data-said="user"]` is the whole
+  // The accent left rail on `.pf-plate[data-said="user"]` is the whole
   // attribution system. A rail without provenance would tell the user they
   // said something Myro heard; provenance without a rail is what we replaced.
   assert.match(plate, /USER_SOURCES: readonly LineSource\[\] = \["user_said", "user_reworded"\]/)
   assert.match(plate, /data-said=\{said\}/)
   const css = read("components/preflight/plate.css")
   assert.match(css, /\.pf-plate\[data-said="user"\]::before/)
-  assert.match(css, /background: var\(--tm-interactive\)/)
+  assert.match(css, /background: var\(--pf-accent\)/)
+})
+
+/* ── regressions from the 2026-08-19 authed session ─────────────────────────
+ * Seven failures shipped at once. Each assertion below is one of them. */
+
+test("no plate wears a kind eyebrow", () => {
+  // LOCATION · WON'T TAKE · DRAWN TO stacked above twenty statements made the
+  // loudest text on every row the one the sentence already says. The rail
+  // carries provenance; the statement carries its own meaning.
+  assert.doesNotMatch(plate, /KIND_EYEBROW/)
+  assert.doesNotMatch(canvas, /KIND_EYEBROW/)
+  assert.doesNotMatch(read("components/preflight/plate.css"), /\.pf-plate-eyebrow/)
+})
+
+test("the meta line earns its place or is absent", () => {
+  // "you set this" under a railed plate restates the rail. Only soft and
+  // unusable say something the rail cannot.
+  assert.match(plate, /line\.unusable[\s\S]{0,120}line\.soft/)
+  assert.match(plate, /\{meta \? <div className="pf-plate-meta"/)
+})
+
+test("the rail's meaning survives without sight", () => {
+  // A 2.5px colour bar is invisible to a screen reader, so the source it
+  // encodes travels in the accessible name too.
+  assert.match(plate, /aria-label=\{`\$\{line\.text\} — \$\{SOURCE_LABEL\[line\.source\]\}`\}/)
+})
+
+test("a contested line is not also rendered as settled", () => {
+  // The resolver reports a clash, it never resolves one, so a contested line
+  // stays `kept`. Rendering every kept line put the same statement on screen
+  // twice — once signed off, once disputed.
+  assert.match(canvas, /const contested = useMemo\(/)
+  assert.match(canvas, /!contested\.has\(l\.id\)/)
+})
+
+test("the run bar never claims a count the screen contradicts", () => {
+  // `order.used` is 0 whenever a slot is over-arity (payload.py skips the
+  // whole group), so the contract sentence read "Myro runs on the 0 lines
+  // above" beneath twenty plates. While anything is contested the bar states
+  // the block instead.
+  assert.match(canvas, /conflicts\.length > 0 \? blockedLine\(conflicts\.length\) : contractLine\(order\)/)
+  const prose = read("lib/preflight/prose.ts")
+  assert.match(prose, /export function blockedLine/)
+})
+
+test("a conflict asks in one line per option, and says when it is done", () => {
+  // Nine two-line cards each carrying three uppercase meta fields is a wall,
+  // not a question — and it never said how many more had to go.
+  assert.match(conflict, /overflowCount\(conflict, options\.length\)/)
+  assert.match(conflict, /drop \{over\} more/)
+  // Provenance is the same rail, not a meta stack.
+  assert.match(conflict, /data-said=\{said\}/)
+  assert.doesNotMatch(conflict, /formatRelativeAge/)
+})
+
+test("the modal is never a titled empty box while the order loads", () => {
+  // /preflight/order is ~8s cold. The shell rendered its chrome over nothing
+  // for all of it.
+  assert.match(gate, /mode === "canvas" && !order \? <CanvasSkeleton \/> : null/)
+  assert.match(read("components/preflight/plate.css"), /\.pf-skeleton-plate/)
+})
+
+test("the surface palette is declared once, and covers both themes", () => {
+  // Glass needs contrast the global tokens do not give here: --tm-surface with
+  // a 4.5% white plate is two shades apart and reads as a flat card.
+  const shell = read("components/preflight/preflight.css")
+  assert.match(shell, /\.pf-modal \{[\s\S]{0,600}--pf-ground:/)
+  assert.match(shell, /:root\[data-surface="light"\] \.pf-modal \{[\s\S]{0,600}--pf-ground:/)
+  // All four ingredients of the material, or it is not glass.
+  const css = read("components/preflight/plate.css")
+  assert.match(css, /\.pf-plate \{[\s\S]{0,400}background: var\(--pf-plate\)/)
+  assert.match(css, /\.pf-plate \{[\s\S]{0,400}border: 1px solid var\(--pf-stroke\)/)
+  assert.match(css, /\.pf-plate \{[\s\S]{0,400}box-shadow: var\(--pf-inset\), var\(--pf-drop\)/)
 })
 
 test("a line Myro cannot run is never offered a yes", () => {
@@ -63,10 +136,10 @@ test("a line Myro cannot run is never offered a yes", () => {
 
 test("the semantic pair is filled on both sides — no dashed half-answer", () => {
   const css = read("components/preflight/plate.css")
-  // Vermilion accept, crimson decline, both filled fills. A dashed outline for
+  // Accent accept, decline crimson, both real fills. A dashed outline for
   // "no" reads as "still deciding" for the side that already answered.
-  assert.match(css, /\.pf-heard-btn\[data-picked="yes"\][\s\S]{0,200}background: var\(--tm-interactive\)/)
-  assert.match(css, /\.pf-heard-btn\[data-picked="no"\][\s\S]{0,200}background: var\(--tm-danger\)/)
+  assert.match(css, /\.pf-heard-btn\[data-picked="yes"\][\s\S]{0,200}background: var\(--pf-accent\)/)
+  assert.match(css, /\.pf-heard-btn\[data-picked="no"\][\s\S]{0,200}background: var\(--pf-decline\)/)
 })
 
 test("the button label is the action, not the shortcut", () => {
@@ -107,13 +180,54 @@ test("waiting is drawn, never narrated", () => {
   assert.match(typing, /aria-label=\{label\}/)
 })
 
-test("conflicts land as an inline plate, not a modal-in-modal", () => {
-  assert.match(canvas, /<ConflictPlate/)
+test("conflicts land as an inline plate, inside the slot they are about", () => {
+  // A conflict IS a statement about one slot's arity, so it belongs beside
+  // that slot's plates. Floating every conflict at the bottom of one flat
+  // list — which shipped — separated the question from its subject.
+  const group = read("components/preflight/slot-group.tsx")
+  assert.match(group, /<ConflictPlate/)
+  assert.doesNotMatch(canvas, /<ConflictPlate/, "the canvas routes conflicts, it does not render them")
+  assert.match(canvas, /clashes\.get\(spec\.key\)/)
   assert.match(conflict, /className="pf-plate"/)
   assert.match(conflict, /data-kind="conflict"/)
   const logic = read("lib/preflight/conflicts.ts")
   assert.match(logic, /These can't both be true/)
   assert.match(gate, /visibleConflicts\(order\)\.length > 0/)
+})
+
+/* ── the six-slot spec, as the reader meets it ────────────────────────────── */
+
+test("the canvas is six slots, not one flat column", () => {
+  // THE ONE IDEA in MYRO_SEARCH_REBUILD.md: the Order fills a six-slot spec.
+  // A flat list of every kept line hides the only structure there is, and
+  // cannot answer "what does Myro still need from me?".
+  assert.match(canvas, /SLOTS\.map\(\(spec\) => \(/)
+  assert.match(canvas, /<SlotGroup/)
+  const group = read("components/preflight/slot-group.tsx")
+  assert.match(group, /<h3 className="pf-slot-label">\{spec\.label\}<\/h3>/)
+})
+
+test("an empty slot still renders, because the gap is the question", () => {
+  // Three headers holding nothing but an invitation say what is missing
+  // without a sentence of explanation. A group that vanishes when empty
+  // cannot.
+  const group = read("components/preflight/slot-group.tsx")
+  // No early return on an empty group, and the add chip is unconditional.
+  assert.doesNotMatch(group, /if \(!lines\.length\) return null/)
+  assert.match(group, /<SlotAdd spec=\{spec\} busy=\{busy\} onAdd=\{onAdd\} \/>/)
+})
+
+test("adding into a slot needs no inference and no LLM turn", () => {
+  // The user picked the slot by picking which "+" they pressed, so the kind
+  // is already known. Routing that through /preflight/proposals would spend
+  // an LLM turn re-deriving something the click already said.
+  const group = read("components/preflight/slot-group.tsx")
+  assert.match(group, /onAdd\(spec\.addKind, text\)/)
+  assert.match(gate, /addLine\.mutateAsync\(\{ kind, text, origin: "preflight" \}\)/)
+  assert.doesNotMatch(
+    gate.slice(gate.indexOf("const addToSlot"), gate.indexOf("// ── run")),
+    /preflight\.proposals/,
+  )
 })
 
 test("Run is single-flight — the button cannot queue a second charge", () => {
@@ -169,15 +283,32 @@ test("the market sheet still shares the same order + prose module", () => {
   assert.match(sheet, /from "@\/lib\/preflight\/prose"/)
 })
 
-test("no surface hardcodes the handoff's hex — tokens carry both themes", () => {
-  const css = [
-    read("components/preflight/preflight.css"),
+test("literals live in the palette block and nowhere else", () => {
+  // The old rule was a blanket hex ban, and it had a hole big enough to lose
+  // the design through: every colour came from `--tm-interactive`, which is
+  // TEAL in the product's default dark theme and vermilion only under
+  // [data-surface="light"]. The rule passed. The modal shipped in the wrong
+  // colour, on a flat ground, with no glass — because nothing asserted what
+  // the tokens RESOLVED to. Green board, unreadable app.
+  //
+  // So: one declared palette, scoped to `.pf-modal`, both themes, literals
+  // allowed. Everywhere else consumes it and hex is still banned.
+  const shell = read("components/preflight/preflight.css")
+  const palette = shell.slice(
+    shell.indexOf("/* ── the surface palette"),
+    shell.indexOf("/* ── shell"),
+  )
+  assert.ok(palette.length > 200, "the palette block must exist and be findable")
+
+  const consumers = [
+    shell.replace(palette, ""),
     read("components/preflight/plate.css"),
     read("components/preflight/market-sheet.css"),
-  ].join("\n")
-  const declarations = css.replace(/\/\*[\s\S]*?\*\//g, "")
-  assert.doesNotMatch(declarations, /#[0-9a-fA-F]{6}\b/, "use design tokens, not hex")
-  assert.doesNotMatch(declarations, /rgba\(255, ?76, ?0/, "use --tm-interactive-* glow, not raw orange")
+  ]
+    .join("\n")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+  assert.doesNotMatch(consumers, /#[0-9a-fA-F]{6}\b/, "consume the palette, do not restate it")
+  assert.doesNotMatch(consumers, /rgba\(255, ?76, ?0/, "use --pf-accent-glow, not raw orange")
 })
 
 test("reduced motion is honoured on every animated surface", () => {

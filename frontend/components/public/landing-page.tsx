@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
 import { LandingHero } from "@/components/public/landing/hero"
-import { LandingUseCases } from "@/components/public/landing/cv-hub"
+import { LandingUseCases } from "@/components/public/landing/use-cases"
 import { LandingCompanyRail } from "@/components/public/landing/company-rail"
 import { LandingLiveMirror } from "@/components/public/landing/live-mirror"
 import { LandingJobSearch } from "@/components/public/landing/job-search"
@@ -16,11 +16,11 @@ import { getAccessToken, getRefreshToken } from "@/lib/session"
 import { MarketSkeleton } from "@/components/loading/page-skeletons"
 import "@/components/public/landing/landing-base.css"
 import "@/components/public/landing/landing-hero.css"
-import "@/components/public/landing/landing-cv-hub.css"
+import "@/components/public/landing/landing-dropzone-stage.css"
 import "@/components/public/landing/landing-usecases.css"
+import "@/components/public/landing/landing-usecase-atoms.css"
+import "@/components/public/landing/landing-usecase-panels.css"
 import "@/components/public/landing/landing-commons.css"
-import "@/components/public/landing/landing-depth.css"
-import "@/components/public/landing/landing-match-sources.css"
 import "@/components/public/landing/landing-company-rail.css"
 import "@/components/public/landing/landing-motion.css"
 
@@ -76,7 +76,10 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
         <LandingUseCases
           companyNames={data.marqueeNames}
           companiesMonitored={data.companiesMonitored}
+          skillsMapped={data.skillsMapped}
           companies={data.analytics?.by_company ?? []}
+          industries={data.analytics?.by_industry ?? []}
+          topSkills={data.analytics?.top_skills ?? []}
         />
 
         <LandingCompanyRail

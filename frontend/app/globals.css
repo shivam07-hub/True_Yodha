@@ -629,15 +629,15 @@
   font-weight: 650;
 }
 .tm-topbar-link-myrology {
-  color: #9b72e8;
+  color: var(--my-amethyst-rest);
 }
 .tm-topbar-link-myrology:hover {
-  color: #b084ff;
+  color: var(--my-amethyst);
   background: rgba(176, 132, 255, 0.08);
   border-color: transparent;
 }
 .tm-topbar-link-myrology[data-active="true"] {
-  color: #b084ff;
+  color: var(--my-amethyst);
   background: rgba(176, 132, 255, 0.12);
   border-color: rgba(176, 132, 255, 0.3);
 }

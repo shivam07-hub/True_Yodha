@@ -1,11 +1,39 @@
-/* Closing commons strip — open source · for colleges · newsletter. Three equal
-   cards on the min() floor so the row never overflows a narrow track. */
+/* Closing commons strip. One checkable claim on a rule, then two audience
+   doors. It was three identical cards until 2026-08-20 — see the component's
+   header for why the shape changed, and ANTI_SLOP.md §6. */
 
 .lp-commons {
   padding: 0 0 var(--lp-section-py);
 }
 
-.lp-commons-grid {
+/* The open-source claim: a fact line, not a card. Rule above it, no box,
+   no fill — the evidence is the link, so the chrome would be selling. */
+.lp-commons-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 18px;
+  margin: 0 0 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--lp-border-strong);
+}
+
+.lp-commons-note-eyebrow {
+  flex-shrink: 0;
+}
+
+.lp-commons-note-body {
+  flex: 1 1 320px;
+  min-width: 0;
+  color: var(--lp-muted);
+  font-size: 14px;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+/* Two doors, so two columns — auto-fit on the min() floor keeps a narrow
+   track from overflowing and drops them to one column on a phone. */
+.lp-commons-doors {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
   gap: 20px;
@@ -43,6 +71,10 @@
   color: var(--lp-accent-text);
   text-decoration: none;
 }
+
+/* In the card the link is pinned to the bottom; on the note line it sits on
+   the baseline with the sentence, so the auto margin has to come back off. */
+.lp-commons-note .lp-commons-link { margin-top: 0; }
 
 .lp-commons-link:hover { text-decoration: underline; text-underline-offset: 3px; }
 

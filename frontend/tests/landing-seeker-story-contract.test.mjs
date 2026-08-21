@@ -12,7 +12,7 @@ function read(path) {
 test("the public landing runs the operation story: hero dropzone + four-tab loop", () => {
   const landing = read("components/public/landing-page.tsx")
   const hero = read("components/public/landing/hero.tsx")
-  const hub = read("components/public/landing/cv-hub.tsx")
+  const hub = read("components/public/landing/use-cases.tsx")
   const companyRail = read("components/public/landing/company-rail.tsx")
   const motion = read("components/public/landing/landing-motion.css")
   const match = read("components/public/landing/how-it-works.tsx")
@@ -46,10 +46,20 @@ test("the public landing runs the operation story: hero dropzone + four-tab loop
   assert.match(hub, /LandingIntelSample/)
   assert.doesNotMatch(hub, /LandingDropzone|lp-hub-drop/)
 
-  assert.match(score, /Example Myro Score/)
-  assert.match(match, /Live source/)
-  assert.match(match, /company career pages/)
+  // The sample eyebrows are what keep illustrative panels honest — handoff §4
+  // lists them verbatim and says not to drop them.
+  assert.match(score, /example myro score/)
+  assert.match(match, /myro job match/)
   assert.match(match, /Tailor &amp; apply/)
+  // The source rail lived here and repeated the company marquee 200px below it.
+  // Company provenance belongs to LandingCompanyRail, once.
+  assert.doesNotMatch(match, /Live source|company career pages/)
+
+  // The active tab is marked by an indicator element, never by colour: it has
+  // to overlap the tablist hairline so the tab joins its panel (handoff §3).
+  assert.match(hub, /lp-hub-tab-mark/)
+  assert.match(hub, /id={`tab-\${item\.id}`}/)
+  assert.match(hub, /aria-controls={`panel-\${item\.id}`}/)
 
   assert.match(companyRail, /Read live from/)
   assert.match(companyRail, /company career pages/)

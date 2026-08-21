@@ -7,7 +7,6 @@
   --gc-blue: #2563eb;
   --gc-green: #10b981;
   --gc-red: #ef4444;
-  --gc-purple: #8b5cf6;
   --gc-line: #e2e8f0;
   min-height: 100dvh;
   background: var(--gc-bg);
@@ -54,7 +53,7 @@
 .gc-kpi--gray { border-left-color: #94a3b8; }
 .gc-kpi--green { border-left-color: var(--gc-green); }
 .gc-kpi--red { border-left-color: var(--gc-red); }
-.gc-kpi--purple { border-left-color: var(--gc-purple); }
+.gc-kpi--blue { border-left-color: var(--gc-blue); }
 .gc-charts { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; margin-bottom: 20px; }
 .gc-card { border-radius: 12px; background: var(--gc-card); box-shadow: 0 1px 3px rgb(15 23 42 / 6%); }
 .gc-card > h2 { margin: 0; padding: 16px 18px 0; color: #374151; font-size: 13px; font-weight: 650; text-wrap: balance; }
@@ -109,7 +108,7 @@
 .gc-issue-card p { margin: 8px 0; color: var(--gc-muted); font-size: 12px; text-wrap: pretty; }
 .gc-issue-card a, .gc-issue-card span { color: var(--gc-blue); font-size: 12px; text-decoration: none; }
 .gc-slug { color: var(--gc-faint); font-size: 11px; overflow-wrap: anywhere; }
-.gc-sweep-card { border-top-color: var(--gc-purple); cursor: pointer; }
+.gc-sweep-card { border-top-color: var(--gc-blue); cursor: pointer; }
 .gc-sweep-document { position: relative; margin-top: 16px; padding: 18px; border: 1px solid var(--gc-line); border-radius: 12px; background: #fff; }
 .gc-sweep-document > button { position: absolute; top: 12px; right: 12px; border: 0; background: transparent; color: var(--gc-muted); cursor: pointer; }
 .gc-sweep-document h2 { margin: 0 70px 12px 0; font-size: 15px; }

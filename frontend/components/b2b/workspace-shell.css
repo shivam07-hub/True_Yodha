@@ -1,10 +1,9 @@
+/* Flat --tm-bg — the same two hardcoded-accent corner glows the b2b door
+   page carried, removed for the same reason (ANTI_SLOP.md §22). */
 .b2bws-preview {
   min-height: 100vh;
   color: var(--tm-text);
-  background:
-    radial-gradient(circle at top left, rgba(0, 245, 212, 0.08), transparent 28%),
-    radial-gradient(circle at top right, rgba(255, 139, 48, 0.1), transparent 22%),
-    var(--tm-bg);
+  background: var(--tm-bg);
 }
 .b2bws-preview-main { min-height: calc(100vh - var(--tm-desktop-nav-h)); }
 .b2bws-page {

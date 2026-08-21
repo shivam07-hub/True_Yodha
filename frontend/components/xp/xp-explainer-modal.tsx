@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Sparkles, X } from "lucide-react"
+import { Coins, X } from "lucide-react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { XpFairnessNote, XpGuideLists } from "@/components/xp/xp-guide-content"
 import "./xp-explainer-modal.css"
@@ -54,7 +54,7 @@ export function XpExplainerModal({
             boxShadow: "0 0 18px var(--tm-int-bg-hover)",
             flexShrink: 0,
           }}>
-            <Sparkles size={19} aria-hidden />
+            <Coins size={19} aria-hidden />
           </div>
           <div className="tm-xp-explainer-header-title" style={{ minWidth: 0, flex: 1 }}>
             <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "var(--tm-text)" }}>

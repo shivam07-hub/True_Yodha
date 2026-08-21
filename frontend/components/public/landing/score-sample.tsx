@@ -1,9 +1,11 @@
 "use client"
 
+/** Handoff §4: three gaps, warning meta on the first only. Ranking everything
+ *  ranks nothing — the top gap is the one worth closing before the next. */
 const GAPS = [
-  { skill: "Product Strategy", tag: "Very high demand", note: "Not on CV" },
-  { skill: "Go-to-Market Strategy", tag: "High demand", note: "Early stage" },
-  { skill: "User Research & Discovery", tag: "Very high demand", note: "Early stage" },
+  { skill: "Product Strategy", demand: "very high demand", stage: "not on CV", top: true },
+  { skill: "Go-to-Market Strategy", demand: "high demand", stage: "early stage", top: false },
+  { skill: "User Research & Discovery", demand: "very high demand", stage: "early stage", top: false },
 ]
 
 const STRENGTHS = [
@@ -12,42 +14,42 @@ const STRENGTHS = [
   { skill: "Agile Project Management", note: "Translates vision into sprints engineering can execute." },
 ]
 
-/** Light product card of an example Myro Score. Labelled as a sample so a
- *  visitor never reads 62 as their own result. */
+/** Tab 01, left card. Labelled a sample so a visitor never reads 62 as their
+ *  own result. The numeral and the bar fill are two of the section's three
+ *  permitted glows. */
 export function LandingScoreSample() {
   return (
-    <article className="lp-score-frame" aria-label="Example Myro Score of 62 out of 100">
-      <header className="lp-score-head">
-        <div>
-          <span className="lp-card-eyebrow">Example Myro Score</span>
-          <div className="lp-score-num">
-            <strong className="tabular-nums">62</strong>
-            <span>/100</span>
-          </div>
-        </div>
-        <p className="lp-score-verdict text-pretty">
-          Strong enough to apply, with a few high-value gaps still holding the profile back.
-        </p>
-      </header>
+    <article className="lp-uc-card" aria-label="Example Myro Score of 62 out of 100">
+      <div className="lp-score-head">
+        <span className="lp-card-eyebrow">example myro score</span>
+        <p className="lp-score-verdict">Strong enough to apply. A few high-value gaps remain.</p>
+      </div>
 
-      <div className="lp-score-meter" aria-hidden="true">
-        <span />
+      <div className="lp-score-num">
+        <strong>62</strong>
+        <span>/100</span>
+      </div>
+
+      <div className="lp-uc-track lp-score-meter" aria-hidden="true">
+        <span style={{ width: "62%" }} />
       </div>
 
       <div className="lp-score-cols">
         <div>
-          <h3>Improve before applying</h3>
+          <h3>improve before applying</h3>
           <ul>
             {GAPS.map((gap) => (
               <li key={gap.skill}>
                 <strong>{gap.skill}</strong>
-                <small>{gap.tag} · {gap.note}</small>
+                <small>
+                  {gap.top ? <b>{gap.demand}</b> : gap.demand} · {gap.stage}
+                </small>
               </li>
             ))}
           </ul>
         </div>
         <div>
-          <h3>Already strong</h3>
+          <h3>already strong</h3>
           <ul>
             {STRENGTHS.map((item) => (
               <li key={item.skill}>

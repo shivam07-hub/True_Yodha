@@ -176,6 +176,8 @@
   --tm-fs-modal:      1.188rem;   /* 19px   — a modal's own name */
   --tm-fs-ask:        1.313rem;   /* 21px   — one question, alone on a screen */
   --tm-fs-numeral:    2.125rem;   /* 34px   — a result worth reading across the room */
+  --tm-fs-stat:       1.5rem;     /* 24px   — a stat cell's value inside a card */
+  --tm-fs-score:      2.75rem;    /* 44px   — the marketing plane's headline numeral */
 
   --tm-lh-hero:       3.875rem;   /* 62px */
   --tm-lh-display:    3rem;       /* 48px */
@@ -196,6 +198,7 @@
   --tm-radius-lg:     8px;
   --tm-radius-xl:     8px;
   --tm-button-radius: 10px;
+  --tm-radius-card:   10px;      /*       — a card that floats on the page plane */
   --tm-panel-radius:  6px;
   --tm-panel-radius-lg: 8px;
   --tm-radius-pill:   9999px;    /*       — pills, toggles       */
@@ -345,6 +348,11 @@
      bridge card and the /myrology surface. Never leaks into the
      core teal product. ──────────────────────────────────────── */
   --my-amethyst:        #B084FF;
+  /* Rest tint for the Myrology wayfinding links in the core nav and footer —
+     they point AT the sub-brand, so they carry its colour dimmed. Was
+     hardcoded #9b72e8 in three files; a ramp step used more than once is a
+     token, not a literal. */
+  --my-amethyst-rest:   #9B72E8;
   --my-amethyst-hover:  #C9A8FF;
   --my-amethyst-wash:   rgba(176, 132, 255, 0.10);
   --my-amethyst-ring:   rgba(176, 132, 255, 0.28);
@@ -427,9 +435,16 @@
   --tm-reading-ink:     #221e18;
 
   /* Spirit status colors darken for WCAG AA on white (spec §02) */
-  --tm-info:          #7C3AED;
-  --tm-info-wash:     rgba(124, 58, 237, 0.08);
-  --tm-info-border:   rgba(124, 58, 237, 0.30);
+  /* Info is the SAME hue across all three surfaces (~227° blue) — a status
+     tier that changes hue between light and dark stops being a tier and
+     becomes decoration. This was #7C3AED violet until 2026-08-20: purple is
+     banned brand-wide (it's the old brand colour, and "purple and black" is a
+     vibecoded tell — ANTI_SLOP.md §20), and it had drifted off the dark
+     surface's #8BA3FF. #2F4FBF is that same blue darkened for paper: 6.5:1 on
+     --tm-bg, 6.9:1 on --tm-surface, both past AA for body text. */
+  --tm-info:          #2F4FBF;
+  --tm-info-wash:     rgba(47, 79, 191, 0.08);
+  --tm-info-border:   rgba(47, 79, 191, 0.30);
   --tm-success:       #138A45;
   --tm-warning:       #D97706;
   --tm-danger:        #E11D48;

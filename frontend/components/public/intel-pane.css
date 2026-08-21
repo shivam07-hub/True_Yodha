@@ -511,8 +511,8 @@ html:root:has(.tm-ink) .tm-intel-kpi {
 .tm-intel-log-t    { color: var(--tm-text-faint); }
 .tm-intel-log-op   { font-weight: 600; }
 .tm-intel-log-op.is-parse { color: var(--tm-accent); }
-.tm-intel-log-op.is-fetch { color: var(--tm-info, #A78BFA); }
-.tm-intel-log-op.is-index { color: var(--tm-warning, #F59E0B); }
+.tm-intel-log-op.is-fetch { color: var(--tm-info); }
+.tm-intel-log-op.is-index { color: var(--tm-warning); }
 .tm-intel-log-op.is-embed { color: var(--tm-success); }
 .tm-intel-log-path {
   color: var(--tm-text);

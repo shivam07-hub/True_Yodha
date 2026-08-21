@@ -1,11 +1,14 @@
 "use client"
 
+import type { KeyboardEvent } from "react"
+
 import {
   RADAR_CX,
   RADAR_CY,
   RADAR_R,
   RADAR_SVG_SIZE,
   pointsToPolygonAttr,
+  polarToCart,
   radarShape,
 } from "@/lib/radar-geometry"
 
@@ -14,6 +17,17 @@ export interface DomainRadarProps {
   domainScores: Record<string, number>
   onDomainClick?: (domain: string) => void
   activeDomain?: string | null
+}
+
+function activateDomainKey(
+  e: KeyboardEvent<SVGGElement>,
+  domain: string,
+  onDomainClick?: (domain: string) => void,
+) {
+  if (!onDomainClick) return
+  if (e.key !== "Enter" && e.key !== " ") return
+  e.preventDefault()
+  onDomainClick(domain)
 }
 
 // SVG-only radar — right panel is owned by the parent page
@@ -28,13 +42,13 @@ export function DomainRadar({ domainScores, onDomainClick, activeDomain }: Domai
 
   const { spokes, rings, polygon, labels } = radarShape(domains, scoresByDomain)
   const polygonPts = pointsToPolygonAttr(polygon)
+  const n = domains.length
+  const angleStep = n > 0 ? 360 / n : 0
+  const pickable = Boolean(onDomainClick)
 
-  // Labels are placed at RADAR_R + 22 from center and middle-anchored, so the
-  // side labels (e.g. "Business" right, "Sales" left) extend past the 280-unit
-  // box and get clipped by the SVG viewport. Reserve a gutter on every side so
-  // label text has bleed room. The geometry constants stay shared/untouched —
-  // only this component's viewport grows; CSS scales the SVG to fit either way.
-  const LABEL_GUTTER = 20
+  // Labels sit at RADAR_R + 22, middle-anchored. 11px names need more bleed
+  // than the old 9px faint glyphs — grow the viewport, not the polar math.
+  const LABEL_GUTTER = 36
   const vbSize = RADAR_SVG_SIZE + LABEL_GUTTER * 2
 
   return (
@@ -52,70 +66,79 @@ export function DomainRadar({ domainScores, onDomainClick, activeDomain }: Domai
         </filter>
       </defs>
 
-      {/* Grid rings */}
       {rings.map((pts, i) => (
         <polygon key={i} points={pointsToPolygonAttr(pts)} fill="none"
-          stroke="var(--tm-border)" strokeWidth="1" opacity={0.5 + i * 0.15}
+          stroke="var(--tm-border)" strokeWidth="1" opacity={0.45 + i * 0.12}
+          pointerEvents="none"
         />
       ))}
 
-      {/* Spokes — active spoke brightens */}
       {domains.map((domain, i) => {
         const outer = spokes[i]
         const isActive = activeDomain === domain
         return (
-          <line key={i} x1={RADAR_CX} y1={RADAR_CY} x2={outer.x} y2={outer.y}
+          <line key={`spoke-${domain}`} x1={RADAR_CX} y1={RADAR_CY} x2={outer.x} y2={outer.y}
             stroke={isActive ? "var(--data-1)" : "var(--tm-border)"}
             strokeWidth={isActive ? "1.5" : "1"}
-            opacity={activeDomain && !isActive ? 0.25 : 0.6}
-            style={{ transition: "opacity 250ms, stroke 250ms" }}
+            opacity={isActive ? 1 : 0.55}
+            pointerEvents="none"
           />
         )
       })}
 
-      {/* Data polygon */}
       <polygon points={polygonPts}
         fill="var(--data-1)" fillOpacity="0.12"
         stroke="var(--data-1)" strokeWidth="2"
         filter="url(#radarGlow)"
-        style={{ transition: "all 400ms var(--tm-ease)" }}
+        pointerEvents="none"
       />
 
-      {/* Data points — inactive dims when a domain is selected */}
       {domains.map((domain, i) => {
         const pt = polygon[i]
+        const label = labels[i]
         const isActive = activeDomain === domain
+        const padInner = polarToCart(RADAR_CX, RADAR_CY, RADAR_R * 0.62, i * angleStep)
         return (
-          <g key={domain} onClick={() => onDomainClick?.(domain)} style={{ cursor: onDomainClick ? "pointer" : "default" }}>
-            <circle cx={pt.x} cy={pt.y} r={isActive ? 7 : 4}
+          <g
+            key={domain}
+            className="dr-hit"
+            role={pickable ? "button" : undefined}
+            tabIndex={pickable ? 0 : undefined}
+            aria-label={pickable ? domain : undefined}
+            aria-pressed={pickable ? isActive : undefined}
+            data-active={isActive ? "true" : undefined}
+            onClick={pickable ? () => onDomainClick?.(domain) : undefined}
+            onKeyDown={pickable ? (e) => activateDomainKey(e, domain, onDomainClick) : undefined}
+            style={{ cursor: pickable ? "pointer" : "default" }}
+          >
+            <title>{domain}</title>
+            <line className="dr-hit-pad" x1={padInner.x} y1={padInner.y} x2={label.x} y2={label.y}
+              stroke="transparent" strokeWidth="28" />
+            <circle className="dr-hit-pad" cx={label.x} cy={label.y} r="18" fill="transparent" />
+            <circle className="dr-focus-ring" cx={label.x} cy={label.y} r="16" fill="none" stroke="transparent" strokeWidth="2" />
+            <circle className="dr-hover-ring" cx={label.x} cy={label.y} r="16" fill="none" stroke="transparent" strokeWidth="1" />
+            <circle
+              className="dr-vertex"
+              cx={pt.x} cy={pt.y} r="4"
               fill="var(--data-1)"
-              opacity={activeDomain && !isActive ? 0.3 : 1}
+              opacity={activeDomain && !isActive ? 0.55 : 1}
               filter={isActive ? "url(#radarGlow)" : undefined}
-              style={{ transition: "r 200ms, opacity 250ms" }}
             />
+            <text
+              className="dr-label"
+              x={label.x} y={label.y + 4}
+              textAnchor="middle"
+              fontSize="11"
+              fontWeight={isActive ? 650 : 600}
+              fill={isActive ? "var(--data-1)" : "var(--tm-text)"}
+              fontFamily="var(--tm-font-sans)"
+              style={{ userSelect: "none" }}
+            >
+              {label.firstWord}
+            </text>
           </g>
         )
       })}
-
-      {/* Labels — first word shown, full name in <title> tooltip */}
-      {labels.map(({ x, y, domain, firstWord }) => {
-        const isActive = activeDomain === domain
-        return (
-          <text key={domain} x={x} y={y + 4}
-            textAnchor="middle" fontSize="9"
-            fill={isActive ? "var(--data-1)" : "var(--tm-text-faint)"}
-            fontFamily="inherit"
-            opacity={activeDomain && !isActive ? 0.4 : 1}
-            onClick={() => onDomainClick?.(domain)}
-            style={{ cursor: onDomainClick ? "pointer" : "default", userSelect: "none", transition: "opacity 250ms" }}
-          >
-            <title>{domain}</title>
-            {firstWord}
-          </text>
-        )
-      })}
-      {/* Anchor RADAR_R import so unused-warning lint pass stays happy when future
-          tweaks drop the constant; keeps the math centralized in radar-geometry. */}
       <desc>{`radius=${RADAR_R}`}</desc>
     </svg>
   )

@@ -1,24 +1,24 @@
 "use client"
 
 /**
- * The pre-flight, on one surface.
+ * The pre-flight, on one surface, as six slots.
  *
  * Six screens (start · proposals · confirm · ready · running · done) folded
- * into one scroll. Every settled line renders as a `<Plate>` — rail on the
- * left edge when the user authored it, no rail when Myro guessed. Every
- * unanswered guess renders as a `<HeardRow>` with the semantic yes/no pair
- * (vermilion accept, crimson decline, both filled). Contradictions land as
- * `<ConflictPlate>` inside the same list.
+ * into one scroll — and then, correcting the version that shipped, folded
+ * into the SIX SLOTS the backend actually runs on rather than one flat column
+ * of every kept line.
  *
- * The `Say` composer is the top of the canvas, not a screen. Empty order →
- * the composer is the only child, ask included. A standing order → the
- * composer collapses into "add another line", opening a `SayPad` on click
- * that flows through the same `/preflight/proposals` fetch as the opening
- * turn. One code path, one place lines are born.
+ * That flat column was the whole defect. MYRO_SEARCH_REBUILD.md's one idea is
+ * that the Order exists to fill a six-slot spec; a single undifferentiated
+ * list of twenty statements hides the only structure there is, and leaves the
+ * reader unable to answer the question they opened the modal with — *what
+ * does Myro still need from me?* Six headers, three of them holding nothing
+ * but an invitation, answers it without a word of explanation.
  *
- * `run` is the shell's job — the canvas only says when it is OK to press
- * (no visible conflicts) and how much the button reads. The shell owns the
- * ticket, the charge and the wait screen.
+ * Each `<SlotGroup>` owns its plates, its conflicts (a conflict is a
+ * statement about that slot's arity, so it belongs beside it) and its own
+ * add. `run` stays the shell's job — the canvas only says when it is safe to
+ * press and what the button reads.
  */
 
 import { useMemo, useState } from "react"
@@ -26,18 +26,19 @@ import Link from "next/link"
 
 import { visibleConflicts } from "@/lib/preflight/conflicts"
 import { formatCount } from "@/lib/format"
+import { SLOTS, slotForKind } from "@/lib/preflight/slots"
 import {
-  KIND_EYEBROW,
+  type LineKind,
   type LineStatus,
   type Order,
+  type OrderLine,
   type OrderProposal,
 } from "@/lib/preflight/types"
-import { contractLine } from "@/lib/preflight/prose"
+import { blockedLine, contractLine } from "@/lib/preflight/prose"
 
-import { AddMoreLine, OpeningPad } from "./canvas-pads"
-import { ConflictPlate } from "./conflict-plate"
+import { OpeningPad } from "./canvas-pads"
 import { HeardRow } from "./heard-row"
-import { Plate } from "./plate"
+import { SlotGroup } from "./slot-group"
 
 type Verdict = "kept" | "dropped" | null
 
@@ -53,6 +54,7 @@ export function ScreenCanvas({
   onAnswerLine,
   onRewordLine,
   onAnswerProposal,
+  onAddLine,
   onOpenCoins,
   onRun,
 }: {
@@ -71,17 +73,54 @@ export function ScreenCanvas({
   onAnswerLine: (lineId: string, status: LineStatus) => void
   onRewordLine: (lineId: string, text: string) => void
   onAnswerProposal: (id: string, verdict: Verdict) => void
+  onAddLine: (kind: LineKind, text: string) => void
   onOpenCoins: () => void
   onRun: () => void
 }) {
-  const kept = useMemo(() => order.lines.filter((l) => l.status === "kept"), [order.lines])
-  const unanswered = useMemo(() => order.lines.filter((l) => l.status === "unanswered"), [order.lines])
   const conflicts = visibleConflicts(order)
+
+  /**
+   * A line inside a live conflict is NOT also a settled plate.
+   *
+   * It is still `kept` server-side — the resolver reports the clash, it never
+   * resolves one — so rendering every kept line put "Avoids large corporations"
+   * on screen twice: once as signed-off, once as contested. Two states for one
+   * line, three inches apart. The conflict plate is the one that owns it until
+   * the user settles it.
+   */
+  const contested = useMemo(
+    () => new Set(conflicts.flatMap((c) => c.line_ids)),
+    [conflicts],
+  )
+  const kept = useMemo(
+    () => order.lines.filter((l) => l.status === "kept" && !contested.has(l.id)),
+    [order.lines, contested],
+  )
+
+  /** Kept lines and live conflicts, filed to the slot the resolver files them
+   *  to. A kind with no slot (there are none today) would silently vanish, so
+   *  `slotForKind` returning null is worth keeping visible in review. */
+  const bySlot = useMemo(() => {
+    const lines = new Map<string, OrderLine[]>(SLOTS.map((s) => [s.key, []]))
+    for (const line of kept) {
+      const slot = slotForKind(line.kind)
+      if (slot) lines.get(slot)!.push(line)
+    }
+    const clashes = new Map<string, typeof conflicts>(SLOTS.map((s) => [s.key, []]))
+    for (const conflict of conflicts) {
+      const bucket = clashes.get(conflict.slot)
+      if (bucket) bucket.push(conflict)
+    }
+    return { lines, clashes }
+  }, [kept, conflicts])
+
+  const unanswered = useMemo(() => order.lines.filter((l) => l.status === "unanswered"), [order.lines])
   const runCost = order.run_cost ?? 0
   const free = runCost === 0
   const short = !free && balance < runCost
   const cvReady = (order.cv_readiness ?? "") === "ready"
-  const hasWork = kept.length > 0 || (order.said ?? "").trim().length > 0
+  const hasWork =
+    kept.length > 0 || conflicts.length > 0 || (order.said ?? "").trim().length > 0
 
   return (
     <div className="pf-canvas">
@@ -98,25 +137,20 @@ export function ScreenCanvas({
       )}
 
       {hasWork ? (
-        <div className="pf-plate-list">
-          {kept.map((line) => (
-            <Plate
-              key={line.id}
-              line={line}
-              eyebrow={KIND_EYEBROW[line.kind]}
-              onReword={(text) => onRewordLine(line.id, text)}
-              onDrop={() => onAnswerLine(line.id, "dropped")}
+        <div className="pf-slots">
+          {SLOTS.map((spec) => (
+            <SlotGroup
+              key={spec.key}
+              spec={spec}
+              lines={bySlot.lines.get(spec.key) ?? []}
+              conflicts={bySlot.clashes.get(spec.key) ?? []}
+              allLines={order.lines}
+              busy={pending}
+              onAdd={onAddLine}
+              onAnswerLine={onAnswerLine}
+              onRewordLine={onRewordLine}
             />
           ))}
-          {conflicts.map((conflict) => (
-            <ConflictPlate
-              key={`${conflict.slot}:${conflict.line_ids.join(",")}`}
-              conflict={conflict}
-              lines={order.lines}
-              onDrop={(id) => onAnswerLine(id, "dropped")}
-            />
-          ))}
-          <AddMoreLine onSubmit={onSaySomething} pending={pending} />
         </div>
       ) : null}
 
@@ -136,7 +170,7 @@ export function ScreenCanvas({
 
       {hasWork ? (
         <RunBar
-          contract={contractLine(order)}
+          contract={conflicts.length > 0 ? blockedLine(conflicts.length) : contractLine(order)}
           runCost={runCost}
           balance={balance}
           free={free}

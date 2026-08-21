@@ -1,20 +1,31 @@
 "use client"
 
 /**
- * Same plate shape as a settled line, warmer stroke, and the two (or more)
- * statements sit INSIDE with an inline chooser. The user picks; the losers
- * are dropped through the same `answerLine` call the shell uses everywhere
- * else. No modal-in-modal, no "THESE CAN'T BOTH BE TRUE" screaming.
+ * A slot the resolver cannot settle, asked inside the plate shape.
+ *
+ * Two kinds arrive here. A *contradiction* is "these can't both be true" —
+ * pick the one that is, the other drops. An *arity* conflict is "this slot
+ * takes six and you have nine" — tap to drop until it fits.
+ *
+ * What this replaced (shipped 2026-08-19): every option rendered as a fat
+ * two-line card carrying WON'T TAKE · MYRO INFERRED · 4 DAYS AGO, so a
+ * nine-line arity conflict became a nine-row wall of chrome — and the screen
+ * had two of them. It also never said how many more the user had to drop, so
+ * there was no way to know when the tapping ended.
+ *
+ * One line per option now. Provenance is the same rail the settled plates
+ * use. The head carries the arithmetic.
  */
 
-import { conflictAsk, dropIdsForPick } from "@/lib/preflight/conflicts"
-import { formatRelativeAge } from "@/lib/format"
+import { conflictAsk, dropIdsForPick, overflowCount } from "@/lib/preflight/conflicts"
 import {
-  KIND_EYEBROW,
   SOURCE_LABEL,
+  type LineSource,
   type OrderConflict,
   type OrderLine,
 } from "@/lib/preflight/types"
+
+const USER_SOURCES: readonly LineSource[] = ["user_said", "user_reworded"]
 
 export function ConflictPlate({
   conflict,
@@ -35,48 +46,54 @@ export function ConflictPlate({
       return {
         id,
         text: line?.text ?? conflict.texts[i] ?? "",
-        kind: line?.kind,
         source: line?.source,
-        source_note: line?.source_note,
-        answered_at: line?.answered_at,
       }
     })
     .filter((option): option is NonNullable<typeof option> => option !== null)
 
+  // How many more taps until this slot fits. A contradiction and an arity-1
+  // slot both resolve on one pick; a wider slot needs the overflow gone.
+  const pickKeep = conflict.kind === "contradiction" || conflict.keep === 1
+  const over = overflowCount(conflict, options.length)
+
   return (
     <div className="pf-plate" data-kind="conflict" role="group" aria-label={conflictAsk(conflict)}>
-      <div className="pf-plate-conflict-title">{conflictAsk(conflict)}</div>
-      <div className="pf-plate-conflict-choices" role="radiogroup">
+      <div className="pf-plate-conflict-head">
+        <div className="pf-plate-conflict-title">
+          {pickKeep ? conflictAsk(conflict) : "Too many for one search"}
+        </div>
+        {over > 0 ? (
+          <div className="pf-plate-conflict-count">
+            drop {over} more
+          </div>
+        ) : null}
+      </div>
+
+      <div className="pf-plate-conflict-choices">
         {options.map((option) => {
-          const when = whenMs(option.answered_at)
+          const said = option.source && USER_SOURCES.includes(option.source) ? "user" : "myro"
+          const label = pickKeep
+            ? `Keep ${option.text}`
+            : `Drop ${option.text}`
           return (
             <button
               key={option.id}
               type="button"
-              role="radio"
-              aria-checked={false}
+              data-said={said}
               className="pf-plate-choice tm-control-focus"
+              aria-label={
+                option.source ? `${label} — ${SOURCE_LABEL[option.source]}` : label
+              }
               onClick={() => {
                 for (const drop of dropIdsForPick(conflict, option.id)) onDrop(drop)
               }}
               disabled={busy}
             >
               <span className="pf-plate-choice-text">{option.text}</span>
-              <span className="pf-plate-choice-meta">
-                {option.kind ? <span>{KIND_EYEBROW[option.kind]}</span> : null}
-                {option.source ? <span>{SOURCE_LABEL[option.source]}</span> : null}
-                {Number.isFinite(when) ? <span>{formatRelativeAge(when)}</span> : null}
-              </span>
             </button>
           )
         })}
       </div>
     </div>
   )
-}
-
-function whenMs(iso: string | null | undefined): number {
-  if (!iso) return Number.NaN
-  const ms = Date.parse(iso)
-  return Number.isFinite(ms) ? ms : Number.NaN
 }
