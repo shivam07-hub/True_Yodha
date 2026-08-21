@@ -34,7 +34,7 @@ import {
   type OrderLine,
   type OrderProposal,
 } from "@/lib/preflight/types"
-import { blockedLine, contractLine } from "@/lib/preflight/prose"
+import { blockedLine, contractLine, missingRoleLine } from "@/lib/preflight/prose"
 
 import { OpeningPad } from "./canvas-pads"
 import { HeardRow } from "./heard-row"
@@ -122,6 +122,18 @@ export function ScreenCanvas({
   const hasWork =
     kept.length > 0 || conflicts.length > 0 || (order.said ?? "").trim().length > 0
 
+  /**
+   * The one slot whose absence is not a preference.
+   *
+   * `/preflight/run` refuses a roleless order — a search with no role runs
+   * against whatever titles the profile still held, which is not the order the
+   * user signed off. The bar states that here so nobody meets the 400.
+   */
+  const hasRole = useMemo(
+    () => order.lines.some((l) => l.status === "kept" && l.kind === "role"),
+    [order.lines],
+  )
+
   return (
     <div className="pf-canvas">
       {hasWork ? (
@@ -170,12 +182,18 @@ export function ScreenCanvas({
 
       {hasWork ? (
         <RunBar
-          contract={conflicts.length > 0 ? blockedLine(conflicts.length) : contractLine(order)}
+          contract={
+            conflicts.length > 0
+              ? blockedLine(conflicts.length)
+              : hasRole
+                ? contractLine(order)
+                : missingRoleLine()
+          }
           runCost={runCost}
           balance={balance}
           free={free}
           short={short}
-          blocked={conflicts.length > 0}
+          blocked={conflicts.length > 0 || !hasRole}
           busy={starting}
           newJobs={order.new_jobs_count}
           onOpenCoins={onOpenCoins}

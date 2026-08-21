@@ -188,6 +188,32 @@ def confirmed_from(brief: TargetingBrief) -> list[OrderLine]:
     profile: dict[str, Any] = brief.profile
     out: list[OrderLine] = []
 
+    # The work, first — it is the slot that DEFINES the search.
+    #
+    # Until 2026-08-21 this imported the two exclusion columns and not the one
+    # that says what to look for, so every returning user opened the modal with
+    # "The work" empty above a full "Won't take". The run then dispatched
+    # anyway: `payload.resolve` omits an empty slot from the spec, and
+    # `targeting_write.apply` is a PATCH, so the search silently ran on the
+    # stored titles the modal had just declined to show. "Myro runs on the lines
+    # above and nothing else" was false for the one line that matters most.
+    #
+    # `target_role_titles` only — never the derived `target_roles` clusters.
+    # Titles are the write vocabulary (`role_title_updates`); feeding the
+    # matcher's read model back in as source would let a cluster name become a
+    # title the user never wrote.
+    for raw in profile.get("target_role_titles") or []:
+        text = str(raw).strip().rstrip(".")
+        if text:
+            ref = _ref("profile:role", text)
+            out.append(
+                OrderLine(
+                    id=ref, kind="role", text=text, source="user_said",
+                    source_note="you set this", origin="preflight", status="kept",
+                    ref=ref,
+                )
+            )
+
     for raw in profile.get("deal_breakers") or []:
         text = _strip_lead(str(raw))
         if text:

@@ -202,6 +202,20 @@ export function blockedLine(contested: number): string {
   return `${q} above still open — Myro runs once ${plural(contested, "it's", "they're")} settled.`
 }
 
+/**
+ * What the run bar says when the slot that DEFINES the search is empty.
+ *
+ * "The work" is not one of six equal slots. Every other slot narrows a search;
+ * this one is the search. An order of nine exclusions and no role is not a
+ * broad search, it is no search — and because `resolve` omits an empty slot
+ * from the spec and the profile write is a PATCH, running it would silently
+ * search on stored titles the modal never showed. So the bar names the slot
+ * rather than the rule: the header it points at is on screen, three inches up.
+ */
+export function missingRoleLine(): string {
+  return "No role yet — Myro runs once The work has one."
+}
+
 export function contractLine(order: OrderState): string {
   const { kept: keptCount, dropped, unanswered, fromMarket } = countsFrom(order)
   const runCount = typeof order.used === "number" ? order.used : keptCount

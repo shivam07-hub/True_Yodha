@@ -92,9 +92,20 @@ test("the run bar never claims a count the screen contradicts", () => {
   // whole group), so the contract sentence read "Myro runs on the 0 lines
   // above" beneath twenty plates. While anything is contested the bar states
   // the block instead.
-  assert.match(canvas, /conflicts\.length > 0 \? blockedLine\(conflicts\.length\) : contractLine\(order\)/)
+  assert.match(canvas, /conflicts\.length > 0\s*\?\s*blockedLine\(conflicts\.length\)/)
   const prose = read("lib/preflight/prose.ts")
   assert.match(prose, /export function blockedLine/)
+})
+
+test("the run bar refuses an order with nothing to search for", () => {
+  // "The work" is not one of six equal slots — every other slot narrows a
+  // search, this one is the search. `resolve` omits an empty slot from the
+  // spec and the profile write is a PATCH, so a roleless run dispatched
+  // against stored titles the modal never showed.
+  assert.match(canvas, /const hasRole = useMemo\(/)
+  assert.match(canvas, /blocked=\{conflicts\.length > 0 \|\| !hasRole\}/)
+  assert.match(canvas, /missingRoleLine\(\)/)
+  assert.match(read("lib/preflight/prose.ts"), /export function missingRoleLine/)
 })
 
 test("a conflict asks in one line per option, and says when it is done", () => {

@@ -436,6 +436,15 @@ async def run_order(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Nothing to run — say what you're after first.",
         )
+    # A search with no role is not a narrower search, it is a different one.
+    # `resolve` omits an empty slot from the spec and `targeting_write.apply`
+    # is a PATCH, so dispatching here would run against whatever titles the
+    # profile still held — invisible to the person who just signed off.
+    if not any(line.kind == "role" for line in order.kept()):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Add a role you want — Myro searches on the work, not on the exclusions.",
+        )
 
     await run_in_threadpool(
         targeting_write.apply, users_repo, principal.id, ops_payload.project(order)

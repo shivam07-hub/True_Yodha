@@ -14,6 +14,7 @@ import {
   briefFrom,
   contractLine,
   countsFrom,
+  missingRoleLine,
   fragment,
   joinWords,
   orderSummaryFrom,
@@ -233,4 +234,14 @@ test("counts are read off status, never inferred", () => {
     ],
   })
   assert.deepEqual(countsFrom(o), { kept: 1, dropped: 1, unanswered: 1, fromMarket: 0 })
+})
+
+
+test("the bar names the empty slot rather than counting the full ones", () => {
+  // Nine exclusions and no role is not a broad search, it is no search: the
+  // spec omits an empty slot and the profile write is a PATCH, so running it
+  // would search on stored titles the modal never put on screen.
+  const said = missingRoleLine()
+  assert.match(said, /The work/, "it points at a header the reader can see")
+  assert.doesNotMatch(said, /slot|target_role|spec|PATCH/i, "no schema words")
 })
