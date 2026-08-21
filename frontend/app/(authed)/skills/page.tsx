@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowRight, FileText, Sparkles } from "lucide-react"
+import { ArrowRight, Dumbbell, FileText } from "lucide-react"
 
 import { RequiresCV } from "@/components/empty/RequiresCV"
 import { PracticeSkeleton } from "@/components/loading/page-skeletons"
@@ -77,7 +77,7 @@ function ScoreMapPageInner() {
             <h1 className="sm-sr-only">Your Myro Score and the evidence behind it</h1>
             <header className="sm-hero">
               <ScoreRing score={model.totalScore} />
-              <BandPercentileLine band={score.band} topPercent={score.top_percent} />
+              <BandPercentileLine className="sm-band" band={score.band} topPercent={score.top_percent} />
               <p className="sm-hero-copy">
                 Your {model.totalScore} is the average of the {model.axes.length} skill {model.axes.length === 1 ? "domain" : "domains"} your CV currently proves.
               </p>
@@ -89,21 +89,23 @@ function ScoreMapPageInner() {
                   <h2 id="score-map-title">Your Score map</h2>
                   <span>{model.axes.length} evidenced domains</span>
                 </div>
-                <div className="sm-radar-wrap">
-                  <DomainRadar
+                <div className="sm-radar-body">
+                  <div className="sm-radar-wrap">
+                    <DomainRadar
+                      domainScores={score.domain_scores}
+                      activeDomain={model.selected?.domain}
+                      onDomainClick={selectDomain}
+                    />
+                  </div>
+                  <ScoreBreakdown
+                    variant="selector"
+                    score={model.totalScore}
                     domainScores={score.domain_scores}
-                    activeDomain={model.selected?.domain}
-                    onDomainClick={selectDomain}
+                    gapSkills={score.gap_skills}
+                    activeDomain={model.selected?.domain ?? model.selectedEmptyDomain}
+                    onSelectDomain={selectDomain}
                   />
                 </div>
-                <ScoreBreakdown
-                  variant="selector"
-                  score={model.totalScore}
-                  domainScores={score.domain_scores}
-                  gapSkills={score.gap_skills}
-                  activeDomain={model.selected?.domain ?? model.selectedEmptyDomain}
-                  onSelectDomain={selectDomain}
-                />
               </section>
 
               {model.selected && (
@@ -140,7 +142,7 @@ function ScoreMapPageInner() {
                       </p>
                       <div className="sm-actions">
                         <Link className="sm-primary tm-control-focus" href={`/practice?skill=${encodeURIComponent(model.topMove.skill)}`}>
-                          <Sparkles size={15} aria-hidden /> Practice <ArrowRight size={14} aria-hidden />
+                          <Dumbbell size={15} aria-hidden /> Practice <ArrowRight size={14} aria-hidden />
                         </Link>
                         <Link className="sm-secondary tm-control-focus" href={buildCvEvidenceHref({ domain: model.selected.domain, skill: model.topMove.skill })}>
                           <FileText size={15} aria-hidden /> Review CV proof
