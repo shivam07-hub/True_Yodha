@@ -176,6 +176,8 @@
   --tm-fs-modal:      1.188rem;   /* 19px   — a modal's own name */
   --tm-fs-ask:        1.313rem;   /* 21px   — one question, alone on a screen */
   --tm-fs-numeral:    2.125rem;   /* 34px   — a result worth reading across the room */
+  --tm-fs-stat:       1.5rem;     /* 24px   — a stat cell's value inside a card */
+  --tm-fs-score:      2.75rem;    /* 44px   — the marketing plane's headline numeral */
 
   --tm-lh-hero:       3.875rem;   /* 62px */
   --tm-lh-display:    3rem;       /* 48px */
@@ -196,6 +198,7 @@
   --tm-radius-lg:     8px;
   --tm-radius-xl:     8px;
   --tm-button-radius: 10px;
+  --tm-radius-card:   10px;      /*       — a card that floats on the page plane */
   --tm-panel-radius:  6px;
   --tm-panel-radius-lg: 8px;
   --tm-radius-pill:   9999px;    /*       — pills, toggles       */

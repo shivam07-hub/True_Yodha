@@ -1,278 +1,117 @@
-/* Landing "Four things, one loop." — the section frame, the tab rail, and the
-   primitives every panel is built from.
+/* "Four things, one loop." — section frame, tablist, and the atoms every panel
+   is built from. Panel-specific styling lives in landing-usecase-panels.css.
+   Spec: reference/HANDOFF-use-cases-section.md.
 
-   Four tabs render eight cards between them. Before this pass each panel
-   hand-rolled its own row, tile and pill, so the four samples of ONE product
-   read as four products. One set of primitives here, used by all four, is what
-   makes them read as one surface. Panel-specific styling lives in
-   landing-usecase-panels.css. */
+   THE DEPTH IS THE DESIGN (handoff §1). Three planes, and getting them the
+   wrong way round is what makes the section read as a flat row of grey boxes:
+
+     plane 0  page    --tm-bg         #050a18   section is TRANSPARENT over it
+     plane 2  card    --tm-surface-2  #0f1a2e   LIGHTER than the page
+     plane 1  inset   --tm-surface    #0b1424   DARKER than its own card
+
+   The card lifts, its contents recess. That inversion is the whole effect.
+   NOTE the token names: the handoff calls the card plane `--tm-surface-3`,
+   but in this system that name resolves to #152137 — the VALUE it specifies
+   (#0f1a2e) is `--tm-surface-2` here. Verify by value, per handoff §0.
+
+   No box-shadow on cards. No backdrop-filter. No per-card gradient. No second
+   accent hue. Exactly three things glow: the active tab, the score numeral,
+   the score bar fill. If three things glow, none do. */
 
 .lp-usecases {
-  padding: var(--lp-section-py) 0;
-  border-top: 1px solid var(--lp-border);
+  position: relative;
+  z-index: 2;
+  /* Required: the page's gradient field shows through. A background here, or
+     the section rule this used to carry, is what flattens it. */
+  background: none;
+  /* Top rhythm only. The section ends flush so the company rail below reads as
+     the same field continuing, not as a new band (handoff §2). */
+  padding: var(--lp-section-py) 0 0;
 }
 
 .lp-usecases-head {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 6px 14px;
-  margin-bottom: 14px;
+  gap: 16px;
 }
 
-.lp-usecases-note { color: var(--lp-faint); }
+.lp-usecases .lp-section-title { margin: 0; letter-spacing: -0.03em; }
+.lp-usecases-note { margin: 0; color: var(--tm-text-muted); }
 
-/* ── Tab rail ────────────────────────────────────────────────────
-   Text tabs on a hairline, not a segmented control. Four samples of one
-   product are a table of contents; a boxed four-up bar reads as navigation
-   this page does not have, and it stretched four short mono labels across
-   1240px of nothing. */
+/* ── Tablist (handoff §3) ───────────────────────────────────── */
 .lp-hub { width: 100%; }
 
 .lp-hub-tabs {
   display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  border-bottom: 1px solid var(--lp-border);
+  gap: 4px;
+  margin-top: 24px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--tm-border);
+  scrollbar-width: none;
 }
+
+.lp-hub-tabs::-webkit-scrollbar { display: none; }
 
 .lp-hub-tab {
-  min-height: 40px;
-  padding: 9px 14px;
+  position: relative;
+  flex: 0 0 auto;
+  padding: 14px 18px;
   border: 0;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  color: var(--lp-faint);
+  background: none;
+  /* All four labels stay --tm-text. The active tab is marked by its indicator,
+     never by colour — dimming the idle three turns a table of contents into a
+     disabled state (handoff §6). */
+  color: var(--tm-text);
   appearance: none;
   cursor: pointer;
-  font-family: var(--lp-mono);
-  font-size: var(--tm-fs-ui-sm);
-  letter-spacing: 0.08em;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-caption);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   white-space: nowrap;
-  transition: color var(--lp-dur) var(--lp-ease), border-color var(--lp-dur) var(--lp-ease);
+  transition: color 120ms var(--tm-ease);
 }
 
-.lp-hub-tab:hover { color: var(--lp-muted); }
-
-.lp-hub-tab.is-active {
-  border-bottom-color: var(--lp-accent);
-  background: var(--lp-surface);
-  color: var(--lp-text);
-}
+.lp-hub-tab:hover { color: var(--tm-accent-text); }
 
 .lp-hub-tab:focus-visible {
-  outline: 2px solid var(--lp-accent-ring);
+  outline: 2px solid var(--tm-accent-ring);
   outline-offset: -2px;
 }
 
-/* ── Panel: two cards, every tab ─────────────────────────────── */
+/* The indicator is its own element, not a border on the button: `bottom: -1px`
+   covers the tablist hairline so the tab reads as joined to its panel. */
+.lp-hub-tab-mark {
+  position: absolute;
+  inset: 0 0 -1px;
+  border-bottom: 2px solid var(--tm-accent);
+  border-radius: var(--tm-radius-card) var(--tm-radius-card) 0 0;
+  background: var(--tm-accent-wash);
+}
+
+.lp-hub-tab-label { position: relative; }
+
+/* ── Panel (handoff §4) ─────────────────────────────────────── */
 .lp-hub-panel {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
-  gap: 16px;
-  align-items: stretch;
-  margin-top: 16px;
+  /* min(100%, 340px) is required — plain 340px overflows below ~390px. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 20px;
+  margin-top: 20px;
+  animation: tmRise 0.3s var(--tm-ease) both;
 }
 
 /* Any author `display` beats the UA's [hidden] { display: none }, so the rule
    that hides a panel has to out-specify the grid above. Stated once, for every
-   panel, so the next panel that needs a display mode can't bring the bug back
-   (it once left the score card on screen under all four tabs). */
+   panel, so the next one to need a display mode can't bring the bug back. */
 .lp-hub-panel[hidden] { display: none; }
 
-/* ── Card ────────────────────────────────────────────────────── */
-.lp-uc-card {
-  display: flex;
-  min-width: 0;
-  height: 100%;
-  flex-direction: column;
-  gap: 14px;
-  padding: clamp(14px, 1.5vw, 20px);
-  border: 1px solid var(--lp-border-strong);
-  border-radius: 12px;
-  background: var(--lp-surface);
+@keyframes tmRise {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
 }
 
-.lp-uc-head {
-  display: flex;
-  gap: 12px;
-  align-items: baseline;
-  justify-content: space-between;
-}
-
-.lp-card-eyebrow {
-  color: var(--lp-accent-text);
-  font-family: var(--lp-mono);
-  font-size: var(--tm-fs-micro);
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.lp-uc-title {
-  margin: 0;
-  color: var(--lp-text);
-  font-size: var(--tm-fs-heading);
-  font-weight: 600;
-  line-height: 1.25;
-  text-wrap: balance;
-}
-
-.lp-uc-foot {
-  margin: auto 0 0;
-  color: var(--lp-faint);
-  font-size: var(--tm-fs-caption);
-  line-height: 1.5;
-}
-
-/* ── Row — a named thing, its provenance, and one status ─────── */
-.lp-uc-rows {
-  display: grid;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.lp-uc-row {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 11px 13px;
-  border: 1px solid var(--lp-border);
-  border-radius: 8px;
-  background: var(--lp-surface-2);
-}
-
-.lp-uc-row > span:first-child {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-}
-
-.lp-uc-row strong {
-  overflow: hidden;
-  color: var(--lp-text);
-  font-size: var(--tm-fs-meta);
-  font-weight: 600;
-  line-height: 1.3;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.lp-uc-row small {
-  margin-top: 2px;
-  overflow: hidden;
-  color: var(--lp-faint);
-  font-family: var(--lp-mono);
-  font-size: var(--tm-fs-caption);
-  line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* ── Pill — status, never decoration ─────────────────────────── */
-.lp-uc-pill {
-  flex: 0 0 auto;
-  padding: 4px 9px;
-  border: 1px solid var(--lp-border-strong);
-  border-radius: 999px;
-  color: var(--lp-muted);
-  font-family: var(--lp-mono);
-  font-size: var(--tm-fs-micro);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.lp-uc-pill[data-tone="accent"] {
-  border-color: var(--lp-accent-ring);
-  background: var(--lp-accent-wash);
-  color: var(--lp-accent-text);
-}
-
-.lp-uc-pill[data-tone="warning"] {
-  border-color: color-mix(in srgb, var(--lp-warning) 45%, transparent);
-  color: var(--lp-warning);
-}
-
-/* ── Stat tile ───────────────────────────────────────────────── */
-.lp-uc-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 86px), 1fr));
-  gap: 8px;
-}
-
-.lp-uc-stat {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 3px;
-  padding: 10px 12px;
-  border: 1px solid var(--lp-border);
-  border-radius: 8px;
-  background: var(--lp-surface-2);
-}
-
-.lp-uc-stat b {
-  color: var(--lp-text);
-  font-family: var(--lp-mono);
-  font-size: var(--tm-fs-title);
-  font-weight: 600;
-  line-height: 1.05;
-}
-
-.lp-uc-stat span {
-  color: var(--lp-faint);
-  font-family: var(--lp-mono);
-  font-size: var(--tm-fs-micro);
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-}
-
-/* The tile the sample is drawing attention to. Accent marks the one stage the
-   reader is being pointed at, not every tile. */
-.lp-uc-stat[data-focus="true"] {
-  border-color: var(--lp-accent-ring);
-  background: var(--lp-accent-wash);
-}
-
-.lp-uc-stat[data-focus="true"] b { color: var(--lp-accent-text); }
-
-/* ── Card exit link ──────────────────────────────────────────── */
-.lp-uc-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: auto;
-  color: var(--lp-accent-text);
-  font-family: var(--lp-mono);
-  font-size: var(--tm-fs-ui-sm);
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.lp-uc-link:hover { text-decoration: underline; text-underline-offset: 3px; }
-
-.lp-uc-link:focus-visible {
-  border-radius: 4px;
-  outline: 2px solid var(--lp-accent-ring);
-  outline-offset: 3px;
-}
-
-.lp-uc-empty {
-  margin: 0;
-  color: var(--lp-muted);
-  font-size: var(--tm-fs-meta);
-}
-
-@media (max-width: 560px) {
-  .lp-hub-tab {
-    min-height: 36px;
-    padding: 8px 10px;
-    font-size: var(--tm-fs-micro);
-  }
+@media (prefers-reduced-motion: reduce) {
+  .lp-hub-panel { animation: none; }
 }

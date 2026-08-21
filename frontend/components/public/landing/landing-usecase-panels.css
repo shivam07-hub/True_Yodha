@@ -1,191 +1,260 @@
-/* The four use-case panels — only what is specific to each. The card, row,
-   tile, pill and link they all share live in landing-usecases.css. */
+/* The four use-case panels — only what is specific to each. Card, pill, stat
+   cell, row list and bar come from landing-usecase-atoms.css.
+   Spec: reference/HANDOFF-use-cases-section.md §4. */
 
-/* ── 02 · how a listing gets here ────────────────────────────────
-   fetch → parse → embed → index is a real order: a listing cannot be matched
-   before it is indexed, and cannot be indexed before it is fetched. The
-   numbers are the sequence, not decoration (ANTI_SLOP §"numbered markers"). */
-.lp-uc-steps {
-  display: grid;
-  gap: 14px;
+/* ── 01 · the score (left) ──────────────────────────────────── */
+.lp-score-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.lp-score-verdict {
   margin: 0;
-  padding: 0;
-  list-style: none;
-  counter-reset: lp-step;
+  color: var(--tm-text-muted);
+  font-size: var(--tm-fs-ui);
+  line-height: 1.5;
+  text-align: right;
 }
 
-.lp-uc-step {
+.lp-score-num { display: flex; gap: 8px; align-items: baseline; }
+
+/* Glow 1 of 3 in this section. */
+.lp-score-num strong {
+  color: var(--tm-text);
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-score);
+  font-weight: 500;
+  line-height: 1;
+  text-shadow: 0 0 30px color-mix(in srgb, var(--tm-accent) 35%, transparent);
+}
+
+.lp-score-num span {
+  color: var(--tm-text-muted);
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-body);
+}
+
+/* Glow 2 of 3. The only bar in the section that gets one. */
+.lp-score-meter > span {
+  box-shadow: 0 0 14px color-mix(in srgb, var(--tm-accent) 60%, transparent);
+}
+
+.lp-score-cols {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 4px 12px;
-  counter-increment: lp-step;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  gap: 18px 22px;
 }
 
-.lp-uc-step::before {
-  content: counter(lp-step, decimal-leading-zero);
-  grid-row: 1 / span 2;
-  color: var(--lp-faint);
-  font-family: var(--lp-mono);
+.lp-score-cols h3 {
+  margin: 0 0 12px;
+  color: var(--tm-text-muted);
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-note);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lp-score-cols ul { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+
+.lp-score-cols strong {
+  display: block;
+  color: var(--tm-text);
+  font-size: var(--tm-fs-meta);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.lp-score-cols small {
+  display: block;
+  margin-top: 3px;
+  color: var(--tm-text-muted);
+  font-family: var(--tm-font-mono);
   font-size: var(--tm-fs-caption);
   line-height: 1.45;
 }
 
-.lp-uc-step strong {
-  color: var(--lp-text);
-  font-family: var(--lp-mono);
+/* The top gap only. Warning on all three would rank nothing. */
+.lp-score-cols small b { color: var(--tm-warning); font-weight: 500; }
+
+/* ── 01 · the match (right) ─────────────────────────────────── */
+.lp-evidence-grid { display: grid; gap: 8px; }
+
+.lp-evidence-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius-lg);
+  background: var(--tm-hover-soft);
+}
+
+/* The one row that is already true gets the tint. */
+.lp-evidence-row[data-state="evidenced"] {
+  border-color: color-mix(in srgb, var(--tm-success) 22%, transparent);
+  background: var(--tm-success-wash);
+}
+
+.lp-evidence-row > svg { flex: 0 0 auto; }
+.lp-evidence-row[data-state="evidenced"] > svg { color: var(--tm-success); }
+.lp-evidence-row[data-state="surfaced"] > svg { color: var(--tm-info); }
+.lp-evidence-row[data-state="build"] > svg { color: var(--tm-warning); }
+
+.lp-evidence-row > span { display: flex; min-width: 0; flex-direction: column; }
+
+.lp-evidence-row strong {
+  color: var(--tm-text);
   font-size: var(--tm-fs-meta);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.lp-evidence-row small {
+  margin-top: 2px;
+  color: var(--tm-text-muted);
+  font-size: var(--tm-fs-caption);
+  line-height: 1.45;
+}
+
+.lp-uc-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.lp-fit-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+.lp-action-primary,
+.lp-action-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: var(--tm-radius-lg);
+  font-size: var(--tm-fs-ui);
   font-weight: 600;
 }
 
-.lp-uc-step span {
-  color: var(--lp-muted);
+.lp-action-primary { background: var(--tm-accent); color: var(--tm-bg); }
+
+.lp-action-secondary { border: 1px solid var(--tm-border); color: var(--tm-text-muted); }
+
+/* ── 02 · how a listing gets here (right) ───────────────────── */
+.lp-uc-steps { display: grid; gap: 16px; margin: 0; padding: 0; list-style: none; }
+
+.lp-uc-step { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 4px 10px; }
+
+.lp-uc-step-n {
+  grid-row: 1 / span 2;
+  color: var(--tm-text-faint);
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-caption);
+  line-height: 1.5;
+}
+
+.lp-uc-step strong {
+  color: var(--tm-text);
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-meta);
+  font-weight: 500;
+}
+
+.lp-uc-step span:last-child {
+  color: var(--tm-text-muted);
   font-size: var(--tm-fs-ui);
   line-height: 1.5;
 }
 
-/* ── 03 · the mentor's read ─────────────────────────────────────
-   The quote is Myo speaking; the three rows under it are what it offers next.
-   They are captions inside a labelled sample, so they carry no hover, no
-   pointer and no arrow — nothing on this card is clickable, and nothing on it
-   pretends to be (Four-Signal Affordance). */
+/* ── 03 · the mentor's read (right) ─────────────────────────── */
 .lp-mentor-quote {
   margin: 0;
-  color: var(--lp-text);
-  font-size: var(--tm-fs-ui-lg);
-  line-height: 1.55;
-  text-wrap: pretty;
+  color: var(--tm-text);
+  font-size: var(--tm-fs-modal);
+  line-height: 1.45;
 }
 
-.lp-mentor-next {
-  display: grid;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-}
+.lp-mentor-next { display: grid; gap: 8px; }
 
 .lp-mentor-step {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  padding: 11px 13px;
-  border: 1px solid var(--lp-border);
-  border-radius: 8px;
-  background: var(--lp-surface-2);
+  padding: 14px;
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius-lg);
+  background: var(--tm-surface);
 }
 
-.lp-mentor-step > span {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-}
+.lp-mentor-step > span:first-child { display: flex; min-width: 0; flex-direction: column; }
 
 .lp-mentor-step strong {
-  color: var(--lp-text);
+  color: var(--tm-text);
   font-size: var(--tm-fs-meta);
   font-weight: 600;
 }
 
 .lp-mentor-step small {
   margin-top: 2px;
-  color: var(--lp-faint);
+  color: var(--tm-text-muted);
   font-size: var(--tm-fs-caption);
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .lp-mentor-verb {
   flex: 0 0 auto;
-  color: var(--lp-muted);
-  font-family: var(--lp-mono);
-  font-size: var(--tm-fs-micro);
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  color: var(--tm-accent-text);
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-caption);
+  white-space: nowrap;
 }
 
-/* ── 04 · company intel ─────────────────────────────────────────
-   The company picker is a chip rail, not a stacked list: eight companies down
-   the left cost the roles beside them half the card. */
-.lp-cintel-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
+/* ── 04 · company intel (left) ──────────────────────────────── */
+.lp-cintel-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
 
 .lp-cintel-co {
   display: inline-flex;
   align-items: baseline;
-  gap: 7px;
-  padding: 6px 10px;
-  border: 1px solid var(--lp-border);
-  border-radius: 999px;
-  background: var(--lp-surface-2);
-  color: var(--lp-muted);
+  gap: 8px;
+  padding: 5px 12px;
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius-pill);
+  background: var(--tm-surface);
+  color: var(--tm-text-muted);
   cursor: pointer;
-  font-family: inherit;
-  font-size: var(--tm-fs-ui-sm);
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-caption);
   white-space: nowrap;
-  transition: border-color var(--lp-dur) var(--lp-ease), color var(--lp-dur) var(--lp-ease);
+  transition: color 120ms var(--tm-ease), border-color 120ms var(--tm-ease);
 }
 
-.lp-cintel-co:hover { border-color: var(--lp-accent-ring); color: var(--lp-text); }
+.lp-cintel-co:hover { border-color: var(--tm-accent-ring); color: var(--tm-text); }
 
 .lp-cintel-co.is-active {
-  border-color: var(--lp-accent-ring);
-  background: var(--lp-accent-wash);
-  color: var(--lp-text);
+  border-color: var(--tm-accent);
+  background: var(--tm-accent);
+  color: var(--tm-bg);
 }
 
-.lp-cintel-co:focus-visible { outline: 2px solid var(--lp-accent-ring); outline-offset: 2px; }
+.lp-cintel-co:focus-visible { outline: 2px solid var(--tm-accent-ring); outline-offset: 2px; }
 
-.lp-cintel-co b {
-  color: var(--lp-accent-text);
-  font-family: var(--lp-mono);
-  font-size: var(--tm-fs-micro);
-  font-weight: 500;
-}
-
-.lp-cintel-skeleton { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.lp-cintel-skeleton { display: grid; gap: 1px; margin: 0; padding: 0; list-style: none; }
 
 .lp-cintel-shimmer {
-  height: 44px;
-  border-radius: 8px;
-  background: linear-gradient(90deg, var(--lp-surface-2) 0%, var(--lp-surface) 50%, var(--lp-surface-2) 100%);
-  background-size: 200% 100%;
-  animation: lp-cintel-shimmer 1.4s ease-in-out infinite;
+  height: 52px;
+  background: var(--tm-surface);
 }
 
-@keyframes lp-cintel-shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
+/* ── 04 · where the demand sits (right) ─────────────────────── */
+.lp-demand { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
 
-@media (prefers-reduced-motion: reduce) {
-  .lp-cintel-shimmer { animation: none; }
-}
-
-/* ── 04 · where the demand sits ─────────────────────────────────
-   Live `by_industry` counts. The bar is the number drawn to scale — it carries
-   the comparison the numerals alone would make the reader do. */
-.lp-demand {
-  display: grid;
-  gap: 12px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.lp-demand-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 4px 12px;
-}
+.lp-demand-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; }
 
 .lp-demand-row > strong {
   overflow: hidden;
-  color: var(--lp-text);
+  color: var(--tm-text);
   font-size: var(--tm-fs-meta);
   font-weight: 500;
   text-overflow: ellipsis;
@@ -193,23 +262,20 @@
 }
 
 .lp-demand-n {
-  color: var(--lp-accent-text);
-  font-family: var(--lp-mono);
-  font-size: var(--tm-fs-meta);
+  color: var(--tm-text);
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-caption);
   font-variant-numeric: tabular-nums;
 }
 
-.lp-demand-track {
-  grid-column: 1 / -1;
-  height: 4px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--lp-surface-2);
-}
+.lp-demand .lp-uc-track { grid-column: 1 / -1; height: 5px; }
 
-.lp-demand-track > span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--lp-accent);
+.lp-cintel-sub {
+  margin: 0;
+  color: var(--tm-text-muted);
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-note);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
