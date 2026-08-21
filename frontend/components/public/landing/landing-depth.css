@@ -1,84 +1,20 @@
-/* Landing story: product samples inside CV Hub. */
+/* Tab 01's right card — the job-match readout. The opening card, the source
+   rail and the arrow between them are gone: the rail repeated the company
+   marquee sitting 200px below it, and the opening card described a job the
+   visitor never chose. What is left is the one thing the tab is about, which
+   is what Myro does to a CV once it has an opening to read it against. */
 
-.lp-match-frame {
-  display: grid;
-  grid-template-columns: minmax(250px, 0.72fr) auto minmax(360px, 1.28fr);
-  gap: 24px;
-  align-items: center;
-  padding: clamp(18px, 3vw, 32px);
-  border: 1px solid var(--lp-border-strong);
-  border-radius: 16px;
-  background: var(--lp-surface-2);
-}
-
-.lp-opening-card,
-.lp-fit-card,
-.lp-plan-frame {
-  border: 1px solid var(--lp-border-strong);
-  border-radius: 14px;
-  background: var(--lp-surface);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
-}
-
-.lp-opening-card {
-  padding: 18px;
-}
-
-.lp-opening-source {
+.lp-fit-head {
   display: flex;
-  gap: 11px;
-  align-items: center;
-  margin-top: 18px;
-  padding-bottom: 18px;
-  border-bottom: 1px solid var(--lp-border);
-}
-
-.lp-requirement-list {
-  display: grid;
-  gap: 10px;
-  padding-top: 18px;
-}
-
-.lp-requirement-list span {
-  padding: 9px 10px;
-  border-radius: 8px;
-  background: var(--lp-surface-2);
-  color: var(--lp-muted);
-  font-size: 13px;
-}
-
-.lp-match-arrow {
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  border: 1px solid var(--lp-border-strong);
-  border-radius: 999px;
-  background: var(--lp-surface);
-  color: var(--lp-accent-text);
-}
-
-.lp-fit-card {
-  overflow: hidden;
-}
-
-.lp-fit-card-head {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  padding: 18px 20px;
-  border-bottom: 1px solid var(--lp-border);
-}
-
-.lp-fit-card-head > svg {
-  flex: 0 0 auto;
-  color: var(--lp-accent-text);
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: baseline;
+  justify-content: space-between;
 }
 
 .lp-evidence-grid {
   display: grid;
-  gap: 2px;
-  padding: 10px;
+  gap: 8px;
 }
 
 .lp-evidence-row {
@@ -86,12 +22,9 @@
   grid-template-columns: auto minmax(0, 1fr);
   gap: 12px;
   align-items: center;
-  min-height: 64px;
-  padding: 10px;
-  border-radius: 10px;
-}
-
-.lp-evidence-row:hover {
+  padding: 11px 13px;
+  border: 1px solid var(--lp-border);
+  border-radius: 8px;
   background: var(--lp-surface-2);
 }
 
@@ -103,37 +36,57 @@
 
 .lp-evidence-row strong {
   color: var(--lp-text);
-  font-size: 14px;
+  font-size: var(--tm-fs-meta);
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 .lp-evidence-row small {
   margin-top: 2px;
   color: var(--lp-faint);
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   line-height: 1.4;
 }
 
 .lp-evidence-icon {
   display: grid;
+  flex: 0 0 auto;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   border: 1px solid var(--lp-border-strong);
-  border-radius: 9px;
+  border-radius: 8px;
   color: var(--lp-muted);
 }
 
 .lp-evidence-icon.positive {
-  border-color: var(--lp-accent-ring);
-  background: var(--lp-accent-wash);
+  border-color: color-mix(in srgb, var(--lp-success) 45%, transparent);
   color: var(--lp-success);
 }
 
+/* What the match is read from. Mono because it names inputs, not outcomes. */
+.lp-requirement-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.lp-requirement-list span {
+  padding: 5px 9px;
+  border: 1px solid var(--lp-border);
+  border-radius: 999px;
+  color: var(--lp-muted);
+  font-family: var(--lp-mono);
+  font-size: var(--tm-fs-micro);
+}
+
+/* The two moves the real card offers. Inside a labelled example they are spans,
+   not buttons — a control that cannot be pressed should not take the tab. */
 .lp-fit-actions {
   display: flex;
-  gap: 10px;
-  padding: 14px 20px 20px;
-  border-top: 1px solid var(--lp-border);
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
 }
 
 .lp-action-primary,
@@ -141,11 +94,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 42px;
-  padding: 0 16px;
-  border-radius: 9px;
-  font-size: 13px;
-  font-weight: 700;
+  min-height: 38px;
+  padding: 0 15px;
+  border-radius: 10px;
+  font-size: var(--tm-fs-ui);
+  font-weight: 600;
 }
 
 .lp-action-primary {
@@ -156,76 +109,4 @@
 .lp-action-secondary {
   border: 1px solid var(--lp-border-strong);
   color: var(--lp-muted);
-}
-
-.lp-plan-frame {
-  overflow: hidden;
-}
-
-.lp-plan-job {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  padding: 18px;
-  border-bottom: 1px solid var(--lp-border);
-}
-
-.lp-plan-list {
-  display: grid;
-  gap: 2px;
-  padding: 10px;
-}
-
-.lp-plan-row {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: center;
-  min-height: 68px;
-  padding: 10px;
-  border-radius: 10px;
-}
-
-.lp-plan-row:hover {
-  background: var(--lp-surface-2);
-}
-
-.lp-plan-row > svg {
-  color: var(--lp-accent-text);
-}
-
-.lp-plan-status {
-  color: var(--lp-faint);
-  font-family: var(--lp-mono);
-  font-size: 11px;
-}
-
-@media (max-width: 900px) {
-  .lp-match-frame {
-    grid-template-columns: 1fr;
-  }
-
-  .lp-match-arrow {
-    transform: rotate(90deg);
-    justify-self: center;
-  }
-}
-
-@media (max-width: 640px) {
-  .lp-match-frame {
-    gap: 16px;
-    padding: 12px;
-  }
-
-  .lp-fit-actions {
-    flex-direction: column;
-  }
-
-  .lp-plan-row {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .lp-plan-status {
-    grid-column: 2;
-  }
 }

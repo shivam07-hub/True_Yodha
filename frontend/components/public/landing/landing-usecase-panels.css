@@ -1,0 +1,215 @@
+/* The four use-case panels — only what is specific to each. The card, row,
+   tile, pill and link they all share live in landing-usecases.css. */
+
+/* ── 02 · how a listing gets here ────────────────────────────────
+   fetch → parse → embed → index is a real order: a listing cannot be matched
+   before it is indexed, and cannot be indexed before it is fetched. The
+   numbers are the sequence, not decoration (ANTI_SLOP §"numbered markers"). */
+.lp-uc-steps {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: lp-step;
+}
+
+.lp-uc-step {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 12px;
+  counter-increment: lp-step;
+}
+
+.lp-uc-step::before {
+  content: counter(lp-step, decimal-leading-zero);
+  grid-row: 1 / span 2;
+  color: var(--lp-faint);
+  font-family: var(--lp-mono);
+  font-size: var(--tm-fs-caption);
+  line-height: 1.45;
+}
+
+.lp-uc-step strong {
+  color: var(--lp-text);
+  font-family: var(--lp-mono);
+  font-size: var(--tm-fs-meta);
+  font-weight: 600;
+}
+
+.lp-uc-step span {
+  color: var(--lp-muted);
+  font-size: var(--tm-fs-ui);
+  line-height: 1.5;
+}
+
+/* ── 03 · the mentor's read ─────────────────────────────────────
+   The quote is Myo speaking; the three rows under it are what it offers next.
+   They are captions inside a labelled sample, so they carry no hover, no
+   pointer and no arrow — nothing on this card is clickable, and nothing on it
+   pretends to be (Four-Signal Affordance). */
+.lp-mentor-quote {
+  margin: 0;
+  color: var(--lp-text);
+  font-size: var(--tm-fs-ui-lg);
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.lp-mentor-next {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+}
+
+.lp-mentor-step {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 13px;
+  border: 1px solid var(--lp-border);
+  border-radius: 8px;
+  background: var(--lp-surface-2);
+}
+
+.lp-mentor-step > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.lp-mentor-step strong {
+  color: var(--lp-text);
+  font-size: var(--tm-fs-meta);
+  font-weight: 600;
+}
+
+.lp-mentor-step small {
+  margin-top: 2px;
+  color: var(--lp-faint);
+  font-size: var(--tm-fs-caption);
+  line-height: 1.4;
+}
+
+.lp-mentor-verb {
+  flex: 0 0 auto;
+  color: var(--lp-muted);
+  font-family: var(--lp-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+/* ── 04 · company intel ─────────────────────────────────────────
+   The company picker is a chip rail, not a stacked list: eight companies down
+   the left cost the roles beside them half the card. */
+.lp-cintel-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lp-cintel-co {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 6px 10px;
+  border: 1px solid var(--lp-border);
+  border-radius: 999px;
+  background: var(--lp-surface-2);
+  color: var(--lp-muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--tm-fs-ui-sm);
+  white-space: nowrap;
+  transition: border-color var(--lp-dur) var(--lp-ease), color var(--lp-dur) var(--lp-ease);
+}
+
+.lp-cintel-co:hover { border-color: var(--lp-accent-ring); color: var(--lp-text); }
+
+.lp-cintel-co.is-active {
+  border-color: var(--lp-accent-ring);
+  background: var(--lp-accent-wash);
+  color: var(--lp-text);
+}
+
+.lp-cintel-co:focus-visible { outline: 2px solid var(--lp-accent-ring); outline-offset: 2px; }
+
+.lp-cintel-co b {
+  color: var(--lp-accent-text);
+  font-family: var(--lp-mono);
+  font-size: var(--tm-fs-micro);
+  font-weight: 500;
+}
+
+.lp-cintel-skeleton { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+
+.lp-cintel-shimmer {
+  height: 44px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--lp-surface-2) 0%, var(--lp-surface) 50%, var(--lp-surface-2) 100%);
+  background-size: 200% 100%;
+  animation: lp-cintel-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes lp-cintel-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-cintel-shimmer { animation: none; }
+}
+
+/* ── 04 · where the demand sits ─────────────────────────────────
+   Live `by_industry` counts. The bar is the number drawn to scale — it carries
+   the comparison the numerals alone would make the reader do. */
+.lp-demand {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lp-demand-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 12px;
+}
+
+.lp-demand-row > strong {
+  overflow: hidden;
+  color: var(--lp-text);
+  font-size: var(--tm-fs-meta);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lp-demand-n {
+  color: var(--lp-accent-text);
+  font-family: var(--lp-mono);
+  font-size: var(--tm-fs-meta);
+  font-variant-numeric: tabular-nums;
+}
+
+.lp-demand-track {
+  grid-column: 1 / -1;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--lp-surface-2);
+}
+
+.lp-demand-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--lp-accent);
+}

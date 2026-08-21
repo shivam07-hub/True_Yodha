@@ -21,11 +21,17 @@ type SampleId = (typeof SAMPLES)[number]["id"]
 export function LandingUseCases({
   companyNames,
   companiesMonitored,
+  skillsMapped,
   companies,
+  industries,
+  industriesTotal,
 }: {
   companyNames: string[]
   companiesMonitored: number
+  skillsMapped: number
   companies: NameCountItem[]
+  industries: NameCountItem[]
+  industriesTotal: number
 }) {
   const [sample, setSample] = useState<SampleId>("tailor")
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
@@ -88,10 +94,10 @@ export function LandingUseCases({
             id="lp-hub-panel-tailor"
             aria-labelledby="lp-hub-tab-tailor"
             hidden={sample !== "tailor"}
-            className="lp-hub-panel lp-hub-tailor"
+            className="lp-hub-panel"
           >
             <LandingScoreSample />
-            <LandingMatchSample companyNames={companyNames} companiesMonitored={companiesMonitored} />
+            <LandingMatchSample />
           </div>
 
           <div
@@ -101,7 +107,12 @@ export function LandingUseCases({
             hidden={sample !== "live"}
             className="lp-hub-panel"
           >
-            <LandingLiveSample companies={companies} companyNames={companyNames} />
+            <LandingLiveSample
+              companies={companies}
+              companyNames={companyNames}
+              companiesMonitored={companiesMonitored}
+              skillsMapped={skillsMapped}
+            />
           </div>
 
           <div
@@ -121,7 +132,11 @@ export function LandingUseCases({
             hidden={sample !== "intel"}
             className="lp-hub-panel"
           >
-            <LandingIntelSample companies={companies} />
+            <LandingIntelSample
+              companies={companies}
+              industries={industries}
+              industriesTotal={industriesTotal}
+            />
           </div>
         </div>
       </div>

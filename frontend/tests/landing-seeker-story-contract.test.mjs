@@ -47,9 +47,11 @@ test("the public landing runs the operation story: hero dropzone + four-tab loop
   assert.doesNotMatch(hub, /LandingDropzone|lp-hub-drop/)
 
   assert.match(score, /Example Myro Score/)
-  assert.match(match, /Live source/)
-  assert.match(match, /company career pages/)
+  assert.match(match, /Example job match/)
   assert.match(match, /Tailor &amp; apply/)
+  // The source rail lived here and repeated the company marquee 200px below it.
+  // Company provenance belongs to LandingCompanyRail, once.
+  assert.doesNotMatch(match, /Live source|company career pages/)
 
   assert.match(companyRail, /Read live from/)
   assert.match(companyRail, /company career pages/)

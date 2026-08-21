@@ -18,9 +18,9 @@ import "@/components/public/landing/landing-base.css"
 import "@/components/public/landing/landing-hero.css"
 import "@/components/public/landing/landing-cv-hub.css"
 import "@/components/public/landing/landing-usecases.css"
+import "@/components/public/landing/landing-usecase-panels.css"
 import "@/components/public/landing/landing-commons.css"
 import "@/components/public/landing/landing-depth.css"
-import "@/components/public/landing/landing-match-sources.css"
 import "@/components/public/landing/landing-company-rail.css"
 import "@/components/public/landing/landing-motion.css"
 
@@ -76,7 +76,10 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
         <LandingUseCases
           companyNames={data.marqueeNames}
           companiesMonitored={data.companiesMonitored}
+          skillsMapped={data.skillsMapped}
           companies={data.analytics?.by_company ?? []}
+          industries={data.analytics?.by_industry ?? []}
+          industriesTotal={data.analytics?.total_industries || 10}
         />
 
         <LandingCompanyRail

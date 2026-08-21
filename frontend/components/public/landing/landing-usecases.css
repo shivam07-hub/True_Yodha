@@ -1,6 +1,11 @@
-/* Landing "Four things, one loop." — the CV Hub tabs promoted to their own
-   labelled section, plus the three panels that live only here (02 live data,
-   03 pipeline, 04 company intel). Tab 01 reuses the score + match samples. */
+/* Landing "Four things, one loop." — the section frame, the tab rail, and the
+   primitives every panel is built from.
+
+   Four tabs render eight cards between them. Before this pass each panel
+   hand-rolled its own row, tile and pill, so the four samples of ONE product
+   read as four products. One set of primitives here, used by all four, is what
+   makes them read as one surface. Panel-specific styling lives in
+   landing-usecase-panels.css. */
 
 .lp-usecases {
   padding: var(--lp-section-py) 0;
@@ -9,272 +14,265 @@
 
 .lp-usecases-head {
   display: flex;
-  align-items: baseline;
   flex-wrap: wrap;
+  align-items: baseline;
   gap: 6px 14px;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .lp-usecases-note { color: var(--lp-faint); }
 
-/* The section already frames the tabs, so the shared hub loses its own margin. */
-.lp-usecases .lp-hub { margin-top: 0; }
+/* ── Tab rail ────────────────────────────────────────────────────
+   Text tabs on a hairline, not a segmented control. Four samples of one
+   product are a table of contents; a boxed four-up bar reads as navigation
+   this page does not have, and it stretched four short mono labels across
+   1240px of nothing. */
+.lp-hub { width: 100%; }
 
-/* ── Tab 02 · live job data (sample fits, honest process) ───────── */
-.lp-live-sample { display: flex; flex-direction: column; gap: 18px; }
-
-.lp-live-steps {
+.lp-hub-tabs {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 10px;
-  padding: 12px 14px;
-  border: 1px solid var(--lp-border);
-  border-radius: 10px;
-  background: var(--lp-surface-2);
-  font-family: var(--lp-mono);
-  font-size: 12px;
-  color: var(--lp-muted);
+  gap: 2px;
+  border-bottom: 1px solid var(--lp-border);
 }
 
-.lp-live-step { color: var(--lp-text); }
-.lp-live-arrow { color: var(--lp-accent-text); }
-
-.lp-live-rows { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
-
-.lp-live-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px 16px;
-  border: 1px solid var(--lp-border-strong);
-  border-radius: 10px;
-  background: var(--lp-surface);
-}
-
-.lp-live-role { display: flex; min-width: 0; flex-direction: column; }
-.lp-live-role strong { color: var(--lp-text); font-size: 14px; line-height: 1.35; }
-.lp-live-role small { margin-top: 2px; color: var(--lp-faint); font-size: 12px; }
-
-.lp-live-fit {
-  flex: 0 0 auto;
-  padding: 5px 10px;
-  border: 1px solid var(--lp-accent-ring);
-  border-radius: 999px;
-  background: var(--lp-accent-wash);
-  color: var(--lp-accent-text);
-  font-family: var(--lp-mono);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.lp-live-empty { margin: 0; color: var(--lp-muted); font-size: 14px; }
-
-/* ── Tab 03 · pipeline tracker (labelled sample) ───────────────── */
-.lp-pipeline { display: flex; flex-direction: column; gap: 18px; }
-
-.lp-pipeline-stages {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr));
-  gap: 12px;
-}
-
-.lp-pipeline-stage {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 14px 16px;
-  border: 1px solid var(--lp-border-strong);
-  border-radius: 10px;
-  background: var(--lp-surface);
-}
-
-.lp-pipeline-count {
-  color: var(--lp-text);
-  font-family: var(--lp-mono);
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1.1;
-}
-
-.lp-pipeline-stage-lbl { color: var(--lp-faint); font-size: 12px; }
-
-.lp-pipeline-rows { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
-
-.lp-pipeline-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px 16px;
-  border: 1px solid var(--lp-border-strong);
-  border-radius: 10px;
-  background: var(--lp-surface);
-}
-
-.lp-pipeline-role { display: flex; min-width: 0; flex-direction: column; }
-.lp-pipeline-role strong { color: var(--lp-text); font-size: 14px; line-height: 1.35; }
-.lp-pipeline-role small { margin-top: 2px; color: var(--lp-faint); font-size: 12px; }
-
-.lp-pipeline-pill {
-  flex: 0 0 auto;
-  padding: 5px 10px;
-  border: 1px solid var(--lp-border-strong);
-  border-radius: 999px;
-  background: var(--lp-surface-2);
-  color: var(--lp-muted);
-  font-family: var(--lp-mono);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.lp-pipeline-pill[data-stage="applied"],
-.lp-pipeline-pill[data-stage="interviewing"] {
-  border-color: var(--lp-accent-ring);
-  background: var(--lp-accent-wash);
-  color: var(--lp-accent-text);
-}
-
-.lp-pipeline-mentor {
-  margin: 0;
-  padding: 14px 16px;
-  border-left: 2px solid var(--lp-accent-ring);
-  border-radius: 0 8px 8px 0;
-  background: var(--lp-surface-2);
-}
-
-.lp-pipeline-mentor-who {
-  font-family: var(--lp-mono);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--lp-accent-text);
-}
-
-.lp-pipeline-mentor-line {
-  margin: 6px 0 0;
-  color: var(--lp-muted);
-  font-size: 14px;
-  font-style: italic;
-  line-height: 1.5;
-}
-
-/* ── Tab 04 · company intel (live, real open roles) ────────────── */
-.lp-cintel { display: flex; flex-direction: column; gap: 16px; }
-
-.lp-cintel-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
-  gap: 16px;
-}
-
-.lp-cintel-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; align-content: start; }
-
-.lp-cintel-co {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 14px;
-  border: 1px solid var(--lp-border-strong);
-  border-radius: 10px;
-  background: var(--lp-surface);
-  color: var(--lp-muted);
+.lp-hub-tab {
+  min-height: 40px;
+  padding: 9px 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--lp-faint);
+  appearance: none;
   cursor: pointer;
-  font-family: inherit;
-  text-align: left;
-  transition: border-color var(--lp-dur) var(--lp-ease), color var(--lp-dur) var(--lp-ease);
+  font-family: var(--lp-mono);
+  font-size: var(--tm-fs-ui-sm);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: color var(--lp-dur) var(--lp-ease), border-color var(--lp-dur) var(--lp-ease);
 }
 
-.lp-cintel-co:hover { border-color: var(--lp-accent-ring); color: var(--lp-text); }
+.lp-hub-tab:hover { color: var(--lp-muted); }
 
-.lp-cintel-co.is-active {
-  border-color: var(--lp-accent-ring);
-  background: var(--lp-accent-wash);
+.lp-hub-tab.is-active {
+  border-bottom-color: var(--lp-accent);
+  background: var(--lp-surface);
   color: var(--lp-text);
 }
 
-.lp-cintel-co:focus-visible { outline: 2px solid var(--lp-accent-ring); outline-offset: 2px; }
-
-.lp-cintel-co-name { min-width: 0; overflow: hidden; font-size: 14px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-
-.lp-cintel-co-count {
-  flex: 0 0 auto;
-  font-family: var(--lp-mono);
-  font-size: 12px;
-  color: var(--lp-accent-text);
+.lp-hub-tab:focus-visible {
+  outline: 2px solid var(--lp-accent-ring);
+  outline-offset: -2px;
 }
 
-.lp-cintel-roles {
+/* ── Panel: two cards, every tab ─────────────────────────────── */
+.lp-hub-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+  gap: 16px;
+  align-items: stretch;
+  margin-top: 16px;
+}
+
+/* Any author `display` beats the UA's [hidden] { display: none }, so the rule
+   that hides a panel has to out-specify the grid above. Stated once, for every
+   panel, so the next panel that needs a display mode can't bring the bug back
+   (it once left the score card on screen under all four tabs). */
+.lp-hub-panel[hidden] { display: none; }
+
+/* ── Card ────────────────────────────────────────────────────── */
+.lp-uc-card {
   display: flex;
+  min-width: 0;
+  height: 100%;
   flex-direction: column;
-  gap: 10px;
-  padding: 16px;
+  gap: 14px;
+  padding: clamp(14px, 1.5vw, 20px);
   border: 1px solid var(--lp-border-strong);
   border-radius: 12px;
   background: var(--lp-surface);
 }
 
-.lp-cintel-roles-head {
+.lp-uc-head {
   display: flex;
+  gap: 12px;
   align-items: baseline;
   justify-content: space-between;
-  gap: 12px;
 }
 
-.lp-cintel-roles-head strong { min-width: 0; overflow: hidden; color: var(--lp-text); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
-.lp-cintel-roles-n { flex: 0 0 auto; font-family: var(--lp-mono); font-size: 12px; color: var(--lp-faint); }
+.lp-card-eyebrow {
+  color: var(--lp-accent-text);
+  font-family: var(--lp-mono);
+  font-size: var(--tm-fs-micro);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
 
-.lp-cintel-role-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.lp-uc-title {
+  margin: 0;
+  color: var(--lp-text);
+  font-size: var(--tm-fs-heading);
+  font-weight: 600;
+  line-height: 1.25;
+  text-wrap: balance;
+}
 
-.lp-cintel-role {
+.lp-uc-foot {
+  margin: auto 0 0;
+  color: var(--lp-faint);
+  font-size: var(--tm-fs-caption);
+  line-height: 1.5;
+}
+
+/* ── Row — a named thing, its provenance, and one status ─────── */
+.lp-uc-rows {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lp-uc-row {
   display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 13px;
+  border: 1px solid var(--lp-border);
+  border-radius: 8px;
+  background: var(--lp-surface-2);
+}
+
+.lp-uc-row > span:first-child {
+  display: flex;
+  min-width: 0;
   flex-direction: column;
-  gap: 2px;
+}
+
+.lp-uc-row strong {
+  overflow: hidden;
+  color: var(--lp-text);
+  font-size: var(--tm-fs-meta);
+  font-weight: 600;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lp-uc-row small {
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--lp-faint);
+  font-family: var(--lp-mono);
+  font-size: var(--tm-fs-caption);
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Pill — status, never decoration ─────────────────────────── */
+.lp-uc-pill {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  border: 1px solid var(--lp-border-strong);
+  border-radius: 999px;
+  color: var(--lp-muted);
+  font-family: var(--lp-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.lp-uc-pill[data-tone="accent"] {
+  border-color: var(--lp-accent-ring);
+  background: var(--lp-accent-wash);
+  color: var(--lp-accent-text);
+}
+
+.lp-uc-pill[data-tone="warning"] {
+  border-color: color-mix(in srgb, var(--lp-warning) 45%, transparent);
+  color: var(--lp-warning);
+}
+
+/* ── Stat tile ───────────────────────────────────────────────── */
+.lp-uc-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 86px), 1fr));
+  gap: 8px;
+}
+
+.lp-uc-stat {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
   padding: 10px 12px;
   border: 1px solid var(--lp-border);
   border-radius: 8px;
   background: var(--lp-surface-2);
 }
 
-.lp-cintel-role strong { color: var(--lp-text); font-size: 13px; line-height: 1.35; }
-.lp-cintel-role small { color: var(--lp-faint); font-family: var(--lp-mono); font-size: 11px; }
-
-.lp-cintel-empty { margin: 0; color: var(--lp-muted); font-size: 14px; }
-
-.lp-cintel-skeleton { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
-
-.lp-cintel-shimmer {
-  height: 44px;
-  border-radius: 8px;
-  background: linear-gradient(90deg, var(--lp-surface-2) 0%, var(--lp-surface) 50%, var(--lp-surface-2) 100%);
-  background-size: 200% 100%;
-  animation: lp-cintel-shimmer 1.4s ease-in-out infinite;
+.lp-uc-stat b {
+  color: var(--lp-text);
+  font-family: var(--lp-mono);
+  font-size: var(--tm-fs-title);
+  font-weight: 600;
+  line-height: 1.05;
 }
 
-@keyframes lp-cintel-shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+.lp-uc-stat span {
+  color: var(--lp-faint);
+  font-family: var(--lp-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .lp-cintel-shimmer { animation: none; }
+/* The tile the sample is drawing attention to. Accent marks the one stage the
+   reader is being pointed at, not every tile. */
+.lp-uc-stat[data-focus="true"] {
+  border-color: var(--lp-accent-ring);
+  background: var(--lp-accent-wash);
 }
 
-.lp-cintel-more {
+.lp-uc-stat[data-focus="true"] b { color: var(--lp-accent-text); }
+
+/* ── Card exit link ──────────────────────────────────────────── */
+.lp-uc-link {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-top: 2px;
-  font-family: var(--lp-mono);
-  font-size: 13px;
-  font-weight: 600;
+  margin-top: auto;
   color: var(--lp-accent-text);
+  font-family: var(--lp-mono);
+  font-size: var(--tm-fs-ui-sm);
+  font-weight: 600;
   text-decoration: none;
 }
 
-.lp-cintel-more:hover { text-decoration: underline; text-underline-offset: 3px; }
-.lp-cintel-more:focus-visible { outline: 2px solid var(--lp-accent-ring); outline-offset: 3px; border-radius: 4px; }
+.lp-uc-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+.lp-uc-link:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid var(--lp-accent-ring);
+  outline-offset: 3px;
+}
+
+.lp-uc-empty {
+  margin: 0;
+  color: var(--lp-muted);
+  font-size: var(--tm-fs-meta);
+}
+
+@media (max-width: 560px) {
+  .lp-hub-tab {
+    min-height: 36px;
+    padding: 8px 10px;
+    font-size: var(--tm-fs-micro);
+  }
+}

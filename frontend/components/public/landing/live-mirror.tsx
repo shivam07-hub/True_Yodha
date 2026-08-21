@@ -24,7 +24,7 @@ export function LandingLiveMirror({
   const uptime = useScraperUptime(analytics?.scraper_started)
 
   return (
-    <div className="lp-live-mirror">
+    <div className="lp-live-mirror" id="live-mirror">
       <div className="lp-wrap">
         <IntelHero
           jobsCount={jobsCount}
