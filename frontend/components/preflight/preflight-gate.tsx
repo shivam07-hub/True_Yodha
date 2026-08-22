@@ -37,7 +37,7 @@ import { preflight } from "@/lib/api"
 import { dataKeys, invalidateTargetRoleData } from "@/lib/domain-data"
 import { applyErrorMessage } from "@/lib/preflight/apply-error"
 import { visibleConflicts } from "@/lib/preflight/conflicts"
-import { useOrder, useOrderMutations, invalidateOrder } from "@/lib/preflight/use-order"
+import { useOrder, useOrderMutations, usePreflightPrice, invalidateOrder } from "@/lib/preflight/use-order"
 import type { LineKind, OrderProposal } from "@/lib/preflight/types"
 import { useRefreshGateStore } from "@/store/refreshGateStore"
 import { useXPStore } from "@/store/xpStore"
@@ -71,6 +71,9 @@ export function PreflightGate({
   const dialogRef = useRef<HTMLDivElement>(null)
 
   const { data: order } = useOrder(token, open)
+  // Its own request. The order renders the moment IT lands; only the Run button
+  // waits on this one. See `usePreflightPrice`.
+  const { data: price } = usePreflightPrice(token, open)
   const { answerLine, rewordLine, addLine, apply } = useOrderMutations(token)
 
   const [mode, setMode] = useState<Mode>("canvas")
@@ -235,6 +238,7 @@ export function PreflightGate({
               proposalAnswers={proposalAnswers}
               pending={pending}
               sayFirst={intent === "say"}
+              price={price ?? null}
               balance={balance}
               starting={starting}
               error={error}

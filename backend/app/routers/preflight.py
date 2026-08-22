@@ -116,19 +116,38 @@ class OrderState(BaseModel):
 
 
 class OrderOut(OrderState):
-    """The opening read. Carries the three things that do NOT change when the
-    user answers a line, so a yes costs one row read and one write instead of
+    """The opening read. Carries the things that do NOT change when the user
+    answers a line, so a yes costs one row read and one write instead of
     re-importing every memory note per click.
 
-    `run_cost` rides along because the gate must never price from a client
-    constant — that is how a "free" promise and a 100-coin debit end up on the
-    same screen."""
+    The PRICE is deliberately not here — see `GET /preflight/price`.
+    """
 
     starters: list[str] = Field(default_factory=list)
     memory_count: int = 0
     cv_readiness: str | None = None
-    run_cost: int = 0
-    new_jobs_count: int = 0
+
+
+class PriceOut(BaseModel):
+    """What a run costs right now, and why.
+
+    Split off `GET /preflight/order` on 2026-08-22. Pricing needs
+    `count_new_jobs_for_user`, an unindexed-in-practice count over `jobs` that
+    read-timed-out at 8s four times in one hour of prod logs — and it was inside
+    the handler that renders the modal, so one number nobody had asked for held
+    the whole surface at 9.0-10.5s. The order is the thing the user opened; the
+    price belongs on the button.
+
+    Server-decided, never a client constant: that is how a "free" promise and a
+    100-coin debit end up on the same screen. Same waiver `JobRefresh.start`
+    applies at charge time, so the modal and the wallet cannot disagree.
+    """
+
+    #: Coins this run will cost — 0 when Myro landed roles this user has never
+    #: been matched against.
+    run_cost: int
+    #: Roles that landed since their last search — the reason it's free.
+    new_jobs_count: int
 
 
 class EffectOut(BaseModel):
@@ -243,19 +262,36 @@ def _mutated(
 def get_order(
     principal: Principal = Depends(get_principal),
     orders: OrderRepository = Depends(get_order_repository),
-    repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> OrderOut:
     """The order, with anything Myro has learned since last time folded in as
     UNANSWERED guesses. Never as kept — see `lines.merge_imports`."""
     bundle = orders.load_bundle(principal.id)
-    new_jobs = new_inventory.count_for_user(repo, principal.id)
     return OrderOut(
         **_state(bundle.order),
         starters=bundle.starters,
         memory_count=bundle.memory_count,
         cv_readiness=bundle.cv_readiness,
-        # Same waiver the charge itself uses (JobRefresh.start), so the modal and
-        # the wallet cannot disagree.
+    )
+
+
+@router.get("/price", response_model=PriceOut)
+def get_price(
+    principal: Principal = Depends(get_principal),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+) -> PriceOut:
+    """What the next run costs. Its OWN request, because it is slow.
+
+    `count_new_jobs_for_user` is the expensive half of what used to be one read:
+    a count over `jobs` since this user's marker that read-timed-out at 8s
+    repeatedly in prod. Inside `/order` it held the plates, the say band and
+    every edit hostage to a number that only decides what the button says.
+
+    Alone, it blocks nothing but the button — and the button is the one control
+    that genuinely must not be pressed before the price is known.
+    """
+    new_jobs = new_inventory.count_for_user(repo, principal.id)
+    # Same waiver the charge itself uses (JobRefresh.start).
+    return PriceOut(
         run_cost=0 if new_jobs > 0 else MATCH_RUN_COST,
         new_jobs_count=new_jobs,
     )

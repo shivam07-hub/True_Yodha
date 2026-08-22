@@ -23,11 +23,13 @@ import type { LineKind, LineStatus, Order, OrderEffect, OrderState } from "./typ
 
 export const preflightKeys = {
   order: () => ["preflight", "order"] as const,
+  price: () => ["preflight", "price"] as const,
 }
 
 /** Fold a mutation's response into the cached order. The mutation routes return
- *  `OrderState` only — starters, the memory count and the run price do not move
- *  when a line is answered, so they are not re-read and not overwritten. */
+ *  `OrderState` only — starters and the memory count do not move when a line is
+ *  answered, so they are not re-read and not overwritten. The price is a
+ *  separate query entirely (`usePreflightPrice`). */
 function mergeState(client: QueryClient, next: OrderState) {
   client.setQueryData<Order>(preflightKeys.order(), (prev) =>
     prev ? { ...prev, ...next } : undefined,
@@ -79,6 +81,31 @@ export function useOrder(token: string | null, enabled = true) {
     // The order changes only when this user changes it, and every mutation
     // writes the answer back — so a refetch on focus would replace what they
     // just did with the same thing, one network round trip later.
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  })
+}
+
+/**
+ * What the next run costs — its own query, because it is the slow half.
+ *
+ * Pricing calls `count_new_jobs_for_user`, a count over `jobs` since this
+ * user's marker that read-timed-out at 8s four times in one hour of prod logs.
+ * While it rode on `GET /preflight/order` it held the plates, the say band and
+ * every edit hostage to a number that only decides what the button says — the
+ * modal opened in 9.0-10.5s.
+ *
+ * Alone, it blocks nothing but the button. `undefined` means "not priced yet",
+ * which is the one state Run must refuse: pressing it would be consenting to a
+ * charge nobody has been shown.
+ */
+export function usePreflightPrice(token: string | null, enabled = true) {
+  return useQuery({
+    queryKey: preflightKeys.price(),
+    queryFn: () => preflight.price(token!),
+    enabled: enabled && !!token,
+    // New inventory lands on a scrape, not on an edit. Nothing the user does in
+    // this modal moves the price, so re-reading it per open is enough.
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   })

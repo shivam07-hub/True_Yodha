@@ -33,6 +33,7 @@ import {
   type Order,
   type OrderConflict,
   type OrderLine,
+  type OrderPrice,
   type OrderProposal,
 } from "@/lib/preflight/types"
 import { blockedLine, contractLine, missingRoleLine } from "@/lib/preflight/prose"
@@ -50,6 +51,7 @@ export function ScreenCanvas({
   proposalAnswers,
   pending,
   sayFirst,
+  price,
   balance,
   starting,
   error,
@@ -72,6 +74,10 @@ export function ScreenCanvas({
   /** The modal was opened straight onto the say band ("something's off"),
    *  rather than onto the slots. One door, two landings. */
   sayFirst?: boolean
+  /** null until `GET /preflight/price` lands. Everything on this canvas works
+   *  while it is null — only Run waits, because pressing it before the price is
+   *  known would be consenting to a charge nobody has been shown. */
+  price: OrderPrice | null
   balance: number
   starting: boolean
   error: string | null
@@ -129,9 +135,9 @@ export function ScreenCanvas({
 
   const kept = useMemo(() => order.lines.filter((l) => l.status === "kept"), [order.lines])
   const unanswered = useMemo(() => order.lines.filter((l) => l.status === "unanswered"), [order.lines])
-  const runCost = order.run_cost ?? 0
-  const free = runCost === 0
-  const short = !free && balance < runCost
+  const runCost = price?.run_cost ?? 0
+  const free = !!price && runCost === 0
+  const short = !!price && !free && balance < runCost
   const cvReady = (order.cv_readiness ?? "") === "ready"
   const hasWork =
     kept.length > 0 || conflicts.length > 0 || (order.said ?? "").trim().length > 0
@@ -156,7 +162,7 @@ export function ScreenCanvas({
         <OpeningPad
           order={order}
           balance={balance}
-          runCost={runCost}
+          price={price}
           onSubmit={onSaySomething}
           pending={pending}
         />
@@ -213,9 +219,10 @@ export function ScreenCanvas({
           balance={balance}
           free={free}
           short={short}
+          priced={!!price}
           blocked={conflicts.length > 0 || !hasRole}
           busy={starting}
-          newJobs={order.new_jobs_count}
+          newJobs={price?.new_jobs_count ?? 0}
           onOpenCoins={onOpenCoins}
           onRun={onRun}
         />
@@ -289,9 +296,11 @@ function HeardFold({
 }
 
 function RunBar({
-  contract, runCost, balance, free, short, blocked, busy, newJobs, onOpenCoins, onRun,
+  contract, runCost, balance, free, short, priced, blocked, busy, newJobs, onOpenCoins, onRun,
 }: {
   contract: string; runCost: number; balance: number; free: boolean; short: boolean
+  /** False until the price lands. The one control that must wait for it. */
+  priced: boolean
   blocked: boolean; busy: boolean; newJobs: number
   onOpenCoins: () => void; onRun: () => void
 }) {
@@ -310,13 +319,19 @@ function RunBar({
         type="button"
         className="pf-canvas-run tm-control-focus"
         onClick={onRun}
-        disabled={busy || blocked || short}
-        aria-disabled={busy || blocked || short}
+        disabled={busy || blocked || short || !priced}
+        aria-disabled={busy || blocked || short || !priced}
       >
         <span>Run</span>
         <span className="pf-canvas-run-sep" aria-hidden>·</span>
-        <span className="pf-canvas-run-cost">
-          {free ? (newJobs > 0 ? `Free · ${formatCount(newJobs)} new roles` : "Free") : `${runCost} coins`}
+        {/* No number until there is one. A guessed price on a button that
+            charges is the same defect as a client constant. */}
+        <span className="pf-canvas-run-cost" data-pending={priced ? undefined : "true"}>
+          {!priced
+            ? "pricing"
+            : free
+              ? (newJobs > 0 ? `Free · ${formatCount(newJobs)} new roles` : "Free")
+              : `${runCost} coins`}
         </span>
       </button>
     </div>

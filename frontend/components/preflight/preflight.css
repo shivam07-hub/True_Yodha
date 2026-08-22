@@ -531,3 +531,10 @@
 
 .pf-topic:hover:not(:disabled) { border-color: var(--tm-accent-ring); color: var(--tm-accent-text); }
 .pf-topic:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* The cost slot before the price lands. Quiet, same width class as a number —
+   the button must never guess a figure it is about to charge. */
+.pf-canvas-run-cost[data-pending="true"] {
+  opacity: 0.6;
+  font-style: italic;
+}

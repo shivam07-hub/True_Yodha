@@ -386,7 +386,31 @@ test("every Myro utterance pad is SayPad, not a one-line input", () => {
 })
 
 test("the run price comes from the server, never a client constant", () => {
-  assert.match(canvas, /order\.run_cost \?\? 0/)
+  assert.match(canvas, /price\?\.run_cost \?\? 0/)
   assert.doesNotMatch(gate, /MYRO_COINS_POLICY|matchRefreshCost/)
   assert.doesNotMatch(canvas, /MYRO_COINS_POLICY|matchRefreshCost/)
+})
+
+test("the price is its own request, and only the button waits for it", () => {
+  // Pricing needs `count_new_jobs_for_user`, a count over `jobs` that
+  // read-timed-out at 8s four times in one hour of prod logs. Riding on
+  // `GET /preflight/order` it held the plates, the say band and every edit
+  // hostage to a number that only decides what the button says — the modal
+  // opened in 9.0-10.5s.
+  const hooks = read("lib/preflight/use-order.ts")
+  assert.match(hooks, /price: \(\) => \["preflight", "price"\]/)
+  assert.match(hooks, /export function usePreflightPrice/)
+  assert.match(gate, /usePreflightPrice\(token, open\)/)
+
+  // The order render path must not reference the price at all.
+  const types = read("lib/preflight/types.ts")
+  const orderShape = types.slice(types.indexOf("export interface Order extends OrderState"))
+  assert.doesNotMatch(orderShape.slice(0, 200), /run_cost/, "the price is off the order")
+
+  // Run is the ONE control that waits: pressing it unpriced would be
+  // consenting to a charge nobody has been shown.
+  assert.match(canvas, /priced=\{!!price\}/)
+  assert.match(canvas, /disabled=\{busy \|\| blocked \|\| short \|\| !priced\}/)
+  // …and it shows no figure until there is one.
+  assert.match(canvas, /\? "pricing"/)
 })

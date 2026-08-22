@@ -102,8 +102,20 @@ export interface Order extends OrderState {
   starters: string[]
   memory_count: number
   cv_readiness: string | null
-  /** Server-decided. Never price a run from a client constant: that is how a
-   *  "free" promise and a 100-coin debit end up on the same screen. */
+}
+
+/**
+ * What a run costs, on its own request.
+ *
+ * It used to ride on `Order`, and pricing it needs a count over `jobs` that
+ * read-timed-out at 8s repeatedly in prod — so the plates, the say band and
+ * every edit waited on a number that only decides what the button says. Its own
+ * query key, its own pending state, blocking only the button.
+ *
+ * Server-decided. Never price a run from a client constant: that is how a
+ * "free" promise and a 100-coin debit end up on the same screen.
+ */
+export interface OrderPrice {
   run_cost: number
   new_jobs_count: number
 }
