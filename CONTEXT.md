@@ -809,15 +809,36 @@ CV` / `your words, just now`; **Dropped** means said no to *or left unanswered*.
   the one writer, shared with `PUT /users/me/profile` — so `for_ranking` keeps
   reading exactly what it reads today. The order holds the *conversation about*
   the targeting; the profile holds the targeting.
-- **Prose is one module, on the frontend** (`lib/preflight/prose.ts`), because the
-  gate and the market sheet must render the *identical* order string. Its rules
-  are a spec, not a nicety: the place is stated once whichever clause carries it,
-  a fragment loses its capital mid-sentence unless it opens with an initialism or
-  a proper phrase, about-you lines get a lead-in. Unit-tested in
-  `preflight-prose.test.ts`.
-- **One query key** (`["preflight","order"]`) for both surfaces; every mutation
-  writes the server's response back into it. Two components each holding "the
-  order" is the same split one layer up.
+- **ONE DOOR.** `/market` carried two buttons — "Not it? Tell Myro →" (a bottom
+  sheet) and "Myro Search" (the modal). Both called `/preflight/proposals`, both
+  wrote this row, both ran on the same engine, and nothing said so; the sheet
+  also priced its own apply from a client constant. There is one modal now with
+  two landings: `openRefreshGate("review")` opens on the slots,
+  `openRefreshGate("say")` opens on the say band. The sheet's topic chips
+  survived into `say-band.tsx`; the sheet did not.
+- **The resolver owns the slot view.** `payload.resolve` emits `slots` — key,
+  arity, the line ids it PLACED (identical to what reaches `spec`), and the ones
+  a live conflict holds. The client renders that partition; it does not file
+  lines into slots itself. It used to, against a hand-mirrored `SLOT_ARITY`, and
+  the mirror agreed key-for-key while the two implementations did not: the
+  server deduped before filing and the client did not, so one statement rendered
+  twice and the header counted both (`Won't take · 15 of 6`). `slots.ts` keeps
+  the words only.
+- **The order renders without the price.** `GET /preflight/order` is the modal;
+  `GET /preflight/price` is the button. Pricing needs `count_new_jobs_for_user`,
+  a count over `jobs` that read-timed-out at 8s repeatedly in prod — inside the
+  order read it held the plates and every edit at 9.0-10.5s. Run is the one
+  control that waits for it, because pressing it unpriced would be consenting to
+  a charge nobody has been shown.
+- **The prose module is the run bar's sentences, and nothing else.** It used to
+  assemble the order into English (`briefFrom`, `orderSummaryFrom`) with real
+  grammar rules, because the order WAS a paragraph the user signed off. The
+  order is plates now; a paragraph restating them is a worse copy of what is on
+  screen. What is left is `contractLine` / `blockedLine` / `missingRoleLine` —
+  the only text on this surface that is not already a plate.
+- **One query key** (`["preflight","order"]`); every mutation writes the
+  server's response back into it. The price has its own
+  (`["preflight","price"]`) because it moves on a different clock.
 - The run is dispatched ONCE. `/preflight/run` charges and starts the ticket;
   the client streams it via `useJobRefresh().attach` using the ticket's own
   lifecycle and label — calling `refresh()` after would charge twice, and
