@@ -74,12 +74,15 @@ export function PreflightGate({
   // Its own request. The order renders the moment IT lands; only the Run button
   // waits on this one. See `usePreflightPrice`.
   const { data: price } = usePreflightPrice(token, open)
-  const { answerLine, rewordLine, addLine, apply } = useOrderMutations(token)
+  const { answerLine, rewordLine, addLine, apply, undo } = useOrderMutations(token)
 
   const [mode, setMode] = useState<Mode>("canvas")
   const [proposals, setProposals] = useState<OrderProposal[]>([])
   const [proposalAnswers, setProposalAnswers] = useState<Record<string, Verdict>>({})
   const [pending, setPending] = useState(false)
+  /** `order.log` length when this modal opened. Everything before it is
+   *  history; everything after it is something the user just did. */
+  const [logBase, setLogBase] = useState<number | null>(null)
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const turnRef = useRef(0)
@@ -88,7 +91,7 @@ export function PreflightGate({
   useEffect(() => {
     if (!open) return
     setProposals([]); setProposalAnswers({}); setPending(false)
-    setStarting(false); setError(null); setMode("canvas")
+    setStarting(false); setError(null); setMode("canvas"); setLogBase(null)
     turnRef.current += 1
     const t = setTimeout(() => dialogRef.current?.focus(), 30)
     return () => clearTimeout(t)
@@ -119,6 +122,43 @@ export function PreflightGate({
   }, [open, requestClose])
 
   const contract = useMemo(() => (order ? contractLine(order) : null), [order])
+
+  // The log accumulates for the life of the order, so "the last entry" is not
+  // the same question as "the thing you just did". Baseline it on open.
+  useEffect(() => {
+    if (!open || !order) return
+    setLogBase((base) => (base === null ? order.log.length : base))
+  }, [open, order])
+
+  /**
+   * The one change this session that can be taken back.
+   *
+   * Dropping a line is otherwise a ONE-WAY DOOR: the plates render the
+   * resolver's placed lines, the heard fold renders unanswered ones, and a
+   * dropped line appears in neither — so a mis-tap on a statement the user
+   * wanted was unrecoverable without retyping it. The reversal machinery
+   * (`log`, `LogEntry.prev`, `lines.undo`) has existed and been tested since
+   * the order shipped; the market bottom-sheet was its only caller, and
+   * deleting that surface orphaned it.
+   *
+   * The LAST entry only. The sheet showed a running changelog; a list of
+   * everything you have done is chrome, and one step back is what a mis-tap
+   * actually needs.
+   */
+  const undoable = useMemo(() => {
+    if (!order || logBase === null || order.log.length <= logBase) return null
+    return order.log[order.log.length - 1] ?? null
+  }, [order, logBase])
+
+  const undoLast = useCallback(async (entryId: string) => {
+    setError(null)
+    try {
+      await undo.mutateAsync(entryId)
+    } catch (err) {
+      setError(applyErrorMessage(err))
+      await invalidateOrder(client)
+    }
+  }, [client, undo])
 
   // ── conversation turn: something new the user said ─────────────────────────
   const saySomething = useCallback(async (text: string) => {
@@ -247,6 +287,8 @@ export function PreflightGate({
               onRewordLine={rewordLine}
               onAnswerProposal={answerProposal}
               onAddLine={addToSlot}
+              undoable={undoable}
+              onUndo={undoLast}
               onOpenCoins={close}
               onRun={run}
             />

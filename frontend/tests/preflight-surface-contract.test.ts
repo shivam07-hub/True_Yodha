@@ -288,6 +288,25 @@ test("adding into a slot needs no inference and no LLM turn", () => {
   )
 })
 
+test("dropping a plate is not a one-way door", () => {
+  // The plates render the resolver's PLACED lines and the fold renders the
+  // unanswered ones, so a dropped line appears in neither — a mis-tap could
+  // only be undone by retyping the statement. The reversal machinery (`log`,
+  // `LogEntry.prev`, `lines.undo`) shipped with the order and was orphaned when
+  // the market sheet, its only caller, was deleted.
+  assert.match(gate, /undo\.mutateAsync\(entryId\)/)
+  assert.match(canvas, /onUndo\(undoable\.id\)/)
+
+  // The last change of THIS session, not the last row of a log that outlives
+  // the modal — otherwise reopening it offers to undo something from last week.
+  assert.match(gate, /order\.log\.length <= logBase/)
+  assert.match(gate, /setLogBase\(null\)/)
+
+  // One step back, never a changelog: the sheet listed every change, which is
+  // chrome beside plates that already show the result.
+  assert.doesNotMatch(canvas, /log\.slice/, "one entry, not a list")
+})
+
 test("Run is single-flight — the button cannot queue a second charge", () => {
   assert.match(gate, /if \(!token \|\| starting\) return/)
   assert.match(gate, /setStarting\(true\)/)

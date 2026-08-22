@@ -524,3 +524,43 @@
   opacity: 0.6;
   font-style: italic;
 }
+
+/* One step back from the last change, above the run bar. Not a changelog —
+   the sheet had one of those, and a list of everything you have done is chrome
+   next to the plates that already show the result. */
+
+.pf-undo-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: var(--tm-fs-note);
+  line-height: 1.4;
+  color: var(--tm-text-muted);
+}
+
+.pf-undo-sign { font-family: var(--tm-font-mono); flex: none; }
+.pf-undo-sign[data-kind="drop"] { color: var(--tm-danger); }
+.pf-undo-sign:not([data-kind="drop"]) { color: var(--tm-success); }
+
+.pf-undo-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pf-undo {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--tm-accent-text);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.pf-undo:disabled { opacity: 0.5; cursor: not-allowed; }

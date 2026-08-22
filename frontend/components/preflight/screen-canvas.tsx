@@ -33,6 +33,7 @@ import {
   type Order,
   type OrderConflict,
   type OrderLine,
+  type OrderLogEntry,
   type OrderPrice,
   type OrderProposal,
 } from "@/lib/preflight/types"
@@ -60,6 +61,8 @@ export function ScreenCanvas({
   onRewordLine,
   onAnswerProposal,
   onAddLine,
+  undoable,
+  onUndo,
   onOpenCoins,
   onRun,
 }: {
@@ -86,6 +89,9 @@ export function ScreenCanvas({
   onRewordLine: (lineId: string, text: string) => void
   onAnswerProposal: (id: string, verdict: Verdict) => void
   onAddLine: (kind: LineKind, text: string) => void
+  /** The one change made THIS session that can be taken back, or null. */
+  undoable: OrderLogEntry | null
+  onUndo: (entryId: string) => void
   onOpenCoins: () => void
   onRun: () => void
 }) {
@@ -204,6 +210,26 @@ export function ScreenCanvas({
 
       {error ? (
         <p role="alert" className="pf-canvas-error">{error}</p>
+      ) : null}
+
+      {/* Dropping a plate is otherwise a one-way door — a dropped line renders
+          in no group and no fold, so a mis-tap could only be fixed by retyping
+          the statement. One step back, never a changelog. */}
+      {undoable && hasWork ? (
+        <div className="pf-undo-row">
+          <span className="pf-undo-sign" data-kind={undoable.kind} aria-hidden>
+            {undoable.kind === "drop" ? "−" : "+"}
+          </span>
+          <span className="pf-undo-text">{undoable.text}</span>
+          <button
+            type="button"
+            className="pf-undo tm-control-focus"
+            onClick={() => onUndo(undoable.id)}
+            disabled={pending}
+          >
+            Undo
+          </button>
+        </div>
       ) : null}
 
       {hasWork ? (
