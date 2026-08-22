@@ -25,23 +25,32 @@ import { useEffect, useRef, useState } from "react"
 import { Icon } from "@/components/cv/builder/icons"
 import { SayPad } from "@/components/myro/say-pad"
 
-/** What each chip means, in the user's voice. */
-const TOPICS: readonly { key: string; said: string }[] = [
-  { key: "the work", said: "the work isn't right — too many of these" },
-  { key: "the place", said: "I'd rather not commute across the city" },
-  { key: "the level", said: "these are all too junior" },
-  { key: "the pay", said: "the pay is too low" },
-]
+import { MyroTyping } from "./typing"
+
+/**
+ * The four things that are usually wrong, as the server names them.
+ *
+ * Labels only. `proposals.TOPICS` in the backend owns what each one MEANS —
+ * the sentence, the line it adds, the kept line it strikes, and whether that
+ * widens the search. A chip is a named topic, not a sentence the client
+ * composes: `from_topic` answers it deterministically, with no LLM turn and no
+ * cost, which is the whole reason to offer a chip instead of a blank line.
+ */
+const TOPICS: readonly string[] = ["the work", "the place", "the level", "the pay"]
 
 export function SayBand({
   /** True while the modal is opened straight onto this band. Focuses the pad
    *  and scrolls it up, so the "something's off" door lands where it promised. */
   focused,
   pending,
+  onTopic,
   onSay,
 }: {
   focused?: boolean
   pending: boolean
+  /** A named topic — answered by the deterministic table, instantly and free. */
+  onTopic: (topic: string) => void
+  /** A sentence — answered by the mentor, which costs a turn. */
   onSay: (text: string) => void
 }) {
   const [value, setValue] = useState("")
@@ -64,7 +73,7 @@ export function SayBand({
     onSay(said)
   }
 
-  const chips = TOPICS.filter((t) => !used.includes(t.key))
+  const chips = TOPICS.filter((topic) => !used.includes(topic))
   const idle = value.trim().length === 0
 
   return (
@@ -75,20 +84,22 @@ export function SayBand({
         <div className="pf-topics">
           {chips.map((topic) => (
             <button
-              key={topic.key}
+              key={topic}
               type="button"
               className="pf-topic tm-control-focus"
               disabled={pending}
               onClick={() => {
-                setUsed((u) => [...u, topic.key])
-                say(topic.said)
+                setUsed((u) => [...u, topic])
+                onTopic(topic)
               }}
             >
-              {topic.key}
+              {topic}
             </button>
           ))}
         </div>
       ) : null}
+
+      {pending ? <MyroTyping label="Myro is reading that" /> : null}
 
       <div className="pf-canvas-compose">
         <SayPad

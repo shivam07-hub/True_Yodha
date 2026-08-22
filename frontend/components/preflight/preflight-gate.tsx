@@ -183,6 +183,36 @@ export function PreflightGate({
     }
   }, [client, token])
 
+  /**
+   * A named topic — the deterministic half of "something's off".
+   *
+   * `proposals.from_topic` answers it off a table: no LLM turn, no cost, and it
+   * can strike a kept line the topic is about ("no senior management" is what
+   * caps the level). A chip is only worth offering INSTEAD of a blank line
+   * because of that — routing it through the mentor as a sentence, which is
+   * what the say band did on its first pass, spends a turn re-deriving
+   * something the click already said.
+   *
+   * It does not touch `said`: sentence one of the brief is the work the user
+   * wants, not the complaint they have about the results.
+   */
+  const proposeTopic = useCallback(async (topic: string) => {
+    if (!token) return
+    const turn = ++turnRef.current
+    setPending(true); setError(null)
+    try {
+      const res = await preflight.proposals(token, { topic })
+      if (turn !== turnRef.current) return
+      setProposals(res.proposals)
+      setProposalAnswers({})
+    } catch {
+      if (turn !== turnRef.current) return
+      setError("Myro couldn't read that just then. Nothing changed — try again.")
+    } finally {
+      if (turn === turnRef.current) setPending(false)
+    }
+  }, [token])
+
   // A proposal accepted here writes the same effect the old batch commit did,
   // one at a time — the server dedupes and every apply reads the fresh order.
   const answerProposal = useCallback(async (id: string, verdict: Verdict) => {
@@ -283,6 +313,7 @@ export function PreflightGate({
               starting={starting}
               error={error}
               onSaySomething={saySomething}
+              onProposeTopic={proposeTopic}
               onAnswerLine={answerLine}
               onRewordLine={rewordLine}
               onAnswerProposal={answerProposal}

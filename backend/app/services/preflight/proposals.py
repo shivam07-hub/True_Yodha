@@ -192,24 +192,6 @@ TOPICS: dict[str, dict[str, Any]] = {
     },
 }
 
-# Free text → the nearest topic. Anything that matches nothing is saved as the
-# user's own won't-take, verbatim — Myro guessing at an unmatched sentence is
-# how a complaint about pay becomes a location filter.
-_ROUTES: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"junior|senior|level|lead|title", re.I), "the level"),
-    (re.compile(r"pay|salary|comp|lpa|money|ctc", re.I), "the pay"),
-    (re.compile(r"remote|commute|office|location|city|hybrid|relocat", re.I), "the place"),
-    (re.compile(r"corp|big|enterprise|company|startup|agency|consult", re.I), "the work"),
-]
-
-
-def route(text: str) -> str | None:
-    for pattern, topic in _ROUTES:
-        if pattern.search(text):
-            return topic
-    return None
-
-
 def from_topic(topic: str, order: Order) -> Proposal | None:
     spec = TOPICS.get(topic)
     if spec is None:
@@ -243,29 +225,4 @@ def from_topic(topic: str, order: Order) -> Proposal | None:
     effects.append(_add(kind, text, label))
     return Proposal(
         id=f"t:{topic}", eyebrow=_EYEBROW[kind], value=text, why=spec["why"], effects=effects, costly=costly
-    )
-
-
-def from_free_text(text: str, order: Order) -> Proposal | None:
-    """The market composer. Routed to a topic when the words say which one;
-    otherwise saved exactly as typed, and the rationale says so."""
-    text = _clean(text)
-    if not text:
-        return None
-    topic = route(text)
-    if topic:
-        return from_topic(topic, order)
-    # Verbatim, deliberately. `_strip_no` is right for a structured deal-breaker
-    # the model authored ("No people-management roles" → "people-management
-    # roles"); on a whole sentence it eats the first word — "no more ghost
-    # listings please" became "more ghost listings please", which says the
-    # opposite. Store what the user said; the prose module normalises the
-    # leading "No" on READ, where it can see the grammar it is building.
-    return Proposal(
-        id="free",
-        eyebrow=_EYEBROW["wont_take"],
-        value=text,
-        why="Saved exactly as you typed it — reword it in the pre-flight any time.",
-        effects=[_add("wont_take", text, "won't take")],
-        costly=False,
     )

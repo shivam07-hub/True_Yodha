@@ -61,13 +61,22 @@ test("ONE door — the complaint is a landing inside Myro Search, not a rival to
 
 test("the say band carries the chips the sheet was worth keeping", () => {
   // A user who knows the feed is wrong usually cannot name why on a blank
-  // line. "the pay" is a whole sentence they did not have to write — and it
-  // submits the SENTENCE, so the canvas heading shows their own words.
+  // line. "the pay" is a whole topic they did not have to write.
   for (const topic of ["the work", "the place", "the level", "the pay"]) {
     assert.ok(say.includes(`"${topic}"`), `${topic} chip is missing`)
   }
-  assert.match(say, /said: "/, "a chip submits a sentence, not its label")
   assert.match(canvas, /<SayBand focused=\{sayFirst\}/)
+
+  // A chip is a NAMED TOPIC, answered by `proposals.from_topic` off a table:
+  // no LLM turn, no cost, and it can strike the kept line the topic is about.
+  // Routing it through the mentor as a sentence — which this did on its first
+  // pass — spends a turn re-deriving what the click already said.
+  assert.match(say, /onTopic\(topic\)/)
+  assert.match(gate, /preflight\.proposals\(token, \{ topic \}\)/)
+  // …and it must not overwrite `said`: sentence one of the brief is the work
+  // the user wants, not the complaint they have about the results.
+  const topicTurn = gate.slice(gate.indexOf("const proposeTopic"), gate.indexOf("const answerProposal"))
+  assert.doesNotMatch(topicTurn, /setSaid/)
   // Narrowing is free — the gate re-reads the feed without charging a run,
   // which only the sheet used to do.
   assert.match(gate, /invalidateTargetRoleData\(client\)/)

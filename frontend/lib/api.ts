@@ -617,7 +617,7 @@ export const preflight = {
   /** Propose only — nothing lands until `apply`. One of the three inputs. */
   proposals: (
     token: string,
-    input: { utterance?: string; topic?: string; free_text?: string },
+    input: { utterance?: string; topic?: string },
   ) =>
     request<OrderProposals>("/preflight/proposals", {
       method: "POST",

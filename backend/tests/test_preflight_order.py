@@ -217,26 +217,6 @@ def test_narrowing_topics_are_free():
         assert proposals.from_topic(topic, ops.Order()).costly is False
 
 
-@pytest.mark.parametrize(
-    "text,topic",
-    [
-        ("these are all too junior", "the level"),
-        ("the pay is too low", "the pay"),
-        ("I'd rather not commute across the city", "the place"),
-        ("too many big-corp roles", "the work"),
-    ],
-)
-def test_free_text_routes_to_the_nearest_topic(text, topic):
-    assert proposals.route(text) == topic
-
-
-def test_an_unroutable_complaint_is_saved_verbatim_and_says_so():
-    # Guessing at an unmatched sentence is how a gripe about pay becomes a
-    # location filter.
-    proposal = proposals.from_free_text("no more ghost listings please", ops.Order())
-    assert proposal.effects[0].text == "no more ghost listings please"
-    assert "exactly as you typed it" in proposal.why
-    assert proposal.costly is False
 
 
 def test_a_proposal_already_on_the_order_is_not_proposed_back():

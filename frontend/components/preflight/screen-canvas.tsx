@@ -57,6 +57,7 @@ export function ScreenCanvas({
   starting,
   error,
   onSaySomething,
+  onProposeTopic,
   onAnswerLine,
   onRewordLine,
   onAnswerProposal,
@@ -85,6 +86,7 @@ export function ScreenCanvas({
   starting: boolean
   error: string | null
   onSaySomething: (text: string) => void
+  onProposeTopic: (topic: string) => void
   onAnswerLine: (lineId: string, status: LineStatus) => void
   onRewordLine: (lineId: string, text: string) => void
   onAnswerProposal: (id: string, verdict: Verdict) => void
@@ -196,7 +198,7 @@ export function ScreenCanvas({
 
       {/* The other door, in the same room. Until 2026-08-21 this was a second
           button on /market opening a second modal against the same Order. */}
-      {hasWork ? <SayBand focused={sayFirst} pending={pending} onSay={onSaySomething} /> : null}
+      {hasWork ? <SayBand focused={sayFirst} pending={pending} onTopic={onProposeTopic} onSay={onSaySomething} /> : null}
 
       {(unanswered.length > 0 || proposals.length > 0) && hasWork ? (
         <HeardFold

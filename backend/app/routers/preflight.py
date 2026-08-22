@@ -181,12 +181,18 @@ class UndoRequest(BaseModel):
 
 
 class ProposalsRequest(BaseModel):
-    """One of the three. `utterance` goes through the mentor; `topic` and
-    `free_text` are the market sheet's two ways in."""
+    """One of two. A `topic` is a named chip, answered off the deterministic
+    table with no LLM turn; an `utterance` is a sentence, which needs the
+    mentor to work out what it is about.
+
+    There was a third — `free_text`, the market sheet's composer, which routed a
+    sentence to a topic by regex and otherwise stored it verbatim. Deleting the
+    sheet left the say band's pad as the only composer, and that one goes
+    through the mentor, which reads the sentence properly instead of pattern-
+    matching four keywords at it."""
 
     utterance: str | None = Field(default=None, max_length=2000)
     topic: str | None = None
-    free_text: str | None = Field(default=None, max_length=600)
 
 
 class ApplyRequest(BaseModel):
@@ -403,10 +409,6 @@ async def make_proposals(
 
     if body.topic:
         proposal = proposal_engine.from_topic(body.topic, order)
-        return ProposalsOut(proposals=[ProposalOut(**proposal.to_dict())] if proposal else [])
-
-    if body.free_text:
-        proposal = proposal_engine.from_free_text(body.free_text, order)
         return ProposalsOut(proposals=[ProposalOut(**proposal.to_dict())] if proposal else [])
 
     if not body.utterance:
