@@ -26,11 +26,12 @@ import Link from "next/link"
 
 import { visibleConflicts } from "@/lib/preflight/conflicts"
 import { formatCount } from "@/lib/format"
-import { SLOTS, slotForKind } from "@/lib/preflight/slots"
+import { SLOT_COPY } from "@/lib/preflight/slots"
 import {
   type LineKind,
   type LineStatus,
   type Order,
+  type OrderConflict,
   type OrderLine,
   type OrderProposal,
 } from "@/lib/preflight/types"
@@ -80,40 +81,48 @@ export function ScreenCanvas({
   const conflicts = visibleConflicts(order)
 
   /**
-   * A line inside a live conflict is NOT also a settled plate.
+   * The groups, as the RESOLVER partitioned them.
    *
-   * It is still `kept` server-side — the resolver reports the clash, it never
-   * resolves one — so rendering every kept line put "Avoids large corporations"
-   * on screen twice: once as signed-off, once as contested. Two states for one
-   * line, three inches apart. The conflict plate is the one that owns it until
-   * the user settles it.
+   * The client used to file `order.lines` into slots itself, mirroring
+   * `SLOT_ARITY` and `_SLOT_KINDS`. Two resolvers, and they disagreed in the
+   * only direction that matters: the server deduped before filing, this did
+   * not, so one statement rendered twice — once as a settled plate, once inside
+   * the conflict holding its twin — and the header counted both
+   * (`Won't take · 15 of 6`).
+   *
+   * Now the server names the line ids per slot and the only thing done to them
+   * here is the OPTIMISTIC filter: a line the user just dropped disappears on
+   * the tap rather than on the response. That is respecting a local edit, not
+   * re-deciding what the resolver decided.
    */
-  const contested = useMemo(
-    () => new Set(conflicts.flatMap((c) => c.line_ids)),
-    [conflicts],
-  )
-  const kept = useMemo(
-    () => order.lines.filter((l) => l.status === "kept" && !contested.has(l.id)),
-    [order.lines, contested],
-  )
-
-  /** Kept lines and live conflicts, filed to the slot the resolver files them
-   *  to. A kind with no slot (there are none today) would silently vanish, so
-   *  `slotForKind` returning null is worth keeping visible in review. */
-  const bySlot = useMemo(() => {
-    const lines = new Map<string, OrderLine[]>(SLOTS.map((s) => [s.key, []]))
-    for (const line of kept) {
-      const slot = slotForKind(line.kind)
-      if (slot) lines.get(slot)!.push(line)
-    }
-    const clashes = new Map<string, typeof conflicts>(SLOTS.map((s) => [s.key, []]))
+  const groups = useMemo(() => {
+    const byId = new Map(order.lines.map((l) => [l.id, l]))
+    const clashes = new Map<string, OrderConflict[]>()
     for (const conflict of conflicts) {
       const bucket = clashes.get(conflict.slot)
       if (bucket) bucket.push(conflict)
+      else clashes.set(conflict.slot, [conflict])
     }
-    return { lines, clashes }
-  }, [kept, conflicts])
+    const live = (ids: string[]): OrderLine[] =>
+      ids.flatMap((id) => {
+        const line = byId.get(id)
+        return line && line.status === "kept" ? [line] : []
+      })
 
+    return (order.slots ?? []).map((slot) => {
+      const lines = live(slot.line_ids)
+      const held = live(slot.contested_ids)
+      return {
+        slot,
+        copy: SLOT_COPY[slot.key],
+        lines,
+        conflicts: clashes.get(slot.key) ?? [],
+        filled: lines.length + held.length,
+      }
+    })
+  }, [order.lines, order.slots, conflicts])
+
+  const kept = useMemo(() => order.lines.filter((l) => l.status === "kept"), [order.lines])
   const unanswered = useMemo(() => order.lines.filter((l) => l.status === "unanswered"), [order.lines])
   const runCost = order.run_cost ?? 0
   const free = runCost === 0
@@ -150,12 +159,14 @@ export function ScreenCanvas({
 
       {hasWork ? (
         <div className="pf-slots">
-          {SLOTS.map((spec) => (
+          {groups.map((group) => (
             <SlotGroup
-              key={spec.key}
-              spec={spec}
-              lines={bySlot.lines.get(spec.key) ?? []}
-              conflicts={bySlot.clashes.get(spec.key) ?? []}
+              key={group.slot.key}
+              copy={group.copy}
+              arity={group.slot.arity}
+              filled={group.filled}
+              lines={group.lines}
+              conflicts={group.conflicts}
               allLines={order.lines}
               busy={pending}
               onAdd={onAddLine}

@@ -50,12 +50,35 @@ export interface OrderRound {
 
 export type ConflictKind = "arity" | "contradiction"
 
+export type SlotKey =
+  | "target_role_titles"
+  | "target_location"
+  | "deal_breakers"
+  | "lean"
+  | "career_goal"
+  | "superpower"
+
 export interface OrderConflict {
   slot: string
   kind: ConflictKind
   line_ids: string[]
   texts: string[]
   keep: number
+}
+
+/**
+ * One of the six slots, as the resolver left it.
+ *
+ * `line_ids` is the PLACED set — deduped, uncontested, within arity, and
+ * identical to what reaches the profile patch. The client renders these; it no
+ * longer files lines into slots itself. Two resolvers is how the screen came to
+ * show duplicates the server had already collapsed, then count them.
+ */
+export interface OrderSlot {
+  key: SlotKey
+  arity: number
+  line_ids: string[]
+  contested_ids: string[]
 }
 
 /** What every mutation returns. */
@@ -69,6 +92,8 @@ export interface OrderState {
   /** Lines the resolver will actually run on. Contested slots are omitted. */
   used?: number
   duplicates_collapsed?: number
+  /** The resolver's own partition of the order. Absent only on a fixture. */
+  slots?: OrderSlot[]
   conflicts?: OrderConflict[]
 }
 

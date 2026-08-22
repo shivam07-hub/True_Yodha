@@ -61,11 +61,36 @@ class Conflict:
 
 
 @dataclass(frozen=True)
+class Slot:
+    """One slot, as the resolver leaves it — and therefore as the screen shows it.
+
+    `line_ids` is not "the lines whose kind files here". It is the lines the
+    resolver PLACED: deduped, uncontested, within arity — the exact set that
+    reaches `spec`. That equality is the point. While the client filed lines
+    into slots itself it was a second resolver working off the raw `lines`
+    array, and the two disagreed in the only direction that matters: the client
+    showed duplicates the server had already collapsed, counted them
+    (`Won't take · 15 of 6`), and asked the user to fix a number that was never
+    going to be run.
+
+    `contested_ids` is this slot's share of the live conflicts. Together the two
+    tuples partition the slot, so `filled` is stated by the resolver rather than
+    added up by whoever is rendering.
+    """
+
+    key: str
+    arity: int
+    line_ids: tuple[str, ...]
+    contested_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ResolveResult:
     spec: dict[str, Any]
     used_line_ids: tuple[str, ...]
     duplicates_collapsed: int
     conflicts: tuple[Conflict, ...]
+    slots: tuple[Slot, ...]
 
 
 def _slot_for(line: OrderLine) -> str | None:
@@ -189,11 +214,29 @@ def resolve(order: Order) -> ResolveResult:
         else:
             spec["superpower"] = texts[0]
 
+    # The slot view, partitioned by the decisions just made. `line_ids` is the
+    # placed set — identical to what went into `spec` — so the screen and the
+    # run cannot describe the order differently.
+    contested = {line_id for conflict in conflicts for line_id in conflict.line_ids}
+    placed = set(used)
+    slots = tuple(
+        Slot(
+            key=slot,
+            arity=arity,
+            line_ids=tuple(line.id for line in by_slot[slot] if line.id in placed),
+            contested_ids=tuple(
+                line.id for line in unique if _slot_for(line) == slot and line.id in contested
+            ),
+        )
+        for slot, arity in SLOT_ARITY.items()
+    )
+
     return ResolveResult(
         spec=spec,
         used_line_ids=tuple(used),
         duplicates_collapsed=collapsed,
         conflicts=tuple(conflicts),
+        slots=slots,
     )
 
 
@@ -210,13 +253,24 @@ def project(order: Order) -> dict[str, Any]:
 def client_report(order: Order) -> dict[str, Any]:
     """The resolver's report, as the review screen consumes it.
 
-    Duplicates are a count. Each conflict carries the statements and how many
-    the slot can keep, so the client can ask without re-deriving arity.
+    Duplicates are a count. Each slot names the lines the resolver placed there
+    and the ones a conflict is holding, so the client renders the resolver's
+    decision rather than repeating it. Each conflict carries the statements and
+    how many the slot can keep, so the card can ask without re-deriving arity.
     """
     result = resolve(order)
     return {
         "used": len(result.used_line_ids),
         "duplicates_collapsed": result.duplicates_collapsed,
+        "slots": [
+            {
+                "key": slot.key,
+                "arity": slot.arity,
+                "line_ids": list(slot.line_ids),
+                "contested_ids": list(slot.contested_ids),
+            }
+            for slot in result.slots
+        ],
         "conflicts": [
             {
                 "slot": conflict.slot,

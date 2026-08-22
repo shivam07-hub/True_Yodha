@@ -73,6 +73,21 @@ class RoundOut(BaseModel):
     line_ids: list[str]
 
 
+class SlotOut(BaseModel):
+    """One of the six slots, as the resolver left it.
+
+    `line_ids` is the PLACED set — deduped, uncontested, within arity, and
+    identical to what reaches the profile patch. The client renders these; it
+    does not file lines into slots itself. Two resolvers is how the screen came
+    to show duplicates the server had already collapsed.
+    """
+
+    key: str
+    arity: int
+    line_ids: list[str]
+    contested_ids: list[str]
+
+
 class ConflictOut(BaseModel):
     slot: str
     kind: Literal["arity", "contradiction"]
@@ -96,6 +111,7 @@ class OrderState(BaseModel):
     last_run_at: str | None = None
     used: int = 0
     duplicates_collapsed: int = 0
+    slots: list[SlotOut] = Field(default_factory=list)
     conflicts: list[ConflictOut] = Field(default_factory=list)
 
 

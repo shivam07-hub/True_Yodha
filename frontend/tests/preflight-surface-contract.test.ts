@@ -79,12 +79,20 @@ test("the rail's meaning survives without sight", () => {
   assert.match(plate, /aria-label=\{`\$\{line\.text\} — \$\{SOURCE_LABEL\[line\.source\]\}`\}/)
 })
 
-test("a contested line is not also rendered as settled", () => {
-  // The resolver reports a clash, it never resolves one, so a contested line
-  // stays `kept`. Rendering every kept line put the same statement on screen
-  // twice — once signed off, once disputed.
-  assert.match(canvas, /const contested = useMemo\(/)
-  assert.match(canvas, /!contested\.has\(l\.id\)/)
+test("the canvas renders the resolver's partition, it does not compute one", () => {
+  // Two resolvers disagreed in the only direction that matters: the server
+  // deduped before filing and the client did not, so one statement rendered
+  // twice — once as a settled plate, once inside the conflict holding its twin
+  // — and the header counted both (`Won't take · 15 of 6`).
+  assert.match(canvas, /order\.slots \?\? \[\]/)
+  // The canvas imports the WORDS and nothing else out of `slots.ts`; filing a
+  // line into a slot, and how many a slot takes, are the resolver's.
+  assert.match(canvas, /import \{ SLOT_COPY \} from "@\/lib\/preflight\/slots"/)
+  assert.match(canvas, /arity=\{group\.slot\.arity\}/)
+  assert.match(canvas, /filled=\{group\.filled\}/)
+  // The one thing done to the server's ids: hide a line the user just dropped,
+  // on the tap rather than on the response.
+  assert.match(canvas, /line\.status === "kept" \? \[line\] : \[\]/)
 })
 
 test("the run bar never claims a count the screen contradicts", () => {
@@ -198,7 +206,7 @@ test("conflicts land as an inline plate, inside the slot they are about", () => 
   const group = read("components/preflight/slot-group.tsx")
   assert.match(group, /<ConflictPlate/)
   assert.doesNotMatch(canvas, /<ConflictPlate/, "the canvas routes conflicts, it does not render them")
-  assert.match(canvas, /clashes\.get\(spec\.key\)/)
+  assert.match(canvas, /clashes\.get\(slot\.key\)/)
   assert.match(conflict, /className="pf-plate"/)
   assert.match(conflict, /data-kind="conflict"/)
   const logic = read("lib/preflight/conflicts.ts")
@@ -212,10 +220,13 @@ test("the canvas is six slots, not one flat column", () => {
   // THE ONE IDEA in MYRO_SEARCH_REBUILD.md: the Order fills a six-slot spec.
   // A flat list of every kept line hides the only structure there is, and
   // cannot answer "what does Myro still need from me?".
-  assert.match(canvas, /SLOTS\.map\(\(spec\) => \(/)
+  assert.match(canvas, /groups\.map\(\(group\) => \(/)
   assert.match(canvas, /<SlotGroup/)
   const group = read("components/preflight/slot-group.tsx")
-  assert.match(group, /<h3 className="pf-slot-label">\{spec\.label\}<\/h3>/)
+  assert.match(group, /<h3 className="pf-slot-label">\{copy\.label\}<\/h3>/)
+  // Six groups, in one order, named in one place.
+  const slots = read("lib/preflight/slots.ts")
+  assert.equal([...slots.matchAll(/label: "/g)].length, 6)
 })
 
 test("an empty slot still renders, because the gap is the question", () => {
@@ -225,7 +236,7 @@ test("an empty slot still renders, because the gap is the question", () => {
   const group = read("components/preflight/slot-group.tsx")
   // No early return on an empty group, and the add chip is unconditional.
   assert.doesNotMatch(group, /if \(!lines\.length\) return null/)
-  assert.match(group, /<SlotAdd spec=\{spec\} busy=\{busy\} onAdd=\{onAdd\} \/>/)
+  assert.match(group, /<SlotAdd copy=\{copy\} busy=\{busy\} onAdd=\{onAdd\} \/>/)
 })
 
 test("adding into a slot needs no inference and no LLM turn", () => {
@@ -233,7 +244,7 @@ test("adding into a slot needs no inference and no LLM turn", () => {
   // is already known. Routing that through /preflight/proposals would spend
   // an LLM turn re-deriving something the click already said.
   const group = read("components/preflight/slot-group.tsx")
-  assert.match(group, /onAdd\(spec\.addKind, text\)/)
+  assert.match(group, /onAdd\(copy\.addKind, text\)/)
   assert.match(gate, /addLine\.mutateAsync\(\{ kind, text, origin: "preflight" \}\)/)
   assert.doesNotMatch(
     gate.slice(gate.indexOf("const addToSlot"), gate.indexOf("// ── run")),
