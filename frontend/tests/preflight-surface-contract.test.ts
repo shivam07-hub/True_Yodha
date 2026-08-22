@@ -17,7 +17,7 @@ const plate = read("components/preflight/plate.tsx")
 const heard = read("components/preflight/heard-row.tsx")
 const conflict = read("components/preflight/conflict-plate.tsx")
 const pads = read("components/preflight/canvas-pads.tsx")
-const sheet = read("components/preflight/market-sheet.tsx")
+const say = read("components/preflight/say-band.tsx")
 const useOrder = read("lib/preflight/use-order.ts")
 const search = read("lib/hooks/use-myro-search.tsx")
 
@@ -28,12 +28,49 @@ test("one page-level entry mounts the gate, and holds no domain logic", () => {
   }
 })
 
-test("both surfaces read and write ONE order through one query key", () => {
-  assert.match(useOrder, /order: \(\) => \["preflight", "order"\]/)
-  for (const [name, src] of [["gate", gate], ["sheet", sheet]] as const) {
-    assert.match(src, /useOrder\(/, `${name} reads the shared order`)
-    assert.match(src, /useOrderMutations\(/, `${name} mutates through the shared hook`)
+test("ONE door — the complaint is a landing inside Myro Search, not a rival to it", () => {
+  // /market carried two buttons side by side: "Not it? Tell Myro →" opened a
+  // bottom sheet, "Myro Search" opened this modal. Both called
+  // `/preflight/proposals`, both wrote the same order, both ran on the same
+  // engine — and the sheet priced its own apply from a client constant
+  // ("Apply & re-run · 150") while a run costs MATCH_RUN_COST.
+  const store = read("store/refreshGateStore.ts")
+  assert.match(store, /intent: GateIntent/)
+  assert.match(gate, /sayFirst=\{intent === "say"\}/)
+  assert.match(search, /openRefreshGate\("review"\)/)
+  assert.match(search, /openRefreshGate\("say"\)/)
+
+  for (const [name, file] of [
+    ["desktop feed", "components/market/jobs-tab.tsx"],
+    ["mobile feed", "mobile/redesign/jobs-surface.tsx"],
+  ] as const) {
+    const src = read(file)
+    assert.doesNotMatch(src, /MarketSheet/, `${name} must not mount a second surface`)
+    assert.equal(
+      (src.match(/openRefreshGate\("review"\)|run=|runMyroSearch/g) ?? []).length > 0,
+      true,
+      `${name} still offers the run`,
+    )
   }
+
+  // And the order is still ONE record behind one query key.
+  assert.match(useOrder, /order: \(\) => \["preflight", "order"\]/)
+  assert.match(gate, /useOrder\(/)
+  assert.match(gate, /useOrderMutations\(/)
+})
+
+test("the say band carries the chips the sheet was worth keeping", () => {
+  // A user who knows the feed is wrong usually cannot name why on a blank
+  // line. "the pay" is a whole sentence they did not have to write — and it
+  // submits the SENTENCE, so the canvas heading shows their own words.
+  for (const topic of ["the work", "the place", "the level", "the pay"]) {
+    assert.ok(say.includes(`"${topic}"`), `${topic} chip is missing`)
+  }
+  assert.match(say, /said: "/, "a chip submits a sentence, not its label")
+  assert.match(canvas, /<SayBand focused=\{sayFirst\}/)
+  // Narrowing is free — the gate re-reads the feed without charging a run,
+  // which only the sheet used to do.
+  assert.match(gate, /invalidateTargetRoleData\(client\)/)
 })
 
 test("every mutation writes the server's answer back into the cache", () => {
@@ -193,8 +230,7 @@ test("a failed apply keeps the server's reason and rewinds the pick", () => {
 
 test("waiting is drawn, never narrated", () => {
   const typing = read("components/preflight/typing.tsx")
-  assert.match(sheet, /<MyroTyping/, "sheet still draws the wait")
-  assert.doesNotMatch(sheet, /is reading that|thinking…/, "sheet must not narrate the wait")
+  assert.doesNotMatch(canvas, /is reading that|thinking…/, "the canvas must not narrate the wait")
   assert.match(typing, /role="status"/)
   assert.match(typing, /aria-label=\{label\}/)
 })
@@ -299,12 +335,6 @@ test("signing off does not dispatch a second run", () => {
   assert.doesNotMatch(gate, /refreshVm\.refresh\(\)/)
 })
 
-test("the market sheet still shares the same order + prose module", () => {
-  assert.match(sheet, /Your order · saved in pre-flight/)
-  assert.match(sheet, /orderSummaryFrom\(order\)/)
-  assert.match(sheet, /from "@\/lib\/preflight\/prose"/)
-})
-
 test("literals live in the palette block and nowhere else", () => {
   // The old rule was a blanket hex ban, and it had a hole big enough to lose
   // the design through: every colour came from `--tm-interactive`, which is
@@ -325,7 +355,6 @@ test("literals live in the palette block and nowhere else", () => {
   const consumers = [
     shell.replace(palette, ""),
     read("components/preflight/plate.css"),
-    read("components/preflight/market-sheet.css"),
   ]
     .join("\n")
     .replace(/\/\*[\s\S]*?\*\//g, "")
@@ -337,7 +366,6 @@ test("reduced motion is honoured on every animated surface", () => {
   for (const file of [
     "components/preflight/preflight.css",
     "components/preflight/plate.css",
-    "components/preflight/market-sheet.css",
   ]) {
     assert.match(read(file), /prefers-reduced-motion: reduce/, `${file} must honour reduced motion`)
   }
@@ -346,7 +374,7 @@ test("reduced motion is honoured on every animated surface", () => {
 test("every Myro utterance pad is SayPad, not a one-line input", () => {
   for (const [name, file] of [
     ["opening", "components/preflight/canvas-pads.tsx"],
-    ["sheet", "components/preflight/market-sheet.tsx"],
+    ["say band", "components/preflight/say-band.tsx"],
     ["chat", "components/myro/myro-chat.tsx"],
     ["memory", "components/cv/builder/memory-panel.tsx"],
   ] as const) {

@@ -488,3 +488,46 @@
   .pf-typing-dot:nth-child(2) { opacity: 0.6; }
   .pf-typing-dot:nth-child(3) { opacity: 0.3; }
 }
+
+/* ── the say band ────────────────────────────────────────────────────────────
+   The surviving half of the market bottom-sheet. Sits UNDER the slots: the
+   slots answer "what will Myro search for", this answers "and if that's
+   wrong?" — a composer above the state it edits reads as a form, below it as
+   a reply. */
+
+.pf-say {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--tm-hairline);
+}
+
+.pf-say-label {
+  margin: 0;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tm-text-muted);
+}
+
+/* A chip is a shortcut for saying a whole sentence the user could not face
+   writing on a blank line. */
+.pf-topics { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.pf-topic {
+  padding: 7px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--tm-hairline);
+  background: transparent;
+  color: var(--tm-text);
+  font-size: var(--tm-fs-note);
+  line-height: 1.3;
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+
+.pf-topic:hover:not(:disabled) { border-color: var(--tm-accent-ring); color: var(--tm-accent-text); }
+.pf-topic:disabled { opacity: 0.5; cursor: not-allowed; }

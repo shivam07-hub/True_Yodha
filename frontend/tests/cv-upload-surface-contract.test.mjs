@@ -113,14 +113,20 @@ test("every Myro conversation goes through the one seam", () => {
   assert.match(panel, /mentor\.converse|MyroChat/, "the CV surface talks to Myro through the seam")
   assert.match(panel, /"cv"/, "the CV surface declares its surface")
 
-  // The two job-intent surfaces reach the same mentor through the order's
-  // propose route — one seam, two surfaces, no second conversation.
-  for (const file of [
-    "components/preflight/preflight-gate.tsx",
-    "components/preflight/market-sheet.tsx",
-  ]) {
-    assert.match(read(file), /preflight\.proposals\(/, `${file} proposes through the order`)
-  }
+  // Job intent reaches the same mentor through the order's propose route —
+  // and through exactly ONE surface now. The market bottom-sheet was a second
+  // modal against the same order and the same engine; its complaint path is a
+  // landing inside Myro Search ("say") rather than a rival door.
+  assert.match(
+    read("components/preflight/preflight-gate.tsx"),
+    /preflight\.proposals\(/,
+    "the gate proposes through the order",
+  )
+  assert.doesNotMatch(
+    read("components/preflight/say-band.tsx"),
+    /preflight\./,
+    "the say band hands its sentence up, it does not open a second conversation",
+  )
 })
 
 test("the CV surface listens but never proposes", () => {

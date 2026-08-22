@@ -1,7 +1,20 @@
 "use client"
 
 /**
- * Myro Search pre-flight — one canvas, one modal, one order.
+ * Myro Search — one canvas, one modal, one order, ONE DOOR.
+ *
+ * /market carried two buttons side by side: "Not it? Tell Myro →" opened a
+ * bottom sheet, "Myro Search" opened this. Both called
+ * `/preflight/proposals`, both wrote the same `preflight_orders` row, both ran
+ * on the same engine — and nothing on screen said so, so telling Myro what was
+ * wrong and making it count were two separate errands. The sheet also priced
+ * its own apply from a client constant ("Apply & re-run · 150") while the run
+ * costs `MATCH_RUN_COST`.
+ *
+ * There is one modal now, with two landings: `intent: "review"` opens on the
+ * slots ("here is what I will search for"), `intent: "say"` opens on the say
+ * band ("something is off — tell me"). Same order, same proposals, same price,
+ * one place to look.
  *
  * The shell owns the fewest things possible: the modal chrome, escape, the
  * three lifecycle modes (canvas · running · done), and the network turns that
@@ -21,7 +34,7 @@ import { createPortal } from "react-dom"
 import { useQueryClient } from "@tanstack/react-query"
 
 import { preflight } from "@/lib/api"
-import { dataKeys } from "@/lib/domain-data"
+import { dataKeys, invalidateTargetRoleData } from "@/lib/domain-data"
 import { applyErrorMessage } from "@/lib/preflight/apply-error"
 import { visibleConflicts } from "@/lib/preflight/conflicts"
 import { useOrder, useOrderMutations, invalidateOrder } from "@/lib/preflight/use-order"
@@ -51,6 +64,7 @@ export function PreflightGate({
   onSeeMatches: () => void
 }) {
   const open = useRefreshGateStore((s) => s.open)
+  const intent = useRefreshGateStore((s) => s.intent)
   const close = useRefreshGateStore((s) => s.closeRefreshGate)
   const balance = useXPStore((s) => s.balance)
   const client = useQueryClient()
@@ -135,6 +149,11 @@ export function PreflightGate({
     if (!proposal) return
     try {
       await apply.mutateAsync({ effects: proposal.effects, origin: "preflight" })
+      // Narrowing is free: the roles already scored can be re-read against the
+      // new order without a run. The market sheet did this and the gate did
+      // not, so the same accepted proposal changed the feed from one door and
+      // not the other.
+      invalidateTargetRoleData(client)
     } catch (err) {
       // Keep the server's reason — a 409 says the order changed elsewhere and
       // the user needs to see it, not a generic "didn't stick".
@@ -215,6 +234,7 @@ export function PreflightGate({
               proposals={proposals}
               proposalAnswers={proposalAnswers}
               pending={pending}
+              sayFirst={intent === "say"}
               balance={balance}
               starting={starting}
               error={error}

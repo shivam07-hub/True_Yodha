@@ -149,7 +149,9 @@ export function useOrderMutations(token: string | null) {
 
   const apply = useMutation({
     mutationFn: ({ effects, origin }: { effects: OrderEffect[]; origin?: "preflight" | "market" }) =>
-      preflight.apply(token!, effects, origin ?? "market"),
+      // Defaulted to "market" while the bottom-sheet was the other caller.
+      // There is one door now, so an unstated origin is this one.
+      preflight.apply(token!, effects, origin ?? "preflight"),
     onSuccess: (next) => mergeState(client, next),
   })
 

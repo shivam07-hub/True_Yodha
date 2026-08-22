@@ -12,7 +12,6 @@ import { useJobFeed } from "@/components/market/use-job-feed"
 import { useFeedWarm } from "@/components/market/use-feed-warm"
 import { useFeedScope } from "@/lib/hooks/use-feed-scope"
 import { useMyroSearch } from "@/lib/hooks/use-myro-search"
-import { MarketSheet } from "@/components/preflight/market-sheet"
 import { NewInventoryStrip } from "@/components/jobs/new-inventory-strip"
 import { useApplyCapture } from "@/components/jobs/use-apply-capture"
 import { JobDetailSheet, type JobDetailData } from "./job-detail-sheet"
@@ -57,7 +56,7 @@ export function JobsSurface({
   const router = useRouter()
   const { snack, closeSnack } = useMobileUI()
   // Myro Search (the paid re-vet run) — one shared wiring across every surface.
-  const { run: runMyroSearch, isRefreshing, gate: myroSearchGate } = useMyroSearch(token)
+  const { run: runMyroSearch, tellMyro, isRefreshing, gate: myroSearchGate } = useMyroSearch(token)
 
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQ, setSearchQ] = useState("")
@@ -65,7 +64,6 @@ export function JobsSurface({
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [sharedId, setSharedId] = useState<string | null>(null)
-  const [intentOpen, setIntentOpen] = useState(false)
   const [showSwipeHint, setShowSwipeHint] = useState(false)
 
   // Peek-hint teaches the swipe gesture once per user, ever — not once per
@@ -211,7 +209,7 @@ export function JobsSurface({
             <div style={{ fontSize: 15, fontWeight: 650 }}>Feed clear 🎯</div>
             <div style={{ fontSize: 12.5, color: "var(--mm-faint)", lineHeight: 1.5 }}>You&apos;ve triaged everything here.<br />Next: tailor a CV for what you saved.</div>
             <button onClick={() => router.push("/collections")} className="mm-press" style={ctaBtn}>Open Collections</button>
-            <button onClick={() => setIntentOpen(true)} style={intentLink}>Not what you wanted? Tell Myro →</button>
+            <button onClick={tellMyro} style={intentLink}>Not what you wanted? Tell Myro →</button>
           </div>
         ) : (
           rows.map((row, i) => {
@@ -235,7 +233,7 @@ export function JobsSurface({
             affordances in a 375px strip) and onto the moment it's actually
             true: a feed too thin to be what the user asked for. */}
         {!eyeOn && rows.length > 0 && rows.length < 5 ? (
-          <button onClick={() => setIntentOpen(true)} style={{ ...intentLink, alignSelf: "center", marginTop: 2 }}>
+          <button onClick={tellMyro} style={{ ...intentLink, alignSelf: "center", marginTop: 2 }}>
             Not what you wanted? Tell Myro →
           </button>
         ) : null}
@@ -272,14 +270,9 @@ export function JobsSurface({
         />
       ) : null}
 
-      {/* The real Delta-4 loop (same component the desktop app uses): the user
-          tells Myro what's off → one-tap filter change → feed re-runs. */}
-      <MarketSheet
-        open={intentOpen}
-        onClose={() => setIntentOpen(false)}
-        visibleCount={rows.length}
-        onExpand={runMyroSearch}
-      />
+      {/* One modal, two landings. `tellMyro` opens it on the say band, `run`
+          on the slots — the bottom sheet that used to be a second surface
+          against this same Order is gone. */}
       {myroSearchGate}
     </div>
   )

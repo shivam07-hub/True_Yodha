@@ -163,7 +163,6 @@ export interface OrderCounts {
   kept: number
   dropped: number
   unanswered: number
-  fromMarket: number
 }
 
 export function countsFrom(order: OrderState): OrderCounts {
@@ -171,7 +170,6 @@ export function countsFrom(order: OrderState): OrderCounts {
     kept: order.lines.filter((l) => l.status === "kept").length,
     dropped: order.lines.filter((l) => l.status === "dropped").length,
     unanswered: order.lines.filter((l) => l.status === "unanswered").length,
-    fromMarket: order.lines.filter((l) => l.status === "kept" && l.origin === "market").length,
   }
 }
 
@@ -217,15 +215,17 @@ export function missingRoleLine(): string {
 }
 
 export function contractLine(order: OrderState): string {
-  const { kept: keptCount, dropped, unanswered, fromMarket } = countsFrom(order)
+  const { kept: keptCount, dropped, unanswered } = countsFrom(order)
   const runCount = typeof order.used === "number" ? order.used : keptCount
   const lines = `${runCount} ${plural(runCount, "line", "lines")}`
-  const market = fromMarket
-    ? ` ${fromMarket} ${plural(fromMarket, "line", "lines")} came from the market sheet — ${plural(fromMarket, "it's", "they're")} part of the same order.`
-    : ""
 
+  // There used to be a clause here reassuring the reader that a line added in
+  // the market bottom-sheet was "part of the same order". That sentence only
+  // had a job while there were two surfaces to be confused about; with one
+  // door there is no elsewhere for a line to have come from, and naming a
+  // deleted surface in the contract is worse than saying nothing.
   if (dropped + unanswered === 0) {
-    return `Nothing dropped — Myro runs on all ${lines} above and nothing else.${market}`
+    return `Nothing dropped — Myro runs on all ${lines} above and nothing else.`
   }
   // "line", not "guess": a line the user said no to may well have been their
   // own — the goal that read "No" is `you said this`. Naming everything a
@@ -233,5 +233,5 @@ export function contractLine(order: OrderState): string {
   const said = dropped ? `${dropped} ${plural(dropped, "line", "lines")} you said no to` : ""
   const left = unanswered ? `${unanswered} left unanswered` : ""
   const both = [said, left].filter(Boolean).join(", ")
-  return `${both} — all dropped. Myro runs on the ${lines} above and nothing else.${market}`
+  return `${both} — all dropped. Myro runs on the ${lines} above and nothing else.`
 }

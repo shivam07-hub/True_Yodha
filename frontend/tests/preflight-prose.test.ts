@@ -201,14 +201,18 @@ test("unanswered lines are named as dropped, because they are", () => {
   )
 })
 
-test("market-sheet lines are declared as part of the same order", () => {
+test("the contract names no surface — there is only one", () => {
+  // This asserted the opposite until 2026-08-21: a clause reassuring the
+  // reader that a line added in the market bottom-sheet was "part of the same
+  // order". That sentence only had a job while there were two surfaces to be
+  // confused about, and it now names one that does not exist.
   const o = order({
     lines: [
       line({ kind: "wont_take", text: "A", status: "kept" }),
       line({ kind: "wont_take", text: "B", status: "kept", origin: "market" }),
     ],
   })
-  assert.match(contractLine(o), /1 line came from the market sheet — it's part of the same order\./)
+  assert.doesNotMatch(contractLine(o), /market sheet/)
 })
 
 test("the contract counts what the resolver will use, not every kept line", () => {
@@ -233,7 +237,7 @@ test("counts are read off status, never inferred", () => {
       line({ kind: "lean", text: "C", status: "unanswered" }),
     ],
   })
-  assert.deepEqual(countsFrom(o), { kept: 1, dropped: 1, unanswered: 1, fromMarket: 0 })
+  assert.deepEqual(countsFrom(o), { kept: 1, dropped: 1, unanswered: 1 })
 })
 
 

@@ -39,6 +39,7 @@ import { blockedLine, contractLine, missingRoleLine } from "@/lib/preflight/pros
 
 import { OpeningPad } from "./canvas-pads"
 import { HeardRow } from "./heard-row"
+import { SayBand } from "./say-band"
 import { SlotGroup } from "./slot-group"
 
 type Verdict = "kept" | "dropped" | null
@@ -48,6 +49,7 @@ export function ScreenCanvas({
   proposals,
   proposalAnswers,
   pending,
+  sayFirst,
   balance,
   starting,
   error,
@@ -67,6 +69,9 @@ export function ScreenCanvas({
   proposalAnswers: Record<string, Verdict>
   /** True while the LLM is drafting a reply after the pad submits. */
   pending: boolean
+  /** The modal was opened straight onto the say band ("something's off"),
+   *  rather than onto the slots. One door, two landings. */
+  sayFirst?: boolean
   balance: number
   starting: boolean
   error: string | null
@@ -176,6 +181,10 @@ export function ScreenCanvas({
           ))}
         </div>
       ) : null}
+
+      {/* The other door, in the same room. Until 2026-08-21 this was a second
+          button on /market opening a second modal against the same Order. */}
+      {hasWork ? <SayBand focused={sayFirst} pending={pending} onSay={onSaySomething} /> : null}
 
       {(unanswered.length > 0 || proposals.length > 0) && hasWork ? (
         <HeardFold
