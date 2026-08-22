@@ -43,11 +43,6 @@ export interface OrderLogEntry {
   text: string
 }
 
-export interface OrderRound {
-  key: RoundKey
-  line_ids: string[]
-}
-
 export type ConflictKind = "arity" | "contradiction"
 
 export type SlotKey =
@@ -86,7 +81,6 @@ export interface OrderState {
   said: string
   lines: OrderLine[]
   log: OrderLogEntry[]
-  rounds: OrderRound[]
   updated_at?: string | null
   last_run_at?: string | null
   /** Lines the resolver will actually run on. Contested slots are omitted. */

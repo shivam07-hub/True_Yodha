@@ -23,17 +23,6 @@ LineSource = Literal["user_said", "myro_inferred", "from_cv", "user_reworded"]
 LineStatus = Literal["kept", "dropped", "unanswered"]
 LineOrigin = Literal["preflight", "market", "cv_import", "memory_import"]
 
-# Which confirm round a guess belongs to. Derived from `kind` rather than stored,
-# so a line cannot claim a round its kind contradicts.
-ROUND_OF_KIND: dict[str, str] = {
-    "wont_take": "wont",
-    "lean": "drawn",
-    "goal": "about",
-    "strength": "about",
-}
-ROUND_ORDER = ("wont", "drawn", "about")
-
-
 @dataclass(frozen=True)
 class OrderLine:
     id: str
@@ -317,40 +306,5 @@ def merge_imports(order: Order, candidates: list[OrderLine]) -> Order:
     return replace(order, lines=[*kept, *fresh])
 
 
-def is_guess(line: OrderLine) -> bool:
-    """A line the user has to answer, as opposed to one they set themselves.
-
-    Membership is decided by ORIGIN, not by source: an imported line stays a
-    guess after the user rewords it (source flips to `user_reworded`), and it
-    stays in its round after they answer it — the tally reads `answered / total`,
-    so a round that shed its answers would count down to `0 / 0`.
-    """
-    return line.origin in ("memory_import", "cv_import") and line.kind in ROUND_OF_KIND
-
-
 def _norm_key(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", text.strip().lower())
-
-
-def rounds(order: Order) -> list[dict[str, Any]]:
-    """The three confirm rounds, in order. An empty round is omitted, so a user
-    with no leanings sees two rounds and a tally that says two.
-
-    A statement that landed in an earlier round — even as a duplicate import —
-    is not asked again in a later one."""
-    grouped: dict[str, list[str]] = {key: [] for key in ROUND_ORDER}
-    by_id = {line.id: line for line in order.lines}
-    seen_text: set[str] = set()
-
-    for round_key in ROUND_ORDER:
-        for line in order.lines:
-            if not is_guess(line) or ROUND_OF_KIND.get(line.kind) != round_key:
-                continue
-            norm = _norm_key(line.text)
-            if norm in seen_text:
-                continue
-            grouped[round_key].append(line.id)
-        for line_id in grouped[round_key]:
-            seen_text.add(_norm_key(by_id[line_id].text))
-
-    return [{"key": key, "line_ids": grouped[key]} for key in ROUND_ORDER if grouped[key]]

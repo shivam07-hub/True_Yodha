@@ -18,7 +18,7 @@ function line(partial: Partial<OrderLine> & Pick<OrderLine, "id" | "kind" | "tex
 }
 
 function order(partial: Partial<OrderState> = {}): OrderState {
-  return { said: "", lines: [], log: [], rounds: [], ...partial }
+  return { said: "", lines: [], log: [], ...partial }
 }
 
 const either: OrderConflict = {

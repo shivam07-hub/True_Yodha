@@ -35,7 +35,7 @@ function line(partial: Partial<OrderLine> & Pick<OrderLine, "kind" | "text">): O
 }
 
 function order(partial: Partial<OrderState> = {}): OrderState {
-  return { said: "", lines: [], log: [], rounds: [], ...partial }
+  return { said: "", lines: [], log: [], ...partial }
 }
 
 // ── case normalisation ───────────────────────────────────────────────────────

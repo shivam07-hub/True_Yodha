@@ -176,38 +176,6 @@ def test_merge_stops_asking_about_a_note_the_user_deleted():
     assert len(ops.merge_imports(answered, []).lines) == 1
 
 
-def test_rounds_group_by_kind_and_keep_answered_lines_in_their_round():
-    order = ops.Order(
-        lines=[
-            line(kind="wont_take", status="kept"),
-            line(kind="wont_take", status="unanswered"),
-            line(kind="lean", text="Corporate functions"),
-            line(kind="goal", text="Staff engineer", origin="cv_import", source="user_said"),
-        ]
-    )
-    rounds = {r["key"]: r["line_ids"] for r in ops.rounds(order)}
-    assert len(rounds["wont"]) == 2, "the tally reads answered / total — answered lines stay"
-    assert len(rounds["drawn"]) == 1
-    assert len(rounds["about"]) == 1
-    # A line the user set themselves is not a guess.
-    settled = ops.Order(lines=[line(kind="wont_take", origin="preflight", source="user_said", status="kept")])
-    assert ops.rounds(settled) == []
-
-
-def test_rounds_hide_duplicate_text_in_later_rounds():
-    """The distiller can file the same note as work_mode and preference."""
-    order = ops.Order(
-        lines=[
-            line(kind="wont_take", text="Prefers onsite work", status="kept"),
-            line(kind="lean", text="Prefers onsite work", status="unanswered"),
-            line(kind="lean", text="Prefers corporate functions", status="unanswered"),
-        ]
-    )
-    rounds = {r["key"]: [ops.Order(lines=order.lines).find(i).text for i in r["line_ids"]] for r in ops.rounds(order)}
-    assert rounds["wont"] == ["Prefers onsite work"]
-    assert rounds["drawn"] == ["Prefers corporate functions"]
-
-
 def test_import_dedupes_the_same_statement_across_kinds():
     guesses = memory_import.guesses_from(
         brief(

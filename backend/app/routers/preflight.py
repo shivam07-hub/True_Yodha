@@ -68,11 +68,6 @@ class LogEntryOut(BaseModel):
     text: str
 
 
-class RoundOut(BaseModel):
-    key: str
-    line_ids: list[str]
-
-
 class SlotOut(BaseModel):
     """One of the six slots, as the resolver left it.
 
@@ -98,15 +93,11 @@ class ConflictOut(BaseModel):
 
 
 class OrderState(BaseModel):
-    """The order itself — what every mutation returns.
-
-    `rounds` is derived, not stored: a line cannot claim a round its kind
-    contradicts."""
+    """The order itself — what every mutation returns."""
 
     said: str
     lines: list[OrderLineOut]
     log: list[LogEntryOut]
-    rounds: list[RoundOut]
     updated_at: str | None = None
     last_run_at: str | None = None
     used: int = 0
@@ -238,7 +229,6 @@ def _state(order: line_ops.Order) -> dict:
             for line in order.lines
         ],
         "log": [LogEntryOut(id=e.id, kind=e.kind, line_id=e.line_id, text=e.text) for e in order.log],
-        "rounds": [RoundOut(**r) for r in line_ops.rounds(order)],
         "updated_at": order.updated_at,
         "last_run_at": order.last_run_at,
         **ops_payload.client_report(order),
