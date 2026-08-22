@@ -93,7 +93,6 @@ export interface OrderState {
 
 /** The opening read — adds the parts that don't move when a line is answered. */
 export interface Order extends OrderState {
-  starters: string[]
   memory_count: number
   cv_readiness: string | null
 }

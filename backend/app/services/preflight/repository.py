@@ -42,7 +42,6 @@ class OrderBundle:
     """One read, everything the pre-flight opens on."""
 
     order: Order
-    starters: list[str]
     memory_count: int
     cv_readiness: str | None
 
@@ -65,7 +64,7 @@ class OrderRepository:
         return self.load_bundle(user_id).order
 
     def load_bundle(self, user_id: str) -> "OrderBundle":
-        """Order + the two things screen 1 needs, off ONE targeting read.
+        """Order + what the canvas opens on, off ONE targeting read.
 
         Split across three methods this cost three round trips to assemble one
         modal — the same profile SELECT and the same `user_memory` scan, thrice.
@@ -77,7 +76,6 @@ class OrderRepository:
         candidates = memory_import.confirmed_from(brief) + memory_import.guesses_from(brief)
         return OrderBundle(
             order=merge_imports(order, candidates),
-            starters=memory_import.starters_from(brief),
             memory_count=len(brief.facts),
             # `cv_readiness` is NOT a user_profiles column — GET /users/me derives
             # it from `has_baseline_cv`. Reading it off the profile dict returned

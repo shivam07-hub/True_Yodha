@@ -369,7 +369,7 @@ def _repo_with_empty_brief():
     repo.store = db.store  # type: ignore[attr-defined]
     repo.load_bundle = lambda user_id: repo_module.OrderBundle(  # type: ignore[method-assign]
         order=ops.Order.from_dict(repo._row(user_id)),
-        starters=[], memory_count=0, cv_readiness="ready",
+        memory_count=0, cv_readiness="ready",
     )
     return repo
 
@@ -417,20 +417,6 @@ def test_a_recent_run_is_reported_instead_of_charged_again():
     ).isoformat()
     assert repo.recent_run("u1", within_seconds=90) is None
 
-
-def test_starters_collapse_it_sales_and_tech_sales():
-    brief = TargetingBrief(
-        profile={
-            "target_role_titles": ["tech sales", "IT Sales", "Technical Account Manager"],
-            "target_location": "Bengaluru",
-        },
-        facts=[],
-    )
-    assert memory_import.starters_from(brief) == [
-        "tech sales",
-        "Technical Account Manager",
-        "Bengaluru",
-    ]
 
 
 def test_apply_accepts_a_full_proposal_screen() -> None:

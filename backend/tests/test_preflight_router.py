@@ -52,7 +52,7 @@ def _client(*, orders: _FakeOrders, repo: _CountingJobsRepo) -> TestClient:
 
 
 def _bundle() -> OrderBundle:
-    return OrderBundle(order=Order(said="tech sales"), starters=[], memory_count=0, cv_readiness="ready")
+    return OrderBundle(order=Order(said="tech sales"), memory_count=0, cv_readiness="ready")
 
 
 def teardown_function() -> None:

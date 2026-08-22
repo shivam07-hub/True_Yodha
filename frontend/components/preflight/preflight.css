@@ -319,20 +319,6 @@
   box-shadow: none;
 }
 
-.pf-starters {
-  margin-top: 18px;
-  padding-top: 14px;
-  border-top: 1px solid var(--tm-border-soft);
-}
-
-.pf-starters-label {
-  font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-micro);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--tm-text-faint);
-}
-
 .pf-pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 
 .pf-pill {

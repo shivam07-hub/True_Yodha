@@ -114,7 +114,6 @@ class OrderOut(OrderState):
     The PRICE is deliberately not here — see `GET /preflight/price`.
     """
 
-    starters: list[str] = Field(default_factory=list)
     memory_count: int = 0
     cv_readiness: str | None = None
 
@@ -258,7 +257,6 @@ def get_order(
     bundle = orders.load_bundle(principal.id)
     return OrderOut(
         **_state(bundle.order),
-        starters=bundle.starters,
         memory_count=bundle.memory_count,
         cv_readiness=bundle.cv_readiness,
     )
