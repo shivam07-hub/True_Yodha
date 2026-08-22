@@ -390,6 +390,45 @@ test("literals live in the palette block and nowhere else", () => {
   assert.doesNotMatch(consumers, /rgba\(255, ?76, ?0/, "use --pf-accent-glow, not raw orange")
 })
 
+test("no rule survives the element it styled", () => {
+  // Six screens' worth of chrome outlived their screens: the step ribbon
+  // (`pf-ribbon*`), screen 1's question and pills (`pf-question`, `pf-pill*`,
+  // `pf-ask-row`), the shell's old footer (`pf-foot*`, `pf-btn-ghost`), and the
+  // market sheet's chat (`pf-trail`, `pf-bubble*`, `pf-send`, `pf-input`). CSS
+  // has no compiler to notice, so an agent reading this folder inherited 225
+  // lines describing a modal that no longer exists.
+  const declared = new Set<string>()
+  for (const file of ["preflight.css", "plate.css", "screen-running.css", "market-sheet.css"]) {
+    let css: string
+    try {
+      css = read(`components/preflight/${file}`)
+    } catch {
+      continue // deleted with its surface
+    }
+    for (const [, name] of css.matchAll(/\.(pf-[a-z0-9-]+)/g)) declared.add(name)
+  }
+
+  const rendered = new Set<string>()
+  for (const file of [
+    "components/preflight/preflight-gate.tsx",
+    "components/preflight/screen-canvas.tsx",
+    "components/preflight/slot-group.tsx",
+    "components/preflight/plate.tsx",
+    "components/preflight/conflict-plate.tsx",
+    "components/preflight/heard-row.tsx",
+    "components/preflight/canvas-pads.tsx",
+    "components/preflight/say-band.tsx",
+    "components/preflight/screen-running.tsx",
+    "components/preflight/preflight-header.tsx",
+    "components/preflight/typing.tsx",
+  ]) {
+    for (const [, name] of read(file).matchAll(/(pf-[a-z0-9-]+)/g)) rendered.add(name)
+  }
+
+  const orphans = [...declared].filter((name) => !rendered.has(name)).sort()
+  assert.deepEqual(orphans, [], `CSS for elements nothing renders: ${orphans.join(", ")}`)
+})
+
 test("reduced motion is honoured on every animated surface", () => {
   for (const file of [
     "components/preflight/preflight.css",
