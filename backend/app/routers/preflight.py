@@ -101,7 +101,6 @@ class OrderState(BaseModel):
     updated_at: str | None = None
     last_run_at: str | None = None
     used: int = 0
-    duplicates_collapsed: int = 0
     slots: list[SlotOut] = Field(default_factory=list)
     conflicts: list[ConflictOut] = Field(default_factory=list)
 

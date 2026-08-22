@@ -28,7 +28,6 @@ def test_resolve_collapses_normalized_duplicates_silently() -> None:
     )
     result = payload.resolve(order)
     assert result.spec["deal_breakers"] == ["Large corporations"]
-    assert result.duplicates_collapsed == 1
     assert result.conflicts == ()
     assert result.used_line_ids == ("a", "c")
 
@@ -98,7 +97,6 @@ def test_client_report_exposes_conflicts_and_the_slot_arity() -> None:
     )
     report = payload.client_report(order)
     assert report["used"] == 0
-    assert report["duplicates_collapsed"] == 0
     assert len(report["conflicts"]) == 1
     conflict = report["conflicts"][0]
     assert conflict["kind"] == "contradiction"
@@ -107,7 +105,7 @@ def test_client_report_exposes_conflicts_and_the_slot_arity() -> None:
     assert conflict["texts"] == ["Prefers onsite work", "Prefers onsite work"]
 
 
-def test_client_report_counts_silent_duplicates() -> None:
+def test_a_silent_duplicate_leaves_one_used_line_and_no_conflict() -> None:
     order = ops.Order(
         lines=[
             line(id="a", kind="wont_take", text="Large corporations"),
@@ -115,7 +113,6 @@ def test_client_report_counts_silent_duplicates() -> None:
         ]
     )
     report = payload.client_report(order)
-    assert report["duplicates_collapsed"] == 1
     assert report["conflicts"] == []
     assert report["used"] == 1
 

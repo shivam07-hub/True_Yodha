@@ -85,7 +85,6 @@ export interface OrderState {
   last_run_at?: string | null
   /** Lines the resolver will actually run on. Contested slots are omitted. */
   used?: number
-  duplicates_collapsed?: number
   /** The resolver's own partition of the order. Absent only on a fixture. */
   slots?: OrderSlot[]
   conflicts?: OrderConflict[]

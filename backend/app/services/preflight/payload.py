@@ -88,7 +88,6 @@ class Slot:
 class ResolveResult:
     spec: dict[str, Any]
     used_line_ids: tuple[str, ...]
-    duplicates_collapsed: int
     conflicts: tuple[Conflict, ...]
     slots: tuple[Slot, ...]
 
@@ -107,12 +106,17 @@ def _slot_text(line: OrderLine) -> str:
     return text
 
 
-def _dedupe(lines: list[OrderLine]) -> tuple[list[OrderLine], int]:
+def _dedupe(lines: list[OrderLine]) -> list[OrderLine]:
     """Same statement in the same slot collapses to the first. Cross-slot repeats
-    are contradictions, not duplicates."""
+    are contradictions, not duplicates.
+
+    It used to also return a COUNT of what it collapsed, reported on the wire as
+    `duplicates_collapsed`. Nothing ever read it — and once the client started
+    rendering `slots` rather than filing `lines` itself, a collapsed duplicate
+    simply never reaches the screen, so there is nothing for a count to explain.
+    """
     kept: list[OrderLine] = []
     seen: set[tuple[str, str]] = set()
-    collapsed = 0
     for line in lines:
         slot = _slot_for(line)
         key = _norm_key(_slot_text(line))
@@ -120,11 +124,10 @@ def _dedupe(lines: list[OrderLine]) -> tuple[list[OrderLine], int]:
             continue
         stamp = (slot, key)
         if stamp in seen:
-            collapsed += 1
             continue
         seen.add(stamp)
         kept.append(line)
-    return kept, collapsed
+    return kept
 
 
 def _contradictions(lines: list[OrderLine]) -> list[Conflict]:
@@ -164,7 +167,7 @@ def _contradictions(lines: list[OrderLine]) -> list[Conflict]:
 
 def resolve(order: Order) -> ResolveResult:
     """Order → six-slot spec plus the decisions the user still has to make."""
-    unique, collapsed = _dedupe(list(order.kept()))
+    unique = _dedupe(list(order.kept()))
     conflicts = _contradictions(unique)
     blocked = {line_id for conflict in conflicts for line_id in conflict.line_ids}
     usable = [line for line in unique if line.id not in blocked]
@@ -234,7 +237,6 @@ def resolve(order: Order) -> ResolveResult:
     return ResolveResult(
         spec=spec,
         used_line_ids=tuple(used),
-        duplicates_collapsed=collapsed,
         conflicts=tuple(conflicts),
         slots=slots,
     )
@@ -253,7 +255,7 @@ def project(order: Order) -> dict[str, Any]:
 def client_report(order: Order) -> dict[str, Any]:
     """The resolver's report, as the review screen consumes it.
 
-    Duplicates are a count. Each slot names the lines the resolver placed there
+    Each slot names the lines the resolver placed there
     and the ones a conflict is holding, so the client renders the resolver's
     decision rather than repeating it. Each conflict carries the statements and
     how many the slot can keep, so the card can ask without re-deriving arity.
@@ -261,7 +263,6 @@ def client_report(order: Order) -> dict[str, Any]:
     result = resolve(order)
     return {
         "used": len(result.used_line_ids),
-        "duplicates_collapsed": result.duplicates_collapsed,
         "slots": [
             {
                 "key": slot.key,
@@ -285,14 +286,15 @@ def client_report(order: Order) -> dict[str, Any]:
 
 
 def run_summary(order: Order) -> dict[str, int]:
-    """What the contract line on the review screen counts."""
-    result = resolve(order)
+    """The three counts `RunOut` reports back from a dispatch.
+
+    It used to return four more — `used`, `from_market`, `duplicates_collapsed`,
+    `conflicts` — and call `resolve()` to get them. No caller read any of the
+    four, and `/preflight/run` already resolves the same order through
+    `project()`, so the run path paid for the resolver twice per dispatch.
+    """
     return {
         "kept": len(order.kept()),
-        "used": len(result.used_line_ids),
         "dropped": len([x for x in order.lines if x.status == "dropped"]),
         "unanswered": len([x for x in order.lines if x.status == "unanswered"]),
-        "from_market": len([x for x in order.kept() if x.origin == "market"]),
-        "duplicates_collapsed": result.duplicates_collapsed,
-        "conflicts": len(result.conflicts),
     }

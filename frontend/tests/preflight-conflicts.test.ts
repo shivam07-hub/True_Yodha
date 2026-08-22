@@ -55,9 +55,12 @@ test("an optimistic drop hides the card before the next report", () => {
 })
 
 test("duplicates are not a conflict", () => {
+  // The resolver collapses a repeated statement before it files anything, so a
+  // duplicate never reaches the client as a line OR as a question. It used to
+  // report how many it had collapsed (`duplicates_collapsed`); nothing read the
+  // number, and with the client rendering `slots` there is nothing to explain.
   const o = order({
     lines: [line({ id: "a", kind: "wont_take", text: "Large corporations" })],
-    duplicates_collapsed: 2,
     conflicts: [],
   })
   assert.deepEqual(visibleConflicts(o), [])
