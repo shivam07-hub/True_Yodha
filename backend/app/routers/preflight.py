@@ -283,10 +283,14 @@ def get_price(
     that genuinely must not be pressed before the price is known.
     """
     new_jobs = new_inventory.count_for_user(repo, principal.id)
-    # Same waiver the charge itself uses (JobRefresh.start).
+    # Same waiver the charge itself uses (JobRefresh.start), expressed once in
+    # `new_inventory` so the modal and the wallet cannot disagree. `None` — the
+    # count timed out — waives: we do not bill for a number we failed to
+    # compute. It also means the button prices as free rather than sitting
+    # disabled, so a slow count never blocks the search.
     return PriceOut(
-        run_cost=0 if new_jobs > 0 else MATCH_RUN_COST,
-        new_jobs_count=new_jobs,
+        run_cost=0 if new_inventory.waives_charge(new_jobs) else MATCH_RUN_COST,
+        new_jobs_count=new_jobs or 0,
     )
 
 
@@ -405,7 +409,7 @@ async def make_proposals(
     Proposes only. Nothing here touches the order — `/order/apply` does, and
     only after the user has seen the diff.
     """
-    order = orders.load(principal.id)
+    order = orders.load_stored(principal.id)
 
     if body.topic:
         proposal = proposal_engine.from_topic(body.topic, order)
@@ -470,7 +474,7 @@ async def run_order(
                 **counts,
             )
 
-    order = line_ops.drop_unanswered(await run_in_threadpool(orders.load, principal.id))
+    order = line_ops.drop_unanswered(await run_in_threadpool(orders.load_stored, principal.id))
     summary = ops_payload.run_summary(order)
     if summary["kept"] == 0:
         raise HTTPException(
@@ -511,5 +515,5 @@ async def run_order(
 def _settled_counts(orders: OrderRepository, user_id: str) -> dict[str, int]:
     """The counts a deduped run reports — read off the order that was dispatched,
     so the second caller sees the same numbers as the first."""
-    summary = ops_payload.run_summary(line_ops.drop_unanswered(orders.load(user_id)))
+    summary = ops_payload.run_summary(line_ops.drop_unanswered(orders.load_stored(user_id)))
     return {"kept": summary["kept"], "dropped": summary["dropped"], "unanswered": summary["unanswered"]}
