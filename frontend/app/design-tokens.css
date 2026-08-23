@@ -381,40 +381,77 @@
   --my-gold-ring:       rgba(230, 185, 104, 0.30);
 }
 
-/* ── Accent: FORGE — dark-mode opt-in amber (backlog ND15) ──────
-   Azure (above) is the default "analytical" accent. Forge is the warmer
-   opt-in — same structure as the azure ramp, amber hue. Scoped to dark
-   only: light + forge intentionally falls back to light's own accent —
-   this block sits BEFORE the light surface block in source order, so the
-   light block's own --tm-interactive* redefinition wins the cascade for
-   light+forge users (equal specificity, later source wins). --tm-brand
-   (logo/completion moments) is deliberately untouched — accent ≠ brand.
+/* ── Accent: BONE — the opt-in second accent, and it has no hue ─────
+   Azure (above) is the default. This is the alternative, and as of
+   2026-08-23 it is an ACHROMATIC ivory rather than the amber it used to be.
 
-   ⚠️ KNOWN COST, carried forward from before the azure move: amber sits
-   ~70°, which is ~5° from --tm-warning and ~45° from --tm-danger. In Forge
-   a warning chip and a control are close to the same colour. This was true
-   of Forge on the teal palette too and is not a regression — but azure
-   clears every status band by 60°+, so Forge is now the ONLY accent in the
-   file that does not. Fix it or retire it; do not let it set the precedent. */
+   Why it had to stop being amber. An accent has to clear the status ramp —
+   success 145°, warning 75°, danger 25° — or a verdict and a control read
+   as the same thing. Amber sat ~70°: five degrees off warning. That was
+   true on the teal palette too and was carried as a known cost, but azure
+   clears every band by 83°, so amber became the only accent in the file
+   that did not, and a known cost nobody can see is just a defect.
+
+   Why it is not simply a different hue. The safe arc is 205–250° (purple
+   is banned brand-wide, everything warm collides). Azure already sits at
+   228°, so any hue that clears the ramp is within ~20° of the default and
+   would not read as a choice at all. Removing the hue is the only move that
+   is both safe and visibly different — and it is the one option that
+   deletes the neon tell outright rather than dimming it.
+
+   What the user gets: a monochrome mode. Interactive becomes an inverted
+   ivory fill, and success / warning / danger become the ONLY colours on
+   the screen.
+
+   THE COST, and it is real: an ivory link is the same lightness as body
+   text (ΔL* 3.5 against --tm-text), so colour alone cannot say "this is
+   clickable". Bone rests on the other three signals instead — cursor,
+   hover and focus ring — which still satisfies the Four-Signal rule, and
+   which is how every non-accent control in the app already works under
+   the --tm-interactive-rest contract.
+
+   Where that is weakest is an inline link inside prose, and the underline
+   rule below does NOT close it: .tm-link has 6 usages and zero component
+   consumers, while 219 CSS rules colour something with the accent by hand.
+   The rule is correct where it applies and costs nothing, but do not read
+   it as the fix. Adopting .tm-link is the actual fix and is its own job.
+
+   Scoped to dark only: light + Bone intentionally falls back to light's own
+   accent — this block sits BEFORE the light surface block in source order,
+   so the light block's own --tm-interactive* redefinition wins the cascade
+   (equal specificity, later source wins). --tm-brand (logo/completion) is
+   deliberately untouched — accent ≠ brand.
+
+   The stored key stays "forge". It is the `accent_pref` / `data-accent`
+   identifier and predates two renames (Forge → Ember → Bone); changing it
+   would strand every existing preference row. */
 :root[data-accent="forge"] {
-  --tm-int-bg-subtle:      rgba(255, 179, 71, 0.05);
-  --tm-int-bg-wash:        rgba(255, 179, 71, 0.10);
-  --tm-int-bg-hover:       rgba(255, 179, 71, 0.16);
-  --tm-int-border-soft:    rgba(255, 179, 71, 0.26);
-  --tm-int-border:         rgba(255, 179, 71, 0.42);
-  --tm-int-solid:          #FFB347;
-  --tm-int-solid-hover:    #FFD07A;
-  --tm-int-text:           #ffcf8f;
-  --tm-int-text-strong:    #ffe0b3;
+  --tm-int-bg-subtle:      rgba(241, 231, 210, 0.04);
+  --tm-int-bg-wash:        rgba(241, 231, 210, 0.07);
+  --tm-int-bg-hover:       rgba(241, 231, 210, 0.12);
+  --tm-int-border-soft:    rgba(241, 231, 210, 0.18);
+  --tm-int-border:         rgba(241, 231, 210, 0.30);
+  --tm-int-solid:          #f1e7d2;
+  --tm-int-solid-hover:    #fcf6e9;
+  --tm-int-text:           #f1e7d2;
+  --tm-int-text-strong:    #fcf6e9;
 
-  --tm-interactive:        #FFB347;
-  --tm-interactive-hover:  #FFD07A;
-  --tm-interactive-press:  #E08E1F;
-  --tm-interactive-glow:   rgba(255, 179, 71, 0.20);
+  --tm-interactive:        #f1e7d2;
+  --tm-interactive-hover:  #fcf6e9;
+  --tm-interactive-press:  #d7cdb7;
+  --tm-interactive-glow:   rgba(241, 231, 210, 0.16);
   --tm-interactive-wash:   var(--tm-int-bg-wash);
   --tm-interactive-ring:   var(--tm-int-border);
-  --tm-interactive-grid:   rgba(255, 179, 71, 0.05);
-  --tm-interactive-fg:     #2b1600;
+  --tm-interactive-grid:   rgba(241, 231, 210, 0.04);
+  --tm-interactive-fg:     #191712;
+}
+
+/* Bone's one structural difference: the underline IS the affordance,
+   because the colour cannot be. See the block above. */
+:root[data-accent="forge"] .tm-link {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
 }
 
 /* ── Surface: LIGHT · Spirit — daylight clarity (MYRO-THM-001) ──
@@ -573,12 +610,12 @@
   --ring:                204 100% 37%;
 }
 :root[data-accent="forge"] {
-  /* #FFB347 — matches the real --tm-interactive forge override above. */
-  --primary:             35 100% 64%;
-  --accent:              35 100% 64%;
-  --ring:                35 100% 64%;
-  --primary-foreground:  30 100% 8%;
-  --accent-foreground:   30 100% 8%;
+  /* #f1e7d2 — matches the real --tm-interactive Bone override above. */
+  --primary:             41 53% 88%;
+  --accent:              41 53% 88%;
+  --ring:                41 53% 88%;
+  --primary-foreground:  43 16% 8%;
+  --accent-foreground:   43 16% 8%;
 }
 :root[data-surface="light"][data-accent="forge"] {
   --primary:             204 100% 37%;
