@@ -95,3 +95,37 @@ def test_no_new_inventory_prices_the_run_at_the_flat_cost():
         "run_cost": MATCH_RUN_COST,
         "new_jobs_count": 0,
     }
+
+
+class _TimingOutJobsRepo:
+    """The count that read-timed-out four times in one hour of prod logs."""
+
+    def count_new_jobs_for_user(self, user_id: str) -> int:
+        raise TimeoutError("The read operation timed out")
+
+
+def test_a_run_we_cannot_price_is_free_not_a_hundred_coins():
+    """`count_for_user` swallowed the timeout and returned 0 — and 0 is the
+    value that charges `MATCH_RUN_COST`. Every one of those four timeouts would
+    have billed a user 100 coins because our database was slow.
+
+    Absence is not a verdict. We failed to compute it, so we do not charge for
+    it (Shivam, 2026-08-22).
+    """
+    client = _client(orders=_FakeOrders(_bundle()), repo=_TimingOutJobsRepo())
+
+    body = client.get("/preflight/price").json()
+
+    assert body["run_cost"] == 0
+    # And nothing to announce — unknown is not "0 new roles" either.
+    assert body["new_jobs_count"] == 0
+
+
+def test_the_waiver_is_one_rule_shared_by_the_quote_and_the_charge():
+    """Three surfaces price a run. When they drift, a user is quoted one number
+    and billed another."""
+    from app.services import new_inventory
+
+    assert new_inventory.waives_charge(None) is True, "unknown waives"
+    assert new_inventory.waives_charge(7) is True, "new inventory waives"
+    assert new_inventory.waives_charge(0) is False, "caught up — a real second search"

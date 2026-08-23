@@ -222,10 +222,28 @@ def test_count_is_zero_for_a_never_matched_user() -> None:
     assert new_inventory.count_for_user(_RepoNeverMatched(), "u1") == 0
 
 
-def test_count_failure_degrades_to_zero_not_a_500() -> None:
-    """This number is read on the feed's critical path — it may never take the
-    page down, and a broken count must read as "nothing new", never as a prompt."""
-    assert new_inventory.count_for_user(_RepoBroken(), "u1") == 0
+def test_count_failure_is_unknown_not_zero() -> None:
+    """It may never take the page down — but "we could not tell" is not "zero".
+
+    This asserted `== 0` until 2026-08-22, and 0 is the value that prices a run
+    at `MATCH_RUN_COST`. The query read-timed-out four times in one hour of prod
+    logs on 2026-08-21, and every one of those would have billed a user 100
+    coins because our database was slow.
+
+    The original intent still holds: `None` is falsy at every DISPLAY site, so a
+    broken count still reads as "nothing new" and never as a prompt. What
+    changed is that the WALLET no longer reads it as a caught-up user.
+    """
+    assert new_inventory.count_for_user(_RepoBroken(), "u1") is None
+
+
+def test_the_waiver_is_one_rule() -> None:
+    """Three surfaces price a run — `/preflight/price`, the legacy
+    `/jobs/refresh/preflight`, and `JobRefresh.start`, which is the one that
+    debits. When they drift, a user is quoted one number and billed another."""
+    assert new_inventory.waives_charge(None) is True, "unknown waives"
+    assert new_inventory.waives_charge(7) is True, "new inventory waives"
+    assert new_inventory.waives_charge(0) is False, "caught up — a real second search"
 
 
 # ── the announcement is spent by the run it asked for ───────────────────────

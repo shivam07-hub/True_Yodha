@@ -226,7 +226,14 @@ export function PreflightGate({
       // new order without a run. The market sheet did this and the gate did
       // not, so the same accepted proposal changed the feed from one door and
       // not the other.
-      invalidateTargetRoleData(client)
+      //
+      // A WIDENING proposal is the opposite — it brings roles into scope that
+      // have never been rated, and re-reading cannot rate them. Refetching the
+      // feed there spends a read to show the user the same list, which is how
+      // "I accepted it and nothing happened" becomes "I accepted it and it
+      // took a second to not happen". The server already classifies which is
+      // which; it just had nobody listening.
+      if (!proposal.costly) invalidateTargetRoleData(client)
     } catch (err) {
       // Keep the server's reason — a 409 says the order changed elsewhere and
       // the user needs to see it, not a generic "didn't stick".

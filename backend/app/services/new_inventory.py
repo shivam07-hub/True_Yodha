@@ -24,20 +24,46 @@ from app.repositories.notifications import NotificationsRepository
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["count_for_user", "announce_for_user", "resolve_for_user"]
+__all__ = ["count_for_user", "waives_charge", "announce_for_user", "resolve_for_user"]
 
 
-def count_for_user(repo: Any, user_id: str) -> int:
+def count_for_user(repo: Any, user_id: str) -> int | None:
     """Live jobs that landed after this user's last match compute.
 
     0 for a never-matched user: nothing is "new" without a baseline, and the
     honest prompt for them is "run your first match", not a count.
+
+    **None means we could not tell** — and that is a different fact from zero.
+    It returned 0 on failure until 2026-08-22, and 0 is the value that PRICES A
+    RUN AT `MATCH_RUN_COST`: the query read-timed-out four times in one hour of
+    prod logs on 2026-08-21, and every one of those would have billed a user 100
+    coins because our database was slow. Absence is not a verdict
+    (feedback_absence_is_not_a_verdict).
+
+    Callers must decide what an unknown means for them. Pricing waives —
+    Shivam, 2026-08-22: we failed to compute it, so we do not charge for it.
+    Display treats it as nothing to announce.
     """
     try:
         return repo.count_new_jobs_for_user(user_id)
     except Exception as exc:  # noqa: BLE001 — a count is never worth a 500
-        logger.warning("new_inventory: count failed user=%s: %s", user_id, exc)
-        return 0
+        logger.warning("metric new_inventory.count_unknown user=%s: %s", user_id, exc)
+        return None
+
+
+def waives_charge(count: int | None) -> bool:
+    """Is this run free?
+
+    The ONE place the waiver is expressed, because three surfaces price a run —
+    the pre-flight's `/price`, the legacy `/jobs/refresh/preflight`, and
+    `JobRefresh.start`, which is the one that actually debits. When they drift a
+    user is quoted one number and billed another.
+
+    `None` waives. We could not compute the count, and a user is not billed
+    because our database was slow (Shivam, 2026-08-22). It costs us LLM spend on
+    the rare timeout; the alternative charged 100 coins for our outage.
+    """
+    return count is None or count > 0
 
 
 def announce_for_user(user_id: str, count: int) -> None:
