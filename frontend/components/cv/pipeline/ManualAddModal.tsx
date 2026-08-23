@@ -220,7 +220,7 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
                   width: "100%", boxSizing: "border-box", marginTop: 8,
                   display: "flex", alignItems: "center", gap: 10,
                   padding: "10px 12px", borderRadius: 8, cursor: parsing ? "wait" : "pointer",
-                  background: "var(--tm-int-bg-wash, rgba(0,245,212,0.03))",
+                  background: "var(--tm-int-bg-wash, rgba(79,199,246,0.03))",
                   border: "1.5px dashed var(--tm-int-border, var(--tm-accent-ring))",
                   color: "var(--tm-text)", fontFamily: "inherit", textAlign: "left",
                 }}

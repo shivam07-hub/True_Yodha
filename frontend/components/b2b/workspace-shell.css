@@ -97,7 +97,7 @@
 .b2bws-tab[data-active="true"] {
   border-color: var(--tm-int-border);
   background:
-    linear-gradient(180deg, rgba(0, 245, 212, 0.12), rgba(0, 245, 212, 0.03)),
+    linear-gradient(180deg, rgba(79, 199, 246, 0.12), rgba(79, 199, 246, 0.03)),
     var(--tm-surface);
 }
 .b2bws-tab-label { font-size: 0.95rem; font-weight: 700; color: var(--tm-text); }

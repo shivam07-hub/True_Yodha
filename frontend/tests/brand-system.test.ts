@@ -50,29 +50,46 @@ test("brand tokens implement the canonical Myro light + dark + ink palettes", ()
   const lightBlock = tokens.slice(lightSurfaceIndex(tokens), inkSurfaceIndex(tokens))
   const inkBlock = tokens.slice(inkSurfaceIndex(tokens))
 
-  // DARK = one dark, site-wide (2026-07-27). Adopted wholesale from the mobile
-  // redesign ramp after Jobs/Collections were judged the standard; supersedes
-  // both the retired cool Engine (#0a0a0c) and the warm-brown (#100c09) ramps.
-  // Still the PRODUCT surface — the ink block below did not replace it.
-  assert.match(darkBlock, /--tm-bg:\s*#191918/)
-  assert.match(darkBlock, /--tm-surface:\s*#212120/)
+  // DARK = AZURE ash (2026-08-23). Supersedes ONE DARK (#191918, 2026-07-27),
+  // which supersedes the retired cool Engine (#0a0a0c) and warm-brown
+  // (#100c09) ramps. Neutrals sit at ~228 deg, chroma 0.007 rising to 0.016 —
+  // the accent with its saturation almost off. Still the PRODUCT surface.
+  assert.match(darkBlock, /--tm-bg:\s*#161a1c/)
+  assert.match(darkBlock, /--tm-surface:\s*#1d2224/)
   assert.match(darkBlock, /--tm-text:\s*#f2f2ee/)
-  assert.match(darkBlock, /--tm-interactive:\s*#00f5d4/)
+  assert.match(darkBlock, /--tm-interactive:\s*#4fc7f6/)
 
-  // LIGHT = "Firecrawl paper" — warm paper + orange. Its OWN brand, not a
-  // teal inverse.
-  assert.match(lightBlock, /--tm-bg:\s*#faf6f0/)
-  assert.match(lightBlock, /--tm-surface:\s*#fffdfa/)
-  assert.match(lightBlock, /--tm-text:\s*#29241e/)
-  assert.match(lightBlock, /--tm-interactive:\s*#FF4C00/)
+  // LIGHT = cool paper + azure (2026-08-23). Supersedes "Firecrawl paper"
+  // (warm #faf6f0 + orange #FF4C00). Light is no longer its own brand — one
+  // accent runs every surface now.
+  assert.match(lightBlock, /--tm-bg:\s*#f3f7f9/)
+  assert.match(lightBlock, /--tm-surface:\s*#fbfeff/)
+  assert.match(lightBlock, /--tm-text:\s*#202629/)
+  assert.match(lightBlock, /--tm-interactive:\s*#0072be/)
 
-  // INK = the public marketing surface (2026-08-17), navy and dark-only. Teal
-  // is re-pinned here on purpose: inheriting light's orange would put a warm
-  // accent on a cool page, which is the defect this surface exists to fix.
+  // INK = the public marketing surface (2026-08-17), navy and dark-only. The
+  // accent is re-pinned here on purpose: inheriting light's paper-tuned
+  // #0072be would put a too-dark blue on navy.
   assert.match(inkBlock, /--tm-bg:\s*#050a18/)
   assert.match(inkBlock, /--tm-surface:\s*#0b1424/)
   assert.match(inkBlock, /--tm-text:\s*#e8f0ff/)
-  assert.match(inkBlock, /--tm-interactive:\s*#00f5d4/)
+  assert.match(inkBlock, /--tm-interactive:\s*#4fc7f6/)
+})
+
+/**
+ * The brand/interactive split is now load-bearing, so it gets a check. The
+ * MARK stayed teal when the interactive layer moved to azure (Shivam,
+ * 2026-08-23). An agent "fixing the inconsistency" is the failure mode this
+ * guards: --tm-brand going azure is a brand decision, not a cleanup.
+ */
+test("the mark stays teal on the dark and ink surfaces", () => {
+  const tokens = read("app/design-tokens.css")
+  const darkBlock = tokens.slice(0, lightSurfaceIndex(tokens))
+  const inkBlock = tokens.slice(inkSurfaceIndex(tokens))
+
+  assert.match(darkBlock, /--tm-brand:\s*#00f5d4/)
+  assert.match(inkBlock, /--tm-brand:\s*#00f5d4/)
+  assert.doesNotMatch(darkBlock, /--tm-interactive:\s*#00f5d4/)
 })
 
 /**

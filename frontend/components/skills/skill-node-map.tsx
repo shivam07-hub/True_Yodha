@@ -21,7 +21,7 @@ function hexToRgb(hex: string): string {
   const h = hex.trim()
   if (h.startsWith("#") && h.length === 7)
     return `${parseInt(h.slice(1,3),16)},${parseInt(h.slice(3,5),16)},${parseInt(h.slice(5,7),16)}`
-  return "0,245,212"
+  return "79,199,246"
 }
 
 const VW = 800, VH = 520
@@ -112,7 +112,7 @@ export function SkillNodeMap({ userSkills, gapSkills = [], selectedDomain = null
     const ctx = canvas.getContext("2d")
     if (!ctx) return
 
-    let W = 0, H = 0, dpr = 1, accentRgb = "0,245,212"
+    let W = 0, H = 0, dpr = 1, accentRgb = "79,199,246"
     let animId = 0, running = false
     let dragIdx = -1, hovIdx = -1, didDrag = false
     let mdPos = { x: 0, y: 0 }

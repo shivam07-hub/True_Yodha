@@ -106,7 +106,7 @@ export function ProfileSurface({ token }: { token: string }) {
           <div style={{ display: "flex", flexDirection: "column", gap: 1, marginTop: 9 }}>
             {missions.map(m => (
               <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 9, padding: "5.5px 0" }}>
-                <span style={{ width: 17, height: 17, borderRadius: 99, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 9.5, fontWeight: 800, background: m.done ? "var(--mm-accent-wash)" : "transparent", color: m.done ? "var(--mm-accent)" : "var(--mm-dim)", border: `1px solid ${m.done ? "rgba(0,245,212,0.3)" : "rgba(255,255,255,0.14)"}` }}>{m.done ? "✓" : ""}</span>
+                <span style={{ width: 17, height: 17, borderRadius: 99, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 9.5, fontWeight: 800, background: m.done ? "var(--mm-accent-wash)" : "transparent", color: m.done ? "var(--mm-accent)" : "var(--mm-dim)", border: `1px solid ${m.done ? "rgba(79,199,246,0.3)" : "rgba(255,255,255,0.14)"}` }}>{m.done ? "✓" : ""}</span>
                 <span style={{ fontSize: 13, color: m.done ? "var(--mm-faint)" : "var(--mm-text)" }}>{m.label}</span>
               </div>
             ))}

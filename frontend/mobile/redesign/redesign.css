@@ -3,7 +3,7 @@
    Ported to the dot from `Myro Mobile.dc.html`. Scoped under `.mm-root` so it
    never touches desktop web-chrome or the untouched CV surface. The palette is
    the prototype's own cohesive mobile dark theme (accent already == the app's
-   canonical Engine teal #00F5D4).
+   canonical accent, azure #4fc7f6).
    ══════════════════════════════════════════════════════════════════════════ */
 
 /* ── 2026-07-27: `--mm-*` is now an ALIAS LAYER, not a palette ──────────────

@@ -20,7 +20,7 @@ function hexToRgb(hex: string): string {
     const b = parseInt(hex.slice(5, 7), 16)
     return `${r},${g},${b}`
   }
-  return "0,245,212"
+  return "79,199,246"
 }
 
 type Particle = { x: number; y: number; vx: number; vy: number; s: number; op: number; seed: number }

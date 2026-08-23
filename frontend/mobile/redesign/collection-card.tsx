@@ -107,7 +107,7 @@ export function CollectionCard({ row, fitKnown, statusChip, tailored, pulse, onO
           Prep room →
         </Link>
       ) : tailored ? (
-        <button onClick={(e) => { e.stopPropagation(); onOpenCv() }} style={{ height: 32, padding: "0 12px", borderRadius: 99, border: "1px solid rgba(0,245,212,0.35)", background: "var(--mm-accent-wash)", color: "var(--mm-accent)", fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Tailored ✓</button>
+        <button onClick={(e) => { e.stopPropagation(); onOpenCv() }} style={{ height: 32, padding: "0 12px", borderRadius: 99, border: "1px solid rgba(79,199,246,0.35)", background: "var(--mm-accent-wash)", color: "var(--mm-accent)", fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Tailored ✓</button>
       ) : (
         <button onClick={(e) => { e.stopPropagation(); onTailor() }} className="mm-press" style={{ height: 32, padding: "0 14px", borderRadius: 99, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Tailor CV</button>
       )}

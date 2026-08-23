@@ -18,12 +18,12 @@
   --lp-text:          #e8e8ea;
   --lp-muted:         #9aa4bf;
   --lp-faint:         #646e8c;
-  --lp-accent:        #00f5d4;
-  --lp-accent-text:   #67e8f9;
-  --lp-accent-fg:     #04211c;
-  --lp-accent-wash:   rgba(0, 245, 212, 0.07);
-  --lp-accent-ring:   rgba(0, 245, 212, 0.32);
-  --lp-accent-glow:   rgba(0, 245, 212, 0.14);
+  --lp-accent:        #4fc7f6;
+  --lp-accent-text:   #6ac4eb;
+  --lp-accent-fg:     #022330;
+  --lp-accent-wash:   rgba(79, 199, 246, 0.07);
+  --lp-accent-ring:   rgba(79, 199, 246, 0.32);
+  --lp-accent-glow:   rgba(79, 199, 246, 0.14);
   --lp-grid-line:     rgba(255, 255, 255, 0.028);
   --lp-success:       #4ade80;
   --lp-warning:       #f59e0b;
@@ -36,8 +36,8 @@
    On the light (Firecrawl-paper) surface the full-bleed dark band reads as a
    jarring shift. Drop the SECTION to the page surface (paper bg + warm text +
    light grid) so the page stays uniform — but keep the small cards as dark
-   teal consoles so the Engine's brand colours survive. Accent + status colours
-   are left at the base (teal / green / amber); only the section chrome flips. */
+   azure consoles so the Engine's colours survive. Accent + status colours
+   are left at the base (azure / green / amber); only the section chrome flips. */
 :root[data-surface="light"] .lp-engine,
 :root[data-surface="light"] .lp-readout {
   --lp-bg:            var(--tm-bg);
@@ -51,7 +51,7 @@
 }
 
 /* Cards stay dark consoles: re-pin the Engine-dark scope on the card roots so
-   their descendants (titles, meta, icons, readout internals) read dark + teal,
+   their descendants (titles, meta, icons, readout internals) read dark + azure,
    independent of the now-light section around them. */
 :root[data-surface="light"] .lp-engine .lp-stage,
 :root[data-surface="light"] .lp-engine .lp-stage-cv-live,
@@ -140,7 +140,7 @@
   top: 42px;
   height: 1.5px;
   width: 44px;
-  background: rgba(0, 245, 212, 0.18);
+  background: rgba(79, 199, 246, 0.18);
   overflow: hidden;
 }
 .lp-flow-h::after {
@@ -176,7 +176,7 @@
 .lp-stage-cv {
   grid-column: 3 / 4;
   border-color: var(--lp-accent-ring);
-  background: linear-gradient(180deg, var(--lp-surface) 0%, rgba(0, 245, 212, 0.04) 100%);
+  background: linear-gradient(180deg, var(--lp-surface) 0%, rgba(79, 199, 246, 0.04) 100%);
 }
 
 /* stage 4 is now the LIVE dropzone node: the diagram completes itself when the
@@ -194,7 +194,7 @@
   top: -64px;
   width: 1.5px;
   height: 64px;
-  background: rgba(0, 245, 212, 0.22);
+  background: rgba(79, 199, 246, 0.22);
   overflow: hidden;
 }
 .lp-flow-v::after {

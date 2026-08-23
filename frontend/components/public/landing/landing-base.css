@@ -12,7 +12,7 @@
      to the navy marketing ink defined in app/design-tokens.css §Surface: INK
      instead of the warm product dark. Aliasing is still the rule — put a navy
      literal in a component here and the next palette move will miss it.
-     Accent is teal #00f5d4 on this surface in every case; ink is dark-only. */
+     Accent is azure #4fc7f6 on this surface in every case; ink is dark-only. */
   --lp-bg:            var(--tm-bg);
   --lp-surface:       var(--tm-surface);
   --lp-surface-2:     var(--tm-surface-2);
@@ -79,7 +79,7 @@
   flex-direction: column;
 }
 
-.tm-landing ::selection { background: rgba(0, 245, 212, 0.22); color: var(--lp-text); }
+.tm-landing ::selection { background: rgba(79, 199, 246, 0.22); color: var(--lp-text); }
 
 .tm-landing section { position: relative; }
 

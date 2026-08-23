@@ -32,7 +32,7 @@ function hexToRgb(hex: string): string {
   if (h.startsWith("#") && h.length === 7) {
     return `${parseInt(h.slice(1,3),16)},${parseInt(h.slice(3,5),16)},${parseInt(h.slice(5,7),16)}`
   }
-  return "0,245,212"
+  return "79,199,246"
 }
 
 function hashStr(s: string): number {
@@ -133,7 +133,7 @@ export function OrganicSkillGraph({ userSkills, gapSkills = [], selectedDomain =
 
     let W = 0, H = 0, animId = 0, frame = 0
     let dpr = 1
-    let accentRgb = "0,245,212"
+    let accentRgb = "79,199,246"
     let mx = -1, my = -1, hovIdx = -1
 
     function readAccent() {
