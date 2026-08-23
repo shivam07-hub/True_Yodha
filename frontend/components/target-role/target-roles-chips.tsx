@@ -24,16 +24,22 @@ interface Props {
   onSaved?: (roles: string[]) => void
 }
 
+/* These chips are <span>s — they display your saved target roles, they are not
+   controls. Under the Four-Signal rule non-interactive text carries NONE of the
+   affordance signals, so the accent wash + accent border + accent text they wore
+   until 2026-08-23 were three signals promising a tap that does not exist. The
+   readiness % beside the label is a METRIC, so it reads as text at --tm-muted
+   rather than as the accent (aligned accent-budget, DECISIONS.md ACC1). */
 const CHIP: React.CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
   gap: 6,
   padding: "5px 8px 5px 12px",
   borderRadius: "var(--tm-radius-pill)",
-  background: "var(--tm-int-bg-wash)",
-  border: "1px solid var(--tm-int-border)",
+  background: "var(--tm-surface)",
+  border: "1px solid var(--tm-border)",
   fontSize: 12,
-  color: "var(--tm-interactive)",
+  color: "var(--tm-text)",
   maxWidth: "100%",
 }
 
@@ -111,7 +117,7 @@ export function TargetRolesChips({
               {role}
             </span>
             {typeof pct === "number" && (
-              <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums", opacity: 0.85 }}>
+              <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums", color: "var(--tm-text-muted)" }}>
                 {pct}%
               </span>
             )}

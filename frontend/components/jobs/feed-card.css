@@ -50,15 +50,17 @@
 
 /* Company logo tile. A deterministic per-company colour (set via --fc-logo-*
    inline) replaces the old letter-on-black monogram — that was the strongest
-   "terminal" tell. Falls back to the interactive wash when no company. */
+   "terminal" tell. Falls back to a NEUTRAL tile when no company — it used to
+   fall back to the accent, which made every unbranded employer render in the
+   colour reserved for the card's one primary action. */
 .fc-mono {
   flex: 0 0 auto;
   display: inline-flex; align-items: center; justify-content: center;
   width: 34px; height: 34px; border-radius: 10px;
-  background: var(--fc-logo-bg, var(--tm-int-bg-wash, var(--tm-surface-2, var(--tm-surface))));
+  background: var(--fc-logo-bg, var(--tm-surface-2, var(--tm-surface)));
   border: 1px solid transparent;
   font-family: var(--tm-font-sans, inherit); font-size: 14px; font-weight: 700;
-  color: var(--fc-logo-ink, var(--tm-interactive)); text-transform: uppercase;
+  color: var(--fc-logo-ink, var(--tm-text-muted)); text-transform: uppercase;
 }
 
 .fc-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
