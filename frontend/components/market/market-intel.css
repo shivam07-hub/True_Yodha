@@ -222,7 +222,7 @@
   width: 3px; height: 8px; border-radius: 1px;
   background: var(--tm-interactive); opacity: 0.6;
 }
-/* Firecrawl orange at low alpha washes out on warm paper; dark's teal does not. */
+/* A low-alpha accent washed out on the old warm paper; the cool paper holds it. */
 :root[data-surface="light"] .sd-tick { opacity: 0.75; }
 /* Breadth past the tick cap: the exact count is in the label beside it. */
 .sd-tick-more { opacity: 0.22; }

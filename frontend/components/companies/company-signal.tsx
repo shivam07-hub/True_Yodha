@@ -8,7 +8,7 @@
  *
  * Two invariants carry the "one live intel engine" feeling:
  *  1. The logo tile is ALWAYS accent-wash + mono initials (never a per-company
- *     random hue) — the accent token is theme-directional (teal dark / orange
+ *     random hue) — the accent token is theme-directional (azure dark / deeper azure
  *     light, L6) so the tile brands with the surface it sits on.
  *  2. All numbers are mono (var(--tm-font-mono)).
  *

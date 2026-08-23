@@ -167,7 +167,7 @@ export function ManualAddModal({ token, onClose, onSaved }: Props) {
           <>
             {/* Extension awareness — this is the highest-intent moment (the user is
                manually adding a job, the exact friction the extension removes). One
-               quiet strip; aligned teal-budget (2026-07-23) keeps it a helper link,
+               quiet strip; aligned accent-budget (2026-07-23) keeps it a helper link,
                not a signal — muted body, the CTA phrase in interactive-rest. */}
             <a
               href={EXTENSION_WEBSTORE_URL}

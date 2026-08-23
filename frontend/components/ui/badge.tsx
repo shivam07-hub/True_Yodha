@@ -12,11 +12,11 @@ const badgeVariants = cva(
       // semantic tokens) so a Badge looks native everywhere — that is why this
       // is now the one source for status/count/label pills.
       variant: {
-        /** Teal solid — an emphatic count (unread, following). */
+        /** Accent solid — an emphatic count (unread, following). */
         default: "bg-[var(--tm-interactive)] text-[var(--tm-interactive-fg)] border-transparent",
         /** Subtle neutral — a low-priority / overflow count like "9+". */
         neutral: "bg-[var(--tm-hover-soft)] text-[var(--tm-text-muted)] border-[var(--tm-border)]",
-        /** Teal wash — a soft category / skill chip. */
+        /** Accent wash — a soft category / skill chip. */
         soft: "bg-[var(--tm-int-bg-wash)] text-[var(--tm-interactive)] border-[var(--tm-int-border)]",
         /** Positive status. */
         success: "bg-[var(--tm-success-wash)] text-[var(--tm-success)] border-[var(--tm-success)]",

@@ -48,7 +48,7 @@
 }
 
 /* Warm-dark consumer standard (locked 2026-06-16): cards gain a real fill +
-   soft elevation so they lift off the page (LinkedIn/Quora warmth). Teal stays
+   soft elevation so they lift off the page (LinkedIn/Quora warmth). The accent stays
    rationed to fit rings / active segment / primary CTA only. Reverses the
    former quiet-dark "transparent card / hairline-on-void" treatment. */
 :root[data-surface="dark"] .db {

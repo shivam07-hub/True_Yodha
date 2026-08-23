@@ -117,7 +117,7 @@
    Every in-article block (tables, stats, bars, callouts) shares
    this rhythm so an issue reads as one designed publication.
    Law: serif = voice (prose/headings). Sans = labels. Mono = data.
-   Accent is themed (orange in light, teal in dark) via --tm-accent*
+   Accent is azure on both surfaces via --tm-accent*
    and rationed — one accent, intensity by width, never a rainbow.
    ============================================================ */
 
@@ -288,7 +288,7 @@
 
 /* Pills are buttons, not prose links. `.mdx-prose a` (0,2,0) outranks the bare
    `.nl-pill` (0,1,0) rule above, so an in-body <NewsletterCTA> painted its
-   label in --tm-interactive — the same teal as the pill's own background,
+   label in --tm-interactive — the same accent as the pill's own background,
    i.e. an invisible CTA. Re-assert the pill ink at matching specificity. */
 .mdx-prose a.nl-pill { color: var(--tm-accent-fg); text-decoration: none; }
 .mdx-prose a.nl-pill-ghost { color: var(--tm-accent-text); text-decoration: none; }

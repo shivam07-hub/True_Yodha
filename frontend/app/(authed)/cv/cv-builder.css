@@ -2389,7 +2389,7 @@ mark.cvb-kw {
 /* ── Option C: CV Playground hierarchy redesign ──────────────────────────────
    One Ready number leads · gaps = "Raise it" worklist · the CV is the editor.
    Maps the design's warm palette onto canonical --tm-* tokens, so it renders
-   Firecrawl-orange in light and auto-themes to Engine-teal in dark. */
+   azure, and auto-themes across both surfaces. */
 .cvb-pgc { display: flex; flex-direction: column; min-height: 100vh; }
 .cvb-pgc .mono { font-family: var(--tm-font-mono); }
 .cvb-pgc .tabnum { font-variant-numeric: tabular-nums; }

@@ -12,7 +12,7 @@ test("Jobs hero loading mirrors CommandRail, not the deleted wide hero", () => {
   assert.match(hero, /width:\s*68,\s*height:\s*68/)
   assert.doesNotMatch(hero, /mc-hero/)
   assert.doesNotMatch(hero, /width:\s*168,\s*height:\s*168/)
-  assert.doesNotMatch(rail, /TealField/)
+  assert.doesNotMatch(rail, /AccentField/)
   assert.doesNotMatch(bootstrap, /width:\s*168,\s*height:\s*168/)
 })
 

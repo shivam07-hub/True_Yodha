@@ -56,7 +56,7 @@ export function ClimbList({
         <div>
           <h2 className="up-climb-title">Your climb</h2>
           <p className="up-climb-sub">
-            Pick a skill, climb the rungs. <span className="teal">Teal</span> is banked · <span className="amber">amber</span> is your next move.
+            Pick a skill, climb the rungs. <span className="up-dot up-dot-banked" aria-hidden />banked · <span className="up-dot up-dot-next" aria-hidden />next move.
           </p>
         </div>
         <div className="up-climb-tabs" role="group" aria-label="Filter skills">

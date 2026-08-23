@@ -25,7 +25,7 @@
  * translucent plate has something to lift off; the stroke and the inset
  * highlight do the rest. Material, not decoration.
  *
- * The ACCENT is deliberately not redefined. `--tm-interactive` is teal in the
+ * The ACCENT is deliberately not redefined. `--tm-interactive` is azure in the
  * product dark theme and vermilion in light, and this modal is not a place to
  * fork the brand — an orange island inside a mint app reads as a bug. Flip
  * `--pf-accent` here if that call changes; nothing else needs to move. */

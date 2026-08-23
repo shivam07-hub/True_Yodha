@@ -16,7 +16,7 @@ import "./capture-pill.css"
  * surface (market drains; Collections persists; public rows gate anon → signup).
  * That keeps the pill a single source both consumers read.
  *
- *   rest        →  ★ Save                        (teal outline + wash, fills on hover)
+ *   rest        →  ★ Save                        (accent outline + wash, fills on hover)
  *   saved       →  ✓ In Collections · Tailor →   (success tone; inline next step)
  *   signed-out  →  ★ Save → sign up              (SEO pages, anon → funnel)
  */

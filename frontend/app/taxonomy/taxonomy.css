@@ -629,7 +629,7 @@
   border-width: 2px;
 }
 
-/* ── Skeletons (real-shape, float over <TealField>) ─────────────────────── */
+/* ── Skeletons (real-shape, float over <AccentField>) ─────────────────────── */
 
 .tx-skeleton-stats { gap: 0 28px; }
 

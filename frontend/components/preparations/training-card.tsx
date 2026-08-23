@@ -2,7 +2,7 @@
 
 /**
  * TrainingCard — Finlatics programs in the workspace peek rail.
- * Same card frame as Collections (icon head · stacked chips · teal footer).
+ * Same card frame as Collections (icon head · stacked chips · accent footer).
  * Course chips are louder than Followed companies: these are the action.
  */
 

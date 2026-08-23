@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils"
  * Canonical Myro CTA primitive — Phase 1 of the CTA consolidation.
  * Variants and sizes follow docs/CTA_DESIGN_SPEC.md ("Cast & Stamped").
  * All colors reference --tm-* tokens so the component themes correctly across
- * the light-orange and dark-teal brand palettes.
+ * the light and dark accent palettes.
  *
  * Variants: solid · outline · neutral · dismiss · danger · ghost · inline
  * Sizes:    sm · md (default) · lg · icon-sm · icon-md

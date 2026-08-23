@@ -70,7 +70,7 @@
   line-height: 1.5;
 }
 
-/* Ink at rest, teal on hover (aligned teal-budget 2026-07-23) — a secondary
+/* Ink at rest, accent on hover (aligned accent-budget 2026-07-23) — a secondary
    text link is not a signal/CTA, so it must not spend the accent standing still. */
 .mf-footer-link {
   color: var(--tm-text);
@@ -105,13 +105,13 @@
   line-height: 1.55;
 }
 
-/* ── Aligned teal-budget (2026-07-23) — Collections rail scoped ────────────────
+/* ── Aligned accent-budget (2026-07-23) — Collections rail scoped ────────────────
    The "Today's loop" widget is a secondary retention gadget in this rail, not a
-   signal. Teal is reserved for signal rings / active segment / the primary CTA,
+   signal. The accent is reserved for signal rings / active segment / the primary CTA,
    so here the progress ring, its step legend, and the followed stars go quiet —
    the filled shape (done segment, ✓ dot, ★) still carries state without spending
    the accent. Scoped to `.mc-ws-rail--peek` so the /home hero that shares this
-   CSS and the public /intel stars are untouched. Hover still reveals teal. */
+   CSS and the public /intel stars are untouched. Hover still reveals the accent. */
 .mc-ws-rail--peek .mc-loopring-seg.is-done { stroke: var(--tm-text-muted); }
 .mc-ws-rail--peek .mc-loopring.is-complete .mc-loopring-svg { filter: none; }
 .mc-ws-rail--peek .mc-loopring-leg.is-done { border-color: var(--tm-border); }

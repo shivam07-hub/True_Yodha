@@ -5,7 +5,7 @@
    renders on the logged-out landing surface AND inside the authed app, and the
    landing derives its `--lp-*` FROM these, so reaching for the source works on
    both. Accent therefore follows the two-brand rule with no per-surface scope —
-   orange on the light paper, teal on the dark. This is NOT one of the approved
+   azure on both surfaces. This is NOT one of the approved
    fixed-dark console islands (landing engine pipeline / sample readout / intel
    pane), so it themes with the page.
 

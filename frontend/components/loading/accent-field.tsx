@@ -4,9 +4,9 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { createFieldMotion, shouldAnimateField, type FieldParticle } from "./field-motion"
 
 /**
- * <TealField> — the ambient, cursor/touch-reactive teal-edge loading playground
+ * <AccentField> — the ambient, cursor/touch-reactive accent-edge loading playground
  * (dashboard-loading grill Q6–Q10). It replaces the static grey shimmer as the
- * "fill" behind a loading region: an inset teal rim plus a handful of faint
+ * "fill" behind a loading region: an inset accent rim plus a handful of faint
  * particles that drift on their own and bend toward the pointer/finger. There is
  * no goal, score, or win-state — it is lively to look at and harmless to abandon
  * the instant content is ready.
@@ -23,10 +23,10 @@ import { createFieldMotion, shouldAnimateField, type FieldParticle } from "./fie
  *  - mounts only while a section loads; unmounting (section ready) hard-tears-down
  *    every listener + the rAF — no idle battery cost after paint.
  *  - paused on tab blur; ~10 particles, DOM not canvas.
- *  - prefers-reduced-motion → static teal rim only, no particles, no reactivity.
+ *  - prefers-reduced-motion → static accent rim only, no particles, no reactivity.
  */
 
-type TealFieldMode = "full-bleed" | "masked"
+type AccentFieldMode = "full-bleed" | "masked"
 
 /** Fixed, low particle count (grill Q9 cap ~8–12); deterministic so SSR matches. */
 const PARTICLES = [
@@ -54,7 +54,7 @@ function usePrefersReducedMotion(): boolean {
   return reduced
 }
 
-export function TealField({
+export function AccentField({
   mode = "masked",
   interactive = true,
   message,
@@ -62,7 +62,7 @@ export function TealField({
   style,
   children,
 }: {
-  mode?: TealFieldMode
+  mode?: AccentFieldMode
   interactive?: boolean
   /** full-bleed only: centred status line (e.g. the OAuth message). */
   message?: string
@@ -211,10 +211,10 @@ export function TealField({
 }
 
 /**
- * Full-bleed preset of <TealField> — the "destination not yet known" loader
+ * Full-bleed preset of <AccentField> — the "destination not yet known" loader
  * (OAuth callback). Kept as a named export so existing call sites don't churn
  * (grill Q10).
  */
 export function EdgeGlow({ message = "Signing you in…" }: { message?: string }) {
-  return <TealField mode="full-bleed" message={message} />
+  return <AccentField mode="full-bleed" message={message} />
 }
