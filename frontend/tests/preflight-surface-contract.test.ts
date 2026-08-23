@@ -79,7 +79,12 @@ test("the say band carries the chips the sheet was worth keeping", () => {
   assert.doesNotMatch(topicTurn, /setSaid/)
   // Narrowing is free — the gate re-reads the feed without charging a run,
   // which only the sheet used to do.
-  assert.match(gate, /invalidateTargetRoleData\(client\)/)
+  // …but only for a NARROWING one. Widening brings roles into scope that have
+  // never been rated, so re-reading cannot show them — that refetch spends a
+  // read to render the same list, which reads as "I accepted it and it took a
+  // second to not happen". The server classifies which is which; until
+  // 2026-08-22 nothing listened.
+  assert.match(gate, /if \(!proposal\.costly\) invalidateTargetRoleData\(client\)/)
 })
 
 test("every mutation writes the server's answer back into the cache", () => {
