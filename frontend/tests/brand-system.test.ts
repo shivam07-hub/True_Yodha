@@ -18,17 +18,13 @@ function lightSurfaceIndex(tokens: string): number {
 }
 
 /**
- * Offset of the INK surface rule — the dark-only navy the public marketing
- * pages run (DECISIONS.md §Marketing ink surface). It follows the light block
- * in source order, so without this boundary the "light" slice swallows it and
- * the ink palette goes unchecked — the same vacuous-assertion trap the helper
- * above exists to prevent.
+ * There is no third boundary any more. The marketing INK surface was retired
+ * on 2026-08-23 (DECISIONS.md ACC1) — both of the measurements it was approved
+ * on had gone void: the product base is no longer warm, and ink's card edge
+ * (+3.5 L*) turned out to be SMALLER than the azure ramp's (+3.9). The 2.22x
+ * luminance ratio that argued for it was an artefact of dividing by a
+ * near-black page. Two surfaces now, and the light block ends the file.
  */
-function inkSurfaceIndex(tokens: string): number {
-  const m = tokens.match(/^html:root:has\(\.tm-ink\)/m)
-  assert.ok(m?.index !== undefined, "design-tokens.css must declare an html:root:has(.tm-ink) rule")
-  return m!.index!
-}
 
 /**
  * ⚠️ MAINTENANCE CONTRACT — read before "fixing" a failure here.
@@ -47,8 +43,7 @@ function inkSurfaceIndex(tokens: string): number {
 test("brand tokens implement the canonical Myro light + dark + ink palettes", () => {
   const tokens = read("app/design-tokens.css")
   const darkBlock = tokens.slice(0, lightSurfaceIndex(tokens))
-  const lightBlock = tokens.slice(lightSurfaceIndex(tokens), inkSurfaceIndex(tokens))
-  const inkBlock = tokens.slice(inkSurfaceIndex(tokens))
+  const lightBlock = tokens.slice(lightSurfaceIndex(tokens))
 
   // DARK = AZURE ash (2026-08-23). Supersedes ONE DARK (#191918, 2026-07-27),
   // which supersedes the retired cool Engine (#0a0a0c) and warm-brown
@@ -67,13 +62,8 @@ test("brand tokens implement the canonical Myro light + dark + ink palettes", ()
   assert.match(lightBlock, /--tm-text:\s*#202629/)
   assert.match(lightBlock, /--tm-interactive:\s*#0072be/)
 
-  // INK = the public marketing surface (2026-08-17), navy and dark-only. The
-  // accent is re-pinned here on purpose: inheriting light's paper-tuned
-  // #0072be would put a too-dark blue on navy.
-  assert.match(inkBlock, /--tm-bg:\s*#050a18/)
-  assert.match(inkBlock, /--tm-surface:\s*#0b1424/)
-  assert.match(inkBlock, /--tm-text:\s*#e8f0ff/)
-  assert.match(inkBlock, /--tm-interactive:\s*#4fc7f6/)
+  // Retired surfaces must not creep back as a third block.
+  assert.doesNotMatch(tokens, /tm-ink/)
 })
 
 /**
@@ -85,27 +75,9 @@ test("brand tokens implement the canonical Myro light + dark + ink palettes", ()
 test("the mark stays teal on the dark and ink surfaces", () => {
   const tokens = read("app/design-tokens.css")
   const darkBlock = tokens.slice(0, lightSurfaceIndex(tokens))
-  const inkBlock = tokens.slice(inkSurfaceIndex(tokens))
 
   assert.match(darkBlock, /--tm-brand:\s*#00f5d4/)
-  assert.match(inkBlock, /--tm-brand:\s*#00f5d4/)
   assert.doesNotMatch(darkBlock, /--tm-interactive:\s*#00f5d4/)
-})
-
-/**
- * Ink is dark-only BY SPECIFICITY, not by source order. If someone re-scopes it
- * to a bare `:root:has(...)` — (0,2,0), tying with :root[data-surface="light"]
- * — a light-preference visitor gets paper tokens bleeding onto a navy page, and
- * it breaks only for the subset of visitors who chose light. Nothing else here
- * would catch that, so pin the selector shape.
- */
-test("the ink surface outranks the light surface regardless of source order", () => {
-  const tokens = read("app/design-tokens.css")
-
-  // `html` + `:root` + :has(class) = (0,2,1) > :root[attr] = (0,2,0).
-  assert.match(tokens, /^html:root:has\(\.tm-ink\)\s*\{/m)
-  // The deep field must stay lit on ink even when the root asked for light.
-  assert.match(tokens, /html:root:has\(\.tm-ink\) body::before\s*\{\s*display:\s*block;/)
 })
 
 /**
@@ -119,7 +91,7 @@ test("the ink surface outranks the light surface regardless of source order", ()
  * their own subheadings stayed readable — hierarchy inverted by accident.
  *
  * House rule encoded here: in BOTH themes the card lifts TOWARD white off the
- * page (dark #212120 over #191918; light #fffdfa over #faf6f0). A card that
+ * page (dark #1d2224 over #161a1c; light #fbfeff over #f3f7f9). A card that
  * sinks below its page reads as a hole, not a surface.
  */
 test("each surface keeps card above page, and text legible against its own page", () => {
@@ -142,12 +114,9 @@ test("each surface keeps card above page, and text legible against its own page"
     return (hi + 0.05) / (lo + 0.05)
   }
 
-  const inkIdx = inkSurfaceIndex(tokens)
-
   for (const [label, block] of [
     ["dark", tokens.slice(0, lightIdx)],
-    ["light", tokens.slice(lightIdx, inkIdx)],
-    ["ink", tokens.slice(inkIdx)],
+    ["light", tokens.slice(lightIdx)],
   ] as const) {
     const bg = hexOf(block, "tm-bg")
     const surface = hexOf(block, "tm-surface")

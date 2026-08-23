@@ -61,16 +61,12 @@ function token(block: string, name: string): string {
  * --tm-surface-2, which made the bars vanish and the load read as empty.
  * 6 L* is the floor for "visible step"; both surfaces clear it with room.
  */
-test("skeleton ink is a visible shape on every dark surface, not the card", () => {
+test("skeleton ink is a visible shape on the dark surface, not the card", () => {
   const tokens = read("app/design-tokens.css")
   const lightAt = tokens.search(/^:root\[data-surface="light"\]/m)
-  const inkAt = tokens.search(/^html:root:has\(\.tm-ink\)/m)
-  assert.ok(lightAt > 0 && inkAt > lightAt)
+  assert.ok(lightAt > 0)
 
-  for (const [name, block] of [
-    ["product dark", tokens.slice(0, lightAt)],
-    ["marketing ink", tokens.slice(inkAt)],
-  ] as const) {
+  for (const [name, block] of [["product dark", tokens.slice(0, lightAt)]] as const) {
     const skeleton = lstar(token(block, "skeleton"))
     for (const under of ["surface", "surface-2"] as const) {
       const step = skeleton - lstar(token(block, under))

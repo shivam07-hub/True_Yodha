@@ -84,7 +84,7 @@ The resting color of a **clickable control that is not an accent CTA or accent l
 
 **Boundary**
 
-- `--tm-interactive-rest` references `--tm-text`, so it auto-flips per surface: dark `#E8F0FF` (as white as possible), light `#050A18` (near-black) — i.e. *maximally-contrasting resting color*.
+- `--tm-interactive-rest` references `--tm-text`, so it auto-flips per surface: dark `#f2f2ee` (as white as possible), light `#202629` (near-black) — i.e. *maximally-contrasting resting color*. (This line quoted the retired INK surface's values until 2026-08-23.)
 - Untouched layer: accent solid CTAs, accent outline buttons, and accent inline links keep their accent color — white is the floor for the previously-dull controls, not a replacement for the interactive identity.
 - Stays dull (`--tm-text-muted` / `--tm-text-faint`): **static, non-clickable** labels, captions, meta, helper/description text, placeholders, **disabled** controls, and **decorative** (non-clickable) icons. Bright ⇔ clickable, dull ⇔ not.
 - Hover/active on a now-bright control is carried by **background/border**, not a text-color shift (text is already maxed).

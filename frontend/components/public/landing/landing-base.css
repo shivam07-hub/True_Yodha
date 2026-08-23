@@ -8,11 +8,12 @@
 .tm-landing {
   /* The landing still owns no palette of its own — every --lp-* token ALIASES
      the canonical --tm-* system. What changed (2026-08-17) is which ramp the
-     canonical system hands it: the wrapper carries `tm-ink`, so --tm-* resolves
-     to the navy marketing ink defined in app/design-tokens.css §Surface: INK
-     instead of the warm product dark. Aliasing is still the rule — put a navy
-     literal in a component here and the next palette move will miss it.
-     Accent is azure #4fc7f6 on this surface in every case; ink is dark-only. */
+     canonical system hands it. The marketing INK surface was retired on
+     2026-08-23 (DECISIONS.md ACC1) — the landing now runs the same azure ash
+     and cool paper as the product, and follows the visitor's theme like every
+     other page. Aliasing is still the rule: put a literal in a component here
+     and the next palette move will miss it, which is exactly what happened to
+     landing-engine.css and sample-readout.css. */
   --lp-bg:            var(--tm-bg);
   --lp-surface:       var(--tm-surface);
   --lp-surface-2:     var(--tm-surface-2);

@@ -61,7 +61,7 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
 
   return (
     <div
-      className={`tm-landing tm-ink ${fontClassName}`.trim()}
+      className={`tm-landing ${fontClassName}`.trim()}
       data-scrolled={scrolled ? "true" : "false"}
     >
       <PublicTopNav active="home" showSignIn />
