@@ -6,7 +6,7 @@
  * only lives in a review comment is a rule that comes back.
  */
 import { strict as assert } from "node:assert"
-import { readFileSync } from "node:fs"
+import { readdirSync, readFileSync } from "node:fs"
 import { test } from "node:test"
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8")
@@ -434,10 +434,40 @@ test("no rule survives the element it styled", () => {
   assert.deepEqual(orphans, [], `CSS for elements nothing renders: ${orphans.join(", ")}`)
 })
 
+test("every stylesheet in the folder is actually loaded", () => {
+  // `bfd99924` (the canvas rebuild) deleted `import "./screen-running.css"`
+  // from the shell and kept the sibling import beside it. For two days both
+  // wait screens — the hero, the streaming stack, the count, and every number
+  // on "Run complete" — rendered with no rules at all, on the last screen of a
+  // run a user may have paid 100 coins for.
+  //
+  // Nothing caught it. tsc does not typecheck a side-effect import that isn't
+  // there, the orphan-rule test compares declared classes to rendered ones
+  // (a different question), and the file still sat in the folder reading like
+  // live design. An unimported stylesheet is the quietest failure in the repo.
+  const dir = "components/preflight"
+  const sheets = readdirSync(new URL(`../${dir}/`, import.meta.url))
+    .filter((f) => f.endsWith(".css"))
+  assert.ok(sheets.length > 0, "no stylesheets found — check the path")
+
+  const imports = readdirSync(new URL(`../${dir}/`, import.meta.url))
+    .filter((f) => f.endsWith(".tsx"))
+    .map((f) => read(`${dir}/${f}`))
+    .join("\n")
+
+  for (const sheet of sheets) {
+    assert.ok(
+      imports.includes(`"./${sheet}"`),
+      `${sheet} is imported by nothing — it will never load`,
+    )
+  }
+})
+
 test("reduced motion is honoured on every animated surface", () => {
   for (const file of [
     "components/preflight/preflight.css",
     "components/preflight/plate.css",
+    "components/preflight/screen-running.css",
   ]) {
     assert.match(read(file), /prefers-reduced-motion: reduce/, `${file} must honour reduced motion`)
   }

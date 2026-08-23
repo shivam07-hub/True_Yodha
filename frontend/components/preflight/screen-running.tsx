@@ -194,10 +194,12 @@ export function ScreenDone({
           </div>
         ) : null}
       </div>
+      {/* No "tell Myro from the market" — that surface was deleted on
+          2026-08-21 and there is one door now. The two buttons below are the
+          only routes onward, and "Run it again" carries its own price. */}
       <p className="pf-sub">
-        Myro used exactly what you signed off on. Nothing you left unanswered was
-        applied — if the results feel off, tell Myro from the market and
-        it&apos;ll propose a change.
+        Myro used exactly what you signed off on. Nothing you left unanswered
+        was applied.
       </p>
       <div className="pf-chips">
         <button type="button" className="pf-btn pf-btn-primary tm-control-focus" onClick={onSeeMatches}>

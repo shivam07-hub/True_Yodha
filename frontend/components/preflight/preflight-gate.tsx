@@ -49,6 +49,11 @@ import { ScreenCanvas } from "./screen-canvas"
 import { ScreenDone, ScreenRunning } from "./screen-running"
 
 import "./preflight.css"
+// Dropped by `bfd99924` (the canvas rebuild) and imported by nothing for two
+// days: `screen-running.tsx` says the shell loads it, and the shell did not.
+// Both wait screens — the hero, the streaming stack, the count, and every
+// number on "Run complete" — rendered with no rules at all.
+import "./screen-running.css"
 
 type Mode = "canvas" | "running" | "done"
 type Verdict = "kept" | "dropped" | null

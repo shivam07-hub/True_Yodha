@@ -127,11 +127,67 @@
   margin-top: auto;
 }
 
+/* ── done ─────────────────────────────────────────────────────────────────────
+   The last screen of a run the user may have paid 100 coins for, and until
+   2026-08-23 it had NO rules at all — `pf-signed`, `pf-numbers`, `pf-numeral`,
+   `pf-numeral-label` and `pf-chips` were markup with nothing behind them, so it
+   rendered as four stacked plain lines and read like a debug dump.
+
+   The numbers ARE the headline, so "Run complete" is an eyebrow rather than a
+   heading — the same treatment as `.pf-run-status`, because this screen
+   replaces that one in place and should read as its last frame, not as another
+   surface. */
+
+.pf-signed {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+
+.pf-numbers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  margin-top: 14px;
+}
+
+/* `--tm-fs-numeral` is the scale's "a result worth reading across the room".
+   A match count is the one number on this surface that earns it. */
+.pf-numeral {
+  font-size: var(--tm-fs-numeral);
+  font-weight: 600;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  color: var(--tm-text);
+}
+
+/* Same label dialect as `.pf-run-hero-company`, one screen earlier. */
+.pf-numeral-label {
+  margin-top: 4px;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tm-text-muted);
+}
+
+.pf-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+}
+
 @media (max-width: 420px) {
   .pf-run-hero {
     border-radius: 14px;
     padding: 12px 14px;
   }
+  /* Two numerals still sit side by side at 375px; the gap is what gives. */
+  .pf-numbers { gap: 22px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
