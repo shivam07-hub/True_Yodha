@@ -8,7 +8,7 @@
 
 import type { OrderConflict, OrderState } from "./types"
 
-export function liveIds(order: OrderState, conflict: OrderConflict): string[] {
+function liveIds(order: OrderState, conflict: OrderConflict): string[] {
   const byId = new Map(order.lines.map((line) => [line.id, line]))
   return conflict.line_ids.filter((id) => byId.get(id)?.status === "kept")
 }

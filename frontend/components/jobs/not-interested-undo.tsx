@@ -21,8 +21,9 @@ interface Props {
  * action (locked model), the confirmation rides as a portaled band — but it
  * speaks the ONE unified capture language: a SAVE answers "where it went" (✓ In
  * Collections · #N in queue) AND "what's next" (Tailor now →), matching the
- * in-card <CaptureConfirm> shown on surfaces where the card persists. A SKIP
- * keeps its reason-chip flow.
+ * in-card <CaptureConfirm> written for surfaces where the card persists —
+ * which is NOT WIRED: that component is rendered by nothing, so this band is
+ * the only capture confirmation users see. A SKIP keeps its reason-chip flow.
  */
 export function NotInterestedUndo({ kind, jobId, token, onUndo, queuePosition, surface = "market" }: Props) {
   const [reason, setReason] = useState<PersonalReasonCode | null>(null)

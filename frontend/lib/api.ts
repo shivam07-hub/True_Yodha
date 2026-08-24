@@ -26,6 +26,7 @@ import type {
   LineStatus,
   Order,
   OrderEffect,
+  OrderPrice,
   OrderProposals,
   OrderRunResult,
   OrderState,
@@ -562,6 +563,10 @@ export const preflight = {
   order: (token: string) =>
     request<Order>("/preflight/order", { headers: { Authorization: `Bearer ${token}` } }),
 
+  /** What the next run costs. Its own call because it is the slow half. */
+  price: (token: string) =>
+    request<OrderPrice>("/preflight/price", { headers: { Authorization: `Bearer ${token}` } }),
+
   /** Screen 1's one question, stored verbatim. */
   setSaid: (token: string, said: string) =>
     request<OrderState>("/preflight/order/said", {
@@ -612,7 +617,7 @@ export const preflight = {
   /** Propose only — nothing lands until `apply`. One of the three inputs. */
   proposals: (
     token: string,
-    input: { utterance?: string; topic?: string; free_text?: string },
+    input: { utterance?: string; topic?: string },
   ) =>
     request<OrderProposals>("/preflight/proposals", {
       method: "POST",
@@ -3168,11 +3173,6 @@ export interface RefreshPreflightResponse {
   /** field name → "memory" for every field gap-filled from user_memory */
   prefilled: Record<string, string>
   memory_count: number
-  /** Coins this run will cost, decided server-side — 0 when Myro landed roles
-   *  this user has never been matched against. Never price from a constant. */
-  run_cost: number
-  /** Roles that landed since their last search — the reason it's free. */
-  new_jobs_count: number
 }
 
 export interface RefreshStateResponse {

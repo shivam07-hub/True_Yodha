@@ -1,5 +1,5 @@
 /**
- * Headless motion engine for <TealField> — the cursor/touch-reactive teal-edge
+ * Headless motion engine for <AccentField> — the cursor/touch-reactive accent-edge
  * loading playground (dashboard-loading grill Q6/Q8/Q9).
  *
  * Pulled out of the React component on purpose: the load-bearing part of the
@@ -63,7 +63,7 @@ export interface FieldMotionController {
 
 /**
  * Resolves whether the field should run its reactive loop at all. Reduced-motion
- * users (or a non-interactive instance) get the static teal rim only — no
+ * users (or a non-interactive instance) get the static accent rim only — no
  * particles, no listeners, no rAF (grill Q9). Pure so the gate is unit-testable.
  */
 export function shouldAnimateField(interactive: boolean, reducedMotion: boolean): boolean {

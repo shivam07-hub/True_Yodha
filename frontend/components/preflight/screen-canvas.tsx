@@ -26,18 +26,22 @@ import Link from "next/link"
 
 import { visibleConflicts } from "@/lib/preflight/conflicts"
 import { formatCount } from "@/lib/format"
-import { SLOTS, slotForKind } from "@/lib/preflight/slots"
+import { SLOT_COPY } from "@/lib/preflight/slots"
 import {
   type LineKind,
   type LineStatus,
   type Order,
+  type OrderConflict,
   type OrderLine,
+  type OrderLogEntry,
+  type OrderPrice,
   type OrderProposal,
 } from "@/lib/preflight/types"
-import { blockedLine, contractLine } from "@/lib/preflight/prose"
+import { blockedLine, contractLine, missingRoleLine } from "@/lib/preflight/prose"
 
 import { OpeningPad } from "./canvas-pads"
 import { HeardRow } from "./heard-row"
+import { SayBand } from "./say-band"
 import { SlotGroup } from "./slot-group"
 
 type Verdict = "kept" | "dropped" | null
@@ -47,14 +51,19 @@ export function ScreenCanvas({
   proposals,
   proposalAnswers,
   pending,
+  sayFirst,
+  price,
   balance,
   starting,
   error,
   onSaySomething,
+  onProposeTopic,
   onAnswerLine,
   onRewordLine,
   onAnswerProposal,
   onAddLine,
+  undoable,
+  onUndo,
   onOpenCoins,
   onRun,
 }: {
@@ -66,61 +75,92 @@ export function ScreenCanvas({
   proposalAnswers: Record<string, Verdict>
   /** True while the LLM is drafting a reply after the pad submits. */
   pending: boolean
+  /** The modal was opened straight onto the say band ("something's off"),
+   *  rather than onto the slots. One door, two landings. */
+  sayFirst?: boolean
+  /** null until `GET /preflight/price` lands. Everything on this canvas works
+   *  while it is null — only Run waits, because pressing it before the price is
+   *  known would be consenting to a charge nobody has been shown. */
+  price: OrderPrice | null
   balance: number
   starting: boolean
   error: string | null
   onSaySomething: (text: string) => void
+  onProposeTopic: (topic: string) => void
   onAnswerLine: (lineId: string, status: LineStatus) => void
   onRewordLine: (lineId: string, text: string) => void
   onAnswerProposal: (id: string, verdict: Verdict) => void
   onAddLine: (kind: LineKind, text: string) => void
+  /** The one change made THIS session that can be taken back, or null. */
+  undoable: OrderLogEntry | null
+  onUndo: (entryId: string) => void
   onOpenCoins: () => void
   onRun: () => void
 }) {
   const conflicts = visibleConflicts(order)
 
   /**
-   * A line inside a live conflict is NOT also a settled plate.
+   * The groups, as the RESOLVER partitioned them.
    *
-   * It is still `kept` server-side — the resolver reports the clash, it never
-   * resolves one — so rendering every kept line put "Avoids large corporations"
-   * on screen twice: once as signed-off, once as contested. Two states for one
-   * line, three inches apart. The conflict plate is the one that owns it until
-   * the user settles it.
+   * The client used to file `order.lines` into slots itself, mirroring
+   * `SLOT_ARITY` and `_SLOT_KINDS`. Two resolvers, and they disagreed in the
+   * only direction that matters: the server deduped before filing, this did
+   * not, so one statement rendered twice — once as a settled plate, once inside
+   * the conflict holding its twin — and the header counted both
+   * (`Won't take · 15 of 6`).
+   *
+   * Now the server names the line ids per slot and the only thing done to them
+   * here is the OPTIMISTIC filter: a line the user just dropped disappears on
+   * the tap rather than on the response. That is respecting a local edit, not
+   * re-deciding what the resolver decided.
    */
-  const contested = useMemo(
-    () => new Set(conflicts.flatMap((c) => c.line_ids)),
-    [conflicts],
-  )
-  const kept = useMemo(
-    () => order.lines.filter((l) => l.status === "kept" && !contested.has(l.id)),
-    [order.lines, contested],
-  )
-
-  /** Kept lines and live conflicts, filed to the slot the resolver files them
-   *  to. A kind with no slot (there are none today) would silently vanish, so
-   *  `slotForKind` returning null is worth keeping visible in review. */
-  const bySlot = useMemo(() => {
-    const lines = new Map<string, OrderLine[]>(SLOTS.map((s) => [s.key, []]))
-    for (const line of kept) {
-      const slot = slotForKind(line.kind)
-      if (slot) lines.get(slot)!.push(line)
-    }
-    const clashes = new Map<string, typeof conflicts>(SLOTS.map((s) => [s.key, []]))
+  const groups = useMemo(() => {
+    const byId = new Map(order.lines.map((l) => [l.id, l]))
+    const clashes = new Map<string, OrderConflict[]>()
     for (const conflict of conflicts) {
       const bucket = clashes.get(conflict.slot)
       if (bucket) bucket.push(conflict)
+      else clashes.set(conflict.slot, [conflict])
     }
-    return { lines, clashes }
-  }, [kept, conflicts])
+    const live = (ids: string[]): OrderLine[] =>
+      ids.flatMap((id) => {
+        const line = byId.get(id)
+        return line && line.status === "kept" ? [line] : []
+      })
 
+    return (order.slots ?? []).map((slot) => {
+      const lines = live(slot.line_ids)
+      const held = live(slot.contested_ids)
+      return {
+        slot,
+        copy: SLOT_COPY[slot.key],
+        lines,
+        conflicts: clashes.get(slot.key) ?? [],
+        filled: lines.length + held.length,
+      }
+    })
+  }, [order.lines, order.slots, conflicts])
+
+  const kept = useMemo(() => order.lines.filter((l) => l.status === "kept"), [order.lines])
   const unanswered = useMemo(() => order.lines.filter((l) => l.status === "unanswered"), [order.lines])
-  const runCost = order.run_cost ?? 0
-  const free = runCost === 0
-  const short = !free && balance < runCost
+  const runCost = price?.run_cost ?? 0
+  const free = !!price && runCost === 0
+  const short = !!price && !free && balance < runCost
   const cvReady = (order.cv_readiness ?? "") === "ready"
   const hasWork =
     kept.length > 0 || conflicts.length > 0 || (order.said ?? "").trim().length > 0
+
+  /**
+   * The one slot whose absence is not a preference.
+   *
+   * `/preflight/run` refuses a roleless order — a search with no role runs
+   * against whatever titles the profile still held, which is not the order the
+   * user signed off. The bar states that here so nobody meets the 400.
+   */
+  const hasRole = useMemo(
+    () => order.lines.some((l) => l.status === "kept" && l.kind === "role"),
+    [order.lines],
+  )
 
   return (
     <div className="pf-canvas">
@@ -130,7 +170,7 @@ export function ScreenCanvas({
         <OpeningPad
           order={order}
           balance={balance}
-          runCost={runCost}
+          price={price}
           onSubmit={onSaySomething}
           pending={pending}
         />
@@ -138,12 +178,14 @@ export function ScreenCanvas({
 
       {hasWork ? (
         <div className="pf-slots">
-          {SLOTS.map((spec) => (
+          {groups.map((group) => (
             <SlotGroup
-              key={spec.key}
-              spec={spec}
-              lines={bySlot.lines.get(spec.key) ?? []}
-              conflicts={bySlot.clashes.get(spec.key) ?? []}
+              key={group.slot.key}
+              copy={group.copy}
+              arity={group.slot.arity}
+              filled={group.filled}
+              lines={group.lines}
+              conflicts={group.conflicts}
               allLines={order.lines}
               busy={pending}
               onAdd={onAddLine}
@@ -153,6 +195,10 @@ export function ScreenCanvas({
           ))}
         </div>
       ) : null}
+
+      {/* The other door, in the same room. Until 2026-08-21 this was a second
+          button on /market opening a second modal against the same Order. */}
+      {hasWork ? <SayBand focused={sayFirst} pending={pending} onTopic={onProposeTopic} onSay={onSaySomething} /> : null}
 
       {(unanswered.length > 0 || proposals.length > 0) && hasWork ? (
         <HeardFold
@@ -168,16 +214,43 @@ export function ScreenCanvas({
         <p role="alert" className="pf-canvas-error">{error}</p>
       ) : null}
 
+      {/* Dropping a plate is otherwise a one-way door — a dropped line renders
+          in no group and no fold, so a mis-tap could only be fixed by retyping
+          the statement. One step back, never a changelog. */}
+      {undoable && hasWork ? (
+        <div className="pf-undo-row">
+          <span className="pf-undo-sign" data-kind={undoable.kind} aria-hidden>
+            {undoable.kind === "drop" ? "−" : "+"}
+          </span>
+          <span className="pf-undo-text">{undoable.text}</span>
+          <button
+            type="button"
+            className="pf-undo tm-control-focus"
+            onClick={() => onUndo(undoable.id)}
+            disabled={pending}
+          >
+            Undo
+          </button>
+        </div>
+      ) : null}
+
       {hasWork ? (
         <RunBar
-          contract={conflicts.length > 0 ? blockedLine(conflicts.length) : contractLine(order)}
+          contract={
+            conflicts.length > 0
+              ? blockedLine(conflicts.length)
+              : hasRole
+                ? contractLine(order)
+                : missingRoleLine()
+          }
           runCost={runCost}
           balance={balance}
           free={free}
           short={short}
-          blocked={conflicts.length > 0}
+          priced={!!price}
+          blocked={conflicts.length > 0 || !hasRole}
           busy={starting}
-          newJobs={order.new_jobs_count}
+          newJobs={price?.new_jobs_count ?? 0}
           onOpenCoins={onOpenCoins}
           onRun={onRun}
         />
@@ -251,9 +324,11 @@ function HeardFold({
 }
 
 function RunBar({
-  contract, runCost, balance, free, short, blocked, busy, newJobs, onOpenCoins, onRun,
+  contract, runCost, balance, free, short, priced, blocked, busy, newJobs, onOpenCoins, onRun,
 }: {
   contract: string; runCost: number; balance: number; free: boolean; short: boolean
+  /** False until the price lands. The one control that must wait for it. */
+  priced: boolean
   blocked: boolean; busy: boolean; newJobs: number
   onOpenCoins: () => void; onRun: () => void
 }) {
@@ -272,13 +347,19 @@ function RunBar({
         type="button"
         className="pf-canvas-run tm-control-focus"
         onClick={onRun}
-        disabled={busy || blocked || short}
-        aria-disabled={busy || blocked || short}
+        disabled={busy || blocked || short || !priced}
+        aria-disabled={busy || blocked || short || !priced}
       >
         <span>Run</span>
         <span className="pf-canvas-run-sep" aria-hidden>·</span>
-        <span className="pf-canvas-run-cost">
-          {free ? (newJobs > 0 ? `Free · ${formatCount(newJobs)} new roles` : "Free") : `${runCost} coins`}
+        {/* No number until there is one. A guessed price on a button that
+            charges is the same defect as a client constant. */}
+        <span className="pf-canvas-run-cost" data-pending={priced ? undefined : "true"}>
+          {!priced
+            ? "pricing"
+            : free
+              ? (newJobs > 0 ? `Free · ${formatCount(newJobs)} new roles` : "Free")
+              : `${runCost} coins`}
         </span>
       </button>
     </div>

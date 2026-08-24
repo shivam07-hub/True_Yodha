@@ -43,12 +43,15 @@ export interface OrderLogEntry {
   text: string
 }
 
-export interface OrderRound {
-  key: RoundKey
-  line_ids: string[]
-}
-
 export type ConflictKind = "arity" | "contradiction"
+
+export type SlotKey =
+  | "target_role_titles"
+  | "target_location"
+  | "deal_breakers"
+  | "lean"
+  | "career_goal"
+  | "superpower"
 
 export interface OrderConflict {
   slot: string
@@ -58,27 +61,53 @@ export interface OrderConflict {
   keep: number
 }
 
+/**
+ * One of the six slots, as the resolver left it.
+ *
+ * `line_ids` is the PLACED set — deduped, uncontested, within arity, and
+ * identical to what reaches the profile patch. The client renders these; it no
+ * longer files lines into slots itself. Two resolvers is how the screen came to
+ * show duplicates the server had already collapsed, then count them.
+ */
+export interface OrderSlot {
+  key: SlotKey
+  arity: number
+  line_ids: string[]
+  contested_ids: string[]
+}
+
 /** What every mutation returns. */
 export interface OrderState {
   said: string
   lines: OrderLine[]
   log: OrderLogEntry[]
-  rounds: OrderRound[]
   updated_at?: string | null
   last_run_at?: string | null
   /** Lines the resolver will actually run on. Contested slots are omitted. */
   used?: number
-  duplicates_collapsed?: number
+  /** The resolver's own partition of the order. Absent only on a fixture. */
+  slots?: OrderSlot[]
   conflicts?: OrderConflict[]
 }
 
 /** The opening read — adds the parts that don't move when a line is answered. */
 export interface Order extends OrderState {
-  starters: string[]
   memory_count: number
   cv_readiness: string | null
-  /** Server-decided. Never price a run from a client constant: that is how a
-   *  "free" promise and a 100-coin debit end up on the same screen. */
+}
+
+/**
+ * What a run costs, on its own request.
+ *
+ * It used to ride on `Order`, and pricing it needs a count that read-timed-out
+ * at 8s repeatedly in prod — so the plates, the say band and every edit waited
+ * on a number that only decides what the button says. Its own query key, its
+ * own pending state, blocking only the button.
+ *
+ * Server-decided. Never price a run from a client constant: that is how a
+ * "free" promise and a 100-coin debit end up on the same screen.
+ */
+export interface OrderPrice {
   run_cost: number
   new_jobs_count: number
 }

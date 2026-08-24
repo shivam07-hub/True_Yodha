@@ -1,5 +1,6 @@
 "use client"
 
+import { useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { users } from "@/lib/api"
@@ -21,8 +22,13 @@ import { PreflightGate } from "@/components/preflight/preflight-gate"
  * mounts the gate, holds no domain logic, and passes callbacks down. The order,
  * its lines and its prose all live below it in `lib/preflight/*`.
  *
+ * ONE DOOR, two landings. `run()` opens on the slots ("here is what I will
+ * search for"); `tellMyro()` opens on the say band ("something is off"). Both
+ * are the same modal against the same Order — /market used to render them as
+ * two buttons side by side, which read as two products.
+ *
  * Usage:
- *   const { run, isRefreshing, refreshVm, gate } = useMyroSearch(token)
+ *   const { run, tellMyro, isRefreshing, refreshVm, gate } = useMyroSearch(token)
  *   // render your button → onClick={run} disabled={isRefreshing}
  *   // mount {gate} once in the tree
  */
@@ -47,5 +53,11 @@ export function useMyroSearch(token: string | null) {
     />
   )
 
-  return { run: openRefreshGate, isRefreshing, refreshVm, profile, gate }
+  // Zero-arg on purpose. `openRefreshGate` takes an intent, and handing it
+  // straight to an onClick passed the MouseEvent in as one — the modal would
+  // have landed wherever a click object happened to compare to.
+  const run = useCallback(() => openRefreshGate("review"), [])
+  const tellMyro = useCallback(() => openRefreshGate("say"), [])
+
+  return { run, tellMyro, isRefreshing, refreshVm, profile, gate }
 }

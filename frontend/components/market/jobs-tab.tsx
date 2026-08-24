@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation"
 import { useViewport } from "@/mobile"
 import type { CareerBand, JobFeedItem } from "@/lib/api"
 import { formatCount } from "@/lib/format"
-import { MarketSheet } from "@/components/preflight/market-sheet"
 import { AgentPicksBand } from "@/components/jobs/agent-picks-band"
 import { openRefreshGate } from "@/store/refreshGateStore"
 import { NotInterestedUndo } from "@/components/jobs/not-interested-undo"
@@ -89,7 +88,6 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   )
   const [openJob, setOpenJob] = useState<JobFeedItem | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
-  const [intentOpen, setIntentOpen] = useState(false)
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -323,7 +321,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
           {loading ? (
             <FeedSkeleton summary />
           ) : visibleJobs.length === 0 ? (
-            <EmptyHandoff savedCount={savedCount} onBuild={() => router.push("/collections")} onClear={clearBrowse} onTellMyro={() => setIntentOpen(true)} />
+            <EmptyHandoff savedCount={savedCount} onBuild={() => router.push("/collections")} onClear={clearBrowse} onTellMyro={() => openRefreshGate("say")} />
           ) : (
             <>
               <div className="tm-feed-summary">
@@ -350,22 +348,17 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
                   </button>
                 ) : null}
                 <FilterChips filters={filters} onChange={onChangeFilters} />
-                {/* Persistent door — never a dead end (Delta-4). */}
-                <button
-                  type="button"
-                  className="tm-feed-activechip"
-                  onClick={() => setIntentOpen(true)}
-                  style={{ marginLeft: "auto" }}
-                >
-                  Not it? Tell Myro →
-                </button>
-                {/* Myro Search = the paid re-vet run. Lives here — the discovery
-                    surface — beside the intent door (moved off Collections). */}
+                {/* ONE door. "Not it? Tell Myro →" used to sit right here beside
+                    this button, opening a second modal against the same Order
+                    and the same engine — so saying what was wrong and making it
+                    count were two errands. The complaint is a landing inside
+                    Myro Search now, not a rival to it. */}
                 <button
                   type="button"
                   className="tm-feed-searchchip"
-                  onClick={() => openRefreshGate()}
+                  onClick={() => openRefreshGate("review")}
                   title="Run Myro Search"
+                  style={{ marginLeft: "auto" }}
                 >
                   <Search size={13} aria-hidden />
                   Myro Search
@@ -382,7 +375,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
               {total > 0 && total < 5 ? (
                 <button
                   type="button"
-                  onClick={() => setIntentOpen(true)}
+                  onClick={() => openRefreshGate("say")}
                   style={{
                     width: "100%", marginBottom: 12, padding: "11px 14px", textAlign: "left",
                     borderRadius: 12, border: "1px solid var(--tm-int-border)", background: "var(--tm-int-bg-wash)",
@@ -464,17 +457,6 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
 
       {pending ? <NotInterestedUndo kind={pending.kind} jobId={pending.jobId} token={token} onUndo={undo} queuePosition={pending.kind === "saved" ? savedCount : undefined} /> : null}
 
-      {/* Surface B of the pre-flight. Reads and WRITES the same order the gate
-          does, so a change made here is in the gate's brief without a reload.
-          A widening change needs the newly in-scope roles rated, which the
-          cached re-run cannot do — that hands off to the gate's paid run, which
-          lives in <MatchesRefreshBanner> on this component's parent page. */}
-      <MarketSheet
-        open={intentOpen}
-        onClose={() => setIntentOpen(false)}
-        visibleCount={total}
-        onExpand={() => openRefreshGate()}
-      />
     </div>
   )
 }

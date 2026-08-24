@@ -191,7 +191,7 @@
   outline-offset: 4px;
 }
 
-/* Fourth stat cell — the project itself. Teal mono line + label, same hover
+/* Fourth stat cell — the project itself. Accent mono line + label, same hover
    affordance as the numeric cells. */
 .lp-stat-oss { display: block; text-decoration: none; }
 

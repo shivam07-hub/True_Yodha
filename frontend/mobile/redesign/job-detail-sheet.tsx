@@ -146,7 +146,7 @@ export function JobDetailSheet({
                       style={{
                         height: 24, minWidth: 40, padding: "0 10px", borderRadius: 99,
                         border: `1px solid ${on ? "var(--mm-accent)" : "rgba(255,255,255,0.09)"}`,
-                        background: on ? "rgba(0,245,212,0.08)" : "transparent",
+                        background: on ? "rgba(79,199,246,0.08)" : "transparent",
                         color: on ? "var(--mm-accent)" : "var(--mm-text-3)",
                         fontSize: 10.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flex: "none",
                       }}

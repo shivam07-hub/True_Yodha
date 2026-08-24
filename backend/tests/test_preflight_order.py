@@ -176,38 +176,6 @@ def test_merge_stops_asking_about_a_note_the_user_deleted():
     assert len(ops.merge_imports(answered, []).lines) == 1
 
 
-def test_rounds_group_by_kind_and_keep_answered_lines_in_their_round():
-    order = ops.Order(
-        lines=[
-            line(kind="wont_take", status="kept"),
-            line(kind="wont_take", status="unanswered"),
-            line(kind="lean", text="Corporate functions"),
-            line(kind="goal", text="Staff engineer", origin="cv_import", source="user_said"),
-        ]
-    )
-    rounds = {r["key"]: r["line_ids"] for r in ops.rounds(order)}
-    assert len(rounds["wont"]) == 2, "the tally reads answered / total — answered lines stay"
-    assert len(rounds["drawn"]) == 1
-    assert len(rounds["about"]) == 1
-    # A line the user set themselves is not a guess.
-    settled = ops.Order(lines=[line(kind="wont_take", origin="preflight", source="user_said", status="kept")])
-    assert ops.rounds(settled) == []
-
-
-def test_rounds_hide_duplicate_text_in_later_rounds():
-    """The distiller can file the same note as work_mode and preference."""
-    order = ops.Order(
-        lines=[
-            line(kind="wont_take", text="Prefers onsite work", status="kept"),
-            line(kind="lean", text="Prefers onsite work", status="unanswered"),
-            line(kind="lean", text="Prefers corporate functions", status="unanswered"),
-        ]
-    )
-    rounds = {r["key"]: [ops.Order(lines=order.lines).find(i).text for i in r["line_ids"]] for r in ops.rounds(order)}
-    assert rounds["wont"] == ["Prefers onsite work"]
-    assert rounds["drawn"] == ["Prefers corporate functions"]
-
-
 def test_import_dedupes_the_same_statement_across_kinds():
     guesses = memory_import.guesses_from(
         brief(
@@ -249,26 +217,6 @@ def test_narrowing_topics_are_free():
         assert proposals.from_topic(topic, ops.Order()).costly is False
 
 
-@pytest.mark.parametrize(
-    "text,topic",
-    [
-        ("these are all too junior", "the level"),
-        ("the pay is too low", "the pay"),
-        ("I'd rather not commute across the city", "the place"),
-        ("too many big-corp roles", "the work"),
-    ],
-)
-def test_free_text_routes_to_the_nearest_topic(text, topic):
-    assert proposals.route(text) == topic
-
-
-def test_an_unroutable_complaint_is_saved_verbatim_and_says_so():
-    # Guessing at an unmatched sentence is how a gripe about pay becomes a
-    # location filter.
-    proposal = proposals.from_free_text("no more ghost listings please", ops.Order())
-    assert proposal.effects[0].text == "no more ghost listings please"
-    assert "exactly as you typed it" in proposal.why
-    assert proposal.costly is False
 
 
 def test_a_proposal_already_on_the_order_is_not_proposed_back():
@@ -372,6 +320,9 @@ class _FakeTable:
     def execute(self):
         row = self._store.get("row")
         if self._op == "select":
+            # Counted: the write path's whole defect was how many of these one
+            # tap issued.
+            self._store["reads"] = self._store.get("reads", 0) + 1
             return type("R", (), {"data": [row] if row else [], "count": 0})()
         if self._op == "upsert":
             self._store["row"] = dict(self._payload)
@@ -391,39 +342,51 @@ class _FakeDB:
         return _FakeTable(self.store)
 
 
-def _repo_with_empty_brief():
-    """An OrderRepository whose imports and CV lookup are inert, so the test is
-    about the write path and nothing else."""
+def _write_path_repo():
+    """An OrderRepository over a fake row store.
+
+    Nothing is stubbed. A write reads the STORED row and nothing else — no
+    profile, no `user_memory`, no CV count — which is the whole point of
+    `load_stored`, so a fake DB with one table is enough to exercise it.
+    """
     from app.services.preflight import repository as repo_module
 
     db = _FakeDB()
     repo = repo_module.OrderRepository(db)
     repo.store = db.store  # type: ignore[attr-defined]
-    repo.load_bundle = lambda user_id: repo_module.OrderBundle(  # type: ignore[method-assign]
-        order=ops.Order.from_dict(repo._row(user_id)),
-        starters=[], memory_count=0, cv_readiness="ready",
-    )
     return repo
+
+
+def test_a_write_reads_the_stored_row_and_nothing_else():
+    """Answering one line used to re-read the profile, re-scan `user_memory`,
+    re-import every note and count CV versions before touching the order — five
+    sequential round trips at a ~165ms floor each. That is the 1.5-4.1s per tap
+    in the 2026-08-21 logs."""
+    repo = _write_path_repo()
+    repo.mutate("u1", lambda o: replace_lines(o, [line(id="a", text="A")]))
+    reads = repo.store.get("reads", 0)
+    repo.mutate("u1", lambda o: ops.keep(o, "a", now=NOW)[0])
+    assert repo.store.get("reads", 0) - reads == 1, "one read per write, not five"
 
 
 def test_a_concurrent_answer_is_replayed_not_clobbered():
     """Two answers in flight both read the same `lines` array; without the
     guard the second write erases the first. Silently — the response looks
     right, the row is wrong, and the run dispatches from the row."""
-    repo = _repo_with_empty_brief()
+    repo = _write_path_repo()
     a = line(id="a", text="A")
     b = line(id="b", text="B")
     repo.mutate("u1", lambda o: replace_lines(o, [a, b]))
 
     # Simulate a stale writer: capture the order, let another write land, then
     # try to write from the stale copy.
-    stale = repo.load("u1")
+    stale = repo.load_stored("u1")
     repo.mutate("u1", lambda o: ops.keep(o, "a", now=NOW)[0])
     assert repo._write("u1", stale, expected=stale.updated_at) is None, "stale write must be refused"
 
     # And the retrying path still lands, on top of the other answer.
     repo.mutate("u1", lambda o: ops.drop(o, "b", now=NOW)[0])
-    final = repo.load("u1")
+    final = repo.load_stored("u1")
     assert final.find("a").status == "kept", "the first answer survived"
     assert final.find("b").status == "dropped", "the second answer landed"
 
@@ -436,11 +399,11 @@ def replace_lines(order: ops.Order, lines: list) -> ops.Order:
 def test_a_recent_run_is_reported_instead_of_charged_again():
     from datetime import datetime, timedelta, timezone
 
-    repo = _repo_with_empty_brief()
+    repo = _write_path_repo()
     repo.mutate("u1", lambda o: o)
     assert repo.recent_run("u1", within_seconds=90) is None, "no run yet"
 
-    repo.save("u1", repo.load("u1"), ticket_id="tick-1")
+    repo.save("u1", repo.load_stored("u1"), ticket_id="tick-1")
     assert repo.recent_run("u1", within_seconds=90) == "tick-1"
 
     # Outside the window it is a genuine second search, not a double click.
@@ -449,20 +412,6 @@ def test_a_recent_run_is_reported_instead_of_charged_again():
     ).isoformat()
     assert repo.recent_run("u1", within_seconds=90) is None
 
-
-def test_starters_collapse_it_sales_and_tech_sales():
-    brief = TargetingBrief(
-        profile={
-            "target_role_titles": ["tech sales", "IT Sales", "Technical Account Manager"],
-            "target_location": "Bengaluru",
-        },
-        facts=[],
-    )
-    assert memory_import.starters_from(brief) == [
-        "tech sales",
-        "Technical Account Manager",
-        "Bengaluru",
-    ]
 
 
 def test_apply_accepts_a_full_proposal_screen() -> None:
@@ -477,3 +426,123 @@ def test_apply_accepts_a_full_proposal_screen() -> None:
     ApplyRequest(effects=[effect] * 32, origin="preflight")
     with pytest.raises(ValidationError):
         ApplyRequest(effects=[effect] * 33, origin="preflight")
+
+
+# ── the twin ─────────────────────────────────────────────────────────────────
+
+
+def test_a_statement_already_on_the_order_is_not_re_imported_under_a_second_ref():
+    """The prod defect behind `Won't take · 15 of 6`.
+
+    A deal-breaker lives in `user_memory` as a distiller note AND, the moment a
+    run projects it, in `user_profiles.deal_breakers`. The two imports hash
+    different refs for one statement, so ref-only dedupe appended a twin on
+    every read after the first run. On screen the twin rendered as a settled
+    plate beside the conflict holding its original.
+    """
+    facts = [("constraint", "No large corporations")]
+    guess = memory_import.guesses_from(brief(facts=facts))[0]
+    answered, _ = ops.keep(ops.Order(lines=[guess]), guess.id, now=NOW)
+
+    # Next read: the run has written the answer to the profile column, so the
+    # same statement now arrives from BOTH stores under two different refs.
+    reread = brief(profile={"deal_breakers": ["No large corporations"]}, facts=facts)
+    candidates = memory_import.confirmed_from(reread) + memory_import.guesses_from(reread)
+    assert len({c.ref for c in candidates}) == 2, "two stores, two refs — that is the setup"
+
+    merged = ops.merge_imports(answered, candidates)
+    # Stored bare: both importers strip the leading "No ".
+    assert [x.text for x in merged.lines] == ["large corporations"]
+    assert merged.lines[0].status == "kept", "the user's answer survives the re-import"
+
+    # And it stays at one however many times the modal is opened.
+    assert len(ops.merge_imports(merged, candidates).lines) == 1
+
+
+def test_the_same_statement_in_two_slots_is_not_a_duplicate():
+    """Cross-slot repeats are contradictions for the resolver to report — the
+    importer must not silently swallow one half of the clash."""
+    order = ops.Order(lines=[line(kind="wont_take", text="Large corporations", status="kept")])
+    merged = ops.merge_imports(
+        order, [line(kind="lean", text="Large corporations", status="unanswered")]
+    )
+    assert len(merged.lines) == 2
+    assert payload.client_report(ops.keep(merged, merged.lines[1].id, now=NOW)[0])["conflicts"]
+
+
+# ── the work ─────────────────────────────────────────────────────────────────
+
+
+def test_stored_role_titles_arrive_as_kept_lines():
+    """The slot that defines the search is imported like the two that narrow it.
+
+    Without this every returning user opened the modal with "The work" empty —
+    and the run still dispatched, on titles the modal had just declined to show.
+    """
+    confirmed = memory_import.confirmed_from(
+        brief(profile={"target_role_titles": ["Enterprise Sales", "Account Executive"]})
+    )
+    roles = [c for c in confirmed if c.kind == "role"]
+    assert [r.text for r in roles] == ["Enterprise Sales", "Account Executive"]
+    assert all(r.status == "kept" and r.source == "user_said" for r in roles)
+    # Titles only. `target_roles` is the matcher's derived read model; feeding it
+    # back would put a cluster name on screen as a title the user never wrote.
+    derived = memory_import.confirmed_from(brief(profile={"target_roles": ["General Sales Practices"]}))
+    assert [c for c in derived if c.kind == "role"] == []
+
+
+def test_the_projected_spec_carries_the_roles_on_screen():
+    order = ops.Order(
+        lines=[
+            line(kind="role", text="Enterprise Sales", status="kept", origin="preflight", source="user_said"),
+            line(kind="wont_take", text="Large corporations", status="kept"),
+        ]
+    )
+    assert payload.project(order)["target_role_titles"] == ["Enterprise Sales"]
+
+
+def _stub_brief(monkeypatch, facts):
+    """Point the repository's targeting read at a fixed brief. Restored by
+    pytest, so a leaked global cannot decide another test's imports."""
+    from app.services.preflight import repository as repo_module
+
+    fixed = brief(facts=facts)
+    monkeypatch.setattr(repo_module.targeting, "for_preflight", lambda db, uid: fixed)
+    monkeypatch.setattr(
+        repo_module, "UsersRepository",
+        lambda db: type("U", (), {"has_baseline_cv": lambda self, uid: True})(),
+    )
+
+
+def test_the_open_materialises_its_guesses_so_a_write_can_find_them(monkeypatch):
+    """The guarantee the whole write path now rests on.
+
+    A guess exists only in the MERGED order, so while writes re-imported on
+    every call they could find it. Now they read the stored row — which means
+    the open has to have written the guess down before the client is handed its
+    id, or every yes 404s.
+    """
+    repo = _write_path_repo()
+    _stub_brief(monkeypatch, [("constraint", "No large corporations")])
+
+    guess = repo.load_bundle("u1").order.lines[0]
+    assert guess.status == "unanswered"
+
+    # The write reads the stored row alone and still finds it.
+    stored = repo.load_stored("u1")
+    assert stored.find(guess.id) is not None, "the guess was never written down"
+
+    answered = repo.mutate("u1", lambda o: ops.keep(o, guess.id, now=NOW)[0])
+    assert answered.find(guess.id).status == "kept"
+
+
+def test_a_second_open_learns_nothing_and_writes_nothing(monkeypatch):
+    """`merge_imports` is idempotent, so materialising costs one write on the
+    open that actually learns something and nothing on every open after."""
+    repo = _write_path_repo()
+    _stub_brief(monkeypatch, [("constraint", "No large corporations")])
+
+    repo.load_bundle("u1")
+    stamped = repo.store["row"]["updated_at"]
+    repo.load_bundle("u1")
+    assert repo.store["row"]["updated_at"] == stamped, "a second open rewrote the row"

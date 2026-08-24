@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react"
 import { createFieldMotion, shouldAnimateField, type FieldParticle } from "./field-motion"
+import "./accent-field.css"
 
 /**
- * <TealField> — the ambient, cursor/touch-reactive teal-edge loading playground
+ * <AccentField> — the ambient, cursor/touch-reactive accent-edge loading playground
  * (dashboard-loading grill Q6–Q10). It replaces the static grey shimmer as the
- * "fill" behind a loading region: an inset teal rim plus a handful of faint
+ * "fill" behind a loading region: an inset accent rim plus a handful of faint
  * particles that drift on their own and bend toward the pointer/finger. There is
  * no goal, score, or win-state — it is lively to look at and harmless to abandon
  * the instant content is ready.
@@ -23,10 +24,10 @@ import { createFieldMotion, shouldAnimateField, type FieldParticle } from "./fie
  *  - mounts only while a section loads; unmounting (section ready) hard-tears-down
  *    every listener + the rAF — no idle battery cost after paint.
  *  - paused on tab blur; ~10 particles, DOM not canvas.
- *  - prefers-reduced-motion → static teal rim only, no particles, no reactivity.
+ *  - prefers-reduced-motion → static accent rim only, no particles, no reactivity.
  */
 
-type TealFieldMode = "full-bleed" | "masked"
+type AccentFieldMode = "full-bleed" | "masked"
 
 /** Fixed, low particle count (grill Q9 cap ~8–12); deterministic so SSR matches. */
 const PARTICLES = [
@@ -54,7 +55,7 @@ function usePrefersReducedMotion(): boolean {
   return reduced
 }
 
-export function TealField({
+export function AccentField({
   mode = "masked",
   interactive = true,
   message,
@@ -62,7 +63,7 @@ export function TealField({
   style,
   children,
 }: {
-  mode?: TealFieldMode
+  mode?: AccentFieldMode
   interactive?: boolean
   /** full-bleed only: centred status line (e.g. the OAuth message). */
   message?: string
@@ -116,7 +117,6 @@ export function TealField({
         borderRadius: "inherit",
         boxShadow:
           "inset 0 0 120px 6px var(--tm-int-bg-wash), inset 0 0 3px 1px var(--tm-int-border)",
-        ...(animate ? null : { animation: "tm-edge-pulse 2400ms ease-in-out infinite" }),
       }}
     />
   )
@@ -146,19 +146,6 @@ export function TealField({
     </span>
   )
 
-  // Shared keyframes for the reduced-motion static rim pulse (reuses the OAuth
-  // motif name; the media query below stills it entirely under reduce).
-  const keyframes = (
-    <style>{`
-      @keyframes tm-edge-pulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
-      @keyframes tm-edge-text { 0%, 100% { opacity: 0.55; } 50% { opacity: 0.9; } }
-      @media (prefers-reduced-motion: reduce) {
-        .tm-field-rim-static { animation: none !important; opacity: 0.7; }
-        [style*="tm-edge-text"] { animation: none !important; }
-      }
-    `}</style>
-  )
-
   if (mode === "full-bleed") {
     return (
       <main
@@ -182,15 +169,12 @@ export function TealField({
         {dots}
         {message && (
           <span
-            style={{
-              position: "relative",
-              animation: animate ? undefined : "tm-edge-text 2400ms ease-in-out infinite",
-            }}
+            className={animate ? undefined : "tm-field-msg-static"}
+            style={{ position: "relative" }}
           >
             {message}
           </span>
         )}
-        {keyframes}
       </main>
     )
   }
@@ -205,16 +189,15 @@ export function TealField({
       {rim}
       {dots}
       <div style={{ position: "relative" }}>{children}</div>
-      {keyframes}
     </div>
   )
 }
 
 /**
- * Full-bleed preset of <TealField> — the "destination not yet known" loader
+ * Full-bleed preset of <AccentField> — the "destination not yet known" loader
  * (OAuth callback). Kept as a named export so existing call sites don't churn
  * (grill Q10).
  */
 export function EdgeGlow({ message = "Signing you in…" }: { message?: string }) {
-  return <TealField mode="full-bleed" message={message} />
+  return <AccentField mode="full-bleed" message={message} />
 }

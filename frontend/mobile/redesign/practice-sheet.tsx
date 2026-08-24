@@ -98,7 +98,7 @@ export function PracticeSheet() {
                       fontSize: 11, fontWeight: 700,
                       background: on ? "var(--mm-accent-wash)" : "transparent",
                       color: on ? "var(--mm-accent)" : "var(--mm-dim)",
-                      border: `1px solid ${on ? "rgba(0,245,212,0.3)" : "var(--mm-border)"}`,
+                      border: `1px solid ${on ? "rgba(79,199,246,0.3)" : "var(--mm-border)"}`,
                     }}
                   >
                     {l}

@@ -68,9 +68,19 @@ class LogEntryOut(BaseModel):
     text: str
 
 
-class RoundOut(BaseModel):
+class SlotOut(BaseModel):
+    """One of the six slots, as the resolver left it.
+
+    `line_ids` is the PLACED set — deduped, uncontested, within arity, and
+    identical to what reaches the profile patch. The client renders these; it
+    does not file lines into slots itself. Two resolvers is how the screen came
+    to show duplicates the server had already collapsed.
+    """
+
     key: str
+    arity: int
     line_ids: list[str]
+    contested_ids: list[str]
 
 
 class ConflictOut(BaseModel):
@@ -83,36 +93,56 @@ class ConflictOut(BaseModel):
 
 
 class OrderState(BaseModel):
-    """The order itself — what every mutation returns.
-
-    `rounds` is derived, not stored: a line cannot claim a round its kind
-    contradicts."""
+    """The order itself — what every mutation returns."""
 
     said: str
     lines: list[OrderLineOut]
     log: list[LogEntryOut]
-    rounds: list[RoundOut]
     updated_at: str | None = None
     last_run_at: str | None = None
     used: int = 0
-    duplicates_collapsed: int = 0
+    slots: list[SlotOut] = Field(default_factory=list)
     conflicts: list[ConflictOut] = Field(default_factory=list)
 
 
 class OrderOut(OrderState):
-    """The opening read. Carries the three things that do NOT change when the
-    user answers a line, so a yes costs one row read and one write instead of
+    """The opening read. Carries the things that do NOT change when the user
+    answers a line, so a yes costs one row read and one write instead of
     re-importing every memory note per click.
 
-    `run_cost` rides along because the gate must never price from a client
-    constant — that is how a "free" promise and a 100-coin debit end up on the
-    same screen."""
+    The PRICE is deliberately not here — see `GET /preflight/price`.
+    """
 
-    starters: list[str] = Field(default_factory=list)
     memory_count: int = 0
     cv_readiness: str | None = None
-    run_cost: int = 0
-    new_jobs_count: int = 0
+
+
+class PriceOut(BaseModel):
+    """What a run costs right now, and why.
+
+    Split off `GET /preflight/order` on 2026-08-22. Pricing needs
+    `count_new_jobs_for_user`, which read-timed-out at 8s four times in one hour
+    of prod logs — and it was inside the handler that renders the modal, so one
+    number nobody had asked for held the whole surface at 9.0-10.5s. The order
+    is the thing the user opened; the price belongs on the button.
+
+    The 8s itself was fixed on 2026-08-24 (migration
+    `20260824090000_new_inventory_count_security_definer`): the count was fast
+    as service_role and 8,740ms under RLS, because the policy on `public.jobs`
+    ORs in `created_by_user_id = auth.uid()` and the planner cannot reach a
+    partial index through that OR. The split still stands on its own — the
+    price is not the order, and it should not be able to hold it again.
+
+    Server-decided, never a client constant: that is how a "free" promise and a
+    100-coin debit end up on the same screen. Same waiver `JobRefresh.start`
+    applies at charge time, so the modal and the wallet cannot disagree.
+    """
+
+    #: Coins this run will cost — 0 when Myro landed roles this user has never
+    #: been matched against.
+    run_cost: int
+    #: Roles that landed since their last search — the reason it's free.
+    new_jobs_count: int
 
 
 class EffectOut(BaseModel):
@@ -157,12 +187,18 @@ class UndoRequest(BaseModel):
 
 
 class ProposalsRequest(BaseModel):
-    """One of the three. `utterance` goes through the mentor; `topic` and
-    `free_text` are the market sheet's two ways in."""
+    """One of two. A `topic` is a named chip, answered off the deterministic
+    table with no LLM turn; an `utterance` is a sentence, which needs the
+    mentor to work out what it is about.
+
+    There was a third — `free_text`, the market sheet's composer, which routed a
+    sentence to a topic by regex and otherwise stored it verbatim. Deleting the
+    sheet left the say band's pad as the only composer, and that one goes
+    through the mentor, which reads the sentence properly instead of pattern-
+    matching four keywords at it."""
 
     utterance: str | None = Field(default=None, max_length=2000)
     topic: str | None = None
-    free_text: str | None = Field(default=None, max_length=600)
 
 
 class ApplyRequest(BaseModel):
@@ -203,7 +239,6 @@ def _state(order: line_ops.Order) -> dict:
             for line in order.lines
         ],
         "log": [LogEntryOut(id=e.id, kind=e.kind, line_id=e.line_id, text=e.text) for e in order.log],
-        "rounds": [RoundOut(**r) for r in line_ops.rounds(order)],
         "updated_at": order.updated_at,
         "last_run_at": order.last_run_at,
         **ops_payload.client_report(order),
@@ -227,21 +262,41 @@ def _mutated(
 def get_order(
     principal: Principal = Depends(get_principal),
     orders: OrderRepository = Depends(get_order_repository),
-    repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> OrderOut:
     """The order, with anything Myro has learned since last time folded in as
     UNANSWERED guesses. Never as kept — see `lines.merge_imports`."""
     bundle = orders.load_bundle(principal.id)
-    new_jobs = new_inventory.count_for_user(repo, principal.id)
     return OrderOut(
         **_state(bundle.order),
-        starters=bundle.starters,
         memory_count=bundle.memory_count,
         cv_readiness=bundle.cv_readiness,
-        # Same waiver the charge itself uses (JobRefresh.start), so the modal and
-        # the wallet cannot disagree.
-        run_cost=0 if new_jobs > 0 else MATCH_RUN_COST,
-        new_jobs_count=new_jobs,
+    )
+
+
+@router.get("/price", response_model=PriceOut)
+def get_price(
+    principal: Principal = Depends(get_principal),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+) -> PriceOut:
+    """What the next run costs. Its OWN request, because it is slow.
+
+    `count_new_jobs_for_user` was the expensive half of what used to be one
+    read — 8,740ms under RLS until migration 20260824090000 made it definer,
+    ~15ms now. Inside `/order` it held the plates, the say band and every edit
+    hostage to a number that only decides what the button says.
+
+    Alone, it blocks nothing but the button — and the button is the one control
+    that genuinely must not be pressed before the price is known.
+    """
+    new_jobs = new_inventory.count_for_user(repo, principal.id)
+    # Same waiver the charge itself uses (JobRefresh.start), expressed once in
+    # `new_inventory` so the modal and the wallet cannot disagree. `None` — the
+    # count timed out — waives: we do not bill for a number we failed to
+    # compute. It also means the button prices as free rather than sitting
+    # disabled, so a slow count never blocks the search.
+    return PriceOut(
+        run_cost=0 if new_inventory.waives_charge(new_jobs) else MATCH_RUN_COST,
+        new_jobs_count=new_jobs or 0,
     )
 
 
@@ -360,14 +415,10 @@ async def make_proposals(
     Proposes only. Nothing here touches the order — `/order/apply` does, and
     only after the user has seen the diff.
     """
-    order = orders.load(principal.id)
+    order = orders.load_stored(principal.id)
 
     if body.topic:
         proposal = proposal_engine.from_topic(body.topic, order)
-        return ProposalsOut(proposals=[ProposalOut(**proposal.to_dict())] if proposal else [])
-
-    if body.free_text:
-        proposal = proposal_engine.from_free_text(body.free_text, order)
         return ProposalsOut(proposals=[ProposalOut(**proposal.to_dict())] if proposal else [])
 
     if not body.utterance:
@@ -429,12 +480,21 @@ async def run_order(
                 **counts,
             )
 
-    order = line_ops.drop_unanswered(await run_in_threadpool(orders.load, principal.id))
+    order = line_ops.drop_unanswered(await run_in_threadpool(orders.load_stored, principal.id))
     summary = ops_payload.run_summary(order)
     if summary["kept"] == 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Nothing to run — say what you're after first.",
+        )
+    # A search with no role is not a narrower search, it is a different one.
+    # `resolve` omits an empty slot from the spec and `targeting_write.apply`
+    # is a PATCH, so dispatching here would run against whatever titles the
+    # profile still held — invisible to the person who just signed off.
+    if not any(line.kind == "role" for line in order.kept()):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Add a role you want — Myro searches on the work, not on the exclusions.",
         )
 
     await run_in_threadpool(
@@ -461,5 +521,5 @@ async def run_order(
 def _settled_counts(orders: OrderRepository, user_id: str) -> dict[str, int]:
     """The counts a deduped run reports — read off the order that was dispatched,
     so the second caller sees the same numbers as the first."""
-    summary = ops_payload.run_summary(line_ops.drop_unanswered(orders.load(user_id)))
+    summary = ops_payload.run_summary(line_ops.drop_unanswered(orders.load_stored(user_id)))
     return {"kept": summary["kept"], "dropped": summary["dropped"], "unanswered": summary["unanswered"]}

@@ -10,7 +10,7 @@ function hexToRgb(hex: string): string {
     const b = parseInt(h.slice(5, 7), 16)
     return `${r},${g},${b}`
   }
-  return "0,245,212"
+  return "79,199,246"
 }
 
 interface ParticleLoadingProps {
@@ -30,7 +30,7 @@ export function ParticleLoading({ message = "Loading…", height = 400 }: Partic
     if (!ctx) return
 
     let W = 0, H = 0, animId = 0
-    let accentRgb = "0,245,212"
+    let accentRgb = "79,199,246"
 
     function readAccent() {
       const hex = getComputedStyle(document.documentElement).getPropertyValue("--tm-interactive").trim()

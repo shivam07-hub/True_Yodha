@@ -1,7 +1,7 @@
 "use client"
 
 /**
- * AccentControl — the Signal/Ember accent switcher (backlog ND15).
+ * AccentControl — the Signal/Bone accent switcher (backlog ND15).
  *
  * Mirrors ThemeControl's shape exactly: one primitive, rides the same
  * `.tm-segment-toggle` chrome so idle segments inherit the interactive-rest
@@ -29,16 +29,20 @@ const OPTIONS: Option[] = [
     ),
   },
   {
-    // Stored value stays "forge" — it is the persisted `accent_pref` /
-    // `data-accent` key, not copy. The label is the amber colour's name; it was
-    // "Forge" until 2026-08-06, when Forge-the-surface became Practice and an
-    // accent sharing that name read as a link to it.
+    // Stored value stays "forge". It is the persisted `accent_pref` /
+    // `data-accent` identifier, not copy, and it has now outlived two renames:
+    // "Forge" until 2026-08-06 (when Forge-the-surface became Practice and an
+    // accent sharing that name read as a link to it), then "Ember" until
+    // 2026-08-23. Changing the key would strand every existing preference row.
     value: "forge",
-    label: "Ember",
+    label: "Bone",
     icon: (
-      // Flame — the warmer opt-in accent.
+      // Half-filled circle — the standard monochrome glyph. Bone has no hue:
+      // it is an inverted ivory fill, so status colours are the only colour
+      // left on the screen. A flame would promise a warmth that is gone.
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M12 22c-4 0-6.5-2.5-6.5-6 0-2.5 1.5-4 2.5-5.5C8.5 9 8 7 9 5c1 2 2.5 2.5 3 4 .5-1.5 0-3-1-4.5 3 1 5.5 4 5.5 7.5 0 1-.3 2-.8 3 .3-.6.5-1.2.5-2 0-1.5-1-2.5-1.5-3 .2 2-.7 3-1.7 4-.5.5-1 1.3-1 2.5 0 2 1.5 3 1.5 3S16 22 12 22Z" />
+        <circle cx="12" cy="12" r="8.5" />
+        <path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor" stroke="none" />
       </svg>
     ),
   },

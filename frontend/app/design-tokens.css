@@ -6,9 +6,9 @@
    @tailwind base. Then delete the inline :root block in
    globals.css — it's superseded by this file.
 
-   Brand supersession:
-     light default → white/orange
-     dark opt-in   → true black/teal
+   Brand supersession (2026-08-23 — AZURE):
+     one accent, every surface — dark ash, cool paper, marketing navy
+     the MARK stays teal (--tm-brand); the interactive layer is azure
    ───────────────────────────────────────────────────────────── */
 
 /* `.myrology-root` rides the dark base unconditionally — it is the lone
@@ -18,67 +18,76 @@
    otherwise inherit from :root[data-surface="light"]. Flash-free, no JS. */
 :root,
 .myrology-root {
-  /* ── Base surface: Myro warm-dark (canonical · warm near-black) ──
-     Consumer-warm brand standard (locked 2026-06-16): neutrals warmed
-     +100% off the old cool Engine palette — the cold blue is gone. The
-     two deliberate cold-console EXCEPTIONS (landing engine pipeline,
-     in-app score reveal) pin their own hardcoded #13141a, so they are
-     unaffected by this warming and stay intentionally cool.
+  /* ── Base surface: AZURE ash (canonical · cool near-black) ──
+     2026-08-23 — AZURE supersedes ONE DARK (#191918, 2026-07-27) and every
+     warm ramp before it. Two things changed and it is worth keeping them
+     apart, because only one of them is a colour decision.
 
-     2026-07-27 — ONE DARK (Shivam): the mobile redesign (`mm-*`, Jobs +
-     Collections) had forked its own dark and was judged the standard, so
-     its ramp is adopted here wholesale rather than kept as a fork. This
-     replaces the browner #100c09/#1b1611 ramp with mm's neutral-warm one.
-     Taken as a SET, not mixed: mm's text ramp is tuned to mm's surfaces
-     (see Text block below), and pairing a neutral page with the old warm
-     cream text is what produced the mismatch in the first place.
+     THE RAMP. ONE DARK carried five rungs, and two of them were invisible:
+     surface→surface-2 stepped 1.0 L* and surface-3→border stepped 1.4 L*.
+     A step under ~2 L* is not a step, it is a token nobody can use, and both
+     got used anyway. The rungs are now evenly spaced:
+       bg #161a1c 8.9 · surface 12.8 (+3.9) · surface-2 15.7 (+2.8)
+       surface-3 18.9 (+3.2) · border 20.5 (+1.7, separating on chroma)
 
-     2026-08-17 — this is the PRODUCT dark, and "the cold blue is gone" is
-     now true of the product only. The public marketing pages run a cool
-     navy on purpose: §Surface: INK below, DECISIONS.md SURF1. Nothing here
-     changed; the scope of the sentence did. */
-  --tm-bg:            #191918;
-  --tm-surface:       #212120;
-  --tm-surface-2:     #232322;
-  --tm-surface-3:     #2b2b29;
-  --tm-border:        #2e2e2b;
-  --tm-border-soft:   rgba(255, 255, 255, 0.10);
-  --tm-border-faint:  rgba(255, 255, 255, 0.06);
+     THE HUE. Every neutral sits at ~228° with chroma 0.007 rising to 0.016 —
+     the interactive azure with its saturation almost all the way down. ONE
+     DARK measured chroma 0.0019, i.e. achromatic grey, which is why the
+     accent read as a sticker laid on the page rather than light coming off
+     it. Lightness is held from the old ramp throughout: the page is exactly
+     as dark as it was, it simply stopped being grey.
+
+     The two deliberate cold-console EXCEPTIONS (landing engine pipeline,
+     in-app score reveal) pin their own hardcoded #13141a and are unaffected.
+
+     Myrology keeps amethyst. --tm-brand keeps #00f5d4 — see the brand split
+     below: the MARK is still teal, only the interactive layer moved. */
+  --tm-bg:            #161a1c;
+  --tm-surface:       #1d2224;
+  --tm-surface-2:     #22282b;
+  --tm-surface-3:     #282f32;
+  --tm-border:        #293338;
+  --tm-border-soft:   rgba(182, 223, 242, 0.10);
+  --tm-border-faint:  rgba(182, 223, 242, 0.07);
   --tm-scrim:         rgba(0, 0, 0, 0.72);
   --tm-overlay-soft:  rgba(0, 0, 0, 0.50);
-  --tm-hover-soft:    rgba(255, 255, 255, 0.04);
-  --tm-hover:         rgba(255, 255, 255, 0.07);
-  --tm-icon-muted:    rgba(247, 247, 247, 0.42);
+  --tm-hover-soft:    rgba(182, 223, 242, 0.04);
+  --tm-hover:         rgba(182, 223, 242, 0.07);
+  --tm-icon-muted:    rgba(232, 243, 250, 0.42);
 
   /* ── Skeleton (loading placeholder · ADR-0011 §B) ────────────
      The base must read as a *real shape* against the page AND the
-     card (#212120). Matching --tm-surface-2 (#232322) made bars
-     vanish and the load read as empty. One step above --tm-border.
-     `sheen` is the directional teal shimmer band that sweeps across. */
-  --tm-skeleton:       #3a3a36;
-  --tm-skeleton-sheen: rgba(0, 245, 212, 0.16);
+     card (#1d2224). Matching --tm-surface-2 made bars vanish and the
+     load read as empty, so the floor is a 6 L* step over both — asserted
+     as a RULE in tests/jobs-loading-shape.test.ts, not as a pinned hex.
+     This sits +8.7 over surface-2 and +11.6 over the card.
+     `sheen` is the directional azure shimmer band that sweeps across. */
+  --tm-skeleton:       #343b3f;
+  --tm-skeleton-sheen: rgba(79, 199, 246, 0.16);
 
   /* ── Text (Ghost) ──────────────────────────────────────────
-     WCAG AA targets, measured on the CURRENT #191918 page (the old note
-     here still quoted #0a0a0c, a background retired in the 2026-06-16
-     warming — stale reference numbers are how a palette drifts unnoticed):
-       primary  #f2f2ee ≈ 15.7:1 (AAA)
-       muted    #a6a69e ≈  7.1:1 (AAA body)
+     The ramp is UNCHANGED across the azure move — only the ground under it
+     did. Deliberate: cool neutrals under a faintly warm text is the tension
+     that keeps the page from reading as a single blue wash. Re-measured on
+     the CURRENT #161a1c page (stale reference numbers are how a palette
+     drifts unnoticed — this note has quoted a retired background twice):
+       primary  #f2f2ee ≈ 15.6:1 (AAA)
+       muted    #a6a69e ≈  7.2:1 (AAA body)
        faint    #8b8b84 ≈  5.1:1 (AA body) — never used for primary content
-       disabled #71716a ≈  3.5:1 (AA Large / decorative only — conveys nothing)
+       disabled #71716a ≈  3.6:1 (AA Large / decorative only — conveys nothing)
      See docs/DESIGN_SYSTEM.md §Color. */
   --tm-text:          #f2f2ee;
   --tm-text-muted:    #a6a69e;
   --tm-text-faint:    #8b8b84;
   --tm-text-disabled: #71716a;
-  --tm-accent-text:   #00f5d4;
+  --tm-accent-text:   #6ac4eb;
 
   /* ── Reading surface (long-form prose) ──────────────────────
-     Dark: lift the read onto a warm sheet so it stops being a pure-black
-     void (halation). Ink is a hair softer than --tm-text to calm shimmer
-     of serif body on the dark sheet. Light override mirrors below. */
-  --tm-reading-surface: #1b1b1a;
-  --tm-reading-ink:     #e8e8e2;
+     Dark: lift the read onto a sheet so it stops being a pure-black void
+     (halation). Ink is a hair softer than --tm-text to calm shimmer of
+     serif body on the dark sheet. Light override mirrors below. */
+  --tm-reading-surface: #181d1f;
+  --tm-reading-ink:     #e6ebee;
   /* Canonical alias — consumed across CV builder, auth, intel panes. Previously
      defined only inside the <=768px block in globals.css (dumping accident), so
      it resolved to cyan on phones and was undefined on desktop. Aliased here so
@@ -86,9 +95,9 @@
   --tm-interactive-text: var(--tm-accent-text);
 
   /* ── Info (neutral notice · applied-stage indicator) ─────── */
-  --tm-info:          #8BA3FF;
-  --tm-info-wash:     rgba(139, 163, 255, 0.12);
-  --tm-info-border:   rgba(139, 163, 255, 0.30);
+  --tm-info:          #a6a69e;
+  --tm-info-wash:     rgba(182, 223, 242, 0.05);
+  --tm-info-border:   rgba(182, 223, 242, 0.14);
 
   /* ── Status ramps (OKLCH) ────────────────────────────────── */
   /* Washes are TRANSLUCENT tints of each hue so they read as a faint colored
@@ -261,52 +270,60 @@
   /* ── Brand + interactive split (PR1) ───────────────────────
      Brand is reserved for rare moments (completion/logo).
      Interactive owns CTAs/links/focus by default.
-     Keep --tm-accent* as a legacy alias bridge for zero-delta rollout. */
+     Keep --tm-accent* as a legacy alias bridge for zero-delta rollout.
+
+     2026-08-23 — this split stopped being theoretical. The interactive layer
+     moved to azure and the MARK did not (Shivam's call): #00f5d4 is still
+     the Myro teal in the logo, the OG image, the particle fields and the
+     skill graph. That is the whole point of having two tokens. If you are
+     about to "fix" the inconsistency by making these azure, it is not drift
+     — ask first. */
   --tm-brand:              #00f5d4;
   --tm-brand-glow:         rgba(0, 245, 212, 0.24);
   --tm-brand-fg:           #04211c;
 
   /* Interactive solid ramp — used for borders / text / fills.
      Surface TINTS (subtle/wash/hover) intentionally do NOT come from this
-     ramp because solid 92%-lightness teal on a near-black bg blinds.
-     See "wash tokens" block below — alpha teal, theme-tuned. */
-  --int-01:                oklch(0.97 0.02 185);
-  --int-02:                oklch(0.92 0.04 185);
-  --int-03:                oklch(0.85 0.07 185);
-  --int-04:                oklch(0.76 0.10 185);
-  --int-05:                oklch(0.66 0.13 185);
-  --int-06:                oklch(0.55 0.13 185);
-  --int-07:                oklch(0.46 0.11 185);
-  --int-08:                oklch(0.38 0.09 185);
-  --int-09:                oklch(0.32 0.07 185);
+     ramp because a solid 92%-lightness azure on a near-black bg blinds.
+     See "wash tokens" block below — alpha azure, theme-tuned. */
+  --int-01:                oklch(0.97 0.02 228);
+  --int-02:                oklch(0.92 0.04 228);
+  --int-03:                oklch(0.85 0.07 228);
+  --int-04:                oklch(0.76 0.10 228);
+  --int-05:                oklch(0.66 0.13 228);
+  --int-06:                oklch(0.55 0.13 228);
+  --int-07:                oklch(0.46 0.11 228);
+  --int-08:                oklch(0.38 0.09 228);
+  --int-09:                oklch(0.32 0.07 228);
 
-  /* Surface wash tokens — alpha teal/orange so each theme's surface shows through.
-     Dark default = teal. Light override below swaps to orange. */
-  --tm-int-bg-subtle:      rgba(0, 245, 212, 0.05);
-  --tm-int-bg-wash:        rgba(0, 245, 212, 0.10);
-  --tm-int-bg-hover:       rgba(0, 245, 212, 0.16);
-  --tm-int-border-soft:    rgba(0, 245, 212, 0.26);
-  --tm-int-border:         rgba(0, 245, 212, 0.42);
-  --tm-int-solid:          #00f5d4;
-  --tm-int-solid-hover:    #53ffe3;
-  --tm-int-text:           #67e8f9;
-  --tm-int-text-strong:    #9bf3ff;
+  /* Surface wash tokens — alpha azure so each theme's surface shows through.
+     Dark uses 228°, light uses 248° (the gamut forces the shift — see the
+     light block for why). */
+  --tm-int-bg-subtle:      rgba(79, 199, 246, 0.05);
+  --tm-int-bg-wash:        rgba(79, 199, 246, 0.10);
+  --tm-int-bg-hover:       rgba(79, 199, 246, 0.16);
+  --tm-int-border-soft:    rgba(79, 199, 246, 0.26);
+  --tm-int-border:         rgba(79, 199, 246, 0.42);
+  --tm-int-solid:          #4fc7f6;
+  --tm-int-solid-hover:    #73d5ff;
+  --tm-int-text:           #6ac4eb;
+  --tm-int-text-strong:    #9cdffe;
 
-  --tm-interactive:        #00f5d4;
-  --tm-interactive-hover:  #53ffe3;
-  --tm-interactive-press:  #00c9ae;
-  --tm-interactive-glow:   rgba(0, 245, 212, 0.20);
+  --tm-interactive:        #4fc7f6;
+  --tm-interactive-hover:  #73d5ff;
+  --tm-interactive-press:  #22a6d5;
+  --tm-interactive-glow:   rgba(79, 199, 246, 0.20);
   --tm-interactive-wash:   var(--tm-int-bg-wash);
   --tm-interactive-ring:   var(--tm-int-border);
-  --tm-interactive-grid:   rgba(0, 245, 212, 0.05);
-  --tm-interactive-fg:     #04211c;
+  --tm-interactive-grid:   rgba(79, 199, 246, 0.05);
+  --tm-interactive-fg:     #022330;
 
   /* ── Interactive REST color (non-accent clickable controls) ──────────
      The resting text/icon color for clickable controls that are NOT primary
      CTAs or accent links — ghost buttons, menu rows, inactive nav/tabs,
      filter chips, icon buttons. Rule: a clickable control is never dull at
-     rest. References --tm-text so it auto-flips per surface — dark #e8e8ea
-     (near-white), light #262626 (near-black) — i.e. "maximally-contrasting
+     rest. References --tm-text so it auto-flips per surface — dark #f2f2ee
+     (near-white), light #202629 (near-black) — i.e. "maximally-contrasting
      resting color", which on dark = as white as possible. Static (non-
      clickable) labels keep --tm-text-muted / --tm-text-faint. Disabled
      controls drop to faint — bright ⇔ clickable, dull ⇔ not.
@@ -329,7 +346,7 @@
   --tm-accent-grid:        var(--tm-interactive-grid);
   --tm-accent-fg:          var(--tm-interactive-fg);
   --tm-bg-page:         var(--tm-bg);
-  --tm-bg-inset:        #1b1b1a;
+  --tm-bg-inset:        #181d1f;
   --tm-bg-surface-hover: var(--tm-surface-2);
   --tm-border-subtle:   var(--tm-border-soft);
   --tm-text-primary:    var(--tm-text);
@@ -346,7 +363,7 @@
   /* ── Myrology sub-brand (premium · cosmic career) ────────────
      Amethyst is the only place amethyst is allowed — the /welcome
      bridge card and the /myrology surface. Never leaks into the
-     core teal product. ──────────────────────────────────────── */
+     core azure product. ─────────────────────────────────────── */
   --my-amethyst:        #B084FF;
   /* Rest tint for the Myrology wayfinding links in the core nav and footer —
      they point AT the sub-brand, so they carry its colour dimmed. Was
@@ -364,75 +381,123 @@
   --my-gold-ring:       rgba(230, 185, 104, 0.30);
 }
 
-/* ── Accent: FORGE — dark-mode opt-in amber (backlog ND15) ──────
-   Signal (teal, above) is the default "analytical" accent. Forge is the
-   warmer opt-in — same structure as the teal ramp, amber hue. Scoped to
-   dark only: light's own brand IS the warm orange already (Firecrawl,
-   below), so light + forge intentionally falls back to that unchanged —
-   this block sits BEFORE the light surface block in source order, so
-   the light block's own --tm-interactive* redefinition wins the cascade
-   for light+forge users (equal specificity, later source wins). --tm-brand
-   (logo/completion moments) is deliberately untouched — accent ≠ brand. */
-:root[data-accent="forge"] {
-  --tm-int-bg-subtle:      rgba(255, 179, 71, 0.05);
-  --tm-int-bg-wash:        rgba(255, 179, 71, 0.10);
-  --tm-int-bg-hover:       rgba(255, 179, 71, 0.16);
-  --tm-int-border-soft:    rgba(255, 179, 71, 0.26);
-  --tm-int-border:         rgba(255, 179, 71, 0.42);
-  --tm-int-solid:          #FFB347;
-  --tm-int-solid-hover:    #FFD07A;
-  --tm-int-text:           #ffcf8f;
-  --tm-int-text-strong:    #ffe0b3;
+/* ── Accent: BONE — the opt-in second accent, and it has no hue ─────
+   Azure (above) is the default. This is the alternative, and as of
+   2026-08-23 it is an ACHROMATIC ivory rather than the amber it used to be.
 
-  --tm-interactive:        #FFB347;
-  --tm-interactive-hover:  #FFD07A;
-  --tm-interactive-press:  #E08E1F;
-  --tm-interactive-glow:   rgba(255, 179, 71, 0.20);
+   Why it had to stop being amber. An accent has to clear the status ramp —
+   success 145°, warning 75°, danger 25° — or a verdict and a control read
+   as the same thing. Amber sat ~70°: five degrees off warning. That was
+   true on the teal palette too and was carried as a known cost, but azure
+   clears every band by 83°, so amber became the only accent in the file
+   that did not, and a known cost nobody can see is just a defect.
+
+   Why it is not simply a different hue. The safe arc is 205–250° (purple
+   is banned brand-wide, everything warm collides). Azure already sits at
+   228°, so any hue that clears the ramp is within ~20° of the default and
+   would not read as a choice at all. Removing the hue is the only move that
+   is both safe and visibly different — and it is the one option that
+   deletes the neon tell outright rather than dimming it.
+
+   What the user gets: a monochrome mode. Interactive becomes an inverted
+   ivory fill, and success / warning / danger become the ONLY colours on
+   the screen.
+
+   THE COST, and it is real: an ivory link is the same lightness as body
+   text (ΔL* 3.5 against --tm-text), so colour alone cannot say "this is
+   clickable". Bone rests on the other three signals instead — cursor,
+   hover and focus ring — which still satisfies the Four-Signal rule, and
+   which is how every non-accent control in the app already works under
+   the --tm-interactive-rest contract.
+
+   Where that is weakest is an inline link inside prose, and the underline
+   rule below does NOT close it: .tm-link has 6 usages and zero component
+   consumers, while 219 CSS rules colour something with the accent by hand.
+   The rule is correct where it applies and costs nothing, but do not read
+   it as the fix. Adopting .tm-link is the actual fix and is its own job.
+
+   Scoped to dark only: light + Bone intentionally falls back to light's own
+   accent — this block sits BEFORE the light surface block in source order,
+   so the light block's own --tm-interactive* redefinition wins the cascade
+   (equal specificity, later source wins). --tm-brand (logo/completion) is
+   deliberately untouched — accent ≠ brand.
+
+   The stored key stays "forge". It is the `accent_pref` / `data-accent`
+   identifier and predates two renames (Forge → Ember → Bone); changing it
+   would strand every existing preference row. */
+:root[data-accent="forge"] {
+  --tm-int-bg-subtle:      rgba(241, 231, 210, 0.04);
+  --tm-int-bg-wash:        rgba(241, 231, 210, 0.07);
+  --tm-int-bg-hover:       rgba(241, 231, 210, 0.12);
+  --tm-int-border-soft:    rgba(241, 231, 210, 0.18);
+  --tm-int-border:         rgba(241, 231, 210, 0.30);
+  --tm-int-solid:          #f1e7d2;
+  --tm-int-solid-hover:    #fcf6e9;
+  --tm-int-text:           #f1e7d2;
+  --tm-int-text-strong:    #fcf6e9;
+
+  --tm-interactive:        #f1e7d2;
+  --tm-interactive-hover:  #fcf6e9;
+  --tm-interactive-press:  #d7cdb7;
+  --tm-interactive-glow:   rgba(241, 231, 210, 0.16);
   --tm-interactive-wash:   var(--tm-int-bg-wash);
   --tm-interactive-ring:   var(--tm-int-border);
-  --tm-interactive-grid:   rgba(255, 179, 71, 0.05);
-  --tm-interactive-fg:     #2b1600;
+  --tm-interactive-grid:   rgba(241, 231, 210, 0.04);
+  --tm-interactive-fg:     #191712;
+}
+
+/* Bone's one structural difference: the underline IS the affordance,
+   because the colour cannot be. See the block above. */
+:root[data-accent="forge"] .tm-link {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
 }
 
 /* ── Surface: LIGHT · Spirit — daylight clarity (MYRO-THM-001) ──
    Pure-paper cards on a cool off-white page. Same skeleton as Ghost;
    tokens flip. Spirit doesn't glow — it casts (glow → soft drop). */
 :root[data-surface="light"] {
-  /* Myro LIGHT = "Firecrawl paper" — warm paper + orange #FF4C00 (confirmed
-     dashboard handoff, Jun 2026). Light is its OWN brand, not a teal inverse:
-     dark = quiet Engine teal, light = warm Firecrawl orange. */
-  --tm-bg:            #faf6f0;
-  --tm-surface:       #fffdfa;
-  --tm-surface-2:     #f4efe8;
-  --tm-surface-3:     #ece5db;
-  --tm-bg-inset:      #f4efe8;
-  --tm-border:        #ece6dd;
-  --tm-border-soft:   #f2ece3;
-  --tm-border-faint:  rgba(38, 38, 38, 0.08);
-  --tm-scrim:         rgba(38, 38, 38, 0.22);
-  --tm-overlay-soft:  rgba(38, 38, 38, 0.12);
-  --tm-hover-soft:    rgba(38, 38, 38, 0.035);
-  --tm-hover:         rgba(38, 38, 38, 0.065);
-  --tm-icon-muted:    rgba(38, 38, 38, 0.48);
+  /* Myro LIGHT — cool paper (AZURE, 2026-08-23). Supersedes "Firecrawl paper"
+     (warm #faf6f0 + orange #FF4C00, Jun 2026). Light is no longer its own
+     brand: one accent now runs every surface, so paper carries the same
+     hue-228 ash as the product, at inverted lightness. Every rung holds the
+     lightness the warm ramp had — only the hue moved, so nothing about
+     spacing or contrast changed. */
+  --tm-bg:            #f3f7f9;
+  --tm-surface:       #fbfeff;
+  --tm-surface-2:     #ebf1f3;
+  --tm-surface-3:     #e0e7eb;
+  --tm-bg-inset:      #ebf1f3;
+  --tm-border:        #e0e8ec;
+  --tm-border-soft:   #e8eef1;
+  --tm-border-faint:  rgba(32, 38, 41, 0.08);
+  --tm-scrim:         rgba(32, 38, 41, 0.22);
+  --tm-overlay-soft:  rgba(32, 38, 41, 0.12);
+  --tm-hover-soft:    rgba(32, 38, 41, 0.035);
+  --tm-hover:         rgba(32, 38, 41, 0.065);
+  --tm-icon-muted:    rgba(32, 38, 41, 0.48);
 
-  /* Skeleton on the warm paper page — visible block + white sweep */
-  --tm-skeleton:       #ece5db;
+  /* Skeleton on the cool paper page — visible block + white sweep */
+  --tm-skeleton:       #e0e7eb;
   --tm-skeleton-sheen: rgba(255, 255, 255, 0.66);
 
-  /* Firecrawl paper text — warm greys on #F9F9F9
-       primary  #262626 → AAA
-       muted    #6E6E6E → AA body
-       faint    #9D9D9D → micro-labels / icons at rest
-       disabled #B4B4B4 → decorative only — never load-bearing text */
-  --tm-text:          #29241e;
-  --tm-text-muted:    #6e655a;
-  --tm-text-faint:    #a3998c;
-  --tm-text-disabled: #bab1a6;
-  --tm-accent-text:   #c13c00;
+  /* Cool paper text — measured on the CURRENT #f3f7f9 page. Each rung holds
+     the lightness of the warm ramp it replaces, so the contrast is unchanged
+     to within 0.1:
+       primary  #202629  14.21 : 1  (AAA)
+       muted    #60686c   5.27 : 1  (AA body)
+       faint    #949ca0   2.59 : 1  — micro-labels / icons at rest, never text
+       disabled #acb4b8   1.96 : 1  — decorative only, conveys nothing */
+  --tm-text:          #202629;
+  --tm-text-muted:    #60686c;
+  --tm-text-faint:    #949ca0;
+  --tm-text-disabled: #acb4b8;
+  --tm-accent-text:   #005e9e;
 
-  /* Reading: white sheet on warm paper (Substack/Medium read), warm ink. */
-  --tm-reading-surface: #fffdfa;
-  --tm-reading-ink:     #221e18;
+  /* Reading: white sheet on cool paper (Substack/Medium read), cool ink. */
+  --tm-reading-surface: #fbfeff;
+  --tm-reading-ink:     #1a2022;
 
   /* Spirit status colors darken for WCAG AA on white (spec §02) */
   /* Info is the SAME hue across all three surfaces (~227° blue) — a status
@@ -442,9 +507,12 @@
      vibecoded tell — ANTI_SLOP.md §20), and it had drifted off the dark
      surface's #8BA3FF. #2F4FBF is that same blue darkened for paper: 6.5:1 on
      --tm-bg, 6.9:1 on --tm-surface, both past AA for body text. */
-  --tm-info:          #2F4FBF;
-  --tm-info-wash:     rgba(47, 79, 191, 0.08);
-  --tm-info-border:   rgba(47, 79, 191, 0.30);
+  /* Info is neutral on every surface as of 2026-08-23. It was a blue tier;
+     blue is now the ACCENT, so a blue "info" reads as a dim control. The
+     notice keeps its shape (wash + border) and drops its hue. */
+  --tm-info:          #60686c;
+  --tm-info-wash:     rgba(32, 38, 41, 0.05);
+  --tm-info-border:   rgba(32, 38, 41, 0.16);
   --tm-success:       #138A45;
   --tm-warning:       #D97706;
   --tm-danger:        #E11D48;
@@ -459,163 +527,40 @@
   /* glow → cast: dim ~60% + angle downward, no radial smudge on white */
   --tm-shadow-glow:   0 4px 12px var(--tm-accent-glow);
 
-  /* Firecrawl orange — primary CTA fill, fit-ring arc, active nav. White ink
-     on the fill; #DE4200 when accent is used AS text (AA on white). */
-  --tm-brand:         #FF4C00;
-  --tm-brand-glow:    rgba(255, 76, 0, 0.18);
+  /* The mark stays teal (see --tm-brand in :root) but #00f5d4 measures 1.4:1
+     on paper, so the light surface carries it at paper lightness instead. This
+     token has no consumer outside the Tailwind map today — it exists so the
+     mark has a legible value here the day something reads it. */
+  --tm-brand:         #00786a;
+  --tm-brand-glow:    rgba(0, 120, 106, 0.18);
   --tm-brand-fg:      #FFFFFF;
 
-  --tm-interactive:        #FF4C00;
-  --tm-interactive-hover:  #E84500;
-  --tm-interactive-press:  #C93B00;
-  --tm-interactive-glow:   rgba(255, 76, 0, 0.18);
-  --tm-interactive-wash:   rgba(255, 76, 0, 0.06);
-  --tm-interactive-ring:   rgba(255, 76, 0, 0.32);
+  /* Azure on paper. NOTE the hue: the dark surface is 228°, this is 248°.
+     Not drift — at paper lightness sRGB cannot hold chroma at 228°, so the
+     colour desaturates toward cyan and reads as the retired teal. The
+     blue-shift is what keeps the two surfaces looking like one accent.
+     White ink on the fill measures 5.06:1, against 3.34:1 for the orange
+     this replaces — the CTA got more legible, not less. */
+  --tm-interactive:        #0072be;
+  --tm-interactive-hover:  #0064a7;
+  --tm-interactive-press:  #005591;
+  --tm-interactive-glow:   rgba(0, 114, 190, 0.18);
+  --tm-interactive-wash:   rgba(0, 114, 190, 0.06);
+  --tm-interactive-ring:   rgba(0, 114, 190, 0.32);
   --tm-interactive-grid:   transparent;
   --tm-interactive-fg:     #FFFFFF;
 
-  /* Surface wash tokens — orange alpha so white cards get a clear
+  /* Surface wash tokens — azure alpha so white cards get a clear
      hover/active state without turning into pastel blocks. */
-  --tm-int-bg-subtle:      rgba(255, 76, 0, 0.04);
-  --tm-int-bg-wash:        rgba(255, 76, 0, 0.06);
-  --tm-int-bg-hover:       rgba(255, 76, 0, 0.11);
-  --tm-int-border-soft:    rgba(255, 76, 0, 0.24);
-  --tm-int-border:         rgba(255, 76, 0, 0.32);
-  --tm-int-solid:          #FF4C00;
-  --tm-int-solid-hover:    #E84500;
-  --tm-int-text:           #c13c00;
-  --tm-int-text-strong:    #a83400;
-}
-
-/* ── Surface: INK — the public marketing surface (dark-only) ─────
-   The marketing pages run a cool navy ramp, not the warm-dark product
-   palette. This is a supersession with a reason, not drift — recorded in
-   DECISIONS.md §Marketing ink surface (Shivam, 2026-08-17).
-
-   Why marketing needs its own base. The accent is #00f5d4, hue 173°, and
-   it is cool. On the warm product base it is the only cool thing on the
-   page, so it reads as a sticker laid over the surface instead of light
-   coming off it. Measured across the two designs — blue channel against
-   the mean of red and green, dark pixels only — the warm base scores −1.4
-   and this one +20.2. Same accent, opposite relationship to its ground.
-   Cards also earn their edges here: a card sits 2.2× the page's luminance
-   against 1.6× on the warm ramp, where card and page were near-identical.
-
-   Dark-only BY CONSTRUCTION rather than by source order: the selector
-   scores (0,2,1) and outranks :root[data-surface="light"] at (0,2,0)
-   wherever this block sits. A visitor who prefers light still gets ink on
-   marketing and their own paper theme everywhere else in the product.
-
-   Opt in with `tm-ink` on a route's top-level wrapper. Matched via :has()
-   so it needs no JS and cannot flash the wrong palette before hydration.
-   Every alias in :root (--tm-bg-page, --tm-text-primary, …) resolves off
-   these values automatically: both blocks target the same element, so the
-   winning declaration is the one substituted into the alias.
-   ───────────────────────────────────────────────────────────────── */
-html:root:has(.tm-ink) {
-  --tm-bg:            #050a18;
-  --tm-surface:       #0b1424;
-  --tm-surface-2:     #0f1a2e;
-  --tm-surface-3:     #152137;
-  --tm-bg-inset:      #070e1e;
-  --tm-border:        #1c2a44;
-  --tm-border-soft:   rgba(232, 240, 255, 0.10);
-  --tm-border-faint:  rgba(232, 240, 255, 0.06);
-  --tm-scrim:         rgba(2, 5, 12, 0.76);
-  --tm-overlay-soft:  rgba(2, 5, 12, 0.52);
-  --tm-hover-soft:    rgba(232, 240, 255, 0.04);
-  --tm-hover:         rgba(232, 240, 255, 0.07);
-  --tm-icon-muted:    rgba(232, 240, 255, 0.42);
-
-  --tm-skeleton:       #1c2a44;
-  --tm-skeleton-sheen: rgba(0, 245, 212, 0.16);
-
-  /* Measured on the ink page / card / elevated surfaces. Every rung that
-     carries text clears WCAG AA on the darkest of the three, and each step
-     is a visible drop rather than a nominal one:
-       text     #e8f0ff  17.25 : 1  (AAA)
-       muted    #9aa8c6   8.27 : 1  (AAA body)
-       faint    #7a88a8   5.56 : 1  (AA body, 4.90 on elevated)
-       disabled #525f80   3.11 : 1  (decorative only — conveys nothing)
-     The design reference used #7a88a8 as its muted and #3a4560 as its
-     faint. #3a4560 measures 2.07:1, so it is a hairline colour, not a text
-     colour — it lives in --tm-border above and nowhere near a glyph. */
-  --tm-text:          #e8f0ff;
-  --tm-text-muted:    #9aa8c6;
-  --tm-text-faint:    #7a88a8;
-  --tm-text-disabled: #525f80;
-  --tm-accent-text:   #00f5d4;
-
-  --tm-reading-surface: #0b1424;
-  --tm-reading-ink:     #dde7fb;
-
-  --tm-info:          #8ba3ff;
-  --tm-info-wash:     rgba(139, 163, 255, 0.12);
-  --tm-info-border:   rgba(139, 163, 255, 0.30);
-
-  --tm-shadow-1:      0 1px 2px rgba(2, 5, 12, 0.5);
-  --tm-shadow-2:      0 8px 24px rgba(2, 5, 12, 0.4), 0 1px 2px rgba(2, 5, 12, 0.5);
-  --tm-shadow-glow:   0 0 24px 0 var(--tm-accent-glow);
-
-  /* Teal is re-pinned rather than inherited: a light-preference visitor's
-     root carries the orange interactive ramp, and orange on navy is not a
-     thing this surface does. */
-  --tm-brand:              #00f5d4;
-  --tm-brand-glow:         rgba(0, 245, 212, 0.24);
-  --tm-brand-fg:           #04211c;
-  --tm-int-bg-subtle:      rgba(0, 245, 212, 0.05);
-  --tm-int-bg-wash:        rgba(0, 245, 212, 0.10);
-  --tm-int-bg-hover:       rgba(0, 245, 212, 0.16);
-  --tm-int-border-soft:    rgba(0, 245, 212, 0.26);
-  --tm-int-border:         rgba(0, 245, 212, 0.42);
-  --tm-int-solid:          #00f5d4;
-  --tm-int-solid-hover:    #53ffe3;
-  --tm-int-text:           #67e8f9;
-  --tm-int-text-strong:    #9bf3ff;
-  --tm-interactive:        #00f5d4;
-  --tm-interactive-hover:  #53ffe3;
-  --tm-interactive-press:  #00c9ae;
-  --tm-interactive-glow:   rgba(0, 245, 212, 0.20);
-  --tm-interactive-grid:   rgba(0, 245, 212, 0.05);
-  --tm-interactive-fg:     #04211c;
-
-  /* Deep-field, cooled. The warm ember was an orange radial in the lower
-     left — on the product's warm base it belongs, on navy it is the one
-     thing fighting the accent, so it becomes a cool lift. Star ink follows
-     the text hue as it does on the product surface. */
-  --tm-depth-star-near: rgba(232, 240, 255, 0.50);
-  --tm-depth-star-far:  rgba(232, 240, 255, 0.22);
-  --tm-depth-star-teal: rgba(0, 245, 212, 0.38);
-  --tm-depth-aurora:    rgba(0, 245, 212, 0.10);
-  --tm-depth-ember:     rgba(64, 120, 255, 0.07);
-  --tm-depth-vignette:  rgba(0, 0, 0, 0.55);
-
-  /* Shadcn mirror — same reason as the teal re-pin above. */
-  --background:          222 68% 6%;
-  --foreground:          220 100% 95%;
-  --card:                219 54% 9%;
-  --card-foreground:     220 100% 95%;
-  --popover:             219 54% 9%;
-  --popover-foreground:  220 100% 95%;
-  --primary:             172 100% 48%;
-  --primary-foreground:  170 78% 7%;
-  --secondary:           220 51% 12%;
-  --secondary-foreground: 220 100% 95%;
-  --muted:               220 51% 12%;
-  --muted-foreground:    220 25% 69%;
-  --accent:              172 100% 48%;
-  --accent-foreground:   170 78% 7%;
-  --border:              220 42% 19%;
-  --input:               220 42% 19%;
-  --ring:                172 100% 48%;
-}
-
-/* Ink is dark-only, so the deep-field stays lit even for a visitor whose
-   root is the light surface — otherwise the marketing hero loses its glow
-   for exactly the people who never asked marketing to be paper. (0,2,3)
-   against the light rule's (0,2,2). */
-html:root:has(.tm-ink) body::before {
-  display: block;
+  --tm-int-bg-subtle:      rgba(0, 114, 190, 0.04);
+  --tm-int-bg-wash:        rgba(0, 114, 190, 0.06);
+  --tm-int-bg-hover:       rgba(0, 114, 190, 0.11);
+  --tm-int-border-soft:    rgba(0, 114, 190, 0.24);
+  --tm-int-border:         rgba(0, 114, 190, 0.32);
+  --tm-int-solid:          #0072be;
+  --tm-int-solid-hover:    #0064a7;
+  --tm-int-text:           #005e9e;
+  --tm-int-text-strong:    #004d83;
 }
 
 /* ── Shadcn compatibility layer ────────────────────────────────
@@ -623,59 +568,59 @@ html:root:has(.tm-ink) body::before {
    Mirror our tokens into that shape so existing components just work.
    ───────────────────────────────────────────────────────────── */
 :root {
-  --background:          26 24% 5%;
-  --foreground:          38 24% 90%;
-  --card:                30 24% 9%;
-  --card-foreground:     38 24% 90%;
-  --popover:             30 24% 9%;
-  --popover-foreground:  38 24% 90%;
-  --primary:             172 100% 48%;
-  --primary-foreground:  170 78% 7%;
-  --secondary:           30 24% 11%;
-  --secondary-foreground: 38 24% 90%;
-  --muted:               30 24% 9%;
-  --muted-foreground:    33 16% 65%;
-  --accent:              172 100% 48%;
-  --accent-foreground:   170 78% 7%;
+  --background:          200 12% 10%;
+  --foreground:          60 13% 94%;
+  --card:                197 11% 13%;
+  --card-foreground:     60 13% 94%;
+  --popover:             197 11% 13%;
+  --popover-foreground:  60 13% 94%;
+  --primary:             197 90% 64%;
+  --primary-foreground:  197 92% 10%;
+  --secondary:           200 12% 15%;
+  --secondary-foreground: 60 13% 94%;
+  --muted:               197 11% 13%;
+  --muted-foreground:    60 4% 64%;
+  --accent:              197 90% 64%;
+  --accent-foreground:   197 92% 10%;
   --destructive:         0 84% 60%;
   --destructive-foreground: 0 0% 97%;
-  --border:              30 16% 15%;
-  --input:               30 16% 15%;
-  --ring:                172 100% 48%;
+  --border:              200 15% 19%;
+  --input:               200 15% 19%;
+  --ring:                197 90% 64%;
   --radius:              6px;
 }
 :root[data-surface="light"] {
-  --background:          36 33% 96%;
-  --foreground:          33 16% 14%;
-  --card:                40 50% 99%;
-  --card-foreground:     33 16% 14%;
-  --popover:             40 50% 99%;
-  --popover-foreground:  33 16% 14%;
-  --primary:             18 100% 50%;
+  --background:          200 33% 96%;
+  --foreground:          200 12% 14%;
+  --card:                195 100% 99%;
+  --card-foreground:     200 12% 14%;
+  --popover:             195 100% 99%;
+  --popover-foreground:  200 12% 14%;
+  --primary:             204 100% 37%;
   --primary-foreground:  0 0% 100%;
-  --accent:              18 100% 50%;
+  --accent:              204 100% 37%;
   --accent-foreground:   0 0% 100%;
-  --secondary:           35 30% 93%;
-  --secondary-foreground: 33 16% 14%;
-  --muted:               35 30% 93%;
-  --muted-foreground:    31 11% 39%;
+  --secondary:           195 25% 94%;
+  --secondary-foreground: 200 12% 14%;
+  --muted:               195 25% 94%;
+  --muted-foreground:    200 6% 40%;
   --destructive-foreground: 0 0% 100%;
-  --border:              35 30% 90%;
-  --input:               35 30% 90%;
-  --ring:                18 100% 50%;
+  --border:              200 24% 90%;
+  --input:               200 24% 90%;
+  --ring:                204 100% 37%;
 }
 :root[data-accent="forge"] {
-  /* #FFB347 — matches the real --tm-interactive forge override above. */
-  --primary:             35 100% 64%;
-  --accent:              35 100% 64%;
-  --ring:                35 100% 64%;
-  --primary-foreground:  30 100% 8%;
-  --accent-foreground:   30 100% 8%;
+  /* #f1e7d2 — matches the real --tm-interactive Bone override above. */
+  --primary:             41 53% 88%;
+  --accent:              41 53% 88%;
+  --ring:                41 53% 88%;
+  --primary-foreground:  43 16% 8%;
+  --accent-foreground:   43 16% 8%;
 }
 :root[data-surface="light"][data-accent="forge"] {
-  --primary:             18 100% 50%;
-  --accent:              18 100% 50%;
-  --ring:                18 100% 50%;
+  --primary:             204 100% 37%;
+  --accent:              204 100% 37%;
+  --ring:                204 100% 37%;
   --primary-foreground:  0 0% 100%;
   --accent-foreground:   0 0% 100%;
 }

@@ -8,6 +8,11 @@
  * shipped and were rightly cut: a label above every statement is noise, a
  * label above every GROUP is structure.
  *
+ * This component knows the WORDS and nothing else. Which lines belong here,
+ * how many the slot takes, and how full it is all arrive from the resolver —
+ * because when the client worked them out too, its answer and the run's
+ * answer were different ones.
+ *
  * An empty slot still renders. That is the point: the modal's real question is
  * "what does Myro still need from me?", and six headers with three of them
  * holding only an invitation answers it at a glance. A group that disappears
@@ -21,14 +26,16 @@
 import { useEffect, useRef, useState } from "react"
 
 import { SayPad } from "@/components/myro/say-pad"
-import { slotCount, type SlotSpec } from "@/lib/preflight/slots"
+import { slotCount, type SlotCopy } from "@/lib/preflight/slots"
 import type { LineStatus, OrderConflict, OrderLine } from "@/lib/preflight/types"
 
 import { ConflictPlate } from "./conflict-plate"
 import { Plate } from "./plate"
 
 export function SlotGroup({
-  spec,
+  copy,
+  arity,
+  filled,
   lines,
   conflicts,
   allLines,
@@ -37,25 +44,29 @@ export function SlotGroup({
   onAnswerLine,
   onRewordLine,
 }: {
-  spec: SlotSpec
-  /** Kept, uncontested lines filed to this slot. */
+  /** The words. Everything else about this slot comes from the resolver. */
+  copy: SlotCopy
+  arity: number
+  /** Placed + contested, from the resolver's own partition. Counting the
+   *  rendered plates instead is what turned a six-line slot into "15 of 6". */
+  filled: number
+  /** The lines the resolver PLACED here — the set the run will use. */
   lines: OrderLine[]
   /** Live conflicts whose slot is this one. */
   conflicts: OrderConflict[]
   /** Every line, so a conflict can resolve its own option text. */
   allLines: OrderLine[]
   busy?: boolean
-  onAdd: (kind: SlotSpec["addKind"], text: string) => void
+  onAdd: (kind: SlotCopy["addKind"], text: string) => void
   onAnswerLine: (lineId: string, status: LineStatus) => void
   onRewordLine: (lineId: string, text: string) => void
 }) {
-  const contested = conflicts.reduce((n, c) => n + c.line_ids.length, 0)
-  const count = slotCount(spec, lines.length + contested)
+  const count = slotCount(arity, filled)
 
   return (
-    <section className="pf-slot" aria-label={spec.label}>
+    <section className="pf-slot" aria-label={copy.label}>
       <div className="pf-slot-head">
-        <h3 className="pf-slot-label">{spec.label}</h3>
+        <h3 className="pf-slot-label">{copy.label}</h3>
         {count ? <span className="pf-slot-count">{count}</span> : null}
       </div>
 
@@ -79,7 +90,7 @@ export function SlotGroup({
         />
       ))}
 
-      <SlotAdd spec={spec} busy={busy} onAdd={onAdd} />
+      <SlotAdd copy={copy} busy={busy} onAdd={onAdd} />
     </section>
   )
 }
@@ -93,13 +104,13 @@ export function SlotGroup({
  * exists for the case where the user has a sentence rather than a line.
  */
 function SlotAdd({
-  spec,
+  copy,
   busy,
   onAdd,
 }: {
-  spec: SlotSpec
+  copy: SlotCopy
   busy?: boolean
-  onAdd: (kind: SlotSpec["addKind"], text: string) => void
+  onAdd: (kind: SlotCopy["addKind"], text: string) => void
 }) {
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState("")
@@ -116,7 +127,7 @@ function SlotAdd({
 
   function commit() {
     const text = draft.trim()
-    if (text) onAdd(spec.addKind, text)
+    if (text) onAdd(copy.addKind, text)
     setDraft("")
     setOpen(false)
   }
@@ -129,7 +140,7 @@ function SlotAdd({
         onClick={() => setOpen(true)}
         disabled={busy}
       >
-        {spec.invite}
+        {copy.invite}
       </button>
     )
   }
@@ -146,8 +157,8 @@ function SlotAdd({
         onKeyDown={(e) => {
           if (e.key === "Escape") { e.preventDefault(); setDraft(""); setOpen(false) }
         }}
-        aria-label={`Add to ${spec.label}`}
-        placeholder={spec.invite}
+        aria-label={`Add to ${copy.label}`}
+        placeholder={copy.invite}
       />
       <div className="pf-slot-add-actions">
         <button

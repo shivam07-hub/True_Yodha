@@ -1,5 +1,5 @@
 /**
- * Extension handshake wait — plain canvas status, no ambient TealField. The
+ * Extension handshake wait — plain canvas status, no ambient AccentField. The
  * extension tab closes as soon as tokens land in the fragment; a shaped app
  * skeleton would flash for milliseconds and read as a wrong destination.
  */

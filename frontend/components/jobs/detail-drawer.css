@@ -29,7 +29,10 @@
 }
 .jdrawer-head-main { min-width: 0; }
 .jdrawer-title { margin: 0; font-size: 19px; font-weight: 600; line-height: 1.25; color: var(--tm-text); }
-.jdrawer-company { margin-top: 4px; font-size: 14px; color: var(--tm-interactive); }
+/* Company name = identity, NOT the action — the same lock feed-card.css took on
+   2026-07-23. The drawer kept the accent for another year of commits; it is the
+   same name rendered one layer up, so it reads the same way. */
+.jdrawer-company { margin-top: 4px; font-size: 14px; color: var(--tm-text); }
 .jdrawer-loc { margin-top: 8px; }
 .jdrawer-close {
   flex-shrink: 0; width: 32px; height: 32px; border-radius: 999px;

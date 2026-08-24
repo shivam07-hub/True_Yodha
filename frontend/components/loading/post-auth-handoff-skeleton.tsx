@@ -13,7 +13,7 @@ import {
 /**
  * Shaped first paint for OAuth/magic-link and partner handoffs while the session
  * resolves. Uses carried intent when we can read it from storage; otherwise the
- * daily surface (/market) shape — never a full-screen teal field with no layout.
+ * daily surface (/market) shape — never a full-screen accent field with no layout.
  */
 export function PostAuthHandoffSkeleton() {
   if (readPendingExtensionConnect()) return <GenericPageSkeleton />

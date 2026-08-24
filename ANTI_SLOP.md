@@ -34,10 +34,11 @@ slop signal is *density*, not presence.
 | 10 | Inter / Geist / Space Grotesk | We ship **all three of the named faces** (Space Grotesk + Inter + JetBrains Mono). This is our largest single tell. Mitigation is *setting*, not swapping: 5-step scale, no 700+, no italics, mono only on numerals. Revisit the display face when the brand does — not per-component. |
 | 19 | Soft corner radius | Ours is **4/6/8/10px** — hard, terminal, not the 16–24px pillow. Already the counter-move. |
 | 28 | Hover animations | The Four-Signal Affordance Rule *requires* a hover state. Slop is hover on non-interactive things. Keep, and keep it 200ms + no transform. |
-| 29 | Neon | `#00f5d4` is neon. It is the brand. The discipline is the **3-accent budget** — accent on interactive only, status never accent. |
+| 29 | Neon | **Closed 2026-08-23 — this was LOCKED and is not any more.** The interactive accent is now azure `#4fc7f6` at OKLCH chroma **0.125**, against `#00f5d4`'s **0.160**. The tell was never the hue, it was the chroma, so swapping neon teal for neon blue would have changed nothing. `#00f5d4` survives as `--tm-brand` — the MARK, the OG image, the particle fields — which is a logo, not a UI accent. The **3-accent budget** stands: accent on interactive only, status never accent. |
 
-**The rule that follows from this table:** we are already carrying five. That is
-the whole budget. Everything below has to come off.
+**The rule that follows from this table:** we were carrying five. Item 29 came
+off on 2026-08-23, so there is now one slot of headroom — spend it on purpose,
+once, and write down what you bought with it.
 
 ---
 

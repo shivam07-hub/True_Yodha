@@ -2,7 +2,7 @@
    Sticky job header + live score · left = the CV as the editor · right = tabbed
    rail (Fixes / Skills / Preview) · mobile = bottom segmented nav. Every color
    reads canonical --tm-* tokens: Firecrawl-orange on warm paper in light,
-   Engine-teal on near-black in dark. */
+   azure on near-black in dark. */
 
 .cvb-v2 { display: flex; flex-direction: column; min-height: 100vh; }
 .cvb-v2 .mono { font-family: var(--tm-font-mono); }

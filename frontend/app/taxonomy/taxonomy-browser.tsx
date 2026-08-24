@@ -5,7 +5,7 @@ import Link from "next/link"
 import { formatCount } from "@/lib/format"
 import { demandBandDisplay } from "@/lib/demand-band"
 import { SectionGate } from "@/components/loading/section-gate"
-import { TealField } from "@/components/loading/teal-field"
+import { AccentField } from "@/components/loading/accent-field"
 import { useTaxonomy } from "@/lib/taxonomy/use-taxonomy"
 import type { DemandBand } from "@/lib/api"
 import "./taxonomy.css"
@@ -39,9 +39,9 @@ export function TaxonomyBrowser() {
   const searchResult = debQuery.length >= 2 ? tx.search(debQuery) : null
   const indexPending = readiness.index !== "ready"
 
-  // ── Real-shape skeleton: stats bar + domain grid, floating over <TealField>.
+  // ── Real-shape skeleton: stats bar + domain grid, floating over <AccentField>.
   const fallback = (
-    <TealField mode="masked" style={{ borderRadius: "var(--tm-radius-lg)" }}>
+    <AccentField mode="masked" style={{ borderRadius: "var(--tm-radius-lg)" }}>
       <div className="tx-stats tx-skeleton-stats" aria-hidden="true">
         {[0, 1, 2].map((i) => (
           <span key={i} className="tx-skeleton-line" style={{ width: 90 }} />
@@ -52,7 +52,7 @@ export function TaxonomyBrowser() {
           <div key={i} className="tx-domain-card tx-skeleton-card" />
         ))}
       </div>
-    </TealField>
+    </AccentField>
   )
 
   const activeDomain = expandedDomain
@@ -166,13 +166,13 @@ export function TaxonomyBrowser() {
                       error={readiness.priority === "error" ? new Error("priority") : undefined}
                       errorLabel="In-demand skills unavailable."
                       fallback={
-                        <TealField mode="masked" style={{ borderRadius: "var(--tm-radius)" }}>
+                        <AccentField mode="masked" style={{ borderRadius: "var(--tm-radius)" }}>
                           <div className="tx-skill-chips" aria-hidden="true">
                             {Array.from({ length: 18 }).map((_, i) => (
                               <span key={i} className="tx-skill-chip tx-skeleton-chip" />
                             ))}
                           </div>
-                        </TealField>
+                        </AccentField>
                       }
                     >
                       <div className="tx-skill-chips">

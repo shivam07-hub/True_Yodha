@@ -4,6 +4,13 @@ import * as React from "react"
 import "./capture-confirm.css"
 
 /**
+ * ⚠️ NOT WIRED — imported and rendered by nothing since it landed
+ * (`d1d8bcf2`, Phase 0/1 "unified capture language + Loop Bar", journey B).
+ * Kept rather than deleted on 2026-08-23 because the Loop Bar phase may still
+ * want it; `feed-card`'s `confirm` prop is the mount point and is also unpassed.
+ * The confirmation users see today is the portaled `<NotInterestedUndo>` band.
+ *
+
  * The in-card save confirmation (journey treatment B). Slides down inside the
  * Signal Card the moment a job is captured and answers the two Delta-4 questions
  * at the exact locus of action: WHERE it went (✓ In Collections · #N in queue)

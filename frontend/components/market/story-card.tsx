@@ -32,7 +32,7 @@ export function StoryCard({
       <article className="mi-story" aria-label={`Skill in demand: ${story.skill}`}>
         <div className="mi-story-kicker">Skill in demand</div>
         <h3 className="mi-story-h">
-          <span className="mi-accent">{story.skill}</span> — {story.roles} open role
+          <span className="mi-subject">{story.skill}</span> — {story.roles} open role
           {story.roles === 1 ? "" : "s"}{story.city ? ` in ${story.city}` : ""} want it
         </h3>
         <p className="mi-story-p">

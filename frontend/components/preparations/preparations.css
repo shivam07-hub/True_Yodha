@@ -471,7 +471,7 @@
 .prp-map-body:hover .mc-peek-link { text-decoration: underline; }
 .prp-workspace-page .mc-peek-empty a { color: var(--tm-interactive-text); font-weight: 600; text-decoration: none; }
 
-/* Course chips — Followed-companies geometry, louder: teal wash, bigger type. */
+/* Course chips — Followed-companies geometry, louder: accent wash, bigger type. */
 .prp-courses {
   display: flex;
   flex-direction: column;

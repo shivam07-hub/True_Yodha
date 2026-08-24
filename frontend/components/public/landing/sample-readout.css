@@ -1,7 +1,7 @@
 /* Standalone scope for the sample readout card when it's rendered OFF the
    landing page (auth pages). On landing the card inherits --lp-* from the
    .lp-readout section; here we re-pin the Engine-dark console tokens directly
-   so the card reads identically — a dark teal console — on any page, in any
+   so the card reads identically — a dark azure console — on any page, in any
    theme (light or dark). The card visual rules themselves live in
    landing-engine.css (.lp-readout-card + children); this only supplies tokens
    + the local heading, so there is no style duplication. */
@@ -13,8 +13,8 @@
   --lp-text:          #e8e8ea;
   --lp-muted:         #9aa4bf;
   --lp-faint:         #646e8c;
-  --lp-accent:        #00f5d4;
-  --lp-accent-text:   #67e8f9;
+  --lp-accent:        #4fc7f6;
+  --lp-accent-text:   #6ac4eb;
   --lp-success:       #4ade80;
   --lp-warning:       #f59e0b;
   --lp-mono:          var(--font-jbmono), "JetBrains Mono", "Geist Mono", ui-monospace, monospace;

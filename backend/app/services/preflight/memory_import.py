@@ -188,6 +188,32 @@ def confirmed_from(brief: TargetingBrief) -> list[OrderLine]:
     profile: dict[str, Any] = brief.profile
     out: list[OrderLine] = []
 
+    # The work, first — it is the slot that DEFINES the search.
+    #
+    # Until 2026-08-21 this imported the two exclusion columns and not the one
+    # that says what to look for, so every returning user opened the modal with
+    # "The work" empty above a full "Won't take". The run then dispatched
+    # anyway: `payload.resolve` omits an empty slot from the spec, and
+    # `targeting_write.apply` is a PATCH, so the search silently ran on the
+    # stored titles the modal had just declined to show. "Myro runs on the lines
+    # above and nothing else" was false for the one line that matters most.
+    #
+    # `target_role_titles` only — never the derived `target_roles` clusters.
+    # Titles are the write vocabulary (`role_title_updates`); feeding the
+    # matcher's read model back in as source would let a cluster name become a
+    # title the user never wrote.
+    for raw in profile.get("target_role_titles") or []:
+        text = str(raw).strip().rstrip(".")
+        if text:
+            ref = _ref("profile:role", text)
+            out.append(
+                OrderLine(
+                    id=ref, kind="role", text=text, source="user_said",
+                    source_note="you set this", origin="preflight", status="kept",
+                    ref=ref,
+                )
+            )
+
     for raw in profile.get("deal_breakers") or []:
         text = _strip_lead(str(raw))
         if text:
@@ -211,46 +237,3 @@ def confirmed_from(brief: TargetingBrief) -> list[OrderLine]:
             )
         )
     return out
-
-
-def starters_from(brief: TargetingBrief) -> list[str]:
-    """Phrases read off the CV for screen 1. Tapping one appends to the pad —
-    nothing is on the order until the user says it. Near-duplicate titles
-    ("tech sales" / "IT Sales") collapse so the first screen does not show
-    that Myro cannot tell them apart.
-    """
-    profile: dict[str, Any] = brief.profile
-    titles = [str(v).strip() for v in (profile.get("target_role_titles") or []) if str(v).strip()]
-    if not titles:
-        titles = [str(v).strip() for v in (profile.get("target_roles") or []) if str(v).strip()]
-    location = (profile.get("target_location") or "").strip()
-
-    seen: set[str] = set()
-    out: list[str] = []
-    for word in titles:
-        key = _starter_key(word)
-        if not key or key in seen:
-            continue
-        seen.add(key)
-        out.append(word)
-        if len(out) == 3:
-            break
-    if location:
-        key = _starter_key(location)
-        if key and key not in seen:
-            out.append(location)
-    return out
-
-
-_STARTER_ALIASES = (
-    (re.compile(r"\binformation technology\b"), "tech"),
-    (re.compile(r"\btechnical\b"), "tech"),
-    (re.compile(r"\bit\b"), "tech"),
-)
-
-
-def _starter_key(word: str) -> str:
-    text = re.sub(r"[^a-z0-9\s]+", " ", word.lower())
-    for pat, repl in _STARTER_ALIASES:
-        text = pat.sub(repl, text)
-    return " ".join(text.split())

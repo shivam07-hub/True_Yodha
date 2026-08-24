@@ -42,7 +42,6 @@ class OrderBundle:
     """One read, everything the pre-flight opens on."""
 
     order: Order
-    starters: list[str]
     memory_count: int
     cv_readiness: str | None
 
@@ -59,25 +58,49 @@ class OrderRepository:
         )
         return rows[0] if rows else None
 
-    def load(self, user_id: str) -> Order:
-        """The stored order, with any guesses Myro has learned since last time
-        folded in as unanswered. Never invents a status — see `merge_imports`."""
-        return self.load_bundle(user_id).order
+    def load_stored(self, user_id: str) -> Order:
+        """The row exactly as stored. ONE read, no imports, no CV lookup.
+
+        This is what a WRITE needs, and what a RUN needs. Both used to call
+        `load_bundle`, so answering one line re-read the profile, re-scanned
+        `user_memory`, re-imported every note and counted the user's CV
+        versions before it touched the order — five sequential round trips at a
+        documented ~165ms floor each, which is the 1.5-4.1s per tap in the
+        2026-08-21 logs.
+
+        Safe to skip the import only because the open MATERIALISES it: a guess
+        exists as a stored line before the client is ever shown its id. Without
+        that, every yes on a guess would 404 here.
+
+        The run reads this too, and that is a correctness fix, not just a speed
+        one. Merging at run time folded in any note the distiller had written
+        since the modal opened, and `drop_unanswered` then buried it as a
+        permanent tombstone the user was never shown — and `merge_imports`
+        keeps answered lines forever, so it could never be asked again.
+        """
+        return Order.from_dict(self._row(user_id))
 
     def load_bundle(self, user_id: str) -> "OrderBundle":
-        """Order + the two things screen 1 needs, off ONE targeting read.
+        """What the modal opens on — and the one place imports happen.
 
-        Split across three methods this cost three round trips to assemble one
-        modal — the same profile SELECT and the same `user_memory` scan, thrice.
-        The pre-flight opens on a click, so it is a read path: see
-        ARCHITECTURE_READ_PATH.md.
+        `merge_imports` is idempotent, so this writes only on the open that
+        actually learns something: the first one after the distiller files a
+        note. Every other open, and every write, reads a row that already says
+        everything Myro wants to ask.
         """
         brief = targeting.for_preflight(self._db, user_id)
-        order = Order.from_dict(self._row(user_id))
+        stored = Order.from_dict(self._row(user_id))
         candidates = memory_import.confirmed_from(brief) + memory_import.guesses_from(brief)
+        merged = merge_imports(stored, candidates)
+
+        if merged.lines != stored.lines:
+            written = self._write(user_id, merged, expected=stored.updated_at)
+            # Lost the race: another open materialised the same imports a moment
+            # ago. Its row is as good as ours — take it rather than clobber it.
+            merged = written if written is not None else self.load_stored(user_id)
+
         return OrderBundle(
-            order=merge_imports(order, candidates),
-            starters=memory_import.starters_from(brief),
+            order=merged,
             memory_count=len(brief.facts),
             # `cv_readiness` is NOT a user_profiles column — GET /users/me derives
             # it from `has_baseline_cv`. Reading it off the profile dict returned
@@ -116,6 +139,10 @@ class OrderRepository:
     def mutate(self, user_id: str, apply: "Callable[[Order], Order]", *, attempts: int = 4) -> Order:
         """Read-modify-write the order under compare-and-set.
 
+        TWO round trips: read the stored row, write it back under compare-and-
+        set. It was five, because this read the merged bundle — see
+        `load_stored`.
+
         `lines` is one jsonb document, so every answer rewrites the whole array.
         Two clicks in flight at once — which is what tapping `yes` down a list of
         thirteen produces — both read the same array and the second write erases
@@ -129,7 +156,7 @@ class OrderRepository:
         it impossible, and two tabs make it certain.
         """
         for attempt in range(attempts):
-            bundle_order = self.load(user_id)
+            bundle_order = self.load_stored(user_id)
             expected = bundle_order.updated_at
             next_order = apply(bundle_order)
             written = self._write(user_id, next_order, expected=expected)

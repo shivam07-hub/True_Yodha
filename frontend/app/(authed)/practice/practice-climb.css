@@ -5,8 +5,16 @@
 .up-climb-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
 .up-climb-title { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
 .up-climb-sub { font-size: 13px; color: var(--tm-text-faint); margin: 3px 0 0; }
-.up-climb-sub .teal { color: var(--tm-accent); }
-.up-climb-sub .amber { color: var(--tm-warning); }
+/* The legend used to spell the colours out — "Teal is banked · amber is your
+   next move". Naming a hue in copy breaks on every palette move, and it breaks
+   outright under the Bone accent, which has no hue at all. The swatch carries
+   the colour; the words carry the meaning. */
+.up-climb-sub .up-dot {
+  display: inline-block; width: 7px; height: 7px; border-radius: 999px;
+  margin-right: 5px; vertical-align: 1px;
+}
+.up-climb-sub .up-dot-banked { background: var(--tm-accent); }
+.up-climb-sub .up-dot-next { background: var(--tm-warning); }
 
 .up-climb-tabs { display: flex; gap: 6px; background: var(--tm-surface); border: 1px solid var(--tm-border-soft); border-radius: 999px; padding: 4px; }
 .up-climb-tab {

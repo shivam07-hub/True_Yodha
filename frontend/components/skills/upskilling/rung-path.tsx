@@ -31,7 +31,7 @@ export function buildRungs(clearedLevel: number, onStart: (lvl: number) => void)
 }
 
 /** Fraction of the track between rung 1 and rung 5 that's already climbed —
-    drives the teal fill line under a ClimbRow's rungs. */
+    drives the accent fill line under a ClimbRow's rungs. */
 export function climbFraction(clearedLevel: number): number {
   return clearedLevel <= 1 ? 0 : (clearedLevel - 1) / 4
 }

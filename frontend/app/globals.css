@@ -110,7 +110,7 @@
 }
 
 /* ── Skeleton shimmer (ADR-0011 §B · enterprise directional sweep) ──
-   A teal sheen band travels left→right across a clearly-visible block.
+   An accent sheen band travels left→right across a clearly-visible block.
    This is the unambiguous "content is coming" signal — it replaces the
    old opacity-only `animate-pulse`, which read as dead/empty on the dark
    page. The block colour itself comes from --tm-skeleton (theme-aware). */

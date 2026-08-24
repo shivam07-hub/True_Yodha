@@ -361,7 +361,7 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
             <MobileAgentPicks token={token} context="collections" />
             {isRefreshing ? (
               <>
-                <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "12px 14px", borderRadius: 13, border: "1px solid rgba(0,245,212,0.2)", background: "var(--mm-accent-wash)", fontSize: 12.5, color: "var(--mm-text-2)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "12px 14px", borderRadius: 13, border: "1px solid rgba(79,199,246,0.2)", background: "var(--mm-accent-wash)", fontSize: 12.5, color: "var(--mm-text-2)" }}>
                   <span style={{ width: 8, height: 8, borderRadius: 99, background: "var(--mm-accent)", animation: "mm-dotBlink 1.1s infinite", flex: "none" }} />
                   {refreshVm.progressLabel ?? "Myro Ops · reading the market"}
                   {refreshVm.progressTotal != null && refreshVm.progressDone != null ? ` · ${refreshVm.progressDone}/${refreshVm.progressTotal}` : ""}

@@ -17,7 +17,7 @@ const plate = read("components/preflight/plate.tsx")
 const heard = read("components/preflight/heard-row.tsx")
 const conflict = read("components/preflight/conflict-plate.tsx")
 const pads = read("components/preflight/canvas-pads.tsx")
-const sheet = read("components/preflight/market-sheet.tsx")
+const say = read("components/preflight/say-band.tsx")
 const useOrder = read("lib/preflight/use-order.ts")
 const search = read("lib/hooks/use-myro-search.tsx")
 
@@ -28,12 +28,63 @@ test("one page-level entry mounts the gate, and holds no domain logic", () => {
   }
 })
 
-test("both surfaces read and write ONE order through one query key", () => {
-  assert.match(useOrder, /order: \(\) => \["preflight", "order"\]/)
-  for (const [name, src] of [["gate", gate], ["sheet", sheet]] as const) {
-    assert.match(src, /useOrder\(/, `${name} reads the shared order`)
-    assert.match(src, /useOrderMutations\(/, `${name} mutates through the shared hook`)
+test("ONE door — the complaint is a landing inside Myro Search, not a rival to it", () => {
+  // /market carried two buttons side by side: "Not it? Tell Myro →" opened a
+  // bottom sheet, "Myro Search" opened this modal. Both called
+  // `/preflight/proposals`, both wrote the same order, both ran on the same
+  // engine — and the sheet priced its own apply from a client constant
+  // ("Apply & re-run · 150") while a run costs MATCH_RUN_COST.
+  const store = read("store/refreshGateStore.ts")
+  assert.match(store, /intent: GateIntent/)
+  assert.match(gate, /sayFirst=\{intent === "say"\}/)
+  assert.match(search, /openRefreshGate\("review"\)/)
+  assert.match(search, /openRefreshGate\("say"\)/)
+
+  for (const [name, file] of [
+    ["desktop feed", "components/market/jobs-tab.tsx"],
+    ["mobile feed", "mobile/redesign/jobs-surface.tsx"],
+  ] as const) {
+    const src = read(file)
+    assert.doesNotMatch(src, /MarketSheet/, `${name} must not mount a second surface`)
+    assert.equal(
+      (src.match(/openRefreshGate\("review"\)|run=|runMyroSearch/g) ?? []).length > 0,
+      true,
+      `${name} still offers the run`,
+    )
   }
+
+  // And the order is still ONE record behind one query key.
+  assert.match(useOrder, /order: \(\) => \["preflight", "order"\]/)
+  assert.match(gate, /useOrder\(/)
+  assert.match(gate, /useOrderMutations\(/)
+})
+
+test("the say band carries the chips the sheet was worth keeping", () => {
+  // A user who knows the feed is wrong usually cannot name why on a blank
+  // line. "the pay" is a whole topic they did not have to write.
+  for (const topic of ["the work", "the place", "the level", "the pay"]) {
+    assert.ok(say.includes(`"${topic}"`), `${topic} chip is missing`)
+  }
+  assert.match(canvas, /<SayBand focused=\{sayFirst\}/)
+
+  // A chip is a NAMED TOPIC, answered by `proposals.from_topic` off a table:
+  // no LLM turn, no cost, and it can strike the kept line the topic is about.
+  // Routing it through the mentor as a sentence — which this did on its first
+  // pass — spends a turn re-deriving what the click already said.
+  assert.match(say, /onTopic\(topic\)/)
+  assert.match(gate, /preflight\.proposals\(token, \{ topic \}\)/)
+  // …and it must not overwrite `said`: sentence one of the brief is the work
+  // the user wants, not the complaint they have about the results.
+  const topicTurn = gate.slice(gate.indexOf("const proposeTopic"), gate.indexOf("const answerProposal"))
+  assert.doesNotMatch(topicTurn, /setSaid/)
+  // Narrowing is free — the gate re-reads the feed without charging a run,
+  // which only the sheet used to do.
+  // …but only for a NARROWING one. Widening brings roles into scope that have
+  // never been rated, so re-reading cannot show them — that refetch spends a
+  // read to render the same list, which reads as "I accepted it and it took a
+  // second to not happen". The server classifies which is which; until
+  // 2026-08-22 nothing listened.
+  assert.match(gate, /if \(!proposal\.costly\) invalidateTargetRoleData\(client\)/)
 })
 
 test("every mutation writes the server's answer back into the cache", () => {
@@ -79,12 +130,20 @@ test("the rail's meaning survives without sight", () => {
   assert.match(plate, /aria-label=\{`\$\{line\.text\} — \$\{SOURCE_LABEL\[line\.source\]\}`\}/)
 })
 
-test("a contested line is not also rendered as settled", () => {
-  // The resolver reports a clash, it never resolves one, so a contested line
-  // stays `kept`. Rendering every kept line put the same statement on screen
-  // twice — once signed off, once disputed.
-  assert.match(canvas, /const contested = useMemo\(/)
-  assert.match(canvas, /!contested\.has\(l\.id\)/)
+test("the canvas renders the resolver's partition, it does not compute one", () => {
+  // Two resolvers disagreed in the only direction that matters: the server
+  // deduped before filing and the client did not, so one statement rendered
+  // twice — once as a settled plate, once inside the conflict holding its twin
+  // — and the header counted both (`Won't take · 15 of 6`).
+  assert.match(canvas, /order\.slots \?\? \[\]/)
+  // The canvas imports the WORDS and nothing else out of `slots.ts`; filing a
+  // line into a slot, and how many a slot takes, are the resolver's.
+  assert.match(canvas, /import \{ SLOT_COPY \} from "@\/lib\/preflight\/slots"/)
+  assert.match(canvas, /arity=\{group\.slot\.arity\}/)
+  assert.match(canvas, /filled=\{group\.filled\}/)
+  // The one thing done to the server's ids: hide a line the user just dropped,
+  // on the tap rather than on the response.
+  assert.match(canvas, /line\.status === "kept" \? \[line\] : \[\]/)
 })
 
 test("the run bar never claims a count the screen contradicts", () => {
@@ -92,9 +151,20 @@ test("the run bar never claims a count the screen contradicts", () => {
   // whole group), so the contract sentence read "Myro runs on the 0 lines
   // above" beneath twenty plates. While anything is contested the bar states
   // the block instead.
-  assert.match(canvas, /conflicts\.length > 0 \? blockedLine\(conflicts\.length\) : contractLine\(order\)/)
+  assert.match(canvas, /conflicts\.length > 0\s*\?\s*blockedLine\(conflicts\.length\)/)
   const prose = read("lib/preflight/prose.ts")
   assert.match(prose, /export function blockedLine/)
+})
+
+test("the run bar refuses an order with nothing to search for", () => {
+  // "The work" is not one of six equal slots — every other slot narrows a
+  // search, this one is the search. `resolve` omits an empty slot from the
+  // spec and the profile write is a PATCH, so a roleless run dispatched
+  // against stored titles the modal never showed.
+  assert.match(canvas, /const hasRole = useMemo\(/)
+  assert.match(canvas, /blocked=\{conflicts\.length > 0 \|\| !hasRole\}/)
+  assert.match(canvas, /missingRoleLine\(\)/)
+  assert.match(read("lib/preflight/prose.ts"), /export function missingRoleLine/)
 })
 
 test("a conflict asks in one line per option, and says when it is done", () => {
@@ -174,8 +244,7 @@ test("a failed apply keeps the server's reason and rewinds the pick", () => {
 
 test("waiting is drawn, never narrated", () => {
   const typing = read("components/preflight/typing.tsx")
-  assert.match(sheet, /<MyroTyping/, "sheet still draws the wait")
-  assert.doesNotMatch(sheet, /is reading that|thinking…/, "sheet must not narrate the wait")
+  assert.doesNotMatch(canvas, /is reading that|thinking…/, "the canvas must not narrate the wait")
   assert.match(typing, /role="status"/)
   assert.match(typing, /aria-label=\{label\}/)
 })
@@ -187,7 +256,7 @@ test("conflicts land as an inline plate, inside the slot they are about", () => 
   const group = read("components/preflight/slot-group.tsx")
   assert.match(group, /<ConflictPlate/)
   assert.doesNotMatch(canvas, /<ConflictPlate/, "the canvas routes conflicts, it does not render them")
-  assert.match(canvas, /clashes\.get\(spec\.key\)/)
+  assert.match(canvas, /clashes\.get\(slot\.key\)/)
   assert.match(conflict, /className="pf-plate"/)
   assert.match(conflict, /data-kind="conflict"/)
   const logic = read("lib/preflight/conflicts.ts")
@@ -201,10 +270,13 @@ test("the canvas is six slots, not one flat column", () => {
   // THE ONE IDEA in MYRO_SEARCH_REBUILD.md: the Order fills a six-slot spec.
   // A flat list of every kept line hides the only structure there is, and
   // cannot answer "what does Myro still need from me?".
-  assert.match(canvas, /SLOTS\.map\(\(spec\) => \(/)
+  assert.match(canvas, /groups\.map\(\(group\) => \(/)
   assert.match(canvas, /<SlotGroup/)
   const group = read("components/preflight/slot-group.tsx")
-  assert.match(group, /<h3 className="pf-slot-label">\{spec\.label\}<\/h3>/)
+  assert.match(group, /<h3 className="pf-slot-label">\{copy\.label\}<\/h3>/)
+  // Six groups, in one order, named in one place.
+  const slots = read("lib/preflight/slots.ts")
+  assert.equal([...slots.matchAll(/label: "/g)].length, 6)
 })
 
 test("an empty slot still renders, because the gap is the question", () => {
@@ -214,7 +286,7 @@ test("an empty slot still renders, because the gap is the question", () => {
   const group = read("components/preflight/slot-group.tsx")
   // No early return on an empty group, and the add chip is unconditional.
   assert.doesNotMatch(group, /if \(!lines\.length\) return null/)
-  assert.match(group, /<SlotAdd spec=\{spec\} busy=\{busy\} onAdd=\{onAdd\} \/>/)
+  assert.match(group, /<SlotAdd copy=\{copy\} busy=\{busy\} onAdd=\{onAdd\} \/>/)
 })
 
 test("adding into a slot needs no inference and no LLM turn", () => {
@@ -222,12 +294,31 @@ test("adding into a slot needs no inference and no LLM turn", () => {
   // is already known. Routing that through /preflight/proposals would spend
   // an LLM turn re-deriving something the click already said.
   const group = read("components/preflight/slot-group.tsx")
-  assert.match(group, /onAdd\(spec\.addKind, text\)/)
+  assert.match(group, /onAdd\(copy\.addKind, text\)/)
   assert.match(gate, /addLine\.mutateAsync\(\{ kind, text, origin: "preflight" \}\)/)
   assert.doesNotMatch(
     gate.slice(gate.indexOf("const addToSlot"), gate.indexOf("// ── run")),
     /preflight\.proposals/,
   )
+})
+
+test("dropping a plate is not a one-way door", () => {
+  // The plates render the resolver's PLACED lines and the fold renders the
+  // unanswered ones, so a dropped line appears in neither — a mis-tap could
+  // only be undone by retyping the statement. The reversal machinery (`log`,
+  // `LogEntry.prev`, `lines.undo`) shipped with the order and was orphaned when
+  // the market sheet, its only caller, was deleted.
+  assert.match(gate, /undo\.mutateAsync\(entryId\)/)
+  assert.match(canvas, /onUndo\(undoable\.id\)/)
+
+  // The last change of THIS session, not the last row of a log that outlives
+  // the modal — otherwise reopening it offers to undo something from last week.
+  assert.match(gate, /order\.log\.length <= logBase/)
+  assert.match(gate, /setLogBase\(null\)/)
+
+  // One step back, never a changelog: the sheet listed every change, which is
+  // chrome beside plates that already show the result.
+  assert.doesNotMatch(canvas, /log\.slice/, "one entry, not a list")
 })
 
 test("Run is single-flight — the button cannot queue a second charge", () => {
@@ -277,12 +368,6 @@ test("signing off does not dispatch a second run", () => {
   assert.doesNotMatch(gate, /refreshVm\.refresh\(\)/)
 })
 
-test("the market sheet still shares the same order + prose module", () => {
-  assert.match(sheet, /Your order · saved in pre-flight/)
-  assert.match(sheet, /orderSummaryFrom\(order\)/)
-  assert.match(sheet, /from "@\/lib\/preflight\/prose"/)
-})
-
 test("literals live in the palette block and nowhere else", () => {
   // The old rule was a blanket hex ban, and it had a hole big enough to lose
   // the design through: every colour came from `--tm-interactive`, which is
@@ -303,7 +388,6 @@ test("literals live in the palette block and nowhere else", () => {
   const consumers = [
     shell.replace(palette, ""),
     read("components/preflight/plate.css"),
-    read("components/preflight/market-sheet.css"),
   ]
     .join("\n")
     .replace(/\/\*[\s\S]*?\*\//g, "")
@@ -311,11 +395,50 @@ test("literals live in the palette block and nowhere else", () => {
   assert.doesNotMatch(consumers, /rgba\(255, ?76, ?0/, "use --pf-accent-glow, not raw orange")
 })
 
+test("no rule survives the element it styled", () => {
+  // Six screens' worth of chrome outlived their screens: the step ribbon
+  // (`pf-ribbon*`), screen 1's question and pills (`pf-question`, `pf-pill*`,
+  // `pf-ask-row`), the shell's old footer (`pf-foot*`, `pf-btn-ghost`), and the
+  // market sheet's chat (`pf-trail`, `pf-bubble*`, `pf-send`, `pf-input`). CSS
+  // has no compiler to notice, so an agent reading this folder inherited 225
+  // lines describing a modal that no longer exists.
+  const declared = new Set<string>()
+  for (const file of ["preflight.css", "plate.css", "screen-running.css", "market-sheet.css"]) {
+    let css: string
+    try {
+      css = read(`components/preflight/${file}`)
+    } catch {
+      continue // deleted with its surface
+    }
+    for (const [, name] of css.matchAll(/\.(pf-[a-z0-9-]+)/g)) declared.add(name)
+  }
+
+  const rendered = new Set<string>()
+  for (const file of [
+    "components/preflight/preflight-gate.tsx",
+    "components/preflight/screen-canvas.tsx",
+    "components/preflight/slot-group.tsx",
+    "components/preflight/plate.tsx",
+    "components/preflight/conflict-plate.tsx",
+    "components/preflight/heard-row.tsx",
+    "components/preflight/canvas-pads.tsx",
+    "components/preflight/say-band.tsx",
+    "components/preflight/screen-running.tsx",
+    "components/preflight/preflight-header.tsx",
+    "components/preflight/typing.tsx",
+  ]) {
+    for (const [, name] of read(file).matchAll(/(pf-[a-z0-9-]+)/g)) rendered.add(name)
+  }
+
+  const orphans = [...declared].filter((name) => !rendered.has(name)).sort()
+  assert.deepEqual(orphans, [], `CSS for elements nothing renders: ${orphans.join(", ")}`)
+})
+
 test("reduced motion is honoured on every animated surface", () => {
   for (const file of [
     "components/preflight/preflight.css",
     "components/preflight/plate.css",
-    "components/preflight/market-sheet.css",
+    "components/preflight/screen-running.css",
   ]) {
     assert.match(read(file), /prefers-reduced-motion: reduce/, `${file} must honour reduced motion`)
   }
@@ -324,7 +447,7 @@ test("reduced motion is honoured on every animated surface", () => {
 test("every Myro utterance pad is SayPad, not a one-line input", () => {
   for (const [name, file] of [
     ["opening", "components/preflight/canvas-pads.tsx"],
-    ["sheet", "components/preflight/market-sheet.tsx"],
+    ["say band", "components/preflight/say-band.tsx"],
     ["chat", "components/myro/myro-chat.tsx"],
     ["memory", "components/cv/builder/memory-panel.tsx"],
   ] as const) {
@@ -336,7 +459,31 @@ test("every Myro utterance pad is SayPad, not a one-line input", () => {
 })
 
 test("the run price comes from the server, never a client constant", () => {
-  assert.match(canvas, /order\.run_cost \?\? 0/)
+  assert.match(canvas, /price\?\.run_cost \?\? 0/)
   assert.doesNotMatch(gate, /MYRO_COINS_POLICY|matchRefreshCost/)
   assert.doesNotMatch(canvas, /MYRO_COINS_POLICY|matchRefreshCost/)
+})
+
+test("the price is its own request, and only the button waits for it", () => {
+  // Pricing needs `count_new_jobs_for_user`, a count over `jobs` that
+  // read-timed-out at 8s four times in one hour of prod logs. Riding on
+  // `GET /preflight/order` it held the plates, the say band and every edit
+  // hostage to a number that only decides what the button says — the modal
+  // opened in 9.0-10.5s.
+  const hooks = read("lib/preflight/use-order.ts")
+  assert.match(hooks, /price: \(\) => \["preflight", "price"\]/)
+  assert.match(hooks, /export function usePreflightPrice/)
+  assert.match(gate, /usePreflightPrice\(token, open\)/)
+
+  // The order render path must not reference the price at all.
+  const types = read("lib/preflight/types.ts")
+  const orderShape = types.slice(types.indexOf("export interface Order extends OrderState"))
+  assert.doesNotMatch(orderShape.slice(0, 200), /run_cost/, "the price is off the order")
+
+  // Run is the ONE control that waits: pressing it unpriced would be
+  // consenting to a charge nobody has been shown.
+  assert.match(canvas, /priced=\{!!price\}/)
+  assert.match(canvas, /disabled=\{busy \|\| blocked \|\| short \|\| !priced\}/)
+  // …and it shows no figure until there is one.
+  assert.match(canvas, /\? "pricing"/)
 })

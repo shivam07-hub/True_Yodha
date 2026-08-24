@@ -61,11 +61,35 @@ class Conflict:
 
 
 @dataclass(frozen=True)
+class Slot:
+    """One slot, as the resolver leaves it — and therefore as the screen shows it.
+
+    `line_ids` is not "the lines whose kind files here". It is the lines the
+    resolver PLACED: deduped, uncontested, within arity — the exact set that
+    reaches `spec`. That equality is the point. While the client filed lines
+    into slots itself it was a second resolver working off the raw `lines`
+    array, and the two disagreed in the only direction that matters: the client
+    showed duplicates the server had already collapsed, counted them
+    (`Won't take · 15 of 6`), and asked the user to fix a number that was never
+    going to be run.
+
+    `contested_ids` is this slot's share of the live conflicts. Together the two
+    tuples partition the slot, so `filled` is stated by the resolver rather than
+    added up by whoever is rendering.
+    """
+
+    key: str
+    arity: int
+    line_ids: tuple[str, ...]
+    contested_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ResolveResult:
     spec: dict[str, Any]
     used_line_ids: tuple[str, ...]
-    duplicates_collapsed: int
     conflicts: tuple[Conflict, ...]
+    slots: tuple[Slot, ...]
 
 
 def _slot_for(line: OrderLine) -> str | None:
@@ -82,12 +106,17 @@ def _slot_text(line: OrderLine) -> str:
     return text
 
 
-def _dedupe(lines: list[OrderLine]) -> tuple[list[OrderLine], int]:
+def _dedupe(lines: list[OrderLine]) -> list[OrderLine]:
     """Same statement in the same slot collapses to the first. Cross-slot repeats
-    are contradictions, not duplicates."""
+    are contradictions, not duplicates.
+
+    It used to also return a COUNT of what it collapsed, reported on the wire as
+    `duplicates_collapsed`. Nothing ever read it — and once the client started
+    rendering `slots` rather than filing `lines` itself, a collapsed duplicate
+    simply never reaches the screen, so there is nothing for a count to explain.
+    """
     kept: list[OrderLine] = []
     seen: set[tuple[str, str]] = set()
-    collapsed = 0
     for line in lines:
         slot = _slot_for(line)
         key = _norm_key(_slot_text(line))
@@ -95,11 +124,10 @@ def _dedupe(lines: list[OrderLine]) -> tuple[list[OrderLine], int]:
             continue
         stamp = (slot, key)
         if stamp in seen:
-            collapsed += 1
             continue
         seen.add(stamp)
         kept.append(line)
-    return kept, collapsed
+    return kept
 
 
 def _contradictions(lines: list[OrderLine]) -> list[Conflict]:
@@ -139,7 +167,7 @@ def _contradictions(lines: list[OrderLine]) -> list[Conflict]:
 
 def resolve(order: Order) -> ResolveResult:
     """Order → six-slot spec plus the decisions the user still has to make."""
-    unique, collapsed = _dedupe(list(order.kept()))
+    unique = _dedupe(list(order.kept()))
     conflicts = _contradictions(unique)
     blocked = {line_id for conflict in conflicts for line_id in conflict.line_ids}
     usable = [line for line in unique if line.id not in blocked]
@@ -189,11 +217,28 @@ def resolve(order: Order) -> ResolveResult:
         else:
             spec["superpower"] = texts[0]
 
+    # The slot view, partitioned by the decisions just made. `line_ids` is the
+    # placed set — identical to what went into `spec` — so the screen and the
+    # run cannot describe the order differently.
+    contested = {line_id for conflict in conflicts for line_id in conflict.line_ids}
+    placed = set(used)
+    slots = tuple(
+        Slot(
+            key=slot,
+            arity=arity,
+            line_ids=tuple(line.id for line in by_slot[slot] if line.id in placed),
+            contested_ids=tuple(
+                line.id for line in unique if _slot_for(line) == slot and line.id in contested
+            ),
+        )
+        for slot, arity in SLOT_ARITY.items()
+    )
+
     return ResolveResult(
         spec=spec,
         used_line_ids=tuple(used),
-        duplicates_collapsed=collapsed,
         conflicts=tuple(conflicts),
+        slots=slots,
     )
 
 
@@ -210,13 +255,23 @@ def project(order: Order) -> dict[str, Any]:
 def client_report(order: Order) -> dict[str, Any]:
     """The resolver's report, as the review screen consumes it.
 
-    Duplicates are a count. Each conflict carries the statements and how many
-    the slot can keep, so the client can ask without re-deriving arity.
+    Each slot names the lines the resolver placed there
+    and the ones a conflict is holding, so the client renders the resolver's
+    decision rather than repeating it. Each conflict carries the statements and
+    how many the slot can keep, so the card can ask without re-deriving arity.
     """
     result = resolve(order)
     return {
         "used": len(result.used_line_ids),
-        "duplicates_collapsed": result.duplicates_collapsed,
+        "slots": [
+            {
+                "key": slot.key,
+                "arity": slot.arity,
+                "line_ids": list(slot.line_ids),
+                "contested_ids": list(slot.contested_ids),
+            }
+            for slot in result.slots
+        ],
         "conflicts": [
             {
                 "slot": conflict.slot,
@@ -231,14 +286,15 @@ def client_report(order: Order) -> dict[str, Any]:
 
 
 def run_summary(order: Order) -> dict[str, int]:
-    """What the contract line on the review screen counts."""
-    result = resolve(order)
+    """The three counts `RunOut` reports back from a dispatch.
+
+    It used to return four more — `used`, `from_market`, `duplicates_collapsed`,
+    `conflicts` — and call `resolve()` to get them. No caller read any of the
+    four, and `/preflight/run` already resolves the same order through
+    `project()`, so the run path paid for the resolver twice per dispatch.
+    """
     return {
         "kept": len(order.kept()),
-        "used": len(result.used_line_ids),
         "dropped": len([x for x in order.lines if x.status == "dropped"]),
         "unanswered": len([x for x in order.lines if x.status == "unanswered"]),
-        "from_market": len([x for x in order.kept() if x.origin == "market"]),
-        "duplicates_collapsed": result.duplicates_collapsed,
-        "conflicts": len(result.conflicts),
     }

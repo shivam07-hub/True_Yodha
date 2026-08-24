@@ -348,16 +348,16 @@
    page light-theme tokens. ──────────────────────────────────────────── */
 .tm-intel-console {
   /* Pinned Engine-dark (canonical console palette) so it stays a terminal even
-     on the light page — accent re-pinned bright so teal doesn't drop to the
-     deep light-mode teal inside this dark island. */
+     on the light page — accent re-pinned bright so it doesn't drop to the
+     deep paper-tuned azure inside this dark island. */
   --tm-text:         #e8e8ea;
   --tm-text-muted:   #9aa4bf;
   --tm-text-faint:   #646e8c;
   --tm-border:       rgba(255, 255, 255, 0.12);
   --tm-border-soft:  rgba(255, 255, 255, 0.06);
-  --tm-accent:       #00f5d4;
-  --tm-accent-text:  #67e8f9;
-  --tm-interactive:  #00f5d4;
+  --tm-accent:       #4fc7f6;
+  --tm-accent-text:  #6ac4eb;
+  --tm-interactive:  #4fc7f6;
   color-scheme: dark;
   background: #13141a;
   border: 1px solid var(--tm-border);
@@ -367,24 +367,6 @@
   overflow: hidden;
   box-shadow: var(--tm-shadow-2);
   position: relative;
-}
-
-/* On the marketing ink surface the console stops being an exception. The whole
-   page is already cool and dark, so a pinned neutral near-black reads as a grey
-   hole punched in the navy rather than a terminal. Take the ink ramp's elevated
-   surfaces instead, and lift the faint rung to the ink value — #646e8c measures
-   ~3.5:1 here, which is under AA for the log rows it labels. */
-html:root:has(.tm-ink) .tm-intel-console {
-  --tm-text:        #e8f0ff;
-  --tm-text-muted:  #9aa8c6;
-  --tm-text-faint:  #7a88a8;
-  --tm-border:      rgba(232, 240, 255, 0.12);
-  --tm-border-soft: rgba(232, 240, 255, 0.06);
-  background: var(--tm-surface-2);
-}
-
-html:root:has(.tm-ink) .tm-intel-kpi {
-  background: var(--tm-bg-inset);
 }
 
 .tm-intel-console::before {

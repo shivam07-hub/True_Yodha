@@ -93,7 +93,7 @@ export function RefreshMatchesButton({
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
         <button
-          onClick={openRefreshGate}
+          onClick={() => openRefreshGate("review")}
           disabled={cannotClick}
           style={{
             display: "inline-flex", alignItems: "center", gap: 7,
@@ -159,7 +159,7 @@ export function RefreshMatchesButton({
         <Button
           variant="outline"
           size="md"
-          onClick={openRefreshGate}
+          onClick={() => openRefreshGate("review")}
           disabled={cannotClick}
           loading={isWorking}
         >

@@ -37,7 +37,12 @@
   color: var(--tm-interactive);
 }
 .mi-story-h { margin: 9px 0 5px; font-size: 18px; font-weight: 600; line-height: 1.3; letter-spacing: -0.01em; color: var(--tm-text); }
+/* .mi-accent rode on two different things: a company LINK (correct — accent
+   means clickable) and a bare skill noun inside a headline (not correct — it is
+   the subject of a sentence, not a control). Split, so the class name cannot
+   quietly re-acquire the second meaning. */
 .mi-accent { color: var(--tm-interactive); }
+.mi-subject { color: var(--tm-text); font-weight: 600; }
 .mi-story-p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--tm-text-muted); }
 .mi-story-cta { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
 .mi-go {
@@ -200,9 +205,11 @@
   flex: 1; min-width: 0; font-size: 13.5px; font-weight: 600; line-height: 1.35;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+/* A role count is a metric — it reads as text at size, never as the accent.
+   Accent here promised the number was tappable; the ROW is (see .sd-row). */
 .sd-roles {
   flex: 0 0 auto; font-size: 13px; font-weight: 700;
-  font-variant-numeric: tabular-nums; color: var(--tm-interactive);
+  font-variant-numeric: tabular-nums; color: var(--tm-text);
 }
 
 /* The signature mark: one tick per employer. Fixed pitch, so the field's WIDTH
@@ -215,7 +222,7 @@
   width: 3px; height: 8px; border-radius: 1px;
   background: var(--tm-interactive); opacity: 0.6;
 }
-/* Firecrawl orange at low alpha washes out on warm paper; dark's teal does not. */
+/* A low-alpha accent washed out on the old warm paper; the cool paper holds it. */
 :root[data-surface="light"] .sd-tick { opacity: 0.75; }
 /* Breadth past the tick cap: the exact count is in the label beside it. */
 .sd-tick-more { opacity: 0.22; }

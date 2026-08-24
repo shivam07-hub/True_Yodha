@@ -131,7 +131,9 @@ def get_job_matches(
     # This same count is the login announcement and the charge waiver: one number,
     # one module, so the bell can never promise what the run then bills for.
     # Read in the concurrent wave above.
-    new_jobs_count = reads["new_jobs_count"]
+    # `None` = the count timed out. Nothing to announce and nothing to promise;
+    # it is not zero, but it is not a number we can put on screen either.
+    new_jobs_count = reads["new_jobs_count"] or 0
 
     # The prompt the user actually sees. Projected off the read path so the feed
     # never waits on the inbox write, debounced inside the repo.
@@ -261,8 +263,8 @@ def get_refresh_preflight(
     new_jobs = new_inventory.count_for_user(repo, principal.id)
     return RefreshPreflightResponse(
         **brief.preflight(),
-        run_cost=0 if new_jobs > 0 else MATCH_RUN_COST,
-        new_jobs_count=new_jobs,
+        run_cost=0 if new_inventory.waives_charge(new_jobs) else MATCH_RUN_COST,
+        new_jobs_count=new_jobs or 0,
     )
 
 

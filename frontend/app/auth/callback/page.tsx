@@ -219,7 +219,7 @@ function CallbackInner() {
   }
 
   // Destination-shaped skeleton — same visual language as /market (or carried
-  // intent) so OAuth never paints a full-screen teal field before the app shell.
+  // intent) so OAuth never paints a full-screen accent field before the app shell.
   return <PostAuthHandoffSkeleton />
 }
 

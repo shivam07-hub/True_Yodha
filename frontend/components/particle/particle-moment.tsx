@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react"
    brief living constellation, then fades itself out and calls onDone.
 
    Visual language is lifted from components/particle-bg.tsx (the old app-wide
-   cursor field): same accent read from --tm-interactive (teal in dark, orange
+   cursor field): same accent read from --tm-interactive (azure in dark, a paper-tuned azure
    in light), same shockwave + radial-blast math. The difference is lifecycle —
    this is a celebration that auto-fades, not a persistent interactive field.
 
@@ -20,7 +20,7 @@ function hexToRgb(hex: string): string {
     const b = parseInt(hex.slice(5, 7), 16)
     return `${r},${g},${b}`
   }
-  return "0,245,212"
+  return "79,199,246"
 }
 
 type Particle = { x: number; y: number; vx: number; vy: number; s: number; op: number; seed: number }

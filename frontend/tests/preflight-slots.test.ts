@@ -1,21 +1,25 @@
 /**
- * The client's six slots must be the server's six slots.
+ * The client must have words for every slot the resolver can send.
  *
- * `lib/preflight/slots.ts` is a hand-maintained mirror of `SLOT_ARITY` and
- * `_SLOT_KINDS` in `backend/app/services/preflight/payload.py`. Two copies of
- * one contract drift, and the drift is invisible: a `location` line filed
- * under "Won't take" on screen while the resolver puts it in
- * `target_location` looks like a rendering quirk, not a broken spec.
+ * This test used to assert a MIRROR: `slots.ts` carried each slot's arity and
+ * the kinds that file into it, and this read `payload.py` to prove the two
+ * copies agreed key-for-key. They did agree, and the surface was still wrong —
+ * because the drift that mattered was not in the constants. The server deduped
+ * before filing and the client did not, so one statement rendered twice and the
+ * header counted both (`Won't take · 15 of 6`). A drift detector over two
+ * implementations cannot catch a difference in what the two implementations DO.
  *
- * So this test reads the Python and asserts the two agree — key for key,
- * arity for arity, kind for kind. It fails loudly the day someone widens a
- * slot on one side only.
+ * So the contract moved: the resolver sends its own partition (`order.slots` —
+ * key, arity, placed line ids, contested line ids) and the client owns only the
+ * copy. What is left to check is completeness — a slot the server can emit and
+ * the client cannot name renders as a blank header — and that the copy reads
+ * like a person wrote it.
  */
 import { strict as assert } from "node:assert"
 import { readFileSync } from "node:fs"
 import { test } from "node:test"
 
-import { SLOTS, slotCount, slotForKind } from "../lib/preflight/slots"
+import { SLOT_COPY, SLOT_ORDER, slotCount } from "../lib/preflight/slots"
 
 const payload = readFileSync(
   new URL("../../backend/app/services/preflight/payload.py", import.meta.url),
@@ -31,73 +35,51 @@ function pyBlock(name: string): string {
   return payload.slice(open, close + 1)
 }
 
-test("arity matches the resolver, slot for slot", () => {
-  const block = pyBlock("SLOT_ARITY")
-  const serverArity = new Map<string, number>()
-  for (const [, key, n] of block.matchAll(/"([a-z_]+)":\s*(\d+)/g)) {
-    serverArity.set(key, Number(n))
-  }
+const serverKeys = [...pyBlock("SLOT_ARITY").matchAll(/"([a-z_]+)":\s*\d+/g)].map((m) => m[1])
 
-  assert.equal(SLOTS.length, serverArity.size, "six slots on both sides")
-  for (const spec of SLOTS) {
-    assert.ok(serverArity.has(spec.key), `${spec.key} is not a server slot`)
-    assert.equal(
-      spec.arity,
-      serverArity.get(spec.key),
-      `${spec.key} arity drifted from payload.py`,
-    )
+test("every slot the resolver can send has words on the client", () => {
+  assert.ok(serverKeys.length > 0, "no slots parsed out of payload.py")
+  for (const key of serverKeys) {
+    assert.ok(key in SLOT_COPY, `${key} would render as a blank header`)
   }
+  // And nothing the other way: copy for a slot the server never sends is a
+  // group that can only ever be empty.
+  for (const key of Object.keys(SLOT_COPY)) {
+    assert.ok(serverKeys.includes(key), `${key} is not a server slot`)
+  }
+  assert.deepEqual([...SLOT_ORDER].sort(), [...serverKeys].sort())
 })
 
-test("every line kind files to the slot the resolver files it to", () => {
-  const block = pyBlock("_SLOT_KINDS")
-  const serverKinds = new Map<string, string[]>()
-  for (const [, key, kinds] of block.matchAll(/"([a-z_]+)":\s*\(([^)]*)\)/g)) {
-    serverKinds.set(key, [...kinds.matchAll(/"([a-z_]+)"/g)].map((m) => m[1]))
-  }
+test("the client owns the words and nothing else", () => {
+  // Arity and kinds are the resolver's. A copy of either here is a second
+  // implementation waiting to disagree with the run.
+  const source = readFileSync(new URL("../lib/preflight/slots.ts", import.meta.url), "utf8")
+  const body = source.slice(source.indexOf("export const SLOT_COPY"))
+  assert.doesNotMatch(body, /arity:\s*\d/, "arity belongs to the resolver")
+  assert.doesNotMatch(body, /kinds:\s*\[/, "kind filing belongs to the resolver")
+})
 
-  for (const spec of SLOTS) {
-    const server = serverKinds.get(spec.key)
-    assert.ok(server, `${spec.key} has no kinds in payload.py`)
-    assert.deepEqual(
-      [...spec.kinds].sort(),
-      [...server].sort(),
-      `${spec.key} kinds drifted from payload.py`,
-    )
-    // The add chip must create something this slot actually accepts.
-    assert.ok(
-      spec.kinds.includes(spec.addKind),
-      `${spec.key} adds a ${spec.addKind}, which it does not hold`,
-    )
-    for (const kind of spec.kinds) {
-      assert.equal(slotForKind(kind), spec.key, `${kind} routes to the wrong slot`)
-    }
+test("every slot invites in the reader's words, not the schema's", () => {
+  for (const [key, copy] of Object.entries(SLOT_COPY)) {
+    // The label is a heading: short, plain, no schema noise.
+    assert.ok(copy.label.split(" ").length <= 3, `"${copy.label}" is too long for a header`)
+    assert.doesNotMatch(copy.label, /target_|_titles|slot|superpower/i, key)
+    // The invite doubles as the empty state, so it reads as a thing to say,
+    // never as a command ("Add location").
+    assert.doesNotMatch(copy.invite, /^add\b/i, `"${copy.invite}" is a command, not an invitation`)
+    assert.ok(copy.invite.length > 0)
   }
 })
 
 test("the count appears only when the limit is in play", () => {
-  const wide = SLOTS.find((s) => s.arity === 6)!
-  const single = SLOTS.find((s) => s.arity === 1)!
   // Room left is legible from the plates themselves.
-  assert.equal(slotCount(wide, 0), null)
-  assert.equal(slotCount(wide, 5), null)
+  assert.equal(slotCount(6, 0), null)
+  assert.equal(slotCount(6, 5), null)
   // At the limit, and over it, the number is the whole point.
-  assert.equal(slotCount(wide, 6), "6 of 6")
-  assert.equal(slotCount(wide, 9), "9 of 6")
+  assert.equal(slotCount(6, 6), "6 of 6")
+  assert.equal(slotCount(6, 9), "9 of 6")
   // "1 of 1" is the plate restated; the over-case is the conflict plate's job.
-  assert.equal(slotCount(single, 0), null)
-  assert.equal(slotCount(single, 1), null)
-  assert.equal(slotCount(single, 2), null)
-})
-
-test("every slot invites in the reader's words, not the schema's", () => {
-  for (const spec of SLOTS) {
-    // The label is a heading: short, plain, no schema noise.
-    assert.ok(spec.label.split(" ").length <= 3, `"${spec.label}" is too long for a header`)
-    assert.doesNotMatch(spec.label, /target_|_titles|slot|superpower/i)
-    // The invite doubles as the empty state, so it reads as a thing to say,
-    // never as a command ("Add location").
-    assert.doesNotMatch(spec.invite, /^add\b/i, `"${spec.invite}" is a command, not an invitation`)
-    assert.ok(spec.invite.length > 0)
-  }
+  assert.equal(slotCount(1, 0), null)
+  assert.equal(slotCount(1, 1), null)
+  assert.equal(slotCount(1, 2), null)
 })

@@ -18,19 +18,10 @@
 
 /* Match the authenticated strip: dark chrome frosts over the shared field;
    light mode keeps the opaque paper surface. */
-:root:not([data-surface="light"]) .tm-public-nav,
-html:root:has(.tm-ink) .tm-public-nav {
+:root:not([data-surface="light"]) .tm-public-nav {
   background: color-mix(in srgb, var(--tm-bg) 76%, transparent);
   -webkit-backdrop-filter: blur(14px) saturate(1.15);
   backdrop-filter: blur(14px) saturate(1.15);
-}
-
-/* The ink surface is dark-only, so the switcher has nothing left to switch on
-   this page — a control that cannot change what you're looking at shouldn't be
-   in the bar. The other public surfaces are still themable and keep theirs;
-   authed visitors set the surface in the account menu. */
-html:root:has(.tm-ink) .tm-public-nav-theme {
-  display: none;
 }
 
 .tm-public-nav-brand {
