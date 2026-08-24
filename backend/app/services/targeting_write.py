@@ -20,6 +20,7 @@ Three derivations live here, none of them optional:
 """
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from app.database import get_supabase_admin
@@ -30,6 +31,9 @@ from app.services.job_eligibility import (
     explored_bands_for_profile,
     target_seniority_for_profile,
 )
+
+
+logger = logging.getLogger("uvicorn.error")
 
 
 def derive(updates: dict[str, Any], before: dict[str, Any]) -> dict[str, Any]:
@@ -70,6 +74,26 @@ def derive(updates: dict[str, Any], before: dict[str, Any]) -> dict[str, Any]:
                 if str(value).strip()
             ]
             derived["target_roles"] = stored
+        # An empty scoping key is not a narrower search, it is no search.
+        # Only on the IMPLICIT path: an explicit `role_families=[]` is a
+        # deliberate clear and the caller owns it (asserted in
+        # `test_derive_writes_empty_family_when_caller_explicitly_says_none`).
+        # `target_roles` is what the feed and the matcher scope on, so writing
+        # [] beside a non-empty title list produces the state 3 users are in
+        # today: a stated direction that matches nothing, reported to them as
+        # "the market has nothing" (invariant 5). The key is dropped rather
+        # than written, so whatever is stored survives until a caller that
+        # actually resolved a family replaces it.
+        if (
+            not supplied
+            and derived.get("target_roles") == []
+            and derived.get("target_role_titles")
+        ):
+            derived.pop("target_roles")
+            logger.warning(
+                "metric targeting.roles_would_have_emptied titles=%d",
+                len(derived["target_role_titles"]),
+            )
         updates.update(derived)
         updates["target_career_band"] = career_band_for_profile(updates) or None
         updates["explored_career_bands"] = explored_bands_for_profile(

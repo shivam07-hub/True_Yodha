@@ -91,3 +91,17 @@ def test_derive_drops_a_raw_target_roles_supplied_alongside_titles() -> None:
     out = targeting_write.derive(patch, before)
     # `target_roles: ["engineering"]` was dropped; the stored family survives.
     assert out["target_roles"] == ["product_management"]
+
+
+def test_derive_refuses_to_empty_the_scoping_key_by_omission() -> None:
+    """The 3-user state: titles stated, `target_roles` empty — so the feed and
+    matcher scope on nothing and report it as "the market has nothing".
+
+    An omitted family must never PRODUCE that. An explicit one still may (the
+    test above), because there the caller took responsibility for the clear.
+    """
+    patch = {"target_role_titles": ["Product Manager"]}
+    before = {"target_roles": []}
+    out = targeting_write.derive(patch, before)
+    assert "target_roles" not in out
+    assert out["target_role_titles"] == ["Product Manager"]
