@@ -1244,6 +1244,11 @@ ships and log the close above.
 | `count_new_jobs_for_user` under RLS | 8,740ms | **100ms / 656 buffers** authed, re-measured 2026-08-25 (migration `20260824090000`, trap 5). The `~15ms` this row used to claim was never taken as `authenticated`. |
 | `/preflight/order` (modal open) | 9,062-10,495ms | price split to `/preflight/price` |
 | `PATCH /preflight/order/lines/*` | 1,500-4,100ms, 5 hops | 2 hops (~330ms floor) |
+| `company_open_roles_page` authed | 6,208ms / 13,070 buffers | **5.4ms / 1,341** (migration `20260825090000`, trap 5) |
+| `company_open_roles_page` anon | 3,673ms / 13,068 buffers | **11.0ms / 3,026** — this is the SEO surface |
+| `POST /v1/telemetry/cv-upload-phase` | 3,806-4,339ms, 3 sequential hops inline | 202 + `BackgroundTask`; off the response path entirely |
+| `/roles/families` request count | 15 per typed query | ~2 — `useDebouncedValue`, 60s `staleTime` |
+| Saturation alert sample | `[-8:]` "most recent" — 9 windows were 100% partner SSO | stratified by journey stage, slowest-first inside each |
 
 **Re-measured 2026-08-25 from 11 days of saturation alerts (2026-08-14→24).**
 `/home/bootstrap` and `/jobs/matches` did fall, and the fall is **not** this
@@ -1273,12 +1278,12 @@ multi-route window (§16), i.e. queueing, not a regression of the fix.
 | 7 | Pre-flight order write | 2 hops now, but every answer still rewrites the whole `lines` jsonb | A per-line write (row-per-line, or `jsonb_set`) removes the document rewrite and the CAS for independent lines. |
 | 8 | Supabase Free/Nano | **932MB** (2026-08-25; was 1,118MB) against the tier's 500MB recommended; 224MB `shared_buffers`; `work_mem` **2,184kB**; `max_connections` 60 | Section 8. |
 | 9 | `POST /partner/v1/sso/session` | **200 in 8/8** prod samples (2026-08-24), 469-3,416ms — it is **not** 500ing. It **is** 170 of 613 alert lines over 2026-08-14→24 (**27.7%**), in runs of 4-6 per 120s window, for a partner with a handful of users. | A **retry loop**, not a latency row and not a hard failure. It also evicts stage-one routes from the alert email, which prints only the 5 most recent per window. §16 P0. |
-| 10 | `company_open_roles_page` | **6,208ms / 13,070 buffers** authed · **3,673ms / 13,068** anon · **152ms / 1,337** service (2026-08-25) | Trap 5, and §11 closed it on a `service_role` plan. Its own docstring records **4.5ms over 5 buffers** — that number cannot be reproduced as any role the app uses. The function's WHERE clause already **is** the policy's public branch, so `security definer` applies with no caller guard: cheapest fix on this list. Serves `/companies/{X}/jobs`, 33 alert lines, mean 1,981ms, max 5,496ms. |
 
 ### The pattern worth naming
 
-Four of the ten rows above (3, 4, 5, 10) are the same trap, and it is a
-**design** issue rather than four bugs: this codebase reads user-facing data
+Three of the nine rows above (3, 4, 5) are the same trap — it was four until
+`company_open_roles_page` shipped — and it is a **design** issue rather than
+three bugs: this codebase reads user-facing data
 through the RLS token client, and its hot indexes are PARTIAL on a predicate
 the RLS policy only reaches through an `OR`. Every such read pays a heap
 recheck.
@@ -1392,7 +1397,8 @@ same wall time. 16 Aug shows `pulse` twice back to back at 15,505 and 15,588ms.
 
 ### Priority — ordered against the goal, not against milliseconds
 
-**P0 · Make the alert channel show stage one.** 170 of 613 lines are partner
+**P0 · Make the alert channel show stage one.** — *sample fixed `c766a3a8`;
+the SSO retry loop is still open.* 170 of 613 lines are partner
 SSO, and the alert prints only the **5 most recent per 120s window** — so on any
 window where Finlatics is active, SSO takes all five slots and the stage-one
 route that was also slow never reaches the email. Nine windows in this data are
@@ -1400,14 +1406,15 @@ route that was also slow never reaches the email. Nine windows in this data are
 per window, handful of users, returning 200). Nothing below can be verified
 while 28% of the signal is one B2B route.
 
-**P1 · `/roles/families`.** Worst repeated stage-one route, mean 7,666ms, and it
+**P1 · `/roles/families`.** — *debounce shipped `12d7a6eb`; the definer and
+the baseline are still open (§15 row 4).* Worst repeated stage-one route, mean 7,666ms, and it
 gates Direction — the last step before `/market`. Three fixes in this order:
 **debounce the typeahead** (free; 15 requests per query → ~2), then
 `security definer`, then the baseline (13,440 buffers, and it spills 335 blocks
 to temp because `work_mem` is 2,184kB). §15 row 4 says two fixes; it is three,
 and the free one is first.
 
-**P2 · Get telemetry off the CV upload path.** `POST /v1/telemetry/cv-upload-phase`
+**P2 · Get telemetry off the CV upload path.** — *shipped `631fde93`.* `POST /v1/telemetry/cv-upload-phase`
 blocks 3,806-4,339ms on the single most important request in the product. Make
 it fire-and-forget. One change, near-zero risk.
 
@@ -1431,11 +1438,11 @@ arrival paying `/users/me` + `/jobs/feed` + `/jobs/feed-state` +
 `/users/me` + `/jobs/feed`; it has drifted to six. The hop problem is drift on a
 locked contract, not a missing bundle — re-derive J0 before adding one.
 
-**Ship alongside, free:** `company_open_roles_page` → `SECURITY DEFINER`
-(§15 row 10). Best ratio on either ledger — 6,208ms → 152ms, one reversible
-`ALTER`, no caller guard needed because the function's WHERE clause already is
-the policy's public branch. Prove it by running the page as both roles and
-comparing row sets, including for a user who owns a created job.
+**Shipped alongside** `cad90259`: `company_open_roles_page` → `SECURITY
+DEFINER`. 6,208ms → **5.4ms** authed, 3,673ms → **11.0ms** anon. Result set
+proved identical first — user 33b66361 owns 16 created jobs across 14
+companies, and that owner's md5 signatures matched `anon` before the change
+and are unchanged after it.
 
 ### What not to do
 
@@ -1449,6 +1456,19 @@ comparing row sets, including for a user who owns a created job.
   **2026-07-12**; the totals span 43 days and include everything pre-fix. The
   retired company `.ilike()` still ranks #2 cumulatively and took **7 calls in
   11 days**. Rank by call delta, or you will relitigate closed work.
+
+### What shipped 2026-08-25
+
+| | Commit |
+|---|---|
+| Company page definer — the best-ratio fix on either ledger | `cad90259` |
+| Telemetry off the CV upload response path | `631fde93` |
+| Role typeahead debounced; `useDebouncedValue` extracted, 3 callers | `12d7a6eb` |
+| Saturation sample stratified by stage, slowest-first inside | `c766a3a8` |
+
+Still open from the list above: the partner SSO retry loop (P0), the
+`list_role_families` definer and baseline (P1), CV-chain instrumentation (P3),
+Tier-0 for the two public aggregates (P4), and the J0 hop re-derivation (P5).
 
 ### Keeping this section true
 
