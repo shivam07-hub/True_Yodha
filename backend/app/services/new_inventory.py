@@ -40,6 +40,10 @@ def count_for_user(repo: Any, user_id: str) -> int | None:
     coins because our database was slow. Absence is not a verdict
     (feedback_absence_is_not_a_verdict).
 
+    Those timeouts are fixed at the source — migration 20260824090000 made the
+    RPC `security definer`, 8,740ms → ~15ms — but this stays: the next timeout
+    on any read is not a licence to charge for it.
+
     Callers must decide what an unknown means for them. Pricing waives —
     Shivam, 2026-08-22: we failed to compute it, so we do not charge for it.
     Display treats it as nothing to announce.

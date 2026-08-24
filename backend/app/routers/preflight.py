@@ -121,11 +121,17 @@ class PriceOut(BaseModel):
     """What a run costs right now, and why.
 
     Split off `GET /preflight/order` on 2026-08-22. Pricing needs
-    `count_new_jobs_for_user`, an unindexed-in-practice count over `jobs` that
-    read-timed-out at 8s four times in one hour of prod logs — and it was inside
-    the handler that renders the modal, so one number nobody had asked for held
-    the whole surface at 9.0-10.5s. The order is the thing the user opened; the
-    price belongs on the button.
+    `count_new_jobs_for_user`, which read-timed-out at 8s four times in one hour
+    of prod logs — and it was inside the handler that renders the modal, so one
+    number nobody had asked for held the whole surface at 9.0-10.5s. The order
+    is the thing the user opened; the price belongs on the button.
+
+    The 8s itself was fixed on 2026-08-24 (migration
+    `20260824090000_new_inventory_count_security_definer`): the count was fast
+    as service_role and 8,740ms under RLS, because the policy on `public.jobs`
+    ORs in `created_by_user_id = auth.uid()` and the planner cannot reach a
+    partial index through that OR. The split still stands on its own — the
+    price is not the order, and it should not be able to hold it again.
 
     Server-decided, never a client constant: that is how a "free" promise and a
     100-coin debit end up on the same screen. Same waiver `JobRefresh.start`
@@ -274,10 +280,10 @@ def get_price(
 ) -> PriceOut:
     """What the next run costs. Its OWN request, because it is slow.
 
-    `count_new_jobs_for_user` is the expensive half of what used to be one read:
-    a count over `jobs` since this user's marker that read-timed-out at 8s
-    repeatedly in prod. Inside `/order` it held the plates, the say band and
-    every edit hostage to a number that only decides what the button says.
+    `count_new_jobs_for_user` was the expensive half of what used to be one
+    read — 8,740ms under RLS until migration 20260824090000 made it definer,
+    ~15ms now. Inside `/order` it held the plates, the say band and every edit
+    hostage to a number that only decides what the button says.
 
     Alone, it blocks nothing but the button — and the button is the one control
     that genuinely must not be pressed before the price is known.

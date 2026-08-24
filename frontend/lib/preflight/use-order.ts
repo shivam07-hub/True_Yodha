@@ -89,11 +89,13 @@ export function useOrder(token: string | null, enabled = true) {
 /**
  * What the next run costs — its own query, because it is the slow half.
  *
- * Pricing calls `count_new_jobs_for_user`, a count over `jobs` since this
- * user's marker that read-timed-out at 8s four times in one hour of prod logs.
- * While it rode on `GET /preflight/order` it held the plates, the say band and
- * every edit hostage to a number that only decides what the button says — the
- * modal opened in 9.0-10.5s.
+ * Pricing calls `count_new_jobs_for_user`, which read-timed-out at 8s four
+ * times in one hour of prod logs. While it rode on `GET /preflight/order` it
+ * held the plates, the say band and every edit hostage to a number that only
+ * decides what the button says — the modal opened in 9.0-10.5s. The 8s is
+ * fixed server-side (the RPC was fast as service_role and 8,740ms under RLS);
+ * the split stays, because the price is not the order and must not be able to
+ * hold it again.
  *
  * Alone, it blocks nothing but the button. `undefined` means "not priced yet",
  * which is the one state Run must refuse: pressing it would be consenting to a
