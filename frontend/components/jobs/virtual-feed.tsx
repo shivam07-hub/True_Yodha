@@ -71,6 +71,17 @@ export function VirtualFeed<T>({
     count: items.length,
     getScrollElement: () => scrollEl,
     estimateSize: () => estimateSize,
+    // Measured heights are cached BY KEY, and the default key is the row's
+    // INDEX. Every feed here splices rows mid-list after first paint — a story
+    // card lands at slot 5 when market intel resolves, a scope divider lands
+    // when the ranked count arrives, a skip removes one — and each splice
+    // shifts every index below it, so index-keyed heights hand each row its
+    // neighbour's size. Rows are absolutely positioned from those sizes, so
+    // they land on top of each other (a "Hiring now" card painted across a job
+    // card, 2026-08-24). Identity must follow the ROW, not its position: this
+    // is the same key React is given below, so the DOM and the measurement
+    // cache can never disagree about which row is which.
+    getItemKey: (index) => getKey(items[index], index),
     overscan,
     gap,
     scrollMargin,

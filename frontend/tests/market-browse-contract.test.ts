@@ -15,6 +15,49 @@ test("location expansion dividers sit before their first broader job", () => {
   assert.equal(rows[1]?.t === "divider" && rows[1].label, "More remote roles in India")
 })
 
+/**
+ * The virtual feed caches each row's MEASURED HEIGHT by key and positions rows
+ * absolutely from those heights. Rows are spliced in mid-list AFTER first paint
+ * — a story card when market intel resolves, a scope divider when the ranked
+ * count arrives, a row removed on skip — so a key that tracks POSITION hands
+ * every row below the splice its neighbour's height, and cards paint on top of
+ * each other (a "Hiring now" card across a job card, 2026-08-24).
+ *
+ * Two halves hold that line. VirtualFeed forwards the same key to React and to
+ * the virtualizer's `getItemKey` (ratcheted in scripts/ui-drift-guard.mjs as
+ * `virtualRowIdentity`). And the key the feeds hand it has to BE an identity —
+ * that half is here.
+ */
+test("a spliced row shifts every position below it, and no key moves with them", () => {
+  const many = Array.from({ length: 8 }, (_, i) => ({ job_id: `id-${i}` } as JobFeedItem))
+  const story = { kind: "company" as const, company: "Genpact", openCount: 199, location: "Gurugram", followed: false }
+  const keyOf = (row: ReturnType<typeof interleaveStories>[number]) => (row.t === "job" ? row.job.job_id : row.id)
+
+  const before = interleaveStories(many, [], [])
+  const after = interleaveStories(many, [story], [{ beforeJobId: "id-2", label: "More roles in Gurugram" }])
+
+  // Same eight jobs, four positions further down the list.
+  assert.equal(before.length + 2, after.length)
+  assert.equal(before.findIndex((r) => keyOf(r) === "id-7"), 7)
+  assert.equal(after.findIndex((r) => keyOf(r) === "id-7"), 9)
+
+  // Every job still answers to the same key, in the same order.
+  assert.deepEqual(before.filter((r) => r.t === "job").map(keyOf), after.filter((r) => r.t === "job").map(keyOf))
+  // And no two rows share one — a collision is one cached height for two rows.
+  const keys = after.map(keyOf)
+  assert.equal(new Set(keys).size, keys.length)
+})
+
+test("both feeds key virtual rows by row identity, never by index", () => {
+  for (const file of ["../components/market/jobs-tab.tsx", "../components/market/mobile-feed.tsx"]) {
+    const src = readFileSync(new URL(file, import.meta.url), "utf8")
+    const getKey = src.match(/getKey=\{([^}]*\})?[^}]*\}/)?.[0] ?? ""
+    assert.match(getKey, /job\.job_id/, `${file}: a job row must be keyed by job_id`)
+    assert.match(getKey, /row\.id/, `${file}: a story/divider row must be keyed by its own id`)
+    assert.doesNotMatch(getKey, /\bi(ndex)?\b/, `${file}: a virtual row key must not be derived from its index`)
+  }
+})
+
 test("browse expansion and Undo follow the locked contract", () => {
   const hook = readFileSync(new URL("../components/market/use-job-feed.ts", import.meta.url), "utf8")
   const css = readFileSync(new URL("../components/market/market.css", import.meta.url), "utf8")
