@@ -288,11 +288,35 @@ export function ScreenCanvas({
   )
 }
 
+/**
+ * The search, titled by what it resolves to.
+ *
+ * This rendered `order.said` — screen one's answer, stored verbatim by
+ * `replace_said` — at display size. Verbatim is right for a QUOTE and wrong for
+ * a TITLE: a user who typed "sales startefy" got their own typo set in 48px as
+ * the heading of Myro's screen, which reads as Myro's mistake, not theirs.
+ *
+ * So the title is the resolved work, in Myro's voice, and the utterance stays
+ * below it as the quote it always was — still on screen (it is what the user
+ * said, and losing it would be its own small erasure), just no longer standing
+ * in for Myro's own words.
+ */
 function CanvasHeading({ order, cvReady }: { order: Order; cvReady: boolean }) {
   const said = (order.said ?? "").trim()
+  const title = useMemo(() => {
+    const byId = new Map(order.lines.map((l) => [l.id, l]))
+    const work = (order.slots ?? []).find((s) => s.key === "target_role_titles")
+    const roles = (work?.line_ids ?? []).flatMap((id) => {
+      const line = byId.get(id)
+      return line && line.status === "kept" ? [line.text] : []
+    })
+    return roles.join(" · ")
+  }, [order.lines, order.slots])
+
   return (
     <div className="pf-canvas-heading">
-      <h2>{said || "Sign off — Myro runs on the lines below."}</h2>
+      <h2>{title || "Sign off — Myro runs on the lines below."}</h2>
+      {said && said !== title ? <p className="pf-canvas-said">“{said}”</p> : null}
       <p className="pf-canvas-sub">
         <Link href="/cv" className="tm-control-focus">
           {cvReady ? "CV baseline · ready" : "no CV yet · add one"} →
