@@ -8,5 +8,8 @@
   "rawFontSizeLiteral": 1482,
   "sparkleGlyph": 0,
   "bannedPurpleHue": 0,
-  "cornerOrbWash": 0
+  "cornerOrbWash": 0,
+  "themeTokenOnPaperSheet": 0,
+  "virtualizerOutsideFeed": 0,
+  "virtualRowIdentity": 1
 }

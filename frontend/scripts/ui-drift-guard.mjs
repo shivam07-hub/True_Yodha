@@ -35,6 +35,8 @@ const SRC_DIRS = ["app", "components", "mobile", "lib"]
  * - exclude: path substrings to skip (canonical homes are exempt)
  * - pattern: global regex; total match count across files is the metric
  * - file:    optional — scan exactly this one file instead of SRC_DIRS
+ * - transform: optional — rewrite file text before matching (e.g. strip CSS
+ *              comments, so a rule quoted in a rationale can't count as one)
  * - mode:    "max" (ratchet down) | "min" (must stay present)
  * - hint:    what to do when it trips
  */
@@ -178,6 +180,57 @@ const METRICS = [
     mode: "max",
     hint: "A background wash must carry information. Corner-glow orbs are atmosphere — drop it, or make the gradient encode something real.",
   },
+
+  /* ── One-surface ratchets (2026-08-24) ────────────────────────────────
+     Two defects shipped the same week from the same root: a shared
+     primitive that was RIGHT BY RULE and wrong by result, because the
+     caller's context wasn't the context the primitive assumed. Neither is
+     catchable by review — both look correct in the diff. So each gets a
+     ratchet at zero.
+     ──────────────────────────────────────────────────────────────────── */
+  {
+    name: "themeTokenOnPaperSheet",
+    exts: [".css"],
+    // `.cvb-pdf-page` is white paper under server Chromium — no data-surface,
+    // no app stylesheet, no theme. Every --tm-* token that reaches it resolves
+    // against the APP's theme instead: a hover painted --tm-surface-2 (#22282b
+    // in dark) behind the sheet's #1A1A1A ink measured 1.05:1 and the bullet
+    // vanished under the cursor. The sheet names its own colours (--cv-* in
+    // cv-sheet.css); anything layered onto it must use those.
+    //
+    // Comments are stripped first: cv-sheet.css has to be able to NAME the
+    // tokens it bans while explaining why, and a guard that flags its own
+    // rationale is one people delete.
+    transform: (css) => css.replace(/\/\*[\s\S]*?\*\//g, ""),
+    pattern: /[^{};]*\.cvb-pdf-page[^{};]*\{[^{}]*var\(--tm-[^{}]*\}/g,
+    mode: "max",
+    hint: "The CV sheet is theme-independent — it renders as paper in a themeless server Chromium. Use a --cv-* paper token from cv-sheet.css (--cv-ink / --cv-accent / --cv-hover-wash / --cv-select-wash), never an app-chrome --tm-* token.",
+  },
+  {
+    name: "virtualizerOutsideFeed",
+    exts: [".tsx", ".ts"],
+    // ONE virtual list. <VirtualFeed> is where the scroll-parent discovery,
+    // the scrollMargin re-measure and the row-identity contract below live;
+    // a second hand-rolled useVirtualizer gets none of them and re-earns the
+    // overlapping-cards bug in private.
+    exclude: ["components/jobs/virtual-feed.tsx"],
+    pattern: /useVirtualizer/g,
+    mode: "max",
+    hint: "Don't mount @tanstack/react-virtual directly. Use <VirtualFeed> from @/components/jobs/virtual-feed — it owns scroll-parent discovery, scrollMargin and row identity.",
+  },
+  {
+    name: "virtualRowIdentity",
+    file: "components/jobs/virtual-feed.tsx",
+    exts: [".tsx"],
+    // The virtualizer caches measured heights by key, and its DEFAULT key is
+    // the index. Feeds splice rows in and out mid-list after first paint
+    // (story cards, scope dividers, skip), so index-keyed heights hand each
+    // row its neighbour's size and absolutely-positioned cards overlap. The
+    // measurement cache must be keyed by the same identity React is given.
+    pattern: /getItemKey/g,
+    mode: "min",
+    hint: "VirtualFeed must pass `getItemKey` to useVirtualizer, matching the `getKey` used for the React key — otherwise measured heights follow position instead of row identity and cards overlap when a row is inserted.",
+  },
 ]
 
 function walk(dir, exts, acc) {
@@ -212,6 +265,7 @@ function countMetric(metric) {
     } catch {
       continue
     }
+    if (metric.transform) content = metric.transform(content)
     const matches = content.match(metric.pattern)
     if (matches && matches.length) {
       total += matches.length
