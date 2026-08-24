@@ -10,6 +10,7 @@ import { DirectionChoice } from "@/components/onboarding/direction-choice"
 import { formatCount } from "@/lib/format"
 import { dataKeys } from "@/lib/domain-data"
 import { onboarding, users as usersApi, type OnboardingResult, type RoleFamily, type TargetSeniority } from "@/lib/api"
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value"
 import { trackEvent } from "@/lib/analytics"
 import { cn } from "@/lib/utils"
 
@@ -94,10 +95,14 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
     queryFn: () => onboarding.roleFamilies(token),
     enabled: result.families.length === 0,
   })
+  // Same settled-term rule as RoleFamilyPicker: one request per term the user
+  // stopped on, not one per keystroke.
+  const roleTerm = useDebouncedValue(roleSearch, 200).trim()
   const searchedFamilies = useQuery({
-    queryKey: ["role-families", roleSearch],
-    queryFn: () => onboarding.roleFamilies(token, roleSearch),
-    enabled: showSearch && roleSearch.trim().length >= 2,
+    queryKey: ["role-families", roleTerm],
+    queryFn: () => onboarding.roleFamilies(token, roleTerm),
+    enabled: showSearch && roleTerm.length >= 2,
+    staleTime: 60_000,
   })
   const locationQueries = useQueries({
     queries: selected.map((family) => ({

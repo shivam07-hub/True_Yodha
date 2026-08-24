@@ -28,6 +28,7 @@ import { Loader2, Search } from "lucide-react"
 import { onboarding, type RoleFamily } from "@/lib/api"
 import { formatCount } from "@/lib/format"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value"
 
 export function RoleFamilyPicker({
   label,
@@ -42,10 +43,15 @@ export function RoleFamilyPicker({
   const { token } = useAuth()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
+  // Keyed on the SETTLED term, never the raw input. Typed straight through,
+  // "financial analyst" was 15 requests at 4,253-9,191ms each on prod
+  // (ARCHITECTURE_READ_PATH.md S16 P1).
+  const term = useDebouncedValue(query, 200).trim()
   const familiesQ = useQuery({
-    queryKey: ["role-families", "picker", query],
-    queryFn: () => onboarding.roleFamilies(token!, query.trim() || undefined),
+    queryKey: ["role-families", "picker", term],
+    queryFn: () => onboarding.roleFamilies(token!, term || undefined),
     enabled: open && !!token,
+    staleTime: 60_000,
   })
 
   function choose(role: RoleFamily) {
