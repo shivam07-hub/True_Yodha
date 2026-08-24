@@ -1,0 +1,31 @@
+/**
+ * <AccentField> ambient motion — the two keyframes and their reduced-motion
+ * stills, in a real stylesheet.
+ *
+ * Why a file and not the inline <style> this used to be: React escapes the text
+ * child of a <style> when it server-renders it, but the HTML parser treats
+ * <style> as RAW text and never decodes the entity back. The quoted attribute
+ * selector below (then `[style*="tm-edge-text"]`) therefore reached the DOM as
+ * `[style*=&quot;tm-edge-text&quot;]` from the server and as
+ * `[style*="tm-edge-text"]` from the client — a hydration text mismatch that
+ * threw away /taxonomy's whole Suspense boundary and re-rendered it on the
+ * client, on the one page built to be crawled. The same escaping also left the
+ * selector invalid, so the reduced-motion still it declared never applied.
+ *
+ * Selecting on a class instead of on inline-style text is the actual fix; the
+ * stylesheet is what makes it possible (and stops one <style> block being
+ * duplicated per mounted field).
+ */
+
+@keyframes tm-edge-pulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+@keyframes tm-edge-text { 0%, 100% { opacity: 0.55; } 50% { opacity: 0.9; } }
+
+/* Worn only when the JS field is NOT driving the motion — a non-interactive
+   mount, or reduced motion (where the media query below stills them). */
+.tm-field-rim-static { animation: tm-edge-pulse 2400ms ease-in-out infinite; }
+.tm-field-msg-static { animation: tm-edge-text 2400ms ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tm-field-rim-static { animation: none; opacity: 0.7; }
+  .tm-field-msg-static { animation: none; }
+}

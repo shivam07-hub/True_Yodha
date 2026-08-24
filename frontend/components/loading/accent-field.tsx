@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react"
 import { createFieldMotion, shouldAnimateField, type FieldParticle } from "./field-motion"
+import "./accent-field.css"
 
 /**
  * <AccentField> — the ambient, cursor/touch-reactive accent-edge loading playground
@@ -116,7 +117,6 @@ export function AccentField({
         borderRadius: "inherit",
         boxShadow:
           "inset 0 0 120px 6px var(--tm-int-bg-wash), inset 0 0 3px 1px var(--tm-int-border)",
-        ...(animate ? null : { animation: "tm-edge-pulse 2400ms ease-in-out infinite" }),
       }}
     />
   )
@@ -146,19 +146,6 @@ export function AccentField({
     </span>
   )
 
-  // Shared keyframes for the reduced-motion static rim pulse (reuses the OAuth
-  // motif name; the media query below stills it entirely under reduce).
-  const keyframes = (
-    <style>{`
-      @keyframes tm-edge-pulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
-      @keyframes tm-edge-text { 0%, 100% { opacity: 0.55; } 50% { opacity: 0.9; } }
-      @media (prefers-reduced-motion: reduce) {
-        .tm-field-rim-static { animation: none !important; opacity: 0.7; }
-        [style*="tm-edge-text"] { animation: none !important; }
-      }
-    `}</style>
-  )
-
   if (mode === "full-bleed") {
     return (
       <main
@@ -182,15 +169,12 @@ export function AccentField({
         {dots}
         {message && (
           <span
-            style={{
-              position: "relative",
-              animation: animate ? undefined : "tm-edge-text 2400ms ease-in-out infinite",
-            }}
+            className={animate ? undefined : "tm-field-msg-static"}
+            style={{ position: "relative" }}
           >
             {message}
           </span>
         )}
-        {keyframes}
       </main>
     )
   }
@@ -205,7 +189,6 @@ export function AccentField({
       {rim}
       {dots}
       <div style={{ position: "relative" }}>{children}</div>
-      {keyframes}
     </div>
   )
 }
