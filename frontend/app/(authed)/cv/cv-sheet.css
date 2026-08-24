@@ -22,10 +22,27 @@
    ────────────────────────────────────────────────────────────────────────── */
 
 .cvb-pdf-page {
+  /* ── Paper-local palette ───────────────────────────────────────────────────
+     The sheet is theme-INDEPENDENT by construction. Server Chromium renders it
+     with no `data-surface` attribute and no app stylesheet, so it is white
+     paper always — while every --tm-* token resolves against whatever theme
+     the APP is in. Borrow one here and it lands dark-on-light: a hovered
+     bullet painted `--tm-surface-2` (#22282b in dark) behind #1A1A1A ink
+     measured 1.05:1 and the line disappeared under the cursor.
+     So the sheet carries its OWN colours — including the interaction states
+     the CV workspace layers on top of it (see library-view.css). Anything the
+     sheet needs must be named here, never imported from app chrome. Enforced
+     by the `themeTokenOnPaperSheet` ratchet in scripts/ui-drift-guard.mjs. */
+  --cv-paper:       #FAFAF7;
+  --cv-ink:         #111;
+  --cv-accent:      #0072be;                 /* the azure, at paper lightness */
+  --cv-hover-wash:  rgba(10, 10, 10, 0.055); /* ink-on-paper, never a surface */
+  --cv-select-wash: rgba(0, 114, 190, 0.07);
+
   width: 816px;
   min-height: 1056px;
-  background: #FAFAF7;
-  color: #111;
+  background: var(--cv-paper);
+  color: var(--cv-ink);
   font-family: "Geist", "Helvetica Neue", Arial, sans-serif;
   font-size: 10.5pt;
   line-height: 1.45;
