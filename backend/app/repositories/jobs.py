@@ -3919,12 +3919,29 @@ class JobsRepository:
         with `ORDER BY job_id LIMIT 50` the planner walked `jobs_pkey` expecting
         to fill the limit early (estimated 1,620 matches, actual 4) and filtered
         76,545 rows: 44,517ms over 75,346 buffers. Through the RPC and
-        `idx_jobs_lower_company_active_jobid`: **4.5ms over 5 buffers**.
+        `idx_jobs_lower_company_active_jobid`: 4.5ms over 5 buffers.
+
+        **That 4.5ms was measured as `service_role` and was never true for a
+        real caller.** Re-measured 2026-08-25 as the roles the app uses, on the
+        same 50-row page:
+
+            service_role      152ms /  1,337 buffers
+            anon            3,673ms / 13,068 buffers
+            authenticated   6,208ms / 13,070 buffers
+
+        13,070 buffers is the whole jobs heap (100MB ~ 12,800 blocks) for 50
+        rows: `idx_jobs_lower_company_active_jobid` is PARTIAL on
+        `is_active AND listing_confidence='active'`, and the jobs RLS policy
+        reaches that branch only through an `OR`, so the planner fell back to a
+        BitmapOr and rechecked every candidate from the heap. Playbook trap 5.
+
+        Migration `20260825090000` marks the function SECURITY DEFINER — safe
+        because its WHERE clause IS the policy's public branch, proved by
+        byte-identical result sets for a user who owns created jobs and for
+        `anon` across 9 companies. After: **5.4ms / 1,341 buffers authed**.
 
         No call site ever passed a wildcard — `.ilike()` here was case-insensitive
-        EXACT match, which `lower(x) = lower(y)` reproduces exactly. The function
-        is SECURITY INVOKER, so RLS on `jobs` applies as before; this is a plan
-        fix, not an access change.
+        EXACT match, which `lower(x) = lower(y)` reproduces exactly.
         """
         start = max(0, (page - 1)) * page_size
         rows = (
