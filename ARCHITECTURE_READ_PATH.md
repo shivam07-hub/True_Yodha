@@ -1227,3 +1227,50 @@ saturation. **Paid Supabase compute remains the launch capacity gate** (section 
 | P2 Public stampede / LLM burst | `Cache-Control` on `/public/stats`; landing `refetchOnMount/Focus=false`; anon score/rewrite burst ceilings |
 
 Do not mark platform capacity green until the paid compute gate in section 8 passes.
+
+---
+
+## 15. Open, measured — the standing latency ledger (2026-08-24)
+
+Sections 7-14 are *closed* work. This one is the **open** list, and it is the
+file's live edge: everything below has a number next to it, taken on prod, and
+none of it is fixed. Add to it when you measure something; delete a row when it
+ships and log the close above.
+
+### Fixed this pass, for context
+
+| | Before | After |
+|---|---|---|
+| `count_new_jobs_for_user` under RLS | 8,740ms | **~15ms** (migration `20260824090000`, trap 5) |
+| `/preflight/order` (modal open) | 9,062-10,495ms | price split to `/preflight/price` |
+| `PATCH /preflight/order/lines/*` | 1,500-4,100ms, 5 hops | 2 hops (~330ms floor) |
+
+`/home/bootstrap` and `/jobs/matches` were 8,053-8,889ms and 8,086ms, both with
+`new_jobs_count` as the slowest fan-out section. They should now fall to their
+next slowest — **`raw_stack` ≈ 2,494ms**. NOT yet confirmed on live traffic;
+that is the first thing to re-measure (playbook step 6).
+
+### Open — ranked by what a user feels
+
+| # | Thing | Measured | Suspected cause |
+|---|---|---|---|
+| 1 | **Read capacity ceiling** | `supabase_read_max_inflight=12`; `/home/bootstrap` fans out to **8**; `saturation.alert_fired count=5` in the 2026-08-21 logs | ~1.5 concurrent dashboard loads. Not a query problem — no tuning closes it. Section 8's paid-compute gate. |
+| 2 | `POST /jobs/feed/warm` | **59,854ms** (2026-08-21 07:18) | Unknown. This is also why `feed.unranked` fires: the warm that would rank the feed has not landed when the user reads it. |
+| 3 | `/jobs/my-skills/demand` | **17,452ms**, then 11,940ms, then 10,468ms; `aspiration.role_family_failed reason=ReadTimeout fallback_used=true` | Almost certainly trap 5 via `role_family_*` functions. |
+| 4 | `list_role_families` | **8,448ms authed vs 1,262ms service** | Trap 5 **plus** a slow baseline — needs two fixes, not one. Drives the un-debounced onboarding typeahead (15 requests for "financial analyst", 1.0-3.0s each). |
+| 5 | 16 invoker functions over `public.jobs` callable by `authenticated` | unaudited | Trap 5. Only `list_role_families` measured. Sweep query in playbook §4b. |
+| 6 | `raw_stack` / `get_user_match_stack` | **~2,494ms** — the new floor under bootstrap and matches | Trap 4 (payload weight) is the standing suspicion: `job_description` was once 59.8% of `/jobs/matches`. Trace consumers before trimming. |
+| 7 | Pre-flight order write | 2 hops now, but every answer still rewrites the whole `lines` jsonb | A per-line write (row-per-line, or `jsonb_set`) removes the document rewrite and the CAS for independent lines. |
+| 8 | Supabase Free/Nano | 1,118MB against the tier's 500MB recommended; 224MB `shared_buffers` | Section 8. |
+| 9 | `POST /partner/v1/sso/session` | 500s — `gotrue.errors.AuthApiError: Database error creating new user` | Not latency. Finlatics-facing, and it is a hard failure. |
+
+### The pattern worth naming
+
+Four of nine rows above are the same trap, and it is a **design** issue rather
+than nine bugs: this codebase reads user-facing data through the RLS token
+client, and its hot indexes are PARTIAL on a predicate the RLS policy only
+reaches through an `OR`. Every such read pays a heap recheck. The per-function
+fix (`security definer` + caller guard) works and is proven, but the question
+for an architecture review is whether the *read path as a whole* should go
+through a definer/service seam with authorisation expressed once, instead of
+being re-litigated per function.
