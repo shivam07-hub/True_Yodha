@@ -91,7 +91,7 @@ export function ScreenCanvas({
   onAnswerLine: (lineId: string, status: LineStatus) => void
   onRewordLine: (lineId: string, text: string) => void
   onAnswerProposal: (id: string, verdict: Verdict) => void
-  onAddLine: (kind: LineKind, text: string) => void
+  onAddLine: (kind: LineKind, text: string, roleFamily?: string) => void
   /** The one change made THIS session that can be taken back, or null. */
   undoable: OrderLogEntry | null
   onUndo: (entryId: string) => void

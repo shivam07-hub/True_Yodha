@@ -171,7 +171,12 @@ export function useOrderMutations(token: string | null) {
   })
 
   const addLine = useMutation({
-    mutationFn: (input: { kind: LineKind; text: string; origin?: "preflight" | "market" }) =>
+    mutationFn: (input: {
+      kind: LineKind
+      text: string
+      origin?: "preflight" | "market"
+      role_family?: string
+    }) =>
       preflight.addLine(token!, input),
     onSuccess: (next) => mergeState(client, next),
   })

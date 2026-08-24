@@ -267,8 +267,26 @@ def project(order: Order) -> dict[str, Any]:
     `target_role_titles` are human titles — the backend derives the matcher's
     cluster union from them (one writer, see `role_title_updates`). `lean` has no
     column and is routed to the authored-`preference` writer by the same route.
+
+    `role_families` rides along ONLY when every kept role line carries one.
+    Until 2026-08-25 this surface emitted titles alone, because it collected
+    titles as free text and a family cannot be recovered from free text. Now the
+    role slot picks from the corpus, so the family is known at the moment the
+    title is — and `derive()` treats a supplied family as the caller taking
+    responsibility, which is the one path that can refresh a stale scoping key.
+
+    All or nothing: a partial family list would narrow `target_roles` to the
+    subset that happened to come from the picker and silently drop the rest of
+    the union. Absent is honest; half is not.
     """
-    return resolve(order).spec
+    spec = resolve(order).spec
+    if "target_role_titles" not in spec:
+        return spec
+    roles = [line for line in order.kept() if line.kind == "role"]
+    families = [line.role_family for line in roles if line.role_family]
+    if roles and len(families) == len(roles):
+        return {**spec, "role_families": families}
+    return spec
 
 
 def client_report(order: Order) -> dict[str, Any]:

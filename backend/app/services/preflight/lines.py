@@ -49,6 +49,13 @@ class OrderLine:
     #: without it every re-import re-adds the same guess, so the user answers
     #: "No large corporations" once and meets it again on the next open.
     ref: str | None = None
+    #: The corpus family behind a `role` line, when the title came from the role
+    #: picker. `target_roles` is derived from families and can NOT be recovered
+    #: from free text — `role_title_updates` refuses to recreate the old
+    #: substring-to-cluster table — so a title typed by hand leaves the matcher's
+    #: scoping key stale. Carried here so the one surface that collects titles
+    #: can collect what makes them matchable at the same time.
+    role_family: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -64,6 +71,7 @@ class OrderLine:
             "original_text": self.original_text,
             "answered_at": self.answered_at,
             "ref": self.ref,
+            "role_family": self.role_family,
         }
 
     @staticmethod
@@ -81,6 +89,7 @@ class OrderLine:
             original_text=row.get("original_text") or None,
             answered_at=row.get("answered_at") or None,
             ref=row.get("ref") or None,
+            role_family=row.get("role_family") or None,
         )
 
 
@@ -196,7 +205,9 @@ def unanswer(order: Order, line_id: str) -> tuple[Order, LogEntry | None]:
     return _swap(order, replace(line, status="unanswered", answered_at=None)), None
 
 
-def reword(order: Order, line_id: str, text: str, *, now: str) -> tuple[Order, LogEntry | None]:
+def reword(
+    order: Order, line_id: str, text: str, *, now: str, role_family: str | None = None
+) -> tuple[Order, LogEntry | None]:
     """Saving a reword COUNTS AS YES, and the line is `user_reworded` forever —
     the note on screen says so, and `original_text` keeps the audit trail. A
     reworded line is by definition usable again: the user just wrote it."""
@@ -215,6 +226,10 @@ def reword(order: Order, line_id: str, text: str, *, now: str) -> tuple[Order, L
         unusable=False,
         soft=False,
         answered_at=now,
+        # A hand-typed reword carries no family, and must not keep the old one:
+        # the title it belonged to is gone. Silence here is what `project`
+        # reads to decide the family set is incomplete.
+        role_family=role_family,
     )
     return _logged(_swap(order, next_line), entry), entry
 
@@ -231,6 +246,7 @@ def add(
     soft: bool = False,
     unusable: bool = False,
     ref: str | None = None,
+    role_family: str | None = None,
 ) -> tuple[Order, LogEntry | None]:
     text = " ".join(text.split()).rstrip(".")
     if not text:
@@ -238,6 +254,7 @@ def add(
     line = OrderLine(
         id=new_id(), kind=kind, text=text, source=source, origin=origin,
         source_note=source_note, status=status, soft=soft, unusable=unusable, ref=ref,
+        role_family=role_family,
     )
     entry = LogEntry(id=new_id(), kind="add", line_id=line.id, text=line.text, prev=None)
     return _logged(replace(order, lines=[*order.lines, line]), entry), entry

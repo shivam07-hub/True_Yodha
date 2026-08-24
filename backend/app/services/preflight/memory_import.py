@@ -208,7 +208,7 @@ def guesses_from(brief: TargetingBrief) -> list[OrderLine]:
                     kind="role",
                     text=text,
                     source="myro_inferred",
-                    source_note="Myro has been searching this — you never set it as a role",
+                    source_note="Myro has been searching this — pick the real role below",
                     origin="cv_import",
                     status="unanswered",
                     unusable=True,
