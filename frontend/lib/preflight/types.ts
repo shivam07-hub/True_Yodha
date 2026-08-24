@@ -11,7 +11,11 @@
  * its source would be able to answer for a note it never rendered.
  */
 
-export type LineKind = "role" | "location" | "wont_take" | "lean" | "goal" | "strength" | "pay_floor"
+/** `fact` is true of the person and actionable by nobody — a notice period, a
+ *  visa status. The resolver files it to no slot, so it never spends a slot
+ *  budget and is never deleted. Server-side `normalise` is its only producer. */
+export type LineKind =
+  | "role" | "location" | "wont_take" | "lean" | "goal" | "strength" | "pay_floor" | "fact"
 export type LineSource = "user_said" | "myro_inferred" | "from_cv" | "user_reworded"
 export type LineStatus = "kept" | "dropped" | "unanswered"
 export type LineOrigin = "preflight" | "market" | "cv_import" | "memory_import"
@@ -43,7 +47,7 @@ export interface OrderLogEntry {
   text: string
 }
 
-export type ConflictKind = "arity" | "contradiction"
+export type ConflictKind = "arity" | "contradiction" | "value_clash"
 
 export type SlotKey =
   | "target_role_titles"
@@ -88,6 +92,8 @@ export interface OrderState {
   /** The resolver's own partition of the order. Absent only on a fixture. */
   slots?: OrderSlot[]
   conflicts?: OrderConflict[]
+  /** Kept line ids that fill no slot — shown, never run, never deleted. */
+  facts?: string[]
 }
 
 /** The opening read — adds the parts that don't move when a line is answered. */
@@ -189,4 +195,5 @@ export const KIND_EYEBROW: Record<LineKind, string> = {
   pay_floor: "PAY FLOOR",
   goal: "WHERE YOU'RE HEADED",
   strength: "BEST AT",
+  fact: "ON YOUR PROFILE",
 }

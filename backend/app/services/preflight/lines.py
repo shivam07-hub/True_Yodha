@@ -18,7 +18,12 @@ import uuid
 from dataclasses import dataclass, field, replace
 from typing import Any, Literal
 
-LineKind = Literal["role", "location", "wont_take", "lean", "goal", "strength", "pay_floor"]
+#: `fact` is true of the person and actionable by nobody — a notice period, a
+#: visa status. It files to no slot, so it never spends a user's slot budget,
+#: and it is never deleted either. Only `normalise` produces it, at read time.
+LineKind = Literal[
+    "role", "location", "wont_take", "lean", "goal", "strength", "pay_floor", "fact"
+]
 LineSource = Literal["user_said", "myro_inferred", "from_cv", "user_reworded"]
 LineStatus = Literal["kept", "dropped", "unanswered"]
 LineOrigin = Literal["preflight", "market", "cv_import", "memory_import"]

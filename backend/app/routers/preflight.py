@@ -85,7 +85,7 @@ class SlotOut(BaseModel):
 
 class ConflictOut(BaseModel):
     slot: str
-    kind: Literal["arity", "contradiction"]
+    kind: Literal["arity", "contradiction", "value_clash"]
     line_ids: list[str]
     texts: list[str]
     #: How many this slot can keep. The card asks; it does not re-derive arity.
@@ -103,6 +103,10 @@ class OrderState(BaseModel):
     used: int = 0
     slots: list[SlotOut] = Field(default_factory=list)
     conflicts: list[ConflictOut] = Field(default_factory=list)
+    #: Kept lines that fill no slot — a notice period, a visa status. Reported so
+    #: the screen can show them; a line that disappears because Myro reclassified
+    #: it would be exactly the silent loss this surface exists to prevent.
+    facts: list[str] = Field(default_factory=list)
 
 
 class OrderOut(OrderState):
@@ -496,10 +500,20 @@ async def run_order(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Add a role you want — Myro searches on the work, not on the exclusions.",
         )
+    # Resolved ONCE. `run_summary` used to call the resolver a second time on
+    # this path and the fix was to stop; adding a conflict check that resolves
+    # again would put the third call back.
+    resolved = ops_payload.resolve(order)
+    # A contested slot omits its key from the spec, and the patch is partial, so
+    # dispatching here would run the STORED value while the screen showed the
+    # contested one — the same silence the role guard above exists to break.
+    if resolved.conflicts:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Answer the open questions first — Myro can't run a slot two ways.",
+        )
 
-    await run_in_threadpool(
-        targeting_write.apply, users_repo, principal.id, ops_payload.project(order)
-    )
+    await run_in_threadpool(targeting_write.apply, users_repo, principal.id, resolved.spec)
 
     ticket = await JobRefresh.start(principal.id, repo, last_monday())
     # Stamped AFTER dispatch with the ticket it produced: a run recorded before

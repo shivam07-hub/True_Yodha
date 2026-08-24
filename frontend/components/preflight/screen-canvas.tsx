@@ -42,6 +42,7 @@ import { blockedLine, contractLine, missingRoleLine } from "@/lib/preflight/pros
 import { OpeningPad } from "./canvas-pads"
 import { HeardRow } from "./heard-row"
 import { SayBand } from "./say-band"
+import { Plate } from "./plate"
 import { SlotGroup } from "./slot-group"
 
 type Verdict = "kept" | "dropped" | null
@@ -141,6 +142,15 @@ export function ScreenCanvas({
     })
   }, [order.lines, order.slots, conflicts])
 
+  /** Kept lines the resolver files to no slot. They are true of the person and
+   *  actionable by nobody — a notice period, a visa status — so they cost no
+   *  slot budget. Rendered because a line that vanishes when Myro reclassifies
+   *  it is worse than one that overflows: the user can see an overflow. */
+  const facts = useMemo(() => {
+    const ids = new Set(order.facts ?? [])
+    return order.lines.filter((l) => l.status === "kept" && ids.has(l.id))
+  }, [order.lines, order.facts])
+
   const kept = useMemo(() => order.lines.filter((l) => l.status === "kept"), [order.lines])
   const unanswered = useMemo(() => order.lines.filter((l) => l.status === "unanswered"), [order.lines])
   const runCost = price?.run_cost ?? 0
@@ -193,6 +203,25 @@ export function ScreenCanvas({
               onRewordLine={onRewordLine}
             />
           ))}
+        </div>
+      ) : null}
+
+      {hasWork && facts.length > 0 ? (
+        <div className="pf-slot" data-slot="facts">
+          <div className="pf-slot-head">
+            <div className="pf-slot-label">NOT A FILTER</div>
+          </div>
+          <div className="pf-slot-body">
+            {facts.map((line) => (
+              <Plate
+                key={line.id}
+                line={line}
+                busy={pending}
+                onReword={(text) => onRewordLine(line.id, text)}
+                onDrop={() => onAnswerLine(line.id, "dropped")}
+              />
+            ))}
+          </div>
         </div>
       ) : null}
 

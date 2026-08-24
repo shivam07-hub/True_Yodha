@@ -21,24 +21,27 @@ import { test } from "node:test"
 
 import { SLOT_COPY, SLOT_ORDER, slotCount } from "../lib/preflight/slots"
 
-const payload = readFileSync(
-  new URL("../../backend/app/services/preflight/payload.py", import.meta.url),
+/** `spec.py`, not `payload.py`: the slot map moved there on 2026-08-25 when the
+ *  meaning of an EMPTY slot became a contract of its own. This test failing on
+ *  that move is the detector working — the path is half the contract. */
+const spec = readFileSync(
+  new URL("../../backend/app/services/preflight/spec.py", import.meta.url),
   "utf8",
 )
 
 /** Pull a `name: dict[...] = { ... }` literal out of the Python source. */
 function pyBlock(name: string): string {
-  const start = payload.indexOf(`${name}:`)
-  assert.ok(start > -1, `${name} not found in payload.py`)
-  const open = payload.indexOf("{", start)
-  const close = payload.indexOf("}", open)
-  return payload.slice(open, close + 1)
+  const start = spec.indexOf(`${name}:`)
+  assert.ok(start > -1, `${name} not found in spec.py`)
+  const open = spec.indexOf("{", start)
+  const close = spec.indexOf("}", open)
+  return spec.slice(open, close + 1)
 }
 
 const serverKeys = [...pyBlock("SLOT_ARITY").matchAll(/"([a-z_]+)":\s*\d+/g)].map((m) => m[1])
 
 test("every slot the resolver can send has words on the client", () => {
-  assert.ok(serverKeys.length > 0, "no slots parsed out of payload.py")
+  assert.ok(serverKeys.length > 0, "no slots parsed out of spec.py")
   for (const key of serverKeys) {
     assert.ok(key in SLOT_COPY, `${key} would render as a blank header`)
   }
