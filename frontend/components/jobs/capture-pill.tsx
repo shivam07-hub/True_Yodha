@@ -7,10 +7,13 @@ import "./capture-pill.css"
  * The ONE capture control — every surface that can save a job renders this, never
  * a hand-rolled ★ button (market TriageButtons, Collections, Intel rows, company
  * rows, the extension, and "Add a job" all read from here). Unifying the control
- * is half the Delta-4 job; the other half is the *confirmation* — on full feed
- * cards that is <CaptureConfirm> (the in-card morph band); on compact rows the
- * pill's own `saved` state carries the inline "Tailor →" next-step, so the row
- * answers "where did it go" without a band.
+ * is half the Delta-4 job; the other half is the *confirmation* — on compact
+ * rows the pill's own `saved` state carries the inline "Tailor →" next-step, so
+ * the row answers "where did it go" without a band.
+ *
+ * ⚠️ On full feed cards that was to be <CaptureConfirm> (the in-card morph
+ * band). It is NOT WIRED — rendered by nothing — so full cards fall back to the
+ * portaled <NotInterestedUndo> band like everywhere else.
  *
  * Presentational + headless: `status` and the callbacks live in the owning
  * surface (market drains; Collections persists; public rows gate anon → signup).

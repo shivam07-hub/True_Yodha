@@ -127,7 +127,13 @@ export interface FeedCardProps {
    *  CTAs, not filler; each opens only its own panel inline. Row variant only. */
   rail?: React.ReactNode
   /** In-card save confirmation (journey B). Rendered below the actions the moment
-   *  a job is captured — the <CaptureConfirm> band. Additive; omit when idle. */
+   *  a job is captured.
+   *
+   *  ⚠️ NOT WIRED. No caller passes this, and `<CaptureConfirm>`
+   *  (`components/jobs/capture-confirm.tsx`) — the band it was written for — is
+   *  imported and rendered by nothing. Both are Phase 0/1 scaffolding kept
+   *  pending the Loop Bar work; the confirmation users actually see today is
+   *  the portaled `<NotInterestedUndo>` band. */
   confirm?: React.ReactNode
   /** "row" = list card (identity tile + bottom actions); "compact" = role-led
    *  dense row for surfaces where the company is context (Intel, company pages);

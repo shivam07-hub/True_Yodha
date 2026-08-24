@@ -1,52 +1,37 @@
 import { create } from "zustand"
 import { persist, createJSONStorage } from "zustand/middleware"
 
-export interface XpDelta {
-  /** Signed change applied (−10 spend, +30 earn). Never 0. */
-  delta: number
-  /** Action that produced the change (analyse_job, follow_company, …). */
-  action: string
-  /** Monotonic id so a repeat delta still retriggers the float animation. */
-  id: number
-}
-
 interface XPStore {
   balance: number
-  /** Transient last change, consumed by the pill nudge. Cleared after animation. */
-  lastDelta: XpDelta | null
   setBalance: (n: number) => void
   addBalance: (n: number) => void
   subtractBalance: (n: number) => void
   /**
-   * Set the balance to an authoritative server value AND surface the delta as a
-   * pill nudge. Use at every XP charge/earn site instead of bare setBalance —
-   * the nudge is derived from the explicit (old → new) move, never auto-diffed
-   * from setBalance (initial 0→3000 hydration must not fake a +3000 float).
-   * `silent` suppresses the float (e.g. forge claim owns its own celebration).
+   * Set the balance to an authoritative server value at a charge/earn site.
+   *
+   * It used to ALSO surface the move as a `−100` float off the XP pill, which
+   * is why it takes `action` and exists apart from `setBalance`. That float
+   * (`XpDeltaNudge`) was built, never mounted anywhere, and deleted on
+   * 2026-08-23 — so `lastDelta`, `clearDelta` and the `silent` suppressor went
+   * with it, and this is now `setBalance` with a name that says where it is
+   * called from.
+   *
+   * Left as its own seam deliberately: collapsing it is a mechanical rename
+   * across ~8 charge sites with no user-visible benefit, and it is the natural
+   * mount point if the nudge is ever wired. `action` is kept for the same
+   * reason — it is the one thing a bare `setBalance` cannot record.
    */
-  applyXpChange: (opts: { newBalance: number; action: string; silent?: boolean }) => void
-  clearDelta: () => void
+  applyXpChange: (opts: { newBalance: number; action: string }) => void
 }
-
-let _deltaSeq = 0
 
 export const useXPStore = create<XPStore>()(
   persist(
-    (set, get) => ({
+    (set) => ({
   balance: 0,
-  lastDelta: null,
   setBalance: (n) => set({ balance: n }),
   addBalance: (n) => set((state) => ({ balance: state.balance + n })),
   subtractBalance: (n) => set((state) => ({ balance: Math.max(0, state.balance - n) })),
-  applyXpChange: ({ newBalance, action, silent }) => {
-    const delta = newBalance - get().balance
-    if (silent || delta === 0) {
-      set({ balance: newBalance })
-      return
-    }
-    set({ balance: newBalance, lastDelta: { delta, action, id: ++_deltaSeq } })
-  },
-  clearDelta: () => set({ lastDelta: null }),
+  applyXpChange: ({ newBalance }) => set({ balance: newBalance }),
     }),
     {
       // Persist only the balance for this tab so the user avoids a "0" flash
