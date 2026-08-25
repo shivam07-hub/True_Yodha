@@ -1,20 +1,19 @@
 /**
- * MasterWorkspace — the Main-CV editing surface, unified with the CV Playground.
+ * MasterWorkspace — the Main-CV surface, on the shared workstation shell.
  *
- * Same shell as PlaygroundView (sticky score header · the CV-as-editor paper ·
- * tabbed rail · Preview), so editing your master CV feels identical to tailoring
- * one for a job. The nuance is small and honest:
- *   · header meter = the Myro Score, not a per-job Ready ("+N" is never claimed —
- *     a bullet rewrite doesn't move a radar/skill score);
- *   · no Job Description / Apply — those are job-only;
- *   · the paper's identity fields (name/email/phone…) + Education + Certifications
- *     are editable here and ONLY here (a tailored CV parents to this master — one
- *     source of truth for identity);
- *   · the Skills rail tab edits the master skills line (+ Refresh from proven
- *     skills) rather than showing a JD gap.
+ * Same shell as the per-job playground (hierarchy redesign, handoff 2a), so
+ * editing your master CV and tailoring one for a job are the same screen. The
+ * honest differences are small:
+ *   · the header meter is the Myro Score, not a per-job Match, and no "+N" is
+ *     claimed — a bullet rewrite does not move a radar/skill score;
+ *   · no Apply and no JD — those are job-only;
+ *   · identity fields are editable HERE and only here (a tailored CV parents to
+ *     this master — one source of truth for who you are);
+ *   · no per-job projection, so lines cannot be hidden;
+ *   · the Skills lane edits the master skills line rather than showing a JD gap,
+ *     so nothing on this surface can say "on target" — there is no target.
  *
- * Every write is a cheap living-master autosave patch (PUT /cv/master, no XP/LLM,
- * no rewrite baseline) — the same hook the old form used.
+ * Every write is a cheap living-master autosave patch (PUT /cv/master).
  */
 "use client"
 
@@ -27,18 +26,16 @@ import { Button } from "@/components/ui/button"
 import { dataKeys } from "@/lib/domain-data"
 import { useMasterAutosave } from "@/lib/hooks/use-master-autosave"
 import { mentorRewriteTarget } from "@/lib/cv/mentor-rewrite-target"
-import { CVEditor, type RewriteTarget } from "./cv-editor"
-import type { MergePayload } from "./bullet-merge"
-import { FixesRail } from "./fixes-rail"
+import { masterFilename } from "@/lib/cv/download-master"
 import { SkillsRail } from "./skills-rail"
-import { V2Sheet } from "./preview-rail"
-import { PlaygroundBottomNav } from "./playground-bottomnav"
+import { PdfPage } from "./pdf-page"
 import { PlaygroundHeader } from "./playground-header"
+import { WorkstationShell } from "./workstation-shell"
+import { runAtsChecks } from "./ats-checks"
+import { identityLines } from "./cv-identity-lines"
+import { rewriteFetcher } from "./rewrite-fetchers"
 import { usePlaygroundModel } from "./use-playground-model"
 import { useDismissedFixes } from "./use-dismissed-fixes"
-import type { AppliedFix, V2Fix } from "./fix-model"
-
-type MasterTab = "edit" | "fixes" | "skills" | "preview"
 
 // Master CV has no per-job projection — every line renders.
 const NO_HIDDEN: Set<string> = new Set()
@@ -56,22 +53,19 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
   const userKey = profile?.ninja_name?.trim() || profile?.email?.trim() || "anon"
   const autosave = useMasterAutosave({ token, enabled: true, userKey, seed: cv })
   const searchParams = useSearchParams()
-  // Deep-link: ?tab=skills opens straight on the Skills rail (the skill-audit home).
-  const initialTab: MasterTab = searchParams.get("tab") === "skills" ? "skills" : "edit"
+  // Deep links into this surface: the skill audit lands on Skills, and a score-map
+  // "rewrite the line that proves this skill" lands ON that line.
+  const initialRailTab = searchParams.get("tab") === "skills" ? "skills" as const : "fixes" as const
   const requestedMentorSkill = searchParams.get("mentor") === "1" ? searchParams.get("skill") : null
   const requestedProvenSkill = searchParams.get("addProven") === "1" ? searchParams.get("skill") : null
   const fromScoreMap = searchParams.get("from") === "score-map"
   const scoreDomain = fromScoreMap ? searchParams.get("domain") : null
   const scoreSkill = fromScoreMap ? searchParams.get("skill") : null
-  const [tab, setTab] = useState<MasterTab>(initialTab)
-  const [expandedFixId, setExpandedFixId] = useState<string | null>(null)
-  const [appliedFixes, setAppliedFixes] = useState<AppliedFix[]>([])
-  const [flash, setFlash] = useState<{ iid: string; n: number } | null>(null)
   const [addingProven, setAddingProven] = useState(false)
   const [provenStatus, setProvenStatus] = useState<string | null>(null)
-  const [rewriteTarget, setRewriteTarget] = useState<RewriteTarget | null>(null)
-  const [mentorResolved, setMentorResolved] = useState(false)
+  const [mentorIid, setMentorIid] = useState<string | null>(null)
   const [mentorMiss, setMentorMiss] = useState(false)
+  const mentorResolved = useRef(false)
   const provenHandoffHandled = useRef(false)
 
   const scoreQuery = useQuery({
@@ -96,33 +90,16 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
     mode: "master",
     masterScore: myroScore,
   })
+  const { dismissed } = useDismissedFixes("master")
 
-  useEffect(() => {
-    if (!requestedMentorSkill || mentorResolved || !skillsQuery.isSuccess) return
-    const target = mentorRewriteTarget(draft, allSkills, requestedMentorSkill)
-    setMentorResolved(true)
-    if (target) {
-      setTab("edit")
-      setRewriteTarget(target)
-    } else {
-      setMentorMiss(true)
-    }
-  }, [allSkills, draft, mentorResolved, requestedMentorSkill, skillsQuery.isSuccess])
-
-  const openFixIds = useMemo(() => new Set(m.openFixes.map(f => f.id)), [m.openFixes])
-  const appliedShown = appliedFixes.filter(a => !openFixIds.has(a.id))
-  const railTab: "fixes" | "skills" = tab === "skills" ? "skills" : "fixes"
-
-  const { dismissed, dismiss, restore } = useDismissedFixes("master")
-  const visibleFixes = useMemo(
-    () => m.openFixes.filter(f => !dismissed.has(f.id)),
-    [m.openFixes, dismissed],
+  const filename = useMemo(
+    () => masterFilename(draft.contact?.name ?? profile?.full_name ?? null),
+    [draft.contact?.name, profile?.full_name],
   )
-  const dismissedFixes = useMemo(
-    () => m.openFixes.filter(f => dismissed.has(f.id)),
-    [m.openFixes, dismissed],
+  const atsChecks = useMemo(
+    () => runAtsChecks(draft, profile, filename),
+    [draft, profile, filename],
   )
-  const fixCountLabel = visibleFixes.length > 0 ? String(visibleFixes.length) : "✓"
 
   const onPatch = useCallback(
     (mut: (d: CVStructured) => CVStructured) =>
@@ -132,7 +109,7 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
 
   // Add proven-but-missing skills to the line, inline — no modal. The proposal
   // keeps every existing skill and only reorders + appends proven ones, so the
-  // live textarea update above IS the review (retype to undo; autosave persists).
+  // live textarea update IS the review (retype to undo; autosave persists).
   const addProvenToLine = useCallback(async (focusSkill?: string | null) => {
     if (addingProven) return
     setAddingProven(true); setProvenStatus(null)
@@ -151,16 +128,25 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
     }
   }, [addingProven, onPatch, token])
 
+  // Resolve the deep-linked skill to the CV line that proves it. A miss is said
+  // out loud — silently landing on the wrong line is worse than saying we can't.
+  useEffect(() => {
+    if (!requestedMentorSkill || mentorResolved.current || !skillsQuery.isSuccess) return
+    mentorResolved.current = true
+    const target = mentorRewriteTarget(draft, allSkills, requestedMentorSkill)
+    if (target) setMentorIid(target.iid)
+    else setMentorMiss(true)
+  }, [allSkills, draft, requestedMentorSkill, skillsQuery.isSuccess])
+
   useEffect(() => {
     if (!requestedProvenSkill || provenHandoffHandled.current) return
     provenHandoffHandled.current = true
-    setTab("skills")
     void addProvenToLine(requestedProvenSkill)
   }, [addProvenToLine, requestedProvenSkill])
 
-  // A bullet rewrite / inline edit targets one line by its exact text (the same
+  // A rewrite or inline edit targets one line by its exact text (the same
   // text-identity the playground uses). First occurrence wins.
-  function applyText(oldText: string, newText: string) {
+  const applyText = useCallback((oldText: string, newText: string) => {
     onPatch(d => {
       for (const e of d.experience) {
         const i = e.bullets.indexOf(oldText)
@@ -174,42 +160,7 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
       else if (d.skills_line === oldText) d.skills_line = newText
       return d
     })
-  }
-  function addBullet(roleIndex: number, text: string) {
-    onPatch(d => {
-      const ri = d.experience[roleIndex] ? roleIndex : d.experience.length - 1
-      if (ri >= 0) d.experience[ri].bullets.push(text)
-      return d
-    })
-  }
-  // No baseline round-trip on the master surface (unlike the tailored playground's
-  // mergeBulletApply) — a plain structural collapse of the living-master draft,
-  // same cheap PUT /cv/master path every other master edit uses.
-  function applyMerge(payload: MergePayload) {
-    onPatch(d => {
-      const list = payload.section === "exp_bullet" ? d.experience : d.projects
-      const item = list[payload.itemIndex]
-      if (!item) return d
-      const lo = Math.min(payload.bulletIndexA, payload.bulletIndexB)
-      const hi = Math.max(payload.bulletIndexA, payload.bulletIndexB)
-      item.bullets[lo] = payload.mergedText
-      item.bullets.splice(hi, 1)
-      return d
-    })
-  }
-
-  function jumpTo(iid: string) { setFlash(prev => ({ iid, n: (prev?.n ?? 0) + 1 })) }
-  function openFixCard(fix: V2Fix) { restore(fix.id); setTab("fixes"); setExpandedFixId(fix.id); jumpTo(fix.iid) }
-  function dismissFix(fix: V2Fix) {
-    if (expandedFixId === fix.id) setExpandedFixId(null)
-    dismiss(fix.id, openFixIds)
-  }
-  function applyFixRewrite(fix: V2Fix, oldText: string, newText: string) {
-    applyText(oldText, newText)
-    setAppliedFixes(p => p.some(a => a.id === fix.id) ? p
-      : [...p, { id: fix.id, iid: fix.iid, kind: fix.kind, title: fix.title, gain: fix.gain }])
-    setExpandedFixId(null)
-  }
+  }, [onPatch])
 
   const saveState =
     autosave.status === "saving" ? "Saving…"
@@ -218,142 +169,96 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
     : autosave.status === "saved" ? "Saved" : ""
 
   return (
-    <div className="cvb-v2" data-tab={tab}>
-      <PlaygroundHeader
-        variant="master"
-        masterMeta={baseline ? `v${baseline.user_version_number} · autosaves` : "autosaves"}
-        jobTitle="" company="Untitled company" reqCount={0}
-        // Nothing is scored until the extraction is confirmed, so during first
-        // run the meter has no number to show. Rendering the default 0 would
-        // hand the user a Myro Score of zero on the screen whose whole job is
-        // to be honest about what we can back.
-        ready={m.ready}
-        delta={0}
-        canApply
-        primaryLabel="Done"
-        applyHint="Back to your CV library"
-        saveState={saveState}
-        hideOverflow
-        onBack={onDone}
-        onReqPill={() => {}}
-        onApply={onDone}
-        onDownload={onDone}
-      />
-
-      {mentorMiss ? (
-        <div className="cvb-pgc-err" role="alert">
-          Mentor needs a CV bullet that shows this skill before it can rewrite it.
-          <Button variant="neutral" size="sm" onClick={() => { setMentorMiss(false); setTab("skills") }}>
-            Review CV proof
-          </Button>
+    <WorkstationShell
+      initialRailTab={initialRailTab}
+      requestOpenIid={mentorIid}
+      header={
+        <>
+        <PlaygroundHeader
+          variant="master"
+          masterMeta={baseline ? `v${baseline.user_version_number} · autosaves` : "autosaves"}
+          jobTitle="" company="Untitled company" reqCount={0}
+          ready={m.ready}
+          delta={0}
+          canApply
+          primaryLabel="Done"
+          applyHint="Back to your CV library"
+          saveState={saveState}
+          hideOverflow
+          onBack={onDone}
+          onReqPill={() => {}}
+          onApply={onDone}
+          onDownload={onDone}
+        />
+        {mentorMiss && (
+          <div className="cvb-pgc-err" role="alert">
+            Mentor needs a CV line that shows this skill before it can rewrite it.
+            <Button variant="neutral" size="sm" onClick={() => setMentorMiss(false)}>Got it</Button>
+          </div>
+        )}
+        </>
+      }
+      railLabel="CV quality"
+      cv={draft}
+      identity={identityLines(draft, profile)}
+      hidden={NO_HIDDEN}
+      targeted={false}
+      atsChecks={atsChecks}
+      pageFill={m.pageFill}
+      lineCount={m.visibleCount}
+      wordCount={m.wordCount}
+      dismissed={dismissed}
+      makeFetcher={(bullet, quantifyOnly) =>
+        rewriteFetcher.authed(token, bullet, draft.contact?.title ?? null, quantifyOnly)}
+      onApplyRewrite={({ oldText, newText }) => applyText(oldText, newText)}
+      onEditLine={applyText}
+      onPatch={onPatch}
+      identityEditable
+      userSkills={skillsQuery.data}
+      onAddBullet={(roleIndex, text) => onPatch(d => {
+        const ri = d.experience[roleIndex] ? roleIndex : d.experience.length - 1
+        if (ri >= 0) d.experience[ri].bullets.push(text)
+        return d
+      })}
+      skillsLabel="Skills"
+      skillsPane={
+        <SkillsRail
+          token={token}
+          skillsLine={draft.skills_line}
+          onSkillsLineChange={value => onPatch(d => ({ ...d, skills_line: value }))}
+          onAddProven={() => addProvenToLine()}
+          addingProven={addingProven}
+          provenStatus={provenStatus}
+          allSkills={allSkills}
+          focusSkill={scoreSkill ?? requestedProvenSkill}
+          scoreDomain={scoreDomain}
+          fromScoreMap={fromScoreMap}
+          onSkillsChanged={() => {
+            void skillsQuery.refetch()
+            void scoreQuery.refetch()
+          }}
+        />
+      }
+      railFooter={
+        <Button variant="neutral" size="sm" onClick={onDone}>Back to CV library</Button>
+      }
+      sheet={
+        <div className="cvb-scope">
+          <PdfPage
+            cv={draft}
+            hidden={NO_HIDDEN}
+            contact={{
+              name: identityLines(draft, profile).name,
+              title: draft.contact?.title?.trim() || draft.experience[0]?.role || "",
+              location: draft.contact?.location?.trim() || "",
+              email: draft.contact?.email?.trim() || profile?.email || "",
+              phone: draft.contact?.phone?.trim() || "",
+              linkedin: draft.contact?.linkedin?.trim() || profile?.linkedin_url || "",
+            }}
+            footerMarkHidden={baseline?.footer_mark_hidden ?? false}
+          />
         </div>
-      ) : null}
-
-      <div className="cvb-v2-main">
-        <section className="cvb-v2-editor" aria-label="Your Main CV">
-          <div className="cvb-v2-toolbar">
-            <button
-              type="button"
-              className={`cvb-v2-tabbtn wide${tab === "preview" ? " active" : ""}`}
-              onClick={() => setTab(tab === "preview" ? "edit" : "preview")}
-            >Preview</button>
-            <span className="cvb-v2-toolbar-label mono">Your Main CV</span>
-            <span className="cvb-v2-headspacer" aria-hidden />
-          </div>
-          <div className="cvb-v2-editorbody">
-            {tab === "preview" ? (
-              <div className="cvb-v2-railpane">
-                <p className="cvb-v2-rail-lede">
-                  {m.pageFill.fits ? "Fits one page." : `Spills onto ${m.pageFill.pages} pages.`}{" "}
-                  This is the sheet a recruiter reads.
-                </p>
-                <V2Sheet cv={draft} hidden={NO_HIDDEN} contact={m.sheetContact} />
-              </div>
-            ) : (
-              <CVEditor
-                token={token}
-                cv={draft}
-                profile={profile}
-                hiddenItems={NO_HIDDEN}
-                toggleItem={() => {}}
-                targets={[]}
-                missingKeywords={[]}
-                applying={false}
-                onApply={applyText}
-                onMergeApply={applyMerge}
-                mergeApplying={false}
-                onAddBullet={addBullet}
-                addingBullet={false}
-                visibleCount={m.visibleCount}
-                wordCount={m.wordCount}
-                rewriteTarget={rewriteTarget}
-                onClearRewriteTarget={() => setRewriteTarget(null)}
-                fixes={visibleFixes}
-                applied={appliedShown}
-                onFixPill={openFixCard}
-                dismissedFixIds={dismissed}
-                flash={flash}
-                master={{ onPatch }}
-              />
-            )}
-          </div>
-        </section>
-
-        <aside className="cvb-v2-rail" aria-label="CV quality">
-          <div className="cvb-v2-railtabs">
-            <button
-              type="button"
-              className={`cvb-v2-tabbtn${railTab === "fixes" ? " active" : ""}`}
-              onClick={() => setTab("fixes")}
-            >Fixes · {fixCountLabel}</button>
-            <button
-              type="button"
-              className={`cvb-v2-tabbtn${railTab === "skills" ? " active" : ""}`}
-              onClick={() => setTab("skills")}
-            >Skills</button>
-          </div>
-          <div className="cvb-v2-railbody">
-            {railTab === "fixes" ? (
-              <FixesRail
-                token={token}
-                fixes={visibleFixes}
-                applied={appliedShown}
-                dismissed={dismissedFixes}
-                delta={0}
-                expandedId={expandedFixId}
-                applying={false}
-                hideGain
-                onExpand={f => setExpandedFixId(f?.id ?? null)}
-                onJump={jumpTo}
-                onApply={applyFixRewrite}
-                onDismiss={dismissFix}
-                onRestore={f => restore(f.id)}
-                onGoPreview={() => setTab("preview")}
-                onOpenIntake={() => setTab("skills")}
-              />
-            ) : (
-              <SkillsRail
-                token={token}
-                skillsLine={draft.skills_line}
-                onSkillsLineChange={value => onPatch(d => ({ ...d, skills_line: value }))}
-                onAddProven={() => addProvenToLine()}
-                addingProven={addingProven}
-                provenStatus={provenStatus}
-                allSkills={allSkills}
-                focusSkill={scoreSkill ?? requestedProvenSkill}
-                scoreDomain={scoreDomain}
-                fromScoreMap={fromScoreMap}
-                onSkillsChanged={() => {
-                  void skillsQuery.refetch()
-                  void scoreQuery.refetch()
-                }}
-              />
-            )}
-          </div>
-        </aside>
-      </div>
-
-      <PlaygroundBottomNav tab={tab} fixCountLabel={fixCountLabel} onTab={setTab} />
-    </div>
+      }
+    />
   )
 }

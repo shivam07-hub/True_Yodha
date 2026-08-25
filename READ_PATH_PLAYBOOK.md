@@ -70,9 +70,9 @@ explain (analyze, buffers) <the exact query, including its ORDER BY and LIMIT>;
 Never conclude "there's an index on that column" from `pg_indexes`. **Read
 which index the plan names.** Check `Heap Fetches` and `Buffers: read` vs `hit`.
 
-### 4. Check the four traps
+### 4. Check the five traps
 
-This codebase has been bitten by each. Check all four before writing code.
+This codebase has been bitten by each. Check all five before writing code.
 
 | Trap | Signature | Real example |
 |---|---|---|
@@ -80,11 +80,50 @@ This codebase has been bitten by each. Check all four before writing code.
 | **Expression index ≠ column** | Same, on a `coalesce(...)` index | `idx_jobs_job_title_trgm` on `coalesce(job_title,'')`; querying the bare column. **6,972ms → 265ms** |
 | **Sequential round trips** | Total DB time ≪ endpoint time | `/jobs/matches`: ~35ms of DB work, 1,242ms endpoint. Six sequential hops |
 | **Payload weight** | Fast query, slow response | `job_description` was **59.8%** of `/jobs/matches` — and every consumer truncated it anyway |
+| **RLS defeats the partial index** | Plan is clean as `service_role`, awful as `authenticated` | `count_new_jobs_for_user`: **18ms → 8,740ms**, same query, same rows |
 
 **The tell for trap 3:** add up the EXPLAIN times. If they total far less than
 the endpoint's `x-process-time`, you are paying round trips, not query cost.
 This path's floor is **~165ms per round trip** — cost tracks *payload size*,
 not hop count (a 2-hop `/scores/me` is 216ms; a 1-hop `/cv/versions` is 281ms).
+
+### 4b. EXPLAIN AS THE ROLE THE APP USES
+
+Trap 5 is the one you cannot see from a normal psql session, and it cost two
+wrong diagnoses on 2026-08-24 before anyone ran the right EXPLAIN.
+
+The policy on `public.jobs` is
+
+```sql
+((listing_confidence = 'active' AND is_active IS TRUE)
+  OR created_by_user_id = auth.uid())
+```
+
+`idx_jobs_trusted_ingested_at` is PARTIAL on the first branch. The planner
+cannot reach a partial index through an OR whose other branch can match rows
+outside its predicate, so it falls back to a BitmapOr and rechecks every
+candidate from the heap. A clean plan as `service_role` proves **nothing** about
+a token-client endpoint.
+
+```sql
+begin;
+select set_config('request.jwt.claims',
+                  '{"sub":"<user-uuid>","role":"authenticated"}', true);
+set local role authenticated;
+explain (analyze, buffers) <the exact query>;
+rollback;
+```
+
+**The fix, when it applies:** mark the function `security definer` — but ONLY
+when the function's own WHERE clause already IS the policy's public branch, so
+the result set is provably identical and only the plan changes. Prove it by
+running the count both ways and comparing. A definer function also needs a
+caller guard, or it becomes an oracle for whatever it takes as a parameter.
+Template: `database/migrations/20260824090000_new_inventory_count_security_definer.sql`.
+
+⚠️ **Unaudited:** 16 invoker functions over `public.jobs` are callable by
+`authenticated`. One measured so far — `list_role_families`, **8,448ms authed
+vs 1,262ms service**.
 
 ### 5. Instrument fan-outs before optimising one
 

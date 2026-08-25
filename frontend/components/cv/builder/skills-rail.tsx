@@ -109,10 +109,9 @@ export function SkillsRail({
       )}
 
       <>
-        <p className="cvb-v2-rail-lede">
-          Your skills line — comma-separated, most relevant first. It shows on the CV
-          and helps ATS keyword matching.
-        </p>
+        {/* No lede. The field is a comma-separated list and the placeholder
+            says so; a paragraph explaining a textarea is the instructional
+            prose the hierarchy redesign deletes on every surface (§2). */}
         <textarea
           className="cvb-pgc-edit"
           rows={5}

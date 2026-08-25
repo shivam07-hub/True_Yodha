@@ -78,7 +78,7 @@ def test_record_route_perf_requires_auth(patch_admin) -> None:
 def test_record_route_perf_accepts_minimal_payload(authed_client) -> None:
     client, chain = authed_client
     res = client.post("/v1/telemetry/route-perf", json={"route": "/home", "ttfa_ms": 800})
-    assert res.status_code == 201
+    assert res.status_code == 202
     assert res.json() == {"ok": True}
     assert chain.inserted is not None
     assert chain.inserted["route"] == "/home"
@@ -99,7 +99,7 @@ def test_record_route_perf_accepts_full_payload(authed_client) -> None:
         "session_id": "sess-xyz",
     }
     res = client.post("/v1/telemetry/route-perf", json=payload)
-    assert res.status_code == 201
+    assert res.status_code == 202
     assert chain.inserted["tti_cc_ms"] == 1800
     assert chain.inserted["viewport"] == "390x844"
     assert chain.inserted["cls"] == 0.03
@@ -132,7 +132,7 @@ def test_record_cv_upload_phase_event(authed_client, monkeypatch: pytest.MonkeyP
         "route": "/cv",
     }
     res = client.post("/v1/telemetry/cv-upload-phase", json=payload)
-    assert res.status_code == 201
+    assert res.status_code == 202
     assert res.json()["ok"] is True
     assert chain.inserted is not None
     assert chain.inserted["phase"] == "put"
@@ -162,3 +162,59 @@ def test_cv_upload_event_count_uses_supabase_compatible_count_query(monkeypatch:
     assert chain.filters["phase"] == "parse"
     assert chain.filters["outcome"] == "failed"
     assert chain.filters["limit"] == 1
+
+
+# --- Telemetry must not sit on the response path -----------------------------
+#
+# Inline, `POST /v1/telemetry/cv-upload-phase` measured 3,806-4,339ms on prod
+# and landed in the same alert window as the `/cv/upload/finalize` it reports
+# on. A failed phase cost three sequential round trips. These two tests fail if
+# any of that work moves back in front of the response.
+
+
+def test_cv_upload_phase_defers_every_read_and_write_to_background() -> None:
+    from fastapi import BackgroundTasks
+
+    calls: list[str] = []
+    tasks = BackgroundTasks()
+    payload = telemetry_module.CVUploadPhasePayload(phase="put", outcome="failed")
+
+    original = telemetry_module.get_supabase_admin
+    telemetry_module.get_supabase_admin = lambda: calls.append("db") or original()  # type: ignore[assignment]
+    try:
+        result = telemetry_module.record_cv_upload_phase(
+            payload=payload,
+            background_tasks=tasks,
+            principal=CurrentUser(id="u-test", email=None, token="tok"),
+        )
+    finally:
+        telemetry_module.get_supabase_admin = original  # type: ignore[assignment]
+
+    assert result == {"ok": True}
+    assert calls == [], "handler touched the database before answering"
+    assert len(tasks.tasks) == 1, "the write was not deferred to a background task"
+    assert tasks.tasks[0].func is telemetry_module._persist_cv_upload_phase
+
+
+def test_route_perf_defers_its_write_to_background() -> None:
+    from fastapi import BackgroundTasks
+
+    calls: list[str] = []
+    tasks = BackgroundTasks()
+    payload = telemetry_module.RoutePerfPayload(route="/home", ttfa_ms=800)
+
+    original = telemetry_module.get_supabase_admin
+    telemetry_module.get_supabase_admin = lambda: calls.append("db") or original()  # type: ignore[assignment]
+    try:
+        result = telemetry_module.record_route_perf(
+            payload=payload,
+            background_tasks=tasks,
+            principal=CurrentUser(id="u-test", email=None, token="tok"),
+        )
+    finally:
+        telemetry_module.get_supabase_admin = original  # type: ignore[assignment]
+
+    assert result == {"ok": True}
+    assert calls == []
+    assert len(tasks.tasks) == 1
+    assert tasks.tasks[0].func is telemetry_module._persist_route_perf

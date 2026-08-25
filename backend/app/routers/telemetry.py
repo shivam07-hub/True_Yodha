@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 import logging
 from typing import Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 from pydantic import BaseModel
 
 from app.config import settings
@@ -40,13 +40,9 @@ class CVUploadPhasePayload(BaseModel):
     network_type: str | None = None
 
 
-@router.post("/route-perf", status_code=201)
-def record_route_perf(
-    payload: RoutePerfPayload,
-    principal: Principal = Depends(get_principal),
-) -> dict:
+def _persist_route_perf(payload: RoutePerfPayload, user_id: str) -> None:
     get_supabase_admin().table("route_perf_events").insert({
-        "user_id": principal.id,
+        "user_id": user_id,
         "route": payload.route,
         "ttfa_ms": payload.ttfa_ms,
         "tti_cc_ms": payload.tti_cc_ms,
@@ -57,6 +53,21 @@ def record_route_perf(
         "session_id": payload.session_id,
         "occurred_at": datetime.now(timezone.utc).isoformat(),
     }).execute()
+
+
+@router.post("/route-perf", status_code=202)
+def record_route_perf(
+    payload: RoutePerfPayload,
+    background_tasks: BackgroundTasks,
+    principal: Principal = Depends(get_principal),
+) -> dict:
+    """Accept the measurement and answer; write it after the response.
+
+    A telemetry beacon must not lengthen the journey it measures. Both callers
+    fire-and-forget (`fetch(...).catch(() => {})`, `keepalive: true`) and read
+    nothing from the body, so 202 is the honest code: accepted, not yet stored.
+    """
+    background_tasks.add_task(_persist_route_perf, payload, principal.id)
     return {"ok": True}
 
 
@@ -116,14 +127,10 @@ def _maybe_emit_cv_upload_alert(payload: CVUploadPhasePayload) -> bool:
     return False
 
 
-@router.post("/cv-upload-phase", status_code=201)
-def record_cv_upload_phase(
-    payload: CVUploadPhasePayload,
-    principal: Principal = Depends(get_principal),
-) -> dict:
+def _persist_cv_upload_phase(payload: CVUploadPhasePayload, user_id: str) -> None:
     now = datetime.now(timezone.utc).isoformat()
     get_supabase_admin().table("cv_upload_phase_events").insert({
-        "user_id": principal.id,
+        "user_id": user_id,
         "phase": payload.phase,
         "outcome": payload.outcome,
         "attempt": payload.attempt,
@@ -139,5 +146,26 @@ def record_cv_upload_phase(
         "network_type": payload.network_type,
         "occurred_at": now,
     }).execute()
-    alert_triggered = _maybe_emit_cv_upload_alert(payload)
-    return {"ok": True, "alert_triggered": alert_triggered}
+    _maybe_emit_cv_upload_alert(payload)
+
+
+@router.post("/cv-upload-phase", status_code=202)
+def record_cv_upload_phase(
+    payload: CVUploadPhasePayload,
+    background_tasks: BackgroundTasks,
+    principal: Principal = Depends(get_principal),
+) -> dict:
+    """Accept the phase event and answer; write and evaluate it afterwards.
+
+    This ran inline and measured 3,806-4,339ms on prod (2026-08-22 and 08-23,
+    ARCHITECTURE_READ_PATH.md S16), landing in the same alert window as the
+    `POST /cv/upload/finalize` it reports on — 3,554ms and 4,101ms. A failed
+    phase cost THREE sequential round trips: the insert, then two `count=exact`
+    reads inside `_maybe_emit_cv_upload_alert`. The browser never waited on any
+    of it (the caller ignores the response), but the request held a slot in the
+    read bulkhead at the exact moment the user's upload needed one.
+
+    The alert still fires; it fires off the response path.
+    """
+    background_tasks.add_task(_persist_cv_upload_phase, payload, principal.id)
+    return {"ok": True}

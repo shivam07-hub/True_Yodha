@@ -295,7 +295,11 @@ test("adding into a slot needs no inference and no LLM turn", () => {
   // an LLM turn re-deriving something the click already said.
   const group = read("components/preflight/slot-group.tsx")
   assert.match(group, /onAdd\(copy\.addKind, text\)/)
-  assert.match(gate, /addLine\.mutateAsync\(\{ kind, text, origin: "preflight" \}\)/)
+  // `role_family` rides along from the corpus picker (see
+  // target-role-picker-contract). What must not appear is a proposals round
+  // trip — the click already said the kind.
+  assert.match(gate, /addLine\.mutateAsync\(\{ kind, text, origin: "preflight"/)
+  assert.doesNotMatch(gate, /proposals[\s\S]{0,120}addToSlot/)
   assert.doesNotMatch(
     gate.slice(gate.indexOf("const addToSlot"), gate.indexOf("// ── run")),
     /preflight\.proposals/,

@@ -47,8 +47,11 @@ def test_ops_payload_carries_only_kept_lines():
     body = payload.project(order)
     assert body["deal_breakers"] == ["Large corporations"]
     assert body["lean"] == ["Corporate functions"]
-    # An unanswered goal is not a goal.
-    assert body["career_goal"] is None
+    # An unanswered goal is not a goal — and it is not a CLEARED goal either.
+    # This asserted `is None` until 2026-08-25, which is the destructive
+    # behaviour itself: `None` reached `update_profile` and NULLed a stored
+    # career_goal the user had never answered. Absent omits the key.
+    assert "career_goal" not in body
     for value in ("Data scientist", "Consultative", "Senior IC", "Staff engineer"):
         assert value not in str(body)
 

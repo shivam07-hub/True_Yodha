@@ -39,6 +39,81 @@ _ALERT_COOLDOWN_SECONDS = 1800.0
 _slow_events: deque[tuple[float, str, str, float]] = deque()
 _last_alert_at = 0.0
 
+# The sample used to be `list(_slow_events)[-8:]` — "most recent". That is a
+# ranking function nobody designed: whatever fires most often takes every slot.
+# Over 2026-08-14..24, `POST /partner/v1/sso/session` was 170 of 613 alert lines
+# (27.7%) in runs of 4-6 per window, for a partner with a handful of users. Nine
+# windows were 100% SSO, and on each of them a stage-one route was also slow and
+# never reached the email. ARCHITECTURE_READ_PATH.md S16 P0.
+#
+# So the sample is stratified: every stage that contributed is represented, and
+# a loud stage can occupy at most `_SAMPLE_PER_STAGE` slots. Ordered — first
+# matching prefix wins, most specific first. `/jobs/companies/*` is public SEO
+# and must be classified before the `/jobs` catch-all; `/jobs/feed` is arrival
+# and must be classified before it too.
+_JOURNEY_STAGES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("partner", ("/partner",)),
+    ("public", ("/public", "/companies", "/jobs/companies", "/comments", "/robots", "/sitemap")),
+    (
+        "funnel",
+        ("/auth", "/cv", "/onboarding", "/roles", "/scores", "/profile",
+         "/users/me", "/jobs/feed", "/v1/telemetry"),
+    ),
+    ("market", ("/jobs", "/home", "/upskilling", "/diary", "/skills", "/notifications",
+                "/preflight", "/mentor", "/users")),
+)
+_SAMPLE_PER_STAGE = 3
+
+# Ranked by how close the stage sits to the goal in CLAUDE.md — understand the
+# platform, download the CV. The email leads with the stage that matters most,
+# not the one that shouted loudest.
+_STAGE_ORDER = ("funnel", "public", "market", "partner", "other")
+
+
+def _stage_of(path: str) -> str:
+    """Which journey stage a path belongs to. First matching prefix wins."""
+    for stage, prefixes in _JOURNEY_STAGES:
+        if any(path.startswith(prefix) for prefix in prefixes):
+            return stage
+    return "other"
+
+
+def _stratified_sample(events: list[tuple[float, str, str, float]]) -> str:
+    """Up to `_SAMPLE_PER_STAGE` SLOWEST lines per stage, funnel first.
+
+    Two guarantees, and they are different. Stratifying by stage keeps a stage
+    that contributed one slow request visible next to a stage that contributed
+    forty. Ranking by duration inside the stage keeps the worst line visible: a
+    120s window carries almost no information in recency and a great deal in
+    magnitude, and "most recent" hid an 8,322ms `/roles/families` behind a
+    1,441ms `/roles/family-locations` in the real 2026-08-18 window.
+    """
+    grouped: dict[str, list[tuple[float, str, str]]] = {}
+    counts: dict[str, int] = {}
+    for _, method, path, elapsed in events:
+        stage = _stage_of(path)
+        counts[stage] = counts.get(stage, 0) + 1
+        grouped.setdefault(stage, []).append((elapsed, method, path))
+
+    by_stage: dict[str, list[str]] = {
+        stage: [
+            f"  {method} {path} {elapsed:.0f}ms"
+            for elapsed, method, path in sorted(rows, key=lambda r: -r[0])[:_SAMPLE_PER_STAGE]
+        ]
+        for stage, rows in grouped.items()
+    }
+
+    blocks: list[str] = []
+    for stage in _STAGE_ORDER:
+        if stage not in by_stage:
+            continue
+        total = counts[stage]
+        shown = len(by_stage[stage])
+        header = f"{stage} ({total} slow"
+        header += f", showing {shown}):" if shown < total else "):"
+        blocks.append(header + "\n" + "\n".join(by_stage[stage]))
+    return "\n".join(blocks)
+
 
 def _maybe_alert_saturation(method: str, path: str, elapsed_ms: float) -> None:
     """Fire-and-forget email when slow requests cluster into a burst. Never
@@ -64,14 +139,21 @@ def _maybe_alert_saturation(method: str, path: str, elapsed_ms: float) -> None:
             return
 
         _last_alert_at = now  # claim before dispatch — never double-fire concurrently
-        sample = "\n".join(
-            f"  {m} {p} {t:.0f}ms" for _, m, p, t in list(_slow_events)[-8:]
-        )
+        events = list(_slow_events)
+        sample = _stratified_sample(events)
         body = (
-            f"{len(_slow_events)} requests over {SLOW_REQUEST_MS:.0f}ms in the last "
-            f"{_ALERT_WINDOW_SECONDS:.0f}s. Most recent:\n{sample}"
+            f"{len(events)} requests over {SLOW_REQUEST_MS:.0f}ms in the last "
+            f"{_ALERT_WINDOW_SECONDS:.0f}s, by journey stage:\n{sample}"
         )
-        _logger.warning("metric saturation.alert_fired count=%d", len(_slow_events))
+        stage_counts: dict[str, int] = {}
+        for _, _, path, _ in events:
+            stage = _stage_of(path)
+            stage_counts[stage] = stage_counts.get(stage, 0) + 1
+        _logger.warning(
+            "metric saturation.alert_fired count=%d stages=%s",
+            len(events),
+            ",".join(f"{k}={stage_counts[k]}" for k in _STAGE_ORDER if k in stage_counts),
+        )
 
         def _send() -> None:
             from app.services.email_service import send_email

@@ -24,8 +24,12 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from app.services.preflight.lines import Order, OrderLine, _norm_key
+from app.services.preflight import normalise
+from app.services.preflight.spec import EMPTY, SLOT_ARITY, SLOT_KINDS, presence_of, slot_for
 
-ConflictKind = Literal["arity", "contradiction"]
+__all__ = ["SLOT_ARITY", "SLOT_KINDS", "resolve", "project", "client_report", "run_summary"]
+
+ConflictKind = Literal["arity", "contradiction", "value_clash"]
 
 _RELOCATE = re.compile(
     r"\b(relocate|relocating|relocation|willing to move|open to mov|"
@@ -33,23 +37,6 @@ _RELOCATE = re.compile(
     re.I,
 )
 
-SLOT_ARITY: dict[str, int] = {
-    "target_role_titles": 6,
-    "target_location": 1,
-    "deal_breakers": 6,
-    "lean": 6,
-    "career_goal": 1,
-    "superpower": 1,
-}
-
-_SLOT_KINDS: dict[str, tuple[str, ...]] = {
-    "target_role_titles": ("role",),
-    "target_location": ("location",),
-    "deal_breakers": ("wont_take", "pay_floor"),
-    "lean": ("lean",),
-    "career_goal": ("goal",),
-    "superpower": ("strength",),
-}
 
 
 @dataclass(frozen=True)
@@ -90,13 +77,10 @@ class ResolveResult:
     used_line_ids: tuple[str, ...]
     conflicts: tuple[Conflict, ...]
     slots: tuple[Slot, ...]
-
-
-def _slot_for(line: OrderLine) -> str | None:
-    for slot, kinds in _SLOT_KINDS.items():
-        if line.kind in kinds:
-            return slot
-    return None
+    #: Kept lines that file to no slot. Reported so the screen can still show
+    #: them — a line that vanishes because Myro reclassified it is the data loss
+    #: this whole pass exists to stop.
+    facts: tuple[str, ...] = ()
 
 
 def _slot_text(line: OrderLine) -> str:
@@ -118,7 +102,7 @@ def _dedupe(lines: list[OrderLine]) -> list[OrderLine]:
     kept: list[OrderLine] = []
     seen: set[tuple[str, str]] = set()
     for line in lines:
-        slot = _slot_for(line)
+        slot = slot_for(line)
         key = _norm_key(_slot_text(line))
         if slot is None or not key:
             continue
@@ -153,9 +137,11 @@ def _contradictions(lines: list[OrderLine]) -> list[Conflict]:
         )
 
     for wont_line in wont:
-        key = _norm_key(wont_line.text)
         for lean in leans:
-            if _norm_key(lean.text) == key:
+            # Exact text was the only test until 2026-08-25, so prod held
+            # "Avoids large corporations" and "Prefers large or established
+            # companies" as kept lines in one spec and said nothing.
+            if normalise.overlap(wont_line.text, lean.text) >= _SAME_SUBJECT:
                 add(wont_line, lean, "deal_breakers")
 
     for location in locations:
@@ -165,27 +151,54 @@ def _contradictions(lines: list[OrderLine]) -> list[Conflict]:
     return out
 
 
+#: Jaccard at or above this means two statements are about the same subject.
+_SAME_SUBJECT = 0.5
+
+#: Dimensions that can only hold one value, whatever the arity of the slot they
+#: file into. A second pay floor is not a second exclusion — it is the same
+#: question answered twice, and prod holds "more than 30 lakhs" beside "Pay
+#: floor \u20b945L total comp".
+_SINGLE_VALUED: tuple[str, ...] = ("pay_floor",)
+
+
+def _value_clashes(lines: list[OrderLine]) -> list[Conflict]:
+    """One question per single-valued dimension answered more than one way."""
+    out: list[Conflict] = []
+    for kind in _SINGLE_VALUED:
+        group = [line for line in lines if line.kind == kind]
+        if len(group) < 2:
+            continue
+        slot = slot_for(group[0])
+        out.append(
+            Conflict(
+                slot=slot or "deal_breakers",
+                kind="value_clash",
+                line_ids=tuple(line.id for line in group),
+                texts=tuple(line.text for line in group),
+            )
+        )
+    return out
+
+
 def resolve(order: Order) -> ResolveResult:
-    """Order → six-slot spec plus the decisions the user still has to make."""
-    unique = _dedupe(list(order.kept()))
-    conflicts = _contradictions(unique)
+    """Order → six-slot spec plus the decisions the user still has to make.
+
+    A slot reaches `spec` only when it is `stated` or `cleared`. `absent` and
+    `contested` omit the key entirely — see `spec.py` for why writing them was
+    erasing profile columns nobody had answered.
+    """
+    unique = _dedupe(normalise.apply(list(order.kept())))
+    conflicts = _contradictions(unique) + _value_clashes(unique)
     blocked = {line_id for conflict in conflicts for line_id in conflict.line_ids}
     usable = [line for line in unique if line.id not in blocked]
 
     by_slot: dict[str, list[OrderLine]] = {slot: [] for slot in SLOT_ARITY}
     for line in usable:
-        slot = _slot_for(line)
+        slot = slot_for(line)
         if slot is not None:
             by_slot[slot].append(line)
 
-    spec: dict[str, Any] = {
-        "deal_breakers": [],
-        "lean": [],
-        "career_goal": None,
-        "superpower": None,
-    }
-    used: list[str] = []
-
+    placed: dict[str, list[OrderLine]] = {}
     for slot, arity in SLOT_ARITY.items():
         group = by_slot[slot]
         if len(group) > arity:
@@ -197,38 +210,43 @@ def resolve(order: Order) -> ResolveResult:
                     texts=tuple(_slot_text(line) for line in group),
                 )
             )
-            if slot in ("career_goal", "superpower", "target_location"):
-                spec.pop(slot, None)
+            placed[slot] = []
             continue
-        if not group:
-            continue
-        used.extend(line.id for line in group)
-        texts = [_slot_text(line) for line in group]
-        if slot == "target_role_titles":
-            spec["target_role_titles"] = texts
-        elif slot == "target_location":
-            spec["target_location"] = texts[0]
-        elif slot == "deal_breakers":
-            spec["deal_breakers"] = texts
-        elif slot == "lean":
-            spec["lean"] = texts
-        elif slot == "career_goal":
-            spec["career_goal"] = texts[0]
-        else:
-            spec["superpower"] = texts[0]
+        placed[slot] = group
+
+    # A slot is contested if ANY line filing there is held by a conflict — not
+    # merely if a conflict names the slot. A won't-take contradicting a lean is
+    # filed under `deal_breakers`, and the lean side must not write either.
+    contested_ids = {line_id for conflict in conflicts for line_id in conflict.line_ids}
+    contested_slots = {
+        slot_for(line) for line in unique if line.id in contested_ids
+    } | {conflict.slot for conflict in conflicts}
+
+    spec: dict[str, Any] = {}
+    used: list[str] = []
+    for slot, arity in SLOT_ARITY.items():
+        group = placed[slot]
+        state = presence_of(
+            order, slot, placed=len(group), contested=slot in contested_slots
+        )
+        if state == "stated":
+            texts = [_slot_text(line) for line in group]
+            spec[slot] = texts if arity > 1 else texts[0]
+            used.extend(line.id for line in group)
+        elif state == "cleared":
+            spec[slot] = EMPTY[slot]
 
     # The slot view, partitioned by the decisions just made. `line_ids` is the
     # placed set — identical to what went into `spec` — so the screen and the
     # run cannot describe the order differently.
-    contested = {line_id for conflict in conflicts for line_id in conflict.line_ids}
-    placed = set(used)
+    placed_ids = set(used)
     slots = tuple(
         Slot(
             key=slot,
             arity=arity,
-            line_ids=tuple(line.id for line in by_slot[slot] if line.id in placed),
+            line_ids=tuple(line.id for line in by_slot[slot] if line.id in placed_ids),
             contested_ids=tuple(
-                line.id for line in unique if _slot_for(line) == slot and line.id in contested
+                line.id for line in unique if slot_for(line) == slot and line.id in contested_ids
             ),
         )
         for slot, arity in SLOT_ARITY.items()
@@ -239,6 +257,7 @@ def resolve(order: Order) -> ResolveResult:
         used_line_ids=tuple(used),
         conflicts=tuple(conflicts),
         slots=slots,
+        facts=tuple(line.id for line in unique if line.kind == "fact"),
     )
 
 
@@ -248,8 +267,26 @@ def project(order: Order) -> dict[str, Any]:
     `target_role_titles` are human titles — the backend derives the matcher's
     cluster union from them (one writer, see `role_title_updates`). `lean` has no
     column and is routed to the authored-`preference` writer by the same route.
+
+    `role_families` rides along ONLY when every kept role line carries one.
+    Until 2026-08-25 this surface emitted titles alone, because it collected
+    titles as free text and a family cannot be recovered from free text. Now the
+    role slot picks from the corpus, so the family is known at the moment the
+    title is — and `derive()` treats a supplied family as the caller taking
+    responsibility, which is the one path that can refresh a stale scoping key.
+
+    All or nothing: a partial family list would narrow `target_roles` to the
+    subset that happened to come from the picker and silently drop the rest of
+    the union. Absent is honest; half is not.
     """
-    return resolve(order).spec
+    spec = resolve(order).spec
+    if "target_role_titles" not in spec:
+        return spec
+    roles = [line for line in order.kept() if line.kind == "role"]
+    families = [line.role_family for line in roles if line.role_family]
+    if roles and len(families) == len(roles):
+        return {**spec, "role_families": families}
+    return spec
 
 
 def client_report(order: Order) -> dict[str, Any]:
@@ -263,6 +300,7 @@ def client_report(order: Order) -> dict[str, Any]:
     result = resolve(order)
     return {
         "used": len(result.used_line_ids),
+        "facts": list(result.facts),
         "slots": [
             {
                 "key": slot.key,

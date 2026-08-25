@@ -26,6 +26,8 @@
 import { useEffect, useRef, useState } from "react"
 
 import { SayPad } from "@/components/myro/say-pad"
+import { RoleFamilyPicker } from "@/components/target-role/role-family-picker"
+import "@/components/target-role/role-family-picker.css"
 import { slotCount, type SlotCopy } from "@/lib/preflight/slots"
 import type { LineStatus, OrderConflict, OrderLine } from "@/lib/preflight/types"
 
@@ -57,7 +59,7 @@ export function SlotGroup({
   /** Every line, so a conflict can resolve its own option text. */
   allLines: OrderLine[]
   busy?: boolean
-  onAdd: (kind: SlotCopy["addKind"], text: string) => void
+  onAdd: (kind: SlotCopy["addKind"], text: string, roleFamily?: string) => void
   onAnswerLine: (lineId: string, status: LineStatus) => void
   onRewordLine: (lineId: string, text: string) => void
 }) {
@@ -110,7 +112,33 @@ function SlotAdd({
 }: {
   copy: SlotCopy
   busy?: boolean
-  onAdd: (kind: SlotCopy["addKind"], text: string) => void
+  onAdd: (kind: SlotCopy["addKind"], text: string, roleFamily?: string) => void
+}) {
+  // The work is chosen, not typed — the same corpus picker Settings, the Jobs
+  // filter and the score header use. A title typed here produced a role the
+  // user could see and a `target_roles` scoping key that stayed stale, because
+  // a family cannot be recovered from free text. This is the fourth surface on
+  // that one control, and the first that was not.
+  if (copy.addKind === "role") {
+    return (
+      <RoleFamilyPicker
+        label={copy.invite}
+        busy={busy}
+        onChoose={(role) => onAdd("role", role.label, role.family)}
+      />
+    )
+  }
+  return <SlotAddText copy={copy} busy={busy} onAdd={onAdd} />
+}
+
+function SlotAddText({
+  copy,
+  busy,
+  onAdd,
+}: {
+  copy: SlotCopy
+  busy?: boolean
+  onAdd: (kind: SlotCopy["addKind"], text: string, roleFamily?: string) => void
 }) {
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState("")

@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { jobs, type GlobalJobHit } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value"
 
 const DEBOUNCE_MS = 200
 const STALE_TIME_MS = 60_000
@@ -30,12 +30,7 @@ export function useGlobalJobSearch(
 ): UseGlobalJobSearchResult {
   const limit = opts.limit ?? 12
   const minLength = opts.minLength ?? 2
-  const [debounced, setDebounced] = useState(query)
-
-  useEffect(() => {
-    const id = setTimeout(() => setDebounced(query), DEBOUNCE_MS)
-    return () => clearTimeout(id)
-  }, [query])
+  const debounced = useDebouncedValue(query, DEBOUNCE_MS)
 
   const term = debounced.trim()
   const isActive = term.length >= minLength

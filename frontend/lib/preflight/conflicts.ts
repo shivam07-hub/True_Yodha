@@ -8,6 +8,12 @@
 
 import type { OrderConflict, OrderState } from "./types"
 
+/** Resolves on ONE pick rather than on a countdown: a contradiction, an arity-1
+ *  slot, and a single-valued dimension answered twice are all "which one". */
+function picksOne(conflict: OrderConflict): boolean {
+  return conflict.kind === "contradiction" || conflict.kind === "value_clash" || conflict.keep === 1
+}
+
 function liveIds(order: OrderState, conflict: OrderConflict): string[] {
   const byId = new Map(order.lines.map((line) => [line.id, line]))
   return conflict.line_ids.filter((id) => byId.get(id)?.status === "kept")
@@ -16,22 +22,22 @@ function liveIds(order: OrderState, conflict: OrderConflict): string[] {
 export function visibleConflicts(order: OrderState): OrderConflict[] {
   return (order.conflicts ?? []).filter((conflict) => {
     const live = liveIds(order, conflict)
-    if (conflict.kind === "contradiction") return live.length >= 2
+    if (picksOne(conflict)) return live.length >= 2
     return live.length > conflict.keep
   })
 }
 
 /** Contradiction and arity-1: pick one to keep. Overflow of a larger slot: drop that one. */
 export function dropIdsForPick(conflict: OrderConflict, chosen: string): string[] {
-  const pickKeep = conflict.kind === "contradiction" || conflict.keep === 1
-  if (pickKeep) return conflict.line_ids.filter((id) => id !== chosen)
+  if (picksOne(conflict)) return conflict.line_ids.filter((id) => id !== chosen)
   return [chosen]
 }
 
 export function conflictAsk(conflict: OrderConflict): string {
   if (conflict.kind === "contradiction") return "These can't both be true"
+  if (conflict.kind === "value_clash") return "You've named this twice"
   if (conflict.keep === 1) return "Pick the one Myro should run"
-  return `Too many for one search — this slot takes ${conflict.keep}`
+  return "Too many for one search"
 }
 
 /**
@@ -43,6 +49,6 @@ export function conflictAsk(conflict: OrderConflict): string {
  * when you are done.
  */
 export function overflowCount(conflict: OrderConflict, live: number): number {
-  if (conflict.kind === "contradiction" || conflict.keep === 1) return 0
+  if (picksOne(conflict)) return 0
   return Math.max(0, live - conflict.keep)
 }

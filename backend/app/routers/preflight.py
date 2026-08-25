@@ -59,6 +59,9 @@ class OrderLineOut(BaseModel):
     unusable: bool = False
     original_text: str | None = None
     answered_at: str | None = None
+    #: Present when this role came from the corpus picker. The client reads it to
+    #: tell a matchable title from one typed by hand.
+    role_family: str | None = None
 
 
 class LogEntryOut(BaseModel):
@@ -85,7 +88,7 @@ class SlotOut(BaseModel):
 
 class ConflictOut(BaseModel):
     slot: str
-    kind: Literal["arity", "contradiction"]
+    kind: Literal["arity", "contradiction", "value_clash"]
     line_ids: list[str]
     texts: list[str]
     #: How many this slot can keep. The card asks; it does not re-derive arity.
@@ -103,6 +106,10 @@ class OrderState(BaseModel):
     used: int = 0
     slots: list[SlotOut] = Field(default_factory=list)
     conflicts: list[ConflictOut] = Field(default_factory=list)
+    #: Kept lines that fill no slot — a notice period, a visa status. Reported so
+    #: the screen can show them; a line that disappears because Myro reclassified
+    #: it would be exactly the silent loss this surface exists to prevent.
+    facts: list[str] = Field(default_factory=list)
 
 
 class OrderOut(OrderState):
@@ -170,12 +177,19 @@ class ProposalsOut(BaseModel):
 class PatchLineRequest(BaseModel):
     status: Literal["kept", "dropped", "unanswered"] | None = None
     text: str | None = Field(default=None, max_length=240)
+    #: Set only when the text came from the corpus role picker. A hand-typed
+    #: reword sends nothing, and the line loses whatever family it had — the
+    #: title it belonged to is gone.
+    role_family: str | None = Field(default=None, max_length=200)
 
 
 class AddLineRequest(BaseModel):
     kind: Literal["role", "location", "wont_take", "lean", "goal", "strength", "pay_floor"]
     text: str = Field(min_length=1, max_length=240)
     origin: Literal["preflight", "market"] = "preflight"
+    #: The corpus family the picker resolved alongside the title. Never accepted
+    #: for any other kind — a family belongs to the work and nothing else.
+    role_family: str | None = Field(default=None, max_length=200)
 
 
 class SaidRequest(BaseModel):
@@ -334,7 +348,9 @@ def patch_line(
                 status_code=status.HTTP_404_NOT_FOUND, detail="No such line on your order."
             )
         if body.text is not None:
-            return line_ops.reword(order, line_id, body.text, now=now)[0]
+            return line_ops.reword(
+                order, line_id, body.text, now=now, role_family=body.role_family
+            )[0]
         if body.status == "kept":
             return line_ops.keep(order, line_id, now=now)[0]
         if body.status == "dropped":
@@ -354,7 +370,11 @@ def add_line(
         orders,
         principal.id,
         lambda o: line_ops.add(
-            o, kind=body.kind, text=body.text, source="user_said", origin=body.origin, status="kept"
+            o, kind=body.kind, text=body.text, source="user_said", origin=body.origin,
+            status="kept",
+            # A family belongs to the work. Accepting one on any other kind would
+            # let a client attach a scoping key to a deal-breaker.
+            role_family=body.role_family if body.kind == "role" else None,
         )[0],
     )
 
@@ -496,10 +516,20 @@ async def run_order(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Add a role you want — Myro searches on the work, not on the exclusions.",
         )
+    # Resolved ONCE. `run_summary` used to call the resolver a second time on
+    # this path and the fix was to stop; adding a conflict check that resolves
+    # again would put the third call back.
+    resolved = ops_payload.resolve(order)
+    # A contested slot omits its key from the spec, and the patch is partial, so
+    # dispatching here would run the STORED value while the screen showed the
+    # contested one — the same silence the role guard above exists to break.
+    if resolved.conflicts:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Answer the open questions first — Myro can't run a slot two ways.",
+        )
 
-    await run_in_threadpool(
-        targeting_write.apply, users_repo, principal.id, ops_payload.project(order)
-    )
+    await run_in_threadpool(targeting_write.apply, users_repo, principal.id, resolved.spec)
 
     ticket = await JobRefresh.start(principal.id, repo, last_monday())
     # Stamped AFTER dispatch with the ticket it produced: a run recorded before

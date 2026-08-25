@@ -1,14 +1,14 @@
 "use client"
 
-import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Loader2, Search } from "lucide-react"
+import { Loader2 } from "lucide-react"
 
-import { onboarding, type RoleFamily, users } from "@/lib/api"
+import { type RoleFamily, users } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
-import { formatCount } from "@/lib/format"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useEditTargetRole, useRoleReadiness } from "@/lib/hooks/use-edit-target-role"
+import { RoleFamilyPicker } from "./role-family-picker"
+import "./role-family-picker.css"
 
 interface Props {
   /**
@@ -43,19 +43,6 @@ const CHIP: React.CSSProperties = {
   maxWidth: "100%",
 }
 
-const ADD_BTN: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 5,
-  padding: "6px 12px",
-  borderRadius: "var(--tm-radius-pill)",
-  background: "transparent",
-  border: "1px dashed var(--tm-border-soft)",
-  fontSize: 12,
-  color: "var(--tm-text-muted)",
-  cursor: "pointer",
-}
-
 /**
  * Canonical target-role control.
  *
@@ -86,13 +73,6 @@ export function TargetRolesChips({
 
   const edit = useEditTargetRole()
   const readinessQ = useRoleReadiness(showReadiness && roles.length > 0)
-  const [pickerOpen, setPickerOpen] = useState(false)
-  const [query, setQuery] = useState("")
-  const familiesQ = useQuery({
-    queryKey: ["role-families", "target-role-picker", query],
-    queryFn: () => onboarding.roleFamilies(token!, query.trim() || undefined),
-    enabled: pickerOpen && !!token,
-  })
 
   const readinessFor = (role: string): number | null | undefined =>
     readinessQ.data?.find((r) => r.role.toLowerCase() === role.toLowerCase())?.readiness
@@ -101,8 +81,6 @@ export function TargetRolesChips({
     edit.mutate(role, {
       onSuccess: () => onSaved?.([role.label]),
     })
-    setPickerOpen(false)
-    setQuery("")
   }
 
   const busy = edit.isPending
@@ -129,62 +107,13 @@ export function TargetRolesChips({
         <Loader2 size={13} className="animate-spin" aria-hidden style={{ color: "var(--tm-text-faint)" }} />
       )}
 
-      {editable && (
-        <div style={{ position: "relative" }}>
-          <button
-            type="button"
-            onClick={() => setPickerOpen((open) => !open)}
-            disabled={busy}
-            aria-expanded={pickerOpen}
-            aria-controls="target-role-options"
-            style={ADD_BTN}
-          >
-            <Search size={13} strokeWidth={2.5} />
-            {roles.length === 0 ? "Choose target role" : "Change target role"}
-          </button>
-          {pickerOpen && (
-            <div
-              id="target-role-options"
-              role="listbox"
-              aria-label="Target role options"
-              style={{
-                position: "absolute", zIndex: 50, top: "calc(100% + 6px)", left: 0,
-                width: "min(360px, calc(100vw - 4rem))", padding: 8,
-                background: "var(--tm-surface)", border: "1px solid var(--tm-int-border)",
-                borderRadius: "var(--tm-radius-sm)", boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
-              }}
-            >
-              <input
-                autoFocus value={query} onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search roles in live jobs" aria-label="Search target roles"
-                role="combobox" aria-controls="target-role-options" aria-expanded
-                style={{
-                  width: "100%", padding: "8px 10px", borderRadius: "var(--tm-radius-sm)",
-                  background: "var(--tm-int-bg-hover)", border: "1px solid var(--tm-int-border)",
-                  color: "var(--tm-text)", fontSize: 13, fontFamily: "inherit", outline: "none",
-                }}
-                onKeyDown={(event) => { if (event.key === "Escape") setPickerOpen(false) }}
-              />
-              <div style={{ maxHeight: 224, overflowY: "auto", marginTop: 6 }}>
-                {familiesQ.isLoading && <Loader2 size={14} className="animate-spin" aria-label="Loading roles" />}
-                {!familiesQ.isLoading && (familiesQ.data ?? []).map((role) => (
-                  <button
-                    key={role.family} type="button" role="option" aria-selected={false}
-                    onClick={() => chooseRole(role)}
-                    style={{ display: "block", width: "100%", padding: "9px 10px", textAlign: "left", background: "transparent", border: "none", borderBottom: "1px solid var(--tm-border-soft)", color: "var(--tm-interactive-rest)", cursor: "pointer", fontFamily: "inherit" }}
-                  >
-                    <span style={{ display: "block", fontSize: 13, fontWeight: 600 }}>{role.label}</span>
-                    <span style={{ display: "block", marginTop: 2, fontSize: 11, color: "var(--tm-text-faint)" }}>{formatCount(role.open_count)} open · {role.matched_skill_count} matching skills</span>
-                  </button>
-                ))}
-                {!familiesQ.isLoading && query.trim().length >= 2 && familiesQ.data?.length === 0 && (
-                  <p style={{ margin: "8px 2px", fontSize: 12, color: "var(--tm-text-faint)" }}>No live role family matches that search.</p>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+      {editable ? (
+        <RoleFamilyPicker
+          label={roles.length === 0 ? "Choose target role" : "Change target role"}
+          busy={busy}
+          onChoose={chooseRole}
+        />
+      ) : null}
     </div>
   )
 }

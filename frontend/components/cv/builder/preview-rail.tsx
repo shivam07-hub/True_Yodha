@@ -145,12 +145,7 @@ export function PreviewRail({
             ▲ +{delta} raised in the playground. This exact sheet is what {company} receives.
           </span>
         </div>
-      ) : (
-        <p className="cvb-v2-rail-lede">
-          This is the exact sheet that gets submitted — what you see is what they get.
-          Apply fixes to raise the {baseScore} baseline.
-        </p>
-      )}
+      ) : null}
 
       <V2Sheet cv={cv} hidden={hidden} contact={contact} />
 

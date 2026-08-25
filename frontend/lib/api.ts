@@ -591,7 +591,12 @@ export const preflight = {
       body: JSON.stringify({ text }),
     }),
 
-  addLine: (token: string, input: { kind: LineKind; text: string; origin?: "preflight" | "market" }) =>
+  addLine: (
+    token: string,
+    /** `role_family` only on a `role` — the corpus family the picker resolved
+     *  alongside the title, which is what makes `target_roles` refreshable. */
+    input: { kind: LineKind; text: string; origin?: "preflight" | "market"; role_family?: string },
+  ) =>
     request<OrderState>("/preflight/order/lines", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },

@@ -36,6 +36,15 @@
   color: var(--tm-text);
   text-wrap: balance;
 }
+/* The user's own sentence, as a quote under Myro's title. Muted and small on
+   purpose: it is evidence of what was said, not a heading. */
+.pf-canvas-heading .pf-canvas-said {
+  margin: 6px 0 0;
+  font-size: var(--tm-fs-note);
+  line-height: 1.4;
+  color: var(--tm-text-muted);
+  text-wrap: pretty;
+}
 .pf-canvas-heading .pf-canvas-sub {
   margin: 10px 0 0;
   font-family: var(--tm-font-mono);

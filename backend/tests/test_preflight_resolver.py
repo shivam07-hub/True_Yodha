@@ -60,8 +60,8 @@ def test_a_single_goal_still_fills_the_slot() -> None:
 def test_wont_take_against_the_same_lean_is_a_contradiction() -> None:
     order = ops.Order(
         lines=[
-            line(id="w", kind="wont_take", text="Prefers onsite work"),
-            line(id="l", kind="lean", text="Prefers onsite work"),
+            line(id="w", kind="wont_take", text="Onsite work"),
+            line(id="l", kind="lean", text="Onsite work"),
         ]
     )
     result = payload.resolve(order)
@@ -91,8 +91,8 @@ def test_a_location_requirement_against_relocate_openness_is_a_contradiction() -
 def test_client_report_exposes_conflicts_and_the_slot_arity() -> None:
     order = ops.Order(
         lines=[
-            line(id="w", kind="wont_take", text="Prefers onsite work"),
-            line(id="l", kind="lean", text="Prefers onsite work"),
+            line(id="w", kind="wont_take", text="Onsite work"),
+            line(id="l", kind="lean", text="Onsite work"),
         ]
     )
     report = payload.client_report(order)
@@ -102,7 +102,7 @@ def test_client_report_exposes_conflicts_and_the_slot_arity() -> None:
     assert conflict["kind"] == "contradiction"
     assert conflict["keep"] == 6
     assert set(conflict["line_ids"]) == {"w", "l"}
-    assert conflict["texts"] == ["Prefers onsite work", "Prefers onsite work"]
+    assert conflict["texts"] == ["Onsite work", "Onsite work"]
 
 
 def test_a_silent_duplicate_leaves_one_used_line_and_no_conflict() -> None:

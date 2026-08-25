@@ -178,7 +178,45 @@ def guesses_from(brief: TargetingBrief) -> list[OrderLine]:
         prev = merged.get(key)
         if prev is None or _kind_priority(line.kind) < _kind_priority(prev.kind):
             merged[key] = line
-    return list(merged.values())
+
+    # A direction the user can neither see nor edit.
+    #
+    # `target_roles` is the matcher's READ MODEL, derived from
+    # `target_role_titles` — never a source. 34 users carry it with no titles
+    # behind it, all written April–June 2026 by a path that no longer exists,
+    # and the values are Lightcast SKILL names: "Java", "Communication",
+    # "Initiative and Leadership". Those are the ILIKE keys their whole job
+    # search has been scoped on, and because `confirmed_from` imports titles
+    # only, the modal opened with THE WORK empty above a full exclusion list.
+    #
+    # Surfaced as `unusable` role lines, not as titles: `yes` is refused
+    # because a yes would assert "this is a role I chose", which is exactly what
+    # nobody can say about a derived value. Reword makes it the user's own words
+    # (`user_reworded`); no drops it. Either way the next run is theirs. The
+    # cluster never becomes a title without someone writing it — the rule
+    # `confirmed_from` exists to hold.
+    scope: list[OrderLine] = []
+    if not (profile.get("target_role_titles") or []):
+        for raw in profile.get("target_roles") or []:
+            text = str(raw).strip().rstrip(".")
+            if not text:
+                continue
+            scope_ref = _ref("profile:role_scope", text)
+            scope.append(
+                OrderLine(
+                    id=scope_ref,
+                    kind="role",
+                    text=text,
+                    source="myro_inferred",
+                    source_note="Myro has been searching this — pick the real role below",
+                    origin="cv_import",
+                    status="unanswered",
+                    unusable=True,
+                    ref=scope_ref,
+                )
+            )
+
+    return [*merged.values(), *scope]
 
 
 def confirmed_from(brief: TargetingBrief) -> list[OrderLine]:

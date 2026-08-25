@@ -256,11 +256,11 @@ export function PreflightGate({
    * makes the add deterministic, instant and free — the conversational path
    * stays for the case where they have a sentence rather than a line.
    */
-  const addToSlot = useCallback(async (kind: LineKind, text: string) => {
+  const addToSlot = useCallback(async (kind: LineKind, text: string, roleFamily?: string) => {
     if (!token) return
     setError(null)
     try {
-      await addLine.mutateAsync({ kind, text, origin: "preflight" })
+      await addLine.mutateAsync({ kind, text, origin: "preflight", role_family: roleFamily })
     } catch (err) {
       setError(applyErrorMessage(err))
       await invalidateOrder(client)

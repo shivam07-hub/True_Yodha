@@ -1227,3 +1227,251 @@ saturation. **Paid Supabase compute remains the launch capacity gate** (section 
 | P2 Public stampede / LLM burst | `Cache-Control` on `/public/stats`; landing `refetchOnMount/Focus=false`; anon score/rewrite burst ceilings |
 
 Do not mark platform capacity green until the paid compute gate in section 8 passes.
+
+---
+
+## 15. Open, measured — the standing latency ledger (2026-08-24)
+
+Sections 7-14 are *closed* work. This one is the **open** list, and it is the
+file's live edge: everything below has a number next to it, taken on prod, and
+none of it is fixed. Add to it when you measure something; delete a row when it
+ships and log the close above.
+
+### Fixed this pass, for context
+
+| | Before | After |
+|---|---|---|
+| `count_new_jobs_for_user` under RLS | 8,740ms | **100ms / 656 buffers** authed, re-measured 2026-08-25 (migration `20260824090000`, trap 5). The `~15ms` this row used to claim was never taken as `authenticated`. |
+| `/preflight/order` (modal open) | 9,062-10,495ms | price split to `/preflight/price` |
+| `PATCH /preflight/order/lines/*` | 1,500-4,100ms, 5 hops | 2 hops (~330ms floor) |
+| `company_open_roles_page` authed | 6,208ms / 13,070 buffers | **5.4ms / 1,341** (migration `20260825090000`, trap 5) |
+| `company_open_roles_page` anon | 3,673ms / 13,068 buffers | **11.0ms / 3,026** — this is the SEO surface |
+| `POST /v1/telemetry/cv-upload-phase` | 3,806-4,339ms, 3 sequential hops inline | 202 + `BackgroundTask`; off the response path entirely |
+| `/roles/families` request count | 15 per typed query | ~2 — `useDebouncedValue`, 60s `staleTime` |
+| Saturation alert sample | `[-8:]` "most recent" — 9 windows were 100% partner SSO | stratified by journey stage, slowest-first inside each |
+
+**Re-measured 2026-08-25 from 11 days of saturation alerts (2026-08-14→24).**
+`/home/bootstrap` and `/jobs/matches` did fall, and the fall is **not** this
+pass's work:
+
+| | 14 Aug | 17 Aug | 18 Aug | 19 Aug | 20 Aug | 22 Aug | 24 Aug |
+|---|---|---|---|---|---|---|---|
+| `/home/bootstrap` | 2,273 | **8,405** | 1,986 | 2,251 / 2,196 / 1,523 | 1,867 / 1,609 | 1,161 / 1,324 | 4,807 |
+| `/jobs/matches` | 1,559 | **8,416 / 8,214** | 1,937 / 1,571 | 1,819 / 1,645 / 1,786 | 1,497 / 1,457 | 1,172 / 1,441 | — |
+
+Both dropped to 1.2-2.3s on **18 August — six days before migration
+`20260824090000`**. The predicted magnitude was right and the attribution was
+wrong: do not credit the trap-5 fix with this. The cause of the 18 Aug drop is
+still unidentified. The lone 4,807ms on 24 Aug sits inside a correlated
+multi-route window (§16), i.e. queueing, not a regression of the fix.
+
+### Open — ranked by what a user feels
+
+| # | Thing | Measured | Suspected cause |
+|---|---|---|---|
+| 1 | **Read capacity ceiling** | `supabase_read_max_inflight=`**`40`** (`config.py`) — the `12` this row used to name was stale, raised in S5. `/home/bootstrap` fans out to **8**, and its `matches` section fans out again: ~11 concurrent reads from one request against a ≤3 contract. `test_read_contract.py:179` carries the violation as a constant: `{"home.bootstrap": 8, "cv.evidence": 6}`. | Section 8's paid-compute gate — but three §16 fixes **remove** load rather than absorb it. Re-measure the arrival burst after those before buying compute. |
+| 2 | `POST /jobs/feed/warm` | **59,854ms** (2026-08-21 07:18) | Unknown. This is also why `feed.unranked` fires: the warm that would rank the feed has not landed when the user reads it. |
+| 3 | `/jobs/my-skills/demand` | **17,452ms**, then 11,940ms, then 10,468ms; `aspiration.role_family_failed reason=ReadTimeout fallback_used=true` | Almost certainly trap 5 via `role_family_*` functions. |
+| 4 | `list_role_families` | **8,448ms authed vs 1,262ms service** (2026-08-24); re-measured 2026-08-25: **2,417ms / 13,440 buffers authed, + 335 blocks spilled to temp** (`work_mem` is 2,184kB) | Trap 5 **plus** a slow baseline — needs two fixes, not one. Drives the un-debounced onboarding typeahead (15 requests for "financial analyst", 1.0-3.0s each). |
+| 5 | **17** invoker functions over `public.jobs` callable by `authenticated` (counted 2026-08-25) | 3 measured: `list_role_families`, `company_open_roles_page`, `indexable_companies` | Trap 5. **Also a security row:** four of the 17 are worker-only — `claim_jobs_for_skill_floor`, `claim_jobs_for_skill_judgment`, `release_skill_judgment_claim`, `refresh_job_role_family`. Any logged-in user can call the ingest pipeline's claim functions. Sweep query in playbook §4b. |
+| 6 | `raw_stack` / `get_user_match_stack` | **~2,494ms** — the new floor under bootstrap and matches | Trap 4 (payload weight) is the standing suspicion: `job_description` was once 59.8% of `/jobs/matches`. Trace consumers before trimming. |
+| 7 | Pre-flight order write | 2 hops now, but every answer still rewrites the whole `lines` jsonb | A per-line write (row-per-line, or `jsonb_set`) removes the document rewrite and the CAS for independent lines. |
+| 8 | Supabase Free/Nano | **932MB** (2026-08-25; was 1,118MB) against the tier's 500MB recommended; 224MB `shared_buffers`; `work_mem` **2,184kB**; `max_connections` 60 | Section 8. |
+| 9 | `POST /partner/v1/sso/session` | **200 in 8/8** prod samples (2026-08-24), 469-3,416ms — it is **not** 500ing. It **is** 170 of 613 alert lines over 2026-08-14→24 (**27.7%**), in runs of 4-6 per 120s window, for a partner with a handful of users. | A **retry loop**, not a latency row and not a hard failure. It also evicts stage-one routes from the alert email, which prints only the 5 most recent per window. §16 P0. |
+
+### The pattern worth naming
+
+Three of the nine rows above (3, 4, 5) are the same trap — it was four until
+`company_open_roles_page` shipped — and it is a **design** issue rather than
+three bugs: this codebase reads user-facing data
+through the RLS token client, and its hot indexes are PARTIAL on a predicate
+the RLS policy only reaches through an `OR`. Every such read pays a heap
+recheck.
+
+The cost has a unit. `jobs` is **69,820 rows / 409MB** (100MB heap ≈ 12,800
+blocks, 151MB across **43** indexes, ~158MB TOAST). Every RLS-bound "trusted
+active jobs" read touches **12,654-13,440 buffers — the entire heap.** The same
+call as `service_role` touches 1,337. `shared_buffers` is **224MB**, so one such
+call sweeps 45% of the cache and two concurrent evict everything else. That is
+the mechanism behind the correlated multi-route windows in §16.
+
+The per-function fix (`security definer` + caller guard) works and is proven.
+The larger question is whether the read path should express authorisation once
+— a `jobs_public` view over the policy's public branch, with RLS off it, so the
+planner sees a single-branch predicate and the partial indexes become reachable
+by construction. Cost: one migration plus a mechanical sweep of ~20-30 read call
+sites, each needing its result set proved identical. Risk: a reader that should
+see a user's own created job gets moved to the public view and silently returns
+empty — assert row counts per moved call site for a user who owns one.
+
+---
+
+## 16. The funnel ledger — what the alert channel actually reports (2026-08-25)
+
+Section 15 is the ledger of things *we measured*. This one is the ledger of what
+*production reports*, and the two barely overlap. Source: **613 saturation-alert
+lines, 2026-08-14 → 2026-08-24**, tallied per route.
+
+The goal this section ranks against is the one in CLAUDE.md — *users understand
+the platform and download their CV as smoothly as possible*. A route's place
+here is set by where it sits in that journey, not by its milliseconds.
+
+### Where the wait actually falls
+
+| Bucket | Alert lines | Wait summed | Mean |
+|---|---|---|---|
+| **Stage 1** — landing → signup → upload → onboarding → arrival | 266 | **718s** | 2,698ms |
+| **Post-arrival** — feed extras, company pages, applications | 145 | 507s | 3,497ms |
+| **Partner SSO** — Finlatics, stage 2 / B2B | **170** | 383s | 2,253ms |
+
+Top routes by how often they trip the 1,000ms alert:
+
+```
+170  1002..6670   mean 2253   POST /partner/v1/sso/session
+ 85  1009..7500   mean 1690   GET  /users/me                  ← every day, all 11
+ 54  1085..4815   mean 2343   GET  /jobs/feed                 ← every day, all 11
+ 40  1037..5843   mean 1822   POST /auth/post-signin
+ 33  1005..5496   mean 1981   GET  /companies/{X}/jobs
+ 20  1002..8949   mean 1857   GET  /jobs/agent-picks
+ 16  1251..14730  mean 3906   GET  /jobs/feed-state
+ 15  4253..9191   mean 7666   GET  /roles/families            ← worst repeated route
+ 14  2870..9590   mean 6905   GET  /jobs/companies/indexable
+ 14  2154..4659   mean 3864   POST /cv/upload/finalize        ← never once under 2.1s
+  4  8060..15588  mean 12072  GET  /jobs/companies/pulse      ← worst mean on the board
+```
+
+**Only one of those has a §15 row.** Section 15 was built from fan-out
+instrumentation on the dashboard; the alert channel reports the funnel. That gap
+is the finding, not any single route.
+
+### The stage-one journey, end to end
+
+Every route on the actual goal path, with its worst sample in the window:
+
+| Step | Route | Measured |
+|---|---|---|
+| landing demo | `POST /public/restructure` | **39,710ms** |
+| landing demo | `POST /public/rewrite-bullet/variants` | 4,708-13,604ms ×4 |
+| landing | `GET /public/stats` | 1,003-**7,833ms** — §8 records this at 1.2ms Tier-0 |
+| signup | `POST /auth/post-signin` | 1,037-5,843ms ×40 |
+| **upload** | `POST /cv/upload/finalize` | 2,154-4,659ms ×14, **never under 2,154ms** |
+| **upload** | `POST /v1/telemetry/cv-upload-phase` | **3,806 / 4,339ms** — telemetry blocking the goal route |
+| analysis | `GET /onboarding/result` | 1,284-2,498ms ×5 |
+| skills | `POST /onboarding/baseline/confirm-skills` | **13,084ms** |
+| direction | `GET /roles/families` | 4,253-9,191ms ×15 |
+| arrival | `GET /users/me` | 1,009-7,500ms ×85 |
+| arrival | `GET /jobs/feed` | 1,085-4,815ms ×54 |
+| CV download | `GET /cv/evidence` | 1,056-**14,746ms** |
+
+`/jobs/feed` is trending **worse**: day-mean ~1,678ms on 14 Aug → ~3,048ms on
+24 Aug. Section 8 records it at 477ms p95 and calls that a pass. It has not been
+477ms in production on any day in this window. Diagnose before fixing.
+
+### The cache-eviction signature, twice, unprompted
+
+**20 Aug, one window:**
+
+```
+GET /jobs/feed-state      14,730ms
+GET /cv/evidence          14,746ms
+GET /upskilling/activity  14,713ms
+GET /jobs/applications    15,964ms
+```
+
+**24 Aug, one window:**
+
+```
+GET /jobs/contributions            7,235ms
+GET /users/me/following/companies  7,287ms
+GET /users/me                      7,500ms
+GET /jobs/{id}/liveness            7,929ms
+GET /jobs/agent-picks              8,949ms
+```
+
+Four and five unrelated routes finishing within 33ms and 1.7s of each other.
+**Identical durations are a queue, never real work.** The cause is the buffer
+arithmetic in §15's pattern note: `/jobs/companies/pulse` (8,060-15,588ms) and
+`/jobs/companies/indexable` (2,870-9,590ms) each sweep the whole 100MB `jobs`
+heap through a 224MB `shared_buffers`, and everything behind them lands at the
+same wall time. 16 Aug shows `pulse` twice back to back at 15,505 and 15,588ms.
+
+### Priority — ordered against the goal, not against milliseconds
+
+**P0 · Make the alert channel show stage one.** — *sample fixed `c766a3a8`;
+the SSO retry loop is still open.* 170 of 613 lines are partner
+SSO, and the alert prints only the **5 most recent per 120s window** — so on any
+window where Finlatics is active, SSO takes all five slots and the stage-one
+route that was also slow never reaches the email. Nine windows in this data are
+100% SSO. Split the alert by journey stage, and find the retry loop (runs of 4-6
+per window, handful of users, returning 200). Nothing below can be verified
+while 28% of the signal is one B2B route.
+
+**P1 · `/roles/families`.** — *debounce shipped `12d7a6eb`; the definer and
+the baseline are still open (§15 row 4).* Worst repeated stage-one route, mean 7,666ms, and it
+gates Direction — the last step before `/market`. Three fixes in this order:
+**debounce the typeahead** (free; 15 requests per query → ~2), then
+`security definer`, then the baseline (13,440 buffers, and it spills 335 blocks
+to temp because `work_mem` is 2,184kB). §15 row 4 says two fixes; it is three,
+and the free one is first.
+
+**P2 · Get telemetry off the CV upload path.** — *shipped `631fde93`.* `POST /v1/telemetry/cv-upload-phase`
+blocks 3,806-4,339ms on the single most important request in the product. Make
+it fire-and-forget. One change, near-zero risk.
+
+**P3 · Instrument the CV chain before optimising it.** `/cv/upload/finalize` has
+never been under 2,154ms in 11 days and has never been decomposed;
+`confirm-skills` hit 13,084ms once and was never investigated. Point the
+existing `fanout.slow` metric at the funnel. **Rule 0 — do not touch these until
+a number exists.**
+
+**P4 · Tier-0 the two public aggregates.** `/jobs/companies/pulse` and
+`/jobs/companies/indexable` are pure aggregates over public data with no
+per-user component, and they are what evicts the cache under the funnel.
+Snapshot table refreshed on ingest — the `/public/stats` pattern, playbook fix
+order #1. This is what removes the correlated windows above. While there: find
+out why `/public/stats` itself measures 1,003-7,833ms when §8 records 1.2ms.
+
+**P5 · Hops.** The evidence is in the alerts: `/users/me/xp` twice per load;
+`/jobs/{id}/liveness` three times in one window (per-card N+1); one `/market`
+arrival paying `/users/me` + `/jobs/feed` + `/jobs/feed-state` +
+`/jobs/agent-picks` + `/jobs/pulses` + `/jobs/feed/warm`. §8 locked J0 as
+`/users/me` + `/jobs/feed`; it has drifted to six. The hop problem is drift on a
+locked contract, not a missing bundle — re-derive J0 before adding one.
+
+**Shipped alongside** `cad90259`: `company_open_roles_page` → `SECURITY
+DEFINER`. 6,208ms → **5.4ms** authed, 3,673ms → **11.0ms** anon. Result set
+proved identical first — user 33b66361 owns 16 created jobs across 14
+companies, and that owner's md5 signatures matched `anon` before the change
+and are unchanged after it.
+
+### What not to do
+
+- **Do not buy compute yet.** Section 8's gate is real, but P1, P2 and P4 all
+  *remove* load rather than absorb it. Re-run
+  `run_read_load_probe.py --scenario market_arrival` after them; the paid-tier
+  decision gets cheaper and better evidenced.
+- **Do not sweep all 17 invoker functions.** The one-authorisation-seam design
+  in §15 is the destination, but none of P0-P3 depend on it.
+- **Do not read `pg_stat_statements` totals as current.** `stats_reset` is
+  **2026-07-12**; the totals span 43 days and include everything pre-fix. The
+  retired company `.ilike()` still ranks #2 cumulatively and took **7 calls in
+  11 days**. Rank by call delta, or you will relitigate closed work.
+
+### What shipped 2026-08-25
+
+| | Commit |
+|---|---|
+| Company page definer — the best-ratio fix on either ledger | `cad90259` |
+| Telemetry off the CV upload response path | `631fde93` |
+| Role typeahead debounced; `useDebouncedValue` extracted, 3 callers | `12d7a6eb` |
+| Saturation sample stratified by stage, slowest-first inside | `c766a3a8` |
+
+Still open from the list above: the partner SSO retry loop (P0), the
+`list_role_families` definer and baseline (P1), CV-chain instrumentation (P3),
+Tier-0 for the two public aggregates (P4), and the J0 hop re-derivation (P5).
+
+### Keeping this section true
+
+A row leaves when the alert channel stops reporting it for a full week — not
+when a fix ships. That is the distinction §11 got wrong: it closed on a
+`service_role` plan, and the route kept alerting for eleven more days.

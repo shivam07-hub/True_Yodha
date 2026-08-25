@@ -82,6 +82,13 @@
   --tm-text-disabled: #71716a;
   --tm-accent-text:   #6ac4eb;
 
+  /* ── CV line ink (rank 2) ──────────────────────────────────
+     The CV bullet is the thing being fixed, and the workstation's whole
+     hierarchy defect was that it shared #f2f2ee with the rail copy that
+     talks ABOUT it. One rung brighter than --tm-text, reserved for CV body
+     text and nothing else. Light mirrors the relationship inverted. */
+  --tm-cv-line:       #ffffff;
+
   /* ── Reading surface (long-form prose) ──────────────────────
      Dark: lift the read onto a sheet so it stops being a pure-black void
      (halation). Ink is a hair softer than --tm-text to calm shimmer of
@@ -161,6 +168,9 @@
   --tm-fs-body:       1rem;       /* 16px */
   --tm-fs-meta:       0.875rem;   /* 14px */
   --tm-fs-caption:    0.75rem;    /* 12px */
+  /* The CV bullet — the largest body text in the product, two rungs above the
+     13.5px chrome around it. Aliased, not free-typed, so it rides the scale. */
+  --tm-fs-cv-line:    var(--tm-fs-body);
 
   /* ── Dense UI scale (chrome, not prose) ────────────────────────
      The seven rungs above are a PAGE scale — 56 → 12, jumping 25–40%
@@ -494,6 +504,7 @@
   --tm-text-faint:    #949ca0;
   --tm-text-disabled: #acb4b8;
   --tm-accent-text:   #005e9e;
+  --tm-cv-line:       #12181a;
 
   /* Reading: white sheet on cool paper (Substack/Medium read), cool ink. */
   --tm-reading-surface: #fbfeff;

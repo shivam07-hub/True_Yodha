@@ -10,7 +10,8 @@ import { CvStructuredRecovery } from "@/components/cv/cv-structured-recovery"
 import { DownloadCVButton } from "@/components/cv/download-cv-button"
 import { tokenizedUserMessage, type CVUploadPhase } from "@/lib/cv-upload-state"
 import { claimPendingAnonCv, hasPendingAnonCvClaim } from "@/lib/anon-cv-claim"
-import { CvDocumentSkeleton, CvSkeleton } from "@/components/loading/page-skeletons"
+import { CvSkeleton } from "@/components/loading/page-skeletons"
+import { CVWorkstationSkeleton } from "@/components/loading/route-loading/skeleton-mirrors/cv-workstation-skeleton"
 import { PlaygroundView } from "@/components/cv/builder/playground-view"
 import { MasterWorkspace } from "@/components/cv/builder/master-workspace"
 import { LibraryView } from "@/components/cv/builder/library-view"
@@ -48,6 +49,7 @@ import "./cv-fonts.css"
 import "./cv-sheet.css"
 import "./cv-builder.css"
 import "./playground-v2.css"
+import "./cv-workstation.css"
 
 type ViewMode = "baseline" | "playground" | "master-edit"
 
@@ -536,7 +538,10 @@ function CVPage() {
   // `isLoading` (first load, no cache) — not `isFetching` — so background refetches
   // never re-trigger the skeleton.
   const bootstrapping = !ready || profileQuery.isLoading || playground.versionsLoading
-  if (bootstrapping) return <CvSkeleton />
+  // ONE skeleton per destination, and it is the same one loading.tsx already
+  // painted — so the route boundary handing over to the page is a continuation,
+  // not a relayout. Three different geometries used to take turns here.
+  if (bootstrapping) return view === "baseline" ? <CvSkeleton /> : <CVWorkstationSkeleton />
 
   // A CV is in the pipe: either transferring right now, or landed and parsing on
   // the server (job id persisted, modal closable). The empty state below must not
@@ -596,11 +601,12 @@ function CVPage() {
             </>
           )}
 
-          {hasBaseline && (
-            view === "baseline"
-            || (view === "master-edit" && !cvData)
-            || (view === "playground" && !!jobId && !cvData)
-          ) && (
+          {/* A workstation whose CV has not arrived yet shows the workstation
+              skeleton, NOT the library. Rendering a real, different screen for
+              that window reads as "it went somewhere else and came back". */}
+          {hasBaseline && view !== "baseline" && !cvData && <CVWorkstationSkeleton />}
+
+          {hasBaseline && view === "baseline" && (
             <LibraryView
               token={token!}
               cv={cvData}
@@ -646,9 +652,6 @@ function CVPage() {
             />
           )}
 
-          {playground.versionsLoading && !hasBaseline && !playground.versionsError && (
-            <CvDocumentSkeleton />
-          )}
         </div>
       </div>
 

@@ -53,14 +53,14 @@ export function ConflictPlate({
 
   // How many more taps until this slot fits. A contradiction and an arity-1
   // slot both resolve on one pick; a wider slot needs the overflow gone.
-  const pickKeep = conflict.kind === "contradiction" || conflict.keep === 1
+  const pickKeep = conflict.kind !== "arity"
   const over = overflowCount(conflict, options.length)
 
   return (
     <div className="pf-plate" data-kind="conflict" role="group" aria-label={conflictAsk(conflict)}>
       <div className="pf-plate-conflict-head">
         <div className="pf-plate-conflict-title">
-          {pickKeep ? conflictAsk(conflict) : "Too many for one search"}
+          {conflictAsk(conflict)}
         </div>
         {over > 0 ? (
           <div className="pf-plate-conflict-count">

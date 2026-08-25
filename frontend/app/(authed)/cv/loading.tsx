@@ -20,16 +20,21 @@ import "@/components/cv/builder/library-view.css"
 import "@/components/cv/mobile/mobile-cv-hub.css"
 import "@/components/cv/mobile/mobile-cv-editor.css"
 import "@/components/cv/builder/tailor-weave.css"
+import "./cv-workstation.css"
 
 import { CVBaselineSkeleton } from "@/components/loading/route-loading/skeleton-mirrors/cv-baseline-skeleton"
-import { CVPlaygroundSkeleton } from "@/components/loading/route-loading/skeleton-mirrors/cv-playground-skeleton"
+import { CVWorkstationSkeleton } from "@/components/loading/route-loading/skeleton-mirrors/cv-workstation-skeleton"
 
 export default function CVLoading() {
   // Safe to read synchronously: this component only renders client-side,
   // and the URL is already updated by the router before loading.tsx mounts.
-  const hasJobId =
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).has("jobId")
+  // BOTH workstation doors are checked here — `?jobId=` (tailor a job) and
+  // `?edit=1` (Main CV). Only the first was, so every trip to the Main CV
+  // opened on the library skeleton and then relaid out into the workstation.
+  const params = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search)
+    : null
+  const workstation = !!params && (params.has("jobId") || params.get("edit") === "1")
 
-  return hasJobId ? <CVPlaygroundSkeleton /> : <CVBaselineSkeleton />
+  return workstation ? <CVWorkstationSkeleton /> : <CVBaselineSkeleton />
 }

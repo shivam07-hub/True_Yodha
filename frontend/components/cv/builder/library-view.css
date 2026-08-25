@@ -1346,14 +1346,18 @@
     border-radius: 4px;
     cursor: pointer;
   }
+  /* Paper tokens, not app-chrome tokens. `--tm-surface-2` here was #22282b in
+     dark theme behind the sheet's #1A1A1A ink — 1.05:1, so hovering a bullet
+     erased it. The sheet is theme-independent (cv-sheet.css defines --cv-*);
+     an interaction state layered onto it must be too. */
   .tm-lib-cv-interactive .cvb-pdf-page li.pdf-bullet-interactive.is-selected {
-    background: var(--tm-accent-wash);
-    border-left: 2px solid var(--tm-interactive);
+    background: var(--cv-select-wash);
+    border-left: 2px solid var(--cv-accent);
     margin-left: -2px;
     padding-left: 4px;
     border-radius: 4px;
   }
   .tm-lib-cv-interactive .cvb-pdf-page .pdf-bullet-btn:hover {
-    background: var(--tm-surface-2);
+    background: var(--cv-hover-wash);
   }
 }

@@ -1,40 +1,36 @@
 /**
- * PlaygroundView — per-job CV tailoring surface (v2, "CV Playground v2" handoff).
+ * PlaygroundView — per-job CV tailoring, on the shared workstation shell.
  *
- * Layout: sticky header (job + live count-up score + Apply) · left = the CV
- * pane, toggling between the editor (bullet cards, inline skill chips, fix
- * pills) and the full-width WYSIWYG sheet (Preview) · right = tabbed rail
- * (Fixes / Skills — Preview stays out of the rail, it needs the editor's
- * width to read as an actual CV, not a squeezed sidebar). Mobile swaps the
- * split for a bottom segmented nav (Edit / Fixes / Skills / Preview), with
- * Edit/Preview sharing the editor pane and Fixes/Skills sharing the rail.
+ * The layout, the triage state and the four visual ranks live in
+ * WorkstationShell (hierarchy redesign, handoff 2a). This file supplies only
+ * what is job-specific: the header and its two actions, the writes (a rewrite
+ * makes a new Main-CV baseline; a hide toggles this job's projection), the
+ * Skills lane (Lane C jd_coverage), and Tailor with Mentor.
  *
- * Three job-context affordances, three destinations: the header requirements
- * pill → Skills tab; the toolbar Job Description button → the raw JD drawer;
- * the rail Skills tab button → Skills tab. Fix cards lazy-load the Mentor
- * pick-a-version rewrite in place; Ready recomputes deterministically so a
- * promised +N is a delivered +N. Read model lives in usePlaygroundModel;
- * projection persistence stays in useCVPlayground.
+ * Two header actions, not one: Download is the primary — it is what the user
+ * came for and it cannot misfire — and Apply is the ghost beside it, because it
+ * opens an external page and arms the apply-capture prompt. The raw JD now
+ * opens from the job line itself; the pane toolbar belongs to EDIT/SHEET and
+ * the page-fill meter.
  */
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
-import { cv as cvApi, jobs as jobsApi } from "@/lib/api"
-import { CVEditor } from "./cv-editor"
-import type { MergePayload } from "./bullet-merge"
-import { ExperienceIntake } from "./experience-intake"
+import { cv as cvApi, jobs as jobsApi, users } from "@/lib/api"
 import { TailorWeave } from "./tailor-weave"
-import { PlaygroundRail } from "./playground-rail"
 import "./tailor-weave.css"
-import { PreviewRail } from "./preview-rail"
-import { PlaygroundBottomNav } from "./playground-bottomnav"
 import { ApplyModal } from "./apply-modal"
 import { TrimConfirm } from "./trim-confirm"
 import { PlaygroundHeader } from "./playground-header"
 import { PdfPage, type PdfPageContact } from "./pdf-page"
+import { CoveragePanel } from "./coverage-panel"
+import { WorkstationShell } from "./workstation-shell"
+import { runAtsChecks } from "./ats-checks"
+import { identityLines } from "./cv-identity-lines"
+import { rewriteFetcher } from "./rewrite-fetchers"
 import { exportSheetPdf } from "@/lib/cv/sheet-pdf"
 import { printCvPage } from "@/lib/cv/print-cv"
 import { DEFAULT_TEMPLATE, isCVTemplate, type CVTemplate } from "@/lib/cv/templates"
@@ -50,8 +46,6 @@ import { useApplyCapture } from "@/components/jobs/use-apply-capture"
 import { ApplyCapturePrompt } from "@/components/jobs/apply-capture-prompt"
 import { similarRolesHref } from "@/lib/jobs/similar-roles"
 import { Icon } from "./icons"
-
-type V2Tab = "edit" | "fixes" | "skills" | "preview"
 
 /** Last-picked export template, shared with the master export surface. */
 function readTemplatePref(): CVTemplate {
@@ -83,40 +77,29 @@ export function PlaygroundView({
 }: PlaygroundViewProps) {
   const { selectedVersion, hiddenItems, toggleItem, autosaving, autosaved } = playground
   const router = useRouter()
-  const [tab, setTab] = useState<V2Tab>("edit")
-  const [expandedFixId, setExpandedFixId] = useState<string | null>(null)
+  const queryClient = useQueryClient()
   const [appliedFixes, setAppliedFixes] = useState<AppliedFix[]>([])
-  const [flash, setFlash] = useState<{ iid: string; n: number } | null>(null)
-  const [intakeSeed, setIntakeSeed] = useState<string | null>(null)
-  const [intakeOpen, setIntakeOpen] = useState(false)
   const [weaveOpen, setWeaveOpen] = useState(mentorRequested)
   const [jdOpen, setJdOpen] = useState(false)
   const [applyOpen, setApplyOpen] = useState(false)
   const [exportConfirm, setExportConfirm] = useState(false)
   const [pdfBusy, setPdfBusy] = useState(false)
+  const [railRequest, setRailRequest] = useState<{ tab: "fixes" | "skills"; n: number } | null>(null)
   const sheetWrapRef = useRef<HTMLDivElement>(null)
-  // Chosen print-CSS template for the download. Shared localStorage key with the
-  // master export surface so the pick is consistent across both. A trim-gated
-  // download stashes the picked template here until the user confirms the trim.
   const pendingTemplateRef = useRef<CVTemplate>(DEFAULT_TEMPLATE)
-  const queryClient = useQueryClient()
-  const railTab: "fixes" | "skills" = tab === "fixes" || tab === "skills" ? tab : "fixes"
 
-  useEffect(() => {
-    if (mentorRequested) setWeaveOpen(true)
-  }, [mentorRequested])
+  useEffect(() => { if (mentorRequested) setWeaveOpen(true) }, [mentorRequested])
 
   const m = usePlaygroundModel(token, jobId, cv, profile, hiddenItems)
-  const { dismissed, dismiss, restore } = useDismissedFixes(`job:${jobId}`)
-
-  // Lane C — "What this job wants": the JD's real requirements classified against
-  // the user's career stories + CV lines (covered / partial / missing). Owned by
-  // the model (it's the semantic 70% of the Match score); the rail map reads it,
-  // and Tailor with Mentor grounds its interview on the same panel server-side.
+  // Same query key as every other skills reader — one cache entry, no refetch.
+  const userSkillsQuery = useQuery({
+    queryKey: dataKeys.userSkills(),
+    queryFn: () => users.mySkills(token),
+    staleTime: 5 * 60 * 1000,
+  })
+  const { dismissed } = useDismissedFixes(`job:${jobId}`)
   const coverageQuery = m.coverageQuery
 
-  // Full PdfPageContact for the canonical artifact (the model's sheetContact is
-  // the compact V2Sheet shape; the exported sheet needs the full contact line).
   const pdfContact = useMemo<PdfPageContact>(() => ({
     name: cv.contact?.name?.trim() || profile?.full_name?.trim() || "Your name",
     title: cv.contact?.title?.trim() || cv.experience[0]?.role || "",
@@ -132,16 +115,9 @@ export function PlaygroundView({
     return `${parts.join("__")}.pdf`
   }, [pdfContact.name, m.company, m.jobTitle])
 
-  // The rail/editor/counters read the non-dismissed list; dismissed-but-still-
-  // open fixes render in the rail's collapsed Dismissed group (their penalty
-  // stays in Ready — dismissing never buys points).
-  const visibleFixes = useMemo(
-    () => m.openFixes.filter(f => !dismissed.has(f.id)),
-    [m.openFixes, dismissed],
-  )
-  const dismissedFixes = useMemo(
-    () => m.openFixes.filter(f => dismissed.has(f.id)),
-    [m.openFixes, dismissed],
+  const atsChecks = useMemo(
+    () => runAtsChecks(cv, profile, pdfFilename),
+    [cv, profile, pdfFilename],
   )
 
   const sourceUrl = m.application?.source_url?.trim() ?? ""
@@ -151,17 +127,12 @@ export function PlaygroundView({
     surface: "other",
     intentSurface: "cv_playground",
     onSubmitted: recordSubmittedCv,
-    // The guard state ("this listing is closed") offers live alternatives, and
-    // on this surface that button used to call nothing — no onFindSimilar was
-    // ever passed. Terminal states hand off through the Next chip instead.
     onFindSimilar: () => router.push(similarRolesHref(m.application?.role_domain)),
   })
   const applyHref = capture.href ?? ""
 
   const openFixIds = useMemo(() => new Set(m.openFixes.map(f => f.id)), [m.openFixes])
   const appliedShown = appliedFixes.filter(a => !openFixIds.has(a.id))
-  // "▲ +N raised" = points actually landed this session (each applied fix's
-  // deterministic gain) — not a diff of two differently-scaled scores.
   const sessionRaised = appliedShown.reduce((s, a) => s + a.gain, 0)
 
   function invalidateCV() {
@@ -177,55 +148,26 @@ export function PlaygroundView({
     onSuccess: invalidateCV,
   })
 
-  const mergeApply = useMutation({
-    mutationFn: (p: MergePayload) => cvApi.mergeBulletApply(token, {
-      old_text_a: p.oldTextA, old_text_b: p.oldTextB, merged_text: p.mergedText,
-      section_hint: p.section, item_index: p.itemIndex,
-      bullet_index_a: p.bulletIndexA, bullet_index_b: p.bulletIndexB,
-    }),
-    onSuccess: invalidateCV,
-  })
-
-  // "Add from your experience": insert a Mentor-drafted bullet into the living
-  // master under the best-fit role. Reads the freshest structured from cache so
-  // rapid adds don't stack on a stale base.
-  const addBullet = useMutation({
-    mutationFn: ({ roleIndex, text }: { roleIndex: number | null; text: string }) => {
+  // Content write-through. Education, certifications and a blank summary are
+  // master-owned but they are CONTENT, not identity, so `add ›` fills them from
+  // whichever surface the user is on (locked 2026-08-25). Reads the freshest
+  // structured CV from cache so rapid edits don't stack on a stale base.
+  const patchMaster = useMutation({
+    mutationFn: (mut: (draft: CVStructured) => CVStructured) => {
       const cached = queryClient.getQueryData<{ versions: CVVersion[] }>(dataKeys.cvVersions(null))
       const fromCache = latestBaseline(cached?.versions)?.cv_structured
       const base = hasCvContent(fromCache) ? fromCache : cv
-      const next: CVStructured = JSON.parse(JSON.stringify(base))
-      const ri = roleIndex != null && next.experience[roleIndex] ? roleIndex : next.experience.length - 1
-      if (ri < 0) return Promise.reject(new Error("Add a role to your CV first."))
-      next.experience[ri].bullets.push(text)
-      return cvApi.saveMaster(token, next)
+      return cvApi.saveMaster(token, mut(structuredClone(base)))
     },
     onSuccess: invalidateCV,
   })
 
-  function jumpTo(iid: string) {
-    setFlash(prev => ({ iid, n: (prev?.n ?? 0) + 1 }))
-  }
-  function openFixCard(fix: V2Fix) {
-    restore(fix.id) // a Skills-tab "Fix it" on a dismissed fix is explicit intent — bring the card back
-    setTab("fixes")
-    setExpandedFixId(fix.id)
-    jumpTo(fix.iid)
-  }
-  function dismissFix(fix: V2Fix) {
-    if (expandedFixId === fix.id) setExpandedFixId(null)
-    dismiss(fix.id, openFixIds)
-  }
-  function openIntake(seed?: string) {
-    setIntakeSeed(seed ?? null)
-    setIntakeOpen(true)
-  }
-  function applyFixRewrite(fix: V2Fix, oldText: string, newText: string) {
+  function applyRewrite({ fix, oldText, newText }: { fix: V2Fix | null; oldText: string; newText: string }) {
     rewriteApply.mutate({ oldText, newText }, {
       onSuccess: () => {
+        if (!fix) return
         setAppliedFixes(p => p.some(a => a.id === fix.id) ? p
           : [...p, { id: fix.id, iid: fix.iid, kind: fix.kind, title: fix.title, gain: fix.gain }])
-        setExpandedFixId(null)
       },
     })
   }
@@ -250,23 +192,16 @@ export function PlaygroundView({
       applied_url: applyHref,
     }).catch(() => {})
     cvApi.versions.promoteMaster(token, Array.from(hiddenItems))
-      .then(() => {
-        queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
-      })
+      .then(() => queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) }))
       .catch(() => {})
   }
-  // WYSIWYG download in place (ADR-0020): render the canonical PdfPage sheet
-  // from the LIVE projection (cv + hiddenItems) in a hidden mount, serialize
-  // its DOM, and let server Chromium render it. No navigation → the exact sheet
-  // the user sees is the artifact, and deselected lines can never resurrect
-  // through a re-hydrating export page.
+
+  // WYSIWYG download in place (ADR-0020): serialize the SAME visible PdfPage and
+  // let server Chromium render it, so the sheet the user sees is the artifact.
   async function downloadInPlace(template: CVTemplate = pendingTemplateRef.current) {
     if (pdfBusy) return
     const sheet = sheetWrapRef.current?.querySelector<HTMLElement>(".cvb-pdf-page")
     if (!sheet) { printCvPage(pdfFilename); return }
-    // The template is pure CSS keyed off `data-cv-template` on the sheet root;
-    // clone the previewed DOM and stamp the chosen variant so the server render
-    // picks it up — no React re-render, no race with the hidden mount.
     const el = template === sheet.getAttribute("data-cv-template")
       ? sheet
       : (() => {
@@ -279,8 +214,6 @@ export function PlaygroundView({
       await exportSheetPdf(token, el, pdfFilename)
       try { localStorage.setItem("myro-cv-template-v1", template) } catch { /* storage blocked */ }
     } catch {
-      // Server renderer down (503 / network) → native browser print of the same
-      // visible sheet is the WYSIWYG fallback, so a real PDF always lands.
       printCvPage(pdfFilename)
     } finally {
       setPdfBusy(false)
@@ -293,19 +226,6 @@ export function PlaygroundView({
     else setExportConfirm(true)
   }
 
-  // "Add from your experience" seeds off the JD's real GAP requirements
-  // (jd_coverage), never taxonomy keywords.
-  const gapSkillNames = useMemo(() => {
-    const gaps = m.gapRequirements
-    if (!intakeSeed) return gaps
-    return [intakeSeed, ...gaps.filter(s => s.toLowerCase() !== intakeSeed.toLowerCase())]
-  }, [m.gapRequirements, intakeSeed])
-
-  const saveState = autosaving ? "Saving…" : autosaved ? "Saved" : ""
-  const fixCountLabel = visibleFixes.length > 0 ? String(visibleFixes.length) : "✓"
-
-  // Only extension imports (ext_ ids) carry a user-editable role/company — a
-  // scraped job's fields are scraper-owned. Correcting it re-reads the header.
   const editableJobMeta = jobId.startsWith("ext_")
   const saveJobMeta = useMutation({
     mutationFn: (v: { title: string; company: string }) => jobsApi.updateImportedDetails(token, jobId, v),
@@ -316,8 +236,12 @@ export function PlaygroundView({
     },
   })
 
-  return (
-    <div className="cvb-v2" data-tab={tab}>
+  const gapCount = coverageQuery.data
+    ? coverageQuery.data.weak + coverageQuery.data.gap
+    : null
+
+  const header = (
+    <>
       <PlaygroundHeader
         jobTitle={m.jobTitle}
         company={m.company}
@@ -325,108 +249,82 @@ export function PlaygroundView({
         ready={m.ready}
         delta={sessionRaised}
         scoreCaption={!m.hasSemantic && coverageQuery.isLoading ? "/100 · Match…" : undefined}
-        canApply={!!applyHref}
-        applyHint={applyHref ? `Open ${m.company} careers` : "No application link yet"}
-        saveState={saveState}
+        canApply
+        primaryLabel={pdfBusy ? "Preparing…" : "Download CV"}
+        applyHint={m.pageFill.fits ? "Download this CV" : `Spills onto ${m.pageFill.pages} pages`}
+        secondaryLabel="Apply"
+        onSecondary={() => setApplyOpen(true)}
+        secondaryDisabled={!applyHref}
+        secondaryHint={applyHref ? `Open ${m.company} careers` : "No application link yet"}
+        saveState={autosaving ? "Saving…" : autosaved ? "Saved" : ""}
         onBack={onBackToBaseline}
-        onReqPill={() => setTab("skills")}
-        onApply={() => setApplyOpen(true)}
+        onReqPill={() => setRailRequest(p => ({ tab: "skills", n: (p?.n ?? 0) + 1 }))}
+        onApply={() => requestDownload()}
         onDownload={requestDownload}
+        onJobLine={m.jdText ? () => setJdOpen(true) : undefined}
         onSaveJobMeta={editableJobMeta ? (async v => { await saveJobMeta.mutateAsync(v) }) : undefined}
       />
       <ApplyCapturePrompt capture={capture} />
       {externalError && <div className="cvb-pgc-err" role="alert">{externalError}</div>}
+    </>
+  )
 
-      <div className="cvb-v2-main">
-        <section className="cvb-v2-editor" aria-label="Your CV">
-          <div className="cvb-v2-toolbar">
-            <button
-              type="button"
-              className={`cvb-v2-tabbtn wide${tab === "preview" ? " active" : ""}`}
-              onClick={() => setTab(tab === "preview" ? "edit" : "preview")}
-            >Preview</button>
-            <span className="cvb-v2-toolbar-label mono">Your CV</span>
-            <span className="cvb-v2-headspacer" aria-hidden />
-            {m.jdText && (
-              <button type="button" className="cvb-v2-ghostbtn" onClick={() => setJdOpen(true)}>
-                Job Description
-              </button>
-            )}
-            <button type="button" className="tw-cta" onClick={() => setWeaveOpen(true)}>
-              <Icon name="sparkle" size={13} /> Tailor with Mentor
-              <span className="tw-cta-cost">50</span>
-            </button>
+  return (
+    <>
+      <WorkstationShell
+        header={header}
+        railLabel="Fixes and job fit"
+        requestRailTab={railRequest}
+        cv={cv}
+        identity={identityLines(cv, profile)}
+        hidden={hiddenItems}
+        targeted
+        atsChecks={atsChecks}
+        pageFill={m.pageFill}
+        lineCount={m.visibleCount}
+        wordCount={m.wordCount}
+        dismissed={dismissed}
+        applying={rewriteApply.isPending}
+        makeFetcher={(bullet, quantifyOnly) =>
+          rewriteFetcher.authed(token, bullet, m.jobTitle, quantifyOnly)}
+        onApplyRewrite={applyRewrite}
+        onEditLine={(oldText, newText) => rewriteApply.mutate({ oldText, newText })}
+        onToggleHidden={toggleItem}
+        userSkills={userSkillsQuery.data}
+        onPatch={mut => patchMaster.mutate(mut)}
+        onAddBullet={(roleIndex, text) => patchMaster.mutate(d => {
+          const ri = d.experience[roleIndex] ? roleIndex : d.experience.length - 1
+          if (ri >= 0) d.experience[ri].bullets.push(text)
+          return d
+        })}
+        skillsLabel={gapCount == null ? "Skills" : `Skills · ${gapCount} gaps`}
+        skillsPane={
+          <CoveragePanel
+            coverage={coverageQuery.data}
+            loading={coverageQuery.isLoading}
+            error={coverageQuery.isError}
+            onOpenWeave={() => setWeaveOpen(true)}
+            onRetry={() => void coverageQuery.refetch()}
+          />
+        }
+        railFooter={
+          <button type="button" className="cvw-railfoot-btn" onClick={() => setWeaveOpen(true)}>
+            <Icon name="sparkle" size={13} /> Tailor with Mentor
+            <span className="cvw-railfoot-cost">50</span>
+          </button>
+        }
+        sheet={
+          <div className="cvb-scope">
+            <PdfPage
+              cv={cv}
+              hidden={hiddenItems}
+              contact={pdfContact}
+              company={m.company !== "Untitled company" ? m.company : undefined}
+              footerMarkHidden={selectedVersion?.footer_mark_hidden ?? false}
+            />
           </div>
-          <div className="cvb-v2-editorbody">
-            {tab === "preview" ? (
-              <PreviewRail
-                cv={cv}
-                hidden={hiddenItems}
-                contact={m.sheetContact}
-                baseScore={Math.max(0, m.ready - sessionRaised)}
-                ready={m.ready}
-                delta={sessionRaised}
-                company={m.company}
-                pageFill={m.pageFill}
-                onDownload={requestDownload}
-                onApply={() => setApplyOpen(true)}
-                canApply={!!applyHref}
-              />
-            ) : (
-              <CVEditor
-                token={token}
-                cv={cv}
-                profile={profile}
-                hiddenItems={hiddenItems}
-                toggleItem={toggleItem}
-                targets={[]}
-                missingKeywords={[]}
-                applying={rewriteApply.isPending}
-                onApply={(oldText, newText) => rewriteApply.mutate({ oldText, newText })}
-                onMergeApply={(payload: MergePayload) => mergeApply.mutate(payload)}
-                mergeApplying={mergeApply.isPending}
-                onAddBullet={(roleIndex, text) => addBullet.mutate({ roleIndex, text })}
-                addingBullet={addBullet.isPending}
-                visibleCount={m.visibleCount}
-                wordCount={m.wordCount}
-                rewriteTarget={null}
-                onClearRewriteTarget={() => {}}
-                fixes={visibleFixes}
-                applied={appliedShown}
-                onFixPill={openFixCard}
-                dismissedFixIds={dismissed}
-                flash={flash}
-              />
-            )}
-          </div>
-        </section>
-
-        <PlaygroundRail
-          token={token}
-          tab={railTab}
-          fixes={visibleFixes}
-          dismissedFixes={dismissedFixes}
-          applied={appliedShown}
-          expandedId={expandedFixId}
-          applying={rewriteApply.isPending}
-          fixCountLabel={fixCountLabel}
-          coverage={coverageQuery.data}
-          coverageLoading={coverageQuery.isLoading}
-          coverageError={coverageQuery.isError}
-          onTab={setTab}
-          onGoPreview={() => setTab("preview")}
-          onExpand={f => setExpandedFixId(f?.id ?? null)}
-          onJump={jumpTo}
-          onApplyFix={applyFixRewrite}
-          onDismissFix={dismissFix}
-          onRestoreFix={f => restore(f.id)}
-          onOpenIntake={openIntake}
-          onOpenWeave={() => setWeaveOpen(true)}
-          onRetryCoverage={() => void coverageQuery.refetch()}
-        />
-      </div>
-
-      <PlaygroundBottomNav tab={tab} fixCountLabel={fixCountLabel} onTab={setTab} />
+        }
+      />
 
       {exportConfirm && (
         <TrimConfirm
@@ -448,19 +346,6 @@ export function PlaygroundView({
         <div className="cvb-pgc-jd-drawer-body">{m.jdText}</div>
       </DetailDrawer>
 
-      {intakeOpen && (
-        <ExperienceIntake
-          token={token}
-          jobId={jobId}
-          jdText={m.jdText}
-          gapSkills={gapSkillNames}
-          roles={m.roles}
-          adding={addBullet.isPending}
-          onAdd={(roleIndex, text) => addBullet.mutateAsync({ roleIndex, text }).then(() => {})}
-          onClose={() => { setIntakeOpen(false); setIntakeSeed(null) }}
-        />
-      )}
-
       {weaveOpen && (
         <TailorWeave
           token={token}
@@ -469,8 +354,6 @@ export function PlaygroundView({
           jobTitle={m.jobTitle}
           loomRoles={cv.experience.map(e => e.company || e.role).filter(Boolean)}
           onApplied={versionId => {
-            // The tailored version is the artifact (L3): select it so the
-            // playground edits AGAINST it, and refresh the version ledger.
             playground.selectVersion(versionId)
             queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
             queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
@@ -488,18 +371,17 @@ export function PlaygroundView({
           jobTitle={m.jobTitle}
           ready={m.ready}
           delta={sessionRaised}
-          pendingFixes={visibleFixes.length}
+          pendingFixes={m.openFixes.filter(f => !dismissed.has(f.id)).length}
           onConfirm={confirmApply}
           onClose={() => setApplyOpen(false)}
-          onBackToFixes={() => { setApplyOpen(false); setTab("fixes") }}
+          onBackToFixes={() => setApplyOpen(false)}
           onDownload={requestDownload}
         />
       )}
 
-      {/* Hidden canonical artifact: the SAME PdfPage every export surface renders,
-          serialized (outerHTML) for the server Chromium render. Mirrors the live
-          projection (cv + hiddenItems) so the download is exactly the preview.
-          `hidden` keeps it out of layout and out of print isolation. */}
+      {/* Hidden canonical artifact: the SAME PdfPage the SHEET tab renders,
+          serialized for the server Chromium render, mirroring the live
+          projection so the download is exactly what was on screen. */}
       <div ref={sheetWrapRef} hidden aria-hidden="true">
         <PdfPage
           cv={cv}
@@ -509,6 +391,6 @@ export function PlaygroundView({
           footerMarkHidden={selectedVersion?.footer_mark_hidden ?? false}
         />
       </div>
-    </div>
+    </>
   )
 }
