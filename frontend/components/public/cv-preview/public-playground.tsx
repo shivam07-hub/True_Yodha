@@ -41,6 +41,7 @@ import { CvMatchInvite, CvTerminalCard } from "@/components/cv/builder/cv-rail-c
 import { identityLines } from "@/components/cv/builder/cv-identity-lines"
 import { rewriteFetcher } from "@/components/cv/builder/rewrite-fetchers"
 import { runAtsChecks } from "@/components/cv/builder/ats-checks"
+import { useCvDiagnosis } from "@/components/cv/builder/use-cv-diagnosis"
 import { runContentChecks } from "@/components/cv/builder/content-checks"
 import { itemId, renderDeterministic } from "@/lib/cv-compose"
 import { printCvPage } from "@/lib/cv/print-cv"
@@ -128,6 +129,8 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
   )
   const atsChecks = useMemo(() => runAtsChecks(cv, fakeProfile, filename), [cv, fakeProfile, filename])
   const pageFill = useMemo<PageFill>(() => computePageFill(cv, hidden), [cv, hidden])
+  // ONE scan per change, same hook as both authed surfaces.
+  const diagnosis = useCvDiagnosis({ cv, hidden, atsChecks })
 
   const lineCount = useMemo(() => {
     let n = 0
@@ -211,11 +214,12 @@ export function PublicPlayground({ cv: initialCv, contact, result }: PublicPlayg
         hidden={hidden}
         targeted={false}
         atsChecks={atsChecks}
+        diagnosis={diagnosis}
         pageFill={pageFill}
         lineCount={lineCount}
         wordCount={wordCount}
-        makeFetcher={(bullet, quantifyOnly) =>
-          rewriteFetcher.anon(bullet, contact.title || null, quantifyOnly)}
+        makeFetcher={(bullet, fix) =>
+          rewriteFetcher.anon(bullet, { role: contact.title || null, fix, quantifyOnly: fix?.kind === "Quantify" })}
         onApplyRewrite={({ oldText, newText }) => replaceLine(oldText, newText)}
         onEditLine={replaceLine}
         onToggleHidden={toggle}

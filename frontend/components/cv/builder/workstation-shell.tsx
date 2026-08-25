@@ -14,20 +14,21 @@
  */
 "use client"
 
-import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import type { CVStructured, UserSkillsByDomain } from "@/lib/api"
 import type { PageFill } from "@/lib/cv/page-fill"
 import type { AtsCheck } from "./ats-checks"
 import type { IdentityLines } from "./cv-identity-card"
 import type { RewriteFetcher } from "./use-line-rewrite"
 import { CvDocument } from "./cv-document"
-import { CvLineRewrite } from "./cv-line-rewrite"
+import { CvLineFix } from "./cv-line-fix"
 import { CvPaneToolbar } from "./cv-pane-toolbar"
 import { CvDoNowBar, CvSeverityChips } from "./cv-mobile-triage"
 import { WorkstationRail } from "./workstation-rail"
-import { buildV2Fixes, type V2Fix } from "./fix-model"
-import { lineVerdicts, type Severity } from "./cv-severity"
-import { atsPassTally, buildIssues, triageCounts, type Issue } from "./issue-model"
+import type { V2Fix } from "./fix-model"
+import type { Severity } from "./cv-severity"
+import type { CvDiagnosis } from "./use-cv-diagnosis"
+import type { Issue } from "./issue-model"
 
 export interface WorkstationShellProps {
   header: ReactNode
@@ -37,6 +38,9 @@ export interface WorkstationShellProps {
   /** A job is in play, so a green line can honestly say "on target". */
   targeted: boolean
   atsChecks: AtsCheck[]
+  /** The single CV scan for this render. The shell derives nothing from the CV
+   *  itself — see useCvDiagnosis for why that matters. */
+  diagnosis: CvDiagnosis
   pageFill: PageFill
   lineCount: number
   wordCount: number
@@ -49,12 +53,13 @@ export interface WorkstationShellProps {
   /** Shown when the queue is clear and there is no Skills lane. */
   terminal?: ReactNode
   railLabel: string
-  /** Fix ids the user dismissed — filtered out of the queue and the pane. */
-  dismissed?: Set<string>
-  /** Where the rewrite request goes. Differs authed / anon. */
-  makeFetcher: (bullet: string, quantifyOnly: boolean) => RewriteFetcher
+  /** Where the rewrite request goes. Differs authed / anon. Takes the FIX, not
+   *  a flag — the server needs to know what change was promised. */
+  makeFetcher: (bullet: string, fix: V2Fix) => RewriteFetcher
   applying?: boolean
   onApplyRewrite: (args: { fix: V2Fix | null; oldText: string; newText: string }) => void
+  /** "Not for this line". Hides the card; never returns its points. */
+  onDismissFix?: (fix: V2Fix) => void
   onEditLine: (oldText: string, newText: string) => void
   onCopyLine?: (text: string) => void
   onToggleHidden?: (iid: string) => void
@@ -75,9 +80,10 @@ export interface WorkstationShellProps {
 
 export function WorkstationShell(props: WorkstationShellProps) {
   const {
-    header, cv, identity, hidden, targeted, atsChecks, pageFill, lineCount,
+    header, cv, identity, hidden, targeted, atsChecks, diagnosis, pageFill, lineCount,
     wordCount, sheet, skillsLabel, skillsPane, railFooter, terminal, railLabel,
-    dismissed, makeFetcher, applying, onApplyRewrite, onEditLine, onCopyLine,
+    makeFetcher, applying, onApplyRewrite, onDismissFix,
+    onEditLine, onCopyLine,
     onToggleHidden, onPatch, identityEditable, onAddBullet, userSkills,
     initialRailTab, requestRailTab, requestOpenIid, className,
   } = props
@@ -87,23 +93,15 @@ export function WorkstationShell(props: WorkstationShellProps) {
   const [filter, setFilter] = useState<Severity | null>(null)
   const [openIid, setOpenIid] = useState<string | null>(null)
   const [activeIssueId, setActiveIssueId] = useState<string | null>(null)
+  // Which rail row is expanded to its brief. Separate from activeIssueId on
+  // purpose: reading why a line is flagged is free and must not imply that a
+  // rewrite is running, or that one is about to.
+  const [openIssueId, setOpenIssueId] = useState<string | null>(null)
   const [flash, setFlash] = useState<{ iid: string; n: number } | null>(null)
+  const [editRequest, setEditRequest] = useState<{ iid: string; n: number } | null>(null)
   const [fixedCount, setFixedCount] = useState(0)
 
-  const verdicts = useMemo(
-    () => lineVerdicts(cv, hidden, { dismissed }),
-    [cv, hidden, dismissed],
-  )
-  const fixes = useMemo(
-    () => buildV2Fixes(cv, hidden).filter(f => !dismissed?.has(f.id)),
-    [cv, hidden, dismissed],
-  )
-  const issues = useMemo(
-    () => buildIssues({ cv, fixes, atsChecks, sectionInvites: !!onPatch }),
-    [cv, fixes, atsChecks, onPatch],
-  )
-  const counts = useMemo(() => triageCounts(issues), [issues])
-  const { passed: atsPassed } = useMemo(() => atsPassTally(atsChecks), [atsChecks])
+  const { verdicts, fixes, issues, counts, atsPassed } = diagnosis
   const openFix = openIid ? fixes.find(f => f.iid === openIid) ?? null : null
 
   function jump(iid: string) {
@@ -122,8 +120,17 @@ export function WorkstationShell(props: WorkstationShellProps) {
     setOpenIid(requestOpenIid)
     setFlash(prev => ({ iid: requestOpenIid, n: (prev?.n ?? 0) + 1 }))
   }, [requestOpenIid])
-  function openIssue(issue: Issue) {
+  /** Expanding a row: free, local, no network. Costs a paint. */
+  function toggleIssue(issue: Issue) {
+    setOpenIssueId(prev => (prev === issue.id ? null : issue.id))
+  }
+  /** Going to the line: scrolls the pane and opens the fix card there, still in
+   *  its brief phase — the model runs only when the user asks on the line. */
+  function goToIssue(issue: Issue) {
     setActiveIssueId(issue.id)
+    // The brief moves to the line with the user. Leaving the rail copy expanded
+    // puts the same three reasons and the same example on screen twice.
+    setOpenIssueId(null)
     setMode("edit")
     if (issue.fix) {
       setOpenIid(issue.fix.iid)
@@ -169,6 +176,7 @@ export function WorkstationShell(props: WorkstationShellProps) {
                 targeted={targeted}
                 openIid={openIid}
                 flash={flash}
+                editRequest={editRequest}
                 onOpenFix={openLine}
                 onToggleHidden={onToggleHidden}
                 onEditLine={onEditLine}
@@ -177,21 +185,36 @@ export function WorkstationShell(props: WorkstationShellProps) {
                 identityEditable={identityEditable}
                 onAddBullet={onAddBullet}
                 userSkills={userSkills}
-                renderRewrite={(iid, text) => (
-                  <CvLineRewrite
-                    key={iid}
-                    fetcher={makeFetcher(text, openFix?.kind === "Quantify")}
-                    applying={applying}
-                    quantifyOnly={openFix?.kind === "Quantify"}
-                    onApply={newText => {
-                      onApplyRewrite({ fix: openFix ?? null, oldText: text, newText })
-                      setFixedCount(n => n + 1)
-                      setOpenIid(null)
-                      setActiveIssueId(null)
-                    }}
-                    onDiscard={() => { setOpenIid(null); setActiveIssueId(null) }}
-                  />
-                )}
+                renderRewrite={(iid, text) => {
+                  const issue = openFix ? issues.find(i => i.id === openFix.id) : undefined
+                  if (!openFix || !issue) return null
+                  return (
+                    <CvLineFix
+                      key={iid}
+                      fix={openFix}
+                      brief={issue.brief}
+                      bullet={text}
+                      makeFetcher={makeFetcher}
+                      applying={applying}
+                      onApply={newText => {
+                        onApplyRewrite({ fix: openFix, oldText: text, newText })
+                        setFixedCount(n => n + 1)
+                        setOpenIid(null)
+                        setActiveIssueId(null)
+                      }}
+                      onEdit={() => {
+                        setOpenIid(null)
+                        setEditRequest(p => ({ iid, n: (p?.n ?? 0) + 1 }))
+                      }}
+                      onDismiss={onDismissFix ? () => {
+                        onDismissFix(openFix)
+                        setOpenIid(null)
+                        setActiveIssueId(null)
+                      } : undefined}
+                      onDiscard={() => { setOpenIid(null); setActiveIssueId(null) }}
+                    />
+                  )
+                }}
               />
             )}
           </div>
@@ -208,7 +231,10 @@ export function WorkstationShell(props: WorkstationShellProps) {
           filter={filter}
           onFilter={setFilter}
           activeIssueId={activeIssueId}
-          onOpenIssue={openIssue}
+          openIssueId={openIssueId}
+          onToggleIssue={toggleIssue}
+          onGoIssue={goToIssue}
+          onDismissIssue={onDismissFix ? i => i.fix && onDismissFix(i.fix) : undefined}
           atsChecks={atsChecks}
           atsPassed={atsPassed}
           fixedCount={fixedCount}
@@ -223,7 +249,7 @@ export function WorkstationShell(props: WorkstationShellProps) {
           index={1}
           total={issues.length}
           ctaLabel={nextLabel}
-          onCta={() => openIssue(next)}
+          onCta={() => goToIssue(next)}
         />
       )}
     </div>

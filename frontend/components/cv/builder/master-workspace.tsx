@@ -32,6 +32,7 @@ import { PdfPage } from "./pdf-page"
 import { PlaygroundHeader } from "./playground-header"
 import { WorkstationShell } from "./workstation-shell"
 import { runAtsChecks } from "./ats-checks"
+import { useCvDiagnosis } from "./use-cv-diagnosis"
 import { identityLines } from "./cv-identity-lines"
 import { rewriteFetcher } from "./rewrite-fetchers"
 import { usePlaygroundModel } from "./use-playground-model"
@@ -86,12 +87,7 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
   )
 
   const draft = autosave.draft ?? cv
-  const m = usePlaygroundModel(token, "", draft, profile, NO_HIDDEN, {
-    mode: "master",
-    masterScore: myroScore,
-  })
-  const { dismissed } = useDismissedFixes("master")
-
+  const { dismissed, dismiss } = useDismissedFixes("master")
   const filename = useMemo(
     () => masterFilename(draft.contact?.name ?? profile?.full_name ?? null),
     [draft.contact?.name, profile?.full_name],
@@ -100,6 +96,14 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
     () => runAtsChecks(draft, profile, filename),
     [draft, profile, filename],
   )
+  // ONE scan per change — and this surface autosaves on every keystroke, so it
+  // is the one that most needs there to be exactly one.
+  const diagnosis = useCvDiagnosis({ cv: draft, hidden: NO_HIDDEN, atsChecks, dismissed })
+  const m = usePlaygroundModel(token, "", draft, profile, NO_HIDDEN, {
+    mode: "master",
+    masterScore: myroScore,
+    penalty: diagnosis.penalty,
+  })
 
   const onPatch = useCallback(
     (mut: (d: CVStructured) => CVStructured) =>
@@ -207,9 +211,10 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
       pageFill={m.pageFill}
       lineCount={m.visibleCount}
       wordCount={m.wordCount}
-      dismissed={dismissed}
-      makeFetcher={(bullet, quantifyOnly) =>
-        rewriteFetcher.authed(token, bullet, draft.contact?.title ?? null, quantifyOnly)}
+      diagnosis={diagnosis}
+      onDismissFix={f => dismiss(f.id)}
+      makeFetcher={(bullet, fix) =>
+        rewriteFetcher.authed(token, bullet, { role: draft.contact?.title ?? null, fix, quantifyOnly: fix?.kind === "Quantify" })}
       onApplyRewrite={({ oldText, newText }) => applyText(oldText, newText)}
       onEditLine={applyText}
       onPatch={onPatch}

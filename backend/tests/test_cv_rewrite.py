@@ -456,3 +456,55 @@ def test_finalize_passes_clean_bullet_through():
     out = cv_rewrite.finalize_rewrite("Generated €500K+ revenue by leading B2B GTM strategy", None, [])
     assert out["mode"] == "rewrite"
     assert out["rewritten_text"] == "Generated €500K+ revenue by leading B2B GTM strategy"
+
+
+# ── named-fix intents (2026-08-25) ────────────────────────────────────────────
+# The rail promises a specific change ("Cut “leverage”"). Before this, the kind
+# and the offending phrase were never sent, so the server ran an open-ended
+# "make it stronger" — and a Cut row was observed returning the original line
+# with the buzzword still in it. The instruction now names the change.
+
+def test_cut_intent_names_the_phrase_to_remove(monkeypatch):
+    _patch_grounding(monkeypatch, _grounding())
+    provider = _FakeProvider()
+    asyncio.run(cv_rewrite.suggest_rewrite_variants(
+        "Cut churn 18% by leveraging a best-in-class retention flow",
+        None, [], None, provider=provider,
+        intent="cut", target_phrases=["best-in-class"]))
+    sent = provider.last_messages[-1]["content"]
+    assert "best-in-class" in sent
+    assert "MUST NOT appear" in sent
+
+
+def test_verb_intent_demands_the_opener_leaves_the_front(monkeypatch):
+    _patch_grounding(monkeypatch, _grounding())
+    provider = _FakeProvider()
+    asyncio.run(cv_rewrite.suggest_rewrite_variants(
+        "Cut churn 18% after being responsible for the retention squad",
+        None, [], None, provider=provider,
+        intent="verb", target_phrases=["Responsible for"]))
+    sent = provider.last_messages[-1]["content"]
+    assert "Responsible for" in sent
+    assert "START with a strong past-tense" in sent
+
+
+def test_dedupe_intent_names_the_repeated_phrase(monkeypatch):
+    _patch_grounding(monkeypatch, _grounding())
+    provider = _FakeProvider()
+    asyncio.run(cv_rewrite.suggest_rewrite_variants(
+        "Cut churn 18% by shaping GTM strategy for GCC clients",
+        None, [], None, provider=provider,
+        intent="dedupe", target_phrases=["GTM strategy for"]))
+    sent = provider.last_messages[-1]["content"]
+    assert "GTM strategy for" in sent
+    assert "more than one bullet" in sent
+
+
+def test_an_unnamed_fix_still_gets_the_plain_three_angle_reframe(monkeypatch):
+    """No intent = no extra instruction. The open-ended path is unchanged."""
+    _patch_grounding(monkeypatch, _grounding())
+    provider = _FakeProvider()
+    asyncio.run(cv_rewrite.suggest_rewrite_variants(
+        "Cut churn 18% by shipping a lifecycle flow", None, [], None, provider=provider))
+    sent = provider.last_messages[-1]["content"]
+    assert "MUST NOT appear" not in sent

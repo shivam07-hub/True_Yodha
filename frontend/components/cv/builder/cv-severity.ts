@@ -27,7 +27,6 @@ import { itemId } from "@/lib/cv-compose"
 import type { AtsCheck } from "./ats-checks"
 import {
   hasQuantity,
-  runContentChecks,
   type ContentCategory,
   type ContentFinding,
 } from "./content-checks"
@@ -77,8 +76,9 @@ export interface LineVerdictOpts {
 }
 
 /**
- * Every CV line's tone, keyed by editor iid. One pass over the live CV, so a
- * line drops its gutter the moment its text stops triggering the check.
+ * Every CV line's tone, keyed by editor iid, derived from the SINGLE scan in
+ * useCvDiagnosis — a line drops its gutter the moment its text stops triggering
+ * the check, without a second pass over the CV.
  *
  * Only experience/project bullets can be "on-target": the summary is exempt
  * from the quantify rule, so a clean summary raises no finding and would
@@ -87,10 +87,11 @@ export interface LineVerdictOpts {
 export function lineVerdicts(
   cv: CVStructured,
   hidden: Set<string>,
+  findings: readonly ContentFinding[],
   opts: LineVerdictOpts = {},
 ): Map<string, LineVerdict> {
   const bySeverity = new Map<string, { severities: Severity[]; offenders: string[] }>()
-  for (const f of runContentChecks(cv, hidden)) {
+  for (const f of findings) {
     if (opts.dismissed?.has(f.id)) continue
     const iid = findingIid(cv, f)
     if (!iid) continue

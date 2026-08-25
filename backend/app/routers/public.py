@@ -442,6 +442,10 @@ class AnonRewriteRequest(BaseModel):
     missing_keywords: list[str] = []
     metric:           str | None = None
     allow_no_metric:  bool = False
+    # The fix kind the rail promised + the exact phrases to remove. Same contract
+    # as the authed twin — the logged-out surface runs the same fix loop.
+    intent:           str | None = None
+    target_phrases:   list[str] = []
     cf_turnstile_token: str | None = None
 
 
@@ -521,6 +525,8 @@ async def rewrite_bullet_variants_preview(
         body.missing_keywords,
         body.metric,
         allow_no_metric=body.allow_no_metric,
+        intent=body.intent,
+        target_phrases=body.target_phrases,
     )
     return AnonRewriteVariantsResponse(
         mode=result["mode"],

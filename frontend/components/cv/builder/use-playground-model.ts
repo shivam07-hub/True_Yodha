@@ -23,12 +23,14 @@ import { jobs as jobsApi, cv as cvApi } from "@/lib/api"
 import { itemId } from "@/lib/cv-compose"
 import { dataKeys } from "@/lib/domain-data"
 import { IDEAL_CV_SPEC, estimateLines, pageFillFromLines, type PageFill } from "@/lib/cv/page-fill"
-import { contentPenalty, runContentChecks } from "./content-checks"
-import { buildV2Fixes, type V2Fix } from "./fix-model"
 import { matchScore } from "./match-score"
 import { resolvePlaygroundCompany } from "./keyword-utils"
 
 export interface PlaygroundModelOpts {
+  /** The single CV scan for this render (useCvDiagnosis). The model reads its
+   *  penalty rather than re-scanning — see that hook for why four memoised
+   *  scans of identical inputs was still four scans. */
+  penalty: number
   /** "master" = the Main-CV surface: no job, no JD coverage. Score is the
    *  CV-intrinsic Myro Score (passed as masterScore), fixes are recruiter-check
    *  content only, and no per-job point-gain is claimed. Default "job". */
@@ -96,11 +98,9 @@ export function usePlaygroundModel(
 
   // Content-quality penalty (#34 S3): open recruiter-check findings subtract real
   // points from the score, and each fix returns its exact points on a real text
-  // change. Hidden lines are excluded.
-  const contentPenaltyPts = useMemo(
-    () => contentPenalty(runContentChecks(cv, hiddenItems)),
-    [cv, hiddenItems],
-  )
+  // change. Computed from the ONE scan, over ALL findings — dismissing a card
+  // hides it, it never buys back the points.
+  const contentPenaltyPts = opts?.penalty ?? 0
 
   // Coverage counts drive the score. Null until the parse lands (or if it finds
   // nothing) → the score falls back to the job's deterministic readiness, never
@@ -134,12 +134,6 @@ export function usePlaygroundModel(
   const gapRequirements = useMemo(
     () => requirements.filter(r => r.status === "gap").map(r => r.requirement),
     [requirements],
-  )
-
-  // Content-quality fixes only — anchored to real CV bullets, inline-rewritable.
-  const openFixes: V2Fix[] = useMemo(
-    () => buildV2Fixes(cv, hiddenItems),
-    [cv, hiddenItems],
   )
 
   const visibleCount = useMemo(() => {
@@ -181,6 +175,6 @@ export function usePlaygroundModel(
   return {
     job, application, company, jobTitle, jdText, roles,
     visibleText, ready, hasSemantic, coverageQuery, reqCount, gapRequirements,
-    openFixes, visibleCount, wordCount, pageFill, sheetContact,
+    visibleCount, wordCount, pageFill, sheetContact,
   }
 }

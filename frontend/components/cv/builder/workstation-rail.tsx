@@ -36,7 +36,12 @@ export interface WorkstationRailProps {
   issues: Issue[]
   counts: TriageCounts
   activeIssueId: string | null
-  onOpenIssue: (issue: Issue) => void
+  /** Row expanded to its free brief. Expanding reaches no network. */
+  openIssueId: string | null
+  onToggleIssue: (issue: Issue) => void
+  /** Go to the line and open the fix there. */
+  onGoIssue: (issue: Issue) => void
+  onDismissIssue?: (issue: Issue) => void
   atsChecks: AtsCheck[]
   atsPassed: number
   /** Severity filter, owned by the shell — the phone chip row is the same
@@ -53,7 +58,8 @@ export interface WorkstationRailProps {
 
 export function WorkstationRail({
   ariaLabel, tab, onTab, skillsLabel, skillsPane, issues, counts,
-  activeIssueId, onOpenIssue, atsChecks, atsPassed, filter, onFilter,
+  activeIssueId, openIssueId, onToggleIssue, onGoIssue, onDismissIssue,
+  atsChecks, atsPassed, filter, onFilter,
   fixedCount, terminal, footer,
 }: WorkstationRailProps) {
   const [reviewing, setReviewing] = useState(false)
@@ -101,7 +107,10 @@ export function WorkstationRail({
             <CvIssueQueue
               issues={shown}
               activeId={activeIssueId}
-              onOpen={onOpenIssue}
+              openId={openIssueId}
+              onToggle={onToggleIssue}
+              onGo={onGoIssue}
+              onDismiss={onDismissIssue}
               emptyNote={filter ? `Nothing ${filter} left — clear the filter to see the rest.` : undefined}
             />
             <CvAtsStrip checks={atsChecks} passed={atsPassed} />

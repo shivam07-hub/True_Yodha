@@ -497,6 +497,48 @@ def _parse_variants(raw: str) -> list[dict[str, str]]:
 # through a 3-angle one-line reframe invites the not-worse guards (a 2-sentence
 # bullet can't compress to one line without losing something) — the live Azure
 # dead-end. The fix KIND drives the instruction.
+# The fix kinds the rail can promise. "weave" (keyword insertion) predates these
+# and keeps its own instruction; the three below were added on 2026-08-25, when a
+# `Cut "leverage"` row was observed returning the same sentence with "leverage"
+# still in it — the request had carried no idea what the user had been promised.
+_FIX_INTENTS = frozenset({"cut", "verb", "dedupe"})
+
+
+def _quoted(phrases: list[str], fallback: str) -> str:
+    named = ", ".join(f"\u201c{p}\u201d" for p in phrases[:3] if p and p.strip())
+    return named or fallback
+
+
+def _fix_instruction(intent: str, phrases: list[str]) -> str:
+    """One instruction per promised fix. Each keeps the same shape as the weave
+    instruction: name the change, forbid collateral damage, output only the line."""
+    keep = (
+        "Keep every fact, number, tool and proper noun exactly as they are. "
+        "Do not add anything that is not already in the line.\n"
+        "Output ONLY the edited bullet: no tags, no explanation."
+    )
+    if intent == "cut":
+        target = _quoted(phrases, "the cliché")
+        return (
+            f"Remove {target} from this bullet and say what actually happened "
+            f"instead. The phrase MUST NOT appear in your output in any form.\n{keep}"
+        )
+    if intent == "verb":
+        target = _quoted(phrases, "the duty phrase")
+        return (
+            f"This bullet opens with {target}, which describes the assignment "
+            "rather than the work. Rewrite it to START with a strong past-tense "
+            "action verb naming what was done. The opening phrase MUST NOT "
+            f"survive at the front of your output.\n{keep}"
+        )
+    target = _quoted(phrases, "the repeated phrase")
+    return (
+        f"{target} is used in more than one bullet on this CV. Reword THIS "
+        "bullet so the phrase does not appear in it, keeping the same meaning. "
+        f"The phrase MUST NOT appear in your output.\n{keep}"
+    )
+
+
 def _weave_instruction(keywords: list[str]) -> str:
     kws = ", ".join(f"“{k}”" for k in keywords[:3] if k.strip()) or "the target keyword"
     return (
@@ -530,17 +572,22 @@ async def suggest_rewrite_variants(
     allow_no_metric: bool = False,
     user_id: str | None = None,
     intent: str | None = None,
+    target_phrases: list[str] | None = None,
 ) -> dict:
     """Blocking recommended+alternates rewrite. `provider` is a TEST-ONLY override.
     ``intent="weave"`` (Surface-skill fixes) = one minimal keyword-insertion edit
     instead of the 3-angle reframe; the metric question never fires for it (adding
-    a term needs no number). Returns one of:
+    a term needs no number). ``intent`` in {"cut","verb","dedupe"} = the fix kind
+    the rail promised, with ``target_phrases`` naming the exact words to remove;
+    the 3-angle shape is kept, the instruction just says what the change IS.
+    Returns one of:
       {"mode": "question", ...} / {"mode": "suggest_metric", ...}
       {"mode": "variants", "variants": [{angle,label,text,why}], "citations": [...]}
           — variants[0] is the Mentor's recommendation (strongest-first).
       {"mode": "error", "rationale": str}
     """
     weave = intent == "weave"
+    phrases = [p for p in (target_phrases or []) if p and p.strip()]
     plan = await prepare_rewrite(
         bullet, role, missing_keywords, metric,
         allow_no_metric=allow_no_metric or weave, user_id=user_id,
@@ -551,7 +598,12 @@ async def suggest_rewrite_variants(
     provider = provider or get_writer_provider()
     keywords = plan["missing_keywords"]
     allowed_text = " ".join([metric or "", *keywords])
-    instruction = _weave_instruction(keywords) if weave else _variants_instruction()
+    if weave:
+        instruction = _weave_instruction(keywords)
+    elif intent in _FIX_INTENTS:
+        instruction = _variants_instruction() + "\n\n" + _fix_instruction(intent, phrases)
+    else:
+        instruction = _variants_instruction()
     messages = list(plan["messages"])
     messages[-1] = {**messages[-1], "content": messages[-1]["content"] + "\n\n" + instruction}
 

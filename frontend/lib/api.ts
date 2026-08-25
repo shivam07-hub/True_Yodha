@@ -1884,7 +1884,19 @@ export const cv = {
   // output is finished CV lines, never streamed reasoning.
   rewriteBulletVariants: (
     token: string,
-    body: { bullet: string; role?: string | null; missing_keywords: string[]; metric?: string | null; allow_no_metric?: boolean; intent?: "weave" },
+    body: {
+      bullet: string
+      role?: string | null
+      missing_keywords: string[]
+      metric?: string | null
+      allow_no_metric?: boolean
+      /** The fix kind that opened this rewrite. Without it the server runs an
+       *  open-ended "make it stronger" and a `Cut "leverage"` can come back
+       *  still saying leverage. */
+      intent?: "weave" | "cut" | "verb" | "dedupe"
+      /** The exact phrases the row promised to remove, verbatim from the line. */
+      target_phrases?: string[]
+    },
   ) =>
     request<RewriteVariantsResponse>("/cv/rewrite-bullet/variants", {
       method: "POST",
@@ -5307,6 +5319,10 @@ export const publicCv = {
     missing_keywords?: string[]
     metric?: string | null
     allow_no_metric?: boolean
+    /** The fix kind that opened this rewrite — see the authed twin. */
+    intent?: "weave" | "cut" | "verb" | "dedupe"
+    /** The exact phrases the row promised to remove, verbatim from the line. */
+    target_phrases?: string[]
     turnstileToken?: string | null
   }): Promise<AnonRewriteVariantsResponse> =>
     postPublicJson<AnonRewriteVariantsResponse>("/public/rewrite-bullet/variants", {
@@ -5315,6 +5331,8 @@ export const publicCv = {
       missing_keywords: payload.missing_keywords ?? [],
       metric: payload.metric ?? null,
       allow_no_metric: payload.allow_no_metric ?? false,
+      intent: payload.intent ?? null,
+      target_phrases: payload.target_phrases ?? [],
       cf_turnstile_token: payload.turnstileToken ?? (await getTurnstileToken()),
     }),
 

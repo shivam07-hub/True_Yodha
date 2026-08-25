@@ -20,12 +20,32 @@
 import type { CVStructured } from "@/lib/api"
 import type { AtsCheck, AtsFixTarget } from "./ats-checks"
 import type { V2Fix } from "./fix-model"
+import {
+  ATS_EXPLAINERS,
+  CHECK_EXPLAINERS,
+  SECTION_EXPLAINERS,
+  type CheckExample,
+} from "./content-check-explainers"
 import { SEVERITY_ORDER, atsSeverity, type Severity } from "./cv-severity"
 
 export type IssueKind = "line" | "ats" | "section"
 /** Where a non-line issue lands in the CV pane. Widens the ATS targets with the
  *  two master-owned sections the pane can also render empty. */
 export type IssueTarget = AtsFixTarget | "education" | "certs"
+
+/**
+ * The free half of a row. Authored, static, instant — never a model call.
+ *
+ * This is the layer the 25 Aug redesign dropped: the only way to learn what was
+ * wrong with a line was to trigger a rewrite, so understanding cost latency and
+ * a coin. Now understanding is free and generation is the deliberate second act.
+ */
+export interface IssueBrief {
+  /** Terse recruiter-POV reasons, from the authored playbook copy. */
+  reasons: string[]
+  /** The same defect written out fixed. Content checks only. */
+  example?: CheckExample
+}
 
 export interface Issue {
   id: string
@@ -39,6 +59,8 @@ export interface Issue {
   fix: V2Fix | null
   /** Set for `ats` / `section` issues: the pane section to open. */
   target: IssueTarget | null
+  /** Why this matters, free and instant. Never empty. */
+  brief: IssueBrief
   /** Action word on a non-line row. `null` on line rows — those say
    *  "open on the line →" when active and nothing when not. */
   action: "Fix" | "Add" | null
@@ -70,6 +92,10 @@ export function buildIssues({
     fix: f,
     target: null,
     action: null,
+    brief: {
+      reasons: CHECK_EXPLAINERS[f.category].reasons,
+      example: CHECK_EXPLAINERS[f.category].example,
+    },
   }))
 
   for (const c of atsChecks) {
@@ -83,6 +109,7 @@ export function buildIssues({
       fix: null,
       target: c.fix ?? null,
       action: c.optional ? "Add" : "Fix",
+      brief: { reasons: ATS_EXPLAINERS[c.tag] ?? [] },
     })
   }
 
@@ -114,6 +141,7 @@ function invite(id: string, title: string, target: IssueTarget): Issue {
     fix: null,
     target,
     action: "Add",
+    brief: { reasons: SECTION_EXPLAINERS[id] ?? [] },
   }
 }
 

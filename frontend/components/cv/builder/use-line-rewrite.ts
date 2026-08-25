@@ -15,7 +15,7 @@
  */
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 export interface RewriteAngle {
   angle: string
@@ -65,14 +65,35 @@ export function useLineRewrite(fetcher: RewriteFetcher): LineRewriteState {
   const [question, setQuestion] = useState<string | null>(null)
   const [candidate, setCandidate] = useState<{ value: string; source: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Single-flight. The mount effect fires once, but Try again / Use this number
+  // are buttons a user can double-tap, and a second call would race the first
+  // into setState — last writer wins, and the answer shown might not be the
+  // answer to the question last asked.
+  const inFlight = useRef(false)
+  // Re-ARMED on mount, not just initialised. A ref cleared in a cleanup is not
+  // restored by the next mount, and React StrictMode (on by default in the Next
+  // app router, dev only) runs mount -> cleanup -> mount: the first run fired,
+  // the cleanup set this false, the re-mount was blocked by inFlight, and the
+  // answer that eventually arrived was dropped against a component that was
+  // very much alive. One request, permanently stuck on "loading", in dev only.
+  const alive = useRef(true)
+  useEffect(() => {
+    alive.current = true
+    return () => { alive.current = false }
+  }, [])
 
   const run = useCallback(async (opts: { metric?: string; allowNoMetric?: boolean } = {}) => {
+    if (inFlight.current) return
+    inFlight.current = true
     setPhase("loading"); setError(null); setQuestion(null); setCandidate(null)
     try {
       const res = await fetcher({
         metric: opts.metric ?? null,
         allowNoMetric: opts.allowNoMetric ?? false,
       })
+      // Unmounted mid-flight (the user closed the card): drop the answer rather
+      // than writing state into a component that is gone.
+      if (!alive.current) return
       if (res.mode === "variants" && res.variants.length > 0) {
         setVariants(res.variants); setSelected(0); setPhase("variants")
       } else if (res.mode === "suggest_metric" && res.candidateValue) {
@@ -87,11 +108,16 @@ export function useLineRewrite(fetcher: RewriteFetcher): LineRewriteState {
         setPhase("error")
       }
     } catch (e) {
+      if (!alive.current) return
       setError(e instanceof Error ? e.message : "Rewrite is unavailable. Try again.")
       setPhase("error")
+    } finally {
+      inFlight.current = false
     }
     // The fetcher closes over the bullet, which is fixed for the life of one
-    // open rewrite. Re-running on every render would re-fire the LLM call.
+    // open rewrite — this component is mounted by the user pressing "Rewrite
+    // with Mentor" and unmounted when they leave. Taking `fetcher` as a dep
+    // would re-fire the model on every parent render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

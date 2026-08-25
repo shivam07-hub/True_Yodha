@@ -89,9 +89,14 @@ class RewriteBulletRequest(BaseModel):
     missing_keywords: list[str] = Field(default_factory=list)
     metric:           str | None = None
     allow_no_metric:  bool = False
-    # "weave" (Surface-skill fixes) = one minimal keyword-insertion edit instead of
-    # the 3-angle reframe. The fix KIND drives the instruction.
+    # The fix KIND drives the instruction: "weave" (Surface-skill) is one minimal
+    # keyword insertion; "cut" / "verb" / "dedupe" keep the 3-angle reframe but
+    # name the change the rail promised. Without this the server ran an
+    # open-ended "make it stronger" and a `Cut "leverage"` could return a line
+    # that still said leverage.
     intent:           str | None = None
+    # The exact phrases to remove, verbatim from the user's line.
+    target_phrases:   list[str] = Field(default_factory=list)
 
 
 class RewriteBulletResponse(BaseModel):
@@ -283,6 +288,7 @@ async def rewrite_bullet_variants(
         allow_no_metric=body.allow_no_metric,
         user_id=principal.id,
         intent=body.intent,
+        target_phrases=body.target_phrases,
     )
     return RewriteVariantsResponse(
         mode=result["mode"],

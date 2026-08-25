@@ -622,3 +622,72 @@ button.cvw-verdict:focus-visible { outline: 2px solid var(--tm-accent-ring); out
     zoom: min(1, 100cqw / 816px);
   }
 }
+
+/* ── the brief: what's wrong, why, and what good looks like ──
+   Free and instant. It renders in two places — expanded under a rail row, and
+   as the first phase of the card under the line — because a user arrives at a
+   fix from either side and both owe the same answer before spending a model
+   call. Rank-wise the example is the loudest thing here: it is what most people
+   act on, and acting on it costs nothing. */
+.cvw-brief {
+  padding: 14px 16px 16px;
+  border-top: 1px solid var(--tm-border-soft);
+  background: var(--tm-surface);
+}
+.cvw-rw .cvw-brief { border-top: 0; background: none; padding: 12px 0 0; }
+
+.cvw-brief-head {
+  margin: 0;
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-meta); font-weight: 600;
+  line-height: 1.45; color: var(--tm-text);
+}
+.cvw-brief-why {
+  margin: 10px 0 0; padding: 0; list-style: none;
+  display: flex; flex-direction: column; gap: 5px;
+}
+.cvw-brief-why li {
+  position: relative; padding-left: 14px;
+  font-size: var(--tm-fs-caption); line-height: 1.5; color: var(--tm-text-muted);
+}
+.cvw-brief-why li::before {
+  content: ""; position: absolute; left: 2px; top: 8px;
+  width: 4px; height: 4px; border-radius: 50%; background: var(--cvw-sev, var(--tm-text-faint));
+}
+
+.cvw-brief-eg {
+  margin-top: 12px; border-radius: var(--tm-radius, 6px);
+  background: var(--tm-surface-2); overflow: hidden;
+}
+.cvw-brief-eg-row {
+  display: grid; grid-template-columns: 64px minmax(0, 1fr);
+  gap: 10px; margin: 0; padding: 10px 12px;
+  font-size: var(--tm-fs-caption); line-height: 1.5;
+}
+.cvw-brief-eg-row.is-before { color: var(--tm-text-faint); }
+.cvw-brief-eg-row.is-after {
+  color: var(--tm-text);
+  border-top: 1px solid var(--tm-border-faint);
+  background: color-mix(in oklab, var(--tm-success) 8%, transparent);
+}
+.cvw-brief-eg-tag {
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--tm-text-faint);
+  padding-top: 1px;
+}
+.cvw-brief-eg-row.is-after .cvw-brief-eg-tag { color: var(--tm-success); }
+
+.cvw-brief-acts { display: flex; align-items: center; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.cvw-brief-acts .cvw-rw-primary,
+.cvw-brief-acts .cvw-rw-ghost { padding: 8px 14px; font-size: var(--tm-fs-ui-sm); }
+
+.cvw-issue-wrap {
+  border: 1px solid transparent; border-radius: var(--tm-radius-lg, 8px);
+  background: var(--tm-surface-2); overflow: hidden;
+}
+.cvw-issue-wrap:has(.cvw-issue[data-active="true"]) { border-color: var(--tm-interactive); }
+.cvw-issue-wrap .cvw-issue { border: 0; border-radius: 0; }
+
+@media (max-width: 900px) {
+  .cvw-brief-eg-row { grid-template-columns: 1fr; gap: 4px; }
+  .cvw-brief-acts .cvw-rw-primary { flex: 1 1 100%; min-height: 44px; }
+}

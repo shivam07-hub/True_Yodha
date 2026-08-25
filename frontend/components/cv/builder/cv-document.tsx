@@ -49,13 +49,16 @@ export interface CvDocumentProps {
   userSkills?: UserSkillsByDomain | null
   /** Jump request from the rail: scroll to a line and pulse it. */
   flash?: { iid: string; n: number } | null
+  /** "Edit it myself" — put this line straight into its textarea. Bump `n` to
+   *  re-request the same line. */
+  editRequest?: { iid: string; n: number } | null
 }
 
 export function CvDocument(props: CvDocumentProps) {
   const {
     cv, identity, hidden, verdicts, targeted, openIid, renderRewrite,
     onOpenFix, onToggleHidden, onEditLine, onCopyLine, onPatch, identityEditable,
-    onAddBullet, userSkills, flash,
+    onAddBullet, userSkills, flash, editRequest,
   } = props
   const [editingIid, setEditingIid] = useState<string | null>(null)
   const [draft, setDraft] = useState("")
@@ -81,6 +84,17 @@ export function CvDocument(props: CvDocumentProps) {
     const t = setTimeout(() => el.classList.remove("cvw-pulse"), 1600)
     return () => clearTimeout(t)
   }, [flash])
+
+  useEffect(() => {
+    if (!editRequest) return
+    const el = rows.current[editRequest.iid]
+    setEditingIid(editRequest.iid)
+    setDraft(lineTextFor(cv, editRequest.iid) ?? "")
+    el?.scrollIntoView({ behavior: "smooth", block: "center" })
+    // `cv` is read once to seed the textarea; re-running when it changes would
+    // clobber what the user is typing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editRequest])
 
   function line(iid: string, text: string, opts: { mono?: boolean } = {}) {
     const editing = editingIid === iid
@@ -273,4 +287,22 @@ function SectionDraft({
       </div>
     </div>
   )
+}
+
+/** The current text of a line, by its editor iid. Used to seed the textarea when
+ *  the edit is requested from elsewhere (the rail's "Edit it myself"). */
+function lineTextFor(cv: CVStructured, iid: string): string | null {
+  if (cv.summary && itemId("summary", 0, cv.summary) === iid) return cv.summary
+  for (const [ei, e] of cv.experience.entries()) {
+    for (const [bi, b] of e.bullets.entries()) {
+      if (itemId("exp_bullet", ei * 100 + bi, b) === iid) return b
+    }
+  }
+  for (const [pi, p] of cv.projects.entries()) {
+    for (const [bi, b] of p.bullets.entries()) {
+      if (itemId("proj_bullet", pi * 100 + bi, b) === iid) return b
+    }
+  }
+  if (cv.skills_line && itemId("skills_line", 0, cv.skills_line) === iid) return cv.skills_line
+  return null
 }
