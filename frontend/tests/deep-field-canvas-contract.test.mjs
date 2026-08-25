@@ -22,7 +22,7 @@ const genericCanvasOwners = [
   "components/loading/route-loading/route-loading.flow-step.tsx",
   "components/loading/route-loading/skeleton-mirrors/app-shell-skeleton.tsx",
   "components/loading/route-loading/skeleton-mirrors/cv-baseline-skeleton.tsx",
-  "components/loading/route-loading/skeleton-mirrors/cv-playground-skeleton.tsx",
+  "components/loading/route-loading/skeleton-mirrors/cv-workstation-skeleton.tsx",
   "mobile/shell.tsx",
 ]
 
