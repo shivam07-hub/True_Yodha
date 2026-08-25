@@ -1402,7 +1402,10 @@ same wall time. 16 Aug shows `pulse` twice back to back at 15,505 and 15,588ms.
 ### Priority — ordered against the goal, not against milliseconds
 
 **P0 · Make the alert channel show stage one.** — *CLOSED. Sample stratified
-`c766a3a8`; the SSO retry loop root-caused and fixed `0bdc8ef5`.* 170 of 613 lines are partner
+`c766a3a8`; the SSO retry loop root-caused and fixed `0bdc8ef5`, and the
+second half of that race — a concurrent call un-linking a seat the first one
+just linked, which is what actually stranded the 24 — closed in the commit
+that carries this line.* 170 of 613 lines are partner
 SSO, and the alert prints only the **5 most recent per 120s window** — so on any
 window where Finlatics is active, SSO takes all five slots and the stage-one
 route that was also slow never reaches the email. Nine windows in this data are

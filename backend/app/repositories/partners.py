@@ -179,48 +179,70 @@ class PartnersRepository:
         rows = resp.data or []
         return rows[0] if rows else None
 
-    def upsert_link(
+    def link_new_seat(
+        self, *, partner_id: str, external_id: str, email: str, user_id: str
+    ) -> dict[str, Any]:
+        """Link a seat whose email had no Myro account until this call made one.
+
+        The only write that may create a link without consent, because the
+        address was ours to give: nobody had ever used it. Every other path to
+        `linked` goes through the consent screen and `mark_linked`.
+        """
+        now = datetime.now(timezone.utc).isoformat()
+        resp = (
+            self._db.table("partner_users")
+            .upsert({
+                "partner_id": partner_id,
+                "external_id": external_id,
+                "email": email.lower().strip(),
+                "user_id": user_id,
+                "link_state": "linked",
+                "linked_at": now,
+                # A seat that just became linked must not keep a live consent
+                # token, current or demoted.
+                "connect_token_hash": None,
+                "connect_token_expires_at": None,
+                "prev_connect_token_hash": None,
+                "prev_connect_token_expires_at": None,
+            }, on_conflict="partner_id,external_id")
+            .execute()
+        )
+        return (resp.data or [{}])[0]
+
+    def claim_connect_seat(
         self,
         *,
         partner_id: str,
         external_id: str,
         email: str,
-        user_id: str | None,
-        link_state: str,
-        connect_token_hash: str | None = None,
-        connect_token_expires_at: str | None = None,
-        prev_connect_token_hash: str | None = None,
-        prev_connect_token_expires_at: str | None = None,
-    ) -> dict[str, Any]:
-        """Create or update the seat. `link_state` is the takeover gate — a caller
-        that cannot prove the email belongs to this partner's user writes
-        'pending_connect', and the OWNER completes it on the consent screen."""
-        now = datetime.now(timezone.utc).isoformat()
-        payload: dict[str, Any] = {
-            "partner_id": partner_id,
-            "external_id": external_id,
-            "email": email.lower().strip(),
-            "user_id": user_id,
-            "link_state": link_state,
-            # Cleared on every write: a seat that just became linked must not keep
-            # a live consent token.
-            "connect_token_hash": connect_token_hash,
-            "connect_token_expires_at": connect_token_expires_at,
-            # A re-issued token no longer DESTROYS its predecessor — it demotes
-            # it, so a consent screen already in flight survives a concurrent SSO
-            # call. The demoted token keeps its own original expiry, so nothing
-            # outlives the TTL. See migration 20260825120000.
-            "prev_connect_token_hash": prev_connect_token_hash,
-            "prev_connect_token_expires_at": prev_connect_token_expires_at,
-        }
-        if link_state == "linked" and user_id:
-            payload["linked_at"] = now
-        resp = (
-            self._db.table("partner_users")
-            .upsert(payload, on_conflict="partner_id,external_id")
-            .execute()
-        )
-        return (resp.data or [{}])[0]
+        connect_token_hash: str,
+        connect_token_expires_at: str,
+        prev_connect_token_hash: str | None,
+        prev_connect_token_expires_at: str | None,
+    ) -> tuple[dict[str, Any], bool]:
+        """Write the consent-screen seat. Returns (seat, claimed).
+
+        `claimed=False` means the write was REFUSED because the seat is already
+        linked to a real user at this same address — a concurrent SSO call
+        linked it between the caller's read and this write, and the caller owes
+        a sign-in url rather than a consent screen.
+
+        The refusal lives in the statement, not here. Read-then-write in Python
+        is what un-linked 24 Finlatics seats; narrowing that window would not
+        close it. See migration 20260826090000.
+        """
+        resp = self._db.rpc("partner_claim_connect_seat", {
+            "p_partner_id": partner_id,
+            "p_external_id": external_id,
+            "p_email": email,
+            "p_connect_token_hash": connect_token_hash,
+            "p_connect_token_expires_at": connect_token_expires_at,
+            "p_prev_connect_token_hash": prev_connect_token_hash,
+            "p_prev_connect_token_expires_at": prev_connect_token_expires_at,
+        }).execute()
+        rows = resp.data or []
+        row = rows[0] if rows else {}
+        return dict(row.get("seat") or {}), bool(row.get("claimed"))
 
     def get_link_by_connect_token(self, token_hash: str) -> dict[str, Any] | None:
         """Resolve a consent-screen token, current OR demoted.

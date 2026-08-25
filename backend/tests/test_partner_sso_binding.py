@@ -16,11 +16,16 @@ from app.services import partner_sso
 
 
 class _FakeRepo:
-    def __init__(self, link: dict | None = None) -> None:
+    def __init__(self, link: dict | None = None, *, claims_succeed: bool = True) -> None:
         self.link = link
-        self.upserts: list[dict] = []
+        self.links: list[dict] = []
+        self.claims: list[dict] = []
         self.marked: list[tuple[str, str]] = []
         self.partner = {"id": "p1", "slug": "acme", "name": "Acme"}
+        # False models the one shape the database refuses: the seat is already
+        # linked to a real user at this address, because a concurrent SSO call
+        # got there first.
+        self.claims_succeed = claims_succeed
 
     def get_link(self, partner_id, external_id):  # noqa: ANN001
         return self.link
@@ -32,9 +37,15 @@ class _FakeRepo:
     def get_partner_by_slug(self, slug):  # noqa: ANN001
         return self.partner if slug == "acme" else None
 
-    def upsert_link(self, **kwargs):  # noqa: ANN003
-        self.upserts.append(kwargs)
-        return {"id": "seat1", "external_id": kwargs["external_id"], **kwargs}
+    def link_new_seat(self, **kwargs):  # noqa: ANN003
+        self.links.append(kwargs)
+        return {"id": "seat1", "link_state": "linked", **kwargs}
+
+    def claim_connect_seat(self, **kwargs):  # noqa: ANN003
+        self.claims.append(kwargs)
+        if not self.claims_succeed:
+            return {"id": "seat1", "link_state": "linked", "user_id": "owner"}, False
+        return {"id": "seat1", "link_state": "pending_connect", **kwargs}, True
 
     def mark_linked(self, link_id, *, user_id):  # noqa: ANN001
         self.marked.append((link_id, user_id))
@@ -70,8 +81,9 @@ def test_new_account_is_linked_and_gets_a_url(monkeypatch):
 
     assert outcome.mode == "direct"
     assert outcome.login_url == "https://app/magic"
-    assert repo.upserts[0]["link_state"] == "linked"
-    assert repo.upserts[0]["email"] == "new@example.com"
+    assert repo.links[0]["email"] == "new@example.com"
+    assert repo.links[0]["user_id"] == "new-user"
+    assert repo.claims == []
 
 
 def test_pre_existing_account_gets_a_consent_url_not_a_session(monkeypatch):
@@ -99,8 +111,7 @@ def test_pre_existing_account_gets_a_consent_url_not_a_session(monkeypatch):
     assert outcome.mode == "connect_required"
     assert outcome.login_url is None
     assert outcome.connect_url.startswith("https://app.myro.test/connect/acme?t=")
-    assert repo.upserts[0]["link_state"] == "pending_connect"
-    assert repo.upserts[0]["user_id"] is None
+    assert repo.claims and repo.links == []
     # The user is mid-flow. Mailing them here is exactly the round-trip this
     # design removed; it happens only if they ask for it on the screen.
     assert sent == []
@@ -118,10 +129,10 @@ def test_the_stored_connect_token_is_hashed(monkeypatch):
     )
 
     raw = outcome.connect_url.split("t=")[1]
-    stored = repo.upserts[0]["connect_token_hash"]
+    stored = repo.claims[0]["connect_token_hash"]
     assert stored != raw
     assert stored == partner_sso.hash_connect_token(raw)
-    assert repo.upserts[0]["connect_token_expires_at"]
+    assert repo.claims[0]["connect_token_expires_at"]
 
 
 def test_already_linked_seat_skips_the_gate(monkeypatch):
@@ -337,7 +348,7 @@ def test_a_re_mint_demotes_the_live_token_instead_of_destroying_it(monkeypatch):
         external_id="ext-1", email="owner@example.com", full_name=None,
     )
 
-    upsert = repo.upserts[-1]
+    upsert = repo.claims[-1]
     assert upsert["prev_connect_token_hash"] == existing["connect_token_hash"]
     assert upsert["connect_token_hash"] != existing["connect_token_hash"]
 
@@ -377,7 +388,7 @@ def test_an_email_change_does_not_carry_the_token_across_the_gate(monkeypatch):
         external_id="ext-1", email="owner@example.com", full_name=None,
     )
 
-    assert repo.upserts[-1]["prev_connect_token_hash"] is None
+    assert repo.claims[-1]["prev_connect_token_hash"] is None
 
 
 def test_an_expired_token_is_not_carried_forward(monkeypatch):
@@ -391,7 +402,7 @@ def test_an_expired_token_is_not_carried_forward(monkeypatch):
         external_id="ext-1", email="owner@example.com", full_name=None,
     )
 
-    assert repo.upserts[-1]["prev_connect_token_hash"] is None
+    assert repo.claims[-1]["prev_connect_token_hash"] is None
 
 
 def test_the_token_lookup_asks_for_both_columns():
@@ -432,3 +443,54 @@ def test_the_token_lookup_asks_for_both_columns():
     # PostgREST reads `,` as the filter separator — exactly one, or the second
     # term is not a term.
     assert expr.count(",") == 1
+
+
+def test_a_concurrent_link_is_not_demoted_back_to_pending_connect(monkeypatch):
+    """The seat was linked while this call was deciding. It must survive.
+
+    24 Finlatics seats did not. `existing` is read before
+    `create_user_if_absent`; a sibling call created the account and linked the
+    seat inside that window, so the already-linked guard saw nothing and this
+    branch overwrote the link with `pending_connect` and a NULL user_id. The
+    database now refuses that write, and the refusal has to come back as the
+    sign-in url the guard would have returned.
+    """
+    monkeypatch.setattr(partner_sso.settings, "app_base_url", "https://app.myro.test")
+    monkeypatch.setattr(partner_sso.auth_links, "create_user_if_absent", lambda admin, email: None)
+    monkeypatch.setattr(
+        partner_sso.auth_links,
+        "mint_login_link_for_existing_user",
+        lambda admin, **kw: "https://app/magic",
+    )
+    sent: list[dict] = []
+    monkeypatch.setattr(
+        partner_sso.email_service, "send_email", lambda **kw: sent.append(kw) or True
+    )
+    repo = _FakeRepo(link=None, claims_succeed=False)
+
+    outcome = partner_sso.start_session(
+        repo, SimpleNamespace(), partner=CREDENTIAL,
+        external_id="ext-1", email="raced@example.com", full_name=None,
+    )
+
+    assert outcome.mode == "direct"
+    assert outcome.login_url == "https://app/magic"
+    # The token this call minted was never stored, so handing back a consent url
+    # would send the user to a screen that 404s.
+    assert outcome.connect_url is None
+    assert outcome.user_ref == "seat1"
+    assert sent == []
+
+
+def test_the_consent_branch_never_writes_the_seat_unconditionally():
+    """The refusal is the database's, not a Python re-read.
+
+    `claim_connect_seat` is the only way this branch may write. A plain upsert
+    here is the defect: read-then-write cannot see a link committed after the
+    read, however narrow the window is made.
+    """
+    assert not hasattr(_FakeRepo, "upsert_link")
+    from app.repositories.partners import PartnersRepository
+
+    assert not hasattr(PartnersRepository, "upsert_link")
+    assert hasattr(PartnersRepository, "claim_connect_seat")

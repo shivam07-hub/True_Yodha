@@ -128,12 +128,11 @@ def start_session(
         # Nobody has ever used this address on Myro. Linking it now cannot take
         # anything over, because there is nothing to take.
         ensure_user_provisioned(created_user_id, email, full_name)
-        link = repo.upsert_link(
+        link = repo.link_new_seat(
             partner_id=partner.partner_id,
             external_id=external_id,
             email=email,
             user_id=created_user_id,
-            link_state="linked",
         )
         logger.info("metric partner_sso.linked partner=%s mode=new_account", partner.slug)
         return SsoOutcome(
@@ -156,17 +155,35 @@ def start_session(
     # one grants nothing: approve_connect still requires authenticating as that
     # address. The demoted token keeps its ORIGINAL expiry.
     prev_hash, prev_expires = _demotable_token(existing, email)
-    link = repo.upsert_link(
+    # The write REFUSES to demote a seat already linked at this address, and
+    # says so. `existing` was read before `create_user_if_absent`; on 2026-08-24
+    # a sibling call created the account and linked the seat inside that window,
+    # so the guard at the top of this function saw nothing and this branch
+    # overwrote a good link with `pending_connect` and a NULL user_id. 24
+    # Finlatics seats were taken apart that way. See migration 20260826090000.
+    link, claimed = repo.claim_connect_seat(
         partner_id=partner.partner_id,
         external_id=external_id,
         email=email,
-        user_id=None,
-        link_state="pending_connect",
         connect_token_hash=token_hash,
         connect_token_expires_at=expires_at,
         prev_connect_token_hash=prev_hash,
         prev_connect_token_expires_at=prev_expires,
     )
+    if not claimed:
+        # Another call linked this seat, to this address, while we were
+        # deciding. Return what the guard above would have returned had our read
+        # happened a moment later — the token we minted was never stored.
+        logger.info("metric partner_sso.linked partner=%s mode=raced", partner.slug)
+        return SsoOutcome(
+            mode="direct",
+            login_url=auth_links.mint_login_link_for_existing_user(
+                admin, email=email, redirect_to=redirect_to
+            ),
+            connect_url=None,
+            user_ref=str(link.get("id") or ""),
+            message="Sign-in link minted.",
+        )
     logger.info("metric partner_sso.connect_required partner=%s", partner.slug)
     return SsoOutcome(
         mode="connect_required",
