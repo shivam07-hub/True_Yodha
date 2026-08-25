@@ -92,9 +92,20 @@ interface PlaygroundHeaderProps {
   hideApply?: boolean
   /** Crumb label. Default matches the library/playground back action. */
   backLabel?: string
-  /** When set (imported jobs only), the job line becomes editable — the parser
+  /** When set (imported jobs only), the job line gains a pencil — the parser
    *  occasionally reads a page tagline as the role. Resolves once persisted. */
   onSaveJobMeta?: (v: { title: string; company: string }) => Promise<void>
+  /** Click the role · company line to read the raw JD. The pane toolbar used to
+   *  carry this button; the hierarchy redesign gives that toolbar to EDIT/SHEET
+   *  and the page-fill meter, so job context comes home to the job line. */
+  onJobLine?: () => void
+  /** The second, quieter action beside the primary. Download is the primary on
+   *  every surface (it is what the user came for and it cannot misfire); Apply
+   *  opens an external page and arms the capture prompt, so it stays a ghost. */
+  secondaryLabel?: string
+  onSecondary?: () => void
+  secondaryHint?: string
+  secondaryDisabled?: boolean
 }
 
 export function PlaygroundHeader({
@@ -103,7 +114,7 @@ export function PlaygroundHeader({
   variant = "job", masterMeta, onMeta, primaryLabel = "Apply with this CV", hideOverflow,
   brandLabel, scoreCaption, hideScore, statusValue, hideBack, hideApply,
   backLabel = "Back to CV library",
-  onSaveJobMeta,
+  onSaveJobMeta, onJobLine, secondaryLabel, onSecondary, secondaryHint, secondaryDisabled,
 }: PlaygroundHeaderProps) {
   const shown = useCountUp(ready)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -154,16 +165,25 @@ export function PlaygroundHeader({
                 <Icon name="x" size={12} />
               </button>
             </span>
-          ) : onSaveJobMeta ? (
-            <button type="button" className="cvb-v2-jobline cvb-v2-jobline--edit"
-              onClick={openEdit} title="Edit role & company">
-              {jobTitle}{knownCompany ? ` · ${knownCompany}` : ""}
-              <Icon name="edit" size={11} />
-            </button>
           ) : (
-            <span className="cvb-v2-jobline" title={`${jobTitle} · ${company}`}>
-              {jobTitle}{knownCompany ? ` · ${knownCompany}` : ""}
-            </span>
+            <>
+              {onJobLine ? (
+                <button type="button" className="cvb-v2-jobline cvb-v2-jobline--edit"
+                  onClick={onJobLine} title="Read the job description">
+                  {jobTitle}{knownCompany ? ` · ${knownCompany}` : ""}
+                </button>
+              ) : (
+                <span className="cvb-v2-jobline" title={`${jobTitle} · ${company}`}>
+                  {jobTitle}{knownCompany ? ` · ${knownCompany}` : ""}
+                </span>
+              )}
+              {onSaveJobMeta && (
+                <button type="button" className="cvb-v2-jobcancel" onClick={openEdit}
+                  aria-label="Edit role and company">
+                  <Icon name="edit" size={12} />
+                </button>
+              )}
+            </>
           )}
           {reqCount > 0 && (
             <button type="button" className="cvb-v2-reqpill mono" onClick={onReqPill}>
@@ -202,6 +222,18 @@ export function PlaygroundHeader({
       )}
 
       {!isMaster && delta > 0 && <span className="cvb-v2-deltachip mono">▲ +{delta} raised</span>}
+
+      {secondaryLabel && onSecondary && (
+        <button
+          type="button"
+          className="cvb-v2-secondarybtn"
+          onClick={onSecondary}
+          disabled={secondaryDisabled}
+          title={secondaryHint}
+        >
+          {secondaryLabel}
+        </button>
+      )}
 
       {!hideApply && (
         <button

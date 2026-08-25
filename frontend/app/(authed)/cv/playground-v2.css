@@ -278,26 +278,6 @@
 .cvb-v2 .cvb-pgc-section + .cvb-pgc-role-block { margin-top: 8px; }
 .cvb-v2 .cvb-pgc-row { border: 1px solid transparent; }
 .cvb-v2 .cvb-pgc-row:hover { border-color: var(--tm-border-soft); }
-
-.cvb-v2-metarow { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
-.cvb-v2-metarow > .cvb-pgc-detailtoggle { margin-top: 0; }
-.cvb-v2-bulletpill {
-  flex: none; border: 1px solid var(--tm-warning-border); background: var(--tm-warning-wash);
-  color: var(--tm-warning-text, var(--tm-warning)); font-size: 10.5px; font-weight: 600;
-  padding: 3px 8px; border-radius: 999px; cursor: pointer; white-space: nowrap;
-  transition: border-color var(--tm-dur-fast) var(--tm-ease);
-}
-.cvb-v2-bulletpill:hover { border-color: var(--tm-warning); }
-.cvb-v2-bulletdone { flex: none; font-size: 10.5px; font-weight: 600; color: var(--tm-success); padding: 3px 2px; }
-
-@keyframes cvb-v2-bulletpulse {
-  0% { box-shadow: 0 0 0 0 var(--tm-interactive-glow); }
-  100% { box-shadow: 0 0 0 10px transparent; }
-}
-.cvb-v2 .cvb-pgc-row.cvb-v2-pulse {
-  animation: cvb-v2-bulletpulse 1.2s ease-out;
-  border-color: var(--tm-interactive); background: var(--tm-int-bg-wash);
-}
 @media (prefers-reduced-motion: reduce) {
   .cvb-v2 .cvb-pgc-row.cvb-v2-pulse { animation: none; }
 }
@@ -316,92 +296,6 @@
 .cvb-v2-railbody { flex: 1; overflow-y: auto; min-height: 0; }
 .cvb-v2-railpane { padding: 16px 14px 24px; display: flex; flex-direction: column; gap: 10px; }
 .cvb-v2-rail-lede { margin: 0; padding: 0 2px; font-size: 11.5px; line-height: 1.5; color: var(--tm-text-muted); }
-.cvb-v2-rail-group {
-  font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
-  color: var(--tm-text-faint); margin: 6px 2px 0;
-}
-.cvb-v2-rail-hintline { margin: 6px 0 0; padding: 0 2px; font-size: 11px; line-height: 1.5; color: var(--tm-text-faint); }
-
-/* fix cards */
-@keyframes cvb-v2-popin { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
-.cvb-v2-fixcard {
-  border: 1px solid var(--tm-border-soft); background: var(--tm-surface); border-radius: 12px;
-  padding: 12px 14px; cursor: pointer; animation: cvb-v2-popin 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  transition: border-color var(--tm-dur-fast) var(--tm-ease), box-shadow var(--tm-dur-fast) var(--tm-ease);
-}
-.cvb-v2-fixcard:hover { border-color: var(--tm-border); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); }
-.cvb-v2-fixcard.open { cursor: default; border-color: var(--tm-int-border); }
-@media (prefers-reduced-motion: reduce) { .cvb-v2-fixcard { animation: none; } }
-.cvb-v2-fixcard-top { display: flex; align-items: center; gap: 8px; }
-.cvb-v2-kind {
-  font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
-  padding: 3px 8px; border-radius: 5px;
-}
-.cvb-v2-kind.quantify { color: var(--tm-warning-text, var(--tm-warning)); background: var(--tm-warning-wash); }
-.cvb-v2-kind.verb     { color: var(--tm-interactive-text); background: var(--tm-int-bg-wash); }
-.cvb-v2-kind.cut      { color: var(--tm-danger-text, var(--tm-danger)); background: var(--tm-danger-wash); }
-.cvb-v2-kind.dedupe   { color: var(--tm-text-muted); background: var(--tm-surface-2); }
-.cvb-v2-kind.surface  { color: var(--tm-info); background: var(--tm-info-wash); }
-.cvb-v2-kind.sharpen  { color: var(--tm-info); background: var(--tm-info-wash); }
-.cvb-v2-lvlnote { font-size: 10.5px; font-weight: 600; color: var(--tm-text-faint); }
-.cvb-v2-fixgain { margin-left: auto; font-size: 11.5px; font-weight: 700; color: var(--tm-success); }
-.cvb-v2-fixtitle { margin-top: 8px; font: 600 13px var(--tm-font-sans); color: var(--tm-text); }
-.cvb-v2-fixdesc { margin-top: 3px; font-size: 12px; line-height: 1.5; color: var(--tm-text-muted); }
-.cvb-v2-fixhost {
-  margin-top: 9px; background: var(--tm-surface-2); border-radius: 8px; padding: 8px 10px;
-  font-size: 11px; line-height: 1.5; color: var(--tm-text-muted);
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-}
-.cvb-v2-fixhost > span { font-size: 9.5px; color: var(--tm-text-faint); text-transform: uppercase; letter-spacing: 0.05em; }
-.cvb-v2-fixrw { margin-top: 10px; cursor: default; }
-.cvb-v2-fixapply {
-  margin-top: 10px; width: 100%; border: none; border-radius: 8px; padding: 9px 0;
-  font: 600 12.5px var(--tm-font-sans); cursor: pointer;
-  background: var(--tm-text); color: var(--tm-bg);
-  transition: opacity var(--tm-dur-fast) var(--tm-ease);
-}
-.cvb-v2-fixapply:hover { opacity: 0.88; }
-
-.cvb-v2-allfixed {
-  border: 1px dashed var(--tm-success-border); background: var(--tm-success-wash);
-  border-radius: 12px; padding: 18px 16px; text-align: center;
-}
-.cvb-v2-allfixed-title { font: 700 13px var(--tm-font-sans); color: var(--tm-success); }
-.cvb-v2-allfixed-sub { margin-top: 4px; font-size: 12px; color: var(--tm-text-muted); }
-
-.cvb-v2-donecard {
-  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
-  border: 1px solid var(--tm-border-soft); background: var(--tm-surface-2); border-radius: 10px;
-  padding: 9px 12px; cursor: pointer; opacity: 0.75;
-}
-.cvb-v2-donecheck { color: var(--tm-success); font-size: 12px; flex: none; }
-.cvb-v2-donetitle { flex: 1; min-width: 0; font-size: 12px; color: var(--tm-text-muted); }
-.cvb-v2-donegain { font-size: 11px; font-weight: 600; color: var(--tm-success); flex: none; }
-
-/* dismiss ("not for this line") — × on the card, collapsed Restore group below */
-.cvb-v2-fixdismiss {
-  flex: none; width: 20px; height: 20px; border: none; border-radius: 6px;
-  background: transparent; color: var(--tm-text-faint); font-size: 14px; line-height: 1;
-  cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
-  transition: color var(--tm-dur-fast) var(--tm-ease), background var(--tm-dur-fast) var(--tm-ease);
-}
-.cvb-v2-fixdismiss.solo { margin-left: auto; }
-.cvb-v2-fixdismiss:hover { color: var(--tm-text); background: var(--tm-surface-2); }
-.cvb-v2-dismissedcard {
-  display: flex; align-items: center; gap: 8px;
-  border: 1px dashed var(--tm-border-soft); background: transparent; border-radius: 10px;
-  padding: 8px 12px; opacity: 0.7;
-}
-.cvb-v2-dismissedtitle {
-  flex: 1; min-width: 0; font-size: 12px; color: var(--tm-text-faint);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.cvb-v2-restorebtn {
-  flex: none; border: none; background: transparent; padding: 2px 4px;
-  font: 600 11px var(--tm-font-sans); color: var(--tm-text-muted);
-  cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
-}
-.cvb-v2-restorebtn:hover { color: var(--tm-text); }
 
 /* skills tab — levelled requirements checklist */
 .cvb-v2-skillshead { display: flex; align-items: baseline; gap: 8px; padding: 0 2px 4px; }
@@ -507,34 +401,43 @@
 /* bottom nav — mobile only */
 .cvb-v2-bottomnav { display: none; }
 
-/* ── mobile (≤900px): segmented Edit / Fixes / Skills / Preview ── */
+/* ── mobile (≤900px) ──
+   The shared header + split collapse here for every surface. The pane-SWITCHING
+   rules below are scoped to `.cvb-v2--onboarding`: that surface still runs a
+   two-pane bottom nav (Edit / Skills). The CV workstation does not — its
+   data-tab is edit|sheet, so an unscoped `[data-tab="edit"] .cvb-v2-rail
+   { display:none }` would delete the rail on every phone. Workstation mobile
+   lives in cv-workstation.css (chips + pinned do-now, handoff 1f). */
 @media (max-width: 900px) {
+  /* Three rows, each one whole thing: [back · score · ⋯] / [the job] /
+     [the two actions]. Left to wrap on its own the header produced a truncated
+     "Growth I", a full-width pill, and a lone ⋯ on a third line. */
   .cvb-v2-head { top: 0; flex-wrap: wrap; gap: 8px 10px; padding: 10px 14px; }
-  .cvb-v2-crumb { width: 34px; height: 34px; }
+  .cvb-v2-crumb { order: 1; width: 34px; height: 34px; }
   .cvb-v2-brand, .cvb-v2-headrule, .cvb-v2-savestate { display: none; }
-  .cvb-v2-jobline { flex: 1; }
-  .cvb-v2-reqpill { order: 5; }
+  .cvb-v2-headspacer { order: 2; }
   .cvb-v2-score { order: 3; }
   .cvb-v2-score-bar { width: 110px; }
-  .cvb-v2-applybtn { order: 4; padding: 9px 13px; }
-  .cvb-v2-head .cvb-pgc-overflow { order: 6; }
+  .cvb-v2-head .cvb-pgc-overflow { order: 4; }
+  .cvb-v2-jobline, .cvb-v2-jobline--edit, .cvb-v2-jobedit {
+    order: 5; flex: 1 1 100%; min-width: 0;
+  }
+  .cvb-v2-reqpill { order: 6; flex: 1 1 100%; text-align: center; }
+  .cvb-v2-secondarybtn { order: 7; flex: 1; padding: 11px 13px; min-height: 44px; }
+  .cvb-v2-applybtn { order: 8; flex: 2; padding: 11px 13px; min-height: 44px; }
 
   .cvb-v2-main { grid-template-columns: 1fr; }
   .cvb-v2-editor { border-right: none; }
   .cvb-v2-toolbar { position: static; padding: 10px 14px; flex-wrap: wrap; }
-  .cvb-v2-tabbtn.wide { display: none; }  /* Preview is a bottom tab on mobile */
   .cvb-v2-editorbody { padding: 14px; }
 
   .cvb-v2-rail { position: static; height: auto; }
-  .cvb-v2-railtabs { display: none; }     /* the bottom nav drives the tab */
   .cvb-v2-railbody { overflow: visible; }
 
-  /* pane switching via the shell's data-tab — Edit/Preview share the editor
-     pane, Fixes/Skills share the rail pane */
-  .cvb-v2[data-tab="fixes"] .cvb-v2-editor,
-  .cvb-v2[data-tab="skills"] .cvb-v2-editor { display: none; }
-  .cvb-v2[data-tab="edit"] .cvb-v2-rail,
-  .cvb-v2[data-tab="preview"] .cvb-v2-rail { display: none; }
+  /* Onboarding only: one pane at a time, driven by its own bottom nav. */
+  .cvb-v2--onboarding .cvb-v2-railtabs { display: none; }
+  .cvb-v2--onboarding[data-tab="skills"] .cvb-v2-editor { display: none; }
+  .cvb-v2--onboarding[data-tab="edit"] .cvb-v2-rail { display: none; }
 
   .cvb-v2-bottomnav {
     position: fixed; left: 0; right: 0; z-index: 28;
@@ -542,10 +445,9 @@
     display: flex; gap: 4px; padding: 8px 10px;
     background: var(--tm-surface); border-top: 1px solid var(--tm-border-soft);
   }
-  .cvb-v2-bottomnav .cvb-v2-tabbtn { flex: 1; padding: 9px 0; font-size: 11.5px; min-height: 40px; }
-  .cvb-v2 { padding-bottom: 72px; }       /* room for the segmented bar */
+  .cvb-v2-bottomnav .cvb-v2-tabbtn { flex: 1; padding: 9px 0; min-height: 40px; }
+  .cvb-v2--onboarding { padding-bottom: 72px; }  /* room for that bar */
 
-  .cvb-v2-bulletpill { min-height: 28px; }
   .cvb-v2-applyfoot .cvb-v2-applywide.grow { flex: 1 1 100%; }
 }
 

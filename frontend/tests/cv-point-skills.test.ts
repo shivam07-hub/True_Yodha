@@ -78,15 +78,22 @@ test("does not tag a CV point just because the skill name appears without extrac
   )
 })
 
-test("CV playground renders extracted ATS skills beside each editable point", () => {
-  const editor = read("components/cv/builder/cv-editor.tsx")
-  const row = read("components/cv/builder/cv-point-row.tsx")
+// The hierarchy redesign (2026-08-25) moved the CV pane onto CvLineRow inside
+// WorkstationShell. The chips survived the move because "ATS labels" is rank 4
+// in the handoff's own table — they just stopped hiding behind a per-row
+// disclosure. Both authed surfaces feed them from the SAME cache key.
+test("every CV line shows the ATS skills it proves, on both authed surfaces", () => {
+  const row = read("components/cv/builder/cv-line-row.tsx")
   const chips = read("components/cv/builder/cv-point-skill-chips.tsx")
+  const job = read("components/cv/builder/playground-view.tsx")
+  const master = read("components/cv/builder/master-workspace.tsx")
 
-  assert.match(editor, /users\.mySkills/)
-  assert.match(editor, /dataKeys\.userSkills/)
-  assert.match(editor, /<CVPointRow/)
   assert.match(row, /<CVPointSkillChips/)
   assert.match(chips, /extractedSkillsForCvPoint/)
   assert.match(chips, /cvb-pgc-ats-skills/)
+  for (const surface of [job, master]) {
+    assert.match(surface, /users\.mySkills/)
+    assert.match(surface, /dataKeys\.userSkills/)
+    assert.match(surface, /userSkills=\{/)
+  }
 })

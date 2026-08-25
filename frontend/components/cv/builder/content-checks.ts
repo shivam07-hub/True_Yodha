@@ -36,6 +36,9 @@ export interface ContentFinding extends ContentBulletRef {
   category: ContentCategory
   /** Offending substrings, named verbatim in the issue chips. */
   offenders: string[]
+  /** How many lines share this defect. Only repetition sets it (">1"); the rail
+   *  title says the number, so it cannot be re-derived from one finding. */
+  occurrences?: number
   /** One-line row summary. */
   detail: string
 }
@@ -91,13 +94,16 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }
 
-/** Case-insensitive, word-boundary-aware phrase hits from a fixed vocabulary. */
+/** Case-insensitive, word-boundary-aware phrase hits from a fixed vocabulary.
+ *  Returns the phrase AS WRITTEN in the CV, not the vocabulary entry — the rail
+ *  title quotes the offender back to the user ("Responsible for" is a weak
+ *  opener), and quoting it in the vocabulary's lower case makes it read like a
+ *  different phrase than the one on their page. */
 function phraseHits(text: string, vocab: readonly string[]): string[] {
-  const lower = text.toLowerCase()
   const hits: string[] = []
   for (const phrase of vocab) {
-    const re = new RegExp(`\\b${escapeRegex(phrase)}\\b`, "i")
-    if (re.test(lower)) hits.push(phrase)
+    const m = text.match(new RegExp(`\\b${escapeRegex(phrase)}\\b`, "i"))
+    if (m) hits.push(m[0])
   }
   return hits
 }
@@ -110,12 +116,21 @@ function isUnquantified(text: string): boolean {
   return text.trim().length > 0 && !QUANTITY_RE.test(text)
 }
 
+/** Does this line carry scale? The positive half of the same test — the CV
+ *  pane's green "on target" gutter needs to assert something, and "no finding
+ *  fired" is an absence, not a claim (feedback: absence is not a verdict). */
+export function hasQuantity(text: string): boolean {
+  return QUANTITY_RE.test(text)
+}
+
 /** Weak opener = the bullet leads with a duty phrase, after stripping bullet
  *  glyphs / whitespace. Returns the matched opener or null. */
 function weakOpener(text: string): string | null {
-  const t = text.replace(/^[\s•\-–*·]+/, "").toLowerCase()
+  const trimmed = text.replace(/^[\s•\-–*·]+/, "")
+  const t = trimmed.toLowerCase()
   for (const opener of WEAK_OPENERS) {
-    if (t.startsWith(opener + " ") || t === opener) return opener
+    // Return the opener in the CV's own casing — see phraseHits.
+    if (t.startsWith(opener + " ") || t === opener) return trimmed.slice(0, opener.length)
   }
   return null
 }
@@ -261,14 +276,19 @@ export function runContentChecks(cv: CVStructured, hiddenIids?: Set<string>): Co
       }
     }
   }
-  for (const { unit, phrase } of Array.from(repByRef.values())) {
+  for (const { unit, phrase, times } of Array.from(repByRef.values())) {
+    // The trigram is a normalised KEY (lower-cased, punctuation stripped). The
+    // rail quotes it back at the user, so recover how it actually reads on
+    // their page before it becomes a title.
+    const asWritten = unit.text.match(new RegExp(escapeRegex(phrase), "i"))?.[0] ?? phrase
     findings.push({
       ...unit,
       id: `repetition:${refId(unit)}`,
       kind: "Fix",
       category: "repetition",
-      offenders: [phrase],
-      detail: `Reword the repeated "${phrase}"`,
+      offenders: [asWritten],
+      occurrences: times,
+      detail: `Reword the repeated "${asWritten}"`,
     })
   }
 
