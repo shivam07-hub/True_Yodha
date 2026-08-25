@@ -149,6 +149,13 @@ def start_session(
     # The address predates this call. The partner gets a consent screen, not a
     # session — and a fresh token, so an older screen for this seat goes dead.
     raw_token, token_hash, expires_at = _mint_connect_token()
+    # Demote the seat's live token instead of destroying it. Three SSO calls
+    # landed for one seat inside 1.1s on 2026-08-24 and the browser arrived
+    # holding one of the two that had already been overwritten — 404, retry,
+    # mint, 404. Both tokens name the same seat and the same email, and holding
+    # one grants nothing: approve_connect still requires authenticating as that
+    # address. The demoted token keeps its ORIGINAL expiry.
+    prev_hash, prev_expires = _demotable_token(existing, email)
     link = repo.upsert_link(
         partner_id=partner.partner_id,
         external_id=external_id,
@@ -157,6 +164,8 @@ def start_session(
         link_state="pending_connect",
         connect_token_hash=token_hash,
         connect_token_expires_at=expires_at,
+        prev_connect_token_hash=prev_hash,
+        prev_connect_token_expires_at=prev_expires,
     )
     logger.info("metric partner_sso.connect_required partner=%s", partner.slug)
     return SsoOutcome(
@@ -187,13 +196,34 @@ def resolve_connect_token(repo: PartnersRepository, token: str) -> ConnectContex
     The email is masked: whoever holds this token has not yet proved they are the
     account owner, and a token that leaked should not also leak an address.
     """
-    seat = repo.get_link_by_connect_token(hash_connect_token(token))
-    if not seat or seat.get("link_state") != "pending_connect":
+    token_hash = hash_connect_token(token)
+    seat = repo.get_link_by_connect_token(token_hash)
+    # Four different reasons used to collapse into one bare `None`, which the
+    # route turns into one 404 carrying one message. When
+    # /partner-connect/context 404'd four times on 2026-08-24, nothing in the
+    # logs said which of the four it was and the cause took a database query to
+    # find. Each reason is named now.
+    if not seat:
+        logger.warning("metric partner_sso.connect_token_rejected reason=unknown")
         return None
-    if _expired(seat.get("connect_token_expires_at")):
+    if seat.get("link_state") != "pending_connect":
+        logger.warning(
+            "metric partner_sso.connect_token_rejected reason=state seat=%s state=%s",
+            seat.get("id"), seat.get("link_state"),
+        )
+        return None
+    if _expired(_expiry_for_token(seat, token_hash)):
+        logger.warning(
+            "metric partner_sso.connect_token_rejected reason=expired seat=%s demoted=%s",
+            seat.get("id"), seat.get("prev_connect_token_hash") == token_hash,
+        )
         return None
     partner = seat.get("partners") or {}
     if partner.get("status") != "active":
+        logger.warning(
+            "metric partner_sso.connect_token_rejected reason=partner_inactive seat=%s",
+            seat.get("id"),
+        )
         return None
     return ConnectContext(
         partner_name=str(partner.get("name") or ""),
@@ -212,10 +242,11 @@ def approve_connect(
     the partner named an address, and only the person who can authenticate as
     that address can turn it into a link.
     """
-    seat = repo.get_link_by_connect_token(hash_connect_token(token))
+    token_hash = hash_connect_token(token)
+    seat = repo.get_link_by_connect_token(token_hash)
     if not seat or seat.get("link_state") != "pending_connect":
         return False
-    if _expired(seat.get("connect_token_expires_at")):
+    if _expired(_expiry_for_token(seat, token_hash)):
         return False
     if str(seat.get("email") or "").lower() != (user_email or "").lower().strip():
         logger.warning("metric partner_sso.connect_email_mismatch seat=%s", seat.get("id"))
@@ -231,10 +262,11 @@ def send_connect_email(repo: PartnersRepository, admin: Any, *, token: str) -> b
     Never fires on the partner's call — only when the person in front of the
     screen chooses it, because they cannot sign in right now.
     """
-    seat = repo.get_link_by_connect_token(hash_connect_token(token))
+    token_hash = hash_connect_token(token)
+    seat = repo.get_link_by_connect_token(token_hash)
     if not seat or seat.get("link_state") != "pending_connect":
         return False
-    if _expired(seat.get("connect_token_expires_at")):
+    if _expired(_expiry_for_token(seat, token_hash)):
         return False
     partner = seat.get("partners") or {}
     email = str(seat.get("email") or "")
@@ -279,6 +311,36 @@ def complete_link(
     repo.mark_linked(str(link["id"]), user_id=user_id)
     logger.info("metric partner_sso.linked partner=%s mode=signed_in", partner_slug)
     return True
+
+
+def _demotable_token(existing: dict[str, Any] | None, email: str) -> tuple[str | None, str | None]:
+    """The seat's current token, if it is still worth accepting after a re-mint.
+
+    Only for the SAME seat at the SAME address, and only while it is unexpired —
+    an email change re-opens the gate and must not carry a token across it.
+    """
+    if not existing or existing.get("link_state") != "pending_connect":
+        return None, None
+    if str(existing.get("email") or "").lower() != email:
+        return None, None
+    token_hash = existing.get("connect_token_hash")
+    expires_at = existing.get("connect_token_expires_at")
+    if not token_hash or _expired(expires_at):
+        return None, None
+    return str(token_hash), str(expires_at)
+
+
+def _expiry_for_token(seat: dict[str, Any], token_hash: str) -> Any:
+    """The expiry belonging to whichever of the seat's two tokens matched.
+
+    The columns carry different expiries; reading the wrong one either accepts
+    a dead token or rejects a live one.
+    """
+    if seat.get("connect_token_hash") == token_hash:
+        return seat.get("connect_token_expires_at")
+    if seat.get("prev_connect_token_hash") == token_hash:
+        return seat.get("prev_connect_token_expires_at")
+    return None
 
 
 def _expired(raw: Any) -> bool:

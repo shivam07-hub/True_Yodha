@@ -189,6 +189,8 @@ class PartnersRepository:
         link_state: str,
         connect_token_hash: str | None = None,
         connect_token_expires_at: str | None = None,
+        prev_connect_token_hash: str | None = None,
+        prev_connect_token_expires_at: str | None = None,
     ) -> dict[str, Any]:
         """Create or update the seat. `link_state` is the takeover gate — a caller
         that cannot prove the email belongs to this partner's user writes
@@ -201,10 +203,15 @@ class PartnersRepository:
             "user_id": user_id,
             "link_state": link_state,
             # Cleared on every write: a seat that just became linked must not keep
-            # a live consent token, and a re-issued token replaces its predecessor
-            # rather than leaving two valid ways into the same screen.
+            # a live consent token.
             "connect_token_hash": connect_token_hash,
             "connect_token_expires_at": connect_token_expires_at,
+            # A re-issued token no longer DESTROYS its predecessor — it demotes
+            # it, so a consent screen already in flight survives a concurrent SSO
+            # call. The demoted token keeps its own original expiry, so nothing
+            # outlives the TTL. See migration 20260825120000.
+            "prev_connect_token_hash": prev_connect_token_hash,
+            "prev_connect_token_expires_at": prev_connect_token_expires_at,
         }
         if link_state == "linked" and user_id:
             payload["linked_at"] = now
@@ -216,12 +223,22 @@ class PartnersRepository:
         return (resp.data or [{}])[0]
 
     def get_link_by_connect_token(self, token_hash: str) -> dict[str, Any] | None:
-        """Resolve a consent-screen token. Expiry is enforced by the caller so an
-        expired token and an unknown one can be told apart in the response."""
+        """Resolve a consent-screen token, current OR demoted.
+
+        Expiry is enforced by the caller — and per-token, because the two
+        columns carry different expiries. An expired token and an unknown one
+        must stay tellable apart in the response.
+
+        The hash is hex from sha256, so it carries no character PostgREST's
+        `or` filter grammar would read as syntax.
+        """
         resp = (
             self._db.table("partner_users")
             .select("*, partners(slug, name, status)")
-            .eq("connect_token_hash", token_hash)
+            .or_(
+                f"connect_token_hash.eq.{token_hash},"
+                f"prev_connect_token_hash.eq.{token_hash}"
+            )
             .limit(1)
             .execute()
         )
@@ -238,6 +255,8 @@ class PartnersRepository:
             "linked_at": now,
             "connect_token_hash": None,
             "connect_token_expires_at": None,
+            "prev_connect_token_hash": None,
+            "prev_connect_token_expires_at": None,
         }).eq("id", link_id).execute()
 
     def touch_sso(self, link_id: str) -> None:
