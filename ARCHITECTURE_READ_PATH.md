@@ -1244,6 +1244,10 @@ ships and log the close above.
 | `count_new_jobs_for_user` under RLS | 8,740ms | **100ms / 656 buffers** authed, re-measured 2026-08-25 (migration `20260824090000`, trap 5). The `~15ms` this row used to claim was never taken as `authenticated`. |
 | `/preflight/order` (modal open) | 9,062-10,495ms | price split to `/preflight/price` |
 | `PATCH /preflight/order/lines/*` | 1,500-4,100ms, 5 hops | 2 hops (~330ms floor) |
+| `list_role_families` authed | 2,417ms / 13,440 buffers + 335 temp | **5.99ms** (`20260825100000`, Tier 0 — it was 88% baseline, not trap 5) |
+| `indexable_companies` anon | 3,257ms / 13,054 buffers | **1.28ms / 493** (`20260825110000`, Tier 0) |
+| `POST /partner/v1/sso/session` retry loop | 170 of 613 alert lines (27.7%) | a re-mint demotes its predecessor instead of destroying it (`20260825120000`) |
+| Six pipeline RPCs executable by **`anon`** | queue-drain with no auth | revoked (`20260825130000`) |
 | `company_open_roles_page` authed | 6,208ms / 13,070 buffers | **5.4ms / 1,341** (migration `20260825090000`, trap 5) |
 | `company_open_roles_page` anon | 3,673ms / 13,068 buffers | **11.0ms / 3,026** — this is the SEO surface |
 | `POST /v1/telemetry/cv-upload-phase` | 3,806-4,339ms, 3 sequential hops inline | 202 + `BackgroundTask`; off the response path entirely |
@@ -1272,18 +1276,18 @@ multi-route window (§16), i.e. queueing, not a regression of the fix.
 | 1 | **Read capacity ceiling** | `supabase_read_max_inflight=`**`40`** (`config.py`) — the `12` this row used to name was stale, raised in S5. `/home/bootstrap` fans out to **8**, and its `matches` section fans out again: ~11 concurrent reads from one request against a ≤3 contract. `test_read_contract.py:179` carries the violation as a constant: `{"home.bootstrap": 8, "cv.evidence": 6}`. | Section 8's paid-compute gate — but three §16 fixes **remove** load rather than absorb it. Re-measure the arrival burst after those before buying compute. |
 | 2 | `POST /jobs/feed/warm` | **59,854ms** (2026-08-21 07:18) | Unknown. This is also why `feed.unranked` fires: the warm that would rank the feed has not landed when the user reads it. |
 | 3 | `/jobs/my-skills/demand` | **17,452ms**, then 11,940ms, then 10,468ms; `aspiration.role_family_failed reason=ReadTimeout fallback_used=true` | Almost certainly trap 5 via `role_family_*` functions. |
-| 4 | `list_role_families` | **8,448ms authed vs 1,262ms service** (2026-08-24); re-measured 2026-08-25: **2,417ms / 13,440 buffers authed, + 335 blocks spilled to temp** (`work_mem` is 2,184kB) | Trap 5 **plus** a slow baseline — needs two fixes, not one. Drives the un-debounced onboarding typeahead (15 requests for "financial analyst", 1.0-3.0s each). |
-| 5 | **17** invoker functions over `public.jobs` callable by `authenticated` (counted 2026-08-25) | 3 measured: `list_role_families`, `company_open_roles_page`, `indexable_companies` | Trap 5. **Also a security row:** four of the 17 are worker-only — `claim_jobs_for_skill_floor`, `claim_jobs_for_skill_judgment`, `release_skill_judgment_claim`, `refresh_job_role_family`. Any logged-in user can call the ingest pipeline's claim functions. Sweep query in playbook §4b. |
+| 5 | **15** invoker functions over `public.jobs` reachable by `authenticated` (17 counted 2026-08-25; `list_role_families` and `indexable_companies` are definer now) | 3 measured, all 3 fixed | Trap 5, for the remainder. The **security** half of this row is closed: six pipeline RPCs turned out to be callable by **`anon`**, not just `authenticated` — revoked in `20260825130000`. Sweep query in playbook §4b. |
 | 6 | `raw_stack` / `get_user_match_stack` | **~2,494ms** — the new floor under bootstrap and matches | Trap 4 (payload weight) is the standing suspicion: `job_description` was once 59.8% of `/jobs/matches`. Trace consumers before trimming. |
 | 7 | Pre-flight order write | 2 hops now, but every answer still rewrites the whole `lines` jsonb | A per-line write (row-per-line, or `jsonb_set`) removes the document rewrite and the CAS for independent lines. |
 | 8 | Supabase Free/Nano | **932MB** (2026-08-25; was 1,118MB) against the tier's 500MB recommended; 224MB `shared_buffers`; `work_mem` **2,184kB**; `max_connections` 60 | Section 8. |
-| 9 | `POST /partner/v1/sso/session` | **200 in 8/8** prod samples (2026-08-24), 469-3,416ms — it is **not** 500ing. It **is** 170 of 613 alert lines over 2026-08-14→24 (**27.7%**), in runs of 4-6 per 120s window, for a partner with a handful of users. | A **retry loop**, not a latency row and not a hard failure. It also evicts stage-one routes from the alert email, which prints only the 5 most recent per window. §16 P0. |
 
 ### The pattern worth naming
 
-Three of the nine rows above (3, 4, 5) are the same trap — it was four until
-`company_open_roles_page` shipped — and it is a **design** issue rather than
-three bugs: this codebase reads user-facing data
+Two of the seven rows above (3, 5) are still the same trap. It was four; the
+company page, `list_role_families` and `indexable_companies` have since
+shipped — and only one of those three turned out to be **mainly** trap 5. That
+is worth holding onto: the trap is real and it is also an easy thing to blame
+without measuring. It is a **design** issue rather than a pile of bugs: this codebase reads user-facing data
 through the RLS token client, and its hot indexes are PARTIAL on a predicate
 the RLS policy only reaches through an `OR`. Every such read pays a heap
 recheck.
@@ -1397,8 +1401,8 @@ same wall time. 16 Aug shows `pulse` twice back to back at 15,505 and 15,588ms.
 
 ### Priority — ordered against the goal, not against milliseconds
 
-**P0 · Make the alert channel show stage one.** — *sample fixed `c766a3a8`;
-the SSO retry loop is still open.* 170 of 613 lines are partner
+**P0 · Make the alert channel show stage one.** — *CLOSED. Sample stratified
+`c766a3a8`; the SSO retry loop root-caused and fixed `0bdc8ef5`.* 170 of 613 lines are partner
 SSO, and the alert prints only the **5 most recent per 120s window** — so on any
 window where Finlatics is active, SSO takes all five slots and the stage-one
 route that was also slow never reaches the email. Nine windows in this data are
@@ -1406,8 +1410,9 @@ route that was also slow never reaches the email. Nine windows in this data are
 per window, handful of users, returning 200). Nothing below can be verified
 while 28% of the signal is one B2B route.
 
-**P1 · `/roles/families`.** — *debounce shipped `12d7a6eb`; the definer and
-the baseline are still open (§15 row 4).* Worst repeated stage-one route, mean 7,666ms, and it
+**P1 · `/roles/families`.** — *CLOSED. Debounce `12d7a6eb`, then Tier-0
+`fff99f21`: 2,417ms → 5.99ms. Note the ledger had the diagnosis wrong — see
+§15's pattern note.* Worst repeated stage-one route, mean 7,666ms, and it
 gates Direction — the last step before `/market`. Three fixes in this order:
 **debounce the typeahead** (free; 15 requests per query → ~2), then
 `security definer`, then the baseline (13,440 buffers, and it spills 335 blocks
@@ -1424,7 +1429,13 @@ never been under 2,154ms in 11 days and has never been decomposed;
 existing `fanout.slow` metric at the funnel. **Rule 0 — do not touch these until
 a number exists.**
 
-**P4 · Tier-0 the two public aggregates.** `/jobs/companies/pulse` and
+**P4 · Tier-0 the two public aggregates.** — *`indexable_companies` shipped
+`2703ee27` (3,257ms → 1.28ms, 13,054 buffers → 493). `/jobs/companies/pulse`
+is still open and is the harder half: `fetch_company_pulse` caches per
+REQUESTED COMPANY SET, so every distinct set is its own cold fill, and it
+reads every job row for those companies through a PostgREST `.in_()` that
+grows with the request. It wants a per-company snapshot so any set is a
+lookup.* `/jobs/companies/pulse` and
 `/jobs/companies/indexable` are pure aggregates over public data with no
 per-user component, and they are what evicts the cache under the funnel.
 Snapshot table refreshed on ingest — the `/public/stats` pattern, playbook fix
@@ -1459,16 +1470,23 @@ and are unchanged after it.
 
 ### What shipped 2026-08-25
 
-| | Commit |
-|---|---|
-| Company page definer — the best-ratio fix on either ledger | `cad90259` |
-| Telemetry off the CV upload response path | `631fde93` |
-| Role typeahead debounced; `useDebouncedValue` extracted, 3 callers | `12d7a6eb` |
-| Saturation sample stratified by stage, slowest-first inside | `c766a3a8` |
+| | Measured | Commit |
+|---|---|---|
+| Company page definer | 6,208ms → 5.4ms authed | `cad90259` |
+| Telemetry off the CV upload response path | 3,806-4,339ms → off the path | `631fde93` |
+| Role typeahead debounced; `useDebouncedValue`, 3 callers | 15 requests → ~2 | `12d7a6eb` |
+| Saturation sample stratified by stage, slowest-first | 9 windows were 100% SSO | `c766a3a8` |
+| `list_role_families` → Tier-0 snapshot | 2,417ms → 5.99ms | `fff99f21` |
+| `indexable_companies` → Tier-0 snapshot | 3,257ms → 1.28ms | `2703ee27` |
+| Partner SSO retry loop root-caused | 27.7% of all alert lines | `0bdc8ef5` |
+| Six pipeline RPCs revoked from `anon` | queue-drain with no auth | `3d7e46fd` |
 
-Still open from the list above: the partner SSO retry loop (P0), the
-`list_role_families` definer and baseline (P1), CV-chain instrumentation (P3),
-Tier-0 for the two public aggregates (P4), and the J0 hop re-derivation (P5).
+**Still open:** CV-chain instrumentation (P3), `/jobs/companies/pulse` (P4's
+harder half), the J0 hop re-derivation (P5), and §15 rows 1, 2, 3, 5, 6, 7, 8.
+
+**OWED, outward-facing:** 24 Finlatics seats are stranded in `pending_connect`
+with expired tokens. The bug that stranded them is fixed, but they cannot
+recover themselves — the partner has to re-issue SSO for those seats.
 
 ### Keeping this section true
 
