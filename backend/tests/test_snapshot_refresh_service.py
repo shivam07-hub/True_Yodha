@@ -45,6 +45,7 @@ def test_request_is_one_fast_persisted_rpc() -> None:
         analytics_refresh=lambda *_: {},
         skill_refresh=lambda: {},
         search_refresh=lambda: {},
+        role_family_refresh=lambda: {},
     )
 
     assert service.request(trigger="batch-finalize", force=True) == db.requested
@@ -67,15 +68,19 @@ def test_one_refresh_failure_is_persisted_and_does_not_gate_the_others() -> None
         analytics_refresh=analytics,
         skill_refresh=lambda: ran.append("skill_demand") or {"rows": 374},
         search_refresh=lambda: ran.append("job_search") or {"rows": 74379},
+        role_family_refresh=lambda: ran.append("role_families") or {"families": 334},
     )
 
     service.process(
-        ["analytics", "skill_demand", "job_search"],
+        ["analytics", "skill_demand", "job_search", "role_families"],
         trigger="batch-finalize",
         force=True,
     )
 
-    assert ran == ["analytics", "skill_demand", "job_search"]
-    assert [row["p_success"] for row in db.finished] == [False, True, True]
+    assert ran == ["analytics", "skill_demand", "job_search", "role_families"]
+    assert [row["p_success"] for row in db.finished] == [False, True, True, True]
     assert "batch deadline" in db.finished[0]["p_error"]
     assert db.finished[1]["p_result"] == {"rows": 374}
+    # The role typeahead's Tier-0 refresh is a sibling, not a special case: it
+    # runs even though analytics failed first, and its result is persisted.
+    assert db.finished[3]["p_result"] == {"families": 334}
