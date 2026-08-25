@@ -5,52 +5,28 @@
   "foot": "himyro.com · Issue 019",
   "og": {
     "series": "HIRING HEATMAP",
-    "h1": "Two banks are running a <span style=\"color:var(--mint)\">quarter</span> of the job market.",
-    "bars": [
-      [
-        "Kotak + Axis",
-        3490,
-        "3,490"
-      ],
-      [
-        "Everyone else (215)",
-        11361,
-        "11,361"
-      ]
-    ],
-    "max": 11361,
-    "dim_from": 1,
-    "foot": "3,490 openings · 13 of them engineering · 8 aug 2026 · himyro.com"
+    "h1": "Where your industry hires. <span style=\"color:var(--mint)\">Find your row.</span>",
+    "bars": [["Technology → Bengaluru",58.8,"58.8%"],["Consulting → Bengaluru",37.4,"37.4%"],["Banking → outside the big 6",42.4,"42.4%"],["Manufacturing → Pune",15.6,"15.6%"]],
+    "max": 58.8,
+    "dim_from": 2,
+    "foot": "217 companies · 14,851 openings · 8 aug 2026 · himyro.com"
   },
   "slides": [
-    {
-      "kind": "prose",
-      "lead": "23.5%",
-      "text": "Two Indian banks are running a quarter of the job market. Kotak and Axis have <b>3,490 openings</b> between them, out of the 14,851 we read across 217 employers. Thirteen of those 3,490 are engineering jobs.",
-      "foot": "14,851 openings · 217 employers · 8 Aug 2026"
-    },
-    {
-      "kind": "prose",
-      "text": "The roles are Branch Relationship Officer, Business Development Associate, Branch Head, Teller, Personal Banker. Axis alone has <b>234 open Branch Relationship Officer posts</b> and 83 Tellers. It's a real hiring wave. It is almost entirely people who will stand in a branch."
-    },
-    {
-      "kind": "prose",
-      "text": "Accenture and Kotak have almost the same number of openings: 1,832 and 1,892. Accenture's include <b>1,261 engineering roles</b>. Kotak's include <b>12</b>. Two employers the same size on paper, running completely different companies underneath, and every job count on the internet treats them as equal."
-    },
-    {
-      "kind": "prose",
-      "text": "This is why job counts lie to you. When someone says India has thousands of openings this month, a quarter of that number is two banks staffing branches. If you're an engineer, your number is <b>4,362</b>, not 14,851, and nobody separates the two for you."
-    },
-    {
-      "kind": "prose",
-      "text": "You can see it before you click. Axis hires through ripplehire.com, Kotak through oraclecloud.com. Those two systems hold 4,331 openings and <b>312 engineering roles</b>. Workday and the chip-maker career pages hold about the same pile, 4,518, and 2,468 of those are engineering. Same corporate apply form. Wildly different odds."
-    },
-    {
-      "kind": "cta",
-      "h1": "Four months of silence usually isn't your CV.",
-      "sub": "Sometimes you're counting the wrong market. Two minutes, free, and you'll know which.",
-      "pill": "himyro.com →",
-      "foot": "Free skill-gap analysis · himyro.com"
-    }
+    {"kind":"prose","text":"Almost nobody switches industry. People switch companies, cities and titles, and stay in the sector they already know. So the useful question isn't what's hiring in India. It's <b>where your industry hires</b>, and whether that's anywhere near you.","foot":"217 companies · 14,851 openings · 8 Aug 2026"},
+    {"kind":"matrix","kicker":"Share of each industry's openings, by metro",
+     "cols":["BLR","HYD","MUM","NCR","PUNE","CHN","OUT"],
+     "rows":[
+      ["Consulting",[["37.4",2],["16.6",1],["8.4",0],["14.3",1],["8.6",0],["6.7",0],["8.0",0]]],
+      ["BFSI",[["15.1",1],["6.1",0],["16.5",1],["9.1",0],["6.9",0],["3.9",0],["42.4",2]]],
+      ["Technology",[["58.8",2],["20.0",1],["2.9",0],["4.2",0],["4.8",0],["2.5",0],["6.7",0]]],
+      ["Diversified",[["46.3",2],["8.8",0],["2.6",0],["7.3",0],["10.3",1],["2.3",0],["22.4",1]]],
+      ["Manufacturing",[["35.9",2],["2.8",0],["7.4",0],["6.3",0],["15.6",1],["5.7",0],["26.2",1]]],
+      ["Consumer/Retail",[["13.9",1],["15.2",1],["19.0",1],["8.6",0],["1.6",0],["1.9",0],["39.8",2]]],
+      ["Healthcare",[["23.0",1],["21.8",1],["11.5",0],["9.8",0],["0.0",0],["4.0",0],["29.9",1]]]],
+     "note":"Read your row, not the column totals. The row is your career."},
+    {"kind":"prose","kicker":"If you're in technology","text":"Your city is already decided. Technology puts <b>58.8%</b> of its openings in Bengaluru and 20.0% in Hyderabad. Four in five tech jobs sit in two cities. Mumbai holds 2.9% of them, which is 49 openings from the 60 tech employers on this list."},
+    {"kind":"prose","kicker":"If you're in banking","text":"Stay where you are. Mumbai is banking's biggest metro and holds only 16.5%. <b>42.4% of BFSI openings sit outside the six big metros</b> — 2,107 jobs, more than the entire national technology total of 1,701. Everyone assumes finance means Mumbai. Branches are in every district, and the hiring follows the branches."},
+    {"kind":"prose","text":"One number reframes the table. Technology has <b>60 employers</b> here, more than any other industry, and 1,701 jobs. Consulting has <b>24 employers</b> and 5,785. More companies hiring in your sector does not mean more jobs in it."},
+    {"kind":"cta","h1":"Find your row. Then check your postcode.","sub":"If your city's share trails Bengaluru's by more than ten points, the city is costing you more than your CV is.","pill":"himyro.com →","foot":"Free skill-gap analysis · himyro.com"}
   ]
 }

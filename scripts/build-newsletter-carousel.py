@@ -99,6 +99,14 @@ td.hi { color:var(--mint); } td.lo { color:var(--muted); }
 .card .d { font-size:33px; line-height:1.38; color:var(--fg); font-weight:400; }
 .cta { display:inline-block; background:var(--mint); color:#04241D; font-size:40px;
   font-weight:620; padding:30px 52px; border-radius:999px; letter-spacing:-.01em; }
+.mtx td, .mtx th { padding:17px 8px; font-size:27px; border-bottom:1px solid var(--border); }
+.mtx th.mx, .mtx td.mx { text-align:center; font-family:'GeistMono',monospace;
+  font-variant-numeric:tabular-nums; }
+.mtx th.mx { font-size:20px; letter-spacing:.06em; color:var(--muted); text-transform:uppercase; }
+.mtx td.mxl, .mtx th.mxl { text-align:left; font-size:28px; font-weight:520; padding-right:16px; }
+.mtx td.mx { color:var(--muted); }
+.mtx td.mx.warm { color:var(--fg); background:hsl(172 100%% 48%% / .10); }
+.mtx td.mx.hot { color:#04241D; background:var(--mint); font-weight:660; }
 .prose { font-size:46px; line-height:1.32; font-weight:440; letter-spacing:-.014em;
   color:var(--fg); }
 .prose b, .prose strong { font-weight:660; color:var(--mint); }
@@ -151,6 +159,17 @@ def slide_body(s):
     if k == "prose":
         lead = (f'<div class="lead">{s["lead"]}</div>' if s.get("lead") else "")
         return (f'{kicker}{lead}<div class="prose">{s["text"]}</div>')
+    if k == "matrix":
+        cols = "".join(f'<th class="mx">{html.escape(c)}</th>' for c in s["cols"])
+        rows = ""
+        for label, cells in s["rows"]:
+            tds = ""
+            for v, hot in cells:
+                cls = "mx hot" if hot == 2 else ("mx warm" if hot == 1 else "mx")
+                tds += f'<td class="{cls}">{html.escape(v)}</td>'
+            rows += f'<tr><td class="mxl">{html.escape(label)}</td>{tds}</tr>'
+        note = f'<div class="note">{s["note"]}</div>' if s.get("note") else ""
+        return (f'{kicker}<table class="mtx"><tr><th class="mxl"></th>{cols}</tr>{rows}</table>{note}')
     if k == "cta":
         return (f'{kicker}<h2 style="max-width:18ch">{s["h1"]}</h2>'
                 f'<div class="sub" style="margin-bottom:56px">{s["sub"]}</div>'
