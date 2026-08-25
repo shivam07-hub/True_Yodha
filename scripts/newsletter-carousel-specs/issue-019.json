@@ -1,0 +1,56 @@
+{
+  "issue": 19,
+  "out": "Myro Newsletter/Issue 019 - carousel",
+  "og_out": "frontend/public/newsletter/issue-019-og.png",
+  "foot": "himyro.com · Issue 019",
+  "og": {
+    "series": "HIRING HEATMAP",
+    "h1": "Two banks are running a <span style=\"color:var(--mint)\">quarter</span> of the job market.",
+    "bars": [
+      [
+        "Kotak + Axis",
+        3490,
+        "3,490"
+      ],
+      [
+        "Everyone else (215)",
+        11361,
+        "11,361"
+      ]
+    ],
+    "max": 11361,
+    "dim_from": 1,
+    "foot": "3,490 openings · 13 of them engineering · 8 aug 2026 · himyro.com"
+  },
+  "slides": [
+    {
+      "kind": "prose",
+      "lead": "23.5%",
+      "text": "Two Indian banks are running a quarter of the job market. Kotak and Axis have <b>3,490 openings</b> between them, out of the 14,851 we read across 217 employers. Thirteen of those 3,490 are engineering jobs.",
+      "foot": "14,851 openings · 217 employers · 8 Aug 2026"
+    },
+    {
+      "kind": "prose",
+      "text": "The roles are Branch Relationship Officer, Business Development Associate, Branch Head, Teller, Personal Banker. Axis alone has <b>234 open Branch Relationship Officer posts</b> and 83 Tellers. It's a real hiring wave. It is almost entirely people who will stand in a branch."
+    },
+    {
+      "kind": "prose",
+      "text": "Accenture and Kotak have almost the same number of openings: 1,832 and 1,892. Accenture's include <b>1,261 engineering roles</b>. Kotak's include <b>12</b>. Two employers the same size on paper, running completely different companies underneath, and every job count on the internet treats them as equal."
+    },
+    {
+      "kind": "prose",
+      "text": "This is why job counts lie to you. When someone says India has thousands of openings this month, a quarter of that number is two banks staffing branches. If you're an engineer, your number is <b>4,362</b>, not 14,851, and nobody separates the two for you."
+    },
+    {
+      "kind": "prose",
+      "text": "You can see it before you click. Axis hires through ripplehire.com, Kotak through oraclecloud.com. Those two systems hold 4,331 openings and <b>312 engineering roles</b>. Workday and the chip-maker career pages hold about the same pile, 4,518, and 2,468 of those are engineering. Same corporate apply form. Wildly different odds."
+    },
+    {
+      "kind": "cta",
+      "h1": "Four months of silence usually isn't your CV.",
+      "sub": "Sometimes you're counting the wrong market. Two minutes, free, and you'll know which.",
+      "pill": "himyro.com →",
+      "foot": "Free skill-gap analysis · himyro.com"
+    }
+  ]
+}

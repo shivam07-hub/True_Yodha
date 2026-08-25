@@ -99,6 +99,11 @@ td.hi { color:var(--mint); } td.lo { color:var(--muted); }
 .card .d { font-size:33px; line-height:1.38; color:var(--fg); font-weight:400; }
 .cta { display:inline-block; background:var(--mint); color:#04241D; font-size:40px;
   font-weight:620; padding:30px 52px; border-radius:999px; letter-spacing:-.01em; }
+.prose { font-size:46px; line-height:1.32; font-weight:440; letter-spacing:-.014em;
+  color:var(--fg); }
+.prose b, .prose strong { font-weight:660; color:var(--mint); }
+.lead { font-size:96px; line-height:1; font-weight:680; letter-spacing:-.04em;
+  color:var(--mint); font-variant-numeric:tabular-nums; margin-bottom:34px; }
 .note { font-size:29px; color:var(--muted); line-height:1.45; margin-top:34px; }
 """ % (_font("GeistVF.woff"), _font("GeistMonoVF.woff"), w, h)
 
@@ -143,6 +148,9 @@ def slide_body(s):
         cards = "".join(f'<div class="card"><div class="t">{html.escape(t)}</div>'
                         f'<div class="d">{d}</div></div>' for t, d in s["cards"])
         return kicker + cards
+    if k == "prose":
+        lead = (f'<div class="lead">{s["lead"]}</div>' if s.get("lead") else "")
+        return (f'{kicker}{lead}<div class="prose">{s["text"]}</div>')
     if k == "cta":
         return (f'{kicker}<h2 style="max-width:18ch">{s["h1"]}</h2>'
                 f'<div class="sub" style="margin-bottom:56px">{s["sub"]}</div>'
