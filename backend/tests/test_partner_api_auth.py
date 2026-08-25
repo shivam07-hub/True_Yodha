@@ -48,6 +48,9 @@ class _Chain:
     def eq(self, *_a: Any) -> "_Chain":
         return self
 
+    def or_(self, *_a: Any) -> "_Chain":
+        return self
+
     def limit(self, _n: int) -> "_Chain":
         return self
 

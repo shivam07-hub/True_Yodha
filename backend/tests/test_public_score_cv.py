@@ -306,8 +306,13 @@ def test_rewrite_bullet_no_metric_question(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 def test_rewrite_bullet_variants_preview(monkeypatch: pytest.MonkeyPatch) -> None:
-    async def _fake(bullet, role, kws, metric, allow_no_metric=False, user_id=None):
+    async def _fake(bullet, role, kws, metric, allow_no_metric=False, user_id=None,
+                    intent=None, target_phrases=None):
         assert bullet == "Reduced churn 18%"
+        # The logged-out surface runs the same fix loop, so it forwards the same
+        # promise: which fix kind, and the exact phrases it said it would remove.
+        assert intent == "cut"
+        assert target_phrases == ["best-in-class"]
         return {
             "mode": "variants",
             "variants": [
@@ -321,7 +326,12 @@ def test_rewrite_bullet_variants_preview(monkeypatch: pytest.MonkeyPatch) -> Non
 
     res = TestClient(app).post(
         "/public/rewrite-bullet/variants",
-        json={"bullet": "Reduced churn 18%", "role": "PM"},
+        json={
+            "bullet": "Reduced churn 18%",
+            "role": "PM",
+            "intent": "cut",
+            "target_phrases": ["best-in-class"],
+        },
     )
     assert res.status_code == 200, res.text
     body = res.json()

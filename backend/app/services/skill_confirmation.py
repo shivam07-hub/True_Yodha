@@ -154,8 +154,13 @@ def confirm_baseline_skills(
             user_id, reason="skills_confirmed", score_fresh=True,
         )
 
-    # Slim Direction payload: skip `list_role_families` on this request (measured
-    # multi-second on a loaded DB). The Direction screen loads families itself.
+    # Slim Direction payload: skip `list_role_families` on this request. The
+    # Direction screen loads families itself.
+    #
+    # The original reason — "measured multi-second on a loaded DB" — no longer
+    # holds: migration 20260825100000 moved the label taxonomy to a Tier-0
+    # snapshot and the RPC measures ~6ms. The slice stays because it still
+    # removes a hop from the confirm response, not because the RPC is slow.
     if has_target:
         return {
             "next": "shortlist_processing",

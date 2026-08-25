@@ -21,7 +21,6 @@ import type { CVStructured } from "@/lib/api"
 import { itemId } from "@/lib/cv-compose"
 import {
   contentFindingPoints,
-  runContentChecks,
   type ContentCategory,
   type ContentFinding,
 } from "./content-checks"
@@ -32,11 +31,16 @@ export type V2FixKind = "Quantify" | "Verb" | "Cut" | "Fix"
 export interface V2Fix {
   id: string
   kind: V2FixKind
+  /** The check that raised this. Keys the authored explainer copy — the "why"
+   *  a user can read for free, before deciding to spend a rewrite on it. */
+  category: ContentCategory
   severity: Severity
   title: string
-  desc: string
   /** Rank-4 provenance — the host line, e.g. "capgemini · line 3". */
   provenance: string
+  /** The offending phrases, verbatim from the line. Sent to the rewriter so it
+   *  knows what to remove, and read back by fix-verify to check it did. */
+  offenders: string[]
   /** Readiness points this fix returns — deterministic, never fabricated. */
   gain: number
   /** Host bullet: editor row id + its current text (the rewrite input). */
@@ -94,43 +98,46 @@ function findingProvenance(cv: CVStructured, f: ContentFinding): string {
 
 const quote = (s: string) => `“${s}”`
 
-/** Card copy per recruiter-check category — title says the defect, desc says why
- *  it costs (recruiter's-eye, per content-check-explainers voice). The desc
- *  survives only inside the do-now card now; queue rows are title + provenance. */
-function contentCard(f: ContentFinding): { kind: V2FixKind; title: string; desc: string } {
+/** The title only. It names the defect and quotes the offender back verbatim;
+ *  WHY it costs is authored once per category in content-check-explainers and
+ *  rendered by the brief, so a second sentence here would only restate it. */
+function contentCard(f: ContentFinding): { kind: V2FixKind; title: string } {
   const first = f.offenders[0] ?? ""
-  const map: Record<ContentCategory, { kind: V2FixKind; title: string; desc: string }> = {
+  const map: Record<ContentCategory, { kind: V2FixKind; title: string }> = {
     unquantified: {
       kind: "Quantify",
       title: "Put a number on this line",
-      desc: "Recruiters scan for scale. This bullet describes the work but not the impact.",
     },
     "weak-verb": {
       kind: "Verb",
       title: `${quote(first)} is a weak opener`,
-      desc: "Open with the action, not the assignment.",
     },
     buzzword: {
       kind: "Cut",
       title: `Cut ${quote(first)}`,
-      desc: "Everyone claims it, so a recruiter reads past it — show the work instead.",
     },
     repetition: {
       kind: "Fix",
       title: `${quote(first)} repeats in ${f.occurrences ?? 2} lines`,
-      desc: "Vary the phrase — repetition dulls every use.",
     },
   }
   return map[f.category]
 }
 
-export function buildV2Fixes(
+/**
+ * Findings in, fixes out. This deliberately does NOT scan: the CV is scanned
+ * exactly once per change, in useCvDiagnosis, and every derived view reads that
+ * one array. Four call sites used to each run their own full scan of the same
+ * CV with the same inputs — 1.37ms and 6,480 throwaway RegExp objects per
+ * keystroke on the autosaving master surface.
+ */
+export function buildFixes(
   cv: CVStructured,
-  hiddenIids?: Set<string>,
+  findings: readonly ContentFinding[],
 ): V2Fix[] {
   const fixes: V2Fix[] = []
 
-  for (const f of runContentChecks(cv, hiddenIids)) {
+  for (const f of findings) {
     const iid = findingIid(cv, f)
     const text = findingBulletText(cv, f)
     if (!iid || text == null) continue
@@ -138,6 +145,8 @@ export function buildV2Fixes(
     fixes.push({
       id: f.id,
       ...card,
+      category: f.category,
+      offenders: f.offenders,
       severity: findingSeverity(f),
       provenance: findingProvenance(cv, f),
       gain: contentFindingPoints(f),

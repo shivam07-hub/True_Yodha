@@ -17,6 +17,7 @@ JUDGMENT_EVIDENCE = MIGRATIONS / "20260807_stage_b_judgment_evidence.sql"
 # Likewise for apply_job_enrichment and refresh_job_role_family: this file holds
 # the live definitions, 20260806b and 20260806e hold their history.
 FORWARD_FLOW = MIGRATIONS / "20260807b_enrichment_stops_owning_skills.sql"
+WORKER_ONLY = MIGRATIONS / "20260825130000_worker_rpcs_are_not_public.sql"
 
 
 def test_enrichment_never_deletes_skills_for_an_empty_result() -> None:
@@ -274,3 +275,44 @@ def test_main_skills_is_derived_from_job_skills() -> None:
     ordered_at = trigger.index("ORDER BY job_skill.is_primary DESC,\n                 job_skill.required_level")
     limit_at = trigger.index("LIMIT 12")
     assert ordered_at < limit_at
+
+
+def test_the_pipeline_claim_rpcs_are_not_reachable_without_service_role() -> None:
+    """All six were executable by `anon` until 2026-08-25.
+
+    `claim_jobs_for_skill_floor` selects FOR UPDATE SKIP LOCKED and stamps the
+    job's attempt column, so an unauthenticated caller could claim work off the
+    ingest queue and mark it attempted without doing it: the queue drains, no
+    skill floor is written, and nothing reports a failure because the work was
+    handed out normally. `release_skill_judgment_claim` is the mirror — it
+    releases claims for a caller-supplied job list.
+
+    Revoking the role grants alone is not enough. PUBLIC carries a default
+    EXECUTE grant on new functions and both roles inherit through it.
+    """
+    sql = WORKER_ONLY.read_text()
+    worker_only = (
+        "claim_jobs_for_skill_floor(integer)",
+        "claim_jobs_for_skill_judgment(integer)",
+        "release_skill_judgment_claim(text[])",
+        "refresh_job_role_family()",
+        "count_jobs_awaiting_judgment()",
+        "count_jobs_missing_skill_floor()",
+    )
+    for signature in worker_only:
+        revokes = [
+            line for line in sql.splitlines()
+            if line.startswith("revoke execute") and signature in line
+        ]
+        assert revokes, f"{signature} is never revoked"
+        revoked_from = " ".join(revokes)
+        for role in ("anon", "authenticated", "public"):
+            assert role in revoked_from, f"{signature} still reachable via {role}"
+
+    # The workers must keep it. A trigger function does not need EXECUTE to
+    # fire, so refresh_job_role_family is deliberately not re-granted.
+    for signature in worker_only:
+        if signature == "refresh_job_role_family()":
+            assert f"grant execute on function public.{signature} to service_role" not in sql
+            continue
+        assert f"grant execute on function public.{signature} to service_role" in sql

@@ -1,0 +1,24 @@
+{
+  "issue": 18,
+  "out": "Myro Newsletter/Issue 018 - carousel",
+  "og_out": "frontend/public/newsletter/issue-018-og.png",
+  "foot": "himyro.com · Issue 018",
+  "og": {
+    "h1": "Four cities hire the same jobs. Only the <span style=\"color:var(--mint)\">odds</span> change.",
+    "bars": [["Hyderabad",44.1,"44.1%"],["Bengaluru",43.9,"43.9%"],["Pune",43.8,"43.8%"],["Chennai",42.3,"42.3%"],["Mumbai",13.8,"13.8%"],["Delhi NCR",5.4,"5.4%"]],
+    "max": 45, "dim_from": 4,
+    "foot": "14,851 openings · 217 employers · 8 aug 2026 · himyro.com"
+  },
+  "slides": [
+    {"kind":"statement","h1":"Bengaluru, Pune,<br>Hyderabad, Chennai<br>hire for the <span style=\"color:var(--mint)\">same jobs</span>.","sub":"At Bengaluru, the odds change for the same job.","foot":"14,851 openings · 217 employers · 8 Aug 2026"},
+    {"kind":"number","kicker":"Engineering openings in India","huge":"47.8%","sub":"sit in <strong>one city</strong>. Bengaluru holds 2,086 of the country's 4,362 engineering roles."},
+    {"kind":"bars","kicker":"Engineering share of each city's postings","bars":[["Hyderabad",44.1,"44.1%"],["Bengaluru",43.9,"43.9%"],["Pune",43.8,"43.8%"],["Chennai",42.3,"42.3%"],["Mumbai",13.8,"13.8%"],["Noida",13.3,"13.3%"],["Gurugram",12.1,"12.1%"],["Delhi NCR",5.4,"5.4%"]],"max":45,"cliff_after":3,"dim_from":4,"note":"Four cities inside 1.8 points. Then a 28-point drop."},
+    {"kind":"statement","kicker":"The bit nobody expects","h1":"<span style=\"font-size:56px\">Hyderabad edges Bengaluru on engineering share.</span>","sub":"44.1% against 43.9%. Pune sits at 43.8%. By composition these are one market."},
+    {"kind":"bars","kicker":"Where those engineering roles actually are","bars":[["Bengaluru",2086,"2,086"],["Hyderabad",803,"803"],["Pune",506,"506"],["Chennai",300,"300"]],"max":2086,"note":"<span style=\"font-size:38px;color:var(--fg);line-height:1.3\">Chennai to Bengaluru is <strong style=\"color:var(--mint)\">7× the shots</strong> at the job you already qualify for.</span>"},
+    {"kind":"table","kicker":"Bengaluru's share, by role","head":["Your role","Share of national pool"],"rows":[["Engineering","47.8%",true],["Data / AI","35.7%",true],["Sales","19.5%",false],["BFSI","16.4%",false]],"note":"The more technical the role, the more it lives in one city."},
+    {"kind":"statement","kicker":"If you work in a bank","h1":"<span style=\"font-size:56px\">Moving buys you almost nothing.</span>","sub":"BFSI's top six cities add up to 45% of its national pool. Banks staff branches everywhere."},
+    {"kind":"number","kicker":"Four cities","huge":"84.7%","sub":"of India's engineering openings. Every other city in the country splits the remaining <strong>15.3%</strong>."},
+    {"kind":"cards","kicker":"What to do about it","cards":[["Early · 0–3 yrs","Volume is the only lever you have. Pick Hyderabad over Bengaluru if cost binds: 18.4% of the pool at a lower burn rate."],["Mid · 3–10 yrs","Applied to fewer than 30 roles? The city is not your problem yet."],["Senior · 10+ yrs","Read your role's row, not the city ranking. Hiring runs through people at your level."]]},
+    {"kind":"cta","h1":"Is it the city, or is it your CV?","sub":"Two minutes. Free. Returns what to learn and in what order.","pill":"himyro.com →","foot":"Free skill-gap analysis · himyro.com"}
+  ]
+}

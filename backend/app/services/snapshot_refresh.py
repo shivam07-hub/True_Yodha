@@ -20,7 +20,13 @@ from app.repositories.skill_demand import SkillDemandRepository
 
 logger = logging.getLogger(__name__)
 
-REFRESH_TASKS = ("analytics", "skill_demand", "job_search")
+REFRESH_TASKS = (
+    "analytics",
+    "skill_demand",
+    "job_search",
+    "role_families",
+    "company_directory",
+)
 STATUS_MAX_AGE = timedelta(hours=48)
 
 
@@ -32,12 +38,16 @@ class SnapshotRefreshService:
         analytics_refresh: Callable[[str, bool], dict[str, Any]],
         skill_refresh: Callable[[], dict[str, Any]],
         search_refresh: Callable[[], dict[str, Any]],
+        role_family_refresh: Callable[[], dict[str, Any]],
+        company_directory_refresh: Callable[[], dict[str, Any]],
     ) -> None:
         self._db = db
         self._analytics_refresh = analytics_refresh
         self._handlers: dict[str, Callable[[], dict[str, Any]]] = {
             "skill_demand": skill_refresh,
             "job_search": search_refresh,
+            "role_families": role_family_refresh,
+            "company_directory": company_directory_refresh,
         }
 
     def request(self, *, trigger: str, force: bool) -> list[str]:
@@ -129,6 +139,26 @@ def build_snapshot_refresh_service() -> SnapshotRefreshService:
             return jobs.persist_analytics_snapshot(refreshed_by=trigger)
         return jobs.refresh_analytics_snapshot_if_stale(refreshed_by=trigger)
 
+    def refresh_role_families() -> dict[str, Any]:
+        """The role typeahead's label taxonomy — the expensive half, once per
+        ingest instead of once per keystroke (migration 20260825100000)."""
+        result = db.rpc("refresh_role_family_labels", {}).execute().data
+        if isinstance(result, list):
+            result = result[0] if result else {}
+        if not isinstance(result, dict):
+            result = {}
+        return {"families": int(result.get("families", 0) or 0)}
+
+    def refresh_company_directory() -> dict[str, Any]:
+        """The SEO company list. It full-scanned the jobs heap even as
+        service_role — 12,654 buffers for 232 rows (migration 20260825110000)."""
+        result = db.rpc("refresh_company_directory", {}).execute().data
+        if isinstance(result, list):
+            result = result[0] if result else {}
+        if not isinstance(result, dict):
+            result = {}
+        return {"companies": int(result.get("companies", 0) or 0)}
+
     def refresh_search() -> dict[str, Any]:
         result = db.rpc("refresh_job_search_index", {}).execute().data
         if isinstance(result, list):
@@ -142,6 +172,8 @@ def build_snapshot_refresh_service() -> SnapshotRefreshService:
         analytics_refresh=refresh_analytics,
         skill_refresh=skills.refresh,
         search_refresh=refresh_search,
+        role_family_refresh=refresh_role_families,
+        company_directory_refresh=refresh_company_directory,
     )
 
 

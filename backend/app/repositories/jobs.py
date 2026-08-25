@@ -1427,7 +1427,19 @@ class JobsRepository:
         It used to page every matching row out at 1,000 per request and count
         them here — 11,208 rows in 12 OFFSET round trips to produce 185. OFFSET
         re-scans what it skips, so the last page cost 1,343 ms on its own and
-        the endpoint spiked to 9-12s; the GROUP BY answers in ~350 ms.
+        the endpoint spiked to 9-12s; the GROUP BY answered in ~350 ms.
+
+        The GROUP BY was still a full scan of the `jobs` heap — measured
+        2026-08-25 at **706ms / 12,654 buffers as service_role** and
+        **3,257ms / 13,054 as anon**, to produce 232 rows. That is 45% of a
+        224MB `shared_buffers` per call, and it is what the correlated
+        multi-route windows on 20 and 24 August were queued behind
+        (ARCHITECTURE_READ_PATH.md S16). Caching a heap scan does not stop the
+        heap scan, it only makes it less frequent — which is why the alert
+        range was 2,870-9,590ms rather than constant.
+
+        Migration `20260825110000` moved it to the `company_directory` Tier-0
+        snapshot: **1.28ms / 493 buffers**, same 232 rows in the same order.
         Grouping/ordering live in the function and match what this loop did.
         A cold miss with no stale value to fall back on propagates APIError to
         the caller, same as before this cache moved to shared_cache.

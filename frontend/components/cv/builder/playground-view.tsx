@@ -29,10 +29,12 @@ import { PdfPage, type PdfPageContact } from "./pdf-page"
 import { CoveragePanel } from "./coverage-panel"
 import { WorkstationShell } from "./workstation-shell"
 import { runAtsChecks } from "./ats-checks"
+import { useCvDiagnosis } from "./use-cv-diagnosis"
 import { identityLines } from "./cv-identity-lines"
 import { rewriteFetcher } from "./rewrite-fetchers"
 import { exportSheetPdf } from "@/lib/cv/sheet-pdf"
 import { printCvPage } from "@/lib/cv/print-cv"
+import { masterFilename } from "@/lib/cv/download-master"
 import { DEFAULT_TEMPLATE, isCVTemplate, type CVTemplate } from "@/lib/cv/templates"
 import { hasCvContent, latestBaseline } from "@/lib/cv/durable-answer"
 import { usePlaygroundModel } from "./use-playground-model"
@@ -90,14 +92,28 @@ export function PlaygroundView({
 
   useEffect(() => { if (mentorRequested) setWeaveOpen(true) }, [mentorRequested])
 
-  const m = usePlaygroundModel(token, jobId, cv, profile, hiddenItems)
+  const { dismissed, dismiss } = useDismissedFixes(`job:${jobId}`)
+
+  // The ATS filename check tests machine-readability of the slug, and every
+  // segment of the real download name is slugged the same way — so the name
+  // alone is a faithful stand-in, and it does not drag the job title into the
+  // diagnosis inputs (which would re-scan the CV when the job header loads).
+  const atsChecks = useMemo(
+    () => runAtsChecks(cv, profile, masterFilename(cv.contact?.name ?? profile?.full_name ?? null)),
+    [cv, profile],
+  )
+  // ONE scan of the CV per change, shared by the score model and the shell.
+  const diagnosis = useCvDiagnosis({ cv, hidden: hiddenItems, atsChecks, dismissed })
+
+  const m = usePlaygroundModel(token, jobId, cv, profile, hiddenItems, {
+    penalty: diagnosis.penalty,
+  })
   // Same query key as every other skills reader — one cache entry, no refetch.
   const userSkillsQuery = useQuery({
     queryKey: dataKeys.userSkills(),
     queryFn: () => users.mySkills(token),
     staleTime: 5 * 60 * 1000,
   })
-  const { dismissed } = useDismissedFixes(`job:${jobId}`)
   const coverageQuery = m.coverageQuery
 
   const pdfContact = useMemo<PdfPageContact>(() => ({
@@ -115,10 +131,6 @@ export function PlaygroundView({
     return `${parts.join("__")}.pdf`
   }, [pdfContact.name, m.company, m.jobTitle])
 
-  const atsChecks = useMemo(
-    () => runAtsChecks(cv, profile, pdfFilename),
-    [cv, profile, pdfFilename],
-  )
 
   const sourceUrl = m.application?.source_url?.trim() ?? ""
   const capture = useApplyCapture({
@@ -131,7 +143,12 @@ export function PlaygroundView({
   })
   const applyHref = capture.href ?? ""
 
-  const openFixIds = useMemo(() => new Set(m.openFixes.map(f => f.id)), [m.openFixes])
+  // Every id the scan raised, dismissal included — an applied fix drops off the
+  // session list only when the defect is genuinely gone from the text.
+  const openFixIds = useMemo(
+    () => new Set(diagnosis.allFindings.map(f => f.id)),
+    [diagnosis.allFindings],
+  )
   const appliedShown = appliedFixes.filter(a => !openFixIds.has(a.id))
   const sessionRaised = appliedShown.reduce((s, a) => s + a.gain, 0)
 
@@ -283,10 +300,11 @@ export function PlaygroundView({
         pageFill={m.pageFill}
         lineCount={m.visibleCount}
         wordCount={m.wordCount}
-        dismissed={dismissed}
+        diagnosis={diagnosis}
+        onDismissFix={f => dismiss(f.id)}
         applying={rewriteApply.isPending}
-        makeFetcher={(bullet, quantifyOnly) =>
-          rewriteFetcher.authed(token, bullet, m.jobTitle, quantifyOnly)}
+        makeFetcher={(bullet, fix) =>
+          rewriteFetcher.authed(token, bullet, { role: m.jobTitle, fix, quantifyOnly: fix?.kind === "Quantify" })}
         onApplyRewrite={applyRewrite}
         onEditLine={(oldText, newText) => rewriteApply.mutate({ oldText, newText })}
         onToggleHidden={toggleItem}
@@ -371,7 +389,7 @@ export function PlaygroundView({
           jobTitle={m.jobTitle}
           ready={m.ready}
           delta={sessionRaised}
-          pendingFixes={m.openFixes.filter(f => !dismissed.has(f.id)).length}
+          pendingFixes={diagnosis.fixes.length}
           onConfirm={confirmApply}
           onClose={() => setApplyOpen(false)}
           onBackToFixes={() => setApplyOpen(false)}

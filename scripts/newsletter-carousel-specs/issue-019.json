@@ -1,0 +1,311 @@
+{
+  "issue": 19,
+  "out": "Myro Newsletter/Issue 019 - carousel",
+  "og_out": "frontend/public/newsletter/issue-019-og.png",
+  "foot": "himyro.com · Issue 019",
+  "og": {
+    "series": "HIRING HEATMAP",
+    "h1": "Where your industry hires. <span style=\"color:var(--mint)\">Find your row.</span>",
+    "bars": [
+      [
+        "Technology → Bengaluru",
+        58.8,
+        "58.8%"
+      ],
+      [
+        "Consulting → Bengaluru",
+        37.4,
+        "37.4%"
+      ],
+      [
+        "Banking → outside the big 6",
+        42.4,
+        "42.4%"
+      ],
+      [
+        "Manufacturing → Pune",
+        15.6,
+        "15.6%"
+      ]
+    ],
+    "max": 58.8,
+    "dim_from": 2,
+    "foot": "217 companies · 14,851 openings · 8 aug 2026 · himyro.com"
+  },
+  "slides": [
+    {
+      "kind": "prose",
+      "lead": "58.8 / 42.4",
+      "text": "I split 14,851 openings by the industry of the company that posted them, then by city. I expected the metros to rank about the same inside every industry. Technology puts <b>58.8%</b> of its openings in Bengaluru. Banking puts <b>42.4%</b> of its openings outside the six big metros altogether.",
+      "foot": "217 companies · 14,851 openings · 8 Aug 2026"
+    },
+    {
+      "kind": "matrix",
+      "kicker": "Share of each industry's openings, by metro",
+      "cols": [
+        "BLR",
+        "HYD",
+        "MUM",
+        "NCR",
+        "PUNE",
+        "CHN",
+        "OUT"
+      ],
+      "rows": [
+        [
+          "Consulting",
+          [
+            [
+              "37.4",
+              2
+            ],
+            [
+              "16.6",
+              1
+            ],
+            [
+              "8.4",
+              0
+            ],
+            [
+              "14.3",
+              1
+            ],
+            [
+              "8.6",
+              0
+            ],
+            [
+              "6.7",
+              0
+            ],
+            [
+              "8.0",
+              0
+            ]
+          ]
+        ],
+        [
+          "BFSI",
+          [
+            [
+              "15.1",
+              1
+            ],
+            [
+              "6.1",
+              0
+            ],
+            [
+              "16.5",
+              1
+            ],
+            [
+              "9.1",
+              0
+            ],
+            [
+              "6.9",
+              0
+            ],
+            [
+              "3.9",
+              0
+            ],
+            [
+              "42.4",
+              2
+            ]
+          ]
+        ],
+        [
+          "Technology",
+          [
+            [
+              "58.8",
+              2
+            ],
+            [
+              "20.0",
+              1
+            ],
+            [
+              "2.9",
+              0
+            ],
+            [
+              "4.2",
+              0
+            ],
+            [
+              "4.8",
+              0
+            ],
+            [
+              "2.5",
+              0
+            ],
+            [
+              "6.7",
+              0
+            ]
+          ]
+        ],
+        [
+          "Diversified",
+          [
+            [
+              "46.3",
+              2
+            ],
+            [
+              "8.8",
+              0
+            ],
+            [
+              "2.6",
+              0
+            ],
+            [
+              "7.3",
+              0
+            ],
+            [
+              "10.3",
+              1
+            ],
+            [
+              "2.3",
+              0
+            ],
+            [
+              "22.4",
+              1
+            ]
+          ]
+        ],
+        [
+          "Manufacturing",
+          [
+            [
+              "35.9",
+              2
+            ],
+            [
+              "2.8",
+              0
+            ],
+            [
+              "7.4",
+              0
+            ],
+            [
+              "6.3",
+              0
+            ],
+            [
+              "15.6",
+              1
+            ],
+            [
+              "5.7",
+              0
+            ],
+            [
+              "26.2",
+              1
+            ]
+          ]
+        ],
+        [
+          "Consumer/Retail",
+          [
+            [
+              "13.9",
+              1
+            ],
+            [
+              "15.2",
+              1
+            ],
+            [
+              "19.0",
+              1
+            ],
+            [
+              "8.6",
+              0
+            ],
+            [
+              "1.6",
+              0
+            ],
+            [
+              "1.9",
+              0
+            ],
+            [
+              "39.8",
+              2
+            ]
+          ]
+        ],
+        [
+          "Healthcare",
+          [
+            [
+              "23.0",
+              1
+            ],
+            [
+              "21.8",
+              1
+            ],
+            [
+              "11.5",
+              0
+            ],
+            [
+              "9.8",
+              0
+            ],
+            [
+              "0.0",
+              0
+            ],
+            [
+              "4.0",
+              0
+            ],
+            [
+              "29.9",
+              1
+            ]
+          ]
+        ]
+      ],
+      "note": "Read your row, not the column totals. The row is your career."
+    },
+    {
+      "kind": "prose",
+      "kicker": "Technology, the most concentrated row",
+      "text": "58.8% Bengaluru, 20.0% Hyderabad. Mumbai holds 2.9%, which is 49 jobs. That isn't an absence of companies: <b>19 tech employers posted Mumbai roles</b>, against 49 in Bengaluru. They post 2.6 openings each there and 20.4 each in Bengaluru. The offices are real. The hiring isn't."
+    },
+    {
+      "kind": "prose",
+      "kicker": "Banking, the most spread out",
+      "text": "Mumbai is banking's largest metro at just 16.5%, Bengaluru at 15.1%. The number that matters is the last column: <b>42.4% sits outside the six big metros</b> — 2,107 jobs, more than technology's entire national total. I checked for a Mumbai-heavy sub-sector hiding in the average. There isn't one. Branches are in every district and the hiring follows them."
+    },
+    {
+      "kind": "prose",
+      "text": "A second reading worth having. Technology has <b>60 employers</b> in this batch, more than any other industry, and 1,701 jobs. Consulting has <b>24 employers</b> and 5,785. When you hear a sector has lots of companies hiring, that tells you nothing about how many jobs are in it."
+    },
+    {
+      "kind": "cta",
+      "h1": "Find your row. Then check your postcode.",
+      "sub": "If your city's share trails Bengaluru's by more than ten points and moving is still cheap, your address is costing you more than your CV.",
+      "pill": "himyro.com →",
+      "foot": "Free skill-gap analysis · himyro.com"
+    }
+  ]
+}
