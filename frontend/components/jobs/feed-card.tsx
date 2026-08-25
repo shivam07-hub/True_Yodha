@@ -202,7 +202,7 @@ export function FeedCard({
         : {})}
       {...articleProps}
     >
-      <div className="fc-row">
+      <div className="fc-main">
         {/* Identity tile — dropped in compact density (company is the context). */}
         {compact ? null : data.company ? (
           <a
@@ -350,7 +350,7 @@ export function FeedCard({
 export function FeedCardSkeleton() {
   return (
     <article className="fc-card fc-row" aria-hidden="true">
-      <div className="fc-row">
+      <div className="fc-main">
         <Skeleton style={{ width: 34, height: 34, borderRadius: 10, flex: "0 0 auto" }} />
         <div className="fc-body">
           <Skeleton style={{ width: 110, height: 13, borderRadius: 4 }} />

@@ -33,6 +33,12 @@
    no pointer cursor, no button semantics. */
 .fc-card.fc-static { cursor: default; }
 
+/* Row variant keeps the 14px stack it has always shipped with. It used to get
+   that gap by accident — from the `.fc-row` rule below, back when the inner row
+   shared the variant's class name — so it is declared here now that the two are
+   separate. */
+.fc-card.fc-row { gap: 14px; }
+
 /* ── Compact density (Intel + company pages) — role-led dense row ─────────────
    Same atoms as the full card (fc-role / fc-loc / fc-chip), tighter rhythm, and
    no identity tile: the company is the page/pane context. Fit + capture ride the
@@ -45,8 +51,16 @@
 .fc-compact .fc-loc { font-size: 12.5px; }
 .fc-loc-age { color: var(--tm-text-faint); }
 
-/* ── main row: monogram · body · fit ──────────────────────────────────────── */
-.fc-row { display: flex; gap: 14px; align-items: flex-start; }
+/* ── main row: monogram · body · fit ──────────────────────────────────────────
+   NAMED `fc-main`, NOT `fc-row`: the card's variant class is `fc-${variant}`, so
+   a row card is `<article class="fc-card fc-row">`. A bare `.fc-row` rule hit the
+   ARTICLE too — `align-items: flex-start` on that column flex container stopped
+   the inner row stretching to the card, so it sized to its own min-content
+   (chips never wrap) and the fit ring rendered OUTSIDE the card's right edge.
+   Never give an inner element a class a variant can also produce. */
+.fc-main { display: flex; gap: 14px; align-items: flex-start; }
+/* The fit column must always fit: the body absorbs every squeeze (min-width: 0
+   below) and the card's children stretch, so nothing can push the ring out. */
 
 /* Company logo tile. A deterministic per-company colour (set via --fc-logo-*
    inline) replaces the old letter-on-black monogram — that was the strongest
