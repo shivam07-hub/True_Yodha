@@ -43,6 +43,15 @@
      Myrology keeps amethyst. --tm-brand keeps #00f5d4 — see the brand split
      below: the MARK is still teal, only the interactive layer moved. */
   --tm-bg:            #161a1c;
+
+  /* The dark page colour, readable from :root under EITHER theme. `html` is an
+     ancestor of .myrology-root, so it resolves --tm-bg from :root — the LIGHT
+     value whenever data-surface="light" — and myrology.css had to hardcode the
+     dark page by hand as a result. It then drifted: that hex still said
+     #191918 after the ramp moved here. Declared in this block (which :root
+     always matches) and never overridden by the light block, so both resolve
+     it to the same dark. */
+  --tm-bg-forced-dark: #161a1c;
   --tm-surface:       #1d2224;
   --tm-surface-2:     #22282b;
   --tm-surface-3:     #282f32;
