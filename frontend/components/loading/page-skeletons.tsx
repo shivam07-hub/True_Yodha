@@ -1,5 +1,6 @@
 import { Skeleton } from "@/components/ui/skeleton"
 import { PrepRoomSkeleton, PrepSkeleton } from "@/components/preparations/prep-skeleton"
+import { CVRouteSkeleton } from "@/components/loading/route-loading/skeleton-mirrors/cv-route-skeleton"
 
 /**
  * Layout-matched skeletons for the authed tabs. Each mirrors the real page's
@@ -57,22 +58,6 @@ function StatTiles({ n = 4 }: { n?: number }) {
 
 
 
-export function CvSkeleton() {
-  return (
-    <div className="cvb-scope" aria-hidden="true" style={{ overflowY: "auto", height: "100%" }}>
-      <div className="cvb-page" style={{ padding: "var(--tm-page-py, 28px) var(--tm-page-px, 32px)" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 22 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <Bar w={220} h={26} r={8} />
-            <Bar w={340} h={13} r={4} />
-          </div>
-          <Bar w={130} h={38} r={10} />
-        </div>
-        <Card h={280} />
-      </div>
-    </div>
-  )
-}
 
 export function PracticeSkeleton() {
   return (
@@ -321,6 +306,9 @@ export function GenericPageSkeleton() {
  *            /skills is the score map, and its page renders PracticeSkeleton
  *            for the 180px ring at its centre. Nothing on the real page is a
  *            stat tile.
+ *
+ * /cv is delegated whole to CVRouteSkeleton: that route has THREE destinations
+ * (library, workstation, export) and a pathname alone cannot separate them.
  */
 export function skeletonForPath(pathname: string): React.ReactNode {
   if (pathname.startsWith("/collections")) return <DashboardSkeleton />
@@ -328,11 +316,11 @@ export function skeletonForPath(pathname: string): React.ReactNode {
   if (pathname.startsWith("/market")) return <MarketSkeleton />
   if (pathname.startsWith("/intel")) return <IntelSkeleton />
   if (pathname.startsWith("/skills")) return <PracticeSkeleton />
-  if (pathname.startsWith("/cv")) return <CvSkeleton />
+  if (pathname.startsWith("/cv")) return <CVRouteSkeleton />
   if (pathname.startsWith("/practice")) return <PracticeSkeleton />
   if (pathname.startsWith("/preparations/")) return <PrepRoomSkeleton />
   if (pathname.startsWith("/preparations")) return <PrepSkeleton />
-  // /tracker merged into /cv (2026-06-02) — it redirects to /cv → CvSkeleton.
+  // /tracker merged into /cv (2026-06-02) — it redirects to /cv → CVRouteSkeleton.
   return <GenericPageSkeleton />
 }
 

@@ -12,7 +12,7 @@ import { Suspense, useEffect, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { CVExportView } from "@/components/cv/builder/cv-export-view"
-import { CvSkeleton } from "@/components/loading/page-skeletons"
+import { CVExportSkeleton } from "@/components/loading/route-loading/skeleton-mirrors/cv-export-skeleton"
 import { jobs as jobsApi, users } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
@@ -74,7 +74,7 @@ function CVExportPage() {
     if (!jobId || !hasBaseline) router.replace("/cv")
   }, [bootstrapping, jobId, hasBaseline, router])
 
-  if (bootstrapping || !jobId || !hasBaseline) return <CvSkeleton />
+  if (bootstrapping || !jobId || !hasBaseline) return <CVExportSkeleton />
 
   return (
     <div className="cvb-scope">
@@ -107,7 +107,7 @@ function CVExportPage() {
 
 export default function CVExportPageWithSuspense() {
   return (
-    <Suspense fallback={<CvSkeleton />}>
+    <Suspense fallback={<CVExportSkeleton />}>
       <CVExportPage />
     </Suspense>
   )

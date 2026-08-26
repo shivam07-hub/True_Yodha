@@ -10,7 +10,8 @@ import { CvStructuredRecovery } from "@/components/cv/cv-structured-recovery"
 import { DownloadCVButton } from "@/components/cv/download-cv-button"
 import { tokenizedUserMessage, type CVUploadPhase } from "@/lib/cv-upload-state"
 import { claimPendingAnonCv, hasPendingAnonCvClaim } from "@/lib/anon-cv-claim"
-import { CvSkeleton } from "@/components/loading/page-skeletons"
+import { CVBaselineSkeleton } from "@/components/loading/route-loading/skeleton-mirrors/cv-baseline-skeleton"
+import { CVRouteSkeleton } from "@/components/loading/route-loading/skeleton-mirrors/cv-route-skeleton"
 import { CVWorkstationSkeleton } from "@/components/loading/route-loading/skeleton-mirrors/cv-workstation-skeleton"
 import { PlaygroundView } from "@/components/cv/builder/playground-view"
 import { MasterWorkspace } from "@/components/cv/builder/master-workspace"
@@ -506,7 +507,7 @@ function CVPage() {
   // ONE skeleton per destination, and it is the same one loading.tsx already
   // painted — so the route boundary handing over to the page is a continuation,
   // not a relayout. Three different geometries used to take turns here.
-  if (bootstrapping) return view === "baseline" ? <CvSkeleton /> : <CVWorkstationSkeleton />
+  if (bootstrapping) return view === "baseline" ? <CVBaselineSkeleton /> : <CVWorkstationSkeleton />
 
   // A CV is in the pipe: either transferring right now, or landed and parsing on
   // the server (job id persisted, modal closable). The empty state below must not
@@ -853,7 +854,11 @@ function CVPage() {
 
 export default function CVPageWithSuspense() {
   return (
-    <Suspense fallback={<CvSkeleton />}>
+    // Door-aware, like loading.tsx. Unconditional CvSkeleton here put a
+    // baseline-shaped flash between two workstation-shaped skeletons on
+    // ?jobId / ?edit=1 — the exact relayout f00bf6fd removed from the two
+    // boundaries either side of it.
+    <Suspense fallback={<CVRouteSkeleton />}>
       <CVPage />
     </Suspense>
   )

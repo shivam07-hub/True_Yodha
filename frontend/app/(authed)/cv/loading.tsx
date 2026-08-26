@@ -22,19 +22,11 @@ import "@/components/cv/mobile/mobile-cv-editor.css"
 import "@/components/cv/builder/tailor-weave.css"
 import "./cv-workstation.css"
 
-import { CVBaselineSkeleton } from "@/components/loading/route-loading/skeleton-mirrors/cv-baseline-skeleton"
-import { CVWorkstationSkeleton } from "@/components/loading/route-loading/skeleton-mirrors/cv-workstation-skeleton"
+import { CVRouteSkeleton } from "@/components/loading/route-loading/skeleton-mirrors/cv-route-skeleton"
 
+// The door-picking moved into CVRouteSkeleton so every boundary on this route
+// answers with the same component. This file keeps the CSS imports above,
+// which are the FOUC fix and are load-bearing here.
 export default function CVLoading() {
-  // Safe to read synchronously: this component only renders client-side,
-  // and the URL is already updated by the router before loading.tsx mounts.
-  // BOTH workstation doors are checked here — `?jobId=` (tailor a job) and
-  // `?edit=1` (Main CV). Only the first was, so every trip to the Main CV
-  // opened on the library skeleton and then relaid out into the workstation.
-  const params = typeof window !== "undefined"
-    ? new URLSearchParams(window.location.search)
-    : null
-  const workstation = !!params && (params.has("jobId") || params.get("edit") === "1")
-
-  return workstation ? <CVWorkstationSkeleton /> : <CVBaselineSkeleton />
+  return <CVRouteSkeleton />
 }

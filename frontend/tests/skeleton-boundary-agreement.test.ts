@@ -53,9 +53,9 @@ function skeletonsRenderedBy(pageFile: string): Set<string> {
 }
 
 // Routes whose page.tsx sits directly under app/(authed)/<segment>/page.tsx.
-// /cv is excluded deliberately: it owns a nested loading.tsx that picks by
-// query param (?jobId / ?edit), so its boundary is not skeletonForPath and the
-// pairing is asserted by that file instead.
+// /cv is excluded here and asserted separately below: it has THREE destinations
+// behind one pathname, so its agreement is "every boundary calls the same
+// picker", not "one component matches one route".
 const AUTHED = ["market", "intel", "skills", "practice", "preparations", "collections", "home"]
 
 test("every route boundary paints the skeleton its page paints", () => {
@@ -124,4 +124,47 @@ test("page-skeletons exports nothing that no one renders", () => {
     [],
     `these skeletons are rendered nowhere: ${orphans.join(", ")}`,
   )
+})
+
+test("/cv boundaries all defer to the one route picker", () => {
+  // /cv has three destinations behind one pathname — the library, the
+  // workstation (?jobId / ?edit=1) and the export document. f00bf6fd made
+  // loading.tsx and the page agree on the workstation and left the other two
+  // open, which is how a baseline-shaped skeleton kept flashing between two
+  // workstation-shaped ones. CVRouteSkeleton is the single answer; nothing on
+  // this route may reach into page-skeletons for a different one.
+  const offenders: string[] = []
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name)
+      if (entry.isDirectory()) walk(full)
+      else if (/\.tsx?$/.test(entry.name)) {
+        const src = stripComments(readFileSync(full, "utf8"))
+        if (/from "@\/components\/loading\/page-skeletons"/.test(src)) {
+          offenders.push(full.slice(ROOT.length + 1))
+        }
+      }
+    }
+  }
+  walk(join(ROOT, "app/(authed)/cv"))
+
+  assert.deepEqual(
+    offenders,
+    [],
+    `these /cv files import a generic page skeleton instead of a CV mirror: ${offenders.join(", ")}`,
+  )
+})
+
+test("every CV destination has exactly one mirror", () => {
+  const picker = join(
+    ROOT,
+    "components/loading/route-loading/skeleton-mirrors/cv-route-skeleton.tsx",
+  )
+  const src = stripComments(readFileSync(picker, "utf8"))
+  for (const mirror of ["CVBaselineSkeleton", "CVWorkstationSkeleton", "CVExportSkeleton"]) {
+    assert.ok(
+      new RegExp(`<${mirror}\\s*/>`).test(src),
+      `CVRouteSkeleton never returns <${mirror} /> — a destination lost its shape`,
+    )
+  }
 })
