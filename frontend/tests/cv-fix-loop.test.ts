@@ -161,10 +161,11 @@ test("the buzzword vocabulary is compiled once, not per bullet", () => {
     1,
     "runContentChecks compiles patterns while scanning — hoist them to module scope",
   )
-  assert.doesNotMatch(code("components/cv/builder/content-checks.ts").slice(
-    src.indexOf("function phraseHits"),
-    src.indexOf("function weakOpener"),
-  ), /new RegExp/, "phraseHits must use the precompiled vocabulary")
+  // Slice the FUNCTION, not the gap between two names — the gap picked up an
+  // unrelated module-scope constant the moment one was added between them.
+  const at = src.indexOf("function phraseHits")
+  const body = src.slice(at, src.indexOf("\n}", at))
+  assert.doesNotMatch(body, /new RegExp/, "phraseHits must use the precompiled vocabulary")
 })
 
 test("opening a fix cannot start a model call", () => {
@@ -201,4 +202,76 @@ test("the fix travels with the rewrite request", () => {
   const src = read("components/cv/builder/rewrite-fetchers.ts")
   assert.match(src, /intent: intent \?\? undefined/)
   assert.match(src, /target_phrases: opts\.fix\?\.offenders \?\? \[\]/)
+})
+
+// ── 2026-08-26: five faults behind one report ────────────────────────────────
+// Shivam opened a fix and the brief said INSTEAD OF "Connected with clients at
+// Capgemini…" — a line he had never written. Pulling that thread found five.
+
+test("an authored example never names a real company or a real user's line", () => {
+  // The first pass was drafted off the CV open in the test harness, so the
+  // "instead of" under a real bullet quoted that user's own employer back at
+  // him, mangled. An example is a specimen; it cannot carry anyone's nouns.
+  const forbidden = /\b(Capgemini|Zaggle|Accenture|Sanofi|GCC|EMEA|MaaS)\b/
+  for (const [category, e] of Object.entries(CHECK_EXPLAINERS)) {
+    assert.doesNotMatch(e.example.before, forbidden, `${category}.before names a real employer`)
+    assert.doesNotMatch(e.example.after, forbidden, `${category}.after names a real employer`)
+  }
+})
+
+test("an example that collides with the CV in front of the user is dropped", () => {
+  // Belt to the neutral-copy braces: whatever anyone authors next, it can never
+  // appear under a line it is a verbatim copy of.
+  const stolen = CHECK_EXPLAINERS.unquantified.example.before
+  const cv = cvWith([stolen, "Responsible for the handover notes."])
+  const issues = buildIssues({
+    cv,
+    fixes: buildFixes(cv, runContentChecks(cv, new Set())),
+    atsChecks: [],
+  })
+  const onStolenLine = issues.filter(i => i.fix?.bulletText === stolen)
+  assert.ok(onStolenLine.length > 0, "the copied line must still raise its own fixes")
+  for (const i of onStolenLine.filter(x => x.fix?.category === "unquantified")) {
+    assert.equal(i.brief.example, undefined, "an example that quotes this CV must not render")
+  }
+})
+
+test("a spelled-out number is a number", () => {
+  // "Built Capability Maturity Frameworks (with five maturity levels)" was told
+  // to put a number on a line that has one. A blocking claim that is visibly
+  // wrong costs belief in every other row.
+  const withWords = cvWith([
+    "Built Capability Maturity Frameworks with five maturity levels to assess the platform.",
+  ])
+  assert.equal(
+    runContentChecks(withWords, new Set()).filter(f => f.category === "unquantified").length,
+    0,
+  )
+  // ...but "one" stays out of the vocabulary: it is an article far more often
+  // than a count, and a false negative costs less than a false positive.
+  const withOne = cvWith(["Worked as one of the leads on the platform team."])
+  assert.equal(
+    runContentChecks(withOne, new Set()).filter(f => f.category === "unquantified").length,
+    1,
+  )
+})
+
+test("a line with two fixes opens the one that was clicked, and says so", () => {
+  const src = code("components/cv/builder/workstation-shell.tsx")
+  // Keying the open card on the LINE meant a specific rail row silently opened
+  // whichever fix came first, with no way to reach the other.
+  assert.match(src, /const \[openFixId, setOpenFixId\]/)
+  assert.match(src, /fixes\.find\(f => f\.id === openFixId\)/)
+  assert.doesNotMatch(src, /useState<string \| null>\(null\)\s*\n\s*const openFix = openIid/)
+  // And the card names its position, so "2 fixes" and a one-fix card stop
+  // contradicting each other.
+  assert.match(src, /const siblings = openFix/)
+  assert.match(code("components/cv/builder/cv-line-fix.tsx"), /on this line/)
+})
+
+test("the mark on the line follows the brief being read", () => {
+  const src = code("components/cv/builder/offender-text.tsx")
+  assert.match(src, /active\?: readonly string\[\]/)
+  assert.match(src, /is-active/)
+  assert.match(code("components/cv/builder/cv-line-row.tsx"), /markOffenders\(text, verdict\.offenders, activeOffenders\)/)
 })

@@ -4700,7 +4700,20 @@ export interface MyrologyBooking {
   cancelled_at: string | null
 }
 
+export interface MyrologyOrder {
+  /** Verified payment moment — the anchor for the delivery promise. */
+  paid_at: string
+  /** Working-day deadline for the written map, computed server-side. */
+  promised_by: string
+  working_days: number
+}
+
 export const myrology = {
+  getOrder: (token: string) =>
+    request<MyrologyOrder | null>("/myrology/order", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
   getIntake: (token: string) =>
     request<MyrologyIntake | null>("/myrology/intake", {
       headers: { Authorization: `Bearer ${token}` },
@@ -5066,11 +5079,20 @@ export interface JobProvenance {
   mine: number
 }
 
+export interface PublicIndustryGroup {
+  name: string
+  jobs: number
+}
+
 export interface PublicStatsResponse {
   jobs_tracked: number
   companies_monitored: number
   skills_mapped: number
   seekers: number
+  /** Top groups by open count, already sorted descending. Ungrouped rows excluded. */
+  industry_groups: PublicIndustryGroup[]
+  total_industries: number
+  role_families: number
   provenance: JobProvenance
   as_of: string
 }

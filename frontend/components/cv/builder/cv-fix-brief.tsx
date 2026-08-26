@@ -44,17 +44,23 @@ export function CvFixBrief({
         </ul>
       )}
 
+      {/* Labelled as a specimen, not an instruction. "instead of" reads as a
+          claim ABOUT the line two rows above it, so the reader looks for it in
+          their CV and cannot find it — which is exactly what happened. An
+          eyebrow plus weak/strong says "this is what the defect looks like",
+          which is what it always was. */}
       {brief.example && (
-        <div className="cvw-brief-eg">
+        <figure className="cvw-brief-eg">
+          <figcaption className="cvw-brief-eg-head">Example</figcaption>
           <p className="cvw-brief-eg-row is-before">
-            <span className="cvw-brief-eg-tag">instead of</span>
+            <span className="cvw-brief-eg-tag">weak</span>
             <span>{brief.example.before}</span>
           </p>
           <p className="cvw-brief-eg-row is-after">
-            <span className="cvw-brief-eg-tag">write</span>
+            <span className="cvw-brief-eg-tag">strong</span>
             <span>{brief.example.after}</span>
           </p>
-        </div>
+        </figure>
       )}
 
       <div className="cvw-brief-acts">

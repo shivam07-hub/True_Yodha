@@ -1,0 +1,196 @@
+/* ─────────────────────────────────────────────────────────────
+   TWO LENSES — the source-labelling system.
+
+   Myrology states two kinds of thing and must never let them blur:
+   a reading cast from a birth chart, and a count taken from the live
+   job index. Amethyst carries the chart, teal carries the index, gold
+   carries the astrologer's own call.
+
+   This promotes --my-teal to a FOREGROUND accent inside .myrology-root,
+   which the header of this file previously ruled out. The rule was
+   written when teal was only a drifting background field; the page now
+   depends on the reader being able to tell a cast figure from a counted
+   one at a glance, and colour is what does that. Teal stays confined to
+   this surface — the core product's accent is unaffected.
+   ───────────────────────────────────────────────────────────── */
+
+.myrology-root {
+  --my-live:      var(--my-teal);
+  --my-live-wash: rgba(0, 245, 212, 0.06);
+  --my-live-ring: rgba(0, 245, 212, 0.22);
+  --my-astro:      #E6B968;
+  --my-astro-wash: rgba(230, 185, 104, 0.06);
+  --my-astro-ring: rgba(230, 185, 104, 0.24);
+}
+
+.myrology-root .lens-card {
+  padding: 24px; border-radius: var(--tm-radius-lg);
+  background: var(--my-card);
+  backdrop-filter: blur(12px) saturate(1.1); -webkit-backdrop-filter: blur(12px) saturate(1.1);
+  border: 1px solid var(--tm-border-soft);
+}
+.myrology-root .lens-card--chart { border-color: var(--my-amethyst-ring); }
+.myrology-root .lens-card--live  { border-color: var(--my-live-ring); background: var(--my-live-wash), var(--my-card); }
+
+.myrology-root .lens-tag {
+  display: inline-flex; align-items: center; gap: 8px; margin-bottom: 16px;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase;
+}
+.myrology-root .lens-tag--chart { color: var(--my-amethyst); }
+.myrology-root .lens-tag--live  { color: var(--my-live); }
+
+.myrology-root .lens-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+.myrology-root .lens-prose p { font-size: 15px; line-height: 1.65; color: var(--tm-text-muted); margin: 0 0 14px; }
+.myrology-root .lens-prose p:last-child { margin-bottom: 0; }
+
+/* ── Hero: headline beside the live index ────────────────────── */
+.myrology-root .my-hero--split {
+  display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 48px;
+  align-items: center; text-align: left;
+}
+.myrology-root .my-hero--split .my-hero-eyebrow { margin-bottom: 22px; }
+.myrology-root .my-hero--split .my-hero-sub { margin: 0; max-width: 560px; }
+.myrology-root .my-hero-glow { color: var(--my-amethyst); text-shadow: 0 0 32px var(--my-amethyst-glow); }
+
+/* ── Live index panel ────────────────────────────────────────── */
+.myrology-root .live-headline { display: flex; align-items: baseline; gap: 10px; }
+.myrology-root .live-count {
+  font-size: 46px; font-weight: 700; line-height: 1;
+  letter-spacing: -0.03em; color: var(--tm-text);
+}
+.myrology-root .live-unit { font-size: 14px; color: var(--tm-text-muted); }
+.myrology-root .live-sub { margin-top: 6px; font-size: 14px; line-height: 1.6; color: var(--tm-text-muted); }
+.myrology-root .live-em { color: var(--my-live); }
+.myrology-root .live-pending { font-size: 14px; color: var(--tm-text-muted); padding: 22px 0; }
+
+.myrology-root .live-bars { display: flex; flex-direction: column; gap: 11px; margin-top: 20px; }
+.myrology-root .live-bar-head {
+  display: flex; justify-content: space-between; gap: 12px;
+  font-size: 13px; color: var(--tm-text); margin-bottom: 5px;
+}
+.myrology-root .live-bar-track { height: 5px; border-radius: 3px; background: var(--tm-hover-soft); overflow: hidden; }
+.myrology-root .live-bar-fill { height: 100%; border-radius: 3px; background: var(--my-live); opacity: 0.55; }
+
+/* ── Chart → job search strip ────────────────────────────────── */
+.myrology-root .step-strip {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px;
+  border-radius: var(--tm-radius-lg); overflow: hidden;
+  border: 1px solid var(--tm-border-soft); background: var(--tm-border-soft);
+}
+.myrology-root .step { padding: 20px 18px; background: var(--my-card); }
+.myrology-root .step-head {
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); font-weight: 600;
+  letter-spacing: 0.12em; margin-bottom: 10px;
+}
+.myrology-root .step[data-lens="chart"] .step-head { color: var(--my-amethyst); }
+.myrology-root .step[data-lens="live"]  .step-head { color: var(--my-live); }
+.myrology-root .step-body { font-size: 15px; font-weight: 600; line-height: 1.3; color: var(--tm-text); }
+.myrology-root .step-foot { font-size: 13px; color: var(--tm-text-muted); margin-top: 6px; }
+.myrology-root .step-note { margin: 14px 0 0; font-size: 14px; line-height: 1.6; color: var(--tm-text-muted); }
+
+/* ── Specimen Career Map layers ──────────────────────────────── */
+.myrology-root .layer-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; margin-top: 48px;
+}
+.myrology-root .layer-head .block-eyebrow { margin-bottom: 0; }
+.myrology-root .layer-note { font-size: 13px; color: var(--tm-text-muted); }
+.myrology-root .layer-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 18px; }
+.myrology-root .layer {
+  padding: 20px; border-radius: var(--tm-radius-card);
+  background: var(--my-card); border: 1px solid var(--tm-border-soft);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.myrology-root .layer[data-lens="chart"] { border-color: var(--my-amethyst-ring); }
+.myrology-root .layer[data-lens="live"]  { border-color: var(--my-live-ring); background: var(--my-live-wash), var(--my-card); }
+.myrology-root .layer[data-lens="astro"] { border-color: var(--my-astro-ring); background: var(--my-astro-wash), var(--my-card); }
+.myrology-root .layer-tag {
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); font-weight: 600;
+  letter-spacing: 0.12em; margin-bottom: 12px;
+}
+.myrology-root .layer[data-lens="chart"] .layer-tag { color: var(--my-amethyst); }
+.myrology-root .layer[data-lens="live"]  .layer-tag { color: var(--my-live); }
+.myrology-root .layer[data-lens="astro"] .layer-tag { color: var(--my-astro); }
+.myrology-root .layer-title { font-size: 17px; font-weight: 600; line-height: 1.25; color: var(--tm-text); margin-bottom: 10px; }
+.myrology-root .layer-body { font-size: 14px; line-height: 1.6; color: var(--tm-text-muted); }
+
+/* ── Agree / disagree ────────────────────────────────────────── */
+.myrology-root .verdicts { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 28px; }
+.myrology-root .verdict {
+  padding: 22px; border-radius: var(--tm-radius-card);
+  background: var(--my-card); border: 1px solid var(--tm-border-soft);
+}
+.myrology-root .verdict-tag {
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); font-weight: 600;
+  letter-spacing: 0.12em; margin-bottom: 8px;
+}
+.myrology-root .verdict[data-tone="agree"] .verdict-tag { color: var(--tm-success); }
+.myrology-root .verdict[data-tone="disagree"] .verdict-tag { color: var(--my-astro); }
+.myrology-root .verdict-body { font-size: 15px; line-height: 1.55; color: var(--tm-text); }
+
+.myrology-root .reading-val[data-tone="watch"] { color: var(--my-astro); }
+
+/* ── Intake echo (1b) ────────────────────────────────────────── */
+.myrology-root .intake-echo {
+  margin: 4px 0 18px; padding: 14px 16px; border-radius: var(--tm-radius);
+  background: var(--my-amethyst-wash); border: 1px solid var(--my-amethyst-ring);
+}
+.myrology-root .intake-echo-tag {
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); font-weight: 600;
+  letter-spacing: 0.12em; color: var(--my-amethyst); margin-bottom: 8px;
+}
+.myrology-root .intake-echo-row { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 14px; color: var(--tm-text); }
+
+/* ── Delivery promise + receipt (1c) ─────────────────────────── */
+.myrology-root .order-promise {
+  margin: 18px 0 26px; padding: 20px; border-radius: var(--tm-radius-card);
+  background: var(--my-amethyst-wash); border: 1px solid var(--my-amethyst-ring);
+}
+.myrology-root .order-promise-tag {
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); font-weight: 600;
+  letter-spacing: 0.14em; color: var(--my-amethyst); margin-bottom: 8px;
+}
+.myrology-root .order-promise-date { font-size: 20px; font-weight: 600; color: var(--tm-text); }
+.myrology-root .order-promise-em { color: var(--my-amethyst); }
+
+.myrology-root .order-pipeline { display: flex; flex-direction: column; gap: 2px; margin-top: 18px; }
+.myrology-root .order-stage {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 14px;
+  padding: 11px 14px; border-radius: var(--tm-radius);
+  border-left: 2px solid var(--tm-border-soft); background: var(--tm-hover-soft);
+}
+.myrology-root .order-stage[data-state="done"]   { border-left-color: var(--my-live); }
+.myrology-root .order-stage[data-state="active"] { border-left-color: var(--my-amethyst); }
+.myrology-root .order-stage-name { font-size: 14px; color: var(--tm-text); }
+.myrology-root .order-stage[data-state="waiting"] .order-stage-name { color: var(--tm-text-muted); }
+.myrology-root .order-stage-when { font-size: 13px; color: var(--tm-text-muted); }
+
+.myrology-root .order-receipt {
+  margin-top: 26px; padding: 20px; border-radius: var(--tm-radius-card);
+  background: var(--tm-hover-soft); border: 1px solid var(--tm-border-soft);
+}
+.myrology-root .order-receipt-tag {
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); font-weight: 600;
+  letter-spacing: 0.14em; color: var(--tm-text-muted); margin-bottom: 12px;
+}
+.myrology-root .order-receipt-list { margin: 0; display: flex; flex-direction: column; gap: 9px; }
+.myrology-root .order-receipt-list > div { display: flex; justify-content: space-between; gap: 16px; }
+.myrology-root .order-receipt-list dt { font-size: 14px; color: var(--tm-text-muted); }
+.myrology-root .order-receipt-list dd { margin: 0; font-size: 14px; color: var(--tm-text); text-align: right; }
+.myrology-root .order-receipt-foot { margin: 14px 0 0; font-size: 13px; line-height: 1.55; color: var(--tm-text-muted); }
+
+/* ── Responsive: collapse the lens grids ─────────────────────── */
+@media (max-width: 1100px) {
+  .myrology-root .my-hero--split { grid-template-columns: 1fr; text-align: left; }
+  .myrology-root .lens-row { grid-template-columns: 1fr; }
+  .myrology-root .step-strip { grid-template-columns: repeat(2, 1fr); }
+  .myrology-root .layer-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 720px) {
+  .myrology-root .step-strip { grid-template-columns: 1fr; }
+  .myrology-root .layer-grid { grid-template-columns: 1fr; }
+  .myrology-root .verdicts { grid-template-columns: 1fr; }
+  .myrology-root .live-count { font-size: 38px; }
+  .myrology-root .layer-head { flex-direction: column; gap: 6px; }
+}

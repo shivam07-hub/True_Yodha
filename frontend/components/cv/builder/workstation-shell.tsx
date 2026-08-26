@@ -91,7 +91,11 @@ export function WorkstationShell(props: WorkstationShellProps) {
   const [mode, setMode] = useState<"edit" | "sheet">("edit")
   const [railTab, setRailTab] = useState<"fixes" | "skills">(initialRailTab ?? "fixes")
   const [filter, setFilter] = useState<Severity | null>(null)
-  const [openIid, setOpenIid] = useState<string | null>(null)
+  // The FIX, not the line. A line can carry two findings — its verdict says
+  // "2 fixes" — and keying on the line meant clicking a specific rail row
+  // silently opened whichever fix happened to be first, with no way to reach
+  // the other and nothing saying it existed.
+  const [openFixId, setOpenFixId] = useState<string | null>(null)
   const [activeIssueId, setActiveIssueId] = useState<string | null>(null)
   // Which rail row is expanded to its brief. Separate from activeIssueId on
   // purpose: reading why a line is flagged is free and must not imply that a
@@ -102,7 +106,14 @@ export function WorkstationShell(props: WorkstationShellProps) {
   const [fixedCount, setFixedCount] = useState(0)
 
   const { verdicts, fixes, issues, counts, atsPassed } = diagnosis
-  const openFix = openIid ? fixes.find(f => f.iid === openIid) ?? null : null
+  const openFix = openFixId ? fixes.find(f => f.id === openFixId) ?? null : null
+  const openIid = openFix?.iid ?? null
+  /** Every fix on the open line, worst first. The card names its position so a
+   *  "2 fixes" verdict and a one-fix card stop contradicting each other. */
+  const siblings = openFix ? fixes.filter(f => f.iid === openFix.iid) : []
+  const position = openFix
+    ? { index: Math.max(0, siblings.findIndex(f => f.id === openFix.id)) + 1, total: siblings.length }
+    : null
 
   function jump(iid: string) {
     setFlash(prev => ({ iid, n: (prev?.n ?? 0) + 1 }))
@@ -117,8 +128,10 @@ export function WorkstationShell(props: WorkstationShellProps) {
   useEffect(() => {
     if (!requestOpenIid) return
     setMode("edit")
-    setOpenIid(requestOpenIid)
+    setOpenFixId(fixes.find(f => f.iid === requestOpenIid)?.id ?? null)
     setFlash(prev => ({ iid: requestOpenIid, n: (prev?.n ?? 0) + 1 }))
+    // Resolved once, against the fixes present when the deep link arrives.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestOpenIid])
   /** Expanding a row: free, local, no network. Costs a paint. */
   function toggleIssue(issue: Issue) {
@@ -133,20 +146,32 @@ export function WorkstationShell(props: WorkstationShellProps) {
     setOpenIssueId(null)
     setMode("edit")
     if (issue.fix) {
-      setOpenIid(issue.fix.iid)
+      setOpenFixId(issue.fix.id)
       jump(issue.fix.iid)
       return
     }
-    setOpenIid(null)
+    setOpenFixId(null)
     if (issue.target) {
       document.getElementById(`cvw-sec-${issue.target}`)
         ?.scrollIntoView({ behavior: "smooth", block: "start" })
     }
   }
+  /** The line's own verdict button. No fix was named, so open the worst one on
+   *  that line — buildFixes is already severity-ordered. */
   function openLine(iid: string) {
-    setOpenIid(prev => (prev === iid ? null : iid))
-    const match = fixes.find(f => f.iid === iid)
-    setActiveIssueId(match?.id ?? null)
+    const onLine = fixes.filter(f => f.iid === iid)
+    if (onLine.length === 0) return
+    const next = onLine.some(f => f.id === openFixId) ? null : onLine[0].id
+    setOpenFixId(next)
+    setActiveIssueId(next)
+  }
+  /** Step to the next fix on the same line, wrapping. */
+  function nextOnLine() {
+    if (siblings.length < 2 || !openFix) return
+    const at = siblings.findIndex(f => f.id === openFix.id)
+    const next = siblings[(at + 1) % siblings.length]
+    setOpenFixId(next.id)
+    setActiveIssueId(next.id)
   }
 
   const next = issues[0]
@@ -175,6 +200,7 @@ export function WorkstationShell(props: WorkstationShellProps) {
                 verdicts={verdicts}
                 targeted={targeted}
                 openIid={openIid}
+                activeOffenders={openFix?.offenders}
                 flash={flash}
                 editRequest={editRequest}
                 onOpenFix={openLine}
@@ -193,25 +219,27 @@ export function WorkstationShell(props: WorkstationShellProps) {
                       key={iid}
                       fix={openFix}
                       brief={issue.brief}
+                      position={position}
+                      onNext={siblings.length > 1 ? nextOnLine : undefined}
                       bullet={text}
                       makeFetcher={makeFetcher}
                       applying={applying}
                       onApply={newText => {
                         onApplyRewrite({ fix: openFix, oldText: text, newText })
                         setFixedCount(n => n + 1)
-                        setOpenIid(null)
+                        setOpenFixId(null)
                         setActiveIssueId(null)
                       }}
                       onEdit={() => {
-                        setOpenIid(null)
+                        setOpenFixId(null)
                         setEditRequest(p => ({ iid, n: (p?.n ?? 0) + 1 }))
                       }}
                       onDismiss={onDismissFix ? () => {
                         onDismissFix(openFix)
-                        setOpenIid(null)
+                        setOpenFixId(null)
                         setActiveIssueId(null)
                       } : undefined}
-                      onDiscard={() => { setOpenIid(null); setActiveIssueId(null) }}
+                      onDiscard={() => { setOpenFixId(null); setActiveIssueId(null) }}
                     />
                   )
                 }}

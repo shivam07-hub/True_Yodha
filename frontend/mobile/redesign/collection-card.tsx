@@ -76,16 +76,24 @@ function CardShell({
   )
 }
 
-/** A saved application (You added / Applied chips) — unsave / share / Tailor. */
-export function CollectionCard({ row, fitKnown, statusChip, tailored, pulse, onOpen, onHeart, onShare, onTailor, onOpenCv, onSnooze }: {
-  row: MobileJobRow; fitKnown: boolean; statusChip: string; tailored: boolean; pulse?: JobPulse
-  onOpen: () => void; onHeart?: () => void; onShare: () => void; onTailor: () => void; onOpenCv: () => void; onSnooze?: () => void
+/** A saved application (You added / Applied chips) — priority / share / Tailor.
+ *  The heart is priority intent, exactly as on desktop; removal is the X in the
+ *  detail sheet. Same glyph, same meaning, both platforms. */
+export function CollectionCard({ row, fitKnown, statusChip, tailored, pulse, prioritized, onOpen, onPriority, onShare, onTailor, onOpenCv, onSnooze }: {
+  row: MobileJobRow; fitKnown: boolean; statusChip: string; tailored: boolean; pulse?: JobPulse; prioritized: boolean
+  onOpen: () => void; onPriority?: (next: boolean) => void; onShare: () => void; onTailor: () => void; onOpenCv: () => void; onSnooze?: () => void
 }) {
   return (
     <CardShell row={row} fitKnown={fitKnown} statusChip={statusChip} pulse={pulse} onOpen={onOpen}>
-      {onHeart ? (
-        <button onClick={(e) => { e.stopPropagation(); onHeart() }} aria-label="Remove from saved" className="mm-press-sm tm-dismiss-action" style={iconBtn}>
-          <svg width={15} height={15} viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" color="var(--mm-accent)"><path d="M19 14c1.5-1.5 2-3.2 2-4.6C21 6.4 18.6 4 15.6 4 14.2 4 12.9 4.6 12 5.6 11.1 4.6 9.8 4 8.4 4 5.4 4 3 6.4 3 9.4c0 1.4.5 3.1 2 4.6l7 6.6 7-6.6Z" /></svg>
+      {onPriority ? (
+        <button
+          onClick={(e) => { e.stopPropagation(); onPriority(!prioritized) }}
+          aria-label={prioritized ? "Remove job priority" : "Prioritize this job"}
+          aria-pressed={prioritized}
+          className="mm-press-sm"
+          style={iconBtn}
+        >
+          <svg width={15} height={15} viewBox="0 0 24 24" fill={prioritized ? "currentColor" : "none"} stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" color={prioritized ? "var(--mm-accent)" : "var(--mm-muted)"}><path d="M19 14c1.5-1.5 2-3.2 2-4.6C21 6.4 18.6 4 15.6 4 14.2 4 12.9 4.6 12 5.6 11.1 4.6 9.8 4 8.4 4 5.4 4 3 6.4 3 9.4c0 1.4.5 3.1 2 4.6l7 6.6 7-6.6Z" /></svg>
         </button>
       ) : null}
       <button onClick={(e) => { e.stopPropagation(); onShare() }} aria-label="Share" className="mm-press-sm" style={iconBtn}>

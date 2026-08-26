@@ -1,0 +1,36 @@
+-- job_applications.status defaulted to 'pending' — a value its own CHECK
+-- constraint (job_applications_status_check) forbids.
+--
+-- History: `20260517_tracker_v1.sql` remapped the DATA (`UPDATE ... SET status
+-- = 'saved' WHERE status = 'pending'`) and noted "code deploy first, so no
+-- fresh pending writes". The vocabulary CHECK was later rewritten without
+-- 'pending'. The column DEFAULT was never moved, so it pointed at a value the
+-- table had been deliberately emptied of and now rejects.
+--
+-- Why it was invisible: PostgREST upserts compile to INSERT ... ON CONFLICT,
+-- and Postgres evaluates CHECK constraints on the proposed tuple BEFORE
+-- conflict arbitration — so the default materialised and raised 23514 even
+-- when the row already existed. Every writer that omits `status` 500s. Only
+-- one does: PUT /jobs/applications/{job_id}/priority. Every other caller sets
+-- status defensively, which is why an orphaned default survived three months.
+--
+-- Effect: the heart — priority intent — has been failing for every user on
+-- desktop and mobile alike. The frontend's optimistic fill rolled straight
+-- back, so it read as a toggle that would not stick.
+--
+-- 'saved' is what the priority handler already writes when the row does not
+-- exist ("hearting an unseen role creates the same saved intent as the
+-- canonical save route"), and what 325 of 354 live rows hold. No row has ever
+-- carried 'pending'.
+--
+-- Proven on a scratch replica before applying: with this default an upsert
+-- that omits `status` leaves an existing 'applied' row as 'applied' and gives
+-- a brand-new row 'saved'. No status is reset. Live status counts were
+-- identical before and after.
+--
+-- Reversible:
+--   ALTER TABLE public.job_applications
+--     ALTER COLUMN status SET DEFAULT 'pending'::character varying;
+
+ALTER TABLE public.job_applications
+  ALTER COLUMN status SET DEFAULT 'saved'::character varying;

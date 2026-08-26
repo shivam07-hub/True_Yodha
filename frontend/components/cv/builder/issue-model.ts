@@ -20,6 +20,7 @@
 import type { CVStructured } from "@/lib/api"
 import type { AtsCheck, AtsFixTarget } from "./ats-checks"
 import type { V2Fix } from "./fix-model"
+import type { ContentCategory } from "./content-checks"
 import {
   ATS_EXPLAINERS,
   CHECK_EXPLAINERS,
@@ -77,12 +78,32 @@ interface BuildIssuesInput {
   sectionInvites?: boolean
 }
 
+/**
+ * An authored example must never be mistakable for a quote of the user's own CV.
+ *
+ * On 2026-08-26 one was: the examples had been drafted off the CV open in the
+ * test harness, so the "instead of" line under a real bullet named that user's
+ * own employer, and he went looking for a line he had never written. The copy is
+ * neutral now — this makes the failure mode impossible rather than unlikely, so
+ * the next person to author an example cannot reintroduce it by accident.
+ */
+const norm = (t: string) => t.toLowerCase().replace(/\s+/g, " ").replace(/[.\s]+$/, "").trim()
+
+function cvLines(cv: CVStructured): Set<string> {
+  const out = new Set<string>()
+  if (cv.summary?.trim()) out.add(norm(cv.summary))
+  for (const e of cv.experience) for (const b of e.bullets) if (b.trim()) out.add(norm(b))
+  for (const p of cv.projects) for (const b of p.bullets) if (b.trim()) out.add(norm(b))
+  return out
+}
+
 const KIND_ORDER: Record<IssueKind, number> = { line: 0, ats: 1, section: 2 }
 const SEVERITY_RANK: Record<Severity, number> = { blocking: 0, weak: 1, optional: 2 }
 
 export function buildIssues({
   cv, fixes, atsChecks, sectionInvites = true,
 }: BuildIssuesInput): Issue[] {
+  const own = cvLines(cv)
   const issues: Issue[] = fixes.map(f => ({
     id: f.id,
     kind: "line" as const,
@@ -94,7 +115,7 @@ export function buildIssues({
     action: null,
     brief: {
       reasons: CHECK_EXPLAINERS[f.category].reasons,
-      example: CHECK_EXPLAINERS[f.category].example,
+      example: exampleFor(f.category, own),
     },
   }))
 
@@ -129,6 +150,13 @@ export function buildIssues({
     SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]
     || KIND_ORDER[a.kind] - KIND_ORDER[b.kind]
     || (b.fix?.gain ?? 0) - (a.fix?.gain ?? 0))
+}
+
+/** The authored pair, unless either half would read as a quote of this CV. */
+function exampleFor(category: ContentCategory, own: Set<string>): CheckExample | undefined {
+  const e = CHECK_EXPLAINERS[category].example
+  if (own.has(norm(e.before)) || own.has(norm(e.after))) return undefined
+  return e
 }
 
 function invite(id: string, title: string, target: IssueTarget): Issue {

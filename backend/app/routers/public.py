@@ -50,6 +50,10 @@ _log = logging.getLogger("app.public")
 # a per-hour count query. Update alongside taxonomy upgrades.
 SKILLS_MAPPED = 32_000
 
+# How many industry groups the public payload carries. The taxonomy is ~10
+# canonical groups; the long tail is single-digit counts that read as noise.
+INDUSTRY_GROUPS_SHOWN = 5
+
 _CACHE_TTL_SECONDS = 3600
 _CACHE_STALE_SECONDS = 1800  # serve stale up to 30min past TTL while one replica refreshes
 
@@ -65,17 +69,47 @@ def _count_seekers() -> int:
     return int(result.count or 0)
 
 
+def _count_role_families() -> int:
+    """Size of the verified role-family taxonomy (Tier-0 snapshot, `role_family_labels`).
+
+    A head-only exact count — the row bodies are never read. Behind the same
+    1h stats cache as everything else here, so this is one count per hour.
+    """
+    result = (
+        get_supabase_admin()
+        .table("role_family_labels")
+        .select("family", count="exact")
+        .limit(1)
+        .execute()
+    )
+    return int(result.count or 0)
+
+
 def _compile_public_stats() -> dict[str, Any]:
     # compile_market_analytics is snapshot-backed + in-process cached, so this
     # is cheap after the first call.
     analytics = get_public_jobs_repository().compile_market_analytics()
     provenance = read_provenance(get_supabase_admin())
 
+    # Top industry groups by open count. `by_industry` is already sorted
+    # descending and skips ungrouped rows, so this is a slice, not a re-sort.
+    by_industry = analytics.get("by_industry") or []
+    industry_groups = [
+        {"name": str(name), "jobs": int(count)}
+        for name, count in by_industry[:INDUSTRY_GROUPS_SHOWN]
+    ]
+
     return {
         "jobs_tracked": int(analytics.get("total_jobs") or 0),
         "companies_monitored": int(analytics.get("total_companies") or 0),
         "skills_mapped": SKILLS_MAPPED,
         "seekers": _count_seekers(),
+        # The shape of the index, not just its size — how the corpus divides
+        # into normalised industry groups and verified role families. Myrology
+        # reads these to state what a chart would be matched against.
+        "industry_groups": industry_groups,
+        "total_industries": int(analytics.get("total_industries") or 0),
+        "role_families": _count_role_families(),
         # Where the corpus came from, and how much of it we have personally
         # opened recently. Shares one read model with the authed rail card so
         # the public and signed-in answers can never drift.

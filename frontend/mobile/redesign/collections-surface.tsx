@@ -25,6 +25,8 @@ import {
 import { useMyroSearch } from "@/lib/hooks/use-myro-search"
 import { useSavedJobDismissal } from "@/lib/hooks/use-saved-job-dismissal"
 import { canDismissSavedApplication } from "@/lib/collections/saved-job-dismissal"
+import { useJobPriority } from "@/lib/collections/use-job-priority"
+import { useCollectionSnooze } from "@/lib/collections/use-collection-snooze"
 import { usePulses } from "@/lib/hooks/use-pulses"
 import { useApplyCapture } from "@/components/jobs/use-apply-capture"
 import { BottomSheet } from "./bottom-sheet"
@@ -197,11 +199,17 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
     dismissSavedJob(a)
     setDetailId(null)
   }
+  // The heart is priority intent, same as desktop — optimistic, so it fills on
+  // tap instead of after the round trip.
+  const priorityMutation = useJobPriority(token)
+  const setPriority = (a: ApplicationResponse, next: boolean) => {
+    priorityMutation.mutate({ jobId: a.job_id, prioritized: next })
+    snack({ msg: next ? "Priority to apply" : "Priority removed" })
+  }
+  const snoozeMutation = useCollectionSnooze(token)
   const snooze = (a: ApplicationResponse) => {
-    void jobsApi.snoozeCollection(token, a.job_id, 3).then(() => {
-      void qc.invalidateQueries({ queryKey: dataKeys.applications() })
-      void qc.invalidateQueries({ queryKey: dataKeys.notificationsUnread() })
-    })
+    snoozeMutation.mutate(a.job_id)
+    snack({ msg: "Snoozed for 3 days" })
   }
   const doShare = (a: ApplicationResponse) => {
     const url = a.source_url ?? ""
@@ -232,6 +240,7 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
         matched: detailApp.matched_skills ?? [],
         gaps: detailApp.missing_skills ?? [],
         saved: true,
+        prioritized: !!detailApp.is_priority,
         canDismiss: canDismissSavedApplication(detailApp),
         hasApply: !!applyCapture.target.url,
         applyLabel: applyCapture.target.actionLabel ?? undefined,
@@ -271,8 +280,9 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
         statusChip={statusChipFor(a)}
         tailored={!!a.cv_badge}
         pulse={pulses.get(a.job_id)}
+        prioritized={!!a.is_priority}
         onOpen={() => setDetailId(a.job_id)}
-        onHeart={canDismissSavedApplication(a) ? () => doUnsave(a) : undefined}
+        onPriority={canDismissSavedApplication(a) ? (next) => setPriority(a, next) : undefined}
         onShare={() => doShare(a)}
         onTailor={() => router.push(`/cv?jobId=${encodeURIComponent(a.job_id)}`)}
         onOpenCv={() => router.push("/cv")}
@@ -294,8 +304,9 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
         statusChip="Closed"
         tailored={false}
         pulse={pulses.get(it.jobId)}
+        prioritized={!!app?.is_priority}
         onOpen={() => setDetailId(it.jobId)}
-        onHeart={app && canDismissSavedApplication(app) ? () => doUnsave(app) : undefined}
+        onPriority={undefined}
         onShare={() => {
           const url = it.job.source_url ?? ""
           if (url) void navigator.clipboard?.writeText(url).catch(() => {})
@@ -435,7 +446,7 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
         onClose={() => setDetailId(null)}
         data={detailData}
         token={token}
-        onHeart={() => (detailApp ? doUnsave(detailApp) : detailMatch && saveMatch(detailMatch.job_id))}
+        onHeart={() => (detailApp ? setPriority(detailApp, !detailApp.is_priority) : detailMatch && saveMatch(detailMatch.job_id))}
         onSkip={() => (detailApp ? doUnsave(detailApp) : detailMatch && dismissMatch(detailMatch.job_id))}
         onTailor={() => { const id = detailApp?.job_id ?? detailMatch?.job_id; if (id) router.push(`/cv?jobId=${encodeURIComponent(id)}`) }}
         onApply={() => { if (applyCapture.target.url) applyCapture.open() }}

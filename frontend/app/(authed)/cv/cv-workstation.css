@@ -655,8 +655,13 @@ button.cvw-verdict:focus-visible { outline: 2px solid var(--tm-accent-ring); out
 }
 
 .cvw-brief-eg {
-  margin-top: 12px; border-radius: var(--tm-radius, 6px);
+  margin: 12px 0 0; border-radius: var(--tm-radius, 6px);
   background: var(--tm-surface-2); overflow: hidden;
+}
+.cvw-brief-eg-head {
+  padding: 8px 12px 0;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--tm-text-faint);
 }
 .cvw-brief-eg-row {
   display: grid; grid-template-columns: 64px minmax(0, 1fr);
@@ -664,6 +669,7 @@ button.cvw-verdict:focus-visible { outline: 2px solid var(--tm-accent-ring); out
   font-size: var(--tm-fs-caption); line-height: 1.5;
 }
 .cvw-brief-eg-row.is-before { color: var(--tm-text-faint); }
+.cvw-brief-eg-row.is-before span:last-child { text-decoration: line-through; text-decoration-color: var(--tm-text-disabled); }
 .cvw-brief-eg-row.is-after {
   color: var(--tm-text);
   border-top: 1px solid var(--tm-border-faint);
@@ -691,3 +697,22 @@ button.cvw-verdict:focus-visible { outline: 2px solid var(--tm-accent-ring); out
   .cvw-brief-eg-row { grid-template-columns: 1fr; gap: 4px; }
   .cvw-brief-acts .cvw-rw-primary { flex: 1 1 100%; min-height: 44px; }
 }
+
+/* When a fix is open, its phrase is the loud one. A line can carry marks from
+   two different findings, and reading a brief about a missing number while an
+   unrelated phrase sits underlined is its own small lie. */
+.cvw-line[data-focus="true"] .cvw-off {
+  box-shadow: inset 0 -3px 0 color-mix(in oklab, var(--tm-text-faint) 30%, transparent);
+}
+.cvw-line[data-focus="true"] .cvw-off.is-active {
+  box-shadow: inset 0 -3px 0 var(--tm-interactive);
+}
+
+/* "1 of 2 on this line" — steps to the other fix on the same bullet. */
+.cvw-rw-step {
+  border: 0; background: none; cursor: pointer; padding: 2px 0;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro);
+  letter-spacing: 0.06em; color: var(--tm-interactive-text);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.cvw-rw-step:hover { color: var(--tm-text); }

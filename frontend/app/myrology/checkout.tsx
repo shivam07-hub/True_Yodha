@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 
-import { billing, myrology, users, type MyrologyBooking, type MyrologyIntake, type MyrologyIntakePayload } from "@/lib/api"
+import { billing, myrology, users, type MyrologyBooking, type MyrologyIntake, type MyrologyIntakePayload, type MyrologyOrder } from "@/lib/api"
 import { getAccessToken } from "@/lib/session"
 import { loadRazorpay } from "@/lib/razorpay"
 
@@ -49,6 +49,8 @@ interface MyrologyValue {
   payError: string | null
   intake: MyrologyIntake | null
   bookings: MyrologyBooking[]
+  /** Delivery promise. Null for a hand-granted unlock with no billing row. */
+  order: MyrologyOrder | null
   begin: () => void
   start: () => void
   saveIntake: (payload: MyrologyIntakePayload) => Promise<void>
@@ -65,12 +67,22 @@ export function MyrologyProvider({ children }: { children: ReactNode }) {
   const [payError, setPayError] = useState<string | null>(null)
   const [intake, setIntake] = useState<MyrologyIntake | null>(null)
   const [bookings, setBookings] = useState<MyrologyBooking[]>([])
+  const [order, setOrder] = useState<MyrologyOrder | null>(null)
 
   // Paid surface: confirmation + session requests live here.
   const loadUnlockedState = useCallback(async (token: string) => {
-    const [intakeRow, bookingList] = await Promise.all([myrology.getIntake(token), myrology.getBookings(token)])
+    // Three independent reads, one round trip of latency. The order is fetched
+    // with the rest rather than lazily inside the panel so the delivery date is
+    // present on first paint — a promise that appears a beat late reads as one
+    // the page invented.
+    const [intakeRow, bookingList, orderRow] = await Promise.all([
+      myrology.getIntake(token),
+      myrology.getBookings(token),
+      myrology.getOrder(token),
+    ])
     setIntake(intakeRow)
     setBookings(bookingList.bookings)
+    setOrder(orderRow)
     setPhase("booking")
   }, [])
 
@@ -214,7 +226,7 @@ export function MyrologyProvider({ children }: { children: ReactNode }) {
 
   return (
     <MyrologyContext.Provider
-      value={{ phase, authed, payStatus, payError, intake, bookings, begin, start, saveIntake, createBooking }}
+      value={{ phase, authed, payStatus, payError, intake, bookings, order, begin, start, saveIntake, createBooking }}
     >
       {children}
     </MyrologyContext.Provider>
