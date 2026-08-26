@@ -35,6 +35,8 @@ interface CvLineRowProps {
   verdictDense?: string
   mono?: boolean
   hidden?: boolean
+  /** The open fix's phrases — marked hot, the rest of the line's marks fade. */
+  activeOffenders?: string[]
   /** Rendered under the line: the accent-ringed rewrite card. */
   rewrite?: ReactNode
   editing?: boolean
@@ -55,7 +57,7 @@ interface CvLineRowProps {
 }
 
 export function CvLineRow({
-  text, verdict, verdictLabel, verdictDense, mono, hidden, rewrite,
+  text, verdict, verdictLabel, verdictDense, mono, hidden, activeOffenders, rewrite,
   editing, editDraft, copied, userSkills,
   onToggleHidden, onOpenFix, onStartEdit, onEditDraftChange, onSaveEdit, onCopy, rowRef,
 }: CvLineRowProps) {
@@ -65,6 +67,7 @@ export function CvLineRow({
       ref={rowRef}
       className={`cvw-line${hidden ? " is-hidden" : ""}`}
       data-sev={verdict?.tone}
+      data-focus={!!activeOffenders?.length}
     >
       <span className="cvw-gutter" aria-hidden />
       <div className="cvw-linebody">
@@ -82,7 +85,9 @@ export function CvLineRow({
           />
         ) : (
           <p className={`cvw-linetext${mono ? " mono" : ""}`}>
-            {verdict && verdict.offenders.length > 0 ? markOffenders(text, verdict.offenders) : text}
+            {verdict && verdict.offenders.length > 0
+              ? markOffenders(text, verdict.offenders, activeOffenders)
+              : text}
           </p>
         )}
 

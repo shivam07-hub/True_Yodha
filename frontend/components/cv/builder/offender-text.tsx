@@ -20,7 +20,14 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }
 
-export function markOffenders(text: string, offenders: readonly string[]): ReactNode {
+export function markOffenders(
+  text: string,
+  offenders: readonly string[],
+  /** The open fix's phrases. When a fix is open the line can be carrying marks
+   *  from a DIFFERENT finding, and reading a brief about a missing number while
+   *  an unrelated phrase is underlined is its own small lie. */
+  active?: readonly string[],
+): ReactNode {
   const phrases = Array.from(new Set(offenders.map(o => o.trim()).filter(Boolean)))
     // Longest first, so "cross functional teams" wins over "teams" and the
     // shorter match never eats the head of the longer one.
@@ -32,9 +39,11 @@ export function markOffenders(text: string, offenders: readonly string[]): React
   if (parts.length === 1) return text
 
   const lower = new Set(phrases.map(p => p.toLowerCase()))
-  return parts.map((part, i) =>
-    lower.has(part.toLowerCase())
-      ? <mark key={i} className="cvw-off">{part}</mark>
-      : <Fragment key={i}>{part}</Fragment>,
-  )
+  const hot = new Set((active ?? []).map(p => p.toLowerCase()))
+  return parts.map((part, i) => {
+    const key = part.toLowerCase()
+    if (!lower.has(key)) return <Fragment key={i}>{part}</Fragment>
+    const on = hot.size > 0 && hot.has(key)
+    return <mark key={i} className={`cvw-off${on ? " is-active" : ""}`}>{part}</mark>
+  })
 }

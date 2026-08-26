@@ -16,6 +16,19 @@
  * from "something is wrong" to "here is what is wrong" used to run through an
  * LLM call.
  *
+ * 2026-08-26: the examples were REWRITTEN. The first pass was drafted off the
+ * CV that was open in the test harness, so every `before` carried that user's
+ * own employers and domain — one of them was a verbatim copy of his own bullet.
+ * Sitting two lines under the real line, an example that names your employer
+ * does not read as an example; it reads as a garbled quote of your CV, and the
+ * first thing the user did was go looking for a line he had never written.
+ *
+ * So: no proper nouns, no employer, no industry that could belong to a specific
+ * reader. Each pair changes exactly ONE thing — the defect being explained — so
+ * the transformation is the only thing on show. buildIssues additionally drops
+ * any example that collides with a line in the CV in front of the user, which
+ * makes the failure mode structurally impossible rather than merely unlikely.
+ *
  * Also added ATS_EXPLAINERS. Failing machine-readability rows now sit in the same
  * queue as content fixes (hierarchy redesign §4.4), so they owe the reader the
  * same free "why" — a row you cannot act on and cannot understand is worse than
@@ -50,8 +63,8 @@ export const CHECK_EXPLAINERS: Record<ContentCategory, CheckExplainer> = {
       "They eat space a real achievement could use.",
     ],
     example: {
-      before: "A results-driven team player who thinks outside the box on cloud deals.",
-      after: "Closed 9 cloud deals in FY24 by pairing pre-sales with the delivery leads.",
+      before: "A results-driven team player who thinks outside the box.",
+      after: "Cut onboarding time from 9 days to 3 by rewriting the setup guide.",
     },
   },
   "weak-verb": {
@@ -61,8 +74,8 @@ export const CHECK_EXPLAINERS: Record<ContentCategory, CheckExplainer> = {
       "Open with the result and a strong verb — the recruiter sees impact first.",
     ],
     example: {
-      before: "Responsible for running weekly demos for prospective finance teams.",
-      after: "Ran 40+ weekly demos for finance teams, lifting demo-to-trial 18%.",
+      before: "Responsible for the weekly release checklist.",
+      after: "Ran the weekly release checklist, cutting failed deploys from 6 a month to 1.",
     },
   },
   unquantified: {
@@ -73,8 +86,10 @@ export const CHECK_EXPLAINERS: Record<ContentCategory, CheckExplainer> = {
       "If you don't have the exact figure, an honest estimate still beats none.",
     ],
     example: {
-      before: "Connected with clients at Capgemini to understand their cloud service needs.",
-      after: "Ran cloud discovery with 14 Capgemini accounts, converting 6 into signed work.",
+      // The ONLY difference is the number — the defect being explained, and
+      // nothing else, so the reader sees exactly what the fix costs them.
+      before: "Rebuilt the signup flow with the design team.",
+      after: "Rebuilt the signup flow with the design team, lifting completion from 54% to 71%.",
     },
   },
   repetition: {
@@ -84,8 +99,8 @@ export const CHECK_EXPLAINERS: Record<ContentCategory, CheckExplainer> = {
       "Different words let more of your range show.",
     ],
     example: {
-      before: "Built GTM strategy for GCC clients. Built GTM strategy for EMEA clients.",
-      after: "Built the GCC go-to-market from scratch. Adapted it for EMEA, cutting ramp to 6 weeks.",
+      before: "Led the migration for the retail team. Led the migration for the finance team.",
+      after: "Led the retail migration. Repeated it for finance in half the time.",
     },
   },
 }

@@ -35,6 +35,9 @@ export interface CvDocumentProps {
   targeted: boolean
   /** The line whose rewrite is open. Owned above so the rail can drive it. */
   openIid: string | null
+  /** The open fix's offending phrases — the mark on the line follows the brief
+   *  being read, instead of leaving an unrelated finding's phrase underlined. */
+  activeOffenders?: string[]
   renderRewrite: (iid: string, text: string) => ReactNode
   onOpenFix: (iid: string) => void
   onToggleHidden?: (iid: string) => void
@@ -56,7 +59,7 @@ export interface CvDocumentProps {
 
 export function CvDocument(props: CvDocumentProps) {
   const {
-    cv, identity, hidden, verdicts, targeted, openIid, renderRewrite,
+    cv, identity, hidden, verdicts, targeted, openIid, activeOffenders, renderRewrite,
     onOpenFix, onToggleHidden, onEditLine, onCopyLine, onPatch, identityEditable,
     onAddBullet, userSkills, flash, editRequest,
   } = props
@@ -112,6 +115,7 @@ export function CvDocument(props: CvDocumentProps) {
         editing={editing}
         editDraft={draft}
         copied={copiedIid === iid}
+        activeOffenders={openIid === iid ? activeOffenders : undefined}
         rewrite={openIid === iid ? renderRewrite(iid, text) : null}
         rowRef={el => { rows.current[iid] = el }}
         onOpenFix={() => onOpenFix(iid)}

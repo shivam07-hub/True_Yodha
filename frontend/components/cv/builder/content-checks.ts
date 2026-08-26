@@ -132,8 +132,25 @@ function phraseHits(text: string, re: RegExp): string[] {
 }
 
 /** A bullet quantifies impact if it contains a number, percent, currency, or a
- *  magnitude word. Deliberately generous — we only flag the CLEARLY numberless. */
-const QUANTITY_RE = /(\d|[%$€£₹]|\b(?:thousands?|millions?|billions?|lakhs?|crores?|dozens?|hundreds?)\b)/i
+ *  magnitude word. Deliberately generous — we only flag the CLEARLY numberless.
+ *
+ *  Spelled-out numbers count. "Built Capability Maturity Frameworks (with five
+ *  maturity levels)" was being told to put a number on a line that has one, and
+ *  a blocking-severity claim that is visibly wrong costs the reader's belief in
+ *  every other row in the rail.
+ *
+ *  "one" is deliberately absent: it is an article far more often than a count
+ *  ("one of the leads", "one page"). The asymmetry is the reason — a false
+ *  negative here costs a suggestion, a false positive costs trust. */
+const NUMBER_WORDS =
+  "two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen"
+  + "|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty"
+  + "|sixty|seventy|eighty|ninety"
+const MAGNITUDE_WORDS = "thousands?|millions?|billions?|lakhs?|crores?|dozens?|hundreds?"
+const QUANTITY_RE = new RegExp(
+  `(\\d|[%$€£₹]|\\b(?:${NUMBER_WORDS}|${MAGNITUDE_WORDS})\\b)`,
+  "i",
+)
 
 function isUnquantified(text: string): boolean {
   return text.trim().length > 0 && !QUANTITY_RE.test(text)

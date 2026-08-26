@@ -34,10 +34,15 @@ interface CvLineFixProps {
   onEdit: () => void
   onDismiss?: () => void
   onDiscard: () => void
+  /** Which of this line's fixes this is. A line's verdict can say "2 fixes";
+   *  a card that answers one of them silently is the contradiction. */
+  position?: { index: number; total: number } | null
+  onNext?: () => void
 }
 
 export function CvLineFix({
   fix, brief, makeFetcher, bullet, applying, onApply, onEdit, onDismiss, onDiscard,
+  position, onNext,
 }: CvLineFixProps) {
   const [asked, setAsked] = useState(false)
 
@@ -46,7 +51,13 @@ export function CvLineFix({
       <div className="cvw-rw" data-phase="brief">
         <div className="cvw-rw-head">
           <span className="cvw-rw-label">what&rsquo;s wrong</span>
-          <span className="cvw-rw-count">{fix.severity}</span>
+          {position && position.total > 1 && onNext ? (
+            <button type="button" className="cvw-rw-step" onClick={onNext}>
+              {position.index} of {position.total} on this line →
+            </button>
+          ) : (
+            <span className="cvw-rw-count">{fix.severity}</span>
+          )}
         </div>
         <CvFixBrief
           brief={brief}
