@@ -1,6 +1,5 @@
 "use client"
 
-import "@/mobile/redesign/redesign.css"
 import { usePathname } from "next/navigation"
 
 import { XPGateModal } from "@/components/xp/XPGateModal"

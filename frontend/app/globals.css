@@ -947,6 +947,26 @@
   * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
 }
 
+/* ── Mobile: app chrome on a public route ─────────────────────
+   A signed-in visitor who opens Newsletter or Myrology from Profile leaves the
+   app shell but stays signed in, so AuthedTopStripStandalone hands them the
+   mobile bars instead of a desktop strip whose Collections/CV/Prep tabs sat
+   36/84/143px off the right edge. Those bars are `position: fixed`, and a
+   public route scrolls the BODY — there is no .tm-main-scroll here to carry
+   the offset — so the body earns their space itself. The attribute is set by
+   AuthedPhoneChrome and removed on unmount, so a logged-out visitor and every
+   app route are untouched. */
+@media (max-width: 768px) {
+  html[data-app-chrome="mobile"] body {
+    padding-top: calc(var(--tm-mobile-topbar-h) + env(safe-area-inset-top));
+    padding-bottom: calc(var(--tm-mobile-bottomnav-h) + env(safe-area-inset-bottom));
+  }
+
+  /* Belt: the desktop strip is a desktop strip. AppShell and the public bar
+     both gate it in JS now; this makes a third place impossible. */
+  .tm-app-topbar { display: none; }
+}
+
 /* ── Mobile: /login layout collapse ───────────────────────────── */
 @media (max-width: 768px) {
   .tm-login-shell {
