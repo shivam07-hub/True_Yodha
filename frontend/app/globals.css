@@ -947,6 +947,61 @@
   * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
 }
 
+/* ── Mobile: pointer targets ──────────────────────────────────
+   WCAG 2.2 AA 2.5.8 — a pointer target is at least 24x24 CSS px. Every control
+   listed here measured smaller at 375px, and the worst of them sits on the
+   stage-one path: the skill-confirmation checkboxes at /onboarding/result were
+   15x15, which is what a user taps seventeen times before their CV is scored.
+
+   Real size, not a phantom ::after overlay. An invisible hit box that reaches
+   past its own control steals taps from whatever sits beside it, and on rows
+   this dense that is the neighbouring checkbox. 24px is small enough that
+   giving these controls their honest size costs no layout.
+
+   Desktop keeps its finer controls — a mouse is precise and the pointer-target
+   rule is about fingers. */
+@media (max-width: 768px) {
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-width: 24px;
+    min-height: 24px;
+  }
+
+  /* Every other input is a strip you have to hit: the newsletter subscribe
+     field measured 19px tall and the /companies search 21px, because the
+     padding lives on a wrapper that does not focus them. */
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    min-height: 24px;
+  }
+
+  .tm-dismiss-action,
+  .cvb-rv-expand,
+  .cvb-rv-hint-x,
+  .up-bar-back {
+    min-width: 24px;
+    min-height: 24px;
+  }
+
+  /* Text links that carry an action rather than sitting inside a sentence.
+     (2.5.8 exempts inline targets in prose; these are not that.) */
+  .mc-peek-link,
+  .pub-footer-logo,
+  .pub-footer-commons-link,
+  .pub-footer-trust {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+  }
+
+  /* A control revealed by :hover does not exist on a phone. The reservoir's
+     "Show phrasings" sat at opacity 0 until a pointer entered its row, so on
+     touch it was both invisible and — being 18x18 — unhittable. */
+  .cvb-rv-ways,
+  .cvb-rv-expand { opacity: 1; }
+}
+
 /* ── Mobile: app chrome on a public route ─────────────────────
    A signed-in visitor who opens Newsletter or Myrology from Profile leaves the
    app shell but stays signed in, so AuthedTopStripStandalone hands them the

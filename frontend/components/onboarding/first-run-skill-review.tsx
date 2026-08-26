@@ -116,7 +116,7 @@ export function FirstRunSkillReview({ token, result, onConfirmed, children }: Fi
                     <button
                       type="button"
                       onClick={() => mutate((next) => keys.forEach((key) => (allRemoved ? next.delete(key) : next.add(key))))}
-                      className="tm-control-focus shrink-0 rounded text-xs text-[var(--tm-text-muted)] underline underline-offset-4"
+                      className="tm-control-focus inline-flex min-h-7 shrink-0 items-center rounded text-xs text-[var(--tm-text-muted)] underline underline-offset-4"
                     >
                       {allRemoved ? "Keep all" : "Remove all"}
                     </button>
