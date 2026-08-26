@@ -24,9 +24,16 @@ import { partnerConnect, type PartnerConnectContext } from "@/lib/api"
  *
  * "Email me a link instead" stays as a third option for someone who can do
  * neither, but it is the user's choice, never the default path.
+ *
+ * A LAPSED token gets its own screen rather than the dead end. 24 partner
+ * users reached this page holding a token a concurrent SSO call had already
+ * replaced, were told to go back to their partner's site, and never returned.
+ * The seat is still real for a week after the token lapses, so the screen
+ * offers a fresh link instead. It cannot offer Connect — the server refuses an
+ * approve on a lapsed token, and the button would be a lie.
  */
 
-type Phase = "loading" | "ready" | "invalid" | "linking" | "done" | "emailed"
+type Phase = "loading" | "ready" | "expired" | "invalid" | "linking" | "done" | "emailed"
 
 function ConnectInner() {
   const router = useRouter()
@@ -48,7 +55,10 @@ function ConnectInner() {
       .context(token)
       .then((ctx) => {
         setContext(ctx)
-        setPhase("ready")
+        // A lapsed token is not a dead end. The seat is real and the person is
+        // here — the screen offers them a fresh link rather than sending them
+        // back out to the partner's site to start again.
+        setPhase(ctx.expired ? "expired" : "ready")
       })
       .catch(() => setPhase("invalid"))
   }, [token])
@@ -86,6 +96,21 @@ function ConnectInner() {
   }, [token])
 
   if (phase === "loading") return <PostAuthHandoffSkeleton />
+
+  if (phase === "expired") {
+    return (
+      <Shell title="This link has expired">
+        <p className="text-[0.9375rem] leading-relaxed text-[var(--tm-text-secondary)]">
+          We’ll send a fresh one to {context?.email_masked}.
+        </p>
+        <div className="pt-2">
+          <Button size="lg" onClick={emailInstead}>
+            Send a new link
+          </Button>
+        </div>
+      </Shell>
+    )
+  }
 
   if (phase === "invalid") {
     return (

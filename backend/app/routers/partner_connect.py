@@ -4,7 +4,11 @@ Deliberately NOT under `/partner/v1`: nothing here is called by a partner. These
 three routes serve the person in front of the screen, and the only credential
 that matters is their own Myro session.
 
-  GET  /context   anonymous — what to render ("Finlatics wants to connect a•••@…")
+  GET  /context   anonymous — what to render ("Finlatics wants to connect a•••@…").
+                  A LAPSED token still resolves, with `expired: true`, so the
+                  screen can offer a fresh link instead of dead-ending the
+                  person to "go back to your partner's site". 404 stays for a
+                  token that is unknown, spent, or past the recovery window.
   POST /approve   authed — the signed-in owner approves. The one that links.
   POST /email     anonymous — "email me a link instead", for someone who cannot
                   sign in right now.
@@ -66,6 +70,7 @@ def connect_context(
         partner_slug=context.partner_slug,
         external_id=context.external_id,
         email_masked=context.email_masked,
+        expired=context.expired,
     )
 
 

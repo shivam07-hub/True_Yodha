@@ -43,6 +43,10 @@ class ConnectContextResponse(BaseModel):
     partner_slug: str
     external_id: str
     email_masked: str
+    # The token lapsed but the seat is real and still inside the recovery
+    # window. The screen offers a fresh link instead of the approve button —
+    # approving with a lapsed token is refused server-side regardless.
+    expired: bool = False
 
 
 class ConnectApproveRequest(BaseModel):

@@ -306,6 +306,12 @@ export interface PartnerConnectContext {
   partner_slug: string
   external_id: string
   email_masked: string
+  /**
+   * The consent link lapsed, but the seat is real and still inside the recovery
+   * window. Offer a fresh link — never the approve button; the server refuses
+   * an approve on a lapsed token regardless.
+   */
+  expired: boolean
 }
 
 export interface PartnerConnectApproveResponse {

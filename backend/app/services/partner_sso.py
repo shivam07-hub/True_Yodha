@@ -56,6 +56,13 @@ _CONNECT_PATH = "/connect"
 # shared screen is dead by the time anyone tries it. It grants nothing on its
 # own — approving still requires authenticating as the account owner.
 CONNECT_TOKEN_TTL_MINUTES = 30
+# How long after expiry a consent token can still be used to ask for a FRESH
+# link. Not to approve anything — only to have a new link mailed to the address
+# already on the seat. Without this the one recovery path that does not require
+# the partner ("email me a link instead") is gated behind the very thing that
+# broke, and the user is sent back out to the partner's site. Bounded rather
+# than open-ended so an ancient leaked token is not a permanent mail trigger.
+CONNECT_RECOVERY_WINDOW_DAYS = 7
 
 
 @dataclass(frozen=True)
@@ -205,6 +212,9 @@ class ConnectContext:
     partner_slug: str
     external_id: str
     email_masked: str
+    # True: the token is past its TTL but still inside the recovery window. The
+    # screen may offer a new link; it may NOT offer to approve.
+    expired: bool = False
 
 
 def resolve_connect_token(repo: PartnersRepository, token: str) -> ConnectContext | None:
@@ -229,7 +239,8 @@ def resolve_connect_token(repo: PartnersRepository, token: str) -> ConnectContex
             seat.get("id"), seat.get("link_state"),
         )
         return None
-    if _expired(_expiry_for_token(seat, token_hash)):
+    state = _token_state(_expiry_for_token(seat, token_hash))
+    if state == "dead":
         logger.warning(
             "metric partner_sso.connect_token_rejected reason=expired seat=%s demoted=%s",
             seat.get("id"), seat.get("prev_connect_token_hash") == token_hash,
@@ -242,11 +253,21 @@ def resolve_connect_token(repo: PartnersRepository, token: str) -> ConnectContex
             seat.get("id"),
         )
         return None
+    if state == "recoverable":
+        # Not a rejection. The seat is real, the person is here, and the screen
+        # can put them back on the path without a round trip through the
+        # partner. `expired` forbids the approve button; it does not hide the
+        # seat. Nothing here is newer than what a live token already showed.
+        logger.warning(
+            "metric partner_sso.connect_token_recoverable seat=%s demoted=%s",
+            seat.get("id"), seat.get("prev_connect_token_hash") == token_hash,
+        )
     return ConnectContext(
         partner_name=str(partner.get("name") or ""),
         partner_slug=str(partner.get("slug") or ""),
         external_id=str(seat.get("external_id") or ""),
         email_masked=_mask_email(str(seat.get("email") or "")),
+        expired=state == "recoverable",
     )
 
 
@@ -283,9 +304,17 @@ def send_connect_email(repo: PartnersRepository, admin: Any, *, token: str) -> b
     seat = repo.get_link_by_connect_token(token_hash)
     if not seat or seat.get("link_state") != "pending_connect":
         return False
-    if _expired(_expiry_for_token(seat, token_hash)):
+    # A LAPSED token may still ask for a fresh link. That is the recovery path,
+    # and refusing it here is what sent people back to the partner's site.
+    # It is safe for the same reason the live path is: the mail goes to the
+    # address the PARTNER named on the seat, never one the caller supplies, so
+    # a stolen token can only cause an email to its rightful owner. The route
+    # rate-limits per IP either way.
+    if _token_state(_expiry_for_token(seat, token_hash)) == "dead":
         return False
     partner = seat.get("partners") or {}
+    if partner.get("status") != "active":
+        return False
     email = str(seat.get("email") or "")
     target = callback_url(
         link_partner=str(partner.get("slug") or ""),
@@ -358,6 +387,27 @@ def _expiry_for_token(seat: dict[str, Any], token_hash: str) -> Any:
     if seat.get("prev_connect_token_hash") == token_hash:
         return seat.get("prev_connect_token_expires_at")
     return None
+
+
+def _token_state(raw: Any) -> str:
+    """`live`, `recoverable`, or `dead` for a token expiry.
+
+    `_expired` answers a yes/no that cannot tell "just lapsed, the user is
+    standing right here" from "six months gone". The screen needs that
+    difference; approval never does.
+    """
+    if not raw:
+        return "dead"
+    try:
+        expires = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+    except ValueError:
+        return "dead"
+    now = datetime.now(timezone.utc)
+    if now < expires:
+        return "live"
+    if now < expires + timedelta(days=CONNECT_RECOVERY_WINDOW_DAYS):
+        return "recoverable"
+    return "dead"
 
 
 def _expired(raw: Any) -> bool:
