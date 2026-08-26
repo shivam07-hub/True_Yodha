@@ -20,6 +20,8 @@ import { FirstSuccessChecklist } from "@/components/onboarding/first-success-che
 import { useManualAdd, ADD_JOB_LABEL } from "@/components/cv/pipeline/useManualAdd"
 import { usePulses } from "@/lib/hooks/use-pulses"
 import { useSavedJobDismissal } from "@/lib/hooks/use-saved-job-dismissal"
+import { useJobPriority } from "@/lib/collections/use-job-priority"
+import { useCollectionSnooze } from "@/lib/collections/use-collection-snooze"
 import { useCartStore } from "@/store/cartStore"
 import { jobs as jobsApi } from "@/lib/api"
 import type { ApplicationResponse, SkillGapItem } from "@/lib/api"
@@ -194,12 +196,8 @@ export function CollectionsDesktop({
     savedJobDismissal.dismiss(app)
     setOpenId((cur) => (cur === jobId ? null : cur))
   }
-  const snooze = (jobId: string) => {
-    void jobsApi.snoozeCollection(token, jobId, 3).then(() => {
-      void qc.invalidateQueries({ queryKey: dataKeys.applications() })
-      void qc.invalidateQueries({ queryKey: dataKeys.notificationsUnread() })
-    })
-  }
+  const snoozeMutation = useCollectionSnooze(token)
+  const snooze = (jobId: string) => snoozeMutation.mutate(jobId)
   const saveNote = (jobId: string, notes: string) => {
     void jobsApi.updateApplication(token, jobId, { status: "saved", notes }).then(() => {
       void qc.invalidateQueries({ queryKey: dataKeys.applications() })
@@ -224,33 +222,7 @@ export function CollectionsDesktop({
     setOpenId((cur) => (cur === jobId ? null : cur))
     dismissMut.mutate(jobId)
   }
-  const priorityMutation = useMutation({
-    mutationFn: ({ jobId, prioritized }: { jobId: string; prioritized: boolean }) =>
-      jobsApi.setJobPriority(token, jobId, prioritized),
-    onMutate: async ({ jobId, prioritized }) => {
-      const key = dataKeys.applications()
-      await qc.cancelQueries({ queryKey: key })
-      const previous = qc.getQueryData<ApplicationResponse[]>(key)
-      qc.setQueryData<ApplicationResponse[]>(key, (current) =>
-        current?.map((application) =>
-          application.job_id === jobId ? { ...application, is_priority: prioritized } : application,
-        ) ?? current,
-      )
-      return { previous }
-    },
-    onError: (_error, _variables, context) => {
-      if (context?.previous) qc.setQueryData(dataKeys.applications(), context.previous)
-    },
-    onSuccess: (updated) => {
-      qc.setQueryData<ApplicationResponse[]>(dataKeys.applications(), (current) => {
-        const applications = current ?? []
-        return applications.some((application) => application.job_id === updated.job_id)
-          ? applications.map((application) => application.job_id === updated.job_id ? updated : application)
-          : [...applications, updated]
-      })
-    },
-    onSettled: () => qc.invalidateQueries({ queryKey: dataKeys.applications() }),
-  })
+  const priorityMutation = useJobPriority(token)
 
   // Celebration on a successful run — only when matches were actually written.
   const firedRef = React.useRef(false)
