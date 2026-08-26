@@ -1,0 +1,69 @@
+# The Myro newsletter standard
+### Set 2026-08-26 from Issue 019. This is the default, not one issue's format.
+
+An issue is written **slide-first**. Each section is a self-contained piece of
+knowledge that stands alone on a phone screen, because the same sentences ship
+as the LinkedIn and Instagram carousel with no rewrite. If a paragraph cannot
+survive being screenshotted on its own, it is not finished.
+
+Reference issue: `Myro Newsletter/issues/2026-08-industry-city-map-india.mdx`
+Carousel: `scripts/build-newsletter-carousel.py` + a spec in
+`scripts/newsletter-carousel-specs/`.
+
+## The shape
+
+1. **The prescriptions.** Two or three lines, one per reader type, each naming a
+   place or an action. No preamble, no "we expected", no throat-clearing.
+2. **Provenance.** One sentence: what our agents read, how many companies, how
+   many openings, when.
+3. **The matrix or chart.** One visual, and it is the thing people screenshot.
+4. **One section per reader lane**, each ending in **the skills those employers
+   named**. The skills are the payload, not a garnish.
+5. **Methodology.** What the field actually is, what was filtered, what the
+   limits are.
+6. **Footer CTA into Preparation.** One only.
+
+## Rules that are not negotiable
+
+- **Skills are the driver.** Every lane ends in skills a real posting named this
+  month. That column is why the reader clicks through to Preparation.
+- **We do not predict.** We report what companies are hiring for, where, and
+  which skills they asked for. No forecasting, no "the market is shifting".
+- **First-person plural.** The newsletter is Myro speaking: "we read", "we
+  split". Never "I". Per `brand-guidelines/voice.md`, and never mixed.
+- **Lead with data, never with the premise.** If an insight came from a
+  conversation, it earns one line as the reason for the cut, after the numbers.
+- **Show the check that failed.** If a piece of received wisdom was tested and
+  did not hold, say so in the issue. That is the difference between analysis and
+  content.
+- **Verify every claim before writing it.** Issue 019's best line ("19 tech
+  employers post in Mumbai at 2.6 roles each against Bengaluru's 20.4") only
+  exists because an unverified sentence was checked and turned out false.
+
+## Skills data: filter before publishing
+
+`jobs.main_skills` is model-extracted and mixes real signal with noise. Real:
+`Python (Programming Language)`, `Risk Management`, `Regulatory Requirements`.
+Noise seen so far: `Track (Rail Transport)` (taxonomy mis-map of the word
+"track"), `Siddhi` (an Axis product name), `SMS`, `Hygiene`, plus EEO boilerplate
+(`Diversity And Inclusion`, `Disabilities`) and soft-skill filler
+(`Communication`, `Problem Solving`).
+
+Apply a stoplist, set a frequency floor, and eyeball the final list before it
+ships. Never publish the field raw.
+
+## The CTA lane
+
+The footer CTA links to
+`https://www.himyro.com/signup?intent=prep&ref=newsletter-0XX`.
+
+`?intent=prep` is a carried-intent marker (`frontend/lib/prep-intent-stash.ts`);
+`postAuthDestination` reads it and lands the reader on `/preparations` instead of
+the default surface. A marker, never a URL — the 2026-07-11 rule that login ends
+on a known surface still holds, and `next` stays deleted.
+
+## Before shipping
+
+`write-like-human` lint clean, `brand-guidelines` voice matrix respected,
+600–1200 body words, the five build gates green, and the angle, heading and chart
+agreed with Shivam before drafting.
