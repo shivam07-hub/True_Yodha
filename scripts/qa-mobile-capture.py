@@ -12,9 +12,19 @@ light-mode text tokens. A human screenshot found it in one look.
 
 So this gate renders the real app, in a real authed session, at 375px, in BOTH
 themes — and then ASSERTS rather than merely capturing. Screenshots that a
-human has to remember to review are not a gate; they are homework. The check
-that matters is: does every heading actually contrast against the background it
-is really painted on?
+human has to remember to review are not a gate; they are homework.
+
+Five probes, each one earned by a bug that shipped:
+
+  contrast     a heading must clear WCAG AA against the background it is REALLY
+               painted on (walk ancestors past transparent fills, don't guess)
+  squeeze      a leaf whose line count approaches its word count is a starved
+               column
+  unreachable  a control or panel cut off by a NON-scrollable ancestor, or past
+               the viewport with nothing clipping it. scrollWidth reads a clean
+               375 while a nav tab sits 143px off the right edge, so it can
+               never be the probe
+  tap          WCAG 2.2 AA 2.5.8 — a pointer target below 24x24 CSS px
 
 Credentials
 -----------
@@ -39,17 +49,42 @@ import urllib.request
 REPO = pathlib.Path(__file__).resolve().parents[1]
 ENV_FILE = REPO / "frontend" / ".env.local"
 
-# Authed surfaces reachable from the 4-tab mobile nav, plus the satellites the
-# nav can reach. Add a route here the day you add it to the nav.
+# Every route a phone can actually reach: the 4-tab nav, its children, the
+# top-bar actions, everything the Profile list links to, and the public pages
+# those links land on. Add a route here the day it becomes reachable — /tokens
+# was uncovered, which is why the worst layout break of the 2026-07 pass was
+# invisible to automation, and the 2026-08 sweep found five more the same way.
+#
+# The public entries matter as much as the authed ones: a logged-in phone user
+# who taps Newsletter or Myrology from /me leaves the mobile shell entirely and
+# lands on the shared desktop chrome.
 SURFACES = [
+    # 4-tab nav
     ("market", "/market"),
     ("collections", "/collections"),
     ("cv", "/cv"),
     ("preparations", "/preparations"),
-    ("skills", "/skills"),
+    # CV tab children
+    ("cv-tailor", "/cv/tailor"),
+    ("cv-reservoir", "/cv/reservoir"),
+    ("notebook", "/notebook"),
+    # top-bar actions + profile
+    ("practice", "/practice"),
     ("me", "/me"),
-    ("intel", "/intel"),
+    ("skills", "/skills"),
     ("tokens", "/tokens"),
+    # the funnel: skill confirmation is the stage-one gate
+    ("onboarding-result", "/onboarding/result"),
+    # reachable from /me and the feedback hub
+    ("beta-feedback", "/beta-feedback"),
+    ("mission", "/mission"),
+    ("job-switch-plan", "/job-switch-plan"),
+    # public routes the app links out to — same chrome, no bottom nav
+    ("intel", "/intel"),
+    ("newsletter", "/newsletter"),
+    ("myrology", "/myrology"),
+    ("companies", "/companies"),
+    ("taxonomy", "/taxonomy"),
 ]
 
 # WCAG AA. Large text (>=24px, or >=18.66px bold) may sit at 3:1; everything
@@ -215,6 +250,194 @@ SQUEEZE_PROBE = r"""
 """
 
 
+# Content that is on the page but not on the screen.
+#
+# `document.documentElement.scrollWidth` is NOT a probe for this: on /myrology
+# and every public route it reads a clean 375 while a nav tab sits 143px past
+# the viewport, because an ancestor CLIPS instead of scrolling. Nothing throws,
+# nothing scrolls sideways, and the page looks fine to every assertion that
+# asks the document how wide it is. So measure each element's own rect against
+# whatever actually confines it.
+#
+# Two things are legitimately cut and must not fire:
+#   - anything inside a SCROLLABLE clipper — the user can reach it
+#   - a marquee/ticker, which is a track wider than its window ON PURPOSE;
+#     those loop forever, so an INFINITE animation between the element and its
+#     clipper is the tell (a one-shot entrance reveal is not — keying on "has
+#     an animation" hid three clipped nav tabs behind the nav's 0.42s reveal)
+# Everything else that is cut is either a control nobody can tap or a panel
+# nobody can read.
+UNREACHABLE_PROBE = r"""
+({ TEXT_CUT_RATIO }) => {
+  const INTERACTIVE = new Set(['A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA'])
+  const isInteractive = el =>
+    INTERACTIVE.has(el.tagName) || ['button', 'tab', 'checkbox', 'switch', 'link'].includes(el.getAttribute('role'))
+  // The cut measured here is HORIZONTAL, so only horizontal scrolling makes it
+  // reachable. `body { overflow-x: hidden; overflow-y: auto }` is the common
+  // shape, and treating "scrolls on either axis" as reachable hid a whole
+  // pricing panel that sits 101px off the right edge of /myrology.
+  const scrollableX = cs => ['auto', 'scroll'].includes(cs.overflowX)
+  const name = el =>
+    el.tagName.toLowerCase() + (el.className ? '.' + String(el.className).trim().split(/\s+/)[0] : '')
+
+  const W = window.innerWidth
+  const hits = [], reported = []
+  for (const el of document.querySelectorAll('body *')) {
+    const r = el.getBoundingClientRect()
+    if (r.width < 4 || r.height < 4) continue
+    const cs = getComputedStyle(el)
+    if (cs.visibility === 'hidden' || cs.display === 'none' || +cs.opacity < 0.1) continue
+
+    // Walk to the nearest clipper, watching for an animation on the way.
+    const loops = c => c.animationName !== 'none' && c.animationIterationCount.includes('infinite')
+    let n = el, clipper = null, animated = loops(cs)
+    while (n && n !== document.documentElement) {
+      const ncs = getComputedStyle(n)
+      if (n !== el) {
+        if (loops(ncs)) animated = true
+        if (ncs.overflowX !== 'visible' || ncs.overflowY !== 'visible') { clipper = n; break }
+      }
+      n = n.parentElement
+    }
+    if (animated) continue                       // marquee / ticker, by design
+    if (clipper && scrollableX(getComputedStyle(clipper))) continue
+
+    const bound = clipper ? clipper.getBoundingClientRect() : { left: 0, right: W }
+    const cut = Math.round(Math.max(r.right - bound.right, bound.left - r.left))
+    if (cut <= 2) continue
+
+    // Own text only — a wrapper inherits its children's and would double-report.
+    const ownText = Array.from(el.childNodes)
+      .filter(k => k.nodeType === 3).map(k => k.textContent).join(' ').trim()
+    const interactive = isInteractive(el)
+    if (!interactive && (ownText.length < 8 || cut < r.width * TEXT_CUT_RATIO)) continue
+
+    if (reported.some(a => a.contains(el))) continue   // outermost offender wins
+    reported.push(el)
+    hits.push({
+      sel: name(el),
+      cut,
+      by: clipper ? name(clipper) : 'the viewport',
+      kind: interactive ? 'control' : 'content',
+      text: (el.innerText || el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 36),
+    })
+  }
+  return hits.slice(0, 8)
+}
+"""
+
+# A panel is only "unreachable" once most of it is gone; a control is
+# unreachable the moment it is cut at all.
+TEXT_CUT_RATIO = 0.4
+
+
+# Does the page agree with the theme it was asked for?
+#
+# The contrast probe cannot catch this: black text on a white card clears AA
+# beautifully — while the top bar and the bottom nav around it stay dark,
+# because the surface pinned its own hexes instead of reading tokens. That is
+# the exact shape of the 2026-07 bug this whole gate exists for (background
+# owner and text-token owner differ, nothing checks they agree), and it is
+# still live on /beta-feedback, which pins `background: #eef0eb`.
+#
+# So resolve what the main content is REALLY painted on and check it against
+# the theme, rather than trusting that a surface opted into the token system.
+# Surfaces that pin a theme on purpose (backlog #28: myrology is a deliberate
+# dark island, joined at `:root, .myrology-root`). Declaring them here is the
+# point — an undeclared surface that paints its own colours is drift, and a
+# declared one still has to clear the contrast probe inside its own theme.
+PINNED_SURFACE = {"myrology": "dark"}
+
+THEME_PROBE = r"""
+({ theme }) => {
+  const parse = s => {
+    const m = (s || '').match(/rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?\)/)
+    return m ? { r:+m[1], g:+m[2], b:+m[3], a: m[4] === undefined ? 1 : +m[4] } : null
+  }
+  const lum = c => {
+    const f = v => { v /= 255; return v <= 0.04045 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4) }
+    return 0.2126*f(c.r) + 0.7152*f(c.g) + 0.0722*f(c.b)
+  }
+  // Walk DOWN, not up. `.tm-main-scroll` is the shell's own canvas and always
+  // carries the right colour; the surface that pinned its own hexes is a child
+  // painting ON TOP of it. So sample what is actually under the pixels a
+  // reader looks at, and let the majority answer.
+  const effectiveBg = el => {
+    let n = el
+    while (n && n !== document.documentElement) {
+      const c = parse(getComputedStyle(n).backgroundColor)
+      if (c && c.a > 0.5) return { c, n }
+      n = n.parentElement
+    }
+    const c = parse(getComputedStyle(document.documentElement).backgroundColor)
+    return c ? { c, n: document.documentElement } : null
+  }
+
+  const W = window.innerWidth, H = window.innerHeight
+  const tally = new Map()
+  for (let i = 1; i <= 8; i++) {
+    const y = Math.round(H * i / 9)
+    const hit = document.elementFromPoint(Math.round(W / 2), y)
+    if (!hit) continue
+    const eff = effectiveBg(hit)
+    if (!eff) continue
+    const key = `${eff.c.r},${eff.c.g},${eff.c.b}`
+    const prev = tally.get(key) || { n: 0, c: eff.c, el: eff.n }
+    prev.n++
+    tally.set(key, prev)
+  }
+  if (!tally.size) return null
+  const top = [...tally.values()].sort((a, b) => b.n - a.n)[0]
+  const L = lum(top.c)
+  // Dark canonical is #191918 (L~0.010); light paper is #faf6f0 (L~0.93). The
+  // gap is enormous, so 0.5 separates them with room to spare either way.
+  const paintedDark = L < 0.5
+  const wantDark = theme === 'dark'
+  if (paintedDark === wantDark) return null
+  const el = top.el
+  return {
+    canvas: `rgb(${top.c.r}, ${top.c.g}, ${top.c.b})`,
+    painted: paintedDark ? 'dark' : 'light',
+    share: `${top.n}/8 samples`,
+    sel: el.tagName.toLowerCase() + (el.className ? '.' + String(el.className).trim().split(/\s+/)[0] : ''),
+  }
+}
+"""
+
+
+# WCAG 2.2 AA 2.5.8 — a pointer target must be at least 24x24 CSS px. The spec's
+# own exception is inline targets inside a sentence, so anchors that compute to
+# `display: inline` are skipped; a checkbox, a button, or a block link has no
+# excuse. The 24px line is the hard standard and fails the gate. Apple asks for
+# 44 and Android for 48dp: everything between 24 and 44 is counted and reported
+# as one summary line rather than dozens of entries nobody reads.
+TAP_MIN_AA = 24
+
+TAP_PROBE = r"""
+({ AA }) => {
+  const INTERACTIVE = 'a, button, [role="button"], [role="tab"], [role="checkbox"], [role="switch"], input, select'
+  const fails = []
+  for (const el of document.querySelectorAll(INTERACTIVE)) {
+    const r = el.getBoundingClientRect()
+    if (r.width < 2 || r.height < 2) continue
+    const cs = getComputedStyle(el)
+    if (cs.visibility === 'hidden' || cs.display === 'none' || +cs.opacity < 0.1) continue
+    if (el.tagName === 'A' && cs.display === 'inline') continue   // 2.5.8 inline exception
+    if (el.disabled) continue
+    const w = Math.round(r.width), h = Math.round(r.height)
+    const label = (el.getAttribute('aria-label') || el.innerText || el.value || '').trim().replace(/\s+/g, ' ').slice(0, 26)
+    if (w < AA || h < AA) {
+      fails.push({
+        sel: el.tagName.toLowerCase() + (el.className ? '.' + String(el.className).trim().split(/\s+/)[0] : ''),
+        w, h, label,
+      })
+    }
+  }
+  return { fails: fails.slice(0, 8) }
+}
+"""
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--base-url", default="http://localhost:3000")
@@ -286,6 +509,29 @@ def main() -> int:
                             f"{theme}/{name}: squeezed column — \"{s['text']}\" "
                             f"wraps to {s['lines']} lines for {s['words']} words "
                             f"in {s['width']}px"
+                        )
+                    want = PINNED_SURFACE.get(name, theme)
+                    off = page.evaluate(THEME_PROBE, {"theme": want})
+                    if off:
+                        failures.append(
+                            f"{theme}/{name}: canvas is painted {off['painted']} "
+                            f"where {want} was expected ({off['share']}) — "
+                            f"{off['sel']} is {off['canvas']}. The surface is "
+                            f"pinning its own colours instead of reading "
+                            f"[data-surface] tokens."
+                        )
+                    for u in page.evaluate(UNREACHABLE_PROBE,
+                                           {"TEXT_CUT_RATIO": TEXT_CUT_RATIO}):
+                        failures.append(
+                            f"{theme}/{name}: {u['kind']} cut {u['cut']}px by {u['by']} "
+                            f"(no scroll) — {u['sel']} \"{u['text']}\""
+                        )
+                    tap = page.evaluate(TAP_PROBE, {"AA": TAP_MIN_AA})
+                    for t in tap["fails"]:
+                        failures.append(
+                            f"{theme}/{name}: tap target {t['w']}x{t['h']}px "
+                            f"(WCAG 2.5.8 needs {TAP_MIN_AA}x{TAP_MIN_AA}) — "
+                            f"{t['sel']} \"{t['label']}\""
                         )
                 except Exception as e:
                     failures.append(f"{theme}/{name}: {type(e).__name__} {str(e)[:90]}")
