@@ -55,38 +55,7 @@ function StatTiles({ n = 4 }: { n?: number }) {
   )
 }
 
-export function SkillsSkeleton() {
-  return (
-    <div className="tm-page-enter" aria-hidden="true" style={PAGE}>
-      <Header titleW={280} />
-      <StatTiles n={4} />
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {[0, 1, 2].map((i) => (
-          <Card key={i} h={120} />
-        ))}
-      </div>
-    </div>
-  )
-}
 
-export function JobsSkeleton() {
-  return (
-    <div className="tm-page-enter" aria-hidden="true" style={PAGE}>
-      <Header titleW={200} />
-      {/* filter row: search + two selects */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
-        <Bar w={260} h={34} r={8} />
-        <Bar w={180} h={34} r={8} />
-        <Bar w={160} h={34} r={8} />
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {[0, 1, 2, 3, 4, 5].map((i) => (
-          <Card key={i} h={96} />
-        ))}
-      </div>
-    </div>
-  )
-}
 
 export function CvSkeleton() {
   return (
@@ -331,11 +300,34 @@ export function GenericPageSkeleton() {
  * bootstrap window (before chrome can render), so even that instant is shaped
  * like the destination page rather than a centered logo splash.
  */
+/**
+ * The route boundary's skeleton, by path.
+ *
+ * THE INVARIANT: whatever this returns for a path must be the SAME component
+ * that path's page renders while it boots. Two answers means the user watches
+ * one skeleton relayout into another — a "double loading screen" — and the
+ * second one is the only one shaped like where they are going.
+ *
+ * Two branches disagreed with their pages until 2026-08-26:
+ *
+ *   /home    returned DashboardSkeleton. /home is a RETIRED redirect stub that
+ *            replaces itself with /market and renders MarketSkeleton for that
+ *            reason. The boundary was painting the shape of a page that no
+ *            longer exists, then the stub repainted the destination's shape.
+ *            /collections keeps DashboardSkeleton — it is the page that
+ *            inherited that layout, and its page.tsx renders it.
+ *
+ *   /skills  returned SkillsSkeleton (a header, four stat tiles, three cards).
+ *            /skills is the score map, and its page renders PracticeSkeleton
+ *            for the 180px ring at its centre. Nothing on the real page is a
+ *            stat tile.
+ */
 export function skeletonForPath(pathname: string): React.ReactNode {
-  if (pathname.startsWith("/home") || pathname.startsWith("/collections")) return <DashboardSkeleton />
+  if (pathname.startsWith("/collections")) return <DashboardSkeleton />
+  if (pathname.startsWith("/home")) return <MarketSkeleton />
   if (pathname.startsWith("/market")) return <MarketSkeleton />
   if (pathname.startsWith("/intel")) return <IntelSkeleton />
-  if (pathname.startsWith("/skills")) return <SkillsSkeleton />
+  if (pathname.startsWith("/skills")) return <PracticeSkeleton />
   if (pathname.startsWith("/cv")) return <CvSkeleton />
   if (pathname.startsWith("/practice")) return <PracticeSkeleton />
   if (pathname.startsWith("/preparations/")) return <PrepRoomSkeleton />
@@ -344,21 +336,3 @@ export function skeletonForPath(pathname: string): React.ReactNode {
   return <GenericPageSkeleton />
 }
 
-export function TrackerSkeleton() {
-  return (
-    <div aria-hidden="true" style={{ ...PAGE, display: "flex", flexDirection: "column", gap: 18, paddingBottom: 80 }}>
-      <Bar w={220} h={26} r={8} />
-      {/* kanban columns */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
-        {[0, 1, 2, 3].map((col) => (
-          <div key={col} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <Bar w={"60%"} h={14} r={4} />
-            {[0, 1, 2].map((c) => (
-              <Card key={c} h={78} />
-            ))}
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
