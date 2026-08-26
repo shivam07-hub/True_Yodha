@@ -131,11 +131,12 @@ and market sheet share ONE record (`preflight_orders`); every guess shows its
 source and is answered alone; unanswered ⇒ dropped at run, server-side.
 Invariants + vocabulary: [CONTEXT.md](CONTEXT.md) §Pre-flight Order.
 
-**3. Fix the phone.** *Verified open — blocks the app store build.*
-Seven screens — CV, Prep, Skills, Coin guide, Intel, Settings, footer — are
-still desktop layouts on a phone. The CV screen is one of them, so stage one is
-broken on mobile. Also: nobody has opened the rebuilt mobile app on a real phone
-while logged in.
+**3. Fix the phone.** *Layout swept 2026-08-27; real-device QA still owed.*
+The July list of seven orphan screens is stale — CV, Prep, Skills, the coin
+guide and Profile render mobile-native. The sweep fixed five worse things and
+taught the gate to see them: `npm run qa:mobile` walks 20 routes × 2 themes,
+five probes, in CI. **Nobody has opened any of it on a real phone while logged
+in** — every measurement is a 375px Chromium. Detail: [BACKLOG.md](BACKLOG.md) #42.
 
 **4. Make it fast enough to feel trustworthy.** *#16 software slices closed;
 capacity acceptance blocked on paid DB compute.* The 2026-08-13 pass removed
