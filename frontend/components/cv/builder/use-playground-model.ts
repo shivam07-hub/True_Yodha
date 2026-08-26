@@ -45,11 +45,11 @@ export function usePlaygroundModel(
   cv: CVStructured,
   profile: UserProfile | null,
   hiddenItems: Set<string>,
-  opts?: PlaygroundModelOpts,
+  opts: PlaygroundModelOpts,
 ) {
   // Master mode has no job → the job reads never fire (a blank jobId would
   // otherwise 404). Content-quality fixes work from the CV alone.
-  const isMaster = opts?.mode === "master"
+  const isMaster = opts.mode === "master"
   const jobPathQuery = useQuery({
     queryKey: dataKeys.jobPath(jobId),
     queryFn: () => jobsApi.path(token, jobId),
@@ -100,7 +100,7 @@ export function usePlaygroundModel(
   // points from the score, and each fix returns its exact points on a real text
   // change. Computed from the ONE scan, over ALL findings — dismissing a card
   // hides it, it never buys back the points.
-  const contentPenaltyPts = opts?.penalty ?? 0
+  const contentPenaltyPts = opts.penalty
 
   // Coverage counts drive the score. Null until the parse lands (or if it finds
   // nothing) → the score falls back to the job's deterministic readiness, never
@@ -117,7 +117,7 @@ export function usePlaygroundModel(
   // rewrite never moves it, so the content penalty never subtracts from it). Job:
   // coverage − content penalty, with the deterministic readiness as the honest
   // pre-coverage fallback.
-  const fallbackPct = isMaster ? Math.round(opts?.masterScore ?? 0) : (job.readiness_pct ?? 0)
+  const fallbackPct = isMaster ? Math.round(opts.masterScore ?? 0) : (job.readiness_pct ?? 0)
   const ready = useMemo(() => {
     if (isMaster) return fallbackPct
     return matchScore(coverageCounts, fallbackPct, contentPenaltyPts)

@@ -59,7 +59,6 @@ function CVPage() {
   const queryClient = useQueryClient()
   const searchParams = useSearchParams()
   const jobId = searchParams.get("jobId")
-  const focusSkill = searchParams.get("skill")
   const mentorRequested = searchParams.get("mentor") === "1"
 
   const [showUpload, setShowUpload] = useState(false)
@@ -88,9 +87,6 @@ function CVPage() {
   // twice; the ref blocks the second call synchronously.
   const uploadInFlightRef = useRef(false)
   const applyXpChange = useXPStore((s) => s.applyXpChange)
-  const [editOpen, setEditOpen] = useState(false)
-  const [editTarget, setEditTarget] = useState<{ versionId: number; text: string } | null>(null)
-  const [editDraft, setEditDraft] = useState("")
 
   // WOW moment #2 — CV processing just resolved. Celebrate the reveal with a
   // centre burst once per transition into a result. (firedRef guards the
@@ -147,22 +143,6 @@ function CVPage() {
   function backToBaseline() { navigate("/cv") }
   // Tailored export is a dedicated full-page route (Design C). Carry the match
   // score so the export header can show the JD-match pill without a refetch.
-  // The export page re-hydrates hidden items from the SAVED version, so any
-  // pending (debounced) toggles must be flushed before leaving — else the
-  // artifact resurrects deselected lines (ADR-0020).
-  async function openPdf(matchScore = 0) {
-    if (!jobId) return
-    try {
-      await playground.flushHidden()
-    } catch {
-      return // save failed — stay put; the hook surfaced the error banner
-    }
-    if (matchScore > 0) {
-      try { sessionStorage.setItem(`myro-cv-score-${jobId}`, String(matchScore)) } catch { /* blocked */ }
-    }
-    const scoreParam = matchScore > 0 ? `&score=${matchScore}` : ""
-    navigate(`/cv/export?jobId=${encodeURIComponent(jobId)}${scoreParam}`)
-  }
 
   function openFilePicker() {
     setShowUpload(true)
@@ -421,22 +401,7 @@ function CVPage() {
     }
   }
 
-  function openEdit(versionId: number) {
-    const v = playground.threadVersions.find(x => x.id === versionId)
-    if (!v?.polished_text) return
-    setEditTarget({ versionId, text: v.polished_text })
-    setEditDraft(v.polished_text)
-    setEditOpen(true)
-  }
 
-  function submitEdit() {
-    if (!editTarget) return
-    if (editTarget.text === editDraft) { setEditOpen(false); return }
-    playground.editVersion.mutate(
-      { versionId: editTarget.versionId, edits: { [editTarget.text]: editDraft } },
-      { onSuccess: () => { setEditOpen(false); setEditTarget(null); setEditDraft("") } },
-    )
-  }
 
   async function requestUploadFallback() {
     if (!token) return
@@ -637,10 +602,7 @@ function CVPage() {
               cv={cvData}
               profile={profileQuery.data ?? null}
               onBackToBaseline={backToBaseline}
-              onExportPDF={openPdf}
-              onEditPolished={openEdit}
               externalError={surfacedError}
-              focusSkill={focusSkill}
               mentorRequested={mentorRequested}
             />
           )}
@@ -885,35 +847,6 @@ function CVPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit polished modal */}
-      <Dialog open={editOpen} onOpenChange={(o) => { if (!o) { setEditOpen(false); setEditTarget(null) } }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit CV text</DialogTitle>
-            <DialogDescription>
-              Edits save a new copy. Your Main CV stays untouched.
-            </DialogDescription>
-          </DialogHeader>
-          <textarea
-            value={editDraft}
-            onChange={(e) => setEditDraft(e.target.value)}
-            spellCheck
-            style={{
-              width: "100%", minHeight: 320, padding: 12,
-              fontFamily: "var(--tm-font-mono)", fontSize: 12.5, lineHeight: 1.7,
-              background: "var(--tm-surface)", border: "1px solid var(--tm-border-soft)",
-              color: "var(--tm-text)", borderRadius: "var(--tm-radius-sm)",
-              resize: "vertical",
-            }}
-          />
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
-            <Button variant="outline" size="md" onClick={() => setEditOpen(false)}>Cancel</Button>
-            <Button variant="solid" size="md" onClick={submitEdit} loading={playground.editVersion.isPending}>
-              Save
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   )
 }

@@ -27,7 +27,7 @@ import type { RewriteFetcher } from "./use-line-rewrite"
 interface CvLineFixProps {
   fix: V2Fix
   brief: IssueBrief
-  makeFetcher: (bullet: string, fix: V2Fix) => RewriteFetcher
+  makeFetcher: (bullet: string, fix: V2Fix | null) => RewriteFetcher
   bullet: string
   applying?: boolean
   onApply: (text: string) => void

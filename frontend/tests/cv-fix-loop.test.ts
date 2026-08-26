@@ -275,3 +275,33 @@ test("the mark on the line follows the brief being read", () => {
   assert.match(src, /is-active/)
   assert.match(code("components/cv/builder/cv-line-row.tsx"), /markOffenders\(text, verdict\.offenders, activeOffenders\)/)
 })
+
+// ── 2026-08-26 audit: what the fix-keying change quietly broke ───────────────
+
+test("a deep-linked line still opens a rewrite when it has no fix", () => {
+  // The score map's "rewrite the line that proves this skill" picks a line for
+  // the evidence it CARRIES, not for a defect — so it is often a clean line.
+  // Keying the open card on a FIX made that entry point resolve to nothing.
+  const src = code("components/cv/builder/workstation-shell.tsx")
+  assert.match(src, /openBareIid/)
+  assert.match(src, /setOpenBareIid\(named \? null : requestOpenIid\)/)
+  assert.match(src, /const openIid = openFix\?\.iid \?\? openBareIid/)
+  // ...and that path mounts the rewrite directly: no defect, so no brief.
+  assert.match(src, /makeFetcher\(text, null\)/)
+})
+
+test("the apply modal's fix count goes to the fixes", () => {
+  // "3 fixes left →" closed the modal and left the user wherever they were.
+  const src = code("components/cv/builder/playground-view.tsx")
+  const at = src.indexOf("onBackToFixes")
+  assert.notEqual(at, -1)
+  assert.match(src.slice(at, at + 200), /tab: "fixes"/)
+})
+
+test("the score model cannot be built without a penalty", () => {
+  // `opts` was optional while `penalty` inside it was required, so omitting opts
+  // gave a Match score with the entire content penalty silently at zero.
+  const src = code("components/cv/builder/use-playground-model.ts")
+  assert.match(src, /opts: PlaygroundModelOpts,/)
+  assert.doesNotMatch(src, /opts\?\.penalty/)
+})

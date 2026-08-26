@@ -65,10 +65,7 @@ interface PlaygroundViewProps {
   cv: CVStructured
   profile: UserProfile | null
   onBackToBaseline: () => void
-  onExportPDF: (matchScore: number) => void
-  onEditPolished: (versionId: number) => void
   externalError?: string | null
-  focusSkill?: string | null
   /** Practice handoff opens the existing deep, evidence-grounded Mentor weave. */
   mentorRequested?: boolean
 }
@@ -392,7 +389,10 @@ export function PlaygroundView({
           pendingFixes={diagnosis.fixes.length}
           onConfirm={confirmApply}
           onClose={() => setApplyOpen(false)}
-          onBackToFixes={() => setApplyOpen(false)}
+          onBackToFixes={() => {
+            setApplyOpen(false)
+            setRailRequest(p => ({ tab: "fixes", n: (p?.n ?? 0) + 1 }))
+          }}
           onDownload={requestDownload}
         />
       )}
