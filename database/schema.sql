@@ -209,8 +209,11 @@ CREATE TABLE job_applications (
   user_id          UUID        NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
   job_id           TEXT        NOT NULL REFERENCES jobs(job_id) ON DELETE CASCADE,
   match_id         INTEGER     REFERENCES user_job_matches(id),
-  status           VARCHAR(30) NOT NULL DEFAULT 'pending'
-                   CHECK (status IN ('pending','applied','no_response','responded','interviewing','rejected','offer','abandoned')),
+  -- Vocabulary and default both moved off the original 'pending' wording:
+  -- 20260517_tracker_v1 remapped the data, and 20260826100000 finally moved
+  -- the DEFAULT, which had been left pointing at a value this CHECK rejects.
+  status           VARCHAR(30) NOT NULL DEFAULT 'saved'
+                   CHECK (status IN ('saved','applied','screening','interviewing','final_round','ghosted','rejected','offer','withdrew')),
   applied_at       TIMESTAMPTZ,
   company_response TEXT,
   response_at      TIMESTAMPTZ,
