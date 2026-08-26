@@ -189,6 +189,35 @@ const METRICS = [
      ratchet at zero.
      ──────────────────────────────────────────────────────────────────── */
   {
+    name: "pinnedColourLiteral",
+    exts: [".css"],
+    // A colour written as a hex is a colour that cannot follow the theme.
+    // /beta-feedback pinned 26 of them — `background: #eef0eb`, cards at #fff,
+    // text at #171914 — and rendered a white sheet inside dark chrome for
+    // months. Nothing caught it: tsc reads types, eslint reads syntax, and this
+    // guard had no colour metric at all. That is the same hole the 2026-07
+    // mobile pass climbed out of by hand, 182 literals at a time.
+    //
+    // design-tokens.css is exempt: it DEFINES the ramps, so its hexes are the
+    // canonical source rather than drift.
+    //
+    // Comments are stripped first — a file has to be able to name the hex it
+    // removed while explaining why, and a guard that flags its own rationale is
+    // one people delete.
+    //
+    // Ratchet, not a ban. Deliberate theme-independent islands still count:
+    // intel-pane's cold console, the CV sheet's paper, the mobile template
+    // thumbnails. They can hold, but the number may only go down, so the next
+    // pinned palette has to be argued for rather than merely typed.
+    exclude: ["design-tokens.css"],
+    transform: (css) => css.replace(/\/\*[\s\S]*?\*\//g, ""),
+    // Must sit in a declaration (after a colon), so a selector like `.a#b` and
+    // an SVG `url(#gradient)` reference stay out of it.
+    pattern: /:[^;{}]*#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})\b/g,
+    mode: "max",
+    hint: "Colours come from --tm-* tokens (app/design-tokens.css), never a hex. A pinned literal cannot follow [data-surface], which is how a page ends up light inside dark chrome. If the surface is deliberately theme-independent, say so where it is declared and keep the count from rising elsewhere.",
+  },
+  {
     name: "themeTokenOnPaperSheet",
     exts: [".css"],
     // `.cvb-pdf-page` is white paper under server Chromium — no data-surface,
