@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from datetime import date, datetime, timezone
 from typing import Any
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -286,3 +288,69 @@ def test_transition_booking_404_when_missing(monkeypatch: pytest.MonkeyPatch) ->
     with pytest.raises(myrology_router.HTTPException) as exc:
         myrology_router._transition_booking("nope", "confirmed")
     assert exc.value.status_code == 404
+
+
+def test_order_promises_a_date_four_working_days_from_payment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Thursday 2026-08-06 + 4 working days = Wednesday 2026-08-12 (skips the
+    # weekend). The promise must come off the verified payment, not "now".
+    monkeypatch.setattr(myrology_router, "_require_unlocked", lambda user_id: None)
+    monkeypatch.setattr(
+        myrology_router,
+        "_fetch_paid_at",
+        lambda user_id: datetime(2026, 8, 6, 9, 40, tzinfo=timezone.utc),
+    )
+
+    with TestClient(app) as client:
+        response = client.get("/myrology/order", headers={"Authorization": "Bearer token"})
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["promised_by"] == "2026-08-12"
+    assert body["working_days"] == 4
+    assert body["paid_at"].startswith("2026-08-06")
+
+
+def test_order_is_null_when_the_unlock_has_no_billing_row(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A hand-granted entitlement has nothing in billing_payments. The surface
+    # must drop the dated promise, not fail the whole panel.
+    monkeypatch.setattr(myrology_router, "_require_unlocked", lambda user_id: None)
+    monkeypatch.setattr(myrology_router, "_fetch_paid_at", lambda user_id: None)
+
+    with TestClient(app) as client:
+        response = client.get("/myrology/order", headers={"Authorization": "Bearer token"})
+
+    assert response.status_code == 200
+    assert response.json() is None
+
+
+def test_order_stays_behind_the_paid_gate(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _locked(user_id: str) -> None:
+        raise HTTPException(status_code=403, detail="Myrology is locked.")
+
+    monkeypatch.setattr(myrology_router, "_require_unlocked", _locked)
+
+    with TestClient(app) as client:
+        response = client.get("/myrology/order", headers={"Authorization": "Bearer token"})
+
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize(
+    ("start", "days", "expected"),
+    [
+        # Friday + 1 lands on Monday, not Saturday.
+        ((2026, 8, 7), 1, (2026, 8, 10)),
+        # A Saturday payment burns no working day until Monday.
+        ((2026, 8, 8), 4, (2026, 8, 13)),
+        # A clean mid-week run stays inside the week.
+        ((2026, 8, 3), 4, (2026, 8, 7)),
+    ],
+)
+def test_working_day_arithmetic_skips_weekends(
+    start: tuple[int, int, int], days: int, expected: tuple[int, int, int]
+) -> None:
+    assert myrology_router._add_working_days(date(*start), days) == date(*expected)

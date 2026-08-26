@@ -31,6 +31,21 @@ class IntakeResponse(BaseModel):
     updated_at: datetime
 
 
+class OrderResponse(BaseModel):
+    """Delivery state of the one-time Myrology purchase.
+
+    `paid_at` is the verified payment moment from `billing_payments`, not the
+    intake save — a native who edits their birth details a week later must not
+    reset their own delivery promise. `promised_by` is derived from it here so
+    the date the page shows and the date the astrologer works to are the same
+    calculation.
+    """
+
+    paid_at: datetime
+    promised_by: date
+    working_days: int
+
+
 class BookingRequest(BaseModel):
     preferred_windows: str = Field(min_length=1, max_length=500)
     topic: str | None = Field(default=None, max_length=500)

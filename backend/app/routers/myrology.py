@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import hmac
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
@@ -27,6 +27,7 @@ from app.schemas.myrology import (
     BookingStatusUpdate,
     IntakeRequest,
     IntakeResponse,
+    OrderResponse,
 )
 from app.services import email_service
 
@@ -223,6 +224,70 @@ async def save_intake(
     }
     row = await run_in_threadpool(_upsert_intake, principal.id, payload)
     return IntakeResponse(**row)
+
+
+# The written map is promised in working days, so the countdown skips weekends.
+# Public holidays are not modelled — the astrologer moves the date by hand in
+# the rare case one lands inside the window.
+MAP_DELIVERY_WORKING_DAYS = 4
+
+
+def _add_working_days(start: date, days: int) -> date:
+    cursor = start
+    remaining = days
+    while remaining > 0:
+        cursor += timedelta(days=1)
+        if cursor.weekday() < 5:  # Mon-Fri
+            remaining -= 1
+    return cursor
+
+
+def _fetch_paid_at(user_id: str) -> datetime | None:
+    """When this native's Myrology unlock was verified.
+
+    Reads the canonical `billing_payments` row rather than a second timestamp on
+    the profile, so there is one record of when money moved. Ordered ascending:
+    if a duplicate charge is ever reconciled, the promise dates from the first
+    payment, not the newest row.
+    """
+    result = (
+        get_supabase_admin()
+        .table("billing_payments")
+        .select("verified_at")
+        .eq("user_id", user_id)
+        .eq("product", "myro_myrology_unlock")
+        .eq("status", "verified")
+        .not_.is_("verified_at", "null")
+        .order("verified_at", desc=False)
+        .limit(1)
+        .execute()
+    )
+    rows = result.data or []
+    if not rows:
+        return None
+    raw = rows[0].get("verified_at")
+    if not raw:
+        return None
+    return datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+
+
+@router.get("/order", response_model=OrderResponse | None)
+async def get_order(principal: Principal = Depends(get_principal)) -> OrderResponse | None:
+    """Delivery promise for a paid native. None when no verified payment exists.
+
+    Returns None rather than 404 for the unlocked-but-unreconciled case: an
+    entitlement granted by hand has no billing row, and the surface should drop
+    the dated promise instead of erroring the whole panel.
+    """
+    await run_in_threadpool(_require_unlocked, principal.id)
+    paid_at = await run_in_threadpool(_fetch_paid_at, principal.id)
+    if paid_at is None:
+        return None
+    return OrderResponse(
+        paid_at=paid_at,
+        promised_by=_add_working_days(paid_at.date(), MAP_DELIVERY_WORKING_DAYS),
+        working_days=MAP_DELIVERY_WORKING_DAYS,
+    )
 
 
 @router.get("/bookings", response_model=BookingListResponse)

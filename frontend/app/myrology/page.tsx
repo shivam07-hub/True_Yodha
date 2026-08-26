@@ -1,88 +1,47 @@
 "use client"
 
 import "./myrology.css"
+import "./myrology-offer.css"
+import "./myrology-lenses.css"
 import { BrandParticles } from "@/components/brand/brand-particles"
 import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
 import { MyrologyProvider } from "./checkout"
 import { OfferingSection } from "./offering-section"
-
-const HOUSES = ["Career", "Income", "Wisdom", "Travel", "Self", "Skills", "Method", "Partners", "Risk", "Public", "Network", "Sanctum"]
-const GLYPHS = ["♄", "♃", "♂", "☉", "♀", "☿", "☾", "♅", "♆", "♇", "⊕", "★"]
-const VALS = [0.92, 0.78, 0.84, 0.55, 0.81, 0.62, 0.71, 0.66, 0.48, 0.74, 0.82, 0.69]
-
-function CosmicRadar() {
-  const cx = 200
-  const cy = 200
-  const R = 160
-  const pts = HOUSES.map((_, i) => {
-    const a = (i / 12) * Math.PI * 2 - Math.PI / 2
-    const r = VALS[i] * R
-    return [cx + Math.cos(a) * r, cy + Math.sin(a) * r] as const
-  })
-  const polyPts = pts.map((p) => p.join(",")).join(" ")
-
-  return (
-    <svg className="cosmic-svg" viewBox="0 0 400 400" role="img" aria-label="Birth-chart career radar">
-      <g className="ring-grid">
-        {[0.25, 0.5, 0.75, 1].map((f) => (
-          <circle key={f} cx={cx} cy={cy} r={R * f} />
-        ))}
-      </g>
-      <g className="ring-grid">
-        {HOUSES.map((h, i) => {
-          const a = (i / 12) * Math.PI * 2 - Math.PI / 2
-          return <line key={h} x1={cx} y1={cy} x2={cx + Math.cos(a) * R} y2={cy + Math.sin(a) * R} />
-        })}
-      </g>
-      <circle cx={cx} cy={cy} r="34" fill="none" className="ring-axis" />
-      <circle cx={cx} cy={cy} r="22" fill="rgba(176, 132, 255, 0.06)" stroke="var(--my-amethyst)" strokeWidth="1" />
-      <text className="ring-center" x={cx} y={cy + 4} textAnchor="middle">MYRO</text>
-      <polygon className="ring-fill" points={polyPts} />
-      {pts.map((p, i) => (
-        <circle key={HOUSES[i]} className="ring-node" cx={p[0]} cy={p[1]} r="3" />
-      ))}
-      {HOUSES.map((h, i) => {
-        const a = (i / 12) * Math.PI * 2 - Math.PI / 2
-        const rL = R + 22
-        const rG = R + 6
-        return (
-          <g key={h}>
-            <text className="ring-glyph" x={cx + Math.cos(a) * rG} y={cy + Math.sin(a) * rG + 4} textAnchor="middle">{GLYPHS[i]}</text>
-            <text className="ring-label" x={cx + Math.cos(a) * rL} y={cy + Math.sin(a) * rL + 3} textAnchor="middle">{h.toUpperCase()}</text>
-          </g>
-        )
-      })}
-    </svg>
-  )
-}
-
-const READINGS = [
-  { glyph: "♃", name: "Jupiter in Career", meta: "Expansion · 10th house", val: "STRONG" },
-  { glyph: "☿", name: "Mercury retrograde", meta: "Caution · communication", val: "WATCH" },
-  { glyph: "♂", name: "Mars in Skills", meta: "Drive · technical depth", val: "STRONG" },
-  { glyph: "♄", name: "Saturn discipline", meta: "Long-game · 6 yr arc", val: "STEADY" },
-]
-
-const ASTRO_CELLS = [
-  { glyph: "☉", name: "SUN SIGN", val: "Libra", meta: "15° 24′" },
-  { glyph: "☽", name: "MOON", val: "Pisces", meta: "8° 11′" },
-  { glyph: "↑", name: "ASCENDANT", val: "Capricorn", meta: "2° 47′" },
-  { glyph: "⚝", name: "NAKSHATRA", val: "Uttara", meta: "pada 3" },
-  { glyph: "⚭", name: "DASHA", val: "Jupiter", meta: "5y 7m left" },
-  { glyph: "◐", name: "PAKSHA", val: "Shukla", meta: "waxing" },
-  { glyph: "⚹", name: "YOGA", val: "Siddha", meta: "auspicious" },
-  { glyph: "◇", name: "CHANDRA RASHI", val: "Meena", meta: "water · mutable" },
-]
+import { LiveIndexPanel } from "./live-index-panel"
+import { ChartLensPanel } from "./chart-lens"
+import { TwoLensSection } from "./two-lens"
 
 const METHOD_CHIPS = ["Vedic", "KP astrology", "Intuitive energy reading"]
 
+/* Refund wording tracks Terms §07 verbatim — full refund before delivery,
+   non-refundable after. It previously promised a partial post-delivery refund,
+   which the Terms page has never offered. */
 const FAQS: [string, string][] = [
-  ["Do I need to share my birth time?", "For the most precise chart we use date, time and place of birth. If you don't know your exact time, the astrologer can rectify it in the first session."],
-  ["Whose astrology is this?", "One in-house, research-oriented astrologer reads every chart — Vedic and KP, sharpened by years of intuitive practice. The same person, start to finish."],
-  ["What if the reading conflicts with my plan?", "It often will. That's the point — it's a second signal. Combine it with the data Myro gives you and decide."],
-  ["Is my data private?", "Yes. We ask for date, time and place of birth — that's the whole list. Your details stay between you and the astrologer, who reads every chart anonymously."],
-  ["Can I cancel?", "7-day refund. Before the report is delivered, full refund. After delivery, partial based on sessions used."],
+  [
+    "Do I need my exact birth time?",
+    "A precise chart wants date, time and place. If you only know it within an hour or two, say so in the form — the astrologer rectifies it and tells you what he changed.",
+  ],
+  [
+    "What if the reading contradicts my plan?",
+    "It often will, and we print both sides rather than picking for you. The market half of the report is checkable today; use it as the tiebreaker.",
+  ],
+  [
+    "Whose astrology is this?",
+    "One in-house, research-oriented astrologer reads every chart — Vedic and KP, sharpened by years of intuitive practice. The same person, start to finish.",
+  ],
+  [
+    "Who sees my birth details?",
+    "The astrologer, plus the people at Myro who run delivery. Your name is not attached to the chart. Delete it any time from Settings → Data.",
+  ],
+  [
+    "Is the hiring data really live?",
+    "The counts come from the same index that powers Jobs. Your report carries the date it was run, and the market half can be re-run whenever you want it refreshed.",
+  ],
+  [
+    "Can I get a refund?",
+    "Full refund any time before delivery, no questions. Once the consultation has been delivered the work is done and the fee is non-refundable — one rule, same as the Terms page.",
+  ],
 ]
 
 export default function MyrologyPage() {
@@ -101,57 +60,52 @@ export default function MyrologyPage() {
 
       <MyrologyProvider>
       <main className="m-main">
-        <section className="my-hero">
-          <div className="my-hero-eyebrow">
-            <span className="dot pulse" />
-            MYRO · MYROLOGY · LAUNCH TIER
+        <section className="my-hero my-hero--split">
+          <div>
+            <div className="my-hero-eyebrow">
+              <span className="dot pulse" />
+              MYRO · MYROLOGY · LAUNCH TIER
+            </div>
+            <h1 className="my-hero-h">
+              The stars show the way.{" "}
+              <span className="my-hero-glow">Align with it to get hired.</span>
+            </h1>
+            <p className="my-hero-sub">
+              Myro reads your birth chart to understand the energies aligned to your work, then maps
+              it against every opening on the career pages — so a direction arrives with the number
+              of jobs behind it.
+              <br />
+              <span className="my-hero-privacy">Three facts — date, time, place.</span>
+            </p>
           </div>
-          <h1 className="my-hero-h">
-            <span className="en">Career, aligned to your stars.</span>
-          </h1>
-          <p className="my-hero-sub">
-            A full birth-chart report — houses, career timings, best-fit roles, even your odds abroad —
-            plus 3 lifetime sessions with one research-oriented astrologer. One-time <span style={{ color: "var(--my-amethyst)", fontWeight: 600 }}>₹299</span>.
-            <br />
-            <span className="my-hero-privacy">Three facts — date, time, place.</span>
-          </p>
+
+          <LiveIndexPanel />
         </section>
 
-        <section className="block" style={{ marginTop: 24 }}>
-          <div className="cosmic">
-            <div><CosmicRadar /></div>
-            <div className="cosmic-body">
-              <div className="cosmic-eyebrow">YOUR STARS · CAREER SIGNAL</div>
-              <div className="cosmic-title">Twelve houses. One trajectory.</div>
-              <div className="cosmic-desc">
-                The same domain radar you&apos;ve used for skills — recomposed as your natal chart.
-                Each axis is a life-domain. Each glyph is a planet. Where the polygon swells,
-                your career compounds. Where it dips, we counsel you to wait.
+        <TwoLensSection />
+
+        <section className="block">
+          <div className="block-eyebrow">TWO LENSES · NEVER AVERAGED</div>
+          <div className="lens-row">
+            <ChartLensPanel />
+            <div className="lens-card lens-card--live">
+              <div className="lens-tag lens-tag--live">
+                <span className="dot pulse" />
+                MYRO LIVE DATA
               </div>
-              <div className="cosmic-readings">
-                {READINGS.map((r) => (
-                  <div key={r.name} className="reading">
-                    <div className="reading-glyph">{r.glyph}</div>
-                    <div>
-                      <div className="reading-name">{r.name}</div>
-                      <div className="reading-meta">{r.meta}</div>
-                    </div>
-                    <div className="reading-val">{r.val}</div>
-                  </div>
-                ))}
+              <div className="lens-prose">
+                <p>
+                  The market half of your report is not written by anyone. It is the same index that
+                  powers Jobs, queried for the families and industries your chart points at, and
+                  stamped with the date it ran.
+                </p>
+                <p>
+                  That is why the two halves stay apart. A chart cannot be checked. A count can — and
+                  when they disagree we print both, rather than blending them into one number that
+                  hides which half you are actually trusting.
+                </p>
               </div>
             </div>
-          </div>
-
-          <div className="astro-grid">
-            {ASTRO_CELLS.map((c) => (
-              <div key={c.name} className="astro-cell">
-                <div className="astro-glyph">{c.glyph}</div>
-                <div className="astro-name">{c.name}</div>
-                <div className="astro-val">{c.val}</div>
-                <div className="astro-meta">{c.meta}</div>
-              </div>
-            ))}
           </div>
         </section>
 
