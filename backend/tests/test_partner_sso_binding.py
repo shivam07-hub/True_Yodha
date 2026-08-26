@@ -235,7 +235,16 @@ def _future() -> str:
 
 
 def _past() -> str:
+    """Just lapsed — inside the recovery window."""
     return (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat()
+
+
+def _long_past() -> str:
+    """Past the recovery window. Dead, not recoverable."""
+    return (
+        datetime.now(timezone.utc)
+        - timedelta(days=partner_sso.CONNECT_RECOVERY_WINDOW_DAYS + 1)
+    ).isoformat()
 
 
 def _pending_seat(**over) -> dict:
@@ -267,13 +276,14 @@ def test_connect_context_masks_the_email():
 @pytest.mark.parametrize(
     "seat",
     [
-        _pending_seat(connect_token_expires_at=_past()),
+        _pending_seat(connect_token_expires_at=_long_past()),
         _pending_seat(link_state="linked"),
         _pending_seat(partners={"slug": "acme", "name": "Acme", "status": "suspended"}),
         None,
     ],
 )
-def test_connect_context_refuses_anything_not_live(seat):
+def test_connect_context_refuses_a_seat_it_cannot_stand_behind(seat):
+    """Unknown, spent, suspended partner, or past the recovery window."""
     assert partner_sso.resolve_connect_token(_FakeRepo(link=seat), "tok") is None
 
 
@@ -370,10 +380,12 @@ def test_the_superseded_token_can_still_approve():
 
 def test_a_demoted_token_keeps_its_own_expiry_not_the_new_one():
     """Re-calling SSO must not extend a token's life past its original TTL."""
-    seat = _demoted_seat(prev_connect_token_expires_at=_past())
+    seat = _demoted_seat(prev_connect_token_expires_at=_long_past())
     assert partner_sso.resolve_connect_token(_FakeRepo(link=seat), "tok") is None
     # ...while the token that replaced it is unaffected.
-    assert partner_sso.resolve_connect_token(_FakeRepo(link=seat), "new") is not None
+    live = partner_sso.resolve_connect_token(_FakeRepo(link=seat), "new")
+    assert live is not None
+    assert live.expired is False
 
 
 def test_an_email_change_does_not_carry_the_token_across_the_gate(monkeypatch):
@@ -494,3 +506,84 @@ def test_the_consent_branch_never_writes_the_seat_unconditionally():
 
     assert not hasattr(PartnersRepository, "upsert_link")
     assert hasattr(PartnersRepository, "claim_connect_seat")
+
+
+# --- A lapsed token is a recovery path, not a dead end ----------------------
+#
+# 24 partner users reached the consent screen holding a token a concurrent SSO
+# call had already replaced. They were told "open Myro again from your
+# partner's site" and never came back. The seat was real the whole time.
+
+
+def test_a_lapsed_token_still_resolves_and_says_so():
+    context = partner_sso.resolve_connect_token(
+        _FakeRepo(link=_pending_seat(connect_token_expires_at=_past())), "tok"
+    )
+    assert context is not None
+    assert context.expired is True
+    assert context.email_masked.endswith("@example.com")
+
+
+def test_a_lapsed_token_may_ask_for_a_fresh_link(monkeypatch):
+    """The whole point: recovery must not require the partner."""
+    sent: list[dict] = []
+    monkeypatch.setattr(partner_sso.settings, "app_base_url", "https://app.myro.test")
+    monkeypatch.setattr(partner_sso.auth_links, "mint_login_link", lambda admin, **kw: "https://app/magic")
+    monkeypatch.setattr(partner_sso.email_service, "send_email", lambda **kw: sent.append(kw) or True)
+
+    assert partner_sso.send_connect_email(
+        _FakeRepo(link=_pending_seat(connect_token_expires_at=_past())),
+        SimpleNamespace(), token="tok",
+    )
+    assert sent and sent[0]["to"] == "owner@example.com"
+
+
+def test_the_fresh_link_goes_to_the_seat_never_to_the_caller(monkeypatch):
+    """A stolen token can only cause mail to its rightful owner."""
+    sent: list[dict] = []
+    monkeypatch.setattr(partner_sso.settings, "app_base_url", "https://app.myro.test")
+    monkeypatch.setattr(partner_sso.auth_links, "mint_login_link", lambda admin, **kw: "https://app/magic")
+    monkeypatch.setattr(partner_sso.email_service, "send_email", lambda **kw: sent.append(kw) or True)
+
+    partner_sso.send_connect_email(
+        _FakeRepo(link=_pending_seat(email="owner@example.com", connect_token_expires_at=_past())),
+        SimpleNamespace(), token="tok",
+    )
+
+    assert [m["to"] for m in sent] == ["owner@example.com"]
+
+
+def test_a_token_past_the_recovery_window_gets_nothing(monkeypatch):
+    """Bounded, so an ancient leaked token is not a permanent mail trigger."""
+    sent: list[dict] = []
+    monkeypatch.setattr(partner_sso.email_service, "send_email", lambda **kw: sent.append(kw) or True)
+
+    assert not partner_sso.send_connect_email(
+        _FakeRepo(link=_pending_seat(connect_token_expires_at=_long_past())),
+        SimpleNamespace(), token="tok",
+    )
+    assert sent == []
+
+
+def test_a_lapsed_token_still_cannot_approve():
+    """Recovery widens what the screen may OFFER, never what the token grants."""
+    repo = _FakeRepo(link=_pending_seat(connect_token_expires_at=_past()))
+
+    assert not partner_sso.approve_connect(
+        repo, token="tok", user_id="u1", user_email="owner@example.com",
+    )
+    assert repo.marked == []
+
+
+def test_a_suspended_partner_cannot_mail_through_the_recovery_path(monkeypatch):
+    sent: list[dict] = []
+    monkeypatch.setattr(partner_sso.email_service, "send_email", lambda **kw: sent.append(kw) or True)
+
+    assert not partner_sso.send_connect_email(
+        _FakeRepo(link=_pending_seat(
+            connect_token_expires_at=_past(),
+            partners={"slug": "acme", "name": "Acme", "status": "suspended"},
+        )),
+        SimpleNamespace(), token="tok",
+    )
+    assert sent == []

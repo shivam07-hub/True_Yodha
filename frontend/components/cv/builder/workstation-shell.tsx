@@ -22,6 +22,7 @@ import type { IdentityLines } from "./cv-identity-card"
 import type { RewriteFetcher } from "./use-line-rewrite"
 import { CvDocument } from "./cv-document"
 import { CvLineFix } from "./cv-line-fix"
+import { CvLineRewrite } from "./cv-line-rewrite"
 import { CvPaneToolbar } from "./cv-pane-toolbar"
 import { CvDoNowBar, CvSeverityChips } from "./cv-mobile-triage"
 import { WorkstationRail } from "./workstation-rail"
@@ -55,7 +56,7 @@ export interface WorkstationShellProps {
   railLabel: string
   /** Where the rewrite request goes. Differs authed / anon. Takes the FIX, not
    *  a flag — the server needs to know what change was promised. */
-  makeFetcher: (bullet: string, fix: V2Fix) => RewriteFetcher
+  makeFetcher: (bullet: string, fix: V2Fix | null) => RewriteFetcher
   applying?: boolean
   onApplyRewrite: (args: { fix: V2Fix | null; oldText: string; newText: string }) => void
   /** "Not for this line". Hides the card; never returns its points. */
@@ -96,6 +97,11 @@ export function WorkstationShell(props: WorkstationShellProps) {
   // silently opened whichever fix happened to be first, with no way to reach
   // the other and nothing saying it existed.
   const [openFixId, setOpenFixId] = useState<string | null>(null)
+  // A line named directly with no defect attached. The score map's "rewrite the
+  // line that proves this skill" picks a line for the evidence it CARRIES, not
+  // for a finding — and a line that proves a skill well is often a clean line.
+  // Without this the deep link resolved to no fix and silently opened nothing.
+  const [openBareIid, setOpenBareIid] = useState<string | null>(null)
   const [activeIssueId, setActiveIssueId] = useState<string | null>(null)
   // Which rail row is expanded to its brief. Separate from activeIssueId on
   // purpose: reading why a line is flagged is free and must not imply that a
@@ -107,7 +113,7 @@ export function WorkstationShell(props: WorkstationShellProps) {
 
   const { verdicts, fixes, issues, counts, atsPassed } = diagnosis
   const openFix = openFixId ? fixes.find(f => f.id === openFixId) ?? null : null
-  const openIid = openFix?.iid ?? null
+  const openIid = openFix?.iid ?? openBareIid
   /** Every fix on the open line, worst first. The card names its position so a
    *  "2 fixes" verdict and a one-fix card stop contradicting each other. */
   const siblings = openFix ? fixes.filter(f => f.iid === openFix.iid) : []
@@ -117,6 +123,11 @@ export function WorkstationShell(props: WorkstationShellProps) {
 
   function jump(iid: string) {
     setFlash(prev => ({ iid, n: (prev?.n ?? 0) + 1 }))
+  }
+  function closeCard() {
+    setOpenFixId(null)
+    setOpenBareIid(null)
+    setActiveIssueId(null)
   }
 
   useEffect(() => {
@@ -128,7 +139,9 @@ export function WorkstationShell(props: WorkstationShellProps) {
   useEffect(() => {
     if (!requestOpenIid) return
     setMode("edit")
-    setOpenFixId(fixes.find(f => f.iid === requestOpenIid)?.id ?? null)
+    const named = fixes.find(f => f.iid === requestOpenIid)
+    setOpenFixId(named?.id ?? null)
+    setOpenBareIid(named ? null : requestOpenIid)
     setFlash(prev => ({ iid: requestOpenIid, n: (prev?.n ?? 0) + 1 }))
     // Resolved once, against the fixes present when the deep link arrives.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -213,10 +226,28 @@ export function WorkstationShell(props: WorkstationShellProps) {
                 userSkills={userSkills}
                 renderRewrite={(iid, text) => {
                   const issue = openFix ? issues.find(i => i.id === openFix.id) : undefined
-                  if (!openFix || !issue) return null
+                  if (!openFix || !issue) {
+                    // A line the user named with no defect to explain. There is
+                    // no brief because there is no finding, and the ask was
+                    // explicit, so the request fires on mount.
+                    if (!openBareIid) return null
+                    return (
+                      <CvLineRewrite
+                        key={iid}
+                        fetcher={makeFetcher(text, null)}
+                        applying={applying}
+                        onApply={newText => {
+                          onApplyRewrite({ fix: null, oldText: text, newText })
+                          setFixedCount(n => n + 1)
+                          closeCard()
+                        }}
+                        onDiscard={closeCard}
+                      />
+                    )
+                  }
                   return (
                     <CvLineFix
-                      key={iid}
+                      key={openFix.id}
                       fix={openFix}
                       brief={issue.brief}
                       position={position}
@@ -227,19 +258,14 @@ export function WorkstationShell(props: WorkstationShellProps) {
                       onApply={newText => {
                         onApplyRewrite({ fix: openFix, oldText: text, newText })
                         setFixedCount(n => n + 1)
-                        setOpenFixId(null)
-                        setActiveIssueId(null)
+                        closeCard()
                       }}
                       onEdit={() => {
                         setOpenFixId(null)
                         setEditRequest(p => ({ iid, n: (p?.n ?? 0) + 1 }))
                       }}
-                      onDismiss={onDismissFix ? () => {
-                        onDismissFix(openFix)
-                        setOpenFixId(null)
-                        setActiveIssueId(null)
-                      } : undefined}
-                      onDiscard={() => { setOpenFixId(null); setActiveIssueId(null) }}
+                      onDismiss={onDismissFix ? () => { onDismissFix(openFix); closeCard() } : undefined}
+                      onDiscard={closeCard}
                     />
                   )
                 }}

@@ -5,7 +5,7 @@
   "foot": "himyro.com · Issue 019",
   "og": {
     "series": "HIRING HEATMAP",
-    "h1": "Where your industry hires. <span style=\"color:var(--mint)\">Find your row.</span>",
+    "h1": "If you build software, Bengaluru. If you do finance, <span style=\"color:var(--mint)\">Mumbai</span>.",
     "bars": [
       [
         "Technology → Bengaluru",
@@ -18,7 +18,7 @@
         "37.4%"
       ],
       [
-        "Banking → outside the big 6",
+        "Branch banking → outside big 6",
         42.4,
         "42.4%"
       ],
@@ -35,8 +35,7 @@
   "slides": [
     {
       "kind": "prose",
-      "lead": "58.8 / 42.4",
-      "text": "I split 14,851 openings by the industry of the company that posted them, then by city. I expected the metros to rank about the same inside every industry. Technology puts <b>58.8%</b> of its openings in Bengaluru. Banking puts <b>42.4%</b> of its openings outside the six big metros altogether.",
+      "text": "If you build software, <b>Bengaluru</b>.<br><br>If you do front-office finance, <b>Mumbai</b>.<br><br>If you run a bank branch, <b>stay where you are</b>.",
       "foot": "217 companies · 14,851 openings · 8 Aug 2026"
     },
     {
@@ -288,24 +287,25 @@
     },
     {
       "kind": "prose",
-      "kicker": "Technology, the most concentrated row",
-      "text": "58.8% Bengaluru, 20.0% Hyderabad. Mumbai holds 2.9%, which is 49 jobs. That isn't an absence of companies: <b>19 tech employers posted Mumbai roles</b>, against 49 in Bengaluru. They post 2.6 openings each there and 20.4 each in Bengaluru. The offices are real. The hiring isn't."
+      "kicker": "If you're an engineer",
+      "text": "Bengaluru and Hyderabad hold <b>78.8%</b> of technology openings. Mumbai holds 2.9%, and not for lack of companies: 19 tech employers posted Mumbai roles against 49 in Bengaluru. They post 2.6 openings each there and 20.4 each in Bengaluru. The offices are there. The hiring isn't."
     },
     {
       "kind": "prose",
-      "kicker": "Banking, the most spread out",
-      "text": "Mumbai is banking's largest metro at just 16.5%, Bengaluru at 15.1%. The number that matters is the last column: <b>42.4% sits outside the six big metros</b> — 2,107 jobs, more than technology's entire national total. I checked for a Mumbai-heavy sub-sector hiding in the average. There isn't one. Branches are in every district and the hiring follows them."
+      "kicker": "The skills those employers name",
+      "text": "Python 356 · Computer science 255 · Artificial intelligence 229 · C++ 187 · Electrical engineering 135 · Java 120 · Design verification 70 · Parallel computing 62.<br><br>C++, electrical engineering and design verification are <b>not web-stack skills</b>. Much of Bengaluru's tech hiring is chip and systems work."
     },
     {
       "kind": "prose",
-      "text": "A second reading worth having. Technology has <b>60 employers</b> in this batch, more than any other industry, and 1,701 jobs. Consulting has <b>24 employers</b> and 5,785. When you hear a sector has lots of companies hiring, that tells you nothing about how many jobs are in it."
+      "kicker": "\"Banking\" is three careers",
+      "text": "<b>Front office is Mumbai.</b> Morgan Stanley posts 80% of its India roles there, only 16% technical. Skills: mutual funds, portfolio management, wealth management, investment banking.<br><br><b>Bank tech is Bengaluru and Pune.</b> Barclays' biggest metro is Pune, 72% technical. Skills: Python, SQL, Java, regulatory compliance.<br><br><b>Branches are everywhere.</b> 42.4% sit outside the big six."
     },
     {
       "kind": "cta",
-      "h1": "Find your row. Then check your postcode.",
-      "sub": "If your city's share trails Bengaluru's by more than ten points and moving is still cheap, your address is costing you more than your CV.",
+      "h1": "Practise the skills in your row.",
+      "sub": "Every list above is a skill an employer named in a live posting this month. We don't predict the market. We read it.",
       "pill": "himyro.com →",
-      "foot": "Free skill-gap analysis · himyro.com"
+      "foot": "Free · himyro.com/signup"
     }
   ]
 }
