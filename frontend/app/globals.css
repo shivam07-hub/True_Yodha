@@ -115,6 +115,13 @@
    old opacity-only `animate-pulse`, which read as dead/empty on the dark
    page. The block colour itself comes from --tm-skeleton (theme-aware). */
 .tm-skeleton {
+  /* Skeleton shapes are written as fixed px — `width: 340` for a standfirst,
+     `width: 260` for a bullet — because that is what mirrors the real layout on
+     a desktop. On a 375px phone those numbers are wider than the page, and a
+     loading boundary is the one moment nothing is there to notice. Cap them:
+     the shape still reads at every width, and no skeleton can push a route off
+     its own right edge before the page it stands in for has even mounted. */
+  max-width: 100%;
   background-color: var(--tm-skeleton);
   background-image: linear-gradient(
     90deg,
