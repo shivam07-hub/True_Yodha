@@ -8,7 +8,29 @@ const base = {
   hasPendingAnonCv: false,
   hasPendingJobSave: false,
   pendingExtensionConnect: null,
+  hasPendingPrepIntent: false,
 }
+
+test("newsletter prep intent (Exception 3) lands on Preparation, overriding onboarding", () => {
+  assert.equal(postAuthDestination({ ...base, hasPendingPrepIntent: true }), "/preparations")
+  // A newsletter reader is usually a brand-new signup. If onboarding won here
+  // the reader would never reach the skills the issue sent them for.
+  assert.equal(
+    postAuthDestination({ ...base, firstSignup: true, hasPendingPrepIntent: true }),
+    "/preparations",
+  )
+})
+
+test("prep intent yields to the intents a user cannot resume by navigating", () => {
+  assert.equal(
+    postAuthDestination({ ...base, hasPendingPrepIntent: true, hasPendingAnonCv: true }),
+    "/cv?upload=1",
+  )
+  assert.equal(
+    postAuthDestination({ ...base, hasPendingPrepIntent: true, hasPendingJobSave: true }),
+    "/collections",
+  )
+})
 
 test("pending anonymous CV sends the user to CV Playground before default auth destinations", () => {
   assert.equal(postAuthDestination({ ...base, firstSignup: true, hasPendingAnonCv: true }), "/cv?upload=1")
@@ -71,6 +93,7 @@ test("the destination is decided by carried intent alone", () => {
     "firstSignup",
     "hasPendingAnonCv",
     "hasPendingJobSave",
+    "hasPendingPrepIntent",
     "pendingExtensionConnect",
   ])
   const src = postAuthDestination.toString()

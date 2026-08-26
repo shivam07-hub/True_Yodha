@@ -1,5 +1,7 @@
 "use client"
 
+import { useSearchParams } from "next/navigation"
+import { capturePrepIntentParam } from "@/lib/prep-intent-stash"
 import { useEffect, useState } from "react"
 import { AuthPageShell } from "@/components/auth/auth-page-shell"
 import { SignupForm } from "@/components/auth/signup-form"
@@ -9,6 +11,9 @@ import type { AnonScoreResponse } from "@/lib/api"
 import Link from "next/link"
 
 export function SignupRoute() {
+  // Same newsletter lane as /login — see lib/prep-intent-stash.ts.
+  const intent = useSearchParams().get("intent")
+  useEffect(() => { capturePrepIntentParam(intent) }, [intent])
   // A user routed here from /cv-preview after scoring a CV whose structure we
   // couldn't rebuild (degraded parse) — show their REAL score beside the form
   // instead of the sample. Read after mount (sessionStorage is client-only).

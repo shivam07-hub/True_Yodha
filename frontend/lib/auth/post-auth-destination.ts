@@ -9,6 +9,11 @@ interface PostAuthDestinationInput {
    * stash; null when absent.
    */
   pendingExtensionConnect: string | null
+  /**
+   * The visitor arrived from a skills-led newsletter issue via `?intent=prep`
+   * (Exception 3). A marker, never a URL — the destination below is hardcoded.
+   */
+  hasPendingPrepIntent: boolean
 }
 
 /**
@@ -28,6 +33,7 @@ export function postAuthDestination({
   hasPendingAnonCv,
   hasPendingJobSave,
   pendingExtensionConnect,
+  hasPendingPrepIntent,
 }: PostAuthDestinationInput): string {
   // Exception 0: the extension is mid-handshake and blocked on a session. It
   // outranks the others because it is the only intent the user cannot resume by
@@ -42,6 +48,12 @@ export function postAuthDestination({
   // saved worklist so it's the first thing they see. Carried intent overrides
   // onboarding, exactly as the anon-CV claim does.
   if (hasPendingJobSave) return "/collections"
+  // Exception 3: the visitor came from a newsletter issue that ended in the
+  // skills a city's employers ask for. Land them on Preparation so the issue's
+  // last line and the product's first screen are the same thing. Like the two
+  // above it this outranks onboarding: the carried intent is the reason they
+  // signed up, and onboarding is still reachable afterwards.
+  if (hasPendingPrepIntent) return "/preparations"
   // Brand-new signup runs the first-run onboarding stepper.
   if (firstSignup) return "/onboarding"
   // Everyone else: the daily surface, always.

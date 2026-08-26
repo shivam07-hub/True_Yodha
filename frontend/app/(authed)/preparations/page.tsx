@@ -1,6 +1,8 @@
 "use client"
 
+import { useEffect } from "react"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { clearPendingPrepIntent } from "@/lib/prep-intent-stash"
 import { PrepList } from "@/components/preparations/prep-list"
 import { PrepSkeleton } from "@/components/preparations/prep-skeleton"
 import "@/components/preparations/preparations.css"
@@ -14,6 +16,10 @@ import "@/components/preparations/preparations.css"
  */
 export default function PreparationsPage() {
   const { token, ready } = useAuth()
+  // The newsletter lane (Exception 3) routed the reader here once. Drop the
+  // marker so a later login goes to their normal surface instead of pinning
+  // them to Preparation forever.
+  useEffect(() => { clearPendingPrepIntent() }, [])
   if (!ready) return <PrepSkeleton />
   return <PrepList token={token ?? ""} />
 }

@@ -13,6 +13,7 @@ import { detectInAppBrowser } from "@/lib/is-in-app-browser"
 import { signupEvents } from "@/lib/analytics"
 import { hasPendingAnonCvClaim } from "@/lib/anon-cv-claim"
 import { readPendingExtensionConnect } from "@/lib/extension-connect-stash"
+import { hasPendingPrepIntent } from "@/lib/prep-intent-stash"
 import { hasPendingJobSaveClaim } from "@/lib/anon-job-stash"
 import { postAuthDestination } from "@/lib/auth/post-auth-destination"
 import {
@@ -105,6 +106,7 @@ export function LoginForm({ surface, showSignupLink = true, initialEmail }: Prop
         hasPendingAnonCv: hasPendingAnonCvClaim(),
         hasPendingJobSave: hasPendingJobSaveClaim(),
         pendingExtensionConnect: readPendingExtensionConnect(),
+        hasPendingPrepIntent: hasPendingPrepIntent(),
       }))
     } catch (err) {
       const code = errorCode(err)
