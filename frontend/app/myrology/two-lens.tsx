@@ -1,23 +1,23 @@
 "use client"
 
+import { formatCount } from "@/lib/format"
+
 import { useMarketLens } from "./use-market-lens"
 
-/* How a chart turns into a job search, and what happens when the two lenses
- * disagree.
+/* How a chart turns into a job search, and what the ₹299 map contains.
  *
  * The strip and the four layers are one worked specimen — the same imagined
  * native as the wheel in `chart-lens.tsx`. They are marked as a specimen and
- * carry no live figures, because a real count sitting inside an invented chain
- * would read as this visitor's result. The only live number on the section is
- * the taxonomy width, which is a fact about the index and not about anybody's
- * chart. */
+ * carry no per-person figures, because a real count inside an invented chain
+ * would read as this visitor's result. The only live numbers are facts about
+ * the index itself, which belong to nobody's chart. */
 
 const STEPS = [
-  { n: "01", head: "WORK PATTERN", body: "Depth over breadth, slow compounding", foot: "chart lens", lens: "chart" },
-  { n: "02", head: "ROLE FAMILY", body: "Analytics / data engineering", foot: "one family picked", lens: "chart" },
-  { n: "03", head: "INDUSTRY", body: "Healthcare & Life Sciences, BFSI", foot: "not just “Technology”", lens: "live" },
-  { n: "04", head: "LEVEL", body: "2–5 years, IC track", foot: "where you actually are", lens: "live" },
-  { n: "05", head: "DEMAND NOW", body: "Every matching opening", foot: "re-counted daily", lens: "live" },
+  { n: "01", head: "WORK PATTERN", body: "Depth over breadth, slow compounding", foot: "chart lens", lens: "chart", isDemand: false },
+  { n: "02", head: "ROLE FAMILY", body: "Analytics / data engineering", foot: "one family picked", lens: "chart", isDemand: false },
+  { n: "03", head: "INDUSTRY", body: "Healthcare & Life Sciences, BFSI", foot: "not just “Technology”", lens: "live", isDemand: false },
+  { n: "04", head: "LEVEL", body: "2–5 years, IC track", foot: "where you actually are", lens: "live", isDemand: false },
+  { n: "05", head: "DEMAND NOW", body: "", foot: "re-counted daily", lens: "live", isDemand: true },
 ] as const
 
 const LAYERS = [
@@ -47,7 +47,16 @@ const LAYERS = [
   },
 ] as const
 
-export function TwoLensSection() {
+/** Step 05 states the real demand figure — the one number in the chain that is
+ *  counted rather than imagined, which is the whole point of the step. */
+function DemandNow() {
+  const { roleDomains, ready } = useMarketLens()
+  const lead = roleDomains.find((d) => d.name === "Data & Analytics") ?? roleDomains[0] ?? null
+  if (!ready || !lead) return <span className="step-body">Every matching opening</span>
+  return <span className="step-body step-body--figure mono">{formatCount(lead.jobs)}</span>
+}
+
+export function ChartToSearchStrip() {
   const { totalIndustries, roleFamilies, taxonomyReady } = useMarketLens()
 
   return (
@@ -58,7 +67,7 @@ export function TwoLensSection() {
         {STEPS.map((s) => (
           <div key={s.n} className="step" data-lens={s.lens}>
             <div className="step-head">{s.n} · {s.head}</div>
-            <div className="step-body">{s.body}</div>
+            {s.isDemand ? <DemandNow /> : <div className="step-body">{s.body}</div>}
             <div className="step-foot">{s.foot}</div>
           </div>
         ))}
@@ -72,7 +81,13 @@ export function TwoLensSection() {
           The chart narrows; the index counts.
         </p>
       ) : null}
+    </section>
+  )
+}
 
+export function SpecimenLayers() {
+  return (
+    <section className="block">
       <div className="layer-head">
         <div className="block-eyebrow">WHAT ₹299 BUYS · SPECIMEN CAREER MAP</div>
         <span className="layer-note">One worked example, not a reading of your chart</span>
@@ -87,24 +102,30 @@ export function TwoLensSection() {
           </div>
         ))}
       </div>
+    </section>
+  )
+}
 
-      <div className="verdicts">
-        <div className="verdict" data-tone="agree">
-          <div className="verdict-tag">✓ WHERE BOTH LENSES AGREE</div>
-          <div className="verdict-body">
-            Deep technical work with a long payoff curve. The chart says compounding;
-            the index says the open analytics-engineering roles are mostly two to five years in.
-          </div>
-        </div>
-        <div className="verdict" data-tone="disagree">
-          <div className="verdict-tag">⚠ WHERE THEY DISAGREE</div>
-          <div className="verdict-body">
-            The chart likes an overseas move. The index sees thin visa-sponsored volume in
-            these families. Both numbers stay on the page — we never average them into one
-            score, and the decision stays yours.
-          </div>
+/** The agree/disagree band. Lives INSIDE the two-lens container — it is the
+ *  conclusion of putting the two panels side by side, not a section of its own. */
+export function Verdicts() {
+  return (
+    <div className="verdicts">
+      <div className="verdict" data-tone="agree">
+        <div className="verdict-tag">✓ WHERE BOTH LENSES AGREE</div>
+        <div className="verdict-body">
+          Deep technical work with a long payoff curve. The chart says compounding; the index says
+          the open analytics roles are mostly two to five years in.
         </div>
       </div>
-    </section>
+      <div className="verdict" data-tone="disagree">
+        <div className="verdict-tag">⚠ WHERE THEY DISAGREE</div>
+        <div className="verdict-body">
+          The chart likes an overseas move. The index sees thin visa-sponsored volume in these
+          families. Both numbers stay on the page — we never average them into one score, and the
+          decision stays yours.
+        </div>
+      </div>
+    </div>
   )
 }

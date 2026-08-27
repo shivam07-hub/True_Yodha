@@ -40,9 +40,7 @@
 .myrology-root .lens-tag--chart { color: var(--my-amethyst); }
 .myrology-root .lens-tag--live  { color: var(--my-live); }
 
-.myrology-root .lens-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
-.myrology-root .lens-prose p { font-size: 15px; line-height: 1.65; color: var(--tm-text-muted); margin: 0 0 14px; }
-.myrology-root .lens-prose p:last-child { margin-bottom: 0; }
+.myrology-root .lens-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
 /* ── Hero: headline beside the live index ────────────────────── */
 .myrology-root .my-hero--split {
@@ -194,3 +192,55 @@
   .myrology-root .live-count { font-size: 38px; }
   .myrology-root .layer-head { flex-direction: column; gap: 6px; }
 }
+
+
+/* ── Market half of the two lenses ───────────────────────────── */
+/* Replaces two paragraphs that left 550px of dead column beside the wheel.
+   Same rule as the newsletter's L2: a reserved column earns its width or
+   loses it. These are real counts, so the column fills with evidence. */
+.myrology-root .lens-shell {
+  padding: 20px; border-radius: var(--tm-radius-lg);
+  background: var(--my-card); border: 1px solid var(--my-amethyst-ring);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+}
+.myrology-root .lens-shell .lens-card { background: transparent; border: none; padding: 4px; }
+
+.myrology-root .live-lens-sub { margin: -8px 0 14px; font-size: 13px; color: var(--tm-text-muted); }
+
+.myrology-root .mkt-card {
+  padding: 15px 16px; border-radius: var(--tm-radius-card); margin-bottom: 10px;
+  background: var(--tm-hover-soft); border: 1px solid var(--tm-border-soft);
+}
+.myrology-root .mkt-card--lead { background: var(--my-live-wash); border-color: var(--my-live-ring); }
+.myrology-root .mkt-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.myrology-root .mkt-name { font-size: var(--tm-fs-ui-lg); font-weight: 600; color: var(--tm-text); }
+.myrology-root .mkt-count { font-size: var(--tm-fs-stat); font-weight: 700; color: var(--my-live); line-height: 1; }
+.myrology-root .mkt-count--muted { color: var(--tm-text-muted); }
+.myrology-root .mkt-body { margin: 8px 0 0; font-size: var(--tm-fs-ui); line-height: 1.55; color: var(--tm-text-muted); }
+
+.myrology-root .mkt-rest {
+  margin-top: 14px; padding: 15px 16px; border-radius: var(--tm-radius-card);
+  border: 1px solid var(--tm-border-soft);
+}
+.myrology-root .mkt-rest-tag {
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); font-weight: 600;
+  letter-spacing: 0.14em; color: var(--tm-text-muted); margin-bottom: 10px;
+}
+.myrology-root .mkt-rest-row {
+  display: flex; justify-content: space-between; gap: 12px;
+  font-size: 13px; color: var(--tm-text-muted); padding: 5px 0;
+}
+.myrology-root .mkt-rest-row--total {
+  margin-top: 4px; padding-top: 9px; border-top: 1px solid var(--tm-border-soft);
+  color: var(--tm-text); font-weight: 600;
+}
+.myrology-root .mkt-foot {
+  margin: 14px 0 0; font-size: 13px; line-height: 1.6; color: var(--tm-text-muted);
+}
+
+.myrology-root .step-body--figure { font-size: var(--tm-fs-stat); font-weight: 700; color: var(--tm-text); line-height: 1.1; }
+
+/* Verdicts now close the two-lens container rather than floating alone. */
+.myrology-root .lens-shell .verdicts { margin-top: 16px; }
+
+.myrology-root .side-row--rest { color: var(--tm-text-muted); }

@@ -5099,6 +5099,8 @@ export interface PublicStatsResponse {
   industry_groups: PublicIndustryGroup[]
   total_industries: number
   role_families: number
+  /** Product-facing role domains ("Data & Analytics"), descending, floored. */
+  role_domains: PublicIndustryGroup[]
   provenance: JobProvenance
   as_of: string
 }

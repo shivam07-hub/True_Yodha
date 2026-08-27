@@ -22,6 +22,8 @@ export interface MarketLens {
   jobsTracked: number
   /** Top groups by open count, descending. Empty until the query resolves. */
   industryGroups: PublicIndustryGroup[]
+  /** Product-facing role domains, descending. The market half of the two lenses. */
+  roleDomains: PublicIndustryGroup[]
   /** Groups in the normalised taxonomy — not the length of `industryGroups`. */
   totalIndustries: number
   roleFamilies: number
@@ -57,6 +59,7 @@ export function useMarketLens(): MarketLens {
   return {
     jobsTracked: displayCount(stats?.jobs_tracked, LANDING_FLOORS.jobs, 100),
     industryGroups: stats?.industry_groups ?? [],
+    roleDomains: stats?.role_domains ?? [],
     totalIndustries,
     roleFamilies,
     asOf: stats?.as_of ?? null,

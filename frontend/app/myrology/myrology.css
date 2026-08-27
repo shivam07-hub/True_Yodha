@@ -99,7 +99,7 @@ html:has(.myrology-root) body {
 
 .myrology-root .m-main {
   position: relative; z-index: 2;
-  padding: 32px 48px 48px;
+  padding: 24px 48px 40px;
   max-width: 1280px; width: 100%; margin: 0 auto;
 }
 
@@ -134,20 +134,20 @@ html:has(.myrology-root) body {
 @keyframes my-pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.7); } }
 
 /* ── Hero ────────────────────────────────────────────────────── */
-.myrology-root .my-hero { text-align: center; padding: 32px 0 24px; position: relative; }
+.myrology-root .my-hero { text-align: center; padding: 24px 0 8px; position: relative; }
 .myrology-root .my-hero-eyebrow {
   display: inline-flex; align-items: center; gap: 10px; padding: 6px 14px; border-radius: 99px;
   background: var(--my-amethyst-wash); border: 1px solid var(--my-amethyst-ring); color: var(--my-amethyst);
   font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 600; margin-bottom: 28px;
 }
-.myrology-root .my-hero-h { margin: 0 0 24px; font-size: 74px; line-height: 1.02; letter-spacing: -0.025em; font-weight: 600; }
+.myrology-root .my-hero-h { margin: 0 0 18px; font-size: 60px; line-height: 1.02; letter-spacing: -0.025em; font-weight: 600; }
 .myrology-root .my-hero-h .hi { display: block; color: var(--tm-text); font-weight: 500; opacity: 0.85; }
 .myrology-root .my-hero-h .en { display: block; color: var(--my-amethyst); font-weight: 700; text-shadow: 0 0 32px var(--my-amethyst-glow); }
 .myrology-root .my-hero-sub { margin: 0 auto; max-width: 640px; font-size: 20px; color: var(--tm-text); line-height: 1.6; }
 
 /* ── Section blocks ──────────────────────────────────────────── */
-.myrology-root .block { margin-top: 56px; }
-.myrology-root .block-eyebrow { font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--tm-text-muted); font-weight: 600; margin-bottom: 20px; }
+.myrology-root .block { margin-top: 40px; }
+.myrology-root .block-eyebrow { font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--tm-text-muted); font-weight: 600; margin-bottom: 14px; }
 
 /* ── Cosmic radar ────────────────────────────────────────────── */
 .myrology-root .cosmic-svg { width: 100%; max-width: 460px; aspect-ratio: 1; display: block; margin: 0 auto; filter: drop-shadow(0 0 24px var(--my-amethyst-glow)); position: relative; z-index: 1; }
