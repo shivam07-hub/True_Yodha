@@ -5,7 +5,7 @@
   "foot": "himyro.com · Issue 019",
   "og": {
     "series": "HIRING HEATMAP",
-    "h1": "If you build software, Bengaluru. If you do finance, <span style=\"color:var(--mint)\">Mumbai</span>.",
+    "h1": "Want to grow in tech? <span style=\"color:var(--mint)\">Bengaluru</span>. In finance? <span style=\"color:var(--mint)\">Mumbai</span>.",
     "bars": [
       [
         "Technology → Bengaluru",
@@ -35,7 +35,7 @@
   "slides": [
     {
       "kind": "prose",
-      "text": "If you build software, <b>Bengaluru</b>.<br><br>If you do front-office finance, <b>Mumbai</b>.<br><br>If you run a bank branch, <b>stay where you are</b>.",
+      "text": "If you want to grow in <b>technology</b>, move to Bengaluru.<br><br>If you want to grow in <b>finance</b>, move to Mumbai.<br><br>If you want to grow in <b>retail banking</b>, move to any tier-2 city you can find.",
       "foot": "217 companies · 14,851 openings · 8 Aug 2026"
     },
     {
@@ -288,12 +288,12 @@
     {
       "kind": "prose",
       "kicker": "If you're an engineer",
-      "text": "Bengaluru and Hyderabad hold <b>78.8%</b> of technology openings. Mumbai holds 2.9%, and not for lack of companies: 19 tech employers posted Mumbai roles against 49 in Bengaluru. They post 2.6 openings each there and 20.4 each in Bengaluru. The offices are there. The hiring isn't."
+      "text": "Bengaluru and Hyderabad hold <b>78.8%</b> of technology openings. Mumbai holds 2.9%, and the companies are present there: 19 tech employers posted Mumbai roles against 49 in Bengaluru. The difference is depth. 2.6 openings each in Mumbai, <b>20.4 each in Bengaluru</b>. A Mumbai office is a satellite. A Bengaluru office is the engine."
     },
     {
       "kind": "prose",
       "kicker": "The skills those employers name",
-      "text": "Python 356 · Computer science 255 · Artificial intelligence 229 · C++ 187 · Electrical engineering 135 · Java 120 · Design verification 70 · Parallel computing 62.<br><br>C++, electrical engineering and design verification are <b>not web-stack skills</b>. Much of Bengaluru's tech hiring is chip and systems work."
+      "text": "Python 356 · Computer science 255 · Artificial intelligence 229 · C++ 187 · Electrical engineering 135 · Java 120 · Design verification 70 · Parallel computing 62.<br><br>C++, electrical engineering and design verification belong to <b>chip and systems work</b>. Learn those alongside Python and you reach the biggest employers in the city."
     },
     {
       "kind": "prose",
@@ -303,7 +303,7 @@
     {
       "kind": "cta",
       "h1": "Practise the skills in your row.",
-      "sub": "Every list above is a skill an employer named in a live posting this month. We don't predict the market. We read it.",
+      "sub": "Every list here is a skill an employer named in a live posting this month. We read what companies ask for, and turn it into something you can practise.",
       "pill": "himyro.com →",
       "foot": "Free · himyro.com/signup"
     }

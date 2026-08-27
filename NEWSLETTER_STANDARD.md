@@ -34,8 +34,13 @@ Carousel: `scripts/build-newsletter-carousel.py` + a spec in
 - **Lead with data, never with the premise.** If an insight came from a
   conversation, it earns one line as the reason for the cut, after the numbers.
 - **Show the check that failed.** If a piece of received wisdom was tested and
-  did not hold, say so in the issue. That is the difference between analysis and
-  content.
+  came back different, say so in the issue. That is the difference between
+  analysis and content.
+- **Write the positive half.** "It is X, not Y" and "the offices are there, the
+  hiring is not" are the house tell. State what is true and let the contrast
+  land on its own: "a Mumbai office is a satellite, a Bengaluru office is the
+  engine." Grep every draft for `is not`, `are not`, `rather than`, `nothing
+  about` before shipping.
 - **Verify every claim before writing it.** Issue 019's best line ("19 tech
   employers post in Mumbai at 2.6 roles each against Bengaluru's 20.4") only
   exists because an unverified sentence was checked and turned out false.
