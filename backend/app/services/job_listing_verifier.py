@@ -6,21 +6,35 @@ from urllib.parse import urlparse
 
 import httpx
 
+from app.services import ats_probe
+
 
 _CLOSED_MARKERS = (
     "job is no longer available",
     "position is no longer available",
-    "position has been filled",
-    "job has been filled",
+    # Not "position has been filled" / "job has been filled": Godrej's portal
+    # says "the job you are trying to apply for has been filled", and neither
+    # narrower phrasing is a substring of it. Five Godrej listings read as
+    # `active` through that gap, two of them stamped within a week of being
+    # filled. Match the clause every phrasing shares.
+    "has been filled",
     "no longer accepting applications",
     "job not found",
     "vacancy is closed",
 )
+#: A tenant router serving its own not-found shell at a job path. Workday
+#: answers 200 for this, not 404, so no status branch claims it and no closed
+#: marker names it — the shell then echoes the URL (slug included, and the slug
+#: carries the role title), which is enough for `_title_is_present`. Kept apart
+#: from `_CLOSED_MARKERS` because it is evidence about ROUTING: it closes a
+#: listing only on a host we recognise, where a job URL has one meaning.
+_ATS_NOT_FOUND_MARKERS = ("page you are looking for",)
 _APPLY_MARKERS = ("apply now", "apply for this job", "submit application")
 _ATS_HOSTS = {
     "workday": ("myworkdayjobs.com", "workday.com"),
     "greenhouse": ("greenhouse.io",),
     "lever": ("lever.co",),
+    "ashby": ("ashbyhq.com",),
     "smartrecruiters": ("smartrecruiters.com",),
     "oracle": ("oraclecloud.com",),
     "successfactors": ("successfactors.com",),
@@ -119,6 +133,14 @@ def classify_listing_response(
     if any(marker in normalized_body for marker in _CLOSED_MARKERS):
         return _result(target, "closed", "strong", provider, evidence)
 
+    if provider != "generic" and any(
+        marker in normalized_body for marker in _ATS_NOT_FOUND_MARKERS
+    ):
+        # Claimed BEFORE the title branches below, which this shell would
+        # otherwise satisfy off its own URL.
+        evidence["reason"] = "ats_not_found_shell"
+        return _result(target, "closed", "strong", provider, evidence)
+
     has_jobposting = bool(
         re.search(r'"@type"\s*:\s*"jobposting"', body, flags=re.IGNORECASE)
     )
@@ -144,8 +166,14 @@ def classify_listing_response(
         # why `page_loaded_without_role_evidence` was the last observation on
         # 5,999 of the 11,204 listings the corpus called active — 54% of them.
         #
-        # Safe because the branches above already claim the dead cases: a pulled
-        # listing on these hosts answers 404/410, or carries a closed marker.
+        # Safe ONLY because the branches above claim the dead cases first —
+        # and the original list of them was wrong. A pulled Workday requisition
+        # answers 200, not 404/410, and carries no closed marker; its shell
+        # echoes the apply URL, whose slug carries the role title, so this
+        # branch fired on it. `_ATS_NOT_FOUND_MARKERS` now claims that shell
+        # above, and `verify_listing` prefers the ATS JSON probe over this
+        # whole classifier where one exists (`ats_probe`). What is left here is
+        # the fallback for hosts with neither.
         # Medium strength — the title is one signal, not two.
         evidence.update({"title_match": True, "ats_job_url": True})
         return _result(target, "seen_live", "medium", provider, evidence)
@@ -157,6 +185,26 @@ async def verify_listing(
     target: VerificationTarget,
     client: httpx.AsyncClient,
 ) -> VerificationResult:
+    provider = provider_for_url(target.apply_url)
+    if ats_url_is_addressable(target.apply_url, provider):
+        # The ATS's own API is authoritative where it answers, and the HTML is
+        # not: a pulled Workday requisition serves a 200 shell that echoes the
+        # role title back out of its own URL. Ask the API first; fall through to
+        # reading the page only when it declines to conclude.
+        answered = await ats_probe.ask_ats(target.apply_url, provider, client)
+        if answered is not None:
+            verdict, response = answered
+            return _result(
+                target,
+                "seen_live" if verdict == "live" else "closed",
+                "strong",
+                provider,
+                {
+                    "status_code": response.status_code,
+                    "final_url": str(response.url),
+                    "source": "ats_json_probe",
+                },
+            )
     try:
         response = await client.get(
             target.apply_url,

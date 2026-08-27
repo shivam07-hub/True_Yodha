@@ -221,3 +221,177 @@ def test_a_dead_ats_listing_is_still_closed() -> None:
     )
     assert pulled.result == "closed"
     assert pulled.strength == "strong"
+
+
+def test_the_filled_phrasing_every_portal_shares_closes_the_listing() -> None:
+    """Godrej says it in a clause neither narrow marker matched.
+
+    Five Godrej listings on the 2026-08-27 shortlist read as `active` through
+    this gap — two of them stamped verified-live within a week of being filled.
+    """
+    result = classify_listing_response(
+        VerificationTarget(
+            "job-1",
+            "https://careers.godrejindustries.com/in/en/job/GGXGGZINP100671ENIN",
+            "Manager Strategic Initiatives",
+        ),
+        status_code=200,
+        final_url="https://careers.godrejindustries.com/in/en/job/GGXGGZINP100671ENIN",
+        body=(
+            "<html><body>Manager Strategic Initiatives. We're sorry… the job you "
+            "are trying to apply for has been filled.</body></html>"
+        ),
+    )
+
+    assert result.result == "closed"
+    assert result.strength == "strong"
+
+
+def test_a_pulled_workday_requisition_is_closed_despite_matching_its_own_title() -> None:
+    """The shell answers 200, carries no closed marker, and echoes the apply URL.
+
+    The slug in that URL contains the role title, so `_title_is_present` matched
+    and the ATS-title branch called it live. Adobe R169083 was stamped
+    `last_verified_live_at` on the morning of 2026-08-27 by exactly this path,
+    while the page said the posting did not exist.
+    """
+    url = (
+        "https://adobe.wd5.myworkdayjobs.com/external_experienced"
+        "/job/Bangalore/Marketing-Specialist_R169083/apply"
+    )
+    result = classify_listing_response(
+        VerificationTarget("job-1", url, "Marketing Specialist"),
+        status_code=200,
+        final_url=url,
+        body=(
+            '<html><head><link rel="canonical" href="' + url + '"></head>'
+            "<body>Skip to main content. The page you are looking for doesn't exist."
+            "</body></html>"
+        ),
+    )
+
+    assert result.result == "closed"
+    assert result.strength == "strong"
+    assert result.evidence["reason"] == "ats_not_found_shell"
+
+
+def test_a_generic_hosts_not_found_copy_is_not_a_listing_verdict() -> None:
+    """Routing evidence only counts where a job URL has one meaning.
+
+    On a company's own site that sentence can come from a stray widget or a
+    site-wide handler; on a named ATS tenant it means the requisition is gone.
+    """
+    result = classify_listing_response(
+        VerificationTarget("job-1", "https://careers.acme.com/roles/7", "Data Analyst"),
+        status_code=200,
+        final_url="https://careers.acme.com/roles/7",
+        body="<html><body>Data Analyst — apply now. The page you are looking for moved.</body></html>",
+    )
+
+    assert result.result == "seen_live"
+
+
+@pytest.mark.asyncio
+async def test_verify_listing_trusts_the_json_probe_over_the_html() -> None:
+    """The probe is asked first, and its verdict ends the check.
+
+    The HTML handler here serves the exact shell that fooled the classifier —
+    if the probe were skipped, or its answer discarded, this returns seen_live.
+    """
+    import httpx
+
+    from app.services.job_listing_verifier import verify_listing
+
+    url = (
+        "https://adobe.wd5.myworkdayjobs.com/external_experienced"
+        "/job/Bangalore/Marketing-Specialist_R169083/apply"
+    )
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        if "/wday/cxs/" in str(request.url):
+            # What the tenant actually returns for a pulled requisition: a
+            # perfectly ordinary 200 with nothing in it.
+            return httpx.Response(200, json={"total": 0, "jobPostings": []})
+        return httpx.Response(
+            200, text="<html>Marketing Specialist " + url + "</html>"
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await verify_listing(
+            VerificationTarget("job-1", url, "Marketing Specialist"), client
+        )
+
+    assert result.result == "closed"
+    assert result.strength == "strong"
+    assert result.evidence["source"] == "ats_json_probe"
+    # The HTML was never fetched: the probe concluded.
+    assert seen == [
+        "https://adobe.wd5.myworkdayjobs.com/wday/cxs/adobe/external_experienced/jobs"
+    ]
+
+
+@pytest.mark.asyncio
+async def test_an_inconclusive_probe_falls_back_to_reading_the_html() -> None:
+    """A blocked probe must cost nothing — the check proceeds exactly as before."""
+    import httpx
+
+    from app.services.job_listing_verifier import verify_listing
+
+    url = "https://jobs.lever.co/acme/abc-123"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "api.lever.co" in str(request.url):
+            return httpx.Response(403)
+        return httpx.Response(200, text="<html>Data Engineer — apply now</html>")
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await verify_listing(
+            VerificationTarget("job-1", url, "Data Engineer"), client
+        )
+
+    assert result.result == "seen_live"
+    assert result.evidence.get("source") != "ats_json_probe"
+
+
+@pytest.mark.asyncio
+async def test_a_board_probe_larger_than_the_html_cap_still_parses() -> None:
+    """Ashby answers for the whole board, so the payload dwarfs a listing page.
+
+    Sarvam's board is 701KB. Truncated to the 500KB the HTML read uses, it
+    parsed as nothing, the probe concluded nothing, and every Ashby listing fell
+    back to the classifier this whole change exists to stop trusting.
+    """
+    import json as _json
+
+    import httpx
+
+    from app.services.job_listing_verifier import verify_listing
+
+    pulled = "9ff0a6ad-9a30-403f-84d0-fb7a0914074b"
+    board = {
+        "jobs": [
+            {"id": f"filler-{n}", "title": "Padding", "descriptionPlain": "x" * 700}
+            for n in range(900)
+        ]
+    }
+    assert len(_json.dumps(board)) > 500_000
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "api.ashbyhq.com" in str(request.url):
+            return httpx.Response(200, json=board)
+        return httpx.Response(200, text="<html>Product Marketing Manager — apply now</html>")
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await verify_listing(
+            VerificationTarget(
+                "job-1",
+                f"https://jobs.ashbyhq.com/sarvam/{pulled}/application",
+                "Product Marketing Manager",
+            ),
+            client,
+        )
+
+    assert result.result == "closed"
+    assert result.evidence["source"] == "ats_json_probe"
