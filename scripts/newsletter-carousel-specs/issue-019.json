@@ -288,17 +288,17 @@
     {
       "kind": "prose",
       "kicker": "If you are an engineer",
-      "text": "Bengaluru and Hyderabad hold <b>78.8%</b> of technology openings between them. Mumbai holds 2.9%. 19 technology employers posted Mumbai roles against 49 in Bengaluru.<br><br>A Mumbai office is a satellite. A Bengaluru office is the engine."
+      "text": "Bengaluru and Hyderabad hold <span class=\"hl\">78.8%</span> of technology openings between them. Mumbai holds 2.9%. 19 technology employers posted Mumbai roles against 49 in Bengaluru.<br><br>A Mumbai office is a satellite. A Bengaluru office is <b>the engine</b>."
     },
     {
       "kind": "prose",
       "kicker": "What those employers want",
-      "text": "Python 356 · Computer science 255 · Artificial intelligence 229 · C++ 187 · Electrical engineering 135 · Java 120 · Design verification 70 · Parallel computing 62.<br><br>The old evergreen subjects belong to <b>chip and systems work</b>, and Bengaluru is aggressively hiring for that."
+      "text": "Python 356 · Computer science 255 · Artificial intelligence 229 · C++ 187 · Electrical engineering 135 · Java 120 · Design verification 70 · Parallel computing 62.<br><br>The old evergreen subjects belong to <span class=\"hl\">chip and systems work</span>, and Bengaluru is aggressively hiring for that."
     },
     {
       "kind": "prose",
       "kicker": "If you are in finance",
-      "text": "<b>Front office will always be Mumbai.</b> Morgan Stanley posts 80% of its India roles there, only 16% technology. If you want to learn how money actually moves, there is no place other than the floors (and the rains) of Mumbai.<br><br><b>The GCCs are in Pune and Bengaluru.</b> Barclays' largest India metro is Pune, 72% technical.<br><br><b>Retail banking is any tier 2 city.</b> 42.4% sits outside the metros."
+      "text": "<b>Front office will always be Mumbai.</b> Morgan Stanley posts <span class=\"hl\">80%</span> of its India roles there, only 16% technology. If you want to learn how money actually moves, there is no place other than the floors (and the rains) of Mumbai.<br><br><b>The GCCs are in Pune and Bengaluru.</b> Barclays' largest India metro is Pune, 72% technical.<br><br><b>Retail banking is any tier 2 city.</b> 42.4% sits outside the metros."
     },
     {
       "kind": "cta",

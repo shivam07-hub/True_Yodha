@@ -63,8 +63,14 @@ body { margin:0; background:var(--bg); font-family:'Geist',system-ui,sans-serif;
 .body { flex:1; display:flex; flex-direction:column; justify-content:center; z-index:1; }
 h1 { font-size:78px; line-height:1.05; font-weight:640; letter-spacing:-.028em; }
 h2 { font-size:56px; line-height:1.12; font-weight:620; letter-spacing:-.02em; }
-.kicker { font-family:'GeistMono',monospace; font-size:25px; letter-spacing:.16em;
-  text-transform:uppercase; color:var(--mint); margin-bottom:34px; }
+.kicker { font-family:'GeistMono',monospace; font-size:28px; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--mint); margin-bottom:14px; font-weight:500; }
+/* The label owns the top of the block: a rule carries the eye down into the
+   prose so the kicker reads as a heading rather than a caption stranded above
+   a brighter line. */
+.kicker::after { content:''; display:block; width:96px; height:2px;
+  background:var(--mint); opacity:.45; margin-top:18px; }
+.kicker + .prose, .kicker + .lead { margin-top:38px; }
 .huge { font-size:250px; line-height:.86; font-weight:680; letter-spacing:-.045em;
   color:var(--mint); font-variant-numeric:tabular-nums; }
 .sub { font-size:37px; line-height:1.4; color:var(--muted); margin-top:40px;
@@ -109,7 +115,8 @@ td.hi { color:var(--mint); } td.lo { color:var(--muted); }
 .mtx td.mx.hot { color:#04241D; background:var(--mint); font-weight:660; }
 .prose { font-size:46px; line-height:1.32; font-weight:440; letter-spacing:-.014em;
   color:var(--fg); }
-.prose b, .prose strong { font-weight:660; color:var(--mint); }
+.prose b, .prose strong { font-weight:680; color:var(--fg); }
+.prose .hl { font-weight:680; color:var(--mint); }
 .lead { font-size:96px; line-height:1; font-weight:680; letter-spacing:-.04em;
   color:var(--mint); font-variant-numeric:tabular-nums; margin-bottom:34px; }
 .note { font-size:29px; color:var(--muted); line-height:1.45; margin-top:34px; }

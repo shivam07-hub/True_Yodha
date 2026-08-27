@@ -58,6 +58,27 @@ Deliberately absent from the gold version: career-stage blocks (Early / Mid /
 Senior). `myro-newsletter Skills/page-anatomy.md` calls them load-bearing. They
 are not, when every section is already addressed to one reader type by name.
 
+## Carousel hierarchy: one accent role at a time
+
+Shipped wrong once and caught by Shivam, 2026-08-26. A slide read
+kicker-then-lead where both were mint, and the lead was 46px bold against the
+kicker's 25px, so the section label lost to the line beneath it and the block
+had no top.
+
+The token roles on a slide, in order:
+
+| Level | Treatment | Accent |
+|---|---|---|
+| Section label (kicker) | 28px mono, uppercase, letterspaced, short rule beneath | mint |
+| Lead statement | 46px, weight 680 | Bone (`--fg`) |
+| Body | 46px, weight 440 | Bone |
+| The one number that matters | `<span class="hl">` | mint |
+
+Mint appears **twice per slide at most**: the label and one figure. `<b>` inside
+prose is Bone bold and never mint — bold and accent together outrank a label
+that sits above them, which inverts the hierarchy. This is the visual half of
+`three-accent-budget.md`; the earlier slide spent four accent uses on one screen.
+
 ## Rules that are not negotiable
 
 - **Skills are the driver.** Every lane ends in skills a real posting named this
