@@ -513,3 +513,71 @@ def test_both_ranker_prompts_carry_the_full_location_list():
     profile = {"target_roles": ["Consulting"], "target_locations": ["Mumbai", "Bengaluru"]}
     for prompt in (build_system_prompt(profile, "cv"), build_triage_prompt(profile, "cv")):
         assert "Mumbai, Bengaluru" in prompt
+
+
+# ── which search found this ──────────────────────────────────────────────────
+
+
+def test_a_match_records_the_search_that_found_it() -> None:
+    db = _FakeDB()
+    llm_ranker.persist_matches(
+        db=db,  # type: ignore[arg-type]
+        user_id="user-1",
+        batch_week=date(2026, 5, 25),
+        top_jobs=[
+            {"job_id": "job-1", "overlap_score": 82.0, "track_id": None},
+            {"job_id": "job-2", "overlap_score": 71.0, "track_id": 4},
+        ],
+        evaluations={},
+    )
+    by_id = {row["job_id"]: row for row in db.tape["rows"]}
+    assert by_id["job-1"]["track_id"] is None  # track 1 = the profile
+    assert by_id["job-2"]["track_id"] == 4
+
+
+def test_a_single_track_users_rows_carry_null_not_a_backfilled_id() -> None:
+    """The 83%. NULL is track 1, and it costs them nothing."""
+    db = _FakeDB()
+    llm_ranker.persist_matches(
+        db=db,  # type: ignore[arg-type]
+        user_id="user-1",
+        batch_week=date(2026, 5, 25),
+        top_jobs=[{"job_id": "job-1", "overlap_score": 82.0}],
+        evaluations={"job-1": _eval()},
+    )
+    assert db.tape["rows"][0]["track_id"] is None
+
+
+def test_recommended_slots_are_counted_per_search() -> None:
+    """Three slots spent entirely in one track would open the other on nothing
+    recommended, which reads as "Myro found me nothing here".
+    """
+    db = _FakeDB()
+    profile = {"target_locations": ["Mumbai"], "target_roles": ["Consulting"]}
+    jobs, evals = [], {}
+    for n in range(8):
+        jid = f"job-{n}"
+        jobs.append({
+            "job_id": jid,
+            "overlap_score": 90.0 - n,
+            "track_id": None if n < 4 else 4,
+            "location_city": "Mumbai",
+            "location_country": "India",
+        })
+        evals[jid] = _eval()
+
+    llm_ranker.persist_matches(
+        db=db,  # type: ignore[arg-type]
+        user_id="user-1",
+        batch_week=date(2026, 5, 25),
+        top_jobs=jobs,
+        evaluations=evals,
+        profile=profile,
+    )
+    rows = db.tape["rows"]
+    per_track: dict[Any, int] = {}
+    for row in rows:
+        if row["is_recommended"]:
+            per_track[row["track_id"]] = per_track.get(row["track_id"], 0) + 1
+    # Each search gets its own three, not three shared across both.
+    assert per_track == {None: 3, 4: 3}

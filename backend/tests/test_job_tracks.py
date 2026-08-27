@@ -158,3 +158,64 @@ def test_a_closed_track_frees_its_slot():
     which the constraint takes and the render order shows as a gap."""
     profile, third = _tracks(3)[0], _tracks(3)[2]
     assert next_position([profile, third]) == 2
+
+
+# ── what reaches the match run ───────────────────────────────────────────────
+
+
+class _Repo:
+    client = object()
+
+
+def _returning(tracks: list[Track]):
+    return lambda _repo, _uid, _profile: tracks
+
+
+def test_a_single_track_user_sends_no_tracks_to_the_ranker(monkeypatch: Any):
+    """Load-bearing, not an optimisation. `()` is the pre-tracks path, and the
+    83% must keep taking it exactly."""
+    from app.services import jobs_workflow
+
+    monkeypatch.setattr(
+        jobs_workflow.job_tracks,
+        "tracks_for",
+        _returning([Track(id=None, label="Consulting", role_titles=["Consulting"], position=1)]),
+    )
+    assert jobs_workflow._track_specs(_Repo(), "u1", {}) == ()
+
+
+def test_two_tracks_reach_the_ranker_with_their_own_words_and_quota(monkeypatch: Any):
+    from app.services import jobs_workflow
+
+    monkeypatch.setattr(
+        jobs_workflow.job_tracks,
+        "tracks_for",
+        _returning([
+            Track(id=None, label="Consulting", role_titles=["Consulting"], position=1),
+            Track(id=4, label="Marketing", role_titles=["Marketing", "Brand"], position=2),
+        ]),
+    )
+    specs = jobs_workflow._track_specs(_Repo(), "u1", {})
+
+    assert [spec.track_id for spec in specs] == [None, 4]
+    assert specs[1].role_titles == ("Marketing", "Brand")
+    assert {spec.quota for spec in specs} == {jobs_workflow.TRACK_QUOTA}
+    assert {spec.deep for spec in specs} == {jobs_workflow.TRACK_DEEP}
+
+
+def test_a_failed_track_read_costs_the_grouping_never_the_run(monkeypatch: Any):
+    from app.services import jobs_workflow
+
+    def _boom(_repo, _uid, _profile):
+        raise RuntimeError("schema cache lag")
+
+    monkeypatch.setattr(jobs_workflow.job_tracks, "tracks_for", _boom)
+    assert jobs_workflow._track_specs(_Repo(), "u1", {}) == ()
+
+
+def test_two_tracks_cost_barely_more_deep_evals_than_one_search_does():
+    """The latency promise, as arithmetic: 2 x TRACK_DEEP against the 15 a
+    single-track run deep-evaluates today."""
+    from app.services import jobs_workflow
+
+    assert 2 * jobs_workflow.TRACK_DEEP <= jobs_workflow.MATCH_TRIAGE_KEEP + 2

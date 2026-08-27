@@ -6,9 +6,10 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any, Literal
 
+from app.repositories.job_tracks import JobTracksRepository
 from app.repositories.jobs import JobsRepository
 from app.repositories.scores import ScoresRepository
-from app.services import job_importer, llm_ranker, onboarding_service
+from app.services import job_importer, job_tracks, llm_ranker, onboarding_service
 from app.services.llm_provider import LLMProvider, get_judgment_provider
 from app.services.matching import candidate_pool, ranking, targeting
 from app.services.scoring.aspirations import fetch_aspiration_skills
@@ -122,6 +123,16 @@ def _iso_age_seconds(ref: Any, now: Any) -> float | None:
 # past KEEP is rated on-open (on_demand.ensure_job_eval), cached — nothing missed.
 MATCH_TRIAGE_POOL = 150
 MATCH_TRIAGE_KEEP = 15
+
+#: Per-track quota when a user runs more than one search — the user-facing
+#: "15-20 consulting and 15-20 marketing". A ceiling on real listings in the
+#: pool, never a target padded with anything that is not there.
+TRACK_QUOTA = 20
+#: How many of a track's quota reach the expensive per-job eval. Two tracks at
+#: this depth is 16 deep evals against the 15 a single-track run does today, so
+#: a second search costs latency roughly nothing; the rest ship as real rows
+#: with no verdict yet and upgrade on open (on_demand.ensure_job_eval).
+TRACK_DEEP = 8
 
 
 OutcomeKind = Literal[
@@ -320,6 +331,37 @@ def build_user_skill_demand(
     return enriched_items
 
 
+
+def _track_specs(
+    repo: JobsRepository, user_id: str, profile: dict[str, Any]
+) -> tuple[ranking.TrackSpec, ...]:
+    """The user's searches, or () when they have the one everybody has.
+
+    Returning () for a single-track user is load-bearing, not an optimisation:
+    83% of users have one search, and their run must take exactly the path it
+    took before tracks existed. A minority feature may not change the majority's
+    latency, cost, or output shape.
+
+    Never raises. A track read that fails costs the grouping, never the run.
+    """
+    try:
+        tracks = job_tracks.tracks_for(JobTracksRepository(repo.client), user_id, profile)
+    except Exception as exc:  # noqa: BLE001 — grouping is not worth the match run
+        logger.warning("compute_job_matches: track read failed user=%s: %s", user_id, exc)
+        return ()
+    if len(tracks) < 2:
+        return ()
+    return tuple(
+        ranking.TrackSpec(
+            track_id=track.id,
+            label=track.label,
+            role_titles=tuple(track.role_titles),
+            quota=TRACK_QUOTA,
+            deep=TRACK_DEEP,
+        )
+        for track in tracks
+    )
+
 async def compute_job_matches(
     repo: JobsRepository,
     user_id: str,
@@ -493,6 +535,7 @@ async def compute_job_matches(
                 if onboarding_service.eval_matches_context(row, run_eval_ctx)
             },
             # CandidatePool: union the title_filter selector onto the overlap pool.
+            tracks=_track_specs(repo, user_id, profile),
             pool_augmenter=lambda overlap_jobs: candidate_pool.assemble(
                 repo,
                 overlap_jobs,

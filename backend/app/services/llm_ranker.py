@@ -515,19 +515,27 @@ def persist_matches(
     # not a widened target_context_hash.
     eval_ctx = eval_context_key(profile)
     rows: list[dict] = []
-    recommended_count = 0
+    # Recommended slots are counted PER TRACK. A user running two searches whose
+    # three slots all landed in one of them would open the other on nothing
+    # recommended and read it as "Myro found me nothing here". Single-track users
+    # have one bucket keyed None, which is exactly the old global counter.
+    recommended_by_track: dict[int | None, int] = {}
     for rank_idx, job in enumerate(ordered, start=1):
         jid = str(job["job_id"])
         ev = evaluations.get(jid) or {}
         overall = ev.get("overall_score")
         recommendation = ev.get("recommendation")
         credibility = evaluate_credibility(profile, job, overall, recommendation)
-        is_recommended = credibility.credible and recommended_count < 3
+        track_id = job.get("track_id")
+        is_recommended = credibility.credible and recommended_by_track.get(track_id, 0) < 3
         if is_recommended:
-            recommended_count += 1
+            recommended_by_track[track_id] = recommended_by_track.get(track_id, 0) + 1
         rows.append({
             "user_id": user_id,
             "job_id": jid,
+            # Which of the user's searches found this. NULL = track 1 = the
+            # profile, which is every row for the 83% who have one search.
+            "track_id": track_id,
             "batch_week": str(batch_week),
             "overlap_score": job["overlap_score"],
             "matched_skills": job.get("matched_skills") or [],

@@ -23,6 +23,17 @@ def _candidates(**over: Any) -> ranking.RankCandidates:
     )
 
 
+def _evals(scores: dict[str, float]):
+    async def _all(_p, jobs, _prov, _prog=None):
+        return {
+            str(j["job_id"]): {"overall_score": scores[str(j["job_id"])]}
+            for j in jobs
+            if str(j["job_id"]) in scores
+        }
+
+    return _all
+
+
 def _two_top_jobs() -> list[dict[str, Any]]:
     return [
         {"job_id": "j1", "overlap_score": 82.0, "matched_skills": ["python"]},
@@ -267,3 +278,122 @@ def test_rank_one_delegates_to_evaluate_job(monkeypatch: Any) -> None:
 
     assert out == {"overall_score": 3.9, "grade": "B+"}
     assert captured == {"cv": "CV TEXT", "job": "jX", "prompt": "SYS"}
+
+
+# ── per-track triage ─────────────────────────────────────────────────────────
+
+
+def _track(track_id: int | None, label: str, quota: int = 2, deep: int = 1) -> ranking.TrackSpec:
+    return ranking.TrackSpec(
+        track_id=track_id, label=label, role_titles=(label,), quota=quota, deep=deep
+    )
+
+
+def _pool(n: int) -> list[dict[str, Any]]:
+    return [{"job_id": f"j{i}", "overlap_score": 100.0 - i} for i in range(n)]
+
+
+def _patch_triage(monkeypatch: Any, picks: dict[str, list[str]], seen: list | None = None):
+    """Each track's triage returns the job_ids named for its role word."""
+    async def _triage(profile, jobs, _provider, keep):
+        role = (profile.get("target_roles") or ["?"])[0]
+        if seen is not None:
+            seen.append((role, [str(j["job_id"]) for j in jobs], keep))
+        by_id = {str(j["job_id"]): j for j in jobs}
+        return [by_id[jid] for jid in picks.get(role, []) if jid in by_id][:keep]
+
+    monkeypatch.setattr(ranking.llm_ranker, "triage_shortlist", _triage)
+
+
+def test_a_single_track_user_takes_the_path_they_always_did(monkeypatch: Any) -> None:
+    """83% of users have one search. `tracks=()` must be byte-identical to
+    before tracks existed — a minority feature may not change the majority's
+    run.
+    """
+    monkeypatch.setattr(ranking.job_matcher, "get_top_matches", lambda *_a, **_k: _pool(5))
+    calls: list = []
+    _patch_triage(monkeypatch, {"?": ["j0", "j1"]}, seen=calls)
+    monkeypatch.setattr(ranking.llm_ranker, "evaluate_all", _evals({"j0": 4.0, "j1": 3.0}))
+
+    result = asyncio.run(
+        ranking.rank({}, "cv", _candidates(triage_keep=2), provider=object(), use_brain=True)
+    )
+
+    # One triage call, and no job carries a track.
+    assert len(calls) == 1
+    assert all("track_id" not in job for job in result.top_jobs)
+
+
+def test_each_track_triages_the_same_pool_with_its_own_words(monkeypatch: Any) -> None:
+    """One pool — it is scoped by location and seniority, which are facts about
+    the person and identical across their searches. Only the words differ."""
+    monkeypatch.setattr(ranking.job_matcher, "get_top_matches", lambda *_a, **_k: _pool(6))
+    calls: list = []
+    _patch_triage(monkeypatch, {"Consulting": ["j0", "j1"], "Marketing": ["j2", "j3"]}, seen=calls)
+    monkeypatch.setattr(ranking.llm_ranker, "evaluate_all", _evals({}))
+
+    cands = _candidates()
+    cands = ranking.RankCandidates(
+        job_skill_rows=cands.job_skill_rows,
+        user_skill_map=cands.user_skill_map,
+        job_meta_fetcher=cands.job_meta_fetcher,
+        tracks=(_track(None, "Consulting"), _track(4, "Marketing")),
+    )
+    result = asyncio.run(ranking.rank({}, "cv", cands, provider=object(), use_brain=True))
+
+    assert [role for role, _jobs, _keep in calls] == ["Consulting", "Marketing"]
+    assert {str(j["job_id"]): j["track_id"] for j in result.top_jobs} == {
+        "j0": None, "j1": None, "j2": 4, "j3": 4,
+    }
+
+
+def test_a_job_that_fits_both_searches_lands_in_exactly_one(monkeypatch: Any) -> None:
+    """user_job_matches is keyed (user_id, job_id) so a job is brain-evaluated
+    once, ever. Two tracks claiming one job would need two rows and pay the
+    brain twice for the one that can exist. The earlier track wins.
+    """
+    monkeypatch.setattr(ranking.job_matcher, "get_top_matches", lambda *_a, **_k: _pool(4))
+    calls: list = []
+    _patch_triage(monkeypatch, {"Consulting": ["j0", "j1"], "Marketing": ["j1", "j2"]}, seen=calls)
+    monkeypatch.setattr(ranking.llm_ranker, "evaluate_all", _evals({}))
+
+    cands = ranking.RankCandidates(
+        job_skill_rows=[{"job_id": "j0"}],
+        user_skill_map={"python": 3},
+        job_meta_fetcher=lambda _ids: [],
+        tracks=(_track(None, "Consulting"), _track(4, "Marketing")),
+    )
+    result = asyncio.run(ranking.rank({}, "cv", cands, provider=object(), use_brain=True))
+
+    ids = [str(j["job_id"]) for j in result.top_jobs]
+    assert ids.count("j1") == 1
+    assert {str(j["job_id"]): j["track_id"] for j in result.top_jobs}["j1"] is None
+    # The second track never even saw the claimed job: its quota fills from the
+    # rest of the pool, so "20 marketing" means twenty, not twenty minus.
+    assert "j1" not in calls[1][1]
+
+
+def test_the_deep_subset_is_each_tracks_own_rows(monkeypatch: Any) -> None:
+    """Not the head of a shortlist that may open with another track's job."""
+    monkeypatch.setattr(ranking.job_matcher, "get_top_matches", lambda *_a, **_k: _pool(6))
+    _patch_triage(monkeypatch, {"Consulting": ["j0", "j1"], "Marketing": ["j2", "j3"]})
+    evaluated: list[str] = []
+
+    async def _eval_all(_p, jobs, _prov, _prog=None):
+        evaluated.extend(str(j["job_id"]) for j in jobs)
+        return {}
+
+    monkeypatch.setattr(ranking.llm_ranker, "evaluate_all", _eval_all)
+
+    cands = ranking.RankCandidates(
+        job_skill_rows=[{"job_id": "j0"}],
+        user_skill_map={"python": 3},
+        job_meta_fetcher=lambda _ids: [],
+        tracks=(_track(None, "Consulting", quota=2, deep=1), _track(4, "Marketing", quota=2, deep=1)),
+    )
+    result = asyncio.run(ranking.rank({}, "cv", cands, provider=object(), use_brain=True))
+
+    # Four kept, one deep per track — the tail ships as a real row with no
+    # verdict and upgrades on open.
+    assert len(result.top_jobs) == 4
+    assert evaluated == ["j0", "j2"]
