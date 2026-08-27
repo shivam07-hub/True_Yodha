@@ -80,6 +80,7 @@ class SubmitSetResponse(BaseModel):
     tokens_awarded: int
     next_level_unlocked: int | None  # null when already at L5
     results: list[QuestionResult]
+    certificate: dict | None = None
 
 
 # ── Surface B — gap calibration ──────────────────────────────────────────────

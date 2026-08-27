@@ -106,7 +106,7 @@ def test_entry_stretch_can_admit_mid_but_never_senior_or_executive() -> None:
     assert not job_is_eligible(profile, senior, include_stretch=True)
 
 
-def test_legacy_any_seniority_is_treated_as_entry_level() -> None:
+def test_legacy_any_seniority_does_not_invent_entry() -> None:
     profile = {
         "target_career_band": "research_people_public_impact",
         "target_seniority": "any",
@@ -116,4 +116,10 @@ def test_legacy_any_seniority_is_treated_as_entry_level() -> None:
         "role_domain": "Research & Science",
         "seniority_level": "executive",
     }
+    entry = {
+        "job_title": "Graduate Policy Research Associate",
+        "role_domain": "Research & Science",
+        "seniority_level": "entry",
+    }
     assert not job_is_eligible(profile, executive)
+    assert not job_is_eligible(profile, entry)

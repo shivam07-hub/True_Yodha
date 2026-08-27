@@ -27,7 +27,7 @@ from app.services import followed_companies
 from app.services import skill_correction, targeting_write
 from app.services.job_eligibility import (
     career_band_for_profile,
-    target_seniority_for_profile,
+    reported_target_seniority,
 )
 from app.services.xp_service import grant_linkedin_profile_xp
 from app.services.account_deletion import delete_account
@@ -46,7 +46,7 @@ def get_me(
     if not profile:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found.")
     profile["target_career_band"] = profile.get("target_career_band") or career_band_for_profile(profile) or None
-    profile["target_seniority"] = target_seniority_for_profile(profile)
+    profile["target_seniority"] = reported_target_seniority(profile)
     has_cv = users_repo.has_baseline_cv(principal.id)
     profile["has_cv"] = has_cv
     profile["cv_readiness"] = "ready" if has_cv else "missing"
@@ -182,7 +182,7 @@ async def update_profile(
     if not profile:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found.")
     profile["target_career_band"] = profile.get("target_career_band") or career_band_for_profile(profile) or None
-    profile["target_seniority"] = target_seniority_for_profile(profile)
+    profile["target_seniority"] = reported_target_seniority(profile)
 
     coins_earned = 0
     new_coin_balance = None

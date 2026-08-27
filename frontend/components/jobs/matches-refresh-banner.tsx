@@ -11,6 +11,7 @@ import { dataKeys } from "@/lib/domain-data"
 import { withLocalCache, userCacheKey } from "@/lib/local-cache"
 import { JOB_MATCHES_CACHE_PARTS } from "@/lib/job-matches-cache"
 import { openRefreshGate } from "@/store/refreshGateStore"
+import { useLaneYields } from "@/store/matchRunStore"
 import { NewInventoryStrip } from "./new-inventory-strip"
 
 const MATCHES_TTL = 7 * 24 * 60 * 60 * 1000
@@ -31,6 +32,7 @@ export function MatchesRefreshBanner({ token }: { token: string | null }) {
   // extras on top: the new-inventory strip, progress line, celebration.
   const { refreshVm, gate } = useMyroSearch(token)
   const fireMoment = useParticleMoment()
+  const yieldLane = useLaneYields()
 
   // Warms dataKeys.jobs(); the Loop Bar's Capture "N new" badge + "next" fit read
   // this cache. Called for its cache side-effect (the bar is the renderer now) —
@@ -39,7 +41,7 @@ export function MatchesRefreshBanner({ token }: { token: string | null }) {
     queryKey: dataKeys.jobs(),
     queryFn: () =>
       withLocalCache(userCacheKey(token!, JOB_MATCHES_CACHE_PARTS), MATCHES_TTL, () => jobs.matches(token!)),
-    enabled: !!token,
+    enabled: !!token && !yieldLane,
     staleTime: MATCHES_TTL,
   })
 
@@ -79,7 +81,7 @@ export function MatchesRefreshBanner({ token }: { token: string | null }) {
           <span>{refreshVm.progressLabel}</span>
         </div>
       ) : null}
-      {!isRefreshing ? <NewInventoryStrip token={token} /> : null}
+      {!yieldLane ? <NewInventoryStrip token={token} /> : null}
       <MatchVettingBanner token={token} health={matchesData?.match_health} />
       {gate}
     </>

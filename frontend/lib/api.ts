@@ -211,6 +211,8 @@ async function request<T>(path: string, init?: ApiRequestInit, _isRetry = false)
   return res.json() as Promise<T>
 }
 
+export { request as backendRequest }
+
 /**
  * Conditional GET for the Feed State ETag flow. The generic request<T>() above
  * assumes a JSON body on every success, so it cannot represent a 304 (no body).
@@ -4039,7 +4041,7 @@ export const jobs = {
    *  Scope params must match the feed's so the warmed cards are the ones shown.
    *  Soft-resolves on any failure/timeout to {ready:false} — the feed then paints
    *  the deterministic order (degradation, never a blocked page). */
-  warmFeed: async (token: string, p: JobFeedParams = {}): Promise<FeedWarmResponse> => {
+  warmFeed: async (token: string, p: JobFeedParams = {}, signal?: AbortSignal): Promise<FeedWarmResponse> => {
     const params = new URLSearchParams()
     if (p.cluster && p.cluster.trim()) params.set("cluster", p.cluster.trim())
     if (p.roleDomain && p.roleDomain.trim()) params.set("role_domain", p.roleDomain.trim())
@@ -4057,6 +4059,7 @@ export const jobs = {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         timeoutMs: 7000,
+        signal,
       })
     } catch {
       return { ready: false, warmed: 0 }
@@ -5099,6 +5102,8 @@ export interface PublicStatsResponse {
   industry_groups: PublicIndustryGroup[]
   total_industries: number
   role_families: number
+  /** Product-facing role domains ("Data & Analytics"), descending, floored. */
+  role_domains: PublicIndustryGroup[]
   provenance: JobProvenance
   as_of: string
 }
@@ -5445,6 +5450,19 @@ export interface QuestionResult {
   }
 }
 
+export interface SkillCertificateIssued {
+  id?: string
+  skill_display_name: string
+  achieved_level: number
+  passed_at: string
+  verification_id: string
+  assessment_edition?: string
+  attempt_id?: string
+  verify_path?: string
+  cv_line: string
+  certificate_status?: "issued" | "on_cv"
+}
+
 export interface SubmitSetResponse {
   score: number
   max: number
@@ -5453,6 +5471,7 @@ export interface SubmitSetResponse {
   tokens_awarded: number
   next_level_unlocked: number | null
   results: QuestionResult[]
+  certificate?: SkillCertificateIssued | null
 }
 
 export interface LearningCoverageResponse {

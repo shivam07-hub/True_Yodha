@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { jobs } from "@/lib/api"
 import type { FeedScope } from "@/lib/feed-scope"
+import { useLaneYields } from "@/store/matchRunStore"
 import type { FeedFilters } from "./feed-types"
 import { jobFeedQueryKey } from "./job-feed-query-key"
 
@@ -58,36 +59,45 @@ export function useFeedWarm({
   enabled?: boolean
 }) {
   const qc = useQueryClient()
+  const yieldLane = useLaneYields()
   const [warming, setWarming] = useState(false)
-  // Keys already attempted this mount. A warm is idempotent server-side, but a
-  // repeat still costs a round trip and, on a miss, a judgment-lane call.
+  // Keys already warmed this mount. A yielded or failed call is NOT recorded —
+  // ranking owns the judgment lane, and a shed `{warmed:0}` must retry after.
   const attempted = useRef<Set<string>>(new Set())
 
   const queryKey = jobFeedQueryKey({ token, filters, q, skill, scope })
   const signature = JSON.stringify(queryKey)
 
   useEffect(() => {
-    if (!enabled || !token || !settled) return
+    if (yieldLane || !enabled || !token || !settled) return
     if (filters.sort !== "fit") return
     if (attempted.current.has(signature)) return
-    attempted.current.add(signature)
 
     let cancelled = false
+    const ac = new AbortController()
     setWarming(true)
     void jobs
-      .warmFeed(token, {
-        cluster: filters.roleDomain,
-        q: q || null,
-        skill: skill || null,
-        locationMode: filters.locationMode,
-        followingOnly: filters.followingOnly,
-        includeStretch: filters.includeStretch,
-      })
+      .warmFeed(
+        token,
+        {
+          cluster: filters.roleDomain,
+          q: q || null,
+          skill: skill || null,
+          locationMode: filters.locationMode,
+          followingOnly: filters.followingOnly,
+          includeStretch: filters.includeStretch,
+        },
+        ac.signal,
+      )
       .then((res) => {
-        // Cancelled = the user changed filters or left. Re-reading a feed they are
-        // no longer looking at wastes a request and can clobber the new one.
+        // Cancelled = the user changed filters, left, or a match run took the
+        // lane. Re-reading a feed they are no longer looking at wastes a
+        // request and can clobber the new one.
         if (cancelled) return
-        if (res.warmed > 0) void qc.invalidateQueries({ queryKey })
+        if (res.warmed > 0) {
+          attempted.current.add(signature)
+          void qc.invalidateQueries({ queryKey })
+        }
       })
       .finally(() => {
         if (!cancelled) setWarming(false)
@@ -95,10 +105,12 @@ export function useFeedWarm({
 
     return () => {
       cancelled = true
+      ac.abort()
+      setWarming(false)
     }
     // `signature` stands in for queryKey (a fresh array each render).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, token, settled, filters.sort, signature])
+  }, [enabled, token, settled, filters.sort, signature, yieldLane])
 
   return { warming }
 }

@@ -269,7 +269,8 @@ def apply_diff(db: Client, user_id: str, diff: dict[str, Any]) -> dict[str, Any]
 
     locations = diff.get("locations") or []
     if locations:
-        users_repo.update_profile(user_id, {"target_locations": locations, "target_location": locations[0]})
+        from app.services import targeting_write
+        targeting_write.commit(users_repo, user_id, {"target_locations": locations})
         changed["locations"] = locations
 
     # Non-columnized prefs land in memory (the "knows me" layer).

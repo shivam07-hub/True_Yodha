@@ -134,6 +134,22 @@ def test_empty_brain_result_persists_nothing(monkeypatch: Any) -> None:
     assert repo.persisted == []
 
 
+def test_a_live_match_run_does_not_take_the_brain(monkeypatch: Any) -> None:
+    repo = _FakeRepo(cached=set())
+    monkeypatch.setattr(
+        "app.services.job_refresh._dispatch.user_has_live_refresh",
+        lambda _uid: True,
+    )
+
+    async def _boom(*_a: Any, **_k: Any) -> Any:
+        raise AssertionError("ranking owns the lane — warm must not call the brain")
+
+    monkeypatch.setattr(feed_warm.llm_ranker, "evaluate_all", _boom)
+    warmed = asyncio.run(feed_warm.warm_feed_shortlist(repo, object(), "u1", ["a", "b"]))  # type: ignore[arg-type]
+    assert warmed == 0
+    assert repo.persisted == []
+
+
 def test_no_candidates_is_a_noop() -> None:
     repo = _FakeRepo()
     warmed = asyncio.run(feed_warm.warm_feed_shortlist(repo, object(), "u1", []))  # type: ignore[arg-type]

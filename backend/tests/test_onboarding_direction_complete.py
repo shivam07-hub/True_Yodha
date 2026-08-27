@@ -20,7 +20,12 @@ def test_complete_requires_claimed_ninja(monkeypatch: pytest.MonkeyPatch) -> Non
 
     class _Users:
         def get_profile(self, _user_id: str) -> dict[str, Any]:
-            return {"target_role_title": "PM"}  # no ninja_name_claimed_at
+            return {
+                "target_role_title": "PM",
+                "target_role_titles": ["PM"],
+                "target_roles": ["product_management"],
+                "target_seniority": "mid",
+            }  # no ninja_name_claimed_at
 
     monkeypatch.setattr(onboarding_service, "OnboardingRepository", lambda _db: _State())
     monkeypatch.setattr(onboarding_service, "CVVersionsRepository", lambda _db: _CV())
@@ -51,6 +56,9 @@ def test_complete_marks_when_ninja_claimed(monkeypatch: pytest.MonkeyPatch) -> N
         def get_profile(self, _user_id: str) -> dict[str, Any]:
             return {
                 "target_role_title": "PM",
+                "target_role_titles": ["PM"],
+                "target_roles": ["product_management"],
+                "target_seniority": "mid",
                 "ninja_name_claimed_at": "2026-08-15T00:00:00+00:00",
             }
 

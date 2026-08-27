@@ -18,6 +18,13 @@ import { Button } from "@/components/ui/button"
 import { AccountLegalLinks } from "@/components/shell/account-legal-links"
 import { FeedbackHub, openFeedbackHub, type FeedbackCategory } from "@/components/feedback"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  MobileBottomNav,
+  MobileTopBar,
+  MobileUIProvider,
+  PracticeSheet,
+  useViewport,
+} from "@/mobile"
 
 /**
  * AuthedTopStrip — the ONE logged-in top strip (ADR-0010). The app shell AND the
@@ -254,7 +261,53 @@ export function AuthedTopStrip({ model, mountFeedbackHub = false }: AuthedTopStr
  * exists — useShellModel → useAuth redirects to /login on no token, so a
  * logged-out visitor must never reach this (PublicTopNav gates on useSession).
  */
+/**
+ * The phone half of the standalone strip.
+ *
+ * A signed-in visitor who opens Newsletter or Myrology from their Profile used
+ * to get the full desktop bar on a 375px screen: the Collections, CV and Prep
+ * tabs sat 36, 84 and 143px past the right edge, clipped by .tm-topbar-nav's
+ * own `overflow: hidden`, so nothing scrolled and nothing threw. The 4-tab bar
+ * disappeared at the same time, leaving no way back into the app that wasn't
+ * itself cut off.
+ *
+ * So on a phone the ONE logged-in chrome is the mobile chrome — the same bars
+ * AppShell mounts, in the same order, with the same providers. `data-app-chrome`
+ * on <html> is how the fixed bars earn their space: public routes scroll the
+ * body and have no .tm-main-scroll to carry the padding.
+ */
+function AuthedPhoneChrome({ model }: { model: ShellModel }) {
+  useEffect(() => {
+    document.documentElement.dataset.appChrome = "mobile"
+    return () => { delete document.documentElement.dataset.appChrome }
+  }, [])
+
+  return (
+    <MobileUIProvider>
+      <MobileTopBar />
+      <MobileBottomNav />
+      <PracticeSheet />
+      {/* Public routes have no AppShell to host it (same reason the desktop
+          standalone passes mountFeedbackHub). */}
+      <FeedbackHub
+        open={model.feedbackHubOpen}
+        onClose={() => model.setFeedbackHubOpen(false)}
+        defaultCategory={model.feedbackHubCategory}
+        defaultTab={model.feedbackHubTab}
+        showHistory={!!model.token}
+        showContext
+        userName={model.profile.full_name}
+        userEmail={model.profile.email}
+      />
+    </MobileUIProvider>
+  )
+}
+
 export function AuthedTopStripStandalone() {
   const model = useShellModel()
+  const { isDesktop } = useViewport()
+  // Same split AppShell makes, for the same reason — mirrored here so the
+  // public bar cannot drift back to a desktop-only answer.
+  if (!isDesktop) return <AuthedPhoneChrome model={model} />
   return <AuthedTopStrip model={model} mountFeedbackHub />
 }

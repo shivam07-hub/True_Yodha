@@ -70,7 +70,7 @@ def test_get_my_score_surfaces_band_percentile() -> None:
     finally:
         app.dependency_overrides.clear()
 
-    assert body["band"] == "entry"          # get_target_seniority "" → entry default
+    assert body["band"] == "unknown"
     assert body["band_percentile"] == 82.0
     assert body["top_percent"] == 18         # 100 − 82
     assert "rank_tier" not in body

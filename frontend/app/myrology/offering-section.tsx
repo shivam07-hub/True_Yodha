@@ -1,7 +1,10 @@
 "use client"
 
+import { formatCount } from "@/lib/format"
+
 import { MyrologyCta, useMyrology } from "./checkout"
 import { MyrologyUnlockedPanel } from "./unlocked-panel"
+import { useMarketLens } from "./use-market-lens"
 
 const INCLUSIONS = [
   {
@@ -24,6 +27,39 @@ const FLOW_STEPS = [
   { l: "03 · Report prepared", v: "by the astrologer" },
   { l: "04 · Sessions", v: "3, by request, lifetime" },
 ]
+
+/** What the ₹299 map gets checked against, from the live index.
+ *
+ *  The rail carried two short static cards beside a tall price card, leaving a
+ *  third of the column empty — the offer read as a lone box in a void. This is
+ *  real data rather than filler: the same groups the report queries. */
+function TodaysIndex() {
+  const { industryGroups, jobsTracked, ready } = useMarketLens()
+  if (!ready || industryGroups.length === 0) return null
+
+  const shown = industryGroups.slice(0, 4)
+  const restCount = jobsTracked - shown.reduce((a, g) => a + g.jobs, 0)
+
+  return (
+    <div className="side-card">
+      <div className="side-eyebrow">TODAY&rsquo;S INDEX · WHAT WE&rsquo;D CHECK AGAINST</div>
+      <div className="side-list">
+        {shown.map((g) => (
+          <div key={g.name} className="side-row">
+            <span className="l">{g.name}</span>
+            <span className="v live-em">{formatCount(g.jobs)}</span>
+          </div>
+        ))}
+        {restCount > 0 ? (
+          <div className="side-row side-row--rest">
+            <span className="l">the rest of the index</span>
+            <span className="v">{formatCount(restCount)}</span>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  )
+}
 
 function CheckIcon() {
   return (
@@ -75,6 +111,7 @@ function LockedOffering() {
             That&apos;s the whole list. Filled before you pay, kept to your stars.
           </div>
         </div>
+        <TodaysIndex />
       </div>
     </div>
   )

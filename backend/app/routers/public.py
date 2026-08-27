@@ -54,6 +54,14 @@ SKILLS_MAPPED = 32_000
 # canonical groups; the long tail is single-digit counts that read as noise.
 INDUSTRY_GROUPS_SHOWN = 5
 
+# Role domains are the clean, product-facing cut of the corpus ("Data &
+# Analytics", "Sales & Marketing") — unlike `role_family_labels`, whose labels
+# are skill-derived and read as raw ATS titles. A handful of rows carry junk
+# domains with single-digit counts, so the payload takes the head and applies a
+# floor rather than trusting the tail.
+ROLE_DOMAINS_SHOWN = 8
+_ROLE_DOMAIN_MIN_OPEN = 50
+
 _CACHE_TTL_SECONDS = 3600
 _CACHE_STALE_SECONDS = 1800  # serve stale up to 30min past TTL while one replica refreshes
 
@@ -99,6 +107,12 @@ def _compile_public_stats() -> dict[str, Any]:
         for name, count in by_industry[:INDUSTRY_GROUPS_SHOWN]
     ]
 
+    role_domains = [
+        {"name": str(name), "jobs": int(count)}
+        for name, count in (analytics.get("by_role") or [])
+        if int(count) >= _ROLE_DOMAIN_MIN_OPEN
+    ][:ROLE_DOMAINS_SHOWN]
+
     return {
         "jobs_tracked": int(analytics.get("total_jobs") or 0),
         "companies_monitored": int(analytics.get("total_companies") or 0),
@@ -110,6 +124,7 @@ def _compile_public_stats() -> dict[str, Any]:
         "industry_groups": industry_groups,
         "total_industries": int(analytics.get("total_industries") or 0),
         "role_families": _count_role_families(),
+        "role_domains": role_domains,
         # Where the corpus came from, and how much of it we have personally
         # opened recently. Shares one read model with the authed rail card so
         # the public and signed-in answers can never drift.

@@ -57,6 +57,11 @@ def get_state(key: str) -> dict[str, Any] | None:
         return None
 
 
+def delete_state(key: str) -> None:
+    conn = _connection()
+    conn.delete(key)
+
+
 def enqueue_pipeline(
     *,
     user_id: str,

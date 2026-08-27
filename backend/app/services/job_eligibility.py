@@ -6,7 +6,6 @@ silently widen a candidate's role family or job level.
 """
 from __future__ import annotations
 
-import math
 import re
 from typing import Any, Literal
 
@@ -31,11 +30,13 @@ _SENIORITY_RANK = {
     "lead": 4,
     "executive": 5,
 }
+SOURCE_SENIORITY = frozenset(_SENIORITY_RANK)
 _SENIORITY_ALIASES = {
     "junior": "entry",
     "graduate": "entry",
     "director": "executive",
     "vp": "executive",
+    "internship": "intern",
 }
 _ROLE_DOMAIN_BANDS = {
     "software engineering": "engineering_data",
@@ -79,12 +80,6 @@ _PUBLIC_IMPACT_TITLE = re.compile(
     r"education|programme? officer)\b",
     re.IGNORECASE,
 )
-_EXECUTIVE_TITLE = re.compile(r"\b(?:chief|vice president|vp|director)\b", re.IGNORECASE)
-_LEAD_TITLE = re.compile(r"\b(?:head|principal|staff|lead)\b", re.IGNORECASE)
-_SENIOR_TITLE = re.compile(r"\b(?:senior|sr)\b", re.IGNORECASE)
-_MID_TITLE = re.compile(r"\b(?:manager|engineer ii|engineer 2|sde ii|sde 2|consultant)\b", re.IGNORECASE)
-_ENTRY_TITLE = re.compile(r"\b(?:junior|jr|graduate|entry|associate|analyst|assistant)\b", re.IGNORECASE)
-_INTERN_TITLE = re.compile(r"\b(?:intern|internship|apprentice|trainee)\b", re.IGNORECASE)
 
 
 def career_band_for_job(job: dict[str, Any]) -> CareerBand | str:
@@ -130,26 +125,40 @@ def explored_bands_for_profile(profile: dict[str, Any], *, primary: str) -> list
     return bands
 
 
+def canonical_source_seniority(value: Any) -> str:
+    """Normalise a Firecrawl/source seniority field to one of the six bands."""
+    return _seniority(value)
+
+
+def adjacent_source_bands(anchor: str) -> tuple[str | None, str | None]:
+    """One lower and one higher band around the chosen anchor, when they exist."""
+    target = canonical_source_seniority(anchor)
+    if target not in _SENIORITY_RANK:
+        return None, None
+    rank = _SENIORITY_RANK[target]
+    lower = next((level for level, value in _SENIORITY_RANK.items() if value == rank - 1), None)
+    higher = next((level for level, value in _SENIORITY_RANK.items() if value == rank + 1), None)
+    return lower, higher
+
+
 def seniority_for_job(job: dict[str, Any]) -> str:
-    """Normalize legacy and source seniority without writing a historic row."""
-    candidates = [
-        _seniority(job.get("seniority_level")),
-        _seniority_from_title(_title(job)),
-        _seniority_from_years(_year(job.get("min_years_experience"))),
-    ]
-    known = [level for level in candidates if level in _SENIORITY_RANK]
-    return max(known, key=_SENIORITY_RANK.__getitem__) if known else ""
+    """Job-card seniority is the source field. Missing stays unknown."""
+    return canonical_source_seniority(job.get("seniority_level"))
 
 
 def target_seniority_for_profile(profile: dict[str, Any]) -> str:
-    """Return the safe target level for new and legacy candidate profiles.
+    """Canonical six-band target, or empty. Never invents entry from ``any``."""
+    target = canonical_source_seniority(profile.get("target_seniority"))
+    return target if target in SOURCE_SENIORITY else ""
 
-    ``any`` was the historic onboarding default, not evidence that a candidate
-    asked to see every level. Treat it like a missing preference so an
-    untouched fresher profile defaults to the entry-level contract.
-    """
-    target = _seniority(profile.get("target_seniority"))
-    return target if target and target != "any" else "entry"
+
+def reported_target_seniority(profile: dict[str, Any]) -> str | None:
+    """API-facing seniority: a six-band value, ``any`` as compatibility, or omitted."""
+    target = target_seniority_for_profile(profile)
+    if target:
+        return target
+    stored = str(profile.get("target_seniority") or "").strip().lower()
+    return "any" if stored == "any" else None
 
 
 def job_is_eligible(
@@ -178,12 +187,10 @@ def job_is_browse_eligible(
     *,
     include_stretch: bool = False,
 ) -> bool:
-    """Apply safe browse eligibility before a candidate has chosen a role family.
+    """Family-span browse at the candidate's canonical seniority, or nothing.
 
-    An incomplete profile has no evidence for a role-family filter, but it still
-    must not be shown senior or executive work. The market browse surface may
-    therefore span families at the candidate's safe seniority level until they
-    give Myro a target; matching remains stricter through ``job_is_eligible``.
+    Without a six-band target the gate owns the next step — this function does
+    not invent entry-level eligibility from ``any`` or a missing field.
     """
     if career_band_for_profile(profile):
         return job_is_eligible(profile, job, include_stretch=include_stretch)
@@ -196,9 +203,9 @@ def job_is_browse_eligible(
 
 def seniority_is_eligible(target: str, actual: str, *, include_stretch: bool = False) -> bool:
     """Apply the strict default and explicit one-level stretch policy."""
-    target = _seniority(target)
-    if target == "any" or not target:
-        target = "entry"
+    target = canonical_source_seniority(target)
+    if target not in SOURCE_SENIORITY:
+        return False
     if actual not in _SENIORITY_RANK:
         return False
     allowed = {
@@ -226,30 +233,6 @@ def _career_band_from_title(title: str) -> CareerBand | str:
     return ""
 
 
-def _seniority_from_title(title: str) -> str:
-    matches = [
-        ("executive", _EXECUTIVE_TITLE), ("lead", _LEAD_TITLE),
-        ("senior", _SENIOR_TITLE), ("mid", _MID_TITLE),
-        ("entry", _ENTRY_TITLE), ("intern", _INTERN_TITLE),
-    ]
-    known = [level for level, pattern in matches if pattern.search(title)]
-    return max(known, key=_SENIORITY_RANK.__getitem__) if known else ""
-
-
-def _seniority_from_years(minimum: int | None) -> str:
-    if minimum is None:
-        return ""
-    if minimum <= 1:
-        return "entry"
-    if minimum <= 4:
-        return "mid"
-    if minimum <= 7:
-        return "senior"
-    if minimum <= 10:
-        return "lead"
-    return "executive"
-
-
 def _seniority(value: Any) -> str:
     text = _text(value)
     return _SENIORITY_ALIASES.get(text, text) if text in _SENIORITY_RANK or text in _SENIORITY_ALIASES else ""
@@ -258,16 +241,6 @@ def _seniority(value: Any) -> str:
 def _career_band(value: Any) -> CareerBand | str:
     text = _text(value)
     return text if text in CAREER_BANDS else ""
-
-
-def _year(value: Any) -> int | None:
-    if value is None or isinstance(value, bool):
-        return None
-    try:
-        parsed = float(value)
-    except (TypeError, ValueError):
-        return None
-    return int(parsed) if math.isfinite(parsed) and parsed.is_integer() and 0 <= parsed <= 60 else None
 
 
 def _as_list(value: Any) -> list[Any]:

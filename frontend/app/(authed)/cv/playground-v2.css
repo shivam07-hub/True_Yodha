@@ -439,28 +439,30 @@
   .cvb-v2--onboarding[data-tab="skills"] .cvb-v2-editor { display: none; }
   .cvb-v2--onboarding[data-tab="edit"] .cvb-v2-rail { display: none; }
 
+  /* Static row inside StickyOnboardingActionBar's own fixed container — NOT a
+     second fixed element. It was pinned at `bottom: 7rem`, a hardcoded guess
+     at that bar's content-driven height, and it guessed 105px short: the skill
+     list scrolled through the gap between the two, so the tabs read as a strip
+     dropped on the list rather than part of the bottom cluster. */
   .cvb-v2-bottomnav {
-    position: fixed; left: 0; right: 0; z-index: 28;
-    bottom: calc(var(--tm-mobile-bottomnav-h, 0px) + env(safe-area-inset-bottom));
     display: flex; gap: 4px; padding: 8px 10px;
-    background: var(--tm-surface); border-top: 1px solid var(--tm-border-soft);
+    border-bottom: 1px solid var(--tm-border-soft);
   }
-  .cvb-v2-bottomnav .cvb-v2-tabbtn { flex: 1; padding: 9px 0; min-height: 40px; }
-  .cvb-v2--onboarding { padding-bottom: 72px; }  /* room for that bar */
+  .cvb-v2-bottomnav .cvb-v2-tabbtn { flex: 1; padding: 9px 0; min-height: 44px; }
 
   .cvb-v2-applyfoot .cvb-v2-applywide.grow { flex: 1 1 100%; }
 }
 
-/* Onboarding skill confirm: the sticky action bar stays at the bottom. Mobile
-   pane tabs sit above it so CV / Skills never cover Looks right. */
+/* Onboarding skill confirm: the sticky action bar stays at the bottom, and on
+   mobile the CV / Skills tabs ride inside it as its top row. */
 .cvb-v2--onboarding { padding-bottom: 7rem; }
 .cvb-v2--onboarding .cvb-v2-rail { height: calc(100dvh - 64px - 7rem); }
 @media (max-width: 900px) {
-  .cvb-v2.cvb-v2--onboarding { padding-bottom: calc(72px + 7rem); }
+  /* One reserve for the whole bottom cluster (tabs + action row + safe area).
+     Over-reserving only leaves blank page after the last row; under-reserving
+     hides a control, so this errs long deliberately. */
+  .cvb-v2.cvb-v2--onboarding { padding-bottom: calc(11rem + env(safe-area-inset-bottom)); }
   .cvb-v2--onboarding .cvb-v2-rail { height: auto; }
-  .cvb-v2--onboarding .cvb-v2-bottomnav {
-    bottom: calc(7rem + env(safe-area-inset-bottom));
-  }
 }
 .cvb-upload-continue {
   display: flex;

@@ -286,7 +286,8 @@ test("an empty slot still renders, because the gap is the question", () => {
   const group = read("components/preflight/slot-group.tsx")
   // No early return on an empty group, and the add chip is unconditional.
   assert.doesNotMatch(group, /if \(!lines\.length\) return null/)
-  assert.match(group, /<SlotAdd copy=\{copy\} busy=\{busy\} onAdd=\{onAdd\} \/>/)
+  assert.match(group, /<SlotAdd/)
+  assert.match(group, /chosen=\{lines\.map/)
 })
 
 test("adding into a slot needs no inference and no LLM turn", () => {
@@ -365,6 +366,11 @@ test("the RUN screen is the Job Refresh lifecycle, not a four-step play", () => 
   assert.match(hook, /refreshIsLive/)
   assert.match(hook, /"queued"/)
   assert.match(gate, /lifecycle=\{refreshVm\.state === "computing" \? "computing" : "queued"\}/)
+  // The wait is a count and a tape — not a restaged pin, not a contract from
+  // a screen that is no longer visible.
+  assert.match(running, /pf-run-tape/)
+  assert.doesNotMatch(running, /pf-run-hero|pf-run-pin|pf-contract/)
+  assert.doesNotMatch(gate, /contract=\{/)
 })
 
 test("signing off does not dispatch a second run", () => {
@@ -422,6 +428,7 @@ test("no rule survives the element it styled", () => {
     "components/preflight/preflight-gate.tsx",
     "components/preflight/screen-canvas.tsx",
     "components/preflight/slot-group.tsx",
+    "components/target-location/location-picker.tsx",
     "components/preflight/plate.tsx",
     "components/preflight/conflict-plate.tsx",
     "components/preflight/heard-row.tsx",

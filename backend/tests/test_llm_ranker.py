@@ -229,7 +229,7 @@ def test_persist_matches_never_recommends_low_score_or_wrong_seniority() -> None
         batch_week=date(2026, 5, 25),
         top_jobs=[
             _target_job("low"),
-            _target_job("junior", title="Junior Product Manager"),
+            _target_job("junior", title="Junior Product Manager", seniority_level="entry"),
         ],
         evaluations={
             "low": _eval(overall_score=2.8, recommendation="Apply"),

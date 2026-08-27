@@ -33,13 +33,12 @@ export function MoveHero({
         </div>
         <h1 className="up-move-name">{skill.name}</h1>
         <p className="up-move-body">
-          Clear the <b>{nextTier}</b> rung — 10 questions, untimed. Nail <b>8/10</b> to bank it onto your CV.
+          Clear the <b>{nextTier}</b> rung — 10 questions, untimed. Nail <b>8/10</b> to earn a Myro Skill Certificate.
         </p>
-        {(primaryRole || skill.jobCount > 0) && (
+        {primaryRole && (
           <p className="up-move-reason">
             <Icon name="target" size={12} />
-            {primaryRole ? <>Closes a gap for <span>{primaryRole}</span></> : "Closes a gap"}
-            {skill.jobCount > 0 && <> · wanted by {skill.jobCount} of your jobs</>}
+            Closes a gap for <span>{primaryRole}</span>
           </p>
         )}
 

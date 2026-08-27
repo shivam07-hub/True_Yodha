@@ -27,24 +27,10 @@ export function demandBandDisplay(band: DemandBand | undefined): BandDisplay | n
 }
 
 /**
- * Fallback band for gap skills sourced from job gaps (no backend weighted_demand
- * band). Derives a coarse band from how many target jobs want it.
- */
-export function bandFromJobCount(jobCount: number): DemandBand {
-  if (jobCount >= 5) return "very_high"
-  if (jobCount >= 3) return "high"
-  if (jobCount >= 1) return "moderate"
-  return "none"
-}
-
-/**
- * Band for a skill's demand across the WHOLE tracked-job corpus (not a single
- * user's target jobs — that's bandFromJobCount). The /taxonomy in-demand tier
- * reads this: a skill referenced by N distinct active jobs maps to the same
- * DemandBand vocabulary the Skills page uses, so the badge can't drift.
- *
- * Thresholds are corpus-scaled (skills hit 200+ jobs here, vs single digits in a
- * personal gap set). "In the in-demand set" == band !== "none" == count >= 20.
+ * Band for a skill's demand across the WHOLE tracked-job corpus.
+ * Used only by `scripts/gen-taxonomy-artifacts.ts` for the /taxonomy
+ * in-demand tier. Personal skill-path demand lives on GET /career-skill-path
+ * and is never derived from a job-count heuristic in the client.
  */
 export function bandFromCorpusJobCount(jobCount: number): DemandBand {
   if (jobCount >= 200) return "very_high"
@@ -53,3 +39,4 @@ export function bandFromCorpusJobCount(jobCount: number): DemandBand {
   if (jobCount >= 20) return "low"
   return "none"
 }
+

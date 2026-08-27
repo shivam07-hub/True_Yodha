@@ -87,6 +87,13 @@ class _Query:
         self._filters.append(("in", col, list(vals)))
         return self
 
+    def is_(self, col, val):
+        self._filters.append(("is", col, val))
+        return self
+
+    def order(self, _col, desc=False):
+        return self
+
     def limit(self, _n):
         return self
 
@@ -107,6 +114,13 @@ class _Query:
                 return False
             if kind == "in" and row.get(col) not in val:
                 return False
+            if kind == "is":
+                actual = row.get(col)
+                if val in (None, "null"):
+                    if actual is not None:
+                        return False
+                elif actual != val:
+                    return False
         return True
 
     def execute(self):
@@ -150,6 +164,9 @@ class _FakeAdmin:
     def table(self, name):
         return _Query(self._store, name)
 
+    def rpc(self, _name, _params=None):
+        return _Query(self._store, "_rpc")
+
 
 def _seed_store(*, answer_all_correct=True, prior_clear=False, prior_clear_user="u1"):
     """A started 10-question attempt for (SKILL_ID, LEVEL). correct_index=1 for all."""
@@ -186,6 +203,8 @@ def _seed_store(*, answer_all_correct=True, prior_clear=False, prior_clear_user=
         "quiz_answers": [],
         "skill_assessed_level": [],
         "user_skills": [],
+        "skill_certificates": [],
+        "skills": [{"id": SKILL_ID, "taxonomy_key": "sql", "display_name": "SQL"}],
         "coin_ledger": [],
     }
     if prior_clear:
@@ -259,6 +278,10 @@ async def test_perfect_first_clear_awards_and_advances():
     reward.assert_awaited_once()
     # assessed level + grandfathered headline level advanced
     assert store["skill_assessed_level"][0]["assessed_level"] == LEVEL
+    assert store["user_skills"] == []
+    assert result["certificate"] is not None
+    assert result["certificate"]["skill_display_name"] == "SQL"
+    assert result["certificate"]["achieved_level"] == LEVEL
 
 
 @pytest.mark.asyncio

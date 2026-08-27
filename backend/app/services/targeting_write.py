@@ -1,22 +1,14 @@
 """The ONE way a targeting patch reaches storage.
 
-Two callers now write the user's direction — `PUT /users/me/profile` (the
-settings/profile edit) and `POST /preflight/run` (the signed-off order). They
-must derive the same things from the same input, because what they write is read
-back by `targeting.for_ranking` and cached forever per (user, job): a second
-derivation that rounds a career band differently would produce two users' worth
-of verdicts for one user.
+Callers: `PUT /users/me/profile`, `POST /preflight/run`, and `save_target`
+(onboarding, intent chat, point-of-use role edit). They must derive the same
+columns, because what they write is read back by `targeting.for_ranking` and
+cached forever per (user, job).
 
-Three derivations live here, none of them optional:
-
-- **Role titles are the source of record; `target_roles` (the matcher's taxonomy
-  cluster union) is always derived from them.** A raw `target_roles` sent
-  alongside titles is dropped rather than merged — that is the split-brain this
-  rule exists to prevent.
-- Career band + explored bands follow from the titles.
-- **A lean has no column** — it IS an authored `preference` fact — so it is
-  routed to the memory writer instead of being handed to `update_profile`,
-  which would try to set a field that does not exist.
+`CareerTargetSnapshot` is the unit of truth for a direction change. Profile
+columns stay the compatibility projection until every consumer reads the
+snapshot. `target_roles` is derived from the selected role family, never from
+title ILIKE.
 """
 from __future__ import annotations
 
@@ -26,10 +18,11 @@ from typing import Any
 from app.database import get_supabase_admin
 from app.repositories.users import UsersRepository
 from app.services import onboarding_service
+from app.services.career_target import MAX_TARGET_LOCATIONS, record_from_profile
 from app.services.job_eligibility import (
     career_band_for_profile,
     explored_bands_for_profile,
-    target_seniority_for_profile,
+    canonical_source_seniority,
 )
 
 
@@ -39,14 +32,13 @@ logger = logging.getLogger("uvicorn.error")
 def derive(updates: dict[str, Any], before: dict[str, Any]) -> dict[str, Any]:
     """Expand a caller's patch into the columns storage actually holds.
 
-    `target_roles` (the matcher's taxonomy cluster union — CONTEXT.md calls it
-    the matcher and aspiration ILIKE keys) is derived from the selected role
-    FAMILY, not the human titles. When the caller does not supply a family — the
-    pre-flight `POST /preflight/run` path never does; the payload projector emits
-    titles only — a naive `role_title_updates(titles)` returns an EMPTY
-    `target_roles`, and writing that empty list is the "market has nothing" bug
-    (invariant 5): the feed scopes on this column, and an empty scoping key
-    tells the user no roles exist.
+    `target_roles` (the matcher's taxonomy cluster union) is derived from the
+    selected role FAMILY, not the human titles. When the caller does not supply
+    a family — the pre-flight `POST /preflight/run` path never does; the payload
+    projector emits titles only — a naive `role_title_updates(titles)` returns
+    an EMPTY `target_roles`, and writing that empty list is the "market has
+    nothing" bug (invariant 5): the feed scopes on this column, and an empty
+    scoping key tells the user no roles exist.
 
     So when the caller stays silent on family, we KEEP the stored families
     rather than overwrite them. Only a caller that actually resolved a family
@@ -101,7 +93,20 @@ def derive(updates: dict[str, Any], before: dict[str, Any]) -> dict[str, Any]:
             primary=updates["target_career_band"] or "",
         )
     if "target_seniority" in updates:
-        updates["target_seniority"] = target_seniority_for_profile(updates)
+        raw = updates.get("target_seniority")
+        if str(raw or "").strip().lower() == "any":
+            updates["target_seniority"] = "any"
+        else:
+            updates["target_seniority"] = canonical_source_seniority(raw) or None
+    if "target_locations" in updates:
+        seen: list[str] = []
+        for value in updates.get("target_locations") or []:
+            text = str(value or "").strip()
+            if text and text not in seen:
+                seen.append(text)
+            if len(seen) >= MAX_TARGET_LOCATIONS:
+                break
+        updates["target_locations"] = seen
     return updates
 
 
@@ -116,17 +121,40 @@ def split_lean(updates: dict[str, Any]) -> tuple[dict[str, Any], list[str] | Non
 
 
 def apply(users_repo: UsersRepository, user_id: str, patch: dict[str, Any]) -> dict[str, Any] | None:
-    """Derive, route the lean, write, and return the stored profile.
+    """Derive, route the lean, write the snapshot + projection, return the profile."""
+    return commit(users_repo, user_id, patch).profile
 
-    Reaching here means the user pressed Save or Run — this is a commit point,
-    never a draft write.
-    """
+
+class TargetCommit:
+    __slots__ = ("profile", "direction_changed", "leans_changed")
+
+    def __init__(
+        self,
+        profile: dict[str, Any] | None,
+        direction_changed: bool,
+        leans_changed: bool,
+    ) -> None:
+        self.profile = profile
+        self.direction_changed = direction_changed
+        self.leans_changed = leans_changed
+
+
+def commit(users_repo: UsersRepository, user_id: str, patch: dict[str, Any]) -> TargetCommit:
+    """The only direction write. Snapshot first-class; profile is the projection."""
     before = users_repo.get_profile(user_id) or {}
     updates, lean = split_lean(patch)
     updates = derive(updates, before)
 
+    leans_changed = False
     if lean is not None:
-        onboarding_service.replace_authored_leans(get_supabase_admin(), user_id, lean)
+        leans_changed = onboarding_service.replace_authored_leans(
+            get_supabase_admin(), user_id, lean
+        )
+    direction_changed = False
     if updates:
-        users_repo.update_profile(user_id, updates)
-    return users_repo.get_profile(user_id)
+        direction_changed = bool(users_repo.update_profile(user_id, updates))
+    profile = users_repo.get_profile(user_id)
+    db = getattr(users_repo, "_db", None)
+    if db is not None:
+        record_from_profile(db, user_id, before, profile or {})
+    return TargetCommit(profile, direction_changed, leans_changed)

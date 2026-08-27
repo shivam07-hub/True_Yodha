@@ -158,7 +158,6 @@
 .pf-btn-primary {
   background: var(--tm-interactive);
   color: var(--tm-interactive-fg);
-  box-shadow: 0 4px 12px var(--tm-interactive-glow);
 }
 .pf-btn-primary:not(:disabled):hover { background: var(--tm-interactive-hover); }
 
@@ -168,14 +167,6 @@
   border-color: var(--tm-border);
 }
 .pf-btn-outline:hover { border-color: var(--tm-accent-ring); color: var(--tm-accent-text); }
-
-.pf-sub {
-  margin: 10px 0 0;
-  font-size: var(--tm-fs-ui-sm);
-  line-height: 1.6;
-  color: var(--tm-text-muted);
-  text-wrap: pretty;
-}
 
 /* Myro is thinking — shown, not narrated.
  *

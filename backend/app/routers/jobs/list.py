@@ -19,6 +19,7 @@ from app.services.llm_provider import LLMProvider, get_blocking_judgment_provide
 from app.services.matching import feed_warm
 from app.services.matching.filter_spec import FilterSpec
 from app.services.matching.job_query import JobQuery
+from app.services.job_refresh import user_has_live_refresh
 from app.services.phase_timing import phase_timer
 from app.schemas import (
     CompanyOpenRoleItem,
@@ -677,6 +678,9 @@ async def warm_feed(
     the deterministic order). Scoped to the SAME filters as the feed so the warmed
     cards are exactly the cards the user sees first."""
     uid = principal.id
+    if user_has_live_refresh(uid):
+        logger.info("metric feed_warm.yielded user=%s stage=route", uid)
+        return FeedWarmResponse(ready=True, warmed=0)
     scope = _resolve_feed_scope(
         repo, uid,
         cluster=cluster, role_domain=role_domain, q=q, skill=skill,

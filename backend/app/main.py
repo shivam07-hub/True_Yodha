@@ -10,6 +10,7 @@ from app.request_timing import RequestTimingMiddleware
 from app.routers import (
     auth,
     career_profile,
+    career_skill_path,
     comments,
     companies,
     cv,
@@ -35,6 +36,7 @@ from app.routers import (
     roles,
     public,
     scores,
+    skill_certificate_public,
     skills,
     status,
     telemetry,
@@ -96,6 +98,7 @@ app.include_router(comments.router)
 app.include_router(private_notes.router)
 app.include_router(user_memory.router)
 app.include_router(career_profile.router)
+app.include_router(career_skill_path.router)
 app.include_router(xp.router)
 app.include_router(profile.router)
 app.include_router(payments.router)
@@ -110,6 +113,7 @@ app.include_router(partner.router)
 app.include_router(partner_connect.router)
 app.include_router(roles.router)
 app.include_router(public.router)
+app.include_router(skill_certificate_public.router)
 app.include_router(status.router)
 app.include_router(telemetry.router)
 app.include_router(upskilling.router)

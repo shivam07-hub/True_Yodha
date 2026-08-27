@@ -2,7 +2,7 @@
 
 import { useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import { users } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { openRefreshGate } from "@/store/refreshGateStore"
@@ -33,9 +33,8 @@ import { PreflightGate } from "@/components/preflight/preflight-gate"
  *   // mount {gate} once in the tree
  */
 export function useMyroSearch(token: string | null) {
-  const queryClient = useQueryClient()
   const router = useRouter()
-  const refreshVm = useJobRefresh(token, queryClient)
+  const refreshVm = useJobRefresh(token)
   const { data: profile } = useQuery({
     queryKey: dataKeys.profile(),
     queryFn: () => users.me(token!),

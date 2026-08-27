@@ -1,13 +1,12 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { type QueryClient } from "@tanstack/react-query"
 import { jobs, type RefreshOutcomeKind } from "@/lib/api"
-import { dataKeys } from "@/lib/domain-data"
 import { JOB_MATCHES_CACHE_PARTS, LEGACY_JOB_MATCHES_CACHE_PARTS } from "@/lib/job-matches-cache"
 import { clearLocalCache, userCacheKey } from "@/lib/local-cache"
 import { readSse, type SseEvent } from "@/lib/streaming/read-sse"
 import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
+import { useMatchRunStore } from "@/store/matchRunStore"
 import { useXPStore } from "@/store/xpStore"
 
 export const REFRESH_XP_COST = MYRO_COINS_POLICY.matchRefreshCost
@@ -88,10 +87,7 @@ interface ErrResult {
 
 /** Job Refresh view-model — see CONTEXT.md "Job Refresh". ADR-0009 PR2: a single
  *  SSE stream replaces the old 1s status poll. */
-export function useJobRefresh(
-  token: string | null,
-  queryClient: QueryClient,
-): UseJobRefreshResult {
+export function useJobRefresh(token: string | null): UseJobRefreshResult {
   const balance = useXPStore((s) => s.balance)
   const applyXpChange = useXPStore((s) => s.applyXpChange)
 
@@ -105,6 +101,12 @@ export function useJobRefresh(
   const [revealed, setRevealed] = useState<RevealedJob[]>([])
 
   const abortRef = useRef<AbortController | null>(null)
+  const setRanking = useMatchRunStore((s) => s.setRanking)
+
+  useEffect(() => {
+    setRanking(refreshIsLive(state))
+    return () => setRanking(false)
+  }, [state, setRanking])
 
   const stopStream = useCallback(() => {
     abortRef.current?.abort()
@@ -125,9 +127,11 @@ export function useJobRefresh(
         clearLocalCache(userCacheKey(token, JOB_MATCHES_CACHE_PARTS))
         clearLocalCache(userCacheKey(token, LEGACY_JOB_MATCHES_CACHE_PARTS))
       }
-      queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
+      // Do not invalidate the feed here. The search still holds the lane until
+      // the user looks at the matches — a feed/warm refetch now is the 73s
+      // judgment-lane call that races the ranking that just finished.
     },
-    [queryClient, applyXpChange, stopStream, token],
+    [applyXpChange, stopStream, token],
   )
 
   const finishError = useCallback(

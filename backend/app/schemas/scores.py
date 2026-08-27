@@ -30,7 +30,7 @@ class MirrorScoreResponse(BaseModel):
     gap_skills: list[GapSkillResponse]  # top 5 upgrade priorities
     skills_assessed: int
     computed_at: datetime
-    band: str = "entry"                 # seniority band the score is relative to
+    band: str = "unknown"               # six-band seniority, or unknown — never invent entry
     band_percentile: float | None = None
     top_percent: int | None = None      # 100 − rank, floored at 1
 

@@ -174,10 +174,9 @@ def list_skills(user_id: str) -> list[dict]:
 
     cleared_level/assessed_level come from skill_assessed_level (the DEC-1a
     source of truth). user_skills only marks whether the skill was found on the
-    CV; inferred CV levels do not count as cleared practice. demand/job_count are
-    left at defaults here — the frontend merges its existing demand signal
-    (buildPracticeSkills) over the top; this endpoint owns progress + bank
-    readiness, not market demand.
+    CV; inferred CV levels do not count as cleared practice. Demand, skill state,
+    and next action live on GET /career-skill-path — this endpoint owns progress
+    and bank readiness only.
     """
     admin = get_supabase_admin()
 
@@ -425,9 +424,15 @@ async def submit_set(
         on_conflict="attempt_id,question_id",
     ).execute()
 
-    # On a pass: advance only the assessed learning level.
     if passed:
         _bump_assessed_level(admin, user_id, skill_id, level)
+
+    certificate = None
+    if passed:
+        from app.repositories.skill_certificates import SkillCertificates
+        certificate = SkillCertificates(admin).issue_for_pass(
+            user_id=user_id, skill_id=skill_id, level=level, attempt_id=set_id
+        )
 
     # Award only the first clear of this (skill, level).
     if first_clear and tokens_awarded > 0:
@@ -449,6 +454,7 @@ async def submit_set(
         "tokens_awarded": tokens_awarded,
         "next_level_unlocked": next_level_unlocked,
         "results": results,
+        "certificate": certificate,
     }
 
 
@@ -789,6 +795,18 @@ async def _replay_result(admin, attempt: dict, question_ids: list[int]) -> dict:
     level = int(attempt["level"])
     passed = bool(attempt.get("passed"))
     tokens = int(attempt.get("tokens_awarded") or 0)
+    certificate = None
+    if passed:
+        from app.repositories.skill_certificates import SkillCertificates
+        certificate = SkillCertificates(admin).for_attempt(str(attempt["id"]))
+        if certificate:
+            from app.repositories.skill_certificates import cv_line, verify_path
+            certificate = {
+                **certificate,
+                "verify_path": verify_path(str(certificate.get("verification_id") or "")),
+                "cv_line": cv_line(certificate),
+                "certificate_status": "on_cv" if certificate.get("cv_promoted_at") else "issued",
+            }
     return {
         "score": score,
         "max": int(attempt.get("max_score") or len(question_ids)),
@@ -797,4 +815,5 @@ async def _replay_result(admin, attempt: dict, question_ids: list[int]) -> dict:
         "tokens_awarded": tokens,
         "next_level_unlocked": level + 1 if passed and level < 5 else None,
         "results": results,
+        "certificate": certificate,
     }

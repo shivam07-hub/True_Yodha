@@ -148,3 +148,50 @@ test("the brain warm is deferred to J1 and lives outside the feed hook", () => {
   assert.match(desktop, /useFeedWarm\(/)
   assert.match(mobile, /useFeedWarm\(/)
 })
+
+test("a live match run yields every J1/J2 Market fetch", () => {
+  const store = readFileSync(new URL("../store/matchRunStore.ts", import.meta.url), "utf8")
+  const warm = readFileSync(new URL("../components/market/use-feed-warm.ts", import.meta.url), "utf8")
+  const feed = readFileSync(new URL("../components/market/use-job-feed.ts", import.meta.url), "utf8")
+  const pulses = readFileSync(new URL("../lib/hooks/use-pulses.ts", import.meta.url), "utf8")
+  const demand = readFileSync(new URL("../lib/hooks/use-skill-demand.ts", import.meta.url), "utf8")
+  const intel = readFileSync(new URL("../lib/hooks/use-market-intel.ts", import.meta.url), "utf8")
+  const feedState = readFileSync(new URL("../lib/hooks/use-feed-state.ts", import.meta.url), "utf8")
+  const refresh = readFileSync(new URL("../lib/hooks/use-job-refresh.ts", import.meta.url), "utf8")
+  const gate = readFileSync(new URL("../components/preflight/preflight-gate.tsx", import.meta.url), "utf8")
+  const list = readFileSync(new URL("../../backend/app/routers/jobs/list.py", import.meta.url), "utf8")
+  const warmPy = readFileSync(new URL("../../backend/app/services/matching/feed_warm.py", import.meta.url), "utf8")
+
+  assert.match(store, /export function useLaneYields/)
+  assert.match(store, /s\.ranking \|\| s\.hold/)
+
+  for (const [name, src] of [
+    ["warm", warm],
+    ["feed", feed],
+    ["pulses", pulses],
+    ["demand", demand],
+    ["intel", intel],
+    ["feedState", feedState],
+  ] as const) {
+    assert.match(src, /useLaneYields/, `${name} must yield to a live match run`)
+  }
+
+  // A shed `{warmed:0}` must retry after ranking; recording the key before the
+  // call is how a yielded warm never ran again.
+  assert.match(warm, /if \(yieldLane/)
+  assert.match(warm, /res\.warmed > 0/)
+  assert.match(warm, /attempted\.current\.add\(signature\)/)
+  const attemptedAt = warm.indexOf("attempted.current.add(signature)")
+  const yieldAt = warm.indexOf("if (yieldLane")
+  assert.ok(yieldAt >= 0 && attemptedAt > yieldAt, "do not mark a warm attempted before it can yield")
+
+  assert.doesNotMatch(refresh, /invalidateQueries/)
+  assert.match(gate, /setHold\(open && \(starting \|\| mode === "running" \|\| mode === "done"\)\)/)
+  assert.match(gate, /queryKey: \["jobFeed"\]/)
+  assert.match(gate, /releaseAfterRun/)
+
+  assert.match(list, /user_has_live_refresh/)
+  assert.match(list, /feed_warm.yielded/)
+  assert.match(warmPy, /user_has_live_refresh/)
+  assert.match(warmPy, /stage=pre_eval/)
+})

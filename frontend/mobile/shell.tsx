@@ -6,6 +6,13 @@ import { usePathname } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton"
 import "react-loading-skeleton/dist/skeleton.css"
+// The mobile design system travels WITH the chrome that uses it, not with the
+// app shell. It used to be imported by components/app-shell.tsx alone, so a
+// signed-in visitor on a public route got .mm-root markup with no --mm-*
+// declared: the top bar's Practice and avatar buttons lost their fill and
+// border to `background: var(--mm-card)` resolving to nothing. Anything that
+// mounts these bars now brings their tokens.
+import "./redesign/redesign.css"
 import { SettingsModal, type Tab as SettingsTab } from "@/components/settings-modal"
 import { MyroLogo } from "@/components/myro-logo"
 import { NotificationBell } from "@/components/nav/notification-bell"

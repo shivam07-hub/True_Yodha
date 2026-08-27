@@ -93,6 +93,11 @@ def test_derive_drops_a_raw_target_roles_supplied_alongside_titles() -> None:
     assert out["target_roles"] == ["product_management"]
 
 
+def test_derive_does_not_coerce_any_to_entry() -> None:
+    out = targeting_write.derive({"target_seniority": "any"}, {})
+    assert out["target_seniority"] == "any"
+
+
 def test_derive_refuses_to_empty_the_scoping_key_by_omission() -> None:
     """The 3-user state: titles stated, `target_roles` empty — so the feed and
     matcher scope on nothing and report it as "the market has nothing".

@@ -40,7 +40,8 @@ const BAND_LABELS: Readonly<Record<string, string>> = {
 }
 
 export function bandLabel(band: string | null | undefined): string {
-  return BAND_LABELS[(band ?? "").toLowerCase()] ?? "entry-level"
+  const key = (band ?? "").toLowerCase()
+  return BAND_LABELS[key] ?? ""
 }
 
 export const SCORE_ENGINE_FACTS = {

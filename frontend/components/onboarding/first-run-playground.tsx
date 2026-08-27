@@ -58,23 +58,28 @@ export function FirstRunPlayground(props: Omit<FirstRunSkillReviewProps, "childr
             <FirstRunCvPane token={props.token} />
             {list}
           </div>
-          <nav className="cvb-v2-bottomnav" aria-label="Onboarding sections">
-            <button
-              type="button"
-              className={`cvb-v2-tabbtn${pane === "edit" ? " active" : ""}`}
-              onClick={() => setPane("edit")}
-            >
-              CV
-            </button>
-            <button
-              type="button"
-              className={`cvb-v2-tabbtn${pane === "skills" ? " active" : ""}`}
-              onClick={() => setPane("skills")}
-            >
-              Skills
-            </button>
-          </nav>
-          <StickyOnboardingActionBar error={chrome.error} contentClassName="max-w-5xl">
+          <StickyOnboardingActionBar
+            error={chrome.error}
+            contentClassName="max-w-5xl"
+            above={
+              <nav className="cvb-v2-bottomnav" aria-label="Onboarding sections">
+                <button
+                  type="button"
+                  className={`cvb-v2-tabbtn${pane === "edit" ? " active" : ""}`}
+                  onClick={() => setPane("edit")}
+                >
+                  CV
+                </button>
+                <button
+                  type="button"
+                  className={`cvb-v2-tabbtn${pane === "skills" ? " active" : ""}`}
+                  onClick={() => setPane("skills")}
+                >
+                  Skills
+                </button>
+              </nav>
+            }
+          >
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-3 sm:px-8">
               <p className="text-sm text-[var(--tm-text-muted)]">
                 <span className="font-semibold tabular-nums text-[var(--tm-text)]">{chrome.keptCount}</span> kept

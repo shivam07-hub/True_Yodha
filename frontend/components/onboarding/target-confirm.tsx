@@ -7,8 +7,9 @@ import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { StickyOnboardingActionBar } from "@/components/onboarding/sticky-action-bar"
 import { DirectionChoice } from "@/components/onboarding/direction-choice"
+import { LocationChoice } from "@/components/onboarding/location-choice"
 import { formatCount } from "@/lib/format"
-import { dataKeys } from "@/lib/domain-data"
+import { invalidateTargetRoleData } from "@/lib/domain-data"
 import { onboarding, users as usersApi, type OnboardingResult, type RoleFamily, type TargetSeniority } from "@/lib/api"
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value"
 import { trackEvent } from "@/lib/analytics"
@@ -142,14 +143,6 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
     setLocations([])
   }
 
-  function toggleLocation(location: string) {
-    setLocations((current) =>
-      current.includes(location)
-        ? current.filter((value) => value !== location)
-        : current.length >= MAX_LOCATIONS ? current : [...current, location],
-    )
-  }
-
   async function submit() {
     if (!canSubmit || !seniority) return
     setBusy(true); setError(null)
@@ -184,7 +177,7 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
         lean_count: lean.length,
         avoid_count: avoid.length,
       })
-      await queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
+      await invalidateTargetRoleData(queryClient)
       onConfirmed()
       router.replace("/market")
     } catch (reason) {
@@ -216,36 +209,13 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
 
     <SeniorityChoice result={result.seniority} value={seniority} onChange={setSeniority} />
 
-    {selected.length > 0 && <section className="mt-7" aria-labelledby="target-location">
-      <p id="target-location" className="text-sm font-medium text-[var(--tm-text)]">Where? <span className="font-normal text-[var(--tm-text-muted)]">Up to {MAX_LOCATIONS}, or leave empty for anywhere.</span></p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setLocations([])}
-          aria-pressed={locations.length === 0}
-          className={cn("tm-control-focus min-h-11 rounded-md border px-3 text-sm", locations.length === 0 ? "border-[var(--tm-interactive)] bg-[var(--tm-interactive)] text-[var(--tm-interactive-fg)]" : "border-[var(--tm-border)] bg-[var(--tm-surface)] text-[var(--tm-text-muted)]")}
-        >
-          Anywhere · {formatCount(totalOpen)}
-        </button>
-        {locationOptions.map(option => {
-          const picked = locations.includes(option.location)
-          return <button
-            key={option.location}
-            type="button"
-            onClick={() => toggleLocation(option.location)}
-            aria-pressed={picked}
-            disabled={!picked && locations.length >= MAX_LOCATIONS}
-            className={cn(
-              "tm-control-focus min-h-11 rounded-md border px-3 text-sm",
-              picked ? "border-[var(--tm-interactive)] bg-[var(--tm-interactive)] text-[var(--tm-interactive-fg)]" : "border-[var(--tm-border)] bg-[var(--tm-surface)] text-[var(--tm-text-muted)]",
-              !picked && locations.length >= MAX_LOCATIONS && "opacity-45",
-            )}
-          >
-            {option.location} · {formatCount(option.open_count)}{option.open_count < 10 ? " · thin" : ""}
-          </button>
-        })}
-      </div>
-    </section>}
+    {selected.length > 0 && <LocationChoice
+      totalOpen={totalOpen}
+      options={locationOptions}
+      selected={locations}
+      max={MAX_LOCATIONS}
+      onChange={setLocations}
+    />}
 
     {selected.length > 0 && <DirectionChoice
       lean={lean}

@@ -3,9 +3,9 @@ import test from "node:test"
 
 import { renderToStaticMarkup } from "react-dom/server"
 
-import { ScreenRunning } from "../components/preflight/screen-running"
+import { ScreenDone, ScreenRunning } from "../components/preflight/screen-running"
 
-test("a queued ticket says it is waiting, without inventing a phase or a count", () => {
+test("a queued ticket keeps the count slot, without inventing a phase", () => {
   const html = renderToStaticMarkup(
     <ScreenRunning
       lifecycle="queued"
@@ -13,20 +13,20 @@ test("a queued ticket says it is waiting, without inventing a phase or a count",
       done={null}
       total={null}
       revealed={[]}
-      contract={null}
     />,
   )
-  assert.match(html, /Waiting to start/)
   // ADR-0009's phase list is the authority; no fabricated step names.
   assert.doesNotMatch(html, /Reading your signed-off order/)
   assert.doesNotMatch(html, /Scoring against your CV baseline/)
   assert.doesNotMatch(html, /Ranking by fit/)
-  // Nothing revealed yet — no hero and no count.
+  // The count is the thesis even before the first reveal — never an empty hole.
+  assert.match(html, /pf-run-count/)
+  assert.match(html, /of —/)
   assert.doesNotMatch(html, /pf-run-hero/)
-  assert.doesNotMatch(html, /pf-run-count/)
+  assert.doesNotMatch(html, /pf-contract/)
 })
 
-test("computing without a count uses the server label, not a fabricated one", () => {
+test("computing without a count still does not fabricate a phase", () => {
   const html = renderToStaticMarkup(
     <ScreenRunning
       lifecycle="computing"
@@ -34,15 +34,14 @@ test("computing without a count uses the server label, not a fabricated one", ()
       done={null}
       total={null}
       revealed={[]}
-      contract={null}
     />,
   )
-  assert.match(html, /Ranking with Myro/)
   assert.doesNotMatch(html, /Scoring against your CV baseline/)
   assert.doesNotMatch(html, /Ranking by fit/)
+  assert.match(html, /pf-run-count/)
 })
 
-test("per-job reveal keeps the latest in the hero and the last few behind it", () => {
+test("the count is the hero; the tape is the last few jobs, latest first", () => {
   const html = renderToStaticMarkup(
     <ScreenRunning
       lifecycle="computing"
@@ -53,40 +52,22 @@ test("per-job reveal keeps the latest in the hero and the last few behind it", (
         { company: "Acme", title: "Eng" },
         { company: "Tekion", title: "PM" },
       ]}
-      contract={null}
     />,
   )
-  // The hero is the latest; the count is a plain "N of M" numeric readout.
-  assert.match(html, /pf-run-hero/)
-  assert.match(html, /Tekion/)
-  assert.match(html, /PM/)
-  // The previous reveal falls into the stack behind the hero.
-  assert.match(html, /pf-run-stack/)
-  assert.match(html, /Acme · Eng/)
-  // Count: numeric, tabular, "N of M". No progress bar, no invented percent.
   assert.match(html, /pf-run-count/)
   assert.match(html, />2</)
   assert.match(html, /of 15/)
+  assert.doesNotMatch(html, /pf-run-hero/)
   assert.doesNotMatch(html, /pf-run-track/)
   assert.doesNotMatch(html, /pf-run-fill/)
+  // Latest job first. One line each, company · title.
+  assert.match(html, /pf-run-tape/)
+  const tekionAt = html.indexOf("Tekion · PM")
+  const acmeAt = html.indexOf("Acme · Eng")
+  assert.ok(tekionAt >= 0 && acmeAt >= 0 && tekionAt < acmeAt)
 })
 
-test("the contract line is pinned when the caller supplies one", () => {
-  const html = renderToStaticMarkup(
-    <ScreenRunning
-      lifecycle="computing"
-      label="Ranking with Myro"
-      done={1}
-      total={5}
-      revealed={[{ company: "Acme", title: "Eng" }]}
-      contract="Myro runs on the 3 lines above and nothing else."
-    />,
-  )
-  assert.match(html, /Myro runs on the 3 lines above and nothing else\./)
-  assert.match(html, /pf-contract/)
-})
-
-test("a reveal missing a title falls back to the company name in the hero", () => {
+test("a job missing a title falls back to the company name", () => {
   const html = renderToStaticMarkup(
     <ScreenRunning
       lifecycle="computing"
@@ -94,10 +75,22 @@ test("a reveal missing a title falls back to the company name in the hero", () =
       done={1}
       total={5}
       revealed={[{ company: "Acme", title: null }]}
-      contract={null}
     />,
   )
-  assert.match(html, /pf-run-hero-title[^<]*>Acme</)
-  // The `company` sub-line only appears when we have BOTH a title and a company.
-  assert.doesNotMatch(html, /pf-run-hero-company/)
+  assert.match(html, /Acme/)
+  assert.doesNotMatch(html, /Acme ·/)
+})
+
+test("done is one number and a verb, not a restated consent", () => {
+  const html = renderToStaticMarkup(
+    <ScreenDone matches={12} onSeeMatches={() => {}} onRunAgain={() => {}} />,
+  )
+  assert.match(html, /12/)
+  assert.match(html, /matches/)
+  assert.match(html, /See 12 matches/)
+  assert.match(html, /Run it again/)
+  assert.doesNotMatch(html, /strong matches/i)
+  assert.doesNotMatch(html, /ranked against your CV/i)
+  assert.doesNotMatch(html, /signed off/)
+  assert.doesNotMatch(html, /left unanswered/)
 })

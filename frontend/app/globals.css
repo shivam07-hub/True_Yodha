@@ -115,6 +115,13 @@
    old opacity-only `animate-pulse`, which read as dead/empty on the dark
    page. The block colour itself comes from --tm-skeleton (theme-aware). */
 .tm-skeleton {
+  /* Skeleton shapes are written as fixed px — `width: 340` for a standfirst,
+     `width: 260` for a bullet — because that is what mirrors the real layout on
+     a desktop. On a 375px phone those numbers are wider than the page, and a
+     loading boundary is the one moment nothing is there to notice. Cap them:
+     the shape still reads at every width, and no skeleton can push a route off
+     its own right edge before the page it stands in for has even mounted. */
+  max-width: 100%;
   background-color: var(--tm-skeleton);
   background-image: linear-gradient(
     90deg,
@@ -945,6 +952,81 @@
 
   /* Kill backdrop-filter blur — expensive on mobile GPUs, invisible benefit */
   * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+}
+
+/* ── Mobile: pointer targets ──────────────────────────────────
+   WCAG 2.2 AA 2.5.8 — a pointer target is at least 24x24 CSS px. Every control
+   listed here measured smaller at 375px, and the worst of them sits on the
+   stage-one path: the skill-confirmation checkboxes at /onboarding/result were
+   15x15, which is what a user taps seventeen times before their CV is scored.
+
+   Real size, not a phantom ::after overlay. An invisible hit box that reaches
+   past its own control steals taps from whatever sits beside it, and on rows
+   this dense that is the neighbouring checkbox. 24px is small enough that
+   giving these controls their honest size costs no layout.
+
+   Desktop keeps its finer controls — a mouse is precise and the pointer-target
+   rule is about fingers. */
+@media (max-width: 768px) {
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-width: 24px;
+    min-height: 24px;
+  }
+
+  /* Every other input is a strip you have to hit: the newsletter subscribe
+     field measured 19px tall and the /companies search 21px, because the
+     padding lives on a wrapper that does not focus them. */
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    min-height: 24px;
+  }
+
+  .tm-dismiss-action,
+  .cvb-rv-expand,
+  .cvb-rv-hint-x,
+  .up-bar-back {
+    min-width: 24px;
+    min-height: 24px;
+  }
+
+  /* Text links that carry an action rather than sitting inside a sentence.
+     (2.5.8 exempts inline targets in prose; these are not that.) */
+  .mc-peek-link,
+  .pub-footer-logo,
+  .pub-footer-commons-link,
+  .pub-footer-trust {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+  }
+
+  /* A control revealed by :hover does not exist on a phone. The reservoir's
+     "Show phrasings" sat at opacity 0 until a pointer entered its row, so on
+     touch it was both invisible and — being 18x18 — unhittable. */
+  .cvb-rv-ways,
+  .cvb-rv-expand { opacity: 1; }
+}
+
+/* ── Mobile: app chrome on a public route ─────────────────────
+   A signed-in visitor who opens Newsletter or Myrology from Profile leaves the
+   app shell but stays signed in, so AuthedTopStripStandalone hands them the
+   mobile bars instead of a desktop strip whose Collections/CV/Prep tabs sat
+   36/84/143px off the right edge. Those bars are `position: fixed`, and a
+   public route scrolls the BODY — there is no .tm-main-scroll here to carry
+   the offset — so the body earns their space itself. The attribute is set by
+   AuthedPhoneChrome and removed on unmount, so a logged-out visitor and every
+   app route are untouched. */
+@media (max-width: 768px) {
+  html[data-app-chrome="mobile"] body {
+    padding-top: calc(var(--tm-mobile-topbar-h) + env(safe-area-inset-top));
+    padding-bottom: calc(var(--tm-mobile-bottomnav-h) + env(safe-area-inset-bottom));
+  }
+
+  /* Belt: the desktop strip is a desktop strip. AppShell and the public bar
+     both gate it in JS now; this makes a third place impossible. */
+  .tm-app-topbar { display: none; }
 }
 
 /* ── Mobile: /login layout collapse ───────────────────────────── */

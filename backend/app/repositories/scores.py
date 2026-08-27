@@ -273,35 +273,6 @@ class ScoresRepository:
             target_seniority=self.get_target_seniority(user_id),
         )
 
-    def find_role_skill_rows(self, role: str) -> list[dict[str, Any]]:
-        """Job-skill rows for jobs whose title matches `role`.
-
-        Wrapped in `_retry_supabase` because the upstream PostgREST worker on
-        gipvxuugajkugntwkeiz.supabase.co occasionally throws Cloudflare 1101
-        ('Worker threw exception') on this ILIKE path even though the actual
-        query is fast (27k jobs, ~111 hits on '%Communication%'). Transient.
-        A single retry rescues it. See aspirations.py for the caller-side
-        observability + market-demand fallback.
-        """
-        pattern = f"%{role}%"
-        jobs = _retry_supabase(lambda: (
-            self._db.table("jobs")
-            .select("job_id")
-            .ilike("job_title", pattern)
-            .limit(100)
-            .execute()
-        ).data or [])
-        if not jobs:
-            return []
-        job_ids = [j["job_id"] for j in jobs]
-        rows = _retry_supabase(lambda: (
-            self._db.table("job_skills")
-            .select("job_id, is_primary, skills(taxonomy_key)")
-            .in_("job_id", job_ids)
-            .execute()
-        ).data or [])
-        return group_job_skill_rows(rows)
-
     def get_role_family_market(self, families: list[str]) -> RoleFamilyMarket:
         """Target proficiency AND weighted demand for the user's chosen families.
 
@@ -487,7 +458,7 @@ class ScoresRepository:
 
 
 def get_token_scores_repository(db: Client = Depends(get_user_db)) -> ScoresRepository:
-    # NOTE: find_role_skill_rows / list_market_skill_rows read public.jobs.
+    # NOTE: list_market_skill_rows reads public.jobs.
     # Requires RLS to allow `authenticated` reads on jobs. Verify before deploying.
     return ScoresRepository(db)
 

@@ -81,6 +81,12 @@
   color: var(--tm-text-faint);
 }
 
+/* A keyboard shortcut is not advice on a device with no keyboard. Keyed to the
+   pointer, not the width: a narrow laptop window still has one. */
+@media (pointer: coarse) and (hover: none) {
+  .bd-hint { display: none; }
+}
+
 .bd-save {
   padding: 9px 18px;
   border: none;

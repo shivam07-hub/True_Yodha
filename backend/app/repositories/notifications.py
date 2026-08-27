@@ -265,6 +265,31 @@ class NotificationsRepository:
         caller is a background match run, not the owner's request."""
         resolve_new_inventory(self._admin_db, user_id)
 
+    def record_learning_path_ready(
+        self, user_id: str, *, taxonomy_key: str, skill_name: str
+    ) -> None:
+        """One in-app ping when a requested ladder becomes servable. Never email."""
+        existing = (
+            self._admin_db.table("user_notifications")
+            .select("id")
+            .eq("user_id", user_id)
+            .eq("kind", "learning_path_ready")
+            .eq("source_id", taxonomy_key)
+            .limit(1)
+            .execute()
+        ).data or []
+        if existing:
+            return
+        self._admin_db.table("user_notifications").insert({
+            "user_id": user_id,
+            "kind": "learning_path_ready",
+            "title": f"{skill_name} practice is live",
+            "body": "The assessment you requested is ready.",
+            "source_id": taxonomy_key,
+            "action_url": "/practice",
+            "match_count": 1,
+        }).execute()
+
 
 def _fresh_title(count: int) -> str:
     return f"{count} fresh match{'es' if count != 1 else ''}"

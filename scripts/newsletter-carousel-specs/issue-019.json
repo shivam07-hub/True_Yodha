@@ -5,7 +5,7 @@
   "foot": "himyro.com · Issue 019",
   "og": {
     "series": "HIRING HEATMAP",
-    "h1": "If you build software, Bengaluru. If you do finance, <span style=\"color:var(--mint)\">Mumbai</span>.",
+    "h1": "For the technologist, <span style=\"color:var(--mint)\">Bengaluru</span>. For finance, <span style=\"color:var(--mint)\">Mumbai</span>.",
     "bars": [
       [
         "Technology → Bengaluru",
@@ -30,13 +30,13 @@
     ],
     "max": 58.8,
     "dim_from": 2,
-    "foot": "217 companies · 14,851 openings · 8 aug 2026 · himyro.com"
+    "foot": "250+ mnc career pages · ~15,000 openings · himyro.com"
   },
   "slides": [
     {
       "kind": "prose",
-      "text": "If you build software, <b>Bengaluru</b>.<br><br>If you do front-office finance, <b>Mumbai</b>.<br><br>If you run a bank branch, <b>stay where you are</b>.",
-      "foot": "217 companies · 14,851 openings · 8 Aug 2026"
+      "text": "For the technologist, <b>Bengaluru</b> is the place to grow.<br><br>If you are into finance, move to <b>Mumbai</b>.",
+      "foot": "250+ MNC career pages · ~15,000 openings"
     },
     {
       "kind": "matrix",
@@ -287,23 +287,23 @@
     },
     {
       "kind": "prose",
-      "kicker": "If you're an engineer",
-      "text": "Bengaluru and Hyderabad hold <b>78.8%</b> of technology openings. Mumbai holds 2.9%, and not for lack of companies: 19 tech employers posted Mumbai roles against 49 in Bengaluru. They post 2.6 openings each there and 20.4 each in Bengaluru. The offices are there. The hiring isn't."
+      "kicker": "If you are an engineer",
+      "text": "Bengaluru and Hyderabad hold <span class=\"hl\">78.8%</span> of technology openings between them. Mumbai holds 2.9%. 19 technology employers posted Mumbai roles against 49 in Bengaluru.<br><br>A Mumbai office is a satellite. A Bengaluru office is <b>the engine</b>."
     },
     {
       "kind": "prose",
-      "kicker": "The skills those employers name",
-      "text": "Python 356 · Computer science 255 · Artificial intelligence 229 · C++ 187 · Electrical engineering 135 · Java 120 · Design verification 70 · Parallel computing 62.<br><br>C++, electrical engineering and design verification are <b>not web-stack skills</b>. Much of Bengaluru's tech hiring is chip and systems work."
+      "kicker": "What those employers want",
+      "text": "Python 356 · Computer science 255 · Artificial intelligence 229 · C++ 187 · Electrical engineering 135 · Java 120 · Design verification 70 · Parallel computing 62.<br><br>The old evergreen subjects belong to <span class=\"hl\">chip and systems work</span>, and Bengaluru is aggressively hiring for that."
     },
     {
       "kind": "prose",
-      "kicker": "\"Banking\" is three careers",
-      "text": "<b>Front office is Mumbai.</b> Morgan Stanley posts 80% of its India roles there, only 16% technical. Skills: mutual funds, portfolio management, wealth management, investment banking.<br><br><b>Bank tech is Bengaluru and Pune.</b> Barclays' biggest metro is Pune, 72% technical. Skills: Python, SQL, Java, regulatory compliance.<br><br><b>Branches are everywhere.</b> 42.4% sit outside the big six."
+      "kicker": "If you are in finance",
+      "text": "<b>Front office will always be Mumbai.</b> Morgan Stanley posts <span class=\"hl\">80%</span> of its India roles there, only 16% technology. If you want to learn how money actually moves, there is no place other than the floors (and the rains) of Mumbai.<br><br><b>The GCCs are in Pune and Bengaluru.</b> Barclays' largest India metro is Pune, 72% technical.<br><br><b>Retail banking is any tier 2 city.</b> 42.4% sits outside the metros."
     },
     {
       "kind": "cta",
       "h1": "Practise the skills in your row.",
-      "sub": "Every list above is a skill an employer named in a live posting this month. We don't predict the market. We read it.",
+      "sub": "We track the official career pages of MNCs and what skills they hire for, then build the repository you practise from.",
       "pill": "himyro.com →",
       "foot": "Free · himyro.com/signup"
     }

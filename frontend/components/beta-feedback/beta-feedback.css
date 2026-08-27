@@ -1,8 +1,17 @@
+/* Beta feedback form.
+ *
+ * Every colour here was a pinned light-mode hex — `background: #eef0eb`, cards
+ * at `#fff`, text at `#171914` — so in dark mode this page rendered a white
+ * sheet between a dark top bar and a dark bottom nav. That is the same shape as
+ * the 2026-07 mobile bug (background owner and text-token owner differ, nothing
+ * checks they agree), on a route the render gate did not walk. It walks it now,
+ * and the gate's theme probe fails on a canvas that disagrees with its theme.
+ */
 .bf-page {
   min-height: 100%;
   padding: 36px 24px 72px;
-  background: #eef0eb;
-  color: #171914;
+  background: var(--tm-bg);
+  color: var(--tm-text);
 }
 
 .bf-page-shell {
@@ -12,20 +21,20 @@
 
 .bf-card {
   overflow: hidden;
-  background: #fff;
-  color: #171914;
-  border: 1px solid #c9ccc4;
+  background: var(--tm-surface);
+  color: var(--tm-text);
+  border: 1px solid var(--tm-border);
   border-radius: 18px;
-  box-shadow: 0 16px 42px rgba(22, 25, 20, 0.12);
+  box-shadow: var(--tm-shadow-2);
 }
 
 .bf-header {
   padding: 28px 30px 22px;
-  border-bottom: 1px solid #dfe2da;
+  border-bottom: 1px solid var(--tm-border-soft);
 }
 
 .bf-eyebrow {
-  color: #4d5349;
+  color: var(--tm-text-muted);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.12em;
@@ -33,7 +42,7 @@
 
 .bf-title {
   margin: 8px 0 0;
-  color: #171914;
+  color: var(--tm-text);
   font-size: 26px;
   font-weight: 800;
   line-height: 1.18;
@@ -42,7 +51,7 @@
 .bf-header > p,
 .bf-state > p {
   margin: 10px 0 0;
-  color: #4d5349;
+  color: var(--tm-text-muted);
   font-size: 16px;
   line-height: 1.55;
 }
@@ -52,7 +61,7 @@
   justify-content: space-between;
   gap: 16px;
   margin-top: 22px;
-  color: #3d423a;
+  color: var(--tm-text-muted);
   font-size: 14px;
   font-weight: 700;
 }
@@ -66,12 +75,12 @@
 
 .bf-progress span {
   height: 6px;
-  background: #d8dbd3;
+  background: var(--tm-border);
   border-radius: 99px;
 }
 
 .bf-progress span.active {
-  background: #171914;
+  background: var(--tm-text);
 }
 
 .bf-body {
@@ -86,14 +95,14 @@
 
 .bf-step-heading h2 {
   margin: 0;
-  color: #171914;
+  color: var(--tm-text);
   font-size: 22px;
   line-height: 1.3;
 }
 
 .bf-step-heading p {
   margin: 6px 0 0;
-  color: #555c51;
+  color: var(--tm-text-muted);
   font-size: 16px;
   line-height: 1.5;
 }
@@ -115,14 +124,14 @@
   justify-content: space-between;
   width: 100%;
   margin-bottom: 8px;
-  color: #20231e;
+  color: var(--tm-text);
   font-size: 16px;
   font-weight: 750;
   line-height: 1.4;
 }
 
 .bf-optional {
-  color: #62685e;
+  color: var(--tm-text-muted);
   font-size: 14px;
   font-weight: 600;
 }
@@ -131,9 +140,9 @@
   width: 100%;
   min-height: 50px;
   padding: 11px 13px;
-  color: #171914;
-  background: #fff;
-  border: 2px solid #737a6f;
+  color: var(--tm-text);
+  background: var(--tm-surface);
+  border: 2px solid var(--tm-border);
   border-radius: 10px;
   font-family: inherit;
   font-size: 16px;
@@ -141,19 +150,19 @@
 }
 
 .bf-control::placeholder {
-  color: #62685e;
+  color: var(--tm-text-muted);
   opacity: 1;
 }
 
 .bf-control:focus-visible,
 .bf-choice input:focus-visible,
 .bf-confirmation input:focus-visible {
-  outline: 3px solid #2563eb;
+  outline: 3px solid var(--tm-int-border);
   outline-offset: 2px;
 }
 
 .bf-control[aria-invalid="true"] {
-  border-color: #a82020;
+  border-color: var(--tm-danger);
 }
 
 .bf-textarea {
@@ -179,9 +188,9 @@
   align-items: flex-start;
   gap: 11px;
   padding: 13px;
-  color: #272b25;
-  background: #f7f8f4;
-  border: 1px solid #c9ccc4;
+  color: var(--tm-text);
+  background: var(--tm-surface-2);
+  border: 1px solid var(--tm-border);
   border-radius: 10px;
   font-size: 16px;
   line-height: 1.45;
@@ -192,14 +201,14 @@
   width: 20px;
   height: 20px;
   margin: 1px 0 0;
-  accent-color: #171914;
+  accent-color: var(--tm-interactive);
   flex: 0 0 auto;
 }
 
 .bf-error,
 .bf-submit-error {
   margin: 7px 0 0;
-  color: #8e1717;
+  color: var(--tm-danger);
   font-size: 14px;
   font-weight: 700;
   line-height: 1.45;

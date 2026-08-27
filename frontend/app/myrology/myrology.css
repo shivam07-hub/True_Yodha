@@ -13,11 +13,12 @@
    (flash-free, no JS, SSR-safe — the wrapper is in the initial HTML). */
 html:has(.myrology-root),
 html:has(.myrology-root) body {
-  /* Hardcoded (not var(--tm-bg)) on purpose: `html` is an ANCESTOR of
-     .myrology-root, so it resolves --tm-bg from :root — which is the LIGHT
-     value whenever data-surface="light". Must track the canonical dark page
-     by hand; see design-tokens.css :root. */
-  background-color: #191918;
+  /* NOT var(--tm-bg): `html` is an ANCESTOR of .myrology-root, so it resolves
+     --tm-bg from :root — the LIGHT value whenever data-surface="light".
+     --tm-bg-forced-dark is declared for that case: same dark under either
+     theme, one place. It replaces a hardcoded #191918 that had already gone
+     stale against the ramp. */
+  background-color: var(--tm-bg-forced-dark);
   color-scheme: dark;
 }
 
@@ -41,6 +42,11 @@ html:has(.myrology-root) body {
      above handles overscroll/rubber-band beyond 100vh. */
   color-scheme: dark;
   background: var(--tm-bg);
+  /* `color` is INHERITED as a resolved colour, not as the var() that produced
+     it: body resolves var(--tm-text) against :root, so under the light theme
+     every heading in here inherited light ink onto the forced-dark page — the
+     <h1> measured 1.14:1, invisible. Re-resolve it inside the dark scope. */
+  color: var(--tm-text);
 
   /* Remap the accent to amethyst inside this surface only. */
   --tm-accent:       var(--my-amethyst);
@@ -93,7 +99,7 @@ html:has(.myrology-root) body {
 
 .myrology-root .m-main {
   position: relative; z-index: 2;
-  padding: 32px 48px 48px;
+  padding: 24px 48px 40px;
   max-width: 1280px; width: 100%; margin: 0 auto;
 }
 
@@ -128,20 +134,20 @@ html:has(.myrology-root) body {
 @keyframes my-pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.7); } }
 
 /* ── Hero ────────────────────────────────────────────────────── */
-.myrology-root .my-hero { text-align: center; padding: 32px 0 24px; position: relative; }
+.myrology-root .my-hero { text-align: center; padding: 24px 0 8px; position: relative; }
 .myrology-root .my-hero-eyebrow {
   display: inline-flex; align-items: center; gap: 10px; padding: 6px 14px; border-radius: 99px;
   background: var(--my-amethyst-wash); border: 1px solid var(--my-amethyst-ring); color: var(--my-amethyst);
   font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 600; margin-bottom: 28px;
 }
-.myrology-root .my-hero-h { margin: 0 0 24px; font-size: 74px; line-height: 1.02; letter-spacing: -0.025em; font-weight: 600; }
+.myrology-root .my-hero-h { margin: 0 0 18px; font-size: 60px; line-height: 1.02; letter-spacing: -0.025em; font-weight: 600; }
 .myrology-root .my-hero-h .hi { display: block; color: var(--tm-text); font-weight: 500; opacity: 0.85; }
 .myrology-root .my-hero-h .en { display: block; color: var(--my-amethyst); font-weight: 700; text-shadow: 0 0 32px var(--my-amethyst-glow); }
 .myrology-root .my-hero-sub { margin: 0 auto; max-width: 640px; font-size: 20px; color: var(--tm-text); line-height: 1.6; }
 
 /* ── Section blocks ──────────────────────────────────────────── */
-.myrology-root .block { margin-top: 56px; }
-.myrology-root .block-eyebrow { font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--tm-text-muted); font-weight: 600; margin-bottom: 20px; }
+.myrology-root .block { margin-top: 40px; }
+.myrology-root .block-eyebrow { font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--tm-text-muted); font-weight: 600; margin-bottom: 14px; }
 
 /* ── Cosmic radar ────────────────────────────────────────────── */
 .myrology-root .cosmic-svg { width: 100%; max-width: 460px; aspect-ratio: 1; display: block; margin: 0 auto; filter: drop-shadow(0 0 24px var(--my-amethyst-glow)); position: relative; z-index: 1; }
@@ -167,14 +173,16 @@ html:has(.myrology-root) body {
 .myrology-root .reading-val { font-size: 14px; color: var(--my-amethyst); font-family: var(--tm-font-mono); font-weight: 600; }
 
 /* ── Responsive ──────────────────────────────────────────────── */
+/* Only the rules THIS file declares. `.price-row`, `.bridge` and `.bridge-cta`
+   are declared in myrology-offer.css, which page.tsx imports after this one; a
+   media query adds no specificity, so these overrides lost to those bases and
+   the offer section never collapsed. They now live beside the rules they
+   override — see the bottom of myrology-offer.css. */
 @media (max-width: 1100px) {
   .myrology-root .my-hero-h { font-size: 50px; }
-  .myrology-root .price-row { grid-template-columns: 1fr; }
 }
 @media (max-width: 720px) {
   .myrology-root .m-main { padding: 24px 20px 32px; }
   .myrology-root .topbar { flex-direction: column; gap: 12px; align-items: flex-start; }
   .myrology-root .my-hero-h { font-size: 40px; }
-  .myrology-root .bridge { grid-template-columns: 1fr; text-align: left; }
-  .myrology-root .bridge-cta { text-align: left; align-items: flex-start; }
 }

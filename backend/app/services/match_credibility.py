@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.schemas.jobs import SeniorityCompat
+from app.services.job_eligibility import seniority_for_job
 from app.services.onboarding_service import context_key
 
 
@@ -16,26 +17,11 @@ class Credibility:
     credible: bool
 
 
-def _seniority_from_title(title: str) -> str:
-    lowered = f" {title.casefold()} "
-    if any(token in lowered for token in ("intern", "apprentice", "trainee")):
-        return "intern"
-    if any(token in lowered for token in ("junior", " jr ", "associate", "graduate", "entry")):
-        return "entry"
-    if any(token in lowered for token in ("chief", "vice president", " vp ", "director")):
-        return "executive"
-    if any(token in lowered for token in ("lead", "principal", "staff", "head of")):
-        return "lead"
-    if any(token in lowered for token in ("senior", " sr ", "sr.")):
-        return "senior"
-    return "unknown"
-
-
-def seniority_compatibility(target: str, job_title: str) -> SeniorityCompat:
+def seniority_compatibility(target: str, job: dict[str, Any]) -> SeniorityCompat:
     if target in ("", "any"):
         return "compatible"
-    actual = _seniority_from_title(job_title)
-    if actual == "unknown":
+    actual = seniority_for_job(job)
+    if not actual:
         return "unknown"
     return "compatible" if actual == target else "incompatible"
 
@@ -91,12 +77,11 @@ def evaluate_credibility(
     # "the market genuinely has no overlap" over a full stack. 162 of 196 users,
     # 1,289 real match rows.
     context_hash = context_key(profile)
-    seniority_fit = seniority_compatibility(seniority, str(job.get("title") or ""))
+    seniority_fit = seniority_compatibility(seniority, job)
     if seniority_fit == "unknown":
-        # F3: the title's seniority is unreadable ("Software Engineer II", "SDE N 4A").
-        # Defer to the brain — a strong Apply/Negotiate at >=3.5 already encodes an
-        # at-level judgment (the eval prompt makes it Skip roles far outside level), so
-        # an unreadable title must not structurally bar a genuinely strong match. A
+        # F3: the source seniority field is missing. Defer to the brain — a strong
+        # Apply/Negotiate at >=3.5 already encodes an at-level judgment, so a blank
+        # Firecrawl field must not structurally bar a genuinely strong match. A
         # weak/absent verdict leaves it "unknown" (honest — no forced compatibility).
         if (
             recommendation in {"Apply", "Negotiate"}

@@ -41,7 +41,10 @@ _log = logging.getLogger(__name__)
 
 # In-process state for inline dispatch (tests + local dev).
 _inline_state: dict[str, dict[str, Any]] = {}
+_inline_live: dict[str, str] = {}
 _inline_lock = threading.Lock()
+
+_LIVE_STATES = frozenset({"queued", "computing"})
 
 
 def _utc_now_iso() -> str:
@@ -54,6 +57,10 @@ def _ticket_id() -> str:
 
 def _redis_key(user_id: str, ticket_id: str) -> str:
     return f"job_refresh:ticket:{user_id}:{ticket_id}"
+
+
+def _live_key(user_id: str) -> str:
+    return f"job_refresh:live:{user_id}"
 
 
 def _is_async_mode() -> bool:
@@ -112,9 +119,11 @@ def _write_state(user_id: str, state: RefreshState) -> None:
         from app.services.job_refresh._redis_state import set_state
 
         set_state(_redis_key(user_id, state.ticket_id), payload)
+        _sync_live(user_id, state)
     else:
         with _inline_lock:
             _inline_state[f"{user_id}:{state.ticket_id}"] = payload
+        _sync_live(user_id, state)
 
 
 def read_state(user_id: str, ticket_id: str) -> RefreshState | None:
@@ -148,6 +157,47 @@ def read_state(user_id: str, ticket_id: str) -> RefreshState | None:
         revealed=raw.get("revealed") or [],
         xp_charged=int(raw.get("xp_charged") or 0),
     )
+
+
+def _sync_live(user_id: str, state: RefreshState) -> None:
+    """One live ticket per user. Only that ticket may clear the index."""
+    live = state.state in _LIVE_STATES
+    if _is_async_mode():
+        from app.services.job_refresh._redis_state import delete_state, get_state, set_state
+
+        key = _live_key(user_id)
+        if live:
+            set_state(key, {"ticket_id": state.ticket_id, "state": state.state})
+            return
+        current = get_state(key)
+        if current and current.get("ticket_id") == state.ticket_id:
+            delete_state(key)
+        return
+    with _inline_lock:
+        if live:
+            _inline_live[user_id] = state.ticket_id
+        elif _inline_live.get(user_id) == state.ticket_id:
+            _inline_live.pop(user_id, None)
+
+
+def user_has_live_refresh(user_id: str) -> bool:
+    """True while this user has a queued or computing Match Run.
+
+    Feed-warm and other judgment callers shed against this so ranking keeps
+    the LLM slots. Unreadable index fails open (warm may run) — a down
+    Redis is not a reason to skip the feed forever.
+    """
+    try:
+        if _is_async_mode():
+            from app.services.job_refresh._redis_state import get_state
+
+            raw = get_state(_live_key(user_id))
+            return bool(raw and raw.get("ticket_id"))
+        with _inline_lock:
+            return user_id in _inline_live
+    except Exception:
+        _log.warning("live-refresh index unreadable user=%s", user_id, exc_info=True)
+        return False
 
 
 def _state(
@@ -438,3 +488,4 @@ def clear_inline_state() -> None:
     """Test helper. Clears the in-process state store between tests."""
     with _inline_lock:
         _inline_state.clear()
+        _inline_live.clear()

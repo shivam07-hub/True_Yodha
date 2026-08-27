@@ -9,8 +9,9 @@ import { PublicFooter } from "@/components/public/public-footer"
 import { MyrologyProvider } from "./checkout"
 import { OfferingSection } from "./offering-section"
 import { LiveIndexPanel } from "./live-index-panel"
+import { LiveLensPanel } from "./live-lens"
 import { ChartLensPanel } from "./chart-lens"
-import { TwoLensSection } from "./two-lens"
+import { ChartToSearchStrip, SpecimenLayers, Verdicts } from "./two-lens"
 
 const METHOD_CHIPS = ["Vedic", "KP astrology", "Intuitive energy reading"]
 
@@ -50,6 +51,10 @@ export default function MyrologyPage() {
   // (`.myrology-root` joins the dark base in design-tokens.css), so it renders
   // dark on first paint regardless of the global surface pref — no post-mount
   // data-surface flip, no flash, no leaking dark onto the page you navigate to.
+  //
+  // Section order follows the handoff: state the offer before the evidence for
+  // it. A visitor who is sold by the hero should not have to scroll past two
+  // explanation blocks to find the price.
   return (
     <div className="myrology-root">
       <div className="m-bg">
@@ -82,34 +87,22 @@ export default function MyrologyPage() {
           <LiveIndexPanel />
         </section>
 
-        <TwoLensSection />
+        <ChartToSearchStrip />
+
+        <OfferingSection />
+
+        <SpecimenLayers />
 
         <section className="block">
           <div className="block-eyebrow">TWO LENSES · NEVER AVERAGED</div>
-          <div className="lens-row">
-            <ChartLensPanel />
-            <div className="lens-card lens-card--live">
-              <div className="lens-tag lens-tag--live">
-                <span className="dot pulse" />
-                MYRO LIVE DATA
-              </div>
-              <div className="lens-prose">
-                <p>
-                  The market half of your report is not written by anyone. It is the same index that
-                  powers Jobs, queried for the families and industries your chart points at, and
-                  stamped with the date it ran.
-                </p>
-                <p>
-                  That is why the two halves stay apart. A chart cannot be checked. A count can — and
-                  when they disagree we print both, rather than blending them into one number that
-                  hides which half you are actually trusting.
-                </p>
-              </div>
+          <div className="lens-shell">
+            <div className="lens-row">
+              <ChartLensPanel />
+              <LiveLensPanel />
             </div>
+            <Verdicts />
           </div>
         </section>
-
-        <OfferingSection />
 
         <section className="block">
           <div className="block-eyebrow">YOUR ASTROLOGER · ONE, RESEARCH-ORIENTED</div>

@@ -17,6 +17,7 @@ import { FollowCompanyControl } from "@/components/companies/follow-company-cont
 import { billing, jobs, users } from "@/lib/api"
 import type { ProfileUpdate } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { catalogFromAnalytics, suggestLocations } from "@/lib/location-catalog"
 import { MYRO_COINS_POLICY } from "@/lib/xp-policy"
 import { loadRazorpay } from "@/lib/razorpay"
 import { AccountDeletionPanel } from "@/components/settings/account-deletion-panel"
@@ -338,31 +339,23 @@ export function SettingsModal({ open, onClose, profile, profileLoading = false, 
     enabled: open,
     staleTime: 10 * 60 * 1000,
   })
-  const locationCatalog = useMemo(() => {
-    const cityOptions = (locationCatalogQuery.data?.by_location_city ?? [])
-      .map((item) => item.name.trim()).filter((n) => n.length > 0 && n.toLowerCase() !== "unknown")
-    const countryOptions = (locationCatalogQuery.data?.by_location_country ?? [])
-      .map((item) => item.name.trim()).filter((n) => n.length > 0 && n.toLowerCase() !== "unknown")
-    // Mode (Remote/Hybrid/Onsite) is intentionally not a location — geo prefs
-    // are city/country only.
-    const merged = [...cityOptions, ...countryOptions]
-    const seen = new Set<string>()
-    return merged.reduce<string[]>((acc, entry) => {
-      const normalized = entry.toLowerCase()
-      if (seen.has(normalized)) return acc
-      seen.add(normalized)
-      return [...acc, entry]
-    }, [])
-  }, [locationCatalogQuery.data])
+  // Mode (Remote/Hybrid/Onsite) is intentionally not a location — geo prefs
+  // are city/country only. Aliases live in `location-catalog` so "Gurgaon"
+  // finds the corpus name "Gurugram" here and in Myro Search.
+  const locationCatalog = useMemo(
+    () => catalogFromAnalytics(locationCatalogQuery.data),
+    [locationCatalogQuery.data],
+  )
 
   const locationsAtMax = locations.length >= MAX_TARGET_LOCATIONS
-  const locationSuggestions = useMemo(() => {
-    const chosen = new Set(locations.map((l) => l.toLowerCase()))
-    const pool = locationCatalog.filter((entry) => !chosen.has(entry.toLowerCase()))
-    const needle = locationInput.trim().toLowerCase()
-    if (!needle) return pool.slice(0, 10)
-    return pool.filter((entry) => entry.toLowerCase().includes(needle)).slice(0, 10)
-  }, [locationInput, locationCatalog, locations])
+  const locationSuggestions = useMemo(
+    () => suggestLocations({
+      catalog: locationCatalog,
+      query: locationInput,
+      chosen: locations,
+    }).map((entry) => entry.name),
+    [locationInput, locationCatalog, locations],
+  )
 
   function handleLocationsChange(next: string[]) {
     const cleaned = normalizeLocations(next)

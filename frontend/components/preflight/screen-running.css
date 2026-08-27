@@ -1,142 +1,57 @@
-/* Wait screen — shuffle-pinned hero, streaming stack, pinned contract line.
-   Myro tokens throughout; the visual dialect matches shuffle-guess-list so
-   the run screen reads as a continuation of the confirm rounds, not a modal
-   spinner from another surface. */
+/* Wait screen — count as thesis, tape of the last few ranked jobs.
+   Myro tokens throughout. Motion is opacity on the tape only; no layout
+   springs, no blur restage. The count slot is always present so queued
+   never reads as a titled empty modal. */
 
 .pf-run {
-  min-height: 260px;
+  min-height: 160px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 18px;
 }
 
-/* The server phase label — "Waiting to start", "Ranking with Myro", or the
-   exact string the queued/computing phase event carried. Never a fabricated
-   step name; ADR-0009's phase list is the authority. */
-.pf-run-status {
-  font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-micro);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--tm-text-faint);
-}
-
-.pf-run-status[data-lifecycle="queued"] {
-  color: var(--tm-text-muted);
-}
-
-/* Shuffle-pinned hero — the job Myro is reading right now. Same wash, ring
-   and pin as the confirm-round hero, so the two screens share a visual seam. */
-.pf-run-hero {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 16px;
-  border-radius: 999px;
-  background: var(--tm-accent-wash);
-  border: 1px solid var(--tm-accent-ring);
-  min-height: 56px;
-}
-
-.pf-run-hero-pin {
-  flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  color: var(--tm-interactive);
-}
-
-.pf-run-hero-copy {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.pf-run-hero-title {
-  font-size: var(--tm-fs-ui-lg);
-  font-weight: 600;
-  line-height: 1.3;
-  color: var(--tm-text);
-  text-wrap: pretty;
-  overflow-wrap: anywhere;
-}
-
-.pf-run-hero-company {
-  margin-top: 2px;
-  font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-micro);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--tm-text-muted);
-}
-
-/* Behind the hero: the last few, fading with age. `motion` sets per-item
-   opacity in the component; this keeps the base card look consistent. */
-.pf-run-stack {
-  list-style: none;
-  margin: 0;
-  padding: 0 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.pf-run-stack-item {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 4px 0;
-  font-size: var(--tm-fs-ui-sm);
-  color: var(--tm-text);
-  line-height: 1.4;
-}
-
-.pf-run-stack-mark {
-  font-family: var(--tm-font-mono);
-  color: var(--tm-text-faint);
-  flex-shrink: 0;
-}
-
-.pf-run-stack-text {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-/* Small tabular count — the numeric progress cue, not the primary signal.
-   The user reads the hero first; this is the confirmation that ranking is
-   actually moving. */
 .pf-run-count {
   font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-note);
   font-variant-numeric: tabular-nums;
   color: var(--tm-text-muted);
   letter-spacing: -0.005em;
 }
 
 .pf-run-count-num {
-  color: var(--tm-text);
+  display: block;
+  font-size: var(--tm-fs-numeral);
   font-weight: 600;
+  line-height: 1.05;
+  color: var(--tm-text);
 }
 
-.pf-run-count-sep {
-  color: var(--tm-text-faint);
+.pf-run-count-of {
+  font-size: var(--tm-fs-note);
 }
 
-/* The contract line is styled by proposals.css `.pf-contract`. It is pinned
-   here by `margin-top: auto` so it always sits at the bottom of the min-height
-   run frame, even when reveals fill up more or less of the middle. */
-.pf-run > .pf-contract {
-  margin-top: auto;
+.pf-run-tape {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
+
+.pf-run-tape-item {
+  font-size: var(--tm-fs-ui);
+  color: var(--tm-text);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.pf-run-tape-item[data-age="0"] { opacity: 1; }
+.pf-run-tape-item[data-age="1"] { opacity: 0.78; }
+.pf-run-tape-item[data-age="2"] { opacity: 0.56; }
+.pf-run-tape-item[data-age="3"] { opacity: 0.34; }
 
 /* ── done ─────────────────────────────────────────────────────────────────────
-   The last screen of a run the user may have paid 100 coins for, and until
-   2026-08-23 it had NO rules at all — `pf-signed`, `pf-numbers`, `pf-numeral`,
-   `pf-numeral-label` and `pf-chips` were markup with nothing behind them, so it
-   rendered as four stacked plain lines and read like a debug dump.
-
-   The numbers ARE the headline, so "Run complete" is an eyebrow rather than a
-   heading — the same treatment as `.pf-run-status`, because this screen
-   replaces that one in place and should read as its last frame, not as another
-   surface. */
+   One number. The verb under it is the only next step. */
 
 .pf-signed {
   font-family: var(--tm-font-mono);
@@ -153,8 +68,6 @@
   margin-top: 14px;
 }
 
-/* `--tm-fs-numeral` is the scale's "a result worth reading across the room".
-   A match count is the one number on this surface that earns it. */
 .pf-numeral {
   font-size: var(--tm-fs-numeral);
   font-weight: 600;
@@ -163,7 +76,6 @@
   color: var(--tm-text);
 }
 
-/* Same label dialect as `.pf-run-hero-company`, one screen earlier. */
 .pf-numeral-label {
   margin-top: 4px;
   font-family: var(--tm-font-mono);
@@ -182,18 +94,11 @@
 }
 
 @media (max-width: 420px) {
-  .pf-run-hero {
-    border-radius: 14px;
-    padding: 12px 14px;
-  }
-  /* Two numerals still sit side by side at 375px; the gap is what gives. */
   .pf-numbers { gap: 22px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pf-run-hero,
-  .pf-run-hero-copy,
-  .pf-run-stack-item {
-    transition: none;
+  .pf-run-tape-item {
+    opacity: 1 !important;
   }
 }
