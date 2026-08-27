@@ -264,12 +264,23 @@ def confirmed_from(brief: TargetingBrief) -> list[OrderLine]:
                 )
             )
 
-    location = (profile.get("target_location") or "").strip()
-    if location:
+    # Every stored location, not just the derived scalar. The kept lines ARE
+    # what `/preflight/run` writes back, so seeding one city for a user who has
+    # three silently narrowed their own targeting the first time they opened the
+    # modal — a delete disguised as a read.
+    stored = profile.get("target_locations")
+    if not isinstance(stored, list) or not stored:
+        stored = [profile.get("target_location")]
+    seen: set[str] = set()
+    for raw in stored:
+        location = str(raw or "").strip().rstrip(".")
+        if not location or location.casefold() in seen:
+            continue
+        seen.add(location.casefold())
         ref = _ref("profile:location", location)
         out.append(
             OrderLine(
-                id=ref, kind="location", text=location.rstrip("."), source="user_said",
+                id=ref, kind="location", text=location, source="user_said",
                 source_note="you set this", origin="preflight", status="kept",
                 ref=ref,
             )

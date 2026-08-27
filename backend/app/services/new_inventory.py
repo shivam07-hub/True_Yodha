@@ -58,10 +58,9 @@ def count_for_user(repo: Any, user_id: str) -> int | None:
 def waives_charge(count: int | None) -> bool:
     """Is this run free?
 
-    The ONE place the waiver is expressed, because three surfaces price a run —
-    the pre-flight's `/price`, the legacy `/jobs/refresh/preflight`, and
-    `JobRefresh.start`, which is the one that actually debits. When they drift a
-    user is quoted one number and billed another.
+    The ONE place the waiver is expressed, because two surfaces price a run —
+    the pre-flight's `/price` and `JobRefresh.start`, the one that actually
+    debits. When they drift a user is quoted one number and billed another.
 
     `None` waives. We could not compute the count, and a user is not billed
     because our database was slow (Shivam, 2026-08-22). It costs us LLM spend on

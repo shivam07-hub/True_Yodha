@@ -477,3 +477,39 @@ def test_triage_tournament_survives_a_failed_chunk() -> None:
     pool = _pool(120)
     out = asyncio.run(llm_ranker.triage_shortlist({}, pool, _FlakyProvider(), keep_n=2))
     assert len(out) <= 2
+
+
+def test_the_prompt_names_every_location_the_user_targets():
+    """It read `target_location or target_location_country`.
+
+    For "Mumbai, Bangalore is also fine" that rendered one city — or, when only
+    the array was set and the scalar was null, fell through to the country and
+    told the brain to reward "India". It then rewarded the wrong half of the
+    search it had been given.
+    """
+    from app.services.llm_ranker import preferred_locations
+
+    assert preferred_locations({"target_locations": ["Mumbai", "Bengaluru"]}) == "Mumbai, Bengaluru"
+
+
+def test_the_prompt_falls_back_to_the_scalar_then_the_country_then_flexible():
+    from app.services.llm_ranker import preferred_locations
+
+    assert preferred_locations({"target_location": "Mumbai"}) == "Mumbai"
+    assert preferred_locations({"target_location_countries": ["India"]}) == "India"
+    assert preferred_locations({"target_location_country": "India"}) == "India"
+    assert preferred_locations({}) == "flexible"
+
+
+def test_the_prompt_does_not_repeat_a_city():
+    from app.services.llm_ranker import preferred_locations
+
+    assert preferred_locations({"target_locations": ["Mumbai", "mumbai"]}) == "Mumbai"
+
+
+def test_both_ranker_prompts_carry_the_full_location_list():
+    from app.services.llm_ranker import build_system_prompt, build_triage_prompt
+
+    profile = {"target_roles": ["Consulting"], "target_locations": ["Mumbai", "Bengaluru"]}
+    for prompt in (build_system_prompt(profile, "cv"), build_triage_prompt(profile, "cv")):
+        assert "Mumbai, Bengaluru" in prompt

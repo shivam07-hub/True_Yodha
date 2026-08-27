@@ -395,27 +395,6 @@ class RefreshTicketResponse(BaseModel):
     matches_written: int | None = None
 
 
-class RefreshPreflightResponse(BaseModel):
-    """GET /jobs/refresh/preflight — the Targeting Brief's manifest for the
-    pre-flight modal. Empty fields arrive gap-filled from user_memory
-    (`prefilled` names each memory-sourced field); persistence still happens
-    only through the user's Run/Save action."""
-    role_titles: list[str]
-    location: str | None = None
-    deal_breakers: list[str]
-    lean: list[str]
-    career_goal: str | None = None
-    superpower: str | None = None
-    prefilled: dict[str, str]
-    memory_count: int
-    # What this run will actually cost, decided server-side (0 when Myro has landed
-    # inventory this user has never been matched against). The modal must never
-    # quote a price from a client constant — that is how a "free" promise and a
-    # 100-coin debit end up on the same screen.
-    run_cost: int = 0
-    new_jobs_count: int = 0
-
-
 class RefreshStateResponse(BaseModel):
     """GET /jobs/refresh/{ticket_id} — polled by frontend every ~1s."""
     ticket_id: str

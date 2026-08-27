@@ -147,7 +147,7 @@ def _contradictions(lines: list[OrderLine]) -> list[Conflict]:
     for location in locations:
         for other in (*leans, *wont):
             if _RELOCATE.search(other.text):
-                add(location, other, "target_location")
+                add(location, other, "target_locations")
     return out
 
 

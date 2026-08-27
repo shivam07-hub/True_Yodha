@@ -5,15 +5,13 @@ from collections.abc import AsyncIterator
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 
-from supabase import Client
 
-from app.deps import Principal, get_principal, get_user_db
+from app.deps import Principal, get_principal
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.schemas import (
     AgentPickItem,
     AgentPicksResponse,
     JobMatchesResponse,
-    RefreshPreflightResponse,
     RefreshStateResponse,
     RefreshTicketResponse,
     UserSkillDemandResponse,
@@ -22,8 +20,7 @@ from app.schemas.jobs import MatchBrainResult, MatchRetryResponse
 from app.services import background, jobs_workflow, new_inventory, progress_stream
 from app.services.job_refresh import JobRefresh
 from app.services.concurrent_reads import run_concurrently
-from app.services.matching import on_demand, targeting
-from app.services.xp_policy import MATCH_RUN_COST
+from app.services.matching import on_demand
 
 from ._shared import last_monday, to_job_match
 
@@ -244,27 +241,6 @@ async def start_job_refresh(
         xp_charged=ticket.xp_charged,
         new_coin_balance=ticket.new_coin_balance,
         matches_written=ticket.matches_written,
-    )
-
-
-@router.get("/refresh/preflight", response_model=RefreshPreflightResponse)
-def get_refresh_preflight(
-    principal: Principal = Depends(get_principal),
-    db: Client = Depends(get_user_db),
-    repo: JobsRepository = Depends(get_token_jobs_repository),
-) -> RefreshPreflightResponse:
-    """Targeting Brief manifest for the pre-flight modal — profile columns
-    gap-filled from user_memory. Declared BEFORE /refresh/{ticket_id} so
-    "preflight" is never captured as a ticket id.
-
-    Also carries the price, from the same waiver the charge itself uses
-    (`JobRefresh.start`), so the modal and the wallet can't disagree."""
-    brief = targeting.for_preflight(db, principal.id)
-    new_jobs = new_inventory.count_for_user(repo, principal.id)
-    return RefreshPreflightResponse(
-        **brief.preflight(),
-        run_cost=0 if new_inventory.waives_charge(new_jobs) else MATCH_RUN_COST,
-        new_jobs_count=new_jobs or 0,
     )
 
 

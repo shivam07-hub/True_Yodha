@@ -96,12 +96,27 @@ def test_preflight_never_overwrites_user_entered_columns():
     assert pf["prefilled"] == {}
 
 
-def test_preflight_location_falls_back_to_target_locations():
+def test_preflight_carries_every_stored_location():
+    """It used to carry `locations[0]`.
+
+    The modal is where a user reviews what Myro will search on, and the kept
+    lines are what Run writes back — so showing one of two cities did not just
+    under-report the search, it staged a silent narrowing of it.
+    """
     pf = TargetingBrief(
         profile={"target_location": "", "target_locations": ["Gurugram", "Remote"]},
         facts=[],
     ).preflight()
-    assert pf["location"] == "Gurugram"
+    assert pf["locations"] == ["Gurugram", "Remote"]
+
+
+def test_preflight_locations_fall_back_to_the_legacy_scalar():
+    pf = TargetingBrief(profile={"target_location": "Mumbai"}, facts=[]).preflight()
+    assert pf["locations"] == ["Mumbai"]
+
+
+def test_preflight_locations_are_empty_when_nothing_is_set():
+    assert TargetingBrief(profile={}, facts=[]).preflight()["locations"] == []
 
 
 # ── prompt block ─────────────────────────────────────────────────────────────

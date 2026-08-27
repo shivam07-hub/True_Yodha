@@ -549,3 +549,47 @@ def test_a_second_open_learns_nothing_and_writes_nothing(monkeypatch):
     stamped = repo.store["row"]["updated_at"]
     repo.load_bundle("u1")
     assert repo.store["row"]["updated_at"] == stamped, "a second open rewrote the row"
+
+
+# ── seeding the order from the stored profile ────────────────────────────────
+
+
+def test_every_stored_location_is_seeded_not_just_the_scalar():
+    """The kept lines ARE what Run writes back.
+
+    Seeding one city for a user who stored three did not merely under-report
+    the search — opening the modal and pressing Run wrote the narrower list
+    over the wider one. A delete disguised as a read.
+    """
+    confirmed = memory_import.confirmed_from(
+        brief(profile={
+            "target_location": "Mumbai",
+            "target_locations": ["Mumbai", "Bengaluru", "Pune"],
+        })
+    )
+    cities = [x.text for x in confirmed if x.kind == "location"]
+    assert cities == ["Mumbai", "Bengaluru", "Pune"]
+
+
+def test_a_profile_with_only_the_legacy_scalar_still_seeds():
+    confirmed = memory_import.confirmed_from(brief(profile={"target_location": "Mumbai."}))
+    assert [x.text for x in confirmed if x.kind == "location"] == ["Mumbai"]
+
+
+def test_a_repeated_city_is_seeded_once():
+    confirmed = memory_import.confirmed_from(
+        brief(profile={"target_locations": ["Mumbai", "mumbai", "Bengaluru"]})
+    )
+    assert [x.text for x in confirmed if x.kind == "location"] == ["Mumbai", "Bengaluru"]
+
+
+def test_seeded_location_ids_are_derived_from_the_city():
+    """Per the order's invariant: an imported line's id comes from its source.
+
+    A uuid minted per read changes between the GET that renders the line and
+    the PATCH that answers it, so every yes 404s.
+    """
+    first = memory_import.confirmed_from(brief(profile={"target_locations": ["Mumbai", "Pune"]}))
+    again = memory_import.confirmed_from(brief(profile={"target_locations": ["Mumbai", "Pune"]}))
+    assert [x.id for x in first] == [x.id for x in again]
+    assert len({x.id for x in first}) == len(first)

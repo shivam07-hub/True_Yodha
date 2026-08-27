@@ -116,14 +116,14 @@ class TargetingBrief:
                 career_goal = goal
                 prefilled["career_goal"] = "memory"
 
-        location = (p.get("target_location") or "").strip()
-        if not location:
-            locations = _clean_list(p.get("target_locations"))
-            location = locations[0] if locations else ""
+        locations = _clean_list(p.get("target_locations"))
+        if not locations:
+            single = (p.get("target_location") or "").strip()
+            locations = [single] if single else []
 
         return {
             "role_titles": role_titles,
-            "location": location or None,
+            "locations": locations,
             "deal_breakers": deal_breakers,
             "lean": lean,
             "career_goal": career_goal or None,

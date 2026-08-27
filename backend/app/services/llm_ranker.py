@@ -46,6 +46,32 @@ _CONCURRENCY = 3
 
 # ── Prompt building ───────────────────────────────────────────────────────────
 
+def preferred_locations(profile: dict[str, Any]) -> str:
+    """Every location the user named, as the prompt should read it.
+
+    Was `target_location or target_location_country`. For a user who said
+    "Mumbai, Bangalore is also fine" that rendered one city — or, when only the
+    array was set and the scalar was null, fell through to the country and
+    turned two cities into "India". The brain then rewarded the wrong half of
+    the search it was told to reward.
+    """
+    raw = profile.get("target_locations")
+    values = raw if isinstance(raw, list) else [profile.get("target_location")]
+    seen: list[str] = []
+    for value in values:
+        text = str(value or "").strip()
+        if text and text.casefold() not in {s.casefold() for s in seen}:
+            seen.append(text)
+    if seen:
+        return ", ".join(seen)
+    countries = profile.get("target_location_countries")
+    if isinstance(countries, list):
+        named = [str(c).strip() for c in countries if str(c or "").strip()]
+        if named:
+            return ", ".join(named)
+    return str(profile.get("target_location_country") or "").strip() or "flexible"
+
+
 def build_system_prompt(profile: dict[str, Any], cv_markdown: str) -> str:
     """Career Ops evaluator persona, driven by the per-user profile.
 
@@ -53,11 +79,7 @@ def build_system_prompt(profile: dict[str, Any], cv_markdown: str) -> str:
     rewards and penalties come from the candidate's own target_roles and location.
     """
     roles = ", ".join(profile.get("target_roles") or []) or "their stated target roles"
-    location = (
-        profile.get("target_location")
-        or profile.get("target_location_country")
-        or "flexible"
-    )
+    location = preferred_locations(profile)
     deal_breakers = ", ".join(profile.get("deal_breakers") or []) or "none specified"
     career_goal = profile.get("career_goal") or "not specified"
     superpower = profile.get("superpower") or "not specified"
@@ -75,7 +97,7 @@ def build_system_prompt(profile: dict[str, Any], cv_markdown: str) -> str:
 
 This candidate:
 - Target roles: {roles}
-- Preferred location: {location}
+- Preferred locations: {location}
 - Career goal: {career_goal}
 - Superpower: {superpower}
 - Deal-breakers: {deal_breakers}{facts_block}
@@ -173,19 +195,16 @@ _TRIAGE_SNIPPET = 220
 _TRIAGE_CHUNK = 50
 
 
+
 def build_triage_prompt(profile: dict[str, Any], cv_markdown: str) -> str:
     """Compact evaluator persona for the batched pool→shortlist triage pass."""
     roles = ", ".join(profile.get("target_roles") or []) or "their stated target roles"
-    location = (
-        profile.get("target_location")
-        or profile.get("target_location_country")
-        or "flexible"
-    )
+    location = preferred_locations(profile)
     cv_block = (cv_markdown or "").strip()[:2000] or "No CV on file — infer from the skill profile."
     return f"""You are Career Ops, an elite AI career advisor triaging a batch of job postings for ONE candidate. Pick only the strongest genuine fits — never pad the list to reach the count. Judge on true role/skill/seniority fit to THIS candidate, not keyword overlap.
 
 Candidate target roles: {roles}
-Preferred location: {location}
+Preferred locations: {location}
 
 CV:
 {cv_block}"""

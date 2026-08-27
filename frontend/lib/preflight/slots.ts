@@ -41,7 +41,7 @@ export interface SlotCopy {
 /** Render order, and the only thing the client owns about a slot. */
 export const SLOT_COPY: Record<SlotKey, SlotCopy> = {
   target_role_titles: { label: "The work", addKind: "role", invite: "a role you want" },
-  target_location: { label: "Where", addKind: "location", invite: "a city, or remote" },
+  target_locations: { label: "Where", addKind: "location", invite: "a city, or remote" },
   deal_breakers: { label: "Won't take", addKind: "wont_take", invite: "something you'd turn down" },
   lean: { label: "Drawn to", addKind: "lean", invite: "something that pulls you" },
   career_goal: { label: "Aiming for", addKind: "goal", invite: "where this is heading" },
@@ -50,7 +50,7 @@ export const SLOT_COPY: Record<SlotKey, SlotCopy> = {
 
 export const SLOT_ORDER: readonly SlotKey[] = [
   "target_role_titles",
-  "target_location",
+  "target_locations",
   "deal_breakers",
   "lean",
   "career_goal",
