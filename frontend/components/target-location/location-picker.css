@@ -1,0 +1,28 @@
+/* Same interaction as `.tm-rolepick`, in-flow so a scrollable modal cannot
+   clip the options the way an absolutely-positioned listbox would. */
+.tm-locpick-search {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--tm-radius-sm);
+  background: var(--tm-int-bg-hover);
+  border: 1px solid var(--tm-int-border);
+  color: var(--tm-text);
+  font-size: var(--tm-fs-body);
+  font-family: inherit;
+  outline: none;
+}
+
+.tm-locpick-list { max-height: 224px; overflow-y: auto; }
+
+.tm-locpick-option:hover {
+  background: var(--tm-int-bg-wash);
+  color: var(--tm-interactive);
+}
+.tm-locpick-option-label { display: block; font-size: var(--tm-fs-body); font-weight: 600; }
+.tm-locpick-option-meta {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--tm-fs-micro);
+  color: var(--tm-text-faint);
+}
+.tm-locpick-empty { margin: 8px 2px; font-size: var(--tm-fs-note); color: var(--tm-text-faint); }

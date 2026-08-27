@@ -26,6 +26,7 @@
 import { useEffect, useRef, useState } from "react"
 
 import { SayPad } from "@/components/myro/say-pad"
+import { LocationPicker } from "@/components/target-location/location-picker"
 import { RoleFamilyPicker } from "@/components/target-role/role-family-picker"
 import "@/components/target-role/role-family-picker.css"
 import { slotCount, type SlotCopy } from "@/lib/preflight/slots"
@@ -92,7 +93,12 @@ export function SlotGroup({
         />
       ))}
 
-      <SlotAdd copy={copy} busy={busy} onAdd={onAdd} />
+      <SlotAdd
+        copy={copy}
+        busy={busy}
+        onAdd={onAdd}
+        chosen={lines.map((line) => line.text)}
+      />
     </section>
   )
 }
@@ -105,14 +111,18 @@ export function SlotGroup({
  * directly, which makes this deterministic and free — the conversational path
  * exists for the case where the user has a sentence rather than a line.
  */
+const REMOTE_LOCATION = ["Remote"]
+
 function SlotAdd({
   copy,
   busy,
   onAdd,
+  chosen,
 }: {
   copy: SlotCopy
   busy?: boolean
   onAdd: (kind: SlotCopy["addKind"], text: string, roleFamily?: string) => void
+  chosen: string[]
 }) {
   // The work is chosen, not typed — the same corpus picker Settings, the Jobs
   // filter and the score header use. A title typed here produced a role the
@@ -125,6 +135,20 @@ function SlotAdd({
         label={copy.invite}
         busy={busy}
         onChoose={(role) => onAdd("role", role.label, role.family)}
+      />
+    )
+  }
+  // Where is the same class of choice: a city in the live corpus, not a
+  // sentence. Free text here was Cancel/Add with no list, so "Gurgaon" never
+  // resolved to the catalog name the matcher actually stores.
+  if (copy.addKind === "location") {
+    return (
+      <LocationPicker
+        label={copy.invite}
+        busy={busy}
+        chosen={chosen}
+        extras={REMOTE_LOCATION}
+        onChoose={(location) => onAdd("location", location)}
       />
     )
   }
