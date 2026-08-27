@@ -39,11 +39,11 @@ import { applyErrorMessage } from "@/lib/preflight/apply-error"
 import { visibleConflicts } from "@/lib/preflight/conflicts"
 import { useOrder, useOrderMutations, usePreflightPrice, invalidateOrder } from "@/lib/preflight/use-order"
 import type { LineKind, OrderProposal } from "@/lib/preflight/types"
+import { useMatchRunStore } from "@/store/matchRunStore"
 import { useRefreshGateStore } from "@/store/refreshGateStore"
 import { useXPStore } from "@/store/xpStore"
 import { refreshIsLive, type UseJobRefreshResult } from "@/lib/hooks/use-job-refresh"
 
-import { contractLine } from "@/lib/preflight/prose"
 import { PreflightHeader } from "./preflight-header"
 import { ScreenCanvas } from "./screen-canvas"
 import { ScreenDone, ScreenRunning } from "./screen-running"
@@ -71,6 +71,7 @@ export function PreflightGate({
   const open = useRefreshGateStore((s) => s.open)
   const intent = useRefreshGateStore((s) => s.intent)
   const close = useRefreshGateStore((s) => s.closeRefreshGate)
+  const setHold = useMatchRunStore((s) => s.setHold)
   const balance = useXPStore((s) => s.balance)
   const client = useQueryClient()
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -114,10 +115,25 @@ export function PreflightGate({
     }
   }, [refreshVm.state, refreshVm.errorMessage])
 
+  // Ranking is J0 for as long as this modal is the wait. Feed/warm/rails stay
+  // paused through "Run complete" so a 73s judgment-lane call cannot start
+  // behind the glass. Lifted when they look, or when they leave the wait.
+  useEffect(() => {
+    setHold(open && (starting || mode === "running" || mode === "done"))
+    return () => setHold(false)
+  }, [open, starting, mode, setHold])
+
+  const releaseAfterRun = useCallback(() => {
+    setHold(false)
+    void client.invalidateQueries({ queryKey: dataKeys.jobs() })
+    void client.invalidateQueries({ queryKey: ["jobFeed"] })
+  }, [client, setHold])
+
   const requestClose = useCallback(() => {
     if (refreshIsLive(refreshVm.state)) return
+    if (refreshVm.state === "done") releaseAfterRun()
     close()
-  }, [close, refreshVm.state])
+  }, [close, refreshVm.state, releaseAfterRun])
 
   useEffect(() => {
     if (!open) return
@@ -125,8 +141,6 @@ export function PreflightGate({
     document.addEventListener("keydown", onKey)
     return () => document.removeEventListener("keydown", onKey)
   }, [open, requestClose])
-
-  const contract = useMemo(() => (order ? contractLine(order) : null), [order])
 
   // The log accumulates for the life of the order, so "the last entry" is not
   // the same question as "the thing you just did". Baseline it on open.
@@ -344,15 +358,17 @@ export function PreflightGate({
               done={refreshVm.progressDone}
               total={refreshVm.progressTotal}
               revealed={refreshVm.revealed}
-              contract={contract}
             />
           ) : null}
 
           {mode === "done" ? (
             <ScreenDone
               matches={refreshVm.matchesWritten ?? 0}
-              scanned={refreshVm.progressTotal ?? 0}
-              onSeeMatches={() => { close(); onSeeMatches() }}
+              onSeeMatches={() => {
+                releaseAfterRun()
+                close()
+                onSeeMatches()
+              }}
               onRunAgain={() => {
                 refreshVm.reset()
                 setMode("canvas")

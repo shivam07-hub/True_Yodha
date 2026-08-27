@@ -69,6 +69,10 @@ async def warm_feed_shortlist(
     ids = [str(j) for j in candidate_job_ids if j][:limit]
     if not ids:
         return 0
+    from app.services.job_refresh._dispatch import user_has_live_refresh
+    if user_has_live_refresh(user_id):
+        logger.info("metric feed_warm.yielded user=%s stage=enter", user_id)
+        return 0
 
     # The Targeting Brief, not the raw profile columns — same reason as on_demand:
     # these evals persist permanently per (user, job), so a memory-blind one here is
@@ -102,6 +106,10 @@ async def warm_feed_shortlist(
         return 0
 
     eval_profile = ranking._eval_profile(profile, profile.get("cv_markdown") or "")
+
+    if user_has_live_refresh(user_id):
+        logger.info("metric feed_warm.yielded user=%s stage=pre_eval", user_id)
+        return 0
 
     evaluations = await llm_ranker.evaluate_all(eval_profile, shaped, provider)
     if not evaluations:

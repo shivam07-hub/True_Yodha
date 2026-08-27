@@ -101,6 +101,21 @@ def test_job_brain_eval_worker_uses_the_judgment_provider() -> None:
     assert '@background.handler("job_brain_eval")' in src
 
 
+def test_feed_warm_yields_to_a_live_match_run() -> None:
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    route = (root / "app/routers/jobs/list.py").read_text()
+    warm = (root / "app/services/matching/feed_warm.py").read_text()
+    dispatch = (root / "app/services/job_refresh/_dispatch.py").read_text()
+    assert "user_has_live_refresh" in route
+    assert "feed_warm.yielded" in route
+    assert "user_has_live_refresh" in warm
+    assert "stage=pre_eval" in warm
+    assert "def user_has_live_refresh" in dispatch
+    assert "job_refresh:live:" in dispatch
+
+
 def test_judgment_safe_factories_cannot_reach_a_small_model() -> None:
     """The route contract above is only worth as much as this one.
 

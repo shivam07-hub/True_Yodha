@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { jobs, type FeedState } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
+import { useLaneYields } from "@/store/matchRunStore"
 
 /**
  * Feed publication sensing (Job Intelligence).
@@ -27,12 +28,13 @@ const FIVE_MIN = 5 * 60 * 1000
 
 export function useFeedState(enabled = true) {
   const { token } = useAuth()
+  const yieldLane = useLaneYields()
   const queryClient = useQueryClient()
   const lastVersion = useRef<string | null>(null)
 
   const query = useQuery({
     queryKey: dataKeys.feedState(),
-    enabled: !!token && enabled,
+    enabled: !!token && enabled && !yieldLane,
     queryFn: async () => {
       const res = await jobs.feedState(token!, _feedEtag)
       if (res.status === "fresh") {

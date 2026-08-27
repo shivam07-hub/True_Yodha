@@ -4,6 +4,7 @@ import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { jobs, type JobFeedItem, type JobPulse, type TopCompaniesSort } from "@/lib/api"
 import { COMPANY_SIGNAL_FETCH_LIMIT, companySignalRows } from "@/lib/company-signals"
+import { useLaneYields } from "@/store/matchRunStore"
 
 /** A company hiring in the user's location scope. */
 export interface TrendingCompany {
@@ -37,10 +38,11 @@ export function useMarketIntel(
   // settle. Disabled means "waiting in the automatic cascade", not "optional".
   enabled = true,
 ) {
+  const yieldLane = useLaneYields()
   const companies = useQuery({
     queryKey: ["topCompaniesAt", "city", city ?? "", companySort],
     queryFn: () => jobs.topCompaniesAt({ kind: "city", name: city! }, COMPANY_SIGNAL_FETCH_LIMIT, companySort),
-    enabled: enabled && !!city,
+    enabled: enabled && !!city && !yieldLane,
     staleTime: 30 * 60 * 1000,
   })
 

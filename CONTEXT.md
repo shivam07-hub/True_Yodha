@@ -251,6 +251,7 @@ Each transition writes a `progress_label` the UI renders as-is: `"Waiting to sta
 - **Redis + no Job Runner → refuse, never inline.** Inlining the Match Run on the API event loop blocks the progress stream and every other request on that worker. `JobRefresh.start` 503s *before* the debit. A ticket that is still `queued` after 8s with no runner is abandoned, refunded, and its RQ job cancelled.
 - **A live runner is a wait, not a failure.** Busy is honest (`Waiting to start`); dead is an error.
 - **Local / tests (no Redis) still run inline.** That path is the no-Redis adapter, not a production fallback.
+- **A live Match Run owns the LLM lane.** `_write_state` maintains `job_refresh:live:{user_id}` (inline: `_inline_live`). `POST /jobs/feed/warm` sheds against `user_has_live_refresh` before any judgment call. The wait modal holds the same lane on the client until the user looks at the matches.
 
 **Job Refresh seam**
 

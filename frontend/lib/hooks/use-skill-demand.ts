@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { jobs, type SkillDemandCityItem, type SkillDemandItem, type SkillDemandWindow } from "@/lib/api"
+import { useLaneYields } from "@/store/matchRunStore"
 
 // Stable refs: `query.data` is undefined until the first fetch resolves, so a
 // fallback literal here would mint a new array every render — looping any
@@ -25,11 +26,12 @@ export function useSkillDemand(
   enabled = true,
   limit = 8,
 ) {
+  const yieldLane = useLaneYields()
   const key = (city ?? "").trim()
   const query = useQuery({
     queryKey: ["skillDemand", key, window, limit],
     queryFn: () => jobs.skillDemand(key, window, limit),
-    enabled: enabled && !!key,
+    enabled: enabled && !!key && !yieldLane,
     staleTime: 30 * 60 * 1000,
   })
   return {
@@ -44,10 +46,11 @@ export function useSkillDemand(
 
 /** Cities the snapshot covers, largest market first. */
 export function useSkillDemandCities(enabled = true) {
+  const yieldLane = useLaneYields()
   const query = useQuery({
     queryKey: ["skillDemandCities"],
     queryFn: () => jobs.skillDemandCities(),
-    enabled,
+    enabled: enabled && !yieldLane,
     staleTime: 6 * 60 * 60 * 1000,
   })
   return {

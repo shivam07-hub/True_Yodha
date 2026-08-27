@@ -4,6 +4,7 @@ import { useMemo } from "react"
 import { useQuery, keepPreviousData } from "@tanstack/react-query"
 import { jobs, type JobPulse } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { useLaneYields } from "@/store/matchRunStore"
 
 /**
  * Batched Job Pulse hydration for a visible card set.
@@ -15,6 +16,7 @@ import { dataKeys } from "@/lib/domain-data"
  * refetch so cards never flash empty while the batch reloads.
  */
 export function usePulses(token: string | null, jobIds: string[]): Map<string, JobPulse> {
+  const yieldLane = useLaneYields()
   const stableIds = useMemo(() => {
     const unique = Array.from(new Set(jobIds.filter((id) => id && id.trim())))
     return unique.slice(0, 100).sort()
@@ -22,7 +24,7 @@ export function usePulses(token: string | null, jobIds: string[]): Map<string, J
 
   const query = useQuery({
     queryKey: dataKeys.jobPulses(stableIds),
-    enabled: !!token && stableIds.length > 0,
+    enabled: !!token && stableIds.length > 0 && !yieldLane,
     queryFn: () => jobs.pulses(token!, stableIds),
     staleTime: 5 * 60 * 1000,
     placeholderData: keepPreviousData,

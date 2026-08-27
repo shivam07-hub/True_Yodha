@@ -343,3 +343,28 @@ def test_rq_connection_is_binary_state_connection_is_decoded(monkeypatch) -> Non
 
     assert rq.connection_pool.connection_kwargs.get("decode_responses") in (None, False)
     assert state.connection_pool.connection_kwargs.get("decode_responses") is True
+
+
+def test_live_index_tracks_queued_and_clears_on_done(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(_dispatch.settings, "redis_url", "")
+    _dispatch.clear_inline_state()
+    week = date(2026, 6, 1)
+    queued = _dispatch._state("t1", "queued", week)
+    _dispatch._write_state("user-live", queued)
+    assert _dispatch.user_has_live_refresh("user-live") is True
+    done = _dispatch._state("t1", "done", week, matches_written=3)
+    _dispatch._write_state("user-live", done)
+    assert _dispatch.user_has_live_refresh("user-live") is False
+
+
+def test_live_index_ignores_a_stale_ticket_clearing_a_newer_one(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(_dispatch.settings, "redis_url", "")
+    _dispatch.clear_inline_state()
+    week = date(2026, 6, 1)
+    _dispatch._write_state("u", _dispatch._state("t1", "queued", week))
+    _dispatch._write_state("u", _dispatch._state("t2", "computing", week))
+    assert _dispatch.user_has_live_refresh("u") is True
+    _dispatch._write_state("u", _dispatch._state("t1", "done", week, matches_written=1))
+    assert _dispatch.user_has_live_refresh("u") is True
+    _dispatch._write_state("u", _dispatch._state("t2", "failed", week, error="x"))
+    assert _dispatch.user_has_live_refresh("u") is False

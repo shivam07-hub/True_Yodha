@@ -365,6 +365,11 @@ test("the RUN screen is the Job Refresh lifecycle, not a four-step play", () => 
   assert.match(hook, /refreshIsLive/)
   assert.match(hook, /"queued"/)
   assert.match(gate, /lifecycle=\{refreshVm\.state === "computing" \? "computing" : "queued"\}/)
+  // The wait is a count and a tape — not a restaged pin, not a contract from
+  // a screen that is no longer visible.
+  assert.match(running, /pf-run-tape/)
+  assert.doesNotMatch(running, /pf-run-hero|pf-run-pin|pf-contract/)
+  assert.doesNotMatch(gate, /contract=\{/)
 })
 
 test("signing off does not dispatch a second run", () => {

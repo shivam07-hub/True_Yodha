@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query"
 import { jobs, type JobFeedItem, type JobFeedResponse } from "@/lib/api"
 import type { FeedScope } from "@/lib/feed-scope"
+import { useLaneYields } from "@/store/matchRunStore"
 import { applyViewFilters, type FeedFilters } from "./feed-types"
 import { jobFeedQueryKey } from "./job-feed-query-key"
 
@@ -66,6 +67,7 @@ export function useJobFeed({
   scope: FeedScope
 }) {
   const qc = useQueryClient()
+  const yieldLane = useLaneYields()
   const [pending, setPending] = useState<PendingUndo | null>(null)
   const [savedCount, setSavedCount] = useState(0)
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -112,7 +114,7 @@ export function useJobFeed({
       const scope = NEXT_SCOPE[last.expansion_tier]
       return scope ? { page: 1, scope } : undefined
     },
-    enabled: !!token,
+    enabled: !!token && !yieldLane,
     staleTime: 30 * 60 * 1000,
     gcTime: 24 * 60 * 60 * 1000,
   })
@@ -152,11 +154,12 @@ export function useJobFeed({
   }, [feed.data])
 
   useEffect(() => {
+    if (yieldLane) return
     const last = feed.data?.pages.at(-1)
     if (last && last.returned_total === 0 && feed.hasNextPage && !feed.isFetchingNextPage) {
       void feed.fetchNextPage()
     }
-  }, [feed])
+  }, [feed, yieldLane])
 
   const clearUndoTimer = useCallback(() => {
     if (undoTimer.current) { clearTimeout(undoTimer.current); undoTimer.current = null }

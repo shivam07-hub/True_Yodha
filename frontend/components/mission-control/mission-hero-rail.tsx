@@ -28,12 +28,14 @@ import { useHomeBootstrap } from "@/lib/hooks/use-home-bootstrap"
 import { withLocalCache, userCacheKey } from "@/lib/local-cache"
 import { JOB_MATCHES_CACHE_PARTS } from "@/lib/job-matches-cache"
 import { useViewport } from "@/mobile"
+import { useLaneYields } from "@/store/matchRunStore"
 
 const MATCHES_TTL = 7 * 24 * 60 * 60 * 1000
 
 /** The greeting hero — desktop = pinned rail, mobile = thin banner. */
 export function MissionHeroRail({ token, onSettled }: { token: string | null; onSettled?: () => void }) {
   const { isDesktop } = useViewport()
+  const yieldLane = useLaneYields()
 
   // One BFF round-trip seeds the leaves; each leaf falls back to its own fetch
   // on bootstrap error (same contract as /home).
@@ -55,7 +57,7 @@ export function MissionHeroRail({ token, onSettled }: { token: string | null; on
   const jobsQuery = useQuery({
     queryKey: dataKeys.jobs(),
     queryFn: () => withLocalCache(userCacheKey(token!, JOB_MATCHES_CACHE_PARTS), MATCHES_TTL, () => jobs.matches(token!)),
-    enabled: !!token && settled,
+    enabled: !!token && settled && !yieldLane,
     staleTime: MATCHES_TTL,
   })
   const applicationsQuery = useQuery({

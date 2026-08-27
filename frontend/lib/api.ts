@@ -4041,7 +4041,7 @@ export const jobs = {
    *  Scope params must match the feed's so the warmed cards are the ones shown.
    *  Soft-resolves on any failure/timeout to {ready:false} — the feed then paints
    *  the deterministic order (degradation, never a blocked page). */
-  warmFeed: async (token: string, p: JobFeedParams = {}): Promise<FeedWarmResponse> => {
+  warmFeed: async (token: string, p: JobFeedParams = {}, signal?: AbortSignal): Promise<FeedWarmResponse> => {
     const params = new URLSearchParams()
     if (p.cluster && p.cluster.trim()) params.set("cluster", p.cluster.trim())
     if (p.roleDomain && p.roleDomain.trim()) params.set("role_domain", p.roleDomain.trim())
@@ -4059,6 +4059,7 @@ export const jobs = {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         timeoutMs: 7000,
+        signal,
       })
     } catch {
       return { ready: false, warmed: 0 }
