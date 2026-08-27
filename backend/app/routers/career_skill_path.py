@@ -1,7 +1,5 @@
 """The one authenticated career-skill-path contract."""
-from __future__ import annotations
-
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app.database import get_supabase_admin
 from app.deps import Principal, get_principal
@@ -55,12 +53,13 @@ def request_learning_path(
 def withdraw_learning_path(
     taxonomy_key: str,
     principal: Principal = Depends(get_principal),
-) -> None:
+) -> Response:
     withdrawn = LearningPathRequests(get_supabase_admin()).withdraw(
         principal.id, taxonomy_key
     )
     if not withdrawn:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No active request to withdraw.")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/certificates/{verification_id}", response_model=SkillCertificatePublic)

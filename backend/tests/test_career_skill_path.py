@@ -122,6 +122,14 @@ def test_retired_title_seniority_helpers_are_gone() -> None:
     assert "def find_role_skill_rows" not in scores
 
 
+def test_app_imports_despite_204_withdraw_route() -> None:
+    """FastAPI 0.110 treats postponed `-> None` as a 204 body. Import must succeed."""
+    from app.main import app
+
+    paths = {getattr(route, "path", "") for route in app.routes}
+    assert "/career-skill-path/learning-requests/{taxonomy_key}" in paths
+
+
 def test_targeting_columns_only_write_through_commit() -> None:
     root = Path(__file__).resolve().parents[1]
     confirmation = (root / "app/services/skill_confirmation.py").read_text()
