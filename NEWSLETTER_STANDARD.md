@@ -23,6 +23,41 @@ Carousel: `scripts/build-newsletter-carousel.py` + a spec in
    limits are.
 6. **Footer CTA into Preparation.** One only.
 
+## What the gold version changed (Issue 019, Shivam's edit, 2026-08-26)
+
+My draft was accurate and read like a consultant's memo. Shivam's rewrite is the
+standard. The differences, in order of how much they matter:
+
+1. **Round the provenance, keep the findings exact.** The lede says "250+ MNC
+   career pages" and "close to 15,000 openings". Every number inside the body
+   stays exact to one decimal. Precision in the opening line reads as fussy;
+   precision in a finding is the product.
+2. **Use the word the reader uses.** "GCC", not "bank technology centre". The
+   audience works in this market and the domain word costs nothing to whoever
+   does not.
+3. **Cut the scaffolding.** No "each row adds to 100%", no "read along your row",
+   no "hold that row loosely". Explaining how to read the table is a tell that
+   the table is not clear enough.
+4. **One warm human aside per issue.** "the floors (and the rains!) of Mumbai".
+   Not a joke, a signal that a person wrote it.
+5. **Section headings can be the whole piece of advice**, in full sentences:
+   "If you are in finance, then Mumbai. But if you want a job in retail banking,
+   move to your favourite tier 2 city."
+6. **State what a thing is.** Never "X is not Y", never "the offices are there,
+   the hiring is not". Say "a Mumbai office is a satellite and a Bengaluru office
+   is the engine". This is the single most persistent tell and the mechanical
+   linter does not catch it.
+7. **No methodology section in the prose.** Provenance lives in the `dataset`
+   frontmatter, so schema.org still carries the caveats without the article
+   stopping to defend itself.
+8. **The CTA says what Myro does**, then links. "We track the official career
+   pages of MNCs and what skills they hire for" earns the click; "practise your
+   skills" alone does not.
+
+Deliberately absent from the gold version: career-stage blocks (Early / Mid /
+Senior). `myro-newsletter Skills/page-anatomy.md` calls them load-bearing. They
+are not, when every section is already addressed to one reader type by name.
+
 ## Rules that are not negotiable
 
 - **Skills are the driver.** Every lane ends in skills a real posting named this
