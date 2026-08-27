@@ -55,7 +55,7 @@ def get_my_score(
             detail="No score found. Upload your CV first.",
         )
     band = target_seniority_for_profile({"target_seniority": scores_repo.get_target_seniority(principal.id)})
-    return _to_score_response(row, band)
+    return _to_score_response(row, band or "unknown")
 
 
 @router.get("/map", response_model=ScoreMapResponse)
@@ -92,7 +92,7 @@ def recompute_score(
 
     score_row = scoring.recompute_score(scores_repo, principal.id)
     band = target_seniority_for_profile({"target_seniority": inputs.target_seniority})
-    score_response = _to_score_response(score_row, band)
+    score_response = _to_score_response(score_row, band or "unknown")
     return ComputeScoreResponse(
         score=score_response,
         skills_updated=score_row.get("skills_assessed", 0),

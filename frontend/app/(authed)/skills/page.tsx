@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowRight, Dumbbell, FileText } from "lucide-react"
 
 import { RequiresCV } from "@/components/empty/RequiresCV"
+import { RequiresCareerTarget } from "@/components/career-path/requires-career-target"
 import { PracticeSkeleton } from "@/components/loading/page-skeletons"
 import { BandPercentileLine } from "@/components/skills/band-percentile-line"
 import { DomainRadar } from "@/components/skills/domain-radar"
@@ -64,6 +65,7 @@ function ScoreMapPageInner() {
 
   return (
     <RequiresCV surface="skills">
+      <RequiresCareerTarget>
       <main className="sm-page">
         {isError || !score || !skills || !model || model.axes.length === 0 ? (
           <section className="sm-error" role="status">
@@ -187,6 +189,7 @@ function ScoreMapPageInner() {
           </>
         )}
       </main>
+      </RequiresCareerTarget>
     </RequiresCV>
   )
 }

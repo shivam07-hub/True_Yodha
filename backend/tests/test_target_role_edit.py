@@ -80,9 +80,11 @@ def test_role_only_edit_preserves_seniority_and_location(wired) -> None:
     assert users.updates["target_role_title"] == "Product Manager"
     assert users.updates["target_roles"] == ["Data Analysis"]
     assert users.updates["target_career_band"] == "business_product_operations"
-    # omitted fields preserved from the existing profile, not wiped
-    assert users.updates["target_seniority"] == "senior"
-    assert users.updates["target_locations"] == ["Bengaluru, India"]
+    # omitted fields stay on the stored profile; the patch does not rewrite them
+    assert "target_seniority" not in users.updates
+    assert "target_locations" not in users.updates
+    assert users._profile["target_seniority"] == "senior"
+    assert users._profile["target_locations"] == ["Bengaluru, India"]
     # recompute + re-match is enqueued
     assert any(name == "onboarding_target_refresh" for _lane, name, _p, _c in bg.enqueued)
 

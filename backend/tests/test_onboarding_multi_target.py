@@ -16,10 +16,10 @@ from app.services.onboarding_service import (
 )
 
 
-def test_locations_dedupe_preserve_order_and_cap_at_five() -> None:
+def test_locations_dedupe_preserve_order_and_cap_at_three() -> None:
     assert _normalize_locations(None, ["Pune", " Pune ", "Bengaluru"]) == ["Pune", "Bengaluru"]
     assert _normalize_locations(None, [f"City{i}" for i in range(9)]) == [
-        f"City{i}" for i in range(5)
+        f"City{i}" for i in range(3)
     ]
 
 

@@ -191,4 +191,5 @@ def _persist_cv_seniority(
     suggestion = seniority_from_cv(baseline)
     if not suggestion.get("value"):
         return
-    users_repo.update_profile(user_id, {"target_seniority": suggestion["value"]})
+    from app.services import targeting_write
+    targeting_write.commit(users_repo, user_id, {"target_seniority": suggestion["value"]})

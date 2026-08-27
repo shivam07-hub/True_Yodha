@@ -7,11 +7,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { upskilling, users, type DemandBand, type ReadinessRow, type SkillUpvote, type StartGapResponse, type UpskillingSkill } from "@/lib/api"
+import { upskilling, users, type ReadinessRow, type SkillUpvote, type StartGapResponse, type UpskillingSkill } from "@/lib/api"
 import { Button } from "@/components/ui/button"
-import type { PracticeSkills } from "@/lib/practice-skills"
 import { dataKeys } from "@/lib/domain-data"
-import { cvUpgradeHref } from "@/lib/practice-mentor-handoff"
+import { addCertificateHref } from "@/lib/career-skill-path"
 import { useParticleMoment } from "@/components/particle"
 import type { SkillIntelStats } from "@/lib/skill-domains"
 import { ForgeContextBar } from "./forge-bar"
@@ -26,29 +25,6 @@ import type { LadderSkill, QuizQuestion, ResultModel } from "./types"
 
 const norm = (s: string): string => s.trim().toLowerCase()
 
-interface DemandInfo { demand: DemandBand; jobCount: number; hasCvEvidence: boolean }
-
-/** Build a name/key → demand lookup from the existing practice-skill signal. */
-function demandIndex(practice: PracticeSkills): { byKey: Map<string, DemandInfo>; byName: Map<string, DemandInfo> } {
-  const byKey = new Map<string, DemandInfo>()
-  const byName = new Map<string, DemandInfo>()
-  practice.owned.forEach((o) => {
-    const info: DemandInfo = {
-      demand: o.demandBand,
-      jobCount: o.jobCount,
-      hasCvEvidence: Boolean(o.item.evidence_text?.trim()),
-    }
-    if (o.item.key) byKey.set(o.item.key, info)
-    byName.set(norm(o.item.display_name), info)
-  })
-  practice.gaps.forEach((g) => {
-    byName.set(norm(g.skill_name), { demand: g.demandBand, jobCount: g.jobCount, hasCvEvidence: false })
-  })
-  return { byKey, byName }
-}
-
-/** Upvote counts joined by taxonomy key OR display name — the desktop drawer
- *  sends keys, the mobile sheet sends names; both must land on the ladder. */
 function upvoteIndex(upvotes: SkillUpvote[]): Map<string, number> {
   const map = new Map<string, number>()
   upvotes.forEach((u) => {
@@ -58,43 +34,30 @@ function upvoteIndex(upvotes: SkillUpvote[]): Map<string, number> {
   return map
 }
 
-function mergeSkills(
-  backend: UpskillingSkill[],
-  practice: PracticeSkills,
-  upvotes: Map<string, number>,
-): LadderSkill[] {
-  const { byKey, byName } = demandIndex(practice)
-  return backend.map((s) => {
-    const info = byKey.get(s.skill_key) ?? byName.get(norm(s.display_name))
-    return {
-      skillId: s.skill_id,
-      key: s.skill_key || String(s.skill_id),
-      name: s.display_name,
-      clearedLevel: s.cleared_level,
-      assessedLevel: s.assessed_level,
-      nextLevel: s.next_level,
-      onCV: s.on_cv,
-      demand: info?.demand ?? "none",
-      jobCount: info?.jobCount ?? 0,
-      upvotes: upvotes.get(norm(s.skill_key)) ?? upvotes.get(norm(s.display_name)) ?? 0,
-      maxBankLevel: s.max_bank_level,
-      locked: s.locked,
-      hasCvEvidence: info?.hasCvEvidence ?? false,
-    }
-  })
+function toLadder(backend: UpskillingSkill[], upvotes: Map<string, number>): LadderSkill[] {
+  return backend.map((s) => ({
+    skillId: s.skill_id,
+    key: s.skill_key || String(s.skill_id),
+    name: s.display_name,
+    clearedLevel: s.cleared_level,
+    assessedLevel: s.assessed_level,
+    nextLevel: s.next_level,
+    onCV: s.on_cv,
+    upvotes: upvotes.get(norm(s.skill_key)) ?? upvotes.get(norm(s.display_name)) ?? 0,
+    maxBankLevel: s.max_bank_level,
+    locked: s.locked,
+    hasCvEvidence: s.on_cv,
+  }))
 }
 
 function pickHero(skills: LadderSkill[]): LadderSkill | null {
   const startable = skills.filter((s) => s.clearedLevel < 5 && s.maxBankLevel >= Math.min(s.clearedLevel + 1, 5))
   const ranked = [...startable].sort((a, b) => {
-    // The user's own upvotes lead — "N of my jobs need this" beats every
-    // derived signal. Then in-progress ladders, then market demand.
     if (a.upvotes !== b.upvotes) return b.upvotes - a.upvotes
     const ai = a.clearedLevel > 0 ? 1 : 0
     const bi = b.clearedLevel > 0 ? 1 : 0
     if (ai !== bi) return bi - ai
-    const rank: Record<DemandBand, number> = { very_high: 4, high: 3, moderate: 2, low: 1, none: 0 }
-    return (rank[b.demand] - rank[a.demand]) || (b.jobCount - a.jobCount)
+    return a.name.localeCompare(b.name)
   })
   return ranked[0] ?? skills[0] ?? null
 }
@@ -129,7 +92,6 @@ type GapResult = {
 
 export function UpskillingView({
   token,
-  practiceSkills,
   gapJobId,
   focusSkill,
   originJobId,
@@ -145,7 +107,6 @@ export function UpskillingView({
   roleTitles,
 }: {
   token: string
-  practiceSkills: PracticeSkills
   /** Deep-link from Tracker / Market ("?gap=<jobId>") — auto-starts the flow. */
   gapJobId?: string | null
   /** Direct practice link and the job it came from, when any. */
@@ -200,8 +161,8 @@ export function UpskillingView({
   })
 
   const skills = useMemo(
-    () => mergeSkills(backendSkills ?? [], practiceSkills, upvoteIndex(upvotesData?.skills ?? [])),
-    [backendSkills, practiceSkills, upvotesData],
+    () => toLadder(backendSkills ?? [], upvoteIndex(upvotesData?.skills ?? [])),
+    [backendSkills, upvotesData],
   )
   const heroSkill = useMemo(() => pickHero(skills), [skills])
 
@@ -269,10 +230,10 @@ export function UpskillingView({
         elapsedSeconds,
         prevBestSeconds,
         newBest,
-        cvHref: res.passed ? cvUpgradeHref({
-          skill: quiz.skill.name,
-          hasCvEvidence: quiz.skill.hasCvEvidence,
-        }) : null,
+        certificate: res.passed ? (res.certificate ?? null) : null,
+        cvHref: res.passed && res.certificate?.verification_id
+          ? addCertificateHref(res.certificate.verification_id)
+          : null,
       })
       setScreen("results")
 
@@ -283,6 +244,7 @@ export function UpskillingView({
       if (res.passed) {
         // A clear records assessed-learning progress + token balance server-side.
         queryClient.invalidateQueries({ queryKey: UPSKILLING_SKILLS_KEY(token) })
+        queryClient.invalidateQueries({ queryKey: dataKeys.careerSkillPath() })
       }
     } catch {
       flashToast("Couldn’t grade this set — check your connection and try again.")

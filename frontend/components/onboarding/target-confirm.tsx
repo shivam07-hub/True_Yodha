@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { StickyOnboardingActionBar } from "@/components/onboarding/sticky-action-bar"
 import { DirectionChoice } from "@/components/onboarding/direction-choice"
 import { formatCount } from "@/lib/format"
-import { dataKeys } from "@/lib/domain-data"
+import { invalidateTargetRoleData } from "@/lib/domain-data"
 import { onboarding, users as usersApi, type OnboardingResult, type RoleFamily, type TargetSeniority } from "@/lib/api"
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value"
 import { trackEvent } from "@/lib/analytics"
@@ -184,7 +184,7 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
         lean_count: lean.length,
         avoid_count: avoid.length,
       })
-      await queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
+      await invalidateTargetRoleData(queryClient)
       onConfirmed()
       router.replace("/market")
     } catch (reason) {

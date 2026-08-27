@@ -114,6 +114,12 @@ def save_master_cv(
     )
     baseline_id = int(updated["id"])
 
+    from app.database import get_supabase_admin
+    from app.repositories.skill_certificates import SkillCertificates
+    SkillCertificates(get_supabase_admin()).stamp_from_structured(
+        user_id, list(structured.get("certs") or []), baseline_id
+    )
+
     # ADR-0008 bulk lane — reuses the skill-edit re-tag pipeline (re-scores +
     # stamps recompute_finished_at). Durable via RQ when REDIS_URL is set.
     background.enqueue(

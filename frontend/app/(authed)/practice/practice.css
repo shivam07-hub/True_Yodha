@@ -137,6 +137,8 @@
 .up-res-time { margin-top: 10px; font-family: var(--tm-font-mono); font-variant-numeric: tabular-nums; font-size: 12.5px; font-weight: 650; color: var(--tm-text-faint); }
 .up-res-time.is-best { color: var(--tm-interactive-text); }
 .up-res-mentor { margin-top: 14px; box-shadow: 0 0 22px var(--tm-accent-glow); }
+.up-res-cert-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 14px; }
+.up-res-cert-actions .up-res-mentor { margin-top: 0; }
 
 .up-res-unlock { display: flex; align-items: center; gap: 10px; padding: 13px 16px; border-radius: var(--tm-radius-lg); background: var(--tm-success-wash); border: 1px solid var(--tm-success-border); color: var(--tm-success-text); font-size: 13.5px; font-weight: 600; }
 .up-res-unlock.locked { background: var(--tm-surface-2); border-color: var(--tm-border-soft); color: var(--tm-text-muted); }

@@ -1,22 +1,17 @@
-/* "Your climb" — filter tabs (All / On CV / Gaps / Hot) + the sorted row
-   list. Replaces the old SkillList (Quick-wins/Hottest sort toggle). */
+/* "Your climb" — filter tabs (All / On CV / Gaps) + the sorted row list. */
 
 "use client"
 
 import { useState, type JSX } from "react"
-import type { DemandBand } from "@/lib/api"
 import { ClimbRow } from "./climb-row"
 import type { LadderSkill } from "./types"
 
-const isHot = (d: DemandBand): boolean => d === "very_high" || d === "high"
-
-type FilterKey = "all" | "oncv" | "gaps" | "hot"
+type FilterKey = "all" | "oncv" | "gaps"
 
 const TABS: Array<{ key: FilterKey; label: string }> = [
   { key: "all", label: "All" },
   { key: "oncv", label: "On CV" },
   { key: "gaps", label: "Gaps" },
-  { key: "hot", label: "Hot" },
 ]
 
 function sortSkills(skills: LadderSkill[]): LadderSkill[] {
@@ -39,13 +34,11 @@ export function ClimbList({
     all: skills.length,
     oncv: skills.filter((s) => s.onCV).length,
     gaps: skills.filter((s) => !s.onCV).length,
-    hot: skills.filter((s) => isHot(s.demand)).length,
   }
 
   const filtered = skills.filter((s) => {
     if (filter === "oncv") return s.onCV
     if (filter === "gaps") return !s.onCV
-    if (filter === "hot") return isHot(s.demand)
     return true
   })
   const rows = sortSkills(filtered)

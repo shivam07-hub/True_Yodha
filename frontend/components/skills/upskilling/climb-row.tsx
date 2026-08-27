@@ -1,15 +1,10 @@
-/* One skill row in "Your climb" — name + badge + demand + rung path + CTA.
-   Replaces the old SkillCard. */
+/* One skill row in "Your climb" — name + badge + rung path + CTA. */
 
 import type { JSX } from "react"
-import type { DemandBand } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Icon } from "./icons"
-import { DEMAND_LABEL } from "./proficiency"
 import { buildRungs, climbFraction, RungPath } from "./rung-path"
 import type { LadderSkill } from "./types"
-
-const isHot = (d: DemandBand): boolean => d === "very_high" || d === "high"
 
 export function ClimbRow({
   skill,
@@ -20,7 +15,6 @@ export function ClimbRow({
 }): JSX.Element {
   const maxed = skill.clearedLevel >= 5
   const next = Math.min(skill.clearedLevel + 1, 5)
-  const hot = isHot(skill.demand)
   const rungs = buildRungs(skill.clearedLevel, (lvl) => onStart(skill, lvl))
 
   return (
@@ -36,15 +30,11 @@ export function ClimbRow({
             <span className="up-climb-badge is-new">New skill</span>
           )}
         </div>
-        <div className="up-climb-demand">
-          {skill.demand !== "none" ? (
-            hot
-              ? <span className="is-hot"><Icon name="flame" size={12} /> {DEMAND_LABEL[skill.demand]}</span>
-              : <span>{DEMAND_LABEL[skill.demand]}</span>
-          ) : null}
-          {skill.jobCount > 0 && <span className="up-climb-demand-n">· wanted by {skill.jobCount} of your jobs</span>}
-          {skill.upvotes > 0 && <span className="up-climb-upvote">▲ {skill.upvotes}</span>}
-        </div>
+        {skill.upvotes > 0 && (
+          <div className="up-climb-demand">
+            <span className="up-climb-upvote">▲ {skill.upvotes}</span>
+          </div>
+        )}
       </div>
 
       <div className="up-climb-mid">

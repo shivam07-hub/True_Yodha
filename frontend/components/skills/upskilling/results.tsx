@@ -74,10 +74,27 @@ export function Results({
         )}
 
         <div className={`up-res-time${cleared && newBest ? " is-best" : ""}`} aria-hidden="true">{timeLine}</div>
-        {cleared && cvHref ? (
-          <Button className="up-res-mentor" onClick={() => onImproveCv(cvHref)}>
-            <Icon name="sparkle" size={14} /> Update Main CV
-          </Button>
+        {cleared && result.certificate ? (
+          <div className="up-res-cert-actions">
+            <Button
+              variant="outline"
+              className="up-res-mentor"
+              render={(
+                <a
+                  href={result.certificate.verify_path || `/verify/skill/${result.certificate.verification_id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                />
+              )}
+            >
+              Download certificate
+            </Button>
+            {cvHref ? (
+              <Button className="up-res-mentor" onClick={() => onImproveCv(cvHref)}>
+                Add to CV
+              </Button>
+            ) : null}
+          </div>
         ) : null}
       </section>
 

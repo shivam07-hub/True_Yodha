@@ -54,10 +54,12 @@ def test_f3_unknown_title_stays_unknown_when_verdict_is_weak() -> None:
     assert cred.credible is False
 
 
-def test_f3_clear_title_mismatch_still_bars() -> None:
-    # A title the parser CAN read as a mismatch is a hard signal — brain doesn't override.
+def test_f3_clear_source_mismatch_still_bars() -> None:
     cred = evaluate_credibility(
-        _PROFILE, _job(title="Junior Software Engineer"), overall_score=4.3, recommendation="Apply"
+        _PROFILE,
+        _job(title="Software Engineer", seniority_level="entry"),
+        overall_score=4.3,
+        recommendation="Apply",
     )
     assert cred.seniority_compatibility == "incompatible"
     assert cred.credible is False
@@ -80,10 +82,9 @@ def test_f4_present_but_wrong_location_still_bars() -> None:
     assert location_compatible(_PROFILE, wrong) is False
 
 
-def test_seniority_from_ambiguous_numbered_title_is_unknown() -> None:
-    # The exact titles from the case study that tripped the old gate.
-    assert seniority_compatibility("senior", "Software Engineer II") == "unknown"
-    assert seniority_compatibility("senior", "SDE N 4A") == "unknown"
+def test_seniority_from_missing_source_field_is_unknown() -> None:
+    assert seniority_compatibility("senior", {"title": "Software Engineer II"}) == "unknown"
+    assert seniority_compatibility("senior", {"title": "SDE N 4A"}) == "unknown"
 
 
 # ── F5: absence of a scoping key is not a verdict ───────────────────────────────
@@ -136,4 +137,4 @@ def test_f5_a_weak_match_is_still_barred() -> None:
     """Loosening the scoping key must not loosen the actual gate."""
     assert evaluate_credibility(_PROFILE, _job(), 2.9, "Apply").credible is False
     assert evaluate_credibility(_PROFILE, _job(), 4.5, "Skip").credible is False
-    assert evaluate_credibility(_PROFILE, _job(title="Intern"), 4.5, "Apply").credible is False
+    assert evaluate_credibility(_PROFILE, _job(seniority_level="intern"), 4.5, "Apply").credible is False

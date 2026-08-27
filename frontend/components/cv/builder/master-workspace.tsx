@@ -37,6 +37,7 @@ import { identityLines } from "./cv-identity-lines"
 import { rewriteFetcher } from "./rewrite-fetchers"
 import { usePlaygroundModel } from "./use-playground-model"
 import { useDismissedFixes } from "./use-dismissed-fixes"
+import { careerSkillPath, certificateCvLine } from "@/lib/career-skill-path"
 
 // Master CV has no per-job projection — every line renders.
 const NO_HIDDEN: Set<string> = new Set()
@@ -59,6 +60,7 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
   const initialRailTab = searchParams.get("tab") === "skills" ? "skills" as const : "fixes" as const
   const requestedMentorSkill = searchParams.get("mentor") === "1" ? searchParams.get("skill") : null
   const requestedProvenSkill = searchParams.get("addProven") === "1" ? searchParams.get("skill") : null
+  const requestedCertId = searchParams.get("addCert")
   const fromScoreMap = searchParams.get("from") === "score-map"
   const scoreDomain = fromScoreMap ? searchParams.get("domain") : null
   const scoreSkill = fromScoreMap ? searchParams.get("skill") : null
@@ -68,6 +70,7 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
   const [mentorMiss, setMentorMiss] = useState(false)
   const mentorResolved = useRef(false)
   const provenHandoffHandled = useRef(false)
+  const certHandoffHandled = useRef(false)
 
   const scoreQuery = useQuery({
     queryKey: dataKeys.scores(),
@@ -147,6 +150,21 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
     provenHandoffHandled.current = true
     void addProvenToLine(requestedProvenSkill)
   }, [addProvenToLine, requestedProvenSkill])
+
+  useEffect(() => {
+    if (!requestedCertId || certHandoffHandled.current) return
+    certHandoffHandled.current = true
+    void (async () => {
+      try {
+        const cert = await careerSkillPath.publicCertificate(requestedCertId)
+        const line = certificateCvLine(cert)
+        onPatch(d => d.certs.includes(line) ? d : { ...d, certs: [line, ...d.certs] })
+        setProvenStatus("Certificate added — review and save")
+      } catch (e) {
+        setProvenStatus(e instanceof Error ? e.message : "Couldn’t load that certificate")
+      }
+    })()
+  }, [onPatch, requestedCertId])
 
   // A rewrite or inline edit targets one line by its exact text (the same
   // text-identity the playground uses). First occurrence wins.

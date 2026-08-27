@@ -211,6 +211,8 @@ async function request<T>(path: string, init?: ApiRequestInit, _isRetry = false)
   return res.json() as Promise<T>
 }
 
+export { request as backendRequest }
+
 /**
  * Conditional GET for the Feed State ETag flow. The generic request<T>() above
  * assumes a JSON body on every success, so it cannot represent a 304 (no body).
@@ -5447,6 +5449,19 @@ export interface QuestionResult {
   }
 }
 
+export interface SkillCertificateIssued {
+  id?: string
+  skill_display_name: string
+  achieved_level: number
+  passed_at: string
+  verification_id: string
+  assessment_edition?: string
+  attempt_id?: string
+  verify_path?: string
+  cv_line: string
+  certificate_status?: "issued" | "on_cv"
+}
+
 export interface SubmitSetResponse {
   score: number
   max: number
@@ -5455,6 +5470,7 @@ export interface SubmitSetResponse {
   tokens_awarded: number
   next_level_unlocked: number | null
   results: QuestionResult[]
+  certificate?: SkillCertificateIssued | null
 }
 
 export interface LearningCoverageResponse {

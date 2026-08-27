@@ -1,0 +1,61 @@
+.vsk-page {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: var(--tm-page-py) var(--tm-page-px);
+  color: var(--tm-text);
+}
+
+.vsk-kicker {
+  margin: 0;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-caption);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+
+.vsk-skill {
+  margin: 0.5rem 0 0;
+  font-family: var(--tm-font-display);
+  font-size: var(--tm-fs-title);
+  font-weight: 600;
+}
+
+.vsk-level {
+  margin: 0.25rem 0 1.5rem;
+  font-size: var(--tm-fs-body);
+  color: var(--tm-text-muted);
+}
+
+.vsk-facts {
+  margin: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.vsk-facts div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.vsk-facts dt {
+  font-size: var(--tm-fs-caption);
+  color: var(--tm-text-faint);
+}
+
+.vsk-facts dd {
+  margin: 0;
+  font-size: var(--tm-fs-body);
+}
+
+.vsk-note {
+  margin: 1.5rem 0 0;
+  font-size: var(--tm-fs-meta);
+  color: var(--tm-text-muted);
+}
+
+.vsk-home {
+  display: inline-block;
+  margin-top: 1.5rem;
+  color: var(--tm-interactive);
+}

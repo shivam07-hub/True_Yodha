@@ -1,8 +1,6 @@
-/* Shared UI models for the Upskilling surface. The backend `UpskillingSkill`
-   (progress + bank readiness) is merged with `buildPracticeSkills` demand
-   signal into a single `LadderSkill` the cards consume. */
-
-import type { DemandBand } from "@/lib/api"
+/* Shared UI models for the Upskilling surface. Progress + bank readiness
+   come from GET /upskilling/skills. Demand and skill state live on
+   GET /career-skill-path — this ladder does not recompute them. */
 
 export interface AnswerRationales {
   correct?: string
@@ -17,8 +15,6 @@ export interface LadderSkill {
   assessedLevel: number
   nextLevel: number
   onCV: boolean
-  demand: DemandBand
-  jobCount: number
   /** The user's own learning intent — how many of THEIR jobs upvoted this
       skill from the job drawer. Leads practice ordering. */
   upvotes: number
@@ -62,6 +58,13 @@ export interface ResultModel {
   elapsedSeconds: number
   prevBestSeconds: number | null
   newBest: boolean
-  /** Explicit Main-CV upgrade destination after a passing assessment. */
+  certificate: {
+    verification_id: string
+    verify_path?: string
+    cv_line: string
+    skill_display_name: string
+    achieved_level: number
+  } | null
+  /** Add-to-CV destination after a passing assessment issues a certificate. */
   cvHref: string | null
 }

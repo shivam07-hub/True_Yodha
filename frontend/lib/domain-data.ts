@@ -27,6 +27,7 @@ export const dataKeys = {
   cvEvidence: () => ["cv-evidence"] as const,
   cvStructured: () => ["cv-structured"] as const,
   cvVersions: (jobId: JobId) => ["cv-versions", jobId ?? "all"] as const,
+  careerSkillPath: () => ["career-skill-path"] as const,
   jobPath: (jobId: JobId) => ["job-path", jobId] as const,
   skillGap: (jobId: JobId) => ["skill-gap", jobId] as const,
   deepenings: (jobId: JobId) => ["deepenings", jobId] as const,
@@ -116,6 +117,7 @@ export function invalidateCvData(queryClient: QueryClient): void {
 export function invalidateTargetRoleData(queryClient: QueryClient): void {
   queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
   queryClient.invalidateQueries({ queryKey: dataKeys.roleReadiness() })
+  queryClient.invalidateQueries({ queryKey: dataKeys.careerSkillPath() })
   invalidateScoreMapData(queryClient)
   queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })
   queryClient.invalidateQueries({ queryKey: dataKeys.applications() })

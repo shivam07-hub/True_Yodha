@@ -17,11 +17,6 @@ from app.repositories.scores import ScoresRepository
 from app.repositories.users import UsersRepository
 from app.services import background, scoring
 from app.services.concurrent_reads import run_concurrently
-from app.services.job_eligibility import (
-    career_band_for_profile,
-    explored_bands_for_profile,
-    target_seniority_for_profile,
-)
 from app.services.experience_years import seniority_from_cv
 
 logger = logging.getLogger(__name__)
@@ -275,7 +270,7 @@ def _normalize_locations(
         cleaned = (value or "").strip()
         if cleaned and cleaned not in seen:
             seen.append(cleaned)
-    return seen[:5]
+    return seen[:3]
 
 
 def _normalize_families(
@@ -332,7 +327,7 @@ def save_target(
 
     The user targets up to 5 human role titles (chips). Those titles are the
     source-of-record (`target_role_titles`); `target_roles` (taxonomy clusters,
-    the matcher + aspiration ILIKE keys) is the DERIVED union across titles, and
+    the matcher scoping key) is the DERIVED union from the selected family, and
     `target_role_title` stays the PRIMARY = titles[0] for back-compat + the score
     label. A point-of-use edit may supply either `role_title` or `role_titles`.
     Omitted `seniority`/`location` are preserved so a role-only edit never wipes
@@ -347,67 +342,41 @@ def save_target(
     if not titles:
         raise ValueError("At least one target role is required.")
 
+    from app.services import targeting_write
+
     users_repo = UsersRepository(db)
     profile = users_repo.get_profile(user_id) or {}
-    if seniority is None:
-        seniority = profile.get("target_seniority") or "any"
-    chosen_locations = _normalize_locations(location, locations)
-    if location is None and locations is None:
-        # Neither form supplied → a role-only edit. Keep what they already chose.
+    patch: dict[str, Any] = {
+        "target_role_titles": titles,
+        "role_family": role_family,
+        "role_families": role_families,
+    }
+    if seniority is not None:
+        patch["target_seniority"] = seniority
+    chosen_locations: list[str] | None = None
+    if location is not None or locations is not None:
+        chosen_locations = _normalize_locations(location, locations)
+        patch["target_locations"] = chosen_locations
+    else:
         chosen_locations = [
             str(value).strip() for value in (profile.get("target_locations") or []) if str(value).strip()
         ] or ([profile["target_location"]] if profile.get("target_location") else [])
-    updates = role_title_updates(titles, role_family=role_family, role_families=role_families)
-    if not updates["target_roles"]:
-        # Point-of-use role edits predate corpus families. Preserve their current
-        # feed read model rather than inventing a family from the edited title.
-        updates["target_roles"] = list(profile.get("target_roles") or [])
-    derived_band = career_band_for_profile(updates)
-    updates["target_career_band"] = derived_band or None
-    updates["explored_career_bands"] = explored_bands_for_profile(
-        {**profile, **updates},
-        primary=derived_band,
-    ) if derived_band else []
-    profile_updates: dict[str, Any] = {
-        **updates,
-        "target_seniority": target_seniority_for_profile({"target_seniority": seniority}),
-        "target_locations": chosen_locations,
-    }
-    # Two halves of the same answer, stored where each is already canonical rather
-    # than in a new column beside them. `avoid` is what the matcher ranks away
-    # from and `deal_breakers` is the column it already reads. `lean` has no
-    # column and does not need one — `preference` is the fact store's largest
-    # kind and rides to the brain as `known_facts` through the Targeting Brief.
-    # Both are confirmed answers, so they persist here: this IS the user's accept.
     if avoid is not None:
-        profile_updates["deal_breakers"] = _normalize_direction_phrases(avoid)
-    normalized_leans = _normalize_direction_phrases(lean) if lean is not None else None
-    direction_changed = users_repo.update_profile(user_id, profile_updates)
-    # A lean lands in the fact store, not the profile, so `update_profile` cannot
-    # see it — and leans reach the brain as `known_facts`. Without this, changing
-    # only what you're drawn to would leave every cached verdict as it was.
-    leans_changed = (
-        replace_authored_leans(db, user_id, normalized_leans)
-        if normalized_leans is not None
-        else False
-    )
-    if not direction_changed and not leans_changed:
-        # Same direction re-submitted (a back-and-forward through the journey,
-        # or a double-tap). The existing matches already answer this exact
-        # question, and the refresh below runs the full Career-Ops brain with
-        # `force`, bypassing the cache gate — so re-running it would spend a
-        # real LLM pass to arrive back where the user already is.
+        patch["deal_breakers"] = _normalize_direction_phrases(avoid)
+    if lean is not None:
+        patch["lean"] = lean
+    result = targeting_write.commit(users_repo, user_id, patch)
+    stored_seniority = str((result.profile or {}).get("target_seniority") or seniority or "")
+    if not result.direction_changed and not result.leans_changed:
         return
     background.enqueue(
         background.LANE_FAST,
         "onboarding_target_refresh",
         payload={"user_id": user_id},
-        # Idempotency key must reflect the choice actually written, or a user who
-        # only changes cities re-uses the previous job id and their edit is a no-op.
         correlation_id=(
-            f"target:{user_id}:{'|'.join(titles)}:{seniority}:{','.join(chosen_locations)}"
-            f":{','.join(profile_updates.get('deal_breakers') or [])}"
-            f":{','.join(normalized_leans or [])}"
+            f"target:{user_id}:{'|'.join(titles)}:{stored_seniority}:{','.join(chosen_locations or [])}"
+            f":{','.join(patch.get('deal_breakers') or [])}"
+            f":{','.join(_normalize_direction_phrases(lean) if lean is not None else [])}"
         ),
     )
 
@@ -425,8 +394,10 @@ def complete_onboarding_after_direction(db: Client, user_id: str) -> None:
     baseline = CVVersionsRepository(db).latest_baseline(user_id)
     if not baseline or not baseline.get("skills_confirmed_at"):
         return
+    from app.services.career_target import is_canonical_direction
+
     profile = UsersRepository(db).get_profile(user_id) or {}
-    if not (profile.get("target_role_title") or profile.get("target_role_titles")):
+    if not is_canonical_direction(profile):
         return
     if not profile.get("ninja_name_claimed_at"):
         raise ValueError("Claim your Myro name before continuing.")
@@ -435,12 +406,14 @@ def complete_onboarding_after_direction(db: Client, user_id: str) -> None:
 
 def reset_target(db: Client, user_id: str) -> None:
     """Return a confirmed-skill user to direction selection without data loss."""
-    UsersRepository(db).update_profile(
+    from app.services import targeting_write
+
+    targeting_write.commit(
+        UsersRepository(db),
         user_id,
         {
-            "target_role_title": None,
             "target_role_titles": [],
-            "target_roles": [],
+            "role_families": [],
             "target_career_band": None,
             "explored_career_bands": [],
         },
@@ -495,7 +468,8 @@ def seed_provisional_baseline_score(
         suggestion = seniority_from_cv(baseline)
         value = suggestion.get("value")
         if value:
-            users_repo.update_profile(user_id, {"target_seniority": value})
+            from app.services import targeting_write
+            targeting_write.commit(users_repo, user_id, {"target_seniority": value})
     try:
         scoring.record_cv_score(scores_repo, user_id, signals)
     except ValueError:
@@ -870,12 +844,31 @@ def _awaiting_target_payload(
 
     families_repo = RoleFamiliesRepository(db)
     families = families_repo.list_families(user_id) if include_families else []
+    chosen_keys = [
+        str(key) for key in (profile.get("target_roles") or []) if str(key).strip()
+    ]
+    selected_families = (
+        families_repo.resolve_families(user_id, chosen_keys) if include_families and chosen_keys else []
+    )
+    from app.services.job_eligibility import SOURCE_SENIORITY, canonical_source_seniority
+
+    stored_band = canonical_source_seniority(profile.get("target_seniority"))
+    stored_locations = [
+        str(value).strip()
+        for value in (profile.get("target_locations") or [])
+        if str(value).strip()
+    ][:3]
+    chosen = {str(row.get("family")) for row in selected_families}
     return {
         "kind": "awaiting_target",
         "baseline_version_id": int(baseline["id"]),
-        "families": families,
+        "families": selected_families + [row for row in families if str(row.get("family")) not in chosen],
         "seniority": _seniority_suggestion(baseline),
-        "selected": {"families": [], "seniority": None, "locations": []},
+        "selected": {
+            "families": selected_families,
+            "seniority": stored_band if stored_band in SOURCE_SENIORITY else None,
+            "locations": stored_locations,
+        },
         "direction": _direction_answer(db, user_id, profile),
         "ninja": nn.suggestion_for(user_id, db),
         "journey_step": 2,
@@ -909,12 +902,14 @@ def _current_result(db: Client, user_id: str) -> dict[str, Any]:
             "journey_step": 2,
         }
 
+    from app.services.career_target import SOURCE_SENIORITY, is_canonical_direction
+
     target = {
         "role_title": profile.get("target_role_title") or "",
         "seniority": profile.get("target_seniority") or "any",
         "location": profile.get("target_location") or "",
     }
-    has_target = bool(profile.get("target_role_title") or profile.get("target_role_titles"))
+    has_target = is_canonical_direction(profile)
     if not baseline:
         # There is no `profile_preview` step any more. Describing your experience
         # used to run a SECOND text→baseline pipeline that shadowed the Upload
@@ -961,15 +956,21 @@ def _current_result(db: Client, user_id: str) -> dict[str, Any]:
         # are both required before Market. If a target was saved without a claim
         # (legacy / race), keep them on Direction until the name is claimed.
         payload = _awaiting_target_payload(db, user_id, profile, baseline)
-        if has_target:
+        has_partial = bool(
+            profile.get("target_roles")
+            or profile.get("target_role_titles")
+            or profile.get("target_role_title")
+        )
+        if has_partial:
             families_repo = RoleFamiliesRepository(db)
             chosen_keys = [
                 str(key) for key in (profile.get("target_roles") or []) if str(key).strip()
             ]
             selected = families_repo.resolve_families(user_id, chosen_keys)
+            stored_seniority = str(profile.get("target_seniority") or "")
             payload["selected"] = {
                 "families": selected,
-                "seniority": profile.get("target_seniority") or None,
+                "seniority": stored_seniority if stored_seniority in SOURCE_SENIORITY else None,
                 "locations": [
                     str(value).strip()
                     for value in (profile.get("target_locations") or [])

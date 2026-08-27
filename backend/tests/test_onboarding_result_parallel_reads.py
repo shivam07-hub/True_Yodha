@@ -69,6 +69,8 @@ def test_direction_complete_lands_on_market_without_shortlist_wait(
     baseline = {"id": 7, "skills_confirmed_at": "2026-08-04T00:00:00+00:00"}
     profile = {
         "target_role_title": "Data Analyst",
+        "target_role_titles": ["Data Analyst"],
+        "target_roles": ["Data Analysis"],
         "target_seniority": "mid",
         "ninja_name_claimed_at": "2026-08-15T00:00:00+00:00",
     }
