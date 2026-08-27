@@ -1041,6 +1041,49 @@ Whether a job we surface still exists. Two triggers, one truth — every verdict
 - **Drain sweep** — background belt over the whole corpus. Claims work via `claim_verify_targets`, which selects the oldest-unchecked rows and stamps `last_verification_attempt_at` in the *same* statement under `FOR UPDATE SKIP LOCKED`. Claim-on-read is what makes a crashed sweep cost one batch instead of re-serving the same rows forever, and `NULLS FIRST` ordering keeps the never-checked tail draining ahead of any re-check. The queue is **confidence-agnostic**: a row marked `active` re-enters once stale, because a queue scoped to low-confidence rows lets verified listings decay invisibly.
 - **Intent gate** (`app/services/job_liveness.py`) — jumps the queue for the single listing a user is about to act on (open / apply), cached ~6h. This is where a ghost actually costs someone effort, so it is checked at that moment rather than on a calendar. Volume is user-actions/day, not corpus size.
 
-**`unknown` is a first-class verdict.** A 401/403/429/timeout from an ATS is not evidence a role is gone; it resolves to `unknown` and the surface discloses "couldn't check". Only real closure evidence (404/410, explicit closed-marker copy) may read as `closed`.
+**Ask the ATS, do not read its HTML** (`app/services/ats_probe.py`). On a client-rendered ATS the page a human sees is not evidence: a **pulled** Workday requisition answers HTTP 200 with a ~6.5KB shell that echoes its own URL, and the URL slug carries the role title — so the title-match branch called it live. Four Workday pages, three pulled and one open, produced the same `seen_live` verdict. The probe asks the provider's own JSON API instead, for the four with a public read API and no key: Workday, Greenhouse, Lever, Ashby. It is preferred where it concludes and silent everywhere else, so the HTML classifier is unchanged as the fallback.
+
+**Which endpoint is part of the contract.** Workday's per-posting CXS record answers **403 both** for a pulled requisition and for a tenant blocking us — one status, two meanings, so it can never conclude. Its job-*search* endpoint answers 200 for both and returns the posting's own `externalPath` only while the posting is open. Ashby publishes no per-posting endpoint without a key, so its probe reads the board and asks whether the id is still on it — which makes its payload far larger than a listing page (Sarvam's board is 701KB), and a probe body is capped at 4MB, not the 500KB the HTML read uses.
+
+**`unknown` is a first-class verdict.** A 401/403/429/timeout from an ATS is not evidence a role is gone; it resolves to `unknown` and the surface discloses "couldn't check". Only real closure evidence (404/410, an absent record on the ATS's own API, explicit closed-marker copy) may read as `closed`. Closed-marker copy is matched on the clause every phrasing shares — Godrej says "the job you are trying to apply for has been filled", which neither "position has been filled" nor "job has been filled" is a substring of.
 
 **Liveness is not freshness.** `last_seen` records when the scraper last *ingested* a row, not when anyone confirmed it exists — while the scraper does not re-crawl, `last_seen` carries no liveness information at all and must not be rendered as if it does.
+
+
+## Target Location
+
+**One axis, plural end to end, and it is plural at every hop or it is broken at
+one.** `user_profiles.target_locations[]` is the store; `target_location` is a
+derived scalar kept for legacy readers (a CV contact line shows one city, and
+that is the only place the scalar is the right answer). `MAX_TARGET_LOCATIONS`
+(3) is the cap, enforced once in `targeting_write` and read by everything that
+needs it — never written down a second time.
+
+The full path, scrape → card:
+
+| Hop | Where | Holds |
+|---|---|---|
+| Scrape | sister repo | `location_raw`, `locations[]`, `location_city`, `location_country`, `location_mode` |
+| Store | `jobs` | a job may list several cities in `locations[]` |
+| User input | onboarding step 2 · Settings chips · `PUT /users/me/profile` · Myro Search utterance | many |
+| Order | `preflight/spec.py` `SLOT_ARITY["target_locations"]` | up to `MAX_TARGET_LOCATIONS` |
+| Order seed | `preflight/memory_import.confirmed_from` | every stored city, one line each |
+| Match pool | `candidate_jobs_for_user` RPC | **country only, by design** |
+| Recommend gate | `match_credibility.location_compatible` | ORs across every named city |
+| Rank | `llm_ranker.preferred_locations` | every named city, in the prompt |
+| Feed | `build_location_scope` | OR-across-chips: `location_city ==` OR city ∈ `locations[]` |
+
+**The pool is wide and the judgment is narrow, on purpose.** The RPC scopes by
+country so a remote or mis-tagged listing is never structurally excluded; the
+city decision belongs to `location_compatible`, which gates `is_recommended`.
+Moving the city into the SQL would trade a recoverable miss for an invisible one.
+
+**The slot key IS the profile column.** `payload.project` returns the resolved
+spec as the PATCH body, so a slot named `target_location` writing a list would
+be a payload with no column behind it. Renaming the slot is how arity changes
+here, not widening it in place.
+
+**A read must not delete.** The Order's kept lines are what `/preflight/run`
+writes back. Seeding the Order from the scalar while the profile held three
+cities meant opening the modal and pressing Run narrowed the user's own
+targeting — the bug had no error, no log, and looked like a display gap.
