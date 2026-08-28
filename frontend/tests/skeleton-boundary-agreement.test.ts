@@ -155,6 +155,21 @@ test("/cv boundaries all defer to the one route picker", () => {
   )
 })
 
+test("career-target gate paints skeletonForPath, never a page-specific skeleton", () => {
+  // RequiresCareerTarget wraps /market, /practice, and /skills. Hardcoding
+  // PracticeSkeleton (the score-map ring) made Jobs flash the wrong shape
+  // while the career-path query resolved — a third disagreement this file
+  // exists to catch, this time in a wrapper the page-pairing loop cannot see.
+  const src = stripComments(
+    readFileSync(join(ROOT, "components/career-path/requires-career-target.tsx"), "utf8"),
+  )
+  assert.match(src, /skeletonForPath\(/)
+  assert.doesNotMatch(
+    src,
+    /PracticeSkeleton|MarketSkeleton|DashboardSkeleton|IntelSkeleton|GenericPageSkeleton/,
+  )
+})
+
 test("every CV destination has exactly one mirror", () => {
   const picker = join(
     ROOT,
