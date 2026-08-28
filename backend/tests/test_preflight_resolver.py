@@ -236,3 +236,21 @@ def test_a_fourth_location_contests_rather_than_being_dropped() -> None:
     result = payload.resolve(order)
     assert "target_locations" not in result.spec
     assert [c.kind for c in result.conflicts] == ["arity"]
+
+
+def test_a_pay_floor_is_stored_in_the_users_own_words() -> None:
+    """`spec` is the PATCH body, so anything added for display is persisted.
+
+    The resolver used to render a pay floor as "Below {text}". The user's words
+    already carry the comparison, so "less than 30 lakhs" became "Below less
+    than 30 lakhs" — and that string was written to
+    `user_profiles.deal_breakers`, seeded back as a `wont_take` line on the next
+    open, and would have grown another "Below" on the run after that. Found in
+    prod, one order of four.
+    """
+    order = ops.Order(lines=[line(kind="pay_floor", text="less than 30 lakhs")])
+
+    spec = payload.project(order)
+
+    assert spec["deal_breakers"] == ["less than 30 lakhs"]
+    assert not any("Below" in text for text in spec["deal_breakers"])

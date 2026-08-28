@@ -69,12 +69,42 @@ def test_an_empty_order_never_wipes_stored_targeting():
     # role titles cleared by a PATCH carrying an empty list.
     body = payload.project(ops.Order())
     assert "target_role_titles" not in body
-    assert "target_location" not in body
+    # Vacuous against the old singular key after the 2026-08-28 rename — the
+    # slot is `target_locations` now, and that is what must stay absent.
+    assert "target_locations" not in body
 
 
-def test_a_pay_floor_reaches_the_matcher_as_a_constraint():
+def test_a_pay_floor_reaches_the_matcher_in_the_users_own_words():
+    """This asserted `["Below ₹45L total comp"]` until 2026-08-28.
+
+    `spec` is the PATCH body, so that prefix was persisted, re-seeded by
+    `memory_import` as a `wont_take` line on the next open, and would have
+    grown another "Below" on the run after that.
+
+    Accepted trade, stated rather than hidden: the deal-breakers list reaches
+    the brain as flat prose with no kind attached, so dropping the word costs
+    one signal that this constraint is a floor. It is worth it — the screen
+    still says PAY FLOOR on the plate, and a value that mutates every time it
+    is read is a worse problem than a slightly thinner prompt line. If the
+    prompt needs the word back it belongs at the prompt seam, not in storage.
+    """
     order = ops.Order(lines=[line(kind="pay_floor", text="₹45L total comp", status="kept")])
-    assert payload.project(order)["deal_breakers"] == ["Below ₹45L total comp"]
+    assert payload.project(order)["deal_breakers"] == ["₹45L total comp"]
+
+
+def test_a_reseeded_pay_floor_collapses_instead_of_duplicating():
+    """Why raw text fixes the round trip rather than just hiding a word.
+
+    `pay_floor` and `wont_take` file to the SAME slot, so once both carry the
+    user's own words they normalise to one dedupe key. The prod order that held
+    both "less than 30 lakhs" and "Below less than 30 lakhs" heals on its next
+    run.
+    """
+    order = ops.Order(lines=[
+        line(kind="pay_floor", text="less than 30 lakhs", status="kept"),
+        line(kind="wont_take", text="less than 30 lakhs", status="kept"),
+    ])
+    assert payload.project(order)["deal_breakers"] == ["less than 30 lakhs"]
 
 
 # ── answering ────────────────────────────────────────────────────────────────
