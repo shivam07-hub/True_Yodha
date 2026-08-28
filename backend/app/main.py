@@ -31,6 +31,7 @@ from app.routers import (
     partner,
     partner_connect,
     payments,
+    job_tracks,
     preflight,
     profile,
     roles,
@@ -88,6 +89,7 @@ app.include_router(users.router)
 app.include_router(feedback.router)
 app.include_router(growth.router)
 app.include_router(institutions.router)
+app.include_router(job_tracks.router)
 app.include_router(skills.router)
 app.include_router(cv.router)
 app.include_router(scores.router)
