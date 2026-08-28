@@ -13,13 +13,16 @@ approval to commit or to apply migrations because of it.
 
 ## THE GOAL
 
-> Users understand the platform and download their CV as smoothly as possible.
-> Then we build the job matching logic through Myro Ops.
-> Then we help users tailor a CV for each job.
-> — Shivam, 2026-08-05
+> Upload the CV, understand the platform, find a role for you, then download
+> the CV. Then we support it with the rest — a second track, Myro Ops, the
+> Chrome extension.
+> — Shivam, 2026-08-28
 
-Three stages, in order. **We are on stage one.** If a task does not make stage
-one better, it needs a reason to be worked on now.
+**Finding the role is inside stage one, not after it.** It used to read
+"understand the platform and download their CV", with matching as stage two —
+so match work kept needing a reason to be worked on now. A CV downloaded
+without a role to aim it at is the thing nobody wants. If a task does not make
+that four-step line better, it needs a reason to be worked on now.
 
 ---
 
@@ -105,7 +108,7 @@ knowledge. Method goes in the repo; the skill points at it.
 
 Derived from the goal above. Detail for each: [BACKLOG.md](BACKLOG.md).
 
-### Stage 1 — understand the platform, download the CV (now)
+### Stage 1 — upload, understand, find a role, download (now)
 
 **1. Ship what's fixed to production.** ⚠️ *Shivam only.*
 `main` is behind. Right now himyro.com blanks the page after a CV upload, and
@@ -148,23 +151,20 @@ That project holds 1,118MB against the tier's 500MB recommended DB size and has
 224MB `shared_buffers`; do not call launch capacity green until the paid compute
 gate in [ARCHITECTURE_READ_PATH.md](ARCHITECTURE_READ_PATH.md) passes.
 
-### Stage 2 — job matching through Myro Ops (next)
+### What supports it, once stage one holds (after)
 
-Notifications → automatic picks → "show me more". Slices 1 and 2 shipped;
-3 to 5 remain. Two related items are blocked on the scraper repo.
-
-### Stage 3 — tailor a CV per job (after)
-
-The tailoring engine is built. This stage is about making it the obvious next
-step after a match, not about new machinery.
+Job Tracks (a second search — table + rules shipped `20260828`, unlocked by a
+tailored CV), the rest of Myro Ops (notifications → automatic picks → "show me
+more", slices 3-5), the Chrome extension, and making the built tailoring engine
+the obvious next step after a match. Two Ops items are blocked on the scraper.
 
 ### Standing, not a stage
 
 - **113 beta feedback items logged as unverified.** Built is not closed. Each
   needs evidence: deployed version, a test, and a user confirming it.
 - **The ₹99 Job-Switch Plan is the only revenue item on the board, and it is not
-  offered anywhere in the app.** It does not serve stage one. Flagged rather than
-  buried — Shivam's call when it earns a slot.
+  offered anywhere in the app.** Flagged rather than buried — Shivam's call when
+  it earns a slot.
 
 ---
 

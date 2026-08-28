@@ -51,7 +51,7 @@ export type ConflictKind = "arity" | "contradiction" | "value_clash"
 
 export type SlotKey =
   | "target_role_titles"
-  | "target_location"
+  | "target_locations"
   | "deal_breakers"
   | "lean"
   | "career_goal"

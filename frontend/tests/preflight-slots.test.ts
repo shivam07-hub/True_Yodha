@@ -38,7 +38,13 @@ function pyBlock(name: string): string {
   return spec.slice(open, close + 1)
 }
 
-const serverKeys = [...pyBlock("SLOT_ARITY").matchAll(/"([a-z_]+)":\s*\d+/g)].map((m) => m[1])
+/** Keys, not values. The arity may be a literal or a shared constant —
+ *  `target_locations` takes `MAX_TARGET_LOCATIONS`, the same cap
+ *  `targeting_write` enforces on the column, precisely so the number is not
+ *  written down twice. A pattern that only matched digits made that slot
+ *  invisible here, which reads as "the client has words for a slot the server
+ *  never sends" — the failure mode inverted. */
+const serverKeys = [...pyBlock("SLOT_ARITY").matchAll(/"([a-z_]+)":\s*\w+/g)].map((m) => m[1])
 
 test("every slot the resolver can send has words on the client", () => {
   assert.ok(serverKeys.length > 0, "no slots parsed out of spec.py")

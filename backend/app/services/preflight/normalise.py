@@ -118,11 +118,21 @@ def refile(line: OrderLine) -> tuple[LineKind, str | None]:
     return line.kind, None
 
 
-#: Slots that hold exactly one value. Mirrors `spec.SLOT_ARITY`; kept local so
-#: this module stays importable by the resolver without a cycle. Asserted equal
-#: in `test_preflight_normalise.py`.
-_ONE_ONLY: dict[str, tuple[str, ...]] = {"target_location": ("location",), "career_goal": ("goal",),
-                                         "superpower": ("strength",)}
+#: Slots where a line Myro REFILED steps aside for one the user filed there
+#: themselves. Kept local so this module stays importable by the resolver
+#: without a cycle; checked against `spec.SLOT_KINDS` in
+#: `test_preflight_normalise.py`.
+#:
+#: This used to be "slots that hold exactly one value", and location was on it
+#: because `target_location` had arity 1. That was the wrong reason for the
+#: right behaviour: the rule is not about capacity, it is about whose sentence
+#: wins. Location now holds three, and a refiled line must still yield — see
+#: `apply`.
+_YIELD_TO_NATIVE: dict[str, tuple[str, ...]] = {
+    "target_locations": ("location",),
+    "career_goal": ("goal",),
+    "superpower": ("strength",),
+}
 
 
 def _refiled(line: OrderLine, kind: LineKind, note: str | None) -> OrderLine:
@@ -135,11 +145,16 @@ def apply(lines: list[OrderLine]) -> list[OrderLine]:
 
     A refile YIELDS to a line the user filed there themselves. "Requires roles
     based in India" reads as a location, but the prod order already holds
-    "Bengaluru" — and `target_location` takes one. Asking "Bengaluru or India?"
-    would be Myro's own reinterpretation picking a fight with an answer the user
-    gave directly; Bengaluru is in India, so there is no question to ask. The
-    refiled line steps aside as a `fact`: still on screen, still kept, just not
-    spending the slot. Native lines that genuinely collide still conflict.
+    "Bengaluru". Asking "Bengaluru or India?" would be Myro's own
+    reinterpretation picking a fight with an answer the user gave directly;
+    Bengaluru is in India, so there is no question to ask. The refiled line
+    steps aside as a `fact`: still on screen, still kept, just not spending the
+    slot. Native lines that genuinely collide still conflict.
+
+    The location slot holds three now, so "two claimants" is no longer what
+    triggers this — a refile yields whenever a native line shares its slot, at
+    any count. Widening the search is exactly what a refiled "India" would do
+    beside a stated "Mumbai" and "Bengaluru", and the user never asked for it.
     """
     out: list[OrderLine] = []
     moved: set[str] = set()
@@ -151,10 +166,8 @@ def apply(lines: list[OrderLine]) -> list[OrderLine]:
         moved.add(line.id)
         out.append(_refiled(line, kind, note))
 
-    for kinds in _ONE_ONLY.values():
+    for kinds in _YIELD_TO_NATIVE.values():
         holders = [x for x in out if x.kind in kinds]
-        if len(holders) < 2:
-            continue
         natives = [x for x in holders if x.id not in moved]
         if not natives:
             continue  # every claimant was refiled — a real question, leave it

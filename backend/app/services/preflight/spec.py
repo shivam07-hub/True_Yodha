@@ -31,13 +31,19 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
+from app.services.career_target import MAX_TARGET_LOCATIONS
 from app.services.preflight.lines import Order, OrderLine
 
 Presence = Literal["stated", "cleared", "absent", "contested"]
 
+#: The slot key IS the profile column the spec writes (see `payload.project`),
+#: so this is `target_locations`, plural, and its arity is the cap
+#: `targeting_write` already enforces on that column. It was 1, and a single
+#: slot could not hold "Mumbai. Bangalore is also fine" — the second city was
+#: dropped at the door while /market, onboarding and Settings all took both.
 SLOT_ARITY: dict[str, int] = {
     "target_role_titles": 6,
-    "target_location": 1,
+    "target_locations": MAX_TARGET_LOCATIONS,
     "deal_breakers": 6,
     "lean": 6,
     "career_goal": 1,
@@ -46,7 +52,7 @@ SLOT_ARITY: dict[str, int] = {
 
 SLOT_KINDS: dict[str, tuple[str, ...]] = {
     "target_role_titles": ("role",),
-    "target_location": ("location",),
+    "target_locations": ("location",),
     "deal_breakers": ("wont_take", "pay_floor"),
     "lean": ("lean",),
     "career_goal": ("goal",),
@@ -57,7 +63,7 @@ SLOT_KINDS: dict[str, tuple[str, ...]] = {
 #: list slot to []. Only ever reached through `cleared`.
 EMPTY: dict[str, Any] = {
     "target_role_titles": [],
-    "target_location": None,
+    "target_locations": [],
     "deal_breakers": [],
     "lean": [],
     "career_goal": None,

@@ -477,3 +477,107 @@ def test_triage_tournament_survives_a_failed_chunk() -> None:
     pool = _pool(120)
     out = asyncio.run(llm_ranker.triage_shortlist({}, pool, _FlakyProvider(), keep_n=2))
     assert len(out) <= 2
+
+
+def test_the_prompt_names_every_location_the_user_targets():
+    """It read `target_location or target_location_country`.
+
+    For "Mumbai, Bangalore is also fine" that rendered one city — or, when only
+    the array was set and the scalar was null, fell through to the country and
+    told the brain to reward "India". It then rewarded the wrong half of the
+    search it had been given.
+    """
+    from app.services.llm_ranker import preferred_locations
+
+    assert preferred_locations({"target_locations": ["Mumbai", "Bengaluru"]}) == "Mumbai, Bengaluru"
+
+
+def test_the_prompt_falls_back_to_the_scalar_then_the_country_then_flexible():
+    from app.services.llm_ranker import preferred_locations
+
+    assert preferred_locations({"target_location": "Mumbai"}) == "Mumbai"
+    assert preferred_locations({"target_location_countries": ["India"]}) == "India"
+    assert preferred_locations({"target_location_country": "India"}) == "India"
+    assert preferred_locations({}) == "flexible"
+
+
+def test_the_prompt_does_not_repeat_a_city():
+    from app.services.llm_ranker import preferred_locations
+
+    assert preferred_locations({"target_locations": ["Mumbai", "mumbai"]}) == "Mumbai"
+
+
+def test_both_ranker_prompts_carry_the_full_location_list():
+    from app.services.llm_ranker import build_system_prompt, build_triage_prompt
+
+    profile = {"target_roles": ["Consulting"], "target_locations": ["Mumbai", "Bengaluru"]}
+    for prompt in (build_system_prompt(profile, "cv"), build_triage_prompt(profile, "cv")):
+        assert "Mumbai, Bengaluru" in prompt
+
+
+# ── which search found this ──────────────────────────────────────────────────
+
+
+def test_a_match_records_the_search_that_found_it() -> None:
+    db = _FakeDB()
+    llm_ranker.persist_matches(
+        db=db,  # type: ignore[arg-type]
+        user_id="user-1",
+        batch_week=date(2026, 5, 25),
+        top_jobs=[
+            {"job_id": "job-1", "overlap_score": 82.0, "track_id": None},
+            {"job_id": "job-2", "overlap_score": 71.0, "track_id": 4},
+        ],
+        evaluations={},
+    )
+    by_id = {row["job_id"]: row for row in db.tape["rows"]}
+    assert by_id["job-1"]["track_id"] is None  # track 1 = the profile
+    assert by_id["job-2"]["track_id"] == 4
+
+
+def test_a_single_track_users_rows_carry_null_not_a_backfilled_id() -> None:
+    """The 83%. NULL is track 1, and it costs them nothing."""
+    db = _FakeDB()
+    llm_ranker.persist_matches(
+        db=db,  # type: ignore[arg-type]
+        user_id="user-1",
+        batch_week=date(2026, 5, 25),
+        top_jobs=[{"job_id": "job-1", "overlap_score": 82.0}],
+        evaluations={"job-1": _eval()},
+    )
+    assert db.tape["rows"][0]["track_id"] is None
+
+
+def test_recommended_slots_are_counted_per_search() -> None:
+    """Three slots spent entirely in one track would open the other on nothing
+    recommended, which reads as "Myro found me nothing here".
+    """
+    db = _FakeDB()
+    profile = {"target_locations": ["Mumbai"], "target_roles": ["Consulting"]}
+    jobs, evals = [], {}
+    for n in range(8):
+        jid = f"job-{n}"
+        jobs.append({
+            "job_id": jid,
+            "overlap_score": 90.0 - n,
+            "track_id": None if n < 4 else 4,
+            "location_city": "Mumbai",
+            "location_country": "India",
+        })
+        evals[jid] = _eval()
+
+    llm_ranker.persist_matches(
+        db=db,  # type: ignore[arg-type]
+        user_id="user-1",
+        batch_week=date(2026, 5, 25),
+        top_jobs=jobs,
+        evaluations=evals,
+        profile=profile,
+    )
+    rows = db.tape["rows"]
+    per_track: dict[Any, int] = {}
+    for row in rows:
+        if row["is_recommended"]:
+            per_track[row["track_id"]] = per_track.get(row["track_id"], 0) + 1
+    # Each search gets its own three, not three shared across both.
+    assert per_track == {None: 3, 4: 3}

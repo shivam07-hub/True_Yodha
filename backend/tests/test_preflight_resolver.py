@@ -127,7 +127,9 @@ def test_project_still_returns_the_spec_for_the_patch() -> None:
     )
     assert payload.project(order) == payload.resolve(order).spec
     assert payload.project(order)["target_role_titles"] == ["tech sales"]
-    assert payload.project(order)["target_location"] == "Bengaluru"
+    # The slot key IS the profile column, so this writes the array the whole
+    # rest of the stack already reads.
+    assert payload.project(order)["target_locations"] == ["Bengaluru"]
 
 
 # ── the slot view ────────────────────────────────────────────────────────────
@@ -163,7 +165,7 @@ def test_the_slot_view_is_the_spec_addressed_by_line_id():
     # An unanswered line is on no slot — it is not part of the order yet.
     assert slots["lean"]["line_ids"] == []
     # Every slot states its own arity, so nothing downstream re-derives it.
-    assert slots["target_location"]["arity"] == 1
+    assert slots["target_locations"]["arity"] == 3
     assert slots["deal_breakers"]["arity"] == 6
 
 
@@ -201,3 +203,54 @@ def test_a_contradiction_contests_its_line_in_each_slot_it_touches():
     assert slots["deal_breakers"]["contested_ids"] == ["w"]
     assert slots["lean"]["contested_ids"] == ["l"]
     assert slots["deal_breakers"]["line_ids"] == slots["lean"]["line_ids"] == []
+
+
+def test_the_location_slot_holds_the_cities_the_user_named() -> None:
+    """"Mumbai. Bangalore is also fine." — both, plus room for a third.
+
+    The slot held one until 2026-08-28, so the second city was dropped at the
+    door while /market, onboarding and Settings all accepted it.
+    """
+    order = ops.Order(
+        lines=[
+            line(kind="role", text="Consulting"),
+            line(kind="location", text="Mumbai"),
+            line(kind="location", text="Bengaluru"),
+        ]
+    )
+    assert payload.project(order)["target_locations"] == ["Mumbai", "Bengaluru"]
+
+
+def test_a_fourth_location_contests_rather_than_being_dropped() -> None:
+    """The cap is `MAX_TARGET_LOCATIONS`, the one `targeting_write` enforces.
+
+    Over it, the slot places nothing and asks — silently truncating to three
+    would be the arity-1 bug with a bigger number.
+    """
+    order = ops.Order(
+        lines=[
+            line(kind="location", text=city, status="kept")
+            for city in ("Mumbai", "Bengaluru", "Pune", "Chennai")
+        ]
+    )
+    result = payload.resolve(order)
+    assert "target_locations" not in result.spec
+    assert [c.kind for c in result.conflicts] == ["arity"]
+
+
+def test_a_pay_floor_is_stored_in_the_users_own_words() -> None:
+    """`spec` is the PATCH body, so anything added for display is persisted.
+
+    The resolver used to render a pay floor as "Below {text}". The user's words
+    already carry the comparison, so "less than 30 lakhs" became "Below less
+    than 30 lakhs" — and that string was written to
+    `user_profiles.deal_breakers`, seeded back as a `wont_take` line on the next
+    open, and would have grown another "Below" on the run after that. Found in
+    prod, one order of four.
+    """
+    order = ops.Order(lines=[line(kind="pay_floor", text="less than 30 lakhs")])
+
+    spec = payload.project(order)
+
+    assert spec["deal_breakers"] == ["less than 30 lakhs"]
+    assert not any("Below" in text for text in spec["deal_breakers"])

@@ -138,3 +138,51 @@ def test_f5_a_weak_match_is_still_barred() -> None:
     assert evaluate_credibility(_PROFILE, _job(), 2.9, "Apply").credible is False
     assert evaluate_credibility(_PROFILE, _job(), 4.5, "Skip").credible is False
     assert evaluate_credibility(_PROFILE, _job(seniority_level="intern"), 4.5, "Apply").credible is False
+
+
+def _multi(**over):
+    base = {
+        "target_locations": ["Mumbai", "Bengaluru"],
+        "target_location_countries": ["India"],
+        "target_roles": ["Consulting"],
+    }
+    base.update(over)
+    return base
+
+
+def test_a_job_in_the_second_named_city_is_compatible():
+    """This gate read `target_location` alone until 2026-08-28.
+
+    A user who said "Mumbai, Bangalore is also fine" had every Bengaluru job
+    judged against Mumbai and marked incompatible — the second city accepted at
+    every input surface, then filtered back out here one job at a time.
+    """
+    job = {"location_city": "Bengaluru", "location_country": "India"}
+    assert location_compatible(_multi(), job) is True
+
+
+def test_the_first_named_city_still_matches():
+    job = {"location_city": "Mumbai", "location_country": "India"}
+    assert location_compatible(_multi(), job) is True
+
+
+def test_a_city_the_user_never_named_is_still_incompatible():
+    """Widening to a list must not widen to the country."""
+    job = {"location_city": "Chennai", "location_country": "India"}
+    assert location_compatible(_multi(), job) is False
+
+
+def test_a_job_outside_every_named_country_is_incompatible():
+    job = {"location_city": "Bengaluru", "location_country": "Singapore"}
+    assert location_compatible(_multi(), job) is False
+
+
+def test_remote_named_alongside_a_city_accepts_a_remote_job():
+    job = {"location_city": "", "location_mode": "remote", "location_country": "India"}
+    assert location_compatible(_multi(target_locations=["Mumbai", "Remote"]), job) is True
+
+
+def test_a_legacy_scalar_only_profile_is_unchanged():
+    profile = {"target_location": "Mumbai", "target_location_country": "India"}
+    assert location_compatible(profile, {"location_city": "Mumbai", "location_country": "India"})
+    assert not location_compatible(profile, {"location_city": "Pune", "location_country": "India"})

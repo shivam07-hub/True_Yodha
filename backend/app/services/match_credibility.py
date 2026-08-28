@@ -32,9 +32,47 @@ def _location_token(value: str) -> str:
     return " ".join(lowered.replace(",", " ").split())
 
 
+def _profile_locations(profile: dict[str, Any]) -> list[str]:
+    """Every location the user targets, scalar-only profiles included."""
+    raw = profile.get("target_locations")
+    values = raw if isinstance(raw, list) else [profile.get("target_location")]
+    return [token for token in (_location_token(str(v or "")) for v in values) if token]
+
+
+def _profile_countries(profile: dict[str, Any]) -> list[str]:
+    raw = profile.get("target_location_countries")
+    values = raw if isinstance(raw, list) else [profile.get("target_location_country")]
+    return [token for token in (_location_token(str(v or "")) for v in values) if token]
+
+
+def _target_matches(target: str, countries: list[str], job: dict[str, Any]) -> bool:
+    """Does this ONE stated location cover this job?"""
+    if "remote" in target:
+        return str(job.get("location_mode") or "").casefold() == "remote"
+    job_country = _location_token(str(job.get("location_country") or ""))
+    if "all" in target and countries:
+        return job_country in countries
+    # "Bengaluru, India" carries its own country; strip it to compare cities.
+    city = target
+    for country in countries:
+        if country and country in city:
+            city = _location_token(city.split(country, 1)[0])
+            break
+    job_city = _location_token(str(job.get("location_city") or ""))
+    job_location = _location_token(str(job.get("location") or ""))
+    return bool(city and (city == job_city or city in job_location))
+
+
 def location_compatible(profile: dict[str, Any], job: dict[str, Any]) -> bool:
-    target = _location_token(str(profile.get("target_location") or ""))
-    if not target:
+    """True when the job sits in ANY location the user named.
+
+    This gate used to read `target_location` alone. A user targeting Mumbai and
+    Bengaluru had every Bengaluru job judged against Mumbai and marked
+    incompatible — the second city was accepted at every input surface and then
+    filtered back out here, one job at a time.
+    """
+    targets = _profile_locations(profile)
+    if not targets:
         return True
     # F4: a job dict with NO location signal at all reached this gate from a lean
     # caller that didn't attach location meta. The candidate pool already location-
@@ -45,18 +83,11 @@ def location_compatible(profile: dict[str, Any], job: dict[str, Any]) -> bool:
         for key in ("location_country", "location_city", "location_mode", "location")
     ):
         return True
-    target_country = _location_token(str(profile.get("target_location_country") or ""))
+    countries = _profile_countries(profile)
     job_country = _location_token(str(job.get("location_country") or ""))
-    if target_country and job_country and target_country != job_country:
+    if countries and job_country and job_country not in countries:
         return False
-    if "remote" in target:
-        return str(job.get("location_mode") or "").casefold() == "remote"
-    if "all" in target and target_country:
-        return job_country == target_country
-    target_city = _location_token(target.split(target_country, 1)[0]) if target_country else target
-    job_city = _location_token(str(job.get("location_city") or ""))
-    job_location = _location_token(str(job.get("location") or ""))
-    return bool(target_city and (target_city == job_city or target_city in job_location))
+    return any(_target_matches(target, countries, job) for target in targets)
 
 
 def evaluate_credibility(

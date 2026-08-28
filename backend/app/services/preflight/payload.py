@@ -84,10 +84,27 @@ class ResolveResult:
 
 
 def _slot_text(line: OrderLine) -> str:
-    text = line.text.strip()
-    if line.kind == "pay_floor":
-        return f"Below {text}"
-    return text
+    """The line's own words. Nothing added.
+
+    This used to return `f"Below {text}"` for a pay floor. Two things were wrong
+    with that, and the second is the expensive one:
+
+    1. The user's words usually already carry the comparison, so "less than 30
+       lakhs" rendered as "Below less than 30 lakhs". The eyebrow on that plate
+       reads PAY FLOOR and its why-line reads "A floor, not a target — roles
+       under it drop out", so the prefix was words restating a state the screen
+       already shows.
+    2. `_slot_text` feeds `spec`, and `spec` IS the PATCH body (`project`). So
+       the prefix was persisted into `user_profiles.deal_breakers`, and
+       `memory_import` then seeded it back as a fresh `wont_take` line on the
+       next open — a duplicate of the user's own statement, in a different
+       slot, wearing a word they never typed. Round-trip corruption, and
+       cumulative: another run would have written "Below Below less than 30
+       lakhs". Found in prod on 2026-08-28, one order of four.
+
+    A display prefix may not be computed inside the value that gets stored.
+    """
+    return line.text.strip()
 
 
 def _dedupe(lines: list[OrderLine]) -> list[OrderLine]:
@@ -147,7 +164,7 @@ def _contradictions(lines: list[OrderLine]) -> list[Conflict]:
     for location in locations:
         for other in (*leans, *wont):
             if _RELOCATE.search(other.text):
-                add(location, other, "target_location")
+                add(location, other, "target_locations")
     return out
 
 

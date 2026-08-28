@@ -39,6 +39,30 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
+class TrackSpec:
+    """One of a user's job searches, as the ranker needs it.
+
+    `track_id is None` is track 1 — the profile. See
+    `app/services/job_tracks.py`; a track is the user's own role words, never a
+    taxonomy key, because the triage brain separates them by reading titles and
+    JDs and `role_family` demonstrably cannot.
+    """
+
+    track_id: int | None
+    label: str
+    role_titles: tuple[str, ...]
+    #: How many of the pool this track keeps out of triage — the user-facing
+    #: "15-20 marketing". A ceiling on real listings, never a target to pad to
+    #: with anything that is not in the pool.
+    quota: int
+    #: How many of that quota reach the expensive per-job eval. The rest ship as
+    #: real rows with overlap scores and no verdict — a Provisional Match, which
+    #: the read seam already renders as `verdict == "checking"` and upgrades in
+    #: place. This is what keeps two tracks near one track's latency.
+    deep: int
+
+
+@dataclass(frozen=True)
 class RankCandidates:
     """Raw inputs to the deterministic overlap stage (Stage 1).
 
@@ -65,6 +89,10 @@ class RankCandidates:
     # brain triage then selects over the union, so a role-right, overlap-poor job reaches
     # it. None → overlap-only pool (rank stays DB-agnostic; the caller owns the union).
     pool_augmenter: Callable[[list[dict[str, Any]]], list[dict[str, Any]]] | None = None
+    # Per-track triage. Empty (the default) is exactly today's behaviour, and a
+    # single-track user MUST take that path — 83% of users have one search and
+    # their run may not change shape because a minority feature exists.
+    tracks: tuple[TrackSpec, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -79,6 +107,58 @@ class RankResult:
     top_jobs: list[dict[str, Any]] = field(default_factory=list)
     evaluations: dict[str, dict[str, Any]] = field(default_factory=dict)
 
+
+
+async def _triage_by_track(
+    eval_profile: dict[str, Any],
+    pool: list[dict[str, Any]],
+    provider: LLMProvider,
+    tracks: tuple[TrackSpec, ...],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Triage the SAME pool once per track. Returns (all kept, the deep subset).
+
+    One pool, because the pool is scoped by location and seniority — facts about
+    the person, identical across their searches. What differs is the role words,
+    so each track triages with its own, and the brain reads titles and JDs to
+    decide which search a job belongs to.
+
+    **A job lands in exactly one track.** `user_job_matches` is keyed
+    (user_id, job_id) so that every job is brain-evaluated once, ever — the
+    property that makes rating this much affordable. A job kept by two tracks
+    would need two rows, and would pay the brain twice for the one row that can
+    exist. The earlier track wins, and the later track fills its quota from the
+    rest of the pool instead. That also keeps the count honest: "20 marketing"
+    means twenty jobs, not twenty minus the ones already shown above.
+    """
+    kept: list[dict[str, Any]] = []
+    deep: list[dict[str, Any]] = []
+    claimed: set[str] = set()
+
+    for track in tracks:
+        available = [job for job in pool if str(job["job_id"]) not in claimed]
+        if not available:
+            continue
+        track_profile = {**eval_profile, "target_roles": list(track.role_titles)}
+        shortlist = await llm_ranker.triage_shortlist(
+            track_profile, available, provider, track.quota
+        )
+        mine: list[dict[str, Any]] = []
+        for job in shortlist:
+            job_id = str(job["job_id"])
+            # `available` already excluded claimed jobs, but the triage is a
+            # model call and may echo one back. Belt: the claim is what makes
+            # "one job, one track" true, so it is checked where it is used.
+            if job_id in claimed:
+                continue
+            claimed.add(job_id)
+            job["track_id"] = track.track_id
+            mine.append(job)
+        kept.extend(mine)
+        # The deep subset is this track's OWN top rows, not the head of a
+        # shortlist that may open with jobs another track already took.
+        deep.extend(mine[: max(0, track.deep)])
+
+    return kept, deep
 
 async def rank(
     profile: dict[str, Any],
@@ -137,7 +217,18 @@ async def rank(
     # Tier-1 triage: brain picks the best-fit shortlist out of the deterministic
     # pool BEFORE the expensive per-job reasoning. One cheap batched call; the
     # persisted matches become the triaged shortlist, not the raw overlap head.
-    if jobs.triage_keep is not None and len(top_jobs) > jobs.triage_keep:
+    deep_jobs: list[dict[str, Any]] | None = None
+    if jobs.tracks:
+        pool_size = len(top_jobs)
+        top_jobs, deep_jobs = await _triage_by_track(
+            eval_profile, top_jobs, provider, jobs.tracks
+        )
+        if debug is not None:
+            debug["triage_pool"] = pool_size
+            debug["triage_kept"] = len(top_jobs)
+            debug["triage_tracks"] = len(jobs.tracks)
+            debug["triage_deep"] = len(deep_jobs)
+    elif jobs.triage_keep is not None and len(top_jobs) > jobs.triage_keep:
         pool_size = len(top_jobs)
         top_jobs = await llm_ranker.triage_shortlist(
             eval_profile, top_jobs, provider, jobs.triage_keep
@@ -150,7 +241,10 @@ async def rank(
     if on_shortlist is not None:
         on_shortlist(top_jobs)
 
-    brain_jobs = top_jobs if budget is None else top_jobs[: max(0, budget)]
+    if deep_jobs is not None:
+        brain_jobs = deep_jobs
+    else:
+        brain_jobs = top_jobs if budget is None else top_jobs[: max(0, budget)]
 
     cached_evals: dict[str, dict[str, Any]] = {}
     if jobs.eval_cache_fetcher is not None:

@@ -110,3 +110,42 @@ def test_the_whole_prod_order_stops_asking_the_user_to_drop_anything() -> None:
     result = payload.resolve(order)
     assert not [c for c in result.conflicts if c.kind == "arity"], "no slot should overflow"
     assert len(result.spec["deal_breakers"]) == 4
+
+
+def test_the_yield_map_only_names_slots_the_spec_has() -> None:
+    """The drift check `_YIELD_TO_NATIVE` has always claimed and never had.
+
+    It is a local copy of part of `SLOT_KINDS`, kept local to avoid an import
+    cycle. A copy with no check is how it went on saying "slots that hold
+    exactly one value" for a slot that holds three.
+    """
+    from app.services.preflight import spec
+
+    for slot, kinds in normalise._YIELD_TO_NATIVE.items():
+        assert spec.SLOT_KINDS[slot] == kinds
+
+
+def test_a_refiled_location_yields_to_one_the_user_stated() -> None:
+    """Arity is no longer what triggers this — see `normalise.apply`.
+
+    "Requires roles based in India" reads as a location. Beside a stated
+    Mumbai and Bengaluru it would widen the search to the whole country, which
+    is Myro's reinterpretation overruling the user's own answer. It steps
+    aside as a fact instead, and stays on screen.
+    """
+    lines = [
+        line(kind="location", text="Mumbai", status="kept"),
+        line(kind="location", text="Bengaluru", status="kept"),
+        line(kind="wont_take", text="Requires roles based in India", status="kept"),
+    ]
+    out = normalise.apply(lines)
+    kinds = {x.text: x.kind for x in out}
+    assert kinds["Mumbai"] == "location"
+    assert kinds["Bengaluru"] == "location"
+    assert kinds["Requires roles based in India"] == "fact"
+
+
+def test_a_refiled_location_still_stands_when_the_user_stated_none() -> None:
+    """Nothing to yield to — the refile is the only claimant, so it keeps the slot."""
+    out = normalise.apply([line(kind="wont_take", text="Requires roles based in India")])
+    assert [x.kind for x in out] == ["location"]
