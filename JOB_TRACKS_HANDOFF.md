@@ -1,10 +1,22 @@
-# Job Tracks — handoff for slices 2 and 3
+# Job Tracks — handoff for slice 3
 
-**Written 2026-08-28.** Slice 1 is shipped on `Develop`. This is the brief for
-the mentor proposal (slice 2) and the screens (slice 3). Read it before
-touching either — several of the constraints below are decisions that were
-already argued and settled, and a design that quietly reverses one will be
-reverted.
+**Written 2026-08-28. Slice 2 shipped 2026-08-29 (`4b161ecc`).** Slice 1 is on
+`Develop`. What is left here is the SCREENS (slice 3). Read it before touching
+them — several of the constraints below are decisions that were already argued
+and settled, and a design that quietly reverses one will be reverted.
+
+**Slice 2 is done and its section below is kept as the record of what was
+built, not as work.** The mentor extracts `second_search`, `from_utterance`
+emits one proposal for it behind the `/tracks` gate, and the yes goes to
+`POST /tracks` rather than `/order/apply` — the apply loop acts on add and drop
+only, so an `open_track` reaching it is inert, and there is a test holding that
+loop to it. Invariants and vocabulary now live in [CONTEXT.md](CONTEXT.md)
+§Pre-flight Order.
+
+**Slice 3 has NOT been built.** No frontend calls `/tracks` for anything except
+the accept above; there is no grouped results screen, no unlock moment, and a
+single-track user sees no track chrome anywhere — which is the correct state for
+five users in six, and the reason this was left rather than rushed.
 
 ---
 
@@ -67,7 +79,7 @@ refuses to.
 
 ---
 
-## Slice 2 — the mentor proposes a track
+## Slice 2 — the mentor proposes a track · **SHIPPED `4b161ecc`**
 
 ### Where, exactly
 
@@ -110,7 +122,7 @@ Constraints:
 
 ## Slice 3 — the screens
 
-### 3a. Results, grouped by search
+### 3a. Results, grouped by search *(not built)*
 
 A run now returns up to `TRACK_QUOTA = 20` per track (`jobs_workflow.py`), each
 row carrying `track_id`. Group by it, label each group with the track's own
@@ -132,21 +144,21 @@ This split is the entire reason two searches cost about what one does — 16 dee
 evaluations against the 15 a single-track run does today. It is not negotiable
 without a latency conversation.
 
-### 3b. The unlock moment
+### 3b. The unlock moment *(not built)*
 
 `can_open` flips to true the moment the user tailors a CV for a job in their
 first search. That is the moment to offer the second one — they have just felt
 the whole loop close and know what a search is *for*. Before that moment, do not
 advertise it.
 
-### 3c. What a single-track user sees
+### 3c. What a single-track user sees *(not built)*
 
 One group, or no grouping chrome at all. Their screen should look like it did
 before tracks existed.
 
 ---
 
-## Feedback from the screenshot you sent
+## Feedback from the screenshot you sent · **all three closed**
 
 Real defects visible in that one frame. Two are yours, one was mine.
 
@@ -158,17 +170,24 @@ Real defects visible in that one frame. Two are yours, one was mine.
    prefix also restated the plate's own eyebrow (PAY FLOOR). Nothing to do on
    your side; noting it so you don't design around the old string.
 
-2. **"37 lines you said no to — all dropped. Myro runs on the 11 lines above
-   and nothing else."** Verified against prod: that order really does hold 53
-   lines. Thirty-seven rejections against eleven kept means the guess generator
-   is spraying, and the summary line is doing the work of admitting it. The
-   sentence itself is good and honest — the ratio behind it is the problem.
-   Worth a look at what is being proposed, not at how it is worded.
+2. **"37 lines you said no to — all dropped."** — **fixed, `4b161ecc`.** You
+   read it right: the generator was spraying. `guesses_from` turned every
+   `constraint` / `work_mode` / `preference` fact into a question and
+   `brief.facts` is uncapped (the 8-fact cap in `targeting` is the ranking
+   prompt's), so 66 notes became about forty questions. It was an arity problem
+   rather than a taste one — twenty questions into a slot that holds six
+   guarantees fourteen rejections whatever the user wants — so the cap is now
+   `SLOT_ARITY`, ranked by whether the distiller filed the note twice, and it
+   behaves as a queue: a rejected guess stays rejected and the next open
+   surfaces the next-strongest. The sentence itself was left alone; it was
+   never the problem.
 
-3. **The say-band placeholder is being overlapped by a browser extension's
-   icons** (Grammarly). Not our bug, but the input's right padding leaves no
-   room for the extension affordance every writing tool injects. Cheap to make
-   robust.
+3. **The say-band placeholder overlapped by an extension's icons** (Grammarly)
+   — **fixed, `4b161ecc`.** `--say-gutter` reserves a 30px lane on the right of
+   every SayPad host and moves our own character counter out of it. We cannot
+   style the injected control, cannot predict which tool it is, and disabling it
+   (`data-gramm="false"`) would be switching off the user's own tool on their
+   own words.
 
 ---
 

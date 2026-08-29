@@ -816,9 +816,39 @@ CV` / `your words, just now`; **Dropped** means said no to *or left unanswered*.
   sheet) and "Myro Search" (the modal). Both called `/preflight/proposals`, both
   wrote this row, both ran on the same engine, and nothing said so; the sheet
   also priced its own apply from a client constant. There is one modal now with
-  two landings: `openRefreshGate("review")` opens on the slots,
-  `openRefreshGate("say")` opens on the say band. The sheet's topic chips
-  survived into `say-band.tsx`; the sheet did not.
+  two landings: `openRefreshGate("review")` lands on the first step that still
+  needs the user, `openRefreshGate("say")` lands on Sign off, where the say band
+  lives. The sheet's topic chips survived into `say-band.tsx`; the sheet did not.
+- **FIVE STEPS, AND THE LANDING RULE IS WHAT MAKES THEM SAFE.** The modal is a
+  journey (`lib/preflight/journey.ts`): the work · where · preferences · about
+  you · sign off, over the same six slots. It replaced one canvas holding
+  everything, which measured ~1,100px in a 640px box, so the control that
+  charges the user was the last thing in two screens of scrolling. The risk a
+  stepped flow introduces is the opposite one — a settled order must not cost
+  four Continues to run — and `landingStep` is the whole answer: it opens on the
+  first step that still needs something, which for a settled order is Sign off,
+  one tap from Run. Steps are for filling; they are never a toll on running.
+  A guess renders beside the slot it would change (`stepForKind`), never in a
+  pile at the bottom. The ribbon, head and actions are shared with onboarding's
+  Direction step (`components/journey/journey-chrome.tsx`) — that surface had
+  the same defect and two copies of one fix drift.
+- **A GUESS COSTS A SLOT, SO THE SLOT IS THE BUDGET.** `guesses_from` proposes
+  at most `SLOT_ARITY[slot]` questions per slot, ranked by whether the distiller
+  filed the note more than once. It used to propose every `constraint` /
+  `work_mode` / `preference` fact, and `brief.facts` is uncapped — the 8-fact cap
+  in `targeting` is the ranking PROMPT's — so a user with 66 notes met about
+  forty questions in slots that hold six. One prod order held 53 lines and 37
+  rejections. Twenty questions into a six-slot budget guarantees fourteen
+  rejections whatever the user wants. It is a queue, not a truncation:
+  `merge_imports` keeps the user's answer, so a rejected guess stays rejected and
+  the next open surfaces the next-strongest. An unasked fact still reaches the
+  brain as `known_facts`; what it cannot do is become a hard filter unasked.
+- **A SECOND SEARCH IS A PROPOSAL, NEVER A SIDE EFFECT.** When an utterance names
+  two distinct kinds of work, the extract schema returns `second_search` and
+  `from_utterance` emits ONE proposal with an `open_track` effect — but only when
+  the `/tracks` gate is open, read fail-soft at propose time. The yes goes to
+  `POST /tracks`, which re-checks the gate at write time; `/order/apply` acts on
+  add and drop only, so an `open_track` reaching it is inert by construction.
 - **The resolver owns the slot view.** `payload.resolve` emits `slots` — key,
   arity, the line ids it PLACED (identical to what reaches `spec`), and the ones
   a live conflict holds. The client renders that partition; it does not file
@@ -833,10 +863,10 @@ CV` / `your words, just now`; **Dropped** means said no to *or left unanswered*.
   order read it held the plates and every edit at 9.0-10.5s. Run is the one
   control that waits for it, because pressing it unpriced would be consenting to
   a charge nobody has been shown.
-- **The prose module is the run bar's sentences, and nothing else.** It used to
+- **The prose module is the footer's sentences, and nothing else.** It used to
   assemble the order into English (`briefFrom`, `orderSummaryFrom`) with real
   grammar rules, because the order WAS a paragraph the user signed off. The
-  order is plates now; a paragraph restating them is a worse copy of what is on
+  order is chips now; a paragraph restating them is a worse copy of what is on
   screen. What is left is `contractLine` / `blockedLine` / `missingRoleLine` —
   the only text on this surface that is not already a plate.
 - **One query key** (`["preflight","order"]`); every mutation writes the
