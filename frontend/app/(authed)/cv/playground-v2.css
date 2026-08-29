@@ -83,7 +83,7 @@
 
 .cvb-v2-score { text-align: right; flex: none; }
 .cvb-v2-score-nums { display: flex; align-items: baseline; gap: 6px; justify-content: flex-end; }
-.cvb-v2-score-num { font-size: 22px; font-weight: 700; line-height: 1; }
+.cvb-v2-score-num { font-size: var(--tm-fs-heading); font-weight: 600; line-height: 1; }
 .cvb-v2-score[data-band="high"] .cvb-v2-score-num { color: var(--tm-success); }
 .cvb-v2-score[data-band="mid"]  .cvb-v2-score-num { color: var(--tm-warning); }
 .cvb-v2-score[data-band="low"]  .cvb-v2-score-num { color: var(--tm-interactive-text); }
@@ -112,7 +112,7 @@
 
 /* ── main split ── */
 .cvb-v2-main {
-  flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 408px; align-items: start;
+  flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 320px; align-items: start;
 }
 .cvb-v2-editor { min-width: 0; border-right: 1px solid var(--tm-border-soft); }
 .cvb-v2-toolbar {

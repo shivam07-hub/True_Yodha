@@ -1,19 +1,8 @@
 /**
  * CvDocument — the whole CV, as the editor. Rank 2 of the hierarchy redesign.
  *
- * Handoff §3: renders the WHOLE CV — contact → summary → every role → skills →
- * education → certifications — with no fixed height and no `overflow:hidden`.
- * The previous pane stopped at experience and dropped every empty section, so a
- * CV with no summary and no education looked finished. Empty sections are now
- * dashed placeholders carrying their own severity.
- *
- * Every line is a CvLineRow (`3px 1fr auto`). The rewrite opens INSIDE the row,
- * under the line — the rail never expands one.
- *
- * One `onPatch` writes content through to the living master from whichever
- * surface is mounted (locked 2026-08-25). `identityEditable` is separate and
- * master-only: a tailored CV parents to the master, so name/email/phone have
- * exactly one home.
+ * Experience and project bullets are sortable pointers. Order writes through
+ * `onPatch` (the same living-master path as every other content edit).
  */
 "use client"
 
@@ -22,9 +11,13 @@ import type { CVStructured, UserSkillsByDomain } from "@/lib/api"
 import { itemId } from "@/lib/cv-compose"
 import { CvIdentityCard, type IdentityLines } from "./cv-identity-card"
 import { CvLineRow } from "./cv-line-row"
+import { CvRoleBlock } from "./cv-role-block"
+import { SectionDraft } from "./cv-section-draft"
 import { CvTailSections } from "./cv-tail-sections"
 import { EmptySection } from "./cv-empty-section"
+import { applyBulletMove, remapHiddenIids, type PointerKind } from "./cv-pointer-order"
 import { verdictLabel, verdictLabelDense, type LineVerdict } from "./cv-severity"
+import type { PointerRowModel } from "./cv-pointer-list"
 
 export interface CvDocumentProps {
   cv: CVStructured
@@ -33,27 +26,18 @@ export interface CvDocumentProps {
   verdicts: Map<string, LineVerdict>
   /** A job is in play, so "on target" means something. */
   targeted: boolean
-  /** The line whose rewrite is open. Owned above so the rail can drive it. */
   openIid: string | null
-  /** The open fix's offending phrases — the mark on the line follows the brief
-   *  being read, instead of leaving an unrelated finding's phrase underlined. */
   activeOffenders?: string[]
   renderRewrite: (iid: string, text: string) => ReactNode
   onOpenFix: (iid: string) => void
   onToggleHidden?: (iid: string) => void
   onEditLine: (oldText: string, newText: string) => void
   onCopyLine?: (text: string) => void
-  /** Content write-through to the living master. */
   onPatch?: (mut: (draft: CVStructured) => CVStructured) => void
-  /** Master surface only — identity has one home. */
   identityEditable?: boolean
   onAddBullet?: (roleIndex: number, text: string) => void
-  /** ATS-extracted skills, for the rank-4 chip line under each bullet. */
   userSkills?: UserSkillsByDomain | null
-  /** Jump request from the rail: scroll to a line and pulse it. */
   flash?: { iid: string; n: number } | null
-  /** "Edit it myself" — put this line straight into its textarea. Bump `n` to
-   *  re-request the same line. */
   editRequest?: { iid: string; n: number } | null
 }
 
@@ -66,15 +50,10 @@ export function CvDocument(props: CvDocumentProps) {
   const [editingIid, setEditingIid] = useState<string | null>(null)
   const [draft, setDraft] = useState("")
   const [copiedIid, setCopiedIid] = useState<string | null>(null)
-  const [composerRole, setComposerRole] = useState<number | null>(null)
-  const [composerDraft, setComposerDraft] = useState("")
-  // Sections the user opened from an `add ›` placeholder. A blank section has
-  // no line to put into edit mode, so the placeholder hands over to a draft
-  // field that patches the master on every keystroke.
   const [drafting, setDrafting] = useState<Set<"summary" | "skills">>(() => new Set())
   const openDraft = (key: "summary" | "skills") =>
     setDrafting(prev => new Set(prev).add(key))
-  const rows = useRef<Record<string, HTMLDivElement | null>>({})
+  const rows = useRef<Record<string, HTMLElement | null>>({})
 
   useEffect(() => {
     if (!flash) return
@@ -82,7 +61,7 @@ export function CvDocument(props: CvDocumentProps) {
     if (!el) return
     el.scrollIntoView({ behavior: "smooth", block: "center" })
     el.classList.remove("cvw-pulse")
-    void el.offsetWidth // force reflow so re-jumping the same line replays it
+    void el.offsetWidth
     el.classList.add("cvw-pulse")
     const t = setTimeout(() => el.classList.remove("cvw-pulse"), 1600)
     return () => clearTimeout(t)
@@ -94,29 +73,41 @@ export function CvDocument(props: CvDocumentProps) {
     setEditingIid(editRequest.iid)
     setDraft(lineTextFor(cv, editRequest.iid) ?? "")
     el?.scrollIntoView({ behavior: "smooth", block: "center" })
-    // `cv` is read once to seed the textarea; re-running when it changes would
-    // clobber what the user is typing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editRequest])
 
-  function line(iid: string, text: string, opts: { mono?: boolean } = {}) {
-    const editing = editingIid === iid
+  function model(iid: string, text: string): PointerRowModel {
     const v = verdicts.get(iid)
+    return {
+      iid, text, verdict: v,
+      verdictLabel: v ? verdictLabel(v, targeted) : undefined,
+      verdictDense: v ? verdictLabelDense(v, targeted) : undefined,
+      hidden: hidden.has(iid),
+      editing: editingIid === iid,
+      editDraft: draft,
+      copied: copiedIid === iid,
+      rewrite: openIid === iid ? renderRewrite(iid, text) : null,
+      activeOffenders: openIid === iid ? activeOffenders : undefined,
+    }
+  }
+
+  function line(iid: string, text: string, opts: { mono?: boolean } = {}) {
+    const row = model(iid, text)
     return (
       <CvLineRow
         key={iid}
         text={text}
-        verdict={v}
-        verdictLabel={v ? verdictLabel(v, targeted) : undefined}
-        verdictDense={v ? verdictLabelDense(v, targeted) : undefined}
+        verdict={row.verdict}
+        verdictLabel={row.verdictLabel}
+        verdictDense={row.verdictDense}
         mono={opts.mono}
         userSkills={userSkills}
-        hidden={hidden.has(iid)}
-        editing={editing}
+        hidden={row.hidden}
+        editing={row.editing}
         editDraft={draft}
-        copied={copiedIid === iid}
-        activeOffenders={openIid === iid ? activeOffenders : undefined}
-        rewrite={openIid === iid ? renderRewrite(iid, text) : null}
+        copied={row.copied}
+        activeOffenders={row.activeOffenders}
+        rewrite={row.rewrite}
         rowRef={el => { rows.current[iid] = el }}
         onOpenFix={() => onOpenFix(iid)}
         onToggleHidden={onToggleHidden ? () => onToggleHidden(iid) : undefined}
@@ -136,11 +127,46 @@ export function CvDocument(props: CvDocumentProps) {
     )
   }
 
+  function reorder(kind: PointerKind, groupIndex: number, from: number, to: number) {
+    if (!onPatch || from === to) return
+    const section = kind === "exp_bullet" ? "experience" : "projects"
+    const bullets = section === "experience"
+      ? cv.experience[groupIndex]?.bullets
+      : cv.projects[groupIndex]?.bullets
+    if (!bullets) return
+    if (onToggleHidden) {
+      const nextHidden = remapHiddenIids(hidden, kind, groupIndex, bullets, from, to)
+      for (const id of hidden) if (!nextHidden.has(id)) onToggleHidden(id)
+      for (const id of nextHidden) if (!hidden.has(id)) onToggleHidden(id)
+    }
+    onPatch(d => applyBulletMove(d, section, groupIndex, from, to))
+  }
+
+  const pointerBind = {
+    openIid,
+    userSkills,
+    canReorder: !!onPatch,
+    onOpenFix,
+    onToggleHidden,
+    onStartEdit: (iid: string, text: string) => { setEditingIid(iid); setDraft(text) },
+    onEditDraftChange: setDraft,
+    onSaveEdit: () => {
+      if (!editingIid) return
+      const text = lineTextFor(cv, editingIid)
+      const next = draft.trim()
+      if (text && next && next !== text) onEditLine(text, next)
+      setEditingIid(null)
+    },
+    onCopy: onCopyLine ? (iid: string, text: string) => {
+      onCopyLine(text)
+      setCopiedIid(iid)
+      setTimeout(() => setCopiedIid(c => (c === iid ? null : c)), 1500)
+    } : undefined,
+    rowRef: (iid: string, el: HTMLElement | null) => { rows.current[iid] = el },
+  }
+
   return (
     <div className="cvw-doc">
-      {/* No CONTACT heading — the block is self-evidently the contact block, and
-          a label above a name is the "disabled field says cannot be edited" of
-          section headers. The anchor an ATS row jumps to lives on the card. */}
       <div id="cvw-sec-contact">
         <CvIdentityCard
           lines={identity}
@@ -169,71 +195,31 @@ export function CvDocument(props: CvDocumentProps) {
 
       <div className="cvw-sec" id="cvw-sec-experience">Experience</div>
       {cv.experience.map((exp, ei) => (
-        <div key={`exp-${ei}`} className="cvw-card">
-          <div className="cvw-rolehead">
-            <span className="cvw-roletitle">{exp.role}</span>
-            {exp.company && <span className="cvw-roleco">{exp.company}</span>}
-            {exp.dates && <span className="cvw-roledates">{exp.dates}</span>}
-          </div>
-          {exp.bullets.map((b, bi) => line(itemId("exp_bullet", ei * 100 + bi, b), b))}
-          {onAddBullet && (composerRole === ei ? (
-            <div className="cvw-line">
-              <span className="cvw-gutter" aria-hidden />
-              <div className="cvw-linebody">
-                <textarea
-                  className="cvw-edit"
-                  rows={3}
-                  autoFocus
-                  value={composerDraft}
-                  placeholder="What you actually did here"
-                  aria-label="New bullet"
-                  onChange={e => setComposerDraft(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault()
-                      if (composerDraft.trim()) onAddBullet(ei, composerDraft.trim())
-                      setComposerRole(null); setComposerDraft("")
-                    }
-                  }}
-                />
-                <div className="cvw-lineacts" style={{ opacity: 1 }}>
-                  <button type="button" className="cvw-lineact" onClick={() => setComposerRole(null)}>cancel</button>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="cvw-verdict"
-                disabled={!composerDraft.trim()}
-                onClick={() => {
-                  if (composerDraft.trim()) onAddBullet(ei, composerDraft.trim())
-                  setComposerRole(null); setComposerDraft("")
-                }}
-              >add ›</button>
-            </div>
-          ) : (
-            <div className="cvw-line">
-              <span className="cvw-gutter" aria-hidden />
-              <div className="cvw-linebody">
-                <button
-                  type="button"
-                  className="cvw-lineact"
-                  onClick={() => { setComposerDraft(""); setComposerRole(ei) }}
-                >＋ add a point</button>
-              </div>
-              <span aria-hidden />
-            </div>
-          ))}
-        </div>
+        <CvRoleBlock
+          key={`exp-${ei}`}
+          kind="exp_bullet"
+          groupIndex={ei}
+          head={{ title: exp.role, company: exp.company, dates: exp.dates }}
+          bullets={exp.bullets}
+          rows={exp.bullets.map((b, bi) => model(itemId("exp_bullet", ei * 100 + bi, b), b))}
+          onReorder={(from, to) => reorder("exp_bullet", ei, from, to)}
+          onAddBullet={onAddBullet ? text => onAddBullet(ei, text) : undefined}
+          {...pointerBind}
+        />
       ))}
 
       {cv.projects.length > 0 && <div className="cvw-sec">Projects</div>}
       {cv.projects.map((p, pi) => (
-        <div key={`proj-${pi}`} className="cvw-card">
-          {p.name && (
-            <div className="cvw-rolehead"><span className="cvw-roletitle">{p.name}</span></div>
-          )}
-          {p.bullets.map((b, bi) => line(itemId("proj_bullet", pi * 100 + bi, b), b))}
-        </div>
+        <CvRoleBlock
+          key={`proj-${pi}`}
+          kind="proj_bullet"
+          groupIndex={pi}
+          head={{ title: p.name }}
+          bullets={p.bullets}
+          rows={p.bullets.map((b, bi) => model(itemId("proj_bullet", pi * 100 + bi, b), b))}
+          onReorder={(from, to) => reorder("proj_bullet", pi, from, to)}
+          {...pointerBind}
+        />
       ))}
 
       <div className="cvw-sec" id="cvw-sec-skills">Skills</div>
@@ -261,40 +247,6 @@ export function CvDocument(props: CvDocumentProps) {
   )
 }
 
-/** A blank section, opened from its `add ›` placeholder. Writes through on every
- *  keystroke — the surface's own autosave is the save, so there is no second
- *  "done" step to forget. */
-function SectionDraft({
-  value, placeholder, label, onChange,
-}: {
-  value: string
-  placeholder: string
-  label: string
-  onChange: (value: string) => void
-}) {
-  return (
-    <div className="cvw-card">
-      <div className="cvw-line">
-        <span className="cvw-gutter" aria-hidden />
-        <div className="cvw-linebody">
-          <textarea
-            className="cvw-edit"
-            rows={3}
-            autoFocus
-            value={value}
-            placeholder={placeholder}
-            aria-label={label}
-            onChange={e => onChange(e.target.value)}
-          />
-        </div>
-        <span aria-hidden />
-      </div>
-    </div>
-  )
-}
-
-/** The current text of a line, by its editor iid. Used to seed the textarea when
- *  the edit is requested from elsewhere (the rail's "Edit it myself"). */
 function lineTextFor(cv: CVStructured, iid: string): string | null {
   if (cv.summary && itemId("summary", 0, cv.summary) === iid) return cv.summary
   for (const [ei, e] of cv.experience.entries()) {

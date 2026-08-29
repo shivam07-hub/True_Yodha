@@ -98,7 +98,7 @@
   border-bottom: 1px solid var(--tm-border-soft);
 }
 .cvw-roletitle {
-  font-family: var(--tm-font-sans); font-size: var(--tm-fs-ui); font-weight: 600;
+  font-family: var(--tm-font-sans); font-size: var(--tm-fs-body); font-weight: 600;
   color: var(--tm-text); min-width: 0;
 }
 .cvw-roleco { font-size: var(--tm-fs-ui-sm); color: var(--tm-text-muted); min-width: 0; }
@@ -108,13 +108,12 @@
 }
 
 /* ── rank 2 · the bullet row ──
-   3px full-bleed severity gutter · the line · one mono verdict. The row
-   background IS the wash — this replaces the old .cvb-pgc-row.flagged tint,
-   which coloured every flagged line the same amber regardless of cost. */
+   3px severity gutter is the mark. The row itself is paper — a full-bleed
+   wash turned every pointer into a poster card and fought the document. */
 .cvw-line {
   display: grid; grid-template-columns: 3px minmax(0, 1fr) auto;
   align-items: start; column-gap: 16px;
-  background: color-mix(in oklab, var(--cvw-sev, transparent) 10%, transparent);
+  background: transparent;
   border-bottom: 1px solid var(--tm-border-faint);
 }
 .cvw-line:last-child { border-bottom: 0; }
@@ -141,7 +140,7 @@
 
 .cvw-verdict {
   flex: none; padding: 16px 20px 0 0;
-  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); font-weight: 700;
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); font-weight: 600;
   letter-spacing: 0.06em; color: var(--cvw-sev, var(--tm-text-faint));
   background: none; border: 0; white-space: nowrap;
 }
@@ -274,7 +273,7 @@ button.cvw-verdict:focus-visible { outline: 2px solid var(--tm-accent-ring); out
 }
 .cvw-railtab:hover { color: var(--tm-text); }
 .cvw-railtab[aria-selected="true"] {
-  background: var(--tm-text); border-color: var(--tm-text); color: var(--tm-bg);
+  background: var(--tm-surface-2); border-color: var(--tm-border); color: var(--tm-text);
 }
 .cvw-railtab:focus-visible { outline: 2px solid var(--tm-accent-ring); outline-offset: 2px; }
 
@@ -282,7 +281,7 @@ button.cvw-verdict:focus-visible { outline: 2px solid var(--tm-accent-ring); out
 .cvw-triage { flex: none; display: grid; grid-template-columns: repeat(3, 1fr); }
 .cvw-tile {
   border: 0; border-top: 2px solid var(--cvw-sev); background: transparent; cursor: pointer;
-  padding: 16px 14px 14px; text-align: left;
+  padding: 10px 12px 10px; text-align: left;
   border-right: 1px solid var(--tm-border-soft);
   transition: background var(--tm-dur-fast) var(--tm-ease);
 }
@@ -291,7 +290,7 @@ button.cvw-verdict:focus-visible { outline: 2px solid var(--tm-accent-ring); out
 .cvw-tile[aria-pressed="true"] { background: color-mix(in oklab, var(--cvw-sev) 12%, transparent); }
 .cvw-tile:focus-visible { outline: 2px solid var(--tm-accent-ring); outline-offset: -2px; }
 .cvw-tile-n {
-  display: block; font-family: var(--tm-font-mono); font-size: var(--tm-fs-stat); font-weight: 700;
+  display: block; font-family: var(--tm-font-mono); font-size: var(--tm-fs-heading); font-weight: 600;
   line-height: 1; font-variant-numeric: tabular-nums; color: var(--cvw-sev);
 }
 .cvw-tile[data-empty="true"] .cvw-tile-n { color: var(--tm-text-faint); }
@@ -504,11 +503,10 @@ button.cvw-verdict:focus-visible { outline: 2px solid var(--tm-accent-ring); out
   .cvw-roletitle { flex: 1 1 100%; }
   .cvw-roledates { margin-left: auto; }
 
-  /* Bullets read as cards on a phone; the verdict drops under the line. */
+  /* Verdict drops under the line. Pointers stay a list, not cards. */
   .cvw-line {
     grid-template-columns: 3px minmax(0, 1fr);
-    column-gap: 12px; margin-bottom: 10px; border-bottom: 0;
-    border-radius: var(--tm-radius-lg, 8px); overflow: hidden;
+    column-gap: 12px;
   }
   .cvw-verdict { grid-column: 2; padding: 0 14px 14px 4px; text-align: left; }
   .cvw-v-wide { display: none; }

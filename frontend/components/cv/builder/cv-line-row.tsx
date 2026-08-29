@@ -1,29 +1,21 @@
 /**
- * CvLineRow — rank 2. One CV line, and everything that is true about it.
+ * CvLineRow — one CV line. Pointers (experience/project bullets) add quiet
+ * chrome: a disclosure chevron and an optional drag handle. Severity is the
+ * 3px gutter, not a wash of the whole row.
  *
- * `grid-template-columns: 3px 1fr auto` (handoff §3):
- *   col 1  a full-bleed severity gutter
- *   col 2  the line at 16/1.6 in --tm-cv-line, offending phrase underlined,
- *          and the inline rewrite when it is open
- *   col 3  ONE mono verdict — `fix ›` · `on target` · `2 fixes`
- *
- * The row background is the severity at 10%. That replaces `.cvb-pgc-row.flagged`,
- * which washed every flagged line the same amber whether it was a missing number
- * or a repeated phrase — the defect the whole redesign exists to fix.
- *
- * The line-level actions (copy / edit / hide) disclose on hover rather than
- * sitting in a permanent third column: they are chrome about the line, and rank
- * 4 chrome must not compete with rank 2 for the eye at rest.
+ * Grid: gutter · chrome · body · verdict.
+ * Non-pointers omit chrome and keep the original 3-column track.
  */
 "use client"
 
-import type { ReactNode } from "react"
+import type { CSSProperties, ReactNode } from "react"
 import type { UserSkillsByDomain } from "@/lib/api"
 import { CVPointSkillChips } from "./cv-point-skill-chips"
+import { Icon } from "./icons"
 import type { LineVerdict } from "./cv-severity"
 import { markOffenders } from "./offender-text"
 
-interface CvLineRowProps {
+export interface CvLineRowProps {
   text: string
   /** Absent ⇒ no gutter, no verdict: nothing is wrong and nothing is claimed. */
   verdict?: LineVerdict
@@ -42,9 +34,7 @@ interface CvLineRowProps {
   editing?: boolean
   editDraft?: string
   copied?: boolean
-  /** ATS-extracted skills this line proves — rank 4 (handoff §1). They used to
-   *  hide behind a per-row "ATS skills" disclosure, which meant the one thing
-   *  the line demonstrably proves took a click to see. */
+  /** ATS-extracted skills this line proves — rank 4. Hidden while collapsed. */
   userSkills?: UserSkillsByDomain | null
   /** Per-job projection only — the master has no hide. */
   onToggleHidden?: () => void
@@ -53,24 +43,60 @@ interface CvLineRowProps {
   onEditDraftChange?: (value: string) => void
   onSaveEdit?: () => void
   onCopy?: () => void
-  rowRef?: (el: HTMLDivElement | null) => void
+  rowRef?: (el: HTMLElement | null) => void
+  style?: CSSProperties
+  /** Pointer chrome. Absent on summary/skills — those are not reorderable. */
+  pointer?: {
+    bodyId: string
+    collapsed: boolean
+    onToggleCollapsed: () => void
+    dragHandle?: ReactNode
+    isDragging?: boolean
+  }
 }
 
 export function CvLineRow({
   text, verdict, verdictLabel, verdictDense, mono, hidden, activeOffenders, rewrite,
   editing, editDraft, copied, userSkills,
   onToggleHidden, onOpenFix, onStartEdit, onEditDraftChange, onSaveEdit, onCopy, rowRef,
+  style, pointer,
 }: CvLineRowProps) {
   const actionable = !!onOpenFix && verdict != null && verdict.tone !== "on-target"
+  const collapsed = !!pointer?.collapsed && !editing
+  const open = pointer ? !collapsed : true
+  const Tag = pointer ? "li" : "div"
   return (
-    <div
-      ref={rowRef}
-      className={`cvw-line${hidden ? " is-hidden" : ""}`}
+    <Tag
+      ref={rowRef as never}
+      style={style}
+      className={[
+        "cvw-line",
+        hidden ? "is-hidden" : "",
+        pointer ? "is-pointer" : "",
+        collapsed ? "is-collapsed" : "",
+        pointer?.isDragging ? "is-dragging" : "",
+      ].filter(Boolean).join(" ")}
       data-sev={verdict?.tone}
       data-focus={!!activeOffenders?.length}
+      aria-grabbed={pointer?.isDragging ? true : undefined}
     >
       <span className="cvw-gutter" aria-hidden />
-      <div className="cvw-linebody">
+      {pointer && (
+        <div className="cvw-chrome">
+          {pointer.dragHandle}
+          <button
+            type="button"
+            className="cvw-disclose"
+            aria-expanded={open}
+            aria-controls={pointer.bodyId}
+            aria-label={open ? "Collapse pointer" : "Expand pointer"}
+            onClick={pointer.onToggleCollapsed}
+          >
+            <Icon name="chevron-down" size={12} aria-hidden />
+          </button>
+        </div>
+      )}
+      <div className="cvw-linebody" id={pointer?.bodyId}>
         {editing ? (
           <textarea
             className="cvw-edit"
@@ -84,20 +110,20 @@ export function CvLineRow({
             }}
           />
         ) : (
-          <p className={`cvw-linetext${mono ? " mono" : ""}`}>
+          <p className={`cvw-linetext${mono ? " mono" : ""}${collapsed ? " is-collapsed" : ""}`}>
             {verdict && verdict.offenders.length > 0
               ? markOffenders(text, verdict.offenders, activeOffenders)
               : text}
           </p>
         )}
 
-        {!editing && !mono && !hidden && (
+        {open && !editing && !mono && !hidden && (
           <CVPointSkillChips text={text} skills={userSkills} />
         )}
 
-        {rewrite}
+        {open && rewrite}
 
-        {!editing && (
+        {open && !editing && (
           <div className="cvw-lineacts">
             {onCopy && (
               <button type="button" className="cvw-lineact" onClick={onCopy}>
@@ -126,7 +152,7 @@ export function CvLineRow({
           ? <button type="button" className="cvw-verdict" onClick={onOpenFix}>{label(verdictLabel, verdictDense)}</button>
           : <span className="cvw-verdict">{label(verdictLabel, verdictDense)}</span>
       ) : <span aria-hidden />}
-    </div>
+    </Tag>
   )
 }
 
