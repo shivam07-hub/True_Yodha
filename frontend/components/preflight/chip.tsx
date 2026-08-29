@@ -17,11 +17,11 @@
  *   - reword, by clicking the text;
  *   - drop, by the trailing ✕.
  *
- * What it deliberately does NOT carry is the `soft` / `unusable` meta line.
- * "Myro can't run this — reword it" is actionable and must stay visible, so a
- * line with a meta note renders `wide` — a full-row chip with the note under
- * it. Exceptional lines get exceptional space; there are one or two per order,
- * not twenty.
+ * What it does not carry inline is the meta note. "Myro can't run this —
+ * reword it" is an instruction and must stay visible, so a line carrying one
+ * renders `wide`: a full-row chip with the note beneath it. Exceptional lines
+ * get exceptional space, and there are one or two per order rather than twenty.
+ * See `metaFor` for the one case where a note is suppressed and why.
  */
 
 import { useEffect, useRef, useState } from "react"
@@ -33,11 +33,22 @@ import "./chip.css"
 
 const USER_SOURCES: readonly LineSource[] = ["user_said", "user_reworded"]
 
-/** The note under a wide chip. The rail already says who authored the line, so
- *  only the two things the rail CANNOT say earn a row of their own. */
-function metaFor(line: OrderLine): string | null {
+/**
+ * The note under a wide chip.
+ *
+ * The rail already says who authored the line, so only the two things the rail
+ * CANNOT say earn a row of their own — and one of them stops earning it inside
+ * the group whose whole meaning is softness. "a preference, not a hard line"
+ * under a chip in DRAWN TO is the group label restated, and it cost that group
+ * 120px against the 56px an ordinary one takes. Under WON'T TAKE, where the
+ * label means the opposite, it is the only thing saying this one does not
+ * exclude — so the caller decides, per slot.
+ *
+ * `unusable` is never suppressed. It is an instruction, not a classification.
+ */
+function metaFor(line: OrderLine, softNote: boolean): string | null {
   if (line.unusable) return "Myro can't run this — reword it"
-  if (line.soft) return "a preference, not a hard line"
+  if (line.soft && softNote) return "a preference, not a hard line"
   return null
 }
 
@@ -46,17 +57,20 @@ export function Chip({
   onReword,
   onDrop,
   busy,
+  softNote = true,
 }: {
   line: OrderLine
   onReword: (text: string) => void
   onDrop: () => void
   busy?: boolean
+  /** False inside a slot that already means "soft" — see `metaFor`. */
+  softNote?: boolean
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(line.text)
   const input = useRef<HTMLInputElement>(null)
   const said = USER_SOURCES.includes(line.source) ? "user" : "myro"
-  const meta = metaFor(line)
+  const meta = metaFor(line, softNote)
 
   // Fresh text from the server (a save landing, another tab rewording)
   // overwrites the draft only while we are not editing.
@@ -109,7 +123,11 @@ export function Chip({
       /* The rail is a colour bar — invisible to a screen reader. The source it
          encodes travels in the accessible name instead, so the attribution is
          never sighted-only. */
-      aria-label={`${line.text} — ${SOURCE_LABEL[line.source]}`}
+      aria-label={
+        line.soft && !softNote
+          ? `${line.text} — ${SOURCE_LABEL[line.source]}, a preference, not a hard line`
+          : `${line.text} — ${SOURCE_LABEL[line.source]}`
+      }
     >
       <span className="pf-chip-main">
         <button

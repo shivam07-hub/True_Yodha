@@ -142,8 +142,11 @@ test("the meta line earns its place or is absent", () => {
 
 test("the rail's meaning survives without sight", () => {
   // A 2.5px colour bar is invisible to a screen reader, so the source it
-  // encodes travels in the accessible name too.
-  assert.match(chip, /aria-label=\{`\$\{line\.text\} — \$\{SOURCE_LABEL\[line\.source\]\}`\}/)
+  // encodes travels in the accessible name too — and so does softness on the
+  // one chip whose visible note is suppressed because its group already says
+  // it. Sighted readers get the group label; everyone else gets the words.
+  assert.match(chip, /\$\{line\.text\} — \$\{SOURCE_LABEL\[line\.source\]\}/)
+  assert.match(chip, /line\.soft && !softNote[\s\S]{0,140}a preference, not a hard line/)
 })
 
 test("the journey renders the resolver's partition, it does not compute one", () => {
@@ -584,6 +587,20 @@ test("the chip is a third of the plate, and keeps everything the plate carried",
   assert.match(chip, /aria-label=\{`Edit \$\{line\.text\}`\}/)
   assert.match(chip, /aria-label=\{`Remove \$\{line\.text\}`\}/)
   assert.match(chipCss, /\.pf-chips \{[\s\S]{0,160}flex-wrap: wrap/)
+})
+
+test("nothing on a chip is set in a token that fails contrast in light", () => {
+  // `--tm-text-faint` measures 2.65:1 against the light modal ground. The
+  // drift guard's faint-text rule keys on >=13px and the chip's text is
+  // 12.5px, its note 11.5px and its counter 10px — so all three slipped
+  // under it, and all three are things the reader has to be able to read:
+  // the empty state's only words, an instruction ("reword it"), and "6 of 6".
+  const live = chipCss.replace(/\/\*[\s\S]*?\*\//g, "")
+  assert.doesNotMatch(
+    live,
+    /--tm-text-faint/,
+    "chip text, its note and its counter are muted, not faint — see the light-theme measurements",
+  )
 })
 
 test("the step head is the biggest thing on the screen", () => {

@@ -84,7 +84,7 @@
 }
 /* Sign off carries all six groups at once, so its groups sit closer together —
    the step screens hold two at most and can afford the air. */
-.pf-step-body[data-dense="true"] { gap: 18px; }
+.pf-step-body[data-dense="true"] { gap: 15px; }
 
 .pf-signoff-said {
   margin: 0;

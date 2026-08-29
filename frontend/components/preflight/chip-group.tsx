@@ -64,9 +64,15 @@ export function ChipGroup({
   onRewordLine: (lineId: string, text: string) => void
 }) {
   const count = slotCount(arity, filled)
+  /* An empty slot puts its label and its invitation on ONE line. Stacked, the
+     two cost 56px to say six words — and the case the redesign exists for is
+     an order with three empty slots, where that is 168px of nothing between
+     the reader and the button. Filled groups keep the stack: a wrapping row of
+     chips beside a label column would cramp a won't-take sentence at 375px. */
+  const empty = lines.length === 0 && conflicts.length === 0
 
   return (
-    <section className="pf-group" aria-label={copy.label}>
+    <section className="pf-group" data-empty={empty ? "true" : undefined} aria-label={copy.label}>
       {showLabel ? (
         <div className="pf-group-head">
           <h3 className="pf-group-label">{copy.label}</h3>
@@ -80,6 +86,11 @@ export function ChipGroup({
             key={line.id}
             line={line}
             busy={busy}
+            /* "a preference, not a hard line" inside DRAWN TO is the group's
+               own label restated — and a wide chip costs its group 120px
+               against 56. Under WON'T TAKE it is the only thing saying this
+               one does not exclude, so it stays. */
+            softNote={copy.addKind !== "lean"}
             onReword={(text) => onRewordLine(line.id, text)}
             onDrop={() => onAnswerLine(line.id, "dropped")}
           />
