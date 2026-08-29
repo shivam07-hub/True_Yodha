@@ -118,9 +118,11 @@ test("every Myro conversation goes through the one seam", () => {
   // modal against the same order and the same engine; its complaint path is a
   // landing inside Myro Search ("say") rather than a rival door.
   assert.match(
-    read("components/preflight/preflight-gate.tsx"),
+    // The gate's network turns; lifted out of the shell when it crossed 300
+    // lines. Same one surface, same one route.
+    read("components/preflight/use-order-turns.ts"),
     /preflight\.proposals\(/,
-    "the gate proposes through the order",
+    "Myro Search proposes through the order",
   )
   assert.doesNotMatch(
     read("components/preflight/say-band.tsx"),

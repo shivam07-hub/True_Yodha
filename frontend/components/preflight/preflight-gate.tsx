@@ -33,16 +33,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useQueryClient } from "@tanstack/react-query"
 
-import { preflight, tracks as tracksApi } from "@/lib/api"
-import { dataKeys, invalidateTargetRoleData } from "@/lib/domain-data"
-import { applyErrorMessage } from "@/lib/preflight/apply-error"
+import { preflight } from "@/lib/api"
+import { dataKeys } from "@/lib/domain-data"
 import { visibleConflicts } from "@/lib/preflight/conflicts"
-import { useOrder, useOrderMutations, usePreflightPrice, invalidateOrder } from "@/lib/preflight/use-order"
-import type { LineKind, OrderProposal } from "@/lib/preflight/types"
+import { useOrder, usePreflightPrice, invalidateOrder } from "@/lib/preflight/use-order"
 import { useMatchRunStore } from "@/store/matchRunStore"
 import { useRefreshGateStore } from "@/store/refreshGateStore"
 import { useXPStore } from "@/store/xpStore"
 import { refreshIsLive, type UseJobRefreshResult } from "@/lib/hooks/use-job-refresh"
+
+import { useOrderTurns } from "./use-order-turns"
 
 import { Journey } from "./journey"
 import { PreflightHeader } from "./preflight-header"
@@ -58,7 +58,6 @@ import "./journey.css"
 import "./screen-running.css"
 
 type Mode = "canvas" | "running" | "done"
-type Verdict = "kept" | "dropped" | null
 
 export function PreflightGate({
   token,
@@ -82,28 +81,27 @@ export function PreflightGate({
   // Its own request. The order renders the moment IT lands; only the Run button
   // waits on this one. See `usePreflightPrice`.
   const { data: price } = usePreflightPrice(token, open)
-  const { answerLine, rewordLine, addLine, apply, undo } = useOrderMutations(token)
+  const {
+    answerLine, rewordLine,
+    proposals, proposalAnswers, pending, error,
+    setError, reset: resetTurns,
+    undoLast, saySomething, proposeTopic, answerProposal, addToSlot,
+  } = useOrderTurns(token)
 
   const [mode, setMode] = useState<Mode>("canvas")
-  const [proposals, setProposals] = useState<OrderProposal[]>([])
-  const [proposalAnswers, setProposalAnswers] = useState<Record<string, Verdict>>({})
-  const [pending, setPending] = useState(false)
   /** `order.log` length when this modal opened. Everything before it is
    *  history; everything after it is something the user just did. */
   const [logBase, setLogBase] = useState<number | null>(null)
   const [starting, setStarting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const turnRef = useRef(0)
 
   // Reset ephemeral state on every open — the order stays in the cache.
   useEffect(() => {
     if (!open) return
-    setProposals([]); setProposalAnswers({}); setPending(false)
-    setStarting(false); setError(null); setMode("canvas"); setLogBase(null)
-    turnRef.current += 1
+    resetTurns()
+    setStarting(false); setMode("canvas"); setLogBase(null)
     const t = setTimeout(() => dialogRef.current?.focus(), 30)
     return () => clearTimeout(t)
-  }, [open])
+  }, [open, resetTurns])
 
   // A refresh's own state drives the wait modes. A failure returns to the
   // canvas so the user can try again — sitting on a frozen log was the trap.
@@ -115,7 +113,7 @@ export function PreflightGate({
       setError(refreshVm.errorMessage)
       setMode("canvas")
     }
-  }, [refreshVm.state, refreshVm.errorMessage])
+  }, [refreshVm.state, refreshVm.errorMessage, setError])
 
   // Ranking is J0 for as long as this modal is the wait. Feed/warm/rails stay
   // paused through "Run complete" so a 73s judgment-lane call cannot start
@@ -154,13 +152,13 @@ export function PreflightGate({
   /**
    * The one change this session that can be taken back.
    *
-   * Dropping a line is otherwise a ONE-WAY DOOR: the plates render the
-   * resolver's placed lines, the heard fold renders unanswered ones, and a
-   * dropped line appears in neither — so a mis-tap on a statement the user
-   * wanted was unrecoverable without retyping it. The reversal machinery
-   * (`log`, `LogEntry.prev`, `lines.undo`) has existed and been tested since
-   * the order shipped; the market bottom-sheet was its only caller, and
-   * deleting that surface orphaned it.
+   * Dropping a line is otherwise a ONE-WAY DOOR: the groups render the
+   * resolver's placed lines, the asks render the unanswered ones, and a dropped
+   * line appears in neither — so a mis-tap on a statement the user wanted was
+   * unrecoverable without retyping it. The reversal machinery (`log`,
+   * `LogEntry.prev`, `lines.undo`) has existed and been tested since the order
+   * shipped; the market bottom-sheet was its only caller, and deleting that
+   * surface orphaned it.
    *
    * The LAST entry only. The sheet showed a running changelog; a list of
    * everything you have done is chrome, and one step back is what a mis-tap
@@ -171,140 +169,6 @@ export function PreflightGate({
     return order.log[order.log.length - 1] ?? null
   }, [order, logBase])
 
-  const undoLast = useCallback(async (entryId: string) => {
-    setError(null)
-    try {
-      await undo.mutateAsync(entryId)
-    } catch (err) {
-      setError(applyErrorMessage(err))
-      await invalidateOrder(client)
-    }
-  }, [client, undo])
-
-  // ── conversation turn: something new the user said ─────────────────────────
-  const saySomething = useCallback(async (text: string) => {
-    if (!token) return
-    const turn = ++turnRef.current
-    setPending(true); setError(null)
-    try {
-      // The server owns what "the user just said" means. Storing it first
-      // means proposals reference the same order revision the review does.
-      await preflight.setSaid(token, text)
-      if (turn !== turnRef.current) return
-      const res = await preflight.proposals(token, { utterance: text })
-      if (turn !== turnRef.current) return
-      setProposals(res.proposals)
-      setProposalAnswers({})
-      await invalidateOrder(client)
-    } catch {
-      if (turn !== turnRef.current) return
-      setError("Myro couldn't read that just then. Your words are saved — try again.")
-    } finally {
-      if (turn === turnRef.current) setPending(false)
-    }
-  }, [client, token])
-
-  /**
-   * A named topic — the deterministic half of "something's off".
-   *
-   * `proposals.from_topic` answers it off a table: no LLM turn, no cost, and it
-   * can strike a kept line the topic is about ("no senior management" is what
-   * caps the level). A chip is only worth offering INSTEAD of a blank line
-   * because of that — routing it through the mentor as a sentence, which is
-   * what the say band did on its first pass, spends a turn re-deriving
-   * something the click already said.
-   *
-   * It does not touch `said`: sentence one of the brief is the work the user
-   * wants, not the complaint they have about the results.
-   */
-  const proposeTopic = useCallback(async (topic: string) => {
-    if (!token) return
-    const turn = ++turnRef.current
-    setPending(true); setError(null)
-    try {
-      const res = await preflight.proposals(token, { topic })
-      if (turn !== turnRef.current) return
-      setProposals(res.proposals)
-      setProposalAnswers({})
-    } catch {
-      if (turn !== turnRef.current) return
-      setError("Myro couldn't read that just then. Nothing changed — try again.")
-    } finally {
-      if (turn === turnRef.current) setPending(false)
-    }
-  }, [token])
-
-  // A proposal accepted here writes the same effect the old batch commit did,
-  // one at a time — the server dedupes and every apply reads the fresh order.
-  const answerProposal = useCallback(async (id: string, verdict: Verdict) => {
-    setProposalAnswers((prev) => ({ ...prev, [id]: verdict }))
-    if (verdict !== "kept") return
-    const proposal = proposals.find((p) => p.id === id)
-    if (!proposal) return
-    /**
-     * A SECOND SEARCH is not an order edit.
-     *
-     * `/order/apply` acts on add and drop, so an `open_track` effect sent there
-     * is a silent no-op — the user would say yes and nothing would exist. It
-     * goes to `POST /tracks`, which re-checks the gate at write time: the
-     * proposal was built when `can_open` was true, and it may not be by the
-     * time the yes lands. A 409 there is not a failure to hide, it is the
-     * reason, and the server writes it in words that never say "locked".
-     */
-    const track = proposal.effects.find((e) => e.op === "open_track")
-    if (track) {
-      try {
-        await tracksApi.open(token!, {
-          label: track.text,
-          role_titles: track.role_titles ?? [],
-        })
-      } catch (err) {
-        setError((err as Error)?.message || "Couldn't open that search just now.")
-        setProposalAnswers((prev) => ({ ...prev, [id]: null }))
-      }
-      return
-    }
-    try {
-      await apply.mutateAsync({ effects: proposal.effects, origin: "preflight" })
-      // Narrowing is free: the roles already scored can be re-read against the
-      // new order without a run. The market sheet did this and the gate did
-      // not, so the same accepted proposal changed the feed from one door and
-      // not the other.
-      //
-      // A WIDENING proposal is the opposite — it brings roles into scope that
-      // have never been rated, and re-reading cannot rate them. Refetching the
-      // feed there spends a read to show the user the same list, which is how
-      // "I accepted it and nothing happened" becomes "I accepted it and it
-      // took a second to not happen". The server already classifies which is
-      // which; it just had nobody listening.
-      if (!proposal.costly) invalidateTargetRoleData(client)
-    } catch (err) {
-      // Keep the server's reason — a 409 says the order changed elsewhere and
-      // the user needs to see it, not a generic "didn't stick".
-      setError(applyErrorMessage(err))
-      setProposalAnswers((prev) => ({ ...prev, [id]: null }))
-      await invalidateOrder(client)
-    }
-  }, [apply, client, proposals, token])
-
-  /**
-   * A line added straight into a slot.
-   *
-   * No proposals round trip and no LLM turn: the user picked the slot by
-   * picking which group's "+" to press, so the kind is already known. That
-   * makes the add deterministic, instant and free — the conversational path
-   * stays for the case where they have a sentence rather than a line.
-   */
-  const addToSlot = useCallback(async (kind: LineKind, text: string, roleFamily?: string) => {
-    if (!token) return
-    setError(null)
-    try {
-      await addLine.mutateAsync({ kind, text, origin: "preflight", role_family: roleFamily })
-    } catch (err) {
-      setError(applyErrorMessage(err))
-      await invalidateOrder(client)
-    }
-  }, [addLine, client, token])
 
   // ── run ────────────────────────────────────────────────────────────────────
   const run = useCallback(async () => {
@@ -325,7 +189,7 @@ export function PreflightGate({
     } finally {
       setStarting(false)
     }
-  }, [client, order, refreshVm, starting, token])
+  }, [client, order, refreshVm, setError, starting, token])
 
   if (!open || typeof document === "undefined") return null
 
@@ -402,8 +266,7 @@ export function PreflightGate({
                   onRunAgain={() => {
                     refreshVm.reset()
                     setMode("canvas")
-                    setProposals([])
-                    setProposalAnswers({})
+                    resetTurns()
                     void invalidateOrder(client)
                   }}
                 />

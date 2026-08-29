@@ -18,6 +18,8 @@ import { test } from "node:test"
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8")
 
 const gate = read("components/preflight/preflight-gate.tsx")
+/** The gate's network turns — lifted out when the shell crossed 300 lines. */
+const turns = read("components/preflight/use-order-turns.ts")
 const journey = read("components/preflight/journey.tsx")
 const jfooter = read("components/preflight/journey-footer.tsx")
 const derive = read("lib/preflight/derive.ts")
@@ -76,7 +78,7 @@ test("ONE door — the complaint is a landing inside Myro Search, not a rival to
   // And the order is still ONE record behind one query key.
   assert.match(useOrder, /order: \(\) => \["preflight", "order"\]/)
   assert.match(gate, /useOrder\(/)
-  assert.match(gate, /useOrderMutations\(/)
+  assert.match(turns, /useOrderMutations\(/)
 })
 
 test("the say band carries the chips the sheet was worth keeping", () => {
@@ -92,15 +94,15 @@ test("the say band carries the chips the sheet was worth keeping", () => {
   // A chip is a NAMED TOPIC, answered by `proposals.from_topic` off a table:
   // no LLM turn, no cost, and it can strike the kept line the topic is about.
   assert.match(say, /onTopic\(topic\)/)
-  assert.match(gate, /preflight\.proposals\(token, \{ topic \}\)/)
+  assert.match(turns, /preflight\.proposals\(token, \{ topic \}\)/)
   // …and it must not overwrite `said`: sentence one of the brief is the work
   // the user wants, not the complaint they have about the results.
-  const topicTurn = gate.slice(gate.indexOf("const proposeTopic"), gate.indexOf("const answerProposal"))
+  const topicTurn = turns.slice(turns.indexOf("const proposeTopic"), turns.indexOf("const answerProposal"))
   assert.doesNotMatch(topicTurn, /setSaid/)
   // Narrowing is free — the gate re-reads the feed without charging a run.
   // Widening brings roles into scope nothing has rated, so re-reading cannot
   // show them; that refetch spends a read to render the same list.
-  assert.match(gate, /if \(!proposal\.costly\) invalidateTargetRoleData\(client\)/)
+  assert.match(turns, /if \(!proposal\.costly\) invalidateTargetRoleData\(client\)/)
 })
 
 test("every mutation writes the server's answer back into the cache", () => {
@@ -261,12 +263,12 @@ test("a proposal accepted here writes on click — no batch commit", () => {
   // The old shell held answers and applied them all at once, which is where
   // 422s from an over-capped effects array came from. Each yes is its own
   // apply now, so the server dedupes and any failure is per-proposal.
-  assert.match(gate, /const answerProposal = useCallback\(async \(id: string, verdict: Verdict\)/)
-  assert.match(gate, /apply\.mutateAsync\(\{ effects: proposal\.effects, origin: "preflight" \}\)/)
+  assert.match(turns, /const answerProposal = useCallback\(async \(id: string, verdict: Verdict\)/)
+  assert.match(turns, /apply\.mutateAsync\(\{ effects: proposal\.effects, origin: "preflight" \}\)/)
 })
 
 test("a failed apply keeps the server's reason and rewinds the pick", () => {
-  const body = gate.slice(gate.indexOf("const answerProposal"), gate.indexOf("// ── run"))
+  const body = turns.slice(turns.indexOf("const answerProposal"), turns.indexOf("const addToSlot"))
   assert.match(body, /applyErrorMessage\(err\)/)
   assert.match(body, /invalidateOrder\(client\)/)
   assert.match(body, /setProposalAnswers\(\(prev\) => \(\{ \.\.\.prev, \[id\]: null \}\)\)/)
@@ -333,18 +335,15 @@ test("adding into a slot needs no inference and no LLM turn", () => {
   // is already known. Routing that through /preflight/proposals would spend
   // an LLM turn re-deriving something the click already said.
   assert.match(group, /onAdd\(copy\.addKind, text\)/)
-  assert.match(gate, /addLine\.mutateAsync\(\{ kind, text, origin: "preflight"/)
-  assert.doesNotMatch(
-    gate.slice(gate.indexOf("const addToSlot"), gate.indexOf("// ── run")),
-    /preflight\.proposals/,
-  )
+  assert.match(turns, /addLine\.mutateAsync\(\{ kind, text, origin: "preflight"/)
+  assert.doesNotMatch(turns.slice(turns.indexOf("const addToSlot")), /preflight\.proposals/)
 })
 
 test("dropping a chip is not a one-way door", () => {
   // The groups render the resolver's PLACED lines and the asks render the
   // unanswered ones, so a dropped line appears in neither — a mis-tap could
   // only be undone by retyping the statement.
-  assert.match(gate, /undo\.mutateAsync\(entryId\)/)
+  assert.match(turns, /undo\.mutateAsync\(entryId\)/)
   assert.match(jfooter, /onUndo\(undoable\.id\)/)
 
   // The last change of THIS session, not the last row of a log that outlives
@@ -451,6 +450,7 @@ test("no rule survives the element it styled", () => {
   const rendered = new Set<string>()
   for (const file of [
     "components/preflight/preflight-gate.tsx",
+    "components/preflight/use-order-turns.ts",
     "components/preflight/journey.tsx",
     "components/preflight/journey-footer.tsx",
     "components/preflight/step-slot.tsx",
@@ -502,7 +502,7 @@ test("every Myro utterance pad is SayPad, not a one-line input", () => {
 
 test("the run price comes from the server, never a client constant", () => {
   assert.match(jfooter, /price\?\.run_cost \?\? 0/)
-  for (const [name, src] of [["gate", gate], ["journey", journey], ["footer", jfooter]] as const) {
+  for (const [name, src] of [["gate", gate], ["journey", journey], ["footer", jfooter], ["turns", turns]] as const) {
     assert.doesNotMatch(src, /MYRO_COINS_POLICY|matchRefreshCost/, `${name} must not price a run`)
   }
 })
@@ -535,11 +535,11 @@ test("a second search is opened by /tracks, never by the order's apply", () => {
   // is a silent no-op: the user says yes and nothing exists. It also has to
   // re-check the gate at write time — the proposal was built when `can_open`
   // was true and may not be by the time the yes lands.
-  assert.match(gate, /proposal\.effects\.find\(\(e\) => e\.op === "open_track"\)/)
-  assert.match(gate, /tracksApi\.open\(token!, \{/)
-  assert.match(gate, /role_titles: track\.role_titles \?\? \[\]/)
+  assert.match(turns, /proposal\.effects\.find\(\(e\) => e\.op === "open_track"\)/)
+  assert.match(turns, /tracksApi\.open\(token!, \{/)
+  assert.match(turns, /role_titles: track\.role_titles \?\? \[\]/)
   // The branch returns; a track must never also be pushed through apply.
-  const branch = gate.slice(gate.indexOf("const track = proposal.effects.find"))
+  const branch = turns.slice(turns.indexOf("const track = proposal.effects.find"))
   assert.match(branch.slice(0, 700), /return\n?\s*\}/)
 
   const api = read("lib/api.ts")
@@ -555,7 +555,7 @@ test("the gate's reason is rendered, and it is never a lock", () => {
   const block = api.slice(api.indexOf("export const tracks"), api.indexOf("export const users"))
   const types = api.slice(api.indexOf("export interface TracksState"))
   assert.match(types.slice(0, 400), /blocked_reason: string \| null/)
-  for (const src of [block, gate]) {
+  for (const src of [block, turns]) {
     assert.doesNotMatch(src, /padlock|🔒|"Pro"|coming soon/i)
   }
 })

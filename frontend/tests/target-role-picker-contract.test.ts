@@ -40,5 +40,5 @@ test("the pre-flight carries the family it resolved onto the order", () => {
   // Without this the title reaches `target_role_titles` and `derive()` keeps the
   // STORED family, because a family cannot be recovered from free text.
   assert.match(read("components/preflight/chip-group.tsx"), /onAdd\("role", role\.label, role\.family\)/)
-  assert.match(read("components/preflight/preflight-gate.tsx"), /role_family: roleFamily/)
+  assert.match(read("components/preflight/use-order-turns.ts"), /role_family: roleFamily/)
 })
