@@ -118,12 +118,19 @@ export interface OrderPrice {
 }
 
 export interface OrderEffect {
-  op: "add" | "drop"
+  /** `open_track` is not an order edit: it opens a SECOND SEARCH. It never
+   *  reaches `/order/apply` (which acts on add/drop only) — the gate routes it
+   *  to `POST /tracks`, where the server re-checks whether the user has earned
+   *  one. A proposal made while the gate was open must not be able to create a
+   *  track after it has closed. */
+  op: "add" | "drop" | "open_track"
   kind?: LineKind | null
   text: string
   line_id?: string | null
   /** "new line · won't take", or why a line is being struck. */
   label: string
+  /** `open_track` only — the titles the second search runs on. */
+  role_titles?: string[] | null
 }
 
 export interface OrderProposal {

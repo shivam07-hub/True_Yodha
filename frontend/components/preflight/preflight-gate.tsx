@@ -33,7 +33,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useQueryClient } from "@tanstack/react-query"
 
-import { preflight } from "@/lib/api"
+import { preflight, tracks as tracksApi } from "@/lib/api"
 import { dataKeys, invalidateTargetRoleData } from "@/lib/domain-data"
 import { applyErrorMessage } from "@/lib/preflight/apply-error"
 import { visibleConflicts } from "@/lib/preflight/conflicts"
@@ -241,6 +241,29 @@ export function PreflightGate({
     if (verdict !== "kept") return
     const proposal = proposals.find((p) => p.id === id)
     if (!proposal) return
+    /**
+     * A SECOND SEARCH is not an order edit.
+     *
+     * `/order/apply` acts on add and drop, so an `open_track` effect sent there
+     * is a silent no-op — the user would say yes and nothing would exist. It
+     * goes to `POST /tracks`, which re-checks the gate at write time: the
+     * proposal was built when `can_open` was true, and it may not be by the
+     * time the yes lands. A 409 there is not a failure to hide, it is the
+     * reason, and the server writes it in words that never say "locked".
+     */
+    const track = proposal.effects.find((e) => e.op === "open_track")
+    if (track) {
+      try {
+        await tracksApi.open(token!, {
+          label: track.text,
+          role_titles: track.role_titles ?? [],
+        })
+      } catch (err) {
+        setError((err as Error)?.message || "Couldn't open that search just now.")
+        setProposalAnswers((prev) => ({ ...prev, [id]: null }))
+      }
+      return
+    }
     try {
       await apply.mutateAsync({ effects: proposal.effects, origin: "preflight" })
       // Narrowing is free: the roles already scored can be re-read against the
@@ -262,7 +285,7 @@ export function PreflightGate({
       setProposalAnswers((prev) => ({ ...prev, [id]: null }))
       await invalidateOrder(client)
     }
-  }, [apply, client, proposals])
+  }, [apply, client, proposals, token])
 
   /**
    * A line added straight into a slot.

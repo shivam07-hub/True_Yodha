@@ -317,6 +317,140 @@ def test_an_utterance_yields_one_proposal_per_field():
     assert built[1].value == "people-management roles"
 
 
+# ── how many questions a screen may ask ──────────────────────────────────────
+
+
+def _brief(facts):
+    from app.services.matching.targeting import MemoryFact, TargetingBrief
+
+    return TargetingBrief(
+        profile={}, facts=[MemoryFact(kind=k, text=t) for k, t in facts]
+    )
+
+
+def test_guesses_never_exceed_the_slot_that_would_hold_them():
+    """One prod order held 53 lines and 37 rejections. `brief.facts` is uncapped
+    — the 8-fact cap in `targeting` is the ranking prompt's — so a user with 66
+    notes met about forty questions in slots that hold six. Proposing twenty
+    into a six-slot budget guarantees fourteen rejections whatever they want."""
+    from app.services.preflight import memory_import
+
+    brief = _brief(
+        [("constraint", f"no thing {i}") for i in range(20)]
+        + [("preference", f"likes {i}") for i in range(15)]
+    )
+    guesses = memory_import.guesses_from(brief)
+    assert sum(1 for g in guesses if g.kind == "wont_take") == 6
+    assert sum(1 for g in guesses if g.kind == "lean") == 6
+
+
+def test_the_cap_is_read_from_the_resolver_not_picked():
+    """A number typed here would drift from the slot it is protecting."""
+    from app.services.preflight import memory_import, spec
+
+    brief = _brief([("constraint", f"no thing {i}") for i in range(30)])
+    kept = sum(1 for g in memory_import.guesses_from(brief) if g.kind == "wont_take")
+    assert kept == spec.SLOT_ARITY["deal_breakers"]
+
+
+def test_a_note_said_more_than_once_wins_the_budget():
+    """Repetition is the only evidence of strength this module has: the
+    distiller filing the same note twice means the user said it twice."""
+    from app.services.preflight import memory_import
+
+    brief = _brief(
+        [("constraint", f"filler {i}") for i in range(6)]
+        + [("constraint", "no night shifts"), ("constraint", "no night shifts")]
+    )
+    texts = [g.text for g in memory_import.guesses_from(brief) if g.kind == "wont_take"]
+    assert "night shifts" in texts
+
+
+def test_capping_does_not_reshuffle_what_survives():
+    """The ranking decides WHICH guesses survive, never where they sit — a
+    screen that reorders itself between opens is one the user cannot learn."""
+    from app.services.preflight import memory_import
+
+    brief = _brief([("constraint", f"no thing {i}") for i in range(10)])
+    texts = [g.text for g in memory_import.guesses_from(brief) if g.kind == "wont_take"]
+    assert texts == sorted(texts, key=lambda t: int(t.split()[-1]))
+
+
+# ── a second search ──────────────────────────────────────────────────────────
+
+_TWO_SEARCHES = {
+    "add_roles": ["Consulting"],
+    "second_search": {"label": "Marketing", "role_titles": ["Product Marketing Manager"]},
+}
+
+
+def test_a_second_search_is_never_proposed_behind_a_shut_gate():
+    """`can_open` is false until the first search has produced a tailored CV.
+    Proposing something the server will 409 is worse than not offering it — the
+    user says yes and Myro appears to change its mind."""
+    built = proposals.from_utterance(_TWO_SEARCHES, ops.Order(), can_open_track=False)
+    assert all(p.eyebrow != "A SECOND SEARCH" for p in built)
+    # …and the FIRST search is still proposed. A shut track gate must not
+    # swallow the roles they actually named.
+    assert [p.eyebrow for p in built] == ["THE WORK"]
+
+
+def test_a_second_search_is_one_question_carrying_its_own_titles():
+    built = proposals.from_utterance(_TWO_SEARCHES, ops.Order(), can_open_track=True)
+    track = next(p for p in built if p.eyebrow == "A SECOND SEARCH")
+    assert track.value == "Marketing"
+    assert len(track.effects) == 1, "one question, not a form"
+    effect = track.effects[0]
+    assert effect.op == "open_track"
+    assert effect.role_titles == ["Product Marketing Manager"]
+    # Opening it scores nothing on its own — it runs on its own quota next time.
+    assert track.costly is False
+
+
+def test_open_track_carries_titles_through_the_wire_shape():
+    built = proposals.from_utterance(_TWO_SEARCHES, ops.Order(), can_open_track=True)
+    effect = next(p for p in built if p.eyebrow == "A SECOND SEARCH").effects[0].to_dict()
+    assert effect["role_titles"] == ["Product Marketing Manager"]
+    assert effect["kind"] is None, "a track is not a line kind"
+
+
+def test_apply_ignores_an_open_track_effect_by_construction():
+    """A track is created by `POST /tracks`, never by the order's apply loop.
+    If one ever reaches apply it must be inert rather than half-applied — the
+    loop acts on add and drop only."""
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parents[1] / "app/routers/preflight.py").read_text()
+    # The apply-EFFECTS loop specifically — the file has more than one local
+    # `apply`, and the others act on a single line id.
+    body = src[src.index("for effect in body.effects:"):]
+    body = body[: body.index("return _mutated")]
+    assert 'effect.op == "drop"' in body
+    assert 'effect.op == "add"' in body
+    assert "open_track" not in body
+
+
+def test_the_extract_prompt_says_when_two_searches_are_one():
+    """88 of 106 users with a target set exactly ONE role title, and most of the
+    18 who set more said one intent several ways. The prompt has to lean that
+    way or every "Software Engineer / Full Stack" utterance opens a track."""
+    from app.services.intent_chat_service import EXTRACT_TASK
+
+    assert "second_search" in EXTRACT_TASK
+    assert "When in doubt it is one search." in EXTRACT_TASK
+
+
+def test_a_second_search_needs_both_a_label_and_titles():
+    from app.services.intent_chat_service import _second_search
+
+    assert _second_search({"label": "Marketing", "role_titles": []}) is None
+    assert _second_search({"label": "", "role_titles": ["PMM"]}) is None
+    assert _second_search("Marketing") is None
+    assert _second_search({"label": " Marketing ", "role_titles": [" PMM ", ""]}) == {
+        "label": "Marketing", "role_titles": ["PMM"],
+    }
+
+
 # ── concurrent writes ────────────────────────────────────────────────────────
 
 

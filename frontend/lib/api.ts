@@ -657,6 +657,47 @@ export const preflight = {
     }),
 }
 
+export interface Track {
+  /** null on the profile track — track 1 has no row and never gets one. */
+  id: number | null
+  label: string
+  role_titles: string[]
+  position: number
+  is_profile: boolean
+}
+
+export interface TracksState {
+  tracks: Track[]
+  can_open: boolean
+  /** The next step, in words. Never a lock. */
+  blocked_reason: string | null
+  max_tracks: number
+}
+
+/**
+ * The user's searches. `tracks[0]` is always the profile track — no row, no id
+ * — so a caller never reads the profile and the table separately and stitches
+ * them.
+ *
+ * `can_open` is false until the first search has produced a tailored CV, and
+ * `blocked_reason` is the next step in words. Render the reason. Never a
+ * padlock, never "Pro", never the word "locked" — there is a server-side test
+ * asserting the string never contains it, and the UI must not say what the API
+ * refuses to.
+ */
+export const tracks = {
+  list: (token: string) =>
+    request<TracksState>("/tracks", { headers: { Authorization: `Bearer ${token}` } }),
+
+  /** 201, or 409 with the reason — the gate is re-checked at write time. */
+  open: (token: string, input: { label: string; role_titles: string[] }) =>
+    request<TracksState>("/tracks", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(input),
+    }),
+}
+
 export const users = {
   me: (token: string) =>
     request<UserProfile>("/users/me", {

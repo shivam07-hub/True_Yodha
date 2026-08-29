@@ -22,9 +22,11 @@ from pydantic import BaseModel, Field
 
 from app.database import get_supabase_admin
 from app.deps import Principal, get_principal
+from app.repositories.job_tracks import JobTracksRepository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
+from app.repositories.onboarding import OnboardingRepository
 from app.repositories.users import UsersRepository, get_token_users_repository
-from app.services import mentor, mentor_learn, new_inventory, targeting_write
+from app.services import job_tracks, mentor, mentor_learn, new_inventory, targeting_write
 from app.services.job_refresh import JobRefresh
 from app.services.llm_provider import LLMProvider, get_interactive_provider
 from app.services.preflight import lines as line_ops
@@ -153,11 +155,17 @@ class PriceOut(BaseModel):
 
 
 class EffectOut(BaseModel):
-    op: Literal["add", "drop"]
+    #: `open_track` opens a SECOND SEARCH rather than editing this order. The
+    #: apply loop below acts on "add" and "drop" only, so one arriving here is
+    #: a no-op by construction; the client routes it to `POST /tracks`, which
+    #: re-checks the gate at write time.
+    op: Literal["add", "drop", "open_track"]
     kind: str | None = None
     text: str = ""
     line_id: str | None = None
     label: str = ""
+    #: `open_track` only — the words the second search runs on.
+    role_titles: list[str] | None = None
 
 
 class ProposalOut(BaseModel):
@@ -456,8 +464,31 @@ async def make_proposals(
     # work they want, and the distiller feeds it back as memory next time.
     background_tasks.add_task(mentor_learn.learn_from_turn, principal.id, body.utterance, "job_intent")
 
-    built = proposal_engine.from_utterance(turn.proposals, order)
+    built = proposal_engine.from_utterance(
+        turn.proposals, order, can_open_track=_can_open_track(principal.id)
+    )
     return ProposalsOut(reply=turn.reply, proposals=[ProposalOut(**p.to_dict()) for p in built])
+
+
+def _can_open_track(user_id: str) -> bool:
+    """May this user open a second search right now?
+
+    Read-only, and fail-soft: if the gate cannot be read, the answer is NO. A
+    proposal offered on a broken read is one the user accepts and the create
+    then 409s, which reads as Myro changing its mind.
+    """
+    try:
+        db = get_supabase_admin()
+        tracks_repo = JobTracksRepository(db)
+        profile = UsersRepository(db).get_profile(user_id) or {}
+        existing = job_tracks.tracks_for(tracks_repo, user_id, profile)
+        allowed, _reason = job_tracks.can_open_another(
+            existing, OnboardingRepository(db).get_state(user_id)
+        )
+        return allowed
+    except Exception:  # noqa: BLE001 - a gate that cannot be read is a shut gate
+        logger.info("metric preflight.track_gate_unreadable user=%s", user_id)
+        return False
 
 
 # ── run ──────────────────────────────────────────────────────────────────────

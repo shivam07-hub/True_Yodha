@@ -517,6 +517,38 @@ test("the price is its own request, and only the button waits for it", () => {
   assert.match(jfooter, /\? "pricing"/)
 })
 
+/* ── a second search ──────────────────────────────────────────────────────── */
+
+test("a second search is opened by /tracks, never by the order's apply", () => {
+  // `/order/apply` acts on add and drop, so an `open_track` effect sent there
+  // is a silent no-op: the user says yes and nothing exists. It also has to
+  // re-check the gate at write time — the proposal was built when `can_open`
+  // was true and may not be by the time the yes lands.
+  assert.match(gate, /proposal\.effects\.find\(\(e\) => e\.op === "open_track"\)/)
+  assert.match(gate, /tracksApi\.open\(token!, \{/)
+  assert.match(gate, /role_titles: track\.role_titles \?\? \[\]/)
+  // The branch returns; a track must never also be pushed through apply.
+  const branch = gate.slice(gate.indexOf("const track = proposal.effects.find"))
+  assert.match(branch.slice(0, 700), /return\n?\s*\}/)
+
+  const api = read("lib/api.ts")
+  assert.match(api, /export const tracks = \{/)
+  assert.match(api, /request<TracksState>\("\/tracks", \{\s*\n\s*method: "POST"/)
+})
+
+test("the gate's reason is rendered, and it is never a lock", () => {
+  // There is a server-side test asserting `blocked_reason` never contains
+  // "lock". The UI must not say what the API refuses to — no padlock, no
+  // "Pro", no "coming soon".
+  const api = read("lib/api.ts")
+  const block = api.slice(api.indexOf("export const tracks"), api.indexOf("export const users"))
+  const types = api.slice(api.indexOf("export interface TracksState"))
+  assert.match(types.slice(0, 400), /blocked_reason: string \| null/)
+  for (const src of [block, gate]) {
+    assert.doesNotMatch(src, /padlock|🔒|"Pro"|coming soon/i)
+  }
+})
+
 /* ── the journey ──────────────────────────────────────────────────────────── */
 
 test("the primary action is pinned, never the end of a scroll", () => {

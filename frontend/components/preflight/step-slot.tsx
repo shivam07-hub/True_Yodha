@@ -15,7 +15,6 @@ import type { LineSource, LineStatus, OrderLine, OrderProposal } from "@/lib/pre
 import type { StepGroup } from "@/lib/preflight/derive"
 import type { StepDef } from "@/lib/preflight/journey"
 import type { SlotCopy } from "@/lib/preflight/slots"
-import type { OrderConflict } from "@/lib/preflight/types"
 
 import { StepHead } from "@/components/journey/journey-chrome"
 
