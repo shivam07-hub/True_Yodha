@@ -11,6 +11,22 @@ import {
   STATIC_SECURITY_HEADERS,
 } from "../lib/security-policy"
 
+test("connect-src admits every public API host the client might call", () => {
+  const policy = buildContentSecurityPolicy({
+    nonce: "nonce-value",
+    apiUrl: "https://mirror-backend-prod-production.up.railway.app",
+    extraApiUrls: ["https://api.himyro.com"],
+    supabaseUrl: "https://project.supabase.co",
+    production: true,
+  })
+
+  assert.match(
+    policy,
+    /connect-src[^;]*https:\/\/mirror-backend-prod-production\.up\.railway\.app/,
+  )
+  assert.match(policy, /connect-src[^;]*https:\/\/api\.himyro\.com/)
+})
+
 test("security policy permits only app scripts and required payment/challenge providers", () => {
   const policy = buildContentSecurityPolicy({
     nonce: "nonce-value",
@@ -26,6 +42,15 @@ test("security policy permits only app scripts and required payment/challenge pr
   assert.doesNotMatch(policy, /script-src[^;]*'unsafe-inline'/)
   assert.match(policy, /frame-ancestors 'none'/)
   assert.match(policy, /upgrade-insecure-requests/)
+})
+
+test("middleware installs public-read hosts into connect-src", () => {
+  const middleware = readFileSync(
+    new URL("../middleware.ts", import.meta.url),
+    "utf8",
+  )
+  assert.match(middleware, /publicApiHost/)
+  assert.match(middleware, /publicApiConnectOrigins/)
 })
 
 test("static security headers include the complete prelaunch baseline", () => {

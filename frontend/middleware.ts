@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
+import { publicApiConnectOrigins, publicApiHost } from "./lib/public-api"
 import {
   buildContentSecurityPolicy,
   buildNewsletterChartPolicy,
@@ -16,9 +17,8 @@ export function middleware(request: NextRequest) {
     ? buildNewsletterChartPolicy(production)
     : buildContentSecurityPolicy({
         nonce,
-        apiUrl:
-          process.env.NEXT_PUBLIC_API_BASE_URL ??
-          process.env.NEXT_PUBLIC_API_URL,
+        apiUrl: publicApiHost(),
+        extraApiUrls: publicApiConnectOrigins(),
         supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
         production,
       })
