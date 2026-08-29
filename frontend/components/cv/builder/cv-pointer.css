@@ -1,0 +1,78 @@
+/* Pointer list — disclosure + drag chrome. Quiet until hover/focus.
+   Severity stays the 3px gutter; the row is a list item, not a poster card. */
+
+.cvw-pointers {
+  list-style: none; margin: 0; padding: 0;
+}
+
+.cvw-line.is-pointer {
+  grid-template-columns: 3px 28px minmax(0, 1fr) auto;
+  background: transparent;
+}
+
+.cvw-chrome {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 12px 0 0; min-width: 28px;
+}
+
+.cvw-disclose,
+.cvw-drag {
+  display: grid; place-items: center;
+  width: 28px; height: 28px; padding: 0;
+  border: 0; background: none; cursor: pointer; border-radius: 6px;
+  color: var(--tm-text-faint);
+}
+.cvw-drag { cursor: grab; opacity: 0; touch-action: none; }
+.cvw-line.is-dragging .cvw-drag { cursor: grabbing; }
+.cvw-disclose:hover,
+.cvw-drag:hover { color: var(--tm-text); background: var(--tm-surface-2); }
+.cvw-disclose:focus-visible,
+.cvw-drag:focus-visible {
+  outline: 2px solid var(--tm-accent-ring); outline-offset: 2px;
+  opacity: 1;
+}
+
+.cvw-disclose svg {
+  display: block;
+  transform: rotate(-90deg);
+  transition: transform var(--tm-dur-fast) var(--tm-ease);
+}
+.cvw-disclose[aria-expanded="true"] svg { transform: rotate(0deg); }
+
+.cvw-line:hover .cvw-drag,
+.cvw-line:focus-within .cvw-drag,
+.cvw-line.is-dragging .cvw-drag { opacity: 1; }
+
+.cvw-linetext.is-collapsed {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+}
+
+.cvw-line.is-pointer.is-collapsed .cvw-linebody { padding-top: 10px; padding-bottom: 10px; }
+.cvw-line.is-pointer.is-collapsed .cvw-verdict { padding-top: 12px; }
+.cvw-line.is-dragging { opacity: 0.6; z-index: 2; }
+.cvw-card:has(.cvw-line.is-dragging) { overflow: visible; }
+
+@media (hover: none) {
+  .cvw-drag { opacity: 1; }
+}
+
+@media (max-width: 900px) {
+  .cvw-line.is-pointer {
+    grid-template-columns: 3px 32px minmax(0, 1fr);
+    margin-bottom: 0;
+    border-radius: 0;
+    border-bottom: 1px solid var(--tm-border-faint);
+  }
+  .cvw-line.is-pointer .cvw-verdict { grid-column: 3; }
+  .cvw-disclose,
+  .cvw-drag { width: 32px; height: 32px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cvw-disclose svg { transition: none; }
+  .cvw-line.is-dragging { transition: none; }
+}

@@ -257,6 +257,35 @@
   content: ""; height: 1px; flex: 1; background: var(--tm-border-soft);
 }
 
+/* ── which search, and where it stopped being read ───────────────────────────
+ *
+ * Two boundaries, one element, told apart by weight rather than by words —
+ * a search NAME is the user's own language and the loudest thing on its row;
+ * the tier line is a quiet mark saying the brain read this far.
+ *
+ * The alternative was a sentence ("8 read closely · 12 more found"), and the
+ * rows already show both numbers. */
+
+.tm-feed-expansion-divider[data-kind="track"] {
+  min-height: 52px;
+  color: var(--tm-text);
+  font-size: var(--tm-fs-meta);
+  letter-spacing: -0.01em;
+}
+.tm-feed-expansion-divider[data-kind="track"]::before {
+  /* Named from the left, not centred: it opens a section rather than closing
+     one, and a centred name reads as a full stop. */
+  flex: 0 0 12px;
+}
+
+.tm-feed-expansion-divider[data-kind="tier"] {
+  min-height: 34px;
+  color: var(--tm-text-muted);
+  font-size: var(--tm-fs-note);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
 /* Honest weak-shortlist header — calm, forward-looking. A quiet wash, not an
    alarm: the engineer found no strong match and says so without scolding. */
 .tm-feed-weak-note {

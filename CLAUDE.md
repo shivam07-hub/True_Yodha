@@ -128,11 +128,11 @@ have a CV in storage and nothing else** — `8459faec`, `f39204cb`, `8b27e6e6`,
 (`a6425b46`), so a finished upload job has none — `cv_upload_jobs.score` and its
 readers were deleted in `e4ffc983`. A polled upload carries no score by design.
 
-**2b. Myro Search pre-flight — rebuilt on one typed Order.** *Built; ⚠️ never
-driven end to end while logged in (the QA account can't reach the modal).* Gate
-and market sheet share ONE record (`preflight_orders`); every guess shows its
-source and is answered alone; unanswered ⇒ dropped at run, server-side.
-Invariants + vocabulary: [CONTEXT.md](CONTEXT.md) §Pre-flight Order.
+**2b. Myro Search pre-flight — one typed Order, five steps.** *Built; ⚠️ never
+driven end to end while logged in (the QA account can't reach the modal).* ONE
+record; guesses show their source, are answered alone, and are capped at the
+slot that holds them. A journey since `20260829` — a settled order opens on Sign
+off, one tap from Run. Invariants: [CONTEXT.md](CONTEXT.md) §Pre-flight Order.
 
 **3. Fix the phone.** *Layout swept 2026-08-27; real-device QA still owed.*
 The July list of seven orphan screens is stale — CV, Prep, Skills, the coin
@@ -153,10 +153,10 @@ gate in [ARCHITECTURE_READ_PATH.md](ARCHITECTURE_READ_PATH.md) passes.
 
 ### What supports it, once stage one holds (after)
 
-Job Tracks (a second search — table + rules shipped `20260828`, unlocked by a
-tailored CV), the rest of Myro Ops (notifications → automatic picks → "show me
-more", slices 3-5), the Chrome extension, and making the built tailoring engine
-the obvious next step after a match. Two Ops items are blocked on the scraper.
+Job Tracks (shipped bar the unlock moment — `20260828`, `20260829`), the rest
+of Myro Ops (notifications → automatic picks → "show me more", slices 3-5),
+the Chrome extension, and making the built tailoring engine the obvious next
+step after a match. Two Ops items are blocked on the scraper.
 
 ### Standing, not a stage
 

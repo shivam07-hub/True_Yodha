@@ -13,7 +13,8 @@ import { useEffect, useMemo } from "react"
 import { formatDate } from "@/lib/format"
 import { useQuery } from "@tanstack/react-query"
 import { CommandRail } from "@/components/mission-control/command-rail"
-import { pickBestMatch } from "@/lib/jobs/match-verdict"
+import { pickBestPerTrack } from "@/lib/jobs/match-verdict"
+import { useTracks } from "@/lib/hooks/use-tracks"
 import { deriveNextBestSteps } from "@/lib/onboarding/next-best-steps"
 import { adaptiveGreeting } from "@/lib/mission-control/greeting"
 import { HeroLoading } from "@/components/mission-control/hero-loading"
@@ -122,6 +123,9 @@ export function MissionHeroRail({ token, onSettled }: { token: string | null; on
   ).length
   const loggedToday = entries.length > 0 && entries[0].log_date === new Date().toISOString().slice(0, 10)
   const score = Math.round(scoreData?.total_score ?? 0)
+  // The user's searches — for the WORDS only. One search (83% of users) means
+  // one job step and the generic eyebrow, exactly as before.
+  const { tracks } = useTracks(token)
   const streak = computeStreakFromDates(practiceActivityQuery.data?.dates ?? [])
   const scoreDelta = evidenceData?.score_delta ?? 0
   const greeting = adaptiveGreeting({ streak, scoreDelta, loggedToday }).text
@@ -132,17 +136,28 @@ export function MissionHeroRail({ token, onSettled }: { token: string | null; on
   // best match /home names, so the two surfaces can never disagree.
   const nextBestSteps = useMemo(() => {
     if (!scoreData) return []
-    const best = pickBestMatch(jobsData?.jobs ?? [])
+    // One per search. `pickBestPerTrack` collapses to `pickBestMatch` for the
+    // 83% with a single search, so their rail is unchanged; for anyone with two,
+    // the second search's strongest match gets its own step instead of being
+    // hidden behind whichever search happened to score higher.
+    const labels = new Map(tracks.map((t) => [t.id, t.label]))
+    const best = pickBestPerTrack(jobsData?.jobs ?? [], tracks)
     return deriveNextBestSteps({
       score,
       gapSkills: scoreData.gap_skills ?? [],
       domainScores: scoreData.domain_scores ?? {},
-      bestJob: best
-        ? { jobId: best.job_id, title: best.title, company: best.company, fit: best.match_score }
-        : null,
-      tailorJobId: best?.job_id ?? null,
+      bestJobs: best.map((job) => ({
+        jobId: job.job_id,
+        title: job.title,
+        company: job.company,
+        fit: job.match_score,
+        searchLabel: tracks.length > 1 ? (labels.get(job.track_id ?? null) ?? undefined) : undefined,
+      })),
+      // The tailor deep-link takes the first search's best. A CV is tailored for
+      // ONE job, and the first search is the one the user has been running.
+      tailorJobId: best[0]?.job_id ?? null,
     })
-  }, [scoreData, jobsData, score])
+  }, [scoreData, jobsData, score, tracks])
 
   const coreLoading = !settled || scoreQuery.isLoading || profileQuery.isLoading
 

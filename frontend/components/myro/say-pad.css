@@ -8,6 +8,16 @@
   position: relative;
   flex: 1 1 auto;
   min-width: 0;
+  /* A lane on the right that belongs to nobody.
+   *
+   * Every writing tool the user has installed — Grammarly is the one we saw —
+   * injects a floating affordance anchored to the bottom-right INSIDE the
+   * field. At 14px of right padding it lands on top of the placeholder and on
+   * the tail of any long line, which is what the Myro Search screenshot showed.
+   * We cannot style it, we cannot predict which tool it is, and switching it
+   * off for the user (`data-gramm="false"`) would be turning off their own tool
+   * on their own words. So the field simply stops short of that corner. */
+  --say-gutter: 30px;
 }
 
 .say-pad-field {
@@ -20,7 +30,7 @@
   overflow-y: auto;
   min-height: calc(var(--say-line) + 2 * var(--say-pad-y));
   max-height: calc(var(--say-line) * var(--say-lines) + 2 * var(--say-pad-y));
-  padding: var(--say-pad-y) 14px;
+  padding: var(--say-pad-y) calc(14px + var(--say-gutter)) var(--say-pad-y) 14px;
   line-height: var(--say-line);
   font: inherit;
   color: inherit;
@@ -40,12 +50,14 @@
 }
 
 .say-pad[data-capped] .say-pad-field {
-  padding-right: 56px;
+  padding-right: calc(56px + var(--say-gutter));
 }
 
+/* Left of the reserved lane, not in it — our counter and an injected badge
+   both anchoring bottom-right is the same collision one layer down. */
 .say-pad-remain {
   position: absolute;
-  right: 10px;
+  right: calc(10px + var(--say-gutter));
   bottom: 8px;
   pointer-events: none;
   font-family: var(--tm-font-mono);
@@ -55,4 +67,4 @@
   color: var(--tm-text-faint);
 }
 
-.say-pad-field::placeholder { color: var(--tm-text-faint); }
+.say-pad-field::placeholder { color: var(--tm-text-muted); }

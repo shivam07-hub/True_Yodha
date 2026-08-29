@@ -92,10 +92,16 @@
   padding: 18px 22px 14px;
   border-bottom: 1px solid var(--pf-stroke);
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
+/* Three items now — back, name, close — so the name centres between two
+   equal-width controls rather than hanging off the left. The spacer holds the
+   name in place on the first step, where there is nothing to go back to. */
 .pf-head-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
@@ -106,7 +112,6 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--tm-text-faint);
-  margin-bottom: 6px;
 }
 
 .pf-close {
@@ -122,6 +127,13 @@
   transition: color var(--tm-dur-fast) var(--tm-ease);
 }
 .pf-close:hover { color: var(--tm-interactive); }
+
+.pf-head-spacer { display: inline-block; width: 30px; height: 30px; flex: none; }
+
+/* The back chevron and the step ribbon are `journey-chrome.css` — onboarding's
+   Direction step needs the same two controls, and two copies of a progress bar
+   is how one of them ends up counting a phase the other does not have. The
+   modal's palette remap for them lives at the end of `journey.css`. */
 
 /* ── body + footer ────────────────────────────────────────────────────────── */
 
@@ -233,7 +245,6 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-top: 18px;
   padding-top: 16px;
   border-top: 1px solid var(--tm-hairline);
 }
@@ -266,22 +277,14 @@
 .pf-topic:hover:not(:disabled) { border-color: var(--tm-accent-ring); color: var(--tm-accent-text); }
 .pf-topic:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* The cost slot before the price lands. Quiet, same width class as a number —
-   the button must never guess a figure it is about to charge. */
-.pf-canvas-run-cost[data-pending="true"] {
-  opacity: 0.6;
-  font-style: italic;
-}
-
-/* One step back from the last change, above the run bar. Not a changelog —
-   the sheet had one of those, and a list of everything you have done is chrome
-   next to the plates that already show the result. */
+/* One step back from the last change, at the top of the footer. Not a
+   changelog — the sheet had one of those, and a list of everything you have
+   done is chrome next to the chips that already show the result. */
 
 .pf-undo-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 14px;
   font-size: var(--tm-fs-note);
   line-height: 1.4;
   color: var(--tm-text-muted);

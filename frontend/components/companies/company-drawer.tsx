@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { jobs as jobsApi } from "@/lib/api"
+import { publicRead } from "@/lib/public-api"
 import type { ApplicationResponse, CompanyPage } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { pickRelatedCompanies } from "@/lib/companies/related"
@@ -24,10 +25,13 @@ interface Props {
 }
 
 async function fetchCompanyPage(name: string): Promise<CompanyPage | null> {
-  const base = process.env.NEXT_PUBLIC_API_URL ?? ""
-  const res = await fetch(`${base}/companies/${encodeURIComponent(name)}`)
-  if (!res.ok) return null
-  return res.json()
+  try {
+    return await publicRead<CompanyPage>(`/companies/${encodeURIComponent(name)}`, {
+      missing: "empty",
+    })
+  } catch {
+    return null
+  }
 }
 
 export function CompanyDrawer({ company, open, onClose, onOpenJob }: Props) {

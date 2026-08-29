@@ -1,0 +1,239 @@
+/* Myro Search — the material more than one screen needs.
+ *
+ * What survives `plate.css` after the journey rebuild took the plate itself.
+ * The full-width glass card is gone (`chip.css` has what replaced it, and the
+ * measurements for why), and with it the canvas heading, the six-slot stack,
+ * the opening pad and the run bar — all of them now `journey.css`.
+ *
+ * Left here: the small action buttons the chip composer and the location
+ * picker share, the heard row, the conflict plate, and the loading outline.
+ *
+ * The `--pf-*` palette these consume is declared once on `.pf-modal` in
+ * `preflight.css`. Nothing in this file may name a colour any other way.
+ */
+
+/* ── small actions — the chip composer's Cancel/Add and the picker's ──── */
+
+.pf-plate-action {
+  appearance: none;
+  padding: 7px 14px;
+  font: inherit;
+  font-size: var(--tm-fs-ui-sm);
+  letter-spacing: 0.005em;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid var(--pf-stroke);
+  background: transparent;
+  color: var(--tm-text-muted);
+  transition:
+    background-color var(--tm-dur-fast) var(--tm-ease),
+    color var(--tm-dur-fast) var(--tm-ease),
+    border-color var(--tm-dur-fast) var(--tm-ease);
+}
+.pf-plate-action[data-role="save"] {
+  background: var(--pf-accent);
+  color: var(--pf-accent-fg);
+  border-color: var(--pf-accent);
+  font-weight: 600;
+}
+.pf-plate-action[data-role="save"]:hover { background: color-mix(in oklab, var(--pf-accent) 88%, #000); }
+.pf-plate-action[data-role="drop"] {
+  color: var(--pf-decline);
+  border-color: transparent;
+  margin-right: auto;
+}
+.pf-plate-action[data-role="drop"]:hover {
+  border-color: var(--pf-decline);
+  background: color-mix(in oklab, var(--pf-decline) 14%, transparent);
+}
+.pf-plate-action:disabled { cursor: not-allowed; opacity: 0.55; }
+
+/* /* heard row — a proposal still needing yes/no. Both sides fill in their own
+ * semantic colour when picked — decline is crimson, accept is vermilion. */
+.pf-heard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--pf-plate);
+  border: 1px solid var(--pf-stroke);
+  border-radius: 10px;
+}
+.pf-heard-copy { flex: 1; min-width: 0; }
+.pf-heard-line { font-size: var(--tm-fs-ui-sm); line-height: 1.4; color: var(--tm-text); }
+.pf-heard-why {
+  margin-top: 2px;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.02em;
+  color: var(--tm-text-faint);
+}
+.pf-heard-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.pf-heard-btn {
+  appearance: none;
+  padding: 7px 12px;
+  font: inherit;
+  font-size: var(--tm-fs-ui-sm);
+  border: 1px solid var(--pf-stroke);
+  background: transparent;
+  color: var(--tm-text-muted);
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    color var(--tm-dur-fast) var(--tm-ease),
+    background-color var(--tm-dur-fast) var(--tm-ease),
+    border-color var(--tm-dur-fast) var(--tm-ease);
+}
+.pf-heard-btn[data-kind="yes"]:hover { color: var(--pf-accent); border-color: var(--pf-accent); }
+.pf-heard-btn[data-kind="no"]:hover  { color: var(--pf-decline);      border-color: var(--pf-decline); }
+.pf-heard-btn[data-picked="yes"] {
+  background: var(--pf-accent);
+  color: var(--pf-accent-fg);
+  border-color: var(--pf-accent);
+  box-shadow: 0 4px 12px var(--pf-accent-glow);
+}
+.pf-heard-btn[data-picked="no"] {
+  background: var(--pf-decline);
+  color: #fff;
+  border-color: var(--pf-decline);
+  box-shadow: 0 4px 12px color-mix(in oklab, var(--pf-decline) 14%, transparent);
+}
+
+/* ── conflict plate ────────────────────────────────────────────────────────
+ *
+ * Same plate shape, decline-tinted stroke, the statements inside with an
+ * inline chooser. What this replaced: a nine-row wall where each option was a
+ * two-line stack carrying WON'T TAKE · MYRO INFERRED · 4 DAYS AGO — more
+ * chrome than the thing it was asking about, twice on one screen.
+ *
+ * A choice is now ONE line. Provenance is the same rail the settled plates
+ * use, not three uppercase fields. The counter above states the arithmetic
+ * ("keep 6 · drop 3 more") so the user knows when they are done, which is the
+ * one thing the old wall never said. */
+
+/* A tint, not an alarm. This is a question the resolver could not answer, and
+ * a plate washed in error-red tells the user something has gone wrong when
+ * nothing has. Enough decline to group it with the crimson decision language,
+ * not enough to read as a failure. */
+.pf-conflict {
+  border: 1px solid var(--pf-stroke);
+  border-radius: 13px;
+  border-color: color-mix(in oklab, var(--pf-decline) 26%, var(--pf-stroke));
+  background: color-mix(in oklab, var(--pf-decline) 4%, var(--pf-plate));
+  cursor: default;
+  padding: 14px 15px;
+}
+.pf-conflict-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.pf-conflict-title {
+  font-size: var(--tm-fs-ui);
+  line-height: 1.4;
+  color: var(--tm-text);
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+.pf-conflict-count {
+  flex-shrink: 0;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.06em;
+  color: var(--pf-decline);
+  font-variant-numeric: tabular-nums;
+}
+.pf-conflict-choices {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pf-conflict-choice {
+  position: relative;
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px 10px 14px;
+  text-align: left;
+  background: var(--pf-plate);
+  border: 1px solid var(--pf-stroke);
+  border-radius: 9px;
+  color: var(--tm-text);
+  cursor: pointer;
+  font: inherit;
+  transition:
+    border-color var(--tm-dur-fast) var(--tm-ease),
+    background-color var(--tm-dur-fast) var(--tm-ease);
+}
+/* Same rail, same meaning, one third the chrome. */
+.pf-conflict-choice[data-said="user"]::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 9px;
+  bottom: 9px;
+  width: 2.5px;
+  border-radius: 0 3px 3px 0;
+  background: var(--pf-accent);
+}
+.pf-conflict-choice:hover {
+  background: var(--pf-plate-hover);
+  border-color: var(--pf-decline);
+}
+.pf-conflict-choice:disabled { cursor: not-allowed; opacity: 0.6; }
+.pf-conflict-choice-text {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--tm-fs-ui-sm);
+  line-height: 1.35;
+}
+/* No per-row verb.
+ *
+ * A first pass put a hover-revealed "drop" on every option, which on any
+ * touch device (`hover: none`) resolved to a permanent column of five red
+ * DROP labels — the nine-row wall this plate replaced, rebuilt smaller. The
+ * head already states the action and the arithmetic; the row states the line.
+ * Hover tints the row in the decline colour, which is the whole affordance. */
+
+/* ── skeleton ──────────────────────────────────────────────────────────────
+ * The chip row, held empty. Same radius, same stroke, same rhythm as the real
+ * one — a skeleton whose shape does not match what lands is a second layout,
+ * and the swap reads as the modal flinching. */
+
+.pf-skeleton-head {
+  height: 26px;
+  width: 62%;
+  border-radius: 8px;
+  background: var(--pf-plate-hover);
+  animation: pf-skeleton 1400ms var(--tm-ease) infinite;
+}
+.pf-skeleton-chip {
+  height: 31px;
+  border: 1px solid var(--pf-stroke);
+  border-radius: var(--tm-radius-pill);
+  background: var(--pf-plate);
+  animation: pf-skeleton 1400ms var(--tm-ease) infinite;
+}
+.pf-skeleton-chip[data-w="short"] { width: 22%; }
+.pf-skeleton-chip[data-w="mid"]   { width: 34%; }
+.pf-skeleton-chip:nth-child(2) { animation-delay: 120ms; }
+.pf-skeleton-chip:nth-child(3) { animation-delay: 240ms; }
+.pf-skeleton-chip[data-w="long"]  { width: 46%; }
+
+@keyframes pf-skeleton {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  /* The outline holds at one opacity rather than pulsing. It still reads as
+     "not the real thing yet" because of the shape, which is the half of the
+     signal that does not need motion to carry it. */
+  .pf-skeleton-head, .pf-skeleton-chip { animation: none; opacity: 0.6; }
+  .pf-plate-action, .pf-heard-btn, .pf-conflict-choice { transition: none; }
+}

@@ -1,19 +1,38 @@
 "use client"
 
+/**
+ * Onboarding's Direction step — four screens, one write.
+ *
+ * It used to ask everything at once: a list of role families, a level, a set of
+ * cities, lean/avoid and a Myro name, stacked down one page with the submit
+ * button under all of it. Same defect as Myro Search, and the same fix, so it
+ * uses the same chrome rather than a second copy of it.
+ *
+ * What did NOT change: the state, the derivations, and `submit()`. The user
+ * still answers the same five things and `onboarding.saveTarget` still receives
+ * the same payload in one call at the end. Only how many of them are on screen
+ * at a time is different — a restructure of the surface, not of the write.
+ *
+ * The step is score-free on purpose: the cohort selected here is what CREATES
+ * the score.
+ */
+
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Check, Search } from "lucide-react"
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Button } from "@/components/ui/button"
+
+import { StepActions, StepBack, StepRibbon } from "@/components/journey/journey-chrome"
 import { StickyOnboardingActionBar } from "@/components/onboarding/sticky-action-bar"
-import { DirectionChoice } from "@/components/onboarding/direction-choice"
-import { LocationChoice } from "@/components/onboarding/location-choice"
-import { formatCount } from "@/lib/format"
+import {
+  DirectionStep, LevelStep, MAX_ROLES, RoleStep, WhereStep,
+} from "@/components/onboarding/target-steps"
 import { invalidateTargetRoleData } from "@/lib/domain-data"
-import { onboarding, users as usersApi, type OnboardingResult, type RoleFamily, type TargetSeniority } from "@/lib/api"
+import {
+  onboarding, users as usersApi,
+  type OnboardingResult, type RoleFamily, type TargetSeniority,
+} from "@/lib/api"
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value"
 import { trackEvent } from "@/lib/analytics"
-import { cn } from "@/lib/utils"
 
 type AwaitingTarget = Extract<OnboardingResult, { kind: "awaiting_target" }>
 type Props = {
@@ -26,53 +45,16 @@ type Props = {
   onForward?: () => void
 }
 
-/** Both axes are plural end-to-end (`target_role_titles`, `target_locations`). */
-const MAX_ROLES = 3
-const MAX_LOCATIONS = 3
 const NAME_RE = /^[a-z0-9-]{3,32}$/
 
-const SENIORITY_LABEL: Record<Exclude<TargetSeniority, "any">, string> = {
-  intern: "Internship", entry: "Entry-level", mid: "Mid-level", senior: "Senior", lead: "Lead", executive: "Executive",
+/** Four screens, in the order they narrow the search: the work defines it, the
+ *  level bounds it, the place filters it, and the rest only colours it. */
+const STEP_KEYS = ["work", "level", "where", "about"] as const
+type StepKey = (typeof STEP_KEYS)[number]
+const STEP_TITLE: Record<StepKey, string> = {
+  work: "The work", level: "Level", where: "Where", about: "About you",
 }
 
-function SeniorityChoice({ result, value, onChange }: {
-  result: AwaitingTarget["seniority"]
-  value: TargetSeniority | null
-  onChange: (value: TargetSeniority) => void
-}) {
-  const evidence = result.source === "experience_years"
-    ? `${result.years} yrs of experience read from your CV`
-    : result.source === "title" ? `Read from “${result.title}” in your CV` : "We couldn’t tell from your CV."
-  return <section className="mt-7" aria-labelledby="target-level">
-    <p id="target-level" className="text-sm font-medium text-[var(--tm-text)]">What level are you looking for?</p>
-    <p className="mt-1 text-pretty text-sm text-[var(--tm-text-muted)]">{evidence}</p>
-    <div className="mt-3 flex flex-wrap gap-2">{Object.entries(SENIORITY_LABEL).map(([key, name]) => <button key={key} type="button" onClick={() => onChange(key as TargetSeniority)} aria-pressed={value === key} className={cn("tm-control-focus min-h-11 rounded-md border px-3 text-sm", value === key ? "border-[var(--tm-interactive)] bg-[var(--tm-interactive)] text-[var(--tm-interactive-fg)]" : "border-[var(--tm-border)] bg-[var(--tm-surface)] text-[var(--tm-text-muted)]")}>{name}</button>)}</div>
-  </section>
-}
-
-function FamilyRow({ family, selected, disabled, onChoose }: {
-  family: RoleFamily; selected: boolean; disabled: boolean; onChoose: () => void
-}) {
-  return <button
-    type="button"
-    onClick={onChoose}
-    disabled={disabled}
-    aria-pressed={selected}
-    className={cn(
-      "tm-control-focus flex min-h-14 w-full items-start justify-between gap-3 rounded-md border px-4 py-3 text-left",
-      selected ? "border-[var(--tm-interactive)] bg-[var(--tm-int-bg-wash)]" : "border-[var(--tm-border-soft)] bg-[var(--tm-surface)]",
-      disabled && "opacity-45",
-    )}
-  >
-    <span className="min-w-0">
-      <span className="block text-base font-medium text-[var(--tm-text)]">{family.label}</span>
-      <span className="mt-1 block text-pretty text-sm text-[var(--tm-text-muted)]">{formatCount(family.open_count)} open · {family.matched_skill_count} of your skills</span>
-    </span>
-    {selected && <Check className="mt-1 size-4 shrink-0 text-[var(--tm-interactive)]" />}
-  </button>
-}
-
-/** The targeting step is deliberately score-free: its selected cohort creates the score. */
 export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }: Props) {
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -111,6 +93,10 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
       queryFn: () => onboarding.roleFamilyLocations(token, family.family),
     })),
   })
+  // Not memoised. `useQueries` hands back a fresh array every render, so any
+  // dep array over it either recomputes anyway or has to be hand-rolled from
+  // `dataUpdatedAt` — cleverness that goes stale the first time the shape
+  // changes. This is a fold over at most three small arrays.
   const locationOptions = (() => {
     const byName = new Map<string, number>()
     for (const query of locationQueries) {
@@ -126,11 +112,31 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
   const searching = showSearch && roleSearch.trim().length >= 2
   const suggested = result.families.length > 0 ? result.families : (bootFamilies.data ?? [])
   const listed = searching ? (searchedFamilies.data ?? []) : suggested
-  const families = [...selected, ...listed.filter((row) => !selected.some((pick) => pick.family === row.family))]
+  const families = [...selected, ...listed.filter((row) => !selected.some((p) => p.family === row.family))]
   const totalOpen = selected.reduce((sum, family) => sum + family.open_count, 0)
-  const rolesFull = selected.length >= MAX_ROLES
   const ninjaOk = ninjaClaimed || NAME_RE.test(ninja.trim())
   const canSubmit = selected.length > 0 && Boolean(seniority) && ninjaOk && !busy
+
+  /**
+   * What each step still needs — the same rule Myro Search lands on.
+   *
+   * A returning user reviewing their direction (`onForward` is present, so
+   * they came back deliberately) has answers already; walking them through
+   * four screens to change one is the toll a stepped flow must not charge.
+   */
+  const needs: Record<StepKey, boolean> = {
+    work: selected.length === 0,
+    level: !seniority,
+    where: false, // Leaving it open searches everywhere. That is an answer.
+    about: !ninjaOk,
+  }
+  const [at, setAt] = useState<number>(() => {
+    const first = STEP_KEYS.findIndex((key) => needs[key])
+    return first === -1 ? STEP_KEYS.length - 1 : first
+  })
+  const step = STEP_KEYS[at]
+  const isLast = at === STEP_KEYS.length - 1
+  const goTo = (next: number) => setAt(Math.min(Math.max(next, 0), STEP_KEYS.length - 1))
 
   function toggleFamily(family: RoleFamily) {
     setError(null)
@@ -181,80 +187,108 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
       onConfirmed()
       router.replace("/market")
     } catch (reason) {
-      setBusy(false); setError(reason instanceof Error ? reason.message : "Could not save your direction.")
+      setBusy(false)
+      setError(reason instanceof Error ? reason.message : "Could not save your direction.")
     }
   }
 
-  return <section className="w-full max-w-lg pb-28" aria-labelledby="target-title">
-    {onBack && <button type="button" onClick={onBack} className="tm-control-focus -ml-1 mb-3 inline-flex min-h-9 items-center gap-1.5 rounded px-1 text-sm text-[var(--tm-text-muted)]"><ArrowLeft className="size-4" />Your CV</button>}
-    <h1 id="target-title" className="text-balance text-3xl font-semibold text-[var(--tm-text)] sm:text-4xl">Choose your direction</h1>
-    <p className="mt-2 text-sm leading-6 text-[var(--tm-text-muted)]">Pick up to {MAX_ROLES} kinds of work you want next.</p>
+  /** Only where there is genuinely something to skip. Under a step the user has
+   *  already answered, "Skip for now" offers to skip nothing. */
+  const skippable = step === "where" && locations.length === 0
 
-    <div className="mt-6 space-y-2">
-      {families.map(family => {
-        const isSelected = selected.some((pick) => pick.family === family.family)
-        return <FamilyRow
-          key={family.family}
-          family={family}
-          selected={isSelected}
-          disabled={rolesFull && !isSelected}
-          onChoose={() => toggleFamily(family)}
+  return (
+    <section className="w-full max-w-lg pb-40" aria-labelledby="target-title">
+      <div className="mb-5 flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          {at > 0 ? (
+            <StepBack onBack={() => goTo(at - 1)} />
+          ) : onBack ? (
+            <StepBack onBack={onBack} label="Back to your CV" />
+          ) : null}
+          <span id="target-title" className="font-mono text-[length:var(--tm-fs-micro)] uppercase tracking-[0.14em] text-[var(--tm-text-muted)]">
+            Direction
+          </span>
+        </div>
+        <StepRibbon
+          steps={STEP_KEYS.map((key) => ({
+            key,
+            title: STEP_TITLE[key],
+            asks: needs[key],
+            askLabel: needs[key] ? "needs an answer" : undefined,
+          }))}
+          current={step}
+          onJump={(key) => goTo(STEP_KEYS.indexOf(key as StepKey))}
+          label="Direction steps"
         />
-      })}
-      {!showSearch && suggested.length === 0 && !bootFamilies.isLoading && <p className="text-sm text-[var(--tm-text-muted)]">Search the roles Myro is currently tracking.</p>}
-    </div>
-
-    <button type="button" onClick={() => setShowSearch(value => !value)} className="tm-control-focus mt-4 inline-flex min-h-10 items-center gap-2 rounded text-sm text-[var(--tm-text-muted)] underline underline-offset-4"><Search className="size-4" />Search another role</button>
-    {showSearch && <input value={roleSearch} onChange={event => setRoleSearch(event.target.value)} autoFocus placeholder="Search a role" aria-label="Search another role" className="tm-control-focus mt-2 min-h-11 w-full rounded-md border border-[var(--tm-border)] bg-[var(--tm-surface)] px-3 text-[var(--tm-text)] placeholder:text-[var(--tm-text-faint)]" />}
-
-    <SeniorityChoice result={result.seniority} value={seniority} onChange={setSeniority} />
-
-    {selected.length > 0 && <LocationChoice
-      totalOpen={totalOpen}
-      options={locationOptions}
-      selected={locations}
-      max={MAX_LOCATIONS}
-      onChange={setLocations}
-    />}
-
-    {selected.length > 0 && <DirectionChoice
-      lean={lean}
-      avoid={avoid}
-      proposed={result.direction?.proposed ?? []}
-      onChange={(next) => { setLean(next.lean); setAvoid(next.avoid) }}
-    />}
-
-    <section className="mt-7" aria-labelledby="ninja-name-title">
-      <p id="ninja-name-title" className="text-sm font-medium text-[var(--tm-text)]">Your Myro name</p>
-      <p className="mt-1 text-pretty text-sm text-[var(--tm-text-muted)]">
-        How you show up on public surfaces. Funny, weird, or straight — yours to claim.
-      </p>
-      {ninjaClaimed ? (
-        <p className="mt-3 font-mono text-sm text-[var(--tm-text)]">himyro.com/profile/{ninja}</p>
-      ) : (
-        <>
-          <label htmlFor="direction-ninja-name" className="mt-3 block text-xs text-[var(--tm-text-faint)]">himyro.com/profile/</label>
-          <input
-            id="direction-ninja-name"
-            type="text"
-            autoComplete="off"
-            spellCheck={false}
-            value={ninja}
-            onChange={(event) => { setNinja(event.target.value.toLowerCase()); setError(null) }}
-            maxLength={32}
-            className="tm-control-focus mt-1 min-h-11 w-full rounded-md border border-[var(--tm-border)] bg-[var(--tm-surface)] px-3 font-mono text-[var(--tm-text)]"
-          />
-        </>
-      )}
-    </section>
-
-    <StickyOnboardingActionBar error={error} contentClassName="max-w-lg px-5 pt-3 sm:px-8">
-      <div className="flex flex-col gap-2 sm:flex-row-reverse">
-        <Button size="lg" className="min-h-12 w-full" disabled={!canSubmit} onClick={() => void submit()}>
-          {busy ? "Taking you to Market…" : !selected.length ? "Choose a role to continue" : !seniority ? "Choose a level to continue" : !ninjaOk ? "Claim your Myro name" : "Go to Market →"}
-        </Button>
-        {onForward && <Button variant="ghost" size="lg" className="min-h-12 w-full sm:w-auto" onClick={onForward}>Back</Button>}
       </div>
-    </StickyOnboardingActionBar>
-  </section>
+
+      {step === "work" ? (
+        <RoleStep
+          families={families}
+          selected={selected}
+          showSearch={showSearch}
+          roleSearch={roleSearch}
+          empty={!showSearch && suggested.length === 0 && !bootFamilies.isLoading}
+          onToggle={toggleFamily}
+          onShowSearch={setShowSearch}
+          onSearch={setRoleSearch}
+        />
+      ) : null}
+
+      {step === "level" ? (
+        <LevelStep evidence={result.seniority} value={seniority} onChange={setSeniority} />
+      ) : null}
+
+      {step === "where" ? (
+        <WhereStep
+          totalOpen={totalOpen}
+          options={locationOptions}
+          selected={locations}
+          onChange={setLocations}
+        />
+      ) : null}
+
+      {step === "about" ? (
+        <DirectionStep
+          lean={lean}
+          avoid={avoid}
+          proposed={result.direction?.proposed ?? []}
+          onDirection={(next) => { setLean(next.lean); setAvoid(next.avoid) }}
+          ninja={ninja}
+          ninjaClaimed={ninjaClaimed}
+          onNinja={(value) => { setNinja(value); setError(null) }}
+        />
+      ) : null}
+
+      <StickyOnboardingActionBar error={error} contentClassName="max-w-lg px-5 pt-3 sm:px-8">
+        <StepActions
+          primaryLabel={
+            isLast
+              ? busy ? "Taking you to Market…" : "Go to Market"
+              : "Continue"
+          }
+          primaryDisabled={
+            isLast
+              ? !canSubmit
+              : (step === "work" && selected.length === 0) || (step === "level" && !seniority)
+          }
+          /* The block is stated, not implied by a dead button. A disabled
+             control with no reason beside it is the state the user cannot
+             act on. */
+          note={
+            isLast && !canSubmit
+              ? !selected.length ? "No role yet — Myro searches on the work."
+                : !seniority ? "No level yet."
+                  : "Claim your Myro name to finish."
+              : step === "work" && selected.length === 0
+                ? "Pick at least one. This is what Myro searches on."
+                : null
+          }
+          onPrimary={isLast ? () => void submit() : () => goTo(at + 1)}
+          secondaryLabel={skippable ? "Skip for now" : onForward && isLast ? "Leave this as it is" : null}
+          onSecondary={skippable ? () => goTo(at + 1) : onForward}
+        />
+      </StickyOnboardingActionBar>
+    </section>
+  )
 }

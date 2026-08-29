@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-accent="signal">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -34,56 +34,59 @@
         <button type="button" class="button ghost" data-open-settings>Settings</button>
       </section>
 
-      <section id="review-view" class="view review-grid" hidden>
-        <div class="capture-meta" id="capture-meta">generic · visible_page · 0%</div>
-        <!-- Scored hook (#34 S5): the moment the JD is captured, show where the
-             user stands against it — not just "saved". Deep-links into the report. -->
-        <div id="fit-hook" class="fit-hook" hidden>
-          <div class="fit-ring"><span id="fit-num">–</span><span class="fit-100">/100</span></div>
-          <div class="fit-body">
-            <div class="fit-label" id="fit-label">Your fit for this job</div>
-            <div class="fit-gaps" id="fit-gaps"></div>
-            <a id="fit-link" class="fit-link" href="#" target="_blank" rel="noreferrer">Raise your fit in Myro →</a>
+      <section id="review-view" class="view review-layout" hidden>
+        <div class="review-fields">
+          <div class="capture-meta" id="capture-meta">generic · visible_page · 0%</div>
+          <!-- Scored hook (#34 S5): the moment the JD is captured, show where the
+               user stands against it — not just "saved". Deep-links into the report. -->
+          <div id="fit-hook" class="fit-hook" hidden>
+            <div class="fit-ring"><span id="fit-num">–</span><span class="fit-100">/100</span></div>
+            <div class="fit-body">
+              <div class="fit-label" id="fit-label">Your fit for this job</div>
+              <div class="fit-gaps" id="fit-gaps"></div>
+              <a id="fit-link" class="fit-link" href="#" target="_blank" rel="noreferrer">Raise your fit in Myro →</a>
+            </div>
+          </div>
+          <label>
+            Role name
+            <input id="role-name" type="text" autocomplete="off" />
+          </label>
+          <label>
+            Company
+            <input id="company-name" type="text" autocomplete="off" />
+          </label>
+          <label>
+            Location
+            <input id="location" type="text" autocomplete="off" />
+          </label>
+          <label>
+            Skills seen in this job
+            <textarea id="skill-evidence" rows="3" placeholder="Paste skills or requirements from the post"></textarea>
+          </label>
+          <button id="extract-skills-button" type="button" class="button secondary">Extract skills</button>
+
+          <div class="skill-section">
+            <div class="section-label">Primary skills</div>
+            <div id="primary-chips" class="chip-list"></div>
+          </div>
+
+          <div class="skill-section">
+            <div class="section-label">Secondary skills</div>
+            <div id="secondary-chips" class="chip-list"></div>
+          </div>
+
+          <div class="skill-section">
+            <div class="section-label">Emerging skills</div>
+            <div id="emerging-chips" class="chip-list"></div>
           </div>
         </div>
-        <label>
-          Role name
-          <input id="role-name" type="text" autocomplete="off" />
-        </label>
-        <label>
-          Company
-          <input id="company-name" type="text" autocomplete="off" />
-        </label>
-        <label>
-          Location
-          <input id="location" type="text" autocomplete="off" />
-        </label>
-        <label>
-          Job description
-          <textarea id="job-description" rows="6"></textarea>
-        </label>
-        <label>
-          Skills seen in this job
-          <textarea id="skill-evidence" rows="3" placeholder="Paste skills or requirements from the post"></textarea>
-        </label>
-        <button id="extract-skills-button" type="button" class="button secondary">Extract skills</button>
-
-        <div class="skill-section">
-          <div class="section-label">Primary skills</div>
-          <div id="primary-chips" class="chip-list"></div>
-        </div>
-
-        <div class="skill-section">
-          <div class="section-label">Secondary skills</div>
-          <div id="secondary-chips" class="chip-list"></div>
-        </div>
-
-        <div class="skill-section">
-          <div class="section-label">Emerging skills</div>
-          <div id="emerging-chips" class="chip-list"></div>
-        </div>
-
-        <button id="save-button" type="button" class="button primary">Save to tracker</button>
+        <aside class="review-jd">
+          <label>
+            Job description
+            <textarea id="job-description" rows="18"></textarea>
+          </label>
+        </aside>
+        <button id="save-button" type="button" class="button primary review-save">Save to tracker</button>
       </section>
 
       <section id="saved-view" class="view" hidden>

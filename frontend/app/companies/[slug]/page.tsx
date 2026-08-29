@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { cache } from "react"
 import type { CommentListResponse, CompanyJobsResponse } from "@/lib/api"
+import { publicRead } from "@/lib/public-api"
 import { CompanyJobsClient } from "@/components/companies/company-jobs-client"
 import { RelatedCompanies } from "@/components/companies/related-companies"
 
@@ -26,15 +27,12 @@ export const revalidate = 3600
 // Shared between generateMetadata and the page so one request serves both
 // (React cache dedupes within a single render pass).
 const getCompanyJobs = cache(async (companyName: string): Promise<CompanyJobsResponse | null> => {
-  const base = process.env.NEXT_PUBLIC_API_URL ?? ""
-  if (!base) return null
   try {
     const params = new URLSearchParams({ page: "1", page_size: "50" })
-    const res = await fetch(`${base}/companies/${encodeURIComponent(companyName)}/jobs?${params}`, {
-      next: { revalidate: 3600 },
-    })
-    if (!res.ok) return null
-    return (await res.json()) as CompanyJobsResponse
+    return await publicRead<CompanyJobsResponse>(
+      `/companies/${encodeURIComponent(companyName)}/jobs?${params}`,
+      { missing: "empty", next: { revalidate: 3600 } },
+    )
   } catch {
     // Backend unreachable at render → render the shell; the client query retries
     // and ISR regenerates. Never 500 a crawlable page over a transient fetch.
@@ -46,15 +44,11 @@ const getCompanyJobs = cache(async (companyName: string): Promise<CompanyJobsRes
 // the seed; the signed-in client refetches on mount to resolve edit controls).
 // This is the UGC that becomes the page's crawlable SEO/AEO content.
 const getCompanyNotes = cache(async (companyName: string): Promise<CommentListResponse | null> => {
-  const base = process.env.NEXT_PUBLIC_API_URL ?? ""
-  if (!base) return null
   try {
-    const res = await fetch(
-      `${base}/comments?entity_type=company&entity_id=${encodeURIComponent(companyName)}`,
-      { next: { revalidate: 3600 } },
+    return await publicRead<CommentListResponse>(
+      `/comments?entity_type=company&entity_id=${encodeURIComponent(companyName)}`,
+      { missing: "empty", next: { revalidate: 3600 } },
     )
-    if (!res.ok) return null
-    return (await res.json()) as CommentListResponse
   } catch {
     return null
   }

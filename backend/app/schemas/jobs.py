@@ -86,6 +86,9 @@ class MatchEval(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     overlap_score: float = 0
+    #: Which of the user's searches found this row — NULL is track 1, the
+    #: profile. Read-only here; `llm_ranker` is the only writer.
+    track_id: int | None = None
     llm_rank: int | None = None
     llm_explanation: str | None = None
     matched_skills: list[str] = []
@@ -167,6 +170,9 @@ class MatchEval(BaseModel):
 class JobMatchResponse(BaseModel):
     id: int                             # user_job_matches.id
     job_id: str
+    #: Which search found it. NULL = track 1 = the profile, which is every match
+    #: for the 83% of users with one search.
+    track_id: int | None = None
     title: str
     company: str | None
     location: str | None
@@ -699,6 +705,10 @@ class JobFeedItem(BaseModel):
     match_score: int | None = None      # 0–100 — brain-spined fit number
     verdict: MatchVerdict | None = None  # strong | worth_it | stretch (None = un-warmed)
     is_strong: bool = False
+    #: Which of the user's searches found this card. NULL is track 1 — the
+    #: profile — which is every card for the 83% who have one search, and every
+    #: card in the browse tail, which no search found at all.
+    track_id: int | None = None
 
 
 class JobFeedResponse(BaseModel):

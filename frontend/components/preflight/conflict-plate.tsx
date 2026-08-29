@@ -57,19 +57,19 @@ export function ConflictPlate({
   const over = overflowCount(conflict, options.length)
 
   return (
-    <div className="pf-plate" data-kind="conflict" role="group" aria-label={conflictAsk(conflict)}>
-      <div className="pf-plate-conflict-head">
-        <div className="pf-plate-conflict-title">
+    <div className="pf-conflict" role="group" aria-label={conflictAsk(conflict)}>
+      <div className="pf-conflict-head">
+        <div className="pf-conflict-title">
           {conflictAsk(conflict)}
         </div>
         {over > 0 ? (
-          <div className="pf-plate-conflict-count">
+          <div className="pf-conflict-count">
             drop {over} more
           </div>
         ) : null}
       </div>
 
-      <div className="pf-plate-conflict-choices">
+      <div className="pf-conflict-choices">
         {options.map((option) => {
           const said = option.source && USER_SOURCES.includes(option.source) ? "user" : "myro"
           const label = pickKeep
@@ -80,7 +80,7 @@ export function ConflictPlate({
               key={option.id}
               type="button"
               data-said={said}
-              className="pf-plate-choice tm-control-focus"
+              className="pf-conflict-choice tm-control-focus"
               aria-label={
                 option.source ? `${label} — ${SOURCE_LABEL[option.source]}` : label
               }
@@ -89,7 +89,7 @@ export function ConflictPlate({
               }}
               disabled={busy}
             >
-              <span className="pf-plate-choice-text">{option.text}</span>
+              <span className="pf-conflict-choice-text">{option.text}</span>
             </button>
           )
         })}

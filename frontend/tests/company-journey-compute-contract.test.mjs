@@ -20,11 +20,34 @@ test("company first render spends compute only on crawlable J0 truth", () => {
 })
 
 test("secondary company signals require specific user intent", () => {
-  assert.match(client, /enabled: showSkillIntelligence/)
-  assert.match(client, /enabled: showPostingNotes/)
-  assert.match(client, /onClick=\{\(\) => setShowSkillIntelligence\(true\)\}/)
-  assert.match(client, /onClick=\{\(\) => setShowPostingNotes\(true\)\}/)
+  const skillDemand = readFileSync(
+    new URL("../components/companies/company-skill-demand-panel.tsx", import.meta.url),
+    "utf8",
+  )
+  const postingNotes = readFileSync(
+    new URL("../components/companies/company-posting-notes-panel.tsx", import.meta.url),
+    "utf8",
+  )
+  assert.match(skillDemand, /enabled: showSkillIntelligence/)
+  assert.match(skillDemand, /onClick=\{\(\) => setShowSkillIntelligence\(true\)\}/)
+  assert.match(postingNotes, /enabled: showPostingNotes/)
+  assert.match(postingNotes, /onClick=\{\(\) => setShowPostingNotes\(true\)\}/)
+  assert.doesNotMatch(skillDemand, /requestIdleCallback|pointerdown|scroll/)
+  assert.doesNotMatch(postingNotes, /requestIdleCallback|pointerdown|scroll/)
   assert.doesNotMatch(client, /requestIdleCallback|pointerdown|scroll/)
+})
+
+test("company skill demand uses the public read and a brand retry CTA", () => {
+  const skillDemand = readFileSync(
+    new URL("../components/companies/company-skill-demand-panel.tsx", import.meta.url),
+    "utf8",
+  )
+  assert.match(skillDemand, /publicRead/)
+  assert.match(skillDemand, /variant="solid"[\s\S]*Try again/)
+  assert.match(skillDemand, /No skill-demand snapshot is available yet/)
+  assert.match(client, /CompanySkillDemandPanel/)
+  assert.match(client, /publicRead/)
+  assert.match(page, /publicRead/)
 })
 
 test("the public company journey observes auth without requiring it", () => {

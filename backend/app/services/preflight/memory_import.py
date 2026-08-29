@@ -13,11 +13,22 @@ what happens to them.
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 from typing import Any
 
 from app.services.matching.targeting import MemoryFact, TargetingBrief
 from app.services.preflight.lines import OrderLine
+from app.services.preflight.spec import SLOT_ARITY, SLOT_KINDS
+
+logger = logging.getLogger(__name__)
+
+#: kind -> the slot it fills. One reverse of `SLOT_KINDS`, built once, so the
+#: budget a guess is competing for is read from the same table the resolver
+#: files it with.
+_SLOT_FOR_KIND: dict[str, str] = {
+    kind: slot for slot, kinds in SLOT_KINDS.items() for kind in kinds
+}
 
 _WONT_KINDS = ("constraint", "work_mode")
 _LEAN_KINDS = ("preference",)
@@ -79,6 +90,63 @@ def _kind_priority(kind: str) -> int:
     return {"wont_take": 0, "lean": 1, "goal": 2, "strength": 3}.get(kind, 9)
 
 
+def _within_budget(guesses: list[OrderLine]) -> list[OrderLine]:
+    """Ask no more questions than the slot could ever keep answers to.
+
+    Every `constraint`, `work_mode` and `preference` fact used to become a
+    question, and `brief.facts` is uncapped — the 8-fact cap in `targeting` is
+    the ranking PROMPT's, not this. A user with 66 notes therefore met ~40 of
+    them, one at a time, in a slot that holds 6. One prod order held 53 lines
+    and 37 rejections, and the run bar's own sentence was doing the work of
+    admitting it.
+
+    That is not a taste problem, it is an arity problem: proposing twenty
+    questions into a six-slot budget guarantees at least fourteen rejections
+    whatever the user actually wants. So the budget IS the cap, read from
+    `SLOT_ARITY` rather than picked.
+
+    It is a queue, not a truncation. `merge_imports` keeps the user's answer
+    over any re-import, so a guess said no to stays said-no-to and the next
+    open surfaces the next-strongest one in its place. Nothing is lost either
+    way: an unasked fact still reaches the brain as `known_facts`. What it
+    cannot do is become a hard filter without being asked, which is the
+    correct outcome for Myro's fortieth-best guess about someone.
+
+    Rank: said more than once first — the distiller filing a note twice is the
+    only evidence of strength this module has — then the order facts arrive in,
+    which is newest first.
+    """
+    kept: list[OrderLine] = []
+    used: dict[str, int] = {}
+    dropped: dict[str, int] = {}
+    ordered = sorted(
+        enumerate(guesses),
+        key=lambda pair: (0 if "said more than once" in (pair[1].source_note or "") else 1, pair[0]),
+    )
+    for _, line in ordered:
+        slot = _SLOT_FOR_KIND.get(line.kind or "", "")
+        budget = SLOT_ARITY.get(slot)
+        if budget is None:
+            kept.append(line)
+            continue
+        if used.get(slot, 0) >= budget:
+            dropped[slot] = dropped.get(slot, 0) + 1
+            continue
+        used[slot] = used.get(slot, 0) + 1
+        kept.append(line)
+    if dropped:
+        # Never a silent cap: a bounded read that reports nothing reads as
+        # "we asked about everything" when it did not.
+        logger.info(
+            "metric preflight.guesses_over_budget %s",
+            " ".join(f"{slot}={n}" for slot, n in sorted(dropped.items())),
+        )
+    # Back into the order they were pushed in, so the screen is not reshuffled
+    # by the ranking — the ranking decides WHICH survive, not where they sit.
+    surviving = {id(line) for line in kept}
+    return [line for line in guesses if id(line) in surviving]
+
+
 def guesses_from(brief: TargetingBrief) -> list[OrderLine]:
     """Everything Myro would like the user to confirm, as lines.
 
@@ -120,6 +188,8 @@ def guesses_from(brief: TargetingBrief) -> list[OrderLine]:
             push(fact, "wont_take")
         elif fact.kind in _LEAN_KINDS:
             push(fact, "lean")
+
+    out = _within_budget(out)
 
     profile: dict[str, Any] = brief.profile
 

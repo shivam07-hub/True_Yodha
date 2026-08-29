@@ -6,9 +6,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { jobs as jobsApi, type JobFeedItem } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import type { CareerBand } from "@/lib/api"
-import { activeFilterCount, type FeedFilters } from "@/components/market/feed-types"
+import { activeFilterCount, applyViewFilters, type FeedFilters } from "@/components/market/feed-types"
 import { FiltersSheet } from "@/components/market/filters-sheet"
 import { useJobFeed } from "@/components/market/use-job-feed"
+import { useTracks } from "@/lib/hooks/use-tracks"
+import { trackDividers } from "@/lib/jobs/track-sections"
 import { useFeedWarm } from "@/components/market/use-feed-warm"
 import { useFeedScope } from "@/lib/hooks/use-feed-scope"
 import { useMyroSearch } from "@/lib/hooks/use-myro-search"
@@ -76,14 +78,46 @@ export function JobsSurface({
   }, [])
 
   const scope = useFeedScope(targetLocations)
-  const { allJobs, visibleJobs, total, loading, settled, triage, undo } =
+  const { allJobs, visibleJobs, total, rankedCount, loading, settled, triage, undo } =
     useJobFeed({ token, filters, q: searchQ, skill: null, scope })
+  // The WORDS for each search. One search — 83% of users — draws nothing.
+  const { tracks } = useTracks(token)
+  // Over the VISIBLE ranked head: a filter that hides three cards must move the
+  // boundaries with them, not point at whatever now sits at that index.
+  const visibleRanked = useMemo(
+    () => (rankedCount > 0 ? applyViewFilters(allJobs.slice(0, rankedCount), filters).length : 0),
+    [rankedCount, allJobs, filters],
+  )
   // Same J1 warm as desktop, through the same hook — a surface that warmed its own
   // way is how desktop and mobile drifted apart before.
   useFeedWarm({ token, filters, q: searchQ, skill: null, scope, settled })
   const filterCount = activeFilterCount(filters)
 
-  const rows = useMemo(() => visibleJobs.map(feedItemToRow), [visibleJobs])
+  /**
+   * Each card WITH its job, and the search boundaries between them.
+   *
+   * This was `visibleJobs.map(feedItemToRow)` rendered against
+   * `visibleJobs[i]` — two parallel arrays walked by one index. They happen to
+   * line up today, and the moment anything is spliced between the rows (a
+   * search boundary, a story, a divider) every card below the splice gets its
+   * NEIGHBOUR's save, skip and share. Carrying the job on the entry removes the
+   * coupling rather than working around it.
+   */
+  const entries = useMemo(() => {
+    const cards = visibleJobs.map((job) => ({ t: "job" as const, job, row: feedItemToRow(job) }))
+    const dividers = trackDividers(visibleJobs.slice(0, visibleRanked), tracks)
+    const out: Array<
+      | { t: "job"; job: (typeof visibleJobs)[number]; row: ReturnType<typeof feedItemToRow> }
+      | { t: "divider"; id: string; label: string; kind: "track" | "tier" }
+    > = [...cards]
+    for (const d of dividers) {
+      const at = out.findIndex((e) => e.t === "job" && e.job.job_id === d.beforeJobId)
+      if (at >= 0) out.splice(at, 0, { t: "divider", id: `${d.kind}-${d.beforeJobId}`, label: d.label, kind: d.kind })
+    }
+    return out
+  }, [visibleJobs, visibleRanked, tracks])
+  /** Card count, for the "N of M live" line — dividers are not results. */
+  const rows = useMemo(() => entries.filter((e) => e.t === "job"), [entries])
   const detailItem = detailId ? allJobs.find(j => j.job_id === detailId) ?? null : null
   // Apply Transport — arms the liveness capture whenever the user leaves to
   // apply from the detail sheet; careers-search fallback when no portal link.
@@ -212,22 +246,25 @@ export function JobsSurface({
             <button onClick={tellMyro} style={intentLink}>Not what you wanted? Tell Myro →</button>
           </div>
         ) : (
-          rows.map((row, i) => {
-            const job = visibleJobs[i]
-            return (
+          entries.map((entry, i) =>
+            entry.t === "divider" ? (
+              <div key={entry.id} className="tm-feed-expansion-divider" data-kind={entry.kind}>
+                {entry.label}
+              </div>
+            ) : (
               <SwipeCard
-                key={row.id}
-                row={row}
+                key={entry.row.id}
+                row={entry.row}
                 first={i === 0}
                 hint={showSwipeHint && i === 0}
-                shared={sharedId === row.id}
-                onOpen={() => setDetailId(row.id)}
-                onSave={() => doSave(job)}
-                onSkip={() => doSkip(job)}
-                onShare={() => doShare(job)}
+                shared={sharedId === entry.row.id}
+                onOpen={() => setDetailId(entry.row.id)}
+                onSave={() => doSave(entry.job)}
+                onSkip={() => doSkip(entry.job)}
+                onShare={() => doShare(entry.job)}
               />
-            )
-          })
+            ),
+          )
         )}
         {/* Delta-4 door. Off the toolbar (it competed with two search
             affordances in a 375px strip) and onto the moment it's actually

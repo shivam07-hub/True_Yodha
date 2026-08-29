@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
 import { test } from "node:test"
 
 import type { JobMatch } from "../lib/api"
@@ -37,11 +38,33 @@ test("pickBestMatch returns null only with no matches", () => {
   assert.equal(pickBestMatch([]), null)
 })
 
-test("verdict presentation: every verdict has a non-empty label", () => {
-  for (const v of ["strong", "worth_it", "stretch", "checking"] as const) {
-    assert.ok(verdictLabel(v).length > 0)
+test("every REACHED verdict has a non-empty label", () => {
+  for (const v of ["strong", "worth_it", "stretch"] as const) {
+    assert.ok((verdictLabel(v) ?? "").length > 0)
   }
   assert.equal(verdictLabel("worth_it"), "Worth it")
+})
+
+test("`checking` has no word, because nothing is checking", () => {
+  // It used to read "Checking fit…" — a loading state a row can sit in
+  // permanently: a run keeps 20 rows per search and the brain deep-reads 8, so
+  // twelve stay unread until someone opens them. The market card dodged it by
+  // falling back to the overlap view; the mobile row rendered the word, so one
+  // surface claimed a check was in progress while the divider above it said
+  // "Not read yet".
+  assert.equal(verdictLabel("checking"), null)
+})
+
+test("no surface prints a word for a verdict that has none", () => {
+  // The rule is the compiler's now, but the two callers are worth naming: both
+  // must go through a guard rather than interpolating the result.
+  const read = (path: string) =>
+    readFileSync(new URL(`../${path}`, import.meta.url), "utf8")
+  const mobile = read("mobile/redesign/job-model.ts")
+  assert.match(mobile, /\(verdict && verdictLabel\(verdict\)\) \|\| ""/)
+  // The market card only reaches the word through `fit.kind === "score"`, which
+  // `card-view` sets only for a verdict that is not `checking`.
+  assert.match(read("lib/jobs/card-view.ts"), /job\.verdict && job\.verdict !== "checking"/)
 })
 
 // Backlog #36 Slice 3 — the canonical fit number + move seam every surface reads.

@@ -47,16 +47,31 @@ _WHY: dict[str, str] = {
 
 @dataclass(frozen=True)
 class Effect:
-    op: Literal["add", "drop"]
+    #: `open_track` is not an order edit at all — it opens a SECOND SEARCH, and
+    #: `/order/apply` ignores it by construction (it acts on "add" and "drop"
+    #: only). The client routes it to `POST /tracks`, which re-checks the gate
+    #: at write time; a proposal made while `can_open` was true must not be able
+    #: to create a track after it has gone false.
+    op: Literal["add", "drop", "open_track"]
     kind: LineKind | None = None
     text: str = ""
     line_id: str | None = None
     #: Row label under the text — "new line · won't take", or why a line is
     #: being struck.
     label: str = ""
+    #: `open_track` only: the words the second search runs on. A track is the
+    #: user's own titles, never a taxonomy key.
+    role_titles: list[str] | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {"op": self.op, "kind": self.kind, "text": self.text, "line_id": self.line_id, "label": self.label}
+        return {
+            "op": self.op,
+            "kind": self.kind,
+            "text": self.text,
+            "line_id": self.line_id,
+            "label": self.label,
+            "role_titles": list(self.role_titles) if self.role_titles else None,
+        }
 
 
 @dataclass(frozen=True)
@@ -93,12 +108,21 @@ def _add(kind: LineKind, text: str, label: str) -> Effect:
     return Effect(op="add", kind=kind, text=text, label=f"new line · {label}")
 
 
-def from_utterance(diff: dict[str, Any] | None, order: Order) -> list[Proposal]:
+def from_utterance(
+    diff: dict[str, Any] | None,
+    order: Order,
+    *,
+    can_open_track: bool = False,
+) -> list[Proposal]:
     """The mentor's filter diff → one proposal per field it touched.
 
     One proposal per field, never one lumped change: the whole point of this
     screen is that the user can say yes to the location and no to the won't-take
     without rewriting either.
+
+    `can_open_track` is the `/tracks` gate, read by the caller. False means the
+    second-search proposal is not built AT ALL rather than built and refused —
+    offering something the server will 409 is worse than not offering it.
     """
     if not diff:
         return []
@@ -139,6 +163,35 @@ def from_utterance(diff: dict[str, Any] | None, order: Order) -> list[Proposal]:
         push("goal", diff["career_goal"], "where you're headed", costly=False)
     if diff.get("superpower"):
         push("strength", diff["superpower"], "best at", costly=False)
+
+    # A SECOND SEARCH, when they named two kinds of work rather than one said
+    # twice. One question, answered like any other row — "Marketing sounds like
+    # a second search — open one?" — never a form. It is not a fifth topic chip
+    # either: a chip is answered off a deterministic table with no model call,
+    # and whether one utterance holds two intents cannot be.
+    second = diff.get("second_search") if can_open_track else None
+    if isinstance(second, dict) and second.get("label") and second.get("role_titles"):
+        seq += 1
+        titles = list(second["role_titles"])
+        out.append(
+            Proposal(
+                id=f"u{seq}",
+                eyebrow="A SECOND SEARCH",
+                value=str(second["label"]),
+                why="Its own matches, its own CV. Your first search is untouched.",
+                effects=[
+                    Effect(
+                        op="open_track",
+                        text=str(second["label"]),
+                        role_titles=titles,
+                        label=f"new search · {', '.join(titles[:3])}",
+                    )
+                ],
+                # It runs on its own quota next time the search runs; opening it
+                # scores nothing on its own, so it charges nothing here.
+                costly=False,
+            )
+        )
 
     # Dropping a role the user has moved on from narrows the search — free, and
     # it is a diff against lines that already exist, so it carries the line id.

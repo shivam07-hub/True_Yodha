@@ -69,6 +69,7 @@ function setView(view) {
     node.hidden = true
   }
   elements[`${view}View`].hidden = false
+  document.body.classList.toggle("is-reviewing", view === "review")
 }
 
 // Open a URL in the user's own browser session (their logged-in LinkedIn /

@@ -87,10 +87,11 @@ export function verdictColor(verdict: JobFeedItem["verdict"], fit: number): stri
 }
 
 /** The verdict WORD — the ONE server-derived label (`verdictLabel`), never a
- *  score-band guess. Empty when the brain hasn't ranked the card (un-warmed) so
- *  the card never claims a verdict it doesn't have (opening it warms one). */
+ *  score-band guess. Empty when the brain hasn't ranked the card, so the card
+ *  never claims a verdict it doesn't have (opening it warms one). `checking` is
+ *  that case too, which this missed: `verdictLabel` returns null for it. */
 function verdictWord(verdict: JobFeedItem["verdict"]): string {
-  return verdict ? verdictLabel(verdict) : ""
+  return (verdict && verdictLabel(verdict)) || ""
 }
 
 /** Compact age token — "4d", "2w", "1mo", "1y" (matches the handoff). */

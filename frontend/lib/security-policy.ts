@@ -17,6 +17,7 @@ export const CHART_INLINE_SCRIPT_HASHES = [
 type PolicyOptions = {
   nonce: string
   apiUrl?: string
+  extraApiUrls?: string[]
   supabaseUrl?: string
   production: boolean
 }
@@ -39,12 +40,14 @@ function websocketOrigin(value: string | undefined): string | null {
 export function buildContentSecurityPolicy({
   nonce,
   apiUrl,
+  extraApiUrls = [],
   supabaseUrl,
   production,
 }: PolicyOptions): string {
   const connectSources = new Set([
     "'self'",
     origin(apiUrl),
+    ...extraApiUrls.map(origin),
     origin(supabaseUrl),
     websocketOrigin(supabaseUrl),
     "https://challenges.cloudflare.com",

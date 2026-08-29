@@ -19,7 +19,6 @@ export type LineKind =
 export type LineSource = "user_said" | "myro_inferred" | "from_cv" | "user_reworded"
 export type LineStatus = "kept" | "dropped" | "unanswered"
 export type LineOrigin = "preflight" | "market" | "cv_import" | "memory_import"
-export type RoundKey = "wont" | "drawn" | "about"
 
 export interface OrderLine {
   id: string
@@ -119,12 +118,19 @@ export interface OrderPrice {
 }
 
 export interface OrderEffect {
-  op: "add" | "drop"
+  /** `open_track` is not an order edit: it opens a SECOND SEARCH. It never
+   *  reaches `/order/apply` (which acts on add/drop only) — the gate routes it
+   *  to `POST /tracks`, where the server re-checks whether the user has earned
+   *  one. A proposal made while the gate was open must not be able to create a
+   *  track after it has closed. */
+  op: "add" | "drop" | "open_track"
   kind?: LineKind | null
   text: string
   line_id?: string | null
   /** "new line · won't take", or why a line is being struck. */
   label: string
+  /** `open_track` only — the titles the second search runs on. */
+  role_titles?: string[] | null
 }
 
 export interface OrderProposal {
@@ -155,28 +161,6 @@ export interface OrderRunResult {
   unanswered: number
 }
 
-export const ROUND_LABEL: Record<RoundKey, string> = {
-  wont: "Won't take",
-  drawn: "Drawn to",
-  about: "About you",
-}
-
-/**
- * One line each. Not a length preference — the lead is supporting copy, and
- * supporting copy holds its line count (`.tm-clamp-1`); a two-line question
- * starts competing with the answers underneath it and moves the rows every
- * time the wording changes.
- *
- * They can be this short because the screen already says the rest: the tally
- * button names the round, the source chip says where each line came from, and
- * the note under it says how sure Myro is. The lead only has to ask.
- */
-export const ROUND_LEAD: Record<RoundKey, string> = {
-  wont: "Which of these are actually true?",
-  drawn: "These tilt ranking, never exclude.",
-  about: "Which should Myro run on?",
-}
-
 /** The chip under a guess. Never rendered from the raw source value — the whole
  *  point is that the user can see where a line came from. */
 export const SOURCE_LABEL: Record<LineSource, string> = {
@@ -186,14 +170,3 @@ export const SOURCE_LABEL: Record<LineSource, string> = {
   user_reworded: "your words, just now",
 }
 
-/** The field a line fills — same labels the proposals screen already uses. */
-export const KIND_EYEBROW: Record<LineKind, string> = {
-  location: "LOCATION",
-  wont_take: "WON'T TAKE",
-  lean: "DRAWN TO",
-  role: "THE WORK",
-  pay_floor: "PAY FLOOR",
-  goal: "WHERE YOU'RE HEADED",
-  strength: "BEST AT",
-  fact: "ON YOUR PROFILE",
-}

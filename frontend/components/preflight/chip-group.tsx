@@ -1,26 +1,24 @@
 "use client"
 
 /**
- * One of the six slots, with everything that belongs to it.
+ * One slot, as a label and a row of chips.
  *
- * The group header is the hierarchy device the flat canvas was missing. Six
- * of them — one per slot — rather than the twenty per-row kind labels that
- * shipped and were rightly cut: a label above every statement is noise, a
- * label above every GROUP is structure.
+ * Replaces `<SlotGroup>`'s stack of full-width plates. The structure is
+ * unchanged and deliberately so — the six slots are the Order's only real
+ * hierarchy and the resolver owns which line sits in which — but a slot now
+ * costs a label and a wrapping row instead of a column of cards:
  *
- * This component knows the WORDS and nothing else. Which lines belong here,
- * how many the slot takes, and how full it is all arrive from the resolver —
- * because when the client worked them out too, its answer and the run's
- * answer were different ones.
+ *     empty slot   88px -> 26px   (label and invitation share one line)
+ *     3-line slot 251px -> ~60px
  *
- * An empty slot still renders. That is the point: the modal's real question is
- * "what does Myro still need from me?", and six headers with three of them
- * holding only an invitation answers it at a glance. A group that disappears
- * when empty cannot.
+ * The add control is the LAST CHIP IN THE ROW rather than a band beneath it.
+ * That is what collapses the empty case: "DRAWN TO  ( + something that pulls
+ * you )" is one line, and three empty slots stop costing 264px of nothing.
  *
- * A conflict lives INSIDE its slot, because a conflict IS a statement about
- * that slot's arity. Floating them all at the bottom of one flat list — which
- * is what shipped — separated the question from the thing it was about.
+ * This component still knows only the WORDS. Which lines belong here, the
+ * arity, and how full the slot is all arrive from the resolver's partition —
+ * when the client worked them out too, its answer and the run's answer were
+ * different ones (`Won't take · 15 of 6`).
  */
 
 import { useEffect, useRef, useState } from "react"
@@ -32,10 +30,10 @@ import "@/components/target-role/role-family-picker.css"
 import { slotCount, type SlotCopy } from "@/lib/preflight/slots"
 import type { LineStatus, OrderConflict, OrderLine } from "@/lib/preflight/types"
 
+import { Chip } from "./chip"
 import { ConflictPlate } from "./conflict-plate"
-import { Plate } from "./plate"
 
-export function SlotGroup({
+export function ChipGroup({
   copy,
   arity,
   filled,
@@ -43,46 +41,71 @@ export function SlotGroup({
   conflicts,
   allLines,
   busy,
+  /** False on a step whose own title already says this slot's name — a header
+   *  reading "The work" under a step titled "The work" is the label restated. */
+  showLabel = true,
   onAdd,
   onAnswerLine,
   onRewordLine,
 }: {
-  /** The words. Everything else about this slot comes from the resolver. */
   copy: SlotCopy
   arity: number
-  /** Placed + contested, from the resolver's own partition. Counting the
-   *  rendered plates instead is what turned a six-line slot into "15 of 6". */
+  /** Placed + contested, from the resolver's partition — never a count of what
+   *  happens to be rendered. */
   filled: number
-  /** The lines the resolver PLACED here — the set the run will use. */
   lines: OrderLine[]
-  /** Live conflicts whose slot is this one. */
   conflicts: OrderConflict[]
   /** Every line, so a conflict can resolve its own option text. */
   allLines: OrderLine[]
   busy?: boolean
+  showLabel?: boolean
   onAdd: (kind: SlotCopy["addKind"], text: string, roleFamily?: string) => void
   onAnswerLine: (lineId: string, status: LineStatus) => void
   onRewordLine: (lineId: string, text: string) => void
 }) {
   const count = slotCount(arity, filled)
+  /* An empty slot puts its label and its invitation on ONE line. Stacked, the
+     two cost 56px to say six words — and the case the redesign exists for is
+     an order with three empty slots, where that is 168px of nothing between
+     the reader and the button. Filled groups keep the stack: a wrapping row of
+     chips beside a label column would cramp a won't-take sentence at 375px. */
+  const empty = lines.length === 0 && conflicts.length === 0
 
   return (
-    <section className="pf-slot" aria-label={copy.label}>
-      <div className="pf-slot-head">
-        <h3 className="pf-slot-label">{copy.label}</h3>
-        {count ? <span className="pf-slot-count">{count}</span> : null}
+    <section className="pf-group" data-empty={empty ? "true" : undefined} aria-label={copy.label}>
+      {showLabel ? (
+        <div className="pf-group-head">
+          <h3 className="pf-group-label">{copy.label}</h3>
+          {count ? <span className="pf-group-count">{count}</span> : null}
+        </div>
+      ) : null}
+
+      <div className="pf-chips">
+        {lines.map((line) => (
+          <Chip
+            key={line.id}
+            line={line}
+            busy={busy}
+            /* "a preference, not a hard line" inside DRAWN TO is the group's
+               own label restated — and a wide chip costs its group 120px
+               against 56. Under WON'T TAKE it is the only thing saying this
+               one does not exclude, so it stays. */
+            softNote={copy.addKind !== "lean"}
+            onReword={(text) => onRewordLine(line.id, text)}
+            onDrop={() => onAnswerLine(line.id, "dropped")}
+          />
+        ))}
+        <SlotAdd
+          copy={copy}
+          busy={busy}
+          onAdd={onAdd}
+          chosen={lines.map((line) => line.text)}
+        />
       </div>
 
-      {lines.map((line) => (
-        <Plate
-          key={line.id}
-          line={line}
-          busy={busy}
-          onReword={(text) => onRewordLine(line.id, text)}
-          onDrop={() => onAnswerLine(line.id, "dropped")}
-        />
-      ))}
-
+      {/* A conflict is a statement about THIS slot's arity, so it stays beside
+          it. Floating every conflict at the bottom of one list separated the
+          question from the thing it was about. */}
       {conflicts.map((conflict) => (
         <ConflictPlate
           key={`${conflict.slot}:${conflict.line_ids.join(",")}`}
@@ -92,13 +115,6 @@ export function SlotGroup({
           onDrop={(id) => onAnswerLine(id, "dropped")}
         />
       ))}
-
-      <SlotAdd
-        copy={copy}
-        busy={busy}
-        onAdd={onAdd}
-        chosen={lines.map((line) => line.text)}
-      />
     </section>
   )
 }
@@ -106,10 +122,10 @@ export function SlotGroup({
 /**
  * Add straight into this slot.
  *
- * No proposals round trip: the user chose the slot by choosing which "+" they
- * pressed, so there is nothing left to infer. `addLine` takes the kind
- * directly, which makes this deterministic and free — the conversational path
- * exists for the case where the user has a sentence rather than a line.
+ * No proposals round trip and no LLM turn: the user picked the slot by picking
+ * which "+" they pressed, so the kind is already known. Deterministic, instant
+ * and free — the conversational path exists for the case where they have a
+ * sentence rather than a line.
  */
 const REMOTE_LOCATION = ["Remote"]
 
@@ -127,8 +143,7 @@ function SlotAdd({
   // The work is chosen, not typed — the same corpus picker Settings, the Jobs
   // filter and the score header use. A title typed here produced a role the
   // user could see and a `target_roles` scoping key that stayed stale, because
-  // a family cannot be recovered from free text. This is the fourth surface on
-  // that one control, and the first that was not.
+  // a family cannot be recovered from free text.
   if (copy.addKind === "role") {
     return (
       <RoleFamilyPicker
@@ -139,8 +154,8 @@ function SlotAdd({
     )
   }
   // Where is the same class of choice: a city in the live corpus, not a
-  // sentence. Free text here was Cancel/Add with no list, so "Gurgaon" never
-  // resolved to the catalog name the matcher actually stores.
+  // sentence. Free text here meant "Gurgaon" never resolved to the catalog
+  // name the matcher stores.
   if (copy.addKind === "location") {
     return (
       <LocationPicker
@@ -188,7 +203,7 @@ function SlotAddText({
     return (
       <button
         type="button"
-        className="pf-slot-add tm-control-focus"
+        className="pf-chip-add tm-control-focus"
         onClick={() => setOpen(true)}
         disabled={busy}
       >
@@ -198,7 +213,7 @@ function SlotAddText({
   }
 
   return (
-    <div ref={ref} className="pf-slot-add pf-slot-add-open">
+    <div ref={ref} className="pf-chip-add-open">
       <SayPad
         size="compact"
         value={draft}
@@ -212,7 +227,7 @@ function SlotAddText({
         aria-label={`Add to ${copy.label}`}
         placeholder={copy.invite}
       />
-      <div className="pf-slot-add-actions">
+      <div className="pf-chip-add-actions">
         <button
           type="button"
           className="pf-plate-action"

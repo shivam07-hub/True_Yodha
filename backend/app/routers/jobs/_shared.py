@@ -50,6 +50,7 @@ def to_job_match(row: dict, batch_week: date) -> JobMatchResponse:
     return JobMatchResponse(
         id=row["id"],
         job_id=row["job_id"],
+        track_id=ev.track_id,
         title=job.get("job_title") or "",
         company=job.get("company_name"),
         location=job.get("location"),

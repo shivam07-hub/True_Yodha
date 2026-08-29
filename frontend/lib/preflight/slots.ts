@@ -18,9 +18,11 @@
  * group counted both (`Won't take · 15 of 6`).
  *
  * So the resolver now sends its own partition (`order.slots`) and this module
- * keeps only what the server has no business owning: the words. Order matters —
- * it is the order the groups render in, running from the thing that DEFINES the
- * search to the thing that only colours it.
+ * keeps only what the server has no business owning: the words. The ORDER they
+ * render in is not here either: `journey.ts` assigns each slot to a step, and
+ * that assignment is the render order — running from the thing that DEFINES
+ * the search to the thing that only colours it. Two lists of six keys is how a
+ * slot ends up in a step nobody visits.
  */
 
 import type { LineKind, SlotKey } from "./types"
@@ -38,7 +40,7 @@ export interface SlotCopy {
   invite: string
 }
 
-/** Render order, and the only thing the client owns about a slot. */
+/** The words, and the only thing the client owns about a slot. */
 export const SLOT_COPY: Record<SlotKey, SlotCopy> = {
   target_role_titles: { label: "The work", addKind: "role", invite: "a role you want" },
   target_locations: { label: "Where", addKind: "location", invite: "a city, or remote" },
@@ -47,15 +49,6 @@ export const SLOT_COPY: Record<SlotKey, SlotCopy> = {
   career_goal: { label: "Aiming for", addKind: "goal", invite: "where this is heading" },
   superpower: { label: "Best at", addKind: "strength", invite: "what you're strongest at" },
 }
-
-export const SLOT_ORDER: readonly SlotKey[] = [
-  "target_role_titles",
-  "target_locations",
-  "deal_breakers",
-  "lean",
-  "career_goal",
-  "superpower",
-]
 
 /**
  * The count beside a group header, or null when it would be noise.

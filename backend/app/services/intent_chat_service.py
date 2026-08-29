@@ -81,6 +81,12 @@ EXTRACT_TASK = (
     "- If memory holds an extra they did not say just now (another city, a "
     "seniority), put it in proposed_diff as its own field so they can settle "
     "it. Do not ask about it.\n"
+    "- TWO SEARCHES: if they named two distinct kinds of work rather than one "
+    "said several ways (\"15-20 consulting and 15-20 marketing\", \"both "
+    "product and strategy roles\"), put the SECOND one in `second_search` and "
+    "leave the first in add_roles. Two ways of saying one intent "
+    "(\"Software Engineer / Full Stack / Frontend\") is ONE search — leave "
+    "second_search null. When in doubt it is one search.\n"
     "- reply is ONE short sentence acknowledging what you heard. Never a "
     "question. No question mark.\n"
     "- Only propose things grounded in this utterance or in the memory below. "
@@ -95,7 +101,8 @@ EXTRACT_TASK = (
     '"remote|hybrid|onsite" or null, "salary": short text or null, '
     '"deal_breakers": [things they will not accept] or [], "career_goal": '
     "where they want to be, in their words, or null, \"superpower\": what they "
-    "are unusually good at, in their words, or null}\n"
+    "are unusually good at, in their words, or null, \"second_search\": "
+    '{"label": two or three words naming it, "role_titles": [titles]} or null}\n'
     "Leave arrays empty and scalars null when a field isn't changing.\n"
     "- deal_breakers / career_goal / superpower are filled from what they SAY, "
     "in their own words — never from what you assume a person like them would want."
@@ -229,11 +236,35 @@ def _coerce_diff(diff: Any) -> dict[str, Any] | None:
         "deal_breakers": _titles("deal_breakers"),
         "career_goal": _scalar("career_goal"),
         "superpower": _scalar("superpower"),
+        # A SECOND SEARCH, not a second way of saying the first. 88 of 106 users
+        # with a target set exactly one role title, and most of the 18 who set
+        # more said one intent three ways — so the default here is None and the
+        # prompt says "when in doubt it is one search". Proposed only; a track
+        # is never created because somebody typed a sentence.
+        "second_search": _second_search(diff.get("second_search")),
     }
     # A diff with nothing actionable is not a diff.
     if not any(coerced.values()):
         return None
     return coerced
+
+
+def _second_search(raw: Any) -> dict[str, Any] | None:
+    """`{label, role_titles}` or nothing.
+
+    A track is the user's own words, never a taxonomy key: 40 hand-verified
+    matches for one candidate spread across 31 distinct `role_family` values,
+    only 11 of them in the eight a human would call consulting or marketing. So
+    this carries a label and titles and nothing derived.
+    """
+    if not isinstance(raw, dict):
+        return None
+    label = str(raw.get("label") or "").strip()
+    titles = raw.get("role_titles")
+    titles = [s.strip() for s in titles if isinstance(s, str) and s.strip()][:MAX_ROLES] if isinstance(titles, list) else []
+    if not label or not titles:
+        return None
+    return {"label": label[:80], "role_titles": titles}
 
 
 def apply_diff(db: Client, user_id: str, diff: dict[str, Any]) -> dict[str, Any]:

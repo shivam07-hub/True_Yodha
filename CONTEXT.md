@@ -585,6 +585,10 @@ Exists because `compute_job_matches` persisted once, at the end, and the run is 
 - **The order the user first saw is PINNED** (`persist_matches(pinned_ranks=…)`). The brain's ranking is better, but a list that reorders under someone mid-read is worse than one that sharpens in place. Accepted cost: a triage-approved job the deep eval later rates poorly keeps its slot and shows a weak verdict honestly. Callers with no shown order to protect (sweep, paid Refresh) pass no pin and rank freely.
 - **A provisional row can never be an Agent Pick** — the picks band gates on `STRONG_SCORE` over `overall_score`, so a verdict-less row is structurally ineligible. Asserted, not assumed.
 - **The read seam must say it is provisional.** Match Verdict `checking` is that state. Once the run has finished, whatever a row still lacks is not coming, so it reads final.
+- **It reads final by saying NOTHING, not by saying "Checking fit…".** `verdictLabel` returns `null` for `checking`, so no surface can print a word for a verdict that does not exist. The old string was a loading state, and Job Tracks made the state permanent: a run keeps `TRACK_QUOTA` (20) rows per search and deep-evaluates `TRACK_DEEP` (8), so twelve rows in twenty are unread until someone opens one. The market card had side-stepped this by falling back to the overlap view; the mobile row rendered the word, so one surface claimed a check was in progress while the feed's own divider above it said "Not read yet". Returning null makes the rule the compiler's, not a convention each caller has to remember.
+- **A read row outranks an unread one, whatever the overlap says.** `match_score` is the brain's `overall_score / 5 * 100` after the brain runs and RAW `overlap_score` before it — one field, two scales. `_rank_feed_rows` therefore sorts on `(which search, has an eval, match_score)`; without the middle term an unevaluated row with 82% overlap floated over one the brain read and scored 3.5/5, which is the "82% shouts but it's a bad match" defect the brain spine exists to fix, reappearing in the ordering. The term tests PRESENCE of an eval, never its value — grade and `overall_score` may not enter a sort key.
+- **The feed groups by search before it ranks.** Cross-search ranking answers a question nobody asked: a consulting job and a marketing job were never competing for one slot, so interleaving them by score is what would make "Best fit" a lie for someone running two searches. For the 83% with one search every `track_id` is NULL, the first term is constant, and the sort is what it was before tracks existed.
+- **The boundaries are drawn from the order, never re-derived.** `lib/jobs/track-sections.ts` reads a search boundary and the read/unread tier out of the order the server gave it, and marks each with the divider the feed already had — the one that separates the ranked picks from the browse tail, and exists so "the verdicts stopping reads as intentional, not a glitch". A client that regrouped would be a second ordering, and the last time this surface had two of those they disagreed. A single-track user gets no divider at all.
 
 ## Journey Position
 
@@ -816,9 +820,39 @@ CV` / `your words, just now`; **Dropped** means said no to *or left unanswered*.
   sheet) and "Myro Search" (the modal). Both called `/preflight/proposals`, both
   wrote this row, both ran on the same engine, and nothing said so; the sheet
   also priced its own apply from a client constant. There is one modal now with
-  two landings: `openRefreshGate("review")` opens on the slots,
-  `openRefreshGate("say")` opens on the say band. The sheet's topic chips
-  survived into `say-band.tsx`; the sheet did not.
+  two landings: `openRefreshGate("review")` lands on the first step that still
+  needs the user, `openRefreshGate("say")` lands on Sign off, where the say band
+  lives. The sheet's topic chips survived into `say-band.tsx`; the sheet did not.
+- **FIVE STEPS, AND THE LANDING RULE IS WHAT MAKES THEM SAFE.** The modal is a
+  journey (`lib/preflight/journey.ts`): the work · where · preferences · about
+  you · sign off, over the same six slots. It replaced one canvas holding
+  everything, which measured ~1,100px in a 640px box, so the control that
+  charges the user was the last thing in two screens of scrolling. The risk a
+  stepped flow introduces is the opposite one — a settled order must not cost
+  four Continues to run — and `landingStep` is the whole answer: it opens on the
+  first step that still needs something, which for a settled order is Sign off,
+  one tap from Run. Steps are for filling; they are never a toll on running.
+  A guess renders beside the slot it would change (`stepForKind`), never in a
+  pile at the bottom. The ribbon, head and actions are shared with onboarding's
+  Direction step (`components/journey/journey-chrome.tsx`) — that surface had
+  the same defect and two copies of one fix drift.
+- **A GUESS COSTS A SLOT, SO THE SLOT IS THE BUDGET.** `guesses_from` proposes
+  at most `SLOT_ARITY[slot]` questions per slot, ranked by whether the distiller
+  filed the note more than once. It used to propose every `constraint` /
+  `work_mode` / `preference` fact, and `brief.facts` is uncapped — the 8-fact cap
+  in `targeting` is the ranking PROMPT's — so a user with 66 notes met about
+  forty questions in slots that hold six. One prod order held 53 lines and 37
+  rejections. Twenty questions into a six-slot budget guarantees fourteen
+  rejections whatever the user wants. It is a queue, not a truncation:
+  `merge_imports` keeps the user's answer, so a rejected guess stays rejected and
+  the next open surfaces the next-strongest. An unasked fact still reaches the
+  brain as `known_facts`; what it cannot do is become a hard filter unasked.
+- **A SECOND SEARCH IS A PROPOSAL, NEVER A SIDE EFFECT.** When an utterance names
+  two distinct kinds of work, the extract schema returns `second_search` and
+  `from_utterance` emits ONE proposal with an `open_track` effect — but only when
+  the `/tracks` gate is open, read fail-soft at propose time. The yes goes to
+  `POST /tracks`, which re-checks the gate at write time; `/order/apply` acts on
+  add and drop only, so an `open_track` reaching it is inert by construction.
 - **The resolver owns the slot view.** `payload.resolve` emits `slots` — key,
   arity, the line ids it PLACED (identical to what reaches `spec`), and the ones
   a live conflict holds. The client renders that partition; it does not file
@@ -833,10 +867,10 @@ CV` / `your words, just now`; **Dropped** means said no to *or left unanswered*.
   order read it held the plates and every edit at 9.0-10.5s. Run is the one
   control that waits for it, because pressing it unpriced would be consenting to
   a charge nobody has been shown.
-- **The prose module is the run bar's sentences, and nothing else.** It used to
+- **The prose module is the footer's sentences, and nothing else.** It used to
   assemble the order into English (`briefFrom`, `orderSummaryFrom`) with real
   grammar rules, because the order WAS a paragraph the user signed off. The
-  order is plates now; a paragraph restating them is a worse copy of what is on
+  order is chips now; a paragraph restating them is a worse copy of what is on
   screen. What is left is `contractLine` / `blockedLine` / `missingRoleLine` —
   the only text on this surface that is not already a plate.
 - **One query key** (`["preflight","order"]`); every mutation writes the

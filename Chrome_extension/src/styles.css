@@ -1,24 +1,42 @@
 :root {
-  --tm-bg: #050a18;
-  --tm-surface: #0b1222;
-  --tm-surface-2: #111a2e;
-  --tm-border: #1b2540;
-  --tm-border-soft: rgba(255, 255, 255, 0.08);
-  --tm-text: #f0f4ff;
-  --tm-text-muted: #9aa4bf;
-  --tm-text-faint: #6f7891;
-  --tm-accent: #00f5d4;
-  --tm-accent-hover: #53ffe3;
-  --tm-accent-fg: #050a18;
-  --tm-accent-wash: rgba(0, 245, 212, 0.08);
-  --tm-accent-ring: rgba(0, 245, 212, 0.45);
-  --tm-danger: #fb7185;
-  --tm-danger-wash: rgba(251, 113, 133, 0.12);
-  --tm-radius-sm: 6px;
-  --tm-radius: 12px;
-  --tm-radius-pill: 999px;
+  /* Azure tokens — mirror frontend/app/design-tokens.css (2026-08-23).
+     Interactive is azure. Teal (#00f5d4) is --tm-brand only: the mark. */
+  --tm-bg: #161a1c;
+  --tm-surface: #1d2224;
+  --tm-surface-2: #22282b;
+  --tm-surface-3: #282f32;
+  --tm-border: #293338;
+  --tm-border-soft: rgba(182, 223, 242, 0.10);
+  --tm-text: #f2f2ee;
+  --tm-text-muted: #a6a69e;
+  --tm-text-faint: #8b8b84;
+  --tm-reading-surface: #181d1f;
+  --tm-reading-ink: #e6ebee;
+
+  --tm-brand: #00f5d4;
+  --tm-interactive: #4fc7f6;
+  --tm-interactive-hover: #73d5ff;
+  --tm-interactive-press: #22a6d5;
+  --tm-interactive-fg: #022330;
+  --tm-interactive-rest: var(--tm-text);
+  --tm-int-bg-wash: rgba(79, 199, 246, 0.10);
+  --tm-int-bg-hover: rgba(79, 199, 246, 0.16);
+  --tm-int-border-soft: rgba(79, 199, 246, 0.26);
+  --tm-int-border: rgba(79, 199, 246, 0.42);
+  --tm-interactive-grid: rgba(79, 199, 246, 0.05);
+  --tm-accent-text: #6ac4eb;
+
+  --tm-danger: oklch(0.66 0.17 25);
+  --tm-danger-wash: oklch(0.66 0.17 25 / 0.14);
+  --tm-danger-border: oklch(0.74 0.16 25);
+
+  --tm-radius-sm: 4px;
+  --tm-radius: 6px;
+  --tm-button-radius: 10px;
+  --tm-radius-pill: 9999px;
   --tm-ease: cubic-bezier(0.16, 1, 0.3, 1);
-  --tm-dur: 180ms;
+  --tm-dur: 200ms;
+  --tm-dur-slow: 380ms;
   color-scheme: dark;
 }
 
@@ -26,14 +44,33 @@
   box-sizing: border-box;
 }
 
+html {
+  background: var(--tm-bg);
+}
+
 body {
   margin: 0;
   min-width: 360px;
-  max-width: 420px;
-  background: linear-gradient(var(--tm-border-soft) 1px, transparent 1px), linear-gradient(90deg, var(--tm-border-soft) 1px, transparent 1px), var(--tm-bg);
+  width: 380px;
+  background:
+    linear-gradient(var(--tm-interactive-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--tm-interactive-grid) 1px, transparent 1px),
+    var(--tm-bg);
   background-size: 44px 44px;
   color: var(--tm-text);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Space Grotesk", Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+body.is-reviewing {
+  width: 760px;
+  height: 580px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+body.options-body {
+  width: min(560px, 100vw);
 }
 
 button,
@@ -50,20 +87,32 @@ button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 a:focus-visible {
-  outline: 2px solid var(--tm-accent-ring);
+  outline: 2px solid var(--tm-int-border);
   outline-offset: 2px;
 }
 
 .popup-shell,
 .settings-shell {
-  width: 380px;
+  width: 100%;
   min-height: 420px;
   padding: 18px;
-  background: rgba(5, 10, 24, 0.94);
+  background: var(--tm-bg);
+}
+
+body.is-reviewing .popup-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 12px;
+}
+
+body.is-reviewing .popup-footer {
+  flex: 0 0 auto;
+  margin-top: 0;
 }
 
 .settings-shell {
-  width: min(560px, 100vw);
   min-height: 100vh;
   margin: 0 auto;
 }
@@ -91,20 +140,18 @@ a:focus-visible {
 }
 
 .brand-mark {
-  border-radius: 6px;
+  border-radius: var(--tm-radius);
   flex-shrink: 0;
 }
 
-/* Living mark — while Myro is reading/working, the brand icon breathes and
-   emits a teal sonar ring so a busy popup never reads as a hung screen. Two
-   staggered rings keep the pulse continuous. Driven by body.is-busy. */
+/* Living mark — brand ring only. Teal is the logo, not the UI accent. */
 .brand-badge::before,
 .brand-badge::after {
   content: "";
   position: absolute;
   inset: -1px;
   border-radius: 8px;
-  border: 1px solid var(--tm-accent);
+  border: 1px solid var(--tm-brand);
   opacity: 0;
   pointer-events: none;
 }
@@ -138,14 +185,19 @@ body.is-busy .brand-mark {
   50% { opacity: 0.25; transform: scale(0.6); }
 }
 
-.eyebrow,
-.section-label,
-.capture-meta {
-  color: var(--tm-accent);
+.eyebrow {
+  color: var(--tm-brand);
   font-size: 11px;
   line-height: 16px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.section-label,
+.capture-meta {
+  color: var(--tm-text-muted);
+  font-size: 12px;
+  line-height: 16px;
 }
 
 h1 {
@@ -162,16 +214,14 @@ h1 {
   display: inline-flex;
   align-items: center;
   padding: 4px 9px;
-  border: 1px solid var(--tm-border-soft);
+  border: 1px solid var(--tm-border);
   border-radius: var(--tm-radius-pill);
-  background: var(--tm-accent-wash);
-  color: var(--tm-accent);
+  background: var(--tm-surface-2);
+  color: var(--tm-text-muted);
   font-size: 12px;
   line-height: 16px;
 }
 
-/* Leading dot — collapsed to zero width when idle, so terminal states read as
-   a plain label. Expands and pulses in sync with the mark while busy. */
 .status-pill::before {
   content: "";
   width: 0;
@@ -179,6 +229,12 @@ h1 {
   border-radius: var(--tm-radius-pill);
   background: currentColor;
   transition: width var(--tm-dur) var(--tm-ease), margin-right var(--tm-dur) var(--tm-ease);
+}
+
+body.is-busy .status-pill {
+  color: var(--tm-interactive);
+  border-color: var(--tm-int-border-soft);
+  background: var(--tm-int-bg-wash);
 }
 
 body.is-busy .status-pill::before {
@@ -197,6 +253,12 @@ body.is-busy .status-pill::before {
   display: none;
 }
 
+.view.review-layout:not([hidden]) {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+}
+
 .body-copy {
   margin: 0;
   color: var(--tm-text-muted);
@@ -210,42 +272,48 @@ body.is-busy .status-pill::before {
   justify-content: center;
   min-height: 38px;
   width: 100%;
-  border-radius: var(--tm-radius);
+  border-radius: var(--tm-button-radius);
   border: 1px solid var(--tm-border-soft);
   padding: 0 14px;
   text-decoration: none;
-  transition: background-color var(--tm-dur) var(--tm-ease), border-color var(--tm-dur) var(--tm-ease), color var(--tm-dur) var(--tm-ease);
+  transition:
+    background-color var(--tm-dur) var(--tm-ease),
+    border-color var(--tm-dur) var(--tm-ease),
+    color var(--tm-dur) var(--tm-ease);
 }
 
 .button.primary {
-  border-color: var(--tm-accent);
-  background: var(--tm-accent);
-  color: var(--tm-accent-fg);
+  border-color: var(--tm-interactive);
+  background: var(--tm-interactive);
+  color: var(--tm-interactive-fg);
   font-weight: 600;
 }
 
 .button.primary:hover {
-  background: var(--tm-accent-hover);
+  background: var(--tm-interactive-hover);
+  border-color: var(--tm-interactive-hover);
 }
 
 .button.secondary {
-  border-color: var(--tm-accent-ring);
-  background: var(--tm-accent-wash);
-  color: var(--tm-accent);
+  border-color: var(--tm-int-border-soft);
+  background: var(--tm-int-bg-wash);
+  color: var(--tm-accent-text);
   font-weight: 600;
 }
 
 .button.secondary:hover {
-  border-color: var(--tm-accent);
+  background: var(--tm-int-bg-hover);
+  border-color: var(--tm-int-border);
 }
 
 .button.ghost {
-  background: rgba(255, 255, 255, 0.02);
-  color: var(--tm-accent);
+  background: transparent;
+  color: var(--tm-interactive-rest);
 }
 
 .button.ghost:hover {
-  border-color: var(--tm-accent-ring);
+  border-color: var(--tm-int-border-soft);
+  background: var(--tm-int-bg-wash);
 }
 
 .button:disabled {
@@ -253,7 +321,54 @@ body.is-busy .status-pill::before {
   opacity: 0.52;
 }
 
-.review-grid,
+.review-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.review-fields,
+.review-jd {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.review-fields {
+  overflow-y: auto;
+}
+
+.review-jd {
+  padding: 12px;
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius);
+  background: var(--tm-reading-surface);
+}
+
+.review-jd label {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.review-jd textarea {
+  flex: 1;
+  min-height: 0;
+  resize: none;
+  background: var(--tm-reading-surface);
+  color: var(--tm-reading-ink);
+  border-color: var(--tm-border);
+}
+
+.review-save {
+  grid-column: 1 / -1;
+}
+
 .settings-form {
   gap: 12px;
 }
@@ -321,7 +436,7 @@ textarea::placeholder {
   gap: 5px;
   border: 1px solid var(--tm-border-soft);
   border-radius: var(--tm-radius-pill);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--tm-surface-2);
   color: var(--tm-text);
   padding: 4px 5px 4px 9px;
   font-size: 12px;
@@ -340,17 +455,18 @@ textarea::placeholder {
   height: 24px;
   border: 1px solid var(--tm-border-soft);
   border-radius: var(--tm-radius-pill);
-  background: var(--tm-accent-wash);
-  color: var(--tm-accent);
+  background: var(--tm-surface-3);
+  color: var(--tm-text-muted);
   padding: 0 6px;
 }
 
 .skill-chip button:hover {
-  border-color: var(--tm-accent-ring);
+  border-color: var(--tm-int-border-soft);
+  color: var(--tm-text);
 }
 
 #error-view {
-  border: 1px solid rgba(251, 113, 133, 0.28);
+  border: 1px solid var(--tm-danger-border);
   border-radius: var(--tm-radius);
   background: var(--tm-danger-wash);
   padding: 12px;
@@ -379,18 +495,19 @@ textarea::placeholder {
 }
 
 .footer-link:hover {
-  color: var(--tm-accent);
+  color: var(--tm-accent-text);
 }
 
-.footer-sep { color: var(--tm-border); font-size: 11px; }
+.footer-sep {
+  color: var(--tm-border);
+  font-size: 11px;
+}
 
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
   }
 
-  /* No pulse, but busy must still be legible: hold a static teal dot and a
-     dimmed mark instead of animating. */
   body.is-busy .brand-badge::before,
   body.is-busy .brand-badge::after {
     animation: none;
@@ -410,7 +527,6 @@ textarea::placeholder {
   }
 }
 
-/* Scored hook (#34 S5) — the fit panel at the top of the review view. */
 .fit-hook {
   display: flex;
   align-items: center;
@@ -419,8 +535,8 @@ textarea::placeholder {
   border: 1px solid var(--tm-border);
   border-radius: var(--tm-radius);
   background: var(--tm-surface-2);
-  margin-bottom: 4px;
 }
+
 .fit-ring {
   display: flex;
   align-items: baseline;
@@ -428,25 +544,51 @@ textarea::placeholder {
   min-width: 62px;
   padding: 8px 10px;
   border-radius: var(--tm-radius-sm);
-  background: var(--tm-accent-wash);
-  border: 1px solid var(--tm-accent-ring);
+  background: var(--tm-int-bg-wash);
+  border: 1px solid var(--tm-int-border);
 }
+
 .fit-ring #fit-num {
   font-size: 24px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1;
-  color: var(--tm-accent);
+  color: var(--tm-interactive);
+  font-variant-numeric: tabular-nums;
 }
-.fit-100 { font-size: 11px; color: var(--tm-text-faint); }
-.fit-body { flex: 1; min-width: 0; }
-.fit-label { font-size: 12.5px; font-weight: 600; color: var(--tm-text); }
-.fit-gaps { font-size: 11.5px; color: var(--tm-text-muted); margin-top: 2px; line-height: 1.4; }
+
+.fit-100 {
+  font-size: 11px;
+  color: var(--tm-text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.fit-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.fit-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--tm-text);
+}
+
+.fit-gaps {
+  font-size: 11.5px;
+  color: var(--tm-text-muted);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
 .fit-link {
   display: inline-block;
   margin-top: 6px;
   font-size: 11.5px;
   font-weight: 600;
-  color: var(--tm-accent);
+  color: var(--tm-accent-text);
   text-decoration: none;
 }
-.fit-link:hover { text-decoration: underline; }
+
+.fit-link:hover {
+  text-decoration: underline;
+}
