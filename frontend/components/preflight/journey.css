@@ -1,0 +1,259 @@
+/* Myro Search — the journey: one step on screen, one action pinned under it.
+ *
+ * Replaces the canvas rules that lived in `plate.css`. The canvas put six slot
+ * groups, the facts, the say band, the heard fold, the undo row and the run
+ * bar into one 640px scroll; a real order measured ~1,100px, so the control
+ * that charges the user was the last thing in two screens of scrolling.
+ *
+ * Three rules here, and each is a measurement rather than a taste:
+ *
+ *   - The STEP HEAD is the biggest thing on screen. The reference designs put
+ *     a 28px question over an 14px lede over the answers, and that ordering is
+ *     the whole reason those screens read at a glance.
+ *   - The BODY is the only thing that scrolls. Head and footer are fixed by
+ *     the modal's own flex column, so the primary action cannot leave.
+ *   - The FOOTER stacks — primary over secondary, both full width. Taken from
+ *     the references. The radius is not: their Continue is a full pill, and a
+ *     fully-rounded primary is the pillow-radius tell ANTI_SLOP rules against,
+ *     so it sits on `--tm-button-radius` like every other button in Myro.
+ *
+ * Colours come from the `--pf-*` palette declared on `.pf-modal` in
+ * `preflight.css`. No literal may appear in this file.
+ */
+
+/* ── a step ───────────────────────────────────────────────────────────────── */
+
+.pf-step {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.pf-step-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* The remembering, said once per step. Above the title rather than below it
+   because it is the frame the title is read inside — "here is what I already
+   had" comes before "here is what this is". */
+.pf-step-recall {
+  margin: 0;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-note);
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+  color: var(--tm-text-muted);
+}
+
+.pf-step-title {
+  margin: 0;
+  font-size: clamp(24px, 5vw, 30px);
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.022em;
+  color: var(--tm-text);
+  text-wrap: balance;
+}
+/* Sign off's title is the resolved work — three role titles joined, not two
+   words — so it sets a size down and wraps rather than filling the screen. */
+.pf-step-title[data-tight="true"] {
+  font-size: clamp(20px, 4vw, 24px);
+  letter-spacing: -0.018em;
+}
+
+.pf-step-lede {
+  margin: 0;
+  font-size: var(--tm-fs-meta);
+  line-height: 1.5;
+  color: var(--tm-text-muted);
+  text-wrap: pretty;
+}
+.pf-step-lede a {
+  color: var(--tm-text-muted);
+  text-decoration: none;
+  transition: color var(--tm-dur-fast) var(--tm-ease);
+}
+.pf-step-lede a:hover { color: var(--pf-accent); }
+
+.pf-step-body {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+/* Sign off carries all six groups at once, so its groups sit closer together —
+   the step screens hold two at most and can afford the air. */
+.pf-step-body[data-dense="true"] { gap: 18px; }
+
+.pf-signoff-said {
+  margin: 0;
+  font-size: var(--tm-fs-note);
+  line-height: 1.4;
+  color: var(--tm-text-muted);
+  text-wrap: pretty;
+}
+
+/* Guesses waiting on a yes or no, under the slot they would change. */
+.pf-asks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── the opening composer ─────────────────────────────────────────────────── */
+
+.pf-open {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pf-open-hero {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.pf-open-hero span {
+  font-size: var(--tm-fs-display);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--tm-text);
+  font-variant-numeric: tabular-nums;
+}
+.pf-open-hero p {
+  margin: 0;
+  font-size: var(--tm-fs-meta);
+  line-height: 1.35;
+  color: var(--tm-text-muted);
+}
+
+.pf-open-know {
+  margin: 0;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-note);
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+  color: var(--tm-text-muted);
+}
+
+.pf-compose {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.pf-send {
+  appearance: none;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--tm-button-radius);
+  background: var(--pf-accent);
+  color: var(--pf-accent-fg);
+  cursor: pointer;
+  transition:
+    background-color var(--tm-dur-fast) var(--tm-ease),
+    opacity var(--tm-dur-fast) var(--tm-ease);
+}
+.pf-send[data-idle="true"] {
+  background: var(--pf-plate);
+  color: var(--tm-text-faint);
+}
+.pf-send:hover:not([data-idle="true"]) { background: color-mix(in oklab, var(--pf-accent) 88%, #000); }
+.pf-send:disabled { cursor: not-allowed; }
+
+/* ── the pinned footer ────────────────────────────────────────────────────── */
+
+.pf-footer {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 22px 18px;
+  border-top: 1px solid var(--pf-stroke);
+  background: var(--pf-ground);
+}
+
+/* The one sentence not already on screen — the contract, a block, or a cost
+   the user is short for. Everything else the footer could say, the step above
+   it already shows. */
+.pf-footer-note {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--tm-fs-note);
+  line-height: 1.45;
+  color: var(--tm-text-muted);
+  text-wrap: pretty;
+}
+.pf-footer-error { color: var(--pf-decline); }
+.pf-footer-short { color: var(--pf-decline); }
+.pf-footer-short a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.pf-primary {
+  appearance: none;
+  width: 100%;
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--tm-button-radius);
+  background: var(--pf-accent);
+  color: var(--pf-accent-fg);
+  font: inherit;
+  font-size: var(--tm-fs-ui-lg);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  cursor: pointer;
+  transition:
+    background-color var(--tm-dur-fast) var(--tm-ease),
+    opacity var(--tm-dur-fast) var(--tm-ease);
+}
+.pf-primary:hover:not(:disabled) { background: color-mix(in oklab, var(--pf-accent) 88%, #000); }
+.pf-primary:disabled { cursor: not-allowed; opacity: 0.55; }
+.pf-primary-sep { opacity: 0.5; font-weight: 400; }
+.pf-primary-meta { font-weight: 400; font-variant-numeric: tabular-nums; }
+
+.pf-secondary {
+  appearance: none;
+  width: 100%;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--tm-button-radius);
+  background: transparent;
+  color: var(--tm-text-muted);
+  font: inherit;
+  font-size: var(--tm-fs-ui);
+  cursor: pointer;
+  transition:
+    color var(--tm-dur-fast) var(--tm-ease),
+    background-color var(--tm-dur-fast) var(--tm-ease);
+}
+.pf-secondary:hover { color: var(--tm-text); background: var(--pf-plate); }
+
+@media (max-width: 420px) {
+  .pf-footer { padding: 12px 16px 16px; }
+  .pf-step { gap: 18px; }
+  .pf-step-body { gap: 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-primary, .pf-secondary, .pf-send, .pf-seg, .pf-back { transition: none; }
+}

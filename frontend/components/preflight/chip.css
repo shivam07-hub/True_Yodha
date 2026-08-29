@@ -1,0 +1,250 @@
+/* The chip — one settled line, at a third of the height of the plate it
+ * replaced.
+ *
+ * Consumes the `--pf-*` palette declared on `.pf-modal` in `plate.css`; it
+ * declares no literals of its own. The pill radius comes from
+ * `--tm-radius-pill`, which is the token system's own answer for pills — the
+ * BUTTONS in this surface stay on `--tm-button-radius` (10px), because a
+ * fully-rounded primary action is the pillow-radius tell ANTI_SLOP rules
+ * against and the reference designs' round Continue button is the one thing
+ * from them we do not copy.
+ *
+ * No blur, no drop shadow, no inset highlight. The plate needed material
+ * because it was a card on a ground; a chip is a word with a boundary. Twenty
+ * blurred surfaces also cost twenty compositor layers on a phone.
+ */
+
+.pf-chip {
+  display: inline-flex;
+  flex-direction: column;
+  position: relative;
+  max-width: 100%;
+  border: 1px solid var(--pf-stroke);
+  border-radius: var(--tm-radius-pill);
+  background: var(--pf-plate);
+  transition:
+    background-color var(--tm-dur-fast) var(--tm-ease),
+    border-color var(--tm-dur-fast) var(--tm-ease);
+}
+.pf-chip:hover { background: var(--pf-plate-hover); border-color: var(--pf-stroke-strong); }
+
+/* The provenance rail, carried over from `.pf-plate`: a bar if you said it,
+   nothing if Myro guessed. Same rule, a third of the height. */
+.pf-chip[data-said="user"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  bottom: 7px;
+  width: 2.5px;
+  border-radius: 0 3px 3px 0;
+  background: var(--pf-accent);
+}
+
+/* A line carrying a meta note takes a full row and squares off — it is no
+   longer a word among words, it is a statement with a caveat. */
+.pf-chip[data-wide="true"] {
+  display: flex;
+  width: 100%;
+  border-radius: var(--tm-radius-lg);
+  padding-bottom: 7px;
+}
+
+.pf-chip-main {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.pf-chip-text {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--tm-fs-ui-sm);
+  line-height: 1.35;
+  letter-spacing: -0.003em;
+  color: var(--tm-text);
+  text-align: left;
+  padding: 7px 4px 7px 13px;
+  min-width: 0;
+  /* Two lines then clamp. A user's won't-take is a sentence ("Avoids roles
+     focused on financial accounting") and must stay readable, but a chip that
+     grows to five lines stops being a chip. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.pf-chip-text:disabled { cursor: not-allowed; }
+
+.pf-chip-drop {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 11px 7px 5px;
+  color: var(--tm-text-faint);
+  opacity: 0.5;
+  border-radius: var(--tm-radius-pill);
+  transition:
+    opacity var(--tm-dur-fast) var(--tm-ease),
+    color var(--tm-dur-fast) var(--tm-ease);
+  flex-shrink: 0;
+}
+.pf-chip:hover .pf-chip-drop { opacity: 0.85; }
+.pf-chip-drop:hover { color: var(--pf-decline); opacity: 1; }
+.pf-chip-drop:disabled { cursor: not-allowed; opacity: 0.3; }
+/* A hover-only affordance does not exist on a phone. */
+@media (hover: none) { .pf-chip-drop { opacity: 0.7; } }
+
+.pf-chip[data-editing="true"] {
+  border-color: var(--pf-accent);
+  background: var(--pf-plate-hover);
+}
+.pf-chip-input {
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-size: var(--tm-fs-ui-sm);
+  line-height: 1.35;
+  color: var(--tm-text);
+  padding: 7px 13px;
+  min-width: 6ch;
+  max-width: 100%;
+}
+.pf-chip-input:focus { outline: none; }
+
+.pf-chip-meta {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-note);
+  letter-spacing: 0.02em;
+  color: var(--tm-text-faint);
+  padding: 0 13px;
+}
+
+/* ── the row of them ──────────────────────────────────────────────────────
+ *
+ * Wrapping, so three short roles cost one row rather than three cards. The add
+ * control is the last item IN the row, not a full-width band under it: an
+ * empty slot is then a label and an invitation on one line — 26px against the
+ * 88px an empty group used to cost. Six slots, three of them empty, was 264px
+ * of nothing. */
+.pf-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 7px;
+}
+
+.pf-chip-add {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  background: transparent;
+  color: var(--tm-text-faint);
+  border: 1px dashed var(--pf-stroke);
+  border-radius: var(--tm-radius-pill);
+  font: inherit;
+  font-size: var(--tm-fs-ui-sm);
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    color var(--tm-dur-fast) var(--tm-ease),
+    border-color var(--tm-dur-fast) var(--tm-ease),
+    background-color var(--tm-dur-fast) var(--tm-ease);
+}
+.pf-chip-add::before {
+  content: "+";
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.75;
+}
+.pf-chip-add:hover:not(:disabled) {
+  color: var(--pf-accent);
+  border-color: var(--pf-accent);
+  border-style: solid;
+  background: var(--pf-plate);
+}
+.pf-chip-add:disabled { cursor: not-allowed; opacity: 0.5; }
+
+/* Typing an addition. Takes the full row because it is a composer, not a
+   chip — and returns to the row the moment it commits. */
+.pf-chip-add-open {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 9px;
+  width: 100%;
+  padding: 11px 13px;
+  border: 1px solid var(--pf-accent);
+  border-radius: var(--tm-radius-lg);
+  background: var(--pf-plate);
+}
+.pf-chip-add-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* ── the slot group ───────────────────────────────────────────────────────
+ *
+ * Label, chip row, and any conflict about this slot's arity. The label sits
+ * closer to its own row than to the group above — the asymmetric gap is what
+ * makes six groups read as six. */
+.pf-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pf-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pf-group-label {
+  margin: 0;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tm-text-muted);
+}
+
+/* Only when the limit is in play — see `slotCount`. A slot holding two of six
+   does not need telling it has room. */
+.pf-group-count {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.06em;
+  color: var(--tm-text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The role picker's trigger is already a dashed pill; it just needs this
+   surface's palette rather than the app's. Scoped, not edited at source —
+   Settings, the Jobs filter and the score header render the same control on
+   the page ground where the app tokens are correct. */
+.pf-chips .tm-rolepick-trigger {
+  border-color: var(--pf-stroke);
+  color: var(--tm-text-faint);
+  font-size: var(--tm-fs-ui-sm);
+  padding: 7px 13px;
+}
+.pf-chips .tm-rolepick-trigger:hover:not(:disabled) {
+  color: var(--pf-accent);
+  border-color: var(--pf-accent);
+  border-style: solid;
+  background: var(--pf-plate);
+}
+.pf-chips .tm-rolepick { display: inline-flex; position: relative; }

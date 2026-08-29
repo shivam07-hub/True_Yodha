@@ -44,11 +44,13 @@ import { useRefreshGateStore } from "@/store/refreshGateStore"
 import { useXPStore } from "@/store/xpStore"
 import { refreshIsLive, type UseJobRefreshResult } from "@/lib/hooks/use-job-refresh"
 
+import { Journey } from "./journey"
 import { PreflightHeader } from "./preflight-header"
-import { ScreenCanvas } from "./screen-canvas"
 import { ScreenDone, ScreenRunning } from "./screen-running"
 
 import "./preflight.css"
+import "./surface.css"
+import "./journey.css"
 // Dropped by `bfd99924` (the canvas rebuild) and imported by nothing for two
 // days: `screen-running.tsx` says the shell loads it, and the shell did not.
 // Both wait screens — the hero, the streaming stack, the count, and every
@@ -315,86 +317,94 @@ export function PreflightGate({
         className="pf-modal"
         onClick={(e) => e.stopPropagation()}
       >
-        <PreflightHeader
-          onClose={requestClose}
-          closable={!refreshIsLive(refreshVm.state)}
-        />
-
-        <div className="pf-body">
-          {/* `/preflight/order` runs ~8s on a cold read, and the shell used to
-              render its chrome over an empty box for all of it — a titled,
-              closable, entirely blank modal. Plates in outline say the same
-              thing the real ones will: this is a list, it is coming. */}
-          {mode === "canvas" && !order ? <CanvasSkeleton /> : null}
-
-          {mode === "canvas" && order ? (
-            <ScreenCanvas
-              order={order}
-              proposals={proposals}
-              proposalAnswers={proposalAnswers}
-              pending={pending}
-              sayFirst={intent === "say"}
-              price={price ?? null}
-              balance={balance}
-              starting={starting}
-              error={error}
-              onSaySomething={saySomething}
-              onProposeTopic={proposeTopic}
-              onAnswerLine={answerLine}
-              onRewordLine={rewordLine}
-              onAnswerProposal={answerProposal}
-              onAddLine={addToSlot}
-              undoable={undoable}
-              onUndo={undoLast}
-              onOpenCoins={close}
-              onRun={run}
+        {/* The journey renders its own header — the ribbon is a step control,
+            not modal chrome, and the back chevron only exists while there is a
+            step to go back to. The wait screens keep the bare header. */}
+        {mode === "canvas" && order ? (
+          <Journey
+            order={order}
+            proposals={proposals}
+            proposalAnswers={proposalAnswers}
+            pending={pending}
+            intent={intent}
+            price={price ?? null}
+            balance={balance}
+            starting={starting}
+            error={error}
+            closable={!refreshIsLive(refreshVm.state)}
+            onClose={requestClose}
+            onSaySomething={saySomething}
+            onProposeTopic={proposeTopic}
+            onAnswerLine={answerLine}
+            onRewordLine={rewordLine}
+            onAnswerProposal={answerProposal}
+            onAddLine={addToSlot}
+            undoable={undoable}
+            onUndo={undoLast}
+            onOpenCoins={close}
+            onRun={run}
+          />
+        ) : (
+          <>
+            <PreflightHeader
+              onClose={requestClose}
+              closable={!refreshIsLive(refreshVm.state)}
             />
-          ) : null}
+            <div className="pf-body">
+              {/* `/preflight/order` runs ~8s on a cold read, and the shell used
+                  to render its chrome over an empty box for all of it — a
+                  titled, closable, entirely blank modal. The outline says the
+                  same thing the real screen will: this is a list, it is
+                  coming. */}
+              {mode === "canvas" ? <StepSkeleton /> : null}
 
-          {mode === "running" ? (
-            <ScreenRunning
-              lifecycle={refreshVm.state === "computing" ? "computing" : "queued"}
-              label={refreshVm.progressLabel}
-              done={refreshVm.progressDone}
-              total={refreshVm.progressTotal}
-              revealed={refreshVm.revealed}
-            />
-          ) : null}
+              {mode === "running" ? (
+                <ScreenRunning
+                  lifecycle={refreshVm.state === "computing" ? "computing" : "queued"}
+                  label={refreshVm.progressLabel}
+                  done={refreshVm.progressDone}
+                  total={refreshVm.progressTotal}
+                  revealed={refreshVm.revealed}
+                />
+              ) : null}
 
-          {mode === "done" ? (
-            <ScreenDone
-              matches={refreshVm.matchesWritten ?? 0}
-              onSeeMatches={() => {
-                releaseAfterRun()
-                close()
-                onSeeMatches()
-              }}
-              onRunAgain={() => {
-                refreshVm.reset()
-                setMode("canvas")
-                setProposals([])
-                setProposalAnswers({})
-                void invalidateOrder(client)
-              }}
-            />
-          ) : null}
-        </div>
+              {mode === "done" ? (
+                <ScreenDone
+                  matches={refreshVm.matchesWritten ?? 0}
+                  onSeeMatches={() => {
+                    releaseAfterRun()
+                    close()
+                    onSeeMatches()
+                  }}
+                  onRunAgain={() => {
+                    refreshVm.reset()
+                    setMode("canvas")
+                    setProposals([])
+                    setProposalAnswers({})
+                    void invalidateOrder(client)
+                  }}
+                />
+              ) : null}
+            </div>
+          </>
+        )}
       </div>
     </div>,
     document.body,
   )
 }
 
-/** The canvas, in outline, while the order is still in flight. */
-function CanvasSkeleton() {
+/** The first step, in outline, while the order is still in flight. */
+function StepSkeleton() {
   return (
-    <div className="pf-canvas" aria-hidden>
-      <div className="pf-skeleton-head" />
-      <div className="pf-plate-list">
-        <div className="pf-skeleton-plate" data-w="long" />
-        <div className="pf-skeleton-plate" data-w="short" />
-        <div className="pf-skeleton-plate" data-w="mid" />
-        <div className="pf-skeleton-plate" data-w="long" />
+    <div className="pf-step" aria-hidden>
+      <div className="pf-step-head">
+        <div className="pf-skeleton-head" />
+      </div>
+      <div className="pf-chips">
+        <div className="pf-skeleton-chip" data-w="mid" />
+        <div className="pf-skeleton-chip" data-w="short" />
+        <div className="pf-skeleton-chip" data-w="long" />
       </div>
     </div>
   )

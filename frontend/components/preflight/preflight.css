@@ -93,9 +93,12 @@
   border-bottom: 1px solid var(--pf-stroke);
   flex-shrink: 0;
 }
+/* Three items now — back, name, close — so the name centres between two
+   equal-width controls rather than hanging off the left. The spacer holds the
+   name in place on the first step, where there is nothing to go back to. */
 .pf-head-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
@@ -106,7 +109,6 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--tm-text-faint);
-  margin-bottom: 6px;
 }
 
 .pf-close {
@@ -122,6 +124,77 @@
   transition: color var(--tm-dur-fast) var(--tm-ease);
 }
 .pf-close:hover { color: var(--tm-interactive); }
+
+.pf-back {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 6px;
+  margin: 0 0 0 -6px;
+  display: inline-flex;
+  color: var(--tm-interactive-rest);
+  border-radius: var(--tm-radius-sm);
+  transition: color var(--tm-dur-fast) var(--tm-ease);
+}
+.pf-back:hover { color: var(--tm-interactive); }
+.pf-back-spacer { display: inline-block; width: 30px; height: 30px; flex: none; }
+
+/* ── the step ribbon ─────────────────────────────────────────────────────────
+ *
+ * Five thin segments, deliberately unlabelled. Six words across 560px is
+ * legible and across 375px is not, and a bar that reads at one width and
+ * shreds at the other is worse than one that reads at both — the step's own
+ * title sits three lines under it saying where you are in full.
+ *
+ * A segment is a BUTTON. `JourneyProgress` in onboarding made the same move
+ * for the same reason: a ticked sequence that cannot be clicked still looks
+ * like one that can, and the only route back was a control that destroyed the
+ * answer behind it. */
+
+.pf-ribbon {
+  display: flex;
+  gap: 5px;
+  margin-top: 14px;
+}
+
+.pf-seg {
+  appearance: none;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 3px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: var(--pf-stroke);
+  cursor: pointer;
+  position: relative;
+  transition: background-color var(--tm-dur) var(--tm-ease);
+}
+/* The hit area is 3px tall and the finger is not. */
+.pf-seg::after {
+  content: "";
+  position: absolute;
+  inset: -11px 0;
+}
+.pf-seg[data-state="done"]    { background: color-mix(in oklab, var(--pf-accent) 55%, var(--pf-stroke)); }
+.pf-seg[data-state="current"] { background: var(--pf-accent); }
+.pf-seg:hover:not([data-state="current"]) { background: var(--pf-stroke-strong); }
+
+/* The dot answers "what does Myro still need from me?" at a glance — the
+   question the six slot headers were introduced to answer and could only
+   answer once you had scrolled past all six. */
+.pf-seg[data-asks="true"]::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--pf-accent);
+}
 
 /* ── body + footer ────────────────────────────────────────────────────────── */
 
@@ -233,7 +306,6 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-top: 18px;
   padding-top: 16px;
   border-top: 1px solid var(--tm-hairline);
 }
@@ -266,22 +338,14 @@
 .pf-topic:hover:not(:disabled) { border-color: var(--tm-accent-ring); color: var(--tm-accent-text); }
 .pf-topic:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* The cost slot before the price lands. Quiet, same width class as a number —
-   the button must never guess a figure it is about to charge. */
-.pf-canvas-run-cost[data-pending="true"] {
-  opacity: 0.6;
-  font-style: italic;
-}
-
-/* One step back from the last change, above the run bar. Not a changelog —
-   the sheet had one of those, and a list of everything you have done is chrome
-   next to the plates that already show the result. */
+/* One step back from the last change, at the top of the footer. Not a
+   changelog — the sheet had one of those, and a list of everything you have
+   done is chrome next to the chips that already show the result. */
 
 .pf-undo-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 14px;
   font-size: var(--tm-fs-note);
   line-height: 1.4;
   color: var(--tm-text-muted);

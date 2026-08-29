@@ -13,7 +13,7 @@ const catalog = read("lib/location-catalog.ts")
  *  Myro Search took cities as FREE TEXT, so typing produced Cancel/Add and no
  *  list, and "Gurgaon" could not find the corpus name "Gurugram". */
 const CHOOSING_SURFACES = [
-  "components/preflight/slot-group.tsx",
+  "components/preflight/chip-group.tsx",
   "components/settings-modal.tsx",
   "components/onboarding/location-choice.tsx",
 ]

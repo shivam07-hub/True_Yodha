@@ -19,7 +19,8 @@ import { strict as assert } from "node:assert"
 import { readFileSync } from "node:fs"
 import { test } from "node:test"
 
-import { SLOT_COPY, SLOT_ORDER, slotCount } from "../lib/preflight/slots"
+import { SLOT_COPY, slotCount } from "../lib/preflight/slots"
+import { STEPS } from "../lib/preflight/journey"
 
 /** `spec.py`, not `payload.py`: the slot map moved there on 2026-08-25 when the
  *  meaning of an EMPTY slot became a contract of its own. This test failing on
@@ -56,7 +57,13 @@ test("every slot the resolver can send has words on the client", () => {
   for (const key of Object.keys(SLOT_COPY)) {
     assert.ok(serverKeys.includes(key), `${key} is not a server slot`)
   }
-  assert.deepEqual([...SLOT_ORDER].sort(), [...serverKeys].sort())
+  // The steps are where render order lives, so they are what must cover the
+  // server's slots — a slot assigned to no step is one the user cannot reach,
+  // and a step naming a slot the server never sends is a group that can only
+  // ever be empty.
+  const stepped = STEPS.flatMap((step) => step.slots)
+  assert.deepEqual([...stepped].sort(), [...serverKeys].sort())
+  assert.equal(new Set(stepped).size, stepped.length, "a slot may belong to one step")
 })
 
 test("the client owns the words and nothing else", () => {

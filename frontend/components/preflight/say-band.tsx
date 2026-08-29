@@ -101,7 +101,7 @@ export function SayBand({
 
       {pending ? <MyroTyping label="Myro is reading that" /> : null}
 
-      <div className="pf-canvas-compose">
+      <div className="pf-compose">
         <SayPad
           size="compact"
           value={value}
@@ -113,7 +113,7 @@ export function SayBand({
         />
         <button
           type="button"
-          className="pf-canvas-send tm-control-focus"
+          className="pf-send tm-control-focus"
           data-idle={idle ? "true" : undefined}
           onClick={() => say(value)}
           aria-label="Send"

@@ -14,7 +14,7 @@ const mutation = read("lib/hooks/use-edit-target-role.ts")
  *  title they could see and a `target_roles` scoping key nobody could fix. */
 const CHOOSING_SURFACES = [
   "components/target-role/target-roles-chips.tsx",
-  "components/preflight/slot-group.tsx",
+  "components/preflight/chip-group.tsx",
 ]
 
 test("the role picker offers verified corpus families", () => {
@@ -39,6 +39,6 @@ test("a picker selection saves its title and family together", () => {
 test("the pre-flight carries the family it resolved onto the order", () => {
   // Without this the title reaches `target_role_titles` and `derive()` keeps the
   // STORED family, because a family cannot be recovered from free text.
-  assert.match(read("components/preflight/slot-group.tsx"), /onAdd\("role", role\.label, role\.family\)/)
+  assert.match(read("components/preflight/chip-group.tsx"), /onAdd\("role", role\.label, role\.family\)/)
   assert.match(read("components/preflight/preflight-gate.tsx"), /role_family: roleFamily/)
 })

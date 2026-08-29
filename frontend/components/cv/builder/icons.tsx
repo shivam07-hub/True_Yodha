@@ -7,7 +7,7 @@ import type { SVGProps } from "react"
 
 export type IconName =
   | "aperture" | "file" | "target" | "skills" | "intel" | "tracker" | "forge"
-  | "check" | "x" | "plus" | "chevron-right" | "chevron-down" | "arrow-right"
+  | "check" | "x" | "plus" | "chevron-right" | "chevron-left" | "chevron-down" | "arrow-right"
   | "edit" | "trash" | "download" | "external-link" | "history" | "folder" | "save"
   | "diamond" | "settings" | "eye" | "eye-off" | "sparkle" | "upload" | "merge" | "undo"
 
@@ -41,6 +41,7 @@ export function Icon({ name, size = 16, stroke = 1.6, ...rest }: IconProps) {
     case "x":        return <svg {...common}><path d="M18 6 6 18M6 6l12 12"/></svg>
     case "plus":     return <svg {...common}><path d="M12 5v14M5 12h14"/></svg>
     case "chevron-right": return <svg {...common}><polyline points="9 18 15 12 9 6"/></svg>
+    case "chevron-left":  return <svg {...common}><polyline points="15 18 9 12 15 6"/></svg>
     case "chevron-down":  return <svg {...common}><polyline points="6 9 12 15 18 9"/></svg>
     case "arrow-right":   return <svg {...common}><path d="M5 12h14M13 5l7 7-7 7"/></svg>
     case "edit":     return <svg {...common}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>

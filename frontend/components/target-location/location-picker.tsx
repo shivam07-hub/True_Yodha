@@ -82,7 +82,7 @@ export function LocationPicker({
     return (
       <button
         type="button"
-        className="pf-slot-add tm-control-focus"
+        className="pf-chip-add tm-control-focus"
         onClick={() => setOpen(true)}
         disabled={busy}
       >
@@ -92,7 +92,7 @@ export function LocationPicker({
   }
 
   return (
-    <div ref={root} className="pf-slot-add pf-slot-add-open">
+    <div ref={root} className="pf-chip-add-open">
       <input
         autoFocus
         value={query}
@@ -141,7 +141,7 @@ export function LocationPicker({
           <p className="tm-locpick-empty">No live cities match that search.</p>
         ) : null}
       </div>
-      <div className="pf-slot-add-actions">
+      <div className="pf-chip-add-actions">
         <button type="button" className="pf-plate-action" data-role="cancel" onClick={close}>
           Cancel
         </button>
