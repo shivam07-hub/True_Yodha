@@ -1,10 +1,20 @@
-# Job Tracks — handoff for slice 3b
+# Job Tracks — shipped, and the outage it was hiding
 
-**Written 2026-08-28. Slice 2 shipped 2026-08-29. Slice 3a and 3c shipped
-2026-08-29.** Slice 1 is on `Develop`. What is left is **3b, the unlock
-moment** — and nothing else. Read the constraints below before touching it;
-several are decisions that were already argued and settled, and a design that
-quietly reverses one will be reverted.
+**Written 2026-08-28. Every slice shipped 2026-08-29.** Nothing here is open
+work. Kept as the record of what was built and why; the invariants live in
+[CONTEXT.md](CONTEXT.md) §Pre-flight Order and §Provisional Match.
+
+⚠️ **The gate was dead for the whole feature's life.** `tailored_cv_created_at`
+had one writer — `POST /onboarding/milestones/{milestone}` — and NOTHING called
+it: zero callers in the client, none on the server. It was NULL for all 141
+users with onboarding state while 11 of them held 66 tailored `cv_versions`
+rows, so `can_open_another` refused everybody: `POST /tracks` 409'd for every
+user alive, the mentor's track proposal could never fire, and the grouped feed
+could never render. **Slices 1, 2 and 3a were all unreachable in production and
+nothing said so.** Fixed by stamping it in `CVVersionsRepository.create()` —
+the one seam every version passes through, chosen precisely because a stamp any
+of eighteen call sites can forget is how it died the first time. No backfill:
+the 11 flip their gate on their next tailor.
 
 **Slice 2 is done and its section below is kept as the record of what was
 built, not as work.** The mentor extracts `second_search`, `from_utterance`
@@ -23,10 +33,19 @@ single-track user gets nothing at all — no header, no tier line, the screen it
 was. The hero rail names one best match per search rather than one across all of
 them.
 
-**Slice 3b has NOT been built** — see below. `useTracks` deliberately does not
-re-export `can_open` / `blocked_reason`: exposing a gate with nothing reading it
-is an API that looks answered and is not. `tracksApi.list` returns both when 3b
-needs them.
+**Slice 3b IS built.** The offer lives on the tailor's done panel
+(`components/cv/builder/tailor-done.tsx`) — the moment the loop closes, which is
+also the moment the server flips the gate, so the panel re-reads it on apply
+rather than showing the offer one tailor late. It does not create a track: it
+opens Myro Search on the say band, where the mentor turns "I'm also looking at
+marketing" into the one typed proposal slice 2 built. A track is the user's own
+words or it is nothing. It retires itself once they have a second search
+(`tracks.length < 2`) — a success screen that keeps selling reads as one that
+wanted something.
+
+`useTracks` still does not re-export `blocked_reason`: nothing renders a refusal
+yet, and when something does it must render THAT STRING — never a padlock,
+never "Pro", never "locked".
 
 ---
 
@@ -163,7 +182,7 @@ This split is the entire reason two searches cost about what one does — 16 dee
 evaluations against the 15 a single-track run does today. It is not negotiable
 without a latency conversation.
 
-### 3b. The unlock moment *(not built)*
+### 3b. The unlock moment · **SHIPPED**
 
 `can_open` flips to true the moment the user tailors a CV for a job in their
 first search. That is the moment to offer the second one — they have just felt

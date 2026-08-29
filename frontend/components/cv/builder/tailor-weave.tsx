@@ -22,6 +22,7 @@ import { cv as cvApi, type WeaveProposal, type WeaveQuestion } from "@/lib/api"
 import { useXPStore } from "@/store/xpStore"
 import { Icon } from "./icons"
 import { MentorThinking, WeaveLoom } from "./mentor-thinking"
+import { TailorDone, useTailorGateRefresh } from "./tailor-done"
 import { WeaveRoleCard } from "./weave-role-card"
 
 type Act = "brief" | "interview" | "loom" | "review" | "done"
@@ -96,6 +97,8 @@ export function TailorWeave({
   })
   const questions: WeaveQuestion[] = interview.data?.questions ?? []
 
+  const refreshTrackGate = useTailorGateRefresh()
+
   const runWeave = useMutation({
     mutationFn: (opts: { refresh: boolean }) => cvApi.weave.run(token, jobId, answers, opts),
     onMutate: () => { setError(null); setAct("loom") },
@@ -119,7 +122,11 @@ export function TailorWeave({
   const applyWeave = useMutation({
     mutationFn: (accepted: number[]) =>
       cvApi.weave.apply(token, jobId, accepted, { acceptSummary: keepSummary, acceptSkillsLine: keepSkills }),
-    onSuccess: res => { setSavedVersion(res.version_id); onApplied(res.version_id); setAct("done") },
+    onSuccess: res => {
+      setSavedVersion(res.version_id); onApplied(res.version_id)
+      refreshTrackGate()  // the tailor just opened the Job Tracks gate
+      setAct("done")
+    },
     onError: (e: Error) => setError(e.message),
   })
 
@@ -362,17 +369,7 @@ export function TailorWeave({
           )}
 
           {act === "done" && (
-            <div className="tw-done">
-              <div className="tw-done-badge">✓</div>
-              <h2 className="tw-brief-h">Saved — your {company} CV</h2>
-              <p className="tw-brief-p">
-                Every line traces to your real experience. The stories you added are
-                banked for every future job.
-              </p>
-              <button type="button" className="tw-btn tw-btn-primary" onClick={onClose}>
-                {savedVersion != null ? "Open my CV" : "Done"}
-              </button>
-            </div>
+            <TailorDone token={token} company={company} savedVersion={savedVersion} onClose={onClose} />
           )}
         </div>
       </div>

@@ -248,6 +248,26 @@ button.tw-prov-chip:hover { color: var(--tm-text); border-color: var(--tm-int-bo
   background: var(--tm-success-wash); color: var(--tm-success-text);
 }
 
+/* ── the offer of a second search (Job Tracks 3b) ────────────────────────
+ *
+ * Below the primary and separated by a rule, because it is a DIFFERENT errand
+ * from the one just finished: the user came here to tailor a CV and that is
+ * done. Quiet on purpose — this is a success screen, and a success screen that
+ * sells reads as a success screen that wanted something. */
+.tw-second {
+  margin: 26px auto 0;
+  max-width: 380px;
+  padding-top: 20px;
+  border-top: 1px solid var(--tm-border-soft);
+}
+.tw-second-p {
+  margin: 0 0 12px;
+  font-size: var(--tm-fs-meta);
+  line-height: 1.5;
+  color: var(--tm-text-muted);
+  text-wrap: pretty;
+}
+
 /* ── the conspicuous toolbar CTA (L6) ──────────────────────────────────── */
 .tw-cta {
   display: inline-flex; align-items: center; gap: 7px;

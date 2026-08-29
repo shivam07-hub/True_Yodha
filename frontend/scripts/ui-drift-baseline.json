@@ -3,14 +3,15 @@
   "jsHoverStyleMutation": 54,
   "handRolledModalScrim": 20,
   "handRolledPill": 55,
-  "readingTextInFaintToken": 36,
+  "readingTextInFaintToken": 35,
   "rawDateNumberFormat": 0,
-  "rawFontSizeLiteral": 1464,
+  "rawFontSizeLiteral": 1462,
   "sparkleGlyph": 0,
   "bannedPurpleHue": 0,
   "cornerOrbWash": 0,
+  "pinnedColourLiteral": 227,
   "themeTokenOnPaperSheet": 0,
   "virtualizerOutsideFeed": 0,
   "virtualRowIdentity": 1,
-  "pinnedColourLiteral": 227
+  "definedTokensOnly": 7
 }

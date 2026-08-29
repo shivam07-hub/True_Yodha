@@ -23,7 +23,7 @@
  * wrong way is rejected automatically instead of caught in review (if at all).
  */
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from "node:fs"
-import { join, extname } from "node:path"
+import { join, extname, relative } from "node:path"
 
 const ROOT = process.cwd()
 const BASELINE_PATH = join(ROOT, "scripts", "ui-drift-baseline.json")
@@ -348,12 +348,46 @@ function checkRouteCoverage() {
   return unregistered
 }
 
+/**
+ * A `var(--tm-*)` naming a token nothing defines.
+ *
+ * CSS fails these SILENTLY: `border: 1px solid var(--tm-hairline)` on an
+ * undefined token computes to width 0 and the border simply is not there. No
+ * error, no warning, nothing in the console — the rule just does not exist.
+ *
+ * `--tm-hairline` was never a token. Three rules named it: the say band's
+ * separator, the CV tailor's, and the ENTIRE border of Myro Search's four topic
+ * chips, which had therefore been rendering as bare text. It survived a
+ * redesign of that surface because a plausible token name reads as correct in
+ * a diff, and the screenshot of chips-without-borders reads as a design choice.
+ */
+function undefinedTokens() {
+  const tokensCss = readFileSync(join(ROOT, "app", "design-tokens.css"), "utf8")
+  const defined = new Set([...tokensCss.matchAll(/(--tm-[a-z0-9-]+)\s*:/g)].map((m) => m[1]))
+  const missing = []
+  for (const file of SRC_DIRS.flatMap((d) => walk(join(ROOT, d), [".css"], []))) {
+    const css = readFileSync(file, "utf8").replace(/\/\*[\s\S]*?\*\//g, "")
+    const seen = new Set()
+    for (const [, name] of css.matchAll(/var\(\s*(--tm-[a-z0-9-]+)/g)) {
+      // A fallback is a deliberate "may not exist" and carries its own value.
+      if (defined.has(name) || seen.has(name)) continue
+      if (new RegExp(`var\\(\\s*${name}\\s*,`).test(css)) continue
+      seen.add(name)
+      missing.push(`${relative(ROOT, file)} → ${name}`)
+    }
+  }
+  return missing
+}
+
+const missingTokens = undefinedTokens()
+
 const update = process.argv.includes("--update-baseline")
 const results = METRICS.map((m) => ({ metric: m, ...countMetric(m) }))
 
 if (update) {
   const baseline = {}
   for (const r of results) baseline[r.metric.name] = r.total
+  baseline.definedTokensOnly = missingTokens.length
   writeFileSync(BASELINE_PATH, JSON.stringify(baseline, null, 2) + "\n")
   console.log("Updated UI drift baseline:")
   for (const r of results) console.log(`  ${r.metric.name}: ${r.total}`)
@@ -381,6 +415,14 @@ for (const r of results) {
 
 const unregistered = checkRouteCoverage()
 
+// A RATCHET, like every other metric here — seven of these predate the check,
+// in five files across surfaces this session has no business repainting blind.
+// Guessing which token each MEANT would change how those screens look with no
+// way to verify it. So the number may only fall, and the offenders are printed
+// every run rather than hidden behind a green tick.
+const tokenBase = baseline.definedTokensOnly
+const tokensWorse = tokenBase === undefined || missingTokens.length > tokenBase
+
 console.log("UI drift guard:")
 for (const r of results) {
   const base = baseline[r.metric.name]
@@ -388,8 +430,10 @@ for (const r of results) {
   console.log(`  ${r.metric.name}: ${r.total} (${arrow} ${base ?? "?"})`)
 }
 console.log(`  publicRouteCoverage: ${unregistered.length === 0 ? "ok" : `${unregistered.length} unregistered`}`)
+console.log(`  definedTokensOnly: ${missingTokens.length} (≤ ${tokenBase ?? "?"})`)
+for (const m of missingTokens) console.log(`      ${m}`)
 
-if (violations.length === 0 && unregistered.length === 0) {
+if (violations.length === 0 && unregistered.length === 0 && !tokensWorse) {
   console.log("\n✓ No new UI drift.")
   process.exit(0)
 }
@@ -409,6 +453,13 @@ for (const v of violations) {
   console.error(`    ${r.metric.hint}`)
   console.error(`    current locations: ${r.offenders.map((o) => `${o.rel}(${o.n})`).join(", ") || "—"}`)
   console.error("")
+}
+if (tokensWorse) {
+  console.error(`  definedTokensOnly: ${tokenBase ?? "no baseline"} → ${missingTokens.length}`)
+  console.error("    A var(--tm-*) naming a token nothing defines. CSS fails this SILENTLY:")
+  console.error("    the declaration is dropped and the rule is simply absent — no error, no warning.")
+  for (const m of missingTokens) console.error(`      ${m}`)
+  console.error("    Define it in app/design-tokens.css, use an existing token, or give it a fallback.\n")
 }
 if (unregistered.length > 0) {
   console.error(`  publicRouteCoverage: ${unregistered.map((s) => `/${s}`).join(", ")} not in the site-route registry.`)

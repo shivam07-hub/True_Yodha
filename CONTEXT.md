@@ -588,6 +588,22 @@ Exists because `compute_job_matches` persisted once, at the end, and the run is 
 - **It reads final by saying NOTHING, not by saying "Checking fit…".** `verdictLabel` returns `null` for `checking`, so no surface can print a word for a verdict that does not exist. The old string was a loading state, and Job Tracks made the state permanent: a run keeps `TRACK_QUOTA` (20) rows per search and deep-evaluates `TRACK_DEEP` (8), so twelve rows in twenty are unread until someone opens one. The market card had side-stepped this by falling back to the overlap view; the mobile row rendered the word, so one surface claimed a check was in progress while the feed's own divider above it said "Not read yet". Returning null makes the rule the compiler's, not a convention each caller has to remember.
 - **A read row outranks an unread one, whatever the overlap says.** `match_score` is the brain's `overall_score / 5 * 100` after the brain runs and RAW `overlap_score` before it — one field, two scales. `_rank_feed_rows` therefore sorts on `(which search, has an eval, match_score)`; without the middle term an unevaluated row with 82% overlap floated over one the brain read and scored 3.5/5, which is the "82% shouts but it's a bad match" defect the brain spine exists to fix, reappearing in the ordering. The term tests PRESENCE of an eval, never its value — grade and `overall_score` may not enter a sort key.
 - **The feed groups by search before it ranks.** Cross-search ranking answers a question nobody asked: a consulting job and a marketing job were never competing for one slot, so interleaving them by score is what would make "Best fit" a lie for someone running two searches. For the 83% with one search every `track_id` is NULL, the first term is constant, and the sort is what it was before tracks existed.
+- **The gate's input is stamped at the WRITE, not by a caller.** `can_open_another`
+  reads `user_onboarding_state.tailored_cv_created_at`, and for the whole of Job
+  Tracks' life nothing wrote it: the only writer was
+  `POST /onboarding/milestones/{milestone}`, which had zero callers on either
+  side. NULL for all 141 users with onboarding state while 11 held 66 tailored
+  `cv_versions` rows — so every `POST /tracks` 409'd, the mentor's second-search
+  proposal could never fire, and the grouped feed could never render. Three
+  shipped slices, unreachable, silently. It is now stamped inside
+  `CVVersionsRepository.create()` for any `kind != "baseline_upload"` — which
+  `_validate_kind_job_id` already guarantees means "carries a job_id", i.e.
+  tailored for a job. A repository touching another domain's table is the wrong
+  layer and it is the deliberate trade: a right-layer stamp that any of eighteen
+  call sites can forget is worth less than a wrong-layer one none of them can.
+  First-write-wins (`mark_milestone_once`), admin client (the table's RLS is
+  select-only, so a user cannot write their own milestone), and fail-soft —
+  bookkeeping never costs someone their CV.
 - **The boundaries are drawn from the order, never re-derived.** `lib/jobs/track-sections.ts` reads a search boundary and the read/unread tier out of the order the server gave it, and marks each with the divider the feed already had — the one that separates the ranked picks from the browse tail, and exists so "the verdicts stopping reads as intentional, not a glitch". A client that regrouped would be a second ordering, and the last time this surface had two of those they disagreed. A single-track user gets no divider at all.
 
 ## Journey Position

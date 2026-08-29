@@ -731,7 +731,45 @@ class CVVersionsRepository:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Could not persist CV version.",
             )
+        if spec.kind != "baseline_upload":
+            self._note_tailored(user_id)
         return result.data[0]
+
+    def _note_tailored(self, user_id: str) -> None:
+        """Record that this user has closed the loop: a CV tailored for a job.
+
+        HERE, and not at the call sites, because that is how it died. The
+        milestone had one writer — `POST /onboarding/milestones/{milestone}` —
+        and NOTHING called it: zero callers in the client, none on the server.
+        So `tailored_cv_created_at` was NULL for all 141 users with onboarding
+        state while 11 of them held 66 tailored `cv_versions` rows, and the Job
+        Tracks gate it feeds (`can_open_another`) refused everybody. An entire
+        shipped feature was unreachable because a milestone depended on someone
+        remembering to send it.
+
+        `create()` is the one seam every version passes through, and
+        `_validate_kind_job_id` already guarantees that a non-`baseline_upload`
+        kind carries a `job_id` — which IS "tailored for a job". A repository
+        touching another domain's table is the wrong layer, and it is the trade:
+        a right-layer stamp that any of eighteen call sites can forget is worth
+        less than a wrong-layer one that none of them can.
+
+        Admin client, because `user_onboarding_state` has a select-only RLS
+        policy — the user's own token cannot write their own milestone.
+
+        Fail-soft, always. A milestone is bookkeeping; a CV is the user's work.
+        Losing the first must never lose the second.
+        """
+        try:
+            from app.database import get_supabase_admin
+            from app.repositories.onboarding import OnboardingRepository
+
+            if OnboardingRepository(get_supabase_admin()).mark_milestone_once(
+                user_id, "tailored_cv_created"
+            ):
+                logger.info("metric onboarding.tailored_cv_created user=%s", user_id)
+        except Exception:  # noqa: BLE001 - bookkeeping never fails the save
+            logger.warning("metric cv.tailored_milestone_failed user=%s", user_id, exc_info=True)
 
     @staticmethod
     def _reject_redaction_tokens(*values: Any) -> None:
