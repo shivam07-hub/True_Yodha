@@ -29,54 +29,6 @@
   gap: 22px;
 }
 
-.pf-step-head {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-/* The remembering, said once per step. Above the title rather than below it
-   because it is the frame the title is read inside — "here is what I already
-   had" comes before "here is what this is". */
-.pf-step-recall {
-  margin: 0;
-  font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-note);
-  line-height: 1.45;
-  letter-spacing: 0.01em;
-  color: var(--tm-text-muted);
-}
-
-.pf-step-title {
-  margin: 0;
-  font-size: clamp(24px, 5vw, 30px);
-  font-weight: 500;
-  line-height: 1.15;
-  letter-spacing: -0.022em;
-  color: var(--tm-text);
-  text-wrap: balance;
-}
-/* Sign off's title is the resolved work — three role titles joined, not two
-   words — so it sets a size down and wraps rather than filling the screen. */
-.pf-step-title[data-tight="true"] {
-  font-size: clamp(20px, 4vw, 24px);
-  letter-spacing: -0.018em;
-}
-
-.pf-step-lede {
-  margin: 0;
-  font-size: var(--tm-fs-meta);
-  line-height: 1.5;
-  color: var(--tm-text-muted);
-  text-wrap: pretty;
-}
-.pf-step-lede a {
-  color: var(--tm-text-muted);
-  text-decoration: none;
-  transition: color var(--tm-dur-fast) var(--tm-ease);
-}
-.pf-step-lede a:hover { color: var(--pf-accent); }
-
 .pf-step-body {
   display: flex;
   flex-direction: column;
@@ -86,19 +38,22 @@
    the step screens hold two at most and can afford the air. */
 .pf-step-body[data-dense="true"] { gap: 15px; }
 
-.pf-signoff-said {
-  margin: 0;
-  font-size: var(--tm-fs-note);
-  line-height: 1.4;
-  color: var(--tm-text-muted);
-  text-wrap: pretty;
-}
-
 /* Guesses waiting on a yes or no, under the slot they would change. */
 .pf-asks {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* The user's own sentence, as a kicker above Myro's resolution of it — their
+   words, then what Myro made of them. It rides in the head's `recall` slot,
+   which is mono because everything else that lands there is provenance; a
+   human utterance set in mono reads as a system label, so it takes the
+   reading face back. */
+.pf-said {
+  font-family: var(--tm-font-sans);
+  font-style: italic;
+  letter-spacing: 0;
 }
 
 /* ── the opening composer ─────────────────────────────────────────────────── */
@@ -168,7 +123,9 @@
 .pf-send:hover:not([data-idle="true"]) { background: color-mix(in oklab, var(--pf-accent) 88%, #000); }
 .pf-send:disabled { cursor: not-allowed; }
 
-/* ── the pinned footer ────────────────────────────────────────────────────── */
+/* ── the pinned footer ───────────────────────────────────────────────────────
+ * The wrapper only. The controls inside it are `<StepActions>`, shared with
+ * onboarding; what belongs to the modal is that they never scroll. */
 
 .pf-footer {
   flex-shrink: 0;
@@ -180,73 +137,14 @@
   background: var(--pf-ground);
 }
 
-/* The one sentence not already on screen — the contract, a block, or a cost
-   the user is short for. Everything else the footer could say, the step above
-   it already shows. */
-.pf-footer-note {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: var(--tm-fs-note);
-  line-height: 1.45;
-  color: var(--tm-text-muted);
-  text-wrap: pretty;
-}
-.pf-footer-error { color: var(--pf-decline); }
-.pf-footer-short { color: var(--pf-decline); }
-.pf-footer-short a {
+/* The error and the short-of-coins line, inside the shared `.jr-note`. */
+.pf-note-error { color: var(--pf-decline); }
+.pf-note-short { color: var(--pf-decline); }
+.pf-note-short a {
   color: inherit;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-
-.pf-primary {
-  appearance: none;
-  width: 100%;
-  min-height: 46px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 0 18px;
-  border: 0;
-  border-radius: var(--tm-button-radius);
-  background: var(--pf-accent);
-  color: var(--pf-accent-fg);
-  font: inherit;
-  font-size: var(--tm-fs-ui-lg);
-  font-weight: 600;
-  letter-spacing: -0.005em;
-  cursor: pointer;
-  transition:
-    background-color var(--tm-dur-fast) var(--tm-ease),
-    opacity var(--tm-dur-fast) var(--tm-ease);
-}
-.pf-primary:hover:not(:disabled) { background: color-mix(in oklab, var(--pf-accent) 88%, #000); }
-.pf-primary:disabled { cursor: not-allowed; opacity: 0.55; }
-.pf-primary-sep { opacity: 0.5; font-weight: 400; }
-.pf-primary-meta { font-weight: 400; font-variant-numeric: tabular-nums; }
-
-.pf-secondary {
-  appearance: none;
-  width: 100%;
-  min-height: 40px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 18px;
-  border: 0;
-  border-radius: var(--tm-button-radius);
-  background: transparent;
-  color: var(--tm-text-muted);
-  font: inherit;
-  font-size: var(--tm-fs-ui);
-  cursor: pointer;
-  transition:
-    color var(--tm-dur-fast) var(--tm-ease),
-    background-color var(--tm-dur-fast) var(--tm-ease);
-}
-.pf-secondary:hover { color: var(--tm-text); background: var(--pf-plate); }
 
 @media (max-width: 420px) {
   .pf-footer { padding: 12px 16px 16px; }
@@ -255,5 +153,31 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pf-primary, .pf-secondary, .pf-send, .pf-seg, .pf-back { transition: none; }
+  .pf-send { transition: none; }
 }
+
+/* ── the modal's palette, mapped onto the shared chrome ───────────────────────
+ *
+ * `journey-chrome.css` names APP tokens because onboarding renders on the page
+ * ground, where those are correct. Inside the modal they are not: glass needs
+ * contrast the global set does not give here — `--tm-surface` under a 4.5%
+ * white plate is two shades apart and reads as a flat card, which is exactly
+ * what shipped on 2026-08-19.
+ *
+ * Explicit per-class overrides rather than redefining `--tm-*` on `.pf-modal`:
+ * a token redefined at the modal root would reach every descendant, including
+ * the pickers and the chips that already consume `--pf-*`, and a palette that
+ * leaks two levels down is how a surface ends up with two of everything. */
+
+.pf-modal .jr-seg { background: var(--pf-stroke); }
+.pf-modal .jr-seg[data-state="done"] { background: color-mix(in oklab, var(--pf-accent) 55%, var(--pf-stroke)); }
+.pf-modal .jr-seg[data-state="current"] { background: var(--pf-accent); }
+.pf-modal .jr-seg:hover:not([data-state="current"]) { background: var(--pf-stroke-strong); }
+.pf-modal .jr-seg[data-asks="true"]::before { background: var(--pf-accent); }
+
+.pf-modal .jr-primary { background: var(--pf-accent); color: var(--pf-accent-fg); }
+.pf-modal .jr-primary:hover:not(:disabled) { background: color-mix(in oklab, var(--pf-accent) 88%, #000); }
+.pf-modal .jr-secondary:hover { background: var(--pf-plate); color: var(--tm-text); }
+.pf-modal .jr-lede a:hover { color: var(--pf-accent); }
+.pf-modal .jr-back { color: var(--tm-interactive-rest); }
+.pf-modal .jr-back:hover { color: var(--pf-accent); }

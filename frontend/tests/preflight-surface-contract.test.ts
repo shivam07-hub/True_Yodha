@@ -19,10 +19,13 @@ const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.ur
 
 const gate = read("components/preflight/preflight-gate.tsx")
 const journey = read("components/preflight/journey.tsx")
+const jfooter = read("components/preflight/journey-footer.tsx")
+const derive = read("lib/preflight/derive.ts")
 const stepSlot = read("components/preflight/step-slot.tsx")
 const signoff = read("components/preflight/step-signoff.tsx")
 const open = read("components/preflight/step-open.tsx")
-const footer = read("components/preflight/step-footer.tsx")
+const chrome = read("components/journey/journey-chrome.tsx")
+const chromeCss = read("components/journey/journey-chrome.css")
 const header = read("components/preflight/preflight-header.tsx")
 const chip = read("components/preflight/chip.tsx")
 const group = read("components/preflight/chip-group.tsx")
@@ -154,15 +157,15 @@ test("the journey renders the resolver's partition, it does not compute one", ()
   // deduped before filing and the client did not, so one statement rendered
   // twice — once as a settled plate, once inside the conflict holding its twin
   // — and the header counted both (`Won't take · 15 of 6`).
-  assert.match(journey, /order\.slots \?\? \[\]/)
+  assert.match(derive, /order\.slots \?\? \[\]/)
   // The journey imports the WORDS and nothing else out of `slots.ts`; filing a
   // line into a slot, and how many a slot takes, are the resolver's.
-  assert.match(journey, /import \{ SLOT_COPY \} from "@\/lib\/preflight\/slots"/)
-  assert.match(journey, /arity: slot\.arity/)
-  assert.match(journey, /filled: lines\.length \+ held\.length/)
+  assert.match(derive, /import \{ SLOT_COPY \} from ".\/slots"/)
+  assert.match(derive, /arity: slot\.arity/)
+  assert.match(derive, /filled: lines\.length \+ held\.length/)
   // The one thing done to the server's ids: hide a line the user just dropped,
   // on the tap rather than on the response.
-  assert.match(journey, /line\.status === "kept" \? \[line\] : \[\]/)
+  assert.match(derive, /line\.status === "kept" \? \[line\] : \[\]/)
 })
 
 test("the footer never claims a count the screen contradicts", () => {
@@ -170,7 +173,7 @@ test("the footer never claims a count the screen contradicts", () => {
   // whole group), so the contract sentence read "Myro runs on the 0 lines
   // above" beneath twenty plates. While anything is contested it states the
   // block instead.
-  assert.match(journey, /conflicts\.length > 0\s*\n?\s*\?\s*blockedLine\(conflicts\.length\)/)
+  assert.match(jfooter, /conflicts\.length > 0\s*\n?\s*\?\s*blockedLine\(conflicts\.length\)/)
   assert.match(read("lib/preflight/prose.ts"), /export function blockedLine/)
 })
 
@@ -180,12 +183,12 @@ test("Run refuses an order with nothing to search for", () => {
   // spec and the profile write is a PATCH, so a roleless run dispatched
   // against stored titles the modal never showed.
   assert.match(journey, /const hasRole = order\.lines\.some/)
-  assert.match(journey, /const blocked = conflicts\.length > 0 \|\| !hasRole/)
-  assert.match(journey, /missingRoleLine\(\)/)
+  assert.match(jfooter, /const blocked = conflicts\.length > 0 \|\| !hasRole/)
+  assert.match(jfooter, /missingRoleLine\(\)/)
   assert.match(read("lib/preflight/prose.ts"), /export function missingRoleLine/)
   // …and the step that owns the work slot will not hand the user forward with
   // it empty, so nobody reaches Run only to be told no.
-  assert.match(journey, /step\.key === "work" && !hasRole/)
+  assert.match(jfooter, /stepKey === "work" && !hasRole/)
 })
 
 test("a conflict asks in one line per option, and says when it is done", () => {
@@ -230,7 +233,7 @@ test("the semantic pair is filled on both sides — no dashed half-answer", () =
 test("the button label is the action, not the shortcut", () => {
   // "save · enter" is two labels fused. Either the word or the glyph — never
   // both — because a primary button already IS the Enter target.
-  for (const [name, src] of [["chip", chip], ["open", open], ["footer", footer]] as const) {
+  for (const [name, src] of [["chip", chip], ["open", open], ["chrome", chrome]] as const) {
     assert.doesNotMatch(src, /save · enter/i, `${name} must not fuse a label and its shortcut`)
   }
 })
@@ -271,7 +274,7 @@ test("conflicts land inside the slot they are about", () => {
   // — which shipped — separated the question from its subject.
   assert.match(group, /<ConflictPlate/)
   assert.doesNotMatch(journey, /<ConflictPlate/, "the journey routes conflicts, it does not render them")
-  assert.match(journey, /clashes\.get\(slot\.key\)/)
+  assert.match(derive, /clashes\.get\(slot\.key\)/)
   assert.match(conflict, /className="pf-conflict"/)
   const logic = read("lib/preflight/conflicts.ts")
   assert.match(logic, /These can't both be true/)
@@ -331,7 +334,7 @@ test("dropping a chip is not a one-way door", () => {
   // unanswered ones, so a dropped line appears in neither — a mis-tap could
   // only be undone by retyping the statement.
   assert.match(gate, /undo\.mutateAsync\(entryId\)/)
-  assert.match(journey, /onUndo\(undoable\.id\)/)
+  assert.match(jfooter, /onUndo\(undoable\.id\)/)
 
   // The last change of THIS session, not the last row of a log that outlives
   // the modal — otherwise reopening it offers to undo something from last week.
@@ -339,7 +342,7 @@ test("dropping a chip is not a one-way door", () => {
   assert.match(gate, /setLogBase\(null\)/)
 
   // One step back, never a changelog.
-  assert.doesNotMatch(journey, /log\.slice/, "one entry, not a list")
+  assert.doesNotMatch(jfooter, /log\.slice/, "one entry, not a list")
 })
 
 test("Run is single-flight — the button cannot queue a second charge", () => {
@@ -429,7 +432,7 @@ test("no rule survives the element it styled", () => {
     // Comments first: a comment explaining why `.pf-plate` is gone must not
     // be read as a rule declaring it. A guard that flags its own rationale is
     // one people delete.
-    for (const [, name] of css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/\.(pf-[a-z0-9-]+)/g)) {
+    for (const [, name] of css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/\.((?:pf|jr)-[a-z0-9-]+)/g)) {
       declared.add(name)
     }
   }
@@ -438,10 +441,10 @@ test("no rule survives the element it styled", () => {
   for (const file of [
     "components/preflight/preflight-gate.tsx",
     "components/preflight/journey.tsx",
+    "components/preflight/journey-footer.tsx",
     "components/preflight/step-slot.tsx",
     "components/preflight/step-signoff.tsx",
     "components/preflight/step-open.tsx",
-    "components/preflight/step-footer.tsx",
     "components/preflight/chip.tsx",
     "components/preflight/chip-group.tsx",
     "components/target-location/location-picker.tsx",
@@ -450,9 +453,10 @@ test("no rule survives the element it styled", () => {
     "components/preflight/say-band.tsx",
     "components/preflight/screen-running.tsx",
     "components/preflight/preflight-header.tsx",
+    "components/journey/journey-chrome.tsx",
     "components/preflight/typing.tsx",
   ]) {
-    for (const [, name] of read(file).matchAll(/(pf-[a-z0-9-]+)/g)) rendered.add(name)
+    for (const [, name] of read(file).matchAll(/((?:pf|jr)-[a-z0-9-]+)/g)) rendered.add(name)
   }
 
   const orphans = [...declared].filter((name) => !rendered.has(name)).sort()
@@ -464,6 +468,7 @@ test("reduced motion is honoured on every animated surface", () => {
     "components/preflight/preflight.css",
     "components/preflight/journey.css",
     "components/preflight/surface.css",
+    "components/journey/journey-chrome.css",
     "components/preflight/screen-running.css",
   ]) {
     assert.match(read(file), /prefers-reduced-motion: reduce/, `${file} must honour reduced motion`)
@@ -485,8 +490,8 @@ test("every Myro utterance pad is SayPad, not a one-line input", () => {
 })
 
 test("the run price comes from the server, never a client constant", () => {
-  assert.match(journey, /price\?\.run_cost \?\? 0/)
-  for (const [name, src] of [["gate", gate], ["journey", journey]] as const) {
+  assert.match(jfooter, /price\?\.run_cost \?\? 0/)
+  for (const [name, src] of [["gate", gate], ["journey", journey], ["footer", jfooter]] as const) {
     assert.doesNotMatch(src, /MYRO_COINS_POLICY|matchRefreshCost/, `${name} must not price a run`)
   }
 })
@@ -507,9 +512,9 @@ test("the price is its own request, and only the button waits for it", () => {
 
   // Run is the ONE control that waits: pressing it unpriced would be
   // consenting to a charge nobody has been shown.
-  assert.match(journey, /starting \|\| blocked \|\| short \|\| !price/)
+  assert.match(jfooter, /starting \|\| blocked \|\| short \|\| !price/)
   // …and it shows no figure until there is one.
-  assert.match(journey, /\? "pricing"/)
+  assert.match(jfooter, /\? "pricing"/)
 })
 
 /* ── the journey ──────────────────────────────────────────────────────────── */
@@ -519,10 +524,11 @@ test("the primary action is pinned, never the end of a scroll", () => {
   // under six slot groups, the facts, the say band and the heard fold — on a
   // real order, ~1,100px of content in a 640px box.
   assert.match(shellCss, /\.pf-body \{[\s\S]{0,200}overflow-y: auto/)
-  assert.match(journeyCss, /\.pf-footer \{[\s\S]{0,200}flex-shrink: 0/)
+  assert.match(journeyCss, /\.pf-footer \{[\s\S]{0,240}flex-shrink: 0/)
   assert.match(shellCss, /\.pf-head \{[\s\S]{0,200}flex-shrink: 0/)
   // One primary per screen, and the label is a verb.
-  assert.match(journey, /primaryLabel=\{isLast \? "Run" : "Continue"\}/)
+  assert.match(jfooter, /primaryLabel=\{isLast \? "Run" : "Continue"\}/)
+  assert.match(chromeCss, /\.jr-primary \{[\s\S]{0,400}border-radius: var\(--tm-button-radius\)/)
 })
 
 test("a settled order opens on Sign off — steps are for filling, not a toll", () => {
@@ -542,13 +548,16 @@ test("the ribbon is navigation, and says which step still asks something", () =>
   // A ticked sequence that cannot be clicked still looks like one that can —
   // `JourneyProgress` in onboarding learned this when the only route back was
   // a control that destroyed the answer behind it.
-  assert.match(header, /onClick=\{\(\) => onJump!\(step\.key\)\}/)
-  assert.match(header, /data-asks=/)
-  assert.match(journeyCss + read("components/preflight/preflight.css"), /\.pf-seg\[data-asks="true"\]::before/)
+  assert.match(chrome, /onClick=\{\(\) => onJump\(step\.key\)\}/)
+  assert.match(chrome, /data-asks=/)
+  assert.match(chromeCss, /\.jr-seg\[data-asks="true"\]::before/)
   // Unlabelled: six words across 560px is legible and across 375px is not.
-  assert.doesNotMatch(header, /<span[^>]*>\{step\.title\}<\/span>/)
+  assert.doesNotMatch(chrome, /<span[^>]*>\{step\.title\}<\/span>/)
   // …but the label still reaches a screen reader.
-  assert.match(header, /aria-label=\{[\s\S]{0,220}step\.title/)
+  assert.match(chrome, /aria-label=\{step\.askLabel \? `\$\{step\.title\}/)
+  // The modal repaints the shared chrome in its own palette rather than
+  // redefining an app token at its root, which would reach the chips too.
+  assert.match(journeyCss, /\.pf-modal \.jr-seg \{ background: var\(--pf-stroke\)/)
 })
 
 test("a guess is asked beside the slot it would change", () => {
@@ -571,7 +580,7 @@ test("Skip is offered only where there is something to skip", () => {
   // nothing, and under the work slot it would offer to skip the search.
   assert.match(journey, /step\.optional/)
   assert.match(journey, /groups\.every\(\(g\) => g\.lines\.length === 0\)/)
-  assert.match(footer, /secondaryLabel && onSecondary \?/)
+  assert.match(chrome, /secondaryLabel && onSecondary \?/)
   const steps = read("lib/preflight/journey.ts")
   const work = steps.slice(steps.indexOf('key: "work"'), steps.indexOf('key: "where"'))
   assert.match(work, /optional: false/, "the work slot is the search; it cannot be skipped")
@@ -606,6 +615,6 @@ test("nothing on a chip is set in a token that fails contrast in light", () => {
 test("the step head is the biggest thing on the screen", () => {
   // The surface this replaced put six 13px fields under 10px uppercase
   // labels, so the order being signed off was the smallest thing in the modal.
-  assert.match(journeyCss, /\.pf-step-title \{[\s\S]{0,200}font-size: clamp\(24px/)
-  assert.match(journeyCss, /\.pf-step-lede \{[\s\S]{0,200}font-size: var\(--tm-fs-meta\)/)
+  assert.match(chromeCss, /\.jr-title \{[\s\S]{0,200}font-size: clamp\(24px/)
+  assert.match(chromeCss, /\.jr-lede \{[\s\S]{0,200}font-size: var\(--tm-fs-meta\)/)
 })

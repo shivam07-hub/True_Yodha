@@ -30,7 +30,6 @@
 import { useMemo, useState } from "react"
 
 import { visibleConflicts } from "@/lib/preflight/conflicts"
-import { formatCount } from "@/lib/format"
 import {
   STEPS,
   indexOfStep,
@@ -40,26 +39,21 @@ import {
   stepForProposal,
   type StepKey,
 } from "@/lib/preflight/journey"
-import { SLOT_COPY } from "@/lib/preflight/slots"
-import { blockedLine, contractLine, missingRoleLine } from "@/lib/preflight/prose"
-import { searchCostCopy } from "@/lib/preflight/say-it"
+import { factsFrom, groupsFrom, groupsInStepOrder } from "@/lib/preflight/derive"
 import type {
   LineKind,
   LineStatus,
   Order,
-  OrderConflict,
-  OrderLine,
   OrderLogEntry,
   OrderPrice,
   OrderProposal,
-  SlotKey,
 } from "@/lib/preflight/types"
 
+import { JourneyFooter } from "./journey-footer"
 import { PreflightHeader } from "./preflight-header"
-import { StepFooter } from "./step-footer"
 import { StepOpen } from "./step-open"
 import { StepSignoff } from "./step-signoff"
-import { StepSlot, type StepGroup } from "./step-slot"
+import { StepSlot } from "./step-slot"
 
 type Verdict = "kept" | "dropped" | null
 
@@ -113,53 +107,10 @@ export function Journey({
 }) {
   const conflicts = visibleConflicts(order)
 
-  /**
-   * The groups, as the RESOLVER partitioned them.
-   *
-   * The client used to file `order.lines` into slots itself against a
-   * hand-mirrored arity table. The two implementations agreed key-for-key and
-   * disagreed where it mattered — the server deduped before filing and the
-   * client did not — so one statement rendered twice and the header counted
-   * both (`Won't take · 15 of 6`). The only thing done to the resolver's
-   * answer here is the OPTIMISTIC filter: a line just dropped disappears on
-   * the tap rather than on the response.
-   */
-  const groupsByKey = useMemo(() => {
-    const byId = new Map(order.lines.map((l) => [l.id, l]))
-    const clashes = new Map<string, OrderConflict[]>()
-    for (const conflict of conflicts) {
-      const bucket = clashes.get(conflict.slot)
-      if (bucket) bucket.push(conflict)
-      else clashes.set(conflict.slot, [conflict])
-    }
-    const live = (ids: string[]): OrderLine[] =>
-      ids.flatMap((id) => {
-        const line = byId.get(id)
-        return line && line.status === "kept" ? [line] : []
-      })
-
-    const out = new Map<SlotKey, StepGroup>()
-    for (const slot of order.slots ?? []) {
-      const lines = live(slot.line_ids)
-      const held = live(slot.contested_ids)
-      out.set(slot.key, {
-        copy: SLOT_COPY[slot.key],
-        arity: slot.arity,
-        lines,
-        conflicts: clashes.get(slot.key) ?? [],
-        filled: lines.length + held.length,
-      })
-    }
-    return out
-  }, [order.lines, order.slots, conflicts])
-
-  /** Kept lines the resolver files to no slot — a notice period, a visa
-   *  status. Rendered because a line that vanishes when Myro reclassifies it
-   *  is worse than one that overflows: the user can see an overflow. */
-  const facts = useMemo(() => {
-    const ids = new Set(order.facts ?? [])
-    return order.lines.filter((l) => l.status === "kept" && ids.has(l.id))
-  }, [order.lines, order.facts])
+  // Both derivations are pure and live in `derive.ts` — see the note there on
+  // why the client no longer files lines into slots itself.
+  const groupsByKey = useMemo(() => groupsFrom(order, conflicts), [order, conflicts])
+  const facts = useMemo(() => factsFrom(order), [order])
 
   const unanswered = useMemo(
     () => order.lines.filter((l) => l.status === "unanswered"),
@@ -220,44 +171,7 @@ export function Journey({
 
   /** Every slot, in step order — which is also the order that runs from the
    *  thing DEFINING the search to the thing that only colours it. */
-  const allGroups = useMemo(
-    () => STEPS.flatMap((s) => s.slots).flatMap((key) => {
-      const group = groupsByKey.get(key)
-      return group ? [group] : []
-    }),
-    [groupsByKey],
-  )
-
-  // ── the footer ─────────────────────────────────────────────────────────────
-  const runCost = price?.run_cost ?? 0
-  const free = !!price && runCost === 0
-  const short = !!price && !free && balance < runCost
-  const newJobs = price?.new_jobs_count ?? 0
-  const blocked = conflicts.length > 0 || !hasRole
-
-  const note = error ? (
-    <span role="alert" className="pf-footer-error">{error}</span>
-  ) : isLast ? (
-    <>
-      <span>
-        {conflicts.length > 0
-          ? blockedLine(conflicts.length)
-          : hasRole
-            ? contractLine(order)
-            : missingRoleLine()}
-      </span>
-      {short ? (
-        <span className="pf-footer-short">
-          {searchCostCopy(runCost, balance).text} ·{" "}
-          <a href="/tokens" onClick={onOpenCoins} className="tm-control-focus">
-            See how Myro Coins work →
-          </a>
-        </span>
-      ) : null}
-    </>
-  ) : step.key === "work" && !hasRole ? (
-    <span>{missingRoleLine()}</span>
-  ) : null
+  const allGroups = useMemo(() => groupsInStepOrder(groupsByKey), [groupsByKey])
 
   /** Only where there is genuinely something to skip. "Skip for now" under a
    *  step the user has already filled offers to skip nothing. */
@@ -320,47 +234,23 @@ export function Journey({
         )}
       </div>
 
-      <StepFooter
-        note={note}
-        primaryLabel={isLast ? "Run" : "Continue"}
-        primaryMeta={
-          isLast
-            ? !price
-              ? "pricing"
-              : free
-                ? newJobs > 0 ? `Free · ${formatCount(newJobs)} new roles` : "Free"
-                : `${runCost} coins`
-            : undefined
-        }
-        primaryDisabled={
-          isLast
-            ? starting || blocked || short || !price
-            : step.key === "work" && !hasRole
-        }
-        onPrimary={isLast ? onRun : () => goTo(index + 1)}
-        secondaryLabel={skippable ? "Skip for now" : null}
-        onSecondary={skippable ? () => goTo(index + 1) : undefined}
-        undo={
-          /* Dropping a chip is otherwise a one-way door — a dropped line
-             renders in no group and no ask, so a mis-tap could only be fixed
-             by retyping the statement. One step back, never a changelog. */
-          undoable ? (
-            <div className="pf-undo-row">
-              <span className="pf-undo-sign" data-kind={undoable.kind} aria-hidden>
-                {undoable.kind === "drop" ? "−" : "+"}
-              </span>
-              <span className="pf-undo-text">{undoable.text}</span>
-              <button
-                type="button"
-                className="pf-undo tm-control-focus"
-                onClick={() => onUndo(undoable.id)}
-                disabled={pending}
-              >
-                Undo
-              </button>
-            </div>
-          ) : null
-        }
+      <JourneyFooter
+        order={order}
+        conflicts={conflicts}
+        hasRole={hasRole}
+        isLast={isLast}
+        stepKey={step.key}
+        price={price}
+        balance={balance}
+        starting={starting}
+        pending={pending}
+        error={error}
+        undoable={undoable}
+        skippable={skippable}
+        onUndo={onUndo}
+        onOpenCoins={onOpenCoins}
+        onRun={onRun}
+        onNext={() => goTo(index + 1)}
       />
     </>
   )

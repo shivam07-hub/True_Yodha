@@ -115,10 +115,18 @@ test("accepted upload and target are persisted before Market navigation", () => 
   assert.match(page, /onboarding\.saveExperience/)
   assert.match(target, /onboarding\.saveTarget/)
   assert.match(target, /finish_onboarding:\s*true/)
-  assert.match(target, /Choose your direction/)
+  // The single "Choose your direction" page became four steps (the work,
+  // level, where, about you) over the SAME state and the same one write. The
+  // surface still names itself and still finishes at Market.
+  assert.match(target, /Direction/)
+  const steps = read("components/onboarding/target-steps.tsx")
+  for (const title of ["The work", "Level", "Where", "About you"]) {
+    assert.match(steps, new RegExp(`title="${title}"`), `${title} step is missing`)
+  }
   assert.match(target, /Go to Market/)
-  assert.match(target, /Your Myro name/)
   assert.match(target, /updateNinjaName/)
+  // The name is claimed on the last step; the write still happens here, once.
+  assert.match(read("components/onboarding/target-steps.tsx"), /Your Myro name/)
   assert.doesNotMatch(target, /What you qualify for|See my score|Building your score|Show my first shortlist|free match|free search/i)
   assert.match(page, /router\.push\("\/onboarding\/result"\)/)
   assert.doesNotMatch(page, /pollCVUploadStatus/)
@@ -128,7 +136,11 @@ test("accepted upload and target are persisted before Market navigation", () => 
 test("target choices stay editable and share the onboarding action lane", () => {
   const target = read("components/onboarding/target-confirm.tsx")
   const actionBar = read("components/onboarding/sticky-action-bar.tsx")
-  assert.match(target, /aria-pressed=\{value === key\}/)
+  // The lane is the same; what sits in it is now the chrome Myro Search uses,
+  // so a fix to one surface's footer cannot leave the other behind.
+  assert.match(target, /<StepActions/)
+  assert.match(target, /<StepRibbon/)
+  assert.match(read("components/onboarding/target-steps.tsx"), /aria-pressed=\{value === key\}/)
   assert.doesNotMatch(target, /setEditing|editing &&/)
   assert.match(target, /StickyOnboardingActionBar/)
   assert.match(actionBar, /fixed inset-x-0 bottom-0/)

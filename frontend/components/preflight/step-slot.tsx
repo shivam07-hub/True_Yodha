@@ -12,9 +12,12 @@
  */
 
 import type { LineSource, LineStatus, OrderLine, OrderProposal } from "@/lib/preflight/types"
+import type { StepGroup } from "@/lib/preflight/derive"
 import type { StepDef } from "@/lib/preflight/journey"
 import type { SlotCopy } from "@/lib/preflight/slots"
 import type { OrderConflict } from "@/lib/preflight/types"
+
+import { StepHead } from "@/components/journey/journey-chrome"
 
 import { Chip } from "./chip"
 import { ChipGroup } from "./chip-group"
@@ -22,14 +25,6 @@ import { HeardRow } from "./heard-row"
 import { MyroTyping } from "./typing"
 
 type Verdict = "kept" | "dropped" | null
-
-export interface StepGroup {
-  copy: SlotCopy
-  arity: number
-  filled: number
-  lines: OrderLine[]
-  conflicts: OrderConflict[]
-}
 
 /**
  * The remembering, said once per step instead of twenty times.
@@ -93,11 +88,7 @@ export function StepSlot({
 
   return (
     <div className="pf-step">
-      <div className="pf-step-head">
-        {recall ? <p className="pf-step-recall">{recall}</p> : null}
-        <h2 className="pf-step-title">{step.title}</h2>
-        <p className="pf-step-lede">{step.lede}</p>
-      </div>
+      <StepHead recall={recall} title={step.title} lede={step.lede} />
 
       <div className="pf-step-body">
         {groups.map((group) => (

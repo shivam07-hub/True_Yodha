@@ -20,11 +20,13 @@ import Link from "next/link"
 import type { LineStatus, Order, OrderLine, OrderProposal } from "@/lib/preflight/types"
 import type { SlotCopy } from "@/lib/preflight/slots"
 
+import { StepHead } from "@/components/journey/journey-chrome"
+
 import { Chip } from "./chip"
 import { ChipGroup } from "./chip-group"
 import { HeardRow } from "./heard-row"
 import { SayBand } from "./say-band"
-import type { StepGroup } from "./step-slot"
+import type { StepGroup } from "@/lib/preflight/derive"
 
 type Verdict = "kept" | "dropped" | null
 
@@ -71,18 +73,19 @@ export function StepSignoff({
 
   return (
     <div className="pf-step" data-step="signoff">
-      <div className="pf-step-head">
-        {/* The user's own sentence stays as a QUOTE, never as the heading. A
-            user who typed "sales startefy" got their own typo set at 26px as
-            the title of Myro's screen, which reads as Myro's mistake. */}
-        <h2 className="pf-step-title" data-tight="true">{title || "Sign off"}</h2>
-        {said && said !== title ? <p className="pf-signoff-said">“{said}”</p> : null}
-        <p className="pf-step-lede">
+      {/* The user's own sentence stays as a QUOTE, never as the heading. A user
+          who typed "sales startefy" got their own typo set at 26px as the title
+          of Myro's screen, which reads as Myro's mistake, not theirs. */}
+      <StepHead
+        tight
+        title={title || "Sign off"}
+        recall={said && said !== title ? <span className="pf-said">“{said}”</span> : undefined}
+        lede={
           <Link href="/cv" className="tm-control-focus">
             {cvReady ? "CV baseline · ready" : "no CV yet · add one"} →
           </Link>
-        </p>
-      </div>
+        }
+      />
 
       <div className="pf-step-body" data-dense="true">
         {groups.map((group) => (

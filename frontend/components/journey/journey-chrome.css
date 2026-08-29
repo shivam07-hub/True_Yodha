@@ -1,0 +1,186 @@
+/* The journey chrome — shared by Myro Search and onboarding's Direction step.
+ *
+ * Written against APP tokens, because onboarding renders on the page ground
+ * where those are correct. Myro Search remaps them inside `.pf-modal` (see the
+ * block at the end of `journey.css`): glass needs contrast the page set does
+ * not give, which is why that palette exists at all.
+ *
+ * Every colour here is a token. No literal may appear in this file.
+ */
+
+/* ── ribbon ───────────────────────────────────────────────────────────────── */
+
+.jr-ribbon {
+  display: flex;
+  gap: 5px;
+}
+
+.jr-seg {
+  appearance: none;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 3px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: var(--tm-border);
+  cursor: pointer;
+  position: relative;
+  transition: background-color var(--tm-dur) var(--tm-ease);
+}
+/* The bar is 3px tall and the finger is not. */
+.jr-seg::after {
+  content: "";
+  position: absolute;
+  inset: -11px 0;
+}
+.jr-seg[data-state="done"]    { background: color-mix(in oklab, var(--tm-interactive) 55%, var(--tm-border)); }
+.jr-seg[data-state="current"] { background: var(--tm-interactive); }
+.jr-seg:hover:not([data-state="current"]) { background: var(--tm-border-strong, var(--tm-border)); }
+
+/* The dot answers "what does this still need from me?" at a glance — the
+   question a stack of six headers could only answer once you had scrolled past
+   all six of them. */
+.jr-seg[data-asks="true"]::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--tm-interactive);
+}
+
+/* ── head ─────────────────────────────────────────────────────────────────── */
+
+.jr-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.jr-recall {
+  margin: 0;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-note);
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+  color: var(--tm-text-muted);
+}
+
+.jr-title {
+  margin: 0;
+  font-size: clamp(24px, 5vw, 30px);
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.022em;
+  color: var(--tm-text);
+  text-wrap: balance;
+}
+.jr-title[data-tight="true"] {
+  font-size: clamp(20px, 4vw, 24px);
+  letter-spacing: -0.018em;
+}
+
+.jr-lede {
+  margin: 0;
+  font-size: var(--tm-fs-meta);
+  line-height: 1.5;
+  color: var(--tm-text-muted);
+  text-wrap: pretty;
+}
+.jr-lede a {
+  color: var(--tm-text-muted);
+  text-decoration: none;
+  transition: color var(--tm-dur-fast) var(--tm-ease);
+}
+.jr-lede a:hover { color: var(--tm-interactive); }
+
+/* ── actions ──────────────────────────────────────────────────────────────── */
+
+.jr-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.jr-note {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--tm-fs-note);
+  line-height: 1.45;
+  color: var(--tm-text-muted);
+  text-wrap: pretty;
+}
+
+.jr-primary {
+  appearance: none;
+  width: 100%;
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 18px;
+  border: 0;
+  /* NOT a pill. The reference designs round this fully; a fully-rounded
+     primary is the pillow-radius tell ANTI_SLOP rules against, and hard
+     corners are the counter Myro already committed to. */
+  border-radius: var(--tm-button-radius);
+  background: var(--tm-interactive);
+  color: var(--tm-interactive-fg);
+  font: inherit;
+  font-size: var(--tm-fs-ui-lg);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  cursor: pointer;
+  transition:
+    background-color var(--tm-dur-fast) var(--tm-ease),
+    opacity var(--tm-dur-fast) var(--tm-ease);
+}
+.jr-primary:hover:not(:disabled) { background: var(--tm-interactive-hover); }
+.jr-primary:disabled { cursor: not-allowed; opacity: 0.55; }
+.jr-primary-sep { opacity: 0.5; font-weight: 400; }
+.jr-primary-meta { font-weight: 400; font-variant-numeric: tabular-nums; }
+
+.jr-secondary {
+  appearance: none;
+  width: 100%;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--tm-button-radius);
+  background: transparent;
+  color: var(--tm-text-muted);
+  font: inherit;
+  font-size: var(--tm-fs-ui);
+  cursor: pointer;
+  transition:
+    color var(--tm-dur-fast) var(--tm-ease),
+    background-color var(--tm-dur-fast) var(--tm-ease);
+}
+.jr-secondary:hover { color: var(--tm-text); background: var(--tm-int-bg-hover); }
+
+.jr-back {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 6px;
+  margin: 0 0 0 -6px;
+  display: inline-flex;
+  color: var(--tm-interactive-rest);
+  border-radius: var(--tm-radius-sm);
+  transition: color var(--tm-dur-fast) var(--tm-ease);
+}
+.jr-back:hover { color: var(--tm-interactive); }
+
+@media (prefers-reduced-motion: reduce) {
+  .jr-primary, .jr-secondary, .jr-seg, .jr-back, .jr-lede a { transition: none; }
+}
