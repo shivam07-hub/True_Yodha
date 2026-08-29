@@ -153,10 +153,10 @@ gate in [ARCHITECTURE_READ_PATH.md](ARCHITECTURE_READ_PATH.md) passes.
 
 ### What supports it, once stage one holds (after)
 
-Job Tracks (a second search — table + rules shipped `20260828`, unlocked by a
-tailored CV), the rest of Myro Ops (notifications → automatic picks → "show me
-more", slices 3-5), the Chrome extension, and making the built tailoring engine
-the obvious next step after a match. Two Ops items are blocked on the scraper.
+Job Tracks (shipped bar the unlock moment — `20260828`, `20260829`), the rest
+of Myro Ops (notifications → automatic picks → "show me more", slices 3-5),
+the Chrome extension, and making the built tailoring engine the obvious next
+step after a match. Two Ops items are blocked on the scraper.
 
 ### Standing, not a stage
 

@@ -24,7 +24,7 @@ const FULL: NextStepsInput = {
     gap({ skill: "Docker", gap_score: 0.9, job_count_30d: 30 }),
   ],
   domainScores: { SD: 70, DE: 22, OPS: 55 },
-  bestJob: { jobId: "job-1", title: "Data Engineer", company: "Acme", fit: 88 },
+  bestJobs: [{ jobId: "job-1", title: "Data Engineer", company: "Acme", fit: 88 }],
   tailorJobId: "job-1",
 }
 
@@ -68,7 +68,7 @@ test("no gaps falls back to weakest-domain practice", () => {
 })
 
 test("no jobs falls back to the market browse CTA", () => {
-  const steps = deriveNextBestSteps({ ...FULL, bestJob: null })
+  const steps = deriveNextBestSteps({ ...FULL, bestJobs: [] })
   assert.equal(steps[1].href, "/market")
   assert.equal(steps[1].cta, "Browse jobs")
 })
@@ -111,4 +111,30 @@ test("a sub-point gain is suppressed, never shown as a misleading chip", () => {
 test("missing score_delta (pre-recompute) → no gain, no crash", () => {
   const steps = deriveNextBestSteps(FULL)
   assert.equal(steps[0].gain, undefined)
+})
+
+
+// ── one search, or two ───────────────────────────────────────────────────────
+
+test("a second search gets its own job step, named in the user's words", () => {
+  // Collapsing two searches to the higher-scoring one hides the second search's
+  // entry to the tailor loop — the reason someone opens a second search at all.
+  const steps = deriveNextBestSteps({
+    ...FULL,
+    bestJobs: [
+      { jobId: "j1", title: "Consultant", company: "Acme", fit: 88, searchLabel: "Consulting" },
+      { jobId: "j2", title: "PMM", company: "Beta", fit: 61, searchLabel: "Marketing" },
+    ],
+  })
+  assert.deepEqual(steps.map((s) => s.kind), ["skill", "job", "job", "cv"])
+  assert.deepEqual(steps.map((s) => s.eyebrow), ["Top skill gap", "Consulting", "Marketing", steps[3].eyebrow])
+  // Ranks stay contiguous — the CV step is not stuck on a literal 3.
+  assert.deepEqual(steps.map((s) => s.rank), [1, 2, 3, 4])
+})
+
+test("one search keeps the generic eyebrow and the three-step rail", () => {
+  // 83% of users. Naming a search that has no sibling explains nothing.
+  const steps = deriveNextBestSteps(FULL)
+  assert.equal(steps.length, 3)
+  assert.equal(steps[1].eyebrow, "Best-fit job")
 })

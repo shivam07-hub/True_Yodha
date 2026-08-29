@@ -44,13 +44,19 @@ export interface BestJobInput {
   company: string | null
   /** Match strength 0–100. */
   fit: number
+  /** The search that found it, in the user's own words. Absent for a
+   *  single-search user, whose step keeps the generic "Best-fit job" eyebrow —
+   *  naming a search that has no sibling explains nothing. */
+  searchLabel?: string
 }
 
 export interface NextStepsInput {
   score: number
   gapSkills: GapSkill[]
   domainScores: Record<string, number>
-  bestJob: BestJobInput | null
+  /** One per search, in the searches' own order. A single-search user — 83% of
+   *  them — has exactly one here and the rail is what it always was. */
+  bestJobs: BestJobInput[]
   /** Credible job id for the Step-3 tailor deep-link; null → plain /cv. */
   tailorJobId: string | null
 }
@@ -118,18 +124,25 @@ export function deriveNextBestSteps(input: NextStepsInput): NextBestStep[] {
   }
 
   // 2 — best-fit job → view & apply (fallback: browse the matched feed).
-  if (input.bestJob) {
-    const at = input.bestJob.company ? ` at ${input.bestJob.company}` : ""
-    steps.push({
-      kind: "job",
-      rank: 2,
-      eyebrow: "Best-fit job",
-      title: `Apply to ${input.bestJob.title}${at}`,
-      detail: `${input.bestJob.fit}% fit — your strongest match right now.`,
-      href: `/home?jobId=${encodeURIComponent(input.bestJob.jobId)}`,
-      cta: "View job",
-      short: input.bestJob.company ? `Apply · ${input.bestJob.company}` : "Apply to top match",
-      metric: `${input.bestJob.fit}%`,
+  //
+  // ONE PER SEARCH. Someone running two searches has two strongest matches, and
+  // collapsing them to the higher-scoring one hides the second search's entry to
+  // the tailor loop, which is the reason they opened it. The eyebrow carries the
+  // search's own words so the two are told apart by name, not by position.
+  if (input.bestJobs.length > 0) {
+    input.bestJobs.forEach((best, i) => {
+      const at = best.company ? ` at ${best.company}` : ""
+      steps.push({
+        kind: "job",
+        rank: 2 + i,
+        eyebrow: best.searchLabel ?? "Best-fit job",
+        title: `Apply to ${best.title}${at}`,
+        detail: `${best.fit}% fit — your strongest match right now.`,
+        href: `/home?jobId=${encodeURIComponent(best.jobId)}`,
+        cta: "View job",
+        short: best.company ? `Apply · ${best.company}` : "Apply to top match",
+        metric: `${best.fit}%`,
+      })
     })
   } else {
     steps.push({
@@ -150,7 +163,7 @@ export function deriveNextBestSteps(input: NextStepsInput): NextBestStep[] {
   if (lo) {
     steps.push({
       kind: "cv",
-      rank: 3,
+      rank: steps.length + 1,
       eyebrow: "Strengthen your CV",
       title: `Show more ${domainLabel(lo.key)} on your CV`,
       detail: `${domainLabel(lo.key)} scores lowest at ${Math.round(lo.val)}%. Tailoring to a role lifts it fastest.`,
@@ -161,7 +174,7 @@ export function deriveNextBestSteps(input: NextStepsInput): NextBestStep[] {
   } else {
     steps.push({
       kind: "cv",
-      rank: 3,
+      rank: steps.length + 1,
       eyebrow: "Strengthen your CV",
       title: "Tailor your CV to a role",
       detail: "A role-specific version scores higher than a generic CV.",

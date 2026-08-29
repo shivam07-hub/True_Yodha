@@ -60,18 +60,42 @@ DECLARED_ORDERINGS = {
 
 
 def test_the_feed_ranks_on_the_match_verdict_and_nothing_else() -> None:
-    """`_rank_feed_rows` must order by `match_score`, never by grade or the raw
-    0-5 `overall_score`. Mixing `overall_score` into a percent is the exact bug
-    the mobile row adapter shipped before Backlog #36."""
+    """`_rank_feed_rows` orders READ rows before unread, and within each half by
+    `match_score` — never by grade and never by the raw 0-5 `overall_score`.
+    Mixing `overall_score` into a percent is the exact bug the mobile row adapter
+    shipped before Backlog #36.
+
+    Two terms were added for Job Tracks and neither is a second ordering.
+
+    WHICH SEARCH comes first, because cross-search ranking answers a question
+    nobody asked — a consulting job and a marketing job were never competing for
+    one slot. For the 83% with one search that term is constant and this sort is
+    what it was.
+
+    READ-BEFORE-UNREAD comes next, because `match_score` is the brain's score
+    once the brain has run and RAW `overlap_score` before it: one field, two
+    scales. A run keeps 20 rows per search and deep-evals 8, so twelve rows in
+    twenty are permanently unevaluated, and a generous overlap floated them over
+    rows the brain had read. The term tests PRESENCE of an eval, never its value.
+    """
     src = _src("app/routers/jobs/list.py")
     start = src.index("def _rank_feed_rows")
     body = src[start : src.index("\n@router", start)]
 
-    assert "ranked.append((me.match_score, r))" in body, "the sort key must be match_score"
-    assert "ranked.sort(key=lambda pair: pair[0], reverse=True)" in body
+    assert "me.match_score," in body, "the fit term is match_score and nothing else"
+    assert "ranked.sort(key=lambda row: (row[0], -row[1], -row[2]))" in body
+    # Neither new term may read how WELL the brain scored a row — only whether
+    # it ran, and which search the row belongs to.
+    # From the append to its closing paren — `me.match_score` also appears above
+    # it, where the verdict is attached to the row.
+    at = body.index("ranked.append((")
+    key = body[at : body.index("))", at)]
+    for forbidden in ("grade", "recommendation", "overall_score / 5", "risk_score", "is_strong"):
+        assert forbidden not in key, f"{forbidden} may not enter the sort key"
+    assert 'ev.get("overall_score") is not None' in key, "presence, not value"
     # Nothing else may become the sort key.
     assert "sort(key=lambda" not in body.replace(
-        "ranked.sort(key=lambda pair: pair[0], reverse=True)", ""
+        "ranked.sort(key=lambda row: (row[0], -row[1], -row[2]))", ""
     ), "a second sort in the ranker is a second ordering"
 
 

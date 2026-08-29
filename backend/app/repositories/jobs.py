@@ -3112,6 +3112,7 @@ class JobsRepository:
                 "id, job_id, overlap_score, llm_rank, llm_explanation, "
                 "batch_week, computed_at, matched_skills, "
                 "is_recommended, baseline_version_id, target_context_hash, seniority_compatibility, "
+                "track_id, "
                 "overall_score, grade, recommendation, application_angle, summary, "
                 "role_fit, comp_fit, growth_fit, culture_fit, risk_score, strengths, concerns, "
                 "archetype, legitimacy_tier, legitimacy_reason, "
@@ -3147,6 +3148,11 @@ class JobsRepository:
     # Feed badge subset vs the full drawer eval — one method, two column sets.
     _MATCH_EVAL_BADGE_COLS = (
         "job_id, batch_week, computed_at, llm_rank, overlap_score, "
+        # Which of the user's searches found this row. NULL = track 1 = the
+        # profile, which is every row for the 83% who have one search. On the
+        # BADGE subset because the feed groups by it, and the feed reads the
+        # light one.
+        "track_id, "
         "overall_score, grade, recommendation, "
         "archetype, legitimacy_tier, legitimacy_reason, seniority_compatibility, "
         # The skip gates compare this to decide whether a cached verdict is still
@@ -3265,6 +3271,7 @@ class JobsRepository:
                 "id, job_id, overlap_score, llm_rank, llm_explanation, "
                 "batch_week, computed_at, matched_skills, "
                 "is_recommended, baseline_version_id, target_context_hash, seniority_compatibility, "
+                "track_id, "
                 "overall_score, grade, recommendation, application_angle, summary, "
                 "role_fit, comp_fit, growth_fit, culture_fit, risk_score, strengths, concerns, "
                 "archetype, legitimacy_tier, legitimacy_reason, "
@@ -3310,6 +3317,7 @@ class JobsRepository:
                 "id, job_id, overlap_score, llm_rank, llm_explanation, "
                 "batch_week, computed_at, matched_skills, "
                 "is_recommended, baseline_version_id, target_context_hash, seniority_compatibility, "
+                "track_id, "
                 "overall_score, grade, recommendation, application_angle, summary, "
                 "role_fit, comp_fit, growth_fit, culture_fit, risk_score, strengths, concerns, "
                 "archetype, legitimacy_tier, legitimacy_reason, "

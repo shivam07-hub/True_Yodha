@@ -487,7 +487,7 @@ def _rank_feed_rows(rows: list[dict], brain_evals: dict[str, dict], *, reorder: 
 
     No LLM here: a card only ranks if the brain already warmed it for this user.
     """
-    ranked: list[tuple[int, dict]] = []
+    ranked: list[tuple[int, int, int, dict]] = []
     tail: list[dict] = []
     for r in rows:
         ev = brain_evals.get(str(r.get("job_id")))
@@ -500,20 +500,55 @@ def _rank_feed_rows(rows: list[dict], brain_evals: dict[str, dict], *, reorder: 
         r["legitimacy_tier"] = ev.get("legitimacy_tier")
         r["legitimacy_reason"] = ev.get("legitimacy_reason")
         r["archetype"] = ev.get("archetype")
+        # Which of the user's searches found this. NULL for the 83% with one.
+        r["track_id"] = ev.get("track_id")
         # The Match Verdict is derived server-side from the eval (never in the
         # client): the one "how good / what to do" read every surface shares.
         me = MatchEval.model_validate(ev)
         r["match_score"] = me.match_score
         r["verdict"] = me.verdict
         r["is_strong"] = me.is_strong
-        ranked.append((me.match_score, r))
+        # Sorted on (which search, read?, score) — see the sort below.
+        # A NULL track is track 1, the profile, and sorts first; stored tracks
+        # follow by id, which is their open order. (Position, not id, is the
+        # user's own order, and the two differ only after a track is archived
+        # and its slot reused — a 3-track edge case not worth a second DB read
+        # on the feed's J0 path to resolve.)
+        track = ev.get("track_id")
+        ranked.append((
+            0 if track is None else int(track),
+            1 if ev.get("overall_score") is not None else 0,
+            me.match_score,
+            r,
+        ))
     if not reorder:
         return 0
-    # Best verdict first; ties keep the incoming fit order (stable sort on a
-    # pre-fit-ordered list). Rank down, never hide — a "stretch"/"skip" card still
-    # appears, just below the strong ones.
-    ranked.sort(key=lambda pair: pair[0], reverse=True)
-    rows[:] = [r for _, r in ranked] + tail
+    # BY SEARCH, then read rows first, then best verdict; ties keep the incoming
+    # fit order (stable sort on a pre-fit-ordered list). Rank down, never hide —
+    # a "stretch"/"skip" card still appears, just below the strong ones.
+    #
+    # Grouping by search comes FIRST because cross-search ranking answers a
+    # question nobody asked: a consulting job and a marketing job were never
+    # competing for one slot, and interleaving them by score is what would make
+    # "Best fit" a lie for someone running two searches. For the 83% with one
+    # search every `track_id` is NULL, the first term is constant, and this sort
+    # is byte-identical to the one before tracks existed.
+    #
+    # The read/unread half of the key is not cosmetic. `MatchEval.match_score` is
+    # the brain's `overall_score / 5 * 100` once the brain has run and RAW
+    # `overlap_score` before it — two different scales in one field. So an
+    # unevaluated row with generous overlap (82) outranked an evaluated one the
+    # brain scored 3.5/5 (70), which is precisely the "82% shouts but it's a bad
+    # match" defect the brain spine exists to fix, reappearing in the ordering.
+    #
+    # It barely bit while `feed/warm` warmed almost every ranked card. Job Tracks
+    # makes it permanent: a run keeps TRACK_QUOTA (20) per search and deep-evals
+    # only TRACK_DEEP (8), so twelve rows in twenty never carry a brain score at
+    # all — and would have floated over the eight that do.
+    # Ascending, with the two "best first" terms negated — a single `reverse`
+    # would also reverse the track order and put the last search first.
+    ranked.sort(key=lambda row: (row[0], -row[1], -row[2]))
+    rows[:] = [r for _, _, _, r in ranked] + tail
     return len(ranked)
 
 

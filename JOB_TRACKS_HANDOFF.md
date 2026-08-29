@@ -1,9 +1,10 @@
-# Job Tracks — handoff for slice 3
+# Job Tracks — handoff for slice 3b
 
-**Written 2026-08-28. Slice 2 shipped 2026-08-29 (`4b161ecc`).** Slice 1 is on
-`Develop`. What is left here is the SCREENS (slice 3). Read it before touching
-them — several of the constraints below are decisions that were already argued
-and settled, and a design that quietly reverses one will be reverted.
+**Written 2026-08-28. Slice 2 shipped 2026-08-29. Slice 3a and 3c shipped
+2026-08-29.** Slice 1 is on `Develop`. What is left is **3b, the unlock
+moment** — and nothing else. Read the constraints below before touching it;
+several are decisions that were already argued and settled, and a design that
+quietly reverses one will be reverted.
 
 **Slice 2 is done and its section below is kept as the record of what was
 built, not as work.** The mentor extracts `second_search`, `from_utterance`
@@ -13,10 +14,19 @@ only, so an `open_track` reaching it is inert, and there is a test holding that
 loop to it. Invariants and vocabulary now live in [CONTEXT.md](CONTEXT.md)
 §Pre-flight Order.
 
-**Slice 3 has NOT been built.** No frontend calls `/tracks` for anything except
-the accept above; there is no grouped results screen, no unlock moment, and a
-single-track user sees no track chrome anywhere — which is the correct state for
-five users in six, and the reason this was left rather than rushed.
+**Slice 3a and 3c ARE built.** `track_id` now rides the feed read
+(`_MATCH_EVAL_BADGE_COLS` → `_rank_feed_rows` → `JobFeedItem`), the ranked head
+is grouped by search server-side, and `lib/jobs/track-sections.ts` marks each
+search and the read/unread boundary inside it using the divider the feed already
+had. Desktop, `MobileFeed` and `mobile/redesign/jobs-surface` all render them. A
+single-track user gets nothing at all — no header, no tier line, the screen it
+was. The hero rail names one best match per search rather than one across all of
+them.
+
+**Slice 3b has NOT been built** — see below. `useTracks` deliberately does not
+re-export `can_open` / `blocked_reason`: exposing a gate with nothing reading it
+is an API that looks answered and is not. `tracksApi.list` returns both when 3b
+needs them.
 
 ---
 
@@ -122,11 +132,20 @@ Constraints:
 
 ## Slice 3 — the screens
 
-### 3a. Results, grouped by search *(not built)*
+### 3a. Results, grouped by search · **SHIPPED**
 
 A run now returns up to `TRACK_QUOTA = 20` per track (`jobs_workflow.py`), each
 row carrying `track_id`. Group by it, label each group with the track's own
 words.
+
+**How it was answered.** Shivam's call: keep the 20/8 split and name the tier,
+with minimal words — "design over words". So there is no sentence. The tier is a
+DIVIDER, the same element the feed already used to say "the verdicts stop here
+and that is on purpose", carrying three words: *Not read yet*. A search's own
+name is the louder version of the same element. Two boundaries, one component,
+told apart by weight rather than by copy. And a row the brain has not read now
+prints no verdict word at all — `verdictLabel` returns null for `checking` — so
+the card cannot contradict the divider above it.
 
 **The two tiers are the hard part.** Only `TRACK_DEEP = 8` rows per track get
 the full Career Ops verdict (grade, application angle, strengths, concerns,
@@ -151,7 +170,7 @@ first search. That is the moment to offer the second one — they have just felt
 the whole loop close and know what a search is *for*. Before that moment, do not
 advertise it.
 
-### 3c. What a single-track user sees *(not built)*
+### 3c. What a single-track user sees · **SHIPPED**
 
 One group, or no grouping chrome at all. Their screen should look like it did
 before tracks existed.

@@ -20,6 +20,8 @@ import { usePulses } from "@/lib/hooks/use-pulses"
 import { useMarketIntel } from "@/lib/hooks/use-market-intel"
 import { useSkillDemand } from "@/lib/hooks/use-skill-demand"
 import { useFeedScope } from "@/lib/hooks/use-feed-scope"
+import { useTracks } from "@/lib/hooks/use-tracks"
+import { trackDividers } from "@/lib/jobs/track-sections"
 import { MarketRail } from "./market-rail"
 import { StoryCard, type FeedStory } from "./story-card"
 import { interleaveStories } from "./feed-rows"
@@ -141,15 +143,38 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   // stopping reads as intentional, not a glitch). Counted over the SURVIVING
   // shortlist — a view filter that hides two picks must move the divider up two,
   // not point at whatever now sits at that index.
+  // The WORDS for each search, and the gate on opening another. Not a J0 read:
+  // the feed already carries `track_id`, and a single-track user renders
+  // identically whether this has landed or not.
+  const { tracks } = useTracks(token)
+
+  const visibleRanked = useMemo(
+    () => (rankedCount > 0 ? applyViewFilters(allJobs.slice(0, rankedCount), filters).length : 0),
+    [rankedCount, allJobs, filters],
+  )
   const picksDivider = useMemo(() => {
-    if (rankedCount <= 0) return []
-    const visibleRanked = applyViewFilters(allJobs.slice(0, rankedCount), filters).length
+    if (visibleRanked <= 0) return []
     if (visibleJobs.length <= visibleRanked) return []
     return [{
       beforeJobId: visibleJobs[visibleRanked].job_id,
       label: scope.city ? `More roles in ${scope.city}` : "More roles",
+      kind: "scope" as const,
     }]
-  }, [rankedCount, allJobs, visibleJobs, filters, scope])
+  }, [visibleRanked, visibleJobs, scope])
+
+  /**
+   * Where each of the user's searches begins, and where the brain stopped
+   * reading inside it. Empty for the 83% with one search — their screen is the
+   * one it was before tracks existed.
+   *
+   * Over the VISIBLE ranked head, like the picks divider above it: a view
+   * filter that hides three cards must move the boundaries with them, not point
+   * at whatever now sits at that index.
+   */
+  const searchDividers = useMemo(
+    () => trackDividers(visibleJobs.slice(0, visibleRanked), tracks),
+    [visibleJobs, visibleRanked, tracks],
+  )
 
   // Honest weak-shortlist header (Q7): when the engineer's picks are all stretches,
   // say so and point at the path — never fake a strong.
@@ -194,8 +219,8 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   }, [demandSkills, intel.trending, hasCv, followCompany.followedNames, scope])
 
   const rows = useMemo(
-    () => interleaveStories(visibleJobs, stories, [...picksDivider, ...expansionDividers]),
-    [visibleJobs, stories, picksDivider, expansionDividers],
+    () => interleaveStories(visibleJobs, stories, [...searchDividers, ...picksDivider, ...expansionDividers]),
+    [visibleJobs, stories, searchDividers, picksDivider, expansionDividers],
   )
 
   const onSeeRoles = useCallback((query: string) => {
@@ -393,7 +418,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
                   gap={14}
                   renderItem={row =>
                     row.t === "divider" ? (
-                      <div className="tm-feed-expansion-divider">{row.label}</div>
+                      <div className="tm-feed-expansion-divider" data-kind={row.kind}>{row.label}</div>
                     ) : row.t === "story" ? (
                       <StoryCard
                         story={row.story}

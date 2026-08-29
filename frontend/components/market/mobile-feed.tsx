@@ -133,7 +133,7 @@ export function MobileFeed({
       className="tm-mfeed"
       renderItem={(row, i) =>
         row.t === "divider" ? (
-          <div className="tm-feed-expansion-divider">{row.label}</div>
+          <div className="tm-feed-expansion-divider" data-kind={row.kind}>{row.label}</div>
         ) : row.t === "story" ? (
           <StoryCard
             story={row.story}

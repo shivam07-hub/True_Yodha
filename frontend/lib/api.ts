@@ -3038,6 +3038,9 @@ export interface JobMatch {
   industry?: string | null
   remote: boolean
   overlap_score: number
+  /** Which of the user's searches found this. null = track 1 = the profile,
+   *  which is every match for the 83% who have one search. */
+  track_id?: number | null
   // Match Verdict — the single "how good / what to do" decision, computed server-side
   // (see backend CONTEXT.md "Match Verdict"). Surfaces read THESE, never re-derive.
   match_score: number // 0–100 — THE fit number (brain-spined, overlap-gated)
@@ -3526,6 +3529,10 @@ export interface JobFeedItem {
   // brain has ranked; absent = an un-warmed browse row below the picks divider.
   match_score?: number | null
   verdict?: "strong" | "worth_it" | "stretch" | "checking" | null
+  /** Which of the user's searches found this card. null = track 1 = the
+   *  profile (every card for the 83% with one search), and also every card in
+   *  the browse tail, which no search found at all. */
+  track_id?: number | null
   is_strong?: boolean
 }
 
