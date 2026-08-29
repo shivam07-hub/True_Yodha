@@ -150,6 +150,17 @@ test("the rail's meaning survives without sight", () => {
   // it. Sighted readers get the group label; everyone else gets the words.
   assert.match(chip, /\$\{line\.text\} — \$\{SOURCE_LABEL\[line\.source\]\}/)
   assert.match(chip, /line\.soft && !softNote[\s\S]{0,140}a preference, not a hard line/)
+  // …and it is EXPOSED, not merely present. An aria-label on a bare span with
+  // no role is ignored, which is how the chip shipped provenance to nobody
+  // while this test passed on the string alone.
+  // Comments stripped: the rule explains itself in one, and a guard that counts
+  // its own rationale is one people delete.
+  const chipCode = chip.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "")
+  assert.equal(
+    (chipCode.match(/role="group"/g) ?? []).length,
+    2,
+    "both the resting and the editing chip need a role for their label to exist",
+  )
 })
 
 test("the journey renders the resolver's partition, it does not compute one", () => {

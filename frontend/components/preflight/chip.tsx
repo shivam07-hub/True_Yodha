@@ -96,7 +96,14 @@ export function Chip({
 
   if (editing) {
     return (
-      <span className="pf-chip" data-said={said} data-editing="true" data-wide={meta ? "true" : undefined}>
+      <span
+        className="pf-chip"
+        role="group"
+        aria-label={`Editing ${line.text}`}
+        data-said={said}
+        data-editing="true"
+        data-wide={meta ? "true" : undefined}
+      >
         <input
           ref={input}
           className="pf-chip-input"
@@ -118,11 +125,18 @@ export function Chip({
   return (
     <span
       className="pf-chip"
+      /* `role="group"` is load-bearing, not decoration: an `aria-label` on a
+         bare span with no role is ignored, so without it the provenance below
+         reaches nobody and the rail goes back to being sighted-only — which is
+         the one thing this surface exists to prevent. `.pf-plate` had it; the
+         chip lost it in the rewrite and nothing caught it, because the test
+         checked that the string was in the source rather than that it was
+         exposed. */
+      role="group"
       data-said={said}
       data-wide={meta ? "true" : undefined}
       /* The rail is a colour bar — invisible to a screen reader. The source it
-         encodes travels in the accessible name instead, so the attribution is
-         never sighted-only. */
+         encodes travels in the accessible name instead. */
       aria-label={
         line.soft && !softNote
           ? `${line.text} — ${SOURCE_LABEL[line.source]}, a preference, not a hard line`

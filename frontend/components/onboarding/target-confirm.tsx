@@ -17,7 +17,7 @@
  * the score.
  */
 
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 
@@ -93,7 +93,11 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
       queryFn: () => onboarding.roleFamilyLocations(token, family.family),
     })),
   })
-  const locationOptions = useMemo(() => {
+  // Not memoised. `useQueries` hands back a fresh array every render, so any
+  // dep array over it either recomputes anyway or has to be hand-rolled from
+  // `dataUpdatedAt` — cleverness that goes stale the first time the shape
+  // changes. This is a fold over at most three small arrays.
+  const locationOptions = (() => {
     const byName = new Map<string, number>()
     for (const query of locationQueries) {
       for (const option of query.data ?? []) {
@@ -103,8 +107,7 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
     return Array.from(byName.entries())
       .sort((a, b) => b[1] - a[1])
       .map(([location, open_count]) => ({ location, open_count }))
-    // `useQueries` returns a fresh array each render; its DATA is the input.
-  }, [locationQueries.map((q) => q.dataUpdatedAt).join(",")]) // eslint-disable-line react-hooks/exhaustive-deps
+  })()
 
   const searching = showSearch && roleSearch.trim().length >= 2
   const suggested = result.families.length > 0 ? result.families : (bootFamilies.data ?? [])
