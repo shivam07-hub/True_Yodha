@@ -6,6 +6,7 @@ import { PublicTopNav } from "@/components/public/top-nav"
 import { PublicFooter } from "@/components/public/public-footer"
 import { LandingHero } from "@/components/public/landing/hero"
 import { LandingUseCases } from "@/components/public/landing/use-cases"
+import { LandingFinlaticsRail } from "@/components/public/landing/finlatics-rail"
 import { LandingCompanyRail } from "@/components/public/landing/company-rail"
 import { LandingLiveMirror } from "@/components/public/landing/live-mirror"
 import { LandingJobSearch } from "@/components/public/landing/job-search"
@@ -81,6 +82,8 @@ export function LandingPage({ fontClassName = "" }: { fontClassName?: string }) 
           industries={data.analytics?.by_industry ?? []}
           topSkills={data.analytics?.top_skills ?? []}
         />
+
+        <LandingFinlaticsRail />
 
         <LandingCompanyRail
           companyNames={data.marqueeNames}

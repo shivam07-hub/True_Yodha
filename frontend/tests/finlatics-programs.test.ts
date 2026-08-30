@@ -1,7 +1,11 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 
+import { existsSync } from "node:fs"
+import { join } from "node:path"
+
 import {
+  FINLATICS_LOGO_SRC,
   FINLATICS_PROGRAMS,
   FINLATICS_SRC,
   finlaticsHomeHref,
@@ -26,6 +30,11 @@ test("the rail lists the eleven landing programs, Financial Analyst first", () =
   assert.deepEqual(FINLATICS_PROGRAMS.map((program) => program.mark), [
     "FA", "IB", "BA", "FS", "PM", "DM", "FM", "EX", "DS", "MR", "ML",
   ])
+})
+
+test("the landing rail logo is the committed Finlatics mark in /public/brand", () => {
+  assert.equal(FINLATICS_LOGO_SRC, "/brand/finlatics.png")
+  assert.ok(existsSync(join(process.cwd(), "public", "brand", "finlatics.png")))
 })
 
 test("the Finlatics home footer carries the same Myro attribution", () => {
