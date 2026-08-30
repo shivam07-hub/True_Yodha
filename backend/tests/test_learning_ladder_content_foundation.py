@@ -149,32 +149,63 @@ def test_unsourced_questions_do_not_make_skill_servable():
         assert upskilling_service.list_skills("u1") == []
 
 
-def test_source_grounded_questions_make_skill_servable_without_human_review():
-    bank = [
-        {
-            "id": qid,
-            "skill_id": SKILL_ID,
-            "skill_key": "sql",
-            "level": LEVEL,
-            "status": "active",
-            "review_status": "generated",
-            "question_text": f"Q{qid}",
-            "options": ["a", "b", "c", "d"],
-            "correct_index": 1,
-            "explanation": f"because {qid}",
-            "source_url": "https://www.postgresql.org/docs/current/tutorial-select.html",
-        }
+def _bank(**over) -> list[dict]:
+    row = {
+        "skill_id": SKILL_ID,
+        "skill_key": "sql",
+        "level": LEVEL,
+        "status": "active",
+        "review_status": "generated",
+        "options": ["a", "b", "c", "d"],
+        "correct_index": 1,
+        "verified_at": "2026-08-30T00:00:00Z",
+    }
+    row.update(over)
+    return [
+        {**row, "id": qid, "question_text": f"Q{qid}", "explanation": f"because {qid}"}
         for qid in range(1, 11)
     ]
-    store = {
+
+
+def _store(bank: list[dict]) -> dict:
+    return {
         "skill_questions": bank,
         "skills": [{"id": SKILL_ID, "taxonomy_key": "sql", "display_name": "SQL"}],
         "skill_assessed_level": [],
         "user_skills": [],
     }
 
-    with patch("app.services.upskilling_service.get_supabase_admin", return_value=_FakeAdmin(store)):
+
+def test_verified_questions_are_servable_without_a_source_url():
+    """The gate is correctness, not a link (learning grill decision 5).
+
+    It used to be the reverse, and the reverse shipped 41 questions with an
+    answer key an independent model rejected — 7 of them live and scored against
+    users — behind four URLs, two of which were homepages.
+    """
+    with patch("app.services.upskilling_service.get_supabase_admin", return_value=_FakeAdmin(_store(_bank()))):
         assert upskilling_service.list_skills("u1")[0]["max_bank_level"] == LEVEL
+
+
+def test_a_sourced_but_unverified_question_is_not_servable():
+    """The exact bank that used to pass. A link is no longer evidence of
+    anything, and 879 rows carried no link at all while being served."""
+    bank = _bank(
+        verified_at=None,
+        source_url="https://www.postgresql.org/docs/current/tutorial-select.html",
+    )
+
+    with patch("app.services.upskilling_service.get_supabase_admin", return_value=_FakeAdmin(_store(bank))):
+        assert upskilling_service.list_skills("u1") == []
+
+
+def test_a_retired_question_stays_out_even_when_verified():
+    """Retirement is how a contested answer key leaves. It must outrank a stamp
+    the row was given before the verifier disagreed."""
+    bank = _bank(retired_at="2026-08-30T00:00:00Z")
+
+    with patch("app.services.upskilling_service.get_supabase_admin", return_value=_FakeAdmin(_store(bank))):
+        assert upskilling_service.list_skills("u1") == []
 
 
 def test_start_set_excludes_unsourced_generated_questions():
