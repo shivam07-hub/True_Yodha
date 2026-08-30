@@ -20,6 +20,7 @@ import { useRouter } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
 import { cv as cvApi, jobs as jobsApi, users } from "@/lib/api"
+import { GapSession } from "./gap-session"
 import { TailorWeave } from "./tailor-weave"
 import "./tailor-weave.css"
 import { ApplyModal } from "./apply-modal"
@@ -79,6 +80,7 @@ export function PlaygroundView({
   const queryClient = useQueryClient()
   const [appliedFixes, setAppliedFixes] = useState<AppliedFix[]>([])
   const [weaveOpen, setWeaveOpen] = useState(mentorRequested)
+  const [gapsOpen, setGapsOpen] = useState(false)
   const [jdOpen, setJdOpen] = useState(false)
   const [applyOpen, setApplyOpen] = useState(false)
   const [exportConfirm, setExportConfirm] = useState(false)
@@ -318,13 +320,14 @@ export function PlaygroundView({
             coverage={coverageQuery.data}
             loading={coverageQuery.isLoading}
             error={coverageQuery.isError}
+            onOpenGaps={() => setGapsOpen(true)}
             onOpenWeave={() => setWeaveOpen(true)}
             onRetry={() => void coverageQuery.refetch()}
           />
         }
         railFooter={
           <button type="button" className="cvw-railfoot-btn" onClick={() => setWeaveOpen(true)}>
-            <Icon name="sparkle" size={13} /> Tailor with Mentor
+            <Icon name="merge" size={13} /> Tailor with Mentor
             <span className="cvw-railfoot-cost">50</span>
           </button>
         }
@@ -360,6 +363,23 @@ export function PlaygroundView({
       >
         <div className="cvb-pgc-jd-drawer-body">{m.jdText}</div>
       </DetailDrawer>
+
+      {/* Free, per-gap, and the only path that reaches practice and claims a
+          proven level onto the CV. A surfacing writes a new Main-CV baseline,
+          so the score, the coverage map and the version list all re-read. */}
+      {gapsOpen && (
+        <GapSession
+          token={token}
+          jobId={jobId}
+          score={m.ready}
+          onApplied={() => {
+            void coverageQuery.refetch()
+            queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
+            queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
+          }}
+          onClose={() => setGapsOpen(false)}
+        />
+      )}
 
       {weaveOpen && (
         <TailorWeave

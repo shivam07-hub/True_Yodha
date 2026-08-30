@@ -22,6 +22,7 @@ from app.services.company_pulse import SERIES_DAYS, build_series, compute_pulse
 from app.services.industry_grouping import normalize_industry_group
 from app.services.job_history import attach_jobs
 from app.services.job_intelligence_policy import is_recommendable_listing
+from app.services.xp_policy import UPSKILLING_SET_SIZE
 from app.services.job_eligibility import (
     career_band_for_job,
     career_band_for_profile,
@@ -3803,8 +3804,18 @@ class JobsRepository:
         and the user's PRACTICE-proven level (skill_assessed_level), which the
         planner uses for the flywheel upgrade offer. Keyed by taxonomy_key.
 
+        Also resolves `ladder_max_level` — the highest level /practice can
+        actually serve for this skill — so the gap session never offers a
+        practice CTA it cannot honour. Six skills of 9,721 have one, so for
+        almost every gap the honest answer is "not yet".
+
         Job skills include ones the user has never had on their CV, so we resolve
         names off the global `skills` table, not `user_skills`.
+
+        The ladder read goes through `_admin_db`: `skill_questions` carries the
+        answer key and is RLS-closed to `authenticated`, so a token-scoped call
+        returns zero rows and every skill would read "no ladder" — a wrong answer
+        with no error. Only the aggregate crosses the boundary, never a question.
         """
         keys = [k for k in {k.strip() for k in taxonomy_keys} if k]
         if not keys:
@@ -3828,6 +3839,7 @@ class JobsRepository:
             context[key] = {
                 "display_name": (row.get("display_name") or key).strip() or key,
                 "assessed_level": 0,
+                "ladder_max_level": 0,
             }
 
         if id_to_key:
@@ -3842,6 +3854,24 @@ class JobsRepository:
                 key = id_to_key.get(int(row["skill_id"]))
                 if key:
                     context[key]["assessed_level"] = int(row.get("assessed_level") or 0)
+
+            # Counted in the DB, never paged: 15 gap skills against ~250 questions
+            # each is 3,750 rows into PostgREST's silent 1,000-row cap, and the
+            # truncation would read as "no ladder" for whatever fell off the end.
+            try:
+                ladder_rows = self._admin_db.rpc(
+                    "servable_ladder_max_level",
+                    {"p_skill_ids": list(id_to_key.keys()), "p_set_size": UPSKILLING_SET_SIZE},
+                ).execute().data or []
+            except APIError:
+                _log.warning(
+                    "metric gap_plan.ladder_lookup_failed skills=%d", len(id_to_key),
+                )
+                ladder_rows = []
+            for row in ladder_rows:
+                key = id_to_key.get(int(row["skill_id"]))
+                if key:
+                    context[key]["ladder_max_level"] = int(row.get("max_level") or 0)
 
         return context
 

@@ -1378,12 +1378,16 @@ export interface BelowLevelCard {
   // Located host bullet when the skill's evidence can be surfaced one notch;
   // null → practice-only (earn the level in Forge, flywheel surfaces it later).
   host: GapHostBullet | null
+  /** Highest level /practice can actually serve. 0 → do not offer practice. */
+  ladder_max_level: number
 }
 export interface AbsentSkill {
   skill: string
   display_name: string
   is_primary: boolean
   required_level: number
+  /** Highest level /practice can actually serve. 0 → do not offer practice. */
+  ladder_max_level: number
 }
 export interface UpgradeOffer {
   skill: string
@@ -1393,6 +1397,8 @@ export interface UpgradeOffer {
   // Located host bullet when CV evidence exists → claim it one-tap in the closing
   // panel; null → no evidence on the CV yet, the offer routes to practice instead.
   host: GapHostBullet | null
+  /** Highest level /practice can actually serve. 0 → do not offer practice. */
+  ladder_max_level: number
 }
 export interface GapPlanResponse {
   job_id: string

@@ -31,6 +31,7 @@ import {
 import { useStreamingText, type StreamEvent } from "@/lib/hooks/use-streaming-text"
 import { Button } from "@/components/ui/button"
 import { Icon } from "./icons"
+import { MyroMark } from "@/components/myro-mark"
 
 interface GapSessionProps {
   token: string
@@ -105,10 +106,10 @@ export function GapSession({ token, jobId, score, onApplied, onClose }: GapSessi
     const below = plan.below_level_cards.filter(c => !c.host)
     return [...plan.absent_skills.map(a => ({
       skill: a.skill, display_name: a.display_name, is_primary: a.is_primary,
-      reason: "absent" as const,
+      reason: "absent" as const, ladder: a.ladder_max_level,
     })), ...below.map(b => ({
       skill: b.skill, display_name: b.display_name, is_primary: b.is_primary,
-      reason: "shallow" as const,
+      reason: "shallow" as const, ladder: b.ladder_max_level,
     }))]
   }, [plan])
 
@@ -221,7 +222,7 @@ function Header({ score, startScore, plan, onClose }: { score: number; startScor
   return (
     <div className="cvb-modal-head cvb-gs-head">
       <div className="cvb-gs-title">
-        <div className="cvb-gs-eyebrow"><Icon name="sparkle" size={12}/> Close gaps with Mentor</div>
+        <div className="cvb-gs-eyebrow"><MyroMark size={12}/> Close gaps with Mentor</div>
         {plan && <div className="cvb-gs-sub">{plan.company ?? "This role"} · {plan.job_title}</div>}
       </div>
       <LiveMeter score={score} startScore={startScore} />
@@ -301,7 +302,7 @@ function SurfaceCard({ token, card, onResolved, onSkip }: {
         <div className="cvb-gs-actions">
           <Button variant="ghost" size="sm" onClick={onSkip}>Not really</Button>
           <Button size="sm" onClick={() => void propose()}>
-            <Icon name="sparkle" size={12}/> Yes, I did this
+            <Icon name="check" size={12} stroke={3}/> Yes, I did this
           </Button>
         </div>
       )}
@@ -362,9 +363,11 @@ function ShallowCard({ token, card, onResolved, onSkip }: {
             }}
           />
           <div className="cvb-gs-actions">
-            <Button variant="neutral" size="sm" render={<Link href={forgeHref(card.skill)} target="_blank" rel="noopener noreferrer" />}>
-              Earn L{card.required_level} in practice
-            </Button>
+            {card.ladder_max_level > 0 && (
+              <Button variant="neutral" size="sm" render={<Link href={forgeHref(card.skill)} target="_blank" rel="noopener noreferrer" />}>
+                Earn L{card.required_level} in practice
+              </Button>
+            )}
             <Button
               size="sm"
               disabled={!anecdote.trim()} onClick={() => void propose(anecdote.trim())}
@@ -551,7 +554,7 @@ function RewriteBody({ phase, proposed, onProposedChange, rationale, citations, 
             Mentor&apos;s draft{version > 1 ? ` · v${version}` : ""}
           </span>
           {reworking ? (
-            <span className="cvb-rw-reworking" role="status"><Icon name="sparkle" size={11}/> reworking…</span>
+            <span className="cvb-rw-reworking" role="status"><Icon name="history" size={11}/> reworking…</span>
           ) : streaming ? null : (
             <button
               type="button" className="cvb-rw-edit"
@@ -580,7 +583,7 @@ function RewriteBody({ phase, proposed, onProposedChange, rationale, citations, 
         {rationale && <div className="cvb-rw-rationale">{rationale}</div>}
         {citations.length > 0 && (
           <div className="cvb-rw-citation" title="Grounded in the Myro CV Playbook">
-            <Icon name="sparkle" size={11}/> Grounded in {citations.join(", ")}
+            <Icon name="check" size={11} stroke={3}/> Grounded in {citations.join(", ")}
           </div>
         )}
 
@@ -597,7 +600,7 @@ function RewriteBody({ phase, proposed, onProposedChange, rationale, citations, 
               onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); submitRefine() } }}
             />
             <Button variant="ghost" size="sm" disabled={busy || !note.trim()} onClick={submitRefine}>
-              <Icon name="sparkle" size={12}/> Refine
+              <Icon name="edit" size={12}/> Refine
             </Button>
           </div>
           {errMsg && <div className="cvb-rw-refine-err" role="alert">{errMsg}</div>}
@@ -635,7 +638,7 @@ function Checkpoint({ resolved, remaining, onContinue, onWrap }: {
       <div className="cvb-gs-actions">
         <Button variant="ghost" size="sm" onClick={onWrap}>Wrap up</Button>
         <Button size="sm" onClick={onContinue}>
-          <Icon name="sparkle" size={12}/> Keep going · {Math.min(SESSION_BATCH, remaining)} more
+          <Icon name="arrow-right" size={12}/> Keep going · {Math.min(SESSION_BATCH, remaining)} more
         </Button>
       </div>
     </div>
@@ -652,8 +655,17 @@ function UpgradeRow({ token, upgrade, onApplied }: {
     <>L{upgrade.from_level} → <strong>L{upgrade.to_level}</strong> proven</>
   )
 
-  // No CV evidence to surface onto yet — the proof lives in practice. Route there.
+  // No CV evidence to surface onto yet — the proof lives in practice. Route there
+  // only if there is a ladder to route to; otherwise state it and stop.
   if (!host) {
+    if (upgrade.ladder_max_level === 0) {
+      return (
+        <div className="cvb-gs-row proven">
+          <span className="cvb-gs-row-name">{upgrade.display_name}</span>
+          <span className="cvb-gs-row-meta">{meta}</span>
+        </div>
+      )
+    }
     return (
       <Link href={forgeHref(upgrade.skill)} target="_blank" rel="noopener noreferrer" className="cvb-gs-row proven">
         <span className="cvb-gs-row-name">{upgrade.display_name}</span>
@@ -683,7 +695,7 @@ function ClaimableUpgrade({ token, upgrade, host, meta, onApplied }: {
         <span className="cvb-gs-row-name">{upgrade.display_name}</span>
         <span className="cvb-gs-row-meta">{meta}</span>
         <Button size="sm" className="cvb-gs-claim" onClick={() => void propose()}>
-          <Icon name="sparkle" size={12}/> Claim on CV
+          <Icon name="check" size={12} stroke={3}/> Claim on CV
         </Button>
       </div>
     )
@@ -709,7 +721,7 @@ function ClaimableUpgrade({ token, upgrade, host, meta, onApplied }: {
 // ── Practice row: save the skill to your Forge queue, or open it now ─────────
 
 function PracticeRow({ skill, saved, busy, onToggle }: {
-  skill: { skill: string; display_name: string; is_primary: boolean; reason: "absent" | "shallow" }
+  skill: { skill: string; display_name: string; is_primary: boolean; reason: "absent" | "shallow"; ladder: number }
   saved: boolean
   busy: boolean
   onToggle: () => void
@@ -729,9 +741,11 @@ function PracticeRow({ skill, saved, busy, onToggle }: {
         >
           <Icon name={saved ? "check" : "save"} size={12}/> {saved ? "Saved" : "Save"}
         </button>
-        <Link href={forgeHref(skill.skill)} target="_blank" rel="noopener noreferrer" className="cvb-gs-practice">
-          Practice ↗
-        </Link>
+        {skill.ladder > 0 && (
+          <Link href={forgeHref(skill.skill)} target="_blank" rel="noopener noreferrer" className="cvb-gs-practice">
+            Practice ↗
+          </Link>
+        )}
       </span>
     </div>
   )
@@ -744,7 +758,7 @@ function ClosingPanel({ token, resolved, startScore, score, practiceSkills, upgr
   resolved: number
   startScore: number
   score: number
-  practiceSkills: { skill: string; display_name: string; is_primary: boolean; reason: "absent" | "shallow" }[]
+  practiceSkills: { skill: string; display_name: string; is_primary: boolean; reason: "absent" | "shallow"; ladder: number }[]
   upgrades: GapPlanResponse["upgrade_offers"]
   onApplied: () => void
   onClose: () => void

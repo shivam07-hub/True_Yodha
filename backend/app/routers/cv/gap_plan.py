@@ -55,6 +55,9 @@ class BelowLevelCard(BaseModel):
     surface_to: int
     is_primary: bool
     host: GapHostBullet | None = None
+    # Highest level /practice can serve. 0 → the "earn the rest in practice" half
+    # of this card has nowhere to send the user, so it must not be offered.
+    ladder_max_level: int = 0
 
 
 class AbsentSkill(BaseModel):
@@ -62,6 +65,9 @@ class AbsentSkill(BaseModel):
     display_name: str
     is_primary: bool
     required_level: int
+    # 0 → we cannot teach this yet. The honest move is to state the gap, not to
+    # offer a door into an empty room (learning grill, decision 4).
+    ladder_max_level: int = 0
 
 
 class UpgradeOffer(BaseModel):
@@ -72,6 +78,7 @@ class UpgradeOffer(BaseModel):
     # Located host bullet when CV evidence exists → the closing panel claims it
     # one-tap; null → no CV evidence yet, the offer routes to practice instead.
     host: GapHostBullet | None = None
+    ladder_max_level: int = 0
 
 
 class GapPlanResponse(BaseModel):
@@ -116,6 +123,7 @@ async def gap_plan(
     )
     display_names = {k: v["display_name"] for k, v in context.items()}
     assessed_levels = {k: v["assessed_level"] for k, v in context.items()}
+    ladder_levels = {k: v.get("ladder_max_level", 0) for k, v in context.items()}
 
     # Every missing gap is run through host-finding: a level-0 gap with a host is
     # latent (else absent); a below-level gap with a host can offer the one-notch
@@ -147,6 +155,7 @@ async def gap_plan(
         classification=classification,
         assessed_levels=assessed_levels,
         display_names=display_names,
+        ladder_levels=ladder_levels,
     )
     return GapPlanResponse(
         job_id=job_id,
