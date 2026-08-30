@@ -420,29 +420,6 @@ def reset_target(db: Client, user_id: str) -> None:
     )
 
 
-def compute_role_readiness(db: Client, user_id: str) -> list[dict[str, Any]]:
-    """Per-target-title readiness — the role-specific signal beside the stable
-    Myro Score. Each human title is searched by itself PLUS its taxonomy clusters
-    so a specific title still resolves real market demand. Returns [] when the
-    user has no titles or no skills yet (UI falls back to the score alone).
-    """
-    users_repo = UsersRepository(db)
-    profile = users_repo.get_profile(user_id) or {}
-    titles = profile.get("target_role_titles") or (
-        [profile["target_role_title"]] if profile.get("target_role_title") else []
-    )
-    if not titles:
-        return []
-
-    scores_repo = ScoresRepository(db)
-    skill_level_map = scores_repo.get_user_skill_level_map(user_id)
-    out: list[dict[str, Any]] = []
-    for title in titles:
-        readiness = scoring.role_readiness(scores_repo, skill_level_map, profile.get("target_roles") or [])
-        out.append({"role": title, "readiness": readiness})
-    return out
-
-
 def seed_provisional_baseline_score(
     db: Client, user_id: str, baseline_version_id: int,
 ) -> bool:

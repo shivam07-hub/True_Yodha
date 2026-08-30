@@ -880,9 +880,22 @@ export interface OnboardingDirection {
   proposed: Array<"avoid" | "lean">
 }
 
-export interface RoleReadiness {
-  role: string
-  readiness: number | null
+/** Where the user stands on the skills their target roles actually ask for.
+    A COUNT, not a percentage: the number it replaced divided by every skill the
+    market had ever demanded, so clearing a whole skill moved it 0.3% and the
+    user could never see their own work land. `total` 0 → render nothing. */
+export interface CoreSkillStanding {
+  taxonomy_key: string
+  level: number
+  evidence: "on_cv" | "proven" | "none"
+  required_level: number
+  clears: boolean
+}
+
+export interface RoleStanding {
+  cleared: number
+  total: number
+  core: CoreSkillStanding[]
 }
 
 export interface RoleFamily {
@@ -1002,7 +1015,7 @@ export const onboarding = {
   resetTarget: (token: string) => request<void>("/onboarding/target", {
     method: "DELETE", headers: { Authorization: `Bearer ${token}` },
   }),
-  roleReadiness: (token: string) => request<RoleReadiness[]>("/onboarding/role-readiness", {
+  roleStanding: (token: string) => request<RoleStanding>("/skills/role-standing", {
     headers: { Authorization: `Bearer ${token}` },
   }),
   roleFamilies: (token: string, query?: string) => request<RoleFamily[]>(`/roles/families${query ? `?query=${encodeURIComponent(query)}` : ""}`, {

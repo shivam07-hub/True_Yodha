@@ -6,7 +6,7 @@ export const dataKeys = {
   profile: () => ["profile"] as const,
   onboarding: () => ["onboarding"] as const,
   onboardingResult: () => ["onboarding", "result"] as const,
-  roleReadiness: () => ["onboarding", "role-readiness"] as const,
+  roleStanding: () => ["skills", "role-standing"] as const,
   scores: () => ["scores"] as const,
   scoreMap: (token: string | null | undefined) => ["score-map-bootstrap", token ?? ""] as const,
   userSkills: () => ["user-skills"] as const,
@@ -116,7 +116,7 @@ export function invalidateCvData(queryClient: QueryClient): void {
  */
 export function invalidateTargetRoleData(queryClient: QueryClient): void {
   queryClient.invalidateQueries({ queryKey: dataKeys.profile() })
-  queryClient.invalidateQueries({ queryKey: dataKeys.roleReadiness() })
+  queryClient.invalidateQueries({ queryKey: dataKeys.roleStanding() })
   queryClient.invalidateQueries({ queryKey: dataKeys.careerSkillPath() })
   invalidateScoreMapData(queryClient)
   queryClient.invalidateQueries({ queryKey: dataKeys.jobs() })

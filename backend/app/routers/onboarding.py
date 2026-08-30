@@ -175,20 +175,6 @@ def reset_target(principal: Principal = Depends(get_principal)) -> None:
     onboarding_service.reset_target(get_supabase_admin(), principal.id)
 
 
-class RoleReadiness(BaseModel):
-    role: str
-    readiness: int | None = None  # 0-100, or null when no market demand resolves
-
-
-@router.get("/role-readiness", response_model=list[RoleReadiness])
-def get_role_readiness(
-    principal: Principal = Depends(get_principal),
-) -> list[RoleReadiness]:
-    """Per-target-role readiness % — the role-specific signal beside the stable,
-    CV-intrinsic Myro Score. One entry per human target title (the chips)."""
-    return onboarding_service.compute_role_readiness(get_supabase_admin(), principal.id)
-
-
 @router.get("/result")
 def get_result(
     step: int | None = Query(default=None, ge=1, le=3),

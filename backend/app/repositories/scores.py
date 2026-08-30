@@ -239,6 +239,27 @@ class ScoresRepository:
             if row.get("skills") and row["skills"].get("taxonomy_key")
         }
 
+    def get_user_proven_level_map(self, user_id: str) -> dict[str, int]:
+        """Levels the user CLEARED in practice, keyed like the CV map.
+
+        The twin of `get_user_skill_level_map`, and deliberately a separate read:
+        the two stores answer different questions — one is what the CV evidences,
+        the other what a quiz proved — and `skill_state.level_of` is the only
+        place allowed to combine them. Fusing them here would put the rule in a
+        repository, where the next caller could not see it.
+        """
+        result = (
+            self._db.table("skill_assessed_level")
+            .select("assessed_level, skills(taxonomy_key)")
+            .eq("user_id", user_id)
+            .execute()
+        )
+        return {
+            row["skills"]["taxonomy_key"]: int(row["assessed_level"] or 0)
+            for row in result.data or []
+            if row.get("skills") and row["skills"].get("taxonomy_key")
+        }
+
     def get_target_roles(self, user_id: str) -> list[str]:
         result = (
             self._db.table("user_profiles")

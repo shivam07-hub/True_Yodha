@@ -49,23 +49,3 @@ def fetch_aspiration_skills(
     """Target-proficiency half of `fetch_role_family_market`, for callers that
     genuinely only need the targets (role readiness)."""
     return fetch_role_family_market(scores_repo, target_roles).aspiration
-
-
-def role_readiness(
-    scores_repo: ScoresRepository,
-    skill_level_map: dict[str, int],
-    search_roles: list[str],
-) -> int | None:
-    """0-100 readiness of the user's current skills for ONE target role.
-
-    Readiness = how much of the role's demanded proficiency the user's evidenced
-    skills already cover. `search_roles` are canonical role-family keys, never
-    job-title substrings. Returns None when no market demand can be resolved (the UI
-    shows "—", never a fake 0). Both maps are keyed by `taxonomy_key`.
-    """
-    aspiration = fetch_aspiration_skills(scores_repo, search_roles)
-    total = sum(aspiration.values())
-    if not total:
-        return None
-    met = sum(min(skill_level_map.get(skill, 0), target) for skill, target in aspiration.items())
-    return round(100 * met / total)

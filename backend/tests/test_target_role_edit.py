@@ -168,21 +168,3 @@ def test_corpus_family_is_written_with_the_selected_real_title(wired) -> None:
 def test_empty_titles_raises(wired) -> None:
     with pytest.raises(ValueError):
         onboarding_service.save_target(object(), "u1", role_titles=["", " "])
-
-
-def test_role_readiness_covers_demanded_proficiency(monkeypatch) -> None:
-    from app.services.scoring import aspirations
-
-    # role demands: python@L4, sql@L3 (total 7); user has python@L4, sql@L2 -> met 6
-    monkeypatch.setattr(
-        aspirations, "fetch_aspiration_skills", lambda _repo, _roles: {"python": 4, "sql": 3}
-    )
-    readiness = aspirations.role_readiness(object(), {"python": 4, "sql": 2}, ["Data Scientist"])
-    assert readiness == round(100 * 6 / 7)
-
-
-def test_role_readiness_none_when_no_demand(monkeypatch) -> None:
-    from app.services.scoring import aspirations
-
-    monkeypatch.setattr(aspirations, "fetch_aspiration_skills", lambda _repo, _roles: {})
-    assert aspirations.role_readiness(object(), {"python": 4}, ["Nowhere Role"]) is None
