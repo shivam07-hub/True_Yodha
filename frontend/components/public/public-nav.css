@@ -11,18 +11,14 @@
   padding: 0 var(--tm-page-px);
   height: var(--tm-desktop-nav-h);
   min-height: var(--tm-desktop-nav-h);
-  background: var(--tm-surface);
+  background: color-mix(in srgb, var(--tm-bg) 76%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(1.15);
+  backdrop-filter: blur(14px) saturate(1.15);
   border-bottom: 1px solid var(--tm-border-soft);
   flex-shrink: 0;
 }
 
-/* Match the authenticated strip: dark chrome frosts over the shared field;
-   light mode keeps the opaque paper surface. */
-:root:not([data-surface="light"]) .tm-public-nav {
-  background: color-mix(in srgb, var(--tm-bg) 76%, transparent);
-  -webkit-backdrop-filter: blur(14px) saturate(1.15);
-  backdrop-filter: blur(14px) saturate(1.15);
-}
+/* Chrome frosts over the shared page field on both surfaces. */
 
 .tm-public-nav-brand {
   display: inline-flex;

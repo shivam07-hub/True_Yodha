@@ -61,6 +61,8 @@ test("brand tokens implement the canonical Myro light + dark + ink palettes", ()
   assert.match(lightBlock, /--tm-surface:\s*#fbfeff/)
   assert.match(lightBlock, /--tm-text:\s*#202629/)
   assert.match(lightBlock, /--tm-interactive:\s*#0072be/)
+  assert.match(lightBlock, /--tm-depth-sun:/)
+  assert.match(lightBlock, /--tm-sun-x:/)
 
   // Retired surfaces must not creep back as a third block.
   assert.doesNotMatch(tokens, /tm-ink/)
@@ -195,8 +197,11 @@ test("shared shells do not mount decorative particle canvases", () => {
   const appShell = read("components/app-shell.tsx")
   const authShell = read("components/auth/auth-page-shell.tsx")
   const intelPage = read("app/intel/page.tsx")
+  const providers = read("components/providers.tsx")
 
   assert.doesNotMatch(appShell, /ParticleBg/)
   assert.doesNotMatch(authShell, /ParticleBg/)
   assert.doesNotMatch(intelPage, /ParticleBg/)
+  assert.doesNotMatch(providers, /ParticleBg/)
+  assert.match(providers, /LightFieldDriver/)
 })

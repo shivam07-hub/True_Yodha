@@ -101,6 +101,18 @@ The single surface (light/dark) switcher. `<ThemeControl>` (`components/ui/theme
 - Visually rides `.tm-segment-toggle` (`app/design-tokens.css`), so idle segments inherit the [Interactive-rest](#interactive-rest) brightness contract for free. Do not restyle idle segments to a dull token.
 - `fluid` stretches the pill to fill its row (dropdown / drawer). Bare = auto width (the Settings row, where label + description sit beside it). `label` renders the static caption (`--tm-text-muted`, dull — it is not clickable).
 
+## Page field
+
+The plane behind every generic page. Dark is cosmos; light is dawn. Both paint on `body::before`. Cards sit in that air. Chrome frosts over it.
+
+**Boundary**
+
+- Tokens live in `app/design-tokens.css`. Dark: `--tm-depth-star-*`, aurora, ember, vignette. Light: `--tm-depth-sun`, haze, water, cast, plus `--tm-sun-x/y` and `--tm-cast-x/y`.
+- `LightFieldDriver` (`components/theme/light-field-driver.tsx`) is the **single writer** of the sun vars. Math is `lib/theme/antipodal-sun.ts` (8×8, ~6.5 king-moves toward the farthest corner). Do not add a second pointer-driven wash.
+- Reduced motion and coarse pointers keep the parked rest (left-rail cursor → sun in the far top-right). Desktop fine pointers lerp the bloom and snap the cast when the cell changes.
+- Myrology owns its sky. `:has(.myrology-root)` turns the dawn layer off. Other purpose-built islands keep an opaque page canvas and do not share this field.
+- The sun is not an accent. Azure still owns CTAs. A static `circle at top|bottom` orb is still the closed §22 tell.
+
 ## Viewport Mode
 
 The frontend's responsive posture. One of `mobile` | `desktop`. Source of truth for any code that needs to behave differently across screen sizes — sidebar vs bottom-nav, hero font size, grid collapse, particle background gating.

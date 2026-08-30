@@ -572,17 +572,13 @@
   flex-shrink: 0;
   padding: 0 var(--tm-card-pad);
   gap: 12px;
-  background: var(--tm-surface);
-  border-bottom: 1px solid var(--tm-border-soft);
-}
-/* Deep-field chrome: on dark the bar frosts over the starfield instead of
-   painting an opaque slab — content slides under glass. Light keeps the
-   opaque paper bar. */
-:root:not([data-surface="light"]) .tm-app-topbar {
   background: color-mix(in srgb, var(--tm-bg) 76%, transparent);
   -webkit-backdrop-filter: blur(14px) saturate(1.15);
   backdrop-filter: blur(14px) saturate(1.15);
+  border-bottom: 1px solid var(--tm-border-soft);
 }
+/* Deep-field chrome: the bar frosts over the page field on both
+   surfaces so content slides under glass. Mobile kills the blur. */
 
 .tm-topbar-brand {
   display: inline-flex;
@@ -939,7 +935,8 @@
        still readable. That is the bug in Shivam's 2026-07-26 screenshots.
 
        The chrome now follows [data-surface], and the canonical html/body
-       canvas owns both the light paper and dark deep-field behind content.
+       canvas owns the page field behind content — dawn on light, starfield
+       on dark.
 
        (The old comment also noted --mm-bg is out of scope here so "the literal
        fallback is what applies" — a var silently resolving to its fallback is
