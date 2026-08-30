@@ -11,6 +11,7 @@ import { upskilling, users, type ReadinessRow, type SkillUpvote, type StartGapRe
 import { Button } from "@/components/ui/button"
 import { dataKeys } from "@/lib/domain-data"
 import { addCertificateHref } from "@/lib/career-skill-path"
+import { useRoleStanding } from "@/lib/hooks/use-edit-target-role"
 import { useParticleMoment } from "@/components/particle"
 import type { SkillIntelStats } from "@/lib/skill-domains"
 import { ForgeContextBar } from "./forge-bar"
@@ -50,9 +51,27 @@ function toLadder(backend: UpskillingSkill[], upvotes: Map<string, number>): Lad
   }))
 }
 
-function pickHero(skills: LadderSkill[]): LadderSkill | null {
+/**
+ * What Practice opens on when nobody sent a skill.
+ *
+ * It used to be whatever the catalogue sorted first, which is how a tech-sales
+ * candidate landed on Frontend Engineering: the list was never the user's, it
+ * was the set of ladders we happen to own. Practice is entered with a reason
+ * (learning grill decision 3), and when no job supplied one the honest reason
+ * is the user's own target — a skill their roles ask for that they do not yet
+ * clear, and that we can actually teach.
+ *
+ * `openGaps` are the taxonomy keys from Role Standing the user has NOT cleared.
+ * Empty (no target, no market read) falls back to the old order rather than
+ * showing nothing: an unscoped user still gets a room to practise in.
+ */
+function pickHero(skills: LadderSkill[], openGaps: Set<string>): LadderSkill | null {
   const startable = skills.filter((s) => s.clearedLevel < 5 && s.maxBankLevel >= Math.min(s.clearedLevel + 1, 5))
+  const wanted = (s: LadderSkill) => (openGaps.has(norm(s.key)) || openGaps.has(norm(s.name)) ? 1 : 0)
   const ranked = [...startable].sort((a, b) => {
+    // What the target asks for outranks everything, including the user's own
+    // upvotes: an upvote is interest, a core gap is the job.
+    if (wanted(a) !== wanted(b)) return wanted(b) - wanted(a)
     if (a.upvotes !== b.upvotes) return b.upvotes - a.upvotes
     const ai = a.clearedLevel > 0 ? 1 : 0
     const bi = b.clearedLevel > 0 ? 1 : 0
@@ -164,7 +183,15 @@ export function UpskillingView({
     () => toLadder(backendSkills ?? [], upvoteIndex(upvotesData?.skills ?? [])),
     [backendSkills, upvotesData],
   )
-  const heroSkill = useMemo(() => pickHero(skills), [skills])
+  const { data: standing } = useRoleStanding()
+
+  // The target's core skills the user has not cleared — what Practice should
+  // lead with when no job sent them here.
+  const openGaps = useMemo(
+    () => new Set((standing?.core ?? []).filter(c => !c.clears).map(c => norm(c.taxonomy_key))),
+    [standing],
+  )
+  const heroSkill = useMemo(() => pickHero(skills, openGaps), [skills, openGaps])
 
   const startSet = useCallback(async (skill: LadderSkill, level: number, sourceJobId: string | null = null) => {
     if (starting) return
