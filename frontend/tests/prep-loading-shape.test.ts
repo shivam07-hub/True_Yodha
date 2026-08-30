@@ -7,7 +7,6 @@ const read = (rel: string) => readFileSync(new URL(`../${rel}`, import.meta.url)
 test("Prep list skeleton occupies the live workspace: title, rows, peek rail", () => {
   const skel = read("components/preparations/prep-skeleton.tsx")
   const list = read("components/preparations/prep-list.tsx")
-  const css = read("components/preparations/preparations.css")
   const bootstrap = read("components/loading/page-skeletons.tsx")
   const page = read("app/(authed)/preparations/page.tsx")
 
@@ -28,11 +27,16 @@ test("Prep list skeleton occupies the live workspace: title, rows, peek rail", (
   assert.ok(list.indexOf("mc-ws-rail") < list.indexOf("mc-ws-main"))
 
   const train = read("components/preparations/training-card.tsx")
-  assert.match(train, /className="prp-course tm-control-focus"/)
+  const trainCss = read("components/preparations/training-card.css")
+  assert.match(train, /className="prp-course-toggle tm-control-focus"/)
   assert.match(train, /className="prp-course-name"/)
-  assert.match(css, /\.prp-course-name[\s\S]*font-size:\s*14\.5px/)
-  assert.match(css, /\.prp-course-name[\s\S]*font-weight:\s*700/)
-  assert.match(css, /\.prp-course-name[\s\S]*color:\s*var\(--tm-accent-text\)/)
+  assert.match(train, /prp-course-blurb/)
+  assert.match(train, /FINLATICS_APPLY_LABEL/)
+  assert.doesNotMatch(train, /<a[^>]*className="prp-course[\s"]/)
+  assert.match(trainCss, /\.prp-course:hover \.prp-course-panel/)
+  assert.match(trainCss, /\.prp-course-name[\s\S]*font-size:\s*14\.5px/)
+  assert.match(trainCss, /\.prp-course-name[\s\S]*font-weight:\s*700/)
+  assert.match(trainCss, /\.prp-course-name[\s\S]*color:\s*var\(--tm-accent-text\)/)
 
   assert.match(bootstrap, /pathname\.startsWith\("\/preparations\/"\)/)
   assert.match(bootstrap, /PrepRoomSkeleton/)

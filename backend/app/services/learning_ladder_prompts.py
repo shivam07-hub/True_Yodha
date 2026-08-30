@@ -9,15 +9,14 @@ import hashlib
 import json
 from dataclasses import dataclass
 
+from app.services.skill_levels import LEVEL_STANDARDS, prompt_label
+
 QUESTIONS_PER_LEVEL = 10
 
-_LEVEL_LABEL = {
-    1: "foundational — someone who has just started learning this skill",
-    2: "working knowledge — has used it on small tasks with guidance",
-    3: "intermediate — applies it independently on real projects",
-    4: "advanced — handles edge cases, tradeoffs, and non-trivial design",
-    5: "expert — architects/mentors others, deep internals and failure modes",
-}
+# The calibration brief. Shared with the certificate that will claim this level
+# on a user's CV — see app/services/skill_levels.py. If these two ever describe
+# different bars, the certificate asserts something the questions never tested.
+_LEVEL_LABEL = {level: prompt_label(level) for level in LEVEL_STANDARDS}
 
 
 @dataclass
