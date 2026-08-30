@@ -18,7 +18,7 @@ import random
 from fastapi import HTTPException, status
 
 from app.database import get_supabase_admin
-from app.services import practice_payoff, xp_service
+from app.services import background, practice_payoff, xp_service
 from app.services.xp_policy import (
     UPSKILLING_PASS_BAR,
     UPSKILLING_SET_SIZE,
@@ -448,6 +448,17 @@ async def submit_set(
         certificate = SkillCertificates(admin).issue_for_pass(
             user_id=user_id, skill_id=skill_id, level=level, attempt_id=set_id
         )
+        # A certificate IS CV evidence (learning grill decision 8), so it lands
+        # on the Main CV without a claim step. Off this request: the user is
+        # looking at their score, not waiting on a baseline write.
+        verification_id = str(certificate.get("verification_id") or "")
+        if verification_id:
+            background.enqueue(
+                background.LANE_BULK,
+                "certificate_to_cv",
+                payload={"user_id": user_id, "verification_id": verification_id},
+                correlation_id=verification_id,
+            )
 
     # Award only the first clear of this (skill, level).
     if first_clear and tokens_awarded > 0:
