@@ -68,7 +68,7 @@ you will schedule a 487-edit sweep against a number that was never real.
 
 | # | Tell | Evidence |
 |---|---|---|
-| 3 | Pure white background | Light surface is `#faf6f0` warm paper. Never `#fff`. |
+| 3 | Pure white background | Light surface is `#f3f7f9` cool ash — hue-228, the same accent hue as dark at inverted lightness. Never `#fff`. (Was `#faf6f0` warm paper until 2026-08-23; the accent unification retired it along with light-as-its-own-brand. Read `design-tokens.css` for the value, never a doc.) |
 | 4 | Rainbow coloring | Monochrome + one accent + three status tokens. |
 | 12 | Fake testimonials | **Zero** testimonials anywhere in the app. |
 | 13 | Bento grids | Zero. |
