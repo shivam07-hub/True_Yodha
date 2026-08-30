@@ -5,6 +5,7 @@ import { existsSync } from "node:fs"
 import { join } from "node:path"
 
 import {
+  FINLATICS_APPLY_LABEL,
   FINLATICS_LOGO_SRC,
   FINLATICS_PROGRAMS,
   FINLATICS_SRC,
@@ -30,6 +31,11 @@ test("the rail lists the eleven landing programs, Financial Analyst first", () =
   assert.deepEqual(FINLATICS_PROGRAMS.map((program) => program.mark), [
     "FA", "IB", "BA", "FS", "PM", "DM", "FM", "EX", "DS", "MR", "ML",
   ])
+  for (const program of FINLATICS_PROGRAMS) {
+    assert.ok(program.blurb.length > 20, `${program.id} needs a program blurb`)
+    assert.equal(program.blurb.includes("—"), false)
+  }
+  assert.equal(FINLATICS_APPLY_LABEL, "Apply on Finlatics")
 })
 
 test("the landing rail logo is the committed Finlatics mark in /public/brand", () => {

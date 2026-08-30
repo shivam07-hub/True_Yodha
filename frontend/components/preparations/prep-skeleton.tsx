@@ -2,6 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { FINLATICS_PROGRAMS } from "@/lib/finlatics-programs"
 import "@/app/(authed)/home/mission-control.css"
 import "./preparations.css"
+import "./training-card.css"
 
 /**
  * Layout-matched loading for /preparations. Uses the live workspace classes
