@@ -86,8 +86,7 @@ export function AuthPageShell({ title, subtitle, children, footerCopy, aside }: 
 
   return (
     // No own background — the page canvas (html) + deep-field layer
-    // (body::before, dark only) paint behind; an opaque fill here
-    // would occlude the field.
+    // (body::before) paint behind; an opaque fill here would occlude the field.
     <main className="tm-page-canvas" style={{
       minHeight: "100dvh",
       display: "flex",

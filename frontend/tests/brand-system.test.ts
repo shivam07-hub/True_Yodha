@@ -61,7 +61,9 @@ test("brand tokens implement the canonical Myro light + dark + ink palettes", ()
   assert.match(lightBlock, /--tm-surface:\s*#fbfeff/)
   assert.match(lightBlock, /--tm-text:\s*#202629/)
   assert.match(lightBlock, /--tm-interactive:\s*#0072be/)
+  assert.match(lightBlock, /--tm-depth-core:/)
   assert.match(lightBlock, /--tm-depth-sun:/)
+  assert.match(lightBlock, /--tm-depth-rim:/)
   assert.match(lightBlock, /--tm-sun-x:/)
 
   // Retired surfaces must not creep back as a third block.

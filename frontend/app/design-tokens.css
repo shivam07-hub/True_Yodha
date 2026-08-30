@@ -547,20 +547,27 @@
   /* Dawn field — parked rest matches antipodal-sun parkedCss()
      (pointer in the left rail). LightFieldDriver overwrites these
      on desktop; reduced-motion and coarse pointers keep the park.
-     Sun is peach-gold atmosphere, never an accent and never purple. */
-  --tm-depth-sun:     rgba(255, 236, 214, 0.48);
-  --tm-depth-haze:    rgba(255, 220, 186, 0.22);
-  --tm-depth-water:   rgba(48, 84, 104, 0.10);
-  --tm-depth-cast:    rgba(28, 52, 68, 0.11);
-  --tm-depth-cast-strong: rgba(28, 52, 68, 0.17);
+     Paper cannot add light. Depth is a hot core, page-filling coloured
+     air, multiply water, a hard cast, and a gold catching-edge (white
+     cards cannot take a white highlight). */
+  --tm-depth-core:    rgb(255, 253, 246);
+  --tm-depth-sun:     rgba(255, 178, 88, 0.78);
+  --tm-depth-haze:    rgba(255, 164, 96, 0.42);
+  --tm-depth-water:   rgba(24, 56, 80, 0.52);
+  --tm-depth-cast:    rgba(10, 28, 42, 0.24);
+  --tm-depth-cast-strong: rgba(10, 28, 42, 0.42);
+  --tm-depth-rim:     rgba(255, 168, 72, 0.72);
+  --tm-depth-shade:   rgba(10, 28, 42, 0.12);
   --tm-sun-x:         93.75%;
   --tm-sun-y:         6.25%;
-  --tm-cast-x:        -8.3px;
-  --tm-cast-y:        5.5px;
+  --tm-cast-x:        -18.3px;
+  --tm-cast-y:        12.2px;
 
-  --tm-shadow-1:      var(--tm-cast-x) var(--tm-cast-y) 16px var(--tm-depth-cast);
-  --tm-shadow-2:      var(--tm-cast-x) var(--tm-cast-y) 28px var(--tm-depth-cast-strong),
-                      0 1px 2px var(--tm-depth-cast);
+  --tm-shadow-1:      var(--tm-cast-x) var(--tm-cast-y) 10px var(--tm-depth-cast-strong);
+  --tm-shadow-2:      var(--tm-cast-x) var(--tm-cast-y) 8px var(--tm-depth-cast-strong),
+                      calc(var(--tm-cast-x) * 2.5) calc(var(--tm-cast-y) * 2.5) 28px var(--tm-depth-cast),
+                      inset calc(var(--tm-cast-x) * -0.2) calc(var(--tm-cast-y) * -0.2) 0 var(--tm-depth-rim),
+                      inset var(--tm-cast-x) var(--tm-cast-y) 22px var(--tm-depth-shade);
   --tm-shadow-glow:   0 4px 12px var(--tm-accent-glow);
 
   /* The mark stays teal (see --tm-brand in :root) but #00f5d4 measures 1.4:1
@@ -725,8 +732,8 @@ html, body {
 /* ── Deep-field layer ────────────────────────────────────────
    Fixed pseudo-plane behind all content. Dark paint order top→bottom:
    vignette → teal aurora → warm ember → tiled stars. Light overrides
-   the image with dawn (bloom + haze + water) at --tm-sun-x/y.
-   One paint, nothing loops. */
+   the image with dawn (hot core + bloom + haze) at --tm-sun-x/y.
+   Unlit water is body::after with multiply. One paint, nothing loops. */
 body::before {
   content: "";
   position: fixed;
@@ -761,14 +768,33 @@ body::before {
    on purpose: `circle at top|bottom` is the closed corner-orb tell. */
 :root[data-surface="light"] body::before {
   background-image:
-    radial-gradient(90% 70% at var(--tm-sun-x) var(--tm-sun-y), var(--tm-depth-sun), transparent 52%),
-    radial-gradient(130% 100% at var(--tm-sun-x) var(--tm-sun-y), var(--tm-depth-haze), transparent 64%),
-    radial-gradient(85% 80% at calc(100% - var(--tm-sun-x)) calc(100% - var(--tm-sun-y)), var(--tm-depth-water), transparent 68%);
+    radial-gradient(9% 8% at var(--tm-sun-x) var(--tm-sun-y), var(--tm-depth-core), transparent 58%),
+    radial-gradient(48% 40% at var(--tm-sun-x) var(--tm-sun-y), var(--tm-depth-sun), transparent 54%),
+    radial-gradient(170% 140% at var(--tm-sun-x) var(--tm-sun-y), var(--tm-depth-haze), transparent 72%);
   background-size: 100% 100%, 100% 100%, 100% 100%;
   background-repeat: no-repeat;
 }
+/* Cool unlit air multiplies into the paper. Normal compositing at 10–20%
+   alpha is wallpaper; multiply is shade. Stays behind content (z:-1) so
+   cards stay white and only the air around them cools. */
+:root[data-surface="light"] body::after {
+  display: block;
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  background-image: radial-gradient(
+    160% 140% at calc(100% - var(--tm-sun-x)) calc(100% - var(--tm-sun-y)),
+    var(--tm-depth-water),
+    transparent 64%
+  );
+  background-repeat: no-repeat;
+}
 /* Myrology owns its sky. Do not let dawn leak around the island. */
-:root[data-surface="light"]:has(.myrology-root) body::before {
+:root[data-surface="light"]:has(.myrology-root) body::before,
+:root[data-surface="light"]:has(.myrology-root) body::after {
   display: none;
 }
 

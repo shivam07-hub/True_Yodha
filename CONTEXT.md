@@ -103,14 +103,14 @@ The single surface (light/dark) switcher. `<ThemeControl>` (`components/ui/theme
 
 ## Page field
 
-The plane behind every generic page. Dark is cosmos; light is dawn. Both paint on `body::before`. Cards sit in that air. Chrome frosts over it.
+The plane behind every generic page. Dark is cosmos; light is dawn. Dark paints on `body::before`. Light paints the sun on `body::before` and the unlit water on `body::after` (multiply). Cards sit in that air. Chrome frosts over it.
 
 **Boundary**
 
-- Tokens live in `app/design-tokens.css`. Dark: `--tm-depth-star-*`, aurora, ember, vignette. Light: `--tm-depth-sun`, haze, water, cast, plus `--tm-sun-x/y` and `--tm-cast-x/y`.
+- Tokens live in `app/design-tokens.css`. Dark: `--tm-depth-star-*`, aurora, ember, vignette. Light: `--tm-depth-core`, sun, haze, water, cast, rim, shade, plus `--tm-sun-x/y` and `--tm-cast-x/y`. Unlit water is `body::after` with multiply. White cards take a gold catching-edge (`--tm-depth-rim`), not a white highlight.
 - `LightFieldDriver` (`components/theme/light-field-driver.tsx`) is the **single writer** of the sun vars. Math is `lib/theme/antipodal-sun.ts` (8×8, ~6.5 king-moves toward the farthest corner). Do not add a second pointer-driven wash.
 - Reduced motion and coarse pointers keep the parked rest (left-rail cursor → sun in the far top-right). Desktop fine pointers lerp the bloom and snap the cast when the cell changes.
-- Myrology owns its sky. `:has(.myrology-root)` turns the dawn layer off. Other purpose-built islands keep an opaque page canvas and do not share this field.
+- Myrology owns its sky. `:has(.myrology-root)` turns both dawn layers off. Other purpose-built islands keep an opaque page canvas and do not share this field.
 - The sun is not an accent. Azure still owns CTAs. A static `circle at top|bottom` orb is still the closed §22 tell.
 
 ## Viewport Mode

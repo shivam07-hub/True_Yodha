@@ -31,8 +31,11 @@ test("the canonical page canvas exposes a field on both surfaces", () => {
 
   assert.match(tokens, /body::before\s*\{[\s\S]*background-image:/)
   assert.match(tokens, /:root\[data-surface="light"\] body::before/)
+  assert.match(tokens, /:root\[data-surface="light"\] body::after/)
+  assert.match(tokens, /mix-blend-mode:\s*multiply/)
   assert.match(tokens, /--tm-sun-x/)
   assert.match(tokens, /var\(--tm-sun-x\)/)
+  assert.match(tokens, /--tm-depth-core/)
   assert.doesNotMatch(
     tokens,
     /:root\[data-surface="light"\] body::before\s*\{\s*display:\s*none;/,

@@ -15,7 +15,7 @@ export type SunCss = {
 
 export const GRID = 8
 export const TARGET_BLOCKS = 6.5
-export const CAST_PX = 10
+export const CAST_PX = 22
 /** Left rail, mid-page — where a Market user actually rests. */
 export const RESTING_CURSOR: Cell = { x: 1, y: 4 }
 
