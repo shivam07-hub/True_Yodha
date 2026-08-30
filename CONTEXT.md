@@ -396,6 +396,32 @@ A headless engine (`createTaxonomy({ fetch })`, the `field-motion.ts` precedent)
 - The demand `band` reuses market-wide demand (`weighted_demand` from `build_user_skill_demand`) — the same unscoped signal the Skills page reads — never a fresh per-page `jobCount`. The build-time generator is a thin adapter that exports that already-computed signal into `priority.json`.
 - Artifacts are forward-only: regenerated on a scraper batch refresh, committed, **not** wired into `prebuild` (no build-time DB coupling).
 
+## Skill Level and Role Standing
+
+**A skill's Level is the higher of what the CV evidences (`user_skills`) and what
+practice proved (`skill_assessed_level`).** Ties go to the CV — work you did
+outranks a quiz you passed at the same level, and it is the stronger claim in
+front of an employer. The rule lives in exactly one function,
+`skill_state.level_of`, which also returns the **Evidence** backing it:
+`on_cv` | `proven` | `none`. No surface may recombine the two stores itself.
+
+Every surface shows ONE level per skill plus its Evidence badge, never two
+numbers. "Cold Calling · L3 proven" is the shape; "L3 proven · L1 on your CV" is
+banned.
+
+**Role Standing** is where a user stands against the core skills of their target
+roles: `cleared / total`, a COUNT and never a percentage. `total` is the twelve
+most-demanded skills across the user's families (`CORE_SKILL_COUNT` — a product
+choice, fixed so two people chasing the same role read comparable numbers).
+A skill *clears* when its Level is at or above what those families ask for; an
+unknown required level never clears, because a missing bar is not a met one.
+Standing of `total` 0 (no target, or no market read) renders NOTHING — "0 / 12"
+against a market we never asked about is a verdict on the user.
+
+Two shapes, two facades (ADR-0002's pattern, not one function with a mode):
+`skill_state.for_role` is the light read; the job-scoped case stays in
+`gap_planner`, which needs the user's CV bullets and a classification call.
+
 ## Skill Practice Mode and Main-CV Level-Up
 
 Taxonomy answers where a Skill lives: Domain (Tax-L1) → Cluster (Tax-L2) →
