@@ -509,6 +509,10 @@ class _RecordingQuery:
         self._rows = [row for row in self._rows if row.get(key) in wanted]
         return self
 
+    def order(self, key: str, desc: bool = False) -> "_RecordingQuery":
+        self._rows = sorted(self._rows, key=lambda r: r.get(key) or 0, reverse=desc)
+        return self
+
     def limit(self, _n: int) -> "_RecordingQuery":
         return self
 
@@ -632,3 +636,35 @@ def test_save_imported_job_skips_skills_the_taxonomy_table_does_not_know() -> No
 
     written = _writes_to(db, "job_skills")
     assert [r["skill_id"] for r in written[0]["payload"]] == [11]
+
+
+def test_get_agent_picks_drops_skipped_and_saved_jobs() -> None:
+    # Skip and Save write the feed tables. The Agent Picks band is the same
+    # undecided card, so a skipped or saved pick must not come back on refetch.
+    def _job(job_id: str) -> dict[str, Any]:
+        return {
+            "job_id": job_id,
+            "job_title": job_id,
+            "is_active": True,
+            "listing_confidence": "active",
+            "main_skills": [],
+        }
+
+    db = _ImportDB(
+        {
+            "user_agent_job_picks": [
+                {"user_id": "u1", "job_id": "keep", "agent_rank": 1, "tier": "strong", "comment": "yes"},
+                {"user_id": "u1", "job_id": "skipped", "agent_rank": 2, "tier": "strong", "comment": "no"},
+                {"user_id": "u1", "job_id": "saved", "agent_rank": 3, "tier": "reach", "comment": "maybe"},
+            ],
+            "jobs": [_job("keep"), _job("skipped"), _job("saved")],
+            "user_dismissed_job_cards": [{"user_id": "u1", "job_id": "skipped"}],
+            "job_applications": [{"user_id": "u1", "job_id": "saved"}],
+            "user_skills": [],
+        }
+    )
+    repo = JobsRepository(db, db)  # type: ignore[arg-type]
+
+    picks = repo.get_agent_picks("u1")
+
+    assert [p["job_id"] for p in picks] == ["keep"]

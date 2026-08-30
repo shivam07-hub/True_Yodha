@@ -2247,8 +2247,9 @@ class JobsRepository:
         Distinct from the algorithm layer (`user_job_matches`, rewritten on every
         recompute): these are hand-vetted picks that survive recompute. Rows are
         shaped exactly like feed rows (via `_feed_shape_row`) so the card renders
-        identically to a normal feed card. A pick whose job has since delisted is
-        dropped from the view — never a dead card.
+        identically to a normal feed card. A pick whose job has since delisted,
+        been skipped, or already saved is dropped — Skip and Save on a pick
+        use the same feed tables, so the band must honour them too.
         """
         pick_rows = (
             self._db.table("user_agent_job_picks")
@@ -2259,6 +2260,12 @@ class JobsRepository:
             .data
             or []
         )
+        if not pick_rows:
+            return []
+        gone = set(self.get_dismissed_job_card_ids(user_id)) | set(
+            self.get_saved_job_ids(user_id)
+        )
+        pick_rows = [r for r in pick_rows if r.get("job_id") not in gone]
         if not pick_rows:
             return []
         job_ids = [r["job_id"] for r in pick_rows]

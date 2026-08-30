@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { jobs as jobsApi, type ApplicationResponse, type JobMatch } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { agentPicksQueryKey } from "@/lib/jobs/job-triage-cache"
 import { SORTS, type FeedItem, type SortKey } from "@/lib/dashboard/feed-model"
 import {
   FOLDER_CHIPS,
@@ -65,7 +66,7 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
 
   const appsQ = useQuery({ queryKey: dataKeys.applications(), queryFn: () => jobsApi.applications(token), enabled: !!token, staleTime: 60 * 1000 })
   const matchesQ = useQuery({ queryKey: dataKeys.jobs(), queryFn: () => jobsApi.matches(token), enabled: !!token, staleTime: 5 * 60 * 1000 })
-  const picksQ = useQuery({ queryKey: ["agentPicks", token], queryFn: () => jobsApi.agentPicks(token), enabled: !!token, staleTime: 30 * 60 * 1000 })
+  const picksQ = useQuery({ queryKey: agentPicksQueryKey(token), queryFn: () => jobsApi.agentPicks(token), enabled: !!token, staleTime: 30 * 60 * 1000 })
   const following = useFollowCompany(token)
 
   const [chip, setChip] = useState<CollectionChip>("found")
