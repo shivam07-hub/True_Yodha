@@ -1,0 +1,94 @@
+/* Training course chips — Followed-companies geometry, louder: accent wash.
+   Collapsed row is the title. Open panel holds the Finlatics blurb and the
+   one outbound apply link. Hover (mouse) and click share that open state. */
+
+.prp-courses {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.prp-course {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  border: 1px solid var(--tm-int-border);
+  border-radius: var(--tm-radius-pill);
+  background: var(--tm-interactive-wash);
+  color: var(--tm-accent-text);
+}
+.prp-course:hover,
+.prp-course.is-open {
+  background: var(--tm-int-bg-hover);
+  border-color: var(--tm-interactive);
+}
+.prp-course.is-open {
+  border-radius: var(--tm-radius-card);
+}
+.prp-course-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px 9px 8px;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+.prp-course-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: var(--tm-interactive);
+  color: var(--tm-interactive-fg);
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  font-weight: 700;
+  line-height: 1;
+}
+.prp-course-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14.5px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--tm-accent-text);
+}
+.prp-course-toggle svg {
+  flex-shrink: 0;
+  color: var(--tm-accent-text);
+}
+.prp-course-panel {
+  padding: 0 12px 12px 46px;
+}
+.prp-course-panel[hidden] { display: none; }
+.prp-course-blurb {
+  margin: 0 0 8px;
+  font-size: var(--tm-fs-ui-sm);
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--tm-text);
+}
+.prp-course-apply {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--tm-fs-ui-sm);
+  font-weight: 600;
+}
+.prp-train-mark {
+  padding: 0;
+  overflow: hidden;
+}
+.prp-train-mark img {
+  width: 26px;
+  height: 26px;
+  object-fit: cover;
+  display: block;
+}
