@@ -22,6 +22,7 @@ from app.services.company_pulse import SERIES_DAYS, build_series, compute_pulse
 from app.services.industry_grouping import normalize_industry_group
 from app.services.job_history import attach_jobs
 from app.services.job_intelligence_policy import is_recommendable_listing
+from app.services.xp_policy import UPSKILLING_SET_SIZE
 from app.services.job_eligibility import (
     career_band_for_job,
     career_band_for_profile,
@@ -1606,11 +1607,18 @@ class JobsRepository:
     ) -> list[dict[str, Any]]:
         """Top companies hiring within an industry group or a city.
 
-        Powers the /intel Industries/Cities right panel (Q1=B). Filters jobs by
-        industry_group OR location_city, groups by company, returns the top-N by
-        open count or latest scrape date with dominant country + most-recent
-        last_seen per company. 24h in-process cache keyed on (kind, value, sort,
-        limit). Mirrors the
+        Powers the /intel Industries/Cities right panel (Q1=B) and the Jobs rail's
+        Company Signals. The grouping happens in the DB (`top_companies_at`), and
+        it has to: this used to select every job row for the scope and count them
+        here, which meant no liveness filter, no `.limit()`, and therefore an
+        answer assembled from PostgREST's silent 1,000-row page. Bengaluru holds
+        22,336 rows, so the panel reported a 4.5% sample as the market — Accenture
+        as 144 open roles against a real 1,051, Adobe as 12 against 101 — and the
+        page is physical heap order, so the numbers moved on their own whenever
+        the verifier sweep rewrote rows. **The scope travels as the scope; the
+        count comes back counted.**
+
+        24h in-process cache keyed on (kind, value, sort, limit). Mirrors the
         list_jobs_at_company read pattern (admin_db, APIError → cached/[]).
         """
         if industry:
@@ -1632,54 +1640,25 @@ class JobsRepository:
         if cached is not None and (now - cached[0]) < _SEARCH_TTL:
             return list(cached[1]["rows"])
         try:
-            query = (
-                self._admin_db
-                .table("jobs")
-                .select("company_name, location_country, first_seen, last_seen")
-            )
-            query = query.eq("industry_group", value) if kind == "industry" else query.eq("location_city", value)
-            result = query.execute()
+            result = self._admin_db.rpc(
+                "top_companies_at",
+                {"p_kind": kind, "p_value": value, "p_limit": scoped_limit, "p_sort": order},
+            ).execute()
         except APIError:
             return list(cached[1]["rows"]) if cached else []
 
-        counts: Counter[str] = Counter()
-        country_counters: dict[str, Counter[str]] = {}
-        last_seen: dict[str, datetime] = {}
+        rows: list[dict[str, Any]] = []
         for r in result.data or []:
             company = (r.get("company_name") or "").strip()
             if not company:
                 continue
-            counts[company] += 1
-            country = (r.get("location_country") or "").strip()
-            if country:
-                country_counters.setdefault(company, Counter())[country] += 1
-            seen_dt = _marker_to_dt(r.get("last_seen")) or _marker_to_dt(r.get("first_seen"))
-            if seen_dt is not None:
-                prev = last_seen.get(company)
-                if prev is None or seen_dt > prev:
-                    last_seen[company] = seen_dt
-
-        rows = [
-            {
+            seen_dt = _marker_to_dt(r.get("max_seen"))
+            rows.append({
                 "company_name": company,
-                "open_count": count,
-                "location_country": _dominant(country_counters.get(company)),
-                "last_seen_at": last_seen[company].isoformat() if company in last_seen else None,
-            }
-            for company, count in counts.items()
-        ]
-        if order == "last_seen":
-            rows = sorted(
-                rows,
-                key=lambda row: (
-                    last_seen.get(row["company_name"], datetime.min.replace(tzinfo=timezone.utc)),
-                    int(row["open_count"]),
-                ),
-                reverse=True,
-            )
-        else:
-            rows = sorted(rows, key=lambda row: int(row["open_count"]), reverse=True)
-        rows = rows[:scoped_limit]
+                "open_count": int(r.get("open_count") or 0),
+                "location_country": (r.get("location_country") or "").strip() or None,
+                "last_seen_at": seen_dt.isoformat() if seen_dt is not None else None,
+            })
         _search_cache[cache_key] = (now, {"rows": rows})
         return rows
 
@@ -2268,8 +2247,9 @@ class JobsRepository:
         Distinct from the algorithm layer (`user_job_matches`, rewritten on every
         recompute): these are hand-vetted picks that survive recompute. Rows are
         shaped exactly like feed rows (via `_feed_shape_row`) so the card renders
-        identically to a normal feed card. A pick whose job has since delisted is
-        dropped from the view — never a dead card.
+        identically to a normal feed card. A pick whose job has since delisted,
+        been skipped, or already saved is dropped — Skip and Save on a pick
+        use the same feed tables, so the band must honour them too.
         """
         pick_rows = (
             self._db.table("user_agent_job_picks")
@@ -2280,6 +2260,12 @@ class JobsRepository:
             .data
             or []
         )
+        if not pick_rows:
+            return []
+        gone = set(self.get_dismissed_job_card_ids(user_id)) | set(
+            self.get_saved_job_ids(user_id)
+        )
+        pick_rows = [r for r in pick_rows if r.get("job_id") not in gone]
         if not pick_rows:
             return []
         job_ids = [r["job_id"] for r in pick_rows]
@@ -3825,8 +3811,18 @@ class JobsRepository:
         and the user's PRACTICE-proven level (skill_assessed_level), which the
         planner uses for the flywheel upgrade offer. Keyed by taxonomy_key.
 
+        Also resolves `ladder_max_level` — the highest level /practice can
+        actually serve for this skill — so the gap session never offers a
+        practice CTA it cannot honour. Six skills of 9,721 have one, so for
+        almost every gap the honest answer is "not yet".
+
         Job skills include ones the user has never had on their CV, so we resolve
         names off the global `skills` table, not `user_skills`.
+
+        The ladder read goes through `_admin_db`: `skill_questions` carries the
+        answer key and is RLS-closed to `authenticated`, so a token-scoped call
+        returns zero rows and every skill would read "no ladder" — a wrong answer
+        with no error. Only the aggregate crosses the boundary, never a question.
         """
         keys = [k for k in {k.strip() for k in taxonomy_keys} if k]
         if not keys:
@@ -3850,6 +3846,7 @@ class JobsRepository:
             context[key] = {
                 "display_name": (row.get("display_name") or key).strip() or key,
                 "assessed_level": 0,
+                "ladder_max_level": 0,
             }
 
         if id_to_key:
@@ -3864,6 +3861,24 @@ class JobsRepository:
                 key = id_to_key.get(int(row["skill_id"]))
                 if key:
                     context[key]["assessed_level"] = int(row.get("assessed_level") or 0)
+
+            # Counted in the DB, never paged: 15 gap skills against ~250 questions
+            # each is 3,750 rows into PostgREST's silent 1,000-row cap, and the
+            # truncation would read as "no ladder" for whatever fell off the end.
+            try:
+                ladder_rows = self._admin_db.rpc(
+                    "servable_ladder_max_level",
+                    {"p_skill_ids": list(id_to_key.keys()), "p_set_size": UPSKILLING_SET_SIZE},
+                ).execute().data or []
+            except APIError:
+                _log.warning(
+                    "metric gap_plan.ladder_lookup_failed skills=%d", len(id_to_key),
+                )
+                ladder_rows = []
+            for row in ladder_rows:
+                key = id_to_key.get(int(row["skill_id"]))
+                if key:
+                    context[key]["ladder_max_level"] = int(row.get("max_level") or 0)
 
         return context
 

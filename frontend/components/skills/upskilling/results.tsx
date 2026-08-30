@@ -73,6 +73,8 @@ export function Results({
           <div className="up-res-award zero"><Icon name="cross" size={14} /> Clear 8/10 to earn — you got {score}/10</div>
         )}
 
+        {cleared && result.payoff ? <PayoffLine skillName={skillName} level={level} payoff={result.payoff} /> : null}
+
         <div className={`up-res-time${cleared && newBest ? " is-best" : ""}`} aria-hidden="true">{timeLine}</div>
         {cleared && result.certificate ? (
           <div className="up-res-cert-actions">
@@ -163,6 +165,41 @@ export function Results({
           <Button variant="outline" onClick={onPracticeAgain}>Practice again</Button>
         )}
       </div>
+    </div>
+  )
+}
+
+
+/**
+ * What the clear bought, in jobs — the sentence this loop never said.
+ *
+ * The claim is narrow on purpose: the user's level now clears the bar THOSE
+ * ROLES SET FOR THIS SKILL. It is not a match — other skills may still be
+ * missing — so the visible label says "clear", never "match", and the exact
+ * wording rides on `title`/`aria-label` the way the coverage panel's counts do.
+ *
+ * The delta leads when there is one: it is what this rung just earned, and a
+ * running total is a number the user cannot attribute to anything they did.
+ */
+function PayoffLine({
+  skillName,
+  level,
+  payoff,
+}: {
+  skillName: string
+  level: number
+  payoff: { newlyMet: number; metTotal: number }
+}): JSX.Element {
+  const exact =
+    `${payoff.metTotal} live roles in your locations ask for ${skillName} ` +
+    `at level ${level} or below` +
+    (payoff.newlyMet > 0 ? `, ${payoff.newlyMet} of them newly within reach at this level` : "")
+
+  return (
+    <div className="up-res-payoff" title={exact} aria-label={exact}>
+      <span className="up-res-payoff-k">Roles you clear</span>
+      <span className="up-res-payoff-v">{payoff.metTotal}</span>
+      {payoff.newlyMet > 0 && <span className="up-res-payoff-d">+{payoff.newlyMet}</span>}
     </div>
   )
 }

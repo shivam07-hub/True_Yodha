@@ -1378,12 +1378,16 @@ export interface BelowLevelCard {
   // Located host bullet when the skill's evidence can be surfaced one notch;
   // null → practice-only (earn the level in Forge, flywheel surfaces it later).
   host: GapHostBullet | null
+  /** Highest level /practice can actually serve. 0 → do not offer practice. */
+  ladder_max_level: number
 }
 export interface AbsentSkill {
   skill: string
   display_name: string
   is_primary: boolean
   required_level: number
+  /** Highest level /practice can actually serve. 0 → do not offer practice. */
+  ladder_max_level: number
 }
 export interface UpgradeOffer {
   skill: string
@@ -1393,6 +1397,8 @@ export interface UpgradeOffer {
   // Located host bullet when CV evidence exists → claim it one-tap in the closing
   // panel; null → no evidence on the CV yet, the offer routes to practice instead.
   host: GapHostBullet | null
+  /** Highest level /practice can actually serve. 0 → do not offer practice. */
+  ladder_max_level: number
 }
 export interface GapPlanResponse {
   job_id: string
@@ -5491,6 +5497,17 @@ export interface SkillCertificateIssued {
   certificate_status?: "issued" | "on_cv"
 }
 
+/** What a cleared level bought, counted in live roles. Null when no live role
+    asks for the skill — silence, never a "0", which would read as a verdict on
+    the user rather than on the market. NOT a match claim: it says the user now
+    clears the bar THAT ROLE SET FOR THIS SKILL, nothing wider. */
+export interface PracticePayoff {
+  /** Roles that crossed into reach at this level — the delta, not the total. */
+  newly_met: number
+  met_total: number
+  total_asking: number
+}
+
 export interface SubmitSetResponse {
   score: number
   max: number
@@ -5500,6 +5517,7 @@ export interface SubmitSetResponse {
   next_level_unlocked: number | null
   results: QuestionResult[]
   certificate?: SkillCertificateIssued | null
+  payoff?: PracticePayoff | null
 }
 
 export interface LearningCoverageResponse {

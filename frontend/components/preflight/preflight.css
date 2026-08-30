@@ -246,7 +246,7 @@
   flex-direction: column;
   gap: 10px;
   padding-top: 16px;
-  border-top: 1px solid var(--tm-hairline);
+  border-top: 1px solid var(--pf-stroke);
 }
 
 .pf-say-label {
@@ -265,7 +265,7 @@
 .pf-topic {
   padding: 7px 13px;
   border-radius: 999px;
-  border: 1px solid var(--tm-hairline);
+  border: 1px solid var(--pf-stroke);
   background: transparent;
   color: var(--tm-text);
   font-size: var(--tm-fs-note);

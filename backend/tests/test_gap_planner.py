@@ -271,3 +271,50 @@ def test_top_n_reports_shown_and_remaining_in_priority_order():
     # Cards carry their priority order so the frontend can merge/paginate.
     orders = [c["order"] for c in plan["host_bullet_cards"]]
     assert orders == sorted(orders)
+
+
+def test_absent_gap_carries_the_ladder_level_that_decides_the_practice_offer():
+    """A gap we cannot teach must say so in the payload.
+
+    Six skills of 9,721 have a servable ladder, so this is the common case, not
+    the edge. Before this the session linked to /practice for every absent gap
+    and landed the user in an empty room.
+    """
+    plan = gap_planner.assemble_plan(
+        gap_items=[_gap("cold_calling", user_level=0), _gap("machine_learning", user_level=0)],
+        bullets=[],
+        classification={},
+        assessed_levels={},
+        display_names={"cold_calling": "Cold Calling", "machine_learning": "Machine Learning"},
+        ladder_levels={"machine_learning": 5},
+    )
+    by_skill = {a["skill"]: a for a in plan["absent_skills"]}
+    assert by_skill["machine_learning"]["ladder_max_level"] == 5
+    assert by_skill["cold_calling"]["ladder_max_level"] == 0  # unknown → unpractisable
+
+
+def test_ladder_levels_absent_means_nothing_is_practisable():
+    """The safe direction. A failed ladder lookup must not invent an offer."""
+    plan = gap_planner.assemble_plan(
+        gap_items=[_gap("machine_learning", user_level=0), _gap("agile", user_level=2)],
+        bullets=[],
+        classification={},
+        assessed_levels={},
+        display_names={"machine_learning": "Machine Learning", "agile": "Agile"},
+    )
+    assert all(a["ladder_max_level"] == 0 for a in plan["absent_skills"])
+    assert all(c["ladder_max_level"] == 0 for c in plan["below_level_cards"])
+
+
+def test_shallow_and_upgrade_cards_carry_the_ladder_level_too():
+    """Both route to practice for the remainder — both need the same guard."""
+    plan = gap_planner.assemble_plan(
+        gap_items=[_gap("agile", user_level=2)],
+        bullets=[],
+        classification={},
+        assessed_levels={"agile": 4},
+        display_names={"agile": "Agile"},
+        ladder_levels={"agile": 3},
+    )
+    assert plan["below_level_cards"][0]["ladder_max_level"] == 3
+    assert plan["upgrade_offers"][0]["ladder_max_level"] == 3

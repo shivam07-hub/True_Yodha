@@ -339,7 +339,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
             the user is actively searching or filtering, where fixed picks would be
             out of context). Renders nothing when the user has no picks. */}
         {!q && !skillFacet && !filters.roleDomain ? (
-          <AgentPicksBand token={token} hasCv={hasCv} context="feed" />
+          <AgentPicksBand token={token} hasCv={hasCv} context="feed" onSave={onSave} onSkip={onSkip} />
         ) : null}
 
         <div style={{ marginTop: 8 }}>

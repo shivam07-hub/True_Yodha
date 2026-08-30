@@ -232,7 +232,7 @@ export function JobsSurface({
         {/* Curated Agent Picks — default view only (hidden while searching, filtering
             or viewing hidden jobs). Renders nothing when the user has no picks. */}
         {!loading && !eyeOn && !searchQ && filterCount === 0 ? (
-          <MobileAgentPicks token={token} context="feed" />
+          <MobileAgentPicks token={token} context="feed" onSave={job => doSave(job)} onSkip={job => doSkip(job)} />
         ) : null}
         {eyeOn ? (
           <HiddenView token={token} snack={snack} />

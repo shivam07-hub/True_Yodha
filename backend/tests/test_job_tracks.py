@@ -219,3 +219,81 @@ def test_two_tracks_cost_barely_more_deep_evals_than_one_search_does():
     from app.services import jobs_workflow
 
     assert 2 * jobs_workflow.TRACK_DEEP <= jobs_workflow.MATCH_TRIAGE_KEEP + 2
+
+
+# ── the gate's input has to actually be written ──────────────────────────────
+
+
+class _FakeOnboardingRepo:
+    """Records milestone writes the way the real one does: first-write-wins."""
+
+    def __init__(self, state: dict | None = None) -> None:
+        self.state = state or {}
+        self.writes: list[str] = []
+
+    def get_state(self, user_id):  # noqa: ANN001, ARG002
+        return self.state
+
+    def patch_state(self, user_id, patch):  # noqa: ANN001, ARG002
+        self.state.update(patch)
+        self.writes.append(next(iter(patch)))
+
+
+def test_mark_milestone_once_does_not_move_a_timestamp_that_exists():
+    """`tailored_cv_created_at` answers "when did they FIRST close the loop".
+    Overwriting it on every tailor makes "have they ever" and "did they just"
+    the same question, and the Job Tracks gate reads the first one."""
+    from app.repositories.onboarding import OnboardingRepository
+
+    repo = OnboardingRepository.__new__(OnboardingRepository)
+    fake = _FakeOnboardingRepo({"tailored_cv_created_at": "2026-01-01T00:00:00Z"})
+    repo.get_state = fake.get_state  # type: ignore[method-assign]
+    repo.patch_state = fake.patch_state  # type: ignore[method-assign]
+
+    assert repo.mark_milestone_once("u1", "tailored_cv_created") is False
+    assert fake.writes == []
+    assert fake.state["tailored_cv_created_at"] == "2026-01-01T00:00:00Z"
+
+
+def test_mark_milestone_once_stamps_a_first_time():
+    from app.repositories.onboarding import OnboardingRepository
+
+    repo = OnboardingRepository.__new__(OnboardingRepository)
+    fake = _FakeOnboardingRepo({})
+    repo.get_state = fake.get_state  # type: ignore[method-assign]
+    repo.patch_state = fake.patch_state  # type: ignore[method-assign]
+
+    assert repo.mark_milestone_once("u1", "tailored_cv_created") is True
+    assert fake.writes == ["tailored_cv_created_at"]
+
+
+def test_the_tailored_milestone_is_stamped_at_the_one_seam_every_version_passes():
+    """It died once already because it had one writer and no callers: 0 of 141
+    users carried it while 11 of them held 66 tailored `cv_versions` rows, so
+    `can_open_another` refused everybody and Job Tracks was unreachable.
+
+    `create()` is the seam. A right-layer stamp any of eighteen call sites can
+    forget is worth less than a wrong-layer one none of them can.
+    """
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parents[1] / "app/repositories/cv.py").read_text()
+    body = src[src.index("def create(") : src.index("def _reject_redaction_tokens")]
+    assert 'if spec.kind != "baseline_upload":' in body
+    assert "self._note_tailored(user_id)" in body
+    # Fail-soft: bookkeeping must never cost the user their CV.
+    note = src[src.index("def _note_tailored") :]
+    assert "mark_milestone_once" in note
+    assert "except Exception" in note
+
+
+def test_the_gate_reads_the_milestone_the_seam_writes():
+    """One name, both ends. A stamp that writes a field the gate does not read
+    is the same outage wearing a different column."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    gate = (root / "app/services/job_tracks.py").read_text()
+    fields = (root / "app/repositories/onboarding.py").read_text()
+    assert '"tailored_cv_created_at"' in gate
+    assert '"tailored_cv_created": "tailored_cv_created_at"' in fields

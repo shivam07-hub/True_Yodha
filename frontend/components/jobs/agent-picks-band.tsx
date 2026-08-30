@@ -1,23 +1,20 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
-import { jobs as jobsApi, type AgentPickItem } from "@/lib/api"
-import { FeedCard } from "@/components/jobs/feed-card"
-import { GradeBadge, LegitimacyBadge } from "@/components/jobs/match-brain"
-import { CapturePill } from "@/components/jobs/capture-pill"
-import { feedDataFromFeedItem } from "@/lib/jobs/card-view"
+import { jobs as jobsApi, type AgentPickItem, type JobFeedItem } from "@/lib/api"
+import { JobCard } from "@/components/market/job-card"
 import { JobDetailDrawer } from "@/components/market/job-detail-drawer"
+import { NotInterestedUndo } from "@/components/jobs/not-interested-undo"
+import { agentPicksQueryKey } from "@/lib/jobs/job-triage-cache"
+import { useAgentPickTriage } from "@/components/jobs/use-agent-pick-triage"
 import "./agent-picks-band.css"
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Myro Agent Picks — the CURATED editorial band above the algorithm feed.
-   A hand-vetted shortlist cut by the Career-Ops brain (the roles a user is told
-   to actually apply to), walled off from the algorithm-matched feed by a clear
-   divider. Distinct from /matches (algorithm layer, rewritten each recompute) —
-   these survive recompute and only change when we cut a fresh recommendation set.
-   Renders nothing when a user has no picks → zero footprint for everyone else.
+   Myro Agent Picks — editorial NOTE above the algorithm feed, not a second
+   card. The job itself is the same undecided JobCard (Skip · Save · Share)
+   used below the divider. Rank, comment and tier sit above it. A lone Save
+   pill here was an accident, not a product decision.
    ══════════════════════════════════════════════════════════════════════════ */
 
 const TIER_LABEL: Record<string, string> = {
@@ -26,30 +23,16 @@ const TIER_LABEL: Record<string, string> = {
   reach: "Reach",
 }
 
-function AgentBrainBadges({ job }: { job: AgentPickItem }) {
-  if (!job.grade && job.legitimacy_tier !== "caution" && job.legitimacy_tier !== "suspicious") return null
-  return (
-    <>
-      <GradeBadge grade={job.grade} />
-      <LegitimacyBadge tier={job.legitimacy_tier} reason={job.legitimacy_reason} />
-    </>
-  )
-}
-
 function AgentPickCard({
-  pick, hasCv, saved, onOpen, onSave, onTailor,
+  pick, hasCv, onOpen, onSave, onSkip,
 }: {
   pick: AgentPickItem
   hasCv: boolean
-  saved: boolean
   onOpen: () => void
   onSave: () => void
-  onTailor: () => void
+  onSkip: () => void
 }) {
   const tier = (pick.agent_tier ?? "").toLowerCase()
-  const label = pick.job_title
-    ? `${pick.job_title}${pick.company_name ? ` at ${pick.company_name}` : ""}`
-    : undefined
   return (
     <div className={`tm-agentpick tier-${tier}`}>
       <div className="tm-agentpick-note">
@@ -57,20 +40,7 @@ function AgentPickCard({
         <p className="tm-agentpick-why">{pick.agent_comment}</p>
         {TIER_LABEL[tier] ? <span className="tm-agentpick-tier">{TIER_LABEL[tier]}</span> : null}
       </div>
-      <FeedCard
-        data={feedDataFromFeedItem(pick, { hasCv })}
-        variant="row"
-        onOpen={onOpen}
-        badges={<AgentBrainBadges job={pick} />}
-        actions={
-          <CapturePill
-            status={saved ? "saved" : "rest"}
-            onSave={onSave}
-            onTailor={onTailor}
-            label={label}
-          />
-        }
-      />
+      <JobCard job={pick} hasCv={hasCv} onOpen={onOpen} onSave={onSave} onSkip={onSkip} />
     </div>
   )
 }
@@ -81,15 +51,19 @@ export interface AgentPicksBandProps {
   /** "feed" = the algorithm-feed divider copy follows (market); "collections" =
    *  a lighter divider (the user's saved list follows). */
   context?: "feed" | "collections"
+  /** Jobs tab passes its feed triage so one undo slot covers pick and feed. */
+  onSave?: (job: JobFeedItem) => void
+  onSkip?: (job: JobFeedItem) => void
 }
 
-export function AgentPicksBand({ token, hasCv = true, context = "feed" }: AgentPicksBandProps) {
-  const router = useRouter()
-  const [saved, setSaved] = React.useState<Set<string>>(new Set())
+export function AgentPicksBand({
+  token, hasCv = true, context = "feed", onSave, onSkip,
+}: AgentPicksBandProps) {
   const [openJob, setOpenJob] = React.useState<AgentPickItem | null>(null)
+  const triage = useAgentPickTriage({ token, onSave, onSkip })
 
   const q = useQuery({
-    queryKey: ["agentPicks", token],
+    queryKey: agentPicksQueryKey(token),
     queryFn: () => jobsApi.agentPicks(token),
     enabled: !!token,
     staleTime: 30 * 60 * 1000,
@@ -98,17 +72,7 @@ export function AgentPicksBand({ token, hasCv = true, context = "feed" }: AgentP
   })
 
   const picks = q.data?.picks ?? []
-  // Ambient: never a loading shimmer or an empty box — the band simply isn't there
-  // until there are picks to show (design-over-words).
   if (!picks.length) return null
-
-  const onSave = (pick: AgentPickItem) => {
-    setSaved(prev => new Set(prev).add(pick.job_id))
-    void jobsApi.saveJob(token, pick.job_id).catch(() => {
-      setSaved(prev => { const next = new Set(prev); next.delete(pick.job_id); return next })
-    })
-  }
-  const onTailor = (pick: AgentPickItem) => router.push(`/cv?jobId=${encodeURIComponent(pick.job_id)}`)
 
   return (
     <section className="tm-agentpicks" aria-label="Myro Agent picks">
@@ -128,10 +92,9 @@ export function AgentPicksBand({ token, hasCv = true, context = "feed" }: AgentP
             key={pick.job_id}
             pick={pick}
             hasCv={hasCv}
-            saved={saved.has(pick.job_id)}
             onOpen={() => setOpenJob(pick)}
-            onSave={() => onSave(pick)}
-            onTailor={() => onTailor(pick)}
+            onSave={() => triage.save(pick)}
+            onSkip={() => triage.skip(pick)}
           />
         ))}
       </div>
@@ -157,7 +120,16 @@ export function AgentPicksBand({ token, hasCv = true, context = "feed" }: AgentP
           job={openJob}
           token={token}
           onClose={() => setOpenJob(null)}
-          onSave={() => { onSave(openJob); setOpenJob(null) }}
+          onSave={() => { triage.save(openJob); setOpenJob(null) }}
+        />
+      ) : null}
+
+      {triage.pending ? (
+        <NotInterestedUndo
+          kind={triage.pending.kind}
+          jobId={triage.pending.jobId}
+          token={token}
+          onUndo={triage.undo}
         />
       ) : null}
     </section>

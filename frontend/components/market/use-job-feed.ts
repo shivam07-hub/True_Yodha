@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query"
 import { jobs, type JobFeedItem, type JobFeedResponse } from "@/lib/api"
 import type { FeedScope } from "@/lib/feed-scope"
+import { agentPicksQueryKey, dropJobFromAgentPicks, removeJobFromPages } from "@/lib/jobs/job-triage-cache"
 import { useLaneYields } from "@/store/matchRunStore"
 import { applyViewFilters, type FeedFilters } from "./feed-types"
 import { jobFeedQueryKey } from "./job-feed-query-key"
@@ -25,23 +26,6 @@ const NEXT_SCOPE: Record<BrowseScope, BrowseScope | null> = {
   exact: "remote_country",
   remote_country: "country",
   country: null,
-}
-
-/** Drop a job from every page of the cached infinite feed + decrement the
- *  first page's available_total (the draining-queue count). */
-function removeJobFromPages(
-  data: InfiniteData<JobFeedResponse> | undefined,
-  jobId: string,
-): InfiniteData<JobFeedResponse> | undefined {
-  if (!data) return data
-  return {
-    ...data,
-    pages: data.pages.map((p, i) => ({
-      ...p,
-      jobs: p.jobs.filter(j => j.job_id !== jobId),
-      available_total: i === 0 ? Math.max(0, p.available_total - 1) : p.available_total,
-    })),
-  }
 }
 
 /**
@@ -174,11 +158,13 @@ export function useJobFeed({
       clearUndoTimer()
       // Optimistic drain.
       qc.setQueryData<InfiniteData<JobFeedResponse>>(queryKey, prev => removeJobFromPages(prev, job.job_id))
+      dropJobFromAgentPicks(qc, token, job.job_id)
       if (kind === "saved") setSavedCount(c => c + 1)
       const call = kind === "saved" ? jobs.saveJob(token, job.job_id) : jobs.skipJob(token, job.job_id)
       const operation = call.then(() => true).catch(() => {
         // Roll back the optimistic drain on failure so the card isn't lost.
         void qc.invalidateQueries({ queryKey })
+        void qc.invalidateQueries({ queryKey: agentPicksQueryKey(token) })
         if (kind === "saved") setSavedCount(c => Math.max(0, c - 1))
         return false
       })
@@ -193,9 +179,13 @@ export function useJobFeed({
     const { jobId, kind, operation } = pending
     clearUndoTimer()
     void operation.then((committed) => {
-      if (!committed) return qc.invalidateQueries({ queryKey })
+      const refresh = () => {
+        void qc.invalidateQueries({ queryKey })
+        void qc.invalidateQueries({ queryKey: agentPicksQueryKey(token) })
+      }
+      if (!committed) return refresh()
       const reverse = kind === "saved" ? jobs.removeTrackerJob(token, jobId) : jobs.unskipJob(token, jobId)
-      return reverse.then(() => qc.invalidateQueries({ queryKey })).catch(() => qc.invalidateQueries({ queryKey }))
+      return reverse.then(refresh).catch(refresh)
     })
     if (kind === "saved") setSavedCount(c => Math.max(0, c - 1))
     setPending(null)

@@ -26,6 +26,7 @@ import { useCartStore } from "@/store/cartStore"
 import { jobs as jobsApi } from "@/lib/api"
 import type { ApplicationResponse, SkillGapItem } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { agentPicksQueryKey } from "@/lib/jobs/job-triage-cache"
 import { withLocalCache, userCacheKey } from "@/lib/local-cache"
 import { JOB_MATCHES_CACHE_PARTS } from "@/lib/job-matches-cache"
 import type { FeedItem, SortKey } from "@/lib/dashboard/feed-model"
@@ -86,7 +87,7 @@ export function CollectionsDesktop({
     staleTime: MATCHES_TTL,
   })
   const picksQ = useQuery({
-    queryKey: ["agentPicks", token],
+    queryKey: agentPicksQueryKey(token),
     queryFn: () => jobsApi.agentPicks(token),
     enabled: !!token,
     staleTime: 30 * 60 * 1000,

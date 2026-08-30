@@ -161,11 +161,19 @@ def assemble_plan(
     classification: dict[str, tuple[str, int | None]],
     assessed_levels: dict[str, int],
     display_names: dict[str, str],
+    ladder_levels: dict[str, int] | None = None,
     top_n: int = DEFAULT_TOP_N,
 ) -> dict[str, Any]:
     """Build the honest session plan. `gap_items` must arrive in priority order
     (missing-primary → below-primary → missing-secondary → below-secondary) — that
-    order is preserved verbatim into `order` on every card."""
+    order is preserved verbatim into `order` on every card.
+
+    `ladder_levels` is the highest level /practice can actually serve per skill.
+    It rides on the cards that route to practice (absent, and shallow) so the UI
+    can offer that move ONLY when it exists. Absent → the caller must treat every
+    skill as unpractisable, which is the safe direction: an offer we cannot
+    honour is worse than a gap stated plainly."""
+    ladders = ladder_levels or {}
     host_cards: dict[int, dict[str, Any]] = {}  # host bullet index → card
     below_cards: list[dict[str, Any]] = []
     absent: list[dict[str, Any]] = []
@@ -195,6 +203,7 @@ def assemble_plan(
                 "skill": skill, "display_name": name,
                 "from_level": current, "to_level": min(proven, required),
                 "host": _host_dict(host_bullet),
+                "ladder_max_level": int(ladders.get(skill, 0) or 0),
             })
 
         if current == 0:
@@ -217,6 +226,7 @@ def assemble_plan(
                     "skill": skill, "display_name": name,
                     "is_primary": bool(gap.get("is_primary")),
                     "required_level": required,
+                    "ladder_max_level": int(ladders.get(skill, 0) or 0),
                 })
         else:
             # Shallow: surface ONE notch (capped at required), earn the rest in Forge.
@@ -230,6 +240,7 @@ def assemble_plan(
                 "surface_to": min(current + 1, required),
                 "is_primary": bool(gap.get("is_primary")),
                 "host": _host_dict(host_bullet),
+                "ladder_max_level": int(ladders.get(skill, 0) or 0),
             })
             order += 1
 

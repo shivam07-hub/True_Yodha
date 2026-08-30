@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from typing import Any
 
 from fastapi import HTTPException
@@ -109,6 +110,8 @@ class _SearchFakeDB:
         contract — same fields, same separator, same candidate window — and the
         assertions below still fail if that contract moves.
         """
+        if name == "top_companies_at":
+            return _FakeRpcQuery(self._top_companies_at(params))
         assert name == "search_jobs_global", name
         terms = [t for t in (params.get("p_terms") or []) if t]
         self.search_terms.append(list(terms))
@@ -131,6 +134,54 @@ class _SearchFakeDB:
 
         matched.sort(key=lambda r: r.get("first_seen") or 0, reverse=True)
         return _FakeRpcQuery(matched[:limit])
+
+    def _top_companies_at(self, params: dict[str, Any]) -> list[dict[str, Any]]:
+        """Model `top_companies_at`: group LIVE rows in the scope, order, then cap.
+
+        The order of those three steps is the whole point of the function. The
+        Python this replaced grouped whatever PostgREST's 1,000-row page happened
+        to contain, so the cap landed BEFORE the grouping and the counts were a
+        sample. This fake groups the full scope first, exactly as the SQL does —
+        a caller that goes back to counting rows client-side fails here.
+        """
+        kind = params.get("p_kind")
+        value = params.get("p_value")
+        scope_column = "industry_group" if kind == "industry" else "location_city"
+        counts: Counter[str] = Counter()
+        countries: dict[str, Counter[str]] = {}
+        seen: dict[str, int] = {}
+        for row in self._tables.get("jobs", []):
+            if row.get("is_active") is not True or row.get("listing_confidence") != "active":
+                continue
+            if row.get(scope_column) != value:
+                continue
+            company = str(row.get("company_name") or "").strip()
+            if not company:
+                continue
+            counts[company] += 1
+            country = str(row.get("location_country") or "").strip()
+            if country:
+                countries.setdefault(company, Counter())[country] += 1
+            marker = max(int(row.get("last_seen") or 0), int(row.get("first_seen") or 0))
+            if marker:
+                seen[company] = max(seen.get(company, 0), marker)
+
+        rows = [
+            {
+                "company_name": company,
+                "open_count": count,
+                "location_country": (
+                    countries[company].most_common(1)[0][0] if company in countries else None
+                ),
+                "max_seen": seen.get(company),
+            }
+            for company, count in counts.items()
+        ]
+        if params.get("p_sort") == "last_seen":
+            rows.sort(key=lambda r: (r["max_seen"] or 0, r["open_count"], r["company_name"]), reverse=True)
+        else:
+            rows.sort(key=lambda r: (-r["open_count"], r["company_name"]))
+        return rows[: max(1, min(20, int(params.get("p_limit") or 8)))]
 
 
 class _FakeRpcQuery:
@@ -548,17 +599,20 @@ def test_compile_market_analytics_canonicalizes_location_filter_aliases() -> Non
     assert result["top_skills"] == [("Python", 1)]
 
 
+LIVE = {"is_active": True, "listing_confidence": "active"}
+
+
 def test_list_top_companies_at_repo_groups_by_company() -> None:
     # Two industries; Acme dominates Technology with the most-recent last_seen.
     jobs = [
         {"job_id": "j0", "company_name": "Acme", "industry_group": "Technology",
-         "location_country": "IN", "first_seen": 20260501, "last_seen": 20260601},
+         "location_country": "IN", "first_seen": 20260501, "last_seen": 20260601, **LIVE},
         {"job_id": "j1", "company_name": "Acme", "industry_group": "Technology",
-         "location_country": "IN", "first_seen": 20260502, "last_seen": 20260610},
+         "location_country": "IN", "first_seen": 20260502, "last_seen": 20260610, **LIVE},
         {"job_id": "j2", "company_name": "Globex", "industry_group": "Technology",
-         "location_country": "US", "first_seen": 20260503, "last_seen": 20260503},
+         "location_country": "US", "first_seen": 20260503, "last_seen": 20260503, **LIVE},
         {"job_id": "j3", "company_name": "BankCo", "industry_group": "Finance",
-         "location_country": "IN", "first_seen": 20260504, "last_seen": 20260504},
+         "location_country": "IN", "first_seen": 20260504, "last_seen": 20260504, **LIVE},
     ]
     jobs_module._search_cache.clear()
     db = _SearchFakeDB({"jobs": jobs})
@@ -574,11 +628,11 @@ def test_list_top_companies_at_repo_groups_by_company() -> None:
 def test_list_top_companies_at_repo_can_sort_by_last_seen() -> None:
     jobs = [
         {"job_id": "j0", "company_name": "Acme", "location_city": "Bengaluru",
-         "location_country": "IN", "first_seen": 20260501, "last_seen": 20260601},
+         "location_country": "IN", "first_seen": 20260501, "last_seen": 20260601, **LIVE},
         {"job_id": "j1", "company_name": "Acme", "location_city": "Bengaluru",
-         "location_country": "IN", "first_seen": 20260502, "last_seen": 20260601},
+         "location_country": "IN", "first_seen": 20260502, "last_seen": 20260601, **LIVE},
         {"job_id": "j2", "company_name": "FreshCo", "location_city": "Bengaluru",
-         "location_country": "IN", "first_seen": 20260620, "last_seen": 20260620},
+         "location_country": "IN", "first_seen": 20260620, "last_seen": 20260620, **LIVE},
     ]
     jobs_module._search_cache.clear()
     db = _SearchFakeDB({"jobs": jobs})
@@ -593,9 +647,9 @@ def test_list_top_companies_at_repo_can_sort_by_last_seen() -> None:
 def test_list_top_companies_at_repo_filters_by_city() -> None:
     jobs = [
         {"job_id": "j0", "company_name": "Acme", "location_city": "Pune",
-         "location_country": "IN", "first_seen": 20260501, "last_seen": 20260501},
+         "location_country": "IN", "first_seen": 20260501, "last_seen": 20260501, **LIVE},
         {"job_id": "j1", "company_name": "Globex", "location_city": "Mumbai",
-         "location_country": "IN", "first_seen": 20260502, "last_seen": 20260502},
+         "location_country": "IN", "first_seen": 20260502, "last_seen": 20260502, **LIVE},
     ]
     jobs_module._search_cache.clear()
     db = _SearchFakeDB({"jobs": jobs})
@@ -610,15 +664,66 @@ def test_list_top_companies_at_repo_canonicalizes_city_label() -> None:
     # exact-match eq returns 0 and the rail's Trending widget silently empties.
     jobs = [
         {"job_id": "j0", "company_name": "Acme", "location_city": "Bengaluru",
-         "location_country": "IN", "first_seen": 20260501, "last_seen": 20260501},
+         "location_country": "IN", "first_seen": 20260501, "last_seen": 20260501, **LIVE},
         {"job_id": "j1", "company_name": "Globex", "location_city": "Mumbai",
-         "location_country": "IN", "first_seen": 20260502, "last_seen": 20260502},
+         "location_country": "IN", "first_seen": 20260502, "last_seen": 20260502, **LIVE},
     ]
     jobs_module._search_cache.clear()
     db = _SearchFakeDB({"jobs": jobs})
     rows = JobsRepository(db).list_top_companies_at(city="Bangalore", limit=8)
 
     assert [r["company_name"] for r in rows] == ["Acme"]
+
+
+def test_list_top_companies_at_repo_counts_only_live_listings() -> None:
+    """A delisted role is not an open role.
+
+    The read this replaced had no liveness predicate at all, so a company that
+    stopped hiring in March still ranked on the panel by its dead postings.
+    """
+    jobs = [
+        {"job_id": "j0", "company_name": "GhostCo", "location_city": "Pune",
+         "location_country": "IN", "first_seen": 20260101, "last_seen": 20260101,
+         "is_active": False, "listing_confidence": "active"},
+        {"job_id": "j1", "company_name": "GhostCo", "location_city": "Pune",
+         "location_country": "IN", "first_seen": 20260102, "last_seen": 20260102,
+         "is_active": True, "listing_confidence": "likely_closed"},
+        {"job_id": "j2", "company_name": "LiveCo", "location_city": "Pune",
+         "location_country": "IN", "first_seen": 20260103, "last_seen": 20260103, **LIVE},
+    ]
+    jobs_module._search_cache.clear()
+    db = _SearchFakeDB({"jobs": jobs})
+    rows = JobsRepository(db).list_top_companies_at(city="Pune", limit=8)
+
+    assert [r["company_name"] for r in rows] == ["LiveCo"]
+    assert rows[0]["open_count"] == 1
+
+
+def test_list_top_companies_at_repo_counts_the_whole_scope_not_a_page() -> None:
+    """The count is of the market, not of one response page.
+
+    This is the defect the RPC exists to close: the previous read selected every
+    job row for the city and grouped them in Python, so PostgREST's silent
+    1,000-row cap decided the answer. A 1,400-row city reported its top company
+    at a fraction of its real size, and which fraction moved with heap order.
+    A limit of 8 must cap the COMPANIES returned, never the rows counted.
+    """
+    jobs = [
+        {"job_id": f"big{i}", "company_name": "BigCo", "location_city": "Pune",
+         "location_country": "IN", "first_seen": 20260501, "last_seen": 20260501, **LIVE}
+        for i in range(1_400)
+    ] + [
+        {"job_id": f"small{i}", "company_name": f"Small{i}", "location_city": "Pune",
+         "location_country": "IN", "first_seen": 20260502, "last_seen": 20260502, **LIVE}
+        for i in range(30)
+    ]
+    jobs_module._search_cache.clear()
+    db = _SearchFakeDB({"jobs": jobs})
+    rows = JobsRepository(db).list_top_companies_at(city="Pune", limit=8)
+
+    assert len(rows) == 8
+    assert rows[0]["company_name"] == "BigCo"
+    assert rows[0]["open_count"] == 1_400
 
 
 class _GroupCompaniesRepo:

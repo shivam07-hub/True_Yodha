@@ -34,13 +34,16 @@ export function useTracks(token: string | null, enabled = true) {
      *  a single-track user's screen has no track chrome anyway, so "not loaded"
      *  and "one search" are deliberately the same picture. */
     tracks: query.data?.tracks ?? [],
+    /** Has this user earned another search? False until they have tailored a CV
+     *  for a job in their first one — the moment the whole loop closes. Read by
+     *  the tailor's done panel and nothing else: before that moment the second
+     *  search is not advertised at all. */
+    canOpen: query.data?.can_open ?? false,
     loading: query.isLoading,
   }
 }
 
-/* `can_open` / `blocked_reason` are deliberately NOT re-exported. They are the
-   unlock moment (Job Tracks slice 3b), which is not built: `can_open` flips the
-   moment the user tailors a CV for a job in their first search, and that is when
-   the second one gets offered — not before. Exposing the gate with nothing
-   reading it would be an API that looks answered and is not. `tracksApi.list`
-   already returns both when 3b needs them. */
+/* `blocked_reason` is deliberately not re-exported. Nothing renders a refusal
+   yet, and when something does it must render THAT STRING — never a padlock,
+   never "Pro", never the word "locked". There is a server test asserting the
+   reason never contains it, and the UI must not say what the API refuses to. */
