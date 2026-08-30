@@ -230,6 +230,11 @@ export function UpskillingView({
         elapsedSeconds,
         prevBestSeconds,
         newBest,
+        // Only when a live role actually asks for this skill — the backend
+        // returns null rather than zeroes so there is nothing to suppress here.
+        payoff: res.passed && res.payoff && res.payoff.met_total > 0
+          ? { newlyMet: res.payoff.newly_met, metTotal: res.payoff.met_total }
+          : null,
         certificate: res.passed ? (res.certificate ?? null) : null,
         cvHref: res.passed && res.certificate?.verification_id
           ? addCertificateHref(res.certificate.verification_id)

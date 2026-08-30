@@ -18,7 +18,7 @@ import random
 from fastapi import HTTPException, status
 
 from app.database import get_supabase_admin
-from app.services import xp_service
+from app.services import practice_payoff, xp_service
 from app.services.xp_policy import (
     UPSKILLING_PASS_BAR,
     UPSKILLING_SET_SIZE,
@@ -424,8 +424,9 @@ async def submit_set(
         on_conflict="attempt_id,question_id",
     ).execute()
 
+    prior_assessed = 0
     if passed:
-        _bump_assessed_level(admin, user_id, skill_id, level)
+        prior_assessed = _bump_assessed_level(admin, user_id, skill_id, level)
 
     certificate = None
     if passed:
@@ -446,6 +447,16 @@ async def submit_set(
         )
 
     next_level_unlocked = level + 1 if passed and level < 5 else None
+
+    # What the clear bought, in jobs. The loop used to end in a score and a coin
+    # total and say nothing about the market — the one thing the user practised
+    # for. None when no live role asks for this skill: silence, never a "0".
+    payoff = None
+    if passed:
+        payoff = practice_payoff.roles_cleared(
+            admin, user_id, skill_id, from_level=prior_assessed, to_level=level,
+        )
+
     return {
         "score": score,
         "max": max_score,
@@ -455,6 +466,7 @@ async def submit_set(
         "next_level_unlocked": next_level_unlocked,
         "results": results,
         "certificate": certificate,
+        "payoff": payoff.as_dict() if payoff else None,
     }
 
 
@@ -480,7 +492,13 @@ def _level_already_paid(admin, user_id: str, skill_id: int, level: int) -> bool:
     return len(prior) > 0
 
 
-def _bump_assessed_level(admin, user_id: str, skill_id: int, level: int) -> None:
+def _bump_assessed_level(admin, user_id: str, skill_id: int, level: int) -> int:
+    """Raise the proven level, and return what it was BEFORE.
+
+    The caller needs the prior level to say what this clear actually bought —
+    "three more roles", not a running total the user cannot attribute — and it is
+    already read here, so returning it saves a second round trip on a path the
+    user is watching."""
     existing = (
         admin.table("skill_assessed_level")
         .select("assessed_level")
@@ -500,6 +518,7 @@ def _bump_assessed_level(admin, user_id: str, skill_id: int, level: int) -> None
         },
         on_conflict="user_id,skill_id",
     ).execute()
+    return prev
 
 
 def _snapshot_attempt_questions(admin, attempt_id: str, questions: list[dict]) -> None:

@@ -189,3 +189,39 @@
 @media (prefers-reduced-motion: reduce) {
   .up-root *, .up-root *::before, .up-root *::after { animation: none !important; transition: none !important; }
 }
+
+/* What the clear bought, in jobs. A stat, not a sentence — the precise claim
+   rides on title/aria (see PayoffLine), because "roles you clear" is a bar met
+   on ONE skill, never a match. Numerals are mono + tabular so the delta lines
+   up under the count it belongs to. */
+.up-res-payoff {
+  margin-top: 12px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 15px;
+  border-radius: var(--tm-radius-lg);
+  background: var(--tm-surface-2);
+  border: 1px solid var(--tm-border-soft);
+}
+.up-res-payoff-k {
+  font-size: var(--tm-fs-micro);
+  font-weight: 650;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+.up-res-payoff-v {
+  font-family: var(--tm-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--tm-fs-heading);
+  font-weight: 650;
+  color: var(--tm-text);
+}
+.up-res-payoff-d {
+  font-family: var(--tm-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--tm-fs-note);
+  font-weight: 650;
+  color: var(--tm-success-text);
+}

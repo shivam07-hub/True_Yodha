@@ -58,6 +58,8 @@ export interface ResultModel {
   elapsedSeconds: number
   prevBestSeconds: number | null
   newBest: boolean
+  /** Live roles whose bar for this skill the user now clears. Null = say nothing. */
+  payoff: { newlyMet: number; metTotal: number } | null
   certificate: {
     verification_id: string
     verify_path?: string

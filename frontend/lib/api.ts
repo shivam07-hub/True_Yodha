@@ -5497,6 +5497,17 @@ export interface SkillCertificateIssued {
   certificate_status?: "issued" | "on_cv"
 }
 
+/** What a cleared level bought, counted in live roles. Null when no live role
+    asks for the skill — silence, never a "0", which would read as a verdict on
+    the user rather than on the market. NOT a match claim: it says the user now
+    clears the bar THAT ROLE SET FOR THIS SKILL, nothing wider. */
+export interface PracticePayoff {
+  /** Roles that crossed into reach at this level — the delta, not the total. */
+  newly_met: number
+  met_total: number
+  total_asking: number
+}
+
 export interface SubmitSetResponse {
   score: number
   max: number
@@ -5506,6 +5517,7 @@ export interface SubmitSetResponse {
   next_level_unlocked: number | null
   results: QuestionResult[]
   certificate?: SkillCertificateIssued | null
+  payoff?: PracticePayoff | null
 }
 
 export interface LearningCoverageResponse {
