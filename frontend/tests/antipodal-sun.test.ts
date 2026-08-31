@@ -5,10 +5,13 @@ import {
   CAST_PX,
   GRID,
   RESTING_CURSOR,
+  SUN_TAU_MS,
+  castFromPercents,
   cellOfPoint,
   chebyshev,
   cssFromCells,
   cssFromPointer,
+  followStep,
   parkedCss,
   sunFromCursor,
 } from "../lib/theme/antipodal-sun"
@@ -67,4 +70,31 @@ test("pointer helper returns the same sun as the cell path", () => {
   const viaCells = sunFromCursor(cellOfPoint(40, 420, 800, 800))
   const viaPointer = cssFromPointer(40, 420, 800, 800)
   assert.deepEqual(viaPointer.sun, viaCells)
+})
+
+test("one cursor-frame barely moves the sun", () => {
+  const next = followStep(0, 100, 16.67, SUN_TAU_MS)
+  assert.ok(next > 0.1 && next < 0.35, `one frame moved ${next} of 100`)
+})
+
+test("a 200ms flick leaves the sun ~80× behind the pointer", () => {
+  let x = 0
+  for (let t = 0; t < 200; t += 16.67) x = followStep(x, 100, 16.67, SUN_TAU_MS)
+  assert.ok(x < 4, `sun travelled ${x}% during a 200ms flick`)
+})
+
+test("the sun reaches ~63% of the gap at its time constant", () => {
+  let x = 0
+  for (let t = 0; t < SUN_TAU_MS; t += 16.67) {
+    x = followStep(x, 100, 16.67, SUN_TAU_MS)
+  }
+  assert.ok(x > 58 && x < 68, `at tau the sun is at ${x}, not ~63`)
+})
+
+test("castFromPercents points from the sun toward the aim", () => {
+  const css = castFromPercents(90, 10, 20, 50)
+  assert.ok(parseFloat(css.castX) < 0)
+  assert.ok(parseFloat(css.castY) > 0)
+  const mag = Math.hypot(parseFloat(css.castX), parseFloat(css.castY))
+  assert.ok(Math.abs(mag - CAST_PX) < 0.15)
 })

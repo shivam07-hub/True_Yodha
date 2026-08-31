@@ -16,6 +16,11 @@ export type SunCss = {
 export const GRID = 8
 export const TARGET_BLOCKS = 6.5
 export const CAST_PX = 22
+/**
+ * Exponential follow time-constant. A cursor flick is ~200ms; at 8s the sun
+ * covers ~2.5% of the gap in that flick (~80× slower) and ~63% in 8s.
+ */
+export const SUN_TAU_MS = 8_000
 /** Left rail, mid-page — where a Market user actually rests. */
 export const RESTING_CURSOR: Cell = { x: 1, y: 4 }
 
@@ -106,4 +111,32 @@ export function cssFromPointer(
 
 export function parkedCss(): SunCss {
   return cssFromCells(RESTING_CURSOR, sunFromCursor(RESTING_CURSOR))
+}
+
+/** One dt step of exponential follow. Frame-rate independent. */
+export function followStep(
+  current: number,
+  target: number,
+  dtMs: number,
+  tauMs: number = SUN_TAU_MS,
+): number {
+  if (dtMs <= 0 || tauMs <= 0) return current
+  const k = 1 - Math.exp(-dtMs / tauMs)
+  return current + (target - current) * k
+}
+
+/** Cast from the displayed sun toward a point, both in viewport percent. */
+export function castFromPercents(
+  sunX: number,
+  sunY: number,
+  towardX: number,
+  towardY: number,
+): Pick<SunCss, "castX" | "castY"> {
+  const dx = towardX - sunX
+  const dy = towardY - sunY
+  const len = Math.hypot(dx, dy) || 1
+  return {
+    castX: `${((dx / len) * CAST_PX).toFixed(1)}px`,
+    castY: `${((dy / len) * CAST_PX).toFixed(1)}px`,
+  }
 }

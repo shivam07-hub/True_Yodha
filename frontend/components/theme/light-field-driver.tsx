@@ -6,13 +6,18 @@ import {
   MEDIA_QUERY_REDUCED_MOTION,
 } from "@/mobile/viewport"
 import {
+  RESTING_CURSOR,
+  SUN_TAU_MS,
+  castFromPercents,
+  cellCenterPercent,
   cssFromPointer,
+  followStep,
   parkedCss,
   type SunCss,
 } from "@/lib/theme/antipodal-sun"
 
-const LERP = 0.16
 const VARS = ["--tm-sun-x", "--tm-sun-y", "--tm-cast-x", "--tm-cast-y"] as const
+const REST_PTR = cellCenterPercent(RESTING_CURSOR)
 
 function isLight(): boolean {
   return document.documentElement.dataset.surface === "light"
@@ -26,7 +31,7 @@ function canTrack(): boolean {
   )
 }
 
-function writeCast(css: SunCss) {
+function writeCast(css: Pick<SunCss, "castX" | "castY">) {
   const style = document.documentElement.style
   style.setProperty("--tm-cast-x", css.castX)
   style.setProperty("--tm-cast-y", css.castY)
@@ -53,52 +58,60 @@ function clearInline() {
 /**
  * Single writer of the light-surface sun. Math is in antipodal-sun.ts.
  * Dark ignores these vars. Reduced motion and coarse pointers keep the park.
- * Tracking is read live from matchMedia so a docked mouse starts without remount.
+ * The bloom crawls (~8s time constant); it does not track the pointer 1:1.
  */
 export function LightFieldDriver() {
   useEffect(() => {
     const root = document.documentElement
     const parked = parkedCss()
     let raf = 0
+    let lastT = 0
     let curX = parseFloat(parked.sunX)
     let curY = parseFloat(parked.sunY)
     let tgtX = curX
     let tgtY = curY
-    let lastCursorKey = ""
+    let aimX = REST_PTR.x
+    let aimY = REST_PTR.y
+    let aimTgtX = aimX
+    let aimTgtY = aimY
     let tracking = false
 
-    const tick = () => {
+    const stillMoving = () =>
+      Math.abs(tgtX - curX) > 0.04 ||
+      Math.abs(tgtY - curY) > 0.04 ||
+      Math.abs(aimTgtX - aimX) > 0.04 ||
+      Math.abs(aimTgtY - aimY) > 0.04
+
+    const tick = (now: number) => {
       raf = 0
       if (!tracking) return
-      curX += (tgtX - curX) * LERP
-      curY += (tgtY - curY) * LERP
+      const dt = lastT ? Math.min(now - lastT, 48) : 16.67
+      lastT = now
+      curX = followStep(curX, tgtX, dt, SUN_TAU_MS)
+      curY = followStep(curY, tgtY, dt, SUN_TAU_MS)
+      aimX = followStep(aimX, aimTgtX, dt, SUN_TAU_MS)
+      aimY = followStep(aimY, aimTgtY, dt, SUN_TAU_MS)
       writeSun(curX, curY)
-      if (Math.abs(tgtX - curX) > 0.04 || Math.abs(tgtY - curY) > 0.04) {
-        raf = requestAnimationFrame(tick)
-      }
+      writeCast(castFromPercents(curX, curY, aimX, aimY))
+      if (stillMoving()) raf = requestAnimationFrame(tick)
     }
 
     const onMove = (event: PointerEvent | MouseEvent) => {
       tracking = canTrack()
       if (!tracking) return
-      const { cursor, sun, css } = cssFromPointer(
-        event.clientX,
-        event.clientY,
-        window.innerWidth,
-        window.innerHeight,
-      )
+      const w = window.innerWidth
+      const h = window.innerHeight
+      const { css } = cssFromPointer(event.clientX, event.clientY, w, h)
       tgtX = parseFloat(css.sunX)
       tgtY = parseFloat(css.sunY)
-      const key = `${cursor.x},${cursor.y}:${sun.x},${sun.y}`
-      if (key !== lastCursorKey) {
-        lastCursorKey = key
-        writeCast(css)
-      }
+      aimTgtX = (event.clientX / Math.max(w, 1)) * 100
+      aimTgtY = (event.clientY / Math.max(h, 1)) * 100
       if (!raf) raf = requestAnimationFrame(tick)
     }
 
     const apply = () => {
       tracking = canTrack()
+      lastT = 0
       if (!isLight()) {
         clearInline()
         return
@@ -109,7 +122,10 @@ export function LightFieldDriver() {
       curY = parseFloat(rest.sunY)
       tgtX = curX
       tgtY = curY
-      lastCursorKey = ""
+      aimX = REST_PTR.x
+      aimY = REST_PTR.y
+      aimTgtX = aimX
+      aimTgtY = aimY
     }
 
     apply()
