@@ -864,20 +864,36 @@ def _current_result(db: Client, user_id: str) -> dict[str, Any]:
     profile = facts["profile"] or {}
     baseline = facts["baseline"]
 
+    from app.services.career_target import is_canonical_direction as _is_canonical
+
     # Completed onboarding lands on Market. A legacy first-role save still has a
     # tailor receipt; everyone else who finished Direction goes to /market.
+    #
+    # BUT completion is not taken on trust. 111 users carry `completed_at` with
+    # no canonical direction — they came through a window where the gate was
+    # leaky, between 2026-04-20 and 2026-06-20. For them this early return was a
+    # closed door: the Market nudge is hidden because they are "complete", and
+    # navigating to /onboarding bounced them straight back here. No path existed
+    # to the one step that matters — users with a target apply at 26%, this
+    # cohort at 9%.
+    #
+    # A flag is not the fact. Fall through and let them finish Direction.
     if state.get("completed_at"):
+        # A saved first role is evidence of a finished journey in its own right —
+        # the receipt stands regardless of what the profile looks like now.
         if state.get("credible_job_saved_at"):
             from app.services.onboarding_first_role import saved_first_role
 
             saved = saved_first_role(JobsRepository(db), user_id)
             if saved:
                 return {"kind": "first_role_saved", **saved}
-        return {
-            "kind": "onboarding_complete",
-            "redirect_to": "/market",
-            "journey_step": 2,
-        }
+        if _is_canonical(profile):
+            return {
+                "kind": "onboarding_complete",
+                "redirect_to": "/market",
+                "journey_step": 2,
+            }
+        # Completed, no receipt, no direction — fall through to Direction.
 
     from app.services.career_target import SOURCE_SENIORITY, is_canonical_direction
 

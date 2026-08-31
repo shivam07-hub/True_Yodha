@@ -169,3 +169,58 @@ def test_onboarding_result_recovers_saved_receipt_after_reload(monkeypatch) -> N
         # reviewable — the client needs the ceiling to know that.
         "furthest_step": 2,
     }
+
+
+def test_completed_without_a_direction_falls_through_to_direction(monkeypatch) -> None:
+    """The closed door. 111 users carried `completed_at` (or the profile flag)
+    with no canonical direction, from a window when the gate was leaky. The early
+    return sent them to /market before anything checked, so the one step that
+    matters — users with a target apply at 26%, this cohort at 9% — was
+    unreachable. A flag is not the fact.
+    """
+    state = {"completed_at": "now"}          # complete, no first-role receipt
+    monkeypatch.setattr(
+        onboarding_service, "OnboardingRepository",
+        lambda _db: type("State", (), {"get_state": lambda _self, _uid: state})(),
+    )
+    monkeypatch.setattr(
+        onboarding_service, "UsersRepository",
+        lambda _db: type("Users", (), {"get_profile": lambda _self, _uid: {}})(),
+    )
+    monkeypatch.setattr(
+        onboarding_service, "CVVersionsRepository",
+        lambda _db: type("CV", (), {"latest_baseline": lambda _self, _uid: None})(),
+    )
+    monkeypatch.setattr(onboarding_service, "JobsRepository", lambda _db: object())
+
+    result = onboarding_service._current_result(object(), "u1")
+
+    assert result.get("redirect_to") != "/market"
+
+
+def test_a_completed_user_with_a_real_direction_still_lands_on_market(monkeypatch) -> None:
+    """The fix must not re-route everyone who legitimately finished."""
+    state = {"completed_at": "now"}
+    profile = {
+        "target_role_titles": ["Data Analyst"],
+        "target_roles": ["Data and Analytics"],
+        "target_seniority": "mid",
+    }
+    monkeypatch.setattr(
+        onboarding_service, "OnboardingRepository",
+        lambda _db: type("State", (), {"get_state": lambda _self, _uid: state})(),
+    )
+    monkeypatch.setattr(
+        onboarding_service, "UsersRepository",
+        lambda _db: type("Users", (), {"get_profile": lambda _self, _uid: profile})(),
+    )
+    monkeypatch.setattr(
+        onboarding_service, "CVVersionsRepository",
+        lambda _db: type("CV", (), {"latest_baseline": lambda _self, _uid: {"id": 1}})(),
+    )
+    monkeypatch.setattr(onboarding_service, "JobsRepository", lambda _db: object())
+
+    result = onboarding_service._current_result(object(), "u1")
+
+    assert result["redirect_to"] == "/market"
+    assert result["kind"] == "onboarding_complete"

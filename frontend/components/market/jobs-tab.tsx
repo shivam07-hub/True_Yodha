@@ -255,11 +255,18 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
   }, [followCompany, onFilterSkill])
 
   // One nudge, one destination (/onboarding — resumes wherever the user left
-  // off), regardless of which step they're stuck on. Gated on onboardingComplete
-  // rather than hasCv alone: a user can have a CV and still not have picked a
-  // target role or saved a first shortlist, and hasCv-only gating hid the nudge
-  // for that cohort entirely.
-  const showOnboardingNudge = cvResolved && !onboardingComplete
+  // off), regardless of which step they're stuck on.
+  //
+  // Gated on what is MISSING, not on the completion flag. Gating on the flag
+  // alone hid this from 111 users who carry `onboarding_complete = true` with no
+  // target role — a leaky gate between 2026-04-20 and 2026-06-20 let them
+  // through, and afterwards nothing could reach them: the nudge was hidden
+  // because they were "complete". Users with a target apply at 26%; that cohort
+  // applies at 9%.
+  //
+  // A flag is not the fact. The same lesson as the NULL scoping key that told
+  // 162 users the market was empty.
+  const showOnboardingNudge = cvResolved && (!onboardingComplete || !hasTargetRoles)
 
   const onSave = (j: JobFeedItem) => triage(j, "saved")
   const onSkip = (j: JobFeedItem) => triage(j, "skipped")
