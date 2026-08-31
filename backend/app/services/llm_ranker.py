@@ -72,13 +72,28 @@ def preferred_locations(profile: dict[str, Any]) -> str:
     return str(profile.get("target_location_country") or "").strip() or "flexible"
 
 
+# What the prompt says when the user never told us what they want.
+#
+# It used to say "their stated target roles" — a self-referential placeholder
+# that reads to the model exactly like a failed interpolation, handed to it under
+# the rule "reward strong alignment with the candidate's target roles; penalise
+# roles far outside them". The model cannot align anything to that phrase, so it
+# returned a confident verdict against nothing, and that verdict persisted to
+# `user_job_matches` and ordered the user's Best-fit feed. 141 users are in this
+# state today.
+#
+# `deal_breakers` two lines below already had the honest form: a named absence
+# ("none specified") plus a rule saying what to do about it. This mirrors it.
+NO_TARGET_ROLES = "not set"
+
+
 def build_system_prompt(profile: dict[str, Any], cv_markdown: str) -> str:
     """Career Ops evaluator persona, driven by the per-user profile.
 
     Unlike the source agent, this carries NO hardcoded location/role bias — the
     rewards and penalties come from the candidate's own target_roles and location.
     """
-    roles = ", ".join(profile.get("target_roles") or []) or "their stated target roles"
+    roles = ", ".join(profile.get("target_roles") or []) or NO_TARGET_ROLES
     location = preferred_locations(profile)
     deal_breakers = ", ".join(profile.get("deal_breakers") or []) or "none specified"
     career_goal = profile.get("career_goal") or "not specified"
@@ -128,7 +143,7 @@ Then give this specific candidate their strategy for THIS posting (Career Ops st
 - star_pointers: a JSON array of 2-4 SHORT phrases naming the candidate's OWN most-relevant projects/achievements to cite for this role, taken verbatim-in-spirit from the CV above. NO fabrication (ADR-0016): include ONLY real items present in the CV; if nothing is clearly relevant, return [].
 
 Rules:
-- Reward strong alignment with the candidate's target roles; penalise roles far outside them.
+- Reward strong alignment with the candidate's target roles; penalise roles far outside them. ("not set" means the candidate has NOT told us what they want: judge role fit from the CV alone, and do not penalise distance from a target that does not exist.)
 - Reward the candidate's preferred location; flag relocation risk otherwise (do not hard-fail).
 - If the posting clearly violates a stated deal-breaker, recommendation MUST be "Skip" and the summary must name the deal-breaker. ("none specified" means no hard filters.)
 - Judge growth_fit against the candidate's career goal, and frame application_angle around their superpower when stated.
@@ -198,12 +213,12 @@ _TRIAGE_CHUNK = 50
 
 def build_triage_prompt(profile: dict[str, Any], cv_markdown: str) -> str:
     """Compact evaluator persona for the batched pool→shortlist triage pass."""
-    roles = ", ".join(profile.get("target_roles") or []) or "their stated target roles"
+    roles = ", ".join(profile.get("target_roles") or []) or NO_TARGET_ROLES
     location = preferred_locations(profile)
     cv_block = (cv_markdown or "").strip()[:2000] or "No CV on file — infer from the skill profile."
     return f"""You are Career Ops, an elite AI career advisor triaging a batch of job postings for ONE candidate. Pick only the strongest genuine fits — never pad the list to reach the count. Judge on true role/skill/seniority fit to THIS candidate, not keyword overlap.
 
-Candidate target roles: {roles}
+Candidate target roles: {roles} ("not set" = judge role fit from the CV alone; do not penalise distance from a target that does not exist)
 Preferred locations: {location}
 
 CV:
