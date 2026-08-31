@@ -38,9 +38,11 @@ def cv_line(cert: dict[str, Any]) -> str:
 
       - **Give the scale.** "Level 3" alone is unreadable; "Level 3 of 5" is a
         position a stranger can place.
-      - **Say what the level MEANS**, in the same words the assessment was
-        calibrated from (`skill_levels`). A level with no definition is a claim
-        the reader has to take on trust from a brand they do not know.
+      - **Say what the level MEANS** — specifically, what the assessment
+        demonstrated (`skill_levels.assessed`). A level with no definition is a
+        claim the reader takes on trust from a brand they do not know; a
+        definition wider than the evidence is worse, because it is a claim we
+        cannot support. Ten questions show knowledge, not a work history.
       - **Be checkable by a person.** The old line ended in a bare id, which is
         machine-readable and human-useless. A URL is something a recruiter can
         actually open.
@@ -56,8 +58,12 @@ def cv_line(cert: dict[str, Any]) -> str:
     # An unrecognised level claims no level at all. "Level None of 5" on a CV is
     # worse than silence: it is visibly broken on the one document the user
     # hands to someone else.
-    head = name if std is None else f"{name} — Level {std.level} of {MAX_LEVEL}: {std.means}"
-    parts = [f"{head}. Verified by Myro"]
+    # `assessed`, never `targets`: the line may report what the test showed, not
+    # what someone at this level does at work. See skill_levels.
+    head = name if std is None else f"{name} — Level {std.level} of {MAX_LEVEL}: {std.assessed}"
+    # "Assessed by", not "Verified by". Verified implies we checked their work.
+    # We set an exam and marked it.
+    parts = [f"{head}. Assessed by Myro"]
     if when:
         parts.append(when)
     if verification_id:

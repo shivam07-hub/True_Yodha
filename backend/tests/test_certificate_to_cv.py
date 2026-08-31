@@ -20,15 +20,15 @@ def test_an_empty_section_gets_the_line():
     assert changed is True
     assert len(certs) == 1
     assert "Cold Calling — Level 3 of 5" in certs[0]
-    assert "applies it independently on real projects" in certs[0]
+    assert "independent problem-solving on typical cases" in certs[0]  # assessed, not a work claim
 
 
 def test_levelling_up_replaces_in_place_rather_than_appending():
     """Five levels must not become five lines."""
     existing = [
         "B.Tech, 2019",
-        "Cold Calling — Level 2 of 5: uses it on small tasks with guidance. "
-        "Verified by Myro · Jul 2026 · myro.com/v/msk_old",
+        "Cold Calling — Level 2 of 5: applied basics on straightforward cases. "
+        "Assessed by Myro · Jul 2026 · myro.com/v/msk_old",
         "AWS Certified, 2024",
     ]
 
@@ -58,8 +58,8 @@ def test_a_deleted_line_comes_back_on_the_next_level():
 def test_a_promote_never_lowers_a_claim_already_on_the_cv():
     """An out-of-order or replayed job must not walk a Level 5 back to a 3."""
     existing = [
-        "Cold Calling — Level 5 of 5: architects and mentors others, including "
-        "failure modes. Verified by Myro · Aug 2026 · myro.com/v/msk_five"
+        "Cold Calling — Level 5 of 5: diagnosis of failure modes and non-obvious "
+        "tradeoffs. Assessed by Myro · Aug 2026 · myro.com/v/msk_five"
     ]
 
     certs, changed = apply_certificate(
@@ -104,8 +104,8 @@ def test_a_line_that_merely_mentions_the_skill_is_left_alone():
 
 def test_another_skills_certificate_is_not_replaced():
     existing = [
-        "Machine Learning — Level 4 of 5: handles edge cases, tradeoffs and "
-        "non-trivial design. Verified by Myro · Aug 2026 · myro.com/v/msk_ml"
+        "Machine Learning — Level 4 of 5: edge cases and design tradeoffs. "
+        "Assessed by Myro · Aug 2026 · myro.com/v/msk_ml"
     ]
 
     certs, changed = apply_certificate(existing, _cert(level=3))
