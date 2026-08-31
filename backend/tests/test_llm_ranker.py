@@ -581,3 +581,30 @@ def test_recommended_slots_are_counted_per_search() -> None:
             per_track[row["track_id"]] = per_track.get(row["track_id"], 0) + 1
     # Each search gets its own three, not three shared across both.
     assert per_track == {None: 3, 4: 3}
+
+
+def test_no_target_is_named_not_disguised_as_a_value():
+    """The prompt used to say "their stated target roles" — a self-referential
+    placeholder indistinguishable from a failed interpolation, handed to the model
+    under "reward alignment with the candidate's target roles; penalise roles far
+    outside them". 141 users were being judged against that phrase.
+    """
+    from app.services.llm_ranker import NO_TARGET_ROLES, build_system_prompt, build_triage_prompt
+
+    for prompt in (
+        build_triage_prompt({}, "Sales exec, 5 years"),
+        build_system_prompt({}, "Sales exec, 5 years"),
+    ):
+        assert "their stated target roles" not in prompt
+        assert NO_TARGET_ROLES in prompt
+        # The marker is useless unless the prompt also says what to do with it.
+        assert "do not penalise distance from a target that does not exist" in prompt
+
+
+def test_a_real_target_still_reaches_the_model_verbatim():
+    from app.services.llm_ranker import NO_TARGET_ROLES, build_system_prompt
+
+    prompt = build_system_prompt({"target_roles": ["Data and Analytics", "Sales"]}, "cv")
+
+    assert "Data and Analytics, Sales" in prompt
+    assert f"target roles: {NO_TARGET_ROLES}" not in prompt
