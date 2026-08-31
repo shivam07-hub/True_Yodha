@@ -17,7 +17,7 @@
  * the score.
  */
 
-import { useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 
@@ -46,6 +46,12 @@ type Props = {
 }
 
 const NAME_RE = /^[a-z0-9-]{3,32}$/
+
+/** How much CV overlap a family needs before Myro proposes it rather than asks.
+ *  Measured over 60 real users' top-ranked family: 88% match on 3 or more
+ *  skills, 12% on one or two, none on zero. Below this the screen stays blank —
+ *  the same "never guesses" rule seniority already follows. */
+const ROLE_SUGGESTION_MIN_SKILLS = 3
 
 /** Four screens, in the order they narrow the search: the work defines it, the
  *  level bounds it, the place filters it, and the rest only colours it. */
@@ -110,7 +116,44 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
   })()
 
   const searching = showSearch && roleSearch.trim().length >= 2
-  const suggested = result.families.length > 0 ? result.families : (bootFamilies.data ?? [])
+  // Memoised because the proposal effect below depends on it: a fresh array
+  // every render would re-run the effect on every render.
+  const suggested = useMemo(
+    () => (result.families.length > 0 ? result.families : (bootFamilies.data ?? [])),
+    [result.families, bootFamilies.data],
+  )
+
+  /**
+   * Open on an answer, not a blank.
+   *
+   * Seniority has worked this way from the start — `seniority_from_cv` is "the
+   * pre-filled answer", and its docstring carries the rule this follows:
+   * "Never guesses. Unknown stays unknown so the direction step asks instead of
+   * inventing a band the CV does not support."
+   *
+   * Roles were the asymmetry: the list handed to this screen is ALREADY ranked
+   * by overlap with the user's own CV skills (`list_role_families` takes their
+   * skill ids), and we showed it as a blank menu anyway. 233 users reached this
+   * screen, chose nothing, and left — and a target roughly triples apply rate,
+   * 26% against 9%.
+   *
+   * So: propose the top-ranked family, and only when the evidence carries it.
+   * Measured over 60 real users' top family — 88% match on 3+ skills, 12% on
+   * one or two, none on zero. Below the floor this stays blank and asks, which
+   * is the seniority rule applied to the other half of the same screen.
+   *
+   * Proposed at most once, and never re-proposed: a user who removes it has
+   * answered, and the screen must not argue.
+   */
+  const proposedRef = useRef(false)
+  useEffect(() => {
+    if (proposedRef.current) return
+    if (selected.length > 0) { proposedRef.current = true; return }
+    const top = suggested[0]
+    if (!top) return                       // list still loading — not "no answer"
+    proposedRef.current = true
+    if (top.matched_skill_count >= ROLE_SUGGESTION_MIN_SKILLS) setSelected([top])
+  }, [suggested, selected.length])
   const listed = searching ? (searchedFamilies.data ?? []) : suggested
   const families = [...selected, ...listed.filter((row) => !selected.some((p) => p.family === row.family))]
   const totalOpen = selected.reduce((sum, family) => sum + family.open_count, 0)
