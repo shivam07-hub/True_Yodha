@@ -26,11 +26,24 @@ const genericCanvasOwners = [
   "mobile/shell.tsx",
 ]
 
-test("the canonical page canvas exposes the dark deep-field and keeps light mode plain", () => {
+test("the canonical page canvas exposes a field on both surfaces", () => {
   const tokens = read("app/design-tokens.css")
 
   assert.match(tokens, /body::before\s*\{[\s\S]*background-image:/)
-  assert.match(tokens, /:root\[data-surface="light"\] body::before\s*\{\s*display:\s*none;/)
+  assert.match(tokens, /:root\[data-surface="light"\] body::before/)
+  assert.match(tokens, /:root\[data-surface="light"\] body::after/)
+  assert.match(tokens, /mix-blend-mode:\s*multiply/)
+  assert.match(tokens, /--tm-sun-x/)
+  assert.match(tokens, /var\(--tm-sun-x\)/)
+  assert.match(tokens, /--tm-depth-core/)
+  assert.doesNotMatch(
+    tokens,
+    /:root\[data-surface="light"\] body::before\s*\{\s*display:\s*none;/,
+  )
+  assert.match(
+    tokens,
+    /:root\[data-surface="light"\]:has\(\.myrology-root\) body::before/,
+  )
   assert.match(tokens, /\.tm-page-canvas\s*\{\s*background:\s*transparent;/)
 })
 
@@ -71,9 +84,11 @@ test("purpose-built visual islands retain their own canvases", () => {
   assert.match(engine, /\.lp-engine,[\s\S]*?\.lp-readout\s*\{[\s\S]*?background:\s*var\(--lp-bg\);/)
 })
 
-test("public dark chrome frosts over the same field", () => {
+test("public chrome frosts over the page field on both surfaces", () => {
   const publicNav = read("components/public/public-nav.css")
+  const globals = read("app/globals.css")
 
-  assert.match(publicNav, /:root:not\(\[data-surface="light"\]\) \.tm-public-nav/)
   assert.match(publicNav, /background:\s*color-mix\(in srgb, var\(--tm-bg\) 76%, transparent\)/)
+  assert.match(globals, /\.tm-app-topbar \{[\s\S]*?color-mix\(in srgb, var\(--tm-bg\) 76%, transparent\)/)
+  assert.doesNotMatch(publicNav, /:root:not\(\[data-surface="light"\]\) \.tm-public-nav/)
 })

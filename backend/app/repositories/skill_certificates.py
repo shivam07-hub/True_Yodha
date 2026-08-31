@@ -7,15 +7,68 @@ from typing import Any
 
 from supabase import Client
 
+from app.services.skill_levels import MAX_LEVEL, standard_for
+
 VERIFY_PATH_PREFIX = "/verify/skill/"
+VERIFY_URL_PREFIX = "myro.com/v/"
+
+_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+
+def _month_year(passed_at: Any) -> str:
+    """"Aug 2026". A CV states when something was earned, not on which Tuesday —
+    a full ISO date reads like a log line and dates the user more precisely than
+    they asked to be dated."""
+    raw = str(passed_at or "")[:10]
+    parts = raw.split("-")
+    if len(parts) != 3:
+        return ""
+    try:
+        return f"{_MONTHS[int(parts[1]) - 1]} {parts[0]}"
+    except (ValueError, IndexError):
+        return ""
 
 
 def cv_line(cert: dict[str, Any]) -> str:
-    passed = str(cert.get("passed_at") or "")[:10]
-    return (
-        f"Myro Skill Certificate · {cert.get('skill_display_name')} · "
-        f"Level {cert.get('achieved_level')} · {passed} · {cert.get('verification_id')}"
-    )
+    """The certificate as one line on the user's CV.
+
+    Written for a reader who has never heard of Myro. Three things it must do,
+    and the previous format did none of them:
+
+      - **Give the scale.** "Level 3" alone is unreadable; "Level 3 of 5" is a
+        position a stranger can place.
+      - **Say what the level MEANS** — specifically, what the assessment
+        demonstrated (`skill_levels.assessed`). A level with no definition is a
+        claim the reader takes on trust from a brand they do not know; a
+        definition wider than the evidence is worse, because it is a claim we
+        cannot support. Ten questions show knowledge, not a work history.
+      - **Be checkable by a person.** The old line ended in a bare id, which is
+        machine-readable and human-useless. A URL is something a recruiter can
+        actually open.
+
+    "Myro Skill Certificate" is dropped: this renders inside the CV's
+    Certifications section, so the noun is already on the page.
+    """
+    name = cert.get("skill_display_name") or cert.get("taxonomy_key") or "Skill"
+    std = standard_for(cert.get("achieved_level"))
+    when = _month_year(cert.get("passed_at"))
+    verification_id = cert.get("verification_id") or ""
+
+    # An unrecognised level claims no level at all. "Level None of 5" on a CV is
+    # worse than silence: it is visibly broken on the one document the user
+    # hands to someone else.
+    # `assessed`, never `targets`: the line may report what the test showed, not
+    # what someone at this level does at work. See skill_levels.
+    head = name if std is None else f"{name} — Level {std.level} of {MAX_LEVEL}: {std.assessed}"
+    # "Assessed by", not "Verified by". Verified implies we checked their work.
+    # We set an exam and marked it.
+    parts = [f"{head}. Assessed by Myro"]
+    if when:
+        parts.append(when)
+    if verification_id:
+        parts.append(f"{VERIFY_URL_PREFIX}{verification_id}")
+    return " · ".join(parts)
 
 
 def verify_path(verification_id: str) -> str:

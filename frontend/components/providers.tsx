@@ -7,6 +7,7 @@ import { SignupModal } from "@/components/auth/signup-modal"
 import { AttributionCapture } from "@/components/attribution-capture"
 import { ServiceWorkerRegister } from "@/components/pwa/sw-register"
 import { CVUploadLifecycleRoot } from "@/components/cv/cv-upload-lifecycle-observer"
+import { LightFieldDriver } from "@/components/theme/light-field-driver"
 
 function Inner({ children }: { children: React.ReactNode }) {
   return (
@@ -14,6 +15,7 @@ function Inner({ children }: { children: React.ReactNode }) {
       <AttributionCapture />
       <ServiceWorkerRegister />
       <CVUploadLifecycleRoot />
+      <LightFieldDriver />
       {children}
       {/* ADR-0006 §15 — global mount so any public or app surface can
           fire useSignupGate().open() without re-mounting infrastructure. */}

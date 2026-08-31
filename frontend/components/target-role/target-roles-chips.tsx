@@ -1,12 +1,13 @@
 "use client"
 
+import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
 import { Loader2 } from "lucide-react"
 
 import { type RoleFamily, users } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { useEditTargetRole, useRoleReadiness } from "@/lib/hooks/use-edit-target-role"
+import { useEditTargetRole, useRoleStanding } from "@/lib/hooks/use-edit-target-role"
 import { RoleFamilyPicker } from "./role-family-picker"
 import "./role-family-picker.css"
 
@@ -19,7 +20,8 @@ interface Props {
   roles?: string[]
   /** Show the corpus-backed role picker. Read-only display when false. */
   editable?: boolean
-  /** Append per-role Readiness % to each chip (the "matching is active" signal). */
+  /** Show where the user stands on their target's core skills — ONE count for
+   *  the whole target, rendered after the chips, never per chip. */
   showReadiness?: boolean
   onSaved?: (roles: string[]) => void
 }
@@ -50,6 +52,24 @@ const CHIP: React.CSSProperties = {
  * Its choices come from the verified job corpus, so every chosen title is saved
  * with its role family and can drive the same matching and aspiration reads.
  */
+/* The standing sits BESIDE the chips, once — not appended to each. Three typed
+   titles resolve to one shared core, so a per-chip count would show three
+   denominators over overlapping skills the user would have to reconcile.
+   
+   It is a DOOR, not a readout: a count with no list is a number you cannot act
+   on, so it opens the twelve it is counting. That makes it interactive, so it
+   carries the affordance — `.tm-link` supplies the colour, hover and focus ring
+   rather than this file re-rolling them. The number itself stays --tm-text: it
+   is the metric, and only the label needs to look like the link. */
+const STANDING: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 5,
+  fontSize: 12,
+  fontFamily: "var(--tm-font-mono)",
+  textDecoration: "none",
+}
+
 export function TargetRolesChips({
   roles: rolesProp,
   editable = false,
@@ -72,10 +92,8 @@ export function TargetRolesChips({
         : (profile?.target_roles ?? []))
 
   const edit = useEditTargetRole()
-  const readinessQ = useRoleReadiness(showReadiness && roles.length > 0)
-
-  const readinessFor = (role: string): number | null | undefined =>
-    readinessQ.data?.find((r) => r.role.toLowerCase() === role.toLowerCase())?.readiness
+  const standingQ = useRoleStanding(showReadiness && roles.length > 0)
+  const standing = standingQ.data
 
   function chooseRole(role: RoleFamily) {
     edit.mutate(role, {
@@ -87,23 +105,31 @@ export function TargetRolesChips({
 
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", opacity: busy ? 0.6 : 1 }}>
-      {roles.map((role) => {
-        const pct = showReadiness ? readinessFor(role) : undefined
-        return (
-          <span key={role} style={CHIP}>
-            <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {role}
-            </span>
-            {typeof pct === "number" && (
-              <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums", color: "var(--tm-text-muted)" }}>
-                {pct}%
-              </span>
-            )}
+      {roles.map((role) => (
+        <span key={role} style={CHIP}>
+          <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {role}
           </span>
-        )
-      })}
+        </span>
+      ))}
 
-      {readinessQ.isFetching && showReadiness && (
+      {/* Nothing when the market has no opinion — "0 / 12" against a market we
+          never asked about reads as a verdict on the user. */}
+      {showReadiness && standing && standing.total > 0 && (
+        <Link
+          href="/practice"
+          className="tm-link"
+          style={STANDING}
+          title={`You clear the bar on ${standing.cleared} of the ${standing.total} skills your target roles ask for most`}
+        >
+          <span style={{ fontVariantNumeric: "tabular-nums", fontWeight: 600, color: "var(--tm-text)" }}>
+            {standing.cleared} / {standing.total}
+          </span>
+          <span>core skills</span>
+        </Link>
+      )}
+
+      {standingQ.isFetching && showReadiness && (
         <Loader2 size={13} className="animate-spin" aria-hidden style={{ color: "var(--tm-text-faint)" }} />
       )}
 

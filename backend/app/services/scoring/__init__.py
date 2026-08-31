@@ -14,7 +14,6 @@ compute or persist a score. See docs/adr/0002-scoring-facade-split.md.
 from app.services.scoring.aspirations import (
     fetch_aspiration_skills,
     fetch_role_family_market,
-    role_readiness,
 )
 from app.services.scoring.formulas import (
     _DAYS_PER_STEP,
@@ -64,7 +63,6 @@ __all__ = [
     "compute_rank_tier",
     "fetch_aspiration_skills",
     "fetch_role_family_market",
-    "role_readiness",
     "fetch_skill_demand",
     "infer_level_from_signals",
     "project_score",

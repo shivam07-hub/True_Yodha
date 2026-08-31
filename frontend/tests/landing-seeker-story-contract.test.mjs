@@ -68,8 +68,16 @@ test("the public landing runs the operation story: hero dropzone + four-tab loop
   assert.match(motion, /lp-company-rail-run/)
   assert.match(motion, /prefers-reduced-motion: no-preference/)
 
-  // Section order: hero → use-cases → rail → live-mirror → search → commons.
+  // Section order: hero → use-cases → partner rail → company rail → live-mirror → search → commons.
   assert.doesNotMatch(landing, /LandingClosing|LandingHowItWorks|LandingApplicationPlan|LandingDomains/)
+  assert.ok(
+    landing.indexOf("<LandingFinlaticsRail") > landing.indexOf("<LandingUseCases"),
+    "the Finlatics ticker should follow the use-cases loop",
+  )
+  assert.ok(
+    landing.indexOf("<LandingCompanyRail") > landing.indexOf("<LandingFinlaticsRail"),
+    "the company rail should follow the Finlatics ticker",
+  )
   assert.ok(
     landing.indexOf("<LandingUseCases") > landing.indexOf("<LandingHero"),
     "the four-tab loop should follow the hero",

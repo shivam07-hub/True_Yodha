@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
-import { onboarding, type RoleFamily, type RoleReadiness } from "@/lib/api"
+import { onboarding, type RoleFamily, type RoleStanding } from "@/lib/api"
 import { dataKeys, invalidateTargetRoleData } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 
@@ -50,12 +50,22 @@ export function useEditTargetRoles() {
   })
 }
 
-/** Per-target-role readiness % — the role-specific signal beside the Myro Score. */
-export function useRoleReadiness(enabled = true) {
+/**
+ * Where the user stands on the core skills of their target roles — ONE count for
+ * the whole target, not one per chip.
+ *
+ * The three titles a user types ("tech sales", "IT Sales", "Technical Account
+ * Manager") resolve to a shared set of families and one shared core, so a count
+ * per chip would show three denominators over overlapping skills and make the
+ * user reconcile arithmetic we invented. The number it replaced was worse still:
+ * one value computed from the union of families and then returned once per
+ * title, so all three chips always read the same percentage.
+ */
+export function useRoleStanding(enabled = true) {
   const { token } = useAuth()
-  return useQuery<RoleReadiness[]>({
-    queryKey: dataKeys.roleReadiness(),
-    queryFn: () => onboarding.roleReadiness(token!),
+  return useQuery<RoleStanding>({
+    queryKey: dataKeys.roleStanding(),
+    queryFn: () => onboarding.roleStanding(token!),
     enabled: enabled && !!token,
     staleTime: 5 * 60 * 1000,
   })

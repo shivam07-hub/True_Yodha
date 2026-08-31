@@ -22,7 +22,9 @@ A single immutable snapshot of a CV. Stored as one row in `cv_versions`. Every i
 - `cv_structured` — JSONB snapshot of the structured CV (summary, experience, projects, education, skills, certs). **Snapshotted on every row.** Derivatives copy their parent's `cv_structured` at write time; reworking the baseline does not mutate prior derivatives.
 - `body_text` — for baselines, the raw upload text. For derivatives, the deterministic render. Never null.
 - `polished_text` — populated only on `polished` / `edited` rows.
-- `hidden_items`, `edited_items` — JSONB. The user's playground state at the time of save. Derivatives only.
+- `hidden_items`, `edited_items` — JSONB. The user's playground state at the time of save. Derivatives only. **Hide removes the line from the paper** (editor, sheet, download, Match). Projection, not delete — the master keeps the line. Restore is undo or a chrome `N hidden` count, never a struck ghost on the page.
+- `section_order` — playground projection on the Company CV Thread, same grain as `hidden_items`. Identity (name/contact) is pinned. Every other section is a block the user can drop anywhere; role cards reorder inside Experience. Sheet and download follow this order. The living master's outline does not change.
+- Paper mutations (hide, show, line edit, reorder) are Cmd+Z / Cmd+Shift+Z with toolbar arrows. Tailor with Mentor writes a CV Version; that is history, not undo.
 
 **Reads**
 
@@ -100,6 +102,18 @@ The single surface (light/dark) switcher. `<ThemeControl>` (`components/ui/theme
 - Owns the `useSurface()` wiring and `radiogroup`/`radio` a11y semantics; the three states are `system` | `light` | `dark` (`system` follows `prefers-color-scheme`).
 - Visually rides `.tm-segment-toggle` (`app/design-tokens.css`), so idle segments inherit the [Interactive-rest](#interactive-rest) brightness contract for free. Do not restyle idle segments to a dull token.
 - `fluid` stretches the pill to fill its row (dropdown / drawer). Bare = auto width (the Settings row, where label + description sit beside it). `label` renders the static caption (`--tm-text-muted`, dull — it is not clickable).
+
+## Page field
+
+The plane behind every generic page. Dark is cosmos; light is dawn. Dark paints on `body::before`. Light paints the sun on `body::before` and the unlit water on `body::after` (multiply). Cards sit in that air. Chrome frosts over it.
+
+**Boundary**
+
+- Tokens live in `app/design-tokens.css`. Dark: `--tm-depth-star-*`, aurora, ember, vignette. Light: `--tm-depth-core`, sun, haze, water, cast, rim, shade, plus `--tm-sun-x/y` and `--tm-cast-x/y`. Unlit water is `body::after` with multiply. White cards take a gold catching-edge (`--tm-depth-rim`), not a white highlight.
+- `LightFieldDriver` (`components/theme/light-field-driver.tsx`) is the **single writer** of the sun vars. Math is `lib/theme/antipodal-sun.ts` (8×8, ~6.5 king-moves toward the farthest corner). Do not add a second pointer-driven wash.
+- Reduced motion and coarse pointers keep the parked rest (left-rail cursor → sun in the far top-right). Desktop fine pointers lerp the bloom and snap the cast when the cell changes.
+- Myrology owns its sky. `:has(.myrology-root)` turns both dawn layers off. Other purpose-built islands keep an opaque page canvas and do not share this field.
+- The sun is not an accent. Azure still owns CTAs. A static `circle at top|bottom` orb is still the closed §22 tell.
 
 ## Viewport Mode
 
@@ -395,6 +409,32 @@ A headless engine (`createTaxonomy({ fetch })`, the `field-motion.ts` precedent)
 
 - The demand `band` reuses market-wide demand (`weighted_demand` from `build_user_skill_demand`) — the same unscoped signal the Skills page reads — never a fresh per-page `jobCount`. The build-time generator is a thin adapter that exports that already-computed signal into `priority.json`.
 - Artifacts are forward-only: regenerated on a scraper batch refresh, committed, **not** wired into `prebuild` (no build-time DB coupling).
+
+## Skill Level and Role Standing
+
+**A skill's Level is the higher of what the CV evidences (`user_skills`) and what
+practice proved (`skill_assessed_level`).** Ties go to the CV — work you did
+outranks a quiz you passed at the same level, and it is the stronger claim in
+front of an employer. The rule lives in exactly one function,
+`skill_state.level_of`, which also returns the **Evidence** backing it:
+`on_cv` | `proven` | `none`. No surface may recombine the two stores itself.
+
+Every surface shows ONE level per skill plus its Evidence badge, never two
+numbers. "Cold Calling · L3 proven" is the shape; "L3 proven · L1 on your CV" is
+banned.
+
+**Role Standing** is where a user stands against the core skills of their target
+roles: `cleared / total`, a COUNT and never a percentage. `total` is the twelve
+most-demanded skills across the user's families (`CORE_SKILL_COUNT` — a product
+choice, fixed so two people chasing the same role read comparable numbers).
+A skill *clears* when its Level is at or above what those families ask for; an
+unknown required level never clears, because a missing bar is not a met one.
+Standing of `total` 0 (no target, or no market read) renders NOTHING — "0 / 12"
+against a market we never asked about is a verdict on the user.
+
+Two shapes, two facades (ADR-0002's pattern, not one function with a mode):
+`skill_state.for_role` is the light read; the job-scoped case stays in
+`gap_planner`, which needs the user's CV bullets and a classification call.
 
 ## Skill Practice Mode and Main-CV Level-Up
 
@@ -735,11 +775,12 @@ asserts through the response model, not the dispatch layer underneath it.
 
 ## CV Weave
 
-"Tailor with Mentor" — the draft-first whole-CV tailor for one job (`app/services/cv_weave.py` + `cv_weave_interview.py`, router `/cv/weave/*`; grill locks 2026-07-16, memory `project_tailor_weave_mentor`). Flow: explicit tap → option-driven interview over ONLY the JD asks coverage couldn't prove (candidates mined deterministically from the user's own stories + CV lines — no LLM; free-text fallback; ONE skippable thin-answer probe) → ONE writer-floor weave pass proposes each CV role's 2–4 strongest pointers rewritten against the JD → per-ROLE accept → apply writes the job-tailored `deterministic` version (living master untouched; gap answers bank as global stories via the dump pipeline). Supersedes the per-ask MentorWalk on the playground (append-only, never converged — the walk stays only as the prep room's coverage panel).
+"Tailor with Mentor" — the draft-first whole-CV tailor for one job (`app/services/cv_weave.py` + `cv_weave_interview.py`, router `/cv/weave/*`; grill locks 2026-07-16, memory `project_tailor_weave_mentor`). Flow: explicit tap (cost on that control: `· 50 coins`) → **no brief act**. Loom is the wait ("Reading the job's language"). **The weave RUN never starts until interview has resolved** (a confirmed question list, or a confirmed empty list — a timeout or coverage miss is not empty; it retries on the loom). Unproven asks → option-driven interview (candidates mined deterministically from the user's own stories + CV lines — no LLM; free-text fallback; ONE skippable thin-answer probe). Interview POST fires once, on that tap, and prefers the playground's cached coverage. Then ONE writer-floor weave pass proposes each CV role's 2–4 strongest pointers rewritten against the JD. Per-ROLE accept with a **per-pointer override**: default is Mentor's line; a quiet line action (`original`) puts the original back without discarding the role — not a settings segment on every bullet. Take this advances the role. **The last Keep/Take is apply** — it writes the job-tailored `deterministic` version and the overlay closes onto that Company CV Thread row (living master untouched; gap answers bank as global stories via the dump pipeline). No Ready-to-save act, no Saved-confirmation act; `Saved` in playground chrome is the receipt. Job Tracks' second-search offer (`can_open`) is a one-line playground offer at that same moment, not an overlay act. Supersedes the per-ask MentorWalk on the playground (append-only, never converged — the walk stays only as the prep room's coverage panel).
 
 **Invariants**
 - **Honesty is structural, per role**: a proposed role block must pass `loses_metrics` + `gains_foreign_numbers` (allowed = the user's stories + interview answers) + `loses_substance` over the old lines it claims (`from`/`dropped` accounting — nothing vanishes silently). A failing role falls back to its ORIGINAL bullets, flagged `guarded`; a proposal with zero surviving changes is not delivered (or charged).
 - **Money**: flat 50 coins per weave RUN (`CV_WEAVE_XP_COST`), preflight-funded, charged only after a deliverable proposal exists, unique ledger ref per run; the cached proposal (`job_deepenings:cv_weave`) replays free; interview/answer/apply are free.
+- **Extras ride the last accept**: a proposed opening summary and skills line are applied with the roles. No second confirm. The paper is the review surface — Hide or edit there.
 - **Fingerprint gate**: the proposal records a hash of the master's experience section; apply 409s on mismatch — a draft never lands on a CV it wasn't written for.
 - **Coverage reads stories ∪ CV bullets** (`jd_coverage.assess(cv_bullets=…)`, `source: "story"|"cv"`): a line already on the CV can no longer read "Missing" (the Oracle/mit20 trust breach). Embedding-less stories self-heal via `career_reservoir.backfill_missing_embeddings` before mining.
 

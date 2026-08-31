@@ -34,26 +34,28 @@ slop signal is *density*, not presence.
 | 10 | Inter / Geist / Space Grotesk | We ship **all three of the named faces** (Space Grotesk + Inter + JetBrains Mono). This is our largest single tell. Mitigation is *setting*, not swapping: 5-step scale, no 700+, no italics, mono only on numerals. Revisit the display face when the brand does — not per-component. |
 | 19 | Soft corner radius | Ours is **4/6/8/10px** — hard, terminal, not the 16–24px pillow. Already the counter-move. |
 | 28 | Hover animations | The Four-Signal Affordance Rule *requires* a hover state. Slop is hover on non-interactive things. Keep, and keep it 200ms + no transform. |
-| 29 | Neon | **Closed 2026-08-23 — this was LOCKED and is not any more.** The interactive accent is now azure `#4fc7f6` at OKLCH chroma **0.125**, against `#00f5d4`'s **0.160**. The tell was never the hue, it was the chroma, so swapping neon teal for neon blue would have changed nothing. `#00f5d4` survives as `--tm-brand` — the MARK, the OG image, the particle fields — which is a logo, not a UI accent. The **3-accent budget** stands: accent on interactive only, status never accent. |
+| 31 | Light field (dawn) | Dark already owns a starfield. Light had none, so the two surfaces were a product and a photocopy. The bloom is pointer-repelled — it sits where you are not looking — which is information, not a corner orb. Spent the neon-closed slot **2026-08-30** (FIELD1). |
 
 **The rule that follows from this table:** we were carrying five. Item 29 came
-off on 2026-08-23, so there is now one slot of headroom — spend it on purpose,
-once, and write down what you bought with it.
+off on 2026-08-23 and opened one slot. That slot was spent on 2026-08-30 on
+the light field. The budget is full again. A new tell still has to come off
+somewhere else, or earn a written reason.
 
 ---
 
 ### Was drift — closed 2026-08-21
 
-All seven below were closed on **2026-08-21**. They stay on the page as the
+All eight below were closed on **2026-08-21** or **2026-08-23**. They stay on the page as the
 record of what the tell looked like here, because the next one will look like
 this too.
 
 | # | Tell | What it was | How it closed |
 |---|---|---|---|
+| 29 | Neon | Interactive accent was `#00f5d4` at chroma 0.160 | Closed 2026-08-23 (ACC1). Azure `#4fc7f6` at chroma 0.125. The MARK stays teal. The slot this opened was spent 2026-08-30 on the light field (item 31). |
 | 24 | Sparkle icons | `Sparkles` on 7 surfaces — the universal "an AI did this" glyph, contradicting our own copy rule ("No 'AI' — say what it does") | Each swapped for the icon of the **actual action**: `Dumbbell` (Practice ×2), `Coins` (Myro Coins), `Crosshair` (fit ×2), `TrendingUp` (score rises). The seventh meant "Myro is speaking" — that one got [`MyroMark`](frontend/components/myro-mark.tsx). |
 | 6 | 3 feature cards in a row | `landing-commons.tsx` — three identical cards, each closing on an `ArrowRight` | Restructured. Two are **doors** (colleges, newsletter); the third is a **checkable claim** (MIT licensed), so it became a fact line on a rule. A verifiable thing doesn't need a box. |
 | 20 | Purple | `--tm-info: #7C3AED` on light — banned brand-wide and shipped anyway; plus `#A78BFA` as a hardcoded CSS fallback, and `--gc-purple` in `/admin/growth` | Light info → `#2F4FBF`, the **same 227° hue** as the other two surfaces, 6.5:1 on paper. Dead fallbacks deleted. Admin KPI `tone` typed to a union so a colour with no rule can't ship again. |
-| 22 | Radial orbs | Corner glows on `b2b-door-page.css` + `workspace-shell.css` — and they hardcoded **both** accent hexes at once, so the page broke the one-accent rule in either mode | Deleted; flat `--tm-bg`. **Myrology's drift stays** — on a star-chart page the sky *is* the subject, so that wash is content, not borrowed atmosphere. |
+| 22 | Radial orbs | Corner glows on `b2b-door-page.css` + `workspace-shell.css` — and they hardcoded **both** accent hexes at once, so the page broke the one-accent rule in either mode | Deleted; flat `--tm-bg`. **Myrology's drift stays** — on a star-chart page the sky *is* the subject, so that wash is content, not borrowed atmosphere. **The light field (item 31) is the same carve-out, not a regression:** pointer-repelled, tokenised, one hue family. The guard still fails `radial-gradient(circle at top\|bottom)`. |
 | 9 | Em dashes | Claimed 487 | **Overstated — the count was wrong.** 487 included comments and `"—"` null-cell placeholders. Real figure: **375 across 150 files**, ~2.5 each, and the landing has **6**. That is ordinary punctuation, not spam. Two genuine AI tricolons in `mission-content` were rewritten; the rest stand. Term–definition dashes in `docs-sections` are correct typography. |
 | — | Numbered markers that aren't a sequence | `hero.tsx` — "Path 01 · First job" / "Path 02 · Switching" | Numbers dropped; the eyebrow now names the reader. Two exclusive audiences are doors, not steps. (`mission-content` 01–05 *is* a real sequence — kept.) |
 | — | Dead decoration | `.testimonials`, `.experts` and `.numbers` grids in `myrology.css`, no consumer — residue of a removed fake-testimonial block | 32 lines deleted. `.expert-cred` survived: it is live. |

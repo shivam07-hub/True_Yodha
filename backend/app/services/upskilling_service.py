@@ -18,7 +18,7 @@ import random
 from fastapi import HTTPException, status
 
 from app.database import get_supabase_admin
-from app.services import practice_payoff, xp_service
+from app.services import background, practice_payoff, xp_service
 from app.services.xp_policy import (
     UPSKILLING_PASS_BAR,
     UPSKILLING_SET_SIZE,
@@ -63,17 +63,31 @@ def _question_structure_complete(row: dict) -> bool:
 
 
 def _is_servable_question(row: dict) -> bool:
-    """Source-grounded gate for anything served as Learning Ladder content.
+    """Verified gate for anything served as Learning Ladder content.
 
-    Human review metadata remains available for later quality operations, but
-    it is not a pre-10k serving dependency. The runtime requires the objective
-    content contract that can be checked without editorial staffing.
+    Until 2026-08-30 this asked for a `source_url` and nothing about whether the
+    answer was right. That was checkable without editorial staffing, which was
+    the point — but it checked the wrong thing. Four URLs backed the entire
+    servable bank and two were homepages: 100 questions on linear regression
+    cited an MBA programme's front page. A field filled to pass a gate.
+
+    Worse, it passed questions nobody had checked. When an independent judgment
+    model was finally run over the bank, it rejected the answer key on 41
+    questions — **7 of them live and being scored against users**, whose levels,
+    coins and certificates followed from those answers.
+
+    So the gate is now `verified_at`: a second model, independently, agreed the
+    answer key is correct (learning grill decision 5). `source_url` stays on the
+    row, unread, for whenever real per-question sourcing is done properly.
+
+    Human review metadata remains available for later quality operations and is
+    still not a serving dependency.
     """
     return (
         row.get("status") == "active"
         and row.get("retired_at") is None
+        and row.get("verified_at") is not None
         and _has_text(row.get("question_text"))
-        and _has_text(row.get("source_url"))
         and _has_text(row.get("explanation"))
         and _question_structure_complete(row)
     )
@@ -434,6 +448,17 @@ async def submit_set(
         certificate = SkillCertificates(admin).issue_for_pass(
             user_id=user_id, skill_id=skill_id, level=level, attempt_id=set_id
         )
+        # A certificate IS CV evidence (learning grill decision 8), so it lands
+        # on the Main CV without a claim step. Off this request: the user is
+        # looking at their score, not waiting on a baseline write.
+        verification_id = str(certificate.get("verification_id") or "")
+        if verification_id:
+            background.enqueue(
+                background.LANE_BULK,
+                "certificate_to_cv",
+                payload={"user_id": user_id, "verification_id": verification_id},
+                correlation_id=verification_id,
+            )
 
     # Award only the first clear of this (skill, level).
     if first_clear and tokens_awarded > 0:

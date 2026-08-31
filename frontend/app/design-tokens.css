@@ -272,13 +272,12 @@
   --tm-shadow-2:      0 8px 24px rgba(0, 0, 0, 0.32), 0 1px 2px rgba(0, 0, 0, 0.4);
   --tm-shadow-glow:   0 0 24px 0 var(--tm-accent-glow);
 
-  /* ── Deep-field (dark surface) ───────────────────────────────
-     The "vast space" plane behind the whole app — Myrology's depth
-     translated to the Engine's own palette. Star ink is the warm
-     text hue (never pure white), the aurora is the Engine teal as
-     sky-light, the ember is the warm-dark brand undertone. Static
-     by design: depth comes from layering, never motion. Consumed
-     by body::before below; light surface turns the layer off. */
+  /* ── Deep-field (both surfaces) ──────────────────────────────
+     The plane behind the whole app. Dark is cosmos (stars, aurora,
+     ember, vignette). Light is dawn — a warm bloom antipodal to
+     the pointer, cool water on the work side. Depth comes from
+     layering, never looping motion. Consumed by body::before.
+     Light's sun position is written by LightFieldDriver. */
   --tm-depth-star-near: rgba(236, 230, 221, 0.50);
   --tm-depth-star-far:  rgba(236, 230, 221, 0.25);
   --tm-depth-star-teal: rgba(0, 245, 212, 0.38);
@@ -473,9 +472,12 @@
   text-decoration-thickness: 1px;
 }
 
-/* ── Surface: LIGHT · Spirit — daylight clarity (MYRO-THM-001) ──
-   Pure-paper cards on a cool off-white page. Same skeleton as Ghost;
-   tokens flip. Spirit doesn't glow — it casts (glow → soft drop). */
+/* ── Surface: LIGHT · Spirit — daylight (MYRO-THM-001, FIELD1) ──
+   Pure-paper cards on cool off-white. Same skeleton as Ghost; tokens
+   flip. The field is dawn, not a dim copy of the starfield: one warm
+   bloom opposite the pointer, cool water under the work, and a cast
+   that falls from the sun (FIELD1). Glow was the dark verb; this
+   surface still casts — the cast is now coloured and directional. */
 :root[data-surface="light"] {
   /* Myro LIGHT — cool paper (AZURE, 2026-08-23). Supersedes "Firecrawl paper"
      (warm #faf6f0 + orange #FF4C00, Jun 2026). Light is no longer its own
@@ -542,9 +544,30 @@
   --tm-warning-wash:  oklch(0.97 0.04 75);
   --tm-danger-wash:   oklch(0.97 0.03 25);
 
-  --tm-shadow-1:      0 1px 2px rgba(38, 38, 38, 0.04);
-  --tm-shadow-2:      0 4px 14px rgba(38, 38, 38, 0.06), 0 1px 2px rgba(38, 38, 38, 0.04);
-  /* glow → cast: dim ~60% + angle downward, no radial smudge on white */
+  /* Dawn field — parked rest matches antipodal-sun parkedCss()
+     (pointer in the left rail). LightFieldDriver overwrites these
+     on desktop; reduced-motion and coarse pointers keep the park.
+     Paper cannot add light. Depth is a hot core, page-filling coloured
+     air, multiply water, a hard cast, and a gold catching-edge (white
+     cards cannot take a white highlight). */
+  --tm-depth-core:    rgb(255, 253, 246);
+  --tm-depth-sun:     rgba(255, 178, 88, 0.78);
+  --tm-depth-haze:    rgba(255, 164, 96, 0.42);
+  --tm-depth-water:   rgba(24, 56, 80, 0.52);
+  --tm-depth-cast:    rgba(10, 28, 42, 0.24);
+  --tm-depth-cast-strong: rgba(10, 28, 42, 0.42);
+  --tm-depth-rim:     rgba(255, 168, 72, 0.72);
+  --tm-depth-shade:   rgba(10, 28, 42, 0.12);
+  --tm-sun-x:         93.75%;
+  --tm-sun-y:         6.25%;
+  --tm-cast-x:        -18.3px;
+  --tm-cast-y:        12.2px;
+
+  --tm-shadow-1:      var(--tm-cast-x) var(--tm-cast-y) 10px var(--tm-depth-cast-strong);
+  --tm-shadow-2:      var(--tm-cast-x) var(--tm-cast-y) 8px var(--tm-depth-cast-strong),
+                      calc(var(--tm-cast-x) * 2.5) calc(var(--tm-cast-y) * 2.5) 28px var(--tm-depth-cast),
+                      inset calc(var(--tm-cast-x) * -0.2) calc(var(--tm-cast-y) * -0.2) 0 var(--tm-depth-rim),
+                      inset var(--tm-cast-x) var(--tm-cast-y) 22px var(--tm-depth-shade);
   --tm-shadow-glow:   0 4px 12px var(--tm-accent-glow);
 
   /* The mark stays teal (see --tm-brand in :root) but #00f5d4 measures 1.4:1
@@ -706,13 +729,11 @@ html, body {
   text-rendering: optimizeLegibility;
 }
 
-/* ── Deep-field layer (dark surface only) ───────────────────
-   Fixed pseudo-plane behind all content. Paint order top→bottom:
-   vignette (centers the lit work plane) → teal aurora (high) →
-   warm ember (low) → four tiled star layers. Prime-ish tile sizes
-   so the repeat never reads as a grid; ~50 stars per viewport,
-   alpha ≤ 0.30 — subliminal, noticed only when looked for.
-   One paint at load, zero JS, nothing animates. */
+/* ── Deep-field layer ────────────────────────────────────────
+   Fixed pseudo-plane behind all content. Dark paint order top→bottom:
+   vignette → teal aurora → warm ember → tiled stars. Light overrides
+   the image with dawn (hot core + bloom + haze) at --tm-sun-x/y.
+   Unlit water is body::after with multiply. One paint, nothing loops. */
 body::before {
   content: "";
   position: fixed;
@@ -741,8 +762,39 @@ body::before {
     173px 173px;
   background-repeat: no-repeat, no-repeat, no-repeat, repeat, repeat, repeat, repeat, repeat, repeat;
 }
-/* Paper stays paper — the deep-field is a dark-brand asset. */
+/* Dawn field — same plane as the dark starfield, inverted. The bloom
+   origin is --tm-sun-x/y (parked, then pointer-repelled). Water sits
+   opposite so the work is in cooler air. Shape is `N% M% at var(...)`
+   on purpose: `circle at top|bottom` is the closed corner-orb tell. */
 :root[data-surface="light"] body::before {
+  background-image:
+    radial-gradient(9% 8% at var(--tm-sun-x) var(--tm-sun-y), var(--tm-depth-core), transparent 58%),
+    radial-gradient(48% 40% at var(--tm-sun-x) var(--tm-sun-y), var(--tm-depth-sun), transparent 54%),
+    radial-gradient(170% 140% at var(--tm-sun-x) var(--tm-sun-y), var(--tm-depth-haze), transparent 72%);
+  background-size: 100% 100%, 100% 100%, 100% 100%;
+  background-repeat: no-repeat;
+}
+/* Cool unlit air multiplies into the paper. Normal compositing at 10–20%
+   alpha is wallpaper; multiply is shade. Stays behind content (z:-1) so
+   cards stay white and only the air around them cools. */
+:root[data-surface="light"] body::after {
+  display: block;
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  background-image: radial-gradient(
+    160% 140% at calc(100% - var(--tm-sun-x)) calc(100% - var(--tm-sun-y)),
+    var(--tm-depth-water),
+    transparent 64%
+  );
+  background-repeat: no-repeat;
+}
+/* Myrology owns its sky. Do not let dawn leak around the island. */
+:root[data-surface="light"]:has(.myrology-root) body::before,
+:root[data-surface="light"]:has(.myrology-root) body::after {
   display: none;
 }
 
@@ -851,6 +903,9 @@ body::after {
   border-radius: var(--tm-radius);
   padding: var(--tm-card-pad);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);  /* neutral top-edge lift (was a cool-blue tint, off-brand after the warm rebrand) */
+}
+:root[data-surface="light"] .tm-card {
+  box-shadow: var(--tm-shadow-1);
 }
 .tm-card-interactive {
   transition: border-color var(--tm-dur) var(--tm-ease),

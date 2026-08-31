@@ -1,0 +1,107 @@
+/* Training course chips. The row is not a link: hover (and click) open the
+   Finlatics blurb in place. Only Apply on Finlatics leaves the page.
+   Visibility is CSS :hover so a description appears without waiting on JS. */
+
+.prp-courses {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.prp-course {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  border: 1px solid var(--tm-int-border);
+  border-radius: var(--tm-radius-pill);
+  background: var(--tm-interactive-wash);
+  color: var(--tm-accent-text);
+}
+.prp-course:hover,
+.prp-course:focus-within,
+.prp-course.is-open {
+  background: var(--tm-int-bg-hover);
+  border-color: var(--tm-interactive);
+  border-radius: var(--tm-radius-card);
+}
+.prp-course-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px 9px 8px;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+.prp-course-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: var(--tm-interactive);
+  color: var(--tm-interactive-fg);
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  font-weight: 700;
+  line-height: 1;
+}
+.prp-course-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14.5px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--tm-accent-text);
+}
+.prp-course-toggle svg {
+  flex-shrink: 0;
+  color: var(--tm-accent-text);
+}
+.prp-course-panel {
+  display: none;
+  padding: 0 12px 12px 46px;
+}
+.prp-course:hover .prp-course-panel,
+.prp-course:focus-within .prp-course-panel,
+.prp-course.is-open .prp-course-panel {
+  display: block;
+}
+.prp-course-blurb {
+  margin: 0 0 8px;
+  font-size: var(--tm-fs-ui-sm);
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--tm-text);
+}
+.prp-course-apply {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--tm-fs-ui-sm);
+  font-weight: 600;
+}
+.prp-train-mark {
+  padding: 0;
+  overflow: hidden;
+}
+.prp-train-mark img {
+  width: 26px;
+  height: 26px;
+  object-fit: cover;
+  display: block;
+}
+
+@media (hover: none) {
+  .prp-course:hover .prp-course-panel {
+    display: none;
+  }
+  .prp-course.is-open .prp-course-panel {
+    display: block;
+  }
+}

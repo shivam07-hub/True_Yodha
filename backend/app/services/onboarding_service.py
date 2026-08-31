@@ -420,29 +420,6 @@ def reset_target(db: Client, user_id: str) -> None:
     )
 
 
-def compute_role_readiness(db: Client, user_id: str) -> list[dict[str, Any]]:
-    """Per-target-title readiness — the role-specific signal beside the stable
-    Myro Score. Each human title is searched by itself PLUS its taxonomy clusters
-    so a specific title still resolves real market demand. Returns [] when the
-    user has no titles or no skills yet (UI falls back to the score alone).
-    """
-    users_repo = UsersRepository(db)
-    profile = users_repo.get_profile(user_id) or {}
-    titles = profile.get("target_role_titles") or (
-        [profile["target_role_title"]] if profile.get("target_role_title") else []
-    )
-    if not titles:
-        return []
-
-    scores_repo = ScoresRepository(db)
-    skill_level_map = scores_repo.get_user_skill_level_map(user_id)
-    out: list[dict[str, Any]] = []
-    for title in titles:
-        readiness = scoring.role_readiness(scores_repo, skill_level_map, profile.get("target_roles") or [])
-        out.append({"role": title, "readiness": readiness})
-    return out
-
-
 def seed_provisional_baseline_score(
     db: Client, user_id: str, baseline_version_id: int,
 ) -> bool:
@@ -887,20 +864,36 @@ def _current_result(db: Client, user_id: str) -> dict[str, Any]:
     profile = facts["profile"] or {}
     baseline = facts["baseline"]
 
+    from app.services.career_target import is_canonical_direction as _is_canonical
+
     # Completed onboarding lands on Market. A legacy first-role save still has a
     # tailor receipt; everyone else who finished Direction goes to /market.
+    #
+    # BUT completion is not taken on trust. 111 users carry `completed_at` with
+    # no canonical direction — they came through a window where the gate was
+    # leaky, between 2026-04-20 and 2026-06-20. For them this early return was a
+    # closed door: the Market nudge is hidden because they are "complete", and
+    # navigating to /onboarding bounced them straight back here. No path existed
+    # to the one step that matters — users with a target apply at 26%, this
+    # cohort at 9%.
+    #
+    # A flag is not the fact. Fall through and let them finish Direction.
     if state.get("completed_at"):
+        # A saved first role is evidence of a finished journey in its own right —
+        # the receipt stands regardless of what the profile looks like now.
         if state.get("credible_job_saved_at"):
             from app.services.onboarding_first_role import saved_first_role
 
             saved = saved_first_role(JobsRepository(db), user_id)
             if saved:
                 return {"kind": "first_role_saved", **saved}
-        return {
-            "kind": "onboarding_complete",
-            "redirect_to": "/market",
-            "journey_step": 2,
-        }
+        if _is_canonical(profile):
+            return {
+                "kind": "onboarding_complete",
+                "redirect_to": "/market",
+                "journey_step": 2,
+            }
+        # Completed, no receipt, no direction — fall through to Direction.
 
     from app.services.career_target import SOURCE_SENIORITY, is_canonical_direction
 
