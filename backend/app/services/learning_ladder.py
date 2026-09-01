@@ -11,9 +11,16 @@ later case-study practice, never a numeric quiz ladder.
 
 Two-pass quality gate, no cheap models (feedback_no_cheap_models_judgment):
 generate on get_judgment_provider(), then an independent verify pass on the
-same lane re-checks every correct_index. This generator does not ingest source
-material, so its rows remain `review`. The source-grounded publisher may
-activate verified rows once it binds a legitimate `source_url`.
+same lane re-checks every correct_index. That verification IS the servable gate
+(20260830170000) — `verified_at`, not a citation.
+
+The source-grounded publisher this file once described was never built, and the
+`source_url` / `source_allowlist_id` columns it would have bound were dropped on
+2026-09-02: the allowlist held 0 rows for its whole life, and the 300 questions
+carrying a URL cited 4 of them, two being homepages backing 200 questions. The
+answer key is what a user is exposed to, so re-checking it is the gate that
+matters — the 2026-08-30 sweep found 44 wrong keys, 7 live, none of which a
+citation would have caught.
 
 Prompt-building + parsing is pure and lives in learning_ladder_prompts.py
 (unit tested without live calls); this module owns the DB reads/writes and
