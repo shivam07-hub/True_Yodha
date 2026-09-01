@@ -3,7 +3,7 @@
 import type { JobFeedItem, JobPulse } from "@/lib/api"
 import { PulseRow } from "@/components/dashboard/card-atoms"
 import { FeedCard, feedCardConfidenceClass } from "@/components/jobs/feed-card"
-import { GradeBadge, LegitimacyBadge } from "@/components/jobs/match-brain"
+import { LegitimacyBadge } from "@/components/jobs/match-brain"
 import { CapturePill } from "@/components/jobs/capture-pill"
 import { feedDataFromFeedItem } from "@/lib/jobs/card-view"
 import { ShareJobButton } from "@/components/market/share-job-button"
@@ -81,17 +81,12 @@ export function TriageButtons({ job, onSave, onSkip }: { job: JobFeedItem; onSav
   )
 }
 
-/** Cached Matching-Brain badges on the card header (Consolidation D). Design-over-
- *  words: shows only what the brain already decided — a grade chip + the ghost-job
- *  warning. Absent for jobs the brain hasn't scored yet (deterministic overlap). */
+/** Cached Matching-Brain badges on the card header. The judge is the fit ring
+ *  (Match Verdict). Grade is a second "how good" and lives in Why, not here.
+ *  This slot is only the posting-trust warning (caution / suspicious). */
 export function CardBrainBadges({ job }: { job: JobFeedItem }) {
-  if (!job.grade && job.legitimacy_tier !== "caution" && job.legitimacy_tier !== "suspicious") return null
-  return (
-    <>
-      <GradeBadge grade={job.grade} />
-      <LegitimacyBadge tier={job.legitimacy_tier} reason={job.legitimacy_reason} />
-    </>
-  )
+  if (job.legitimacy_tier !== "caution" && job.legitimacy_tier !== "suspicious") return null
+  return <LegitimacyBadge tier={job.legitimacy_tier} reason={job.legitimacy_reason} />
 }
 
 // ── the card (web list) ──────────────────────────────────────────────────────

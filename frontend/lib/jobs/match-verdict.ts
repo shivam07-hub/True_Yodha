@@ -46,11 +46,11 @@ export function matchFitScore(job: { match_score?: number | null; overlap_score?
 
 /**
  * The engineer's next move on a warmed card — the canonical verdict → "what to
- * do" (not "how good"). Read by both the market card (`card-view.marketMove`)
- * and the mobile row (`job-model`), so the directive is decided once. `null`
- * when the brain hasn't ranked the card (checking / un-warmed) — a browse row
- * has no move. Gap count is caller-supplied so this stays a pure verdict→intent
- * map.
+ * do" (not "how good"). Read by Collections as the hero verb. The market card
+ * does not print this as a second CTA — Save is the Jobs hero; gap chips are
+ * already Practice. `null` when the brain hasn't ranked the card (checking /
+ * un-warmed) — a browse row has no move. Gap count is caller-supplied so this
+ * stays a pure verdict→intent map.
  */
 export function verdictMove(
   v: Verdict | null | undefined,

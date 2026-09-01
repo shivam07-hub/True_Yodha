@@ -22,7 +22,8 @@ from app.services.job_refresh import JobRefresh
 from app.services.concurrent_reads import run_concurrently
 from app.services.matching import on_demand
 
-from ._shared import last_monday, to_job_match
+from app.routers.jobs.list import _rank_feed_rows
+from app.services.job_projection import last_monday, to_job_match
 
 router = APIRouter()
 
@@ -192,8 +193,17 @@ def get_agent_picks(
     """The curated "Myro Agent Picks" band — the Career-Ops brain's hand-vetted
     shortlist that sits ABOVE the algorithm feed (the roles a user is told to
     actually apply to). Empty for users with no picks → the band never renders.
-    Editorial layer, distinct from `/matches` (the algorithm layer)."""
+    Editorial layer, distinct from `/matches` (the algorithm layer).
+
+    Rows are shaped like feed cards; the Match Verdict attaches here the same
+    way `/feed` does (`_rank_feed_rows`, no reorder) so a pick paints the ring
+    instead of falling back to an overlap pill. Editorial order (agent_rank)
+    stays; the judge is information, not a second ranking.
+    """
     rows = repo.get_agent_picks(principal.id)
+    job_ids = [str(r.get("job_id")) for r in rows if r.get("job_id")]
+    brain_evals = repo.get_cached_match_evals(principal.id, job_ids) if job_ids else {}
+    _rank_feed_rows(rows, brain_evals, reorder=False)
     repo.record_recommendation_exposures(
         principal.id, rows, surface="agent_pick"
     )
