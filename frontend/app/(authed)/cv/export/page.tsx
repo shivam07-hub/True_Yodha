@@ -17,6 +17,7 @@ import { jobs as jobsApi, users } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useCVPlayground } from "@/lib/hooks/use-cv-playground"
+import { displayCompany } from "@/components/cv/builder/keyword-utils"
 
 import "../cv-fonts.css"
 import "../cv-sheet.css"
@@ -55,7 +56,7 @@ function CVExportPage() {
     return row && row.status !== "saved" ? row.applied_at : null
   }, [applicationsQuery.data, jobId])
 
-  const company = playground.selectedVersion?.company_name ?? "Selected role"
+  const company = displayCompany(playground.selectedVersion?.company_name) || "Selected role"
   const jobTitle = playground.selectedVersion?.job_title ?? ""
 
   const contact = useMemo(() => ({
@@ -89,6 +90,7 @@ function CVExportPage() {
             context="tailored"
             versionId={playground.selectedVersion?.id ?? null}
             footerMarkHidden={playground.selectedVersion?.footer_mark_hidden ?? false}
+            sectionOrder={playground.sectionOrder}
             company={company}
             jobTitle={jobTitle}
             jobId={jobId}

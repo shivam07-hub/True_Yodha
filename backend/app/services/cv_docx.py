@@ -18,6 +18,8 @@ from docx import Document
 from docx.enum.text import WD_TAB_ALIGNMENT
 from docx.shared import Pt, RGBColor
 
+from app.services.cv_section_order import normalize_section_order
+
 _DARK = RGBColor(0x0A, 0x0A, 0x0A)
 _BODY = RGBColor(0x1A, 0x1A, 0x1A)
 _MUTED = RGBColor(0x55, 0x55, 0x55)
@@ -117,9 +119,10 @@ def generate_cv_docx(visible: dict[str, Any], contact: dict[str, Any], template:
             br.font.size = Pt(s["body"])
             br.font.color.rgb = _BODY
 
-    # ── Summary ───────────────────────────────────────────────────────
-    summary = (visible.get("summary") or "").strip()
-    if summary:
+    def emit_summary() -> None:
+        summary = (visible.get("summary") or "").strip()
+        if not summary:
+            return
         heading("Summary")
         sp = doc.add_paragraph()
         sp.paragraph_format.space_after = Pt(s["space_after"])
@@ -127,26 +130,29 @@ def generate_cv_docx(visible: dict[str, Any], contact: dict[str, Any], template:
         sr.font.size = Pt(s["body"])
         sr.font.color.rgb = _BODY
 
-    # ── Experience ────────────────────────────────────────────────────
-    experience = [e for e in (visible.get("experience") or []) if (e.get("bullets") or [])]
-    if experience:
+    def emit_experience() -> None:
+        experience = [e for e in (visible.get("experience") or []) if (e.get("bullets") or [])]
+        if not experience:
+            return
         heading("Experience")
         for e in experience:
             company = (e.get("company") or "").strip()
             role_line(e.get("role") or "", f"  ·  {company}" if company else "", (e.get("dates") or "").strip())
             bullets(e.get("bullets") or [])
 
-    # ── Projects ──────────────────────────────────────────────────────
-    projects = [p for p in (visible.get("projects") or []) if (p.get("bullets") or [])]
-    if projects:
+    def emit_projects() -> None:
+        projects = [p for p in (visible.get("projects") or []) if (p.get("bullets") or [])]
+        if not projects:
+            return
         heading("Projects")
         for pr in projects:
             role_line(pr.get("name") or "", "", (pr.get("dates") or "").strip())
             bullets(pr.get("bullets") or [])
 
-    # ── Education ─────────────────────────────────────────────────────
-    education = visible.get("education") or []
-    if education:
+    def emit_education() -> None:
+        education = visible.get("education") or []
+        if not education:
+            return
         heading("Education")
         for ed in education:
             degree = (ed.get("degree") or "").strip()
@@ -154,9 +160,10 @@ def generate_cv_docx(visible: dict[str, Any], contact: dict[str, Any], template:
             sub = "".join(f"  ·  {part}" for part in (degree, grade) if part)
             role_line(ed.get("institution") or "", sub, (ed.get("dates") or "").strip())
 
-    # ── Skills ────────────────────────────────────────────────────────
-    skills_line = (visible.get("skills_line") or "").strip()
-    if skills_line:
+    def emit_skills() -> None:
+        skills_line = (visible.get("skills_line") or "").strip()
+        if not skills_line:
+            return
         heading("Skills")
         kp = doc.add_paragraph()
         kp.paragraph_format.space_after = Pt(s["space_after"])
@@ -164,11 +171,23 @@ def generate_cv_docx(visible: dict[str, Any], contact: dict[str, Any], template:
         kr.font.size = Pt(s["body"])
         kr.font.color.rgb = _BODY
 
-    # ── Certifications ────────────────────────────────────────────────
-    certs = [c for c in (visible.get("certs") or []) if (c or "").strip()]
-    if certs:
+    def emit_certs() -> None:
+        certs = [c for c in (visible.get("certs") or []) if (c or "").strip()]
+        if not certs:
+            return
         heading("Certifications")
         bullets(certs)
+
+    emitters = {
+        "summary": emit_summary,
+        "experience": emit_experience,
+        "projects": emit_projects,
+        "skills_line": emit_skills,
+        "education": emit_education,
+        "certs": emit_certs,
+    }
+    for key in normalize_section_order(visible.get("order")):
+        emitters[key]()
 
     buf = BytesIO()
     doc.save(buf)

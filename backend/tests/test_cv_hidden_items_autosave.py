@@ -92,9 +92,14 @@ class _FakeRepo:
     def find(self, version_id: int, user_id: str) -> dict | None:
         return self._version
 
-    def update_hidden_items(self, version_id, user_id, hidden_items, body_text):
-        self.updated = {"hidden_items": hidden_items, "body_text": body_text}
-        return {**self._version, "hidden_items": hidden_items, "body_text": body_text}
+    def update_hidden_items(self, version_id, user_id, hidden_items, body_text, *, section_order=None):
+        self.updated = {
+            "hidden_items": hidden_items, "body_text": body_text, "section_order": section_order,
+        }
+        return {
+            **self._version, "hidden_items": hidden_items, "body_text": body_text,
+            "section_order": section_order,
+        }
 
 
 class _Principal:

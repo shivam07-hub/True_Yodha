@@ -14,9 +14,11 @@
  */
 "use client"
 
-import { useEffect, useState, type ReactNode } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import type { CVStructured, UserSkillsByDomain } from "@/lib/api"
 import type { PageFill } from "@/lib/cv/page-fill"
+import { isPaperStructureChange, usePaperHistory } from "@/lib/cv/paper-history"
+import type { SectionKey } from "@/lib/cv/section-order"
 import type { AtsCheck } from "./ats-checks"
 import type { IdentityLines } from "./cv-identity-card"
 import type { RewriteFetcher } from "./use-line-rewrite"
@@ -65,6 +67,9 @@ export interface WorkstationShellProps {
   onCopyLine?: (text: string) => void
   onToggleHidden?: (iid: string) => void
   onPatch?: (mut: (draft: CVStructured) => CVStructured) => void
+  onReorderRoles?: (from: number, to: number) => void
+  sectionOrder?: SectionKey[]
+  onSectionOrder?: (order: SectionKey[]) => void
   identityEditable?: boolean
   onAddBullet?: (roleIndex: number, text: string) => void
   /** ATS-extracted skills, for the rank-4 chip line under each bullet. */
@@ -86,8 +91,13 @@ export function WorkstationShell(props: WorkstationShellProps) {
     makeFetcher, applying, onApplyRewrite, onDismissFix,
     onEditLine, onCopyLine,
     onToggleHidden, onPatch, identityEditable, onAddBullet, userSkills,
+    onReorderRoles, sectionOrder, onSectionOrder,
     initialRailTab, requestRailTab, requestOpenIid, className,
   } = props
+
+  const history = usePaperHistory()
+  const cvRef = useRef(cv)
+  cvRef.current = cv
 
   const [mode, setMode] = useState<"edit" | "sheet">("edit")
   const [railTab, setRailTab] = useState<"fixes" | "skills">(initialRailTab ?? "fixes")
@@ -187,6 +197,63 @@ export function WorkstationShell(props: WorkstationShellProps) {
     setActiveIssueId(next.id)
   }
 
+  function wrapToggle(iid: string) {
+    onToggleHidden?.(iid)
+    history.record({
+      apply: () => onToggleHidden?.(iid),
+      revert: () => onToggleHidden?.(iid),
+    })
+  }
+  function wrapEdit(oldText: string, newText: string) {
+    onEditLine(oldText, newText)
+    history.record({
+      apply: () => onEditLine(oldText, newText),
+      revert: () => onEditLine(newText, oldText),
+    })
+  }
+  function wrapPatch(mut: (d: CVStructured) => CVStructured) {
+    if (!onPatch) return
+    const before = structuredClone(cvRef.current)
+    const after = mut(structuredClone(before))
+    onPatch(() => after)
+    if (isPaperStructureChange(before, after)) {
+      history.record({
+        apply: () => onPatch(() => structuredClone(after)),
+        revert: () => onPatch(() => structuredClone(before)),
+      })
+    }
+  }
+  function wrapRoles(from: number, to: number) {
+    if (!onReorderRoles) return
+    onReorderRoles(from, to)
+    history.record({
+      apply: () => onReorderRoles(from, to),
+      revert: () => onReorderRoles(to, from),
+    })
+  }
+  function wrapSectionOrder(next: SectionKey[]) {
+    if (!onSectionOrder) return
+    const prev = [...(sectionOrder ?? [])]
+    onSectionOrder(next)
+    history.record({
+      apply: () => onSectionOrder(next),
+      revert: () => onSectionOrder(prev),
+    })
+  }
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const el = e.target as HTMLElement | null
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "z") return
+      e.preventDefault()
+      if (e.shiftKey) history.redo()
+      else history.undo()
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [history])
+
   const next = issues[0]
   const nextLabel = next?.fix ? "Fix this line" : next?.action === "Add" ? "Add it" : "Open it"
 
@@ -203,6 +270,10 @@ export function WorkstationShell(props: WorkstationShellProps) {
             pageFill={pageFill}
             lineCount={lineCount}
             wordCount={wordCount}
+            canUndo={history.canUndo}
+            canRedo={history.canRedo}
+            onUndo={history.undo}
+            onRedo={history.redo}
           />
           <div className="cvb-v2-editorbody">
             {mode === "sheet" ? sheet : (
@@ -217,10 +288,13 @@ export function WorkstationShell(props: WorkstationShellProps) {
                 flash={flash}
                 editRequest={editRequest}
                 onOpenFix={openLine}
-                onToggleHidden={onToggleHidden}
-                onEditLine={onEditLine}
+                onToggleHidden={onToggleHidden ? wrapToggle : undefined}
+                onEditLine={wrapEdit}
                 onCopyLine={onCopyLine}
-                onPatch={onPatch}
+                onPatch={onPatch ? wrapPatch : undefined}
+                onReorderRoles={onReorderRoles ? wrapRoles : undefined}
+                sectionOrder={sectionOrder}
+                onSectionOrder={onSectionOrder ? wrapSectionOrder : undefined}
                 identityEditable={identityEditable}
                 onAddBullet={onAddBullet}
                 userSkills={userSkills}

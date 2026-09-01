@@ -12,6 +12,7 @@
 import Link from "next/link"
 import type { ApplicationResponse } from "@/lib/api"
 import { buildContinueLane } from "@/lib/collections/model"
+import { displayCompany } from "./keyword-utils"
 import { displayJobTitle } from "@/lib/jobs/clean-title"
 
 interface Props {
@@ -45,18 +46,21 @@ export function FinishTailoringLane({ applications, onOpenJob }: Props) {
             an accent border + wash + accent company name + accent CTA, roughly
             twenty accent elements competed and none of them led. The rest are
             neutral rows the user can still reach. */}
-        {shown.map((it, i) => (
+        {shown.map((it, i) => {
+          const co = displayCompany(it.company)
+          return (
           <button
             key={it.jobId}
             type="button"
             className={`tm-lib-continue-card tm-control-focus${i === 0 ? " tm-lib-continue-card--lead" : ""}`}
             onClick={() => onOpenJob(it.jobId)}
           >
-            <span className="tm-lib-continue-co">{it.company ?? "Untitled company"}</span>
+            {co ? <span className="tm-lib-continue-co">{co}</span> : null}
             <span className="tm-lib-continue-role">{displayJobTitle(it.role, it.company)}</span>
             <span className="tm-lib-continue-cta">Finish &amp; apply →</span>
           </button>
-        ))}
+          )
+        })}
       </div>
       {overflow > 0 && (
         <Link href="/collections" className="tm-lib-continue-more">

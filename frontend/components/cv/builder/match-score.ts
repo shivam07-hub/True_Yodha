@@ -26,6 +26,26 @@ export interface CoverageCounts {
   gap: number
 }
 
+export function projectCoverage(
+  rows: { status: string; source?: string; story_pointer: string }[] | undefined,
+  hiddenTexts: Set<string>,
+): CoverageCounts | null {
+  if (!rows || rows.length === 0) return null
+  let covered = 0
+  let weak = 0
+  let gap = 0
+  for (const row of rows) {
+    let status = row.status
+    if (row.source === "cv" && row.story_pointer && hiddenTexts.has(row.story_pointer)) {
+      status = "gap"
+    }
+    if (status === "covered") covered += 1
+    else if (status === "weak") weak += 1
+    else gap += 1
+  }
+  return { covered, weak, gap }
+}
+
 /** Coverage closeness 0–100: covered = full credit, partial (weak) = half,
  *  missing = none. Null when there are no requirements to score against (parse
  *  pending / empty) — the caller falls back honestly. */

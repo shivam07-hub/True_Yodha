@@ -58,6 +58,8 @@ interface CVExportViewProps {
   versionId?: number | null
   /** Initial footer-mark state for `versionId`. */
   footerMarkHidden?: boolean
+  /** Playground section order — sheet and DOCX follow the paper. */
+  sectionOrder?: string[] | null
   /** Job context — drives the tailored foot, JD-match pill, and ApplyRow. */
   company?: string
   jobTitle?: string
@@ -100,7 +102,7 @@ function formatAppliedDate(iso: string): string {
 
 export function CVExportView({
   token, cv, hidden, contact, profile, context,
-  template, versionId = null, footerMarkHidden = false,
+  template, versionId = null, footerMarkHidden = false, sectionOrder = null,
   company, jobTitle, jobId, matchScore = 0, appliedAt = null,
   onBack, backLabel = "Back", mobile = false, onFixContact, onAtsFix,
   onBulletClick, selectedBulletId = null, skin: skinOverride,
@@ -217,7 +219,7 @@ export function CVExportView({
 
   async function recordSubmittedCv() {
     if (!jobId || submittedSnapshotWritten.current) return
-    const visible = selectVisibleCV(cv, hidden)
+    const visible = selectVisibleCV(cv, hidden, sectionOrder)
     await cvApi.applySnapshot(token, {
       job_id: jobId,
       cv_snapshot: {
@@ -274,7 +276,7 @@ export function CVExportView({
     setDocxError(null)
     setDocxBusy(true)
     try {
-      const visible = selectVisibleCV(cv, hidden)
+      const visible = selectVisibleCV(cv, hidden, sectionOrder)
       const docxName = filename.replace(/\.pdf$/i, "") + ".docx"
       const blob = await withRetry(() => cvApi.exportDocx(token, {
         visible,
@@ -297,6 +299,7 @@ export function CVExportView({
       <PdfPage
         cv={cv}
         hidden={hidden}
+        sectionOrder={sectionOrder}
         contact={contact}
         company={isTailored ? company : undefined}
         template={activeTemplate}

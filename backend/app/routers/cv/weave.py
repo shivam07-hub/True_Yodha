@@ -16,9 +16,10 @@ never lands on a CV it wasn't written for.
 """
 from __future__ import annotations
 
-import json
 import uuid
 from datetime import datetime, timezone
+
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
@@ -32,7 +33,16 @@ from app.repositories.cv import CVVersionsRepository, CVVersionWriteSpec, get_to
 from app.repositories.cv_dump import CvDumpRepository, get_cv_dump_repository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.security import redact_sensitive_text
-from app.services import career_reservoir, cv_compose, cv_weave, cv_weave_interview, jd_coverage, xp_policy, xp_service
+from app.services import (
+    career_reservoir,
+    cv_compose,
+    cv_weave,
+    cv_weave_cache,
+    cv_weave_interview,
+    jd_coverage,
+    xp_policy,
+    xp_service,
+)
 from app.services.llm_provider import get_blocking_judgment_provider
 from app.services.cv_structured_shape import has_content
 
@@ -129,13 +139,20 @@ class WeaveGetResponse(BaseModel):
     purchased: bool
     proposal: WeaveProposal | None = None
     stale: bool = False
+    applied: bool = False
+    accepted_roles: list[int] = Field(default_factory=list)
+    decided_roles: list[int] = Field(default_factory=list)
 
 
 class WeaveApplyRequest(BaseModel):
     job_id: str
     accepted_roles: list[int] = Field(default_factory=list)
+    decided_roles: list[int] | None = None
     accept_summary: bool = True
     accept_skills_line: bool = True
+    role_index: int | None = None
+    action: Literal["take", "keep", "undo"] | None = None
+    original_pointers: list[int] = Field(default_factory=list)
 
 
 class WeaveApplyResponse(BaseModel):
@@ -167,31 +184,28 @@ async def _coverage_rows(
 ) -> list[jd_coverage.CoverageItem]:
     """Cached coverage, else compute (stories ∪ CV bullets) + cache — same
     contract as /cv/jd-coverage and the prep room, so the panels never disagree."""
-    hit = jd_coverage.payload_to_result(
-        jobs_repo.get_deepening(user_id, job_id, jd_coverage.CACHE_PROMPT_KEY)
+    result, _cached, _at = await jd_coverage.assess_for_job(
+        user_id, job_id, jd_text, jobs_repo, cv_structured,
+        get_blocking_judgment_provider(),
     )
-    if hit is not None:
-        return hit[0].requirements
-    result = await jd_coverage.assess(
-        user_id, jd_text, get_blocking_judgment_provider(),
-        cv_bullets=jd_coverage.bullets_from_cv(cv_structured),
-    )
-    if result.requirements:
-        jobs_repo.upsert_deepening(
-            user_id, job_id, jd_coverage.CACHE_PROMPT_KEY,
-            jd_coverage.result_to_payload(result),
-        )
     return result.requirements
 
 
-def _cached_proposal(jobs_repo: JobsRepository, user_id: str, job_id: str) -> WeaveProposal | None:
-    raw = jobs_repo.get_deepening(user_id, job_id, cv_weave.CACHE_PROMPT_KEY)
-    if not raw:
+def _load_cache(
+    jobs_repo: JobsRepository, user_id: str, job_id: str,
+) -> tuple[WeaveProposal, cv_weave_cache.WeaveCache] | None:
+    loaded = cv_weave_cache.load(jobs_repo.get_deepening(user_id, job_id, cv_weave.CACHE_PROMPT_KEY))
+    if loaded is None:
         return None
     try:
-        return WeaveProposal(**json.loads(raw))
-    except (json.JSONDecodeError, TypeError, ValueError):
+        return WeaveProposal(**loaded.proposal), loaded
+    except (TypeError, ValueError):
         return None
+
+
+def _cached_proposal(jobs_repo: JobsRepository, user_id: str, job_id: str) -> WeaveProposal | None:
+    hit = _load_cache(jobs_repo, user_id, job_id)
+    return None if hit is None else hit[0]
 
 
 # ── endpoints ──────────────────────────────────────────────────────────────────
@@ -279,13 +293,23 @@ def get_weave(
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
 ) -> WeaveGetResponse:
     """Replay a purchased proposal for free. `stale` flags a master that changed
-    since the draft — the surface offers a re-run instead of a doomed apply."""
-    proposal = _cached_proposal(jobs_repo, user.id, job_id)
-    if proposal is None:
+    since the draft — the surface offers a re-run instead of a doomed apply.
+    Keep/Take progress rides `accepted_roles` / `decided_roles` so a landed
+    line survives abort."""
+    hit = _load_cache(jobs_repo, user.id, job_id)
+    if hit is None:
         return WeaveGetResponse(purchased=False)
+    proposal, cache = hit
     baseline = cv_repo.latest_baseline(user.id)
     current = cv_weave.source_fingerprint((baseline or {}).get("cv_structured") or {})
-    return WeaveGetResponse(purchased=True, proposal=proposal, stale=current != proposal.fingerprint)
+    return WeaveGetResponse(
+        purchased=True,
+        proposal=proposal,
+        stale=current != proposal.fingerprint,
+        applied=cache.applied_version_id is not None or bool(cache.decided_roles),
+        accepted_roles=list(cache.accepted_roles),
+        decided_roles=list(cache.decided_roles),
+    )
 
 
 @router.post("/weave", response_model=WeaveRunResponse)
@@ -355,7 +379,9 @@ async def run_weave(
         ) from exc
 
     proposal["computed_at"] = datetime.now(timezone.utc).isoformat()
-    jobs_repo.upsert_deepening(user.id, body.job_id, cv_weave.CACHE_PROMPT_KEY, json.dumps(proposal))
+    jobs_repo.upsert_deepening(
+        user.id, body.job_id, cv_weave.CACHE_PROMPT_KEY, cv_weave_cache.dump(proposal),
+    )
     return WeaveRunResponse(proposal=WeaveProposal(**proposal), new_coin_balance=new_balance)
 
 
@@ -366,32 +392,65 @@ def apply_weave(
     jobs_repo: JobsRepository = Depends(get_token_jobs_repository),
     cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
 ) -> WeaveApplyResponse:
-    """Write the accepted roles as the job-tailored version (L2/L3). The living
+    """Land Keep/Take on this job's working draft (Google Docs). The living
     master is untouched; free — the weave run already paid."""
-    proposal = _cached_proposal(jobs_repo, user.id, body.job_id)
-    if proposal is None:
+    hit = _load_cache(jobs_repo, user.id, body.job_id)
+    if hit is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No tailored draft for this job yet.")
+    proposal, _cache = hit
     job = _job_or_404(jobs_repo, body.job_id)
     baseline = _baseline_or_409(cv_repo, user.id)
-    cv_structured = baseline.get("cv_structured") or {}
-    if cv_weave.source_fingerprint(cv_structured) != proposal.fingerprint:
+    master = baseline.get("cv_structured") or {}
+    if cv_weave.source_fingerprint(master) != proposal.fingerprint:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             "Your CV changed since this draft was written — run Tailor with Mentor again.",
         )
-    composed = cv_weave.compose_weave(
-        cv_structured,
-        proposal.model_dump(),
-        set(body.accepted_roles),
-        accept_summary=body.accept_summary,
-        accept_skills_line=body.accept_skills_line,
-    )
-    version = cv_repo.create(user.id, CVVersionWriteSpec(
-        kind="deterministic",
-        job_id=body.job_id,
-        parent_version_id=int(baseline["id"]),
-        body_text=cv_compose.render_deterministic(composed),
-        cv_structured=composed,
-        title=f"Tailored with Mentor · {job.get('company_name') or job.get('job_title') or ''}".strip(" ·"),
+    accepted = list(dict.fromkeys(body.accepted_roles))
+    decided = list(dict.fromkeys(
+        body.decided_roles if body.decided_roles is not None else body.accepted_roles
     ))
-    return WeaveApplyResponse(version_id=int(version["id"]))
+    draft = cv_repo.latest_job_draft(user.id, body.job_id)
+    source = (draft.get("cv_structured") if draft else None) or master
+    if body.action and body.role_index is not None:
+        composed = cv_weave.land_role(
+            source, proposal.model_dump(), body.role_index,
+            action=body.action, master=master,
+            accept_summary=body.accept_summary,
+            accept_skills_line=body.accept_skills_line,
+            extras=not bool(_cache.decided_roles),
+            original_indexes=body.original_pointers,
+        )
+    else:
+        composed = cv_weave.compose_weave(
+            source, proposal.model_dump(), set(accepted),
+            accept_summary=body.accept_summary,
+            accept_skills_line=body.accept_skills_line,
+        )
+    title = f"Tailored with Mentor · {job.get('company_name') or job.get('job_title') or ''}".strip(" ·")
+    body_text = cv_compose.render_deterministic(composed)
+    if draft:
+        version = cv_repo.update_job_draft(
+            int(draft["id"]), user.id,
+            cv_structured=composed, body_text=body_text, title=title,
+        )
+    else:
+        version = cv_repo.create(user.id, CVVersionWriteSpec(
+            kind="deterministic",
+            job_id=body.job_id,
+            parent_version_id=int(baseline["id"]),
+            body_text=body_text,
+            cv_structured=composed,
+            title=title,
+        ))
+    vid = int(version["id"])
+    jobs_repo.upsert_deepening(
+        user.id, body.job_id, cv_weave.CACHE_PROMPT_KEY,
+        cv_weave_cache.dump(
+            proposal.model_dump(),
+            applied_version_id=vid,
+            accepted_roles=accepted,
+            decided_roles=decided,
+        ),
+    )
+    return WeaveApplyResponse(version_id=vid)

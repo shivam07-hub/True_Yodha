@@ -391,3 +391,53 @@ def compose_weave(
     if accept_skills_line and proposal.get("skills_line"):
         next_cv["skills_line"] = proposal["skills_line"]
     return next_cv
+
+
+def _take_bullets(entry: dict, original_indexes: set[int]) -> list[str]:
+    """Mentor's line, unless this pointer was flipped back to original."""
+    out: list[str] = []
+    for i, b in enumerate(entry.get("bullets") or []):
+        if i in original_indexes:
+            from_lines = [str(x) for x in (b.get("from_lines") or []) if str(x).strip()]
+            out.append(" ".join(from_lines) if from_lines else str(b.get("text") or ""))
+        else:
+            out.append(str(b.get("text") or ""))
+    return out
+
+
+def land_role(
+    cv_structured: dict,
+    proposal: dict,
+    role_index: int,
+    *,
+    action: str,
+    master: dict,
+    accept_summary: bool = True,
+    accept_skills_line: bool = True,
+    extras: bool = True,
+    original_indexes: list[int] | None = None,
+) -> dict:
+    """Patch one role onto the working draft. Take writes Mentor's bullets
+    (per-pointer original puts the old line back); undo restores the master's;
+    keep leaves the line. Extras land once, here, so abort never waits for a
+    final Save."""
+    next_cv = json.loads(json.dumps(cv_structured))
+    by_index = {r["role_index"]: r for r in proposal.get("roles") or []}
+    blocks = next_cv.get("experience") or []
+    master_blocks = (master or {}).get("experience") or []
+    originals = set(original_indexes or [])
+    if 0 <= role_index < len(blocks):
+        if action == "take":
+            entry = by_index.get(role_index)
+            if entry and entry.get("changed"):
+                blocks[role_index]["bullets"] = _take_bullets(entry, originals)
+        elif action == "undo" and role_index < len(master_blocks):
+            blocks[role_index]["bullets"] = [
+                str(b) for b in (master_blocks[role_index].get("bullets") or [])
+            ]
+    if extras:
+        if accept_summary and proposal.get("summary"):
+            next_cv["summary"] = proposal["summary"]
+        if accept_skills_line and proposal.get("skills_line"):
+            next_cv["skills_line"] = proposal["skills_line"]
+    return next_cv

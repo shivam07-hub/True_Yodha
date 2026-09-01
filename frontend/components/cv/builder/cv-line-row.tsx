@@ -71,7 +71,6 @@ export function CvLineRow({
       style={style}
       className={[
         "cvw-line",
-        hidden ? "is-hidden" : "",
         pointer ? "is-pointer" : "",
         collapsed ? "is-collapsed" : "",
         pointer?.isDragging ? "is-dragging" : "",

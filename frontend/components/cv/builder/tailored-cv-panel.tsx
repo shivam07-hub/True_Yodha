@@ -18,6 +18,7 @@ interface TailoredCVPanelProps {
   jobId: string
   matchScore: number
   appliedAt: string | null
+  sectionOrder?: string[] | null
   onBulletClick: (id: string, text: string) => void
   selectedBulletId: string | null
   onEditInPlayground: (jobId: string) => void
@@ -30,7 +31,7 @@ interface TailoredCVPanelProps {
  *  tailored copy actually needs: hop into the Tailor workspace to edit it. */
 export function TailoredCVPanel({
   token, structured, hidden, contact, profile, versionId, footerMarkHidden,
-  company, jobTitle, jobId, matchScore, appliedAt,
+  company, jobTitle, jobId, matchScore, appliedAt, sectionOrder,
   onBulletClick, selectedBulletId, onEditInPlayground, onSwitchToMain,
 }: TailoredCVPanelProps) {
   return (
@@ -62,6 +63,7 @@ export function TailoredCVPanel({
           skin="inline"
           versionId={versionId}
           footerMarkHidden={footerMarkHidden}
+          sectionOrder={sectionOrder}
           company={company || undefined}
           jobTitle={jobTitle || undefined}
           jobId={jobId}

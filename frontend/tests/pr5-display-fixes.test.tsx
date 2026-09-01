@@ -3,7 +3,7 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { formatKeywordChipLabel, resolvePlaygroundCompany } from "../components/cv/builder/keyword-utils"
+import { displayCompany, formatKeywordChipLabel, resolvePlaygroundCompany } from "../components/cv/builder/keyword-utils"
 import { CATEGORIES, SEVERITY } from "../components/feedback/feedback-types"
 import { shortHeatmapSkillLabel } from "../lib/heatmap-labels"
 
@@ -27,7 +27,11 @@ test("score gauge keeps the label outside the numeric center", () => {
 })
 
 test("playground copy handles missing company and title-case conjunctions", () => {
-  assert.equal(resolvePlaygroundCompany(null, undefined), "Untitled company")
+  assert.equal(displayCompany("Untitled company"), "")
+  assert.equal(displayCompany("  "), "")
+  assert.equal(resolvePlaygroundCompany(null, undefined), "")
+  assert.equal(resolvePlaygroundCompany("Untitled company", undefined), "")
+  assert.equal(resolvePlaygroundCompany("Amex", undefined), "Amex")
   assert.equal(formatKeywordChipLabel("Time Series Analysis And Forecasting"), "Time Series Analysis and Forecasting")
 })
 

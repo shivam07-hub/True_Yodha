@@ -52,6 +52,7 @@ class CVVersionWriteSpec:
     ai_polished:        bool = False
     ai_polish_used_at:  str | None = None
     footer_mark_hidden: bool = True
+    section_order:      list[str] | None = None
 
 
 class CVVersionsRepository:
@@ -162,6 +163,27 @@ class CVVersionsRepository:
             .eq("user_id", user_id)
             .neq("kind", "baseline_upload")
             .in_("job_id", scoped_job_ids)
+            .order("user_version_number", desc=True)
+            .limit(1)
+            .execute()
+        )
+        row = (result.data or [None])[0]
+        if not row:
+            return None
+        row = self._normalized(row)
+        attach_jobs([row], self._db, "job_title, company_name")
+        return row
+
+    def latest_job_draft(self, user_id: str, job_id: str) -> dict[str, Any] | None:
+        """This job's deterministic working draft — the Google Docs document
+        Tailor Keep/Take patches in place. Not the company thread (that can
+        be a sibling job)."""
+        result = (
+            self._db.table("cv_versions")
+            .select("*")
+            .eq("user_id", user_id)
+            .eq("job_id", job_id)
+            .eq("kind", "deterministic")
             .order("user_version_number", desc=True)
             .limit(1)
             .execute()
@@ -496,16 +518,56 @@ class CVVersionsRepository:
         ).eq("skill_id", skill_id).execute()
 
     def update_hidden_items(
-        self, version_id: int, user_id: str, hidden_items: list[str], body_text: str
+        self,
+        version_id: int,
+        user_id: str,
+        hidden_items: list[str],
+        body_text: str,
+        *,
+        section_order: list[str] | None = None,
     ) -> dict[str, Any]:
         """Auto-save the playground projection in place on a job's deterministic
         working draft. Scoped to kind="deterministic" so submitted / edited /
         polished snapshots stay immutable (CVJT1). 404 if it isn't the caller's
         editable draft. user_id filter is defensive — RLS also scopes.
         """
+        payload: dict[str, Any] = {"hidden_items": hidden_items, "body_text": body_text}
+        if section_order is not None:
+            payload["section_order"] = section_order
         result = (
             self._db.table("cv_versions")
-            .update({"hidden_items": hidden_items, "body_text": body_text})
+            .update(payload)
+            .eq("id", version_id)
+            .eq("user_id", user_id)
+            .eq("kind", "deterministic")
+            .execute()
+        )
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Editable CV draft not found.",
+            )
+        return result.data[0]
+
+    def update_job_draft(
+        self,
+        version_id: int,
+        user_id: str,
+        *,
+        cv_structured: dict[str, Any],
+        body_text: str,
+        title: str | None = None,
+    ) -> dict[str, Any]:
+        """Patch this job's working draft in place — a Tailor Take is a Google
+        Docs save, not a new version row."""
+        self._reject_redaction_tokens(cv_structured, body_text)
+        self._reject_partial_structured(cv_structured, seam="cv_versions.update_job_draft")
+        payload: dict[str, Any] = {"cv_structured": cv_structured, "body_text": body_text}
+        if title is not None:
+            payload["title"] = title
+        result = (
+            self._db.table("cv_versions")
+            .update(payload)
             .eq("id", version_id)
             .eq("user_id", user_id)
             .eq("kind", "deterministic")
@@ -725,6 +787,8 @@ class CVVersionsRepository:
             "ai_polish_used_at":   spec.ai_polish_used_at,
             "footer_mark_hidden":  spec.footer_mark_hidden,
         }
+        if spec.section_order is not None:
+            payload["section_order"] = spec.section_order
         result = self._db.table("cv_versions").insert(payload).execute()
         if not result.data:
             raise HTTPException(

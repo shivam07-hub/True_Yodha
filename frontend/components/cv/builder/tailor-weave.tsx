@@ -1,71 +1,60 @@
 /**
- * TailorWeave — "Tailor with Mentor", the draft-first whole-CV tailor for one
- * job (grill locks 2026-07-16, memory project_tailor_weave_mentor).
+ * TailorWeave — "Tailor with Mentor" for one job.
  *
- * One overlay, four acts:
- *   brief     — what Mentor will do + what the job asks (free, instant)
- *   interview — ONLY the unproven asks, one at a time, with mined candidates
- *               from the user's own stories/CV (tap to confirm, or free-write;
- *               ONE skippable probe on a thin answer)
- *   loom      — the weave runs; the WeaveLoom narrates the real work
- *   review    — per-ROLE accept (Keep mine / Take this), then save → the
- *               job-tailored version. Living master untouched.
- *
- * Money: 50 coins per weave RUN, charged on delivery; a purchased proposal
- * replays free (act jumps straight to review). Supersedes MentorWalk here.
+ * Overlay opens on the loom. Interview POST fires once after coverage has
+ * settled. Timeout is not an empty list — retry stays on the loom. A current
+ * proposal skips to Accept. Each Take lands on the paper now (Google Docs).
  */
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery } from "@tanstack/react-query"
-import { cv as cvApi, type WeaveProposal, type WeaveQuestion } from "@/lib/api"
+import { cv as cvApi, type WeaveProposal } from "@/lib/api"
+import { firstUndecidedIndex } from "@/lib/cv/tailor-order"
 import { useXPStore } from "@/store/xpStore"
-import { Icon } from "./icons"
-import { MentorThinking, WeaveLoom } from "./mentor-thinking"
-import { TailorDone, useTailorGateRefresh } from "./tailor-done"
+import { WeaveLoom } from "./mentor-thinking"
+import { TailorInterview } from "./tailor-interview"
+import { useTailorGateRefresh } from "./use-tailor-gate"
 import { WeaveRoleCard } from "./weave-role-card"
 
-type Act = "brief" | "interview" | "loom" | "review" | "done"
+type Act = "loom" | "interview" | "review"
 
 interface TailorWeaveProps {
   token: string
   jobId: string
   company: string
   jobTitle: string
-  /** Role labels for the loom narration (from the CV's experience blocks). */
   loomRoles: string[]
   cost?: number
+  /** Playground coverage has a result — interview may share that cache. */
+  coverageSettled: boolean
+  coverageFailed?: boolean
+  onRetryCoverage?: () => void
   onApplied: (versionId: number) => void
   onClose: () => void
 }
 
-function optionSentence(kind: "story" | "cv", label: string, detail: string): string {
-  if (kind === "cv") return `It's on my CV already: "${label}"`
-  return detail ? `That was my "${label}" work — ${detail}` : `That was my "${label}" work.`
-}
-
 export function TailorWeave({
-  token, jobId, company, jobTitle, loomRoles, cost = 50, onApplied, onClose,
+  token, jobId, company, jobTitle, loomRoles, cost = 50,
+  coverageSettled, coverageFailed = false, onRetryCoverage,
+  onApplied, onClose,
 }: TailorWeaveProps) {
-  const [act, setAct] = useState<Act>("brief")
+  const [act, setAct] = useState<Act>("loom")
   const [error, setError] = useState<string | null>(null)
   const [proposal, setProposal] = useState<WeaveProposal | null>(null)
   const [stale, setStale] = useState(false)
   const applyXpChange = useXPStore(s => s.applyXpChange)
+  const weaveStarted = useRef(false)
+  const seeded = useRef(false)
 
-  // Interview state
   const [qIdx, setQIdx] = useState(0)
-  const [draft, setDraft] = useState("")
-  const [picked, setPicked] = useState<Set<number>>(new Set())
   const [probe, setProbe] = useState<string | null>(null)
   const [answers, setAnswers] = useState<{ requirement: string; text: string }[]>([])
 
-  // Review state
   const [rIdx, setRIdx] = useState(0)
-  const [taken, setTaken] = useState<Record<number, boolean>>({})
-  const [keepSummary, setKeepSummary] = useState(true)
-  const [keepSkills, setKeepSkills] = useState(true)
-  const [savedVersion, setSavedVersion] = useState<number | null>(null)
+  const [acceptedIds, setAcceptedIds] = useState<number[]>([])
+  const [decidedIds, setDecidedIds] = useState<number[]>([])
+  const [originals, setOriginals] = useState<Set<number>>(() => new Set())
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
@@ -73,29 +62,42 @@ export function TailorWeave({
     return () => window.removeEventListener("keydown", onKey)
   }, [onClose])
 
-  // A purchased proposal replays free — jump straight to review.
   const existing = useQuery({
     queryKey: ["cv-weave", jobId],
     queryFn: () => cvApi.weave.get(token, jobId),
     staleTime: 30_000,
+    retry: false,
   })
+
+  const currentProposal = existing.data?.purchased && existing.data.proposal && !existing.data.stale
+    ? existing.data.proposal
+    : null
+  const staleDraft = Boolean(existing.data?.purchased && existing.data.stale)
+
   useEffect(() => {
-    if (!existing.data || proposal) return
-    if (existing.data.purchased && existing.data.proposal) {
-      setProposal(existing.data.proposal)
-      setStale(existing.data.stale)
-      setAct(existing.data.stale ? "brief" : "review")
-    }
-  }, [existing.data, proposal])
+    if (seeded.current || !existing.isSuccess || !currentProposal) return
+    seeded.current = true
+    const dec = existing.data.decided_roles ?? []
+    setProposal(currentProposal)
+    setStale(false)
+    setAcceptedIds(existing.data.accepted_roles ?? [])
+    setDecidedIds(dec)
+    setRIdx(firstUndecidedIndex(
+      currentProposal.roles.filter(r => r.changed).map(r => r.role_index),
+      dec,
+    ))
+    setAct("review")
+  }, [existing.isSuccess, currentProposal, existing.data])
 
   const interview = useQuery({
     queryKey: ["cv-weave-interview", jobId],
     queryFn: () => cvApi.weave.interview(token, jobId),
-    enabled: act === "brief",
+    enabled: coverageSettled && !coverageFailed && existing.isFetched
+      && !currentProposal && !staleDraft && act !== "review",
     staleTime: 60_000,
-    retry: 1,
+    retry: false,
   })
-  const questions: WeaveQuestion[] = interview.data?.questions ?? []
+  const questions = interview.data?.questions ?? []
 
   const refreshTrackGate = useTailorGateRefresh()
 
@@ -108,10 +110,13 @@ export function TailorWeave({
       }
       setProposal(res.proposal)
       setStale(res.stale)
-      setRIdx(0); setTaken({})
+      setRIdx(0); setAcceptedIds([]); setDecidedIds([]); setOriginals(new Set())
       setAct("review")
     },
-    onError: (e: Error) => { setError(e.message); setAct("brief") },
+    onError: (e: Error) => {
+      setError(e.message)
+      setAct("loom")
+    },
   })
 
   const bankAnswer = useMutation({
@@ -120,20 +125,72 @@ export function TailorWeave({
   })
 
   const applyWeave = useMutation({
-    mutationFn: (accepted: number[]) =>
-      cvApi.weave.apply(token, jobId, accepted, { acceptSummary: keepSummary, acceptSkillsLine: keepSkills }),
-    onSuccess: res => {
-      setSavedVersion(res.version_id); onApplied(res.version_id)
-      refreshTrackGate()  // the tailor just opened the Job Tracks gate
-      setAct("done")
+    mutationFn: (land: {
+      accepted: number[]
+      decided: number[]
+      roleIndex: number
+      action: "take" | "keep" | "undo"
+      originalPointers: number[]
+      close: boolean
+    }) =>
+      cvApi.weave.apply(token, jobId, land.accepted, {
+        decidedRoles: land.decided,
+        roleIndex: land.roleIndex,
+        action: land.action,
+        originalPointers: land.originalPointers,
+      }),
+    onSuccess: (res, land) => {
+      onApplied(res.version_id)
+      refreshTrackGate()
+      setAcceptedIds(land.accepted)
+      setDecidedIds(land.decided)
+      if (land.close) onClose()
+      else if (land.action === "undo") setRIdx(i => Math.max(0, i - 1))
+      else setRIdx(i => i + 1)
     },
     onError: (e: Error) => setError(e.message),
   })
 
+  const weaveMutate = runWeave.mutate
+  const weaving = runWeave.isPending
+
+  useEffect(() => {
+    if (currentProposal || act === "review") return
+    if (coverageFailed) {
+      setError("Could not read this job. Retry from here.")
+      return
+    }
+    if (!coverageSettled || !existing.isFetched) return
+    if (staleDraft) {
+      if (!weaveStarted.current && !weaving) {
+        weaveStarted.current = true
+        weaveMutate({ refresh: true })
+      }
+      return
+    }
+    if (interview.isError) {
+      const msg = interview.error instanceof Error ? interview.error.message : "Could not read this job."
+      setError(msg)
+      return
+    }
+    if (!interview.isSuccess) return
+    if (interview.data.questions.length > 0) {
+      setAct("interview")
+      return
+    }
+    if (!weaveStarted.current && !weaving) {
+      weaveStarted.current = true
+      weaveMutate({ refresh: false })
+    }
+  }, [
+    coverageSettled, coverageFailed, currentProposal, staleDraft,
+    existing.isFetched, interview.isSuccess, interview.isError, interview.data,
+    interview.error, act, weaving, weaveMutate,
+  ])
+
+  useEffect(() => { setOriginals(new Set()) }, [rIdx])
+
   const changedRoles = useMemo(() => (proposal?.roles ?? []).filter(r => r.changed), [proposal])
-  const guardedCount = useMemo(() => (proposal?.roles ?? []).filter(r => r.guarded).length, [proposal])
-  const hasExtras = !!(proposal?.summary || proposal?.skills_line)
-  const onSavePanel = act === "review" && rIdx >= changedRoles.length
 
   const loomLines = useMemo(() => [
     "Reading the job's language",
@@ -143,28 +200,16 @@ export function TailorWeave({
   ], [loomRoles])
 
   function advanceInterview() {
-    setDraft(""); setProbe(null); setPicked(new Set())
-    if (qIdx >= questions.length - 1) runWeave.mutate({ refresh: stale })
-    else setQIdx(i => i + 1)
+    setProbe(null)
+    if (qIdx >= questions.length - 1) {
+      weaveStarted.current = true
+      runWeave.mutate({ refresh: stale })
+    } else setQIdx(i => i + 1)
   }
-  // Multi-select: the picked options (any that fit) plus any free-text elaboration
-  // compose ONE grounded answer — Mentor weaves them together.
-  function composedAnswer(): string {
-    const cur = questions[qIdx]
-    const parts = cur
-      ? Array.from(picked).sort((a, b) => a - b)
-          .filter(i => cur.options[i])
-          .map(i => optionSentence(cur.options[i].kind, cur.options[i].label, cur.options[i].detail))
-      : []
-    const free = draft.trim()
-    if (free) parts.push(free)
-    return parts.join(" ")
-  }
-  function submitAnswer() {
-    const text = composedAnswer()
+
+  function submitAnswer(text: string, final: boolean) {
     const q = questions[qIdx]
     if (!q || text.length < 12 || bankAnswer.isPending) return
-    const final = probe != null
     bankAnswer.mutate({ requirement: q.requirement, answer: text, final }, {
       onSuccess: res => {
         if (res.follow_up && !final) { setProbe(res.follow_up); return }
@@ -172,131 +217,87 @@ export function TailorWeave({
         advanceInterview()
       },
       onError: () => {
-        // Banking is enrichment, not a gate — the answer still grounds THIS weave.
         setAnswers(prev => [...prev, { requirement: q.requirement, text }])
         advanceInterview()
       },
     })
   }
 
+  function decide(action: "take" | "keep") {
+    const role = changedRoles[rIdx]
+    if (!role || applyWeave.isPending) return
+    const accepted = action === "take"
+      ? [...acceptedIds.filter(i => i !== role.role_index), role.role_index]
+      : acceptedIds.filter(i => i !== role.role_index)
+    const decided = [...decidedIds.filter(i => i !== role.role_index), role.role_index]
+    applyWeave.mutate({
+      accepted, decided, roleIndex: role.role_index, action,
+      originalPointers: action === "take" ? Array.from(originals) : [],
+      close: rIdx >= changedRoles.length - 1,
+    })
+  }
+
+  function undoLast() {
+    if (rIdx <= 0 || applyWeave.isPending) return
+    const prev = changedRoles[rIdx - 1]
+    applyWeave.mutate({
+      accepted: acceptedIds.filter(i => i !== prev.role_index),
+      decided: decidedIds.filter(i => i !== prev.role_index),
+      roleIndex: prev.role_index,
+      action: "undo",
+      originalPointers: [],
+      close: false,
+    })
+  }
+
+  function retryLoom() {
+    setError(null)
+    weaveStarted.current = false
+    if (coverageFailed) onRetryCoverage?.()
+    else if (interview.isError) void interview.refetch()
+    else runWeave.mutate({ refresh: staleDraft || stale })
+  }
+
   const q = questions[qIdx]
-  const startLabel = questions.length > 0 ? "Start" : `Tailor now · ${cost} coins`
+  const skipLabel = qIdx >= questions.length - 1 ? `Skip & weave · ${cost}` : "Skip"
 
   return (
     <div className="tw-backdrop" role="dialog" aria-modal="true" aria-label="Tailor with Mentor" onClick={onClose}>
       <div className="tw-modal" data-act={act} onClick={e => e.stopPropagation()}>
         <div className="tw-head">
-          <span className="tw-head-title"><Icon name="sparkle" size={14} className="tw-spark" /> Tailor with Mentor</span>
+          <span className="tw-head-title">Tailor with Mentor</span>
           <span className="tw-head-job">{jobTitle || "This job"} · {company}</span>
           <button type="button" className="tw-x" onClick={onClose} aria-label="Close">✕</button>
         </div>
 
         <div className="tw-stage">
-          {act === "brief" && (
-            <div className="tw-brief">
-              <h2 className="tw-brief-h">Tailor this CV for {company}</h2>
-              <p className="tw-brief-p">
-                Mentor reworks each role to speak this job&rsquo;s language — every number
-                and name kept. You accept each role before anything lands.
-              </p>
-              {interview.isLoading ? (
-                <div className="tw-brief-reading"><MentorThinking size={28} /> Reading what this job wants…</div>
-              ) : interview.data ? (
-                <div className="tw-brief-stats">
-                  <span><b>{interview.data.requirements_total}</b> asks in this job</span>
-                  {interview.data.unproven > 0 && (
-                    <span><b>{interview.data.unproven}</b> need your word first</span>
-                  )}
+          {act === "loom" && (
+            <>
+              <WeaveLoom lines={loomLines} settled={!runWeave.isPending && !interview.isFetching && coverageSettled && !coverageFailed} />
+              {error && (
+                <div className="tw-loom-retry">
+                  <p className="tw-err" role="alert">{error}</p>
+                  <button type="button" className="tw-btn tw-btn-primary" onClick={retryLoom}>Retry</button>
                 </div>
-              ) : null}
-              {stale && proposal && (
-                <p className="tw-note">Your CV changed since the last draft — a fresh run replaces it.</p>
               )}
-              {error && <p className="tw-err" role="alert">{error}</p>}
-              <div className="tw-brief-actions">
-                <button
-                  type="button" className="tw-btn tw-btn-primary"
-                  disabled={interview.isLoading || runWeave.isPending}
-                  onClick={() => {
-                    setError(null)
-                    if (questions.length > 0) { setQIdx(0); setAct("interview") }
-                    else runWeave.mutate({ refresh: stale })
-                  }}
-                >
-                  {startLabel}
-                </button>
-                {stale && proposal && (
-                  <button type="button" className="tw-btn tw-btn-ghost" onClick={() => { setStale(false); setAct("review") }}>
-                    View old draft
-                  </button>
-                )}
-                <button type="button" className="tw-btn tw-btn-ghost" onClick={onClose}>Not now</button>
-              </div>
-              {questions.length > 0 && (
-                <p className="tw-brief-cost">Weave runs after your answers · {cost} coins</p>
-              )}
-            </div>
+            </>
           )}
 
           {act === "interview" && q && (
-            <div className="tw-int">
-              <div className="tw-int-count mono">{qIdx + 1} / {questions.length}</div>
-              <span className="tw-int-status" data-v={q.status}>{q.status === "weak" ? "Thin on your CV" : "Missing"}</span>
-              <h2 className="tw-int-req">{q.requirement}</h2>
-              {q.options.length > 0 && !probe && (
-                <div className="tw-opts">
-                  <p className="tw-opts-label">Pick any that fit — Myro weaves them together. Add your own below.</p>
-                  {q.options.map((o, i) => (
-                    <button
-                      key={i} type="button" className="tw-opt"
-                      data-picked={picked.has(i)} aria-pressed={picked.has(i)}
-                      onClick={() => setPicked(prev => {
-                        const next = new Set(prev)
-                        if (next.has(i)) next.delete(i)
-                        else next.add(i)
-                        return next
-                      })}
-                    >
-                      <span className="tw-opt-check" aria-hidden="true">{picked.has(i) ? "✓" : ""}</span>
-                      <span className="tw-opt-body">
-                        <span className="tw-opt-kind mono">{o.kind === "cv" ? "on your CV" : "your story"}</span>
-                        <span className="tw-opt-label">{o.label}</span>
-                        {o.detail && o.kind !== "cv" && <span className="tw-opt-detail">{o.detail}</span>}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {probe && (
-                <p className="tw-probe"><Icon name="sparkle" size={12} /> {probe}</p>
-              )}
-              <textarea
-                className="tw-composer"
-                value={draft}
-                onChange={e => setDraft(e.target.value)}
-                placeholder="In your words — what you did, and what came of it."
-                rows={4}
-              />
-              <p className="tw-int-hint mono">Myro shapes your words — it never invents numbers.</p>
-              <div className="tw-int-actions">
-                <button
-                  type="button" className="tw-btn tw-btn-primary"
-                  disabled={(picked.size === 0 && draft.trim().length < 12) || bankAnswer.isPending}
-                  onClick={submitAnswer}
-                >
-                  {bankAnswer.isPending ? <MentorThinking size={16} /> : null}
-                  {probe ? "That's everything" : "That's it"}
-                </button>
-                <button type="button" className="tw-btn tw-btn-ghost" onClick={advanceInterview}>
-                  {qIdx >= questions.length - 1 ? `Skip & weave · ${cost}` : "Skip"}
-                </button>
-              </div>
-            </div>
+            <TailorInterview
+              key={qIdx}
+              question={q}
+              index={qIdx}
+              total={questions.length}
+              banking={bankAnswer.isPending}
+              skipLabel={skipLabel}
+              probe={probe}
+              onSubmit={submitAnswer}
+              onSkip={advanceInterview}
+            />
           )}
 
-          {act === "loom" && <WeaveLoom lines={loomLines} settled={!runWeave.isPending} />}
-
-          {act === "review" && proposal && !onSavePanel && changedRoles[rIdx] && (
+          {act === "review" && proposal && changedRoles[rIdx] && (
             <div className="tw-review">
               <div className="tw-review-strip mono" aria-label="Roles">
                 {changedRoles.map((r, i) => (
@@ -304,72 +305,33 @@ export function TailorWeave({
                 ))}
                 <span className="tw-review-count">{rIdx + 1} / {changedRoles.length} roles</span>
               </div>
-              <WeaveRoleCard role={changedRoles[rIdx]} />
+              <WeaveRoleCard
+                role={changedRoles[rIdx]}
+                originalIndexes={originals}
+                onToggleOriginal={i => setOriginals(prev => {
+                  const next = new Set(prev)
+                  if (next.has(i)) next.delete(i)
+                  else next.add(i)
+                  return next
+                })}
+              />
+              {error && <p className="tw-err" role="alert">{error}</p>}
               <div className="tw-review-actions">
                 <button
                   type="button" className="tw-btn tw-btn-ghost"
-                  onClick={() => { setTaken(t => ({ ...t, [changedRoles[rIdx].role_index]: false })); setRIdx(i => i + 1) }}
+                  disabled={applyWeave.isPending}
+                  onClick={() => decide("keep")}
                 >Keep mine</button>
                 <button
                   type="button" className="tw-btn tw-btn-primary"
-                  onClick={() => { setTaken(t => ({ ...t, [changedRoles[rIdx].role_index]: true })); setRIdx(i => i + 1) }}
+                  disabled={applyWeave.isPending}
+                  onClick={() => decide("take")}
                 >Take this</button>
               </div>
               {rIdx > 0 && (
-                <button type="button" className="tw-back" onClick={() => setRIdx(i => Math.max(0, i - 1))}>← Back</button>
+                <button type="button" className="tw-back" disabled={applyWeave.isPending} onClick={undoLast}>← Back</button>
               )}
             </div>
-          )}
-
-          {act === "review" && proposal && onSavePanel && (
-            <div className="tw-save">
-              <h2 className="tw-brief-h">Ready to save</h2>
-              <p className="tw-brief-p">
-                {Object.values(taken).filter(Boolean).length} of {changedRoles.length} roles reworked
-                {guardedCount > 0 && <> · {guardedCount} kept as-is by the honesty check</>}
-                . Saves as your {company} CV — your master stays untouched.
-              </p>
-              {hasExtras && (
-                <div className="tw-extras">
-                  {proposal.summary && (
-                    <label className="tw-extra">
-                      <input type="checkbox" checked={keepSummary} onChange={e => setKeepSummary(e.target.checked)} />
-                      <span><b>New opening summary</b><em>{proposal.summary}</em></span>
-                    </label>
-                  )}
-                  {proposal.skills_line && (
-                    <label className="tw-extra">
-                      <input type="checkbox" checked={keepSkills} onChange={e => setKeepSkills(e.target.checked)} />
-                      <span><b>Skills line</b><em>{proposal.skills_line}</em></span>
-                    </label>
-                  )}
-                </div>
-              )}
-              {error && <p className="tw-err" role="alert">{error}</p>}
-              <div className="tw-brief-actions">
-                <button
-                  type="button" className="tw-btn tw-btn-primary"
-                  disabled={applyWeave.isPending}
-                  onClick={() => applyWeave.mutate(
-                    Object.entries(taken).filter(([, v]) => v).map(([k]) => Number(k)),
-                  )}
-                >
-                  {applyWeave.isPending ? "Saving…" : "Save tailored CV"}
-                </button>
-                {changedRoles.length > 0 && (
-                  <button type="button" className="tw-btn tw-btn-ghost" onClick={() => setRIdx(0)}>Review again</button>
-                )}
-                {error && (
-                  <button type="button" className="tw-btn tw-btn-ghost" onClick={() => runWeave.mutate({ refresh: true })}>
-                    Re-run · {cost} coins
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {act === "done" && (
-            <TailorDone token={token} company={company} savedVersion={savedVersion} onClose={onClose} />
           )}
         </div>
       </div>

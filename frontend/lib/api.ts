@@ -1238,6 +1238,7 @@ export interface CVVersion {
   job_title: string | null
   company_name: string | null
   footer_mark_hidden: boolean
+  section_order?: string[] | null
 }
 
 export interface SkillEditRequest {
@@ -1361,7 +1362,7 @@ export interface SkillsRefreshResponse {
   job_title?: string | null
 }
 
-// Gap-driven rewrite session ("Close gaps with Mentor"). The plan endpoint
+// Gap-driven rewrite session (Tailor Order Gaps). The plan endpoint
 // classifies each job-skill gap and returns the honest session: surface a latent
 // skill onto its host bullet, route an absent one to Forge, surface a shallow one
 // ONE level (capped), and the flywheel upgrade when practice out-paced the CV.
@@ -1535,6 +1536,7 @@ export interface CoverageRow {
   story_id: string | null
   story_title: string
   story_pointer: string
+  source?: "story" | "cv"
 }
 export interface JDCoverageResponse {
   requirements: CoverageRow[]
@@ -1612,6 +1614,10 @@ export interface WeaveGetResponse {
   purchased: boolean
   proposal: WeaveProposal | null
   stale: boolean
+  /** At least one Keep/Take has written the working draft. */
+  applied?: boolean
+  accepted_roles?: number[]
+  decided_roles?: number[]
 }
 
 /** One entry in the persistent brain-dump notebook (User Memory Phase 3). */
@@ -1820,11 +1826,14 @@ export const cv = {
         headers: { Authorization: `Bearer ${token}` },
       })
     },
-    create: (token: string, jobId: string, hiddenItems: string[], title?: string) =>
+    create: (token: string, jobId: string, hiddenItems: string[], title?: string, sectionOrder?: string[]) =>
       request<CVVersion>("/cv/versions", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ job_id: jobId, hidden_items: hiddenItems, title }),
+        body: JSON.stringify({
+          job_id: jobId, hidden_items: hiddenItems, title,
+          section_order: sectionOrder ?? null,
+        }),
       }),
     polish: (token: string, versionId: number) =>
       request<CVVersion>(`/cv/versions/${versionId}/polish`, {
@@ -1880,11 +1889,25 @@ export const cv = {
       }),
     // Option C auto-save: persist the job projection (shown bullets) in place on
     // the deterministic working draft — no new snapshot row, no Save button.
-    updateHiddenItems: (token: string, versionId: number, hiddenItems: string[]) =>
+    updateHiddenItems: (
+      token: string,
+      versionId: number,
+      hiddenItems: string[],
+      sectionOrder?: string[] | null,
+    ) =>
       request<CVVersion>(`/cv/versions/${versionId}/hidden-items`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ hidden_items: hiddenItems }),
+        body: JSON.stringify({
+          hidden_items: hiddenItems,
+          section_order: sectionOrder ?? null,
+        }),
+      }),
+    patchJobDraft: (token: string, versionId: number, structured: CVStructured) =>
+      request<CVVersion>(`/cv/versions/${versionId}/job-draft`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ cv_structured: structured }),
       }),
     // Delta-4 promote: the applied CV's shape becomes the living master, so it
     // persists + seeds every future tailoring (project_living_cv_delta4).
@@ -2056,6 +2079,7 @@ export const cv = {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify({ job_id: jobId, refresh: opts?.refresh ?? false }),
+        timeoutMs: LLM_REQUEST_TIMEOUT_MS,
       }),
     /** A gap answer → a NEW career story via the dump pipeline. */
     jdCoverageAnswer: (token: string, requirement: string, answer: string, jobId?: string) =>
@@ -2081,6 +2105,7 @@ export const cv = {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify({ job_id: jobId }),
+        timeoutMs: LLM_REQUEST_TIMEOUT_MS,
       }),
     answer: (token: string, body: { requirement: string; answer: string; jobId?: string; final?: boolean }) =>
       request<WeaveAnswerResponse>("/cv/weave/answer", {
@@ -2096,19 +2121,36 @@ export const cv = {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify({ job_id: jobId, answers, refresh: opts?.refresh ?? false }),
+        timeoutMs: LLM_REQUEST_TIMEOUT_MS,
       }),
     get: (token: string, jobId: string) =>
       request<WeaveGetResponse>(`/cv/weave/${encodeURIComponent(jobId)}`, {
         headers: { Authorization: `Bearer ${token}` },
       }),
-    apply: (token: string, jobId: string, acceptedRoles: number[], opts?: { acceptSummary?: boolean; acceptSkillsLine?: boolean }) =>
+    apply: (
+      token: string,
+      jobId: string,
+      acceptedRoles: number[],
+      opts?: {
+        acceptSummary?: boolean
+        acceptSkillsLine?: boolean
+        decidedRoles?: number[]
+        roleIndex?: number
+        action?: "take" | "keep" | "undo"
+        originalPointers?: number[]
+      },
+    ) =>
       request<{ version_id: number }>("/cv/weave/apply", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           job_id: jobId, accepted_roles: acceptedRoles,
+          decided_roles: opts?.decidedRoles ?? acceptedRoles,
           accept_summary: opts?.acceptSummary ?? true,
           accept_skills_line: opts?.acceptSkillsLine ?? true,
+          role_index: opts?.roleIndex ?? null,
+          action: opts?.action ?? null,
+          original_pointers: opts?.originalPointers ?? [],
         }),
       }),
   },

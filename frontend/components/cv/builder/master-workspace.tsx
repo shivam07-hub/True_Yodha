@@ -199,7 +199,7 @@ export function MasterWorkspace({ token, baseline, cv, profile, onDone }: Master
         <PlaygroundHeader
           variant="master"
           masterMeta={baseline ? `v${baseline.user_version_number} · autosaves` : "autosaves"}
-          jobTitle="" company="Untitled company" reqCount={0}
+          jobTitle="" company="" reqCount={0}
           ready={m.ready}
           delta={0}
           canApply

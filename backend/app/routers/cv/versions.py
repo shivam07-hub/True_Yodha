@@ -26,7 +26,7 @@ from app.repositories.cv import (
     CVVersionsRepository,
     get_token_cv_repository,
 )
-from app.services import cv_compose, cv_restructure, xp_policy, xp_service
+from app.services import cv_compose, cv_restructure, cv_section_order, xp_policy, xp_service
 from app.services.job_path._db import _fetch_milestones, _fetch_targets, _get_job
 from app.services.job_path.llm_polish import _call_ai_polish
 from app.services.llm_provider import get_writer_provider
@@ -41,6 +41,7 @@ router = APIRouter(prefix="/versions")
 class CVVersionCreateRequest(BaseModel):
     job_id:       str
     hidden_items: list[str] = []
+    section_order: list[str] | None = None
     title:        str | None = None
 
 
@@ -60,6 +61,7 @@ class FooterMarkRequest(BaseModel):
 
 class HiddenItemsRequest(BaseModel):
     hidden_items: list[str] = []
+    section_order: list[str] | None = None
 
 
 class CVVersionResponse(BaseModel):
@@ -80,6 +82,7 @@ class CVVersionResponse(BaseModel):
     job_title:            str | None = None
     company_name:         str | None = None
     footer_mark_hidden:   bool = False
+    section_order:        list[str] | None = None
 
 
 class CVVersionListResponse(BaseModel):
@@ -129,6 +132,7 @@ def _to_response(row: dict[str, Any]) -> CVVersionResponse:
         job_title=row.get("job_title") or job.get("job_title"),
         company_name=row.get("company_name") or job.get("company_name"),
         footer_mark_hidden=bool(row.get("footer_mark_hidden")),
+        section_order=row.get("section_order"),
     )
 
 
@@ -189,6 +193,7 @@ def create_cv_version(
         structured,
         hidden_items=body.hidden_items,
         edited_items=None,
+        section_order=body.section_order,
     )
     next_n = cv_repo.next_user_version_number(user_id)
     spec = CVVersionWriteSpec(
@@ -198,6 +203,8 @@ def create_cv_version(
         body_text=body_text,
         cv_structured=structured,
         hidden_items=body.hidden_items,
+        section_order=cv_section_order.normalize_section_order(body.section_order)
+        if body.section_order is not None else None,
         title=body.title or _auto_title("deterministic", next_n),
         snapshot_hash=cv_compose.item_id("save", next_n, body_text),
         confidence_label="user-curated",
@@ -279,8 +286,51 @@ def update_cv_version_hidden_items(
         version.get("cv_structured") or {},
         hidden_items=body.hidden_items,
         edited_items=None,
+        section_order=body.section_order if body.section_order is not None
+        else version.get("section_order"),
     )
-    row = cv_repo.update_hidden_items(version_id, user_id, body.hidden_items, body_text)
+    order = (
+        cv_section_order.normalize_section_order(body.section_order)
+        if body.section_order is not None else None
+    )
+    row = cv_repo.update_hidden_items(
+        version_id, user_id, body.hidden_items, body_text, section_order=order,
+    )
+    return _to_response(row)
+
+
+class JobDraftPatchRequest(BaseModel):
+    cv_structured: dict[str, Any]
+
+
+@router.patch("/{version_id}/job-draft", response_model=CVVersionResponse)
+def patch_job_draft(
+    version_id: int,
+    body: JobDraftPatchRequest,
+    principal: Principal = Depends(get_principal),
+    cv_repo: CVVersionsRepository = Depends(get_token_cv_repository),
+) -> CVVersionResponse:
+    """Reorder roles (or any structured paper write) on this job's working draft.
+    The living master is untouched."""
+    user_id = principal.id
+    version = cv_repo.find(version_id, user_id)
+    if not version:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "CV version not found.")
+    if version.get("kind") != "deterministic" or not version.get("job_id"):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Only a job-specific working draft can be patched in place.",
+        )
+    body_text = cv_compose.render_deterministic(
+        body.cv_structured,
+        hidden_items=version.get("hidden_items") or [],
+        edited_items=None,
+        section_order=version.get("section_order"),
+    )
+    row = cv_repo.update_job_draft(
+        version_id, user_id,
+        cv_structured=body.cv_structured, body_text=body_text,
+    )
     return _to_response(row)
 
 

@@ -103,12 +103,18 @@
   padding: 4px 8px; border-radius: 6px; white-space: nowrap;
 }
 .cvb-v2-applybtn {
-  flex: none; border: none; background: var(--tm-interactive); color: var(--tm-interactive-fg);
+  flex: none; display: inline-flex; align-items: center; gap: 8px;
+  border: none; background: var(--tm-interactive); color: var(--tm-interactive-fg);
   font: 600 13px var(--tm-font-sans); padding: 10px 18px; border-radius: 8px; cursor: pointer;
   transition: background var(--tm-dur-fast) var(--tm-ease); white-space: nowrap;
 }
 .cvb-v2-applybtn:hover { background: var(--tm-interactive-hover); }
 .cvb-v2-applybtn:disabled { opacity: 0.4; cursor: not-allowed; }
+.cvb-v2-leadcost {
+  font-family: var(--tm-font-mono); font-size: var(--tm-fs-micro); font-weight: 600;
+  padding: 1px 6px; border-radius: 999px;
+  background: color-mix(in srgb, var(--tm-interactive-fg) 18%, transparent);
+}
 
 /* ── main split ── */
 .cvb-v2-main {
@@ -423,8 +429,8 @@
     order: 5; flex: 1 1 100%; min-width: 0;
   }
   .cvb-v2-reqpill { order: 6; flex: 1 1 100%; text-align: center; }
-  .cvb-v2-secondarybtn { order: 7; flex: 1; padding: 11px 13px; min-height: 44px; }
-  .cvb-v2-applybtn { order: 8; flex: 2; padding: 11px 13px; min-height: 44px; }
+  .cvb-v2-applybtn { order: 7; flex: 2; padding: 11px 13px; min-height: 44px; }
+  .cvb-v2-secondarybtn { order: 8; flex: 1; padding: 11px 13px; min-height: 44px; }
 
   .cvb-v2-main { grid-template-columns: 1fr; }
   .cvb-v2-editor { border-right: none; }

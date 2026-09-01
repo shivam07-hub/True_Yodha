@@ -22,6 +22,7 @@ import type { CVStructured, CVVersion } from "@/lib/api"
 import { renderDeterministic } from "@/lib/cv-compose"
 import { hasCvContent, latestBaseline } from "@/lib/cv/durable-answer"
 import { dataKeys } from "@/lib/domain-data"
+import { normalizeSectionOrder, type SectionKey } from "@/lib/cv/section-order"
 
 interface UseCVPlaygroundArgs {
   token: string | null
@@ -50,6 +51,9 @@ export interface CVPlaygroundState {
   // Editing
   hiddenItems: Set<string>
   toggleItem: (iid: string) => void
+  sectionOrder: SectionKey[]
+  setSectionOrder: (order: SectionKey[]) => void
+  patchJobCv: (mut: (draft: CVStructured) => CVStructured) => void
   livePreviewText: string
   isDirty: boolean
   canSave: boolean
@@ -96,6 +100,7 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
   const queryClient = useQueryClient()
   const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null)
   const [hiddenItems, setHiddenItems] = useState<Set<string>>(new Set())
+  const [sectionOrder, setSectionOrderState] = useState<SectionKey[]>(() => normalizeSectionOrder(null))
   const [error, setError] = useState<string | null>(null)
   const [lastWrite, setLastWrite] = useState<CVWriteReceipt | null>(null)
 
@@ -107,7 +112,8 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
   const lastSavedRef = useRef<string>("")
   const [autosaved, setAutosaved] = useState(false)
 
-  const serializeHidden = (s: Iterable<string>) => Array.from(s).sort().join(",")
+  const serializeProjection = (hidden: Iterable<string>, order: SectionKey[]) =>
+    `${Array.from(hidden).sort().join(",")}|${order.join(",")}`
 
   const versionsQuery = useQuery({
     queryKey: dataKeys.cvVersions(jobId),
@@ -153,8 +159,12 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
     if (!defaultVersion) return
     setSelectedVersionId(defaultVersion.id)
     setHiddenItems(new Set(defaultVersion.hidden_items))
+    setSectionOrderState(normalizeSectionOrder(defaultVersion.section_order))
     lastHydratedRef.current = defaultVersion.id
-    lastSavedRef.current = serializeHidden(defaultVersion.hidden_items)
+    lastSavedRef.current = serializeProjection(
+      defaultVersion.hidden_items,
+      normalizeSectionOrder(defaultVersion.section_order),
+    )
   }, [companyVersions, currentBaseline, selectedVersionId])
 
   const selectVersion = useCallback((id: number) => {
@@ -162,8 +172,12 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
     if (!target) return
     setSelectedVersionId(id)
     setHiddenItems(new Set(target.hidden_items))
+    setSectionOrderState(normalizeSectionOrder(target.section_order))
     lastHydratedRef.current = id
-    lastSavedRef.current = serializeHidden(target.hidden_items)
+    lastSavedRef.current = serializeProjection(
+      target.hidden_items,
+      normalizeSectionOrder(target.section_order),
+    )
   }, [threadVersions])
 
   const toggleItem = useCallback((iid: string) => {
@@ -198,8 +212,10 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
     if (selectedVersion.kind === "baseline_upload" && companyVersions.length === 0) return true
     const userHidden = Array.from(hiddenItems).sort().join(",")
     const versionHidden = [...selectedVersion.hidden_items].sort().join(",")
-    return userHidden !== versionHidden
-  }, [companyVersions.length, hiddenItems, selectedVersion])
+    const userOrder = sectionOrder.join(",")
+    const versionOrder = normalizeSectionOrder(selectedVersion.section_order).join(",")
+    return userHidden !== versionHidden || userOrder !== versionOrder
+  }, [companyVersions.length, hiddenItems, sectionOrder, selectedVersion])
 
   const canSave = isDirty || companyVersions.length === 0
 
@@ -216,8 +232,9 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
     queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
     setSelectedVersionId(v.id)
     setHiddenItems(new Set(v.hidden_items))
+    setSectionOrderState(normalizeSectionOrder(v.section_order))
     lastHydratedRef.current = v.id
-    lastSavedRef.current = serializeHidden(v.hidden_items)
+    lastSavedRef.current = serializeProjection(v.hidden_items, normalizeSectionOrder(v.section_order))
     setLastWrite({
       action,
       versionId: v.id,
@@ -229,7 +246,7 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
   }, [jobId, queryClient])
 
   const saveVersion = useMutation({
-    mutationFn: () => cv.versions.create(token!, jobId!, Array.from(hiddenItems)),
+    mutationFn: () => cv.versions.create(token!, jobId!, Array.from(hiddenItems), undefined, sectionOrder),
     onSuccess: (v) => onMutationSuccess("save", v),
     onError: (err) => setError(err instanceof Error ? err.message : "Could not save version."),
   })
@@ -247,12 +264,52 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
     onError: (err) => setError(err instanceof Error ? err.message : "Could not save edits."),
   })
 
+  const structuredRef = useRef(structured)
+  structuredRef.current = structured
+  const selectedRef = useRef(selectedVersion)
+  selectedRef.current = selectedVersion
+
+  const patchJobCvMut = useMutation({
+    mutationFn: async (mut: (draft: CVStructured) => CVStructured) => {
+      const base = structuredRef.current
+      if (!token || !jobId || !base) throw new Error("No CV to patch.")
+      const next = mut(structuredClone(base))
+      const sel = selectedRef.current
+      if (sel && sel.kind === "deterministic" && sel.job_id) {
+        return cv.versions.patchJobDraft(token, sel.id, next)
+      }
+      const created = await cv.versions.create(
+        token, jobId, Array.from(hiddenItems), undefined, sectionOrder,
+      )
+      return cv.versions.patchJobDraft(token, created.id, next)
+    },
+    onSuccess: (v) => {
+      queryClient.setQueryData<{ versions: CVVersion[] }>(
+        dataKeys.cvVersions(jobId),
+        (old) => old
+          ? { versions: old.versions.map(row => (row.id === v.id ? v : row)) }
+          : { versions: [v] },
+      )
+      setSelectedVersionId(v.id)
+    },
+    onError: (err) => setError(err instanceof Error ? err.message : "Could not update this CV."),
+  })
+
+  const patchJobCv = useCallback(
+    (mut: (draft: CVStructured) => CVStructured) => { patchJobCvMut.mutate(mut) },
+    [patchJobCvMut],
+  )
+
+  const setSectionOrder = useCallback((order: SectionKey[]) => {
+    setSectionOrderState(normalizeSectionOrder(order))
+  }, [])
+
   // Auto-save the projection in place on the job's deterministic working draft.
   // Patches the cached row on success so selectedVersion.hidden_items matches the
   // user's state → isDirty settles false without a refetch flicker.
   const autosave = useMutation({
-    mutationFn: ({ versionId, hidden }: { versionId: number; hidden: string[] }) =>
-      cv.versions.updateHiddenItems(token!, versionId, hidden),
+    mutationFn: ({ versionId, hidden, order }: { versionId: number; hidden: string[]; order: SectionKey[] }) =>
+      cv.versions.updateHiddenItems(token!, versionId, hidden, order),
     onSuccess: (v) => {
       queryClient.setQueryData<{ versions: CVVersion[] }>(
         dataKeys.cvVersions(jobId),
@@ -260,7 +317,7 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
           ? { versions: old.versions.map(row => (row.id === v.id ? v : row)) }
           : old,
       )
-      lastSavedRef.current = serializeHidden(v.hidden_items)
+      lastSavedRef.current = serializeProjection(v.hidden_items, normalizeSectionOrder(v.section_order))
       setAutosaved(true)
     },
     onError: (err) => setError(err instanceof Error ? err.message : "Could not auto-save."),
@@ -273,14 +330,14 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
     if (!enabled || !token || !jobId) return
-    const serialized = serializeHidden(hiddenItems)
+    const serialized = serializeProjection(hiddenItems, sectionOrder)
     if (serialized === lastSavedRef.current) return
     setAutosaved(false)
     debounceRef.current = setTimeout(() => {
       debounceRef.current = null
       const sel = selectedVersion
       if (sel && sel.kind === "deterministic" && sel.job_id) {
-        autosave.mutate({ versionId: sel.id, hidden: Array.from(hiddenItems) })
+        autosave.mutate({ versionId: sel.id, hidden: Array.from(hiddenItems), order: sectionOrder })
       } else {
         saveVersion.mutate()
       }
@@ -292,7 +349,7 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hiddenItems, enabled, token, jobId, selectedVersion])
+  }, [hiddenItems, sectionOrder, enabled, token, jobId, selectedVersion])
 
   // Persist pending toggles immediately (cancel the debounce, run the same
   // save path, await it). Callers navigating to a re-hydrating surface MUST
@@ -305,30 +362,30 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
       debounceRef.current = null
     }
     if (!enabled || !token || !jobId) return
-    if (serializeHidden(hiddenItems) === lastSavedRef.current) return
+    if (serializeProjection(hiddenItems, sectionOrder) === lastSavedRef.current) return
     const sel = selectedVersion
     if (sel && sel.kind === "deterministic" && sel.job_id) {
-      await autosave.mutateAsync({ versionId: sel.id, hidden: Array.from(hiddenItems) })
+      await autosave.mutateAsync({ versionId: sel.id, hidden: Array.from(hiddenItems), order: sectionOrder })
     } else {
       await saveVersion.mutateAsync()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, token, jobId, hiddenItems, selectedVersion])
+  }, [enabled, token, jobId, hiddenItems, sectionOrder, selectedVersion])
 
   // Unmount safety net: any exit (back to library, top-nav away, tab route
   // change) with an un-flushed debounce would otherwise drop the user's
   // toggles on the floor. Fire-and-forget the same persist with raw API
   // calls — the component (and its mutation observers) is gone by then.
-  const unmountRef = useRef({ enabled, token, jobId, hiddenItems, selectedVersion })
-  unmountRef.current = { enabled, token, jobId, hiddenItems, selectedVersion }
+  const unmountRef = useRef({ enabled, token, jobId, hiddenItems, sectionOrder, selectedVersion })
+  unmountRef.current = { enabled, token, jobId, hiddenItems, sectionOrder, selectedVersion }
   useEffect(() => () => {
-    const { enabled: en, token: tk, jobId: jid, hiddenItems: hid, selectedVersion: sel } = unmountRef.current
+    const { enabled: en, token: tk, jobId: jid, hiddenItems: hid, sectionOrder: ord, selectedVersion: sel } = unmountRef.current
     if (!en || !tk || !jid) return
-    if (serializeHidden(hid) === lastSavedRef.current) return
+    if (serializeProjection(hid, ord) === lastSavedRef.current) return
     const hidden = Array.from(hid)
     const persist = sel && sel.kind === "deterministic" && sel.job_id
-      ? cv.versions.updateHiddenItems(tk, sel.id, hidden)
-      : cv.versions.create(tk, jid, hidden)
+      ? cv.versions.updateHiddenItems(tk, sel.id, hidden, ord)
+      : cv.versions.create(tk, jid, hidden, undefined, ord)
     persist
       .then(() => queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jid) }))
       // Degradation: the user already left this surface — nothing to render an
@@ -353,6 +410,9 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
     selectVersion,
     hiddenItems,
     toggleItem,
+    sectionOrder,
+    setSectionOrder,
+    patchJobCv,
     livePreviewText,
     isDirty,
     canSave,

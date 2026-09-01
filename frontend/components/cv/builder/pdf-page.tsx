@@ -10,6 +10,7 @@
 
 import type { CVStructured } from "@/lib/api"
 import { itemId } from "@/lib/cv-compose"
+import { normalizeSectionOrder } from "@/lib/cv/section-order"
 import type { CVTemplate } from "@/lib/cv/templates"
 
 export interface PdfPageContact {
@@ -25,6 +26,7 @@ interface PdfPageProps {
   cv: CVStructured
   hidden: Set<string>
   contact: PdfPageContact
+  sectionOrder?: string[] | null
   /** When present, the foot reads "tailored for {company}". Omit for the master CV. */
   company?: string
   /** Print-CSS variant; written to `data-cv-template`. Defaults to "classic". */
@@ -76,7 +78,7 @@ function PdfBullet({ id, text, onClick, selected }: {
 
 export function PdfPage({
   cv, hidden, contact, company, template = "classic", footerMarkHidden = false,
-  onBulletClick, selectedBulletId = null,
+  onBulletClick, selectedBulletId = null, sectionOrder,
 }: PdfPageProps) {
   const renderBullets = (bullets: string[], section: "exp_bullet" | "proj_bullet", ei: number) =>
     bullets
@@ -113,92 +115,94 @@ export function PdfPage({
         {contact.linkedin && <span>{contact.linkedin}</span>}
       </div>
 
-      {cv.summary && !summaryHidden && (
-        <>
-          <h2>Summary</h2>
-          <div className="pdf-summary">{cv.summary}</div>
-        </>
-      )}
-
-      {visibleExperience.length > 0 && (
-        <>
-          <h2>Experience</h2>
-          {visibleExperience.map((e, ei) => (
-            <div key={ei}>
-              <div className="pdf-role-head">
-                <div>
-                  <span className="pdf-role">{e.role}</span>
-                  {e.company && <span className="pdf-co"> · {e.company}</span>}
+      {normalizeSectionOrder(sectionOrder).map(key => {
+        if (key === "summary" && cv.summary && !summaryHidden) {
+          return (
+            <div key={key}>
+              <h2>Summary</h2>
+              <div className="pdf-summary">{cv.summary}</div>
+            </div>
+          )
+        }
+        if (key === "experience" && visibleExperience.length > 0) {
+          return (
+            <div key={key}>
+              <h2>Experience</h2>
+              {visibleExperience.map((e, ei) => (
+                <div key={ei}>
+                  <div className="pdf-role-head">
+                    <div>
+                      <span className="pdf-role">{e.role}</span>
+                      {e.company && <span className="pdf-co"> · {e.company}</span>}
+                    </div>
+                    {(e.dates || e.location) && (
+                      <span className="pdf-dates">{[e.dates, e.location].filter(Boolean).join(" · ")}</span>
+                    )}
+                  </div>
+                  <ul>{e.keptBullets.map((b) => (
+                    <PdfBullet key={b.id} id={b.id} text={b.text} onClick={onBulletClick} selected={b.id === selectedBulletId}/>
+                  ))}</ul>
                 </div>
-                {/* Location rides with the dates: the parser captures it, and
-                    recruiters filter on it, but the sheet used to drop it. */}
-                {(e.dates || e.location) && (
-                  <span className="pdf-dates">{[e.dates, e.location].filter(Boolean).join(" · ")}</span>
-                )}
-              </div>
-              <ul>{e.keptBullets.map((b) => (
-                <PdfBullet key={b.id} id={b.id} text={b.text} onClick={onBulletClick} selected={b.id === selectedBulletId}/>
-              ))}</ul>
+              ))}
             </div>
-          ))}
-        </>
-      )}
-
-      {visibleProjects.length > 0 && (
-        <>
-          <h2>Projects</h2>
-          {visibleProjects.map((p, pi) => (
-            <div key={pi}>
-              <div className="pdf-role-head">
-                <div><span className="pdf-role">{p.name}</span></div>
-                {p.dates && <span className="pdf-dates">{p.dates}</span>}
-              </div>
-              <ul>{p.keptBullets.map((b) => (
-                <PdfBullet key={b.id} id={b.id} text={b.text} onClick={onBulletClick} selected={b.id === selectedBulletId}/>
-              ))}</ul>
+          )
+        }
+        if (key === "projects" && visibleProjects.length > 0) {
+          return (
+            <div key={key}>
+              <h2>Projects</h2>
+              {visibleProjects.map((p, pi) => (
+                <div key={pi}>
+                  <div className="pdf-role-head">
+                    <div><span className="pdf-role">{p.name}</span></div>
+                    {p.dates && <span className="pdf-dates">{p.dates}</span>}
+                  </div>
+                  <ul>{p.keptBullets.map((b) => (
+                    <PdfBullet key={b.id} id={b.id} text={b.text} onClick={onBulletClick} selected={b.id === selectedBulletId}/>
+                  ))}</ul>
+                </div>
+              ))}
             </div>
-          ))}
-        </>
-      )}
-
-      {visibleEdu.length > 0 && (
-        <>
-          <h2>Education</h2>
-          {/* Two lines, mirroring a role: a short institution beside the date,
-              then everything long underneath. The previous single flex row let
-              a long degree wrap AROUND the right-aligned date, so extraction
-              read "Data Science and" → "2025 – 2029" → "Application" and a real
-              user's PDF said `2025 – 2029Application`. A field must never be
-              spliced into the middle of another. */}
-          {visibleEdu.map((ed, i) => (
-            <div key={i} className="pdf-edu">
-              <div className="pdf-role-head">
-                <div><span className="pdf-role">{ed.institution}</span></div>
-                {(ed.dates || ed.location) && (
-                  <span className="pdf-dates">{[ed.dates, ed.location].filter(Boolean).join(" · ")}</span>
-                )}
-              </div>
-              {(ed.degree || ed.grade) && (
-                <div className="pdf-edu-sub">{[ed.degree, ed.grade].filter(Boolean).join(" · ")}</div>
-              )}
+          )
+        }
+        if (key === "education" && visibleEdu.length > 0) {
+          return (
+            <div key={key}>
+              <h2>Education</h2>
+              {visibleEdu.map((ed, i) => (
+                <div key={i} className="pdf-edu">
+                  <div className="pdf-role-head">
+                    <div><span className="pdf-role">{ed.institution}</span></div>
+                    {(ed.dates || ed.location) && (
+                      <span className="pdf-dates">{[ed.dates, ed.location].filter(Boolean).join(" · ")}</span>
+                    )}
+                  </div>
+                  {(ed.degree || ed.grade) && (
+                    <div className="pdf-edu-sub">{[ed.degree, ed.grade].filter(Boolean).join(" · ")}</div>
+                  )}
+                </div>
+              ))}
             </div>
-          ))}
-        </>
-      )}
-
-      {cv.skills_line && !skillsHidden && (
-        <>
-          <h2>Skills</h2>
-          <div className="pdf-skills-line">{cv.skills_line}</div>
-        </>
-      )}
-
-      {visibleCerts.length > 0 && (
-        <>
-          <h2>Certifications</h2>
-          <ul>{visibleCerts.map((c, i) => <li key={i}>{c}</li>)}</ul>
-        </>
-      )}
+          )
+        }
+        if (key === "skills_line" && cv.skills_line && !skillsHidden) {
+          return (
+            <div key={key}>
+              <h2>Skills</h2>
+              <div className="pdf-skills-line">{cv.skills_line}</div>
+            </div>
+          )
+        }
+        if (key === "certs" && visibleCerts.length > 0) {
+          return (
+            <div key={key}>
+              <h2>Certifications</h2>
+              <ul>{visibleCerts.map((c, i) => <li key={i}>{c}</li>)}</ul>
+            </div>
+          )
+        }
+        return null
+      })}
 
       <div className="pdf-foot">
         <span>{company ? `${contact.name} — tailored for ${company}` : contact.name}</span>
