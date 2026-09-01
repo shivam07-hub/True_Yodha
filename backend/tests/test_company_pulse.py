@@ -229,3 +229,70 @@ def test_indexable_companies_marks_a_cold_cache_failure_unavailable() -> None:
 
     assert response.status == "unavailable"
     assert response.companies == []
+
+
+# ── Per-company cache identity (ARCHITECTURE_READ_PATH.md §16 P4) ────────────
+
+
+def _scan_counting_repo(monkeypatch) -> tuple[JobsRepository, list[list[str]]]:
+    """Repo whose every jobs scan is recorded, with the companies it scanned."""
+    scans: list[list[str]] = []
+
+    class _Q:
+        def __init__(self) -> None:
+            self.names: list[str] = []
+
+        def in_(self, _column: str, values: list[str]) -> "_Q":
+            self.names = list(values)
+            return self
+
+    def _fake_fetch_all_rows(_db, *, table, columns, query_builder):  # noqa: ANN001
+        query = query_builder(_Q())
+        scans.append(query.names)
+        return [
+            {"company_name": name, "first_seen": _marker(1), "last_seen": _marker(1)}
+            for name in query.names
+        ]
+
+    monkeypatch.setattr(jobs_module, "fetch_all_rows", _fake_fetch_all_rows)
+    return JobsRepository(db=object(), admin_db=object()), scans  # type: ignore[arg-type]
+
+
+def test_a_warm_company_is_not_rescanned_for_a_new_set(monkeypatch) -> None:
+    """The fix: a set is a lookup of its members, not its own cold fill.
+
+    Set-keyed caching meant a rail showing twelve companies shared nothing with
+    the same rail plus one, and each miss rescanned every job row for the whole
+    set — the 8,060-27,409ms evictor behind the correlated multi-route windows.
+    """
+    repo, scans = _scan_counting_repo(monkeypatch)
+
+    repo.fetch_company_pulse(["Acme", "Globex"])
+    assert scans == [["Acme", "Globex"]]
+
+    # Superset: only the genuinely new company may be scanned.
+    out = repo.fetch_company_pulse(["Acme", "Globex", "Initech"])
+    assert scans[1] == ["Initech"], (
+        f"a superset rescanned {scans[1]} — the cache is still keyed on the set, "
+        "so every distinct company set pays its own full scan."
+    )
+    assert [row["company_name"] for row in out] == ["Acme", "Globex", "Initech"]
+
+    # A fully warm subset must not touch the database at all.
+    before = len(scans)
+    subset = repo.fetch_company_pulse(["Globex", "Acme"])
+    assert len(scans) == before, "a fully cached subset still issued a scan"
+    assert [row["company_name"] for row in subset] == ["Globex", "Acme"]
+
+
+def test_pulse_cache_key_ignores_case_and_spacing() -> None:
+    assert jobs_module._pulse_cache_key("Bain & Company") == jobs_module._pulse_cache_key(
+        "bain  &  COMPANY"
+    )
+
+
+def test_caller_order_survives_a_partial_cache_hit(monkeypatch) -> None:
+    repo, _ = _scan_counting_repo(monkeypatch)
+    repo.fetch_company_pulse(["Globex"])
+    out = repo.fetch_company_pulse(["Initech", "Globex", "Acme"])
+    assert [row["company_name"] for row in out] == ["Initech", "Globex", "Acme"]
