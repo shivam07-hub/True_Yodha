@@ -1571,10 +1571,26 @@ requests that already chose to fan out.
 
 `test_career_skill_path_reads.py` closes it for this route by counting every
 round trip through a recording client, asserting depth (≤6 round trips) as well
-as width (≤3). The general version — a per-request read counter at the client
-seam, so any route exceeding the budget logs `reads.over_budget` the way
-`fanout.over_budget` already does — is **open**, and is the thing that would
-have caught this on 27 August instead of 1 September.
+as width (≤3).
+
+The general version now exists. Every PostgREST read leaves through one place —
+the shared transport in `app/database.py` — so that is where the count lives:
+the timing middleware opens a per-request counter, the transport increments it,
+and a request over `READ_BUDGET_PER_REQUEST` (16) logs `metric reads.over_budget`.
+`route.slow` carries `reads=` too, so an alert now says how many reads the wait
+was made of. This would have caught /career-skill-path on 27 August rather than
+on 1 September.
+
+Two traps it had to avoid, both worth knowing before touching it:
+
+- the counter is a **shared mutable object**, not a `ContextVar[int]`.
+  `run_concurrently` runs sections under a COPIED context, and a value written
+  in a copied context is invisible to the parent — an int would have counted
+  every route except its fan-out reads, exactly backwards.
+- **one context copy per section.** A `Context` cannot be entered by two threads
+  at once, so a single copy shared across a wave serialises it. The barrier
+  assertions in `test_scores_api`, `test_home_bootstrap_router` and
+  `test_onboarding_result_parallel_reads` catch this; they earned their keep.
 
 ### Still open
 
@@ -1588,3 +1604,22 @@ next week of alerts says whether it survived that change.
 `POST /jobs/feed/warm` still peaks at **59,416ms** (§15 row 2, unchanged).
 `/jobs/feed` is alerting more often post-fix (2.4/day → 3.7/day). §15 rows 1,
 2, 5, 6, 7, 8 remain open.
+
+### Victims, not causes — do not "fix" these
+
+Co-occurrence across the 536 alerts, which the per-line tallies in §16 cannot
+show:
+
+- **89% of `/tracks` alerts** (8 of 9) fall in the same window as
+  `/career-skill-path`. `/tracks` reads three rows. It was queued behind the
+  nineteen-read route, and `f138a5b9` is its fix.
+- `/users/me` shares **18 of the 22** `/career-skill-path` windows, and appears
+  in both §16 cache-eviction windows. It is Tier 1 and the most frequent alert
+  in the channel — and the standing read is that it is a victim of whatever is
+  sweeping the buffer cache, not a slow route.
+
+Both predictions are falsifiable in a week of alerts. If `/tracks` and
+`/users/me` keep alerting now that `/career-skill-path` and
+`/jobs/companies/pulse` are fixed, the queueing theory is wrong and they need
+measuring on their own. **Do not optimise either before that week is up** —
+that is the §11 mistake in its other direction.
