@@ -332,13 +332,20 @@ class CVVersionsRepository:
         old_text: str,
         new_text: str,
         source: str = "restructure",
+        *,
+        canonical: bool = True,
     ) -> bool:
         """Dual-write (v2): when a rewrite is accepted onto the master, mirror it into
         the reservoir as a NEW canonical phrasing of the existing point, demoting the
         prior canonical to an alternate (nothing lost — that is the whole reservoir
         idea). Best-effort: no-op when the phrasing is unchanged or the point isn't in
         the reservoir (un-backfilled user → the inventory is live-derived from the
-        master, which already holds new_text). Returns True if it appended."""
+        master, which already holds new_text). Returns True if it appended.
+
+        ``canonical=False`` is the job-draft mirror: the user reworded this line for
+        ONE job, so the master's wording must not move. The new text still enters the
+        reservoir — as an alternate phrasing — because a reword often carries real new
+        material the user just remembered, and the inventory is where that survives."""
         new_text = (new_text or "").strip()
         if not new_text or new_text == (old_text or "").strip():
             return False
@@ -363,11 +370,12 @@ class CVVersionsRepository:
             "section": row["section"],
             "text": new_text,
             "source": source,
-            "is_canonical": True,
+            "is_canonical": canonical,
             "ordering": row.get("ordering") or 0,
             "status": "active",
         }).execute()
-        self._db.table("cv_points").update({"is_canonical": False}).eq("id", row["id"]).execute()
+        if canonical:
+            self._db.table("cv_points").update({"is_canonical": False}).eq("id", row["id"]).execute()
         return True
 
     def find(self, version_id: int, user_id: str) -> dict[str, Any] | None:

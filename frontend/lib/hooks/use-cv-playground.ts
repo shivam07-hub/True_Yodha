@@ -24,6 +24,12 @@ import { hasCvContent, latestBaseline } from "@/lib/cv/durable-answer"
 import { dataKeys } from "@/lib/domain-data"
 import { normalizeSectionOrder, type SectionKey } from "@/lib/cv/section-order"
 
+interface PatchJobCvVars {
+  mut: (draft: CVStructured) => CVStructured
+  /** The one line a reword changed — mirrored into the reservoir as an alternate. */
+  phrasing?: { old_text: string; new_text: string }
+}
+
 interface UseCVPlaygroundArgs {
   token: string | null
   jobId: string | null
@@ -53,7 +59,14 @@ export interface CVPlaygroundState {
   toggleItem: (iid: string) => void
   sectionOrder: SectionKey[]
   setSectionOrder: (order: SectionKey[]) => void
-  patchJobCv: (mut: (draft: CVStructured) => CVStructured) => void
+  /** Patch THIS job's working draft. `phrasing` names the one line a reword
+   *  changed, so the reservoir can keep that text as an alternate. */
+  patchJobCv: (
+    mut: (draft: CVStructured) => CVStructured,
+    phrasing?: { old_text: string; new_text: string },
+  ) => void
+  /** A paper write to the job draft is in flight. */
+  patchJobCvPending: boolean
   livePreviewText: string
   isDirty: boolean
   canSave: boolean
@@ -270,18 +283,18 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
   selectedRef.current = selectedVersion
 
   const patchJobCvMut = useMutation({
-    mutationFn: async (mut: (draft: CVStructured) => CVStructured) => {
+    mutationFn: async ({ mut, phrasing }: PatchJobCvVars) => {
       const base = structuredRef.current
       if (!token || !jobId || !base) throw new Error("No CV to patch.")
       const next = mut(structuredClone(base))
       const sel = selectedRef.current
       if (sel && sel.kind === "deterministic" && sel.job_id) {
-        return cv.versions.patchJobDraft(token, sel.id, next)
+        return cv.versions.patchJobDraft(token, sel.id, next, phrasing)
       }
       const created = await cv.versions.create(
         token, jobId, Array.from(hiddenItems), undefined, sectionOrder,
       )
-      return cv.versions.patchJobDraft(token, created.id, next)
+      return cv.versions.patchJobDraft(token, created.id, next, phrasing)
     },
     onSuccess: (v) => {
       queryClient.setQueryData<{ versions: CVVersion[] }>(
@@ -296,7 +309,10 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
   })
 
   const patchJobCv = useCallback(
-    (mut: (draft: CVStructured) => CVStructured) => { patchJobCvMut.mutate(mut) },
+    (
+      mut: (draft: CVStructured) => CVStructured,
+      phrasing?: { old_text: string; new_text: string },
+    ) => { patchJobCvMut.mutate({ mut, phrasing }) },
     [patchJobCvMut],
   )
 
@@ -413,6 +429,7 @@ export function useCVPlayground({ token, jobId, enabled }: UseCVPlaygroundArgs):
     sectionOrder,
     setSectionOrder,
     patchJobCv,
+    patchJobCvPending: patchJobCvMut.isPending,
     livePreviewText,
     isDirty,
     canSave,

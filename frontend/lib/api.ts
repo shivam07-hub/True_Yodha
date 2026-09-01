@@ -1903,11 +1903,19 @@ export const cv = {
           section_order: sectionOrder ?? null,
         }),
       }),
-    patchJobDraft: (token: string, versionId: number, structured: CVStructured) =>
+    // `phrasing` names the ONE line this patch reworded. The master's wording does
+    // not move (JD phrasing is job-scoped), so the reservoir keeps the new text as
+    // an alternate — a reword is often where the user remembers real work.
+    patchJobDraft: (
+      token: string,
+      versionId: number,
+      structured: CVStructured,
+      phrasing?: { old_text: string; new_text: string },
+    ) =>
       request<CVVersion>(`/cv/versions/${versionId}/job-draft`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ cv_structured: structured }),
+        body: JSON.stringify({ cv_structured: structured, phrasing: phrasing ?? null }),
       }),
     // Delta-4 promote: the applied CV's shape becomes the living master, so it
     // persists + seeds every future tailoring (project_living_cv_delta4).

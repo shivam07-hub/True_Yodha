@@ -37,6 +37,7 @@ import { rewriteFetcher } from "./rewrite-fetchers"
 import { exportSheetPdf } from "@/lib/cv/sheet-pdf"
 import { printCvPage } from "@/lib/cv/print-cv"
 import { masterFilename } from "@/lib/cv/download-master"
+import { addBulletToRole, replaceLineText, roleRefAt } from "@/lib/cv/line-edit"
 import { DEFAULT_TEMPLATE, isCVTemplate, type CVTemplate } from "@/lib/cv/templates"
 import { hasCvContent, latestBaseline } from "@/lib/cv/durable-answer"
 import { usePlaygroundModel } from "./use-playground-model"
@@ -77,7 +78,10 @@ export function PlaygroundView({
   token, jobId, playground, cv, profile,
   onBackToBaseline, externalError, mentorRequested = false,
 }: PlaygroundViewProps) {
-  const { selectedVersion, hiddenItems, toggleItem, autosaving, autosaved, sectionOrder, setSectionOrder, patchJobCv } = playground
+  const {
+    selectedVersion, hiddenItems, toggleItem, autosaving, autosaved,
+    sectionOrder, setSectionOrder, patchJobCv, patchJobCvPending,
+  } = playground
   const router = useRouter()
   const queryClient = useQueryClient()
   const [appliedFixes, setAppliedFixes] = useState<AppliedFix[]>([])
@@ -156,12 +160,6 @@ export function PlaygroundView({
     queryClient.invalidateQueries({ queryKey: ["cv-gap-plan", jobId] })
   }
 
-  const rewriteApply = useMutation({
-    mutationFn: ({ oldText, newText }: { oldText: string; newText: string }) =>
-      cvApi.rewriteApply(token, { old_text: oldText, new_text: newText }),
-    onSuccess: invalidateCV,
-  })
-
   // Content write-through. Education, certifications and a blank summary are
   // master-owned but they are CONTENT, not identity, so `add ›` fills them from
   // whichever surface the user is on (locked 2026-08-25). Reads the freshest
@@ -176,14 +174,33 @@ export function PlaygroundView({
     onSuccess: invalidateCV,
   })
 
+  // A REWORD is written for this JD, so it lands on this job's working draft and
+  // nowhere else — master phrasing that carries one job's language rides into
+  // every other tailored copy (CV Weave lock L3, the Oracle defect). The text is
+  // still mirrored into the reservoir as an alternate phrasing, because a reword
+  // is often where the user remembers real work.
+  function editJobLine(oldText: string, newText: string) {
+    patchJobCv(
+      d => replaceLineText(d, oldText, newText) ?? d,
+      { old_text: oldText, new_text: newText },
+    )
+  }
+
   function applyRewrite({ fix, oldText, newText }: { fix: V2Fix | null; oldText: string; newText: string }) {
-    rewriteApply.mutate({ oldText, newText }, {
-      onSuccess: () => {
-        if (!fix) return
-        setAppliedFixes(p => p.some(a => a.id === fix.id) ? p
-          : [...p, { id: fix.id, iid: fix.iid, kind: fix.kind, title: fix.title, gain: fix.gain }])
-      },
-    })
+    editJobLine(oldText, newText)
+    if (!fix) return
+    // Optimistic: the chip is a session receipt, and the next scan puts the
+    // finding back if the write did not land.
+    setAppliedFixes(p => p.some(a => a.id === fix.id) ? p
+      : [...p, { id: fix.id, iid: fix.iid, kind: fix.kind, title: fix.title, gain: fix.gain }])
+  }
+
+  // NEW MATERIAL is true anywhere: it lands on this job's paper (so the user sees
+  // the thing they just remembered) AND on the living master (so the next job
+  // starts with it). Only the JD-shaped wording is job-scoped.
+  function patchBoth(mut: (draft: CVStructured) => CVStructured) {
+    patchJobCv(mut)
+    patchMaster.mutate(mut)
   }
 
   function confirmApply() {
@@ -309,14 +326,14 @@ export function PlaygroundView({
         wordCount={m.wordCount}
         diagnosis={diagnosis}
         onDismissFix={f => dismiss(f.id)}
-        applying={rewriteApply.isPending}
+        applying={patchJobCvPending || patchMaster.isPending}
         makeFetcher={(bullet, fix) =>
           rewriteFetcher.authed(token, bullet, { role: m.jobTitle, fix, quantifyOnly: fix?.kind === "Quantify" })}
         onApplyRewrite={applyRewrite}
-        onEditLine={(oldText, newText) => rewriteApply.mutate({ oldText, newText })}
+        onEditLine={editJobLine}
         onToggleHidden={toggleItem}
         userSkills={userSkillsQuery.data}
-        onPatch={mut => patchMaster.mutate(mut)}
+        onPatch={patchBoth}
         onReorderRoles={(from, to) => {
           const nextHidden = remapRoleHiddenIids(hiddenItems, cv.experience, from, to)
           for (const id of hiddenItems) if (!nextHidden.has(id)) toggleItem(id)
@@ -325,11 +342,13 @@ export function PlaygroundView({
         }}
         sectionOrder={sectionOrder}
         onSectionOrder={setSectionOrder}
-        onAddBullet={(roleIndex, text) => patchMaster.mutate(d => {
-          const ri = d.experience[roleIndex] ? roleIndex : d.experience.length - 1
-          if (ri >= 0) d.experience[ri].bullets.push(text)
-          return d
-        })}
+        onAddBullet={(roleIndex, text) => {
+          // Resolve the role by identity: a paper reorder moves roles on the job
+          // draft only, so the draft's index is not the master's index.
+          const ref = roleRefAt(cv, roleIndex)
+          if (!ref) return
+          patchBoth(d => addBulletToRole(d, ref, text))
+        }}
         skillsLabel={gapCount == null ? "Skills" : `Skills · ${gapCount} gaps`}
         skillsPane={
           <CoveragePanel
@@ -383,7 +402,11 @@ export function PlaygroundView({
           jobId={jobId}
           score={m.ready}
           focusRequirement={tailor.focusGap}
-          onApplied={() => {
+          onApplied={surfaced => {
+            // The surfacing wrote the master (a latent skill is a fact, not JD
+            // phrasing). Put the same line on this job's draft too, or the user
+            // closes a gap and the paper in front of them never changes.
+            if (surfaced) patchJobCv(d => replaceLineText(d, surfaced.oldText, surfaced.newText) ?? d)
             void coverageQuery.refetch()
             queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
             queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
