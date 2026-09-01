@@ -18,6 +18,9 @@ export const dataKeys = {
   jobPulses: (jobIds: string[]) => ["jobs", "pulses", jobIds] as const,
   jobContributions: () => ["jobs", "contributions"] as const,
   applications: () => ["applications"] as const,
+  /** The Collection Record — the Collections surface's ONE query key
+   *  (CONTEXT.md). Every mutation writes the server's response back into it. */
+  collection: () => ["collection"] as const,
   staleApplications: () => ["stale-applications"] as const,
   notificationsUnread: () => ["notifications", "unread"] as const,
   notifications: () => ["notifications", "list"] as const,

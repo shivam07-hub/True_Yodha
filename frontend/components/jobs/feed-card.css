@@ -258,6 +258,14 @@ a.fc-co:hover { color: var(--tm-interactive); }
   text-transform: uppercase; color: var(--tm-text); font-family: var(--tm-font-mono, inherit);
 }
 .fc-rail-panel p { margin: 0 0 8px; color: var(--tm-text); }
+/* The brain grade, in Why — where "how good" is explained, not beside the ring
+   where it competed with the verdict. Quiet by construction: it is context for
+   the paragraph under it, never a badge of its own. */
+.fc-rail-panel h4 .fc-rail-grade {
+  margin-left: 8px; padding: 1px 6px; border-radius: 4px;
+  border: 1px solid var(--tm-border); color: var(--tm-text-muted);
+  font-size: var(--tm-fs-micro, 10px); letter-spacing: 0.04em;
+}
 .fc-rail-panel ul { margin: 6px 0 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px; }
 .fc-rail-panel .fc-rail-jd { max-height: 220px; overflow-y: auto; white-space: pre-wrap; color: var(--tm-text-muted); }
 .fc-rail-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }

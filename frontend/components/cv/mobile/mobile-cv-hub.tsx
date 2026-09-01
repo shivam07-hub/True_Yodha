@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import type { ApplicationResponse, CVStructured, CVVersion, UserProfile } from "@/lib/api"
+import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
 import { CVExportView } from "@/components/cv/builder/cv-export-view"
 import { FinishTailoringLane } from "@/components/cv/builder/finish-tailoring-lane"
 import { Icon } from "@/components/cv/builder/icons"
@@ -25,7 +25,6 @@ interface Props {
   cv: CVStructured
   currentBaseline: CVVersion | null
   profile: UserProfile | null
-  applications: ApplicationResponse[]
   onOpenJob: (jobId: string) => void
   onReplaceCV: () => void
 }
@@ -35,7 +34,6 @@ export function MobileCVHub({
   cv: rawCv,
   currentBaseline,
   profile,
-  applications,
   onOpenJob,
   onReplaceCV,
 }: Props) {
@@ -99,7 +97,7 @@ export function MobileCVHub({
         </Button>
       </header>
 
-      <FinishTailoringLane applications={applications} onOpenJob={onOpenJob} />
+      <FinishTailoringLane token={token} onOpenJob={onOpenJob} />
 
       <section className="tm-mcv-main" aria-labelledby="tm-mcv-main-title">
         <header>

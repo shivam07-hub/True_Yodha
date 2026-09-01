@@ -1,7 +1,9 @@
 "use client"
 
 import Link from "next/link"
-import type { JobPulse } from "@/lib/api"
+import type { CollectionEntry, JobPulse } from "@/lib/api"
+import { ORIGIN_LABEL, heroFor } from "@/lib/collections/model"
+import { companyHref } from "@/components/companies/company-link"
 import type { MobileJobRow } from "./job-model"
 
 const CIRC = 103.7
@@ -22,9 +24,11 @@ export function pulseLine(pulse?: JobPulse): { text: string; warn: boolean } | n
   return null
 }
 
-/** Shared card shell — logo / company / grade / role / meta / trust line / fit
- *  ring. The action row is passed as children so a saved application and a Myro
- *  Found match can differ only in their footer. */
+/** Shared card shell — logo / company / role / meta / trust line / fit ring.
+ *  The action row is passed as children so every stage differs only in its
+ *  footer. Grade is deliberately NOT here: beside the ring it is a second
+ *  "how good", the collision the Jobs face locked out. It stays on the row for
+ *  the detail sheet. */
 function CardShell({
   row,
   fitKnown,
@@ -49,7 +53,6 @@ function CardShell({
           <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
             <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--mm-text-3)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{row.co}</span>
             {statusChip && <span style={{ fontSize: 10, fontWeight: 700, color: statusChip === "Applied" ? "var(--mm-accent)" : "var(--mm-muted)", background: statusChip === "Applied" ? "var(--mm-accent-wash)" : "var(--mm-hair)", borderRadius: 5, padding: "1.5px 6px", flex: "none" }}>{statusChip}</span>}
-            {row.hasGrade && <span style={{ fontSize: 10, fontWeight: 700, color: row.gradeFg, border: `1px solid ${row.gradeBd}`, borderRadius: 5, padding: "0.5px 4px", flex: "none" }}>{row.grade}</span>}
             {row.ago && <span style={{ fontSize: 11, color: "var(--mm-dim)", flex: "none", marginLeft: "auto" }}>{row.ago}</span>}
           </div>
           <div style={{ fontSize: 15, fontWeight: 650, letterSpacing: "-0.01em", lineHeight: 1.28, marginTop: 2, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{row.role}</div>
@@ -76,68 +79,116 @@ function CardShell({
   )
 }
 
-/** A saved application (You added / Applied chips) — priority / share / Tailor.
- *  The heart is priority intent, exactly as on desktop; removal is the X in the
- *  detail sheet. Same glyph, same meaning, both platforms. */
-export function CollectionCard({ row, fitKnown, statusChip, tailored, pulse, prioritized, onOpen, onPriority, onShare, onTailor, onOpenCv, onSnooze }: {
-  row: MobileJobRow; fitKnown: boolean; statusChip: string; tailored: boolean; pulse?: JobPulse; prioritized: boolean
-  onOpen: () => void; onPriority?: (next: boolean) => void; onShare: () => void; onTailor: () => void; onOpenCv: () => void; onSnooze?: () => void
+/** ONE collection card. The stage picks the hero; every other slot is fixed.
+ *  It replaced `CollectionCard` + `MyroFoundCard`, which had different action
+ *  sets, and a heart that meant "priority" on one and "save" on the other. */
+export function CollectionCard({
+  entry,
+  row,
+  fitKnown,
+  pulse,
+  onOpen,
+  onRemove,
+  onPriority,
+  onShare,
+  onSnooze,
+  onAnswerPending,
+}: {
+  entry: CollectionEntry
+  row: MobileJobRow
+  fitKnown: boolean
+  pulse?: JobPulse
+  onOpen: () => void
+  onRemove: () => void
+  onPriority: (next: boolean) => void
+  onShare: () => void
+  onSnooze: () => void
+  onAnswerPending: (submitted: boolean) => void
 }) {
+  const hero = heroFor(entry)
+  const canPrioritize = entry.stage !== "found" && entry.stage !== "closed"
+  const canRemove = entry.stage !== "applied"
+  const statusChip = entry.stage === "closed"
+    ? "Closed"
+    : entry.stage === "applied"
+      ? (entry.status && entry.status !== "applied" ? STATUS_WORD[entry.status] ?? "Applied" : "Applied")
+      : ORIGIN_LABEL[entry.origin]
+
   return (
     <CardShell row={row} fitKnown={fitKnown} statusChip={statusChip} pulse={pulse} onOpen={onOpen}>
-      {onPriority ? (
+      {canRemove ? (
+        <button onClick={(e) => { e.stopPropagation(); onRemove() }} aria-label="Remove from Collections" className="mm-press-sm tm-dismiss-action" style={iconBtn}>
+          <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
+      ) : null}
+      {canPrioritize ? (
         <button
-          onClick={(e) => { e.stopPropagation(); onPriority(!prioritized) }}
-          aria-label={prioritized ? "Remove job priority" : "Prioritize this job"}
-          aria-pressed={prioritized}
+          onClick={(e) => { e.stopPropagation(); onPriority(!entry.is_priority) }}
+          aria-label={entry.is_priority ? "Remove job priority" : "Prioritize this job"}
+          aria-pressed={entry.is_priority}
           className="mm-press-sm"
           style={iconBtn}
         >
-          <svg width={15} height={15} viewBox="0 0 24 24" fill={prioritized ? "currentColor" : "none"} stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" color={prioritized ? "var(--mm-accent)" : "var(--mm-muted)"}><path d="M19 14c1.5-1.5 2-3.2 2-4.6C21 6.4 18.6 4 15.6 4 14.2 4 12.9 4.6 12 5.6 11.1 4.6 9.8 4 8.4 4 5.4 4 3 6.4 3 9.4c0 1.4.5 3.1 2 4.6l7 6.6 7-6.6Z" /></svg>
+          <svg width={15} height={15} viewBox="0 0 24 24" fill={entry.is_priority ? "currentColor" : "none"} stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" color={entry.is_priority ? "var(--mm-accent)" : "var(--mm-muted)"}><path d="M19 14c1.5-1.5 2-3.2 2-4.6C21 6.4 18.6 4 15.6 4 14.2 4 12.9 4.6 12 5.6 11.1 4.6 9.8 4 8.4 4 5.4 4 3 6.4 3 9.4c0 1.4.5 3.1 2 4.6l7 6.6 7-6.6Z" /></svg>
         </button>
       ) : null}
       <button onClick={(e) => { e.stopPropagation(); onShare() }} aria-label="Share" className="mm-press-sm" style={iconBtn}>
         <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round"><path d="M12 15V4m0 0 4 4m-4-4L8 8" /><path d="M4 13v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5" /></svg>
       </button>
-      {onSnooze ? (
+      {entry.stage === "saved" || entry.stage === "tailored" ? (
         <button onClick={(e) => { e.stopPropagation(); onSnooze() }} aria-label="Snooze for 3 days" title="Snooze for 3 days" className="mm-press-sm" style={iconBtn}>
           <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round"><circle cx="12" cy="12" r="8" /><path d="M12 8v4l3 2" /></svg>
         </button>
       ) : null}
       <div style={{ flex: 1 }} />
-      {statusChip === "Applied" ? (
-        <Link
-          href={`/preparations/${encodeURIComponent(row.id)}`}
+      {/* THE hero — one slot, verb by stage. */}
+      {hero.href ? (
+        <Link href={hero.href} onClick={(e) => e.stopPropagation()} className="mm-press" style={heroStyle(hero.kind)}>
+          {hero.label}
+        </Link>
+      ) : (
+        <a
+          href={entry.job.company ? companyHref(entry.job.company) : "/market"}
+          target={entry.job.company ? "_blank" : undefined}
+          rel={entry.job.company ? "noopener noreferrer" : undefined}
           onClick={(e) => e.stopPropagation()}
           className="mm-press"
-          style={{ height: 32, padding: "0 14px", borderRadius: 99, display: "inline-flex", alignItems: "center", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: 12.5, fontWeight: 700, fontFamily: "inherit", textDecoration: "none" }}
+          style={heroStyle("quiet")}
         >
-          Prep room →
-        </Link>
-      ) : tailored ? (
-        <button onClick={(e) => { e.stopPropagation(); onOpenCv() }} style={{ height: 32, padding: "0 12px", borderRadius: 99, border: "1px solid rgba(79,199,246,0.35)", background: "var(--mm-accent-wash)", color: "var(--mm-accent)", fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Tailored ✓</button>
-      ) : (
-        <button onClick={(e) => { e.stopPropagation(); onTailor() }} className="mm-press" style={{ height: 32, padding: "0 14px", borderRadius: 99, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Tailor CV</button>
+          {hero.label} ↗
+        </a>
       )}
+      {/* The ask the 1.2s inline band never got to make. */}
+      {entry.pending_apply ? (
+        <div onClick={(e) => e.stopPropagation()} style={{ flexBasis: "100%", display: "flex", alignItems: "center", gap: 8, marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--mm-hair)", fontSize: 12 }}>
+          <span style={{ color: "var(--mm-text-2)" }}>Did you submit it?</span>
+          <div style={{ flex: 1 }} />
+          <button onClick={() => onAnswerPending(true)} className="mm-press-sm" style={heroStyle("go")}>Yes, applied</button>
+          <button onClick={() => onAnswerPending(false)} className="mm-press-sm" style={heroStyle("quiet")}>Not yet</button>
+        </div>
+      ) : null}
     </CardShell>
   )
 }
 
-/** An above-bar Myro Search match (Myro found chip) — dismiss / Tailor.
- *  No save affordance — it's already in the folder. */
-export function MyroFoundCard({ row, fitKnown, pulse, onOpen, onDismiss, onTailor }: {
-  row: MobileJobRow; fitKnown: boolean; pulse?: JobPulse
-  onOpen: () => void; onDismiss: () => void; onTailor: () => void
-}) {
-  return (
-    <CardShell row={row} fitKnown={fitKnown} pulse={pulse} onOpen={onOpen}>
-      <button onClick={(e) => { e.stopPropagation(); onDismiss() }} aria-label="Not interested" className="mm-press-sm tm-dismiss-action" style={iconBtn}>
-        <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
-      </button>
-      <div style={{ flex: 1 }} />
-      <button onClick={(e) => { e.stopPropagation(); onTailor() }} className="mm-press" style={{ height: 32, padding: "0 14px", borderRadius: 99, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)", fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Tailor CV</button>
-    </CardShell>
-  )
+/** The post-apply words. `stage` is `applied` for all of them — this names WHICH
+ *  outcome, which the old folder could not say at all. */
+const STATUS_WORD: Record<string, string> = {
+  interviewing: "Interviewing",
+  offer: "Offer",
+  rejected: "Rejected",
+  ghosted: "No reply",
+}
+
+function heroStyle(kind: "go" | "gap" | "quiet"): React.CSSProperties {
+  const base: React.CSSProperties = {
+    height: 32, padding: "0 14px", borderRadius: 99, display: "inline-flex", alignItems: "center",
+    fontSize: 12.5, fontWeight: 700, fontFamily: "inherit", textDecoration: "none", cursor: "pointer",
+    whiteSpace: "nowrap",
+  }
+  if (kind === "go") return { ...base, border: "none", background: "var(--mm-accent)", color: "var(--mm-accent-fg)" }
+  if (kind === "gap") return { ...base, border: "1px solid rgba(79,199,246,0.35)", background: "var(--mm-accent-wash)", color: "var(--mm-accent)" }
+  return { ...base, border: "1px solid var(--mm-border)", background: "transparent", color: "var(--mm-text-2)" }
 }
 
 const iconBtn: React.CSSProperties = {

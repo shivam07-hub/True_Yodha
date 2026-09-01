@@ -116,6 +116,7 @@ def resolve_collection(
     tailored_by_job: dict[str, dict[str, Any]],
     pending_intent_job_ids: set[str],
     batch_week: date,
+    match_health: str = "empty",
     now: datetime | None = None,
 ) -> CollectionResponse:
     """Union the two spines into one entry per job.
@@ -218,6 +219,7 @@ def resolve_collection(
         landing=_landing(entries),
         below_bar_count=below_bar,
         rejected_count=rejected,
+        match_health=match_health,
     )
 
 

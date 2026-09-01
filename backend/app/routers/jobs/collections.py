@@ -13,6 +13,7 @@ from app.repositories.cv import CVVersionsRepository, get_token_cv_repository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
 from app.schemas import CollectionResponse
 from app.services.collections import PENDING_INTENT_AFTER, resolve_collection
+from app.services import jobs_workflow
 from app.services.concurrent_reads import run_concurrently
 
 from app.services.job_projection import last_monday
@@ -56,5 +57,8 @@ def get_collection(
         tailored_by_job=reads["tailored"] or {},
         pending_intent_job_ids=reads["pending"] or set(),
         batch_week=last_monday(),
+        # Same health the /jobs/matches banner reads — one rule, one module, so a
+        # surface that stopped reading that endpoint does not lose the trust banner.
+        match_health=jobs_workflow.compute_match_health(repo, uid, match_rows),
         now=now,
     )

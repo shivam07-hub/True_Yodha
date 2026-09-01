@@ -99,7 +99,6 @@ export function LibraryView({
         cv={cv}
         currentBaseline={currentBaseline}
         profile={profile}
-        applications={applications}
         onOpenJob={onOpenJob}
         onReplaceCV={onReplaceCV}
       />

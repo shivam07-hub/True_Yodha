@@ -1,323 +1,120 @@
-import type { ApplicationResponse, JobMatch, JobPulse } from "@/lib/api"
-import {
-  synthMatch,
-  sortItems,
-  type FeedItem,
-  type SortKey,
-  type TriageContext,
-} from "@/lib/dashboard/feed-model"
+import type { CollectionEntry, CollectionOrigin, CollectionStage, JobMatch } from "@/lib/api"
+import { verdictMove } from "@/lib/jobs/match-verdict"
+import type { SortKey } from "@/lib/dashboard/feed-model"
 
-/* ── Collections view-model — the "Myro Ops" folder ───────────────────────────
- * Collections = the Myro Ops folder, successor of the retired /home dashboard.
- * Two data spines:
- *   · "Myro found"  → the brain match stack (jobs.matches / user_job_matches),
- *      THRESHOLD-split (above-bar shown here, below-bar → Jobs, rejected hidden).
- *   · "You added" / "Applied" → the saved-job worklist (jobs.applications).
- * The pinned "Finish tailoring" lane (tailored-not-applied) is chip-independent.
- * One model, two skins (desktop rows / mobile cards).
+/* ── The Collection Record, client side ───────────────────────────────────────
+ * CONTEXT.md → Collection Record. What is LEFT here after the resolver landed:
+ * ordering, the hero verb, and the words. The stage, the origin, the liveness,
+ * the counts and the landing are the server's answers now — this file used to
+ * derive all five, in parallel with a second copy in the mobile skin, off three
+ * caches that could disagree. That is what put one job in two chips.
+ *
+ * Gone with them: `isMyroSource` / `isExtSource` (read a `source` column that
+ * defaults to `system_match` while every save writes `user_discovery`, so it was
+ * wrong in both directions), `filterChip`, `splitClosedApps`, `chipCounts`,
+ * `buildMyroFound`, `buildCollectionsView`, `buildContinueLane`,
+ * `collectionsTriageCtx`, `matchesById`, `appToFeedItem`, `classifyMatch` and
+ * `COLLECTION_CHIPS` (which had no consumers at all).
  * ────────────────────────────────────────────────────────────────────────── */
 
-export type CollectionChip = "all" | "found" | "added" | "applied" | "closed"
-
-export const COLLECTION_CHIPS: ReadonlyArray<{ key: CollectionChip; label: string }> = [
-  { key: "all", label: "All" },
-  { key: "found", label: "Myro found" },
-  { key: "added", label: "You added" },
-  { key: "applied", label: "Applied" },
-  { key: "closed", label: "Closed" },
-]
-
-/** Desktop Myro Ops folder chips — "All" is dropped (the folder lands on Myro
- *  found, and All blurred the match-stack ↔ applications split). "Closed" is a
- *  lifecycle bucket, not a source: any role — found, saved, or applied — whose
- *  listing verifies closed moves out of its origin chip and lands here instead
- *  of sitting full-weight in the primary lists forever. */
-export const FOLDER_CHIPS: ReadonlyArray<{ key: CollectionChip; label: string }> = [
-  { key: "found", label: "Myro found" },
-  { key: "added", label: "You added" },
-  { key: "applied", label: "Applied" },
-  { key: "closed", label: "Closed" },
-]
-
-/** The verifier's authoritative "this listing is dead" call (mirrors the
- *  PulseRow "apply link may be closed" predicate — one definition, reused). */
-export function isPulseClosed(pulse?: JobPulse): boolean {
-  return pulse?.listing_confidence === "closed" || pulse?.listing_confidence === "likely_closed"
-}
-
-/** A saved row Myro discovered (match feed / system) vs one the user brought. */
-export function isMyroSource(src: string): boolean {
-  const s = src.toLowerCase()
-  return s.includes("system") || s.includes("myro") || s.includes("match") || s.includes("feed")
-}
-
-export function isExtSource(src: string): boolean {
-  const s = src.toLowerCase()
-  return s.includes("ext") || s.includes("chrome")
-}
-
-/** Anything past "saved" is committed — it lives under the Applied chip. */
-export const isApplied = (a: ApplicationResponse) => a.status !== "saved"
-
-/** Chip counts. When `foundCount` is passed (the Myro Ops folder), "Myro found"
- *  is the above-bar brain match count from the match stack; otherwise it falls
- *  back to the application-source count (nav journey counts / legacy consumers). */
-export function chipCounts(
-  apps: ApplicationResponse[],
-  foundCount?: number,
-  closedCount = 0,
-): Record<CollectionChip, number> {
-  return {
-    all: apps.length,
-    found: foundCount ?? apps.filter((a) => isMyroSource(a.source) && !isApplied(a)).length,
-    added: apps.filter((a) => !isMyroSource(a.source) && !isApplied(a)).length,
-    applied: apps.filter(isApplied).length,
-    closed: closedCount,
-  }
-}
-
-/** Split saved/applied rows on the verifier's closed call. `open` feeds the
- *  found/added/applied chips exactly as before; `closed` feeds the Closed chip
- *  and nothing else — a role only ever counts toward one bucket. */
-export function splitClosedApps(
-  apps: ApplicationResponse[],
-  pulses: ReadonlyMap<string, JobPulse>,
-): { open: ApplicationResponse[]; closed: ApplicationResponse[] } {
-  const open: ApplicationResponse[] = []
-  const closed: ApplicationResponse[] = []
-  for (const a of apps) {
-    if (isPulseClosed(pulses.get(a.job_id))) closed.push(a)
-    else open.push(a)
-  }
-  return { open, closed }
-}
-
-/** The Closed chip: dead-listing saved/applied roles first (real intent —
- *  these are the ones that drove the company auto-follow), then dead
- *  Myro-found matches the user never acted on. Never double-counts a job
- *  present in both. */
-export function buildClosedView(
-  closedApps: ApplicationResponse[],
-  closedFoundMatches: JobMatch[],
-  byId: Map<string, JobMatch>,
-): FeedItem[] {
-  const items = closedApps.map((a) => appToFeedItem(a, byId.get(a.job_id)))
-  const seen = new Set(closedApps.map((a) => a.job_id))
-  for (const m of closedFoundMatches) {
-    if (seen.has(m.job_id)) continue
-    seen.add(m.job_id)
-    items.push(matchToFeedItem(m))
-  }
-  return items
-}
-
-export function filterChip(apps: ApplicationResponse[], chip: CollectionChip): ApplicationResponse[] {
-  if (chip === "found") return apps.filter((a) => isMyroSource(a.source) && !isApplied(a))
-  if (chip === "added") return apps.filter((a) => !isMyroSource(a.source) && !isApplied(a))
-  if (chip === "applied") return apps.filter(isApplied)
-  return apps
-}
-
-/** Fit signal joined from the cached match stack — score/verdict only when the
- *  brain has actually evaluated the job (never fake a ring). */
-export function matchesById(matches: JobMatch[] | undefined): Map<string, JobMatch> {
-  const m = new Map<string, JobMatch>()
-  for (const j of matches ?? []) m.set(j.job_id, j)
-  return m
-}
-
-/** An application as a dashboard FeedItem: synthMatch for the card body, the
- *  real match (when the brain evaluated this job) for fit/verdict/why-fit. */
-export function appToFeedItem(a: ApplicationResponse, match: JobMatch | undefined): FeedItem {
-  const job = match ?? synthMatch(a)
-  const fit = match?.match_score ?? null
-  return {
-    jobId: a.job_id,
-    company: a.company,
-    role: a.title,
-    fit: fit != null && fit > 0 ? fit : null,
-    isMatch: isMyroSource(a.source),
-    isLiked: true,
-    job,
-  }
-}
-
-/* ── Myro Found — the brain match stack, THRESHOLD-split ──────────────────────
- * A Myro Search evaluates the whole candidate pool; the results split three ways:
- *   · ABOVE the quality bar → shown in this folder (Agent Picks pinned above).
- *   · BELOW the bar         → fall through to Jobs (/market), ranked.
- *   · REJECTED              → excluded (for-cause Skip / scam-tier legitimacy).
- * Trust = the judgment, not the volume — an honest split, never a padded list.
- * ────────────────────────────────────────────────────────────────────────── */
-
-export type MatchBucket = "above" | "below" | "rejected"
-
-/** Which bucket a brain match falls into.
- *
- *  REJECTED is a for-cause judgment the deterministic sieve cannot make — a scam
- *  tier or an honest Skip (Rishabh's 7/10). That is a different question from
- *  "how good is this for me", so it stays here.
- *
- *  ABOVE/BELOW is NOT a different question — it is the fit bar, and the server
- *  already answered it. This used to cut on the brain GRADE (B- and up) and only
- *  fall back to `verdict` when a row had no grade, so a row could arrive
- *  `verdict: "strong", is_strong: true` and still be counted below the bar on a
- *  C+ grade. That is `credibleRecommendation` — deleted from the frontend when
- *  Match Verdict shipped — grown back one file over. `is_strong` is the one
- *  boolean a surface reads to ask "is this headline-worthy"; a second local bar
- *  is a second answer to a question that already has one. */
-export function classifyMatch(m: JobMatch): MatchBucket {
-  if ((m.legitimacy_tier ?? "").toLowerCase() === "suspicious") return "rejected"
-  if ((m.recommendation ?? "").toLowerCase() === "skip") return "rejected"
-  return m.is_strong || m.verdict === "strong" || m.verdict === "worth_it" ? "above" : "below"
-}
-
-/** A brain match as a FeedItem for the card body — real fit, never faked. */
-export function matchToFeedItem(m: JobMatch): FeedItem {
-  return {
-    jobId: m.job_id,
-    company: m.company,
-    role: m.title,
-    fit: m.match_score > 0 ? m.match_score : null,
-    isMatch: true,
-    isLiked: false,
-    job: m,
-  }
-}
-
-export interface MyroFoundView {
-  /** Above-bar matches, best-fit first — Agent-Pick + dismissed ids excluded. */
-  found: FeedItem[]
-  /** Ranked below the bar → live on Jobs. */
-  belowBarCount: number
-  /** Rejected for cause — dead listing, wrong level, off deal-breakers. */
-  rejectedCount: number
-  /** Verifier-confirmed dead, never acted on → moved to the Closed chip. */
-  closedMatches: JobMatch[]
+/** Origin is a LABEL. It prints a chip and does nothing else — never a filter. */
+export const ORIGIN_LABEL: Record<CollectionOrigin, string> = {
+  myro: "Myro found",
+  you: "You added",
+  extension: "Extension",
 }
 
 /**
- * Split the match stack. `pickedIds` are already pinned in the Agent Picks band
- * (don't repeat them); `dismissedIds` are hidden from the folder entirely and
- * count toward nothing. A closed listing is pulled out before grading — a dead
- * role never belongs in "found" no matter how good its brain grade was.
+ * The ONE hero for an entry — one slot, one verb, decided by stage.
+ *
+ * `kind` is the button tone; `href`/`action` is what it does. Exactly one hero
+ * per card, never peers: the market card's hero is Save, and inside the Ops
+ * folder the job is already collected, so the verb is the next real move.
  */
-export function buildMyroFound(
-  matches: JobMatch[] | undefined,
-  dismissedIds: ReadonlySet<string>,
-  pickedIds: ReadonlySet<string>,
-  pulses: ReadonlyMap<string, JobPulse> = new Map(),
-): MyroFoundView {
-  const found: FeedItem[] = []
-  const closedMatches: JobMatch[] = []
-  let belowBarCount = 0
-  let rejectedCount = 0
-  for (const m of matches ?? []) {
-    if (dismissedIds.has(m.job_id)) continue
-    if (isPulseClosed(pulses.get(m.job_id))) { closedMatches.push(m); continue }
-    const bucket = classifyMatch(m)
-    if (bucket === "rejected") { rejectedCount += 1; continue }
-    if (bucket === "below") { belowBarCount += 1; continue }
-    if (pickedIds.has(m.job_id)) continue // shown in the Agent Picks band already
-    found.push(matchToFeedItem(m))
-  }
-  found.sort((a, b) => (b.fit ?? -1) - (a.fit ?? -1))
-  return { found, belowBarCount, rejectedCount, closedMatches }
+export interface Hero {
+  label: string
+  kind: "go" | "gap" | "quiet"
+  /** Where it goes. `null` = the surface supplies an onClick instead. */
+  href: string | null
 }
 
-export interface CollectionsView {
-  /** Tailored but not applied — pinned "Finish tailoring" lane. */
-  continueItems: FeedItem[]
-  /** Everything else in the current chip, ranked. */
-  queueItems: FeedItem[]
-}
+const tailorHref = (jobId: string) => `/cv?jobId=${encodeURIComponent(jobId)}`
 
 /**
- * Order the current chip's rows. One ordering: the Match Verdict (`sortItems`),
- * with applied rows sunk to the bottom — they're done, not next — and priority
- * rows first. The default used to be `prize × winnability`, a client-side fit
- * score that could disagree with the number printed on the card it was ordering.
- * The continue lane is extracted only outside the Applied chip (an applied job
- * has nothing left to finish).
+ * Hero by stage.
+ *
+ * `found`/`saved` split on the Match Verdict, via the shared `verdictMove`: a
+ * strong or worth-it role is worth tailoring now; a stretch is worth closing
+ * gaps on first. Both skins used to print "Tailor CV" on every row including
+ * stretches — the opposite error to the Jobs face, which printed a move
+ * sentence as a second CTA next to Save.
+ *
+ * `applied` hands off to the Prep room. `closed` has nothing left to do to the
+ * listing, so the one useful move is that company's live openings.
  */
-export function buildCollectionsView(
-  apps: ApplicationResponse[],
-  chip: CollectionChip,
-  sort: SortKey,
-  ctx: TriageContext,
-  byId: Map<string, JobMatch>,
-): CollectionsView {
-  const shown = filterChip(apps, chip)
-  const items = shown.map((a) => appToFeedItem(a, byId.get(a.job_id)))
-  const priorityJobIds = new Set(shown.filter((a) => a.is_priority).map((a) => a.job_id))
-  const priorityFirst = (a: FeedItem, b: FeedItem) =>
-    Number(priorityJobIds.has(b.jobId)) - Number(priorityJobIds.has(a.jobId))
-
-  const continueItems: FeedItem[] = []
-  const rest: FeedItem[] = []
-  for (const it of items) {
-    if (chip !== "applied" && ctx.tailoredJobIds.has(it.jobId) && !ctx.committedJobIds.has(it.jobId)) {
-      continueItems.push(it)
-    } else {
-      rest.push(it)
+export function heroFor(entry: CollectionEntry): Hero {
+  const gapCount = entry.job.missing_skills?.length ?? 0
+  switch (entry.stage) {
+    case "applied":
+      return { label: "Prep room", kind: "go", href: `/preparations/${encodeURIComponent(entry.job_id)}` }
+    case "closed":
+      return { label: entry.job.company ? `More at ${entry.job.company}` : "Find similar roles", kind: "quiet", href: null }
+    case "tailored":
+      // The CV exists. One hero: open the order it belongs to. "Apply" is not a
+      // peer here — it is the Apply Transport control, which the card already
+      // renders separately when the listing has a destination.
+      return { label: "Open tailored CV", kind: "go", href: tailorHref(entry.job_id) }
+    default: {
+      const move = verdictMove(entry.job.verdict, gapCount)
+      if (move?.kind === "gap") {
+        return { label: move.label, kind: "gap", href: "/practice" }
+      }
+      return { label: "Tailor CV", kind: "go", href: tailorHref(entry.job_id) }
     }
   }
-
-  const byVerdict = sortItems(continueItems, "fit")
-  continueItems.length = 0
-  continueItems.push(...byVerdict.sort(priorityFirst))
-
-  // Applied sinks on every axis — it is done, not next — then priority, then the
-  // user's chosen ordering. Applied-sinks used to apply only under "prize"; the
-  // other three axes let a finished application outrank live work.
-  const appliedSinks = (a: FeedItem, b: FeedItem) =>
-    Number(ctx.committedJobIds.has(a.jobId)) - Number(ctx.committedJobIds.has(b.jobId))
-  const queueItems = sortItems(rest, sort).sort((a, b) => appliedSinks(a, b) || priorityFirst(a, b))
-  return { continueItems, queueItems }
 }
 
-/** The chip-independent "Finish tailoring" lane — every tailored, not-yet-
- *  applied saved job, best fit first. Pinned above the folder on every chip. */
-export function buildContinueLane(
-  apps: ApplicationResponse[],
-  byId: Map<string, JobMatch>,
-): FeedItem[] {
-  const priorityJobIds = new Set(apps.filter((a) => a.is_priority).map((a) => a.job_id))
-  const items = apps
-    .filter((a) => a.cv_badge && !isApplied(a))
-    .map((a) => appToFeedItem(a, byId.get(a.job_id)))
-  return sortItems(items, "fit").sort(
-    (a, b) => Number(priorityJobIds.has(b.jobId)) - Number(priorityJobIds.has(a.jobId)),
+/**
+ * Order one stage's entries. Priority first (the heart is deliberate intent),
+ * then the user's chosen axis.
+ *
+ * The applied-sinks rule the old model carried is gone with the chip it served:
+ * applied rows have their OWN stage now, so they can no longer outrank live
+ * work inside a list they do not belong to.
+ */
+export function orderEntries(entries: CollectionEntry[], sort: SortKey): CollectionEntry[] {
+  const axis = (a: CollectionEntry, b: CollectionEntry): number => {
+    if (sort === "company") {
+      return (a.job.company ?? "￿").localeCompare(b.job.company ?? "￿", undefined, { sensitivity: "base" })
+    }
+    if (sort === "recent") {
+      return seenAt(b.job) - seenAt(a.job)
+    }
+    return (b.job.match_score ?? -1) - (a.job.match_score ?? -1)
+  }
+  return [...entries].sort(
+    (a, b) => Number(b.is_priority) - Number(a.is_priority) || axis(a, b),
   )
 }
 
-/** The folder's commitment split — which rows are tailored, which are done.
- *  It used to also take followedCompanies + targetRoles to feed the deleted
- *  `prize × winnability` ranker; those are targeting facts and belong in the
- *  Targeting Brief, read by the brain into the verdict, not re-applied here. */
-export function collectionsTriageCtx(apps: ApplicationResponse[]): TriageContext {
-  const tailoredJobIds = new Set<string>()
-  const committedJobIds = new Set<string>()
-  for (const a of apps) {
-    if (a.cv_badge) tailoredJobIds.add(a.job_id)
-    if (isApplied(a)) committedJobIds.add(a.job_id)
-  }
-  return { tailoredJobIds, committedJobIds }
+function seenAt(job: JobMatch): number {
+  const iso = job.first_seen
+  return iso ? new Date(iso).getTime() : 0
 }
 
-/** Chip-scoped empty copy — never a blanket "nothing here" when the emptiness
- *  has a nameable cause (ported from the dashboard's scoped empty states). */
-export function emptyCopy(chip: CollectionChip): string {
-  switch (chip) {
+/** Stage-scoped empty copy — never a blanket "nothing here" when the emptiness
+ *  has a nameable cause. */
+export function emptyCopy(stage: CollectionStage): string {
+  switch (stage) {
     case "found":
-      return "No Myro-found roles saved yet — save one from Jobs and it lands here."
-    case "added":
-      return "Nothing added by you yet — paste a link, or send roles from the Chrome extension."
+      return "Nothing has cleared the bar yet — run a Myro Search and the roles worth your time land here."
+    case "saved":
+      return "Nothing saved yet — save a role from Jobs, paste a link, or send one from the Chrome extension."
+    case "tailored":
+      return "No tailored CVs yet — pick a saved role and tailor it. That is the one that gets downloaded."
     case "applied":
       return "No applications yet — tailor a saved role, then apply."
     case "closed":
-      return "Nothing closed — everything you're tracking is still live."
-    default:
-      return "Nothing here yet — save roles from Jobs, paste a link, or send them from the Chrome extension."
+      return "Nothing closed — every listing you're tracking is still up."
   }
 }

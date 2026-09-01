@@ -127,7 +127,7 @@ export function CvTabView({
   return (
     <div className="tm-lib-workspace">
       <aside className="tm-lib-rail" aria-label="Tailoring context">
-        <FinishTailoringLane applications={applications} onOpenJob={pickTailored} />
+        <FinishTailoringLane token={token} onOpenJob={pickTailored} />
         {showStory && (
           <ProvenanceRail
             bulletText={selectedBulletText ?? ""}

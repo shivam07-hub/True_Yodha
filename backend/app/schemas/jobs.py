@@ -980,3 +980,7 @@ class CollectionResponse(BaseModel):
     below_bar_count: int = 0
     #: Rejected for cause (scam tier / an honest Skip).
     rejected_count: int = 0
+    #: Career-Ops vetting health, same values as /jobs/matches. Carried here so
+    #: the "not AI-vetted — retry" banner still has its input on a surface that
+    #: no longer reads /jobs/matches; without it the banner silently never renders.
+    match_health: str = "empty"

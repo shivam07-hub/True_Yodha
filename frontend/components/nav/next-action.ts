@@ -1,6 +1,6 @@
 import type { ApplicationResponse, JobMatch } from "@/lib/api"
 import type { CvPresence } from "@/lib/cv-presence"
-import { isApplied, matchesById } from "@/lib/collections/model"
+import { isApplied, matchesById } from "@/lib/jobs/application-stage"
 import { followUpLine, needsStageCheck } from "@/components/preparations/prep-model"
 import { similarRolesHref } from "@/lib/jobs/similar-roles"
 

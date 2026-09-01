@@ -1,45 +1,38 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 
+import type { CollectionResponse, CollectionStage } from "../lib/api"
 import { deriveJourneyCounts } from "../components/nav/journey-counts"
-import type { ApplicationResponse } from "../lib/api"
 
-/** Journey counts on the nav tabs (unified-structure S1) — the nav IS the
- *  pipeline read, so the numbers must be exact and applied-aware. */
-
-const badge: ApplicationResponse["cv_badge"] = { version_id: 1, version_number: 1, kind: "deterministic", polished: false }
-
-const app = (over: Partial<ApplicationResponse>): ApplicationResponse =>
-  ({ job_id: "j", status: "saved", cv_badge: null, source: "system_match", ...over }) as ApplicationResponse
-
-test("collected = saved-only; applied rows leave the Collections count", () => {
-  const counts = deriveJourneyCounts([
-    app({ job_id: "a" }),
-    app({ job_id: "b" }),
-    app({ job_id: "c", status: "applied" }),
-  ])
-  assert.equal(counts.collected, 2)
+const record = (stages: Partial<Record<CollectionStage, number>>): CollectionResponse => ({
+  entries: [],
+  stages: { found: 0, saved: 0, tailored: 0, applied: 0, closed: 0, ...stages },
+  landing: "found",
+  below_bar_count: 0,
+  rejected_count: 0,
+  match_health: "vetted",
 })
 
-test("tailored counts cv_badge among in-play rows only", () => {
-  const counts = deriveJourneyCounts([
-    app({ job_id: "a", cv_badge: badge }),
-    app({ job_id: "b" }),
-    app({ job_id: "c", status: "applied", cv_badge: badge }), // applied → not in Tailor lane
-  ])
-  assert.equal(counts.tailored, 1)
+test("the nav reads the resolver's counts, not its own derivation", () => {
+  const counts = deriveJourneyCounts(record({ saved: 3, tailored: 2, applied: 1 }))
+  assert.deepEqual(counts, { collected: 3, tailored: 2, liveRooms: 1 })
 })
 
-test("liveRooms = applied + interviewing (terminal stages excluded)", () => {
-  const counts = deriveJourneyCounts([
-    app({ job_id: "a", status: "applied" }),
-    app({ job_id: "b", status: "interviewing" }),
-    app({ job_id: "c", status: "rejected" }),
-    app({ job_id: "d" }),
-  ])
-  assert.equal(counts.liveRooms, 2)
+test("found is not collected — nothing has been claimed yet", () => {
+  // Counting Myro's offer as the user's pipeline made the badge promise work
+  // they had never agreed to do.
+  assert.equal(deriveJourneyCounts(record({ found: 12 })).collected, 0)
 })
 
-test("empty pipeline is all zeros — tabs render count-less", () => {
-  assert.deepEqual(deriveJourneyCounts([]), { collected: 0, tailored: 0, liveRooms: 0 })
+test("closed rows never reach the badge", () => {
+  // The badge used to count raw applications, closed listings included, while
+  // the surface moved those to their own chip — so it counted rows it then hid.
+  assert.deepEqual(
+    deriveJourneyCounts(record({ saved: 2, closed: 9 })),
+    { collected: 2, tailored: 0, liveRooms: 0 },
+  )
+})
+
+test("an empty collection counts nothing", () => {
+  assert.deepEqual(deriveJourneyCounts(record({})), { collected: 0, tailored: 0, liveRooms: 0 })
 })
