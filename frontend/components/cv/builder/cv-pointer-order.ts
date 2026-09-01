@@ -109,6 +109,35 @@ export function arrangeByText<T extends { text: string }>(
   return out.length === rows.length ? out : [...rows]
 }
 
+export function applyRoleMove(cv: CVStructured, from: number, to: number): CVStructured {
+  return { ...cv, experience: moveItem(cv.experience, from, to) }
+}
+
+export function remapRoleHiddenIids(
+  hidden: Set<string>,
+  roles: readonly { bullets: string[] }[],
+  from: number,
+  to: number,
+): Set<string> {
+  if (from === to) return hidden
+  const perm = permutation(from, to, roles.length)
+  const next = new Set(hidden)
+  for (let newEi = 0; newEi < perm.length; newEi++) {
+    const oldEi = perm[newEi]
+    const bullets = roles[oldEi]?.bullets ?? []
+    bullets.forEach((text, bi) => {
+      const oldIid = itemId("exp_bullet", oldEi * 100 + bi, text)
+      const newIid = itemId("exp_bullet", newEi * 100 + bi, text)
+      if (oldIid === newIid) return
+      if (next.has(oldIid)) {
+        next.delete(oldIid)
+        next.add(newIid)
+      }
+    })
+  }
+  return next
+}
+
 export function applyBulletMove(
   cv: CVStructured,
   section: "experience" | "projects",

@@ -266,6 +266,36 @@ def _background_refresh(
         )
 
 
+def peek(key: str, *, ttl_seconds: int, stale_seconds: int = 0) -> tuple[Any, bool] | None:
+    """Return ``(data, is_stale)`` for a servable entry, or None.
+
+    The read half of `get_or_compute`, without the compute. It exists so a
+    caller whose answer is a SET of independently-cacheable members can look
+    each member up and pay a round trip for only the ones that miss. Keying a
+    set as one entry makes every distinct set its own cold fill — the shape
+    behind /jobs/companies/pulse at 8-27s (ARCHITECTURE_READ_PATH.md §16 P4).
+    """
+    entry = _read(key)
+    if entry is None:
+        return None
+    computed_at, data = entry
+    age = time.time() - computed_at
+    if age < ttl_seconds:
+        return data, False
+    if age < ttl_seconds + stale_seconds:
+        return data, True
+    return None
+
+
+def put(key: str, data: Any, *, ttl_seconds: int, stale_seconds: int = 0) -> None:
+    """Store one entry computed outside this module.
+
+    For fanning a batched compute back out across its members, so the next
+    request for any subset is a lookup rather than a rescan.
+    """
+    _write(key, data, ttl_seconds=ttl_seconds, stale_seconds=stale_seconds)
+
+
 def get_or_compute(
     key: str,
     compute: Callable[[], T],

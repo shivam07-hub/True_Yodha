@@ -78,11 +78,19 @@ export function bulletKeywordHits(text: string, targets: KeywordTarget[]): Keywo
   return targets.filter(t => kwMatches(text, t.kw))
 }
 
+/** Parser/import sentinel. Never a display name — empty string is the UI form. */
+const COMPANY_SENTINEL = "Untitled company"
+
+export function displayCompany(name: string | null | undefined): string {
+  const t = name?.trim() ?? ""
+  return !t || t === COMPANY_SENTINEL ? "" : t
+}
+
 export function resolvePlaygroundCompany(
   jobCompany: string | null | undefined,
   gapCompany: string | null | undefined,
 ): string {
-  return jobCompany?.trim() || gapCompany?.trim() || "Untitled company"
+  return displayCompany(jobCompany) || displayCompany(gapCompany)
 }
 
 export function formatKeywordChipLabel(label: string): string {

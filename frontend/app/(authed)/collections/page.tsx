@@ -7,6 +7,7 @@ import { useViewport } from "@/mobile"
 import { CollectionsSurface } from "@/mobile/redesign/collections-surface"
 import { CollectionsDesktop } from "@/components/collections/collections-desktop"
 import { FirstSuccessChecklist } from "@/components/onboarding/first-success-checklist"
+import { SetupNudge } from "@/components/common/setup-nudge"
 import { DashboardSkeleton } from "@/components/loading/page-skeletons"
 
 /**
@@ -15,6 +16,11 @@ import { DashboardSkeleton } from "@/components/loading/page-skeletons"
  * surface and the desktop workspace (FeedCard rows + build drawer + rail).
  * Browse for unsaved matches lives on Jobs (/market); this surface owns
  * collect → tailor → apply. `?jobId=` deep-links open that job's detail.
+ *
+ * It is also a post-auth LANDING (postAuthDestination Exception 2): someone who
+ * saved a job while logged out arrives here straight from signup, holding one
+ * saved role and no CV. Collect → tailor → apply all need a baseline, so the
+ * spine nudge belongs here as much as on /market.
  */
 function CollectionsInner() {
   const { token, ready } = useAuth()
@@ -28,11 +34,17 @@ function CollectionsInner() {
   if (mode === "mobile")
     return (
       <>
+        <div className="px-4 pt-4"><SetupNudge token={token} /></div>
         {token ? <div className="px-4 pt-4"><FirstSuccessChecklist token={token} /></div> : null}
         <CollectionsSurface token={token ?? ""} initialJobId={jobId} openSearch={openSearch} />
       </>
     )
-  return <CollectionsDesktop token={token ?? ""} initialJobId={jobId} openSearch={openSearch} />
+  return (
+    <>
+      <SetupNudge token={token} style={{ margin: "20px 24px 0" }} />
+      <CollectionsDesktop token={token ?? ""} initialJobId={jobId} openSearch={openSearch} />
+    </>
+  )
 }
 
 export default function CollectionsPage() {

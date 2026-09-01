@@ -12,7 +12,7 @@ import "@/components/preparations/preparations.css"
  * project_preparations_surface). Successor of the retired /cv?view=active
  * "Applications" tab: every applied job gets a prep room; the list is the
  * stage-grouped pipeline. Desktop chrome matches Jobs / Collections
- * (1480 shell + 248px rail); the room stays an 860px reading column.
+ * (1480 shell + 2:3 standing column); the room stays an 860px reading column.
  */
 export default function PreparationsPage() {
   const { token, ready } = useAuth()

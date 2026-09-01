@@ -192,11 +192,7 @@ function IntelPageInner() {
           {/* Same component, same copy, same door as the desktop feed. Mobile
               used to render a different nudge pointing at /cv, and showed
               nothing at all to a user who had a CV but no target. */}
-          <SetupNudge
-            resolved={profileData !== undefined}
-            hasCv={!!profileData?.has_cv}
-            hasTargetRoles={targetRoles.length > 0}
-          />
+          <SetupNudge token={token} />
         </div>
         <JobsSurface
           token={token ?? ""}
@@ -239,7 +235,6 @@ function IntelPageInner() {
             <MarketJobsTab
             token={token ?? ""}
             hasCv={!!profileData?.has_cv}
-            cvResolved={profileData !== undefined}
             targetRoles={targetRoles}
             chipCountMap={chipCountMap}
             selectedCluster={selectedCluster}

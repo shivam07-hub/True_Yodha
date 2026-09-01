@@ -12,23 +12,18 @@
   display: flex;
   align-items: baseline;
   gap: 12px;
-  margin-bottom: 4px;
+  margin-bottom: 24px;
 }
 .prp-title {
-  font-size: 22px;
-  font-weight: 700;
+  font-size: var(--tm-fs-heading);
+  font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--tm-text);
   margin: 0;
 }
-.prp-sub {
-  font-size: 13px;
-  color: var(--tm-text-muted);
-  margin: 0 0 24px;
-}
 .prp-count {
   font-family: var(--tm-font-mono);
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text-faint);
 }
 
@@ -39,11 +34,11 @@
   align-items: center;
   gap: 8px;
   font-family: var(--tm-font-mono);
-  font-size: 10.5px;
+  font-size: var(--tm-fs-micro);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--tm-text-faint);
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 .prp-group-head .n { color: var(--tm-text-muted); }
 .prp-group-line { flex: 1; height: 1px; background: var(--tm-border-soft); }
@@ -54,19 +49,19 @@
   gap: 14px;
   width: 100%;
   text-align: left;
-  padding: 14px 16px;
-  border: 1px solid var(--tm-border-soft);
-  border-radius: 12px;
-  background: var(--tm-surface);
+  padding: 16px 0;
+  border: 0;
+  border-bottom: 1px solid var(--tm-border-soft);
+  border-radius: 0;
+  background: transparent;
   cursor: pointer;
-  transition: border-color 120ms ease, transform 120ms ease;
-  margin-bottom: 8px;
   text-decoration: none;
+  color: inherit;
 }
-.prp-row:hover { border-color: var(--tm-border); }
+.prp-row:hover .prp-row-chev { color: var(--tm-interactive-text); }
 .prp-row-main { flex: 1; min-width: 0; }
 .prp-row-role {
-  font-size: 14.5px;
+  font-size: var(--tm-fs-body);
   font-weight: 600;
   color: var(--tm-text);
   overflow: hidden;
@@ -77,7 +72,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: var(--tm-fs-caption);
   color: var(--tm-text-muted);
   margin-top: 2px;
 }
@@ -87,24 +82,20 @@
 .prp-stage-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
   font-family: var(--tm-font-mono);
-  font-size: 10.5px;
+  font-size: var(--tm-fs-micro);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  padding: 3px 9px;
-  border-radius: 999px;
-  border: 1px solid var(--tm-border-soft);
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--tm-text-muted);
   flex-shrink: 0;
 }
-.prp-stage-chip.hot {
-  border-color: color-mix(in srgb, var(--tm-interactive) 45%, transparent);
-  color: var(--tm-interactive-text);
-}
+.prp-stage-chip.hot { color: var(--tm-interactive-text); }
 
 .prp-attn {
-  font-size: 11.5px;
+  font-size: var(--tm-fs-note);
   color: var(--tm-interactive-text);
   flex-shrink: 0;
 }
@@ -435,46 +426,46 @@
   color: var(--tm-text-muted);
 }
 
-/* ── list workspace: same 1480 shell + 248px peek rail as Collections.
-   Default .mc-workspace puts the rail first. The room page stays a single
-   860px reading column (.prp-page). ── */
+/* ── list workspace: 1480 shell + 2:3 standing column (Prep only).
+   Default .mc-workspace is 248px and shared with Market/Collections.
+   The room page stays a single 860px reading column (.prp-page). ── */
 .prp-workspace-page {
   padding: 32px 36px 64px;
   max-width: 1480px;
   margin: 0 auto;
 }
+.prp-workspace-page .mc-workspace {
+  grid-template-columns: minmax(280px, 2fr) minmax(0, 3fr);
+}
 
-/* Score map body — radar then lift line, inside the shared peek card. */
-.prp-map-body {
+.prp-stand {
   display: flex;
   flex-direction: column;
+  gap: 12px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--tm-border-soft);
+}
+.prp-stand:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.prp-stand-more {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
+  align-self: flex-start;
+  font-size: var(--tm-fs-ui-sm);
+  font-weight: 600;
+  color: var(--tm-interactive-text);
   text-decoration: none;
 }
-.prp-map-radar { display: block; width: 100%; max-width: 240px; }
-.prp-map-radar svg { width: 100%; height: auto; display: block; }
-.prp-map-read {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 9px;
-  min-width: 0;
-}
-.prp-map-cap {
-  font-size: 12px;
-  line-height: 1.45;
-  color: var(--tm-text-muted);
-  text-align: center;
-}
-.prp-map-cap strong { color: var(--tm-text); font-weight: 600; }
-.prp-map-body:hover .mc-peek-link { text-decoration: underline; }
-.prp-workspace-page .mc-peek-empty a { color: var(--tm-interactive-text); font-weight: 600; text-decoration: none; }
+.prp-stand-more:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+.prp-workspace-page .prp-empty a { color: var(--tm-interactive-text); font-weight: 600; text-decoration: none; }
 
 @media (max-width: 980px) {
-  .prp-map-radar { max-width: 280px; }
-  /* DOM-first rail would stack above the rooms. Keep rooms first; training
-     follows, still visible — unlike Collections' --peek hide. */
+  /* DOM-first rail would stack above the rooms. Keep rooms first; standing
+     column follows, still visible — unlike Collections' --peek hide. */
   .prp-workspace-page .mc-workspace { display: flex; flex-direction: column; }
   .prp-workspace-page .mc-ws-main { order: 1; }
   .prp-workspace-page .mc-ws-rail { order: 2; }
@@ -484,5 +475,5 @@
   .prp-page,
   .prp-workspace-page { padding: 18px 14px 96px; }
   .prp-room-role { font-size: 17px; }
-  .prp-row { padding: 12px 13px; }
+  .prp-row { padding: 12px 0; }
 }

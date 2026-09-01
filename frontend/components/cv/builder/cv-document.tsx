@@ -1,20 +1,31 @@
 /**
- * CvDocument — the whole CV, as the editor. Rank 2 of the hierarchy redesign.
+ * CvDocument — the whole CV, as the editor.
  *
- * Experience and project bullets are sortable pointers. Order writes through
- * `onPatch` (the same living-master path as every other content edit).
+ * Identity is pinned. Every other section is a droppable block. Role cards
+ * reorder inside Experience. Hidden lines leave the paper; chrome restores them.
  */
 "use client"
 
 import { useEffect, useRef, useState, type ReactNode } from "react"
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 import type { CVStructured, UserSkillsByDomain } from "@/lib/api"
 import { itemId } from "@/lib/cv-compose"
+import { collectHiddenLines } from "@/lib/cv/hidden-lines"
+import { moveSection, normalizeSectionOrder, type SectionKey } from "@/lib/cv/section-order"
 import { CvIdentityCard, type IdentityLines } from "./cv-identity-card"
 import { CvLineRow } from "./cv-line-row"
-import { CvRoleBlock } from "./cv-role-block"
-import { SectionDraft } from "./cv-section-draft"
-import { CvTailSections } from "./cv-tail-sections"
-import { EmptySection } from "./cv-empty-section"
+import { CvHiddenChrome } from "./cv-hidden-chrome"
+import { GripDots } from "./cv-grip"
+import { PaperSection, sectionLabel, type PaperBind } from "./cv-paper-sections"
 import { applyBulletMove, remapHiddenIids, type PointerKind } from "./cv-pointer-order"
 import { verdictLabel, verdictLabelDense, type LineVerdict } from "./cv-severity"
 import type { PointerRowModel } from "./cv-pointer-list"
@@ -24,7 +35,6 @@ export interface CvDocumentProps {
   identity: IdentityLines
   hidden: Set<string>
   verdicts: Map<string, LineVerdict>
-  /** A job is in play, so "on target" means something. */
   targeted: boolean
   openIid: string | null
   activeOffenders?: string[]
@@ -36,6 +46,9 @@ export interface CvDocumentProps {
   onPatch?: (mut: (draft: CVStructured) => CVStructured) => void
   identityEditable?: boolean
   onAddBullet?: (roleIndex: number, text: string) => void
+  onReorderRoles?: (from: number, to: number) => void
+  sectionOrder?: SectionKey[] | null
+  onSectionOrder?: (order: SectionKey[]) => void
   userSkills?: UserSkillsByDomain | null
   flash?: { iid: string; n: number } | null
   editRequest?: { iid: string; n: number } | null
@@ -45,7 +58,7 @@ export function CvDocument(props: CvDocumentProps) {
   const {
     cv, identity, hidden, verdicts, targeted, openIid, activeOffenders, renderRewrite,
     onOpenFix, onToggleHidden, onEditLine, onCopyLine, onPatch, identityEditable,
-    onAddBullet, userSkills, flash, editRequest,
+    onAddBullet, onReorderRoles, sectionOrder, onSectionOrder, userSkills, flash, editRequest,
   } = props
   const [editingIid, setEditingIid] = useState<string | null>(null)
   const [draft, setDraft] = useState("")
@@ -54,6 +67,8 @@ export function CvDocument(props: CvDocumentProps) {
   const openDraft = (key: "summary" | "skills") =>
     setDrafting(prev => new Set(prev).add(key))
   const rows = useRef<Record<string, HTMLElement | null>>({})
+  const order = normalizeSectionOrder(sectionOrder)
+  const canDragSections = !!onSectionOrder
 
   useEffect(() => {
     if (!flash) return
@@ -93,6 +108,7 @@ export function CvDocument(props: CvDocumentProps) {
 
   function line(iid: string, text: string, opts: { mono?: boolean } = {}) {
     const row = model(iid, text)
+    if (row.hidden) return null
     return (
       <CvLineRow
         key={iid}
@@ -102,7 +118,7 @@ export function CvDocument(props: CvDocumentProps) {
         verdictDense={row.verdictDense}
         mono={opts.mono}
         userSkills={userSkills}
-        hidden={row.hidden}
+        hidden={false}
         editing={row.editing}
         editDraft={draft}
         copied={row.copied}
@@ -142,13 +158,9 @@ export function CvDocument(props: CvDocumentProps) {
     onPatch(d => applyBulletMove(d, section, groupIndex, from, to))
   }
 
-  const pointerBind = {
-    openIid,
-    userSkills,
-    canReorder: !!onPatch,
-    onOpenFix,
-    onToggleHidden,
-    onStartEdit: (iid: string, text: string) => { setEditingIid(iid); setDraft(text) },
+  const bind: PaperBind = {
+    cv, openIid, userSkills, onPatch, onAddBullet, onReorderRoles, onOpenFix, onToggleHidden,
+    onStartEdit: (iid, text) => { setEditingIid(iid); setDraft(text) },
     onEditDraftChange: setDraft,
     onSaveEdit: () => {
       if (!editingIid) return
@@ -157,13 +169,26 @@ export function CvDocument(props: CvDocumentProps) {
       if (text && next && next !== text) onEditLine(text, next)
       setEditingIid(null)
     },
-    onCopy: onCopyLine ? (iid: string, text: string) => {
+    onCopy: onCopyLine ? (iid, text) => {
       onCopyLine(text)
       setCopiedIid(iid)
       setTimeout(() => setCopiedIid(c => (c === iid ? null : c)), 1500)
     } : undefined,
-    rowRef: (iid: string, el: HTMLElement | null) => { rows.current[iid] = el },
+    rowRef: (iid, el) => { rows.current[iid] = el },
+    model, line, reorder, drafting, openDraft,
   }
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+  function onSectionDrag(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id || !onSectionOrder) return
+    const from = order.indexOf(String(active.id) as SectionKey)
+    const to = order.indexOf(String(over.id) as SectionKey)
+    if (from < 0 || to < 0) return
+    onSectionOrder(moveSection(order, from, to))
+  }
+
+  const hiddenLines = onToggleHidden ? collectHiddenLines(cv, hidden) : []
 
   return (
     <div className="cvw-doc">
@@ -175,74 +200,49 @@ export function CvDocument(props: CvDocumentProps) {
         />
       </div>
 
-      <div className="cvw-sec" id="cvw-sec-summary">Summary</div>
-      {cv.summary?.trim() ? (
-        <div className="cvw-card">{line(itemId("summary", 0, cv.summary), cv.summary)}</div>
-      ) : drafting.has("summary") && onPatch ? (
-        <SectionDraft
-          value={cv.summary ?? ""}
-          placeholder="One paragraph on who you are."
-          label="Summary"
-          onChange={v => onPatch(d => ({ ...d, summary: v }))}
-        />
-      ) : (
-        <EmptySection
-          copy="Empty — one paragraph on who you are."
-          severity="blocking"
-          onAdd={onPatch ? () => openDraft("summary") : undefined}
-        />
+      <DndContext id="cvw-sections" sensors={sensors} collisionDetection={closestCenter} onDragEnd={onSectionDrag}>
+        <SortableContext items={order} strategy={verticalListSortingStrategy}>
+          {order.map(key => {
+            if (key === "projects" && cv.projects.length === 0 && !canDragSections) return null
+            return (
+            <SortableSection key={key} id={key} disabled={!canDragSections} label={sectionLabel(key)}>
+              <PaperSection section={key} bind={bind} />
+            </SortableSection>
+            )
+          })}
+        </SortableContext>
+      </DndContext>
+
+      {onToggleHidden && (
+        <CvHiddenChrome lines={hiddenLines} onShow={onToggleHidden} />
       )}
+    </div>
+  )
+}
 
-      <div className="cvw-sec" id="cvw-sec-experience">Experience</div>
-      {cv.experience.map((exp, ei) => (
-        <CvRoleBlock
-          key={`exp-${ei}`}
-          kind="exp_bullet"
-          groupIndex={ei}
-          head={{ title: exp.role, company: exp.company, dates: exp.dates }}
-          bullets={exp.bullets}
-          rows={exp.bullets.map((b, bi) => model(itemId("exp_bullet", ei * 100 + bi, b), b))}
-          onReorder={(from, to) => reorder("exp_bullet", ei, from, to)}
-          onAddBullet={onAddBullet ? text => onAddBullet(ei, text) : undefined}
-          {...pointerBind}
-        />
-      ))}
-
-      {cv.projects.length > 0 && <div className="cvw-sec">Projects</div>}
-      {cv.projects.map((p, pi) => (
-        <CvRoleBlock
-          key={`proj-${pi}`}
-          kind="proj_bullet"
-          groupIndex={pi}
-          head={{ title: p.name }}
-          bullets={p.bullets}
-          rows={p.bullets.map((b, bi) => model(itemId("proj_bullet", pi * 100 + bi, b), b))}
-          onReorder={(from, to) => reorder("proj_bullet", pi, from, to)}
-          {...pointerBind}
-        />
-      ))}
-
-      <div className="cvw-sec" id="cvw-sec-skills">Skills</div>
-      {cv.skills_line?.trim() ? (
-        <div className="cvw-card">
-          {line(itemId("skills_line", 0, cv.skills_line), cv.skills_line, { mono: true })}
-        </div>
-      ) : drafting.has("skills") && onPatch ? (
-        <SectionDraft
-          value={cv.skills_line ?? ""}
-          placeholder="Comma-separated: the tools and methods you actually use."
-          label="Skills"
-          onChange={v => onPatch(d => ({ ...d, skills_line: v }))}
-        />
-      ) : (
-        <EmptySection
-          copy="Empty — the tools and methods you actually use."
-          severity="optional"
-          onAdd={onPatch ? () => openDraft("skills") : undefined}
-        />
-      )}
-
-      <CvTailSections cv={cv} onPatch={onPatch} />
+function SortableSection({
+  id, disabled, label, children,
+}: {
+  id: string
+  disabled: boolean
+  label: string
+  children: ReactNode
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id, disabled })
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform ? { ...transform, x: 0 } : null), transition }}
+    >
+      <div className="cvw-sec" id={`cvw-sec-${id}`}>
+        {!disabled && (
+          <button type="button" className="cvw-drag" {...attributes} {...listeners} aria-label={`Reorder ${label}`}>
+            <GripDots />
+          </button>
+        )}
+        {label}
+      </div>
+      {children}
     </div>
   )
 }

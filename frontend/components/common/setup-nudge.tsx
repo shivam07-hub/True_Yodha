@@ -1,12 +1,13 @@
 "use client"
 
+import { useQuery } from "@tanstack/react-query"
+
+import { users } from "@/lib/api"
+import { dataKeys } from "@/lib/domain-data"
 import "./setup-nudge.css"
 
 interface SetupNudgeProps {
-  /** False until the profile fetch has resolved — never nudge on a guess. */
-  resolved: boolean
-  hasCv: boolean
-  hasTargetRoles: boolean
+  token: string | null
   className?: string
   style?: React.CSSProperties
 }
@@ -32,9 +33,25 @@ interface SetupNudgeProps {
  * rendered `CVRequiredNudge` pointing at /cv. Mobile also had no nudge at all for
  * the has-CV-no-target state, so 234 users were unreachable on the viewport most
  * of them use.
+ *
+ * It READS the fact rather than accepting it. Handing this in as props is how the
+ * two versions came to disagree — one gated on `onboarding_complete`, the other
+ * on `has_cv`, and mobile forgot the target case entirely. The shell already
+ * fetches `users.me` on every authed page, so this is a cache hit, not a request.
  */
-export function SetupNudge({ resolved, hasCv, hasTargetRoles, className, style }: SetupNudgeProps) {
-  if (!resolved) return null
+export function SetupNudge({ token, className, style }: SetupNudgeProps) {
+  const profile = useQuery({
+    queryKey: dataKeys.profile(),
+    queryFn: () => users.me(token!),
+    enabled: Boolean(token),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  // Never nudge on a guess: the fetch resolves after first paint, and rendering
+  // "Upload your CV" at someone who has one is worse than rendering nothing.
+  if (!profile.data) return null
+  const hasCv = profile.data.has_cv
+  const hasTargetRoles = (profile.data.target_roles ?? []).length > 0
   if (hasCv && hasTargetRoles) return null
 
   const copy = hasCv

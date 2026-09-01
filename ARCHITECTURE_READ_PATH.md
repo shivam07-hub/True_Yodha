@@ -1496,3 +1496,95 @@ recover themselves — the partner has to re-issue SSO for those seats.
 A row leaves when the alert channel stops reporting it for a full week — not
 when a fix ships. That is the distinction §11 got wrong: it closed on a
 `service_role` plan, and the route kept alerting for eleven more days.
+
+---
+
+## 17. The 536-alert audit (2026-09-01)
+
+Source: **every saturation alert in the mailbox — 536 messages, 2026-07-23 →
+2026-09-01**, parsed rather than sampled. §16 was built from 613 alert *lines*
+over 11 days; this is the whole channel over six weeks, so the two agree on
+shape and disagree on several specific rows. 2,476 sampled slow requests; the
+mail prints at most three per stage, so every count below is a **lower bound**.
+
+### The channel is quieting, and it is not noise
+
+| | alerts/day |
+|---|---|
+| 2026-07-23 → 08-26 (34 days) | 13.9 |
+| 2026-08-26 → 09-01 (7 days) | 9.1 |
+| | **−34%** |
+
+Weekly: 63, 102, **131**, 85, 72, 65 — peak in W32, monotonic decline since.
+
+### Rows that earned closure by this file's own rule
+
+*"A row leaves when the alert channel stops reporting it for a full week."*
+
+| Route | Slow samples | p50 | Last alert | Silent |
+|---|---|---|---|---|
+| `GET /jobs/analytics/skills` | 41 | 4,243ms | 2026-08-05 | 27d |
+| `GET /jobs/search/global` | 18 | 8,014ms | 2026-08-07 | 25d |
+| `GET /notifications/unread-count` | 56 | 1,873ms | 2026-08-13 | 19d |
+| `GET /jobs/analytics` | 43 | 1,186ms | 2026-08-21 | 11d |
+| `POST /v1/telemetry/cv-upload-phase` | 6 | — | 2026-08-23 | 9d |
+| `GET /jobs/companies/indexable` | **177** | **7,386ms** | 2026-08-25 | 7d |
+| `/preflight/*` | 2 | — | 2026-08-16 | 16d |
+
+`indexable_companies` is the cleanest result on the board: 177 slow samples,
+**1,302 seconds of summed wait**, stopping dead the day `2703ee27` shipped.
+Tier 0 + `SECURITY DEFINER` is the highest-yield move in this file — every
+route it was applied to went quiet and stayed quiet.
+
+### Two corrections
+
+**§16 P1 is not closed.** `/roles/families` is marked *CLOSED* on `fff99f21`
+(2,417ms → 5.99ms). The alert channel reports it **three more times after
+26 August**, up to **8,180ms**, last on **30 August**. The migration is real;
+something on that path is not served by it. Re-open and measure the route, not
+the function — this is exactly the §11 mistake the file warns about.
+
+**§15 row 3 overstates its route.** `/jobs/my-skills/demand` is recorded at
+*17,452ms, then 11,940ms, then 10,468ms*. In 536 alerts it appears **once** —
+2026-07-26, at **2,033ms** — and never again. Whatever produced those numbers,
+the alert channel has not seen it in 37 days. Re-measure before spending on it.
+
+### What shipped 2026-09-01
+
+| | Measured | Commit |
+|---|---|---|
+| `/career-skill-path` 19 sequential reads → 11 reads / 5 round trips, max width 3 | p50 5,882ms, max 7,895ms | `f138a5b9` |
+| `/jobs/companies/pulse` cached per company, not per requested set | 8,060-**27,409ms** | `d4626bcd` |
+| Read-shape guard that counts SEQUENTIAL reads, not just fan-out width | — | `f138a5b9` |
+
+### The finding: the contract only binds code that opted in
+
+`/career-skill-path` shipped `01c14fe2` on **27 August** and was alerting on the
+**28th** — one day later, at p50 5,882ms, from **nineteen sequential reads**.
+It became the second most frequent alert in the post-fix window.
+
+No guard caught it, and the guards are not weak. `test_read_contract.py` is
+thorough about fan-out **width** — but it watches `run_concurrently`, and
+`assemble()` never called it. **A route that reads sequentially is invisible to
+the entire contract apparatus.** The seam the contract is enforced at only sees
+requests that already chose to fan out.
+
+`test_career_skill_path_reads.py` closes it for this route by counting every
+round trip through a recording client, asserting depth (≤6 round trips) as well
+as width (≤3). The general version — a per-request read counter at the client
+seam, so any route exceeding the budget logs `reads.over_budget` the way
+`fanout.over_budget` already does — is **open**, and is the thing that would
+have caught this on 27 August instead of 1 September.
+
+### Still open
+
+`/users/me` is the most frequent alert in the channel and is getting **worse**
+(4.1/day → 6.1/day, p50 1,455 → 1,762ms). It is Tier 1 — a user-scoped point
+read, the cheapest thing in the model — and it appears in both cache-eviction
+windows in §16. The standing hypothesis is that it is a queue **victim**, not a
+cause, which the `pulse` fix above should settle. Do not optimise it until the
+next week of alerts says whether it survived that change.
+
+`POST /jobs/feed/warm` still peaks at **59,416ms** (§15 row 2, unchanged).
+`/jobs/feed` is alerting more often post-fix (2.4/day → 3.7/day). §15 rows 1,
+2, 5, 6, 7, 8 remain open.

@@ -9,13 +9,14 @@
  *
  * Two header actions, not one: Download is the primary — it is what the user
  * came for and it cannot misfire — and Apply is the ghost beside it, because it
- * opens an external page and arms the apply-capture prompt. The raw JD now
- * opens from the job line itself; the pane toolbar belongs to EDIT/SHEET and
- * the page-fill meter.
+ * opens an external page and arms the apply-capture prompt. The named door
+ * Tailor with Mentor sits on this header too (one verb, cost on that control).
+ * The raw JD now opens from the job line itself; the pane toolbar belongs to
+ * EDIT/SHEET and the page-fill meter.
  */
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { CVStructured, CVVersion, UserProfile } from "@/lib/api"
@@ -39,6 +40,7 @@ import { masterFilename } from "@/lib/cv/download-master"
 import { DEFAULT_TEMPLATE, isCVTemplate, type CVTemplate } from "@/lib/cv/templates"
 import { hasCvContent, latestBaseline } from "@/lib/cv/durable-answer"
 import { usePlaygroundModel } from "./use-playground-model"
+import { useTailorLanding } from "./use-tailor-landing"
 import { useDismissedFixes } from "./use-dismissed-fixes"
 import type { AppliedFix, V2Fix } from "./fix-model"
 import { dataKeys, invalidateScoreMapData } from "@/lib/domain-data"
@@ -48,7 +50,7 @@ import { DetailHeader } from "@/components/jobs/detail-header"
 import { useApplyCapture } from "@/components/jobs/use-apply-capture"
 import { ApplyCapturePrompt } from "@/components/jobs/apply-capture-prompt"
 import { similarRolesHref } from "@/lib/jobs/similar-roles"
-import { Icon } from "./icons"
+import { applyRoleMove, remapRoleHiddenIids } from "./cv-pointer-order"
 
 /** Last-picked export template, shared with the master export surface. */
 function readTemplatePref(): CVTemplate {
@@ -67,7 +69,7 @@ interface PlaygroundViewProps {
   profile: UserProfile | null
   onBackToBaseline: () => void
   externalError?: string | null
-  /** Practice handoff opens the existing deep, evidence-grounded Mentor weave. */
+  /** Practice handoff opens Tailor Order landing — not always the weave overlay. */
   mentorRequested?: boolean
 }
 
@@ -75,12 +77,10 @@ export function PlaygroundView({
   token, jobId, playground, cv, profile,
   onBackToBaseline, externalError, mentorRequested = false,
 }: PlaygroundViewProps) {
-  const { selectedVersion, hiddenItems, toggleItem, autosaving, autosaved } = playground
+  const { selectedVersion, hiddenItems, toggleItem, autosaving, autosaved, sectionOrder, setSectionOrder, patchJobCv } = playground
   const router = useRouter()
   const queryClient = useQueryClient()
   const [appliedFixes, setAppliedFixes] = useState<AppliedFix[]>([])
-  const [weaveOpen, setWeaveOpen] = useState(mentorRequested)
-  const [gapsOpen, setGapsOpen] = useState(false)
   const [jdOpen, setJdOpen] = useState(false)
   const [applyOpen, setApplyOpen] = useState(false)
   const [exportConfirm, setExportConfirm] = useState(false)
@@ -88,8 +88,6 @@ export function PlaygroundView({
   const [railRequest, setRailRequest] = useState<{ tab: "fixes" | "skills"; n: number } | null>(null)
   const sheetWrapRef = useRef<HTMLDivElement>(null)
   const pendingTemplateRef = useRef<CVTemplate>(DEFAULT_TEMPLATE)
-
-  useEffect(() => { if (mentorRequested) setWeaveOpen(true) }, [mentorRequested])
 
   const { dismissed, dismiss } = useDismissedFixes(`job:${jobId}`)
 
@@ -134,7 +132,7 @@ export function PlaygroundView({
   const sourceUrl = m.application?.source_url?.trim() ?? ""
   const capture = useApplyCapture({
     token,
-    job: { job_id: jobId, source_url: sourceUrl || null, company: m.company !== "Untitled company" ? m.company : null },
+    job: { job_id: jobId, source_url: sourceUrl || null, company: m.company || null },
     surface: "other",
     intentSurface: "cv_playground",
     onSubmitted: recordSubmittedCv,
@@ -255,6 +253,12 @@ export function PlaygroundView({
   const gapCount = coverageQuery.data
     ? coverageQuery.data.weak + coverageQuery.data.gap
     : null
+  const tailor = useTailorLanding({
+    token,
+    jobId,
+    closableGaps: gapCount,
+    mentorRequested,
+  })
 
   const header = (
     <>
@@ -264,8 +268,12 @@ export function PlaygroundView({
         reqCount={m.reqCount}
         ready={m.ready}
         delta={sessionRaised}
-        scoreCaption={!m.hasSemantic && coverageQuery.isLoading ? "/100 · Match…" : undefined}
+        hideScore={!m.hasSemantic}
+        scoreCaption={m.hasSemantic ? undefined : "Match"}
         canApply
+        leadLabel={tailor.showLead ? "Tailor with Mentor" : undefined}
+        leadCost={tailor.leadCost}
+        onLead={tailor.showLead ? tailor.onHeader : undefined}
         primaryLabel={pdfBusy ? "Preparing…" : "Download CV"}
         applyHint={m.pageFill.fits ? "Download this CV" : `Spills onto ${m.pageFill.pages} pages`}
         secondaryLabel="Apply"
@@ -309,6 +317,14 @@ export function PlaygroundView({
         onToggleHidden={toggleItem}
         userSkills={userSkillsQuery.data}
         onPatch={mut => patchMaster.mutate(mut)}
+        onReorderRoles={(from, to) => {
+          const nextHidden = remapRoleHiddenIids(hiddenItems, cv.experience, from, to)
+          for (const id of hiddenItems) if (!nextHidden.has(id)) toggleItem(id)
+          for (const id of nextHidden) if (!hiddenItems.has(id)) toggleItem(id)
+          patchJobCv(d => applyRoleMove(d, from, to))
+        }}
+        sectionOrder={sectionOrder}
+        onSectionOrder={setSectionOrder}
         onAddBullet={(roleIndex, text) => patchMaster.mutate(d => {
           const ri = d.experience[roleIndex] ? roleIndex : d.experience.length - 1
           if (ri >= 0) d.experience[ri].bullets.push(text)
@@ -320,24 +336,18 @@ export function PlaygroundView({
             coverage={coverageQuery.data}
             loading={coverageQuery.isLoading}
             error={coverageQuery.isError}
-            onOpenGaps={() => setGapsOpen(true)}
-            onOpenWeave={() => setWeaveOpen(true)}
+            onOpenGaps={tailor.openGapsMap}
             onRetry={() => void coverageQuery.refetch()}
           />
-        }
-        railFooter={
-          <button type="button" className="cvw-railfoot-btn" onClick={() => setWeaveOpen(true)}>
-            <Icon name="merge" size={13} /> Tailor with Mentor
-            <span className="cvw-railfoot-cost">50</span>
-          </button>
         }
         sheet={
           <div className="cvb-scope">
             <PdfPage
               cv={cv}
               hidden={hiddenItems}
+              sectionOrder={sectionOrder}
               contact={pdfContact}
-              company={m.company !== "Untitled company" ? m.company : undefined}
+              company={m.company || undefined}
               footerMarkHidden={selectedVersion?.footer_mark_hidden ?? false}
             />
           </div>
@@ -367,33 +377,38 @@ export function PlaygroundView({
       {/* Free, per-gap, and the only path that reaches practice and claims a
           proven level onto the CV. A surfacing writes a new Main-CV baseline,
           so the score, the coverage map and the version list all re-read. */}
-      {gapsOpen && (
+      {tailor.overlay === "gaps" && (
         <GapSession
           token={token}
           jobId={jobId}
           score={m.ready}
+          focusRequirement={tailor.focusGap}
           onApplied={() => {
             void coverageQuery.refetch()
             queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
             queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
           }}
-          onClose={() => setGapsOpen(false)}
+          onClose={tailor.close}
         />
       )}
 
-      {weaveOpen && (
+      {tailor.overlay === "weave" && (
         <TailorWeave
           token={token}
           jobId={jobId}
           company={m.company}
           jobTitle={m.jobTitle}
           loomRoles={cv.experience.map(e => e.company || e.role).filter(Boolean)}
+          coverageSettled={coverageQuery.isSuccess}
+          coverageFailed={coverageQuery.isError}
+          onRetryCoverage={() => void coverageQuery.refetch()}
           onApplied={versionId => {
             playground.selectVersion(versionId)
             queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(jobId) })
             queryClient.invalidateQueries({ queryKey: dataKeys.cvVersions(null) })
+            tailor.refresh()
           }}
-          onClose={() => setWeaveOpen(false)}
+          onClose={tailor.close}
         />
       )}
 
@@ -424,8 +439,9 @@ export function PlaygroundView({
         <PdfPage
           cv={cv}
           hidden={hiddenItems}
+          sectionOrder={sectionOrder}
           contact={pdfContact}
-          company={m.company !== "Untitled company" ? m.company : undefined}
+          company={m.company || undefined}
           footerMarkHidden={selectedVersion?.footer_mark_hidden ?? false}
         />
       </div>

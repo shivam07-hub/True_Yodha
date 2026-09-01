@@ -2,7 +2,7 @@
 import asyncio
 import json
 
-from app.services import cv_weave, cv_weave_interview, jd_coverage
+from app.services import cv_weave, cv_weave_cache, cv_weave_interview, jd_coverage
 from app.services.cv_weave_interview import StoryMaterial
 from app.services.jd_coverage import CoverageItem
 
@@ -35,6 +35,21 @@ def test_experience_blocks_indexed():
     assert [b["index"] for b in blocks] == [0, 1]
     assert blocks[0]["company"] == "Capgemini"
     assert len(blocks[0]["bullets"]) == 2
+
+
+def test_weave_cache_bare_and_envelope():
+    proposal = {"fingerprint": "abc", "roles": []}
+    bare = cv_weave_cache.dump(proposal)
+    assert cv_weave_cache.load(bare) == cv_weave_cache.WeaveCache(proposal=proposal)
+    stamped = cv_weave_cache.dump(
+        proposal, applied_version_id=99, accepted_roles=[0], decided_roles=[0, 1],
+    )
+    hit = cv_weave_cache.load(stamped)
+    assert hit is not None
+    assert hit.proposal == proposal and hit.applied_version_id == 99
+    assert hit.accepted_roles == (0,) and hit.decided_roles == (0, 1)
+    assert cv_weave_cache.load(None) is None
+    assert cv_weave_cache.load("{") is None
 
 
 def test_fingerprint_changes_with_bullets():
@@ -199,6 +214,51 @@ def test_compose_weave_applies_only_accepted():
     assert out["summary"] == "New summary"
     assert out["skills_line"] == "Sales, GTM"  # flag off
     assert CV["experience"][0]["bullets"][0].startswith("Generated")  # source untouched
+
+
+def test_land_role_take_does_not_rewrite_a_sibling():
+    # Google Docs: Take role 1 must not revert a reword already on role 0.
+    draft = json.loads(json.dumps(CV))
+    draft["experience"][0]["bullets"] = ["I reworded this after Take."]
+    proposal = {
+        "summary": None, "skills_line": None,
+        "roles": [
+            {"role_index": 0, "changed": True, "bullets": [{"text": "Mentor 0."}]},
+            {"role_index": 1, "changed": True, "bullets": [{"text": "Mentor 1."}]},
+        ],
+    }
+    out = cv_weave.land_role(draft, proposal, 1, action="take", master=CV, extras=False)
+    assert out["experience"][0]["bullets"] == ["I reworded this after Take."]
+    assert out["experience"][1]["bullets"] == ["Mentor 1."]
+    undone = cv_weave.land_role(out, proposal, 1, action="undo", master=CV, extras=False)
+    assert undone["experience"][1]["bullets"] == CV["experience"][1]["bullets"]
+    assert undone["experience"][0]["bullets"] == ["I reworded this after Take."]
+
+
+def test_land_role_original_pointer_puts_the_old_line_back():
+    proposal = {
+        "summary": None, "skills_line": None,
+        "roles": [{
+            "role_index": 0, "changed": True,
+            "bullets": [
+                {"text": "Mentor rewrite.", "from_lines": ["Generated $2M pipeline."]},
+                {"text": "Keep this Mentor line.", "from_lines": ["Old other."]},
+            ],
+        }],
+    }
+    out = cv_weave.land_role(
+        CV, proposal, 0, action="take", master=CV, extras=False, original_indexes=[0],
+    )
+    assert out["experience"][0]["bullets"] == [
+        "Generated $2M pipeline.",
+        "Keep this Mentor line.",
+    ]
+
+
+def test_normalize_section_order_drops_unknown_and_fills_rest():
+    from app.services.cv_section_order import normalize_section_order
+    assert normalize_section_order(["certs", "bogus", "summary"])[0] == "certs"
+    assert "experience" in normalize_section_order(["certs"])
 
 
 # ── weave (LLM, stubbed) ───────────────────────────────────────────────────────
@@ -375,13 +435,31 @@ class _JobsRepo:
 class _CVRepo:
     def __init__(self):
         self.created = []
+        self.draft = None
 
     def latest_baseline(self, _u):
         return {"id": 7, "cv_structured": json.loads(json.dumps(CV))}
 
     def create(self, _u, spec):
         self.created.append(spec)
-        return {"id": 99}
+        self.draft = {
+            "id": 99, "kind": "deterministic", "job_id": spec.job_id,
+            "cv_structured": spec.cv_structured, "hidden_items": [],
+        }
+        return self.draft
+
+    def latest_job_draft(self, _u, _j):
+        return self.draft
+
+    def update_job_draft(self, version_id, _u, *, cv_structured, body_text, title=None):
+        self.draft = {
+            **(self.draft or {}),
+            "id": version_id,
+            "cv_structured": cv_structured,
+            "body_text": body_text,
+            "title": title,
+        }
+        return self.draft
 
 
 def _client(monkeypatch, jobs_repo, cv_repo, charge_calls):
@@ -451,6 +529,8 @@ def test_router_weave_charges_on_delivery_and_caches(monkeypatch):
         assert body["cached"] is False and body["new_coin_balance"] == 950
         assert charges and charges[0][0] == 50 and charges[0][1] == "cv_weave"
         assert cv_weave.CACHE_PROMPT_KEY in jobs_repo.deepenings
+        got = client.get("/cv/weave/j1")
+        assert got.status_code == 200 and got.json()["purchased"] is True and got.json()["applied"] is False
         # replay: cached, NO second charge
         r2 = client.post("/cv/weave", json={"job_id": "j1"})
         assert r2.json()["cached"] is True and len(charges) == 1
@@ -549,6 +629,16 @@ def test_router_apply_fingerprint_gate(monkeypatch):
         assert spec.kind == "deterministic" and spec.job_id == "j1" and spec.parent_version_id == 7
         assert spec.cv_structured["experience"][0]["bullets"] == ["Merged."]
         assert spec.cv_structured["experience"][1]["bullets"] == CV["experience"][1]["bullets"]
+        got = client.get("/cv/weave/j1")
+        assert got.status_code == 200 and got.json()["purchased"] is True and got.json()["applied"] is True
+        assert got.json()["accepted_roles"] == [0]
+        r3 = client.post("/cv/weave/apply", json={
+            "job_id": "j1", "accepted_roles": [0, 1], "decided_roles": [0, 1],
+            "role_index": 1, "action": "take",
+        })
+        assert r3.status_code == 200 and r3.json()["version_id"] == 99
+        assert len(cv_repo.created) == 1
+        assert cv_repo.draft["cv_structured"]["experience"][0]["bullets"] == ["Merged."]
     finally:
         app.dependency_overrides.clear()
 

@@ -3,6 +3,7 @@
 import { useRef } from "react"
 import Image from "next/image"
 import {
+  FINLATICS_BRAND_LABEL,
   FINLATICS_LOGO_SRC,
   FINLATICS_PROGRAMS,
   finlaticsHref,
@@ -34,7 +35,7 @@ export function LandingFinlaticsRail() {
           height={26}
           className="lp-partner-rail-logo"
         />
-        Training with <strong>Finlatics</strong>
+        <strong>{FINLATICS_BRAND_LABEL}</strong>
       </p>
       <div className="lp-company-rail-scroll">
         <div className="lp-company-rail-track">

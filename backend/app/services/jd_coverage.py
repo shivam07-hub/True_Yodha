@@ -23,10 +23,12 @@ failure downgrades that row to `gap` rather than taking the surface down.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from typing import Any
 
 from app.services import memory_recall
 from app.services.llm_provider import LLMProvider, LLMProviderError
@@ -339,3 +341,47 @@ def payload_to_result(raw: str | None) -> tuple[CoverageResult, str] | None:
         gap=sum(1 for i in items if i.status == "gap"),
     )
     return result, str(obj.get("computed_at") or "")
+
+
+_assess_locks: dict[tuple[str, str], asyncio.Lock] = {}
+
+
+def _assess_lock(user_id: str, job_id: str) -> asyncio.Lock:
+    key = (user_id, job_id)
+    lock = _assess_locks.get(key)
+    if lock is None:
+        lock = asyncio.Lock()
+        _assess_locks[key] = lock
+    return lock
+
+
+async def assess_for_job(
+    user_id: str,
+    job_id: str,
+    jd_text: str,
+    jobs_repo: Any,
+    cv_structured: dict,
+    provider: LLMProvider,
+    *,
+    refresh: bool = False,
+) -> tuple[CoverageResult, bool, str]:
+    """Cache-first coverage, one in-flight assess per (user, job).
+
+    Playground POST /cv/jd-coverage and weave interview share this lock so a
+    cache miss cannot double-spend the judgment lane.
+    """
+    async with _assess_lock(user_id, job_id):
+        if not refresh:
+            hit = payload_to_result(
+                jobs_repo.get_deepening(user_id, job_id, CACHE_PROMPT_KEY)
+            )
+            if hit is not None:
+                return hit[0], True, hit[1]
+        result = await assess(
+            user_id, jd_text, provider, cv_bullets=bullets_from_cv(cv_structured),
+        )
+        if result.requirements:
+            jobs_repo.upsert_deepening(
+                user_id, job_id, CACHE_PROMPT_KEY, result_to_payload(result),
+            )
+        return result, False, ""

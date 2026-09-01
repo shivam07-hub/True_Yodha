@@ -21,9 +21,10 @@ import { useQuery } from "@tanstack/react-query"
 import type { CVStructured, JDCoverageResponse, JobPathResponse, UserProfile } from "@/lib/api"
 import { jobs as jobsApi, cv as cvApi } from "@/lib/api"
 import { itemId } from "@/lib/cv-compose"
+import { hiddenLineTexts } from "@/lib/cv/hidden-lines"
 import { dataKeys } from "@/lib/domain-data"
 import { IDEAL_CV_SPEC, estimateLines, pageFillFromLines, type PageFill } from "@/lib/cv/page-fill"
-import { matchScore } from "./match-score"
+import { matchScore, projectCoverage } from "./match-score"
 import { resolvePlaygroundCompany } from "./keyword-utils"
 
 export interface PlaygroundModelOpts {
@@ -71,6 +72,7 @@ export function usePlaygroundModel(
     queryFn: () => cvApi.career.jdCoverage(token, jobId),
     staleTime: 5 * 60 * 1000,
     enabled: !isMaster,
+    retry: false,
   })
 
   const job: Partial<JobPathResponse> = jobPathQuery.data ?? {}
@@ -107,10 +109,9 @@ export function usePlaygroundModel(
   // a fabricated 0.
   const coverageCounts = useMemo(() => {
     const c = coverageQuery.data
-    return c && c.requirements.length > 0
-      ? { covered: c.covered, weak: c.weak, gap: c.gap }
-      : null
-  }, [coverageQuery.data])
+    if (!c || c.requirements.length === 0) return null
+    return projectCoverage(c.requirements, hiddenLineTexts(cv, hiddenItems))
+  }, [coverageQuery.data, cv, hiddenItems])
   const hasSemantic = !isMaster && coverageCounts != null
 
   // Master: the header shows the Myro Score verbatim (radar-based; a bullet

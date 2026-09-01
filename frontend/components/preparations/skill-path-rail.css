@@ -1,0 +1,95 @@
+/* Compact Skill path in the Prep standing column. Radar is a mark, not a card. */
+
+.prp-sk-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+.prp-sk-lead { min-width: 0; }
+.prp-sk-kicker {
+  margin: 0;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+.prp-sk-title {
+  margin: 4px 0 0;
+  font-size: var(--tm-fs-heading);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--tm-text);
+}
+.prp-sk-meta {
+  margin: 4px 0 0;
+  font-size: var(--tm-fs-caption);
+  color: var(--tm-text-muted);
+}
+.prp-sk-door {
+  margin: 8px 0 0;
+  font-size: var(--tm-fs-ui-sm);
+}
+.prp-sk-radar {
+  display: block;
+  width: 112px;
+  justify-self: end;
+  text-decoration: none;
+}
+.prp-sk-radar svg { width: 100%; height: auto; display: block; }
+.prp-sk-radar:hover { opacity: 0.86; }
+
+.prp-sk-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 12px;
+}
+.prp-sk-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  align-items: start;
+  padding: 10px 0;
+  border-top: 1px solid var(--tm-border-soft);
+}
+.prp-sk-name {
+  margin: 0;
+  font-size: var(--tm-fs-ui);
+  font-weight: 600;
+  color: var(--tm-text);
+}
+.prp-sk-state {
+  margin: 2px 0 0;
+  font-size: var(--tm-fs-caption);
+  color: var(--tm-text-muted);
+}
+.prp-sk-meter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+.prp-sk-meter {
+  display: inline-block;
+  width: 4.5rem;
+  height: 0.25rem;
+  border-radius: var(--tm-radius-sm);
+  background: var(--tm-border-soft);
+  overflow: hidden;
+}
+.prp-sk-meter > span {
+  display: block;
+  height: 100%;
+  background: var(--tm-interactive);
+}
+.prp-sk-count {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-caption);
+  color: var(--tm-text-faint);
+}
+.prp-sk-action {
+  font-size: var(--tm-fs-caption);
+  white-space: nowrap;
+  margin-top: 2px;
+}

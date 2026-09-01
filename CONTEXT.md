@@ -6,7 +6,7 @@ Durable vocabulary. Use these terms in code, commits, ADRs, and architecture rev
 
 ## CV Version
 
-A single immutable snapshot of a CV. Stored as one row in `cv_versions`. Every interaction that produces a new shape of a CV — uploading a file, saving a tailored playground state, polishing with the LLM, editing polished text — creates a new row. Existing rows are never mutated.
+A CV Version is one row in `cv_versions`. Upload, polish, and an explicit new save create a new row. The per-job working draft (`deterministic` on the Company CV Thread) is patched in place for hide, section order, and each Tailor Take — Google Docs, not a snapshot per keystroke. The living master (`baseline_upload`) is not rewritten by those patches.
 
 **Attributes**
 
@@ -24,7 +24,7 @@ A single immutable snapshot of a CV. Stored as one row in `cv_versions`. Every i
 - `polished_text` — populated only on `polished` / `edited` rows.
 - `hidden_items`, `edited_items` — JSONB. The user's playground state at the time of save. Derivatives only. **Hide removes the line from the paper** (editor, sheet, download, Match). Projection, not delete — the master keeps the line. Restore is undo or a chrome `N hidden` count, never a struck ghost on the page.
 - `section_order` — playground projection on the Company CV Thread, same grain as `hidden_items`. Identity (name/contact) is pinned. Every other section is a block the user can drop anywhere; role cards reorder inside Experience. Sheet and download follow this order. The living master's outline does not change.
-- Paper mutations (hide, show, line edit, reorder) are Cmd+Z / Cmd+Shift+Z with toolbar arrows. Tailor with Mentor writes a CV Version; that is history, not undo.
+- Paper mutations (hide, show, line edit, reorder, each Tailor Take / Keep) are Cmd+Z / Cmd+Shift+Z with toolbar arrows. A Take patches this job’s working draft in place — Google Docs. It is saved until that line is reworded. The weave RUN still caches a proposal; it does not wait for a final Save.
 
 **Reads**
 
@@ -775,14 +775,37 @@ asserts through the response model, not the dispatch layer underneath it.
 
 ## CV Weave
 
-"Tailor with Mentor" — the draft-first whole-CV tailor for one job (`app/services/cv_weave.py` + `cv_weave_interview.py`, router `/cv/weave/*`; grill locks 2026-07-16, memory `project_tailor_weave_mentor`). Flow: explicit tap (cost on that control: `· 50 coins`) → **no brief act**. Loom is the wait ("Reading the job's language"). **The weave RUN never starts until interview has resolved** (a confirmed question list, or a confirmed empty list — a timeout or coverage miss is not empty; it retries on the loom). Unproven asks → option-driven interview (candidates mined deterministically from the user's own stories + CV lines — no LLM; free-text fallback; ONE skippable thin-answer probe). Interview POST fires once, on that tap, and prefers the playground's cached coverage. Then ONE writer-floor weave pass proposes each CV role's 2–4 strongest pointers rewritten against the JD. Per-ROLE accept with a **per-pointer override**: default is Mentor's line; a quiet line action (`original`) puts the original back without discarding the role — not a settings segment on every bullet. Take this advances the role. **The last Keep/Take is apply** — it writes the job-tailored `deterministic` version and the overlay closes onto that Company CV Thread row (living master untouched; gap answers bank as global stories via the dump pipeline). No Ready-to-save act, no Saved-confirmation act; `Saved` in playground chrome is the receipt. Job Tracks' second-search offer (`can_open`) is a one-line playground offer at that same moment, not an overlay act. Supersedes the per-ask MentorWalk on the playground (append-only, never converged — the walk stays only as the prep room's coverage panel).
+"Tailor with Mentor" — the draft-first whole-CV tailor for one job (`app/services/cv_weave.py` + `cv_weave_interview.py`, router `/cv/weave/*`; grill locks 2026-07-16, memory `project_tailor_weave_mentor`). Flow: explicit tap (cost on that control: `· 50 coins`) → **no brief act**. Loom is the wait ("Reading the job's language"). **The weave RUN never starts until interview has resolved** (a confirmed question list, or a confirmed empty list — a timeout or coverage miss is not empty; it retries on the loom). Unproven asks → option-driven interview (candidates mined deterministically from the user's own stories + CV lines — no LLM; free-text fallback; ONE skippable thin-answer probe). Interview POST fires once, on that tap, and prefers the playground's cached coverage. Then ONE writer-floor weave pass proposes each CV role's 2–4 strongest pointers rewritten against the JD. Per-ROLE accept with a **per-pointer override**: default is Mentor's line; a quiet line action (`original`) puts the original back without discarding the role — not a settings segment on every bullet. Take this advances the role. **Each Take lands on this job’s CV immediately** and stays until that line is reworded (edit, `original`, or undo) — Google Docs, not a wizard that saves at the end. Keep mine is a decision too: that role stays yours, and Accept will not ask it again. Overlay Back steps the last land off the paper. The last remaining Keep/Take closes the overlay onto the paper. No Ready-to-save act, no Saved-confirmation act; `Saved` in playground chrome is the receipt. Job Tracks' `can_open` still flips on that write; the second-search offer is **not** on this landing — it lives where a search starts (Market / the refresh gate). Supersedes the per-ask MentorWalk on the playground (append-only, never converged — the walk stays only as the prep room's coverage panel).
 
 **Invariants**
 - **Honesty is structural, per role**: a proposed role block must pass `loses_metrics` + `gains_foreign_numbers` (allowed = the user's stories + interview answers) + `loses_substance` over the old lines it claims (`from`/`dropped` accounting — nothing vanishes silently). A failing role falls back to its ORIGINAL bullets, flagged `guarded`; a proposal with zero surviving changes is not delivered (or charged).
 - **Money**: flat 50 coins per weave RUN (`CV_WEAVE_XP_COST`), preflight-funded, charged only after a deliverable proposal exists, unique ledger ref per run; the cached proposal (`job_deepenings:cv_weave`) replays free; interview/answer/apply are free.
-- **Extras ride the last accept**: a proposed opening summary and skills line are applied with the roles. No second confirm. The paper is the review surface — Hide or edit there.
+- **Extras ride the first write**: a proposed opening summary and skills line land with the first Keep/Take. No second confirm. The paper is the review surface — Hide or edit there.
 - **Fingerprint gate**: the proposal records a hash of the master's experience section; apply 409s on mismatch — a draft never lands on a CV it wasn't written for.
 - **Coverage reads stories ∪ CV bullets** (`jd_coverage.assess(cv_bullets=…)`, `source: "story"|"cv"`): a line already on the CV can no longer read "Missing" (the Oracle/mit20 trust breach). Embedding-less stories self-heal via `career_reservoir.backfill_missing_embeddings` before mining.
+- **ONE DOOR.** The named verb is **Tailor with Mentor**, once, on the playground header (with Match / Apply / Download). Cost `50` only when that tap will charge a weave RUN. The rail footer, the Skills ghost, and the words "Close gaps" are not doors. Skills is the map. The journey those taps enter is the Tailor Order.
+
+## Tailor Order
+
+**One job, one verb, enter at any seam.** Derived the same way the Company CV Thread is — coverage, the weave draft, whether Accept has written, remaining gaps — not a second stored record. Same shape as the Pre-flight Order: steps exist to fill what is still needed; they are never a toll on a settled job. The weave RUN is one step's implementation, not the whole product.
+
+**The vocabulary:** a **Tailor Order** is everything true for this `job_id` right now; a **step** is Proof · Weave · Accept · Gaps · Paper; **landing** opens on the first step that still needs the user.
+
+**Google Docs save.** A landed line is saved. Closing the overlay (or the tab dying) keeps every Take already on the paper. The next Tailor tap opens Accept on the first role they have not decided. Keep/Take/`original` are not thrown away.
+
+**Steps**
+
+- **Proof** — interview the unproven JD asks. Blocking for the weave RUN until resolved (timeout ≠ empty).
+- **Weave** — the 50-coin writer-floor pass. Skip when a current proposal exists.
+- **Accept** — per-role Take this, per-pointer `original` override. Each Take writes that role onto the Company CV Thread working draft in place. Last remaining Keep/Take closes the overlay onto the paper.
+- **Gaps** — remaining missing/partial JD rows, inserted on a host bullet (the old free GapSession loop). Absent skills are practiced, never fabricated.
+- **Paper** — not a screen. The playground. Hide / undo / section order live here.
+
+**Landing rule** (mirrors `landingStep`): header Tailor opens the first step that still needs the user. A settled order (every changed role decided, no remaining closable gaps) does not open an overlay — the verb is absent, not a dead control. A guess (one missing row) renders beside the line it would change, never in a second named product. Cost `50` only when landing is Proof or Weave.
+
+**Enter at any seam:** header button → landing. A Skills-map row closes **that** gap on the paper, free, even before a weave RUN exists (a Line, not a toll). `?mentor=1` → landing. Stale master/JD → Weave.
+
+Job Tracks' `can_open` still flips when Accept writes; the second-search offer is not on Paper.
 
 ## CandidatePool
 

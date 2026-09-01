@@ -6,8 +6,8 @@
  * one application; the room is one tap away. Saved jobs never appear —
  * Collections owns pre-apply.
  *
- * Desktop chrome matches Collections: tm-intel-page (1480) + mc-workspace
- * with the peek rail first (Score map · Training), rooms in the main column.
+ * Desktop: tm-intel-page (1480) + mc-workspace 2:3 (standing column · rooms).
+ * Standing column: compact Skill path (radar as mark) then Training by Finlatics.
  */
 
 import type { ReactNode } from "react"
@@ -18,7 +18,7 @@ import { dataKeys } from "@/lib/domain-data"
 import { displayJobTitle } from "@/lib/jobs/clean-title"
 import { CompanyAvatar, STAGE_META } from "@/components/cv/builder/library-shared"
 import { PrepSkeleton } from "./prep-skeleton"
-import { ScoreMapCard } from "./score-map-card"
+import { SkillPathRail } from "./skill-path-rail"
 import { TrainingCard } from "./training-card"
 import {
   daysInStage, followUpLine, groupForList, liveRoomCount, needsStageCheck,
@@ -31,7 +31,7 @@ function Row({ app, now }: { app: ApplicationResponse; now: Date }) {
   const needsYou = needsStageCheck(app, now) || followUpLine(app, now) !== null
   const hot = app.status === "interviewing"
   return (
-    <Link href={`/preparations/${encodeURIComponent(app.job_id)}`} className="prp-row">
+    <Link href={`/preparations/${encodeURIComponent(app.job_id)}`} className="prp-row tm-control-focus">
       <CompanyAvatar name={app.company ?? "?"} size={34} />
       <div className="prp-row-main">
         <div className="prp-row-role">{displayJobTitle(app.title, app.company)}</div>
@@ -42,7 +42,7 @@ function Row({ app, now }: { app: ApplicationResponse; now: Date }) {
         </div>
       </div>
       {needsYou ? <span className="prp-attn">needs you</span> : null}
-      <span className={`prp-stage-chip${hot ? " hot" : ""}`} style={!hot ? { color: meta?.color } : undefined}>
+      <span className={`prp-stage-chip${hot ? " hot" : ""}`}>
         {meta?.label ?? app.status}
       </span>
       <span className="prp-row-chev" aria-hidden>›</span>
@@ -77,11 +77,10 @@ function PrepFrame({
         <h1 className="prp-title">Preparations</h1>
         {live ? <span className="prp-count">{live} live</span> : null}
       </div>
-      <p className="prp-sub">Prepare for every job</p>
       <div className="mc-workspace">
-        <aside className="mc-ws-rail" aria-label="Score map and training">
+        <aside className="mc-ws-rail" aria-label="Skill path and training">
           <div className="mc-rail">
-            <ScoreMapCard token={token} />
+            <SkillPathRail token={token} />
             <TrainingCard />
           </div>
         </aside>

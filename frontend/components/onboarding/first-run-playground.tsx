@@ -36,7 +36,7 @@ export function FirstRunPlayground(props: Omit<FirstRunSkillReviewProps, "childr
             brandLabel="Myro"
             masterMeta="Your CV · 1 of 2"
             jobTitle=""
-            company="Untitled company"
+            company=""
             reqCount={0}
             ready={0}
             delta={0}

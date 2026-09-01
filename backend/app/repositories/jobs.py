@@ -74,6 +74,16 @@ _gap_signal_cache = shared_cache.SharedTTLMapping("jobs.gap_signal", ttl_seconds
 # TTLs are now the args to shared_cache.get_or_compute rather than keys into a
 # local dict.
 _PULSE_TTL = 30 * 60  # 30 min — pulse tracks daily scrape batches, not real-time
+
+
+def _pulse_cache_key(company: str) -> str:
+    """One cache identity per company, case- and whitespace-insensitive.
+
+    Matches the resolution `fetch_company_pulse` already does on scraped rows,
+    so "Bain & Company" and "bain  &  company" share one entry rather than
+    forcing two scans of the same jobs.
+    """
+    return "pulse:company:" + " ".join(company.casefold().split())
 _INDEXABLE_TTL = 60 * 60  # 1 hour — matches the /companies page ISR window
 _skill_name_to_id_cache = shared_cache.SharedTTLMapping(
     "jobs.skill_name_to_id", ttl_seconds=7 * 24 * 3600
@@ -1339,27 +1349,50 @@ class JobsRepository:
         if not names:
             return []
 
-        cache_key = "pulse:" + ",".join(sorted({n.casefold() for n in names}))
+        # Cached PER COMPANY, not per requested set. The set-keyed cache this
+        # replaces made every distinct company set its own cold fill — a rail
+        # showing twelve companies shared nothing with the same rail plus one,
+        # and each miss rescanned every job row for the whole set. Measured
+        # 8,060-27,409ms and named in ARCHITECTURE_READ_PATH.md §16 as the
+        # cache-evictor behind the correlated multi-route windows: one scan
+        # sweeps the 100MB jobs heap through 224MB of shared_buffers.
+        #
+        # Every number computed below is already per-company, so the only thing
+        # that was set-scoped was the key. Now any set is a lookup of its
+        # members, and only the members that actually miss are scanned.
+        cached: dict[str, dict[str, Any]] = {}
+        missing: list[str] = []
+        for name in names:
+            hit = shared_cache.peek(
+                _pulse_cache_key(name), ttl_seconds=_PULSE_TTL, stale_seconds=_PULSE_TTL
+            )
+            if hit is None:
+                missing.append(name)
+            else:
+                cached[name] = hit[0]
+
+        if not missing:
+            return [cached[name] for name in names if name in cached]
 
         def _compute() -> list[dict[str, Any]]:
             rows = fetch_all_rows(
                 self._admin_db,
                 table="jobs",
                 columns="company_name, first_seen, last_seen",
-                query_builder=lambda q: q.in_("company_name", names),
+                query_builder=lambda q: q.in_("company_name", missing),
             )
 
             fresh_marker = _fresh_cutoff_marker(STALE_AFTER_DAYS)  # live floor
             week_marker = _fresh_cutoff_marker(7)  # new-this-week floor
             now_dt = datetime.now(timezone.utc)
 
-            open_roles: dict[str, int] = {name: 0 for name in names}
-            weekly_delta: dict[str, int] = {name: 0 for name in names}
+            open_roles: dict[str, int] = {name: 0 for name in missing}
+            weekly_delta: dict[str, int] = {name: 0 for name in missing}
             last_seen: dict[str, datetime] = {}
-            offsets: dict[str, list[int]] = {name: [] for name in names}
+            offsets: dict[str, list[int]] = {name: [] for name in missing}
             # Resolve each row's company back to the exact requested-name casing
             # so a scrape-side case variant still lands in the right bucket.
-            by_key = {" ".join(n.casefold().split()): n for n in names}
+            by_key = {" ".join(n.casefold().split()): n for n in missing}
             for r in rows:
                 raw = (r.get("company_name") or "").strip()
                 name = by_key.get(" ".join(raw.casefold().split()))
@@ -1383,7 +1416,7 @@ class JobsRepository:
                         offsets[name].append((SERIES_DAYS - 1) - days_ago)
 
             computed: list[dict[str, Any]] = []
-            for name in names:  # preserve caller order
+            for name in missing:  # caller order is restored by the assembly below
                 seen = last_seen.get(name)
                 days_since = (now_dt - seen).days if seen else None
                 computed.append(
@@ -1398,16 +1431,27 @@ class JobsRepository:
                 )
             return computed
 
+        # The miss path keeps its set key, so the lease that stops a cold-fill
+        # stampede still covers the scan. Only the MISSING members are in it.
+        miss_key = "pulse:" + ",".join(sorted({n.casefold() for n in missing}))
         try:
             out = shared_cache.get_or_compute(
-                cache_key, _compute, ttl_seconds=_PULSE_TTL, stale_seconds=_PULSE_TTL
+                miss_key, _compute, ttl_seconds=_PULSE_TTL, stale_seconds=_PULSE_TTL
             )
         except APIError:
             # Cold cache, no stale value to fall back to — mirrors the pre-
             # shared_cache contract (fetch_skill_heatmap does the same).
-            return []
-        by_name = {row["company_name"]: row for row in out}
-        return [by_name[name] for name in names if name in by_name]
+            return [cached[name] for name in names if name in cached]
+
+        # Fan the scan out across per-company keys, so the next request for any
+        # subset of these companies is a lookup instead of another scan.
+        for row in out:
+            name = row["company_name"]
+            cached[name] = row
+            shared_cache.put(
+                _pulse_cache_key(name), row, ttl_seconds=_PULSE_TTL, stale_seconds=_PULSE_TTL
+            )
+        return [cached[name] for name in names if name in cached]
 
     def fetch_indexable_companies(self) -> list[dict[str, Any]]:
         """Companies whose /companies/{name} page renders real content — i.e.

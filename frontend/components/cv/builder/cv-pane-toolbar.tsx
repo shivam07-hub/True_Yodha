@@ -14,6 +14,7 @@
 
 import type { PageFill } from "@/lib/cv/page-fill"
 import { pageFillBand } from "@/lib/cv/page-fill"
+import { Icon } from "./icons"
 
 interface CvPaneToolbarProps {
   mode: "edit" | "sheet"
@@ -21,9 +22,15 @@ interface CvPaneToolbarProps {
   pageFill: PageFill
   lineCount: number
   wordCount: number
+  canUndo?: boolean
+  canRedo?: boolean
+  onUndo?: () => void
+  onRedo?: () => void
 }
 
-export function CvPaneToolbar({ mode, onMode, pageFill, lineCount, wordCount }: CvPaneToolbarProps) {
+export function CvPaneToolbar({
+  mode, onMode, pageFill, lineCount, wordCount, canUndo, canRedo, onUndo, onRedo,
+}: CvPaneToolbarProps) {
   const band = pageFillBand(pageFill)
   const pages = pageFill.fits
     ? "one page"
@@ -44,6 +51,17 @@ export function CvPaneToolbar({ mode, onMode, pageFill, lineCount, wordCount }: 
           onClick={() => onMode("sheet")}
         >Sheet</button>
       </div>
+
+      {(onUndo || onRedo) && (
+        <div className="cvw-hist" role="group" aria-label="Undo">
+          <button type="button" className="cvw-hist-btn" disabled={!canUndo} onClick={onUndo} aria-label="Undo">
+            <Icon name="undo" size={14} />
+          </button>
+          <button type="button" className="cvw-hist-btn" disabled={!canRedo} onClick={onRedo} aria-label="Redo">
+            <Icon name="undo" size={14} style={{ transform: "scaleX(-1)" }} />
+          </button>
+        </div>
+      )}
 
       <div className="cvw-fill" data-band={band}>
         <span className="cvw-fill-stats">

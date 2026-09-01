@@ -400,6 +400,7 @@ class CoverageRow(BaseModel):
     story_id: str | None = None
     story_title: str = ""
     story_pointer: str = ""
+    source: str = "story"  # story | cv
 
 
 class JDCoverageResponse(BaseModel):
@@ -433,6 +434,7 @@ async def jd_coverage_for_job(
                 CoverageRow(
                     requirement=i.requirement, status=i.status, story_id=i.story_id,
                     story_title=i.story_title, story_pointer=i.story_pointer,
+                    source=i.source,
                 )
                 for i in res.requirements
             ],
@@ -440,30 +442,13 @@ async def jd_coverage_for_job(
             cached=cached, computed_at=computed_at,
         )
 
-    if not body.refresh:
-        hit = jd_coverage.payload_to_result(
-            jobs_repo.get_deepening(user.id, body.job_id, jd_coverage.CACHE_PROMPT_KEY)
-        )
-        if hit is not None:
-            result, computed_at = hit
-            return _respond(result, cached=True, computed_at=computed_at)
-
-    jd_text = rows[0].get("job_description") or ""
-    baseline = cv_repo.latest_baseline(user.id)
-    # Blocking panel → paid-first strong lane; free-tier 429 storms were blanking
-    # the coverage panel (2026-07-16, Sanofi/mit20). Cached once per (user, job).
-    result = await jd_coverage.assess(
-        user.id, jd_text, get_blocking_judgment_provider(),
-        cv_bullets=jd_coverage.bullets_from_cv((baseline or {}).get("cv_structured") or {}),
+    result, cached, computed_at = await jd_coverage.assess_for_job(
+        user.id, body.job_id, rows[0].get("job_description") or "",
+        jobs_repo, (cv_repo.latest_baseline(user.id) or {}).get("cv_structured") or {},
+        get_blocking_judgment_provider(),
+        refresh=body.refresh,
     )
-    # Never cache an empty parse — it usually means a provider failure (fail-soft
-    # []), and freezing that would blank the panel forever.
-    if result.requirements:
-        jobs_repo.upsert_deepening(
-            user.id, body.job_id, jd_coverage.CACHE_PROMPT_KEY,
-            jd_coverage.result_to_payload(result),
-        )
-    return _respond(result, cached=False, computed_at="")
+    return _respond(result, cached=cached, computed_at=computed_at)
 
 
 class GapAnswerRequest(BaseModel):

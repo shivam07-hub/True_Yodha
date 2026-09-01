@@ -20,6 +20,7 @@ import { MasterCVPanel } from "./library-master"
 import { TailoredCVPanel } from "./tailored-cv-panel"
 import { FinishTailoringLane } from "./finish-tailoring-lane"
 import { ProvenanceRail } from "./provenance-rail"
+import { displayCompany } from "./keyword-utils"
 import { buildPointerIndex, matchedTerms } from "@/lib/cv/provenance"
 
 interface CvTabViewProps {
@@ -120,7 +121,7 @@ export function CvTabView({
   // when there's a rendered CV to trace a bullet from.
   const showStory = !!activeStructured
   const tailoredForRail = tailorJobId
-    ? { company: tailoredVersion?.company_name ?? tailoredApp?.company ?? "this job" }
+    ? { company: displayCompany(tailoredVersion?.company_name) || displayCompany(tailoredApp?.company) || "this job" }
     : null
 
   return (
@@ -149,11 +150,12 @@ export function CvTabView({
               profile={profile}
               versionId={tailoredVersion?.id ?? null}
               footerMarkHidden={tailoredVersion?.footer_mark_hidden ?? false}
-              company={tailoredVersion?.company_name ?? tailoredApp?.company ?? ""}
+              company={displayCompany(tailoredVersion?.company_name) || displayCompany(tailoredApp?.company) || ""}
               jobTitle={tailoredVersion?.job_title ?? tailoredApp?.title ?? ""}
               jobId={tailorJobId}
               matchScore={tailoredApp?.match_score ?? 0}
               appliedAt={tailoredApp?.applied_at ?? null}
+              sectionOrder={tailoredVersion?.section_order}
               onBulletClick={handleBulletClick}
               selectedBulletId={selectedBulletId}
               onEditInPlayground={onOpenJob}

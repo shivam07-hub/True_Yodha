@@ -1,18 +1,13 @@
 /**
- * PlaygroundHeader — CV Playground v2 sticky header: job context + live score.
- *
- * [← crumb · CV Playground | job · company | "N requirements extracted →"]
- * [score /100 + bar · ▲ +N raised · Apply with this CV · ⋯]
- *
- * The requirements pill opens the Skills tab (the extracted requirements ARE
- * that checklist); the raw JD lives behind the editor toolbar's Job Description
- * button — three affordances, three distinct destinations. The score counts up
- * on every applied fix (~480ms, reduced-motion lands instantly).
+ * PlaygroundHeader — job context, Match meter, Tailor / Apply / Download.
+ * Requirements pill opens Skills; the job line opens the JD. Score counts up
+ * on each applied fix (~480ms; reduced-motion lands instantly).
  */
 "use client"
 
 import { useEffect, useRef, useState } from "react"
 import { CV_TEMPLATES, type CVTemplate } from "@/lib/cv/templates"
+import { displayCompany } from "./keyword-utils"
 import { Icon } from "./icons"
 
 /** Count the number up to its target — the one orchestrated moment. */
@@ -76,7 +71,7 @@ interface PlaygroundHeaderProps {
   primaryLabel?: string
   /** Hide the ⋯ overflow (master keeps download in the view-mode surface). */
   hideOverflow?: boolean
-  /** Brand override (default per variant: "CV Playground" / "Main CV"). */
+  /** Brand label. Default: "Main CV" on master, none on the job surface. */
   brandLabel?: string
   /** Score caption override (default per variant). */
   scoreCaption?: string
@@ -106,6 +101,10 @@ interface PlaygroundHeaderProps {
   onSecondary?: () => void
   secondaryHint?: string
   secondaryDisabled?: boolean
+  /** The one named door — Tailor with Mentor. Accent. Cost only when this tap charges. */
+  leadLabel?: string
+  leadCost?: number
+  onLead?: () => void
 }
 
 export function PlaygroundHeader({
@@ -115,11 +114,17 @@ export function PlaygroundHeader({
   brandLabel, scoreCaption, hideScore, statusValue, hideBack, hideApply,
   backLabel = "Back to CV library",
   onSaveJobMeta, onJobLine, secondaryLabel, onSecondary, secondaryHint, secondaryDisabled,
+  leadLabel, leadCost, onLead,
 }: PlaygroundHeaderProps) {
   const shown = useCountUp(ready)
   const [menuOpen, setMenuOpen] = useState(false)
   const isMaster = variant === "master"
-  const knownCompany = company !== "Untitled company" ? company : ""
+  // The job surface identifies itself by the job it is tailoring to, and the
+  // nav already marks CV as the current section — a static "CV Playground"
+  // beside the back chevron only read as a crumb to somewhere, and wasn't one.
+  // Master/anon carry no job line, so there the label IS the identity.
+  const brand = brandLabel ?? (isMaster ? "Main CV" : null)
+  const knownCompany = displayCompany(company)
   const [editing, setEditing] = useState(false)
   const [titleDraft, setTitleDraft] = useState(jobTitle)
   const [companyDraft, setCompanyDraft] = useState(knownCompany)
@@ -141,8 +146,12 @@ export function PlaygroundHeader({
           <Icon name="chevron-right" size={12} style={{ transform: "rotate(180deg)" }} />
         </button>
       )}
-      <span className="cvb-v2-brand">{brandLabel ?? (isMaster ? "Main CV" : "CV Playground")}</span>
-      <span className="cvb-v2-headrule" aria-hidden />
+      {brand && (
+        <>
+          <span className="cvb-v2-brand">{brand}</span>
+          <span className="cvb-v2-headrule" aria-hidden />
+        </>
+      )}
       {isMaster ? (
         masterMeta && (onMeta
           ? <button type="button" className="cvb-v2-reqpill cvb-v2-metacta mono" onClick={onMeta}>{masterMeta}</button>
@@ -173,7 +182,7 @@ export function PlaygroundHeader({
                   {jobTitle}{knownCompany ? ` · ${knownCompany}` : ""}
                 </button>
               ) : (
-                <span className="cvb-v2-jobline" title={`${jobTitle} · ${company}`}>
+                <span className="cvb-v2-jobline" title={knownCompany ? `${jobTitle} · ${knownCompany}` : jobTitle}>
                   {jobTitle}{knownCompany ? ` · ${knownCompany}` : ""}
                 </span>
               )}
@@ -223,6 +232,13 @@ export function PlaygroundHeader({
 
       {!isMaster && delta > 0 && <span className="cvb-v2-deltachip mono">▲ +{delta} raised</span>}
 
+      {leadLabel && onLead && (
+        <button type="button" className="cvb-v2-applybtn" onClick={onLead}>
+          {leadLabel}
+          {leadCost != null && <span className="cvb-v2-leadcost">{leadCost}</span>}
+        </button>
+      )}
+
       {secondaryLabel && onSecondary && (
         <button
           type="button"
@@ -238,7 +254,7 @@ export function PlaygroundHeader({
       {!hideApply && (
         <button
           type="button"
-          className="cvb-v2-applybtn"
+          className={onLead ? "cvb-v2-secondarybtn" : "cvb-v2-applybtn"}
           onClick={onApply}
           disabled={!canApply}
           title={applyHint}

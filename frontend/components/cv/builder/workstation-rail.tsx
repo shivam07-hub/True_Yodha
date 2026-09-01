@@ -6,7 +6,7 @@
  *   2  triage numerals — three tiles, tappable as filters
  *   3  the issue queue — content fixes AND failing ATS rows, one list
  *   4  `✓ N ATS checks pass · see all ▾`
- *   5  the actions the pane toolbar gave up (Tailor with Mentor · Restructure)
+ *   5  optional footer the surface still owns (anon: Restructure / log in)
  *
  * When the queue empties, the toggle collapses into a 34px strip and the other
  * lane takes the rail (§5). Logged out there is no other lane, so the rail

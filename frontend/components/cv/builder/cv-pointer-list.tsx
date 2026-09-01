@@ -29,11 +29,11 @@ import {
   collapseKey,
   defaultExpanded,
   moveItem,
-  neighbourIndex,
   occurrences,
   type PointerKind,
 } from "./cv-pointer-order"
 import type { LineVerdict } from "./cv-severity"
+import { GripDots } from "./cv-grip"
 import "./cv-pointer.css"
 
 export interface PointerRowModel {
@@ -84,21 +84,26 @@ export function CvPointerList(props: CvPointerListProps) {
     if (order && parentSig === order.join("\0")) setOrder(null)
   }, [parentSig, order])
   const shown = arrangeByText(rows, order)
-  const occ = occurrences(shown.map(r => r.text))
-  const ids = shown.map(r => r.iid)
+  const vis = shown.filter(r => !r.hidden)
+  const occ = occurrences(vis.map(r => r.text))
+  const ids = vis.map(r => r.iid)
 
-  function move(from: number, to: number) {
+  function indexInShown(iid: string): number {
+    return shown.findIndex(r => r.iid === iid)
+  }
+
+  function move(fromShown: number, toShown: number) {
     const current = order ?? parentOrder
-    setOrder(moveItem(current, from, to))
-    onReorder(from, to)
-    setAnnounce(`Pointer ${from + 1} of ${bullets.length} moved to ${to + 1}`)
+    setOrder(moveItem(current, fromShown, toShown))
+    onReorder(fromShown, toShown)
+    setAnnounce(`Pointer ${fromShown + 1} of ${bullets.length} moved to ${toShown + 1}`)
   }
 
   function onDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (!over || active.id === over.id) return
-    const from = ids.indexOf(String(active.id))
-    const to = ids.indexOf(String(over.id))
+    const from = indexInShown(String(active.id))
+    const to = indexInShown(String(over.id))
     if (from < 0 || to < 0) return
     move(from, to)
   }
@@ -113,10 +118,11 @@ export function CvPointerList(props: CvPointerListProps) {
       >
         <SortableContext items={ids} strategy={verticalListSortingStrategy}>
           <ul className="cvw-pointers" aria-label="Pointers">
-            {shown.map((row, index) => {
-              const key = collapseKey(row.text, occ[index])
+            {vis.map((row, visIndex) => {
+              const index = shown.findIndex(r => r.iid === row.iid)
+              const key = collapseKey(row.text, occ[visIndex])
               const forced = defaultExpanded({
-                bulletCount: bullets.length,
+                bulletCount: vis.length,
                 tone: row.verdict?.tone,
                 isOpen: props.openIid === row.iid,
                 isEditing: row.editing,
@@ -131,14 +137,16 @@ export function CvPointerList(props: CvPointerListProps) {
                   index={index}
                   count={bullets.length}
                   collapsed={collapsed}
-                  canReorder={canReorder && bullets.length > 1 && !row.editing}
+                  canReorder={canReorder && vis.length > 1 && !row.editing}
                   bodyId={`cvw-ptr-${kind}-${groupIndex}-${index}`}
                   userSkills={props.userSkills}
                   onToggleCollapsed={() =>
                     setUserOpen(prev => ({ ...prev, [key]: collapsed }))}
                   onMove={delta => {
-                    const to = neighbourIndex(index, delta, bullets.length)
-                    if (to != null) move(index, to)
+                    const neighbour = vis[visIndex + delta]
+                    if (!neighbour) return
+                    const to = shown.findIndex(r => r.iid === neighbour.iid)
+                    if (to >= 0) move(index, to)
                   }}
                   onOpenFix={() => props.onOpenFix(row.iid)}
                   onToggleHidden={props.onToggleHidden
@@ -242,18 +250,5 @@ function SortablePointer({
         isDragging,
       }}
     />
-  )
-}
-
-function GripDots() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-      <circle cx="4" cy="3" r="1.1" fill="currentColor" />
-      <circle cx="8" cy="3" r="1.1" fill="currentColor" />
-      <circle cx="4" cy="6" r="1.1" fill="currentColor" />
-      <circle cx="8" cy="6" r="1.1" fill="currentColor" />
-      <circle cx="4" cy="9" r="1.1" fill="currentColor" />
-      <circle cx="8" cy="9" r="1.1" fill="currentColor" />
-    </svg>
   )
 }

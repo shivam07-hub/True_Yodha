@@ -10,7 +10,7 @@ function render(): string {
     <PlaygroundHeader
       variant="master"
       jobTitle=""
-      company="Untitled company"
+      company=""
       reqCount={0}
       ready={0}
       delta={0}
@@ -41,7 +41,7 @@ test("first-run header names the step and leaves the action to the sticky bar", 
       brandLabel="Myro"
       masterMeta="Your CV · 1 of 2"
       jobTitle=""
-      company="Untitled company"
+      company=""
       reqCount={0}
       ready={0}
       delta={0}

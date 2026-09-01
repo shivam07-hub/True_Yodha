@@ -3,7 +3,7 @@
  */
 "use client"
 
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import type { UserSkillsByDomain } from "@/lib/api"
 import { CvPointerList, type PointerRowModel } from "./cv-pointer-list"
 import type { PointerKind } from "./cv-pointer-order"
@@ -32,6 +32,7 @@ interface CvRoleBlockProps {
   onCopy?: (iid: string, text: string) => void
   rowRef: (iid: string, el: HTMLElement | null) => void
   onAddBullet?: (text: string) => void
+  dragHandle?: ReactNode
 }
 
 export function CvRoleBlock(props: CvRoleBlockProps) {
@@ -49,6 +50,7 @@ export function CvRoleBlock(props: CvRoleBlockProps) {
   return (
     <div className="cvw-card">
       <div className="cvw-rolehead">
+        {props.dragHandle}
         <span className="cvw-roletitle">{head.title}</span>
         {head.company && <span className="cvw-roleco">{head.company}</span>}
         {head.dates && <span className="cvw-roledates">{head.dates}</span>}

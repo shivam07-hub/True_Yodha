@@ -1,8 +1,8 @@
 /**
- * GapSession — "Close gaps with Mentor" (gap-driven rewrite session).
+ * GapSession — Tailor Order Gaps step. Remaining missing/partial JD rows,
+ * inserted on a host bullet. A Skills-map row can open just that card.
  *
- * Turns the readout's GAPS list into an honest, paced loop. A gap is one of
- * three things and gets the one honest move:
+ * A gap is one of three things and gets the one honest move:
  *   • latent  — you did it, your words don't show it → surface it on its bullet
  *   • shallow — JD wants L4, your CV shows L2 → surface ONE notch (if you can
  *               evidence it), earn the rest in practice
@@ -13,8 +13,6 @@
  * Stateless + free: surfacing reuses cv.rewriteBullet (propose) → cv.rewriteApply
  * (write a new baseline; SE1–SE17). The no-fabrication guard governs every
  * rewrite — Mentor surfaces what's true, it never invents.
- *
- * Spec: memory/project_gap_driven_rewrite_session.md (GRILL-LOCKED 2026-06-23).
  */
 "use client"
 
@@ -32,6 +30,7 @@ import { useStreamingText, type StreamEvent } from "@/lib/hooks/use-streaming-te
 import { Button } from "@/components/ui/button"
 import { Icon } from "./icons"
 import { MyroMark } from "@/components/myro-mark"
+import { gapCardMatches } from "@/lib/cv/gap-focus"
 
 interface GapSessionProps {
   token: string
@@ -41,6 +40,8 @@ interface GapSessionProps {
   /** Called after each accepted surfacing so the parent refetches the score. */
   onApplied: () => void
   onClose: () => void
+  /** Skills-map row: close this requirement only. Header landing walks the deck. */
+  focusRequirement?: string | null
 }
 
 type DeckCard =
@@ -57,10 +58,10 @@ function forgeHref(skill: string): string {
 // the backend's gap-priority top-N; the deck is already ordered by it.
 const SESSION_BATCH = 5
 
-export function GapSession({ token, jobId, score, onApplied, onClose }: GapSessionProps) {
+export function GapSession({ token, jobId, score, onApplied, onClose, focusRequirement = null }: GapSessionProps) {
   const [plan, setPlan] = useState<GapPlanResponse | null>(null)
   const [loadErr, setLoadErr] = useState<string | null>(null)
-  const [idx, setIdx] = useState(0)
+  const [idx, setIdx] = useState<number | null>(null)
   // Per-deck outcome so the bar shows surfaced work (loud) vs skipped (faint) —
   // a "done" tick used to conflate both, so accepted work read as walked-past.
   const [outcomes, setOutcomes] = useState<Record<number, "surfaced" | "skipped">>({})
@@ -104,14 +105,33 @@ export function GapSession({ token, jobId, score, onApplied, onClose }: GapSessi
   const practiceSkills = useMemo(() => {
     if (!plan) return []
     const below = plan.below_level_cards.filter(c => !c.host)
-    return [...plan.absent_skills.map(a => ({
+    const all = [...plan.absent_skills.map(a => ({
       skill: a.skill, display_name: a.display_name, is_primary: a.is_primary,
       reason: "absent" as const, ladder: a.ladder_max_level,
     })), ...below.map(b => ({
       skill: b.skill, display_name: b.display_name, is_primary: b.is_primary,
       reason: "shallow" as const, ladder: b.ladder_max_level,
     }))]
-  }, [plan])
+    if (!focusRequirement) return all
+    const hit = all.filter(s => gapCardMatches(focusRequirement, [s.display_name, s.skill]))
+    return hit.length ? hit : all
+  }, [plan, focusRequirement])
+
+  const deckMatch = useMemo(() => {
+    if (!focusRequirement) return -1
+    return deck.findIndex(c => gapCardMatches(
+      focusRequirement,
+      c.kind === "latent"
+        ? c.skills.flatMap(s => [s.display_name, s.skill])
+        : [c.display_name, c.skill],
+    ))
+  }, [deck, focusRequirement])
+  const practiceMatch = Boolean(
+    focusRequirement && practiceSkills.some(s => gapCardMatches(focusRequirement, [s.display_name, s.skill])),
+  )
+  const startIdx = deckMatch >= 0 ? deckMatch : (focusRequirement && practiceMatch ? deck.length : 0)
+  const focusOnly = deckMatch >= 0 || Boolean(focusRequirement && practiceMatch && deckMatch < 0)
+  const pos = idx ?? startIdx
 
   if (loadErr) {
     return (
@@ -135,7 +155,7 @@ export function GapSession({ token, jobId, score, onApplied, onClose }: GapSessi
       <Backdrop onClose={onClose}>
         <div className="cvb-modal cvb-gs-modal">
           <Header score={score} startScore={startScore} plan={null} onClose={onClose} />
-          <div className="cvb-gs-body"><div className="cvb-rw-status" role="status">✦ Mentor is reading your gaps…</div></div>
+          <div className="cvb-gs-body"><div className="cvb-rw-status" role="status">Reading your gaps…</div></div>
         </div>
       </Backdrop>
     )
@@ -143,15 +163,18 @@ export function GapSession({ token, jobId, score, onApplied, onClose }: GapSessi
 
   // Pagination: walk the deck in SESSION_BATCH chunks. At a batch boundary with
   // more cards left, the checkpoint lets the user keep going or wrap up early.
-  const walkedAll = idx >= deck.length
-  const atCheckpoint = !walkedAll && idx >= revealed
+  const walkedAll = pos >= deck.length
+  const atCheckpoint = !focusOnly && !walkedAll && pos >= revealed
   const onDeck = !walkedAll && !atCheckpoint
-  const card = onDeck ? deck[idx] : null
+  const card = onDeck ? deck[pos] : null
   const ticks = Math.min(revealed, deck.length)
 
-  function advance() { setIdx(i => i + 1) }
-  function skip() { setOutcomes(o => ({ ...o, [idx]: "skipped" })); advance() }
-  function onResolved() { setOutcomes(o => ({ ...o, [idx]: "surfaced" })); onApplied(); advance() }
+  function advance() {
+    if (focusOnly) { onClose(); return }
+    setIdx(pos + 1)
+  }
+  function skip() { setOutcomes(o => ({ ...o, [pos]: "skipped" })); advance() }
+  function onResolved() { setOutcomes(o => ({ ...o, [pos]: "surfaced" })); onApplied(); advance() }
   function continueBatch() { setRevealed(r => r + SESSION_BATCH) }
   function wrapUp() { setIdx(deck.length) }
 
@@ -160,11 +183,11 @@ export function GapSession({ token, jobId, score, onApplied, onClose }: GapSessi
       <div className="cvb-modal cvb-gs-modal" onClick={e => e.stopPropagation()}>
         <Header score={score} startScore={startScore} plan={plan} onClose={onClose} />
 
-        {deck.length > 1 && (
+        {!focusOnly && deck.length > 1 && (
           <div className="cvb-gs-progress" aria-hidden>
             {Array.from({ length: ticks }, (_, i) => {
               const o = outcomes[i]
-              const cls = o === "surfaced" ? "surfaced" : o === "skipped" ? "skipped" : i === idx ? "active" : ""
+              const cls = o === "surfaced" ? "surfaced" : o === "skipped" ? "skipped" : i === pos ? "active" : ""
               return <span key={i} className={`cvb-gs-tick${cls ? ` ${cls}` : ""}`} />
             })}
             {deck.length > revealed && <span className="cvb-gs-tick-more">+{deck.length - revealed}</span>}
@@ -180,20 +203,20 @@ export function GapSession({ token, jobId, score, onApplied, onClose }: GapSessi
         <div className="cvb-gs-body">
           {card?.kind === "latent" && (
             <SurfaceCard
-              key={`latent-${idx}`} token={token} card={card}
+              key={`latent-${pos}`} token={token} card={card}
               onResolved={onResolved} onSkip={skip}
             />
           )}
           {card?.kind === "shallow" && (
             <ShallowCard
-              key={`shallow-${idx}`} token={token} card={card}
+              key={`shallow-${pos}`} token={token} card={card}
               onResolved={onResolved} onSkip={skip}
             />
           )}
           {atCheckpoint && (
             <Checkpoint
               resolved={surfaced}
-              remaining={deck.length - idx}
+              remaining={deck.length - pos}
               onContinue={continueBatch}
               onWrap={wrapUp}
             />
@@ -222,7 +245,7 @@ function Header({ score, startScore, plan, onClose }: { score: number; startScor
   return (
     <div className="cvb-modal-head cvb-gs-head">
       <div className="cvb-gs-title">
-        <div className="cvb-gs-eyebrow"><MyroMark size={12}/> Close gaps with Mentor</div>
+        <div className="cvb-gs-eyebrow"><MyroMark size={12}/> Tailor with Mentor</div>
         {plan && <div className="cvb-gs-sub">{plan.company ?? "This role"} · {plan.job_title}</div>}
       </div>
       <LiveMeter score={score} startScore={startScore} />
@@ -284,7 +307,7 @@ function SurfaceCard({ token, card, onResolved, onSkip }: {
   token: string; card: HostBulletCard; onResolved: () => void; onSkip: () => void
 }) {
   const keywords = card.skills.map(s => s.display_name)
-  const { phase, proposed, setProposed, rationale, citations, version, reworking, streaming, applying, propose, refine, accept, reset, errMsg } =
+  const { phase, proposed, setProposed, rationale, version, reworking, streaming, applying, propose, refine, accept, reset, errMsg } =
     useRewrite(token, card.bullet_text, keywords, card)
 
   return (
@@ -308,7 +331,7 @@ function SurfaceCard({ token, card, onResolved, onSkip }: {
       )}
 
       <RewriteBody
-        phase={phase} proposed={proposed} onProposedChange={setProposed} rationale={rationale} citations={citations}
+        phase={phase} proposed={proposed} onProposedChange={setProposed} rationale={rationale}
         version={version} reworking={reworking} streaming={streaming} applying={applying} errMsg={errMsg}
         before={card.bullet_text}
         onAccept={() => void accept(onResolved)} onDiscard={reset} onRetry={() => void propose()}
@@ -331,7 +354,7 @@ function ShallowCard({ token, card, onResolved, onSkip }: {
     el.style.height = `${el.scrollHeight}px`
   }
   const host = card.host!
-  const { phase, proposed, setProposed, rationale, citations, version, reworking, streaming, applying, propose, refine, accept, reset, errMsg } =
+  const { phase, proposed, setProposed, rationale, version, reworking, streaming, applying, propose, refine, accept, reset, errMsg } =
     useRewrite(token, host.bullet_text, [card.display_name], host)
 
   return (
@@ -381,7 +404,7 @@ function ShallowCard({ token, card, onResolved, onSkip }: {
       )}
 
       <RewriteBody
-        phase={phase} proposed={proposed} onProposedChange={setProposed} rationale={rationale} citations={citations}
+        phase={phase} proposed={proposed} onProposedChange={setProposed} rationale={rationale}
         version={version} reworking={reworking} streaming={streaming} applying={applying} errMsg={errMsg}
         before={host.bullet_text}
         onAccept={() => void accept(onResolved)} onDiscard={reset} onRetry={() => void propose(anecdote.trim())}
@@ -402,11 +425,9 @@ function useRewrite(
   const [phase, setPhase] = useState<CardPhase>("intro")
   const [proposed, setProposed] = useState("")
   const [rationale, setRationale] = useState<string | null>(null)
-  const [citations, setCitations] = useState<string[]>([])
   const [applying, setApplying] = useState(false)
   const [errMsg, setErrMsg] = useState<string | null>(null)
-  // Draft lineage: v1 = Mentor's first draft, bumped per accepted refine. Lets
-  // the UI show "Mentor's draft · v2" so iterating reads as building on top.
+  // Draft lineage: v1 = Mentor's first draft, bumped per accepted refine.
   const [version, setVersion] = useState(0)
   const [reworking, setReworking] = useState(false)
 
@@ -454,7 +475,6 @@ function useRewrite(
     setStreaming(false)
     setProposed((ev.rewritten_text as string) ?? "")
     setRationale((ev.rationale as string) ?? null)
-    setCitations((ev.citations as string[]) ?? [])
     setVersion(v => (modeRef.current === "propose" ? 1 : v + 1))
     setPhase("diff")
   }
@@ -506,19 +526,19 @@ function useRewrite(
   const reset = useCallback(() => {
     stream.reset()
     setStreaming(false)
-    setPhase("intro"); setProposed(""); setRationale(null); setCitations([])
+    setPhase("intro"); setProposed(""); setRationale(null)
     setVersion(0); setReworking(false); setErrMsg(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  return { phase, proposed, setProposed, rationale, citations, version, reworking, streaming, applying, propose, refine, accept, reset, errMsg }
+  return { phase, proposed, setProposed, rationale, version, reworking, streaming, applying, propose, refine, accept, reset, errMsg }
 }
 
 // ── Shared rewrite UI (status / diff / error), reusing cvb-rw-* vocabulary ────
 
-function RewriteBody({ phase, proposed, onProposedChange, rationale, citations, version, reworking, streaming, applying, errMsg, before, onAccept, onDiscard, onRetry, onRefine }: {
+function RewriteBody({ phase, proposed, onProposedChange, rationale, version, reworking, streaming, applying, errMsg, before, onAccept, onDiscard, onRetry, onRefine }: {
   phase: CardPhase; proposed: string; onProposedChange: (v: string) => void
-  rationale: string | null; citations: string[]
+  rationale: string | null
   version: number; reworking: boolean; streaming: boolean
   applying: boolean; errMsg: string | null; before: string
   onAccept: () => void; onDiscard: () => void; onRetry: () => void
@@ -533,7 +553,7 @@ function RewriteBody({ phase, proposed, onProposedChange, rationale, citations, 
     setNote("")
   }
 
-  if (phase === "proposing") return <div className="cvb-rw-status" role="status">✦ Mentor is surfacing it…</div>
+  if (phase === "proposing") return <div className="cvb-rw-status" role="status">Surfacing it…</div>
   if (phase === "resolved") return <div className="cvb-gs-resolved" role="status"><Icon name="check" size={14} stroke={3}/> Surfaced</div>
   if (phase === "error") {
     return (
@@ -581,11 +601,6 @@ function RewriteBody({ phase, proposed, onProposedChange, rationale, citations, 
           </div>
         )}
         {rationale && <div className="cvb-rw-rationale">{rationale}</div>}
-        {citations.length > 0 && (
-          <div className="cvb-rw-citation" title="Grounded in the Myro CV Playbook">
-            <Icon name="check" size={11} stroke={3}/> Grounded in {citations.join(", ")}
-          </div>
-        )}
 
         <div className="cvb-rw-refine">
           <label className="cvb-rw-refine-q" htmlFor="rw-refine">Not quite? Tell Myro what it missed — it&apos;ll build on this version.</label>
@@ -686,7 +701,7 @@ function ClaimableUpgrade({ token, upgrade, host, meta, onApplied }: {
   meta: React.ReactNode
   onApplied: () => void
 }) {
-  const { phase, proposed, setProposed, rationale, citations, version, reworking, streaming, applying, propose, refine, accept, reset, errMsg } =
+  const { phase, proposed, setProposed, rationale, version, reworking, streaming, applying, propose, refine, accept, reset, errMsg } =
     useRewrite(token, host.bullet_text, [upgrade.display_name], host)
 
   if (phase === "intro") {
@@ -709,7 +724,7 @@ function ClaimableUpgrade({ token, upgrade, host, meta, onApplied }: {
         <span className="cvb-gs-row-meta">{meta}</span>
       </div>
       <RewriteBody
-        phase={phase} proposed={proposed} onProposedChange={setProposed} rationale={rationale} citations={citations}
+        phase={phase} proposed={proposed} onProposedChange={setProposed} rationale={rationale}
         version={version} reworking={reworking} streaming={streaming} applying={applying} errMsg={errMsg} before={host.bullet_text}
         onAccept={() => void accept(onApplied)} onDiscard={reset} onRetry={() => void propose()}
         onRefine={note => void refine(note)}
@@ -858,7 +873,7 @@ function ClosingPanel({ token, resolved, startScore, score, practiceSkills, upgr
 
 function Backdrop({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
-    <div className="cvb-modal-backdrop" role="dialog" aria-modal="true" aria-label="Close gaps with Mentor" onClick={onClose}>
+    <div className="cvb-modal-backdrop" role="dialog" aria-modal="true" aria-label="Tailor with Mentor" onClick={onClose}>
       {children}
     </div>
   )

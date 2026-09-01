@@ -1,0 +1,36 @@
+{
+  "name": "titan-email-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for Titan email (secureserver.titan.email / GoDaddy Professional Email) over IMAP + SMTP",
+  "type": "module",
+  "bin": {
+    "titan-email-mcp-server": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc && chmod +x dist/index.js",
+    "watch": "tsc --watch",
+    "start": "node dist/index.js",
+    "inspect": "npx @modelcontextprotocol/inspector node dist/index.js",
+    "smoke": "node scripts/smoke-test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "imapflow": "^1.7.7",
+    "mailparser": "^3.9.19",
+    "nodemailer": "^9.1.0",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/mailparser": "^3.4.6",
+    "@types/node": "^24.0.0",
+    "@types/nodemailer": "^7.0.4",
+    "typescript": "^7.0.2"
+  }
+}
