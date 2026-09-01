@@ -21,7 +21,7 @@ import { useCollection, STAGE_CHIPS } from "@/lib/collections/use-collection"
 import { useCollectionActions } from "@/lib/collections/use-collection-actions"
 import { emptyCopy, orderEntries } from "@/lib/collections/model"
 import type { SortKey } from "@/lib/dashboard/feed-model"
-import type { CollectionStage } from "@/lib/api"
+import type { CollectionEntry, CollectionStage } from "@/lib/api"
 import { CollectionRow } from "./collection-rows"
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -96,6 +96,17 @@ export function CollectionsDesktop({
     }
   }, [refreshVm.state, refreshVm.matchesWritten, fireMoment])
 
+  // One wiring for every row on this surface — the pinned picks and the list
+  // are the same card doing the same things.
+  const rowActions = (entry: CollectionEntry) => ({
+    onOpen: () => setOpenId(openId === entry.job_id ? null : entry.job_id),
+    onRemove: () => actions.remove(entry),
+    onPriorityToggle: (p: boolean) => actions.setPriority(entry.job_id, p),
+    onSnooze: () => actions.snooze(entry.job_id),
+    onSaveNote: (note: string) => actions.saveNote(entry.job_id, note),
+    onAnswerPending: (submitted: boolean) => actions.answerPending(entry.job_id, submitted),
+  })
+
   const neverSearched = collection.isEmpty && !isRefreshing
 
   return (
@@ -148,8 +159,32 @@ export function CollectionsDesktop({
             <MatchVettingBanner token={token} health={collection.query.data?.match_health} />
 
             {/* Picks inherit THIS surface's card, not the market one: inside the
-                Ops folder the job is already offered, so Save is not the hero. */}
-            {stage === "found" ? <AgentPicksBand token={token} context="collections" /> : null}
+                Ops folder the job is already collected, so Save is not the hero
+                — it would sit beside Tailor CV as a peer for the same decision.
+                Why opens on a pick: the reason Myro chose it IS the band. */}
+            {stage === "found" ? (
+              <AgentPicksBand
+                token={token}
+                context="collections"
+                renderCard={(pick) => {
+                  const entry = collection.byId.get(pick.job_id)
+                  // A pick the record does not hold (dismissed since, or below
+                  // the bar) is dropped rather than rendered from the pick row —
+                  // that would be a second card shape for one job.
+                  if (!entry) return null
+                  return (
+                    <CollectionRow
+                      entry={entry}
+                      token={token}
+                      open={openId === entry.job_id}
+                      openWhy
+                      pulse={pulses.get(entry.job_id)}
+                      actions={rowActions(entry)}
+                    />
+                  )
+                }}
+              />
+            ) : null}
 
             {isRefreshing && stage === "found" ? (
               <>
@@ -180,14 +215,7 @@ export function CollectionsDesktop({
                       token={token}
                       open={openId === entry.job_id}
                       pulse={pulses.get(entry.job_id)}
-                      actions={{
-                        onOpen: () => setOpenId(openId === entry.job_id ? null : entry.job_id),
-                        onRemove: () => actions.remove(entry),
-                        onPriorityToggle: (p) => actions.setPriority(entry.job_id, p),
-                        onSnooze: () => actions.snooze(entry.job_id),
-                        onSaveNote: (note) => actions.saveNote(entry.job_id, note),
-                        onAnswerPending: (submitted) => actions.answerPending(entry.job_id, submitted),
-                      }}
+                      actions={rowActions(entry)}
                     />
                   )}
                 />
