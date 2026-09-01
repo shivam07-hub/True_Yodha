@@ -3595,7 +3595,8 @@ export interface JobFeedItem {
   legitimacy_reason?: string | null
   archetype?: string | null
   // Match Verdict (server-derived, never in the client). Present only on cards the
-  // brain has ranked; absent = an un-warmed browse row below the picks divider.
+  // brain has ranked; absent = an un-warmed browse row. Agent picks are ranked
+  // and MUST carry a verdict — they used to omit it and fall back to overlap.
   match_score?: number | null
   verdict?: "strong" | "worth_it" | "stretch" | "checking" | null
   /** Which of the user's searches found this card. null = track 1 = the

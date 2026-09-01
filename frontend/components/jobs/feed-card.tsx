@@ -323,13 +323,6 @@ export function FeedCard({
         {!compact && hasFit && !fitInTop ? <div className="fc-fit">{fitNode}</div> : null}
       </div>
 
-      {data.move ? (
-        <div className={`fc-move fc-move-${data.move.kind}`}>
-          <span aria-hidden className="fc-move-arrow">→</span>
-          {data.move.label}
-        </div>
-      ) : null}
-
       {pulse}
       {!compact && rail ? rail : null}
       {/* In compact density the capture lives in the head, not a bottom row. */}

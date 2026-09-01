@@ -1,5 +1,5 @@
 import type { CompanyJobCard, JobFeedItem, JobMatch } from "@/lib/api"
-import { matchFitScore, verdictMove } from "@/lib/jobs/match-verdict"
+import { matchFitScore } from "@/lib/jobs/match-verdict"
 
 /**
  * A skill pill on a feed card.
@@ -67,25 +67,6 @@ function skillCountOf(matched: string[], missing: string[]): { matched: number; 
 }
 
 /**
- * The engineer's next move on a ranked card — the "what to do", not just "how
- * good". `go` = the brain says apply (accent); `gap` = close skills first (quiet).
- * Set only when the brain has ranked the card; a browse row has no move.
- */
-export interface FeedMove {
-  label: string
-  kind: "go" | "gap"
-}
-
-/** The move a warmed card recommends — the canonical verdict→intent
- *  (`verdictMove`), fed the count of required skills the CV doesn't cover. Both
- *  this and the mobile row read the ONE mapping, so the directive never drifts. */
-function marketMove(job: JobFeedItem, hasCv: boolean): FeedMove | undefined {
-  const matched = new Set((job.matched_skills ?? []).map((s) => s.toLowerCase()))
-  const gaps = hasCv ? job.skills.filter((s) => !matched.has(s.toLowerCase())).length : 0
-  return verdictMove(job.verdict, gaps) ?? undefined
-}
-
-/**
  * The normalized shape every feed card renders from. Both the market feed
  * (`JobFeedItem`) and the dashboard feed (`JobMatch`) adapt into this one model
  * so a single presentational `<FeedCard>` serves every surface.
@@ -115,8 +96,6 @@ export interface FeedCardData {
   ageIso: string | null
   /** The top-right fit slot view-model. The card renders `<FitIndicator>` from it. */
   fit: FitView
-  /** The engineer's directive — set only on brain-ranked market cards. */
-  move?: FeedMove
 }
 
 /** Compact relative-age badge from an ISO date (day granular). */
@@ -229,7 +208,6 @@ export function feedDataFromFeedItem(
     fit: job.verdict && job.verdict !== "checking"
       ? { kind: "score", value: matchFitScore(job), verdict: job.verdict }
       : marketFit(job, hasCv),
-    move: marketMove(job, hasCv),
   }
 }
 

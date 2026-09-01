@@ -99,6 +99,16 @@ def test_the_feed_ranks_on_the_match_verdict_and_nothing_else() -> None:
     ), "a second sort in the ranker is a second ordering"
 
 
+def test_agent_picks_attach_the_same_verdict_the_feed_does() -> None:
+    """A pick is a note on a feed card, not a second body. Attaching MatchEval
+    here by hand (or skipping the attach) is how the band hid the judge while
+    the algorithm tail showed Stretch 56."""
+    src = _src("app/routers/jobs/match.py")
+    assert "get_cached_match_evals" in src
+    assert "_rank_feed_rows" in src
+    assert "reorder=False" in src
+
+
 def test_reordering_follows_the_user_s_chosen_sort() -> None:
     """It reordered on EVERY sort, so "Newest" returned warmed-cards-first and the
     two-way toggle was wrong on both settings."""

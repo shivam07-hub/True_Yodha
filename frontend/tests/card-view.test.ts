@@ -97,20 +97,14 @@ test("market: a warmed card shows the score ring + verdict (the judge)", () => {
   assert.deepEqual(data.fit, { kind: "score", value: 84, verdict: "strong" })
 })
 
-test("market: strong/worth_it recommend Tailor & apply (the go move)", () => {
-  const strong = feedDataFromFeedItem(feedItem({ verdict: "strong", match_score: 88 }), { hasCv: true })
-  assert.deepEqual(strong.move, { label: "Tailor & apply", kind: "go" })
-  const worth = feedDataFromFeedItem(feedItem({ verdict: "worth_it", match_score: 66 }), { hasCv: true })
-  assert.deepEqual(worth.move, { label: "Tailor & apply", kind: "go" })
-})
-
-test("market: a stretch names the exact gaps to close (the gap move)", () => {
-  const data = feedDataFromFeedItem(
+test("market: a warmed card has no move line — Save is the hero, chips are the gap", () => {
+  const stretch = feedDataFromFeedItem(
     feedItem({ skills: ["Python", "SQL", "Spark"], matched_skills: ["Python"],
                matched_skill_count: 1, verdict: "stretch", match_score: 55 }),
     { hasCv: true },
   )
-  assert.deepEqual(data.move, { label: "Close 2 gaps first", kind: "gap" })
+  assert.ok(!("move" in stretch))
+  assert.deepEqual(stretch.fit, { kind: "score", value: 55, verdict: "stretch" })
 })
 
 test("market: an un-warmed card has no verdict move and falls back to overlap", () => {
@@ -118,7 +112,7 @@ test("market: an un-warmed card has no verdict move and falls back to overlap", 
     feedItem({ skills: ["Python", "SQL"], matched_skills: ["Python"], matched_skill_count: 1 }),
     { hasCv: true },
   )
-  assert.equal(data.move, undefined)
+  assert.ok(!("move" in data))
   assert.deepEqual(data.fit, { kind: "overlap", count: 1 })
 })
 
