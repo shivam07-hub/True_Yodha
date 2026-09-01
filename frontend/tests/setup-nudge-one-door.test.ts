@@ -41,7 +41,7 @@ test("no first-upload call-to-action points at the workstation", () => {
   const firstUploadSurfaces = [
     "components/common/setup-nudge.tsx",
     "components/jobs/feed-card.tsx",
-    "components/preparations/score-map-card.tsx",
+    "components/preparations/skill-path-rail.tsx",
   ]
   for (const file of firstUploadSurfaces) {
     const src = code(file)

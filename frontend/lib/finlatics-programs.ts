@@ -15,6 +15,8 @@ export const FINLATICS_ORIGIN = "https://www.finlatics.com"
 export const FINLATICS_SRC = "myroref"
 /** Local mark for the landing ticker and Prep training card. */
 export const FINLATICS_LOGO_SRC = "/brand/finlatics.png"
+/** Catalogue lockup — Prep header and landing ticker, logo adjacent. */
+export const FINLATICS_BRAND_LABEL = "Training by Finlatics"
 export const FINLATICS_APPLY_LABEL = "Apply on Finlatics"
 
 export type FinlaticsAttr = "utm_src" | "src"

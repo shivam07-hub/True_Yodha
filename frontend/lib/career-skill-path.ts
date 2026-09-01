@@ -92,6 +92,15 @@ export function addCertificateHref(verificationId: string): string {
   return `/cv?edit=1&addCert=${encodeURIComponent(verificationId)}`
 }
 
+/** Prep rail: gaps first, then evidenced, original order inside each group. */
+export function sortAnchorCards(cards: readonly SkillPathCard[]): SkillPathCard[] {
+  return [...cards].sort((a, b) => {
+    const gapA = a.state === "not_evidenced" ? 0 : 1
+    const gapB = b.state === "not_evidenced" ? 0 : 1
+    return gapA - gapB
+  })
+}
+
 export const careerSkillPath = {
   get: (token: string) =>
     backendRequest<CareerSkillPath>("/career-skill-path", {

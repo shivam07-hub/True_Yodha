@@ -2,11 +2,12 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { FINLATICS_PROGRAMS } from "@/lib/finlatics-programs"
 import "@/app/(authed)/home/mission-control.css"
 import "./preparations.css"
+import "./skill-path-rail.css"
 import "./training-card.css"
 
 /**
  * Layout-matched loading for /preparations. Uses the live workspace classes
- * (tm-intel-page · mc-workspace · prp-row · mc-peek-card) so the swap to
+ * (tm-intel-page · mc-workspace · prp-row · prp-stand) so the swap to
  * content does not move the page. Title and rail labels stay — they never
  * wait on the applications query. Visible "Loading…" copy is omitted: the
  * shimmer is the state.
@@ -20,7 +21,7 @@ function RowSkeleton() {
         <Skeleton style={{ width: "72%", height: 15, borderRadius: 4 }} />
         <Skeleton style={{ width: 148, height: 12, borderRadius: 4, marginTop: 6 }} />
       </div>
-      <Skeleton style={{ width: 72, height: 22, borderRadius: 999, flexShrink: 0 }} />
+      <Skeleton style={{ width: 72, height: 12, borderRadius: 4, flexShrink: 0 }} />
     </div>
   )
 }
@@ -37,21 +38,27 @@ function GroupSkeleton({ rows }: { rows: number }) {
   )
 }
 
-function ScoreMapSkeleton() {
+function SkillPathSkeleton() {
   return (
-    <section className="mc-peek-card">
-      <header className="mc-peek-head">
-        <Skeleton style={{ width: 26, height: 26, borderRadius: 8, flexShrink: 0 }} />
-        <Skeleton style={{ width: 84, height: 13, borderRadius: 4 }} />
+    <section className="prp-stand">
+      <header className="prp-sk-head">
+        <div className="prp-sk-lead">
+          <p className="prp-sk-kicker">Skill path</p>
+          <Skeleton style={{ width: "70%", height: 18, borderRadius: 4, marginTop: 6 }} />
+        </div>
+        <span className="prp-sk-radar" style={{ display: "grid", placeItems: "center" }}>
+          <Skeleton style={{ width: 112, height: 112, borderRadius: "50%" }} />
+        </span>
       </header>
-      <div className="prp-map-body">
-        <span className="prp-map-radar" style={{ display: "grid", placeItems: "center" }}>
-          <Skeleton style={{ width: 180, height: 180, borderRadius: "50%" }} />
-        </span>
-        <span className="prp-map-read">
-          <Skeleton style={{ width: "88%", height: 12, borderRadius: 4 }} />
-          <Skeleton style={{ width: "62%", height: 12, borderRadius: 4 }} />
-        </span>
+      <div className="prp-sk-list" aria-hidden="true">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="prp-sk-row">
+            <div className="prp-sk-copy">
+              <Skeleton style={{ width: "58%", height: 14, borderRadius: 4 }} />
+              <Skeleton style={{ width: 120, height: 10, borderRadius: 4, marginTop: 6 }} />
+            </div>
+          </div>
+        ))}
       </div>
     </section>
   )
@@ -59,15 +66,15 @@ function ScoreMapSkeleton() {
 
 function TrainingSkeleton() {
   return (
-    <section className="mc-peek-card">
-      <header className="mc-peek-head">
-        <Skeleton style={{ width: 26, height: 26, borderRadius: 8, flexShrink: 0 }} />
-        <Skeleton style={{ width: 72, height: 13, borderRadius: 4 }} />
+    <section className="prp-stand">
+      <header className="prp-train-lockup">
+        <Skeleton style={{ width: 26, height: 26, borderRadius: 4, flexShrink: 0 }} />
+        <Skeleton style={{ width: 168, height: 13, borderRadius: 4 }} />
       </header>
       <div className="prp-courses">
         {FINLATICS_PROGRAMS.map((program) => (
           <div key={program.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <Skeleton style={{ width: 28, height: 28, borderRadius: 8, flexShrink: 0 }} />
+            <Skeleton style={{ width: 28, height: 28, borderRadius: 6, flexShrink: 0 }} />
             <Skeleton style={{ flex: 1, minWidth: 0, height: 16, borderRadius: 4 }} />
           </div>
         ))}
@@ -87,11 +94,10 @@ export function PrepSkeleton() {
       <div className="prp-head">
         <h1 className="prp-title">Preparations</h1>
       </div>
-      <p className="prp-sub">Prepare for every job</p>
       <div className="mc-workspace">
         <aside className="mc-ws-rail">
           <div className="mc-rail" aria-hidden="true">
-            <ScoreMapSkeleton />
+            <SkillPathSkeleton />
             <TrainingSkeleton />
           </div>
         </aside>

@@ -1,7 +1,7 @@
 "use client"
 
 /**
- * TrainingCard — Finlatics programs in the workspace peek rail.
+ * TrainingCard — Finlatics programs in the Prep standing column.
  * The row is a disclosure, not a link. Hover (fine pointer) or click opens
  * the program blurb; Apply on Finlatics is the only outbound control.
  */
@@ -11,6 +11,7 @@ import Image from "next/image"
 import { ArrowRight, ChevronDown, ChevronUp, ExternalLink } from "lucide-react"
 import {
   FINLATICS_APPLY_LABEL,
+  FINLATICS_BRAND_LABEL,
   FINLATICS_LOGO_SRC,
   FINLATICS_PROGRAMS,
   type FinlaticsProgram,
@@ -23,12 +24,10 @@ export function TrainingCard() {
   const [openId, setOpenId] = useState<string | null>(null)
 
   return (
-    <section className="mc-peek-card" aria-labelledby="prp-train-title">
-      <header className="mc-peek-head">
-        <span className="mc-peek-ico prp-train-mark">
-          <Image src={FINLATICS_LOGO_SRC} alt="" width={26} height={26} />
-        </span>
-        <h3 id="prp-train-title" className="mc-peek-title">Training</h3>
+    <section className="prp-stand" aria-labelledby="prp-train-title">
+      <header className="prp-train-lockup">
+        <Image src={FINLATICS_LOGO_SRC} alt="" width={26} height={26} />
+        <h3 id="prp-train-title">{FINLATICS_BRAND_LABEL}</h3>
       </header>
       <div className="prp-courses">
         {FINLATICS_PROGRAMS.map((program) => (
@@ -41,12 +40,12 @@ export function TrainingCard() {
         ))}
       </div>
       <a
-        className="mc-peek-link tm-control-focus"
+        className="prp-stand-more tm-control-focus"
         href={finlaticsHomeHref()}
         target="_blank"
         rel="noopener noreferrer"
       >
-        Finlatics <ArrowRight size={13} aria-hidden />
+        All programs <ArrowRight size={13} aria-hidden />
       </a>
     </section>
   )

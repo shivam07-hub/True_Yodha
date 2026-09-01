@@ -3,7 +3,27 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 
+import { sortAnchorCards, type SkillPathCard } from "../lib/career-skill-path"
+
 const read = (p: string) => readFileSync(resolve(process.cwd(), p), "utf8")
+
+function card(taxonomy_key: string, state: SkillPathCard["state"]): SkillPathCard {
+  return {
+    skill_id: null,
+    taxonomy_key,
+    display_name: taxonomy_key,
+    state,
+    current_level: null,
+    required_level: null,
+    evidence_pointer: null,
+    demand: null,
+    ladder_complete: false,
+    certificate_status: "none",
+    verification_id: null,
+    next_practice_level: null,
+    request_status: "none",
+  }
+}
 
 test("practice no longer rebuilds demand from job gaps", () => {
   const practice = read("app/(authed)/practice/page.tsx")
@@ -40,4 +60,19 @@ test("personal job-count demand heuristic is gone; corpus taxonomy helper remain
   const demand = read("lib/demand-band.ts")
   assert.doesNotMatch(demand, /export function bandFromJobCount/)
   assert.match(demand, /export function bandFromCorpusJobCount/)
+})
+
+test("anchor cards put not-evidenced gaps first", () => {
+  const ordered = sortAnchorCards([
+    card("Sales", "on_cv"),
+    card("Cold Calling", "not_evidenced"),
+    card("Cross-Selling", "practised"),
+    card("Channel Sales", "not_evidenced"),
+  ])
+  assert.deepEqual(ordered.map((item) => item.taxonomy_key), [
+    "Cold Calling",
+    "Channel Sales",
+    "Sales",
+    "Cross-Selling",
+  ])
 })

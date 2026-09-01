@@ -1,11 +1,12 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 
-import { existsSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
 import {
   FINLATICS_APPLY_LABEL,
+  FINLATICS_BRAND_LABEL,
   FINLATICS_LOGO_SRC,
   FINLATICS_PROGRAMS,
   FINLATICS_SRC,
@@ -36,11 +37,21 @@ test("the rail lists the eleven landing programs, Financial Analyst first", () =
     assert.equal(program.blurb.includes("—"), false)
   }
   assert.equal(FINLATICS_APPLY_LABEL, "Apply on Finlatics")
+  assert.equal(FINLATICS_BRAND_LABEL, "Training by Finlatics")
 })
 
 test("the landing rail logo is the committed Finlatics mark in /public/brand", () => {
   assert.equal(FINLATICS_LOGO_SRC, "/brand/finlatics.png")
   assert.ok(existsSync(join(process.cwd(), "public", "brand", "finlatics.png")))
+})
+
+test("Prep and landing render the same Training by Finlatics lockup", () => {
+  const train = readFileSync(join(process.cwd(), "components/preparations/training-card.tsx"), "utf8")
+  const landing = readFileSync(join(process.cwd(), "components/public/landing/finlatics-rail.tsx"), "utf8")
+  assert.match(train, /FINLATICS_BRAND_LABEL/)
+  assert.match(landing, /FINLATICS_BRAND_LABEL/)
+  assert.doesNotMatch(train, /Training with/)
+  assert.doesNotMatch(landing, /Training with/)
 })
 
 test("the Finlatics home footer carries the same Myro attribution", () => {
