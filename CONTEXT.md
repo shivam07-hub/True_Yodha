@@ -25,6 +25,7 @@ A CV Version is one row in `cv_versions`. Upload, polish, and an explicit new sa
 - `hidden_items`, `edited_items` — JSONB. The user's playground state at the time of save. Derivatives only. **Hide removes the line from the paper** (editor, sheet, download, Match). Projection, not delete — the master keeps the line. Restore is undo or a chrome `N hidden` count, never a struck ghost on the page.
 - `section_order` — playground projection on the Company CV Thread, same grain as `hidden_items`. Identity (name/contact) is pinned. Every other section is a block the user can drop anywhere; role cards reorder inside Experience. Sheet and download follow this order. The living master's outline does not change.
 - Paper mutations (hide, show, line edit, reorder, each Tailor Take / Keep) are Cmd+Z / Cmd+Shift+Z with toolbar arrows. A Take patches this job’s working draft in place — Google Docs. It is saved until that line is reworded. The weave RUN still caches a proposal; it does not wait for a final Save.
+- **Where a paper change lands is decided by what it IS, not where it happened.** A **reword** of an existing line patches THIS job's working draft and nothing else — JD phrasing written onto the master rides into every other tailored copy (the Oracle defect, CV Weave lock L3). **New material** — a remembered point, a content fill (education / certs / a blank summary), a latent gap surfacing — lands on the draft AND the living master: it is true anywhere, and it has to be visible on the paper the user is actually looking at, which on a job is the draft. A reword still reaches the reservoir as an ALTERNATE phrasing (`cv_points`, `source="tailor"`, non-canonical), because a reword is often where someone remembers real work; the master's canonical wording does not move. Roles resolve by IDENTITY (company + title), never by index — a paper reorder moves roles on the draft only, so the draft's index is not the master's.
 
 **Reads**
 
@@ -799,7 +800,7 @@ asserts through the response model, not the dispatch layer underneath it.
 - **Weave** — the 50-coin writer-floor pass. Skip when a current proposal exists.
 - **Accept** — per-role Take this, per-pointer `original` override. Each Take writes that role onto the Company CV Thread working draft in place. Last remaining Keep/Take closes the overlay onto the paper.
 - **Gaps** — remaining missing/partial JD rows, inserted on a host bullet (the old free GapSession loop). Absent skills are practiced, never fabricated.
-- **Paper** — not a screen. The playground. Hide / undo / section order live here.
+- **Paper** — not a screen. The playground. Hide / undo / section order live here, under the two-destination rule in CV Version: a reword stays on this job, remembered material also reaches the master.
 
 **Landing rule** (mirrors `landingStep`): header Tailor opens the first step that still needs the user. A settled order (every changed role decided, no remaining closable gaps) does not open an overlay — the verb is absent, not a dead control. A guess (one missing row) renders beside the line it would change, never in a second named product. Cost `50` only when landing is Proof or Weave.
 
