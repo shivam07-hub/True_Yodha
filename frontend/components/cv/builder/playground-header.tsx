@@ -1,7 +1,7 @@
 /**
  * PlaygroundHeader — CV Playground v2 sticky header: job context + live score.
  *
- * [← crumb · CV Playground | job · company | "N requirements extracted →"]
+ * [← crumb | job · company | "N requirements extracted →"]
  * [score /100 + bar · ▲ +N raised · Apply with this CV · ⋯]
  *
  * The requirements pill opens the Skills tab (the extracted requirements ARE
@@ -76,7 +76,7 @@ interface PlaygroundHeaderProps {
   primaryLabel?: string
   /** Hide the ⋯ overflow (master keeps download in the view-mode surface). */
   hideOverflow?: boolean
-  /** Brand override (default per variant: "CV Playground" / "Main CV"). */
+  /** Brand label. Default: "Main CV" on master, none on the job surface. */
   brandLabel?: string
   /** Score caption override (default per variant). */
   scoreCaption?: string
@@ -119,6 +119,11 @@ export function PlaygroundHeader({
   const shown = useCountUp(ready)
   const [menuOpen, setMenuOpen] = useState(false)
   const isMaster = variant === "master"
+  // The job surface identifies itself by the job it is tailoring to, and the
+  // nav already marks CV as the current section — a static "CV Playground"
+  // beside the back chevron only read as a crumb to somewhere, and wasn't one.
+  // Master/anon carry no job line, so there the label IS the identity.
+  const brand = brandLabel ?? (isMaster ? "Main CV" : null)
   const knownCompany = company !== "Untitled company" ? company : ""
   const [editing, setEditing] = useState(false)
   const [titleDraft, setTitleDraft] = useState(jobTitle)
@@ -141,8 +146,12 @@ export function PlaygroundHeader({
           <Icon name="chevron-right" size={12} style={{ transform: "rotate(180deg)" }} />
         </button>
       )}
-      <span className="cvb-v2-brand">{brandLabel ?? (isMaster ? "Main CV" : "CV Playground")}</span>
-      <span className="cvb-v2-headrule" aria-hidden />
+      {brand && (
+        <>
+          <span className="cvb-v2-brand">{brand}</span>
+          <span className="cvb-v2-headrule" aria-hidden />
+        </>
+      )}
       {isMaster ? (
         masterMeta && (onMeta
           ? <button type="button" className="cvb-v2-reqpill cvb-v2-metacta mono" onClick={onMeta}>{masterMeta}</button>
