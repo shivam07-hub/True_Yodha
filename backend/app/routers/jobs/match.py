@@ -23,7 +23,7 @@ from app.services.concurrent_reads import run_concurrently
 from app.services.matching import on_demand
 
 from app.routers.jobs.list import _rank_feed_rows
-from app.routers.jobs._shared import last_monday, to_job_match
+from app.services.job_projection import last_monday, to_job_match
 
 router = APIRouter()
 
