@@ -547,17 +547,17 @@
   /* Dawn field — parked rest matches antipodal-sun parkedCss()
      (pointer in the left rail). LightFieldDriver overwrites these
      on desktop; reduced-motion and coarse pointers keep the park.
-     Paper cannot add light. Depth is a hot core, page-filling coloured
-     air, multiply water, a hard cast, and a gold catching-edge (white
-     cards cannot take a white highlight). */
-  --tm-depth-core:    rgb(255, 253, 246);
-  --tm-depth-sun:     rgba(255, 178, 88, 0.78);
-  --tm-depth-haze:    rgba(255, 164, 96, 0.42);
-  --tm-depth-water:   rgba(24, 56, 80, 0.52);
-  --tm-depth-cast:    rgba(10, 28, 42, 0.24);
-  --tm-depth-cast-strong: rgba(10, 28, 42, 0.42);
-  --tm-depth-rim:     rgba(255, 168, 72, 0.72);
-  --tm-depth-shade:   rgba(10, 28, 42, 0.12);
+     Paper cannot add light. Depth is a hot core, coloured air, cool
+     water, a directional cast, and a gold catching-edge. The field
+     stays behind the type — no mix-blend, or the ink vanishes. */
+  --tm-depth-core:    rgba(255, 252, 244, 0.88);
+  --tm-depth-sun:     rgba(255, 186, 110, 0.38);
+  --tm-depth-haze:    rgba(255, 176, 120, 0.18);
+  --tm-depth-water:   rgba(32, 68, 92, 0.16);
+  --tm-depth-cast:    rgba(10, 28, 42, 0.14);
+  --tm-depth-cast-strong: rgba(10, 28, 42, 0.26);
+  --tm-depth-rim:     rgba(255, 168, 72, 0.40);
+  --tm-depth-shade:   rgba(10, 28, 42, 0.07);
   --tm-sun-x:         93.75%;
   --tm-sun-y:         6.25%;
   --tm-cast-x:        -18.3px;
@@ -733,7 +733,8 @@ html, body {
    Fixed pseudo-plane behind all content. Dark paint order top→bottom:
    vignette → teal aurora → warm ember → tiled stars. Light overrides
    the image with dawn (hot core + bloom + haze) at --tm-sun-x/y.
-   Unlit water is body::after with multiply. One paint, nothing loops. */
+   Unlit water is body::after, normal compositing. Nothing loops.
+   mix-blend-mode on this plane is banned: it multiplies the ink. */
 body::before {
   content: "";
   position: fixed;
@@ -768,15 +769,14 @@ body::before {
    on purpose: `circle at top|bottom` is the closed corner-orb tell. */
 :root[data-surface="light"] body::before {
   background-image:
-    radial-gradient(9% 8% at var(--tm-sun-x) var(--tm-sun-y), var(--tm-depth-core), transparent 58%),
-    radial-gradient(48% 40% at var(--tm-sun-x) var(--tm-sun-y), var(--tm-depth-sun), transparent 54%),
-    radial-gradient(170% 140% at var(--tm-sun-x) var(--tm-sun-y), var(--tm-depth-haze), transparent 72%);
+    radial-gradient(8% 7% at var(--tm-sun-x) var(--tm-sun-y), var(--tm-depth-core), transparent 62%),
+    radial-gradient(34% 30% at var(--tm-sun-x) var(--tm-sun-y), var(--tm-depth-sun), transparent 58%),
+    radial-gradient(140% 120% at var(--tm-sun-x) var(--tm-sun-y), var(--tm-depth-haze), transparent 74%);
   background-size: 100% 100%, 100% 100%, 100% 100%;
   background-repeat: no-repeat;
 }
-/* Cool unlit air multiplies into the paper. Normal compositing at 10–20%
-   alpha is wallpaper; multiply is shade. Stays behind content (z:-1) so
-   cards stay white and only the air around them cools. */
+/* Cool unlit air, normal compositing. Multiply on a page-sized layer
+   blends the type into the field and the ink disappears. */
 :root[data-surface="light"] body::after {
   display: block;
   content: "";
@@ -784,11 +784,10 @@ body::before {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  mix-blend-mode: multiply;
   background-image: radial-gradient(
-    160% 140% at calc(100% - var(--tm-sun-x)) calc(100% - var(--tm-sun-y)),
+    140% 120% at calc(100% - var(--tm-sun-x)) calc(100% - var(--tm-sun-y)),
     var(--tm-depth-water),
-    transparent 64%
+    transparent 66%
   );
   background-repeat: no-repeat;
 }

@@ -44,8 +44,14 @@ def _client(monkeypatch, repo: _StateRepo) -> TestClient:
     monkeypatch.setattr(onboarding, "get_supabase_admin", lambda: object())
     monkeypatch.setattr(onboarding, "OnboardingRepository", lambda _db: repo)
     # The journey position is derived in the service, so the state read goes
-    # through its repositories, not the router's.
+    # through its repositories, not the router's. It reads the profile too:
+    # `completed_at` alone does not mean finished, because the journey's last
+    # step is Direction (see test_journey_position).
     monkeypatch.setattr(onboarding_service, "OnboardingRepository", lambda _db: repo)
+    monkeypatch.setattr(
+        onboarding_service, "UsersRepository",
+        lambda _db: type("R", (), {"get_profile": lambda _s, _u: {}})(),
+    )
     return TestClient(app)
 
 

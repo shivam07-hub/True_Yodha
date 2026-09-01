@@ -12,7 +12,7 @@ import { MarketJobsTab } from "@/components/market/jobs-tab"
 import { MissionHeroRail } from "@/components/mission-control/mission-hero-rail"
 import { MatchesRefreshBanner } from "@/components/jobs/matches-refresh-banner"
 import { MarketTailorCoach } from "@/components/market/market-tailor-coach"
-import { CVRequiredNudge } from "@/components/common/cv-required-nudge"
+import { SetupNudge } from "@/components/common/setup-nudge"
 import { useViewport } from "@/mobile"
 import { JobsSurface } from "@/mobile/redesign/jobs-surface"
 import { useAuth } from "@/lib/hooks/use-auth"
@@ -189,9 +189,13 @@ function IntelPageInner() {
     return (
       <>
         <div style={{ padding: "10px 16px 0" }}>
-          <CVRequiredNudge
-            hasCv={profileData === undefined || !!profileData.has_cv}
-            feature="best-fit ranking"
+          {/* Same component, same copy, same door as the desktop feed. Mobile
+              used to render a different nudge pointing at /cv, and showed
+              nothing at all to a user who had a CV but no target. */}
+          <SetupNudge
+            resolved={profileData !== undefined}
+            hasCv={!!profileData?.has_cv}
+            hasTargetRoles={targetRoles.length > 0}
           />
         </div>
         <JobsSurface
@@ -236,7 +240,6 @@ function IntelPageInner() {
             token={token ?? ""}
             hasCv={!!profileData?.has_cv}
             cvResolved={profileData !== undefined}
-            onboardingComplete={!!profileData?.onboarding_complete}
             targetRoles={targetRoles}
             chipCountMap={chipCountMap}
             selectedCluster={selectedCluster}

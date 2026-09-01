@@ -70,7 +70,11 @@ function copyFor(surface: RequiresCVProps["surface"], readiness: CVReadiness): E
       heading: "Skill Intelligence starts with your CV",
       body: "Upload your CV to unlock Skills.",
       ctaLabel: "Upload CV to unlock Skills",
-      ctaHref: "/cv?upload=1",
+      // /onboarding, not /cv: a first upload made in the workstation is scored
+      // and stops there — it never asks for a target role. Only the `missing`
+      // case moves. `processing` and `failed` above stay on /cv, which owns the
+      // job status and the retry path.
+      ctaHref: "/onboarding",
       secondaryLabel: "See the product flow",
       secondaryHref: "/",
       statusLabel: "CV required",
@@ -81,7 +85,7 @@ function copyFor(surface: RequiresCVProps["surface"], readiness: CVReadiness): E
     heading: "Start your CV hub",
     body: "Upload your CV. Tailor one version per job.",
     ctaLabel: "Upload your CV",
-    ctaHref: "/cv?upload=1",
+    ctaHref: "/onboarding",
   }
 }
 

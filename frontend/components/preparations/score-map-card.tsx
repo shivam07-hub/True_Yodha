@@ -46,7 +46,7 @@ export function ScoreMapCard({ token }: { token: string }) {
         </Link>
       ) : (
         <p className="mc-peek-empty">
-          <Link href="/cv">Upload a CV</Link> to map the skill evidence behind your Myro Score.
+          <Link href="/onboarding">Upload a CV</Link> to map the skill evidence behind your Myro Score.
         </p>
       )}
     </section>

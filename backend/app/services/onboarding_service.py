@@ -776,15 +776,25 @@ def journey_position(db: Client, user_id: str) -> dict[str, Any]:
       - ``result``     — work is in flight or done; the journey screen owns them.
       - ``completed``  — finished; they belong in the product, not the funnel.
     """
+    from app.services.career_target import is_canonical_direction
+
     repo = OnboardingRepository(db)
     facts = _parallel(db, {
         "state": lambda: repo.get_state(user_id),
         "baseline": lambda: CVVersionsRepository(db).latest_baseline(user_id),
+        "profile": lambda: UsersRepository(db).get_profile(user_id),
     })
     state = facts["state"] or {}
     started = bool(facts["baseline"] or state.get("upload_job_id"))
+    # `completed_at` is a flag; a direction is the fact. `_current_result` already
+    # refuses to trust the flag alone — it falls through to Direction when the
+    # profile cannot mint a target. This function is the ENTRY redirect and used
+    # the flag by itself, so it bounced those users to /market before the result
+    # endpoint could offer them the step. One rule, both callers, or the door and
+    # the room disagree.
+    finished = bool(state.get("completed_at")) and is_canonical_direction(facts["profile"] or {})
     position = (
-        "completed" if state.get("completed_at")
+        "completed" if finished
         else "result" if started
         else "experience"
     )

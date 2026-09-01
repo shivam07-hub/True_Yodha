@@ -195,7 +195,7 @@ export function PersonaCanvas({ token }: { token: string }) {
 
       {nothingToWriteFrom ? (
         <div className="tm-pc-state" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Button size="sm" render={<Link href="/cv" />}>Upload Main CV</Button>
+          <Button size="sm" render={<Link href="/onboarding" />}>Upload Main CV</Button>
           <Button size="sm" variant="outline" render={<Link href="/cv?view=stories" />}>Add points</Button>
         </div>
       ) : null}
