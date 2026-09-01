@@ -40,6 +40,15 @@ interface DoneData {
     strongDomain?: string | null
     weakDomain?: string | null
   }
+  /** True when this user has scored a CV but has never named a target role.
+   *
+   *  /cv is the workstation: it takes an upload, scores it, and stops. The
+   *  anonymous-CV route lands here straight from signup (postAuthDestination
+   *  Exception 1), so the product's highest-intent traffic used to reach a score
+   *  and no target — and a target roughly triples apply rate (26% with, 9%
+   *  without). When this is set, the next spine step becomes the primary action
+   *  instead of a fix list, because there is nothing to aim the fixes at yet. */
+  needsTarget?: boolean
 }
 
 interface FailData {
@@ -109,9 +118,18 @@ export function CvScoreProgress({ status, phase, startedAt, done, fail, onRetry 
           How this score works
         </Link>
 
-        {/* Reveal CTA points at the report (the fixes live in /cv); the count is
-            the real number of findings, never a fabricated point promise. */}
-        {done.reveal ? (
+        {/* The spine is CV → score → target → feed. The score has just landed, so
+            the next step is the target, and it outranks the fix list: fixes are
+            measured against a role the user has not picked yet. Same door as
+            every other "you have not started yet" action in the product. */}
+        {done.needsTarget ? (
+          <div className="csp-done-actions">
+            {done.downloadSlot}
+            <Link href="/onboarding" className="csp-done-cta tm-control-focus">
+              Pick your target role →
+            </Link>
+          </div>
+        ) : done.reveal ? (
           <div className="csp-done-actions">
             {done.downloadSlot}
             <Link href="/cv" className="csp-done-cta tm-control-focus">

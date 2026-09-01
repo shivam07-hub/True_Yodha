@@ -36,7 +36,6 @@ import "./market-intel.css"
 export interface MarketJobsTabProps {
   token: string
   hasCv: boolean
-  cvResolved?: boolean
   targetRoles: string[]
   chipCountMap: Record<string, number>
   selectedCluster: string | null         // shared with the page's analytics/heatmap
@@ -63,7 +62,7 @@ export interface MarketJobsTabProps {
 
 export function MarketJobsTab(props: MarketJobsTabProps) {
   const {
-    token, hasCv, cvResolved = false, targetRoles, chipCountMap, selectedCluster, onSelectCluster,
+    token, hasCv, targetRoles, chipCountMap, selectedCluster, onSelectCluster,
     initialFilters, initialQuery = "", onFiltersChange, onQueryChange,
     targetLocations, followCompany, initialSkillFacet, onSkillFacetChange,
     primaryCareerBand, exploredCareerBands, onExploredCareerBandsChange,
@@ -308,12 +307,7 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
 
         {/* The SAME component mobile renders. This was hand-rolled here and
             duplicated in components/common with a different door. */}
-        <SetupNudge
-          resolved={cvResolved}
-          hasCv={hasCv}
-          hasTargetRoles={hasTargetRoles}
-          style={{ marginTop: 14 }}
-        />
+        <SetupNudge token={token} style={{ marginTop: 14 }} />
 
         {/* Curated Agent Picks band — only on the default feed view (hidden while
             the user is actively searching or filtering, where fixed picks would be

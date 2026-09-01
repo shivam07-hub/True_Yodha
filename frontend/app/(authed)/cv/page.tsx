@@ -663,6 +663,9 @@ function CVPage() {
                   score: Math.round(uploadResult.score),
                   skillsDetected: uploadResult.skills_detected,
                   biggestDragDomain: biggestDrag,
+                  // Same fact the market nudge reads, so the two never disagree
+                  // about whether this user still owes the spine a target.
+                  needsTarget: (profileQuery.data?.target_roles ?? []).length === 0,
                   reveal: cvData ? {
                     fixCount: runContentChecks(cvData).length,
                     strongDomain: strongWeakFromCache().strong,

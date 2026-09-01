@@ -14,6 +14,8 @@ const code = (p: string) =>
 const nudge = code("components/common/setup-nudge.tsx")
 const marketPage = read("app/(authed)/market/page.tsx")
 const jobsTab = code("components/market/jobs-tab.tsx")
+const collections = code("app/(authed)/collections/page.tsx")
+const scoreReveal = code("components/cv/cv-score-progress.tsx")
 
 /**
  * ONE DOOR back into the spine: CV → score → target → feed.
@@ -63,14 +65,36 @@ test("RequiresCV moves only the missing case; retry stays where the job lives", 
   assert.match(src, /ctaLabel: "Upload your CV",\s*\n\s*ctaHref: "\/onboarding"/)
 })
 
-test("both viewports of /market render the same nudge", () => {
-  // Mobile used to render a different component with different copy pointing at
-  // a different door, and rendered nothing at all for a user who had a CV but no
-  // target — hiding the 234-user cohort on the viewport most of them use.
-  assert.match(marketPage, /import \{ SetupNudge \}/)
-  assert.match(marketPage, /<SetupNudge/)
-  assert.match(jobsTab, /import \{ SetupNudge \}/)
-  assert.match(jobsTab, /<SetupNudge/)
+test("every post-auth landing that needs a baseline carries the nudge", () => {
+  // postAuthDestination lands a no-intent user on /market, an anonymous job-saver
+  // on /collections, and an anonymous CV-dropper on /cv. Mobile /market used to
+  // render a different component with different copy pointing at a different
+  // door, and rendered nothing at all for the has-CV-no-target state — hiding
+  // that cohort on the viewport most of them use.
+  const surfaces = [
+    ["market", marketPage],
+    ["jobs tab", jobsTab],
+    ["collections", collections],
+  ] as const
+  for (const [name, src] of surfaces) {
+    assert.match(src, /import \{ SetupNudge \}/, `${name} does not import the nudge`)
+    assert.match(src, /<SetupNudge token=\{token\}/, `${name} does not mount it`)
+  }
+})
+
+test("the /cv score reveal offers the target step when there is none", () => {
+  // /cv is the workstation: it scores an upload and stops. The anonymous-CV route
+  // lands here straight from signup, so the highest-intent traffic in the product
+  // reached a score and never a target. The next spine step outranks the fix
+  // list, because fixes are measured against a role not yet picked.
+  assert.match(scoreReveal, /done\.needsTarget \? \(/)
+  assert.match(scoreReveal, /Pick your target role/)
+  const cvPage = code("app/(authed)/cv/page.tsx")
+  assert.match(
+    cvPage,
+    /needsTarget: \(profileQuery\.data\?\.target_roles \?\? \[\]\)\.length === 0/,
+    "the reveal reads a different fact than the nudge does",
+  )
 })
 
 test("it is gated on what is missing, never on the completion flag", () => {
@@ -83,12 +107,20 @@ test("it is gated on what is missing, never on the completion flag", () => {
   assert.doesNotMatch(jobsTab, /onboardingComplete/)
 })
 
+test("it reads the fact instead of accepting it", () => {
+  // Handing this in as props is how the two versions came to disagree: one gated
+  // on onboarding_complete, the other on has_cv, and mobile forgot the target
+  // case entirely. One component, one read, one answer.
+  assert.match(nudge, /queryKey: dataKeys\.profile\(\)/)
+  assert.match(nudge, /profile\.data\.has_cv/)
+  assert.match(nudge, /\(profile\.data\.target_roles \?\? \[\]\)\.length > 0/)
+  assert.doesNotMatch(nudge, /hasCv:|hasTargetRoles:|resolved:/)
+})
+
 test("it never nudges on a guess", () => {
-  // The profile fetch resolves ~300ms after paint. Nudging before it lands
-  // flashes "Upload your CV" at someone who has one.
-  assert.match(nudge, /if \(!resolved\) return null/)
-  assert.match(marketPage, /resolved=\{profileData !== undefined\}/)
-  assert.match(jobsTab, /resolved=\{cvResolved\}/)
+  // The profile fetch resolves after first paint. Rendering "Upload your CV" at
+  // someone who has one is worse than rendering nothing.
+  assert.match(nudge, /if \(!profile\.data\) return null/)
 })
 
 test("the button colour reads a token that exists", () => {
