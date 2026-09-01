@@ -1,0 +1,25 @@
+/* ── Setup nudge — the ONE re-entry into the spine ──────────────────────────
+   Lived as `.mi-nudge` inside market-intel.css, which made it market-only:
+   mobile /market rendered a different component, with different copy, pointing
+   at a different door. Moved here so one surface-neutral component owns it. */
+.tm-setup-nudge {
+  display: flex; align-items: center; gap: 14px;
+  padding: 15px 18px;
+  border-radius: var(--tm-radius-lg);
+  background: var(--tm-surface-2);
+  border: 1px dashed var(--tm-int-border);
+}
+.tm-setup-nudge-t { flex: 1; min-width: 0; }
+.tm-setup-nudge-t b { font-size: 15px; font-weight: 600; color: var(--tm-text); }
+.tm-setup-nudge-t span {
+  display: block; font-size: 13.5px; color: var(--tm-text-muted); margin-top: 2px;
+}
+.tm-setup-nudge-go {
+  flex: 0 0 auto; text-decoration: none; white-space: nowrap;
+  font-size: 13.5px; font-weight: 600; padding: 9px 15px;
+  border-radius: var(--tm-button-radius);
+  /* Was `var(--tm-on-interactive, #fff)`. That token has never been defined, so
+     every render took the hardcoded fallback and the light surface got white
+     text on Azure. `--tm-interactive-fg` is the defined one. */
+  background: var(--tm-interactive); color: var(--tm-interactive-fg);
+}

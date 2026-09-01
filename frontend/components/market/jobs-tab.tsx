@@ -8,6 +8,7 @@ import { formatCount } from "@/lib/format"
 import { AgentPicksBand } from "@/components/jobs/agent-picks-band"
 import { openRefreshGate } from "@/store/refreshGateStore"
 import { NotInterestedUndo } from "@/components/jobs/not-interested-undo"
+import { SetupNudge } from "@/components/common/setup-nudge"
 import { JobCard } from "./job-card"
 import { JobDetailDrawer } from "./job-detail-drawer"
 import { MobileFeed } from "./mobile-feed"
@@ -36,11 +37,6 @@ export interface MarketJobsTabProps {
   token: string
   hasCv: boolean
   cvResolved?: boolean
-  /** Onboarding finishes past CV upload — target role picked, first shortlist
-   *  saved. A user can have a CV and still not be onboardingComplete; the
-   *  browse nudge below is driven by this, not by hasCv alone, so a user who
-   *  uploaded a CV outside the onboarding flow still gets steered to finish. */
-  onboardingComplete?: boolean
   targetRoles: string[]
   chipCountMap: Record<string, number>
   selectedCluster: string | null         // shared with the page's analytics/heatmap
@@ -67,7 +63,7 @@ export interface MarketJobsTabProps {
 
 export function MarketJobsTab(props: MarketJobsTabProps) {
   const {
-    token, hasCv, cvResolved = false, onboardingComplete = false, targetRoles, chipCountMap, selectedCluster, onSelectCluster,
+    token, hasCv, cvResolved = false, targetRoles, chipCountMap, selectedCluster, onSelectCluster,
     initialFilters, initialQuery = "", onFiltersChange, onQueryChange,
     targetLocations, followCompany, initialSkillFacet, onSkillFacetChange,
     primaryCareerBand, exploredCareerBands, onExploredCareerBandsChange,
@@ -254,20 +250,6 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
     else if (s.company) followCompany.action(s.company).toggle()
   }, [followCompany, onFilterSkill])
 
-  // One nudge, one destination (/onboarding — resumes wherever the user left
-  // off), regardless of which step they're stuck on.
-  //
-  // Gated on what is MISSING, not on the completion flag. Gating on the flag
-  // alone hid this from 111 users who carry `onboarding_complete = true` with no
-  // target role — a leaky gate between 2026-04-20 and 2026-06-20 let them
-  // through, and afterwards nothing could reach them: the nudge was hidden
-  // because they were "complete". Users with a target apply at 26%; that cohort
-  // applies at 9%.
-  //
-  // A flag is not the fact. The same lesson as the NULL scoping key that told
-  // 162 users the market was empty.
-  const showOnboardingNudge = cvResolved && (!onboardingComplete || !hasTargetRoles)
-
   const onSave = (j: JobFeedItem) => triage(j, "saved")
   const onSkip = (j: JobFeedItem) => triage(j, "skipped")
 
@@ -324,23 +306,14 @@ export function MarketJobsTab(props: MarketJobsTabProps) {
           )}
         </div>
 
-        {showOnboardingNudge ? (
-          <div className="mi-nudge" style={{ marginTop: 14 }}>
-            <span aria-hidden style={{ fontSize: 13, fontWeight: 800 }}>CV</span>
-            {hasCv ? (
-              <div className="mi-nudge-t">
-                <b>Finish setting up your profile</b>
-                <span>Pick a target role and Myro shows your best-fit jobs first.</span>
-              </div>
-            ) : (
-              <div className="mi-nudge-t">
-                <b>Upload your CV to personalize</b>
-                <span>See your fit, matched skills, and the roles that want you.</span>
-              </div>
-            )}
-            <a href="/onboarding" className="mi-nudge-go">{hasCv ? "Continue setup" : "Upload CV"}</a>
-          </div>
-        ) : null}
+        {/* The SAME component mobile renders. This was hand-rolled here and
+            duplicated in components/common with a different door. */}
+        <SetupNudge
+          resolved={cvResolved}
+          hasCv={hasCv}
+          hasTargetRoles={hasTargetRoles}
+          style={{ marginTop: 14 }}
+        />
 
         {/* Curated Agent Picks band — only on the default feed view (hidden while
             the user is actively searching or filtering, where fixed picks would be

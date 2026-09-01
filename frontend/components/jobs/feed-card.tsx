@@ -84,7 +84,7 @@ export function FitIndicator({ fit, size = 40 }: { fit: FitView; size?: number }
       return <span className="fc-fitpill">no overlap yet</span>
     case "nudge":
       return (
-        <a href="/cv" onClick={(e) => e.stopPropagation()} className="fc-fitpill fc-fitpill-nudge">
+        <a href="/onboarding" onClick={(e) => e.stopPropagation()} className="fc-fitpill fc-fitpill-nudge">
           Upload CV →
         </a>
       )
