@@ -25,6 +25,7 @@ from typing import Any
 
 from app.database import get_supabase_admin
 from app.repositories.jobs import JobsRepository
+from app.services.job_projection import last_monday
 from app.services import background
 from app.services.matching import match_run
 
@@ -84,7 +85,6 @@ async def _scrape_match_recompute_handler(payload: dict[str, Any], allow_retry: 
     own cache-hit gate inside `compute_job_matches` is the precise check (the
     sweep's pre-filter is a coarse skill/company overlap); it silently no-ops if
     this specific user has nothing new to rate."""
-    from app.routers.jobs._shared import last_monday  # local: avoid router→service load cycle
 
     user_id = payload["user_id"]
     raw_marker = str(payload.get("since_marker") or "")

@@ -16,6 +16,7 @@ from app.repositories.cv import (
 from app.services import background, cv_parser
 from app.services.matching import match_run
 from app.services.background import TransientJobError
+from app.services.job_projection import last_monday
 from app.services.llm_provider import get_cv_skill_provider
 from app.services.xp_policy import CV_UPLOAD_XP_COST, CV_UPLOAD_XP_FLOOR
 from app.services.xp_service import InsufficientXPError, charge_or_raise, get_xp_balance, refund
@@ -37,7 +38,6 @@ async def _trigger_initial_match_compute(
     truth for "is there anything to do here" and already handles this."""
     try:
         from app.repositories.jobs import JobsRepository
-        from app.routers.jobs._shared import last_monday
 
         admin_db = get_supabase_admin()
         jobs_repo = JobsRepository(admin_db, admin_db)

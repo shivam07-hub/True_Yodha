@@ -41,7 +41,7 @@ from app.services.job_file_parser import (
 from app.services.llm_provider import get_llm_provider, get_vision_provider
 from app.services.xp_policy import ADD_JOB_REWARD_XP
 
-from ._shared import cv_badge_from_row, to_application
+from app.services.job_projection import cv_badge_from_row, to_application
 
 _log = logging.getLogger(__name__)
 

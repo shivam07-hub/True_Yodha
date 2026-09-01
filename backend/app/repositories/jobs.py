@@ -3587,7 +3587,11 @@ class JobsRepository:
             "job_summary, apply_url, location, location_raw, location_city, "
             "location_country, location_mode, location_quality, locations, "
             "date_posted, seniority_level, work_mode, role_domain, "
-            "min_years_experience, max_years_experience",
+            "min_years_experience, max_years_experience, "
+            # Liveness is server-joined for the Collection Record: the
+            # client batch that used to answer it caps at 100 ids sorted
+            # lexically, so a client-side `closed` is capped by alphabet.
+            "is_active, listing_confidence, last_verified_live_at, first_seen, last_seen",
         )
         for row in rows:
             if row.get("jobs"):
@@ -3665,6 +3669,27 @@ class JobsRepository:
                 "p_destination_type": intent["destination_type"],
             },
         ).execute()
+
+    def get_pending_apply_intent_job_ids(
+        self, user_id: str, *, older_than: datetime
+    ) -> set[str]:
+        """Jobs this user clicked Apply on and never answered for.
+
+        An intent is not an application (CONTEXT.md → Collection Record: never
+        advance a stage on the user's behalf). It is a question the surface owes
+        them. Prod had 15 intents and 0 that ever became `applied`, because the
+        only ask was an inline band rendered 1.2s after the click — on a card the
+        user had already tabbed away from.
+        """
+        _ = user_id
+        rows = safe_read(
+            self._db.table("job_apply_intents")
+            .select("job_id")
+            .lte("clicked_at", older_than.isoformat()),
+            default=[],
+            context="pending_apply_intents",
+        )
+        return {str(r["job_id"]) for r in (rows or []) if r.get("job_id")}
 
     def get_stale_applications(self, user_id: str) -> list[dict[str, Any]]:
         # Q7: filter on dedicated last_stage_changed_at column so notes/followed_up

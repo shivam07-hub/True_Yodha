@@ -229,6 +229,34 @@ class CVVersionsRepository:
             latest_per_company[company] = row
         return latest_per_company
 
+    def latest_for_jobs(self, user_id: str) -> dict[str, dict[str, Any]]:
+        """{job_id: latest tailored cv_versions row} — JOB-level, not company.
+
+        The Collection Record's `tailored` stage asks "is there a CV for THIS
+        job". `latest_for_thread_batch` answers a different question — "is there
+        a CV for this COMPANY" (the Company CV Thread) — and the tracker was
+        using it as if the two were the same. 64% of prod application rows share
+        a user+company with another row, and 23 of them across 4 users rendered
+        "Tailored ✓" for a CV written for a different job, hiding the Tailor
+        button on work the user had never done.
+        """
+        rows = (
+            self._db.table("cv_versions")
+            .select("*")
+            .eq("user_id", user_id)
+            .neq("kind", "baseline_upload")
+            .not_.is_("job_id", "null")
+            .order("user_version_number", desc=True)
+            .execute()
+        ).data or []
+        latest: dict[str, dict[str, Any]] = {}
+        for row in rows:
+            job_id = str(row.get("job_id") or "")
+            if not job_id or job_id in latest:
+                continue
+            latest[job_id] = self._normalized(row)
+        return latest
+
     def _company_name_for_job(self, job_id: str) -> str | None:
         target = (
             self._db.table("jobs")

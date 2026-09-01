@@ -609,6 +609,7 @@ The single answer to "how good is this match for this user, and what should they
 - **No strong match ≠ empty hand.** When a user has no `strong` verdict, the surface shows the closest real jobs labelled `stretch` plus the 1–2 highest-leverage moves (Practice / CV) that would lift them to `strong` — never fabricated jobs (ADR-0001), never a dead empty state. The honest answer to the fresher-shown-senior-roles relevance pain.
 - The primary post-match action is **Tailor & apply** (why-you-fit → tailor the CV to this exact job via the Mentor retriever loop → apply); direct `Apply` stays one tap (never-block, per the CV journey north star).
 - The seam is the test surface (`test_job_match_response.py`): thresholds, the overlap gate, and the `checking` provisional path are tested once against `MatchEval` fixtures, not re-tested through each router or re-implemented per frontend surface.
+- **Agent Picks attach the same `_rank_feed_rows(..., reorder=False)` the feed uses.** They are gated on `STRONG_SCORE` and still used to ship as bare feed rows, so the card hid the judge behind an overlap pill. Editorial order (`agent_rank`) stays; a pick without a verdict is a bug. Grade does not sit on the Jobs face next to the ring — it is a second "how good" (`classifyMatch` grown back visually). `tests/test_job_match_router.py` and `frontend/tests/jobs-face-contract.test.ts` hold the line.
 
 ---
 
@@ -962,6 +963,89 @@ CV` / `your words, just now`; **Dropped** means said no to *or left unanswered*.
   lifecycle and label — calling `refresh()` after would charge twice, and
   minting a phase here is how "Reading your signed-off order" appeared for a
   ticket that was still `queued`.
+
+---
+
+## Collection Record
+
+**One entry per job, one stage, resolved server-side.** `job_applications` +
+`user_job_matches` + `cv_versions` + `jobs.listing_confidence`, unioned once by
+`app/services/collections/resolve.py` behind `GET /jobs/collections`.
+
+Collections is the workbench for the middle of the goal line — *find a role,
+then download the CV for it*. **Tailored is therefore a STAGE on this surface,
+not a lane parked on `/cv`.** The surface that owns the goal's last step has to
+render it.
+
+The bug it exists to fix: the folder fused two spines at RENDER time. "Myro
+found" read the match stack, "You added"/"Applied" read applications, and
+neither knew about the other — so saving a found role put it in two chips at
+once (35 rows in prod), and `source` decided the origin chip while being wrong
+in both directions (the column defaults to `system_match`, every save path
+writes `user_discovery`, so a role Myro found filed under *You added* and a role
+the user applied to from `/market` filed under *Myro*). Closed was a third
+answer computed in the client off a separate 100-id pulse batch.
+
+**The vocabulary** (use these exact words in code and copy): a **Collection** is
+one user's whole record; an **Entry** is one job in it, one per `(user, job)`,
+always; a **Stage** is where that entry is — `found · saved · tailored ·
+applied · closed`; an **Origin** is who put it there — `myro` / `you` /
+`extension`; **Liveness** is whether the ad is still up — `live` / `uncertain` /
+`down`; an entry is **settled** when it needs nothing from the user right now.
+
+**Invariants**
+
+- **ONE ENTRY, ONE STAGE.** The union happens in the resolver, once. The stage
+  is the highest rung the entry has reached: `applied` (status ≠ saved) →
+  `tailored` (a `cv_versions` row for this job) → `saved` (an application row) →
+  `found` (above-bar match, no application). A job cannot appear in two chips,
+  and no client re-derives the partition.
+- **ORIGIN IS A LABEL, NEVER A FILTER.** It prints a chip and does nothing else.
+  It is read from match-stack membership, not from the `source` string —
+  `source` cannot answer it (see above). `isMyroSource` / `isExtSource` /
+  `filterChip` are deleted; chips filter on `stage`.
+- **LIVENESS IS AN ATTRIBUTE, NOT A STAGE.** A dead ad demotes `found` and
+  `saved` to `closed` and stops there. `tailored` and `applied` keep their
+  stage, their Prep room and their CV — the listing coming down is the EXPECTED
+  outcome of applying, and 7 prod rows (3 of them mid-interview) had been filed
+  into the graveyard chip for succeeding. A closed listing on a live stage shows
+  a pulse line, never a demotion.
+- **NEVER ADVANCE A STAGE ON THE USER'S BEHALF** (the pre-flight's *never mark a
+  line kept*, one surface over). An apply click writes a `job_apply_intents`
+  row, which is an INTENT; only the user's own answer writes `applied`. An
+  unanswered intent older than `PENDING_INTENT_AFTER` becomes `pending_apply` on
+  the entry, and the surface asks again. It has to ask again: 15 intents had
+  produced 0 applied rows, because the only ask was an inline band rendered
+  1.2s after the click, in a card the user had already tabbed away from.
+- **THE LANDING RULE IS WHAT MAKES THE STAGES SAFE.** `landing` is the first
+  stage holding an entry that still needs the user; a settled collection lands
+  on `tailored`, the goal step. Stages are for working, never a toll on finding
+  your work — the same rule as the Pre-flight Order's `landingStep`, for the
+  same reason.
+- **THE RESOLVER OWNS THE COUNTS.** `stages{}` ships with the entries. The chip
+  counts, the desktop nav badge and the mobile tab badge read that one number.
+  Three call sites used to compute three different answers over two caches, and
+  the nav's included closed rows the surface then hid.
+- **LIVENESS IS SERVER-JOINED.** The resolver reads `jobs.listing_confidence`
+  directly. The client's `usePulses` batch stays for the trust LINE only, never
+  for the stage: it slices to 100 ids sorted lexically, so a client-side Closed
+  is capped by alphabet (worst prod board: 392 tracked, ~25% covered).
+- **BELOW-BAR IS NOT AN ENTRY.** A match under the bar has no Collection entry;
+  it lives on `/market`, ranked. The split footer counts it. Same threshold
+  rule as before (`classifyMatch`), now applied once, server-side, off
+  `MatchEval.is_strong` — never a second local bar.
+- **ONE VERB PER CONTROL.** Removal is one `×` with one meaning and one 6s undo
+  at every stage. It used to be two: undoable on a saved row, permanent and
+  unundoable on a found row, both labelled *"Remove from Collections"* — on a
+  job that had never been in Collections.
+- **`GET /jobs/collections` is one read.** It is the surface's only query key
+  (`["collections"]`); every mutation writes the server's response back into it.
+  The resolver reads what the surface already read separately — applications,
+  the match stack, tailored heads, liveness — so this replaces three round
+  trips, not adds a fourth.
+- The resolver is the test surface (`test_collection_record.py`): the stage
+  ladder, the liveness rule, the landing rule and the origin label are tested
+  once there, not through each skin.
 
 ---
 
