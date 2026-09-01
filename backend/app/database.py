@@ -25,6 +25,7 @@ from supabase import Client, create_client
 from supabase.lib.client_options import ClientOptions
 
 from app.config import settings
+from app.services import read_budget
 from app.services.read_capacity import ReadCapacityLimiter
 
 # Hard ceiling on any single PostgREST round-trip. A hung Supabase call must
@@ -71,6 +72,11 @@ class _RetryingHTTPTransport(httpx.HTTPTransport):
         # leave writes outside this short queue so a retrying reader can never
         # delay a user mutation; write idempotency has its own contracts.
         if request.method in ("GET", "HEAD"):
+            # Every read in the process leaves through here, sequential or
+            # fanned out, admin client or token client. That makes this the
+            # only honest place to count a request's reads — see
+            # app/services/read_budget.py for why the fan-out seam was not.
+            read_budget.record_read()
             with _read_capacity.claim():
                 return self._handle_with_retry(request)
         return self._handle_with_retry(request)

@@ -19,6 +19,8 @@ from collections import deque
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from app.services import read_budget
+
 _logger = logging.getLogger("app.request_timing")
 
 # Requests slower than this log a structured warning. The product target is
@@ -186,6 +188,7 @@ class RequestTimingMiddleware:
             return
 
         start = time.perf_counter()
+        read_token = read_budget.begin()
 
         async def send_with_timing(message: Message) -> None:
             if message["type"] == "http.response.start":
@@ -194,18 +197,35 @@ class RequestTimingMiddleware:
                 headers.append(
                     (b"x-process-time", f"{elapsed_ms:.1f}".encode("latin-1"))
                 )
+                reads = read_budget.current_count()
+                method = scope.get("method", "?")
+                path = scope.get("path", "?")
+                if reads > read_budget.READ_BUDGET_PER_REQUEST:
+                    # The sequential-depth half of the read contract. Its width
+                    # half is `fanout.over_budget`, which only sees routes that
+                    # call run_concurrently — grep both.
+                    _logger.warning(
+                        "metric reads.over_budget method=%s path=%s reads=%d budget=%d ms=%.1f",
+                        method,
+                        path,
+                        reads,
+                        read_budget.READ_BUDGET_PER_REQUEST,
+                        elapsed_ms,
+                    )
                 if elapsed_ms >= self.slow_ms:
-                    method = scope.get("method", "?")
-                    path = scope.get("path", "?")
                     status = message.get("status", 0)
                     _logger.warning(
-                        "metric route.slow method=%s path=%s status=%s ms=%.1f",
+                        "metric route.slow method=%s path=%s status=%s ms=%.1f reads=%d",
                         method,
                         path,
                         status,
                         elapsed_ms,
+                        reads,
                     )
                     _maybe_alert_saturation(method, path, elapsed_ms)
             await send(message)
 
-        await self.app(scope, receive, send_with_timing)
+        try:
+            await self.app(scope, receive, send_with_timing)
+        finally:
+            read_budget.end(read_token)
