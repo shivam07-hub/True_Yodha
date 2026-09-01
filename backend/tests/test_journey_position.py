@@ -25,11 +25,21 @@ import pytest
 from app.services import onboarding_service
 
 
+#: A profile that can mint a CareerTargetSnapshot — i.e. the user finished
+#: Direction. `completed_at` alone is not enough to call the journey finished.
+DIRECTED = {
+    "target_role_titles": ["Account Executive"],
+    "target_roles": ["sales"],
+    "target_seniority": "mid",
+}
+
+
 def _install(
     monkeypatch: pytest.MonkeyPatch,
     *,
     state: dict[str, Any] | None,
     baseline: dict[str, Any] | None,
+    profile: dict[str, Any] | None = None,
 ) -> None:
     monkeypatch.setattr(
         onboarding_service, "OnboardingRepository",
@@ -38,6 +48,10 @@ def _install(
     monkeypatch.setattr(
         onboarding_service, "CVVersionsRepository",
         lambda _db: type("R", (), {"latest_baseline": lambda _s, _u: baseline})(),
+    )
+    monkeypatch.setattr(
+        onboarding_service, "UsersRepository",
+        lambda _db: type("R", (), {"get_profile": lambda _s, _u: profile})(),
     )
 
 
@@ -69,7 +83,39 @@ def test_a_finished_user_is_not_in_the_funnel(monkeypatch) -> None:
         monkeypatch,
         state={"completed_at": "2026-08-04T00:00:00+00:00", "upload_job_id": "job-1"},
         baseline={"id": 7},
+        profile=DIRECTED,
     ) == "completed"
+
+
+def test_completed_without_a_direction_is_not_finished(monkeypatch) -> None:
+    """The entry redirect and the result endpoint must agree.
+
+    `_current_result` already refuses to trust `completed_at` on its own — it
+    falls through to Direction when the profile cannot mint a target. This
+    function is the DOOR to that room, and it trusted the flag by itself, so it
+    sent those users to /market before the room could offer them the step.
+
+    Both nudges in the product now point at /onboarding. With the flag trusted
+    here, a user in this state would be handed a link that bounces them straight
+    back to where they started. Measured 2026-09-01: one user is in this state
+    today, and every future user who finishes and later clears their target
+    joins them.
+    """
+    assert _position(
+        monkeypatch,
+        state={"completed_at": "2026-08-04T00:00:00+00:00", "upload_job_id": "job-1"},
+        baseline={"id": 7},
+        profile={"target_roles": [], "target_role_titles": []},
+    ) == "result"
+
+
+def test_a_missing_profile_row_is_not_read_as_finished(monkeypatch) -> None:
+    assert _position(
+        monkeypatch,
+        state={"completed_at": "2026-08-04T00:00:00+00:00"},
+        baseline={"id": 7},
+        profile=None,
+    ) == "result"
 
 
 def test_the_facts_a_resuming_screen_needs_ride_along(monkeypatch) -> None:
@@ -77,6 +123,7 @@ def test_the_facts_a_resuming_screen_needs_ride_along(monkeypatch) -> None:
     resume, so the entry redirect never needs a second request."""
     _install(
         monkeypatch,
+        profile=DIRECTED,
         state={
             "upload_job_id": "job-1",
             "generator_answers": {"1": {"preferred_name": "Ada"}},
