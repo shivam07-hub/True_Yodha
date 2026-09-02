@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useQueryClient } from "@tanstack/react-query"
 import { jobs as jobsApi, type CollectionEntry, type CollectionResponse } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 
@@ -36,7 +36,6 @@ export interface RemovalNotice {
 }
 
 export interface CollectionActions {
-  setPriority: (jobId: string, prioritized: boolean) => void
   saveNote: (jobId: string, note: string) => void
   /** Remove an entry from this list. ONE meaning at every stage, always undoable. */
   remove: (entry: CollectionEntry) => void
@@ -58,19 +57,6 @@ export function useCollectionActions(token: string): CollectionActions {
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current) }, [])
 
   const refresh = useCallback(() => { void qc.invalidateQueries({ queryKey: key }) }, [key, qc])
-
-  const priority = useMutation({
-    mutationFn: ({ jobId, prioritized }: { jobId: string; prioritized: boolean }) =>
-      jobsApi.setJobPriority(token, jobId, prioritized),
-    onMutate: async ({ jobId, prioritized }) => {
-      await qc.cancelQueries({ queryKey: key })
-      const previous = qc.getQueryData<CollectionResponse>(key)
-      qc.setQueryData<CollectionResponse>(key, (c) => patchEntry(c, jobId, { is_priority: prioritized }))
-      return { previous }
-    },
-    onError: (_e, _v, ctx) => { if (ctx?.previous) qc.setQueryData(key, ctx.previous) },
-    onSettled: refresh,
-  })
 
   /**
    * Remove, with a real 6s undo at EVERY stage.
@@ -133,7 +119,6 @@ export function useCollectionActions(token: string): CollectionActions {
   }, [key, qc, refresh, token])
 
   return {
-    setPriority: (jobId, prioritized) => priority.mutate({ jobId, prioritized }),
     saveNote,
     remove,
     answerPending,

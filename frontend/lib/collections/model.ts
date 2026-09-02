@@ -75,12 +75,17 @@ export function heroFor(entry: CollectionEntry): Hero {
 }
 
 /**
- * Order one stage's entries. Priority first (the heart is deliberate intent),
- * then the user's chosen axis.
+ * Order one stage's entries on the user's chosen axis.
  *
- * The applied-sinks rule the old model carried is gone with the chip it served:
- * applied rows have their OWN stage now, so they can no longer outrank live
- * work inside a list they do not belong to.
+ * There is no manual rank on top of it. The heart put one there and nobody ever
+ * pressed it — literally zero times in the five weeks it was live. The stage
+ * ladder is the ranking, and it is derived from things the user does for their
+ * own reasons (saving is the claim, tailoring is the commitment) rather than a
+ * curation chore they have to keep up.
+ *
+ * The applied-sinks rule the old model carried went the same way as its chip:
+ * applied rows have their OWN stage, so they cannot outrank live work inside a
+ * list they do not belong to.
  */
 export function orderEntries(entries: CollectionEntry[], sort: SortKey): CollectionEntry[] {
   const axis = (a: CollectionEntry, b: CollectionEntry): number => {
@@ -92,9 +97,7 @@ export function orderEntries(entries: CollectionEntry[], sort: SortKey): Collect
     }
     return (b.job.match_score ?? -1) - (a.job.match_score ?? -1)
   }
-  return [...entries].sort(
-    (a, b) => Number(b.is_priority) - Number(a.is_priority) || axis(a, b),
-  )
+  return [...entries].sort(axis)
 }
 
 function seenAt(job: JobMatch): number {

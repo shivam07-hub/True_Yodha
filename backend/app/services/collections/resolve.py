@@ -171,7 +171,6 @@ def resolve_collection(
                 liveness=liveness,
                 job=to_job_match(source_row, batch_week),
                 status=(app_row or {}).get("status") if app_row else None,
-                is_priority=bool((app_row or {}).get("is_priority", False)),
                 notes=(app_row or {}).get("notes"),
                 cv_badge=cv_badge_from_row(tailored_head),
                 pending_apply=pending_apply,

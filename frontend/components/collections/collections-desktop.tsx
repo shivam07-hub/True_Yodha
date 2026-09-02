@@ -101,7 +101,6 @@ export function CollectionsDesktop({
   const rowActions = (entry: CollectionEntry) => ({
     onOpen: () => setOpenId(openId === entry.job_id ? null : entry.job_id),
     onRemove: () => actions.remove(entry),
-    onPriorityToggle: (p: boolean) => actions.setPriority(entry.job_id, p),
     onSaveNote: (note: string) => actions.saveNote(entry.job_id, note),
     onAnswerPending: (submitted: boolean) => actions.answerPending(entry.job_id, submitted),
   })

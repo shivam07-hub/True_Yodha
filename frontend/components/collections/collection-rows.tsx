@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { Heart, X } from "lucide-react"
+import { X } from "lucide-react"
 import { FeedCard, feedCardConfidenceClass } from "@/components/jobs/feed-card"
 import { CardDetailRail } from "@/components/jobs/card-detail-rail"
 import { feedDataFromMatch } from "@/lib/jobs/card-view"
@@ -27,7 +27,6 @@ export interface CollectionRowActions {
   onOpen: () => void
   /** Remove from this list. ONE meaning at every stage, always undoable. */
   onRemove: () => void
-  onPriorityToggle: (prioritized: boolean) => void
   onSaveNote: (note: string) => void
   /** Answer the unanswered apply click — "did you actually submit?". */
   onAnswerPending?: (submitted: boolean) => void
@@ -55,10 +54,6 @@ export function CollectionRow({
   const [leaving, setLeaving] = React.useState(false)
   const hero = heroFor(entry)
   const job = entry.job
-  // The heart is priority AFTER claim. On an unclaimed `found` row it would be
-  // a second save control wearing a different glyph, next to a hero that
-  // already claims the job.
-  const canPrioritize = entry.stage !== "found" && entry.stage !== "closed"
   const canRemove = entry.stage !== "applied"
 
   const capture = useApplyCapture({
@@ -104,18 +99,6 @@ export function CollectionRow({
         actions={
           <div className="db-job-intent-group">
             <div className="db-card-actions" onClick={(event) => event.stopPropagation()}>
-              {canPrioritize ? (
-                <button
-                  type="button"
-                  className={`db-icon-btn${entry.is_priority ? " liked" : ""}`}
-                  aria-label={entry.is_priority ? "Remove job priority" : "Prioritize this job"}
-                  aria-pressed={entry.is_priority}
-                  title={entry.is_priority ? "Priority to apply" : "Prioritize to apply"}
-                  onClick={() => actions.onPriorityToggle(!entry.is_priority)}
-                >
-                  <Heart size={16} fill={entry.is_priority ? "currentColor" : "none"} aria-hidden />
-                </button>
-              ) : null}
               {canRemove ? (
                 <button
                   type="button"

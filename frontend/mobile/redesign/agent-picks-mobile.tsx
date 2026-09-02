@@ -160,7 +160,7 @@ export function MobileAgentPicks({
         open={!!openId}
         onClose={() => setOpenId(null)}
         data={detailData}
-        onHeart={() => openItem && doSave(openItem, true)}
+        onSave={() => openItem && doSave(openItem, true)}
         onSkip={() => openItem && doSkip(openItem, true)}
         onTailor={() => { if (openItem) { setOpenId(null); router.push(`/cv?jobId=${encodeURIComponent(openItem.job_id)}`) } }}
         onApply={doApply}

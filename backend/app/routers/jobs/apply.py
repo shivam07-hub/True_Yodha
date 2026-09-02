@@ -11,7 +11,6 @@ from app.security import redact_sensitive_text
 from app.schemas import (
     APPLICATION_STATUSES,
     ApplyIntentRequest,
-    ApplicationPriorityUpdate,
     ApplicationResponse,
     ApplicationStatusUpdate,
     JobFileExtractResponse,
@@ -371,37 +370,6 @@ def save_discovered_job(
     user_id = principal.id
     repo.upsert_application(user_id, job_id, {"status": "saved", "source": "user_discovery"})
     data = repo.get_application_with_job(user_id, job_id)
-    if not data:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found.")
-    return to_application(data)
-
-
-@router.put("/applications/{job_id}/priority", response_model=ApplicationResponse)
-def set_application_priority(
-    job_id: str,
-    body: ApplicationPriorityUpdate,
-    principal: Principal = Depends(get_principal),
-    repo: JobsRepository = Depends(get_token_jobs_repository),
-) -> ApplicationResponse:
-    """Persist the heart as deliberate apply/preparation intent.
-
-    Hearting an unseen role creates the same saved intent as the canonical save
-    route. Removing the heart only clears priority; it never silently removes a
-    job the user already collected.
-    """
-    existing = repo.get_application_with_job(principal.id, job_id)
-    if not existing and not body.prioritized:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Saved role not found.")
-
-    updates: dict[str, object] = {
-        "is_priority": body.prioritized,
-        "priority_marked_at": datetime.now(timezone.utc).isoformat() if body.prioritized else None,
-    }
-    if not existing:
-        updates.update({"status": "saved", "source": "user_discovery"})
-    repo.upsert_application(principal.id, job_id, updates)
-
-    data = repo.get_application_with_job(principal.id, job_id)
     if not data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found.")
     return to_application(data)

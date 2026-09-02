@@ -97,11 +97,13 @@ test("new CV action prefers a company role without a tailored CV", () => {
   assert.equal(pickNewCvJobId(apps, versions), "job-without-cv")
 })
 
-test("new CV action prepares a priority job before another untailored save", () => {
+test("new CV action prepares the best-fit untailored save", () => {
+  // This used to assert the HEART led. That was a rank the user had to maintain
+  // by hand and never once did, so the tie fell to insertion order in practice.
   const apps = [
-    application({ id: 1, job_id: "ordinary" }),
-    application({ id: 2, job_id: "priority", is_priority: true }),
+    application({ id: 1, job_id: "ordinary", match_score: 41 }),
+    application({ id: 2, job_id: "best-fit", match_score: 88 }),
   ]
 
-  assert.equal(pickNewCvJobId(apps, []), "priority")
+  assert.equal(pickNewCvJobId(apps, []), "best-fit")
 })

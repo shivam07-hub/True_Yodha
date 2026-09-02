@@ -302,12 +302,6 @@ class ApplicationStatusUpdate(BaseModel):
     followed_up: bool | None = None
 
 
-class ApplicationPriorityUpdate(BaseModel):
-    """The user's explicit signal that a role should lead their apply work."""
-
-    prioritized: bool
-
-
 class ApplicationReviewRequest(BaseModel):
     star_rating: int            # 1–5
     last_stage: str             # one of APPLICATION_STAGES
@@ -439,8 +433,6 @@ class ApplicationResponse(BaseModel):
     notes: str | None
     created_at: datetime
     last_stage_changed_at: datetime | None = None  # Q7 — stale-clock signal
-    is_priority: bool = False
-    priority_marked_at: datetime | None = None
     # Persisted Career Ops fit for this tracked role. The global Next action uses
     # this durable value to choose the best saved role even before a feed cache warms.
     match_score: int | None = None
@@ -950,7 +942,6 @@ class CollectionEntry(BaseModel):
     #: for an untouched match. `stage` is what surfaces render; this is what the
     #: Prep room and the status control read.
     status: str | None = None
-    is_priority: bool = False
     notes: str | None = None
     cv_badge: CVBadge | None = None
     #: An apply click this user never answered. The surface must ask again.

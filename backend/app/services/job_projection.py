@@ -152,8 +152,6 @@ def to_application(
         notes=row.get("notes"),
         created_at=row["created_at"],
         last_stage_changed_at=row.get("last_stage_changed_at"),
-        is_priority=bool(row.get("is_priority", False)),
-        priority_marked_at=row.get("priority_marked_at"),
         match_score=match_score,
         cv_badge=cv_badge,
         skills=skills,

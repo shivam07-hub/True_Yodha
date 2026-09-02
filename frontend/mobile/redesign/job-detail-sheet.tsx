@@ -23,7 +23,6 @@ export interface JobDetailData {
   gaps: string[]
   saved: boolean
   /** Saved rows only — the heart is priority intent, as on desktop. */
-  prioritized?: boolean
   canDismiss?: boolean
   hasApply: boolean
   applyLabel?: string
@@ -34,7 +33,7 @@ export function JobDetailSheet({
   onClose,
   data,
   token,
-  onHeart,
+  onSave,
   onSkip,
   onTailor,
   onApply,
@@ -48,7 +47,9 @@ export function JobDetailSheet({
    *  half of brain-everywhere (Backlog #36 Slice 3). Opening a mobile job now
    *  warms its verdict, exactly like the desktop drawer's MyroTake. */
   token?: string | null
-  onHeart: () => void
+  /** Claim this job. Absent inside the Ops folder, where it is already
+   *  collected and the hero is the next real move. */
+  onSave?: () => void
   onSkip: () => void
   onTailor: () => void
   onApply: () => void
@@ -61,7 +62,7 @@ export function JobDetailSheet({
   const { result: brain } = useMatchBrain(token, open && data ? data.row.id : null)
   const upvotes = useSkillUpvotes(token)
   if (!data) return <BottomSheet open={open} onClose={onClose} label="Job detail" maxHeight="88%"><div /></BottomSheet>
-  const { row, matched, gaps, saved, prioritized = false, hasApply, applyLabel = "Apply", canDismiss = true } = data
+  const { row, matched, gaps, saved, hasApply, applyLabel = "Apply", canDismiss = true } = data
   // Prefer the brain's real "why this fits you" summary over the static JD slice.
   const whyFit = (brain?.available ? brain.summary : null) || data.whyFit
 
@@ -168,18 +169,15 @@ export function JobDetailSheet({
       <div style={{ flex: "none", display: "flex", gap: 8, padding: "11px 16px 16px", borderTop: "1px solid var(--mm-hair)", background: "var(--mm-card-2)" }}>
         {canDismiss ? (
           <>
-            {/* Saved row → priority intent (desktop parity). Unsaved match →
-                the save itself, which has no desktop counterpart here. Removal
-                is the X beside it, never this button. */}
-            <button
-              onClick={onHeart}
-              aria-label={saved ? (prioritized ? "Remove job priority" : "Prioritize this job") : "Save"}
-              aria-pressed={saved ? prioritized : undefined}
-              className="mm-press-sm"
-              style={footBtn}
-            >
-              <svg width={17} height={17} viewBox="0 0 24 24" fill={saved && prioritized ? "currentColor" : "none"} stroke={saved && prioritized ? "var(--mm-accent)" : "var(--mm-muted)"} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.5-1.5 2-3.2 2-4.6C21 6.4 18.6 4 15.6 4 14.2 4 12.9 4.6 12 5.6 11.1 4.6 9.8 4 8.4 4 5.4 4 3 6.4 3 9.4c0 1.4.5 3.1 2 4.6l7 6.6 7-6.6Z" /></svg>
-            </button>
+            {/* Save — one meaning. It used to be priority on a saved row and
+                save on an unsaved one: the same glyph, two outcomes, decided by
+                a prop. Priority is gone (never once pressed), so what is left is
+                the claim, and it is absent where the job is already claimed. */}
+            {onSave && !saved ? (
+              <button onClick={onSave} aria-label="Save" className="mm-press-sm" style={footBtn}>
+                <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="var(--mm-muted)" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.5-1.5 2-3.2 2-4.6C21 6.4 18.6 4 15.6 4 14.2 4 12.9 4.6 12 5.6 11.1 4.6 9.8 4 8.4 4 5.4 4 3 6.4 3 9.4c0 1.4.5 3.1 2 4.6l7 6.6 7-6.6Z" /></svg>
+              </button>
+            ) : null}
             <button onClick={onSkip} aria-label="Not interested" className="mm-press-sm tm-dismiss-action" style={footBtn}>
               <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
             </button>

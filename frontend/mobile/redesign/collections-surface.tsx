@@ -120,7 +120,6 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
       matched: detail.job.matched_skills ?? [],
       gaps: detail.job.missing_skills ?? [],
       saved: detail.stage !== "found",
-      prioritized: detail.is_priority,
       canDismiss: detail.stage !== "applied",
       hasApply: detail.liveness !== "down" && !!applyCapture.target.url,
       applyLabel: applyCapture.target.actionLabel ?? undefined,
@@ -211,7 +210,6 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
                   pulse={pulses.get(entry.job_id)}
                   onOpen={() => setDetailId(entry.job_id)}
                   onRemove={() => { actions.remove(entry); setDetailId((c) => (c === entry.job_id ? null : c)) }}
-                  onPriority={(next) => actions.setPriority(entry.job_id, next)}
                   onShare={() => doShare(entry)}
                   onAnswerPending={(submitted) => actions.answerPending(entry.job_id, submitted)}
                 />
@@ -244,7 +242,6 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
         onClose={() => setDetailId(null)}
         data={detailData}
         token={token}
-        onHeart={() => detail && actions.setPriority(detail.job_id, !detail.is_priority)}
         onSkip={() => { if (detail) { actions.remove(detail); setDetailId(null) } }}
         onTailor={() => { if (detail) router.push(`/cv?jobId=${encodeURIComponent(detail.job_id)}`) }}
         onApply={() => { if (applyCapture.target.url) applyCapture.open() }}

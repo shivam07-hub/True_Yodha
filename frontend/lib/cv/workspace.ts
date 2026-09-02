@@ -52,8 +52,9 @@ export function getJobWorkspaceAction(cv: CVVersion | null): CVWorkspaceAction {
 }
 
 export function pickNewCvJobId(applications: ApplicationResponse[], versions: CVVersion[]): string | null {
+  // Best fit first — the heart used to break this tie and was never once used.
   const untailored = applications
     .filter((application) => application.job_id && !latestCVVersionForJob(application.job_id, versions))
-    .sort((a, b) => Number(Boolean(b.is_priority)) - Number(Boolean(a.is_priority)))[0]
+    .sort((a, b) => (b.match_score ?? -1) - (a.match_score ?? -1))[0]
   return untailored?.job_id ?? applications[0]?.job_id ?? null
 }

@@ -21,7 +21,7 @@ function job(over: Partial<JobMatch> = {}): JobMatch {
 function entry(over: Partial<CollectionEntry> = {}): CollectionEntry {
   return {
     job_id: "j1", stage: "found", origin: "myro", liveness: "live", job: job(),
-    status: null, is_priority: false, notes: null, cv_badge: null, pending_apply: false,
+    status: null, notes: null, cv_badge: null, pending_apply: false,
     saved_at: null, applied_at: null,
     needs_user: true, ...over,
   }
@@ -69,14 +69,6 @@ test("every stage yields exactly one hero", () => {
 
 // ── order ────────────────────────────────────────────────────────────────────
 
-test("priority wins over every sort axis", () => {
-  const ordered = orderEntries([
-    entry({ job_id: "a", job: job({ job_id: "a", match_score: 90 }) }),
-    entry({ job_id: "b", is_priority: true, job: job({ job_id: "b", match_score: 10 }) }),
-  ], "fit")
-  assert.deepEqual(ordered.map((e) => e.job_id), ["b", "a"])
-})
-
 test("fit orders by the printed match score, not a second local number", () => {
   const ordered = orderEntries([
     entry({ job_id: "a", job: job({ job_id: "a", match_score: 40 }) }),
@@ -86,7 +78,10 @@ test("fit orders by the printed match score, not a second local number", () => {
 })
 
 test("orderEntries does not mutate its input", () => {
-  const input = [entry({ job_id: "a" }), entry({ job_id: "b", is_priority: true })]
+  const input = [
+    entry({ job_id: "a", job: job({ job_id: "a", match_score: 10 }) }),
+    entry({ job_id: "b", job: job({ job_id: "b", match_score: 90 }) }),
+  ]
   orderEntries(input, "fit")
   assert.deepEqual(input.map((e) => e.job_id), ["a", "b"])
 })
