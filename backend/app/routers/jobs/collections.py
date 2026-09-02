@@ -60,5 +60,4 @@ def get_collection(
         # Same health the /jobs/matches banner reads — one rule, one module, so a
         # surface that stopped reading that endpoint does not lose the trust banner.
         match_health=jobs_workflow.compute_match_health(repo, uid, match_rows),
-        now=now,
     )

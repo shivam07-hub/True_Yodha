@@ -28,7 +28,6 @@ export interface CollectionRowActions {
   /** Remove from this list. ONE meaning at every stage, always undoable. */
   onRemove: () => void
   onPriorityToggle: (prioritized: boolean) => void
-  onSnooze: () => void
   onSaveNote: (note: string) => void
   /** Answer the unanswered apply click — "did you actually submit?". */
   onAnswerPending?: (submitted: boolean) => void
@@ -129,14 +128,9 @@ export function CollectionRow({
                 </button>
               ) : null}
               {entry.stage === "saved" || entry.stage === "tailored" ? (
-                <>
-                  <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={() => setNoteOpen((v) => !v)}>
-                    Note
-                  </button>
-                  <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={actions.onSnooze}>
-                    Snooze 3d
-                  </button>
-                </>
+                <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={() => setNoteOpen((v) => !v)}>
+                  Note
+                </button>
               ) : null}
 
               {/* THE hero — exactly one, chosen by stage. */}

@@ -3444,8 +3444,6 @@ export interface CollectionEntry {
   cv_badge: CVBadge | null
   /** An apply click this user never answered — the surface must ask again. */
   pending_apply: boolean
-  snoozed_until: string | null
-  attention_level: string | null
   saved_at: string | null
   applied_at: string | null
   /** Does this entry still ask something — the landing rule's input. */
@@ -3483,8 +3481,6 @@ export interface ApplicationResponse {
   notes: string | null
   created_at: string
   last_stage_changed_at?: string | null
-  collection_snoozed_until?: string | null
-  collection_attention_level?: "review" | "decide" | "urgent" | null
   /** Deliberate apply/preparation intent. Priority jobs lead Collections. */
   is_priority?: boolean
   priority_marked_at?: string | null
@@ -4372,12 +4368,6 @@ export const jobs = {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(data),
-    }),
-  snoozeCollection: (token: string, jobId: string, days: number) =>
-    request<ApplicationResponse>(`/jobs/applications/${encodeURIComponent(jobId)}/collection-snooze`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ days }),
     }),
   removeTrackerJob: (token: string, jobId: string) =>
     request<void>(`/jobs/tracker/${encodeURIComponent(jobId)}`, {

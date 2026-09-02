@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
 
@@ -7,7 +7,6 @@ from app.database import get_supabase_admin
 from app.deps import Principal, get_principal
 from app.repositories.cv import CVVersionsRepository, get_token_cv_repository
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
-from app.repositories.notifications import NotificationsRepository, get_notifications_repository
 from app.security import redact_sensitive_text
 from app.schemas import (
     APPLICATION_STATUSES,
@@ -15,7 +14,6 @@ from app.schemas import (
     ApplicationPriorityUpdate,
     ApplicationResponse,
     ApplicationStatusUpdate,
-    CollectionSnoozeRequest,
     JobFileExtractResponse,
     JobImportPreviewRequest,
     JobImportPreviewResponse,
@@ -320,7 +318,6 @@ def update_application(
     body: ApplicationStatusUpdate,
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
-    notifications: NotificationsRepository = Depends(get_notifications_repository),
 ) -> ApplicationResponse:
     if body.status not in APPLICATION_STATUSES:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid status: {body.status}")
@@ -357,41 +354,12 @@ def update_application(
         is_first_offer = repo.mark_first_offer_if_unset(user_id, now)
 
     repo.upsert_application(user_id, job_id, updates)
-    if body.status != "saved":
-        notifications.resolve_collection_attention(user_id, job_id)
     data = repo.get_application_with_job(user_id, job_id)
     if not data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
     response = to_application(data)
     response.is_first_offer = is_first_offer
     return response
-
-
-@router.post("/applications/{job_id}/collection-snooze", response_model=ApplicationResponse)
-def snooze_collection_attention(
-    job_id: str,
-    body: CollectionSnoozeRequest,
-    principal: Principal = Depends(get_principal),
-    repo: JobsRepository = Depends(get_token_jobs_repository),
-    notifications: NotificationsRepository = Depends(get_notifications_repository),
-) -> ApplicationResponse:
-    """Pause a saved-role prompt without altering the user's saved intent."""
-    if body.days not in {1, 3, 7}:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Snooze must be 1, 3, or 7 days.")
-    existing = repo.get_application_with_job(principal.id, job_id)
-    if not existing or existing.get("status") != "saved":
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Saved role not found.")
-    until = (datetime.now(timezone.utc) + timedelta(days=body.days)).isoformat()
-    repo.upsert_application(principal.id, job_id, {
-        "status": "saved",
-        "collection_snoozed_until": until,
-        "collection_attention_level": None,
-    })
-    notifications.resolve_collection_attention(principal.id, job_id)
-    data = repo.get_application_with_job(principal.id, job_id)
-    if not data:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Saved role not found.")
-    return to_application(data)
 
 
 @router.post("/save/{job_id}", response_model=ApplicationResponse, status_code=status.HTTP_201_CREATED)
@@ -444,14 +412,12 @@ def remove_tracker_job(
     job_id: str,
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
-    notifications: NotificationsRepository = Depends(get_notifications_repository),
 ) -> None:
     if not repo.dismiss_saved_job(principal.id, job_id):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Only saved jobs can be removed from Collections.",
         )
-    notifications.resolve_collection_attention(principal.id, job_id)
 
 
 @router.post("/tracker/{job_id}/restore", status_code=status.HTTP_204_NO_CONTENT)

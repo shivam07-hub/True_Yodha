@@ -94,18 +94,19 @@ def _synth_match_row(app_row: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _needs_user(stage: str, *, pending_apply: bool, snoozed: bool) -> bool:
+def _needs_user(stage: str, *, pending_apply: bool) -> bool:
     """Does this entry still ask something? Drives the landing stage.
 
     `closed` never asks — a dead listing is over. `applied` never asks here
     either; chasing a live application is the Prep room's job, and answering it
     from two surfaces is how one number came to have two definitions.
+
+    There used to be a `snoozed` exemption. Snooze existed only to quiet the
+    age-based attention nag, which is gone (it produced 0 tailors, 0 applies and
+    0 removals across 326 sends); the control was used once, ever. `×` is the
+    honest "not this one".
     """
-    if pending_apply:
-        return True
-    if snoozed:
-        return False
-    return stage in {STAGE_FOUND, STAGE_SAVED, STAGE_TAILORED}
+    return bool(pending_apply) or stage in {STAGE_FOUND, STAGE_SAVED, STAGE_TAILORED}
 
 
 def resolve_collection(
@@ -117,7 +118,6 @@ def resolve_collection(
     pending_intent_job_ids: set[str],
     batch_week: date,
     match_health: str = "empty",
-    now: datetime | None = None,
 ) -> CollectionResponse:
     """Union the two spines into one entry per job.
 
@@ -125,7 +125,6 @@ def resolve_collection(
     is the saved-job worklist. A job present in both produces ONE entry — the
     defect this module exists to remove.
     """
-    current = now or datetime.now(timezone.utc)
     apps_by_job: dict[str, dict[str, Any]] = {}
     for row in applications:
         job_id = str(row.get("job_id") or "")
@@ -163,8 +162,6 @@ def resolve_collection(
         # their Prep room, and say so with a trust line instead.
         if liveness == "down" and stage in {STAGE_FOUND, STAGE_SAVED}:
             stage = STAGE_CLOSED
-        snoozed_until = _as_datetime((app_row or {}).get("collection_snoozed_until"))
-        snoozed = bool(snoozed_until and snoozed_until > current)
         pending_apply = job_id in pending_intent_job_ids and not applied
         entries.append(
             CollectionEntry(
@@ -178,11 +175,9 @@ def resolve_collection(
                 notes=(app_row or {}).get("notes"),
                 cv_badge=cv_badge_from_row(tailored_head),
                 pending_apply=pending_apply,
-                snoozed_until=snoozed_until,
-                attention_level=(app_row or {}).get("collection_attention_level"),
                 saved_at=_as_datetime((app_row or {}).get("created_at")),
                 applied_at=_as_datetime((app_row or {}).get("applied_at")),
-                needs_user=_needs_user(stage, pending_apply=pending_apply, snoozed=snoozed),
+                needs_user=_needs_user(stage, pending_apply=pending_apply),
             )
         )
 

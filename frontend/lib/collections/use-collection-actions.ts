@@ -15,7 +15,6 @@ import { dataKeys } from "@/lib/domain-data"
  * cache while the chip counting it read the other.
  */
 
-export const SNOOZE_DAYS = 3
 const UNDO_WINDOW_MS = 6_000
 
 /** Patch one entry in the cached record, optimistically. */
@@ -38,7 +37,6 @@ export interface RemovalNotice {
 
 export interface CollectionActions {
   setPriority: (jobId: string, prioritized: boolean) => void
-  snooze: (jobId: string) => void
   saveNote: (jobId: string, note: string) => void
   /** Remove an entry from this list. ONE meaning at every stage, always undoable. */
   remove: (entry: CollectionEntry) => void
@@ -72,26 +70,6 @@ export function useCollectionActions(token: string): CollectionActions {
     },
     onError: (_e, _v, ctx) => { if (ctx?.previous) qc.setQueryData(key, ctx.previous) },
     onSettled: refresh,
-  })
-
-  const snoozeMut = useMutation({
-    mutationFn: (jobId: string) => jobsApi.snoozeCollection(token, jobId, SNOOZE_DAYS),
-    onMutate: async (jobId) => {
-      await qc.cancelQueries({ queryKey: key })
-      const previous = qc.getQueryData<CollectionResponse>(key)
-      const until = new Date(Date.now() + SNOOZE_DAYS * 86_400_000).toISOString()
-      // needs_user goes false with it — the landing rule must honour a snooze
-      // the moment it is set, not after the refetch.
-      qc.setQueryData<CollectionResponse>(key, (c) =>
-        patchEntry(c, jobId, { snoozed_until: until, attention_level: null, needs_user: false }),
-      )
-      return { previous }
-    },
-    onError: (_e, _v, ctx) => { if (ctx?.previous) qc.setQueryData(key, ctx.previous) },
-    onSettled: () => {
-      refresh()
-      void qc.invalidateQueries({ queryKey: dataKeys.notificationsUnread() })
-    },
   })
 
   /**
@@ -156,7 +134,6 @@ export function useCollectionActions(token: string): CollectionActions {
 
   return {
     setPriority: (jobId, prioritized) => priority.mutate({ jobId, prioritized }),
-    snooze: (jobId) => snoozeMut.mutate(jobId),
     saveNote,
     remove,
     answerPending,

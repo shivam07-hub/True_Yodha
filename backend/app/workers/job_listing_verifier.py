@@ -17,7 +17,6 @@ import httpx
 from app.database import get_supabase_admin
 from app.repositories.job_listing_verification import ListingVerificationRepository
 from app.security import install_sensitive_log_filter
-from app.services.collection_attention import sweep_collection_attention
 from app.services.job_listing_verifier import VerificationResult, VerificationTarget, verify_listing
 
 
@@ -161,7 +160,6 @@ async def _sweep() -> None:
         repo.record(result)
         counts[result.result] = counts.get(result.result, 0) + 1
     retired = repo.retire_eligible(limit=500)
-    attention = sweep_collection_attention(get_supabase_admin())
     # Claim throughput + productive verdicts + duration are the inline health
     # signals. Exact backlog counts used to run two corpus-wide aggregates after
     # every sweep; they are operational reporting and must never compete with a
@@ -172,9 +170,9 @@ async def _sweep() -> None:
     )
     log.info(
         "metric job_verifier.sweep targets=%d priority_targets=%d results=%s "
-        "retired=%d attention=%d stale_days=%d priority_stale_hours=%d "
+        "retired=%d stale_days=%d priority_stale_hours=%d "
         "duration_s=%s",
-        len(targets), priority_targets, counts, retired, attention, stale_days,
+        len(targets), priority_targets, counts, retired, stale_days,
         priority_stale_hours, duration,
     )
     _alert_on_unproductive_sweep(targets, counts)

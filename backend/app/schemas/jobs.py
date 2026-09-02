@@ -308,10 +308,6 @@ class ApplicationPriorityUpdate(BaseModel):
     prioritized: bool
 
 
-class CollectionSnoozeRequest(BaseModel):
-    days: int
-
-
 class ApplicationReviewRequest(BaseModel):
     star_rating: int            # 1–5
     last_stage: str             # one of APPLICATION_STAGES
@@ -443,8 +439,6 @@ class ApplicationResponse(BaseModel):
     notes: str | None
     created_at: datetime
     last_stage_changed_at: datetime | None = None  # Q7 — stale-clock signal
-    collection_snoozed_until: datetime | None = None
-    collection_attention_level: str | None = None
     is_priority: bool = False
     priority_marked_at: datetime | None = None
     # Persisted Career Ops fit for this tracked role. The global Next action uses
@@ -961,8 +955,6 @@ class CollectionEntry(BaseModel):
     cv_badge: CVBadge | None = None
     #: An apply click this user never answered. The surface must ask again.
     pending_apply: bool = False
-    snoozed_until: datetime | None = None
-    attention_level: str | None = None
     saved_at: datetime | None = None
     applied_at: datetime | None = None
     #: Does this entry still ask something of the user — the landing rule's input.

@@ -2,7 +2,6 @@ import test from "node:test"
 import assert from "node:assert/strict"
 
 import { applyPriorityOptimistic, mergePriorityResult } from "../lib/collections/use-job-priority"
-import { applySnoozeOptimistic, snoozeUntil } from "../lib/collections/use-collection-snooze"
 import type { ApplicationResponse } from "../lib/api"
 
 /** The one priority toggle, shared by desktop Collections and mobile.
@@ -51,20 +50,3 @@ test("a row the cache never held is appended, not dropped", () => {
    Snoozing only quiets the attention badge — no list filters on it — so
    without an optimistic write nothing on screen moves and the button reads
    as dead. This was true on desktop AND mobile. */
-
-test("a snooze is quiet from the tap, not from the response", () => {
-  const until = snoozeUntil(new Date("2026-08-26T00:00:00Z"))
-  const next = applySnoozeOptimistic([app({ job_id: "a" }), app({ job_id: "b" })], "a", until)
-  assert.equal(next?.find(r => r.job_id === "a")?.collection_snoozed_until, until)
-  assert.equal(next?.find(r => r.job_id === "b")?.collection_snoozed_until, undefined)
-})
-
-test("snoozeUntil lands three days out", () => {
-  assert.equal(snoozeUntil(new Date("2026-08-26T00:00:00Z")), "2026-08-29T00:00:00.000Z")
-})
-
-test("the snooze pass does not mutate the cached row in place", () => {
-  const before = [app({ job_id: "a" })]
-  applySnoozeOptimistic(before, "a", "2026-08-29T00:00:00.000Z")
-  assert.equal(before[0].collection_snoozed_until, undefined)
-})

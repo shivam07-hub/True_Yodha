@@ -213,7 +213,6 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
                   onRemove={() => { actions.remove(entry); setDetailId((c) => (c === entry.job_id ? null : c)) }}
                   onPriority={(next) => actions.setPriority(entry.job_id, next)}
                   onShare={() => doShare(entry)}
-                  onSnooze={() => { actions.snooze(entry.job_id); snack({ msg: "Snoozed for 3 days" }) }}
                   onAnswerPending={(submitted) => actions.answerPending(entry.job_id, submitted)}
                 />
               )

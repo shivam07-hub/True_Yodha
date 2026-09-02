@@ -22,7 +22,7 @@ function entry(over: Partial<CollectionEntry> = {}): CollectionEntry {
   return {
     job_id: "j1", stage: "found", origin: "myro", liveness: "live", job: job(),
     status: null, is_priority: false, notes: null, cv_badge: null, pending_apply: false,
-    snoozed_until: null, attention_level: null, saved_at: null, applied_at: null,
+    saved_at: null, applied_at: null,
     needs_user: true, ...over,
   }
 }

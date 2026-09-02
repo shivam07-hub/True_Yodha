@@ -2,12 +2,11 @@
 
 CONTEXT.md → Collection Record.
 """
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 
 from app.services.collections import PENDING_INTENT_AFTER, resolve_collection
 
 BATCH_WEEK = date(2026, 8, 31)
-NOW = datetime(2026, 9, 2, 12, 0, tzinfo=timezone.utc)
 
 
 def job(**over):
@@ -57,7 +56,6 @@ def resolve(**over):
         tailored_by_job={},
         pending_intent_job_ids=set(),
         batch_week=BATCH_WEEK,
-        now=NOW,
     )
     kwargs.update(over)
     return resolve_collection(**kwargs)
@@ -221,22 +219,15 @@ def test_a_settled_collection_lands_on_the_goal_step():
     assert out.landing == "tailored"
 
 
-def test_a_snoozed_entry_does_not_pull_the_landing():
-    """The user asked not to be shown this one. Landing on it anyway is the
-    opposite of honouring the snooze — fall through to their live work."""
-    later = (NOW + timedelta(days=2)).isoformat()
+def test_landing_falls_through_to_the_furthest_work_when_nothing_asks():
+    """Nothing is asking. Open where the work IS, not on the earliest stage —
+    walking forward would land a board of live applications on a quiet save."""
     out = resolve(applications=[
-        application("j1", collection_snoozed_until=later),
-        application("j2", status="applied"),
+        application("j1", status="applied"),
+        application("j2", status="interviewing"),
     ])
-    assert out.entries[0].needs_user is False
+    assert all(not e.needs_user for e in out.entries)
     assert out.landing == "applied"
-
-
-def test_a_snooze_that_has_expired_asks_again():
-    past = (NOW - timedelta(days=2)).isoformat()
-    out = resolve(applications=[application("j1", collection_snoozed_until=past)])
-    assert out.entries[0].needs_user is True
 
 
 def test_closed_entries_never_ask():

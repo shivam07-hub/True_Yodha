@@ -102,7 +102,6 @@ export function CollectionsDesktop({
     onOpen: () => setOpenId(openId === entry.job_id ? null : entry.job_id),
     onRemove: () => actions.remove(entry),
     onPriorityToggle: (p: boolean) => actions.setPriority(entry.job_id, p),
-    onSnooze: () => actions.snooze(entry.job_id),
     onSaveNote: (note: string) => actions.saveNote(entry.job_id, note),
     onAnswerPending: (submitted: boolean) => actions.answerPending(entry.job_id, submitted),
   })
