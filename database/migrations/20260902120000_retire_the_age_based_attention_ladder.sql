@@ -33,9 +33,13 @@
 -- an idempotency guard for the sweep, and the Collection Record reads liveness
 -- straight from `jobs.listing_confidence` / `is_active` instead.
 --
--- EXPAND-CONTRACT: the code that stopped reading these three columns and
--- stopped writing this notification kind ships FIRST, in the same commit as
--- this file. Apply this only after that is deployed.
+-- APPLIED 2026-09-02 (supabase version 20260902133750), after confirming the
+-- expand-contract gate: `job-listing-verifier` — the service that ran the sweep
+-- — was already deployed on e3c38423, so no running process still wrote these
+-- columns. Verified after: 0 of the 3 columns remain, user_notifications
+-- 700 -> 374 (exactly -326), job_applications still 360 rows (332 saved / 28
+-- beyond). The resolver and `to_application` were then driven over the three
+-- heaviest live boards; both read clean.
 --
 -- REVERSIBLE for the columns (they are additive re-adds; the historical values
 -- are not worth restoring — 76% of them are the single value 'urgent'). The
@@ -46,9 +50,8 @@ ALTER TABLE public.job_applications
   DROP COLUMN IF EXISTS collection_attention_level,
   DROP COLUMN IF EXISTS collection_last_reminded_at;
 
--- The 326 retired inbox rows. Marked read by the shipping commit so they cannot
--- surface; this removes them for good. Run it when you are happy the prompt is
--- not coming back — the frontend filters the kind out either way.
+-- The 326 retired inbox rows. Marked read before this ran, so they could not
+-- surface in the window between. The frontend filters the kind out regardless.
 DELETE FROM public.user_notifications WHERE kind = 'collection_attention';
 
 NOTIFY pgrst, 'reload schema';

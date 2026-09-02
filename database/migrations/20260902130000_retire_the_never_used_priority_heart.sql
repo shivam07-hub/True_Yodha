@@ -21,9 +21,10 @@
 -- The two orderings that tie-broke on it now sort on `match_score`, the fit
 -- number Myro already computes and already prints on the card beside them.
 --
--- EXPAND-CONTRACT: the code that stopped reading and writing these columns
--- ships FIRST, in the same commit as this file. Apply this only after that is
--- deployed.
+-- APPLIED 2026-09-02 (supabase version 20260902133804), after the code that
+-- stopped reading and writing these columns was deployed. Verified after:
+-- neither column remains, job_applications still 360 rows. The one true row
+-- carried no stamp and no provenance, so nothing was lost with it.
 --
 -- REVERSIBLE: both are additive re-adds and no meaningful data is lost — the
 -- single true row has no stamp and no provenance.
