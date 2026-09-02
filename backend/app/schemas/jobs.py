@@ -302,16 +302,6 @@ class ApplicationStatusUpdate(BaseModel):
     followed_up: bool | None = None
 
 
-class ApplicationPriorityUpdate(BaseModel):
-    """The user's explicit signal that a role should lead their apply work."""
-
-    prioritized: bool
-
-
-class CollectionSnoozeRequest(BaseModel):
-    days: int
-
-
 class ApplicationReviewRequest(BaseModel):
     star_rating: int            # 1–5
     last_stage: str             # one of APPLICATION_STAGES
@@ -443,10 +433,6 @@ class ApplicationResponse(BaseModel):
     notes: str | None
     created_at: datetime
     last_stage_changed_at: datetime | None = None  # Q7 — stale-clock signal
-    collection_snoozed_until: datetime | None = None
-    collection_attention_level: str | None = None
-    is_priority: bool = False
-    priority_marked_at: datetime | None = None
     # Persisted Career Ops fit for this tracked role. The global Next action uses
     # this durable value to choose the best saved role even before a feed cache warms.
     match_score: int | None = None
@@ -923,3 +909,61 @@ class JobProvenanceResponse(BaseModel):
     verified_window_days: int
     # This caller's own contributions; 0 on the public counters.
     mine: int = 0
+
+
+# ── Collection Record ────────────────────────────────────────────────────────
+# CONTEXT.md → Collection Record. One entry per job, one stage, resolved by
+# `app/services/collections/resolve.py`. The stage names are the chip labels'
+# keys and the client filters on them; nothing filters on `source` any more.
+STAGE_FOUND = "found"
+STAGE_SAVED = "saved"
+STAGE_TAILORED = "tailored"
+STAGE_APPLIED = "applied"
+STAGE_CLOSED = "closed"
+
+CollectionStage = Literal["found", "saved", "tailored", "applied", "closed"]
+CollectionOrigin = Literal["myro", "you", "extension"]
+CollectionLiveness = Literal["live", "uncertain", "down"]
+
+
+class CollectionEntry(BaseModel):
+    """One job in one user's Collection. Exactly one stage, always."""
+    job_id: str
+    stage: CollectionStage
+    #: Who put it here. A LABEL — never a filter (see the contract).
+    origin: CollectionOrigin
+    #: Is the ad still up. An ATTRIBUTE — it demotes `found`/`saved` to `closed`
+    #: and touches no other stage.
+    liveness: CollectionLiveness
+    #: The card body. A real brain verdict where one exists; otherwise the
+    #: application's job columns with `verdict: "checking"` — never a fake score.
+    job: JobMatchResponse
+    #: The raw application status (`saved`/`applied`/`interviewing`/…), or None
+    #: for an untouched match. `stage` is what surfaces render; this is what the
+    #: Prep room and the status control read.
+    status: str | None = None
+    notes: str | None = None
+    cv_badge: CVBadge | None = None
+    #: An apply click this user never answered. The surface must ask again.
+    pending_apply: bool = False
+    saved_at: datetime | None = None
+    applied_at: datetime | None = None
+    #: Does this entry still ask something of the user — the landing rule's input.
+    needs_user: bool = False
+
+
+class CollectionResponse(BaseModel):
+    entries: list[CollectionEntry]
+    #: Chip counts, keyed by stage. THE number — the nav badge and both skins
+    #: read this one, instead of three call sites deriving three answers.
+    stages: dict[str, int]
+    #: The stage to open on: the first one still asking something of the user.
+    landing: CollectionStage = "found"
+    #: Ranked below the bar — they live on /market, not here.
+    below_bar_count: int = 0
+    #: Rejected for cause (scam tier / an honest Skip).
+    rejected_count: int = 0
+    #: Career-Ops vetting health, same values as /jobs/matches. Carried here so
+    #: the "not AI-vetted — retry" banner still has its input on a surface that
+    #: no longer reads /jobs/matches; without it the banner silently never renders.
+    match_health: str = "empty"

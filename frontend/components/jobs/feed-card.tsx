@@ -155,7 +155,7 @@ export function FeedCard({
   const exp = experienceLabel(data.minYears, data.maxYears)
   const showMode = data.locationMode && (!data.location || !data.location.toLowerCase().includes(data.locationMode))
   const hasLoc = data.locations.length > 0 || data.location || showMode
-  const hasMeta = data.datePosted || data.careerBand || data.seniority || exp
+  const hasMeta = data.careerBand || data.seniority || exp
   // The fit slot is derived from the data by default; an explicit `fit` node overrides.
   const fitNode = fit ?? <FitIndicator fit={data.fit} size={fitSize} />
   const hasFit = fit != null || data.fit != null
@@ -256,7 +256,6 @@ export function FeedCard({
 
           {hasMeta ? (
             <div className="fc-meta">
-              {data.datePosted ? <span className="fc-metachip">Posted {data.datePosted}</span> : null}
               {data.careerBand ? <span className="fc-metachip">{CAREER_BAND_LABEL[data.careerBand] ?? data.careerBand}</span> : null}
               {data.seniority ? <span className="fc-metachip">{data.seniority}</span> : null}
               {exp ? <span className="fc-metachip">{exp}</span> : null}
@@ -322,13 +321,6 @@ export function FeedCard({
         </div>
         {!compact && hasFit && !fitInTop ? <div className="fc-fit">{fitNode}</div> : null}
       </div>
-
-      {data.move ? (
-        <div className={`fc-move fc-move-${data.move.kind}`}>
-          <span aria-hidden className="fc-move-arrow">→</span>
-          {data.move.label}
-        </div>
-      ) : null}
 
       {pulse}
       {!compact && rail ? rail : null}

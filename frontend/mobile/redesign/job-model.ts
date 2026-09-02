@@ -192,8 +192,6 @@ export function feedItemToRow(j: JobFeedItem): MobileJobRow {
   const fit = matchFitScore(j)
   const matched = j.matched_skills ?? []
   const gaps = (j.skills ?? []).filter(s => !matched.includes(s))
-  const checkDetails =
-    j.legitimacy_tier === "caution" || j.legitimacy_tier === "suspicious" || !!j.is_stale
   return buildRow({
     id: j.job_id,
     co: j.company_name ?? "—",
@@ -203,14 +201,14 @@ export function feedItemToRow(j: JobFeedItem): MobileJobRow {
     ago: compactAge(j.last_seen_at ?? j.first_seen),
     fit,
     verdict: j.verdict,
-    grade: j.grade,
+    grade: null,
     legitimacyTier: j.legitimacy_tier,
     isStale: j.is_stale,
     matched,
     gaps,
     sourceUrl: j.source_url ?? null,
     verified: j.last_seen_at ? `verified ${compactAge(j.last_seen_at)} ago` : "",
-    move: deriveMove(j.verdict, gaps.length, checkDetails),
+    move: "",
   })
 }
 

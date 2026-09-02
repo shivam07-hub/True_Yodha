@@ -23,13 +23,25 @@ type Tab = "why" | "match" | "reach" | "jd"
 
 const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
   { key: "why", label: "Why you fit", icon: <Crosshair size={15} aria-hidden /> },
-  { key: "match", label: "Match", icon: <CheckCheck size={15} aria-hidden /> },
+  { key: "match", label: "Skills", icon: <CheckCheck size={15} aria-hidden /> },
   { key: "reach", label: "Reach", icon: <Users size={15} aria-hidden /> },
   { key: "jd", label: "JD", icon: <FileText size={15} aria-hidden /> },
 ]
 
-export function CardDetailRail({ token, jobId, job }: { token: string; jobId: string; job: JobMatch }) {
-  const [tab, setTab] = React.useState<Tab | null>(null)
+export function CardDetailRail({
+  token,
+  jobId,
+  job,
+  /** Open one panel on mount. Agent Picks pass "why": the reason Myro chose the
+   *  role IS the band, so it must not sit one click behind a closed rail. */
+  defaultTab,
+}: {
+  token: string
+  jobId: string
+  job: JobMatch
+  defaultTab?: Tab
+}) {
+  const [tab, setTab] = React.useState<Tab | null>(defaultTab ?? null)
   const matched = job.matched_skills ?? []
   const missing = job.missing_skills ?? []
   const matchCount = matched.length + missing.length
@@ -68,12 +80,18 @@ export function CardDetailRail({ token, jobId, job }: { token: string; jobId: st
 
 function WhyPanel({ job }: { job: JobMatch }) {
   const strengths = job.strengths ?? []
-  if (!job.summary && strengths.length === 0 && !job.application_angle) {
+  if (!job.summary && strengths.length === 0 && !job.application_angle && !job.grade) {
     return <p style={{ color: "var(--tm-text-muted)" }}>Run a Myro Search to see why this role fits you.</p>
   }
   return (
     <>
-      <h4>Why you fit</h4>
+      <h4>
+        Why you fit
+        {/* The brain grade lives HERE, not beside the ring. On the face it was a
+            second "how good" competing with the verdict — the collision the
+            Jobs face locked out; Collections had the same one. */}
+        {job.grade ? <span className="fc-rail-grade">{job.grade}</span> : null}
+      </h4>
       {job.summary ? <p>{job.summary}</p> : null}
       {strengths.length > 0 ? (
         <ul>

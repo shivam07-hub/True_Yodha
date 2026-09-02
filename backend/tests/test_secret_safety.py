@@ -135,10 +135,17 @@ def test_every_declared_table_enables_rls() -> None:
         re.IGNORECASE,
     )
 
+    # Strip `--` comments before scanning. Migrations here carry long prose
+    # headers by house style, and this scanner read one: a note saying
+    # "re-running that file's CREATE TABLE block restores it" was matched as a
+    # table named `block`, failing the suite over a sentence. A comment is not a
+    # declaration.
+    comment = re.compile(r"--[^\n]*")
+
     tables: set[str] = set()
     rls_tables: set[str] = set()
     for path in (ROOT / "database").rglob("*.sql"):
-        sql = path.read_text(encoding="utf-8")
+        sql = comment.sub("", path.read_text(encoding="utf-8"))
         tables.update(name.lower() for name in create.findall(sql))
         rls_tables.update(name.lower() for name in enable.findall(sql))
 

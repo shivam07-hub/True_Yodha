@@ -108,18 +108,20 @@ test("tailor selects the highest durable saved-match score before a matches cach
   assert.match(next.label, /Tailor High · 91%/)
 })
 
-test("a priority save leads the next preparation action over a higher-fit ordinary save", () => {
+test("the best-fit save leads the next preparation action", () => {
+  // The heart used to outrank fit here. Nobody ever set it, so the chip's order
+  // was decided by a field that was false on every row in production.
   const next = deriveNextAction(
     [
-      scoredApp({ job_id: "ordinary", company: "Ordinary", match_score: 91 }),
-      scoredApp({ job_id: "priority", company: "Priority", match_score: 48, is_priority: true }),
+      scoredApp({ job_id: "low", company: "Low", match_score: 48 }),
+      scoredApp({ job_id: "high", company: "High", match_score: 91 }),
     ],
     undefined,
     { cvPresence: "present", now: NOW },
   )
 
-  assert.equal(next.href, "/cv?jobId=priority")
-  assert.match(next.label, /Tailor Priority · 48%/)
+  assert.equal(next.href, "/cv?jobId=high")
+  assert.match(next.label, /Tailor High · 91%/)
 })
 
 test("the open job is dropped — the chip names what comes AFTER it, not the screen itself", () => {

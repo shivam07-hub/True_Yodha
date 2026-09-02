@@ -17,6 +17,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
+from app.services.job_projection import last_monday
 from app.services import background, job_matcher, onboarding_service
 from app.services.llm_provider import LLMProvider, get_judgment_provider
 from app.services.match_credibility import evaluate_credibility
@@ -193,7 +194,6 @@ def _persist(
     """Write ONE user_job_matches row, is_recommended=False. Same shape + conflict
     key as llm_ranker.persist_matches so downstream reads are uniform; the only
     divergence is no top-3 promotion (opening a job must not recommend it)."""
-    from app.routers.jobs._shared import last_monday  # local import: avoid service→router load cycle
 
     credibility = evaluate_credibility(profile, shaped, ev.get("overall_score"), ev.get("recommendation"))
     row = {

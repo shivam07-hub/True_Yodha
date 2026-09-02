@@ -13,18 +13,25 @@ class _FakeJobsRepo:
         new_jobs: int = 0,
         agent_picks: list[dict] | None = None,
         dismissed_ids: list[str] | None = None,
+        evals: dict[str, dict] | None = None,
     ) -> None:
         self.dismissed: list[tuple[str, str]] = []
         self._stack = stack or []
         self._new_jobs = new_jobs
         self._agent_picks = agent_picks or []
         self._dismissed_ids = dismissed_ids or []
+        self._evals = evals or {}
         self.count_markers: list[int] = []
         self.exposures: list[tuple[str, str, list[str]]] = []
         self.dismissed_reads = 0
 
     def get_agent_picks(self, user_id: str) -> list[dict]:
         return self._agent_picks
+
+    def get_cached_match_evals(
+        self, user_id: str, job_ids: list[str], *, full: bool = False
+    ) -> dict[str, dict]:
+        return {jid: self._evals[jid] for jid in job_ids if jid in self._evals}
 
     def dismiss_dashboard_job_card(self, user_id: str, job_id: str) -> None:
         self.dismissed.append((user_id, job_id))
@@ -211,7 +218,57 @@ def test_agent_picks_returns_curated_shortlist_with_comment() -> None:
     assert pick["agent_rank"] == 1
     assert pick["agent_tier"] == "bullseye"
     assert pick["agent_comment"] == "A direct mirror of your growth work."
+    assert pick["verdict"] is None
+    assert pick["match_score"] is None
     assert repo.exposures == [("u1", "agent_pick", ["j1"])]
+
+
+def test_agent_picks_carry_the_match_verdict() -> None:
+    """Picks are gated on a strong brain score, then shaped as bare feed rows —
+    so the card fell back to an overlap pill and hid the judge. Same attach the
+    feed uses (`_rank_feed_rows`, no reorder): editorial order stays, the ring
+    speaks."""
+    picks = [
+        {
+            "job_id": "j1",
+            "job_title": "Data Engineer",
+            "company_name": "Accenture",
+            "job_description": None,
+            "skills": ["PySpark"],
+            "matched_skills": [],
+            "matched_skill_count": 0,
+            "target_role_match": 0,
+            "is_active": True,
+            "agent_rank": 1,
+            "agent_tier": "strong",
+            "agent_comment": "Technical fit, sales unused.",
+        }
+    ]
+    evals = {
+        "j1": {
+            "overall_score": 4.2,
+            "overlap_score": 70.0,
+            "recommendation": "Apply",
+            "grade": "A",
+            "seniority_compatibility": "compatible",
+            "legitimacy_tier": "high_confidence",
+        }
+    }
+    repo = _FakeJobsRepo(agent_picks=picks, evals=evals)
+    app.dependency_overrides[get_principal] = lambda: Principal(id="u1")
+    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
+    try:
+        with TestClient(app) as client:
+            response = client.get("/jobs/agent-picks")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    pick = response.json()["picks"][0]
+    assert pick["verdict"] == "strong"
+    assert pick["match_score"] == 84
+    assert pick["is_strong"] is True
+    assert pick["agent_rank"] == 1
 
 
 def test_dismiss_match_card_marks_card_removed_for_current_user() -> None:

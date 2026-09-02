@@ -4,6 +4,7 @@ import logging
 import time
 from collections.abc import Callable, Mapping
 from concurrent.futures import ThreadPoolExecutor
+from contextvars import copy_context
 from typing import Any
 
 # Same channel convention as request_timing: the `app` namespace has no handler,
@@ -99,8 +100,18 @@ def run_concurrently(
 
     started = time.perf_counter()
     try:
+        # Run each section in a COPY of the calling request's context. Without
+        # this the pool threads start from a bare context and the request-scoped
+        # read counter (app/services/read_budget.py) never sees a fan-out read —
+        # the counter is a shared object precisely so a copied context can still
+        # increment the caller's tally.
+        #
+        # One copy PER SECTION, not one for the wave: a Context cannot be
+        # entered by two threads at once, so sharing a single copy across the
+        # submits serialises the wave — which is the one thing this helper
+        # exists to avoid.
         futures = {
-            key: _READ_POOL.submit(_timed, key, read)
+            key: _READ_POOL.submit(copy_context().run, _timed, key, read)
             for key, read in sections.items()
         }
         return {key: future.result() for key, future in futures.items()}

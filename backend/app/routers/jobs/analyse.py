@@ -12,7 +12,7 @@ from app.services.llm_provider import (
     LLMProvider,
     get_blocking_judgment_provider,
 )
-from app.routers.jobs._shared import last_monday
+from app.services.job_projection import last_monday
 
 router = APIRouter()
 

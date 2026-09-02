@@ -13,6 +13,7 @@ via this router — uploads are the only way a baseline enters the system.
 """
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import Any
 
@@ -26,11 +27,20 @@ from app.repositories.cv import (
     CVVersionsRepository,
     get_token_cv_repository,
 )
-from app.services import cv_compose, cv_restructure, cv_section_order, xp_policy, xp_service
+from app.services import (
+    cv_compose,
+    cv_restructure,
+    cv_section_order,
+    cv_skill_edit,
+    xp_policy,
+    xp_service,
+)
 from app.services.job_path._db import _fetch_milestones, _fetch_targets, _get_job
 from app.services.job_path.llm_polish import _call_ai_polish
 from app.services.llm_provider import get_writer_provider
 from app.routers.cv.structured import CVStructuredResponse
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/versions")
 
@@ -299,8 +309,50 @@ def update_cv_version_hidden_items(
     return _to_response(row)
 
 
+class LinePhrasing(BaseModel):
+    """The one line this patch reworded, so the reservoir can keep the material."""
+    old_text: str
+    new_text: str
+
+
 class JobDraftPatchRequest(BaseModel):
     cv_structured: dict[str, Any]
+    phrasing: LinePhrasing | None = None
+
+
+# The reservoir holds experience/project bullets as points; nothing else.
+_SECTION_TO_LIST = {"exp_bullet": "experience", "proj_bullet": "projects"}
+
+
+def _mirror_job_reword_to_reservoir(
+    cv_repo: CVVersionsRepository,
+    user_id: str,
+    before: dict[str, Any],
+    phrasing: LinePhrasing,
+) -> None:
+    """Keep a job-scoped reword as an ALTERNATE phrasing in the reservoir.
+
+    The master's wording does not move — this line was written for one JD. But a
+    reword is often where the user remembers real work, so the text has to survive
+    somewhere they can find it (Stories). Best-effort: the draft patch has already
+    landed and a reservoir hiccup must never fail it."""
+    located = cv_skill_edit.locate_bullet(before, phrasing.old_text)
+    if not isinstance(located, cv_skill_edit.BulletLocation):
+        return
+    list_key = _SECTION_TO_LIST.get(located.section)
+    if not list_key:
+        return
+    try:
+        cv_repo.append_phrasing(
+            user_id,
+            f"{list_key}:{located.item_index}",
+            phrasing.old_text,
+            phrasing.new_text,
+            source="tailor",
+            canonical=False,
+        )
+    except Exception:  # noqa: BLE001 — shadow mirror, never block the paper write
+        logger.info("reservoir alternate skipped (best-effort) for user=%s", user_id)
 
 
 @router.patch("/{version_id}/job-draft", response_model=CVVersionResponse)
@@ -331,6 +383,10 @@ def patch_job_draft(
         version_id, user_id,
         cv_structured=body.cv_structured, body_text=body_text,
     )
+    if body.phrasing:
+        _mirror_job_reword_to_reservoir(
+            cv_repo, user_id, version.get("cv_structured") or {}, body.phrasing,
+        )
     return _to_response(row)
 
 

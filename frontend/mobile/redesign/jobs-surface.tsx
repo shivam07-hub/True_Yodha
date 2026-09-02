@@ -281,7 +281,7 @@ export function JobsSurface({
         onClose={() => setDetailId(null)}
         data={detailData}
         token={token}
-        onHeart={() => detailItem && doSave(detailItem, true)}
+        onSave={() => detailItem && doSave(detailItem, true)}
         onSkip={() => detailItem && doSkip(detailItem, true)}
         onTailor={() => detailItem && doTailor(detailItem.job_id)}
         onApply={doApply}

@@ -2,256 +2,194 @@
 
 import * as React from "react"
 import Link from "next/link"
+import { X } from "lucide-react"
 import { FeedCard, feedCardConfidenceClass } from "@/components/jobs/feed-card"
 import { CardDetailRail } from "@/components/jobs/card-detail-rail"
 import { feedDataFromMatch } from "@/lib/jobs/card-view"
 import { PulseRow } from "@/components/dashboard/card-atoms"
-import { GradeBadge, LegitimacyBadge } from "@/components/jobs/match-brain"
+import { LegitimacyBadge } from "@/components/jobs/match-brain"
 import { companyHref } from "@/components/companies/company-link"
-import { isExtSource, isMyroSource } from "@/lib/collections/model"
-import type { ApplicationResponse, JobPulse } from "@/lib/api"
-import type { FeedItem } from "@/lib/dashboard/feed-model"
-import { PriorityJobActions } from "./priority-job-actions"
+import { ApplyCapturePrompt } from "@/components/jobs/apply-capture-prompt"
+import { useApplyCapture } from "@/components/jobs/use-apply-capture"
+import { ORIGIN_LABEL, heroFor } from "@/lib/collections/model"
+import type { CollectionEntry, JobPulse } from "@/lib/api"
 
-/* Row skins for the Myro Ops folder. Both wrap the shared FeedCard; the actions
-   differ by spine: an above-bar brain match (Tailor / Dismiss, no save —
-   it's already in the folder) vs a saved application (unsave / Tailor). */
+/* ── ONE row, staged chrome (CONTEXT.md → Collection Record) ──────────────────
+ * There used to be three row components — MyroFoundRow, CollectionRow, ClosedRow
+ * — with three different action sets, two different meanings for the same ×, and
+ * a brain grade printed beside the ring on one of them. A card is a decision
+ * instrument: the slots are
+ * identical everywhere and the STAGE changes only the hero verb and which quiet
+ * controls are present. Origin is a chip, never a second template.
+ * ────────────────────────────────────────────────────────────────────────── */
 
-function useLeave(): [boolean, (fn: () => void) => void] {
-  const [leaving, setLeaving] = React.useState(false)
-  const leaveThen = (fn: () => void) => {
-    setLeaving(true)
-    window.setTimeout(fn, 230)
-  }
-  return [leaving, leaveThen]
-}
-
-/** An above-bar Myro Search match. Carries its real brain grade + legitimacy. */
-export function MyroFoundRow({
-  it,
-  token,
-  open,
-  pulse,
-  onOpen,
-  onDismiss,
-  prioritized,
-  onPriorityToggle,
-}: {
-  it: FeedItem
-  token: string
-  open: boolean
-  pulse?: JobPulse
+export interface CollectionRowActions {
   onOpen: () => void
-  onDismiss: () => void
-  prioritized: boolean
-  onPriorityToggle: (prioritized: boolean) => void
-}) {
-  const [leaving, leaveThen] = useLeave()
-  const job = it.job
-  return (
-    <FeedCard
-      data={feedDataFromMatch({ jobId: it.jobId, company: it.company, role: it.role, job, fit: it.fit })}
-      variant="row"
-      open={open}
-      leaving={leaving}
-      extraClass={feedCardConfidenceClass(pulse)}
-      onOpen={onOpen}
-      badges={
-        <>
-          <GradeBadge grade={job.grade} />
-          <LegitimacyBadge tier={job.legitimacy_tier} reason={job.legitimacy_reason} />
-        </>
-      }
-      pulse={<PulseRow pulse={pulse} />}
-      rail={<CardDetailRail token={token} jobId={it.jobId} job={job} />}
-      actions={
-        <PriorityJobActions
-          token={token}
-          jobId={it.jobId}
-          job={job}
-          prioritized={prioritized}
-          onPriorityToggle={onPriorityToggle}
-          onSkip={() => leaveThen(onDismiss)}
-          onFindSimilar={() => leaveThen(onDismiss)}
-          tailorHref={`/cv?jobId=${encodeURIComponent(it.jobId)}`}
-        />
-      }
-    />
-  )
-}
-
-/** A saved application (You added / Applied chips) — unsave + Tailor. */
-export function CollectionRow({
-  it,
-  token,
-  app,
-  open,
-  pulse,
-  onOpen,
-  onUnsave,
-  onTailor,
-  onOpenCv,
-  onSnooze,
-  onSaveNote,
-  onPriorityToggle,
-}: {
-  it: FeedItem
-  token: string
-  app: ApplicationResponse | undefined
-  open: boolean
-  pulse?: JobPulse
-  onOpen: () => void
-  onUnsave: () => void
-  onTailor: () => void
-  onOpenCv: () => void
-  onSnooze: () => void
+  /** Remove from this list. ONE meaning at every stage, always undoable. */
+  onRemove: () => void
   onSaveNote: (note: string) => void
-  onPriorityToggle: (prioritized: boolean) => void
+  /** Answer the unanswered apply click — "did you actually submit?". */
+  onAnswerPending?: (submitted: boolean) => void
+}
+
+export function CollectionRow({
+  entry,
+  token,
+  open,
+  pulse,
+  /** Picks open their Why panel — the reason Myro chose it is the point of the
+   *  band, so it must not be one more click behind a closed rail. */
+  openWhy = false,
+  actions,
+}: {
+  entry: CollectionEntry
+  token: string
+  open: boolean
+  pulse?: JobPulse
+  openWhy?: boolean
+  actions: CollectionRowActions
 }) {
-  const applied = app ? app.status !== "saved" : false
-  const tailored = !!app?.cv_badge
   const [noteOpen, setNoteOpen] = React.useState(false)
-  const [note, setNote] = React.useState(app?.notes ?? "")
-  const attention = app?.collection_attention_level
+  const [note, setNote] = React.useState(entry.notes ?? "")
+  const [leaving, setLeaving] = React.useState(false)
+  const hero = heroFor(entry)
+  const job = entry.job
+  const canRemove = entry.stage !== "applied"
+
+  const capture = useApplyCapture({
+    token,
+    job: {
+      job_id: entry.job_id,
+      source_url: job.source_url,
+      company: job.company,
+      listing_confidence: entry.liveness === "down" ? "closed" : entry.liveness === "live" ? "active" : "uncertain",
+    },
+    surface: "dashboard",
+    intentSurface: "collections",
+  })
+
+  const removeThen = () => {
+    setLeaving(true)
+    window.setTimeout(actions.onRemove, 230)
+  }
+
   return (
     <div>
-    <FeedCard
-      data={feedDataFromMatch({ jobId: it.jobId, company: it.company, role: it.role, job: it.job, fit: it.fit })}
-      variant="row"
-      open={open}
-      extraClass={feedCardConfidenceClass(pulse)}
-      onOpen={onOpen}
-      badges={
-        <>
-          {applied ? <span className="db-statuschip">Applied</span> : null}
-          {!applied && attention ? <span className="db-statuschip">Needs a decision</span> : null}
-          {app && isExtSource(app.source) ? <span className="db-sourcechip">Extension</span> : null}
-          {app && !isExtSource(app.source) && !isMyroSource(app.source) ? (
-            <span className="db-sourcechip">You added</span>
-          ) : null}
-        </>
-      }
-      pulse={<PulseRow pulse={pulse} />}
-      rail={<CardDetailRail token={token} jobId={it.jobId} job={it.job} />}
-      actions={
-        !applied ? (
-          <div className="db-card-actions" onClick={(event) => event.stopPropagation()}>
-            <button
-              type="button"
-              className={`db-icon-btn${app?.is_priority ? " liked" : ""}`}
-              aria-label={app?.is_priority ? "Remove job priority" : "Prioritize this job"}
-              aria-pressed={app?.is_priority ?? false}
-              title={app?.is_priority ? "Priority to apply" : "Prioritize to apply"}
-              onClick={() => onPriorityToggle(!(app?.is_priority ?? false))}
-            >
-              <HeartGlyph />
-            </button>
-            <button
-              type="button"
-              className="db-icon-btn tm-dismiss-action"
-              aria-label="Remove from Collections"
-              title="Remove from Collections"
-              onClick={onUnsave}
-            >
-              <span aria-hidden>×</span>
-            </button>
-            <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={() => setNoteOpen((open) => !open)}>
-              Note
-            </button>
-            <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={onSnooze}>
-              Snooze 3d
-            </button>
-            {tailored ? (
-              <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={onOpenCv}>
-                Tailored ✓
-              </button>
-            ) : (
-              <button type="button" className="db-btn db-btn-primary tm-control-focus" onClick={onTailor}>
-                Tailor CV
-              </button>
-            )}
+      <FeedCard
+        data={feedDataFromMatch({ jobId: entry.job_id, company: job.company, role: job.title, job, fit: job.match_score })}
+        variant="row"
+        open={open}
+        leaving={leaving}
+        extraClass={feedCardConfidenceClass(pulse) || (entry.liveness === "down" ? " fc-conf-closed" : "")}
+        onOpen={actions.onOpen}
+        badges={
+          <>
+            {/* Origin is a LABEL. It never decides which list this is in. */}
+            <span className="db-sourcechip">{ORIGIN_LABEL[entry.origin]}</span>
+            {entry.stage === "applied" && entry.status && entry.status !== "applied" ? (
+              <span className="db-statuschip">{STATUS_WORD[entry.status] ?? entry.status}</span>
+            ) : null}
+            {/* Grade is NOT here. It is a second "how good" beside the ring —
+                the same collision the Jobs face locked out. It lives in Why. */}
+            <LegitimacyBadge tier={job.legitimacy_tier} reason={job.legitimacy_reason} />
+          </>
+        }
+        pulse={<PulseRow pulse={pulse} />}
+        rail={<CardDetailRail token={token} jobId={entry.job_id} job={job} defaultTab={openWhy ? "why" : undefined} />}
+        actions={
+          <div className="db-job-intent-group">
+            <div className="db-card-actions" onClick={(event) => event.stopPropagation()}>
+              {canRemove ? (
+                <button
+                  type="button"
+                  className="db-icon-btn tm-dismiss-action"
+                  aria-label="Remove from Collections"
+                  title="Remove from Collections"
+                  onClick={removeThen}
+                >
+                  <X size={16} aria-hidden />
+                </button>
+              ) : null}
+              {entry.stage === "saved" || entry.stage === "tailored" ? (
+                <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={() => setNoteOpen((v) => !v)}>
+                  Note
+                </button>
+              ) : null}
+
+              {/* THE hero — exactly one, chosen by stage. */}
+              {hero.href ? (
+                <Link
+                  href={hero.href}
+                  className={`db-btn tm-control-focus ${hero.kind === "gap" ? "db-btn-secondary" : "db-btn-primary"}`}
+                  style={{ textDecoration: "none" }}
+                >
+                  {hero.label}
+                </Link>
+              ) : (
+                <a
+                  href={job.company ? companyHref(job.company) : "/market"}
+                  target={job.company ? "_blank" : undefined}
+                  rel={job.company ? "noopener noreferrer" : undefined}
+                  className="db-btn db-btn-secondary tm-control-focus"
+                  style={{ textDecoration: "none" }}
+                >
+                  {hero.label} ↗
+                </a>
+              )}
+
+              {/* Apply Transport. Not a peer of the hero — it is the handoff
+                  control, and it is absent once the listing is down. */}
+              {entry.liveness !== "down" && capture.target.url && capture.target.actionLabel ? (
+                <a
+                  className="db-btn db-btn-secondary tm-control-focus"
+                  href={capture.href ?? undefined}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={capture.onApply}
+                  title={capture.target.actionLabel}
+                >
+                  {capture.target.actionLabel}
+                </a>
+              ) : null}
+            </div>
+            <ApplyCapturePrompt capture={capture} />
+            {/* The ask the 1.2s inline band never got to make: they left for the
+                ATS and came back to a card that had moved on. */}
+            {entry.pending_apply && actions.onAnswerPending ? (
+              <div className="db-pending-apply" role="status">
+                <span>You opened this application. Did you submit it?</span>
+                <button type="button" className="db-btn db-btn-primary tm-control-focus" onClick={() => actions.onAnswerPending?.(true)}>
+                  Yes, applied
+                </button>
+                <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={() => actions.onAnswerPending?.(false)}>
+                  Not yet
+                </button>
+              </div>
+            ) : null}
           </div>
-        ) : (
-          <div className="db-card-actions" onClick={(event) => event.stopPropagation()}>
-            <Link
-              href={`/preparations/${encodeURIComponent(it.jobId)}`}
-              className="db-btn db-btn-primary tm-control-focus"
-              style={{ textDecoration: "none" }}
-            >
-              Prep room →
-            </Link>
-          </div>
-        )
-      }
-    />
-    {noteOpen ? (
-      <textarea
-        aria-label={`Note for ${it.role}`}
-        value={note}
-        onChange={(event) => setNote(event.target.value)}
-        onBlur={() => onSaveNote(note)}
-        placeholder="Why this role is worth applying to…"
-        rows={2}
-        style={{ width: "100%", marginTop: 8, padding: "9px 10px", borderRadius: 8, border: "1px solid var(--tm-border)", background: "var(--tm-surface-2)", color: "var(--tm-text)", resize: "vertical" }}
+        }
       />
-    ) : null}
+      {noteOpen ? (
+        <textarea
+          aria-label={`Note for ${job.title}`}
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          onBlur={() => actions.onSaveNote(note)}
+          placeholder="Why this role is worth applying to…"
+          rows={2}
+          style={{ width: "100%", marginTop: 8, padding: "9px 10px", borderRadius: 8, border: "1px solid var(--tm-border)", background: "var(--tm-surface-2)", color: "var(--tm-text)", resize: "vertical" }}
+        />
+      ) : null}
     </div>
   )
 }
 
-function HeartGlyph() {
-  return (
-    <svg width={16} height={16} viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M19 14c1.5-1.5 2-3.2 2-4.6C21 6.4 18.6 4 15.6 4 14.2 4 12.9 4.6 12 5.6 11.1 4.6 9.8 4 8.4 4 5.4 4 3 6.4 3 9.4c0 1.4.5 3.1 2 4.6l7 6.6 7-6.6Z" />
-    </svg>
-  )
-}
-
-/** A dead listing — found, saved, or applied, doesn't matter which. Nothing
- *  actionable left on the listing itself (no unsave/tailor/apply), so the row
- *  trades those for the one thing worth doing next: a direct path to that
- *  company's live openings, where the candidate may explicitly choose to
- *  follow it — the "similar roles from this company" ask. */
-export function ClosedRow({
-  it,
-  app,
-  open,
-  onOpen,
-}: {
-  it: FeedItem
-  app: ApplicationResponse | undefined
-  open: boolean
-  onOpen: () => void
-}) {
-  const origin = app ? (app.status !== "saved" ? "Applied" : isExtSource(app.source) ? "Extension" : isMyroSource(app.source) ? "Myro found" : "You added") : "Myro found"
-  return (
-    <FeedCard
-      data={feedDataFromMatch({ jobId: it.jobId, company: it.company, role: it.role, job: it.job, fit: it.fit })}
-      variant="row"
-      open={open}
-      extraClass=" fc-conf-closed"
-      onOpen={onOpen}
-      badges={<span className="db-sourcechip">{origin}</span>}
-      pulse={
-        <div className="tm-pulse">
-          <span className="tm-pulse-item tm-pulse-warn">Closed listing</span>
-        </div>
-      }
-      actions={
-        it.company ? (
-          <div className="db-card-actions" onClick={(e) => e.stopPropagation()}>
-            <a
-              href={companyHref(it.company)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="db-btn db-btn-secondary tm-control-focus"
-              style={{ textDecoration: "none" }}
-            >
-              More at {it.company} ↗
-            </a>
-          </div>
-        ) : null
-      }
-    />
-  )
+/** The post-apply words. `stage` is `applied` for all of them — this names WHICH
+ *  outcome, which the old folder could not say at all: rejected, ghosted and
+ *  offer all rendered as an undifferentiated "Applied". */
+const STATUS_WORD: Record<string, string> = {
+  interviewing: "Interviewing",
+  offer: "Offer",
+  rejected: "Rejected",
+  ghosted: "No reply",
 }

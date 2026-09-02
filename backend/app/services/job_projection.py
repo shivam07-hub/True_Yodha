@@ -1,3 +1,13 @@
+"""Row → schema projections for jobs: the match card, the application row, the
+CV badge, and the batch-week helpers they share.
+
+These are pure projections over repository rows. They lived in
+`app/routers/jobs/_shared.py`, which put them inside the router package — so any
+service that needed one imported `app.routers`, and three call sites
+(`cv_workflow`, `matching/on_demand`, `matching/scrape_sweep`) carried a local
+import with a comment naming the load cycle they were dodging. A projection is
+not a router concern; it lives here, and services import it directly.
+"""
 from datetime import date, timedelta
 from typing import Any
 
@@ -142,10 +152,6 @@ def to_application(
         notes=row.get("notes"),
         created_at=row["created_at"],
         last_stage_changed_at=row.get("last_stage_changed_at"),
-        collection_snoozed_until=row.get("collection_snoozed_until"),
-        collection_attention_level=row.get("collection_attention_level"),
-        is_priority=bool(row.get("is_priority", False)),
-        priority_marked_at=row.get("priority_marked_at"),
         match_score=match_score,
         cv_badge=cv_badge,
         skills=skills,

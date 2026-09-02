@@ -227,20 +227,6 @@ a.fc-co:hover { color: var(--tm-interactive); }
 }
 .fc-fitpill-nudge { color: var(--tm-interactive-rest, var(--tm-interactive)); text-decoration: none; }
 
-/* ── the engineer's move — the verdict's action half ────────────────────────
-   States the recommended next step (design-over-words: the card opens to act on
-   it). `go` = apply, in the calm accent; `gap` = close skills first, muted — an
-   honest stretch is never alarming (rank down, never scold). */
-.fc-move {
-  display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
-  font-size: var(--tm-fs-caption); font-weight: 600; letter-spacing: 0.01em; line-height: 1;
-}
-.fc-move-arrow { font-weight: 700; opacity: 0.85; }
-/* Muted, not accent (aligned accent-budget 2026-07-23): the primary CTA (Tailor CV)
-   button carries the accent — the move line must not double it. */
-.fc-move-go { color: var(--tm-text-muted); }
-.fc-move-gap { color: var(--tm-text-muted); }
-
 /* ── per-section disclosure rail (Why fit · Match · Reach · JD) ───────────────
    Fills the card's dead space with real CTAs (Cred: every pixel info or CTA),
    not filler. Each chip opens ONLY its own panel inline — never the whole
@@ -272,6 +258,14 @@ a.fc-co:hover { color: var(--tm-interactive); }
   text-transform: uppercase; color: var(--tm-text); font-family: var(--tm-font-mono, inherit);
 }
 .fc-rail-panel p { margin: 0 0 8px; color: var(--tm-text); }
+/* The brain grade, in Why — where "how good" is explained, not beside the ring
+   where it competed with the verdict. Quiet by construction: it is context for
+   the paragraph under it, never a badge of its own. */
+.fc-rail-panel h4 .fc-rail-grade {
+  margin-left: 8px; padding: 1px 6px; border-radius: 4px;
+  border: 1px solid var(--tm-border); color: var(--tm-text-muted);
+  font-size: var(--tm-fs-micro, 10px); letter-spacing: 0.04em;
+}
 .fc-rail-panel ul { margin: 6px 0 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px; }
 .fc-rail-panel .fc-rail-jd { max-height: 220px; overflow-y: auto; white-space: pre-wrap; color: var(--tm-text-muted); }
 .fc-rail-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }

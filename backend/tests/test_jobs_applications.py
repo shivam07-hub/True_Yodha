@@ -173,50 +173,27 @@ def test_apply_click_records_an_attempt_without_marking_application_applied() ->
     ]
 
 
-def test_priority_heart_creates_saved_intent_and_returns_durable_priority() -> None:
-    repo = _FakeJobsRepository()
-
-    app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="user-123", email=None, token="token-123")
-    app.dependency_overrides[get_token_jobs_repository] = lambda: repo
-
-    try:
-        with TestClient(app) as client:
-            response = client.put("/jobs/applications/job-456/priority", json={"prioritized": True})
-    finally:
-        app.dependency_overrides.clear()
-
-    assert response.status_code == 200
-    assert response.json()["is_priority"] is True
-    assert repo.application_upserts[0][0:2] == ("user-123", "job-456")
-    updates = repo.application_upserts[0][2]
-    assert updates["status"] == "saved"
-    assert updates["source"] == "user_discovery"
-    assert updates["is_priority"] is True
-    assert updates["priority_marked_at"]
-
-
-def test_removing_priority_keeps_the_saved_job_in_collections() -> None:
+def test_saving_a_discovered_job_writes_the_saved_intent() -> None:
+    """The canonical claim. This assertion used to ride on the priority heart,
+    which also created a saved row as a side effect; the heart is gone (zero
+    presses in five weeks live) and `POST /jobs/save` is the one save path."""
     repo = _FakeJobsRepository()
     repo.application_rows_by_job["job-456"] = _make_application_row(
-        app_id=1,
-        job_id="job-456",
-        company="Acme",
+        app_id=1, job_id="job-456", company="Acme",
     )
-    repo.application_rows_by_job["job-456"].update({"is_priority": True, "priority_marked_at": "2026-07-29T10:00:00Z"})
 
     app.dependency_overrides[get_current_user] = lambda: CurrentUser(id="user-123", email=None, token="token-123")
     app.dependency_overrides[get_token_jobs_repository] = lambda: repo
 
     try:
         with TestClient(app) as client:
-            response = client.put("/jobs/applications/job-456/priority", json={"prioritized": False})
+            response = client.post("/jobs/save/job-456")
     finally:
         app.dependency_overrides.clear()
 
-    assert response.status_code == 200
-    assert response.json()["is_priority"] is False
-    assert repo.application_rows_by_job["job-456"]["status"] == "saved"
-    assert repo.application_upserts[0][2] == {"is_priority": False, "priority_marked_at": None}
+    assert response.status_code == 201
+    assert repo.application_upserts[0][0:2] == ("user-123", "job-456")
+    assert repo.application_upserts[0][2] == {"status": "saved", "source": "user_discovery"}
 
 
 def _make_application_row(

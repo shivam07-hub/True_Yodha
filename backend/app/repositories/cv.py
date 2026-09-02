@@ -229,6 +229,34 @@ class CVVersionsRepository:
             latest_per_company[company] = row
         return latest_per_company
 
+    def latest_for_jobs(self, user_id: str) -> dict[str, dict[str, Any]]:
+        """{job_id: latest tailored cv_versions row} — JOB-level, not company.
+
+        The Collection Record's `tailored` stage asks "is there a CV for THIS
+        job". `latest_for_thread_batch` answers a different question — "is there
+        a CV for this COMPANY" (the Company CV Thread) — and the tracker was
+        using it as if the two were the same. 64% of prod application rows share
+        a user+company with another row, and 23 of them across 4 users rendered
+        "Tailored ✓" for a CV written for a different job, hiding the Tailor
+        button on work the user had never done.
+        """
+        rows = (
+            self._db.table("cv_versions")
+            .select("*")
+            .eq("user_id", user_id)
+            .neq("kind", "baseline_upload")
+            .not_.is_("job_id", "null")
+            .order("user_version_number", desc=True)
+            .execute()
+        ).data or []
+        latest: dict[str, dict[str, Any]] = {}
+        for row in rows:
+            job_id = str(row.get("job_id") or "")
+            if not job_id or job_id in latest:
+                continue
+            latest[job_id] = self._normalized(row)
+        return latest
+
     def _company_name_for_job(self, job_id: str) -> str | None:
         target = (
             self._db.table("jobs")
@@ -332,13 +360,20 @@ class CVVersionsRepository:
         old_text: str,
         new_text: str,
         source: str = "restructure",
+        *,
+        canonical: bool = True,
     ) -> bool:
         """Dual-write (v2): when a rewrite is accepted onto the master, mirror it into
         the reservoir as a NEW canonical phrasing of the existing point, demoting the
         prior canonical to an alternate (nothing lost — that is the whole reservoir
         idea). Best-effort: no-op when the phrasing is unchanged or the point isn't in
         the reservoir (un-backfilled user → the inventory is live-derived from the
-        master, which already holds new_text). Returns True if it appended."""
+        master, which already holds new_text). Returns True if it appended.
+
+        ``canonical=False`` is the job-draft mirror: the user reworded this line for
+        ONE job, so the master's wording must not move. The new text still enters the
+        reservoir — as an alternate phrasing — because a reword often carries real new
+        material the user just remembered, and the inventory is where that survives."""
         new_text = (new_text or "").strip()
         if not new_text or new_text == (old_text or "").strip():
             return False
@@ -363,11 +398,12 @@ class CVVersionsRepository:
             "section": row["section"],
             "text": new_text,
             "source": source,
-            "is_canonical": True,
+            "is_canonical": canonical,
             "ordering": row.get("ordering") or 0,
             "status": "active",
         }).execute()
-        self._db.table("cv_points").update({"is_canonical": False}).eq("id", row["id"]).execute()
+        if canonical:
+            self._db.table("cv_points").update({"is_canonical": False}).eq("id", row["id"]).execute()
         return True
 
     def find(self, version_id: int, user_id: str) -> dict[str, Any] | None:

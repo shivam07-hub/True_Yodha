@@ -4,6 +4,7 @@ from app.services import job_importer, job_path as job_path_service
 
 from .analyse import router as analyse_router
 from .apply import router as apply_router
+from .collections import router as collections_router
 from .deepen import router as deepen_router
 from .detail import router as detail_router
 from .intelligence import router as intelligence_router
@@ -31,6 +32,7 @@ router.include_router(provenance_router)
 router.include_router(intelligence_router)
 router.include_router(match_router)
 router.include_router(apply_router)
+router.include_router(collections_router)
 router.include_router(stale_router)
 router.include_router(review_router)
 router.include_router(milestone_router)

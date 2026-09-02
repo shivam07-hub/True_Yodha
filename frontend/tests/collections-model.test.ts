@@ -1,150 +1,137 @@
 import test from "node:test"
 import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
 
-import type { ApplicationResponse, JobMatch, JobPulse } from "../lib/api"
-import {
-  buildCollectionsView,
-  buildClosedView,
-  buildMyroFound,
-  chipCounts,
-  collectionsTriageCtx,
-  isPulseClosed,
-  splitClosedApps,
-} from "../lib/collections/model"
+import type { CollectionEntry, CollectionStage, JobMatch } from "../lib/api"
+import { ORIGIN_LABEL, emptyCopy, heroFor, orderEntries } from "../lib/collections/model"
 
-function match(partial: Partial<JobMatch>): JobMatch {
+/** The Collection Record, client side. The stage/origin/liveness/count rules are
+ *  the RESOLVER's and are tested in backend/tests/test_collection_record.py —
+ *  what is testable here is what is left: the hero, the order, and the words. */
+
+function job(over: Partial<JobMatch> = {}): JobMatch {
   return {
-    id: 1,
-    job_id: "job-1",
-    title: "Analyst",
-    company: "Acme",
-    location: null,
-    remote: false,
-    overlap_score: 80,
-    match_score: 80,
-    verdict: "strong",
-    is_strong: true,
-    llm_rank: 1,
-    llm_explanation: null,
-    batch_week: "2026-06-01",
-    source_url: null,
-    matched_skills: [],
-    job_description: null,
-    grade: "A",
-    ...partial,
+    id: 1, job_id: "j1", title: "Analyst", company: "Acme", location: null, remote: false,
+    overlap_score: 70, match_score: 70, verdict: "strong", is_strong: true, llm_rank: 1,
+    llm_explanation: null, batch_week: "2026-08-31", source_url: null, matched_skills: [],
+    missing_skills: [], job_description: null, grade: "A", ...over,
+  } as JobMatch
+}
+
+function entry(over: Partial<CollectionEntry> = {}): CollectionEntry {
+  return {
+    job_id: "j1", stage: "found", origin: "myro", liveness: "live", job: job(),
+    status: null, notes: null, cv_badge: null, pending_apply: false,
+    saved_at: null, applied_at: null,
+    needs_user: true, ...over,
   }
 }
 
-function application(partial: Partial<ApplicationResponse>): ApplicationResponse {
-  return {
-    id: 1,
-    job_id: "job-1",
-    title: "Analyst",
-    company: "Acme",
-    job_description: null,
-    status: "saved",
-    source: "user_discovery",
-    applied_at: null,
-    response_at: null,
-    checkin_sent_at: null,
-    followed_up_at: null,
-    closed_at: null,
-    offer_received_at: null,
-    notes: null,
-    created_at: "2026-06-01T08:00:00Z",
-    last_stage_changed_at: null,
-    is_first_offer: false,
-    cv_badge: null,
-    coins_earned: null,
-    coin_balance: null,
-    ...partial,
-  }
-}
+// ── the hero ─────────────────────────────────────────────────────────────────
 
-function pulse(partial: Partial<JobPulse>): JobPulse {
-  return {
-    job_id: "job-1",
-    first_seen_at: null,
-    last_verified_at: null,
-    is_stale: false,
-    listing_confidence: "active",
-    tracking_count: null,
-    outcomes_shared: null,
-    ghosted_count: null,
-    response_signal: null,
-    quality_report_count: null,
-    ...partial,
-  }
-}
-
-test("isPulseClosed reads the verifier's closed + likely_closed calls only", () => {
-  assert.equal(isPulseClosed(pulse({ listing_confidence: "closed" })), true)
-  assert.equal(isPulseClosed(pulse({ listing_confidence: "likely_closed" })), true)
-  assert.equal(isPulseClosed(pulse({ listing_confidence: "active" })), false)
-  assert.equal(isPulseClosed(pulse({ listing_confidence: "uncertain" })), false)
-  assert.equal(isPulseClosed(undefined), false)
+test("a strong found role's hero is Tailor CV", () => {
+  const hero = heroFor(entry({ stage: "found", job: job({ verdict: "strong" }) }))
+  assert.equal(hero.label, "Tailor CV")
+  assert.equal(hero.kind, "go")
+  assert.match(hero.href ?? "", /^\/cv\?jobId=/)
 })
 
-test("a priority job leads the Collections apply queue", () => {
-  const ordinary = application({ job_id: "ordinary", created_at: "2026-06-02T08:00:00Z" })
-  const priority = {
-    ...application({ job_id: "priority", created_at: "2026-06-01T08:00:00Z" }),
-    is_priority: true,
-  }
-  const apps = [ordinary, priority]
-
-  const view = buildCollectionsView(
-    apps,
-    "added",
-    "fit",
-    collectionsTriageCtx(apps),
-    new Map(),
-  )
-
-  assert.deepEqual(view.queueItems.map((item) => item.jobId), ["priority", "ordinary"])
+test("a stretch's hero is closing gaps, not tailoring", () => {
+  // Both skins printed "Tailor CV" on every row including stretches — the
+  // opposite error to the Jobs face, which printed a move as a second CTA.
+  const hero = heroFor(entry({
+    job: job({ verdict: "stretch", is_strong: false, missing_skills: ["SQL", "dbt"] }),
+  }))
+  assert.equal(hero.kind, "gap")
+  assert.match(hero.label, /Close 2 gaps/)
+  assert.equal(hero.href, "/practice")
 })
 
-test("splitClosedApps routes a dead-listing saved job to closed, live ones stay open", () => {
-  const apps = [
-    application({ job_id: "alive" }),
-    application({ job_id: "dead", status: "applied" }),
+test("an applied entry hands off to its prep room", () => {
+  const hero = heroFor(entry({ stage: "applied", status: "applied" }))
+  assert.equal(hero.label, "Prep room")
+  assert.equal(hero.href, "/preparations/j1")
+})
+
+test("a closed entry's one move is that company's live openings", () => {
+  const hero = heroFor(entry({ stage: "closed", liveness: "down" }))
+  assert.match(hero.label, /More at Acme/)
+  assert.equal(hero.href, null) // the surface supplies the company link
+})
+
+test("every stage yields exactly one hero", () => {
+  const stages: CollectionStage[] = ["found", "saved", "tailored", "applied", "closed"]
+  for (const stage of stages) {
+    const hero = heroFor(entry({ stage }))
+    assert.ok(hero.label.length > 0, stage)
+  }
+})
+
+// ── order ────────────────────────────────────────────────────────────────────
+
+test("fit orders by the printed match score, not a second local number", () => {
+  const ordered = orderEntries([
+    entry({ job_id: "a", job: job({ job_id: "a", match_score: 40 }) }),
+    entry({ job_id: "b", job: job({ job_id: "b", match_score: 80 }) }),
+  ], "fit")
+  assert.deepEqual(ordered.map((e) => e.job_id), ["b", "a"])
+})
+
+test("orderEntries does not mutate its input", () => {
+  const input = [
+    entry({ job_id: "a", job: job({ job_id: "a", match_score: 10 }) }),
+    entry({ job_id: "b", job: job({ job_id: "b", match_score: 90 }) }),
   ]
-  const pulses = new Map([
-    ["alive", pulse({ job_id: "alive", listing_confidence: "active" })],
-    ["dead", pulse({ job_id: "dead", listing_confidence: "closed" })],
-  ])
-  const { open, closed } = splitClosedApps(apps, pulses)
-  assert.deepEqual(open.map((a) => a.job_id), ["alive"])
-  assert.deepEqual(closed.map((a) => a.job_id), ["dead"])
+  orderEntries(input, "fit")
+  assert.deepEqual(input.map((e) => e.job_id), ["a", "b"])
 })
 
-test("splitClosedApps treats a missing pulse as open (never guilty until verified)", () => {
-  const apps = [application({ job_id: "unverified" })]
-  const { open, closed } = splitClosedApps(apps, new Map())
-  assert.deepEqual(open.map((a) => a.job_id), ["unverified"])
-  assert.equal(closed.length, 0)
+// ── the words ────────────────────────────────────────────────────────────────
+
+test("every stage has its own empty copy, never a blanket nothing-here", () => {
+  const stages: CollectionStage[] = ["found", "saved", "tailored", "applied", "closed"]
+  const seen = new Set(stages.map((s) => emptyCopy(s)))
+  assert.equal(seen.size, stages.length)
 })
 
-test("buildMyroFound pulls a closed match out before grading — dead beats a good grade", () => {
-  const matches = [
-    match({ job_id: "good-alive", grade: "A" }),
-    match({ job_id: "good-dead", grade: "A" }),
-  ]
-  const pulses = new Map([["good-dead", pulse({ job_id: "good-dead", listing_confidence: "closed" })]])
-  const view = buildMyroFound(matches, new Set(), new Set(), pulses)
-  assert.deepEqual(view.found.map((it) => it.jobId), ["good-alive"])
-  assert.deepEqual(view.closedMatches.map((m) => m.job_id), ["good-dead"])
+test("origin is a label for all three kinds", () => {
+  assert.deepEqual(Object.keys(ORIGIN_LABEL).sort(), ["extension", "myro", "you"])
 })
 
-test("buildClosedView never double-counts a job that's both saved and a found match", () => {
-  const closedApps = [application({ job_id: "dead", status: "applied" })]
-  const closedMatches = [match({ job_id: "dead" }), match({ job_id: "found-only-dead" })]
-  const view = buildClosedView(closedApps, closedMatches, new Map())
-  assert.deepEqual(view.map((it) => it.jobId).sort(), ["dead", "found-only-dead"])
+// ── the contract, as code ────────────────────────────────────────────────────
+
+const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8")
+
+/** Source-grep contracts assert on CODE — imports and JSX — never on any
+ *  mention of a name, or the comment explaining why a rule exists trips it. */
+const imports = (src: string) => src.split("\n").filter((l) => /^import\b/.test(l)).join("\n")
+
+test("neither skin re-derives the partition it is handed", () => {
+  // One read, one key: the counts, the stage and the closed split are the
+  // resolver's answers (CONTEXT.md → Collection Record). Both skins used to
+  // compute all three, separately, off three caches that could disagree.
+  for (const path of [
+    "../components/collections/collections-desktop.tsx",
+    "../mobile/redesign/collections-surface.tsx",
+  ]) {
+    const src = read(path)
+    assert.match(imports(src), /use-collection/, path)
+    assert.doesNotMatch(src, /dataKeys\.applications\(\)/, path)
+    assert.doesNotMatch(src, /dataKeys\.jobs\(\)/, path)
+    // The five deleted derivations cannot be imported — tsc enforces that they
+    // are gone; this catches a re-implementation under the same names.
+    assert.doesNotMatch(imports(src), /splitClosedApps|buildMyroFound|chipCounts|isMyroSource/, path)
+  }
 })
 
-test("chipCounts carries the closed count as its own bucket, defaulting to 0", () => {
-  const apps = [application({ job_id: "a", status: "saved" })]
-  assert.equal(chipCounts(apps, 3, 2).closed, 2)
-  assert.equal(chipCounts(apps, 3).closed, 0)
+test("grade is not on the Collections face either", () => {
+  // Same collision the Jobs face locked out: a letter beside the ring is a
+  // second "how good". It lives in the Why panel. Assert on the IMPORT and the
+  // JSX, not on the string — prose explaining the rule must not trip it.
+  const row = read("../components/collections/collection-rows.tsx")
+  assert.doesNotMatch(row, /^import .*GradeBadge/m)
+  assert.doesNotMatch(row, /<GradeBadge/)
+  assert.doesNotMatch(read("../mobile/redesign/collection-card.tsx"), /row\.hasGrade/)
+  // …and it IS in the panel that explains how good the role is.
+  assert.match(read("../components/jobs/card-detail-rail.tsx"), /fc-rail-grade/)
 })

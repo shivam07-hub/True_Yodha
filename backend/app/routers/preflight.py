@@ -35,7 +35,7 @@ from app.services.preflight import proposals as proposal_engine
 from app.services.preflight.repository import OrderRepository, get_order_repository, now_iso
 from app.services.xp_policy import MATCH_RUN_COST
 
-from .jobs._shared import last_monday
+from app.services.job_projection import last_monday
 
 router = APIRouter(prefix="/preflight", tags=["preflight"])
 logger = logging.getLogger(__name__)

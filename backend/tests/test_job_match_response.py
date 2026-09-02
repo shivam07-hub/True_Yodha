@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 from pydantic import ValidationError
 
-from app.routers.jobs._shared import MATCH_JD_SNIPPET_CHARS, to_job_match
+from app.services.job_projection import MATCH_JD_SNIPPET_CHARS, to_job_match
 from app.schemas import MatchEval
 
 

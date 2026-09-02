@@ -32,13 +32,22 @@ import { Icon } from "./icons"
 import { MyroMark } from "@/components/myro-mark"
 import { gapCardMatches } from "@/lib/cv/gap-focus"
 
+/** One line a surfacing rewrote: the CV bullet before, and Mentor's version. */
+export interface SurfacedLine {
+  oldText: string
+  newText: string
+}
+
 interface GapSessionProps {
   token: string
   jobId: string
   /** Live JD-match %, owned by the playground; climbs as surfacings land. */
   score: number
   /** Called after each accepted surfacing so the parent refetches the score. */
-  onApplied: () => void
+  /** The surfaced line, so the caller can put it on the paper the user is
+   *  looking at — a surfacing writes the master, and on a job the paper is
+   *  that job's draft. */
+  onApplied: (surfaced?: SurfacedLine) => void
   onClose: () => void
   /** Skills-map row: close this requirement only. Header landing walks the deck. */
   focusRequirement?: string | null
@@ -174,7 +183,11 @@ export function GapSession({ token, jobId, score, onApplied, onClose, focusRequi
     setIdx(pos + 1)
   }
   function skip() { setOutcomes(o => ({ ...o, [pos]: "skipped" })); advance() }
-  function onResolved() { setOutcomes(o => ({ ...o, [pos]: "surfaced" })); onApplied(); advance() }
+  function onResolved(surfaced: SurfacedLine) {
+    setOutcomes(o => ({ ...o, [pos]: "surfaced" }))
+    onApplied(surfaced)
+    advance()
+  }
   function continueBatch() { setRevealed(r => r + SESSION_BATCH) }
   function wrapUp() { setIdx(deck.length) }
 
@@ -304,7 +317,7 @@ function LiveMeter({ score, startScore }: { score: number; startScore: number })
 // ── Latent: surface a hidden skill onto its host bullet ──────────────────────
 
 function SurfaceCard({ token, card, onResolved, onSkip }: {
-  token: string; card: HostBulletCard; onResolved: () => void; onSkip: () => void
+  token: string; card: HostBulletCard; onResolved: (surfaced: SurfacedLine) => void; onSkip: () => void
 }) {
   const keywords = card.skills.map(s => s.display_name)
   const { phase, proposed, setProposed, rationale, version, reworking, streaming, applying, propose, refine, accept, reset, errMsg } =
@@ -344,7 +357,7 @@ function SurfaceCard({ token, card, onResolved, onSkip }: {
 // ── Shallow: surface one notch + earn the rest in practice ───────────────────
 
 function ShallowCard({ token, card, onResolved, onSkip }: {
-  token: string; card: BelowLevelCard; onResolved: () => void; onSkip: () => void
+  token: string; card: BelowLevelCard; onResolved: (surfaced: SurfacedLine) => void; onSkip: () => void
 }) {
   const [anecdote, setAnecdote] = useState("")
   const anecRef = useRef<HTMLTextAreaElement>(null)
@@ -486,16 +499,17 @@ function useRewrite(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, bullet, keywords])
 
-  const accept = useCallback(async (done: () => void) => {
+  const accept = useCallback(async (done: (surfaced: SurfacedLine) => void) => {
     if (!proposed.trim()) return
     setApplying(true); setErrMsg(null)
     try {
+      const newText = proposed.trim()
       await cvApi.rewriteApply(token, {
-        old_text: bullet, new_text: proposed.trim(),
+        old_text: bullet, new_text: newText,
         section_hint: host.section, item_index: host.item_index, bullet_index: host.bullet_index,
       })
       setPhase("resolved")
-      done()
+      done({ oldText: bullet, newText })
     } catch {
       setErrMsg("Couldn't save this change. Try again.")
       setApplying(false)
@@ -663,7 +677,7 @@ function Checkpoint({ resolved, remaining, onContinue, onWrap }: {
 // ── Flywheel upgrade: claim a practice-proven level onto its host bullet ──────
 
 function UpgradeRow({ token, upgrade, onApplied }: {
-  token: string; upgrade: UpgradeOffer; onApplied: () => void
+  token: string; upgrade: UpgradeOffer; onApplied: (surfaced?: SurfacedLine) => void
 }) {
   const host = upgrade.host
   const meta = (
@@ -699,7 +713,7 @@ function ClaimableUpgrade({ token, upgrade, host, meta, onApplied }: {
   upgrade: UpgradeOffer
   host: NonNullable<UpgradeOffer["host"]>
   meta: React.ReactNode
-  onApplied: () => void
+  onApplied: (surfaced?: SurfacedLine) => void
 }) {
   const { phase, proposed, setProposed, rationale, version, reworking, streaming, applying, propose, refine, accept, reset, errMsg } =
     useRewrite(token, host.bullet_text, [upgrade.display_name], host)
@@ -775,7 +789,7 @@ function ClosingPanel({ token, resolved, startScore, score, practiceSkills, upgr
   score: number
   practiceSkills: { skill: string; display_name: string; is_primary: boolean; reason: "absent" | "shallow"; ladder: number }[]
   upgrades: GapPlanResponse["upgrade_offers"]
-  onApplied: () => void
+  onApplied: (surfaced?: SurfacedLine) => void
   onClose: () => void
 }) {
   // Hydrate the save pips from the user's existing Forge queue so a skill saved

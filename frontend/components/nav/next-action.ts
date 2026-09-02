@@ -1,6 +1,6 @@
 import type { ApplicationResponse, JobMatch } from "@/lib/api"
 import type { CvPresence } from "@/lib/cv-presence"
-import { isApplied, matchesById } from "@/lib/collections/model"
+import { isApplied, matchesById } from "@/lib/jobs/application-stage"
 import { followUpLine, needsStageCheck } from "@/components/preparations/prep-model"
 import { similarRolesHref } from "@/lib/jobs/similar-roles"
 
@@ -103,9 +103,13 @@ export function deriveNextAction(
   }
 
   const inPlay = apps.filter((a) => !isApplied(a))
-  const priorityFirst = (a: ApplicationResponse, b: ApplicationResponse) =>
-    Number(Boolean(b.is_priority)) - Number(Boolean(a.is_priority))
-  const ready = inPlay.filter((a) => a.cv_badge).sort(priorityFirst)[0]
+  // Best fit first. This used to tie-break on the heart, a manual rank the user
+  // had to maintain and never did — zero presses, product-wide. The fit number
+  // is the one ranking Myro already computes, and it is the same one the card
+  // beside this chip prints.
+  const bestFitFirst = (a: ApplicationResponse, b: ApplicationResponse) =>
+    (b.match_score ?? -1) - (a.match_score ?? -1)
+  const ready = inPlay.filter((a) => a.cv_badge).sort(bestFitFirst)[0]
   if (ready) {
     return { label: `Apply to ${name(ready)}`, href: `/collections?jobId=${encodeURIComponent(ready.job_id)}` }
   }
@@ -116,7 +120,7 @@ export function deriveNextAction(
   const toTailor = inPlay
     .filter((a) => !a.cv_badge)
     .map((a) => ({ a, fit: a.match_score ?? byId.get(a.job_id)?.match_score ?? null }))
-    .sort((x, y) => priorityFirst(x.a, y.a) || (y.fit ?? -1) - (x.fit ?? -1))[0]
+    .sort((x, y) => (y.fit ?? -1) - (x.fit ?? -1))[0]
   if (toTailor) {
     return {
       label: `Tailor ${name(toTailor.a)}${toTailor.fit !== null ? ` · ${toTailor.fit}%` : ""}`,

@@ -11,10 +11,16 @@ import { useAgentPickTriage } from "@/components/jobs/use-agent-pick-triage"
 import "./agent-picks-band.css"
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Myro Agent Picks — editorial NOTE above the algorithm feed, not a second
-   card. The job itself is the same undecided JobCard (Skip · Save · Share)
-   used below the divider. Rank, comment and tier sit above it. A lone Save
-   pill here was an accident, not a product decision.
+   Myro Agent Picks — an editorial NOTE above whatever list follows, never a
+   second card. Rank, comment and tier sit above the SURFACE'S OWN card, so a
+   pick reads as one of the things around it that Myro has underlined.
+
+   On /market that card is the undecided JobCard (Skip · Save · Share) used
+   below the divider. Inside the Ops folder it is the collection row, because
+   the job there is already collected — leaving Save as the hero would have put
+   "Save" and "Tailor CV" on one screen as peers for the same decision. The
+   surface supplies its card through `renderCard`; the band never picks one for
+   a surface it does not belong to.
    ══════════════════════════════════════════════════════════════════════════ */
 
 const TIER_LABEL: Record<string, string> = {
@@ -23,24 +29,19 @@ const TIER_LABEL: Record<string, string> = {
   reach: "Reach",
 }
 
-function AgentPickCard({
-  pick, hasCv, onOpen, onSave, onSkip,
-}: {
-  pick: AgentPickItem
-  hasCv: boolean
-  onOpen: () => void
-  onSave: () => void
-  onSkip: () => void
-}) {
+function AgentPickNote({ pick, children }: { pick: AgentPickItem; children: React.ReactNode }) {
   const tier = (pick.agent_tier ?? "").toLowerCase()
   return (
     <div className={`tm-agentpick tier-${tier}`}>
       <div className="tm-agentpick-note">
         <span className="tm-agentpick-rank" aria-label={`Pick ${pick.agent_rank}`}>{pick.agent_rank}</span>
         <p className="tm-agentpick-why">{pick.agent_comment}</p>
+        {/* The tier pill is dropped once the card carries a verdict ring — two
+            words for "how good" on one card is the collision the Jobs face
+            locked out, and the ring is the one that speaks everywhere. */}
         {TIER_LABEL[tier] ? <span className="tm-agentpick-tier">{TIER_LABEL[tier]}</span> : null}
       </div>
-      <JobCard job={pick} hasCv={hasCv} onOpen={onOpen} onSave={onSave} onSkip={onSkip} />
+      {children}
     </div>
   )
 }
@@ -49,15 +50,19 @@ export interface AgentPicksBandProps {
   token: string
   hasCv?: boolean
   /** "feed" = the algorithm-feed divider copy follows (market); "collections" =
-   *  a lighter divider (the user's saved list follows). */
+   *  a lighter divider (more above-bar matches follow). */
   context?: "feed" | "collections"
+  /** The surface's own card. Omitted on /market, where the band's card IS the
+   *  market JobCard. Returning null drops a pick the surface cannot render —
+   *  e.g. one the user has since dismissed. */
+  renderCard?: (pick: AgentPickItem) => React.ReactNode
   /** Jobs tab passes its feed triage so one undo slot covers pick and feed. */
   onSave?: (job: JobFeedItem) => void
   onSkip?: (job: JobFeedItem) => void
 }
 
 export function AgentPicksBand({
-  token, hasCv = true, context = "feed", onSave, onSkip,
+  token, hasCv = true, context = "feed", onSave, onSkip, renderCard,
 }: AgentPicksBandProps) {
   const [openJob, setOpenJob] = React.useState<AgentPickItem | null>(null)
   const triage = useAgentPickTriage({ token, onSave, onSkip })
@@ -87,23 +92,30 @@ export function AgentPicksBand({
       </header>
 
       <div className="tm-agentpicks-list">
-        {picks.map(pick => (
-          <AgentPickCard
-            key={pick.job_id}
-            pick={pick}
-            hasCv={hasCv}
-            onOpen={() => setOpenJob(pick)}
-            onSave={() => triage.save(pick)}
-            onSkip={() => triage.skip(pick)}
-          />
-        ))}
+        {picks.map(pick => {
+          const card = renderCard
+            ? renderCard(pick)
+            : (
+              <JobCard
+                job={pick}
+                hasCv={hasCv}
+                onOpen={() => setOpenJob(pick)}
+                onSave={() => triage.save(pick)}
+                onSkip={() => triage.skip(pick)}
+              />
+            )
+          if (!card) return null
+          return <AgentPickNote key={pick.job_id} pick={pick}>{card}</AgentPickNote>
+        })}
       </div>
 
       <div className="tm-agentpicks-divider" role="separator">
         <span className="tm-agentpicks-divider-line" aria-hidden />
         {context === "collections" ? (
           <p className="tm-agentpicks-divider-copy">
-            <strong>Those are Myro’s picks for you.</strong> Your saved jobs are below.
+            {/* What follows on this stage is MORE above-bar matches, not saves.
+                The old copy named the wrong list. */}
+            <strong>Those are Myro’s picks for you.</strong> The rest that cleared the bar are below.
           </p>
         ) : (
           <p className="tm-agentpicks-divider-copy">

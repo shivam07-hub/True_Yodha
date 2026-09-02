@@ -14,10 +14,18 @@ ADD_JOB_REWARD_XP = 20
 
 SKILL_ADVICE_XP_COST = 20
 
-# Per-bullet Mentor rewrite (DESIGN_cv_playground_redesign §6). v1 ships FREE —
-# the CV-fix wedge is effectively free per ADR-0004 (floor-0 + welcome grant).
-# Final pricing is DEC-H (pending Shivam); wire charge_or_raise here when set.
-REWRITE_BULLET_XP_COST = 0
+# Per-bullet Mentor rewrite is FREE and has no constant, deliberately.
+#
+# There was a `REWRITE_BULLET_XP_COST = 0` here, described as pricing "pending
+# Shivam". It was not pending: no router ever imported it. All four rewrite
+# endpoints (routers/cv/skill_edit.py, routers/public.py) charge nothing and
+# import no policy, so setting the number would have changed nothing while
+# teaching every reader that a charge existed and was currently zero.
+#
+# The CV-fix wedge stays free on purpose — it is the first thing a new user
+# does, and taxing it taxes the funnel. If a charge is ever wanted, add the
+# constant AND the charge_or_raise call in the same commit; a price with no
+# caller is worse than no price.
 
 # Whole-CV "Restructure with Mentor" (DESIGN_cv_playground_redesign §6.2, CVJT1).
 # Proposing is FREE; the charge fires ONLY when the user KEEPS the proposal, so

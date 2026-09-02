@@ -1903,11 +1903,19 @@ export const cv = {
           section_order: sectionOrder ?? null,
         }),
       }),
-    patchJobDraft: (token: string, versionId: number, structured: CVStructured) =>
+    // `phrasing` names the ONE line this patch reworded. The master's wording does
+    // not move (JD phrasing is job-scoped), so the reservoir keeps the new text as
+    // an alternate — a reword is often where the user remembers real work.
+    patchJobDraft: (
+      token: string,
+      versionId: number,
+      structured: CVStructured,
+      phrasing?: { old_text: string; new_text: string },
+    ) =>
       request<CVVersion>(`/cv/versions/${versionId}/job-draft`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ cv_structured: structured }),
+        body: JSON.stringify({ cv_structured: structured, phrasing: phrasing ?? null }),
       }),
     // Delta-4 promote: the applied CV's shape becomes the living master, so it
     // persists + seeds every future tailoring (project_living_cv_delta4).
@@ -3407,6 +3415,54 @@ export interface CVBadge {
   polished: boolean
 }
 
+/* ── Collection Record ────────────────────────────────────────────────────────
+ * CONTEXT.md → Collection Record. ONE entry per (user, job), carrying exactly
+ * one stage, resolved server-side. The client renders this partition; it does
+ * not derive it. Two skins used to compute it separately off three caches,
+ * which is how one job came to sit in two chips at once.
+ * ─────────────────────────────────────────────────────────────────────────── */
+
+/** Where an entry is. The highest rung it has reached. */
+export type CollectionStage = "found" | "saved" | "tailored" | "applied" | "closed"
+/** Who put it here. A LABEL — never a filter. */
+export type CollectionOrigin = "myro" | "you" | "extension"
+/** Is the ad still up. An ATTRIBUTE — it closes `found`/`saved` and nothing else. */
+export type CollectionLiveness = "live" | "uncertain" | "down"
+
+export interface CollectionEntry {
+  job_id: string
+  stage: CollectionStage
+  origin: CollectionOrigin
+  liveness: CollectionLiveness
+  /** The card body. A real verdict where one exists, else `verdict: "checking"`. */
+  job: JobMatch
+  /** Raw application status — what the Prep room and the status control read.
+   *  `stage` is what the surface renders. */
+  status: ApplicationStatus | null
+  notes: string | null
+  cv_badge: CVBadge | null
+  /** An apply click this user never answered — the surface must ask again. */
+  pending_apply: boolean
+  saved_at: string | null
+  applied_at: string | null
+  /** Does this entry still ask something — the landing rule's input. */
+  needs_user: boolean
+}
+
+export interface CollectionResponse {
+  entries: CollectionEntry[]
+  /** Chip counts by stage. THE number — nav badge and both skins read this one. */
+  stages: Record<CollectionStage, number>
+  /** The stage to open on: the first one still asking something of the user. */
+  landing: CollectionStage
+  /** Ranked below the bar — they live on /market, not here. */
+  below_bar_count: number
+  /** Rejected for cause (scam tier / an honest Skip). */
+  rejected_count: number
+  /** Career-Ops vetting health — the "not AI-vetted — retry" banner's input. */
+  match_health: MatchHealth
+}
+
 export interface ApplicationResponse {
   id: number
   job_id: string
@@ -3424,11 +3480,7 @@ export interface ApplicationResponse {
   notes: string | null
   created_at: string
   last_stage_changed_at?: string | null
-  collection_snoozed_until?: string | null
-  collection_attention_level?: "review" | "decide" | "urgent" | null
   /** Deliberate apply/preparation intent. Priority jobs lead Collections. */
-  is_priority?: boolean
-  priority_marked_at?: string | null
   /** Persisted Career Ops fit for this saved role, when it has been ranked. */
   match_score?: number | null
   is_first_offer?: boolean
@@ -3587,7 +3639,8 @@ export interface JobFeedItem {
   legitimacy_reason?: string | null
   archetype?: string | null
   // Match Verdict (server-derived, never in the client). Present only on cards the
-  // brain has ranked; absent = an un-warmed browse row below the picks divider.
+  // brain has ranked; absent = an un-warmed browse row. Agent picks are ranked
+  // and MUST carry a verdict — they used to omit it and fall back to overlap.
   match_score?: number | null
   verdict?: "strong" | "worth_it" | "stretch" | "checking" | null
   /** Which of the user's searches found this card. null = track 1 = the
@@ -4274,16 +4327,17 @@ export const jobs = {
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(data),
     }),
+  /** The Collection Record — one read, one entry per job (CONTEXT.md).
+   *  Replaces the three the surface used to make (applications + matches +
+   *  pulses) and the partition each skin derived from them. */
+  collection: (token: string) =>
+    request<CollectionResponse>("/jobs/collections", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
   saveJob: (token: string, jobId: string) =>
     request<ApplicationResponse>(`/jobs/save/${encodeURIComponent(jobId)}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
-    }),
-  setJobPriority: (token: string, jobId: string, prioritized: boolean) =>
-    request<ApplicationResponse>(`/jobs/applications/${encodeURIComponent(jobId)}/priority`, {
-      method: "PUT",
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ prioritized }),
     }),
   /** A company's live openings (public read) — powers the drawer's one-tap
    *  "collect more roles here" list. */
@@ -4305,12 +4359,6 @@ export const jobs = {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(data),
-    }),
-  snoozeCollection: (token: string, jobId: string, days: number) =>
-    request<ApplicationResponse>(`/jobs/applications/${encodeURIComponent(jobId)}/collection-snooze`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ days }),
     }),
   removeTrackerJob: (token: string, jobId: string) =>
     request<void>(`/jobs/tracker/${encodeURIComponent(jobId)}`, {

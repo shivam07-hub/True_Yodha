@@ -3,19 +3,23 @@
 import { useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { jobs as jobsApi, notifications as notificationsApi, type NotificationItem } from "@/lib/api"
+import { notifications as notificationsApi, type NotificationItem } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { formatRelativeAge } from "@/lib/format"
 import { openRefreshGate } from "@/store/refreshGateStore"
 import "./notification-bell.css"
 
-/* One inbox for durable product events: fresh matches, CV analysis, and the
-   saved-role decision prompts. A "decide today" nag that vanishes on tap without
-   letting the user decide is a dead-end — the attention prompts are batched into
-   one group whose rows carry the decision inline (apply / tailor / skip / snooze).
-   Only a real decision clears them (the backend resolves attention on those
-   actions); merely opening the bell never marks a decision resolved. */
+/* One inbox for durable product events: fresh matches, CV analysis, new
+   inventory.
+
+   The saved-role decision group is gone. It projected `collection_attention`,
+   an age-based nag that escalated every saved role to `urgent` simply for
+   ageing — 251 of 331 rows sat at the top rung — and across 326 sends it
+   produced 0 tailors, 0 applies and 0 removals. "What do I do now" already has
+   one ranked answer in the Next chip (`deriveNextAction`), rendered where the
+   user is looking. Retired rows are still in the table until they are deleted,
+   so they stay filtered out below. */
 
 const UNREAD_POLL_MS = 60_000
 
@@ -24,9 +28,6 @@ export function NotificationBell() {
   const router = useRouter()
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
-  const [attnOpen, setAttnOpen] = useState(true)
-  const [resolvedIds, setResolvedIds] = useState<Set<string>>(new Set())
-  const [busyIds, setBusyIds] = useState<Set<string>>(new Set())
   const panelRef = useRef<HTMLDivElement | null>(null)
 
   const inbox = useQuery({
@@ -44,13 +45,6 @@ export function NotificationBell() {
 
   // Saved-role prompts still awaiting a decision (unread === unresolved), minus
   // any we've just acted on optimistically this session.
-  const attention = useMemo(
-    () =>
-      items.filter(
-        (n) => n.kind === "collection_attention" && n.read_at === null && n.job_id && !resolvedIds.has(n.job_id),
-      ),
-    [items, resolvedIds],
-  )
   // New inventory Myro ingested that this user has never searched. Pinned above
   // everything and carrying its own action, because it is the one row where the
   // next step is a single click and the payoff is the whole product.
@@ -59,6 +53,8 @@ export function NotificationBell() {
     [items],
   )
   const others = useMemo(
+    // `collection_attention` is retired; prod still holds 326 of those rows
+    // until they are deleted, and a retired prompt must never resurface.
     () => items.filter((n) => n.kind !== "collection_attention" && n.id !== newInventory?.id),
     [items, newInventory],
   )
@@ -78,40 +74,6 @@ export function NotificationBell() {
     void qc.invalidateQueries({ queryKey: dataKeys.notificationsUnread() })
     void qc.invalidateQueries({ queryKey: dataKeys.notifications() })
     void qc.invalidateQueries({ queryKey: dataKeys.applications() })
-  }
-
-  const runDecision = (jobId: string, action: () => Promise<unknown>) => {
-    if (!token || busyIds.has(jobId)) return
-    setBusyIds((s) => new Set(s).add(jobId))
-    setResolvedIds((s) => new Set(s).add(jobId)) // optimistic hide
-    void action()
-      .then(invalidateInbox)
-      .catch(() => {
-        // Roll the row back into view — the decision didn't land.
-        setResolvedIds((s) => {
-          const next = new Set(s)
-          next.delete(jobId)
-          return next
-        })
-      })
-      .finally(() => {
-        setBusyIds((s) => {
-          const next = new Set(s)
-          next.delete(jobId)
-          return next
-        })
-      })
-  }
-
-  const skip = (jobId: string) => runDecision(jobId, () => jobsApi.removeTrackerJob(token!, jobId))
-  const remind = (jobId: string) => runDecision(jobId, () => jobsApi.snoozeCollection(token!, jobId, 3))
-  const goApply = (jobId: string) => {
-    setOpen(false)
-    router.push(`/collections?jobId=${encodeURIComponent(jobId)}`)
-  }
-  const goTailor = (jobId: string) => {
-    setOpen(false)
-    router.push(`/preparations/${encodeURIComponent(jobId)}`)
   }
 
   const onRowClick = (n: NotificationItem) => {
@@ -137,7 +99,7 @@ export function NotificationBell() {
 
   if (!token) return null
 
-  const hasContent = attention.length > 0 || others.length > 0
+  const hasContent = others.length > 0
 
   return (
     <div className="tm-bell" ref={panelRef}>
@@ -180,65 +142,6 @@ export function NotificationBell() {
                     </button>
                   </li>
                 )}
-                {attention.length > 0 && (
-                  <li className="tm-bell-attn">
-                    <button
-                      type="button"
-                      className="tm-bell-attn-head"
-                      aria-expanded={attnOpen}
-                      onClick={() => setAttnOpen((o) => !o)}
-                    >
-                      <span className="tm-bell-dot" aria-hidden data-on />
-                      <span className="tm-bell-attn-title">
-                        {attention.length === 1
-                          ? "1 saved role needs a decision"
-                          : `${attention.length} saved roles need a decision`}
-                      </span>
-                      <span className={`tm-bell-chev${attnOpen ? " is-open" : ""}`} aria-hidden>⌄</span>
-                    </button>
-                    {attnOpen && (
-                      <div className="tm-bell-attn-body">
-                        {attention.map((n) => {
-                          const jobId = n.job_id!
-                          const busy = busyIds.has(jobId)
-                          return (
-                            <div className="tm-bell-attn-item" key={n.id}>
-                              <span className="tm-bell-attn-role">{roleLabel(n)}</span>
-                              <div className="tm-bell-attn-actions">
-                                <button
-                                  type="button"
-                                  className="tm-bell-act is-primary"
-                                  onClick={() => goApply(jobId)}
-                                >
-                                  Apply ↗
-                                </button>
-                                <button type="button" className="tm-bell-act" onClick={() => goTailor(jobId)}>
-                                  Tailor CV
-                                </button>
-                                <button
-                                  type="button"
-                                  className="tm-bell-act"
-                                  disabled={busy}
-                                  onClick={() => remind(jobId)}
-                                >
-                                  Remind me
-                                </button>
-                                <button
-                                  type="button"
-                                  className="tm-bell-act is-quiet tm-dismiss-action"
-                                  disabled={busy}
-                                  onClick={() => skip(jobId)}
-                                >
-                                  Not interested
-                                </button>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </li>
-                )}
                 {others.map((n) => {
                   const isUnread = n.read_at === null
                   return (
@@ -269,13 +172,6 @@ export function NotificationBell() {
       )}
     </div>
   )
-}
-
-/* "DBS Bank · Senior Associate…" — the sweep writes the role into the body lead
-   ("{company · role} is still live…"); fall back to the title if the shape drifts. */
-function roleLabel(n: NotificationItem): string {
-  const lead = (n.body ?? "").split(/ is still (?:live|in Collections)/i)[0].trim()
-  return lead || n.title
 }
 
 function relTime(iso: string): string {
