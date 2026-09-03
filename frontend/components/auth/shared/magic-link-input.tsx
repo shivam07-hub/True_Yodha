@@ -1,9 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { auth } from "@/lib/api"
-import { rememberAuth } from "@/lib/auth/last-auth"
-import { hashEmailDomain, signupEvents } from "@/lib/analytics"
+import { MAGIC_EMAIL_RE, sendMagicLink } from "@/lib/auth/send-magic-link"
 import "./auth-shared.css"
 
 interface Props {
@@ -15,8 +13,6 @@ interface Props {
   /** Seed the field when the caller already knows the address. */
   initialEmail?: string | null
 }
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export function MagicLinkInput({
   surface,
@@ -34,27 +30,16 @@ export function MagicLinkInput({
     if (initialEmail) setEmail(initialEmail)
   }, [initialEmail])
 
-  const valid = EMAIL_RE.test(email.trim())
+  const valid = MAGIC_EMAIL_RE.test(email.trim())
 
   async function submit(e?: React.FormEvent) {
     e?.preventDefault()
     setError(null)
-    const value = email.trim().toLowerCase()
-    if (!EMAIL_RE.test(value)) {
-      setError("That doesn't look like a complete email.")
-      return
-    }
     setSending(true)
     try {
-      signupEvents.methodTapped({ method: "magic_link", surface })
-      await auth.magicLinkRequest(value, redirectTo)
-      rememberAuth("magic_link", value)
-      signupEvents.magicLinkSent({ email_domain_hash: hashEmailDomain(value) })
-      onSent?.(value)
+      onSent?.(await sendMagicLink({ email, redirectTo, surface }))
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Couldn't send the link."
-      setError(msg)
-      signupEvents.failed({ method: "magic_link", stage: "send", error_code: "send_failed" })
+      setError(err instanceof Error ? err.message : "Couldn't send the link.")
     } finally {
       setSending(false)
     }

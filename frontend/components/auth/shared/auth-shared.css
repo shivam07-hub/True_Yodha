@@ -200,3 +200,88 @@
   text-decoration: none;
   cursor: not-allowed;
 }
+
+/* Returning-user card — the device knows who signed in here last, so the
+   screen greets them instead of asking. Sits above the method stack. */
+.tm-auth-returning {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tm-auth-returning__who {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--tm-int-border);
+  background: var(--tm-int-bg-wash);
+}
+
+.tm-auth-returning__avatar {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--tm-bg-inset);
+}
+
+.tm-auth-returning__avatar--initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--tm-interactive);
+  color: var(--tm-bg);
+  font-size: var(--tm-fs-heading);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.tm-auth-returning__lines {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tm-auth-returning__name {
+  font-size: var(--tm-fs-ui-lg);
+  font-weight: 600;
+  color: var(--tm-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tm-auth-returning__email {
+  font-size: var(--tm-fs-ui-sm);
+  color: var(--tm-text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tm-auth-returning__escapes {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--tm-text-faint);
+  font-size: var(--tm-fs-ui-sm);
+}
+
+.tm-auth-returning__switch {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: var(--tm-fs-ui-sm);
+  color: var(--tm-text-faint);
+  cursor: pointer;
+}
+
+.tm-auth-returning__switch:hover {
+  color: var(--tm-interactive);
+}
