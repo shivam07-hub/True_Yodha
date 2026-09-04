@@ -48,3 +48,40 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
 - **LLM chain:** OpenRouter free llama → Groq llama-3.3-70b → Gemini flash-lite → OpenRouter paid.
 
 ---
+
+## GOOGLE ONE TAP (FedCM) — code shipped, **config owed**
+
+The account-chooser prompt (the dark popup listing Google accounts, the thing
+Vercel shows) is built and **inert**: with no `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
+the script never loads, the CSP is never widened, and `/login` + `/signup`
+render exactly as they do today. Four steps turn it on, and only Shivam can do
+the first three.
+
+1. **Google Cloud console → Credentials → OAuth 2.0 Client ID, type "Web
+   application"**, in the SAME project as the Google provider Supabase already
+   uses. Authorized JavaScript origins (no wildcards allowed):
+   `https://himyro.com`, `https://www.himyro.com`, `http://localhost:3000`, plus
+   any stable preview domain worth prompting on. No redirect URI is needed —
+   One Tap returns the ID token in-page.
+2. **Supabase → Authentication → Providers → Google → "Authorized Client IDs"**
+   must list that web client ID. The One Tap path is `signInWithIdToken`, which
+   validates the token's `aud` against this list — the existing OAuth redirect
+   flow does not use it, so it is easy to miss.
+3. **Vercel → env `NEXT_PUBLIC_GOOGLE_CLIENT_ID`** on both envs, then redeploy.
+   `NEXT_PUBLIC_*` is baked at BUILD time — setting the variable without a
+   redeploy changes nothing.
+4. Nothing else. The CSP widens from the same variable
+   (`middleware.ts` → `buildContentSecurityPolicy({ googleOneTap })`), adding
+   only the four path-scoped `accounts.google.com/gsi/*` sources.
+
+**Verify:** open `/login` in a Chrome that is signed into Google, in a normal
+(not incognito) window. The prompt appears top-right; choosing an account lands
+you signed-in via `/auth/callback` — the same finisher the redirect flow uses.
+
+**Do not read absence of the prompt as a broken build.** Google applies an
+exponential cooldown after a visitor dismisses One Tap (silenced for hours
+after three dismissals), it never shows to a browser with no Google session,
+and the code deliberately skips it for anyone already signed in and inside
+in-app webviews, where FedCM does not run.
+
+---

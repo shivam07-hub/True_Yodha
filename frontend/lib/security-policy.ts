@@ -20,7 +20,16 @@ type PolicyOptions = {
   extraApiUrls?: string[]
   supabaseUrl?: string
   production: boolean
+  /** Google One Tap configured — widen for GSI only when it can actually run. */
+  googleOneTap?: boolean
 }
+
+// Exactly the four sources Google Identity Services needs, path-scoped. Added
+// only when a client ID is set, so the default policy stays as tight as it was.
+export const GSI_SCRIPT_SRC = "https://accounts.google.com/gsi/client"
+export const GSI_FRAME_SRC = "https://accounts.google.com/gsi/"
+export const GSI_CONNECT_SRC = "https://accounts.google.com/gsi/"
+export const GSI_STYLE_SRC = "https://accounts.google.com/gsi/style"
 
 function origin(value: string | undefined): string | null {
   if (!value) return null
@@ -43,6 +52,7 @@ export function buildContentSecurityPolicy({
   extraApiUrls = [],
   supabaseUrl,
   production,
+  googleOneTap = false,
 }: PolicyOptions): string {
   const connectSources = new Set([
     "'self'",
@@ -52,6 +62,7 @@ export function buildContentSecurityPolicy({
     websocketOrigin(supabaseUrl),
     "https://challenges.cloudflare.com",
     "https://*.razorpay.com",
+    ...(googleOneTap ? [GSI_CONNECT_SRC] : []),
   ])
   connectSources.delete(null)
 
@@ -64,13 +75,25 @@ export function buildContentSecurityPolicy({
       "'strict-dynamic'",
       "https://checkout.razorpay.com",
       "https://challenges.cloudflare.com",
+      ...(googleOneTap ? [GSI_SCRIPT_SRC] : []),
       ...(production ? [] : ["'unsafe-eval'"]),
     ].join(" "),
-    "style-src 'self' 'unsafe-inline'",
+    [
+      "style-src",
+      "'self'",
+      "'unsafe-inline'",
+      ...(googleOneTap ? [GSI_STYLE_SRC] : []),
+    ].join(" "),
     "img-src 'self' blob: data: https:",
     "font-src 'self' data:",
     `connect-src ${Array.from(connectSources).join(" ")}`,
-    "frame-src 'self' https://challenges.cloudflare.com https://*.razorpay.com",
+    [
+      "frame-src",
+      "'self'",
+      "https://challenges.cloudflare.com",
+      "https://*.razorpay.com",
+      ...(googleOneTap ? [GSI_FRAME_SRC] : []),
+    ].join(" "),
     "worker-src 'self' blob:",
     "manifest-src 'self'",
     "object-src 'none'",

@@ -21,6 +21,7 @@ export function middleware(request: NextRequest) {
         extraApiUrls: publicApiConnectOrigins(),
         supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
         production,
+        googleOneTap: Boolean((process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "").trim()),
       })
 
   const requestHeaders = new Headers(request.headers)
