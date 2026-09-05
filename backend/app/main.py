@@ -16,6 +16,7 @@ from app.routers import (
     cv,
     diary,
     feedback,
+    ghost_index,
     growth,
     home,
     institutions,
@@ -87,6 +88,7 @@ app.include_router(auth.router)
 app.include_router(companies.router)
 app.include_router(users.router)
 app.include_router(feedback.router)
+app.include_router(ghost_index.router)
 app.include_router(growth.router)
 app.include_router(institutions.router)
 app.include_router(job_tracks.router)
