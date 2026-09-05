@@ -52,6 +52,13 @@ export const SITE_ROUTES: SiteRoute[] = [
   { path: "/newsletter", label: "Newsletter", footer: "Learn", nav: { id: "newsletter", treatment: "mail" }, sitemap: { changeFrequency: "weekly", priority: 0.9 }, route: true },
   { path: "/docs", label: "How it works", footer: "Learn", sitemap: { changeFrequency: "monthly", priority: 0.9 }, route: true },
   { path: "/taxonomy", label: "Skill Taxonomy", footer: "Learn", sitemap: { changeFrequency: "monthly", priority: 0.6 }, route: true },
+  // The verification surface. Daily changeFrequency because the snapshot behind
+  // it rebuilds daily. The method page is a sub-route and still carries
+  // `route: true`: that flag means "a real page backs this path", which the
+  // sitemap test enforces for every sitemap entry — it is not a claim about
+  // being top-level. It stays out of the footer; the index links to it.
+  { path: "/ghost-index", label: "Ghost Job Index", footer: "Learn", sitemap: { changeFrequency: "daily", priority: 0.8 }, route: true },
+  { path: "/ghost-index/method", label: "Ghost Job Index method", sitemap: { changeFrequency: "monthly", priority: 0.5 }, route: true },
   { path: "/docs#faq", label: "FAQ", footer: "Learn" },
 
   // ── Legal ────────────────────────────────────────────────────────────────

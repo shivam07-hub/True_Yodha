@@ -5729,3 +5729,56 @@ export const upskilling = {
 // ── Health ────────────────────────────────────────────────────────────────────
 
 export const health = () => request<{ status: string }>("/health")
+
+// ── Ghost Job Index ───────────────────────────────────────────────────────────
+//
+// Public aggregate over public listings: when an employer's own ATS has stopped
+// serving a role, is the employer's own feed still advertising it? Every rate
+// arrives beside the count it was taken over — the API withholds a rate below
+// 20 jointly-observed listings rather than shipping a percentage a handful of
+// rows cannot support, so `still_advertised_rate` is null on small cells.
+
+/** One scope row. `scope_key` is the employer or sector name; 'all' on the corpus row. */
+export interface GhostIndexRow {
+  scope_key: string
+  period: string
+  listings_closed: number
+  feed_overlap: number
+  still_advertised: number
+  still_advertised_rate: number | null
+  avg_days_still_advertised: number | null
+  ad_pulled_after_close: number
+  median_days_to_pull: number | null
+  median_observed_days: number | null
+}
+
+/** The corpus row also carries the state of everything we could not judge. */
+export interface GhostIndexOverall extends GhostIndexRow {
+  listings_conclusive: number | null
+  listings_live: number | null
+  listings_inconclusive: number | null
+}
+
+/** What the index does NOT cover. Withheld rows are absent, so this is the
+ *  only way a reader tells a withheld employer from a clean one. */
+export interface GhostIndexCoverage {
+  min_cell: number
+  companies_published: number
+  companies_with_closures: number
+  companies_in_corpus: number | null
+}
+
+export interface GhostIndexResponse {
+  method: string
+  computed_at: string
+  overall: GhostIndexOverall
+  months: GhostIndexRow[]
+  companies: GhostIndexRow[]
+  sectors: GhostIndexRow[]
+  coverage: GhostIndexCoverage
+}
+
+export const ghostIndex = {
+  /** 503 while the snapshot has never been computed — absent, never zeroes. */
+  get: () => request<GhostIndexResponse>("/public/ghost-index"),
+}
