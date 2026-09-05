@@ -33,7 +33,6 @@ removing.
 
 from __future__ import annotations
 
-import json
 import logging
 import re
 from dataclasses import dataclass
@@ -243,11 +242,3 @@ async def judge_skills(
         len(trimmed), len(verdicts), sum(1 for v in verdicts if v.is_required),
     )
     return verdicts
-
-
-def judgment_debug(verdicts: list[SkillVerdict]) -> str:
-    """Compact one-line summary for run logs."""
-    return json.dumps(
-        {v.taxonomy_key: f"{v.verdict}/L{v.required_level}" for v in verdicts},
-        ensure_ascii=False,
-    )

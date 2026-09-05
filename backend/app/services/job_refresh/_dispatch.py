@@ -18,7 +18,7 @@ import logging
 import threading
 import uuid
 from dataclasses import asdict
-from datetime import date, datetime, timezone
+from datetime import date
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -45,10 +45,6 @@ _inline_live: dict[str, str] = {}
 _inline_lock = threading.Lock()
 
 _LIVE_STATES = frozenset({"queued", "computing"})
-
-
-def _utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 def _ticket_id() -> str:

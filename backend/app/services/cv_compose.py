@@ -32,35 +32,6 @@ def item_id(section_type: str, index: int, content: str) -> str:
     return f"{section_type}:{index}:{_djb2(body)}"
 
 
-def collect_item_ids(cv_structured: dict[str, Any]) -> dict[str, str]:
-    """Return {item_id: content} for every toggleable item in the structured payload."""
-    ids: dict[str, str] = {}
-
-    if cv_structured.get("summary"):
-        ids[item_id("summary", 0, cv_structured["summary"])] = cv_structured["summary"]
-
-    for i, exp in enumerate(cv_structured.get("experience") or []):
-        for j, bullet in enumerate(exp.get("bullets") or []):
-            ids[item_id("exp_bullet", i * 100 + j, bullet)] = bullet
-
-    for i, proj in enumerate(cv_structured.get("projects") or []):
-        for j, bullet in enumerate(proj.get("bullets") or []):
-            ids[item_id("proj_bullet", i * 100 + j, bullet)] = bullet
-
-    for i, edu in enumerate(cv_structured.get("education") or []):
-        id_line = f"{edu.get('institution','')} · {edu.get('degree','')} · {edu.get('dates','')}".strip(" ·")
-        display = " · ".join(p for p in (edu.get("institution",""), edu.get("degree",""), edu.get("grade",""), edu.get("dates","")) if p)
-        ids[item_id("edu", i, id_line)] = display
-
-    if cv_structured.get("skills_line"):
-        ids[item_id("skills_line", 0, cv_structured["skills_line"])] = cv_structured["skills_line"]
-
-    for i, cert in enumerate(cv_structured.get("certs") or []):
-        ids[item_id("cert", i, cert)] = cert
-
-    return ids
-
-
 def render_deterministic(
     cv_structured: dict[str, Any],
     hidden_items: list[str] | None = None,

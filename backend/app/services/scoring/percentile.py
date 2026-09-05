@@ -36,21 +36,6 @@ def band_percentiles(scores: list[float]) -> list[float]:
     return [percentile_rank(s, scores) for s in scores]
 
 
-def rank_within_band(
-    user_total: float,
-    band: str,
-    band_scores: list[tuple[str, float]],
-) -> float:
-    """Percentile rank of ``user_total`` among same-``band`` peers.
-
-    ``band_scores`` is the whole scored population as (resolved_band, total)
-    pairs; band resolution (seniority → band) is the caller's job so this stays
-    pure. Returns 0.0 when the band has ≤1 member.
-    """
-    peers = [total for b, total in band_scores if b == band]
-    return percentile_rank(user_total, peers)
-
-
 def top_percent(rank: float | None) -> int:
     """Present a percentile rank as the honest "top X%" headline.
 

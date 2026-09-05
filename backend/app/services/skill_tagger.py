@@ -430,23 +430,3 @@ def tag_jobs_with_llm(
             candidate_counts[skill] = candidate_counts.get(skill, 0) + 1
 
     return cache, candidate_counts
-
-
-def tag_jobs_with_groq(
-    jobs: list[dict],
-    alias_map: dict[str, str],
-    groq_api_key: str,
-    verbose: bool = True,
-) -> tuple[dict[str, dict], dict[str, int]]:
-    """Backward-compatible wrapper — passes only Groq key."""
-    return tag_jobs_with_llm(jobs, alias_map, {"GROQ_API_KEY": groq_api_key}, verbose)
-
-
-def get_tags_for_job(job_id: str, cache: dict[str, dict]) -> tuple[list[str], list[str], int | None, str]:
-    entry = cache.get(str(job_id), {})
-    return (
-        entry.get("required_skills", []),
-        entry.get("preferred_skills", []),
-        entry.get("min_years_experience"),
-        entry.get("min_qualification", "Any"),
-    )
