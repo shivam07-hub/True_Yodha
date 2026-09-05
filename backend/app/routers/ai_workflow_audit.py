@@ -8,11 +8,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field
 
 from app.deps import Principal, get_principal
-from app.services import ai_workflow_audit
+from app.services import ai_workflow_audit, shared_cache
 
 router = APIRouter(prefix="/ai-workflow-audit", tags=["ai-workflow-audit"])
 
@@ -23,17 +23,35 @@ class AuditIntakeRequest(BaseModel):
     data_it_touches: str = Field(max_length=4000)
     who_checks_the_output: str = Field(max_length=4000)
     what_happens_when_it_is_wrong: str = Field(max_length=4000)
+    when_you_are_free: str = Field(max_length=4000)
+
+
+def _availability() -> dict[str, Any]:
+    slots = ai_workflow_audit.slots_available()
+    return {
+        "available": slots > 0,
+        "slots_open": slots,
+        "price_paise": ai_workflow_audit.AUDIT_PRICE_PAISE,
+    }
 
 
 @router.get("/availability")
-def audit_availability() -> dict[str, Any]:
+def audit_availability(response: Response) -> dict[str, Any]:
     """Whether the queue can take another audit, and how many slots are left.
 
     Public-facing honesty: the offer says how many audits are open rather than
     selling an unbounded promise and queueing behind it.
+
+    Cached 60s. It is an unauthenticated read that renders on a page load, and
+    the count moves only when someone buys or a call is finished. Staleness is
+    safe here because the ORDER is what enforces capacity: a buyer who acts on a
+    60-second-old count meets a 409 and is told the slot went, rather than
+    silently joining a queue nobody can serve.
     """
-    slots = ai_workflow_audit.slots_available()
-    return {"available": slots > 0, "slots_open": slots, "price_paise": ai_workflow_audit.AUDIT_PRICE_PAISE}
+    response.headers["Cache-Control"] = "public, max-age=60"
+    return shared_cache.get_or_compute(
+        "ai_workflow_audit_availability", _availability, ttl_seconds=60, stale_seconds=600
+    )
 
 
 @router.get("/me")
@@ -51,7 +69,7 @@ def submit_audit_intake(
     body: AuditIntakeRequest,
     principal: Principal = Depends(get_principal),
 ) -> dict[str, Any]:
-    """Hand over the workflow. Starts the 5-working-day clock."""
+    """Hand over the workflow. Starts the 5-working-day clock to the call."""
     try:
         audit = ai_workflow_audit.submit_intake(principal.id, body.model_dump())
     except LookupError:

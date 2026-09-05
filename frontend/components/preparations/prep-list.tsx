@@ -20,6 +20,7 @@ import { CompanyAvatar, STAGE_META } from "@/components/cv/builder/library-share
 import { PrepSkeleton } from "./prep-skeleton"
 import { SkillPathRail } from "./skill-path-rail"
 import { TrainingCard } from "./training-card"
+import { AuditCard } from "./audit-card"
 import {
   daysInStage, followUpLine, groupForList, liveRoomCount, needsStageCheck,
 } from "./prep-model"
@@ -81,6 +82,7 @@ function PrepFrame({
         <aside className="mc-ws-rail" aria-label="Skill path and training">
           <div className="mc-rail">
             <SkillPathRail token={token} />
+            <AuditCard token={token} />
             <TrainingCard />
           </div>
         </aside>

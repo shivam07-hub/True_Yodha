@@ -1,8 +1,13 @@
-"""₹999 AI Workflow Audit — a human reads the workflow you actually run.
+"""₹999 AI Workflow Audit — a call about the AI workflow you actually run.
 
-The buyer describes an AI workflow they operate; a reviewer returns a written
-audit of it. This is bet 4 in POSITIONING.md — human-in-the-loop AI ops — sold
-rather than only practised internally.
+The buyer describes a workflow they operate; a reviewer reads it, then **the
+service is a call**. The written audit is the artifact that comes out of that
+call, not a report mailed instead of one. This is bet 4 in POSITIONING.md —
+human-in-the-loop AI ops — sold rather than only practised internally.
+
+No refund path exists, deliberately: this is a service business and the call is
+the service. Delivery is a person turning up, so the honest guarantee is the
+date, not a money-back clause.
 
 What it does NOT do is paywall anything that is free today. Practice, quizzes
 and certificates remain free and ungated. The ₹999 buys a person's attention,
@@ -47,6 +52,11 @@ INTAKE_FIELDS = (
     "data_it_touches",
     "who_checks_the_output",
     "what_happens_when_it_is_wrong",
+    # The service is a call, so when the buyer can take one is part of the
+    # brief, not an afterthought arranged over email later. Free text rather
+    # than a slot picker: one reviewer, a handful of audits, and a picker would
+    # be scheduling infrastructure built for a queue of five.
+    "when_you_are_free",
 )
 _MIN_ANSWER_CHARS = 20
 _MAX_ANSWER_CHARS = 4000
