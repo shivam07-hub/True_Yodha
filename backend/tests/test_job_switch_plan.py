@@ -7,6 +7,8 @@ chains are monkeypatched — this asserts the lifecycle rules + wiring, not Supa
 
 from __future__ import annotations
 
+from app.services import sla_clock
+
 import asyncio
 from typing import Any
 
@@ -89,7 +91,7 @@ def test_add_working_days_skips_weekend() -> None:
 
     # Friday → +5 working days lands on the next Friday (skips Sat/Sun).
     friday = datetime(2026, 6, 26, 12, 0, tzinfo=timezone.utc)  # 2026-06-26 is a Friday
-    due = svc._add_working_days(friday, 5)
+    due = sla_clock.add_working_days(friday, 5)
     assert due.weekday() == 4  # Friday
     assert (due - friday).days == 7
 

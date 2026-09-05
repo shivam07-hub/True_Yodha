@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import hmac
 import logging
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
@@ -30,6 +30,7 @@ from app.schemas.myrology import (
     OrderResponse,
 )
 from app.services import email_service
+from app.services.sla_clock import add_working_days
 
 router = APIRouter(prefix="/myrology", tags=["myrology"])
 logger = logging.getLogger(__name__)
@@ -232,16 +233,6 @@ async def save_intake(
 MAP_DELIVERY_WORKING_DAYS = 4
 
 
-def _add_working_days(start: date, days: int) -> date:
-    cursor = start
-    remaining = days
-    while remaining > 0:
-        cursor += timedelta(days=1)
-        if cursor.weekday() < 5:  # Mon-Fri
-            remaining -= 1
-    return cursor
-
-
 def _fetch_paid_at(user_id: str) -> datetime | None:
     """When this native's Myrology unlock was verified.
 
@@ -285,7 +276,7 @@ async def get_order(principal: Principal = Depends(get_principal)) -> OrderRespo
         return None
     return OrderResponse(
         paid_at=paid_at,
-        promised_by=_add_working_days(paid_at.date(), MAP_DELIVERY_WORKING_DAYS),
+        promised_by=add_working_days(paid_at.date(), MAP_DELIVERY_WORKING_DAYS),
         working_days=MAP_DELIVERY_WORKING_DAYS,
     )
 

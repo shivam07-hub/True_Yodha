@@ -27,6 +27,7 @@ from app.config import settings
 from app.database import get_supabase_admin
 from app.repositories.jobs import get_public_jobs_repository
 from app.services import email_service, myro_voice
+from app.services.sla_clock import add_working_days
 from app.services.llm_provider import LLMProviderError, get_llm_provider
 
 logger = logging.getLogger(__name__)
@@ -47,18 +48,6 @@ _ALLOWED_REVIEW_TRANSITIONS: dict[str, set[str]] = {
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
-
-
-def _add_working_days(start: datetime, n: int) -> datetime:
-    """Add ``n`` working days, skipping Sat/Sun. Good enough for an SLA clock —
-    public holidays are not modelled (founder queue absorbs them)."""
-    day = start
-    added = 0
-    while added < n:
-        day = day + timedelta(days=1)
-        if day.weekday() < 5:  # Mon–Fri
-            added += 1
-    return day
 
 
 # ── snapshot (best-effort, never raises into fulfilment) ─────────────────────
@@ -131,7 +120,7 @@ def activate_plan(user_id: str) -> dict[str, Any]:
 
 def _open_review(plan_id: str, *, review_no: int) -> dict[str, Any]:
     admin = get_supabase_admin()
-    sla = _add_working_days(_now(), REVIEW_SLA_WORKING_DAYS)
+    sla = add_working_days(_now(), REVIEW_SLA_WORKING_DAYS)
     result = (
         admin.table("job_switch_plan_reviews")
         .insert(

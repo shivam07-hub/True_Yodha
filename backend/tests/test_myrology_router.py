@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.services import sla_clock
+
 from datetime import date, datetime, timezone
 from typing import Any
 
@@ -353,4 +355,4 @@ def test_order_stays_behind_the_paid_gate(monkeypatch: pytest.MonkeyPatch) -> No
 def test_working_day_arithmetic_skips_weekends(
     start: tuple[int, int, int], days: int, expected: tuple[int, int, int]
 ) -> None:
-    assert myrology_router._add_working_days(date(*start), days) == date(*expected)
+    assert sla_clock.add_working_days(date(*start), days) == date(*expected)
