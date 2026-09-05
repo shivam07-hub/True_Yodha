@@ -72,11 +72,25 @@ hiring panel, and a live-role feed for recruiters and EdTech. The free tier is
 the newsletter CSV that already ships; the paid tier is history, freshness and
 the API. **Blocked on the licence gate below.**
 
-**Wave 3 — the sprint, aimed at the buyer we have.** "Run AI Safely", ₹999, two
-weeks, sold to the individual jobseeker as CV evidence through the existing
-certificate machinery — not to org budget holders Myro has never met (one
-institution has ever applied). The org-facing AI Workflow Audit waits until
-certificates are in the market and a partner asks for a team edition.
+**Wave 3 — the ₹999 AI Workflow Audit.** *Spine shipped 2026-09-05; not yet
+purchasable.* The buyer describes an AI workflow they actually run and a human
+returns a written audit of it. Chosen over a taught sprint after checking the
+code: **practice, quizzes and certificates are free and ungated**, so ₹999 could
+not buy access to them without taking away what users already have. What is sold
+is a person's attention — the one thing here that does not scale, and therefore
+the one thing worth charging for.
+
+That non-scaling is designed for rather than wished away. Intake is bounded at 5
+open audits, checked *before* an order is created; a delivered audit cannot
+exist without a reviewer's name and sign-off, enforced by a database constraint;
+and the model's draft lives in a table the buyer's own token cannot read. This
+is bet 4 productised: we sell the human in the loop, and the schema proves the
+human was there.
+
+**The known cost:** every sale carries a per-unit human cost. Fine at ten
+buyers, a different company at two hundred. The bound is what keeps that a
+choice rather than a discovery. Still owed before anything can be sold: the Prep
+surface, the reviewer workbench, and a refund stance when an SLA is missed.
 
 ---
 
