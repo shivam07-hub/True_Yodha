@@ -23,7 +23,7 @@ from app.schemas import (
     MatchEval,
     JobUrlExtractRequest,
 )
-from app.services import job_liveness, jobs_workflow, xp_service
+from app.services import cv_of_record, job_liveness, jobs_workflow, xp_service
 from app.services.job_extract_backstop import backfill_fields, is_valid_company, is_valid_role
 from app.services.cv_parser import extract_raw_text
 from app.services.job_file_parser import (
@@ -353,6 +353,15 @@ def update_application(
         is_first_offer = repo.mark_first_offer_if_unset(user_id, now)
 
     repo.upsert_application(user_id, job_id, updates)
+
+    # Freeze the CV of record on the FIRST move into `applied`. The tracker is
+    # how people actually mark an application, and until now it remembered
+    # nothing — 67 users had moved a job past `saved` and 3 had an attempt on
+    # record. Marking a job applied is the user's explicit statement that they
+    # did it, which is the same bar the builder's Apply button uses.
+    if body.status == "applied" and prior_status != "applied":
+        cv_of_record.record_on_apply(user_id, job_id)
+
     data = repo.get_application_with_job(user_id, job_id)
     if not data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
