@@ -13,6 +13,7 @@ REFRESH = (MIGRATIONS / "20260905b_ghost_index_refresh.sql").read_text()
 CORRECTION = (MIGRATIONS / "20260905c_ghost_index_metric_correction.sql").read_text()
 PAYLOAD = (MIGRATIONS / "20260905d_ghost_index_payload.sql").read_text()
 TIER0 = (MIGRATIONS / "20260905e_ghost_index_corpus_count_tier0.sql").read_text()
+SCHEDULE = (MIGRATIONS / "20260905f_ghost_index_scheduled_refresh.sql").read_text()
 
 
 def test_admissibility_is_a_rule_about_evidence_not_a_date_range() -> None:
@@ -160,3 +161,47 @@ def test_the_payload_is_invoker_not_definer() -> None:
     change and add an oracle to audit."""
     fn = TIER0.split("create or replace function public.ghost_index_payload")[1].split("$$;")[0]
     assert "security definer" not in fn
+
+
+def test_the_refresh_runs_through_the_existing_orchestration() -> None:
+    """One scheduler, not two. `run_snapshot_sql_refresh` already owns the
+    lease, the attempt counter and the error capture."""
+    assert "'skill_demand', 'job_search', 'ghost_index'" in SCHEDULE
+    assert "elsif p_task = 'ghost_index' then" in SCHEDULE
+    assert "select public.refresh_ghost_index() into v_result;" in SCHEDULE
+
+
+def test_the_snapshot_state_has_exactly_one_writer() -> None:
+    """The refresh used to stamp `succeeded` itself while the orchestrator also
+    stamped it. Two writers to one row drift, and only one holds the lease — so
+    a run that failed after its own stamp would still read as succeeded."""
+    refresh_fn = SCHEDULE.split("create or replace function public.refresh_ghost_index")[1]
+    refresh_fn = refresh_fn.split("$$;")[0]
+    assert "update snapshot_refresh_state" not in refresh_fn
+    assert "finish_snapshot_refresh" in SCHEDULE
+
+
+def test_a_daily_task_does_not_use_the_24h_staleness_heuristic() -> None:
+    """`request_snapshot_refresh` flips tasks whose last success is older than
+    24 HOURS. This refresh takes 34s, so `last_success_at` lands 34s past the
+    cron minute and the next day's run sees 24h-minus-34s — it would skip, and
+    the index would rebuild every OTHER day while claiming a daily cadence.
+    """
+    cron_body = SCHEDULE.split("select cron.schedule(")[1]
+    assert "request_snapshot_refresh_task('ghost_index'" in cron_body
+    assert "request_snapshot_refresh('cron" not in cron_body
+
+
+def test_a_task_request_never_interrupts_a_live_lease() -> None:
+    """The lease holder is mid-refresh; flipping it back to pending would let a
+    second run start on top of it."""
+    fn = SCHEDULE.split("create or replace function public.request_snapshot_refresh_task")[1]
+    fn = fn.split("$function$;")[0]
+    assert "not (s.status = 'running'" in fn
+    assert "lease_expires_at" in fn
+
+
+def test_the_refresh_is_scheduled_off_peak() -> None:
+    """34.3s and 273k buffers on shared Free/Nano compute. 20:40 UTC is ~02:10
+    IST — the quietest hour for an India-first product."""
+    assert "'40 20 * * *'" in SCHEDULE
