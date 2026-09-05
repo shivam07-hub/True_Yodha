@@ -53,13 +53,19 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
 
 The account-chooser prompt (the dark popup listing Google accounts, the thing
 Vercel shows) is built and **inert**: with no `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
-the script never loads, the CSP is never widened, and `/login` + `/signup`
-render exactly as they do today. Four steps turn it on, and only Shivam can do
-the first three.
+the script never loads, the CSP is never widened, and the three auth surfaces
+— `/login`, `/signup` and the sign-in modal the public pages open — render
+exactly as they do today. Four steps turn it on, and only Shivam can do the
+first three.
 
-1. **Google Cloud console → Credentials → OAuth 2.0 Client ID, type "Web
-   application"**, in the SAME project as the Google provider Supabase already
-   uses. Authorized JavaScript origins (no wildcards allowed):
+1. **Google Cloud console → Credentials**, in the SAME project as the Google
+   provider Supabase already uses (its client ID is on the Supabase provider
+   page — the project it belongs to is the right one). Either add origins to
+   that existing **Web application** client, or create a new one
+   (**Create credentials → OAuth client ID → Web application**). The consent
+   screen must already be configured and **published** — while it is in Testing
+   only listed test users ever see the prompt. Authorized JavaScript origins
+   (no wildcards allowed):
    `https://himyro.com`, `https://www.himyro.com`, `http://localhost:3000`, plus
    any stable preview domain worth prompting on. No redirect URI is needed —
    One Tap returns the ID token in-page.
