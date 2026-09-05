@@ -174,3 +174,193 @@ def submit_intake(user_id: str, raw: dict[str, Any]) -> dict[str, Any]:
     ).eq("id", audit["id"]).execute()
     logger.info("metric ai_workflow_audit.submitted audit=%s", audit["id"])
     return current_audit(user_id) or {}
+
+
+# ── reviewer operations ──────────────────────────────────────────────────────
+#
+# Back of house. Everything below is admin-token gated at the router; none of it
+# is reachable by a buyer's session.
+
+#: Target status => the statuses it may be reached from. `delivered` is terminal.
+#: Mirrors `job_switch_plan_service._ALLOWED_REVIEW_TRANSITIONS` — same lifecycle,
+#: same words, so the two merge cleanly when there is a third of these.
+_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
+    "in_progress": {"submitted"},
+    "delivered": {"submitted", "in_progress"},
+}
+
+_DRAFT_MAX_TOKENS = 1100
+
+_DRAFT_SYSTEM = (
+    "You are preparing NOTES FOR A HUMAN REVIEWER before they get on a call "
+    "about someone's AI workflow. You are not writing to the buyer and your "
+    "text will never be sent as-is.\n\n"
+    "Ground every line in what the buyer wrote. Where they left something out, "
+    "say what is missing and what to ask on the call — do not fill the gap with "
+    "a plausible assumption. If the workflow looks fine in some respect, say so "
+    "plainly rather than inventing a concern.\n\n"
+    "Cover, in this order: where this can be wrong without anyone noticing; "
+    "what it touches that it probably should not; who is accountable when it "
+    "fails and whether that person can actually act; and the smallest change "
+    "worth making first.\n\n"
+    "No preamble, no flattery, no summary of what they told you."
+)
+
+
+def _intake_block(intake: dict[str, Any]) -> str:
+    return "\n\n".join(
+        f"{field.replace('_', ' ').upper()}:\n{intake.get(field, '(not answered)')}"
+        for field in INTAKE_FIELDS
+    )
+
+
+def review_queue() -> list[dict[str, Any]]:
+    """Open audits, oldest SLA first, with the buyer's email.
+
+    The email is here because the service is a CALL and the reviewer has to be
+    able to reach them. It is the one place buyer contact details leave the
+    user's own row, and it is behind the admin token.
+    """
+    admin = get_supabase_admin()
+    audits = (
+        admin.table("ai_workflow_audits")
+        .select("id, user_id, status, intake, submitted_at, sla_due_at, purchased_at")
+        .in_("status", ["submitted", "in_progress"])
+        .order("sla_due_at", desc=False)
+        .limit(50)
+        .execute()
+        .data
+        or []
+    )
+    if not audits:
+        return []
+    # One batched lookup, not one per row.
+    profiles = (
+        admin.table("user_profiles")
+        .select("id, email")
+        .in_("id", list({str(a["user_id"]) for a in audits}))
+        .execute()
+        .data
+        or []
+    )
+    email_of = {str(p["id"]): p.get("email") for p in profiles}
+    for audit in audits:
+        audit["buyer_email"] = email_of.get(str(audit["user_id"]))
+    return audits
+
+
+def reviewer_view(audit_id: str) -> dict[str, Any]:
+    """One audit as the reviewer sees it: the intake plus any model draft."""
+    admin = get_supabase_admin()
+    # `.limit(1)` + list rather than `.maybe_single()`: on a miss the client
+    # returns None from execute() itself, so `.data` raises AttributeError
+    # instead of yielding an empty result. An audit with no draft yet is the
+    # NORMAL case here, not an error.
+    audits = (
+        admin.table("ai_workflow_audits")
+        .select("*")
+        .eq("id", audit_id)
+        .limit(1)
+        .execute()
+        .data
+        or []
+    )
+    if not audits:
+        raise LookupError("No such audit.")
+    audit = audits[0]
+    drafts = (
+        admin.table("ai_workflow_audit_drafts")
+        .select("draft_text, model, generated_at")
+        .eq("audit_id", audit_id)
+        .limit(1)
+        .execute()
+        .data
+        or []
+    )
+    audit["draft"] = drafts[0] if drafts else None
+    return audit
+
+
+async def draft_audit(audit_id: str) -> str | None:
+    """Model-draft the reviewer's notes and store them.
+
+    Fail-soft: a draft failure returns None and changes nothing, so the reviewer
+    writes their own notes rather than being blocked by a provider outage. The
+    draft is never the deliverable — the buyer cannot read this table, and
+    delivering still requires a human's name.
+    """
+    from app.services.llm_provider import LLMProviderError, get_llm_provider
+
+    audit = reviewer_view(audit_id)
+    intake = audit.get("intake") or {}
+    if not intake:
+        raise ValueError("This audit has no intake yet.")
+
+    try:
+        provider = get_llm_provider()
+        text = await provider.complete(
+            [
+                {"role": "system", "content": _DRAFT_SYSTEM},
+                {"role": "user", "content": _intake_block(intake)},
+            ],
+            max_tokens=_DRAFT_MAX_TOKENS,
+        )
+    except LLMProviderError:
+        logger.warning("metric ai_workflow_audit.draft_failed audit=%s", audit_id)
+        return None
+
+    text = (text or "").strip()
+    if not text:
+        return None
+    get_supabase_admin().table("ai_workflow_audit_drafts").upsert(
+        {"audit_id": audit_id, "draft_text": text, "model": "provider_default"},
+        on_conflict="audit_id",
+    ).execute()
+    return text
+
+
+def transition_audit(
+    audit_id: str,
+    new_status: str,
+    *,
+    audit_text: str | None = None,
+    reviewed_by: str | None = None,
+) -> dict[str, Any]:
+    """Advance an audit. Delivering requires the written audit AND a name.
+
+    The name is not defaulted and not inferred from a token: the whole product
+    is that a person read this, and a signature nobody typed is not a signature.
+    The database enforces the same rule, so a caller that skips it fails there
+    too rather than writing a half-signed row.
+    """
+    allowed_from = _ALLOWED_TRANSITIONS.get(new_status)
+    if allowed_from is None:
+        raise ValueError(f"Unknown status: {new_status}")
+
+    audit = reviewer_view(audit_id)
+    if audit["status"] not in allowed_from:
+        raise PermissionError(
+            f"An audit that is {audit['status']} cannot become {new_status}."
+        )
+
+    now = _now()
+    patch: dict[str, Any] = {"status": new_status, "updated_at": now.isoformat()}
+    if new_status == "delivered":
+        text = (audit_text or "").strip()
+        signer = (reviewed_by or "").strip()
+        if not text:
+            raise ValueError("A delivered audit needs the written audit.")
+        if not signer:
+            raise ValueError("A delivered audit needs the name of whoever reviewed it.")
+        patch |= {
+            "audit_text": text,
+            "reviewed_by": signer,
+            "signed_off_at": now.isoformat(),
+            "delivered_at": now.isoformat(),
+        }
+
+    get_supabase_admin().table("ai_workflow_audits").update(patch).eq("id", audit_id).execute()
+    logger.info(
+        "metric ai_workflow_audit.transition audit=%s status=%s", audit_id, new_status
+    )
+    return reviewer_view(audit_id)

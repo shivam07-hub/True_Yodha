@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field
 
 from app.deps import Principal, get_principal
+from app.security.admin_auth import require_admin
 from app.services import ai_workflow_audit, shared_cache
 
 router = APIRouter(prefix="/ai-workflow-audit", tags=["ai-workflow-audit"])
@@ -87,4 +88,72 @@ def submit_audit_intake(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
         ) from None
+    return {"audit": audit}
+
+
+# ── reviewer operations (admin-token gated) ─────────────────────────────────
+
+
+class AuditStatusUpdate(BaseModel):
+    status: str
+    audit_text: str | None = None
+    #: Who read it. Required to deliver, never defaulted — the product IS that a
+    #: person did this, and a signature nobody typed is not a signature.
+    reviewed_by: str | None = Field(default=None, max_length=120)
+
+
+@router.get("/queue", dependencies=[Depends(require_admin)])
+def audit_queue() -> dict[str, Any]:
+    """Open audits, oldest SLA first, with the buyer's email so a call can be
+    arranged. Behind the reviewer token."""
+    return {"queue": ai_workflow_audit.review_queue()}
+
+
+@router.get("/queue/{audit_id}", dependencies=[Depends(require_admin)])
+def audit_detail(audit_id: str) -> dict[str, Any]:
+    """One audit as the reviewer sees it: intake plus any model draft."""
+    try:
+        return {"audit": ai_workflow_audit.reviewer_view(audit_id)}
+    except LookupError:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No such audit.") from None
+
+
+@router.post("/queue/{audit_id}/draft", dependencies=[Depends(require_admin)])
+async def draft_audit_notes(audit_id: str) -> dict[str, Any]:
+    """Model-draft the reviewer's notes before the call.
+
+    Notes FOR the reviewer, never text for the buyer: they land in a table the
+    buyer cannot read, and delivering still requires a human to write and sign
+    the audit. Fail-soft — a provider outage returns `drafted: false` and the
+    reviewer writes their own.
+    """
+    try:
+        draft = await ai_workflow_audit.draft_audit(audit_id)
+    except LookupError:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No such audit.") from None
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from None
+    return {"drafted": draft is not None, "draft_text": draft}
+
+
+@router.patch("/queue/{audit_id}/status", dependencies=[Depends(require_admin)])
+def update_audit_status(audit_id: str, body: AuditStatusUpdate) -> dict[str, Any]:
+    """Advance an audit: submitted → in_progress → delivered.
+
+    Delivering stamps the written audit, the reviewer's name and the sign-off
+    time together, because the database will not accept them apart.
+    """
+    try:
+        audit = ai_workflow_audit.transition_audit(
+            audit_id,
+            body.status,
+            audit_text=body.audit_text,
+            reviewed_by=body.reviewed_by,
+        )
+    except LookupError:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No such audit.") from None
+    except PermissionError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from None
     return {"audit": audit}

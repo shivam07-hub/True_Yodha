@@ -130,3 +130,117 @@ def test_the_audit_paywalls_nothing_that_is_free_today() -> None:
     joined = " ".join(imports)
     for free_surface in ("upskilling", "skill_certificate", "forge", "xp_service", "quiz"):
         assert free_surface not in joined
+
+
+# ── reviewer workbench ───────────────────────────────────────────────────────
+
+
+class _Row:
+    def __init__(self, data):
+        self.data = data
+
+
+class _FakeDB:
+    """Enough of the client to drive `transition_audit` without a database.
+
+    Models `limit(1) -> execute().data -> list`, which is what the real client
+    does. An earlier version modelled `maybe_single()`, whose miss returns None
+    from execute() itself — the fake happily returned an object, the tests
+    passed, and the AttributeError only appeared against the real database.
+    """
+
+    def __init__(self, audit: dict) -> None:
+        self.audit = audit
+        self.patches: list[dict] = []
+        self._table = ""
+
+    def table(self, name):
+        self._table = name
+        return self
+
+    def select(self, *_a, **_k):
+        return self
+
+    def eq(self, *_a, **_k):
+        return self
+
+    def limit(self, *_a, **_k):
+        return self
+
+    def update(self, patch):
+        self.patches.append(patch)
+        return self
+
+    def execute(self):
+        if self._table == "ai_workflow_audit_drafts":
+            return _Row([])          # the normal case: no draft yet
+        return _Row([dict(self.audit)])
+
+
+def _wire(monkeypatch: pytest.MonkeyPatch, audit: dict) -> _FakeDB:
+    db = _FakeDB(audit)
+    monkeypatch.setattr(svc, "get_supabase_admin", lambda: db)
+    return db
+
+
+def test_delivering_requires_the_reviewers_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The product IS that a person read this. A signature nobody typed is not a
+    signature, so the name is never defaulted and never taken from the token."""
+    _wire(monkeypatch, {"id": "a1", "status": "in_progress"})
+    with pytest.raises(ValueError, match="name of whoever reviewed it"):
+        svc.transition_audit("a1", "delivered", audit_text="a real audit", reviewed_by="  ")
+
+
+def test_delivering_requires_the_written_audit(monkeypatch: pytest.MonkeyPatch) -> None:
+    _wire(monkeypatch, {"id": "a1", "status": "in_progress"})
+    with pytest.raises(ValueError, match="needs the written audit"):
+        svc.transition_audit("a1", "delivered", audit_text="   ", reviewed_by="Shivam")
+
+
+def test_delivery_stamps_text_name_and_time_together(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The database refuses them apart, so the service must never try."""
+    db = _wire(monkeypatch, {"id": "a1", "status": "in_progress"})
+    svc.transition_audit("a1", "delivered", audit_text="the audit", reviewed_by="Shivam")
+    patch = db.patches[0]
+    for field in ("audit_text", "reviewed_by", "signed_off_at", "delivered_at"):
+        assert patch[field]
+    assert patch["status"] == "delivered"
+
+
+def test_an_unsubmitted_audit_cannot_be_picked_up(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Nothing to review until the buyer has described the workflow."""
+    _wire(monkeypatch, {"id": "a1", "status": "awaiting_submission"})
+    with pytest.raises(PermissionError):
+        svc.transition_audit("a1", "in_progress")
+
+
+def test_a_delivered_audit_is_terminal(monkeypatch: pytest.MonkeyPatch) -> None:
+    _wire(monkeypatch, {"id": "a1", "status": "delivered"})
+    with pytest.raises(PermissionError):
+        svc.transition_audit("a1", "in_progress")
+    with pytest.raises(PermissionError):
+        svc.transition_audit("a1", "delivered", audit_text="again", reviewed_by="Shivam")
+
+
+def test_an_unknown_status_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    _wire(monkeypatch, {"id": "a1", "status": "submitted"})
+    with pytest.raises(ValueError, match="Unknown status"):
+        svc.transition_audit("a1", "cancelled")
+
+
+def test_the_reviewer_prompt_forbids_filling_gaps(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A draft that invents a plausible detail is the failure mode that matters:
+    a human signs this, so an invented concern becomes a claim we made."""
+    assert "do not fill the gap" in svc._DRAFT_SYSTEM
+    assert "NOTES FOR A HUMAN REVIEWER" in svc._DRAFT_SYSTEM
+    assert "never be sent as-is" in svc._DRAFT_SYSTEM
+
+
+def test_reviewer_endpoints_are_all_admin_gated() -> None:
+    router_source = Path(
+        Path(svc.__file__).parents[1] / "routers/ai_workflow_audit.py"
+    ).read_text()
+    reviewer_block = router_source.split("reviewer operations")[1]
+    for route in re.findall(r'@router\.\w+\("([^"]+)"([^)]*)\)', reviewer_block, re.DOTALL):
+        path, rest = route
+        assert "require_admin" in rest, f"{path} is not admin gated"

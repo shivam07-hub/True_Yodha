@@ -10,15 +10,14 @@ existing skill surfaces — this returns plan meta + review lifecycle only.
 
 from __future__ import annotations
 
-import hmac
 import logging
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
-from app.config import settings
 from app.deps import Principal, get_principal
+from app.security.admin_auth import require_admin
 from app.services import job_switch_plan_service as svc
 
 router = APIRouter(prefix="/job-switch-plan", tags=["job-switch-plan"])
@@ -50,18 +49,6 @@ class PlanResponse(BaseModel):
 class ReviewStatusUpdate(BaseModel):
     status: str
     review_text: str | None = None
-
-
-def require_admin(x_myro_admin_token: str | None = Header(default=None)) -> None:
-    expected = settings.job_switch_admin_token.strip()
-    if not expected:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Job-Switch Plan admin endpoint is not configured.",
-        )
-    supplied = (x_myro_admin_token or "").strip()
-    if not supplied or not hmac.compare_digest(supplied, expected):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid admin token.")
 
 
 def _to_plan_response(state: dict) -> PlanResponse:
