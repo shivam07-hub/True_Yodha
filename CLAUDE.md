@@ -18,6 +18,11 @@ approval to commit or to apply migrations because of it.
 > Chrome extension.
 > — Shivam, 2026-08-28
 
+**Why this is worth owning commercially: [POSITIONING.md](POSITIONING.md).**
+Every step of this loop produces verified data nobody else holds — and the
+platform is asset-rich, product-poor (mean asset 6.6, mean product 1.0). Two
+verified payments ever; one partner integration carries 37% of all users.
+
 **Finding the role is inside stage one, not after it.** It used to read
 "understand the platform and download their CV", with matching as stage two —
 so match work kept needing a reason to be worked on now. A CV downloaded
@@ -82,6 +87,7 @@ worker. A test upload on dev writes to production data. Full map: [INFRA.md](INF
 
 | Looking for | File |
 |---|---|
+| **Why we build this commercially — the bet, scored** | [POSITIONING.md](POSITIONING.md) |
 | Locked decisions + data model | [DECISIONS.md](DECISIONS.md) |
 | Servers, domains, env, DNS, deploy order | [INFRA.md](INFRA.md) |
 | Open work, in full | [BACKLOG.md](BACKLOG.md) |
