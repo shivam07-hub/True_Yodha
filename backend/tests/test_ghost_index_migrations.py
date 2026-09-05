@@ -1,4 +1,4 @@
-"""The three migrations behind the Ghost Job Index.
+"""The migrations behind the Ghost Job Index.
 
 The index publishes a number about named employers. Every contract asserted here
 exists because getting it wrong would put a false accusation on a public page,
@@ -11,6 +11,8 @@ MIGRATIONS = Path(__file__).parents[2] / "database/migrations"
 FOUNDATION = (MIGRATIONS / "20260905_ghost_index_foundation.sql").read_text()
 REFRESH = (MIGRATIONS / "20260905b_ghost_index_refresh.sql").read_text()
 CORRECTION = (MIGRATIONS / "20260905c_ghost_index_metric_correction.sql").read_text()
+PAYLOAD = (MIGRATIONS / "20260905d_ghost_index_payload.sql").read_text()
+TIER0 = (MIGRATIONS / "20260905e_ghost_index_corpus_count_tier0.sql").read_text()
 
 
 def test_admissibility_is_a_rule_about_evidence_not_a_date_range() -> None:
@@ -122,3 +124,39 @@ def test_v1_left_no_tautological_column_behind() -> None:
     assert "ghost_rate" not in CORRECTION.split("create table public.ghost_index_snapshot")[1]
     # v1 shipped the flawed definition; the correction migration is the authority.
     assert "ghost_rate" in REFRESH
+
+
+def test_the_public_payload_never_aggregates_public_jobs() -> None:
+    """Counting distinct employers live cost 6,041ms as `anon`.
+
+    `idx_jobs_trusted_ingested_at` is partial on the first branch of the jobs
+    RLS policy, and the planner cannot reach a partial index through an OR whose
+    other branch matches rows outside the predicate — so it rechecked 12,276
+    heap blocks and the whole payload hit the 8s statement timeout. The count is
+    now written at refresh time, where service_role makes it cheap.
+    """
+    payload_fn = TIER0.split("create or replace function public.ghost_index_payload")[1]
+    assert "from jobs" not in payload_fn
+    assert "companies_in_corpus from overall" in payload_fn
+
+
+def test_the_corpus_count_is_written_only_on_the_overall_row() -> None:
+    """It is corpus state, not a property of any one company or sector."""
+    assert "case when scope = 'overall' and period = 'all' then v_companies end" in TIER0
+    for scoped in ("companies", "sectors"):
+        block = TIER0.split(f"'{scoped}', coalesce(")[1].split("'[]'::jsonb)")[0]
+        assert "- 'companies_in_corpus'" in block
+
+
+def test_the_read_is_one_round_trip() -> None:
+    """~165ms per hop on this path, and PostgREST truncates at 1000 rows in
+    silence. Four reads would have been slower and quietly lossy."""
+    assert "jsonb_build_object" in PAYLOAD
+    assert "returns jsonb" in PAYLOAD
+
+
+def test_the_payload_is_invoker_not_definer() -> None:
+    """The snapshot policy is `using (true)`, so a definer would buy no plan
+    change and add an oracle to audit."""
+    fn = TIER0.split("create or replace function public.ghost_index_payload")[1].split("$$;")[0]
+    assert "security definer" not in fn
