@@ -199,3 +199,27 @@ test("provider metadata yields a person without inventing one", () => {
   assert.deepEqual(identityFromUserMetadata(undefined), { name: null, avatar: null })
   assert.deepEqual(identityFromUserMetadata({ full_name: "   " }), { name: null, avatar: null })
 })
+
+test("the caller's marker outranks a session that cannot answer the question", () => {
+  // Observed 2026-09-05 on a real account with both identities: a Google One
+  // Tap sign-in arrived with app_metadata.provider "email", because that field
+  // holds the FIRST provider the account ever used. Without the marker the
+  // device remembered "magic_link" after a Google sign-in.
+  assert.equal(
+    methodFromCallback({ provider: "email", marker: "google" }),
+    "google",
+  )
+  assert.equal(
+    methodFromCallback({ provider: "google", marker: "magic_link" }),
+    "magic_link",
+  )
+  // Partner SSO still wins over everything.
+  assert.equal(
+    methodFromCallback({ provider: "email", marker: "google", via: "finlatics" }),
+    "partner",
+  )
+  // A marker nobody minted is ignored, not trusted.
+  assert.equal(methodFromCallback({ provider: "google", marker: "sms" }), "google")
+  assert.equal(methodFromCallback({ provider: "google", marker: "partner" }), "google")
+  assert.equal(methodFromCallback({ provider: "email", marker: null }), "magic_link")
+})

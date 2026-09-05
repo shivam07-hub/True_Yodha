@@ -4,10 +4,8 @@ import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase"
 import { capturePendingReferral } from "@/lib/referral"
-import {
-  appendAttributionToUrl,
-  capturePendingAttribution,
-} from "@/lib/attribution"
+import { capturePendingAttribution } from "@/lib/attribution"
+import { authCallbackUrl } from "@/lib/auth/callback-url"
 import { detectInAppBrowser } from "@/lib/is-in-app-browser"
 import { signupEvents } from "@/lib/analytics"
 import { GoogleAuthButton } from "@/components/auth/shared/google-button"
@@ -50,10 +48,13 @@ export function SignupForm({ surface, showLoginLink = true, onEmailTaken }: Prop
     if (det.inApp) setAgent(det.agent)
   }, [])
 
-  const redirectTo = useMemo(() => {
-    if (typeof window === "undefined") return null
-    return appendAttributionToUrl(`${window.location.origin}/auth/callback`)
-  }, [])
+  // One URL per method: the callback cannot infer which provider was just used
+  // (see lib/auth/callback-url.ts), so each button states its own.
+  const origin = typeof window === "undefined" ? null : window.location.origin
+  const magicRedirectTo = useMemo(
+    () => (origin ? authCallbackUrl("magic_link", origin) : null),
+    [origin],
+  )
 
   function openOAuth(provider: "google" | "linkedin_oidc") {
     if (agent && provider === "google") return // shouldn't render
@@ -63,7 +64,9 @@ export function SignupForm({ surface, showLoginLink = true, onEmailTaken }: Prop
       .signInWithOAuth({
         provider,
         options: {
-          redirectTo: redirectTo ?? undefined,
+          redirectTo: origin
+            ? authCallbackUrl(provider === "google" ? "google" : "linkedin", origin)
+            : undefined,
           scopes:
             provider === "linkedin_oidc"
               ? "openid profile email"
@@ -86,7 +89,7 @@ export function SignupForm({ surface, showLoginLink = true, onEmailTaken }: Prop
     return (
       <CheckInboxPanel
         email={pendingEmail}
-        redirectTo={redirectTo}
+        redirectTo={magicRedirectTo}
         onChangeEmail={() => setPendingEmail(null)}
       />
     )
@@ -131,7 +134,7 @@ export function SignupForm({ surface, showLoginLink = true, onEmailTaken }: Prop
         <>
           <MagicLinkInput
             surface={surface}
-            redirectTo={redirectTo}
+            redirectTo={magicRedirectTo}
             onSent={(email) => setPendingEmail(email)}
           />
           <button

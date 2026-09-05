@@ -17,6 +17,7 @@ import { hasPendingPrepIntent } from "@/lib/prep-intent-stash"
 import { hasPendingJobSaveClaim } from "@/lib/anon-job-stash"
 import { postAuthDestination } from "@/lib/auth/post-auth-destination"
 import { identityFromUserMetadata, methodFromCallback, rememberAuth } from "@/lib/auth/last-auth"
+import { AUTH_METHOD_PARAM } from "@/lib/auth/callback-url"
 import {
   captureAttributionFromCallback,
   clearStoredAttribution,
@@ -153,6 +154,7 @@ function CallbackInner() {
         methodFromCallback({
           provider,
           via: searchParams.get("via"),
+          marker: searchParams.get(AUTH_METHOD_PARAM),
         }),
         session.user?.email ?? null,
         identityFromUserMetadata(session.user?.user_metadata),

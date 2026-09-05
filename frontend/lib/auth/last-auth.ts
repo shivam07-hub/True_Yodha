@@ -255,11 +255,26 @@ export function loginStackOrder(
   return [last, ...base.filter((method) => method !== last)]
 }
 
+/**
+ * Which method just signed this person in.
+ *
+ * The marker is the caller's own statement and outranks the session, because
+ * the session cannot answer the question: `app_metadata.provider` names the
+ * FIRST provider an account ever used, and for an account with both an email
+ * and a Google identity that read "email" straight after a Google One Tap
+ * sign-in. Provider inference stays as the fallback for links minted before
+ * the marker existed.
+ */
 export function methodFromCallback(input: {
   provider: string | null
   via?: string | null
+  marker?: string | null
 }): AuthMethod {
   if (input.via) return "partner"
+  const marker = (input.marker ?? "").trim().toLowerCase()
+  if (marker && marker !== "partner" && METHODS.has(marker as AuthMethod)) {
+    return marker as AuthMethod
+  }
   const provider = (input.provider ?? "").toLowerCase()
   if (provider === "google") return "google"
   if (provider.startsWith("linkedin")) return "linkedin"
