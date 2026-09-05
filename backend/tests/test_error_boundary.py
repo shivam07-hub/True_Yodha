@@ -176,3 +176,52 @@ def test_upstream_read_timeout_is_a_503_not_a_500() -> None:
     assert response.json()["detail"] == "That took longer than expected. Please try again."
     assert "Traceback" not in response.text
     assert "httpx" not in response.text
+
+
+def test_unhandled_error_opens_a_notice() -> None:
+    from app.notice import NoticeBook, bind, unbind
+
+    book = NoticeBook.testing()
+    bind(book)
+    try:
+        test_app = FastAPI()
+        install_error_handling(test_app)
+
+        @test_app.get("/boom")
+        def boom() -> None:
+            raise RuntimeError("notice-test")
+
+        with TestClient(test_app, raise_server_exceptions=False) as client:
+            assert client.get("/boom").status_code == 500
+
+        rows = book.snapshot()
+        assert len(rows) == 1
+        assert rows[0].status == "open"
+        assert rows[0].cause_class == "unhandled_500"
+        assert "/boom" not in rows[0].cause_key
+    finally:
+        unbind()
+
+
+def test_read_capacity_opens_a_blocked_notice() -> None:
+    from app.notice import NoticeBook, bind, unbind
+
+    book = NoticeBook.testing()
+    bind(book)
+    try:
+        test_app = FastAPI()
+        install_error_handling(test_app)
+
+        @test_app.get("/busy")
+        def busy() -> None:
+            raise ReadCapacityExceeded()
+
+        with TestClient(test_app, raise_server_exceptions=False) as client:
+            assert client.get("/busy").status_code == 503
+
+        rows = book.snapshot()
+        assert len(rows) == 1
+        assert rows[0].status == "blocked"
+        assert rows[0].cause_key == "capacity_503:read_capacity"
+    finally:
+        unbind()

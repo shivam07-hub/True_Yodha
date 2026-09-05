@@ -8,6 +8,7 @@ from fastapi.responses import PlainTextResponse
 from app.config import settings
 from app.request_timing import RequestTimingMiddleware
 from app.routers import (
+    ai_workflow_audit,
     auth,
     career_profile,
     career_skill_path,
@@ -84,6 +85,7 @@ install_cors(app, settings.cors_origins, settings.cors_origin_regex)
 # Added after CORS so timing wraps the inner app (CORS preflight stays instant).
 app.add_middleware(RequestTimingMiddleware)
 
+app.include_router(ai_workflow_audit.router)
 app.include_router(auth.router)
 app.include_router(companies.router)
 app.include_router(users.router)
@@ -139,6 +141,9 @@ async def _validate_runtime_configuration() -> None:
         ",".join(settings.cors_origins) or "none",
         settings.cors_origin_regex or "none",
     )
+    from app.notice.wiring import bind_from_settings
+
+    bind_from_settings()
 
 
 @app.on_event("startup")

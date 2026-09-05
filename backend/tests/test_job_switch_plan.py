@@ -7,6 +7,8 @@ chains are monkeypatched — this asserts the lifecycle rules + wiring, not Supa
 
 from __future__ import annotations
 
+from app.services import sla_clock
+
 import asyncio
 from typing import Any
 
@@ -16,6 +18,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.routers import job_switch_plan as jsp_router
+from app.security import admin_auth
 from app.routers import payments as payments_router
 from app.services import job_switch_plan_service as svc
 from app.services import llm_provider as llm_mod
@@ -89,7 +92,7 @@ def test_add_working_days_skips_weekend() -> None:
 
     # Friday → +5 working days lands on the next Friday (skips Sat/Sun).
     friday = datetime(2026, 6, 26, 12, 0, tzinfo=timezone.utc)  # 2026-06-26 is a Friday
-    due = svc._add_working_days(friday, 5)
+    due = sla_clock.add_working_days(friday, 5)
     assert due.weekday() == 4  # Friday
     assert (due - friday).days == 7
 
@@ -148,14 +151,14 @@ def test_get_plan_shape(monkeypatch: pytest.MonkeyPatch, _auth: None) -> None:
 
 
 def test_admin_endpoint_503_when_token_unset(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(jsp_router.settings, "job_switch_admin_token", "", raising=False)
+    monkeypatch.setattr(admin_auth.settings, "job_switch_admin_token", "", raising=False)
     with TestClient(app) as client:
         resp = client.patch("/job-switch-plan/reviews/r1/status", json={"status": "delivered"})
     assert resp.status_code == 503
 
 
 def test_admin_endpoint_401_wrong_token(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(jsp_router.settings, "job_switch_admin_token", "secret", raising=False)
+    monkeypatch.setattr(admin_auth.settings, "job_switch_admin_token", "secret", raising=False)
     with TestClient(app) as client:
         resp = client.patch(
             "/job-switch-plan/reviews/r1/status",
@@ -233,7 +236,7 @@ def test_draft_review_note_failsoft_on_llm_error(monkeypatch: pytest.MonkeyPatch
 
 
 def test_draft_endpoint_admin_gated_and_returns_draft(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(jsp_router.settings, "job_switch_admin_token", "secret", raising=False)
+    monkeypatch.setattr(admin_auth.settings, "job_switch_admin_token", "secret", raising=False)
     monkeypatch.setattr(
         svc, "get_review_context",
         lambda rid: {"review": {"id": rid}, "plan": {"id": "p1", "target_role": "PM"}, "user_id": "u1"},

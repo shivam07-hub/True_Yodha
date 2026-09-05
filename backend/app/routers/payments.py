@@ -19,7 +19,7 @@ from razorpay import errors as razorpay_errors
 from app.config import settings
 from app.database import get_supabase_admin
 from app.deps import Principal, get_principal
-from app.services import job_switch_plan_service, xp_service
+from app.services import ai_workflow_audit, job_switch_plan_service, xp_service
 
 CURRENCY = "INR"
 RAZORPAY_ORDER_TIMEOUT_SECONDS = 12
@@ -47,6 +47,15 @@ PRODUCTS: dict[str, Product] = {
     # ₹99 Personalised Job-Switch Plan (#33). Entitlement → activates the living
     # plan + auto-fires review 1 via job_switch_plan_service (fulfilment branch).
     "job_switch_plan": Product(key="myro_job_switch_plan", price_paise=9900, xp_amount=0, kind="entitlement"),
+    # ₹999 AI Workflow Audit. A human reads the workflow the buyer actually runs
+    # and writes them an answer, so intake is BOUNDED — see the availability
+    # guard in create_order. It paywalls nothing that is free today.
+    "ai_workflow_audit": Product(
+        key="myro_ai_workflow_audit",
+        price_paise=ai_workflow_audit.AUDIT_PRICE_PAISE,
+        xp_amount=0,
+        kind="entitlement",
+    ),
 }
 # Reverse lookup keyed by the persisted product key (used on verify).
 _PRODUCT_BY_KEY: dict[str, Product] = {p.key: p for p in PRODUCTS.values()}
@@ -264,6 +273,8 @@ def _apply_entitlement(user_id: str, product: Product) -> None:
     activation). Runs inside the won-CAS path → exactly-once."""
     if product.key == PRODUCTS["job_switch_plan"].key:
         job_switch_plan_service.activate_plan(user_id)
+    elif product.key == PRODUCTS["ai_workflow_audit"].key:
+        ai_workflow_audit.activate_audit(user_id)
     else:
         _unlock_myrology(user_id)
 
@@ -295,6 +306,17 @@ async def create_order(
     currency = body.currency.strip().upper()
     if currency != CURRENCY:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only INR payments are supported")
+
+    # Capacity is checked BEFORE the order, never after the payment. Refusing to
+    # sell is recoverable; taking money for work the reviewer queue cannot
+    # absorb is not. This is the only product with a per-unit human cost.
+    if product.key == PRODUCTS["ai_workflow_audit"].key and not await run_in_threadpool(
+        ai_workflow_audit.is_available
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="All audit slots are taken this week. Leave your email and we will open the next one to you first.",
+        )
 
     if body.amount != product.price_paise:
         raise HTTPException(

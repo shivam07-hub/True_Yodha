@@ -101,10 +101,10 @@ test("a One Tap credential finishes at the one callback, not a second copy of it
   const component = read("components/auth/google-one-tap.tsx")
 
   assert.match(component, /signInWithIdToken/)
-  assert.match(component, /router\.replace\("\/auth\/callback"\)/)
+  assert.match(component, /router\.replace\(`\/auth\/callback\?\$\{AUTH_METHOD_PARAM\}=google`\)/)
   // `via` on that route means partner SSO — a One Tap hand-off must never
   // carry it, or the device would remember a Finlatics seat.
-  assert.doesNotMatch(component, /auth\/callback\?/)
+  assert.doesNotMatch(component, /via=/)
   // Signed-in visitors and in-app webviews never see the prompt.
   assert.match(component, /getAccessToken\(\)/)
   assert.match(component, /detectInAppBrowser\(\)/)

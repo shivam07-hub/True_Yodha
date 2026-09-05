@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase"
 import { getAccessToken } from "@/lib/session"
 import { detectInAppBrowser } from "@/lib/is-in-app-browser"
 import { signupEvents } from "@/lib/analytics"
+import { AUTH_METHOD_PARAM } from "@/lib/auth/callback-url"
 import {
   createOneTapNonce,
   googleClientId,
@@ -81,7 +82,7 @@ export function GoogleOneTap({ surface }: { surface: string }) {
         })
         return
       }
-      router.replace("/auth/callback")
+      router.replace(`/auth/callback?${AUTH_METHOD_PARAM}=google`)
     },
     [router, surface],
   )

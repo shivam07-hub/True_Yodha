@@ -1,0 +1,186 @@
+/* audit-room.css — the AI Workflow Audit room.
+   Tokens only. A reading column, not a pricing page: no tier grid, no badges,
+   no accent wash. The one accent is the primary button, which is the one
+   thing on the page that acts. */
+
+.awr {
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.awr-title {
+  margin: 0;
+  font-family: var(--tm-font-display);
+  font-size: var(--tm-fs-title);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--tm-text);
+  text-wrap: balance;
+}
+
+.awr-lede {
+  margin: 0;
+  font-family: var(--tm-font-sans);
+  font-size: var(--tm-fs-body);
+  line-height: 1.6;
+  color: var(--tm-text-muted);
+}
+
+.awr-h2 {
+  margin: 10px 0 0;
+  font-family: var(--tm-font-display);
+  font-size: var(--tm-fs-heading);
+  font-weight: 500;
+  color: var(--tm-text);
+}
+
+.awr-covers {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: var(--tm-font-sans);
+  font-size: var(--tm-fs-meta);
+  line-height: 1.55;
+  color: var(--tm-text-muted);
+}
+
+.awr-note,
+.awr-quiet {
+  margin: 0;
+  font-family: var(--tm-font-sans);
+  font-size: var(--tm-fs-ui-sm);
+  line-height: 1.55;
+  color: var(--tm-text-muted);
+}
+
+.awr-meta {
+  margin: 0;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tm-text-muted);
+}
+
+.awr-buy {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding-top: 6px;
+}
+
+.awr-price {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-numeral);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--tm-text);
+}
+
+.awr-slots {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tm-text-muted);
+}
+
+.awr-cta {
+  align-self: flex-start;
+}
+
+.awr-error {
+  margin: 0;
+  font-family: var(--tm-font-sans);
+  font-size: var(--tm-fs-ui-sm);
+  color: var(--tm-danger);
+}
+
+/* ── The delivered artifact ─────────────────────────────────────────────── */
+
+.awr-doc {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-family: var(--tm-font-reading);
+  font-size: var(--tm-fs-prose);
+  line-height: 1.7;
+  color: var(--tm-text);
+}
+
+.awr-doc p {
+  margin: 0;
+}
+
+/* ── What the buyer sent ────────────────────────────────────────────────── */
+
+.awr-sent {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.awr-sent dt {
+  font-family: var(--tm-font-sans);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tm-text-muted);
+  margin-bottom: 4px;
+}
+
+.awr-sent dd {
+  margin: 0;
+  font-family: var(--tm-font-sans);
+  font-size: var(--tm-fs-meta);
+  line-height: 1.55;
+  color: var(--tm-text);
+  white-space: pre-wrap;
+}
+
+/* ── Intake ─────────────────────────────────────────────────────────────── */
+
+.awr-form {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  margin-top: 6px;
+}
+
+.awr-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.awr-label {
+  font-family: var(--tm-font-sans);
+  font-size: var(--tm-fs-ui);
+  color: var(--tm-text);
+}
+
+.awr-hint {
+  font-family: var(--tm-font-sans);
+  font-size: var(--tm-fs-ui-sm);
+  line-height: 1.45;
+  color: var(--tm-text-muted);
+}
+
+.awr-textarea {
+  width: 100%;
+  resize: vertical;
+  font-family: var(--tm-font-sans);
+  font-size: var(--tm-fs-ui);
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .awr-form {
+    gap: 18px;
+  }
+}

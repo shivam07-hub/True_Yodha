@@ -8,7 +8,8 @@ import { errorCode } from "@/lib/api-error"
 import { setSessionTokens } from "@/lib/session"
 import { createClient } from "@/lib/supabase"
 import { capturePendingReferral } from "@/lib/referral"
-import { appendAttributionToUrl, capturePendingAttribution } from "@/lib/attribution"
+import { capturePendingAttribution } from "@/lib/attribution"
+import { authCallbackUrl } from "@/lib/auth/callback-url"
 import { detectInAppBrowser } from "@/lib/is-in-app-browser"
 import { signupEvents } from "@/lib/analytics"
 import { hasPendingAnonCvClaim } from "@/lib/anon-cv-claim"
@@ -80,10 +81,13 @@ export function LoginForm({ surface, showSignupLink = true, initialEmail }: Prop
     else if (record?.method === "password") setMode("password")
   }, [initialEmail])
 
-  const redirectTo = useMemo(() => {
-    if (typeof window === "undefined") return null
-    return appendAttributionToUrl(`${window.location.origin}/auth/callback`)
-  }, [])
+  // One URL per method: the callback cannot infer which provider was just used
+  // (see lib/auth/callback-url.ts), so each button states its own.
+  const origin = typeof window === "undefined" ? null : window.location.origin
+  const magicRedirectTo = useMemo(
+    () => (origin ? authCallbackUrl("magic_link", origin) : null),
+    [origin],
+  )
 
   function openOAuth(provider: "google" | "linkedin_oidc") {
     if (agent && provider === "google") return
@@ -92,7 +96,11 @@ export function LoginForm({ surface, showSignupLink = true, initialEmail }: Prop
     supabase.auth
       .signInWithOAuth({
         provider,
-        options: { redirectTo: redirectTo ?? undefined },
+        options: {
+          redirectTo: origin
+            ? authCallbackUrl(provider === "google" ? "google" : "linkedin", origin)
+            : undefined,
+        },
       })
       .then(({ error }) => {
         if (error) setError(error.message)
@@ -109,7 +117,7 @@ export function LoginForm({ surface, showSignupLink = true, initialEmail }: Prop
     setError(null)
     setLoading(true)
     try {
-      setPendingEmail(await sendMagicLink({ email: identity.email, redirectTo, surface }))
+      setPendingEmail(await sendMagicLink({ email: identity.email, redirectTo: magicRedirectTo, surface }))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't send the link.")
     } finally {
@@ -170,7 +178,7 @@ export function LoginForm({ surface, showSignupLink = true, initialEmail }: Prop
     return (
       <CheckInboxPanel
         email={pendingEmail}
-        redirectTo={redirectTo}
+        redirectTo={magicRedirectTo}
         onChangeEmail={() => setPendingEmail(null)}
       />
     )
@@ -202,7 +210,7 @@ export function LoginForm({ surface, showSignupLink = true, initialEmail }: Prop
           includeMagic={mode === "primary"}
           email={email}
           initialEmail={initialEmail}
-          redirectTo={redirectTo}
+          redirectTo={magicRedirectTo}
           onGoogle={() => openOAuth("google")}
           onLinkedIn={() => openOAuth("linkedin_oidc")}
           onSent={(next) => setPendingEmail(next)}

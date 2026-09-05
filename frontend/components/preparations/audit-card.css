@@ -1,0 +1,77 @@
+/* audit-card.css — the AI Workflow Audit entry in the Prep standing column.
+   Tokens only. Sits beside the training rail, so it borrows `.prp-stand`
+   and adds nothing structural. */
+
+.awd {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.awd-title {
+  margin: 0;
+  font-family: var(--tm-font-display);
+  font-size: var(--tm-fs-ui-lg);
+  font-weight: 500;
+  color: var(--tm-text);
+  letter-spacing: -0.01em;
+}
+
+/* The state word carries weight, not colour: nothing here is clickable and
+   nothing is a warning. */
+.awd-state {
+  margin: 0;
+  font-family: var(--tm-font-sans);
+  font-size: var(--tm-fs-ui-sm);
+  color: var(--tm-text);
+}
+
+.awd-line {
+  margin: 0;
+  font-family: var(--tm-font-sans);
+  font-size: var(--tm-fs-ui-sm);
+  line-height: 1.5;
+  color: var(--tm-text-muted);
+}
+
+.awd-foot {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.awd-price {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--tm-text);
+}
+
+/* Remaining reviewer capacity, stated plainly. Muted because it is a fact
+   about the queue, not a countdown being used to push. */
+.awd-slots {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tm-text-muted);
+}
+
+.awd-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-family: var(--tm-font-sans);
+  font-size: var(--tm-fs-ui-sm);
+  color: var(--tm-interactive-text);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color var(--tm-dur) var(--tm-ease);
+}
+
+.awd-go:hover {
+  color: var(--tm-interactive);
+}

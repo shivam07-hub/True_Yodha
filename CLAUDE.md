@@ -18,6 +18,11 @@ approval to commit or to apply migrations because of it.
 > Chrome extension.
 > — Shivam, 2026-08-28
 
+**Why this is worth owning commercially: [POSITIONING.md](POSITIONING.md).**
+Every step of this loop produces verified data nobody else holds — and the
+platform is asset-rich, product-poor (mean asset 6.6, mean product 1.0). Two
+verified payments ever; one partner integration carries 37% of all users.
+
 **Finding the role is inside stage one, not after it.** It used to read
 "understand the platform and download their CV", with matching as stage two —
 so match work kept needing a reason to be worked on now. A CV downloaded
@@ -39,11 +44,13 @@ that four-step line better, it needs a reason to be worked on now.
 
 ## ABSOLUTE RULES
 
-- **Never merge to `main`.** Only to `Develop`. `main` is production.
+- **Never merge to `main`** except a **Notice close** ([CONTEXT.md](CONTEXT.md)):
+  branch from `main`, that Notice’s files only, five gates green. Everything
+  else lands on `Develop`. `main` is production. `sync-main-to-develop` carries
+  a Notice merge; do not invent a second sync.
 - **Commit finished work to `Develop` — standing approval, no need to ask.**
   When green, `git add` ONLY your own files, commit, push. **Never `git add -A`
-  or `.`** — the tree usually holds someone else's uncommitted work. `main`
-  needs Shivam.
+  or `.`** — the tree usually holds someone else's uncommitted work.
 - **Supabase migrations — apply them yourself, same session.** Then
   `NOTIFY pgrst, 'reload schema';` and spot-check the changed object. Additive
   and reversible only. Anything destructive needs Shivam first.
@@ -82,6 +89,7 @@ worker. A test upload on dev writes to production data. Full map: [INFRA.md](INF
 
 | Looking for | File |
 |---|---|
+| **Why we build this commercially — the bet, scored** | [POSITIONING.md](POSITIONING.md) |
 | Locked decisions + data model | [DECISIONS.md](DECISIONS.md) |
 | Servers, domains, env, DNS, deploy order | [INFRA.md](INFRA.md) |
 | Open work, in full | [BACKLOG.md](BACKLOG.md) |
@@ -211,8 +219,9 @@ read path** · `/tdd` · `/frontend-design` · `/review` · `/security-review` �
 - **Closed work leaves.** When something ships, delete it here and add one line
   to [ARCHIVE.md](ARCHIVE.md). Do not leave it struck through.
 - **No session summaries here.** Git log holds those.
-- **Never write "OWED: main merge" or "OWED: deploy dev".** Shivam owns the
-  merge; Railway deploys from `Develop` automatically. Those two lines rotted
-  about 25 entries into a backlog of work that was already done.
+- **Never write "OWED: main merge" or "OWED: deploy dev".** Railway deploys
+  `Develop` automatically. Notice closes merge `main` themselves (CONTEXT.md).
+  Those two OWED lines rotted about 25 entries into a backlog of work that was
+  already done.
 - **If you cannot check a claim in seconds, do not write it.**
 - **This file stays under 200 lines.** Past that, something belongs elsewhere.

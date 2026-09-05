@@ -30,6 +30,7 @@ import { RehearsePanel } from "./rehearse-panel"
 import { DrillPanel } from "./drill-panel"
 import { BriefCard } from "./brief-card"
 import { ClosingPanel } from "./closing-panel"
+import { PlanLine } from "./plan-line"
 
 function Section({ label, note, children }: {
   label: string
@@ -163,6 +164,14 @@ export function PrepRoom({ token, app }: { token: string; app: ApplicationRespon
             </>
           ) : null}
           {app.applied_at ? <span>Applied {formatDate(app.applied_at, "short")}</span> : null}
+          {/* The post-apply moment: beside the CV they actually sent, which is
+              where "is this right for the job" is a live question. */}
+          {stage !== "closed" ? (
+            <>
+              <span className="sep">·</span>
+              <PlanLine token={token} />
+            </>
+          ) : null}
         </div>
         <div style={{ marginTop: 8 }}>
           <NotesEditor

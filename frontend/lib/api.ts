@@ -4721,12 +4721,13 @@ export const skills = {
 
 // ── Billing ──────────────────────────────────────────────────────────────────
 
-export type BillingProduct = "xp_pack" | "myrology" | "job_switch_plan"
+export type BillingProduct = "xp_pack" | "myrology" | "job_switch_plan" | "ai_workflow_audit"
 
 export const BILLING_PRODUCT_AMOUNT_PAISE: Record<BillingProduct, number> = {
   xp_pack: 9900,
   myrology: 29900,
   job_switch_plan: 9900,
+  ai_workflow_audit: 99900,
 }
 
 export interface RazorpayOrderResponse {
@@ -4755,6 +4756,7 @@ const BILLING_RECEIPT_PREFIX: Record<BillingProduct, string> = {
   xp_pack: "xp",
   myrology: "myro",
   job_switch_plan: "jsp",
+  ai_workflow_audit: "awa",
 }
 
 export const billing = {
@@ -5781,4 +5783,61 @@ export interface GhostIndexResponse {
 export const ghostIndex = {
   /** 503 while the snapshot has never been computed — absent, never zeroes. */
   get: () => request<GhostIndexResponse>("/public/ghost-index"),
+}
+
+
+// ── AI Workflow Audit (₹999) ─────────────────────────────────────────────────
+//
+// The service is a call. The written audit is what comes out of it, so the
+// intake asks when the buyer can take one alongside what they run.
+//
+// Intake is bounded: `slots_open` is the real remaining capacity, not a
+// scarcity device. When it reaches zero the offer says so and stops selling,
+// because one reviewer cannot absorb an unbounded queue.
+
+export type AuditStatus = "awaiting_submission" | "submitted" | "in_progress" | "delivered"
+
+export interface AuditAvailability {
+  available: boolean
+  slots_open: number
+  price_paise: number
+}
+
+export interface WorkflowAudit {
+  id: string
+  status: AuditStatus
+  intake: Record<string, string> | null
+  /** Present only once a human has signed it off. Never a model draft. */
+  audit_text: string | null
+  reviewed_by: string | null
+  signed_off_at: string | null
+  purchased_at: string
+  submitted_at: string | null
+  sla_due_at: string | null
+  delivered_at: string | null
+}
+
+export interface AuditIntake {
+  what_the_workflow_does: string
+  tools_used: string
+  data_it_touches: string
+  who_checks_the_output: string
+  what_happens_when_it_is_wrong: string
+  when_you_are_free: string
+}
+
+export const workflowAudit = {
+  availability: () => request<AuditAvailability>("/ai-workflow-audit/availability"),
+
+  mine: (token: string) =>
+    request<{ audit: WorkflowAudit | null }>("/ai-workflow-audit/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  submit: (token: string, intake: AuditIntake) =>
+    request<{ audit: WorkflowAudit }>("/ai-workflow-audit/submit", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(intake),
+    }),
 }

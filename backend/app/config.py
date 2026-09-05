@@ -66,11 +66,7 @@ class Settings(BaseSettings):
     supabase_read_max_inflight: int = 40
     supabase_read_queue_timeout_seconds: float = 0.25
 
-    # Backlog #16 regression contract: "saturation must page a real alert
-    # destination." When `_ALERT_THRESHOLD` slow requests land inside
-    # `_ALERT_WINDOW_SECONDS` (request_timing.py), one email fires here via
-    # the existing send_email() pathway. Empty = skipped (log-only, same
-    # fail-soft convention as every other notify email in this file).
+    # Daily Notice digest (ADR-0021). Empty = closer skips mail, rows still persist.
     ops_alert_email: str = ""
 
     # Turnstile is an optional hardening layer for public, no-auth endpoints.

@@ -1233,6 +1233,45 @@ A single global ceiling on concurrent LLM calls, shared across all Job Runners a
 
 Uploads are never rejected for load (your "never fail an upload" rule). At peak the durable rail absorbs the spike; the loading screen surfaces honest backpressure ("high demand — still working, you're in line"), feeding the >90s honest-copy state of the CV-loading redesign. Charge stays at enqueue; refund only on terminal failure after retries.
 
+## Notice
+
+The operator-facing record that a Railway-visible **failure of a named cause** happened (or would have happened) to a user. Dual of Overload Policy: Overload Policy is what the product refuses to do to an upload; a Notice is what we refuse to let happen twice.
+
+The saturation mailbox is retired (ADR-0021). A Notice is the memory; a daily GitHub Action is the closer; one digest per run is the inform. Slow 200s (`metric route.slow` with a successful response) are **not** Notices until the failure catalog is stable.
+
+**Catalog (day one)**
+
+1. Process death — Railway crash, OOM, failed deploy, Job Runner exit.
+2. Unhandled 500.
+3. 503 / upstream timeout (`read_capacity.rejected`, `upstream.read_timeout`).
+4. Upload Guarantee break — object in storage, no job / no output.
+5. Work Lane exhaustion — retries spent, user still has no result.
+6. Dead-man — skill-floor stall, listing verifier not running.
+
+Slice 1 closes class 2 in code. Classes 1 and 3 are recorded (a capacity 503 is `blocked`, not a bulkhead tweak). 4–6 and slow 200s come later.
+
+**Identity**
+
+`cause_key` = class + fingerprint. Unhandled 500 → exception type + file + function. 503 → which limiter / which timeout, not the route. Upload Guarantee → “object, no job row” vs “job row, never claimed.” Work Lane → job type + terminal error class. Dead-man → one key per belt. The route is evidence, never the identity. Reopen of the same `cause_key` after a closing commit is a **failed close**.
+
+**Status**
+
+`open` → `closed` | `open-on-prod` | `blocked` | `failed-close`. `blocked` = not closable in code (paid compute gate, honest Overload Policy backpressure that is not a bug). `open-on-prod` = the fix needs unreleased `Develop` code; we do not dump `Develop` onto `main` to close it.
+
+**Close protocol**
+
+Root-cause fix, five gates green, own files only. Branch from **`main`**, merge **`main`**, `sync-main-to-develop` carries it. Inform, do not wait for permission. Never `git add -A`. Never Railway restarts, env, or secrets as a “close.”
+
+**Store**
+
+Postgres is the record. Tests use an in-memory adapter. Redis may page (skill-floor pattern) but does not own identity. Opening a Notice must never fail the user request that triggered it.
+
+**Surfaces**
+
+- Live: exception / capacity / timeout handlers write a Notice (no email).
+- Daily: GitHub Action reads open Notices + Railway for process death, closes class 2 when a failing test proves the cause, sends one digest to `ops_alert_email`.
+- The closer does not run inside `mirror-backend-prod`.
+
 ## Listing Verification
 
 Whether a job we surface still exists. Two triggers, one truth — every verdict lands in the same `jobs` transition (`listing_confidence` · `last_verified_live_at` · quarantine/retire ladder), so the surface never has to ask which path checked it.
