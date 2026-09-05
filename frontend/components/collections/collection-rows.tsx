@@ -76,7 +76,18 @@ export function CollectionRow({
   return (
     <div>
       <FeedCard
-        data={feedDataFromMatch({ jobId: entry.job_id, company: job.company, role: job.title, job, fit: job.match_score })}
+        // A 0 is not a fit — it is the absence of one. `match_score` is 0 on
+        // every job the brain has never evaluated (extension imports, manual
+        // adds), and passing it through painted a "0" ring on 22 of this
+        // board's 22 applied cards, reading as "0% match". Both old adapters
+        // guarded this; the rewrite dropped the guard.
+        data={feedDataFromMatch({
+          jobId: entry.job_id,
+          company: job.company,
+          role: job.title,
+          job,
+          fit: job.match_score > 0 ? job.match_score : null,
+        })}
         variant="row"
         open={open}
         leaving={leaving}

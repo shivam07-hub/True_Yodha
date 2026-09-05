@@ -135,3 +135,76 @@ test("grade is not on the Collections face either", () => {
   // …and it IS in the panel that explains how good the role is.
   assert.match(read("../components/jobs/card-detail-rail.tsx"), /fc-rail-grade/)
 })
+
+/* ── the loading contract ─────────────────────────────────────────────────────
+ * Caught on the first real authed run: the page painted "0 0 0 0 0" chips and
+ * "Nothing has cleared the bar yet" for ~1s, then jumped to 14/75/9/22/5 with
+ * the active chip moving from Found to Applied. Every one of those was a claim
+ * about the user's board made before the board arrived.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+test("counts and landing are null until the record lands, never a confident zero", () => {
+  const hook = read("../lib/collections/use-collection.ts")
+  assert.match(hook, /counts: query\.data\?\.stages \?\? null/)
+  assert.match(hook, /landing: query\.data\?\.landing \?\? null/)
+  // The old fallbacks. A 0 is an answer and `found` is a choice; neither is
+  // true before the request resolves.
+  assert.doesNotMatch(hook, /EMPTY_COUNTS/)
+  assert.doesNotMatch(hook, /landing:.*\?\? "found"/)
+})
+
+test("isEmpty is a verdict about the data, never the absence of it", () => {
+  const hook = read("../lib/collections/use-collection.ts")
+  assert.match(hook, /isEmpty: query\.data !== undefined && entries\.length === 0/)
+  // Keyed on the DATA, so a 60s background refetch keeps rendering the record
+  // instead of blanking the surface to a skeleton.
+  assert.match(hook, /isLoading: query\.data === undefined/)
+})
+
+test("both skins branch on isLoading before any empty state can speak", () => {
+  for (const path of [
+    "../components/collections/collections-desktop.tsx",
+    "../mobile/redesign/collections-surface.tsx",
+  ]) {
+    const src = read(path)
+    const loadingAt = src.indexOf("collection.isLoading")
+    const emptyAt = src.indexOf("emptyCopy(stage)")
+    assert.ok(loadingAt > -1, `${path} must have a loading branch`)
+    assert.ok(emptyAt > -1, `${path} must still have its empty copy`)
+    assert.ok(loadingAt < emptyAt, `${path} must test isLoading BEFORE rendering a verdict`)
+  }
+})
+
+test("a stage-less surface renders no rows and no empty verdict", () => {
+  // `stage` is null while landing is unknown; `byStage(null)` must not be called
+  // and `emptyCopy(null)` must not be rendered.
+  for (const path of [
+    "../components/collections/collections-desktop.tsx",
+    "../mobile/redesign/collections-surface.tsx",
+  ]) {
+    const src = read(path)
+    assert.match(src, /stage \? orderEntries\(collection\.byStage\(stage\), sort\) : \[\]/, path)
+    assert.match(src, /stage \? emptyCopy\(stage\) : null/, path)
+  }
+})
+
+test("a zero match score is no fit, not a zero fit", () => {
+  // `match_score` is 0 on every job the brain never evaluated. Passing it
+  // through painted a "0" ring — read as "0% match" — on all 22 applied cards
+  // of a real board. Both pre-rewrite adapters guarded this.
+  const row = read("../components/collections/collection-rows.tsx")
+  assert.match(row, /fit: job\.match_score > 0 \? job\.match_score : null/)
+})
+
+test("the picks band renders no chrome when every card is declined", () => {
+  // Collections declines every pick until the record lands. The band used to
+  // print its title, its promise and its closing divider over nothing.
+  const band = read("../components/jobs/agent-picks-band.tsx")
+  assert.match(band, /if \(!cards\.length\) return null/)
+  const buildAt = band.indexOf("const cards = picks")
+  const guardAt = band.indexOf("if (!cards.length) return null")
+  const headerAt = band.indexOf("tm-agentpicks-head")
+  assert.ok(buildAt > -1 && guardAt > buildAt, "cards must be built before the guard")
+  assert.ok(guardAt < headerAt, "the guard must run before the header renders")
+})
+

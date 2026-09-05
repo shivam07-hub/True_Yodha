@@ -48,8 +48,9 @@ export function CollectionsDesktop({
   const actions = useCollectionActions(token)
 
   // The landing rule: open on the first stage that still needs the user
-  // (CONTEXT.md). `null` until the record lands, so the chip never flickers off
-  // a guess and then moves under the cursor.
+  // (CONTEXT.md). Both halves are null until the record lands — `collection.landing`
+  // used to fall back to "found", so the page opened on a guess and then moved
+  // the active chip under the user (found → applied on a real board).
   const [chosen, setChosen] = React.useState<CollectionStage | null>(null)
   const stage = chosen ?? collection.landing
   const [sort, setSort] = React.useState<SortKey>("fit")
@@ -64,7 +65,7 @@ export function CollectionsDesktop({
   })
 
   const shown = React.useMemo(
-    () => orderEntries(collection.byStage(stage), sort),
+    () => (stage ? orderEntries(collection.byStage(stage), sort) : []),
     [collection, stage, sort],
   )
   // The trust LINE only — liveness itself is server-joined now, so a card that
@@ -131,7 +132,12 @@ export function CollectionsDesktop({
                     onClick={() => setChosen(c.key)}
                   >
                     {c.label}
-                    <span className="db-seg-count">{collection.counts[c.key]}</span>
+                    {/* Count-less until the record lands. A 0 here is a claim
+                        about the user's board, and it was wrong for ~1s on every
+                        load: 0 0 0 0 0 → 14 75 9 22 5. */}
+                    {collection.counts ? (
+                      <span className="db-seg-count">{collection.counts[c.key]}</span>
+                    ) : null}
                   </button>
                 ))}
               </div>
@@ -184,7 +190,18 @@ export function CollectionsDesktop({
               />
             ) : null}
 
-            {isRefreshing && stage === "found" ? (
+            {collection.isLoading ? (
+              /* The record has not arrived. Nothing below this point may speak
+                 about the user's board yet — the empty state used to render
+                 "Nothing has cleared the bar yet", a verdict about the market,
+                 while the request was still in flight. */
+              <div className="db-feed" aria-busy="true" aria-live="polite">
+                <span className="tm-sr-only">Loading your collection…</span>
+                <div className="mf-skel" />
+                <div className="mf-skel" />
+                <div className="mf-skel" />
+              </div>
+            ) : isRefreshing && stage === "found" ? (
               <>
                 <div className="mf-reading" role="status" aria-live="polite">
                   <span className="mf-reading-dot" aria-hidden />
@@ -237,7 +254,7 @@ export function CollectionsDesktop({
               </div>
             ) : (
               <div className="db-empty" style={{ flexDirection: "column", alignItems: "flex-start", gap: 12 }}>
-                <span>{emptyCopy(stage)}</span>
+                <span>{stage ? emptyCopy(stage) : null}</span>
                 {stage === "found" ? (
                   <SplitFooter
                     belowBarCount={collection.belowBarCount}

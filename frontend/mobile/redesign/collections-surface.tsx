@@ -52,7 +52,10 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
     try { window.localStorage.setItem(JOURNEY_DISMISS_KEY, String(Date.now())) } catch { /* ignore */ }
   }
 
-  const shown = useMemo(() => orderEntries(collection.byStage(stage), sort), [collection, stage, sort])
+  const shown = useMemo(
+    () => (stage ? orderEntries(collection.byStage(stage), sort) : []),
+    [collection, stage, sort],
+  )
   // Trust LINE only — the stage itself is server-joined, so a card past the
   // pulse batch's 100-id cap still sits in the right chip.
   const pulses = usePulses(token, useMemo(() => shown.map((e) => e.job_id), [shown]))
@@ -149,11 +152,11 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
             do not. Tailored is the goal step, so it carries the accent. */}
         {!journeyHidden && (
           <div style={{ display: "flex", alignItems: "stretch", gap: 0, marginTop: 10, background: "var(--mm-card)", border: "1px solid var(--mm-hair)", borderRadius: 13, padding: "9px 6px" }}>
-            <JourneyStep label="Found" sub={`${collection.counts.found}`} onClick={() => setChosen("found")} done />
+            <JourneyStep label="Found" sub={collection.counts ? `${collection.counts.found}` : "—"} onClick={() => setChosen("found")} done />
             <span style={{ alignSelf: "center", color: "var(--mm-stroke)", fontSize: 11 }}>›</span>
-            <JourneyStep label="Saved" sub={`${collection.counts.saved}`} onClick={() => setChosen("saved")} done />
+            <JourneyStep label="Saved" sub={collection.counts ? `${collection.counts.saved}` : "—"} onClick={() => setChosen("saved")} done />
             <span style={{ alignSelf: "center", color: "var(--mm-stroke)", fontSize: 11 }}>›</span>
-            <JourneyStep label="Tailored" sub="the goal" onClick={() => setChosen("tailored")} accent={collection.counts.tailored} />
+            <JourneyStep label="Tailored" sub="the goal" onClick={() => setChosen("tailored")} accent={collection.counts?.tailored} />
             <button onClick={dismissJourney} aria-label="Dismiss" className="tm-dismiss-action" style={{ alignSelf: "flex-start", width: 22, height: 22, marginLeft: 2, flexShrink: 0, borderRadius: 99, border: "none", background: "transparent", color: "var(--mm-dim)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
               <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
             </button>
@@ -165,7 +168,10 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
             const on = stage === key
             return (
               <button key={key} onClick={() => setChosen(key)} style={{ flex: "none", height: 28, display: "flex", alignItems: "center", gap: 5, padding: "0 12px", borderRadius: 99, border: `1px solid ${on ? "transparent" : "var(--mm-border)"}`, background: on ? "var(--mm-raise-2)" : "transparent", color: on ? "var(--mm-text)" : "var(--mm-muted)", fontSize: 12, fontWeight: 650, cursor: "pointer", fontFamily: "inherit", transition: "background 160ms" }}>
-                {label}<span style={{ fontVariantNumeric: "tabular-nums", opacity: 0.65, fontWeight: 600 }}>{collection.counts[key]}</span>
+                {label}
+                {collection.counts ? (
+                  <span style={{ fontVariantNumeric: "tabular-nums", opacity: 0.65, fontWeight: 600 }}>{collection.counts[key]}</span>
+                ) : null}
               </button>
             )
           })}
@@ -173,9 +179,16 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
       </div>
 
       <div style={{ padding: "2px 16px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-        {stage === "found" ? <MobileAgentPicks token={token} context="collections" /> : null}
+        {stage === "found" && !collection.isLoading ? <MobileAgentPicks token={token} context="collections" /> : null}
 
-        {isRefreshing && stage === "found" ? (
+        {collection.isLoading ? (
+          /* The record has not arrived — nothing here may speak about the board
+             yet. The empty state used to render a verdict about the market
+             while the request was still in flight. */
+          <div aria-busy="true" aria-live="polite" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {[0, 1, 2].map(i => <div key={i} style={{ height: 86, borderRadius: 16, background: "var(--mm-card)", border: "1px solid var(--mm-hair)", opacity: 0.55 }} />)}
+          </div>
+        ) : isRefreshing && stage === "found" ? (
           <>
             <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "12px 14px", borderRadius: 13, border: "1px solid rgba(79,199,246,0.2)", background: "var(--mm-accent-wash)", fontSize: 12.5, color: "var(--mm-text-2)" }}>
               <span style={{ width: 8, height: 8, borderRadius: 99, background: "var(--mm-accent)", animation: "mm-dotBlink 1.1s infinite", flex: "none" }} />
@@ -227,7 +240,7 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
           </div>
         ) : (
           <div style={{ textAlign: "center", padding: "44px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-            <div style={{ fontSize: 12.5, color: "var(--mm-faint)", lineHeight: 1.5 }}>{emptyCopy(stage)}</div>
+            <div style={{ fontSize: 12.5, color: "var(--mm-faint)", lineHeight: 1.5 }}>{stage ? emptyCopy(stage) : null}</div>
             {stage === "found" ? (
               <SplitFooter belowBarCount={collection.belowBarCount} rejectedCount={collection.rejectedCount} onBrowseJobs={() => router.push("/market")} />
             ) : stage === "saved" ? (

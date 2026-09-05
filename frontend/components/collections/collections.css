@@ -29,6 +29,14 @@
   50% { opacity: 1; transform: scale(1); }
 }
 
+/* Screen-reader-only. The skeleton says "loading" visually; without this the
+   aria-live region has nothing to announce. Defined HERE because there is no
+   global sr-only utility — an undefined class fails silently. */
+.tm-sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
 .mf-skel {
   height: 84px;
   border-radius: var(--tm-radius-md, 12px);

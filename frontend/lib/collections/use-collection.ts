@@ -28,17 +28,22 @@ export interface CollectionView {
   entries: CollectionEntry[]
   byStage: (stage: CollectionStage) => CollectionEntry[]
   byId: ReadonlyMap<string, CollectionEntry>
-  counts: Record<CollectionStage, number>
-  landing: CollectionStage
+  /** NULL until the record lands. Chips render count-less rather than showing a
+   *  confident 0 that then jumps to 75 — the same rule the nav's `TabCount`
+   *  already follows. A zero is an answer; "not yet" is not. */
+  counts: Record<CollectionStage, number> | null
+  /** NULL until the record lands. It used to fall back to `found`, so the page
+   *  opened on a guess and then moved the active chip under the user a second
+   *  later (found → applied on a real board). */
+  landing: CollectionStage | null
   belowBarCount: number
   rejectedCount: number
   /** Entries whose apply click was never answered — the surface owes them a question. */
   pendingApply: CollectionEntry[]
+  /** No record yet. Distinct from `isEmpty`, which is a VERDICT about the data. */
+  isLoading: boolean
+  /** The record arrived and it holds nothing. Never true before it arrives. */
   isEmpty: boolean
-}
-
-const EMPTY_COUNTS: Record<CollectionStage, number> = {
-  found: 0, saved: 0, tailored: 0, applied: 0, closed: 0,
 }
 
 export function useCollection(token: string | null): CollectionView {
@@ -74,11 +79,15 @@ export function useCollection(token: string | null): CollectionView {
     entries,
     byStage: (stage) => grouped.get(stage) ?? [],
     byId,
-    counts: query.data?.stages ?? EMPTY_COUNTS,
-    landing: query.data?.landing ?? "found",
+    counts: query.data?.stages ?? null,
+    landing: query.data?.landing ?? null,
     belowBarCount: query.data?.below_bar_count ?? 0,
     rejectedCount: query.data?.rejected_count ?? 0,
     pendingApply,
-    isEmpty: !query.isLoading && entries.length === 0,
+    // Keyed on the DATA, not on `isLoading` — a background refetch holds the
+    // previous record, and the surface must keep rendering it rather than
+    // blanking to a skeleton every 60 seconds.
+    isLoading: query.data === undefined,
+    isEmpty: query.data !== undefined && entries.length === 0,
   }
 }
