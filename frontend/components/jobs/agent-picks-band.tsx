@@ -77,7 +77,15 @@ export function AgentPicksBand({
   })
 
   const picks = q.data?.picks ?? []
-  if (!picks.length) return null
+  // Build the cards BEFORE deciding whether there is a band. A surface that
+  // supplies its own card may decline a pick (`renderCard` → null) — on
+  // Collections, every pick is declined until the record lands — and the band
+  // used to render its title, its "Hand-vetted by Myro's career brain" promise
+  // and its closing divider over nothing at all.
+  const cards = picks
+    .map((pick) => ({ pick, card: renderCard ? renderCard(pick) : null }))
+    .filter((row) => !renderCard || row.card !== null)
+  if (!cards.length) return null
 
   return (
     <section className="tm-agentpicks" aria-label="Myro Agent picks">
@@ -92,10 +100,9 @@ export function AgentPicksBand({
       </header>
 
       <div className="tm-agentpicks-list">
-        {picks.map(pick => {
-          const card = renderCard
-            ? renderCard(pick)
-            : (
+        {cards.map(({ pick, card }) => (
+          <AgentPickNote key={pick.job_id} pick={pick}>
+            {card ?? (
               <JobCard
                 job={pick}
                 hasCv={hasCv}
@@ -103,10 +110,9 @@ export function AgentPicksBand({
                 onSave={() => triage.save(pick)}
                 onSkip={() => triage.skip(pick)}
               />
-            )
-          if (!card) return null
-          return <AgentPickNote key={pick.job_id} pick={pick}>{card}</AgentPickNote>
-        })}
+            )}
+          </AgentPickNote>
+        ))}
       </div>
 
       <div className="tm-agentpicks-divider" role="separator">

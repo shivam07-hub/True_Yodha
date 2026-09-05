@@ -16,7 +16,7 @@ import { readPendingExtensionConnect } from "@/lib/extension-connect-stash"
 import { hasPendingPrepIntent } from "@/lib/prep-intent-stash"
 import { hasPendingJobSaveClaim } from "@/lib/anon-job-stash"
 import { postAuthDestination } from "@/lib/auth/post-auth-destination"
-import { methodFromCallback, rememberAuth } from "@/lib/auth/last-auth"
+import { identityFromUserMetadata, methodFromCallback, rememberAuth } from "@/lib/auth/last-auth"
 import {
   captureAttributionFromCallback,
   clearStoredAttribution,
@@ -146,12 +146,16 @@ function CallbackInner() {
         null
 
       setSessionTokens({ accessToken: session.access_token, refreshToken: session.refresh_token })
+      // The device remembers the PERSON, not just the method — this callback is
+      // the only path that ever sees a name and a face, so it is the only place
+      // they can be recorded.
       rememberAuth(
         methodFromCallback({
           provider,
           via: searchParams.get("via"),
         }),
         session.user?.email ?? null,
+        identityFromUserMetadata(session.user?.user_metadata),
       )
 
       // Route the instant auth is in hand. `created_at` lives on the session

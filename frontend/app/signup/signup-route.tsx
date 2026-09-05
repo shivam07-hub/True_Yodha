@@ -5,6 +5,7 @@ import { capturePrepIntentParam } from "@/lib/prep-intent-stash"
 import { useEffect, useState } from "react"
 import { AuthPageShell } from "@/components/auth/auth-page-shell"
 import { SignupForm } from "@/components/auth/signup-form"
+import { GoogleOneTap } from "@/components/auth/google-one-tap"
 import { SampleReadout } from "@/components/public/landing/sample-readout"
 import { readStashedResult } from "@/lib/anon-cv-stash"
 import type { AnonScoreResponse } from "@/lib/api"
@@ -66,6 +67,7 @@ export function SignupRoute() {
         </>
       }
     >
+      <GoogleOneTap surface="signup_page" />
       <SignupForm surface="page" showLoginLink={false} />
     </AuthPageShell>
   )

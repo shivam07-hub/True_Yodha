@@ -11,6 +11,9 @@ import { LegitimacyBadge } from "@/components/jobs/match-brain"
 import { companyHref } from "@/components/companies/company-link"
 import { ApplyCapturePrompt } from "@/components/jobs/apply-capture-prompt"
 import { useApplyCapture } from "@/components/jobs/use-apply-capture"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { jobs as jobsApi } from "@/lib/api"
+import { dataKeys } from "@/lib/domain-data"
 import { ORIGIN_LABEL, heroFor } from "@/lib/collections/model"
 import type { CollectionEntry, JobPulse } from "@/lib/api"
 
@@ -51,6 +54,13 @@ export function CollectionRow({
 }) {
   const [noteOpen, setNoteOpen] = React.useState(false)
   const [note, setNote] = React.useState(entry.notes ?? "")
+  // An extension import is extracted from an arbitrary page, so it sometimes
+  // lands with a tagline as the company ("Accelerate Your Hiring Process") or a
+  // requisition number. The correction endpoint existed but its only caller was
+  // the CV playground — a surface you reach by choosing to tailor. The fix has
+  // to be where the wrong name is, which is here.
+  const editable = entry.job_id.startsWith("ext_")
+  const [fixOpen, setFixOpen] = React.useState(false)
   const [leaving, setLeaving] = React.useState(false)
   const hero = heroFor(entry)
   const job = entry.job
@@ -76,7 +86,18 @@ export function CollectionRow({
   return (
     <div>
       <FeedCard
-        data={feedDataFromMatch({ jobId: entry.job_id, company: job.company, role: job.title, job, fit: job.match_score })}
+        // A 0 is not a fit — it is the absence of one. `match_score` is 0 on
+        // every job the brain has never evaluated (extension imports, manual
+        // adds), and passing it through painted a "0" ring on 22 of this
+        // board's 22 applied cards, reading as "0% match". Both old adapters
+        // guarded this; the rewrite dropped the guard.
+        data={feedDataFromMatch({
+          jobId: entry.job_id,
+          company: job.company,
+          role: job.title,
+          job,
+          fit: job.match_score > 0 ? job.match_score : null,
+        })}
         variant="row"
         open={open}
         leaving={leaving}
@@ -113,6 +134,16 @@ export function CollectionRow({
               {entry.stage === "saved" || entry.stage === "tailored" ? (
                 <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={() => setNoteOpen((v) => !v)}>
                   Note
+                </button>
+              ) : null}
+              {editable ? (
+                <button
+                  type="button"
+                  className="db-btn db-btn-secondary tm-control-focus"
+                  aria-expanded={fixOpen}
+                  onClick={() => setFixOpen((v) => !v)}
+                >
+                  Fix name
                 </button>
               ) : null}
 
@@ -169,6 +200,15 @@ export function CollectionRow({
           </div>
         }
       />
+      {fixOpen ? (
+        <FixImportedDetails
+          token={token}
+          jobId={entry.job_id}
+          company={job.company ?? ""}
+          role={job.title}
+          onDone={() => setFixOpen(false)}
+        />
+      ) : null}
       {noteOpen ? (
         <textarea
           aria-label={`Note for ${job.title}`}
@@ -180,6 +220,63 @@ export function CollectionRow({
           style={{ width: "100%", marginTop: 8, padding: "9px 10px", borderRadius: 8, border: "1px solid var(--tm-border)", background: "var(--tm-surface-2)", color: "var(--tm-text)", resize: "vertical" }}
         />
       ) : null}
+    </div>
+  )
+}
+
+/** Correct a mis-extracted company or role on an imported job.
+ *  `PATCH /applications/{job_id}/imported-details` — server-validated, and only
+ *  `ext_` jobs are editable (scraped rows are scraper-owned and shared). */
+function FixImportedDetails({
+  token,
+  jobId,
+  company,
+  role,
+  onDone,
+}: {
+  token: string
+  jobId: string
+  company: string
+  role: string
+  onDone: () => void
+}) {
+  const qc = useQueryClient()
+  const [nextCompany, setNextCompany] = React.useState(company)
+  const [nextRole, setNextRole] = React.useState(role)
+  const [error, setError] = React.useState<string | null>(null)
+  const save = useMutation({
+    mutationFn: () => jobsApi.updateImportedDetails(token, jobId, { title: nextRole.trim(), company: nextCompany.trim() }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: dataKeys.collection() })
+      onDone()
+    },
+    // The server owns what a valid role/company is; surface ITS reason rather
+    // than mirroring the rule here, where the two would drift.
+    onError: (e: Error) => setError(e.message || "That didn’t look right — try again."),
+  })
+  const dirty = nextCompany.trim() !== company.trim() || nextRole.trim() !== role.trim()
+  return (
+    <div className="db-fiximport" onClick={(event) => event.stopPropagation()}>
+      <label>
+        <span>Company</span>
+        <input value={nextCompany} onChange={(e) => { setNextCompany(e.target.value); setError(null) }} placeholder="Who is hiring" />
+      </label>
+      <label>
+        <span>Role</span>
+        <input value={nextRole} onChange={(e) => { setNextRole(e.target.value); setError(null) }} placeholder="The job title" />
+      </label>
+      {error ? <p className="db-fiximport-error" role="alert">{error}</p> : null}
+      <div className="db-fiximport-actions">
+        <button type="button" className="db-btn db-btn-secondary tm-control-focus" onClick={onDone}>Cancel</button>
+        <button
+          type="button"
+          className="db-btn db-btn-primary tm-control-focus"
+          disabled={!dirty || save.isPending}
+          onClick={() => save.mutate()}
+        >
+          {save.isPending ? "Saving…" : "Save"}
+        </button>
+      </div>
     </div>
   )
 }

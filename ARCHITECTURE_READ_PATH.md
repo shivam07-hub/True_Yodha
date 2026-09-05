@@ -1253,6 +1253,7 @@ ships and log the close above.
 | `POST /v1/telemetry/cv-upload-phase` | 3,806-4,339ms, 3 sequential hops inline | 202 + `BackgroundTask`; off the response path entirely |
 | `/roles/families` request count | 15 per typed query | ~2 — `useDebouncedValue`, 60s `staleTime` |
 | Saturation alert sample | `[-8:]` "most recent" — 9 windows were 100% partner SSO | stratified by journey stage, slowest-first inside each |
+| `ghost_index_payload()` anon (2026-09-05) | 8s statement timeout — the coverage block ran `count(distinct company_name) from jobs`, **6,041ms / 12,276 heap blocks** as `anon` (trap 5, same BitmapOr over the jobs RLS OR) | **3.094ms** — the count moved into `ghost_index_snapshot.companies_in_corpus`, written by the daily refresh under `service_role` (`20260905e`, Tier 0). Caught by calling the endpoint for real; the leaderboard query alone had measured 5.0ms and looked fine. |
 
 **Re-measured 2026-08-25 from 11 days of saturation alerts (2026-08-14→24).**
 `/home/bootstrap` and `/jobs/matches` did fall, and the fall is **not** this

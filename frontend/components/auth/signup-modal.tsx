@@ -8,6 +8,7 @@ import { subscribeToSessionChanges } from "@/lib/session"
 import { getStoredReferral } from "@/lib/referral"
 import { SignupForm } from "./signup-form"
 import { LoginForm } from "./login-form"
+import { GoogleOneTap } from "./google-one-tap"
 import "./signup-modal.css"
 
 const CONCEPTS: Array<{ title: string; body: string }> = [
@@ -137,6 +138,11 @@ export function SignupModal() {
               Invited by <strong>@{refSlug}</strong>
             </span>
           )}
+
+          {/* Same prompt as the auth routes. It unmounts with the modal, and
+              the component cancels the prompt on unmount, so it cannot outlive
+              the dialog that asked for it. */}
+          <GoogleOneTap surface={isLogin ? "login_modal" : "signup_modal"} />
 
           {isLogin ? (
             <LoginForm

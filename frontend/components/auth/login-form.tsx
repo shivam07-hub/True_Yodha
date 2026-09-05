@@ -17,15 +17,19 @@ import { hasPendingPrepIntent } from "@/lib/prep-intent-stash"
 import { hasPendingJobSaveClaim } from "@/lib/anon-job-stash"
 import { postAuthDestination } from "@/lib/auth/post-auth-destination"
 import {
+  forgetDeviceAuth,
+  greetableIdentity,
   highlightableLastMethod,
-  readLastAuthMethod,
-  readLastEmail,
+  readLastIdentity,
   rememberAuth,
+  type GreetableIdentity,
   type HighlightableAuthMethod,
 } from "@/lib/auth/last-auth"
+import { sendMagicLink } from "@/lib/auth/send-magic-link"
 import { CheckInboxPanel } from "@/components/auth/shared/check-inbox-panel"
 import { InAppBrowserWarning } from "@/components/auth/shared/in-app-browser-warning"
 import { LastUsedLabel, LoginPrimaryMethods } from "@/components/auth/shared/login-primary-methods"
+import { ReturningIdentity } from "@/components/auth/shared/returning-identity"
 
 interface Props {
   surface: "page" | "modal"
@@ -53,20 +57,27 @@ export function LoginForm({ surface, showSignupLink = true, initialEmail }: Prop
   const [loading, setLoading] = useState(false)
   const [pendingEmail, setPendingEmail] = useState<string | null>(null)
   const [agent, setAgent] = useState<string | null>(null)
-  const [mode, setMode] = useState<"primary" | "password">(initialEmail ? "password" : "primary")
+  const [mode, setMode] = useState<"returning" | "primary" | "password">(
+    initialEmail ? "password" : "primary",
+  )
   const [lastMethod, setLastMethod] = useState<HighlightableAuthMethod | null>(null)
+  const [identity, setIdentity] = useState<GreetableIdentity | null>(null)
 
   useEffect(() => {
     capturePendingReferral()
     capturePendingAttribution()
     const det = detectInAppBrowser()
     if (det.inApp) setAgent(det.agent)
-    const recorded = readLastAuthMethod()
-    setLastMethod(highlightableLastMethod(recorded, { inAppBrowser: det.inApp }))
+    const record = readLastIdentity()
+    setLastMethod(highlightableLastMethod(record?.method ?? null, { inAppBrowser: det.inApp }))
+    // An address carried in from a bounced signup names the person this screen
+    // is for. It outranks whoever used the device last, so no card opens.
     if (initialEmail) return
-    const remembered = readLastEmail()
-    if (remembered) setEmail(remembered)
-    if (recorded === "password") setMode("password")
+    if (record?.email) setEmail(record.email)
+    const greetable = greetableIdentity(record, { inAppBrowser: det.inApp })
+    setIdentity(greetable)
+    if (greetable) setMode("returning")
+    else if (record?.method === "password") setMode("password")
   }, [initialEmail])
 
   const redirectTo = useMemo(() => {
@@ -86,6 +97,34 @@ export function LoginForm({ surface, showSignupLink = true, initialEmail }: Prop
       .then(({ error }) => {
         if (error) setError(error.message)
       })
+  }
+
+  /**
+   * The card's magic-link path. The address is the one this device already
+   * signed in with, so nothing is typed — but an email still has to be SENT,
+   * which is why the button never promises an instant sign-in.
+   */
+  async function continueWithMagicLink() {
+    if (!identity) return
+    setError(null)
+    setLoading(true)
+    try {
+      setPendingEmail(await sendMagicLink({ email: identity.email, redirectTo, surface }))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't send the link.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  /** Someone else's turn on this device. Drop the hint before showing a stack. */
+  function forgetThisDevice() {
+    forgetDeviceAuth()
+    setIdentity(null)
+    setLastMethod(null)
+    setEmail("")
+    setError(null)
+    setMode("primary")
   }
 
   async function submitPassword(e: React.FormEvent) {
@@ -141,18 +180,34 @@ export function LoginForm({ surface, showSignupLink = true, initialEmail }: Prop
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {agent && <InAppBrowserWarning agent={agent} />}
 
-      <LoginPrimaryMethods
-        agent={agent}
-        lastMethod={lastMethod}
-        surface={surface}
-        includeMagic={mode === "primary"}
-        email={email}
-        initialEmail={initialEmail}
-        redirectTo={redirectTo}
-        onGoogle={() => openOAuth("google")}
-        onLinkedIn={() => openOAuth("linkedin_oidc")}
-        onSent={(next) => setPendingEmail(next)}
-      />
+      {mode === "returning" && identity && (
+        <ReturningIdentity
+          identity={identity}
+          surface={surface}
+          busy={loading}
+          onGoogle={() => openOAuth("google")}
+          onLinkedIn={() => openOAuth("linkedin_oidc")}
+          onMagicLink={continueWithMagicLink}
+          onPassword={() => setMode("password")}
+          onNotYou={forgetThisDevice}
+          onOtherOptions={() => setMode("primary")}
+        />
+      )}
+
+      {mode !== "returning" && (
+        <LoginPrimaryMethods
+          agent={agent}
+          lastMethod={lastMethod}
+          surface={surface}
+          includeMagic={mode === "primary"}
+          email={email}
+          initialEmail={initialEmail}
+          redirectTo={redirectTo}
+          onGoogle={() => openOAuth("google")}
+          onLinkedIn={() => openOAuth("linkedin_oidc")}
+          onSent={(next) => setPendingEmail(next)}
+        />
+      )}
 
       {mode === "primary" && (
         <button

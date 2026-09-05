@@ -8,7 +8,7 @@ from supabase import Client
 
 from app.schemas.jobs import APPLICATION_STATUSES
 from app.services import skill_floor
-from app.services.job_extract_backstop import is_valid_company
+from app.services.job_extract_backstop import is_valid_company, is_valid_location
 from app.services.skill_extraction import (
     ExtractedSkill,
     extract_skills,
@@ -33,6 +33,12 @@ def _safe_company(value: Any) -> str:
     """A non-null, non-junk company for the NOT-NULL jobs.company_name column."""
     text = (str(value or "")).strip()
     return text if is_valid_company(text) else "Unknown company"
+
+
+def _absent_or(value: Any) -> str | None:
+    """A real location, or NULL. Never a word standing in for one."""
+    text = (str(value or "")).strip()
+    return text if is_valid_location(text) else None
 
 
 def _dedupe_key(label: str) -> str:
@@ -208,7 +214,12 @@ def build_imported_job(user_id: str, body: Any) -> dict[str, Any]:
         # backstop should have produced a real value by now; this is the net.
         "company_name": _safe_company(body.company_name),
         "industry": "unknown",
-        "location": (body.location or "").strip() or "unknown",
+        # Absent, not "unknown". The column was NOT NULL, so this minted a
+        # sentinel that then printed as the job's location on 6 of 20 extension
+        # imports; 20260905090000 widened it so absence can be recorded as
+        # absence. `is_valid_location` also rejects placeholders now, so a page
+        # that literally says "Unknown" cannot re-enter through the backstop.
+        "location": _absent_or(body.location),
         "apply_url": body.source_url,
         "source_url": body.source_url,
         "source_platform": body.source_platform or "generic",

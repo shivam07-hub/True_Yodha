@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation"
 import { capturePrepIntentParam } from "@/lib/prep-intent-stash"
 import { AuthPageShell } from "@/components/auth/auth-page-shell"
 import { LoginForm } from "@/components/auth/login-form"
+import { GoogleOneTap } from "@/components/auth/google-one-tap"
 import { AuthRouteSkeleton } from "@/components/loading/auth-route-skeleton"
 
 function LoginRoute() {
@@ -33,6 +34,7 @@ function LoginRoute() {
         </>
       }
     >
+      <GoogleOneTap surface="login_page" />
       <LoginForm surface="page" showSignupLink={false} initialEmail={prefillEmail} />
     </AuthPageShell>
   )

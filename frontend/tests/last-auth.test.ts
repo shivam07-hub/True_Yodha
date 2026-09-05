@@ -3,6 +3,9 @@ import assert from "node:assert/strict"
 
 import {
   forgetDeviceAuth,
+  greetableIdentity,
+  identityFromUserMetadata,
+  identityInitial,
   highlightableLastMethod,
   isReturningDevice,
   loginStackOrder,
@@ -10,6 +13,7 @@ import {
   publicAuthPrimary,
   readLastAuthMethod,
   readLastEmail,
+  readLastIdentity,
   rememberAuth,
 } from "../lib/auth/last-auth"
 
@@ -31,7 +35,7 @@ class MemoryStorage {
 
 test("remembered method and email round-trip on this device", () => {
   const storage = new MemoryStorage()
-  rememberAuth("linkedin", "Asha@Email.com", storage)
+  rememberAuth("linkedin", "Asha@Email.com", { storage })
 
   assert.equal(readLastAuthMethod(storage), "linkedin")
   assert.equal(readLastEmail(storage), "asha@email.com")
@@ -44,14 +48,14 @@ test("unknown or corrupt records are ignored", () => {
   assert.equal(readLastAuthMethod(storage), null)
   assert.equal(isReturningDevice(storage), false)
 
-  rememberAuth("sms" as never, "not-an-email", storage)
+  rememberAuth("sms" as never, "not-an-email", { storage })
   assert.equal(readLastAuthMethod(storage), null)
   assert.equal(readLastEmail(storage), null)
 })
 
 test("partner SSO is a returning device but is not a public login button", () => {
   const storage = new MemoryStorage()
-  rememberAuth("partner", "asha@email.com", storage)
+  rememberAuth("partner", "asha@email.com", { storage })
 
   assert.equal(isReturningDevice(storage), true)
   assert.equal(highlightableLastMethod("partner", { inAppBrowser: false }), null)
@@ -90,8 +94,108 @@ test("a returning device makes Sign in the public primary", () => {
 
 test("forgetting the device hint does not require a session", () => {
   const storage = new MemoryStorage()
-  rememberAuth("google", "asha@email.com", storage)
+  rememberAuth("google", "asha@email.com", { storage })
   forgetDeviceAuth(storage)
   assert.equal(isReturningDevice(storage), false)
   assert.equal(readLastEmail(storage), null)
+})
+
+test("the device remembers a person, not only a method", () => {
+  const storage = new MemoryStorage()
+  rememberAuth("google", "asha@email.com", {
+    name: "  Asha   Rao ",
+    avatar: "https://cdn.example.com/asha.png",
+    storage,
+  })
+
+  const record = readLastIdentity(storage)
+  assert.equal(record?.name, "Asha Rao")
+  assert.equal(record?.avatar, "https://cdn.example.com/asha.png")
+  assert.equal(record?.email, "asha@email.com")
+})
+
+test("a password sign-in keeps the face the OAuth path already learned", () => {
+  const storage = new MemoryStorage()
+  rememberAuth("google", "asha@email.com", {
+    name: "Asha Rao",
+    avatar: "https://cdn.example.com/asha.png",
+    storage,
+  })
+  rememberAuth("password", "asha@email.com", { storage })
+
+  const record = readLastIdentity(storage)
+  assert.equal(record?.method, "password")
+  assert.equal(record?.name, "Asha Rao")
+  assert.equal(record?.avatar, "https://cdn.example.com/asha.png")
+})
+
+test("a different address never inherits the last person's name or face", () => {
+  const storage = new MemoryStorage()
+  rememberAuth("google", "asha@email.com", {
+    name: "Asha Rao",
+    avatar: "https://cdn.example.com/asha.png",
+    storage,
+  })
+  rememberAuth("password", "vikram@email.com", { storage })
+
+  const record = readLastIdentity(storage)
+  assert.equal(record?.email, "vikram@email.com")
+  assert.equal(record?.name, null)
+  assert.equal(record?.avatar, null)
+})
+
+test("only an https avatar reaches an img src", () => {
+  const storage = new MemoryStorage()
+  for (const avatar of ["javascript:alert(1)", "http://cdn.example.com/a.png", "data:image/png;base64,AAA", "not a url"]) {
+    rememberAuth("google", "asha@email.com", { avatar, storage })
+    assert.equal(readLastIdentity(storage)?.avatar, null, avatar)
+  }
+})
+
+test("a record written before identity was stored still reads", () => {
+  const storage = new MemoryStorage()
+  storage.setItem("myro_last_auth_v1", JSON.stringify({ method: "google", email: "asha@email.com" }))
+
+  const record = readLastIdentity(storage)
+  assert.equal(record?.method, "google")
+  assert.equal(record?.name, null)
+  assert.equal(greetableIdentity(record)?.email, "asha@email.com")
+})
+
+test("a greeting needs both an address and a button to press", () => {
+  assert.equal(greetableIdentity(null), null)
+  assert.equal(
+    greetableIdentity({ method: "partner", email: "asha@email.com", name: null, avatar: null }),
+    null,
+  )
+  assert.equal(
+    greetableIdentity({ method: "google", email: null, name: "Asha", avatar: null }),
+    null,
+  )
+  assert.equal(
+    greetableIdentity(
+      { method: "google", email: "asha@email.com", name: null, avatar: null },
+      { inAppBrowser: true },
+    )?.method,
+    "magic_link",
+  )
+})
+
+test("the initial falls back from name to address, never to nothing", () => {
+  assert.equal(identityInitial("asha rao", "x@email.com"), "A")
+  assert.equal(identityInitial(null, "vikram@email.com"), "V")
+  assert.equal(identityInitial("", ""), "?")
+})
+
+test("provider metadata yields a person without inventing one", () => {
+  assert.deepEqual(
+    identityFromUserMetadata({ full_name: "Asha Rao", picture: "https://cdn.example.com/a.png" }),
+    { name: "Asha Rao", avatar: "https://cdn.example.com/a.png" },
+  )
+  assert.deepEqual(
+    identityFromUserMetadata({ name: "Vikram", avatar_url: "https://cdn.example.com/v.png" }),
+    { name: "Vikram", avatar: "https://cdn.example.com/v.png" },
+  )
+  assert.deepEqual(identityFromUserMetadata(undefined), { name: null, avatar: null })
+  assert.deepEqual(identityFromUserMetadata({ full_name: "   " }), { name: null, avatar: null })
 })

@@ -29,6 +29,14 @@
   50% { opacity: 1; transform: scale(1); }
 }
 
+/* Screen-reader-only. The skeleton says "loading" visually; without this the
+   aria-live region has nothing to announce. Defined HERE because there is no
+   global sr-only utility — an undefined class fails silently. */
+.tm-sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
 .mf-skel {
   height: 84px;
   border-radius: var(--tm-radius-md, 12px);
@@ -133,3 +141,29 @@
 .mc-ws-rail--peek a.mc-loopring-nudge:hover svg { color: var(--tm-interactive-fg); }
 .mc-ws-rail--peek .cs-chip-star,
 .mc-ws-rail--peek .cs-row-star { color: var(--tm-text-faint); }
+
+/* Correct a mis-extracted company/role on an imported job. Sits under the card
+   it belongs to, in the same slot the note textarea uses — a correction is an
+   edit of THIS row, never a second screen. */
+.db-fiximport {
+  margin-top: 8px; padding: 10px; display: grid; gap: 8px;
+  border: 1px solid var(--tm-border); border-radius: 8px; background: var(--tm-surface-2);
+}
+.db-fiximport label { display: grid; gap: 4px; }
+.db-fiximport label span {
+  font-size: var(--tm-fs-micro); letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--tm-text-muted);
+}
+.db-fiximport input {
+  padding: 8px 10px; border-radius: 6px; border: 1px solid var(--tm-border);
+  background: var(--tm-surface); color: var(--tm-text); font: inherit; font-size: 13.5px;
+}
+.db-fiximport input:focus-visible { outline: 2px solid var(--tm-interactive); outline-offset: 1px; }
+.db-fiximport-error { margin: 0; color: var(--tm-danger); font-size: 12.5px; }
+.db-fiximport-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+@media (max-width: 520px) {
+  .db-fiximport-actions { justify-content: stretch; }
+  .db-fiximport-actions .db-btn { flex: 1; }
+}
+

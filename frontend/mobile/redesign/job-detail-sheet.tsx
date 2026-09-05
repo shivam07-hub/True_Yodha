@@ -63,6 +63,7 @@ export function JobDetailSheet({
   const upvotes = useSkillUpvotes(token)
   if (!data) return <BottomSheet open={open} onClose={onClose} label="Job detail" maxHeight="88%"><div /></BottomSheet>
   const { row, matched, gaps, saved, hasApply, applyLabel = "Apply", canDismiss = true } = data
+  const fitKnown = row.fit > 0
   // Prefer the brain's real "why this fits you" summary over the static JD slice.
   const whyFit = (brain?.available ? brain.summary : null) || data.whyFit
 
@@ -88,12 +89,18 @@ export function JobDetailSheet({
             <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1.25, marginTop: 2 }}>{row.role}</div>
             <div style={{ fontSize: 12, color: "var(--mm-faint)", marginTop: 3 }}>{[row.metaLine, row.verified].filter(Boolean).join(" · ")}</div>
           </div>
+          {/* A 0 is not a fit — it is the absence of one. `row.fit` is 0 on
+              every job the brain never evaluated (extension imports, manual
+              adds), and this rendered it unguarded: a filled-in "0" that reads
+              as "0% match". The cards guard it; this sheet did not. */}
           <div style={{ position: "relative", width: 46, height: 46, flex: "none" }}>
             <svg width={46} height={46} viewBox="0 0 46 46" aria-hidden="true">
               <circle cx="23" cy="23" r="19" fill="none" stroke="var(--mm-border)" strokeWidth="3.4" />
-              <circle cx="23" cy="23" r="19" fill="none" stroke={row.ringColor} strokeWidth="3.4" strokeLinecap="round" strokeDasharray={CIRC} strokeDashoffset={CIRC * (1 - row.fit / 100)} transform="rotate(-90 23 23)" />
+              {fitKnown ? (
+                <circle cx="23" cy="23" r="19" fill="none" stroke={row.ringColor} strokeWidth="3.4" strokeLinecap="round" strokeDasharray={CIRC} strokeDashoffset={CIRC * (1 - row.fit / 100)} transform="rotate(-90 23 23)" />
+              ) : null}
             </svg>
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "var(--mm-text)" }}>{row.fit}</div>
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: fitKnown ? "var(--mm-text)" : "var(--mm-dim)" }}>{fitKnown ? row.fit : "—"}</div>
           </div>
         </div>
 
