@@ -54,6 +54,14 @@ def _age_hours(raw: object, now: datetime) -> float | None:
     return round((now - stamp).total_seconds() / 3600, 2)
 
 
+def _emit(health: BeltHealth) -> BeltHealth:
+    if health.state in ("stalled", "degraded"):
+        from app.notice import Sighting, observe
+
+        observe(Sighting.dead_man(belt="listing_verifier"))
+    return health
+
+
 def _evaluate(now: datetime) -> BeltHealth:
     try:
         res = get_supabase_admin().rpc(
@@ -72,7 +80,7 @@ def _evaluate(now: datetime) -> BeltHealth:
         # Nothing ever claimed. Real on a fresh corpus, and still worth saying
         # out loud — an unstarted belt and a dead one look identical to a user.
         log.warning("metric job_verifier.alert reason=never_ran")
-        return BeltHealth("stalled", None)
+        return _emit(BeltHealth("stalled", None))
 
     stale_hours = _age_hours(raw_attempt, now)
     productive_stale_hours = _age_hours(snapshot.get("last_productive"), now)
@@ -87,9 +95,9 @@ def _evaluate(now: datetime) -> BeltHealth:
             "metric job_verifier.alert reason=dead_man stale_hours=%.2f threshold_hours=%d",
             stale_hours, settings.verifier_dead_man_hours,
         )
-        return BeltHealth(
+        return _emit(BeltHealth(
             "stalled", stale_hours, productive_stale_hours, priority_backlog
-        )
+        ))
     if (
         productive_stale_hours is None
         or productive_stale_hours > settings.verifier_dead_man_hours
@@ -101,9 +109,9 @@ def _evaluate(now: datetime) -> BeltHealth:
             settings.verifier_dead_man_hours,
             priority_backlog,
         )
-        return BeltHealth(
+        return _emit(BeltHealth(
             "degraded", stale_hours, productive_stale_hours, priority_backlog
-        )
+        ))
     return BeltHealth("ok", stale_hours, productive_stale_hours, priority_backlog)
 
 

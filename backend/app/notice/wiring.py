@@ -29,7 +29,7 @@ def observe(sighting: Sighting) -> None:
 
 
 def bind_from_settings() -> None:
-    """Prod web process only. Dev shares the DB and must not write operator rows."""
+    """Prod web and Job Runner. Dev shares the DB and must not write operator rows."""
     from app.config import settings
 
     if not settings.is_production:

@@ -253,6 +253,12 @@ def run_failure_sync(job: Any, connection: Any, exc_type: Any, exc_value: Any, t
         if len(args) < 2:
             return
         job_type, payload = args[0], args[1]
+        terminal = getattr(exc_type, "__name__", None) or "unknown"
+        from app.notice import Sighting, observe
+
+        observe(
+            Sighting.work_lane(job_type=str(job_type), terminal_class=str(terminal))
+        )
         fn = _FAILURE_HANDLERS.get(job_type)
         if fn is None:
             return

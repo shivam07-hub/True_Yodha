@@ -13,6 +13,7 @@ CauseClass = Literal[
     "upload_guarantee",
     "work_lane",
     "dead_man",
+    "slow_200",
 ]
 
 Status = Literal["open", "closed", "open-on-prod", "blocked", "failed-close"]
@@ -30,6 +31,11 @@ class Sighting:
     limiter: str | None = None
     process: str | None = None
     death_kind: str | None = None
+    break_kind: str | None = None
+    job_type: str | None = None
+    terminal_class: str | None = None
+    belt: str | None = None
+    slow_kind: str | None = None
 
     @staticmethod
     def unhandled_500(
@@ -85,17 +91,43 @@ class Sighting:
             death_kind=death_kind,
         )
 
+    @staticmethod
+    def upload_guarantee(*, break_kind: str) -> Sighting:
+        return Sighting(cause_class="upload_guarantee", break_kind=break_kind)
+
+    @staticmethod
+    def work_lane(*, job_type: str, terminal_class: str) -> Sighting:
+        return Sighting(
+            cause_class="work_lane",
+            job_type=job_type,
+            terminal_class=terminal_class,
+        )
+
+    @staticmethod
+    def dead_man(*, belt: str) -> Sighting:
+        return Sighting(cause_class="dead_man", belt=belt)
+
+    @staticmethod
+    def slow_200(*, kind: str, method: str, path: str) -> Sighting:
+        return Sighting(
+            cause_class="slow_200",
+            slow_kind=kind,
+            method=method,
+            path=path,
+        )
+
 
 @dataclass(frozen=True)
 class CloseProof:
-    """A failing test that proves a class-2 cause. Git is a caller: pass on_main."""
+    """Proof a cause is gone. Class 2 names type/file/function; others set cause_key."""
 
-    exception_type: str
-    file: str
-    function: str
-    test_nodeid: str
-    sha: str
-    on_main: bool
+    exception_type: str = ""
+    file: str = ""
+    function: str = ""
+    test_nodeid: str = ""
+    sha: str = ""
+    on_main: bool = False
+    cause_key: str = ""
 
 
 @dataclass(frozen=True)

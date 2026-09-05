@@ -108,7 +108,12 @@ def sweep_stale_processing_jobs(minutes: int = 5) -> list[dict[str, Any]]:
     """
     admin = get_supabase_admin()
     result = admin.rpc("sweep_stale_cv_upload_jobs", {"p_minutes": minutes}).execute()
-    return result.data or []
+    rows = result.data or []
+    if rows:
+        from app.notice import Sighting, observe
+
+        observe(Sighting.upload_guarantee(break_kind="job_never_claimed"))
+    return rows
 
 
 def claim_for_completion(job_id: str) -> bool:

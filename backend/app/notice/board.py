@@ -15,8 +15,19 @@ from app.notice.types import CloseProof, Digest, NoticeRecord, Sighting, Status
 _logger = logging.getLogger("app.notice")
 
 _CAPACITY_BLOCKED = "Overload Policy / paid compute gate"
+_RAILWAY_INFRA_BLOCKED = "Railway infra (OOM / failed deploy) — not a code close"
 
 _PRIORITY = ("failed-close", "open", "open-on-prod", "blocked")
+_SETTLEABLE = frozenset(
+    {
+        "unhandled_500",
+        "work_lane",
+        "upload_guarantee",
+        "dead_man",
+        "process_death",
+        "slow_200",
+    }
+)
 
 
 class NoticeBook:
@@ -63,7 +74,7 @@ class NoticeBook:
         now = self._clock.now()
         by_key = {cause_key_for_proof(proof): proof for proof in proofs}
         for row in self._store.list_not_closed():
-            if row.cause_class != "unhandled_500":
+            if row.cause_class not in _SETTLEABLE:
                 continue
             if row.status not in ("open", "failed-close"):
                 continue
@@ -113,9 +124,7 @@ class NoticeBook:
         now = self._clock.now()
         existing = self._store.get(key)
         if existing is None:
-            status: Status = (
-                "blocked" if sighting.cause_class == "capacity_503" else "open"
-            )
+            status, blocked_reason = _opening(sighting)
             self._store.put(
                 NoticeRecord(
                     cause_key=key,
@@ -128,7 +137,7 @@ class NoticeBook:
                     last_path=sighting.path,
                     last_correlation_id=sighting.correlation_id,
                     closing_commit=None,
-                    blocked_reason=_CAPACITY_BLOCKED if status == "blocked" else None,
+                    blocked_reason=blocked_reason,
                     proof_test=None,
                 )
             )
@@ -158,6 +167,19 @@ class NoticeBook:
     def _ordered(self, rows: tuple[NoticeRecord, ...]) -> tuple[NoticeRecord, ...]:
         rank = {status: index for index, status in enumerate(_PRIORITY)}
         return tuple(sorted(rows, key=lambda row: rank.get(row.status, 99)))
+
+
+def _opening(sighting: Sighting) -> tuple[Status, str | None]:
+    if sighting.cause_class == "capacity_503":
+        return "blocked", _CAPACITY_BLOCKED
+    if sighting.cause_class == "slow_200" and sighting.slow_kind == "capacity_queue":
+        return "blocked", _CAPACITY_BLOCKED
+    if sighting.cause_class == "process_death" and sighting.death_kind in (
+        "oom",
+        "failed_deploy",
+    ):
+        return "blocked", _RAILWAY_INFRA_BLOCKED
+    return "open", None
 
 
 def _digest_text(
