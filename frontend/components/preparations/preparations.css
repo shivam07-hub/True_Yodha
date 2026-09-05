@@ -477,3 +477,21 @@
   .prp-room-role { font-size: 17px; }
   .prp-row { padding: 12px 0; }
 }
+
+/* ── The Job-Switch Plan line, inside "On record" ────────────────────────────
+   The plan sold nothing for months because nothing linked to it. This is its
+   entry point, sitting beside the CV the user actually sent. A line, not a
+   card: the room already carries the context. */
+
+.prp-plan {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.prp-plan-price {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  font-variant-numeric: tabular-nums;
+  color: var(--tm-text-muted);
+}
