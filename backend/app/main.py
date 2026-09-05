@@ -141,6 +141,9 @@ async def _validate_runtime_configuration() -> None:
         ",".join(settings.cors_origins) or "none",
         settings.cors_origin_regex or "none",
     )
+    from app.notice.wiring import bind_from_settings
+
+    bind_from_settings()
 
 
 @app.on_event("startup")

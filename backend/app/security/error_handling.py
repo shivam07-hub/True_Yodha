@@ -18,6 +18,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from .headers import SECURITY_HEADERS
 from .redaction import redact_sensitive_text
+from app.notice import Sighting, observe
 from app.services.read_capacity import ReadCapacityExceeded
 
 _log = logging.getLogger(__name__)
@@ -163,6 +164,13 @@ async def _read_capacity_exceeded_handler(
         request.method,
         request.url.path,
     )
+    observe(
+        Sighting.read_capacity(
+            correlation_id=_correlation_id(request),
+            method=request.method,
+            path=request.url.path,
+        )
+    )
     return _response(
         request=request,
         status_code=503,
@@ -191,6 +199,13 @@ async def _upstream_timeout_handler(
         request.method,
         request.url.path,
     )
+    observe(
+        Sighting.upstream_timeout(
+            correlation_id=_correlation_id(request),
+            method=request.method,
+            path=request.url.path,
+        )
+    )
     return _response(
         request=request,
         status_code=503,
@@ -209,6 +224,14 @@ async def _unhandled_exception_handler(
         correlation_id,
         request.method,
         request.url.path,
+    )
+    observe(
+        Sighting.unhandled_500(
+            exc=_exc,
+            correlation_id=correlation_id,
+            method=request.method,
+            path=request.url.path,
+        )
     )
     return JSONResponse(
         status_code=500,

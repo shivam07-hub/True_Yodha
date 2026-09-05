@@ -44,11 +44,13 @@ that four-step line better, it needs a reason to be worked on now.
 
 ## ABSOLUTE RULES
 
-- **Never merge to `main`.** Only to `Develop`. `main` is production.
+- **Never merge to `main`** except a **Notice close** ([CONTEXT.md](CONTEXT.md)):
+  branch from `main`, that Notice’s files only, five gates green. Everything
+  else lands on `Develop`. `main` is production. `sync-main-to-develop` carries
+  a Notice merge; do not invent a second sync.
 - **Commit finished work to `Develop` — standing approval, no need to ask.**
   When green, `git add` ONLY your own files, commit, push. **Never `git add -A`
-  or `.`** — the tree usually holds someone else's uncommitted work. `main`
-  needs Shivam.
+  or `.`** — the tree usually holds someone else's uncommitted work.
 - **Supabase migrations — apply them yourself, same session.** Then
   `NOTIFY pgrst, 'reload schema';` and spot-check the changed object. Additive
   and reversible only. Anything destructive needs Shivam first.
@@ -217,8 +219,9 @@ read path** · `/tdd` · `/frontend-design` · `/review` · `/security-review` �
 - **Closed work leaves.** When something ships, delete it here and add one line
   to [ARCHIVE.md](ARCHIVE.md). Do not leave it struck through.
 - **No session summaries here.** Git log holds those.
-- **Never write "OWED: main merge" or "OWED: deploy dev".** Shivam owns the
-  merge; Railway deploys from `Develop` automatically. Those two lines rotted
-  about 25 entries into a backlog of work that was already done.
+- **Never write "OWED: main merge" or "OWED: deploy dev".** Railway deploys
+  `Develop` automatically. Notice closes merge `main` themselves (CONTEXT.md).
+  Those two OWED lines rotted about 25 entries into a backlog of work that was
+  already done.
 - **If you cannot check a claim in seconds, do not write it.**
 - **This file stays under 200 lines.** Past that, something belongs elsewhere.
