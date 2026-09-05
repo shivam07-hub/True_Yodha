@@ -79,14 +79,17 @@ test("a configured One Tap widens exactly four directives", () => {
   assert.doesNotMatch(policy, /https:\/\/accounts\.google\.com(?![/])/)
 })
 
-test("the prompt is mounted on both auth surfaces and gated on the client ID", () => {
+test("the prompt is mounted on every auth surface and gated on the client ID", () => {
   const component = read("components/auth/google-one-tap.tsx")
   const login = read("app/login/page.tsx")
   const signup = read("app/signup/signup-route.tsx")
+  const modal = read("components/auth/signup-modal.tsx")
   const middleware = read("middleware.ts")
 
   assert.match(login, /<GoogleOneTap/)
   assert.match(signup, /<GoogleOneTap/)
+  // The modal is the third auth surface — most visitors never reach /login.
+  assert.match(modal, /<GoogleOneTap surface=\{isLogin \? "login_modal" : "signup_modal"\}/)
   assert.match(component, /if \(!clientId \|\| !eligible\) return null/)
   assert.match(component, /src=\{GSI_CLIENT_SRC\}/)
   assert.equal(GSI_CLIENT_SRC, "https://accounts.google.com/gsi/client")
