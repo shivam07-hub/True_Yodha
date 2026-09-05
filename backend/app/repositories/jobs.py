@@ -13,6 +13,7 @@ from supabase import Client
 
 from app.database import get_supabase_admin
 from app.db_safe import safe_read
+from app.services.job_extract_backstop import is_valid_location
 from app.deps import get_user_db
 from app.repositories.candidate_jobs import fetch_candidate_jobs
 from app.repositories.job_skills_read_model import fetch_all_rows, fetch_job_skill_rows, fetch_job_skill_rows_for_ids, group_job_skill_rows
@@ -530,10 +531,21 @@ def _bounded_company_search_limit(limit: int) -> int:
 
 
 def _norm_filter(value: str | None) -> str | None:
+    """Trim to a real value, or None.
+
+    A word that means "we did not find one" is not a value. `is_valid_location`
+    rejects the whole placeholder set, so a row the scraper wrote as "Unknown"
+    or "N/A" leaves this repository as absent rather than printing on a card as
+    the job's location — which is what 17 rows did until 20260905090000. The
+    importer no longer writes them; this is the read-side half, for rows written
+    by anything else.
+    """
     if value is None:
         return None
     cleaned = value.strip()
-    return cleaned if cleaned else None
+    if not cleaned:
+        return None
+    return cleaned if is_valid_location(cleaned) else None
 
 
 def _location_match_values(value: str | None, *, kind: Literal["city", "country"]) -> set[str]:

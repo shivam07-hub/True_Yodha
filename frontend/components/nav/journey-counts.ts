@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { jobs as jobsApi, type CollectionResponse } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
+import { useAuth } from "@/lib/hooks/use-auth"
 
 /**
  * Live journey counts on the nav tabs. The nav IS the journey, so each stage tab
@@ -38,10 +39,15 @@ export function deriveJourneyCounts(collection: CollectionResponse): JourneyCoun
 
 /** null until the collection cache has data — tabs render count-less, never 0-flash. */
 export function useJourneyCounts(): JourneyCounts | null {
+  const { token } = useAuth()
   const { data } = useQuery({
     queryKey: dataKeys.collection(),
-    queryFn: () => jobsApi.collection(""),
-    enabled: false, // passive: Collections owns and seeds this read
+    // Passive: Collections owns and seeds this read. The token still has to be
+    // the real one — it was hardcoded to "" here, which is inert only for as
+    // long as nobody ever flips `enabled` or calls refetchQueries on this key,
+    // and would then send `Authorization: Bearer ` and 401.
+    queryFn: () => jobsApi.collection(token!),
+    enabled: false,
     staleTime: 60 * 1000,
   })
   return data ? deriveJourneyCounts(data) : null

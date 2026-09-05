@@ -216,3 +216,37 @@ async def test_backfill_failsoft_when_llm_errors(monkeypatch: Any) -> None:
     # LLM failed → keep what we had, no crash.
     assert out["role_name"] == "Account Manager"
     assert out["company_name"] is None
+
+
+# ── placeholders are not values ──────────────────────────────────────────────
+
+def test_a_word_meaning_we_did_not_find_one_is_not_a_valid_value() -> None:
+    """`is_valid_location("unknown")` was True — a 7-character non-URL string —
+    so the importer's sentinel round-tripped as a real location and printed on
+    the card for 6 of 20 extension imports."""
+    from app.services.job_extract_backstop import (
+        is_valid_company,
+        is_valid_location,
+        is_valid_role,
+    )
+
+    for word in ("unknown", "Unknown", "UNKNOWN", "n/a", "N/A", "none", "null",
+                 "-", "not specified", "TBD", "undisclosed", "Unknown company"):
+        assert not is_valid_location(word), word
+        assert not is_valid_company(word), word
+        assert not is_valid_role(word), word
+
+
+def test_real_values_still_pass() -> None:
+    from app.services.job_extract_backstop import (
+        is_valid_company,
+        is_valid_location,
+        is_valid_role,
+    )
+
+    assert is_valid_location("Bengaluru, India")
+    assert is_valid_company("Google")
+    assert is_valid_role("Strategy Manager")
+    # "Unknown Systems Pvt Ltd" is a real name that merely starts with the word.
+    assert is_valid_company("Unknown Systems Pvt Ltd")
+

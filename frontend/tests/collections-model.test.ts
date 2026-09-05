@@ -188,12 +188,23 @@ test("a stage-less surface renders no rows and no empty verdict", () => {
   }
 })
 
-test("a zero match score is no fit, not a zero fit", () => {
-  // `match_score` is 0 on every job the brain never evaluated. Passing it
-  // through painted a "0" ring — read as "0% match" — on all 22 applied cards
-  // of a real board. Both pre-rewrite adapters guarded this.
-  const row = read("../components/collections/collection-rows.tsx")
-  assert.match(row, /fit: job\.match_score > 0 \? job\.match_score : null/)
+test("a zero match score is no fit, not a zero fit — on every surface", () => {
+  // `match_score` is 0 on every job the brain never evaluated. Unguarded it
+  // paints a "0" ring, read as "0% match": all 22 applied cards of a real
+  // board. Three renderers show a ring; all three must guard.
+  assert.match(
+    read("../components/collections/collection-rows.tsx"),
+    /fit: job\.match_score > 0 \? job\.match_score : null/,
+    "the desktop row",
+  )
+  assert.match(
+    read("../mobile/redesign/collections-surface.tsx"),
+    /fitKnown=\{\(entry\.job\.match_score \?\? 0\) > 0\}/,
+    "the phone card",
+  )
+  const sheet = read("../mobile/redesign/job-detail-sheet.tsx")
+  assert.match(sheet, /const fitKnown = row\.fit > 0/, "the phone detail sheet")
+  assert.match(sheet, /fitKnown \? row\.fit : "—"/, "the sheet must show no number when there is no fit")
 })
 
 test("the picks band renders no chrome when every card is declined", () => {

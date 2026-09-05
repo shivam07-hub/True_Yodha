@@ -40,6 +40,16 @@ _TEAM_WORDS = {
     "group", "department", "division", "global", "regional", "enterprise",
     "and", "of", "the", "&",
 }
+# Words that mean "we did not find one". They are not values, and every one of
+# them passed all three validators — `is_valid_location("unknown")` was True, so
+# the string reached the card and printed as the job's location on 6 of the 20
+# extension imports in prod. A placeholder must fail validation so the backstop
+# re-derives the field instead of trusting it.
+_PLACEHOLDER = {
+    "unknown", "unknown company", "n/a", "na", "none", "null", "nil", "-", "--",
+    "not specified", "not available", "not disclosed", "tbd", "undisclosed",
+}
+
 _JOB_ID_RE = re.compile(r"^(job|req|requisition|posting)\s*(id|#|number)?\b", re.I)
 _NUMERIC_RE = re.compile(r"^[\d\s.,#:/-]+$")
 _URL_RE = re.compile(r"^https?://", re.I)
@@ -95,6 +105,8 @@ def is_valid_company(value: Any) -> bool:
     t = _clean(value)
     if len(t) < 2 or len(t) > 80:
         return False
+    if t.lower() in _PLACEHOLDER:
+        return False
     if _JOB_ID_RE.match(t) or _NUMERIC_RE.match(t) or _URL_RE.match(t):
         return False
     if t.lower() in _GENERIC_COMPANY:
@@ -107,11 +119,15 @@ def is_valid_company(value: Any) -> bool:
 
 def is_valid_role(value: Any) -> bool:
     t = _clean(value)
+    if t.lower() in _PLACEHOLDER:
+        return False
     return 2 <= len(t) <= 160 and not _URL_RE.match(t) and not _JOB_ID_RE.match(t)
 
 
 def is_valid_location(value: Any) -> bool:
     t = _clean(value)
+    if t.lower() in _PLACEHOLDER:
+        return False
     return 2 <= len(t) <= 120 and not _URL_RE.match(t)
 
 

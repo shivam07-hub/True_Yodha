@@ -124,3 +124,15 @@ def test_split_confirmed_skills_dedupes_canonical_and_emerging() -> None:
 
     assert canonical == ["SQL"]
     assert emerging == [{"label": "LangGraph", "skill_type": "secondary", "source": "user_added"}]
+
+
+def test_a_missing_location_is_recorded_as_absent_not_as_a_word() -> None:
+    """`jobs.location` was NOT NULL, so the importer wrote "unknown" — a
+    sentinel that is then a value like any other. 20260905090000 widened the
+    column; absence is recorded as absence."""
+    from app.services.job_importer import _absent_or
+
+    for empty in (None, "", "   ", "unknown", "Unknown", "N/A", "-"):
+        assert _absent_or(empty) is None, empty
+    assert _absent_or("  Gurugram ") == "Gurugram"
+
