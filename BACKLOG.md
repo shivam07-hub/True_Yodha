@@ -45,6 +45,7 @@ match, not new machinery.
 | Newsletter: Issue 017 OG image · regenerate April dashboards | open |
 | Junk job titles at source | belongs in `firecrawl_Supabase`, not here |
 | B2B recruiter/referral phase 2 | needs a PRD first — not frontend polish |
+| Ghost Job Index: newsletter issue + OG image | index SHIPPED `4d6bb705`→`fa267ce2`; Shivam chose page-first, so distribution is deliberately deferred, not forgotten |
 
 **Decision-gated, do not pick up:** Myrology pricing · legal (#17, counsel) ·
 per-skill percentile (#39) · publish portability (#32) · teal-field loading (#18 PR2).
