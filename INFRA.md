@@ -49,7 +49,31 @@ All services = repo `shivam07-hub/True_Yodha`, root `/backend`, builder RAILPACK
 
 ---
 
-## GOOGLE ONE TAP (FedCM) — code shipped, **config owed**
+## GOOGLE ONE TAP (FedCM) — code shipped, **config applied 2026-09-05**
+
+**Done, and where it lives:** Google Cloud project **`myro-495307` ("Myro")**,
+OAuth client **"Myro Web (One Tap)"** — a SECOND web client, created so the
+live-login credential ("HiMyro Web") was never edited. Its ID is in Supabase →
+Auth → Providers → Google → **Client IDs** (comma-separated, appended after the
+existing one), and in Vercel as `NEXT_PUBLIC_GOOGLE_CLIENT_ID` on all three
+environments. Authorized JS origins: `https://himyro.com`,
+`https://www.himyro.com`, `http://localhost:3000`, `http://127.0.0.1:3000`
+(the loopback pair is for local dev — `127.0.0.1` has its own localStorage, so
+it is the one origin where a signed-in developer can still see the prompt).
+The consent screen is **In production / External**, so no test-user gate.
+
+**Still owed:** production runs `main`, which does not have the One Tap code —
+the Vercel variable does nothing on himyro.com until `Develop` is merged. And
+the prompt has never rendered for a real Google account: Google warns settings
+take "5 minutes to a few hours" to take effect, and a fresh client is silent
+until then.
+
+⚠️ **`Skip nonce checks` is ON in the Supabase Google provider.** It accepts an
+ID token bearing any nonce. The One Tap code sends a real hashed/raw nonce pair
+and does not need it — but it was on before this work and nothing here changed
+it, because other clients (iOS) may rely on it.
+
+### The original four steps, for reference
 
 The account-chooser prompt (the dark popup listing Google accounts, the thing
 Vercel shows) is built and **inert**: with no `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
