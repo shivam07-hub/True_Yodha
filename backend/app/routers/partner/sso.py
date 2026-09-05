@@ -15,6 +15,7 @@ from __future__ import annotations
 from fastapi import APIRouter, BackgroundTasks, Depends
 
 from app.database import get_supabase_admin
+from app.repositories.partner_usage import METRIC_SSO_SESSION, PartnerUsageRepository
 from app.repositories.partners import PartnerCredential, PartnersRepository
 from app.schemas.partner import SsoSessionRequest, SsoSessionResponse
 from app.security.partner_auth import SCOPE_SSO, require_scope
@@ -41,6 +42,19 @@ def create_sso_session(
     )
     if outcome.mode == "direct":
         background_tasks.add_task(repo.touch_sso, outcome.user_ref)
+    # Metered in BOTH modes, with the mode recorded. `direct` hands the user a
+    # login; `connect_required` hands them a consent screen they may not
+    # complete. Which of those counts as an active seat is a pricing question
+    # that is deliberately still open — recording both keeps it answerable later
+    # without re-instrumenting. `user_ref` is the seat id in either mode, so the
+    # distinct-seat count is sound across the two.
+    background_tasks.add_task(
+        PartnerUsageRepository(admin).record,
+        partner_id=partner.partner_id,
+        metric=METRIC_SSO_SESSION,
+        subject_id=outcome.user_ref,
+        detail={"mode": outcome.mode},
+    )
     return SsoSessionResponse(
         mode=outcome.mode,
         login_url=outcome.login_url,

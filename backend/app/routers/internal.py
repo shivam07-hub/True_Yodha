@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from app.config import settings
 from app.database import get_supabase_admin
 from app.repositories.jobs import JobsRepository
+from app.repositories.partner_usage import PartnerUsageRepository
 from app.repositories.partners import PartnersRepository
 from app.schemas.partner import BroadcastRequest, BroadcastResponse
 from app.services import partner_broadcast, partner_webhooks, skill_floor_pipeline
@@ -116,6 +117,37 @@ def scrape_landed(body: ScrapeLandedRequest) -> ScrapeLandedResponse:
 
 
 # ── partner integrations ───────────────────────────────────────────────────
+
+
+@router.get(
+    "/partners/usage",
+    dependencies=[Depends(require_scrape_webhook)],
+)
+def partners_usage(
+    partner_slug: str | None = None,
+    period: str | None = None,
+) -> dict[str, object]:
+    """Metered usage per account, period and metric.
+
+    `period` is 'YYYY-MM' (IST months — a 4am IST login on the 1st is 22:30 UTC
+    on the previous month's last day, and belongs to the later month). Omit both
+    arguments for everything on record.
+
+    `active_seats` is the billable unit: distinct seats seen in the period. It is
+    NOT the roster size, and the two diverge exactly as intended — a partner does
+    not pay for a student who signed in once in August and never returned.
+    """
+    admin_db = get_supabase_admin()
+    partner_id: str | None = None
+    if partner_slug:
+        partner = PartnersRepository(admin_db).get_partner_by_slug(partner_slug)
+        if not partner:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Unknown partner slug."
+            )
+        partner_id = str(partner["id"])
+    rows = PartnerUsageRepository(admin_db).summary(partner_id=partner_id, period=period)
+    return {"usage": rows}
 
 
 @router.post(
