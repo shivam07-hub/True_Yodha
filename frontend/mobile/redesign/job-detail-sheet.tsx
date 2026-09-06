@@ -3,6 +3,7 @@
 import { useMatchBrain } from "@/lib/hooks/use-match-brain"
 import { useSkillUpvotes } from "@/lib/hooks/use-skill-upvotes"
 import { jobPlanSections } from "@/lib/jobs/detail-model"
+import { EmployerRecordNote } from "@/components/jobs/employer-record-note"
 import { ListingLiveness } from "@/components/jobs/listing-liveness"
 import { BottomSheet } from "./bottom-sheet"
 import type { MobileJobRow } from "./job-model"
@@ -104,9 +105,11 @@ export function JobDetailSheet({
           </div>
         </div>
 
-        {/* Same liveness verdict, same words as desktop — one model, two skins. */}
+        {/* Same liveness verdict, same words as desktop — one model, two skins.
+            The employer's record follows it, from the same shared model. */}
         <div style={{ marginTop: 10 }}>
           <ListingLiveness jobId={row.id} />
+          <EmployerRecordNote company={row.co} />
         </div>
 
         {row.checkDetails && (
