@@ -93,6 +93,7 @@ worker. A test upload on dev writes to production data. Full map: [INFRA.md](INF
 | Locked decisions + data model | [DECISIONS.md](DECISIONS.md) |
 | Servers, domains, env, DNS, deploy order | [INFRA.md](INFRA.md) |
 | Open work, in full | [BACKLOG.md](BACKLOG.md) |
+| **Prep = one ladder, four steps** — the design, and what shipped | [UNIFIED_PREP_V2.md](UNIFIED_PREP_V2.md) |
 | Vibecoded tells, ruled against our code | [ANTI_SLOP.md](ANTI_SLOP.md) |
 | One Myro voice + one memory writer · next session's brief | [MYRO_MENTOR.md](MYRO_MENTOR.md) |
 | A read's cost budget · **latency ledger** (§15) · **funnel ledger + priority** (§16) · how to diagnose one | [ARCHITECTURE_READ_PATH.md](ARCHITECTURE_READ_PATH.md) · [READ_PATH_PLAYBOOK.md](READ_PATH_PLAYBOOK.md) |

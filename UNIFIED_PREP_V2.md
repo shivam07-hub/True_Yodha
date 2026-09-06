@@ -153,3 +153,67 @@ step 4 is 9%. The bottleneck is step 2."* · `Work step 2 across rooms →`
 - the same four `stepCards`, stacked, each with a full-width `44px` CTA button.
 
 Same data, same order, same four steps. That is the "one machine" claim.
+
+---
+
+# What shipped, 2026-09-06
+
+All of 2b, in four commits on `Develop`. Two decisions were Shivam's, taken
+before any code: build all of 2b rather than the Finlatics block alone, and
+**keep Skill path and the Audit card, below the Finlatics block** — the rail
+2b draws holds three items; ours holds five, because `/preparations/audit` has
+no other door anywhere in the app.
+
+| Commit | What |
+|---|---|
+| `ce7055fb` | `GET /preparations/ladder` — the four steps, the totals, the matched three |
+| `4506a4e1` | the list and the room become one screen |
+| `bcfe5b08` | three tap targets under 24x24 on the rail |
+| `16d605aa` | the 390px frame |
+| `d9646967` | two claims the room made that its own data did not support |
+
+## The contract
+
+`GET /preparations/ladder` answers the whole surface in one read:
+
+```
+rooms[]   job_id · steps[4] (0 not started · 1 started · 2 clear) · pct
+          · current_step · levels[] (name, held, required, has_drill)
+totals    step_pct[4] · bottleneck_step · rooms
+training  program_id · why · matched          (three, always)
+training_note
+```
+
+Read shape, against the ≤3-concurrent-read contract (ARCHITECTURE_READ_PATH §2):
+one lean `job_applications` read, then one wave of three — `job_deepenings`,
+`job_skills`, `user_skills`. Four round trips, wave width three. The naive
+version is three `get_deepening` calls per room: 33 round trips on an
+eleven-room board. `test_prep_ladder_read.py` pins the read set AND the wave
+width; those are different regressions.
+
+No step runs a model. Coverage, rehearsal and the brief all live in
+`job_deepenings`, so one read answers three steps.
+
+## Deviations from the drawing, and why
+
+- **The rail keeps Skill path and Audit**, under the training block.
+- **The room keeps its floor** — the raw JD, Reach, the CV of record and
+  notes, below the ladder. 2b draws the ladder; it does not say to delete the
+  rest of the room.
+- **The step card is a disclosure, not an action.** The design's CTAs
+  ("Start L2", "Get it · 30") are the panel's own buttons; a head that both
+  expanded and spent coins would be two buttons wearing one label.
+- **`Prep Mobile Head`'s right slot** (`38% ready`) is NOT built. It is shared
+  chrome across all three artboards, so wiring a per-surface value into
+  `MobileTopBar` changes every mobile route and needs its own decision.
+
+## Owed
+
+- **The populated surface has never been seen by a real user session.** The QA
+  account holds one saved job and no rooms. The screenshots that verified the
+  room were taken by serving a fixture board to the real components in the
+  browser — that checks the rendering, not the endpoint. The endpoint is
+  covered by its own tests and answers 200 in production.
+- **A real phone.** Every mobile measurement is a 375px Chromium.
+- `step 3` has no completion signal yet: nothing writes the `prep_rehearsal`
+  deepening key, so rehearsal reads 0 for everyone until the panel records it.
