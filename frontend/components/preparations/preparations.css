@@ -2,104 +2,6 @@
    Firecrawl / dark Engine both inherit). Short + simple: one column, hairline
    sections, accent rationed to the primary action per view. */
 
-.prp-page {
-  max-width: 860px;
-  margin: 0 auto;
-  padding: 28px 20px 80px;
-}
-
-.prp-head {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  margin-bottom: 24px;
-}
-.prp-title {
-  font-size: var(--tm-fs-heading);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--tm-text);
-  margin: 0;
-}
-.prp-count {
-  font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-caption);
-  color: var(--tm-text-faint);
-}
-
-/* ── list groups ── */
-.prp-group { margin-bottom: 28px; }
-.prp-group-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-micro);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--tm-text-faint);
-  margin-bottom: 4px;
-}
-.prp-group-head .n { color: var(--tm-text-muted); }
-.prp-group-line { flex: 1; height: 1px; background: var(--tm-border-soft); }
-
-.prp-row {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  width: 100%;
-  text-align: left;
-  padding: 16px 0;
-  border: 0;
-  border-bottom: 1px solid var(--tm-border-soft);
-  border-radius: 0;
-  background: transparent;
-  cursor: pointer;
-  text-decoration: none;
-  color: inherit;
-}
-.prp-row:hover .prp-row-chev { color: var(--tm-interactive-text); }
-.prp-row-main { flex: 1; min-width: 0; }
-.prp-row-role {
-  font-size: var(--tm-fs-body);
-  font-weight: 600;
-  color: var(--tm-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.prp-row-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--tm-fs-caption);
-  color: var(--tm-text-muted);
-  margin-top: 2px;
-}
-.prp-row-meta .sep { color: var(--tm-text-faint); }
-.prp-row-chev { color: var(--tm-text-faint); flex-shrink: 0; }
-
-.prp-stage-chip {
-  display: inline-flex;
-  align-items: center;
-  font-family: var(--tm-font-mono);
-  font-size: var(--tm-fs-micro);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--tm-text-muted);
-  flex-shrink: 0;
-}
-.prp-stage-chip.hot { color: var(--tm-interactive-text); }
-
-.prp-attn {
-  font-size: var(--tm-fs-note);
-  color: var(--tm-interactive-text);
-  flex-shrink: 0;
-}
-
 /* ── empty state ── */
 .prp-empty {
   padding: 48px 24px;
@@ -118,19 +20,6 @@
   gap: 12px;
   margin-bottom: 6px;
 }
-.prp-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 12.5px;
-  color: var(--tm-text-muted);
-  background: none;
-  border: none;
-  padding: 4px 0;
-  cursor: pointer;
-  text-decoration: none;
-}
-.prp-back:hover { color: var(--tm-text); }
 .prp-room-title { flex: 1; min-width: 0; }
 .prp-room-role { font-size: 19px; font-weight: 700; color: var(--tm-text); margin: 0; }
 .prp-room-company {
@@ -426,9 +315,10 @@
   color: var(--tm-text-muted);
 }
 
-/* ── list workspace: 1480 shell + 2:3 standing column (Prep only).
+/* ── the workspace: 1480 shell + 2:3 rail·room split (Prep only).
    Default .mc-workspace is 248px and shared with Market/Collections.
-   The room page stays a single 860px reading column (.prp-page). ── */
+   Unified Prep v2 (2b) puts the room IN this grid — there is no separate
+   room page any more, so both routes render this one shape. ── */
 .prp-workspace-page {
   padding: 32px 36px 64px;
   max-width: 1480px;
@@ -472,10 +362,12 @@
 }
 
 @media (max-width: 640px) {
-  .prp-page,
   .prp-workspace-page { padding: 18px 14px 96px; }
-  .prp-room-role { font-size: 17px; }
-  .prp-row { padding: 12px 0; }
+  .prp-room-role { font-size: var(--tm-fs-prose); }
+  .prp-band { flex-wrap: wrap; gap: 14px; padding: 14px 16px; }
+  .prp-band-pips { width: 100%; justify-content: space-between; }
+  .prp-step-head { flex-wrap: wrap; }
+  .prp-step-cta { width: 100%; justify-content: center; }
 }
 
 /* ── The Job-Switch Plan line, inside "On record" ────────────────────────────
@@ -495,3 +387,373 @@
   font-variant-numeric: tabular-nums;
   color: var(--tm-text-muted);
 }
+
+/* ══ Unified Prep v2 (artboard 2b) ══════════════════════════════════════════
+   One ladder, every room. The rail's pips, the room's ring and its step cards
+   are the same four steps from the same read, so they cannot disagree.
+
+   Step states are data attributes, not classes: `data-state` is the 0/1/2 the
+   server sent, and every pip in the surface reads it the same way. Tokens
+   only — the design's hexes ARE these tokens (#4fc7f6 = --tm-interactive,
+   oklch(0.74 0.14 145) = --tm-success). ─────────────────────────────────── */
+
+/* ── rail: head ── */
+.prp-rail-head { display: flex; flex-direction: column; }
+.prp-rail-title { display: flex; align-items: baseline; gap: 8px; }
+.prp-rail-title h1 {
+  margin: 0;
+  font-size: var(--tm-fs-prose);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--tm-text);
+}
+.prp-rail-live {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-note);
+  color: var(--tm-text-faint);
+}
+.prp-rail-sub {
+  margin: 8px 0 0;
+  font-size: var(--tm-fs-ui-sm);
+  line-height: 1.5;
+  color: var(--tm-text-muted);
+}
+
+/* The legend keys the four pip columns below it — it is a column header, not
+   a progress bar, so it never fills. */
+.prp-legend { display: flex; gap: 10px; margin-top: 12px; }
+.prp-legend-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+.prp-legend-label {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+  white-space: nowrap;
+}
+.prp-legend-bar {
+  width: 100%;
+  height: 3px;
+  border-radius: 99px;
+  background: var(--tm-border);
+}
+
+/* ── rail: the rooms ── */
+.prp-lrooms { display: flex; flex-direction: column; }
+.prp-lroom {
+  display: block;
+  padding: 11px 10px;
+  margin: 0 -4px;
+  border-radius: var(--tm-radius-lg);
+  border: 1px solid transparent;
+  color: inherit;
+  text-decoration: none;
+}
+.prp-lroom:hover { border-color: var(--tm-border-soft); }
+/* The open room. The only accent in the list, so "which one am I reading"
+   needs no label. */
+.prp-lroom.is-open {
+  background: var(--tm-int-bg-wash);
+  border-color: var(--tm-int-border);
+}
+.prp-lroom-top { display: flex; align-items: center; gap: 10px; }
+.prp-lroom-main { flex: 1; min-width: 0; }
+.prp-lroom-role {
+  display: block;
+  font-size: var(--tm-fs-ui);
+  font-weight: 600;
+  color: var(--tm-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.prp-lroom-meta {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--tm-fs-note);
+  color: var(--tm-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.prp-lroom-pct {
+  flex-shrink: 0;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-caption);
+  font-weight: 600;
+  color: var(--tm-text-muted);
+}
+.prp-lroom-pct[data-lead="true"] { color: var(--tm-interactive-text); }
+
+/* Four pips, one per step, in the legend's columns. */
+.prp-lroom-pips { display: flex; gap: 4px; margin-top: 9px; }
+.prp-lroom-pips > span {
+  flex: 1;
+  height: 4px;
+  border-radius: 99px;
+  background: var(--tm-border);
+}
+.prp-lroom-pips > span[data-state="1"] { background: var(--tm-warning); }
+.prp-lroom-pips > span[data-state="2"] { background: var(--tm-interactive); }
+
+/* ── the room ── */
+.prp-room { min-width: 0; }
+.prp-room-head { align-items: flex-start; }
+
+/* readiness band: the ring, the sentence, the four steps */
+.prp-band {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  margin-top: 18px;
+  padding: 18px 22px;
+  border-radius: var(--tm-radius-card);
+  border: 1px solid var(--tm-int-border);
+  background:
+    linear-gradient(120deg, var(--tm-int-bg-wash) 0%, transparent 62%),
+    var(--tm-surface);
+}
+.prp-ring { flex-shrink: 0; }
+.prp-ring-track { stroke: var(--tm-surface-2); }
+.prp-ring-fill { stroke: var(--tm-interactive); }
+.prp-ring-text {
+  font-family: var(--tm-font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  fill: var(--tm-text);
+}
+.prp-band-copy { flex: 1; min-width: 0; }
+.prp-band-kicker {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--tm-text-faint);
+}
+.prp-band-line {
+  margin-top: 5px;
+  font-size: var(--tm-fs-ui-lg);
+  font-weight: 600;
+  color: var(--tm-text);
+}
+.prp-band-sub {
+  margin-top: 5px;
+  font-size: var(--tm-fs-ui-sm);
+  color: var(--tm-text-muted);
+}
+.prp-band-sub b { color: var(--tm-text); font-weight: 600; }
+.prp-band-pips { display: flex; gap: 8px; flex-shrink: 0; }
+.prp-band-pip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  width: 78px;
+}
+.prp-band-pip-n,
+.prp-step-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--tm-radius-lg);
+  font-family: var(--tm-font-mono);
+  font-weight: 700;
+  border: 1px dashed var(--tm-border);
+  color: var(--tm-text-faint);
+  background: transparent;
+}
+.prp-band-pip-n { width: 34px; height: 34px; font-size: var(--tm-fs-caption); }
+/* Reached steps become solid; the pip's border style IS the claim. */
+.prp-band-pip-n[data-state="1"],
+.prp-step-n[data-state="1"] {
+  border-style: solid;
+  border-color: var(--tm-warning);
+  color: var(--tm-warning);
+  background: var(--tm-warning-wash);
+}
+.prp-band-pip-n[data-state="2"],
+.prp-step-n[data-state="2"] {
+  border-style: solid;
+  border-color: var(--tm-int-border);
+  color: var(--tm-interactive);
+  background: var(--tm-int-bg-wash);
+}
+.prp-band-pip-l {
+  font-size: var(--tm-fs-micro);
+  text-align: center;
+  line-height: 1.25;
+  color: var(--tm-text-faint);
+}
+.prp-band-pip-l[data-state="1"] { color: var(--tm-warning); }
+.prp-band-pip-l[data-state="2"] { color: var(--tm-text-muted); }
+
+/* ── step cards ── */
+.prp-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+}
+.prp-step {
+  border-radius: var(--tm-radius-card);
+  border: 1px solid var(--tm-border-soft);
+  background: var(--tm-surface);
+}
+/* Accent is spent on ONE card: the step the room is actually on. */
+.prp-step.is-current {
+  border-color: var(--tm-int-border);
+  background:
+    linear-gradient(120deg, var(--tm-int-bg-wash) 0%, transparent 60%),
+    var(--tm-surface);
+}
+.prp-step-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 18px 22px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.prp-step-n { width: 30px; height: 30px; flex-shrink: 0; font-size: var(--tm-fs-caption); }
+.prp-step-copy { flex: 1; min-width: 200px; }
+.prp-step-title {
+  display: block;
+  font-size: var(--tm-fs-ui-lg);
+  font-weight: 600;
+  color: var(--tm-text);
+}
+.prp-step-sub {
+  display: block;
+  margin-top: 3px;
+  font-size: var(--tm-fs-ui-sm);
+  color: var(--tm-text-muted);
+}
+.prp-step-state {
+  flex-shrink: 0;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-caption);
+  color: var(--tm-text-faint);
+}
+.prp-step-state[data-state="1"] { color: var(--tm-warning); }
+.prp-step-state[data-state="2"] { color: var(--tm-success); }
+.prp-step-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  height: 36px;
+  padding: 0 17px;
+  border-radius: var(--tm-radius-pill);
+  border: 1px solid var(--tm-border);
+  color: var(--tm-text-muted);
+  font-size: var(--tm-fs-ui);
+  font-weight: 600;
+}
+.prp-step.is-current .prp-step-cta {
+  border-color: transparent;
+  background: var(--tm-interactive);
+  color: var(--tm-interactive-fg);
+}
+.prp-step-panel {
+  padding: 0 22px 18px;
+  border-top: 1px solid var(--tm-border-soft);
+  margin: 0 0 0;
+  padding-top: 14px;
+}
+.prp-step-drill { margin-top: 14px; }
+
+/* ── step 2's rungs ── */
+.prp-levels { display: flex; flex-direction: column; gap: 12px; }
+.prp-level {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.prp-level-copy { flex: 1; min-width: 150px; }
+.prp-level-name {
+  display: block;
+  font-size: var(--tm-fs-ui);
+  font-weight: 600;
+  color: var(--tm-text);
+}
+.prp-level-state {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--tm-fs-note);
+  color: var(--tm-text-muted);
+}
+.prp-level-rungs { display: flex; gap: 4px; }
+.prp-level-rungs > span {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  font-weight: 700;
+  border: 1px dashed var(--tm-border);
+  color: var(--tm-text-faint);
+}
+/* Held → filled. Asked-for but not held → outlined, the visible gap. */
+.prp-level-rungs > span[data-state="held"] {
+  border-style: solid;
+  border-color: var(--tm-int-border);
+  background: var(--tm-int-bg-wash);
+  color: var(--tm-interactive);
+}
+.prp-level-rungs > span[data-state="asked"] {
+  border-style: solid;
+  border-color: var(--tm-warning);
+  color: var(--tm-warning);
+}
+.prp-level-cta {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 13px;
+  border-radius: var(--tm-radius-lg);
+  background: var(--tm-interactive);
+  color: var(--tm-interactive-fg);
+  font-size: var(--tm-fs-ui-sm);
+  font-weight: 600;
+  text-decoration: none;
+}
+.prp-level-cta.is-ghost {
+  background: transparent;
+  border: 1px solid var(--tm-border);
+  color: var(--tm-text-muted);
+}
+.prp-level-met {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-caption);
+  color: var(--tm-success);
+}
+
+/* ── the cross-room line ── */
+.prp-across {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 14px 18px;
+  border-radius: var(--tm-radius-lg);
+  border: 1px solid var(--tm-border-soft);
+  font-size: var(--tm-fs-ui);
+  color: var(--tm-text-muted);
+}
+.prp-across b { color: var(--tm-text); font-weight: 600; }

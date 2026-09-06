@@ -168,6 +168,14 @@ class TestAssembly:
         # j2/j3: no cached coverage, no rehearsal, no brief.
         assert rooms["j3"]["steps"] == [0, 0, 0, 0]
 
+    def test_level_rows_ride_along_for_the_open_rooms_step_two(self) -> None:
+        """Computed from job_skills the ladder already read — no second endpoint."""
+        rooms = {r["job_id"]: r for r in prep_ladder_read.assemble(_board(), "u1")["rooms"]}
+        assert rooms["j2"]["levels"] == [
+            {"name": "Key Performance Indicators (KPIs)", "held": 0, "required": 3, "has_drill": True},
+            {"name": "Data Analysis", "held": 0, "required": 2, "has_drill": True},
+        ]
+
     def test_a_room_with_no_levelled_skills_clears_step_two(self) -> None:
         repo = _FakeRepo(rooms=[{"job_id": "j9", "status": "applied", "company": "A"}])
         result = prep_ladder_read.assemble(repo, "u1")
@@ -216,4 +224,4 @@ def test_endpoint_returns_the_ladder() -> None:
     assert body["totals"]["bottleneck_step"] in (1, 2, 3, 4)
     assert len(body["training"]) == 3
     # The response carries no role/company — /preparations already holds them.
-    assert set(body["rooms"][0]) == {"job_id", "steps", "pct", "current_step"}
+    assert set(body["rooms"][0]) == {"job_id", "steps", "pct", "current_step", "levels"}

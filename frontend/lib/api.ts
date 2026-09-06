@@ -5889,3 +5889,53 @@ export const hiringPanel = {
   /** 503 while the snapshot has never been computed — absent, never zeroes. */
   get: () => request<HiringPanelResponse>("/public/hiring-panel"),
 }
+
+/* ── Preparations: the four-step ladder (Unified Prep v2, artboard 2b) ── */
+
+/** One live room's position. `steps` is [evidence, level, rehearsal, brief],
+ *  each 0 not started · 1 started · 2 clear. No role/company: the rail already
+ *  holds the applications list and joins on `job_id`. */
+export interface LadderRoom {
+  job_id: string
+  steps: number[]
+  pct: number
+  current_step: number
+  levels: LevelRow[]
+}
+
+/** One level a job tests. `has_drill` false = /practice cannot serve it, so
+ *  the room offers a path request rather than a CTA it cannot honour. */
+export interface LevelRow {
+  name: string
+  held: number
+  required: number
+  has_drill: boolean
+}
+
+export interface LadderTotals {
+  step_pct: number[]
+  bottleneck_step: number
+  rooms: number
+}
+
+/** `program_id` indexes FINLATICS_PROGRAMS; `why` is the only claim the card
+ *  makes about this user's board, and is null when it has none. */
+export interface TrainingMatch {
+  program_id: string
+  why: string | null
+  matched: boolean
+}
+
+export interface PrepLadderResponse {
+  rooms: LadderRoom[]
+  totals: LadderTotals
+  training: TrainingMatch[]
+  training_note: string
+}
+
+export const preparations = {
+  ladder: (token: string) =>
+    request<PrepLadderResponse>("/preparations/ladder", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+}

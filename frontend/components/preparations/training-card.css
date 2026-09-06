@@ -1,69 +1,105 @@
-/* Training course rows. The row is not a link: hover (and click) open the
-   Finlatics blurb in place. Only Apply on Finlatics leaves the page.
-   Visibility is CSS :hover so a description appears without waiting on JS.
-   Accent is rationed to open/hover and the Apply link — rows read as a list. */
+/* Training by Finlatics — the rail's bottom block (Unified Prep v2, 2b).
+
+   Three cards, not eleven. The matched one is the only place accent is spent
+   in this block: its border, its wash and its `why` dot all say "this one is
+   about your board". The other two are the partner's shelf and read as a list.
+
+   Tokens only. The design's hexes ARE the token values — #4fc7f6 is
+   --tm-interactive, rgba(79,199,246,0.42) is --tm-int-border — so nothing here
+   free-types a colour. */
+
+.prp-train {
+  /* Pinned to the foot of the rail: the room list owns the space above it and
+     grows; training is the standing offer under it, not a competitor for the
+     scroll. Skill path and Audit sit below, so the trio travels together. */
+  margin-top: auto;
+  padding-top: 18px;
+  border-top: 1px solid var(--tm-border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
 
 .prp-train-lockup {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
 }
 .prp-train-lockup img {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   object-fit: contain;
   display: block;
   flex-shrink: 0;
 }
 .prp-train-lockup h3 {
+  flex: 1;
+  min-width: 0;
   margin: 0;
   font-size: var(--tm-fs-ui);
   font-weight: 600;
   color: var(--tm-text);
 }
+.prp-train-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  font-size: var(--tm-fs-note);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.prp-train-note {
+  margin: 0;
+  font-size: var(--tm-fs-caption);
+  line-height: 1.5;
+  color: var(--tm-text-muted);
+}
 
 .prp-courses {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
 }
+
 .prp-course {
   display: flex;
   flex-direction: column;
-  width: 100%;
+  gap: 7px;
+  padding: 11px 12px;
   border: 1px solid var(--tm-border-soft);
-  border-radius: var(--tm-radius);
+  border-radius: var(--tm-radius-lg);
   background: transparent;
   color: var(--tm-text);
 }
 .prp-course:hover,
-.prp-course:focus-within,
-.prp-course.is-open {
-  border-color: var(--tm-interactive);
+.prp-course:focus-within {
+  border-color: var(--tm-int-border);
 }
-.prp-course-toggle {
+/* The matched card. Wash + accent border, so the eye lands on the one card
+   that answers a question the board actually asked. */
+.prp-course.is-matched {
+  border-color: var(--tm-int-border);
+  background:
+    linear-gradient(135deg, var(--tm-int-bg-wash) 0%, transparent 70%),
+    var(--tm-surface);
+}
+
+.prp-course-head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 9px 12px 9px 8px;
-  border: 0;
-  background: none;
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
+  gap: 9px;
 }
 .prp-course-mark {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   flex-shrink: 0;
   border-radius: var(--tm-radius);
   border: 1px solid var(--tm-border);
-  background: transparent;
   color: var(--tm-text-muted);
   font-family: var(--tm-font-mono);
   font-size: var(--tm-fs-micro);
@@ -73,49 +109,49 @@
 .prp-course-name {
   flex: 1;
   min-width: 0;
-  font-size: var(--tm-fs-ui);
+  font-size: var(--tm-fs-ui-sm);
   font-weight: 600;
   line-height: 1.3;
   color: var(--tm-text);
 }
-.prp-course-toggle svg {
-  flex-shrink: 0;
-  color: var(--tm-text-faint);
-}
-.prp-course:hover .prp-course-toggle svg,
-.prp-course:focus-within .prp-course-toggle svg,
-.prp-course.is-open .prp-course-toggle svg {
-  color: var(--tm-interactive-text);
-}
-.prp-course-panel {
-  display: none;
-  padding: 0 12px 12px 46px;
-}
-.prp-course:hover .prp-course-panel,
-.prp-course:focus-within .prp-course-panel,
-.prp-course.is-open .prp-course-panel {
-  display: block;
-}
-.prp-course-blurb {
-  margin: 0 0 8px;
-  font-size: var(--tm-fs-ui-sm);
-  font-weight: 500;
-  line-height: 1.45;
+
+.prp-course-why {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 0;
+  font-size: var(--tm-fs-note);
+  line-height: 1.35;
   color: var(--tm-text-muted);
 }
+.prp-course-dot {
+  width: 5px;
+  height: 5px;
+  margin-top: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--tm-border);
+}
+.prp-course.is-matched .prp-course-why { color: var(--tm-interactive-text); }
+.prp-course.is-matched .prp-course-dot { background: var(--tm-interactive); }
+
+.prp-course-blurb {
+  margin: 0;
+  font-size: var(--tm-fs-note);
+  line-height: 1.4;
+  color: var(--tm-text-muted);
+  /* Partner copy, not ours to rewrite — clamp rather than edit their line. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .prp-course-apply {
   display: inline-flex;
   align-items: center;
+  align-self: flex-start;
   gap: 4px;
-  font-size: var(--tm-fs-ui-sm);
+  font-size: var(--tm-fs-note);
   font-weight: 600;
-}
-
-@media (hover: none) {
-  .prp-course:hover .prp-course-panel {
-    display: none;
-  }
-  .prp-course.is-open .prp-course-panel {
-    display: block;
-  }
 }

@@ -84,6 +84,39 @@ class TestBriefStep:
         assert prep_ladder.brief_step('{"lead_with": []}') == prep_ladder.CLEAR
 
 
+class TestLevelRows:
+    @staticmethod
+    def _row(key: str, level: int, *, levelled: bool = True) -> dict:
+        return {
+            "is_primary": True,
+            "required_level": level,
+            "skills": {
+                "taxonomy_key": key,
+                "practice_mode": "levelled" if levelled else "scenario",
+                "skill_kind": "hard",
+            },
+        }
+
+    def test_deepest_unmet_gap_comes_first(self) -> None:
+        rows = [self._row("A", 2), self._row("B", 4)]
+        assert [r["name"] for r in prep_ladder.level_rows(rows, {})] == ["B", "A"]
+
+    def test_met_levels_are_kept_but_sink(self) -> None:
+        """A card that only shows what is missing never shows what was cleared."""
+        rows = [self._row("Met", 2), self._row("Open", 3)]
+        result = prep_ladder.level_rows(rows, {"met": 2})
+        assert [r["name"] for r in result] == ["Open", "Met"]
+        assert result[1]["held"] == 2
+
+    def test_a_skill_with_no_assessment_is_flagged(self) -> None:
+        rows = [self._row("Vendor Management", 3, levelled=False)]
+        assert prep_ladder.level_rows(rows, {})[0]["has_drill"] is False
+
+    def test_a_duplicate_key_is_listed_once(self) -> None:
+        rows = [self._row("A", 2), self._row("a", 3)]
+        assert len(prep_ladder.level_rows(rows, {})) == 1
+
+
 class TestRoomPct:
     def test_empty_room(self) -> None:
         assert prep_ladder.room_pct([0, 0, 0, 0]) == 0

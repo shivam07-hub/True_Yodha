@@ -25,6 +25,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.services.jd_coverage import CoverageResult
+from app.services.job_matcher import is_levelled_skill
 
 STEP_COUNT = 4
 NOT_STARTED = 0
@@ -85,6 +86,40 @@ def level_step(wanted: dict[str, int], user_levels: dict[str, int]) -> int:
     if met or partial:
         return STARTED
     return NOT_STARTED
+
+
+def level_rows(
+    rows: list[dict],
+    user_levels: dict[str, int],
+) -> list[dict]:
+    """Step 2's detail: every level this job tests, and where the user is.
+
+    Renders the design's rungs — "You're L1 · this job asks L3" — so the card
+    can say what it is asking for before the drill starts. `has_drill` False is
+    "No assessment exists yet": /practice cannot serve that skill at all, and
+    the room says so rather than offering a CTA it cannot honour.
+
+    Met levels are kept, not filtered: a card that only ever shows what is
+    missing never shows the user anything they have cleared.
+    """
+    out: list[dict] = []
+    seen: set[str] = set()
+    for row in rows:
+        skill = row.get("skills") or {}
+        key = (skill.get("taxonomy_key") or "").strip()
+        if not key or key.lower() in seen:
+            continue
+        seen.add(key.lower())
+        required = int(row.get("required_level") or (4 if row.get("is_primary") else 2))
+        out.append({
+            "name": key,
+            "held": int(user_levels.get(key.lower(), 0) or 0),
+            "required": required,
+            "has_drill": is_levelled_skill(skill),
+        })
+    # Deepest unmet ask first — the card's CTA should point at the biggest gap.
+    out.sort(key=lambda r: (r["held"] >= r["required"], -(r["required"] - r["held"])))
+    return out
 
 
 def rehearsal_step(payload: dict | None) -> int:

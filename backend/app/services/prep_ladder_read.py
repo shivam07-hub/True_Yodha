@@ -147,6 +147,7 @@ def assemble(repo: Any, user_id: str) -> dict[str, Any]:
                 "steps": steps,
                 "pct": prep_ladder.room_pct(steps),
                 "current_step": prep_ladder.current_step(steps),
+                "levels": prep_ladder.level_rows(job_rows, user_levels),
             }
         )
         all_gaps.extend(_gaps_for_job(job_rows, user_levels, row.get("company")))

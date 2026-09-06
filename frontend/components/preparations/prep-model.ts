@@ -12,6 +12,19 @@ import { APPLICATION_OUTCOMES } from "@/lib/api"
 
 export type RoomStage = "applied" | "interviewing" | "closed"
 
+/** The four steps every room walks, in order (Unified Prep v2, artboard 2b).
+ *  Mirrors `prep_ladder.STEP_LABELS` on the server — the rail, the room and
+ *  mobile all render THIS array so they cannot disagree about step 2's name. */
+export const STEP_LABELS = ["Evidence", "Skill level", "Rehearsal", "Day-of brief"] as const
+
+/** Ordered for the rail: the rooms that can still move, hottest first, then
+ *  the closed ones. 2b has one list, not three stage groups — the pips carry
+ *  the state the group headers used to. */
+export function ladderOrder(apps: ApplicationResponse[]): ApplicationResponse[] {
+  const groups = groupForList(apps)
+  return [...groups.interviewing, ...groups.applied, ...groups.closed]
+}
+
 /** Days the application has sat in its current stage (created_at fallback). */
 export function daysInStage(app: ApplicationResponse, now: Date): number {
   const since = app.last_stage_changed_at ?? app.applied_at ?? app.created_at

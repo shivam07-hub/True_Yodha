@@ -18,6 +18,8 @@ export const dataKeys = {
   jobPulses: (jobIds: string[]) => ["jobs", "pulses", jobIds] as const,
   jobContributions: () => ["jobs", "contributions"] as const,
   applications: () => ["applications"] as const,
+  /** The prep ladder — one read behind the rail, the room and mobile. */
+  prepLadder: () => ["prep-ladder"] as const,
   /** The Collection Record — the Collections surface's ONE query key
    *  (CONTEXT.md). Every mutation writes the server's response back into it. */
   collection: () => ["collection"] as const,

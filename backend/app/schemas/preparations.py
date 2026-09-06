@@ -3,6 +3,15 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 
+class LevelRow(BaseModel):
+    """One level this job tests. `has_drill` False = /practice cannot serve it."""
+
+    name: str
+    held: int
+    required: int
+    has_drill: bool
+
+
 class LadderRoom(BaseModel):
     """One live prep room's position on the four-step ladder.
 
@@ -18,6 +27,10 @@ class LadderRoom(BaseModel):
     pct: int
     #: 1-based number of the first step not yet clear.
     current_step: int
+    #: Step 2's detail rows. Carried here rather than fetched per open room:
+    #: the ladder already resolved `job_skills` for the whole board, so a second
+    #: endpoint would re-read what this one has in hand.
+    levels: list[LevelRow] = Field(default_factory=list)
 
 
 class LadderTotals(BaseModel):
