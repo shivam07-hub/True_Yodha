@@ -6,6 +6,7 @@ import { jobs, users } from "@/lib/api"
 import type { FollowedCompany, JobLocationFilters } from "@/lib/api"
 import { buildSkillEvidenceIndex } from "@/lib/skill-intelligence"
 import { CVPrerequisiteCard } from "./cv-prerequisite-card"
+import { SectorBand } from "./sector-band"
 import { JobDrillPanel } from "./job-drill-panel"
 import { SkillIntelligenceHeatmap } from "./skill-intelligence-heatmap"
 import type { UseFollowCompany } from "@/lib/hooks/use-follow-company"
@@ -162,6 +163,12 @@ export function HeatmapTab({
 
   return (
     <div style={{ marginTop: 20 }}>
+      {/* Needs no CV, no target and no followed companies, so it sits ABOVE the
+          prerequisite branch: it is the one thing on this page that works for
+          someone who signed up ten minutes ago. The hiring panel it opens has
+          been public since it shipped and reachable only from a footer the
+          authed shell does not render. */}
+      <SectorBand />
       {onBackToJobs ? (
         <button type="button" onClick={onBackToJobs} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--tm-interactive)", fontSize: 13, fontWeight: 600, marginBottom: 20 }}>
           <span aria-hidden>&lt;-</span> Back to jobs

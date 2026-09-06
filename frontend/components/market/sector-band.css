@@ -1,0 +1,100 @@
+/* sector-band.css — hiring by sector, above the heatmap.
+   Tokens only. A quiet strip: the heatmap below it is the main event, and this
+   is context a brand-new user can read before they have uploaded anything. */
+
+.sb {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 0 18px;
+  border-bottom: 1px solid var(--tm-border);
+  margin-bottom: 4px;
+}
+
+.sb-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.sb-title {
+  margin: 0;
+  font-family: var(--tm-font-display);
+  font-size: var(--tm-fs-ui-lg);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--tm-text);
+}
+
+.sb-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--tm-font-sans);
+  font-size: var(--tm-fs-ui-sm);
+  color: var(--tm-interactive-text);
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--tm-dur) var(--tm-ease);
+}
+
+.sb-more:hover { color: var(--tm-interactive); }
+
+.sb-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1px;
+  background: var(--tm-border-faint);
+  border: 1px solid var(--tm-border-faint);
+  border-radius: var(--tm-radius-sm);
+  overflow: hidden;
+}
+
+.sb-item {
+  background: var(--tm-surface);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sb-name {
+  font-family: var(--tm-font-sans);
+  font-size: var(--tm-fs-ui-sm);
+  color: var(--tm-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sb-figs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 12px;
+}
+
+/* Figures read as data, not as controls: muted label, plain numeral. Nothing
+   here is clickable, so nothing here carries the interactive colour. */
+.sb-fig {
+  font-family: var(--tm-font-sans);
+  font-size: var(--tm-fs-micro);
+  color: var(--tm-text-muted);
+  white-space: nowrap;
+}
+
+.sb-fig b {
+  font-family: var(--tm-font-mono);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: var(--tm-text);
+}
+
+@media (max-width: 640px) {
+  .sb-list { grid-template-columns: 1fr; }
+}
