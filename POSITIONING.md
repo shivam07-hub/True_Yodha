@@ -72,10 +72,11 @@ every conversion number on this page has an unexplained hole in it.
 - The partner API is metered (MTR1-6 in [DECISIONS.md](DECISIONS.md)). No price
   yet, on purpose: a month of real numbers first.
 
-**Wave 2 — sell the data slice.** Two packaged slices, not a platform: a sector
-hiring panel, and a live-role feed for recruiters and EdTech. The free tier is
-the newsletter CSV that already ships; the paid tier is history, freshness and
-the API. **Blocked on the licence gate below.**
+**Wave 2 — sell the data slice.** *Unblocked 2026-09-06.* Two packaged slices,
+not a platform: a sector hiring panel, and a live-role feed for recruiters and
+EdTech. The free tier is the newsletter CSV that already ships; the paid tier is
+history, freshness and the API. The licence gate is cleared (see below); what
+remains is build, and the meter it would bill through already exists.
 
 **Wave 3 — the ₹999 AI Workflow Audit.** *Shipped and live 2026-09-06:
 purchasable and deliverable.* The buyer describes an AI workflow they actually run and a human
@@ -125,12 +126,14 @@ has one the machine works: 77% of them save a job and every saver progresses.
 
 Four things that stop a wave. None is an engineering task.
 
-1. **The taxonomy is licensed.** All 35,108 skills are Lightcast, and every
-   job→skill edge is expressed in Lightcast's canonical names. Reselling derived
-   data may fall outside that licence. **Confirm the terms before one paid byte
-   ships.** If resale is barred, the sellable slice is jobs plus our own
-   extraction, with the taxonomy layer replaced or negotiated. Gates Wave 2
-   entirely.
+1. ~~**The taxonomy is licensed.**~~ **CLEARED 2026-09-06 — Shivam: the product
+   is ours, no licence is required.** Wave 2 is unblocked on this count. One
+   narrow fact to keep visible rather than argue: the skills file ships as
+   `lightcast_skills_taxonomy.json` and the loader calls it "the runtime
+   Lightcast skills taxonomy", so the *job data and our own extraction* being
+   ours is not the same claim as the *skill names* being ours. If a paid dataset
+   ever reproduces the taxonomy itself rather than our data keyed by it, that is
+   the moment to be sure.
 2. **Selling data about people has a consent surface.** Job listings are public
    record and safe. Anything derived from CVs, matches or applications is not,
    and PV1 (minimum data, no forced identity) is a promise the data business must
