@@ -45,6 +45,9 @@
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
+  /* WCAG 2.2 AA 2.5.8: an 11.5px line is a 16px-tall target. The text keeps
+     its size; the box grows to something a thumb can hit. */
+  min-height: 24px;
   font-size: var(--tm-fs-note);
   font-weight: 600;
   white-space: nowrap;
@@ -152,6 +155,7 @@
   align-items: center;
   align-self: flex-start;
   gap: 4px;
+  min-height: 24px;
   font-size: var(--tm-fs-note);
   font-weight: 600;
 }

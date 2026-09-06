@@ -64,6 +64,9 @@
   align-items: center;
   gap: 6px;
   margin-top: 4px;
+  /* WCAG 2.2 AA 2.5.8 — the only door to /preparations/audit was an 18px-tall
+     target on a phone. */
+  min-height: 24px;
   font-family: var(--tm-font-sans);
   font-size: var(--tm-fs-ui-sm);
   color: var(--tm-interactive-text);
