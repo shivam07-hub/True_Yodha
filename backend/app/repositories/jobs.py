@@ -62,6 +62,10 @@ STALE_AFTER_DAYS = 21
 # .in_() serialises each id into the URL query string — cap batch size so a huge
 # scrape's job_id list can't blow the PostgREST URL length limit (Backlog #36).
 _SWEEP_IN_CHUNK_SIZE = 200
+# `.in_()` serialises every id into the URL; PostgREST caps the query string.
+# 200 ids x ~36 chars is already ~7KB, so the ladder chunks at the same width
+# the job-skills read model uses.
+_DEEPENING_IN_CHUNK = 200
 _ANALYTICS_TTL = 7 * 24 * 3600  # 7 days — market analytics change slowly
 _SEARCH_TTL = 24 * 3600          # 1 day — job listings stale tolerance
 _COMPANY_SEARCH_TTL = 24 * 3600  # 1 day — scraped companies change with the job feed
@@ -3466,6 +3470,65 @@ class JobsRepository:
         if not rows:
             return None
         return (rows[0].get("answer") or "").strip() or None
+
+    def get_deepenings_for_jobs(
+        self,
+        user_id: str,
+        job_ids: list[str],
+        prompt_keys: tuple[str, ...],
+    ) -> dict[str, dict[str, str]]:
+        """{job_id: {prompt_key: answer}} for many jobs in ONE read.
+
+        The prep ladder needs three prompt keys across every live room; per-job
+        `get_deepening` calls would be 3N round trips for a rail that renders in
+        one paint. Chunked because `.in_()` serialises every id into the URL and
+        PostgREST caps that ([[feedback_query_scope_travels_as_scope]]).
+        """
+        out: dict[str, dict[str, str]] = {}
+        if not job_ids or not prompt_keys:
+            return out
+        for start in range(0, len(job_ids), _DEEPENING_IN_CHUNK):
+            chunk = job_ids[start : start + _DEEPENING_IN_CHUNK]
+            rows = safe_read(
+                self._db.table("job_deepenings")
+                .select("job_id, prompt_key, answer")
+                .eq("user_id", user_id)
+                .in_("job_id", chunk)
+                .in_("prompt_key", list(prompt_keys)),
+                default=[],
+                context="deepenings_for_jobs",
+            )
+            for row in rows or []:
+                answer = (row.get("answer") or "").strip()
+                if not answer:
+                    continue
+                job_id = str(row.get("job_id") or "")
+                key = str(row.get("prompt_key") or "")
+                if job_id and key:
+                    out.setdefault(job_id, {})[key] = answer
+        return out
+
+    def get_application_rooms(self, user_id: str) -> list[dict[str, Any]]:
+        """Lean tracker read for the prep ladder: `job_id`, `status`, `company`.
+
+        `get_user_applications` joins fourteen job columns including
+        `job_description` for the card render, and pays a second round trip to
+        `jobs` to do it. The ladder renders no card — the rail already holds the
+        applications list client-side and joins on `job_id` — so it takes the
+        company name off the row's own snapshot instead. All 363 rows carry
+        `job_snapshot.company_name` (checked 2026-09-06), and the `->>`
+        projection leaves `job_description` in the database where it belongs.
+        """
+        return (
+            safe_read(
+                self._db.table("job_applications")
+                .select("job_id, status, company:job_snapshot->>company_name")
+                .eq("user_id", user_id),
+                default=[],
+                context="application_rooms",
+            )
+            or []
+        )
 
     def list_deepenings(self, user_id: str, job_id: str) -> list[dict[str, Any]]:
         result = (

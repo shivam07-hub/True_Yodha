@@ -35,6 +35,7 @@ from app.routers import (
     payments,
     job_tracks,
     preflight,
+    preparations,
     profile,
     roles,
     public,
@@ -111,6 +112,7 @@ app.include_router(xp.router)
 app.include_router(profile.router)
 app.include_router(payments.router)
 app.include_router(preflight.router)
+app.include_router(preparations.router)
 app.include_router(mentor.router)
 app.include_router(myrology.router)
 app.include_router(job_switch_plan.router)
