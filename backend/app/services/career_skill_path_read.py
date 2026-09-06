@@ -159,11 +159,21 @@ def _target_flow(db: Client, user_id: str) -> dict[str, Any] | None:
     from app.repositories.users import UsersRepository
     from app.services import onboarding_service
 
-    baseline = CVVersionsRepository(db).latest_baseline(user_id)
+    # Both reads are independent inputs to the payload, and both were waited on
+    # in turn at ~310ms each on the /market gate path.
+    reads = run_concurrently(
+        {
+            "baseline": lambda: CVVersionsRepository(db).latest_baseline(user_id),
+            "profile": lambda: UsersRepository(db).get_profile(user_id),
+        },
+        label="career.target_flow",
+    )
+    baseline = reads["baseline"]
     if not baseline:
         return None
-    profile = UsersRepository(db).get_profile(user_id) or {}
-    return onboarding_service._awaiting_target_payload(db, user_id, profile, baseline)
+    return onboarding_service._awaiting_target_payload(
+        db, user_id, reads["profile"] or {}, baseline
+    )
 
 def _family_label(db: Client, family: str, fallback: str | None) -> str | None:
     if not family:

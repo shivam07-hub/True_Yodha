@@ -25,6 +25,7 @@ class RoleFamiliesRepository:
         query: str | None = None,
         limit: int = 3,
         families: list[str] | None = None,
+        skill_ids: list[int] | None = None,
     ) -> list[dict[str, Any]]:
         """Suggest families by skill overlap, search them by text, or resolve
         specific ones by key.
@@ -35,15 +36,12 @@ class RoleFamiliesRepository:
         not be shown back to them when they stepped backwards through the
         journey — the suggestion list is skill-ranked and would not contain it.
         """
-        skill_rows = (
-            self._db.table("user_skills")
-            .select("skill_id")
-            .eq("user_id", user_id)
-            .execute()
-            .data
-            or []
-        )
-        skill_ids = [int(row["skill_id"]) for row in skill_rows if row.get("skill_id") is not None]
+        # `skill_ids` lets a caller that needs BOTH the suggestion list and the
+        # user's chosen families read `user_skills` once instead of twice. The
+        # two calls are the same method with different arguments, so each was
+        # re-reading identical rows for the same user on the same request.
+        if skill_ids is None:
+            skill_ids = self.user_skill_ids(user_id)
         response = self._db.rpc(
             "list_role_families",
             {
@@ -55,7 +53,21 @@ class RoleFamiliesRepository:
         ).execute()
         return response.data or []
 
-    def resolve_families(self, user_id: str, families: list[str]) -> list[dict[str, Any]]:
+    def user_skill_ids(self, user_id: str) -> list[int]:
+        """The user's skill ids — the shared input to every family lookup."""
+        rows = (
+            self._db.table("user_skills")
+            .select("skill_id")
+            .eq("user_id", user_id)
+            .execute()
+            .data
+            or []
+        )
+        return [int(row["skill_id"]) for row in rows if row.get("skill_id") is not None]
+
+    def resolve_families(
+        self, user_id: str, families: list[str], *, skill_ids: list[int] | None = None
+    ) -> list[dict[str, Any]]:
         """The user's chosen families, in the order they chose them.
 
         The RPC orders by market signal; a restored selection has to come back
@@ -63,7 +75,9 @@ class RoleFamiliesRepository:
         """
         if not families:
             return []
-        rows = self.list_families(user_id, families=families, limit=len(families))
+        rows = self.list_families(
+            user_id, families=families, limit=len(families), skill_ids=skill_ids
+        )
         by_key = {str(row.get("family")): row for row in rows}
         return [by_key[key] for key in families if key in by_key]
 
