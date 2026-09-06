@@ -42,7 +42,7 @@ import { DrillPanel } from "./drill-panel"
 import { BriefCard } from "./brief-card"
 import { ClosingPanel } from "./closing-panel"
 import { PlanLine } from "./plan-line"
-import { LevelRows } from "./level-rows"
+import { LevelRows, nextLevel } from "./level-rows"
 import { StepCard, CLEAR } from "./step-card"
 
 const RING_CIRCUMFERENCE = 195
@@ -117,6 +117,8 @@ export function PrepRoom({
   const stageCheck = stage === "applied" && needsStageCheck(app, now)
   const days = daysInStage(app, now)
   const subs = stepSubs(app, room)
+  const startAt = nextLevel(room?.levels ?? [])
+  const ctas = [undefined, startAt ? `Start L${startAt}` : undefined, undefined, undefined]
   const bodies = [
     <CoveragePanel key="c" token={token} jobId={app.job_id} />,
     <div key="l">
@@ -212,6 +214,7 @@ export function PrepRoom({
                 value={steps[i] ?? 0}
                 currentStep={current}
                 sub={subs[i]}
+                cta={ctas[i]}
                 open={expanded === i}
                 onToggle={() => setOpenStep(expanded === i ? -1 : i)}
               >

@@ -34,6 +34,7 @@ export function StepCard({
   value,
   currentStep,
   sub,
+  cta,
   open,
   onToggle,
   children,
@@ -42,6 +43,8 @@ export function StepCard({
   value: number
   currentStep: number
   sub: string
+  /** Overrides the step's default verb — step 2 names the level it would start. */
+  cta?: string
   open: boolean
   onToggle: () => void
   children: ReactNode
@@ -69,7 +72,7 @@ export function StepCard({
           {stepState(index, value, currentStep)}
         </span>
         <span className="prp-step-cta">
-          {value === CLEAR ? "Review" : CTA_LABEL[index]} <Chevron size={14} aria-hidden />
+          {value === CLEAR ? "Review" : cta ?? CTA_LABEL[index]} <Chevron size={14} aria-hidden />
         </span>
       </button>
       {open ? (
