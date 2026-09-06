@@ -16,8 +16,17 @@ Indian job market.**
 Intelligence is cheap now. Anyone can generate a CV, a job description, a
 listing. What is scarce is knowing which of it is *true* — whether a role is
 real, whether a skill claim is evidenced, whether an ad still leads anywhere.
-Myro already runs the machinery that answers those questions. The commercial
-work is putting a price on the doing.
+Myro already runs the machinery that answers those questions.
+
+**The order is value, then usage, then price — and not before.** Shivam,
+2026-09-06. Every truth Myro can establish goes to every user for free until the
+platform is demonstrably used; a paid tier is what you put in front of something
+people already rely on, never a way to find out whether they would. Work that
+adds a price to an unused surface is not revenue work, it is avoidance.
+
+The practical test, which this file failed for two days: a thing is not
+delivered because it exists and is public. It is delivered when the people
+already inside the product can reach it.
 
 This does not replace the product goal in [CLAUDE.md](CLAUDE.md) — upload the CV,
 understand the platform, find a role, download the CV. It is why that loop is
@@ -160,6 +169,12 @@ Four things that stop a wave. None is an engineering task.
 Before building something, ask which bet it moves and whether it moves the
 **asset** column or the **product** column. Myro does not need more asset. Work
 that only raises an asset score needs a reason to be worked on now.
+
+Then ask the harder one: **can a user who signed up reach it today?** The Ghost
+Job Index and the hiring panel were both shipped public, indexed, and linked
+from the footer — and from nowhere a logged-in user goes. Two genuine pieces of
+value, aimed at buyers who do not exist yet, invisible to the 768 people who do.
+Publishing is not delivering.
 
 Two failure modes this file exists to prevent:
 
