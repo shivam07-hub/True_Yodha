@@ -77,9 +77,14 @@ every conversion number on this page has an unexplained hole in it.
   eight sectors, 35,902 live roles, momentum, most-hired roles, most-asked
   skills, and the Ghost Index cross-reference on whether those postings are
   real. Free, and it IS the sales collateral.
-- Still to build: the live-role feed for recruiters and EdTech, and the paid
-  tier behind the free panel (history, freshness, the API). The meter it would
-  bill through already exists — see MTR1-6 in [DECISIONS.md](DECISIONS.md).
+- The live-role feed ships at `GET /partner/v1/roles` under a new `roles.read`
+  scope, documented in [PARTNER_API.md](PARTNER_API.md). Every row carries the
+  verification done at the employer's own source, which is the reason to buy it
+  rather than scrape. Metered on **distinct roles per month**, so polling for
+  freshness is free — MTR1's logic, not a second unit.
+- Still to build: **a price, and a second customer.** Both slices are live and
+  neither is sold. The meter runs (MTR1-6 in [DECISIONS.md](DECISIONS.md)) and
+  is deliberately unpriced until a month of real numbers exists.
 
 **Wave 3 — the ₹999 AI Workflow Audit.** *Shipped and live 2026-09-06:
 purchasable and deliverable.* The buyer describes an AI workflow they actually run and a human
