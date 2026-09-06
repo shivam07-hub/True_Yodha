@@ -361,13 +361,27 @@
   .prp-workspace-page .mc-ws-rail { order: 2; }
 }
 
+/* 2b's 390px frame: the ring shrinks, the four pips take a row of their own,
+   and each step's CTA becomes the full-width button a thumb expects. Same
+   four steps, same order — that is the "one machine" claim. */
 @media (max-width: 640px) {
   .prp-workspace-page { padding: 18px 14px 96px; }
   .prp-room-role { font-size: var(--tm-fs-prose); }
   .prp-band { flex-wrap: wrap; gap: 14px; padding: 14px 16px; }
+  .prp-ring { width: 62px; height: 62px; }
   .prp-band-pips { width: 100%; justify-content: space-between; }
-  .prp-step-head { flex-wrap: wrap; }
-  .prp-step-cta { width: 100%; justify-content: center; }
+  .prp-band-pip { width: auto; flex: 1; }
+  .prp-step-head { flex-wrap: wrap; padding: 14px 16px; }
+  .prp-step-copy { min-width: 0; }
+  .prp-step-cta {
+    width: 100%;
+    justify-content: center;
+    height: 44px;
+    margin-top: 4px;
+  }
+  .prp-step-panel { padding-left: 16px; padding-right: 16px; }
+  .prp-level { gap: 10px; }
+  .prp-level-cta { min-height: 32px; }
 }
 
 /* ── The Job-Switch Plan line, inside "On record" ────────────────────────────
