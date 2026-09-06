@@ -39,6 +39,7 @@ from app.routers import (
     roles,
     public,
     scores,
+    sector_panel,
     skill_certificate_public,
     skills,
     status,
@@ -97,6 +98,7 @@ app.include_router(job_tracks.router)
 app.include_router(skills.router)
 app.include_router(cv.router)
 app.include_router(scores.router)
+app.include_router(sector_panel.router)
 app.include_router(jobs.router)
 app.include_router(home.router)
 app.include_router(diary.router)

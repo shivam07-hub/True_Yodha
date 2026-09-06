@@ -138,7 +138,11 @@ export function deriveNextBestSteps(input: NextStepsInput): NextBestStep[] {
         eyebrow: best.searchLabel ?? "Best-fit job",
         title: `Apply to ${best.title}${at}`,
         detail: `${best.fit}% fit — your strongest match right now.`,
-        href: `/home?jobId=${encodeURIComponent(best.jobId)}`,
+        // /collections directly, not /home. `/home` is a retired redirect stub
+        // that forwards `?jobId=` here, so pointing at it cost every click an
+        // extra client-side hop. The stub stays for bookmarks and old emails —
+        // it just no longer has an internal producer.
+        href: `/collections?jobId=${encodeURIComponent(best.jobId)}`,
         cta: "View job",
         short: best.company ? `Apply · ${best.company}` : "Apply to top match",
         metric: `${best.fit}%`,

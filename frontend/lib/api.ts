@@ -5841,3 +5841,47 @@ export const workflowAudit = {
       body: JSON.stringify(intake),
     }),
 }
+
+// ── Sector hiring panel (Wave 2) ─────────────────────────────────────────────
+//
+// What is actually hiring by sector. Public aggregate over public listings.
+// `still_advertised_rate` is cross-referenced from the Ghost Job Index and is
+// null when that index withheld the sector for its own minimum cell — null
+// means withheld, never "clean".
+
+export interface SectorCount { name: string; roles: number }
+export interface SectorBand { band: string; roles: number }
+
+export interface HiringSector {
+  sector: string
+  live_roles: number
+  employers: number
+  new_roles_30d: number
+  new_share: number | null
+  role_families: number
+  top_roles: SectorCount[]
+  top_skills: SectorCount[]
+  seniority_mix: SectorBand[]
+  still_advertised_rate: number | null
+}
+
+export interface HiringCoverage {
+  min_live_roles: number
+  min_employers: number
+  sectors_published: number
+  sectors_tracked: number
+  live_roles_published: number
+  live_roles_tracked: number
+}
+
+export interface HiringPanelResponse {
+  method: string
+  computed_at: string
+  sectors: HiringSector[]
+  coverage: HiringCoverage
+}
+
+export const hiringPanel = {
+  /** 503 while the snapshot has never been computed — absent, never zeroes. */
+  get: () => request<HiringPanelResponse>("/public/hiring-panel"),
+}

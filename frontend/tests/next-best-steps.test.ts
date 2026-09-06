@@ -44,7 +44,7 @@ test("step 1 picks the highest gap_score, breaking ties on job_count_30d", () =>
 
 test("step 2 routes to the best-fit job detail and names it", () => {
   const steps = deriveNextBestSteps(FULL)
-  assert.equal(steps[1].href, "/home?jobId=job-1")
+  assert.equal(steps[1].href, "/collections?jobId=job-1")
   assert.match(steps[1].title, /Data Engineer at Acme/)
   assert.match(steps[1].detail, /88% fit/)
 })
