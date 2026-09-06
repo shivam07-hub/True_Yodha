@@ -430,6 +430,10 @@ export interface UserProfile {
   onboarding_complete: boolean
   ninja_name: string | null
   has_cv: boolean
+  /** Latest baseline CV has had its skills confirmed. Decides which step the
+   *  re-entry nudge names: 262 of 300 users with a CV and no target are stalled
+   *  here, not at the direction step. */
+  skills_confirmed?: boolean
   cv_readiness?: "ready" | "missing" | "processing" | "failed"
   cv_upload_job_id?: string | null
   cv_upload_error_code?: string | null

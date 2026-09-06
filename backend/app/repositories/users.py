@@ -77,6 +77,34 @@ class UsersRepository:
         )
         return (result.data if result else None) or None
 
+    def baseline_state(self, user_id: str) -> tuple[bool, bool]:
+        """`(has_baseline, skills_confirmed)` from ONE read.
+
+        Both facts come off the same latest baseline row, and `users.me` is
+        fetched on every authed page, so asking twice would double a hop that
+        every surface already pays.
+
+        `skills_confirmed` exists because the re-entry nudge was naming the
+        wrong step. Of 300 users with a CV and no career target, **262 have
+        never confirmed their skills** — they are not stalled at "pick a
+        direction", they never reached it. Telling them to pick a target role
+        points past the thing actually in their way.
+        """
+        rows = (
+            self._db.table("cv_versions")
+            .select("skills_confirmed_at")
+            .eq("user_id", user_id)
+            .eq("kind", "baseline_upload")
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        if not rows:
+            return False, False
+        return True, bool(rows[0].get("skills_confirmed_at"))
+
     def has_baseline_cv(self, user_id: str) -> bool:
         """True iff the user owns at least one baseline cv_versions row.
 

@@ -101,7 +101,9 @@ test("it is gated on what is missing, never on the completion flag", () => {
   // 111 users carry `onboarding_complete = true` with no target role. A flag is
   // not the fact — the same lesson as the NULL scoping key that told 162 users
   // the market was empty.
-  assert.match(nudge, /if \(hasCv && hasTargetRoles\) return null/)
+  // Now three facts, not two: skill confirmation joined the gate when it turned
+  // out 262 of the 300 users with a CV and no target had never completed it.
+  assert.match(nudge, /if \(hasCv && hasTargetRoles && skillsConfirmed\) return null/)
   assert.doesNotMatch(nudge, /onboardingComplete|onboarding_complete/)
   // And the dead prop is gone from the surface that used to read it.
   assert.doesNotMatch(jobsTab, /onboardingComplete/)

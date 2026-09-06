@@ -47,8 +47,15 @@ def get_me(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found.")
     profile["target_career_band"] = profile.get("target_career_band") or career_band_for_profile(profile) or None
     profile["target_seniority"] = reported_target_seniority(profile)
-    has_cv = users_repo.has_baseline_cv(principal.id)
+    # One read, two facts. `skills_confirmed` is what lets the re-entry nudge
+    # name the step the user is actually on: 262 of the 300 users with a CV and
+    # no target have never confirmed their skills.
+    if hasattr(users_repo, "baseline_state"):
+        has_cv, skills_confirmed = users_repo.baseline_state(principal.id)
+    else:  # older test fakes implement only the original seam
+        has_cv, skills_confirmed = users_repo.has_baseline_cv(principal.id), False
     profile["has_cv"] = has_cv
+    profile["skills_confirmed"] = skills_confirmed
     profile["cv_readiness"] = "ready" if has_cv else "missing"
     profile["cv_upload_job_id"] = None
     profile["cv_upload_error_code"] = None

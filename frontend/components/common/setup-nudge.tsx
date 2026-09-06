@@ -51,12 +51,20 @@ export function SetupNudge({ token, className, style }: SetupNudgeProps) {
   // "Upload your CV" at someone who has one is worse than rendering nothing.
   if (!profile.data) return null
   const hasCv = profile.data.has_cv
+  const skillsConfirmed = profile.data.skills_confirmed !== false
   const hasTargetRoles = (profile.data.target_roles ?? []).length > 0
-  if (hasCv && hasTargetRoles) return null
+  if (hasCv && hasTargetRoles && skillsConfirmed) return null
 
-  const copy = hasCv
-    ? { head: "Pick a target role", sub: "Myro puts your best-fit jobs first.", cta: "Pick a role" }
-    : { head: "Upload your CV", sub: "Myro scores it and ranks jobs by your fit.", cta: "Upload CV" }
+  // NAME THE STEP THE USER IS ACTUALLY ON. This said "Pick a target role" to
+  // everyone with a CV and no target — and 262 of those 300 users have never
+  // confirmed their skills, so they were being pointed past the thing in their
+  // way at a step they cannot reach yet. The destination was always right;
+  // /onboarding resolves to whatever they owe. The words were wrong.
+  const copy = !hasCv
+    ? { head: "Upload your CV", sub: "Myro scores it and ranks jobs by your fit.", cta: "Upload CV" }
+    : !skillsConfirmed
+      ? { head: "Confirm your skills", sub: "Myro reads them off your CV. You check them once.", cta: "Confirm skills" }
+      : { head: "Pick a target role", sub: "Myro puts your best-fit jobs first.", cta: "Pick a role" }
 
   return (
     <div className={className ? `tm-setup-nudge ${className}` : "tm-setup-nudge"} style={style}>
