@@ -72,11 +72,14 @@ every conversion number on this page has an unexplained hole in it.
 - The partner API is metered (MTR1-6 in [DECISIONS.md](DECISIONS.md)). No price
   yet, on purpose: a month of real numbers first.
 
-**Wave 2 — sell the data slice.** *Unblocked 2026-09-06.* Two packaged slices,
-not a platform: a sector hiring panel, and a live-role feed for recruiters and
-EdTech. The free tier is the newsletter CSV that already ships; the paid tier is
-history, freshness and the API. The licence gate is cleared (see below); what
-remains is build, and the meter it would bill through already exists.
+**Wave 2 — sell the data slice.** *First slice shipped 2026-09-06.*
+- [The sector hiring panel](https://www.himyro.com/hiring) is live and public:
+  eight sectors, 35,902 live roles, momentum, most-hired roles, most-asked
+  skills, and the Ghost Index cross-reference on whether those postings are
+  real. Free, and it IS the sales collateral.
+- Still to build: the live-role feed for recruiters and EdTech, and the paid
+  tier behind the free panel (history, freshness, the API). The meter it would
+  bill through already exists — see MTR1-6 in [DECISIONS.md](DECISIONS.md).
 
 **Wave 3 — the ₹999 AI Workflow Audit.** *Shipped and live 2026-09-06:
 purchasable and deliverable.* The buyer describes an AI workflow they actually run and a human
