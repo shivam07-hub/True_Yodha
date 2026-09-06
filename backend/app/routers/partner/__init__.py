@@ -10,6 +10,7 @@ do not control, so a breaking change has to be a new version, not a deploy.
 from fastapi import APIRouter
 
 from .jobs import router as jobs_router
+from .roles import router as roles_router
 from .sso import router as sso_router
 from .webhooks import router as webhooks_router
 
@@ -18,3 +19,4 @@ router = APIRouter(prefix="/partner/v1", tags=["partner"])
 router.include_router(sso_router)
 router.include_router(webhooks_router)
 router.include_router(jobs_router)
+router.include_router(roles_router)
