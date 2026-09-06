@@ -168,6 +168,67 @@ def test_settle_does_not_close_blocked_capacity() -> None:
     assert book.snapshot()[0].status == "blocked"
 
 
+def test_process_death_oom_opens_blocked() -> None:
+    book = NoticeBook.testing()
+    book.observe(Sighting.process_death(process="mirror-backend-prod", death_kind="oom"))
+    row = book.snapshot()[0]
+    assert row.status == "blocked"
+    assert row.cause_key == "process_death:mirror-backend-prod:oom"
+
+
+def test_slow_200_is_kind_not_route() -> None:
+    book = NoticeBook.testing()
+    book.observe(
+        Sighting.slow_200(kind="capacity_queue", method="GET", path="/users/me")
+    )
+    book.observe(
+        Sighting.slow_200(kind="reads_over_budget", method="GET", path="/jobs/feed")
+    )
+    rows = {row.cause_key: row for row in book.snapshot()}
+    assert set(rows) == {
+        "slow_200:capacity_queue",
+        "slow_200:reads_over_budget",
+    }
+    assert rows["slow_200:capacity_queue"].status == "blocked"
+    assert rows["slow_200:reads_over_budget"].status == "open"
+    assert "/users/me" not in rows["slow_200:capacity_queue"].cause_key
+    assert rows["slow_200:capacity_queue"].last_path == "/users/me"
+
+
+def test_upload_and_work_lane_and_dead_man_identity() -> None:
+    book = NoticeBook.testing()
+    book.observe(Sighting.upload_guarantee(break_kind="object_no_job"))
+    book.observe(Sighting.upload_guarantee(break_kind="job_never_claimed"))
+    book.observe(
+        Sighting.work_lane(job_type="cv_upload_analysis", terminal_class="RuntimeError")
+    )
+    book.observe(Sighting.dead_man(belt="skill_floor"))
+    keys = {row.cause_key for row in book.snapshot()}
+    assert keys == {
+        "upload_guarantee:object_no_job",
+        "upload_guarantee:job_never_claimed",
+        "work_lane:cv_upload_analysis:RuntimeError",
+        "dead_man:skill_floor",
+    }
+
+
+def test_settle_closes_dead_man_by_cause_key() -> None:
+    book = NoticeBook.testing()
+    book.observe(Sighting.dead_man(belt="listing_verifier"))
+    digest = book.settle(
+        [
+            CloseProof(
+                cause_key="dead_man:listing_verifier",
+                test_nodeid="harvest:listing_verifier_ok",
+                sha="abc",
+                on_main=True,
+            )
+        ]
+    )
+    assert digest.closed_this_run == ("dead_man:listing_verifier",)
+    assert book.snapshot()[0].status == "closed"
+
+
 def test_observe_never_raises_when_store_is_down() -> None:
     book = NoticeBook(
         store=_BoomStore(),

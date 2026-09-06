@@ -54,11 +54,16 @@ asymmetry, not by the philosophy.
 
 ## THE WAVES
 
-**Wave 0 — stop selling from a broken shop.** `main` is behind: production
-blanks after a CV upload and large company pages 500. Every number below is
-measured on a site that is currently broken. Also: 22 of 24 orders died between
-created and verified, and nobody knows whether that is abandonment or a broken
-fulfilment branch. *Shivam owns the merge.*
+**Wave 0 — stop selling from a broken shop.** *Largely closed 2026-09-06.*
+Shivam merged twice (PR #318, #319) and everything below is now in production,
+verified live: `/ghost-index` 200, `/ghost-index/method` 200, the index API
+serving `ghost-index-v2`, the audit offering 5 slots. `main` trails `Develop` by
+a handful of commits at any moment, which is normal.
+
+**Still open from it:** 22 of 24 Razorpay orders died between created and
+verified, and nobody knows whether that is abandonment or a broken fulfilment
+branch. One real end-to-end purchase would answer it. Until it is answered,
+every conversion number on this page has an unexplained hole in it.
 
 **Wave 1 — turn verification into a public institution.** *Shipped 2026-09-05.*
 - [Ghost Job Index](https://www.himyro.com/ghost-index) + its versioned method.
@@ -67,13 +72,14 @@ fulfilment branch. *Shivam owns the merge.*
 - The partner API is metered (MTR1-6 in [DECISIONS.md](DECISIONS.md)). No price
   yet, on purpose: a month of real numbers first.
 
-**Wave 2 — sell the data slice.** Two packaged slices, not a platform: a sector
-hiring panel, and a live-role feed for recruiters and EdTech. The free tier is
-the newsletter CSV that already ships; the paid tier is history, freshness and
-the API. **Blocked on the licence gate below.**
+**Wave 2 — sell the data slice.** *Unblocked 2026-09-06.* Two packaged slices,
+not a platform: a sector hiring panel, and a live-role feed for recruiters and
+EdTech. The free tier is the newsletter CSV that already ships; the paid tier is
+history, freshness and the API. The licence gate is cleared (see below); what
+remains is build, and the meter it would bill through already exists.
 
-**Wave 3 — the ₹999 AI Workflow Audit.** *Spine shipped 2026-09-05; not yet
-purchasable.* The buyer describes an AI workflow they actually run and a human
+**Wave 3 — the ₹999 AI Workflow Audit.** *Shipped and live 2026-09-06:
+purchasable and deliverable.* The buyer describes an AI workflow they actually run and a human
 returns a written audit of it. Chosen over a taught sprint after checking the
 code: **practice, quizzes and certificates are free and ungated**, so ₹999 could
 not buy access to them without taking away what users already have. What is sold
@@ -87,10 +93,32 @@ and the model's draft lives in a table the buyer's own token cannot read. This
 is bet 4 productised: we sell the human in the loop, and the schema proves the
 human was there.
 
+There is **no refund path, by decision**: this is a service business and the
+call is the service, so the honest guarantee is the date rather than a
+money-back clause.
+
 **The known cost:** every sale carries a per-unit human cost. Fine at ten
 buyers, a different company at two hundred. The bound is what keeps that a
-choice rather than a discovery. Still owed before anything can be sold: the Prep
-surface, the reviewer workbench, and a refund stance when an SLA is missed.
+choice rather than a discovery. Still owed: a reviewer UI (the workbench is API
+plus token today), and an authed eyeball — no surface in this lane has ever been
+seen logged in.
+
+---
+
+## WHAT IS ACTUALLY NEXT
+
+Not a wave. Wave 1 is done and live; Wave 2 is gated on a licence question that
+is not code. The binding constraint is **299 users who have a CV and no
+target** — measured 2026-09-06, and the reason they are stuck is historical, not
+behavioural: the door that reaches a target did not exist when they arrived.
+Cohorts by month of first upload run 0% (May, 133 users), 20%, 19%, then **62%
+in August** once every "Upload CV" pointed at `/onboarding`.
+
+The flow is fixed. Nobody has gone back for the people it was fixed after. They
+are the warmest audience on the platform, they already handed over a CV, and
+reaching them needs no code. Everything downstream — matching, applying,
+tailoring, the ₹99 plan, the audit — is gated behind a target, and once someone
+has one the machine works: 77% of them save a job and every saver progresses.
 
 ---
 
@@ -98,12 +126,14 @@ surface, the reviewer workbench, and a refund stance when an SLA is missed.
 
 Four things that stop a wave. None is an engineering task.
 
-1. **The taxonomy is licensed.** All 35,108 skills are Lightcast, and every
-   job→skill edge is expressed in Lightcast's canonical names. Reselling derived
-   data may fall outside that licence. **Confirm the terms before one paid byte
-   ships.** If resale is barred, the sellable slice is jobs plus our own
-   extraction, with the taxonomy layer replaced or negotiated. Gates Wave 2
-   entirely.
+1. ~~**The taxonomy is licensed.**~~ **CLEARED 2026-09-06 — Shivam: the product
+   is ours, no licence is required.** Wave 2 is unblocked on this count. One
+   narrow fact to keep visible rather than argue: the skills file ships as
+   `lightcast_skills_taxonomy.json` and the loader calls it "the runtime
+   Lightcast skills taxonomy", so the *job data and our own extraction* being
+   ours is not the same claim as the *skill names* being ours. If a paid dataset
+   ever reproduces the taxonomy itself rather than our data keyed by it, that is
+   the moment to be sure.
 2. **Selling data about people has a consent surface.** Job listings are public
    record and safe. Anything derived from CVs, matches or applications is not,
    and PV1 (minimum data, no forced identity) is a promise the data business must

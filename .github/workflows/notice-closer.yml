@@ -1,7 +1,8 @@
 name: Notice closer
 
-# Daily operator loop (ADR-0021). Records live in Postgres; this job digests
-# and will settle class-2 proofs. Does not run on Railway.
+# Daily operator loop (ADR-0021). Records live in Postgres; this job harvests
+# Railway deaths, settles proofs on origin/main, authors at most one class-2
+# close, and sends one digest. Does not run on Railway.
 
 on:
   schedule:
@@ -12,28 +13,51 @@ concurrency:
   group: notice-closer
   cancel-in-progress: false
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   digest:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: backend
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.NOTICE_GITHUB_TOKEN || github.token }}
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Notice digest
+      - name: Install Railway CLI
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          if [ -n "$RAILWAY_TOKEN" ]; then npm install -g @railway/cli; fi
+        working-directory: .
+
+      - name: Notice closer
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           OPS_ALERT_EMAIL: ${{ secrets.OPS_ALERT_EMAIL }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: a15c0013-3f6b-4a75-9b7a-4cd6d93c80c7
+          RAILWAY_ENVIRONMENT_ID: 9e77c93e-9f0f-4c29-ac4e-e9c4d39ae6c5
+          GITHUB_TOKEN: ${{ secrets.NOTICE_GITHUB_TOKEN || github.token }}
           MYRO_ENV: prod
         run: python -m app.notice.closer

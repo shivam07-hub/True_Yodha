@@ -80,6 +80,21 @@ def test_silent_belt_alerts(monkeypatch, caplog):
     assert "job_verifier.alert reason=dead_man" in caplog.text
 
 
+def test_silent_belt_opens_a_dead_man_notice(monkeypatch):
+    from app.notice import NoticeBook, bind, unbind
+
+    book = NoticeBook.testing()
+    bind(book)
+    _patch(monkeypatch, FakeDB(_ago(96)))
+    try:
+        assert check_belt().state == "stalled"
+        rows = book.snapshot()
+        assert len(rows) == 1
+        assert rows[0].cause_key == "dead_man:listing_verifier"
+    finally:
+        unbind()
+
+
 def test_never_ran_is_alerted_not_silently_ok(monkeypatch, caplog):
     _patch(monkeypatch, FakeDB(None))
 

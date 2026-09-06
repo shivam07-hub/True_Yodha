@@ -428,6 +428,15 @@ async def start_cv_upload_job_from_storage(
         # Transient ones (429/5xx) keep it so a retry can finalize without re-uploading.
         if exc.status_code in (status.HTTP_400_BAD_REQUEST, status.HTTP_422_UNPROCESSABLE_ENTITY):
             _delete_cv_object(storage_path)
+        elif exc.status_code >= 500:
+            from app.notice import Sighting, observe
+
+            observe(Sighting.upload_guarantee(break_kind="object_no_job"))
+        raise
+    except Exception:
+        from app.notice import Sighting, observe
+
+        observe(Sighting.upload_guarantee(break_kind="object_no_job"))
         raise
     _delete_cv_object(storage_path)
     return result

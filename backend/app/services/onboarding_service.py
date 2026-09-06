@@ -640,20 +640,6 @@ def enqueue_score_refresh(
 # The optional Career-Ops inputs, by the names the pre-flight manifest gives
 # them. Onboarding already fixes target roles, location and the CV; these three
 # are what a user can add later to sharpen a Myro Search.
-_OPS_OPTIONAL_INPUTS = ("deal_breakers", "career_goal", "superpower")
-
-
-def _unused_ops_inputs(profile: dict[str, Any]) -> list[str]:
-    """Which optional Career-Ops inputs this user has not supplied."""
-    unused: list[str] = []
-    for key in _OPS_OPTIONAL_INPUTS:
-        value = profile.get(key)
-        filled = bool(value.strip()) if isinstance(value, str) else bool(value)
-        if not filled:
-            unused.append(key)
-    return unused
-
-
 def _reviewable_step(
     db: Client,
     user_id: str,
@@ -828,15 +814,55 @@ def _awaiting_target_payload(
     Direction screen loads suggestions itself.
     """
     from app.services import ninja_name as nn
+    from app.services.concurrent_reads import run_concurrently
 
     families_repo = RoleFamiliesRepository(db)
-    families = families_repo.list_families(user_id) if include_families else []
     chosen_keys = [
         str(key) for key in (profile.get("target_roles") or []) if str(key).strip()
     ]
-    selected_families = (
-        families_repo.resolve_families(user_id, chosen_keys) if include_families and chosen_keys else []
+
+    # One wave, not four sequential hops. Measured on prod for a returning user
+    # with a CV and no target — the population this screen exists to catch:
+    # list_families 1,189ms, resolve_families 636ms, _direction_answer 335ms,
+    # ninja suggestion 301ms, all independent and all waited on in turn. That is
+    # 2,461ms of the 3-7s that `RequiresCareerTarget` blocks /market on, so the
+    # user who came back stares at a skeleton before the picker appears.
+    #
+    # `resolve_families` fires only when target_roles are stored, which is
+    # exactly the 53 users who have roles but no snapshot — the stranded cohort
+    # paid an extra hop the others did not.
+    def _family_reads() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        """Both family reads in ONE section, to stay inside the 3-section read
+        contract rather than adding to its exception register — that register is
+        a debt list, not a permission slip.
+
+        They share a section because `resolve_families` IS `list_families` with
+        different arguments. Both used to re-read the same `user_skills` rows
+        for the same user on the same request; the repository now takes those
+        ids so the read happens once.
+        """
+        if not include_families:
+            return [], []
+        # One `user_skills` read feeds both lookups. They are the same method
+        # with different arguments and each used to re-read identical rows.
+        skill_ids = families_repo.user_skill_ids(user_id)
+        suggested = families_repo.list_families(user_id, skill_ids=skill_ids)
+        chosen = (
+            families_repo.resolve_families(user_id, chosen_keys, skill_ids=skill_ids)
+            if chosen_keys
+            else []
+        )
+        return suggested, chosen
+
+    reads = run_concurrently(
+        {
+            "families": _family_reads,
+            "direction": lambda: _direction_answer(db, user_id, profile),
+            "ninja": lambda: nn.suggestion_for(user_id, db),
+        },
+        label="onboarding.awaiting_target",
     )
+    families, selected_families = reads["families"]
     from app.services.job_eligibility import SOURCE_SENIORITY, canonical_source_seniority
 
     stored_band = canonical_source_seniority(profile.get("target_seniority"))
@@ -856,8 +882,8 @@ def _awaiting_target_payload(
             "seniority": stored_band if stored_band in SOURCE_SENIORITY else None,
             "locations": stored_locations,
         },
-        "direction": _direction_answer(db, user_id, profile),
-        "ninja": nn.suggestion_for(user_id, db),
+        "direction": reads["direction"],
+        "ninja": reads["ninja"],
         "journey_step": 2,
         "furthest_step": 2,
     }

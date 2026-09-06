@@ -4,8 +4,9 @@ Measures wall-clock time for every request, attaches it as the
 ``X-Process-Time`` response header (milliseconds), and logs a structured
 warning when a request crosses the slow threshold. Grep ``metric route.slow``.
 
-Slow 200s are not Notices (CONTEXT.md). Operator memory for failures is the
-Notice Module. This file only times.
+Slow 2xx responses open a Notice by kind, never by route: over-budget reads
+are ``slow_200:reads_over_budget``; a slow 200 inside budget is a capacity
+queue victim (``blocked``).
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ import time
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.services import read_budget
+from app.notice import Sighting, observe
 
 _logger = logging.getLogger("app.request_timing")
 
@@ -71,6 +73,15 @@ class RequestTimingMiddleware:
                         elapsed_ms,
                         reads,
                     )
+                    if 200 <= int(status) < 300:
+                        kind = (
+                            "reads_over_budget"
+                            if reads > read_budget.READ_BUDGET_PER_REQUEST
+                            else "capacity_queue"
+                        )
+                        observe(
+                            Sighting.slow_200(kind=kind, method=str(method), path=str(path))
+                        )
             await send(message)
 
         try:

@@ -66,6 +66,9 @@ def _install_drain_hook() -> None:
 
 def run() -> None:
     install_sensitive_log_filter()
+    from app.notice.wiring import bind_from_settings
+
+    bind_from_settings()
     # Boot receipt: the Runner states what it can actually run. A job type
     # missing from this line is a job the queue will hand over and this process
     # will reject — cheaper to read here than to infer from a stalled user.

@@ -1237,9 +1237,9 @@ Uploads are never rejected for load (your "never fail an upload" rule). At peak 
 
 The operator-facing record that a Railway-visible **failure of a named cause** happened (or would have happened) to a user. Dual of Overload Policy: Overload Policy is what the product refuses to do to an upload; a Notice is what we refuse to let happen twice.
 
-The saturation mailbox is retired (ADR-0021). A Notice is the memory; a daily GitHub Action is the closer; one digest per run is the inform. Slow 200s (`metric route.slow` with a successful response) are **not** Notices until the failure catalog is stable.
+The saturation mailbox is retired (ADR-0021). A Notice is the memory; a daily GitHub Action is the closer; one digest per run is the inform. Slow 200s (`metric route.slow` on a 2xx) are Notices by **kind**, never by route: over-budget reads vs a capacity queue victim.
 
-**Catalog (day one)**
+**Catalog**
 
 1. Process death — Railway crash, OOM, failed deploy, Job Runner exit.
 2. Unhandled 500.
@@ -1247,12 +1247,13 @@ The saturation mailbox is retired (ADR-0021). A Notice is the memory; a daily Gi
 4. Upload Guarantee break — object in storage, no job / no output.
 5. Work Lane exhaustion — retries spent, user still has no result.
 6. Dead-man — skill-floor stall, listing verifier not running.
+7. Slow 200 — `slow_200:reads_over_budget` (code) or `slow_200:capacity_queue` (`blocked`, queue victim).
 
-Slice 1 closes class 2 in code. Classes 1 and 3 are recorded (a capacity 503 is `blocked`, not a bulkhead tweak). 4–6 and slow 200s come later.
+Class 2 closes in code when a test on `origin/main` names the cause, or the Action authors one root-cause PR and merges `main`. Class 3 and slow-200 queue victims and Railway OOM/failed-deploy open `blocked`. 4–6 record live; the closer harvests Railway deaths and belt recovery.
 
 **Identity**
 
-`cause_key` = class + fingerprint. Unhandled 500 → exception type + file + function. 503 → which limiter / which timeout, not the route. Upload Guarantee → “object, no job row” vs “job row, never claimed.” Work Lane → job type + terminal error class. Dead-man → one key per belt. The route is evidence, never the identity. Reopen of the same `cause_key` after a closing commit is a **failed close**.
+`cause_key` = class + fingerprint. Unhandled 500 → exception type + file + function. 503 → which limiter / which timeout, not the route. Upload Guarantee → `object_no_job` vs `job_never_claimed`. Work Lane → job type + terminal error class. Dead-man → one key per belt. Slow 200 → over-budget vs capacity queue. Process death → process + death kind. The route is evidence, never the identity. Reopen of the same `cause_key` after a closing commit is a **failed close**.
 
 **Status**
 
@@ -1268,9 +1269,9 @@ Postgres is the record. Tests use an in-memory adapter. Redis may page (skill-fl
 
 **Surfaces**
 
-- Live: exception / capacity / timeout handlers write a Notice (no email).
-- Daily: GitHub Action reads open Notices + Railway for process death, closes class 2 when a failing test proves the cause, sends one digest to `ops_alert_email`.
-- The closer does not run inside `mirror-backend-prod`.
+- Live: 500/503 handlers, Work Lane `on_failure`, upload stall/orphan, skill-floor and listing-verifier dead-men, and slow 2xx timing write a Notice (no email).
+- Daily: GitHub Action harvests Railway process death, settles proofs already on `origin/main`, authors at most one class-2 close onto `main`, sends one digest to `ops_alert_email`.
+- The closer does not run inside `mirror-backend-prod`. The Job Runner binds Notice so class 5 can record.
 
 ## Listing Verification
 

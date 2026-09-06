@@ -125,19 +125,8 @@ def _incident_transition(active: bool, *, now: float | None = None) -> str:
         return "unavailable"
 
 
-def _alert_body(gap: "FloorGap") -> str:
-    return (
-        f"{gap.awaiting_stage_a} jobs are waiting for a skill floor that has never run "
-        f"({gap.total} carry no skills at all, {gap.recommendable} of them recommendable).\n\n"
-        "These are invisible to the matcher: the candidate pool is job_skills-derived, "
-        "so a job with no rows can never be matched to anyone.\n\n"
-        "Close it with:  python -m app.workers.skill_floor_cli --apply"
-    )
-
-
 def check_once() -> "FloorGap":
-    """Emit the gap; alert only when work is queued and not moving."""
-    from app.config import settings
+    """Emit the gap; open a dead-man Notice when Stage A is not moving."""
     from app.database import get_supabase_admin_batch
     from app.services import skill_floor
 
@@ -153,17 +142,6 @@ def check_once() -> "FloorGap":
         )
         return gap
 
-    recipient = (settings.ops_alert_email or "").strip()
-    if not recipient:
-        if gap.awaiting_stage_a >= ALERT_ABOVE_AWAITING:
-            logger.warning(
-                "metric skill_floor.alert_skipped reason=no_recipient awaiting_stage_a=%d",
-                gap.awaiting_stage_a,
-            )
-        return gap
-
-    from app.services.email_service import send_email
-
     active = gap.awaiting_stage_a >= ALERT_ABOVE_AWAITING
     action = _incident_transition(active)
     if active and action in {"opened", "reminder"}:
@@ -172,22 +150,11 @@ def check_once() -> "FloorGap":
             action,
             gap.awaiting_stage_a,
         )
-        send_email(
-            to=recipient,
-            subject=f"Myro: {gap.awaiting_stage_a} jobs waiting for a skill floor",
-            text=_alert_body(gap),
-        )
+        from app.notice import Sighting, observe
+
+        observe(Sighting.dead_man(belt="skill_floor"))
     elif not active and action == "recovered":
         logger.info("metric skill_floor.alert_recovered total=%d", gap.total)
-        send_email(
-            to=recipient,
-            subject="Myro: skill floor recovered",
-            text=(
-                "Stage A is moving again: no jobs are waiting for their first skill-floor "
-                f"attempt. {gap.total} jobs still carry no skills, {gap.recommendable} of "
-                "them recommendable; those are the separate Stage B judgment backlog."
-            ),
-        )
     return gap
 
 

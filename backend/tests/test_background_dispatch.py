@@ -187,6 +187,30 @@ def test_run_failure_sync_no_handler_is_noop():
     dispatch.run_failure_sync(job, None, None, None, None)  # must not raise
 
 
+def test_run_failure_sync_opens_a_work_lane_notice():
+    from app.notice import NoticeBook, bind, unbind
+
+    book = NoticeBook.testing()
+    bind(book)
+    refunded: list[dict] = []
+
+    @background.failure_handler("t_fail_notice")
+    async def _f(payload):
+        refunded.append(payload)
+
+    try:
+        job = _FakeJob(["t_fail_notice", {"job_id": "j1", "user_id": "u1"}])
+        dispatch.run_failure_sync(job, None, RuntimeError, RuntimeError("x"), None)
+        rows = book.snapshot()
+        assert len(rows) == 1
+        assert rows[0].cause_key == "work_lane:t_fail_notice:RuntimeError"
+        assert "u1" not in rows[0].cause_key
+        assert refunded
+    finally:
+        unbind()
+        _clear_failure("t_fail_notice")
+
+
 def test_run_failure_sync_swallows_handler_crash():
     @background.failure_handler("t_boom")
     async def _f(_payload):
