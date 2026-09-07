@@ -147,6 +147,37 @@ measured Free/Nano database ceiling, not unfinished application work.
 9. **#36 event-driven matching — Slices 2–5** (notifications inbox/bell → brain-everywhere read audit → Agent Picks auto-gen → "want more" coin expansion). Slice 1 shipped. **✅ Slice 2 VERIFIED ALREADY SHIPPED 2026-07-24** (stale backlog — [[feedback_verify_backlog_stale]]): `NotificationsRepository` + `record_fresh_matches` (debounced, wired into the standardized `run_match` pipeline) + `routers/notifications.py` + `<NotificationBell>` mounted in `authed-top-strip.tsx`, all live on **both Develop and main** (`f76e9e86`/`2115d864`/`519bc677`, none from this session). 11/11 backend tests green. **Remaining: Slices 3 (brain-everywhere read audit) → 4 (Agent Picks auto-gen) → 5 ("want more" coin expansion).** Next agent: confirm which slice to pick up before building — don't assume 3 is next without checking, this same backlog note was already wrong once today.
 10. **#20 leftovers** — ✅ ALL DECISIONS CLOSED 2026-07-24. PR-EMPTY shipped · PR-COACHMARKS DROPPED · PR-SIGNUP-REDESIGN DROPPED (ND14) · **PR-REFERRAL-V1 ✅ ALSO ALREADY SHIPPED** (verified in code 2026-08-04: `frontend/lib/referral.ts` + `user_provisioning.credit_referrer_for_signup` → `reward_coins`; the "build the 3 approved items" line below was itself stale) · PR-BRAND-TOKEN-AUDIT APPROVED-build · PR-LANDING-VISUAL-WARMTH APPROVED-build. **Remaining build = 2 items** (brand-token-audit, landing-warmth) + #32 kit-unification. Re-verify each against code first.
 
+11. **#45 The evidence bank — give the horizontal loop a surface.** *Design:
+    artboard **2a** in `UNIFIED_PREP_V2.md` (Claude Design project
+    `6652e11d-0f4f-4868-95ca-9cf004f30f88`). Needs a grill on shape before code.*
+
+    Prep has two loops. **Vertical** (one room, four steps) works. **Horizontal**
+    (one step, every room) is the rail's own headline — *"Clear a step once and
+    it counts wherever it applies"* — and it is the claim that makes Myro one
+    platform rather than a folder of jobs. **The mechanism now holds it up; the
+    interface does not show it.**
+
+    Shipped 2026-09-07, so the carry is real:
+    - step 1 — banking a story stales every other room's coverage, which
+      re-matches on open (`10043107`)
+    - step 2 — always carried; recomputed live from `user_skills` every read
+    - step 3 — rehearsal marks the STORY, not the job (`85ac9ead`)
+    - step 4 — stays per job, correctly: one conversation, one date
+
+    **What is missing is the surface.** Today the only horizontal thing a user
+    can see is one sentence in the cross-room footer, and its link opens a
+    single room — the vertical loop wearing a horizontal label. A user who
+    answers a gap at Sanofi has just moved four other rooms and is told nothing.
+
+    2a draws the answer: one bank across the top, every room a deposit into it,
+    and every gap saying which OTHER rooms it also unblocks. Decide before
+    building: is the bank its own route, the top of `/preparations`, or a lens
+    on `/cv`? What does a deposit show at the moment it lands?
+
+    ⚠️ Do not start by widening the ladder read. The carries were made free on
+    the read path deliberately ([[feedback_record_against_the_person_not_the_occasion]]);
+    a bank view that costs a fan-out per room would undo that.
+
 ### TIER 4 — correctly deferred, DO NOT pick up
 
 - **#39 per-skill band percentile** — gated on peer density (≥20 per band+skill); at current scale every chip would hide.
@@ -199,7 +230,7 @@ measured Free/Nano database ceiling, not unfinished application work.
 
     **CLOSED, did not reproduce — verify before rebuilding:** the **clipped Settings modal** (`.tm-settings-body` is `overflowY: auto`; the mobile block gives a full-height sheet with a 4-col tab grid — Appearance is a section inside Account, reached by scrolling) and the **desktop footer on a phone** (it gained 480/360 breakpoints; at 375 it is 3 readable columns and every link now clears 24px). The **shared-nav 498px blow-out** is closed by the phone chrome above.
 
-    **STILL OPEN:** (1) **`ui-drift-guard` gained `pinnedColourLiteral`** — hex colours in CSS declarations, baselined at 226 as a ratchet, not a ban. The deliberate theme-independent islands (intel-pane's cold console, the CV sheet's paper, the mobile template thumbnails) hold where they are; the number may only go down. (2) **Accent budget never reached the orphan surfaces** — /preparations gives all five Training rows the azure outline AND azure text; /practice shows two full-width azure buttons, an azure chip and orange in one viewport. `edf1abb4` rationed Jobs and Collections only. (3) **/skills is a dead page** for an account with no score: one "Score map unavailable" card and ~1000px of void. That is an empty-state decision, not a bug fix — needs a brief. (4) **Junk titles at source** — `displayJobTitle` is display-only; the extractor fix belongs in `firecrawl_Supabase`. (5) **`mobile/redesign/` is still exempt from the drift guard**, as this entry has said since July.
+    **STILL OPEN:** (1) **`ui-drift-guard` gained `pinnedColourLiteral`** — hex colours in CSS declarations, baselined at 226 as a ratchet, not a ban. The deliberate theme-independent islands (intel-pane's cold console, the CV sheet's paper, the mobile template thumbnails) hold where they are; the number may only go down. (2) **Accent budget never reached the orphan surfaces** — /practice shows two full-width azure buttons, an azure chip and orange in one viewport. `edf1abb4` rationed Jobs and Collections only. ~~/preparations gives all five Training rows the azure outline AND azure text~~ — closed by Unified Prep v2 (`4506a4e1`): the rail shows three programmes and accent is spent on the ONE that matches a gap on the board. (3) **/skills is a dead page** for an account with no score: one "Score map unavailable" card and ~1000px of void. That is an empty-state decision, not a bug fix — needs a brief. (4) **Junk titles at source** — `displayJobTitle` is display-only; the extractor fix belongs in `firecrawl_Supabase`. (5) **`mobile/redesign/` is still exempt from the drift guard**, as this entry has said since July.
 
     **⚠️ STILL UNEYEBALLED:** the accent-budget change from `edf1abb4` — the QA account has zero tailored-but-unapplied jobs, so `.tm-lib-continue` renders 0 cards and the lane never appears. Seed it, or look on a real account. Separately, **nobody has opened any of this on a real phone** — every measurement here is a 375px Chromium at device-scale 2.
 

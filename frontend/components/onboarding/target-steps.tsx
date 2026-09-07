@@ -40,12 +40,11 @@ function seniorityEvidence(result: { source: string; years?: number | null; titl
 }
 
 export function RoleStep({
-  families, selected, showSearch, roleSearch, empty,
+  families, selected, roleSearch, empty,
   onToggle, onShowSearch, onSearch,
 }: {
   families: RoleFamily[]
   selected: RoleFamily[]
-  showSearch: boolean
   roleSearch: string
   /** Nothing suggested and nothing searched — say so rather than showing a
    *  blank column under a title. */
@@ -94,24 +93,28 @@ export function RoleStep({
         ) : null}
       </div>
 
-      <button
-        type="button"
-        onClick={() => onShowSearch(!showSearch)}
-        className="tm-control-focus mt-4 inline-flex min-h-10 items-center gap-2 rounded text-sm text-[var(--tm-text-muted)] underline underline-offset-4"
-      >
-        <Search className="size-4" />
-        Search another role
-      </button>
-      {showSearch ? (
+      {/* Always visible, never a disclosure. Of the 14 most recent people who
+          finished Direction, SEVEN picked a family that was not in the ones
+          suggested to them — they got there only by finding this box. It used
+          to be a muted underlined link below the cards, so "my role is not
+          here" ended at a control the reader had to notice. The people who did
+          not notice it set a seniority and stopped. */}
+      <label className="mt-4 block">
+        <span className="mb-2 flex items-center gap-2 text-sm text-[var(--tm-text-muted)]">
+          <Search className="size-4" aria-hidden />
+          Not listed? Search any role
+        </span>
         <input
           value={roleSearch}
-          onChange={(e) => onSearch(e.target.value)}
-          autoFocus
+          onChange={(e) => {
+            onShowSearch(true)
+            onSearch(e.target.value)
+          }}
           placeholder="Search a role"
-          aria-label="Search another role"
-          className="tm-control-focus mt-2 min-h-11 w-full rounded-md border border-[var(--tm-border)] bg-[var(--tm-surface)] px-3 text-[var(--tm-text)] placeholder:text-[var(--tm-text-muted)]"
+          aria-label="Search any role"
+          className="tm-control-focus min-h-11 w-full rounded-md border border-[var(--tm-border)] bg-[var(--tm-surface)] px-3 text-[var(--tm-text)] placeholder:text-[var(--tm-text-muted)]"
         />
-      ) : null}
+      </label>
     </>
   )
 }

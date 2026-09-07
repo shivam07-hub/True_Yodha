@@ -58,6 +58,7 @@ export const SITE_ROUTES: SiteRoute[] = [
   // sitemap test enforces for every sitemap entry — it is not a claim about
   // being top-level. It stays out of the footer; the index links to it.
   { path: "/ghost-index", label: "Ghost Job Index", footer: "Learn", sitemap: { changeFrequency: "daily", priority: 0.8 }, route: true },
+  { path: "/hiring", label: "Hiring by Sector", footer: "Learn", sitemap: { changeFrequency: "daily", priority: 0.8 }, route: true },
   { path: "/ghost-index/method", label: "Ghost Job Index method", sitemap: { changeFrequency: "monthly", priority: 0.5 }, route: true },
   { path: "/docs#faq", label: "FAQ", footer: "Learn" },
 

@@ -35,10 +35,12 @@ from app.routers import (
     payments,
     job_tracks,
     preflight,
+    preparations,
     profile,
     roles,
     public,
     scores,
+    sector_panel,
     skill_certificate_public,
     skills,
     status,
@@ -97,6 +99,7 @@ app.include_router(job_tracks.router)
 app.include_router(skills.router)
 app.include_router(cv.router)
 app.include_router(scores.router)
+app.include_router(sector_panel.router)
 app.include_router(jobs.router)
 app.include_router(home.router)
 app.include_router(diary.router)
@@ -109,6 +112,7 @@ app.include_router(xp.router)
 app.include_router(profile.router)
 app.include_router(payments.router)
 app.include_router(preflight.router)
+app.include_router(preparations.router)
 app.include_router(mentor.router)
 app.include_router(myrology.router)
 app.include_router(job_switch_plan.router)

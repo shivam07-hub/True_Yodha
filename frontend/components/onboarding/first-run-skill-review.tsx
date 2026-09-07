@@ -1,9 +1,9 @@
 "use client"
 
-import { useMemo, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { trackEvent } from "@/lib/analytics"
 import { proofTier, PROOF_TIER_COPY, type ProofTier } from "@/lib/cv/skill-proof"
-import { onboarding, type OnboardingResult } from "@/lib/api"
+import { emitJourneyPhase, onboarding, type OnboardingResult } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
 type SkillResult = Extract<OnboardingResult, { kind: "awaiting_skill_confirmation" }>
@@ -22,6 +22,10 @@ export type FirstRunSkillReviewProps = {
 export type SkillReviewChrome = {
   keptCount: number
   removedCount: number
+  /** Myro read no skills off this CV, so there is nothing to untick and the
+   *  "keep at least one" rule cannot be satisfied. The step is vacuous, not
+   *  failed, and must still let the user through. */
+  nothingToReview: boolean
   busy: boolean
   error: string | null
   confirm: () => void
@@ -62,6 +66,22 @@ export function FirstRunSkillReview({ token, result, onConfirmed, children }: Fi
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const keptCount = result.skills.length - removed.size
+  // Myro read no skills off this CV. "Keep at least one" is then unsatisfiable
+  // and the step becomes a dead end: empty list, disabled button, no way
+  // onward. The rule is about not unticking every real skill, not about
+  // punishing a CV we could not read, so a vacuous step passes.
+  const nothingToReview = result.skills.length === 0
+
+  // The step had NO telemetry until 2026-09-07, which is why a CV that yields
+  // zero skills could dead-end a user and nobody found out. `no_candidates` is
+  // the signal that would have caught it on day one.
+  // (Keep the word "s-c-o-r-e" out of this file: an onboarding contract test
+  // asserts step one never promises one, and it greps the source.)
+  useEffect(() => {
+    emitJourneyPhase(token, "confirm", "started", {
+      reasonCode: nothingToReview ? "no_candidates" : null,
+    })
+  }, [token, nothingToReview])
   const groups = useMemo(() => ORDER.map((tier) => {
     const skills = result.skills.filter((skill) => proofTier(skill.evidence, skill.name) === tier)
     return { tier, skills, points: groupByCVLine(skills, tier !== "none") }
@@ -77,7 +97,7 @@ export function FirstRunSkillReview({ token, result, onConfirmed, children }: Fi
   }
 
   async function confirm() {
-    if (busy || keptCount < 1) return
+    if (busy || (keptCount < 1 && !nothingToReview)) return
     setBusy(true)
     setError(null)
     try {
@@ -87,10 +107,15 @@ export function FirstRunSkillReview({ token, result, onConfirmed, children }: Fi
         Array.from(removed).map((taxonomy_key) => ({ taxonomy_key, action: "exclude" as const })),
       )
       trackEvent("onboarding_skills_confirmed", { kept_count: keptCount })
+      emitJourneyPhase(token, "confirm", "succeeded", {
+        reasonCode: nothingToReview ? "no_candidates" : null,
+      })
       onConfirmed(confirmed.result)
     } catch (reason) {
       setBusy(false)
-      setError(reason instanceof Error ? reason.message : "Your review could not be saved.")
+      const detail = reason instanceof Error ? reason.message : "Your review could not be saved."
+      emitJourneyPhase(token, "confirm", "failed", { errorDetail: detail })
+      setError(detail)
     }
   }
 
@@ -173,6 +198,7 @@ export function FirstRunSkillReview({ token, result, onConfirmed, children }: Fi
   const chrome: SkillReviewChrome = {
     keptCount,
     removedCount: removed.size,
+    nothingToReview,
     busy,
     error,
     confirm: () => { void confirm() },

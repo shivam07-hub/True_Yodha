@@ -30,7 +30,12 @@ logger = logging.getLogger(__name__)
 SCOPE_SSO = "sso"
 SCOPE_JOBS_READ = "jobs.read"
 SCOPE_WEBHOOKS_MANAGE = "webhooks.manage"
-ALL_SCOPES = (SCOPE_SSO, SCOPE_JOBS_READ, SCOPE_WEBHOOKS_MANAGE)
+#: The recruiter live-role feed. Separate from `jobs.read`, which is scoped to
+#: ONE seat's matches: a key that may read the whole corpus is a different grant
+#: from a key that may read what we matched for a named user, and collapsing
+#: them would hand every SSO partner the data product for free.
+SCOPE_ROLES_READ = "roles.read"
+ALL_SCOPES = (SCOPE_SSO, SCOPE_JOBS_READ, SCOPE_WEBHOOKS_MANAGE, SCOPE_ROLES_READ)
 
 # Per-key ceiling. Generous for an integration that syncs a roster, low enough
 # that a leaked key cannot enumerate sessions at speed.

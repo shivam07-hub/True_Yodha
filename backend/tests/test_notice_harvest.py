@@ -91,3 +91,11 @@ def test_proofs_from_tests_read_the_marker(tmp_path: Path) -> None:
     assert len(proofs) == 1
     assert proofs[0].cause_key == "unhandled_500:RuntimeError:app/x.py:y"
     assert proofs[0].on_main is True
+
+
+def test_closer_does_not_author_a_pr() -> None:
+    closer = (Path(__file__).resolve().parents[1] / "app" / "notice" / "closer.py").read_text()
+    assert "maybe_author" not in closer
+    assert "GitHubMerger" not in closer
+    assert "notice.author" not in closer
+    assert "OPENROUTER" not in closer

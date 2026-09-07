@@ -93,6 +93,7 @@ worker. A test upload on dev writes to production data. Full map: [INFRA.md](INF
 | Locked decisions + data model | [DECISIONS.md](DECISIONS.md) |
 | Servers, domains, env, DNS, deploy order | [INFRA.md](INFRA.md) |
 | Open work, in full | [BACKLOG.md](BACKLOG.md) |
+| **Prep = one ladder, four steps** — the design, and what shipped | [UNIFIED_PREP_V2.md](UNIFIED_PREP_V2.md) |
 | Vibecoded tells, ruled against our code | [ANTI_SLOP.md](ANTI_SLOP.md) |
 | One Myro voice + one memory writer · next session's brief | [MYRO_MENTOR.md](MYRO_MENTOR.md) |
 | A read's cost budget · **latency ledger** (§15) · **funnel ledger + priority** (§16) · how to diagnose one | [ARCHITECTURE_READ_PATH.md](ARCHITECTURE_READ_PATH.md) · [READ_PATH_PLAYBOOK.md](READ_PATH_PLAYBOOK.md) |
@@ -165,6 +166,13 @@ Job Tracks (shipped; its gate was never written, so all of it was unreachable
 until `4e8fca46`), Myro Ops (notifications → automatic picks → "show me more",
 slices 3-5), the Chrome extension, and making the built tailoring engine the
 obvious next step after a match. Two Ops items are blocked on the scraper.
+
+**The evidence bank — the horizontal loop has no surface.** *Needs a grill
+first: [BACKLOG.md](BACKLOG.md) #45, design artboard 2a.* Prep records against
+the PERSON now, so clearing a step really does count in every room
+(`85ac9ead`, `10043107`). Nothing shows it: a user who answers a gap at Sanofi
+has just moved four other rooms and is told nothing. One sentence in a footer
+is not the surface that claim needs.
 
 ### Standing, not a stage
 

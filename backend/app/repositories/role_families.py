@@ -23,7 +23,15 @@ class RoleFamiliesRepository:
         user_id: str,
         *,
         query: str | None = None,
-        limit: int = 3,
+        # Six, not three. Measured on 2026-09-07 against the 14 most recent
+        # people who finished Direction: SEVEN of them chose a family that was
+        # not in the three they were shown — Pricing Analysis, Business
+        # Strategy, Financial Reporting, Market Analysis, System Design,
+        # Counseling Services. They got there only by finding the search box.
+        # The suggestions skew to high-frequency families (Business Operations
+        # appeared for 12 of those 14), so a narrow list quietly asks half the
+        # room to go looking.
+        limit: int = 6,
         families: list[str] | None = None,
         skill_ids: list[int] | None = None,
     ) -> list[dict[str, Any]]:

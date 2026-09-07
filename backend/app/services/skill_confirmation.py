@@ -116,7 +116,13 @@ def confirm_baseline_skills(
     base_rows = scoring.build_cv_skill_rows(scores_repo, user_id, signals)
     normalized = _normalized_overrides(scores_repo, overrides)
     reviewed = _reviewed_rows(base_rows, normalized)
-    if not reviewed:
+    # The guard exists to stop someone unticking every real skill, NOT to punish
+    # a CV we failed to read. When nothing was detected in the first place,
+    # "keep at least one" is unsatisfiable and the step becomes a permanent dead
+    # end: an empty list, a disabled button, and no route to a score. Three
+    # users are sitting in exactly that today, one of them mid-session with 75
+    # saved jobs. Nothing to review is a vacuous step, so it passes.
+    if not reviewed and base_rows:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Keep at least one evidence-backed skill.",

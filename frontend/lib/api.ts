@@ -430,6 +430,10 @@ export interface UserProfile {
   onboarding_complete: boolean
   ninja_name: string | null
   has_cv: boolean
+  /** Latest baseline CV has had its skills confirmed. Decides which step the
+   *  re-entry nudge names: 262 of 300 users with a CV and no target are stalled
+   *  here, not at the direction step. */
+  skills_confirmed?: boolean
   cv_readiness?: "ready" | "missing" | "processing" | "failed"
   cv_upload_job_id?: string | null
   cv_upload_error_code?: string | null
@@ -2263,7 +2267,14 @@ export function clearPersistedCVUploadState(opts: { clearIdem?: boolean } = {}):
   clearCVUploadPersistence(opts.clearIdem ?? true)
 }
 
+/** The upload's own phases. `CVUploadFailure` carries one of these, so the type
+ *  stays narrow: a failure on the confirm screen is not an upload failure. */
 type CVUploadTelemetryPhase = "pick" | "signed-url" | "put" | "poll" | "parse"
+
+/** The two steps AFTER the upload. They carried no telemetry until 2026-09-07,
+ *  which is why a dead end on the confirmation screen sat unreported and had to
+ *  be found by hand. Same table and same alerting as the upload phases. */
+type JourneyTelemetryPhase = "confirm" | "direction"
 type CVUploadTelemetryOutcome = "started" | "succeeded" | "failed" | "retrying" | "skipped"
 
 function _routePath(): string | null {
@@ -2281,10 +2292,32 @@ function _networkType(): string | null {
   return nav.connection?.effectiveType ?? nav.mozConnection?.effectiveType ?? nav.webkitConnection?.effectiveType ?? null
 }
 
+/**
+ * Emit a post-upload journey phase: `confirm` (skill review) or `direction`.
+ *
+ * The upload emits its own phases from inside `uploadCV`. These two steps live
+ * in components, so they need a door. Fire-and-forget, like every other phase
+ * event — telemetry must never be able to fail a step it is only watching.
+ */
+export function emitJourneyPhase(
+  token: string,
+  phase: JourneyTelemetryPhase,
+  outcome: CVUploadTelemetryOutcome,
+  meta: { reasonCode?: string | null; errorDetail?: string | null } = {},
+): void {
+  if (!token) return
+  _emitCVUploadTelemetry(token, {
+    phase,
+    outcome,
+    reasonCode: meta.reasonCode ?? null,
+    errorDetail: meta.errorDetail ?? null,
+  })
+}
+
 function _emitCVUploadTelemetry(
   token: string,
   payload: {
-    phase: CVUploadTelemetryPhase
+    phase: CVUploadTelemetryPhase | JourneyTelemetryPhase
     outcome: CVUploadTelemetryOutcome
     attempt?: number
     jobId?: string | null
@@ -5839,5 +5872,122 @@ export const workflowAudit = {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify(intake),
+    }),
+}
+
+// ── Sector hiring panel (Wave 2) ─────────────────────────────────────────────
+//
+// What is actually hiring by sector. Public aggregate over public listings.
+// `still_advertised_rate` is cross-referenced from the Ghost Job Index and is
+// null when that index withheld the sector for its own minimum cell — null
+// means withheld, never "clean".
+
+export interface SectorCount { name: string; roles: number }
+export interface SectorBand { band: string; roles: number }
+
+export interface HiringSector {
+  sector: string
+  live_roles: number
+  employers: number
+  new_roles_30d: number
+  new_share: number | null
+  role_families: number
+  top_roles: SectorCount[]
+  top_skills: SectorCount[]
+  seniority_mix: SectorBand[]
+  still_advertised_rate: number | null
+}
+
+export interface HiringCoverage {
+  min_live_roles: number
+  min_employers: number
+  sectors_published: number
+  sectors_tracked: number
+  live_roles_published: number
+  live_roles_tracked: number
+}
+
+export interface HiringPanelResponse {
+  method: string
+  computed_at: string
+  sectors: HiringSector[]
+  coverage: HiringCoverage
+}
+
+export const hiringPanel = {
+  /** 503 while the snapshot has never been computed — absent, never zeroes. */
+  get: () => request<HiringPanelResponse>("/public/hiring-panel"),
+}
+
+/* ── Preparations: the four-step ladder (Unified Prep v2, artboard 2b) ── */
+
+/** One live room's position. `steps` is [evidence, level, rehearsal, brief],
+ *  each 0 not started · 1 started · 2 clear. No role/company: the rail already
+ *  holds the applications list and joins on `job_id`. */
+export interface LadderRoom {
+  job_id: string
+  steps: number[]
+  pct: number
+  current_step: number
+  levels: LevelRow[]
+}
+
+/** One level a job tests. `has_drill` false = /practice cannot serve it, so
+ *  the room offers a path request rather than a CTA it cannot honour. */
+export interface LevelRow {
+  name: string
+  held: number
+  required: number
+  has_drill: boolean
+}
+
+export interface LadderTotals {
+  step_pct: number[]
+  bottleneck_step: number
+  rooms: number
+}
+
+/** `program_id` indexes FINLATICS_PROGRAMS; `why` is the only claim the card
+ *  makes about this user's board, and is null when it has none. */
+export interface TrainingMatch {
+  program_id: string
+  why: string | null
+  matched: boolean
+}
+
+export interface PrepLadderResponse {
+  rooms: LadderRoom[]
+  totals: LadderTotals
+  training: TrainingMatch[]
+  training_note: string
+}
+
+/** Step 3's record for one room. `rehearsed` holds STORY ids, not requirement
+ *  text: a story rehearsed for any room counts in every room that leans on it.
+ *  `answered`/`total` are recomputed server-side against this room's current
+ *  questions, so a re-parsed JD moves them honestly. */
+export interface RehearsalState {
+  rehearsed: string[]
+  answered: number
+  total: number
+}
+
+export const preparations = {
+  ladder: (token: string) =>
+    request<PrepLadderResponse>("/preparations/ladder", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  rehearsal: (token: string, jobId: string) =>
+    request<RehearsalState>(`/preparations/${encodeURIComponent(jobId)}/rehearsal`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  /** Mark ONE story rehearsed, for the person. Not a set: the record is
+   *  user-level, so replacing a set from one room would clear stories worked
+   *  for rooms this client cannot see. */
+  setRehearsal: (token: string, jobId: string, storyId: string, rehearsed: boolean) =>
+    request<RehearsalState>(`/preparations/${encodeURIComponent(jobId)}/rehearsal`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ story_id: storyId, rehearsed }),
     }),
 }

@@ -16,8 +16,17 @@ Indian job market.**
 Intelligence is cheap now. Anyone can generate a CV, a job description, a
 listing. What is scarce is knowing which of it is *true* — whether a role is
 real, whether a skill claim is evidenced, whether an ad still leads anywhere.
-Myro already runs the machinery that answers those questions. The commercial
-work is putting a price on the doing.
+Myro already runs the machinery that answers those questions.
+
+**The order is value, then usage, then price — and not before.** Shivam,
+2026-09-06. Every truth Myro can establish goes to every user for free until the
+platform is demonstrably used; a paid tier is what you put in front of something
+people already rely on, never a way to find out whether they would. Work that
+adds a price to an unused surface is not revenue work, it is avoidance.
+
+The practical test, which this file failed for two days: a thing is not
+delivered because it exists and is public. It is delivered when the people
+already inside the product can reach it.
 
 This does not replace the product goal in [CLAUDE.md](CLAUDE.md) — upload the CV,
 understand the platform, find a role, download the CV. It is why that loop is
@@ -72,11 +81,19 @@ every conversion number on this page has an unexplained hole in it.
 - The partner API is metered (MTR1-6 in [DECISIONS.md](DECISIONS.md)). No price
   yet, on purpose: a month of real numbers first.
 
-**Wave 2 — sell the data slice.** *Unblocked 2026-09-06.* Two packaged slices,
-not a platform: a sector hiring panel, and a live-role feed for recruiters and
-EdTech. The free tier is the newsletter CSV that already ships; the paid tier is
-history, freshness and the API. The licence gate is cleared (see below); what
-remains is build, and the meter it would bill through already exists.
+**Wave 2 — sell the data slice.** *First slice shipped 2026-09-06.*
+- [The sector hiring panel](https://www.himyro.com/hiring) is live and public:
+  eight sectors, 35,902 live roles, momentum, most-hired roles, most-asked
+  skills, and the Ghost Index cross-reference on whether those postings are
+  real. Free, and it IS the sales collateral.
+- The live-role feed ships at `GET /partner/v1/roles` under a new `roles.read`
+  scope, documented in [PARTNER_API.md](PARTNER_API.md). Every row carries the
+  verification done at the employer's own source, which is the reason to buy it
+  rather than scrape. Metered on **distinct roles per month**, so polling for
+  freshness is free — MTR1's logic, not a second unit.
+- Still to build: **a price, and a second customer.** Both slices are live and
+  neither is sold. The meter runs (MTR1-6 in [DECISIONS.md](DECISIONS.md)) and
+  is deliberately unpriced until a month of real numbers exists.
 
 **Wave 3 — the ₹999 AI Workflow Audit.** *Shipped and live 2026-09-06:
 purchasable and deliverable.* The buyer describes an AI workflow they actually run and a human
@@ -152,6 +169,12 @@ Four things that stop a wave. None is an engineering task.
 Before building something, ask which bet it moves and whether it moves the
 **asset** column or the **product** column. Myro does not need more asset. Work
 that only raises an asset score needs a reason to be worked on now.
+
+Then ask the harder one: **can a user who signed up reach it today?** The Ghost
+Job Index and the hiring panel were both shipped public, indexed, and linked
+from the footer — and from nowhere a logged-in user goes. Two genuine pieces of
+value, aimed at buyers who do not exist yet, invisible to the 768 people who do.
+Publishing is not delivering.
 
 Two failure modes this file exists to prevent:
 

@@ -12,6 +12,7 @@ import { dataKeys } from "@/lib/domain-data"
 import { MAX_LEVEL } from "@/lib/level-thresholds"
 import { useSkillUpvotes } from "@/lib/hooks/use-skill-upvotes"
 import { jobPlanSections, type JobPlanSectionId } from "@/lib/jobs/detail-model"
+import { EmployerRecordNote } from "@/components/jobs/employer-record-note"
 import { ListingLiveness } from "@/components/jobs/listing-liveness"
 import { LensWhy, jdSnippet, stripTaxonomySuffix } from "./lenses"
 import { CommentThread } from "@/components/comments/comment-thread"
@@ -202,6 +203,11 @@ export function DetailBody(p: DetailBodyProps) {
       {/* Liveness leads: whether the role still exists outranks every reason to
           want it. Renders nothing when we have no verdict. */}
       <ListingLiveness jobId={p.job.job_id} />
+      {/* Whether the listing is real, then whether this employer generally
+          leaves dead ones up. The index has been public since it shipped and
+          reachable only from the footer, so nobody inside the product could
+          find it. */}
+      <EmployerRecordNote company={p.job.company} />
       {sections.map(renderSection)}
       {company ? <CompanyDrawer company={company} open={drawerOpen} onClose={() => setDrawerOpen(false)} /> : null}
     </div>

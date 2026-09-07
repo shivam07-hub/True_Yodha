@@ -227,6 +227,23 @@ async def assess(
     and, when the caller passes the CV's bullets, against what the CV already
     proves (stories ∪ CV pointers; the stronger evidence wins)."""
     requirements = await parse_requirements(jd_text, provider)
+    return await rematch(user_id, requirements, cv_bullets=cv_bullets)
+
+
+async def rematch(
+    user_id: str,
+    requirements: list[str],
+    *,
+    cv_bullets: list[str] | None = None,
+) -> CoverageResult:
+    """Re-classify KNOWN requirements against the user's stories as they are now.
+
+    `assess` minus the parse. Parsing is the judgment lane and the requirements
+    are a property of the JD, not of the user — so when the story bank moves,
+    only this half needs redoing. It also keeps the phrasing identical between
+    visits, which is the trust property the cache was built for in the first
+    place: a re-parse can shuffle wording and make the panel look unstable.
+    """
     items = [await _cover_one(user_id, req) for req in requirements]
     if cv_bullets:
         await _apply_cv_bullet_pass(items, cv_bullets)
@@ -245,6 +262,43 @@ async def assess(
 # user banks a new story, so consumers refresh explicitly, not per visit.
 
 CACHE_PROMPT_KEY = "jd_coverage"
+
+
+STALE_KEY = "stale"
+
+
+def is_stale(raw: str | None) -> bool:
+    """Has the story bank moved since this row was computed?
+
+    The flag rides INSIDE the cached payload, set when the user banks a story,
+    so the read path pays nothing to know it. The alternative — reading a
+    "bank last changed" marker on every panel load — taxes the frequent action
+    (opening a room) to serve the rare one (answering a gap).
+    """
+    if not raw:
+        return False
+    try:
+        obj = json.loads(raw)
+    except (json.JSONDecodeError, ValueError):
+        return False
+    return isinstance(obj, dict) and obj.get(STALE_KEY) is True
+
+
+def mark_stale(raw: str | None) -> str | None:
+    """Flag a cached coverage row for re-matching. None when there is nothing
+    to flag, so the caller can skip the write."""
+    if not raw:
+        return None
+    try:
+        obj = json.loads(raw)
+    except (json.JSONDecodeError, ValueError):
+        return None
+    if not isinstance(obj, dict) or not obj.get("requirements"):
+        return None
+    if obj.get(STALE_KEY) is True:
+        return None
+    obj[STALE_KEY] = True
+    return json.dumps(obj)
 
 
 def result_to_payload(result: CoverageResult) -> str:
@@ -369,14 +423,31 @@ async def assess_for_job(
 
     Playground POST /cv/jd-coverage and weave interview share this lock so a
     cache miss cannot double-spend the judgment lane.
+
+    A row flagged `stale` closes the hole this cache has always had. Coverage is
+    a projection of the story bank onto one JD, so answering a gap in ONE room
+    silently staled every other room's — and every other room went on saying
+    "gap" about a requirement the user had already answered. A stale row reuses
+    its requirements (same JD, same words, no judgment-lane spend) and redoes
+    only the matching; writing the result back clears the flag.
     """
     async with _assess_lock(user_id, job_id):
         if not refresh:
-            hit = payload_to_result(
-                jobs_repo.get_deepening(user_id, job_id, CACHE_PROMPT_KEY)
-            )
+            raw = jobs_repo.get_deepening(user_id, job_id, CACHE_PROMPT_KEY)
+            hit = payload_to_result(raw)
             if hit is not None:
-                return hit[0], True, hit[1]
+                if not is_stale(raw):
+                    return hit[0], True, hit[1]
+                result = await rematch(
+                    user_id,
+                    [item.requirement for item in hit[0].requirements],
+                    cv_bullets=bullets_from_cv(cv_structured),
+                )
+                if result.requirements:
+                    jobs_repo.upsert_deepening(
+                        user_id, job_id, CACHE_PROMPT_KEY, result_to_payload(result),
+                    )
+                return result, False, ""
         result = await assess(
             user_id, jd_text, provider, cv_bullets=bullets_from_cv(cv_structured),
         )

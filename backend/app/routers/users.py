@@ -5,6 +5,7 @@ from fastapi.concurrency import run_in_threadpool
 from supabase import Client
 
 from app.deps import Principal, get_principal, get_user_db
+from app.services.concurrent_reads import run_concurrently
 from app.repositories.users import UsersRepository, get_token_users_repository
 from app.schemas import (
     AccountDeletionResponse,
@@ -42,19 +43,44 @@ def get_me(
     principal: Principal = Depends(get_principal),
     users_repo: UsersRepository = Depends(get_token_users_repository),
 ) -> UserProfileResponse:
-    profile = users_repo.get_profile(principal.id)
+    # `/users/me` is fetched by the shell on EVERY authed page, and it was five
+    # sequential reads: two cold provisioning checks, the profile, the baseline
+    # state, and an upload-job lookup. Measured on prod 2026-09-06 at 2,853ms.
+    #
+    # The profile and the baseline are independent, so they run as one wave
+    # rather than one after the other.
+    reads = run_concurrently(
+        {
+            "profile": lambda: users_repo.get_profile(principal.id),
+            # One read, two facts — see `baseline_state`.
+            "baseline": (
+                (lambda: users_repo.baseline_state(principal.id))
+                if hasattr(users_repo, "baseline_state")
+                else (lambda: (users_repo.has_baseline_cv(principal.id), False))
+            ),
+        },
+        label="users.me",
+    )
+    profile = reads["profile"]
     if not profile:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found.")
     profile["target_career_band"] = profile.get("target_career_band") or career_band_for_profile(profile) or None
     profile["target_seniority"] = reported_target_seniority(profile)
-    has_cv = users_repo.has_baseline_cv(principal.id)
+    has_cv, skills_confirmed = reads["baseline"]
     profile["has_cv"] = has_cv
+    profile["skills_confirmed"] = skills_confirmed
     profile["cv_readiness"] = "ready" if has_cv else "missing"
     profile["cv_upload_job_id"] = None
     profile["cv_upload_error_code"] = None
 
-    # Optional seam: older test fakes may not implement this repository method.
-    latest_job = users_repo.latest_cv_upload_job(principal.id) if hasattr(users_repo, "latest_cv_upload_job") else None
+    # Only asked for when it can change the answer. Its result is read solely in
+    # the `not has_cv` branch below, yet it was fetched on every call — a whole
+    # round trip spent, on every authed page, for every user who HAS a CV.
+    latest_job = (
+        users_repo.latest_cv_upload_job(principal.id)
+        if not has_cv and hasattr(users_repo, "latest_cv_upload_job")
+        else None
+    )
     if not has_cv and latest_job:
         status_value = str(latest_job.get("status") or "").strip().lower()
         profile["cv_upload_job_id"] = str(latest_job.get("id") or "") or None

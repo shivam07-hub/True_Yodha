@@ -25,7 +25,18 @@ class RoutePerfPayload(BaseModel):
 
 
 class CVUploadPhasePayload(BaseModel):
-    phase: Literal["pick", "signed-url", "put", "poll", "parse"]
+    #: The trail used to stop at `parse`, so the two steps AFTER the upload —
+    #: skill confirmation and Direction — had no telemetry at all. When 273
+    #: users turned out to be sitting past that line, the whole investigation
+    #: had to be reconstructed from end state instead of read from events, and
+    #: a live dead end (a CV with no detected skills makes "keep at least one"
+    #: unsatisfiable) had gone unreported because nothing could report it.
+    #:
+    #: `confirm` and `direction` close that blind spot. Same table, same
+    #: alerting, so a stall in either now looks exactly like a stall in `put`.
+    phase: Literal[
+        "pick", "signed-url", "put", "poll", "parse", "confirm", "direction"
+    ]
     outcome: Literal["started", "succeeded", "failed", "retrying", "skipped"]
     attempt: int | None = None
     job_id: str | None = None

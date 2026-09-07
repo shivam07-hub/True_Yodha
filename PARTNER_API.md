@@ -28,6 +28,12 @@ Each key carries scopes. Ask for only what you need:
 | `sso` | `POST /sso/session` |
 | `jobs.read` | `GET /users/{external_id}/jobs` |
 | `webhooks.manage` | the `/webhook*` endpoints |
+| `roles.read` | `GET /roles` — the live-role feed |
+
+`jobs.read` and `roles.read` are deliberately separate. The first returns what
+we matched **for one of your users**; the second returns the corpus. A key that
+may read everything is a different grant from a key that may read one seat's
+matches.
 
 Rate limit: 600 requests/minute per key. Over it → `429` with `Retry-After`.
 
@@ -291,3 +297,63 @@ The scraper has not run since **2026-07-27**. August has ingested one job. Push
 will fire correctly and deliver nothing new until ingestion restarts — a
 partner's first broadcast draws down the existing pool, then goes quiet. Say so
 before promising a partner "new openings".
+
+---
+
+## 5. Live-role feed
+
+```http
+GET /partner/v1/roles?limit=50&sector=BFSI
+Authorization: Bearer <key>
+```
+
+Live roles, each carrying the verification we did at the employer's own source.
+That second part is the point: 61% of roles closed on an employer's ATS are
+still sitting in that employer's public feed, so a feed that cannot tell you
+which rows are still real is a list rather than intelligence.
+
+```json
+{
+  "count": 50,
+  "next_cursor": "eyJ0IjoiMjAyNi0wOS0wMS4uLiJ9",
+  "roles": [
+    {
+      "job_id": "…",
+      "title": "Custom Software Engineer",
+      "company": "Accenture",
+      "sector": "Technology",
+      "role_family": "Software Engineering",
+      "career_band": "mid",
+      "seniority": "Senior",
+      "location_city": "Bengaluru",
+      "work_mode": "hybrid",
+      "min_years_experience": 4,
+      "skills": ["Python (Programming Language)", "AWS"],
+      "apply_url": "https://…",
+      "first_seen_at": "2026-08-14T09:21:00Z",
+      "verification": {
+        "state": "active",
+        "last_verified_live_at": "2026-09-05T11:02:30Z"
+      }
+    }
+  ]
+}
+```
+
+**It is a sync feed, not a search.** The cursor walks forward, so keep the last
+`next_cursor` and poll with it: you receive only what has appeared since. A role
+added between two polls arrives on the next one rather than sliding underneath a
+window. `next_cursor` is null when you have reached the end. Treat it as opaque —
+its contents will change.
+
+A cursor we cannot read restarts the walk rather than erroring, so a client that
+has lost its place recovers on its own.
+
+**Filters:** `sector`, `role_family`, `career_band`, `location_city`, all exact
+match. `limit` defaults to 50 and caps at 200.
+
+**What it costs you.** A role is counted once per calendar month (IST) however
+many times you fetch it. Polling hourly for freshness costs exactly what polling
+daily costs — that is the behaviour a live feed is for, and pricing per request
+would punish it. Nothing here is refused for volume: the rate limit above is the
+only ceiling.

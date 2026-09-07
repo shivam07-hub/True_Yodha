@@ -15,14 +15,14 @@ test("the plan finally has an entry point", () => {
 test("the offer sits beside the CV that was actually sent", () => {
   // "Is this CV right for this job" is a question asked right after applying,
   // never on a pricing page. The line lives in the On record section.
-  const record = ROOM.split('<Section label="On record">')[1]
+  const record = ROOM.split('aria-label="On record"')[1]
   assert.ok(record.includes("<PlanLine"))
   assert.ok(record.indexOf("Applied") < record.indexOf("<PlanLine"))
 })
 
 test("a closed application is not sold to", () => {
   // The job is over. Offering CV guidance for it reads as not paying attention.
-  const record = ROOM.split('<Section label="On record">')[1]
+  const record = ROOM.split('aria-label="On record"')[1]
   assert.match(record, /stage !== "closed" \? \(/)
 })
 

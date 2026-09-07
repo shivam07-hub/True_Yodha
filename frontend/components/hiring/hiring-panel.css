@@ -1,0 +1,268 @@
+/* hiring-panel.css — the sector hiring panel.
+   Tokens only. A data page like /ghost-index: the figures are the design.
+   The one non-text mark is the momentum bar, which encodes a value. */
+
+.hp-root {
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 var(--tm-page-px) 96px;
+  box-sizing: border-box;
+}
+
+/* ── Head ───────────────────────────────────────────────────────────────── */
+
+.hp-head {
+  padding: 72px 0 40px;
+  border-bottom: 1px solid var(--tm-border);
+}
+
+.hp-eyebrow {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 0 18px;
+  font-family: var(--tm-font-sans);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--tm-text-muted);
+}
+
+.hp-stamp {
+  font-family: var(--tm-font-mono);
+  letter-spacing: 0.08em;
+}
+
+.hp-title {
+  margin: 0;
+  font-family: var(--tm-font-display);
+  font-size: var(--tm-fs-display);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+  color: var(--tm-text);
+  text-wrap: balance;
+}
+
+.hp-lede {
+  margin: 16px 0 0;
+  max-width: 62ch;
+  font-family: var(--tm-font-sans);
+  font-size: var(--tm-fs-body);
+  line-height: 1.6;
+  color: var(--tm-text-muted);
+}
+
+.hp-note {
+  margin: 14px 0 0;
+  max-width: 68ch;
+  font-family: var(--tm-font-sans);
+  font-size: var(--tm-fs-ui-sm);
+  line-height: 1.6;
+  color: var(--tm-text-muted);
+}
+
+.hp-note b {
+  font-weight: 500;
+  color: var(--tm-text);
+}
+
+/* ── Sectors ────────────────────────────────────────────────────────────── */
+
+.hp-sectors {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--tm-border);
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius-sm);
+  margin: 40px 0 0;
+  overflow: hidden;
+}
+
+.hp-sector {
+  background: var(--tm-surface);
+  padding: 26px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.hp-sector-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.hp-sector-name {
+  margin: 0;
+  font-family: var(--tm-font-display);
+  font-size: var(--tm-fs-heading);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--tm-text);
+}
+
+.hp-figures {
+  display: flex;
+  gap: 26px;
+  margin: 0;
+  flex-wrap: wrap;
+}
+
+.hp-figures div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.hp-figures dt {
+  font-family: var(--tm-font-sans);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tm-text-muted);
+}
+
+.hp-figures dd {
+  margin: 0;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-ui-lg);
+  font-variant-numeric: tabular-nums;
+  color: var(--tm-text);
+}
+
+/* ── Momentum ───────────────────────────────────────────────────────────── */
+
+.hp-momentum {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.hp-bar {
+  flex: 1 1 180px;
+  min-width: 120px;
+  height: 6px;
+  background: var(--tm-surface-3);
+  position: relative;
+  overflow: hidden;
+}
+
+.hp-bar span {
+  display: block;
+  height: 100%;
+  background: var(--tm-interactive);
+}
+
+.hp-momentum-n {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--tm-font-sans);
+  font-size: var(--tm-fs-ui-sm);
+  color: var(--tm-text);
+  white-space: nowrap;
+}
+
+.hp-sub {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  font-variant-numeric: tabular-nums;
+  color: var(--tm-text-muted);
+}
+
+/* ── Chips ──────────────────────────────────────────────────────────────── */
+
+.hp-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.hp-chips-label {
+  font-family: var(--tm-font-sans);
+  font-size: var(--tm-fs-micro);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tm-text-muted);
+}
+
+.hp-chips ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hp-chips li {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 5px 10px;
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius-sm);
+  font-family: var(--tm-font-sans);
+  font-size: var(--tm-fs-ui-sm);
+  color: var(--tm-text);
+}
+
+.hp-chip-n {
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-micro);
+  font-variant-numeric: tabular-nums;
+  color: var(--tm-text-muted);
+}
+
+/* ── Coverage ───────────────────────────────────────────────────────────── */
+
+.hp-coverage {
+  padding: 40px 0 0;
+}
+
+.hp-h2 {
+  margin: 0 0 14px;
+  font-family: var(--tm-font-display);
+  font-size: var(--tm-fs-heading);
+  font-weight: 500;
+  color: var(--tm-text);
+}
+
+.hp-facts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 72ch;
+}
+
+.hp-facts li {
+  padding-left: 16px;
+  border-left: 1px solid var(--tm-border);
+  font-family: var(--tm-font-sans);
+  font-size: var(--tm-fs-meta);
+  line-height: 1.6;
+  color: var(--tm-text-muted);
+}
+
+.hp-facts b {
+  font-weight: 500;
+  color: var(--tm-text);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .hp-root { padding: 0 var(--tm-mobile-page-px) 72px; }
+  .hp-head { padding: 48px 0 32px; }
+  .hp-sector { padding: 22px 18px; }
+  .hp-figures { gap: 18px; }
+}

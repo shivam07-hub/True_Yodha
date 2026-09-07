@@ -7,10 +7,40 @@
  * layer; outcomes (parallel terminal set) flip it to closing mode. Saved jobs
  * NEVER appear here — Collections owns pre-apply.
  */
-import type { ApplicationResponse, ApplicationStatus } from "@/lib/api"
+import type { ApplicationResponse, ApplicationStatus, LadderRoom } from "@/lib/api"
 import { APPLICATION_OUTCOMES } from "@/lib/api"
 
 export type RoomStage = "applied" | "interviewing" | "closed"
+
+/** The four steps every room walks, in order (Unified Prep v2, artboard 2b).
+ *  Mirrors `prep_ladder.STEP_LABELS` on the server — the rail, the room and
+ *  mobile all render THIS array so they cannot disagree about step 2's name. */
+export const STEP_LABELS = ["Evidence", "Skill level", "Rehearsal", "Day-of brief"] as const
+
+/** The room to send someone to when the whole board is stuck on one step:
+ *  the one furthest behind on it, then the least ready overall.
+ *
+ *  The cross-room footer states an analysis ("the bottleneck is step 2"). A
+ *  sentence that names a problem and offers nowhere to go is a report, not a
+ *  surface — this is the door it needs. */
+export function furthestBehind(
+  rooms: LadderRoom[],
+  step: number,
+): LadderRoom | null {
+  const index = step - 1
+  if (rooms.length === 0 || index < 0) return null
+  return [...rooms].sort(
+    (a, b) => (a.steps[index] ?? 0) - (b.steps[index] ?? 0) || a.pct - b.pct,
+  )[0] ?? null
+}
+
+/** Ordered for the rail: the rooms that can still move, hottest first, then
+ *  the closed ones. 2b has one list, not three stage groups — the pips carry
+ *  the state the group headers used to. */
+export function ladderOrder(apps: ApplicationResponse[]): ApplicationResponse[] {
+  const groups = groupForList(apps)
+  return [...groups.interviewing, ...groups.applied, ...groups.closed]
+}
 
 /** Days the application has sat in its current stage (created_at fallback). */
 export function daysInStage(app: ApplicationResponse, now: Date): number {

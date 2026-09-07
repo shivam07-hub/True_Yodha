@@ -31,6 +31,9 @@ class UserProfileResponse(BaseModel):
     onboarding_complete: bool
     ninja_name: str | None = None
     has_cv: bool = False
+    #: Whether the latest baseline CV has had its skills confirmed. Drives which
+    #: step the re-entry nudge names.
+    skills_confirmed: bool = False
     cv_readiness: str = "missing"  # ready | missing | processing | failed
     cv_upload_job_id: str | None = None
     cv_upload_error_code: str | None = None

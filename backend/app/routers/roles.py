@@ -30,9 +30,9 @@ def list_families(
     query: str | None = Query(default=None, min_length=2, max_length=120),
     principal: Principal = Depends(get_principal),
 ) -> list[dict[str, object]]:
-    """Top three evidenced families, or search results when ``query`` is given."""
+    """Top evidenced families, or search results when ``query`` is given."""
     return RoleFamiliesRepository(get_supabase_admin()).list_families(
-        principal.id, query=query, limit=20 if query else 3
+        principal.id, query=query, limit=20 if query else 6
     )
 
 

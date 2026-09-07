@@ -3,16 +3,18 @@
 import { useEffect } from "react"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { clearPendingPrepIntent } from "@/lib/prep-intent-stash"
-import { PrepList } from "@/components/preparations/prep-list"
+import { PrepShell } from "@/components/preparations/prep-shell"
 import { PrepSkeleton } from "@/components/preparations/prep-skeleton"
 import "@/components/preparations/preparations.css"
+import "@/app/(authed)/practice/practice.css"
 
 /**
  * /preparations — the post-apply surface (grill-locked 2026-07-15, memory
- * project_preparations_surface). Successor of the retired /cv?view=active
- * "Applications" tab: every applied job gets a prep room; the list is the
- * stage-grouped pipeline. Desktop chrome matches Jobs / Collections
- * (1480 shell + 2:3 standing column); the room stays an 860px reading column.
+ * project_preparations_surface), rebuilt as Unified Prep v2 artboard 2b: the
+ * rail lists every room with its four pips, the main column is the room that
+ * most wants attention. There is no separate list view any more — a
+ * stage-grouped index was a second place to read the state the pips carry.
+ * practice.css is imported for the inline skill drill (the up-* quiz kit).
  */
 export default function PreparationsPage() {
   const { token, ready } = useAuth()
@@ -21,5 +23,5 @@ export default function PreparationsPage() {
   // them to Preparation forever.
   useEffect(() => { clearPendingPrepIntent() }, [])
   if (!ready) return <PrepSkeleton />
-  return <PrepList token={token ?? ""} />
+  return <PrepShell token={token ?? ""} />
 }
