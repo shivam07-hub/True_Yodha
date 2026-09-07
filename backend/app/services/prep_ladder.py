@@ -122,18 +122,41 @@ def level_rows(
     return out
 
 
-def rehearsal_step(payload: dict | None) -> int:
-    """Step 3. Rehearsal is a count of questions worked, out of the questions
-    the coverage rows project. Absent payload → nobody has rehearsed."""
+def rehearsed_count(payload: dict | None, requirements: list[str]) -> int:
+    """How many of the CURRENT questions have been rehearsed.
+
+    Counted against the live requirement list every time, never trusted from a
+    stored total. A re-parsed JD adds requirements, and a step that stayed
+    "clear" because it was clear against the OLD list would be telling the user
+    they are ready for questions nobody has asked them yet
+    ([[feedback_a_failed_check_must_not_refresh_its_own_verdict]]).
+    """
     if not payload:
+        return 0
+    stored = payload.get("rehearsed")
+    if not isinstance(stored, list):
+        return 0
+    live = {r.strip().lower() for r in requirements if isinstance(r, str) and r.strip()}
+    seen: set[str] = set()
+    for item in stored:
+        if not isinstance(item, str):
+            continue
+        key = item.strip().lower()
+        if key in live:
+            seen.add(key)
+    return len(seen)
+
+
+def rehearsal_step(payload: dict | None, requirements: list[str]) -> int:
+    """Step 3. Rehearsal is the questions worked, out of the questions the
+    coverage rows project — so it cannot start before step 1 has parsed any."""
+    total = len(requirements)
+    if total == 0:
         return NOT_STARTED
-    answered = int(payload.get("answered") or 0)
-    total = int(payload.get("total") or 0)
-    if answered <= 0:
+    done = rehearsed_count(payload, requirements)
+    if done <= 0:
         return NOT_STARTED
-    if total > 0 and answered >= total:
-        return CLEAR
-    return STARTED
+    return CLEAR if done >= total else STARTED
 
 
 def brief_step(payload: str | None) -> int:

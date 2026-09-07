@@ -12,7 +12,12 @@ from fastapi import APIRouter, Depends
 
 from app.deps import Principal, get_principal
 from app.repositories.jobs import JobsRepository, get_token_jobs_repository
-from app.schemas.preparations import PrepLadderResponse
+from app.schemas.preparations import (
+    PrepLadderResponse,
+    RehearsalState,
+    RehearsalUpdate,
+)
+from app.services import prep_rehearsal
 from app.services.prep_ladder_read import assemble
 
 router = APIRouter(prefix="/preparations", tags=["preparations"])
@@ -24,3 +29,26 @@ def get_prep_ladder(
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> PrepLadderResponse:
     return PrepLadderResponse(**assemble(repo, principal.id))
+
+
+@router.get("/{job_id}/rehearsal", response_model=RehearsalState)
+def get_rehearsal(
+    job_id: str,
+    principal: Principal = Depends(get_principal),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+) -> RehearsalState:
+    return RehearsalState(**prep_rehearsal.read_state(repo, principal.id, job_id))
+
+
+@router.put("/{job_id}/rehearsal", response_model=RehearsalState)
+def put_rehearsal(
+    job_id: str,
+    body: RehearsalUpdate,
+    principal: Principal = Depends(get_principal),
+    repo: JobsRepository = Depends(get_token_jobs_repository),
+) -> RehearsalState:
+    """Record which questions have been worked. Returns the state the server
+    actually holds, so the panel renders the truth rather than its own guess."""
+    return RehearsalState(
+        **prep_rehearsal.write_state(repo, principal.id, job_id, body.rehearsed)
+    )

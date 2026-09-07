@@ -81,15 +81,24 @@ export function PrepRoom({
   app,
   room,
   totals,
+  behind,
+  initialStep = null,
 }: {
   token: string
   app: ApplicationResponse
   room: LadderRoom | undefined
   totals: LadderTotals | undefined
+  /** The room the cross-room footer sends people to. */
+  behind: LadderRoom | null
+  /** `?step=N` — the step a cross-room link asked to open. */
+  initialStep?: number | null
 }) {
   const { updateStatus, updateNotes } = useTrackerBoard()
   const [pickerOpen, setPickerOpen] = React.useState(false)
   const [openStep, setOpenStep] = React.useState<number | null>(null)
+  // A `?step=` link is a request, not a permanent mode: once the reader opens a
+  // different card themselves, their choice wins.
+  React.useEffect(() => { setOpenStep(null) }, [app.job_id])
   const now = new Date()
 
   const stage = roomStage(app.status)
@@ -98,7 +107,7 @@ export function PrepRoom({
   const current = room?.current_step ?? 1
   // Until the user opens one themselves, the room opens the step it is on —
   // the answer to "what do I do next" should not need a click.
-  const expanded = openStep ?? current - 1
+  const expanded = openStep ?? (initialStep ? initialStep - 1 : current - 1)
 
   const versionsQ = useQuery({
     queryKey: dataKeys.cvVersions(null),
@@ -235,6 +244,15 @@ export function PrepRoom({
                 ))}
                 . The bottleneck is step {totals.bottleneck_step}.
               </span>
+              <span className="prp-across-spacer" />
+              {behind ? (
+                <Link
+                  href={`/preparations/${encodeURIComponent(behind.job_id)}?step=${totals.bottleneck_step}`}
+                  className="prp-across-go tm-link tm-control-focus"
+                >
+                  Work step {totals.bottleneck_step} →
+                </Link>
+              ) : null}
             </div>
           ) : null}
 

@@ -133,11 +133,13 @@ def assemble(repo: Any, user_id: str) -> dict[str, Any]:
         job_rows = by_job.get(job_id, [])
 
         coverage = payload_to_result(cached.get(prep_ladder.COVERAGE_KEY))
+        result = coverage[0] if coverage else None
+        requirements = [item.requirement for item in (result.requirements if result else [])]
         steps = [
-            prep_ladder.evidence_step(coverage[0] if coverage else None),
+            prep_ladder.evidence_step(result),
             prep_ladder.level_step(wanted_skills(job_rows), user_levels),
             prep_ladder.rehearsal_step(
-                _rehearsal_payload(cached.get(prep_ladder.REHEARSAL_KEY))
+                _rehearsal_payload(cached.get(prep_ladder.REHEARSAL_KEY)), requirements
             ),
             prep_ladder.brief_step(cached.get(prep_ladder.BRIEF_KEY)),
         ]

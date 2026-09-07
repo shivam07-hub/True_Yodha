@@ -84,6 +84,11 @@ export function BriefCard({ token, jobId }: { token: string; jobId: string }) {
       <p className="prp-sec-note" style={{ marginBottom: 10 }}>
         Your stories, their likely questions, a day-of plan — one page.
       </p>
+      {/* The brief is written FROM the rehearsal. Buying it first spends coins
+          on a thinner page; say so once, here, rather than after the charge. */}
+      <p className="prp-sec-note" style={{ marginBottom: 10 }}>
+        Best after step 3 — it is written from the answers you rehearse.
+      </p>
       <button
         type="button"
         className="prp-btn primary"

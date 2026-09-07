@@ -55,6 +55,22 @@ class TrainingMatch(BaseModel):
     matched: bool = False
 
 
+class RehearsalState(BaseModel):
+    """Step 3's record. `answered`/`total` are recomputed against the live
+    questions on every read — never read back from a stored count."""
+
+    rehearsed: list[str] = Field(default_factory=list)
+    answered: int
+    total: int
+
+
+class RehearsalUpdate(BaseModel):
+    """The WHOLE set the client believes is rehearsed, not one toggle — so two
+    quick taps cannot race through a read-then-write window on the server."""
+
+    rehearsed: list[str] = Field(default_factory=list, max_length=64)
+
+
 class PrepLadderResponse(BaseModel):
     rooms: list[LadderRoom] = Field(default_factory=list)
     totals: LadderTotals

@@ -100,3 +100,33 @@ test("The room renders the four steps, and every pip reads the same data-state",
   assert.doesNotMatch(css, /\.prp-group-head/)
   assert.doesNotMatch(css, /\.prp-row \{/)
 })
+
+test("Every part of the surface comes from an analysis and offers a decision", () => {
+  const room = code("components/preparations/prep-room.tsx")
+  const rail = code("components/preparations/prep-rail.tsx")
+  const reh = code("components/preparations/rehearse-panel.tsx")
+  const step = code("components/preparations/step-card.tsx")
+  const brief = code("components/preparations/brief-card.tsx")
+
+  // Step 3 RECORDS. Before 2026-09-06 nothing wrote prep_rehearsal, so the
+  // ladder read it as "not started" for every user forever.
+  assert.match(reh, /setRehearsal\(/)
+  assert.match(reh, /aria-pressed=\{marked\}/)
+  // The rail pip and the ring read the ladder, not this panel — without the
+  // invalidate they keep the old step until a reload.
+  assert.match(reh, /invalidateQueries\(\{ queryKey: dataKeys\.prepLadder\(\) \}\)/)
+
+  // The cross-room line states a bottleneck; it must offer somewhere to go.
+  assert.match(room, /prp-across-go/)
+  assert.match(room, /\?step=\$\{totals\.bottleneck_step\}/)
+  assert.match(room, /furthestBehind|behind/)
+
+  // A closed room has no ladder — it must not render as 0% with four empty pips.
+  assert.match(rail, /is-closed/)
+  assert.match(rail, /closed \? null :/)
+
+  // Step 4 claimed a gate nothing enforces. BriefCard still sells the brief.
+  assert.doesNotMatch(step, /opens at step 3/)
+  assert.match(step, /best after step 3/)
+  assert.match(brief, /Best after step 3/)
+})

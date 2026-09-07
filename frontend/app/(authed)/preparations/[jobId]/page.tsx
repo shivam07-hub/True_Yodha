@@ -1,5 +1,6 @@
 "use client"
 
+import { useSearchParams } from "next/navigation"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { PrepShell } from "@/components/preparations/prep-shell"
 import { PrepSkeleton } from "@/components/preparations/prep-skeleton"
@@ -14,6 +15,16 @@ import "@/app/(authed)/practice/practice.css"
  */
 export default function PreparationRoomPage({ params }: { params: { jobId: string } }) {
   const { token, ready } = useAuth()
+  // `?step=N` — the cross-room footer sends people to a specific step, not just
+  // to a room. Landing on the room head and making them hunt for it would lose
+  // the whole point of naming the bottleneck.
+  const step = Number(useSearchParams().get("step"))
   if (!ready) return <PrepSkeleton />
-  return <PrepShell token={token ?? ""} jobId={decodeURIComponent(params.jobId)} />
+  return (
+    <PrepShell
+      token={token ?? ""}
+      jobId={decodeURIComponent(params.jobId)}
+      step={step >= 1 && step <= 4 ? step : null}
+    />
+  )
 }

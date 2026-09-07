@@ -5933,9 +5933,28 @@ export interface PrepLadderResponse {
   training_note: string
 }
 
+/** Step 3's record. `answered`/`total` are recomputed server-side against the
+ *  live questions on every read, so a re-parsed JD can un-clear the step. */
+export interface RehearsalState {
+  rehearsed: string[]
+  answered: number
+  total: number
+}
+
 export const preparations = {
   ladder: (token: string) =>
     request<PrepLadderResponse>("/preparations/ladder", {
       headers: { Authorization: `Bearer ${token}` },
+    }),
+  rehearsal: (token: string, jobId: string) =>
+    request<RehearsalState>(`/preparations/${encodeURIComponent(jobId)}/rehearsal`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  /** The WHOLE set, not one toggle — no read-then-write window to race through. */
+  setRehearsal: (token: string, jobId: string, rehearsed: string[]) =>
+    request<RehearsalState>(`/preparations/${encodeURIComponent(jobId)}/rehearsal`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ rehearsed }),
     }),
 }

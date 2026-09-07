@@ -19,7 +19,7 @@ import { CompanyAvatar, STAGE_META } from "@/components/cv/builder/library-share
 import { SkillPathRail } from "./skill-path-rail"
 import { TrainingCard } from "./training-card"
 import { AuditCard } from "./audit-card"
-import { STEP_LABELS } from "./prep-model"
+import { STEP_LABELS, roomStage } from "./prep-model"
 
 function StepPips({ steps, className }: { steps: number[]; className: string }) {
   return (
@@ -43,10 +43,19 @@ function RoomRow({
   const steps = room?.steps ?? [0, 0, 0, 0]
   const meta = STAGE_META[app.status]
   const stage = meta?.label ?? app.status
+  // A closed room has no ladder — the ladder covers live rooms only. Rendering
+  // it at 0% with four empty pips would say "you never prepared" about a job
+  // that is simply over, and the reader would have no way to tell the two
+  // apart. Closed rooms keep their place and drop the progress claim.
+  const closed = roomStage(app.status) === "closed"
   return (
     <Link
       href={`/preparations/${encodeURIComponent(app.job_id)}`}
-      className={selected ? "prp-lroom is-open tm-control-focus" : "prp-lroom tm-control-focus"}
+      className={[
+        "prp-lroom tm-control-focus",
+        selected ? "is-open" : "",
+        closed ? "is-closed" : "",
+      ].filter(Boolean).join(" ")}
       aria-current={selected ? "true" : undefined}
     >
       <span className="prp-lroom-top">
@@ -57,11 +66,13 @@ function RoomRow({
             {app.company ?? "Unknown company"} · {stage}
           </span>
         </span>
-        <span className="prp-lroom-pct" data-lead={steps.filter((s) => s === 2).length >= 2}>
-          {room ? `${room.pct}%` : "—"}
-        </span>
+        {closed ? null : (
+          <span className="prp-lroom-pct" data-lead={steps.filter((s) => s === 2).length >= 2}>
+            {room ? `${room.pct}%` : "··"}
+          </span>
+        )}
       </span>
-      <StepPips steps={steps} className="prp-lroom-pips" />
+      {closed ? null : <StepPips steps={steps} className="prp-lroom-pips" />}
     </Link>
   )
 }

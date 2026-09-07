@@ -18,12 +18,18 @@ import { STEP_LABELS } from "./prep-model"
 
 export const CLEAR = 2
 
-/** The mono line on the right of the head. Says where this step stands. */
+/** The mono line on the right of the head. Says where this step stands.
+ *
+ * The design writes step 4 as "opens at step 3". Nothing gates it: BriefCard
+ * sells the brief whenever it is opened, and a state line that claims a gate
+ * the code does not enforce is a lie the user finds by paying. It reads "best
+ * after step 3" instead — true, and still points at the right order. Whether
+ * to make it a real gate is a revenue decision, not a copy one.
+ */
 export function stepState(index: number, value: number, currentStep: number): string {
   if (value === CLEAR) return "clear"
   if (index + 1 === currentStep) return "step you're on"
-  // The brief is written from the rehearsal, so it cannot open before step 3.
-  if (index === 3 && currentStep < 3) return "opens at step 3"
+  if (index === 3 && currentStep < 3) return "best after step 3"
   return value > 0 ? "started" : "not started"
 }
 

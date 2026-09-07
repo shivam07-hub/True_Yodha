@@ -97,9 +97,14 @@ def _board() -> _FakeRepo:
         deepenings={
             "j1": {
                 prep_ladder.COVERAGE_KEY: json.dumps(
-                    {"requirements": [{"requirement": "r1", "status": "covered"}]}
+                    {"requirements": [
+                        {"requirement": "own the roadmap", "status": "covered"},
+                        {"requirement": "brief the exec", "status": "covered"},
+                    ]}
                 ),
-                prep_ladder.REHEARSAL_KEY: json.dumps({"answered": 1, "total": 4}),
+                # One of the two questions worked — step 3 is STARTED, and the
+                # count is derived from these requirements, never stored.
+                prep_ladder.REHEARSAL_KEY: json.dumps({"rehearsed": ["own the roadmap"]}),
             },
         },
         skill_rows=[
@@ -162,7 +167,8 @@ class TestAssembly:
 
     def test_steps_read_the_signals_that_exist(self) -> None:
         rooms = {r["job_id"]: r for r in prep_ladder_read.assemble(_board(), "u1")["rooms"]}
-        # j1: coverage all covered → clear; no levels held → 0; rehearsal 1/4 → started.
+        # j1: coverage all covered → clear; no levels held → 0; 1 of 2 questions
+        # rehearsed → started; no brief → 0.
         assert rooms["j1"]["steps"] == [2, 0, 1, 0]
         assert rooms["j1"]["current_step"] == 2
         # j2/j3: no cached coverage, no rehearsal, no brief.

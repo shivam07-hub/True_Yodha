@@ -19,7 +19,7 @@ import { dataKeys } from "@/lib/domain-data"
 import { PrepSkeleton } from "./prep-skeleton"
 import { PrepRail } from "./prep-rail"
 import { PrepRoom } from "./prep-room"
-import { ladderOrder, liveRoomCount, roomStage } from "./prep-model"
+import { furthestBehind, ladderOrder, liveRoomCount, roomStage } from "./prep-model"
 import "@/app/(authed)/home/mission-control.css"
 
 /** The room the list route opens: the first still-workable one, hottest first. */
@@ -31,9 +31,12 @@ function openByDefault(ordered: ApplicationResponse[]): string | null {
 export function PrepShell({
   token,
   jobId = null,
+  step = null,
 }: {
   token: string
   jobId?: string | null
+  /** `?step=N` from a cross-room link — opens that card in the room. */
+  step?: number | null
 }) {
   const appsQ = useQuery({
     queryKey: dataKeys.applications(),
@@ -58,6 +61,13 @@ export function PrepShell({
   const selectedId = jobId ?? openByDefault(ordered)
   const app = ordered.find((a) => a.job_id === selectedId) ?? null
   const room = ladderQ.data?.rooms.find((r) => r.job_id === selectedId)
+  const totals = ladderQ.data?.totals
+  const behind = totals
+    ? furthestBehind(
+        (ladderQ.data?.rooms ?? []).filter((r) => r.job_id !== selectedId),
+        totals.bottleneck_step,
+      )
+    : null
 
   return (
     <div className="tm-intel-page prp-workspace-page">
@@ -71,7 +81,14 @@ export function PrepShell({
         />
         <div className="mc-ws-main">
           {app ? (
-            <PrepRoom token={token} app={app} room={room} totals={ladderQ.data?.totals} />
+            <PrepRoom
+              token={token}
+              app={app}
+              room={room}
+              totals={totals}
+              behind={behind}
+              initialStep={step}
+            />
           ) : jobId ? (
             <div className="prp-empty">
               This room doesn&rsquo;t exist — the job isn&rsquo;t in your pipeline.{" "}

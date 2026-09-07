@@ -192,7 +192,44 @@
 .prp-btn.primary:hover:not(:disabled) { filter: brightness(1.05); }
 
 /* rehearse cards */
+.prp-reh-count {
+  margin: 0 0 10px;
+  font-family: var(--tm-font-mono);
+  font-size: var(--tm-fs-caption);
+  color: var(--tm-text-faint);
+}
+
+.prp-reh-main { flex: 1; min-width: 0; }
+/* A worked question stays readable but stops competing — the eye should land
+   on what is still unanswered. */
+.prp-reh.is-done .prp-reh-q { color: var(--tm-text-muted); }
+.prp-reh-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  min-height: 28px;
+  padding: 0 11px;
+  border: 1px solid var(--tm-border);
+  border-radius: var(--tm-radius-pill);
+  background: transparent;
+  color: var(--tm-text-muted);
+  font-size: var(--tm-fs-ui-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.prp-reh-mark:hover:not(:disabled) { border-color: var(--tm-interactive); }
+.prp-reh-mark:disabled { opacity: 0.5; cursor: default; }
+.prp-reh-mark[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--tm-success-wash);
+  color: var(--tm-success);
+}
+
 .prp-reh {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
   border: 1px solid var(--tm-border-soft);
   border-radius: 12px;
   padding: 14px 16px;
@@ -516,6 +553,20 @@
 }
 .prp-lroom-pips > span[data-state="1"] { background: var(--tm-warning); }
 .prp-lroom-pips > span[data-state="2"] { background: var(--tm-interactive); }
+
+/* A closed room keeps its place in the list and drops every progress claim —
+   it is a record, not a room with work left. */
+.prp-lroom.is-closed .prp-lroom-role,
+.prp-lroom.is-closed .prp-lroom-meta { color: var(--tm-text-faint); }
+
+/* the cross-room line's door */
+.prp-across-spacer { flex: 1; }
+.prp-across-go {
+  flex-shrink: 0;
+  font-size: var(--tm-fs-ui-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
 
 /* ── the room ── */
 .prp-room { min-width: 0; }

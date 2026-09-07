@@ -58,19 +58,46 @@ class TestLevelStep:
 
 
 class TestRehearsalStep:
+    REQS = ["own the roadmap", "run the review", "brief the exec"]
+
     def test_absent_is_not_started(self) -> None:
-        assert prep_ladder.rehearsal_step(None) == prep_ladder.NOT_STARTED
-        assert prep_ladder.rehearsal_step({}) == prep_ladder.NOT_STARTED
+        assert prep_ladder.rehearsal_step(None, self.REQS) == prep_ladder.NOT_STARTED
+        assert prep_ladder.rehearsal_step({}, self.REQS) == prep_ladder.NOT_STARTED
+
+    def test_no_questions_yet_is_not_started(self) -> None:
+        """Step 3 is downstream of step 1: no parsed requirements, no rehearsal."""
+        assert prep_ladder.rehearsal_step({"rehearsed": ["x"]}, []) == prep_ladder.NOT_STARTED
 
     def test_all_questions_worked_is_clear(self) -> None:
-        assert prep_ladder.rehearsal_step({"answered": 6, "total": 6}) == prep_ladder.CLEAR
+        assert prep_ladder.rehearsal_step({"rehearsed": self.REQS}, self.REQS) == prep_ladder.CLEAR
 
     def test_some_worked_is_started(self) -> None:
-        assert prep_ladder.rehearsal_step({"answered": 2, "total": 6}) == prep_ladder.STARTED
+        assert (
+            prep_ladder.rehearsal_step({"rehearsed": self.REQS[:1]}, self.REQS)
+            == prep_ladder.STARTED
+        )
 
-    def test_answered_without_a_total_is_started_not_clear(self) -> None:
-        """A payload that lost its denominator must not round up to done."""
-        assert prep_ladder.rehearsal_step({"answered": 3}) == prep_ladder.STARTED
+    def test_a_reparsed_jd_can_un_clear_the_step(self) -> None:
+        """The whole reason the SET is stored and not a count: a new requirement
+        means new questions, and "clear" against the old list would be a lie."""
+        stored = {"rehearsed": self.REQS}
+        assert prep_ladder.rehearsal_step(stored, self.REQS + ["new ask"]) == prep_ladder.STARTED
+
+    def test_a_stale_requirement_stops_counting(self) -> None:
+        stored = {"rehearsed": ["a requirement the JD no longer states"]}
+        assert prep_ladder.rehearsal_step(stored, self.REQS) == prep_ladder.NOT_STARTED
+
+    def test_matching_ignores_case_and_padding(self) -> None:
+        stored = {"rehearsed": ["  OWN THE ROADMAP "]}
+        assert prep_ladder.rehearsed_count(stored, self.REQS) == 1
+
+    def test_a_duplicate_entry_counts_once(self) -> None:
+        stored = {"rehearsed": ["own the roadmap", "Own the roadmap"]}
+        assert prep_ladder.rehearsed_count(stored, self.REQS) == 1
+
+    def test_a_malformed_payload_is_zero_not_a_crash(self) -> None:
+        assert prep_ladder.rehearsed_count({"rehearsed": "nope"}, self.REQS) == 0
+        assert prep_ladder.rehearsed_count({"rehearsed": [1, None]}, self.REQS) == 0
 
 
 class TestBriefStep:
