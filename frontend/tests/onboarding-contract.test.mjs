@@ -78,9 +78,18 @@ test("skill confirmation is the score and matching trust gate", () => {
   const playground = read("components/onboarding/first-run-playground.tsx")
   const pane = read("components/onboarding/first-run-cv-pane.tsx")
   assert.match(review, /onboarding\.confirmSkills/)
-  assert.match(review, /keptCount < 1/, "confirming an empty skill set must stay blocked")
+  // Still blocked when there ARE skills and the user unticks them all. NOT
+  // blocked when Myro read none off the CV: "keep at least one" is then
+  // unsatisfiable, and it dead-ended real users on an empty list with a
+  // disabled button (2026-09-07).
+  assert.match(review, /keptCount < 1 && !nothingToReview/, "an emptied real review must stay blocked")
+  assert.match(review, /nothingToReview = result\.skills\.length === 0/)
   assert.match(playground, /\{chrome\.keptCount\}/, "the kept count must be rendered, not just computed")
-  assert.match(playground, /disabled=\{chrome\.busy \|\| chrome\.keptCount < 1\}/, "confirm stays gated on the count")
+  assert.match(
+    playground,
+    /disabled=\{chrome\.busy \|\| \(chrome\.keptCount < 1 && !chrome\.nothingToReview\)\}/,
+    "confirm stays gated on the count, except when there is nothing to count",
+  )
   assert.match(playground, /Looks right/)
   assert.match(playground, /StickyOnboardingActionBar/)
   assert.match(playground, /PlaygroundHeader/)

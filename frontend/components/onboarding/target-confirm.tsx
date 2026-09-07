@@ -28,7 +28,7 @@ import {
 } from "@/components/onboarding/target-steps"
 import { invalidateTargetRoleData } from "@/lib/domain-data"
 import {
-  onboarding, users as usersApi,
+  emitJourneyPhase, onboarding, users as usersApi,
   type OnboardingResult, type RoleFamily, type TargetSeniority,
 } from "@/lib/api"
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value"
@@ -70,6 +70,15 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
   const [locations, setLocations] = useState<string[]>(result.selected?.locations ?? [])
   const [lean, setLean] = useState<string[]>(result.direction?.lean ?? [])
   const [avoid, setAvoid] = useState<string[]>(result.direction?.avoid ?? [])
+
+  // Direction is the last onboarding step and had no telemetry either. Whether
+  // families were offered at all is the signal worth having: an empty picker is
+  // the same shape of dead end the confirm step just turned out to have.
+  useEffect(() => {
+    emitJourneyPhase(token, "direction", "started", {
+      reasonCode: (result.families?.length ?? 0) === 0 ? "no_families" : null,
+    })
+  }, [token, result.families])
   const [seniority, setSeniority] = useState<TargetSeniority | null>(
     result.selected?.seniority ?? result.seniority.value,
   )

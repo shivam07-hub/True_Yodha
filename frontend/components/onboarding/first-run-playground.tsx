@@ -94,10 +94,16 @@ export function FirstRunPlayground(props: Omit<FirstRunSkillReviewProps, "childr
                 <Button
                   size="lg"
                   className="min-h-12 flex-1 sm:flex-none"
-                  disabled={chrome.busy || chrome.keptCount < 1}
+                  disabled={chrome.busy || (chrome.keptCount < 1 && !chrome.nothingToReview)}
                   onClick={chrome.confirm}
                 >
-                  {chrome.busy ? "Saving…" : chrome.keptCount < 1 ? "Keep at least one" : "Looks right →"}
+                  {chrome.busy
+                    ? "Saving…"
+                    : chrome.nothingToReview
+                      ? "Continue →"
+                      : chrome.keptCount < 1
+                        ? "Keep at least one"
+                        : "Looks right →"}
                 </Button>
               </div>
             </div>

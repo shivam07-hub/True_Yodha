@@ -2267,7 +2267,14 @@ export function clearPersistedCVUploadState(opts: { clearIdem?: boolean } = {}):
   clearCVUploadPersistence(opts.clearIdem ?? true)
 }
 
+/** The upload's own phases. `CVUploadFailure` carries one of these, so the type
+ *  stays narrow: a failure on the confirm screen is not an upload failure. */
 type CVUploadTelemetryPhase = "pick" | "signed-url" | "put" | "poll" | "parse"
+
+/** The two steps AFTER the upload. They carried no telemetry until 2026-09-07,
+ *  which is why a dead end on the confirmation screen sat unreported and had to
+ *  be found by hand. Same table and same alerting as the upload phases. */
+type JourneyTelemetryPhase = "confirm" | "direction"
 type CVUploadTelemetryOutcome = "started" | "succeeded" | "failed" | "retrying" | "skipped"
 
 function _routePath(): string | null {
@@ -2285,10 +2292,32 @@ function _networkType(): string | null {
   return nav.connection?.effectiveType ?? nav.mozConnection?.effectiveType ?? nav.webkitConnection?.effectiveType ?? null
 }
 
+/**
+ * Emit a post-upload journey phase: `confirm` (skill review) or `direction`.
+ *
+ * The upload emits its own phases from inside `uploadCV`. These two steps live
+ * in components, so they need a door. Fire-and-forget, like every other phase
+ * event — telemetry must never be able to fail a step it is only watching.
+ */
+export function emitJourneyPhase(
+  token: string,
+  phase: JourneyTelemetryPhase,
+  outcome: CVUploadTelemetryOutcome,
+  meta: { reasonCode?: string | null; errorDetail?: string | null } = {},
+): void {
+  if (!token) return
+  _emitCVUploadTelemetry(token, {
+    phase,
+    outcome,
+    reasonCode: meta.reasonCode ?? null,
+    errorDetail: meta.errorDetail ?? null,
+  })
+}
+
 function _emitCVUploadTelemetry(
   token: string,
   payload: {
-    phase: CVUploadTelemetryPhase
+    phase: CVUploadTelemetryPhase | JourneyTelemetryPhase
     outcome: CVUploadTelemetryOutcome
     attempt?: number
     jobId?: string | null

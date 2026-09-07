@@ -84,11 +84,17 @@ class UsersRepository:
         fetched on every authed page, so asking twice would double a hop that
         every surface already pays.
 
-        `skills_confirmed` exists because the re-entry nudge was naming the
-        wrong step. Of 300 users with a CV and no career target, **262 have
-        never confirmed their skills** — they are not stalled at "pick a
-        direction", they never reached it. Telling them to pick a target role
-        points past the thing actually in their way.
+        `skills_confirmed` answers "has this user EVER completed the skill
+        review", not "is the newest upload reviewed". Those are different
+        questions and the first version asked the wrong one: a user who
+        onboarded months ago and later uploaded a fresh CV had an unconfirmed
+        LATEST baseline, so the re-entry nudge told 29 fully set-up people —
+        including Shivam, mid-session with 75 saved jobs — to go and confirm
+        their skills. A newer unreviewed upload is not an onboarding gap.
+
+        The nudge exists for people who have not finished setting up. Reviewing
+        a re-upload is a different prompt for a different moment, and it does
+        not belong in the same sentence.
         """
         rows = (
             self._db.table("cv_versions")
@@ -96,14 +102,14 @@ class UsersRepository:
             .eq("user_id", user_id)
             .eq("kind", "baseline_upload")
             .order("created_at", desc=True)
-            .limit(1)
+            .limit(60)
             .execute()
             .data
             or []
         )
         if not rows:
             return False, False
-        return True, bool(rows[0].get("skills_confirmed_at"))
+        return True, any(r.get("skills_confirmed_at") for r in rows)
 
     def has_baseline_cv(self, user_id: str) -> bool:
         """True iff the user owns at least one baseline cv_versions row.
