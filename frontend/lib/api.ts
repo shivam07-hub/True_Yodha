@@ -5962,8 +5962,10 @@ export interface PrepLadderResponse {
   training_note: string
 }
 
-/** Step 3's record. `answered`/`total` are recomputed server-side against the
- *  live questions on every read, so a re-parsed JD can un-clear the step. */
+/** Step 3's record for one room. `rehearsed` holds STORY ids, not requirement
+ *  text: a story rehearsed for any room counts in every room that leans on it.
+ *  `answered`/`total` are recomputed server-side against this room's current
+ *  questions, so a re-parsed JD moves them honestly. */
 export interface RehearsalState {
   rehearsed: string[]
   answered: number
@@ -5979,11 +5981,13 @@ export const preparations = {
     request<RehearsalState>(`/preparations/${encodeURIComponent(jobId)}/rehearsal`, {
       headers: { Authorization: `Bearer ${token}` },
     }),
-  /** The WHOLE set, not one toggle — no read-then-write window to race through. */
-  setRehearsal: (token: string, jobId: string, rehearsed: string[]) =>
+  /** Mark ONE story rehearsed, for the person. Not a set: the record is
+   *  user-level, so replacing a set from one room would clear stories worked
+   *  for rooms this client cannot see. */
+  setRehearsal: (token: string, jobId: string, storyId: string, rehearsed: boolean) =>
     request<RehearsalState>(`/preparations/${encodeURIComponent(jobId)}/rehearsal`, {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ rehearsed }),
+      body: JSON.stringify({ story_id: storyId, rehearsed }),
     }),
 }

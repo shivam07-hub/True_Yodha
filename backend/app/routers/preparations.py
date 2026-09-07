@@ -47,8 +47,13 @@ def put_rehearsal(
     principal: Principal = Depends(get_principal),
     repo: JobsRepository = Depends(get_token_jobs_repository),
 ) -> RehearsalState:
-    """Record which questions have been worked. Returns the state the server
-    actually holds, so the panel renders the truth rather than its own guess."""
+    """Record that a STORY has been rehearsed — for the person, not the job.
+
+    Returns the state the server actually holds, so the panel renders the truth
+    rather than its own guess.
+    """
     return RehearsalState(
-        **prep_rehearsal.write_state(repo, principal.id, job_id, body.rehearsed)
+        **prep_rehearsal.set_rehearsed(
+            repo, principal.id, job_id, body.story_id, body.rehearsed
+        )
     )

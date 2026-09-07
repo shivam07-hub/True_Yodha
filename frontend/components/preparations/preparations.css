@@ -199,6 +199,15 @@
   color: var(--tm-text-faint);
 }
 
+/* The carry is invisible from inside one room — nothing on this screen can
+   show that marking here also moved 3M. One sentence, where the action is. */
+.prp-reh-carry {
+  margin: -4px 0 12px;
+  font-size: var(--tm-fs-caption);
+  line-height: 1.5;
+  color: var(--tm-text-muted);
+}
+
 .prp-reh-main { flex: 1; min-width: 0; }
 /* A worked question stays readable but stops competing — the eye should land
    on what is still unanswered. */

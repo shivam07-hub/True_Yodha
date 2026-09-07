@@ -3508,6 +3508,54 @@ class JobsRepository:
                     out.setdefault(job_id, {})[key] = answer
         return out
 
+    def get_prep_user_state(self) -> dict[str, Any]:
+        """Everything the prep ladder needs about the USER, in one round trip.
+
+        Skill levels held and stories already rehearsed come back together
+        because they are the same question — what does this person carry into
+        every room — and because a fourth concurrent section would spend a slot
+        of the process-wide read budget for the whole wave's duration
+        (ARCHITECTURE_READ_PATH.md §2).
+
+        The function takes no argument and reads `auth.uid()` itself, so it can
+        never be pointed at another user's rows.
+        """
+        payload = safe_read(
+            self._db.rpc("prep_user_state", {}),
+            default=None,
+            context="prep_user_state",
+        )
+        if isinstance(payload, list):
+            payload = payload[0] if payload else None
+        if not isinstance(payload, dict):
+            return {"skills": {}, "rehearsed": []}
+        skills = payload.get("skills")
+        rehearsed = payload.get("rehearsed")
+        return {
+            "skills": skills if isinstance(skills, dict) else {},
+            "rehearsed": [str(x) for x in rehearsed] if isinstance(rehearsed, list) else [],
+        }
+
+    def set_story_rehearsed(self, story_id: str, rehearsed: bool) -> bool:
+        """Mark one career story rehearsed, or clear it. Returns whether a row
+        was actually written.
+
+        Deliberately the TOKEN client: `career_stories` is RLS'd on
+        `auth.uid() = user_id` for every command, with check, so a story that is
+        not this user's simply matches no row. Using the admin client here would
+        turn a story id into a write primitive against anyone's bank.
+        """
+        stamp = datetime.now(timezone.utc).isoformat() if rehearsed else None
+        rows = safe_read(
+            self._db.table("career_stories")
+            .update({"rehearsed_at": stamp})
+            .eq("id", story_id)
+            .select("id"),
+            default=[],
+            context="set_story_rehearsed",
+        )
+        return bool(rows)
+
     def get_application_rooms(self, user_id: str) -> list[dict[str, Any]]:
         """Lean tracker read for the prep ladder: `job_id`, `status`, `company`.
 

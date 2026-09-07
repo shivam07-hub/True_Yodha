@@ -122,38 +122,47 @@ def level_rows(
     return out
 
 
-def rehearsed_count(payload: dict | None, requirements: list[str]) -> int:
-    """How many of the CURRENT questions have been rehearsed.
+def rehearsable_story_ids(coverage: CoverageResult | None) -> list[str]:
+    """The stories this room's questions would actually be answered with.
 
-    Counted against the live requirement list every time, never trusted from a
-    stored total. A re-parsed JD adds requirements, and a step that stayed
-    "clear" because it was clear against the OLD list would be telling the user
-    they are ready for questions nobody has asked them yet
-    ([[feedback_a_failed_check_must_not_refresh_its_own_verdict]]).
+    A requirement with no story cannot be rehearsed — there is nothing to say
+    yet. It is step 1's problem, and counting it here would make step 3
+    permanently unclearable for anyone with an open gap.
     """
-    if not payload:
-        return 0
-    stored = payload.get("rehearsed")
-    if not isinstance(stored, list):
-        return 0
-    live = {r.strip().lower() for r in requirements if isinstance(r, str) and r.strip()}
-    seen: set[str] = set()
-    for item in stored:
-        if not isinstance(item, str):
-            continue
-        key = item.strip().lower()
-        if key in live:
-            seen.add(key)
-    return len(seen)
+    if coverage is None:
+        return []
+    seen: list[str] = []
+    for item in coverage.requirements:
+        story_id = (item.story_id or "").strip()
+        if story_id and story_id not in seen:
+            seen.append(story_id)
+    return seen
 
 
-def rehearsal_step(payload: dict | None, requirements: list[str]) -> int:
-    """Step 3. Rehearsal is the questions worked, out of the questions the
-    coverage rows project — so it cannot start before step 1 has parsed any."""
-    total = len(requirements)
+def rehearsal_progress(
+    coverage: CoverageResult | None, rehearsed: set[str]
+) -> tuple[int, int]:
+    """(worked, rehearsable) for one room, from the user's own rehearsed set."""
+    ids = rehearsable_story_ids(coverage)
+    return sum(1 for sid in ids if sid in rehearsed), len(ids)
+
+
+def rehearsal_step(coverage: CoverageResult | None, rehearsed: set[str]) -> int:
+    """Step 3, counted against the USER's rehearsed stories — not this job's.
+
+    Myro is one platform: rehearsing a story out loud is something the person
+    did, and it does not become un-done because the next room is at a different
+    company. Every room's cached coverage already carries the `story_id` that
+    answers each requirement, so the carry costs no extra read: rehearse once,
+    and every room that leans on that story counts it.
+
+    This is the step that made the rail's own headline false. It stored a set of
+    requirement STRINGS per job, so the same story rehearsed in seven rooms
+    started from zero seven times.
+    """
+    done, total = rehearsal_progress(coverage, rehearsed)
     if total == 0:
         return NOT_STARTED
-    done = rehearsed_count(payload, requirements)
     if done <= 0:
         return NOT_STARTED
     return CLEAR if done >= total else STARTED

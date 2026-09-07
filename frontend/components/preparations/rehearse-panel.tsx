@@ -8,10 +8,16 @@
  * projection — no LLM, no fabrication: a requirement with no story shows an
  * honest "no story yet" line pointing back at step 1.
  *
- * It now RECORDS. Until 2026-09-06 this panel wrote nothing, so the ladder read
- * step 3 as "not started" for everyone forever — and a step that can never be
- * cleared is a step nobody works. Marking a question sends the whole set, so
- * two quick taps cannot race, and the server answers with the state it holds.
+ * It records against the STORY, not the job. Myro is one platform: rehearsing
+ * "the Kotak 811 relaunch" out loud is something the person did, and it does
+ * not become un-done because the next room is at a different company. Every
+ * room's coverage already maps its requirements to story ids, so marking one
+ * here clears it in every room that leans on the same story — which is what
+ * the rail's headline has been promising all along.
+ *
+ * A requirement with no story has no Mark button. There is nothing to say yet;
+ * the server would refuse it, and a control that does nothing is worse than no
+ * control.
  */
 
 import * as React from "react"
@@ -71,7 +77,8 @@ export function RehearsePanel({ token, jobId }: { token: string; jobId: string }
   })
 
   const save = useMutation({
-    mutationFn: (rehearsed: string[]) => preparations.setRehearsal(token, jobId, rehearsed),
+    mutationFn: (v: { storyId: string; rehearsed: boolean }) =>
+      preparations.setRehearsal(token, jobId, v.storyId, v.rehearsed),
     onSuccess: (next: RehearsalState) => {
       queryClient.setQueryData(dataKeys.prepRehearsal(jobId), next)
       // The pip in the rail and the ring in the room read the ladder, not this.
@@ -81,16 +88,7 @@ export function RehearsePanel({ token, jobId }: { token: string; jobId: string }
   })
 
   const rows: CoverageRow[] = coverage.data?.requirements ?? []
-  const done = new Set((state.data?.rehearsed ?? []).map((r) => r.trim().toLowerCase()))
-
-  function toggle(requirement: string) {
-    const key = requirement.trim().toLowerCase()
-    const current = state.data?.rehearsed ?? []
-    const next = done.has(key)
-      ? current.filter((r) => r.trim().toLowerCase() !== key)
-      : [...current, requirement]
-    save.mutate(next)
-  }
+  const done = new Set(state.data?.rehearsed ?? [])
 
   if (coverage.isLoading) return <p className="prp-quiet">Preparing your rehearsal…</p>
   if (rows.length === 0) {
@@ -107,15 +105,23 @@ export function RehearsePanel({ token, jobId }: { token: string; jobId: string }
     (a, b) => (order[a.status as keyof typeof order] ?? 2) - (order[b.status as keyof typeof order] ?? 2),
   )
   const answered = state.data?.answered ?? 0
+  const total = state.data?.total ?? rows.filter((r) => r.story_id).length
 
   return (
     <div>
       <p className="prp-reh-count">
-        {answered} of {rows.length} worked
-        {answered >= rows.length && rows.length > 0 ? " — step 3 clear" : ""}
+        {answered} of {total} worked
+        {total > 0 && answered >= total ? " — step 3 clear" : ""}
+      </p>
+      {/* The carry is the whole point and it is invisible from inside one room:
+          nothing on this screen can show that marking here moved 3M too. This
+          is the one sentence that earns its place. */}
+      <p className="prp-reh-carry">
+        Rehearse a story once. It counts in every room that asks for it.
       </p>
       {sorted.map((row) => {
-        const marked = done.has(row.requirement.trim().toLowerCase())
+        const storyId = row.story_id ?? ""
+        const marked = !!storyId && done.has(storyId)
         return (
           <div key={row.requirement} className={marked ? "prp-reh is-done" : "prp-reh"}>
             <div className="prp-reh-main">
@@ -129,16 +135,18 @@ export function RehearsePanel({ token, jobId }: { token: string; jobId: string }
                 <div className="prp-reh-none">No story banked yet — answer it in step 1.</div>
               )}
             </div>
-            <button
-              type="button"
-              className="prp-reh-mark tm-control-focus"
-              aria-pressed={marked}
-              disabled={save.isPending}
-              onClick={() => toggle(row.requirement)}
-            >
-              <Check size={13} aria-hidden />
-              {marked ? "Rehearsed" : "Mark rehearsed"}
-            </button>
+            {storyId ? (
+              <button
+                type="button"
+                className="prp-reh-mark tm-control-focus"
+                aria-pressed={marked}
+                disabled={save.isPending}
+                onClick={() => save.mutate({ storyId, rehearsed: !marked })}
+              >
+                <Check size={13} aria-hidden />
+                {marked ? "Rehearsed" : "Mark rehearsed"}
+              </button>
+            ) : null}
           </div>
         )
       })}

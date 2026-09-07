@@ -57,47 +57,62 @@ class TestLevelStep:
         assert prep_ladder.level_step({"Machine Learning": 2}, {"machine learning": 2}) == prep_ladder.CLEAR
 
 
+def _cov_with_stories(pairs: list[tuple[str, str | None]]) -> CoverageResult:
+    """(requirement, story_id). A None story is a gap — nothing to rehearse."""
+    return CoverageResult(requirements=[
+        CoverageItem(requirement=req, status="gap" if sid is None else "covered", story_id=sid)
+        for req, sid in pairs
+    ])
+
+
 class TestRehearsalStep:
-    REQS = ["own the roadmap", "run the review", "brief the exec"]
+    """Counted against the USER's rehearsed stories, never this job's strings —
+    that is what makes "clear a step once and it counts wherever it applies"
+    true for step 3 instead of decorative."""
 
-    def test_absent_is_not_started(self) -> None:
-        assert prep_ladder.rehearsal_step(None, self.REQS) == prep_ladder.NOT_STARTED
-        assert prep_ladder.rehearsal_step({}, self.REQS) == prep_ladder.NOT_STARTED
+    COV = _cov_with_stories([("own the roadmap", "s1"), ("brief the exec", "s2")])
 
-    def test_no_questions_yet_is_not_started(self) -> None:
+    def test_nothing_rehearsed_is_not_started(self) -> None:
+        assert prep_ladder.rehearsal_step(self.COV, set()) == prep_ladder.NOT_STARTED
+
+    def test_no_coverage_yet_is_not_started(self) -> None:
         """Step 3 is downstream of step 1: no parsed requirements, no rehearsal."""
-        assert prep_ladder.rehearsal_step({"rehearsed": ["x"]}, []) == prep_ladder.NOT_STARTED
+        assert prep_ladder.rehearsal_step(None, {"s1"}) == prep_ladder.NOT_STARTED
 
-    def test_all_questions_worked_is_clear(self) -> None:
-        assert prep_ladder.rehearsal_step({"rehearsed": self.REQS}, self.REQS) == prep_ladder.CLEAR
+    def test_every_story_worked_is_clear(self) -> None:
+        assert prep_ladder.rehearsal_step(self.COV, {"s1", "s2"}) == prep_ladder.CLEAR
 
     def test_some_worked_is_started(self) -> None:
-        assert (
-            prep_ladder.rehearsal_step({"rehearsed": self.REQS[:1]}, self.REQS)
-            == prep_ladder.STARTED
-        )
+        assert prep_ladder.rehearsal_step(self.COV, {"s1"}) == prep_ladder.STARTED
+
+    def test_a_story_rehearsed_for_another_room_counts_here(self) -> None:
+        """The set is the person's. This room never saw the story marked."""
+        other_room = _cov_with_stories([("phrased entirely differently", "s1")])
+        assert prep_ladder.rehearsal_step(other_room, {"s1"}) == prep_ladder.CLEAR
+
+    def test_a_gap_is_not_rehearsable(self) -> None:
+        """No story means nothing to say yet — counting it would leave step 3
+        unclearable for anyone with an open gap."""
+        cov = _cov_with_stories([("answered", "s1"), ("still a gap", None)])
+        assert prep_ladder.rehearsal_progress(cov, {"s1"}) == (1, 1)
+        assert prep_ladder.rehearsal_step(cov, {"s1"}) == prep_ladder.CLEAR
+
+    def test_a_room_of_only_gaps_is_not_started(self) -> None:
+        cov = _cov_with_stories([("a", None), ("b", None)])
+        assert prep_ladder.rehearsal_step(cov, {"s1"}) == prep_ladder.NOT_STARTED
+
+    def test_one_story_answering_two_requirements_counts_once(self) -> None:
+        cov = _cov_with_stories([("a", "s1"), ("b", "s1")])
+        assert prep_ladder.rehearsal_progress(cov, {"s1"}) == (1, 1)
 
     def test_a_reparsed_jd_can_un_clear_the_step(self) -> None:
-        """The whole reason the SET is stored and not a count: a new requirement
-        means new questions, and "clear" against the old list would be a lie."""
-        stored = {"rehearsed": self.REQS}
-        assert prep_ladder.rehearsal_step(stored, self.REQS + ["new ask"]) == prep_ladder.STARTED
+        """A new requirement backed by a story the user has not rehearsed."""
+        grown = _cov_with_stories([("own the roadmap", "s1"), ("new ask", "s3")])
+        assert prep_ladder.rehearsal_step(grown, {"s1"}) == prep_ladder.STARTED
 
-    def test_a_stale_requirement_stops_counting(self) -> None:
-        stored = {"rehearsed": ["a requirement the JD no longer states"]}
-        assert prep_ladder.rehearsal_step(stored, self.REQS) == prep_ladder.NOT_STARTED
-
-    def test_matching_ignores_case_and_padding(self) -> None:
-        stored = {"rehearsed": ["  OWN THE ROADMAP "]}
-        assert prep_ladder.rehearsed_count(stored, self.REQS) == 1
-
-    def test_a_duplicate_entry_counts_once(self) -> None:
-        stored = {"rehearsed": ["own the roadmap", "Own the roadmap"]}
-        assert prep_ladder.rehearsed_count(stored, self.REQS) == 1
-
-    def test_a_malformed_payload_is_zero_not_a_crash(self) -> None:
-        assert prep_ladder.rehearsed_count({"rehearsed": "nope"}, self.REQS) == 0
-        assert prep_ladder.rehearsed_count({"rehearsed": [1, None]}, self.REQS) == 0
+    def test_a_blank_story_id_is_not_a_story(self) -> None:
+        cov = _cov_with_stories([("a", "  ")])
+        assert prep_ladder.rehearsable_story_ids(cov) == []
 
 
 class TestBriefStep:

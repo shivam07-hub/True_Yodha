@@ -108,10 +108,19 @@ test("Every part of the surface comes from an analysis and offers a decision", (
   const step = code("components/preparations/step-card.tsx")
   const brief = code("components/preparations/brief-card.tsx")
 
-  // Step 3 RECORDS. Before 2026-09-06 nothing wrote prep_rehearsal, so the
-  // ladder read it as "not started" for every user forever.
+  // Step 3 RECORDS, and it records against the STORY — the person, not the
+  // job. Keying it to this room's requirement strings is what made the rail's
+  // own headline false: the same story rehearsed in seven rooms started from
+  // zero seven times.
   assert.match(reh, /setRehearsal\(/)
   assert.match(reh, /aria-pressed=\{marked\}/)
+  assert.match(reh, /storyId/)
+  assert.doesNotMatch(reh, /rehearsed:\s*string\[\]/)
+  // A requirement with no story has nothing to say yet — the server refuses
+  // it, so the control must not be there at all.
+  assert.match(reh, /storyId \? \(/)
+  // The carry is invisible from inside one room; one sentence names it.
+  assert.match(reh, /counts in every room/)
   // The rail pip and the ring read the ladder, not this panel — without the
   // invalidate they keep the old step until a reload.
   assert.match(reh, /invalidateQueries\(\{ queryKey: dataKeys\.prepLadder\(\) \}\)/)

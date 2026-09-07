@@ -56,8 +56,13 @@ class TrainingMatch(BaseModel):
 
 
 class RehearsalState(BaseModel):
-    """Step 3's record. `answered`/`total` are recomputed against the live
-    questions on every read — never read back from a stored count."""
+    """Step 3's record for ONE room, drawn from the user's rehearsed stories.
+
+    `rehearsed` holds story ids, not requirement text: a story rehearsed for
+    any room counts in every room that leans on it. `answered`/`total` are
+    recomputed on every read against this room's current questions, so a
+    re-parsed JD moves them honestly.
+    """
 
     rehearsed: list[str] = Field(default_factory=list)
     answered: int
@@ -65,10 +70,15 @@ class RehearsalState(BaseModel):
 
 
 class RehearsalUpdate(BaseModel):
-    """The WHOLE set the client believes is rehearsed, not one toggle — so two
-    quick taps cannot race through a read-then-write window on the server."""
+    """One story, marked or cleared.
 
-    rehearsed: list[str] = Field(default_factory=list, max_length=64)
+    Not a whole set: the record is user-level now, and a "replace the set"
+    write from one room would silently clear stories rehearsed for rooms the
+    client cannot see.
+    """
+
+    story_id: str = Field(min_length=1, max_length=64)
+    rehearsed: bool
 
 
 class PrepLadderResponse(BaseModel):

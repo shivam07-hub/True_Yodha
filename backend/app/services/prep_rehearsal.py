@@ -1,101 +1,83 @@
-"""prep_rehearsal — step 3's record: which questions this user has worked.
+"""prep_rehearsal — step 3's record, kept on the PERSON.
 
 Design: `UNIFIED_PREP_V2.md` (repo root), step 3.
 
-Before this, rehearsal was a pure projection — the coverage rows re-phrased as
-interview questions — and it recorded nothing. The ladder therefore read step 3
-as "not started" for every user forever, and a step that can never be cleared
-is a step nobody works. This is the missing write.
+Myro is one platform. The user is upskilling; a job is the occasion for the
+preparation, never its unit. Rehearsing "the Kotak 811 relaunch" out loud is a
+thing the person did, and it does not become un-done because the next room is
+at 3M instead of Sanofi.
 
-The state is the SET of requirements rehearsed, not a count. A count cannot
-survive the JD being re-parsed: the requirement list changes underneath it and
-a stored "6 of 6" silently becomes a lie. Storing the set lets every read
-recompute against the live questions, which is also what lets the step drop
-back out of "clear" when new requirements appear — the honest behaviour.
+The first version stored a set of requirement STRINGS under `job_deepenings`,
+keyed by job — so the same story rehearsed in seven rooms started from zero
+seven times, and the rail's own headline ("Clear a step once and it counts
+wherever it applies") was false for step 3 by construction.
 
-Stored in `job_deepenings` under `prep_rehearsal`, the same table the coverage
-assessment and the day-of brief already use, so the ladder reads all three
-steps in one round trip ([[feedback_reuse_canonical_table]]).
+The join was already there: every room's cached coverage carries the `story_id`
+that answers each requirement. Marking the STORY (`career_stories.rehearsed_at`)
+makes the carry automatic and costs no extra read anywhere — the ladder is
+already reading both sides.
+
+A requirement with no story cannot be rehearsed. There is nothing to say yet;
+that is step 1's problem, and counting it here would leave step 3 permanently
+unclearable for anyone with an open gap.
 """
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
 from app.services import prep_ladder
-from app.services.jd_coverage import CACHE_PROMPT_KEY, payload_to_result
+from app.services.jd_coverage import CACHE_PROMPT_KEY, CoverageResult, payload_to_result
 
 logger = logging.getLogger("myro.prep_rehearsal")
 
 
-def current_requirements(repo: Any, user_id: str, job_id: str) -> list[str]:
-    """The questions step 3 projects — the cached coverage rows, nothing new.
+def room_coverage(repo: Any, user_id: str, job_id: str) -> CoverageResult | None:
+    """This room's cached coverage — never a fresh assessment.
 
-    Never triggers an assessment: rehearsal is downstream of step 1 by design,
-    and a toggle must not be able to start a model run.
+    Step 3 is downstream of step 1 by design, and marking a question rehearsed
+    must not be able to start a model run.
     """
     cached = payload_to_result(repo.get_deepening(user_id, job_id, CACHE_PROMPT_KEY))
-    if not cached:
-        return []
-    return [item.requirement for item in cached[0].requirements]
+    return cached[0] if cached else None
 
 
 def read_state(repo: Any, user_id: str, job_id: str) -> dict[str, Any]:
-    requirements = current_requirements(repo, user_id, job_id)
-    stored = _stored(repo, user_id, job_id)
-    return _state(stored, requirements)
+    coverage = room_coverage(repo, user_id, job_id)
+    rehearsed = set(repo.get_prep_user_state().get("rehearsed") or [])
+    return _state(coverage, rehearsed)
 
 
-def write_state(
-    repo: Any, user_id: str, job_id: str, rehearsed: list[str]
+def set_rehearsed(
+    repo: Any, user_id: str, job_id: str, story_id: str, rehearsed: bool
 ) -> dict[str, Any]:
-    """Replace the set with the client's, filtered to questions that exist.
+    """Mark or unmark ONE story, then answer with this room's whole state.
 
-    The client sends the WHOLE set rather than one toggle, so there is no
-    read-then-write window for two quick taps to race through
-    ([[feedback_narrowing_a_race_is_not_closing_it]]). Filtering against the
-    live requirements is also what stops this endpoint being a place to store
-    arbitrary strings.
+    One story per call, not a set: the record is now user-level, so a
+    "replace the whole set" write from one room would silently clear stories
+    rehearsed for a room the client cannot see. The story is the unit, so the
+    write is idempotent and there is nothing to race
+    ([[feedback_narrowing_a_race_is_not_closing_it]]).
+
+    The story must be one THIS room actually leans on. Otherwise a job id and a
+    story id together become a way to flip rows the surface never showed.
     """
-    requirements = current_requirements(repo, user_id, job_id)
-    live = {r.strip().lower(): r for r in requirements if r.strip()}
-    kept = []
-    seen: set[str] = set()
-    for item in rehearsed:
-        if not isinstance(item, str):
-            continue
-        key = item.strip().lower()
-        if key in live and key not in seen:
-            seen.add(key)
-            kept.append(live[key])
-    repo.upsert_deepening(
-        user_id, job_id, prep_ladder.REHEARSAL_KEY, json.dumps({"rehearsed": kept})
-    )
-    return _state({"rehearsed": kept}, requirements)
+    coverage = room_coverage(repo, user_id, job_id)
+    allowed = set(prep_ladder.rehearsable_story_ids(coverage))
+    if story_id in allowed:
+        # RLS on career_stories is auth.uid() = user_id, so a story that is not
+        # this user's simply matches no row.
+        if not repo.set_story_rehearsed(story_id, rehearsed):
+            logger.warning("rehearsal write matched no story row: %s", story_id)
+    else:
+        logger.warning("rehearsal refused: story %s is not asked by job %s", story_id, job_id)
+    return _state(coverage, set(repo.get_prep_user_state().get("rehearsed") or []))
 
 
-def _stored(repo: Any, user_id: str, job_id: str) -> dict | None:
-    raw = repo.get_deepening(user_id, job_id, prep_ladder.REHEARSAL_KEY)
-    if not raw:
-        return None
-    try:
-        parsed = json.loads(raw)
-    except (json.JSONDecodeError, ValueError):
-        logger.warning("prep_rehearsal payload is not JSON for job %s", job_id)
-        return None
-    return parsed if isinstance(parsed, dict) else None
-
-
-def _state(stored: dict | None, requirements: list[str]) -> dict[str, Any]:
-    live = {r.strip().lower() for r in requirements if r.strip()}
-    kept = [
-        item
-        for item in (stored or {}).get("rehearsed", [])
-        if isinstance(item, str) and item.strip().lower() in live
-    ]
+def _state(coverage: CoverageResult | None, rehearsed: set[str]) -> dict[str, Any]:
+    ids = prep_ladder.rehearsable_story_ids(coverage)
     return {
-        "rehearsed": kept,
-        "answered": prep_ladder.rehearsed_count(stored, requirements),
-        "total": len(requirements),
+        "rehearsed": [sid for sid in ids if sid in rehearsed],
+        "answered": sum(1 for sid in ids if sid in rehearsed),
+        "total": len(ids),
     }

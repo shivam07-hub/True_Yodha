@@ -18,7 +18,6 @@ would be the payload-weight trap with extra steps.
 """
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
@@ -35,16 +34,6 @@ logger = logging.getLogger("myro.prep_ladder")
 LIVE_STATUSES = ("applied", "interviewing")
 
 _FANOUT_LABEL = "preparations.ladder"
-
-
-def _rehearsal_payload(raw: str | None) -> dict | None:
-    if not raw:
-        return None
-    try:
-        parsed = json.loads(raw)
-    except (json.JSONDecodeError, ValueError):
-        return None
-    return parsed if isinstance(parsed, dict) else None
 
 
 def _rows_by_job(skill_rows: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
@@ -117,13 +106,18 @@ def assemble(repo: Any, user_id: str) -> dict[str, Any]:
                 user_id, job_ids, prep_ladder.DEEPENING_KEYS
             ),
             "skill_rows": lambda: repo.get_all_job_skill_rows(job_ids=job_ids),
-            "user_levels": lambda: repo.get_user_skill_map(user_id),
+            # Levels held AND stories rehearsed — the same question (what does
+            # this person carry into every room), so one round trip, and the
+            # wave stays at three sections.
+            "user_state": repo.get_prep_user_state,
         },
         label=_FANOUT_LABEL,
     )
     deepenings: dict[str, dict[str, str]] = reads["deepenings"] or {}
     by_job = _rows_by_job(reads["skill_rows"] or [])
-    user_levels: dict[str, int] = reads["user_levels"] or {}
+    user_state = reads["user_state"] or {}
+    user_levels: dict[str, int] = user_state.get("skills") or {}
+    rehearsed: set[str] = set(user_state.get("rehearsed") or [])
 
     rooms: list[dict[str, Any]] = []
     all_gaps: list[finlatics_match.SkillGap] = []
@@ -134,13 +128,10 @@ def assemble(repo: Any, user_id: str) -> dict[str, Any]:
 
         coverage = payload_to_result(cached.get(prep_ladder.COVERAGE_KEY))
         result = coverage[0] if coverage else None
-        requirements = [item.requirement for item in (result.requirements if result else [])]
         steps = [
             prep_ladder.evidence_step(result),
             prep_ladder.level_step(wanted_skills(job_rows), user_levels),
-            prep_ladder.rehearsal_step(
-                _rehearsal_payload(cached.get(prep_ladder.REHEARSAL_KEY)), requirements
-            ),
+            prep_ladder.rehearsal_step(result, rehearsed),
             prep_ladder.brief_step(cached.get(prep_ladder.BRIEF_KEY)),
         ]
         rooms.append(

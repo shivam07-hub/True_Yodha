@@ -43,8 +43,10 @@ class _FakeRepo:
         deepenings: dict[str, dict[str, str]] | None = None,
         skill_rows: list[dict[str, Any]] | None = None,
         user_levels: dict[str, int] | None = None,
+        rehearsed: set[str] | None = None,
     ) -> None:
         self.calls: list[str] = []
+        self._rehearsed = set(rehearsed or ())
         self._rooms = rooms if rooms is not None else []
         self._deepenings = deepenings or {}
         self._skill_rows = skill_rows or []
@@ -65,9 +67,11 @@ class _FakeRepo:
         self.calls.append("get_all_job_skill_rows")
         return [r for r in self._skill_rows if r["job_id"] in (job_ids or [])]
 
-    def get_user_skill_map(self, user_id: str) -> dict[str, int]:
-        self.calls.append("get_user_skill_map")
-        return self._user_levels
+    def get_prep_user_state(self) -> dict[str, Any]:
+        # Levels held AND stories rehearsed, in ONE round trip — the same
+        # question about the same person, so the wave stays at three sections.
+        self.calls.append("get_prep_user_state")
+        return {"skills": self._user_levels, "rehearsed": sorted(self._rehearsed)}
 
     def __getattr__(self, name: str) -> Any:
         raise AssertionError(
@@ -81,7 +85,7 @@ _EXPECTED_READS = {
     "get_application_rooms",
     "get_deepenings_for_jobs",
     "get_all_job_skill_rows",
-    "get_user_skill_map",
+    "get_prep_user_state",
 }
 
 
@@ -98,13 +102,12 @@ def _board() -> _FakeRepo:
             "j1": {
                 prep_ladder.COVERAGE_KEY: json.dumps(
                     {"requirements": [
-                        {"requirement": "own the roadmap", "status": "covered"},
-                        {"requirement": "brief the exec", "status": "covered"},
+                        {"requirement": "own the roadmap", "status": "covered",
+                         "story_id": "story-a"},
+                        {"requirement": "brief the exec", "status": "covered",
+                         "story_id": "story-b"},
                     ]}
                 ),
-                # One of the two questions worked — step 3 is STARTED, and the
-                # count is derived from these requirements, never stored.
-                prep_ladder.REHEARSAL_KEY: json.dumps({"rehearsed": ["own the roadmap"]}),
             },
         },
         skill_rows=[
@@ -114,6 +117,8 @@ def _board() -> _FakeRepo:
             _skill("j2", "Data Analysis", 2),
         ],
         user_levels={},
+        # One of the two stories rehearsed — by the PERSON, not by this room.
+        rehearsed={"story-a"},
     )
 
 
