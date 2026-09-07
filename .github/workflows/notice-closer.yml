@@ -1,8 +1,8 @@
 name: Notice closer
 
 # Daily operator loop (ADR-0021). Records live in Postgres; this job harvests
-# Railway deaths, settles proofs on origin/main, authors at most one class-2
-# close, and sends one digest. Does not run on Railway.
+# Railway deaths, settles proofs already on origin/main, and sends one digest.
+# Cursor authors the close. Does not run on Railway. Does not call OpenRouter.
 
 on:
   schedule:
@@ -13,14 +13,10 @@ concurrency:
   group: notice-closer
   cancel-in-progress: false
 
-permissions:
-  contents: write
-  pull-requests: write
-
 jobs:
   digest:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: backend
@@ -28,7 +24,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.NOTICE_GITHUB_TOKEN || github.token }}
 
       - uses: actions/setup-python@v5
         with:
@@ -54,10 +49,8 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           OPS_ALERT_EMAIL: ${{ secrets.OPS_ALERT_EMAIL }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_PROJECT_ID: a15c0013-3f6b-4a75-9b7a-4cd6d93c80c7
           RAILWAY_ENVIRONMENT_ID: 9e77c93e-9f0f-4c29-ac4e-e9c4d39ae6c5
-          GITHUB_TOKEN: ${{ secrets.NOTICE_GITHUB_TOKEN || github.token }}
           MYRO_ENV: prod
         run: python -m app.notice.closer

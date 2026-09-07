@@ -1237,7 +1237,7 @@ Uploads are never rejected for load (your "never fail an upload" rule). At peak 
 
 The operator-facing record that a Railway-visible **failure of a named cause** happened (or would have happened) to a user. Dual of Overload Policy: Overload Policy is what the product refuses to do to an upload; a Notice is what we refuse to let happen twice.
 
-The saturation mailbox is retired (ADR-0021). A Notice is the memory; a daily GitHub Action is the closer; one digest per run is the inform. Slow 200s (`metric route.slow` on a 2xx) are Notices by **kind**, never by route: over-budget reads vs a capacity queue victim.
+The saturation mailbox is retired (ADR-0021). A Notice is the memory; a daily GitHub Action harvests and sends one digest; Cursor closes. Slow 200s (`metric route.slow` on a 2xx) are Notices by **kind**, never by route: over-budget reads vs a capacity queue victim.
 
 **Catalog**
 
@@ -1249,7 +1249,7 @@ The saturation mailbox is retired (ADR-0021). A Notice is the memory; a daily Gi
 6. Dead-man — skill-floor stall, listing verifier not running.
 7. Slow 200 — `slow_200:reads_over_budget` (code) or `slow_200:capacity_queue` (`blocked`, queue victim).
 
-Class 2 closes in code when a test on `origin/main` names the cause, or the Action authors one root-cause PR and merges `main`. Class 3 and slow-200 queue victims and Railway OOM/failed-deploy open `blocked`. 4–6 record live; the closer harvests Railway deaths and belt recovery.
+Class 2 closes in Cursor: root-cause fix, five gates, branch from `main`, that Notice’s files only. The Action never writes the patch. A `NOTICE_CAUSE_KEY` test already on `origin/main` is how the next digest marks it `closed`. Class 3 and slow-200 queue victims and Railway OOM/failed-deploy open `blocked`. 4–6 record live; the closer harvests Railway deaths and belt recovery.
 
 **Identity**
 
@@ -1270,7 +1270,7 @@ Postgres is the record. Tests use an in-memory adapter. Redis may page (skill-fl
 **Surfaces**
 
 - Live: 500/503 handlers, Work Lane `on_failure`, upload stall/orphan, skill-floor and listing-verifier dead-men, and slow 2xx timing write a Notice (no email).
-- Daily: GitHub Action harvests Railway process death, settles proofs already on `origin/main`, authors at most one class-2 close onto `main`, sends one digest to `ops_alert_email`.
+- Daily: GitHub Action harvests Railway process death, settles proofs already on `origin/main`, sends one digest to `ops_alert_email`. Cursor authors the close when the laptop is open — tonight or the next session. OpenRouter is the user path and is not in this loop.
 - The closer does not run inside `mirror-backend-prod`. The Job Runner binds Notice so class 5 can record.
 
 ## Listing Verification

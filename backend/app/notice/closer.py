@@ -1,19 +1,19 @@
-"""Daily closer entry. GitHub Action is a caller of NoticeBook.settle."""
+"""Daily closer entry. GitHub Action harvests, settles proofs already on main, digests.
+
+Cursor authors the close (CONTEXT.md). This process never opens a PR.
+"""
 
 from __future__ import annotations
 
 import logging
-import os
 import subprocess
 import sys
 from pathlib import Path
 
 from app.config import settings
 from app.database import get_supabase_admin
-from app.notice.author import author_enabled, pick_open_500, try_close_one
 from app.notice.board import NoticeBook
 from app.notice.clock import SystemClock
-from app.notice.gitops import GitHubMerger, head_sha, on_main
 from app.notice.harvest import harvest_belts, harvest_railway, harvest_upload_stalls
 from app.notice.postgres import PostgresNoticeStore
 from app.notice.proofs import proofs_from_git_ref
@@ -36,30 +36,15 @@ def repo_root() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
-def run_notice_gates(repo: Path, files: list[str]) -> bool:
-    env = os.environ.copy()
-    env["PYTHONPATH"] = str(repo / "backend")
-    ruff_paths = [
-        path[len("backend/") :]
-        for path in files
-        if path.endswith(".py") and path.startswith("backend/")
-    ]
-    if ruff_paths:
-        ruff = subprocess.run(
-            ["ruff", "check", *ruff_paths],
-            cwd=repo / "backend",
-            env=env,
-            check=False,
-        )
-        if ruff.returncode != 0:
-            return False
-    tests = subprocess.run(
-        ["python", "-m", "pytest", "backend/tests", "-q", "--tb=line"],
+def _git(repo: Path, *args: str) -> str:
+    result = subprocess.run(
+        ["git", *args],
         cwd=repo,
-        env=env,
+        capture_output=True,
+        text=True,
         check=False,
     )
-    return tests.returncode == 0
+    return result.stdout.strip() if result.returncode == 0 else ""
 
 
 def harvest_into(book: NoticeBook, repo: Path) -> list[CloseProof]:
@@ -69,8 +54,8 @@ def harvest_into(book: NoticeBook, repo: Path) -> list[CloseProof]:
     verifier_state: str | None = None
     stalled = False
     try:
-        from app.services import skill_floor
         from app.database import get_supabase_admin_batch
+        from app.services import skill_floor
 
         awaiting = skill_floor.count_missing_floor(
             get_supabase_admin_batch()
@@ -98,7 +83,8 @@ def harvest_into(book: NoticeBook, repo: Path) -> list[CloseProof]:
         _logger.exception("metric notice.harvest_upload_failed")
     for sighting in harvest_upload_stalls(stalled):
         book.observe(sighting)
-    sha = head_sha(repo) or "unknown"
+    sha = _git(repo, "rev-parse", "HEAD") or "unknown"
+    # Belt recovery is operational, not a git proof — close it from the digest.
     sightings, proofs = harvest_belts(
         skill_awaiting=awaiting,
         verifier_state=verifier_state,
@@ -108,26 +94,6 @@ def harvest_into(book: NoticeBook, repo: Path) -> list[CloseProof]:
     for sighting in sightings:
         book.observe(sighting)
     return proofs
-
-
-def maybe_author(book: NoticeBook, repo: Path) -> CloseProof | None:
-    if not author_enabled():
-        return None
-    row = pick_open_500(book.snapshot())
-    if row is None:
-        return None
-    from app.notice.completer import OpenRouterCompleter
-
-    merger = None
-    if GitHubMerger.available():
-        merger = GitHubMerger(repo, run_tests=run_notice_gates)
-    return try_close_one(
-        row,
-        repo=repo,
-        complete=OpenRouterCompleter(),
-        run_tests=run_notice_gates,
-        merger=merger,
-    )
 
 
 def main() -> int:
@@ -147,37 +113,19 @@ def main() -> int:
         proofs.extend(harvest_into(book, repo))
     except Exception:
         _logger.exception("metric notice.harvest_failed")
-    subprocess.run(
-        ["git", "fetch", "origin", "main"],
-        cwd=repo,
-        check=False,
-        capture_output=True,
-    )
-    main_sha = head_sha(repo)
+    _git(repo, "fetch", "origin", "main")
+    main_sha = _git(repo, "rev-parse", "origin/main") or "unknown"
     try:
-        proofs.extend(
-            proofs_from_git_ref(
-                repo,
-                "origin/main",
-                sha=main_sha or "unknown",
-            )
-        )
+        proofs.extend(proofs_from_git_ref(repo, "origin/main", sha=main_sha))
     except Exception:
         _logger.exception("metric notice.proof_scan_failed")
-    try:
-        authored = maybe_author(book, repo)
-        if authored is not None:
-            proofs.append(authored)
-    except Exception:
-        _logger.exception("metric notice.author_failed")
     digest = book.settle(proofs)
     _logger.info(
-        "notice digest as_of=%s open=%d closed=%d informed=%s on_main=%s",
+        "notice digest as_of=%s open=%d closed=%d informed=%s",
         digest.as_of.isoformat(),
         len(digest.rows),
         len(digest.closed_this_run),
         digest.informed,
-        on_main(repo),
     )
     return 0
 
