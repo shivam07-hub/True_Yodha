@@ -167,6 +167,13 @@ until `4e8fca46`), Myro Ops (notifications → automatic picks → "show me more
 slices 3-5), the Chrome extension, and making the built tailoring engine the
 obvious next step after a match. Two Ops items are blocked on the scraper.
 
+**The evidence bank — the horizontal loop has no surface.** *Needs a grill
+first: [BACKLOG.md](BACKLOG.md) #45, design artboard 2a.* Prep records against
+the PERSON now, so clearing a step really does count in every room
+(`85ac9ead`, `10043107`). Nothing shows it: a user who answers a gap at Sanofi
+has just moved four other rooms and is told nothing. One sentence in a footer
+is not the surface that claim needs.
+
 ### Standing, not a stage
 
 - **113 beta feedback items logged as unverified.** Built is not closed. Each
