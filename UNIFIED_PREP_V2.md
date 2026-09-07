@@ -171,6 +171,8 @@ no other door anywhere in the app.
 | `bcfe5b08` | three tap targets under 24x24 on the rail |
 | `16d605aa` | the 390px frame |
 | `d9646967` | two claims the room made that its own data did not support |
+| `cad2474c` | step 3 records; the footer, closed rooms and step 4 stop lying |
+| `373c7f62` | the rehearsal questions were broken English on half the rows |
 
 ## The contract
 
@@ -215,5 +217,59 @@ No step runs a model. Coverage, rehearsal and the brief all live in
   browser — that checks the rendering, not the endpoint. The endpoint is
   covered by its own tests and answers 200 in production.
 - **A real phone.** Every mobile measurement is a 375px Chromium.
-- `step 3` has no completion signal yet: nothing writes the `prep_rehearsal`
-  deepening key, so rehearsal reads 0 for everyone until the panel records it.
+- **A hard gate on step 4.** The card said "opens at step 3" while `BriefCard`
+  sells the brief whenever it is opened — a claim the user disproves by paying
+  30 coins. The copy now reads "best after step 3" and the panel says why once,
+  before the charge. Making it a real gate blocks a purchase, which is a
+  revenue decision, not a copy one. Shivam's call.
+
+---
+
+# Step 3, and the 360 pass — 2026-09-07
+
+**Step 3 could never be cleared.** `RehearsePanel` was a pure projection and
+wrote nothing, so the ladder read `prep_rehearsal` as absent for every user,
+forever. A step nobody can finish is a step nobody works.
+
+`GET/PUT /preparations/{job_id}/rehearsal`. The stored state is the **set** of
+requirements rehearsed, never a count: a count cannot survive the JD being
+re-parsed, because the questions change underneath it and a stored "6 of 6"
+silently becomes a lie. Storing the set lets every read recompute against the
+live questions — which is also what lets the step drop back out of "clear"
+when new requirements appear.
+
+The client sends the WHOLE set rather than one toggle, so there is no
+read-then-write window for two quick taps to race through, and the server
+filters to requirements this job actually states — otherwise the endpoint is a
+place to store arbitrary strings and the step could be cleared without
+answering anything.
+
+## Every part comes from an analysis, and leads to a decision
+
+The pass that checked it, and the four places it did not hold:
+
+| Part | Comes from | Leads to |
+|---|---|---|
+| rail rooms + pips | the ladder | the room, that step |
+| step 1 | `jd_coverage` | answer a gap → banks a story |
+| step 2 | `job_skills` × `user_skills` | `/practice`, or a path request |
+| step 3 | step 1's rows | mark worked → clears the step |
+| step 4 | steps 1-3 | the brief |
+| Finlatics ×3 | the board's own gaps | apply, with the `why` stated |
+| cross-room line | every live room | **the room furthest behind** |
+
+- **The cross-room line named a bottleneck and offered no door.** It now links
+  to the room furthest behind on that step, `?step=N` so the reader lands on
+  the card rather than hunting for it.
+- **A closed room rendered as 0% with four empty pips** — an over job reading
+  as "you never prepared", with nothing to tell the two apart. Closed rooms
+  keep their place and drop the progress claim.
+- **Step 4 claimed a gate that does not exist** (above).
+- **Half the rehearsal questions were broken English.** `jd_coverage` returns
+  verb phrases AND noun phrases; one frame cannot hold both. "Tell me about a
+  time you senior stakeholder management up to executive committee level."
+  Two frames now, chosen on the first word, neither conjugating.
+
+Inbound was already whole: the nav tab, the next-action chip, the Collections
+row, the mobile bottom nav, the newsletter prep intent and the legacy `/cv`
+redirect all land on a room.
