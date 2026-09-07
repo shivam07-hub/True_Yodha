@@ -36,6 +36,21 @@ class TestEvidenceStep:
         assert prep_ladder.evidence_step(_coverage(gap=3)) == prep_ladder.NOT_STARTED
 
 
+class TestEvidenceProgress:
+    def test_no_assessment_counts_nothing(self) -> None:
+        assert prep_ladder.evidence_progress(None) == (0, 0)
+
+    def test_all_covered_reads_as_whole(self) -> None:
+        assert prep_ladder.evidence_progress(_coverage(covered=9)) == (9, 9)
+
+    def test_weak_is_not_an_answer(self) -> None:
+        """The head must not read 9/9 above a panel still asking a question —
+        same rule as `evidence_step`, so count and pip cannot disagree."""
+        result = _coverage(covered=3, weak=1, gap=1)
+        assert prep_ladder.evidence_progress(result) == (3, 5)
+        assert prep_ladder.evidence_step(result) != prep_ladder.CLEAR
+
+
 class TestLevelStep:
     def test_job_with_no_levelled_skills_is_clear(self) -> None:
         """Nothing to close. Holding it at 0 would cap the room at 75% forever."""

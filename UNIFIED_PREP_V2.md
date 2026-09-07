@@ -335,3 +335,59 @@ answering a gap. The cost now sits on the rare write.
 - Step 3's carry is by story. Two rooms that ask the same thing but map it to
   DIFFERENT stories still count separately — correct, but it means the carry is
   as good as the story matching underneath it.
+
+
+---
+
+# The 2b fidelity pass — 2026-09-08
+
+The shipped surface was 2b's structure at the wrong proportions. Screenshots
+side by side: the rail took ~550px of a 1456 frame, and everything the rail is
+supposed to key stretched with it.
+
+**The one defect underneath the rest.** `.prp-workspace-page .mc-workspace` was
+`minmax(280px, 2fr) minmax(0, 3fr)`. 2b draws `360px minmax(0, 1fr)`, and the
+fixed part is load-bearing — the four legend labels, the room rows' ellipsis
+and the four pips are all sized for that column. At 2fr the legend spread
+across 550px, the rows stopped truncating, and the room lost 190px to a list.
+`prep-loading-shape.test.ts` now pins 360px, so this cannot drift back quietly.
+
+What else came off the drawing:
+
+| Was | Now | Why |
+|---|---|---|
+| Legend read EVIDENCE · SKILL LEVEL · REHEARSAL · DAY-OF BRIEF | EVIDENCE · LEVEL · REHEARSE · BRIEF (`STEP_LEGEND`) | the full names only fit the over-wide rail; 2b shortens them |
+| Step heads said "clear", "not started" | "9/9 · clear", "0/9" | 2b states counts; `evidence`/`rehearsal` now ride the ladder read |
+| Step 1 sub was a description | "All 9 requirements answered" | the drawing's own line, with this room's number |
+| Step 2 sub counted open levels | "The levels this job tests, and where you actually are" | 2b's line |
+| One card open at a time | each card owns its disclosure | 2b draws step 1 and step 2 open together; reading the evidence cost the level rows |
+| Step 2 had no footer | "…has no drill yet. A Finlatics programme in the rail covers it." | 2b's only in-room Finlatics mention, and it only appears when a row has no drill |
+| Coverage row read `story — pointer` | `Banked · story · pointer` | 2b's format, and the prose em dash is banned in UI copy |
+
+The counts come from the coverage this read already holds — no new round trip,
+and `answered` excludes weak matches exactly as `evidence_step` does, so a head
+can never read 9/9 above a panel still asking a question.
+
+**375 was overflowing by 21px and nobody had measured it.** `.mc-ws-main` is a
+column flex item below 980px, and a column flex item is sized on the cross axis
+by its own min-content — `min-width: 0` does not bound that. The room was 382px
+inside a 347px column, clipping the stage chip and every step's state. Both
+columns are `width: 100%` now, and the stage chip wraps under the title instead
+of pushing the head off-screen.
+
+## Deliberately NOT changed back to the drawing
+
+- **Step 4's CTA stays "Get it", not "Get it · 30".** `BriefCard`'s own button
+  is `Get the day-of brief · 30` and is the thing that charges. A price on a
+  head that only expands is a charge the reader is promised and does not get.
+- **The CTAs keep their chevron.** 2b draws them as actions; ours are
+  disclosures, and the chevron is what says so.
+- **The room opens the step it is ON, not step 1.** 2b's artboard shows both
+  open because it is showing the mechanic. A default that opens a cleared step
+  pushes the next action below the fold.
+- **"came free from your bank"** is still not built — nothing counts which
+  answers pre-dated this room, and the sub does not guess.
+
+Verified by serving a fixture board to the real components at 1456 and 375, in
+both surfaces. The harness was deleted; the populated surface still has never
+been seen in a real authed session.

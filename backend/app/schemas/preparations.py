@@ -12,6 +12,13 @@ class LevelRow(BaseModel):
     has_drill: bool
 
 
+class StepProgress(BaseModel):
+    """A step's own count, stated by its card head ("9/9 · clear")."""
+
+    answered: int = 0
+    total: int = 0
+
+
 class LadderRoom(BaseModel):
     """One live prep room's position on the four-step ladder.
 
@@ -31,6 +38,12 @@ class LadderRoom(BaseModel):
     #: the ladder already resolved `job_skills` for the whole board, so a second
     #: endpoint would re-read what this one has in hand.
     levels: list[LevelRow] = Field(default_factory=list)
+    #: Step 1's count: requirements answered, of requirements this job states.
+    #: `answered` excludes weak matches, exactly as `evidence_step` does, so the
+    #: head's number and its pip can never tell different stories.
+    evidence: StepProgress = Field(default_factory=StepProgress)
+    #: Step 3's count: stories worked, of stories this room's questions need.
+    rehearsal: StepProgress = Field(default_factory=StepProgress)
 
 
 class LadderTotals(BaseModel):

@@ -26,7 +26,19 @@ export const CLEAR = 2
  * after step 3" instead — true, and still points at the right order. Whether
  * to make it a real gate is a revenue decision, not a copy one.
  */
-export function stepState(index: number, value: number, currentStep: number): string {
+export function stepState(
+  index: number,
+  value: number,
+  currentStep: number,
+  /** The step's own count, when it has one. 2b states numbers, not adjectives. */
+  count?: { answered: number; total: number },
+): string {
+  if (count && count.total > 0) {
+    const tally = `${count.answered}/${count.total}`
+    if (value === CLEAR) return `${tally} · clear`
+    if (index + 1 === currentStep) return `${tally} · step you're on`
+    return tally
+  }
   if (value === CLEAR) return "clear"
   if (index + 1 === currentStep) return "step you're on"
   if (index === 3 && currentStep < 3) return "best after step 3"
@@ -40,6 +52,7 @@ export function StepCard({
   value,
   currentStep,
   sub,
+  count,
   cta,
   open,
   onToggle,
@@ -49,6 +62,8 @@ export function StepCard({
   value: number
   currentStep: number
   sub: string
+  /** This step's own count, when the ladder answered one. */
+  count?: { answered: number; total: number }
   /** Overrides the step's default verb — step 2 names the level it would start. */
   cta?: string
   open: boolean
@@ -75,7 +90,7 @@ export function StepCard({
           <span className="prp-step-sub">{sub}</span>
         </span>
         <span className="prp-step-state" data-state={value}>
-          {stepState(index, value, currentStep)}
+          {stepState(index, value, currentStep, count)}
         </span>
         <span className="prp-step-cta">
           {value === CLEAR ? "Review" : cta ?? CTA_LABEL[index]} <Chevron size={14} aria-hidden />

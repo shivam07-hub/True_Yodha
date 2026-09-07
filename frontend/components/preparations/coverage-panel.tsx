@@ -126,8 +126,8 @@ export function CoveragePanel({ token, jobId }: { token: string; jobId: string }
               <div className="prp-req-text">{row.requirement}</div>
               {row.status !== "gap" && row.story_title ? (
                 <div className="prp-req-story">
-                  <b>{row.story_title}</b>
-                  {row.story_pointer ? <> — {row.story_pointer}</> : null}
+                  Banked · <b>{row.story_title}</b>
+                  {row.story_pointer ? <> · {row.story_pointer}</> : null}
                 </div>
               ) : null}
               {isOpen && !isBanked ? (

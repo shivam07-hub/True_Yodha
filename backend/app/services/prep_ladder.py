@@ -59,6 +59,19 @@ def evidence_step(coverage: CoverageResult | None) -> int:
     return NOT_STARTED
 
 
+def evidence_progress(coverage: CoverageResult | None) -> tuple[int, int]:
+    """(answered, stated) for step 1 — the numbers the card states.
+
+    `answered` is `covered` alone. A weak match is not an answer: the coverage
+    panel is still asking for a better story, and counting it would let the head
+    read "9/9" above a panel with an open question. Same rule as
+    `evidence_step`, so the count and the pip can never disagree.
+    """
+    if coverage is None:
+        return 0, 0
+    return coverage.covered, len(coverage.requirements)
+
+
 def level_step(wanted: dict[str, int], user_levels: dict[str, int]) -> int:
     """Step 2. The levels this job tests, against the levels the user holds.
 

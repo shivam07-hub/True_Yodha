@@ -21,6 +21,7 @@
   margin-bottom: 6px;
 }
 .prp-room-title { flex: 1; min-width: 0; }
+.prp-room-stage { position: relative; }
 .prp-room-role { font-size: 19px; font-weight: 700; color: var(--tm-text); margin: 0; }
 .prp-room-company {
   font-size: 13px;
@@ -370,8 +371,17 @@
   max-width: 1480px;
   margin: 0 auto;
 }
+/* 2b draws a fixed 360px rail against a fluid room, and the fixed part is
+   load-bearing: the legend's four labels, the room rows' ellipsis and the four
+   pips are all sized for that column. A fractional rail (this was 2fr·3fr) took
+   ~550px at 1456 and stretched every one of them — the ladder read as a list
+   with a cramped room beside it. */
 .prp-workspace-page .mc-workspace {
-  grid-template-columns: minmax(280px, 2fr) minmax(0, 3fr);
+  grid-template-columns: 360px minmax(0, 1fr);
+}
+
+@media (max-width: 1180px) {
+  .prp-workspace-page .mc-workspace { grid-template-columns: 300px minmax(0, 1fr); }
 }
 
 .prp-stand {
@@ -403,7 +413,11 @@
   /* DOM-first rail would stack above the rooms. Keep rooms first; standing
      column follows, still visible — unlike Collections' --peek hide. */
   .prp-workspace-page .mc-workspace { display: flex; flex-direction: column; }
-  .prp-workspace-page .mc-ws-main { order: 1; }
+  /* A column flex item is sized on the cross axis by its own min-content, and
+     `min-width: 0` does not bound that — the room was 382px inside a 347px
+     column at 375, clipping the stage chip and every step's state. */
+  .prp-workspace-page .mc-ws-main,
+  .prp-workspace-page .mc-ws-rail { order: 1; width: 100%; min-width: 0; }
   .prp-workspace-page .mc-ws-rail { order: 2; }
 }
 
@@ -412,6 +426,10 @@
    four steps, same order — that is the "one machine" claim. */
 @media (max-width: 640px) {
   .prp-workspace-page { padding: 18px 14px 96px; }
+  /* The stage chip cannot sit beside a three-line role at 375. It drops under
+     the title rather than pushing the head past the viewport. */
+  .prp-room-head { flex-wrap: wrap; }
+  .prp-room-stage { flex-basis: 100%; }
   .prp-room-role { font-size: var(--tm-fs-prose); }
   .prp-band { flex-wrap: wrap; gap: 14px; padding: 14px 16px; }
   .prp-ring { width: 62px; height: 62px; }
@@ -812,6 +830,15 @@
   border: 1px solid var(--tm-border);
   color: var(--tm-text-muted);
 }
+/* Step 2's footer — the room's only Finlatics sentence, and it only appears
+   when a row has no drill behind it. */
+.prp-level-foot {
+  margin: 4px 0 0;
+  font-size: var(--tm-fs-ui-sm);
+  line-height: 1.5;
+  color: var(--tm-text-muted);
+}
+
 .prp-level-met {
   font-family: var(--tm-font-mono);
   font-size: var(--tm-fs-caption);

@@ -94,7 +94,10 @@ test("The room renders the four steps, and every pip reads the same data-state",
   // The rail pip, the band pip and the step number all key off data-state.
   assert.match(css, /\.prp-lroom-pips > span\[data-state="2"\]/)
   assert.match(css, /\.prp-step-n\[data-state="2"\]/)
-  assert.match(css, /grid-template-columns:\s*minmax\(280px,\s*2fr\)\s*minmax\(0,\s*3fr\)/)
+  // 2b's rail is a FIXED 360px against a fluid room. A fractional rail took
+  // ~550px at 1456 and stretched the legend, the room rows and the pips it is
+  // supposed to key — the drift this test now pins shut.
+  assert.match(css, /grid-template-columns:\s*360px\s*minmax\(0,\s*1fr\)/)
 
   // The list page's stage-grouped index is gone, and so are its styles.
   assert.doesNotMatch(css, /\.prp-group-head/)

@@ -63,15 +63,24 @@ function ReadinessRing({ pct, size = 76 }: { pct: number; size?: number }) {
   )
 }
 
-function stepSubs(app: ApplicationResponse, room: LadderRoom | undefined): string[] {
-  const levels = room?.levels ?? []
-  const open = levels.filter((l) => l.held < l.required).length
+/** 2b's four subs, stated with this room's own numbers where it has them.
+ *  The drawing writes "All 9 requirements answered · 4 came free from your
+ *  bank"; the second clause is not built — nothing counts which answers
+ *  pre-dated this room — and a sub that guesses it would be the room claiming
+ *  something its data cannot show. The counted half ships, the guess does not. */
+function stepSubs(room: LadderRoom | undefined): string[] {
+  const evidence = room?.evidence
+  const rehearsal = room?.rehearsal
   return [
-    "Every requirement this job states, against the stories you have banked",
-    open > 0
-      ? `${open} of ${levels.length} levels this job tests are still open`
-      : "The levels this job tests, and where you actually are",
-    "Your answers, asked back as the interview questions they become",
+    evidence && evidence.total > 0
+      ? evidence.answered >= evidence.total
+        ? `All ${evidence.total} requirements answered`
+        : `${evidence.answered} of ${evidence.total} requirements answered`
+      : "Every requirement this job states, against the stories you have banked",
+    "The levels this job tests, and where you actually are",
+    rehearsal && rehearsal.total > 0
+      ? `Your ${rehearsal.total} answers, asked back as interview questions`
+      : "Your answers, asked back as the interview questions they become",
     "One page: lead-with stories, likely questions, a plan",
   ]
 }
@@ -95,10 +104,14 @@ export function PrepRoom({
 }) {
   const { updateStatus, updateNotes } = useTrackerBoard()
   const [pickerOpen, setPickerOpen] = React.useState(false)
-  const [openStep, setOpenStep] = React.useState<number | null>(null)
+  // 2b draws two cards open at once — step 1 showing what is banked, step 2
+  // showing the levels. One-at-a-time made reading the evidence cost the level
+  // rows, so each card owns its own disclosure. `null` = the room has not been
+  // touched yet and still shows its default.
+  const [opened, setOpened] = React.useState<ReadonlySet<number> | null>(null)
   // A `?step=` link is a request, not a permanent mode: once the reader opens a
   // different card themselves, their choice wins.
-  React.useEffect(() => { setOpenStep(null) }, [app.job_id])
+  React.useEffect(() => { setOpened(null) }, [app.job_id])
   const now = new Date()
 
   const stage = roomStage(app.status)
@@ -107,7 +120,19 @@ export function PrepRoom({
   const current = room?.current_step ?? 1
   // Until the user opens one themselves, the room opens the step it is on —
   // the answer to "what do I do next" should not need a click.
-  const expanded = openStep ?? (initialStep ? initialStep - 1 : current - 1)
+  const fallback = React.useMemo(
+    () => new Set([initialStep ? initialStep - 1 : current - 1]),
+    [initialStep, current],
+  )
+  const open = opened ?? fallback
+  function toggleStep(index: number) {
+    setOpened((prev) => {
+      const next = new Set(prev ?? fallback)
+      if (next.has(index)) next.delete(index)
+      else next.add(index)
+      return next
+    })
+  }
 
   const versionsQ = useQuery({
     queryKey: dataKeys.cvVersions(null),
@@ -125,9 +150,12 @@ export function PrepRoom({
   const followUp = stage === "applied" ? followUpLine(app, now) : null
   const stageCheck = stage === "applied" && needsStageCheck(app, now)
   const days = daysInStage(app, now)
-  const subs = stepSubs(app, room)
+  const subs = stepSubs(room)
   const startAt = nextLevel(room?.levels ?? [])
   const ctas = [undefined, startAt ? `Start L${startAt}` : undefined, undefined, undefined]
+  // Only steps 1 and 3 count anything. Step 2's state is the level rows and
+  // step 4's is one artefact, so neither gets a tally it would have to invent.
+  const counts = [room?.evidence, undefined, room?.rehearsal, undefined]
   const bodies = [
     <CoveragePanel key="c" token={token} jobId={app.job_id} />,
     <div key="l">
@@ -157,7 +185,7 @@ export function PrepRoom({
             ) : null}
           </p>
         </div>
-        <div style={{ position: "relative" }}>
+        <div className="prp-room-stage">
           <button
             type="button"
             className="prp-stage-btn"
@@ -223,9 +251,10 @@ export function PrepRoom({
                 value={steps[i] ?? 0}
                 currentStep={current}
                 sub={subs[i]}
+                count={counts[i]}
                 cta={ctas[i]}
-                open={expanded === i}
-                onToggle={() => setOpenStep(expanded === i ? -1 : i)}
+                open={open.has(i)}
+                onToggle={() => toggleStep(i)}
               >
                 {bodies[i]}
               </StepCard>

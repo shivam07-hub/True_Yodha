@@ -19,7 +19,7 @@ import { CompanyAvatar, STAGE_META } from "@/components/cv/builder/library-share
 import { SkillPathRail } from "./skill-path-rail"
 import { TrainingCard } from "./training-card"
 import { AuditCard } from "./audit-card"
-import { STEP_LABELS, roomStage } from "./prep-model"
+import { STEP_LABELS, STEP_LEGEND, roomStage } from "./prep-model"
 
 function StepPips({ steps, className }: { steps: number[]; className: string }) {
   return (
@@ -105,7 +105,7 @@ export function PrepRail({
             wherever it applies.
           </p>
           <div className="prp-legend">
-            {STEP_LABELS.map((label) => (
+            {STEP_LEGEND.map((label) => (
               <span className="prp-legend-col" key={label}>
                 <span className="prp-legend-label">{label}</span>
                 <span className="prp-legend-bar" aria-hidden />
