@@ -273,3 +273,65 @@ The pass that checked it, and the four places it did not hold:
 Inbound was already whole: the nav tab, the next-action chip, the Collections
 row, the mobile bottom nav, the newsletter prep intent and the legacy `/cv`
 redirect all land on a room.
+
+---
+
+# One platform — 2026-09-07
+
+> The user is upskilling. A job is the occasion for the preparation, never its
+> unit. It should not matter which job they prepared for: if they prepared,
+> Myro knows.
+> — Shivam, 2026-09-07
+
+The surface has two loops. **Vertical** — one room, four steps — always worked.
+**Horizontal** — one step, every room — is the sentence at the top of the rail,
+*"Clear a step once and it counts wherever it applies"*, and it is the reason
+Prep is worth having. Three of the four steps did not hold it up.
+
+| Step | Unit of record | Carried across rooms |
+|---|---|---|
+| 1 Evidence | `career_stories` — the person | **yes**, since `10043107` |
+| 2 Skill level | `user_skills` — the person | yes, always (computed live) |
+| 3 Rehearsal | `career_stories.rehearsed_at` — the person | **yes**, since `85ac9ead` |
+| 4 Day-of brief | the job | no — and correctly so |
+
+Step 2 was the model to copy: it is recomputed from `user_skills × job_skills`
+on every ladder read, so a level raised in Practice shows in all eleven rooms at
+once, with no invalidation to forget.
+
+**Step 3** stored requirement STRINGS keyed by job, so the same story rehearsed
+in seven rooms started from zero seven times. It now marks the STORY. The join
+was already in the data — every room's cached coverage carries the `story_id`
+that answers each requirement — so the carry costs no extra read.
+
+**Step 1** was a projection of a user-level bank through a per-job cache that
+nothing ever invalidated. Banking a story now flags every other room's row
+stale; a flagged row re-runs the match only, reusing its requirements (the JD
+did not change, and re-parsing would spend the judgment lane to maybe reword a
+panel whose stability is the point).
+
+**Step 4 stays per job.** A day-of brief is about one conversation on one date.
+Not every per-job record is a bug; the test is whether the thing being recorded
+belongs to the person or to the occasion.
+
+## Where the cost lands
+
+Both carries are free on the read path, which is the frequent one:
+
+- rehearsal rides in `prep_user_state()` — levels held and stories rehearsed in
+  ONE round trip, so the ladder's wave stays at three concurrent sections
+- staleness rides inside the cached coverage payload
+
+The first version of the step-1 fix read a "bank last changed" marker on every
+panel load. That was the wrong shape: it taxed opening a room to serve
+answering a gap. The cost now sits on the rare write.
+
+## What this leaves
+
+- **The horizontal loop still has no surface of its own.** The cross-room
+  footer links to the room furthest behind — that is the vertical loop wearing
+  a horizontal label. Artboard **2a, "the evidence bank"**, is that surface
+  drawn properly, and it is not built.
+- Step 3's carry is by story. Two rooms that ask the same thing but map it to
+  DIFFERENT stories still count separately — correct, but it means the carry is
+  as good as the story matching underneath it.
