@@ -37,6 +37,7 @@ export default function robots(): MetadataRoute.Robots {
           // crawl → "Submitted URL blocked by robots.txt"). Detail pages are now
           // server-rendered with self-canonical metadata. Invariant enforced by
           // tests/seo-sitemap-robots.test.mjs.
+          "/dev",
           "/cv",
           "/dashboard",
           "/diary",

@@ -64,7 +64,7 @@ test("representative dynamic sitemap URLs are crawlable in robots", () => {
 
 test("private surfaces stay disallowed (no over-correction)", () => {
   const { allow, disallow } = rule()
-  for (const path of ["/login", "/signup", "/home", "/cv", "/dashboard"]) {
+  for (const path of ["/login", "/signup", "/home", "/cv", "/dashboard", "/dev"]) {
     assert.ok(
       !isAllowed(path, allow, disallow),
       `${path} is private and must stay robots-disallowed`,
