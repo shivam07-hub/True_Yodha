@@ -20,13 +20,37 @@ import { Check } from "lucide-react"
 import { cv as cvApi, preparations, type CoverageRow, type RehearsalState } from "@/lib/api"
 import { dataKeys } from "@/lib/domain-data"
 
-/** "Own enterprise quota planning" → "Tell me about a time you owned enterprise
- *  quota planning." Deterministic phrasing — same words the JD used. */
+/** JD requirements come in two grammatical shapes, and one frame cannot hold
+ *  both. `jd_coverage` asks the model for "requirement phrases as the JOB
+ *  states them", which yields verb phrases ("Lead cross-functional programme
+ *  delivery") AND noun phrases ("Senior stakeholder management up to executive
+ *  committee level"). Prefixing every one with "Tell me about a time you"
+ *  produced "a time you senior stakeholder management up to executive committee
+ *  level" — visible broken English on the panel's primary content.
+ *
+ *  Two frames, chosen on the first word, and neither needs conjugating (which
+ *  is where the irregular verbs would have got us): "a time you HAD TO lead…"
+ *  and "your experience WITH senior stakeholder management…". Same words the
+ *  JD used, either way. */
+const VERB_STARTS = new Set([
+  "lead", "own", "manage", "build", "drive", "deliver", "run", "develop",
+  "design", "define", "create", "execute", "support", "maintain", "coordinate",
+  "oversee", "partner", "collaborate", "analyse", "analyze", "report",
+  "present", "negotiate", "handle", "implement", "improve", "optimise",
+  "optimize", "scale", "launch", "ship", "grow", "hire", "mentor", "train",
+  "plan", "prioritise", "prioritize", "communicate", "engage", "translate",
+  "monitor", "track", "review", "ensure", "establish", "identify", "resolve",
+  "work", "collect", "conduct", "provide", "prepare", "produce", "set",
+])
+
 export function toInterviewQuestion(requirement: string): string {
   const req = requirement.trim().replace(/[.!]+$/, "")
   if (!req) return ""
   const lower = req.charAt(0).toLowerCase() + req.slice(1)
-  return `Tell me about a time you ${lower}.`
+  const first = lower.split(/[\s,/]+/)[0]?.toLowerCase() ?? ""
+  return VERB_STARTS.has(first)
+    ? `Tell me about a time you had to ${lower}.`
+    : `Tell me about your experience with ${lower}.`
 }
 
 export function RehearsePanel({ token, jobId }: { token: string; jobId: string }) {
