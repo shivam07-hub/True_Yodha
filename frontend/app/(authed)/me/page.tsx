@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { useViewport } from "@/mobile"
 import { ProfileSurface } from "@/mobile/redesign/profile-surface"
+import { ProfileMobileSkeleton } from "@/components/loading/mobile-page-skeletons"
 
 /**
  * /me — the mobile Profile tab (handoff IA swap): score + missions + hub list,
@@ -12,7 +13,7 @@ import { ProfileSurface } from "@/mobile/redesign/profile-surface"
  * dashboard + web-chrome, so a desktop hit redirects home.
  */
 export default function ProfilePage() {
-  const { token } = useAuth()
+  const { token, ready } = useAuth()
   const { mode } = useViewport()
   const router = useRouter()
 
@@ -24,5 +25,6 @@ export default function ProfilePage() {
   }, [mode, router])
 
   if (mode !== "mobile") return null
+  if (!ready) return <ProfileMobileSkeleton />
   return <ProfileSurface token={token ?? ""} />
 }

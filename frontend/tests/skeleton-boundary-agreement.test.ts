@@ -56,7 +56,7 @@ function skeletonsRenderedBy(pageFile: string): Set<string> {
 // /cv is excluded here and asserted separately below: it has THREE destinations
 // behind one pathname, so its agreement is "every boundary calls the same
 // picker", not "one component matches one route".
-const AUTHED = ["market", "intel", "skills", "practice", "preparations", "collections", "home"]
+const AUTHED = ["market", "intel", "skills", "practice", "preparations", "collections", "home", "me"]
 
 test("every route boundary paints the skeleton its page paints", () => {
   const table = routingTable()

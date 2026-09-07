@@ -22,6 +22,7 @@ import { SwipeCard } from "./swipe-card"
 import { feedItemToRow } from "./job-model"
 import { MobileAgentPicks } from "./agent-picks-mobile"
 import { useMobileUI } from "./mobile-ui"
+import { JobsMobileFeedRows } from "@/components/loading/mobile-page-skeletons"
 
 /* ══════════════════════════════════════════════════════════════════════════
    JobsSurface — the handoff Jobs tab: swipe-triage feed over the REAL market
@@ -237,7 +238,7 @@ export function JobsSurface({
         {eyeOn ? (
           <HiddenView token={token} snack={snack} />
         ) : loading ? (
-          <FeedSkeleton />
+          <JobsMobileFeedRows />
         ) : rows.length === 0 ? (
           <div style={{ textAlign: "center", padding: "44px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
             <div style={{ fontSize: 15, fontWeight: 650 }}>Feed clear 🎯</div>
@@ -320,16 +321,6 @@ function SegBtn({ on, onClick, children }: { on: boolean; onClick: () => void; c
     <button onClick={onClick} style={{ height: 28, padding: "0 14px", borderRadius: 7, border: "none", background: on ? "var(--mm-raise-2)" : "transparent", color: on ? "var(--mm-text)" : "var(--mm-faint)", fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "background 180ms" }}>
       {children}
     </button>
-  )
-}
-
-function FeedSkeleton() {
-  return (
-    <>
-      {[0, 1, 2].map(i => (
-        <div key={i} style={{ background: "var(--mm-card)", border: "1px solid var(--mm-hair)", borderRadius: 16, padding: 14, height: 128, opacity: 1 - i * 0.18, animation: "mm-stepPulse 1.4s ease infinite" }} />
-      ))}
-    </>
   )
 }
 

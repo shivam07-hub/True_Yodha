@@ -14,6 +14,7 @@ import {
   MobileTopBar,
   MobileUIProvider,
   PracticeSheet,
+  AppShellSkeleton,
   useViewport,
 } from "@/mobile"
 
@@ -44,16 +45,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // consume the stash. The replay is idempotent and clears its own stash.
   usePendingJobSaveClaim(m.token)
 
-  // Auth bootstrap window — before chrome/profile can render. Show the
-  // destination page's own skeleton shape rather than a centered logo splash,
-  // so the perceived load is continuous: shell-bootstrap skeleton → page
-  // skeleton → real content, all in the same layout.
+  // Auth bootstrap window — before chrome/profile can render. Chrome skeleton
+  // + the destination page skeleton in one frame, so the load does not grow
+  // bars around a page that already painted, then paint that page again.
   //
   // Gate on token too: when bootstrap finished with no session (ready && !token)
   // useAuth has fired router.replace(/login). Holding the skeleton during
   // that redirect-in-flight window stops authed children rendering token-less
   // (Backlog #16 — logged-out visitor landed on a blank /tracker).
-  if (!m.ready || !m.token) return <>{skeletonForPath(pathname)}</>
+  if (!m.ready || !m.token) {
+    return <AppShellSkeleton>{skeletonForPath(pathname)}</AppShellSkeleton>
+  }
 
   return (
     <MobileUIProvider>

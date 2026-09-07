@@ -18,6 +18,7 @@ import { CollectionCard, pulseLine } from "./collection-card"
 import { MobileAgentPicks } from "./agent-picks-mobile"
 import { matchToRow } from "./job-model"
 import { useMobileUI } from "./mobile-ui"
+import { CollectionsMobileFeedRows } from "@/components/loading/mobile-page-skeletons"
 
 /* ══════════════════════════════════════════════════════════════════════════
    CollectionsSurface — the mobile Myro Ops folder. ONE read
@@ -186,7 +187,7 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
              yet. The empty state used to render a verdict about the market
              while the request was still in flight. */
           <div aria-busy="true" aria-live="polite" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {[0, 1, 2].map(i => <div key={i} style={{ height: 86, borderRadius: 16, background: "var(--mm-card)", border: "1px solid var(--mm-hair)", opacity: 0.55 }} />)}
+            <CollectionsMobileFeedRows />
           </div>
         ) : isRefreshing && stage === "found" ? (
           <>
@@ -195,7 +196,7 @@ export function CollectionsSurface({ token, initialJobId, openSearch }: { token:
               {refreshVm.progressLabel ?? "Myro Ops · reading the market"}
               {refreshVm.progressTotal != null && refreshVm.progressDone != null ? ` · ${refreshVm.progressDone}/${refreshVm.progressTotal}` : ""}
             </div>
-            {[0, 1, 2].map(i => <div key={i} style={{ height: 86, borderRadius: 16, background: "var(--mm-card)", border: "1px solid var(--mm-hair)", opacity: 0.55 }} />)}
+            <CollectionsMobileFeedRows />
           </>
         ) : shown.length > 0 ? (
           <>
