@@ -12,6 +12,7 @@ through the same extraction path. Extraction auto-accepts (curate-after policy,
 """
 from __future__ import annotations
 
+import logging
 import zipfile
 from typing import Any
 
@@ -40,6 +41,8 @@ from app.services.reservoir_intake import (
 )
 
 router = APIRouter()
+
+logger = logging.getLogger("myro.cv.career")
 
 _MAX_FILES = 15
 _MIN_CHARS = 80          # CVUP4-style scanned/empty guard
@@ -494,4 +497,38 @@ async def jd_coverage_answer(
         )
         if patched:
             jobs_repo.upsert_deepening(user.id, body.job_id, jd_coverage.CACHE_PROMPT_KEY, patched)
+    _stale_other_rooms(jobs_repo, user.id, body.job_id)
     return GapAnswerResponse(entry_id=entry_id)
+
+
+def _stale_other_rooms(jobs_repo: JobsRepository, user_id: str, job_id: str | None) -> None:
+    """A story banked in ONE room changes what EVERY room can claim.
+
+    Myro is one platform: the bank is the user's, and each room's coverage is a
+    projection of it. Without this, answering a gap at Sanofi left 3M, Google
+    and KPMG all still saying "gap" about the same requirement — forever,
+    because nothing ever refreshed them. The module's own header has said
+    "consumers refresh explicitly" since July; no consumer ever did.
+
+    Flagged, not recomputed: re-matching every room here would spend the
+    embedding lane on rooms the user may never open again, and the new story is
+    not even embedded yet (ingest is enqueued). The flag is cheap, and the room
+    re-matches itself the next time it is opened.
+
+    Paid on the rare action (banking a story) so the frequent one (opening a
+    room) stays free. Fail-soft: a stale flag that does not get written is a
+    room that shows what it showed yesterday, never an error in the user's face
+    at the moment they answered a question.
+    """
+    try:
+        for row in jobs_repo.list_coverage_rows(user_id, jd_coverage.CACHE_PROMPT_KEY):
+            other = str(row.get("job_id") or "")
+            if not other or other == (job_id or ""):
+                continue
+            flagged = jd_coverage.mark_stale(row.get("answer"))
+            if flagged:
+                jobs_repo.upsert_deepening(
+                    user_id, other, jd_coverage.CACHE_PROMPT_KEY, flagged
+                )
+    except Exception:  # noqa: BLE001 — never fail the answer the user just gave
+        logger.warning("could not stale sibling coverage rows", exc_info=True)

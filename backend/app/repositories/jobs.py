@@ -3556,6 +3556,25 @@ class JobsRepository:
         )
         return bool(rows)
 
+    def list_coverage_rows(self, user_id: str, prompt_key: str) -> list[dict[str, Any]]:
+        """Every cached row this user holds under one prompt key, with its job.
+
+        Used to stale the OTHER rooms' coverage when a story is banked. Reads
+        with the token client — `job_deepenings` carries a select policy on
+        `auth.uid() = user_id`.
+        """
+        return (
+            safe_read(
+                self._db.table("job_deepenings")
+                .select("job_id, answer")
+                .eq("user_id", user_id)
+                .eq("prompt_key", prompt_key),
+                default=[],
+                context="coverage_rows",
+            )
+            or []
+        )
+
     def get_application_rooms(self, user_id: str) -> list[dict[str, Any]]:
         """Lean tracker read for the prep ladder: `job_id`, `status`, `company`.
 
