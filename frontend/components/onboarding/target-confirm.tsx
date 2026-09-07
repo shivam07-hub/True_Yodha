@@ -278,7 +278,6 @@ export function TargetConfirm({ token, result, onConfirmed, onBack, onForward }:
         <RoleStep
           families={families}
           selected={selected}
-          showSearch={showSearch}
           roleSearch={roleSearch}
           empty={!showSearch && suggested.length === 0 && !bootFamilies.isLoading}
           onToggle={toggleFamily}
