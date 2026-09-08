@@ -13,5 +13,13 @@ test("directory recovery defers its browser API module until a retry is needed",
 })
 
 test("following a company happens only after the user presses its control", () => {
-  assert.match(source, /toggle:\s*\(\)\s*=>\s*\{\s*window\.location\.href = "\/signup\?ref=companies"/)
+  // The guarantee is that the anonymous branch ROUTES on the press and never
+  // follows. This used to pin the navigation mechanism — the literal
+  // `window.location.href` — so it failed the moment that full document reload
+  // became a route change, even though the guarantee was untouched. Assert the
+  // destination and where it sits, not the API used to reach it.
+  assert.match(source, /toggle:\s*\(\)\s*=>\s*\{[^}]*"\/signup\?ref=companies"/)
+  // And it must stay a route change: a reload here rebuilds the directory the
+  // reader is standing in.
+  assert.doesNotMatch(source, /window\.location\.(href|assign|replace)/)
 })

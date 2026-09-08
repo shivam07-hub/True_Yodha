@@ -84,12 +84,29 @@ export default function OnboardingResultPage() {
     }
   }, [result.data, router])
 
+  // Start again is a round trip and then a route change. It used to be silent
+  // for the whole round trip and then threw the app away with
+  // `window.location.assign`, so the one control on a dead end cost a reload
+  // of the door the reader was being sent back through.
+  const [restarting, setRestarting] = useState(false)
+  const [restartError, setRestartError] = useState<string | null>(null)
+
   async function resetToUpload() {
-    if (!token) return
-    await onboarding.startOver(token)
+    if (!token || restarting) return
+    setRestarting(true)
+    setRestartError(null)
+    try {
+      await onboarding.startOver(token)
+    } catch {
+      // Surfaced beside the control, not swallowed: without this the button
+      // spins for ever on a failed restart, which is worse than the silence.
+      setRestarting(false)
+      setRestartError("Could not start again — try once more.")
+      return
+    }
     queryClient.removeQueries({ queryKey: dataKeys.onboarding() })
     queryClient.removeQueries({ queryKey: dataKeys.onboardingResult() })
-    window.location.assign("/onboarding")
+    router.replace("/onboarding")
   }
 
   function advance(next?: OnboardingResult) {
@@ -137,7 +154,8 @@ export default function OnboardingResultPage() {
         <h1 className="text-2xl font-semibold tracking-normal text-[var(--tm-text)]">Analysis stopped</h1>
         <p className="mt-3 text-sm leading-6 text-[var(--tm-text-muted)]">{result.data.message || "Myro could not complete this analysis."}</p>
         {result.data.xp_refunded && <p className="mt-2 text-sm font-medium text-[var(--tm-text)]">Any charged Myro Coins were returned.</p>}
-        <Button size="lg" className="mt-6" onClick={() => void resetToUpload()}><RotateCcw className="size-5" />Start again</Button>
+        <Button size="lg" className="mt-6" loading={restarting} onClick={() => void resetToUpload()}><RotateCcw className="size-5" />Start again</Button>
+        {restartError && <p className="mt-3 text-sm text-[var(--tm-danger)]">{restartError}</p>}
       </section>
     )
     return null
